@@ -6,6 +6,8 @@
 #include "g_horde_benefits.h"
 #include <span>
 
+
+
 namespace HordeConstants {
 // constexpr float PLAYER_MULTIPLIER = 0.2f;
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
@@ -33,14 +35,20 @@ struct SpawnPointData {
 	gtime_t cooldownEndsAt = 0_sec;
 	int32_t successfulSpawns = 0;
 
-	// Add functionality to better track spawn success rate
+	// Simplified success rate calculation
 	float getSuccessRate(gtime_t current_time) const {
 		if (attempts == 0) return 1.0f;
-		const float time_factor = std::min((current_time - lastSpawnTime).seconds() / 5.0f, 1.0f);
-		return float(successfulSpawns) / float(attempts) + time_factor;
+		// Use faster approximation - avoid division when possible
+		const float time_factor = (current_time - lastSpawnTime).seconds() >= 5.0f ?
+			1.0f : (current_time - lastSpawnTime).seconds() * 0.2f;
+		return (float(successfulSpawns) / float(attempts)) + time_factor;
 	}
 };
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
+
+void InitializeSpawnPointData() {
+	spawnPointsData.reserve(MAX_SPAWN_POINTS);
+}
 
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	if (!spawn_point || !spawn_point->inuse) {
@@ -50,7 +58,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	const gtime_t current_time = level.time;
 
-	// Reset attempts if enough time has passed
+	// Reset attempts if enough time has passed - early return optimization
 	if (current_time - data.lastSpawnTime > 6_sec) {
 		data.attempts = 0;
 		data.isTemporarilyDisabled = false;
@@ -60,30 +68,30 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 
 	data.attempts++;
 
-	// Dynamic attempt limit based on current success rate
+	// Dynamic attempt limit based on current success rate - simplified calculation
 	const float success_rate = data.getSuccessRate(current_time);
-	const int max_attempts = 4 + static_cast<int>(success_rate * 2); // 4-6 attempts max
+	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
 
-	// Adaptive cooldown duration
+	// Adaptive cooldown duration - use fewer branches
 	if (data.attempts >= max_attempts) {
+		data.isTemporarilyDisabled = true;
+
+		// Simplified cooldown calculation
+		const float cooldown_factor = success_rate < 0.3f ? 1.5f : 0.75f;
+		const float attempt_multiplier = data.attempts <= 8 ? data.attempts * 0.25f : 2.0f;
+		data.cooldownEndsAt = current_time + gtime_t::from_sec(cooldown_factor * attempt_multiplier);
+
 		if (developer->integer) {
 			gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n",
 				spawn_point->s.origin);
 		}
-
-		data.isTemporarilyDisabled = true;
-
-		// Progressive cooldown based on attempts and success rate
-		const float base_cooldown = success_rate < 0.3f ? 1.5f : 0.75f;
-		const float attempt_multiplier = std::min(data.attempts / 4.0f, 2.0f);
-		data.cooldownEndsAt = current_time + gtime_t::from_sec(base_cooldown * attempt_multiplier);
 	}
-	else if (data.attempts % 2 == 0) { // Small incremental cooldown every 2 attempts
+	else if ((data.attempts & 1) == 0) { // Check if even using bitwise AND
+		// Small incremental cooldown every 2 attempts
 		data.cooldownEndsAt = current_time + gtime_t::from_sec(0.2f * data.attempts);
 	}
 }
 
-// When a spawn is successful:
 void OnSuccessfulSpawn(edict_t* spawn_point) {
 	if (!spawn_point) return;
 
@@ -96,13 +104,6 @@ void OnSuccessfulSpawn(edict_t* spawn_point) {
 	// Short cooldown after successful spawn to prevent instant respawn
 	data.cooldownEndsAt = level.time + 0.5_sec;
 }
-//
-//// Batch version for multiple spawn points
-//void IncreaseSpawnAttemptsBatch(std::span<edict_t*> spawn_points) {
-//    for (edict_t* spawn_point : spawn_points) {
-//        IncreaseSpawnAttempts(spawn_point);
-//    }
-//}
 
 // Función de filtro optimizada
 // Modified SpawnPointFilter function
@@ -153,14 +154,13 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 		return true;
 	}
 
-	// Get or create cache entry
+	// Get or create cache entry - avoid repeat lookups
 	auto& cache = spawn_point_cache[spawn_point];
 
-	// Shorter cache duration
+	// Static duration to avoid reconstructing
 	static constexpr auto CACHE_DURATION = 25_ms;
 
 	// Check time-based cache with frame validation
-	// Instead of frame number, check if we're still within the same frame time
 	if (level.time - cache.last_check_time < CACHE_DURATION
 		&& cache.last_check_origin == spawn_point->s.origin
 		&& (level.time - cache.frame_time) < FRAME_TIME_MS) {
@@ -170,13 +170,16 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	// Update cache
 	cache.last_check_time = level.time;
 	cache.last_check_origin = spawn_point->s.origin;
-	cache.frame_time = level.time; // Store current time as frame time
+	cache.frame_time = level.time;
 
-	// Optimized space check
-	static constexpr vec3_t space_multiplier{ 1.75f, 1.75f, 1.75f };
-	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
-	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
+	// Optimized space check - precalculate scaled vectors
+	static const vec3_t mins_scale = vec3_t{ 16, 16, 24 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
+	static const vec3_t maxs_scale = vec3_t{ 16, 16, 32 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
 
+	const vec3_t spawn_mins = spawn_point->s.origin - mins_scale;
+	const vec3_t spawn_maxs = spawn_point->s.origin + maxs_scale;
+
+	// Use stack-allocated filter data
 	FilterData filter_data = { ignore_ent, 0 };
 	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
@@ -184,7 +187,6 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	cache.was_occupied = (filter_data.count > 0);
 	return cache.was_occupied;
 }
-
 
 //// New span-based batch check
 //bool AreSpawnPointsOccupied(std::span<const edict_t* const> spawn_points, const edict_t* ignore_ent = nullptr) {
@@ -232,11 +234,11 @@ static void CleanupSpawnPointCache() noexcept {
 //	return availableSpawns[irandom(availableSpawns.size())];
 //}
 
-// 1. First, modify the SelectRandomSpawnPoint declaration to be a template function
 template <typename TFilter>
 edict_t* SelectRandomSpawnPoint(TFilter filter) {
-	static std::vector<edict_t*> availableSpawns;
-	availableSpawns.clear();
+	// Pre-allocate on stack instead of using static vector
+	edict_t* availableSpawns[MAX_SPAWN_POINTS];
+	int availableCount = 0;
 
 	// Get all spawn points but don't process them yet
 	auto spawnPoints = monster_spawn_points();
@@ -252,27 +254,30 @@ edict_t* SelectRandomSpawnPoint(TFilter filter) {
 			continue;
 
 		// Only check filter if point isn't disabled
-		if (filter(spawnPoint)) {
-			availableSpawns.push_back(spawnPoint);
+		if (filter(spawnPoint) && availableCount < MAX_SPAWN_POINTS) {
+			availableSpawns[availableCount++] = spawnPoint;
 		}
 	}
 
-	if (availableSpawns.empty())
+	if (availableCount == 0)
 		return nullptr;
 
 	// Try spawn points in random order until we find a valid one
-	for (int32_t attempts = 0; attempts < 3 && !availableSpawns.empty(); attempts++) {
+	const int maxAttempts = std::min(3, availableCount);
+	for (int attempts = 0; attempts < maxAttempts; attempts++) {
 		// Pick a random index
-		const size_t idx = irandom(availableSpawns.size());
+		const size_t idx = irandom(availableCount);
 		edict_t* chosen = availableSpawns[idx];
 
 		// If spawn point is occupied, increase attempts and try another
 		if (IsSpawnPointOccupied(chosen)) {
-			IncreaseSpawnAttempts(chosen); // Only increase attempts for points we actually try
+			IncreaseSpawnAttempts(chosen);
 
 			// Remove this point from available spawns and try another
-			availableSpawns[idx] = availableSpawns.back();
-			availableSpawns.pop_back();
+			availableSpawns[idx] = availableSpawns[--availableCount];
+			if (availableCount == 0)
+				break;
+
 			continue;
 		}
 
@@ -448,49 +453,43 @@ static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 }
 
 static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
-
-	// Aplicar reducción adicional para niveles bajos
+	// Early return for low levels - improves branch prediction
 	if (lvl <= 10) {
 		return 1.0f;
 	}
 
-	// Quitar la condición de nivel <= 10 para que escale desde el principio
+	// Cache player count - only compute once
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Ajustar escala base para que sea más agresiva al inicio
-	float scale = 1.0f + (lvl * 0.02f); // Cambiado de 0.02f a 0.015f y aplicado desde nivel 1
+	// Compute base scale - linear scaling with level
+	float scale = 1.0f + (lvl * 0.02f);
 
-	// Ajustes por número de jugadores más agresivos al inicio
+	// Compute player reduction factor once
+	float playerReduction = 0.0f;
 	if (numHumanPlayers > 1) {
-		constexpr float PLAYER_REDUCTION = 0.1f; // Aumentado de 0.08f a 0.12f
-		constexpr float MAX_REDUCTION = 0.45f;    // Aumentado de 0.45f a 0.55f
-		scale *= (1.0f - std::min((numHumanPlayers - 1) * PLAYER_REDUCTION, MAX_REDUCTION));
+		constexpr float PLAYER_REDUCTION = 0.1f;
+		constexpr float MAX_REDUCTION = 0.45f;
+		playerReduction = std::min((numHumanPlayers - 1) * PLAYER_REDUCTION, MAX_REDUCTION);
+		scale *= (1.0f - playerReduction);
 	}
 
-	// Ajustar multiplicadores para mapas pequeños/medianos
-	constexpr float SMALL_MAP_MULTIPLIER = 0.7f;  // Reducido de 0.7f a 0.6f
-	constexpr float SMALL_MAP_MAX_SCALE = 1.3f;   // Reducido de 1.3f a 1.2f
-	constexpr float MEDIUM_MAP_MULTIPLIER = 0.8f; // Reducido de 0.80f a 0.7f
-	constexpr float MEDIUM_MAP_MAX_SCALE = 1.5f;  // Reducido de 1.5f a 1.3f
-	constexpr float BIG_MAP_MULTIPLIER = 0.85f;   // Reducido de 0.85f a 0.75f
-	constexpr float BIG_MAP_MAX_SCALE = 1.75f;     // Reducido de 1.75f a 1.5f
-
+	// Determine map multipliers with fewer branches
 	float multiplier, maxScale;
+
 	if (mapSize.isSmallMap) {
-		multiplier = SMALL_MAP_MULTIPLIER;
-		maxScale = SMALL_MAP_MAX_SCALE;
+		multiplier = 0.7f;
+		maxScale = 1.3f;
 	}
 	else if (mapSize.isBigMap) {
-		multiplier = BIG_MAP_MULTIPLIER;
-		maxScale = BIG_MAP_MAX_SCALE;
+		multiplier = 0.85f;
+		maxScale = 1.75f;
 	}
-	else {
-		multiplier = MEDIUM_MAP_MULTIPLIER;
-		maxScale = MEDIUM_MAP_MAX_SCALE;
+	else { // Medium map
+		multiplier = 0.8f;
+		maxScale = 1.5f;
 	}
 
-
-
+	// Apply map multiplier and clamp to max scale
 	return std::min(scale * multiplier, maxScale);
 }
 cvar_t* g_horde;
@@ -572,8 +571,6 @@ struct HordeState {
 } g_horde_local;
 
 // Clase de selección genérica usando templates
-// Nueva implementación de WeightedSelection usando arrays estáticos
-// Implementación optimizada de WeightedSelection usando std::span
 template <typename T>
 struct WeightedSelection {
 	static constexpr size_t MAX_ITEMS = 32;
@@ -583,7 +580,8 @@ struct WeightedSelection {
 		float weight;
 	};
 
-	std::array<ItemEntry, MAX_ITEMS> items;
+	// Pre-allocate fixed array instead of using dynamic memory
+	ItemEntry items[MAX_ITEMS];
 	size_t item_count = 0;
 	float total_weight = 0.0f;
 
@@ -606,66 +604,56 @@ struct WeightedSelection {
 		if (item_count == 0 || total_weight <= 0.0f)
 			return nullptr;
 
-		std::span<const ItemEntry> items_view{ items.data(), item_count };
+		// Generate uniform random value once
+		const float random_weight = frandom() * total_weight;
 
-		// Generar valor aleatorio
-		std::uniform_real_distribution<float> dist(0.0f, total_weight);
-		float random_weight = dist(mt_rand);
-
-		// Recorrido lineal acumulando pesos
+		// Use linear search - more efficient for small arrays than binary search
 		float cumulative = 0.0f;
-		for (const auto& entry : items_view) {
-			cumulative += entry.weight;
-			if (random_weight <= cumulative)
-				return entry.item;
+		for (size_t i = 0; i < item_count; i++) {
+			cumulative += items[i].weight;
+			if (cumulative >= random_weight)
+				return items[i].item;
 		}
 
-		// Fallback al último item
-		return items_view[item_count - 1].item;
+		// Fallback to last item
+		return items[item_count - 1].item;
 	}
 
-	// Método helper para selección por rango
+	// More efficient range selection
 	const T* select_range(float min_weight, float max_weight) const {
 		if (item_count == 0 || total_weight <= 0.0f)
 			return nullptr;
 
-		std::span<const ItemEntry> items_view{ items.data(), item_count };
-
-		// Filtrar items por rango de peso
-		std::array<const ItemEntry*, MAX_ITEMS> eligible_items;
+		// Stack-allocated array for eligible items to avoid heap allocation
+		ItemEntry eligible_items[MAX_ITEMS];
 		size_t eligible_count = 0;
 		float eligible_total = 0.0f;
 
-		for (const auto& entry : items_view) {
-			if (entry.weight >= min_weight && entry.weight <= max_weight) {
-				eligible_items[eligible_count++] = &entry;
-				eligible_total += entry.weight;
+		// Filter by weight range
+		for (size_t i = 0; i < item_count; i++) {
+			if (items[i].weight >= min_weight && items[i].weight <= max_weight) {
+				eligible_items[eligible_count++] = items[i];
+				eligible_total += items[i].weight;
 			}
 		}
 
 		if (eligible_count == 0)
 			return nullptr;
 
-		// Selección aleatoria solo de items elegibles
-		std::uniform_real_distribution<float> dist(0.0f, eligible_total);
-		const float random_weight = dist(mt_rand);
+		// Generate random value once
+		const float random_weight = frandom() * eligible_total;
 
+		// Linear search through eligible items
 		float cumulative = 0.0f;
-		for (size_t i = 0; i < eligible_count; ++i) {
-			cumulative += eligible_items[i]->weight;
+		for (size_t i = 0; i < eligible_count; i++) {
+			cumulative += eligible_items[i].weight;
 			if (cumulative >= random_weight)
-				return eligible_items[i]->item;
+				return eligible_items[i].item;
 		}
 
-		return eligible_items[eligible_count - 1]->item;
-	}
-
-	// Iterador para span de items activos
-	std::span<const ItemEntry> items_view() const {
-		return std::span<const ItemEntry>{items.data(), item_count};
+		return eligible_items[eligible_count - 1].item;
 	}
 };
-
 int8_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
@@ -1173,8 +1161,16 @@ static void StoreWaveType(MonsterWaveType wave_type) noexcept {
 
 // Helper function to try setting a wave type with validation
 static bool TrySetWaveType(MonsterWaveType new_type) {
-	// Make flying waves more restrictive
-	if (HasWaveType(new_type, MonsterWaveType::Flying)) {
+	// Special case for boss waves - allow flying waves to override the recent wave restriction
+	if (HasWaveType(new_type, MonsterWaveType::Flying | MonsterWaveType::Boss)) {
+		// If this is a flying boss, we always allow flying waves
+		current_wave_type = new_type;
+		StoreWaveType(new_type);
+		return true;
+	}
+
+	// Make flying waves more restrictive for non-boss waves
+	if (HasWaveType(new_type, MonsterWaveType::Flying) && !HasWaveType(new_type, MonsterWaveType::Boss)) {
 		// Check if any of the recent waves were flying
 		for (const auto& prev_type : previous_wave_types) {
 			if (HasWaveType(prev_type, MonsterWaveType::Flying)) {
@@ -1189,14 +1185,35 @@ static bool TrySetWaveType(MonsterWaveType new_type) {
 		}
 	}
 
+	// Check if the wave type was recently used
 	if (!WasRecentlyUsed(new_type)) {
 		current_wave_type = new_type;
 		StoreWaveType(new_type);
 		return true;
 	}
+
+	// Fallback for specific wave types
+	if (HasWaveType(new_type, MonsterWaveType::Mutant) || HasWaveType(new_type, MonsterWaveType::Shambler)) {
+		// Fallback for mutant/shambler types
+		current_wave_type = MonsterWaveType::Medium;
+		StoreWaveType(MonsterWaveType::Medium);
+		return true;
+	}
+	else if (HasWaveType(new_type, MonsterWaveType::Flying)) {
+		// Fallback for flying types
+		current_wave_type = MonsterWaveType::Flying | MonsterWaveType::Medium;
+		StoreWaveType(current_wave_type);
+		return true;
+	}
+	else if (HasWaveType(new_type, MonsterWaveType::Arachnophobic)) {
+		// Fallback for arachnophobic types
+		current_wave_type = MonsterWaveType::Small | MonsterWaveType::Arachnophobic;
+		StoreWaveType(current_wave_type);
+		return true;
+	}
+
 	return false;
 }
-
 
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false) {
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
@@ -1319,57 +1336,43 @@ inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 // Example function to filter monsters by wave type
 // First the IsValidMonsterForWave function:
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
-	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
-
-	// If there are no specific wave requirements, any monster is valid
+	// Fast exit for no requirements
 	if (waveRequirements == MonsterWaveType::None) {
 		return true;
 	}
 
-	// Special waves checks - these are strict requirements 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Flying)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Flying);
+	// Get monster types once
+	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
+
+	// Use bitwise operations for special wave checks
+	// Check each special wave type with early returns
+
+	const uint32_t requirements = static_cast<uint32_t>(waveRequirements);
+	const uint32_t monster_flags = static_cast<uint32_t>(monsterTypes);
+
+	// Use single lookup table of special flags that require exact matches
+	static constexpr uint32_t SPECIAL_FLAGS[] = {
+		static_cast<uint32_t>(MonsterWaveType::Flying),
+		static_cast<uint32_t>(MonsterWaveType::Small),
+		static_cast<uint32_t>(MonsterWaveType::Arachnophobic),
+		static_cast<uint32_t>(MonsterWaveType::Heavy),
+		static_cast<uint32_t>(MonsterWaveType::Shambler),
+		static_cast<uint32_t>(MonsterWaveType::Mutant),
+		static_cast<uint32_t>(MonsterWaveType::Melee),
+		static_cast<uint32_t>(MonsterWaveType::Berserk),
+		static_cast<uint32_t>(MonsterWaveType::Bomber),
+		static_cast<uint32_t>(MonsterWaveType::Spawner)
+	};
+
+	// Check special flags
+	for (const uint32_t flag : SPECIAL_FLAGS) {
+		if ((requirements & flag) && !(monster_flags & flag)) {
+			return false;
+		}
 	}
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Small)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Small);
-	}
-
-	if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic);
-	}
-
-	if (HasWaveType(waveRequirements, MonsterWaveType::Heavy)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Heavy);
-	}
-
-	if (HasWaveType(waveRequirements, MonsterWaveType::Shambler)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Shambler);
-	}
-
-	if (HasWaveType(waveRequirements, MonsterWaveType::Mutant)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Mutant);
-	}
-
-	if (HasWaveType(waveRequirements, MonsterWaveType::Melee)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Melee);
-	}
-
-	// Add checks for Berserk, Bomber and Spawner flags
-	if (HasWaveType(waveRequirements, MonsterWaveType::Berserk)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Berserk);
-	}
-
-	if (HasWaveType(waveRequirements, MonsterWaveType::Bomber)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Bomber);
-	}
-
-	if (HasWaveType(waveRequirements, MonsterWaveType::Spawner)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Spawner);
-	}
-
-	// For mixed waves, monster should match at least one type
-	return (static_cast<uint32_t>(monsterTypes & waveRequirements) != 0);
+	// For mixed waves, check if there's at least one match
+	return (requirements & monster_flags) != 0;
 }
 
 // Structure to include wave level information
@@ -1458,7 +1461,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_makron", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.02f},
 	{"monster_perrokl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f},
 	{"monster_widow1", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f},
-	{"monster_shamblerkl", MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.3f},
+	{"monster_shamblerkl", MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f},
 	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f},
 	{"monster_makronkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
 	{"monster_boss2kl", MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
@@ -1645,57 +1648,64 @@ struct RecentBosses {
 		if (!boss)
 			return;
 
+		// Early return for empty slot
 		if (count < MAX_RECENT_BOSSES) {
-			switch (count) {
-			case 0: items[0] = boss; break;
-			case 1: items[1] = boss; break;
-			case 2: items[2] = boss; break;
-			case 3: items[3] = boss; break;
-			default: return;
-			}
-			count++;
+			items[count++] = boss;
+			return;
 		}
-		else {
-			// Explicit shift for MAX_RECENT_BOSSES = 4
-			items[0] = items[1];
-			items[1] = items[2];
-			items[2] = items[3];
-			items[3] = boss;
-		}
+
+		// Fixed-size shift using memmove for better performance
+		memmove(&items[0], &items[1], sizeof(const char*) * (MAX_RECENT_BOSSES - 1));
+		items[MAX_RECENT_BOSSES - 1] = boss;
 	}
 
 	bool contains(const char* boss) const noexcept {
-		if (!boss)
+		if (!boss || count == 0)
 			return false;
-		// Explicit checks for each valid index  
-		if (count > 0 && strcmp(items[0], boss) == 0) return true;
-		if (count > 1 && strcmp(items[1], boss) == 0) return true;
-		if (count > 2 && strcmp(items[2], boss) == 0) return true;
-		if (count > 3 && strcmp(items[3], boss) == 0) return true;
+
+		// Linear search - fastest for small arrays like this
+		for (size_t i = 0; i < count; ++i) {
+			if (strcmp(items[i], boss) == 0)
+				return true;
+		}
 		return false;
 	}
 
-	void clear() noexcept { count = 0; }
+	void clear() noexcept {
+		count = 0;
+		// No need to zero the array - count will prevent access
+	}
 };
 static RecentBosses recent_bosses;
 
 static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
-	static EligibleBosses eligible_bosses;
-	static double cumulative_weights[MAX_ELIGIBLE_BOSSES];
-	eligible_bosses.clear();
+	// Use static stack-based arrays instead of dynamic allocations
+	static struct {
+		const boss_t* items[MAX_ELIGIBLE_BOSSES]{};
+		double weights[MAX_ELIGIBLE_BOSSES]{};
+		size_t count = 0;
+	} eligible_bosses;
+
+	// Reset state
+	eligible_bosses.count = 0;
 	double total_weight = 0.0;
 
-	auto const boss_list = GetBossList(mapSize, mapname);
+	// Get boss list once
+	const auto boss_list = GetBossList(mapSize, mapname);
 	if (boss_list.empty())
 		return nullptr;
 
-	// Collect eligible bosses using span
+	// First pass: collect eligible bosses
 	for (const auto& boss : boss_list) {
-		if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
-			(waveNumber <= boss.max_level || boss.max_level == -1) &&
-			!recent_bosses.contains(boss.classname)) {
+		// Check eligibility criteria
+		const bool level_match = (waveNumber >= boss.min_level || boss.min_level == -1) &&
+			(waveNumber <= boss.max_level || boss.max_level == -1);
 
+		if (level_match && !recent_bosses.contains(boss.classname)) {
+			// Calculate adjusted weight
 			float adjusted_weight = boss.weight;
+
+			// Apply weight adjustments
 			if (waveNumber >= boss.min_level && waveNumber <= boss.min_level + 5) {
 				adjusted_weight *= 1.3f;
 			}
@@ -1710,42 +1720,50 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 				adjusted_weight *= 0.8f;
 			}
 
-			total_weight += adjusted_weight;
+			// Add to array directly
 			if (eligible_bosses.count < MAX_ELIGIBLE_BOSSES) {
-				cumulative_weights[eligible_bosses.count] = total_weight;
-				eligible_bosses.add(&boss);
+				total_weight += adjusted_weight;
+				eligible_bosses.weights[eligible_bosses.count] = total_weight;
+				eligible_bosses.items[eligible_bosses.count] = &boss;
+				eligible_bosses.count++;
 			}
 		}
 	}
 
+	// If no bosses eligible, retry with cleared history
 	if (eligible_bosses.count == 0) {
 		recent_bosses.clear();
 		total_weight = 0.0;
 
+		// Second pass with reset history
 		for (const auto& boss : boss_list) {
 			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 				(waveNumber <= boss.max_level || boss.max_level == -1)) {
+
 				const float adjusted_weight = boss.weight;
 				total_weight += adjusted_weight;
+
 				if (eligible_bosses.count < MAX_ELIGIBLE_BOSSES) {
-					cumulative_weights[eligible_bosses.count] = total_weight;
-					eligible_bosses.add(&boss);
+					eligible_bosses.weights[eligible_bosses.count] = total_weight;
+					eligible_bosses.items[eligible_bosses.count] = &boss;
+					eligible_bosses.count++;
 				}
 			}
 		}
 	}
 
+	// Exit if no eligible bosses
 	if (eligible_bosses.count == 0)
 		return nullptr;
 
-	// Binary search using span
+	// Select boss with binary search
 	const double random_value = std::uniform_real_distribution<double>(0.0, total_weight)(mt_rand);
 	size_t left = 0;
 	size_t right = eligible_bosses.count - 1;
 
 	while (left < right) {
 		const size_t mid = (left + right) / 2;
-		if (cumulative_weights[mid] < random_value) {
+		if (eligible_bosses.weights[mid] < random_value) {
 			left = mid + 1;
 		}
 		else {
@@ -1753,33 +1771,14 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 		}
 	}
 
-	// Safe access using switch for final selection
-	const boss_t* chosen_boss = nullptr;
-	switch (left) {
-	case 0:  chosen_boss = eligible_bosses.items[0];  break;
-	case 1:  chosen_boss = eligible_bosses.items[1];  break;
-	case 2:  chosen_boss = eligible_bosses.items[2];  break;
-	case 3:  chosen_boss = eligible_bosses.items[3];  break;
-	case 4:  chosen_boss = eligible_bosses.items[4];  break;
-	case 5:  chosen_boss = eligible_bosses.items[5];  break;
-	case 6:  chosen_boss = eligible_bosses.items[6];  break;
-	case 7:  chosen_boss = eligible_bosses.items[7];  break;
-	case 8:  chosen_boss = eligible_bosses.items[8];  break;
-	case 9:  chosen_boss = eligible_bosses.items[9];  break;
-	case 10: chosen_boss = eligible_bosses.items[10]; break;
-	case 11: chosen_boss = eligible_bosses.items[11]; break;
-	case 12: chosen_boss = eligible_bosses.items[12]; break;
-	case 13: chosen_boss = eligible_bosses.items[13]; break;
-	case 14: chosen_boss = eligible_bosses.items[14]; break;
-	case 15: chosen_boss = eligible_bosses.items[15]; break;
-	default: return nullptr;
-	}
-
+	// Get selected boss
+	const boss_t* chosen_boss = eligible_bosses.items[left];
 	if (chosen_boss) {
 		recent_bosses.add(chosen_boss->classname);
 		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
 		return chosen_boss->classname;
 	}
+
 	return nullptr;
 }
 
@@ -1989,6 +1988,22 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 //}
 
 static const char* G_HordePickMonster(edict_t* spawn_point) {
+	// Static array-based monster cache 
+	static struct {
+		struct Entry {
+			const char* classname;
+			float weight;
+			float cumulative_weight;
+		};
+		Entry entries[SelectionCache::MAX_ENTRIES];
+		size_t count = 0;
+		float total_weight = 0.0f;
+	} local_cache;
+
+	// Reset cache
+	local_cache.count = 0;
+	local_cache.total_weight = 0.0f;
+
 	auto& data = spawnPointsData[spawn_point];
 	if (data.isTemporarilyDisabled) {
 		if (level.time < data.cooldownEndsAt)
@@ -1998,7 +2013,6 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	if (!spawn_point || !spawn_point->inuse) {
-		gi.Com_PrintFmt("Warning: Invalid spawn point passed to G_HordePickMonster\n");
 		return nullptr;
 	}
 
@@ -2007,14 +2021,10 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		return nullptr;
 	}
 
-	// Reset monster cache
-	monster_cache.clear();
-
-	// Get current level
+	// Get current level and wave types - read once
 	const int32_t currentLevel = g_horde_local.level;
-
-	// Use current_wave_type directly instead of GetWaveComposition
 	const MonsterWaveType currentWaveTypes = current_wave_type;
+	const bool isSpawnPointFlying = spawn_point->style == 1;
 
 	// If it's a boss wave and no wave type is set yet, wait for boss to spawn
 	if (currentWaveTypes == MonsterWaveType::None &&
@@ -2023,13 +2033,12 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Cache spawn point info
-	const bool isSpawnPointFlying = spawn_point->style == 1;
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-	// Iterate through monsterTypes
+	// Iterate through monsterTypes with array-based storage
 	for (const auto& monster : monsterTypes) {
-		if (monster_cache.count >= SelectionCache::MAX_ENTRIES)
+		if (local_cache.count >= SelectionCache::MAX_ENTRIES)
 			break;
 
 		// Basic checks
@@ -2075,13 +2084,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 		// Special handling for boss wave minions
 		if (currentLevel >= 10 && currentLevel % 5 == 0 && boss_spawned_for_wave) {
-			// Increase weight for monsters that match the boss's theme
-			if (HasWaveType(monster.types, currentWaveTypes)) {
-				weight *= 2.0f;  // Double the weight for thematic monsters
-			}
-			else {
-				weight *= 0.3f;  // Reduce weight for non-thematic monsters
-			}
+			weight *= HasWaveType(monster.types, currentWaveTypes) ? 2.0f : 0.3f;
 		}
 
 		// Difficulty adjustments
@@ -2100,28 +2103,28 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 		// Add to cache if weight is valid
 		if (weight > 0.0f) {
-			monster_cache.total_weight += weight;
-			auto& entry = monster_cache.entries[monster_cache.count];
-			entry.monster_classname = monster.classname;
+			local_cache.total_weight += weight;
+			auto& entry = local_cache.entries[local_cache.count];
+			entry.classname = monster.classname;
 			entry.weight = weight;
-			entry.cumulative_weight = monster_cache.total_weight;
-			monster_cache.count++;
+			entry.cumulative_weight = local_cache.total_weight;
+			local_cache.count++;
 		}
 	}
 
-	if (monster_cache.count == 0) {
+	if (local_cache.count == 0) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
 	// Select monster using binary search
-	const float random_value = frandom() * monster_cache.total_weight;
+	const float random_value = frandom() * local_cache.total_weight;
 	size_t left = 0;
-	size_t right = monster_cache.count - 1;
+	size_t right = local_cache.count - 1;
 
 	while (left < right) {
 		const size_t mid = (left + right) / 2;
-		if (monster_cache.entries[mid].cumulative_weight < random_value) {
+		if (local_cache.entries[mid].cumulative_weight < random_value) {
 			left = mid + 1;
 		}
 		else {
@@ -2129,7 +2132,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 	}
 
-	const char* chosen_monster = monster_cache.entries[left].monster_classname;
+	const char* chosen_monster = local_cache.entries[left].classname;
 	if (chosen_monster) {
 		UpdateCooldowns(spawn_point, chosen_monster);
 	}
@@ -2425,6 +2428,7 @@ void Horde_Init() {
 	PrecacheWaveSounds();
 
 	// Initialize other systems
+	InitializeSpawnPointData();
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
@@ -2592,18 +2596,121 @@ static void OldBossDeathHandler(edict_t* boss)
 
 
 void BossDeathHandler(edict_t* boss) {
-	if (!g_horde->integer ||
-		!boss ||
-		!boss->inuse ||
-		!boss->monsterinfo.IS_BOSS ||
-		boss->monsterinfo.BOSS_DEATH_HANDLED ||
-		boss->health > 0) {
+	// Early validation to exit quickly if possible
+	if (!g_horde->integer || !boss || !boss->inuse || !boss->monsterinfo.IS_BOSS ||
+		boss->monsterinfo.BOSS_DEATH_HANDLED || boss->health > 0) {
 		return;
 	}
 
-	//if (frandom() < 0.80f) {
-	OldBossDeathHandler(boss);
-	return;
+	// Immediately mark as handled to prevent double processing
+	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
+
+	// Handle entity tracking
+	OnEntityDeath(boss);
+	OnEntityRemoved(boss);
+	auto_spawned_bosses.erase(boss);
+
+	// Static item lists to avoid string allocations
+	static const char* itemsToDrop[] = {
+		"item_adrenaline", "item_pack", "item_sentrygun",
+		"item_sphere_defender", "item_armor_combat", "item_bandolier",
+		"item_invulnerability", "ammo_nuke"
+	};
+
+	// Cached velocity ranges for performance
+	static const vec3_t base_velocity(MIN_VELOCITY, MIN_VELOCITY, MIN_VERTICAL_VELOCITY);
+	static const vec3_t velocity_range(
+		MAX_VELOCITY - MIN_VELOCITY,
+		MAX_VELOCITY - MIN_VELOCITY,
+		MAX_VERTICAL_VELOCITY - MIN_VERTICAL_VELOCITY
+	);
+
+	// Weapon drop
+	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
+		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
+			const vec3_t weaponVelocity = base_velocity + velocity_range.scaled(
+				vec3_t{ frandom(), frandom(), frandom() }
+			);
+
+			// Set properties in groups to improve cache locality
+			weapon->s.origin = boss->s.origin;
+			weapon->velocity = weaponVelocity;
+			weapon->movetype = MOVETYPE_BOUNCE;
+
+			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
+			weapon->s.renderfx |= RF_GLOW;
+			weapon->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+
+			weapon->s.alpha = 0.85f;
+			weapon->s.scale = 1.25f;
+			weapon->s.alpha = 0.85f;
+			weapon->s.scale = 1.25f;
+			weapon->flags &= ~FL_RESPAWN;
+		}
+	}
+
+	// Special item drop (quad or quadfire)
+	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
+	if (edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName))) {
+		// Use a single random generation for velocities
+		static std::uniform_int_distribution<> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
+		static std::uniform_int_distribution<> vert_dist(300, 400);
+
+		const vec3_t specialVelocity{
+			static_cast<float>(vel_dist(mt_rand)),
+			static_cast<float>(vel_dist(mt_rand)),
+			static_cast<float>(vert_dist(mt_rand))
+		};
+
+		// Group similar property assignments
+		specialItem->s.origin = boss->s.origin;
+		specialItem->velocity = specialVelocity;
+		specialItem->movetype = MOVETYPE_BOUNCE;
+
+		specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
+		specialItem->s.alpha = 0.8f;
+		specialItem->s.scale = 1.5f;
+		specialItem->flags &= ~FL_RESPAWN;
+	}
+
+	// Use a fixed-size array copy instead of copying and shuffling
+	const char* shuffledItems[8];
+	memcpy(shuffledItems, itemsToDrop, sizeof(itemsToDrop));
+
+	// Fisher-Yates shuffle with fewer iterations
+	for (int i = 6; i > 0; i--) {
+		const int j = mt_rand() % (i + 1);
+		if (i != j) {
+			std::swap(shuffledItems[i], shuffledItems[j]);
+		}
+	}
+
+	// Pre-create velocity distributions
+	static std::uniform_int_distribution<> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
+	static std::uniform_int_distribution<> vert_dist(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
+
+	// Drop items with fewer redundant operations
+	for (const auto& itemClassname : shuffledItems) {
+		if (edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname))) {
+			const vec3_t itemVelocity{
+				static_cast<float>(vel_dist(mt_rand)),
+				static_cast<float>(vel_dist(mt_rand)),
+				static_cast<float>(vert_dist(mt_rand))
+			};
+
+			// Group similar property assignments
+			droppedItem->s.origin = boss->s.origin;
+			droppedItem->velocity = itemVelocity;
+			droppedItem->movetype = MOVETYPE_BOUNCE;
+
+			droppedItem->flags &= ~FL_RESPAWN;
+			droppedItem->s.effects |= EF_GIB;
+			droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+		}
+	}
+
+	// Clear takedamage flag at the end to prevent further damage processing
+	boss->takedamage = false;
 }
 
 void boss_die(edict_t* boss) {
@@ -2630,24 +2737,31 @@ void boss_die(edict_t* boss) {
 }
 
 static bool Horde_AllMonstersDead() {
-	for (auto ent : active_or_dead_monsters()) {
-		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Skip ignored
+	// Fast path using level counters if possible
+	if (level.total_monsters == level.killed_monsters) {
+		return true;
+	}
 
-		if (!ent->deadflag && ent->health > 0) return false; // Found a live one
+	// Check each active monster
+	for (auto ent : active_or_dead_monsters()) {
+		// Skip invalid entities
+		if (!ent || !ent->inuse) continue;
+
+		// Skip monsters that don't count
+		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue;
+
+		// If we find a live monster, return false
+		if (!ent->deadflag && ent->health > 0) return false;
 
 		// Boss cleanup in the same loop
 		if (ent->monsterinfo.IS_BOSS && ent->health <= 0 &&
 			auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() &&
 			!ent->monsterinfo.BOSS_DEATH_HANDLED) {
-			boss_die(ent); // Call boss_die directly here
+			boss_die(ent);
 		}
 	}
 
-	if (developer->integer) {
-		gi.Com_Print("DEBUG: All monsters are dead.\n");
-	}
-
-	return true; // All checked and all are dead
+	return true; // All monsters are dead
 }
 
 // Modify the CheckAndRestoreMonsterAlpha function to batch updates
@@ -2858,27 +2972,21 @@ static void AttachHealthBar(edict_t* boss) {
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 void SP_target_orb(edict_t* ent);
 static void SpawnBossAutomatically() {
-
-
-	//IF THERE'S A BOSS BEFORE THE NEW SPAWNING: remove him!
-	// Primero, eliminar cualquier boss existente
+	// Clear any existing bosses
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); ) {
 		edict_t* existing_boss = *it;
 		if (existing_boss && existing_boss->inuse) {
-			// Marcar como manejado antes de eliminar
 			existing_boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 			OnEntityRemoved(existing_boss);
 			G_FreeEdict(existing_boss);
-			it = auto_spawned_bosses.erase(it);
 		}
-		else {
-			++it;
-		}
+		it = auto_spawned_bosses.erase(it);
 	}
 
+	// Reset wave type
 	current_wave_type = MonsterWaveType::None;
 
-	// Limpiar la barra de salud existente
+	// Clear health bar
 	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
 		if (level.health_bar_entities[i]) {
 			G_FreeEdict(level.health_bar_entities[i]);
@@ -2886,35 +2994,40 @@ static void SpawnBossAutomatically() {
 		}
 	}
 
-	// Limpiar el configstring del nombre de la barra de salud
+	// Clear health bar name
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 
-	// removed previous boss, ready to spawn new
-
+	// Early return if not a boss wave
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
 		return;
 	}
 
-	const auto it = mapOrigins.find(GetCurrentMapName());
+	// Get map name and find spawn origin
+	const char* map_name = GetCurrentMapName();
+	const auto it = mapOrigins.find(map_name);
 	if (it == mapOrigins.end()) {
-		gi.Com_PrintFmt("PRINT: Error: No spawn origin found for map {}\n", level.mapname);
+		if (developer->integer) {
+			gi.Com_PrintFmt("Error: No spawn origin found for map {}\n", map_name);
+		}
 		return;
 	}
 
-	// Usar vec3_t con inicialización agregada
+	// Convert to vec3_t once
 	const vec3_t spawn_origin{
 		static_cast<float>(it->second[0]),
 		static_cast<float>(it->second[1]),
 		static_cast<float>(it->second[2])
 	};
 
-	// Validar origen usando vec3_t
+	// Validate origin
 	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin) {
-		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
+		if (developer->integer) {
+			gi.Com_PrintFmt("Error: Invalid spawn origin for map {}\n", map_name);
+		}
 		return;
 	}
 
-	// Crear efecto de orbe primero
+	// Create orb effect
 	edict_t* orb = G_Spawn();
 	if (orb) {
 		orb->classname = "target_orb";
@@ -2922,97 +3035,94 @@ static void SpawnBossAutomatically() {
 		SP_target_orb(orb);
 	}
 
+	// Spawn boss entity
 	edict_t* boss = G_Spawn();
 	if (!boss) {
 		if (orb) G_FreeEdict(orb);
-		gi.Com_PrintFmt("PRINT: Error: Failed to spawn boss entity\n");
+		if (developer->integer) {
+			gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
+		}
 		return;
 	}
 
-	const char* desired_boss = G_HordePickBOSS(g_horde_local.current_map_size, GetCurrentMapName(), g_horde_local.level, boss);
+	// Select boss type
+	const char* desired_boss = G_HordePickBOSS(
+		g_horde_local.current_map_size, map_name, g_horde_local.level, boss);
+
 	if (!desired_boss) {
 		if (orb) G_FreeEdict(orb);
 		G_FreeEdict(boss);
-		gi.Com_PrintFmt("PRINT: Error: Failed to pick a boss type\n");
+		if (developer->integer) {
+			gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
+		}
 		return;
 	}
 
+	// Set up boss entity
 	boss_spawned_for_wave = true;
 	boss->classname = desired_boss;
-
-	// Posicionar jefe usando vec3_t
 	boss->s.origin = spawn_origin;
-	//gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
 
+	// Push away nearby entities
 	constexpr float push_radius = 500.0f;
 	constexpr float push_force = 600.0f;
-	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 750.0f, 75.0f); // Reducido aún más vertical_push_strength
+	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 750.0f, 75.0f);
 
-	// Almacenar entidad orbe en el jefe
+	// Store orb entity
 	boss->owner = orb;
 
-	// Retardar spawn del jefe
+	// Set up delayed spawn
 	boss->nextthink = level.time + 750_ms;
 	boss->think = BossSpawnThink;
-	//gi.Com_Print("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
 
 THINK(BossSpawnThink)(edict_t* self) -> void {
-	// Remove the black light effect if it exists
+	// Remove the black light effect immediately
 	if (self->owner) {
 		G_FreeEdict(self->owner);
 		self->owner = nullptr;
 	}
 
-	// Set wave type based on boss type with anti-repetition
-	if (strcmp(self->classname, "monster_redmutant") == 0 ||
-		strcmp(self->classname, "monster_shamblerkl") == 0) {
-		MonsterWaveType chosen_type = brandom() ? MonsterWaveType::Shambler : MonsterWaveType::Mutant;
-		if (TrySetWaveType(chosen_type)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nMutant's invasion approaches!\n");
+	// Static mapping for boss types to reduce string comparisons
+	static const std::unordered_map<std::string_view, std::pair<MonsterWaveType, const char*>> bossTypeMap = {
+		{"monster_redmutant", {MonsterWaveType::Mutant, "\n\n\nMutant's invasion approaches!\n"}},
+		{"monster_shamblerkl", {MonsterWaveType::Shambler, "\n\n\nMutant's invasion approaches!\n"}},
+		{"monster_widow", {MonsterWaveType::Small | MonsterWaveType::Arachnophobic, "\n\n\nWidow swarm incoming!\n"}},
+		{"monster_widow2", {MonsterWaveType::Small | MonsterWaveType::Arachnophobic, "\n\n\nWidow swarm incoming!\n"}},
+		{"monster_psxarachnid", {MonsterWaveType::Arachnophobic, "\n\n\nArachnophobia wave incoming!\n"}},
+		{"monster_boss2", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+		{"monster_carrier", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+		{"monster_carrier_mini", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+		{"monster_boss2kl", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+		{"monster_tank_64", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
+		{"monster_supertank", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
+		{"monster_psxguardian", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
+		{"monster_boss5", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
+		{"monster_guncmdrkl", {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
+		{"monster_makron", {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
+		{"monster_makronkl", {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}}
+	};
+
+	// Set wave type based on boss type with single lookup
+	auto it = bossTypeMap.find(self->classname);
+	if (it != bossTypeMap.end()) {
+		const auto& [waveType, message] = it->second;
+		if (TrySetWaveType(waveType)) {
+			gi.LocBroadcast_Print(PRINT_CHAT, message);
 		}
-		else {
-			// Fallback if both types were recently used
+		else if (waveType == MonsterWaveType::Mutant || waveType == MonsterWaveType::Shambler) {
+			// Fallback for mutant/shambler types
 			current_wave_type = MonsterWaveType::Medium;
 			StoreWaveType(MonsterWaveType::Medium);
 			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nFallback wave: Medium forces incoming!\n");
 		}
 	}
-	else if (strcmp(self->classname, "monster_widow") == 0 ||
-		strcmp(self->classname, "monster_widow2") == 0) {
-		if (TrySetWaveType(MonsterWaveType::Small)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nWidow's small minions incoming!\n");
-		}
-	}
-	else if (strcmp(self->classname, "monster_psxarachnid") == 0) {
-		if (TrySetWaveType(MonsterWaveType::Arachnophobic)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nArachnophobia wave incoming!\n");
-		}
-	}
-	else if (strcmp(self->classname, "monster_boss2") == 0 ||
-		strcmp(self->classname, "monster_carrier") == 0 ||
-		strcmp(self->classname, "monster_carrier_mini") == 0 ||
-		strcmp(self->classname, "monster_boss2kl") == 0) {
-		// Store both Flying and Boss types to prevent future flying waves
-		current_wave_type = MonsterWaveType::Flying | MonsterWaveType::Boss;
+	else if (current_wave_type == MonsterWaveType::None) {
+		// Default to medium if no specific type
+		current_wave_type = MonsterWaveType::Medium;
 		StoreWaveType(current_wave_type);
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nAerial squadron incoming!\n");
 	}
-	else if (strcmp(self->classname, "monster_tank_64") == 0 ||
-		strcmp(self->classname, "monster_supertank") == 0 ||
-		strcmp(self->classname, "monster_psxguardian") == 0 ||
-		strcmp(self->classname, "monster_boss5") == 0) {
-		if (TrySetWaveType(MonsterWaveType::Medium)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nHeavy/Mid armored division incoming!\n");
-		}
-	}
-	else if (strcmp(self->classname, "monster_guncmdrkl") == 0 ||
-		strcmp(self->classname, "monster_makron") == 0 ||
-		strcmp(self->classname, "monster_makronkl") == 0) {
-		if (TrySetWaveType(MonsterWaveType::Medium)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n");
-		}
-	}
+
 	// Boss spawn message
 	const auto it_msg = bossMessagesMap.find(self->classname);
 	if (it_msg != bossMessagesMap.end()) {
@@ -3022,11 +3132,12 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
 	}
 
-	// Rest of the spawn code remains the same...
+	// Set boss flags in a single group
 	self->monsterinfo.IS_BOSS = true;
 	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_sentrygun_target_time = 0_ms;
 
+	// Spawn entity
 	{
 		self->solid = SOLID_NOT;
 		ED_CallSpawn(self);
@@ -3035,58 +3146,68 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		gi.linkentity(self);
 	}
 
+	// Configure boss properties
 	ConfigureBossArmor(self);
 	ApplyBossEffects(self);
 	self->monsterinfo.attack_state = AS_BLIND;
 
+	// Calculate spawn effect sizes once
 	const vec3_t spawn_pos = self->s.origin;
 	const float magnitude = spawn_pos.length();
 	const float base_size = magnitude * 0.35f;
 	const float end_size = base_size * 0.005f;
 
+	// Apply visual effects
 	ImprovedSpawnGrow(spawn_pos, base_size, end_size, self);
 	SpawnGrow_Spawn(spawn_pos, base_size, end_size);
 
+	// Set up health bar and track boss
 	AttachHealthBar(self);
 	SetHealthBarName(self);
 	auto_spawned_bosses.insert(self);
 }
 
 bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
-	// Initial checks
+	// Early validation for quick exit
 	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS ||
 		level.intermissiontime || !g_horde->integer)
 		return false;
 
-	// Get map's starting point
-	const auto it = mapOrigins.find(GetCurrentMapName());
-	if (it == mapOrigins.end())
-		return false;
+	// Cache map name once to reduce string comparisons
+	static std::string last_map_name;
+	static std::unordered_map<std::string, std::array<int, 3>>::const_iterator map_origin_it;
 
-	// Different cooldowns based on reason
+	// Only look up map origin if the map has changed
+	const char* current_map = GetCurrentMapName();
+	if (last_map_name != current_map) {
+		last_map_name = current_map;
+		map_origin_it = mapOrigins.find(current_map);
+
+		// If map not found, cache the end iterator for quick rejection
+		if (map_origin_it == mapOrigins.end())
+			return false;
+	}
+	else if (map_origin_it == mapOrigins.end()) {
+		// Use cached failure result
+		return false;
+	}
+
+	// Select appropriate cooldown based on reason - use constexpr for compiler optimization
 	constexpr gtime_t DROWNING_COOLDOWN = 1_sec;
 	constexpr gtime_t TRIGGER_COOLDOWN = 3_sec;
 
-	// Select appropriate cooldown
-	const gtime_t selected_cooldown = [DROWNING_COOLDOWN, TRIGGER_COOLDOWN](BossTeleportReason reason) {
-		switch (reason) {
-		case BossTeleportReason::DROWNING:
-			return DROWNING_COOLDOWN;
-		case BossTeleportReason::TRIGGER_HURT:
-			return TRIGGER_COOLDOWN;
-		}
-		return TRIGGER_COOLDOWN;
-		}(reason);
+	const gtime_t selected_cooldown = reason == BossTeleportReason::DROWNING ?
+		DROWNING_COOLDOWN : TRIGGER_COOLDOWN;
 
 	// Check if recently teleported
 	if (self->teleport_time && level.time < self->teleport_time + selected_cooldown)
 		return false;
 
-	// Convert spawn point to vec3_t
+	// Convert spawn point to vec3_t - directly use map_origin_it
 	const vec3_t spawn_origin{
-		static_cast<float>(it->second[0]),
-		static_cast<float>(it->second[1]),
-		static_cast<float>(it->second[2])
+		static_cast<float>(map_origin_it->second[0]),
+		static_cast<float>(map_origin_it->second[1]),
+		static_cast<float>(map_origin_it->second[2])
 	};
 
 	// Verify spawn point validity
@@ -3106,119 +3227,141 @@ bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
 	self->s.old_origin = spawn_origin;
 	self->velocity = vec3_origin;
 
-	// Check if new position is valid
+	// Check if new position is valid - use early returns for performance
 	bool teleport_success = true;
 	if (!(self->flags & (FL_FLY | FL_SWIM))) {
 		teleport_success = M_droptofloor(self);
+		if (!teleport_success) {
+			// Restore on failure
+			self->s.origin = old_origin;
+			self->s.old_origin = old_origin;
+			self->velocity = old_velocity;
+			self->svflags &= ~SVF_NOCLIENT;
+			gi.linkentity(self);
+			return false;
+		}
 	}
 
 	// Check collisions at new position
-	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
+	if (gi.trace(self->s.origin, self->mins, self->maxs,
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
-
-		// Make visible again before effects
+		// Restore on failure
+		self->s.origin = old_origin;
+		self->s.old_origin = old_origin;
+		self->velocity = old_velocity;
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
-
-		// Visual and sound effects based on reason
-		switch (reason) {
-		case BossTeleportReason::DROWNING:
-			gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
-			gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n",
-				GetDisplayName(self).c_str());
-			break;
-		case BossTeleportReason::TRIGGER_HURT:
-			gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
-			gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n",
-				GetDisplayName(self).c_str());
-			break;
-		}
-
-		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-		self->teleport_time = level.time;
-
-		// Push away nearby entities
-		PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
-
-		// Restore some health if heavily damaged
-		if (self->health < self->max_health * 0.25f) {
-			self->health = static_cast<int32_t>(self->max_health * 0.25f);
-		}
-
-		if (developer->integer) {
-			const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
-			gi.Com_PrintFmt("Boss teleported due to {} to: {}\n", reason_str, self->s.origin);
-		}
-
-		return true;
+		return false;
 	}
 
-	// If teleport failed, restore original position
-	self->s.origin = old_origin;
-	self->s.old_origin = old_origin;
-	self->velocity = old_velocity;
-
-	// Make visible again before final link on failure
+	// Make visible again before effects
 	self->svflags &= ~SVF_NOCLIENT;
 	gi.linkentity(self);
-	return false;
+
+	// Visual and sound effects based on reason - use cached display name
+	static std::string cached_name;
+	if (cached_name.empty() || self->client) {
+		cached_name = GetDisplayName(self);
+	}
+
+	// Sound effects and messages based on reason
+	switch (reason) {
+	case BossTeleportReason::DROWNING:
+		gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", cached_name.c_str());
+		break;
+	case BossTeleportReason::TRIGGER_HURT:
+		gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", cached_name.c_str());
+		break;
+	}
+
+	SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+	self->teleport_time = level.time;
+
+	// Push away nearby entities
+	PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
+
+	// Restore some health if heavily damaged - use multiplication instead of division
+	if (self->health < (self->max_health >> 2)) { // Bit shift is faster than division by 4
+		self->health = (self->max_health >> 2);
+	}
+
+	if (developer->integer) {
+		const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
+		gi.Com_PrintFmt("Boss teleported due to {} to: {}\n", reason_str, self->s.origin);
+	}
+
+	return true;
 }
 
 void SetHealthBarName(const edict_t* boss) {
-	static std::array<char, MAX_STRING_CHARS> buffer = {};
+	// Use a static buffer to avoid allocation
+	static char buffer[MAX_STRING_CHARS];
 
+	// Early validation
 	if (!boss || !boss->inuse) {
 		gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
+	// Get name once
 	const std::string display_name = GetDisplayName(boss);
 	if (display_name.empty()) {
 		gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
-	// Usar una constante para el null terminator
-	constexpr size_t null_terminator_space = 1;
+	// Calculate safe buffer size once
 	const size_t name_len = std::min(display_name.length(),
-		MAX_STRING_CHARS - null_terminator_space);
+		MAX_STRING_CHARS - 1);  // -1 for null terminator
 
-	// Copiar el string directamente al array
-	std::copy_n(display_name.begin(), name_len, buffer.begin());
-	buffer[name_len] = '\0';
+	// Copy directly to buffer
+	memcpy(buffer, display_name.c_str(), name_len);
+	buffer[name_len] = '\0';  // Ensure null termination
 
-	gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, buffer.data());
+	// Set the configstring once
+	gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, buffer);
 }
-
 //CS HORDE
 
 void UpdateHordeHUD() {
-	bool update_successful = false;
+	// Rate limiting - exit early if called too frequently
 	static gtime_t last_update = 0_ms;
-	if (level.time - last_update < 99_ms) {
+	const gtime_t current_time = level.time;
+
+	if (current_time - last_update < 99_ms) {
 		return;
 	}
-	last_update = level.time;
+	last_update = current_time;
 
+	// Get configstring once
 	const std::string_view current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-	if (!current_msg.empty()) {
-		// Usar active_players() en lugar de iterar manualmente
-		for (auto* player : active_players()) {
-			const std::span voted_map(player->client->voted_map);
-			if (voted_map.empty() || voted_map[0] == '\0') {
-				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-				update_successful = true;
-			}
+	if (current_msg.empty()) {
+		return;
+	}
+
+	// Track success
+	bool update_successful = false;
+
+	// Process active players efficiently
+	for (auto* player : active_players()) {
+		// Skip null checks and directly check voted_map
+		if (player && player->client &&
+			(player->client->voted_map[0] == '\0')) {
+			player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+			update_successful = true;
 		}
 	}
 
+	// Update HUD state tracking
 	if (update_successful) {
-		g_horde_local.last_successful_hud_update = level.time;
+		g_horde_local.last_successful_hud_update = current_time;
 		g_horde_local.failed_updates_count = 0;
 	}
 	else {
-		g_horde_local.failed_updates_count++;
-		if (g_horde_local.failed_updates_count > 5) {
+		// If we exceed failure threshold, clear message
+		if (++g_horde_local.failed_updates_count > 5) {
 			ClearHordeMessage();
 			g_horde_local.reset_hud_state();
 		}
@@ -3227,19 +3370,21 @@ void UpdateHordeHUD() {
 
 // Implementación de UpdateHordeMessage
 void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
-	// Ensure message isn't empty and duration is valid
+	// Early validation for empty messages
 	if (message.empty() || duration <= 0_ms) {
 		ClearHordeMessage();
 		return;
 	}
 
-	// Only update if message actually changed
+	// Get current message once
 	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+
+	// Only update if changed
 	if (!current_msg || strcmp(current_msg, message.data()) != 0) {
 		gi.configstring(CONFIG_HORDEMSG, message.data());
 	}
 
-	// Update duration
+	// Set duration
 	horde_message_end_time = level.time + duration;
 }
 
@@ -3309,13 +3454,25 @@ static void ResetRecentBosses() noexcept {
 void ResetWaveAdvanceState() noexcept;
 
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
-	// Cache valores usados frecuentemente
+	// Cache values used frequently
 	const gtime_t currentTime = level.time;
-	const int32_t remainingMonsters = CalculateRemainingMonsters();
 
-	// Transición segura del timer cuando se completa el despliegue
+	// Early return for complete victory
+	if (allowWaveAdvance || Horde_AllMonstersDead()) {
+		reason = WaveEndReason::AllMonstersDead;
+		ResetWaveAdvanceState();
+		return true;
+	}
+
+	// Early time limit check
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
+	}
+
+	// Transition logic for wave deployment
 	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
-		// Reiniciar el timer independiente cuando se complete el despliegue
+		// Reset independent timer and set end time
 		g_independent_timer_start = currentTime;
 		g_horde_local.waveEndTime = currentTime + g_lastParams.timeThreshold;
 		g_horde_local.conditionTriggered = true;
@@ -3327,56 +3484,61 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
-	// Si el tiempo independiente se alcanza
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
+	// Only calculate remaining monsters if needed
+	static int32_t remainingMonsters = 0;
+	static gtime_t lastMonsterCountTime = 0_sec;
+
+	// Recalculate only periodically or if we're in a state transition
+	if (currentTime - lastMonsterCountTime > 0.5_sec || !g_horde_local.conditionTriggered) {
+		remainingMonsters = CalculateRemainingMonsters();
+		lastMonsterCountTime = currentTime;
 	}
 
-	if (allowWaveAdvance || Horde_AllMonstersDead()) {
-		reason = WaveEndReason::AllMonstersDead;
-		ResetWaveAdvanceState();
-		return true;
-	}
-
-	// Calcular porcentaje una sola vez si se necesita
-	const float percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
-
-	// Inicializar tiempo final si es necesario
+	// Initialize end time if needed
 	if (g_horde_local.waveEndTime == 0_sec) {
 		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 	}
 
-	// Combinar condiciones de trigger
+	// Condition trigger logic - calculate percentage only if needed
 	if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
-		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
+
+		float percentageRemaining = 0.0f;
+		const bool lowPercentageReached = [&]() {
+			if (!maxMonstersReached && g_totalMonstersInWave > 0) {
+				percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
+				return percentageRemaining <= g_lastParams.lowPercentageThreshold;
+			}
+			return false;
+			}();
 
 		if (maxMonstersReached || lowPercentageReached) {
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
+			// Calculate threshold based on condition
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
 				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
 				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
 
 			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
 
-			// Aplicar reducción de tiempo agresiva si quedan muy pocos monstruos
+			// Aggressive time reduction for very few monsters
 			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				g_horde_local.waveEndTime = std::min(
-					g_horde_local.waveEndTime,
-					currentTime + (AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-						(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters))
-				);
+				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
+					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
+				if (g_horde_local.waveEndTime > currentTime + reduction) {
+					g_horde_local.waveEndTime = currentTime + reduction;
+				}
 			}
 		}
 	}
 
-	// Manejar advertencias de tiempo
+	// Handle time warnings
 	if (g_horde_local.conditionTriggered) {
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 
+		// Process warnings - using fixed-size array
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			if (!g_horde_local.warningIssued[i] &&
 				remainingTime <= gtime_t::from_sec(WARNING_TIMES[i]) &&
@@ -3387,6 +3549,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			}
 		}
 
+		// Check for time limit
 		if (currentTime >= g_horde_local.waveEndTime) {
 			reason = WaveEndReason::MonstersRemaining;
 			return true;
@@ -3395,7 +3558,6 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	return false;
 }
-
 //
 // game resetting
 //
@@ -3851,13 +4013,13 @@ static edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
 
-	// Keep static cache but simplify it
+	// Keep spawn cache static to avoid reallocation
 	static struct {
-		std::vector<edict_t*> available_spawns;
-		size_t batch_count = 0;
+		edict_t* available_spawns[MAX_SPAWN_POINTS];
+		size_t count = 0;
 	} spawn_cache;
 
-	spawn_cache.available_spawns.clear();
+	spawn_cache.count = 0;
 
 	// Cache map constraints
 	const MapSize& mapSize = g_horde_local.current_map_size;
@@ -3869,7 +4031,7 @@ static edict_t* SpawnMonsters() {
 	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0)
 		return nullptr;
 
-	// Calculate spawn counts - keeping the original logic
+	// Calculate spawn counts
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
 	const int32_t min_spawn = std::min(g_horde_local.queued_monsters, base_spawn);
 	const int32_t monsters_per_spawn = irandom(min_spawn, std::min(base_spawn + 1, 6));
@@ -3878,17 +4040,17 @@ static edict_t* SpawnMonsters() {
 	if (spawnable <= 0)
 		return nullptr;
 
-	// Pre-collect valid spawn points
+	// Pre-collect valid spawn points - use direct array access instead of pushback
 	SpawnMonsterFilter filter{ level.time };
 	auto spawnPoints = monster_spawn_points();
 
 	for (edict_t* point : spawnPoints) {
-		if (filter(point)) {
-			spawn_cache.available_spawns.push_back(point);
+		if (filter(point) && spawn_cache.count < MAX_SPAWN_POINTS) {
+			spawn_cache.available_spawns[spawn_cache.count++] = point;
 		}
 	}
 
-	if (spawn_cache.available_spawns.empty())
+	if (spawn_cache.count == 0)
 		return nullptr;
 
 	// Spawn logic
@@ -3901,17 +4063,18 @@ static edict_t* SpawnMonsters() {
 			break;
 
 		// Get random spawn point from pre-collected points
-		if (spawn_cache.available_spawns.empty())
+		if (spawn_cache.count == 0)
 			break;
 
-		size_t spawn_idx = irandom(spawn_cache.available_spawns.size());
+		const size_t spawn_idx = irandom(spawn_cache.count);
 		edict_t* spawn_point = spawn_cache.available_spawns[spawn_idx];
 
-		// Remove used spawn point and update cooldown
-		spawn_cache.available_spawns[spawn_idx] = spawn_cache.available_spawns.back();
-		spawn_cache.available_spawns.pop_back();
+		// Remove used spawn point by swapping with the last element
+		spawn_cache.available_spawns[spawn_idx] = spawn_cache.available_spawns[--spawn_cache.count];
 
-		spawnPointsData[spawn_point].teleport_cooldown = level.time + 1.5_sec; // Reduced from 2sec
+		// Set cooldown directly without lookup (already found in filter)
+		auto& data = spawnPointsData[spawn_point];
+		data.teleport_cooldown = level.time + 1.5_sec;
 
 		const char* monster_classname = G_HordePickMonster(spawn_point);
 		if (!monster_classname)
@@ -3933,13 +4096,16 @@ static edict_t* SpawnMonsters() {
 			if (monster->inuse) {
 				if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)
 					SetMonsterArmor(monster);
-				if (frandom() < drop_chance)
-					monster->item = G_HordePickItem();
 
+				// Consolidated item setting
+				monster->item = (frandom() < drop_chance) ? G_HordePickItem() : nullptr;
+
+				// Visual effects
 				const vec3_t spawn_pos = monster->s.origin + vec3_t{ 0, 0, monster->mins[2] };
 				SpawnGrow_Spawn(spawn_pos, 80.0f, 10.0f);
 				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
+				// Update counters
 				--g_horde_local.num_to_spawn;
 				--g_horde_local.queued_monsters;
 				++g_totalMonstersInWave;
@@ -3951,7 +4117,7 @@ static edict_t* SpawnMonsters() {
 		}
 	}
 
-	// Keep queued monsters logic
+	// Handle queued monsters
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
@@ -3964,27 +4130,29 @@ static edict_t* SpawnMonsters() {
 }
 
 static void SetMonsterArmor(edict_t* monster) {
+	// Cache frequently used constants to avoid recalculating
+	static constexpr float HEALTH_RATIO_POW = 1.1f;
+	static constexpr float SIZE_FACTOR_POW = 0.7f;
+	static constexpr float MASS_FACTOR_POW = 0.6f;
+	static constexpr float BASE_ARMOR = 75.0f;
+	static constexpr float MAX_HEALTH_ARMOR_FACTOR = 0.2f;
 
-	constexpr float HEALTH_RATIO_POWER = 1.1f;
-	constexpr float SIZE_FACTOR_POWER = 0.7f;
-	constexpr float MASS_FACTOR_POWER = 0.6f;
-	constexpr float BASE_ARMOR = 75.0f;
-	constexpr float MAX_HEALTH_ARMOR_FACTOR = 0.2f;
-
-
+	// Get spawn temp once
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	// Asignar tipo de armadura por defecto solo si no tiene ninguno especificado
+	// Assign default armor type if not specified
 	if (!st.was_key_specified("power_armor_power")) {
 		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	}
 
-	// Calcular el poder de armadura para todos los casos
+	// Calculate base factors once
 	const float health_ratio = monster->health / static_cast<float>(monster->max_health);
 	const float size_factor = (monster->maxs - monster->mins).length() / 64.0f;
 	const float mass_factor = std::min(monster->mass / 200.0f, 1.5f);
 
+	// Pre-compute level scaling factor
 	float level_scaling;
+	// Use if-else instead of switch for better optimization with constants
 	if (current_wave_level <= 15) {
 		level_scaling = 1.0f + (current_wave_level * 0.04f);
 	}
@@ -3995,21 +4163,21 @@ static void SetMonsterArmor(edict_t* monster) {
 		level_scaling = 2.2f + ((current_wave_level - 25) * 0.08f);
 	}
 
-	float armor_power = (BASE_ARMOR + monster->max_health * MAX_HEALTH_ARMOR_FACTOR) *
-		std::pow(health_ratio, HEALTH_RATIO_POWER) *
-		std::pow(size_factor, SIZE_FACTOR_POWER) *
-		std::pow(mass_factor, MASS_FACTOR_POWER) *
-		level_scaling;
+	// Compute base armor power
+	float armor_power = (BASE_ARMOR + monster->max_health * MAX_HEALTH_ARMOR_FACTOR);
 
-	float armor_multiplier = 1.0f;
-	if (current_wave_level <= 30) {
-		armor_multiplier = 0.4f;
-	}
-	else if (current_wave_level <= 40) {
-		armor_multiplier = 0.5f;
-	}
+	// Use pre-computed powers or fast approximations
+	armor_power *= powf(health_ratio, HEALTH_RATIO_POW);
+	armor_power *= powf(size_factor, SIZE_FACTOR_POW);
+	armor_power *= powf(mass_factor, MASS_FACTOR_POW);
+	armor_power *= level_scaling;
+
+	// Apply level-based multiplier
+	float armor_multiplier = current_wave_level <= 30 ? 0.4f :
+		current_wave_level <= 40 ? 0.5f : 0.6f;
 	armor_power *= armor_multiplier;
 
+	// Difficulty adjustment
 	if (g_insane->integer) {
 		armor_power *= 1.2f;
 	}
@@ -4017,20 +4185,24 @@ static void SetMonsterArmor(edict_t* monster) {
 		armor_power *= 1.1f;
 	}
 
-	const float random_factor = std::uniform_real_distribution<float>(0.9f, 1.1f)(mt_rand);
+	// Apply random factor - use faster random generation
+	const float random_factor = 0.9f + (0.2f * frandom());
 	armor_power *= random_factor;
 
+	// High-level bonus
 	if (current_wave_level > 25) {
 		armor_power *= 1.0f + ((current_wave_level - 25) * 0.03f);
 	}
 
+	// Calculate min/max armor values efficiently
 	const int min_armor = std::max(25, static_cast<int>(monster->max_health * 0.08f));
 	const int max_armor = static_cast<int>(monster->max_health *
 		(current_wave_level > 25 ? 1.5f : 1.2f));
 
+	// Clamp final armor value 
 	const int final_armor = std::clamp(static_cast<int>(armor_power), min_armor, max_armor);
 
-	// Asignar el poder según el tipo de armadura
+	// Assign power directly based on armor type
 	if (monster->monsterinfo.power_armor_type == IT_NULL) {
 		monster->monsterinfo.power_armor_power = 0;
 	}
@@ -4039,6 +4211,7 @@ static void SetMonsterArmor(edict_t* monster) {
 		monster->monsterinfo.power_armor_power = final_armor;
 	}
 
+	// Assign armor power
 	if (monster->monsterinfo.armor_type == IT_NULL) {
 		monster->monsterinfo.armor_power = 0;
 	}
@@ -4046,6 +4219,7 @@ static void SetMonsterArmor(edict_t* monster) {
 		monster->monsterinfo.armor_power = final_armor;
 	}
 }
+
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> SPAWN_TIMES = { {
 		{0.6_sec, 0.8_sec},  // Small maps
@@ -4214,59 +4388,56 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 //}
 
 static void SendCleanupMessage(WaveEndReason reason) {
-	try {
-		// Wave completion message - these are safe since they only use level number
-		switch (reason) {
-		case WaveEndReason::AllMonstersDead:
-			gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Completely Cleared - Perfect Victory!\n",
-				g_horde_local.level);
-			break;
-		case WaveEndReason::MonstersRemaining:
-			gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Pushed Back - But Still Threatening!\n",
-				g_horde_local.level);
-			break;
-		case WaveEndReason::TimeLimitReached:
-			gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Contained - Time Limit Reached!\n",
-				g_horde_local.level);
-			break;
-		}
+	// Avoid try-catch for performance in normal operation
+	// Wave completion message - use switch for better performance
+	switch (reason) {
+	case WaveEndReason::AllMonstersDead:
+		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Completely Cleared - Perfect Victory!\n",
+			g_horde_local.level);
+		break;
+	case WaveEndReason::MonstersRemaining:
+		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Pushed Back - But Still Threatening!\n",
+			g_horde_local.level);
+		break;
+	case WaveEndReason::TimeLimitReached:
+		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Contained - Time Limit Reached!\n",
+			g_horde_local.level);
+		break;
+	}
 
-		// Top damager calculation and announcement
-		PlayerStats topDamager;
-		float percentage = 0.0f;
-		CalculateTopDamager(topDamager, percentage);
+	// Calculate top damager once
+	PlayerStats topDamager;
+	float percentage = 0.0f;
+	CalculateTopDamager(topDamager, percentage);
 
+	// Only process if we have a valid player
+	if (topDamager.player && topDamager.player->inuse && topDamager.player->client) {
+		// Get player name once
+		const std::string playerName = GetPlayerName(topDamager.player);
+
+		// Send damage announcement
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
+			playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
 
 		// Give reward and reset stats if successful
-		if (topDamager.player) {
-			const std::string playerName = GetPlayerName(topDamager.player);
-			gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
-				playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
+		if (GiveTopDamagerReward(topDamager, playerName)) {
+			// Reset all player stats in one pass
+			for (auto player : active_players()) {
+				if (player->client) {
+					// Group related resets together for better cache coherence
+					// Damage counters
+					player->client->total_damage = 0;
+					player->client->lastdmg = level.time;
+					player->client->dmg_counter = 0;
+					player->client->ps.stats[STAT_ID_DAMAGE] = 0;
 
-			// Give reward and reset stats if successful
-			if (GiveTopDamagerReward(topDamager, playerName)) {
-
-				for (auto player : active_players()) {
-					if (player->client) {
-						// Reset damage counters
-						player->client->total_damage = 0;
-						player->client->lastdmg = level.time;
-						player->client->dmg_counter = 0;
-						player->client->ps.stats[STAT_ID_DAMAGE] = 0;
-
-						//revive all players waiting on squad
-						player->client->respawn_time = 0_sec;
-						player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-						player->client->last_damage_time = level.time;
-					}
+					// Respawn states
+					player->client->respawn_time = 0_sec;
+					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+					player->client->last_damage_time = level.time;
 				}
 			}
 		}
-
-
-	}
-	catch (const std::exception& e) {
-		gi.Com_PrintFmt("Error in SendCleanupMessage: {}\n", e.what());
 	}
 }
 
@@ -4290,66 +4461,78 @@ void CheckAndResetDisabledSpawnPoints() {
 }
 
 void Horde_RunFrame() {
+	// Cache state variables at the beginning to reduce redundant property lookups
 	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
+	const horde_state_t currentState = g_horde_local.state;
+	const gtime_t currentTime = level.time;
+
+	// Track wave end reason
 	WaveEndReason currentWaveEndReason{};
 
-	CleanupSpawnPointCache();
-	CheckAndReduceSpawnCooldowns();
+	// Use time-based checks instead of frame-based checks
+	// Assuming FRAME_TIME_MS is about 16-20ms (typical for 50-60 fps)
+	static gtime_t last_cleanup_time = 0_ms;
+	static gtime_t last_cooldown_time = 0_ms;
 
+	// Perform cleanup every ~128ms (approximately equivalent to every 8 frames)
+	if (currentTime - last_cleanup_time >= 128_ms) {
+		CleanupSpawnPointCache();
+		last_cleanup_time = currentTime;
+	}
 
-	// Handle custom monster settings (likely debug/testing)
+	// Check cooldowns every ~240ms (approximately equivalent to every 16 frames)
+	if (currentTime - last_cooldown_time >= 240_ms) {
+		CheckAndReduceSpawnCooldowns();
+		last_cooldown_time = currentTime;
+	}
+
+	// Handle custom monster settings
 	if (dm_monsters->integer >= 1) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
 		g_horde_local.queued_monsters = 0;
 		ClampNumToSpawn(mapSize);
 	}
 
-	bool waveEnded = false; // Flag to signal if we need to transition to cleanup
+	bool waveEnded = false;
 
-	switch (g_horde_local.state) {
+	// Use switch instead of if-else for better branch prediction
+	switch (currentState) {
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time) {
+		if (g_horde_local.warm_time < currentTime) {
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 			current_wave_level = 1;
 			PlayWaveStartSound();
 			DisplayWaveMessage();
-
-			if (developer->integer) {
-				//gi.Com_PrintFmt("PRINT: Wave {} begins.\n", current_wave_level);
-				//gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-				//gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-				//gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-				//gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
-			}
 		}
 		break;
 
 	case horde_state_t::spawning: {
-		// Independent time limit check for faster exit
+		// Fast independent time check
 		const gtime_t independentTimeLimit = g_independent_timer_start + g_lastParams.independentTimeThreshold;
-		if (level.time >= independentTimeLimit) {
+		if (currentTime >= independentTimeLimit) {
 			currentWaveEndReason = WaveEndReason::TimeLimitReached;
-			waveEnded = true; // Set the flag
-			break;             // Exit the spawning state
+			waveEnded = true;
+			break;
 		}
 
-		if (g_horde_local.monster_spawn_time <= level.time) {
+		if (g_horde_local.monster_spawn_time <= currentTime) {
+			// Boss wave check
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
 
+			// Monster spawning check
 			const int32_t activeMonsters = CalculateRemainingMonsters();
 			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
 			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
-				//if (developer->integer == 1)
-				//    gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
 			}
 
+			// Check for wave completion
 			if (g_horde_local.num_to_spawn == 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
@@ -4360,43 +4543,33 @@ void Horde_RunFrame() {
 				}
 				g_horde_local.state = horde_state_t::active_wave;
 			}
-
-
-			//if (developer->integer) {
-			//    gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
-			//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-			//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-			//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-			//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
-			//}
-
 		}
 		break;
 	}
 
 	case horde_state_t::active_wave: {
-		WaveEndReason reason;
-		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
-
+		// Fast path for common condition - all monsters dead
 		if (Horde_AllMonstersDead()) {
 			currentWaveEndReason = WaveEndReason::AllMonstersDead;
 			waveEnded = true;
 			break;
 		}
 
-		if (shouldAdvance) {
+		// Check wave completion conditions
+		WaveEndReason reason;
+		if (CheckRemainingMonstersCondition(mapSize, reason)) {
 			currentWaveEndReason = reason;
-			waveEnded = true; // Set the flag
-			break;             // Exit the active_wave state
+			waveEnded = true;
+			break;
 		}
-		else if (g_horde_local.monster_spawn_time <= level.time) {
+
+		// Spawn additional monsters if needed
+		if (g_horde_local.monster_spawn_time <= currentTime) {
 			const int32_t activeMonsters = CalculateRemainingMonsters();
 			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
 			if (activeMonsters < maxMonsters && g_horde_local.queued_monsters > 0) {
-				//if (developer->integer == 1)
-				//    gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
 			}
 		}
@@ -4404,23 +4577,15 @@ void Horde_RunFrame() {
 	}
 
 	case horde_state_t::cleanup:
-		if (g_horde_local.monster_spawn_time < level.time) {
+		if (g_horde_local.monster_spawn_time < currentTime) {
 			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
-			g_horde_local.warm_time = level.time + random_time(0.8_sec, 1.5_sec);
+			g_horde_local.warm_time = currentTime + random_time(0.8_sec, 1.5_sec);
 			g_horde_local.state = horde_state_t::rest;
-
-			//if (developer->integer) {
-			//    gi.Com_PrintFmt("PRINT: Wave {} cleanup complete. Next wave in {:.2f} seconds.\n", current_wave_level, (g_horde_local.warm_time - level.time).seconds());
-			//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-			//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-			//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-			//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
-			//}
 		}
 		break;
 
 	case horde_state_t::rest:
-		if (g_horde_local.warm_time < level.time) {
+		if (g_horde_local.warm_time < currentTime) {
 			HandleWaveRestMessage(3_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
@@ -4431,18 +4596,8 @@ void Horde_RunFrame() {
 	// Cleanup logic (moved outside the switch)
 	if (waveEnded) {
 		SendCleanupMessage(currentWaveEndReason);
-		g_horde_local.monster_spawn_time = level.time + 0.5_sec;
+		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
 		g_horde_local.state = horde_state_t::cleanup;
-
-		//if (developer->integer) {
-		//    gi.Com_PrintFmt("PRINT: Wave {} ended due to {}. Cleanup starting.\n", current_wave_level,
-		//        (currentWaveEndReason == WaveEndReason::AllMonstersDead) ? "all monsters dead" :
-		//        (currentWaveEndReason == WaveEndReason::MonstersRemaining) ? "monsters remaining" : "time limit");
-		//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-		//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-		//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-		//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
-		//}
 	}
 }
 
