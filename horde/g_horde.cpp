@@ -7,7 +7,7 @@
 #include <span>
 
 namespace HordeConstants {
-//	constexpr float PLAYER_MULTIPLIER = 0.2f;
+// constexpr float PLAYER_MULTIPLIER = 0.2f;
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
 	constexpr float DIFFICULTY_PLAYER_FACTOR = 0.075f;
 	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.0f;
@@ -1051,13 +1051,11 @@ static void adjust_weight_powerup(const weighted_item_t& item, float& weight) no
 
 constexpr struct weighted_item_t {
 	const char* classname;
+	int32_t min_level = -1, max_level = -1;
 	float weight = 1.0f;
-	int32_t min_level = -1;
-	int32_t max_level = -1;
 	weight_adjust_func_t adjust_weight = nullptr;
 	uint32_t flags = 0;
 } items[] = {
-	// classname,  min_lvl, max_lvl    weight,  , adjust_func,         flags
 	{ "item_health", 3, 5, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, 4, 0.06f, adjust_weight_health },
 	{ "item_health_large", 5, -1, 0.12f, adjust_weight_health },
@@ -1317,62 +1315,61 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 //	if (waveNumber <= 30) return 2.0f;
 //	return 2.0f + ((waveNumber - 30) * 0.1f);
 //}
-
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 // Example function to filter monsters by wave type
 // First the IsValidMonsterForWave function:
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
-    const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
+	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
 
-    // If there are no specific wave requirements, any monster is valid
-    if (waveRequirements == MonsterWaveType::None) {
-        return true;
-    }
+	// If there are no specific wave requirements, any monster is valid
+	if (waveRequirements == MonsterWaveType::None) {
+		return true;
+	}
 
-    // Special waves checks - these are strict requirements 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Flying)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Flying);
-    }
+	// Special waves checks - these are strict requirements 
+	if (HasWaveType(waveRequirements, MonsterWaveType::Flying)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Flying);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Small)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Small);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Small)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Small);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Heavy)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Heavy);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Heavy)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Heavy);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Shambler)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Shambler);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Shambler)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Shambler);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Mutant)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Mutant);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Mutant)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Mutant);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Melee)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Melee);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Melee)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Melee);
+	}
 
-    // Add checks for Berserk, Bomber and Spawner flags
-    if (HasWaveType(waveRequirements, MonsterWaveType::Berserk)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Berserk);
-    }
+	// Add checks for Berserk, Bomber and Spawner flags
+	if (HasWaveType(waveRequirements, MonsterWaveType::Berserk)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Berserk);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Bomber)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Bomber);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Bomber)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Bomber);
+	}
 
-    if (HasWaveType(waveRequirements, MonsterWaveType::Spawner)) {
-        return HasWaveType(monsterTypes, MonsterWaveType::Spawner);
-    }
+	if (HasWaveType(waveRequirements, MonsterWaveType::Spawner)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Spawner);
+	}
 
-    // For mixed waves, monster should match at least one type
-    return (static_cast<uint32_t>(monsterTypes & waveRequirements) != 0);
+	// For mixed waves, monster should match at least one type
+	return (static_cast<uint32_t>(monsterTypes & waveRequirements) != 0);
 }
 
 // Structure to include wave level information
@@ -1416,14 +1413,14 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f},
 	{"monster_infantry", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f},
 	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee| MonsterWaveType::Berserk , 6, 0.5f},
+	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk , 6, 0.5f},
 
 	// Arachnophobic Units (Waves 8-18)
 	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 8, 0.1f},
 	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f},
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f},
-	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite| MonsterWaveType::Spawner, 25, 0.35f},
+	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite | MonsterWaveType::Spawner, 25, 0.35f},
 
 	// Mutant Units (Waves 9-14)
 	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f},
@@ -1455,7 +1452,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Special Heavy Units (Waves 20+)
 	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f},
 	{"monster_janitor2", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f},
-	{"monster_medic_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite| MonsterWaveType::Spawner, 27, 0.3f},
+	{"monster_medic_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f},
 
 	// Semi-Boss Units (Waves 16+)
 	{"monster_makron", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.02f},
@@ -1465,12 +1462,12 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f},
 	{"monster_makronkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
 	{"monster_boss2kl", MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
-	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy| MonsterWaveType::Medium, 33, 0.2f},
+	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.2f},
 
 	// Boss Units
 	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
 	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
-	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy| MonsterWaveType::Spawner, 27, 0.2f}
+	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy | MonsterWaveType::Spawner, 27, 0.2f}
 };
 
 // Function to get wave types for a monster based on its classname
@@ -1793,44 +1790,37 @@ struct picked_item_t {
 
 // Estructura optimizada para mantener los datos de selección
 struct SelectionCache {
-    static constexpr size_t MAX_ENTRIES = 32;
-    
-    struct Entry {
-        const weighted_item_t* item = nullptr;
-        const char* monster_classname = nullptr;
-        float weight = 0.0f;
-        float cumulative_weight = 0.0f;
-    };
-    
-    size_t count = 0;
-    float total_weight = 0.0f;
-    std::array<Entry, MAX_ENTRIES> entries = {};
+	static constexpr size_t MAX_ENTRIES = 32;
+	struct Entry {
+		const weighted_item_t* item;
+		const char* monster_classname;
+		float weight;
+		float cumulative_weight;
+	};
+	_Field_range_(0, MAX_ENTRIES) size_t count = 0;
+	float total_weight = 0.0f;
+	_Field_size_(MAX_ENTRIES) Entry entries[MAX_ENTRIES] = { {} }; // Doble llaves  // Inicializar array
 
-    void clear() noexcept {
-        count = 0;
-        total_weight = 0.0f;
-    }
-    
-    bool add_entry(const Entry& new_entry) noexcept {
-        if (count >= MAX_ENTRIES)
-            return false;
-            
-        entries[count] = new_entry;
-        total_weight += new_entry.weight;
-        entries[count].cumulative_weight = total_weight;
-        count++;
-        return true;
-    }
-
-    const Entry* get_entry(size_t index) const noexcept {
-        if (index >= count)
-            return nullptr;
-        return &entries[index];
-    }
-    
-    std::span<const Entry> get_entries() const noexcept {
-        return std::span<const Entry>(entries.data(), count);
-    }
+	void clear() noexcept {
+		count = 0;
+		total_weight = 0.0f;
+	}
+	_Success_(return != false)
+		bool add_entry(_In_ const Entry& new_entry) noexcept {
+		if (count >= MAX_ENTRIES) {
+			return false;
+		}
+		entries[count] = new_entry;
+		count++;
+		return true;
+	}
+	_Ret_maybenull_
+		const Entry* get_entry(_In_range_(0, count) size_t index) const noexcept {
+		if (index >= count) {
+			return nullptr;
+		}
+		return &entries[index];
+	}
 };
 static SelectionCache item_cache;
 static SelectionCache monster_cache;
@@ -2811,7 +2801,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 
 
 // Incluye otras cabeceras y definiciones necesarias
-static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = { 
+static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
 	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
 	{"monster_boss2kl", "***** Boss incoming! Hornet 'the swarm' is about to strike! *****\n"},
 	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
@@ -3615,7 +3605,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	static const std::array<const char*, 3> messages = {
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
-		"New Tactics!\n\nTeslas and Traps can now be placed on walls and ceilings!\n\nUse them wisely!"
+		"New Tactics!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!"
 	};
 
 	// Usar distribución uniforme con mt_rand
@@ -4370,16 +4360,16 @@ void Horde_RunFrame() {
 				}
 				g_horde_local.state = horde_state_t::active_wave;
 			}
-			
 
-				//if (developer->integer) {
-				//    gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
-				//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-				//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-				//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-				//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
-				//}
-			
+
+			//if (developer->integer) {
+			//    gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
+			//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+			//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+			//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+			//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+			//}
+
 		}
 		break;
 	}
@@ -4490,7 +4480,7 @@ inline int32_t GetStroggsNum() noexcept {
 }
 
 // Helper function to check if it's a boss wave
-inline bool IsBossWave() noexcept  {
+inline bool IsBossWave() noexcept {
 	return g_horde_local.level >= 10 && g_horde_local.level % 5 == 0;
 }
 
