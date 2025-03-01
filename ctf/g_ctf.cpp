@@ -3354,12 +3354,18 @@ void OpenTechMenu(edict_t* ent) {
 		return;
 	}
 
+	// Always close existing menu first
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
 	const pmenu_t* menu = (ent->client->resp.ctf_team == CTF_NOTEAM) ?
 		tech_menustart : tech_menu;
 	const size_t menu_size = (ent->client->resp.ctf_team == CTF_NOTEAM) ?
-		sizeof(tech_menustart) : sizeof(tech_menu);
+		sizeof(tech_menustart) / sizeof(pmenu_t) :
+		sizeof(tech_menu) / sizeof(pmenu_t);
 
-	PMenu_Open(ent, menu, -1, menu_size / sizeof(pmenu_t), nullptr, nullptr);
+	PMenu_Open(ent, menu, -1, menu_size, nullptr, nullptr);
 }
 
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
@@ -3433,11 +3439,85 @@ static pmenu_t hud_menu[] = {
 };
 
 void OpenHUDMenu(edict_t* ent) {
+	// Input validation
 	if (!ent || !ent->client) {
 		return;
 	}
 
-	auto p = PMenu_Open(ent, hud_menu, -1, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	// Close any existing menu first
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Static allocation for menu entries
+	static pmenu_t entries[8];
+	memset(entries, 0, sizeof(entries)); // Zero initialize for safety
+
+	// Safe buffer sizes for formatting menu text
+	static constexpr size_t TEXT_BUFFER_SIZE = 64;
+	char id_text[TEXT_BUFFER_SIZE];
+	char dmg_text[TEXT_BUFFER_SIZE];
+
+	// Format option text safely
+	snprintf(id_text, sizeof(id_text), "Enable/Disable ID [%s]",
+		ent->client->pers.id_state ? "ON" : "OFF");
+	snprintf(dmg_text, sizeof(dmg_text), "Enable/Disable ID-DMG [%s]",
+		ent->client->pers.iddmg_state ? "ON" : "OFF");
+
+	// Build menu entries with bounds checking
+	int count = 0;
+	const size_t max_entries = sizeof(entries) / sizeof(entries[0]);
+
+	// Title and spacing
+	if (count < max_entries) {
+		Q_strlcpy(entries[count].text, "*HUD Options", sizeof(entries[count].text));
+		entries[count].align = PMENU_ALIGN_CENTER;
+		entries[count++].SelectFunc = nullptr;
+	}
+
+	if (count < max_entries) {
+		entries[count].text[0] = '\0';
+		entries[count].align = PMENU_ALIGN_CENTER;
+		entries[count++].SelectFunc = nullptr;
+	}
+
+	// ID Toggle
+	if (count < max_entries) {
+		Q_strlcpy(entries[count].text, id_text, sizeof(entries[count].text));
+		entries[count].align = PMENU_ALIGN_LEFT;
+		entries[count++].SelectFunc = HUDMenuHandler;
+	}
+
+	// ID-DMG Toggle
+	if (count < max_entries) {
+		Q_strlcpy(entries[count].text, dmg_text, sizeof(entries[count].text));
+		entries[count].align = PMENU_ALIGN_LEFT;
+		entries[count++].SelectFunc = HUDMenuHandler;
+	}
+
+	// Spacing
+	if (count < max_entries) {
+		entries[count].text[0] = '\0';
+		entries[count].align = PMENU_ALIGN_CENTER;
+		entries[count++].SelectFunc = nullptr;
+	}
+
+	// Back to Horde Menu
+	if (count < max_entries) {
+		Q_strlcpy(entries[count].text, "Back to Horde Menu", sizeof(entries[count].text));
+		entries[count].align = PMENU_ALIGN_LEFT;
+		entries[count++].SelectFunc = HUDMenuHandler;
+	}
+
+	// Close
+	if (count < max_entries) {
+		Q_strlcpy(entries[count].text, "Close", sizeof(entries[count].text));
+		entries[count].align = PMENU_ALIGN_LEFT;
+		entries[count++].SelectFunc = HUDMenuHandler;
+	}
+
+	// Open menu and update UI
+	auto p = PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 	if (p) {
 		UpdateHUDMenu(ent, p);
 	}
@@ -3646,21 +3726,30 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		return;
 	}
 
-	// Initialize menu with proper handlers
-	for (size_t i = 0; i < sizeof(map_category_menu) / sizeof(map_category_menu[0]); i++) {
-		if (i >= 2 && i <= 4) { // Menu item indices for categories
-			map_category_menu[i].SelectFunc = MapCategoryHandler;
+	// Always close any existing menu first
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Create a local copy to modify
+	static pmenu_t menu_entries[8];
+	memcpy(menu_entries, map_category_menu, sizeof(map_category_menu));
+
+	// Set handlers safely
+	for (size_t i = 0; i < sizeof(menu_entries) / sizeof(menu_entries[0]); i++) {
+		if (i >= 2 && i <= 4) {
+			menu_entries[i].SelectFunc = MapCategoryHandler;
 		}
-		if (i == 6 || i == 7) { // Back and Close options
-			map_category_menu[i].SelectFunc = MapCategoryHandler;
+		if (i == 6 || i == 7) {
+			menu_entries[i].SelectFunc = MapCategoryHandler;
 		}
 	}
 
-	PMenu_Open(ent, map_category_menu, -1,
-		sizeof(map_category_menu) / sizeof(map_category_menu[0]), nullptr, nullptr);
+	PMenu_Open(ent, menu_entries, -1, sizeof(menu_entries) / sizeof(menu_entries[0]), nullptr, nullptr);
 }
 
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	// Input validation
 	if (!ent || !ent->client || !p || p->cur < 0) {
 		return;
 	}
@@ -3668,7 +3757,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	const int option = p->cur;
 	std::vector<std::string>* current_map_list = nullptr;
 
-	// Get current map list based on category
+	// Get current map list with category check
 	if (categorized_maps.current_category.isBigMap) {
 		current_map_list = &categorized_maps.big_maps;
 	}
@@ -3679,22 +3768,25 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		current_map_list = &categorized_maps.medium_maps;
 	}
 
-	if (!current_map_list) {
+	// Validate map list
+	if (!current_map_list || current_map_list->empty()) {
 		PMenu_Close(ent);
 		return;
 	}
 
-	// Calculate the actual map index based on current page and selection
-	size_t map_index = (categorized_maps.current_page * MAX_MAPS_PER_PAGE) + (option - 2);
-
-	// Handle map selection
+	// Handle map selection (menu options 2 through 2+MAX_MAPS_PER_PAGE)
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
-		if (map_index < current_map_list->size() && !vote_menu[option].text[0]) {
-			return; // Empty slot
-		}
+		// Calculate map index with bounds checking
+		const size_t page_offset = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
+		const size_t map_index = page_offset + (option - 2);
 
+		// Validate map index and menu entry
 		if (map_index >= current_map_list->size()) {
 			return; // Invalid map index
+		}
+
+		if (vote_menu[option].text[0] == '\0') {
+			return; // Empty slot
 		}
 
 		const std::string& map_name = (*current_map_list)[map_index];
@@ -3705,31 +3797,43 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			return;
 		}
 
-		// Initiate vote
+		// Initiate vote with safe string operations
 		Q_strlcpy(ctfgame.elevel, map_name.c_str(), sizeof(ctfgame.elevel));
-		std::string vote_msg = fmt::format("Change map to {}?", map_name);
-		if (CTFBeginElection(ent, ELECT_MAP, vote_msg.c_str())) {
+
+		char vote_msg[128]; // Safe buffer for vote message
+		snprintf(vote_msg, sizeof(vote_msg), "Change map to %s?", map_name.c_str());
+
+		if (CTFBeginElection(ent, ELECT_MAP, vote_msg)) {
 			PMenu_Close(ent);
 		}
 		return;
 	}
 
-	// Handle navigation
-	if (option == MAX_MAPS_PER_PAGE + 3) { // Next
+	// Navigation options - Next, Back, Close
+	switch (option) {
+	case MAX_MAPS_PER_PAGE + 3: // Next
 		if ((categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size()) {
 			categorized_maps.current_page++;
 			UpdateVoteMenu();
-			// Re-render menu
-			PMenu_Close(ent);
+
+			// Safely recreate menu
+			if (ent->client->menu) {
+				PMenu_Close(ent);
+			}
 			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(vote_menu[0]), nullptr, nullptr);
 		}
-	}
-	else if (option == MAX_MAPS_PER_PAGE + 4) { // Back
-		PMenu_Close(ent);
+		break;
+
+	case MAX_MAPS_PER_PAGE + 4: // Back
+		if (ent->client->menu) {
+			PMenu_Close(ent);
+		}
 		OpenMapCategoryMenu(ent);
-	}
-	else if (option == MAX_MAPS_PER_PAGE + 5) { // Close
+		break;
+
+	case MAX_MAPS_PER_PAGE + 5: // Close
 		PMenu_Close(ent);
+		break;
 	}
 }
 
@@ -3901,43 +4005,53 @@ static const pmenu_t vote_in_progress_menu[] = {
 // horde menu
 
 // // Helper function para crear menús de horda dinámicamente
-pmenuhnd_t* CreateHordeMenu(edict_t* ent)
-{
-	static pmenu_t entries[32];  // Tamaño máximo razonable para el menú
+pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
+	// Close any existing menu to prevent memory leaks
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Use global static array - more predictable memory usage
+	static pmenu_t entries[32];
+	const size_t max_entries = sizeof(entries) / sizeof(entries[0]);
 	int count = 0;
 
-	// Menú base
-	entries[count++] = { "*Horde Menu", PMENU_ALIGN_CENTER, nullptr };
-	entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
-	entries[count++] = { "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler };
-	entries[count++] = { "Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler };
-	entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
+	// Safety check for array bounds
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
+		if (count < max_entries) {
+			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
+			entries[count].align = align;
+			entries[count].SelectFunc = func;
+			count++;
+		}
+		};
 
-	if (ctfgame.election == ELECT_NONE)
-	{
-		// Opciones normales
-		entries[count++] = { "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler };
-		entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
-		entries[count++] = { "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler };
-		entries[count++] = { "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler };
+	// Add menu entries using the safe function
+	add_entry("*Horde Menu", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	if (ctfgame.election == ELECT_NONE) {
+		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("", PMENU_ALIGN_CENTER);
+		add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
-	else
-	{
-		// Opciones durante votación
-		entries[count++] = { "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler };
-		entries[count++] = { "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler };
-		entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
-		entries[count++] = { "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler };
-		entries[count++] = { "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler };
+	else {
+		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("", PMENU_ALIGN_CENTER);
+		add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
-	entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
-	entries[count++] = { "Close", PMENU_ALIGN_LEFT, HordeMenuHandler };
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
 	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
-
-
 
 pmenuhnd_t* CreateHUDMenu(edict_t* ent)
 {
