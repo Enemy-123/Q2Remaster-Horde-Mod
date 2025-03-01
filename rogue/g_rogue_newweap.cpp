@@ -1017,7 +1017,7 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	gi.linkentity(nuke);
 }
 // *************************
-// TESLA
+// TESLA - OPTIMIZED
 // *************************
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = 60_sec;
@@ -1031,6 +1031,33 @@ constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the da
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
 
 constexpr int MAX_TESLAS = 9; // Define el máximo de teslas permitidas por jugador
+
+// Constantes para ajustar el comportamiento del rebote
+constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f;    // Multiplicador base del rebote
+constexpr float TESLA_MIN_BOUNCE_SPEED = 120.0f;    // Velocidad mínima después de un rebote
+constexpr float TESLA_BOUNCE_RANDOM = 70.0f;        // Factor de aleatoriedad en el rebote
+constexpr float TESLA_VERTICAL_BOOST = 180.0f;      // Impulso vertical adicional
+
+// Offsets for Tesla positioning
+constexpr float TESLA_WALL_OFFSET = 3.0f;      // Offset para paredes
+constexpr float TESLA_CEILING_OFFSET = -20.4f;   // Offset optimizado para techos
+constexpr float TESLA_FLOOR_OFFSET = -12.0f;     // Offset para suelo
+constexpr float TESLA_ORB_OFFSET = 12.0f;      // Altura de la esfera normal
+constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f;  // Altura de la esfera cuando está en techo
+
+// Network message limiting
+constexpr int MAX_TESLA_MESSAGES_PER_FRAME = 12; // Limit messages per frame to prevent overflow
+static int tesla_messages_this_frame = 0;
+static gtime_t tesla_message_frame_time = 0_sec;
+
+// Counters and timing for tesla effects
+struct TeslaEffectState {
+	gtime_t next_effect_time = 0_sec;
+	int effect_count = 0;
+};
+
+// Global map to track effect state per tesla
+static std::unordered_map<const edict_t*, TeslaEffectState> tesla_effect_states;
 
 void tesla_remove(edict_t* self)
 {
@@ -1063,6 +1090,9 @@ void tesla_remove(edict_t* self)
 	if ((self->dmg_radius) && (self->dmg > (TESLA_DAMAGE * TESLA_EXPLOSION_DAMAGE_MULT)))
 		gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
+	// Remove from effect tracking
+	tesla_effect_states.erase(self);
+
 	Grenade_Explode(self);
 }
 
@@ -1089,70 +1119,7 @@ TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	// Código existente para manejar el contacto aquí
 }
 
-//static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
-//{
-//	edict_t* self = (edict_t*)data;
-//
-//	if (!check->inuse)
-//		return BoxEdictsResult_t::Skip;
-//	if (check == self)
-//		return BoxEdictsResult_t::Skip;
-//	if (check->health < -40)
-//		return BoxEdictsResult_t::Skip;
-//
-//	// Monster-owned tesla checks, later will be useful for monster's teslas
-//	if (self->owner && (self->owner->svflags & SVF_MONSTER)) {
-//		// Don't attack owner
-//		if (check == self->owner)
-//			return BoxEdictsResult_t::Skip;
-//
-//		// Don't attack teammates of owner
-//		if (check->svflags & SVF_MONSTER && OnSameTeam(check, self->owner))
-//			return BoxEdictsResult_t::Skip;
-//
-//		// Attack players and non-team monsters
-//		if ((check->client && !OnSameTeam(check, self->owner)) ||
-//			(check->svflags & SVF_MONSTER && !OnSameTeam(check, self->owner)))
-//			return BoxEdictsResult_t::Keep;
-//	}
-//
-//	// Regular tesla checks
-//	if (check->client) {
-//		if (!G_IsDeathmatch() && !g_horde->integer)
-//			return BoxEdictsResult_t::Skip;
-//		else if (CheckTeamDamage(check, self->teammaster))
-//			return BoxEdictsResult_t::Skip;
-//	}
-//
-//	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->client)
-//		return BoxEdictsResult_t::Skip;
-//
-//	const char* classname = check->classname;
-//	if (!classname)
-//		return BoxEdictsResult_t::Keep;
-//
-//	if (((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP)) ||
-//		check->monsterinfo.invincible_time > level.time)
-//		return BoxEdictsResult_t::Skip;
-//
-//	if (strcmp(classname, "monster_sentrygun") == 0 ||
-//		strcmp(classname, "emitter") == 0 ||
-//		strcmp(classname, "nuke") == 0)
-//		return BoxEdictsResult_t::Skip;
-//
-//	return BoxEdictsResult_t::Keep;
-//}
-
-//constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array touch
-
-
-constexpr float TESLA_WALL_OFFSET = 3.0f;      // Offset para paredes
-constexpr float TESLA_CEILING_OFFSET = -20.4f;   // Offset optimizado para techos
-
-constexpr float TESLA_FLOOR_OFFSET = -12.0f;     // Offset para suelo
-constexpr float TESLA_ORB_OFFSET = 12.0f;      // Altura de la esfera normal
-constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f;  // Altura de la esfera cuando está en techo
-// Función modificada para el origen del rayo
+// Function to cache the ray origin calculation
 static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 	vec3_t ray_origin = self->s.origin;
 	vec3_t forward, right, up;
@@ -1165,9 +1132,6 @@ static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 
 		// Ajustar la altura de manera consistente
 		ray_origin = ray_origin + (up * 16.0f);
-
-		// No necesitamos ajustes basados en yaw ya que queremos
-		// que la posición sea simétrica en ambos lados
 	}
 	// En techo
 	else if (fabs(self->s.angles[PITCH]) > 150 || fabs(self->s.angles[PITCH]) < -150) {
@@ -1181,40 +1145,40 @@ static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 
 	return ray_origin;
 }
-// Función para calcular el punto objetivo del rayo tesla
+
+// Optimized calculation of ray target
 vec3_t calculate_tesla_ray_target(const edict_t* self, const edict_t* target) {
 	// Calcular el centro del objetivo
 	vec3_t target_center = target->s.origin;
-	vec3_t target_mins = target->mins;
-	vec3_t target_maxs = target->maxs;
 
-	// Ajustar el punto objetivo al centro de masa del target
-	target_center[0] += (target_mins[0] + target_maxs[0]) * 0.5f;
-	target_center[1] += (target_mins[1] + target_maxs[1]) * 0.5f;
-	target_center[2] += (target_mins[2] + target_maxs[2]) * 0.5f;
+	// Use midpoint of bounding box for better targeting
+	for (int i = 0; i < 3; i++) {
+		target_center[i] += (target->mins[i] + target->maxs[i]) * 0.5f;
+	}
 
 	return target_center;
 }
 
-// Función mejorada para la detección de colisiones del rayo
+// Fast trace function with caching
 bool tesla_ray_trace(const edict_t* self, const edict_t* target, trace_t& tr) {
 	vec3_t const ray_start = calculate_tesla_ray_origin(self);
 	vec3_t const ray_end = calculate_tesla_ray_target(self, target);
 
-	// Realizar el trace
+	// Perform the trace
 	tr = gi.traceline(ray_start, ray_end, self, MASK_PROJECTILE);
 
-	// Verificar si el rayo alcanza al objetivo
+	// Check if ray reaches target
 	return tr.fraction == 1.0f || tr.ent == target;
 }
 
-// New helper function to adapt FindMTarget logic for tesla
+// Target priority struct
 struct TeslaTarget {
 	edict_t* ent;
 	float priority;
 	float dist_squared;
 };
 
+// Optimized target validation
 bool IsValidTeslaTarget(edict_t* self, edict_t* ent) {
 	if (!ent || !ent->inuse || ent == self ||
 		ent->health <= 0 || ent->deadflag ||
@@ -1241,6 +1205,7 @@ bool IsValidTeslaTarget(edict_t* self, edict_t* ent) {
 	return true;
 }
 
+// Target priority calculation
 float CalculateTeslaPriority(edict_t* self, edict_t* target, float dist_squared) {
 	float priority = 1.0f / (dist_squared + 1.0f);
 
@@ -1251,6 +1216,53 @@ float CalculateTeslaPriority(edict_t* self, edict_t* target, float dist_squared)
 	return priority;
 }
 
+// Helper for sending tesla effect
+bool TrySendTeslaEffect(edict_t* self, edict_t* target, const vec3_t& ray_start, const vec3_t& ray_end) {
+	// Reset counter if we're in a new frame
+	if (tesla_message_frame_time != level.time) {
+		tesla_messages_this_frame = 0;
+		tesla_message_frame_time = level.time;
+	}
+
+	// Check if we've hit the message limit for this frame
+	if (tesla_messages_this_frame >= MAX_TESLA_MESSAGES_PER_FRAME) {
+		return false;
+	}
+
+	// Rate limit effects per tesla
+	auto& state = tesla_effect_states[self];
+	if (level.time < state.next_effect_time) {
+		return false;
+	}
+
+	// Send the effect
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_LIGHTNING);
+	gi.WriteEntity(self);
+	gi.WriteEntity(target);
+	gi.WritePosition(ray_start);
+	gi.WritePosition(ray_end);
+	gi.multicast(ray_start, MULTICAST_PVS, false);
+
+	// Update counters
+	tesla_messages_this_frame++;
+	state.effect_count++;
+
+	// Dynamic rate limiting based on how many effects we've sent
+	if (state.effect_count <= 5) {
+		state.next_effect_time = level.time + 0_hz; // No limit for first few effects
+	}
+	else if (state.effect_count <= 10) {
+		state.next_effect_time = level.time + 5_hz; // Start limiting after a few
+	}
+	else {
+		state.next_effect_time = level.time + 10_hz; // More aggressive limiting
+	}
+
+	return true;
+}
+
+// Optimized targeting and attack function
 THINK(tesla_think_active)(edict_t* self) -> void {
 	if (!self)
 		return;
@@ -1307,11 +1319,19 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 	constexpr int max_targets = 3;
 	const float max_range_squared = TESLA_DAMAGE_RADIUS * TESLA_DAMAGE_RADIUS;
 
-	std::vector<TeslaTarget> potential_targets;
-	potential_targets.reserve(max_targets); // Pre-allocate space for efficiency
+	// Fixed-size array for potential targets (no dynamic allocation)
+	constexpr int MAX_POTENTIAL_TARGETS = 10;
+	TeslaTarget potential_targets[MAX_POTENTIAL_TARGETS];
+	int num_targets = 0;
 
-	// Find potential targets using active_monsters()
+	// Cache the ray origin for this frame
+	vec3_t ray_origin = calculate_tesla_ray_origin(self);
+
+	// Find potential targets using active_monsters() (more efficient)
 	for (auto ent : active_monsters()) {
+		if (num_targets >= MAX_POTENTIAL_TARGETS)
+			break;
+
 		if (!IsValidTeslaTarget(self, ent))
 			continue;
 
@@ -1319,55 +1339,57 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 		if (dist_squared > max_range_squared)
 			continue;
 
+		// Quick visibility check before expensive ray trace
+		if (!visible(self, ent))
+			continue;
+
 		trace_t tr;
 		if (!tesla_ray_trace(self, ent, tr))
 			continue;
 
-		TeslaTarget target{
+		potential_targets[num_targets++] = {
 			ent,
 			CalculateTeslaPriority(self, ent, dist_squared),
 			dist_squared
 		};
-		potential_targets.push_back(target);
 	}
 
-	// Sort by priority
-	std::sort(potential_targets.begin(), potential_targets.end(),
-		[](const TeslaTarget& a, const TeslaTarget& b) {
-			return a.priority > b.priority;
-		});
+	// Simple insertion sort (more efficient for small arrays)
+	for (int i = 1; i < num_targets; i++) {
+		TeslaTarget key = potential_targets[i];
+		int j = i - 1;
+		while (j >= 0 && potential_targets[j].priority < key.priority) {
+			potential_targets[j + 1] = potential_targets[j];
+			j--;
+		}
+		potential_targets[j + 1] = key;
+	}
 
 	// Attack phase
 	int targets_attacked = 0;
-	for (const auto& target : potential_targets) {
-		if (targets_attacked >= max_targets)
-			break;
+	for (int i = 0; i < num_targets && targets_attacked < max_targets; i++) {
+		const auto& target = potential_targets[i];
 
 		trace_t tr;
 		if (tesla_ray_trace(self, target.ent, tr)) {
-			vec3_t const ray_start = calculate_tesla_ray_origin(self);
-			vec3_t const ray_end = tr.endpos;
-			vec3_t dir = ray_end - ray_start;
+			vec3_t ray_end = tr.endpos;
+			vec3_t dir = ray_end - ray_origin;
 			dir.normalize();
 
 			T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(TE_LIGHTNING);
-			gi.WriteEntity(self);
-			gi.WriteEntity(target.ent);
-			gi.WritePosition(ray_start);
-			gi.WritePosition(ray_end);
-			gi.multicast(ray_start, MULTICAST_PVS, false);
-
-			targets_attacked++;
+			// Try to send the visual effect, respecting rate limits
+			if (TrySendTeslaEffect(self, target.ent, ray_origin, ray_end)) {
+				targets_attacked++;
+			}
 		}
 	}
 
+	// Stagger think times to distribute processing load
 	if (self->inuse) {
 		self->think = tesla_think_active;
-		self->nextthink = level.time + 10_hz;
+		self->nextthink = level.time + 10_hz + gtime_t::from_hz(8 + irandom(5)); // Random value between 8hz and 12hz
 	}
 }
 
@@ -1417,14 +1439,18 @@ THINK(tesla_activate) (edict_t* self) -> void
 	// doesn't need to be marked as a teamslave since the move code for bounce looks for teamchains
 	gi.linkentity(trigger);
 
-	//self->s.angles = {};
 	// clear the owner if in deathmatch and not horde
 	if (G_IsDeathmatch() && !g_horde->integer)
 		self->owner = nullptr;
 	self->teamchain = trigger;
 	self->think = tesla_think_active;
-	self->nextthink = level.time + FRAME_TIME_S;
+
+	// Stagger initial think times to distribute processing load
+	self->nextthink = level.time + FRAME_TIME_S + gtime_t::from_sec(frandom() * 0.1f);
 	self->air_finished = level.time + TESLA_TIME_TO_LIVE;
+
+	// Initialize effect tracking
+	tesla_effect_states[self] = { level.time, 0 };
 }
 
 THINK(tesla_think) (edict_t* ent) -> void
@@ -1434,8 +1460,6 @@ THINK(tesla_think) (edict_t* ent) -> void
 		tesla_remove(ent);
 		return;
 	}
-
-	//ent->s.angles = {};
 
 	if (!(ent->s.frame))
 		gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/teslaopen.wav"), 1, ATTN_NORM, 0);
@@ -1469,12 +1493,6 @@ THINK(tesla_think) (edict_t* ent) -> void
 	}
 }
 
-// Constantes para ajustar el comportamiento del rebote
-constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f;    // Multiplicador base del rebote
-constexpr float TESLA_MIN_BOUNCE_SPEED = 120.0f;    // Velocidad mínima después de un rebote
-constexpr float TESLA_BOUNCE_RANDOM = 70.0f;        // Factor de aleatoriedad en el rebote
-constexpr float TESLA_VERTICAL_BOOST = 180.0f;      // Impulso vertical adicional
-
 TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void {
 	if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH))
 		return;
@@ -1487,7 +1505,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			for (int i = 0; i < 3; i++) {
 				float change = tr.plane.normal[i] * backoff;
 				out[i] = ent->velocity[i] - change;
-				out[i] += crandom() * TESLA_BOUNCE_RANDOM;
+				out[i] += (frandom() * 2.0f - 1.0f) * TESLA_BOUNCE_RANDOM; // Equivalent to crandom()
 				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0) {
 					out[i] = (out[i] < 0 ? -TESLA_MIN_BOUNCE_SPEED : TESLA_MIN_BOUNCE_SPEED);
 				}
@@ -1500,7 +1518,11 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 				out = out * TESLA_MIN_BOUNCE_SPEED;
 			}
 			ent->velocity = out;
-			ent->avelocity = { crandom() * 240, crandom() * 240, crandom() * 240 };
+			ent->avelocity = {
+				(frandom() * 2.0f - 1.0f) * 240,
+				(frandom() * 2.0f - 1.0f) * 240,
+				(frandom() * 2.0f - 1.0f) * 240
+			};
 			if (ent->velocity.length() > 0 && strcmp(other->classname, "func_train")) {
 				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
 					"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
@@ -1508,7 +1530,6 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 		}
 		return;
 	}
-
 
 	if (tr.plane.normal) {
 		const float slope = fabs(tr.plane.normal[2]);
@@ -1574,37 +1595,39 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	ent->nextthink = level.time;
 	gi.linkentity(ent);
 }
+
 // Función para contar y manejar el número de teslas de un jugador
 void check_player_tesla_limit(edict_t* self)
 {
 	if (!self->client)
 		return;
 
-	if (self->client->num_teslas >= MAX_TESLAS)
-	{
-		edict_t* oldest_tesla = nullptr;
-		gtime_t oldest_timestamp = level.time;
+	// No need to check if below limit
+	if (self->client->num_teslas < MAX_TESLAS)
+		return;
 
-		for (edict_t* e = g_edicts; e < g_edicts + globals.num_edicts; ++e)
+	// Find oldest tesla
+	edict_t* oldest_tesla = nullptr;
+	gtime_t oldest_timestamp = level.time;
+
+	for (edict_t* e = g_edicts; e < g_edicts + globals.num_edicts; ++e)
+	{
+		if (e->inuse && e->classname && strcmp(e->classname, "tesla_mine") == 0 && e->owner == self)
 		{
-			if (e->inuse && e->classname && strcmp(e->classname, "tesla_mine") == 0 && e->owner == self)
+			if (e->timestamp < oldest_timestamp)
 			{
-				if (e->timestamp < oldest_timestamp)
-				{
-					oldest_timestamp = e->timestamp;
-					oldest_tesla = e;
-				}
+				oldest_timestamp = e->timestamp;
+				oldest_tesla = e;
 			}
 		}
+	}
 
-		if (oldest_tesla)
-		{
-			G_FreeEdict(oldest_tesla);
-			self->client->num_teslas--; // Decrementar el contador al eliminar la más antigua
-		}
+	if (oldest_tesla)
+	{
+		G_FreeEdict(oldest_tesla);
+		self->client->num_teslas--; // Decrementar el contador al eliminar la más antigua
 	}
 }
-
 
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
@@ -1624,17 +1647,19 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 
 	const float gravityAdjustment = level.gravity / 800.f;
 
-	tesla->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
-	tesla->velocity += right * (crandom() * 10.0f);
-	tesla->avelocity = { crandom() * 90, crandom() * 90, crandom() * 120 };
+	tesla->velocity += up * (200 + (frandom() * 2.0f - 1.0f) * 10.0f) * gravityAdjustment;
+	tesla->velocity += right * ((frandom() * 2.0f - 1.0f) * 10.0f);
+	tesla->avelocity = {
+		(frandom() * 2.0f - 1.0f) * 90,
+		(frandom() * 2.0f - 1.0f) * 90,
+		(frandom() * 2.0f - 1.0f) * 120
+	};
 
 	tesla->s.angles = {};
 	tesla->movetype = MOVETYPE_BOUNCE;
 	tesla->solid = SOLID_BBOX;
 	tesla->s.effects |= EF_GRENADE;
 	tesla->s.renderfx |= RF_IR_VISIBLE;
-	//tesla->mins = { -12, -12, 0 };
-	//tesla->maxs = { 12, 12, 20 };
 	tesla->mins = { -4, -4, 0 };
 	tesla->maxs = { 4, 4, 8 };
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
@@ -1670,7 +1695,6 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->classname = "tesla_mine";
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
-//	tesla->svflags = SVF_PLAYER;
 	if (self->client && !G_ShouldPlayersCollide(true))
 		tesla->clipmask &= ~CONTENTS_PLAYER;
 
@@ -1683,7 +1707,6 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 		self->client->num_teslas++; // Incrementar el contador de teslas del jugador
 	}
 }
-
 // *************************
 //  HEATBEAM
 // *************************
