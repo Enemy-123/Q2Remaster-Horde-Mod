@@ -2001,10 +2001,235 @@ void CTFTeam_f(edict_t* ent)
 #include <algorithm>
 #include "../horde/g_horde_benefits.h"
 
-constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
+#include <algorithm>
+#include <array>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 
+// Make sure we're using the correct fmt namespace for format
+//namespace fmt_game = fmt;
+
+// Constants
+constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
+constexpr size_t MAX_PLAYERS_TO_DISPLAY = 16;
+constexpr int PLAYER_Y_START = 42;
+constexpr int PLAYER_Y_SPACING = 8;
+constexpr int PLAYER_X_POSITION = -90;
+constexpr int LAYOUT_SAFETY_MARGIN = 50;
+
+/**
+ * @struct BonusMapping
+ * @brief Maps internal benefit names to display text
+ */
+struct BonusMapping {
+	std::string_view benefit_name;
+	std::string_view display_text;
+};
+
+/**
+ * @struct PlayerScore
+ * @brief Contains player score information for the scoreboard
+ */
+struct PlayerScore {
+	unsigned int index;
+	int score;
+	int ping;
+	bool is_dead;
+
+	// Sort players by score in descending order
+	bool operator>(const PlayerScore& other) const {
+		return score > other.score;
+	}
+};
+
+/**
+ * @class StringBuilder
+ * @brief Helper class for efficient string concatenation
+ */
+class StringBuilder {
+private:
+	std::string buffer;
+
+public:
+	explicit StringBuilder(size_t reserved_size = 256) {
+		buffer.reserve(reserved_size);
+	}
+
+	StringBuilder& append(std::string_view text) {
+		buffer.append(text);
+		return *this;
+	}
+
+	std::string str() const {
+		return buffer;
+	}
+
+	size_t size() const {
+		return buffer.size();
+	}
+};
+
+/**
+ * @class ScoreboardLayout
+ * @brief Handles scoreboard layout generation
+ */
+class ScoreboardLayout {
+private:
+	StringBuilder layout_builder;
+	const edict_t* ent;
+	std::vector<PlayerScore> team_players;
+	std::vector<PlayerScore> spectators;
+	int total_score;
+
+public:
+	ScoreboardLayout(edict_t* player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
+		: layout_builder(reserve_size), ent(player_ent), total_score(0) {
+	}
+
+	void collectPlayers() {
+		for (unsigned int i = 0; i < game.maxclients; i++) {
+			const edict_t* const cl_ent = g_edicts + 1 + i;
+			if (!cl_ent->inuse)
+				continue;
+
+			const gclient_t* const cl = &game.clients[i];
+
+			// Create player score entry
+			PlayerScore player = {
+				i,
+				cl->resp.score,
+				std::clamp(cl->ping, 0, 999),
+				(cl_ent->deadflag != 0)  // Using deadflag to determine if player is dead
+			};
+
+			// Sort into appropriate team
+			if (cl->resp.ctf_team == CTF_TEAM1) {
+				team_players.push_back(player);
+				total_score += player.score;
+			}
+			else if (cl->resp.ctf_team == CTF_NOTEAM) {
+				spectators.push_back(player);
+			}
+		}
+
+		// Sort team players by score
+		std::sort(team_players.begin(), team_players.end(), std::greater<>());
+	}
+
+	void addHeader() {
+		// Wave and enemies information
+		if (g_horde->integer) {
+			layout_builder.append(fmt::format(
+				"if 0 xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
+				last_wave_number, level.total_monsters - level.killed_monsters));
+		}
+
+		// Time limit
+		if (timelimit->value) {
+			layout_builder.append(fmt::format(
+				"if 0 xv 340 yv -33 time_limit {} endif \n",
+				gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms));
+		}
+	}
+
+	void addTeamScore() {
+		if (!level.intermissiontime) {
+			// Normal game display
+			layout_builder.append("if 25 xv -90 yv 10 dogtag endif \n");
+
+			// Active bonuses
+			std::string activeBonuses = GetActiveBonusesString();
+			if (!activeBonuses.empty()) {
+				layout_builder.append(fmt::format(
+					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
+			}
+		}
+		else {
+			// Intermission display
+			layout_builder.append(fmt::format(
+				"if 25 xv -90 yv 10 dogtag endif "
+				"if 25 xv 205 yv 8 pic 25 endif "
+				"if 0 xv 70 yv -20 num 2 19 endif \n",
+				total_score, team_players.size()));
+		}
+	}
+
+	void addPlayerList() {
+		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
+			const auto& player = team_players[i];
+			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
+
+			// Add death indicator if player is dead
+			if (player.is_dead) {
+				layout_builder.append(fmt::format(
+					"if 0 xv -135 yv {} string \"[Dead]\" endif ", y));
+			}
+
+			// Add player information
+			layout_builder.append(fmt::format(
+				"if 0 ctf -90 {} {} {} {} \"\" endif \n",
+				y, player.index, player.score, player.ping));
+		}
+	}
+
+	void addSpectators() {
+		// Only add spectators if there's enough space and there are spectators
+		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty()) {
+			// Calculate vertical position after team players
+			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
+
+			// Add spectator header
+			layout_builder.append(fmt::format(
+				"if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y));
+			y += PLAYER_Y_SPACING;
+
+			// Add each spectator
+			for (const auto& spec : spectators) {
+				layout_builder.append(fmt::format(
+					"if 0 ctf -90 {} {} {} {} \"\" endif \n",
+					y, spec.index, spec.score, spec.ping));
+				y += PLAYER_Y_SPACING;
+			}
+		}
+	}
+
+	void addFooter() {
+		if (!level.intermissiontime) {
+			// Standard help text based on player's team
+			const char* help_text = (ent->client->resp.ctf_team != CTF_TEAM1)
+				? "Use Inventory <KEY> to toggle Horde Menu."
+				: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.";
+
+			layout_builder.append(fmt::format(
+				"if 0 xv 0 yb -55 cstring2 \"{}\" endif \n", help_text));
+		}
+		else {
+			// Intermission message
+			const char* message = brandom()
+				? "MAKE THEM PAY !!!"
+				: "THEY WILL REGRET THIS !!!";
+
+			layout_builder.append(fmt::format(
+				"ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
+				level.intermission_server_frame + (5_sec).frames(),
+				message));
+		}
+	}
+
+	std::string build() {
+		return layout_builder.str();
+	}
+};
+
+/**
+ * @brief Gets a formatted string of all active player bonuses
+ * @return Formatted string with all active bonuses
+ */
 std::string GetActiveBonusesString() {
-	const std::vector<std::pair<const char*, const char*>> bonus_mappings = {
+	// Define mappings from internal names to display names
+	static const std::array<BonusMapping, 10> bonus_mappings = { {
 		{"vampire upgraded", "Health & Armor Vampirism"},
 		{"vampire", "Health Vampirism"},
 		{"ammo regen", "Ammo Regen"},
@@ -2014,160 +2239,94 @@ std::string GetActiveBonusesString() {
 		{"Traced-Piercing Bullets", "Traced-Energy Bullets"},
 		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
 		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"},
-		//{"Improved Chaingun", "Improved Chaingun"},
 		{"Piercing Plasma", "Piercing Plasma-Beam"}
-	};
+	} };
 
-	std::vector<std::string> active_bonuses;
+	// Create bonus name to index lookup for faster lookups
+	static const auto benefit_name_to_index = []() {
+		std::unordered_map<std::string_view, size_t> result;
+		for (size_t i = 0; i < MAX_BENEFITS; i++) {
+			result.emplace(BENEFITS[i].name, i);
+		}
+		return result;
+		}();
 
-	// Check if "vampire upgraded" is obtained first
+	std::vector<std::string_view> active_bonuses;
+	active_bonuses.reserve(bonus_mappings.size()); // Reserve space to avoid reallocation
+
+	// Check if "vampire upgraded" is active
 	bool has_vampire_upgraded = false;
-	for (size_t i = 0; i < MAX_BENEFITS; i++) {
-		if (std::strcmp(BENEFITS[i].name, "vampire upgraded") == 0) {
-			has_vampire_upgraded = has_benefit(i);
-			break;
-		}
+	auto vampire_upgraded_it = benefit_name_to_index.find("vampire upgraded");
+	if (vampire_upgraded_it != benefit_name_to_index.end()) {
+		has_vampire_upgraded = has_benefit(vampire_upgraded_it->second);
 	}
 
-	for (size_t i = 0; i < MAX_BENEFITS; i++) {
-		// Skip "vampire" if "vampire upgraded" is already obtained
-		if (std::strcmp(BENEFITS[i].name, "vampire") == 0 && has_vampire_upgraded) {
+	// Loop through all benefits to find active ones
+	for (const auto& [benefit_name, display_text] : bonus_mappings) {
+		// Skip "vampire" if "vampire upgraded" is already active
+		if (benefit_name == "vampire" && has_vampire_upgraded) {
 			continue;
 		}
 
-		if (has_benefit(i)) {
-			// Encontrar el texto del bonus correspondiente
-			for (const auto& [benefit_name, bonus_text] : bonus_mappings) {
-				if (std::strcmp(BENEFITS[i].name, benefit_name) == 0) {
-					active_bonuses.push_back(bonus_text);
-					break;
-				}
-			}
+		// Check if the benefit is active
+		auto it = benefit_name_to_index.find(benefit_name);
+		if (it != benefit_name_to_index.end() && has_benefit(it->second)) {
+			active_bonuses.push_back(display_text);
 		}
 	}
 
+	// Return early if no bonuses are active
 	if (active_bonuses.empty()) {
-		return ""; // Return an empty string if there are no active bonuses
+		return "";
 	}
 
-	std::string result = "* ";
+	// Create formatted result string
+	StringBuilder result(active_bonuses.size() * 30); // Estimate average length
+
 	for (size_t i = 0; i < active_bonuses.size(); ++i) {
-		result += active_bonuses[i];
+		result.append("* ");
+		result.append(active_bonuses[i]);
+
 		if (i < active_bonuses.size() - 1) {
-			result += "\n* ";
+			result.append("\n");
 		}
 	}
-	return result;
+
+	return result.str();
 }
 
-struct PlayerScore {
-	unsigned int index;
-	int score;
-	int ping;
-	bool is_dead;  // Cambiado de has_flag a is_dead
-};
-
+/**
+ * @brief Displays the CTF/Horde scoreboard for a player
+ * @param ent The player entity to display the scoreboard for
+ * @param killer The entity that killed the player (if any)
+ */
 void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
-	std::vector<PlayerScore> team_players;
-	std::vector<PlayerScore> spectators;
-	int total_score = 0;
+	// Create scoreboard layout generator
+	ScoreboardLayout layout(ent);
 
-	// Sort players
-	for (unsigned int i = 0; i < game.maxclients; i++) {
-		const edict_t* const cl_ent = g_edicts + 1 + i;
-		if (!cl_ent->inuse)
-			continue;
-		const gclient_t* const cl = &game.clients[i];
-		PlayerScore const player = {
-			i,
-			cl->resp.score,
-			std::min(cl->ping, 999),
-			(cl_ent->deadflag != false)  // Usando deadflag en lugar de inventory
-		};
+	// Collect and sort players
+	layout.collectPlayers();
 
-		if (cl->resp.ctf_team == CTF_TEAM1) {
-			team_players.push_back(player);
-			total_score += player.score;
-		}
-		else if (cl->resp.ctf_team == CTF_NOTEAM) {
-			spectators.push_back(player);
-		}
+	// Build the layout in sections
+	layout.addHeader();
+	layout.addTeamScore();
+	layout.addPlayerList();
+	layout.addSpectators();
+	layout.addFooter();
+
+	// Get final layout string
+	std::string final_layout = layout.build();
+
+	// Ensure we don't exceed layout size limits
+	if (final_layout.size() >= MAX_CTF_STAT_LENGTH) {
+		final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
 	}
 
-	std::sort(team_players.begin(), team_players.end(),
-		[](const PlayerScore& a, const PlayerScore& b) { return a.score > b.score; });
-
-	std::string layout;
-
-	// Header
-	if (g_horde->integer) {
-		layout += fmt::format("if 0 xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
-			last_wave_number, level.total_monsters - level.killed_monsters);
-	}
-
-	if (timelimit->value) {
-		layout += fmt::format("if 0 xv 340 yv -33 time_limit {} endif \n",
-			gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
-	}
-
-	// Team score
-	if (!level.intermissiontime) {
-		layout += fmt::format("if 25 xv -90 yv 10 dogtag endif \n");
-		std::string activeBonuses = GetActiveBonusesString();
-		if (!activeBonuses.empty()) {
-			layout += fmt::format("if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses);
-		}
-	}
-	else {
-		layout += fmt::format("if 25 xv -90 yv 10 dogtag endif "
-			"if 25 xv 205 yv 8 pic 25 endif "
-			"if 0 xv 70 yv -20 num 2 19 endif \n",
-			total_score, team_players.size());
-	}
-
-	// Player list con indicador de muerte
-	for (size_t i = 0; i < team_players.size() && i < 16; ++i) {
-		const auto& player = team_players[i];
-		int y = 42 + i * 8;
-
-		// Primero añadimos el indicador de muerte si corresponde
-		if (player.is_dead) {
-			layout += fmt::format("if 0 xv -135 yv {} string \"[Dead]\" endif ", y);
-		}
-
-		// Luego añadimos la información normal del jugador
-		layout += fmt::format("if 0 ctf -90 {} {} {} {} \"\" endif \n",
-			y, player.index, player.score, player.ping);
-	}
-
-	// Spectators
-	if (layout.size() < MAX_CTF_STAT_LENGTH - 50 && !spectators.empty()) {
-		int y = 42 + (std::min<size_t>(team_players.size(), 16) + 2) * 8;
-		layout += fmt::format("if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y);
-		y += 8;
-		for (const auto& spec : spectators) {
-			layout += fmt::format("if 0 ctf -90 {} {} {} {} \"\" endif \n",
-				y, spec.index, spec.score, spec.ping);
-			y += 8;
-		}
-	}
-
-	// Footer
-	if (!level.intermissiontime) {
-		layout += fmt::format("if 0 xv 0 yb -55 cstring2 \"{}\" endif \n",
-			ent->client->resp.ctf_team != CTF_TEAM1
-			? "Use Inventory <KEY> to toggle Horde Menu."
-			: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.");
-	}
-	else {
-		layout += fmt::format("ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
-			level.intermission_server_frame + (5_sec).frames(),
-			brandom() ? "MAKE THEM PAY !!!" : "THEY WILL REGRET THIS !!!");
-	}
-
+	// Send to client
 	gi.WriteByte(svc_layout);
-	gi.WriteString(layout.c_str());
+	gi.WriteString(final_layout.c_str());
 }
+
 /*------------------------------------------------------------------------*/
 /* TECH																	  */
 /*------------------------------------------------------------------------*/
