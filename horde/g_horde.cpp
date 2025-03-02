@@ -3457,17 +3457,20 @@ void ResetWaveAdvanceState() noexcept;
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	// Cache values used frequently
 	const gtime_t currentTime = level.time;
+
 	// Early return for complete victory
 	if (allowWaveAdvance || Horde_AllMonstersDead()) {
 		reason = WaveEndReason::AllMonstersDead;
 		ResetWaveAdvanceState();
 		return true;
 	}
+
 	// Early time limit check
 	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
 		reason = WaveEndReason::TimeLimitReached;
 		return true;
 	}
+
 	// Transition logic for wave deployment
 	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
 		// Reset independent timer and set end time
@@ -3480,18 +3483,77 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 				g_lastParams.timeThreshold.seconds());
 		}
 	}
+
 	// Only calculate remaining monsters if needed
 	static int32_t remainingMonsters = 0;
 	static gtime_t lastMonsterCountTime = 0_sec;
+
 	// Recalculate only periodically or if we're in a state transition
 	if (currentTime - lastMonsterCountTime > 0.5_sec || !g_horde_local.conditionTriggered) {
 		remainingMonsters = CalculateRemainingMonsters();
 		lastMonsterCountTime = currentTime;
 	}
+
 	// Initialize end time if needed
 	if (g_horde_local.waveEndTime == 0_sec) {
 		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 	}
+
+	// ADDED: Aggressive time reduction for very few monsters - checked EVERY time
+	if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION && g_horde_local.waveEndTime > 0_sec) {
+		// More aggressive - use shorter time for 0-2 monsters
+		const gtime_t reduction = remainingMonsters <= 2 ?
+			30_sec : // Force 30 sec max for 0-2 monsters
+			AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
+
+		// Apply the reduction based on current time
+		const gtime_t new_end_time = currentTime + reduction;
+		if (new_end_time < g_horde_local.waveEndTime) {
+			g_horde_local.waveEndTime = new_end_time;
+
+			if (developer->integer)
+				gi.Com_PrintFmt("Aggressive time reduction: {}s remaining for {} monsters\n",
+					reduction.seconds(), remainingMonsters);
+		}
+	}
+
+	// ADDED: Verify monster counts periodically to detect phantom monsters
+	static gtime_t last_verification_time = 0_sec;
+	static int no_monster_verifications = 0;
+
+	if (currentTime - last_verification_time >= 1_sec && remainingMonsters > 0) {
+		last_verification_time = currentTime;
+
+		// Count actual alive monsters excluding AI_DO_NOT_COUNT
+		bool any_countable_monster_found = false;
+		for (auto ent : active_monsters()) {
+			if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
+				!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+				any_countable_monster_found = true;
+				break; // We only need to find one
+			}
+		}
+
+		if (!any_countable_monster_found) {
+			no_monster_verifications++;
+
+			// After a few consecutive empty checks, force completion
+			if (no_monster_verifications >= 5) { // 5 seconds with no monsters found
+				if (developer->integer)
+					gi.Com_PrintFmt("No valid monsters found for 5s. Fixing counters.\n");
+
+				// Fix counters and force wave completion
+				level.killed_monsters = level.total_monsters;
+				reason = WaveEndReason::AllMonstersDead;
+				return true;
+			}
+		}
+		else {
+			// Reset counter if we found monsters
+			no_monster_verifications = 0;
+		}
+	}
+
 	// Condition trigger logic - calculate percentage only if needed
 	if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
@@ -3503,29 +3565,34 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			}
 			return false;
 			}();
+
 		if (maxMonstersReached || lowPercentageReached) {
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
+
 			// Calculate threshold based on condition
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
 				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
 				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
+
 			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
-			// Aggressive time reduction for very few monsters
+
+			// Aggressive time reduction for very few monsters at condition trigger
 			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-				// Corrección: usar std::min para garantizar el tiempo más corto siempre
-				g_horde_local.waveEndTime = std::min(
-					g_horde_local.waveEndTime,
-					currentTime + reduction
-				);
+				const gtime_t reduction = remainingMonsters <= 2 ?
+					30_sec : // Hard cap at 30 seconds for 0-2 monsters
+					AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
+
+				// Use the shorter time
+				g_horde_local.waveEndTime = std::min(g_horde_local.waveEndTime, currentTime + reduction);
 			}
 		}
 	}
+
 	// Handle time warnings
 	if (g_horde_local.conditionTriggered) {
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
+
 		// Process warnings - using fixed-size array
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			if (!g_horde_local.warningIssued[i] &&
@@ -3536,14 +3603,63 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 				g_horde_local.warningIssued[i] = true;
 			}
 		}
+
 		// Check for time limit
 		if (currentTime >= g_horde_local.waveEndTime) {
 			reason = WaveEndReason::MonstersRemaining;
 			return true;
 		}
 	}
+
 	return false;
 }
+
+void ValidateMonsterCount() {
+	// Only run every few seconds to avoid performance impact
+	static gtime_t last_check_time = 0_sec;
+	static int no_monster_count = 0;  // Added declaration here
+
+	if (level.time - last_check_time < 3_sec)
+		return;
+
+	last_check_time = level.time;
+
+	// Only check if we think monsters remain
+	if ((level.total_monsters - level.killed_monsters) <= 0)
+		return;
+
+	// Count actual alive monsters
+	int actual_alive = 0;
+	for (auto ent : active_monsters()) {
+		if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
+			!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+			actual_alive++;
+		}
+	}
+
+	// Compare with the counter-based value
+	int counter_alive = level.total_monsters - level.killed_monsters;
+
+	// If counters say monsters remain but we found none, fix the counters
+	if (counter_alive > 0 && actual_alive == 0) {
+		no_monster_count++;
+
+		// After a few consecutive empty checks, force completion
+		if (no_monster_count >= 2) { // Require 2 consecutive checks (6 seconds)
+			if (developer->integer)
+				gi.Com_PrintFmt("Monster count mismatch fixed: {} -> 0\n", counter_alive);
+
+			level.killed_monsters = level.total_monsters;
+			allowWaveAdvance = true; // Force wave completion
+			no_monster_count = 0;
+		}
+	}
+	else {
+		// Reset counter if we found monsters
+		no_monster_count = 0;
+	}
+}
+
 //
 // game resetting
 //
@@ -3670,10 +3786,26 @@ void ResetGame() {
 	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
 }
 
-inline int8_t CalculateRemainingMonsters() noexcept {
-	// Usar variables del nivel en lugar de recorrer entidades
-	const int32_t remaining = level.total_monsters - level.killed_monsters;
-	return std::max(0, remaining);  // Asegurar que no sea negativo
+// Replace the existing CalculateRemainingMonsters() function
+inline int32_t CalculateRemainingMonsters() noexcept {
+    // First use the standard counter difference
+    int32_t standard_remaining = level.total_monsters - level.killed_monsters;
+    
+    // If no monsters remain according to counters, no need to check further
+    if (standard_remaining <= 0)
+        return 0;
+    
+    // Count monsters with AI_DO_NOT_COUNT that are still alive
+    int32_t do_not_count_monsters = 0;
+    for (auto ent : active_monsters()) {
+        if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
+            (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+            do_not_count_monsters++;
+        }
+    }
+    
+    // Subtract monsters that shouldn't be counted
+    return std::max(0, standard_remaining - do_not_count_monsters);
 }
 
 void ResetWaveAdvanceState() noexcept {
