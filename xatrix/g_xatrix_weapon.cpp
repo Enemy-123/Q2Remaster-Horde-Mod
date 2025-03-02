@@ -339,6 +339,8 @@ typedef struct trap_target_s {
 typedef struct trap_data_s {
     trap_target_t targets[3];  // Array of up to 3 targets
     int num_targets;           // Number of current targets
+    bool in_cooldown;         // Flag to track if trap is in cooldown
+    gtime_t cooldown_end;       // Time when cooldown ends
 } trap_data_t;
 
 // We'll use the "chain" field of edict_t to store our trap data
@@ -566,6 +568,8 @@ TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
     // Initialize trap data
     trap_data_t* trap_data = new trap_data_t();
     trap_data->num_targets = 0;
+    trap_data->in_cooldown = false;
+    trap_data->cooldown_end = 0_sec;
     SetTrapData(ent, trap_data);
 
     // Keep existing trap behavior but now it's stuck
@@ -587,6 +591,24 @@ THINK(Trap_Think) (edict_t* ent) -> void
         // note to self
         // cause explosion damage???
         return;
+    }
+
+    // Check if trap is in cooldown
+    trap_data_t* trap_data = GetTrapData(ent);
+    if (trap_data && trap_data->in_cooldown) {
+        // If cooldown is over, reset trap to active state
+        if (level.time > trap_data->cooldown_end) {
+            trap_data->in_cooldown = false;
+            trap_data->num_targets = 0;
+            ent->s.frame = 4; // Reset to active frame
+            ent->s.effects |= EF_BLUEHYPERBLASTER; // Re-enable effect
+            ent->takedamage = true;
+            ent->solid = SOLID_BBOX;
+            ent->die = trap_die;
+        }
+        
+        ent->nextthink = level.time + 10_hz;
+        return; // Skip normal processing while in cooldown
     }
 
     ent->nextthink = level.time + 10_hz;
@@ -613,11 +635,22 @@ THINK(Trap_Think) (edict_t* ent) -> void
         ent->s.frame++;
         if (ent->s.frame == 8)
         {
-            // Clean up trap data
-            FreeTrapData(ent);
-
-            ent->nextthink = level.time + 1_sec;
-            ent->think = G_FreeEdict;
+            // Get trap data
+            trap_data_t* trap_data = GetTrapData(ent);
+            if (trap_data) {
+                // Set cooldown instead of freeing
+                trap_data->in_cooldown = true;
+                trap_data->cooldown_end = level.time + 10_sec;
+                
+                // Reset trap state
+                ent->s.frame = 0;
+                ent->wait = 0;
+                ent->delay = 0;
+                ent->s.sound = 0; // Stop sound
+            }
+            
+            ent->nextthink = level.time + 10_hz;
+            // Don't free the entity, just make it inactive temporarily
             ent->s.effects &= ~EF_BLUEHYPERBLASTER;
             ent->s.effects &= ~EF_BARREL_EXPLODING;
 
@@ -657,10 +690,12 @@ THINK(Trap_Think) (edict_t* ent) -> void
         return;
     }
 
-    // Get or initialize trap data
-    trap_data_t* trap_data = GetTrapData(ent);
+    // Make sure we have valid trap data
     if (!trap_data) {
         trap_data = new trap_data_t();
+        trap_data->num_targets = 0;
+        trap_data->in_cooldown = false;
+        trap_data->cooldown_end = 0_sec;
         SetTrapData(ent, trap_data);
     }
 
