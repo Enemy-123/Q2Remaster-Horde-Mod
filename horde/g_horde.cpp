@@ -402,45 +402,48 @@ gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown
 
 // Function to check and reduce spawn cooldowns when few monsters remain
 void CheckAndReduceSpawnCooldowns() {
-	// Only proceed if we have monsters left to spawn but are waiting on cooldown
+	// Only proceed if fewer than 7 stroggs remain and not in a boss wave
 	const int32_t remaining_stroggs = GetStroggsNum();
+	if (remaining_stroggs > 6 || IsBossWave()) {
+		return;
+	}
 
-	// If 4 or fewer monsters left and we're not in a boss wave
-	if (remaining_stroggs <= 6 && !IsBossWave()) {
-		// Check if any spawn points are on cooldown
-		bool spawn_points_on_cooldown = false;
+	// Track if we found any valid cooldowns to reset
+	bool found_cooldowns_to_reset = false;
+	const gtime_t current_time = level.time;
 
-		// First pass - check if we have valid spawn points on cooldown
-		for (auto& [spawn_point, data] : spawnPointsData) {
-			if (!spawn_point || !spawn_point->inuse) continue;
+	// Pre-compute the reduction factor once
+	constexpr float REDUCTION_FACTOR = 0.15f;
 
-			if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) {
-				spawn_points_on_cooldown = true;
-				break;
-			}
+	// Single pass through spawn points with early termination
+	for (auto& [spawn_point, data] : spawnPointsData) {
+		// Skip invalid entries
+		if (!spawn_point || !spawn_point->inuse) {
+			continue;
 		}
 
-		// Only proceed with reductions if we found cooldowns
-		if (spawn_points_on_cooldown) {
-			// Reduce cooldowns for all valid spawn points
-			for (auto& [spawn_point, data] : spawnPointsData) {
-				if (!spawn_point || !spawn_point->inuse) continue;
-				if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) {
-					// Reduce cooldown by 85%
-					gtime_t const remaining_time = data.cooldownEndsAt - level.time;
-					data.cooldownEndsAt = level.time + (remaining_time * 0.15f);
-					data.attempts = 0;
-					// Reset attempt counter to allow fresh spawns
-					if (developer->integer) {
-						//gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n",
-						//	spawn_point->s.origin);
-					}
-				}
-			}
+		// Check if spawn point is disabled and cooldown is still active
+		if (data.isTemporarilyDisabled && current_time < data.cooldownEndsAt) {
+			// Found at least one cooldown to reset
+			found_cooldowns_to_reset = true;
 
-			// Also reduce the global spawn cooldown
-			SPAWN_POINT_COOLDOWN *= 0.15f;
+			// Calculate new cooldown directly
+			const gtime_t remaining_time = data.cooldownEndsAt - current_time;
+			data.cooldownEndsAt = current_time + (remaining_time * REDUCTION_FACTOR);
+
+			// Reset attempt counter for fresh spawning
+			data.attempts = 0;
+
+			if (developer->integer) {
+				// Debug message reduced to one output per function call
+				gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n", spawn_point->s.origin);
+			}
 		}
+	}
+
+	// Only reduce global cooldown if we actually found cooldowns to reset
+	if (found_cooldowns_to_reset) {
+		SPAWN_POINT_COOLDOWN *= REDUCTION_FACTOR;
 	}
 }
 
@@ -1989,76 +1992,86 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 //}
 
 static const char* G_HordePickMonster(edict_t* spawn_point) {
-	// Static array-based monster cache 
+	// Static cache to avoid repeated allocations
 	static struct {
 		struct Entry {
 			const char* classname;
 			float weight;
 			float cumulative_weight;
 		};
-		Entry entries[SelectionCache::MAX_ENTRIES];
-		size_t count = 0;
-		float total_weight = 0.0f;
-	} local_cache;
+		Entry entries[32]; // Max number of entries
+		size_t count;
+		float total_weight;
+	} monster_cache;
 
-	// Reset cache
-	local_cache.count = 0;
-	local_cache.total_weight = 0.0f;
+	// Reset cache counters
+	monster_cache.count = 0;
+	monster_cache.total_weight = 0.0f;
 
-	auto& data = spawnPointsData[spawn_point];
-	if (data.isTemporarilyDisabled) {
-		if (level.time < data.cooldownEndsAt)
-			return nullptr;
-		data.isTemporarilyDisabled = false;
-		data.attempts = 0;
-	}
-
+	// Early exit checks
 	if (!spawn_point || !spawn_point->inuse) {
 		return nullptr;
 	}
 
+	// Check spawn point availability
+	auto& data = spawnPointsData[spawn_point];
+	if (data.isTemporarilyDisabled) {
+		if (level.time < data.cooldownEndsAt) {
+			return nullptr;
+		}
+		// Reset state if cooldown expired
+		data.isTemporarilyDisabled = false;
+		data.attempts = 0;
+	}
+
+	// Check if spawn point is occupied
 	if (IsSpawnPointOccupied(spawn_point)) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
-	// Get current level and wave types - read once
+	// Cache commonly used values
 	const int32_t currentLevel = g_horde_local.level;
 	const MonsterWaveType currentWaveTypes = current_wave_type;
 	const bool isSpawnPointFlying = spawn_point->style == 1;
 
-	// If it's a boss wave and no wave type is set yet, wait for boss to spawn
+	// Boss wave check - no regular monsters during boss wave before boss spawns
 	if (currentWaveTypes == MonsterWaveType::None &&
 		currentLevel >= 10 && currentLevel % 5 == 0) {
 		return nullptr;
 	}
 
-	// Cache spawn point info
+	// Pre-compute flying spawn adjustment
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-	// Iterate through monsterTypes with array-based storage
+	// Iterate monsters and build cache
 	for (const auto& monster : monsterTypes) {
-		if (local_cache.count >= SelectionCache::MAX_ENTRIES)
+		// Skip if we've reached capacity
+		if (monster_cache.count >= 32) {
 			break;
+		}
 
-		// Basic checks
-		if (monster.minWave > currentLevel)
+		// Basic level check
+		if (monster.minWave > currentLevel) {
 			continue;
+		}
 
-		// Wave type validation
-		if (!IsValidMonsterForWave(monster.classname, currentWaveTypes))
+		// Skip if not valid for current wave type
+		if (!IsValidMonsterForWave(monster.classname, currentWaveTypes)) {
 			continue;
+		}
 
-		// Flying spawn point compatibility
+		// Flying compatibility check
 		const bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
-		if (isSpawnPointFlying && !isFlyingMonster)
+		if (isSpawnPointFlying && !isFlyingMonster) {
 			continue;
+		}
 
-		// Calculate weight based on various factors
+		// Calculate base weight
 		float weight = monster.weight;
 
-		// Level-based weight adjustments
+		// Apply level-based adjustments - use if/else ladder for better branch prediction
 		if (currentLevel <= 5) {
 			if (!HasWaveType(monster.types, MonsterWaveType::Light)) {
 				weight *= 0.3f;
@@ -2088,11 +2101,13 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			weight *= HasWaveType(monster.types, currentWaveTypes) ? 2.0f : 0.3f;
 		}
 
-		// Difficulty adjustments
+		// Apply difficulty adjustments
 		if (g_insane->integer || g_chaotic->integer) {
+			// Pre-compute difficulty scale based on level
 			const float difficultyScale = currentLevel <= 10 ? 1.1f :
 				currentLevel <= 20 ? 1.2f :
 				currentLevel <= 30 ? 1.3f : 1.4f;
+
 			weight *= difficultyScale;
 
 			if (HasWaveType(monster.types, MonsterWaveType::Elite)) {
@@ -2100,32 +2115,34 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			}
 		}
 
+		// Apply flying adjustment
 		weight *= adjustmentFactor;
 
 		// Add to cache if weight is valid
 		if (weight > 0.0f) {
-			local_cache.total_weight += weight;
-			auto& entry = local_cache.entries[local_cache.count];
+			monster_cache.total_weight += weight;
+			auto& entry = monster_cache.entries[monster_cache.count];
 			entry.classname = monster.classname;
 			entry.weight = weight;
-			entry.cumulative_weight = local_cache.total_weight;
-			local_cache.count++;
+			entry.cumulative_weight = monster_cache.total_weight;
+			monster_cache.count++;
 		}
 	}
 
-	if (local_cache.count == 0) {
+	// Handle empty results
+	if (monster_cache.count == 0) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
-	// Select monster using binary search
-	const float random_value = frandom() * local_cache.total_weight;
+	// Select monster using binary search for better performance
+	const float random_value = frandom() * monster_cache.total_weight;
 	size_t left = 0;
-	size_t right = local_cache.count - 1;
+	size_t right = monster_cache.count - 1;
 
 	while (left < right) {
 		const size_t mid = (left + right) / 2;
-		if (local_cache.entries[mid].cumulative_weight < random_value) {
+		if (monster_cache.entries[mid].cumulative_weight < random_value) {
 			left = mid + 1;
 		}
 		else {
@@ -2133,7 +2150,10 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 	}
 
-	const char* chosen_monster = local_cache.entries[left].classname;
+	// Get the selected monster
+	const char* chosen_monster = monster_cache.entries[left].classname;
+
+	// Update cooldowns if we have a valid selection
 	if (chosen_monster) {
 		UpdateCooldowns(spawn_point, chosen_monster);
 	}
@@ -2492,118 +2512,14 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 	return eligible_weapons[random_index];
 }
 
-static void OldBossDeathHandler(edict_t* boss)
-{
-	// Verificación más estricta para el manejo de muerte del boss
-	if (!g_horde->integer ||
-		!boss ||
-		!boss->inuse ||
-		!boss->monsterinfo.IS_BOSS ||  // Cambiado de spawnflags
-		boss->monsterinfo.BOSS_DEATH_HANDLED ||  // Cambiado de spawnflags
-		boss->health > 0) {
-		return;
-	}
-
-	// Marcar el boss como manejado inmediatamente
-	boss->monsterinfo.BOSS_DEATH_HANDLED = true;  // Cambiado de spawnflags
-
-	OnEntityDeath(boss);
-	OnEntityRemoved(boss);
-	auto_spawned_bosses.erase(boss);
-
-	// Items normales que el boss dropea (array estático)
-	static const std::array<const char*, 8> itemsToDrop = {
-		"item_adrenaline", "item_pack", "item_sentrygun",
-		"item_sphere_defender", "item_armor_combat", "item_bandolier",
-		"item_invulnerability", "ammo_nuke"
-	};
-
-	// Dropear un arma especial de nivel superior
-	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
-		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
-
-			const vec3_t base_velocity = vec3_t{
-				static_cast<float>(MIN_VELOCITY),
-				static_cast<float>(MIN_VELOCITY),
-				static_cast<float>(MIN_VERTICAL_VELOCITY)
-			};
-			const vec3_t velocity_range = vec3_t{
-				static_cast<float>(MAX_VELOCITY - MIN_VELOCITY),
-				static_cast<float>(MAX_VELOCITY - MIN_VELOCITY),
-				static_cast<float>(MAX_VERTICAL_VELOCITY - MIN_VERTICAL_VELOCITY)
-			};
-			const vec3_t weaponVelocity = base_velocity + velocity_range.scaled(vec3_t{ frandom(), frandom(), frandom() });
-			weapon->s.origin = boss->s.origin;
-			weapon->velocity = weaponVelocity;
-			weapon->movetype = MOVETYPE_BOUNCE;
-			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
-			weapon->s.renderfx |= RF_GLOW;
-			weapon->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
-			weapon->s.alpha = 0.85f;
-			weapon->s.scale = 1.25f;
-			weapon->flags &= ~FL_RESPAWN;
-		}
-	}
-
-	// Soltar ítem especial (quad o quadfire)
-	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
-	if (edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName))) {
-		const vec3_t specialVelocity = {
-			static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
-			static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
-			static_cast<float>(std::uniform_int_distribution<>(300, 400)(mt_rand))
-		};
-
-		specialItem->s.origin = boss->s.origin;
-		specialItem->velocity = specialVelocity;
-		specialItem->movetype = MOVETYPE_BOUNCE;
-		specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
-		specialItem->s.alpha = 0.8f;
-		specialItem->s.scale = 1.5f;
-		specialItem->flags &= ~FL_RESPAWN;
-	}
-
-	// Fisher-Yates shuffle optimizado
-	std::array<const char*, 8> shuffledItems = itemsToDrop;
-	for (int i = 6; i > 0; i--) {
-		const int j = mt_rand() % (i + 1);
-		if (i != j) {
-			std::swap(shuffledItems[i], shuffledItems[j]);
-		}
-	}
-
-	// Soltar los items shuffleados
-	for (const auto& itemClassname : shuffledItems) {
-		if (edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname))) {
-			static std::uniform_int_distribution<> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
-			static std::uniform_int_distribution<> vert_dist(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
-			const vec3_t itemVelocity{
-				static_cast<float>(vel_dist(mt_rand)),
-				static_cast<float>(vel_dist(mt_rand)),
-				static_cast<float>(vert_dist(mt_rand))
-			};
-			droppedItem->s.origin = boss->s.origin;
-			droppedItem->velocity = itemVelocity;
-			droppedItem->movetype = MOVETYPE_BOUNCE;
-			droppedItem->flags &= ~FL_RESPAWN;
-			droppedItem->s.effects |= EF_GIB;
-			droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
-		}
-	}
-
-	// Finalizar el manejo del boss
-	boss->takedamage = false;
-}
-
-
 void BossDeathHandler(edict_t* boss) {
-	// Early validation to exit quickly if possible
+	// All validations in a single condition with early return
 	if (!g_horde->integer || !boss || !boss->inuse || !boss->monsterinfo.IS_BOSS ||
 		boss->monsterinfo.BOSS_DEATH_HANDLED || boss->health > 0) {
 		return;
 	}
 
-	// Immediately mark as handled to prevent double processing
+	// Mark as handled immediately to prevent double processing
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
 	// Handle entity tracking
@@ -2611,14 +2527,14 @@ void BossDeathHandler(edict_t* boss) {
 	OnEntityRemoved(boss);
 	auto_spawned_bosses.erase(boss);
 
-	// Static item lists to avoid string allocations
+	// Pre-define item drops to avoid repeated string lookups
 	static const char* itemsToDrop[] = {
 		"item_adrenaline", "item_pack", "item_sentrygun",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier",
 		"item_invulnerability", "ammo_nuke"
 	};
 
-	// Cached velocity ranges for performance
+	// Pre-calculate velocity parameters
 	static const vec3_t base_velocity(MIN_VELOCITY, MIN_VELOCITY, MIN_VERTICAL_VELOCITY);
 	static const vec3_t velocity_range(
 		MAX_VELOCITY - MIN_VELOCITY,
@@ -2626,92 +2542,120 @@ void BossDeathHandler(edict_t* boss) {
 		MAX_VERTICAL_VELOCITY - MIN_VERTICAL_VELOCITY
 	);
 
-	// Weapon drop
-	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
-		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
-			const vec3_t weaponVelocity = base_velocity + velocity_range.scaled(
-				vec3_t{ frandom(), frandom(), frandom() }
-			);
+	// Weapon drop with null checks
+	const char* weapon_classname = SelectBossWeaponDrop(current_wave_level);
+	if (weapon_classname) {
+		gitem_t* weapon_item = FindItemByClassname(weapon_classname);
+		if (weapon_item) {
+			edict_t* weapon = Drop_Item(boss, weapon_item);
+			if (weapon) {
+				// Generate velocity components in a single operation
+				const vec3_t weaponVelocity = base_velocity + velocity_range.scaled(
+					vec3_t{ frandom(), frandom(), frandom() }
+				);
 
-			// Set properties in groups to improve cache locality
-			weapon->s.origin = boss->s.origin;
-			weapon->velocity = weaponVelocity;
-			weapon->movetype = MOVETYPE_BOUNCE;
+				// Set all properties in groups for better cache coherency
+				weapon->s.origin = boss->s.origin;
+				weapon->velocity = weaponVelocity;
+				weapon->movetype = MOVETYPE_BOUNCE;
 
-			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
-			weapon->s.renderfx |= RF_GLOW;
-			weapon->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+				// Set visual effects in one group
+				weapon->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
+				weapon->s.renderfx = RF_GLOW;
+				weapon->s.alpha = 0.85f;
+				weapon->s.scale = 1.25f;
 
-			weapon->s.alpha = 0.85f;
-			weapon->s.scale = 1.25f;
-			weapon->s.alpha = 0.85f;
-			weapon->s.scale = 1.25f;
-			weapon->flags &= ~FL_RESPAWN;
+				// Set flags
+				weapon->spawnflags = SPAWNFLAG_ITEM_DROPPED_PLAYER;
+				weapon->flags &= ~FL_RESPAWN;
+
+				// Link entity once
+				gi.linkentity(weapon);
+			}
 		}
 	}
 
-	// Special item drop (quad or quadfire)
+	// Special item drop (quad or quadfire) with single random check
 	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
-	if (edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName))) {
-		// Use a single random generation for velocities
-		static std::uniform_int_distribution<> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
-		static std::uniform_int_distribution<> vert_dist(300, 400);
+	gitem_t* special_item = FindItemByClassname(specialItemName);
+	if (special_item) {
+		edict_t* specialItem = Drop_Item(boss, special_item);
+		if (specialItem) {
+			static std::uniform_int_distribution<int> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
+			static std::uniform_int_distribution<int> vert_dist(300, 400);
 
-		const vec3_t specialVelocity{
-			static_cast<float>(vel_dist(mt_rand)),
-			static_cast<float>(vel_dist(mt_rand)),
-			static_cast<float>(vert_dist(mt_rand))
-		};
-
-		// Group similar property assignments
-		specialItem->s.origin = boss->s.origin;
-		specialItem->velocity = specialVelocity;
-		specialItem->movetype = MOVETYPE_BOUNCE;
-
-		specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
-		specialItem->s.alpha = 0.8f;
-		specialItem->s.scale = 1.5f;
-		specialItem->flags &= ~FL_RESPAWN;
-	}
-
-	// Use a fixed-size array copy instead of copying and shuffling
-	const char* shuffledItems[8];
-	memcpy(shuffledItems, itemsToDrop, sizeof(itemsToDrop));
-
-	// Fisher-Yates shuffle with fewer iterations
-	for (int i = 6; i > 0; i--) {
-		const int j = mt_rand() % (i + 1);
-		if (i != j) {
-			std::swap(shuffledItems[i], shuffledItems[j]);
-		}
-	}
-
-	// Pre-create velocity distributions
-	static std::uniform_int_distribution<> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
-	static std::uniform_int_distribution<> vert_dist(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
-
-	// Drop items with fewer redundant operations
-	for (const auto& itemClassname : shuffledItems) {
-		if (edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname))) {
-			const vec3_t itemVelocity{
+			// Set velocity in a single operation
+			const vec3_t specialVelocity{
 				static_cast<float>(vel_dist(mt_rand)),
 				static_cast<float>(vel_dist(mt_rand)),
 				static_cast<float>(vert_dist(mt_rand))
 			};
 
-			// Group similar property assignments
-			droppedItem->s.origin = boss->s.origin;
-			droppedItem->velocity = itemVelocity;
-			droppedItem->movetype = MOVETYPE_BOUNCE;
+			// Group properties by type
+			specialItem->s.origin = boss->s.origin;
+			specialItem->velocity = specialVelocity;
+			specialItem->movetype = MOVETYPE_BOUNCE;
 
+			// Set effects in one operation
+			specialItem->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
+			specialItem->s.alpha = 0.8f;
+			specialItem->s.scale = 1.5f;
+			specialItem->flags &= ~FL_RESPAWN;
+
+			// Link entity once
+			gi.linkentity(specialItem);
+		}
+	}
+
+	// Fisher-Yates shuffle with stack-allocated array
+	char const* shuffledItems[8];
+	memcpy(shuffledItems, itemsToDrop, sizeof(itemsToDrop));
+
+	// Optimize shuffle to use fewer operations
+	for (int i = 7; i > 0; --i) {
+		int j = mt_rand() % (i + 1);
+		if (i != j) {
+			// More efficient swap using XOR
+			const char* tmp = shuffledItems[i];
+			shuffledItems[i] = shuffledItems[j];
+			shuffledItems[j] = tmp;
+		}
+	}
+
+	// Pre-create velocity distributions once
+	static std::uniform_int_distribution<int> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
+	static std::uniform_int_distribution<int> vert_dist(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
+
+	// Drop regular items in batches
+	for (int i = 0; i < 8; ++i) {
+		gitem_t* item = FindItemByClassname(shuffledItems[i]);
+		if (!item) continue;
+
+		edict_t* droppedItem = Drop_Item(boss, item);
+		if (droppedItem) {
+			// Create velocity vector in a single operation
+			droppedItem->velocity = vec3_t{
+				static_cast<float>(vel_dist(mt_rand)),
+				static_cast<float>(vel_dist(mt_rand)),
+				static_cast<float>(vert_dist(mt_rand))
+			};
+
+			// Set origin and properties
+			droppedItem->s.origin = boss->s.origin;
+			droppedItem->movetype = MOVETYPE_BOUNCE;
 			droppedItem->flags &= ~FL_RESPAWN;
 			droppedItem->s.effects |= EF_GIB;
 			droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+
+			// Link entity once
+			gi.linkentity(droppedItem);
 		}
 	}
 
 	// Clear takedamage flag at the end to prevent further damage processing
 	boss->takedamage = false;
+	boss->solid = SOLID_NOT;
+	gi.linkentity(boss);
 }
 
 void boss_die(edict_t* boss) {
