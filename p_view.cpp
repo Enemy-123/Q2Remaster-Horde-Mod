@@ -1068,7 +1068,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	};
 
 	// Apply all regeneration rules
-	const size_t ruleCount = sizeof(regenRules) / sizeof(regenRules[0]);
+	constexpr size_t ruleCount = sizeof(regenRules) / sizeof(regenRules[0]);
 
 	for (size_t i = 0; i < ruleCount; i++) {
 		bool shouldRegenerate = false;
