@@ -1098,7 +1098,7 @@ constexpr struct weighted_item_t {
 	{ "item_armor_combat", 13, -1, 0.06f, adjust_weight_armor },
 	{ "item_armor_body", 27, -1, 0.015f, adjust_weight_armor },
 	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
-	{ "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
+	//{ "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
 
 	{ "item_ir_goggles", 10, -1, 0.03f, adjust_weight_powerup },
 	{ "item_quad", 6, -1, 0.04f, adjust_weight_powerup },

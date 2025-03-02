@@ -276,8 +276,8 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 
 				if (g_horde->integer)
 				{
-					// Usar frandom para obtener un valor entre 0.7 y 1.3
-					float const multiplier = frandom(0.7f, 1.3f);
+					// Usar frandom para obtener un valor entre 0.7 y 1.8
+					float const multiplier = frandom(0.7f, 1.8f);
 					given_quantity = (int)(given_quantity * multiplier);
 				}
 
@@ -1686,6 +1686,7 @@ constexpr int CHAINGUN_READY_FRAME = 31;
 constexpr int CHAINGUN_SINGLE_SHOT_FRAME = 9;
 constexpr int CHAINGUN_DOUBLE_SHOT_FRAME = 14;
 constexpr int CG_TRACER_DMG = 20;
+constexpr gtime_t CG_TRACER_COOLDOWN = 200_ms;
 
 void Chaingun_Fire(edict_t* ent)
 {
@@ -1834,7 +1835,7 @@ void Chaingun_Fire(edict_t* ent)
 		fire_blaster2(ent, tracer_start, dir, CG_TRACER_DMG, 3150, EF_NONE, false);
 
 		// Reset cooldown
-		ent->lasthbshot = level.time + TRACER_COOLDOWN;
+		ent->lasthbshot = level.time + CG_TRACER_COOLDOWN;
 	}
 }
 

@@ -470,7 +470,7 @@ constexpr float TRAP_FLOOR_OFFSET = -12.0f;    // Offset for floor
 constexpr float TRAP_ORB_OFFSET = 12.0f;       // Normal sphere height
 constexpr float TRAP_ORB_OFFSET_CEIL = -18.0f; // Ceiling sphere height
 constexpr int TRAP_MAX_TARGETS = 3;           // Maximum number of targets
-constexpr float TRAP_RADIUS = 350.0f;          // Trap pull radius
+constexpr float TRAP_RADIUS = 400.0f;          // Trap pull radius
 constexpr float TRAP_RADIUS_SQUARED = TRAP_RADIUS * TRAP_RADIUS; // Pre-computed squared radius
 
 // New touch function for trap sticking behavior
@@ -763,7 +763,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
         vec3_t vec = ent->s.origin - target->s.origin;
         float vec_len = vec.normalize();
 
-        const float max_speed = target->client ? 290.f : 190.f;
+        const float max_speed = target->client ? 290.f : 210.f;
         target->velocity += (vec * clamp(max_speed - vec_len, 64.f, max_speed));
 
         // Setup sound for pulling
@@ -873,7 +873,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     trap->mins = { -4, -4, 0 };
     trap->maxs = { 4, 4, 8 };
     trap->die = trap_die;
-    trap->health = 20;
+    trap->health = 200;
     trap->s.modelindex = gi.modelindex("models/weapons/z_trap/tris.md2");
     trap->owner = trap->teammaster = self;
 
@@ -907,5 +907,5 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
     gi.linkentity(trap);
 
-    trap->timestamp = level.time + 30_sec;
+    trap->timestamp = level.time + 60_sec;
 }

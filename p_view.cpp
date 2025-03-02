@@ -1026,9 +1026,9 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 
 	// Set next regeneration time based on player's spree count
 	// Faster regeneration when on a high kill streak
-	constexpr gtime_t REGEN_TIME_FAST = 5_sec;    // 5 seconds
-	constexpr gtime_t REGEN_TIME_NORMAL = 10_sec; // 10 seconds
-	constexpr int SPREE_THRESHOLD = 50;           // Spree threshold for faster regen
+	constexpr gtime_t REGEN_TIME_FAST = 3.5_sec;    // 5 seconds
+	constexpr gtime_t REGEN_TIME_NORMAL = 7_sec; // 10 seconds
+	constexpr int SPREE_THRESHOLD = 20;           // Spree threshold for faster regen
 
 	client->ammoregentime = level.time +
 		(client->resp.spree >= SPREE_THRESHOLD ? REGEN_TIME_FAST : REGEN_TIME_NORMAL);

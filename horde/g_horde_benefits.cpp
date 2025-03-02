@@ -119,7 +119,7 @@ static void apply_benefit(const benefit_t& benefit) {
 
         if (bfg_pull_active) {
             gi.cvar_set("g_bfgpull", "1");   
-            gi.cvar_set("g_bfgslide", "0");
+    //        gi.cvar_set("g_bfgslide", "0");
             gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nBFG LASERS UPGRADED!\n");
             gi.LocBroadcast_Print(PRINT_CHAT, "BFG Grav-Pull Lasers Enabled\n");
         } else {
