@@ -4285,50 +4285,42 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		}
 	}
 
-	// Update UI strings with current status
+	// Create messages for updating UI
+	std::string combat_message;
+	std::string bad_area_message;
+
 	if (player_in_combat) {
-		std::string new_message = fmt::format("In Combat! Reviving in: {:.1f}(s)",
+		combat_message = fmt::format("In Combat! Reviving in: {:.1f}(s)",
 			min_combat_time_left.seconds<float>());
+	}
 
-		if (new_message != last_combat_message) {
-			last_combat_message = new_message;
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, new_message.data());
-		}
-
-		if (!last_bad_area_message.empty()) {
-			last_bad_area_message.clear();
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
+	if (player_in_bad_area) {
+		if (min_bad_area_time_left > ZERO_TIME) {
+			bad_area_message = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)",
+				min_bad_area_time_left.seconds<float>());
 		}
 	}
-	else if (player_in_bad_area) {
-		std::string new_message = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)",
-			min_bad_area_time_left.seconds<float>());
 
-		if (min_bad_area_time_left <= ZERO_TIME) {
-			new_message.clear();
-		}
-
-		if (new_message != last_bad_area_message) {
-			last_bad_area_message = new_message;
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, new_message.data());
-		}
-
-		if (!last_combat_message.empty()) {
-			last_combat_message.clear();
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
-		}
+	// Update UI strings for all players (alive and dead)
+	if (combat_message != last_combat_message) {
+		last_combat_message = combat_message;
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, combat_message.data());
 	}
-	else {
-		// Clear both messages if needed
-		if (!last_combat_message.empty()) {
-			last_combat_message.clear();
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
-		}
 
-		if (!last_bad_area_message.empty()) {
-			last_bad_area_message.clear();
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
-		}
+	if (bad_area_message != last_bad_area_message) {
+		last_bad_area_message = bad_area_message;
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, bad_area_message.data());
+	}
+
+	// Clear messages if needed
+	if (combat_message.empty() && !last_combat_message.empty()) {
+		last_combat_message.clear();
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
+	}
+
+	if (bad_area_message.empty() && !last_bad_area_message.empty()) {
+		last_bad_area_message.clear();
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 
 	// Select a random candidate for respawn if available
@@ -4338,19 +4330,27 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	}
 
 	// Set waiting state for players with no state
-	if (is_horde_mode) {
-		for (auto player : active_players_no_spect()) {
-			if (player->client->coop_respawn_state == COOP_RESPAWN_NONE) {
+	// Note: This includes both alive and dead players
+	auto update_waiting_players = [](auto players_func) {
+		for (auto player : players_func()) {
+			// For alive players without state
+			if (!player->deadflag && player->client->coop_respawn_state == COOP_RESPAWN_NONE) {
+				player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
+			}
+
+			// For dead players - keep them in waiting state but they'll see the messages
+			// from the configstrings we've already set
+			if (player->deadflag) {
 				player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
 			}
 		}
+		};
+
+	if (is_horde_mode) {
+		update_waiting_players(active_players_no_spect);
 	}
 	else {
-		for (auto player : active_players()) {
-			if (player->client->coop_respawn_state == COOP_RESPAWN_NONE) {
-				player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
-			}
-		}
+		update_waiting_players(active_players);
 	}
 
 	// Force respawn if bad area timeout has expired
