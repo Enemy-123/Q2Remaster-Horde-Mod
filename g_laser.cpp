@@ -22,11 +22,11 @@ namespace LaserConstants {
     constexpr int32_t LASER_COST = 25;
     constexpr int32_t LASER_INITIAL_DAMAGE = 1;
     constexpr int32_t LASER_ADDON_DAMAGE = 4;
-    constexpr int32_t LASER_INITIAL_HEALTH = 125;
-    constexpr int32_t LASER_ADDON_HEALTH = 100;
-    constexpr int32_t MAX_LASER_HEALTH = 1750;
+    constexpr int32_t LASER_INITIAL_HEALTH = 150;
+    constexpr int32_t LASER_ADDON_HEALTH = 120;
+    constexpr int32_t MAX_LASER_HEALTH = 2500;
     constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
-    constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
+    constexpr gtime_t LASER_TIMEOUT_DELAY = 180_sec;
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;   // Aumentado para mejor daño PvE
