@@ -540,8 +540,7 @@ bool FindMTarget(edict_t* self) {
 	if (!self)
 		return false;
 
-	// Remove redundant 'self &&' check since we already verified self isn't null
-	if (self->enemy && self->enemy->monsterinfo.issummoned)
+	if (self && self->enemy && self->enemy->monsterinfo.issummoned)
 		return false;
 
 	// Cache valores frecuentemente usados
@@ -556,31 +555,19 @@ bool FindMTarget(edict_t* self) {
 		current_enemy = nullptr;
 	}
 
-	// Check if current enemy is still valid before looking for new targets
-	if (current_enemy &&
-		!current_enemy->client &&
-		(current_enemy->svflags & SVF_MONSTER) &&
-		!current_enemy->monsterinfo.issummoned &&
-		IsValidTarget(self, current_enemy)) {
-
-		float dist_squared = DistanceSquared(self_origin, current_enemy->s.origin);
-		if (dist_squared <= MAX_RANGE_SQUARED &&
-			gi.inPVS(self_origin, current_enemy->s.origin, true) &&
-			visible(self, current_enemy, false) &&
-			current_time < self->monsterinfo.react_to_damage_time) {
-			return true; // Current enemy is still valid and visible
-		}
-	}
-
 	// Variables para el mejor objetivo
 	edict_t* best_target = nullptr;
 	float best_priority = -1.0f;
+	float best_dist_squared = MAX_RANGE_SQUARED;
 
 	// Buscar el mejor objetivo directamente
 	for (auto ent : active_monsters()) {
-		// Skip invalid targets early with combined check
-		if (!ent || ent == self || ent->client || !(ent->svflags & SVF_MONSTER) || ent->monsterinfo.issummoned)
+		// Ignorar players
+		if (!ent || ent->client || !(ent->svflags & SVF_MONSTER))
 			continue;
+
+		if (ent->monsterinfo.issummoned)
+			continue; // Skip other summoned units immediately
 
 		// Verificar si es un objetivo válido
 		if (!IsValidTarget(self, ent))
@@ -595,10 +582,6 @@ bool FindMTarget(edict_t* self) {
 		if (!gi.inPVS(self_origin, ent->s.origin, true))
 			continue;
 
-		// Do visibility check earlier to avoid priority calculation if not visible
-		if (!visible(self, ent, false))
-			continue;
-
 		// Verificar si es el atacante actual
 		bool is_attacker = (ent == current_enemy || ent == last_attacker);
 		if (is_attacker && last_attacker && last_attacker->client)
@@ -607,9 +590,10 @@ bool FindMTarget(edict_t* self) {
 		// Calcular prioridad
 		float priority = CalculateTargetPriority(self, ent, dist_squared, is_attacker);
 
-		// Actualizar mejor objetivo
-		if (priority > best_priority) {
+		// Actualizar mejor objetivo si es visible
+		if (priority > best_priority && visible(self, ent, false)) {
 			best_priority = priority;
+			best_dist_squared = dist_squared;
 			best_target = ent;
 		}
 	}
@@ -620,6 +604,16 @@ bool FindMTarget(edict_t* self) {
 			self->monsterinfo.react_to_damage_time = current_time + 1_sec;
 			self->enemy = best_target;
 		}
+		return true;
+	}
+
+	// Mantener objetivo actual solo si es un monster válido y visible
+	if (current_enemy &&
+		!current_enemy->client &&
+		(current_enemy->svflags & SVF_MONSTER) &&
+		IsValidTarget(self, current_enemy) &&
+		gi.inPVS(self_origin, current_enemy->s.origin, true) &&
+		current_time < self->monsterinfo.react_to_damage_time) {
 		return true;
 	}
 
@@ -1295,7 +1289,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 	//// Validar enemigo
 	if (!self->enemy || !self->enemy->inuse ||
 		OnSameTeam(self, self->enemy) || self->enemy->deadflag ||
-		(self->monsterinfo.issummoned && self->enemy->monsterinfo.issummoned)) 
+		(self->monsterinfo.issummoned && self->enemy->monsterinfo.issummoned))
 	{
 		return false;
 	}
@@ -1326,7 +1320,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 				MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_PROJECTILECLIP);
 			// Paril: horde
 			if (tr.startsolid)
-			    return false;
+				return false;
 		}
 		else
 		{

@@ -862,7 +862,7 @@ constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
 constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
-constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 10_sec;
+constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 1.5_sec;
 
 static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 	// Calcular el tiempo base según el nivel
@@ -3502,7 +3502,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	// ADDED: Aggressive time reduction for very few monsters - checked EVERY time
 	if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION && g_horde_local.waveEndTime > 0_sec) {
 		// More aggressive - use shorter time for 0-2 monsters
-		const gtime_t reduction = remainingMonsters <= 2 ?
+		const gtime_t reduction = remainingMonsters <= 4 ?
 			30_sec : // Force 30 sec max for 0-2 monsters
 			AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
 
