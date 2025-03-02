@@ -1520,94 +1520,122 @@ MACHINEGUN / CHAINGUN
 
 ======================================================================
 */
+// Constants for better readability and maintainability
+constexpr float KICK_RANDOM_SCALE = 0.35f;
+constexpr float KICK_ANGLE_SCALE = 0.7f;
+constexpr float GUN_HEIGHT_ADJUST = 5.0f;
+constexpr int MACHINEGUN_FRAME_FIRE1 = 4;
+constexpr int MACHINEGUN_FRAME_FIRE2 = 5;
+constexpr int MACHINEGUN_FRAME_IDLE = 6;
+constexpr int TRACER_DAMAGE = 40;
+constexpr gtime_t TRACER_COOLDOWN = 500_ms;
+
+// Gun offset vectors
+constexpr vec3_t GUN_OFFSET = { 0.0f, 8.0f, -8.0f }; // -8 relative to viewheight
+constexpr vec3_t TRACER_OFFSET_STANDING = { 0.0f, 10.5f, -11.0f };
+constexpr vec3_t TRACER_OFFSET_DUCKED = { 0.0f, 8.0f, -6.0f };
+
 void Machinegun_Fire(edict_t* ent)
 {
-	if (!ent->client)
+	if (!ent || !ent->client)
 		return;
 
 	int damage = irandom(7, 10);
 	int kick = 2;
 
+	// Handle not firing
 	if (!(ent->client->buttons & BUTTON_ATTACK)) {
 		ent->client->machinegun_shots = 0;
-		ent->client->ps.gunframe = 6;
+		ent->client->ps.gunframe = MACHINEGUN_FRAME_IDLE;
 		return;
 	}
 
-	ent->client->ps.gunframe = (ent->client->ps.gunframe == 4) ? 5 : 4;
+	// Toggle between firing frames
+	ent->client->ps.gunframe = (ent->client->ps.gunframe == MACHINEGUN_FRAME_FIRE1)
+		? MACHINEGUN_FRAME_FIRE2
+		: MACHINEGUN_FRAME_FIRE1;
 
+	// Check ammo
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < 1) {
-		ent->client->ps.gunframe = 6;
+		ent->client->ps.gunframe = MACHINEGUN_FRAME_IDLE;
 		NoAmmoWeaponChange(ent, true);
 		return;
 	}
 
+	// Apply quad damage modifier if active
 	if (is_quad) {
 		damage *= damage_multiplier;
 		kick *= damage_multiplier;
 	}
 
-	// Inicializar vectores de kick usando la sintaxis de inicialización
-	vec3_t kick_origin{}, kick_angles{};
+	// Initialize kick vectors
+	vec3_t kick_origin{};
+	vec3_t kick_angles{};
 	for (int i = 0; i < 3; i++) {
-		kick_origin[i] = crandom() * 0.35f;
-		kick_angles[i] = crandom() * 0.7f;
+		kick_origin[i] = crandom() * KICK_RANDOM_SCALE;
+		kick_angles[i] = crandom() * KICK_ANGLE_SCALE;
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// Calcular vectores de disparo
+	// Calculate firing vectors
 	vec3_t start;
 	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
 
-	// Offset del arma usando inicialización directa
-	vec3_t const offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
+	// Calculate gun position with viewheight adjustment
+	vec3_t offset = GUN_OFFSET;
+	offset[2] += ent->viewheight; // Adjust for player's view height
 
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
-	start[2] -= 5.0f;  // Ajuste de altura
+	start[2] -= GUN_HEIGHT_ADJUST;  // Additional height adjustment
 
+	// Fire with lag compensation
 	G_LagCompensate(ent, start, forward);
-
 	fire_bullet(ent, start, forward, damage, kick,
 		DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
-
 	G_UnLagCompensate();
+
+	// Play weapon sound with power-up effects
 	Weapon_PowerupSound(ent);
 
-	// Muzzle flash
+	// Send muzzle flash effect to clients
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
 	gi.WriteByte(MZ_MACHINEGUN | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
+	// Generate noise event for AI awareness
 	PlayerNoise(ent, start, PNOISE_WEAPON);
+
+	// Remove ammo
 	G_RemoveAmmo(ent);
 
-	// Lógica para disparar trazadores
-	if (ent->lasthbshot <= level.time) {
-		if (g_tracedbullets->integer) {
-		constexpr int tracer_damage = 40;
-			vec3_t tracer_start = start;
+	// Handle tracer logic - only if enabled and cooldown has elapsed
+	if (g_tracedbullets->integer && ent->lasthbshot <= level.time) {
+		// Select appropriate offset based on stance
+		const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+			? TRACER_OFFSET_DUCKED
+			: TRACER_OFFSET_STANDING;
 
-			// Offset del trazador usando inicialización condicional
-			vec3_t const tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-				? vec3_t{ 0.0f, 8.0f, -6.0f }
-			: vec3_t{ 0.0f, 10.5f, -11.0f };
-
-			tracer_start = tracer_start + tracer_offset;
-
-			vec3_t dir;
-			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
-	//		if (frandom() < 0.3f) {
-				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
-			//}
-			//else {
-			//	fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
-			//}
+		// Calculate tracer starting position
+		vec3_t tracer_start = start;
+		for (int i = 0; i < 3; i++) {
+			tracer_start[i] += tracer_offset[i];
 		}
-		ent->lasthbshot = level.time + 500_ms;
+
+		// Calculate direction vector
+		vec3_t dir;
+		P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
+
+		// Fire tracer (could add randomization back if desired)
+		// if (frandom() < 0.3f) {
+		fire_blaster2(ent, tracer_start, dir, TRACER_DAMAGE, 3150, EF_NONE, false);
+		// }
+
+		// Reset cooldown
+		ent->lasthbshot = level.time + TRACER_COOLDOWN;
 	}
 
-	// Configuración de animación
+	// Configure player animation based on stance
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
@@ -1645,105 +1673,76 @@ void chaingun_smoke(edict_t* ent)
 
 constexpr int SPINUP_FRAMES = 5;      // Number of frames for spin-up
 constexpr int SPINDOWN_FRAMES = 2;    // Number of frames for spin-down
-constexpr int FULL_ROF_SHOTS = 3;     // Shots per frame at full rate of fire
+// Constants for better readability and maintainability
+constexpr float KICK_BASE_ANGLE = 0.5f;
+constexpr float KICK_PER_SHOT = 0.15f;
+constexpr int CHAINGUN_START_FRAME = 5;
+constexpr int CHAINGUN_END_FRAME = 21;
+constexpr int CHAINGUN_PAUSE_FRAME = 14;
+constexpr int CHAINGUN_LOOP_FRAME = 15;
+constexpr int CHAINGUN_SPINDOWN_FRAME = 32;
+constexpr int CHAINGUN_SOUND_FRAME = 22;
+constexpr int CHAINGUN_READY_FRAME = 31;
+constexpr int CHAINGUN_SINGLE_SHOT_FRAME = 9;
+constexpr int CHAINGUN_DOUBLE_SHOT_FRAME = 14;
+constexpr int CG_TRACER_DMG = 20;
+
 void Chaingun_Fire(edict_t* ent)
 {
-	if (!ent->client)
+	if (!ent || !ent->client)
 		return;
 
 	int shots;
-	int damage;
+	int damage = irandom(5, 9);
 	int kick = 2;
-	damage = irandom(5, 9);
 
-	if (g_improvedchaingun->integer) {
-		// Improved chaingun behavior
-		if (ent->client->ps.gunframe <= SPINUP_FRAMES) {
-			ent->client->ps.gunframe++;
-			if (ent->client->ps.gunframe == 1) {
-				gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
-			}
-			return;
-		}
-
-		if (ent->client->buttons & BUTTON_ATTACK) {
-			if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
-				ent->client->ps.gunframe = SPINUP_FRAMES + 1;
-			}
-
-			if (ent->client->ps.gunframe == SPINUP_FRAMES + 1) {
-				ent->client->ps.gunframe = SPINUP_FRAMES + 2;
-			}
-			else {
-				ent->client->ps.gunframe = SPINUP_FRAMES + 1;
-			}
-
-			ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
-			ent->client->quake_time = level.time + 100_ms;
-
-			float const shake_intensity = 1.6f;
-			ent->client->v_dmg_pitch = crandom() * shake_intensity;
-			ent->client->v_dmg_roll = crandom() * shake_intensity;
-			ent->client->v_dmg_time = level.time + DAMAGE_TIME();
-
-			shots = FULL_ROF_SHOTS;
-		}
-		else {
-			ent->client->weapon_sound = 0;
-			ent->client->ps.gunframe++;
-
-			if (ent->client->ps.gunframe == SPINUP_FRAMES + 2) {
-				chaingun_smoke(ent);
-				gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
-			}
-
-			if (ent->client->ps.gunframe > SPINUP_FRAMES + 1) {
-				if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
-					ent->client->ps.gunframe = 8;
-				}
-				return;
-			}
-		}
+	// Handle gun state transitions
+	if (ent->client->ps.gunframe > CHAINGUN_READY_FRAME) {
+		// Restart the firing sequence
+		ent->client->ps.gunframe = CHAINGUN_START_FRAME;
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
+	}
+	else if ((ent->client->ps.gunframe == CHAINGUN_PAUSE_FRAME) &&
+		!(ent->client->buttons & BUTTON_ATTACK)) {
+		// Player released trigger during firing - start spin down
+		ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME;
+		ent->client->weapon_sound = 0;
+		return;
+	}
+	else if ((ent->client->ps.gunframe == CHAINGUN_END_FRAME) &&
+		(ent->client->buttons & BUTTON_ATTACK) &&
+		ent->client->pers.inventory[ent->client->pers.weapon->ammo]) {
+		// Player still holding trigger at end of sequence - loop back
+		ent->client->ps.gunframe = CHAINGUN_LOOP_FRAME;
 	}
 	else {
-		// Original chaingun behavior
-		if (ent->client->ps.gunframe > 31) {
-			ent->client->ps.gunframe = 5;
-			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
-		}
-		else if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK)) {
-			ent->client->ps.gunframe = 32;
-			ent->client->weapon_sound = 0;
-			return;
-		}
-		else if ((ent->client->ps.gunframe == 21) &&
-			(ent->client->buttons & BUTTON_ATTACK) &&
-			ent->client->pers.inventory[ent->client->pers.weapon->ammo]) {
-			ent->client->ps.gunframe = 15;
-		}
-		else {
-			ent->client->ps.gunframe++;
-		}
-
-		if (ent->client->ps.gunframe == 22) {
-			ent->client->weapon_sound = 0;
-			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
-		}
-
-		if (ent->client->ps.gunframe < 5 || ent->client->ps.gunframe > 21)
-			return;
-
-		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
-
-		if (ent->client->ps.gunframe <= 9)
-			shots = 1;
-		else if (ent->client->ps.gunframe <= 14)
-			shots = (ent->client->buttons & BUTTON_ATTACK) ? 2 : 1;
-		else
-			shots = 3;
+		// Normal frame advancement
+		ent->client->ps.gunframe++;
 	}
 
-	// Common animation code for both modes
+	// Handle spindown sound
+	if (ent->client->ps.gunframe == CHAINGUN_SOUND_FRAME) {
+		ent->client->weapon_sound = 0;
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+	}
+
+	// Only fire when in active frames
+	if (ent->client->ps.gunframe < CHAINGUN_START_FRAME ||
+		ent->client->ps.gunframe > CHAINGUN_END_FRAME)
+		return;
+
+	// Set firing sound
+	ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+
+	// Determine number of shots based on frame
+	if (ent->client->ps.gunframe <= CHAINGUN_SINGLE_SHOT_FRAME)
+		shots = 1;
+	else if (ent->client->ps.gunframe <= CHAINGUN_DOUBLE_SHOT_FRAME)
+		shots = (ent->client->buttons & BUTTON_ATTACK) ? 2 : 1;
+	else
+		shots = 3;
+
+	// Configure player animation based on stance
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
@@ -1755,15 +1754,9 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	ent->client->anim_time = 0_ms;
 
-	// Ammo check
+	// Check ammo
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < shots) {
-		if (g_improvedchaingun->integer) {
-			NoAmmoWeaponChange(ent, true);
-			return;
-		}
-		else {
-			shots = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
-		}
+		shots = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
 	}
 
 	if (!shots) {
@@ -1771,27 +1764,33 @@ void Chaingun_Fire(edict_t* ent)
 		return;
 	}
 
-	// Damage and kick calculations
+	// Apply quad damage modifier if active
 	if (is_quad) {
 		damage *= damage_multiplier;
 		kick *= damage_multiplier;
 	}
 
-	vec3_t kick_origin{}, kick_angles{};
+	// Initialize kick vectors - more kick for more shots
+	vec3_t kick_origin{};
+	vec3_t kick_angles{};
 	for (int i = 0; i < 3; i++) {
-		kick_origin[i] = crandom() * 0.35f;
-		kick_angles[i] = crandom() * (0.5f + (shots * 0.15f));
+		kick_origin[i] = crandom() * KICK_RANDOM_SCALE;
+		kick_angles[i] = crandom() * (KICK_BASE_ANGLE + (shots * KICK_PER_SHOT));
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// Firing vectors calculation
+	// Calculate firing vectors
 	vec3_t start;
 	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
-	vec3_t const offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
-	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
-	start[2] -= 5.0f;
 
-	// Firing
+	// Calculate gun position with viewheight adjustment
+	vec3_t offset = GUN_OFFSET;
+	offset[2] += ent->viewheight; // Adjust for player's view height
+
+	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
+	start[2] -= GUN_HEIGHT_ADJUST;  // Additional height adjustment
+
+	// Fire with lag compensation
 	G_LagCompensate(ent, start, forward);
 	for (int i = 0; i < shots; i++) {
 		fire_bullet(ent, start, forward, damage, kick,
@@ -1799,35 +1798,43 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	G_UnLagCompensate();
 
-	// Effects
+	// Play weapon sound with power-up effects
 	Weapon_PowerupSound(ent);
+
+	// Send muzzle flash effect to clients - intensity based on shot count
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
 	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+	// Generate noise event for AI awareness
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
+	// Remove ammo based on shot count
 	G_RemoveAmmo(ent, shots);
 
-	// Tracer effects
-	if (ent->lasthbshot <= level.time) {
-		if (g_tracedbullets->integer) {
-			constexpr int tracer_damage = 20;
-			vec3_t tracer_start = start;
-			const vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-				? vec3_t{ 0.0f, 8.0f, -6.0f }
-			: vec3_t{ 0.0f, 10.5f, -11.0f };
-			tracer_start = tracer_start + tracer_offset;
-			vec3_t dir;
-			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
-		//	if (frandom() < 0.3f) {
-				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
-			//}
-			//else {
-			//	fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
-			//}
+	// Handle tracer logic - only if enabled and cooldown has elapsed
+	if (g_tracedbullets->integer && ent->lasthbshot <= level.time) {
+		// Select appropriate offset based on stance
+		const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+			? TRACER_OFFSET_DUCKED
+			: TRACER_OFFSET_STANDING;
+
+		// Calculate tracer starting position
+		vec3_t tracer_start = start;
+		for (int i = 0; i < 3; i++) {
+			tracer_start[i] += tracer_offset[i];
 		}
-		ent->lasthbshot = level.time + 250_ms;
+
+		// Calculate direction vector
+		vec3_t dir;
+		P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
+
+		// Fire tracer
+		fire_blaster2(ent, tracer_start, dir, CG_TRACER_DMG, 3150, EF_NONE, false);
+
+		// Reset cooldown
+		ent->lasthbshot = level.time + TRACER_COOLDOWN;
 	}
 }
 
