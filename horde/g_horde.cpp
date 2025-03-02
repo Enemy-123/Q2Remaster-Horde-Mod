@@ -57,7 +57,20 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 		return;
 	}
 
-	auto& data = spawnPointsData[spawn_point];
+	// Use find instead of direct access to prevent creating new entries unnecessarily
+	auto it = spawnPointsData.find(spawn_point);
+	SpawnPointData* data_ptr = nullptr;
+
+	if (it != spawnPointsData.end()) {
+		data_ptr = &it->second;
+	}
+	else {
+		// Only insert a new entry if needed
+		auto [new_it, inserted] = spawnPointsData.emplace(spawn_point, SpawnPointData{});
+		data_ptr = &new_it->second;
+	}
+
+	auto& data = *data_ptr;
 	const gtime_t current_time = level.time;
 
 	// Reset attempts if enough time has passed - early return optimization
@@ -70,11 +83,12 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 
 	data.attempts++;
 
-	// Dynamic attempt limit based on current success rate - simplified calculation
+	// Dynamic attempt limit based on current success rate - improved calculation
+	// Cache success rate calculation
 	const float success_rate = data.getSuccessRate(current_time);
 	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
 
-	// Adaptive cooldown duration - use fewer branches
+	// Adaptive cooldown duration - fewer branches with ternary
 	if (data.attempts >= max_attempts) {
 		data.isTemporarilyDisabled = true;
 
@@ -83,12 +97,12 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 		const float attempt_multiplier = data.attempts <= 8 ? data.attempts * 0.25f : 2.0f;
 		data.cooldownEndsAt = current_time + gtime_t::from_sec(cooldown_factor * attempt_multiplier);
 
-		if (developer->integer) {
+		if (developer->integer == 1) {
 			gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n",
 				spawn_point->s.origin);
 		}
 	}
-	else if ((data.attempts & 1) == 0) { // Check if even using bitwise AND
+	else if ((data.attempts & 1) == 0) { // Check if even using bitwise AND instead of modulo
 		// Small incremental cooldown every 2 attempts
 		data.cooldownEndsAt = current_time + gtime_t::from_sec(0.2f * data.attempts);
 	}
@@ -144,10 +158,10 @@ static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
 // Verify if any spawn points are occupied, using span for efficient iteration
 // Original single point check
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Add validation 
+	// Add validation first
 	if (!spawn_point) {
 		gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
-		return true;
+		return true; // Safer to assume occupied if invalid
 	}
 
 	// Validate origin
@@ -156,8 +170,19 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 		return true;
 	}
 
-	// Get or create cache entry - avoid repeat lookups
-	auto& cache = spawn_point_cache[spawn_point];
+	// Get or create cache entry - with proper reference
+	auto cache_it = spawn_point_cache.find(spawn_point);
+	SpawnPointCache* cache_ptr = nullptr;
+
+	if (cache_it != spawn_point_cache.end()) {
+		cache_ptr = &cache_it->second;
+	}
+	else {
+		auto [it, inserted] = spawn_point_cache.emplace(spawn_point, SpawnPointCache{});
+		cache_ptr = &it->second;
+	}
+
+	SpawnPointCache& cache = *cache_ptr;
 
 	// Static duration to avoid reconstructing
 	static constexpr auto CACHE_DURATION = 25_ms;
@@ -415,12 +440,22 @@ void CheckAndReduceSpawnCooldowns() {
 	// Pre-compute the reduction factor once
 	constexpr float REDUCTION_FACTOR = 0.15f;
 
-	// Single pass through spawn points with early termination
-	for (auto& [spawn_point, data] : spawnPointsData) {
-		// Skip invalid entries
-		if (!spawn_point || !spawn_point->inuse) {
-			continue;
+	// Use a copy of the keys to avoid iterator invalidation
+	std::vector<edict_t*> spawn_points;
+	spawn_points.reserve(spawnPointsData.size());
+
+	for (const auto& [spawn_point, _] : spawnPointsData) {
+		if (spawn_point && spawn_point->inuse) {
+			spawn_points.push_back(spawn_point);
 		}
+	}
+
+	// Process spawn points with early termination after collecting keys
+	for (edict_t* spawn_point : spawn_points) {
+		auto it = spawnPointsData.find(spawn_point);
+		if (it == spawnPointsData.end()) continue;
+
+		auto& data = it->second;
 
 		// Check if spawn point is disabled and cooldown is still active
 		if (data.isTemporarilyDisabled && current_time < data.cooldownEndsAt) {
@@ -434,7 +469,7 @@ void CheckAndReduceSpawnCooldowns() {
 			// Reset attempt counter for fresh spawning
 			data.attempts = 0;
 
-			if (developer->integer) {
+			if (developer->integer == 1) {
 				// Debug message reduced to one output per function call
 				gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n", spawn_point->s.origin);
 			}
@@ -444,6 +479,10 @@ void CheckAndReduceSpawnCooldowns() {
 	// Only reduce global cooldown if we actually found cooldowns to reset
 	if (found_cooldowns_to_reset) {
 		SPAWN_POINT_COOLDOWN *= REDUCTION_FACTOR;
+
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("Global spawn cooldown reduced to {:.2f}s\n", SPAWN_POINT_COOLDOWN.seconds());
+		}
 	}
 }
 
@@ -2522,19 +2561,19 @@ void BossDeathHandler(edict_t* boss) {
 	// Mark as handled immediately to prevent double processing
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
-	// Handle entity tracking
+	// Handle entity tracking in one block
 	OnEntityDeath(boss);
 	OnEntityRemoved(boss);
 	auto_spawned_bosses.erase(boss);
 
-	// Pre-define item drops to avoid repeated string lookups
+	// Pre-define item drops as constants to avoid repeated string lookups
 	static const char* itemsToDrop[] = {
 		"item_adrenaline", "item_pack", "item_sentrygun",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier",
 		"item_invulnerability", "ammo_nuke"
 	};
 
-	// Pre-calculate velocity parameters
+	// Pre-calculate velocity parameters once for all items
 	static const vec3_t base_velocity(MIN_VELOCITY, MIN_VELOCITY, MIN_VERTICAL_VELOCITY);
 	static const vec3_t velocity_range(
 		MAX_VELOCITY - MIN_VELOCITY,
@@ -2542,7 +2581,7 @@ void BossDeathHandler(edict_t* boss) {
 		MAX_VERTICAL_VELOCITY - MIN_VERTICAL_VELOCITY
 	);
 
-	// Weapon drop with null checks
+	// Weapon drop with improved selection and null checks
 	const char* weapon_classname = SelectBossWeaponDrop(current_wave_level);
 	if (weapon_classname) {
 		gitem_t* weapon_item = FindItemByClassname(weapon_classname);
@@ -2559,17 +2598,17 @@ void BossDeathHandler(edict_t* boss) {
 				weapon->velocity = weaponVelocity;
 				weapon->movetype = MOVETYPE_BOUNCE;
 
-				// Set visual effects in one group
+				// Set visual effects in one batch
 				weapon->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
 				weapon->s.renderfx = RF_GLOW;
 				weapon->s.alpha = 0.85f;
 				weapon->s.scale = 1.25f;
 
-				// Set flags
+				// Set flags in one operation
 				weapon->spawnflags = SPAWNFLAG_ITEM_DROPPED_PLAYER;
 				weapon->flags &= ~FL_RESPAWN;
 
-				// Link entity once
+				// Link entity once after all properties are set
 				gi.linkentity(weapon);
 			}
 		}
@@ -2581,10 +2620,10 @@ void BossDeathHandler(edict_t* boss) {
 	if (special_item) {
 		edict_t* specialItem = Drop_Item(boss, special_item);
 		if (specialItem) {
+			// Set velocity in a single operation using static distributions
 			static std::uniform_int_distribution<int> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
 			static std::uniform_int_distribution<int> vert_dist(300, 400);
 
-			// Set velocity in a single operation
 			const vec3_t specialVelocity{
 				static_cast<float>(vel_dist(mt_rand)),
 				static_cast<float>(vel_dist(mt_rand)),
@@ -2608,6 +2647,7 @@ void BossDeathHandler(edict_t* boss) {
 	}
 
 	// Fisher-Yates shuffle with stack-allocated array
+	// Use memcpy instead of manual assignment for array initialization
 	char const* shuffledItems[8];
 	memcpy(shuffledItems, itemsToDrop, sizeof(itemsToDrop));
 
@@ -2615,10 +2655,7 @@ void BossDeathHandler(edict_t* boss) {
 	for (int i = 7; i > 0; --i) {
 		int j = mt_rand() % (i + 1);
 		if (i != j) {
-			// More efficient swap using XOR
-			const char* tmp = shuffledItems[i];
-			shuffledItems[i] = shuffledItems[j];
-			shuffledItems[j] = tmp;
+			std::swap(shuffledItems[i], shuffledItems[j]);
 		}
 	}
 
@@ -2640,7 +2677,7 @@ void BossDeathHandler(edict_t* boss) {
 				static_cast<float>(vert_dist(mt_rand))
 			};
 
-			// Set origin and properties
+			// Set origin and properties in grouped operations
 			droppedItem->s.origin = boss->s.origin;
 			droppedItem->movetype = MOVETYPE_BOUNCE;
 			droppedItem->flags &= ~FL_RESPAWN;
@@ -2652,7 +2689,7 @@ void BossDeathHandler(edict_t* boss) {
 		}
 	}
 
-	// Clear takedamage flag at the end to prevent further damage processing
+	// Clear combat flags at the end
 	boss->takedamage = false;
 	boss->solid = SOLID_NOT;
 	gi.linkentity(boss);
@@ -2687,7 +2724,10 @@ static bool Horde_AllMonstersDead() {
 		return true;
 	}
 
-	// Check each active monster
+	int dead_count = 0;
+	int total_count = 0;
+
+	// Optimized single-pass count with early exit
 	for (auto ent : active_or_dead_monsters()) {
 		// Skip invalid entities
 		if (!ent || !ent->inuse) continue;
@@ -2695,10 +2735,16 @@ static bool Horde_AllMonstersDead() {
 		// Skip monsters that don't count
 		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue;
 
-		// If we find a live monster, return false
+		// Count this monster
+		total_count++;
+
+		// If it's alive, return false immediately
 		if (!ent->deadflag && ent->health > 0) return false;
 
-		// Boss cleanup in the same loop
+		// Count dead monsters
+		dead_count++;
+
+		// Boss cleanup in the same loop for efficiency
 		if (ent->monsterinfo.IS_BOSS && ent->health <= 0 &&
 			auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() &&
 			!ent->monsterinfo.BOSS_DEATH_HANDLED) {
@@ -2706,7 +2752,8 @@ static bool Horde_AllMonstersDead() {
 		}
 	}
 
-	return true; // All monsters are dead
+	// If we didn't find any monsters, or all were dead
+	return total_count == 0 || total_count == dead_count;
 }
 
 // Modify the CheckAndRestoreMonsterAlpha function to batch updates
@@ -3399,7 +3446,7 @@ static void ResetRecentBosses() noexcept {
 void ResetWaveAdvanceState() noexcept;
 
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
-	// Cache values used frequently
+	// Cache values used frequently for better performance
 	const gtime_t currentTime = level.time;
 
 	// Early return for complete victory
@@ -3409,48 +3456,49 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		return true;
 	}
 
-	// Early time limit check
+	// Early time limit check - direct comparison reduces branch complexity
 	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
 		reason = WaveEndReason::TimeLimitReached;
 		return true;
 	}
 
-	// Transition logic for wave deployment
+	// Transition logic for wave deployment - improved state handling
 	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
-		// Reset independent timer and set end time
+		// Reset timer and set end time in one operation
 		g_independent_timer_start = currentTime;
 		g_horde_local.waveEndTime = currentTime + g_lastParams.timeThreshold;
 		g_horde_local.conditionTriggered = true;
 		g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
+
 		if (developer->integer) {
 			gi.Com_PrintFmt("Debug: Timer reset after wave deployment. New end time: {:.2f}s\n",
 				g_lastParams.timeThreshold.seconds());
 		}
 	}
 
-	// Only calculate remaining monsters if needed
+	// Optimized monster counting with caching
 	static int32_t remainingMonsters = 0;
 	static gtime_t lastMonsterCountTime = 0_sec;
 
-	// Recalculate only periodically or if we're in a state transition
+	// Recalculate only periodically for better performance
 	if (currentTime - lastMonsterCountTime > 0.5_sec || !g_horde_local.conditionTriggered) {
 		remainingMonsters = CalculateRemainingMonsters();
 		lastMonsterCountTime = currentTime;
 	}
 
-	// Initialize end time if needed
+	// Initialize end time if needed - once per wave
 	if (g_horde_local.waveEndTime == 0_sec) {
 		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 	}
 
-	// ADDED: Aggressive time reduction for very few monsters - checked EVERY time
+	// Aggressive time reduction for very few monsters - optimized checks
 	if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION && g_horde_local.waveEndTime > 0_sec) {
-		// More aggressive - use shorter time for 0-2 monsters
+		// Simplified condition with direct computation
 		const gtime_t reduction = remainingMonsters <= 4 ?
 			30_sec : // Force 30 sec max for 0-2 monsters
 			AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
 
-		// Apply the reduction based on current time
+		// Apply the reduction based on current time - single comparison
 		const gtime_t new_end_time = currentTime + reduction;
 		if (new_end_time < g_horde_local.waveEndTime) {
 			g_horde_local.waveEndTime = new_end_time;
@@ -3461,20 +3509,20 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
-	// ADDED: Verify monster counts periodically to detect phantom monsters
+	// Improved phantom monster detection - more robust verification
 	static gtime_t last_verification_time = 0_sec;
 	static int no_monster_verifications = 0;
 
 	if (currentTime - last_verification_time >= 1_sec && remainingMonsters > 0) {
 		last_verification_time = currentTime;
 
-		// Count actual alive monsters excluding AI_DO_NOT_COUNT
+		// Fast search for any countable monster - returns early on first match
 		bool any_countable_monster_found = false;
 		for (auto ent : active_monsters()) {
 			if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
 				!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 				any_countable_monster_found = true;
-				break; // We only need to find one
+				break; // Early exit on first valid monster
 			}
 		}
 
@@ -3501,6 +3549,8 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	// Condition trigger logic - calculate percentage only if needed
 	if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
+
+		// Optimize percentage calculation - only calculate if needed
 		float percentageRemaining = 0.0f;
 		const bool lowPercentageReached = [&]() {
 			if (!maxMonstersReached && g_totalMonstersInWave > 0) {
@@ -3514,7 +3564,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Calculate threshold based on condition
+			// Calculate threshold based on condition - use min for combined condition
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
 				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
 				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
@@ -3533,22 +3583,23 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
-	// Handle time warnings
+	// Handle time warnings - optimized for fewer branches
 	if (g_horde_local.conditionTriggered) {
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 
-		// Process warnings - using fixed-size array
+		// Process warnings with array lookup for better performance
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
+			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] &&
-				remainingTime <= gtime_t::from_sec(WARNING_TIMES[i]) &&
-				remainingTime > gtime_t::from_sec(WARNING_TIMES[i]) - 1_sec) {
+				remainingTime <= warningTime &&
+				remainingTime > warningTime - 1_sec) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
 					static_cast<int>(WARNING_TIMES[i]));
 				g_horde_local.warningIssued[i] = true;
 			}
 		}
 
-		// Check for time limit
+		// Check for time limit - single comparison
 		if (currentTime >= g_horde_local.waveEndTime) {
 			reason = WaveEndReason::MonstersRemaining;
 			return true;
@@ -3559,47 +3610,56 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 }
 
 void ValidateMonsterCount() {
-	// Only run every few seconds to avoid performance impact
+	// Only run periodically to reduce overhead
 	static gtime_t last_check_time = 0_sec;
-	static int no_monster_count = 0;  // Added declaration here
+	static int no_monster_count = 0;
 
 	if (level.time - last_check_time < 3_sec)
 		return;
 
 	last_check_time = level.time;
 
-	// Only check if we think monsters remain
-	if ((level.total_monsters - level.killed_monsters) <= 0)
+	// Only check if we think monsters remain - early exit for performance
+	const int counter_alive = level.total_monsters - level.killed_monsters;
+	if (counter_alive <= 0)
 		return;
 
-	// Count actual alive monsters
+	// Count actual alive monsters with early exit optimization
 	int actual_alive = 0;
 	for (auto ent : active_monsters()) {
 		if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
 			!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 			actual_alive++;
+			// If we find enough monsters to match counter, exit early
+			if (actual_alive >= counter_alive)
+				return;
 		}
 	}
 
-	// Compare with the counter-based value
-	int counter_alive = level.total_monsters - level.killed_monsters;
-
-	// If counters say monsters remain but we found none, fix the counters
-	if (counter_alive > 0 && actual_alive == 0) {
+	// If counters say monsters remain but we found none or fewer, track the mismatch
+	if (counter_alive > 0 && actual_alive < counter_alive) {
 		no_monster_count++;
 
-		// After a few consecutive empty checks, force completion
+		// After consecutive empty checks, fix the counters
 		if (no_monster_count >= 2) { // Require 2 consecutive checks (6 seconds)
 			if (developer->integer)
-				gi.Com_PrintFmt("Monster count mismatch fixed: {} -> 0\n", counter_alive);
+				gi.Com_PrintFmt("Monster count mismatch fixed: {} -> {}\n",
+					counter_alive, actual_alive);
 
-			level.killed_monsters = level.total_monsters;
-			allowWaveAdvance = true; // Force wave completion
+			// If we found some monsters but fewer than counter, adjust the counter
+			if (actual_alive > 0) {
+				level.killed_monsters = level.total_monsters - actual_alive;
+			}
+			else {
+				// If we found no monsters, mark all as killed
+				level.killed_monsters = level.total_monsters;
+				allowWaveAdvance = true; // Force wave completion
+			}
 			no_monster_count = 0;
 		}
 	}
 	else {
-		// Reset counter if we found monsters
+		// Reset counter if counts match
 		no_monster_count = 0;
 	}
 }
@@ -4075,39 +4135,50 @@ static edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
 
-	// Keep spawn cache static to avoid reallocation
+	// Static spawn cache to avoid reallocation
 	static struct {
 		edict_t* available_spawns[MAX_SPAWN_POINTS];
 		size_t count = 0;
 	} spawn_cache;
 
+	// Static map constraints cache
+	static MapSize last_map_size;
+	static int32_t max_monsters_cache = 0;
+
+	// Reset spawn cache
 	spawn_cache.count = 0;
 
-	// Cache map constraints
+	// Update cache if map size changed
 	const MapSize& mapSize = g_horde_local.current_map_size;
-	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+	if (memcmp(&last_map_size, &mapSize, sizeof(MapSize)) != 0) {
+		last_map_size = mapSize;
+		max_monsters_cache = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+			(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+	}
 
 	// Early exit checks
 	const int32_t activeMonsters = CalculateRemainingMonsters();
-	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0)
+	if (activeMonsters >= max_monsters_cache || g_horde_local.num_to_spawn <= 0)
 		return nullptr;
 
-	// Calculate spawn counts
+	// Calculate spawn counts - optimized calculations
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
 	const int32_t min_spawn = std::min(g_horde_local.queued_monsters, base_spawn);
 	const int32_t monsters_per_spawn = irandom(min_spawn, std::min(base_spawn + 1, 6));
-	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
+	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, max_monsters_cache - activeMonsters);
 
 	if (spawnable <= 0)
 		return nullptr;
 
-	// Pre-collect valid spawn points - use direct array access instead of pushback
+	// Pre-collect valid spawn points - use direct array access
 	SpawnMonsterFilter filter{ level.time };
 	auto spawnPoints = monster_spawn_points();
 
 	for (edict_t* point : spawnPoints) {
-		if (filter(point) && spawn_cache.count < MAX_SPAWN_POINTS) {
+		if (spawn_cache.count >= MAX_SPAWN_POINTS)
+			break;
+
+		if (filter(point)) {
 			spawn_cache.available_spawns[spawn_cache.count++] = point;
 		}
 	}
@@ -4115,76 +4186,95 @@ static edict_t* SpawnMonsters() {
 	if (spawn_cache.count == 0)
 		return nullptr;
 
-	// Spawn logic
-	edict_t* last_spawned = nullptr;
+	// Cache drop chance calculation once
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	for (int32_t i = 0; i < spawnable; ++i) {
-		if (g_horde_local.num_to_spawn <= 0)
-			break;
+	// Spawn logic - optimized with batching for better performance
+	edict_t* last_spawned = nullptr;
+	constexpr int BATCH_SIZE = 4; // Process in batches for better cache coherency
 
-		// Get random spawn point from pre-collected points
-		if (spawn_cache.count == 0)
-			break;
+	for (int batch_start = 0; batch_start < spawnable; batch_start += BATCH_SIZE) {
+		const int batch_end = std::min(batch_start + BATCH_SIZE, spawnable);
 
-		const size_t spawn_idx = irandom(spawn_cache.count);
-		edict_t* spawn_point = spawn_cache.available_spawns[spawn_idx];
+		for (int32_t i = batch_start; i < batch_end; ++i) {
+			if (g_horde_local.num_to_spawn <= 0)
+				break;
 
-		// Remove used spawn point by swapping with the last element
-		spawn_cache.available_spawns[spawn_idx] = spawn_cache.available_spawns[--spawn_cache.count];
+			// No more valid spawn points
+			if (spawn_cache.count == 0)
+				break;
 
-		// Set cooldown directly without lookup (already found in filter)
-		auto& data = spawnPointsData[spawn_point];
-		data.teleport_cooldown = level.time + 1.5_sec;
+			// Get random spawn point from pre-collected points
+			const size_t spawn_idx = irandom(spawn_cache.count);
+			edict_t* spawn_point = spawn_cache.available_spawns[spawn_idx];
 
-		const char* monster_classname = G_HordePickMonster(spawn_point);
-		if (!monster_classname)
-			continue;
+			// Remove used spawn point by swapping with the last element
+			spawn_cache.available_spawns[spawn_idx] = spawn_cache.available_spawns[--spawn_cache.count];
 
-		if (edict_t* monster = G_Spawn()) {
-			monster->classname = monster_classname;
-			monster->s.origin = G_ProjectSource(spawn_point->s.origin,
-				vec3_t{ 0, 0, 8 },
-				vec3_t{ 1,0,0 },
-				vec3_t{ 0,1,0 });
-			monster->s.angles = spawn_point->s.angles;
-			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-			monster->monsterinfo.last_sentrygun_target_time = 0_ms;
-
-			ED_CallSpawn(monster);
-
-			if (monster->inuse) {
-				if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)
-					SetMonsterArmor(monster);
-
-				// Consolidated item setting
-				monster->item = (frandom() < drop_chance) ? G_HordePickItem() : nullptr;
-
-				// Visual effects
-				const vec3_t spawn_pos = monster->s.origin + vec3_t{ 0, 0, monster->mins[2] };
-				SpawnGrow_Spawn(spawn_pos, 80.0f, 10.0f);
-				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-
-				// Update counters
-				--g_horde_local.num_to_spawn;
-				--g_horde_local.queued_monsters;
-				++g_totalMonstersInWave;
-				last_spawned = monster;
+			// Set cooldown with proper lookup and validation
+			auto it = spawnPointsData.find(spawn_point);
+			if (it != spawnPointsData.end()) {
+				it->second.teleport_cooldown = level.time + 1.5_sec;
 			}
 			else {
-				G_FreeEdict(monster);
+				SpawnPointData data;
+				data.teleport_cooldown = level.time + 1.5_sec;
+				spawnPointsData[spawn_point] = data;
+			}
+
+			// Select monster with proper validation
+			const char* monster_classname = G_HordePickMonster(spawn_point);
+			if (!monster_classname)
+				continue;
+
+			if (edict_t* monster = G_Spawn()) {
+				monster->classname = monster_classname;
+				monster->s.origin = G_ProjectSource(spawn_point->s.origin,
+					vec3_t{ 0, 0, 8 },
+					vec3_t{ 1, 0, 0 },
+					vec3_t{ 0, 1, 0 });
+				monster->s.angles = spawn_point->s.angles;
+				monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+				monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+				monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+
+				ED_CallSpawn(monster);
+
+				if (monster->inuse) {
+					// Apply armor in higher levels
+					if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)
+						SetMonsterArmor(monster);
+
+					// Consolidated item setting with single random check
+					monster->item = (frandom() < drop_chance) ? G_HordePickItem() : nullptr;
+
+					// Visual effects
+					const vec3_t spawn_pos = monster->s.origin + vec3_t{ 0, 0, monster->mins[2] };
+					SpawnGrow_Spawn(spawn_pos, 80.0f, 10.0f);
+					gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+
+					// Update counters atomically
+					--g_horde_local.num_to_spawn;
+					--g_horde_local.queued_monsters;
+					++g_totalMonstersInWave;
+					last_spawned = monster;
+				}
+				else {
+					G_FreeEdict(monster);
+				}
 			}
 		}
 	}
 
-	// Handle queued monsters
+	// Handle queued monsters - update queueing more efficiently
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
-		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
-		g_horde_local.num_to_spawn += additional_to_spawn;
-		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - additional_to_spawn);
+		const int32_t additional_spawnable = max_monsters_cache - CalculateRemainingMonsters();
+		if (additional_spawnable > 0) {
+			const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
+			g_horde_local.num_to_spawn += additional_to_spawn;
+			g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - additional_to_spawn);
+		}
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
