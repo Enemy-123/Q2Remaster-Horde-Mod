@@ -1052,7 +1052,7 @@ static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 
 bool IsValidClassname(const char* classname) noexcept {
 	if (!classname) return false;
-	for (const auto prefix : ALLOWED_PREFIXES) {
+	for (const auto& prefix : ALLOWED_PREFIXES) { 
 		if (strncmp(classname, prefix.data(), prefix.length()) == 0) {
 			return true;
 		}
@@ -1235,15 +1235,23 @@ struct TargetSearchResult {
 	auto checkEntity = [&](edict_t* who) {
 		if (!IsValidTarget(ent, who, false)) return;
 
+		// Calculate direction and distance
 		vec3_t dir = who->s.origin - viewer_pos;
 		float const dist = dir.normalize();
+
+		// Early return if this entity is farther than our current best
+		if (dist >= result.distance) return;
+
+		// Check angle requirements
 		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
 			? CTFIDViewConfig::CLOSE_MIN_DOT
 			: CTFIDViewConfig::MIN_DOT;
+		if (forward.dot(dir) <= min_dot) return;
 
-		if (dist >= result.distance || forward.dot(dir) <= min_dot) return;
+		// Line of sight check
 		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) return;
 
+		// Update result
 		result.distance = dist;
 		result.target = who;
 		};
