@@ -679,73 +679,76 @@ namespace VampireConfig {
 }
 
 void ApplyGradualHealing(edict_t* ent) {
-    if (!ent || ent->health <= 0)
-        return;
+	// Fast-path early returns
+	if (!ent || ent->health <= 0 || level.time < ent->regen_info.next_regen_time)
+		return;
 
-    if (level.time < ent->regen_info.next_regen_time)
-        return;
+	// Apply health regeneration with direct checks
+	if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
+		// Single variable for heal amount with direct min operation
+		const float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
 
-    // Aplicar health regeneration solo si no estamos al máximo
-    if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
-     const float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
-	 const int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
-	 const int actual_healed = new_health - ent->health;
+		// Calculate new health with clamping in a single operation
+		const int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
+		const int actual_healed = new_health - ent->health;
 
-        if (actual_healed > 0) {
-            ent->health = new_health;
-            ent->regen_info.stored_healing -= actual_healed;
-        }
-    }
+		// Only update if healing occurred
+		if (actual_healed > 0) {
+			ent->health = new_health;
+			ent->regen_info.stored_healing -= actual_healed;
+		}
+	}
 
-    // Aplicar armor regeneration independientemente del health
-    if (ent->client)
-        ApplyGradualArmor(ent);
+	// Apply armor regeneration if player - no extra check needed
+	if (ent->client) {
+		ApplyGradualArmor(ent);
+	}
 
-    // Establecer el próximo tiempo de regeneración
-    ent->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
+	// Set next regeneration time
+	ent->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
 }
 
 void ApplyGradualArmor(edict_t* ent) {
+	// Fast early returns for performance
 	if (!ent || !ent->client)
 		return;
 
+	// Get armor index once
 	const int index = ArmorIndex(ent);
 	if (!index) {
 		ent->regen_info.stored_armor = 0;
 		return;
 	}
 
-	int current_armor = ent->client->pers.inventory[index];
+	// Cache current armor amount
+	int& current_armor = ent->client->pers.inventory[index];
 
-	// Reset stored si no hay armor equipado
-	if (current_armor <= 0) {
+	// Reset if armor is not equipped or already at max
+	if (current_armor <= 0 || current_armor >= VampireConfig::MAX_ARMOR) {
 		ent->regen_info.stored_armor = 0;
 		return;
 	}
 
-	// Si estamos al máximo, no regenerar
-	if (current_armor >= VampireConfig::MAX_ARMOR) {
-		ent->regen_info.stored_armor = 0;
-		return;
-	}
-
-	// Si no hay nada que regenerar o no es tiempo
+	// Check if regeneration should occur
 	if (ent->regen_info.stored_armor <= 0 || level.time < ent->regen_info.next_regen_time)
 		return;
 
-	// Calcular y aplicar la regeneración
-	float regen_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
-	int new_armor = std::min(
+	// Calculate regeneration amount in a single step
+	const float regen_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
+
+	// Calculate new armor value with direct min operation
+	const int new_armor = std::min(
 		current_armor + static_cast<int>(regen_amount),
 		VampireConfig::MAX_ARMOR
 	);
 
-	int actual_added = new_armor - current_armor;
+	// Only apply if change occurred
+	const int actual_added = new_armor - current_armor;
 	if (actual_added > 0) {
-		ent->client->pers.inventory[index] = new_armor;
+		current_armor = new_armor;
 		ent->regen_info.stored_armor -= actual_added;
 
-		// Si llegamos al máximo después de aplicar, limpiar stored
+		// Clean up if we reached max
 		if (new_armor >= VampireConfig::MAX_ARMOR)
 			ent->regen_info.stored_armor = 0;
 	}
@@ -926,53 +929,73 @@ static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // Agregar 
 }
 
 void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
-	if (!g_vampire || !g_vampire->integer || !attacker || !targ) {
+	// Early exits for performance - using direct boolean checks
+	if (!g_vampire || !g_vampire->integer || !attacker || !targ || damage <= 0) {
 		return;
 	}
 
-	if (!CanUseVampireEffect(attacker)) {
-		return;
-	}
-
-	if (attacker == targ || OnSameTeam(targ, attacker) || damage <= 0 ||
+	// Direct checks without nested conditionals
+	if (attacker == targ || OnSameTeam(targ, attacker) ||
 		(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
 		return;
 	}
 
-	const bool isSentrygun = strcmp(attacker->classname, "monster_sentrygun") == 0;
-	float health_stolen = isSentrygun ?
-		1 * VampireConfig::SENTRY_HEALING_FACTOR :
-		damage / 4.0f;
+	// Check once if attacker can use vampire effect
+	if (!CanUseVampireEffect(attacker)) {
+		return;
+	}
 
-	// Aplicar stored healing solo si necesitamos curación
+	// Check if target is a sentry gun - direct string comparison
+	const bool isSentrygun = attacker->classname &&
+		strcmp(attacker->classname, "monster_sentrygun") == 0;
+
+	// Pre-calculate health stolen with conditionals removed
+	float health_stolen = damage / 4.0f;
+	if (isSentrygun) {
+		health_stolen *= VampireConfig::SENTRY_HEALING_FACTOR;
+	}
+
+	// Only modify health_stolen if we need healing - to avoid unnecessary calculation
 	if (attacker->health < attacker->max_health) {
+		// Apply modifiers only if not a sentry gun
 		if (!isSentrygun) {
 			health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
 		}
 
+		// Direct clamping to avoid multiple min operations
+		const float max_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
 		attacker->regen_info.stored_healing = std::min(
 			attacker->regen_info.stored_healing + health_stolen,
-			static_cast<float>(VampireConfig::MAX_STORED_HEALING)
+			max_healing
 		);
 	}
 
-	// Para las sentries
+	// Sentinel healing - only process if necessary conditions are met
 	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
-		std::span entities_view{ g_edicts, globals.num_edicts };
-		for (auto& ent : entities_view) {
-			if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
-				strcmp(ent.classname, "monster_sentrygun") != 0) {
+		// Cache the sentry healing factor
+		const float sentry_factor = VampireConfig::SENTRY_HEALING_FACTOR;
+		const float max_stored = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
+
+		// Iterate entities once with direct array access for better cache behavior
+		for (unsigned int i = 0; i < globals.num_edicts; i++) {
+			edict_t* ent = &g_edicts[i];
+			if (!ent->inuse || ent->health <= 0 || ent->owner != attacker ||
+				!ent->classname || strcmp(ent->classname, "monster_sentrygun") != 0) {
 				continue;
 			}
 
-			float sentry_heal = health_stolen * VampireConfig::SENTRY_HEALING_FACTOR;
-			ent.regen_info.stored_healing = std::min(
-				ent.regen_info.stored_healing + sentry_heal,
-				static_cast<float>(VampireConfig::MAX_STORED_HEALING)
+			// Use direct variable to avoid recalculation
+			const float sentry_heal = health_stolen * sentry_factor;
+
+			// Single operation to update stored healing
+			ent->regen_info.stored_healing = std::min(
+				ent->regen_info.stored_healing + sentry_heal,
+				max_stored
 			);
 		}
 	}
 
+	// Only apply armor vampire at level 2
 	if (g_vampire->integer == 2) {
 		apply_armor_vampire(attacker, damage);
 	}
