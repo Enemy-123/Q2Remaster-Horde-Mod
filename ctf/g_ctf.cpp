@@ -3420,9 +3420,6 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
 void UpdateVoteMenu();
 
 constexpr size_t MAX_MAPS_PER_PAGE = 11;
-constexpr size_t MAX_MAP_ENTRIES = 64;
-constexpr size_t MAX_TECH_OPTIONS = 4;
-
 // Definir el número correcto de elementos en el array `vote_menu`
 static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 5 + 1] = {
 	{ "*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr },
@@ -3594,16 +3591,6 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p);
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
-// Menu structure definition
-static pmenu_t hud_menu[] = {
-	{ "*HUD Options", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },  // ID Toggle
-	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },  // ID-DMG Toggle
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, HUDMenuHandler },
-	{ "Close", PMENU_ALIGN_LEFT, HUDMenuHandler }
-};
 
 void OpenHUDMenu(edict_t* ent) {
 	// Input validation
@@ -3796,7 +3783,6 @@ struct map_lists_t {
 };
 
 static map_lists_t categorized_maps;
-static int current_page = 0;
 
 // Función para categorizar los mapas
 void CategorizeMapList() {
@@ -4157,17 +4143,6 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	}
 }
 
-
-//vote in progress menu
-
-static const pmenu_t vote_in_progress_menu[] = {
-	{ "*Vote In Progress", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
-};
 
 // horde menu
 
