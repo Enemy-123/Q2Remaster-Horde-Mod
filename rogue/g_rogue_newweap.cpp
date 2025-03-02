@@ -142,12 +142,12 @@ static const ClusterConfig DEFAULT_CLUSTER_CONFIG = {
 // Función para encontrar el enemigo más cercano
 edict_t* FindNearestEnemy(edict_t* owner, const vec3_t& origin, float search_radius) {
 	edict_t* nearest = nullptr;
-	float nearest_dist = search_radius * search_radius;
+	float nearest_dist_squared = search_radius * search_radius;
 	edict_t* current = nullptr;
 
 	while ((current = findradius(current, origin, search_radius)) != nullptr) {
-		// Ignorar entidades no válidas o muertas
-		if (!current->inuse || current->health <= 0 || !current->classname) {
+		// Ignorar entidades no válidas o muertas (verificación rápida primero)
+		if (!current->inuse || current->health <= 0) {
 			continue;
 		}
 
@@ -156,19 +156,19 @@ edict_t* FindNearestEnemy(edict_t* owner, const vec3_t& origin, float search_rad
 			continue;
 		}
 
-		// Evitar dañar a compañeros de equipo
-		if (CheckTeamDamage(current, owner)) {
+		// Evitar dañar a compañeros de equipo o al propietario
+		if (current == owner || CheckTeamDamage(current, owner)) {
 			continue;
 		}
 
 		// Calcular distancia usando el vec3_t moderno
 		vec3_t const diff = current->s.origin - origin;
-		float const dist = diff.lengthSquared();
+		float const dist_squared = diff.lengthSquared();
 
 		// Actualizar si encontramos uno más cercano
-		if (dist < nearest_dist) {
+		if (dist_squared < nearest_dist_squared) {
 			nearest = current;
-			nearest_dist = dist;
+			nearest_dist_squared = dist_squared;
 		}
 	}
 
@@ -184,54 +184,87 @@ void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage)
 
 	// Calcular dirección base hacia el enemigo si existe
 	vec3_t enemy_dir{};
+	float enemy_distance = 0.0f;
 	if (nearest_enemy) {
 		enemy_dir = nearest_enemy->s.origin - origin;
-		enemy_dir = safe_normalized(enemy_dir); // Uso de safe_normalized
+		enemy_distance = enemy_dir.length();
+		if (enemy_distance > 0.0f) {
+			enemy_dir = enemy_dir / enemy_distance; // Normalizar de forma segura
+		}
 	}
 
 	// Calcular el daño para cada granada fragmentaria
 	int const fragment_damage = static_cast<int>(base_damage * config.damage_multiplier);
 
+	// Pequeña influencia gravitacional para trayectorias más naturales
+	vec3_t gravity_influence{ 0, 0, -0.15f };
+
 	for (int n = 0; n < config.num_grenades; n++) {
 		vec3_t forward;
 
 		if (n < config.direct_grenades) {
-			// Granadas que caen directamente hacia abajo
-			forward = vec3_t{ 0, 0, -1 };
+			// Granadas que caen directamente con pequeña variación aleatoria
+			forward = vec3_t{
+				(frandom() - 0.5f) * 0.15f,
+				(frandom() - 0.5f) * 0.15f,
+				-1.0f
+			};
+			forward = safe_normalized(forward);
 		}
 		else {
-			// Granadas con dispersión radial
-			float const pitch = -config.spread_angle + (frandom() - 0.5f) * 30.0f;
-			float yaw = (n - config.direct_grenades) * (360.0f / (config.num_grenades - config.direct_grenades));
+			// Distribución angular usando Golden Ratio para mejor cobertura
+			float golden_ratio = 0.618033988749895f;
+			float angle_step = 360.0f * golden_ratio;
+			float yaw = n * angle_step;
 			// Añadir una pequeña variación al yaw para más naturalidad
-			yaw += (frandom() - 0.5f) * 10.0f;
+			yaw += (frandom() - 0.5f) * 5.0f;
+
+			// Mayor variación para ángulos de elevación en granadas posteriores
+			float elevation_variance = 15.0f + 10.0f * static_cast<float>(n) / config.num_grenades;
+			float const pitch = -config.spread_angle + (frandom() - 0.5f) * elevation_variance;
 
 			vec3_t const angles{ pitch, yaw, 0 };
 			auto [fwd, right, up] = AngleVectors(angles);
 			forward = fwd;
 
-			// Si hay un enemigo cercano, influenciar la dirección usando operadores de vec3_t
-			if (nearest_enemy && enemy_dir) {
-				// Aplicar una influencia más fuerte hacia el enemigo
-				float const distance_factor = 1.0f - (nearest_enemy->s.origin - origin).length() / config.search_radius;
-				float const adjusted_bias = config.homing_bias * (1.0f + distance_factor * 0.5f);
+			// Añadir influencia de la gravedad para trayectorias más realistas
+			forward = safe_normalized(forward + gravity_influence);
 
-				// Interpolar entre la dirección aleatoria y la dirección al enemigo
-				forward = forward * (1.0f - adjusted_bias) + enemy_dir * adjusted_bias;
-				forward = safe_normalized(forward);
+			// Si hay un enemigo cercano, influenciar la dirección
+			if (nearest_enemy && enemy_distance > 0.0f) {
+				// Calcular factor de influencia basado en la distancia
+				float distance_factor = std::min(1.0f, config.search_radius / enemy_distance);
+				distance_factor = std::max(0.2f, distance_factor * 0.5f); // Limitar el rango de influencia
+
+				// Ajustar la influencia basado en la posición en la secuencia de granadas
+				float sequence_factor = 1.0f - (static_cast<float>(n) / config.num_grenades);
+				float adjusted_bias = config.homing_bias * distance_factor * sequence_factor;
+
+				// Interpolar entre la dirección calculada y la dirección al enemigo
+				forward = safe_normalized(forward * (1.0f - adjusted_bias) + enemy_dir * adjusted_bias);
 			}
 		}
 
-		// Velocidad aleatoria para cada granada
-		float const velocity = config.min_velocity + frandom() * (config.max_velocity - config.min_velocity);
+		// Velocidad con variación no uniforme para más realismo
+		float velocity_variance = 0.3f + 0.5f * static_cast<float>(n) / config.num_grenades;
+		float velocity_randomness = frandom() * frandom() * velocity_variance; // Distribución no uniforme
+		float const velocity = config.min_velocity + (config.max_velocity - config.min_velocity) * velocity_randomness;
 
-		// Tiempo de explosión aleatorio
-		float const explode_time = config.min_fuse_time + frandom() * (config.max_fuse_time - config.min_fuse_time);
+		// Tiempo de explosión con distribución más realista
+		float fuse_randomness = 0.2f + 0.8f * powf(frandom(), 1.3f); // Distribución no lineal
+		float const explode_time = config.min_fuse_time + (config.max_fuse_time - config.min_fuse_time) * fuse_randomness;
+
+		// Daño variable basado en la distribución para mayor realismo
+		int adjusted_damage = fragment_damage;
+		if (n >= config.direct_grenades) {
+			// Ligera variación en el daño entre fragmentos
+			adjusted_damage = static_cast<int>(fragment_damage * (0.9f + frandom() * 0.2f));
+		}
 
 		// Lanzar la granada con los parámetros calculados
-		fire_grenade2(owner, origin, forward, fragment_damage, velocity,
+		fire_grenade2(owner, origin, forward, adjusted_damage, velocity,
 			gtime_t::from_sec(explode_time),
-			static_cast<float>(fragment_damage), false);
+			static_cast<float>(adjusted_damage), false);
 	}
 }
 
