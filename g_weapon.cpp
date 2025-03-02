@@ -725,7 +725,6 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal)
 			? MOD_HANDGRENADE
 			: MOD_GRENADE;
 
-		int damage_flags = DAMAGE_RADIUS;
 
 		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal,
 			ent->dmg, ent->dmg, mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_RADIUS
