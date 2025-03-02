@@ -992,90 +992,138 @@ static void G_SetClientEffects(edict_t* ent)
 	}
 #endif
 }
+/**
+ * HORDE_ApplyAmmoRegen - Regenerates ammunition for players based on their weapons
+ *
+ * This function handles the periodic regeneration of ammunition for different
+ * weapon types. The regeneration rate increases when the player is on a kill streak.
+ *
+ * @param ent Pointer to the player entity
+ */
 static void HORDE_ApplyAmmoRegen(edict_t* ent) {
-	if (!g_ammoregen->integer || !ent->client || (g_horde->integer && ClientIsSpectating(ent->client)))
+	// Safety checks
+	if (!g_ammoregen->integer || !ent || !ent->client) {
 		return;
+	}
+
+	// Skip if player is spectating in HORDE mode
+	if (g_horde->integer && ClientIsSpectating(ent->client)) {
+		return;
+	}
 
 	gclient_t* client = ent->client;
 
+	// Initialize regen timer if not set
 	if (!client->ammoregentime) {
 		client->ammoregentime = level.time;
 		return;
 	}
 
-	if (client->ammoregentime >= level.time)
+	// Skip if not time to regenerate yet
+	if (client->ammoregentime >= level.time) {
 		return;
+	}
 
-	client->ammoregentime = client->resp.spree >= 50 ? level.time + 5_sec : level.time + 10_sec; //testing doubled ammo regen if spree > 50
+	// Set next regeneration time based on player's spree count
+	// Faster regeneration when on a high kill streak
+	constexpr gtime_t REGEN_TIME_FAST = 5_sec;    // 5 seconds
+	constexpr gtime_t REGEN_TIME_NORMAL = 10_sec; // 10 seconds
+	constexpr int SPREE_THRESHOLD = 50;           // Spree threshold for faster regen
 
-	// Estructura para definir reglas de regeneración de munición
-	struct {
-		int weapon_check;          // Condición de arma
-		int ammo_inventory_id;     // ID del inventario de munición
-		int ammo_max_id;          // ID para max_ammo
-		int amount;               // Cantidad a regenerar
-	} const regen_rules[] = {
-		// Shells (Shotguns)
-		{(client->pers.inventory[IT_WEAPON_SHOTGUN] || client->pers.inventory[IT_WEAPON_SSHOTGUN]),
-		 IT_AMMO_SHELLS, AMMO_SHELLS, 8},
+	client->ammoregentime = level.time +
+		(client->resp.spree >= SPREE_THRESHOLD ? REGEN_TIME_FAST : REGEN_TIME_NORMAL);
 
-		 // Bullets (Machine guns)
-		 {(client->pers.inventory[IT_WEAPON_MACHINEGUN] || client->pers.inventory[IT_WEAPON_CHAINGUN]),
-		  IT_AMMO_BULLETS, AMMO_BULLETS,
-		  (g_improvedchaingun->integer ? 120 : (g_tracedbullets->integer ? 45 : 30))},
+	// Define regeneration rules structure
+	typedef struct {
+		int weapon_check;       // 0 = no check, 1 = check the weapon ID
+		int weapon_id;          // ID of weapon to check
+		int alt_weapon_id;      // Alternative weapon ID (if applicable, 0 otherwise)
+		int ammo_inventory_id;  // ID of ammo in inventory
+		int ammo_max_id;        // ID for max ammo
+		int amount;             // Amount to regenerate
+	} AmmoRegenRule;
 
-		  // Grenades (Sin check de arma)
-		  {1, IT_AMMO_GRENADES, AMMO_GRENADES, g_bouncygl->integer ? 10 : 6},
+	// Calculate dynamic amounts based on game settings
+	const int bulletAmount = g_improvedchaingun->integer ? 120 :
+		(g_tracedbullets->integer ? 45 : 30);
+	const int grenadeAmount = g_bouncygl->integer ? 10 : 6;
+	const int cellAmount = g_bfgpull->integer ? 75 : 25;
+	const int proxAmount = g_upgradeproxs->integer ? 15 : 6;
 
-		  // Rockets
-		  {client->pers.inventory[IT_WEAPON_RLAUNCHER],
-		   IT_AMMO_ROCKETS, AMMO_ROCKETS, 6},
-
-		   // Cells (Energy weapons)
-		   {(client->pers.inventory[IT_WEAPON_HYPERBLASTER] || client->pers.inventory[IT_WEAPON_BFG] ||
-			 client->pers.inventory[IT_WEAPON_IONRIPPER] || client->pers.inventory[IT_WEAPON_PLASMABEAM]),
-			IT_AMMO_CELLS, AMMO_CELLS, g_bfgpull->integer ? 75 : 25},
-
-		// Slugs
-		{client->pers.inventory[IT_WEAPON_RAILGUN],
-		 IT_AMMO_SLUGS, AMMO_SLUGS, 6},
-
-		// Mag slugs
-		{client->pers.inventory[IT_WEAPON_PHALANX],
-		 IT_AMMO_MAGSLUG, AMMO_MAGSLUG, 9},
-
-		// Flechettes
-		{client->pers.inventory[IT_WEAPON_ETF_RIFLE],
-		 IT_AMMO_FLECHETTES, AMMO_FLECHETTES, 25},
-
-		// Proximity mines
-		{client->pers.inventory[IT_WEAPON_PROXLAUNCHER],
-		 IT_AMMO_PROX, AMMO_PROX, g_upgradeproxs->integer ? 15 : 6},
-
-		// Disruptor rounds
-		{client->pers.inventory[IT_WEAPON_DISRUPTOR],
-		 IT_AMMO_ROUNDS, AMMO_DISRUPTOR, 4},
-
-		// Tesla (Sin check de arma)
-		{1, IT_AMMO_TESLA, AMMO_TESLA, 2},
-
-		// Traps (Sin check de arma)
-		{1, IT_AMMO_TRAP, AMMO_TRAP, 1}
+	// Define the regeneration rules
+	const AmmoRegenRule regenRules[] = {
+		// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,           Max Ammo ID,      Amount
+		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,    AMMO_SHELLS,      8},
+		{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,   AMMO_BULLETS,     bulletAmount},
+		{0,             0,                    0,                    IT_AMMO_GRENADES,  AMMO_GRENADES,    grenadeAmount},
+		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,   AMMO_ROCKETS,     6},
+		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,     AMMO_CELLS,       cellAmount}, // Energy weapons handled specially
+		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,     AMMO_SLUGS,       6},
+		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,   AMMO_MAGSLUG,     9},
+		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES,AMMO_FLECHETTES,  25},
+		{1,             IT_WEAPON_PROXLAUNCHER, 0,                  IT_AMMO_PROX,      AMMO_PROX,        proxAmount},
+		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,    AMMO_DISRUPTOR,   4},
+		{0,             0,                    0,                    IT_AMMO_TESLA,     AMMO_TESLA,       2},
+		{0,             0,                    0,                    IT_AMMO_TRAP,      AMMO_TRAP,        1}
 	};
 
-	// Aplicar todas las reglas de regeneración
-	for (size_t i = 0; i < sizeof(regen_rules) / sizeof(regen_rules[0]); i++) {
-		if (regen_rules[i].weapon_check) {
-			client->pers.inventory[regen_rules[i].ammo_inventory_id] += regen_rules[i].amount;
+	// Apply all regeneration rules
+	const size_t ruleCount = sizeof(regenRules) / sizeof(regenRules[0]);
 
-			if (client->pers.inventory[regen_rules[i].ammo_inventory_id] >
-				client->pers.max_ammo[regen_rules[i].ammo_max_id]) {
-				client->pers.inventory[regen_rules[i].ammo_inventory_id] =
-					client->pers.max_ammo[regen_rules[i].ammo_max_id];
+	for (size_t i = 0; i < ruleCount; i++) {
+		bool shouldRegenerate = false;
+
+		// Determine if we should regenerate this ammo type
+		if (regenRules[i].weapon_check == 0) {
+			// No weapon check needed
+			shouldRegenerate = true;
+		}
+		else {
+			// Check if player has the required weapon
+			if (regenRules[i].weapon_id == IT_WEAPON_HYPERBLASTER) {
+				// Special case for energy weapons: check if player has any energy weapon
+				shouldRegenerate = (
+					client->pers.inventory[IT_WEAPON_HYPERBLASTER] > 0 ||
+					client->pers.inventory[IT_WEAPON_BFG] > 0 ||
+					client->pers.inventory[IT_WEAPON_IONRIPPER] > 0 ||
+					client->pers.inventory[IT_WEAPON_PLASMABEAM] > 0
+					);
 			}
+			else if (regenRules[i].alt_weapon_id != 0) {
+				// Check primary or alternative weapon
+				shouldRegenerate = (
+					client->pers.inventory[regenRules[i].weapon_id] > 0 ||
+					client->pers.inventory[regenRules[i].alt_weapon_id] > 0
+					);
+			}
+			else {
+				// Check only primary weapon
+				shouldRegenerate = (client->pers.inventory[regenRules[i].weapon_id] > 0);
+			}
+		}
+
+		// Skip if weapon condition is not met
+		if (!shouldRegenerate) {
+			continue;
+		}
+
+		// Safety check for array indices
+		if (regenRules[i].ammo_max_id < 0) {
+			continue;
+		}
+
+		// Add ammo
+		client->pers.inventory[regenRules[i].ammo_inventory_id] += regenRules[i].amount;
+
+		// Cap at maximum value
+		if (client->pers.inventory[regenRules[i].ammo_inventory_id] >
+			client->pers.max_ammo[regenRules[i].ammo_max_id]) {
+			client->pers.inventory[regenRules[i].ammo_inventory_id] =
+				client->pers.max_ammo[regenRules[i].ammo_max_id];
 		}
 	}
 }
+
 /*
 ===============
 G_SetClientEvent
