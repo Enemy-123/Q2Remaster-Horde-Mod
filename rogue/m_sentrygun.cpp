@@ -58,7 +58,6 @@ static void UpdateSmokePosition(edict_t* self) {
 
 void turret2Aim(edict_t* self)
 {
-
 	// Validaciones iniciales críticas
 	if (!self || !self->inuse)
 		return;
@@ -71,7 +70,7 @@ void turret2Aim(edict_t* self)
 	vec3_t end, dir;
 	vec3_t ang;
 	float  move, idealPitch, idealYaw, current, speed;
-	int	   orientation;
+	int    orientation;
 
 	if (!self->enemy || self->enemy == world)
 	{
@@ -107,17 +106,40 @@ void turret2Aim(edict_t* self)
 		end = self->enemy->s.origin;
 		if (self->enemy->client)
 			end[2] += self->enemy->viewheight;
+
+		// Add predictive lead aiming if target is moving
+		if (self->enemy->velocity.lengthSquared() > 1.0f) {
+			float dist = (end - self->s.origin).length();
+			float projectile_speed = 1000.0f; // Adjust based on weapon type
+			float lead_time = dist / projectile_speed;
+
+			// Add predicted movement to target position
+			end[0] += self->enemy->velocity[0] * lead_time;
+			end[1] += self->enemy->velocity[1] * lead_time;
+			end[2] += self->enemy->velocity[2] * lead_time;
+		}
 	}
 
 	dir = end - self->s.origin;
 	ang = vectoangles(dir);
 
 	//
-	// Clamp first
+	// Clamp first - improved angle constraints
 	//
 
 	idealPitch = ang[PITCH];
 	idealYaw = ang[YAW];
+
+	// Normalize angles before any calculations to avoid edge cases
+	while (idealPitch > 360.0f)
+		idealPitch -= 360.0f;
+	while (idealPitch < 0.0f)
+		idealPitch += 360.0f;
+
+	while (idealYaw > 360.0f)
+		idealYaw -= 360.0f;
+	while (idealYaw < 0.0f)
+		idealYaw += 360.0f;
 
 	orientation = (int)self->offset[1];
 	switch (orientation)
@@ -145,8 +167,7 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		//			yaw: 270 to 360, 0 to 90
-		//			yaw: -90 to 90 (270-360 == -90-0)
+		// Improved yaw constraints for +X orientation
 		if (idealYaw > 180)
 			idealYaw -= 360;
 		if (idealYaw > 85)
@@ -163,14 +184,13 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		//			yaw: 0 to 180
+		// Improved yaw constraints for +Y orientation
 		if (idealYaw > 270)
 			idealYaw -= 360;
 		if (idealYaw > 175)
 			idealYaw = 175;
 		else if (idealYaw < 5)
 			idealYaw = 5;
-
 		break;
 	case 180: // -X	pitch: 0 to 90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
@@ -181,12 +201,13 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		//			yaw: 90 to 270
+		// Improved yaw constraints for -X orientation
+		if (idealYaw < 90)
+			idealYaw += 360; // Normalize to handle wrap-around
 		if (idealYaw > 265)
 			idealYaw = 265;
 		else if (idealYaw < 95)
 			idealYaw = 95;
-
 		break;
 	case 270: // -Y	pitch: 0 to 90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
@@ -197,7 +218,7 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		//			yaw: 180 to 360
+		// Improved yaw constraints for -Y orientation
 		if (idealYaw < 90)
 			idealYaw += 360;
 		if (idealYaw > 355)
@@ -208,78 +229,118 @@ void turret2Aim(edict_t* self)
 	}
 
 	//
-	// adjust pitch
+	// Calculate dynamic speed based on angle difference
+	//
+	float base_speed = self->yaw_speed / (gi.tick_rate / 10);
+
+	//
+	// adjust pitch - improved movement calculation
 	//
 	current = self->s.angles[PITCH];
-	speed = self->yaw_speed / (gi.tick_rate / 10);
+	float pitchDiff = idealPitch - current;
 
-	if (idealPitch != current)
+	// Normalize angle difference for shortest path rotation
+	while (pitchDiff > 180)
+		pitchDiff -= 360;
+	while (pitchDiff < -180)
+		pitchDiff += 360;
+
+	// Only move if difference is significant to avoid jitter
+	if (fabs(pitchDiff) > 0.1f)
 	{
-		move = idealPitch - current;
+		// Calculate appropriate speed based on difference
+		float absAngleDiff = fabs(pitchDiff);
 
-		while (move >= 360)
-			move -= 360;
-		if (move >= 90)
-		{
-			move = move - 360;
-		}
+		// Adjust speed based on angle difference
+		if (absAngleDiff < 3.0f)
+			speed = base_speed * 0.5f; // Slower for small adjustments
+		else if (absAngleDiff < 30.0f)
+			speed = base_speed; // Normal speed for medium adjustments
+		else
+			speed = base_speed * 1.5f; // Faster for large adjustments
 
-		while (move <= -360)
-			move += 360;
-		if (move <= -90)
+		if (pitchDiff > 0)
 		{
-			move = move + 360;
-		}
-
-		if (move > 0)
-		{
-			if (move > speed)
-				move = speed;
+			move = (pitchDiff < speed) ? pitchDiff : speed;
 		}
 		else
 		{
-			if (move < -speed)
-				move = -speed;
+			move = (pitchDiff > -speed) ? pitchDiff : -speed;
 		}
 
-		self->s.angles[PITCH] = anglemod(current + move);
+		// Apply slowdown near target angle
+		float slowdownFactor = 1.0f;
+		if (fabs(pitchDiff) < 10.0f)
+			slowdownFactor = fabs(pitchDiff) / 10.0f;
+
+		if (slowdownFactor < 0.2f)
+			slowdownFactor = 0.2f;
+
+		move *= slowdownFactor;
+
+		// Normalize final angle
+		float newAngle = current + move;
+		while (newAngle > 360.0f)
+			newAngle -= 360.0f;
+		while (newAngle < 0.0f)
+			newAngle += 360.0f;
+
+		self->s.angles[PITCH] = newAngle;
 	}
 
 	//
-	// adjust yaw
+	// adjust yaw - improved movement calculation
 	//
 	current = self->s.angles[YAW];
+	float yawDiff = idealYaw - current;
 
-	if (idealYaw != current)
+	// Normalize angle difference for shortest path rotation
+	while (yawDiff > 180)
+		yawDiff -= 360;
+	while (yawDiff < -180)
+		yawDiff += 360;
+
+	// Only move if difference is significant to avoid jitter
+	if (fabs(yawDiff) > 0.1f)
 	{
-		move = idealYaw - current;
+		// Calculate appropriate speed based on difference
+		float absAngleDiff = fabs(yawDiff);
 
-		//		while(move >= 360)
-		//			move -= 360;
-		if (move >= 180)
-		{
-			move = move - 360;
-		}
+		// Adjust speed based on angle difference
+		if (absAngleDiff < 3.0f)
+			speed = base_speed * 0.5f; // Slower for small adjustments
+		else if (absAngleDiff < 30.0f)
+			speed = base_speed; // Normal speed for medium adjustments
+		else
+			speed = base_speed * 1.5f; // Faster for large adjustments
 
-		//		while(move <= -360)
-		//			move += 360;
-		if (move <= -180)
+		if (yawDiff > 0)
 		{
-			move = move + 360;
-		}
-
-		if (move > 0)
-		{
-			if (move > speed)
-				move = speed;
+			move = (yawDiff < speed) ? yawDiff : speed;
 		}
 		else
 		{
-			if (move < -speed)
-				move = -speed;
+			move = (yawDiff > -speed) ? yawDiff : -speed;
 		}
 
-		self->s.angles[YAW] = anglemod(current + move);
+		// Apply slowdown near target angle
+		float slowdownFactor = 1.0f;
+		if (fabs(yawDiff) < 10.0f)
+			slowdownFactor = fabs(yawDiff) / 10.0f;
+
+		if (slowdownFactor < 0.2f)
+			slowdownFactor = 0.2f;
+
+		move *= slowdownFactor;
+
+		// Normalize final angle
+		float newAngle = current + move;
+		while (newAngle > 360.0f)
+			newAngle -= 360.0f;
+		while (newAngle < 0.0f)
+			newAngle += 360.0f;
+
+		self->s.angles[YAW] = newAngle;
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
@@ -303,14 +364,25 @@ void turret2Aim(edict_t* self)
 	end = self->s.origin + (forward * 8192);
 	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
 
+	// Adjust laser sight behavior based on visibility 
 	float scan_range = 64.f;
 
-	if (visible(self, self->enemy))
-		scan_range = 12.f;
+	// More precise aiming when the target is visible
+	if (visible(self, self->enemy)) {
+		scan_range = 8.f; // Tighter pattern when target is visible
 
-	tr.endpos[0] += sinf(level.time.seconds() + self->s.number) * scan_range;
-	tr.endpos[1] += cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range;
-	tr.endpos[2] += sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range;
+		// Check if target is stationary - make even more precise
+		if (self->enemy->velocity.lengthSquared() < 1.0f)
+			scan_range = 4.f;
+	}
+
+	// Smoother laser pattern with improved sine wave calculation
+	float timeBase = level.time.seconds();
+
+	// Use different frequencies to create more natural movement
+	tr.endpos[0] += sinf(timeBase * 1.1f + self->s.number) * scan_range;
+	tr.endpos[1] += cosf((timeBase * 1.3f - self->s.number) * 3.0f) * scan_range;
+	tr.endpos[2] += sinf((timeBase * 1.7f - self->s.number) * 2.5f) * scan_range;
 
 	forward = tr.endpos - self->s.origin;
 	forward.normalize();
@@ -321,7 +393,6 @@ void turret2Aim(edict_t* self)
 	self->target_ent->s.old_origin = tr.endpos;
 	gi.linkentity(self->target_ent);
 }
-
 
 MONSTERINFO_SIGHT(turret2_sight) (edict_t* self, edict_t* other) -> void
 {
