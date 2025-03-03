@@ -474,16 +474,8 @@ float range_to(edict_t* self, const edict_t* other) {
 inline bool IsInvisible(edict_t* ent) {
 	if (!ent->client)
 		return false;
-
-	const gtime_t current_time = level.time;
-
-	if (ent->client->invisible_time <= current_time)
-		return false;
-
-	if (ent->client->invisibility_fade_time <= current_time)
-		return true;
-
-	return frandom() > ent->s.alpha;
+	return ent->client->invisible_time > level.time &&
+		ent->client->invisibility_fade_time <= level.time;
 }
 
 // Función de verificación de objetivo válido optimizada
@@ -505,25 +497,26 @@ inline bool IsValidTarget(edict_t* self, edict_t* ent) {
 		ent->monsterinfo.invincible_time <= current_time;
 }
 
-// Función de cálculo de prioridad optimizada
 float CalculateTargetPriority(edict_t* self, edict_t* target, float distSquared, bool isAttacker) {
-	float priority = 1.0f / (distSquared + 1.0f);
+	// Base priority - attackers always get higher priority than non-attackers
+	// regardless of distance
+	float priority = isAttacker ? 1000.0f : 0.0f;
 
-	if (isAttacker)
-		priority += PRIORITY_ATTACKER_BONUS;
+	// Add distance-based priority (closer = higher priority)
+	// This becomes the deciding factor when comparing entities of the same attacker status
+	priority += 1.0f / (distSquared + 1.0f);
 
+	// Optional: Health multiplier for tougher enemies
 	if (target->health > 200)
 		priority *= 1.2f;
 
-	if (target->client)
-		priority *= 1.3f;
+	// Line of sight check - reduce priority if partially obstructed
+	vec3_t from_pos = self->s.origin + vec3_t{ 0, 0, (float)self->viewheight };
+	vec3_t to_pos = target->s.origin + vec3_t{ 0, 0, (float)target->viewheight };
 
-	// Hacer el trace solo si la prioridad es significativa
-	if (priority > 0.2f) {
-		trace_t tr = gi.traceline(self->s.origin, target->s.origin, self, MASK_SHOT);
-		if (tr.fraction < 1.0f && tr.ent != target)
-			priority *= 0.5f;
-	}
+	trace_t tr = gi.traceline(from_pos, to_pos, self, MASK_SHOT);
+	if (tr.fraction < 1.0f && tr.ent != target)
+		priority *= 0.5f;
 
 	return priority;
 }
@@ -1275,12 +1268,12 @@ FacingIdeal
 */
 bool FacingIdeal(edict_t* self)
 {
-	float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
-
-	if (self->monsterinfo.aiflags & AI_PATHING)
-		return !(delta > 5 && delta < 355);
-
-	return !(delta > 45 && delta < 315);
+    float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
+    
+    if (self->monsterinfo.aiflags & AI_PATHING)
+        return delta <= 5 || delta >= 355;
+        
+    return delta <= 45 || delta >= 315;
 }
 
 //=============================================================================
