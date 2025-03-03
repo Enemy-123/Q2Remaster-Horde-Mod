@@ -461,7 +461,7 @@ static constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
 static constexpr float PRIORITY_ATTACKER_BONUS = 0.5f;
 
 // Función range_to simplificada y más segura
-float range_to(edict_t* self, edict_t* other) {
+float range_to(edict_t* self, const edict_t* other) {
 	if (!self || !other)
 		return MAX_RANGE;
 
@@ -537,68 +537,75 @@ struct target_data_t {
 };
 
 bool FindMTarget(edict_t* self) {
+	// Early exit checks
 	if (!self)
 		return false;
 
-	if (self && self->enemy && self->enemy->monsterinfo.issummoned)
+	if (self->enemy && self->enemy->monsterinfo.issummoned)
 		return false;
 
-	// Cache valores frecuentemente usados
+	// Cache frequently used values
 	const vec3_t& self_origin = self->s.origin;
 	edict_t* current_enemy = self->enemy;
 	edict_t* last_attacker = self->monsterinfo.damage_attacker;
 	const gtime_t current_time = level.time;
 
-	// Si el enemigo actual es un player, olvidarlo
+	// If current enemy is a player, forget it
 	if (current_enemy && current_enemy->client) {
 		self->enemy = nullptr;
 		current_enemy = nullptr;
 	}
 
-	// Variables para el mejor objetivo
+	// Variables for best target
 	edict_t* best_target = nullptr;
 	float best_priority = -1.0f;
 	float best_dist_squared = MAX_RANGE_SQUARED;
 
-	// Buscar el mejor objetivo directamente
+	// Search for the best target directly
 	for (auto ent : active_monsters()) {
-		// Ignorar players
+		// Most frequent fail conditions moved to top for early exit
 		if (!ent || ent->client || !(ent->svflags & SVF_MONSTER))
 			continue;
 
+		// Skip other summoned units immediately
 		if (ent->monsterinfo.issummoned)
-			continue; // Skip other summoned units immediately
+			continue;
 
-		// Verificar si es un objetivo válido
+		// Check if it's ourselves
+		if (ent == self)
+			continue;
+
+		// Verify if target is valid
 		if (!IsValidTarget(self, ent))
 			continue;
 
-		// Verificar distancia
+		// Check distance - cheaper than PVS or visibility checks
 		float dist_squared = DistanceSquared(self_origin, ent->s.origin);
 		if (dist_squared > MAX_RANGE_SQUARED)
 			continue;
 
-		// Check PVS con seguridad adicional
+		// Check PVS with additional safety
 		if (!gi.inPVS(self_origin, ent->s.origin, true))
 			continue;
 
-		// Verificar si es el atacante actual
+		// Check if current attacker
 		bool is_attacker = (ent == current_enemy || ent == last_attacker);
 		if (is_attacker && last_attacker && last_attacker->client)
-			continue; // Ignorar atacantes que son players
+			continue; // Ignore attackers that are players
 
-		// Calcular prioridad
+		// Calculate priority
 		float priority = CalculateTargetPriority(self, ent, dist_squared, is_attacker);
 
-		// Actualizar mejor objetivo si es visible
-		if (priority > best_priority && visible(self, ent, false)) {
+		// Update best target if visible - most expensive check last
+		bool is_visible = visible(self, ent, false);
+		if (priority > best_priority && is_visible) {
 			best_priority = priority;
 			best_dist_squared = dist_squared;
 			best_target = ent;
 		}
 	}
 
-	// Actualizar objetivo si encontramos uno mejor
+	// Update target if found a better one
 	if (best_target) {
 		if (self->enemy != best_target) {
 			self->monsterinfo.react_to_damage_time = current_time + 1_sec;
@@ -607,7 +614,7 @@ bool FindMTarget(edict_t* self) {
 		return true;
 	}
 
-	// Mantener objetivo actual solo si es un monster válido y visible
+	// Keep current target only if it's a valid monster and visible
 	if (current_enemy &&
 		!current_enemy->client &&
 		(current_enemy->svflags & SVF_MONSTER) &&
@@ -617,11 +624,10 @@ bool FindMTarget(edict_t* self) {
 		return true;
 	}
 
-	// Si llegamos aquí, no hay objetivo válido
+	// If we got here, no valid target
 	self->enemy = nullptr;
 	return false;
 }
-
 /*
 =============
 visible
@@ -1296,7 +1302,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 	if (self->enemy->flags & FL_NOVISIBLE)
 		return false;
 
-	if (self->enemy->health > 0)
+	if (self->enemy && self->enemy->health > 0)
 	{
 		if (self->enemy->client)
 		{
