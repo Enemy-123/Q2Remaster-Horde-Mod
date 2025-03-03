@@ -461,7 +461,7 @@ static constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
 static constexpr float PRIORITY_ATTACKER_BONUS = 0.5f;
 
 // Función range_to simplificada y más segura
-float range_to(edict_t* self, edict_t* other) {
+float range_to(edict_t* self, const edict_t* other) {
 	if (!self || !other)
 		return MAX_RANGE;
 
@@ -474,16 +474,8 @@ float range_to(edict_t* self, edict_t* other) {
 inline bool IsInvisible(edict_t* ent) {
 	if (!ent->client)
 		return false;
-
-	const gtime_t current_time = level.time;
-
-	if (ent->client->invisible_time <= current_time)
-		return false;
-
-	if (ent->client->invisibility_fade_time <= current_time)
-		return true;
-
-	return frandom() > ent->s.alpha;
+	return ent->client->invisible_time > level.time &&
+		ent->client->invisibility_fade_time <= level.time;
 }
 
 // Función de verificación de objetivo válido optimizada
@@ -505,25 +497,26 @@ inline bool IsValidTarget(edict_t* self, edict_t* ent) {
 		ent->monsterinfo.invincible_time <= current_time;
 }
 
-// Función de cálculo de prioridad optimizada
 float CalculateTargetPriority(edict_t* self, edict_t* target, float distSquared, bool isAttacker) {
-	float priority = 1.0f / (distSquared + 1.0f);
+	// Base priority - attackers always get higher priority than non-attackers
+	// regardless of distance
+	float priority = isAttacker ? 1000.0f : 0.0f;
 
-	if (isAttacker)
-		priority += PRIORITY_ATTACKER_BONUS;
+	// Add distance-based priority (closer = higher priority)
+	// This becomes the deciding factor when comparing entities of the same attacker status
+	priority += 1.0f / (distSquared + 1.0f);
 
+	// Optional: Health multiplier for tougher enemies
 	if (target->health > 200)
 		priority *= 1.2f;
 
-	if (target->client)
-		priority *= 1.3f;
+	// Line of sight check - reduce priority if partially obstructed
+	vec3_t from_pos = self->s.origin + vec3_t{ 0, 0, (float)self->viewheight };
+	vec3_t to_pos = target->s.origin + vec3_t{ 0, 0, (float)target->viewheight };
 
-	// Hacer el trace solo si la prioridad es significativa
-	if (priority > 0.2f) {
-		trace_t tr = gi.traceline(self->s.origin, target->s.origin, self, MASK_SHOT);
-		if (tr.fraction < 1.0f && tr.ent != target)
-			priority *= 0.5f;
-	}
+	trace_t tr = gi.traceline(from_pos, to_pos, self, MASK_SHOT);
+	if (tr.fraction < 1.0f && tr.ent != target)
+		priority *= 0.5f;
 
 	return priority;
 }
@@ -537,68 +530,75 @@ struct target_data_t {
 };
 
 bool FindMTarget(edict_t* self) {
+	// Early exit checks
 	if (!self)
 		return false;
 
-	if (self && self->enemy && self->enemy->monsterinfo.issummoned)
+	if (self->enemy && self->enemy->monsterinfo.issummoned)
 		return false;
 
-	// Cache valores frecuentemente usados
+	// Cache frequently used values
 	const vec3_t& self_origin = self->s.origin;
 	edict_t* current_enemy = self->enemy;
 	edict_t* last_attacker = self->monsterinfo.damage_attacker;
 	const gtime_t current_time = level.time;
 
-	// Si el enemigo actual es un player, olvidarlo
+	// If current enemy is a player, forget it
 	if (current_enemy && current_enemy->client) {
 		self->enemy = nullptr;
 		current_enemy = nullptr;
 	}
 
-	// Variables para el mejor objetivo
+	// Variables for best target
 	edict_t* best_target = nullptr;
 	float best_priority = -1.0f;
 	float best_dist_squared = MAX_RANGE_SQUARED;
 
-	// Buscar el mejor objetivo directamente
+	// Search for the best target directly
 	for (auto ent : active_monsters()) {
-		// Ignorar players
+		// Most frequent fail conditions moved to top for early exit
 		if (!ent || ent->client || !(ent->svflags & SVF_MONSTER))
 			continue;
 
+		// Skip other summoned units immediately
 		if (ent->monsterinfo.issummoned)
-			continue; // Skip other summoned units immediately
+			continue;
 
-		// Verificar si es un objetivo válido
+		// Check if it's ourselves
+		if (ent == self)
+			continue;
+
+		// Verify if target is valid
 		if (!IsValidTarget(self, ent))
 			continue;
 
-		// Verificar distancia
+		// Check distance - cheaper than PVS or visibility checks
 		float dist_squared = DistanceSquared(self_origin, ent->s.origin);
 		if (dist_squared > MAX_RANGE_SQUARED)
 			continue;
 
-		// Check PVS con seguridad adicional
+		// Check PVS with additional safety
 		if (!gi.inPVS(self_origin, ent->s.origin, true))
 			continue;
 
-		// Verificar si es el atacante actual
+		// Check if current attacker
 		bool is_attacker = (ent == current_enemy || ent == last_attacker);
 		if (is_attacker && last_attacker && last_attacker->client)
-			continue; // Ignorar atacantes que son players
+			continue; // Ignore attackers that are players
 
-		// Calcular prioridad
+		// Calculate priority
 		float priority = CalculateTargetPriority(self, ent, dist_squared, is_attacker);
 
-		// Actualizar mejor objetivo si es visible
-		if (priority > best_priority && visible(self, ent, false)) {
+		// Update best target if visible - most expensive check last
+		bool is_visible = visible(self, ent, false);
+		if (priority > best_priority && is_visible) {
 			best_priority = priority;
 			best_dist_squared = dist_squared;
 			best_target = ent;
 		}
 	}
 
-	// Actualizar objetivo si encontramos uno mejor
+	// Update target if found a better one
 	if (best_target) {
 		if (self->enemy != best_target) {
 			self->monsterinfo.react_to_damage_time = current_time + 1_sec;
@@ -607,7 +607,7 @@ bool FindMTarget(edict_t* self) {
 		return true;
 	}
 
-	// Mantener objetivo actual solo si es un monster válido y visible
+	// Keep current target only if it's a valid monster and visible
 	if (current_enemy &&
 		!current_enemy->client &&
 		(current_enemy->svflags & SVF_MONSTER) &&
@@ -617,11 +617,10 @@ bool FindMTarget(edict_t* self) {
 		return true;
 	}
 
-	// Si llegamos aquí, no hay objetivo válido
+	// If we got here, no valid target
 	self->enemy = nullptr;
 	return false;
 }
-
 /*
 =============
 visible
@@ -1269,12 +1268,12 @@ FacingIdeal
 */
 bool FacingIdeal(edict_t* self)
 {
-	float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
-
-	if (self->monsterinfo.aiflags & AI_PATHING)
-		return !(delta > 5 && delta < 355);
-
-	return !(delta > 45 && delta < 315);
+    float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
+    
+    if (self->monsterinfo.aiflags & AI_PATHING)
+        return delta <= 5 || delta >= 355;
+        
+    return delta <= 45 || delta >= 315;
 }
 
 //=============================================================================
@@ -1296,7 +1295,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 	if (self->enemy->flags & FL_NOVISIBLE)
 		return false;
 
-	if (self->enemy->health > 0)
+	if (self->enemy && self->enemy->health > 0)
 	{
 		if (self->enemy->client)
 		{

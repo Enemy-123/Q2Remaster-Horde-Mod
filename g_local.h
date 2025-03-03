@@ -2383,7 +2383,7 @@ constexpr float RANGE_MID = 940;
 
 // [Paril-KEX] adjusted to return an actual distance, measured
 // in a way that is consistent regardless of what is fighting what
-float range_to(edict_t* self, edict_t* other);
+float range_to(edict_t* self, const edict_t* other);
 
 void FoundTarget(edict_t* self);
 void HuntTarget(edict_t* self, bool animate_state = true);
