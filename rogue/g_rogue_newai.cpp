@@ -1085,87 +1085,103 @@ bool MarkTeslaArea(edict_t *self, edict_t *tesla)
 // aimpoint is the resulting aimpoint (pass in nullptr if don't want it)
 void PredictAim(edict_t* self, edict_t* target, const vec3_t& start, float bolt_speed, bool eye_height, float offset, vec3_t* aimdir, vec3_t* aimpoint)
 {
-	vec3_t dir, vec;
-	float  dist, time;
-
+	// Validate input parameters
 	if (!target || !target->inuse)
 	{
-		*aimdir = {};
+		if (aimdir) *aimdir = {}; // Check aimdir is valid before dereferencing
+		if (aimpoint) *aimpoint = {}; // Also handle aimpoint appropriately
 		return;
 	}
 
-	dir = target->s.origin - start;
+	// Calculate initial direction vector
+	vec3_t target_pos = target->s.origin;
 	if (eye_height)
-		dir[2] += target->viewheight;
-	dist = dir.length();
+		target_pos[2] += target->viewheight;
 
-	// [Paril-KEX] if our current attempt is blocked, try the opposite one
-	trace_t const tr = gi.traceline(start, start + dir, self, MASK_PROJECTILE);
+	vec3_t dir = target_pos - start;
+	float dist = dir.length();
 
+	// Check line of sight to target
+	trace_t tr = gi.traceline(start, start + dir, self, MASK_PROJECTILE);
 	if (tr.ent != target)
 	{
+		// Try alternative aiming point if blocked
 		eye_height = !eye_height;
-		dir = target->s.origin - start;
+		target_pos = target->s.origin;
 		if (eye_height)
-			dir[2] += target->viewheight;
+			target_pos[2] += target->viewheight;
+
+		dir = target_pos - start;
 		dist = dir.length();
 	}
 
-	if (bolt_speed)
-		time = dist / bolt_speed;
-	else
-		time = 0;
+	// Calculate intercept time based on bolt speed
+	float time = bolt_speed > 0.0f ? dist / bolt_speed : 0.0f;
 
-	vec = target->s.origin + (target->velocity * (time - offset));
+	// Predict target position (first-order prediction)
+	vec3_t predicted_pos = target->s.origin + (target->velocity * (time - offset));
+	vec3_t predicted_dir = predicted_pos - start;
 
-	// went backwards...
-	if (dir.normalized().dot((vec - start).normalized()) < 0)
-		vec = target->s.origin;
+	// Check if prediction is reasonable
+	if (dir.normalized().dot(predicted_dir.normalized()) < 0)
+	{
+		// Target would be behind us - use current position instead
+		predicted_pos = target->s.origin;
+	}
 	else
 	{
-		// if the shot is going to impact a nearby wall from our prediction, just fire it straight.	
-		if (gi.traceline(start, vec, nullptr, MASK_SOLID).fraction < 0.9f)
-			vec = target->s.origin;
+		// Check if predicted shot would hit terrain
+		trace_t pred_tr = gi.traceline(start, predicted_pos, nullptr, MASK_SOLID);
+		if (pred_tr.fraction < 0.9f && pred_tr.ent != target)
+		{
+			// Prediction would hit a wall - fall back to direct aim
+			predicted_pos = target->s.origin;
+		}
 	}
 
+	// Apply eye height adjustment to final position
 	if (eye_height)
-		vec[2] += target->viewheight;
+		predicted_pos[2] += target->viewheight;
 
+	// Output results
 	if (aimdir)
-		*aimdir = (vec - start).normalized();
-
+		*aimdir = (predicted_pos - start).normalized();
 	if (aimpoint)
-		*aimpoint = vec;
+		*aimpoint = predicted_pos;
 }
 
 // [Paril-KEX] find a pitch that will at some point land on or near the player.
 // very approximate. aim will be adjusted to the correct aim vector.
 bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& start, vec3_t& aim, float speed, float time_remaining, bool mortar, bool destroy_on_touch)
 {
-	constexpr float pitches[] = { -80.f, -70.f, -60.f, -50.f, -40.f, -30.f, -20.f, -10.f, -5.f };
+	// Define pitch angles to test, more granular for higher accuracy
+	constexpr float pitches[] = { -85.f, -80.f, -75.f, -70.f, -65.f, -60.f, -55.f, -50.f, -45.f, -40.f, -35.f, -30.f, -25.f, -20.f, -15.f, -10.f, -5.f };
 	float best_pitch = 0.f;
 	float best_dist = std::numeric_limits<float>::infinity();
 
-	constexpr float sim_time = 0.1f;
+	// Adaptive simulation timestep based on projectile speed
+	const float sim_time = std::min(0.1f, 5.0f / speed); // Smaller timestep for faster projectiles
+
 	vec3_t pitched_aim = vectoangles(aim);
+	const float target_dist_sq = (target - start).lengthSquared();
 
 	for (auto& pitch : pitches)
 	{
+		// Skip inappropriate angles for mortar fire
 		if (mortar && pitch >= -30.f)
 			break;
 
 		pitched_aim[PITCH] = pitch;
 		const vec3_t fwd = AngleVectors(pitched_aim).forward;
-
 		vec3_t velocity = fwd * speed;
 		vec3_t origin = start;
-
 		float t = time_remaining;
+		bool trajectory_valid = true;
 
-		while (t > 0.f)
+		while (t > 0.f && trajectory_valid)
 		{
+			// Apply gravity
 			velocity += vec3_t{ 0, 0, -1 } *level.gravity * sim_time;
-
 			const vec3_t end = origin + (velocity * sim_time);
 			const trace_t tr = gi.traceline(origin, end, nullptr, MASK_SHOT);
 
@@ -1173,22 +1189,43 @@ bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& s
 
 			if (tr.fraction < 1.0f)
 			{
+				// Hit something
 				if (tr.surface->flags & SURF_SKY)
+				{
+					// Skip trajectories that hit the sky
+					trajectory_valid = false;
 					break;
+				}
 
-				origin += tr.plane.normal;
+				// Calculate bounce
+				origin += tr.plane.normal; // Move slightly away from surface
 				velocity = ClipVelocity(velocity, tr.plane.normal, 1.6f);
 
+				// Check if this is a good hit
 				const float dist = (origin - target).lengthSquared();
 
-				if (tr.ent == self->enemy || tr.ent->client || (tr.plane.normal.z >= 0.7f && dist < (128.f * 128.f) && dist < best_dist))
+				// Direct hit on enemy or client
+				if (tr.ent == self->enemy || (tr.ent && tr.ent->client))
+				{
+					best_pitch = pitch;
+					best_dist = 0; // Perfect hit
+					trajectory_valid = false;
+					break;
+				}
+
+				// Near hit on ground or surface near target
+				if (tr.plane.normal.z >= 0.7f && dist < (128.f * 128.f) && dist < best_dist)
 				{
 					best_pitch = pitch;
 					best_dist = dist;
 				}
 
+				// Stop simulation if projectile would be destroyed
 				if (destroy_on_touch || (tr.contents & (CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER)))
+				{
+					trajectory_valid = false;
 					break;
+				}
 			}
 
 			t -= sim_time;
