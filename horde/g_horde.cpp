@@ -469,10 +469,10 @@ void CheckAndReduceSpawnCooldowns() {
 			// Reset attempt counter for fresh spawning
 			data.attempts = 0;
 
-			if (developer->integer == 1) {
-				// Debug message reduced to one output per function call
-				gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n", spawn_point->s.origin);
-			}
+			//if (developer->integer == 1) {
+			//	// Debug message reduced to one output per function call
+			//	gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n", spawn_point->s.origin);
+			//}
 		}
 	}
 

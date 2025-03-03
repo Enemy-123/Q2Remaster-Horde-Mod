@@ -1283,6 +1283,10 @@ void monster_triggered_start(edict_t* self)
 	self->nextthink = 0_ms;
 	self->use = monster_triggered_spawn_use;
 
+	// line to exclude trigger-spawned monsters from count in Horde mode
+	if (g_horde->integer)
+		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
 	if (g_debug_monster_kills->integer)
 	{
 		self->think = monster_triggered_think;
@@ -1757,6 +1761,10 @@ THINK(walkmonster_start_go) (edict_t* self) -> void
 
 void walkmonster_start(edict_t* self)
 {
+	// Add this check before monster_start is called
+	if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_MONSTER_TRIGGER_SPAWN))
+		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
 	self->think = walkmonster_start_go;
 	monster_start(self, ED_GetSpawnTemp());
 }
@@ -1774,6 +1782,10 @@ THINK(flymonster_start_go) (edict_t* self) -> void
 
 void flymonster_start(edict_t* self)
 {
+	// Add this check before monster_start is called
+	if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_MONSTER_TRIGGER_SPAWN))
+		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
 	self->flags |= FL_FLY;
 	self->think = flymonster_start_go;
 	monster_start(self, ED_GetSpawnTemp());
@@ -1792,6 +1804,10 @@ THINK(swimmonster_start_go) (edict_t* self) -> void
 
 void swimmonster_start(edict_t* self)
 {
+	// Add this check before monster_start is called
+	if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_MONSTER_TRIGGER_SPAWN))
+		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
 	self->flags |= FL_SWIM;
 	self->think = swimmonster_start_go;
 	monster_start(self, ED_GetSpawnTemp());
