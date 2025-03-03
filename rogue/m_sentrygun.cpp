@@ -75,8 +75,12 @@ void turret2Aim(edict_t* self)
 
 	if (!self->enemy || self->enemy == world)
 	{
-		if (!FindMTarget(self))
-			return;
+		if (self->monsterinfo.search_time < level.time) {
+			if (!FindMTarget(self))
+				return;
+			self->monsterinfo.search_time = level.time + 300_ms;
+		}
+		return; // Return if we don't have an enemy and couldn't find one
 	}
 
 	// if turret is still in inactive mode, ready the gun, but don't aim
@@ -640,11 +644,15 @@ void turret2Fire(edict_t* self) {
 	// Update aim
 	turret2Aim(self);
 
-	// Validate enemy
+// Validate enemy
 	if (!self->enemy || !self->enemy->inuse ||
 		OnSameTeam(self, self->enemy) || self->enemy->deadflag) {
-		if (!FindMTarget(self))
-			return;
+		if (self->monsterinfo.search_time < level.time) {
+			if (!FindMTarget(self))
+				return;
+			self->monsterinfo.search_time = level.time + 300_ms;
+		}
+		return; // Return if we don't have a valid enemy and couldn't find one
 	}
 
 	self->monsterinfo.attack_finished = level.time;
