@@ -3464,14 +3464,15 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	// Transition logic for wave deployment - improved state handling
 	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
-		// Reset timer and set end time in one operation
-		g_independent_timer_start = currentTime;
+		// DON'T reset the independent timer - REMOVE THIS LINE: g_independent_timer_start = currentTime;
+
+		// Only set the condition timer
 		g_horde_local.waveEndTime = currentTime + g_lastParams.timeThreshold;
 		g_horde_local.conditionTriggered = true;
 		g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
 
 		if (developer->integer) {
-			gi.Com_PrintFmt("Debug: Timer reset after wave deployment. New end time: {:.2f}s\n",
+			gi.Com_PrintFmt("Debug: Timer set after wave deployment. New condition end time: {:.2f}s\n",
 				g_lastParams.timeThreshold.seconds());
 		}
 	}
