@@ -1199,27 +1199,79 @@ USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 
 MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 {
+	// Basic validity checks
 	if (!self->enemy || self->enemy->health <= 0)
 		return false;
 
+	// Ignore monsters that should never be attacked
+	if (OnSameTeam(self, self->enemy) || self->enemy->deadflag)
+		return false;
+
+	// Get positions for line of sight check
 	vec3_t spot1 = self->s.origin;
 	spot1[2] += self->viewheight;
 	vec3_t spot2 = self->enemy->s.origin;
 	spot2[2] += self->enemy->client ? self->enemy->viewheight :
-		(self->enemy->maxs[2] - self->enemy->mins[2]) * self->enemy->s.scale;
+		(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f * self->enemy->s.scale;
 
+	// Check line of sight with more thorough mask
 	trace_t const tr = gi.traceline(spot1, spot2, self,
-		MASK_SOLID | CONTENTS_SLIME | CONTENTS_LAVA);
+		MASK_SHOT);
 
-	if (tr.fraction < 1.0f && tr.ent != self->enemy)
+	// CRITICAL FIX: More permissive trace validation
+	// If we can't directly see the enemy but we've been trying for a while, 
+	// find a new target instead of just returning false
+	if (tr.fraction < 1.0f && tr.ent != self->enemy) {
+		if (self->monsterinfo.attack_finished + 1_sec < level.time) {
+			// We've been trying to attack for over a second but couldn't trace to enemy
+			// Try to find a new target instead
+			FindMTarget(self);
+		}
 		return false;
+	}
 
+	// Check if enemy is within firing arc
+	vec3_t dir = self->enemy->s.origin - self->s.origin;
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	dir.normalize();
+	float const dot = dir.dot(forward);
+
+	// CRITICAL FIX: More permissive angle check
+	// Use 0.9 (about 26 degrees) instead of 0.95 (18 degrees)
+	if (dot < 0.9) {
+		// Not directly in front - check if we're already turning
+		// If we've been trying for more than 1 second, find a new target
+		if (self->monsterinfo.attack_finished + 1_sec < level.time) {
+			FindMTarget(self);
+		}
+		return false;
+	}
+
+	// Calculate distance and adjust firing probability
 	float const range = range_to(self, self->enemy);
-	float chance = range <= RANGE_NEAR ? 1.2f : 0.6f;
-	chance += (self->enemy->s.scale < 1.0f) ? 0.2f : 0.0f;
 
-	if (frandom() < chance)
-	{
+	// Don't try to fire if enemy is too far away
+	if (range > 1500.0f) {
+		return false;
+	}
+
+	// Adjust chance based on range
+	float chance = range <= RANGE_NEAR ? 0.9f :
+		(range <= RANGE_MID ? 0.7f : 0.4f);
+
+	// CRITICAL FIX: Gradually increase chance based on time since last attack
+	// This ensures that even if RNG is bad, we'll eventually fire
+	float time_since_attack = (level.time - self->monsterinfo.attack_finished).seconds();
+	if (time_since_attack > 0.5f)
+		chance += time_since_attack * 0.2f; // +20% per second
+
+	// Cap at 99% to always leave some small RNG factor
+	if (chance > 0.99f)
+		chance = 0.99f;
+
+	// Roll for attack
+	if (frandom() < chance) {
 		self->monsterinfo.attack_state = AS_MISSILE;
 		self->monsterinfo.attack_finished = level.time + 50_ms;
 		return true;
@@ -1227,6 +1279,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 
 	return false;
 }
+
 // **********************
 //  SPAWN
 // **********************
