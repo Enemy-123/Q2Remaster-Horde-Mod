@@ -67,6 +67,21 @@ void turret2Aim(edict_t* self)
 
 	TurretSparks(self);
 
+	// CRITICAL FIX: Check if we have an enemy but haven't been able to attack
+	if (self->enemy && self->enemy->inuse) {
+		// If we haven't attacked for more than 1 second, consider changing targets
+		// Use attack_finished to check when we last attempted to fire
+		if (self->monsterinfo.attack_finished + 1_sec < level.time &&
+			self->monsterinfo.last_sentry_missile_fire_time + 2_sec < level.time) {
+
+			// Try to find a better target
+			if (FindMTarget(self)) {
+				// Reset attack finished time if we found a new target
+				self->monsterinfo.attack_finished = level.time;
+			}
+		}
+	}
+
 	vec3_t end, dir;
 	vec3_t ang;
 	float  move, idealPitch, idealYaw, current, speed;
@@ -715,7 +730,7 @@ void turret2Fire(edict_t* self) {
 	// Update aim
 	turret2Aim(self);
 
-// Validate enemy
+	// Validate enemy with more specific checks
 	if (!self->enemy || !self->enemy->inuse ||
 		OnSameTeam(self, self->enemy) || self->enemy->deadflag) {
 		if (self->monsterinfo.search_time < level.time) {
@@ -726,43 +741,72 @@ void turret2Fire(edict_t* self) {
 		return; // Return if we don't have a valid enemy and couldn't find one
 	}
 
+	// CRITICAL FIX: PREVENT STALLING ANIMATION
+	// Reset hold frame flag to prevent animation from getting stuck
+	if (self->monsterinfo.aiflags & AI_HOLD_FRAME &&
+		self->monsterinfo.duck_wait_time < level.time) {
+		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+	}
+
+	// Mark that we attempted to attack
 	self->monsterinfo.attack_finished = level.time;
 
-	// Determine target point
-	vec3_t end = (self->monsterinfo.aiflags & AI_LOST_SIGHT) ?
-		self->monsterinfo.blind_fire_target :
-		self->enemy->s.origin;
-
-	if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT)) {
+	// Determine target point with better calculations
+	vec3_t end;
+	if (self->monsterinfo.aiflags & AI_LOST_SIGHT) {
+		end = self->monsterinfo.blind_fire_target;
+	}
+	else {
+		end = self->enemy->s.origin;
+		// Adjust targeting height based on enemy type
 		if (self->enemy->client)
 			end[2] += self->enemy->viewheight;
 		else
-			end[2] += 7;
+			end[2] += (self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
 	}
 
-	// Calculate direction and validate
+	// Calculate direction with safer normalization
 	vec3_t start = self->s.origin;
 	vec3_t dir = end - start;
-	if (!is_valid_vector(dir))
+	if (!is_valid_vector(dir)) {
 		return;
-	dir.normalize();
+	}
 
-	// Check firing angle
+	float length = dir.normalize(); // Normalize and get length
+	if (length <= 1.0f) {
+		// Enemy is too close, adjust end point
+		end = self->enemy->s.origin;
+		dir = end - start;
+		dir.normalize();
+	}
+
+	// Check firing angle with more lenient threshold
 	vec3_t forward;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	const float chance = dir.dot(forward);
-	if (chance < 0.98f)
+
+	// Relaxed angle check - 0.92 is about 23 degrees from center
+	if (chance < 0.92f) {
 		return;
+	}
 
 	// Calculate distance for weapon selection
 	const float dist = (end - start).length();
 
-	// Trace to target
-	trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE);
-	if (tr.ent != self->enemy && tr.ent != world)
-		return;
+	// More permissive trace to ensure we can hit the target
+	trace_t tr = gi.traceline(start, end, self, MASK_SHOT);
 
-	// Fire appropriate weapon
+	// Only consider it a failed trace if we hit something that isn't the enemy or world
+	// AND it's not close to the enemy (sometimes entities overlap)
+	if (tr.ent != self->enemy && tr.ent != world) {
+		// Check if trace endpoint is close to enemy
+		float dist_to_enemy = (tr.endpos - self->enemy->s.origin).length();
+		if (dist_to_enemy > 32.0f) { // Not close enough to enemy
+			return;
+		}
+	}
+
+	// Fire appropriate weapon with reduced constraints
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN)) {
 		// Handle machinegun state
 		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
@@ -772,30 +816,47 @@ void turret2Fire(edict_t* self) {
 			self->monsterinfo.next_duck_time = level.time + 0.1_sec;
 			gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
 		}
-		else if (self->monsterinfo.next_duck_time < level.time) {
-			TurretFireMachinegun(self, start, dir);
+
+		// Allow firing even if we just started holding frame
+		TurretFireMachinegun(self, start, dir);
+
+		// Only try rockets outside of minimum range
+		if (dist > 200.0f) {
 			TurretFireRocket(self, start, dir, dist);
 		}
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) {
+		// Simplified blaster/heatbeam logic
 		vec3_t offset = { 20.f, 0.f, 0.f };
 		const vec3_t hbstart = start + (forward * offset[0]);
 
+		// Simpler prediction calculation
 		vec3_t predictedDir;
 		PredictAim(self, self->enemy, hbstart, 9999, false,
 			self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
 			&predictedDir, nullptr);
 
+		// Check if the predicted direction is valid
 		if (is_valid_vector(predictedDir)) {
 			trace_t hbtr = gi.traceline(hbstart, hbstart + predictedDir * 8192,
-				self, MASK_PROJECTILE);
+				self, MASK_SHOT);
 
-			if (hbtr.ent == self->enemy || hbtr.ent == world) {
-				TurretFireHeatbeam(self, hbstart, predictedDir, hbtr);
+			// Consider the shot valid even if we don't hit the enemy directly
+			TurretFireHeatbeam(self, hbstart, predictedDir, hbtr);
+
+			// Only try plasma at medium to long range
+			if (dist > 300.0f) {
 				TurretFirePlasma(self, hbstart, predictedDir);
 			}
 		}
+		else {
+			// Fallback to direct fire if prediction fails
+			TurretFireHeatbeam(self, hbstart, dir, tr);
+		}
 	}
+
+	// Update the last missile fire time to track successful firing
+	self->monsterinfo.last_sentry_missile_fire_time = level.time;
 }
 
 // PMM
