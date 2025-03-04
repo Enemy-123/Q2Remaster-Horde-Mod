@@ -4710,9 +4710,9 @@ void Horde_RunFrame() {
 			// IMPROVED: Only spawn if below cap and have monsters to spawn
 			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
 				// Log when approaching cap in developer mode
-				if (developer->integer > 0 && activeMonsters >= (maxMonsters - 3)) {
-					gi.Com_PrintFmt("Approaching monster cap: {}/{}\n", activeMonsters, maxMonsters);
-				}
+				//if (developer->integer > 0 && activeMonsters >= (maxMonsters - 3)) {
+				//	gi.Com_PrintFmt("Approaching monster cap: {}/{}\n", activeMonsters, maxMonsters);
+				//}
 
 				SpawnMonsters();
 
@@ -4722,9 +4722,9 @@ void Horde_RunFrame() {
 						CalculateRemainingMonsters(), maxMonsters);
 				}
 			}
-			else if (developer->integer > 1 && activeMonsters >= maxMonsters) {
-				gi.Com_PrintFmt("Skipping spawn - at monster cap: {}/{}\n", activeMonsters, maxMonsters);
-			}
+			//else if (developer->integer > 1 && activeMonsters >= maxMonsters) {
+			//	gi.Com_PrintFmt("Skipping spawn - at monster cap: {}/{}\n", activeMonsters, maxMonsters);
+			//}
 
 			// Check for wave completion
 			if (g_horde_local.num_to_spawn == 0) {
