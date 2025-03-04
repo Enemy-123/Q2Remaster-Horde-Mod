@@ -747,7 +747,7 @@ inline static void ClampNumToSpawn(const MapSize& mapSize) {
 		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
 
 	// Ajuste dinámico basado en jugadores activos
-	const int32_t activePlayers = GetNumActivePlayers();
+	const int32_t activePlayers = GetNumHumanPlayers();
 	maxAllowed += std::min(activePlayers - 1, 4) * 2;
 
 	g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, maxAllowed);
