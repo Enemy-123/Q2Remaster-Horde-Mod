@@ -1024,6 +1024,12 @@ static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 	"doppleganger"
 } };
 
+//std::string GetDisplayName(struct edict_t const* ent) {
+//	if (!ent || !ent->classname)
+//		return "Unknown";
+//	return GetDisplayName(ent->classname);
+//}
+
 [[nodiscard]] inline std::string GetDisplayName(const char* classname) {
 	if (!classname) return "Unknown";
 	const auto it = name_replacements.find(classname);

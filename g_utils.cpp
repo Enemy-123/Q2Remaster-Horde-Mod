@@ -35,31 +35,56 @@ edict_t* G_Find(edict_t* from, std::function<bool(edict_t* e)> matcher)
 /*
 =================
 findradius
-
 Returns entities that have origins within a spherical area
-
 findradius (origin, radius)
+
+Notes:
+- The 'from' parameter allows for iterative searching
+- Returns the next entity found within radius or nullptr when done
+- Optimized to use squared distance for performance
 =================
 */
 edict_t* findradius(edict_t* from, const vec3_t& org, float rad)
 {
-	vec3_t eorg;
-	int	   j;
+	// Parameter validation
+	if (!is_valid_vector(org) || rad <= 0.0f) {
+		return nullptr;
+	}
 
-	if (!from)
+	// Square the radius to avoid expensive sqrt operations
+	const float rad_squared = rad * rad;
+
+	// Initialize starting point
+	if (!from) {
 		from = g_edicts;
-	else
+	}
+	else {
 		from++;
-	for (; from < &g_edicts[globals.num_edicts]; from++)
-	{
-		if (!from->inuse)
+	}
+
+	// Ensure we don't exceed the array bounds
+	const edict_t* const edicts_end = &g_edicts[globals.num_edicts];
+
+	// Iterate through entities
+	for (; from < edicts_end; from++) {
+		// Basic entity validation
+		if (!from->inuse || from->solid == SOLID_NOT) {
 			continue;
-		if (from->solid == SOLID_NOT)
+		}
+
+		// Calculate vector to entity center
+		vec3_t eorg;
+		for (int j = 0; j < 3; j++) {
+			// Calculate entity center by adding half of its bounding box to origin
+			const float entity_center_offset = (from->mins[j] + from->maxs[j]) * 0.5f;
+			eorg[j] = org[j] - (from->s.origin[j] + entity_center_offset);
+		}
+
+		// Use squared length comparison to avoid sqrt
+		if (eorg.lengthSquared() > rad_squared) {
 			continue;
-		for (j = 0; j < 3; j++)
-			eorg[j] = org[j] - (from->s.origin[j] + (from->mins[j] + from->maxs[j]) * 0.5f);
-		if (eorg.length() > rad)
-			continue;
+		}
+
 		return from;
 	}
 
@@ -83,12 +108,11 @@ constexpr size_t MAXCHOICES = 8;
 edict_t* G_PickTarget(const char* targetname)
 {
 	edict_t* ent = nullptr;
-	int		 num_choices = 0;
-	edict_t* choice[MAXCHOICES];
+	int num_choices = 0;
+	edict_t* choice[MAXCHOICES] = { nullptr }; // Initialize array to nullptrs
 
 	if (!targetname)
 	{
-	//	gi.Com_Print("G_PickTarget called with nullptr targetname\n");
 		return nullptr;
 	}
 
@@ -105,8 +129,8 @@ edict_t* G_PickTarget(const char* targetname)
 	if (!num_choices)
 	{
 		if (developer->integer)
-	//	gi.Com_PrintFmt("G_PickTarget: target {} not found\n", targetname);
-		return nullptr;
+			// Log error message here if needed
+			return nullptr;
 	}
 
 	return choice[irandom(num_choices)];
