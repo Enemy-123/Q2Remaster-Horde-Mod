@@ -4152,9 +4152,9 @@ static edict_t* SpawnMonsters() {
 
 	// STRICT CAP CHECK: Exit immediately if at or above cap
 	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0) {
-		if (developer->integer > 0 && activeMonsters >= maxMonsters) {
-			gi.Com_PrintFmt("Monster cap reached: {}/{}\n", activeMonsters, maxMonsters);
-		}
+		//if (developer->integer > 0 && activeMonsters >= maxMonsters) {
+		//	gi.Com_PrintFmt("Monster cap reached: {}/{}\n", activeMonsters, maxMonsters);
+		//}
 		return nullptr;
 	}
 
@@ -4167,9 +4167,9 @@ static edict_t* SpawnMonsters() {
 	const int32_t spawnable = std::min(requested_spawns, maxMonsters - activeMonsters);
 
 	if (spawnable <= 0) {
-		if (developer->integer > 0) {
-			gi.Com_PrintFmt("No space for more monsters: {}/{}\n", activeMonsters, maxMonsters);
-		}
+		//if (developer->integer > 0) {
+		//	gi.Com_PrintFmt("No space for more monsters: {}/{}\n", activeMonsters, maxMonsters);
+		//}
 		return nullptr;
 	}
 
@@ -4198,9 +4198,9 @@ static edict_t* SpawnMonsters() {
 		// RECHECK CAP: Verify we're still under the cap before each spawn
 		const int32_t current_monsters = CalculateRemainingMonsters();
 		if (current_monsters >= maxMonsters) {
-			if (developer->integer > 0) {
-				gi.Com_PrintFmt("Monster cap reached during spawn cycle: {}/{}\n", current_monsters, maxMonsters);
-			}
+			//if (developer->integer > 0) {
+			//	gi.Com_PrintFmt("Monster cap reached during spawn cycle: {}/{}\n", current_monsters, maxMonsters);
+			//}
 			break;
 		}
 
