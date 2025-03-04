@@ -29,6 +29,7 @@ namespace HordeConstants {
 }
 
 // Optimized spawn cooldown data structure
+// Optimized spawn cooldown data structure
 struct SpawnPointData {
 	uint16_t attempts = 0;
 	gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
@@ -46,31 +47,39 @@ struct SpawnPointData {
 		return (float(successfulSpawns) / float(attempts)) + time_factor;
 	}
 };
-std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
 
-void InitializeSpawnPointData() {
-	spawnPointsData.reserve(MAX_SPAWN_POINTS);
-}
+struct SpawnPointDataArray {
+	SpawnPointData data[MAX_EDICTS];
+
+	SpawnPointData& operator[](const edict_t* ent) {
+		return data[ent - g_edicts];
+	}
+
+	const SpawnPointData& operator[](const edict_t* ent) const {
+		return data[ent - g_edicts];
+	}
+
+	void clear() {
+		for (auto& item : data) {
+			item = SpawnPointData{};
+		}
+	}
+
+	// Add methods to simulate find/emplace behavior for transition
+	bool find_and_access(const edict_t* key, SpawnPointData*& data_ptr) {
+		data_ptr = &data[key - g_edicts];
+		return true;
+	}
+};
+SpawnPointDataArray spawnPointsData;
 
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	if (!spawn_point || !spawn_point->inuse) {
 		return;
 	}
 
-	// Use find instead of direct access to prevent creating new entries unnecessarily
-	auto it = spawnPointsData.find(spawn_point);
-	SpawnPointData* data_ptr = nullptr;
-
-	if (it != spawnPointsData.end()) {
-		data_ptr = &it->second;
-	}
-	else {
-		// Only insert a new entry if needed
-		auto [new_it, inserted] = spawnPointsData.emplace(spawn_point, SpawnPointData{});
-		data_ptr = &new_it->second;
-	}
-
-	auto& data = *data_ptr;
+	// Direct array access instead of map lookup
+	auto& data = spawnPointsData[spawn_point];
 	const gtime_t current_time = level.time;
 
 	// Reset attempts if enough time has passed - early return optimization
@@ -324,13 +333,10 @@ struct SpawnMonsterFilter {
 		if (!spawnPoint || !spawnPoint->inuse)
 			return false;
 
-		// Check cooldown
-		auto it = spawnPointsData.find(spawnPoint);
-		if (it != spawnPointsData.end()) {
-			const auto& data = it->second;
-			if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
-				return false;
-		}
+		// Direct array access for cooldown check
+		const auto& data = spawnPointsData[spawnPoint];
+		if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
+			return false;
 
 		// Quick proximity check to players
 		const vec3_t& origin = spawnPoint->s.origin;
@@ -348,7 +354,6 @@ struct SpawnMonsterFilter {
 		return !IsSpawnPointOccupied(spawnPoint);
 	}
 };
-
 
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
@@ -440,22 +445,23 @@ void CheckAndReduceSpawnCooldowns() {
 	// Pre-compute the reduction factor once
 	constexpr float REDUCTION_FACTOR = 0.15f;
 
-	// Use a copy of the keys to avoid iterator invalidation
+	// Process all spawn points in use
+	// We need to track the spawn points to process
 	std::vector<edict_t*> spawn_points;
-	spawn_points.reserve(spawnPointsData.size());
+	spawn_points.reserve(MAX_SPAWN_POINTS);
 
-	for (const auto& [spawn_point, _] : spawnPointsData) {
-		if (spawn_point && spawn_point->inuse) {
-			spawn_points.push_back(spawn_point);
+	// Find all active spawn points by scanning entities
+	for (unsigned int i = 1; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent && ent->inuse && ent->classname &&
+			!strcmp(ent->classname, "info_player_deathmatch")) {
+			spawn_points.push_back(ent);
 		}
 	}
 
-	// Process spawn points with early termination after collecting keys
+	// Process spawn points with early termination after collecting
 	for (edict_t* spawn_point : spawn_points) {
-		auto it = spawnPointsData.find(spawn_point);
-		if (it == spawnPointsData.end()) continue;
-
-		auto& data = it->second;
+		auto& data = spawnPointsData[spawn_point];
 
 		// Check if spawn point is disabled and cooldown is still active
 		if (data.isTemporarilyDisabled && current_time < data.cooldownEndsAt) {
@@ -468,11 +474,6 @@ void CheckAndReduceSpawnCooldowns() {
 
 			// Reset attempt counter for fresh spawning
 			data.attempts = 0;
-
-			//if (developer->integer == 1) {
-			//	// Debug message reduced to one output per function call
-			//	gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n", spawn_point->s.origin);
-			//}
 		}
 	}
 
@@ -1387,34 +1388,52 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 	// Get monster types once
 	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
 
-	// Use bitwise operations for special wave checks
-	// Check each special wave type with early returns
-
+	// Skip all the extra lookups and bit operations, check directly the critical flags
 	const uint32_t requirements = static_cast<uint32_t>(waveRequirements);
 	const uint32_t monster_flags = static_cast<uint32_t>(monsterTypes);
 
-	// Use single lookup table of special flags that require exact matches
-	static constexpr uint32_t SPECIAL_FLAGS[] = {
-		static_cast<uint32_t>(MonsterWaveType::Flying),
-		static_cast<uint32_t>(MonsterWaveType::Small),
-		static_cast<uint32_t>(MonsterWaveType::Arachnophobic),
-		static_cast<uint32_t>(MonsterWaveType::Heavy),
-		static_cast<uint32_t>(MonsterWaveType::Shambler),
-		static_cast<uint32_t>(MonsterWaveType::Mutant),
-		static_cast<uint32_t>(MonsterWaveType::Melee),
-		static_cast<uint32_t>(MonsterWaveType::Berserk),
-		static_cast<uint32_t>(MonsterWaveType::Bomber),
-		static_cast<uint32_t>(MonsterWaveType::Spawner)
-	};
+	// First check the most important exclusive categories that must match
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Flying)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Flying)))
+		return false;
 
-	// Check special flags
-	for (const uint32_t flag : SPECIAL_FLAGS) {
-		if ((requirements & flag) && !(monster_flags & flag)) {
-			return false;
-		}
-	}
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Small)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Small)))
+		return false;
 
-	// For mixed waves, check if there's at least one match
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Arachnophobic)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Arachnophobic)))
+		return false;
+
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Heavy)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Heavy)))
+		return false;
+
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Mutant)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Mutant)))
+		return false;
+
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Shambler)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Shambler)))
+		return false;
+
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Melee)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Melee)))
+		return false;
+
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Berserk)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Berserk)))
+		return false;
+
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Bomber)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Bomber)))
+		return false;
+
+	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Spawner)) &&
+		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Spawner)))
+		return false;
+
+	// For mixed waves, check if there's at least one match in other categories
 	return (requirements & monster_flags) != 0;
 }
 
@@ -2486,9 +2505,6 @@ void Horde_Init() {
 	PrecacheAllMonsters();
 	PrecacheItemsAndBosses();
 	PrecacheWaveSounds();
-
-	// Initialize other systems
-	InitializeSpawnPointData();
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
@@ -3395,7 +3411,12 @@ void ClearHordeMessage() {
 // reset cooldowns, fixed no monster spawning on next map
 // En UnifiedAdjustSpawnRate y ResetCooldowns:
 void ResetCooldowns() noexcept {
-	spawnPointsData.clear();
+	// Instead of clearing the map, we'll reset every entry to default values
+	// This is much simpler with the array approach
+	for (size_t i = 0; i < MAX_EDICTS; i++) {
+		spawnPointsData.data[i] = SpawnPointData{};
+	}
+
 	lastSpawnPointTime.clear();
 	lastMonsterSpawnTime.clear();
 
@@ -3403,38 +3424,39 @@ void ResetCooldowns() noexcept {
 	const int32_t currentLevel = g_horde_local.level;
 	const int32_t humanPlayers = GetNumHumanPlayers();
 
-	// Obtener cooldown base según el tamaño del mapa
+	// Get base cooldown based on map size
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 
-	// Aplicar escala basada en nivel
+	// Apply scale based on level
 	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-	// Ajustes adicionales (reducidos pero mantenidos para balance)
+	// Additional adjustments (reduced but maintained for balance)
 	if (humanPlayers > 1) {
-		const	float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
+		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
 		SPAWN_POINT_COOLDOWN *= playerAdjustment;
 	}
 
-	// Ajustes por modo de dificultad (reducidos) - Con verificación de seguridad
+	// Difficulty mode adjustments with safety verification
 	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
 		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
 
-	// Aplicar límites absolutos
+	// Apply absolute limits
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
-
-	//	if (developer->integer) gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
-	//		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
 }
 
 void ResetAllSpawnAttempts() noexcept {
-	for (auto& [spawn_point, data] : spawnPointsData) {
-		data.attempts = 0;
-		//	data.spawn_cooldown = SPAWN_POINT_COOLDOWN;
-		//	data.teleport_cooldown = level.time;
-		data.isTemporarilyDisabled = false;
-		data.cooldownEndsAt = 0_sec;
+	// Find all active spawn points and reset them
+	for (unsigned int i = 1; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent && ent->inuse && ent->classname &&
+			!strcmp(ent->classname, "info_player_deathmatch")) {
+			auto& data = spawnPointsData[ent];
+			data.attempts = 0;
+			data.isTemporarilyDisabled = false;
+			data.cooldownEndsAt = 0_sec;
+		}
 	}
 }
 
@@ -3709,7 +3731,9 @@ void ResetGame() {
 
 	// Limpiar cachés
 	CleanupSpawnPointCache();
-	spawnPointsData.clear();
+	for (size_t i = 0; i < MAX_EDICTS; i++) {
+		spawnPointsData.data[i] = SpawnPointData{};
+	}
 	lastMonsterSpawnTime.clear();
 	lastSpawnPointTime.clear();
 
@@ -4019,12 +4043,14 @@ struct StuckMonsterSpawnFilter {
 			strcmp(ent->classname, "info_player_deathmatch") != 0 ||
 			ent->style == 1)  // Exclude flying spawns
 			return false;
-		// Cooldown check
-		auto const it = spawnPointsData.find(ent);
-		if (it != spawnPointsData.end() && level.time < it->second.teleport_cooldown)
+
+		// Cooldown check - direct array access
+		if (level.time < spawnPointsData[ent].teleport_cooldown)
 			return false;
+
 		if (IsSpawnPointOccupied(ent))
 			return false;
+
 		// Check proximity to players
 		for (const auto* const player : active_players_no_spect()) {
 			if ((ent->s.origin - player->s.origin).length() < 512.0f) {
@@ -4604,21 +4630,21 @@ static void SendCleanupMessage(WaveEndReason reason) {
 
 // Add this function in the appropriate source file that deals with spawn management.
 void CheckAndResetDisabledSpawnPoints() {
-	std::vector<edict_t*> disabled_spawns;
-	disabled_spawns.reserve(MAX_SPAWN_POINTS);
+	// Find all active spawn points that are disabled
+	for (unsigned int i = 1; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent && ent->inuse && ent->classname &&
+			strcmp(ent->classname, "info_player_deathmatch") == 0) {
 
-	// Collect disabled spawn points
-	for (auto& [spawn_point, data] : spawnPointsData) {
-		if (data.isTemporarilyDisabled) {
-			disabled_spawns.push_back(spawn_point);
+			auto& data = spawnPointsData[ent];
+			if (data.isTemporarilyDisabled) {
+				// Simply reset the disabled status
+				data.isTemporarilyDisabled = false;
+				data.attempts = 0;
+				data.cooldownEndsAt = 0_sec;
+			}
 		}
 	}
-
-	//// Process in batches if we have disabled spawns
-	//if (!disabled_spawns.empty()) {
-	//	std::span<edict_t*> spawn_span(disabled_spawns.data(), disabled_spawns.size());
-	//	IncreaseSpawnAttemptsBatch(spawn_span);
-	//}
 }
 
 void Horde_RunFrame() {
