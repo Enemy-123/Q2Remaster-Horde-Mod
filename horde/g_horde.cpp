@@ -412,6 +412,7 @@ inline int8_t GetNumActivePlayers();
 inline int8_t GetNumSpectPlayers();
 inline int8_t GetNumHumanPlayers();
 
+int32_t g_adjusted_monster_cap = 0;
 constexpr int8_t MAX_MONSTERS_BIG_MAP = 32;
 constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;
 constexpr int8_t MAX_MONSTERS_SMALL_MAP = 14;
@@ -591,6 +592,9 @@ struct HordeState {
 	gtime_t         waveEndTime = 0_sec;
 	bool            warningIssued[4] = { false, false, false, false };
 
+	// Failsafe timeout to prevent getting stuck in a state
+	gtime_t         failsafe_timeout = 0_sec;
+
 	gtime_t         last_successful_hud_update = 0_sec;
 	uint32_t        failed_updates_count = 0;
 
@@ -743,8 +747,14 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 }
 
 inline static void ClampNumToSpawn(const MapSize& mapSize) {
-	int32_t maxAllowed = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+	// Use adjusted cap instead of fixed values
+	int32_t maxAllowed = g_adjusted_monster_cap;
+
+	// If g_adjusted_monster_cap hasn't been initialized yet, use defaults
+	if (maxAllowed == 0) {
+		maxAllowed = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+			(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+	}
 
 	// Ajuste dinámico basado en jugadores activos
 	const int32_t activePlayers = GetNumHumanPlayers();
@@ -904,8 +914,8 @@ struct ConditionParams {
 constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
 constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
-constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 1.5_sec;
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 2;
+constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 1_sec;
 
 static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 	// Calcular el tiempo base según el nivel
@@ -959,6 +969,13 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 	params.maxMonsters += std::min(lvl / 4, 8);
 	params.timeThreshold += gtime_t::from_ms(75ll * std::min(lvl / 3, 4));
 
+	// Early wave time extension - NEW CODE
+	float timeMultiplier = 1.0f;
+	if (lvl <= 10) {
+		// Start with 1.8x longer at wave 1, gradually reduce to 1.0x at wave 10
+		timeMultiplier = 1.8f - ((lvl - 1) * 0.08f);
+	}
+
 	// Ajuste para niveles altos
 	if (lvl > 10) {
 		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f);
@@ -980,6 +997,13 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 	// Configuración para tiempo independiente basado en el nivel
 	params.independentTimeThreshold = calculate_max_wave_time(lvl);
 
+	// Apply multiplier to time thresholds for early waves - NEW CODE
+	if (lvl <= 10) {
+		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * timeMultiplier);
+		params.lowPercentageTimeThreshold = gtime_t::from_sec(params.lowPercentageTimeThreshold.seconds() * timeMultiplier);
+		params.independentTimeThreshold = gtime_t::from_sec(params.independentTimeThreshold.seconds() * timeMultiplier);
+	}
+
 	// Validación final de parámetros
 	params.maxMonsters = std::max(1, params.maxMonsters);
 	params.timeThreshold = std::max(1_sec, params.timeThreshold);
@@ -988,11 +1012,11 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 
 	return params;
 }
-
 // Warning times in seconds
 constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 
 static void InitializeWaveType(int32_t lvl);
+inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel);
 
 static void Horde_InitLevel(const int32_t lvl) {
 
@@ -1008,6 +1032,10 @@ static void Horde_InitLevel(const int32_t lvl) {
 	}
 
 	g_horde_local.update_map_size(GetCurrentMapName());
+
+	// Calculate adjusted monster cap for this wave
+	GetAdjustedMonsterCap(g_horde_local.current_map_size, lvl);
+
 	g_independent_timer_start = level.time;
 
 	// Configuración de variables iniciales para el nivel
@@ -3979,7 +4007,7 @@ void HandleWaveCleanupMessage(const MapSize& mapSize, const WaveEndReason reason
 	g_horde_local.state = horde_state_t::rest;
 }
 
-static void HandleWaveRestMessage(gtime_t duration = 3_sec) {
+static void AnnounceIncomingWave(gtime_t duration = 3_sec) {
 	const char* message;
 
 	if (g_chaotic->integer > 0 && g_horde_local.level >= 5) {  // Solo después de la ola 5
@@ -4175,34 +4203,11 @@ static edict_t* SpawnMonsters() {
 
 	// Get map constraints - do this once
 	const MapSize& mapSize = g_horde_local.current_map_size;
-	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-	// Get current monster count
-	const int32_t activeMonsters = CalculateRemainingMonsters();
-
-	// STRICT CAP CHECK: Exit immediately if at or above cap
-	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0) {
-		//if (developer->integer > 0 && activeMonsters >= maxMonsters) {
-		//	gi.Com_PrintFmt("Monster cap reached: {}/{}\n", activeMonsters, maxMonsters);
-		//}
-		return nullptr;
-	}
-
-	// Calculate how many we can actually spawn within the cap
-	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
-	const int32_t min_spawn = std::min(g_horde_local.queued_monsters, base_spawn);
-	const int32_t requested_spawns = irandom(min_spawn, std::min(base_spawn + 1, 6));
-
-	// ENFORCE CAP: Limit spawnable to available space under the cap
-	const int32_t spawnable = std::min(requested_spawns, maxMonsters - activeMonsters);
-
-	if (spawnable <= 0) {
-		//if (developer->integer > 0) {
-		//	gi.Com_PrintFmt("No space for more monsters: {}/{}\n", activeMonsters, maxMonsters);
-		//}
-		return nullptr;
-	}
+	// Use the adjusted monster cap
+	const int32_t maxMonsters = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
+		(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+			(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
 	// Pre-collect valid spawn points
 	SpawnMonsterFilter filter{ level.time };
@@ -4222,23 +4227,25 @@ static edict_t* SpawnMonsters() {
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	// Track how many we've actually spawned to enforce the cap
-	int32_t spawned_count = 0;
+	// Instead of calculating batches, spawn monsters one at a time and check caps
+	int spawnsAttempted = 0;
+	const int maxAttempts = 6; // Limit attempts to avoid excessive checking
 
-	for (int32_t i = 0; i < spawnable; ++i) {
-		// RECHECK CAP: Verify we're still under the cap before each spawn
-		const int32_t current_monsters = CalculateRemainingMonsters();
-		if (current_monsters >= maxMonsters) {
-			//if (developer->integer > 0) {
-			//	gi.Com_PrintFmt("Monster cap reached during spawn cycle: {}/{}\n", current_monsters, maxMonsters);
-			//}
+	while (spawnsAttempted < maxAttempts && g_horde_local.num_to_spawn > 0) {
+		// CRITICAL FIX: Check monster count before EACH spawn attempt
+		const int32_t currentMonsters = CalculateRemainingMonsters();
+		if (currentMonsters >= maxMonsters) {
+			// Instead of spawning more, queue the remaining monsters
+			if (g_horde_local.num_to_spawn > 0) {
+				g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
+				g_horde_local.num_to_spawn = 0;
+			}
 			break;
 		}
 
-		if (g_horde_local.num_to_spawn <= 0)
-			break;
+		spawnsAttempted++;
 
-		// Get random spawn point from pre-collected points
+		// Get random spawn point
 		if (available_spawns.empty())
 			break;
 
@@ -4279,20 +4286,13 @@ static edict_t* SpawnMonsters() {
 				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
 				--g_horde_local.num_to_spawn;
-				--g_horde_local.queued_monsters;
 				++g_totalMonstersInWave;
 
-				// Track this spawn
-				spawned_count++;
 				last_spawned = monster;
 
-				// FINAL CAP CHECK: In case anything else happened during spawning
-				if (CalculateRemainingMonsters() >= maxMonsters) {
-					//if (developer->integer > 0) {
-					//	gi.Com_PrintFmt("Monster cap reached after spawn: {}/{}\n",
-					//		CalculateRemainingMonsters(), maxMonsters);
-					//}
-					break;
+				// Only decrement queued monsters if spawn was successful
+				if (g_horde_local.queued_monsters > 0) {
+					--g_horde_local.queued_monsters;
 				}
 			}
 			else {
@@ -4300,22 +4300,6 @@ static edict_t* SpawnMonsters() {
 			}
 		}
 	}
-
-	// Keep queued monsters logic, but ensure cap is still respected
-	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
-		if (additional_spawnable > 0) {
-			const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
-			g_horde_local.num_to_spawn += additional_to_spawn;
-			g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - additional_to_spawn);
-		}
-	}
-
-	// If we spawned any monsters, log diagnostic info in developer mode
-	//if (developer->integer > 0 && spawned_count > 0) {
-	//	gi.Com_PrintFmt("Spawned {} monsters, current count: {}/{}\n",
-	//		spawned_count, CalculateRemainingMonsters(), maxMonsters);
-	//}
 
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned;
@@ -4413,18 +4397,29 @@ static void SetMonsterArmor(edict_t* monster) {
 }
 
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
-	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> SPAWN_TIMES = { {
+	// Original spawn time ranges
+	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = { {
 		{0.6_sec, 0.8_sec},  // Small maps
 		{0.8_sec, 1.0_sec},  // Medium maps
 		{0.4_sec, 0.6_sec}   // Big maps
 	} };
 
+	// Apply early wave modifier (waves 1-10)
+	float earlyWaveMultiplier = 1.0f;
+	if (g_horde_local.level <= 10) {
+		// Start with 2.0x slower at wave 1, gradually reduce to 1.0x at wave 10
+		earlyWaveMultiplier = 2.0f - ((g_horde_local.level - 1) * 0.1f);
+	}
+
 	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-	const auto& [min_time, max_time] = SPAWN_TIMES[mapIndex];
+	const auto& [base_min_time, base_max_time] = BASE_SPAWN_TIMES[mapIndex];
+
+	// Apply multiplier to spawn times
+	const gtime_t min_time = gtime_t::from_sec(base_min_time.seconds() * earlyWaveMultiplier);
+	const gtime_t max_time = gtime_t::from_sec(base_max_time.seconds() * earlyWaveMultiplier);
 
 	g_horde_local.monster_spawn_time = level.time + random_time(min_time, max_time);
 }
-
 // Usar enum class para mejorar la seguridad de tipos
 enum class MessageType {
 	Standard,
@@ -4652,6 +4647,32 @@ void CheckAndResetDisabledSpawnPoints() {
 	}
 }
 
+inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel) {
+	// Original caps
+	const int32_t baseSmallCap = MAX_MONSTERS_SMALL_MAP;  // 14
+	const int32_t baseMediumCap = MAX_MONSTERS_MEDIUM_MAP; // 16
+	const int32_t baseBigCap = MAX_MONSTERS_BIG_MAP;      // 32
+
+	// Only reduce for small and medium maps in early waves
+	if (waveLevel <= 10 && !mapSize.isBigMap) {
+		float reductionFactor = 0.6f + (waveLevel * 0.04f); // 60% at wave 1, scaling to 100% by wave 10
+
+		if (mapSize.isSmallMap) {
+			g_adjusted_monster_cap = static_cast<int32_t>(baseSmallCap * reductionFactor);
+		}
+		else {
+			g_adjusted_monster_cap = static_cast<int32_t>(baseMediumCap * reductionFactor);
+		}
+	}
+	else {
+		// Use default caps for later waves or big maps
+		g_adjusted_monster_cap = mapSize.isSmallMap ? baseSmallCap :
+			(mapSize.isBigMap ? baseBigCap : baseMediumCap);
+	}
+
+	return g_adjusted_monster_cap;
+}
+
 void Horde_RunFrame() {
 	// Cache state variables at the beginning for better performance
 	const MapSize& mapSize = g_horde_local.current_map_size;
@@ -4660,8 +4681,9 @@ void Horde_RunFrame() {
 	const gtime_t currentTime = level.time;
 
 	// Define monster cap once for consistent use throughout function
-	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+	const int32_t maxMonsters = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
+		(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+			(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
 	// Track wave end reason
 	WaveEndReason currentWaveEndReason{};
@@ -4699,16 +4721,6 @@ void Horde_RunFrame() {
 	// Get current monster count once for this frame
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 
-	// Debug information about current monster status
-	//if (developer->integer > 1) {
-	//	static gtime_t last_debug_time = 0_ms;
-	//	if (currentTime - last_debug_time >= 2000_ms) {
-	//		gi.Com_PrintFmt("Monster status: {}/{} active, {} to spawn, {} queued\n",
-	//			activeMonsters, maxMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters);
-	//		last_debug_time = currentTime;
-	//	}
-	//}
-
 	bool waveEnded = false;
 
 	// State machine logic
@@ -4740,11 +4752,6 @@ void Horde_RunFrame() {
 
 			// IMPROVED: Only spawn if below cap and have monsters to spawn
 			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
-				// Log when approaching cap in developer mode
-				//if (developer->integer > 0 && activeMonsters >= (maxMonsters - 3)) {
-				//	gi.Com_PrintFmt("Approaching monster cap: {}/{}\n", activeMonsters, maxMonsters);
-				//}
-
 				SpawnMonsters();
 
 				// ADDED: Verify cap after spawning
@@ -4753,9 +4760,6 @@ void Horde_RunFrame() {
 						CalculateRemainingMonsters(), maxMonsters);
 				}
 			}
-			//else if (developer->integer > 1 && activeMonsters >= maxMonsters) {
-			//	gi.Com_PrintFmt("Skipping spawn - at monster cap: {}/{}\n", activeMonsters, maxMonsters);
-			//}
 
 			// Check for wave completion
 			if (g_horde_local.num_to_spawn == 0) {
@@ -4797,12 +4801,6 @@ void Horde_RunFrame() {
 
 				// If significant space is available, spawn more
 				if (availableSpace >= 3 || (availableSpace > 0 && g_horde_local.queued_monsters > 10)) {
-					// Debug logging for queue
-					//if (developer->integer > 1) {
-					//	gi.Com_PrintFmt("Spawning from queue: {} available slots, {} monsters queued\n",
-					//		availableSpace, g_horde_local.queued_monsters);
-					//}
-
 					SpawnMonsters();
 
 					// ADDED: Verify cap wasn't exceeded
@@ -4812,15 +4810,6 @@ void Horde_RunFrame() {
 					}
 				}
 			}
-			//else if (developer->integer > 1 && activeMonsters >= maxMonsters && g_horde_local.queued_monsters > 0) {
-			//	// Periodically remind that monsters are still queued
-			//	static gtime_t last_queue_reminder = 0_ms;
-			//	if (currentTime - last_queue_reminder >= 5000_ms) {
-			//		gi.Com_PrintFmt("Monsters in queue: {} (waiting for space under cap)\n",
-			//			g_horde_local.queued_monsters);
-			//		last_queue_reminder = currentTime;
-			//	}
-			//}
 		}
 		break;
 	}
@@ -4828,32 +4817,85 @@ void Horde_RunFrame() {
 	case horde_state_t::cleanup:
 		if (g_horde_local.monster_spawn_time < currentTime) {
 			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
-			g_horde_local.warm_time = currentTime + random_time(0.8_sec, 1.5_sec);
+
+			// IMPROVED: Calculate the warm time with validation
+			gtime_t calculated_warm_time = currentTime + random_time(4_sec, 6_sec);
+
+			// Validate the warm time makes sense
+			if (calculated_warm_time <= currentTime ||
+				(calculated_warm_time - currentTime) > 10_sec) {
+				// Fallback to a guaranteed safe value
+				calculated_warm_time = currentTime + 4_sec;
+
+				if (developer->integer) {
+					gi.Com_PrintFmt("WARNING: warm_time calculation failed, using fallback\n");
+				}
+			}
+
+			g_horde_local.warm_time = calculated_warm_time;
+
+			// Add a failsafe timeout
+			g_horde_local.failsafe_timeout = currentTime + 15_sec;
+
+			// Debug help
+			if (developer->integer) {
+				gi.Com_PrintFmt("Rest period set: {:.2f} seconds\n",
+					(g_horde_local.warm_time - currentTime).seconds());
+			}
+
 			g_horde_local.state = horde_state_t::rest;
+
+			// IMPORTANT: Reset monster_spawn_time to avoid instant transitions
+			g_horde_local.monster_spawn_time = currentTime + 10_sec; // Just a safety value
+
+			// CRITICAL FIX: Reset all other timers that might interfere
+			g_independent_timer_start = currentTime;
+			g_horde_local.waveEndTime = 0_sec;
+			g_horde_local.conditionTriggered = false;
+			g_horde_local.conditionStartTime = 0_sec;
 		}
 		break;
 
 	case horde_state_t::rest:
-		if (g_horde_local.warm_time < currentTime) {
-			HandleWaveRestMessage(3_sec);
+		// Add failsafe check
+		if (currentTime >= g_horde_local.failsafe_timeout) {
+			gi.Com_PrintFmt("WARNING: Failsafe timeout triggered in rest state\n");
+			AnnounceIncomingWave(3_sec); // Announce the incoming wave
+			g_horde_local.state = horde_state_t::spawning;
+			Horde_InitLevel(g_horde_local.level + 1);
+			break;
+		}
+
+		// Added debugging
+		if (developer->integer > 1) {
+			static gtime_t last_rest_debug = 0_ms;
+			if (currentTime - last_rest_debug >= 500_ms) {
+				gi.Com_PrintFmt("Rest period: {:.2f} seconds remaining\n",
+					(g_horde_local.warm_time - currentTime).seconds());
+				last_rest_debug = currentTime;
+			}
+		}
+
+		// CRITICAL FIX: Make sure this comparison is correct
+		if (currentTime >= g_horde_local.warm_time) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("Rest period complete, starting wave {}\n", g_horde_local.level + 1);
+			}
+
+			AnnounceIncomingWave(3_sec); // Announce the incoming wave
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 		}
 		break;
-	}
+	} // End of switch
 
 	// Cleanup logic (moved outside the switch)
 	if (waveEnded) {
-		//if (developer->integer > 0) {
-		//	gi.Com_PrintFmt("Wave {} ended: {} monsters remain, {} in queue\n",
-		//		currentLevel, activeMonsters, g_horde_local.queued_monsters);
-		//}
 		SendCleanupMessage(currentWaveEndReason);
 		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
 		g_horde_local.state = horde_state_t::cleanup;
 	}
 }
-
 // Función para manejar el evento de reinicio
 void HandleResetEvent() {
 	ResetGame();
