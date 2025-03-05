@@ -102,23 +102,23 @@ void UpdatePowerUpTimes(edict_t* monster) {
 	}
 }
 
-constexpr float M_DamageModifier(edict_t* monster) noexcept {
+float M_DamageModifier(edict_t* monster) noexcept {
 	if (!monster)
 		return 1.0f;
 
-	if (monster->monsterinfo.damage_modifier_applied)
-		return 1.0f;
+	// Don't use constexpr since we're modifying state
+	float modifier = 1.0f;
 
-	monster->monsterinfo.damage_modifier_applied = true;
-
-	// Check quad first (higher priority)
+	// Check power-ups in priority order
 	if (monster->monsterinfo.quad_time > level.time)
-		return 4.0f;
+		modifier = 4.0f;
+	else if (monster->monsterinfo.double_time > level.time)
+		modifier = 2.0f;
 
-	if (monster->monsterinfo.double_time > level.time)
-		return 2.0f;
+	// Reset the flag for next time - this ensures modifiers are always applied
+	monster->monsterinfo.damage_modifier_applied = false;
 
-	return 1.0f;
+	return modifier;
 }
 
 [[nodiscard]] inline std::string GetTitleFromFlags(int bonus_flags) {

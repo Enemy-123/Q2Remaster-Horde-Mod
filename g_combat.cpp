@@ -784,11 +784,26 @@ static int CalculateRealDamage(const edict_t* targ, int take, int initial_health
 
 void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
 	if (!targ) return;
-	const int initial_health = targ->health;
-	const int real_damage = CalculateRealDamage(targ, take, initial_health);
 
+	// Use 64-bit integers for calculations to prevent overflow
+	const int64_t initial_health = targ->health;
+
+	// Calculate real damage safely
+	int64_t real_damage;
+	if (targ->svflags & SVF_DEADMONSTER)
+		real_damage = std::min<int64_t>(take, 5);
+	else if (initial_health <= 0)
+		real_damage = std::min<int64_t>(take, 10);
+	else {
+		real_damage = std::min<int64_t>(take, initial_health);
+		if (targ->health <= 0) {
+			real_damage += std::min<int64_t>(abs(targ->gib_health), initial_health);
+		}
+	}
+
+	// Only process if we have valid entities and damage
 	if (real_damage > 0 && attacker && attacker->client) {
-		HandleIDDamage(attacker, targ, real_damage);
+		HandleIDDamage(attacker, targ, static_cast<int>(real_damage));
 	}
 }
 
@@ -800,15 +815,21 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 	}
 
 	auto& client = *attacker->client;
-	const bool should_reset = level.time - attacker->client->lastdmg  > 1.65_sec ||
+	const bool should_reset = level.time - attacker->client->lastdmg > 1.65_sec ||
 		client.dmg_counter > 99999;
 
-	client.dmg_counter = should_reset ? real_damage : client.dmg_counter + real_damage;
-	client.ps.stats[STAT_ID_DAMAGE] = client.dmg_counter;
-	attacker->client->lastdmg  = level.time;
+	// Cast to uint64_t to prevent overflow during addition
+	client.dmg_counter = should_reset ?
+		static_cast<uint64_t>(real_damage) :
+		client.dmg_counter + static_cast<uint64_t>(real_damage);
+
+	// For display, cap at 32-bit max if needed
+	client.ps.stats[STAT_ID_DAMAGE] = static_cast<int>(std::min<uint64_t>(client.dmg_counter, INT_MAX));
+	attacker->client->lastdmg = level.time;
 
 	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
-		client.total_damage += real_damage;
+		// Cast to uint64_t to prevent overflow during addition
+		client.total_damage += static_cast<uint64_t>(real_damage);
 	}
 }
 
@@ -1001,6 +1022,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 	}
 }
 
+//t_damage
 //t_damage
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
 	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
@@ -1422,10 +1444,10 @@ T_RadiusDamage
 */
 void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t* ignore, float radius, damageflags_t dflags, mod_t mod)
 {
-	float	 points;
+	float   points;
 	edict_t* ent = nullptr;
-	vec3_t	 v;
-	vec3_t	 dir;
+	vec3_t  v;
+	vec3_t  dir;
 	vec3_t   inflictor_center;
 
 	if (!inflictor)
@@ -1463,17 +1485,31 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 		points = damage - 0.5f * v.length();
 		if (ent == attacker)
 			points = points * 0.5f;
+
 		if (points > 0)
 		{
 			if (CanDamage(ent, inflictor))
 			{
 				dir = (ent->s.origin - inflictor_center).normalized();
-				// Aplicar el modificador de daño aquí
-				const float modified_points = points * damage_modifier;
-				if (ent && inflictor && attacker)
-				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir, //crash here
-					(int)modified_points, (int)modified_points,
-					dflags | DAMAGE_RADIUS, mod);
+
+				// Only apply damage if all entities are valid
+				if (ent && inflictor && attacker) {
+					// Aplicar el modificador de daño aquí
+					const float modified_points = points * damage_modifier;
+
+					T_Damage(
+						ent,
+						inflictor,
+						attacker,
+						dir,
+						closest_point_to_box(inflictor_center, ent->absmin, ent->absmax),
+						dir,
+						static_cast<int>(modified_points),
+						static_cast<int>(modified_points),
+						dflags | DAMAGE_RADIUS,
+						mod
+					);
+				}
 			}
 		}
 	}

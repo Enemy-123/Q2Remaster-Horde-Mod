@@ -4530,7 +4530,11 @@ static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 		if (!player || !player->client || !player->inuse)
 			continue;
 
-		const int32_t player_damage = std::clamp(player->client->total_damage, 0, MAX_DAMAGE);
+		// Fix 1: Initialize const variable with explicit casting to resolve type ambiguity
+		const int32_t player_damage = static_cast<int32_t>(std::min(
+			static_cast<int32_t>(player->client->total_damage),
+			MAX_DAMAGE));
+
 		if (player_damage > 0) {
 			total_damage += player_damage;
 		}
@@ -4541,7 +4545,11 @@ static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 		if (!player || !player->client || !player->inuse)
 			continue;
 
-		const int32_t player_damage = std::clamp(player->client->total_damage, 0, MAX_DAMAGE);
+		// Fix 2: Same explicit casting approach for the second instance
+		const int32_t player_damage = static_cast<int32_t>(std::min(
+			static_cast<int32_t>(player->client->total_damage),
+			MAX_DAMAGE));
+
 		if (player_damage > topDamager.total_damage) {
 			topDamager.total_damage = player_damage;
 			topDamager.player = player;
@@ -4551,10 +4559,9 @@ static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 	// Calculate percentage with extra safety
 	percentage = 0.0f;
 	if (total_damage > 0 && topDamager.total_damage > 0) {
-		percentage = std::clamp(
+		percentage = std::min(
 			(static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f,
-			0.0f, 100.0f
-		);
+			100.0f);
 		percentage = std::round(percentage * 100.0f) / 100.0f;
 	}
 }

@@ -3170,8 +3170,8 @@ struct gclient_t
 	bool techItemsRemoved;
 	gtime_t time_in_bad_area;
 	edict_t* idtarget;
-	int dmg_counter; // ID DMG
-	int total_damage; // Total damage dealt by this player
+	uint64_t dmg_counter;     // ID DMG
+	uint64_t total_damage;    // Total damage dealt
 	int num_lasers = 0;
 	int num_teslas = 0; // max teslas per client
 	//int num_traps; //foodcube trap per client
@@ -3952,5 +3952,5 @@ extern void UpdateVoteHUD();
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
 extern inline std::string GetDisplayName(const edict_t* ent);
 extern inline std::string GetTitleFromFlags(int bonus_flags);
-extern constexpr float M_DamageModifier(edict_t* monster) noexcept;
+extern float M_DamageModifier(edict_t* monster) noexcept;
 extern inline bool G_CheatCheck(edict_t* ent);
