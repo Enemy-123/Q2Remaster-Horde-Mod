@@ -914,8 +914,8 @@ struct ConditionParams {
 constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
 constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 2;
-constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 1_sec;
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
+constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 1.5_sec;
 
 static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 	// Calcular el tiempo base según el nivel
@@ -4209,6 +4209,14 @@ static edict_t* SpawnMonsters() {
 		(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 			(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
+	// Get current monster count
+	const int32_t activeMonsters = CalculateRemainingMonsters();
+
+	// Exit immediately if at or above cap
+	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0) {
+		return nullptr;
+	}
+
 	// Pre-collect valid spawn points
 	SpawnMonsterFilter filter{ level.time };
 	auto spawnPoints = monster_spawn_points();
@@ -4227,15 +4235,15 @@ static edict_t* SpawnMonsters() {
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	// Instead of calculating batches, spawn monsters one at a time and check caps
+	// Track how many we've actually spawned to enforce the cap
 	int spawnsAttempted = 0;
 	const int maxAttempts = 6; // Limit attempts to avoid excessive checking
 
 	while (spawnsAttempted < maxAttempts && g_horde_local.num_to_spawn > 0) {
-		// CRITICAL FIX: Check monster count before EACH spawn attempt
+		// Check monster count before EACH spawn attempt
 		const int32_t currentMonsters = CalculateRemainingMonsters();
 		if (currentMonsters >= maxMonsters) {
-			// Instead of spawning more, queue the remaining monsters
+			// Queue the remaining monsters instead of spawning more
 			if (g_horde_local.num_to_spawn > 0) {
 				g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
 				g_horde_local.num_to_spawn = 0;
@@ -4287,12 +4295,14 @@ static edict_t* SpawnMonsters() {
 
 				--g_horde_local.num_to_spawn;
 				++g_totalMonstersInWave;
-
 				last_spawned = monster;
 
-				// Only decrement queued monsters if spawn was successful
-				if (g_horde_local.queued_monsters > 0) {
+				// IMPORTANT: Only decrement queued monsters if we've already used up
+				// all regular num_to_spawn monsters and are now spawning from the queue
+				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0) {
 					--g_horde_local.queued_monsters;
+					// Immediately add one back to num_to_spawn so the loop continues
+					++g_horde_local.num_to_spawn;
 				}
 			}
 			else {
@@ -4819,13 +4829,13 @@ void Horde_RunFrame() {
 			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
 
 			// IMPROVED: Calculate the warm time with validation
-			gtime_t calculated_warm_time = currentTime + random_time(4_sec, 6_sec);
+			gtime_t calculated_warm_time = currentTime + 1.5_sec;
 
 			// Validate the warm time makes sense
 			if (calculated_warm_time <= currentTime ||
-				(calculated_warm_time - currentTime) > 10_sec) {
+				(calculated_warm_time - currentTime) > 7_sec) {
 				// Fallback to a guaranteed safe value
-				calculated_warm_time = currentTime + 4_sec;
+				calculated_warm_time = currentTime + 3_sec;
 
 				if (developer->integer) {
 					gi.Com_PrintFmt("WARNING: warm_time calculation failed, using fallback\n");
@@ -4846,7 +4856,7 @@ void Horde_RunFrame() {
 			g_horde_local.state = horde_state_t::rest;
 
 			// IMPORTANT: Reset monster_spawn_time to avoid instant transitions
-			g_horde_local.monster_spawn_time = currentTime + 10_sec; // Just a safety value
+			g_horde_local.monster_spawn_time = currentTime + 5_sec; // Just a safety value
 
 			// CRITICAL FIX: Reset all other timers that might interfere
 			g_independent_timer_start = currentTime;
@@ -4884,10 +4894,11 @@ void Horde_RunFrame() {
 
 			AnnounceIncomingWave(3_sec); // Announce the incoming wave
 			g_horde_local.state = horde_state_t::spawning;
+			g_horde_local.monster_spawn_time = currentTime + 1.5_sec;
 			Horde_InitLevel(g_horde_local.level + 1);
 		}
 		break;
-	} // End of switch
+	}
 
 	// Cleanup logic (moved outside the switch)
 	if (waveEnded) {
