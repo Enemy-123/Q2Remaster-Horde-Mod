@@ -801,7 +801,7 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
 
-static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
+void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	using namespace HordeConstants;
 
 	// Base count determination using explicit conditions
@@ -827,7 +827,15 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 
 	// Player count adjustment
 	if (humanPlayers > 1) {
-		baseCount = static_cast<int32_t>(baseCount * (BASE_DIFFICULTY_MULTIPLIER + ((humanPlayers - 1) * PLAYER_COUNT_SCALE)));
+		// Use int64_t for the scaled result to prevent overflow
+		int64_t scaledBaseCount = static_cast<int64_t>(baseCount) *
+			(BASE_DIFFICULTY_MULTIPLIER + ((humanPlayers - 1) * PLAYER_COUNT_SCALE));
+
+		// Clamp the scaledBaseCount to prevent exceeding int32_t max
+		scaledBaseCount = std::min(scaledBaseCount, static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
+
+		// Assign back to baseCount safely
+		baseCount = static_cast<int32_t>(scaledBaseCount);
 	}
 
 	// Additional spawn calculation
@@ -860,7 +868,15 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	// Player count difficulty scaling
 	const float difficultyMultiplier = BASE_DIFFICULTY_MULTIPLIER + (humanPlayers - 1) * DIFFICULTY_PLAYER_FACTOR;
 	if (lvl % 3 == 0) {
-		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
+		// To prevent baseCount from exceeding the maximum value of int32_t after multiplication,
+		// use int64_t to hold the temporary result
+		int64_t tempBaseCount = static_cast<int64_t>(baseCount) * difficultyMultiplier;
+
+		// Ensure we don't exceed the maximum value of int32_t
+		tempBaseCount = std::min(tempBaseCount, static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
+
+		// Assign the safely scaled value back to baseCount
+		baseCount = static_cast<int32_t>(tempBaseCount);
 		SPAWN_POINT_COOLDOWN = std::max(
 			SPAWN_POINT_COOLDOWN - gtime_t::from_sec((mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier),
 			1.0_sec
@@ -869,8 +885,10 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 
 	// Final cooldown clamping
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
+
+	// Calculate num_to_spawn: Clamping the result after addition
 	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
-	ClampNumToSpawn(mapSize);
+	ClampNumToSpawn(mapSize); //  <---- IMPORTANT - This already handles clamping
 
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
@@ -1020,7 +1038,6 @@ inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel);
 
 static void Horde_InitLevel(const int32_t lvl) {
 
-
 	//CleanupStaleCS();
 
 	// Only initialize wave type for non-boss waves
@@ -1039,7 +1056,12 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_independent_timer_start = level.time;
 
 	// Configuración de variables iniciales para el nivel
-	g_totalMonstersInWave = g_horde_local.num_to_spawn;
+	// Verify that we're not somehow about to overflow
+	if (g_horde_local.num_to_spawn > std::numeric_limits<uint16_t>::max())
+		g_horde_local.num_to_spawn = std::numeric_limits<uint16_t>::max();
+
+	g_totalMonstersInWave = static_cast<uint16_t>(g_horde_local.num_to_spawn);
+
 	last_wave_number++;
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
@@ -4345,7 +4367,18 @@ static edict_t* SpawnMonsters() {
 				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
 				--g_horde_local.num_to_spawn;
-				++g_totalMonstersInWave;
+
+				// Check if adding a monster would exceed uint16_t maximum
+				if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+					++g_totalMonstersInWave; // Increment the global counter
+				}
+				else {
+					//Log a warning, but can continue without incrementing this iteration.
+					gi.Com_PrintFmt("WARNING: Max total monsters reached.  Not incrementing.\n");
+					//undo decrement num_to_spawn to not lose track of monsters.
+					++g_horde_local.num_to_spawn;
+
+				}
 				++spawned_count;
 				last_spawned = monster;
 			}
