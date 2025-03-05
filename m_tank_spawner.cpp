@@ -1141,23 +1141,68 @@ mframe_t tank_vanilla_frames_death1[] = {
 };
 MMOVE_T(tank_vanilla_move_death) = { FRAME_death101, FRAME_death132, tank_vanilla_frames_death1, tank_vanilla_dead };
 
-//
+// Modify the filter to have a default constructor and a way to set the commander
+struct commander_spawned_monsters_filter_t {
+	edict_t* commander = nullptr; // Initialize to avoid undefined behavior
+
+	// Add default constructor
+	commander_spawned_monsters_filter_t() = default;
+
+	// Constructor with parameter
+	commander_spawned_monsters_filter_t(edict_t* _commander) : commander(_commander) {}
+
+	inline bool operator()(edict_t* ent) const {
+		// Add null check since we now allow default construction
+		if (!commander)
+			return false;
+
+		return (ent->inuse &&
+			ent->owner == commander &&
+			(ent->monsterinfo.aiflags & AI_SPAWNED_COMMANDER));
+	}
+};
+
+// Simpler approach: create a specialized helper function just for this case
+inline entity_iterable_t<commander_spawned_monsters_filter_t> find_commander_spawns(edict_t* commander, uint32_t start_index) {
+	// Create a global filter that will persist during iteration
+	static commander_spawned_monsters_filter_t filter;
+
+	// Set the commander for this iteration
+	filter.commander = commander;
+
+	// Return the iterable
+	return entity_iterable_t<commander_spawned_monsters_filter_t>(start_index);
+}
+
+// Now in tank_vanilla_die:
 DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	//OnEntityDeath(self);
+	// Find and kill spawned monsters more efficiently
+	uint32_t monster_start_index = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1;
 
-	// Liberar slots de monstruos spawneados
-	for (unsigned int i = 0; i < globals.num_edicts; i++) {
-		edict_t* ent = &g_edicts[i];
-		if (ent->inuse && ent->owner == self && (ent->monsterinfo.aiflags & AI_SPAWNED_COMMANDER))
-		{
-			// Asegúrate de que el monstruo muera
+	// First attempt with our filter
+	int killed_count = 0;
+	for (auto ent : find_commander_spawns(self, monster_start_index)) {
+		ent->health = -999;
+		ent->die(ent, self, self, 999, vec3_origin, mod);
+		killed_count++;
+	}
+
+	// Second pass - failsafe for any monsters that might not have the flags set correctly
+	// Use a more general filter just to be safe
+	for (auto ent : active_monsters()) {
+		if (ent->inuse && ent->owner == self) {
 			ent->health = -999;
 			ent->die(ent, self, self, 999, vec3_origin, mod);
+			killed_count++;
 		}
 	}
 
-	// Resetear el contador de monstruos usados
+	//if (developer->integer && killed_count > 0) {
+	//	gi.Com_PrintFmt("Tank spawner killed {} spawned monsters\n", killed_count);
+	//}
+
+	// Reset used slots
 	self->monsterinfo.monster_used = 0;
 
 	// check for gib
