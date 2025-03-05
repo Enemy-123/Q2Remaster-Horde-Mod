@@ -527,7 +527,6 @@ void ApplyBossEffects(edict_t* boss)
 
 extern void SP_target_earthquake(edict_t* self);
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
-constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
 [[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
@@ -666,9 +665,6 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 // Arrays estáticos a nivel de archivo (fuera de las funciones)
 namespace {
 	constexpr int MAX_ENTITIES = 300;
-	edict_t* g_stubborn_entities[MAX_ENTITIES];
-	edict_t* g_entities_to_process[MAX_ENTITIES];
-	edict_t* g_entities_to_remove[MAX_ENTITIES];
 	edict_t* g_spawn_area_entities[MAX_ENTITIES];  // Para ClearSpawnArea
 }
 

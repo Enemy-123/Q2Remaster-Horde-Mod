@@ -1884,7 +1884,6 @@ struct SelectionCache {
 	}
 };
 static SelectionCache item_cache;
-static SelectionCache monster_cache;
 
 gitem_t* G_HordePickItem() {
 	// Reset cache
@@ -3471,7 +3470,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	// Cache values used frequently for better performance
 	const gtime_t currentTime = level.time;
 
-	// Early return for complete victory
+	// Early return for complete victory - check this first for fastest response
 	if (allowWaveAdvance || Horde_AllMonstersDead()) {
 		reason = WaveEndReason::AllMonstersDead;
 		ResetWaveAdvanceState();
@@ -3486,15 +3485,16 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	// Transition logic for wave deployment - improved state handling
 	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
-		// DON'T reset the independent timer - REMOVE THIS LINE: g_independent_timer_start = currentTime;
+		// RESTORE THIS LINE: Reset the independent timer when deployment completes
+		g_independent_timer_start = currentTime;
 
-		// Only set the condition timer
+		// Set the condition timer
 		g_horde_local.waveEndTime = currentTime + g_lastParams.timeThreshold;
 		g_horde_local.conditionTriggered = true;
 		g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
 
 		if (developer->integer) {
-			gi.Com_PrintFmt("Debug: Timer set after wave deployment. New condition end time: {:.2f}s\n",
+			gi.Com_PrintFmt("Debug: Timer reset after wave deployment. New end time: {:.2f}s\n",
 				g_lastParams.timeThreshold.seconds());
 		}
 	}
@@ -3517,7 +3517,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	// Aggressive time reduction for very few monsters - optimized checks
 	if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION && g_horde_local.waveEndTime > 0_sec) {
 		// Simplified condition with direct computation
-		const gtime_t reduction = remainingMonsters <= 4 ?
+		const gtime_t reduction = remainingMonsters <= 2 ?
 			30_sec : // Force 30 sec max for 0-2 monsters
 			AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
 
@@ -3532,7 +3532,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
-	// Improved phantom monster detection - more robust verification
+	// Improved phantom monster detection - more robust and responsive
 	static gtime_t last_verification_time = 0_sec;
 	static int no_monster_verifications = 0;
 
@@ -3553,9 +3553,10 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			no_monster_verifications++;
 
 			// After a few consecutive empty checks, force completion
-			if (no_monster_verifications >= 5) { // 5 seconds with no monsters found
+			// Reduced from 5 to 3 seconds for more responsiveness
+			if (no_monster_verifications >= 3) {
 				if (developer->integer)
-					gi.Com_PrintFmt("No valid monsters found for 5s. Fixing counters.\n");
+					gi.Com_PrintFmt("No valid monsters found for 3s. Fixing counters.\n");
 
 				// Fix counters and force wave completion
 				level.killed_monsters = level.total_monsters;
@@ -3571,10 +3572,9 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	// Condition trigger logic - calculate percentage only if needed
 	if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
-		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
-
-		// Optimize percentage calculation - only calculate if needed
+		// Calculate percentage remining only when needed
 		float percentageRemaining = 0.0f;
+		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
 		const bool lowPercentageReached = [&]() {
 			if (!maxMonstersReached && g_totalMonstersInWave > 0) {
 				percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
@@ -3629,9 +3629,14 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
+	// Final safety check - if zero monsters but somehow we got here
+	if (remainingMonsters == 0) {
+		reason = WaveEndReason::AllMonstersDead;
+		return true;
+	}
+
 	return false;
 }
-
 void ValidateMonsterCount() {
 	// Only run periodically to reduce overhead
 	static gtime_t last_check_time = 0_sec;
