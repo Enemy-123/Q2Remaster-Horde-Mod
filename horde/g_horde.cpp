@@ -4197,25 +4197,50 @@ static edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
 
-	// Cache for spawn points
-	static std::vector<edict_t*> available_spawns;
-	available_spawns.clear();
+	// Keep static cache but simplify it
+	static struct {
+		std::vector<edict_t*> available_spawns;
+		size_t batch_count = 0;
+	} spawn_cache;
 
-	// Get map constraints - do this once
+	spawn_cache.available_spawns.clear();
+
+	// Cache map constraints
 	const MapSize& mapSize = g_horde_local.current_map_size;
+	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-	// Use the adjusted monster cap
-	const int32_t maxMonsters = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
-		(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-			(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
-
-	// Get current monster count
+	// Early exit checks
 	const int32_t activeMonsters = CalculateRemainingMonsters();
-
-	// Exit immediately if at or above cap
-	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0) {
+	if (activeMonsters >= maxMonsters)
 		return nullptr;
+
+	// If we have no monsters to spawn but have queued monsters, transfer some
+	if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0) {
+		// Calculate how many we can spawn this batch
+		const int32_t availableSpace = maxMonsters - activeMonsters;
+		const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
+		const int32_t transferAmount = std::min({ g_horde_local.queued_monsters, availableSpace, base_spawn });
+
+		if (transferAmount > 0) {
+			g_horde_local.num_to_spawn += transferAmount;
+			g_horde_local.queued_monsters -= transferAmount;
+
+			if (developer->integer) {
+				gi.Com_PrintFmt("Queue: Transferred {} monsters to spawn pool\n", transferAmount);
+			}
+		}
 	}
+
+	// If after transfer we still have nothing to spawn, exit
+	if (g_horde_local.num_to_spawn <= 0)
+		return nullptr;
+
+	// Calculate spawn counts
+	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
+	const int32_t monsters_per_spawn = std::min(g_horde_local.num_to_spawn,
+		std::min(base_spawn, maxMonsters - activeMonsters));
+	const int32_t spawnable = std::max(1, monsters_per_spawn); // Always spawn at least 1
 
 	// Pre-collect valid spawn points
 	SpawnMonsterFilter filter{ level.time };
@@ -4223,11 +4248,11 @@ static edict_t* SpawnMonsters() {
 
 	for (edict_t* point : spawnPoints) {
 		if (filter(point)) {
-			available_spawns.push_back(point);
+			spawn_cache.available_spawns.push_back(point);
 		}
 	}
 
-	if (available_spawns.empty())
+	if (spawn_cache.available_spawns.empty())
 		return nullptr;
 
 	// Spawn logic
@@ -4235,34 +4260,18 @@ static edict_t* SpawnMonsters() {
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	// Track how many we've actually spawned to enforce the cap
-	int spawnsAttempted = 0;
-	const int maxAttempts = 6; // Limit attempts to avoid excessive checking
-
-	while (spawnsAttempted < maxAttempts && g_horde_local.num_to_spawn > 0) {
-		// Check monster count before EACH spawn attempt
-		const int32_t currentMonsters = CalculateRemainingMonsters();
-		if (currentMonsters >= maxMonsters) {
-			// Queue the remaining monsters instead of spawning more
-			if (g_horde_local.num_to_spawn > 0) {
-				g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
-				g_horde_local.num_to_spawn = 0;
-			}
-			break;
-		}
-
-		spawnsAttempted++;
-
-		// Get random spawn point
-		if (available_spawns.empty())
+	int32_t spawned_count = 0;
+	for (int32_t i = 0; i < spawnable && g_horde_local.num_to_spawn > 0; ++i) {
+		// Get random spawn point from pre-collected points
+		if (spawn_cache.available_spawns.empty())
 			break;
 
-		size_t spawn_idx = irandom(available_spawns.size());
-		edict_t* spawn_point = available_spawns[spawn_idx];
+		size_t spawn_idx = irandom(spawn_cache.available_spawns.size());
+		edict_t* spawn_point = spawn_cache.available_spawns[spawn_idx];
 
 		// Remove used spawn point and update cooldown
-		available_spawns[spawn_idx] = available_spawns.back();
-		available_spawns.pop_back();
+		spawn_cache.available_spawns[spawn_idx] = spawn_cache.available_spawns.back();
+		spawn_cache.available_spawns.pop_back();
 
 		spawnPointsData[spawn_point].teleport_cooldown = level.time + 1.5_sec;
 
@@ -4274,8 +4283,8 @@ static edict_t* SpawnMonsters() {
 			monster->classname = monster_classname;
 			monster->s.origin = G_ProjectSource(spawn_point->s.origin,
 				vec3_t{ 0, 0, 8 },
-				vec3_t{ 1, 0, 0 },
-				vec3_t{ 0, 1, 0 });
+				vec3_t{ 1,0,0 },
+				vec3_t{ 0,1,0 });
 			monster->s.angles = spawn_point->s.angles;
 			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
@@ -4295,20 +4304,19 @@ static edict_t* SpawnMonsters() {
 
 				--g_horde_local.num_to_spawn;
 				++g_totalMonstersInWave;
+				++spawned_count;
 				last_spawned = monster;
-
-				// IMPORTANT: Only decrement queued monsters if we've already used up
-				// all regular num_to_spawn monsters and are now spawning from the queue
-				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0) {
-					--g_horde_local.queued_monsters;
-					// Immediately add one back to num_to_spawn so the loop continues
-					++g_horde_local.num_to_spawn;
-				}
 			}
 			else {
 				G_FreeEdict(monster);
 			}
 		}
+	}
+
+	// Debug output to track spawning behavior
+	if (developer->integer && spawned_count > 0) {
+		gi.Com_PrintFmt("Spawned {} monsters, {} remaining to spawn, {} in queue\n",
+			spawned_count, g_horde_local.num_to_spawn, g_horde_local.queued_monsters);
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
@@ -4746,33 +4754,49 @@ void Horde_RunFrame() {
 		break;
 
 	case horde_state_t::spawning: {
-		// Fast independent time check
+		// Independent time limit check for faster exit
 		const gtime_t independentTimeLimit = g_independent_timer_start + g_lastParams.independentTimeThreshold;
-		if (currentTime >= independentTimeLimit) {
+		if (level.time >= independentTimeLimit) {
 			currentWaveEndReason = WaveEndReason::TimeLimitReached;
 			waveEnded = true;
 			break;
 		}
 
-		if (g_horde_local.monster_spawn_time <= currentTime) {
-			// Boss wave check
+		if (g_horde_local.monster_spawn_time <= level.time) {
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
 
-			// IMPROVED: Only spawn if below cap and have monsters to spawn
-			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
-				SpawnMonsters();
+			const int32_t activeMonsters = CalculateRemainingMonsters();
+			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-				// ADDED: Verify cap after spawning
-				if (CalculateRemainingMonsters() > maxMonsters && developer->integer) {
-					gi.Com_PrintFmt("WARNING: Monster cap exceeded: {}/{}\n",
-						CalculateRemainingMonsters(), maxMonsters);
+			// Check if we can spawn monsters
+			if (activeMonsters < maxMonsters) {
+				// First ensure we have monsters to spawn
+				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0) {
+					// Transfer monsters from queue to num_to_spawn
+					const int32_t available_slots = maxMonsters - activeMonsters;
+					const int32_t transfer_amount = std::min(g_horde_local.queued_monsters, available_slots);
+
+					if (transfer_amount > 0) {
+						g_horde_local.num_to_spawn += transfer_amount;
+						g_horde_local.queued_monsters -= transfer_amount;
+
+						if (developer->integer) {
+							gi.Com_PrintFmt("Transferred {} monsters from queue to spawn\n", transfer_amount);
+						}
+					}
+				}
+
+				// Now try to spawn if we have monsters available
+				if (g_horde_local.num_to_spawn > 0) {
+					SpawnMonsters();
 				}
 			}
 
-			// Check for wave completion
-			if (g_horde_local.num_to_spawn == 0) {
+			// Only transition to active_wave if BOTH num_to_spawn AND queued_monsters are 0
+			if (g_horde_local.num_to_spawn == 0 && g_horde_local.queued_monsters == 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
 					gi.LocBroadcast_Print(PRINT_CENTER,
@@ -4806,18 +4830,14 @@ void Horde_RunFrame() {
 		if (g_horde_local.monster_spawn_time <= currentTime) {
 			// Only attempt spawn if we have room under the cap and queued monsters
 			if (activeMonsters < maxMonsters && g_horde_local.queued_monsters > 0) {
-				// Calculate space available under the cap
-				const int32_t availableSpace = maxMonsters - activeMonsters;
+				// Any available space is good enough - remove the restrictive condition
+				g_horde_local.num_to_spawn = 1;  // Force at least one monster to spawn from queue
+				SpawnMonsters();
 
-				// If significant space is available, spawn more
-				if (availableSpace >= 3 || (availableSpace > 0 && g_horde_local.queued_monsters > 10)) {
-					SpawnMonsters();
-
-					// ADDED: Verify cap wasn't exceeded
-					if (CalculateRemainingMonsters() > maxMonsters && developer->integer) {
-						gi.Com_PrintFmt("WARNING: Monster cap exceeded during queue processing: {}/{}\n",
-							CalculateRemainingMonsters(), maxMonsters);
-					}
+				// Debug verification remains the same
+				if (CalculateRemainingMonsters() > maxMonsters && developer->integer) {
+					gi.Com_PrintFmt("WARNING: Monster cap exceeded during queue processing: {}/{}\n",
+						CalculateRemainingMonsters(), maxMonsters);
 				}
 			}
 		}
