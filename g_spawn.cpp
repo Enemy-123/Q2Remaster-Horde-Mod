@@ -632,63 +632,46 @@ static constexpr MonsterReplacement hardcoop_replacements[] = {
 //static constexpr size_t INSANE_COUNT = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 
 // Función modernizada para aplicar reemplazos
-static void perform_replacement(edict_t* ent, std::span<const MonsterReplacement> replacements, float prob) {
-	if (!ent || !ent->classname)
-		return;
+static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement> replacements, float prob) {
+	if (!ent || !ent->classname) {
+		return false;
+	}
 
 	for (const auto& repl : replacements) {
-		if (repl.original != ent->classname)
+		if (repl.original != ent->classname) {
 			continue;
+		}
 
-		if (repl.replacement_count == 0)
-			continue;
+		if (repl.replacement_count == 0) {
+			continue; // No replacement available
+		}
 
-		// Usar std::span para acceder a los reemplazos disponibles
+		// Use std::span for available replacements
 		std::span<const char* const> available_replacements(repl.replacements.data(), repl.replacement_count);
 
+		if (available_replacements.empty()) {
+			return false; // No valid replacements in this set
+		}
+
 		if (available_replacements.size() > 1) {
-			size_t index = irandom(available_replacements.size());
+			//Ensure it's within bounds, just in case.
+			size_t index = irandom(0, available_replacements.size() - 1);
+			ent->classname = G_CopyString(available_replacements[index], TAG_LEVEL);
 
-			if (index < available_replacements.size()) {
-				ent->classname = G_CopyString(available_replacements[index], TAG_LEVEL);
-
-				// Check de probabilidad de bonus
-				if (frandom() < prob) {
-					const float roll = frandom();
-					int flag;
-
-					// Usando constexpr array para los rangos de probabilidad
-					constexpr std::array thresholds = { 0.20f, 0.35f, 0.45f, 0.70f, 0.80f };
-
-					if (roll < thresholds[0])
-						flag = BF_CHAMPION;
-					else if (roll < thresholds[1])
-						flag = BF_CORRUPTED;
-					else if (roll < thresholds[2])
-						flag = BF_RAGEQUITTER;
-					else if (roll < thresholds[3])
-						flag = BF_BERSERKING;
-					else if (roll < thresholds[4])
-						flag = BF_POSSESSED;
-					else
-						flag = BF_STYGIAN;
-
-					ent->monsterinfo.bonus_flags = flag;
-
-					if (ent->monsterinfo.IS_BOSS)
-						ApplyBossEffects(ent);
-					else
-						ApplyMonsterBonusFlags(ent);
-				}
+			// Bonus effect application
+			if (frandom() < prob) {
+				ApplyMonsterBonusFlags(ent);
 			}
 		}
-		else if (repl.replacement_count == 1) {
+		else {
 			ent->classname = G_CopyString(available_replacements[0], TAG_LEVEL);
 		}
-		return;
-	}
-}
 
+		return true; // Replacement occurred
+	}
+
+	return false; // No replacement found
+}
 
 /*
 ===============
