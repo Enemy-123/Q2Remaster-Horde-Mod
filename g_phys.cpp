@@ -52,21 +52,50 @@ contents_t G_GetClipMask(edict_t* ent)
 	mask &= ~CONTENTS_AREAPORTAL;
 
 	// horde mode - Solo proceder si es necesario
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER)
-		//keeping the monster "walls" solid for q2ctf4
-		&& strcmp(ent->classname, "monster_boss3_stand")
-		&& strcmp(ent->classname, "misc_eastertank")
-		&& strcmp(ent->classname, "misc_easterchick")
-		&& strcmp(ent->classname, "misc_easterchick2")
-		&& strcmp(ent->classname, "monster_commander_body")
-		&& strcmp(ent->classname, "misc_bigviper"))
+// horde mode optimization
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
 	{
-		// Usando std::span podríamos optimizar el trace si tuviéramos acceso a los arrays internos
-		// Por ahora optimizamos el trace existente
-		if (auto* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
-			other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
-		{
-			mask &= ~CONTENTS_MONSTER;
+		// Fast path: check for excluded monster types first
+		// Using a switch on the first character for faster filtering
+		char first_char = ent->classname[0];
+		bool excluded = false;
+
+		if (first_char == 'm') {
+			if (!strcmp(ent->classname + 1, "onster_boss3_stand") ||
+				!strcmp(ent->classname + 1, "isc_eastertank") ||
+				!strcmp(ent->classname + 1, "isc_easterchick") ||
+				!strcmp(ent->classname + 1, "isc_easterchick2") ||
+				!strcmp(ent->classname + 1, "onster_commander_body") ||
+				!strcmp(ent->classname + 1, "isc_bigviper"))
+				excluded = true;
+		}
+
+		if (!excluded) {
+			// Use your iterables to check nearby monsters first
+			// Only perform the expensive trace if potentially colliding
+			float radius = (ent->maxs - ent->mins).length() * 0.5f;
+			bool potential_collision = false;
+
+			for (auto* other : active_monsters()) {
+				if (other != ent && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other)) {
+					// Quick AABB overlap test before trace
+					if (ent->absmin[0] <= other->absmax[0] && ent->absmax[0] >= other->absmin[0] &&
+						ent->absmin[1] <= other->absmax[1] && ent->absmax[1] >= other->absmin[1] &&
+						ent->absmin[2] <= other->absmax[2] && ent->absmax[2] >= other->absmin[2]) {
+						potential_collision = true;
+						break;
+					}
+				}
+			}
+
+			// Only do the expensive trace if there's a potential collision
+			if (potential_collision) {
+				if (auto* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
+					other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
+				{
+					mask &= ~CONTENTS_MONSTER;
+				}
+			}
 		}
 	}
 
