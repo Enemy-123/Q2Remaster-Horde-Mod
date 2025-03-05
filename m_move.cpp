@@ -170,13 +170,13 @@ inline bool SV_flystep_testvisposition(vec3_t start, vec3_t end, vec3_t starta, 
  * Uses ray-casting to find the best direction for a flying monster to move
  * Considers both obstacle avoidance and alignment with the target position
  */
-vec3_t GetBestFlyingDirection(edict_t* ent, vec3_t target_pos, float probe_distance)
+vec3_t GetBestFlyingDirection(edict_t* ent, const vec3_t& target_pos, float probe_distance)
 {
 	const int rays_horizontal = 8;
 	const int rays_vertical = 5;
 	float best_score = -1;
 	vec3_t best_dir = vec3_origin;
-	vec3_t to_target = (target_pos - ent->s.origin).normalized();
+	vec3_t to_target = safe_normalized(target_pos - ent->s.origin);
 
 	for (int v = 0; v < rays_vertical; v++) {
 		float pitch = ((float)v / (rays_vertical - 1) - 0.5f) * PIf;
@@ -190,16 +190,15 @@ vec3_t GetBestFlyingDirection(edict_t* ent, vec3_t target_pos, float probe_dista
 				cos_pitch * sinf(yaw),
 				sinf(pitch)
 			};
+			ray_dir.normalize();
 
 			trace_t ray = gi.traceline(ent->s.origin,
 				ent->s.origin + (ray_dir * probe_distance),
 				ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
-			// Score based on direction clearance and alignment to target
+			// Score based on direction clearance and alignment with target
 			float distance = ray.fraction * probe_distance;
 			float alignment = ray_dir.dot(to_target);
-
-			// Prioritize directions with good clearance that somewhat align with target
 			float score = distance * (0.6f + 0.4f * max(0.0f, alignment));
 
 			if (score > best_score) {
@@ -209,14 +208,13 @@ vec3_t GetBestFlyingDirection(edict_t* ent, vec3_t target_pos, float probe_dista
 		}
 	}
 
-	return best_dir;
+	return is_valid_vector(best_dir) ? best_dir : vec3_origin;
 }
 
 /**
  * Enhanced version of SV_alternate_flystep with improved obstacle detection,
  * stuck handling, and spatial awareness for flying monsters
  */
-
 static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_bad)
 {
 	// Constants for stuck detection
@@ -239,15 +237,13 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	vec3_t towards_origin, towards_velocity = {};
 
 	float current_speed;
-	vec3_t dir = ent->velocity.normalized(current_speed);
+	vec3_t dir = safe_normalized(ent->velocity);
+	current_speed = ent->velocity.length();
 
-	// FIXME
-	if (isnan(dir[0]) || isnan(dir[1]) || isnan(dir[2]))
-	{
-#if defined(_DEBUG) && defined(_WIN32)
-		__debugbreak();
-#endif
-		return false;
+	// If we have an invalid velocity direction, reset it
+	if (!is_valid_vector(dir)) {
+		dir = vec3_origin;
+		current_speed = 0;
 	}
 
 	// Determine target position based on AI flags and enemy state
@@ -295,16 +291,16 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	if (!tr.allsolid)
 		wanted_pos = tr.endpos;
 
-	float dist_to_wanted;
 	vec3_t dest_diff = (wanted_pos - ent->s.origin);
 
 	if (dest_diff.z > ent->mins.z && dest_diff.z < ent->maxs.z)
 		dest_diff.z = 0;
 
-	vec3_t wanted_dir = dest_diff.normalized(dist_to_wanted);
+	float dist_to_wanted = dest_diff.length();
+	vec3_t wanted_dir = safe_normalized(dest_diff);
 
 	if (!(ent->monsterinfo.aiflags & AI_MANUAL_STEERING))
-		ent->ideal_yaw = vectoyaw((towards_origin - ent->s.origin).normalized());
+		ent->ideal_yaw = vectoyaw(safe_normalized(towards_origin - ent->s.origin));
 
 	// check if we're blocked from moving this way from where we are
 	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
@@ -334,11 +330,12 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 			else if (level.time - ent->monsterinfo.trail_time > STUCK_TIME_LIMIT) {
 				// We've been stuck for too long, need advanced recovery
 				// Force a new recovery direction with vertical bias
-				ent->monsterinfo.fly_recovery_dir = vec3_t{
-					crandom(),
-					crandom(),
-					crandom() * 2.0f  // More vertical variation
-				}.normalized();
+				vec3_t recovery_dir;
+				recovery_dir.x = crandom();
+				recovery_dir.y = crandom();
+				recovery_dir.z = crandom() * 2.0f;  // More vertical variation
+				recovery_dir.normalize();
+				ent->monsterinfo.fly_recovery_dir = recovery_dir;
 
 				// Force a significant velocity change
 				ent->velocity = ent->monsterinfo.fly_recovery_dir * ent->monsterinfo.fly_speed;
@@ -377,7 +374,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 
 			if (path_check.fraction > 0.6f) {
 				// We have a clear path to a previous successful position
-				wanted_dir = (ent->monsterinfo.last_sighting - ent->s.origin).normalized();
+				wanted_dir = safe_normalized(ent->monsterinfo.last_sighting - ent->s.origin);
 				ent->monsterinfo.fly_pinned = false;
 			}
 		}
@@ -443,9 +440,8 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 				}
 			}
 
-			if (best_dir_score > 0) {
+			if (best_dir_score > 0 && is_valid_vector(best_avoid_dir)) {
 				wanted_dir = best_avoid_dir;
-				wanted_dir.normalize();
 			}
 			else {
 				// Last resort - use ray-casting for advanced spatial awareness
@@ -471,15 +467,12 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	else
 		turn_factor = min(1.f, 0.84f + (0.08f * (current_speed / ent->monsterinfo.fly_speed)));
 
-	vec3_t final_dir = dir ? dir : wanted_dir;
+	vec3_t final_dir = dir.lengthSquared() > 0.0f ? dir : wanted_dir;
 
-	// FIXME
-	if (isnan(final_dir[0]) || isnan(final_dir[1]) || isnan(final_dir[2]))
-	{
-#if defined(_DEBUG) && defined(_WIN32)
-		__debugbreak();
-#endif
-		return false;
+	// Check for invalid direction vector
+	if (!is_valid_vector(final_dir)) {
+		final_dir = wanted_dir.lengthSquared() > 0.1f ? wanted_dir : vec3_t{ 0, 0, 1 };
+		final_dir.normalize();
 	}
 
 	// swimming monsters don't exit water voluntarily, and
@@ -518,11 +511,18 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 			}
 
 			if (surface_normal.lengthSquared() > 0.5f) {
-				ent->monsterinfo.fly_recovery_dir = surface_normal.normalized();
+				vec3_t norm = surface_normal;
+				norm.normalize();
+				ent->monsterinfo.fly_recovery_dir = norm;
 			}
 			else {
 				// Fall back to random if we couldn't determine surface
-				ent->monsterinfo.fly_recovery_dir = vec3_t{ crandom(), crandom(), ent->flags & FL_FLY ? 1.0f : -1.0f }.normalized();
+				vec3_t recovery_dir;
+				recovery_dir.x = crandom();
+				recovery_dir.y = crandom();
+				recovery_dir.z = ent->flags & FL_FLY ? 1.0f : -1.0f;
+				recovery_dir.normalize();
+				ent->monsterinfo.fly_recovery_dir = recovery_dir;
 			}
 
 			ent->monsterinfo.fly_recovery_time = level.time + 1_sec;
@@ -531,7 +531,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		wanted_dir = ent->monsterinfo.fly_recovery_dir;
 	}
 
-	if (dir && turn_factor > 0)
+	if (dir.lengthSquared() > 0.0f && turn_factor > 0)
 		final_dir = slerp(dir, wanted_dir, 1.0f - turn_factor).normalized();
 
 	// the closer we are to the wanted position, we want to slow
@@ -544,7 +544,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	{
 		// Paril: only do this correction if we are following paths. we want to move backwards
 		// away from players.
-		if (following_paths && dir && wanted_dir.dot(dir) < -0.25)
+		if (following_paths && dir.lengthSquared() > 0.0f && wanted_dir.dot(dir) < -0.25)
 			speed_factor = 0.f;
 		else
 			speed_factor = 1.f;
@@ -572,14 +572,17 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	else if (current_speed < wanted_speed)
 		current_speed = min(wanted_speed, current_speed + accel);
 
-	// FIXME
-	if (isnan(final_dir[0]) || isnan(final_dir[1]) || isnan(final_dir[2]) ||
-		isnan(current_speed))
-	{
-#if defined(_DEBUG) && defined(_WIN32)
-		__debugbreak();
-#endif
-		return false;
+	// Final check for invalid direction
+	if (!is_valid_vector(final_dir)) {
+		// Emergency recovery - use a safe direction
+		float yaw_rad = ent->s.angles[YAW] * (PIf * 2 / 360);
+		vec3_t safe_dir;
+		safe_dir.x = cosf(yaw_rad);
+		safe_dir.y = sinf(yaw_rad);
+		safe_dir.z = 0;
+		safe_dir.normalize();
+		final_dir = safe_dir;
+		current_speed = ent->monsterinfo.fly_speed * 0.5f;
 	}
 
 	// commit
@@ -588,7 +591,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// for buzzards, set their pitch
 	if (ent->enemy && (ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC)))
 	{
-		vec3_t d = (ent->s.origin - towards_origin).normalized();
+		vec3_t d = safe_normalized(ent->s.origin - towards_origin);
 		d = vectoangles(d);
 		ent->s.angles[PITCH] = LerpAngle(ent->s.angles[PITCH], -d[PITCH], gi.frame_time_s * 4.0f);
 	}
@@ -598,7 +601,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	return true;
 }
 
-// flying monsters don't step up
+
 /**
  * Enhanced version of SV_flystep that delegates to our improved SV_alternate_flystep
  * and adds an additional layer of stuck detection and recovery
@@ -627,6 +630,8 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	// Find the direction with most space
 	for (int i = 0; i < 6; i++) {
 		vec3_t test_dir = test_dirs[i];
+		test_dir.normalize(); // Ensure unit length
+
 		trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs,
 			ent->s.origin + (test_dir * 512), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
@@ -1244,7 +1249,10 @@ bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 	return true;
 }
 
-static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
+/**
+ * Enhanced version of M_NavPathToGoal with better handling for flying monsters
+ */
+bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 {
 	if (!self || dist <= 0)
 		return false;
@@ -1264,12 +1272,25 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	vec3_t const mon_mins = ground_origin + PLAYER_MINS;
 	vec3_t const mon_maxs = ground_origin + PLAYER_MAXS;
 
-	// Check if we need to recalculate path
+	// Enhanced path recalculation checks
 	const bool path_expired = self->monsterinfo.nav_path_cache_time <= level.time;
 	const bool path_intersecting = self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending &&
 		boxes_intersect(mon_mins, mon_maxs, path_to, path_to);
 
-	if (path_expired || path_intersecting)
+	// Additional check for path viability without using endPoint
+	bool path_still_viable = false;
+	if (!path_expired && !path_intersecting) {
+		// Check if the path's destination is still reasonable
+		// Use firstMovePoint instead of endPoint which doesn't exist
+		float const dist_to_path_end = (self->monsterinfo.nav_path.firstMovePoint - goal).length();
+		path_still_viable = dist_to_path_end < 256.0f;
+
+		// For stuck flying monsters, always recalculate path
+		if (self->flags & FL_FLY && self->monsterinfo.was_stuck)
+			path_still_viable = false;
+	}
+
+	if (path_expired || path_intersecting || !path_still_viable)
 	{
 		PathRequest request;
 
@@ -1279,56 +1300,75 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 		request.start = self->s.origin;
 		request.pathFlags = PathFlags::Walk;
 
-		// Set node search parameters based on actual monster dimensions
-		request.nodeSearch.minHeight = -(height * 1.5f); // Extra margin for slopes/stairs
-		request.nodeSearch.maxHeight = height * 2;       // Extra height for jumps/drops
+		// Enhanced node search parameters based on monster characteristics
+		request.nodeSearch.minHeight = -(height * 2.0f); // More margin for slopes/stairs
+		request.nodeSearch.maxHeight = height * 3;       // Extra height for jumps/drops
 
 		// Debug drawing if enabled
 		if (g_debug_monster_paths->integer == 1)
 			request.debugging.drawTime = gi.frame_time_s;
 
+		// Specialized handling for flying monsters
+		if (self->flags & FL_FLY) {
+			// Flying monsters need a much wider search radius and greater vertical freedom
+			request.nodeSearch.radius = std::max(4096.f, width * 8);
+
+			// Virtually unlimited vertical movement for flying monsters
+			const float vertical_limit = std::max(8192.f, height * 16);
+			request.nodeSearch.maxHeight = vertical_limit;
+			request.nodeSearch.minHeight = vertical_limit;
+
+			// Flying monsters can perform special movement types
+			request.pathFlags |= PathFlags::LongJump | PathFlags::WalkOffLedge;
+
+			// Set very high traversal capabilities
+			request.traversals.jumpHeight = 4096.0f;
+			request.traversals.dropHeight = 4096.0f;
+
+			// For very stuck flying monsters, allow a more direct path
+			// No direct equivalent to IgnoreClip, just use what we have
+			if (self->monsterinfo.was_stuck) {
+				// Use the available flags we have
+				request.pathFlags |= PathFlags::All;
+				request.nodeSearch.radius *= 1.5f;
+			}
+		}
 		// Special handling for specific monster types
-		// Consider using monster dimensions for radius calculation
-		if (!strcmp(self->classname, "monster_guardian") || !strcmp(self->classname, "monster_psxguardian"))
+		else if (!strcmp(self->classname, "monster_guardian") || !strcmp(self->classname, "monster_psxguardian"))
 		{
-			request.nodeSearch.radius = std::max(2048.f, width * 4); // Use width to inform radius
+			request.nodeSearch.radius = std::max(2048.f, width * 4);
 		}
 
-		// Configure movement capabilities
+		// Configure movement capabilities for all monsters
 		if (self->monsterinfo.can_jump || (self->flags & FL_FLY))
 		{
 			if (self->monsterinfo.jump_height)
 			{
 				request.pathFlags |= PathFlags::BarrierJump;
-				// Scale jump height based on monster size
 				request.traversals.jumpHeight = std::min(self->monsterinfo.jump_height, height * 3);
 			}
 			if (self->monsterinfo.drop_height)
 			{
 				request.pathFlags |= PathFlags::WalkOffLedge;
-				// Scale drop height based on monster size
 				request.traversals.dropHeight = std::min(self->monsterinfo.drop_height, height * 4);
 			}
 		}
 
-		// Flying monsters get special treatment
-		if (self->flags & FL_FLY)
-		{
-			// Use monster's actual height for vertical limits
-			const float vertical_limit = std::max(8192.f, height * 8);
-			request.nodeSearch.maxHeight = request.nodeSearch.minHeight = vertical_limit;
-			request.pathFlags |= PathFlags::LongJump;
-		}
-
+		// Try to get a path
 		if (!gi.GetPathToGoal(request, self->monsterinfo.nav_path))
 		{
-			// fatal error, don't bother ever trying nodes
+			// Handle path finding failures
 			if (self->monsterinfo.nav_path.returnCode == PathReturnCode::NoNavAvailable)
 				self->monsterinfo.aiflags |= AI_NO_PATH_FINDING;
+
 			return false;
 		}
 
-		self->monsterinfo.nav_path_cache_time = level.time + 2_sec;
+		// Cache time depends on monster type - shorter for flying monsters to be more responsive
+		if (self->flags & FL_FLY)
+			self->monsterinfo.nav_path_cache_time = level.time + 1_sec;
+		else
+			self->monsterinfo.nav_path_cache_time = level.time + 2_sec;
 	}
 
 	// Store original yaw values for potential restoration
@@ -1336,7 +1376,7 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	const float old_yaw = self->s.angles[YAW];
 	const float old_ideal_yaw = self->ideal_yaw;
 
-	// Calculate movement direction
+	// Enhanced direction calculation logic
 	if (self->monsterinfo.random_change_time >= level.time &&
 		!(self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 	{
@@ -1344,9 +1384,24 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	}
 	else
 	{
-		vec3_t dir = path_to - self->s.origin;
-		dir.normalize();
-		yaw = vectoyaw(dir);
+		// For flying monsters, need better 3D pathing
+		if (self->flags & FL_FLY) {
+			vec3_t dir = path_to - self->s.origin;
+
+			// For vertical movement, adjust the path slightly to prevent oscillations
+			if (fabs(dir.z) > fabs(dir.x) + fabs(dir.y)) {
+				// Mostly vertical movement - add slight horizontal component
+				dir.x += frandom(-4.0f, 4.0f);
+				dir.y += frandom(-4.0f, 4.0f);
+			}
+
+			dir = safe_normalized(dir);
+			yaw = vectoyaw(dir);
+		}
+		else {
+			vec3_t dir = safe_normalized(path_to - self->s.origin);
+			yaw = vectoyaw(dir);
+		}
 	}
 
 	// Try primary movement
@@ -1368,13 +1423,44 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			}
 		}
 
+		// Enhanced blocked recovery with better fall-through options
+
+		// Special handling for flying monsters
+		if (self->flags & FL_FLY) {
+			// Try vertical movement if horizontal movement failed
+			vec3_t up_dir = { 0, 0, 1 };
+			vec3_t down_dir = { 0, 0, -1 };
+
+			// Check which vertical direction has more space
+			trace_t up_trace = gi.trace(self->s.origin, self->mins, self->maxs,
+				self->s.origin + (up_dir * dist), self, MASK_SOLID);
+			trace_t down_trace = gi.trace(self->s.origin, self->mins, self->maxs,
+				self->s.origin + (down_dir * dist), self, MASK_SOLID);
+
+			// Try the better vertical direction
+			if (up_trace.fraction > down_trace.fraction && up_trace.fraction > 0.5f) {
+				if (SV_StepDirection(self, vectoyaw(up_dir), dist, true))
+					return true;
+			}
+			else if (down_trace.fraction > 0.5f) {
+				if (SV_StepDirection(self, vectoyaw(down_dir), dist, true))
+					return true;
+			}
+
+			// Try 8 directions around the monster in 45-degree increments
+			for (int i = 0; i < 8; i++) {
+				float test_yaw = i * 45.0f;
+				if (SV_StepDirection(self, test_yaw, dist, true))
+					return true;
+			}
+		}
+
 		// Try movement to first point
 		if (self->monsterinfo.random_change_time >= level.time)
 			yaw = self->ideal_yaw;
 		else
 		{
-			vec3_t dir = self->monsterinfo.nav_path.firstMovePoint - self->s.origin;
-			dir.normalize();
+			vec3_t dir = safe_normalized(self->monsterinfo.nav_path.firstMovePoint - self->s.origin);
 			yaw = vectoyaw(dir);
 		}
 
@@ -1390,13 +1476,13 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			// Try random direction change
 			if (self->monsterinfo.random_change_time < level.time && self->inuse)
 			{
-				self->monsterinfo.random_change_time = level.time + 1500_ms;
+				self->monsterinfo.random_change_time = level.time + 1000_ms;
 				if (SV_NewChaseDir(self, path_to, dist))
 					return true;
 			}
 
 			// Update blocked counter
-			self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 3;
+			self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 2;
 
 			// Check if we've been blocked too long
 			if (self->monsterinfo.path_blocked_counter > 1.5_sec)
@@ -1406,17 +1492,8 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 
 	return true;
 }
-/*
-=============
-M_MoveToPath
-
-Advanced movement code that use the bots pathfinder if allowed and conditions are right.
-Feel free to add any other conditions needed.
-=============
-*/
 /**
  * Enhanced version of M_MoveToPath with better handling for flying monsters
- * and improved path selection, using existing structure fields
  */
 static bool M_MoveToPath(edict_t* self, float dist)
 {
@@ -1461,7 +1538,7 @@ static bool M_MoveToPath(edict_t* self, float dist)
 
 					// If monster has been stuck, give it a velocity boost along the path
 					if (self->monsterinfo.was_stuck) {
-						vec3_t dir_to_path = (self->monsterinfo.nav_path.firstMovePoint - self->s.origin).normalized();
+						vec3_t dir_to_path = safe_normalized(self->monsterinfo.nav_path.firstMovePoint - self->s.origin);
 						self->velocity = dir_to_path * (self->monsterinfo.fly_speed * 1.2f);
 					}
 
@@ -1487,7 +1564,7 @@ static bool M_MoveToPath(edict_t* self, float dist)
 
 	// Ground-based monster path logic with improved range handling
 	if (visible(self, self->enemy, false)) {
-		float const dist_to_enemy = range_to(self, self->enemy);
+		float const dist_to_enemy = (self->s.origin - self->enemy->s.origin).length();
 		float const height_diff = fabs(self->s.origin.z - self->enemy->s.origin.z);
 		float const max_step_height = max(self->maxs.z, -self->mins.z);
 
