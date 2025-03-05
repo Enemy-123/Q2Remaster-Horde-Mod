@@ -4447,6 +4447,8 @@ static edict_t* SpawnMonsters() {
 			gi.Com_PrintFmt("SpawnMonsters: Already at monster cap ({}/{})\n",
 				directCount, maxMonsters);
 		}
+		// IMPROVED: Cancel all pending spawns to enforce cap
+		g_horde_local.num_to_spawn = 0;
 		return nullptr;
 	}
 
@@ -4459,6 +4461,8 @@ static edict_t* SpawnMonsters() {
 			gi.Com_PrintFmt("SpawnMonsters: No space available, directCount={}, maxMonsters={}\n",
 				directCount, maxMonsters);
 		}
+		// IMPROVED: Cancel all pending spawns
+		g_horde_local.num_to_spawn = 0;
 		return nullptr;
 	}
 
@@ -4501,7 +4505,31 @@ static edict_t* SpawnMonsters() {
 		return nullptr;
 	}
 
-	// Final safety check to prevent exceeding monster cap
+	// IMPROVED: More aggressive safety check to prevent exceeding monster cap
+	// Double-check the current direct count again
+	int32_t currentMonsterCount = 0;
+	for (auto ent : active_monsters()) {
+		if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
+			!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+			currentMonsterCount++;
+			if (currentMonsterCount >= maxMonsters) {
+				// Already at cap, cancel all spawns
+				g_horde_local.num_to_spawn = 0;
+				return nullptr;
+			}
+		}
+	}
+
+	// Recalculate available space
+	availableSpace = maxMonsters - currentMonsterCount;
+
+	// Final safety check - if somehow we got a negative value
+	if (availableSpace <= 0) {
+		g_horde_local.num_to_spawn = 0;
+		return nullptr;
+	}
+
+	// Limit what we can spawn to available space
 	g_horde_local.num_to_spawn = std::min(g_horde_local.num_to_spawn, availableSpace);
 
 	// Calculate batch size for this frame - more aggressive in high waves
@@ -4567,14 +4595,20 @@ static edict_t* SpawnMonsters() {
 	// Spawn loop
 	edict_t* lastSpawned = nullptr;
 	int32_t spawnedCount = 0;
+	int32_t monsterCountBeforeSpawn = currentMonsterCount;
 
 	for (int32_t i = 0; i < toSpawnThisFrame && g_horde_local.num_to_spawn > 0; ++i) {
-		// Double-check we haven't exceeded cap within the loop
-		if (CalculateRemainingMonsters() >= maxMonsters) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("SpawnMonsters: Cap reached mid-spawn, stopping\n");
+		// IMPROVED: More aggressive cap monitoring
+		// Check every few monsters to ensure we haven't exceeded the cap
+		if (i % 3 == 0 && i > 0) {
+			int32_t newCount = CalculateRemainingMonsters();
+			if (newCount >= maxMonsters || (newCount - monsterCountBeforeSpawn) >= toSpawnThisFrame) {
+				if (developer->integer) {
+					gi.Com_PrintFmt("SpawnMonsters: Cap check during spawn, stopping at {}/{}\n",
+						newCount, maxMonsters);
+				}
+				break;
 			}
-			break;
 		}
 
 		// Stop if no more spawn points
@@ -4661,6 +4695,17 @@ static edict_t* SpawnMonsters() {
 		else {
 			// Cleanup failed spawn
 			G_FreeEdict(monster);
+		}
+	}
+
+	// Final cap verification - count one more time
+	if (spawnedCount > 0) {
+		int32_t finalCount = CalculateRemainingMonsters();
+		if (finalCount > maxMonsters) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("WARNING: Monster cap exceeded after spawn: {}/{}\n",
+					finalCount, maxMonsters);
+			}
 		}
 	}
 
@@ -5119,6 +5164,25 @@ void CheckAndFixQueuedMonsters() {
 	}
 }
 
+// Add this function to fix stuck waves
+void ForceWaveCompletion() {
+	if (developer->integer) {
+		gi.Com_PrintFmt("CRITICAL: Forcing wave {} completion due to stalled state\n",
+			current_wave_level);
+	}
+
+	// Force the counter values to match
+	level.killed_monsters = level.total_monsters;
+
+	// Allow wave advance
+	allowWaveAdvance = true;
+
+	// Set state to cleanup
+	g_horde_local.state = horde_state_t::cleanup;
+	g_horde_local.monster_spawn_time = level.time + 0.5_sec;
+}
+
+
 void Horde_RunFrame() {
 	// Cache state variables at the beginning for better performance
 	const MapSize& mapSize = g_horde_local.current_map_size;
@@ -5334,20 +5398,55 @@ void Horde_RunFrame() {
 	case horde_state_t::active_wave: {
 		// ENHANCEMENT: Add failsafe timeout for active_wave state
 		static gtime_t active_state_start = currentTime;
+		static int empty_count_frames = 0; // For counter check
+
 		if (last_state != horde_state_t::active_wave) {
 			active_state_start = currentTime;
+			empty_count_frames = 0;
 		}
 
 		// If stuck in active_wave state too long, force end
-		const gtime_t max_active_time = 4_min;
+		const gtime_t max_active_time = 3_min; // Reduced from 4_min
 		if (currentTime - active_state_start > max_active_time) {
 			if (developer->integer) {
 				gi.Com_PrintFmt("TIMEOUT: Forcing end of active_wave after {}s\n",
 					(currentTime - active_state_start).seconds());
 			}
-			currentWaveEndReason = WaveEndReason::TimeLimitReached;
-			waveEnded = true;
+			ForceWaveCompletion();
 			break;
+		}
+
+		// Check for counter being wrong when no monsters exist
+		const int32_t stroggsCount = GetStroggsNum();
+		if (stroggsCount > 0) {
+			int actualCount = 0;
+			// Do a quick count
+			for (auto ent : active_monsters()) {
+				if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
+					!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+					actualCount++;
+					if (actualCount > 0) break; // We only need to know if any exist
+				}
+			}
+
+			if (actualCount == 0) {
+				// Counter says monsters exist but we found none
+				empty_count_frames++;
+
+				// Only fix after multiple frames to avoid race conditions
+				if (empty_count_frames >= 3) {
+					if (developer->integer) {
+						gi.Com_PrintFmt("COUNTER FIX: Counter says {} monsters but found 0\n",
+							stroggsCount);
+					}
+					ForceWaveCompletion();
+					empty_count_frames = 0;
+					break;
+				}
+			}
+			else {
+				empty_count_frames = 0;
+			}
 		}
 
 		// Fast path for common condition - all monsters dead
@@ -5360,7 +5459,6 @@ void Horde_RunFrame() {
 		// Check for counters being off - if we have 0 monsters alive but counter says otherwise
 		const int32_t counter_alive = level.total_monsters - level.killed_monsters;
 		if (counter_alive > 0 && activeMonsters == 0) {
-			static int counter_mismatch_frames = 0;
 			counter_mismatch_frames++;
 
 			// If this persists for multiple frames, fix it
@@ -5377,7 +5475,7 @@ void Horde_RunFrame() {
 			}
 		}
 		else {
-			static int counter_mismatch_frames = 0;
+			counter_mismatch_frames = 0;
 		}
 
 		// Check wave completion conditions
