@@ -5406,8 +5406,8 @@ void Horde_RunFrame() {
 		else if (currentTime - spawning_start_time > 25_sec) {
 			if (!next_wave_message_sent) {
 				VerifyAndAdjustBots();
-				gi.LocBroadcast_Print(PRINT_CENTER,
-					"\n\n\nWave deployment timeout. Moving to active phase.\n");
+				//gi.LocBroadcast_Print(PRINT_CENTER,
+				//	"\n\n\nWave deployment timeout. Moving to active phase.\n");
 				next_wave_message_sent = true;
 			}
 			g_horde_local.state = horde_state_t::active_wave;
