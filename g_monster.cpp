@@ -869,6 +869,10 @@ void M_ProcessPain(edict_t* e)
 //
 THINK(monster_dead_think) (edict_t* self) -> void
 {
+	// Check for spawning state deaths - only when in horde mode
+	if (g_horde && g_horde->integer) {
+		CheckForMonsterDeathsInSpawningState(self);
+	}
 	// flies
 	if ((self->monsterinfo.aiflags & AI_STINKY) && !(self->monsterinfo.aiflags & AI_STUNK))
 	{

@@ -3420,6 +3420,10 @@ struct edict_t
 	// in g_save.cpp too!
 
 	//Horde stuff
+
+	bool was_spawned_by_horde;
+	bool spawned_in_spawn_state;
+
 	edict_t* laser;
 
 	bool effects_applied = false; // prevention for applying more that 1 time effect for bosses
