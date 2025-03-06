@@ -4572,8 +4572,8 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 			// Force transition to active_wave
 			if (!next_wave_message_sent) {
 				VerifyAndAdjustBots();
-				gi.LocBroadcast_Print(PRINT_CENTER,
-					"\n\n\nWave deployment interrupted. Combat phase activated.\n");
+				//gi.LocBroadcast_Print(PRINT_CENTER,
+				//	"\n\n\nWave deployment interrupted. Combat phase activated.\n");
 				next_wave_message_sent = true;
 			}
 
