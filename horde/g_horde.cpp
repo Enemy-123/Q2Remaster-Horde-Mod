@@ -2355,10 +2355,11 @@ void Horde_PreInit() {
 		gi.cvar_forceset("g_vampire", "0");
 		gi.cvar_forceset("g_ammoregen", "0");
 		gi.cvar_forceset("g_tracedbullets", "0");
+		gi.cvar_forceset("g_energyshells", "0");
 		gi.cvar_forceset("g_bouncygl", "0");
 		gi.cvar_forceset("g_bfgpull", "0");
 		gi.cvar_forceset("g_bfgslide", "1");
-		gi.cvar_forceset("g_improvedchaingun", "0");
+		gi.cvar_forceset("g_energyshells", "0");
 		gi.cvar_forceset("g_autohaste", "0");
 		gi.cvar_forceset("g_chaotic", "0");
 		gi.cvar_forceset("g_insane", "0");
@@ -4004,6 +4005,7 @@ void ResetGame() {
 	gi.cvar_set("g_upgradeproxs", "0");
 	gi.cvar_set("g_piercingbeam", "0");
 	gi.cvar_set("g_tracedbullets", "0");
+	gi.cvar_set("g_energyshells", "0");
 	gi.cvar_set("g_bouncygl", "0");
 	gi.cvar_set("g_bfgpull", "0");
 	gi.cvar_set("g_bfgslide", "1");

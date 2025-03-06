@@ -51,6 +51,13 @@ const benefit_t BENEFITS[MAX_BENEFITS] = {
         "Piercing-PowerShield Bullets!\n",
         "g_tracedbullets", "1",
         9, -1, 0.2f
+    }, 
+   {
+        "Energy Shells",
+        "\n\n\n\nSHELLS\nUPGRADED!\n",
+        "Piercing-PowerShield Shells!\n",
+        "g_energyshells", "1",
+        9, -1, 0.2f
     },
     {
         "Cluster Prox Grenades",

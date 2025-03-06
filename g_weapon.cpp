@@ -120,6 +120,259 @@ void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierc
 	gi.Com_Print("runaway pierce_trace\n");
 }
 
+/*
+=================
+fire_lead_energy
+
+This is a modified version of fire_lead for energy-based weapons.
+Used for implementing energy shells that work like bullets but with energy effects.
+=================
+*/
+
+struct fire_energy_pierce_t : pierce_args_t
+{
+	edict_t* self;
+	vec3_t		 start;
+	vec3_t		 aimdir;
+	int			 damage;
+	int			 kick;
+	int			 hspread;
+	int			 vspread;
+	mod_t		 mod;
+	int			 te_impact;
+	contents_t   mask;
+	bool	     water = false;
+	vec3_t	     water_start = {};
+	edict_t* chain = nullptr;
+
+	inline fire_energy_pierce_t(edict_t* self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, mod_t mod, int te_impact, contents_t mask) :
+		pierce_args_t(),
+		self(self),
+		start(start),
+		aimdir(aimdir),
+		damage(damage),
+		kick(kick),
+		hspread(hspread),
+		vspread(vspread),
+		mod(mod),
+		te_impact(te_impact),
+		mask(mask)
+	{
+	}
+
+	// we hit an entity; return false to stop the piercing.
+	// you can adjust the mask for the re-trace (for water, etc).
+	bool hit(contents_t& mask, vec3_t& end) override
+	{
+		// see if we hit water
+		if (tr.contents & MASK_WATER)
+		{
+			int color;
+
+			water = true;
+			water_start = tr.endpos;
+
+			if (te_impact != -1 && start != tr.endpos)
+			{
+				if (tr.contents & CONTENTS_WATER)
+				{
+					if (strcmp(tr.surface->name, "brwater") == 0)
+						color = SPLASH_BROWN_WATER;
+					else
+						color = SPLASH_BLUE_WATER;
+				}
+				else if (tr.contents & CONTENTS_SLIME)
+					color = SPLASH_SLIME;
+				else if (tr.contents & CONTENTS_LAVA)
+					color = SPLASH_LAVA;
+				else
+					color = SPLASH_UNKNOWN;
+
+				if (color != SPLASH_UNKNOWN)
+				{
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_SPLASH);
+					gi.WriteByte(8);
+					gi.WritePosition(tr.endpos);
+					gi.WriteDir(tr.plane.normal);
+					gi.WriteByte(color);
+					gi.multicast(tr.endpos, MULTICAST_PVS, false);
+				}
+
+				// change energy shot's course when it enters water
+				vec3_t dir, forward, right, up;
+				dir = end - start;
+				dir = vectoangles(dir);
+				AngleVectors(dir, forward, right, up);
+				float const r = crandom() * hspread * 2;
+				float const u = crandom() * vspread * 2;
+				end = water_start + (forward * 8192);
+				end += (right * r);
+				end += (up * u);
+			}
+
+			// re-trace ignoring water this time
+			mask &= ~MASK_WATER;
+			return true;
+		}
+
+		// did we hit a hurtable entity?
+		if (tr.ent->takedamage)
+		{
+			// Apply energy damage instead of bullet damage
+			T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_ENERGY, mod);
+
+			// only deadmonster is pierceable, or actual dead monsters
+			// that haven't been made non-solid yet
+			if ((tr.ent->svflags & SVF_DEADMONSTER) ||
+				(tr.ent->health <= 0 && (tr.ent->svflags & SVF_MONSTER)))
+			{
+				if (!mark(tr.ent))
+					return false;
+
+				return true;
+			}
+		}
+		else
+		{
+			// send energy impact effect
+			// don't mark the sky
+			if (te_impact != -1 && !(tr.surface && ((tr.surface->flags & SURF_SKY) || strncmp(tr.surface->name, "sky", 3) == 0)))
+			{
+				// Use hyperblaster/blaster effect instead of gunshot
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte(TE_BLASTER); // or TE_BLUEHYPERBLASTER for blue effect
+				gi.WritePosition(tr.endpos);
+				gi.WriteDir(tr.plane.normal);
+				gi.multicast(tr.endpos, MULTICAST_PVS, false);
+
+				if (self->client)
+					PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
+			}
+		}
+
+		// hit a solid, so we're stopping here
+		return false;
+	}
+};
+
+/*
+=================
+fire_lead_energy
+
+This is an internal support routine used for energy-based instant hit weapons.
+Similar to bullets but with energy effects and damage.
+=================
+*/
+static void fire_lead_energy(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int te_impact, int hspread, int vspread, mod_t mod)
+{
+	fire_energy_pierce_t args = {
+		self,
+		start,
+		aimdir,
+		damage,
+		kick,
+		hspread,
+		vspread,
+		mod,
+		te_impact,
+		MASK_PROJECTILE | MASK_WATER
+	};
+
+	// [Paril-KEX]
+	if (self->client && !G_ShouldPlayersCollide(true))
+		args.mask &= ~CONTENTS_PLAYER;
+
+	// special case: we started in water.
+	if (gi.pointcontents(start) & MASK_WATER)
+	{
+		args.water = true;
+		args.water_start = start;
+		args.mask &= ~MASK_WATER;
+	}
+
+	// check initial firing position
+	pierce_trace(self->s.origin, start, self, args, args.mask);
+
+	// we're clear, so do the second pierce
+	if (args.tr.fraction == 1.f)
+	{
+		args.restore();
+
+		vec3_t end, dir, forward, right, up;
+		dir = vectoangles(aimdir);
+		AngleVectors(dir, forward, right, up);
+
+		float const r = crandom() * hspread;
+		float const u = crandom() * vspread;
+		end = start + (forward * 8192);
+		end += (right * r);
+		end += (up * u);
+
+		pierce_trace(args.tr.endpos, end, self, args, args.mask);
+	}
+
+	// if went through water, determine where the end is and make a bubble trail
+	if (args.water && te_impact != -1)
+	{
+		vec3_t pos, dir;
+
+		dir = args.tr.endpos - args.water_start;
+		dir.normalize();
+		pos = args.tr.endpos + (dir * -2);
+		if (gi.pointcontents(pos) & MASK_WATER)
+			args.tr.endpos = pos;
+		else
+			args.tr = gi.traceline(pos, args.water_start, args.tr.ent != world ? args.tr.ent : nullptr, MASK_WATER);
+
+		pos = args.water_start + args.tr.endpos;
+		pos *= 0.5f;
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BUBBLETRAIL);
+		gi.WritePosition(args.water_start);
+		gi.WritePosition(args.tr.endpos);
+		gi.multicast(pos, MULTICAST_PVS, false);
+	}
+}
+
+/*
+=================
+fire_energy_bullet
+
+Fires a single energy round. Similar to fire_bullet but with energy effects.
+Used for energy shells bonus.
+=================
+*/
+void fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
+{
+	if (self->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(self);
+	}
+
+	// Use TE_BLASTER for energy impact effect
+	fire_lead_energy(self, start, aimdir, damage, kick, TE_BLASTER, hspread, vspread, mod);
+}
+
+/*
+=================
+fire_energy_shotgun
+
+Shoots energy pellets. Similar to fire_shotgun but with energy effects.
+Used for energy shells bonus for shotguns.
+=================
+*/
+void fire_energy_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
+{
+	if (self->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(self);
+	}
+
+	for (int i = 0; i < count; i++)
+		fire_lead_energy(self, start, aimdir, damage, kick, TE_BLASTER, hspread, vspread, mod);
+}
+
+//normal lead
 struct fire_lead_pierce_t : pierce_args_t
 {
 	edict_t* self;
@@ -348,13 +601,24 @@ void fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int d
 fire_shotgun
 
 Shoots shotgun pellets.  Used by shotgun and super shotgun.
+Now checks for g_energyshells and redirects to fire_energy_shotgun if enabled.
 =================
 */
 void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
 {
+	// Check if energy shells are enabled
+	if (g_energyshells->integer)
+	{
+		// Call the energy version instead
+		fire_energy_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, mod);
+		return;
+	}
+
+	// Original implementation for regular shotgun
 	if (self->svflags & SVF_MONSTER) {
 		damage *= M_DamageModifier(self);
 	}
+
 	for (int i = 0; i < count; i++)
 		fire_lead(self, start, aimdir, damage, kick, TE_SHOTGUN, hspread, vspread, mod);
 }

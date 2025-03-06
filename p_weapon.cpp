@@ -1841,7 +1841,7 @@ void Chaingun_Fire(edict_t* ent)
 
 void Weapon_Chaingun(edict_t* ent)
 {
-	if (g_improvedchaingun->integer) {
+	if (g_energyshells->integer) {
 		constexpr int pause_frames[] = { 0 };
 		Weapon_Repeating(ent, 1, SPINUP_FRAMES + SPINDOWN_FRAMES,
 			SPINUP_FRAMES + SPINDOWN_FRAMES + 1,
@@ -1866,7 +1866,7 @@ void weapon_shotgun_fire(edict_t* ent)
 	int damage;
 	int kick = 8;
 
-	damage = irandom(3, 5);
+	damage = g_energyshells ? irandom(3, 5) : irandom(7, 9);
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir, true);
@@ -1910,7 +1910,7 @@ void weapon_supershotgun_fire(edict_t* ent)
 	int damage;
 	int kick = 17;
 
-	damage = irandom(7, 10);
+damage = g_energyshells ? irandom(7, 10) : irandom(8, 13);
 	//	damage = irandom(8, 13); (vanilla 6)
 
 	if (is_quad)

@@ -1044,7 +1044,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	} AmmoRegenRule;
 
 	// Calculate dynamic amounts based on game settings
-	const int bulletAmount = g_improvedchaingun->integer ? 120 :
+	const int bulletAmount = g_energyshells->integer ? 120 :
 		(g_tracedbullets->integer ? 45 : 30);
 	const int grenadeAmount = g_bouncygl->integer ? 10 : 6;
 	const int cellAmount = g_bfgpull->integer ? 75 : 25;

@@ -163,7 +163,7 @@ cvar_t* g_hardcoop;
 cvar_t* g_ammoregen;
 cvar_t* sv_wave_timer;
 cvar_t* g_tracedbullets;
-cvar_t* g_improvedchaingun;
+cvar_t* g_energyshells;
 cvar_t* g_bouncygl;
 cvar_t* g_bfgpull;
 cvar_t* g_bfgslide;
@@ -411,7 +411,7 @@ void InitGame()
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
 	sv_wave_timer = gi.cvar("sv_wave_timer", "1", CVAR_NOFLAGS);
 	g_tracedbullets = gi.cvar("g_tracedbullets", "1", CVAR_NOFLAGS);
-	g_improvedchaingun = gi.cvar("g_improvedchaingun", "0", CVAR_NOFLAGS);
+	g_energyshells = gi.cvar("g_energyshells", "0", CVAR_NOFLAGS);
 	g_bouncygl = gi.cvar("g_bouncygl", "0", CVAR_NOFLAGS);
 	g_bfgpull = gi.cvar("g_bfgpull", "0", CVAR_NOFLAGS);
 	g_bfgslide = gi.cvar("g_bfgslide", "1", CVAR_NOFLAGS);

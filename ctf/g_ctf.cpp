@@ -2243,7 +2243,7 @@ public:
  */
 std::string GetActiveBonusesString() {
 	// Define mappings from internal names to display names
-	static const std::array<BonusMapping, 10> bonus_mappings = { {
+	static const std::array<BonusMapping, 11> bonus_mappings = { {
 		{"vampire upgraded", "Health & Armor Vampirism"},
 		{"vampire", "Health Vampirism"},
 		{"ammo regen", "Ammo Regen"},
@@ -2253,7 +2253,8 @@ std::string GetActiveBonusesString() {
 		{"Traced-Piercing Bullets", "Traced-Energy Bullets"},
 		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
 		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"},
-		{"Piercing Plasma", "Piercing Plasma-Beam"}
+		{"Piercing Plasma", "Piercing Plasma-Beam"},
+		{"Energy Shells", "Energy Shells"}
 	} };
 
 	// Create bonus name to index lookup for faster lookups
@@ -2816,7 +2817,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0091\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0092\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
