@@ -3527,285 +3527,89 @@ static void ResetRecentBosses() noexcept {
 
 void ResetWaveAdvanceState() noexcept;
 
-static bool CheckRemainingMonstersCondition(WaveEndReason& reason) {
-	// Cache values used frequently for better performance
+static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+	// Cache valores usados frecuentemente
 	const gtime_t currentTime = level.time;
-	const MapSize& mapSize = g_horde_local.current_map_size;
+	const int32_t remainingMonsters = CalculateRemainingMonsters();
 
-	// CRITICAL QUICK WIN CHECK: If allowed to advance or all monsters dead, return immediately
+	// Transición segura del timer cuando se completa el despliegue
+	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
+		// Reiniciar el timer independiente cuando se complete el despliegue
+		g_independent_timer_start = currentTime;
+		g_horde_local.waveEndTime = currentTime + g_lastParams.timeThreshold;
+		g_horde_local.conditionTriggered = true;
+		g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("Debug: Timer reset after wave deployment. New end time: {:.2f}s\n",
+				g_lastParams.timeThreshold.seconds());
+		}
+	}
+
+	// Si el tiempo independiente se alcanza
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
+	}
+
 	if (allowWaveAdvance || Horde_AllMonstersDead()) {
 		reason = WaveEndReason::AllMonstersDead;
 		ResetWaveAdvanceState();
 		return true;
 	}
 
-	// FAST KILL DETECTION: For quick wave completions
-	static gtime_t last_monster_check_time = 0_sec;
-	static int32_t last_monster_count = 0;
-	static int32_t consistent_zero_counts = 0;
+	// Calcular porcentaje una sola vez si se necesita
+	const float percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
 
-	// Direct count monsters - absolutely essential for high waves or fast killing
-	int32_t alive_count = 0;
-	const int32_t counter_alive = level.total_monsters - level.killed_monsters;
-
-	// Only do the full count periodically (performance optimization)
-	if (currentTime - last_monster_check_time >= 0.5_sec || counter_alive <= 5) {
-		for (auto ent : active_monsters()) {
-			if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
-				!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-				alive_count++;
-				// Early exit if we find enough monsters to match the counter
-				if (alive_count >= counter_alive)
-					break;
-			}
-		}
-
-		last_monster_check_time = currentTime;
-
-		// Logic for counters that say monsters remain but direct count shows none
-		if (counter_alive > 0 && alive_count == 0) {
-			consistent_zero_counts++;
-
-			// For wave 15+, trust the direct count more quickly
-			const int required_zero_counts = (current_wave_level >= 15) ? 1 : 2;
-
-			if (consistent_zero_counts >= required_zero_counts) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("COUNTER FIX: Wave {} counter says {} remain but found 0\n",
-						current_wave_level, counter_alive);
-				}
-
-				// Fix counters and force completion
-				level.killed_monsters = level.total_monsters;
-				reason = WaveEndReason::AllMonstersDead;
-				ResetWaveAdvanceState();
-				return true;
-			}
-		}
-		else {
-			consistent_zero_counts = 0;
-		}
-
-		// Track monster count for rate-of-kill detection
-		last_monster_count = alive_count;
-	}
-
-	// INDEPENDENT TIME LIMIT: Force end after max wave duration
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
-	}
-
-	// WAVE DEPLOYMENT TRACKING: Reset timers when deployment completes
-	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
-		// Reset the independent timer when deployment completes
-		g_independent_timer_start = currentTime;
-
-		// Set condition timer
-		g_horde_local.conditionTriggered = true;
-		g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
-		g_horde_local.waveEndTime = currentTime + g_lastParams.timeThreshold;
-
-		if (developer->integer) {
-			gi.Com_PrintFmt("Timer reset after deployment. End time: +{:.2f}s\n",
-				g_lastParams.timeThreshold.seconds());
-		}
-	}
-
-	// REMAINING MONSTER TRACKING: Get actual count periodically
-	static int32_t remainingMonsters = 0;
-	static gtime_t lastMonsterCountTime = 0_sec;
-
-	// Recalculate periodically - more often in high waves
-	const gtime_t recount_interval = (current_wave_level >= 15) ? 0.25_sec : 0.5_sec;
-	if (currentTime - lastMonsterCountTime > recount_interval) {
-		remainingMonsters = alive_count > 0 ? alive_count : CalculateRemainingMonsters();
-		lastMonsterCountTime = currentTime;
-	}
-
-	// Initialize end time if needed - once per wave
+	// Inicializar tiempo final si es necesario
 	if (g_horde_local.waveEndTime == 0_sec) {
 		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 	}
 
-	// AGGRESSIVE TIME REDUCTION: For very few monsters
-	if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION && g_horde_local.waveEndTime > 0_sec) {
-		// More aggressive for high waves
-		const gtime_t base_reduction = (current_wave_level >= 15) ? 2.5_sec : 1.5_sec;
-		const gtime_t reduction = (remainingMonsters <= 2) ?
-			30_sec : // Force 30 sec max for 0-2 monsters
-			base_reduction * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-
-		// Apply reduction based on current time
-		const gtime_t new_end_time = currentTime + reduction;
-		if (new_end_time < g_horde_local.waveEndTime) {
-			g_horde_local.waveEndTime = new_end_time;
-
-			if (developer->integer) {
-				gi.Com_PrintFmt("Aggressive time reduction: {}s for {} monsters (wave {})\n",
-					reduction.seconds(), remainingMonsters, current_wave_level);
-			}
-		}
-	}
-
-	// PHANTOM MONSTER DETECTION: More robust for high waves
-	static gtime_t last_verification_time = 0_sec;
-	static int no_monster_verifications = 0;
-
-	// Verification interval - check more often in high waves
-	const gtime_t verify_interval = (current_wave_level >= 15) ? 0.5_sec : 1_sec;
-
-	if (currentTime - last_verification_time >= verify_interval && remainingMonsters > 0) {
-		last_verification_time = currentTime;
-
-		// Fast search for any countable monster
-		bool any_countable_monster_found = false;
-		for (auto ent : active_monsters()) {
-			if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
-				!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-				any_countable_monster_found = true;
-				break;
-			}
-		}
-
-		if (!any_countable_monster_found) {
-			no_monster_verifications++;
-
-			// After consecutive empty checks, force completion
-			// Quicker response for high waves
-			const int required_verifications = (current_wave_level >= 15) ? 2 : 3;
-
-			if (no_monster_verifications >= required_verifications) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("No valid monsters for {}s in wave {}. Fixing.\n",
-						required_verifications, current_wave_level);
-				}
-
-				// Fix counters and force wave completion
-				level.killed_monsters = level.total_monsters;
-				reason = WaveEndReason::AllMonstersDead;
-				return true;
-			}
-		}
-		else {
-			// Reset counter if we found monsters
-			no_monster_verifications = 0;
-		}
-	}
-
-	// CONDITION TRIGGER LOGIC: Better handling for fast kills
+	// Combinar condiciones de trigger
 	if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
-		// Calculate percentage remaining only when needed
-		float percentageRemaining = 0.0f;
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
-
-		// For high waves, be more aggressive with percentage check
-		const float threshold = (current_wave_level >= 15) ?
-			g_lastParams.lowPercentageThreshold * 1.5f : g_lastParams.lowPercentageThreshold;
-
-		const bool lowPercentageReached = [&]() {
-			if (!maxMonstersReached && g_totalMonstersInWave > 0) {
-				percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
-				return percentageRemaining <= threshold;
-			}
-			return false;
-			}();
+		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
 
 		if (maxMonstersReached || lowPercentageReached) {
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Calculate threshold - shorter for high waves
-			const float time_scale = (current_wave_level >= 15) ? 0.7f : 1.0f;
-
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
-				std::min(
-					gtime_t::from_sec(g_lastParams.timeThreshold.seconds() * time_scale),
-					gtime_t::from_sec(g_lastParams.lowPercentageTimeThreshold.seconds() * time_scale)
-				) :
-				(maxMonstersReached ?
-					gtime_t::from_sec(g_lastParams.timeThreshold.seconds() * time_scale) :
-					gtime_t::from_sec(g_lastParams.lowPercentageTimeThreshold.seconds() * time_scale));
+				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
+				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
 
 			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
 
-			// Aggressive time reduction for very few monsters
+			// Aplicar reducción de tiempo agresiva si quedan muy pocos monstruos
 			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t reduction = remainingMonsters <= 2 ?
-					30_sec : // Hard cap at 30 seconds for 0-2 monsters
-					AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-
-				// Use the shorter time
-				g_horde_local.waveEndTime = std::min(g_horde_local.waveEndTime, currentTime + reduction);
+				g_horde_local.waveEndTime = std::min(
+					g_horde_local.waveEndTime,
+					currentTime + (AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
+						(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters))
+				);
 			}
 		}
 	}
 
-	// TIME WARNING HANDLING: Wave about to end
+	// Manejar advertencias de tiempo
 	if (g_horde_local.conditionTriggered) {
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 
-		// Process warnings using array lookup
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
-			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] &&
-				remainingTime <= warningTime &&
-				remainingTime > warningTime - 1_sec) {
+				remainingTime <= gtime_t::from_sec(WARNING_TIMES[i]) &&
+				remainingTime > gtime_t::from_sec(WARNING_TIMES[i]) - 1_sec) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
 					static_cast<int>(WARNING_TIMES[i]));
 				g_horde_local.warningIssued[i] = true;
 			}
 		}
 
-		// THE ACTUAL TIME LIMIT CHECK
 		if (currentTime >= g_horde_local.waveEndTime) {
 			reason = WaveEndReason::MonstersRemaining;
 			return true;
 		}
-	}
-
-	// HIGH WAVE SAFETY: For waves 18+, add extra safety checks
-	if (current_wave_level >= 18) {
-		static gtime_t wave_start_time = currentTime;
-		static int32_t last_wave_tracked = -1;
-
-		// Reset timer for new wave
-		if (last_wave_tracked != current_wave_level) {
-			wave_start_time = currentTime;
-			last_wave_tracked = current_wave_level;
-		}
-
-		// Safety timeout - if wave has been running too long, force completion
-		// This is a final failsafe
-		const gtime_t max_wave_duration = 3_min;
-		if (currentTime - wave_start_time > max_wave_duration) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("SAFETY: Forcing wave {} completion after timeout\n",
-					current_wave_level);
-			}
-			reason = WaveEndReason::TimeLimitReached;
-			return true;
-		}
-
-		// For waves 18+, if monsters are being killed very quickly but wave isn't ending
-		if (g_horde_local.num_to_spawn == 0 && g_horde_local.queued_monsters == 0 &&
-			counter_alive == 0 && !Horde_AllMonstersDead()) {
-			// Trust the monster count function instead of the counter
-			if (CalculateRemainingMonsters() == 0) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("MISMATCH: Counters say 0 but wave not ending in wave {}\n",
-						current_wave_level);
-				}
-				reason = WaveEndReason::AllMonstersDead;
-				return true;
-			}
-		}
-	}
-
-	// Final safety check - if zero monsters but somehow we got here
-	if (remainingMonsters == 0 || counter_alive == 0) {
-		reason = WaveEndReason::AllMonstersDead;
-		return true;
 	}
 
 	return false;
@@ -5194,479 +4998,138 @@ void ForceWaveCompletion() {
 
 
 void Horde_RunFrame() {
-	// Cache state variables at the beginning for better performance
 	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
-	const horde_state_t currentState = g_horde_local.state;
-	const gtime_t currentTime = level.time;
+	WaveEndReason currentWaveEndReason{};
 
-	// Global state machine sanity check - detect and fix stuck waves
-	static gtime_t last_wave_change_time = 0_sec;
-	static int32_t last_wave_level = 0;
+	CleanupSpawnPointCache();
+	CheckAndReduceSpawnCooldowns();
 
-	if (last_wave_level != currentLevel) {
-		last_wave_change_time = currentTime;
-		last_wave_level = currentLevel;
-	}
 
-	// If we've been in the same wave for over 3 minutes, something's probably stuck
-	if (currentTime - last_wave_change_time > 3_min &&
-		currentState != horde_state_t::warmup &&
-		GetStroggsNum() == 0) {
-
-		// Force transition to next wave
-		if (developer->integer) {
-			gi.Com_PrintFmt("CRITICAL: Detected wave {} stuck for over 3 minutes with no monsters. Forcing progression.\n",
-				currentLevel);
-		}
-
-		// Force state transition to spawning for next wave
-		g_horde_local.state = horde_state_t::spawning;
-		g_horde_local.monster_spawn_time = currentTime + 1.5_sec;
-		Horde_InitLevel(currentLevel + 1);
-
-		// Early return to apply this fix immediately
-		return;
-	}
-
-	// Define monster cap once for consistent use throughout function
-	const int32_t maxMonsters = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
-		(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-			(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
-
-	// Track wave end reason
-	WaveEndReason currentWaveEndReason = WaveEndReason::AllMonstersDead;
-
-	// Time-based periodic checks - these help performance
-	static gtime_t last_cleanup_time = 0_ms;
-	static gtime_t last_cooldown_time = 0_ms;
-	static gtime_t last_validation_time = 0_ms;
-	static gtime_t last_queue_check_time = 0_ms;
-	static gtime_t last_state_time = 0_ms;
-	static horde_state_t last_state = horde_state_t::warmup;
-	static int quick_state_changes = 0;
-
-	// Track state changes for stability monitoring
-	if (last_state != currentState) {
-		if (currentTime - last_state_time < 1_sec) {
-			quick_state_changes++;
-			// If multiple rapid state changes occur, log it
-			if (quick_state_changes > 3 && developer->integer) {
-				gi.Com_PrintFmt("WARNING: Rapid state changes detected in wave {}\n", currentLevel);
-			}
-		}
-		else {
-			quick_state_changes = 0;
-		}
-		last_state = currentState;
-		last_state_time = currentTime;
-	}
-
-	// Perform cleanup every ~128ms
-	if (currentTime - last_cleanup_time >= 128_ms) {
-		CleanupSpawnPointCache();
-		last_cleanup_time = currentTime;
-	}
-
-	// Check cooldowns every ~240ms
-	if (currentTime - last_cooldown_time >= 240_ms) {
-		CheckAndReduceSpawnCooldowns();
-		last_cooldown_time = currentTime;
-	}
-
-	// Validate monster count - more often in high waves
-	const gtime_t validation_interval = (currentLevel >= 15) ? 250_ms : 500_ms;
-	if (currentTime - last_validation_time >= validation_interval) {
-		ValidateMonsterCount(); // This should verify that level counters match actual entities
-		last_validation_time = currentTime;
-	}
-
-	// NEW: Check for queue issues every 2 seconds
-	if (currentTime - last_queue_check_time >= 2_sec) {
-		// Check for negative queue size
-		if (g_horde_local.queued_monsters < 0) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("CRITICAL: Fixed negative queued_monsters: {}\n",
-					g_horde_local.queued_monsters);
-			}
-			g_horde_local.queued_monsters = 0;
-		}
-
-		// Check for stuck monsters in queue
-		if (currentState == horde_state_t::active_wave &&
-			g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn == 0) {
-
-			static int stuck_queue_checks = 0;
-			stuck_queue_checks++;
-
-			// If queue is stuck for multiple checks, force some monsters out
-			if (stuck_queue_checks >= 2) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("Unsticking queue: moving {} monsters to spawn\n",
-						std::min(g_horde_local.queued_monsters, 5));
-				}
-
-				// Force some monsters into num_to_spawn
-				const int32_t to_move = std::min(g_horde_local.queued_monsters, 5);
-				g_horde_local.num_to_spawn += to_move;
-				g_horde_local.queued_monsters -= to_move;
-				stuck_queue_checks = 0;
-			}
-		}
-		else {
-			// Reset counter if conditions don't match
-			static int stuck_queue_checks = 0;
-		}
-
-		last_queue_check_time = currentTime;
-	}
-
-	// Handle custom monster settings
-	if (dm_monsters && dm_monsters->integer >= 1) {
+	// Handle custom monster settings (likely debug/testing)
+	if (dm_monsters->integer >= 1) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
 		g_horde_local.queued_monsters = 0;
 		ClampNumToSpawn(mapSize);
 	}
 
-	// Get current monster count once for this frame
-	const int32_t activeMonsters = CalculateRemainingMonsters();
+	bool waveEnded = false; // Flag to signal if we need to transition to cleanup
 
-	bool waveEnded = false;
-
-	// ENHANCED STATE MACHINE: Better detection for fast-kill scenarios
-	switch (currentState) {
+	switch (g_horde_local.state) {
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < currentTime) {
+		if (g_horde_local.warm_time < level.time) {
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 			current_wave_level = 1;
 			PlayWaveStartSound();
 			DisplayWaveMessage();
+
+			if (developer->integer) {
+				//gi.Com_PrintFmt("PRINT: Wave {} begins.\n", current_wave_level);
+				//gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+				//gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+				//gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+				//gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+			}
 		}
 		break;
 
 	case horde_state_t::spawning: {
-		// Track state duration for failsafe
-		static gtime_t spawning_start_time = 0_sec;
-		if (spawning_start_time == 0_sec) {
-			spawning_start_time = currentTime;
-		}
-
 		// Independent time limit check for faster exit
 		const gtime_t independentTimeLimit = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 		if (level.time >= independentTimeLimit) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("Wave time limit reached during spawning state\n");
-			}
 			currentWaveEndReason = WaveEndReason::TimeLimitReached;
-			waveEnded = true;
-			spawning_start_time = 0_sec; // Reset for next wave
-			break;
+			waveEnded = true; // Set the flag
+			break;             // Exit the spawning state
 		}
 
-		// Failsafe: Force transition if stuck in spawning too long
-		const gtime_t MAX_SPAWNING_TIME = 25_sec;
-		if (currentTime - spawning_start_time > MAX_SPAWNING_TIME) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("Spawning state timeout after {:.1f} seconds. Forcing transition.\n",
-					MAX_SPAWNING_TIME.seconds());
-			}
-
-			if (!next_wave_message_sent) {
-				VerifyAndAdjustBots();
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave partially deployed. Moving to active phase.\n");
-				next_wave_message_sent = true;
-			}
-
-			g_horde_local.state = horde_state_t::active_wave;
-			spawning_start_time = 0_sec; // Reset for next wave
-			break;
-		}
-
-		// Check if it's time to spawn
 		if (g_horde_local.monster_spawn_time <= level.time) {
-			// Boss wave handling
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
 
-			// Calculate current monster counts
 			const int32_t activeMonsters = CalculateRemainingMonsters();
+			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-			// Queue transfer handling - always try this first
-			if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0 && activeMonsters < maxMonsters) {
-				// Calculate transfer amount
-				const int32_t base_transfer = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
-				const int32_t transfer_amount = std::min({
-					g_horde_local.queued_monsters,          // Can't transfer more than queued
-					maxMonsters - activeMonsters,           // Can't exceed cap
-					base_transfer                           // Base limit per transfer
-					});
-
-				if (transfer_amount > 0) {
-					g_horde_local.num_to_spawn += transfer_amount;
-					g_horde_local.queued_monsters -= transfer_amount;
-
-					if (developer->integer) {
-						gi.Com_PrintFmt("Queue: Transferred {} monsters to spawn pool (q:{})\n",
-							transfer_amount, g_horde_local.queued_monsters);
-					}
-				}
-			}
-
-			// Try to spawn if we have monsters and space
-			if (g_horde_local.num_to_spawn > 0 && activeMonsters < maxMonsters) {
+			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
+				//if (developer->integer == 1)
+				//    gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
 			}
 
-			// Calculate current monster count after spawning
-			const int32_t updatedActiveMonsters = CalculateRemainingMonsters();
-
-			// TRANSITION LOGIC - multiple conditions that can trigger state transition
-			const bool queues_empty = (g_horde_local.num_to_spawn == 0 && g_horde_local.queued_monsters == 0);
-			const bool monsters_active = (updatedActiveMonsters > 0);
-			const bool sufficient_time_passed = (currentTime - spawning_start_time > 10_sec);
-
-			// Transition if: queues empty OR (monsters active AND enough time passed)
-			if (queues_empty || (monsters_active && sufficient_time_passed)) {
+			if (g_horde_local.num_to_spawn == 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
-
-					// Different message based on completion reason
-					if (queues_empty) {
-						gi.LocBroadcast_Print(PRINT_CENTER,
-							"\n\n\nWave {} fully deployed.\n", currentLevel);
-					}
-					//else {
-					//  gi.LocBroadcast_Print(PRINT_CENTER,
-					//      "\n\n\nWave {} deployment in progress. Moving to active phase.\n", currentLevel);
-					//}
-
+					gi.LocBroadcast_Print(PRINT_CENTER,
+						"\n\n\nWave Fully Deployed.\nWave Level: {}\n",
+						currentLevel);
 					next_wave_message_sent = true;
 				}
-
 				g_horde_local.state = horde_state_t::active_wave;
-				spawning_start_time = 0_sec; // Reset for next wave
-
-				if (developer->integer) {
-					const char* reason = queues_empty ? "queues empty" : "monsters active + time passed";
-					gi.Com_PrintFmt("Transition to active_wave ({})\n", reason);
-				}
 			}
 
-			// Reset spawn timer for next attempt regardless of state
-			SetNextMonsterSpawnTime(mapSize);
+
+			//if (developer->integer) {
+			//    gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
+			//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+			//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+			//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+			//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+			//}
+
 		}
 		break;
 	}
 
 	case horde_state_t::active_wave: {
-		// ENHANCEMENT: Add failsafe timeout for active_wave state
-		static gtime_t active_state_start = currentTime;
-		static int empty_count_frames = 0; // For counter check
+		WaveEndReason reason;
+		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 
-		if (last_state != horde_state_t::active_wave) {
-			active_state_start = currentTime;
-			empty_count_frames = 0;
-		}
-
-		// If stuck in active_wave state too long, force end
-		const gtime_t max_active_time = 3_min; // Reduced from 4_min
-		if (currentTime - active_state_start > max_active_time) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("TIMEOUT: Forcing end of active_wave after {}s\n",
-					(currentTime - active_state_start).seconds());
-			}
-			ForceWaveCompletion();
-			break;
-		}
-
-		// Check for counter being wrong when no monsters exist
-		const int32_t stroggsCount = GetStroggsNum();
-		if (stroggsCount > 0) {
-			int actualCount = 0;
-			// Do a quick count
-			for (auto ent : active_monsters()) {
-				if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
-					!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-					actualCount++;
-					if (actualCount > 0) break; // We only need to know if any exist
-				}
-			}
-
-			if (actualCount == 0) {
-				// Counter says monsters exist but we found none
-				empty_count_frames++;
-
-				// Only fix after multiple frames to avoid race conditions
-				if (empty_count_frames >= 3) {
-					if (developer->integer) {
-						gi.Com_PrintFmt("COUNTER FIX: Counter says {} monsters but found 0\n",
-							stroggsCount);
-					}
-					ForceWaveCompletion();
-					empty_count_frames = 0;
-					break;
-				}
-			}
-			else {
-				empty_count_frames = 0;
-			}
-		}
-
-		// Fast path for common condition - all monsters dead
 		if (Horde_AllMonstersDead()) {
 			currentWaveEndReason = WaveEndReason::AllMonstersDead;
 			waveEnded = true;
 			break;
 		}
 
-		// Check for counters being off - if we have 0 monsters alive but counter says otherwise
-		const int32_t counter_alive = level.total_monsters - level.killed_monsters;
-		if (counter_alive > 0 && activeMonsters == 0) {
-			counter_mismatch_frames++;
-
-			// If this persists for multiple frames, fix it
-			const int required_frames = (currentLevel >= 15) ? 3 : 5;
-			if (counter_mismatch_frames >= required_frames) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("COUNTER FIX: Counter says {} alive but found 0\n", counter_alive);
-				}
-				level.killed_monsters = level.total_monsters;
-				currentWaveEndReason = WaveEndReason::AllMonstersDead;
-				waveEnded = true;
-				counter_mismatch_frames = 0;
-				break;
-			}
+		if (shouldAdvance) {
+			currentWaveEndReason = reason;
+			waveEnded = true; // Set the flag
+			break;             // Exit the active_wave state
 		}
-		else {
-			counter_mismatch_frames = 0;
-		}
+		else if (g_horde_local.monster_spawn_time <= level.time) {
+			const int32_t activeMonsters = CalculateRemainingMonsters();
+			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-		// Check wave completion conditions
-		if (CheckRemainingMonstersCondition(currentWaveEndReason)) {
-			waveEnded = true;
-			break;
-		}
-
-		// IMPROVED: More efficient queued monster spawning
-		if (g_horde_local.monster_spawn_time <= currentTime) {
-			// Only attempt spawn if we have room under the cap and queued monsters
 			if (activeMonsters < maxMonsters && g_horde_local.queued_monsters > 0) {
-				// Any available space is good enough - remove the restrictive condition
-				const int32_t available_slots = maxMonsters - activeMonsters;
-				const int32_t transfer_amount = std::min(g_horde_local.queued_monsters, available_slots);
-
-				if (transfer_amount > 0) {
-					g_horde_local.num_to_spawn = transfer_amount;
-					g_horde_local.queued_monsters -= transfer_amount;
-					SpawnMonsters();
-				}
-
-				// Debug verification
-				if (CalculateRemainingMonsters() > maxMonsters && developer->integer) {
-					gi.Com_PrintFmt("WARNING: Monster cap exceeded: {}/{}\n",
-						CalculateRemainingMonsters(), maxMonsters);
-				}
+				//if (developer->integer == 1)
+				//    gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
+				SpawnMonsters();
 			}
 		}
 		break;
 	}
 
-	case horde_state_t::cleanup: {
-		// Add failsafe timer at the beginning of the case
-		static gtime_t cleanup_start_time = 0_sec;
-		if (last_state != horde_state_t::cleanup) {
-			cleanup_start_time = currentTime;
-		}
-
-		// Force transition if stuck in cleanup too long
-		const gtime_t MAX_CLEANUP_TIME = 8_sec;
-		if (currentTime - cleanup_start_time > MAX_CLEANUP_TIME) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("FAILSAFE: Forcing exit from cleanup state after timeout\n");
-			}
-
-			// Force transition to rest state
-			HandleWaveCleanupMessage(mapSize, WaveEndReason::TimeLimitReached);
-			g_horde_local.warm_time = currentTime + 3_sec;
-			g_horde_local.failsafe_timeout = currentTime + 15_sec;
-			g_horde_local.state = horde_state_t::rest;
-			g_horde_local.monster_spawn_time = currentTime + 5_sec;
-			break;
-		}
-
-		// Make sure monster_spawn_time is a valid value
-		if (g_horde_local.monster_spawn_time == 0_sec) {
-			g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
-		}
-
-		if (g_horde_local.monster_spawn_time < currentTime) {
+	case horde_state_t::cleanup:
+		if (g_horde_local.monster_spawn_time < level.time) {
 			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
-
-			// IMPROVED: Calculate the warm time with validation
-			gtime_t calculated_warm_time = currentTime + 1.5_sec;
-
-			// Validate the warm time makes sense
-			if (calculated_warm_time <= currentTime ||
-				(calculated_warm_time - currentTime) > 7_sec) {
-				// Fallback to a guaranteed safe value
-				calculated_warm_time = currentTime + 3_sec;
-
-				if (developer->integer) {
-					gi.Com_PrintFmt("WARNING: warm_time calculation failed, using fallback\n");
-				}
-			}
-
-			g_horde_local.warm_time = calculated_warm_time;
-
-			// Add a failsafe timeout
-			g_horde_local.failsafe_timeout = currentTime + 15_sec;
-
-			// Debug help
-			if (developer->integer) {
-				gi.Com_PrintFmt("Rest period set: {:.2f} seconds\n",
-					(g_horde_local.warm_time - currentTime).seconds());
-			}
-
+			g_horde_local.warm_time = level.time + random_time(0.8_sec, 1.5_sec);
 			g_horde_local.state = horde_state_t::rest;
 
-			// IMPORTANT: Reset monster_spawn_time to avoid instant transitions
-			g_horde_local.monster_spawn_time = currentTime + 5_sec; // Just a safety value
-
-			// CRITICAL FIX: Reset all other timers that might interfere
-			g_independent_timer_start = currentTime;
-			g_horde_local.waveEndTime = 0_sec;
-			g_horde_local.conditionTriggered = false;
-			g_horde_local.conditionStartTime = 0_sec;
-
-			// NEW: Reset counter and queue state
-			CheckAndResetDisabledSpawnPoints();
+			//if (developer->integer) {
+			//    gi.Com_PrintFmt("PRINT: Wave {} cleanup complete. Next wave in {:.2f} seconds.\n", current_wave_level, (g_horde_local.warm_time - level.time).seconds());
+			//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+			//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+			//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+			//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+			//}
 		}
 		break;
-	}
 
 	case horde_state_t::rest:
-		// Validate warm_time is set correctly
-		if (g_horde_local.warm_time <= currentTime || g_horde_local.warm_time == 0_sec) {
-			// If time has passed or warm_time wasn't set properly
-			g_horde_local.state = horde_state_t::spawning;
-			g_horde_local.monster_spawn_time = currentTime + 1.5_sec;
-
-			// Debug
-			if (developer->integer) {
-				gi.Com_PrintFmt("Rest period complete, starting wave {}\n", g_horde_local.level + 1);
-			}
-
+		if (g_horde_local.warm_time < level.time) {
 			AnnounceIncomingWave(3_sec);
-			Horde_InitLevel(g_horde_local.level + 1);
-			break;
-		}
-
-		// Add failsafe check
-		if (currentTime >= g_horde_local.failsafe_timeout) {
-			gi.Com_PrintFmt("WARNING: Failsafe timeout triggered in rest state\n");
-			AnnounceIncomingWave(3_sec); // Announce the incoming wave
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 		}
@@ -5675,84 +5138,19 @@ void Horde_RunFrame() {
 
 	// Cleanup logic (moved outside the switch)
 	if (waveEnded) {
-		// Before sending cleanup message, ensure there aren't monsters alive
-		// This is an extra safety check for waves 18+
-		if (currentLevel >= 18 && currentWaveEndReason == WaveEndReason::AllMonstersDead) {
-			// Do a final count to be absolutely sure
-			int direct_count = 0;
-			for (auto ent : active_monsters()) {
-				if (ent && ent->inuse && ent->health > 0 && !ent->deadflag &&
-					!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-					direct_count++;
-				}
-			}
-
-			// If we find monsters but are claiming they're all dead, fix it
-			if (direct_count > 0) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("CRITICAL: Found {} monsters alive despite 'all dead' reason\n",
-						direct_count);
-				}
-				// Change reason to time limit to handle remaining monsters
-				currentWaveEndReason = WaveEndReason::TimeLimitReached;
-			}
-		}
-
-		// Make sure this transition always takes effect
-		g_horde_local.state = horde_state_t::cleanup;
-		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
-
-		// Debug
-		if (developer->integer) {
-			gi.Com_PrintFmt("Wave {} end processed, transitioning to cleanup\n", currentLevel);
-		}
-
 		SendCleanupMessage(currentWaveEndReason);
-
-		// Reset monster counting variables for next wave
-		consistent_zero_counts = 0;
-		counter_mismatch_frames = 0;
-
-		// Clear any stuck state that might persist across waves
-		ResetWaveAdvanceState();
-
-		// Set a flag to verify this was processed
-		static gtime_t last_wave_end_time = 0_sec;
-		last_wave_end_time = currentTime;
-	}
-
-	// Process HUD updates
-	UpdateHordeHUD();
-
-	// Check for message expiration
-	if (horde_message_end_time != 0_sec && currentTime >= horde_message_end_time) {
-		ClearHordeMessage();
-	}
-
-	// Global failsafe - detect if wave ended but didn't progress
-	static gtime_t last_completed_wave_time = 0_sec;
-	static int32_t last_completed_wave = 0;
-
-	if (waveEnded) {
-		last_completed_wave_time = currentTime;
-		last_completed_wave = currentLevel;
-	}
-	else if (last_completed_wave > 0 && currentLevel == last_completed_wave &&
-		currentTime - last_completed_wave_time > 15_sec &&
-		g_horde_local.state == horde_state_t::active_wave) {
-
-		// We've been stuck in the same wave for 15+ seconds after it should have ended
-		if (developer->integer) {
-			gi.Com_PrintFmt("FAILSAFE: Detected completed wave {} didn't progress after 15 seconds\n",
-				currentLevel);
-		}
-
-		// Force transition to cleanup
+		g_horde_local.monster_spawn_time = level.time + 0.5_sec;
 		g_horde_local.state = horde_state_t::cleanup;
-		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
 
-		// Reset the flag
-		last_completed_wave = 0;
+		//if (developer->integer) {
+		//    gi.Com_PrintFmt("PRINT: Wave {} ended due to {}. Cleanup starting.\n", current_wave_level,
+		//        (currentWaveEndReason == WaveEndReason::AllMonstersDead) ? "all monsters dead" :
+		//        (currentWaveEndReason == WaveEndReason::MonstersRemaining) ? "monsters remaining" : "time limit");
+		//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+		//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+		//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+		//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+		//}
 	}
 }
 
