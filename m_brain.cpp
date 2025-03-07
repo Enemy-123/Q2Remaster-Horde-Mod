@@ -434,38 +434,56 @@ void brain_tounge_attack(edict_t* self)
 	if (!self || !self->enemy || !self->enemy->inuse)
 		return;
 
-	// Calcular punto medio del enemigo y dirección
+	// Calculate enemy position and direction
 	vec3_t start;
 	G_EntMidPoint(self->enemy, start);
 	vec3_t const dir = start - self->s.origin;
 	float const range = dir.length();
 	vec3_t const normalized_dir = dir.normalized();
 
-	// Ajustar yaw para mirar al enemigo
+	// Adjust yaw to face enemy
 	self->ideal_yaw = vectoyaw(dir);
 	M_ChangeYaw(self);
 
-	// Verificar rango de pull (512 unidades como en suxor)
+	// Check pull range
 	const vec3_t end = self->s.origin + (normalized_dir * 512);
 	const trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
 
 	if (G_EntExists(tr.ent) && (tr.ent == self->enemy))
 	{
 		int damage = 0;
-		int pull =175; // Base pull force
+		int pull = 175; // Base pull force
 
-		// Si está en el suelo, duplicar la fuerza de pull
+		// Double pull force if on ground
 		if (self->enemy->groundentity)
 			pull *= 2;
 
-		// Aplicar daño solo si está cerca
-		if (range <= 64)
+		// Apply damage only if close enough
+		if (range <= 64) {
 			damage = 5;
 
-		// Aplicar daño y pull
+			// Add initial health steal on contact
+			int steal_amount = irandom(2, 4);
+			if (M_DamageModifier(self)) {
+				steal_amount *= M_DamageModifier(self);
+			}
+
+			// Steal health and limit to max_health
+			self->health = min(self->max_health, self->health + steal_amount);
+			if (self->monsterinfo.setskin) {
+				self->monsterinfo.setskin(self);
+			}
+
+			// Reset timestamp to allow immediate stealing in continue function
+			self->timestamp = 0_ms;
+
+			// Visual feedback
+			//gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+		}
+
+		// Apply damage and pull
 		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin,
 			damage, -pull, DAMAGE_RADIUS, MOD_BRAINTENTACLE);
-
 	}
 }
 
@@ -503,45 +521,63 @@ void brain_tounge_attack_continue(edict_t* self)
 		return;
 	}
 
-	// Obtener punto medio y calcular distancia
+	// Get enemy position and calculate distance
 	vec3_t start;
 	G_EntMidPoint(self->enemy, start);
 	vec3_t const diff = start - self->s.origin;
 	float const dist = diff.length();
 
-	// Si está fuera de rango, dejar de atacar
+	// Release if out of range
 	if (dist > 512) {
 		M_SetAnimation(self, &brain_move_run);
 		self->monsterinfo.attack_finished = level.time + 1_hz;
 		return;
 	}
 
-	// Calcular pull y daño
+	// Calculate pull and damage values
 	const vec3_t dir = diff.normalized();
 	int pull = 70;
-	constexpr int damage = 5;
+	int damage = 3; // Lower base damage since we're applying it every frame
 
-	// Aumentar pull si está en el suelo
+	// Increase pull if on ground
 	if (self->enemy->groundentity)
 		pull *= 2;
 
-	// Aplicar daño y pull si está en rango cercano
+	// Apply effects if in close range
 	if (dist <= 64) {
+		// Apply damage every frame
 		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin,
 			vec3_origin, damage, -pull, DAMAGE_RADIUS, MOD_BRAINTENTACLE);
 
-		// Efectos visuales
-		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+		// Steal health more frequently (4 times per second)
+		if (level.time >= self->timestamp) {
+			// Randomized health steal
+			int steal_amount = irandom(3, 6); // Increased to make it more noticeable
+			if (M_DamageModifier(self)) {
+				steal_amount *= M_DamageModifier(self);
+			}
 
-		// Continue attack animation
+			// Apply health steal
+			self->health = min(self->max_health, self->health + steal_amount);
+			if (self->monsterinfo.setskin) {
+				self->monsterinfo.setskin(self);
+			}
+
+			// Visual feedback on each steal
+			gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+
+			// Set next steal time (4 times per second)
+			self->timestamp = level.time + 25_hz; // Much more frequent stealing
+		}
+
+		// Keep attack animation going
 		self->monsterinfo.nextframe = FRAME_attak206;
 	}
 
-	// Set next attack and think times
+	// Set next update time
 	self->monsterinfo.attack_finished = level.time + 1_hz;
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
-
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {
 	{ 0.746700f, 0.238370f, 34.167690f },
