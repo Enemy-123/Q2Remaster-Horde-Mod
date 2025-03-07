@@ -1866,7 +1866,7 @@ void weapon_shotgun_fire(edict_t* ent)
 	int damage;
 	int kick = 8;
 
-	damage = g_energyshells ? irandom(3, 5) : irandom(7, 9);
+	damage = !g_energyshells->integer ? irandom(3, 5) : irandom(7, 11);
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir, true);
@@ -1910,7 +1910,7 @@ void weapon_supershotgun_fire(edict_t* ent)
 	int damage;
 	int kick = 17;
 
-damage = g_energyshells ? irandom(7, 10) : irandom(8, 13);
+damage = !g_energyshells->integer ? irandom(7, 10) : irandom(14, 16);
 	//	damage = irandom(8, 13); (vanilla 6)
 
 	if (is_quad)
