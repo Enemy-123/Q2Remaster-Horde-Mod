@@ -931,289 +931,258 @@ G_RunFrame
 Advances the world by 0.1 seconds
 ================
 */
+/*
+================
+G_RunFrame
+
+Advances the world by 0.1 seconds
+================
+*/
 inline void G_RunFrame_(bool main_loop)
 {
+    // Cache iterators at the start of the frame
+    auto monsters = active_monsters();
+    auto players = active_players();
+    
+    // Apply healing to all entities in one pass
+    std::span entities_view{ g_edicts, globals.num_edicts };
+    for (auto& ent : entities_view) {
+        if (ent.inuse) {
+            ApplyGradualHealing(&ent);
+        }
+    }
 
-	std::span entities_view{ g_edicts, globals.num_edicts };
-	for (auto& ent : entities_view) {
-		if (ent.inuse) {
-			ApplyGradualHealing(&ent);
-		}
-	}
+    if (g_horde->integer) {
+        //CleanupStaleCS();
+        CheckAndUpdateMenus();
 
-	if (g_horde->integer) {
+        // Cache map size - only update if map changes
+        static std::string last_mapname;
+        static MapSize cached_mapSize;
+        if (last_mapname != level.mapname) {
+            cached_mapSize = GetMapSize(level.mapname);
+            last_mapname = level.mapname;
+        }
 
-		//CleanupStaleCS();
-		CheckAndUpdateMenus();
+        // Player scale configuration - do once per frame
+        level.coop_scale_players = 2 + GetNumHumanPlayers();
+        G_Monster_CheckCoopHealthScaling();
 
-		// Verificaciones constantes de alto rendimiento 
-		// Cache map size check - solo actualizar si cambia el mapa
-		static std::string last_mapname;
-		static MapSize cached_mapSize;
-		if (last_mapname != level.mapname) {
-			cached_mapSize = GetMapSize(level.mapname);
-			last_mapname = level.mapname;
-		}
+        // Batch process limited monsters per frame
+        static uint32_t start_index = 0;
+        constexpr uint32_t BATCH_SIZE = 32;
+        uint32_t processed = 0;
 
-		// Configuración de escala de jugadores
-		level.coop_scale_players = 2 + GetNumHumanPlayers();
-		G_Monster_CheckCoopHealthScaling();
+        // Pre-fetch the HUD message once for later checks
+        const char* horde_msg = gi.get_configstring(CONFIG_HORDEMSG);
+        bool has_horde_msg = horde_msg && horde_msg[0];
 
-		// Verificaciones de estado de monstruos/cleanup
-		// Procesamiento rotativo de monstruos
-		static uint32_t start_index = 0;
-		constexpr uint32_t BATCH_SIZE = 32;
-		uint32_t processed = 0;
+        // Process monsters in batches
+        for (auto ent : monsters) {
+            if (processed >= BATCH_SIZE)
+                break;
 
-		// Procesar un número limitado de monstruos por frame
-		for (auto ent : active_monsters()) {
-			if (processed >= BATCH_SIZE)
-				break;
+            CheckAndRestoreMonsterAlpha(ent);
+            if (!ent->monsterinfo.IS_BOSS)
+                CheckAndTeleportStuckMonster(ent);
 
-			CheckAndRestoreMonsterAlpha(ent);
-			if (!ent->monsterinfo.IS_BOSS)
-				CheckAndTeleportStuckMonster(ent);
+            processed++;
+        }
 
-			processed++;
-		}
+        // Cleanup operations
+        CleanupInvalidEntities();
+        CheckAndResetDisabledSpawnPoints();
 
-		// Limpieza periódica
-		CleanupInvalidEntities();
-		CheckAndResetDisabledSpawnPoints();
+        // HUD message handling
+        if (horde_message_end_time > 0_sec) {
+            if (level.time >= horde_message_end_time) {
+                ClearHordeMessage();
+            }
+            else if (!has_horde_msg) {
+                UpdateHordeHUD(); // Re-show message if lost
+            }
+        }
 
-		// En la sección de HUD y mensajes
-			// Verificar mensajes expirados primero
-		if (horde_message_end_time > 0_sec) {
-			if (level.time >= horde_message_end_time) {
-				ClearHordeMessage();
-			}
-			else {
-				// Asegurarse de que el mensaje siga siendo visible
-				const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-				if (!current_msg || !current_msg[0]) {
-					UpdateHordeHUD(); // Re-mostrar mensaje si se perdió
-				}
-			}
-		}
+        // Check player HUD status once
+        if (has_horde_msg) {
+            for (auto player : players) {
+                if (player->client && !player->client->ps.stats[STAT_HORDEMSG]) {
+                    // Restore message if lost for any player
+                    player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+                }
+            }
+        }
+    }
 
-		// Verificar estado de jugadores
-		for (auto player : active_players()) {
-			if (player->client && !player->client->ps.stats[STAT_HORDEMSG] &&
-				gi.get_configstring(CONFIG_HORDEMSG)[0]) {
-				// Restaurar mensaje si se perdió para algún jugador
-				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-			}
-		}
+    level.in_frame = true;
 
-	}
+    G_CheckCvars();
+    Bot_UpdateDebug();
+    level.time += FRAME_TIME_MS;
 
-	level.in_frame = true;
+    // Handle intermission timing
+    if (level.intermissiontime) {
+        if (g_horde->integer)
+            level.intermission_fade = true;
+        constexpr gtime_t INTERMISSION_DURATION = 30_sec;
 
-	G_CheckCvars();
+        if (level.intermissiontime == level.time) {
+            // First time entering intermission
+            gi.Com_PrintFmt("PRINT: Intermission started. Auto-exit scheduled in 30 seconds.\n");
+        }
 
-	Bot_UpdateDebug();
+        const gtime_t time_elapsed = level.time - level.intermissiontime;
+        const gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
 
-	level.time += FRAME_TIME_MS;
+        if (time_remaining == 0_ms) {
+            // Time to exit intermission
+            gi.Com_PrintFmt("PRINT: Auto-exiting intermission after 30 seconds.\n");
+            level.exitintermission = true;
+        }
+        else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 5000 == 0) {
+            // Print remaining time every 5 seconds in last 30 seconds
+            gi.Com_PrintFmt("PRINT: Intermission time remaining: {:.0f} seconds\n", time_remaining.seconds());
+        }
+    }
 
-	// auto aexit intermission
-	if (level.intermissiontime)
-	{
+    // Handle intermission fading
+    if (level.intermission_fading) {
+        if (level.intermission_fade_time > level.time) {
+            const float alpha = clamp(1.0f - (level.intermission_fade_time - level.time - 300_ms).seconds(), 0.f, 1.f);
 
-		if (g_horde->integer)
-			level.intermission_fade = true;
-		constexpr gtime_t INTERMISSION_DURATION = 30_sec;
+            for (auto player : players)
+                player->client->ps.screen_blend = { 0, 0, 0, alpha };
+        }
+        else {
+            level.intermission_fade = level.intermission_fading = false;
+            ExitLevel();
+        }
 
-		if (level.intermissiontime == level.time)
-		{
-			// Primera vez que entramos en intermisión
-			gi.Com_PrintFmt("PRINT: Intermission started. Auto-exit scheduled in 30 seconds.\n");
-		}
+        level.in_frame = false;
+        return;
+    }
 
-		const gtime_t time_elapsed = level.time - level.intermissiontime;
-		const gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
+    // Exit intermissions
+    if (level.exitintermission) {
+        ExitLevel();
+        level.in_frame = false;
+        return;
+    }
 
-		if (time_remaining == 0_ms)
-		{
-			// Es hora de salir de la intermisión
-			gi.Com_PrintFmt("PRINT: Auto-exiting intermission after 30 seconds.\n");
-			level.exitintermission = true;
-		}
-		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 5000 == 0)
-		{
-			// Imprimir tiempo restante cada 5 segundos en los últimos 30 segundos
-			gi.Com_PrintFmt("PRINT: Intermission time remaining: {:.0f} seconds\n", time_remaining.seconds());
-		}
-	}
+    // Reload map on restart
+    if (level.coop_level_restart_time > 0_ms && level.time > level.coop_level_restart_time) {
+        ClientEndServerFrames();
+        gi.AddCommandString("restart_level\n");
+    }
 
-	if (level.intermission_fading)
-	{
-		if (level.intermission_fade_time > level.time)
-		{
-			const float alpha = clamp(1.0f - (level.intermission_fade_time - level.time - 300_ms).seconds(), 0.f, 1.f);
+    // Handle coop respawn states - move conditional outside of loop for better branching
+    bool check_coop_respawn = (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer)) || 
+                             (G_IsDeathmatch() && g_horde->integer && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer));
+    
+    if (check_coop_respawn) {
+        for (auto player : players) {
+            if (player->client->respawn_time >= level.time)
+                player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
+            else if (g_coop_enable_lives->integer && player->health <= 0 && player->client->pers.lives == 0)
+                player->client->coop_respawn_state = COOP_RESPAWN_NO_LIVES;
+            else if (g_coop_enable_lives->integer && G_AnyDeadPlayersWithoutLives())
+                player->client->coop_respawn_state = COOP_RESPAWN_NO_LIVES;
+            else
+                player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+        }
+    }
 
-			for (auto player : active_players())
-				player->client->ps.screen_blend = { 0, 0, 0, alpha };
-		}
-		else
-		{
-			level.intermission_fade = level.intermission_fading = false;
-			ExitLevel();
-		}
+    // Process all entities - main entity processing loop
+    edict_t* ent = &g_edicts[0];
+    for (uint32_t i = 0; i < globals.num_edicts; i++, ent++) {
+        if (!ent->inuse) {
+            // Handle disconnected client cleanup
+            if (i > 0 && i <= game.maxclients) {
+                if (ent->timestamp && level.time < ent->timestamp) {
+                    const int32_t playernum = ent - g_edicts - 1;
+                    gi.configstring(CS_PLAYERSKINS + playernum, "");
+                    ent->timestamp = 0_sec;
+                }
+            }
+            continue;
+        }
 
-		level.in_frame = false;
+        level.current_entity = ent;
 
-		return;
-	}
+        // Update old_origin for non-beam entities
+        if (!(ent->s.renderfx & RF_BEAM))
+            ent->s.old_origin = ent->s.origin;
 
-	edict_t* ent;
+        // Check ground entity movement
+        if ((ent->groundentity) && (ent->groundentity->linkcount != ent->groundentity_linkcount)) {
+            contents_t mask = G_GetClipMask(ent);
 
-	// exit intermissions
+            if (!(ent->flags & (FL_SWIM | FL_FLY)) && (ent->svflags & SVF_MONSTER)) {
+                ent->groundentity = nullptr;
+                M_CheckGround(ent, mask);
+            }
+            else {
+                // Check if still on ground
+                trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + ent->gravityVector, ent, mask);
 
-	if (level.exitintermission)
-	{
-		ExitLevel();
-		level.in_frame = false;
-		return;
-	}
+                if (tr.startsolid || tr.allsolid || tr.ent != ent->groundentity)
+                    ent->groundentity = nullptr;
+                else
+                    ent->groundentity_linkcount = ent->groundentity->linkcount;
+            }
+        }
 
-	// reload the map start save if restart time is set (all players are dead)
-	if (level.coop_level_restart_time > 0_ms && level.time > level.coop_level_restart_time)
-	{
-		ClientEndServerFrames();
-		gi.AddCommandString("restart_level\n");
-	}
+        Entity_UpdateState(ent);
 
-	// clear client coop respawn states; this is done
-	// early since it may be set multiple times for different
-	// players
-	if (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer) || G_IsDeathmatch() && g_horde->integer && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
-	{
-		for (auto player : active_players())
-		{
-			if (player->client->respawn_time >= level.time)
-				player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
-			else if (g_coop_enable_lives->integer && player->health <= 0 && player->client->pers.lives == 0)
-				player->client->coop_respawn_state = COOP_RESPAWN_NO_LIVES;
-			else if (g_coop_enable_lives->integer && G_AnyDeadPlayersWithoutLives())
-				player->client->coop_respawn_state = COOP_RESPAWN_NO_LIVES;
-			else
-				player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-		}
-	}
+        // Process clients separately
+        if (i > 0 && i <= game.maxclients) {
+            ClientBeginServerFrame(ent);
+            continue;
+        }
 
-	//
-	// treat each object in turn
-	// even the world gets a chance to think
-	//
-	ent = &g_edicts[0];
-	for (uint32_t i = 0; i < globals.num_edicts; i++, ent++)
-	{
-		if (!ent->inuse)
-		{
-			// defer removing client info so that disconnected, etc works
-			if (i > 0 && i <= game.maxclients)
-			{
-				if (ent->timestamp && level.time < ent->timestamp)
-				{
-					const int32_t playernum = ent - g_edicts - 1;
-					gi.configstring(CS_PLAYERSKINS + playernum, "");
-					ent->timestamp = 0_sec;
-				}
-			}
-			continue;
-		}
+        G_RunEntity(ent);
+    }
 
-		level.current_entity = ent;
+    // Game rules checks
+    CheckDMRules();
+    CheckNeedPass();
 
-		// Paril: RF_BEAM entities update their old_origin by hand.
-		if (!(ent->s.renderfx & RF_BEAM))
-			ent->s.old_origin = ent->s.origin;
+    // Handle coop respawn reset if needed
+    if (check_coop_respawn) {
+        // Check if all players are now alive
+        bool reset_coop_respawn = true;
+        for (auto const player : players) {
+            if (player->health <= 0) {
+                reset_coop_respawn = false;
+                break;
+            }
+        }
 
-		// if the ground entity moved, make sure we are still on it
-		if ((ent->groundentity) && (ent->groundentity->linkcount != ent->groundentity_linkcount))
-		{
-			contents_t mask = G_GetClipMask(ent);
+        // Reset respawn states if all players alive
+        if (reset_coop_respawn) {
+            for (auto const player : players)
+                player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+        }
+    }
 
-			if (!(ent->flags & (FL_SWIM | FL_FLY)) && (ent->svflags & SVF_MONSTER))
-			{
-				ent->groundentity = nullptr;
-				M_CheckGround(ent, mask);
-			}
-			else
-			{
-				// if it's still 1 point below us, we're good
-				trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + ent->gravityVector, ent,
-					mask);
+    // Build playerstate structures
+    ClientEndServerFrames();
 
-				if (tr.startsolid || tr.allsolid || tr.ent != ent->groundentity)
-					ent->groundentity = nullptr;
-				else
-					ent->groundentity_linkcount = ent->groundentity->linkcount;
-			}
-		}
+    // Update level entry time
+    if (level.entry && !level.intermissiontime && g_edicts[1].inuse && g_edicts[1].client->pers.connected)
+        level.entry->time += FRAME_TIME_S;
 
-		Entity_UpdateState(ent);
+    // Process monster pains - use a different iterator to avoid rebuilding
+    std::span monster_span{ g_edicts, globals.num_edicts + 1 + game.maxclients + BODY_QUEUE_SIZE };
+    for (auto& e : monster_span) {
+        if (!e.inuse || !(e.svflags & SVF_MONSTER))
+            continue;
 
-		if (i > 0 && i <= game.maxclients)
-		{
-			ClientBeginServerFrame(ent);
-			continue;
-		}
+        M_ProcessPain(&e);
+    }
 
-		G_RunEntity(ent);
-	}
-
-	// see if it is time to end a deathmatch
-	CheckDMRules();
-
-	// see if needpass needs updated
-	CheckNeedPass();
-
-	if (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer) || G_IsDeathmatch() && g_horde->integer && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
-	{
-		// rarely, we can see a flash of text if all players respawned
-		// on some other player, so if everybody is now alive we'll reset
-		// back to empty
-		bool reset_coop_respawn = true;
-
-		for (auto const player : active_players())
-		{
-			if (player->health > 0)
-			{
-				reset_coop_respawn = false;
-				break;
-			}
-		}
-
-		if (reset_coop_respawn)
-		{
-			for (auto const player : active_players())
-				player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-		}
-	}
-
-	// build the playerstate_t structures for all players
-	ClientEndServerFrames();
-
-	// [Paril-KEX] if not in intermission and player 1 is loaded in
-	// the game as an entity, increase timer on current entry
-	if (level.entry && !level.intermissiontime && g_edicts[1].inuse && g_edicts[1].client->pers.connected)
-		level.entry->time += FRAME_TIME_S;
-
-	// [Paril-KEX] run monster pains now
-	for (uint32_t i = 0; i < globals.num_edicts + 1 + game.maxclients + BODY_QUEUE_SIZE; i++)
-	{
-		edict_t* e = &g_edicts[i];
-
-		if (!e->inuse || !(e->svflags & SVF_MONSTER))
-			continue;
-
-		M_ProcessPain(e);
-	}
-
-	level.in_frame = false;
+    level.in_frame = false;
 }
-
 inline bool G_AnyPlayerSpawned()
 {
 	for (auto const player : active_players())
