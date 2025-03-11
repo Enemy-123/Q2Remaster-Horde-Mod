@@ -4219,7 +4219,11 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 
 	// Process a single player
 	auto process_player = [&](edict_t* player) {
-		if (player->deadflag) return false;
+		// Mark dead players as waiting, but don't process them further
+		if (player->deadflag) {
+			player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
+			return false;
+		}
 
 		// Check if player is in combat
 		if (player->client->last_damage_time >= level.time) {
@@ -4301,7 +4305,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		}
 	}
 
-	// Update UI strings for all players (alive and dead)
+	// Always update the UI strings if they changed
 	if (combat_message != last_combat_message) {
 		last_combat_message = combat_message;
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, combat_message.data());
@@ -4330,17 +4334,10 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	}
 
 	// Set waiting state for players with no state
-	// Note: This includes both alive and dead players
 	auto update_waiting_players = [](auto players_func) {
 		for (auto player : players_func()) {
 			// For alive players without state
 			if (!player->deadflag && player->client->coop_respawn_state == COOP_RESPAWN_NONE) {
-				player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
-			}
-
-			// For dead players - keep them in waiting state but they'll see the messages
-			// from the configstrings we've already set
-			if (player->deadflag) {
 				player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
 			}
 		}
