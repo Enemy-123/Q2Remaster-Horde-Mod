@@ -670,7 +670,7 @@ MMOVE_T(chick_move_end_slash) = { FRAME_attak213, FRAME_attak216, chick_frames_e
 
 void chick_reslash(edict_t* self)
 {
-	if (self->enemy->health > 0)
+	if (self->enemy && self->enemy->health > 0)
 	{
 		if (range_to(self, self->enemy) <= RANGE_MELEE)
 		{
