@@ -14,6 +14,7 @@ GUNNER
 #include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_GUNCMDR_NOJUMPING = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_GUNCMDRKL = 8_spawnflag;
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_pain2;
@@ -22,6 +23,39 @@ static cached_soundindex sound_idle;
 static cached_soundindex sound_open;
 static cached_soundindex sound_search;
 static cached_soundindex sound_sight;
+
+enum guncmdr_style_t {
+	GUNCMDR_STYLE_NORMAL = 0,
+	GUNCMDR_STYLE_BOSS = 1,     // Boss (guncmdrkl)
+	GUNCMDR_STYLE_GRENADIER = 2,  // Grenadier (granadas principalmente)
+};
+
+// Velocidades según estilo
+float GetMortarSpeed(int style) {
+	// Grenadier should have faster mortars for greater range
+	return (style == GUNCMDR_STYLE_GRENADIER) ? 1200.0f : 1650.0f;
+}
+
+float GetGrenadeSpeed(int style) {
+	// Grenadier should have faster grenades for greater accuracy
+	return (style == GUNCMDR_STYLE_GRENADIER) ? 1000.0f : 1400.0f;
+}
+
+float GetChaingunSpeed(int style) {
+	// Grenadier should have weaker chaingun
+	return (style == GUNCMDR_STYLE_GRENADIER) ? 800.0f : 1200.0f;
+}
+
+int GetFlechetteDamage(int style) {
+	// Grenadier should do less damage with chaingun
+	return (style == GUNCMDR_STYLE_GRENADIER) ? 4 : 8;
+}
+int GetGrenadeDamage(edict_t* self) {
+	if (!strcmp(self->classname, "monster_guncmdrkl") || self->style == GUNCMDR_STYLE_BOSS)
+		return 50;
+
+	return (self->style == GUNCMDR_STYLE_GRENADIER) ? 50 : 35;
+}
 
 void guncmdr_idlesound(edict_t* self)
 {
@@ -774,21 +808,18 @@ void guncmdr_opengun(edict_t* self)
 	gi.sound(self, CHAN_VOICE, sound_open, 1, ATTN_IDLE, 0);
 }
 
+// Función unificada para disparar con la cadena
 void GunnerCmdrFire(edict_t* self)
 {
-	// First verify both self and self->enemy are valid before accessing any members
-	if (!self || !self->enemy)  // Check self->enemy before accessing its members
+	// Verificar entidad enemiga
+	if (!self || !self->enemy || !self->enemy->inuse)
 		return;
 
-	if (!self->enemy->inuse)    // Now safe to check inuse
-		return;
+	vec3_t start;
+	vec3_t forward, right;
+	vec3_t aim;
+	monster_muzzleflash_id_t flash_number;
 
-	vec3_t                     start;
-	vec3_t                     forward, right;
-	vec3_t                     aim;
-	monster_muzzleflash_id_t   flash_number;
-
-	// Rest of the function remains the same
 	if (self->s.frame >= FRAME_c_attack401 && self->s.frame <= FRAME_c_attack505)
 		flash_number = MZ2_GUNCMDR_CHAINGUN_2;
 	else
@@ -796,14 +827,208 @@ void GunnerCmdrFire(edict_t* self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-	PredictAim(self, self->enemy, start, 1200, false, frandom() * 0.3f, &aim, nullptr);
+
+	float speed = GetChaingunSpeed(self->style);
+	PredictAim(self, self->enemy, start, speed, false, frandom() * 0.3f, &aim, nullptr);
 
 	for (int i = 0; i < 3; i++)
 		aim[i] += crandom_open() * 0.025f;
 
-	monster_fire_flechette(self, start, aim, 8, 1200, flash_number);
+	monster_fire_flechette(self, start, aim, GetFlechetteDamage(self->style), speed, flash_number);
 }
 
+// Función unificada para lanzar granadas
+void GunnerCmdrGrenade(edict_t* self)
+{
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	vec3_t start;
+	vec3_t forward, right, up;
+	vec3_t aim;
+	monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
+	float spread = 0.f;
+	float pitch = 0;
+	bool blindfire = false;
+	vec3_t target;
+
+	// pmm
+	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+		blindfire = true;
+
+	// Configurar spread y flash_number según el frame actual
+	if (self->s.frame == FRAME_c_attack206)
+	{
+		spread = -0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+	}
+	else if (self->s.frame == FRAME_c_attack208)
+	{
+		spread = 0.f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
+	}
+	else if (self->s.frame == FRAME_c_attack210)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
+	}
+	else if (self->s.frame == FRAME_c_attack211)
+	{
+		spread = 0.f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+	}
+	else if (self->s.frame == FRAME_c_attack212)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
+	}
+	else if (self->s.frame == FRAME_c_attack213)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
+	}
+	else if (self->s.frame == FRAME_c_attack304)
+	{
+		spread = -0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
+	}
+	else if (self->s.frame == FRAME_c_attack306)
+	{
+		spread = 0.f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_2;
+	}
+	else if (self->s.frame == FRAME_c_attack307)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_3;
+	}
+	else if (self->s.frame == FRAME_c_attack308)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
+	}
+	else if (self->s.frame == FRAME_c_attack310)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_2;
+	}
+	else if (self->s.frame == FRAME_c_attack311)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_3;
+	}
+	else if (self->s.frame == FRAME_c_attack312)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
+	}
+	else if (self->s.frame == FRAME_c_attack917)
+	{
+		spread = -0.25f;
+		flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_3;
+	}
+
+	// if we're shooting blind and we still can't see our enemy
+	if ((blindfire) && (!visible(self, self->enemy)))
+	{
+		// and we have a valid blind_fire_target
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+
+		target = self->monsterinfo.blind_fire_target;
+	}
+	else
+		target = self->enemy->s.origin;
+
+	AngleVectors(self->s.angles, forward, right, up);
+	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	// Calcular pitch basado en la posición del enemigo
+	if (self->enemy && !(flash_number >= MZ2_GUNCMDR_GRENADE_CROUCH_1 && flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3))
+	{
+		float dist;
+
+		aim = target - self->s.origin;
+		dist = aim.length();
+
+		// aim up if they're on the same level as me and far away.
+		if ((dist > 512) && (aim[2] < 64) && (aim[2] > -64))
+		{
+			aim[2] += (dist - 512);
+		}
+
+		aim.normalize();
+		pitch = aim[2];
+		if (pitch > 0.4f)
+			pitch = 0.4f;
+		else if (pitch < -0.5f)
+			pitch = -0.5f;
+
+		if ((self->enemy->absmin.z - self->absmax.z) > 16.f &&
+			flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 &&
+			flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)
+			pitch += 0.5f;
+	}
+
+	if (flash_number >= MZ2_GUNCMDR_GRENADE_FRONT_1 &&
+		flash_number <= MZ2_GUNCMDR_GRENADE_FRONT_3)
+		pitch -= 0.05f;
+
+	// Calcular vector de disparo
+	if (!(flash_number >= MZ2_GUNCMDR_GRENADE_CROUCH_1 &&
+		flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3))
+	{
+		aim = forward + (right * spread);
+		aim += (up * pitch);
+		aim.normalize();
+	}
+	else
+	{
+		PredictAim(self, self->enemy, start, 800, false, 0.f, &aim, nullptr);
+		aim += right * spread;
+		aim.normalize();
+	}
+
+	// Disparar ionripper o granada según el tipo
+	if (flash_number >= MZ2_GUNCMDR_GRENADE_CROUCH_1 &&
+		flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3)
+	{
+		constexpr float inner_spread = 0.125f;
+		for (int32_t i = 0; i < 3; i++)
+			fire_ionripper(self, start,
+				aim + (right * (-(inner_spread * 2) + (inner_spread * (i + 1)))),
+				15, 800, EF_IONRIPPER);
+
+		monster_muzzleflash(self, start, flash_number);
+	}
+	else
+	{
+		// Velocidad según tipo de disparo y estilo
+		float speed;
+		if (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 &&
+			flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)
+			speed = GetMortarSpeed(self->style);
+		else
+			speed = GetGrenadeSpeed(self->style);
+
+		// Calcular daño según tipo y calcular mejor trayectoria
+		int grenade_damage = GetGrenadeDamage(self);
+
+		if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f,
+			(flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 &&
+				flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)))
+		{
+			monster_fire_grenade(self, start, aim, grenade_damage, speed, flash_number,
+				(crandom_open() * 10.0f), frandom() * 10.f);
+		}
+		else
+		{
+			// normal shot
+			monster_fire_grenade(self, start, aim, grenade_damage, speed, flash_number,
+				(crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+		}
+	}
+}
 mframe_t guncmdr_frames_attack_chain[] = {
 	{ ai_charge },
 	{ ai_charge },
@@ -866,206 +1091,6 @@ MMOVE_T(guncmdr_move_endfire_chain) = { FRAME_c_attack118, FRAME_c_attack124, gu
 constexpr float MORTAR_SPEED = 1650.f;
 constexpr float GRENADE_SPEED = 1400.f;
 
-void GunnerCmdrGrenade(edict_t* self)
-{
-	vec3_t					 start;
-	vec3_t					 forward, right, up;
-	vec3_t					 aim;
-	monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
-	float					 spread = 0.f;
-	float					 pitch = 0;
-	// PMM
-	vec3_t target;
-	bool   blindfire = false;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
-
-	// pmm
-	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
-		blindfire = true;
-
-	if (self->s.frame == FRAME_c_attack206)
-	{
-		spread = -0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
-	}
-	else if (self->s.frame == FRAME_c_attack208)
-	{
-		spread = 0.f;
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
-	}
-	else if (self->s.frame == FRAME_c_attack210)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
-	}
-	else if (self->s.frame == FRAME_c_attack211)
-	{
-		spread = 0.f;
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
-	}
-	else if (self->s.frame == FRAME_c_attack212)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
-	}
-	else if (self->s.frame == FRAME_c_attack213)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
-	}
-
-	//mortar ready
-
-
-	else if (self->s.frame == FRAME_c_attack304)
-	{
-		spread = -0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
-	}
-	else if (self->s.frame == FRAME_c_attack306)
-	{
-		spread = 0.f;
-		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_2;
-	}
-	else if (self->s.frame == FRAME_c_attack307)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_3;
-	}
-	else if (self->s.frame == FRAME_c_attack308)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
-	}
-	else if (self->s.frame == FRAME_c_attack310)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_2;
-	}
-	else if (self->s.frame == FRAME_c_attack311)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_3;
-	}
-	else if (self->s.frame == FRAME_c_attack312)
-	{
-		spread = 0.1f;
-		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
-	}
-
-	// front
-
-
-	//else if (self->s.frame == FRAME_c_attack911)
-	//{
-	//	spread = 0.25f;
-	//	flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_1;
-	//}
-	//else if (self->s.frame == FRAME_c_attack912)
-	//{
-	//	spread = 0.f;
-	//	flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_2;
-	//}
-	//else if (self->s.frame == FRAME_c_attack913)
-	//{
-	//	spread = -0.25f;
-	//	flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_3;
-	//}
-
-	else if (self->s.frame == FRAME_c_attack917)
-	{
-		spread = -0.25f;
-		flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_3;
-	}
-
-	//	pmm
-	// if we're shooting blind and we still can't see our enemy
-	if ((blindfire) && (!visible(self, self->enemy)))
-	{
-		// and we have a valid blind_fire_target
-		if (!self->monsterinfo.blind_fire_target)
-			return;
-
-		target = self->monsterinfo.blind_fire_target;
-	}
-	else
-		target = self->enemy->s.origin;
-	// pmm
-
-	AngleVectors(self->s.angles, forward, right, up); // PGM
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-
-	// PGM
-	if (self->enemy && !(flash_number >= MZ2_GUNCMDR_GRENADE_CROUCH_1 && flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3))
-	{
-		float dist;
-
-		aim = target - self->s.origin;
-		dist = aim.length();
-
-		// aim up if they're on the same level as me and far away.
-		if ((dist > 512) && (aim[2] < 64) && (aim[2] > -64))
-		{
-			aim[2] += (dist - 512);
-		}
-
-		aim.normalize();
-		pitch = aim[2];
-		if (pitch > 0.4f)
-			pitch = 0.4f;
-		else if (pitch < -0.5f)
-			pitch = -0.5f;
-
-		if ((self->enemy->absmin.z - self->absmax.z) > 16.f && flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)
-			pitch += 0.5f;
-	}
-	// PGM
-
-	if (flash_number >= MZ2_GUNCMDR_GRENADE_FRONT_1 && flash_number <= MZ2_GUNCMDR_GRENADE_FRONT_3)
-		pitch -= 0.05f;
-
-	if (!(flash_number >= MZ2_GUNCMDR_GRENADE_CROUCH_1 && flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3))
-	{
-		aim = forward + (right * spread);
-		aim += (up * pitch);
-		aim.normalize();
-	}
-	else
-	{
-		PredictAim(self, self->enemy, start, 800, false, 0.f, &aim, nullptr);
-		aim += right * spread;
-		aim.normalize();
-	}
-
-	if (flash_number >= MZ2_GUNCMDR_GRENADE_CROUCH_1 && flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3)
-	{
-		constexpr float inner_spread = 0.125f;
-
-		for (int32_t i = 0; i < 3; i++)
-			fire_ionripper(self, start, aim + (right * (-(inner_spread * 2) + (inner_spread * (i + 1)))), 15, 800, EF_IONRIPPER);
-
-		monster_muzzleflash(self, start, flash_number);
-	}
-	else
-	{
-		// mortar fires farther
-		float speed;
-
-		if (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)
-			speed = MORTAR_SPEED;
-		else
-			speed = GRENADE_SPEED;
-
-		// try search for best pitch
-		if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)))
-			monster_fire_grenade(self, start, aim, !strcmp(self->classname, "monster_guncmdrkl") ? 50 : 35, speed, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
-		else
-			// normal shot
-			monster_fire_grenade(self, start, aim, !strcmp(self->classname, "monster_guncmdrkl") ? 50 : 35, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
-	}
-}
 mframe_t guncmdr_frames_attack_mortar[] = {
 	{ ai_charge },
 	{ ai_charge },
@@ -1108,6 +1133,60 @@ mframe_t guncmdr_frames_attack_mortar_dodge[] = {
 	{ ai_charge, 11.f }
 };
 MMOVE_T(guncmdr_move_attack_mortar_dodge) = { FRAME_c_duckstep01, FRAME_c_duckstep06, guncmdr_frames_attack_mortar_dodge, guncmdr_grenade_mortar_resume };
+
+mframe_t guncmdr_normal_frames_attack_mortar[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
+	{ ai_charge },
+	{ ai_charge },
+
+	{ ai_charge, 0, GunnerCmdrGrenade },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, monster_duck_up },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
+};
+MMOVE_T(guncmdr_normal_move_attack_mortar) = { FRAME_c_attack201, FRAME_c_attack221, guncmdr_normal_frames_attack_mortar, guncmdr_run };
+
+
+mframe_t guncmdr_normal_frames_attack_back[] = {
+	//{ ai_charge },
+	{ ai_charge, -2.f },
+	{ ai_charge, -1.5f },
+	{ ai_charge, -0.5f, GunnerCmdrGrenade },
+	{ ai_charge, -6.0f },
+	{ ai_charge, -4.f },
+	{ ai_charge, -2.5f, GunnerCmdrGrenade },
+	{ ai_charge, -7.0f },
+	{ ai_charge, -3.5f },
+	{ ai_charge, -1.1f, GunnerCmdrGrenade },
+
+	{ ai_charge, -4.6f },
+	{ ai_charge, 1.9f },
+	{ ai_charge, 1.0f },
+	{ ai_charge, -4.5f },
+	{ ai_charge, 3.2f },
+	{ ai_charge, 4.4f },
+	{ ai_charge, -6.5f },
+	{ ai_charge, -6.1f },
+	{ ai_charge, 3.0f },
+	{ ai_charge, -0.7f },
+	{ ai_charge, -1.0f }
+};
+MMOVE_T(guncmdr_normal_move_attack_grenade_back) = { FRAME_c_attack302, FRAME_c_attack321, guncmdr_normal_frames_attack_back, guncmdr_run };
+
 
 mframe_t guncmdr_frames_attack_back[] = {
 	//{ ai_charge },
@@ -1209,59 +1288,138 @@ constexpr float RANGE_CHAINGUN_RUN = 400.f;
 
 #include <cassert>
 
-MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
-	//// Asegúrate de que self y su enemigo estén correctamente inicializados
-	//assert(self != nullptr);
-	//assert(self->enemy != nullptr);
+MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
+{
 	monster_done_dodge(self);
 
+	// Casos especiales independientes del estilo
 	if (!strcmp(self->enemy->classname, "tesla_mine"))
 	{
-		M_SetAnimation(self, range_to(self, self->enemy) >= RANGE_MELEE * 2 ? &guncmdr_move_attack_chain : &guncmdr_move_attack_kick);
-		return; // Salir para evitar cambios adicionales de animación
+		M_SetAnimation(self, range_to(self, self->enemy) >= RANGE_MELEE * 2 ?
+			&guncmdr_move_attack_chain : &guncmdr_move_attack_kick);
+		return;
 	}
 
 	if (!strcmp(self->enemy->classname, "monster_sentrygun")) {
 		M_SetAnimation(self, &guncmdr_move_attack_chain);
-		return; // Salir para evitar cambios adicionales de animación
+		return;
 	}
 
-	float  const d = range_to(self, self->enemy);
-
+	// Distancia al enemigo
+	float const d = range_to(self, self->enemy);
 	vec3_t forward, right, aim;
-	AngleVectors(self->s.angles, forward, right, nullptr); // PGM
+	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	//// Depuración adicional
-	//std::cerr << "In guncmdr_attack, self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
-	//std::cerr << "In guncmdr_attack, self->absmax: [" << self->absmax[0] << ", " << self->absmax[1] << ", " << self->absmax[2] << "]" << std::endl;
-	//std::cerr << "In guncmdr_attack, self->enemy: " << self->enemy << ", self->enemy->absmin: [" << self->enemy->absmin[0] << ", " << self->enemy->absmin[1] << ", " << self->enemy->absmin[2] << "]" << std::endl;
-	//std::cerr << "In guncmdr_attack, self->enemy->absmax: [" << self->enemy->absmax[0] << ", " << self->enemy->absmax[1] << ", " << self->enemy->absmax[2] << "]" << std::endl;
-
-	// always use chaingun on tesla
-	// kick close enemies
+	// kick closer enemies, all styles
 	if (!self->bad_area && d < RANGE_MELEE && self->monsterinfo.melee_debounce_time < level.time) {
 		M_SetAnimation(self, &guncmdr_move_attack_kick);
+		return;
 	}
-	//else if (self->bad_area || ((d <= RANGE_GRENADE || brandom()) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_CHAINGUN_1]))) {
-	//	M_SetAnimation(self, &guncmdr_move_attack_chain);
-	//}
-	else if ((d >= RANGE_GRENADE_MORTAR || fabs(self->absmin.z - self->enemy->absmax.z) > 64.f) // enemy is far below or above us, always try mortar
-		&& M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1])
-		&& M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
-			aim = (self->enemy->s.origin - self->s.origin).normalized(), MORTAR_SPEED, 2.5f, true)) {
-		M_SetAnimation(self, &guncmdr_move_attack_mortar);
-		monster_duck_down(self);
+
+	switch (self->style) {
+	case GUNCMDR_STYLE_NORMAL:
+		// FIXED: Normal style should primarily use chaingun with minimal grenade usage
+		// Match the original guncmdr2_attack behavior more closely
+		if (self->bad_area || ((d <= RANGE_GRENADE_MORTAR || brandom()) &&
+			M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_CHAINGUN_1]))) {
+			// Primary attack: chaingun - using brandom() to match original logic
+			// This will be chosen most of the time
+			M_SetAnimation(self, &guncmdr_move_attack_chain);
+		}
+		else if ((d >= RANGE_GRENADE_MORTAR || fabs(self->absmin.z - self->enemy->absmax.z) > 64.f) &&
+			M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1]) &&
+			M_CalculatePitchToFire(self, self->enemy->s.origin,
+				M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
+				aim = (self->enemy->s.origin - self->s.origin).normalized(),
+				850, 2.5f, true)) {
+			// Use mortar only in special cases (height difference or very far)
+			// Using guncmdr_normal_move_attack_mortar which has fewer grenades
+			M_SetAnimation(self, &guncmdr_normal_move_attack_mortar);
+			monster_duck_down(self);
+		}
+		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1]) &&
+			!(self->monsterinfo.aiflags & AI_STAND_GROUND) &&
+			M_CalculatePitchToFire(self, self->enemy->s.origin,
+				M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
+				aim = (self->enemy->s.origin - self->s.origin).normalized(),
+				600, 2.5f, false)) {
+			// Use grenades as fallback
+			// Using guncmdr_normal_move_attack_grenade_back which has fewer grenades
+			M_SetAnimation(self, &guncmdr_normal_move_attack_grenade_back);
+		}
+		else if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
+			// When standing ground, use chaingun
+			M_SetAnimation(self, &guncmdr_move_attack_chain);
+		}
+		else {
+			// Default to chaingun for normal style
+			M_SetAnimation(self, &guncmdr_move_attack_chain);
+		}
+		break;
+	case GUNCMDR_STYLE_GRENADIER:
+		// ISSUE: Grenadier isn't using grenades enough
+		// FIX: Increase grenade preference, reduce chaingun usage
+		if ((d >= RANGE_GRENADE_MORTAR || fabs(self->absmin.z - self->enemy->absmax.z) > 64.f) &&
+			M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1]) &&
+			M_CalculatePitchToFire(self, self->enemy->s.origin,
+				M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
+				aim = (self->enemy->s.origin - self->s.origin).normalized(),
+				GetMortarSpeed(self->style), 2.5f, true)) {
+			// Use regular move (more grenades) for grenadier style
+			M_SetAnimation(self, &guncmdr_move_attack_mortar);
+			monster_duck_down(self);
+		}
+		else if (frandom() < 0.8f && // High chance to use grenades
+			M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1]) &&
+			!(self->monsterinfo.aiflags & AI_STAND_GROUND) &&
+			M_CalculatePitchToFire(self, self->enemy->s.origin,
+				M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
+				aim = (self->enemy->s.origin - self->s.origin).normalized(),
+				GetGrenadeSpeed(self->style), 2.5f, false)) {
+			// Use regular move (more grenades) for grenadier style
+			M_SetAnimation(self, &guncmdr_move_attack_grenade_back);
+		}
+		else if (self->bad_area) {
+			// Only use chaingun when absolutely necessary
+			M_SetAnimation(self, &guncmdr_move_attack_chain);
+		}
+		else {
+			// Even when defaulting, try grenades again
+			M_SetAnimation(self, &guncmdr_move_attack_grenade_back);
+		}
+		break;
+	case GUNCMDR_STYLE_BOSS:
+		// La versión boss tiene prioridad por granadas y nunca usa chaingun
+		if ((d >= RANGE_GRENADE_MORTAR || fabs(self->absmin.z - self->enemy->absmax.z) > 64.f) &&
+			M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1]) &&
+			M_CalculatePitchToFire(self, self->enemy->s.origin,
+				M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
+				aim = (self->enemy->s.origin - self->s.origin).normalized(),
+				GetMortarSpeed(self->style), 2.5f, true)) {
+			M_SetAnimation(self, &guncmdr_move_attack_mortar);
+			monster_duck_down(self);
+		}
+		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1]) &&
+			!(self->monsterinfo.aiflags & AI_STAND_GROUND) &&
+			M_CalculatePitchToFire(self, self->enemy->s.origin,
+				M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
+				aim = (self->enemy->s.origin - self->s.origin).normalized(),
+				GetGrenadeSpeed(self->style), 2.5f, false)) {
+			M_SetAnimation(self, &guncmdr_move_attack_grenade_back);
+		}
+		else {
+			// Solo como último recurso usar chaingun
+			M_SetAnimation(self, &guncmdr_move_attack_chain);
+		}
+		break;
+
+	default:
+		// Si hay un estilo desconocido, usar comportamiento por defecto
+		M_SetAnimation(self, &guncmdr_move_attack_chain);
+		break;
 	}
-	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1])
-		&& !(self->monsterinfo.aiflags & AI_STAND_GROUND)
-		&& M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
-			aim = (self->enemy->s.origin - self->s.origin).normalized(), GRENADE_SPEED, 2.5f, false)) {
-		M_SetAnimation(self, &guncmdr_move_attack_grenade_back);
-	}
-	//else if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
-	//	M_SetAnimation(self, &guncmdr_move_attack_chain);
-	//}
 }
+
 void guncmdr_fire_chain(edict_t* self)
 {
 	if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && self->enemy && range_to(self, self->enemy) > RANGE_CHAINGUN_RUN && ai_check_move(self, 8.0f))
@@ -1274,28 +1432,46 @@ void guncmdr_refire_chain(edict_t* self) {
 	monster_done_dodge(self);
 	self->monsterinfo.attack_state = AS_STRAIGHT;
 
-	// Null check for self->enemy using nullptr
 	if (self->enemy == nullptr) {
 		M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
 		return;
 	}
 
-	if (self->enemy->health > 0) {
-		if (visible(self, self->enemy)) {
-			if (frandom() < 0.5f) {
-				if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && self->enemy && range_to(self, self->enemy) > RANGE_CHAINGUN_RUN && ai_check_move(self, 8.0f)) {
-					M_SetAnimation(self, &guncmdr_move_fire_chain_run, false);
-				}
-				else {
-					M_SetAnimation(self, &guncmdr_move_fire_chain, false);
-				}
-				return;
+	if (self->enemy->health > 0 && visible(self, self->enemy)) {
+		// FIX: Adjust refire chance based on style
+		float refire_chance;
+
+		switch (self->style) {
+		case GUNCMDR_STYLE_NORMAL:
+			refire_chance = 0.7f;  // Normal prefers chaingun - high chance to continue
+			break;
+		case GUNCMDR_STYLE_GRENADIER:
+			refire_chance = 0.25f; // Grenadier prefers grenades - low chance to continue
+			break;
+		case GUNCMDR_STYLE_BOSS:
+			refire_chance = 0.4f;  // Boss uses some chaingun but prefers grenades
+			break;
+		default:
+			refire_chance = 0.5f;  // Default value
+		}
+
+		if (frandom() < refire_chance) {
+			// Continue firing based on calculated probability
+			if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) &&
+				self->enemy &&
+				range_to(self, self->enemy) > RANGE_CHAINGUN_RUN &&
+				ai_check_move(self, 8.0f)) {
+				M_SetAnimation(self, &guncmdr_move_fire_chain_run, false);
 			}
+			else {
+				M_SetAnimation(self, &guncmdr_move_fire_chain, false);
+			}
+			return;
 		}
 	}
+
 	M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
 }
-
 //===========
 // PGM
 void guncmdr_jump_now(edict_t* self)
@@ -1501,14 +1677,17 @@ MONSTERINFO_BLOCKED(guncmdr_blocked) (edict_t* self, float dist) -> bool
 /*QUAKED monster_guncmdr (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight NoJumping
 model="models/monsters/guncmdr/tris.md2"
 */
-void SP_monster_guncmdr(edict_t* self)
+void SP_monster_guncmdr_vanilla(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	// Inicializar estilo si no está ya configurado
+	if (self->style < 0 || self->style > 2)
+		self->style = GUNCMDR_STYLE_NORMAL;
 
+	// Sonido de búsqueda aleatorio en modo horde
 	if (g_horde->integer) {
-		float const randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
+		float const randomsearch = frandom();
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 	}
@@ -1518,6 +1697,7 @@ void SP_monster_guncmdr(edict_t* self)
 		return;
 	}
 
+	// Inicializar sonidos
 	sound_death.assign("guncmdr/gcdrdeath1.wav");
 	sound_pain.assign("guncmdr/gcdrpain2.wav");
 	sound_pain2.assign("guncmdr/gcdrpain1.wav");
@@ -1529,41 +1709,58 @@ void SP_monster_guncmdr(edict_t* self)
 	gi.soundindex("guncmdr/gcdratck2.wav");
 	gi.soundindex("guncmdr/gcdratck3.wav");
 
+	// Configuración básica
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/gunner/tris.md2");
 
+	// Precarga de modelos de gibs
 	gi.modelindex("models/monsters/gunner/gibs/chest.md2");
 	gi.modelindex("models/monsters/gunner/gibs/foot.md2");
 	gi.modelindex("models/monsters/gunner/gibs/garm.md2");
 	gi.modelindex("models/monsters/gunner/gibs/gun.md2");
 	gi.modelindex("models/monsters/gunner/gibs/head.md2");
 
+	// Configuración de tamaño y escala
 	self->s.scale = 1.25f;
 	self->mins = vec3_t{ -16, -16, -24 };
 	self->maxs = vec3_t{ 16, 16, 36 };
 	self->s.skinnum = 2;
 
-	self->health = 325 * st.health_multiplier;
+	// Health already varies by style, but should be clearer
+	if (self->style == GUNCMDR_STYLE_GRENADIER)
+		self->health = 275 * st.health_multiplier;  // Grenadier is weaker
+	else
+		self->health = 325 * st.health_multiplier;  // Normal has more health
+
 	self->gib_health = -175;
 	self->mass = 255;
 
-	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
+	// Configuración especial para jefe
+	if (self->style == GUNCMDR_STYLE_BOSS || self->spawnflags.has(SPAWNFLAG_GUNCMDRKL)) {
+		self->health = 4500 + (1.08 * current_wave_level);
+		if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
+			self->mass *= 3.0f;
+			self->gib_health = -999777;
+		}
+		self->s.renderfx = RF_TRANSLUCENT;
+		self->s.effects = EF_FLAG1;
+	}
+	else if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->gib_health = -999777;
 	}
+
+	// Asignación de funciones de IA
 	self->pain = guncmdr_pain;
 	self->die = guncmdr_die;
-
 	self->monsterinfo.stand = guncmdr_stand;
 	self->monsterinfo.walk = guncmdr_walk;
 	self->monsterinfo.run = guncmdr_run;
-	// pmm
 	self->monsterinfo.dodge = M_MonsterDodge;
 	self->monsterinfo.duck = guncmdr_duck;
 	self->monsterinfo.unduck = monster_duck_up;
 	self->monsterinfo.sidestep = guncmdr_sidestep;
-	self->monsterinfo.blocked = guncmdr_blocked; // PGM
-	// pmm
+	self->monsterinfo.blocked = guncmdr_blocked;
 	self->monsterinfo.attack = guncmdr_attack;
 	self->monsterinfo.melee = nullptr;
 	self->monsterinfo.sight = guncmdr_sight;
@@ -1572,45 +1769,40 @@ void SP_monster_guncmdr(edict_t* self)
 
 	gi.linkentity(self);
 
+	// Animación inicial
 	M_SetAnimation(self, &guncmdr_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
 
+	// Armadura según especificación
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 180;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
-	// PMM
-	//self->monsterinfo.blindfire = true;
+	// Capacidades de movimiento
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_GUNCMDR_NOJUMPING);
 	self->monsterinfo.drop_height = 192;
 	self->monsterinfo.jump_height = 40;
+
+	//blindfire for grenadier guys
+	if (self->style == GUNCMDR_STYLE_GRENADIER || self->style == GUNCMDR_STYLE_BOSS)
+		self->monsterinfo.blindfire = true;
 
 	walkmonster_start(self);
 	ApplyMonsterBonusFlags(self);
 }
 
-//HORDE BOSS
-constexpr spawnflags_t SPAWNFLAG_GUNCMDRKL = 8_spawnflag;
+// Función para mantener compatibilidad con la entidad vanilla
+void SP_monster_guncmdr(edict_t* self)
+{
+	self->style = GUNCMDR_STYLE_GRENADIER;
+	SP_monster_guncmdr_vanilla(self);
+}
+
+// Función para mantener compatibilidad con la versión jefe
 void SP_monster_guncmdrkl(edict_t* self)
 {
+	self->style = GUNCMDR_STYLE_BOSS;
 	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
 	SP_monster_guncmdr(self);
-	self->health = 4500 + (1.08 * current_wave_level);
-
-
-	if (self->health < (self->max_health / 2))
-		self->s.skinnum |= 1;
-	else
-		self->s.skinnum &= ~1;
-
-	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-		self->mass *= 3.0f;
-		self->gib_health = -999777;
-	}
-
-	self->s.renderfx = RF_TRANSLUCENT;
-	self->s.effects = EF_FLAG1;
-
-	ApplyMonsterBonusFlags(self);
 }
