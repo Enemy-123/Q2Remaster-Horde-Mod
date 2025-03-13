@@ -428,7 +428,7 @@ bool boss_spawned_for_wave = false; // to avoid boss spamming
 bool melee_monsters_mode = false;   // For RedMutant waves
 bool small_monsters_mode = false;   // For Widow waves
 
-int8_t last_wave_number = 0;              // Reducido de uint64_t
+int16_t last_wave_number = 0;              // Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 
 gtime_t horde_message_end_time = 0_sec;
@@ -705,7 +705,7 @@ struct WeightedSelection {
 		return eligible_items[eligible_count - 1].item;
 	}
 };
-int8_t current_wave_level = g_horde_local.level;
+int16_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
 auto lastMonsterSpawnTime = std::unordered_map<std::string, gtime_t>{};
@@ -3642,6 +3642,16 @@ void ResetGame() {
 		}
 		it = auto_spawned_bosses.erase(it);
 	}
+
+	g_adjusted_monster_cap = 0;
+
+	// Reset global variables that ARE accessible
+	spawn_point_cache.clear();
+	item_cache.clear();
+
+	// Reset static counters (only ones accessible at this scope)
+	consistent_zero_counts = 0;
+	counter_mismatch_frames = 0;
 
 	// Resetear todas las variables globales
 	horde_message_end_time = 0_sec;
