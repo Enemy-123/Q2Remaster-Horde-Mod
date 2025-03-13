@@ -550,7 +550,7 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 	// Efectos adicionales para spawn de jefes
 	for (int i = 0; i < NUM_SECONDARY_EFFECTS; i++)
 	{
-		vec3_t offset;
+		vec3_t offset{};
 
 		// Calcular posición aleatoria para cada efecto secundario
 		for (int j = 0; j < 3; j++) {
@@ -674,7 +674,7 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		return;
 
 	// Calculate bounds with safe limits
-	vec3_t area_mins, area_maxs;
+	vec3_t area_mins{}, area_maxs{};
 	for (int i = 0; i < 3; i++) {
 		area_mins[i] = origin[i] + mins[i] - 26.0f;
 		area_maxs[i] = origin[i] + maxs[i] + 26.0f;

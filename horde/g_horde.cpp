@@ -293,7 +293,7 @@ static void CleanupSpawnPointCache() noexcept {
 template <typename TFilter>
 edict_t* SelectRandomSpawnPoint(TFilter filter) {
 	// Pre-allocate on stack instead of using static vector
-	edict_t* availableSpawns[MAX_SPAWN_POINTS];
+	edict_t* availableSpawns[MAX_SPAWN_POINTS]{};
 	int availableCount = 0;
 
 	// Get all spawn points but don't process them yet
@@ -693,7 +693,7 @@ struct WeightedSelection {
 			return nullptr;
 
 		// Stack-allocated array for eligible items to avoid heap allocation
-		ItemEntry eligible_items[MAX_ITEMS];
+		ItemEntry eligible_items[MAX_ITEMS]{};
 		size_t eligible_count = 0;
 		float eligible_total = 0.0f;
 
