@@ -12,7 +12,6 @@ GLADIATOR
 #include "m_gladiator.h"
 #include "m_flash.h"
 #include "shared.h"
-#include "shared.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;

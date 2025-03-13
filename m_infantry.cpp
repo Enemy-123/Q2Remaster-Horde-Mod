@@ -278,49 +278,89 @@ constexpr vec3_t aimangles[] = {
 void InfantryMachineGun(edict_t* self)
 {
 	vec3_t start, forward, right, up, dir, end;
+	vec3_t vec;
+	monster_muzzleflash_id_t flash_number;
 
+	// Verificación común para ambos estilos
 	if (!has_valid_enemy(self))
 		return;
 
-	// Si está en secuencia de muerte y tiene salud > 0
+	// Secuencia de muerte (común en ambos estilos con diferente disparo)
 	if (self->health <= 0 && self->s.frame >= FRAME_death211 && self->s.frame <= FRAME_death225)
 	{
-		// Usar los offsets precisos del machinegun durante la muerte
-		monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_INFANTRY_MACHINEGUN_2 + (self->s.frame - FRAME_death211));
-
-		// Obtener vectores de dirección
+		// Configuración común para secuencia de muerte
+		flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_INFANTRY_MACHINEGUN_2 + (self->s.frame - FRAME_death211));
 		AngleVectors(self->s.angles, forward, right, nullptr);
-
-		// Usar los offsets precisos del machinegun
 		start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-
-		// Calcular dirección usando los ángulos predefinidos
-		vec3_t const vec = self->s.angles - aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2];
+		vec = self->s.angles - aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2];
 		AngleVectors(vec, forward, nullptr, nullptr);
 
-		// Disparar usando el efecto y sonido del hyperblaster
-		monster_fire_blaster2(self, start, forward, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+		// Disparo según el estilo
+		if (self->style == 1) // Blaster
+			monster_fire_blaster2(self, start, forward, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+		else // Vanilla
+			monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
-	else
+	else // Comportamiento normal (no muriendo)
 	{
-		// Comportamiento normal cuando no está muriendo
-		vec3_t  const offset = { 26.6f, 6.1f, 10.1f };
-		AngleVectors(self->s.angles, forward, right, up);
-		start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-
-		dir = self->enemy->s.origin - start;
-
-		if (frandom() < 0.3f)
-			PredictAim(self, self->enemy, start, 1075, true, 0, &dir, &end);
-		else
-			end = self->enemy->s.origin;
-
-		trace_t const trace = gi.traceline(start, end, self, MASK_PROJECTILE);
-
-		if (trace.ent == self->enemy || trace.ent == world)
+		// Bifurcación según estilo
+		if (self->style == 1) // Blaster
 		{
-			dir.normalize();
-			monster_fire_blaster2(self, start, dir, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+			// Código específico para blaster
+			vec3_t const offset = { 26.6f, 6.1f, 10.1f };
+			AngleVectors(self->s.angles, forward, right, up);
+			start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
+			dir = self->enemy->s.origin - start;
+			if (frandom() < 0.3f)
+				PredictAim(self, self->enemy, start, 1075, true, 0, &dir, &end);
+			else
+				end = self->enemy->s.origin;
+
+			trace_t const trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+			if (trace.ent == self->enemy || trace.ent == world)
+			{
+				dir.normalize();
+				monster_fire_blaster2(self, start, dir, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+			}
+		}
+		else // Vanilla
+		{
+			// Código específico para arma de balas
+			bool const is_run_attack = (self->s.frame >= FRAME_run201 && self->s.frame <= FRAME_run208);
+
+			if (self->s.frame == FRAME_attak103 || self->s.frame == FRAME_attak311 ||
+				is_run_attack || self->s.frame == FRAME_attak416)
+			{
+				if (is_run_attack)
+					flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_INFANTRY_MACHINEGUN_14 +
+						(self->s.frame - MZ2_INFANTRY_MACHINEGUN_14));
+				else if (self->s.frame == FRAME_attak416)
+					flash_number = MZ2_INFANTRY_MACHINEGUN_22;
+				else
+					flash_number = MZ2_INFANTRY_MACHINEGUN_1;
+
+				AngleVectors(self->s.angles, forward, right, nullptr);
+				start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+				if (self->enemy)
+					PredictAim(self, self->enemy, start, 0, true, -0.2f, &forward, nullptr);
+				else
+					AngleVectors(self->s.angles, forward, right, nullptr);
+			}
+			else
+			{
+				flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_INFANTRY_MACHINEGUN_2 +
+					(self->s.frame - FRAME_death211));
+
+				AngleVectors(self->s.angles, forward, right, nullptr);
+				start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+				vec = self->s.angles - aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2];
+				AngleVectors(vec, forward, nullptr, nullptr);
+			}
+
+			monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 		}
 	}
 }
@@ -962,7 +1002,7 @@ constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;
 
 /*QUAKED monster_infantry (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight NoJumping
  */
-void SP_monster_infantry(edict_t* self)
+void SP_monster_infantry_vanilla(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
@@ -990,18 +1030,6 @@ void SP_monster_infantry(edict_t* self)
 
 	if (!g_horde->integer) {
 		self->health = 100 * st.health_multiplier;
-	}
-
-	if (g_horde->integer) {
-
-		self->s.scale = 1.2f;
-
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 85;
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-
-		self->health = 150 * st.health_multiplier;
 	}
 
 	self->health = 100 * st.health_multiplier;
@@ -1043,4 +1071,26 @@ void SP_monster_infantry(edict_t* self)
 	walkmonster_start(self);
 
 	ApplyMonsterBonusFlags(self);
+}
+
+void SP_monster_infantry(edict_t* self)
+{
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+	self->style = 1;
+
+	if (g_horde->integer) {
+
+		self->s.scale = 1.2f;
+
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = 85;
+		if (!st.was_key_specified("power_armor_type"))
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+
+		self->health = 150 * st.health_multiplier;
+	}
+
+	SP_monster_infantry_vanilla(self);
+
+
 }
