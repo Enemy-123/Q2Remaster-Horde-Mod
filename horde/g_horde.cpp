@@ -6,6 +6,23 @@
 #include "g_horde_benefits.h"
 #include <span>
 
+
+static bool need_spawn_cache_reset = false;
+static bool need_frame_timer_reset = false;
+static bool need_queue_monitor_reset = false;
+
+void ResetSpawnMonsterVars() {
+	need_spawn_cache_reset = true;
+}
+
+void ResetFrameTimers() {
+	need_frame_timer_reset = true;
+}
+
+void ResetQueueMonitorVars() {
+	need_queue_monitor_reset = true;
+}
+
 // Monster count verification tracking
 static int consistent_zero_counts = 0;
 static int counter_mismatch_frames = 0;
@@ -3669,6 +3686,11 @@ void ResetGame() {
 	lastMonsterSpawnTime.clear();
 	lastSpawnPointTime.clear();
 
+	// Reset static function variables
+	ResetSpawnMonsterVars();
+	ResetFrameTimers();
+	ResetQueueMonitorVars();
+
 	// Reiniciar variables de estado global
 	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
 	current_wave_level = 0;
@@ -4293,6 +4315,13 @@ static edict_t* SpawnMonsters() {
 		gtime_t last_spawn_time = 0_sec;
 		int32_t consecutive_failures = 0;
 	} spawn_cache;
+
+	if (need_spawn_cache_reset) {
+		spawn_cache.available_spawns.clear();
+		spawn_cache.last_spawn_time = 0_sec;
+		spawn_cache.consecutive_failures = 0;
+		need_spawn_cache_reset = false;
+	}
 
 	// Clear previous data
 	spawn_cache.available_spawns.clear();
@@ -4960,6 +4989,12 @@ void CheckAndFixQueuedMonsters() {
 	static gtime_t last_queue_check = 0_sec;
 	static int consecutive_empty_spawns = 0;
 
+	if (need_queue_monitor_reset) {
+		last_queue_check = 0_sec;
+		consecutive_empty_spawns = 0;
+		need_queue_monitor_reset = false;
+	}
+
 	// Check every 5 seconds
 	if (level.time - last_queue_check < 5_sec)
 		return;
@@ -5042,6 +5077,12 @@ void Horde_RunFrame() {
 	// Safety check for high waves - detect stuck states
 	static gtime_t last_wave_change_time = 0_sec;
 	static int32_t last_wave_level = 0;
+
+	if (need_frame_timer_reset) {
+		last_wave_change_time = 0_sec;
+		last_wave_level = 0;
+		need_frame_timer_reset = false;
+	}
 
 	if (last_wave_level != currentLevel) {
 		last_wave_change_time = currentTime;

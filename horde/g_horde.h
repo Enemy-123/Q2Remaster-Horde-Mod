@@ -6,6 +6,10 @@ void Horde_RunFrame()  ;
 void ResetGame()  ;
 void HandleResetEvent()  ;
 
+void ResetSpawnMonsterVars();
+void ResetFrameTimers();
+void ResetQueueMonitorVars();
+
 // Item selection in Horde mode
 gitem_t* G_HordePickItem();
 
