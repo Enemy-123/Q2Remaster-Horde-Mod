@@ -903,9 +903,21 @@ void SP_monster_hover(edict_t* self)
     self->mins = { -24, -24, -24 };
     self->maxs = { 24, 24, 32 };
 
-    self->health = 240 * st.health_multiplier;
+    // Check the classname and set appropriate health
+    if (strcmp(self->classname, "monster_daedalus") == 0 ||
+        strcmp(self->classname, "monster_daedalus_bomber") == 0) {
+        self->health = 350 * st.health_multiplier;
+    }
+    else {
+        self->health = 240 * st.health_multiplier;
+    }
+
     self->gib_health = -100;
-    self->mass = 150;
+
+    // Only set mass if it hasn't been set already
+    if (self->mass <= 150) {
+        self->mass = 150;
+    }
 
     self->pain = hover_pain;
     self->die = hover_die;
