@@ -182,7 +182,6 @@
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="m_arachnid2.cpp" />
     <ClCompile Include="m_gnorta.cpp" />
-    <ClCompile Include="m_guncmdr_vanilla.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="g_ai.cpp" />
     <ClCompile Include="g_chase.cpp" />
@@ -205,7 +204,6 @@
     <ClCompile Include="hook.cpp" />
     <ClCompile Include="horde\g_horde.cpp" />
     <ClCompile Include="m_float.cpp" />
-    <ClCompile Include="m_hover_vanilla.cpp" />
     <ClCompile Include="m_actor.cpp" />
     <ClCompile Include="m_arachnid.cpp" />
     <ClCompile Include="m_berserk.cpp" />
@@ -224,7 +222,6 @@
     <ClCompile Include="m_gunner.cpp" />
     <ClCompile Include="m_hover.cpp" />
     <ClCompile Include="m_infantry.cpp" />
-    <ClCompile Include="m_infantry2.cpp" />
     <ClCompile Include="m_insane.cpp" />
     <ClCompile Include="m_medic.cpp" />
     <ClCompile Include="m_move.cpp" />
@@ -234,7 +231,6 @@
     <ClCompile Include="m_redmutant.cpp" />
     <ClCompile Include="m_shocker.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
-    <ClCompile Include="old_horde.cpp" />
     <ClCompile Include="rogue/m_rogue_turret.cpp" />
     <ClCompile Include="m_shambler.cpp" />
     <ClCompile Include="m_soldier.cpp" />
