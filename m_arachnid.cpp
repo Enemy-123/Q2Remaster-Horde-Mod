@@ -5,9 +5,9 @@
 
 ARACHNID UNIFIED IMPLEMENTATION
 
-This file contains all three arachnid variants:
+This file contains all arachnid variants:
 - Standard arachnid (railgun)
-- Arachnid2 (railgun, more health)
+- Arachnid2 (stronger railgun)
 - PSX arachnid (smarter AI, can spawn minions)
 - Spider (skinned variant of standard arachnid)
 - GM arachnid (rocket variant)
@@ -42,29 +42,10 @@ constexpr const char* coop_reinforcements = "monster_stalker 2";
 constexpr int32_t default_monster_slots_base = 5;
 
 //==========================================================================================
-// SHARED FUNCTIONS 
+// SHARED ANIMATIONS AND FUNCTIONS
 //==========================================================================================
 
-void arachnid_footstep(edict_t* self)
-{
-    gi.sound(self, CHAN_BODY, sound_step, 0.5f, ATTN_IDLE, 0.0f);
-}
-
-void arachnid_melee_charge(edict_t* self)
-{
-    gi.sound(self, CHAN_WEAPON, sound_melee, 1.f, ATTN_NORM, 0.f);
-}
-
-//==========================================================================================
-// STANDARD ARACHNID IMPLEMENTATION
-//==========================================================================================
-
-MONSTERINFO_SIGHT(arachnid_sight) (edict_t* self, edict_t* other) -> void
-{
-    gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
-}
-
-// Stand animation
+// Common stand animation
 mframe_t arachnid_frames_stand[] = {
     { ai_stand },
     { ai_stand },
@@ -81,6 +62,127 @@ mframe_t arachnid_frames_stand[] = {
     { ai_stand }
 };
 MMOVE_T(arachnid_move_stand) = { FRAME_idle1, FRAME_idle13, arachnid_frames_stand, nullptr };
+
+// Common pain animations
+mframe_t arachnid_frames_pain1[] = {
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move }
+};
+
+mframe_t arachnid_frames_pain2[] = {
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move }
+};
+
+// Common death animation
+mframe_t arachnid_frames_death1[] = {
+    { ai_move, 0 },
+    { ai_move, -1.23f },
+    { ai_move, -1.23f },
+    { ai_move, -1.23f },
+    { ai_move, -1.23f },
+    { ai_move, -1.64f },
+    { ai_move, -1.64f },
+    { ai_move, -2.45f },
+    { ai_move, -8.63f },
+    { ai_move, -4.0f },
+    { ai_move, -4.5f },
+    { ai_move, -6.8f },
+    { ai_move, -8.0f },
+    { ai_move, -5.4f },
+    { ai_move, -3.4f },
+    { ai_move, -1.9f },
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move }
+};
+
+// Shared utility functions
+void arachnid_footstep(edict_t* self)
+{
+    gi.sound(self, CHAN_BODY, sound_step, 0.5f, ATTN_IDLE, 0.0f);
+}
+
+void arachnid_melee_charge(edict_t* self)
+{
+    gi.sound(self, CHAN_WEAPON, sound_melee, 1.f, ATTN_NORM, 0.f);
+}
+
+void arachnid_charge_rail(edict_t* self)
+{
+    if (!self->enemy || !self->enemy->inuse)
+        return;
+
+    gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
+    self->pos1 = self->enemy->s.origin;
+    self->pos1[2] += self->enemy->viewheight;
+}
+
+void arachnid_dead(edict_t* self)
+{
+    self->mins = { -16, -16, -24 };
+    self->maxs = { 16, 16, -8 };
+    self->movetype = MOVETYPE_TOSS;
+    self->svflags |= SVF_DEADMONSTER;
+    self->nextthink = 0_ms;
+    gi.linkentity(self);
+}
+
+// Shared die function
+void arachnid_die_internal(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod, const mmove_t* death_move)
+{
+    // check for gib
+    if (M_CheckGib(self, mod))
+    {
+        gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+
+        ThrowGibs(self, damage, {
+            { 2, "models/objects/gibs/bone/tris.md2" },
+            { 2, "models/objects/gibs/sm_meat/tris.md2" },
+            { "models/monsters/gunner/gibs/chest.md2", GIB_METALLIC },
+            { "models/monsters/gunner/gibs/garm.md2", GIB_METALLIC | GIB_UPRIGHT },
+            { "models/monsters/gladiatr/gibs/rarm.md2", GIB_METALLIC | GIB_UPRIGHT },
+            { "models/monsters/gunner/gibs/foot.md2", GIB_METALLIC },
+            { "models/monsters/gunner/gibs/head.md2", GIB_METALLIC | GIB_HEAD }
+            });
+        self->deadflag = true;
+        return;
+    }
+
+    if (self->deadflag)
+        return;
+
+    // regular death
+    gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
+    self->deadflag = true;
+    self->takedamage = true;
+
+    // Clear AI manual steering flag if it's set (mainly for PSX arachnid)
+    self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+
+    M_SetAnimation(self, death_move);
+
+    if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
+        BossDeathHandler(self);
+    }
+}
+
+//==========================================================================================
+// STANDARD ARACHNID IMPLEMENTATION 
+//==========================================================================================
+
+MONSTERINFO_SIGHT(arachnid_sight) (edict_t* self, edict_t* other) -> void
+{
+    gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+}
 
 MONSTERINFO_STAND(arachnid_stand) (edict_t* self) -> void
 {
@@ -133,24 +235,8 @@ MONSTERINFO_RUN(arachnid_run) (edict_t* self) -> void
     M_SetAnimation(self, &arachnid_move_run);
 }
 
-// Pain animations
-mframe_t arachnid_frames_pain1[] = {
-    { ai_move },
-    { ai_move },
-    { ai_move },
-    { ai_move },
-    { ai_move }
-};
+// Pain move animations
 MMOVE_T(arachnid_move_pain1) = { FRAME_pain11, FRAME_pain15, arachnid_frames_pain1, arachnid_run };
-
-mframe_t arachnid_frames_pain2[] = {
-    { ai_move },
-    { ai_move },
-    { ai_move },
-    { ai_move },
-    { ai_move },
-    { ai_move }
-};
 MMOVE_T(arachnid_move_pain2) = { FRAME_pain21, FRAME_pain26, arachnid_frames_pain2, arachnid_run };
 
 PAIN(arachnid_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
@@ -172,17 +258,7 @@ PAIN(arachnid_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
         M_SetAnimation(self, &arachnid_move_pain2);
 }
 
-// Rail gun charging and firing
-void arachnid_charge_rail(edict_t* self)
-{
-    if (!self->enemy || !self->enemy->inuse)
-        return;
-
-    gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
-    self->pos1 = self->enemy->s.origin;
-    self->pos1[2] += self->enemy->viewheight;
-}
-
+// Rail gun firing
 void arachnid_rail(edict_t* self)
 {
     vec3_t start;
@@ -297,74 +373,12 @@ MONSTERINFO_ATTACK(arachnid_attack) (edict_t* self) -> void
         M_SetAnimation(self, &arachnid_attack1);
 }
 
-// Death animation and handling
-void arachnid_dead(edict_t* self)
-{
-    self->mins = { -16, -16, -24 };
-    self->maxs = { 16, 16, -8 };
-    self->movetype = MOVETYPE_TOSS;
-    self->svflags |= SVF_DEADMONSTER;
-    self->nextthink = 0_ms;
-    gi.linkentity(self);
-}
-
-mframe_t arachnid_frames_death1[] = {
-    { ai_move, 0 },
-    { ai_move, -1.23f },
-    { ai_move, -1.23f },
-    { ai_move, -1.23f },
-    { ai_move, -1.23f },
-    { ai_move, -1.64f },
-    { ai_move, -1.64f },
-    { ai_move, -2.45f },
-    { ai_move, -8.63f },
-    { ai_move, -4.0f },
-    { ai_move, -4.5f },
-    { ai_move, -6.8f },
-    { ai_move, -8.0f },
-    { ai_move, -5.4f },
-    { ai_move, -3.4f },
-    { ai_move, -1.9f },
-    { ai_move },
-    { ai_move },
-    { ai_move },
-    { ai_move }
-};
+// Death animation
 MMOVE_T(arachnid_move_death) = { FRAME_death1, FRAME_death20, arachnid_frames_death1, arachnid_dead };
 
 DIE(arachnid_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-    // check for gib
-    if (M_CheckGib(self, mod))
-    {
-        gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-
-        ThrowGibs(self, damage, {
-            { 2, "models/objects/gibs/bone/tris.md2" },
-            { 2, "models/objects/gibs/sm_meat/tris.md2" },
-            { "models/monsters/gunner/gibs/chest.md2", GIB_METALLIC },
-            { "models/monsters/gunner/gibs/garm.md2", GIB_METALLIC | GIB_UPRIGHT },
-            { "models/monsters/gladiatr/gibs/rarm.md2", GIB_METALLIC | GIB_UPRIGHT },
-            { "models/monsters/gunner/gibs/foot.md2", GIB_METALLIC },
-            { "models/monsters/gunner/gibs/head.md2", GIB_METALLIC | GIB_HEAD }
-            });
-        self->deadflag = true;
-        return;
-    }
-
-    if (self->deadflag)
-        return;
-
-    // regular death
-    gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-    self->deadflag = true;
-    self->takedamage = true;
-
-    M_SetAnimation(self, &arachnid_move_death);
-
-    if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-        BossDeathHandler(self);
-    }
+    arachnid_die_internal(self, inflictor, attacker, damage, point, mod, &arachnid_move_death);
 }
 
 //==========================================================================================
@@ -376,12 +390,9 @@ MONSTERINFO_SIGHT(arachnid2_sight) (edict_t* self, edict_t* other) -> void
     gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-// Stand animation (same as standard arachnid)
-MMOVE_T(arachnid2_move_stand) = { FRAME_idle1, FRAME_idle13, arachnid_frames_stand, nullptr };
-
 MONSTERINFO_STAND(arachnid2_stand) (edict_t* self) -> void
 {
-    M_SetAnimation(self, &arachnid2_move_stand);
+    M_SetAnimation(self, &arachnid_move_stand);
 }
 
 // Walk animation
@@ -423,14 +434,14 @@ MONSTERINFO_RUN(arachnid2_run) (edict_t* self) -> void
 {
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
     {
-        M_SetAnimation(self, &arachnid2_move_stand);
+        M_SetAnimation(self, &arachnid_move_stand);
         return;
     }
 
     M_SetAnimation(self, &arachnid2_move_run);
 }
 
-// Pain animations (same as standard arachnid)
+// Pain animations
 MMOVE_T(arachnid2_move_pain1) = { FRAME_pain11, FRAME_pain15, arachnid_frames_pain1, arachnid2_run };
 MMOVE_T(arachnid2_move_pain2) = { FRAME_pain21, FRAME_pain26, arachnid_frames_pain2, arachnid2_run };
 
@@ -453,7 +464,7 @@ PAIN(arachnid2_pain) (edict_t* self, edict_t* other, float kick, int damage, con
         M_SetAnimation(self, &arachnid2_move_pain2);
 }
 
-// Rail gun for arachnid2 (different from standard arachnid)
+// Rail gun for arachnid2
 void arachnid2_rail(edict_t* self)
 {
     vec3_t start;
@@ -553,7 +564,6 @@ mframe_t arachnid2_frames_melee[] = {
 };
 MMOVE_T(arachnid2_melee) = { FRAME_melee_atk1, FRAME_melee_atk12, arachnid2_frames_melee, arachnid2_run };
 
-
 // GM Arachnid (Rocket variant) functionality
 static void gm_arachnid_blind_check(edict_t* self)
 {
@@ -630,8 +640,8 @@ void gm_arachnid_rockets(edict_t* self)
         PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &vec);
 
     dir.normalize();
-    //copied from m_chick
-    trace_t trace{}; // PMM - check target
+
+    trace_t trace{}; // Check target
     trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
     if (blindfire)
     {
@@ -709,8 +719,6 @@ mframe_t gm_arachnid_frames_attack_up1[] = {
 };
 MMOVE_T(gm_arachnid_attack_up1) = { FRAME_rails_up3, FRAME_rails_up16, gm_arachnid_frames_attack_up1, arachnid2_run };
 
-
-
 // Attack decision for arachnid2
 MONSTERINFO_ATTACK(arachnid2_attack) (edict_t* self) -> void
 {
@@ -737,41 +745,12 @@ MONSTERINFO_ATTACK(arachnid2_attack) (edict_t* self) -> void
     }
 }
 
-// Death (same as standard arachnid)
+// Death for arachnid2
 MMOVE_T(arachnid2_move_death) = { FRAME_death1, FRAME_death20, arachnid_frames_death1, arachnid_dead };
 
 DIE(arachnid2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-    // check for gib
-    if (M_CheckGib(self, mod))
-    {
-        gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-
-        ThrowGibs(self, damage, {
-            { 2, "models/objects/gibs/bone/tris.md2" },
-            { 2, "models/objects/gibs/sm_meat/tris.md2" },
-            { "models/monsters/gunner/gibs/chest.md2", GIB_METALLIC },
-            { "models/monsters/gunner/gibs/garm.md2", GIB_METALLIC | GIB_UPRIGHT },
-            { "models/monsters/gladiatr/gibs/rarm.md2", GIB_METALLIC | GIB_UPRIGHT },
-            { "models/monsters/gunner/gibs/foot.md2", GIB_METALLIC },
-            { "models/monsters/gunner/gibs/head.md2", GIB_METALLIC | GIB_HEAD }
-            });
-        self->deadflag = true;
-        return;
-    }
-
-    if (self->deadflag)
-        return;
-    // regular death
-    gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-    self->deadflag = true;
-    self->takedamage = true;
-
-    M_SetAnimation(self, &arachnid2_move_death);
-
-    if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-        BossDeathHandler(self);
-    }
+    arachnid_die_internal(self, inflictor, attacker, damage, point, mod, &arachnid2_move_death);
 }
 
 // Skin management
@@ -792,12 +771,9 @@ MONSTERINFO_SIGHT(arachnid_psx_sight) (edict_t* self, edict_t* other) -> void
     gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-// Stand animation (same as standard arachnid)
-MMOVE_T(arachnid_psx_move_stand) = { FRAME_idle1, FRAME_idle13, arachnid_frames_stand, nullptr };
-
 MONSTERINFO_STAND(arachnid_psx_stand) (edict_t* self) -> void
 {
-    M_SetAnimation(self, &arachnid_psx_move_stand);
+    M_SetAnimation(self, &arachnid_move_stand);
 }
 
 // Walk animation
@@ -839,14 +815,14 @@ MONSTERINFO_RUN(arachnid_psx_run) (edict_t* self) -> void
 {
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
     {
-        M_SetAnimation(self, &arachnid_psx_move_stand);
+        M_SetAnimation(self, &arachnid_move_stand);
         return;
     }
 
     M_SetAnimation(self, &arachnid_psx_move_run);
 }
 
-// Pain animations (same as standard arachnid)
+// Pain animations
 MMOVE_T(arachnid_psx_move_pain1) = { FRAME_pain11, FRAME_pain15, arachnid_frames_pain1, arachnid_psx_run };
 MMOVE_T(arachnid_psx_move_pain2) = { FRAME_pain21, FRAME_pain26, arachnid_frames_pain2, arachnid_psx_run };
 
@@ -1049,7 +1025,7 @@ void arachnid_psx_melee_hit(edict_t* self)
         self->monsterinfo.nextframe = FRAME_melee_atk2;
 }
 
-// Melee out move
+// Melee animations
 mframe_t arachnid_psx_frames_melee_out[] = {
     { ai_charge },
     { ai_charge },
@@ -1062,7 +1038,6 @@ void arachnid_psx_to_out_melee(edict_t* self)
     M_SetAnimation(self, &arachnid_psx_melee_out);
 }
 
-// Melee attack
 mframe_t arachnid_psx_frames_melee[] = {
     { ai_charge },
     { ai_charge },
@@ -1084,7 +1059,6 @@ void arachnid_psx_to_melee(edict_t* self)
     M_SetAnimation(self, &arachnid_psx_melee);
 }
 
-// Melee in move
 mframe_t arachnid_psx_frames_melee_in[] = {
     { ai_charge },
     { ai_charge },
@@ -1236,39 +1210,7 @@ MMOVE_T(arachnid_psx_move_death) = { FRAME_death1, FRAME_death20, arachnid_frame
 
 DIE(arachnid_psx_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-    // check for gib
-    if (M_CheckGib(self, mod))
-    {
-        gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-
-        ThrowGibs(self, damage, {
-            { 2, "models/objects/gibs/bone/tris.md2" },
-            { 2, "models/objects/gibs/sm_meat/tris.md2" },
-            { "models/monsters/gunner/gibs/chest.md2", GIB_METALLIC },
-            { "models/monsters/gunner/gibs/garm.md2", GIB_METALLIC | GIB_UPRIGHT },
-            { "models/monsters/gladiatr/gibs/rarm.md2", GIB_METALLIC | GIB_UPRIGHT },
-            { "models/monsters/gunner/gibs/foot.md2", GIB_METALLIC },
-            { "models/monsters/gunner/gibs/head.md2", GIB_METALLIC | GIB_HEAD }
-            });
-        self->deadflag = true;
-        return;
-    }
-
-    if (self->deadflag)
-        return;
-
-    // regular death
-    gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-    self->deadflag = true;
-    self->takedamage = true;
-
-    self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
-
-    M_SetAnimation(self, &arachnid_psx_move_death);
-
-    if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-        BossDeathHandler(self);
-    }
+    arachnid_die_internal(self, inflictor, attacker, damage, point, mod, &arachnid_psx_move_death);
 }
 
 // PSX arachnid skin management
@@ -1284,6 +1226,25 @@ MONSTERINFO_SETSKIN(arachnid_psx_setskin) (edict_t* self) -> void
 // SPAWN FUNCTIONS
 //==========================================================================================
 
+// Helper function to initialize common sound effects
+void initialize_arachnid_sounds()
+{
+    static bool sounds_initialized = false;
+
+    if (!sounds_initialized)
+    {
+        sound_step.assign("insane/insane11.wav");
+        sound_charge.assign("gladiator/railgun.wav");
+        sound_melee.assign("gladiator/melee3.wav");
+        sound_melee_hit.assign("gladiator/melee2.wav");
+        sound_pain.assign("arachnid/pain.wav");
+        sound_death.assign("arachnid/death.wav");
+        sound_sight.assign("arachnid/sight.wav");
+
+        sounds_initialized = true;
+    }
+}
+
 /*QUAKED monster_arachnid (1 .5 0) (-48 -48 -20) (48 48 48) Ambush Trigger_Spawn Sight
 */
 void SP_monster_arachnid(edict_t* self)
@@ -1295,13 +1256,7 @@ void SP_monster_arachnid(edict_t* self)
         return;
     }
 
-    sound_step.assign("insane/insane11.wav");
-    sound_charge.assign("gladiator/railgun.wav");
-    sound_melee.assign("gladiator/melee3.wav");
-    sound_melee_hit.assign("gladiator/melee2.wav");
-    sound_pain.assign("arachnid/pain.wav");
-    sound_death.assign("arachnid/death.wav");
-    sound_sight.assign("arachnid/sight.wav");
+    initialize_arachnid_sounds();
 
     self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
     self->mins = { -48, -48, -20 };
@@ -1310,7 +1265,6 @@ void SP_monster_arachnid(edict_t* self)
     self->solid = SOLID_BBOX;
 
     self->monsterinfo.scale = MODEL_SCALE;
-
     self->mass = 450;
 
     self->pain = arachnid_pain;
@@ -1370,13 +1324,7 @@ void SP_monster_arachnid2(edict_t* self)
         return;
     }
 
-    sound_step.assign("insane/insane11.wav");
-    sound_charge.assign("gladiator/railgun.wav");
-    sound_melee.assign("gladiator/melee3.wav");
-    sound_melee_hit.assign("gladiator/melee2.wav");
-    sound_pain.assign("arachnid/pain.wav");
-    sound_death.assign("arachnid/death.wav");
-    sound_sight.assign("arachnid/sight.wav");
+    initialize_arachnid_sounds();
 
     self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
     self->mins = { -48, -48, -20 };
@@ -1392,8 +1340,6 @@ void SP_monster_arachnid2(edict_t* self)
         self->maxs = { 41, 41, 41 };
     }
     self->gib_health = -200;
-    self->mins = { -48, -48, -20 };
-    self->maxs = { 48, 48, 48 };
     self->mass = 450;
     self->health = 1000 * st.health_multiplier;
 
@@ -1408,7 +1354,7 @@ void SP_monster_arachnid2(edict_t* self)
 
     gi.linkentity(self);
 
-    M_SetAnimation(self, &arachnid2_move_stand);
+    M_SetAnimation(self, &arachnid_move_stand);
 
     walkmonster_start(self);
     ApplyMonsterBonusFlags(self);
@@ -1451,13 +1397,7 @@ void SP_monster_psxarachnid(edict_t* self)
         return;
     }
 
-    sound_step.assign("insane/insane11.wav");
-    sound_charge.assign("gladiator/railgun.wav");
-    sound_melee.assign("gladiator/melee3.wav");
-    sound_melee_hit.assign("gladiator/melee2.wav");
-    sound_pain.assign("arachnid/pain.wav");
-    sound_death.assign("arachnid/death.wav");
-    sound_sight.assign("arachnid/sight.wav");
+    initialize_arachnid_sounds();
     sound_pissed.assign("guncmdr/gcdrsrch1.wav");
 
     const char* reinforcements = nullptr;
@@ -1490,7 +1430,6 @@ void SP_monster_psxarachnid(edict_t* self)
     self->gib_health = -200;
 
     self->monsterinfo.scale = MODEL_SCALE;
-
     self->mass = 450;
 
     self->pain = arachnid_psx_pain;
@@ -1506,7 +1445,7 @@ void SP_monster_psxarachnid(edict_t* self)
 
     gi.linkentity(self);
 
-    M_SetAnimation(self, &arachnid_psx_move_stand);
+    M_SetAnimation(self, &arachnid_move_stand);
 
     walkmonster_start(self);
 
