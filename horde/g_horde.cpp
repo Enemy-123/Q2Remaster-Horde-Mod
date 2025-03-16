@@ -26,8 +26,6 @@ void ResetQueueMonitorVars() {
 //champion or small spoiler of next wave guys
 bool champion_spawned_this_wave = false;
 int champion_spawn_cooldown = 0;
-bool future_monster_spawned_this_wave = false;
-int future_monster_cooldown = 0;
 
 // Monster count verification tracking
 static int consistent_zero_counts = 0;
@@ -1063,16 +1061,14 @@ static void InitializeWaveType(int32_t lvl);
 inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel);
 
 
-void ResetChampionAndFutureMonsterState() {
+void ResetChampionMonsterState() {
 	champion_spawned_this_wave = false;
 	champion_spawn_cooldown = 0;
-	future_monster_spawned_this_wave = false;
-	future_monster_cooldown = 0;
 }
 
 static void Horde_InitLevel(const int32_t lvl) {
 
-	ResetChampionAndFutureMonsterState();
+	ResetChampionMonsterState();
 
 	// Only initialize wave type for non-boss waves
 	if (!(lvl >= 10 && lvl % 5 == 0)) {
@@ -1349,6 +1345,32 @@ static bool TrySetWaveType(MonsterWaveType new_type) {
 	return false;
 }
 
+// Helper function to check if a wave type is a special wave
+static bool IsSpecialWaveType(MonsterWaveType type) noexcept {
+	return HasWaveType(type, MonsterWaveType::Gekk) ||
+		HasWaveType(type, MonsterWaveType::Berserk) ||
+		HasWaveType(type, MonsterWaveType::Mutant) ||
+		HasWaveType(type, MonsterWaveType::Spawner) ||
+		HasWaveType(type, MonsterWaveType::Bomber) ||
+		HasWaveType(type, MonsterWaveType::Heavy) ||
+		HasWaveType(type, MonsterWaveType::Shambler) ||
+		HasWaveType(type, MonsterWaveType::Arachnophobic);
+}
+
+// check if the previous wave was a special wave
+static bool WasLastWaveSpecial() noexcept {
+	if (previous_wave_types.empty()) {
+		return false;
+	}
+
+	// Get the most recent wave type (the one right before the current index)
+	size_t last_index = (wave_memory_index == 0) ?
+		WAVE_MEMORY_SIZE - 1 :
+		wave_memory_index - 1;
+
+	return IsSpecialWaveType(previous_wave_types[last_index]);
+}
+
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false) {
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 	MonsterWaveType selected_type = MonsterWaveType::None;
@@ -1378,8 +1400,9 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 		{MonsterWaveType::Spawner, 0.75f, 25, -1, "*** Spawners Deployed! ***\n"}
 	};
 
-	// Try special waves first regardless of wave number
-	if (!forceSpecialWave) {
+	// Try special waves first only if the previous wave wasn't special
+	// This prevents consecutive special waves
+	if (!forceSpecialWave && !WasLastWaveSpecial()) {
 		for (const auto& wave : special_waves) {
 			// Check if wave is eligible (within min/max range)
 			if (waveNumber >= wave.min_wave &&
@@ -1467,6 +1490,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 //	return 2.0f + ((waveNumber - 30) * 0.1f);
 //}
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
+
 // Example function to filter monsters by wave type
 // First the IsValidMonsterForWave function:
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
@@ -1482,49 +1506,75 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 	const uint32_t requirements = static_cast<uint32_t>(waveRequirements);
 	const uint32_t monster_flags = static_cast<uint32_t>(monsterTypes);
 
-	// First check the most important exclusive categories that must match
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Flying)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Flying)))
-		return false;
+	// Special wave types should be exclusive - if one of these is set, the monster MUST have it
+	// These are the "headline" wave types that get special announcements
+	const bool isSpecialWaveType =
+		HasWaveType(waveRequirements, MonsterWaveType::Gekk) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Berserk) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Mutant) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Spawner) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Shambler) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic);
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Small)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Small)))
-		return false;
+	// For special wave types, enforce strict matching
+	if (isSpecialWaveType) {
+		// If wave is Gekk, only allow Gekk monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Gekk) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Gekk))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Arachnophobic)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Arachnophobic)))
-		return false;
+		// If wave is Berserker, only allow Berserker monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Berserk) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Berserk))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Heavy)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Heavy)))
-		return false;
+		// If wave is Mutant, only allow Mutant monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Mutant) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Mutant))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Mutant)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Mutant)))
-		return false;
+		// If wave is Spawner, only allow Spawner monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Spawner) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Spawner))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Shambler)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Shambler)))
-		return false;
+		// If wave is Shambler, only allow Shambler monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Shambler) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Shambler))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Melee)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Melee)))
-		return false;
+		// If wave is Arachnophobic, only allow Arachnophobic monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic))
+			return false;
+	}
+	else {
+		// For regular wave types, check all required flags
+		// First check the most important exclusive categories that must match
+		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Flying)) &&
+			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Flying)))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Berserk)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Berserk)))
-		return false;
+		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Small)) &&
+			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Small)))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Bomber)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Bomber)))
-		return false;
+		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Heavy)) &&
+			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Heavy)))
+			return false;
 
-	if ((requirements & static_cast<uint32_t>(MonsterWaveType::Spawner)) &&
-		!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Spawner)))
-		return false;
+		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Melee)) &&
+			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Melee)))
+			return false;
+
+		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Bomber)) &&
+			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Bomber)))
+			return false;
+	}
 
 	// For mixed waves, check if there's at least one match in other categories
-	return (requirements & monster_flags) != 0;
+	// This only applies to non-special wave types now
+	return isSpecialWaveType || (requirements & monster_flags) != 0;
 }
 
 // Structure to include wave level information
@@ -4499,8 +4549,6 @@ edict_t* SpawnMonsters() {
 	// Decrement cooldowns
 	if (champion_spawn_cooldown > 0)
 		champion_spawn_cooldown--;
-	if (future_monster_cooldown > 0)
-		future_monster_cooldown--;
 
 	// Main spawn loop - attempt to spawn up to 'spawnable' monsters
 	for (int32_t i = 0; i < spawnable && g_horde_local.num_to_spawn > 0; ++i) {
@@ -4526,36 +4574,9 @@ edict_t* SpawnMonsters() {
 		spawn_cache.available_spawns.pop_back();
 		spawnPointsData[spawn_point].teleport_cooldown = current_time + 1.5_sec;
 
-		// Check if we should spawn a future monster (8% chance)
-		bool spawn_future_monster = false;
-		int32_t effective_wave_level = g_horde_local.level;
-
-		if (g_horde_local.level >= 3 && !future_monster_spawned_this_wave &&
-			future_monster_cooldown <= 0 && frandom() < 0.08f) {
-
-			// Pick a level 2-4 waves ahead
-			int preview_level_boost = irandom(2, 4);
-			effective_wave_level = g_horde_local.level + preview_level_boost;
-			spawn_future_monster = true;
-			future_monster_spawned_this_wave = true;
-			future_monster_cooldown = irandom(15, 30); // Wait before spawning another future monster
-		}
-
 		// Get monster type for this spawn - potentially from a future wave
 		const char* monster_classname;
-		if (spawn_future_monster) {
-			// Temporarily override the current wave level for monster selection
-			int32_t original_level = g_horde_local.level;
-			g_horde_local.level = effective_wave_level;
-
-			monster_classname = G_HordePickMonster(spawn_point);
-
-			// Restore the original wave level
-			g_horde_local.level = original_level;
-		}
-		else {
-			monster_classname = G_HordePickMonster(spawn_point);
-		}
+		monster_classname = G_HordePickMonster(spawn_point);
 
 		if (!monster_classname)
 			continue;
@@ -4662,13 +4683,6 @@ edict_t* SpawnMonsters() {
 						champion_spawn_cooldown = irandom(15, 25);
 					}
 				}
-
-				// If this is a future wave monster, announce it
-				//if (spawn_future_monster) {
-				//	gi.LocBroadcast_Print(PRINT_HIGH,
-				//		"\n*** A {} from the future has arrived early! ***\n",
-				//		GetDisplayName(monster).c_str());
-				//}
 
 				// Apply armor based on wave level
 				if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)
