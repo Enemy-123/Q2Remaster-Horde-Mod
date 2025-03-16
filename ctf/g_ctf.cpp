@@ -1376,10 +1376,26 @@ void CleanupInvalidEntities() {
 	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
 		edict_t* ent = &g_edicts[i];
 		if (ent->inuse && ent->svflags & SVF_MONSTER) {
+			// Case 1: Bug/Immortal monster - health > 0 but SOLID_NOT
 			if (ent->solid == SOLID_NOT && ent->health > 0) {
 				gi.Com_PrintFmt("PRINT: Removing Bug/Immortal monster: {}\n", ent->classname);
 				ent->health = -1;
 				OnEntityDeath(ent);
+				G_FreeEdict(ent);
+			}
+			// Case 2: Stuck corpse - health <= 0 but still SOLID_BBOX
+			else if (ent->solid == SOLID_BBOX && ent->health <= 0) {
+				gi.Com_PrintFmt("PRINT: Removing stuck corpse: {}\n", ent->classname);
+				ent->solid = SOLID_NOT;
+				ent->takedamage = false;
+
+				// Ensure death is processed
+				if (!ent->monsterinfo.death_processed) {
+					OnEntityDeath(ent);
+				}
+
+				// Boss monsters might be in the middle of death animation
+				// Force removal to be safe
 				G_FreeEdict(ent);
 			}
 		}
