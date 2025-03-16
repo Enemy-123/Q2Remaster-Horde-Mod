@@ -231,7 +231,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
 		monster->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
 		monster->s.alpha = 0.5f;
-		monster->health *= 1.7f;
+		monster->health *= 2.4f;
 		monster->monsterinfo.power_armor_power *= 1.7f;
 		monster->monsterinfo.armor_power *= 1.7f;
 		monster->monsterinfo.attack_state = AS_BLIND;

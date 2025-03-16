@@ -1443,7 +1443,7 @@ void SP_monster_spider(edict_t* self)
     self->s.skinnum = 1;
     if (!strcmp(self->classname, "monster_spider")) {
         self->s.scale = 0.7f;
-        self->health = 650 * st.health_multiplier;
+        self->health = IsFirstThreeWaves(current_wave_level) ? 350 * st.health_multiplier : 650 * st.health_multiplier;
         self->max_health = self->health;
         self->mins = { -41, -41, -17 };
         self->maxs = { 41, 41, 41 };

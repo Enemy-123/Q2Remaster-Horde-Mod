@@ -1621,7 +1621,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk , 6, 0.8f},
 
 	// Arachnophobic Units (Waves 8-18)
-	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 8, 0.1f},
+	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 5, 0.4f},
 	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f},
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f},
@@ -1667,7 +1667,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f},
 	{"monster_makronkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
 	{"monster_boss2kl", MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
-	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.2f},
+	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f},
 
 	// Boss Units
 	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
@@ -2232,6 +2232,27 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	const MonsterWaveType currentWaveTypes = current_wave_type;
 	const bool isSpawnPointFlying = spawn_point->style == 1;
 
+	// NEW CODE: Determine if we should spawn a higher level monster (16% chance)
+	bool spawn_higher_level = frandom() < 0.16f; // 8% chance
+	bool Lessthanwave7 = currentLevel < 7;
+
+
+	// Calculate effective level for monster selection
+	int32_t effectiveLevel = currentLevel;
+	if (spawn_higher_level) {
+		// Advance by 4-8 levels, but cap at realistic limits to maintain balance
+		int32_t levelBoost = irandom(4, 8);
+		effectiveLevel = std::min(currentLevel + levelBoost, Lessthanwave7 ? 7 : currentLevel * 2);
+
+		// Ensure we don't exceed a reasonable cap
+		effectiveLevel = std::min(effectiveLevel, 40);
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("Spawning higher level monster: Wave {} -> {}\n",
+				currentLevel, effectiveLevel);
+		}
+	}
+
 	// Boss wave check - no regular monsters during boss wave before boss spawns
 	if (currentWaveTypes == MonsterWaveType::None &&
 		currentLevel >= 10 && currentLevel % 5 == 0) {
@@ -2249,8 +2270,8 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			break;
 		}
 
-		// Basic level check
-		if (monster.minWave > currentLevel) {
+		// Basic level check - MODIFIED to use effectiveLevel
+		if (monster.minWave > effectiveLevel) {
 			continue;
 		}
 
@@ -2314,6 +2335,15 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 		// Apply flying adjustment
 		weight *= adjustmentFactor;
+
+		// NEW CODE: If this is a higher-level monster, adjust its weight
+		if (spawn_higher_level && monster.minWave > currentLevel) {
+			// Reduce weight for much higher level monsters to keep them rare
+			int levelDifference = monster.minWave - currentLevel;
+			if (levelDifference > 5) {
+				weight *= 0.5f;
+			}
+		}
 
 		// Add to cache if weight is valid
 		if (weight > 0.0f) {
@@ -4541,8 +4571,8 @@ edict_t* SpawnMonsters() {
 
 	// Initialize for spawn loop
 	edict_t* last_spawned = nullptr;
-	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
-		g_horde_local.level <= 7 ? 0.6f : 0.45f;
+	const float drop_chance = g_horde_local.level <= 5 ? 0.8f :
+		g_horde_local.level <= 8 ? 0.6f : 0.45f;
 
 	int32_t spawned_count = 0;
 
