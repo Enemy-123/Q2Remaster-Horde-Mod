@@ -102,45 +102,62 @@ edict_t* fixbot_FindDeadMonster(edict_t* self)
 	return best;
 }
 
+// Improve flying parameters
 static void fixbot_set_attack_fly_parameters(edict_t* self)
 {
 	self->monsterinfo.fly_thrusters = false;
-	self->monsterinfo.fly_acceleration = 20.f;
-	self->monsterinfo.fly_speed = 120.f;
-	// Icarus prefers to keep its distance, but flies slower than the flyer.
-	// he never pins because of this.
-	self->monsterinfo.fly_min_distance = 300.f;
-	self->monsterinfo.fly_max_distance = 900.f;
+	self->monsterinfo.fly_acceleration = 25.f;   // Was 20, now 25
+	self->monsterinfo.fly_speed = 240.f;         // Was 120, now 240
+	self->monsterinfo.fly_min_distance = 250.f;  // Was 300, now 250
+	self->monsterinfo.fly_max_distance = 800.f;  // Was 900, now 800
 }
+
 
 edict_t* fixbot_FindLiveEnemy(edict_t* self) {
 	edict_t* ent = nullptr;
-	while ((ent = findradius(ent, self->s.origin, 1024)) != nullptr) {
+	edict_t* best = nullptr;
+	float best_dist = 1500;  // Increased detection range from 1024
+
+	while ((ent = findradius(ent, self->s.origin, 1500)) != nullptr) {
 		if (ent == self || !ent->inuse)
 			continue;
-		if (!(ent->client)) // Solo jugadores
+		if (!(ent->client) && !(ent->svflags & SVF_MONSTER)) // Target players and monsters
 			continue;
 		if (ent->health <= 0)
 			continue;
-		return ent;
+		if (!visible(self, ent))
+			continue;
+
+		// Prioritize closer enemies
+		float dist = (self->s.origin - ent->s.origin).length();
+		if (!best || dist < best_dist) {
+			best = ent;
+			best_dist = dist;
+		}
 	}
-	return nullptr;
+	return best;
 }
+
+// More aggressive search behavior
 int fixbot_search(edict_t* self)
 {
 	edict_t* ent;
 	extern void fixbot_start_attack(edict_t * self);
-	if (!self->enemy || self->monsterinfo.aiflags & AI_STAND_GROUND)
+
+	// More frequently search for enemies
+	if (!self->enemy || (self->enemy && self->enemy->health <= 0) ||
+		(self->enemy && !visible(self, self->enemy)) ||
+		(self->monsterinfo.aiflags & AI_STAND_GROUND))
 	{
 		ent = fixbot_FindLiveEnemy(self);
 		if (ent) {
 			self->enemy = ent;
 			fixbot_set_attack_fly_parameters(self);
 			fixbot_start_attack(self);
-			return 1;  // Enemigo encontrado y ataque iniciado
+			return 1;  // Enemy found and attack initiated
 		}
 	}
-	return 0;  // No se encontró enemigo o ya había un enemigo
+	return 0;  // No enemy found or already had an enemy
 }
 
 void landing_goal(edict_t* self)
@@ -872,7 +889,7 @@ MMOVE_T(fixbot_move_walk) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_wa
 
 */
 mframe_t fixbot_frames_run[] = {
-	{ ai_run, 6 }
+	{ ai_run, 10 }
 };
 MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run, nullptr };
 
@@ -1460,7 +1477,7 @@ void fixbot_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster_bolt(self, start, dir, 15, 1000, MZ2_HOVER_BLASTER_1, EF_BLASTER, 0);
+	monster_fire_blaster_bolt(self, start, dir, 7, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, 0);
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;
 	self->pos1[2] += self->enemy->viewheight;
@@ -1479,7 +1496,13 @@ MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 
 MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
 {
-		M_SetAnimation(self, &fixbot_move_run);
+	// Check for enemies every frame during run
+	if (!self->enemy || !visible(self, self->enemy) || self->enemy->health <= 0) {
+		if (fixbot_search(self))
+			return;  // Found an enemy, transition to attack
+	}
+
+	M_SetAnimation(self, &fixbot_move_run);
 }
 
 MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void
@@ -1497,17 +1520,28 @@ void fixbot_start_attack(edict_t* self)
 	}
 }
 
+MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
+{
+	// Add strafing behavior similar to hover
+	if (frandom() > 0.4f) // 60% chance to strafe
+	{
+		// Start strafing movement
+		if (frandom() <= 0.5f) // Randomly choose direction
+			self->monsterinfo.lefty = !self->monsterinfo.lefty;
 
-MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void {
-	if (self->enemy) {
-		fixbot_set_attack_fly_parameters(self);
-		M_SetAnimation(self, &fixbot_move_attack2);
+		// Set our attack state for reference
+		self->monsterinfo.attack_state = AS_SLIDING;
 	}
-	else {
-		self->enemy = nullptr; // Si el enemigo no es un jugador, cancelar el ataque
-		M_SetAnimation(self, &fixbot_move_stand);
+	else
+	{
+		// Standard forward attack
+		self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
+
+	// Always go to attack2 which has the plasma firing
+	M_SetAnimation(self, &fixbot_move_attack2);
 }
+
 
 PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
@@ -1579,7 +1613,7 @@ void SP_monster_fixbot(edict_t* self)
 
 	self->health = 90 * st.health_multiplier;
 	self->mass = 150;
-	//self->s.scale = 1.8f;
+	self->s.scale = 1.4f;
 
 	self->pain = fixbot_pain;
 	self->die = fixbot_die;
