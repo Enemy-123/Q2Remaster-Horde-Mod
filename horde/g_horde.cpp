@@ -23,6 +23,12 @@ void ResetQueueMonitorVars() {
 	need_queue_monitor_reset = true;
 }
 
+//champion or small spoiler of next wave guys
+bool champion_spawned_this_wave = false;
+int champion_spawn_cooldown = 0;
+bool future_monster_spawned_this_wave = false;
+int future_monster_cooldown = 0;
+
 // Monster count verification tracking
 static int consistent_zero_counts = 0;
 static int counter_mismatch_frames = 0;
@@ -1056,9 +1062,17 @@ constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 static void InitializeWaveType(int32_t lvl);
 inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel);
 
+
+void ResetChampionAndFutureMonsterState() {
+	champion_spawned_this_wave = false;
+	champion_spawn_cooldown = 0;
+	future_monster_spawned_this_wave = false;
+	future_monster_cooldown = 0;
+}
+
 static void Horde_InitLevel(const int32_t lvl) {
 
-	//CleanupStaleCS();
+	ResetChampionAndFutureMonsterState();
 
 	// Only initialize wave type for non-boss waves
 	if (!(lvl >= 10 && lvl % 5 == 0)) {
@@ -1085,13 +1099,13 @@ static void Horde_InitLevel(const int32_t lvl) {
 
 	last_wave_number++;
 	g_horde_local.level = lvl;
-	current_wave_level = lvl;
-	//current_wave_type = MonsterWaveType::None;
+	current_wave_level = lvl; 
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 
 	CleanupSpawnPointCache();
 	VerifyAndAdjustBots();
+	
 
 	// Configurar tiempos iniciales - reset all timing variables
 	g_independent_timer_start = level.time;
@@ -4305,7 +4319,7 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 	monster->spawned_in_spawn_state = false;
 }
 
-static edict_t* SpawnMonsters() {
+edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
 
@@ -4482,6 +4496,12 @@ static edict_t* SpawnMonsters() {
 
 	int32_t spawned_count = 0;
 
+	// Decrement cooldowns
+	if (champion_spawn_cooldown > 0)
+		champion_spawn_cooldown--;
+	if (future_monster_cooldown > 0)
+		future_monster_cooldown--;
+
 	// Main spawn loop - attempt to spawn up to 'spawnable' monsters
 	for (int32_t i = 0; i < spawnable && g_horde_local.num_to_spawn > 0; ++i) {
 		// Double-check monster cap during loop
@@ -4506,8 +4526,37 @@ static edict_t* SpawnMonsters() {
 		spawn_cache.available_spawns.pop_back();
 		spawnPointsData[spawn_point].teleport_cooldown = current_time + 1.5_sec;
 
-		// Get monster type for this spawn
-		const char* monster_classname = G_HordePickMonster(spawn_point);
+		// Check if we should spawn a future monster (8% chance)
+		bool spawn_future_monster = false;
+		int32_t effective_wave_level = g_horde_local.level;
+
+		if (g_horde_local.level >= 3 && !future_monster_spawned_this_wave &&
+			future_monster_cooldown <= 0 && frandom() < 0.08f) {
+
+			// Pick a level 2-4 waves ahead
+			int preview_level_boost = irandom(2, 4);
+			effective_wave_level = g_horde_local.level + preview_level_boost;
+			spawn_future_monster = true;
+			future_monster_spawned_this_wave = true;
+			future_monster_cooldown = irandom(15, 30); // Wait before spawning another future monster
+		}
+
+		// Get monster type for this spawn - potentially from a future wave
+		const char* monster_classname;
+		if (spawn_future_monster) {
+			// Temporarily override the current wave level for monster selection
+			int32_t original_level = g_horde_local.level;
+			g_horde_local.level = effective_wave_level;
+
+			monster_classname = G_HordePickMonster(spawn_point);
+
+			// Restore the original wave level
+			g_horde_local.level = original_level;
+		}
+		else {
+			monster_classname = G_HordePickMonster(spawn_point);
+		}
+
 		if (!monster_classname)
 			continue;
 
@@ -4536,6 +4585,91 @@ static edict_t* SpawnMonsters() {
 
 			// Check if spawn succeeded
 			if (monster->inuse) {
+				// Check if this should be a champion monster
+				if (g_horde_local.level >= 3 && !champion_spawned_this_wave &&
+					champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS) {
+
+					// Calculate chance based on wave progression
+					float champion_chance = 0.15f + (std::min(g_horde_local.level, 25) - 3) * 0.01f;
+
+					// Check if we're past the initial wave spawning
+					bool past_initial_spawns = (g_totalMonstersInWave > 0 &&
+						(float)level.killed_monsters / (float)g_totalMonstersInWave > 0.3f);
+
+					if ((past_initial_spawns || g_horde_local.state == horde_state_t::active_wave) &&
+						frandom() < champion_chance) {
+
+						// Determine which bonus flag to apply based on wave level
+						int flag_type;
+
+						if (g_horde_local.level <= 7) {
+							// Early waves - just champions or corrupted
+							flag_type = irandom(0, 2);
+						}
+						else if (g_horde_local.level <= 15) {
+							// Mid waves - add berserking and possessed
+							flag_type = irandom(0, 4);
+						}
+						else {
+							// Later waves - all types possible
+							flag_type = irandom(0, 6);
+						}
+
+						// Apply the selected flag
+						switch (flag_type) {
+						case 0:
+							monster->monsterinfo.bonus_flags |= BF_CHAMPION;
+							break;
+						case 1:
+							monster->monsterinfo.bonus_flags |= BF_CORRUPTED;
+							break;
+						case 2:
+							monster->monsterinfo.bonus_flags |= BF_BERSERKING;
+							break;
+						case 3:
+							monster->monsterinfo.bonus_flags |= BF_POSSESSED;
+							break;
+						case 4:
+							monster->monsterinfo.bonus_flags |= BF_STYGIAN;
+							break;
+						case 5:
+							monster->monsterinfo.bonus_flags |= BF_RAGEQUITTER;
+							break;
+						}
+
+						// Mark that we've spawned a champion this wave
+						champion_spawned_this_wave = true;
+
+						// Ensure champions always drop items
+						monster->item = G_HordePickItem();
+						monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+
+						// Apply the bonus flags
+						ApplyMonsterBonusFlags(monster);
+
+						// Announce the champion's arrival!
+						gi.LocBroadcast_Print(PRINT_HIGH,
+							"*** A {} has appeared! ***\n",
+							GetDisplayName(monster).c_str());
+
+						// Play a distinctive sound
+						gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
+
+						// Add a visual effect for the champion's entrance
+						SpawnGrow_Spawn(monster->s.origin, 120.0f, 20.0f);
+
+						// Set cooldown for next champion spawn
+						champion_spawn_cooldown = irandom(15, 25);
+					}
+				}
+
+				// If this is a future wave monster, announce it
+				//if (spawn_future_monster) {
+				//	gi.LocBroadcast_Print(PRINT_HIGH,
+				//		"\n*** A {} from the future has arrived early! ***\n",
+				//		GetDisplayName(monster).c_str());
+				//}
+
 				// Apply armor based on wave level
 				if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)
 					SetMonsterArmor(monster);
@@ -4608,7 +4742,6 @@ static edict_t* SpawnMonsters() {
 
 	return last_spawned;
 }
-
 static void SetMonsterArmor(edict_t* monster) {
 	// Cache frequently used constants to avoid recalculating
 	static constexpr float HEALTH_RATIO_POW = 1.1f;
