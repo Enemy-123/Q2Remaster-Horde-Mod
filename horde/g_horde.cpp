@@ -1671,9 +1671,9 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f},
 
 	// Boss Units
-	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
-	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
-	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy | MonsterWaveType::Spawner, 27, 0.2f}
+	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Heavy, 19, 0.2f},
+	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy, 19, 0.2f},
+	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Spawner, 27, 0.2f}
 };
 
 // Function to get wave types for a monster based on its classname
