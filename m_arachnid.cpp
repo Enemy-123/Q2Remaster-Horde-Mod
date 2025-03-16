@@ -35,6 +35,9 @@ static cached_soundindex sound_melee_hit;
 // PSX specific sounds
 static cached_soundindex sound_spawn;
 static cached_soundindex sound_pissed;
+// Plasma spider sounds
+static cached_soundindex sound_plasma;
+static cached_soundindex sound_plasma_hit;
 
 // PSX reinforcement constants
 constexpr const char* default_boss_reinforcements = "monster_tank_spawner 2";
@@ -359,7 +362,119 @@ mframe_t arachnid_frames_melee[] = {
 };
 MMOVE_T(arachnid_melee) = { FRAME_melee_atk1, FRAME_melee_atk12, arachnid_frames_melee, arachnid_run };
 
+void spider_charge_plasma(edict_t* self)
+{
+    if (!self->enemy || !self->enemy->inuse)
+        return;
+
+    // Play plasma charge sound instead of railgun sound
+    gi.sound(self, CHAN_WEAPON, sound_plasma, 1.f, ATTN_NORM, 0.f);
+
+    vec3_t forward, right, start;
+    AngleVectors(self->s.angles, forward, right, nullptr);
+
+    // Use RAIL1 for the source point - you might want to create spider-specific ones later
+    start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_ARACHNID_RAIL1], forward, right);
+
+    // Use PredictAim to lead the target based on plasma projectile speed
+    float constexpr plasma_speed = 900;
+    PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &self->pos1);
+}
+
+// Improved plasma firing with better leading
+void spider_plasma(edict_t* self)
+{
+    vec3_t start;
+    vec3_t dir;
+    vec3_t forward, right;
+    monster_muzzleflash_id_t id;
+
+    // Choose appropriate muzzle flash based on the animation frame
+    switch (self->s.frame)
+    {
+    case FRAME_rails4:
+    default:
+        id = MZ2_ARACHNID_RAIL1;
+        break;
+    case FRAME_rails8:
+        id = MZ2_ARACHNID_RAIL2;
+        break;
+    case FRAME_rails_up7:
+        id = MZ2_ARACHNID_RAIL_UP1;
+        break;
+    case FRAME_rails_up11:
+        id = MZ2_ARACHNID_RAIL_UP2;
+        break;
+    }
+
+    AngleVectors(self->s.angles, forward, right, nullptr);
+    start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
+
+    // calc direction to where we targeted (predicted position)
+    dir = self->pos1 - start;
+    dir.normalize();
+
+    int damage = 30;
+    int radius_damage = 60;
+
+    // Play proper plasma fire sound
+    gi.sound(self, CHAN_WEAPON, sound_plasma, 1.f, ATTN_NORM, 0.f);
+
+    // Fire plasma shot
+    fire_plasma(self, start, dir, damage, 900, radius_damage, radius_damage);
+
+    // Chance for enhanced shot at higher difficulties
+    if (skill->integer >= 2 && frandom() < 0.35f) {
+        fire_plasma(self, start, dir, damage * 0.7f, 1100, radius_damage * 0.7f, radius_damage * 0.7f);
+    }
+}
+
+// Redefined attack frames with plasma shots at appropriate moments
+mframe_t spider_frames_attack1[] = {
+    { ai_charge, 0, spider_charge_plasma },  // New plasma charge function
+    { ai_charge },
+    { ai_charge },
+    { ai_charge, 0, spider_plasma },         // First plasma shot
+    { ai_charge },
+    { ai_charge },
+    { ai_charge },
+    { ai_charge, 0, spider_plasma },         // Second plasma shot
+    { ai_charge }
+};
+MMOVE_T(spider_attack1) = { FRAME_rails1, FRAME_rails9, spider_frames_attack1, arachnid_run };
+
+// Upward attack animations
+mframe_t spider_frames_attack_up1[] = {
+    { ai_charge, 0, spider_charge_plasma },  // New plasma charge function
+    { ai_charge },
+    { ai_charge },
+    { ai_charge },
+    { ai_charge },
+    { ai_charge },
+    { ai_charge, 0, spider_plasma },         // First plasma shot
+    { ai_charge },
+    { ai_charge },
+    { ai_charge },
+    { ai_charge, 0, spider_plasma },         // Second plasma shot
+    { ai_charge },
+    { ai_charge }
+};
+MMOVE_T(spider_attack_up1) = { FRAME_rails_up1, FRAME_rails_up13, spider_frames_attack_up1, arachnid_run };
 // Attack decision
+
+MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
+{
+    if (!self->enemy || !self->enemy->inuse)
+        return;
+
+    if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < MELEE_DISTANCE)
+        M_SetAnimation(self, &arachnid_melee);
+    else if ((self->enemy->s.origin[2] - self->s.origin[2]) > 150.f)
+        M_SetAnimation(self, &spider_attack_up1);
+    else
+        M_SetAnimation(self, &spider_attack1);
+}
+
 MONSTERINFO_ATTACK(arachnid_attack) (edict_t* self) -> void
 {
     if (!self->enemy || !self->enemy->inuse)
@@ -755,6 +870,15 @@ DIE(arachnid2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 
 // Skin management
 MONSTERINFO_SETSKIN(arachnid2_setskin) (edict_t* self) -> void
+{
+    if (self->health < (self->max_health / 2))
+        self->s.skinnum |= 1;
+    else
+        self->s.skinnum &= ~1;
+}
+
+//spider skinnum, fixing wounded skin
+MONSTERINFO_SETSKIN(spider_setskin) (edict_t* self) -> void
 {
     if (self->health < (self->max_health / 2))
         self->s.skinnum |= 1;
@@ -1299,15 +1423,28 @@ void SP_monster_spider(edict_t* self)
 {
     const spawn_temp_t& st = ED_GetSpawnTemp();
 
+    // Initialize plasma sounds
+    sound_plasma.assign("weapons/plasshot.wav");
+    sound_plasma_hit.assign("weapons/plasma/hit.wav");
+
+    gi.soundindex("weapons/plasma/fire1.wav");  // Plasma firing sound
+    gi.soundindex("weapons/plasma/hit.wav");    // Plasma impact sound
+
     self->spawnflags |= SPAWNFLAG_SPIDER;
     SP_monster_arachnid(self);
 
-    gi.soundindex("weapons/railgr1a.wav");
+    // Override the attack function with our plasma variant
+    self->monsterinfo.attack = spider_attack;
+
+    // Add plasma weapon visuals
+    //self->s.effects = EF_PLASMA;
+    self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
+
     self->s.skinnum = 1;
     if (!strcmp(self->classname, "monster_spider")) {
-        self->s.scale = 0.85f;
+        self->s.scale = 0.7f;
         self->health = 650 * st.health_multiplier;
-
+        self->max_health = self->health;
         self->mins = { -41, -41, -17 };
         self->maxs = { 41, 41, 41 };
     }
