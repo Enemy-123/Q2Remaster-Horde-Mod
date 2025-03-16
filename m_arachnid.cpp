@@ -1394,6 +1394,7 @@ void SP_monster_arachnid(edict_t* self)
     self->monsterinfo.run = arachnid_run;
     self->monsterinfo.attack = arachnid_attack;
     self->monsterinfo.sight = arachnid_sight;
+    self->monsterinfo.setskin = arachnid2_setskin;
 
     gi.linkentity(self);
 
@@ -1436,11 +1437,11 @@ void SP_monster_spider(edict_t* self)
     //self->s.effects = EF_PLASMA;
     self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
 
-    self->s.skinnum = 1;
     if (!strcmp(self->classname, "monster_spider")) {
         self->s.scale = 0.7f;
         self->health = IsFirstThreeWaves(current_wave_level) ? 350 * st.health_multiplier : 650 * st.health_multiplier;
         self->max_health = self->health;
+        self->gib_health = -150;
         self->mins = { -41, -41, -17 };
         self->maxs = { 41, 41, 41 };
     }
@@ -1484,8 +1485,6 @@ void SP_monster_arachnid2(edict_t* self)
     self->monsterinfo.run = arachnid2_run;
     self->monsterinfo.attack = arachnid2_attack;
     self->monsterinfo.sight = arachnid2_sight;
-    self->monsterinfo.setskin = arachnid2_setskin;
-
     gi.linkentity(self);
 
     M_SetAnimation(self, &arachnid_move_stand);
