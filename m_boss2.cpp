@@ -619,7 +619,7 @@ void boss2_dead(edict_t* self)
 	{
 		self->deadflag = false;
 		self->takedamage = true;
-		return;
+	//	return;
 	}
 
 	boss2_gib(self);

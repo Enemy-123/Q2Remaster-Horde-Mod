@@ -1634,6 +1634,10 @@ THINK(BossExplode_think) (edict_t* self) -> void
 		return;
 	}
 
+	if (!self->monsterinfo.death_processed) {
+		OnEntityDeath(self);
+	}
+
 	vec3_t org = self->owner->s.origin + self->owner->mins;
 
 	org.x += frandom() * self->owner->size.x;
@@ -1657,9 +1661,13 @@ void BossExplode(edict_t* self)
 	{
 		BossDeathHandler(self);
 	}
+
+	if (!self->monsterinfo.death_processed) {
+		OnEntityDeath(self);
+	}
 	// no blowy on deady
-	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
-		return;
+//	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
+//		return;
 
 	edict_t* exploder = G_Spawn();
 	exploder->owner = self;

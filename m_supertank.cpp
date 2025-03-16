@@ -640,7 +640,7 @@ void supertank_dead(edict_t* self)
 	{
 		self->deadflag = false;
 		self->takedamage = true;
-		return;
+	//	return;
 	}
 
 	supertank_gib(self);
