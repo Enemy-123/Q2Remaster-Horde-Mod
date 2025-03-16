@@ -18,7 +18,7 @@ static cached_soundindex sound_weld1;
 static cached_soundindex sound_weld2;
 static cached_soundindex sound_weld3;
 static cached_soundindex sound_gun;
-
+static cached_soundindex sound_pew;
 
 void fixbot_run(edict_t* self);
 void fixbot_attack(edict_t* self);
@@ -1081,10 +1081,213 @@ MMOVE_T(fixbot_move_laserattack) = { FRAME_shoot_01, FRAME_shoot_06, fixbot_fram
 	need to get forward translation data
 	for the charge attack
 */
+
+static inline vec3_t heat_fixbot_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target)
+{
+	return (((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) + (target->velocity * (clamp(dist_to_target / 500.f, 0.f, 1.f)) * 0.5f)) - heat->s.origin).normalized();
+}
+
+THINK(heat_fixbot_think) (edict_t* self) -> void
+{
+	edict_t* acquire = nullptr;
+	float	 oldlen = 0;
+	float	 olddot = 1;
+
+	if (self->timestamp < level.time)
+	{
+		vec3_t const fwd = AngleVectors(self->s.angles).forward;
+
+		if (self->oldenemy)
+		{
+			self->enemy = self->oldenemy;
+			self->oldenemy = nullptr;
+		}
+
+		if (self->enemy)
+		{
+			acquire = self->enemy;
+
+			if (acquire->health <= 0 ||
+				!visible(self, acquire))
+			{
+				self->enemy = acquire = nullptr;
+			}
+			else
+			{
+				float const dist_to_target = (self->s.origin - acquire->s.origin).normalize();
+				self->pos1 = heat_fixbot_get_dist_vec(self, acquire, dist_to_target);
+			}
+		}
+
+		if (!acquire)
+		{
+			// acquire new target
+			edict_t* target = nullptr;
+
+			while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
+			{
+				if (self->owner == target)
+					continue;
+				if (!target->client)
+					continue;
+				if (target->health <= 0)
+					continue;
+				if (!visible(self, target))
+					continue;
+
+				float const dist_to_target = (self->s.origin - target->s.origin).normalize();
+				vec3_t vec = heat_fixbot_get_dist_vec(self, target, dist_to_target);
+
+				float const len = vec.normalize();
+				float const dot = vec.dot(fwd);
+
+				// targets that require us to turn less are preferred
+				if (dot >= olddot)
+					continue;
+
+				if (acquire == nullptr || dot < olddot || len < oldlen)
+				{
+					acquire = target;
+					oldlen = len;
+					olddot = dot;
+					self->pos1 = vec;
+				}
+			}
+		}
+	}
+
+	vec3_t const preferred_dir = self->pos1;
+
+	if (acquire != nullptr)
+	{
+		if (self->enemy != acquire)
+		{
+			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+			self->enemy = acquire;
+		}
+	}
+	else
+		self->enemy = nullptr;
+
+	float t = self->accel;
+
+	if (self->enemy)
+		t *= 0.85f;
+
+	//float d = self->movedir.dot(preferred_dir);
+
+	self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
+	self->s.angles = vectoangles(self->movedir);
+
+	if (self->speed < self->yaw_speed)
+	{
+		self->speed += self->yaw_speed * gi.frame_time_s;
+	}
+
+	self->velocity = self->movedir * self->speed;
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+DIE(fixbot_heat_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+{
+	BecomeExplosion1(self);
+}
+void plasma_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
+
+// RAFAEL
+void fire_fixbot_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& rest_dir, int damage, int speed, float damage_radius, int radius_damage, float turn_fraction)
+{
+	edict_t* heat;
+
+	heat = G_Spawn();
+	heat->s.origin = start;
+	heat->movedir = dir;
+	heat->s.angles = vectoangles(dir);
+	heat->velocity = dir * speed;
+	heat->movetype = MOVETYPE_FLYMISSILE;
+	heat->clipmask = MASK_PROJECTILE;
+	heat->flags |= FL_DAMAGEABLE;
+	heat->solid = SOLID_BBOX;
+	heat->s.effects |= EF_PLASMA | EF_ANIM_ALLFAST;
+	heat->s.modelindex = gi.modelindex("sprites/s_photon.sp2");
+	heat->s.scale = 0.75f;
+	heat->owner = self;
+	heat->touch = plasma_touch;
+	heat->speed = speed / 1.45;
+	heat->yaw_speed = speed * 2.4;
+	heat->accel = turn_fraction;
+	heat->pos1 = rest_dir;
+	heat->mins = { -5, -5, -5 };
+	heat->maxs = { 5, 5, 5 };
+	heat->health = 50;
+	heat->takedamage = true;
+	heat->die = fixbot_heat_die;
+
+	heat->nextthink = level.time + 0.20_sec;
+	heat->think = heat_fixbot_think;
+
+	heat->dmg = damage;
+	heat->radius_dmg = radius_damage;
+	heat->dmg_radius = damage_radius;
+	heat->s.sound = gi.soundindex("weapons/rockfly.wav");
+
+	if (visible(heat, self->enemy))
+	{
+		heat->oldenemy = self->enemy;
+		heat->timestamp = level.time + 0.6_sec;
+		gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+	}
+
+	gi.linkentity(heat);
+}
+
+// Psx Guardian heat attack, but using plasmas
+
+static void fixbot_fire_plasma(edict_t* self, float offset)
+{
+	vec3_t forward, right, up;
+	vec3_t start;
+
+	AngleVectors(self->s.angles, forward, right, up);
+	start = self->s.origin;
+	start -= forward * 8.0f;
+	start += right * offset;
+	start += up * 50.f;
+
+	// Crear un vector de dirección inicial que apunte en un ángulo de 45 grados hacia arriba
+	vec3_t dir;
+	dir = forward + (up * 0.5f); // Mezcla el vector forward y up para un ángulo de ~45 grados
+	dir.normalize();
+
+	// Reducir la velocidad inicial para dar más tiempo de maniobra
+	const float speed = 200;
+
+	// Aumentar el turn_fraction para mejor maniobrabilidad
+	const float turn_fraction = 0.12f;
+
+	fire_fixbot_heat(self, start, dir, forward, 20, speed, 150, 35, turn_fraction);
+	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
+}
+
+void fixbot_reattack(edict_t* self)
+{
+	// if our enemy is still valid, then continue firing
+	if (self->enemy && frandom() < 0.8f && !level.intermissiontime && !self->enemy->deadflag)
+	{
+
+		fixbot_fire_plasma(self, 8.0f);
+		self->monsterinfo.nextframe = FRAME_charging_27;
+		return;
+	}
+
+	// end attack
+	self->monsterinfo.attack_finished = level.time + 1.0_sec;
+}
+
 mframe_t fixbot_frames_attack2[] = {
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
@@ -1095,7 +1298,7 @@ mframe_t fixbot_frames_attack2[] = {
 
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
-	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
@@ -1104,18 +1307,18 @@ mframe_t fixbot_frames_attack2[] = {
 	{ ai_charge, -10 },
 	{ ai_charge, 0, fixbot_fire_blaster },
 
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, 0, fixbot_fire_blaster },
 
-	{ ai_charge }
+	{ ai_charge, 0, fixbot_reattack }
 };
 MMOVE_T(fixbot_move_attack2) = { FRAME_charging_01, FRAME_charging_31, fixbot_frames_attack2, fixbot_run };
 
@@ -1257,7 +1460,7 @@ void fixbot_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster(self, start, dir, 15, 1000, MZ2_HOVER_BLASTER_1, EF_BLASTER);
+	monster_fire_blaster_bolt(self, start, dir, 15, 1000, MZ2_HOVER_BLASTER_1, EF_BLASTER, 0);
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;
 	self->pos1[2] += self->enemy->viewheight;
@@ -1361,7 +1564,7 @@ void SP_monster_fixbot(edict_t* self)
 
 	sound_pain1.assign("daedalus/daedpain1.wav");
 	sound_die.assign("daedalus/daeddeth1.wav");
-
+	sound_pew.assign("makron/blaster.wav");
 	sound_weld1.assign("misc/welder1.wav");
 	sound_weld2.assign("misc/welder2.wav");
 	sound_weld3.assign("misc/welder3.wav");
