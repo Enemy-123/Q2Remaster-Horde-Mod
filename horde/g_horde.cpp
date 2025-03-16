@@ -993,7 +993,7 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
 			params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 22;
-			params.timeThreshold = random_time(20_sec, 26_sec);
+			params.timeThreshold = random_time(17_sec, 22_sec);
 		}
 		else if (mapSize.isSmallMap) {
 			params.maxMonsters = (numHumanPlayers >= 3) ? 12 : 9;
@@ -1599,6 +1599,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Early Flying Units (Waves 1-8)
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
+	{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.25f},
 	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
 	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.5f},
 
@@ -1610,7 +1611,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Elite Infantry (Waves 4-12)
 	{"monster_soldier_hypergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 4, 0.7f},
-	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 7, 0.8f},
+	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 6, 0.8f},
 	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 10, 0.8f},
 	{"monster_chick", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f},
 
@@ -1621,7 +1622,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk , 6, 0.8f},
 
 	// Arachnophobic Units (Waves 8-18)
-	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 5, 0.4f},
+	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f},
 	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f},
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f},
@@ -2232,18 +2233,44 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	const MonsterWaveType currentWaveTypes = current_wave_type;
 	const bool isSpawnPointFlying = spawn_point->style == 1;
 
-	// Determine if we should spawn a higher level monster with fixed probability check
-	bool spawn_higher_level = frandom() < (currentLevel < 10 ? 0.16f : 0.08f);
-	bool less_than_wave7 = currentLevel < 7;
+	// Determine if we should spawn a higher level monster
+	bool spawn_higher_level = false;
+	if (currentLevel <= 10) {
+		// Keep higher chance for early waves (waves 1-10)
+		spawn_higher_level = frandom() < 0.16f;
+	}
+	else if (currentLevel <= 15) {
+		// Reduced chance for mid waves (waves 11-15)
+		spawn_higher_level = frandom() < 0.05f;
+	}
+	else {
+		// Very low chance for late waves (waves 16+)
+		spawn_higher_level = frandom() < 0.02f;
+	}
 
 	// Calculate effective level for monster selection
 	int32_t effectiveLevel = currentLevel;
 
 	if (spawn_higher_level) {
-		// More gradual level boost for early waves
-		int32_t levelBoost = irandom(4, 8);
-		effectiveLevel = std::min(currentLevel + levelBoost, less_than_wave7 ? irandom(5, 7) : currentLevel * 2);
-		// Ensure we don't exceed a reasonable cap
+		// More moderate level boost for all waves
+		int32_t levelBoost;
+		if (currentLevel < 7) {
+			levelBoost = irandom(4, 7);  // +2 to +4 levels for very early waves
+		}
+		else if (currentLevel <= 10) {
+			levelBoost = irandom(3, 5);  // +3 to +5 levels for early waves
+		}
+		else {
+			levelBoost = irandom(2, 3);  // Only +2 to +3 levels for later waves
+		}
+
+		// Cap the effective level more conservatively
+		int32_t maxLevel = currentLevel < 7 ? irandom(5, 7) :
+			(currentLevel < 15 ? currentLevel + 5 : currentLevel + 3);
+
+		effectiveLevel = std::min(currentLevel + levelBoost, maxLevel);
+
+		// Absolute cap at 40
 		effectiveLevel = std::min(effectiveLevel, 40);
 
 		if (developer->integer) {

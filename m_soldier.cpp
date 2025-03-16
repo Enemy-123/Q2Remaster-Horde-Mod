@@ -2211,7 +2211,7 @@ void SP_monster_soldier_ripper(edict_t* self)
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 60 * st.health_multiplier;
+	self->health = self->max_health = 105 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2245,7 +2245,7 @@ void SP_monster_soldier_hypergun(edict_t* self)
 
 	self->s.skinnum = 8;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 65 * st.health_multiplier;
+	self->health = self->max_health = 100 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
