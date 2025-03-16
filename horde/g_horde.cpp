@@ -1242,16 +1242,20 @@ constexpr struct weighted_item_t {
 
 
 // Allow flag operations on MonsterWaveType
+template<typename E>
+constexpr auto to_underlying(E e) noexcept {
+	return static_cast<std::underlying_type_t<E>>(e);
+}
+
 constexpr MonsterWaveType operator|(MonsterWaveType a, MonsterWaveType b) {
 	return static_cast<MonsterWaveType>(
-		static_cast<std::underlying_type_t<MonsterWaveType>>(a) |
-		static_cast<std::underlying_type_t<MonsterWaveType>>(b)
+		to_underlying(a) | to_underlying(b)
 		);
 }
 
-inline MonsterWaveType operator& (MonsterWaveType a, MonsterWaveType b) noexcept {
+inline MonsterWaveType operator&(MonsterWaveType a, MonsterWaveType b) noexcept {
 	return static_cast<MonsterWaveType>(
-		static_cast<uint32_t>(a) & static_cast<uint32_t>(b)
+		to_underlying(a) & to_underlying(b)
 		);
 }
 
@@ -1262,10 +1266,8 @@ inline MonsterWaveType& operator|=(MonsterWaveType& a, MonsterWaveType b) {
 
 // Helper function to check if a monster has a specific wave type
 inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck) {
-	return static_cast<uint32_t>(entityTypes & typeToCheck) != 0;
+	return (entityTypes & typeToCheck) != MonsterWaveType::None;
 }
-
-
 
 // First, add these at the top with other global variables
 static constexpr size_t WAVE_MEMORY_SIZE = 3;  // Remember last 3 waves
@@ -1491,8 +1493,6 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 //}
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 
-// Example function to filter monsters by wave type
-// First the IsValidMonsterForWave function:
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
 	// Fast exit for no requirements
 	if (waveRequirements == MonsterWaveType::None) {
@@ -1501,10 +1501,6 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 
 	// Get monster types once
 	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
-
-	// Skip all the extra lookups and bit operations, check directly the critical flags
-	const uint32_t requirements = static_cast<uint32_t>(waveRequirements);
-	const uint32_t monster_flags = static_cast<uint32_t>(monsterTypes);
 
 	// Special wave types should be exclusive - if one of these is set, the monster MUST have it
 	// These are the "headline" wave types that get special announcements
@@ -1551,30 +1547,30 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 	else {
 		// For regular wave types, check all required flags
 		// First check the most important exclusive categories that must match
-		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Flying)) &&
-			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Flying)))
+		if (HasWaveType(waveRequirements, MonsterWaveType::Flying) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Flying))
 			return false;
 
-		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Small)) &&
-			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Small)))
+		if (HasWaveType(waveRequirements, MonsterWaveType::Small) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Small))
 			return false;
 
-		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Heavy)) &&
-			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Heavy)))
+		if (HasWaveType(waveRequirements, MonsterWaveType::Heavy) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Heavy))
 			return false;
 
-		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Melee)) &&
-			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Melee)))
+		if (HasWaveType(waveRequirements, MonsterWaveType::Melee) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Melee))
 			return false;
 
-		if ((requirements & static_cast<uint32_t>(MonsterWaveType::Bomber)) &&
-			!(monster_flags & static_cast<uint32_t>(MonsterWaveType::Bomber)))
+		if (HasWaveType(waveRequirements, MonsterWaveType::Bomber) &&
+			!HasWaveType(monsterTypes, MonsterWaveType::Bomber))
 			return false;
 	}
 
 	// For mixed waves, check if there's at least one match in other categories
 	// This only applies to non-special wave types now
-	return isSpecialWaveType || (requirements & monster_flags) != 0;
+	return isSpecialWaveType || (monsterTypes & waveRequirements) != MonsterWaveType::None;
 }
 
 // Structure to include wave level information
@@ -3307,7 +3303,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		if (TrySetWaveType(waveType)) {
 			gi.LocBroadcast_Print(PRINT_CHAT, message);
 		}
-		else if (waveType == MonsterWaveType::Mutant || waveType == MonsterWaveType::Shambler) {
+		else if (HasWaveType(waveType, MonsterWaveType::Mutant) || HasWaveType(waveType, MonsterWaveType::Shambler)) {
 			// Fallback for mutant/shambler types
 			current_wave_type = MonsterWaveType::Medium;
 			StoreWaveType(MonsterWaveType::Medium);
