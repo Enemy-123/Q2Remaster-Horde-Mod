@@ -700,44 +700,51 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage) {
-		// Verificar si es un blaster normal
-		const bool useblaster = self->owner->client &&
-			self->owner->client->pers.weapon &&
-			self->owner->client->pers.weapon->id == IT_WEAPON_BLASTER;
+		// Check if this is a hyperblaster bolt explicitly
+		// We'll use the bolt's style field which was already set in fire_blaster
+		bool isHyperblasterBolt = (self->style == MOD_HYPERBLASTER);
 
-		// Primero aplicamos el daño directo
+		// Apply direct damage first
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin,
 			tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
 
-		// Luego aplicamos el radio damage si no es un blaster normal
-		if ((!useblaster && self->dmg >= 5) || self->owner->svflags & SVF_MONSTER) {
-			T_RadiusDamage(self, self->owner, (float)self->dmg, self,
+		// Apply radius damage for Hyperblaster bolts
+		if (isHyperblasterBolt || (self->owner->svflags & SVF_MONSTER)) {
+			// Cap the radius damage to prevent excessive stacking with quad damage
+			float radius_dmg = self->dmg;
+			const float max_radius_dmg = 60.0f;  // 4x base damage of 15
+
+			if (radius_dmg > max_radius_dmg)
+				radius_dmg = max_radius_dmg;
+
+			T_RadiusDamage(self, self->owner, radius_dmg, self,
 				self->dmg_radius, DAMAGE_ENERGY, MOD_HYPERBLASTER);
 		}
 
 		G_FreeEdict(self);
 	}
 	else {
-		// Estos blaster siempre intentan rebotar
+		// Bounce logic remains unchanged
 		if (tr.ent && tr.ent->solid == SOLID_BSP) {
 			self->bounce_count--;
 			if (self->bounce_count > 0) {
-				// Verificar si es un blaster normal
-				const bool useblaster = self->owner->client &&
-					self->owner->client->pers.weapon &&
-					self->owner->client->pers.weapon->id == IT_WEAPON_BLASTER;
-
-				// Solo mostrar efecto de rebote si NO es un blaster normal
-				if (!useblaster || self->owner->svflags & SVF_MONSTER)
+				// Only show bounce effect for hyperblaster bolts
+				if (self->style == MOD_HYPERBLASTER || self->owner->svflags & SVF_MONSTER)
 				{
-					// Agregar radio damage al impactar
-					if (self->dmg >= 5)
+					// Apply radius damage on bounce impacts
+					float radius_dmg = self->dmg;
+					const float max_radius_dmg = 60.0f;
+
+					if (radius_dmg > max_radius_dmg)
+						radius_dmg = max_radius_dmg;
+
+					if (radius_dmg >= 5)
 					{
-						T_RadiusDamage(self, self->owner, (float)self->dmg, self,
+						T_RadiusDamage(self, self->owner, radius_dmg, self,
 							self->dmg_radius, DAMAGE_ENERGY, MOD_HYPERBLASTER);
 					}
 
-					// Efecto visual del rebote
+					// Visual effect for bounce
 					gi.WriteByte(svc_temp_entity);
 					gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
 					gi.WritePosition(self->s.origin);
@@ -748,7 +755,7 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 			}
 		}
 
-		// Efecto final y destrucción
+		// Final impact effect
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
 		gi.WritePosition(self->s.origin);
@@ -757,7 +764,6 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 		G_FreeEdict(self);
 	}
 }
-
 edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod, int bounces )
 {
 	edict_t* bolt = fire_blaster(self, start, dir, damage, speed, effect, mod, bounces);
