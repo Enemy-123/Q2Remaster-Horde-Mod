@@ -2232,18 +2232,17 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	const MonsterWaveType currentWaveTypes = current_wave_type;
 	const bool isSpawnPointFlying = spawn_point->style == 1;
 
-	// NEW CODE: Determine if we should spawn a higher level monster (16% chance)
-	bool spawn_higher_level = frandom() < currentLevel < 10 ? 0.16f : 0.08f; // 16% chance if below wave level 10, else 8% if above
-	bool Lessthanwave7 = currentLevel < 7;
-
+	// Determine if we should spawn a higher level monster with fixed probability check
+	bool spawn_higher_level = frandom() < (currentLevel < 10 ? 0.16f : 0.08f);
+	bool less_than_wave7 = currentLevel < 7;
 
 	// Calculate effective level for monster selection
 	int32_t effectiveLevel = currentLevel;
-	if (spawn_higher_level) {
-		// Advance by 4-8 levels, but cap at realistic limits to maintain balance
-		int32_t levelBoost = irandom(4, 8);
-		effectiveLevel = std::min(currentLevel + levelBoost, Lessthanwave7 ? irandom(5,7) : currentLevel * 2);
 
+	if (spawn_higher_level) {
+		// More gradual level boost for early waves
+		int32_t levelBoost = irandom(4, 8);
+		effectiveLevel = std::min(currentLevel + levelBoost, less_than_wave7 ? irandom(5, 7) : currentLevel * 2);
 		// Ensure we don't exceed a reasonable cap
 		effectiveLevel = std::min(effectiveLevel, 40);
 
@@ -2270,7 +2269,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			break;
 		}
 
-		// Basic level check - MODIFIED to use effectiveLevel
+		// Basic level check using effectiveLevel
 		if (monster.minWave > effectiveLevel) {
 			continue;
 		}
@@ -2336,7 +2335,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		// Apply flying adjustment
 		weight *= adjustmentFactor;
 
-		// NEW CODE: If this is a higher-level monster, adjust its weight
+		// If this is a higher-level monster, adjust its weight
 		if (spawn_higher_level && monster.minWave > currentLevel) {
 			// Reduce weight for much higher level monsters to keep them rare
 			int levelDifference = monster.minWave - currentLevel;
