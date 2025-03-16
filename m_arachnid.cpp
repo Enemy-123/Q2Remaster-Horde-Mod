@@ -370,15 +370,6 @@ void spider_charge_plasma(edict_t* self)
     // Play plasma charge sound instead of railgun sound
     gi.sound(self, CHAN_WEAPON, sound_plasma, 1.f, ATTN_NORM, 0.f);
 
-    vec3_t forward, right, start;
-    AngleVectors(self->s.angles, forward, right, nullptr);
-
-    // Use RAIL1 for the source point - you might want to create spider-specific ones later
-    start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_ARACHNID_RAIL1], forward, right);
-
-    // Use PredictAim to lead the target based on plasma projectile speed
-    float constexpr plasma_speed = 900;
-    PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &self->pos1);
 }
 
 // Improved plasma firing with better leading
@@ -406,6 +397,11 @@ void spider_plasma(edict_t* self)
         id = MZ2_ARACHNID_RAIL_UP2;
         break;
     }
+
+
+    // Use PredictAim to lead the target based on plasma projectile speed
+    float constexpr plasma_speed = 900;
+    PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &self->pos1);
 
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);

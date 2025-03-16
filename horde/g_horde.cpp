@@ -1599,7 +1599,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Early Flying Units (Waves 1-8)
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
-	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 8, 0.6f},
+	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
 	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.5f},
 
 	// Special Wave Units (Waves 4-9)
@@ -2233,7 +2233,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	const bool isSpawnPointFlying = spawn_point->style == 1;
 
 	// NEW CODE: Determine if we should spawn a higher level monster (16% chance)
-	bool spawn_higher_level = frandom() < 0.16f; // 8% chance
+	bool spawn_higher_level = frandom() < currentLevel < 10 ? 0.16f : 0.08f; // 16% chance if below wave level 10, else 8% if above
 	bool Lessthanwave7 = currentLevel < 7;
 
 
@@ -2242,7 +2242,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	if (spawn_higher_level) {
 		// Advance by 4-8 levels, but cap at realistic limits to maintain balance
 		int32_t levelBoost = irandom(4, 8);
-		effectiveLevel = std::min(currentLevel + levelBoost, Lessthanwave7 ? 7 : currentLevel * 2);
+		effectiveLevel = std::min(currentLevel + levelBoost, Lessthanwave7 ? irandom(5,7) : currentLevel * 2);
 
 		// Ensure we don't exceed a reasonable cap
 		effectiveLevel = std::min(effectiveLevel, 40);
