@@ -21,7 +21,8 @@ static cached_soundindex sound_die1;
 static cached_soundindex sound_die2;
 
 static cached_soundindex sound_gunshot;
-static cached_soundindex sound_weapon_cock;
+static cached_soundindex sound_weapon_cock_hb;
+static cached_soundindex sound_weapon_cock_mg;
 static cached_soundindex sound_punch_swing;
 static cached_soundindex sound_punch_hit;
 static cached_soundindex sound_sight;
@@ -548,7 +549,7 @@ void infantry_set_firetime(edict_t* self)
 
 void infantry_cock_gun(edict_t* self)
 {
-	gi.sound(self, CHAN_WEAPON, sound_weapon_cock, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, (!strcmp(self->classname, "monster_infantry_vanilla")) ? sound_weapon_cock_mg : sound_weapon_cock_hb, 1, ATTN_NORM, 0);
 
 	// gun cocked
 	self->count = 1;
@@ -988,7 +989,8 @@ void InfantryPrecache()
 	//sound_gunshot.assign("infantry/infatck1.wav");
 	sound_gunshot.assign("weapons/hyprbf1a.wav");
 	//	sound_weapon_cock.assign("infantry/infatck3.wav");
-	sound_weapon_cock.assign("weapons/hyprbu1a.wav");
+	sound_weapon_cock_hb.assign("weapons/hyprbu1a.wav");
+	sound_weapon_cock_mg.assign("infantry/infatck3.wav");
 	sound_punch_swing.assign("infantry/infatck2.wav");
 	sound_punch_hit.assign("infantry/melee2.wav");
 
