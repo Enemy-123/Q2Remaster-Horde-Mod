@@ -208,20 +208,21 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
 	{
 		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-		monster->health *= 1.5f;
+		monster->health *= 2.2f;
 		monster->monsterinfo.power_armor_power *= 1.4f;
 		monster->monsterinfo.armor_power *= 1.4f;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
 		monster->s.alpha = 0.6f;
+		monster->health *= 1.4f;
 		monster->monsterinfo.power_armor_power *= 4.0f;
 		monster->monsterinfo.armor_power *= 4.0f;
 		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
 		monster->s.effects |= EF_GIB | EF_FLAG2;
-		monster->health *= 1.5f;
+		monster->health *= 1.6f;
 		monster->monsterinfo.power_armor_power *= 1.3f;
 		monster->monsterinfo.armor_power *= 1.3f;
 		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 475_sec;
@@ -237,7 +238,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	}
 	if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
 		monster->s.effects |= EF_TRACKER | EF_FLAG1;
-		monster->health *= 1.5f;
+		monster->health *= 2.5f;
 		monster->monsterinfo.power_armor_power *= 1.1f;
 		monster->monsterinfo.armor_power *= 1.1f;
 		monster->monsterinfo.attack_state = AS_BLIND;
