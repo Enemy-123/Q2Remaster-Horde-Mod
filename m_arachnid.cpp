@@ -1448,6 +1448,7 @@ void SP_monster_spider(edict_t* self)
         self->mins = { -41, -41, -17 };
         self->maxs = { 41, 41, 41 };
     }
+    ApplyMonsterBonusFlags(self);
 }
 
 /*QUAKED monster_arachnid2 (1 .5 0) (-48 -48 -20) (48 48 48) Ambush Trigger_Spawn Sight
