@@ -127,6 +127,9 @@ edict_t* fixbot_FindLiveEnemy(edict_t* self) {
 			continue;
 		if (!visible(self, ent))
 			continue;
+		// NEW: Skip entities on the same team
+		if (OnSameTeam(self, ent))
+			continue;
 
 		// Prioritize closer enemies
 		float dist = (self->s.origin - ent->s.origin).length();
@@ -1107,9 +1110,11 @@ static inline vec3_t heat_fixbot_get_dist_vec(const edict_t* heat, const edict_t
 THINK(heat_fixbot_think) (edict_t* self) -> void
 {
 	edict_t* acquire = nullptr;
-	float	 oldlen = 0;
-	float	 olddot = 1;
+	float    oldlen = 0;
+	float    olddot = 1;
 
+	// Don't acquire a target until a small delay has passed
+	// This prevents colliding with the owner at spawn
 	if (self->timestamp < level.time)
 	{
 		vec3_t const fwd = AngleVectors(self->s.angles).forward;
@@ -1129,7 +1134,7 @@ THINK(heat_fixbot_think) (edict_t* self) -> void
 			{
 				self->enemy = acquire = nullptr;
 			}
-			else
+			else 
 			{
 				float const dist_to_target = (self->s.origin - acquire->s.origin).normalize();
 				self->pos1 = heat_fixbot_get_dist_vec(self, acquire, dist_to_target);
@@ -1143,6 +1148,7 @@ THINK(heat_fixbot_think) (edict_t* self) -> void
 
 			while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 			{
+				// Skip owner
 				if (self->owner == target)
 					continue;
 				if (!target->client)
@@ -1150,6 +1156,9 @@ THINK(heat_fixbot_think) (edict_t* self) -> void
 				if (target->health <= 0)
 					continue;
 				if (!visible(self, target))
+					continue;
+				// Skip teammates
+				if (OnSameTeam(self->owner, target))
 					continue;
 
 				float const dist_to_target = (self->s.origin - target->s.origin).normalize();
@@ -1190,8 +1199,6 @@ THINK(heat_fixbot_think) (edict_t* self) -> void
 
 	if (self->enemy)
 		t *= 0.85f;
-
-	//float d = self->movedir.dot(preferred_dir);
 
 	self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
 	self->s.angles = vectoangles(self->movedir);
@@ -1266,39 +1273,80 @@ static void fixbot_fire_plasma(edict_t* self, float offset)
 	vec3_t start;
 
 	AngleVectors(self->s.angles, forward, right, up);
+
+	// Move the starting position further away from the fixbot to prevent collision
 	start = self->s.origin;
-	start -= forward * 8.0f;
+	start += forward * 25.0f;  // Move forward away from fixbot's body (was -8.0f)
 	start += right * offset;
 	start += up * 50.f;
 
-	// Crear un vector de dirección inicial que apunte en un ángulo de 45 grados hacia arriba
+	// Base direction - 45 degrees up
 	vec3_t dir;
-	dir = forward + (up * 0.5f); // Mezcla el vector forward y up para un ángulo de ~45 grados
+	dir = forward + (up * 0.5f);
 	dir.normalize();
 
-	// Reducir la velocidad inicial para dar más tiempo de maniobra
-	const float speed = 200;
-
-	// Aumentar el turn_fraction para mejor maniobrabilidad
+	// Base parameters
+	float speed = irandom(200, 350);
 	const float turn_fraction = 0.12f;
 
-	fire_fixbot_heat(self, start, dir, forward, 20, speed, 150, 35, turn_fraction);
+	if (self->monsterinfo.IS_BOSS) {
+		// IMPORTANT: Spread out starting positions much more to prevent collision
+
+		// Create different firing positions with more separation
+		vec3_t start1 = start + (right * 15.0f) + (up * 10.0f);  // up-right
+		vec3_t start2 = start;                                   // center
+		vec3_t start3 = start - (right * 15.0f) + (up * 10.0f);  // up-left
+		vec3_t start4 = start + (right * 20.0f) - (up * 10.0f);  // down-right
+		vec3_t start5 = start - (right * 20.0f) - (up * 10.0f);  // down-left
+
+		// Spread direction vectors
+		vec3_t dir1 = dir + (right * 0.1f) + (up * 0.05f);
+		dir1.normalize();
+
+		vec3_t dir2 = dir;  // Center direction unchanged
+
+		vec3_t dir3 = dir - (right * 0.1f) + (up * 0.05f);
+		dir3.normalize();
+
+		vec3_t dir4 = dir + (right * 0.15f) - (up * 0.05f);
+		dir4.normalize();
+
+		vec3_t dir5 = dir - (right * 0.15f) - (up * 0.05f);
+		dir5.normalize();
+
+		// Fire all five plasma projectiles from different positions
+		// IMPORTANT: Add self as "ignore entity" parameter to heat fire function
+		fire_fixbot_heat(self, start1, dir1, forward, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_heat(self, start2, dir2, forward, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_heat(self, start3, dir3, forward, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_heat(self, start4, dir4, forward, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_heat(self, start5, dir5, forward, 20, speed, 150, 35, turn_fraction);
+	}
+	else {
+		// Regular fixbot - fire single plasma
+		fire_fixbot_heat(self, start, dir, forward, 20, speed, 150, 35, turn_fraction);
+	}
+
+	// Play sound once regardless of how many projectiles we fired
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
 }
 
 void fixbot_reattack(edict_t* self)
 {
 	// if our enemy is still valid, then continue firing
-	if (self->enemy && frandom() < 0.8f && !level.intermissiontime && !self->enemy->deadflag)
-	{
+	if (self->enemy && !level.intermissiontime && !self->enemy->deadflag) {
+		// Boss has higher chance to continue attack
+		float reattack_chance = self->monsterinfo.IS_BOSS ? 0.9f : 0.8f;
 
-		fixbot_fire_plasma(self, 8.0f);
-		self->monsterinfo.nextframe = FRAME_charging_27;
-		return;
+		if (frandom() < reattack_chance) {
+			fixbot_fire_plasma(self, 8.0f);
+			self->monsterinfo.nextframe = FRAME_charging_27;
+			return;
+		}
 	}
 
 	// end attack
-	self->monsterinfo.attack_finished = level.time + 1.0_sec;
+	self->monsterinfo.attack_finished = level.time + (self->monsterinfo.IS_BOSS ? 0.5_sec : 1.0_sec);
 }
 
 mframe_t fixbot_frames_attack2[] = {
@@ -1485,24 +1533,26 @@ void fixbot_fire_blaster(edict_t* self)
 
 MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 {
-	if (self->enemy) {
-		// Si encuentra un enemigo, inicia el ataque
+	if (self->enemy && self->enemy->health > 0 && visible(self, self->enemy) && !OnSameTeam(self, self->enemy)) {
+		// If finds a valid enemy, start attack
 		self->monsterinfo.run(self);
 	}
 	else {
+		// Clear invalid enemy
+		self->enemy = nullptr;
 		M_SetAnimation(self, &fixbot_move_stand);
 	}
 }
 
 MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
 {
-	// Check for enemies every frame during run
-	if (!self->enemy || !visible(self, self->enemy) || self->enemy->health <= 0) {
-		if (fixbot_search(self))
-			return;  // Found an enemy, transition to attack
-	}
-
+	// Always set the run animation, don't conditionally check for enemy
 	M_SetAnimation(self, &fixbot_move_run);
+
+	// Still check for enemies, but don't make animation dependent on it
+	if (!self->enemy || !visible(self, self->enemy)) {
+		fixbot_search(self);
+	}
 }
 
 MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void
@@ -1559,7 +1609,7 @@ PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 	else
 		M_SetAnimation(self, &fixbot_move_paina);
 
-	abortHeal(self, false, false);
+	//abortHeal(self, false, false);
 }
 
 void fixbot_dead(edict_t* self)
@@ -1637,4 +1687,15 @@ void SP_monster_fixbot(edict_t* self)
 
 
 	ApplyMonsterBonusFlags(self);
+}
+
+void SP_monster_fixbotkl(edict_t* self) {
+	SP_monster_fixbot(self);
+
+	self->max_health = 7500;
+	self->health = self->max_health;
+	self->s.scale = 5.0f;
+	self->mins *= 5.0f;
+	self->maxs *= 5.0f;
+
 }

@@ -379,6 +379,7 @@ enum class BossType {
 	CARRIER,
 	BOSS2,
 	BOSS2KL,
+	FIXBOTKL,
 	CARRIER_MINI,
 	TANK_64,
 	SHAMBLERKL,
@@ -1624,7 +1625,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Early Flying Units (Waves 1-8)
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
-	{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 16, 0.6f},
+	//{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 16, 0.6f},
 	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
 	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.5f},
 
@@ -1761,6 +1762,7 @@ struct boss_t {
 static constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
 	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
+	{"monster_fixbotkl", 14, -1, 0.1f, BossSizeCategory::Small, BossType::FIXBOTKL},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small, BossType::WIDOW2},
 	{"monster_tank_64", -1, -1, 0.25f, BossSizeCategory::Small, BossType::TANK_64},
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small, BossType::SHAMBLERKL},
@@ -1776,6 +1778,7 @@ static constexpr boss_t BOSS_SMALL[] = {
 static constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
+	{"monster_fixbotkl", 14, -1, 0.1f, BossSizeCategory::Small, BossType::FIXBOTKL},
 	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium, BossType::TANK_64},
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
 	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
@@ -1793,6 +1796,7 @@ static constexpr boss_t BOSS_MEDIUM[] = {
 static constexpr boss_t BOSS_LARGE[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
+	{"monster_fixbotkl", 14, -1, 0.1f, BossSizeCategory::Small, BossType::FIXBOTKL},
 	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
 	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large, BossType::TANK_64},
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large, BossType::SHAMBLERKL},
@@ -3293,6 +3297,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
 	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
 	{"monster_boss2kl", "***** Boss incoming! Hornet 'the swarm' is about to strike! *****\n"},
+	{"monster_fixbotkl", "***** Boss incoming! Fixbot went attack mode *****\n"},
 	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
 	{"monster_carrier", "***** Boss incoming! Carrier’s here with a deadly payload! *****\n"},
 	{"monster_tank_64", "***** Boss incoming! Tank Commander is here to take limbs! *****\n"},
