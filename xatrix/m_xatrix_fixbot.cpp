@@ -1115,7 +1115,7 @@ THINK(heat_fixbot_think) (edict_t* self) -> void
 
 	// Don't acquire a target until a small delay has passed
 	// This prevents colliding with the owner at spawn
-	if (self->timestamp < level.time)
+	if (self->timestamp < level.time || self->oldenemy)
 	{
 		vec3_t const fwd = AngleVectors(self->s.angles).forward;
 
@@ -1258,7 +1258,7 @@ void fire_fixbot_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, con
 	if (visible(heat, self->enemy))
 	{
 		heat->oldenemy = self->enemy;
-		heat->timestamp = level.time + 0.6_sec;
+		heat->timestamp = level.time + (self->monsterinfo.IS_BOSS ? 0.3_sec : 0.6_sec);
 		gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
 	}
 
@@ -1286,18 +1286,16 @@ static void fixbot_fire_plasma(edict_t* self, float offset)
 	dir.normalize();
 
 	// Base parameters
-	float speed = irandom(200, 350);
-	const float turn_fraction = 0.12f;
+	float speed = self->monsterinfo.IS_BOSS ? irandom(300, 450) : irandom(200, 350);
+	float turn_fraction = self->monsterinfo.IS_BOSS ? 0.18f : 0.12f;
 
 	if (self->monsterinfo.IS_BOSS) {
-		// IMPORTANT: Spread out starting positions much more to prevent collision
-
-		// Create different firing positions with more separation
-		vec3_t start1 = start + (right * 15.0f) + (up * 10.0f);  // up-right
-		vec3_t start2 = start;                                   // center
-		vec3_t start3 = start - (right * 15.0f) + (up * 10.0f);  // up-left
-		vec3_t start4 = start + (right * 20.0f) - (up * 10.0f);  // down-right
-		vec3_t start5 = start - (right * 20.0f) - (up * 10.0f);  // down-left
+	// Increase separation between projectiles to avoid collision
+		vec3_t start1 = start + (right * 25.0f) + (up * 15.0f);  // up-right
+		vec3_t start2 = start;                                   // center 
+		vec3_t start3 = start - (right * 25.0f) + (up * 15.0f);  // up-left
+		vec3_t start4 = start + (right * 30.0f) - (up * 15.0f);  // down-right
+		vec3_t start5 = start - (right * 30.0f) - (up * 15.0f);  // down-left
 
 		// Spread direction vectors
 		vec3_t dir1 = dir + (right * 0.1f) + (up * 0.05f);
