@@ -9,6 +9,13 @@
 #include "../m_flash.h"
 #include "../shared.h"
 
+void fixbot_spawn_turret(edict_t* self);
+void fixbot_spawn_check(edict_t* self);
+void fixbot_start_spawn(edict_t* self);
+void fixbot_prep_spawn(edict_t* self);
+
+static cached_soundindex sound_spawn;
+
 bool infront(edict_t* self, edict_t* other);
 bool FindTarget(edict_t* self);
 
@@ -43,8 +50,113 @@ extern const mmove_t fixbot_move_weld_end;
 extern const mmove_t fixbot_move_takeoff;
 extern const mmove_t fixbot_move_landing;
 extern const mmove_t fixbot_move_turn;
-
+extern const mmove_t fixbot_move_spawn;
 void roam_goal(edict_t* self);
+
+
+constexpr const char* fixbot_reinforcements = "monster_turret 1";
+constexpr int32_t fixbot_monster_slots_base = 6;
+
+void fixbot_start_spawn(edict_t* self)
+{
+	// Create visual charge effect
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_WELDING_SPARKS);
+	gi.WriteByte(10);
+	gi.WritePosition(self->s.origin);
+	gi.WriteDir(vec3_origin);
+	gi.WriteByte(0xe0);
+	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+}
+
+void fixbot_spawn_check(edict_t* self)
+{
+	// Only spawn if we have slots available and is boss
+	if (self->monsterinfo.IS_BOSS && M_SlotsLeft(self) > 0) {
+		fixbot_spawn_turret(self);
+	}
+
+	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+}
+
+void fixbot_prep_spawn(edict_t* self)
+{
+	// Visual effect to indicate spawning start
+	gi.sound(self, CHAN_WEAPON, sound_weld1, 1, ATTN_NORM, 0);
+	self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+}
+
+void fixbot_spawn_turret(edict_t* self)
+{
+	vec3_t forward, right, up;
+	vec3_t start, end, dir;
+	trace_t tr;
+	edict_t* ent;
+
+	// Create ray from fixbot position
+	AngleVectors(self->s.angles, forward, right, up);
+	start = self->s.origin;
+	end = start + (forward * 1024);  // Check up to 1024 units ahead
+
+	// Trace to find a wall
+	tr = gi.traceline(start, end, self, MASK_SOLID);
+
+	// If we hit something that's not a monster or player
+	if (tr.fraction < 1.0 && !(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
+		// Found a suitable wall, spawn a turret
+		ent = G_Spawn();
+		if (!ent)
+			return;
+
+		ent->classname = "monster_turret";
+
+		// Position the turret at the impact point, slightly offset from wall
+		dir = tr.plane.normal;
+		dir.normalize();
+		ent->s.origin = tr.endpos + (dir * 8);  // Offset from wall
+
+		// Orient the turret to face away from the wall
+		ent->s.angles = vectoangles(dir);
+
+		// Finalize the turret
+		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
+		ent->monsterinfo.commander = self;
+
+		// Initialize the turret
+		gi.sound(self, CHAN_AUTO, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
+
+		// Visual effect for spawning
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_TELEPORT_EFFECT);
+		gi.WritePosition(ent->s.origin);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+		// Add to monster count
+		if (self->monsterinfo.monster_slots)
+			self->monsterinfo.monster_used += 1;
+
+		// Use ED_CallSpawn to properly initialize the turret
+		ED_CallSpawn(ent);
+	}
+}
+
+// Add this new function to create a spawn animation sequence
+mframe_t fixbot_frames_spawn[] = {
+	{ ai_move, 0, fixbot_prep_spawn },  // Start spawn sequence
+	{ ai_move, 0 },
+	{ ai_move, 0 },
+	{ ai_move, 0 },
+	{ ai_move, 0 },
+	{ ai_move, 0, fixbot_start_spawn }, // Prepare spawn point
+	{ ai_move, 0 },
+	{ ai_move, 0 },
+	{ ai_move, 0, fixbot_spawn_check }, // Check and create spawn
+	{ ai_move, 0 },
+	{ ai_move, 0 },
+	{ ai_move, 0 }                      // End spawn sequence
+};
+MMOVE_T(fixbot_move_spawn) = { FRAME_weldstart_01, FRAME_weldstart_10, fixbot_frames_spawn, fixbot_run };
+
 
 // [Paril-KEX] clean up bot goals if we get interrupted
 THINK(bot_goal_check) (edict_t* self) -> void
@@ -1586,9 +1698,16 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
 
-	// Always go to attack2 which has the plasma firing
+	// If this is a boss, sometimes choose to spawn turrets
+	if (self->monsterinfo.IS_BOSS && frandom() < 0.35f && M_SlotsLeft(self) > 0) {
+		M_SetAnimation(self, &fixbot_move_spawn);
+		return;
+	}
+
+	// Otherwise, go to attack2 which has the plasma firing
 	M_SetAnimation(self, &fixbot_move_attack2);
 }
+
 
 
 PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
@@ -1682,7 +1801,15 @@ void SP_monster_fixbot(edict_t* self)
 	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
 	fixbot_set_attack_fly_parameters(self);
 
+	// Setup reinforcement system if it's a boss
+	if (self->monsterinfo.IS_BOSS && !st.was_key_specified("monster_slots")) {
+		self->monsterinfo.monster_slots = fixbot_monster_slots_base;
+	}
+		if (skill->integer)
+			self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
 
+		if (!st.was_key_specified("reinforcements"))
+			M_SetupReinforcements(fixbot_reinforcements, self->monsterinfo.reinforcements);
 
 	ApplyMonsterBonusFlags(self);
 }
