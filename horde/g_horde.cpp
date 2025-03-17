@@ -347,6 +347,36 @@ edict_t* SelectRandomSpawnPoint(TFilter filter) {
 	return nullptr; // No valid spawn points found
 }
 
+// Monster wave type flags
+enum class MonsterWaveType : uint32_t {
+	None = 0,
+	Flying = 1 << 0,  // Flying units
+	Ground = 1 << 1,  // Basic ground units
+	Small = 1 << 2,  // Small units (parasite, stalker)
+	Light = 1 << 3,  // Light units (soldiers, basic infantry)
+	Heavy = 1 << 4,  // Heavy units (tanks, enforcers)
+	Medium = 1 << 5,  // Medium units (gladiators, medics)
+	Fast = 1 << 6,  // Fast moving units
+	SemiBoss = 1 << 7,  // Mini-boss tier units
+	Boss = 1 << 8,  // Full boss units
+	Ranged = 1 << 9, // Primarily ranged attackers
+	Melee = 1 << 10, // Primarily melee attackers
+	Special = 1 << 11, // Special units (medics, commanders)
+	Elite = 1 << 12,  // Elite variants of basic units
+	Gekk = 1 << 13,  // Gekk initial wave?
+	Shambler = 1 << 14,  // Shambler boss wave?
+	Mutant = 1 << 15, // Mutant boss wave?
+	Arachnophobic = 1 << 16,  // Mutant boss wave?
+	Berserk = 1 << 17,  // Berserk  wave
+	Bomber = 1 << 18,  // Grenade users wave?
+	Spawner = 1 << 19  // Spawning reinforcements users wave
+};
+
+MonsterWaveType current_wave_type = MonsterWaveType::None;
+
+inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck);
+
+
 // Spawn point selection filter
 struct SpawnMonsterFilter {
 	gtime_t currentTime;
@@ -562,34 +592,6 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 	return std::min(scale * multiplier, maxScale);
 }
 cvar_t* g_horde;
-
-// Monster wave type flags
-enum class MonsterWaveType : uint32_t {
-	None = 0,
-	Flying = 1 << 0,  // Flying units
-	Ground = 1 << 1,  // Basic ground units
-	Small = 1 << 2,  // Small units (parasite, stalker)
-	Light = 1 << 3,  // Light units (soldiers, basic infantry)
-	Heavy = 1 << 4,  // Heavy units (tanks, enforcers)
-	Medium = 1 << 5,  // Medium units (gladiators, medics)
-	Fast = 1 << 6,  // Fast moving units
-	SemiBoss = 1 << 7,  // Mini-boss tier units
-	Boss = 1 << 8,  // Full boss units
-	Ranged = 1 << 9, // Primarily ranged attackers
-	Melee = 1 << 10, // Primarily melee attackers
-	Special = 1 << 11, // Special units (medics, commanders)
-	Elite = 1 << 12,  // Elite variants of basic units
-	Gekk = 1 << 13,  // Gekk initial wave?
-	Shambler = 1 << 14,  // Shambler boss wave?
-	Mutant = 1 << 15, // Mutant boss wave?
-	Arachnophobic = 1 << 16,  // Mutant boss wave?
-	Berserk = 1 << 17,  // Berserk  wave
-	Bomber = 1 << 18,  // Grenade users wave?
-	Spawner = 1 << 19  // Spawning reinforcements users wave
-};
-
-MonsterWaveType current_wave_type = MonsterWaveType::None;
-
 
 enum class horde_state_t {
 	warmup,
