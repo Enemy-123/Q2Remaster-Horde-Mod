@@ -2243,12 +2243,18 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		float total_weight;
 	} monster_cache;
 
+	// Track consecutive failures for emergency handling
+	static int spawn_selection_failures = 0;
+	static MonsterWaveType saved_wave_type = MonsterWaveType::None;
+	static bool emergency_mode = false;
+
 	// Reset cache counters
 	monster_cache.count = 0;
 	monster_cache.total_weight = 0.0f;
 
 	// Early exit checks
 	if (!spawn_point || !spawn_point->inuse) {
+		spawn_selection_failures++;
 		return nullptr;
 	}
 
@@ -2256,6 +2262,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	if (data.isTemporarilyDisabled) {
 		if (level.time < data.cooldownEndsAt) {
+			spawn_selection_failures++;
 			return nullptr;
 		}
 		// Reset state if cooldown expired
@@ -2266,46 +2273,81 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Check if spawn point is occupied
 	if (IsSpawnPointOccupied(spawn_point)) {
 		IncreaseSpawnAttempts(spawn_point);
+		spawn_selection_failures++;
 		return nullptr;
 	}
 
 	// Cache commonly used values
 	const int32_t currentLevel = g_horde_local.level;
-	const MonsterWaveType currentWaveTypes = current_wave_type;
+	MonsterWaveType currentWaveTypes = current_wave_type;
 	const bool isSpawnPointFlying = spawn_point->style == 1;
+
+	// Enter emergency mode after multiple failures
+	if (spawn_selection_failures >= 3 && !emergency_mode) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("WARNING: Entering emergency monster selection mode after {} failures\n",
+				spawn_selection_failures);
+		}
+
+		// Save the original wave type if not already saved
+		if (saved_wave_type == MonsterWaveType::None && currentWaveTypes != MonsterWaveType::None) {
+			saved_wave_type = currentWaveTypes;
+		}
+
+		// Simplify wave type requirements
+		if (HasWaveType(currentWaveTypes, MonsterWaveType::Flying)) {
+			currentWaveTypes = MonsterWaveType::Flying; // Keep only flying requirement
+		}
+		else {
+			currentWaveTypes = MonsterWaveType::Ground; // Default to ground only
+		}
+
+		emergency_mode = true;
+	}
+
+	// In severe failure cases, disable wave type filtering completely
+	if (spawn_selection_failures >= 6) {
+		if (developer->integer && currentWaveTypes != MonsterWaveType::None) {
+			gi.Com_PrintFmt("CRITICAL: Disabling wave type filtering after {} failures\n",
+				spawn_selection_failures);
+		}
+		currentWaveTypes = MonsterWaveType::None; // Allow any monster type
+	}
 
 	// Determine if we should spawn a higher level monster
 	bool spawn_higher_level = false;
 	if (currentLevel <= 10) {
-		// Keep higher chance for early waves (waves 1-10)
 		spawn_higher_level = frandom() < 0.16f;
 	}
 	else if (currentLevel <= 15) {
-		// Reduced chance for mid waves (waves 11-15)
 		spawn_higher_level = frandom() < 0.05f;
 	}
 	else {
-		// Very low chance for late waves (waves 16+)
 		spawn_higher_level = frandom() < 0.02f;
+	}
+
+	// Disable higher level monsters in emergency mode
+	if (emergency_mode) {
+		spawn_higher_level = false;
 	}
 
 	// Calculate effective level for monster selection
 	int32_t effectiveLevel = currentLevel;
 
 	if (spawn_higher_level) {
-		// More moderate level boost for all waves
+		// Calculate level boost
 		int32_t levelBoost;
 		if (currentLevel < 7) {
-			levelBoost = irandom(4, 7);  // +2 to +4 levels for very early waves
+			levelBoost = irandom(2, 4);  // Reduced from 4-7 to 2-4
 		}
 		else if (currentLevel <= 10) {
-			levelBoost = irandom(3, 5);  // +3 to +5 levels for early waves
+			levelBoost = irandom(2, 3);  // Reduced from 3-5 to 2-3
 		}
 		else {
-			levelBoost = irandom(2, 3);  // Only +2 to +3 levels for later waves
+			levelBoost = irandom(1, 2);  // Reduced from 2-3 to 1-2
 		}
 
-		// Cap the effective level more conservatively
+		// Cap the effective level conservatively
 		int32_t maxLevel = currentLevel < 7 ? irandom(5, 7) :
 			(currentLevel < 15 ? currentLevel + 5 : currentLevel + 3);
 		effectiveLevel = std::min(currentLevel + levelBoost, maxLevel);
@@ -2313,14 +2355,12 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		// Absolute cap at 40
 		effectiveLevel = std::min(effectiveLevel, 40);
 
-		// SAFETY CHECK: Verify that at least one monster is eligible at this effective level
+		// Check if any monster is eligible at this level
 		bool any_eligible_monsters = false;
 		for (const auto& monster : monsterTypes) {
-			// Basic eligibility check - must match level and wave type
 			if (monster.minWave <= effectiveLevel &&
-				IsValidMonsterForWave(monster.classname, currentWaveTypes)) {
+				(currentWaveTypes == MonsterWaveType::None || IsValidMonsterForWave(monster.classname, currentWaveTypes))) {
 
-				// Additional flying compatibility check if needed
 				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
 				if (!(isSpawnPointFlying && !isFlyingMonster)) {
 					any_eligible_monsters = true;
@@ -2329,7 +2369,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			}
 		}
 
-		// If no eligible monsters at this level, revert to current level
+		// If no eligible monsters, revert to current level
 		if (!any_eligible_monsters) {
 			if (developer->integer) {
 				gi.Com_PrintFmt("WARNING: No eligible monsters at level {}. Reverting to current wave {}\n",
@@ -2337,15 +2377,12 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			}
 			effectiveLevel = currentLevel;
 		}
-		else if (developer->integer) {
-			gi.Com_PrintFmt("Spawning higher level monster: Wave {} -> {}\n",
-				currentLevel, effectiveLevel);
-		}
 	}
 
-	// Boss wave check - no regular monsters during boss wave before boss spawns
-	if (currentWaveTypes == MonsterWaveType::None &&
-		currentLevel >= 10 && currentLevel % 5 == 0) {
+	// Skip boss wave checks in emergency mode
+	if (!emergency_mode && currentWaveTypes == MonsterWaveType::None &&
+		currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
+		spawn_selection_failures++;
 		return nullptr;
 	}
 
@@ -2353,47 +2390,35 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-	// Iterate monsters and build cache
+	// Build monster cache - prioritize compatibility with spawn point type
 	for (const auto& monster : monsterTypes) {
-		// Skip if we've reached capacity
-		if (monster_cache.count >= 32) {
-			break;
-		}
+		if (monster_cache.count >= 32) break;
 
-		// Basic level check using effectiveLevel
-		if (monster.minWave > effectiveLevel) {
+		// Basic level check
+		if (monster.minWave > effectiveLevel) continue;
+
+		// Skip if not valid for current wave type (unless in emergency mode)
+		if (currentWaveTypes != MonsterWaveType::None &&
+			!IsValidMonsterForWave(monster.classname, currentWaveTypes)) {
 			continue;
 		}
 
-		// Skip if not valid for current wave type
-		if (!IsValidMonsterForWave(monster.classname, currentWaveTypes)) {
-			continue;
-		}
-
-		// Flying compatibility check
+		// Flying compatibility check - always maintain this basic requirement
 		const bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
-		if (isSpawnPointFlying && !isFlyingMonster) {
-			continue;
-		}
+		if (isSpawnPointFlying && !isFlyingMonster) continue;
 
-		// Calculate base weight
+		// Calculate weight
 		float weight = monster.weight;
 
-		// Apply level-based adjustments - use if/else ladder for better branch prediction
+		// Apply level-based adjustments
 		if (currentLevel <= 5) {
-			if (!HasWaveType(monster.types, MonsterWaveType::Light)) {
-				weight *= 0.3f;
-			}
+			if (!HasWaveType(monster.types, MonsterWaveType::Light)) weight *= 0.3f;
 		}
 		else if (currentLevel <= 10) {
-			if (!HasWaveType(monster.types, MonsterWaveType::Light | MonsterWaveType::Small)) {
-				weight *= 0.4f;
-			}
+			if (!HasWaveType(monster.types, MonsterWaveType::Light | MonsterWaveType::Small)) weight *= 0.4f;
 		}
 		else if (currentLevel <= 15) {
-			if (!HasWaveType(monster.types, MonsterWaveType::Medium)) {
-				weight *= 0.5f;
-			}
+			if (!HasWaveType(monster.types, MonsterWaveType::Medium)) weight *= 0.5f;
 		}
 		else {
 			if (!HasWaveType(monster.types, MonsterWaveType::Heavy | MonsterWaveType::Elite)) {
@@ -2404,6 +2429,11 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			}
 		}
 
+		// In emergency mode, make weights more uniform
+		if (emergency_mode) {
+			weight = std::max(weight, 0.5f);
+		}
+
 		// Special handling for boss wave minions
 		if (currentLevel >= 10 && currentLevel % 5 == 0 && boss_spawned_for_wave) {
 			weight *= HasWaveType(monster.types, currentWaveTypes) ? 2.0f : 0.3f;
@@ -2411,28 +2441,18 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 		// Apply difficulty adjustments
 		if (g_insane->integer || g_chaotic->integer) {
-			// Pre-compute difficulty scale based on level
 			const float difficultyScale = currentLevel <= 10 ? 1.1f :
-				currentLevel <= 20 ? 1.2f :
-				currentLevel <= 30 ? 1.3f : 1.4f;
-
+				currentLevel <= 20 ? 1.2f : currentLevel <= 30 ? 1.3f : 1.4f;
 			weight *= difficultyScale;
-
-			if (HasWaveType(monster.types, MonsterWaveType::Elite)) {
-				weight *= 1.2f;
-			}
+			if (HasWaveType(monster.types, MonsterWaveType::Elite)) weight *= 1.2f;
 		}
 
 		// Apply flying adjustment
 		weight *= adjustmentFactor;
 
-		// If this is a higher-level monster, adjust its weight
+		// Higher level monster adjustment
 		if (spawn_higher_level && monster.minWave > currentLevel) {
-			// Reduce weight for much higher level monsters to keep them rare
-			int levelDifference = monster.minWave - currentLevel;
-			if (levelDifference > 5) {
-				weight *= 0.5f;
-			}
+			if (monster.minWave - currentLevel > 5) weight *= 0.5f;
 		}
 
 		// Add to cache if weight is valid
@@ -2446,9 +2466,48 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 	}
 
-	// Handle empty results
+	// Emergency fallback if no monsters are available
+	const char* chosen_monster = nullptr;
 	if (monster_cache.count == 0) {
+		// Last resort: Find ANY monster that matches basic flying compatibility
+		for (const auto& monster : monsterTypes) {
+			if (monster.minWave <= currentLevel) {
+				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
+
+				// Only enforce flying vs ground compatibility
+				if (!(isSpawnPointFlying && !isFlyingMonster)) {
+					chosen_monster = monster.classname;
+
+					if (developer->integer) {
+						gi.Com_PrintFmt("EMERGENCY FALLBACK: Selected {} after {} failed attempts\n",
+							chosen_monster, spawn_selection_failures);
+					}
+					break;
+				}
+			}
+		}
+
+		// If we found a monster via emergency fallback
+		if (chosen_monster) {
+			// Update cooldowns
+			UpdateCooldowns(spawn_point, chosen_monster);
+
+			// Reset failure counters on success
+			spawn_selection_failures = 0;
+			emergency_mode = false;
+
+			// Restore original wave type if we were in emergency mode
+			if (saved_wave_type != MonsterWaveType::None) {
+				current_wave_type = saved_wave_type;
+				saved_wave_type = MonsterWaveType::None;
+			}
+
+			return chosen_monster;
+		}
+
+		// No monster available even with emergency fallback
 		IncreaseSpawnAttempts(spawn_point);
+		spawn_selection_failures++;
 		return nullptr;
 	}
 
@@ -2468,11 +2527,21 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Get the selected monster
-	const char* chosen_monster = monster_cache.entries[left].classname;
+	chosen_monster = monster_cache.entries[left].classname;
 
 	// Update cooldowns if we have a valid selection
 	if (chosen_monster) {
 		UpdateCooldowns(spawn_point, chosen_monster);
+
+		// Reset failure counters on success
+		spawn_selection_failures = 0;
+		emergency_mode = false;
+
+		// Restore original wave type if we were in emergency mode
+		if (saved_wave_type != MonsterWaveType::None) {
+			current_wave_type = saved_wave_type;
+			saved_wave_type = MonsterWaveType::None;
+		}
 	}
 
 	return chosen_monster;
@@ -4511,11 +4580,17 @@ edict_t* SpawnMonsters() {
 		int32_t consecutive_failures = 0;
 	} spawn_cache;
 
+	// Variables for emergency recovery
+	static bool early_intervention_applied = false;
+	static MonsterWaveType original_wave_type = MonsterWaveType::None;
+
 	if (need_spawn_cache_reset) {
 		spawn_cache.available_spawns.clear();
 		spawn_cache.last_spawn_time = 0_sec;
 		spawn_cache.consecutive_failures = 0;
 		need_spawn_cache_reset = false;
+		early_intervention_applied = false;
+		original_wave_type = MonsterWaveType::None;
 
 		// Reset debug stats on cache reset
 		if (developer->integer) {
@@ -4604,7 +4679,7 @@ edict_t* SpawnMonsters() {
 	// Check if we have anything to spawn
 	if (g_horde_local.num_to_spawn <= 0) {
 		// Try to rescue from consecutive failures
-		if (spawn_cache.consecutive_failures > 3 && g_horde_local.queued_monsters > 0) {
+		if (spawn_cache.consecutive_failures > 2 && g_horde_local.queued_monsters > 0) {
 			// Emergency transfer from queue
 			const int32_t emergency_transfer = std::min(g_horde_local.queued_monsters, 3);
 			g_horde_local.num_to_spawn = emergency_transfer;
@@ -4648,6 +4723,39 @@ edict_t* SpawnMonsters() {
 	if (developer->integer > 1) {
 		gi.Com_PrintFmt("Spawning: Attempting {} monsters (pool={}, space={})\n",
 			spawnable, g_horde_local.num_to_spawn, availableSpace);
+	}
+
+	// Early intervention for consecutive failures
+	if (spawn_cache.consecutive_failures >= 3 && !early_intervention_applied) {
+		// Store original wave type for restoration
+		if (current_wave_type != MonsterWaveType::None) {
+			original_wave_type = current_wave_type;
+
+			// Simplify to just Ground or Flying
+			if (HasWaveType(current_wave_type, MonsterWaveType::Flying))
+				current_wave_type = MonsterWaveType::Flying;
+			else
+				current_wave_type = MonsterWaveType::Ground;
+		}
+
+		// Reset all disabled spawn points
+		auto spawnPoints = monster_spawn_points();
+		for (edict_t* point : spawnPoints) {
+			if (point && point->inuse) {
+				auto& data = spawnPointsData[point];
+				if (data.isTemporarilyDisabled) {
+					data.isTemporarilyDisabled = false;
+					data.attempts = 0;
+					data.cooldownEndsAt = 0_sec;
+				}
+			}
+		}
+
+		early_intervention_applied = true;
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("Early intervention applied: Simplified wave types and reset spawn points\n");
+		}
 	}
 
 	// Collect valid spawn points
@@ -4718,98 +4826,105 @@ edict_t* SpawnMonsters() {
 		gi.Com_PrintFmt("- Valid points: {}\n", filter_stats.valid_points);
 	}
 
-	// If no spawns available, try emergency recovery measures
+	// Critical emergency recovery - if in severe failure state, reset wave type completely
+	if (spawn_cache.consecutive_failures >= 5 && spawn_cache.available_spawns.empty()) {
+		// Save current wave type if not already saved
+		if (original_wave_type == MonsterWaveType::None && current_wave_type != MonsterWaveType::None) {
+			original_wave_type = current_wave_type;
+		}
+
+		// Completely disable wave type restrictions
+		current_wave_type = MonsterWaveType::None;
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("CRITICAL RECOVERY: Disabling wave type restrictions completely\n");
+		}
+
+		// Rescan spawn points without wave type filtering
+		spawn_cache.available_spawns.clear();
+		for (edict_t* point : spawnPoints) {
+			if (!point || !point->inuse) continue;
+
+			const auto& data = spawnPointsData[point];
+			if (data.isTemporarilyDisabled && current_time < data.cooldownEndsAt) continue;
+
+			const vec3_t& origin = point->s.origin;
+			if (!is_valid_vector(origin)) continue;
+
+			if (!IsSpawnPointOccupied(point)) {
+				spawn_cache.available_spawns.push_back(point);
+			}
+		}
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("After critical recovery: {} valid spawn points\n",
+				spawn_cache.available_spawns.size());
+		}
+	}
+
+	// If still no spawns available, try emergency cleanup
 	if (spawn_cache.available_spawns.empty()) {
 		spawn_cache.consecutive_failures++;
 
-		if (spawn_cache.consecutive_failures >= 2) {
-			// Reset disabled spawn points in emergency
-			int reset_count = 0;
-			for (edict_t* point : spawnPoints) {
-				auto& data = spawnPointsData[point];
-				// Clear any disabled states
-				if (data.isTemporarilyDisabled || data.attempts > 0) {
-					data.isTemporarilyDisabled = false;
-					data.attempts = 0;
-					data.cooldownEndsAt = 0_sec;
-					reset_count++;
+		// Return monsters to queue if in spawning state
+		if (current_state == horde_state_t::spawning) {
+			g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
+		}
+		// Also handle active_wave state after more failures
+		else if (current_state == horde_state_t::active_wave &&
+			spawn_cache.consecutive_failures > 5) {
+			gi.Com_PrintFmt("Active wave: Moving {} monsters back to queue after repeated failures\n",
+				g_horde_local.num_to_spawn);
 
-					// Re-check if usable now
-					if (filter(point)) {
-						spawn_cache.available_spawns.push_back(point);
-					}
-				}
+			g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
+		}
+
+		g_horde_local.num_to_spawn = 0;
+
+		// Accelerated recovery: Reset everything after 5+ consecutive failures
+		if (debug_stats.consecutive_failures >= 5) {
+			if (debug_stats.first_failure_time == 0_sec) {
+				debug_stats.first_failure_time = current_time;
 			}
 
-			if (developer->integer) {
-				gi.Com_PrintFmt("Emergency spawn point reset: reset {} points, recovered {} usable points\n",
-					reset_count, spawn_cache.available_spawns.size());
+			// If we've been failing for over 8 seconds, force a complete reset
+			if (current_time - debug_stats.first_failure_time > 8_sec) {
+				gi.Com_PrintFmt("CRITICAL: Persistent spawn failures for over 8 seconds. Performing emergency reset.\n");
+
+				// Reset all spawn points
+				for (edict_t* point : spawnPoints) {
+					if (point && point->inuse) {
+						auto& data = spawnPointsData[point];
+						data.isTemporarilyDisabled = false;
+						data.attempts = 0;
+						data.cooldownEndsAt = 0_sec;
+					}
+				}
+
+				// Reset wave type completely
+				current_wave_type = MonsterWaveType::None;
+
+				// If game is in a locked spawning state, force transition
+				if (current_state == horde_state_t::spawning && next_wave_message_sent == false) {
+					gi.Com_PrintFmt("CRITICAL: Forcing wave transition due to persistent spawn failures.\n");
+					next_wave_message_sent = true;
+					g_horde_local.state = horde_state_t::active_wave;
+				}
+
+				// Reset failure tracking
+				debug_stats.consecutive_failures = 0;
+				debug_stats.first_failure_time = 0_sec;
+				spawn_cache.consecutive_failures = 0;
+				early_intervention_applied = false;
 			}
 		}
 
-		// If still no points available, return monsters to queue
-		if (spawn_cache.available_spawns.empty()) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("NO SPAWN POINTS AVAILABLE: Returning {} to queue\n",
-					g_horde_local.num_to_spawn);
-			}
-
-			// Return monsters to queue if in spawning state
-			if (current_state == horde_state_t::spawning) {
-				g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
-			}
-			// NEW: Also handle active_wave state after more failures
-			else if (current_state == horde_state_t::active_wave &&
-				spawn_cache.consecutive_failures > 5) {
-				gi.Com_PrintFmt("Active wave: Moving {} monsters back to queue after repeated failures\n",
-					g_horde_local.num_to_spawn);
-
-				g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
-			}
-
-			g_horde_local.num_to_spawn = 0;
-
-			// Super emergency after extreme failures - reset everything
-			if (debug_stats.consecutive_failures >= 10) {
-				if (debug_stats.first_failure_time == 0_sec) {
-					debug_stats.first_failure_time = current_time;
-				}
-
-				// If we've been failing for over 15 seconds, force a complete reset
-				if (current_time - debug_stats.first_failure_time > 15_sec) {
-					gi.Com_PrintFmt("CRITICAL: Persistent spawn failures for over 15 seconds. Performing emergency reset.\n");
-
-					// Reset all spawn points
-					for (edict_t* point : spawnPoints) {
-						if (point && point->inuse) {
-							auto& data = spawnPointsData[point];
-							data.isTemporarilyDisabled = false;
-							data.attempts = 0;
-							data.cooldownEndsAt = 0_sec;
-						}
-					}
-
-					// If game is in a locked spawning state, force transition
-					if (current_state == horde_state_t::spawning && next_wave_message_sent == false) {
-						gi.Com_PrintFmt("CRITICAL: Forcing wave transition due to persistent spawn failures.\n");
-						next_wave_message_sent = true;
-						g_horde_local.state = horde_state_t::active_wave;
-					}
-
-					// Reset failure tracking
-					debug_stats.consecutive_failures = 0;
-					debug_stats.first_failure_time = 0_sec;
-					spawn_cache.consecutive_failures = 0;
-				}
-			}
-
-			debug_stats.failed_calls++;
-			debug_stats.consecutive_failures++;
-			if (debug_stats.consecutive_failures > debug_stats.max_consecutive_failures) {
-				debug_stats.max_consecutive_failures = debug_stats.consecutive_failures;
-			}
-			return nullptr;
+		debug_stats.failed_calls++;
+		debug_stats.consecutive_failures++;
+		if (debug_stats.consecutive_failures > debug_stats.max_consecutive_failures) {
+			debug_stats.max_consecutive_failures = debug_stats.consecutive_failures;
 		}
+		return nullptr;
 	}
 	else {
 		// Reset failure counter on success
@@ -4965,7 +5080,6 @@ edict_t* SpawnMonsters() {
 					}
 				}
 
-
 				// Apply armor based on wave level
 				if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)
 					SetMonsterArmor(monster);
@@ -5033,6 +5147,19 @@ edict_t* SpawnMonsters() {
 		debug_stats.consecutive_failures = 0;
 		debug_stats.first_failure_time = 0_sec;
 		debug_stats.last_success_time = current_time;
+
+		// Reset emergency states on successful spawn
+		early_intervention_applied = false;
+
+		// Restore original wave type if it was modified
+		if (original_wave_type != MonsterWaveType::None) {
+			current_wave_type = original_wave_type;
+			original_wave_type = MonsterWaveType::None;
+
+			if (developer->integer) {
+				gi.Com_PrintFmt("Restored original wave type after successful spawns\n");
+			}
+		}
 	}
 	else if (g_horde_local.num_to_spawn > 0) {
 		if (developer->integer) {
@@ -5076,7 +5203,7 @@ edict_t* SpawnMonsters() {
 		}
 
 		// Print detailed stats on persistent failures
-		if (debug_stats.consecutive_failures >= 8 && developer->integer) {
+		if (debug_stats.consecutive_failures >= 5 && developer->integer) {
 			gtime_t failure_duration = current_time - debug_stats.first_failure_time;
 			gi.Com_PrintFmt("PERSISTENT FAILURE STATS:\n");
 			gi.Com_PrintFmt("- Consecutive failures: {}\n", debug_stats.consecutive_failures);
