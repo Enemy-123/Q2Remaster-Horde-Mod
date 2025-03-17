@@ -979,7 +979,7 @@ struct ConditionParams {
 constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
 constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 1.5_sec;
 
 static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
@@ -1034,11 +1034,15 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 	params.maxMonsters += std::min(lvl / 4, 8);
 	params.timeThreshold += gtime_t::from_ms(75ll * std::min(lvl / 3, 4));
 
-	// Early wave time extension - NEW CODE
+	// Early wave time REDUCTION (Modified)
 	float timeMultiplier = 1.0f;
 	if (lvl <= 10) {
-		// Start with 1.8x longer at wave 1, gradually reduce to 1.0x at wave 10
-		timeMultiplier = 1.8f - ((lvl - 1) * 0.08f);
+		// Instead of increasing time, we now DECREASE it.
+		// Start with a multiplier of 0.7 at level 1
+		// and go to 1.0 at level 10.
+		// Formula:  1.0 - (0.25 * (lvl - 1) / 9)
+		timeMultiplier = 1.0f - (0.25f * (static_cast<float>(lvl - 1) / 9.0f));
+		timeMultiplier = std::max(0.1f, timeMultiplier); // Ensure multiplier is never below 0.1 (10% of original time)
 	}
 
 	// Ajuste para niveles altos
@@ -1062,7 +1066,7 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 	// Configuración para tiempo independiente basado en el nivel
 	params.independentTimeThreshold = calculate_max_wave_time(lvl);
 
-	// Apply multiplier to time thresholds for early waves - NEW CODE
+	// Apply multiplier to time thresholds for early waves (No Change, just applying the modified multiplier)
 	if (lvl <= 10) {
 		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * timeMultiplier);
 		params.lowPercentageTimeThreshold = gtime_t::from_sec(params.lowPercentageTimeThreshold.seconds() * timeMultiplier);
@@ -1077,6 +1081,7 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 
 	return params;
 }
+
 // Warning times in seconds
 constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 
@@ -4532,18 +4537,29 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 			gi.Com_PrintFmt("Monster killed during spawning state ({} total)\n", spawn_state_deaths);
 		}
 
-		// If multiple monsters die during spawning, transition to active wave
-		if (spawn_state_deaths >= 4) {
+		// Calculate spawn progress - how many monsters were spawned vs. total planned
+		const int32_t total_planned = g_totalMonstersInWave + g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
+		const float spawn_progress = total_planned > 0 ?
+			static_cast<float>(g_totalMonstersInWave) / total_planned : 0.0f;
+
+		// Only transition if:
+		// 1. Multiple monsters have been killed during spawning AND
+		// 2. We've either spawned a significant portion of the wave OR a minimum number of monsters
+		// 3. The last condition ensures we don't transition too early in the wave
+		if (spawn_state_deaths >= 4 && (spawn_progress >= 0.5f || g_totalMonstersInWave >= 8)) {
 			if (developer->integer) {
-				gi.Com_PrintFmt("{} monsters killed during spawning. Forcing transition to active_wave\n",
-					spawn_state_deaths);
+				gi.Com_PrintFmt("SPAWN TRANSITION: {} monsters killed during spawning. "
+					"{} spawned of {} planned ({:.1f}%). Transitioning to active_wave.\n",
+					spawn_state_deaths, g_totalMonstersInWave, total_planned,
+					spawn_progress * 100.0f);
 			}
 
 			// Force transition to active_wave
 			if (!next_wave_message_sent) {
 				VerifyAndAdjustBots();
-				//gi.LocBroadcast_Print(PRINT_CENTER,
-				//	"\n\n\nWave deployment interrupted. Combat phase activated.\n");
+				// Use a more immersive message
+				//gi.LocBroadcast_Print(PRINT_CHAT,
+				//	"\n\n\nStrogg forces engaged! Combat phase activated.\n");
 				next_wave_message_sent = true;
 			}
 
