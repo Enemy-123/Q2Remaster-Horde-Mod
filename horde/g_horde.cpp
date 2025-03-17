@@ -4864,7 +4864,84 @@ edict_t* SpawnMonsters() {
 
 			// Check if spawn succeeded
 			if (monster->inuse) {
-				// ... [champion handling code, unchanged] ...
+				// Check if this should be a champion monster
+				if (g_horde_local.level >= 3 && !champion_spawned_this_wave &&
+					champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS) {
+
+					// Calculate chance based on wave progression
+					float champion_chance = 0.15f + (std::min(g_horde_local.level, 25) - 3) * 0.01f;
+
+					// Check if we're past the initial wave spawning
+					bool past_initial_spawns = (g_totalMonstersInWave > 0 &&
+						(float)level.killed_monsters / (float)g_totalMonstersInWave > 0.3f);
+
+					if ((past_initial_spawns || g_horde_local.state == horde_state_t::active_wave) &&
+						frandom() < champion_chance) {
+
+						// Determine which bonus flag to apply based on wave level
+						int flag_type;
+
+						if (g_horde_local.level <= 7) {
+							// Early waves - just champions or corrupted
+							flag_type = irandom(0, 2);
+						}
+						else if (g_horde_local.level <= 15) {
+							// Mid waves - add berserking and possessed
+							flag_type = irandom(0, 4);
+						}
+						else {
+							// Later waves - all types possible
+							flag_type = irandom(0, 6);
+						}
+
+						// Apply the selected flag
+						switch (flag_type) {
+						case 0:
+							monster->monsterinfo.bonus_flags |= BF_CHAMPION;
+							break;
+						case 1:
+							monster->monsterinfo.bonus_flags |= BF_CORRUPTED;
+							break;
+						case 2:
+							monster->monsterinfo.bonus_flags |= BF_BERSERKING;
+							break;
+						case 3:
+							monster->monsterinfo.bonus_flags |= BF_POSSESSED;
+							break;
+						case 4:
+							monster->monsterinfo.bonus_flags |= BF_STYGIAN;
+							break;
+						case 5:
+							monster->monsterinfo.bonus_flags |= BF_RAGEQUITTER;
+							break;
+						}
+
+						// Mark that we've spawned a champion this wave
+						champion_spawned_this_wave = true;
+
+						// Ensure champions always drop items
+						monster->item = G_HordePickItem();
+						monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+
+						// Apply the bonus flags
+						ApplyMonsterBonusFlags(monster);
+
+						// Announce the champion's arrival!
+						gi.LocBroadcast_Print(PRINT_HIGH,
+							"*** A {} has appeared! ***\n",
+							GetDisplayName(monster).c_str());
+
+						// Play a distinctive sound
+						gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
+
+						// Add a visual effect for the champion's entrance
+						SpawnGrow_Spawn(monster->s.origin, 120.0f, 20.0f);
+
+						// Set cooldown for next champion spawn
+						champion_spawn_cooldown = irandom(15, 25);
+					}
+				}
+
 
 				// Apply armor based on wave level
 				if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)

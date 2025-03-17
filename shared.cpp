@@ -157,15 +157,11 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->monsterinfo.IS_BOSS)
 		return;
 
+	// Handle summoned monster logic first (this flag can coexist with others)
 	if (monster->monsterinfo.issummoned) {
-
 		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
-
 		FindMTarget(monster);
-	//	if (monster->svflags & SVF_MONSTER) // this needs &= ~ to work properly, 
-	//		monster->svflags & ~SVF_MONSTER; // but got the desired effect on Monster_UpdateState so bots see these as friends! ( in case of summoned monster)
-
-		monster->svflags |= SVF_PLAYER;		
+		monster->svflags |= SVF_PLAYER;
 		monster->monsterinfo.team = CTF_TEAM1;
 		monster->s.renderfx &= ~RF_DOT_SHADOW;
 
@@ -186,18 +182,17 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 			monster->team = "neutral";
 		}
 		gi.linkentity(monster);
-
 	}
 
-	monster->spawnflags.has(SPAWNFLAG_MONSTER_NO_DROP);
+	// Fix: Actually *set* the flag rather than just checking it
+	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 
 	monster->gib_health *= 2.8f;
-
 	if (monster->gib_health <= -200)
 		monster->gib_health = -200;
 
-	if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
-	{
+	// Using if-else to ensure only one bonus flag applies (in order of priority)
+	if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
 		monster->s.effects |= EF_ROCKET | EF_FIREBALL;
 		monster->s.renderfx |= RF_SHELL_RED;
 		monster->health *= 2.0f;
@@ -205,14 +200,13 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.armor_power *= 1.25f;
 		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 475_sec;
 	}
-	if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
-	{
+	else if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
 		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
 		monster->health *= 2.2f;
 		monster->monsterinfo.power_armor_power *= 1.4f;
 		monster->monsterinfo.armor_power *= 1.4f;
 	}
-	if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
+	else if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
 		monster->s.alpha = 0.6f;
 		monster->health *= 1.4f;
@@ -220,7 +214,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.armor_power *= 4.0f;
 		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
 	}
-	if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
+	else if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
 		monster->s.effects |= EF_GIB | EF_FLAG2;
 		monster->health *= 1.6f;
 		monster->monsterinfo.power_armor_power *= 1.3f;
@@ -228,7 +222,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 475_sec;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
-	if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
+	else if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
 		monster->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
 		monster->s.alpha = 0.5f;
 		monster->health *= 2.4f;
@@ -236,7 +230,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.armor_power *= 1.7f;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
-	if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
+	else if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
 		monster->s.effects |= EF_TRACKER | EF_FLAG1;
 		monster->health *= 2.5f;
 		monster->monsterinfo.power_armor_power *= 1.1f;
@@ -247,7 +241,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
 }
-
 // Función auxiliar para calcular los valores mínimos de salud y armadura
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {
