@@ -2471,25 +2471,65 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 	}
 
-	// Emergency fallback if no monsters are available
 	const char* chosen_monster = nullptr;
 	if (monster_cache.count == 0) {
-		// Last resort: Find ANY monster that matches basic flying compatibility
+		// Create a weighted collection of appropriate fallback monsters based on wave level
+		WeightedSelection<MonsterTypeInfo> fallback_monsters;
+
+		// Find monsters appropriate for this wave level
+		int best_min_wave = 1;
+
+		// First pass - find the highest minWave that's still <= currentLevel
+		// This helps us find monsters that are most appropriate for current wave
 		for (const auto& monster : monsterTypes) {
-			if (monster.minWave <= currentLevel) {
+			if (monster.minWave <= currentLevel && monster.minWave > best_min_wave) {
+				best_min_wave = monster.minWave;
+			}
+		}
+
+		// Allow some wiggle room (prefer monsters with minWave within 5 levels of best)
+		int min_acceptable_wave = std::max(1, best_min_wave - 5);
+
+		// Second pass - collect appropriate monsters
+		for (const auto& monster : monsterTypes) {
+			if (monster.minWave >= min_acceptable_wave && monster.minWave <= currentLevel) {
+				// Check basic flying compatibility
 				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
 
 				// Only enforce flying vs ground compatibility
 				if (!(isSpawnPointFlying && !isFlyingMonster)) {
-					chosen_monster = monster.classname;
-
-					if (developer->integer) {
-						gi.Com_PrintFmt("EMERGENCY FALLBACK: Selected {} after {} failed attempts\n",
-							chosen_monster, spawn_selection_failures);
-					}
-					break;
+					// Higher weight for monsters closer to the current level
+					float weight = 1.0f + ((monster.minWave - min_acceptable_wave) * 0.5f);
+					fallback_monsters.add(&monster, weight);
 				}
 			}
+		}
+
+		// If we found any appropriate monsters, select one randomly (weighted)
+		if (fallback_monsters.item_count > 0) {
+			const MonsterTypeInfo* selected = fallback_monsters.select();
+			if (selected) {
+				chosen_monster = selected->classname;
+			}
+		}
+
+		// Last-resort fallback if still nothing found
+		if (!chosen_monster) {
+			// Find ANY monster that meets basic requirements
+			for (const auto& monster : monsterTypes) {
+				if (monster.minWave <= currentLevel) {
+					const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
+					if (!(isSpawnPointFlying && !isFlyingMonster)) {
+						chosen_monster = monster.classname;
+						break;
+					}
+				}
+			}
+		}
+
+		if (chosen_monster && developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY FALLBACK: Selected {} after {} failed attempts\n",
+				chosen_monster, spawn_selection_failures);
 		}
 
 		// If we found a monster via emergency fallback
