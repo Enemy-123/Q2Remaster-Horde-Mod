@@ -362,19 +362,19 @@ struct SpawnMonsterFilter {
 		if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
 			return false;
 
-		// Quick proximity check to players
+		// Check if this is a flying spawn point but we need non-flying monsters
+		// (This check should be kept if needed for flying-specific spawn points)
+		if (spawnPoint->style == 1 && !HasWaveType(current_wave_type, MonsterWaveType::Flying))
+			return false;
+
+		// Check basic validity - origin must be valid
 		const vec3_t& origin = spawnPoint->s.origin;
 		if (!is_valid_vector(origin))
 			return false;
 
-		for (const auto* const player : active_players()) {
-			if (!player || !player->inuse)
-				continue;
+		// REMOVED: The 150 unit proximity check to players
 
-			if ((origin - player->s.origin).length() < 150.0f)
-				return false;
-		}
-
+		// Use the dedicated function for checking if spawn point is occupied
 		return !IsSpawnPointOccupied(spawnPoint);
 	}
 };
