@@ -14,6 +14,10 @@ void fixbot_spawn_check(edict_t* self);
 void fixbot_start_spawn(edict_t* self);
 void fixbot_prep_spawn(edict_t* self);
 
+static edict_t* g_spawn_target = nullptr;
+static vec3_t g_spawn_position = {};
+static bool g_is_spawning = false;
+
 static cached_soundindex sound_spawn;
 
 bool infront(edict_t* self, edict_t* other);
@@ -57,26 +61,145 @@ void roam_goal(edict_t* self);
 constexpr const char* fixbot_reinforcements = "monster_turret 1";
 constexpr int32_t fixbot_monster_slots_base = 6;
 
+bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction)
+{
+	vec3_t forward, right, up;
+	vec3_t start, end;
+	trace_t tr;
+
+	// Create ray from fixbot position
+	AngleVectors(self->s.angles, forward, right, up);
+	start = self->s.origin;
+	end = start + (forward * 1024);  // Check up to 1024 units ahead
+
+	// Trace to find a wall
+	tr = gi.traceline(start, end, self, MASK_SOLID);
+
+	// If we hit something that's not a monster or player
+	if (tr.fraction < 1.0 && !(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client)
+	{
+		// Found a suitable wall
+		direction = tr.plane.normal;
+		direction.normalize();
+		position = tr.endpos + (direction * 8);  // Offset from wall
+		return true;
+	}
+
+	return false;
+}
+
+PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
+{
+	edict_t* self = laser->owner;
+
+	// Start position
+	vec3_t start, dir;
+	AngleVectors(self->s.angles, dir, nullptr, nullptr);
+	start = self->s.origin + (dir * 16);
+
+	// If we have a spawn position, aim at it
+	if (g_is_spawning && !g_spawn_position.equals(vec3_origin))
+	{
+		dir = g_spawn_position - start;
+		dir.normalize();
+	}
+
+	laser->s.origin = start;
+	laser->movedir = dir;
+	gi.linkentity(laser);
+	dabeam_update(laser, true);
+}
+
+
+void fixbot_fire_spawn_laser(edict_t* self)
+{
+	// Only proceed if we're in spawning mode
+	if (!g_is_spawning)
+		return;
+
+	// Fire the laser beam effect
+	monster_fire_dabeam(self, -1, false, fixbot_spawn_laser_update);
+
+	// Add some particle effects at the target location for better visuals
+	if (!g_spawn_position.equals(vec3_origin))
+	{
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_WELDING_SPARKS);
+		gi.WriteByte(5);
+		gi.WritePosition(g_spawn_position);
+		gi.WriteDir(vec3_origin);
+		gi.WriteByte(0xe0);
+		gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+	}
+}
+
+
 void fixbot_start_spawn(edict_t* self)
 {
 	// Create visual charge effect
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WELDING_SPARKS);
-	gi.WriteByte(10);
+	gi.WriteByte(15); // More sparks for better effect
 	gi.WritePosition(self->s.origin);
 	gi.WriteDir(vec3_origin);
 	gi.WriteByte(0xe0);
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+
+	// Add a glow effect to the fixbot while spawning
+	self->s.effects |= EF_HYPERBLASTER;
+
+	// Make sure the fixbot still aims at the spawn position
+	if (g_is_spawning && !g_spawn_position.equals(vec3_origin))
+	{
+		vec3_t dir = g_spawn_position - self->s.origin;
+		self->ideal_yaw = vectoyaw(dir);
+		M_ChangeYaw(self);
+	}
 }
 
-void fixbot_spawn_check(edict_t* self)
-{
-	// Only spawn if we have slots available and is boss
-	if (self->monsterinfo.IS_BOSS && M_SlotsLeft(self) > 0) {
-		fixbot_spawn_turret(self);
-	}
 
-	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+// New function to spawn a turret at a specific position
+void spawn_turret_at_position(edict_t* self, const vec3_t& position)
+{
+	vec3_t dir;
+	edict_t* ent;
+
+	// Direction from position to fixbot (to make turret face away from wall)
+	dir = self->s.origin - position;
+	dir.normalize();
+
+	// Create the turret entity
+	ent = G_Spawn();
+	if (!ent)
+		return;
+
+	ent->classname = "monster_turret";
+
+	// Position the turret
+	ent->s.origin = position;
+
+	// Orient the turret to face away from the wall
+	ent->s.angles = vectoangles(dir);
+
+	// Finalize the turret
+	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
+	ent->monsterinfo.commander = self;
+
+	// Sound and visual effects
+	gi.sound(self, CHAN_AUTO, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
+
+	// Visual effect for spawning
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_TELEPORT_EFFECT);
+	gi.WritePosition(ent->s.origin);
+	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+	// Add to monster count
+	if (self->monsterinfo.monster_slots)
+		self->monsterinfo.monster_used += 1;
+
+	// Use ED_CallSpawn to properly initialize the turret
+	ED_CallSpawn(ent);
 }
 
 void fixbot_prep_spawn(edict_t* self)
@@ -84,7 +207,39 @@ void fixbot_prep_spawn(edict_t* self)
 	// Visual effect to indicate spawning start
 	gi.sound(self, CHAN_WEAPON, sound_weld1, 1, ATTN_NORM, 0);
 	self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+
+	// Find where to spawn the turret
+	vec3_t spawn_pos, spawn_dir;
+	if (find_turret_spawn_position(self, spawn_pos, spawn_dir))
+	{
+		// Store globally for the laser aiming - THIS WAS MISSING
+		g_spawn_position = spawn_pos;
+		g_is_spawning = true;  // THIS WAS MISSING
+
+		// Make the fixbot look at the spawn position
+		vec3_t dir = spawn_pos - self->s.origin;
+		self->ideal_yaw = vectoyaw(dir);
+		M_ChangeYaw(self);
+	}
 }
+
+// Update the spawn check function
+void fixbot_spawn_check(edict_t* self)
+{
+	// Only spawn if we have slots available and is boss and is actually in spawning mode
+	if (self->monsterinfo.IS_BOSS && M_SlotsLeft(self) > 0 && g_is_spawning) {
+		spawn_turret_at_position(self, g_spawn_position);
+	}
+
+	// Reset spawning state
+	g_is_spawning = false;
+	g_spawn_position = vec3_origin;
+	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+
+	// Turn off any spawn visual effects
+	self->s.effects &= ~EF_HYPERBLASTER;
+}
+
 
 void fixbot_spawn_turret(edict_t* self)
 {
@@ -140,23 +295,19 @@ void fixbot_spawn_turret(edict_t* self)
 	}
 }
 
-// Add this new function to create a spawn animation sequence
 mframe_t fixbot_frames_spawn[] = {
-	{ ai_move, 0, fixbot_prep_spawn },  // Start spawn sequence
-	{ ai_move, 0 },
-	{ ai_move, 0 },
-	{ ai_move, 0 },
-	{ ai_move, 0 },
-	{ ai_move, 0, fixbot_start_spawn }, // Prepare spawn point
-	{ ai_move, 0 },
-	{ ai_move, 0 },
-	{ ai_move, 0, fixbot_spawn_check }, // Check and create spawn
-	{ ai_move, 0 },
-	{ ai_move, 0 },
-	{ ai_move, 0 }                      // End spawn sequence
+    { ai_move, 0, fixbot_prep_spawn },  // Find spawn position and start aiming
+    { ai_move, 0, fixbot_fire_spawn_laser }, // Start the laser
+    { ai_move, 0, fixbot_fire_spawn_laser },
+    { ai_move, 0, fixbot_fire_spawn_laser },
+    { ai_move, 0, fixbot_fire_spawn_laser }, // Continue laser for ~2 seconds
+    { ai_move, 0, fixbot_fire_spawn_laser },
+    { ai_move, 0, fixbot_fire_spawn_laser },
+    { ai_move, 0, fixbot_fire_spawn_laser },
+    { ai_move, 0, fixbot_spawn_check },   // Now spawn the turret
+    { ai_move, 0 }                      // End spawn sequence
 };
 MMOVE_T(fixbot_move_spawn) = { FRAME_weldstart_01, FRAME_weldstart_10, fixbot_frames_spawn, fixbot_run };
-
 
 // [Paril-KEX] clean up bot goals if we get interrupted
 THINK(bot_goal_check) (edict_t* self) -> void
