@@ -23,7 +23,7 @@ void ResetQueueMonitorVars() {
 	need_queue_monitor_reset = true;
 }
 
-//champion or small spoiler of next wave guys
+//champion monster to spawn on wave
 bool champion_spawned_this_wave = false;
 int champion_spawn_cooldown = 0;
 
@@ -373,6 +373,27 @@ enum class MonsterWaveType : uint32_t {
 };
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
+
+
+enum class BossType {
+	CARRIER,
+	BOSS2,
+	BOSS2KL,
+	CARRIER_MINI,
+	TANK_64,
+	SHAMBLERKL,
+	GUNCMDRKL,
+	GUARDIAN,
+	PSX_GUARDIAN,
+	BOSS5,
+	WIDOW,
+	WIDOW2,
+	JORG,
+	MAKRONKL,
+	PSX_ARACHNID,
+	REDMUTANT,
+	OTHER
+};
 
 inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck);
 
@@ -1501,7 +1522,7 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 		return true;
 	}
 
-	// Get monster types once
+	// Get monster types once using optimized lookup
 	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
 
 	// Special wave types should be exclusive - if one of these is set, the monster MUST have it
@@ -1575,6 +1596,7 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 	return isSpecialWaveType || (monsterTypes & waveRequirements) != MonsterWaveType::None;
 }
 
+
 // Structure to include wave level information
 struct MonsterTypeInfo {
 	const char* classname;
@@ -1597,7 +1619,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Early Flying Units (Waves 1-8)
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
-	{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 16, 0.25f},
+	{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 16, 0.6f},
 	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
 	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.5f},
 
@@ -1674,14 +1696,34 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Spawner, 27, 0.2f}
 };
 
+static std::unordered_map<std::string_view, MonsterWaveType> monster_type_cache;
+static bool monster_cache_initialized = false;
+
+// Initialize the monster type cache
+void InitMonsterTypeCache() {
+	if (monster_cache_initialized) {
+		return;
+	}
+
+	for (const auto& info : monsterTypes) {
+		monster_type_cache[info.classname] = info.types;
+	}
+
+	monster_cache_initialized = true;
+}
+
 // Function to get wave types for a monster based on its classname
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
 	if (!classname) return MonsterWaveType::None;
 
-	for (const auto& info : monsterTypes) {
-		if (strcmp(classname, info.classname) == 0) {
-			return info.types;
-		}
+	// Initialize cache if needed
+	if (!monster_cache_initialized) {
+		InitMonsterTypeCache();
+	}
+
+	auto it = monster_type_cache.find(classname);
+	if (it != monster_type_cache.end()) {
+		return it->second;
 	}
 
 	return MonsterWaveType::Ground; // Default to ground type
@@ -1701,67 +1743,69 @@ static void InitializeWaveType(int32_t lvl) {
 #include <random>
 
 
-// Definición de jefes por tamaño de mapa
+// Modified boss_t structure
 struct boss_t {
-	const char* classname;
-	int32_t min_level;
-	int32_t max_level;
-	float weight;
-	BossSizeCategory sizeCategory; // Si decides extender la estructura
+    const char* classname;
+    int32_t min_level;
+    int32_t max_level;
+    float weight;
+    BossSizeCategory sizeCategory;
+    BossType type; // New field
 };
 
 static constexpr boss_t BOSS_SMALL[] = {
-	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_tank_64", -1, -1, 0.25f, BossSizeCategory::Small},
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small},
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small},
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_makronkl", 36, -1, 0.2f, BossSizeCategory::Small},
-	{"monster_makron", 16, 26, 0.1f, BossSizeCategory::Small},
-	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small}
+	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
+	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
+	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small, BossType::WIDOW2},
+	{"monster_tank_64", -1, -1, 0.25f, BossSizeCategory::Small, BossType::TANK_64},
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small, BossType::SHAMBLERKL},
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small, BossType::GUNCMDRKL},
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small, BossType::TANK_64},
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small, BossType::SHAMBLERKL},
+	{"monster_makronkl", 36, -1, 0.2f, BossSizeCategory::Small, BossType::MAKRONKL},
+	{"monster_makron", 16, 26, 0.1f, BossSizeCategory::Small, BossType::OTHER},
+	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small, BossType::PSX_ARACHNID},
+	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
 };
 
 static constexpr boss_t BOSS_MEDIUM[] = {
-	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium},
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium},
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium},
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_psxguardian", -1, 24, 0.1f, BossSizeCategory::Medium},
-	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_makronkl", 26, -1, 0.2f, BossSizeCategory::Medium},
-	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium},
-	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
+	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
+	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
+	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium, BossType::TANK_64},
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Medium, BossType::TANK_64},
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
+	{"monster_psxguardian", -1, 24, 0.1f, BossSizeCategory::Medium, BossType::PSX_GUARDIAN},
+	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium, BossType::WIDOW2},
+	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium, BossType::PSX_ARACHNID},
+	{"monster_makronkl", 26, -1, 0.2f, BossSizeCategory::Medium, BossType::MAKRONKL},
+	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium, BossType::OTHER},
+	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
 };
 
 static constexpr boss_t BOSS_LARGE[] = {
-	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large},
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large},
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Large},
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_psxarachnid", 14, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_widow", -1, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_boss5", -1, 24, 0.1f, BossSizeCategory::Large},
-	{"monster_jorg", 30, -1, 0.15f, BossSizeCategory::Large},
-	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large},
-	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
+	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
+	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
+	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
+	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large, BossType::TANK_64},
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large, BossType::SHAMBLERKL},
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Large, BossType::GUNCMDRKL},
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Large, BossType::TANK_64},
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Large, BossType::SHAMBLERKL},
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Large, BossType::GUNCMDRKL},
+	{"monster_psxarachnid", 14, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_ARACHNID},
+	{"monster_widow", -1, -1, 0.1f, BossSizeCategory::Large, BossType::WIDOW},
+	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_GUARDIAN},
+	{"monster_boss5", -1, 24, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
+	{"monster_jorg", 30, -1, 0.15f, BossSizeCategory::Large, BossType::JORG},
+	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large, BossType::MAKRONKL},
+	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
 };
 
-// Modified GetBossList function using std::span
+
+// Optimized GetBossList function
 static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
 		return std::span<const boss_t>(BOSS_SMALL);
@@ -1773,8 +1817,7 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 			size_t count = 0;
 
 			for (const auto& boss : std::span<const boss_t>(BOSS_MEDIUM)) {
-				if (std::strcmp(boss.classname, "monster_guardian") != 0 &&
-					std::strcmp(boss.classname, "monster_psxguardian") != 0) {
+				if (boss.type != BossType::GUARDIAN && boss.type != BossType::PSX_GUARDIAN) {
 					filteredMediumBossList[count++] = boss;
 				}
 			}
@@ -1790,7 +1833,7 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 			size_t count = 0;
 
 			for (const auto& boss : std::span<const boss_t>(BOSS_LARGE)) {
-				if (std::strcmp(boss.classname, "monster_boss5") != 0) {
+				if (boss.type != BossType::BOSS5) {
 					filteredLargeBossList[count++] = boss;
 				}
 			}
@@ -4229,7 +4272,6 @@ static void AnnounceIncomingWave(gtime_t duration = 3_sec) {
 	gi.sound(world, CHAN_VOICE, GetRandomWaveSound(), 1, ATTN_NONE, 0);
 }
 
-// Llamar a esta función durante la inicialización del juego
 void InitializeWaveSystem() noexcept {
 	PrecacheWaveSounds();
 }
