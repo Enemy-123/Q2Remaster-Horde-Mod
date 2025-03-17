@@ -2308,13 +2308,36 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		// Cap the effective level more conservatively
 		int32_t maxLevel = currentLevel < 7 ? irandom(5, 7) :
 			(currentLevel < 15 ? currentLevel + 5 : currentLevel + 3);
-
 		effectiveLevel = std::min(currentLevel + levelBoost, maxLevel);
 
 		// Absolute cap at 40
 		effectiveLevel = std::min(effectiveLevel, 40);
 
-		if (developer->integer) {
+		// SAFETY CHECK: Verify that at least one monster is eligible at this effective level
+		bool any_eligible_monsters = false;
+		for (const auto& monster : monsterTypes) {
+			// Basic eligibility check - must match level and wave type
+			if (monster.minWave <= effectiveLevel &&
+				IsValidMonsterForWave(monster.classname, currentWaveTypes)) {
+
+				// Additional flying compatibility check if needed
+				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
+				if (!(isSpawnPointFlying && !isFlyingMonster)) {
+					any_eligible_monsters = true;
+					break;
+				}
+			}
+		}
+
+		// If no eligible monsters at this level, revert to current level
+		if (!any_eligible_monsters) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("WARNING: No eligible monsters at level {}. Reverting to current wave {}\n",
+					effectiveLevel, currentLevel);
+			}
+			effectiveLevel = currentLevel;
+		}
+		else if (developer->integer) {
 			gi.Com_PrintFmt("Spawning higher level monster: Wave {} -> {}\n",
 				currentLevel, effectiveLevel);
 		}
