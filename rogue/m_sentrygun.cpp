@@ -11,16 +11,18 @@ TURRET
 #include "../g_local.h"
 #include "m_rogue_turret.h"
 #include "../shared.h"
+
+constexpr spawnflags_t SPAWNFLAG_TURRET2_GRENADE = 0x0080_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = 0x0020_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = 0x0010_spawnflag;
 //constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = 0x0020_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = 0x0040_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER;
+constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_FLECHETTE;
 //constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 
-constexpr spawnflags_t SPAWNFLAG_TURRET2_GRENADE = 0x0080_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = 0x0020_spawnflag;
+
 
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
@@ -616,8 +618,6 @@ static float CalculateDamage(edict_t* self, int baseDamage) {
 	return baseDamage * damageModifier * quadMultiplier;
 }
 
-
-
 // Fire heatbeam
 static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, trace_t& tr) {
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
@@ -635,7 +635,7 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.4f : 0.7f;
 
 
-	monster_fire_bullet(self, start, dir, DAMAGE_BULLET, 8,	DEFAULT_BULLET_HSPREAD * spread_mult, DEFAULT_BULLET_VSPREAD * spread_mult,	MZ2_TURRET_MACHINEGUN);
+	monster_fire_bullet(self, start, dir, damage, 8, DEFAULT_BULLET_HSPREAD * spread_mult, DEFAULT_BULLET_VSPREAD * spread_mult,	MZ2_TURRET_MACHINEGUN);
 
 	self->monsterinfo.melee_debounce_time = level.time +
 		(self->monsterinfo.quadfire_time > level.time ? 9_hz : 15_hz);
@@ -786,44 +786,83 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		return;
 	}
 
+	// Calculate custom muzzle position
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+	const vec3_t offset = { 20.f, 0.f, 0.f };
+	vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
 	const int damage = static_cast<int>(CalculateDamage(self, 6));
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 4000.0f : 3200.0f;
 
-	// Main shot
-	fire_flechette(self, start, dir, damage, speed, 5);
+	// Calculate distance
+	float dist = (self->enemy->s.origin - muzzle_pos).length();
 
-	// Secondary spread shots when quad active or for extra effectiveness
+	// Improved aiming
+	vec3_t aim_dir;
+
+	// Flechettes are fast, so PredictAim works well at all distances
+	// But we'll add more careful prediction for moving targets
+	if (self->enemy->velocity.lengthSquared() > 1.0f) {
+		// Moving target - use prediction with error compensation
+		float pred_time = dist / speed;
+		vec3_t pred_pos = self->enemy->s.origin + (self->enemy->velocity * pred_time * 0.9f); // 90% compensation
+
+		// Verify predicted position with trace
+		trace_t tr = gi.traceline(muzzle_pos, pred_pos, self, MASK_SHOT);
+		if (tr.fraction >= 0.9f || tr.ent == self->enemy) {
+			aim_dir = (pred_pos - muzzle_pos).normalized();
+		}
+		else {
+			// If prediction is blocked, use standard PredictAim
+			PredictAim(self, self->enemy, muzzle_pos, speed, true, 0.0f, &aim_dir, nullptr);
+		}
+	}
+	else {
+		// Stationary target - aim with small random variation for realism
+		aim_dir = (self->enemy->s.origin - muzzle_pos).normalized();
+		aim_dir += right * (crandom() * 0.01f);
+		aim_dir.normalize();
+	}
+
+	// Main shot with improved aiming
+	monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
+
+	gi.WriteByte(svc_muzzleflash);
+	gi.WriteEntity(self);
+	gi.WriteByte(frandom() < 0.2f ? MZ_ETF_RIFLE_2 : MZ_ETF_RIFLE);
+	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+	// Secondary spread shots
 	if (self->monsterinfo.quadfire_time > level.time || frandom() < 0.4f) {
-		vec3_t right;
-		AngleVectors(vectoangles(dir), nullptr, &right, nullptr);
+		// Calculate perpendicular vectors for spread
+		vec3_t spread_right;
+		AngleVectors(vectoangles(aim_dir), nullptr, &spread_right, nullptr);
 
-		// Right spread shot
-		vec3_t forward_right = dir + (right * 0.02f);
+		// Right spread
+		vec3_t forward_right = aim_dir + (spread_right * 0.02f);
 		forward_right.normalize();
-		fire_flechette(self, start, forward_right, damage, speed, 9);
+		monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
 
-		// Left spread shot (only for quad)
+		// Left spread (only for quad)
 		if (self->monsterinfo.quadfire_time > level.time) {
-			vec3_t forward_left = dir - (right * 0.02f);
+			vec3_t forward_left = aim_dir - (spread_right * 0.02f);
 			forward_left.normalize();
-			fire_flechette(self, start, forward_left, damage, speed, 9);
+			monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
 		}
 	}
 
-	// Set cooldown - faster for quad
+	// Set cooldown
 	self->monsterinfo.melee_debounce_time = level.time +
 		(self->monsterinfo.quadfire_time > level.time ? 7_hz : 12_hz);
 }
-
-
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
-	// Check fire rate (keep this)
+	// Check fire rate
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
 		(self->monsterinfo.quadfire_time > level.time ? 0.5_sec : 1.0_sec)) {
 		return;
 	}
 
-	// Verify clear shot (keep this)
+	// Verify clear shot
 	const vec3_t offset = { 20.f, 0.f, 0.f };
 	vec3_t shot_start;
 	bool has_clear_shot = M_CheckClearShot(self, offset, shot_start);
@@ -831,43 +870,58 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 		return;
 	}
 
+	// Prepare vectors
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+
+	// Use G_ProjectSource2 for more accurate muzzle position
+	vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 2000.0f : 1720.0f;
-	vec3_t fire_dir; // Declare fire_dir here
+	vec3_t fire_dir;
 
-	// **PREDICTIVE AIMING USING PredictAim and then PITCH CALCULATION**
-	{
-		vec3_t predicted_target_pos;
-		vec3_t dummy_aimdir; // We don't need aimdir from PredictAim here, we'll get it from M_CalculatePitchToFire
+	// Dual-range aiming strategy
+	if (dist < 400) {
+		// SHORT RANGE: Use PredictAim with small adjustments
+		PredictAim(self, self->enemy, muzzle_pos, speed, true, 0.0f, &fire_dir, nullptr);
 
-		PredictAim(self, self->enemy, start, speed, true, 0.0f, &dummy_aimdir, &predicted_target_pos); // Predict target position
+		// Add slight randomness for natural variance
+		fire_dir += right * (crandom() * 0.02f);
+		fire_dir += up * (crandom() * 0.02f - 0.01f); // Slight downward bias
+		fire_dir.normalize();
+	}
+	else {
+		// LONG RANGE: Use pitch calculation for arc
+		vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * (dist / speed * 0.8f));
+		fire_dir = predicted_pos - muzzle_pos;
+		fire_dir.normalize();
 
-		vec3_t aim_vec = (predicted_target_pos - start).normalized(); // Initial aim direction towards predicted position
-		float time_to_target_guess = dist / speed; // You can still use the distance for a rough guess
+		float time_to_target = dist / speed;
 
-		if (M_CalculatePitchToFire(self, predicted_target_pos, start, aim_vec, speed, time_to_target_guess, false, true))
-		{
-			fire_dir = aim_vec; // M_CalculatePitchToFire will adjust aim_vec (which is now fire_dir) to include the correct pitch
+		// Use gravity compensation for better arcs
+		if (M_CalculatePitchToFire(self, predicted_pos, muzzle_pos, fire_dir, speed, time_to_target, false, true)) {
+			// Add tiny random variation to prevent perfect predictability
+			fire_dir[2] += crandom_open() * 0.005f;
+			fire_dir.normalize();
 		}
-		else
-		{
-		//	gi.Com_PrintFmt("Turret: M_CalculatePitchToFire failed (even with prediction), using direct shot!\n");
-			fire_dir = dir; // Fallback to direct shot if pitch calculation fails
+		else {
+			// Fallback to standard prediction if calculation fails
+			fire_dir = dir;
 		}
 	}
-	// **END PREDICTIVE AIMING**
 
-
-	// Calculate damage (keep this)
+	// Calculate damage
 	const int damage = static_cast<int>(CalculateDamage(self, 120));
 
-	// Fire grenade (keep zero spread)
-	fire_grenade(self, start, fire_dir, damage, speed,
+	// Fire grenade with improved aiming
+	fire_grenade(self, muzzle_pos, fire_dir, damage, speed,
 		3_sec, 0, 0.0f,
 		200.f, false);
 
 	self->monsterinfo.last_sentry_missile_fire_time = level.time + 2_sec;
 	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
 }
+
 void turret2Fire(edict_t* self) {
 	if (!self || !self->inuse)
 		return;
