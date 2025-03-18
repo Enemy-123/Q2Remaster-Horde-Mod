@@ -5531,39 +5531,6 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 	}
 }
 
-////debugging
-//static void PrintRemainingMonsterCounts() {
-//	std::unordered_map<std::string, int> monster_counts;
-//
-//	for (const auto* const ent : active_monsters()) {
-//		// Ignorar monstruos con AI_DO_NOT_COUNT
-//		//if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
-//		//	continue;
-//
-//		// Solo contar monstruos activos y vivos
-//		if (ent->inuse && !ent->deadflag && ent->health > 0) {
-//			monster_counts[ent->classname]++;
-//		}
-//	}
-//
-//	// Solo mostrar advertencia si hay una discrepancia real
-//	const bool has_discrepancy = (level.total_monsters != level.killed_monsters);
-//	const bool has_remaining = !monster_counts.empty();
-//
-//	if (has_discrepancy || has_remaining) {
-//		gi.Com_PrintFmt("WARNING: Monster count discrepancy detected:\n");
-//		gi.Com_PrintFmt("Total monsters according to level: {}\n", level.total_monsters);
-//		gi.Com_PrintFmt("Killed monsters: {}\n", level.killed_monsters);
-//
-//		if (has_remaining) {
-//			gi.Com_PrintFmt("Remaining monster types:\n");
-//			for (const auto& [classname, count] : monster_counts) {
-//				gi.Com_PrintFmt("- {} : {}\n", classname, count);
-//			}
-//		}
-//	}
-//}
-
 static void SendCleanupMessage(WaveEndReason reason) {
 	// Avoid try-catch for performance in normal operation
 	// Wave completion message - use switch for better performance
@@ -5726,22 +5693,6 @@ void CheckAndFixQueuedMonsters() {
 	}
 }
 
-// Add this function to fix stuck waves
-//void ForceWaveCompletion() {
-//	if (developer->integer) {
-//		gi.Com_PrintFmt("CRITICAL: Forcing wave {} completion due to stalled state\n",
-//			current_wave_level);
-//	}
-//
-//	// Allow wave advance
-//	allowWaveAdvance = true;
-//
-//	// Set state to cleanup
-//	g_horde_local.state = horde_state_t::cleanup;
-//	g_horde_local.monster_spawn_time = level.time + 0.5_sec;
-//}
-
-
 void Horde_RunFrame() {
 	// Cache frequently used state variables
 	const MapSize& mapSize = g_horde_local.current_map_size;
@@ -5790,13 +5741,6 @@ void Horde_RunFrame() {
 
 	bool waveEnded = false;
 	WaveEndReason currentWaveEndReason = WaveEndReason::AllMonstersDead;
-
-	//// Periodically validate monster count
-	//static gtime_t last_validation_time = 0_sec;
-	//if (currentTime - last_validation_time >= 0.5_sec) {
-	//	ValidateMonsterCount();
-	//	last_validation_time = currentTime;
-	//}
 
 	// STATE MACHINE
 	switch (g_horde_local.state) {
@@ -5890,19 +5834,6 @@ void Horde_RunFrame() {
 	}
 
 	case horde_state_t::active_wave: {
-		//// Safety timeout for active_wave state
-		//static gtime_t active_state_start = currentTime;
-		//if (last_wave_level != currentLevel) {
-		//	active_state_start = currentTime;
-		//}
-		//else if (currentTime - active_state_start > 3_min) {
-		//	if (developer->integer) {
-		//		gi.Com_PrintFmt("TIMEOUT: Forcing end of wave {} after 3 minutes\n", currentLevel);
-		//	}
-		//	ForceWaveCompletion();
-		//	waveEnded = true;
-		//	break;
-		//}
 
 		// Fast path for all monsters dead
 		if (Horde_AllMonstersDead()) {
