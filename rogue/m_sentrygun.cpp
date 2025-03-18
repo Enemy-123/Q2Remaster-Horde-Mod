@@ -622,12 +622,7 @@ static float CalculateDamage(edict_t* self, int baseDamage) {
 static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, trace_t& tr) {
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
 
-	T_Damage(tr.ent, self, self->owner, dir, tr.endpos, tr.plane.normal,
-		damage, 0, DAMAGE_ENERGY, MOD_TURRET);
-
-	monster_fire_heatbeam(self, start, dir, vec3_origin,
-		self->monsterinfo.quadfire_time > level.time ? 2 : 0,
-		10, MZ2_WIDOW2_BEAM_SWEEP_1);
+	monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
 }
 
 // Fire machinegun
@@ -637,17 +632,10 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 	}
 
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BULLET_DAMAGE));
-	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.5f : 1.0f;
-
-	if (frandom() < 0.8f)
-		T_Damage(self->enemy, self, self->owner, dir, self->enemy->s.origin,
-			vec3_origin, damage, damage, DAMAGE_BULLET, MOD_TURRET);
+	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.4f : 0.7f;
 
 
-	monster_fire_bullet(self, start, dir, 0, 8,
-		DEFAULT_BULLET_HSPREAD * spread_mult,
-		DEFAULT_BULLET_VSPREAD * spread_mult,
-		MZ2_TURRET_MACHINEGUN);
+	monster_fire_bullet(self, start, dir, DAMAGE_BULLET, 8,	DEFAULT_BULLET_HSPREAD * spread_mult, DEFAULT_BULLET_VSPREAD * spread_mult,	MZ2_TURRET_MACHINEGUN);
 
 	self->monsterinfo.melee_debounce_time = level.time +
 		(self->monsterinfo.quadfire_time > level.time ? 9_hz : 15_hz);

@@ -128,134 +128,145 @@ This is a modified version of fire_lead for energy-based weapons.
 Used for implementing energy shells that work like bullets but with energy effects.
 =================
 */
-
-struct fire_energy_pierce_t : pierce_args_t
-{
-	edict_t* self;
-	vec3_t		 start;
-	vec3_t		 aimdir;
-	int			 damage;
-	int			 kick;
-	int			 hspread;
-	int			 vspread;
-	mod_t		 mod;
-	int			 te_impact;
-	contents_t   mask;
-	bool	     water = false;
-	vec3_t	     water_start = {};
-	edict_t* chain = nullptr;
-
-	inline fire_energy_pierce_t(edict_t* self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, mod_t mod, int te_impact, contents_t mask) :
-		pierce_args_t(),
-		self(self),
-		start(start),
-		aimdir(aimdir),
-		damage(damage),
-		kick(kick),
-		hspread(hspread),
-		vspread(vspread),
-		mod(mod),
-		te_impact(te_impact),
-		mask(mask)
+	struct fire_energy_pierce_t : pierce_args_t
 	{
-	}
+		edict_t* self;
+		edict_t* attacker;  // Track the actual attacker
+		vec3_t   start;
+		vec3_t   aimdir;
+		int      damage;
+		int      kick;
+		int      hspread;
+		int      vspread;
+		mod_t    mod;
+		int      te_impact;
+		contents_t mask;
+		bool     water = false;
+		vec3_t   water_start = {};
+		edict_t* chain = nullptr;
 
-	// we hit an entity; return false to stop the piercing.
-	// you can adjust the mask for the re-trace (for water, etc).
-	bool hit(contents_t& mask, vec3_t& end) override
-	{
-		// see if we hit water
-		if (tr.contents & MASK_WATER)
+		inline fire_energy_pierce_t(edict_t* self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, mod_t mod, int te_impact, contents_t mask) :
+			pierce_args_t(),
+			self(self),
+			start(start),
+			aimdir(aimdir),
+			damage(damage),
+			kick(kick),
+			hspread(hspread),
+			vspread(vspread),
+			mod(mod),
+			te_impact(te_impact),
+			mask(mask)
 		{
-			int color;
-
-			water = true;
-			water_start = tr.endpos;
-
-			if (te_impact != -1 && start != tr.endpos)
+			// Determine the actual attacker inside the constructor
+			if (self && self->owner)
 			{
-				if (tr.contents & CONTENTS_WATER)
+				if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
 				{
-					if (strcmp(tr.surface->name, "brwater") == 0)
-						color = SPLASH_BROWN_WATER;
-					else
-						color = SPLASH_BLUE_WATER;
+					// If the owner is a turret, the attacker is the turret's owner (the player)
+					attacker = self->owner->owner ? self->owner->owner : self->owner;
 				}
-				else if (tr.contents & CONTENTS_SLIME)
-					color = SPLASH_SLIME;
-				else if (tr.contents & CONTENTS_LAVA)
-					color = SPLASH_LAVA;
 				else
-					color = SPLASH_UNKNOWN;
-
-				if (color != SPLASH_UNKNOWN)
 				{
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte(TE_SPLASH);
-					gi.WriteByte(8);
-					gi.WritePosition(tr.endpos);
-					gi.WriteDir(tr.plane.normal);
-					gi.WriteByte(color);
-					gi.multicast(tr.endpos, MULTICAST_PVS, false);
+					// Otherwise, the attacker is the owner
+					attacker = self->owner;
 				}
-
-				// change energy shot's course when it enters water
-				vec3_t dir, forward, right, up;
-				dir = end - start;
-				dir = vectoangles(dir);
-				AngleVectors(dir, forward, right, up);
-				float const r = crandom() * hspread * 2;
-				float const u = crandom() * vspread * 2;
-				end = water_start + (forward * 8192);
-				end += (right * r);
-				end += (up * u);
 			}
-
-			// re-trace ignoring water this time
-			mask &= ~MASK_WATER;
-			return true;
+			else
+			{
+				// Default to self if no owner
+				attacker = self;
+			}
 		}
 
-		// did we hit a hurtable entity?
-		if (tr.ent->takedamage)
+		// we hit an entity; return false to stop the piercing.
+		bool hit(contents_t& mask, vec3_t& end) override
 		{
-			// Apply energy damage instead of bullet damage
-			T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_ENERGY, mod);
-
-			// only deadmonster is pierceable, or actual dead monsters
-			// that haven't been made non-solid yet
-			if ((tr.ent->svflags & SVF_DEADMONSTER) ||
-				(tr.ent->health <= 0 && (tr.ent->svflags & SVF_MONSTER)))
+			// see if we hit water
+			if (tr.contents & MASK_WATER)
 			{
-				if (!mark(tr.ent))
-					return false;
+				int color;
 
+				water = true;
+				water_start = tr.endpos;
+
+				if (te_impact != -1 && start != tr.endpos)
+				{
+					if (tr.contents & CONTENTS_WATER)
+					{
+						if (strcmp(tr.surface->name, "brwater") == 0)
+							color = SPLASH_BROWN_WATER;
+						else
+							color = SPLASH_BLUE_WATER;
+					}
+					else if (tr.contents & CONTENTS_SLIME)
+						color = SPLASH_SLIME;
+					else if (tr.contents & CONTENTS_LAVA)
+						color = SPLASH_LAVA;
+					else
+						color = SPLASH_UNKNOWN;
+
+					if (color != SPLASH_UNKNOWN)
+					{
+						gi.WriteByte(svc_temp_entity);
+						gi.WriteByte(TE_SPLASH);
+						gi.WriteByte(8);
+						gi.WritePosition(tr.endpos);
+						gi.WriteDir(tr.plane.normal);
+						gi.WriteByte(color);
+						gi.multicast(tr.endpos, MULTICAST_PVS, false);
+					}
+
+					// change bullet's course when it enters water
+					vec3_t dir, forward, right, up;
+					dir = end - start;
+					dir = vectoangles(dir);
+					AngleVectors(dir, forward, right, up);
+					float const r = crandom() * hspread * 2;
+					float const u = crandom() * vspread * 2;
+					end = water_start + (forward * 8192);
+					end += (right * r);
+					end += (up * u);
+				}
+
+				mask &= ~MASK_WATER;
 				return true;
 			}
-		}
-		else
-		{
-			// send energy impact effect
-			// don't mark the sky
-			if (te_impact != -1 && !(tr.surface && ((tr.surface->flags & SURF_SKY) || strncmp(tr.surface->name, "sky", 3) == 0)))
+
+			// did we hit a damageable entity?
+			if (tr.ent->takedamage)
 			{
-				// Use hyperblaster/blaster effect instead of gunshot
-				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_BLASTER); // or TE_BLUEHYPERBLASTER for blue effect
-				gi.WritePosition(tr.endpos);
-				gi.WriteDir(tr.plane.normal);
-				gi.multicast(tr.endpos, MULTICAST_PVS, false);
+				// Use attacker instead of self for damage credit
+				T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_ENERGY, mod);
 
-				if (self->client)
-					PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
+				// Check for piercing conditions
+				if ((tr.ent->svflags & SVF_DEADMONSTER) ||
+					(tr.ent->health <= 0 && (tr.ent->svflags & SVF_MONSTER)))
+				{
+					if (!mark(tr.ent))
+						return false;
+					return true;
+				}
 			}
+			else
+			{
+				// Energy impact effect
+				if (te_impact != -1 && !(tr.surface && ((tr.surface->flags & SURF_SKY) || strncmp(tr.surface->name, "sky", 3) == 0)))
+				{
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(te_impact);
+					gi.WritePosition(tr.endpos);
+					gi.WriteDir(tr.plane.normal);
+					gi.multicast(tr.endpos, MULTICAST_PVS, false);
+
+					if (self->client)
+						PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
+				}
+			}
+
+			return false;
 		}
-
-		// hit a solid, so we're stopping here
-		return false;
-	}
-};
-
+	};
 /*
 =================
 fire_lead_energy
@@ -266,6 +277,7 @@ Similar to bullets but with energy effects and damage.
 */
 static void fire_lead_energy(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int te_impact, int hspread, int vspread, mod_t mod)
 {
+	// Create the pierce structure which will determine the attacker in its constructor
 	fire_energy_pierce_t args = {
 		self,
 		start,
@@ -387,17 +399,18 @@ void fire_energy_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdi
 struct fire_lead_pierce_t : pierce_args_t
 {
 	edict_t* self;
-	vec3_t		 start;
-	vec3_t		 aimdir;
-	int			 damage;
-	int			 kick;
-	int			 hspread;
-	int			 vspread;
-	mod_t		 mod;
-	int			 te_impact;
-	contents_t   mask;
-	bool	     water = false;
-	vec3_t	     water_start = {};
+	edict_t* attacker;  // Track the actual attacker (may be different from self)
+	vec3_t   start;
+	vec3_t   aimdir;
+	int      damage;
+	int      kick;
+	int      hspread;
+	int      vspread;
+	mod_t    mod;
+	int      te_impact;
+	contents_t mask;
+	bool     water = false;
+	vec3_t   water_start = {};
 	edict_t* chain = nullptr;
 
 	inline fire_lead_pierce_t(edict_t* self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, mod_t mod, int te_impact, contents_t mask) :
@@ -413,10 +426,28 @@ struct fire_lead_pierce_t : pierce_args_t
 		te_impact(te_impact),
 		mask(mask)
 	{
+		// Determine the actual attacker inside the constructor
+		if (self && self->owner)
+		{
+			if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
+			{
+				// If the owner is a turret, the attacker is the turret's owner (the player)
+				attacker = self->owner->owner ? self->owner->owner : self->owner;
+			}
+			else
+			{
+				// Otherwise, the attacker is the owner
+				attacker = self->owner;
+			}
+		}
+		else
+		{
+			// Default to self if no owner
+			attacker = self;
+		}
 	}
 
 	// we hit an entity; return false to stop the piercing.
-	// you can adjust the mask for the re-trace (for water, etc).
 	bool hit(contents_t& mask, vec3_t& end) override
 	{
 		// see if we hit water
@@ -427,12 +458,10 @@ struct fire_lead_pierce_t : pierce_args_t
 			water = true;
 			water_start = tr.endpos;
 
-			// CHECK: is this compare ever true?
 			if (te_impact != -1 && start != tr.endpos)
 			{
 				if (tr.contents & CONTENTS_WATER)
 				{
-					// FIXME: this effectively does nothing..
 					if (strcmp(tr.surface->name, "brwater") == 0)
 						color = SPLASH_BROWN_WATER;
 					else
@@ -476,7 +505,8 @@ struct fire_lead_pierce_t : pierce_args_t
 		// did we hit an hurtable entity?
 		if (tr.ent->takedamage)
 		{
-			T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, mod.id == MOD_TESLA ? DAMAGE_ENERGY : DAMAGE_BULLET, mod);
+			// Use attacker instead of self for damage credit
+			T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, tr.plane.normal, damage, kick, mod.id == MOD_TESLA ? DAMAGE_ENERGY : DAMAGE_BULLET, mod);
 
 			// only deadmonster is pierceable, or actual dead monsters
 			// that haven't been made non-solid yet
@@ -507,7 +537,6 @@ struct fire_lead_pierce_t : pierce_args_t
 		}
 
 		// hit a solid, so we're stopping here
-
 		return false;
 	}
 };
@@ -521,6 +550,7 @@ This is an internal support routine used for bullet/pellet based weapons.
 */
 static void fire_lead(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int te_impact, int hspread, int vspread, mod_t mod)
 {
+	// Create the pierce structure which will determine the attacker in its constructor
 	fire_lead_pierce_t args = {
 		self,
 		start,
@@ -590,7 +620,6 @@ static void fire_lead(edict_t* self, const vec3_t& start, const vec3_t& aimdir, 
 		gi.multicast(pos, MULTICAST_PVS, false);
 	}
 }
-
 /*
 =================
 fire_bullet
@@ -601,9 +630,12 @@ pistols, rifles, etc....
 */
 void fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
 {
+	// Apply damage modifier if monster
 	if (self->svflags & SVF_MONSTER) {
 		damage *= M_DamageModifier(self);
 	}
+
+	// Use the standard fire_lead function - attacker is determined inside the pierce_t constructor
 	fire_lead(self, start, aimdir, damage, kick, mod.id == MOD_TESLA ? -1 : TE_GUNSHOT, hspread, vspread, mod);
 }
 

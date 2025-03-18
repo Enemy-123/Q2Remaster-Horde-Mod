@@ -1754,8 +1754,13 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 //  HEATBEAM
 // *************************
 
+// *************************
+//  HEATBEAM
+// *************************
+
 struct heatbeam_pierce_t : pierce_args_t {
 	edict_t* self;
+	edict_t* attacker;  // Track the actual attacker (may be different from self->owner)
 	vec3_t aimdir;
 	int damage;
 	int kick;
@@ -1766,6 +1771,25 @@ struct heatbeam_pierce_t : pierce_args_t {
 	heatbeam_pierce_t(edict_t* self, const vec3_t& aimdir, int damage, int kick, mod_t mod) :
 		self(self), aimdir(aimdir), damage(damage), kick(kick), mod(mod), water_hit(false)
 	{
+		// Determine the actual attacker
+		if (self && self->owner)
+		{
+			if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
+			{
+				// If the owner is a turret, the attacker is the turret's owner (the player)
+				attacker = self->owner->owner ? self->owner->owner : self->owner;
+			}
+			else
+			{
+				// Otherwise, the attacker is the owner
+				attacker = self->owner;
+			}
+		}
+		else
+		{
+			// Default to self if no owner
+			attacker = self;
+		}
 	}
 
 	bool hit(contents_t& mask, vec3_t& end) override {
@@ -1786,7 +1810,8 @@ struct heatbeam_pierce_t : pierce_args_t {
 			if (!tr.ent->beam_hit_time || level.time >= tr.ent->beam_hit_time + HIT_DELAY) {
 				int current_damage = water_hit ? damage / 2 : damage;
 
-				T_Damage(tr.ent, self, self->owner, aimdir, tr.endpos, vec3_origin,
+				// Use attacker instead of self->owner for damage credit
+				T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, vec3_origin,
 					current_damage, kick, DAMAGE_ENERGY, mod);
 
 				tr.ent->beam_hit_time = level.time;
@@ -1843,104 +1868,114 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 			gi.multicast(pos, MULTICAST_PVS, false);
 		}
 	}
-		else {
-			trace_t    tr;
-			vec3_t     dir;
-			vec3_t     forward, right, up;
-			vec3_t     end;
-			vec3_t     water_start, endpoint;
-			bool       water = false, underwater = false;
-			contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
+	else {
+		trace_t    tr;
+		vec3_t     dir;
+		vec3_t     forward, right, up;
+		vec3_t     end;
+		vec3_t     water_start, endpoint;
+		bool       water = false, underwater = false;
+		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
 
-			if (self->client && !G_ShouldPlayersCollide(true))
-				content_mask &= ~CONTENTS_PLAYER;
-
-			vec3_t beam_endpt;
-
-			dir = vectoangles(aimdir);
-			AngleVectors(dir, forward, right, up);
-			end = start + (forward * 8192);
-
-			if (gi.pointcontents(start) & MASK_WATER) {
-				underwater = true;
-				water_start = start;
-				content_mask &= ~MASK_WATER;
-			}
-
-			tr = gi.traceline(start, end, self, content_mask);
-
-			if (tr.contents & MASK_WATER) {
-				water = true;
-				water_start = tr.endpos;
-
-				if (start != tr.endpos) {
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte(TE_HEATBEAM_SPARKS);
-					gi.WritePosition(water_start);
-					gi.WriteDir(tr.plane.normal);
-					gi.multicast(tr.endpos, MULTICAST_PVS, false);
-				}
-
-				tr = gi.traceline(water_start, end, self, content_mask & ~MASK_WATER);
-			}
-
-			endpoint = tr.endpos;
-
-			if (water)
-				damage = damage / 2;
-
-			if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
-				if (tr.fraction < 1.0f) {
-					if (tr.ent->takedamage) {
-						T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_ENERGY, mod);
-					}
-					else {
-						if ((!water) && !(tr.surface && (tr.surface->flags & SURF_SKY))) {
-							gi.WriteByte(svc_temp_entity);
-							gi.WriteByte(TE_HEATBEAM_STEAM);
-							gi.WritePosition(tr.endpos);
-							gi.WriteDir(tr.plane.normal);
-							gi.multicast(tr.endpos, MULTICAST_PVS, false);
-
-							if (self->client)
-								PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
-						}
-					}
-				}
-			}
-
-			if ((water) || (underwater)) {
-				vec3_t pos;
-				dir = tr.endpos - water_start;
-				dir.normalize();
-				pos = tr.endpos + (dir * -2);
-
-				if (gi.pointcontents(pos) & MASK_WATER)
-					tr.endpos = pos;
-				else
-					tr = gi.traceline(pos, water_start, tr.ent != world ? tr.ent : nullptr, MASK_WATER);
-
-				pos = water_start + tr.endpos;
-				pos *= 0.5f;
-
-				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_BUBBLETRAIL2);
-				gi.WritePosition(water_start);
-				gi.WritePosition(tr.endpos);
-				gi.multicast(pos, MULTICAST_PVS, false);
-			}
-
-			beam_endpt = (!underwater && !water) ? tr.endpos : endpoint;
-
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(te_beam);
-			gi.WriteEntity(self);
-			gi.WritePosition(start);
-			gi.WritePosition(beam_endpt);
-			gi.multicast(self->s.origin, MULTICAST_ALL, false);
+		// Determine the real attacker
+		edict_t* attacker = self->owner;
+		if (self->owner && self->owner->classname &&
+			Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0) {
+			// If the owner is a turret, the attacker is the turret's owner (the player)
+			attacker = self->owner->owner ? self->owner->owner : self->owner;
 		}
 
+		if (self->client && !G_ShouldPlayersCollide(true))
+			content_mask &= ~CONTENTS_PLAYER;
+
+		vec3_t beam_endpt;
+
+		dir = vectoangles(aimdir);
+		AngleVectors(dir, forward, right, up);
+		end = start + (forward * 8192);
+
+		if (gi.pointcontents(start) & MASK_WATER) {
+			underwater = true;
+			water_start = start;
+			content_mask &= ~MASK_WATER;
+		}
+
+		tr = gi.traceline(start, end, self, content_mask);
+
+		if (tr.contents & MASK_WATER) {
+			water = true;
+			water_start = tr.endpos;
+
+			if (start != tr.endpos) {
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte(TE_HEATBEAM_SPARKS);
+				gi.WritePosition(water_start);
+				gi.WriteDir(tr.plane.normal);
+				gi.multicast(tr.endpos, MULTICAST_PVS, false);
+			}
+
+			tr = gi.traceline(water_start, end, self, content_mask & ~MASK_WATER);
+		}
+
+		endpoint = tr.endpos;
+
+		if (water)
+			damage = damage / 2;
+
+		if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
+			if (tr.fraction < 1.0f) {
+				if (tr.ent->takedamage) {
+					// Use attacker instead of self for damage credit
+					T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, tr.plane.normal,
+						damage, kick, DAMAGE_ENERGY, mod);
+				}
+				else {
+					if ((!water) && !(tr.surface && (tr.surface->flags & SURF_SKY))) {
+						gi.WriteByte(svc_temp_entity);
+						gi.WriteByte(TE_HEATBEAM_STEAM);
+						gi.WritePosition(tr.endpos);
+						gi.WriteDir(tr.plane.normal);
+						gi.multicast(tr.endpos, MULTICAST_PVS, false);
+
+						if (self->client)
+							PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
+					}
+				}
+			}
+		}
+
+		if ((water) || (underwater)) {
+			vec3_t pos;
+			dir = tr.endpos - water_start;
+			dir.normalize();
+			pos = tr.endpos + (dir * -2);
+
+			if (gi.pointcontents(pos) & MASK_WATER)
+				tr.endpos = pos;
+			else
+				tr = gi.traceline(pos, water_start, tr.ent != world ? tr.ent : nullptr, MASK_WATER);
+
+			pos = water_start + tr.endpos;
+			pos *= 0.5f;
+
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_BUBBLETRAIL2);
+			gi.WritePosition(water_start);
+			gi.WritePosition(tr.endpos);
+			gi.multicast(pos, MULTICAST_PVS, false);
+		}
+
+		beam_endpt = (!underwater && !water) ? tr.endpos : endpoint;
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(te_beam);
+		gi.WriteEntity(self);
+		gi.WritePosition(start);
+		gi.WritePosition(beam_endpt);
+		gi.multicast(self->s.origin, MULTICAST_ALL, false);
+	}
 }
+
 /*
 =================
 fire_heat
