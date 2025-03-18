@@ -1930,7 +1930,7 @@ void SP_monster_fixbot(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 90 * st.health_multiplier;
+	self->health = 225 * st.health_multiplier;
 	self->mass = 150;
 	self->s.scale = 1.4f;
 
