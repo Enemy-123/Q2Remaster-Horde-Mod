@@ -16,8 +16,11 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = 0x0010_spawnflag;
 //constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = 0x0020_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = 0x0040_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
+//constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
+//constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
+
+constexpr spawnflags_t SPAWNFLAG_TURRET2_GRENADE = 0x0080_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = 18_spawnflag_bit;
 
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
@@ -28,6 +31,9 @@ extern const mmove_t turret2_move_fire;
 extern const mmove_t turret2_move_fire_blind;
 
 static cached_soundindex sound_moved, sound_moving, sound_pew;
+
+// Add new sound caches for grenade launcher and flechette
+static cached_soundindex sound_grenade_launcher, sound_flechette;
 
 // Actualizar la posición del efecto
 static void UpdateSmokePosition(edict_t* self) {
@@ -358,8 +364,8 @@ void turret2Aim(edict_t* self)
 		self->s.angles[YAW] = newAngle;
 	}
 
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
-		return;
+	//if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
+	//	return;
 
 	// Paril: improved turrets; draw lasersight
 	if (!self->target_ent)
@@ -454,7 +460,7 @@ void turret2_ready_gun(edict_t* self)
 	if (self->monsterinfo.active_move != &turret2_move_ready_gun)
 	{
 		M_SetAnimation(self, &turret2_move_ready_gun);
-//		self->monsterinfo.weapon_sound = sound_moving;
+		//		self->monsterinfo.weapon_sound = sound_moving;
 	}
 }
 
@@ -539,7 +545,7 @@ static void TurretCheckPowerups(edict_t* turret) {
 
 
 int32_t TURRET2_BLASTER_DAMAGE = 3;
-int32_t TURRET2_BULLET_DAMAGE = 2;
+int32_t TURRET2_BULLET_DAMAGE = 3;
 //bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start);
 
 // Common helper function for damage calculation
@@ -572,12 +578,12 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BULLET_DAMAGE));
 	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.5f : 1.0f;
 
-	if (frandom() < 0.7f)
-	T_Damage(self->enemy, self, self->owner, dir, self->enemy->s.origin,
-		vec3_origin, damage , damage,DAMAGE_BULLET, MOD_TURRET);
+	if (frandom() < 0.8f)
+		T_Damage(self->enemy, self, self->owner, dir, self->enemy->s.origin,
+			vec3_origin, damage, damage, DAMAGE_BULLET, MOD_TURRET);
 
 
-	monster_fire_bullet(self, start, dir, 0, 5,
+	monster_fire_bullet(self, start, dir, 0, 8,
 		DEFAULT_BULLET_HSPREAD * spread_mult,
 		DEFAULT_BULLET_VSPREAD * spread_mult,
 		MZ2_TURRET_MACHINEGUN);
@@ -718,6 +724,134 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
 
+static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t& dir) {
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	// Rate limit check
+	if (self->monsterinfo.melee_debounce_time > level.time) {
+		return;
+	}
+
+	const int damage = static_cast<int>(CalculateDamage(self, 6));
+	const float speed = self->monsterinfo.quadfire_time > level.time ? 2050.0f : 1750.0f;
+
+	// Main shot
+	fire_flechette(self, start, dir, damage, speed, 5);
+
+	// Secondary spread shots when quad active or for extra effectiveness
+	if (self->monsterinfo.quadfire_time > level.time || frandom() < 0.4f) {
+		vec3_t right;
+		AngleVectors(vectoangles(dir), nullptr, &right, nullptr);
+
+		// Right spread shot
+		vec3_t forward_right = dir + (right * 0.02f);
+		forward_right.normalize();
+		fire_flechette(self, start, forward_right, damage, speed, 9);
+
+		// Left spread shot (only for quad)
+		if (self->monsterinfo.quadfire_time > level.time) {
+			vec3_t forward_left = dir - (right * 0.02f);
+			forward_left.normalize();
+			fire_flechette(self, start, forward_left, damage, speed, 9);
+		}
+	}
+
+	// Set cooldown - faster for quad
+	self->monsterinfo.melee_debounce_time = level.time +
+		(self->monsterinfo.quadfire_time > level.time ? 7_hz : 12_hz);
+}
+
+
+static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
+	// Check fire rate with more aggressive timing for quad
+	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
+		(self->monsterinfo.quadfire_time > level.time ? 0.5_sec : 1.0_sec)) {
+		return;
+	}
+
+	// Verify clear shot - but don't return if not clear, just try to adjust
+	const vec3_t offset = { 20.f, 0.f, 0.f };
+	vec3_t shot_start;
+	bool has_clear_shot = M_CheckClearShot(self, offset, shot_start);
+
+	// If no clear shot and we're too close, don't fire grenade
+	// We'll use 64 units as a more aggressive minimum range (lower than rockets)
+	if (!has_clear_shot) {
+		return;
+	}
+
+	const float speed = self->monsterinfo.quadfire_time > level.time ? 900.0f : 760.0f;
+	vec3_t fire_dir = dir;
+	float pitch = 0;
+
+	// Enhanced targeting system
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
+		// Calculate pitch based on distance
+	{
+			// For longer distances, add more arc to the grenade
+			vec3_t aim = self->enemy->s.origin - self->s.origin;
+			pitch = aim[2] / aim.length();
+
+			// Limit pitch range
+			if (pitch > 0.4f)
+				pitch = 0.4f;
+			else if (pitch < -0.5f)
+				pitch = -0.5f;
+
+			// Add extra arc for longer ranges
+			if (dist > 512.0f)
+				pitch += 0.15f;
+		}
+
+		// Try to use prediction for moving targets
+		if (self->enemy->velocity.lengthSquared() > 1.0f) {
+			vec3_t predicted_dir, predicted_pos;
+			// Use a slightly lower speed for prediction to account for grenade arc
+			PredictAim(self, self->enemy, start, speed * 0.9f, false, 0.f, &predicted_dir, &predicted_pos);
+
+			// Verify predicted shot isn't blocked
+			trace_t pred_tr = gi.traceline(start, predicted_pos, self, MASK_PROJECTILE);
+			if (pred_tr.fraction >= 0.7f) {
+				fire_dir = predicted_dir;
+
+				// Apply pitch adjustment to predicted direction
+				vec3_t up = { 0, 0, 1 };
+				fire_dir = fire_dir + (up * pitch);
+				fire_dir.normalize();
+			}
+		}
+		else {
+			// For stationary targets, use a simpler arc
+			vec3_t up = { 0, 0, 1 };
+			fire_dir = fire_dir + (up * pitch);
+			fire_dir.normalize();
+		}
+	}
+	else {
+		// Blindfire spread for grenades
+		float spread = frandom() < 0.3f ?
+			(self->monsterinfo.quadfire_time > level.time ? 0.05f : 0.1f) : 0.0f;
+		fire_dir[0] += crandom() * spread;
+		fire_dir[1] += crandom() * spread;
+
+		// Add upward arc for blindfire grenades
+		fire_dir[2] += 0.1f + (crandom() * 0.05f);
+		fire_dir = safe_normalized(fire_dir);
+	}
+
+	// Calculate damage with bonus for quad
+	const int damage = static_cast<int>(CalculateDamage(self, 120));
+
+	// Fire the grenade with appropriate parameters
+	fire_grenade(self, start, fire_dir, damage, speed,
+		3_sec, 80, (crandom_open() * 10.0f), // Random horizontal spread
+		200.f + (crandom_open() * 10.0f), false); // Timer with slight randomness
+
+	self->monsterinfo.last_sentry_missile_fire_time = level.time;
+	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
+}
+
 void turret2Fire(edict_t* self) {
 	if (!self || !self->inuse)
 		return;
@@ -852,6 +986,26 @@ void turret2Fire(edict_t* self) {
 		else {
 			// Fallback to direct fire if prediction fails
 			TurretFireHeatbeam(self, hbstart, dir, tr);
+		}
+	}
+	// NEW: Grenade launcher option
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
+		// Fire grenades as primary weapon
+		TurretFireGrenade(self, start, dir, dist);
+
+		// Mix in some machinegun fire for short ranges
+		if (dist < 400.0f && frandom() < 0.3f) {
+			TurretFireMachinegun(self, start, dir);
+		}
+	}
+	// NEW: Flechette launcher option
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE)) {
+		// Fire flechettes as primary attack
+		TurretFireFlechette(self, start, dir);
+
+		// Mix in some grenades for long ranges
+		if (frandom() < 0.15f) {
+			TurretFireGrenade(self, start, dir, dist);
 		}
 	}
 
@@ -1445,6 +1599,10 @@ void SP_monster_sentrygun(edict_t* self)
 	sound_pew.assign("makron/blaster.wav");
 	sound_moved.assign("gunner/gunidle1.wav");
 	sound_moving.assign("turret/moving.wav");
+	// NEW: Add sounds for grenade launcher and flechette
+	sound_grenade_launcher.assign("gunner/gunatck3.wav");
+	sound_flechette.assign("tank/tnkatck3.wav");
+
 	gi.modelindex("models/objects/debris1/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
@@ -1452,17 +1610,13 @@ void SP_monster_sentrygun(edict_t* self)
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
 
-
-
-
 	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	self->monsterinfo.power_armor_power = 100;
-	self->health = 80 * st.health_multiplier;;
+	self->health = 80 * st.health_multiplier;
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 16;
 	self->solid = SOLID_BBOX;
-	//self->svflags = SVF_PLAYER;
 	self->flags |= FL_MECHANICAL;
 	self->pain = turret2_pain;
 	self->die = turret2_die;
@@ -1470,17 +1624,21 @@ void SP_monster_sentrygun(edict_t* self)
 	// map designer didn't specify weapon type. set it now.
 	const float randomValue = frandom();
 
-	// Si el valor aleatorio es menor que 0.3, selecciona HEATBEAM; de lo contrario, MACHINEGUN
+	// Updated random weapon selection to include new types
 	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE)) {
-		if (randomValue < 0.3f) {
-			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
-		}
-		else {
-			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
-		}
+		//if (randomValue < 0.2f) {
+		//	self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
+		//}
+		//else if (randomValue < 0.5f) {
+		//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+		//}
+		//else if (randomValue < 0.7f) {
+		//	self->spawnflags |= SPAWNFLAG_TURRET2_GRENADE;
+		//}
+		//else {
+			self->spawnflags |= SPAWNFLAG_TURRET2_FLECHETTE;
+		//}
 	}
-
-
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_HEATBEAM))
 	{
@@ -1488,7 +1646,7 @@ void SP_monster_sentrygun(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
 	}
 
-	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
+	//	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
 	{
 		self->monsterinfo.stand = turret2_stand;
 		self->monsterinfo.walk = turret2_walk;
@@ -1540,30 +1698,25 @@ void SP_monster_sentrygun(edict_t* self)
 
 	gi.linkentity(self);
 
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
-	{
-		if (!self->targetname)
+	/*	if (self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
 		{
-			G_FreeEdict(self);
-			return;
-		}
+			if (!self->targetname)
+			{
+				G_FreeEdict(self);
+				return;
+			}
 
-		self->takedamage = false;
-		self->use = turret2_activate;
-		turret2_wall_spawn(self);
-		//if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-		//{
-		//	if (g_debug_monster_kills->integer)
-		//		level.monsters_registered[level.total_monsters] = self;
-		//	level.total_monsters++;
-		//}
-	}
-	else
+			self->takedamage = false;
+			self->use = turret2_activate;
+			turret2_wall_spawn(self);
+		}
+		else*/
 	{
 		stationarymonster_start(self, spawn_temp_t::empty);
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	}
 
+	// Set skinnum based on weapon type for visual distinction
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 	{
 		gi.modelindex("models/objects/laser/tris.md2");
@@ -1577,12 +1730,8 @@ void SP_monster_sentrygun(edict_t* self)
 		gi.soundindex("gunner/gunidle1.wav");
 
 		self->s.skinnum = 2;
-
-		self->spawnflags &= ~SPAWNFLAG_TURRET2_WEAPONCHOICE;
-		self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 	}
-
-	else
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 	{
 		gi.modelindex("models/objects/laser/tris.md2");
 		gi.soundindex("misc/lasfly.wav");
@@ -1591,14 +1740,44 @@ void SP_monster_sentrygun(edict_t* self)
 		gi.soundindex("makron/blaster.wav");
 		gi.soundindex("gunner/gunidle1.wav");
 
-		self->spawnflags &= ~SPAWNFLAG_TURRET2_WEAPONCHOICE;
-		self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
+		self->s.skinnum = 0;
+	}
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE))
+	{
+		// Load grenade resources
+		gi.modelindex("models/objects/grenade/tris.md2");
+		gi.soundindex("gunner/gunatck3.wav");
+		gi.soundindex("tank/tnkpain2.wav");
+		gi.soundindex("weapons/grenlx1a.wav");
+		gi.soundindex("gunner/gunidle1.wav");
+
+		self->s.skinnum = 1; // Use a distinctive skin
+	}
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE))
+	{
+		// Load flechette resources
+		gi.modelindex("models/objects/blaser/tris.md2");
+		gi.soundindex("tank/tnkatck3.wav");
+		gi.soundindex("tank/tnkpain2.wav");
+		gi.soundindex("weapons/hyprbf1a.wav");
+		gi.soundindex("gunner/gunidle1.wav");
+
+		self->s.skinnum = 0; // Use a different skin
 	}
 
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+
+	// Adjust yaw speed based on weapon type
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 		self->yaw_speed = 15;
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER))
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE))
+		self->yaw_speed = 20; // Faster tracking for flechette
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE))
+		self->yaw_speed = 14; // Slower for grenade launcher
+
+	// Enable blindfire for certain weapons
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER |
+		SPAWNFLAG_TURRET2_FLECHETTE))
 		self->monsterinfo.blindfire = true;
 
 	if (self->monsterinfo.quadfire_time > level.time) {
