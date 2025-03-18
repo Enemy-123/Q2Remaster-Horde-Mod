@@ -1672,8 +1672,8 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Elite Flying Units (Waves 18-27)
 	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
 	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f},
-	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 27, 0.45f},
-	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Bomber, 24, 0.35f},
+	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 19, 0.45f},
+	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Bomber, 19, 0.35f},
 
 	// Elite Ground Units (Waves 18+)
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
@@ -1697,9 +1697,9 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f},
 
 	// Boss Units
-	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Heavy, 19, 0.2f},
-	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy, 19, 0.2f},
-	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Spawner, 27, 0.2f}
+	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
+	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
+	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy |  MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f}
 };
 
 static std::unordered_map<std::string_view, MonsterWaveType> monster_type_cache;
