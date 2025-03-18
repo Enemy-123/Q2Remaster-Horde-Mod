@@ -12,17 +12,13 @@ TURRET
 #include "m_rogue_turret.h"
 #include "../shared.h"
 
-constexpr spawnflags_t SPAWNFLAG_TURRET2_GRENADE = 0x0080_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = 0x0020_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = 0x0008_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = 0x0010_spawnflag;
-//constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = 0x0020_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = 0x0040_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_FLECHETTE;
-//constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
-
-
+constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = spawnflags_t(0x0008);
+constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = spawnflags_t(0x0010);
+constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = spawnflags_t(0x0020); // Keep original rocket flag
+constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = spawnflags_t(0x0100); // New unique value
+constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; // Same as blaster
+constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
+constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
 
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
@@ -1010,12 +1006,12 @@ void turret2Fire(edict_t* self) {
 		}
 	}
 
-	// Grenade Cooldown Check - ADDED HERE
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
-		if (level.time <= self->monsterinfo.last_sentry_missile_fire_time) { // Use same timer for simplicity, or create a new one if needed
-			return; // Cooldown not elapsed, don't fire grenade
-		}
-	}
+	//// Grenade Cooldown Check - ADDED HERE
+	//if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
+	//	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time) { // Use same timer for simplicity, or create a new one if needed
+	//		return; // Cooldown not elapsed, don't fire grenade
+	//	}
+	//}
 
 
 	// Fire appropriate weapon with reduced constraints
@@ -1066,16 +1062,16 @@ void turret2Fire(edict_t* self) {
 			TurretFireHeatbeam(self, hbstart, dir, tr);
 		}
 	}
-	// NEW: Grenade launcher option
-	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
-		// Fire grenades as primary weapon
-		TurretFireGrenade(self, start, dir, dist);
+	//// NEW: Grenade launcher option
+	//else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
+	//	// Fire grenades as primary weapon
+	//	TurretFireGrenade(self, start, dir, dist);
 
-		// Mix in some machinegun fire for short ranges
-		if (dist < 400.0f && frandom() < 0.3f) {
-			TurretFireMachinegun(self, start, dir);
-		}
-	}
+	//	// Mix in some machinegun fire for short ranges
+	//	if (dist < 400.0f && frandom() < 0.3f) {
+	//		TurretFireMachinegun(self, start, dir);
+	//	}
+	//}
 	// NEW: Flechette launcher option
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE)) {
 		// Fire flechettes as primary attack
@@ -1702,18 +1698,16 @@ void SP_monster_sentrygun(edict_t* self)
 
 //	 Updated random weapon selection to include new types
 	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE)) {
-		const int weaponChoice = irandom(0, 2); // Get a random integer: 0, 1, or 2
+		const float randomValue = frandom();
 
-		switch (weaponChoice) {
-		case 0:
+		if (randomValue < 0.3f) {
 			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
-			break;
-		case 1:
+		}
+		else if (randomValue < 0.7f) {
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
-			break;
-		case 2:
+		}
+		else {
 			self->spawnflags |= SPAWNFLAG_TURRET2_FLECHETTE;
-			break;
 		}
 	}
 
@@ -1819,17 +1813,7 @@ void SP_monster_sentrygun(edict_t* self)
 
 		self->s.skinnum = 0;
 	}
-	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE))
-	{
-		// Load grenade resources
-		gi.modelindex("models/objects/grenade/tris.md2");
-		gi.soundindex("gunner/gunatck3.wav");
-		gi.soundindex("tank/tnkpain2.wav");
-		gi.soundindex("weapons/grenlx1a.wav");
-		gi.soundindex("gunner/gunidle1.wav");
 
-		self->s.skinnum = 1; // Use a distinctive skin
-	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE))
 	{
 		// Load flechette resources
@@ -1838,6 +1822,12 @@ void SP_monster_sentrygun(edict_t* self)
 		gi.soundindex("tank/tnkpain2.wav");
 		gi.soundindex("weapons/hyprbf1a.wav");
 		gi.soundindex("gunner/gunidle1.wav");
+
+			gi.modelindex("models/objects/grenade/tris.md2");
+	gi.soundindex("gunner/gunatck3.wav");
+	gi.soundindex("tank/tnkpain2.wav");
+	gi.soundindex("weapons/grenlx1a.wav");
+	gi.soundindex("gunner/gunidle1.wav");
 
 		self->s.skinnum = 0; // Use a different skin
 	}
@@ -1849,8 +1839,8 @@ void SP_monster_sentrygun(edict_t* self)
 		self->yaw_speed = 15;
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE))
 		self->yaw_speed = 20; // Faster tracking for flechette
-	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE))
-		self->yaw_speed = 14; // Slower for grenade launcher
+	//else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE))
+	//	self->yaw_speed = 14; // Slower for grenade launcher
 
 	// Enable blindfire for certain weapons
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER |
