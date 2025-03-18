@@ -921,7 +921,7 @@ const std::unordered_map<std::string_view, std::string_view> name_replacements =
 		{ "monster_supertankkl", "Super-Tank" },
 		{ "monster_boss5", "Super-Tank" },
 		{ "monster_sentrygun", "Sentry-Gun" },
-		{ "monster_turret", "TurretGun" },
+		{ "monster_turret", "Turret" },
 		{ "monster_turretkl", "TurretGun" },
 		{ "monster_gnorta", "Gnorta" },
 		{ "monster_shocker", "Shocker" },

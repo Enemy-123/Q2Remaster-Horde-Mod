@@ -1625,9 +1625,9 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Early Flying Units (Waves 1-8)
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
-	//{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 16, 0.6f},
+	{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light |MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.5f},
 	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
-	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.5f},
+	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.6f},
 
 	// Special Wave Units (Waves 4-9)
 	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
@@ -1636,9 +1636,9 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
 
 	// Elite Infantry (Waves 4-12)
-	{"monster_soldier_hypergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 4, 0.7f},
-	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 6, 0.8f},
-	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 10, 0.8f},
+	{"monster_soldier_hypergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f},
+	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f},
+	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f},
 	{"monster_chick", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f},
 
 	// Medium Units (Waves 7-12)
@@ -1662,12 +1662,12 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Heavy Ground Units (Waves 12-18)
 	{"monster_gladiator", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
 	{"monster_gunner", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f},
-	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium, 13, 0.6f},
+	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 13, 0.6f},
 	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f},
 	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f},
 	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f},
 	{"monster_runnertank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 21, 0.5f},
-	{"monster_chick_heat", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 13, 0.6f},
+	{"monster_chick_heat", MonsterWaveType::Ground | MonsterWaveType::Heavy| MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f},
 
 	// Elite Flying Units (Waves 18-27)
 	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
@@ -2420,6 +2420,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		float weight = monster.weight;
 
 		// Apply level-based adjustments
+// Apply level-based adjustments
 		if (currentLevel <= 5) {
 			if (!HasWaveType(monster.types, MonsterWaveType::Light)) weight *= 0.3f;
 		}
@@ -2430,12 +2431,30 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			if (!HasWaveType(monster.types, MonsterWaveType::Medium)) weight *= 0.5f;
 		}
 		else {
-			if (!HasWaveType(monster.types, MonsterWaveType::Heavy | MonsterWaveType::Elite)) {
+			// Special handling for Flying monsters to ensure they remain relevant in higher waves
+			if (HasWaveType(monster.types, MonsterWaveType::Flying)) {
+				// Less severe penalty for flying monsters, which are more specialized
+				weight *= 0.8f;
+			}
+			else if (!HasWaveType(monster.types, MonsterWaveType::Heavy | MonsterWaveType::Elite)) {
 				weight *= 0.6f;
 			}
 			else {
 				weight *= 1.0f + ((currentLevel - 15) * 0.02f);
 			}
+		}
+
+		// Add after the level-based adjustments
+		// Ensure earlier monsters don't become too rare
+		if (monster.minWave < currentLevel) {
+			float relevance = 1.0f - std::min(0.4f, (currentLevel - monster.minWave) * 0.01f);
+			weight *= relevance;
+		}
+
+		// Add at the end of weight calculations, but with 0.2 instead of 0.3
+		// Ensure no monster drops below a reasonable minimum weight
+		if (weight < 0.2f && monster.weight >= 0.2f) {
+			weight = 0.2f;
 		}
 
 		// In emergency mode, make weights more uniform
