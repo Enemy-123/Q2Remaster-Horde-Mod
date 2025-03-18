@@ -1837,9 +1837,13 @@ int calculate_pull_force(const edict_t* ent)
 	return std::min(force, MAX_FORCE);
 }
 
+// Optimized and Combined BFG Think Function (Best of Both)
 THINK(bfg_think) (edict_t* self) -> void
 {
-	// Simplified lifetime check
+	// ---- Early Exit and Lifetime Checks (Snippet 1 & 2 - Combined) ----
+	if (!self || !self->owner)
+		return;
+
 	const gtime_t expiry_time = (self->timestamp != 0_ms) ?
 		self->timestamp :
 		(self->air_finished + BFG_MAX_LIFETIME);
@@ -1849,16 +1853,25 @@ THINK(bfg_think) (edict_t* self) -> void
 		return;
 	}
 
-	int dmg = deathmatch->integer ? 5 : 10;
-	bfg_spawn_laser(self);
+	// ---- Initialization & Pre-calculations (Snippet 1 & 2 - Combined & Optimized) ----
+	bfg_spawn_laser(self); // Keep visual lasers every frame
 
+	int dmg = deathmatch->integer ? 5 : 10;
 	const int bfgrange = calculate_bfg_range(self);
-	const int bfgrange_squared = bfgrange * bfgrange; // Precalculate squared range
+	const int bfgrange_squared = bfgrange * bfgrange;
+	const bool should_pull = g_bfgpull->integer && self->owner->client;
+	const vec3_t self_origin = self->s.origin; // Cache origin
+
+	// ---- Entity Processing Tracking (Snippet 1 - Crucial for performance & correctness) ----
+	static int processed_count = 0;
+	static edict_t* processed_entities[MAX_EDICTS]; // Static array for efficiency
+	processed_count = 0; // Reset processed entities each frame
 
 	edict_t* ent = nullptr;
-	while ((ent = findradius(ent, self->s.origin, bfgrange)) != nullptr)
+	while ((ent = findradius(ent, self_origin, bfgrange)) != nullptr)
 	{
-		if (ent == self || ent == self->owner || !ent->takedamage)
+		// ---- Quick Entity Validity Checks (Snippet 1 & 2 - Combined) ----
+		if (!ent->takedamage || ent == self || ent == self->owner)
 			continue;
 		if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) &&
 			(!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
@@ -1866,66 +1879,80 @@ THINK(bfg_think) (edict_t* self) -> void
 		if (CheckTeamDamage(ent, self->owner))
 			continue;
 
-		// Calculate entity center once
+		// ---- Calculate Entity Center and Direction (Snippet 1 & 2 - Combined & Optimized) ----
 		const vec3_t point = (ent->absmin + ent->absmax) * 0.5f;
+		vec3_t dir = self_origin - point;
+		const float dist_squared = dir.lengthSquared();
 
-		// Calculate direction once
-		vec3_t dir = self->s.origin - point;
+		if (dist_squared > bfgrange_squared)
+			continue; // Quick range check
 
-		// Use dot product or length_squared for efficiency
-// Use lengthSquared for efficiency
-		if (dir.lengthSquared() > bfgrange_squared)
-			continue;
-		dir.normalize();
+		const float dist = sqrtf(dist_squared); // Only calculate sqrt if in range
+		dir *= (1.0f / dist); // Normalize efficiently
 
-		const vec3_t start = self->s.origin;
-		const vec3_t end = start + (dir * -2048.0f);
-
-		// [Paril-KEX] don't fire a laser if we're blocked by the world
-		trace_t tr = gi.traceline(start, point, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
-
-		if (tr.fraction < 1.0f)
-			continue;
-
-		T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
-
-		tr = gi.traceline(start, end, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
-
-		// Use reference to dir to avoid copy
-		bfg_laser_pierce_t args{
-			self,
-			dir,
-			dmg
-		};
-
-		pierce_trace(start, end, self, args,
-			CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER |
-			CONTENTS_DEADMONSTER | CONTENTS_PROJECTILECLIP);
-
-		if (g_bfgpull->integer && self->owner->client)
-		{
-			if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
-			{
-				// Use the calculated pull force
-				const int knockback = calculate_pull_force(ent);
-				T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0,  // No direct damage 
-					knockback, // Use calculated force for knockback
-					DAMAGE_ENERGY,
-					MOD_BFG_LASER);
+		// ---- Entity Processing Check (Snippet 1 - Prevent Double Hits) ----
+		bool already_processed = false;
+		for (int i = 0; i < processed_count; i++) {
+			if (processed_entities[i] == ent) {
+				already_processed = true;
+				break;
 			}
 		}
+		if (already_processed)
+			continue; // Skip if already processed
 
+		// ---- Visibility Check (Snippet 1 & 2 - Combined - Single Trace for Initial Visibility) ----
+		trace_t tr = gi.traceline(self_origin, point, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
+		if (tr.fraction < 1.0f)
+			continue; // Not visible
+
+		// ---- Mark Entity as Processed (Snippet 1) ----
+		if (processed_count < MAX_EDICTS)
+			processed_entities[processed_count++] = ent;
+
+		// ---- Apply Initial Damage (Snippet 1 & 2 - Consistent Damage) ----
+		T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+
+		// ---- Piercing Laser Logic (Snippet 2 - Integrated) ----
+		vec3_t laser_end = self_origin + (dir * -2048.0f); // Precompute laser end
+		trace_t pierce_tr = gi.traceline(self_origin, laser_end, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
+		bfg_laser_pierce_t pierce_args{ self, dir, dmg };
+		pierce_trace(self_origin, laser_end, self, pierce_args,
+			CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER |
+			CONTENTS_DEADMONSTER | CONTENTS_PROJECTILECLIP);
+		laser_end = pierce_tr.endpos; // Update laser end to actual pierce end point
+
+		// ---- Pull Effect (Snippet 1 & 2 - Combined & Improved - Corrected Pull Force) ----
+		if (should_pull && ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
+		{
+			const int pull_force = calculate_pull_force(ent); // Use calculated force for both velocity and knockback
+
+			// Apply velocity pull (similar to Snippet 1, but using calculated force)
+			ent->velocity -= dir * pull_force;
+
+			// Break ground contact if pulling strongly (optional visual/gameplay effect)
+			if (ent->groundentity && pull_force >= 20) // Example threshold
+				ent->groundentity = nullptr;
+
+			// Apply knockback (Snippet 2 - Corrected, only knockback, no redundant damage)
+			T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0,  // No direct damage here
+				pull_force, // Use calculated force for knockback
+				DAMAGE_ENERGY,
+				MOD_BFG_LASER);
+		}
+
+		// ---- Visual Laser Effect (Snippet 1 & 2 - Combined - Using Pierce End) ----
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BFG_LASER);
-		gi.WritePosition(self->s.origin);
-		gi.WritePosition(tr.endpos);
-		gi.multicast(self->s.origin, MULTICAST_PHS, false);
+		gi.WritePosition(self_origin);
+		gi.WritePosition(laser_end); // Use the end position from the piercing trace
+		gi.multicast(self_origin, MULTICAST_PHS, false);
 	}
 
-	// Use constant for the next think time
+	// ---- Consistent Think Rate (Snippet 1 & 2 - Adjusted for balance) ----
 	const gtime_t next_think_time = g_bfgslide->integer ?
-		FRAME_TIME_MS * 1.75 :
-		FRAME_TIME_MS * 3;
+		FRAME_TIME_MS * 1.6 :  // Slightly faster for slide mode - tweaked value
+		FRAME_TIME_MS * 2.5;    // Slightly slower for normal mode - tweaked value
 	self->nextthink = level.time + next_think_time;
 }
 
