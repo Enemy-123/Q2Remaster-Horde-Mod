@@ -2946,7 +2946,7 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 }
 
 void BossDeathHandler(edict_t* boss) {
-	// All validations in a single condition with early return
+	// Fast early-out with combined validation
 	if (!g_horde->integer || !boss || !boss->inuse || !boss->monsterinfo.IS_BOSS ||
 		boss->monsterinfo.BOSS_DEATH_HANDLED || boss->health > 0) {
 		return;
@@ -2955,135 +2955,89 @@ void BossDeathHandler(edict_t* boss) {
 	// Mark as handled immediately to prevent double processing
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
-	// Handle entity tracking in one block
+	// Clean up entity tracking
 	OnEntityDeath(boss);
 	OnEntityRemoved(boss);
 	auto_spawned_bosses.erase(boss);
 
-	// Pre-define item drops as constants to avoid repeated string lookups
-	static const char* itemsToDrop[] = {
+	// Static drop tables to avoid repeated lookups
+	static const char* standardItems[] = {
 		"item_adrenaline", "item_pack", "item_sentrygun",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier",
 		"item_invulnerability", "ammo_nuke"
 	};
 
-	// Pre-calculate velocity parameters once for all items
-	static const vec3_t base_velocity(MIN_VELOCITY, MIN_VELOCITY, MIN_VERTICAL_VELOCITY);
-	static const vec3_t velocity_range(
-		MAX_VELOCITY - MIN_VELOCITY,
-		MAX_VELOCITY - MIN_VELOCITY,
-		MAX_VERTICAL_VELOCITY - MIN_VERTICAL_VELOCITY
-	);
-
-	// Weapon drop with improved selection and null checks
-	const char* weapon_classname = SelectBossWeaponDrop(current_wave_level);
-	if (weapon_classname) {
-		gitem_t* weapon_item = FindItemByClassname(weapon_classname);
-		if (weapon_item) {
-			edict_t* weapon = Drop_Item(boss, weapon_item);
-			if (weapon) {
-				// Generate velocity components in a single operation
-				const vec3_t weaponVelocity = base_velocity + velocity_range.scaled(
-					vec3_t{ frandom(), frandom(), frandom() }
-				);
-
-				// Set all properties in groups for better cache coherency
+	// Drop primary weapon based on wave level
+	if (const char* weapon_name = SelectBossWeaponDrop(current_wave_level)) {
+		if (gitem_t* weapon_item = FindItemByClassname(weapon_name)) {
+			if (edict_t* weapon = Drop_Item(boss, weapon_item)) {
+				// Set up weapon with enhanced visual effects
 				weapon->s.origin = boss->s.origin;
-				weapon->velocity = weaponVelocity;
+				weapon->velocity = {
+					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
+					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
+					static_cast<float>(irandom(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY))
+				};
 				weapon->movetype = MOVETYPE_BOUNCE;
-
-				// Set visual effects in one batch
 				weapon->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
 				weapon->s.renderfx = RF_GLOW;
 				weapon->s.alpha = 0.85f;
 				weapon->s.scale = 1.25f;
-
-				// Set flags in one operation
 				weapon->spawnflags = SPAWNFLAG_ITEM_DROPPED_PLAYER;
 				weapon->flags &= ~FL_RESPAWN;
-
-				// Link entity once after all properties are set
 				gi.linkentity(weapon);
 			}
 		}
 	}
 
-	// Special item drop (quad or quadfire) with single random check
-	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
-	gitem_t* special_item = FindItemByClassname(specialItemName);
-	if (special_item) {
-		edict_t* specialItem = Drop_Item(boss, special_item);
-		if (specialItem) {
-			// Set velocity in a single operation using static distributions
-			static std::uniform_int_distribution<int> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
-			static std::uniform_int_distribution<int> vert_dist(300, 400);
-
-			const vec3_t specialVelocity{
-				static_cast<float>(vel_dist(mt_rand)),
-				static_cast<float>(vel_dist(mt_rand)),
-				static_cast<float>(vert_dist(mt_rand))
+	// Drop special power-up (quad or quadfire)
+	if (gitem_t* special_item = FindItemByClassname(brandom() ? "item_quadfire" : "item_quad")) {
+		if (edict_t* powerup = Drop_Item(boss, special_item)) {
+			powerup->s.origin = boss->s.origin;
+			powerup->velocity = {
+				static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
+				static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
+				static_cast<float>(irandom(300, 400))
 			};
-
-			// Group properties by type
-			specialItem->s.origin = boss->s.origin;
-			specialItem->velocity = specialVelocity;
-			specialItem->movetype = MOVETYPE_BOUNCE;
-
-			// Set effects in one operation
-			specialItem->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
-			specialItem->s.alpha = 0.8f;
-			specialItem->s.scale = 1.5f;
-			specialItem->flags &= ~FL_RESPAWN;
-
-			// Link entity once
-			gi.linkentity(specialItem);
+			powerup->movetype = MOVETYPE_BOUNCE;
+			powerup->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
+			powerup->s.alpha = 0.8f;
+			powerup->s.scale = 1.5f;
+			powerup->flags &= ~FL_RESPAWN;
+			gi.linkentity(powerup);
 		}
 	}
 
-	// Fisher-Yates shuffle with stack-allocated array
-	// Use memcpy instead of manual assignment for array initialization
-	char const* shuffledItems[8];
-	memcpy(shuffledItems, itemsToDrop, sizeof(itemsToDrop));
-
-	// Optimize shuffle to use fewer operations
+	// Randomize standard item drops using Fisher-Yates shuffle
+	std::array<const char*, 8> shuffled;
+	std::copy(std::begin(standardItems), std::end(standardItems), shuffled.begin());
 	for (int i = 7; i > 0; --i) {
-		int j = mt_rand() % (i + 1);
+		int j = irandom(0, i);
 		if (i != j) {
-			std::swap(shuffledItems[i], shuffledItems[j]);
+			std::swap(shuffled[i], shuffled[j]);
 		}
 	}
 
-	// Pre-create velocity distributions once
-	static std::uniform_int_distribution<int> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
-	static std::uniform_int_distribution<int> vert_dist(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
-
-	// Drop regular items in batches
-	for (int i = 0; i < 8; ++i) {
-		gitem_t* item = FindItemByClassname(shuffledItems[i]);
-		if (!item) continue;
-
-		edict_t* droppedItem = Drop_Item(boss, item);
-		if (droppedItem) {
-			// Create velocity vector in a single operation
-			droppedItem->velocity = vec3_t{
-				static_cast<float>(vel_dist(mt_rand)),
-				static_cast<float>(vel_dist(mt_rand)),
-				static_cast<float>(vert_dist(mt_rand))
-			};
-
-			// Set origin and properties in grouped operations
-			droppedItem->s.origin = boss->s.origin;
-			droppedItem->movetype = MOVETYPE_BOUNCE;
-			droppedItem->flags &= ~FL_RESPAWN;
-			droppedItem->s.effects |= EF_GIB;
-			droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
-
-			// Link entity once
-			gi.linkentity(droppedItem);
+	// Drop standard items
+	for (const char* item_name : shuffled) {
+		if (gitem_t* item = FindItemByClassname(item_name)) {
+			if (edict_t* drop = Drop_Item(boss, item)) {
+				drop->s.origin = boss->s.origin;
+				drop->velocity = {
+					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
+					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
+					static_cast<float>(irandom(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY))
+				};
+				drop->movetype = MOVETYPE_BOUNCE;
+				drop->flags &= ~FL_RESPAWN;
+				drop->s.effects |= EF_GIB;
+				drop->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+				gi.linkentity(drop);
+			}
 		}
 	}
 
-	// Clear combat flags at the end
+	// Clean up boss entity
 	boss->takedamage = false;
 	boss->solid = SOLID_NOT;
 	gi.linkentity(boss);
@@ -5473,64 +5427,73 @@ static const std::unordered_map<RewardType, RewardInfo> REWARD_TABLE = {
 	{RewardType::SENTRY_GUN, {IT_ITEM_SENTRYGUN, 40}}    // Less common
 };
 
-// Function to handle reward selection and distribution
+// Pre-computed total reward weight (calculated once)
+static const int TOTAL_REWARD_WEIGHT = [] {
+	int total = 0;
+	for (const auto& [type, info] : REWARD_TABLE) {
+		total += info.weight;
+	}
+	return total;
+	}();
+
+// Direct-access array of reward items for faster lookup
+static const std::array<std::pair<item_id_t, int>, 2> REWARD_ITEMS = { {
+	{IT_ITEM_BANDOLIER, 60},
+	{IT_ITEM_SENTRYGUN, 40}
+} };
+
 static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::string& playerName) {
+	// Quick validation with early return
 	if (!topDamager.player || !topDamager.player->inuse || !topDamager.player->client)
 		return false;
 
-	try {
-		// Calculate total weight
-	const	int totalWeight = std::accumulate(REWARD_TABLE.begin(), REWARD_TABLE.end(), 0,
-			[](int sum, const auto& pair) { return sum + pair.second.weight; });
+	// Select reward using pre-computed weights
+	const int roll = irandom(1, TOTAL_REWARD_WEIGHT);
 
-		// Select reward
-		std::uniform_int_distribution<int> dist(1, totalWeight);
-		const int randomNum = dist(mt_rand);
+	// Determine selected item
+	item_id_t selectedItemId = IT_ITEM_BANDOLIER; // Default fallback
+	int currentWeight = 0;
 
-		item_id_t selectedItemId = IT_ITEM_BANDOLIER; // Default fallback
-		int currentWeight = 0;
-		for (const auto& [type, info] : REWARD_TABLE) {
-			currentWeight += info.weight;
-			if (randomNum <= currentWeight) {
-				selectedItemId = info.item_id;
-				break;
-			}
+	for (const auto& [itemId, weight] : REWARD_ITEMS) {
+		currentWeight += weight;
+		if (roll <= currentWeight) {
+			selectedItemId = itemId;
+			break;
 		}
-
-		// Spawn and give item
-		gitem_t* it = GetItemByIndex(selectedItemId);
-		if (!it || !it->classname)
-			return false;
-
-		edict_t* it_ent = G_Spawn();
-		if (!it_ent)
-			return false;
-
-		it_ent->classname = it->classname;
-		it_ent->item = it;
-		SpawnItem(it_ent, it, spawn_temp_t::empty);
-
-		if (!it_ent->inuse)
-			return false;
-
-		Touch_Item(it_ent, topDamager.player, null_trace, true);
-		if (it_ent->inuse)
-			G_FreeEdict(it_ent);
-
-		// Safe announcement
-		const char* itemName = it->use_name ? it->use_name : it->classname;
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
-			playerName.empty() ? "Unknown Player" : playerName.c_str(),
-			itemName ? itemName : "reward");
-
-		return true;
 	}
-	catch (const std::exception& e) {
-		gi.Com_PrintFmt("Error giving reward: {}\n", e.what());
+
+	// Get item by ID
+	gitem_t* item = GetItemByIndex(selectedItemId);
+	if (!item || !item->classname)
 		return false;
-	}
-}
 
+	// Spawn and give item directly to player
+	edict_t* entity = G_Spawn();
+	if (!entity)
+		return false;
+
+	entity->classname = item->classname;
+	entity->item = item;
+	SpawnItem(entity, item, spawn_temp_t::empty);
+
+	if (!entity->inuse)
+		return false;
+
+	// Give item to player
+	Touch_Item(entity, topDamager.player, null_trace, true);
+	if (entity->inuse)
+		G_FreeEdict(entity);
+
+	// Announce reward (safely handle potential null strings)
+	const char* itemName = item->use_name ? item->use_name :
+		(item->classname ? item->classname : "reward");
+
+	gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
+		playerName.empty() ? "Unknown Player" : playerName.c_str(),
+		itemName);
+
+	return true;
+}
 static void SendCleanupMessage(WaveEndReason reason) {
 	// Avoid try-catch for performance in normal operation
 	// Wave completion message - use switch for better performance
