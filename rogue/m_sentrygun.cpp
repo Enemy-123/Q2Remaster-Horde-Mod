@@ -17,10 +17,10 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = 0x0010_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = 0x0040_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER;
 //constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
-//constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
+constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 
 constexpr spawnflags_t SPAWNFLAG_TURRET2_GRENADE = 0x0080_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = 18_spawnflag_bit;
+constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = 0x0020_spawnflag;
 
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
@@ -144,23 +144,9 @@ void turret2Aim(edict_t* self)
 	dir = end - self->s.origin;
 	ang = vectoangles(dir);
 
-	//
-	// Clamp first - improved angle constraints
-	//
 
 	idealPitch = ang[PITCH];
 	idealYaw = ang[YAW];
-
-	// Normalize angles before any calculations to avoid edge cases
-	while (idealPitch > 360.0f)
-		idealPitch -= 360.0f;
-	while (idealPitch < 0.0f)
-		idealPitch += 360.0f;
-
-	while (idealYaw > 360.0f)
-		idealYaw -= 360.0f;
-	while (idealYaw < 0.0f)
-		idealYaw += 360.0f;
 
 	orientation = (int)self->offset[1];
 	switch (orientation)
@@ -188,7 +174,8 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		// Improved yaw constraints for +X orientation
+		//			yaw: 270 to 360, 0 to 90
+		//			yaw: -90 to 90 (270-360 == -90-0)
 		if (idealYaw > 180)
 			idealYaw -= 360;
 		if (idealYaw > 85)
@@ -205,13 +192,14 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		// Improved yaw constraints for +Y orientation
+		//			yaw: 0 to 180
 		if (idealYaw > 270)
 			idealYaw -= 360;
 		if (idealYaw > 175)
 			idealYaw = 175;
 		else if (idealYaw < 5)
 			idealYaw = 5;
+
 		break;
 	case 180: // -X	pitch: 0 to 90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
@@ -222,13 +210,12 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		// Improved yaw constraints for -X orientation
-		if (idealYaw < 90)
-			idealYaw += 360; // Normalize to handle wrap-around
+		//			yaw: 90 to 270
 		if (idealYaw > 265)
 			idealYaw = 265;
 		else if (idealYaw < 95)
 			idealYaw = 95;
+
 		break;
 	case 270: // -Y	pitch: 0 to 90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
@@ -239,7 +226,7 @@ void turret2Aim(edict_t* self)
 		else if (idealPitch < -85)
 			idealPitch = -85;
 
-		// Improved yaw constraints for -Y orientation
+		//			yaw: 180 to 360
 		if (idealYaw < 90)
 			idealYaw += 360;
 		if (idealYaw > 355)
@@ -249,6 +236,80 @@ void turret2Aim(edict_t* self)
 		break;
 	}
 
+	//
+	// adjust pitch
+	//
+	current = self->s.angles[PITCH];
+	speed = self->yaw_speed / (gi.tick_rate / 10);
+
+	if (idealPitch != current)
+	{
+		move = idealPitch - current;
+
+		while (move >= 360)
+			move -= 360;
+		if (move >= 90)
+		{
+			move = move - 360;
+		}
+
+		while (move <= -360)
+			move += 360;
+		if (move <= -90)
+		{
+			move = move + 360;
+		}
+
+		if (move > 0)
+		{
+			if (move > speed)
+				move = speed;
+		}
+		else
+		{
+			if (move < -speed)
+				move = -speed;
+		}
+
+		self->s.angles[PITCH] = anglemod(current + move);
+	}
+
+	//
+	// adjust yaw
+	//
+	current = self->s.angles[YAW];
+
+	if (idealYaw != current)
+	{
+		move = idealYaw - current;
+
+		//		while(move >= 360)
+		//			move -= 360;
+		if (move >= 180)
+		{
+			move = move - 360;
+		}
+
+		//		while(move <= -360)
+		//			move += 360;
+		if (move <= -180)
+		{
+			move = move + 360;
+		}
+
+		if (move > 0)
+		{
+			if (move > speed)
+				move = speed;
+		}
+		else
+		{
+			if (move < -speed)
+				move = -speed;
+		}
+
+		self->s.angles[YAW] = anglemod(current + move);
+	}
 	//
 	// Calculate dynamic speed based on angle difference
 	//
@@ -364,8 +425,8 @@ void turret2Aim(edict_t* self)
 		self->s.angles[YAW] = newAngle;
 	}
 
-	//if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
-	//	return;
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
+		return;
 
 	// Paril: improved turrets; draw lasersight
 	if (!self->target_ent)
@@ -594,11 +655,13 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 
 //Fire rocket
 static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
-	// Check fire rate
+	// Check fire rate - REMOVED
+	
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
 		(self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec)) {
 		return;
 	}
+	
 
 	// Verify clear shot
 	const vec3_t offset = { 20.f, 0.f, 0.f };
@@ -656,17 +719,19 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 
 	const int damage = static_cast<int>(CalculateDamage(self, 100));
 	fire_rocket(self->owner, start, fire_dir, damage, speed, 120, damage);
-	self->monsterinfo.last_sentry_missile_fire_time = level.time;
+	self->monsterinfo.last_sentry_missile_fire_time = level.time + 2_sec; //FORCE 2 seconds cooldown
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
 
 //Fire plasma
 static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& dir) {
-	// Check fire rate
+	// Check fire rate - REMOVED
+	
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
 		(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
 		return;
 	}
+	
 
 	// Verify clear shot
 	const vec3_t offset = { 20.f, 0.f, 0.f };
@@ -720,7 +785,7 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 
 	const int damage = static_cast<int>(CalculateDamage(self, 100));
 	fire_plasma(self->owner, start, fire_dir, damage, projectileSpeed, 120, damage);
-	self->monsterinfo.last_sentry_missile_fire_time = level.time;
+	self->monsterinfo.last_sentry_missile_fire_time = level.time + 2_sec; //FORCE 2 seconds cooldown
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
 
@@ -734,7 +799,7 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 	}
 
 	const int damage = static_cast<int>(CalculateDamage(self, 6));
-	const float speed = self->monsterinfo.quadfire_time > level.time ? 2050.0f : 1750.0f;
+	const float speed = self->monsterinfo.quadfire_time > level.time ? 4000.0f : 3200.0f;
 
 	// Main shot
 	fire_flechette(self, start, dir, damage, speed, 5);
@@ -764,94 +829,57 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 
 
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
-	// Check fire rate with more aggressive timing for quad
+	// Check fire rate (keep this)
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
 		(self->monsterinfo.quadfire_time > level.time ? 0.5_sec : 1.0_sec)) {
 		return;
 	}
 
-	// Verify clear shot - but don't return if not clear, just try to adjust
+	// Verify clear shot (keep this)
 	const vec3_t offset = { 20.f, 0.f, 0.f };
 	vec3_t shot_start;
 	bool has_clear_shot = M_CheckClearShot(self, offset, shot_start);
-
-	// If no clear shot and we're too close, don't fire grenade
-	// We'll use 64 units as a more aggressive minimum range (lower than rockets)
 	if (!has_clear_shot) {
 		return;
 	}
 
-	const float speed = self->monsterinfo.quadfire_time > level.time ? 900.0f : 760.0f;
-	vec3_t fire_dir = dir;
-	float pitch = 0;
+	const float speed = self->monsterinfo.quadfire_time > level.time ? 2000.0f : 1720.0f;
+	vec3_t fire_dir; // Declare fire_dir here
 
-	// Enhanced targeting system
-	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
-		// Calculate pitch based on distance
+	// **PREDICTIVE AIMING USING PredictAim and then PITCH CALCULATION**
 	{
-			// For longer distances, add more arc to the grenade
-			vec3_t aim = self->enemy->s.origin - self->s.origin;
-			pitch = aim[2] / aim.length();
+		vec3_t predicted_target_pos;
+		vec3_t dummy_aimdir; // We don't need aimdir from PredictAim here, we'll get it from M_CalculatePitchToFire
 
-			// Limit pitch range
-			if (pitch > 0.4f)
-				pitch = 0.4f;
-			else if (pitch < -0.5f)
-				pitch = -0.5f;
+		PredictAim(self, self->enemy, start, speed, true, 0.0f, &dummy_aimdir, &predicted_target_pos); // Predict target position
 
-			// Add extra arc for longer ranges
-			if (dist > 512.0f)
-				pitch += 0.15f;
+		vec3_t aim_vec = (predicted_target_pos - start).normalized(); // Initial aim direction towards predicted position
+		float time_to_target_guess = dist / speed; // You can still use the distance for a rough guess
+
+		if (M_CalculatePitchToFire(self, predicted_target_pos, start, aim_vec, speed, time_to_target_guess, false, true))
+		{
+			fire_dir = aim_vec; // M_CalculatePitchToFire will adjust aim_vec (which is now fire_dir) to include the correct pitch
 		}
-
-		// Try to use prediction for moving targets
-		if (self->enemy->velocity.lengthSquared() > 1.0f) {
-			vec3_t predicted_dir, predicted_pos;
-			// Use a slightly lower speed for prediction to account for grenade arc
-			PredictAim(self, self->enemy, start, speed * 0.9f, false, 0.f, &predicted_dir, &predicted_pos);
-
-			// Verify predicted shot isn't blocked
-			trace_t pred_tr = gi.traceline(start, predicted_pos, self, MASK_PROJECTILE);
-			if (pred_tr.fraction >= 0.7f) {
-				fire_dir = predicted_dir;
-
-				// Apply pitch adjustment to predicted direction
-				vec3_t up = { 0, 0, 1 };
-				fire_dir = fire_dir + (up * pitch);
-				fire_dir.normalize();
-			}
-		}
-		else {
-			// For stationary targets, use a simpler arc
-			vec3_t up = { 0, 0, 1 };
-			fire_dir = fire_dir + (up * pitch);
-			fire_dir.normalize();
+		else
+		{
+		//	gi.Com_PrintFmt("Turret: M_CalculatePitchToFire failed (even with prediction), using direct shot!\n");
+			fire_dir = dir; // Fallback to direct shot if pitch calculation fails
 		}
 	}
-	else {
-		// Blindfire spread for grenades
-		float spread = frandom() < 0.3f ?
-			(self->monsterinfo.quadfire_time > level.time ? 0.05f : 0.1f) : 0.0f;
-		fire_dir[0] += crandom() * spread;
-		fire_dir[1] += crandom() * spread;
+	// **END PREDICTIVE AIMING**
 
-		// Add upward arc for blindfire grenades
-		fire_dir[2] += 0.1f + (crandom() * 0.05f);
-		fire_dir = safe_normalized(fire_dir);
-	}
 
-	// Calculate damage with bonus for quad
+	// Calculate damage (keep this)
 	const int damage = static_cast<int>(CalculateDamage(self, 120));
 
-	// Fire the grenade with appropriate parameters
+	// Fire grenade (keep zero spread)
 	fire_grenade(self, start, fire_dir, damage, speed,
-		3_sec, 80, (crandom_open() * 10.0f), // Random horizontal spread
-		200.f + (crandom_open() * 10.0f), false); // Timer with slight randomness
+		3_sec, 0, 0.0f,
+		200.f, false);
 
-	self->monsterinfo.last_sentry_missile_fire_time = level.time;
+	self->monsterinfo.last_sentry_missile_fire_time = level.time + 2_sec;
 	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
 }
-
 void turret2Fire(edict_t* self) {
 	if (!self || !self->inuse)
 		return;
@@ -940,6 +968,14 @@ void turret2Fire(edict_t* self) {
 		}
 	}
 
+	// Grenade Cooldown Check - ADDED HERE
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
+		if (level.time <= self->monsterinfo.last_sentry_missile_fire_time) { // Use same timer for simplicity, or create a new one if needed
+			return; // Cooldown not elapsed, don't fire grenade
+		}
+	}
+
+
 	// Fire appropriate weapon with reduced constraints
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN)) {
 		// Handle machinegun state
@@ -1009,10 +1045,8 @@ void turret2Fire(edict_t* self) {
 		}
 	}
 
-	// Update the last missile fire time to track successful firing
-	self->monsterinfo.last_sentry_missile_fire_time = level.time;
+	// last_sentry_missile_fire_time is now set inside each fire function (rocket, plasma, grenade)
 }
-
 // PMM
 void turret2FireBlind(edict_t* self)
 {
@@ -1575,7 +1609,7 @@ void SP_monster_sentrygun(edict_t* self)
 
 
 #define playeref self->owner->s.effects;
-	self->monsterinfo.last_sentry_missile_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
+	self->monsterinfo.last_sentry_missile_fire_time = gtime_t::from_sec(2); // Inicializa el tiempo de último disparo de cohete
 	int angle;
 
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
@@ -1624,20 +1658,21 @@ void SP_monster_sentrygun(edict_t* self)
 	// map designer didn't specify weapon type. set it now.
 	const float randomValue = frandom();
 
-	// Updated random weapon selection to include new types
+//	 Updated random weapon selection to include new types
 	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE)) {
-		//if (randomValue < 0.2f) {
-		//	self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
-		//}
-		//else if (randomValue < 0.5f) {
-		//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
-		//}
-		//else if (randomValue < 0.7f) {
-		//	self->spawnflags |= SPAWNFLAG_TURRET2_GRENADE;
-		//}
-		//else {
+		const int weaponChoice = irandom(0, 2); // Get a random integer: 0, 1, or 2
+
+		switch (weaponChoice) {
+		case 0:
+			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
+			break;
+		case 1:
+			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+			break;
+		case 2:
 			self->spawnflags |= SPAWNFLAG_TURRET2_FLECHETTE;
-		//}
+			break;
+		}
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_HEATBEAM))

@@ -27,7 +27,6 @@ fire_flechette
 //	return;
 //}
 ///
-
 TOUCH(flechette_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other == self->owner)
@@ -44,7 +43,18 @@ TOUCH(flechette_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 	if (other->takedamage)
 	{
-		T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal,
+		// Determine the attacker
+		edict_t* attacker;
+		if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
+		{
+			attacker = self->owner->owner; // If the owner is a turret, the attacker is the turret's owner (the player)
+		}
+		else
+		{
+			attacker = self->owner; // Otherwise, the attacker is the owner
+		}
+
+		T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal,
 			self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
 	}
 	else
