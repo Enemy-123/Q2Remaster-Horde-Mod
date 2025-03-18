@@ -168,11 +168,12 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	dir = self->s.origin - position;
 	dir.normalize();
 
+
 	// Create the turret entity
 	ent = G_Spawn();
 	if (!ent)
 		return;
-
+	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	ent->classname = "monster_turret";
 
 	// Position the turret
@@ -1850,7 +1851,7 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 	}
 
 	// If this is a boss, sometimes choose to spawn turrets
-	if (self->monsterinfo.IS_BOSS && frandom() < 0.35f && M_SlotsLeft(self) > 0) {
+	if (self->monsterinfo.IS_BOSS && frandom() < 0.45f && M_SlotsLeft(self) > 0) {
 		M_SetAnimation(self, &fixbot_move_spawn);
 		return;
 	}
@@ -1970,8 +1971,8 @@ void SP_monster_fixbotkl(edict_t* self) {
 
 	self->max_health = 7500;
 	self->health = self->max_health;
-	self->s.scale = 5.0f;
-	self->mins *= 5.0f;
-	self->maxs *= 5.0f;
+	self->s.scale = 4.0f;
+	self->mins *= 4.0f;
+	self->maxs *= 4.0f;
 
 }

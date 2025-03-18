@@ -1762,7 +1762,7 @@ struct boss_t {
 static constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
 	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
-	{"monster_fixbotkl", 14, -1, 0.1f, BossSizeCategory::Small, BossType::FIXBOTKL},
+	{"monster_fixbotkl", 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small, BossType::WIDOW2},
 	{"monster_tank_64", -1, -1, 0.25f, BossSizeCategory::Small, BossType::TANK_64},
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small, BossType::SHAMBLERKL},
@@ -1778,7 +1778,7 @@ static constexpr boss_t BOSS_SMALL[] = {
 static constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
-	{"monster_fixbotkl", 14, -1, 0.1f, BossSizeCategory::Small, BossType::FIXBOTKL},
+	{"monster_fixbotkl", 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
 	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium, BossType::TANK_64},
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
 	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
@@ -1796,7 +1796,7 @@ static constexpr boss_t BOSS_MEDIUM[] = {
 static constexpr boss_t BOSS_LARGE[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
-	{"monster_fixbotkl", 14, -1, 0.1f, BossSizeCategory::Small, BossType::FIXBOTKL},
+	{"monster_fixbotkl", 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
 	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
 	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large, BossType::TANK_64},
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large, BossType::SHAMBLERKL},
@@ -3296,8 +3296,8 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 // Incluye otras cabeceras y definiciones necesarias
 static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
 	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
-	{"monster_boss2kl", "***** Boss incoming! Hornet 'the swarm' is about to strike! *****\n"},
-	{"monster_fixbotkl", "***** Boss incoming! Fixbot went attack mode *****\n"},
+	{"monster_boss2kl", "***** Boss incoming! Hornet is about to strike! *****\n"},
+	{"monster_fixbotkl", "***** Boss incoming! The Fixer is coming to fix this... *****\n"},
 	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
 	{"monster_carrier", "***** Boss incoming! Carrier’s here with a deadly payload! *****\n"},
 	{"monster_tank_64", "***** Boss incoming! Tank Commander is here to take limbs! *****\n"},
@@ -3474,6 +3474,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		{"monster_carrier", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
 		{"monster_carrier_mini", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
 		{"monster_boss2kl", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+		{"monster_fixbotkl", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
 		{"monster_tank_64", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
 		{"monster_supertank", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
 		{"monster_psxguardian", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
