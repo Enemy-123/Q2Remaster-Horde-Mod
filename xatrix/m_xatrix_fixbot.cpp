@@ -90,7 +90,19 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 {
+	// Validate input
+	if (!laser || !laser->inuse)
+		return;
+
 	edict_t* self = laser->owner;
+
+	// Owner check - critical for safety
+	if (!self || !self->inuse) {
+		if (laser->inuse) {
+			G_FreeEdict(laser);
+		}
+		return;
+	}
 
 	// Start position
 	vec3_t start, dir;
@@ -98,8 +110,7 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 	start = self->s.origin + (dir * 16);
 
 	// If we have a spawn position, aim at it
-	if (g_is_spawning && !g_spawn_position.equals(vec3_origin))
-	{
+	if (g_is_spawning && !g_spawn_position.equals(vec3_origin)) {
 		dir = g_spawn_position - start;
 		dir.normalize();
 	}
@@ -110,14 +121,17 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 	dabeam_update(laser, true);
 }
 
-
 void fixbot_fire_spawn_laser(edict_t* self)
 {
+	// Safety check
+	if (!self || !self->inuse)
+		return;
+
 	// Only proceed if we're in spawning mode
 	if (!g_is_spawning)
 		return;
 
-	// Fire the laser beam effect
+	// Fire the laser beam effect with safety check
 	monster_fire_dabeam(self, -1, false, fixbot_spawn_laser_update);
 
 	// Add some particle effects at the target location for better visuals
@@ -132,7 +146,6 @@ void fixbot_fire_spawn_laser(edict_t* self)
 		gi.multicast(g_spawn_position, MULTICAST_PVS, false);
 	}
 }
-
 
 void fixbot_start_spawn(edict_t* self)
 {
@@ -227,20 +240,34 @@ void fixbot_prep_spawn(edict_t* self)
 // Update the spawn check function
 void fixbot_spawn_check(edict_t* self)
 {
+	// Safety check first
+	if (!self || !self->inuse)
+		return;
+
 	// Only spawn if we have slots available and is boss and is actually in spawning mode
-	if (self->monsterinfo.IS_BOSS && M_SlotsLeft(self) > 0 && g_is_spawning) {
-		spawn_turret_at_position(self, g_spawn_position);
+	if (self->monsterinfo.IS_BOSS &&
+		self->monsterinfo.monster_slots &&
+		self->monsterinfo.monster_slots > self->monsterinfo.monster_used &&
+		g_is_spawning) {
+
+		// Validate spawn position
+		if (!g_spawn_position.equals(vec3_origin)) {
+			spawn_turret_at_position(self, g_spawn_position);
+		}
 	}
 
 	// Reset spawning state
 	g_is_spawning = false;
 	g_spawn_position = vec3_origin;
-	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+
+	// Clear manual steering flag
+	if (self && self->inuse)
+		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 
 	// Turn off any spawn visual effects
-	self->s.effects &= ~EF_HYPERBLASTER;
+	if (self && self->inuse)
+		self->s.effects &= ~EF_HYPERBLASTER;
 }
-
 
 void fixbot_spawn_turret(edict_t* self)
 {
@@ -378,30 +405,54 @@ static void fixbot_set_attack_fly_parameters(edict_t* self)
 
 
 edict_t* fixbot_FindLiveEnemy(edict_t* self) {
+	// Early validation check
+	if (!self || !self->inuse)
+		return nullptr;
+
+	// Variable declaration with safe distance limits
 	edict_t* ent = nullptr;
 	edict_t* best = nullptr;
-	float best_dist = 1500;  // Increased detection range from 1024
+	float best_dist_squared = 1500 * 1500;  // Use squared distance for better performance
 
-	while ((ent = findradius(ent, self->s.origin, 1500)) != nullptr) {
-		if (ent == self || !ent->inuse)
+	// Get self origin once outside the loop
+	vec3_t self_origin = self->s.origin;
+
+	while ((ent = findradius(ent, self_origin, 1500)) != nullptr) {
+		// Skip invalid entities and self
+		if (!ent->inuse || ent == self)
 			continue;
-		if (!(ent->client) && !(ent->svflags & SVF_MONSTER)) // Target players and monsters
+
+		// Skip dead entities
+		if (ent->health <= 0 || ent->deadflag)
 			continue;
-		if (ent->health <= 0)
+
+		// Skip teammates and summoned units if we're summoned
+		if (OnSameTeam(self, ent) || (self->monsterinfo.issummoned && ent->monsterinfo.issummoned))
 			continue;
+
+		// For performance, do expensive checks on potentially valid targets only
+		if (!(ent->client || (ent->svflags & SVF_MONSTER)))
+			continue;
+
+		// Skip invisible players
+		if (ent->client && ent->client->invisible_time > level.time &&
+			ent->client->invisibility_fade_time <= level.time)
+			continue;
+
+		// Check distance first (cheaper than visibility check)
+		float dist_squared = DistanceSquared(self_origin, ent->s.origin);
+		if (dist_squared >= best_dist_squared)
+			continue;
+
+		// Visibility check - most expensive, do last
 		if (!visible(self, ent))
 			continue;
-		// NEW: Skip entities on the same team
-		if (OnSameTeam(self, ent))
-			continue;
 
-		// Prioritize closer enemies
-		float dist = (self->s.origin - ent->s.origin).length();
-		if (!best || dist < best_dist) {
-			best = ent;
-			best_dist = dist;
-		}
+		// We found a better candidate
+		best = ent;
+		best_dist_squared = dist_squared;
 	}
+
 	return best;
 }
 
