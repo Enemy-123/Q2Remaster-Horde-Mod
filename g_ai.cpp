@@ -724,6 +724,13 @@ void HuntTarget(edict_t* self, bool animate_state)
 {
 	vec3_t vec;
 
+	// Safety check to prevent access violation
+	if (!self->enemy || !self->enemy->inuse)
+	{
+		// Maybe set a default target or just return
+		return;
+	}
+
 	self->goalentity = self->enemy;
 	if (animate_state)
 	{

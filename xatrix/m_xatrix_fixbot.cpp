@@ -172,22 +172,42 @@ void fixbot_start_spawn(edict_t* self)
 
 
 // New function to spawn a turret at a specific position
+// Spawn a turret at a specific position with proper safety checks
 void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
+	// Validate caller
+	if (!self || !self->inuse)
+	{
+		gi.Com_PrintFmt("spawn_turret_at_position: invalid caller\n");
+		return;
+	}
+
 	vec3_t dir;
 	edict_t* ent;
 
-	// Direction from position to fixbot (to make turret face away from wall)
+	// Calculate direction vector (from position to fixbot)
 	dir = self->s.origin - position;
-	dir.normalize();
-
+	if (dir.normalize() < 0.01f)  // Check if normalization worked
+	{
+		// If positions are too close, use a default direction
+		dir = { 0, 0, 1 };
+	}
 
 	// Create the turret entity
 	ent = G_Spawn();
 	if (!ent)
+	{
+		gi.Com_PrintFmt("spawn_turret_at_position: failed to spawn entity\n");
 		return;
+	}
+
+	// Set basic properties - CRITICAL: Initialize enemy to nullptr
+	ent->enemy = nullptr;
+	ent->goalentity = nullptr;
+	ent->movetarget = nullptr;
 	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	ent->classname = "monster_turret";
+	ent->owner = self;
 
 	// Position the turret
 	ent->s.origin = position;
@@ -199,8 +219,10 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
 	ent->monsterinfo.commander = self;
 
-	// Sound and visual effects
-	gi.sound(self, CHAN_AUTO, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
+	// Sound and visual effects - but check sound_spawn is valid first
+	if (sound_spawn)
+		gi.sound(self, CHAN_AUTO, sound_spawn, 1,
+			self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 
 	// Visual effect for spawning
 	gi.WriteByte(svc_temp_entity);
@@ -212,8 +234,27 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	if (self->monsterinfo.monster_slots)
 		self->monsterinfo.monster_used += 1;
 
+	// Before spawn, add some flags that might prevent instant targeting
+	ent->svflags |= SVF_NOCLIENT;  // Make temporarily invisible to prevent instant targeting
+
 	// Use ED_CallSpawn to properly initialize the turret
 	ED_CallSpawn(ent);
+
+	// Post-spawn safety checks
+	if (ent->inuse)
+	{
+		// Make sure enemy is NULL even after initialization
+		ent->enemy = nullptr;
+		ent->monsterinfo.search_time = level.time + 2_sec;  // Give it time before searching
+		ent->svflags &= ~SVF_NOCLIENT;  // Make the turret visible again
+
+		// Consider adding a delay before turret becomes active
+		// ent->nextthink = level.time + 1_sec;
+	}
+	else
+	{
+		gi.Com_PrintFmt("spawn_turret_at_position: turret initialization failed\n");
+	}
 }
 
 void fixbot_prep_spawn(edict_t* self)
