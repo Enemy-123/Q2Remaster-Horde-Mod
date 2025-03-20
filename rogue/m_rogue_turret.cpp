@@ -1038,7 +1038,7 @@ void SP_monster_turret(edict_t* self)
 	}
 	else
 	{
-		stationarymonster_start(self, spawn_temp_t::empty);
+		stationarymonster_start(self, ED_GetSpawnTemp());
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))

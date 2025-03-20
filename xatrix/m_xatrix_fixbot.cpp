@@ -61,6 +61,7 @@ void roam_goal(edict_t* self);
 constexpr const char* fixbot_reinforcements = "monster_turret 1";
 constexpr int32_t fixbot_monster_slots_base = 6;
 
+
 bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction)
 {
 	vec3_t forward, right, up;
@@ -218,11 +219,13 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// Finalize the turret
 	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
 	ent->monsterinfo.commander = self;
+	 bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
 	// Sound and visual effects - but check sound_spawn is valid first
 	if (sound_spawn)
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1,
-			self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
+			isboss
+	? ATTN_NONE : ATTN_NORM, 0);
 
 	// Visual effect for spawning
 	gi.WriteByte(svc_temp_entity);
@@ -285,8 +288,11 @@ void fixbot_spawn_check(edict_t* self)
 	if (!self || !self->inuse)
 		return;
 
+
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
 	// Only spawn if we have slots available and is boss and is actually in spawning mode
-	if (self->monsterinfo.IS_BOSS &&
+	if (isboss &&
 		self->monsterinfo.monster_slots &&
 		self->monsterinfo.monster_slots > self->monsterinfo.monster_used &&
 		g_is_spawning) {
@@ -346,8 +352,10 @@ void fixbot_spawn_turret(edict_t* self)
 		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
 		ent->monsterinfo.commander = self;
 
+		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
 		// Initialize the turret
-		gi.sound(self, CHAN_AUTO, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
+		gi.sound(self, CHAN_AUTO, sound_spawn, 1, isboss ? ATTN_NONE : ATTN_NORM, 0);
 
 		// Visual effect for spawning
 		gi.WriteByte(svc_temp_entity);
@@ -1611,10 +1619,12 @@ void fire_fixbot_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, con
 	heat->dmg_radius = damage_radius;
 	heat->s.sound = gi.soundindex("weapons/rockfly.wav");
 
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
 	if (visible(heat, self->enemy))
 	{
 		heat->oldenemy = self->enemy;
-		heat->timestamp = level.time + (self->monsterinfo.IS_BOSS ? 0.3_sec : 0.6_sec);
+		heat->timestamp = level.time + (isboss ? 0.3_sec : 0.6_sec);
 		gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
 	}
 
@@ -1641,11 +1651,13 @@ static void fixbot_fire_plasma(edict_t* self, float offset)
 	dir = forward + (up * 0.5f);
 	dir.normalize();
 
-	// Base parameters
-	float speed = self->monsterinfo.IS_BOSS ? irandom(300, 450) : irandom(200, 350);
-	float turn_fraction = self->monsterinfo.IS_BOSS ? 0.18f : 0.12f;
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	if (self->monsterinfo.IS_BOSS) {
+	// Base parameters
+	float speed = isboss ? irandom(300, 450) : irandom(200, 350);
+	float turn_fraction = isboss ? 0.18f : 0.12f;
+
+	if (isboss) {
 	// Increase separation between projectiles to avoid collision
 		vec3_t start1 = start + (right * 25.0f) + (up * 15.0f);  // up-right
 		vec3_t start2 = start;                                   // center 
@@ -1687,10 +1699,12 @@ static void fixbot_fire_plasma(edict_t* self, float offset)
 
 void fixbot_reattack(edict_t* self)
 {
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
 	// if our enemy is still valid, then continue firing
 	if (self->enemy && !level.intermissiontime && !self->enemy->deadflag) {
 		// Boss has higher chance to continue attack
-		float reattack_chance = self->monsterinfo.IS_BOSS ? 0.9f : 0.8f;
+		float reattack_chance = isboss ? 0.9f : 0.8f;
 
 		if (frandom() < reattack_chance) {
 			fixbot_fire_plasma(self, 8.0f);
@@ -1700,7 +1714,7 @@ void fixbot_reattack(edict_t* self)
 	}
 
 	// end attack
-	self->monsterinfo.attack_finished = level.time + (self->monsterinfo.IS_BOSS ? 0.5_sec : 1.0_sec);
+	self->monsterinfo.attack_finished = level.time + (isboss ? 0.5_sec : 1.0_sec);
 }
 
 mframe_t fixbot_frames_attack2[] = {
@@ -1942,8 +1956,10 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
 
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
 	// If this is a boss, sometimes choose to spawn turrets
-	if (self->monsterinfo.IS_BOSS && frandom() < 0.45f && M_SlotsLeft(self) > 0) {
+	if (isboss && frandom() < 0.45f && M_SlotsLeft(self) > 0) {
 		M_SetAnimation(self, &fixbot_move_spawn);
 		return;
 	}
@@ -2045,8 +2061,10 @@ void SP_monster_fixbot(edict_t* self)
 	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
 	fixbot_set_attack_fly_parameters(self);
 
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
 	// Setup reinforcement system if it's a boss
-	if (self->monsterinfo.IS_BOSS && !st.was_key_specified("monster_slots")) {
+	if (isboss && !st.was_key_specified("monster_slots")) {
 		self->monsterinfo.monster_slots = fixbot_monster_slots_base;
 	}
 		if (skill->integer)
@@ -2063,8 +2081,8 @@ void SP_monster_fixbotkl(edict_t* self) {
 
 	self->max_health = 7500;
 	self->health = self->max_health;
-	self->s.scale = 4.0f;
-	self->mins *= 4.0f;
-	self->maxs *= 4.0f;
+	self->s.scale = 3.4f;
+	self->mins *= 3.4f;
+	self->maxs *= 3.4f;
 
 }
