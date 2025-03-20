@@ -67,6 +67,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	vec3_t forward, right, up;
 	vec3_t start, end;
 	trace_t tr;
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
 	// Create ray from fixbot position
 	AngleVectors(self->s.angles, forward, right, up);
@@ -86,38 +87,44 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 	end = start + (forward * 1024);  // Check up to 1024 units ahead
 
-	// First trace ignoring players to find walls
-	tr = gi.traceline(start, end, self, MASK_SOLID & ~CONTENTS_PLAYER);
+	// Try to find a wall - we don't exclude players here to maximize potential spawn points
+	tr = gi.traceline(start, end, self, MASK_SOLID);
 
-	// If we hit something that's not a monster or player
-	if (tr.fraction < 1.0 && !(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client)
-	{
-		// Found a potential wall, now check if there's a player at the spawn point
-		direction = tr.plane.normal;
-		direction.normalize();
-		position = tr.endpos + (direction * 8);  // Offset from wall
+	if (tr.fraction < 1.0) {
+		// We hit something!
+		if (isboss) {
+			//gi.Com_PrintFmt("FixbotKL trace hit at {:.1f}, {:.1f}, {:.1f}\n", tr.endpos[0], tr.endpos[1], tr.endpos[2]);
+		}
 
-		// Check if there's a player at the potential spawn position
-		vec3_t mins = {-24, -24, -24};
-		vec3_t maxs = {24, 24, 24};
-		trace_t spawn_check = gi.trace(position, mins, maxs, position, self, MASK_PLAYERSOLID);
-
-		if (spawn_check.fraction == 1.0 && !spawn_check.startsolid && !spawn_check.allsolid) {
-			// Position is clear for spawning
+		// Check if the hit entity is valid for spawning (not a player or monster)
+		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
+			direction = tr.plane.normal;
+			direction.normalize();
+			position = tr.endpos + (direction * 8);  // Offset from wall
 			return true;
 		}
-		else if (attempt < 5) {
-			// Try again with a different angle if we've hit a player or other obstacle
-			return find_turret_spawn_position(self, position, direction, attempt + 1);
+		else if (isboss) {
+			//gi.Com_PrintFmt("FixbotKL hit entity is not valid for spawning\n");
 		}
 	}
+	else if (isboss) {
+		//gi.Com_PrintFmt("FixbotKL trace didn't hit anything\n");
+	}
 
-	// If we've failed multiple attempts or hit nothing suitable
-	if (attempt < 5) {
+	// If we haven't found a valid position, try a different direction
+	if (attempt < 8) { // Increase max attempts
 		return find_turret_spawn_position(self, position, direction, attempt + 1);
 	}
 
-	return false; // Give up after too many attempts
+	// Last resort - if we can't find a wall, just pick a position in front of us
+	if (isboss) {
+		//gi.Com_PrintFmt("FixbotKL using fallback spawn position\n");
+	}
+
+	// Use a position directly in front of the fixbot
+	position = self->s.origin + (forward * 100);
+	direction = forward * -1; // Face back toward the fixbot
+	return true;
 }
 
 PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
@@ -150,7 +157,7 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 	laser->s.origin = start;
 	laser->movedir = dir;
 	gi.linkentity(laser);
-	// Make laser visually pass through players (but actual spawn checks will still happen)
+	// Restore original call - don't change parameters we don't fully understand
 	dabeam_update(laser, true);
 }
 
@@ -211,20 +218,15 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// Validate caller
 	if (!self || !self->inuse)
 	{
-		gi.Com_PrintFmt("spawn_turret_at_position: invalid caller\n");
+		//gi.Com_PrintFmt("spawn_turret_at_position: invalid caller\n");
 		return;
 	}
 
-	// Do one final safety check for players/monsters at spawn position
-	vec3_t mins = {-24, -24, -24};
-	vec3_t maxs = {24, 24, 24};
-	trace_t spawn_check = gi.trace(position, mins, maxs, position, self, MASK_PLAYERSOLID);
-
-	if (spawn_check.startsolid || spawn_check.allsolid) {
-		// Position is blocked, abort spawn
-		gi.Com_PrintFmt("spawn_turret_at_position: spawn position blocked\n");
-		return;
-	}
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+//	if (isboss) {
+		//gi.Com_PrintFmt("FixbotKL spawning turret at {:.1f}, {:.1f}, {:.1f}\n",
+		//	position[0], position[1], position[2]);
+	//}
 
 	vec3_t dir;
 	edict_t* ent;
@@ -241,7 +243,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent = G_Spawn();
 	if (!ent)
 	{
-		gi.Com_PrintFmt("spawn_turret_at_position: failed to spawn entity\n");
+		//gi.Com_PrintFmt("spawn_turret_at_position: failed to spawn entity\n");
 		return;
 	}
 
@@ -262,13 +264,11 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// Finalize the turret
 	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
 	ent->monsterinfo.commander = self;
-	 bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
 	// Sound and visual effects - but check sound_spawn is valid first
 	if (sound_spawn)
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1,
-			isboss
-	? ATTN_NONE : ATTN_NORM, 0);
+			isboss ? ATTN_NONE : ATTN_NORM, 0);
 
 	// Visual effect for spawning
 	gi.WriteByte(svc_temp_entity);
@@ -277,8 +277,13 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	// Add to monster count
-	if (self->monsterinfo.monster_slots)
+	if (self->monsterinfo.monster_slots) {
 		self->monsterinfo.monster_used += 1;
+		if (isboss) {
+			//gi.Com_PrintFmt("FixbotKL monster slots: {}/{} used\n", 
+	//			self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
+		}
+	}
 
 	// Before spawn, add some flags that might prevent instant targeting
 	ent->svflags |= SVF_NOCLIENT;  // Make temporarily invisible to prevent instant targeting
@@ -294,12 +299,16 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		ent->monsterinfo.search_time = level.time + 2_sec;  // Give it time before searching
 		ent->svflags &= ~SVF_NOCLIENT;  // Make the turret visible again
 
-		// Consider adding a delay before turret becomes active
-		// ent->nextthink = level.time + 1_sec;
+		// Make sure the turret becomes active
+		ent->nextthink = level.time + 100_ms;
+		
+		if (isboss) {
+			//gi.Com_PrintFmt("FixbotKL turret spawned successfully!\n");
+		}
 	}
 	else
 	{
-		gi.Com_PrintFmt("spawn_turret_at_position: turret initialization failed\n");
+		//gi.Com_PrintFmt("spawn_turret_at_position: turret initialization failed\n");
 	}
 }
 
@@ -309,18 +318,31 @@ void fixbot_prep_spawn(edict_t* self)
 	gi.sound(self, CHAN_WEAPON, sound_weld1, 1, ATTN_NORM, 0);
 	self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
 
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	if (isboss) {
+		//gi.Com_PrintFmt("FixbotKL prep_spawn started\n");
+	}
+
 	// Find where to spawn the turret
 	vec3_t spawn_pos, spawn_dir;
 	if (find_turret_spawn_position(self, spawn_pos, spawn_dir))
 	{
-		// Store globally for the laser aiming - THIS WAS MISSING
+		// Store globally for the laser aiming
 		g_spawn_position = spawn_pos;
-		g_is_spawning = true;  // THIS WAS MISSING
+		g_is_spawning = true;
+
+		if (isboss) {
+			//gi.Com_PrintFmt("FixbotKL found spawn position at {:.1f}, {:.1f}, {:.1f}\n",
+			//	spawn_pos[0], spawn_pos[1], spawn_pos[2]);
+		}
 
 		// Make the fixbot look at the spawn position
 		vec3_t dir = spawn_pos - self->s.origin;
 		self->ideal_yaw = vectoyaw(dir);
 		M_ChangeYaw(self);
+	}
+	else if (isboss) {
+		//gi.Com_PrintFmt("FixbotKL FAILED to find spawn position!\n");
 	}
 }
 
@@ -334,6 +356,11 @@ void fixbot_spawn_check(edict_t* self)
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
 	// Only spawn if we have slots available and is boss and is actually in spawning mode
+	if (isboss) {
+		//gi.Com_PrintFmt("FixbotKL spawn check - monster_slots: {}, used: {}, is_spawning: {}\n", 
+	//		self->monsterinfo.monster_slots, self->monsterinfo.monster_used, g_is_spawning ? 1 : 0);
+	}
+
 	if (isboss &&
 		self->monsterinfo.monster_slots &&
 		self->monsterinfo.monster_slots > self->monsterinfo.monster_used &&
@@ -341,26 +368,13 @@ void fixbot_spawn_check(edict_t* self)
 
 		// Validate spawn position
 		if (!g_spawn_position.equals(vec3_origin)) {
-			// Do one final trace to check if path is clear, ignoring players
-			vec3_t start, dir;
-			AngleVectors(self->s.angles, dir, nullptr, nullptr);
-			start = self->s.origin + (dir * 16);
-
-			// Trace to spawn position ignoring players
-			trace_t final_tr = gi.traceline(start, g_spawn_position, self, MASK_SOLID & ~CONTENTS_PLAYER);
-
-			// If there's no obstruction or the only obstruction is a player, proceed with spawn
-			if (final_tr.fraction == 1.0 || (final_tr.ent && final_tr.ent->client)) {
-				spawn_turret_at_position(self, g_spawn_position);
-			}
-			else {
-				// Something is blocking that isn't a player - try to find an alternative position
-				vec3_t alt_pos, alt_dir;
-				if (find_turret_spawn_position(self, alt_pos, alt_dir, 1)) {
-					spawn_turret_at_position(self, alt_pos);
-				}
-				// If we couldn't find any valid position, don't spawn
-			}
+			//gi.Com_PrintFmt("FixbotKL attempting to spawn turret at position {:.1f}, {:.1f}, {:.1f}\n",
+	//			g_spawn_position[0], g_spawn_position[1], g_spawn_position[2]);
+			// Try to spawn at primary position
+	//		spawn_turret_at_position(self, g_spawn_position);
+		}
+		else {
+			//gi.Com_PrintFmt("FixbotKL error: spawn position is zero\n");
 		}
 	}
 
@@ -369,12 +383,15 @@ void fixbot_spawn_check(edict_t* self)
 	g_spawn_position = vec3_origin;
 
 	// Clear manual steering flag
-	if (self && self->inuse)
+	if (self && self->inuse) {
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
-
-	// Turn off any spawn visual effects
-	if (self && self->inuse)
+		// Turn off any spawn visual effects
 		self->s.effects &= ~EF_HYPERBLASTER;
+		
+		if (isboss) {
+			//gi.Com_PrintFmt("FixbotKL spawn sequence completed\n");
+		}
+	}
 }
 
 void fixbot_spawn_turret(edict_t* self)
@@ -2001,6 +2018,26 @@ void fixbot_start_attack(edict_t* self)
 
 MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 {
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
+	// Boss fixbots should spawn turrets periodically
+	if (isboss) {
+		// Check if we have monster slots available
+		int slots_left = 0;
+		if (self->monsterinfo.monster_slots) {
+			slots_left = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+		}
+
+		// Higher chance to spawn when we have more slots available
+		float spawn_chance = slots_left > 0 ? 0.7f : 0.0f;
+		
+		if (frandom() < spawn_chance) {
+			//gi.Com_PrintFmt("FixbotKL choosing to spawn turret\n");
+			M_SetAnimation(self, &fixbot_move_spawn);
+			return;
+		}
+	}
+
 	// Add strafing behavior similar to hover
 	if (frandom() > 0.4f) // 60% chance to strafe
 	{
@@ -2017,19 +2054,9 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
-
-	// If this is a boss, sometimes choose to spawn turrets
-	if (isboss && frandom() < 0.45f && M_SlotsLeft(self) > 0) {
-		M_SetAnimation(self, &fixbot_move_spawn);
-		return;
-	}
-
-	// Otherwise, go to attack2 which has the plasma firing
+	// Regular attack with plasma
 	M_SetAnimation(self, &fixbot_move_attack2);
 }
-
-
 
 PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
@@ -2090,6 +2117,16 @@ void SP_monster_fixbot(edict_t* self)
 	sound_weld1.assign("misc/welder1.wav");
 	sound_weld2.assign("misc/welder2.wav");
 	sound_weld3.assign("misc/welder3.wav");
+	sound_spawn.assign("infantry/inflies1.wav"); // Set spawn sound
+
+	// Make sure the sounds are precached
+	gi.soundindex("daedalus/daedpain1.wav");
+	gi.soundindex("daedalus/daeddeth1.wav");
+	gi.soundindex("makron/blaster.wav");
+	gi.soundindex("misc/welder1.wav");
+	gi.soundindex("misc/welder2.wav");
+	gi.soundindex("misc/welder3.wav");
+	gi.soundindex("infantry/inflies1.wav");
 
 	self->s.modelindex = gi.modelindex("models/monsters/fixbot/tris.md2");
 
