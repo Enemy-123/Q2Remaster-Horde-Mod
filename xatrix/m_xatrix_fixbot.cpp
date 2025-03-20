@@ -2177,6 +2177,12 @@ void SP_monster_fixbot(edict_t* self)
 void SP_monster_fixbotkl(edict_t* self) {
 	SP_monster_fixbot(self);
 
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 5000;
 	self->max_health = 7500;
 	self->health = self->max_health;
 	self->s.scale = 3.4f;

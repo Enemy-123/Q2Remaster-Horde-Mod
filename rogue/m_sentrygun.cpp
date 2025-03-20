@@ -609,11 +609,15 @@ int32_t TURRET2_BULLET_DAMAGE = 3;
 
 // Common helper function for damage calculation
 static float CalculateDamage(edict_t* self, int baseDamage) {
+	// Only apply the standard damage modifier from M_DamageModifier
+	// which already handles quad_time (4x) and double_time (2x)
 	const float damageModifier = M_DamageModifier(self);
-	const float quadMultiplier = self->monsterinfo.quadfire_time > level.time ? 1.5f : 1.0f;
-	return baseDamage * damageModifier * quadMultiplier;
-}
 
+	// Remove the quadfire multiplier for damage calculations
+	// const float quadMultiplier = self->monsterinfo.quadfire_time > level.time ? 1.5f : 1.0f;
+
+	return baseDamage * damageModifier;
+}
 // Fire heatbeam
 static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, trace_t& tr) {
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));

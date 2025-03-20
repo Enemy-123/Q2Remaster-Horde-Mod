@@ -106,7 +106,21 @@ float M_DamageModifier(edict_t* monster) noexcept {
 	if (!monster)
 		return 1.0f;
 
-	// Don't use constexpr since we're modifying state
+	// Special case for sentry guns - use a reduced multiplier
+	if (monster->classname && strcmp(monster->classname, "monster_sentrygun") == 0) {
+		float modifier = 1.0f;
+
+		// Apply reduced power-up multipliers for sentries
+		if (monster->monsterinfo.quad_time > level.time)
+			modifier = 2.0f;  // Reduced from 4.0 to 2.0
+		else if (monster->monsterinfo.double_time > level.time)
+			modifier = 1.5f;  // Reduced from 2.0 to 1.5
+
+		monster->monsterinfo.damage_modifier_applied = false;
+		return modifier;
+	}
+
+	// Standard logic for other monsters/entities
 	float modifier = 1.0f;
 
 	// Check power-ups in priority order
@@ -245,27 +259,27 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {
 	// Definimos los límites absolutos
-	constexpr int HEALTH_MAX_LIMIT = 16500;
-	constexpr int POWER_ARMOR_MAX_LIMIT = 15000;
+	constexpr int HEALTH_MAX_LIMIT = 21500;
+	constexpr int POWER_ARMOR_MAX_LIMIT = 18000;
 
 	if (wave_number >= 25) {
 		health_min = HEALTH_MAX_LIMIT;  // Ya estamos al límite máximo
-		power_armor_min = std::min(13550, POWER_ARMOR_MAX_LIMIT);
+		power_armor_min = std::min(19550, POWER_ARMOR_MAX_LIMIT);
 	}
 	else if (wave_number >= 20) {
-		health_min = std::min(13000, HEALTH_MAX_LIMIT);
+		health_min = std::min(15000, HEALTH_MAX_LIMIT);
 		power_armor_min = std::min(9000, 12000);
 	}
 	else if (wave_number >= 15) {
-		health_min = std::min(10000, 13500);
+		health_min = std::min(12400, 15500);
 		power_armor_min = std::min(4500, 10000);
 	}
 	else if (wave_number >= 10) {
-		health_min = std::min(7000, 9500);
+		health_min = std::min(8000, 13500);
 		power_armor_min = std::min(5475, 8000);
 	}
 	else if (wave_number >= 5) {
-		health_min = std::min(2500, 10000);  // Invertidos los números para que tenga más sentido
+		health_min = std::min(7500, 12000);  // Invertidos los números para que tenga más sentido
 		power_armor_min = std::min(5475, 8000);
 	}
 	else {
