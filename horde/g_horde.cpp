@@ -248,51 +248,9 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	return cache.was_occupied;
 }
 
-//// New span-based batch check
-//bool AreSpawnPointsOccupied(std::span<const edict_t* const> spawn_points, const edict_t* ignore_ent = nullptr) {
-//	if (spawn_points.empty()) {
-//		return true;
-//	}
-//
-//	// Process spawn points in batches for better cache utilization
-//	static constexpr size_t BATCH_SIZE = 8;
-//	for (size_t i = 0; i < spawn_points.size(); i += BATCH_SIZE) {
-//		const size_t batch_end = std::min(i + BATCH_SIZE, spawn_points.size());
-//		std::span<const edict_t* const> batch = spawn_points.subspan(i, batch_end - i);
-//
-//		for (const edict_t* spawn_point : batch) {
-//			if (IsSpawnPointOccupied(spawn_point, ignore_ent)) {
-//				return true;
-//			}
-//		}
-//	}
-//
-//	return false;
-//}
-
 static void CleanupSpawnPointCache() noexcept {
 	spawn_point_cache.clear();
 }
-
-//// Optimized function to select a random unoccupied monster spawn point
-//edict_t* SelectRandomMonsterSpawnPoint() {
-//	static std::vector<edict_t*> availableSpawns;
-//	availableSpawns.clear();
-//
-//	auto spawnPoints = monster_spawn_points();
-//
-//	for (edict_t* spawnPoint : spawnPoints) {
-//		if (!IsSpawnPointOccupied(spawnPoint)) {
-//			availableSpawns.push_back(spawnPoint);
-//		}
-//	}
-//
-//	if (availableSpawns.empty()) {
-//		return nullptr;
-//	}
-//
-//	return availableSpawns[irandom(availableSpawns.size())];
-//}
 
 template <typename TFilter>
 edict_t* SelectRandomSpawnPoint(TFilter filter) {
@@ -374,7 +332,6 @@ enum class MonsterWaveType : uint32_t {
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 
-
 enum class BossType {
 	CARRIER,
 	BOSS2,
@@ -397,7 +354,6 @@ enum class BossType {
 };
 
 inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck);
-
 
 // Spawn point selection filter
 struct SpawnMonsterFilter {
@@ -424,7 +380,13 @@ struct SpawnMonsterFilter {
 		if (!is_valid_vector(origin))
 			return false;
 
-		// REMOVED: The 150 unit proximity check to players
+		for (const auto* const player : active_players()) {
+			if (!player || !player->inuse)
+				continue;
+
+			if ((origin - player->s.origin).length() < 150.0f)
+				return false;
+		}
 
 		// Use the dedicated function for checking if spawn point is occupied
 		return !IsSpawnPointOccupied(spawnPoint);
@@ -1089,7 +1051,6 @@ constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 static void InitializeWaveType(int32_t lvl);
 inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel);
 
-
 void ResetChampionMonsterState() {
 	champion_spawned_this_wave = false;
 	champion_spawn_cooldown = 0;
@@ -1131,7 +1092,6 @@ static void Horde_InitLevel(const int32_t lvl) {
 	CleanupSpawnPointCache();
 	VerifyAndAdjustBots();
 	
-
 	// Configurar tiempos iniciales - reset all timing variables
 	g_independent_timer_start = level.time;
 	g_horde_local.conditionStartTime = 0_sec;
@@ -1267,8 +1227,6 @@ constexpr struct weighted_item_t {
 	{ "item_pack", 15, -1, 0.34f, adjust_weight_ammo },
 	{ "item_silencer", 15, -1, 0.1f, adjust_weight_ammo },
 };
-
-
 
 // Allow flag operations on MonsterWaveType
 template<typename E>
@@ -1602,7 +1560,6 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 	return isSpecialWaveType || (monsterTypes & waveRequirements) != MonsterWaveType::None;
 }
 
-
 // Structure to include wave level information
 struct MonsterTypeInfo {
 	const char* classname;
@@ -1748,7 +1705,6 @@ static void InitializeWaveType(int32_t lvl) {
 #include <unordered_set>
 #include <random>
 
-
 // Modified boss_t structure
 struct boss_t {
     const char* classname;
@@ -1812,7 +1768,6 @@ static constexpr boss_t BOSS_LARGE[] = {
 	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large, BossType::MAKRONKL},
 	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
 };
-
 
 // Optimized GetBossList function
 static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
@@ -2149,22 +2104,6 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
 	}
 }
 
-//inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
-//	// Check for flying wave requirement
-//	const bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
-//
-//	// During flying waves, only allow flying monsters
-//	if (isFlyingWave) {
-//		return isFlyingMonster &&
-//			!(spawn_point->style == 1 && !isFlyingMonster) &&
-//			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
-//	}
-//
-//	// For non-flying waves, just check spawn point compatibility and level requirements
-//	return !(spawn_point->style == 1 && !isFlyingMonster) &&
-//		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
-//}
-
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
 	data.lastSpawnTime = level.time;
@@ -2172,72 +2111,6 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	data.isTemporarilyDisabled = true;
 	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 }
-
-// Function to increase spawn attempts and adjust cooldown as necessary
-// Single spawn point version
-//void IncreaseSpawnAttempts(edict_t* spawn_point) {
-//	if (!spawn_point || !spawn_point->inuse) {
-//		return;
-//	}
-//
-//	auto& data = spawnPointsData[spawn_point];
-//	data.attempts++;
-//
-//	// Check for nearby players
-//	bool players_nearby = false;
-//	for (const auto* const player : active_players()) {
-//		if ((spawn_point->s.origin - player->s.origin).length() < 300.0f) {
-//			players_nearby = true;
-//			break;
-//		}
-//	}
-//
-//	// Adjust max attempts based on player proximity
-//	const int max_attempts = players_nearby ? 8 : 6;  // More attempts before disable
-//
-//	if (data.attempts >= max_attempts) {
-//		if (developer->integer) {
-//			gi.Com_PrintFmt("SpawnPoint at position ({}, {}, {}) inactivated.\n",
-//				spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
-//		}
-//
-//		data.isTemporarilyDisabled = true;
-//		const gtime_t cooldown = players_nearby ? 0.5_sec : 1_sec;  // Shorter cooldowns
-//		data.cooldownEndsAt = level.time + cooldown;
-//	}
-//	else if (data.attempts % 3 == 0) {
-//		data.cooldownEndsAt = std::max(data.cooldownEndsAt + 1_sec, 2_sec);
-//	}
-//
-//	// Reset attempts after sufficient time
-//	if (level.time - data.lastSpawnTime > 5_sec) {
-//		data.attempts = 0;
-//	}
-//}
-
-//// Batch version using span
-//void IncreaseSpawnAttemptsBatch(std::span<edict_t*> spawn_points) {
-//    if (spawn_points.empty()) {
-//        return;
-//    }
-//
-//    // Validate span contents
-//    for (edict_t* spawn : spawn_points) {
-//        if (!spawn || !spawn->inuse) {
-//            return; // Skip batch if any invalid points
-//        }
-//    }
-//
-//	static constexpr size_t BATCH_SIZE = 8;
-//	for (size_t i = 0; i < spawn_points.size(); i += BATCH_SIZE) {
-//		const size_t batch_end = std::min(i + BATCH_SIZE, spawn_points.size());
-//		std::span<edict_t*> batch = spawn_points.subspan(i, batch_end - i);
-//
-//		for (edict_t* spawn_point : batch) {
-//			IncreaseSpawnAttempts(spawn_point);
-//		}
-//	}
-//}
 
 static const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Static cache to avoid repeated allocations
@@ -2420,7 +2293,6 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		float weight = monster.weight;
 
 		// Apply level-based adjustments
-// Apply level-based adjustments
 		if (currentLevel <= 5) {
 			if (!HasWaveType(monster.types, MonsterWaveType::Light)) weight *= 0.3f;
 		}
@@ -2629,22 +2501,6 @@ void Horde_PreInit() {
 		return;
 	}
 
-	//if ((!deathmatch->integer) || (ctf->integer || teamplay->integer || coop->integer)) {
-	//	gi.Com_Print("Horde mode must be DM.\n");
-	//	//gi.cvar_set("deathmatch", "1");
-	//	//gi.cvar_set("ctf", "0");
-	//	//gi.cvar_set("teamplay", "0");
-	//	//gi.cvar_set("coop", "0");
-	//	//gi.cvar_set("timelimit", "20");
-	//	//gi.cvar_set("fraglimit", "0");
-	//}
-
-	//if (deathmatch->integer && !g_horde->integer)
-	//gi.cvar_set("g_coop_player_collision", "0");
-	//gi.cvar_set("g_coop_squad_respawn", "0");
-	//gi.cvar_set("g_coop_instanced_items", "0");
-	//gi.cvar_set("g_disable_player_collision", "0");
-
 	// Configuración automática cuando horde está activo
 	if (g_horde->integer) {
 		//deathmatch->integer == 1;
@@ -2792,7 +2648,6 @@ static void PrecacheAllMonsters() noexcept {
 
 	monsters_precached = true;
 }
-
 
 // Función para precarga de sonidos
 static bool sounds_precached = false;
@@ -3137,7 +2992,6 @@ void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
 	}
 }
 
-
 // Constante para el tiempo de vida del fade
 constexpr gtime_t FADE_LIFESPAN = 0.5_sec;
 
@@ -3163,7 +3017,6 @@ static THINK(fade_out_think)(edict_t* self) -> void {
 
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
-
 
 static void StartFadeOut(edict_t* ent) {
 	// No iniciar fade out si el monstruo está vivo o ya está en fade
@@ -3264,7 +3117,6 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"e3/jail_e3", {-572, -1312, 76}},
 	{"xintell", {2096, -992, 376}}
 };
-
 
 // Incluye otras cabeceras y definiciones necesarias
 static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
