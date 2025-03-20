@@ -641,10 +641,11 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
 	// Check fire rate - REMOVED
 	
+	// Check rate limit for rockets
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
-		(self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec)) {
-		return;
-	}
+	(self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec)) {
+	    return;
+    }
 	
 
 	// Verify clear shot
@@ -703,7 +704,7 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 
 	const int damage = static_cast<int>(CalculateDamage(self, 100));
 	fire_rocket(self->owner, start, fire_dir, damage, speed, 120, damage);
-	self->monsterinfo.last_sentry_missile_fire_time = level.time + 2_sec; //FORCE 2 seconds cooldown
+	self->monsterinfo.last_sentry_missile_fire_time = level.time; // Reset timer to current time so we can fire again in 1.5/0.75 seconds
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
 
@@ -711,10 +712,11 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& dir) {
 	// Check fire rate - REMOVED
 	
+	// Check rate limit for plasma
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
-		(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
-		return;
-	}
+	(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
+	    return;
+    }
 	
 
 	// Verify clear shot
@@ -769,7 +771,7 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 
 	const int damage = static_cast<int>(CalculateDamage(self, 100));
 	fire_plasma(self->owner, start, fire_dir, damage, projectileSpeed, 120, damage);
-	self->monsterinfo.last_sentry_missile_fire_time = level.time + 2_sec; //FORCE 2 seconds cooldown
+	self->monsterinfo.last_sentry_missile_fire_time = level.time; // Reset timer to current time
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
 
@@ -852,11 +854,29 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		(self->monsterinfo.quadfire_time > level.time ? 7_hz : 12_hz);
 }
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
-	// Check fire rate
-	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
-		(self->monsterinfo.quadfire_time > level.time ? 0.5_sec : 1.0_sec)) {
-		return;
-	}
+    // State for double grenade firing - track bursts per turret
+    static int grenade_burst_state[MAX_EDICTS] = {0};
+    static gtime_t last_burst_time[MAX_EDICTS] = {0_sec};
+    
+    // Get state for this specific turret using its entity number as index
+    int& burst_state = grenade_burst_state[self->s.number];
+    gtime_t& burst_time = last_burst_time[self->s.number];
+    
+    // Determine timing based on burst state
+    if (burst_state == 0) {
+        // First grenade in burst - check normal cooldown
+        if (level.time <= self->monsterinfo.last_sentry_missile_fire_time + 
+            (self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 1.2_sec)) {
+            return;
+        }
+        // Start new burst
+        burst_time = level.time;
+    } else {
+        // Second grenade in burst - shorter delay
+        if (level.time < burst_time + 0.5_sec) {
+            return;
+        }
+    }
 
 	// Verify clear shot
 	const vec3_t offset = { 20.f, 0.f, 0.f };
@@ -914,7 +934,16 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 		3_sec, 0, 0.0f,
 		200.f, false);
 
-	self->monsterinfo.last_sentry_missile_fire_time = level.time + 2_sec;
+	// Update last fire time
+	self->monsterinfo.last_sentry_missile_fire_time = level.time;
+	
+	// Increment grenade count and set appropriate cooldown
+	burst_state++;
+    if (burst_state >= 2) {
+        // After second grenade, reset counter and set full cooldown
+        burst_state = 0;
+        self->monsterinfo.last_sentry_missile_fire_time = level.time + 1_sec; // Full cooldown after burst
+    }
 	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
 }
 
@@ -1077,10 +1106,8 @@ void turret2Fire(edict_t* self) {
 		// Fire flechettes as primary attack
 		TurretFireFlechette(self, start, dir);
 
-		// Mix in some grenades for long ranges
-		if (frandom() < 0.15f) {
-			TurretFireGrenade(self, start, dir, dist);
-		}
+		// Always fire grenades when possible, just like rockets
+		TurretFireGrenade(self, start, dir, dist);
 	}
 
 	// last_sentry_missile_fire_time is now set inside each fire function (rocket, plasma, grenade)
