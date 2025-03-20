@@ -62,7 +62,7 @@ constexpr const char* fixbot_reinforcements = "monster_turret 1";
 constexpr int32_t fixbot_monster_slots_base = 6;
 
 
-bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction)
+bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction, int attempt = 0)
 {
 	vec3_t forward, right, up;
 	vec3_t start, end;
@@ -71,22 +71,53 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	// Create ray from fixbot position
 	AngleVectors(self->s.angles, forward, right, up);
 	start = self->s.origin;
+
+	// If this is a retry attempt, add some randomization to the direction
+	if (attempt > 0) {
+		// Add progressively more randomness with each attempt
+		float angle_offset = (frandom() - 0.5f) * 45.0f * attempt;
+		float pitch_offset = (frandom() - 0.5f) * 20.0f * attempt;
+
+		vec3_t angles = vectoangles(forward);
+		angles[YAW] += angle_offset;
+		angles[PITCH] += pitch_offset;
+		AngleVectors(angles, forward, nullptr, nullptr);
+	}
+
 	end = start + (forward * 1024);  // Check up to 1024 units ahead
 
-	// Trace to find a wall
-	tr = gi.traceline(start, end, self, MASK_SOLID);
+	// First trace ignoring players to find walls
+	tr = gi.traceline(start, end, self, MASK_SOLID & ~CONTENTS_PLAYER);
 
 	// If we hit something that's not a monster or player
 	if (tr.fraction < 1.0 && !(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client)
 	{
-		// Found a suitable wall
+		// Found a potential wall, now check if there's a player at the spawn point
 		direction = tr.plane.normal;
 		direction.normalize();
 		position = tr.endpos + (direction * 8);  // Offset from wall
-		return true;
+
+		// Check if there's a player at the potential spawn position
+		vec3_t mins = {-24, -24, -24};
+		vec3_t maxs = {24, 24, 24};
+		trace_t spawn_check = gi.trace(position, mins, maxs, position, self, MASK_PLAYERSOLID);
+
+		if (spawn_check.fraction == 1.0 && !spawn_check.startsolid && !spawn_check.allsolid) {
+			// Position is clear for spawning
+			return true;
+		}
+		else if (attempt < 5) {
+			// Try again with a different angle if we've hit a player or other obstacle
+			return find_turret_spawn_position(self, position, direction, attempt + 1);
+		}
 	}
 
-	return false;
+	// If we've failed multiple attempts or hit nothing suitable
+	if (attempt < 5) {
+		return find_turret_spawn_position(self, position, direction, attempt + 1);
+	}
+
+	return false; // Give up after too many attempts
 }
 
 PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
@@ -119,6 +150,7 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 	laser->s.origin = start;
 	laser->movedir = dir;
 	gi.linkentity(laser);
+	// Make laser visually pass through players (but actual spawn checks will still happen)
 	dabeam_update(laser, true);
 }
 
@@ -180,6 +212,17 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	if (!self || !self->inuse)
 	{
 		gi.Com_PrintFmt("spawn_turret_at_position: invalid caller\n");
+		return;
+	}
+
+	// Do one final safety check for players/monsters at spawn position
+	vec3_t mins = {-24, -24, -24};
+	vec3_t maxs = {24, 24, 24};
+	trace_t spawn_check = gi.trace(position, mins, maxs, position, self, MASK_PLAYERSOLID);
+
+	if (spawn_check.startsolid || spawn_check.allsolid) {
+		// Position is blocked, abort spawn
+		gi.Com_PrintFmt("spawn_turret_at_position: spawn position blocked\n");
 		return;
 	}
 
@@ -288,7 +331,6 @@ void fixbot_spawn_check(edict_t* self)
 	if (!self || !self->inuse)
 		return;
 
-
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
 	// Only spawn if we have slots available and is boss and is actually in spawning mode
@@ -299,7 +341,26 @@ void fixbot_spawn_check(edict_t* self)
 
 		// Validate spawn position
 		if (!g_spawn_position.equals(vec3_origin)) {
-			spawn_turret_at_position(self, g_spawn_position);
+			// Do one final trace to check if path is clear, ignoring players
+			vec3_t start, dir;
+			AngleVectors(self->s.angles, dir, nullptr, nullptr);
+			start = self->s.origin + (dir * 16);
+
+			// Trace to spawn position ignoring players
+			trace_t final_tr = gi.traceline(start, g_spawn_position, self, MASK_SOLID & ~CONTENTS_PLAYER);
+
+			// If there's no obstruction or the only obstruction is a player, proceed with spawn
+			if (final_tr.fraction == 1.0 || (final_tr.ent && final_tr.ent->client)) {
+				spawn_turret_at_position(self, g_spawn_position);
+			}
+			else {
+				// Something is blocking that isn't a player - try to find an alternative position
+				vec3_t alt_pos, alt_dir;
+				if (find_turret_spawn_position(self, alt_pos, alt_dir, 1)) {
+					spawn_turret_at_position(self, alt_pos);
+				}
+				// If we couldn't find any valid position, don't spawn
+			}
 		}
 	}
 
