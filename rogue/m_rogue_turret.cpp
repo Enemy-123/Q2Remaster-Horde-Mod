@@ -38,11 +38,15 @@ void TurretAim(edict_t* self)
 	float  move, idealPitch, idealYaw, current, speed;
 	int	   orientation;
 
-	if (!self->enemy || self->enemy == world)
-	{
-		if (!FindTarget(self))
+
+		if (!self || !self->inuse)
 			return;
-	}
+
+		if (!self->enemy || !self->enemy->inuse || self->enemy == world)
+		{
+			if (!FindTarget(self))
+				return;
+		}
 
 	// if turret is still in inactive mode, ready the gun, but don't aim
 	if (self->s.frame < FRAME_active01)

@@ -745,6 +745,9 @@ void HuntTarget(edict_t* self, bool animate_state)
 
 void FoundTarget(edict_t* self)
 {
+	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+		return;
+
 	// Verificar si somos una unidad invocada y el enemigo es un player
 	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
 		self->enemy = nullptr;
