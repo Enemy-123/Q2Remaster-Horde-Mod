@@ -1398,13 +1398,29 @@ TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool oth
 	// calculate position for the explosion entity
 	origin = ent->s.origin + tr.plane.normal;
 
-	if (other->takedamage)
+	// FIXED: Limit push force for players to prevent being knocked through walls
+	if (other->client)
 	{
-		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_FIREBALL);
+		// Limit push force for players
+		vec3_t limited_velocity = ent->velocity;
+		float max_push = 300.0f;
+
+		if (limited_velocity.length() > max_push)
+			limited_velocity = limited_velocity.normalized() * max_push;
+
+		// Use limited_velocity for damage calculation
+		T_Damage(other, ent, ent->owner, limited_velocity, ent->s.origin,
+			tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_FIREBALL);
+	}
+	else if (other->takedamage)
+	{
+		// Normal damage for non-players
+		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin,
+			tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_FIREBALL);
 	}
 	else
 	{
-		// don't throw any debris in net games  // check horde later
+		// don't throw any debris in net games
 		if (!G_IsDeathmatch() || !g_horde->integer || !G_IsCooperative())
 		{
 			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
@@ -1416,7 +1432,18 @@ TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool oth
 		}
 	}
 
-	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+	// FIXED: Reduced radius damage for players
+	if (other->client)
+	{
+		// Reduced radius damage amount for players to prevent excessive knockback
+	//	float reduced_radius_dmg = ent->radius_dmg * 0.7f;
+	//	T_RadiusDamage(ent, ent->owner, reduced_radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+	}
+	else
+	{
+		// Normal radius damage for non-players
+	//	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+	}
 
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)

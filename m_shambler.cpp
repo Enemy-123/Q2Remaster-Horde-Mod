@@ -49,6 +49,141 @@ constexpr vec3_t lightning_right_hand[] = {
 	{ 27, -11, 83 }
 };
 
+
+// New function for shambler fireball thinking/tracking
+THINK(shambler_fireball_think) (edict_t* self) -> void
+{
+	edict_t* acquire = nullptr;
+	float    oldlen = 0;
+	float    olddot = 1;
+
+	// Don't acquire a target until a small delay has passed
+	// This prevents colliding with the owner at spawn
+	if (self->timestamp < level.time || self->oldenemy)
+	{
+		vec3_t const fwd = AngleVectors(self->s.angles).forward;
+
+		if (self->oldenemy)
+		{
+			self->enemy = self->oldenemy;
+			self->oldenemy = nullptr;
+		}
+
+		if (self->enemy)
+		{
+			acquire = self->enemy;
+
+			if (acquire->health <= 0 || !visible(self, acquire))
+			{
+				self->enemy = acquire = nullptr;
+			}
+			else
+			{
+				float const dist_to_target = (self->s.origin - acquire->s.origin).normalize();
+				self->pos1 = ((acquire->s.origin + vec3_t{ 0.f, 0.f, acquire->mins.z }) - self->s.origin).normalized();
+			}
+		}
+
+		if (!acquire)
+		{
+			// acquire new target
+			edict_t* target = nullptr;
+
+			while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
+			{
+				// Skip owner
+				if (self->owner == target)
+					continue;
+				if (!target->client)
+					continue;
+				if (target->health <= 0)
+					continue;
+				if (!visible(self, target))
+					continue;
+				// Skip teammates
+				if (OnSameTeam(self->owner, target))
+					continue;
+
+				float const dist_to_target = (self->s.origin - target->s.origin).normalize();
+				vec3_t vec = ((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) - self->s.origin).normalized();
+
+				float const len = vec.length();
+				float const dot = vec.dot(fwd);
+
+				// targets that require us to turn less are preferred
+				if (dot >= olddot)
+					continue;
+
+				if (acquire == nullptr || dot < olddot || len < oldlen)
+				{
+					acquire = target;
+					oldlen = len;
+					olddot = dot;
+					self->pos1 = vec;
+				}
+			}
+		}
+	}
+
+	vec3_t const preferred_dir = self->pos1;
+
+	if (acquire != nullptr)
+	{
+		if (self->enemy != acquire)
+		{
+			gi.sound(self, CHAN_WEAPON, sound_fireball, 1.f, 0.25f, 0);
+			self->enemy = acquire;
+		}
+	}
+	else
+		self->enemy = nullptr;
+
+	float t = self->accel;
+
+	if (self->enemy)
+		t *= 0.85f;
+
+	// FIXED: Limit turn rate to prevent too-sharp turns
+	float max_turn_rate = 0.15f;
+	float turn_amount = fmin(t, max_turn_rate);
+
+	// Smooth turning using slerp function with limited turn rate
+	self->movedir = slerp(self->movedir, preferred_dir, turn_amount).normalized();
+	self->s.angles = vectoangles(self->movedir);
+
+	if (self->speed < self->yaw_speed)
+	{
+		self->speed += self->yaw_speed * gi.frame_time_s;
+	}
+
+	// FIXED: Add speed limit to prevent excessive velocity
+	const float MAX_SPEED = 1000.0f;
+	if (self->speed > MAX_SPEED)
+		self->speed = MAX_SPEED;
+
+	self->velocity = self->movedir * self->speed;
+
+	// FIXED: Check for potential collisions before next frame
+	vec3_t next_pos = self->s.origin + (self->velocity * gi.frame_time_s);
+	trace_t trace = gi.traceline(self->s.origin, next_pos, self, MASK_SHOT);
+	if (trace.fraction < 1.0f && trace.ent != self->owner)
+	{
+		// Trigger touch function manually if we're about to hit something
+		if (self->touch)
+			self->touch(self, trace.ent, trace, false);
+		return; // Skip nextthink since we're freeing this entity
+	}
+
+	self->nextthink = level.time + FRAME_TIME_MS;
+
+	// Add trail effect for better visibility
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_BLOOD);
+	gi.WritePosition(self->s.origin);
+	gi.WritePosition(self->s.old_origin);
+	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+}
+
 void shambler_windupFire(edict_t* self);
 
 
@@ -68,24 +203,196 @@ constexpr vec3_t fireball_right_hand[] = {
 	{ 27, -11, 103 }    // Aumentado Z de 83 a 103
 };
 
-static void shambler_fireball_update(edict_t* self)
+// Improved fireball spawning - two phases like the Fixbot
+void ShamblerCastFireballs(edict_t* self)
 {
-	edict_t* fireball_effect = self->beam;
-	if (!fireball_effect) {
-		// Create new fireball effect
-		fireball_effect = G_Spawn();
-		self->beam = fireball_effect;
-		fireball_effect->s.effects = EF_FIREBALL | EF_BARREL_EXPLODING;
-		fireball_effect->s.renderfx = RF_GLOW;
-		fireball_effect->movetype = MOVETYPE_NONE;
-		fireball_effect->solid = SOLID_NOT;
-		gi.setmodel(fireball_effect, "models/objects/gibs/sm_meat/tris.md2");
+	if (!self->enemy)
+		return;
+
+	vec3_t f, r;
+	AngleVectors(self->s.angles, f, r, nullptr);
+
+	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
+	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
+	const vec3_t start = (left_pos + right_pos) * 0.5f;
+
+	vec3_t dir;
+	vec3_t target;
+	const float rocketSpeed = 800;
+	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING) != 0;
+
+	// Target selection logic
+	if (blindfire)
+	{
+		target = self->monsterinfo.blind_fire_target;
+		if (!M_AdjustBlindfireTarget(self, start, target, r, dir))
+			return;
+	}
+	else
+	{
+		// Smart targeting 
+		if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
+		{
+			target = self->enemy->s.origin;
+			target[2] += self->enemy->viewheight;
+		}
+		else
+		{
+			target = self->enemy->s.origin;
+			target[2] = self->enemy->absmin[2] + 1;
+		}
+
+		// Lead shot with probability based on difficulty
+		if (frandom() <= 0.2f + ((3 - skill->integer) * 0.15f))
+			PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &target);
+		else
+		{
+			dir = target - start;
+			dir.normalize();
+		}
+
+		// Line of sight check
+		trace_t const trace = gi.traceline(start, target, self, MASK_PROJECTILE);
+		if (trace.fraction < 0.5f && !blindfire)
+			return;
 	}
 
+	// Save last known target position for blindfire
+	self->monsterinfo.blind_fire_target = target;
+
+	// FIXED: Reduced number of fireballs and spread
+	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 2; // Reduced from 5/3
+	const float spread_base = g_hardcoop->integer ? 0.02f : 0.04f; // Reduced spread
+	const bool isboss = (self->monsterinfo.IS_BOSS != 0);
+
+	// Central firing position
+	vec3_t central_pos = start;
+
+	// Create spread patterns for multiple fireballs
+	for (int i = 0; i < num_fireballs; i++)
+	{
+		vec3_t spread_dir = dir;
+		vec3_t spawn_pos = central_pos;
+
+		// Add variety to launch positions based on index
+		if (i > 0) {
+			float angle = (i * (2 * PIf / num_fireballs));
+			float radius = 15.0f; // Reduced radius of spread circle (was 20)
+
+			// Circular pattern around central position
+			spawn_pos[0] += cosf(angle) * radius;
+			spawn_pos[1] += sinf(angle) * radius;
+
+			// Add directional spread
+			float spread = spread_base;
+			if (isboss)
+				spread *= 0.75f;
+
+			spread_dir[0] += cosf(angle) * spread;
+			spread_dir[1] += sinf(angle) * spread;
+			spread_dir[2] += (frandom() - 0.5f) * spread;
+			spread_dir.normalize();
+		}
+
+		edict_t* fireball = G_Spawn();
+		if (fireball)
+		{
+			fireball->s.origin = spawn_pos;
+			fireball->s.angles = vectoangles(spread_dir);
+			fireball->velocity = spread_dir * rocketSpeed;
+			fireball->movetype = MOVETYPE_FLYMISSILE;
+			fireball->svflags |= SVF_PROJECTILE;
+			fireball->flags |= FL_DODGE;
+			fireball->clipmask = MASK_PROJECTILE;
+			fireball->solid = SOLID_BBOX;
+			fireball->s.effects = EF_FIREBALL;  // Removed EF_TELEPORTER which might cause issues
+			fireball->s.renderfx = RF_FULLBRIGHT | RF_GLOW;
+			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->owner = self;
+			fireball->touch = fireball_touch;
+
+			// Setting up tracking behavior
+			fireball->think = shambler_fireball_think;
+			fireball->nextthink = level.time + 100_ms;
+
+			// Set the initial target if we have one
+			if (self->enemy && visible(fireball, self->enemy)) {
+				fireball->oldenemy = self->enemy;
+				fireball->timestamp = level.time + (isboss ? 0.2_sec : 0.5_sec);
+			}
+
+			// Turn rate parameters - FIXED: Reduced turn rates
+			float turn_fraction = isboss ? 0.12f : 0.08f; // Reduced from 0.15/0.1
+			fireball->accel = turn_fraction;
+			fireball->movedir = spread_dir;
+			fireball->speed = rocketSpeed;
+			fireball->yaw_speed = rocketSpeed; // Reduced from 1.5x
+
+			// Size and damage parameters
+			fireball->dmg = irandom(15, 25) * M_DamageModifier(self);
+			fireball->radius_dmg = 40 * M_DamageModifier(self);
+			fireball->dmg_radius = 100;
+			fireball->classname = "shambler_fireball";
+
+			// Scale based on animation
+			const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
+				static_cast<float>(q_countof(fireball_left_hand));
+			fireball->s.scale = 0.5f + (1.0f - 0.5f) * size_factor;
+
+			// Sound effect
+			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
+
+			gi.linkentity(fireball);
+		}
+	}
+
+	// Main attack sound
+	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
+
+	// Add visual effects at launch point
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_ROCKET_EXPLOSION);
+	gi.WritePosition(start);
+	gi.multicast(start, MULTICAST_PVS, false);
+}
+// Enhancement for charging effect - make fireballs visible during charge
+void shambler_fireball_update(edict_t* self)
+{
+	edict_t* fireball_effect_left = self->beam;
+	edict_t* fireball_effect_right = self->beam2;
+
+	// Create or update left hand fireball
+	if (!fireball_effect_left) {
+		fireball_effect_left = G_Spawn();
+		self->beam = fireball_effect_left;
+		fireball_effect_left->s.effects = EF_FIREBALL;
+		fireball_effect_left->s.renderfx = RF_FULLBRIGHT | RF_GLOW;
+		fireball_effect_left->movetype = MOVETYPE_NONE;
+		fireball_effect_left->solid = SOLID_NOT;
+		gi.setmodel(fireball_effect_left, "models/objects/gibs/sm_meat/tris.md2");	}
+
+	// Create or update right hand fireball
+	if (!fireball_effect_right) {
+		fireball_effect_right = G_Spawn();
+		self->beam2 = fireball_effect_right;
+		fireball_effect_right->s.effects = EF_FIREBALL;
+		fireball_effect_right->s.renderfx = RF_FULLBRIGHT | RF_GLOW;
+		fireball_effect_right->movetype = MOVETYPE_NONE;
+		fireball_effect_right->solid = SOLID_NOT;
+		gi.setmodel(fireball_effect_right, "models/objects/gibs/sm_meat/tris.md2");
+	}
+
+	// Clean up if we're past the charging phase
 	if (self->s.frame >= FRAME_magic01 + q_countof(lightning_left_hand))
 	{
-		G_FreeEdict(fireball_effect);
-		self->beam = nullptr;
+		if (fireball_effect_left) {
+			G_FreeEdict(fireball_effect_left);
+			self->beam = nullptr;
+		}
+		if (fireball_effect_right) {
+			G_FreeEdict(fireball_effect_right);
+			self->beam2 = nullptr;
+		}
 		return;
 	}
 
@@ -96,44 +403,70 @@ static void shambler_fireball_update(edict_t* self)
 	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
 	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
 
-	// Calculate the midpoint between hands for the fireball effect
-	// Combinar VectorAdd y VectorScale en una operación
-	const vec3_t midpoint = (left_pos + right_pos) * 0.5f;
+	// Update fireball effect positions
+	fireball_effect_left->s.origin = left_pos;
+	fireball_effect_right->s.origin = right_pos;
 
-	// Update fireball effect position
-	fireball_effect->s.origin = midpoint;  // Reemplaza VectorCopy
-
-	// Calculate size based on frame
+	// Calculate size based on frame (gradually growing)
 	const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
-	static_cast<float>(q_countof(fireball_left_hand));
-	constexpr float max_size = 1.5f; // Maximum size multiplier
-	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
+		static_cast<float>(q_countof(fireball_left_hand));
+	constexpr float max_size = 1.0f; // Maximum size multiplier
+	const float current_size = 0.25f + (max_size - 0.25f) * size_factor;
 
 	// Update size
-	fireball_effect->s.scale = current_size;
+	fireball_effect_left->s.scale = current_size;
+	fireball_effect_right->s.scale = current_size;
 
-	// Add pulsating effect using gtime_t
+	// Add pulsating effect
 	const gtime_t current_time = level.time;
-	const float pulse = sinf(current_time.seconds<float>() * 0.01f * PIf) * 0.2f + 0.8f;
+	const float pulse = sinf(current_time.seconds<float>() * 10.0f) * 0.2f + 0.8f;
 
 	// Apply pulse to scale
-	fireball_effect->s.scale *= pulse;
+	fireball_effect_left->s.scale *= pulse;
+	fireball_effect_right->s.scale *= pulse;
 
-	// Add SpawnGrow-like effect
-	if (frandom() < 0.3f) { // 30% chance each frame to spawn a particle
-		SpawnGrow_Spawn(midpoint, 10.0f, 1.0f);
+	// Add particle effects for better visibility
+	if (frandom() < 0.5f) {
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_WELDING_SPARKS);
+		gi.WriteByte(5);  // Particle count
+		gi.WritePosition(left_pos);
+		gi.WriteDir(vec3_origin);
+		gi.WriteByte(0xe0);  // Color
+		gi.multicast(left_pos, MULTICAST_PVS, false);
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_WELDING_SPARKS);
+		gi.WriteByte(5);
+		gi.WritePosition(right_pos);
+		gi.WriteDir(vec3_origin);
+		gi.WriteByte(0xe0);
+		gi.multicast(right_pos, MULTICAST_PVS, false);
 	}
 
-	gi.linkentity(fireball_effect);
+	gi.linkentity(fireball_effect_left);
+	gi.linkentity(fireball_effect_right);
 }
+
 void shambler_windupFire(edict_t* self)
 {
+	// Sound effect for charging
 	gi.sound(self, CHAN_WEAPON, sound_windup, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
-	// We don't need to spawn a beam entity here anymore
-	// The fireball effect will be created in shambler_lightning_update
-	self->beam = nullptr;
-	shambler_fireball_update(self); // Initial update
+
+	// Initialize tracking variables
+	self->beam = nullptr;  // Left hand fireball
+	self->beam2 = nullptr; // Right hand fireball
+
+	// Start the visual fireball charge effect
+	shambler_fireball_update(self);
+
+	// Add dramatic light effect
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_TELEPORT_EFFECT);
+	gi.WritePosition(self->s.origin);
+	gi.multicast(self->s.origin, MULTICAST_PVS, false);
 }
+
 //
 static void shambler_lightning_update(edict_t* self)
 {
@@ -431,149 +764,38 @@ mframe_t shambler_frames_magic[] = {
 
 MMOVE_T(shambler_attack_magic) = { FRAME_magic01, FRAME_magic12, shambler_frames_magic, shambler_run };
 
-void ShamblerCastFireballs(edict_t* self)
-{
-	if (!self->enemy)
-		return;
-
-	vec3_t f, r;
-	AngleVectors(self->s.angles, f, r, nullptr);
-
-	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
-	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
-	const vec3_t start = (left_pos + right_pos) * 0.5f;
-
-	vec3_t dir;
-	vec3_t target;
-	const float rocketSpeed = 1200;
-	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING) != 0;
-
-	// Si estamos en modo blindfire, usar el target guardado
-	if (blindfire)
-	{
-		target = self->monsterinfo.blind_fire_target;
-
-		if (!M_AdjustBlindfireTarget(self, start, target, r, dir))
-			return;
-	}
-	else
-	{
-		// Smart targeting como el tank
-		if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
-		{
-			target = self->enemy->s.origin;
-			target[2] += self->enemy->viewheight;
-		}
-		else
-		{
-			target = self->enemy->s.origin;
-			target[2] = self->enemy->absmin[2] + 1;
-		}
-
-		// Lead shot con probabilidad basada en dificultad
-		if (frandom() <= 0.2f + ((3 - skill->integer) * 0.15f))
-			PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &target);
-		else
-		{
-			dir = target - start;
-			dir.normalize();
-		}
-
-		// Check de línea de visión
-		trace_t const trace = gi.traceline(start, target, self, MASK_PROJECTILE);
-		if (trace.fraction < 0.5f && !blindfire)
-			return;
-	}
-
-	// Guardar última posición conocida para blindfire
-	self->monsterinfo.blind_fire_target = target;
-
-	// Lanzar fireballs
-	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
-	const float spread_base = g_hardcoop->integer ? 0.03f : 0.06f;
-
-	for (int i = 0; i < num_fireballs; i++)
-	{
-		vec3_t spread_dir = dir;
-		if (i > 0)
-		{
-			float spread = spread_base;
-			if (self->monsterinfo.IS_BOSS)
-				spread *= 0.5f;
-
-			spread_dir[0] += crandom() * spread;
-			spread_dir[1] += crandom() * spread;
-			spread_dir[2] += crandom() * spread;
-			spread_dir.normalize();
-		}
-
-		edict_t* fireball = G_Spawn();
-		if (fireball)
-		{
-			fireball->s.origin = start;
-			fireball->s.angles = vectoangles(spread_dir);
-			fireball->velocity = spread_dir * rocketSpeed;
-			fireball->movetype = MOVETYPE_FLYMISSILE;
-			fireball->svflags |= SVF_PROJECTILE;
-			fireball->flags |= FL_DODGE;
-			fireball->clipmask = MASK_PROJECTILE;
-			fireball->solid = SOLID_BBOX;
-			fireball->s.effects = EF_FIREBALL | EF_TELEPORTER;
-			fireball->s.renderfx = RF_MINLIGHT;
-			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
-			fireball->owner = self;
-			fireball->touch = fireball_touch;
-			fireball->nextthink = level.time + 7_sec;
-			fireball->think = G_FreeEdict;
-			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
-			fireball->radius_dmg = 45 * M_DamageModifier(self);
-			fireball->dmg_radius = 120;
-			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
-			fireball->classname = "shambler_fireball";
-
-			// Escala basada en la animación de carga
-			const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
-				static_cast<float>(q_countof(fireball_left_hand));
-			fireball->s.scale = 0.1f + (1.4f - 0.1f) * size_factor / 3;
-
-			gi.linkentity(fireball);
-		}
-	}
-
-	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
-}
 mframe_t shambler_frames_fireball[] = {
-	{ ai_charge, 0, shambler_windupFire },
-	{ ai_charge, 0, shambler_fireball_update },
+	{ ai_charge, 0, shambler_windupFire },      // First frame - start charge
+	{ ai_charge, 0, shambler_fireball_update }, // Charge building up
 	{ ai_charge, 0, shambler_fireball_update },
 	{ ai_move, 0, shambler_fireball_update },
 	{ ai_move, 0, shambler_fireball_update },
-	{ ai_move, 0, ShamblerSaveLoc},
+	{ ai_move, 0, ShamblerSaveLoc },           // Save target location
 	{ ai_move },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_move, 0, ShamblerCastFireballs },
-	{ ai_move, 0, ShamblerCastFireballs },
-	{ ai_move, 0, ShamblerCastFireballs },
-	{ ai_move, 0, ShamblerCastFireballs },
+	{ ai_move, 0, ShamblerCastFireballs },     // First wave of fireballs
+	{ ai_move, 0, ShamblerCastFireballs },     // Second wave 
+	{ ai_move, 0, ShamblerCastFireballs },     // Third wave
+	{ ai_move, 0, ShamblerCastFireballs },     // Fourth wave
 };
-
 MMOVE_T(shambler_attack_fireball) = { FRAME_smash01, FRAME_smash12, shambler_frames_fireball, shambler_run };
 
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
-	if (!strcmp(self->classname, "monster_shambler_small")) {
+//	if (!strcmp(self->classname, "monster_shambler_small")) { //fireball got bugged somehow
 	M_SetAnimation(self, &shambler_attack_magic);
 	return;
 }
-	else
-	M_SetAnimation(self,
-		brandom() ?
-		&shambler_attack_magic :
-		&shambler_attack_fireball);
-	return;
-}
+	//else
+	//M_SetAnimation(self,
+	//	brandom() ?
+	//	&shambler_attack_magic :
+	//	&shambler_attack_fireball);
+	//return;
+//}
+
 //
 // melee
 //
