@@ -2434,6 +2434,12 @@ void fixbot_fire_blaster(edict_t* self)
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;
 	self->pos1[2] += self->enemy->viewheight;
+
+	if (frandom() < 0.080f && !isboss)
+	{
+		fixbot_fire_plasma(self, 8.0f);
+		gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0);
+	}
 }
 
 MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
