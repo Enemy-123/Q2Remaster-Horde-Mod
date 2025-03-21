@@ -87,8 +87,9 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 	end = start + (forward * 1024);  // Check up to 1024 units ahead
 
-	// Try to find a wall - we don't exclude players here to maximize potential spawn points
-	tr = gi.traceline(start, end, self, MASK_SOLID);
+	// IMPORTANT: Explicitly exclude players and monsters in the trace
+	// Change from MASK_SOLID to MASK_SOLID without CONTENTS_MONSTER and CONTENTS_PLAYER
+	tr = gi.traceline(start, end, self, MASK_SOLID & ~(CONTENTS_MONSTER | CONTENTS_PLAYER));
 
 	if (tr.fraction < 1.0) {
 		// We hit something!
@@ -100,8 +101,21 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
 			direction = tr.plane.normal;
 			direction.normalize();
+			
+			// Add a significant height offset to ensure turrets spawn above players
+			// Similar to the sentrygun MIN_HEIGHT constant (50.0f)
 			position = tr.endpos + (direction * 8);  // Offset from wall
-			return true;
+			position[2] += 50.0f;  // Add height offset
+			
+			// Check if the space is clear at the proposed position
+			vec3_t mins = { -16, -16, -24 };
+			vec3_t maxs = { 16, 16, 24 };
+			trace_t space_check = gi.trace(position, mins, maxs, position, self, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+			
+			if (space_check.fraction == 1.0f && !space_check.startsolid && !space_check.allsolid) {
+				// Found a valid position with enough space
+				return true;
+			}
 		}
 		else if (isboss) {
 			//gi.Com_PrintFmt("FixbotKL hit entity is not valid for spawning\n");
@@ -116,14 +130,26 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		return find_turret_spawn_position(self, position, direction, attempt + 1);
 	}
 
-	// Last resort - if we can't find a wall, just pick a position in front of us
+	// Last resort - if we can't find a wall, pick a position above and in front of us
 	if (isboss) {
 		//gi.Com_PrintFmt("FixbotKL using fallback spawn position\n");
 	}
 
-	// Use a position directly in front of the fixbot
+	// Use a position above and in front of the fixbot
 	position = self->s.origin + (forward * 100);
+	position[2] += 75.0f;  // Significant height to avoid players
 	direction = forward * -1; // Face back toward the fixbot
+	
+	// Verify final fallback position
+	vec3_t mins = { -16, -16, -24 };
+	vec3_t maxs = { 16, 16, 24 };
+	trace_t space_check = gi.trace(position, mins, maxs, position, self, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+	
+	if (space_check.fraction != 1.0f || space_check.startsolid || space_check.allsolid) {
+		// Even our fallback position isn't valid, adjust height more
+		position[2] += 50.0f;  // Try even higher
+	}
+	
 	return true;
 }
 
@@ -222,6 +248,19 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		return;
 	}
 
+	// SAFETY CHECK: Verify the position is valid and clear from other entities
+	vec3_t mins = { -16, -16, -24 };
+	vec3_t maxs = { 16, 16, 24 };
+	trace_t space_check = gi.trace(position, mins, maxs, position, self, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+
+	if (space_check.fraction != 1.0f || space_check.startsolid || space_check.allsolid) {
+		// Space is not clear, don't spawn
+		//if (isboss) {
+		//	gi.Com_PrintFmt("FixbotKL spawn position not clear, aborting\n");
+		//}
+		return;
+	}
+
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 //	if (isboss) {
 		//gi.Com_PrintFmt("FixbotKL spawning turret at {:.1f}, {:.1f}, {:.1f}\n",
@@ -296,11 +335,15 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	{
 		// Make sure enemy is NULL even after initialization
 		ent->enemy = nullptr;
-		ent->monsterinfo.search_time = level.time + 2_sec;  // Give it time before searching
+		// Give it more time before searching - 3 seconds instead of 2
+		ent->monsterinfo.search_time = level.time + 3_sec;
 		ent->svflags &= ~SVF_NOCLIENT;  // Make the turret visible again
 
-		// Make sure the turret becomes active
-		ent->nextthink = level.time + 100_ms;
+		// Make sure the turret becomes active after a longer delay
+		ent->nextthink = level.time + 250_ms; // Longer delay
+		
+		// Add a brief invulnerability period after spawn to prevent immediate death
+		ent->pain_debounce_time = level.time + 1_sec;
 		
 		if (isboss) {
 			//gi.Com_PrintFmt("FixbotKL turret spawned successfully!\n");
@@ -370,11 +413,17 @@ void fixbot_spawn_check(edict_t* self)
 		if (!g_spawn_position.equals(vec3_origin)) {
 			//gi.Com_PrintFmt("FixbotKL attempting to spawn turret at position {:.1f}, {:.1f}, {:.1f}\n",
 	//			g_spawn_position[0], g_spawn_position[1], g_spawn_position[2]);
-			// Try to spawn at primary position
-	//		spawn_turret_at_position(self, g_spawn_position);
+			
+			// IMPORTANT: Actually call spawn_turret_at_position to spawn the turret
+			spawn_turret_at_position(self, g_spawn_position);
 		}
 		else {
 			//gi.Com_PrintFmt("FixbotKL error: spawn position is zero\n");
+			// Try to find a valid position one more time as a fallback
+			vec3_t spawn_pos, spawn_dir;
+			if (find_turret_spawn_position(self, spawn_pos, spawn_dir, 1)) {
+				spawn_turret_at_position(self, spawn_pos);
+			}
 		}
 	}
 
