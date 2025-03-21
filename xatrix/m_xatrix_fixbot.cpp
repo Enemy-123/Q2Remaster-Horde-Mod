@@ -4,6 +4,9 @@
 	fixbot.c
 */
 
+// Debug flag - set to 1 to spawn turrets at player position
+#define DEBUG_SPAWN_AT_PLAYER 0
+
 #include "../g_local.h"
 #include "m_xatrix_fixbot.h"
 #include "../m_flash.h"
@@ -61,6 +64,39 @@ void roam_goal(edict_t* self);
 constexpr const char* fixbot_reinforcements = "monster_turret 1";
 constexpr int32_t fixbot_monster_slots_base = 6;
 
+// This makes the fixbot gradually turn to face the spawn position over multiple frames
+void fixbot_face_position(edict_t* self, const vec3_t& target_pos)
+{
+	// Calculate desired direction
+	vec3_t dir = target_pos - self->s.origin;
+	float desired_yaw = vectoyaw(dir);
+
+	// Set the ideal yaw for the fixbot to turn toward
+	self->ideal_yaw = desired_yaw;
+
+	// Calculate the difference between current and desired yaw
+	float delta = self->s.angles[YAW] - self->ideal_yaw;
+	if (delta > 180)
+		delta -= 360;
+	if (delta < -180)
+		delta += 360;
+
+	// For large turns, apply a smooth transition (max 10 degrees per frame)
+	float turn_factor = 10.0f;
+	if (fabs(delta) > turn_factor) {
+		self->s.angles[YAW] -= (delta > 0) ? turn_factor : -turn_factor;
+	}
+	else {
+		// For small adjustments, smoothly interpolate
+		self->s.angles[YAW] = self->ideal_yaw;
+	}
+
+	// Normalize the angle
+	if (self->s.angles[YAW] > 360)
+		self->s.angles[YAW] -= 360;
+	if (self->s.angles[YAW] < 0)
+		self->s.angles[YAW] += 360;
+}
 
 bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction, int attempt = 0)
 {
@@ -69,87 +105,175 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	trace_t tr;
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
+	// Track the best position across all attempts
+	static struct {
+		vec3_t pos;
+		vec3_t dir;
+		float distance;
+		bool valid;
+		bool in_front; // Track if position is in front of fixbot
+	} best_position;
+
+	// Reset on first attempt
+	if (attempt == 0) {
+		best_position.valid = false;
+		best_position.distance = 0;
+		best_position.in_front = false;
+	}
+
 	// Create ray from fixbot position
 	AngleVectors(self->s.angles, forward, right, up);
 	start = self->s.origin;
 
-	// If this is a retry attempt, add some randomization to the direction
+	// If this is a retry attempt, try different directions
 	if (attempt > 0) {
-		// Add progressively more randomness with each attempt
-		float angle_offset = (frandom() - 0.5f) * 45.0f * attempt;
-		float pitch_offset = (frandom() - 0.5f) * 20.0f * attempt;
-
+		// Create more varied search directions
 		vec3_t angles = vectoangles(forward);
-		angles[YAW] += angle_offset;
-		// Adjust pitch to aim more downward instead of upward
-		angles[PITCH] += pitch_offset - 15.0f; // Subtract 15 degrees to aim more downward
+		
+		// First 4 attempts use angles in front of the fixbot
+		if (attempt <= 4) {
+			// First attempts prioritize forward positions with small variations
+			angles[YAW] += (attempt - 1) * 30.0f - 45.0f; // -45, -15, +15, +45 degrees
+			angles[PITCH] = -15.0f; // Slight downward angle
+		}
+		else {
+			// Later attempts use full circular search
+			angles[YAW] += (attempt - 4) * 45.0f; // Try positions all around
+			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f; // Various pitches, mostly down
+		}
+		
 		AngleVectors(angles, forward, nullptr, nullptr);
 	}
 
-	// Check much further ahead for boss to place turrets at range
-	float trace_distance = isboss ? 800.0f : 500.0f;
+	// Use longer trace for farther positions
+	float trace_distance = isboss ? 1000.0f : 700.0f;
 	end = start + (forward * trace_distance);
 
-	// IMPORTANT: Exclude players from the trace to prevent spawns on top of them
-	// but include world and other solid objects
+	// Trace against world but exclude monsters and players
 	tr = gi.traceline(start, end, self, MASK_SOLID & ~(CONTENTS_MONSTER | CONTENTS_PLAYER));
 
-	if (tr.fraction < 1.0) {
-		// We hit something!
-		if (isboss) {
-			//gi.Com_PrintFmt("FixbotKL trace hit at {:.1f}, {:.1f}, {:.1f}\n", tr.endpos[0], tr.endpos[1], tr.endpos[2]);
-		}
+	// DEBUG: Enable this line to print positions being checked
+	// gi.Com_PrintFmt("Checking position at {:.1f}, {:.1f}, {:.1f}\n", tr.endpos[0], tr.endpos[1], tr.endpos[2]);
 
+	if (tr.fraction < 1.0) {
+		// We hit something solid (hopefully a wall)
+		
 		// Check if the hit entity is valid for spawning (not a player or monster)
 		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
 			// Calculate the normal for the surface we hit
 			direction = tr.plane.normal;
+			
 			// Make sure direction is not perfectly vertical
-			if (fabs(direction[2]) > 0.9f) {
-				// If it's too vertical, adjust it
+			if (fabs(direction[2]) > 0.85f) {
 				direction[2] = 0.6f;
 				direction.normalize();
 			}
 			
 			// Position a bit off the wall/floor for better placement
-			position = tr.endpos + (tr.plane.normal * 8.0f);
+			position = tr.endpos + (tr.plane.normal * 16.0f); // Increased offset from wall
 			
-			// Check if the space is clear at the proposed position
+			// Check if there's enough space for the turret
 			vec3_t mins = { -16, -16, -24 };
 			vec3_t maxs = { 16, 16, 24 };
 			trace_t space_check = gi.trace(position, mins, maxs, position, self, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 			
 			if (space_check.fraction == 1.0f && !space_check.startsolid && !space_check.allsolid) {
-				// Found a valid position with enough space
-				return true;
+				// Found what seems to be a valid position, now verify it's not behind a wall
+				
+				// Check if position is in front of fixbot
+				vec3_t to_pos = position - self->s.origin;
+				to_pos.normalize();
+				bool pos_in_front = (to_pos.dot(forward) > 0.0f); // Positive dot product means in front
+				
+				// Check that players can see the turret position
+				bool visible_to_player = false;
+				bool players_exist = false;
+				
+				for (int i = 0; i < maxclients->integer; i++) {
+					edict_t* player = g_edicts + 1 + i;
+					if (!player->inuse || !player->client || player->health <= 0)
+						continue;
+					
+					players_exist = true;
+					
+					// Check if player can see the position
+					trace_t player_vis = gi.traceline(
+						player->s.origin + vec3_t{0, 0, static_cast<float>(player->viewheight)},
+						position, 
+						player, 
+						MASK_SOLID
+					);
+					
+					if (player_vis.fraction >= 0.7f) {
+						visible_to_player = true;
+						break;
+					}
+				}
+				
+				// If no players are around, don't require player visibility
+				if (!players_exist) {
+					visible_to_player = true;
+				}
+				
+				// Make sure the fixbot can see the spawn position (not behind a wall)
+				trace_t self_vis = gi.traceline(self->s.origin, position, self, MASK_SOLID);
+				if (self_vis.fraction >= 0.9f && (visible_to_player || !players_exist)) {
+					// Calculate distance from fixbot to determine if this is the best position
+					float dist = (position - self->s.origin).length();
+					
+					// Prefer positions in front, but don't reject positions behind if they're good
+					bool better_position = false;
+					
+					// If we have no valid position yet, take this one
+					if (!best_position.valid) {
+						better_position = true;
+					}
+					// If this position is in front and our best position is behind, prefer this one
+					else if (pos_in_front && !best_position.in_front) {
+						better_position = true;
+					}
+					// If both are in front or both behind, take the farther one
+					else if ((pos_in_front == best_position.in_front) && dist > best_position.distance) {
+						better_position = true;
+					}
+					
+					if (better_position) {
+						best_position.pos = position;
+						best_position.dir = direction;
+						best_position.distance = dist;
+						best_position.valid = true;
+						best_position.in_front = pos_in_front;
+					}
+					
+					// If this is an excellent position in front, use it immediately
+					if (pos_in_front && dist > trace_distance * 0.5f) {
+						return true;
+					}
+				}
 			}
 		}
-		else if (isboss) {
-			//gi.Com_PrintFmt("FixbotKL hit entity is not valid for spawning\n");
-		}
-	}
-	else if (isboss) {
-		//gi.Com_PrintFmt("FixbotKL trace didn't hit anything\n");
 	}
 
-	// If we haven't found a valid position, try a different direction
-	if (attempt < 8) { // Increase max attempts
+	// Try more positions if we haven't found a good one yet
+	if (attempt < 12) { // Increased max attempts
 		return find_turret_spawn_position(self, position, direction, attempt + 1);
 	}
 
-	// Last resort - if we can't find a wall, pick a position further in front of us
-	if (isboss) {
-		//gi.Com_PrintFmt("FixbotKL using fallback spawn position\n");
+	// If we've tried all attempts and found at least one valid position, use the best one
+	if (best_position.valid) {
+		position = best_position.pos;
+		direction = best_position.dir;
+		return true;
 	}
 
-	// Use a position further in front of the fixbot
-	position = self->s.origin + (forward * (isboss ? 300.0f : 200.0f));
+	// Last resort - if we can't find a wall or visible position
+	position = self->s.origin + (forward * (isboss ? 350.0f : 250.0f));
+	
 	// Direction should face the player/enemy if possible
 	if (self->enemy && self->enemy->inuse) {
 		direction = self->enemy->s.origin - position;
 		direction.normalize();
 	} else {
-		// Default direction facing same as fixbot but slightly downward
 		direction = forward;
 		direction[2] -= 0.2f; // Angle slightly down
 		direction.normalize();
@@ -161,8 +285,8 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	trace_t space_check = gi.trace(position, mins, maxs, position, self, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 	
 	if (space_check.fraction != 1.0f || space_check.startsolid || space_check.allsolid) {
-		// Even our fallback position isn't valid, try to offset it a bit
-		position = self->s.origin + (forward * (isboss ? 400.0f : 250.0f));
+		// Try an even farther position
+		position = self->s.origin + (forward * (isboss ? 450.0f : 300.0f));
 	}
 	
 	return true;
@@ -247,6 +371,37 @@ void fixbot_fire_spawn_laser(edict_t* self)
 	if (!g_is_spawning)
 		return;
 
+	// Continue turning smoothly toward the spawn position
+	if (!g_spawn_position.equals(vec3_origin)) {
+		// Calculate direction to target
+		vec3_t dir = g_spawn_position - self->s.origin;
+		float desired_yaw = vectoyaw(dir);
+		
+		// Set ideal yaw
+		self->ideal_yaw = desired_yaw;
+		
+		// Calculate delta angle
+		float delta = self->s.angles[YAW] - desired_yaw;
+		if (delta > 180)
+			delta -= 360;
+		if (delta < -180)
+			delta += 360;
+		
+		// Smooth turn - maximum 5 degrees per frame for more natural movement
+		float turn_speed = 5.0f;
+		if (fabs(delta) > turn_speed) {
+			self->s.angles[YAW] -= (delta > 0) ? turn_speed : -turn_speed;
+		} else {
+			self->s.angles[YAW] = desired_yaw;
+		}
+		
+		// Normalize angle
+		while (self->s.angles[YAW] > 360)
+			self->s.angles[YAW] -= 360;
+		while (self->s.angles[YAW] < 0)
+			self->s.angles[YAW] += 360;
+	}
+
 	// Fire the laser beam effect with safety check
 	monster_fire_dabeam(self, -1, false, fixbot_spawn_laser_update);
 
@@ -273,14 +428,6 @@ void fixbot_fire_spawn_laser(edict_t* self)
 			gi.WritePosition(g_spawn_position);
 			gi.multicast(g_spawn_position, MULTICAST_PVS, false);
 		}
-		
-		// Add occasional light flash for dramatic effect
-		//if (isboss && frandom() > 0.85f) {
-		//	gi.WriteByte(svc_temp_entity);
-		//	gi.WriteByte(TE_WELDING_SPARKS);
-		//	gi.WritePosition(g_spawn_position);
-		//	gi.multicast(g_spawn_position, MULTICAST_PVS, false);
-		//}
 	}
 }
 
@@ -520,10 +667,7 @@ void fixbot_prep_spawn(edict_t* self)
 	self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
-	if (isboss) {
-		//gi.Com_PrintFmt("FixbotKL prep_spawn started\n");
-	}
-
+	
 	// Find where to spawn the turret
 	vec3_t spawn_pos, spawn_dir;
 	if (find_turret_spawn_position(self, spawn_pos, spawn_dir))
@@ -532,18 +676,22 @@ void fixbot_prep_spawn(edict_t* self)
 		g_spawn_position = spawn_pos;
 		g_is_spawning = true;
 
-		if (isboss) {
-			//gi.Com_PrintFmt("FixbotKL found spawn position at {:.1f}, {:.1f}, {:.1f}\n",
-			//	spawn_pos[0], spawn_pos[1], spawn_pos[2]);
-		}
-
-		// Make the fixbot look at the spawn position
+		// Set the direction we want to face, but don't force immediate turn
+		// This will be handled smoothly in fixbot_fire_spawn_laser over multiple frames
 		vec3_t dir = spawn_pos - self->s.origin;
 		self->ideal_yaw = vectoyaw(dir);
-		M_ChangeYaw(self);
-	}
-	else if (isboss) {
-		//gi.Com_PrintFmt("FixbotKL FAILED to find spawn position!\n");
+		
+		// Only make a slight initial turn to start the rotation
+		// The rest will happen smoothly during the laser firing
+		float delta = self->s.angles[YAW] - self->ideal_yaw;
+		if (delta > 180) delta -= 360;
+		if (delta < -180) delta += 360;
+		
+		// Apply a small initial turn to start the animation
+		if (fabs(delta) > 15.0f) {
+			// Start turning toward target
+			self->s.angles[YAW] -= (delta > 0) ? 15.0f : -15.0f;
+		}
 	}
 }
 
@@ -556,6 +704,31 @@ void fixbot_spawn_check(edict_t* self)
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
+#if DEBUG_SPAWN_AT_PLAYER
+	// DEBUG MODE: Spawn at player position
+	if (g_is_spawning) {
+		// Find a player to spawn near
+		edict_t* player = nullptr;
+		for (int i = 0; i < maxclients->integer; i++) {
+			player = g_edicts + 1 + i;
+			if (player->inuse && player->client && player->health > 0) {
+				// Found a player - spawn turret near them
+				vec3_t spawn_pos = player->s.origin;
+				spawn_pos.z += 40.0f; // Raise a bit off the ground
+
+				// Calculate direction facing player
+				vec3_t spawn_dir = self->s.origin - spawn_pos;
+				spawn_dir.normalize();
+
+				// Spawn the turret
+				gi.Com_PrintFmt("DEBUG: Spawning turret at player at {:.1f}, {:.1f}, {:.1f}\n",
+					spawn_pos[0], spawn_pos[1], spawn_pos[2]);
+				spawn_turret_at_position(self, spawn_pos);
+				break;
+			}
+		}
+	}
+#else
 	// Only spawn if we have slots available and is boss and is actually in spawning mode
 	if (isboss) {
 		//gi.Com_PrintFmt("FixbotKL spawn check - monster_slots: {}, used: {}, is_spawning: {}\n", 
@@ -658,6 +831,7 @@ void fixbot_spawn_check(edict_t* self)
 			}
 		}
 	}
+#endif
 
 	// Reset spawning state
 	g_is_spawning = false;

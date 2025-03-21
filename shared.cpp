@@ -8,6 +8,7 @@ bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
 
 void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void turret_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void prox_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void tesla_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
@@ -58,6 +59,7 @@ bool IsRemovableEntity(const edict_t* ent)
 		!strcmp(classname, "food_cube_trap") ||
 		!strcmp(classname, "prox_mine") ||
 		!strcmp(classname, "monster_sentrygun") ||
+		!strcmp(classname, "monster_turret") ||
 		!strcmp(classname, "emitter") ||
 		!strcmp(classname, "laser");
 }
@@ -72,6 +74,10 @@ void RemoveEntity(edict_t* ent)
 	if (!strcmp(classname, "monster_sentrygun") && ent->health > 0) {
 		ent->health = -1;
 		turret2_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	if (!strcmp(classname, "monster_turret") && ent->health > 0) {
+		ent->health = -1;
+		turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
 	else if (!strcmp(classname, "tesla_mine")) {
 		tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
