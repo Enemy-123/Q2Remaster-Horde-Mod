@@ -1918,6 +1918,7 @@ template<typename T>
 	return irandom(2) == 0;
 }
 
+extern cvar_t* maxclients;
 extern cvar_t* developer;
 extern cvar_t* deathmatch;
 extern cvar_t* coop;

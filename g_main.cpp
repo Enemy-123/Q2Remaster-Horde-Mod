@@ -40,7 +40,7 @@ cvar_t* g_instant_weapon_switch;
 cvar_t* password;
 cvar_t* spectator_password;
 cvar_t* needpass;
-static cvar_t* maxclients;
+cvar_t* maxclients;
 cvar_t* maxspectators;
 static cvar_t* maxentities;
 cvar_t* g_select_empty;

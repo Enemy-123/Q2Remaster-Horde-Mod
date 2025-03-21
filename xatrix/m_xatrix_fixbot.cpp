@@ -81,14 +81,17 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 		vec3_t angles = vectoangles(forward);
 		angles[YAW] += angle_offset;
-		angles[PITCH] += pitch_offset;
+		// Adjust pitch to aim more downward instead of upward
+		angles[PITCH] += pitch_offset - 15.0f; // Subtract 15 degrees to aim more downward
 		AngleVectors(angles, forward, nullptr, nullptr);
 	}
 
-	end = start + (forward * 1024);  // Check up to 1024 units ahead
+	// Check much further ahead for boss to place turrets at range
+	float trace_distance = isboss ? 800.0f : 500.0f;
+	end = start + (forward * trace_distance);
 
-	// IMPORTANT: Explicitly exclude players and monsters in the trace
-	// Change from MASK_SOLID to MASK_SOLID without CONTENTS_MONSTER and CONTENTS_PLAYER
+	// IMPORTANT: Exclude players from the trace to prevent spawns on top of them
+	// but include world and other solid objects
 	tr = gi.traceline(start, end, self, MASK_SOLID & ~(CONTENTS_MONSTER | CONTENTS_PLAYER));
 
 	if (tr.fraction < 1.0) {
@@ -99,13 +102,17 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 		// Check if the hit entity is valid for spawning (not a player or monster)
 		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
+			// Calculate the normal for the surface we hit
 			direction = tr.plane.normal;
-			direction.normalize();
+			// Make sure direction is not perfectly vertical
+			if (fabs(direction[2]) > 0.9f) {
+				// If it's too vertical, adjust it
+				direction[2] = 0.6f;
+				direction.normalize();
+			}
 			
-			// Add a significant height offset to ensure turrets spawn above players
-			// Similar to the sentrygun MIN_HEIGHT constant (50.0f)
-			position = tr.endpos + (direction * 8);  // Offset from wall
-			position[2] += 50.0f;  // Add height offset
+			// Position a bit off the wall/floor for better placement
+			position = tr.endpos + (tr.plane.normal * 8.0f);
 			
 			// Check if the space is clear at the proposed position
 			vec3_t mins = { -16, -16, -24 };
@@ -130,15 +137,23 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		return find_turret_spawn_position(self, position, direction, attempt + 1);
 	}
 
-	// Last resort - if we can't find a wall, pick a position above and in front of us
+	// Last resort - if we can't find a wall, pick a position further in front of us
 	if (isboss) {
 		//gi.Com_PrintFmt("FixbotKL using fallback spawn position\n");
 	}
 
-	// Use a position above and in front of the fixbot
-	position = self->s.origin + (forward * 100);
-	position[2] += 75.0f;  // Significant height to avoid players
-	direction = forward * -1; // Face back toward the fixbot
+	// Use a position further in front of the fixbot
+	position = self->s.origin + (forward * (isboss ? 300.0f : 200.0f));
+	// Direction should face the player/enemy if possible
+	if (self->enemy && self->enemy->inuse) {
+		direction = self->enemy->s.origin - position;
+		direction.normalize();
+	} else {
+		// Default direction facing same as fixbot but slightly downward
+		direction = forward;
+		direction[2] -= 0.2f; // Angle slightly down
+		direction.normalize();
+	}
 	
 	// Verify final fallback position
 	vec3_t mins = { -16, -16, -24 };
@@ -146,8 +161,8 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	trace_t space_check = gi.trace(position, mins, maxs, position, self, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 	
 	if (space_check.fraction != 1.0f || space_check.startsolid || space_check.allsolid) {
-		// Even our fallback position isn't valid, adjust height more
-		position[2] += 50.0f;  // Try even higher
+		// Even our fallback position isn't valid, try to offset it a bit
+		position = self->s.origin + (forward * (isboss ? 400.0f : 250.0f));
 	}
 	
 	return true;
@@ -176,8 +191,16 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 
 	// If we have a spawn position, aim at it
 	if (g_is_spawning && !g_spawn_position.equals(vec3_origin)) {
+		// Get direction vector to spawn position
 		dir = g_spawn_position - start;
 		dir.normalize();
+		
+		// Adjust laser color based on whether it's a boss
+		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		if (isboss) {
+			// Boss gets a more intense beam
+			laser->s.skinnum = 0xf0f0f0f0; // Brighter, more intense beam
+		}
 	}
 
 	laser->s.origin = start;
@@ -185,6 +208,33 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 	gi.linkentity(laser);
 	// Restore original call - don't change parameters we don't fully understand
 	dabeam_update(laser, true);
+
+	// Add particle effects at the target spawn position for better visuals
+	if (g_is_spawning && !g_spawn_position.equals(vec3_origin))
+	{
+		// Enhanced particle effects at the target location
+		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		int particle_chance = isboss ? 5 : 7; // More frequent effects for boss
+		
+		// Occasional sparks at the target location
+		if (frandom() * 10 > particle_chance) {
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_WELDING_SPARKS);
+			gi.WriteByte(isboss ? 10 : 5); // More particles for boss
+			gi.WritePosition(g_spawn_position);
+			gi.WriteDir(vec3_origin);
+			gi.WriteByte(0xe0);
+			gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+			
+			//// Occasional glow effect
+			//if (frandom() > 0.7f) {
+			//	gi.WriteByte(svc_temp_entity);
+			//	gi.WriteByte(TE_TELEPORT_EFFECT);
+			//	gi.WritePosition(g_spawn_position);
+			//	gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+			//}
+		}
+	}
 }
 
 void fixbot_fire_spawn_laser(edict_t* self)
@@ -203,29 +253,66 @@ void fixbot_fire_spawn_laser(edict_t* self)
 	// Add some particle effects at the target location for better visuals
 	if (!g_spawn_position.equals(vec3_origin))
 	{
+		// More impressive effects for boss
+		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		int num_sparks = isboss ? 20 : 8; // Increased particles
+		
+		// Create welding sparks at the target position
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_WELDING_SPARKS);
-		gi.WriteByte(5);
+		gi.WriteByte(num_sparks);
 		gi.WritePosition(g_spawn_position);
 		gi.WriteDir(vec3_origin);
-		gi.WriteByte(0xe0);
+		gi.WriteByte(isboss ? 0xf0 : 0xe0); // Brighter color for boss
 		gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+		
+		// Add a teleport effect occasionally to hint at the upcoming spawn
+		if (frandom() > 0.75f) { // More frequent teleport effect
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_TELEPORT_EFFECT);
+			gi.WritePosition(g_spawn_position);
+			gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+		}
+		
+		// Add occasional light flash for dramatic effect
+		//if (isboss && frandom() > 0.85f) {
+		//	gi.WriteByte(svc_temp_entity);
+		//	gi.WriteByte(TE_WELDING_SPARKS);
+		//	gi.WritePosition(g_spawn_position);
+		//	gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+		//}
 	}
 }
 
 void fixbot_start_spawn(edict_t* self)
 {
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	
 	// Create visual charge effect
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WELDING_SPARKS);
-	gi.WriteByte(15); // More sparks for better effect
+	gi.WriteByte(isboss ? 25 : 15); // More sparks for boss
 	gi.WritePosition(self->s.origin);
 	gi.WriteDir(vec3_origin);
-	gi.WriteByte(0xe0);
+	gi.WriteByte(isboss ? 0xf0 : 0xe0); // Brighter color for boss
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+
+	// Add additional particle effects for bosses
+	if (isboss) {
+		// Add energy flash
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_SCREEN_SPARKS);
+		gi.WritePosition(self->s.origin);
+		gi.multicast(self->s.origin, MULTICAST_PVS, false);
+	}
 
 	// Add a glow effect to the fixbot while spawning
 	self->s.effects |= EF_HYPERBLASTER;
+
+	// For boss, add additional effect
+	if (isboss) {
+		self->s.effects |= EF_PLASMA;
+	}
 
 	// Make sure the fixbot still aims at the spawn position
 	if (g_is_spawning && !g_spawn_position.equals(vec3_origin))
@@ -236,6 +323,38 @@ void fixbot_start_spawn(edict_t* self)
 	}
 }
 
+
+// Helper function to push entities away from spawn points (gentler than boss spawn version)
+void PushEntitiesAwayFromSpawn(const vec3_t& center, float push_radius, float push_strength)
+{
+	// Only push clients away from turret spawn locations
+	for (int i = 0; i < maxclients->integer; i++) {
+		edict_t* ent = g_edicts + 1 + i;
+		if (!ent->inuse || !ent->client || ent->health <= 0)
+			continue;
+
+		// Check if player is within radius
+		vec3_t dir = ent->s.origin - center;
+		float dist = dir.length();
+		if (dist >= push_radius || dist < 0.1f)
+			continue;
+
+		// Calculate push force (stronger when closer)
+		dir.normalize();
+		float force = push_strength * (1.0f - (dist / push_radius));
+		
+		// Apply push force
+		dir.z += 0.3f; // Add slight upward component to prevent getting stuck
+		dir.normalize();
+		ent->velocity += dir * force;
+		
+		// Mark as pushed to prevent fall damage
+		if (ent->client) {
+			ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+			ent->client->ps.pmove.pm_time = 30; // Short protection time
+		}
+	}
+}
 
 // New function to spawn a turret at a specific position
 // Spawn a turret at a specific position with proper safety checks
@@ -267,15 +386,28 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		//	position[0], position[1], position[2]);
 	//}
 
+	// Push players away from the spawn point gently
+	PushEntitiesAwayFromSpawn(position, 100.0f, isboss ? 150.0f : 100.0f);
+
 	vec3_t dir;
 	edict_t* ent;
 
-	// Calculate direction vector (from position to fixbot)
-	dir = self->s.origin - position;
-	if (dir.normalize() < 0.01f)  // Check if normalization worked
-	{
-		// If positions are too close, use a default direction
-		dir = { 0, 0, 1 };
+	// Determine best direction for the turret to face
+	// If we have an enemy, try to face them
+	if (self->enemy && self->enemy->inuse) {
+		// Face toward enemy if possible
+		dir = self->enemy->s.origin - position;
+		if (dir.normalize() < 0.01f) {
+			// Too close, use a default direction
+			dir = { 1, 0, 0 }; // Face forward by default
+		}
+	} else {
+		// No enemy, face away from fixbot for better coverage
+		dir = position - self->s.origin;
+		if (dir.normalize() < 0.01f) {
+			// Too close, use a default direction
+			dir = { 1, 0, 0 }; // Face forward by default
+		}
 	}
 
 	// Create the turret entity
@@ -294,25 +426,51 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->classname = "monster_turret";
 	ent->owner = self;
 
-	// Position the turret
+	// Position the turret - adjust height to be at proper level
 	ent->s.origin = position;
+	// Ensure the turret isn't partially in the ground/floor
+	trace_t ground_check = gi.trace(position, mins, maxs, position + vec3_t{0, 0, -30}, ent, MASK_SOLID);
+	if (ground_check.fraction < 1.0f) {
+		// If we hit something below, adjust position upward slightly
+		ent->s.origin[2] = position[2] + 5.0f;
+	}
 
-	// Orient the turret to face away from the wall
+	// Orient the turret using our calculated direction
 	ent->s.angles = vectoangles(dir);
 
 	// Finalize the turret
 	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
 	ent->monsterinfo.commander = self;
 
+	// Adjust health based on difficulty - boss turrets are tougher
+	if (isboss) {
+		ent->max_health = 250;
+	}
+
 	// Sound and visual effects - but check sound_spawn is valid first
 	if (sound_spawn)
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1,
 			isboss ? ATTN_NONE : ATTN_NORM, 0);
 
-	// Visual effect for spawning
+	// Enhanced visual effect for spawning - more dramatic and visible
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_TELEPORT_EFFECT);
 	gi.WritePosition(ent->s.origin);
+	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+	// Additional flash effect for all turrets, more intense for boss
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(isboss ? TE_BFG_EXPLOSION : TE_ROCKET_EXPLOSION);
+	gi.WritePosition(ent->s.origin);
+	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+	// Add spark effect for extra visual impact
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_WELDING_SPARKS);
+	gi.WriteByte(isboss ? 25 : 15);
+	gi.WritePosition(ent->s.origin);
+	gi.WriteDir(vec3_origin);
+	gi.WriteByte(isboss ? 0xf0 : 0xe0);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	// Add to monster count
@@ -335,15 +493,15 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	{
 		// Make sure enemy is NULL even after initialization
 		ent->enemy = nullptr;
-		// Give it more time before searching - 3 seconds instead of 2
-		ent->monsterinfo.search_time = level.time + 3_sec;
+		// Give it more time before searching - longer for boss turrets
+		ent->monsterinfo.search_time = level.time + (isboss ? 4_sec : 3_sec);
 		ent->svflags &= ~SVF_NOCLIENT;  // Make the turret visible again
 
 		// Make sure the turret becomes active after a longer delay
 		ent->nextthink = level.time + 250_ms; // Longer delay
 		
 		// Add a brief invulnerability period after spawn to prevent immediate death
-		ent->pain_debounce_time = level.time + 1_sec;
+		ent->pain_debounce_time = level.time + (isboss ? 2_sec : 1_sec);
 		
 		if (isboss) {
 			//gi.Com_PrintFmt("FixbotKL turret spawned successfully!\n");
@@ -404,25 +562,99 @@ void fixbot_spawn_check(edict_t* self)
 	//		self->monsterinfo.monster_slots, self->monsterinfo.monster_used, g_is_spawning ? 1 : 0);
 	}
 
-	if (isboss &&
-		self->monsterinfo.monster_slots &&
-		self->monsterinfo.monster_slots > self->monsterinfo.monster_used &&
-		g_is_spawning) {
+	// Determine if we can spawn a turret
+	bool can_spawn = false;
+	
+	if (g_is_spawning) {
+		// Boss fixbots can spawn turrets if they have slots available
+		if (isboss && self->monsterinfo.monster_slots && 
+		    self->monsterinfo.monster_slots > self->monsterinfo.monster_used) {
+			can_spawn = true;
+		}
+		// Regular fixbots can occasionally spawn turrets too, but at a lower rate
+		else if (!isboss && frandom() < 0.30f) { // Increased chance to 30% for regular fixbots
+			can_spawn = true;
+		}
+	}
 
+	if (can_spawn) {
 		// Validate spawn position
 		if (!g_spawn_position.equals(vec3_origin)) {
 			//gi.Com_PrintFmt("FixbotKL attempting to spawn turret at position {:.1f}, {:.1f}, {:.1f}\n",
 	//			g_spawn_position[0], g_spawn_position[1], g_spawn_position[2]);
 			
-			// IMPORTANT: Actually call spawn_turret_at_position to spawn the turret
-			spawn_turret_at_position(self, g_spawn_position);
+			// Check if the position is far enough from the fixbot
+			vec3_t dist_vec = g_spawn_position - self->s.origin;
+			float distance = dist_vec.length();
+			
+			if (distance > (isboss ? 80.0f : 100.0f)) { // Allow boss to spawn closer turrets
+				// IMPORTANT: Actually call spawn_turret_at_position to spawn the turret
+				spawn_turret_at_position(self, g_spawn_position);
+				
+				// Boss gets an additional effect at spawning location
+				if (isboss) {
+					// More intense explosion effect
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_BFG_EXPLOSION);
+					gi.WritePosition(g_spawn_position);
+					gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+					
+					// Additional energy arc effect
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_BOSSTPORT);
+					gi.WritePosition(g_spawn_position);
+					gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+				} else {
+					// Regular explosion effect for normal fixbots
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_ROCKET_EXPLOSION);
+					gi.WritePosition(g_spawn_position);
+					gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+				}
+			}
+			else {
+				// Too close, find a better position with more intentional searching
+				vec3_t spawn_pos, spawn_dir;
+				
+				// Try a few different angles to find a good position
+				for (int attempt = 2; attempt <= 5; attempt++) {
+					if (find_turret_spawn_position(self, spawn_pos, spawn_dir, attempt)) {
+						dist_vec = spawn_pos - self->s.origin;
+						distance = dist_vec.length();
+						
+						if (distance > (isboss ? 80.0f : 100.0f)) {
+							spawn_turret_at_position(self, spawn_pos);
+							break;
+						}
+					}
+				}
+			}
 		}
 		else {
 			//gi.Com_PrintFmt("FixbotKL error: spawn position is zero\n");
-			// Try to find a valid position one more time as a fallback
+			// Try to find a valid position with multiple attempts as a fallback
 			vec3_t spawn_pos, spawn_dir;
-			if (find_turret_spawn_position(self, spawn_pos, spawn_dir, 1)) {
-				spawn_turret_at_position(self, spawn_pos);
+			bool found_position = false;
+			
+			for (int attempt = 1; attempt <= 5; attempt++) {
+				if (find_turret_spawn_position(self, spawn_pos, spawn_dir, attempt)) {
+					// Check distance
+					vec3_t dist_vec = spawn_pos - self->s.origin;
+					float distance = dist_vec.length();
+					
+					if (distance > (isboss ? 80.0f : 100.0f)) {
+						spawn_turret_at_position(self, spawn_pos);
+						found_position = true;
+						break;
+					}
+				}
+			}
+			
+			// If we still can't find a good position but we're a boss, spawn at minimum distance
+			if (!found_position && isboss) {
+				if (find_turret_spawn_position(self, spawn_pos, spawn_dir, 0)) {
+					spawn_turret_at_position(self, spawn_pos);
+				}
 			}
 		}
 	}
@@ -436,6 +668,7 @@ void fixbot_spawn_check(edict_t* self)
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 		// Turn off any spawn visual effects
 		self->s.effects &= ~EF_HYPERBLASTER;
+		self->s.effects &= ~EF_PLASMA; // Also clear plasma effect if present
 		
 		if (isboss) {
 			//gi.Com_PrintFmt("FixbotKL spawn sequence completed\n");
