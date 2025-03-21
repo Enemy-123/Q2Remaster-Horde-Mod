@@ -8,6 +8,8 @@
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 #include <string>
 
+bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs);
+
 // Replace the macro with a constexpr function for better type safety and debugging
 [[nodiscard]] constexpr bool IsFirstThreeWaves(int32_t wave_level) noexcept {
     return wave_level <= 3;
