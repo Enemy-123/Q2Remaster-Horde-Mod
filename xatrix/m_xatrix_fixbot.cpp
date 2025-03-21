@@ -772,11 +772,11 @@ void fixbot_spawn_check(edict_t* self)
 					gi.WritePosition(g_spawn_position);
 					gi.multicast(g_spawn_position, MULTICAST_PVS, false);
 					
-					// Additional energy arc effect
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte(TE_BOSSTPORT);
-					gi.WritePosition(g_spawn_position);
-					gi.multicast(g_spawn_position, MULTICAST_PVS, false);
+					//// Additional energy arc effect
+					//gi.WriteByte(svc_temp_entity);
+					//gi.WriteByte(TE_BOSSTPORT);
+					//gi.WritePosition(g_spawn_position);
+					//gi.multicast(g_spawn_position, MULTICAST_PVS, false);
 				} else {
 					// Regular explosion effect for normal fixbots
 					gi.WriteByte(svc_temp_entity);
@@ -2554,6 +2554,27 @@ void fixbot_dead(edict_t* self)
 
 DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	// Find and destroy all spawned turrets
+	for (auto ent : active_monsters()) {
+		if (ent->inuse && 
+		    (ent->owner == self || ent->monsterinfo.commander == self) && 
+		    (!strcmp(ent->classname, "monster_turret"))) {
+			// Create explosion effect at turret location
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_BFG_BIGEXPLOSION);
+			gi.WritePosition(ent->s.origin);
+			gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+			// Kill the turret
+			ent->health = -999;
+			BecomeExplosion1(ent);
+		}
+	}
+
+	// Reset used slots if any
+	if (self->monsterinfo.monster_slots)
+		self->monsterinfo.monster_used = 0;
+
 	//OnEntityDeath(self);
 	ThrowGibs(self, damage, {
 
