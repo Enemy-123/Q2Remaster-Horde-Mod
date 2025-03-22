@@ -438,6 +438,9 @@ mframe_t soldier_frames_pain4[] = {
 };
 MMOVE_T(soldier_move_pain4) = { FRAME_pain401, FRAME_pain417, soldier_frames_pain4, soldier_run };
 
+extern const mmove_t soldier_move_jump;
+extern const mmove_t soldier_move_jump2;
+
 PAIN(soldier_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 
@@ -1492,7 +1495,6 @@ void soldier_jump_wait_land(edict_t* self)
 	else
 		self->monsterinfo.nextframe = self->s.frame + 1;
 }
-
 mframe_t soldier_frames_jump[] = {
 	{ ai_move, 0, soldier_jump_now },
 	{ ai_move, 0, soldier_jump_wait_land },
