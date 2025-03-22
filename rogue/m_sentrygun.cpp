@@ -20,10 +20,27 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; /
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
 
+// State tracking for smoother animation transitions
+static gtime_t last_target_time[MAX_EDICTS] = { 0_sec };
+static gtime_t last_enemy_change_time[MAX_EDICTS] = { 0_sec };
+static edict_t* previous_enemy[MAX_EDICTS] = { nullptr };
+static bool was_attacking[MAX_EDICTS] = { false };
+static int transition_state[MAX_EDICTS] = { 0 }; // 0=idle, 1=readying, 2=active, 3=cooling down
+
+
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
 void turret2_run(edict_t* self);
 void TurretSparks(edict_t* self);
+
+// animation frames for cooling down after combat
+mframe_t turret2_frames_cool_down[] = {
+	{ ai_stand, 0, turret2Aim },  // Still aiming during cooldown
+	{ ai_stand, 0, turret2Aim },  // Keep aiming to track new targets
+	{ ai_stand, 0, turret2Aim },
+	{ ai_stand, 0, turret2Aim }
+};
+MMOVE_T(turret2_move_cool_down) = { FRAME_pow04, FRAME_run01, turret2_frames_cool_down, turret2_run };
 
 extern const mmove_t turret2_move_fire;
 extern const mmove_t turret2_move_fire_blind;
@@ -62,6 +79,40 @@ static void UpdateSmokePosition(edict_t* self) {
 
 void turret2Aim(edict_t* self)
 {
+	// Get entity index 
+	const int entity_index = self->s.number;
+
+	// Check for enemy changes - happens before FindTarget is called
+	if (!self->enemy || !self->enemy->inuse) {
+		// Lost target but didn't transition yet
+		if (previous_enemy[entity_index] &&
+			transition_state[entity_index] != 3 && // Not already cooling down
+			was_attacking[entity_index]) {         // Was in combat
+
+			// Enter cooldown state
+			transition_state[entity_index] = 3;
+			last_target_time[entity_index] = level.time;
+
+			// Set animation if needed
+			if (self->monsterinfo.active_move != &turret2_move_cool_down)
+				M_SetAnimation(self, &turret2_move_cool_down);
+		}
+	}
+
+	// Calculate speed multiplier based on state
+	float speed_multiplier = 1.0f;
+	if (transition_state[entity_index] == 3) {
+		// Reduce turning speed during cooldown for smoother transitions
+		speed_multiplier = 0.6f;
+	}
+	else if (self->enemy && self->enemy != previous_enemy[entity_index]) {
+		// Target changed - use a variable speed based on time since change
+		float time_since_change = (level.time - last_enemy_change_time[entity_index]).seconds();
+
+		// Start slower, gradually speed up as we track the new target
+		if (time_since_change < 0.3f)
+			speed_multiplier = 0.5f + (time_since_change / 0.3f) * 0.5f;
+	}
 
 if (!self->enemy || self->enemy == world)
 {
@@ -82,6 +133,10 @@ if (!self->enemy || self->enemy == world)
 		return; // Skip this frame if we're not ready to search
 	}
 }
+
+// Update previous enemy before exiting the function
+previous_enemy[entity_index] = self->enemy;
+
 	// Actualizar la posición del efecto visual
 	UpdateSmokePosition(self);
 
@@ -565,19 +620,68 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 {
 	CreateTurretGlowEffect(self);
 
-	//if (self->s.frame < FRAME_run01)
-	//	turret2_ready_gun(self);
-	//else
-	{
-		self->monsterinfo.aiflags |= AI_HIGH_TICK_RATE;
-		M_SetAnimation(self, &turret2_move_run);
+	// Get entity index for state arrays
+	const int entity_index = self->s.number;
 
-		if (self->monsterinfo.weapon_sound)
-		{
+	// Check if we have an enemy
+	bool has_valid_enemy = (self->enemy && self->enemy->inuse &&
+		self->enemy->health > 0 && !self->enemy->deadflag);
+
+	// Detect enemy changes
+	if (has_valid_enemy && self->enemy != previous_enemy[entity_index]) {
+		last_enemy_change_time[entity_index] = level.time;
+		previous_enemy[entity_index] = self->enemy;
+	}
+
+	// Track attacking state changes
+	bool currently_attacking = has_valid_enemy &&
+		(self->monsterinfo.attack_finished > level.time - 500_ms);
+
+	// Handle transitions between states
+	if (currently_attacking) {
+		// We're attacking - update timestamp and state
+		last_target_time[entity_index] = level.time;
+		was_attacking[entity_index] = true;
+		transition_state[entity_index] = 2; // active state
+	}
+	else if (was_attacking[entity_index]) {
+		// We just stopped attacking - enter cooldown
+		if (transition_state[entity_index] != 3) { // Not already cooling down
+			transition_state[entity_index] = 3; // cooling down state
+
+			// Only change animation if we're not in cooldown yet
+			if (self->monsterinfo.active_move != &turret2_move_cool_down) {
+				M_SetAnimation(self, &turret2_move_cool_down);
+				return; // Animation change handled
+			}
+		}
+
+		// Check if cooldown period has elapsed - longer if we don't have a new target
+		gtime_t cooldown_time = has_valid_enemy ? 800_ms : 1_sec;
+		if (level.time > last_target_time[entity_index] + cooldown_time) {
+			was_attacking[entity_index] = false;
+			transition_state[entity_index] = 2; // back to active state
+		}
+	}
+
+	// Use normal run animation for active state
+	if (self->s.frame < FRAME_run01) {
+		turret2_ready_gun(self);
+	}
+	else {
+		self->monsterinfo.aiflags |= AI_HIGH_TICK_RATE;
+
+		// Only change animation if we're not cooling down
+		if (transition_state[entity_index] != 3) {
+			M_SetAnimation(self, &turret2_move_run);
+		}
+
+		if (self->monsterinfo.weapon_sound) {
 			self->monsterinfo.weapon_sound = 0;
 			gi.sound(self, CHAN_WEAPON, sound_moved, 1.0f, ATTN_STATIC, 0.f);
 		}
 	}
+
 	TurretSparks(self);
 }
 
