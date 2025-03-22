@@ -17,8 +17,6 @@ void fixbot_spawn_check(edict_t* self);
 void fixbot_start_spawn(edict_t* self);
 void fixbot_prep_spawn(edict_t* self);
 
-static bool g_is_spawning = false;
-
 static cached_soundindex sound_spawn;
 
 bool infront(edict_t* self, edict_t* other);
@@ -579,21 +577,78 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	}
 }
 
+mframe_t fixbot_frames_run[] = {
+	{ ai_run, 10 }
+};
+MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run, nullptr };
+
+
 void fixbot_prep_spawn(edict_t* self)
 {
 	// Reset any previous spawn data
 	self->monsterinfo.blind_fire_target = vec3_origin;
 
-	// Visual effect to indicate spawning start
-	gi.sound(self, CHAN_WEAPON, sound_weld1, 1, ATTN_NORM, 0);
-	self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
-
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
+	// First, check if this fixbot is allowed to spawn at all
+	bool can_spawn = false;
+
+	// Boss fixbots can spawn if they have slots available
+	if (isboss && self->monsterinfo.monster_slots &&
+		self->monsterinfo.monster_slots > self->monsterinfo.monster_used) {
+		can_spawn = true;
+	}
+	// Regular fixbots spawn with probability
+	else if (!isboss && frandom() < 0.30f) {
+		can_spawn = true;
+	}
+
+	// If we can't spawn, don't bother with effects or continuing
+	if (!can_spawn) {
+		// Skip the spawning sequence entirely
+		M_SetAnimation(self, &fixbot_move_run);
+		return;
+	}
 
 	// Find where to spawn the turret
 	vec3_t spawn_pos, spawn_dir;
 	if (find_turret_spawn_position(self, spawn_pos, spawn_dir))
 	{
+		// Verify the distance requirement - don't spawn too close
+		vec3_t dist_vec = spawn_pos - self->s.origin;
+		float distance = dist_vec.length();
+
+		if (distance <= (isboss ? 80.0f : 100.0f)) {
+			// Too close, try to find a better position
+			bool found_better = false;
+
+			// Try a few different angles to find a good position
+			for (int attempt = 2; attempt <= 5; attempt++) {
+				if (find_turret_spawn_position(self, spawn_pos, spawn_dir, attempt)) {
+					dist_vec = spawn_pos - self->s.origin;
+					distance = dist_vec.length();
+
+					if (distance > (isboss ? 80.0f : 100.0f)) {
+						found_better = true;
+						break;
+					}
+				}
+			}
+
+			// If we still couldn't find a valid position, abort spawning
+			if (!found_better && !isboss) {
+				// Skip the spawning sequence entirely for non-boss fixbots
+				M_SetAnimation(self, &fixbot_move_run);
+				return;
+			}
+		}
+
+		// We've found a valid spawn position, so let's proceed with effects
+
+		// Visual effect to indicate spawning start
+		gi.sound(self, CHAN_WEAPON, sound_weld1, 1, ATTN_NORM, 0);
+		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+
 		// Store in monsterinfo for the laser aiming
 		self->monsterinfo.blind_fire_target = spawn_pos;
 
@@ -615,6 +670,10 @@ void fixbot_prep_spawn(edict_t* self)
 				self->s.angles[YAW] -= (delta > 0) ? 15.0f : -15.0f;
 			}
 		}
+	}
+	else {
+		// Couldn't find any spawn position, abort spawning
+		M_SetAnimation(self, &fixbot_move_run);
 	}
 }
 
@@ -1690,10 +1749,6 @@ MMOVE_T(fixbot_move_walk) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_wa
 /*
 
 */
-mframe_t fixbot_frames_run[] = {
-	{ ai_run, 10 }
-};
-MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run, nullptr };
 
 #if 0
 /*
