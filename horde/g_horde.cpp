@@ -4468,6 +4468,414 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 	monster->spawned_in_spawn_state = false;
 }
 
+// Function to attempt dropping a monster to the floor
+bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs) {
+	// Try a trace straight down to find floor
+	vec3_t start = position;
+	vec3_t end = position - vec3_t{ 0, 0, 512 };
+
+	trace_t trace = gi.trace(start, mins, maxs, end, nullptr, MASK_MONSTERSOLID);
+
+	// If we hit something that isn't immediately below us
+	if (trace.fraction > 0.01f && trace.fraction < 1.0f) {
+		// Found floor, set position to just above it
+		position = trace.endpos + vec3_t{ 0, 0, 1.0f };
+
+		// Final check to make sure position is valid
+		trace = gi.trace(position, mins, maxs, position, nullptr, MASK_MONSTERSOLID);
+		if (!trace.startsolid && !trace.allsolid)
+			return true;
+	}
+
+	return false;
+}
+
+// Create a comprehensive validation function that tries multiple heights
+bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs) {
+	// First check if original position is valid
+	if (CheckSpawnPoint(position, mins, maxs))
+		return true;
+
+	// Try dropping to floor
+	vec3_t floor_pos = position;
+	if (AttemptDropToFloor(floor_pos, mins, maxs)) {
+		position = floor_pos;
+		return true;
+	}
+
+	// Try different heights
+	const float heights[] = { 8.0f, 16.0f, 24.0f, 32.0f, -8.0f, -16.0f };
+
+	for (float height : heights) {
+		vec3_t test_pos = position + vec3_t{ 0, 0, height };
+
+		if (CheckSpawnPoint(test_pos, mins, maxs)) {
+			position = test_pos;
+			return true;
+		}
+
+		// Also try dropping from this height
+		vec3_t drop_pos = test_pos;
+		if (AttemptDropToFloor(drop_pos, mins, maxs)) {
+			position = drop_pos;
+			return true;
+		}
+	}
+
+	// Use a direct trace method for position validation instead of G_FixStuckObject
+	// since we can't create dummy edicts
+	for (float xOffset : {0.0f, 10.0f, -10.0f, 20.0f, -20.0f}) {
+		for (float yOffset : {0.0f, 10.0f, -10.0f, 20.0f, -20.0f}) {
+			for (float zOffset : {0.0f, 10.0f, -10.0f, 20.0f, -20.0f}) {
+				vec3_t test_pos = position + vec3_t{ xOffset, yOffset, zOffset };
+
+				// Simple trace check
+				trace_t trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_MONSTERSOLID);
+				if (!trace.startsolid && !trace.allsolid) {
+					position = test_pos;
+					return true;
+				}
+			}
+		}
+	}
+
+	// No valid position found
+	return false;
+}
+
+// Enhanced emergency spawn position finder
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
+	// Constants for spawn attempts
+	constexpr int MAX_ATTEMPTS = 40;
+	constexpr float MIN_PLAYER_DIST = 200.0f;
+	constexpr float MAX_PLAYER_DIST = 1200.0f;
+	constexpr vec3_t monster_mins = { -16, -16, -24 };
+	constexpr vec3_t monster_maxs = { 16, 16, 32 };
+
+	// Get player positions for reference
+	std::vector<edict_t*> players;
+	players.reserve(8);
+
+	for (auto* player : active_players_no_spect()) {
+		if (player && player->inuse && player->client)
+			players.push_back(player);
+	}
+
+	if (players.empty())
+		return false;
+
+	// Try multiple attempts with different strategies
+	for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+		vec3_t test_pos = vec3_origin;
+		bool found_valid_position = false;
+
+		// Strategy 1: Use player-relative positioning (for first 20 attempts)
+		if (attempt < 20) {
+			// Pick a random player
+			edict_t* player = players[irandom(players.size())];
+
+			// Calculate random offset
+			float radius = frandom(MIN_PLAYER_DIST, MAX_PLAYER_DIST);
+			float angle = frandom() * 2.0f * PI;
+
+			// Set position at offset from player
+			test_pos = {
+				player->s.origin[0] + cosf(angle) * radius,
+				player->s.origin[1] + sinf(angle) * radius,
+				player->s.origin[2] + 24.0f  // Start slightly above player Z
+			};
+
+			// Trace down to find floor
+			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
+			if (trace.fraction < 1.0f) {
+				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
+				found_valid_position = true;
+			}
+		}
+		// Strategy 2: Use existing spawn points and modify them
+		else if (attempt < 30) {
+			// Count spawn points
+			int spawnPointCount = 0;
+			edict_t* randomSpawnPoint = nullptr;
+			int randomIndex = 0;
+
+			// Count the spawn points first
+			for (auto* point : monster_spawn_points()) {
+				if (point && point->inuse)
+					spawnPointCount++;
+			}
+
+			if (spawnPointCount > 0) {
+				// Select a random index
+				randomIndex = irandom(spawnPointCount);
+
+				// Find the spawn point at that index
+				int currentIndex = 0;
+				for (auto* point : monster_spawn_points()) {
+					if (point && point->inuse) {
+						if (currentIndex == randomIndex) {
+							randomSpawnPoint = point;
+							break;
+						}
+						currentIndex++;
+					}
+				}
+
+				// If we found a spawn point, use it
+				if (randomSpawnPoint) {
+					// Create position with offset from original
+					float x_offset = frandom(-200.0f, 200.0f);
+					float y_offset = frandom(-200.0f, 200.0f);
+
+					test_pos = {
+						randomSpawnPoint->s.origin[0] + x_offset,
+						randomSpawnPoint->s.origin[1] + y_offset,
+						randomSpawnPoint->s.origin[2] + 24.0f
+					};
+
+					// Trace down to find floor
+					trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
+					if (trace.fraction < 1.0f) {
+						test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
+						found_valid_position = true;
+					}
+				}
+			}
+		}
+		// Strategy 3: Use completely random positions on the map (as last resort)
+		else {
+			// Find map bounds (heuristic based on active players)
+			vec3_t map_mins = { FLT_MAX, FLT_MAX, FLT_MAX };
+			vec3_t map_maxs = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+			for (auto* player : players) {
+				for (int i = 0; i < 3; i++) {
+					map_mins[i] = std::min(map_mins[i], player->s.origin[i] - 1500.0f);
+					map_maxs[i] = std::max(map_maxs[i], player->s.origin[i] + 1500.0f);
+				}
+			}
+
+			// Generate random position within bounds
+			test_pos = {
+				frandom(map_mins[0], map_maxs[0]),
+				frandom(map_mins[1], map_maxs[1]),
+				frandom(map_mins[2], map_maxs[2])
+			};
+
+			// Trace down to find floor
+			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
+			if (trace.fraction < 1.0f) {
+				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
+				found_valid_position = true;
+			}
+		}
+
+		if (!found_valid_position) {
+			continue;
+		}
+
+		// Try to validate/fix the position
+		if (ValidateSpawnPosition(test_pos, monster_mins, monster_maxs)) {
+			// We found a valid position!
+			position = test_pos;
+
+			// Calculate angle facing the nearest player
+			edict_t* closest_player = nullptr;
+			float closest_dist = FLT_MAX;
+
+			for (auto* player : players) {
+				float dist = (player->s.origin - position).lengthSquared();
+				if (dist < closest_dist) {
+					closest_dist = dist;
+					closest_player = player;
+				}
+			}
+
+			if (closest_player) {
+				vec3_t dir = position - closest_player->s.origin;
+				dir.z = 0; // Keep angle level
+				angles = vectoangles(dir);
+			}
+			else {
+				// Random angle if no player
+				angles = { 0, frandom() * 360.0f, 0 };
+			}
+
+			return true;
+		}
+	}
+
+	// No valid position found after all attempts
+	return false;
+}
+
+// Modified emergency spawn function integrated with the SpawnMonsters system
+bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname) {
+	// Find emergency position
+	vec3_t emergency_origin, emergency_angles;
+	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles)) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position\n");
+		}
+		return false;
+	}
+
+	// Create the monster entity
+	edict_t* monster = G_Spawn();
+	if (!monster) {
+		return false;
+	}
+
+	// Use provided classname or fallback to soldier
+	monster->classname = monster_classname ? monster_classname : "monster_soldier";
+	monster->s.origin = emergency_origin;
+	monster->s.angles = emergency_angles;
+	monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+	monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+	monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+
+	// Mark it as spawned by horde
+	monster->was_spawned_by_horde = true;
+
+	// In spawning state, mark specifically
+	if (g_horde_local.state == horde_state_t::spawning) {
+		monster->spawned_in_spawn_state = true;
+	}
+
+	// Spawn the entity
+	ED_CallSpawn(monster);
+
+	// Check if spawn succeeded
+	if (!monster->inuse) {
+		G_FreeEdict(monster);
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: ED_CallSpawn failed\n");
+		}
+		return false;
+	}
+
+	// Apply modifiers for emergency spawned monsters
+
+	// Higher chance of special abilities in emergency spawns
+	if (levelNum >= 10 && frandom() < 0.5f) {
+		int flag_type = irandom(0, 5);
+		switch (flag_type) {
+		case 0: monster->monsterinfo.bonus_flags |= BF_CHAMPION; break;
+		case 1: monster->monsterinfo.bonus_flags |= BF_CORRUPTED; break;
+		case 2: monster->monsterinfo.bonus_flags |= BF_BERSERKING; break;
+		case 3: monster->monsterinfo.bonus_flags |= BF_POSSESSED; break;
+		case 4: monster->monsterinfo.bonus_flags |= BF_STYGIAN; break;
+		}
+
+		// Apply bonuses
+		ApplyMonsterBonusFlags(monster);
+	}
+
+	// Always add armor in higher waves
+	if (levelNum >= 14 && monster->monsterinfo.power_armor_type == IT_NULL) {
+		SetMonsterArmor(monster);
+	}
+
+	// Always drop an item for emergency spawns
+	monster->item = G_HordePickItem();
+	monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+
+	// Visual effects
+	SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+	gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+
+	// Success!
+	if (developer->integer) {
+		gi.Com_PrintFmt("EMERGENCY SPAWN SUCCESSFUL: Spawned {} at emergency position\n",
+			monster->classname);
+	}
+
+	return true;
+}
+
+// Try alternative spawn positions around a spawn point
+bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles) {
+	// Constants for alternative spawn positions
+	constexpr float HEIGHT_OFFSET = 8.0f;
+	constexpr float MIN_RADIUS = 40.0f;
+	constexpr float MAX_RADIUS = 120.0f;
+	constexpr int MAX_ATTEMPTS = 8;
+	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };  // Approximate monster bounds
+	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };     // Adjust as needed
+
+	// Start with the spawn point's position and angles
+	const vec3_t base_origin = spawn_point->s.origin;
+	const vec3_t base_angles = spawn_point->s.angles;
+
+	// Test different heights first at the original position
+	for (float height_offset : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
+		vec3_t test_origin = base_origin;
+		test_origin.z += height_offset;
+
+		// Check if this position is clear
+		if (CheckSpawnPoint(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
+			final_origin = test_origin;
+			final_angles = base_angles;
+			return true;
+		}
+	}
+
+	// Try positions in a circle around the spawn point
+	for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+		// Generate random angle and radius
+		float angle = frandom() * 2.0f * PI;
+		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
+
+		// Calculate offset
+		vec3_t offset = {
+			cosf(angle) * radius,
+			sinf(angle) * radius,
+			0.0f
+		};
+
+		// Test different heights at this position
+		for (float height_offset : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
+			vec3_t test_origin = base_origin + offset;
+			test_origin.z += height_offset;
+
+			// Trace from spawn point to test position to ensure no obstacles
+			trace_t trace = gi.traceline(base_origin, test_origin, spawn_point, MASK_SOLID);
+			if (trace.fraction < 0.9f)  // Require mostly clear path
+				continue;
+
+			// Check if this position is clear for spawning
+			if (CheckSpawnPoint(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
+				final_origin = test_origin;
+
+				// Adjust the angles to face away from the spawn point
+				final_angles = base_angles;
+				final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
+
+				return true;
+			}
+		}
+	}
+
+	// Try a grid-based search as last resort
+	vec3_t test_pos = base_origin;
+	for (float xOffset : {0.0f, 20.0f, -20.0f, 40.0f, -40.0f}) {
+		for (float yOffset : {0.0f, 20.0f, -20.0f, 40.0f, -40.0f}) {
+			for (float zOffset : {0.0f, 8.0f, -8.0f, 16.0f, -16.0f}) {
+				vec3_t test_origin = base_origin + vec3_t{ xOffset, yOffset, zOffset };
+
+				// Simple trace check
+				if (CheckSpawnPoint(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
+					final_origin = test_origin;
+					final_angles = base_angles;
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;  // No valid position found
+}
+
 edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
@@ -4650,8 +5058,7 @@ edict_t* SpawnMonsters() {
 		}
 
 		// Reset all disabled spawn points
-		auto spawnPoints = monster_spawn_points();
-		for (edict_t* point : spawnPoints) {
+		for (edict_t* point : monster_spawn_points()) {
 			if (point && point->inuse) {
 				auto& data = spawnPointsData[point];
 				if (data.isTemporarilyDisabled) {
@@ -4671,7 +5078,6 @@ edict_t* SpawnMonsters() {
 
 	// Collect valid spawn points
 	SpawnMonsterFilter filter{ current_time };
-	auto spawnPoints = monster_spawn_points();
 
 	// DETAILED DEBUGGING: Track spawn point filtering
 	struct {
@@ -4684,12 +5090,14 @@ edict_t* SpawnMonsters() {
 	} filter_stats;
 
 	filter_stats.total_points = 0;
-	for ([[maybe_unused]] edict_t* point : spawnPoints) {
-		filter_stats.total_points++;
+	for (auto* point : monster_spawn_points()) {
+		if (point && point->inuse) {
+			filter_stats.total_points++;
+		}
 	}
 
 	// Detailed point filtering with diagnostics
-	for (edict_t* point : spawnPoints) {
+	for (auto* point : monster_spawn_points()) {
 		if (!point || !point->inuse) continue;
 
 		// Check valid pointer and inuse
@@ -4753,7 +5161,7 @@ edict_t* SpawnMonsters() {
 
 		// Rescan spawn points without wave type filtering
 		spawn_cache.available_spawns.clear();
-		for (edict_t* point : spawnPoints) {
+		for (auto* point : monster_spawn_points()) {
 			if (!point || !point->inuse) continue;
 
 			const auto& data = spawnPointsData[point];
@@ -4771,75 +5179,6 @@ edict_t* SpawnMonsters() {
 			gi.Com_PrintFmt("After critical recovery: {} valid spawn points\n",
 				spawn_cache.available_spawns.size());
 		}
-	}
-
-	// If still no spawns available, try emergency cleanup
-	if (spawn_cache.available_spawns.empty()) {
-		spawn_cache.consecutive_failures++;
-
-		// Return monsters to queue if in spawning state
-		if (current_state == horde_state_t::spawning) {
-			g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
-		}
-		// Also handle active_wave state after more failures
-		else if (current_state == horde_state_t::active_wave &&
-			spawn_cache.consecutive_failures > 5) {
-			gi.Com_PrintFmt("Active wave: Moving {} monsters back to queue after repeated failures\n",
-				g_horde_local.num_to_spawn);
-
-			g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
-		}
-
-		g_horde_local.num_to_spawn = 0;
-
-		// Accelerated recovery: Reset everything after 5+ consecutive failures
-		if (debug_stats.consecutive_failures >= 5) {
-			if (debug_stats.first_failure_time == 0_sec) {
-				debug_stats.first_failure_time = current_time;
-			}
-
-			// If we've been failing for over 8 seconds, force a complete reset
-			if (current_time - debug_stats.first_failure_time > 8_sec) {
-				gi.Com_PrintFmt("CRITICAL: Persistent spawn failures for over 8 seconds. Performing emergency reset.\n");
-
-				// Reset all spawn points
-				for (edict_t* point : spawnPoints) {
-					if (point && point->inuse) {
-						auto& data = spawnPointsData[point];
-						data.isTemporarilyDisabled = false;
-						data.attempts = 0;
-						data.cooldownEndsAt = 0_sec;
-					}
-				}
-
-				// Reset wave type completely
-				current_wave_type = MonsterWaveType::None;
-
-				// If game is in a locked spawning state, force transition
-				if (current_state == horde_state_t::spawning && next_wave_message_sent == false) {
-					gi.Com_PrintFmt("CRITICAL: Forcing wave transition due to persistent spawn failures.\n");
-					next_wave_message_sent = true;
-					g_horde_local.state = horde_state_t::active_wave;
-				}
-
-				// Reset failure tracking
-				debug_stats.consecutive_failures = 0;
-				debug_stats.first_failure_time = 0_sec;
-				spawn_cache.consecutive_failures = 0;
-				early_intervention_applied = false;
-			}
-		}
-
-		debug_stats.failed_calls++;
-		debug_stats.consecutive_failures++;
-		if (debug_stats.consecutive_failures > debug_stats.max_consecutive_failures) {
-			debug_stats.max_consecutive_failures = debug_stats.consecutive_failures;
-		}
-		return nullptr;
-	}
-	else {
-		// Reset failure counter on success
-		spawn_cache.consecutive_failures = 0;
 	}
 
 	// Initialize for spawn loop
@@ -4877,10 +5216,8 @@ edict_t* SpawnMonsters() {
 		spawn_cache.available_spawns.pop_back();
 		spawnPointsData[spawn_point].teleport_cooldown = current_time + 1.5_sec;
 
-		// Get monster type for this spawn - potentially from a future wave
-		const char* monster_classname;
-		monster_classname = G_HordePickMonster(spawn_point);
-
+		// Get monster type for this spawn
+		const char* monster_classname = G_HordePickMonster(spawn_point);
 		if (!monster_classname) {
 			if (developer->integer > 1) {
 				gi.Com_PrintFmt("  Spawn attempt {}: Failed to pick monster classname\n", i + 1);
@@ -4888,14 +5225,26 @@ edict_t* SpawnMonsters() {
 			continue;
 		}
 
+		// Check if the spawn point is occupied
+		bool spawn_occupied = IsSpawnPointOccupied(spawn_point);
+		vec3_t spawn_origin = spawn_point->s.origin;
+		vec3_t spawn_angles = spawn_point->s.angles;
+
+		// If occupied, try to find an alternative position
+		if (spawn_occupied) {
+			if (!TryAlternativeSpawnPosition(spawn_point, monster_classname, spawn_origin, spawn_angles)) {
+				// Increase attempts if we couldn't find an alternative position
+				IncreaseSpawnAttempts(spawn_point);
+				continue;  // Try next spawn attempt
+			}
+			// If we found an alternative position, proceed with that
+		}
+
 		// Create the monster entity
 		if (edict_t* monster = G_Spawn()) {
 			monster->classname = monster_classname;
-			monster->s.origin = G_ProjectSource(spawn_point->s.origin,
-				vec3_t{ 0, 0, 8 },
-				vec3_t{ 1,0,0 },
-				vec3_t{ 0,1,0 });
-			monster->s.angles = spawn_point->s.angles;
+			monster->s.origin = spawn_origin;  // Use either original or alternative position
+			monster->s.angles = spawn_angles;  // Use either original or alternative angles
 			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 			monster->monsterinfo.last_sentrygun_target_time = 0_ms;
@@ -5012,8 +5361,11 @@ edict_t* SpawnMonsters() {
 				// Update tracking variables
 				spawn_cache.last_spawn_time = current_time;
 
-				// Track successful spawn for this point
-				OnSuccessfulSpawn(spawn_point);
+				// Track successful spawn
+				if (!spawn_occupied) {
+					// Only update successful spawn for the original point if it wasn't occupied
+					OnSuccessfulSpawn(spawn_point);
+				}
 
 				// Update total monsters counter with safety check
 				if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
@@ -5025,8 +5377,9 @@ edict_t* SpawnMonsters() {
 				}
 
 				if (developer->integer > 1) {
-					gi.Com_PrintFmt("  Spawn attempt {}: Successfully spawned {} at {}\n",
-						i + 1, monster_classname, spawn_point->s.origin);
+					gi.Com_PrintFmt("  Spawn attempt {}: Successfully spawned {} at {}{}\n",
+						i + 1, monster_classname, spawn_origin,
+						spawn_occupied ? " (alternative position)" : "");
 				}
 			}
 			else {
@@ -5129,6 +5482,93 @@ edict_t* SpawnMonsters() {
 				"spawning" : (current_state == horde_state_t::active_wave) ?
 				"active_wave" : "other");
 		}
+
+		// Check if it's appropriate to try emergency spawning
+		bool attempt_emergency = false;
+
+		// When most spawn points are occupied
+		if (filter_stats.occupied_points >= filter_stats.total_points * 0.75f &&
+			filter_stats.total_points > 0) {
+			attempt_emergency = true;
+		}
+
+		// Or when we have persistent failures
+		if (debug_stats.consecutive_failures >= 5) {
+			attempt_emergency = true;
+		}
+
+		// Emergency spawning
+		if (attempt_emergency) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("EMERGENCY: Spawn system recovery triggered. Attempting emergency spawns...\n");
+			}
+
+			// Determine how many monsters to try spawning in emergency mode
+			const int emergency_count = std::min(g_horde_local.num_to_spawn, 3);
+			int emergency_success = 0;
+
+			// Get a monster type to use
+			const char* monster_classname = nullptr;
+			bool found_classname = false;
+
+			// Iterate through spawn points to find a valid monster type
+			for (auto* point : monster_spawn_points()) {
+				if (point && point->inuse) {
+					monster_classname = G_HordePickMonster(point);
+					if (monster_classname) {
+						found_classname = true;
+						break;
+					}
+				}
+			}
+
+			// Fallback if no monster type found
+			if (!found_classname) {
+				monster_classname = "monster_soldier";
+			}
+
+			// Try to spawn emergency monsters
+			for (int i = 0; i < emergency_count; i++) {
+				if (EmergencySpawnMonster(g_horde_local.level, monster_classname)) {
+					// Successful emergency spawn
+					emergency_success++;
+
+					// Update counters
+					--g_horde_local.num_to_spawn;
+					++spawned_count;
+
+					// Update total monsters counter
+					if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+						++g_totalMonstersInWave;
+					}
+				}
+			}
+
+			// If we had any success, reset failure counters
+			if (emergency_success > 0) {
+				spawn_cache.consecutive_failures = 0;
+				debug_stats.consecutive_failures = 0;
+				debug_stats.first_failure_time = 0_sec;
+
+				// Find the last spawned monster for return value
+				for (int i = globals.num_edicts; i > 0; i--) {
+					edict_t* ent = &g_edicts[i];
+					if (ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
+						ent->health > 0 && !ent->deadflag) {
+						last_spawned = ent;
+						break;
+					}
+				}
+
+				if (developer->integer) {
+					gi.Com_PrintFmt("EMERGENCY RECOVERY: Successfully spawned {}/{} monsters\n",
+						emergency_success, emergency_count);
+				}
+			}
+			else if (developer->integer) {
+				gi.Com_PrintFmt("EMERGENCY RECOVERY FAILED: Could not spawn any monsters\n");
+			}
+		}
 	}
 
 	// Set next spawn time
@@ -5136,7 +5576,6 @@ edict_t* SpawnMonsters() {
 
 	return last_spawned;
 }
-
 static void SetMonsterArmor(edict_t* monster) {
 	// Cache frequently used constants to avoid recalculating
 	static constexpr float HEALTH_RATIO_POW = 1.1f;
