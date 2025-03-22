@@ -62,10 +62,26 @@ static void UpdateSmokePosition(edict_t* self) {
 
 void turret2Aim(edict_t* self)
 {
-	// Validaciones iniciales críticas
-	if (!self || !self->inuse)
-		return;
 
+if (!self->enemy || self->enemy == world)
+{
+	// Add minimum time between target searches to reduce CPU usage
+	// and allow animations to play
+	static gtime_t next_target_search[MAX_EDICTS] = { 0_sec };
+
+	if (level.time >= next_target_search[self->s.number]) {
+		if (!FindMTarget(self)) {
+			next_target_search[self->s.number] = level.time + 300_ms;
+			return;
+		}
+		// Successful target found, set shorter cooldown
+		next_target_search[self->s.number] = level.time + 100_ms;
+		self->monsterinfo.search_time = level.time + 300_ms;
+	}
+	else {
+		return; // Skip this frame if we're not ready to search
+	}
+}
 	// Actualizar la posición del efecto visual
 	UpdateSmokePosition(self);
 
@@ -1182,15 +1198,27 @@ mframe_t turret2_frames_fire_blind[] = {
 MMOVE_T(turret2_move_fire_blind) = { FRAME_pow01, FRAME_pow04, turret2_frames_fire_blind, turret2_run };
 // pmm
 
+// Add this near the top of the file with other state variables
+static gtime_t last_animation_change[MAX_EDICTS] = { 0_sec };
+
+// attack function
 MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 {
+	// Add animation cooldown check
+	const gtime_t animation_cooldown = 250_ms; // Adjust this value as needed
+	const int entity_index = self->s.number;
+
 	if (self->s.frame < FRAME_run01)
 	{
 		turret2_ready_gun(self);
 	}
 	else if (self->monsterinfo.attack_state != AS_BLIND)
 	{
-		M_SetAnimation(self, &turret2_move_fire);
+		// Only change animation if enough time has passed
+		if (level.time >= last_animation_change[entity_index] + animation_cooldown) {
+			M_SetAnimation(self, &turret2_move_fire);
+			last_animation_change[entity_index] = level.time;
+		}
 	}
 	else
 	{
@@ -1198,10 +1226,12 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 		if (!self->monsterinfo.blind_fire_target)
 			return;
 
-		M_SetAnimation(self, &turret2_move_fire_blind);
+		// Only change animation if enough time has passed
+		if (level.time >= last_animation_change[entity_index] + animation_cooldown) {
+			M_SetAnimation(self, &turret2_move_fire_blind);
+			last_animation_change[entity_index] = level.time;
+		}
 	}
-
-	// pmm
 }
 
 void TurretSparks(edict_t* self)
