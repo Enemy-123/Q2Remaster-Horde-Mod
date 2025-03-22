@@ -440,6 +440,14 @@ MMOVE_T(soldier_move_pain4) = { FRAME_pain401, FRAME_pain417, soldier_frames_pai
 
 PAIN(soldier_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
+
+	// Skip pain if we're in the middle of a jump
+	if ((self->monsterinfo.active_move == &soldier_move_jump) ||
+		(self->monsterinfo.active_move == &soldier_move_jump2))
+	{
+		return;
+	}
+
 	float r;
 
 	monster_done_dodge(self);
