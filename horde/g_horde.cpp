@@ -11,6 +11,12 @@ static bool need_spawn_cache_reset = false;
 static bool need_frame_timer_reset = false;
 static bool need_queue_monitor_reset = false;
 
+// Ambush system tracking variables
+static gtime_t last_ambush_time = 0_sec;
+static int32_t ambush_cooldown_frames = 0;
+static int32_t waves_since_ambush = 0;
+static bool ambush_system_initialized = false;
+
 void ResetSpawnMonsterVars() {
 	need_spawn_cache_reset = true;
 }
@@ -3758,7 +3764,17 @@ static bool CheckRemainingMonstersCondition(WaveEndReason& reason) {
 //
 // game resetting
 //
-// Add this to your reset functions to clear the memory when starting a new game
+
+
+// Reset ambush system state
+void ResetAmbushSystem() {
+	last_ambush_time = 0_sec;
+	ambush_cooldown_frames = 0;
+	waves_since_ambush = 0;
+	ambush_system_initialized = false;
+}
+
+
 void ResetWaveMemory() {
 	previous_wave_types.fill(MonsterWaveType::None);
 	wave_memory_index = 0;
@@ -3776,6 +3792,7 @@ void ResetGame() {
 	// Establecer el flag al inicio de la ejecución
 	hasBeenReset = true;
 
+	ResetAmbushSystem();
 	ResetWaveMemory();
 
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
@@ -4876,6 +4893,141 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_class
 	return false;  // No valid position found
 }
 
+// Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
+bool ShouldTriggerAmbushSpawn() {
+	// Static variables for tracking
+	static int waves_since_ambush = 0;
+
+	// Only consider ambush spawning after wave 3 (earlier than before)
+	if (current_wave_level < 3) {
+		return false;
+	}
+
+	// Check if cooldown has expired - REDUCED cooldown
+	if (ambush_cooldown_frames > 0) {
+		ambush_cooldown_frames--;
+		return false;
+	}
+
+	// Check if enough time has passed since last ambush - REDUCED from 45 to 25 seconds
+	if (level.time - last_ambush_time < 25_sec) {
+		return false;
+	}
+
+	// Base chance increases with waves since last ambush - INCREASED base chance
+	float baseChance = 0.08f + (waves_since_ambush * 0.03f);  // Higher starting value and progression
+
+	// Higher chance in higher waves, capped at 45% (increased from 35%)
+	int cappedLevel = (current_wave_level > 25) ? 25 : current_wave_level;
+	baseChance += (cappedLevel - 3) * 0.015f;  // Faster scaling with wave level
+	baseChance = (baseChance > 0.45f) ? 0.45f : baseChance;
+
+	// Higher chance if players have high health/armor or are on killing sprees
+	float playerBonus = 0.0f;
+	int playerCount = 0;
+	for (auto* player : active_players_no_spect()) {
+		if (player && player->inuse && player->health > 0) {
+			// Add chance bonus for healthy players or those on sprees
+			if (player->health >= 125 || player->client->resp.spree >= 50) {
+				playerBonus += 0.04f;  // Increased from 0.03f
+			}
+			playerCount++;
+		}
+	}
+
+	// Only apply bonus if there are players, capped at reasonable amount
+	if (playerCount > 0) {
+		baseChance += std::min(playerBonus, 0.15f);  // Increased cap from 0.12f
+	}
+
+	// Roll for chance
+	if (frandom() < baseChance) {
+		// If successful, set cooldown and timestamp
+		last_ambush_time = level.time;
+		ambush_cooldown_frames = irandom(100, 220);  // 3-7 seconds cooldown (reduced from 5-10)
+		waves_since_ambush = 0;
+		return true;
+	}
+
+	return false;
+}
+
+// Modified SpawnAmbushMonsters function to skip announcements
+int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
+	// Determine monster type - try to get a valid monster for current wave
+	const char* monster_classname = nullptr;
+
+	// Try to get a valid monster type from existing spawn points
+	for (auto* point : monster_spawn_points()) {
+		if (point && point->inuse) {
+			monster_classname = G_HordePickMonster(point);
+			if (monster_classname) {
+				break;
+			}
+		}
+	}
+
+	// Fallback to appropriate monster if none found
+	if (!monster_classname) {
+		if (waveLevel >= 15) {
+			// Higher-level monsters for later waves
+			const char* high_level_monsters[] = {
+				"monster_gunner", "monster_gladiator", "monster_tank",
+				"monster_soldier_hypergun", "monster_soldier_lasergun"
+			};
+			monster_classname = high_level_monsters[irandom(0, 4)];
+		}
+		else {
+			// Basic monsters for early waves
+			const char* basic_monsters[] = {
+				"monster_soldier_light", "monster_soldier", "monster_infantry",
+				"monster_soldier_ss", "monster_flyer"
+			};
+			monster_classname = basic_monsters[irandom(0, 4)];
+		}
+	}
+
+	// Determine ambush size based on wave and map - INCREASED size
+	const int baseCount = mapSize.isSmallMap ? 3 :
+		mapSize.isBigMap ? 5 : 4;
+	const int ambushSize = baseCount + (waveLevel >= 15 ? 2 : 1);
+
+	// Track successful spawns
+	int ambushSuccessCount = 0;
+
+	// Spawn ambush monsters
+	for (int i = 0; i < ambushSize; i++) {
+		if (EmergencySpawnMonster(waveLevel, monster_classname)) {
+			ambushSuccessCount++;
+
+			// Update spawn counters
+			if (g_horde_local.num_to_spawn > 0) {
+				--g_horde_local.num_to_spawn;
+			}
+			else if (g_horde_local.queued_monsters > 0) {
+				--g_horde_local.queued_monsters;
+			}
+
+			// Update total monsters counter
+			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+				++g_totalMonstersInWave;
+			}
+		}
+	}
+
+	// Only play sound effect without text message for subtlety
+	if (ambushSuccessCount > 0) {
+		gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("AMBUSH: Spawned {}/{} monsters near players\n",
+				ambushSuccessCount, ambushSize);
+		}
+	}
+
+	return ambushSuccessCount;
+}
+
 edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
@@ -4976,6 +5128,33 @@ edict_t* SpawnMonsters() {
 			debug_stats.max_consecutive_failures = debug_stats.consecutive_failures;
 		}
 		return nullptr;
+	}
+
+	// *** AMBUSH SYSTEM CHECK ***
+	// Check for ambush condition in active_wave state with at least some monsters spawned
+	if (current_state == horde_state_t::active_wave && g_totalMonstersInWave > 0) {
+		if (ShouldTriggerAmbushSpawn()) {
+			// We have room for more monsters
+			if (activeMonsters < softCap - 1) {
+				int spawnedCount = SpawnAmbushMonsters(mapSize, current_wave_level);
+
+				// Return early if we spawned any monsters
+				if (spawnedCount > 0) {
+					// Find the last spawned monster for return value
+					edict_t* last_spawned = nullptr;
+					for (int i = globals.num_edicts; i > 0; i--) {
+						edict_t* ent = &g_edicts[i];
+						if (ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
+							ent->health > 0 && !ent->deadflag) {
+							last_spawned = ent;
+							break;
+						}
+					}
+
+					return last_spawned;
+				}
+			}
+		}
 	}
 
 	// Early exit checks with better debugging
@@ -5576,6 +5755,7 @@ edict_t* SpawnMonsters() {
 
 	return last_spawned;
 }
+
 static void SetMonsterArmor(edict_t* monster) {
 	// Cache frequently used constants to avoid recalculating
 	static constexpr float HEALTH_RATIO_POW = 1.1f;
