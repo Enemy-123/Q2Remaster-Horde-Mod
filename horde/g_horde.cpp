@@ -4645,6 +4645,9 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, const char* mo
 		if (!ent->inuse || !ent->client || ent->health <= 0 || ClientIsSpectating(ent->client))
 			continue;
 
+		if (ent->client->resp.spree < 30)
+			continue;
+
 		// Only add human players (non-bots)
 		if (!(ent->svflags & SVF_BOT))
 			human_players.push_back(ent);
