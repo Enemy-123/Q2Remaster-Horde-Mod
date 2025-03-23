@@ -4312,8 +4312,7 @@ struct StuckMonsterSpawnFilter {
 	}
 };
 
-bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles);
-
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, const char* monster_classname = nullptr);
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Early returns
@@ -4369,7 +4368,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 		// Get teleport position near human players
 		vec3_t new_origin, new_angles;
-		if (FindEmergencySpawnPosition(new_origin, new_angles)) {
+		if (FindEmergencySpawnPosition(new_origin, new_angles, self->classname)) {
 			// Set new position
 			self->s.origin = new_origin;
 			self->s.old_origin = new_origin;
@@ -4627,7 +4626,8 @@ bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& m
 }
 
 // Enhanced emergency spawn position finder
-bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, const char* monster_classname)
+{
 	// Constants for spawn attempts
 	constexpr int MAX_ATTEMPTS = 40;
 	constexpr float MIN_PLAYER_DIST = 200.0f;
@@ -4674,8 +4674,18 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
 			// Pick a random player
 			edict_t* player = human_players[irandom(human_players.size())];
 
-			// Calculate random offset
-			float radius = frandom(MIN_PLAYER_DIST, MAX_PLAYER_DIST);
+			// Calculate random offset - bias toward closer distances
+			// Use weighted distribution: 60% chance for closer range, 40% for farther
+			float radius;
+			if (frandom() < 0.6f) {
+				// Closer range (200-600)
+				radius = MIN_PLAYER_DIST + frandom() * 400.0f;
+			}
+			else {
+				// Farther range (600-1200)
+				radius = 600.0f + frandom() * 600.0f;
+			}
+
 			float angle = frandom() * 2.0f * PI;
 
 			// Set position at offset from player
@@ -4689,7 +4699,26 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
 			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
 			if (trace.fraction < 1.0f) {
 				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
-				found_valid_position = true;
+
+				// Check if position is in water/slime/lava
+				int point_contents = gi.pointcontents(test_pos);
+
+				// For Gekk monsters, allow CONTENTS_WATER but not lava/slime
+				if (monster_classname && strcmp(monster_classname, "monster_gekk") == 0) {
+					// Only allow pure water for Gekks, not lava or slime
+					if ((point_contents & CONTENTS_WATER) &&
+						!(point_contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
+						found_valid_position = true;
+					}
+					// Also allow non-water for flexibility
+					else if (!(point_contents & MASK_WATER)) {
+						found_valid_position = true;
+					}
+				}
+				// For non-Gekk monsters, avoid all liquids
+				else if (!(point_contents & MASK_WATER)) {
+					found_valid_position = true;
+				}
 			}
 		}
 		// Strategy 2: Use existing spawn points and modify them
