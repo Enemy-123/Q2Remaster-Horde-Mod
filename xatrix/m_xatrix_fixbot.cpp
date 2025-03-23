@@ -2079,13 +2079,26 @@ THINK(plasma_fixbot_think) (edict_t* self) -> void
 	float olddot = 1;
 
 	// Check if we're still in the initial upward flight phase
-	if (self->timestamp > level.time)
-	{
-		// During initial phase, just continue on current trajectory with slight upward adjustment
-		vec3_t upward = { 0, 0, 0.1f }; // Slight upward component
-		self->movedir = (self->movedir + upward).normalized();
-		self->s.angles = vectoangles(self->movedir);
-		self->velocity = self->movedir * self->speed;
+if (self->timestamp > level.time)
+{
+	// Detect if this was launched with a sky-based trajectory
+	// by checking the upward component
+	float upward_bias = self->movedir[2];
+	
+	// For sky-based trajectories (high upward component),
+	// add more upward motion
+	vec3_t upward;
+	if (upward_bias > 0.3f) {
+	// High upward trajectory - add significant upward component
+	 upward = { 0, 0, 0.1f };
+	} else {
+	// Low upward trajectory - minimal adjustment
+	 upward = { 0, 0, 0.02f };
+	}
+	
+	self->movedir = (self->movedir + upward).normalized();
+	self->s.angles = vectoangles(self->movedir);
+	self->velocity = self->movedir * self->speed;
 
 		// Add plasma trail effects during upward flight
 		if (frandom() > 0.5)
@@ -2242,29 +2255,117 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 }
 
 // Fixed version of fixbot_fire_plasma function
-void fixbot_fire_plasma(edict_t* self, float offset)
+bool fixbot_fire_plasma(edict_t* self, float offset)
 {
 	vec3_t forward, right, up;
 	vec3_t start;
 
 	AngleVectors(self->s.angles, forward, right, up);
 
-	// Move the starting position further away from the fixbot to prevent collision
-	start = self->s.origin;
-	start += forward * 25.0f;  // Move forward away from fixbot's body
-	start += right * offset;
-	start += up * 50.f;
+// Check for open sky above the fixbot
+bool has_sky_above = false;
+{
+	vec3_t sky_start = self->s.origin;
+	sky_start.z += 20.0f; // Start a bit above the fixbot
+	vec3_t sky_end = sky_start;
+	sky_end.z += 2000.0f; // Check far upward
 
-	// Base direction - 45 degrees up
-	vec3_t dir;
+	trace_t sky_tr = gi.traceline(sky_start, sky_end, self, MASK_SOLID);
+
+	// Check if we hit sky
+	has_sky_above = (sky_tr.surface && (sky_tr.surface->flags & SURF_SKY));
+}
+
+// If no sky above and player is below, use ionripper instead
+if (!has_sky_above && self->enemy) {
+	// Check if enemy is below us
+	bool enemy_below = (self->enemy->s.origin[2] < self->s.origin[2]);
+	
+	if (enemy_below) {
+		// Setup the start position
+		start = self->s.origin;
+		start += forward * 25.0f; // Move forward away from fixbot's body
+		start += up * 50.f;
+		
+		// Use ionripper instead of plasma
+		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		
+		// Fire ionripper projectile
+		gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0);
+		
+		// Determine direction to enemy
+		vec3_t dir_to_enemy = self->enemy->s.origin - start;
+		dir_to_enemy.normalize();
+		
+		// Boss fires triple spread of ionrippers
+		if (isboss) {
+			// Spread patterns for boss
+			vec3_t dir1 = dir_to_enemy + (right * 0.12f);
+			vec3_t dir2 = dir_to_enemy;
+			vec3_t dir3 = dir_to_enemy - (right * 0.12f);
+			dir1.normalize(); dir3.normalize();
+			
+			// Fire triple shot
+			monster_fire_ionripper(self, start, dir1, 20, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir2, 20, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir3, 20, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+		} else {
+			// Regular fixbot fires single ionripper
+			monster_fire_ionripper(self, start, dir_to_enemy, 15, 550, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+		}
+		
+		return false; // Didn't use plasma
+	}
+}
+
+// If we got here, use plasma if sky is visible, otherwise don't fire
+if (!has_sky_above) {
+	return false; // Don't fire plasma when no sky
+}
+
+// Move the starting position further away from the fixbot to prevent collision
+start = self->s.origin;
+start += forward * 25.0f; // Move forward away from fixbot's body
+
+// Adjust offset based on sky presence
+if (has_sky_above) {
+	// With open sky, we can use normal offset for arcing shots
+	start += right * offset;
+} else {
+	// Without sky, use minimal offset for direct shots
+	start += right * (offset * 0.2f);
+}
+
+start += up * 50.f;
+
+// Base direction - adjust based on sky presence
+vec3_t dir;
+if (has_sky_above) {
+	// With open sky, use normal 45 degree upward trajectory
 	dir = forward + (up * 0.5f);
-	dir.normalize();
+} else {
+	// Without sky, shoot more directly forward
+	dir = forward + (up * 0.1f); // Just slight upward angle
+}
+dir.normalize();
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	// Base parameters
-	float speed = isboss ? irandom(300, 450) : irandom(200, 350);
-	float turn_fraction = isboss ? 0.085f : 0.062f;
+	// Base parameters - adjust speed based on sky presence
+float speed;
+if (has_sky_above) {
+	// With sky above, use faster projectiles for arcing shots
+	speed = isboss ? irandom(450, 600) : irandom(350, 450);
+} else {
+	// Without sky, use moderate speed for direct shots
+	speed = isboss ? irandom(350, 450) : irandom(250, 350);
+}
+float turn_fraction = isboss ? 0.085f : 0.062f;
+
+// If there's no sky, increase turning ability for better targeting
+if (!has_sky_above) {
+	turn_fraction *= 1.5f;
+}
 
 	if (isboss) {
 		// Increase separation between projectiles to avoid collision
@@ -2272,14 +2373,23 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 		vec3_t start2 = start;                                   // center 
 		vec3_t start3 = start - (right * 25.0f) + (up * 15.0f);  // up-left
 
-		// Spread direction vectors
-		vec3_t dir1 = dir + (right * 0.1f) + (up * 0.05f);
-		dir1.normalize();
+		// Spread direction vectors - adjust based on sky
+vec3_t dir1, dir2, dir3;
 
-		vec3_t dir2 = dir;  // Center direction unchanged
+if (!has_sky_above) {
+		// Without sky, spread horizontally more than vertically
+		dir1 = dir + (right * 0.15f) + (up * 0.02f);
+		dir2 = dir;  // Center direction unchanged
+		dir3 = dir - (right * 0.15f) + (up * 0.02f);
+} else {
+		// With sky, use normal spreading pattern with vertical component
+		dir1 = dir + (right * 0.1f) + (up * 0.05f);
+		dir2 = dir;  // Center direction unchanged
+		dir3 = dir - (right * 0.1f) + (up * 0.05f);
+}
 
-		vec3_t dir3 = dir - (right * 0.1f) + (up * 0.05f);
-		dir3.normalize();
+dir1.normalize();
+dir3.normalize();
 
 		// Fire plasma projectiles with revised function
 		fire_fixbot_plasma(self, start1, dir1, 20, speed, 150, 35, turn_fraction);
@@ -2293,6 +2403,9 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 
 	// Play sound once regardless of how many projectiles we fired
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
+
+	// Successfully fired plasma
+	return true;
 }
 
 
@@ -2306,9 +2419,12 @@ void fixbot_reattack(edict_t* self)
 		float reattack_chance = isboss ? 0.9f : 0.8f;
 
 		if (frandom() < reattack_chance) {
-			fixbot_fire_plasma(self, 8.0f);
-			self->monsterinfo.nextframe = FRAME_charging_27;
-			return;
+			// Use minimal offset for more direct shots
+			// If plasma fails (no sky), try ionripper
+			if (fixbot_fire_plasma(self, 0.0f)) {
+				self->monsterinfo.nextframe = FRAME_charging_27;
+				return;
+			}
 		}
 	}
 
@@ -2502,8 +2618,12 @@ void fixbot_fire_blaster(edict_t* self)
 
 	if (frandom() < 0.080f && !isboss)
 	{
-		fixbot_fire_plasma(self, 8.0f);
-		gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0);
+		// Try plasma first, if no sky use blaster instead
+		if (!fixbot_fire_plasma(self, 0.0f)) {
+			// If plasma failed (no sky), fire an extra blaster shot
+			monster_fire_blaster_bolt(self, start, dir, 7, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, 0);
+			gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0);
+		}
 	}
 }
 
