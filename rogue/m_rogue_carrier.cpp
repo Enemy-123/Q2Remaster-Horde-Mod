@@ -18,8 +18,8 @@ carrier
 #include "../shared.h"
 
 // nb: specifying flyer multiple times so it has a higher chance
-constexpr const char *default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2";
-constexpr const char *mini_reinforcements = "monster_flyer 1;monster_flyer 2;monster_flyer 3";
+constexpr const char* default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2;monster_fixbot 3";
+constexpr const char *mini_reinforcements = "monster_flyer 1;monster_flyer 2;monster_flyer 3;monster_fixbot 3";
 constexpr int32_t default_monster_slots_base = 3;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 3_sec; // number of seconds between rocket shots
