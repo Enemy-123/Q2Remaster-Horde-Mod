@@ -2070,60 +2070,179 @@ DIE(fixbot_heat_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int 
 {
 	BecomeExplosion1(self);
 }
-void plasma_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 
 // RAFAEL
-void fire_fixbot_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& rest_dir, int damage, int speed, float damage_radius, int radius_damage, float turn_fraction)
+THINK(plasma_fixbot_think) (edict_t* self) -> void
 {
-	edict_t* heat;
+	edict_t* acquire = nullptr;
+	float oldlen = 0;
+	float olddot = 1;
 
-	heat = G_Spawn();
-	heat->s.origin = start;
-	heat->movedir = dir;
-	heat->s.angles = vectoangles(dir);
-	heat->velocity = dir * speed;
-	heat->movetype = MOVETYPE_FLYMISSILE;
-	heat->clipmask = MASK_PROJECTILE;
-	heat->flags |= FL_DAMAGEABLE;
-	heat->solid = SOLID_BBOX;
-	heat->s.effects |= EF_PLASMA | EF_ANIM_ALLFAST;
-	heat->s.modelindex = gi.modelindex("sprites/s_photon.sp2");
-	heat->s.scale = 0.75f;
-	heat->owner = self;
-	heat->touch = plasma_touch;
-	heat->speed = speed / 1.45;
-	heat->yaw_speed = speed * 2.4;
-	heat->accel = turn_fraction;
-	heat->pos1 = rest_dir;
-	heat->mins = { -5, -5, -5 };
-	heat->maxs = { 5, 5, 5 };
-	heat->health = 50;
-	heat->takedamage = true;
-	heat->die = fixbot_heat_die;
+	// Check if we're still in the initial upward flight phase
+	if (self->timestamp > level.time)
+	{
+		// During initial phase, just continue on current trajectory with slight upward adjustment
+		vec3_t upward = { 0, 0, 0.1f }; // Slight upward component
+		self->movedir = (self->movedir + upward).normalized();
+		self->s.angles = vectoangles(self->movedir);
+		self->velocity = self->movedir * self->speed;
 
-	heat->nextthink = level.time + 0.20_sec;
-	heat->think = heat_fixbot_think;
+		// Add plasma trail effects during upward flight
+		if (frandom() > 0.5)
+		{
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_BLASTER);
+			gi.WritePosition(self->s.origin);
+			gi.WriteDir(vec3_origin);
+			//gi.WriteByte(0xE0); // Light blue color
+			gi.multicast(self->s.origin, MULTICAST_PVS, false);
+		}
 
-	heat->dmg = damage;
-	heat->radius_dmg = radius_damage;
-	heat->dmg_radius = damage_radius;
-	heat->s.sound = gi.soundindex("weapons/rockfly.wav");
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	// If we've passed the initial flight phase or have a target already
+	vec3_t const fwd = AngleVectors(self->s.angles).forward;
+
+	if (self->oldenemy)
+	{
+		self->enemy = self->oldenemy;
+		self->oldenemy = nullptr;
+	}
+
+	// Check if current enemy is still valid
+	if (self->enemy)
+	{
+		acquire = self->enemy;
+
+		if (acquire->health <= 0 || !visible(self, acquire))
+		{
+			self->enemy = acquire = nullptr;
+		}
+	}
+
+	if (!acquire)
+	{
+		// Acquire new target
+		edict_t* target = nullptr;
+
+		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
+		{
+			// Skip owner
+			if (self->owner == target)
+				continue;
+			if (!target->client)
+				continue;
+			if (target->health <= 0)
+				continue;
+			if (!visible(self, target))
+				continue;
+			// Skip teammates
+			if (OnSameTeam(self->owner, target))
+				continue;
+
+			vec3_t vec = self->s.origin - target->s.origin;
+			float len = vec.length();
+			vec.normalize();
+			float dot = vec.dot(fwd);
+
+			// Targets that require less turning are preferred
+			if (dot >= olddot)
+				continue;
+
+			if (acquire == nullptr || dot < olddot || len < oldlen)
+			{
+				acquire = target;
+				oldlen = len;
+				olddot = dot;
+			}
+		}
+	}
+
+	if (acquire != nullptr)
+	{
+		vec3_t vec = (acquire->s.origin - self->s.origin).normalized();
+		float t = self->accel;
+
+		self->movedir = slerp(self->movedir, vec, t).normalized();
+		self->s.angles = vectoangles(self->movedir);
+
+		if (self->enemy != acquire)
+		{
+			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+			self->enemy = acquire;
+		}
+	}
+
+	// Update velocity based on new direction
+	self->velocity = self->movedir * self->speed;
+
+	// Add plasma trail effects
+	//if (frandom() > 0.7)
+	//{
+	//	gi.WriteByte(svc_temp_entity);
+	//	gi.WriteByte(TE_BLASTER);
+	//	gi.WritePosition(self->s.origin);
+	//	gi.WriteDir(vec3_origin);
+	//	gi.WriteByte(irandom(0xe0));
+	//	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+	//}
+
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+// Plasma touch function
+void plasma_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+
+void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
+	int speed, float damage_radius, int radius_damage, float turn_fraction)
+{
+	edict_t* plasma;
+
+	plasma = G_Spawn();
+	plasma->s.origin = start;
+	plasma->movedir = dir;
+	plasma->s.angles = vectoangles(dir);
+	plasma->velocity = dir * speed;
+	plasma->movetype = MOVETYPE_FLYMISSILE;
+	plasma->clipmask = MASK_PROJECTILE;
+	plasma->svflags |= SVF_PROJECTILE;
+	plasma->solid = SOLID_BBOX;
+	plasma->s.effects |= EF_PLASMA | EF_ANIM_ALLFAST;
+	plasma->s.modelindex = gi.modelindex("sprites/s_photon.sp2");
+	plasma->s.scale = 0.75f;
+	plasma->owner = self;
+	plasma->touch = plasma_touch;
+	plasma->speed = speed;
+	plasma->accel = turn_fraction;
+	plasma->mins = { -5, -5, -5 };
+	plasma->maxs = { 5, 5, 5 };
+
+	plasma->nextthink = level.time + 0.1_sec;
+	plasma->think = plasma_fixbot_think;
+
+	plasma->dmg = damage;
+	plasma->radius_dmg = radius_damage;
+	plasma->dmg_radius = damage_radius;
+	plasma->s.sound = gi.soundindex("weapons/rockfly.wav");
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	if (visible(heat, self->enemy))
+	// Set timestamp for initial upward flight phase
+	plasma->timestamp = level.time + (isboss ? 0.7_sec : 1.0_sec);
+
+	if (self->enemy && visible(plasma, self->enemy))
 	{
-		heat->oldenemy = self->enemy;
-		heat->timestamp = level.time + (isboss ? 0.3_sec : 0.6_sec);
-		gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+		plasma->oldenemy = self->enemy;
+		gi.sound(plasma, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
 	}
 
-	gi.linkentity(heat);
+	gi.linkentity(plasma);
 }
 
-// Psx Guardian heat attack, but using plasmas
-
-static void fixbot_fire_plasma(edict_t* self, float offset)
+// Fixed version of fixbot_fire_plasma function
+void fixbot_fire_plasma(edict_t* self, float offset)
 {
 	vec3_t forward, right, up;
 	vec3_t start;
@@ -2132,7 +2251,7 @@ static void fixbot_fire_plasma(edict_t* self, float offset)
 
 	// Move the starting position further away from the fixbot to prevent collision
 	start = self->s.origin;
-	start += forward * 25.0f;  // Move forward away from fixbot's body (was -8.0f)
+	start += forward * 25.0f;  // Move forward away from fixbot's body
 	start += right * offset;
 	start += up * 50.f;
 
@@ -2145,15 +2264,13 @@ static void fixbot_fire_plasma(edict_t* self, float offset)
 
 	// Base parameters
 	float speed = isboss ? irandom(300, 450) : irandom(200, 350);
-	float turn_fraction = isboss ? 0.18f : 0.12f;
+	float turn_fraction = isboss ? 0.085f : 0.062f;
 
 	if (isboss) {
-	// Increase separation between projectiles to avoid collision
+		// Increase separation between projectiles to avoid collision
 		vec3_t start1 = start + (right * 25.0f) + (up * 15.0f);  // up-right
 		vec3_t start2 = start;                                   // center 
 		vec3_t start3 = start - (right * 25.0f) + (up * 15.0f);  // up-left
-		vec3_t start4 = start + (right * 30.0f) - (up * 15.0f);  // down-right
-		vec3_t start5 = start - (right * 30.0f) - (up * 15.0f);  // down-left
 
 		// Spread direction vectors
 		vec3_t dir1 = dir + (right * 0.1f) + (up * 0.05f);
@@ -2164,28 +2281,20 @@ static void fixbot_fire_plasma(edict_t* self, float offset)
 		vec3_t dir3 = dir - (right * 0.1f) + (up * 0.05f);
 		dir3.normalize();
 
-		vec3_t dir4 = dir + (right * 0.15f) - (up * 0.05f);
-		dir4.normalize();
-
-		vec3_t dir5 = dir - (right * 0.15f) - (up * 0.05f);
-		dir5.normalize();
-
-		// Fire all five plasma projectiles from different positions
-		// IMPORTANT: Add self as "ignore entity" parameter to heat fire function
-		fire_fixbot_heat(self, start1, dir1, forward, 20, speed, 150, 35, turn_fraction);
-		fire_fixbot_heat(self, start2, dir2, forward, 20, speed, 150, 35, turn_fraction);
-		fire_fixbot_heat(self, start3, dir3, forward, 20, speed, 150, 35, turn_fraction);
-		fire_fixbot_heat(self, start4, dir4, forward, 20, speed, 150, 35, turn_fraction);
-		fire_fixbot_heat(self, start5, dir5, forward, 20, speed, 150, 35, turn_fraction);
+		// Fire plasma projectiles with revised function
+		fire_fixbot_plasma(self, start1, dir1, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_plasma(self, start2, dir2, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_plasma(self, start3, dir3, 20, speed, 150, 35, turn_fraction);
 	}
 	else {
 		// Regular fixbot - fire single plasma
-		fire_fixbot_heat(self, start, dir, forward, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_plasma(self, start, dir, 20, speed, 150, 35, turn_fraction);
 	}
 
 	// Play sound once regardless of how many projectiles we fired
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
 }
+
 
 void fixbot_reattack(edict_t* self)
 {

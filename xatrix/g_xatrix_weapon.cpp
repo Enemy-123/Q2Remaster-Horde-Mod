@@ -267,11 +267,34 @@ TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 	if (other == ent->owner)
 		return;
 
-	if (tr.surface && (tr.surface->flags & SURF_SKY))
-	{
-		G_FreeEdict(ent);
-		return;
-	}
+    if (tr.surface && (tr.surface->flags & SURF_SKY))
+    {
+        // Check if owner is a fixbot
+        if (ent->owner && (strcmp(ent->owner->classname, "monster_fixbot") == 0 ||
+            strcmp(ent->owner->classname, "monster_fixbotkl") == 0))
+        {
+            // Don't destroy the plasma - just let it continue through the sky
+            // Optionally adjust direction slightly for more variety
+            vec3_t newdir = ent->velocity;
+            newdir.normalize();
+
+            // Add slight random deviation
+            newdir[0] += crandom() * 0.05f;
+            newdir[1] += crandom() * 0.05f;
+            newdir[2] += crandom() * 0.05f;
+            newdir.normalize();
+
+            ent->velocity = newdir * ent->speed;
+            ent->s.angles = vectoangles(newdir);
+            ent->movedir = newdir;
+
+            return;
+        }
+
+        // Standard behavior for non-fixbot owners
+        G_FreeEdict(ent);
+        return;
+    }
 
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
