@@ -4312,6 +4312,9 @@ struct StuckMonsterSpawnFilter {
 	}
 };
 
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles);
+
+
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Early returns
 	if (!self || !self->inuse || self->deadflag ||
@@ -4356,7 +4359,70 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
-	// Hide from clients before unlinking
+	// NEW: Add 6% chance to teleport near human players
+	const bool use_player_teleport = (frandom() < 0.06f);
+
+	if (use_player_teleport) {
+		// Hide from clients before unlinking
+		self->svflags |= SVF_NOCLIENT;
+		gi.unlinkentity(self);
+
+		// Get teleport position near human players
+		vec3_t new_origin, new_angles;
+		if (FindEmergencySpawnPosition(new_origin, new_angles)) {
+			// Set new position
+			self->s.origin = new_origin;
+			self->s.old_origin = new_origin;
+			self->velocity = vec3_origin;
+
+			// Make sure position is valid
+			if (!(self->flags & (FL_FLY | FL_SWIM))) {
+				if (!M_droptofloor(self)) {
+					// Failed to drop, restore visibility and return
+					self->svflags &= ~SVF_NOCLIENT;
+					gi.linkentity(self);
+					return false;
+				}
+			}
+
+			// Final validation check
+			if (gi.trace(self->s.origin, self->mins, self->maxs,
+				self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
+				// Position invalid, restore visibility and return
+				self->svflags &= ~SVF_NOCLIENT;
+				gi.linkentity(self);
+				return false;
+			}
+
+			// Make visible again after successful teleport
+			self->svflags &= ~SVF_NOCLIENT;
+			gi.linkentity(self);
+
+			// Apply effects
+			gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+			SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+
+			// Update monster state
+			self->monsterinfo.was_stuck = false;
+			self->monsterinfo.stuck_check_time = 0_sec;
+			self->monsterinfo.react_to_damage_time = level.time;
+			self->teleport_time = level.time;
+
+			if (developer->integer) {
+				gi.Com_PrintFmt("Monster teleported near human player: {}\n", self->classname);
+			}
+
+			return true;
+		}
+
+		// Emergency teleport failed, restore visibility
+		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity(self);
+
+		// Fall through to normal teleport method
+	}
+
+	// If not using player teleport or it failed, continue with original method
 	self->svflags |= SVF_NOCLIENT;
 	gi.unlinkentity(self);
 
@@ -4397,6 +4463,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
 		self->monsterinfo.react_to_damage_time = level.time;
+		self->teleport_time = level.time;
 		return true;
 	}
 
@@ -4410,7 +4477,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	gi.linkentity(self);
 	return false;
 }
-
 // Function to track created entities
 void OnEntityCreated(edict_t* ent) {
 	if (!ent || !ent->inuse)
@@ -4569,16 +4635,33 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
 	constexpr vec3_t monster_mins = { -16, -16, -24 };
 	constexpr vec3_t monster_maxs = { 16, 16, 32 };
 
-	// Get player positions for reference
-	std::vector<edict_t*> players;
-	players.reserve(8);
+	// Get player positions for reference, but only human players!
+	std::vector<edict_t*> human_players;
+	human_players.reserve(8);
 
-	for (auto* player : active_players_no_spect()) {
-		if (player && player->inuse && player->client)
-			players.push_back(player);
+	// First, try to find human players (non-bots)
+	for (int i = 0; i < maxclients->integer; i++) {
+		edict_t* ent = g_edicts + 1 + i;
+		if (!ent->inuse || !ent->client || ent->health <= 0 || ClientIsSpectating(ent->client))
+			continue;
+
+		// Only add human players (non-bots)
+		if (!(ent->svflags & SVF_BOT))
+			human_players.push_back(ent);
 	}
 
-	if (players.empty())
+	// If no human players, fall back to all active players including bots
+	if (human_players.empty()) {
+		for (int i = 0; i < maxclients->integer; i++) {
+			edict_t* ent = g_edicts + 1 + i;
+			if (!ent->inuse || !ent->client || ent->health <= 0 || ClientIsSpectating(ent->client))
+				continue;
+
+			human_players.push_back(ent);
+		}
+	}
+
+	if (human_players.empty())
 		return false;
 
 	// Try multiple attempts with different strategies
@@ -4589,7 +4672,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
 		// Strategy 1: Use player-relative positioning (for first 20 attempts)
 		if (attempt < 20) {
 			// Pick a random player
-			edict_t* player = players[irandom(players.size())];
+			edict_t* player = human_players[irandom(human_players.size())];
 
 			// Calculate random offset
 			float radius = frandom(MIN_PLAYER_DIST, MAX_PLAYER_DIST);
@@ -4661,11 +4744,11 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
 		}
 		// Strategy 3: Use completely random positions on the map (as last resort)
 		else {
-			// Find map bounds (heuristic based on active players)
+			// Find map bounds (heuristic based on human players)
 			vec3_t map_mins = { FLT_MAX, FLT_MAX, FLT_MAX };
 			vec3_t map_maxs = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
-			for (auto* player : players) {
+			for (auto* player : human_players) {
 				for (int i = 0; i < 3; i++) {
 					map_mins[i] = std::min(map_mins[i], player->s.origin[i] - 1500.0f);
 					map_maxs[i] = std::max(map_maxs[i], player->s.origin[i] + 1500.0f);
@@ -4700,7 +4783,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles) {
 			edict_t* closest_player = nullptr;
 			float closest_dist = FLT_MAX;
 
-			for (auto* player : players) {
+			for (auto* player : human_players) {
 				float dist = (player->s.origin - position).lengthSquared();
 				if (dist < closest_dist) {
 					closest_dist = dist;

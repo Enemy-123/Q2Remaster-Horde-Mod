@@ -447,38 +447,6 @@ void fixbot_start_spawn(edict_t* self)
 	}
 }
 
-// Helper function to push entities away from spawn points (gentler than boss spawn version)
-void PushEntitiesAwayFromSpawn(const vec3_t& center, float push_radius, float push_strength)
-{
-	// Only push clients away from turret spawn locations
-	for (int i = 0; i < maxclients->integer; i++) {
-		edict_t* ent = g_edicts + 1 + i;
-		if (!ent->inuse || !ent->client || ent->health <= 0)
-			continue;
-
-		// Check if player is within radius
-		vec3_t dir = ent->s.origin - center;
-		float dist = dir.length();
-		if (dist >= push_radius || dist < 0.1f)
-			continue;
-
-		// Calculate push force (stronger when closer)
-		dir.normalize();
-		float force = push_strength * (1.0f - (dist / push_radius));
-		
-		// Apply push force
-		dir.z += 0.3f; // Add slight upward component to prevent getting stuck
-		dir.normalize();
-		ent->velocity += dir * force;
-		
-		// Mark as pushed to prevent fall damage
-		if (ent->client) {
-			ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-			ent->client->ps.pmove.pm_time = 30; // Short protection time
-		}
-	}
-}
-
 // New function to spawn a turret at a specific position
 // Spawn a turret at a specific position with proper safety checks
 void spawn_turret_at_position(edict_t* self, const vec3_t& position)
