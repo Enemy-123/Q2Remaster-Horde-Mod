@@ -2255,6 +2255,8 @@ constexpr spawnflags_t SPAWNFLAG_DOOR_REVERSE = 2_spawnflag;
 void monster_muzzleflash(edict_t* self, const vec3_t& start, monster_muzzleflash_id_t id);
 void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int kick, int hspread,
 	int vspread, monster_muzzleflash_id_t flashtype);
+void monster_fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int kick, int hspread,
+	int vspread, monster_muzzleflash_id_t flashtype);
 void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, int count, monster_muzzleflash_id_t flashtype);
 edict_t* monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
@@ -2400,6 +2402,8 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 //
 bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick);
 void fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
+	int vspread, mod_t mod);
+void fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, mod_t mod);
 void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, int count, mod_t mod);

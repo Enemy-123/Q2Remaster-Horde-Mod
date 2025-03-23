@@ -585,6 +585,12 @@ mframe_t turret2_frames_ready_gun[] = {
 };
 MMOVE_T(turret2_move_ready_gun) = { FRAME_active01, FRAME_run01, turret2_frames_ready_gun, turret2_run };
 
+mframe_t turret2_frames_run[] = {
+	{ ai_run, 0, turret2Aim },
+	{ ai_run, 0, turret2Aim }
+};
+MMOVE_T(turret2_move_run) = { FRAME_run01, FRAME_run02, turret2_frames_run, turret2_run };
+
 void turret2_ready_gun(edict_t* self)
 {
 	if (self->monsterinfo.active_move != &turret2_move_ready_gun)
@@ -608,11 +614,6 @@ MONSTERINFO_WALK(turret2_walk) (edict_t* self) -> void
 		M_SetAnimation(self, &turret2_move_seek);
 }
 
-mframe_t turret2_frames_run[] = {
-	{ ai_run, 0, turret2Aim },
-	{ ai_run, 0, turret2Aim }
-};
-MMOVE_T(turret2_move_run) = { FRAME_run01, FRAME_run02, turret2_frames_run, turret2_run };
 
 void CreateTurretGlowEffect(edict_t* turret);
 
@@ -946,9 +947,12 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		aim_dir += right * (crandom() * 0.01f);
 		aim_dir.normalize();
 	}
+	const float spread_energymult = self->monsterinfo.quadfire_time > level.time ? 0.8f : 1.6f;
 
 	// Main shot with improved aiming
 	monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
+	monster_fire_energy_bullet(self, start, dir, 1, 8, DEFAULT_BULLET_HSPREAD * spread_energymult, DEFAULT_BULLET_VSPREAD * spread_energymult, MZ2_TURRET_MACHINEGUN);
+
 
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(self);
@@ -978,99 +982,85 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		(self->monsterinfo.quadfire_time > level.time ? 7_hz : 12_hz);
 }
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
-    // State for double grenade firing - track bursts per turret
-    static int grenade_burst_state[MAX_EDICTS] = {0};
-    static gtime_t last_burst_time[MAX_EDICTS] = {0_sec};
-    
-    // Get state for this specific turret using its entity number as index
-    int& burst_state = grenade_burst_state[self->s.number];
-    gtime_t& burst_time = last_burst_time[self->s.number];
-    
-    // Determine timing based on burst state
-    if (burst_state == 0) {
-        // First grenade in burst - check normal cooldown
-        if (level.time <= self->monsterinfo.last_sentry_missile_fire_time + 
-            (self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 1.2_sec)) {
-            return;
-        }
-        // Start new burst
-        burst_time = level.time;
-    } else {
-        // Second grenade in burst - shorter delay
-        if (level.time < burst_time + 0.5_sec) {
-            return;
-        }
-    }
+	// Keep burst fire logic
+	static int grenade_burst_state[MAX_EDICTS] = { 0 };
+	static gtime_t last_burst_time[MAX_EDICTS] = { 0_sec };
+	int& burst_state = grenade_burst_state[self->s.number];
+	gtime_t& burst_time = last_burst_time[self->s.number];
 
-	// Verify clear shot
-	const vec3_t offset = { 20.f, 0.f, 0.f };
-	vec3_t shot_start;
-	bool has_clear_shot = M_CheckClearShot(self, offset, shot_start);
-	if (!has_clear_shot) {
+	// Burst timing logic
+	if (burst_state == 0) {
+		if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
+			(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 1.2_sec)) {
+			return;
+		}
+		burst_time = level.time;
+	}
+	else if (level.time < burst_time + 0.5_sec) {
 		return;
 	}
 
-	// Prepare vectors
+	// Shot preparation
 	vec3_t forward, right, up;
 	AngleVectors(self->s.angles, forward, right, up);
-
-	// Use G_ProjectSource2 for more accurate muzzle position
+	const vec3_t offset = { 20.f, 0.f, 0.f };
 	vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
+	if (!M_CheckClearShot(self, offset, muzzle_pos))
+		return;
+
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 2000.0f : 1720.0f;
-	vec3_t fire_dir;
+	vec3_t fire_dir, aimpoint;
 
-	// Dual-range aiming strategy
+	// Decide between high arc (mortar-style) and direct fire
+	bool use_high_arc = (dist > 500 || !visible(self, self->enemy));
+
+	// Similar dual-range strategy but with improved calculation
 	if (dist < 400) {
-		// SHORT RANGE: Use PredictAim with small adjustments
-		PredictAim(self, self->enemy, muzzle_pos, speed, true, 0.0f, &fire_dir, nullptr);
+		// SHORT RANGE: Direct prediction with small adjustments
+		PredictAim(self, self->enemy, muzzle_pos, speed, true, 0.0f, &fire_dir, &aimpoint);
 
-		// Add slight randomness for natural variance
+		// Add natural variance (more like tank grenades)
 		fire_dir += right * (crandom() * 0.02f);
 		fire_dir += up * (crandom() * 0.02f - 0.01f); // Slight downward bias
 		fire_dir.normalize();
 	}
 	else {
-		// LONG RANGE: Use pitch calculation for arc
-		vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * (dist / speed * 0.8f));
+		// LONG RANGE: Calculate better arc trajectory
+		// Predict target position with velocity compensation
+		float pred_time = dist / speed;
+		vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * pred_time * 0.8f);
+
+		// Add slight height adjustment to hit at feet level for splash damage
+		predicted_pos[2] -= 8.0f;
+
 		fire_dir = predicted_pos - muzzle_pos;
 		fire_dir.normalize();
 
-		float time_to_target = dist / speed;
-
-		// Use gravity compensation for better arcs
-		if (M_CalculatePitchToFire(self, predicted_pos, muzzle_pos, fire_dir, speed, time_to_target, false, true)) {
-			// Add tiny random variation to prevent perfect predictability
+		// Use M_CalculatePitchToFire with high arc for long distance
+		if (M_CalculatePitchToFire(self, predicted_pos, muzzle_pos, fire_dir,
+			speed, pred_time, use_high_arc)) {
+			// Add tiny variation
 			fire_dir[2] += crandom_open() * 0.005f;
 			fire_dir.normalize();
 		}
-		else {
-			// Fallback to standard prediction if calculation fails
-			fire_dir = dir;
-		}
 	}
 
-	// Calculate damage
+	// Fire grenade with calculated parameters
 	const int damage = static_cast<int>(CalculateDamage(self, 120));
-
-	// Fire grenade with improved aiming
-	fire_grenade(self, muzzle_pos, fire_dir, damage, speed,
-		3_sec, 0, 0.0f,
+	fire_grenade(self, muzzle_pos, fire_dir, damage, speed, 3_sec, 0,
+		crandom_open() * 5.0f, // Add slight spin
 		200.f, false);
 
-	// Update last fire time
-	self->monsterinfo.last_sentry_missile_fire_time = level.time;
-	
-	// Increment grenade count and set appropriate cooldown
+	// Manage burst state
 	burst_state++;
-    if (burst_state >= 2) {
-        // After second grenade, reset counter and set full cooldown
-        burst_state = 0;
-        self->monsterinfo.last_sentry_missile_fire_time = level.time + 1_sec; // Full cooldown after burst
-    }
+	if (burst_state >= 2) {
+		burst_state = 0;
+		self->monsterinfo.last_sentry_missile_fire_time = level.time + 1_sec;
+	}
+
 	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
 }
-
 void turret2Fire(edict_t* self) {
 	if (!self || !self->inuse)
 		return;

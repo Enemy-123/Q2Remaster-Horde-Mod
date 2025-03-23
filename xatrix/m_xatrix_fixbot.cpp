@@ -108,7 +108,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		float distance;
 		bool valid;
 		bool in_front;
-	} best_position;
+	} best_position{};
 
 	// Reset on first attempt
 	if (attempt == 0) {
