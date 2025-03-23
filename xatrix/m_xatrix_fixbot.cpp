@@ -2707,6 +2707,10 @@ void fixbot_dead(edict_t* self)
 
 DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
+		boss_die(self);
+
 	// Find and destroy all spawned turrets
 	for (auto ent : active_monsters()) {
 		if (ent->inuse && 
