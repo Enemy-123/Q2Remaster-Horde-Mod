@@ -503,12 +503,17 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->classname = "monster_turret";
 	ent->owner = self;
 
+	// team relationship
+	ent->monsterinfo.team = self->monsterinfo.team;  // Inherit team from spawner
+	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
+	ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS;  
+
+
 	// Position and orient the turret
 	ent->s.origin = position;
 	ent->s.angles = vectoangles(dir);
 
 	// Finalize the turret
-	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
 	ent->monsterinfo.commander = self;
 
 	// Sound and visual effects
@@ -535,8 +540,11 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 
 	// Post-spawn safety checks
 	if (ent->inuse) {
-		// Make sure enemy is NULL even after initialization
-		ent->enemy = nullptr;
+
+		if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
+			ent->enemy = self->enemy;
+			FoundTarget(ent);  // Activates turret against current target immediately
+		}
 		// Give it more time before searching
 		ent->monsterinfo.search_time = level.time + (isboss ? 4_sec : 3_sec);
 
