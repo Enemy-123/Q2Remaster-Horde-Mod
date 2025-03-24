@@ -4537,7 +4537,178 @@ struct StuckMonsterSpawnFilter {
 	}
 };
 
-bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, const char* monster_classname = nullptr);
+// Function to attempt dropping a monster to the floor
+bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
+
+// Forward declaration for ValidateSpawnPosition
+bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
+
+// Enhanced emergency spawn position finder
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname = nullptr)
+{
+	// Initialize human player flag to false
+	used_human_player = false;
+
+	// Constants for spawn attempts
+	constexpr int MAX_ATTEMPTS = 40;
+	constexpr float MIN_PLAYER_DIST = 200.0f;
+	constexpr float MAX_PLAYER_DIST = 1200.0f;
+	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };  // Approximate monster bounds
+	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };     // Adjust as needed
+
+	// Player categorization vectors
+	std::vector<edict_t*> top_damage_humans;    // Humans with highest damage
+	std::vector<edict_t*> high_spree_humans;    // Humans with high spree counts
+	std::vector<edict_t*> normal_humans;        // All other humans
+	std::vector<edict_t*> bots;                 // Bot players (last resort)
+
+	// Track highest damage/spree values for relative comparison
+	int32_t highest_damage = 0;
+	int highest_spree = 0;
+
+	// First pass - categorize players
+	for (auto* player : active_players()) {
+		if (!player || !player->inuse || !player->client ||
+			player->health <= 0 || ClientIsSpectating(player->client))
+			continue;
+
+		// Check if this is a human or bot
+		bool is_human = !(player->svflags & SVF_BOT);
+
+		if (is_human) {
+			// Track damage and spree stats
+			int32_t player_damage = player->client->total_damage;
+			int player_spree = player->client->resp.spree;
+
+			// Track highest values for relative comparison
+			highest_damage = std::max(highest_damage, player_damage);
+			highest_spree = std::max(highest_spree, player_spree);
+
+			// Add to appropriate human categories
+			if (player_damage > 0 && player_damage >= highest_damage * 0.7f) {
+				top_damage_humans.push_back(player);
+			}
+			else if (player_spree >= 20) {
+				high_spree_humans.push_back(player);
+			}
+			else {
+				normal_humans.push_back(player);
+			}
+		}
+		else {
+			// It's a bot
+			bots.push_back(player);
+		}
+	}
+
+	// If we have no players at all, return false - no valid position
+	if (top_damage_humans.empty() && high_spree_humans.empty() &&
+		normal_humans.empty() && bots.empty()) {
+		return false;
+	}
+
+	// Order of priority for attempts
+	std::vector<std::pair<std::vector<edict_t*>*, bool>> priority_groups = {
+		{&top_damage_humans, true},
+		{&high_spree_humans, true},
+		{&normal_humans, true},
+		{&bots, false}
+	};
+
+	// Try each category in priority order
+	for (auto& [player_group, is_human] : priority_groups) {
+		if (player_group->empty())
+			continue;
+
+		// Try to find a position near a player from this group
+		for (int attempt = 0; attempt < MAX_ATTEMPTS / 4; attempt++) {
+			// Pick a random player from the group
+			edict_t* player = (*player_group)[irandom(player_group->size())];
+
+			// Calculate random offset - bias toward closer distances for better gameplay
+			float radius;
+			if (frandom() < 0.6f) {
+				// Closer range (200-600)
+				radius = MIN_PLAYER_DIST + frandom() * 400.0f;
+			}
+			else {
+				// Farther range (600-1200)
+				radius = 600.0f + frandom() * 600.0f;
+			}
+
+			float angle = frandom() * 2.0f * PI;
+
+			// Set position at offset from player
+			vec3_t test_pos = {
+				player->s.origin[0] + cosf(angle) * radius,
+				player->s.origin[1] + sinf(angle) * radius,
+				player->s.origin[2] + 24.0f  // Start slightly above player Z
+			};
+
+			// Trace down to find floor
+			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
+			if (trace.fraction < 1.0f) {
+				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
+
+				// Check if position is in water/slime/lava
+				int point_contents = gi.pointcontents(test_pos);
+
+				// For Gekk monsters, allow water but not lava/slime
+				if (monster_classname && strcmp(monster_classname, "monster_gekk") == 0) {
+					// Only allow pure water for Gekks, not lava or slime
+					if ((point_contents & CONTENTS_WATER) &&
+						!(point_contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
+						// Valid water position for Gekk
+					}
+					else if (!(point_contents & MASK_WATER)) {
+						// Valid non-water position
+					}
+					else {
+						continue; // Invalid for Gekk
+					}
+				}
+				// For non-Gekk monsters, avoid all liquids
+				else if (point_contents & MASK_WATER) {
+					continue; // Skip liquid positions
+				}
+
+				// Try to validate/fix the position
+				if (ValidateSpawnPosition(test_pos, MONSTER_MINS, MONSTER_MAXS)) {
+					// Found a valid position!
+					position = test_pos;
+
+					// Calculate angle facing the player
+					vec3_t dir = position - player->s.origin;
+					dir.z = 0; // Keep angle level
+					angles = vectoangles(dir);
+
+					// Set flag indicating whether we used a human player
+					used_human_player = is_human;
+
+					return true;
+				}
+			}
+		}
+	}
+
+	// No valid position found after all attempts
+	return false;
+}
+
+// Helper function to check if any human (non-bot) players are active and not spectating
+bool AreHumanPlayersPresent() {
+	for (auto* player : active_players()) {
+		if (player && player->inuse && player->client &&
+			!(player->svflags & SVF_BOT) &&
+			!ClientIsSpectating(player->client) &&
+			player->health > 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Early returns
@@ -4583,12 +4754,23 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
+	// Check if human players are present before attempting player-based teleport
+	bool humans_present = AreHumanPlayersPresent();
+
 	// Add chance to teleport near human players - scales with wave level
 	float teleport_chance = 0.01f; // Base 1% chance
 	if (current_wave_level > 5) {
-		// Gradually increase from 1% to 10% as waves progress
-		teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.005f, 0.10f);
+		// Different scaling based on presence of humans
+		if (humans_present) {
+			// Higher chance when humans are present - up to 15%
+			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.005f, 0.15f);
+		}
+		else {
+			// Lower chance when only bots are present - up to 8%
+			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.003f, 0.08f);
+		}
 	}
+
 	const bool use_player_teleport = (frandom() < teleport_chance);
 
 	if (use_player_teleport) {
@@ -4596,9 +4778,11 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->svflags |= SVF_NOCLIENT;
 		gi.unlinkentity(self);
 
-		// Get teleport position near human players
+		// Get teleport position near players
 		vec3_t new_origin, new_angles;
-		if (FindEmergencySpawnPosition(new_origin, new_angles, self->classname)) {
+		bool teleported_to_human = false;
+
+		if (FindEmergencySpawnPosition(new_origin, new_angles, teleported_to_human, self->classname)) {
 			// Set new position
 			self->s.origin = new_origin;
 			self->s.old_origin = new_origin;
@@ -4637,8 +4821,14 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->monsterinfo.react_to_damage_time = level.time;
 			self->teleport_time = level.time;
 
+			// Only show human message if we actually teleported near a human
 			if (developer->integer) {
-				gi.Com_PrintFmt("Monster teleported near human player: {}\n", self->classname);
+				if (teleported_to_human) {
+					gi.Com_PrintFmt("Monster teleported near human player: {}\n", self->classname);
+				}
+				else {
+					gi.Com_PrintFmt("Monster teleported near bot: {}\n", self->classname);
+				}
 			}
 
 			return true;
@@ -4706,6 +4896,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	gi.linkentity(self);
 	return false;
 }
+
 // Function to track created entities
 void OnEntityCreated(edict_t* ent) {
 	if (!ent || !ent->inuse)
@@ -4855,236 +5046,12 @@ bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& m
 	return false;
 }
 
-// Enhanced emergency spawn position finder
-bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, const char* monster_classname)
-{
-	// Constants for spawn attempts
-	constexpr int MAX_ATTEMPTS = 40;
-	constexpr float MIN_PLAYER_DIST = 200.0f;
-	constexpr float MAX_PLAYER_DIST = 1200.0f;
-	constexpr vec3_t monster_mins = { -16, -16, -24 };
-	constexpr vec3_t monster_maxs = { 16, 16, 32 };
-
-	// Get player positions for reference, but only human players!
-	std::vector<edict_t*> human_players;
-	human_players.reserve(8);
-
-	// Calculate required spree based on wave level - early waves need less/no spree
-	int required_spree = 30; // Default spree requirement
-	if (current_wave_level <= 5) {
-		required_spree = 0; // No requirement for early waves
-	} else if (current_wave_level <= 10) {
-		required_spree = 10; // Lower requirement for mid-early waves
-	} else if (current_wave_level <= 15) {
-		required_spree = 20; // Medium requirement for mid waves
-	}
-
-	// First, try to find human players (non-bots) with sufficient spree
-	for (auto* player : active_players()) {
-		if (!player || player->health <= 0 || ClientIsSpectating(player->client))
-			continue;
-
-		// Check spree requirement based on current wave
-		if (player->client->resp.spree < required_spree)
-			continue;
-
-		// Only add human players (non-bots)
-		if (!(player->svflags & SVF_BOT))
-			human_players.push_back(player);
-	}
-
-	// If no qualifying human players, fall back to all active players including bots
-	if (human_players.empty()) {
-		for (auto* player : active_players_no_spect()) {
-			if (!player || player->health <= 0)
-				continue;
-
-			human_players.push_back(player);
-		}
-	}
-
-	if (human_players.empty())
-		return false;
-
-	// Try multiple attempts with different strategies
-	for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-		vec3_t test_pos = vec3_origin;
-		bool found_valid_position = false;
-
-		// Strategy 1: Use player-relative positioning (for first 20 attempts)
-		if (attempt < 20) {
-			// Pick a random player
-			edict_t* player = human_players[irandom(human_players.size())];
-
-			// Calculate random offset - bias toward closer distances
-			// Use weighted distribution: 60% chance for closer range, 40% for farther
-			float radius;
-			if (frandom() < 0.6f) {
-				// Closer range (200-600)
-				radius = MIN_PLAYER_DIST + frandom() * 400.0f;
-			}
-			else {
-				// Farther range (600-1200)
-				radius = 600.0f + frandom() * 600.0f;
-			}
-
-			float angle = frandom() * 2.0f * PI;
-
-			// Set position at offset from player
-			test_pos = {
-				player->s.origin[0] + cosf(angle) * radius,
-				player->s.origin[1] + sinf(angle) * radius,
-				player->s.origin[2] + 24.0f  // Start slightly above player Z
-			};
-
-			// Trace down to find floor
-			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
-			if (trace.fraction < 1.0f) {
-				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
-
-				// Check if position is in water/slime/lava
-				int point_contents = gi.pointcontents(test_pos);
-
-				// For Gekk monsters, allow CONTENTS_WATER but not lava/slime
-				if (monster_classname && strcmp(monster_classname, "monster_gekk") == 0) {
-					// Only allow pure water for Gekks, not lava or slime
-					if ((point_contents & CONTENTS_WATER) &&
-						!(point_contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
-						found_valid_position = true;
-					}
-					// Also allow non-water for flexibility
-					else if (!(point_contents & MASK_WATER)) {
-						found_valid_position = true;
-					}
-				}
-				// For non-Gekk monsters, avoid all liquids
-				else if (!(point_contents & MASK_WATER)) {
-					found_valid_position = true;
-				}
-			}
-		}
-		// Strategy 2: Use existing spawn points and modify them
-		else if (attempt < 30) {
-			// Count spawn points
-			int spawnPointCount = 0;
-			edict_t* randomSpawnPoint = nullptr;
-			int randomIndex = 0;
-
-			// Count the spawn points first
-			for (auto* point : monster_spawn_points()) {
-				if (point && point->inuse)
-					spawnPointCount++;
-			}
-
-			if (spawnPointCount > 0) {
-				// Select a random index
-				randomIndex = irandom(spawnPointCount);
-
-				// Find the spawn point at that index
-				int currentIndex = 0;
-				for (auto* point : monster_spawn_points()) {
-					if (point && point->inuse) {
-						if (currentIndex == randomIndex) {
-							randomSpawnPoint = point;
-							break;
-						}
-						currentIndex++;
-					}
-				}
-
-				// If we found a spawn point, use it
-				if (randomSpawnPoint) {
-					// Create position with offset from original
-					float x_offset = frandom(-200.0f, 200.0f);
-					float y_offset = frandom(-200.0f, 200.0f);
-
-					test_pos = {
-						randomSpawnPoint->s.origin[0] + x_offset,
-						randomSpawnPoint->s.origin[1] + y_offset,
-						randomSpawnPoint->s.origin[2] + 24.0f
-					};
-
-					// Trace down to find floor
-					trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
-					if (trace.fraction < 1.0f) {
-						test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
-						found_valid_position = true;
-					}
-				}
-			}
-		}
-		// Strategy 3: Use completely random positions on the map (as last resort)
-		else {
-			// Find map bounds (heuristic based on human players)
-			vec3_t map_mins = { FLT_MAX, FLT_MAX, FLT_MAX };
-			vec3_t map_maxs = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
-
-			for (auto* player : human_players) {
-				for (int i = 0; i < 3; i++) {
-					map_mins[i] = std::min(map_mins[i], player->s.origin[i] - 1500.0f);
-					map_maxs[i] = std::max(map_maxs[i], player->s.origin[i] + 1500.0f);
-				}
-			}
-
-			// Generate random position within bounds
-			test_pos = {
-				frandom(map_mins[0], map_maxs[0]),
-				frandom(map_mins[1], map_maxs[1]),
-				frandom(map_mins[2], map_maxs[2])
-			};
-
-			// Trace down to find floor
-			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
-			if (trace.fraction < 1.0f) {
-				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
-				found_valid_position = true;
-			}
-		}
-
-		if (!found_valid_position) {
-			continue;
-		}
-
-		// Try to validate/fix the position
-		if (ValidateSpawnPosition(test_pos, monster_mins, monster_maxs)) {
-			// We found a valid position!
-			position = test_pos;
-
-			// Calculate angle facing the nearest player
-			edict_t* closest_player = nullptr;
-			float closest_dist = FLT_MAX;
-
-			for (auto* player : human_players) {
-				float dist = (player->s.origin - position).lengthSquared();
-				if (dist < closest_dist) {
-					closest_dist = dist;
-					closest_player = player;
-				}
-			}
-
-			if (closest_player) {
-				vec3_t dir = position - closest_player->s.origin;
-				dir.z = 0; // Keep angle level
-				angles = vectoangles(dir);
-			}
-			else {
-				// Random angle if no player
-				angles = { 0, frandom() * 360.0f, 0 };
-			}
-
-			return true;
-		}
-	}
-
-	// No valid position found after all attempts
-	return false;
-}
-
 // Modified emergency spawn function integrated with the SpawnMonsters system
 bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname) {
 	// Find emergency position
 	vec3_t emergency_origin, emergency_angles;
-	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles)) {
+	bool used_human_player = false;  // Added missing parameter
+	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, monster_classname)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position\n");
 		}
