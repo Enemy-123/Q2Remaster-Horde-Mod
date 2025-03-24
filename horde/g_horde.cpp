@@ -488,7 +488,7 @@ void CheckAndReduceSpawnCooldowns() {
 	const gtime_t current_time = level.time;
 
 	// Pre-compute the reduction factor once
-	constexpr float REDUCTION_FACTOR = 0.15f;
+	constexpr float REDUCTION_FACTOR = 0.4f;  // Changed from 0.15f to 0.4f to make late-wave cooldown reduction less aggressive
 
 	// Process all spawn points in use
 	// We need to track the spawn points to process
@@ -534,11 +534,11 @@ void CheckAndReduceSpawnCooldowns() {
 
 static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 	if (isSmallMap)
-		return 0.2_sec;  // Reduced from 0.3 to 0.2
+		return 0.5_sec;  // Increased from 0.2 to 0.5
 	else if (isBigMap)
-		return 1.4_sec;  // Reduced from 1.8 to 1.4
+		return 2.0_sec;  // Increased from 1.4 to 2.0
 	else
-		return 0.8_sec;  // Reduced from 1.0 to 0.8
+		return 1.2_sec;  // Increased from 0.8 to 1.2
 }
 
 static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
@@ -550,8 +550,8 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 	// Cache player count - only compute once
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Compute base scale - linear scaling with level
-	float scale = 1.0f + (lvl * 0.02f);
+	// Compute base scale - more gradual linear scaling with level
+	float scale = 1.0f + (lvl * 0.015f);  // Changed from 0.02f to 0.015f for more gradual scaling
 
 	// Compute player reduction factor once
 	float playerReduction = 0.0f;
@@ -880,6 +880,11 @@ void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPl
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
 		SPAWN_POINT_COOLDOWN *= TIME_REDUCTION_MULTIPLIER;
 	}
+	// Add difficulty-based cooldown adjustment for normal difficulty
+	if (!g_chaotic->integer && !g_insane->integer) {
+		// On normal difficulty, add a multiplier for more measured pace
+		SPAWN_POINT_COOLDOWN *= 1.2f;
+	}
 
 	// Player count difficulty scaling
 	const float difficultyMultiplier = BASE_DIFFICULTY_MULTIPLIER + (humanPlayers - 1) * DIFFICULTY_PLAYER_FACTOR;
@@ -900,7 +905,7 @@ void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPl
 	}
 
 	// Final cooldown clamping
-	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.5_sec, 3.5_sec);
 
 	// Calculate num_to_spawn: Clamping the result after addition
 	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
