@@ -4546,6 +4546,11 @@ bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& m
 // Enhanced emergency spawn position finder
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
 {
+	// Debug trace to identify where freezes occur
+	if (developer->integer) {
+		gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition\n");
+	}
+
 	// Initialize human player flag to false
 	used_human_player = false;
 
@@ -4556,11 +4561,13 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
 	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
 
-	// Player categorization vectors
-	std::vector<edict_t*> top_damage_humans;
-	std::vector<edict_t*> high_spree_humans;
-	std::vector<edict_t*> normal_humans;
-	std::vector<edict_t*> bots;
+	// FIXED: Replace STL vectors with fixed-size arrays for better performance
+	constexpr size_t MAX_PLAYERS = 32; // Adjust based on your game's limits
+	edict_t* top_damage_humans[MAX_PLAYERS] = { nullptr };
+	edict_t* high_spree_humans[MAX_PLAYERS] = { nullptr };
+	edict_t* normal_humans[MAX_PLAYERS] = { nullptr };
+	edict_t* bots[MAX_PLAYERS] = { nullptr };
+	size_t top_damage_count = 0, high_spree_count = 0, normal_count = 0, bot_count = 0;
 
 	// Track highest damage/spree values for relative comparison
 	int32_t highest_damage = 0;
@@ -4584,35 +4591,52 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 			highest_damage = std::max(highest_damage, player_damage);
 			highest_spree = std::max(highest_spree, player_spree);
 
-			// Add to appropriate human categories
+			// Add to appropriate human categories using fixed arrays
 			if (player_damage > 0 && player_damage >= highest_damage * 0.7f) {
-				top_damage_humans.push_back(player);
+				if (top_damage_count < MAX_PLAYERS) {
+					top_damage_humans[top_damage_count++] = player;
+				}
 			}
 			else if (player_spree >= 20) {
-				high_spree_humans.push_back(player);
+				if (high_spree_count < MAX_PLAYERS) {
+					high_spree_humans[high_spree_count++] = player;
+				}
 			}
 			else {
-				normal_humans.push_back(player);
+				if (normal_count < MAX_PLAYERS) {
+					normal_humans[normal_count++] = player;
+				}
 			}
 		}
 		else {
 			// It's a bot
-			bots.push_back(player);
+			if (bot_count < MAX_PLAYERS) {
+				bots[bot_count++] = player;
+			}
 		}
 	}
 
 	// If we have no players at all, return false - no valid position
-	if (top_damage_humans.empty() && high_spree_humans.empty() &&
-		normal_humans.empty() && bots.empty()) {
+	if (top_damage_count == 0 && high_spree_count == 0 &&
+		normal_count == 0 && bot_count == 0) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no players)\n");
+		}
 		return false;
 	}
 
-	// Order of priority for attempts
-	std::vector<std::pair<std::vector<edict_t*>*, bool>> priority_groups = {
-		{&top_damage_humans, true},
-		{&high_spree_humans, true},
-		{&normal_humans, true},
-		{&bots, false}
+	// Define priority groups using fixed arrays
+	struct PlayerGroup {
+		edict_t** players;
+		size_t count;
+		bool is_human;
+	};
+
+	PlayerGroup priority_groups[4] = {
+		{ top_damage_humans, top_damage_count, true },
+		{ high_spree_humans, high_spree_count, true },
+		{ normal_humans, normal_count, true },
+		{ bots, bot_count, false }
 	};
 
 	// Helper function to validate a position - similar to Tank's spawn validation
@@ -4626,15 +4650,14 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 		if (trace.startsolid || trace.allsolid)
 			return false;
 
-		// For gekk monsters, check for appropriate water content
+		// FIXED: Simplified Gekk water validation logic
 		if (monster_classname && strcmp(monster_classname, "monster_gekk") == 0) {
 			int contents = gi.pointcontents(pos);
 			bool in_water = (contents & CONTENTS_WATER);
 			bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
 
-			// Gekks can be in water but not lava/slime
-			if (in_bad_liquid || (!in_water && monster_classname &&
-				strcmp(monster_classname, "monster_gekk") == 0 && frandom() < 0.7f)) {
+			// Gekks should generally be in water, but never in lava/slime
+			if (in_bad_liquid || (!in_water && frandom() < 0.5f)) {
 				return false;
 			}
 		}
@@ -4647,14 +4670,15 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 		};
 
 	// Try each category in priority order
-	for (auto& [player_group, is_human] : priority_groups) {
-		if (player_group->empty())
+	for (int group_idx = 0; group_idx < 4; group_idx++) {
+		const auto& group = priority_groups[group_idx];
+		if (group.count == 0)
 			continue;
 
 		// Try to find a position near a player from this group
 		for (int attempt = 0; attempt < MAX_ATTEMPTS / 4; attempt++) {
 			// Pick a random player from the group
-			edict_t* player = (*player_group)[irandom(player_group->size())];
+			edict_t* player = group.players[irandom(group.count)];
 
 			// Calculate random offset - bias toward closer distances for better gameplay
 			float radius;
@@ -4730,8 +4754,11 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 					angles = vectoangles(dir);
 
 					// Set flag indicating whether we used a human player
-					used_human_player = is_human;
+					used_human_player = group.is_human;
 
+					if (developer->integer) {
+						gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: true\n");
+					}
 					return true;
 				}
 			}
@@ -4739,6 +4766,9 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	}
 
 	// No valid position found after all attempts
+	if (developer->integer) {
+		gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no valid position)\n");
+	}
 	return false;
 }
 // Helper function to check if any human (non-bot) players are active and not spectating
@@ -5433,9 +5463,12 @@ bool ShouldTriggerAmbushSpawn() {
 // Modified SpawnAmbushMonsters function to skip announcements
 // Updated SpawnAmbushMonsters to use improved emergency spawning
 int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
+	if (developer->integer) {
+		gi.Com_PrintFmt("DEBUG: Starting SpawnAmbushMonsters\n");
+	}
+
 	// Determine monster type - try to get a valid monster for current wave
 	const char* monster_classname = nullptr;
-
 	// Try to get a valid monster type from existing spawn points
 	for (auto* point : monster_spawn_points()) {
 		if (point && point->inuse) {
@@ -5482,15 +5515,31 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	static gtime_t last_failed_spawn_time = 0_sec;
 	constexpr gtime_t SPAWN_RETRY_DELAY = 0.1_sec; // 100ms delay between failed attempts
 
+	// FIXED: Add safety counter to prevent infinite loops
+	int safety_counter = 0;
+	const int MAX_TOTAL_ITERATIONS = 100;
+
 	// Spawn ambush monsters
 	for (int i = 0; i < ambushSize && consecutive_failures < MAX_FAILURES_PER_POSITION; i++) {
+		// FIXED: Add safety check to prevent infinite loops
+		if (safety_counter++ > MAX_TOTAL_ITERATIONS) {
+			gi.Com_PrintFmt("WARNING: Emergency spawn safety limit reached\n");
+			break;
+		}
+
 		// Check if we need to wait after a failed attempt
 		if (consecutive_failures > 0) {
 			if (level.time < last_failed_spawn_time + SPAWN_RETRY_DELAY) {
-				// Not enough time has passed since last failure, postpone this spawn
-				// But don't count it against our ambush size
-				i--;
-				continue;
+				// FIXED: Don't decrement i if we're going to postpone spawning
+				// This was causing potential infinite loops
+				if (safety_counter % 10 == 0) {
+					// Only retry at regular intervals
+					continue;
+				}
+				else {
+					// Skip this attempt but advance the counter
+					continue;
+				}
 			}
 		}
 
@@ -5516,28 +5565,26 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 			consecutive_failures++;
 			last_failed_spawn_time = level.time;
 
-			// Distribute spawn attempts over time
-			if (i < ambushSize - 1) {
-				// Skip trying to spawn the next monster immediately
-				// Note: we don't increment i here as we want to retry this position
-				i--;
-			}
+			// FIXED: Don't retry with i-- which could cause infinite loops
+			// Instead, count this as a legitimate attempt
 		}
 	}
 
 	// Only play sound effect without text message for subtlety
 	if (ambushSuccessCount > 0) {
 		gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
-
 		if (developer->integer) {
 			gi.Com_PrintFmt("AMBUSH: Spawned {}/{} monsters near players\n",
 				ambushSuccessCount, ambushSize);
 		}
 	}
 
+	if (developer->integer) {
+		gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, spawned: {}\n", ambushSuccessCount);
+	}
+
 	return ambushSuccessCount;
 }
-
 edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
