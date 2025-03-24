@@ -4222,40 +4222,50 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	// Apply aggressive time reduction for few monsters
 	// This happens even if conditions are already triggered
 	if (g_horde_local.conditionTriggered && remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-		// Base reduction calculation
-		gtime_t aggressive_time;
-
-		// Super aggressive reduction for 1-2 monsters
-		if (remainingMonsters <= 2) {
-			// For 1-2 monsters, apply a very short timer (2-3 seconds)
-			aggressive_time = gtime_t::from_sec(1.5f + remainingMonsters * 0.5f);
-
-			// If we're in a boss wave, allow a bit more time
-			if (IsBossWave() && boss_spawned_for_wave) {
-				aggressive_time *= 1.5f;
-			}
+		// Base calculation - smoother scaling based on remaining monsters
+		float base_time = 3.0f + (remainingMonsters * 0.8f); // 3.8s for 1, 4.6s for 2, 5.4s for 3, etc.
+		
+		// Boss wave consideration - give substantially more time
+		if (IsBossWave() && boss_spawned_for_wave) {
+			// Boss waves get significantly more time
+			base_time *= 2.0f + (0.2f * remainingMonsters); // 2.2x-3.0x multiplier based on monsters
+			
+			// Add a minimum time threshold for boss waves
+			base_time = std::max(base_time, 8.0f);
 		}
 		else {
-			// For 3-5 monsters, use a scaling approach
-			const float reduction_factor = 4.0f * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-			aggressive_time = gtime_t::from_sec(4.0f + reduction_factor);
-
-			// Scale by wave level for higher waves - make higher waves progress faster
+			// Non-boss wave adjustments
+			
+			// Wave level factor - higher waves get less time (only for non-boss waves)
 			if (current_wave_level >= 15) {
-				aggressive_time *= 0.7f;  // 30% faster for high waves
+				float reduction = std::min((current_wave_level - 15) * 0.02f, 0.3f); // Up to 30% reduction
+				base_time *= (1.0f - reduction);
+			}
+			
+			// Player count consideration (only for non-boss waves)
+			int32_t playerCount = GetNumHumanPlayers();
+			if (playerCount > 1) {
+				// Slightly reduce time with more players (they can clear faster)
+				float player_reduction = std::min((playerCount - 1) * 0.07f, 0.2f); // Up to 20% reduction
+				base_time *= (1.0f - player_reduction);
 			}
 		}
-
+		
+		// Ensure minimum time thresholds (higher for boss waves)
+		float min_time = (IsBossWave() && boss_spawned_for_wave) ? 5.0f : 2.0f;
+		gtime_t aggressive_time = gtime_t::from_sec(std::max(min_time, base_time));
+		
 		// Calculate how much original time remains
 		const gtime_t original_remaining = g_horde_local.waveEndTime - currentTime;
-
+		
 		// Only apply reduction if it's actually faster than current end time
 		if (aggressive_time < original_remaining) {
 			g_horde_local.waveEndTime = currentTime + aggressive_time;
-
+			
 			if (developer->integer) {
-				gi.Com_PrintFmt("Aggressive time reduction: {} seconds remaining for {} monsters\n",
-					aggressive_time.seconds(), remainingMonsters);
+				gi.Com_PrintFmt("Aggressive time reduction: {} seconds remaining for {} monsters (wave: {}, boss: {})\n",
+					aggressive_time.seconds(), remainingMonsters, current_wave_level,
+					(IsBossWave() && boss_spawned_for_wave) ? "yes" : "no");
 			}
 		}
 	}
