@@ -5474,10 +5474,29 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	// Track successful spawns
 	int ambushSuccessCount = 0;
 
+	// Keep track of spawn attempts per position
+	constexpr int MAX_FAILURES_PER_POSITION = 3;
+	int consecutive_failures = 0;
+
+	// Track timing for spawn attempts
+	static gtime_t last_failed_spawn_time = 0_sec;
+	constexpr gtime_t SPAWN_RETRY_DELAY = 0.1_sec; // 100ms delay between failed attempts
+
 	// Spawn ambush monsters
-	for (int i = 0; i < ambushSize; i++) {
+	for (int i = 0; i < ambushSize && consecutive_failures < MAX_FAILURES_PER_POSITION; i++) {
+		// Check if we need to wait after a failed attempt
+		if (consecutive_failures > 0) {
+			if (level.time < last_failed_spawn_time + SPAWN_RETRY_DELAY) {
+				// Not enough time has passed since last failure, postpone this spawn
+				// But don't count it against our ambush size
+				i--;
+				continue;
+			}
+		}
+
 		if (EmergencySpawnMonster(waveLevel, monster_classname)) {
 			ambushSuccessCount++;
+			consecutive_failures = 0;
 
 			// Update spawn counters
 			if (g_horde_local.num_to_spawn > 0) {
@@ -5490,6 +5509,18 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 			// Update total monsters counter
 			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
 				++g_totalMonstersInWave;
+			}
+		}
+		else {
+			// Track failures to avoid getting stuck in endless attempts
+			consecutive_failures++;
+			last_failed_spawn_time = level.time;
+
+			// Distribute spawn attempts over time
+			if (i < ambushSize - 1) {
+				// Skip trying to spawn the next monster immediately
+				// Note: we don't increment i here as we want to retry this position
+				i--;
 			}
 		}
 	}
@@ -5506,7 +5537,6 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 
 	return ambushSuccessCount;
 }
-
 
 edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
