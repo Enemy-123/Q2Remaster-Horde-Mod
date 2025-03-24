@@ -4544,7 +4544,7 @@ bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs
 bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
 
 // Enhanced emergency spawn position finder
-bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname = nullptr)
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
 {
 	// Initialize human player flag to false
 	used_human_player = false;
@@ -4553,14 +4553,14 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	constexpr int MAX_ATTEMPTS = 40;
 	constexpr float MIN_PLAYER_DIST = 200.0f;
 	constexpr float MAX_PLAYER_DIST = 1200.0f;
-	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };  // Approximate monster bounds
-	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };     // Adjust as needed
+	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
+	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
 
 	// Player categorization vectors
-	std::vector<edict_t*> top_damage_humans;    // Humans with highest damage
-	std::vector<edict_t*> high_spree_humans;    // Humans with high spree counts
-	std::vector<edict_t*> normal_humans;        // All other humans
-	std::vector<edict_t*> bots;                 // Bot players (last resort)
+	std::vector<edict_t*> top_damage_humans;
+	std::vector<edict_t*> high_spree_humans;
+	std::vector<edict_t*> normal_humans;
+	std::vector<edict_t*> bots;
 
 	// Track highest damage/spree values for relative comparison
 	int32_t highest_damage = 0;
@@ -4615,6 +4615,37 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 		{&bots, false}
 	};
 
+	// Helper function to validate a position - similar to Tank's spawn validation
+	auto validatePosition = [&](const vec3_t& pos) -> bool {
+		// First check if position is fundamentally valid
+		if (!is_valid_vector(pos))
+			return false;
+
+		// Check if the position is in solid
+		trace_t trace = gi.trace(pos, MONSTER_MINS, MONSTER_MAXS, pos, nullptr, MASK_MONSTERSOLID);
+		if (trace.startsolid || trace.allsolid)
+			return false;
+
+		// For gekk monsters, check for appropriate water content
+		if (monster_classname && strcmp(monster_classname, "monster_gekk") == 0) {
+			int contents = gi.pointcontents(pos);
+			bool in_water = (contents & CONTENTS_WATER);
+			bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
+
+			// Gekks can be in water but not lava/slime
+			if (in_bad_liquid || (!in_water && monster_classname &&
+				strcmp(monster_classname, "monster_gekk") == 0 && frandom() < 0.7f)) {
+				return false;
+			}
+		}
+		// For non-gekk monsters, generally avoid water
+		else if (gi.pointcontents(pos) & MASK_WATER) {
+			return false;
+		}
+
+		return true;
+		};
+
 	// Try each category in priority order
 	for (auto& [player_group, is_human] : priority_groups) {
 		if (player_group->empty())
@@ -4647,35 +4678,51 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 
 			// Trace down to find floor
 			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
+
 			if (trace.fraction < 1.0f) {
+				// Found something below - adjust to slightly above hit point
 				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
 
-				// Check if position is in water/slime/lava
-				int point_contents = gi.pointcontents(test_pos);
+				// Try different heights if initial position is invalid
+				vec3_t final_pos = test_pos;
+				bool found_valid = false;
 
-				// For Gekk monsters, allow water but not lava/slime
-				if (monster_classname && strcmp(monster_classname, "monster_gekk") == 0) {
-					// Only allow pure water for Gekks, not lava or slime
-					if ((point_contents & CONTENTS_WATER) &&
-						!(point_contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
-						// Valid water position for Gekk
-					}
-					else if (!(point_contents & MASK_WATER)) {
-						// Valid non-water position
-					}
-					else {
-						continue; // Invalid for Gekk
-					}
-				}
-				// For non-Gekk monsters, avoid all liquids
-				else if (point_contents & MASK_WATER) {
-					continue; // Skip liquid positions
+				// First try the base position
+				if (validatePosition(final_pos)) {
+					found_valid = true;
 				}
 
-				// Try to validate/fix the position
-				if (ValidateSpawnPosition(test_pos, MONSTER_MINS, MONSTER_MAXS)) {
+				// Try a few different heights around this position
+				if (!found_valid) {
+					for (float height_adj : {8.0f, 16.0f, 24.0f, -8.0f, -16.0f}) {
+						final_pos = test_pos;
+						final_pos.z += height_adj;
+
+						if (validatePosition(final_pos)) {
+							found_valid = true;
+							break;
+						}
+					}
+				}
+
+				// Try slight lateral adjustments if still not valid
+				if (!found_valid) {
+					for (float x_adj : {-16.0f, 16.0f, -32.0f, 32.0f}) {
+						for (float y_adj : {-16.0f, 16.0f, -32.0f, 32.0f}) {
+							final_pos = test_pos + vec3_t{ x_adj, y_adj, 0.0f };
+
+							if (validatePosition(final_pos)) {
+								found_valid = true;
+								break;
+							}
+						}
+						if (found_valid) break;
+					}
+				}
+
+				if (found_valid) {
 					// Found a valid position!
-					position = test_pos;
+					position = final_pos;
 
 					// Calculate angle facing the player
 					vec3_t dir = position - player->s.origin;
@@ -4694,7 +4741,6 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	// No valid position found after all attempts
 	return false;
 }
-
 // Helper function to check if any human (non-bot) players are active and not spectating
 bool AreHumanPlayersPresent() {
 	for (auto* player : active_players()) {
@@ -4709,9 +4755,9 @@ bool AreHumanPlayersPresent() {
 }
 
 
-
+// Improved CheckAndTeleportStuckMonster with enhanced safety
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-	// Early returns
+	// Early returns - unchanged
 	if (!self || !self->inuse || self->deadflag ||
 		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
 		return false;
@@ -4783,29 +4829,66 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		bool teleported_to_human = false;
 
 		if (FindEmergencySpawnPosition(new_origin, new_angles, teleported_to_human, self->classname)) {
+			// Backup original properties
+			const vec3_t old_velocity = self->velocity;
+			const vec3_t old_origin = self->s.origin;
+			const vec3_t old_angles = self->s.angles;
+
 			// Set new position
 			self->s.origin = new_origin;
 			self->s.old_origin = new_origin;
+			self->s.angles = new_angles;
 			self->velocity = vec3_origin;
 
-			// Make sure position is valid
+			// Run a comprehensive position validation, similar to Tank's approach
+			bool position_valid = true;
+
+			// If monster needs to be on the ground, drop it properly
 			if (!(self->flags & (FL_FLY | FL_SWIM))) {
 				if (!M_droptofloor(self)) {
-					// Failed to drop, restore visibility and return
-					self->svflags &= ~SVF_NOCLIENT;
-					gi.linkentity(self);
-					return false;
+					position_valid = false;
 				}
 			}
 
-			// Final validation check
-			if (gi.trace(self->s.origin, self->mins, self->maxs,
-				self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
-				// Position invalid, restore visibility and return
+			// Additional validation to make sure we're not in a solid object
+			if (position_valid) {
+				trace_t trace = gi.trace(self->s.origin, self->mins, self->maxs,
+					self->s.origin, self, MASK_MONSTERSOLID);
+
+				if (trace.startsolid || trace.allsolid) {
+					position_valid = false;
+				}
+			}
+
+			// Extra validation to check content type (like water/lava)
+			if (position_valid) {
+				// Gekks can teleport into water, others generally shouldn't
+				bool is_gekk = (strcmp(self->classname, "monster_gekk") == 0);
+				int contents = gi.pointcontents(self->s.origin);
+
+				if (!is_gekk && (contents & MASK_WATER)) {
+					position_valid = false;
+				}
+				else if (is_gekk && (contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
+					position_valid = false;
+				}
+			}
+
+			if (!position_valid) {
+				// Restore original values if teleport position is invalid
+				self->s.origin = old_origin;
+				self->s.old_origin = old_origin;
+				self->s.angles = old_angles;
+				self->velocity = old_velocity;
+
+				// Make visible again and return
 				self->svflags &= ~SVF_NOCLIENT;
 				gi.linkentity(self);
 				return false;
 			}
+
+			// Clear any entities that might be in the way
+		//	PushEntitiesAway(self->s.origin, 1, 100.0f, 300.0f, 300.0f, 100.0f);
 
 			// Make visible again after successful teleport
 			self->svflags &= ~SVF_NOCLIENT;
@@ -4871,6 +4954,37 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
+
+		// One final check - make sure the position is suitable for this monster type
+		bool position_suitable = true;
+		// Special handling for Gekk monsters and water
+		if (strcmp(self->classname, "monster_gekk") == 0) {
+			// Gekks can go in water but not lava/slime
+			int contents = gi.pointcontents(self->s.origin);
+			if (contents & (CONTENTS_LAVA | CONTENTS_SLIME)) {
+				position_suitable = false;
+			}
+		}
+		else if (gi.pointcontents(self->s.origin) & MASK_WATER) {
+			// Other monsters shouldn't teleport into water
+			position_suitable = false;
+		}
+
+		if (!position_suitable) {
+			// Restore position if content type is unsuitable
+			self->s.origin = old_origin;
+			self->s.old_origin = old_origin;
+			self->velocity = old_velocity;
+
+			// Make visible again and return
+			self->svflags &= ~SVF_NOCLIENT;
+			gi.linkentity(self);
+			return false;
+		}
+
+		// Push away any interfering entities
+	//	PushEntitiesAway(self->s.origin, 1, 100.0f, 300.0f, 300.0f, 100.0f);
+
 		// Make visible again only after successful teleport
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
@@ -4896,7 +5010,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	gi.linkentity(self);
 	return false;
 }
-
 // Function to track created entities
 void OnEntityCreated(edict_t* ent) {
 	if (!ent || !ent->inuse)
@@ -5047,15 +5160,55 @@ bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& m
 }
 
 // Modified emergency spawn function integrated with the SpawnMonsters system
+// Improved EmergencySpawnMonster function using Tank's safety principles
 bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname) {
-	// Find emergency position
+	// Find emergency position with our improved function
 	vec3_t emergency_origin, emergency_angles;
-	bool used_human_player = false;  // Added missing parameter
+	bool used_human_player = false;
+
 	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, monster_classname)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position\n");
 		}
 		return false;
+	}
+
+	// Additional validation of final position - similar to Tank's validation
+	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
+	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
+
+	// Double-check the position with a trace
+	trace_t trace = gi.trace(emergency_origin, MONSTER_MINS, MONSTER_MAXS, emergency_origin, nullptr, MASK_MONSTERSOLID);
+	if (trace.startsolid || trace.allsolid) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Final position check failed\n");
+		}
+		return false;
+	}
+
+	// Make sure we're not intersecting with other entities
+	edict_t* blocker = nullptr;
+	trace = gi.trace(emergency_origin, MONSTER_MINS, MONSTER_MAXS, emergency_origin, nullptr, MASK_PLAYERSOLID);
+	if (trace.ent && trace.ent != world) {
+		blocker = trace.ent;
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN WARNING: Position blocked by {}\n",
+				blocker->classname ? blocker->classname : "unknown entity");
+		}
+
+		// Try to push away the blocking entity if it's not a player
+		if (blocker && !blocker->client) {
+			PushEntitiesAway(emergency_origin, 3, 100.0f, 300.0f, 300.0f, 100.0f);
+
+			// Re-check after pushing
+			trace = gi.trace(emergency_origin, MONSTER_MINS, MONSTER_MAXS, emergency_origin, nullptr, MASK_PLAYERSOLID);
+			if (trace.startsolid || trace.allsolid) {
+				if (developer->integer) {
+					gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position still blocked after push attempt\n");
+				}
+				return false;
+			}
+		}
 	}
 
 	// Create the monster entity
@@ -5080,7 +5233,8 @@ bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname
 		monster->spawned_in_spawn_state = true;
 	}
 
-	// Spawn the entity
+	// Spawn the entity with protection from errors
+	monster->solid = SOLID_NOT;  // Start as non-solid to avoid immediate collisions
 	ED_CallSpawn(monster);
 
 	// Check if spawn succeeded
@@ -5091,6 +5245,10 @@ bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname
 		}
 		return false;
 	}
+
+	// Re-set solid state and properly link
+	monster->solid = SOLID_BBOX;
+	gi.linkentity(monster);
 
 	// Apply modifiers for emergency spawned monsters
 
@@ -5130,7 +5288,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname
 
 	return true;
 }
-
 // Try alternative spawn positions around a spawn point
 bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles) {
 	// Constants for alternative spawn positions
@@ -5274,6 +5431,7 @@ bool ShouldTriggerAmbushSpawn() {
 }
 
 // Modified SpawnAmbushMonsters function to skip announcements
+// Updated SpawnAmbushMonsters to use improved emergency spawning
 int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	// Determine monster type - try to get a valid monster for current wave
 	const char* monster_classname = nullptr;
@@ -5348,6 +5506,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 
 	return ambushSuccessCount;
 }
+
 
 edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
