@@ -663,7 +663,8 @@ void fixbot_prep_spawn(edict_t* self)
 	}
 
 	// Find where to spawn the turret
-	vec3_t spawn_pos, spawn_dir;
+	vec3_t spawn_pos = {};
+	vec3_t spawn_dir = {};
 	if (find_turret_spawn_position(self, spawn_pos, spawn_dir))
 	{
 		// Verify the distance requirement - don't spawn too close
@@ -819,7 +820,7 @@ void fixbot_spawn_check(edict_t* self)
 		// If boss still couldn't spawn after all attempts, try one last desperate attempt
 		if (!spawn_success && isboss) {
 			// Find any valid position, even if not ideal
-			vec3_t spawn_pos, spawn_dir;
+			vec3_t spawn_pos{}, spawn_dir{};
 
 			// Search in cardinal directions around the fixbot
 			for (int dir = 0; dir < 4; dir++) {
@@ -996,78 +997,38 @@ static void fixbot_set_attack_fly_parameters(edict_t* self)
 }
 
 
-edict_t* fixbot_FindLiveEnemy(edict_t* self) {
-	// Early validation check
-	if (!self || !self->inuse)
-		return nullptr;
-
-	// Variable declaration with safe distance limits
-	edict_t* ent = nullptr;
-	edict_t* best = nullptr;
-	float best_dist_squared = 1500 * 1500;  // Use squared distance for better performance
-
-	// Get self origin once outside the loop
-	vec3_t self_origin = self->s.origin;
-
-	while ((ent = findradius(ent, self_origin, 1500)) != nullptr) {
-		// Skip invalid entities and self
-		if (!ent->inuse || ent == self)
-			continue;
-
-		// Skip dead entities
-		if (ent->health <= 0 || ent->deadflag)
-			continue;
-
-		// Skip teammates and summoned units if we're summoned
-		if (OnSameTeam(self, ent) || (self->monsterinfo.issummoned && ent->monsterinfo.issummoned))
-			continue;
-
-		// For performance, do expensive checks on potentially valid targets only
-		if (!(ent->client || (ent->svflags & SVF_MONSTER)))
-			continue;
-
-		// Skip invisible players
-		if (ent->client && ent->client->invisible_time > level.time &&
-			ent->client->invisibility_fade_time <= level.time)
-			continue;
-
-		// Check distance first (cheaper than visibility check)
-		float dist_squared = DistanceSquared(self_origin, ent->s.origin);
-		if (dist_squared >= best_dist_squared)
-			continue;
-
-		// Visibility check - most expensive, do last
-		if (!visible(self, ent))
-			continue;
-
-		// We found a better candidate
-		best = ent;
-		best_dist_squared = dist_squared;
-	}
-
-	return best;
-}
+// Custom enemy finder removed in favor of standard FindTarget and infront
 
 // More aggressive search behavior
 int fixbot_search(edict_t* self)
 {
-	edict_t* ent;
-	extern void fixbot_start_attack(edict_t * self);
+extern void fixbot_start_attack(edict_t * self);
 
-	// More frequently search for enemies
-	if (!self->enemy || (self->enemy && self->enemy->health <= 0) ||
-		(self->enemy && !visible(self, self->enemy)) ||
-		(self->monsterinfo.aiflags & AI_STAND_GROUND))
-	{
-		ent = fixbot_FindLiveEnemy(self);
-		if (ent) {
-			self->enemy = ent;
-			fixbot_set_attack_fly_parameters(self);
-			fixbot_start_attack(self);
-			return 1;  // Enemy found and attack initiated
-		}
+	// Use standard FindTarget instead of custom enemy finder
+if (!self->enemy || (self->enemy && self->enemy->health <= 0) ||
+    (self->enemy && !visible(self, self->enemy)))
+{
+// Standard FindTarget behavior
+ if (FindTarget(self))
+{
+ // Only proceed if enemy is in front of the fixbot
+if (infront(self, self->enemy))
+{
+ fixbot_set_attack_fly_parameters(self);
+ fixbot_start_attack(self);
+  return 1;  // Enemy found and attack initiated
+  }
+ }
 	}
-	return 0;  // No enemy found or already had an enemy
+	else if (self->enemy && visible(self, self->enemy) && infront(self, self->enemy))
+	{
+		// Already has a valid enemy that's visible and in front
+		fixbot_set_attack_fly_parameters(self);
+		fixbot_start_attack(self);
+		return 1;
+	}
+	
+	return 0;  // No suitable enemy found
 }
 
 void landing_goal(edict_t* self)
@@ -2839,6 +2800,9 @@ DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
  */
 void SP_monster_fixbot(edict_t* self)
 {
+	// Set wider vision cone for the fixbot
+	self->vision_cone = 0.6f;  // Wider than default (-0.30) for better awareness
+
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
