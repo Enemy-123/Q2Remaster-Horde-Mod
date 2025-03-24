@@ -2340,7 +2340,7 @@ if (!has_sky_above && self->enemy) {
 		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 		
 		// Fire ionripper projectile
-		gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0);
+	//	gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0);
 		
 		// Determine direction to enemy
 		vec3_t dir_to_enemy = self->enemy->s.origin - start;
@@ -2350,17 +2350,28 @@ if (!has_sky_above && self->enemy) {
 		if (isboss) {
 			// Spread patterns for boss
 			vec3_t dir1 = dir_to_enemy + (right * 0.12f);
+			vec3_t dir4 = dir_to_enemy + (right * 0.16f);
 			vec3_t dir2 = dir_to_enemy;
 			vec3_t dir3 = dir_to_enemy - (right * 0.12f);
+			vec3_t dir5 = dir_to_enemy - (right * 0.16f);
 			dir1.normalize(); dir3.normalize();
 			
 			// Fire triple shot
-			monster_fire_ionripper(self, start, dir1, 20, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-			monster_fire_ionripper(self, start, dir2, 20, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-			monster_fire_ionripper(self, start, dir3, 20, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir1, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir2, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir3, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir4, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir5, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
 		} else {
-			// Regular fixbot fires single ionripper
-			monster_fire_ionripper(self, start, dir_to_enemy, 15, 550, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			// Spread patterns for boss
+			vec3_t dir1 = dir_to_enemy + (right * 0.12f);
+			vec3_t dir2 = dir_to_enemy;
+			vec3_t dir3 = dir_to_enemy - (right * 0.12f);
+			dir1.normalize(); dir3.normalize();
+			monster_fire_ionripper(self, start, dir1, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir2, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+			monster_fire_ionripper(self, start, dir3, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+
 		}
 		
 		return false; // Didn't use plasma
