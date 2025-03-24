@@ -595,13 +595,23 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 	}
 }
 
+// Optimized clear path check using modern vector operations
 bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2) {
+	// Early out if either vector is invalid
+	if (!is_valid_vector(spot1) || !is_valid_vector(spot2))
+		return false;
+		
+	// Use direct traceline call
 	const trace_t tr = gi.traceline(spot1, spot2, ignore, mask);
 	return (tr.fraction == 1.0f);
 }
 
 void TeleportEntity(edict_t* ent, edict_t* dest) {
 	if (!ent || !ent->inuse || !dest || !dest->inuse)
+		return;
+	
+	// Early-out if vectors are invalid
+	if (!is_valid_vector(dest->s.origin))
 		return;
 
 	// Store original position for effect
@@ -687,12 +697,10 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
 		return;
 
-	// Calculate bounds with safe limits
-	vec3_t area_mins{}, area_maxs{};
-	for (int i = 0; i < 3; i++) {
-		area_mins[i] = origin[i] + mins[i] - 26.0f;
-		area_maxs[i] = origin[i] + maxs[i] + 26.0f;
-	}
+	// Calculate bounds with safe limits - using direct vector operations
+	const vec3_t safe_offset{26.0f, 26.0f, 26.0f};
+	const vec3_t area_mins = origin + mins - safe_offset;
+	const vec3_t area_maxs = origin + maxs + safe_offset;
 
 	// Safe radius for search
 	const float max_dim = std::max({

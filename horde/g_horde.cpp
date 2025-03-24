@@ -195,32 +195,34 @@ static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
 
 // ¿Está el punto de spawn ocupado?
 // Verify if any spawn points are occupied, using span for efficient iteration
-// Original single point check
+// Original single point check with optimized vector validation
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Add validation first
-	if (!spawn_point) {
-		gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
+	// Fast path: Add validation first with combined checks
+	if (!spawn_point || !is_valid_vector(spawn_point->s.origin)) {
+		// Only print warning in developer mode to avoid performance impact
+		if (developer->integer) {
+			if (!spawn_point)
+				gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
+			else
+				gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
+		}
 		return true; // Safer to assume occupied if invalid
 	}
 
-	// Validate origin
-	if (!is_valid_vector(spawn_point->s.origin)) {
-		gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
-		return true;
-	}
-
-	// Get or create cache entry - with proper reference
-	auto cache_it = spawn_point_cache.find(spawn_point);
+	// Get or create cache entry - with optimized lookup
 	SpawnPointCache* cache_ptr = nullptr;
-
+	auto cache_it = spawn_point_cache.find(spawn_point);
+	
 	if (cache_it != spawn_point_cache.end()) {
 		cache_ptr = &cache_it->second;
 	}
 	else {
+		// Create new cache entry in a single emplace operation
 		auto [it, inserted] = spawn_point_cache.emplace(spawn_point, SpawnPointCache{});
 		cache_ptr = &it->second;
 	}
 
+	// Use reference for better performance and readability
 	SpawnPointCache& cache = *cache_ptr;
 
 	// Static duration to avoid reconstructing
@@ -238,10 +240,11 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	cache.last_check_origin = spawn_point->s.origin;
 	cache.frame_time = level.time;
 
-	// Optimized space check - precalculate scaled vectors
+	// Optimized space check - precalculate scaled vectors once as static constants
 	static const vec3_t mins_scale = vec3_t{ 16, 16, 24 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
 	static const vec3_t maxs_scale = vec3_t{ 16, 16, 32 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
 
+	// Direct vector operations for bounding box - no component-wise updates needed
 	const vec3_t spawn_mins = spawn_point->s.origin - mins_scale;
 	const vec3_t spawn_maxs = spawn_point->s.origin + maxs_scale;
 
@@ -269,10 +272,11 @@ edict_t* SelectRandomSpawnPoint(TFilter filter) {
 
 	// First pass: collect only potentially valid spawn points
 	for (edict_t* spawnPoint : spawnPoints) {
-		if (!spawnPoint || !spawnPoint->inuse)
+		// Combined validation check to reduce branches
+		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin))
 			continue;
 
-		// Check if spawn point is on cooldown
+		// Check if spawn point is on cooldown - direct array access
 		auto const& data = spawnPointsData[spawnPoint];
 		if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt)
 			continue;
@@ -368,7 +372,8 @@ struct SpawnMonsterFilter {
 	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
 
 	bool operator()(edict_t* spawnPoint) const {
-		if (!spawnPoint || !spawnPoint->inuse)
+		// Combined validation to reduce branches
+		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin))
 			return false;
 
 		// Direct array access for cooldown check
@@ -381,16 +386,16 @@ struct SpawnMonsterFilter {
 		if (spawnPoint->style == 1 && !HasWaveType(current_wave_type, MonsterWaveType::Flying))
 			return false;
 
-		// Check basic validity - origin must be valid
+		// Cache the origin reference to avoid multiple member accesses
 		const vec3_t& origin = spawnPoint->s.origin;
-		if (!is_valid_vector(origin))
-			return false;
 
+		// Check minimum distance from players using modern vector operations
 		for (const auto* const player : active_players()) {
 			if (!player || !player->inuse)
 				continue;
 
-			if ((origin - player->s.origin).length() < 150.0f)
+			// Use squared distance to avoid unnecessary sqrt calculations
+			if ((origin - player->s.origin).lengthSquared() < 22500.0f) // 150^2 = 22500
 				return false;
 		}
 
