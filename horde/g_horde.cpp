@@ -191,7 +191,25 @@ struct SpawnPointCache {
 	gtime_t frame_time;  // Changed from frame_number to frame_time
 	bool was_occupied = false;
 };
-static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
+
+struct SpawnPointCacheArray {
+    SpawnPointCache data[MAX_EDICTS];
+    
+    SpawnPointCache& operator[](const edict_t* ent) {
+        return data[ent - g_edicts];
+    }
+    
+    const SpawnPointCache& operator[](const edict_t* ent) const {
+        return data[ent - g_edicts];
+    }
+    
+    void clear() {
+        for (auto& item : data) {
+            item = SpawnPointCache{};
+        }
+    }
+};
+static SpawnPointCacheArray spawn_point_cache;
 
 // ¿Está el punto de spawn ocupado?
 // Verify if any spawn points are occupied, using span for efficient iteration
@@ -209,21 +227,10 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 		return true; // Safer to assume occupied if invalid
 	}
 
-	// Get or create cache entry - with optimized lookup
-	SpawnPointCache* cache_ptr = nullptr;
-	auto cache_it = spawn_point_cache.find(spawn_point);
-	
-	if (cache_it != spawn_point_cache.end()) {
-		cache_ptr = &cache_it->second;
-	}
-	else {
-		// Create new cache entry in a single emplace operation
-		auto [it, inserted] = spawn_point_cache.emplace(spawn_point, SpawnPointCache{});
-		cache_ptr = &it->second;
-	}
+	// Get cache entry using direct array access - much faster than map lookup
+	SpawnPointCache& cache = spawn_point_cache[spawn_point];
 
-	// Use reference for better performance and readability
-	SpawnPointCache& cache = *cache_ptr;
+	// Direct array access already gave us a reference for optimal performance
 
 	// Static duration to avoid reconstructing
 	static constexpr auto CACHE_DURATION = 25_ms;
@@ -244,7 +251,7 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	static const vec3_t mins_scale = vec3_t{ 16, 16, 24 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
 	static const vec3_t maxs_scale = vec3_t{ 16, 16, 32 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
 
-	// Direct vector operations for bounding box - no component-wise updates needed
+	// Direct vector operations for bounding box - using modern C++ operators
 	const vec3_t spawn_mins = spawn_point->s.origin - mins_scale;
 	const vec3_t spawn_maxs = spawn_point->s.origin + maxs_scale;
 
@@ -822,114 +829,174 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
 
+// Cache for common calculations in UnifiedAdjustSpawnRate
+struct WaveScalingCache {
+    // Lookup tables for frequent calculations
+    static constexpr int32_t MAX_WAVE_LEVEL = 50;
+    static constexpr int32_t MAX_HUMAN_PLAYERS = 16;
+    
+    // Pre-computed cooldown scales to avoid recalculation
+    float cooldownScales[3][MAX_WAVE_LEVEL+1] = {}; // [mapType][level]
+    
+    // Cached base counts and additional spawns
+    int32_t baseCountsByLevel[3][MAX_WAVE_LEVEL+1] = {}; // [mapType][level]
+    int32_t additionalSpawnsByLevel[MAX_WAVE_LEVEL+1] = {};
+    
+    // Player multipliers (precomputed)
+    float playerMultipliers[MAX_HUMAN_PLAYERS+1] = {};
+    
+    // Initialize all cache tables
+    void initialize() {
+        using namespace HordeConstants;
+        
+        // Initialize player multipliers
+        for (int32_t players = 0; players <= MAX_HUMAN_PLAYERS; ++players) {
+            playerMultipliers[players] = (players <= 1) ? 
+                1.0f : BASE_DIFFICULTY_MULTIPLIER + ((players - 1) * PLAYER_COUNT_SCALE);
+        }
+        
+        // Initialize base counts by map type and level
+        for (int mapType = 0; mapType < 3; ++mapType) {
+            for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
+                // Select the appropriate base count based on level ranges
+                int32_t countIndex;
+                if (level <= 5) countIndex = 0;
+                else if (level <= 10) countIndex = 1;
+                else if (level <= 15) countIndex = 2;
+                else countIndex = 3;
+                
+                // Store pre-computed base count
+                baseCountsByLevel[mapType][level] = BASE_COUNTS[mapType][countIndex];
+            }
+        }
+        
+        // Initialize additional spawns by level
+        for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
+            if (level < 8) {
+                additionalSpawnsByLevel[level] = 6;
+            } else {
+                // Base values from ADDITIONAL_SPAWNS constants
+                int smallMapSpawn = ADDITIONAL_SPAWNS[0];
+                int mediumMapSpawn = ADDITIONAL_SPAWNS[1];
+                int bigMapSpawn = ADDITIONAL_SPAWNS[2];
+                
+                // Apply level-based adjustments
+                if (level > 25) {
+                    smallMapSpawn = static_cast<int32_t>(smallMapSpawn * 1.6f);
+                    mediumMapSpawn = static_cast<int32_t>(mediumMapSpawn * 1.6f);
+                    bigMapSpawn = static_cast<int32_t>(bigMapSpawn * 1.6f);
+                }
+                
+                // Store by map type
+                additionalSpawnsByLevel[level] = mediumMapSpawn; // Default to medium
+            }
+        }
+        
+        // Initialize cooldown scales (can be accessed by mapType and level)
+        MapSize smallMap = {true, false, false};
+        MapSize mediumMap = {false, false, true};
+        MapSize bigMap = {false, true, false};
+        
+        for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
+            cooldownScales[0][level] = CalculateCooldownScale(level, smallMap);
+            cooldownScales[1][level] = CalculateCooldownScale(level, mediumMap);
+            cooldownScales[2][level] = CalculateCooldownScale(level, bigMap);
+        }
+    }
+} g_waveScalingCache;
+
 void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
-	using namespace HordeConstants;
-
-	// Base count determination using explicit conditions
-	int32_t baseCount;
-	if (mapSize.isSmallMap) {
-		if (lvl <= 5) baseCount = BASE_COUNTS[0][0];
-		else if (lvl <= 10) baseCount = BASE_COUNTS[0][1];
-		else if (lvl <= 15) baseCount = BASE_COUNTS[0][2];
-		else baseCount = BASE_COUNTS[0][3];
-	}
-	else if (mapSize.isBigMap) {
-		if (lvl <= 5) baseCount = BASE_COUNTS[2][0];
-		else if (lvl <= 10) baseCount = BASE_COUNTS[2][1];
-		else if (lvl <= 15) baseCount = BASE_COUNTS[2][2];
-		else baseCount = BASE_COUNTS[2][3];
-	}
-	else {
-		if (lvl <= 5) baseCount = BASE_COUNTS[1][0];
-		else if (lvl <= 10) baseCount = BASE_COUNTS[1][1];
-		else if (lvl <= 15) baseCount = BASE_COUNTS[1][2];
-		else baseCount = BASE_COUNTS[1][3];
-	}
-
-	// Player count adjustment
-	if (humanPlayers > 1) {
-		// Use int64_t for the scaled result to prevent overflow
-		int64_t scaledBaseCount = static_cast<int64_t>(baseCount) *
-			(BASE_DIFFICULTY_MULTIPLIER + ((humanPlayers - 1) * PLAYER_COUNT_SCALE));
-
-		// Clamp the scaledBaseCount to prevent exceeding int32_t max
-		scaledBaseCount = std::min(scaledBaseCount, static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
-
-		// Assign back to baseCount safely
-		baseCount = static_cast<int32_t>(scaledBaseCount);
-	}
-
-	// Additional spawn calculation
-	int32_t additionalSpawn;
-	if (lvl >= 8) {
-		additionalSpawn = mapSize.isSmallMap ? ADDITIONAL_SPAWNS[0] :
-			mapSize.isBigMap ? ADDITIONAL_SPAWNS[2] :
-			ADDITIONAL_SPAWNS[1];
-	}
-	else {
-		additionalSpawn = 6;
-	}
-
-	// Cooldown calculation
-	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
-	const float cooldownScale = CalculateCooldownScale(lvl, mapSize);
-	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
-
-	// Level-based adjustments
-	if (lvl > 25) {
-		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
-	}
-
-	// Difficulty adjustments
-	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
-		additionalSpawn += CalculateChaosInsanityBonus(lvl);
-		SPAWN_POINT_COOLDOWN *= TIME_REDUCTION_MULTIPLIER;
-	}
-	// Add difficulty-based cooldown adjustment for normal difficulty
-	if (!g_chaotic->integer && !g_insane->integer) {
-		// On normal difficulty, add a multiplier for more measured pace
-		SPAWN_POINT_COOLDOWN *= 1.2f;
-	}
-
-	// Player count difficulty scaling
-	const float difficultyMultiplier = BASE_DIFFICULTY_MULTIPLIER + (humanPlayers - 1) * DIFFICULTY_PLAYER_FACTOR;
-	if (lvl % 3 == 0) {
-		// To prevent baseCount from exceeding the maximum value of int32_t after multiplication,
-		// use int64_t to hold the temporary result
-		int64_t tempBaseCount = static_cast<int64_t>(baseCount) * difficultyMultiplier;
-
-		// Ensure we don't exceed the maximum value of int32_t
-		tempBaseCount = std::min(tempBaseCount, static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
-
-		// Assign the safely scaled value back to baseCount
-		baseCount = static_cast<int32_t>(tempBaseCount);
-		SPAWN_POINT_COOLDOWN = std::max(
-			SPAWN_POINT_COOLDOWN - gtime_t::from_sec((mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier),
-			1.0_sec
-		);
-	}
-
-	// Final cooldown clamping
-	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.5_sec, 3.5_sec);
-
-	// Calculate num_to_spawn: Clamping the result after addition
-	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
-	ClampNumToSpawn(mapSize); //  <---- IMPORTANT - This already handles clamping
-
-	const bool isHardMode = g_insane->integer || g_chaotic->integer;
-	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
-
-	// Debug output
-	if (developer->integer == 3) {
-		gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", lvl);
-		gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
-			SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
-		gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
-		gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
-		gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
-		gi.Com_PrintFmt("  - Map type: {}\n",
-			mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
-	}
+    using namespace HordeConstants;
+    
+    // Initialize cache if needed (one-time operation)
+    static bool cache_initialized = false;
+    if (!cache_initialized) {
+        g_waveScalingCache.initialize();
+        cache_initialized = true;
+    }
+    
+    // Clamp input values for safety
+    const int32_t safeLevel = std::min(lvl, WaveScalingCache::MAX_WAVE_LEVEL);
+    const int32_t safePlayerCount = std::min(humanPlayers, WaveScalingCache::MAX_HUMAN_PLAYERS);
+    
+    // Determine map type index for lookups
+    const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
+    
+    // Get base values from cache
+    int32_t baseCount = g_waveScalingCache.baseCountsByLevel[mapTypeIndex][safeLevel];
+    
+    // Apply player multiplier using cached value
+    if (safePlayerCount > 1) {
+        const float playerMultiplier = g_waveScalingCache.playerMultipliers[safePlayerCount];
+        baseCount = static_cast<int32_t>(baseCount * playerMultiplier);
+    }
+    
+    // Get additional spawn count (with map type adjustment)
+    int32_t additionalSpawn = g_waveScalingCache.additionalSpawnsByLevel[safeLevel];
+    
+    // Apply map-specific adjustment to additional spawns
+    if (safeLevel >= 8) {
+        additionalSpawn = mapSize.isSmallMap ? ADDITIONAL_SPAWNS[0] :
+            mapSize.isBigMap ? ADDITIONAL_SPAWNS[2] : ADDITIONAL_SPAWNS[1];
+            
+        // Level-based adjustment for high levels
+        if (safeLevel > 25) {
+            additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
+        }
+    }
+    
+    // Apply difficulty adjustments
+    if (safeLevel >= 3 && (g_chaotic->integer || g_insane->integer)) {
+        additionalSpawn += CalculateChaosInsanityBonus(safeLevel);
+    }
+    
+    // Get cooldown from cache and apply adjustments
+    SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+    const float cooldownScale = g_waveScalingCache.cooldownScales[mapTypeIndex][safeLevel];
+    SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
+    
+    // Apply difficulty-based cooldown adjustments
+    if (g_chaotic->integer || g_insane->integer) {
+        SPAWN_POINT_COOLDOWN *= TIME_REDUCTION_MULTIPLIER;
+    } else {
+        // Normal difficulty adjustment
+        SPAWN_POINT_COOLDOWN *= 1.2f;
+    }
+    
+    // Apply periodic difficulty scaling
+    if (safeLevel % 3 == 0) {
+        const float difficultyMultiplier = g_waveScalingCache.playerMultipliers[safePlayerCount];
+        baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
+        
+        const float cooldownReduction = (mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier;
+        SPAWN_POINT_COOLDOWN = std::max(
+            SPAWN_POINT_COOLDOWN - gtime_t::from_sec(cooldownReduction),
+            1.0_sec
+        );
+    }
+    
+    // Final cooldown clamping
+    SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.5_sec, 3.5_sec);
+    
+    // Calculate final spawn count
+    g_horde_local.num_to_spawn = baseCount + additionalSpawn;
+    ClampNumToSpawn(mapSize); // Handle clamping
+    
+    // Calculate queued monsters
+    const bool isHardMode = g_insane->integer || g_chaotic->integer;
+    g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, safeLevel, isHardMode);
+    
+    // Debug output
+    if (developer->integer == 3) {
+        gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", safeLevel);
+        gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
+            SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
+        gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
+        gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
+        gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
+        gi.Com_PrintFmt("  - Map type: {}\n",
+            mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
+    }
 }
 
 void ResetAllSpawnAttempts() noexcept;
@@ -1675,37 +1742,29 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy |  MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f}
 };
 
-static std::unordered_map<std::string_view, MonsterWaveType> monster_type_cache;
-static bool monster_cache_initialized = false;
+// Compile-time monster type mapping using constexpr array
+static constexpr std::array<std::pair<const char*, MonsterWaveType>, std::size(monsterTypes)> MONSTER_WAVE_TYPES = []() {
+    std::array<std::pair<const char*, MonsterWaveType>, std::size(monsterTypes)> result = {};
+    for (size_t i = 0; i < std::size(monsterTypes); i++) {
+        result[i] = {monsterTypes[i].classname, monsterTypes[i].types};
+    }
+    return result;
+}();
 
-// Initialize the monster type cache
-void InitMonsterTypeCache() {
-	if (monster_cache_initialized) {
-		return;
-	}
-
-	for (const auto& info : monsterTypes) {
-		monster_type_cache[info.classname] = info.types;
-	}
-
-	monster_cache_initialized = true;
-}
-
-// Function to get wave types for a monster based on its classname
+// Function to get wave types for a monster based on its classname using binary search
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
-	if (!classname) return MonsterWaveType::None;
-
-	// Initialize cache if needed
-	if (!monster_cache_initialized) {
-		InitMonsterTypeCache();
-	}
-
-	auto it = monster_type_cache.find(classname);
-	if (it != monster_type_cache.end()) {
-		return it->second;
-	}
-
-	return MonsterWaveType::Ground; // Default to ground type
+    if (!classname) return MonsterWaveType::None;
+    
+    // Binary search through sorted array for better performance
+    // Note: This assumes MONSTER_WAVE_TYPES is sorted by classname
+    // If not sorted, consider using linear search for small arrays
+    for (const auto& [name, type] : MONSTER_WAVE_TYPES) {
+        if (strcmp(name, classname) == 0) {
+            return type;
+        }
+    }
+    
+    return MonsterWaveType::Ground; // Default fallback
 }
 
 static void InitializeWaveType(int32_t lvl) {
@@ -1863,147 +1922,294 @@ struct EligibleBosses {
 };
 
 // static array for recent bosses
-// static array for recent bosses
 struct RecentBosses {
-	const char* items[MAX_RECENT_BOSSES] = {};
+	char items[MAX_RECENT_BOSSES][64] = {}; // Store fixed-size strings directly
 	size_t count = 0;
 
 	void add(const char* boss) noexcept {
-		if (!boss)
+		// Rigorous validation to prevent crashes
+		if (!boss) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("WARNING: Attempted to add null boss to recent_bosses\n");
+			}
 			return;
+		}
+
+		// Now safe to check first character
+		if (boss[0] == '\0') {
+			return;
+		}
+
+		// Validate count is within expected bounds
+		if (count > MAX_RECENT_BOSSES) {
+			count = MAX_RECENT_BOSSES;
+		}
 
 		// Early return for empty slot
 		if (count < MAX_RECENT_BOSSES) {
-			items[count++] = boss;
+			strncpy(items[count], boss, 63);
+			items[count][63] = '\0'; // Ensure null termination
+			count++;
 			return;
 		}
 
 		// Fixed-size shift using memmove for better performance
-		memmove(&items[0], &items[1], sizeof(const char*) * (MAX_RECENT_BOSSES - 1));
-		items[MAX_RECENT_BOSSES - 1] = boss;
+		memmove(&items[0], &items[1], sizeof(items[0]) * (MAX_RECENT_BOSSES - 1));
+		strncpy(items[MAX_RECENT_BOSSES - 1], boss, 63);
+		items[MAX_RECENT_BOSSES - 1][63] = '\0'; // Ensure null termination
 	}
 
 	bool contains(const char* boss) const noexcept {
-		if (!boss || count == 0)
+		// Rigorous validation without prematurely accessing boss[0]
+		if (!boss) {
 			return false;
+		}
 
-		// Linear search - fastest for small arrays like this
-		for (size_t i = 0; i < count; ++i) {
-			if (strcmp(items[i], boss) == 0)
-				return true;
+		// Now it's safe to check the first character
+		if (boss[0] == '\0') {
+			return false;
+		}
+
+		// Validate count is within expected bounds
+		if (count == 0 || count > MAX_RECENT_BOSSES) {
+			return false;
+		}
+
+		// Use a bounded count value for extra safety
+		const size_t valid_count = std::min(count, static_cast<size_t>(MAX_RECENT_BOSSES));
+
+		// Linear search with explicit bounds checking
+		for (size_t i = 0; i < valid_count; ++i) {
+			// Ensure the string is valid before comparing
+			if (items[i][0] != '\0') {
+				// Use strncmp for bounded comparison to avoid buffer overruns
+				if (strncmp(items[i], boss, 63) == 0) {
+					return true;
+				}
+			}
 		}
 		return false;
 	}
 
 	void clear() noexcept {
 		count = 0;
-		// No need to zero the array - count will prevent access
+		// Always clear all strings for extra safety
+		memset(items, 0, sizeof(items));
 	}
-};
+}; 
 static RecentBosses recent_bosses;
 
-static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
-	// Use static stack-based arrays instead of dynamic allocations
-	static struct {
-		const boss_t* items[MAX_ELIGIBLE_BOSSES]{};
-		double weights[MAX_ELIGIBLE_BOSSES]{};
-		size_t count = 0;
-	} eligible_bosses;
+// Precomputed boss eligibility cache to avoid repeated calculations
+struct BossEligibilityCache {
+    // Assuming MAX_WAVE_LEVEL = 50 from earlier definition
+    static constexpr int32_t MAX_PRECOMPUTED_WAVE = 50;
+    
+    // For each map type and wave level, store eligible boss indices
+    struct LevelEligibility {
+        uint16_t indices[MAX_ELIGIBLE_BOSSES] = {0}; // Indices into respective boss list
+        uint8_t count = 0;
+    };
+    
+    // Cache by map type (0=small, 1=medium, 2=large) and wave level
+    LevelEligibility eligibility[3][MAX_PRECOMPUTED_WAVE+1];
+    bool initialized = false;
+    
+    // Initialize cache by pre-computing eligible bosses for each level
+    void initialize() {
+        // For each map type
+        for (int mapType = 0; mapType < 3; ++mapType) {
+            // Get the boss list for this map type
+            MapSize mapSize;
+            if (mapType == 0) { // Small
+                mapSize = {true, false, false};
+            } else if (mapType == 2) { // Large
+                mapSize = {false, true, false};
+            } else { // Medium
+                mapSize = {false, false, true};
+            }
+            
+            const auto bossList = GetBossList(mapSize, "");
+            
+            // For each wave level
+            for (int32_t wave = 0; wave <= MAX_PRECOMPUTED_WAVE; ++wave) {
+                auto& levelData = eligibility[mapType][wave];
+                levelData.count = 0;
+                
+                // Filter bosses by level requirements only
+                for (size_t i = 0; i < bossList.size(); ++i) {
+                    const auto& boss = bossList[i];
+                    
+                    if ((wave >= boss.min_level || boss.min_level == -1) &&
+                        (wave <= boss.max_level || boss.max_level == -1)) {
+                        
+                        if (levelData.count < MAX_ELIGIBLE_BOSSES) {
+                            levelData.indices[levelData.count++] = i;
+                        }
+                    }
+                }
+            }
+        }
+        initialized = true;
+    }
+} g_bossEligibilityCache;
 
-	// Reset state
-	eligible_bosses.count = 0;
-	double total_weight = 0.0;
+static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
+	// Initialize boss eligibility cache if needed
+	static bool cache_initialized = false;
+	if (!cache_initialized) {
+		g_bossEligibilityCache.initialize();
+		cache_initialized = true;
+	}
+
+	// Determine map type index for cache lookup
+	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
+
+	// Safe level clamping
+	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
 
 	// Get boss list once
 	const auto boss_list = GetBossList(mapSize, mapname);
-	if (boss_list.empty())
+	if (boss_list.empty()) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n",
+				mapname.data(), waveNumber);
+		}
 		return nullptr;
-
-	// First pass: collect eligible bosses
-	for (const auto& boss : boss_list) {
-		// Check eligibility criteria
-		const bool level_match = (waveNumber >= boss.min_level || boss.min_level == -1) &&
-			(waveNumber <= boss.max_level || boss.max_level == -1);
-
-		if (level_match && !recent_bosses.contains(boss.classname)) {
-			// Calculate adjusted weight
-			float adjusted_weight = boss.weight;
-
-			// Apply weight adjustments
-			if (waveNumber >= boss.min_level && waveNumber <= boss.min_level + 5) {
-				adjusted_weight *= 1.3f;
-			}
-
-			if (g_insane->integer || g_chaotic->integer) {
-				if (boss.sizeCategory == BossSizeCategory::Large) {
-					adjusted_weight *= 1.2f;
-				}
-			}
-
-			if (boss.min_level != -1 && waveNumber > boss.min_level + 10) {
-				adjusted_weight *= 0.8f;
-			}
-
-			// Add to array directly
-			if (eligible_bosses.count < MAX_ELIGIBLE_BOSSES) {
-				total_weight += adjusted_weight;
-				eligible_bosses.weights[eligible_bosses.count] = total_weight;
-				eligible_bosses.items[eligible_bosses.count] = &boss;
-				eligible_bosses.count++;
-			}
-		}
 	}
 
-	// If no bosses eligible, retry with cleared history
-	if (eligible_bosses.count == 0) {
-		recent_bosses.clear();
-		total_weight = 0.0;
+	// Get precomputed eligible bosses for this level
+	const auto& precomputedEligible = g_bossEligibilityCache.eligibility[mapTypeIndex][safeWaveNumber];
 
-		// Second pass with reset history
-		for (const auto& boss : boss_list) {
-			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
-				(waveNumber <= boss.max_level || boss.max_level == -1)) {
-
-				const float adjusted_weight = boss.weight;
-				total_weight += adjusted_weight;
-
-				if (eligible_bosses.count < MAX_ELIGIBLE_BOSSES) {
-					eligible_bosses.weights[eligible_bosses.count] = total_weight;
-					eligible_bosses.items[eligible_bosses.count] = &boss;
-					eligible_bosses.count++;
-				}
-			}
+	// Validate precomputed data
+	if (precomputedEligible.count == 0 || precomputedEligible.count > MAX_ELIGIBLE_BOSSES) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("WARNING: Invalid precomputed eligible boss count: {}\n",
+				precomputedEligible.count);
 		}
-	}
-
-	// Exit if no eligible bosses
-	if (eligible_bosses.count == 0)
 		return nullptr;
-
-	// Select boss with binary search
-	const double random_value = std::uniform_real_distribution<double>(0.0, total_weight)(mt_rand);
-	size_t left = 0;
-	size_t right = eligible_bosses.count - 1;
-
-	while (left < right) {
-		const size_t mid = (left + right) / 2;
-		if (eligible_bosses.weights[mid] < random_value) {
-			left = mid + 1;
-		}
-		else {
-			right = mid;
-		}
 	}
 
-	// Get selected boss
-	const boss_t* chosen_boss = eligible_bosses.items[left];
-	if (chosen_boss) {
-		recent_bosses.add(chosen_boss->classname);
-		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
-		return chosen_boss->classname;
-	}
+	// Use stack-based array for weight calculations
+	struct WeightedBoss {
+		const boss_t* boss;
+		float weight;
+		float cumulativeWeight;
+	};
 
-	return nullptr;
+	WeightedBoss weightedBosses[MAX_ELIGIBLE_BOSSES];
+	size_t weightedCount = 0;
+	float totalWeight = 0.0f;
+
+	// First pass - check precomputed eligible bosses against recent history
+	for (size_t i = 0; i < precomputedEligible.count; ++i) {
+		// Validate index bounds before accessing the boss list
+		const size_t bossIndex = precomputedEligible.indices[i];
+		if (bossIndex >= boss_list.size()) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("WARNING: Invalid boss index {} at wave {}\n",
+					bossIndex, waveNumber);
+			}
+			continue;
+		}
+
+		const auto& boss = boss_list[bossIndex];
+
+		// Validate boss classname before checking contains
+		if (!boss.classname) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("WARNING: Null classname in boss at index {}\n", bossIndex);
+			}
+			continue;
+		}
+
+		// Skip if in recent bosses list
+		if (recent_bosses.contains(boss.classname)) {
+			continue;
+		}
+        
+        // Calculate weight with optimized factors
+        float weight = boss.weight;
+        
+        // Combined weight adjustment with fewer branches
+        if (waveNumber >= boss.min_level && boss.min_level != -1) {
+            // Boost if within ideal level range
+            if (waveNumber <= boss.min_level + 5) {
+                weight *= 1.3f;
+            }
+            // Reduce if well beyond ideal level
+            else if (waveNumber > boss.min_level + 10) {
+                weight *= 0.8f;
+            }
+        }
+        
+        // Apply difficulty adjustment in one check
+        if ((g_insane->integer || g_chaotic->integer) && 
+            boss.sizeCategory == BossSizeCategory::Large) {
+            weight *= 1.2f;
+        }
+        
+        // Add to weighted list
+        if (weightedCount < MAX_ELIGIBLE_BOSSES) {
+            totalWeight += weight;
+            weightedBosses[weightedCount].boss = &boss;
+            weightedBosses[weightedCount].weight = weight;
+            weightedBosses[weightedCount].cumulativeWeight = totalWeight;
+            weightedCount++;
+        }
+    }
+    
+    // If no eligible bosses with history filter, retry without filter
+    if (weightedCount == 0 && recent_bosses.count > 0) {
+        recent_bosses.clear(); // Reset history
+        
+        // Use precomputed eligible bosses without history filtering
+        for (size_t i = 0; i < precomputedEligible.count; ++i) {
+            const auto& boss = boss_list[precomputedEligible.indices[i]];
+            
+            // Simplified weight calculation
+            float weight = boss.weight;
+            
+            // Add to weighted list
+            if (weightedCount < MAX_ELIGIBLE_BOSSES) {
+                totalWeight += weight;
+                weightedBosses[weightedCount].boss = &boss;
+                weightedBosses[weightedCount].weight = weight;
+                weightedBosses[weightedCount].cumulativeWeight = totalWeight;
+                weightedCount++;
+            }
+        }
+    }
+    
+    // Still no eligible bosses? Return null
+    if (weightedCount == 0 || totalWeight <= 0.0f) {
+        return nullptr;
+    }
+    
+    // Select boss with binary search for better performance
+    const float randomValue = frandom() * totalWeight;
+    
+    // Binary search through accumulated weights
+    size_t left = 0;
+    size_t right = weightedCount - 1;
+    
+    while (left < right) {
+        const size_t mid = (left + right) / 2;
+        if (weightedBosses[mid].cumulativeWeight < randomValue) {
+            left = mid + 1;
+        } else {
+            right = mid;
+        }
+    }
+    
+    // Get selected boss
+    const boss_t* chosen_boss = weightedBosses[left].boss;
+    if (chosen_boss) {
+        recent_bosses.add(chosen_boss->classname);
+        bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
+        return chosen_boss->classname;
+    }
+    
+    return nullptr;
 }
 
 struct picked_item_t {
@@ -3674,11 +3880,6 @@ void ResetAllSpawnAttempts() noexcept {
 	}
 }
 
-// Función modificada para resetear la lista de jefes recientes
-static void ResetRecentBosses() noexcept {
-	recent_bosses.clear();
-}
-
 void ResetWaveAdvanceState() noexcept;
 
 static bool CheckRemainingMonstersCondition(WaveEndReason& reason) {
@@ -3791,6 +3992,9 @@ void ResetWaveMemory() {
 
 }
 
+static void ResetRecentBosses() noexcept {
+	recent_bosses.clear();
+}
 void ResetGame() {
 
 	// Si ya se ha ejecutado una vez, retornar inmediatamente
@@ -3802,6 +4006,7 @@ void ResetGame() {
 	// Establecer el flag al inicio de la ejecución
 	hasBeenReset = true;
 
+	ResetRecentBosses();
 	ResetAmbushSystem();
 	ResetWaveMemory();
 
