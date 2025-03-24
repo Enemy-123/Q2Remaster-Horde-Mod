@@ -1129,9 +1129,9 @@ static void Horde_InitLevel(const int32_t lvl) {
 	case 35:
 		gi.cvar_set("g_damage_scale", "3.0");
 		break;
-	case 45:
-		gi.cvar_set("g_damage_scale", "4.5");
-		break;
+	//case 45:
+	//	gi.cvar_set("g_damage_scale", "4.5");
+	//	break;
 	default:
 		break;
 	}
@@ -1650,7 +1650,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_medic_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f},
 
 	// Semi-Boss Units (Waves 16+)
-	{"monster_makron", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.02f},
+	{"monster_makron", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f},
 	{"monster_perrokl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f},
 	{"monster_widow1", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f},
 	{"monster_shamblerkl", MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f},
@@ -3556,10 +3556,10 @@ void UpdateHordeHUD() {
 	// Track success
 	bool update_successful = false;
 
-	// Process active players efficiently
+	// Process active players efficiently using iterator pattern
 	for (auto* player : active_players()) {
-		// Skip null checks and directly check voted_map
-		if (player && player->client &&
+		// Use proper null and inuse checks
+		if (player && player->inuse && player->client &&
 			(player->client->voted_map[0] == '\0')) {
 			player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
 			update_successful = true;
@@ -3942,16 +3942,16 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
-	// First priority - independent time limit
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
-	}
-
-	// Second priority - all monsters are dead or wave advance flag set
+	// First priority - all monsters are dead or wave advance flag set (checking this first is more efficient)
 	if (allowWaveAdvance || Horde_AllMonstersDead()) {
 		reason = WaveEndReason::AllMonstersDead;
 		ResetWaveAdvanceState();
+		return true;
+	}
+
+	// Second priority - independent time limit
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
 		return true;
 	}
 
@@ -4358,8 +4358,13 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
-	// NEW: Add 6% chance to teleport near human players
-	const bool use_player_teleport = (frandom() < 0.06f);
+	// Add chance to teleport near human players - scales with wave level
+	float teleport_chance = 0.01f; // Base 1% chance
+	if (current_wave_level > 5) {
+		// Gradually increase from 1% to 10% as waves progress
+		teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.005f, 0.10f);
+	}
+	const bool use_player_teleport = (frandom() < teleport_chance);
 
 	if (use_player_teleport) {
 		// Hide from clients before unlinking
@@ -4639,28 +4644,37 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, const char* mo
 	std::vector<edict_t*> human_players;
 	human_players.reserve(8);
 
-	// First, try to find human players (non-bots)
-	for (int i = 0; i < maxclients->integer; i++) {
-		edict_t* ent = g_edicts + 1 + i;
-		if (!ent->inuse || !ent->client || ent->health <= 0 || ClientIsSpectating(ent->client))
+	// Calculate required spree based on wave level - early waves need less/no spree
+	int required_spree = 30; // Default spree requirement
+	if (current_wave_level <= 5) {
+		required_spree = 0; // No requirement for early waves
+	} else if (current_wave_level <= 10) {
+		required_spree = 10; // Lower requirement for mid-early waves
+	} else if (current_wave_level <= 15) {
+		required_spree = 20; // Medium requirement for mid waves
+	}
+
+	// First, try to find human players (non-bots) with sufficient spree
+	for (auto* player : active_players()) {
+		if (!player || player->health <= 0 || ClientIsSpectating(player->client))
 			continue;
 
-		if (ent->client->resp.spree < 30)
+		// Check spree requirement based on current wave
+		if (player->client->resp.spree < required_spree)
 			continue;
 
 		// Only add human players (non-bots)
-		if (!(ent->svflags & SVF_BOT))
-			human_players.push_back(ent);
+		if (!(player->svflags & SVF_BOT))
+			human_players.push_back(player);
 	}
 
-	// If no human players, fall back to all active players including bots
+	// If no qualifying human players, fall back to all active players including bots
 	if (human_players.empty()) {
-		for (int i = 0; i < maxclients->integer; i++) {
-			edict_t* ent = g_edicts + 1 + i;
-			if (!ent->inuse || !ent->client || ent->health <= 0 || ClientIsSpectating(ent->client))
+		for (auto* player : active_players_no_spect()) {
+			if (!player || player->health <= 0)
 				continue;
 
-			human_players.push_back(ent);
+			human_players.push_back(player);
 		}
 	}
 
@@ -5560,8 +5574,13 @@ edict_t* SpawnMonsters() {
 				if (g_horde_local.level >= 3 && !champion_spawned_this_wave &&
 					champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS) {
 
-					// Calculate chance based on wave progression
+					// Calculate chance based on wave progression - improved scaling
 					float champion_chance = 0.15f + (std::min(g_horde_local.level, 25) - 3) * 0.01f;
+					
+					// Increase chance for higher waves
+					if (g_horde_local.level > 25) {
+						champion_chance += 0.07f; // Additional 7% chance for high waves
+					}
 
 					// Check if we're past the initial wave spawning
 					bool past_initial_spawns = (g_totalMonstersInWave > 0 &&
@@ -6157,9 +6176,9 @@ static void SendCleanupMessage(WaveEndReason reason) {
 
 		// Give reward and reset stats if successful
 		if (GiveTopDamagerReward(topDamager, playerName)) {
-			// Reset all player stats in one pass
-			for (auto player : active_players()) {
-				if (player->client) {
+			// Reset all player stats in one pass using iterator
+			for (auto* player : active_players()) {
+				if (player && player->client) {
 					// Group related resets together for better cache coherence
 					// Damage counters
 					player->client->total_damage = 0;
