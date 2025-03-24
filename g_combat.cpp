@@ -679,27 +679,27 @@ namespace VampireConfig {
 }
 
 void ApplyGradualHealing(edict_t* ent) {
-	// Fast-path early returns
+	// Fast-path early returns grouped for better branch prediction
 	if (!ent || ent->health <= 0 || level.time < ent->regen_info.next_regen_time)
 		return;
 
-	// Apply health regeneration with direct checks
+	// Apply health regeneration with optimized checks and calculations
 	if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
-		// Single variable for heal amount with direct min operation
+		// Use direct min operation to simplify logic
 		const float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
 
-		// Calculate new health with clamping in a single operation
+		// Calculate new health with single-step clamping
 		const int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
 		const int actual_healed = new_health - ent->health;
 
-		// Only update if healing occurred
+		// Only update if actual healing occurred (avoids unnecessary writes)
 		if (actual_healed > 0) {
 			ent->health = new_health;
 			ent->regen_info.stored_healing -= actual_healed;
 		}
 	}
 
-	// Apply armor regeneration if player - no extra check needed
+	// Apply armor regeneration if player - direct condition check
 	if (ent->client) {
 		ApplyGradualArmor(ent);
 	}
@@ -709,46 +709,46 @@ void ApplyGradualHealing(edict_t* ent) {
 }
 
 void ApplyGradualArmor(edict_t* ent) {
-	// Fast early returns for performance
+	// Grouped early returns for better branch prediction
 	if (!ent || !ent->client)
 		return;
 
-	// Get armor index once
+	// Cache armor index to avoid repeated function calls
 	const int index = ArmorIndex(ent);
 	if (!index) {
 		ent->regen_info.stored_armor = 0;
 		return;
 	}
 
-	// Cache current armor amount
+	// Use reference for direct access to armor value
 	int& current_armor = ent->client->pers.inventory[index];
 
-	// Reset if armor is not equipped or already at max
+	// Combined condition check for better branching
 	if (current_armor <= 0 || current_armor >= VampireConfig::MAX_ARMOR) {
 		ent->regen_info.stored_armor = 0;
 		return;
 	}
 
-	// Check if regeneration should occur
+	// Fast path for no regeneration needed
 	if (ent->regen_info.stored_armor <= 0 || level.time < ent->regen_info.next_regen_time)
 		return;
 
-	// Calculate regeneration amount in a single step
+	// Calculate regeneration with a single min operation
 	const float regen_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
 
-	// Calculate new armor value with direct min operation
+	// Direct calculation of new armor with clamping
 	const int new_armor = std::min(
 		current_armor + static_cast<int>(regen_amount),
 		VampireConfig::MAX_ARMOR
 	);
 
-	// Only apply if change occurred
+	// Only apply changes if needed (avoid unnecessary writes)
 	const int actual_added = new_armor - current_armor;
 	if (actual_added > 0) {
 		current_armor = new_armor;
 		ent->regen_info.stored_armor -= actual_added;
 
-		// Clean up if we reached max
+		// Fast cleanup if max reached
 		if (new_armor >= VampireConfig::MAX_ARMOR)
 			ent->regen_info.stored_armor = 0;
 	}
@@ -783,12 +783,13 @@ static int CalculateRealDamage(const edict_t* targ, int take, int initial_health
 }
 
 void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
+	// Early return if target doesn't exist
 	if (!targ) return;
 
 	// Use 64-bit integers for calculations to prevent overflow
 	const int64_t initial_health = targ->health;
 
-	// Calculate real damage safely
+	// Calculate real damage safely with direct checks
 	int64_t real_damage;
 	if (targ->svflags & SVF_DEADMONSTER)
 		real_damage = std::min<int64_t>(take, 5);
@@ -801,13 +802,14 @@ void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
 		}
 	}
 
-	// Only process if we have valid entities and damage
+	// Fast path: Only process if we have valid entities and damage
 	if (real_damage > 0 && attacker && attacker->client) {
 		HandleIDDamage(attacker, targ, static_cast<int>(real_damage));
 	}
 }
 
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
+	// Fast path early returns for improved performance
 	if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
 		!attacker->client->pers.iddmg_state || !targ ||
 		targ->monsterinfo.invincible_time > level.time) {
@@ -927,63 +929,63 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 }
 
 
-static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // Agregar const y noexcept
-	// Early returns para casos negativos
+static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // const and noexcept for better optimization
+	// Fast early returns for invalid cases
 	if (!attacker || attacker->health <= 0 || attacker->deadflag) {
 		return false;
 	}
 
-	// Verificar primero el caso de la sentrygun ya que es una comparación específica
-	if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
+	// Check for sentrygun first (most common special case)
+	if (attacker->classname && strcmp(attacker->classname, "monster_sentrygun") == 0) {
 		return true;
 	}
 
-	// Si no es un monstruo, es un jugador
+	// Check if it's a player (not a monster)
 	if (!(attacker->svflags & SVF_MONSTER)) {
 		return true;  // Players can use vampire
 	}
 
-	// Verificación final para monstruos especiales
+	// Final check for special monsters - using direct bitwise operations
 	constexpr uint32_t VALID_BONUS_FLAGS = (BF_STYGIAN | BF_POSSESSED);
 	return (attacker->monsterinfo.bonus_flags & VALID_BONUS_FLAGS) &&
 		!attacker->monsterinfo.IS_BOSS;
 }
 
 void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
-	// Early exits for performance - using direct boolean checks
+	// Fast path early exits with direct boolean checks for optimal branching
 	if (!g_vampire || !g_vampire->integer || !attacker || !targ || damage <= 0) {
 		return;
 	}
 
-	// Direct checks without nested conditionals
+	// Additional early return checks to avoid deeper nesting
 	if (attacker == targ || OnSameTeam(targ, attacker) ||
 		(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
 		return;
 	}
 
-	// Check once if attacker can use vampire effect
+	// Check if attacker can use vampire effect before proceeding
 	if (!CanUseVampireEffect(attacker)) {
 		return;
 	}
 
-	// Check if target is a sentry gun - direct string comparison
+	// Cache this result to avoid repeated string comparison
 	const bool isSentrygun = attacker->classname &&
 		strcmp(attacker->classname, "monster_sentrygun") == 0;
 
-	// Pre-calculate health stolen with conditionals removed
+	// Pre-calculate health stolen once
 	float health_stolen = damage / 4.0f;
 	if (isSentrygun) {
 		health_stolen *= VampireConfig::SENTRY_HEALING_FACTOR;
 	}
 
-	// Only modify health_stolen if we need healing - to avoid unnecessary calculation
+	// Only process healing if needed (attacker isn't at max health)
 	if (attacker->health < attacker->max_health) {
-		// Apply modifiers only if not a sentry gun
+		// Apply weapon-specific modifiers only if needed
 		if (!isSentrygun) {
 			health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
 		}
 
-		// Direct clamping to avoid multiple min operations
+		// Use direct clamping with std::min to simplify logic
 		const float max_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
 		attacker->regen_info.stored_healing = std::min(
 			attacker->regen_info.stored_healing + health_stolen,
@@ -991,32 +993,31 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 		);
 	}
 
-	// Sentinel healing - only process if necessary conditions are met
+	// Process sentry healing only in applicable game states
 	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
-		// Cache the sentry healing factor
+		// Cache constants to avoid repeated access
 		const float sentry_factor = VampireConfig::SENTRY_HEALING_FACTOR;
 		const float max_stored = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
+		const float sentry_heal = health_stolen * sentry_factor;
 
-		// Iterate entities once with direct array access for better cache behavior
-		for (unsigned int i = 0; i < globals.num_edicts; i++) {
-			edict_t* ent = &g_edicts[i];
-			if (!ent->inuse || ent->health <= 0 || ent->owner != attacker ||
-				!ent->classname || strcmp(ent->classname, "monster_sentrygun") != 0) {
+		// Use std::span for more efficient iteration
+		std::span entities_view{ g_edicts, globals.num_edicts };
+		for (auto& ent : entities_view) {
+			// Combined all conditions in a single if statement for better branch prediction
+			if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
+				!ent.classname || strcmp(ent.classname, "monster_sentrygun") != 0) {
 				continue;
 			}
 
-			// Use direct variable to avoid recalculation
-			const float sentry_heal = health_stolen * sentry_factor;
-
-			// Single operation to update stored healing
-			ent->regen_info.stored_healing = std::min(
-				ent->regen_info.stored_healing + sentry_heal,
+			// Single operation to update stored healing with clamping
+			ent.regen_info.stored_healing = std::min(
+				ent.regen_info.stored_healing + sentry_heal,
 				max_stored
 			);
 		}
 	}
 
-	// Only apply armor vampire at level 2
+	// Only apply armor vampire at level 2 - direct check
 	if (g_vampire->integer == 2) {
 		apply_armor_vampire(attacker, damage);
 	}
@@ -1444,36 +1445,38 @@ T_RadiusDamage
 */
 void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t* ignore, float radius, damageflags_t dflags, mod_t mod)
 {
-	float   points;
-	edict_t* ent = nullptr;
-	vec3_t  v;
-	vec3_t  dir;
-	vec3_t   inflictor_center;
-
+	// Early return if inflictor is invalid
 	if (!inflictor)
 		return;
 
+	// Set attacker to inflictor if null
 	if (!attacker)
 		attacker = inflictor;
 
+	// Calculate inflictor center position once
+	vec3_t inflictor_center;
 	if (inflictor->linked)
 		inflictor_center = (inflictor->absmax + inflictor->absmin) * 0.5f;
 	else
 		inflictor_center = inflictor->s.origin;
 
+	// Pre-calculate damage modifier for monsters
 	float damage_modifier = 1.0f;
 	if (attacker && (attacker->svflags & SVF_MONSTER)) {
 		UpdatePowerUpTimes(attacker);
 		damage_modifier = M_DamageModifier(attacker);
 	}
 
+	// Iterate through entities in radius
+	edict_t* ent = nullptr;
 	while ((ent = findradius(ent, inflictor_center, radius)) != nullptr)
 	{
-		if (ent == ignore)
-			continue;
-		if (!ent->takedamage)
+		// Fast path for entities that can't take damage
+		if (ent == ignore || !ent->takedamage)
 			continue;
 
+		// Calculate closest point to entity
+		vec3_t v;
 		if (ent->solid == SOLID_BSP && ent->linked)
 			v = closest_point_to_box(inflictor_center, ent->absmin, ent->absmax);
 		else
@@ -1481,36 +1484,46 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 			v = ent->mins + ent->maxs;
 			v = ent->s.origin + (v * 0.5f);
 		}
+
+		// Calculate damage based on distance
 		v = inflictor_center - v;
-		points = damage - 0.5f * v.length();
+		float points = damage - 0.5f * v.length();
+		
+		// Reduce damage to self
 		if (ent == attacker)
-			points = points * 0.5f;
+			points *= 0.5f;
 
-		if (points > 0)
-		{
-			if (CanDamage(ent, inflictor))
-			{
-				dir = (ent->s.origin - inflictor_center).normalized();
+		// Skip if no damage would be done
+		if (points <= 0)
+			continue;
 
-				// Only apply damage if all entities are valid
-				if (ent && inflictor && attacker) {
-					// Aplicar el modificador de daño aquí
-					const float modified_points = points * damage_modifier;
+		// Check if damage can reach the entity
+		if (!CanDamage(ent, inflictor))
+			continue;
 
-					T_Damage(
-						ent,
-						inflictor,
-						attacker,
-						dir,
-						closest_point_to_box(inflictor_center, ent->absmin, ent->absmax),
-						dir,
-						static_cast<int>(modified_points),
-						static_cast<int>(modified_points),
-						dflags | DAMAGE_RADIUS,
-						mod
-					);
-				}
-			}
+		// Calculate normalized direction vector once
+		vec3_t dir = (ent->s.origin - inflictor_center).normalized();
+
+		// Apply damage if all entities are valid
+		if (ent && inflictor && attacker) {
+			// Apply damage modifier
+			const float modified_points = points * damage_modifier;
+
+			// Calculate damage point once
+			vec3_t damage_point = closest_point_to_box(inflictor_center, ent->absmin, ent->absmax);
+
+			T_Damage(
+				ent,
+				inflictor,
+				attacker,
+				dir,
+				damage_point,
+				dir,
+				static_cast<int>(modified_points),
+				static_cast<int>(modified_points),
+				dflags | DAMAGE_RADIUS,
+				mod
+			);
 		}
 	}
 }
