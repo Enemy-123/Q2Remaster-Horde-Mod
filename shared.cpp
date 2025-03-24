@@ -177,6 +177,9 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->monsterinfo.IS_BOSS)
 		return;
 
+	if (monster->monsterinfo.effects_applied)
+		return;
+
 	// Handle summoned monster logic first (this flag can coexist with others)
 	if (monster->monsterinfo.issummoned) {
 		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
@@ -260,6 +263,8 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 
 	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
+
+	monster->monsterinfo.effects_applied = true;
 }
 // Función auxiliar para calcular los valores mínimos de salud y armadura
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
@@ -331,7 +336,7 @@ void ConfigureBossArmor(edict_t* self) {
 void ApplyBossEffects(edict_t* boss)
 {
 	// Verificar si es un jefe y si ya se han aplicado los efectos
-	if (!boss->monsterinfo.IS_BOSS || boss->effects_applied)
+	if (!boss->monsterinfo.IS_BOSS || boss->monsterinfo.effects_applied)
 		return;
 
 	// Obtener la categoría de tamaño del jefe
@@ -516,7 +521,7 @@ void ApplyBossEffects(edict_t* boss)
 	boss->max_health = boss->health;
 
 	// Marcar que los efectos ya fueron aplicados para evitar escalados acumulativos
-	boss->effects_applied = true;
+	boss->monsterinfo.effects_applied = true;
 
 	//	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
