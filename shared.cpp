@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <algorithm>  // For std::max
 #include <span>
+#include "horde/horde_ids.h"
 
 bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
@@ -176,7 +177,52 @@ float M_DamageModifier(edict_t* monster) noexcept {
     return title;
 }
 
-// Sobrecarga para edict_t*
+// Static array to cache display names by TypeID for fast lookup
+static std::array<std::string, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_displayNamesByID;
+static bool g_displayNamesInitialized = false;
+
+// Initialize the display names array once
+void InitializeDisplayNames() {
+	if (g_displayNamesInitialized) return;
+
+	// First, fill with classnames as fallback
+	for (size_t i = 0; i < static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES); i++) {
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(i));
+		g_displayNamesByID[i] = classname ? classname : "Unknown";
+	}
+
+	// Then override with display names from the replacements map
+	for (const auto& [classname_view, display_name] : name_replacements) {
+		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(classname_view.data());
+		if (typeId != horde::MonsterTypeID::UNKNOWN) {
+			g_displayNamesByID[static_cast<size_t>(typeId)] = std::string(display_name);
+		}
+	}
+
+	g_displayNamesInitialized = true;
+}
+
+// Keep the same signature but use the ID system internally
+[[nodiscard]] inline std::string GetDisplayName(const char* classname) {
+	if (!classname) return "Unknown";
+
+	// Make sure names are initialized
+	if (!g_displayNamesInitialized) {
+		InitializeDisplayNames();
+	}
+
+	// Convert to TypeID and use fast array lookup
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(classname);
+	if (typeId != horde::MonsterTypeID::UNKNOWN) {
+		return g_displayNamesByID[static_cast<size_t>(typeId)];
+	}
+
+	// Fallback for non-monster entities
+	auto it = name_replacements.find(classname);
+	return it != name_replacements.end() ? std::string(it->second) : classname;
+}
+
+// Entity version remains simple but now uses the optimized classname version
 [[nodiscard]] inline std::string GetDisplayName(const edict_t* ent) {
 	if (!ent) return "Unknown";
 
@@ -186,7 +232,6 @@ float M_DamageModifier(edict_t* monster) noexcept {
 	}
 	return base_name;
 }
-
 
 void ApplyMonsterBonusFlags(edict_t* monster)
 {

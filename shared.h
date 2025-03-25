@@ -42,11 +42,6 @@ bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& t
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
 extern void SetHealthBarName(const edict_t* boss);
-//extern void CleanupStaleCS();
-
-// Declarar funciones globales name strings
-[[nodiscard]]  inline std::string GetDisplayName(const char* classname);
-[[nodiscard]]  inline std::string GetDisplayName(const edict_t* ent);
 
 // Mantén el mapa de nombres como una variable externa
 extern const std::unordered_map<std::string_view, std::string_view> name_replacements;
