@@ -83,7 +83,10 @@ enum class MonsterTypeID : uint8_t {
     PSX_GUARDIAN = 66,
     
     // Add other monster types if needed
-    
+
+    MISC_INSANE = 67,
+    TURRET = 68,
+
     MAX_TYPES = 128,  // Set this to a value higher than the largest ID
     UNKNOWN = 255
 };

@@ -3474,29 +3474,6 @@ void Horde_CleanBodies() {
 	}
 }
 
-// Incluye otras cabeceras y definiciones necesarias
-static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
-	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
-	{"monster_boss2kl", "***** Boss incoming! Hornet is about to strike! *****\n"},
-	{"monster_fixbotkl", "***** Boss incoming! The Fixer is coming to fix this... *****\n"},
-	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
-	{"monster_carrier", "***** Boss incoming! Carrier’s here with a deadly payload! *****\n"},
-	{"monster_tank_64", "***** Boss incoming! Tank Commander is here to take limbs! *****\n"},
-	{"monster_shamblerkl", "***** Boss incoming! The Shambler is emerging watch out! *****\n"},
-	{"monster_guncmdrkl", "***** Boss incoming! Gunner Commander has you in his sights! *****\n"},
-	{"monster_makronkl", "***** Boss incoming! Makron is here to personally finish you off! *****\n"},
-	{"monster_guardian", "***** Boss incoming! The Guardian is ready to claim your head! *****\n"},
-	{"monster_psxguardian", "***** Boss incoming! The Enhanced Guardian is ready to spam rockets! *****\n"},
-	{"monster_supertank", "***** Boss incoming! Super-Tank has more firepower than you can handle! *****\n"},
-	{"monster_boss5", "***** Boss incoming! Super-Tank is here to show Strogg’s might! *****\n"},
-	{"monster_widow2", "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n"},
-	{"monster_arachnid", "***** Boss incoming! Arachnid is here for some Marine BBQ! *****\n"},
-	{"monster_psxarachnid", "***** Boss incoming! Arachnid is here *****\n"},
-	{"monster_gm_arachnid", "***** Boss incoming! Missile Arachnid is armed and ready! *****\n"},
-	{"monster_redmutant", "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n"},
-	{"monster_jorg", "***** Boss incoming! Jorg’s mech is upgraded and deadly! *****\n"}
-};
-
 // attaching healthbar
 static void AttachHealthBar(edict_t* boss) {
 	auto healthbar = G_Spawn();
@@ -3633,6 +3610,63 @@ static void SpawnBossAutomatically() {
 	boss->think = BossSpawnThink;
 }
 
+
+// Incluye otras cabeceras y definiciones necesarias
+static const std::unordered_map<horde::MonsterTypeID, std::string_view> bossMessagesMapByID = {
+	{horde::MonsterTypeID::BOSS2, "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
+	{horde::MonsterTypeID::BOSS2_KL, "***** Boss incoming! Hornet is about to strike! *****\n"},
+	{horde::MonsterTypeID::FIXBOT_KL, "***** Boss incoming! The Fixer is coming to fix this... *****\n"},
+	{horde::MonsterTypeID::CARRIER_MINI, "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
+	{horde::MonsterTypeID::CARRIER, "***** Boss incoming! Carrier’s here with a deadly payload! *****\n"},
+	{horde::MonsterTypeID::TANK_64, "***** Boss incoming! Tank Commander is here to take limbs! *****\n"},
+	{horde::MonsterTypeID::SHAMBLER_KL, "***** Boss incoming! The Shambler is emerging watch out! *****\n"},
+	{horde::MonsterTypeID::GUNCMDR_KL, "***** Boss incoming! Gunner Commander has you in his sights! *****\n"},
+	{horde::MonsterTypeID::MAKRON_KL, "***** Boss incoming! Makron is here to personally finish you off! *****\n"},
+	{horde::MonsterTypeID::PSX_GUARDIAN, "***** Boss incoming! The Enhanced Guardian is ready to spam rockets! *****\n"},
+	{horde::MonsterTypeID::BOSS5, "***** Boss incoming! Super-Tank is here to show Strogg’s might! *****\n"},
+	{horde::MonsterTypeID::WIDOW2, "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n"},
+	{horde::MonsterTypeID::PSX_ARACHNID, "***** Boss incoming! Arachnid is here *****\n"},
+	//{"monster_gm_arachnid", "***** Boss incoming! Missile Arachnid is armed and ready! *****\n"},
+	{horde::MonsterTypeID::REDMUTANT, "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n"},
+	{horde::MonsterTypeID::JORG, "***** Boss incoming! Jorg’s mech is upgraded and deadly! *****\n"}
+};
+
+// Helper to get boss message by TypeID
+inline std::string_view GetBossMessage(horde::MonsterTypeID typeId) {
+	auto it = bossMessagesMapByID.find(typeId);
+	if (it != bossMessagesMapByID.end())
+		return it->second;
+	return "A Strogg Boss has spawned!\nPrepare for battle!\n";
+}
+
+// Static mapping for boss types to reduce string comparisons
+static const std::unordered_map<horde::MonsterTypeID, std::pair<MonsterWaveType, const char*>> bossTypeMapByID = {
+	{horde::MonsterTypeID::REDMUTANT, {MonsterWaveType::Mutant, "\n\n\nMutant's invasion approaches!\n"}},
+	{horde::MonsterTypeID::SHAMBLER_KL, {MonsterWaveType::Shambler, "\n\n\nMutant's invasion approaches!\n"}},
+	{horde::MonsterTypeID::WIDOW, {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
+	{horde::MonsterTypeID::WIDOW2, {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
+	{horde::MonsterTypeID::PSX_ARACHNID, {MonsterWaveType::Arachnophobic, "\n\n\nArachnophobia wave incoming!\n"}},
+	{horde::MonsterTypeID::BOSS2, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+	{horde::MonsterTypeID::CARRIER, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+	{horde::MonsterTypeID::CARRIER_MINI, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+	{horde::MonsterTypeID::BOSS2_KL, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+	{horde::MonsterTypeID::FIXBOT_KL, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
+	{horde::MonsterTypeID::TANK_64, {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
+	{horde::MonsterTypeID::PSX_GUARDIAN, {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
+	{horde::MonsterTypeID::BOSS5, {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
+	{horde::MonsterTypeID::GUNCMDR_KL, {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
+	{horde::MonsterTypeID::MAKRON, {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
+	{horde::MonsterTypeID::MAKRON_KL, {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}}
+};
+
+// Helper to get boss wave type by TypeID
+inline std::pair<MonsterWaveType, const char*> GetBossWaveType(horde::MonsterTypeID typeId) {
+	auto it = bossTypeMapByID.find(typeId);
+	if (it != bossTypeMapByID.end())
+		return it->second;
+	return { MonsterWaveType::Medium, "\n\n\nDefault wave incoming!\n" };
+}
+
 THINK(BossSpawnThink)(edict_t* self) -> void {
 	// Remove the black light effect immediately
 	if (self->owner) {
@@ -3640,55 +3674,25 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		self->owner = nullptr;
 	}
 
-	// Static mapping for boss types to reduce string comparisons
-	static const std::unordered_map<std::string_view, std::pair<MonsterWaveType, const char*>> bossTypeMap = {
-		{"monster_redmutant", {MonsterWaveType::Mutant, "\n\n\nMutant's invasion approaches!\n"}},
-		{"monster_shamblerkl", {MonsterWaveType::Shambler, "\n\n\nMutant's invasion approaches!\n"}},
-		{"monster_widow", {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
-		{"monster_widow2", {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
-		{"monster_psxarachnid", {MonsterWaveType::Arachnophobic, "\n\n\nArachnophobia wave incoming!\n"}},
-		{"monster_boss2", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-		{"monster_carrier", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-		{"monster_carrier_mini", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-		{"monster_boss2kl", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-		{"monster_fixbotkl", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-		{"monster_tank_64", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
-		{"monster_supertank", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
-		{"monster_psxguardian", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
-		{"monster_boss5", {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
-		{"monster_guncmdrkl", {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
-		{"monster_makron", {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
-		{"monster_makronkl", {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}}
-	};
+	// Convert classname to TypeID for better type safety and performance
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
-	// Set wave type based on boss type with single lookup
-	auto it = bossTypeMap.find(self->classname);
-	if (it != bossTypeMap.end()) {
-		const auto& [waveType, message] = it->second;
-		if (TrySetWaveType(waveType)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, message);
-		}
-		else if (HasWaveType(waveType, MonsterWaveType::Mutant) || HasWaveType(waveType, MonsterWaveType::Shambler)) {
-			// Fallback for mutant/shambler types
-			current_wave_type = MonsterWaveType::Medium;
-			StoreWaveType(MonsterWaveType::Medium);
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nFallback wave: Medium forces incoming!\n");
-		}
+	// Set wave type based on boss type
+	auto bossWaveType = GetBossWaveType(typeId);
+	if (TrySetWaveType(bossWaveType.first)) {
+		gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveType.second);
 	}
-	else if (current_wave_type == MonsterWaveType::None) {
-		// Default to medium if no specific type
+	else if (HasWaveType(bossWaveType.first, MonsterWaveType::Mutant) ||
+		HasWaveType(bossWaveType.first, MonsterWaveType::Shambler)) {
+		// Fallback for mutant/shambler types
 		current_wave_type = MonsterWaveType::Medium;
-		StoreWaveType(current_wave_type);
+		StoreWaveType(MonsterWaveType::Medium);
+	//	gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nFallback wave: Medium forces incoming!\n");
 	}
 
 	// Boss spawn message
-	const auto it_msg = bossMessagesMap.find(self->classname);
-	if (it_msg != bossMessagesMap.end()) {
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", it_msg->second.data());
-	}
-	else {
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
-	}
+	std::string_view bossMessage = GetBossMessage(typeId);
+	gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data());
 
 	// Set boss flags in a single group
 	self->monsterinfo.IS_BOSS = true;
