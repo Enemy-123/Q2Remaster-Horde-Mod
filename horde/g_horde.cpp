@@ -47,7 +47,7 @@ constexpr size_t MAX_SPAWN_POINTS = 32;
 namespace HordeConstants {
 // constexpr float PLAYER_MULTIPLIER = 0.2f;
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
-	constexpr float DIFFICULTY_PLAYER_FACTOR = 0.075f;
+	//constexpr float DIFFICULTY_PLAYER_FACTOR = 0.075f;
 	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.0f;
 	constexpr float PLAYER_COUNT_SCALE = 0.2f;
 
@@ -243,36 +243,36 @@ void OnSuccessfulSpawn(edict_t* spawn_point) {
     horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
 
-// Función de filtro optimizada
-// Modified SpawnPointFilter function
-static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
-	FilterData* filter_data = static_cast<FilterData*>(data);
-
-	// Ignore the specified entity (if exists)
-	if (ent == filter_data->ignore_ent) {
-		return BoxEdictsResult_t::Skip;
-	}
-
-	// Check if the entity is a player or bot
-	if (ent->client && ent->inuse) {
-		filter_data->count++;
-		return BoxEdictsResult_t::End; // Stop searching if a player or bot is found
-	}
-
-	// Check if the entity is a monster (using the SVF_MONSTER flag)
-	if (ent->svflags & SVF_MONSTER && !ent->deadflag) {
-		filter_data->count++;
-		return BoxEdictsResult_t::End; // Stop searching if a monster is found
-	}
-
-	// NEW: Check if the entity is a player-deployed defense
-	if (ent->inuse && IsPlayerDefense(ent)) {
-		filter_data->count++;
-		return BoxEdictsResult_t::End; // Stop searching if a player defense is found
-	}
-
-	return BoxEdictsResult_t::Skip;
-}
+//// Función de filtro optimizada
+//// Modified SpawnPointFilter function
+//static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
+//	FilterData* filter_data = static_cast<FilterData*>(data);
+//
+//	// Ignore the specified entity (if exists)
+//	if (ent == filter_data->ignore_ent) {
+//		return BoxEdictsResult_t::Skip;
+//	}
+//
+//	// Check if the entity is a player or bot
+//	if (ent->client && ent->inuse) {
+//		filter_data->count++;
+//		return BoxEdictsResult_t::End; // Stop searching if a player or bot is found
+//	}
+//
+//	// Check if the entity is a monster (using the SVF_MONSTER flag)
+//	if (ent->svflags & SVF_MONSTER && !ent->deadflag) {
+//		filter_data->count++;
+//		return BoxEdictsResult_t::End; // Stop searching if a monster is found
+//	}
+//
+//	// NEW: Check if the entity is a player-deployed defense
+//	if (ent->inuse && IsPlayerDefense(ent)) {
+//		filter_data->count++;
+//		return BoxEdictsResult_t::End; // Stop searching if a player defense is found
+//	}
+//
+//	return BoxEdictsResult_t::Skip;
+//}
 
 struct SpawnPointCache {
 	gtime_t last_check_time;
@@ -4711,7 +4711,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	// Constants for spawn attempts
 	constexpr int MAX_ATTEMPTS = 40;
 	constexpr float MIN_PLAYER_DIST = 200.0f;
-	constexpr float MAX_PLAYER_DIST = 1200.0f;
+	//constexpr float MAX_PLAYER_DIST = 1200.0f;
 	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
 	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
 
@@ -5478,9 +5478,9 @@ bool IsPositionTooCloseToRecent(const vec3_t& position, float min_distance) {
 bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles) {
 	// Constants for alternative spawn positions
 	constexpr float HEIGHT_OFFSET = 8.0f;
-	constexpr float MIN_RADIUS = 40.0f;
-	constexpr float MAX_RADIUS = 120.0f;
-	constexpr int MAX_ATTEMPTS = 12;  // Increased from 8
+	//constexpr float MIN_RADIUS = 40.0f;
+	//constexpr float MAX_RADIUS = 120.0f;
+	//constexpr int MAX_ATTEMPTS = 12;  // Increased from 8
 	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };  // Approximate monster bounds
 	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };     // Adjust as needed
 
