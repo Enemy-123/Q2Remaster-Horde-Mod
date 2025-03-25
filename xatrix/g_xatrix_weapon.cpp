@@ -352,6 +352,24 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	gi.linkentity(plasma);
 }
 
+// Constants for trap positioning and behavior
+constexpr float TRAP_WALL_OFFSET = 3.0f;       // Offset for walls
+constexpr float TRAP_CEILING_OFFSET = -20.4f;  // Offset for ceilings
+constexpr float TRAP_FLOOR_OFFSET = -12.0f;    // Offset for floor
+constexpr float TRAP_ORB_OFFSET = 12.0f;       // Normal sphere height
+constexpr float TRAP_ORB_OFFSET_CEIL = -18.0f; // Ceiling sphere height
+constexpr int TRAP_MAX_TARGETS = 3;            // Maximum number of targets
+constexpr float TRAP_RADIUS = 400.0f;          // Trap pull radius
+constexpr float TRAP_RADIUS_SQUARED = TRAP_RADIUS * TRAP_RADIUS; // Pre-computed squared radius
+constexpr float TRAP_CONSUME_DISTANCE = 48.0f; // Distance at which trap consumes target
+constexpr float TRAP_MAX_TARGET_MASS = 400.0f; // Maximum mass that can be consumed
+constexpr int TRAP_WAIT_START = 64;            // Initial wait value for consuming
+constexpr int TRAP_FRAME_CONSUME = 5;          // Frame for consumption animation
+constexpr int TRAP_FRAME_ACTIVE = 4;           // Frame for active trap
+constexpr gtime_t TRAP_DURATION = 60_sec;         // Total trap lifetime in seconds
+
+
+
 // Structure for storing multiple targets
 typedef struct trap_target_s {
     edict_t* entity;    // The enemy entity
@@ -370,6 +388,9 @@ typedef struct trap_data_s {
 // This field already exists and should not be used by the trap otherwise
 
 // Helper to get trap data
+// Improved helper to get trap data with additional validation
+
+
 trap_data_t* GetTrapData(edict_t* ent) {
     if (!ent || !ent->inuse)
         return nullptr;
@@ -377,13 +398,7 @@ trap_data_t* GetTrapData(edict_t* ent) {
     return (trap_data_t*)ent->chain;
 }
 
-// Helper to set trap data
-void SetTrapData(edict_t* ent, trap_data_t* data) {
-    if (ent && ent->inuse)
-        ent->chain = (edict_t*)data;
-}
-
-// Helper to free trap data
+// Improved helper to free trap data with better safety checks
 void FreeTrapData(edict_t* ent) {
     if (!ent || !ent->inuse)
         return;
@@ -395,7 +410,15 @@ void FreeTrapData(edict_t* ent) {
     }
 }
 
+// Helper to set trap data
+void SetTrapData(edict_t* ent, trap_data_t* data) {
+    if (ent && ent->inuse)
+        ent->chain = (edict_t*)data;
+}
+
+
 // Modified to throw sparks at a specific target
+// Modified to throw sparks at a specific target with improved validation
 void trap_throwsparks(edict_t* self, edict_t* target)
 {
     if (!self || !self->inuse || !target || !target->inuse)
@@ -421,10 +444,10 @@ void trap_throwsparks(edict_t* self, edict_t* target)
     gi.multicast(spark_origin, MULTICAST_PVS, false);
 }
 
-// Original version for backward compatibility
+// Original version with validation for backward compatibility
 void trap_throwsparks(edict_t* self)
 {
-    if (!self || !self->inuse || !self->enemy)
+    if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
         return;
 
     trap_throwsparks(self, self->enemy);
@@ -437,13 +460,13 @@ THINK(Trap_Gib_Think) (edict_t* ent) -> void
         return;
 
     // Verificar si owner es válido
-    if (!ent->owner)
+    if (!ent->owner || !ent->owner->inuse)
     {
         G_FreeEdict(ent);
         return;
     }
 
-    if (ent->owner->s.frame != 5)
+    if (ent->owner->s.frame != TRAP_FRAME_CONSUME)
     {
         G_FreeEdict(ent);
         return;
@@ -483,20 +506,9 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     BecomeExplosion1(self);
 }
 
-
 void Trap_Think(edict_t* ent);
 void SP_item_foodcube(edict_t* best);
 void SpawnDamage(int type, const vec3_t& origin, const vec3_t& normal, int damage);
-
-// Constants for trap positioning and behavior
-constexpr float TRAP_WALL_OFFSET = 3.0f;       // Offset for walls
-constexpr float TRAP_CEILING_OFFSET = -20.4f;  // Offset for ceilings
-constexpr float TRAP_FLOOR_OFFSET = -12.0f;    // Offset for floor
-constexpr float TRAP_ORB_OFFSET = 12.0f;       // Normal sphere height
-constexpr float TRAP_ORB_OFFSET_CEIL = -18.0f; // Ceiling sphere height
-constexpr int TRAP_MAX_TARGETS = 3;           // Maximum number of targets
-constexpr float TRAP_RADIUS = 400.0f;          // Trap pull radius
-constexpr float TRAP_RADIUS_SQUARED = TRAP_RADIUS * TRAP_RADIUS; // Pre-computed squared radius
 
 // New touch function for trap sticking behavior
 TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -604,44 +616,38 @@ TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
     gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
 }
 
-// RAFAEL - Modified to handle multiple targets
-THINK(Trap_Think) (edict_t* ent) -> void
-{
-    if (ent->timestamp < level.time)
-    {
-        FreeTrapData(ent);
-        BecomeExplosion1(ent);
-        // note to self
-        // cause explosion damage???
-        return;
-    }
+// Helper function to handle trap cooldown state
+bool HandleTrapCooldown(edict_t* ent) {
+    trap_data_t* trap_data = GetTrapData(ent);
+    if (!trap_data)
+        return true; // No data, skip processing
 
     // Check if trap is in cooldown
-    trap_data_t* trap_data = GetTrapData(ent);
-    if (trap_data && trap_data->in_cooldown) {
+    if (trap_data->in_cooldown) {
         // If cooldown is over, reset trap to active state
         if (level.time > trap_data->cooldown_end) {
             trap_data->in_cooldown = false;
             trap_data->num_targets = 0;
-            ent->s.frame = 4; // Reset to active frame
+            ent->s.frame = TRAP_FRAME_ACTIVE; // Reset to active frame
             ent->s.effects |= EF_BLUEHYPERBLASTER; // Re-enable effect
             ent->takedamage = true;
             ent->solid = SOLID_BBOX;
             ent->die = trap_die;
         }
-        
+
         ent->nextthink = level.time + 10_hz;
-        return; // Skip normal processing while in cooldown
+        return true; // Skip normal processing while in cooldown
     }
 
-    ent->nextthink = level.time + 10_hz;
+    return false; // Not in cooldown, continue normal processing
+}
 
+// Handle trap animation sequence
+bool HandleTrapAnimation(edict_t* ent) {
     // ok lets do the blood effect
-    if (ent->s.frame > 4)
-    {
-        if (ent->s.frame == 5)
-        {
-            bool spawn = ent->wait == 64;
+    if (ent->s.frame > TRAP_FRAME_ACTIVE) {
+        if (ent->s.frame == TRAP_FRAME_CONSUME) {
+            bool spawn = ent->wait == TRAP_WAIT_START;
 
             ent->wait -= 2;
 
@@ -653,30 +659,31 @@ THINK(Trap_Think) (edict_t* ent) -> void
             if (ent->wait < 19)
                 ent->s.frame++;
 
-            return;
+            return true;
         }
+
         ent->s.frame++;
-        if (ent->s.frame == 8)
-        {
+        if (ent->s.frame == 8) {
             // Get trap data
             trap_data_t* trap_data = GetTrapData(ent);
             if (trap_data) {
                 // Set cooldown instead of freeing
                 trap_data->in_cooldown = true;
-                trap_data->cooldown_end = level.time + 10_sec;
-                
+                trap_data->cooldown_end = level.time + 10_sec; // Use literal directly
+
                 // Reset trap state
                 ent->s.frame = 0;
                 ent->wait = 0;
                 ent->delay = 0;
                 ent->s.sound = 0; // Stop sound
             }
-            
+
             ent->nextthink = level.time + 10_hz;
             // Don't free the entity, just make it inactive temporarily
             ent->s.effects &= ~EF_BLUEHYPERBLASTER;
             ent->s.effects &= ~EF_BARREL_EXPLODING;
 
+            // Spawn food cube
             edict_t* best = G_Spawn();
             best->count = ent->mass;
             best->s.scale = 1.f + ((ent->accel - 100.f) / 300.f) * 1.0f;
@@ -686,48 +693,41 @@ THINK(Trap_Think) (edict_t* ent) -> void
             best->s.angles[YAW] = frandom() * 360;
             best->velocity[2] = 400;
             best->think(best);
-            best->nextthink = level.time + 30_sec;  // Set 30 second timeout
-            best->think = G_FreeEdict;  // Will remove the foodcube after timeout
-            best->svflags &= ~SVF_INSTANCED;  // Make sure it's not instanced
+            best->nextthink = level.time + 30_sec;  // Use literal directly
+            best->think = G_FreeEdict;
+            best->svflags &= ~SVF_INSTANCED;
             best->s.old_origin = best->s.origin;
             gi.linkentity(best);
             gi.sound(best, CHAN_AUTO, gi.soundindex("misc/fhit3.wav"), 1.f, ATTN_NORM, 0.f);
 
-            return;
+            return true;
         }
-        return;
+        return true;
     }
 
     ent->s.effects &= ~EF_BLUEHYPERBLASTER;
-    if (ent->s.frame >= 4)
-    {
+    if (ent->s.frame >= TRAP_FRAME_ACTIVE) {
         ent->s.effects |= EF_BLUEHYPERBLASTER;
         // clear the owner if in deathmatch
         if (G_IsDeathmatch())
             ent->owner = nullptr;
     }
 
-    if (ent->s.frame < 4)
-    {
+    if (ent->s.frame < TRAP_FRAME_ACTIVE) {
         ent->s.frame++;
-        return;
+        return true;
     }
 
-    // Make sure we have valid trap data
-    if (!trap_data) {
-        trap_data = new trap_data_t();
-        trap_data->num_targets = 0;
-        trap_data->in_cooldown = false;
-        trap_data->cooldown_end = 0_sec;
-        SetTrapData(ent, trap_data);
-    }
+    return false; // Continue with normal processing
+}
 
+// Find potential targets for the trap
+void FindTrapTargets(edict_t* ent, trap_data_t* trap_data) {
     // Reset target count for this frame
     trap_data->num_targets = 0;
 
     // Find potential targets within range
-    for (auto target : active_monsters())
-    {
+    for (auto target : active_monsters()) {
         if (target == ent)
             continue;
 
@@ -771,18 +771,101 @@ THINK(Trap_Think) (edict_t* ent) -> void
         }
     }
 
-    // Sort targets by distance (bubble sort is fine for just 3 elements)
-    for (int i = 0; i < trap_data->num_targets - 1; i++) {
-        for (int j = 0; j < trap_data->num_targets - i - 1; j++) {
-            if (trap_data->targets[j].distance > trap_data->targets[j + 1].distance) {
-                // Swap
-                trap_target_t temp = trap_data->targets[j];
-                trap_data->targets[j] = trap_data->targets[j + 1];
-                trap_data->targets[j + 1] = temp;
+    // Sort targets by distance (optimized for small array)
+    if (trap_data->num_targets > 1) {
+        if (trap_data->num_targets == 2) {
+            // Simple swap for 2 elements
+            if (trap_data->targets[0].distance > trap_data->targets[1].distance) {
+                trap_target_t temp = trap_data->targets[0];
+                trap_data->targets[0] = trap_data->targets[1];
+                trap_data->targets[1] = temp;
+            }
+        }
+        else if (trap_data->num_targets == 3) {
+            // Optimized sort for exactly 3 elements
+            if (trap_data->targets[0].distance > trap_data->targets[1].distance) {
+                trap_target_t temp = trap_data->targets[0];
+                trap_data->targets[0] = trap_data->targets[1];
+                trap_data->targets[1] = temp;
+            }
+            if (trap_data->targets[1].distance > trap_data->targets[2].distance) {
+                trap_target_t temp = trap_data->targets[1];
+                trap_data->targets[1] = trap_data->targets[2];
+                trap_data->targets[2] = temp;
+
+                // Re-check first two elements
+                if (trap_data->targets[0].distance > trap_data->targets[1].distance) {
+                    trap_target_t temp = trap_data->targets[0];
+                    trap_data->targets[0] = trap_data->targets[1];
+                    trap_data->targets[1] = temp;
+                }
             }
         }
     }
+}
 
+// Handle consumption of a target
+void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
+    // Consume the target
+    ent->takedamage = false;
+    ent->solid = SOLID_NOT;
+    ent->die = nullptr;
+
+    // Deal damage to consume the target
+    T_Damage(target, ent, ent->teammaster, vec3_origin, target->s.origin, vec3_origin,
+        10000, 1, DAMAGE_NONE, MOD_TRAP);
+
+    if (target->svflags & SVF_MONSTER)
+        M_ProcessPain(target);
+
+    ent->enemy = target;
+    ent->wait = TRAP_WAIT_START;
+    ent->s.old_origin = ent->s.origin;
+    ent->timestamp = level.time + 30_sec;
+    ent->accel = target->mass;
+
+    if (G_IsDeathmatch())
+        ent->mass = target->mass / 4;
+    else
+        ent->mass = target->mass / 10;
+
+    // ok spawn the food cube
+    ent->s.frame = TRAP_FRAME_CONSUME;
+
+    // link up any gibs that this monster may have spawned
+    for (uint32_t i = 0; i < globals.num_edicts; i++) {
+        edict_t* e = &g_edicts[i];
+
+        if (!e->inuse)
+            continue;
+        else if (strcmp(e->classname, "gib"))
+            continue;
+        else if ((e->s.origin - ent->s.origin).length() > 128.f)
+            continue;
+
+        e->movetype = MOVETYPE_NONE;
+        e->nextthink = level.time + FRAME_TIME_S;
+        e->think = Trap_Gib_Think;
+        e->owner = ent;
+        Trap_Gib_Think(e);
+    }
+}
+
+// Handle trap explosion
+void ExplodeTrap(edict_t* ent) {
+    ent->s.effects &= ~EF_BARREL_EXPLODING;
+
+    // Before exploding, deal damage
+    T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
+
+    // Clean up and explode
+    FreeTrapData(ent);
+    BecomeExplosion1(ent);
+}
+
+
+// Process trap targets (pull and potentially consume)
+bool ProcessTrapTargets(edict_t* ent, trap_data_t* trap_data) {
     // Variables to track if we've consumed a target
     bool consumed_target = false;
 
@@ -796,7 +879,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
             continue;
 
         // If we've already consumed one target this frame, just pull the others
-        if (consumed_target && len < 48) {
+        if (consumed_target && len < TRAP_CONSUME_DISTANCE) {
             // Still pull but don't consume
             if (target->groundentity) {
                 target->s.origin[2] += 1;
@@ -836,72 +919,65 @@ THINK(Trap_Think) (edict_t* ent) -> void
         trap_throwsparks(ent, target);
 
         // Check if target is close enough to be consumed
-        if (len < 48 && !consumed_target)
+        if (len < TRAP_CONSUME_DISTANCE && !consumed_target)
         {
-            if (target->mass < 400)
+            if (target->mass < TRAP_MAX_TARGET_MASS)
             {
                 // Consume the target
-                ent->takedamage = false;
-                ent->solid = SOLID_NOT;
-                ent->die = nullptr;
-
-                T_Damage(target, ent, ent->teammaster, vec3_origin, target->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MOD_TRAP);
-
-                if (target->svflags & SVF_MONSTER)
-                    M_ProcessPain(target);
-
-                ent->enemy = target;
-                ent->wait = 64;
-                ent->s.old_origin = ent->s.origin;
-                ent->timestamp = level.time + 30_sec;
-                ent->accel = target->mass;
-
-                if (G_IsDeathmatch())
-                    ent->mass = target->mass / 4;
-                else
-                    ent->mass = target->mass / 10;
-
-                // ok spawn the food cube
-                ent->s.frame = 5;
-
-                // link up any gibs that this monster may have spawned
-                for (uint32_t i = 0; i < globals.num_edicts; i++)
-                {
-                    edict_t* e = &g_edicts[i];
-
-                    if (!e->inuse)
-                        continue;
-                    else if (strcmp(e->classname, "gib"))
-                        continue;
-                    else if ((e->s.origin - ent->s.origin).length() > 128.f)
-                        continue;
-
-                    e->movetype = MOVETYPE_NONE;
-                    e->nextthink = level.time + FRAME_TIME_S;
-                    e->think = Trap_Gib_Think;
-                    e->owner = ent;
-                    Trap_Gib_Think(e);
-                }
-
+                ConsumeTarget(ent, target, vec);
                 consumed_target = true;
             }
             else
             {
                 // Target is too heavy, explode trap
-                ent->s.effects &= ~EF_BARREL_EXPLODING;
-
-                // Before exploding, deal damage
-                T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
-
-                // Clean up and explode
-                FreeTrapData(ent);
-                BecomeExplosion1(ent);
-                return;
+                ExplodeTrap(ent);
+                return true; // Stop processing
             }
         }
     }
+
+    return consumed_target;
 }
 
+// Main trap thinking function
+// Main trap thinking function
+THINK(Trap_Think) (edict_t* ent) -> void
+{
+    // Check for trap expiration
+    if (ent->timestamp < level.time) {
+        FreeTrapData(ent);
+        BecomeExplosion1(ent);
+        return;
+    }
+
+    // Schedule next think
+    ent->nextthink = level.time + 10_hz;
+
+    // Check if trap is in cooldown
+    if (HandleTrapCooldown(ent))
+        return;
+
+    // Handle trap animation sequence
+    if (HandleTrapAnimation(ent))
+        return;
+
+    // Get trap data
+    trap_data_t* trap_data = GetTrapData(ent);
+    if (!trap_data) {
+        trap_data = new trap_data_t();
+        trap_data->num_targets = 0;
+        trap_data->in_cooldown = false;
+        trap_data->cooldown_end = 0_sec;
+        SetTrapData(ent, trap_data);
+    }
+
+    // Find potential targets
+    FindTrapTargets(ent, trap_data);
+
+    // Process targets
+    ProcessTrapTargets(ent, trap_data);
+}
+// RAFAEL
 // RAFAEL
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
@@ -937,10 +1013,10 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
     // Team assignment
     const char* trap_team;
-    if (self->client->resp.ctf_team == CTF_TEAM1) {
+    if (self->client && self->client->resp.ctf_team == CTF_TEAM1) {
         trap_team = TEAM1;
     }
-    else if (self->client->resp.ctf_team == CTF_TEAM2) {
+    else if (self->client && self->client->resp.ctf_team == CTF_TEAM2) {
         trap_team = TEAM2;
     }
     else {
@@ -965,5 +1041,5 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
     gi.linkentity(trap);
 
-    trap->timestamp = level.time + 60_sec;
+    trap->timestamp = level.time + TRAP_DURATION;
 }
