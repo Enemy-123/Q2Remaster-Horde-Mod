@@ -1763,6 +1763,7 @@ struct monsterinfo_t
 	bool was_stuck = false;
 	bool issummoned = false; // corpse cleaning management
 	bool IS_BOSS = false; // Is monster a boss?
+	bool effects_applied = false; // prevention for applying more that 1 time effect
 	bool BOSS_DEATH_HANDLED = false; // is dead?
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
@@ -3431,7 +3432,6 @@ struct edict_t
 
 	edict_t* laser;
 
-	bool effects_applied = false; // prevention for applying more that 1 time effect for bosses
 	bool is_fading_out = false; // corpse cleaning management
 
 	BossSizeCategory bossSizeCategory;
