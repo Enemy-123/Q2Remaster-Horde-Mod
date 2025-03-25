@@ -1699,6 +1699,88 @@ constexpr int BFG_PLAYER_RANGE = 1536;
 constexpr float BFG_LASER_DISTANCE = 256.0f;
 constexpr gtime_t BFG_LASER_LIFETIME = 300_ms;
 
+// Added constants for clarity and optimization
+constexpr float BFG_LASER_LENGTH = 2048.0f;     // Previously hardcoded as -2048.0f
+constexpr float BFG_MIN_VELOCITY = 100.0f;      // Minimum velocity after reflection
+constexpr int BFG_DMG_DEATHMATCH = 5;           // Damage in deathmatch
+constexpr int BFG_DMG_SINGLEPLAYER = 10;        // Damage in singleplayer
+constexpr int BFG_PULL_FORCE_GROUNDED = 20;     // Pull force when grounded
+constexpr int BFG_PULL_FORCE_AIRBORNE = 10;     // Pull force when in air
+constexpr int BFG_EXPLOSION_DAMAGE = 200;       // Explosion damage
+constexpr float BFG_EXPLOSION_RADIUS = 100.0f;  // Explosion radius
+constexpr float BFG_VELOCITY_EPSILON = 0.001f;  // Small threshold for velocity checks
+constexpr int MAX_POOLED_LASERS = 128;          // Maximum lasers to keep in pool
+constexpr int MAX_FORCE = 100;                  // Maximum pull force
+
+// Laser object pool for efficient memory management
+class LaserPool {
+private:
+	static std::vector<edict_t*> pool;
+	static constexpr size_t MAX_POOL_SIZE = MAX_POOLED_LASERS;
+
+public:
+	// Get a laser from the pool or create a new one
+	static edict_t* get() {
+		if (pool.empty()) {
+			return G_Spawn();
+		}
+		edict_t* laser = pool.back();
+		pool.pop_back();
+		return laser;
+	}
+
+	// Return a laser to the pool if there's room
+	static void release(edict_t* laser) {
+		if (!laser) return;
+
+		if (pool.size() < MAX_POOL_SIZE) {
+			// Reset any necessary fields to default values
+			laser->s.frame = 0;
+			laser->s.skinnum = 0;
+			laser->think = nullptr;
+			laser->nextthink = 0_ms;
+			laser->timestamp = 0_ms;
+			laser->owner = nullptr;
+			pool.push_back(laser);
+		}
+		else {
+			G_FreeEdict(laser);
+		}
+	}
+
+	// Clear the pool (e.g., on level change)
+	static void clear() {
+		for (auto& laser : pool) {
+			G_FreeEdict(laser);
+		}
+		pool.clear();
+	}
+};
+
+// Static member initialization
+std::vector<edict_t*> LaserPool::pool;
+
+// Helper function to determine if an entity can be affected by BFG
+inline bool can_be_affected_by_bfg(const edict_t* ent) {
+	return (ent->svflags & SVF_MONSTER) ||
+		(ent->flags & FL_DAMAGEABLE) ||
+		ent->client ||
+		(strcmp(ent->classname, "misc_explobox") == 0);
+}
+
+// Helper function to calculate entity center once (avoid repeated calculation)
+inline vec3_t calculate_entity_center(const edict_t* ent) {
+	return (ent->absmin + ent->absmax) * 0.5f;
+}
+
+/**
+ * Calculates a random position around a point for BFG laser effect.
+ * Uses spherical coordinates to evenly distribute positions.
+ *
+ * @param p The center point
+ * @param dist Distance from center
+ * @return A randomly generated position at the specified distance
+ */
 static vec3_t bfg_laser_pos(const vec3_t& p, float dist)
 {
 	const float theta = frandom(2 * PIf);
@@ -1713,28 +1795,52 @@ static vec3_t bfg_laser_pos(const vec3_t& p, float dist)
 	return p + (d * dist);
 }
 
+/**
+ * Update function for BFG laser entities.
+ * Keeps the laser attached to its owner and handles lifetime.
+ */
 THINK(bfg_laser_update) (edict_t* self) -> void
 {
-	if (level.time > self->timestamp || !self->owner->inuse)
+	// Check if the laser should be removed due to timeout or owner being freed
+	if (level.time > self->timestamp || !self->owner || !self->owner->inuse)
 	{
-		G_FreeEdict(self);
+		// Return the laser to the pool instead of immediately freeing it
+		LaserPool::release(self);
 		return;
 	}
 
+	// Update laser position to match owner
 	self->s.origin = self->owner->s.origin;
+
+	// Schedule the next update
 	self->nextthink = level.time + 1_ms;
+
+	// Update the entity in the world
 	gi.linkentity(self);
 }
 
+/**
+ * Spawns a visual laser effect emanating from the BFG.
+ * Uses object pooling for better memory efficiency.
+ *
+ * @param self The BFG entity
+ */
 static void bfg_spawn_laser(edict_t* self)
 {
+	// Calculate a random end position for the laser
 	const vec3_t end = bfg_laser_pos(self->s.origin, BFG_LASER_DISTANCE);
+
+	// Trace to find what the laser hits
 	const trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE | CONTENTS_PROJECTILECLIP);
 
+	// Don't spawn a laser if it doesn't hit anything
 	if (tr.fraction == 1.0f)
 		return;
 
-	edict_t* laser = G_Spawn();
+	// Get a laser from the pool instead of always spawning new ones
+	edict_t* laser = LaserPool::get();
+
+	// Set up laser properties
 	laser->s.frame = 3;
 	laser->s.renderfx = RF_BEAM_LIGHTNING;
 	laser->movetype = MOVETYPE_NONE;
@@ -1742,41 +1848,58 @@ static void bfg_spawn_laser(edict_t* self)
 	laser->s.modelindex = MODELINDEX_WORLD; // must be non-zero
 	laser->s.origin = self->s.origin;
 	laser->s.old_origin = tr.endpos;
-	laser->s.skinnum = 0xD0D0D0D0;
+	laser->s.skinnum = 0xD0D0D0D0; // Color of the laser
 	laser->think = bfg_laser_update;
 	laser->nextthink = level.time + 1_ms;
 	laser->timestamp = level.time + BFG_LASER_LIFETIME;
 	laser->owner = self;
+
+	// Link the entity into the world
 	gi.linkentity(laser);
 }
 
+/**
+ * Handles the BFG explosion animation and damage effects.
+ * Creates visual lasers and damages entities in radius.
+ */
 THINK(bfg_explode) (edict_t* self) -> void
 {
+	// Spawn visual laser effect
 	bfg_spawn_laser(self);
 
+	// Only process damage on the first frame of explosion
 	if (self->s.frame == 0)
 	{
+		// Use unordered_set to track processed entities
+		std::unordered_set<edict_t*> processed_entities;
+
+		// Find all entities in the damage radius
 		edict_t* ent = nullptr;
 		while ((ent = findradius(ent, self->s.origin, self->dmg_radius)) != nullptr)
 		{
-			if (!ent->takedamage)
+			// Skip invalid entities or those already processed
+			if (!ent->takedamage || processed_entities.find(ent) != processed_entities.end())
 				continue;
+
 			if (ent == self->owner)
 				continue;
-			if (!CanDamage(ent, self))
+
+			if (!CanDamage(ent, self) || !CanDamage(ent, self->owner))
 				continue;
-			if (!CanDamage(ent, self->owner))
+
+			if (!can_be_affected_by_bfg(ent))
 				continue;
-			if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) &&
-				(!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
-				continue;
+
 			if (CheckTeamDamage(ent, self->owner))
 				continue;
 
-			// Calculate entity center once
-			const vec3_t centroid = (ent->mins + ent->maxs) * 0.5f + ent->s.origin;
+			// Mark entity as processed
+			processed_entities.insert(ent);
 
-			// Calculate direction and distance squared to avoid sqrt
+			// Calculate entity center once for efficiency
+			const vec3_t centroid = calculate_entity_center(ent);
+
+			// Calculate direction and distance
 			const vec3_t diff = self->s.origin - centroid;
 			const float dist_squared = diff.lengthSquared();
 			const float dist = sqrtf(dist_squared);
@@ -1784,9 +1907,11 @@ THINK(bfg_explode) (edict_t* self) -> void
 			// Calculate damage
 			const float points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
 
+			// Apply damage
 			T_Damage(ent, self, self->owner, self->velocity, centroid, vec3_origin,
 				(int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
 
+			// Visual effect
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_ZAP);
 			gi.WritePosition(self->s.origin);
@@ -1795,32 +1920,75 @@ THINK(bfg_explode) (edict_t* self) -> void
 		}
 	}
 
+	// Advance the explosion animation
 	self->nextthink = level.time + 10_hz;
 	self->s.frame++;
+
+	// Free the entity when animation completes
 	if (self->s.frame == 5)
 		self->think = G_FreeEdict;
 }
 
+/**
+ * Calculates the appropriate range for BFG effects based on owner type.
+ *
+ * @param self The BFG entity
+ * @return Range value in world units, clamped to safe maximum
+ */
 int calculate_bfg_range(const edict_t* self)
 {
 	int range;
 
-	if (self->owner->svflags & SVF_MONSTER)
+	if (self->owner->svflags & SVF_MONSTER) {
+		// Monster-owned BFG has shorter range
 		range = BFG_MONSTER_RANGE;
-	else if (g_bfgpull->integer && self->owner->client)
+	}
+	else if (g_bfgpull->integer && self->owner->client) {
+		// Player-owned BFG with pull enabled has longer range
 		range = BFG_PLAYER_RANGE;
-	else
+	}
+	else {
+		// Default to monster range for other cases
 		range = BFG_MONSTER_RANGE;
+	}
 
-	return std::min(range, BFG_MAX_SAFE_RANGE); // Safety clamp
+	// Ensure the range doesn't exceed the maximum safe value
+	return std::min(range, BFG_MAX_SAFE_RANGE);
 }
 
+/**
+ * Calculates the appropriate pull force for an entity affected by BFG.
+ * Applies different forces based on whether the entity is grounded.
+ *
+ * @param ent The entity being pulled
+ * @return Force value to apply
+ */
+int calculate_pull_force(const edict_t* ent)
+{
+	// Apply stronger force if entity is grounded
+	const int force = ent->groundentity ? BFG_PULL_FORCE_GROUNDED : BFG_PULL_FORCE_AIRBORNE;
+
+	// Ensure force doesn't exceed maximum allowed value
+	return std::min(force, MAX_FORCE);
+}
+
+/**
+ * Structure for handling BFG laser piercing through multiple entities.
+ * Inherits from pierce_args_t to provide custom piercing behavior.
+ */
 struct bfg_laser_pierce_t : pierce_args_t
 {
-	edict_t* self;
-	vec3_t   dir;
-	int      damage;
+	edict_t* self;    // The BFG entity
+	vec3_t   dir;     // Direction of the laser
+	int      damage;  // Damage to apply
 
+	/**
+	 * Constructor initializing pierce args for a BFG laser.
+	 *
+	 * @param self The BFG entity
+	 * @param dir Direction vector of the laser
+	 * @param damage Damage amount to apply
+	 */
 	inline bfg_laser_pierce_t(edict_t* self, const vec3_t& dir, int damage) :
 		pierce_args_t(),
 		self(self),
@@ -1829,17 +1997,24 @@ struct bfg_laser_pierce_t : pierce_args_t
 	{
 	}
 
-	// we hit an entity; return false to stop the piercing.
-	// you can adjust the mask for the re-trace (for water, etc).
+	/**
+	 * Called when the pierce trace hits an entity.
+	 * Applies damage and determines whether to continue piercing.
+	 *
+	 * @param mask Reference to the contents mask used for tracing
+	 * @param end Reference to the end position of the trace
+	 * @return true to continue piercing, false to stop
+	 */
 	bool hit(contents_t& mask, vec3_t& end) override
 	{
-		// hurt it if we can
+		// Apply damage if the entity can take damage and isn't immune to lasers
 		if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && (tr.ent != self->owner))
 			T_Damage(tr.ent, self, self->owner, dir, tr.endpos, vec3_origin, damage, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
 
-		// if we hit something that's not a monster or player we're done
-		if (!(tr.ent->svflags & SVF_MONSTER) && !(tr.ent->flags & FL_DAMAGEABLE) && (!tr.ent->client))
+		// Stop piercing if we hit a non-damageable object
+		if (!can_be_affected_by_bfg(tr.ent))
 		{
+			// Visual effect for hitting a solid object
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LASER_SPARKS);
 			gi.WriteByte(4);
@@ -1850,98 +2025,112 @@ struct bfg_laser_pierce_t : pierce_args_t
 			return false;
 		}
 
+		// Check if we've already pierced this entity
 		if (!mark(tr.ent))
 			return false;
 
+		// Continue piercing
 		return true;
 	}
 };
 
-int calculate_pull_force(const edict_t* ent)
-{
-	constexpr int MAX_FORCE = 100;
-	const int force = ent->groundentity ? 20 : 10;
-	return std::min(force, MAX_FORCE);
-}
-
-// Optimized and Combined BFG Think Function (Best of Both)
+/**
+ * Main update function for active BFG projectiles.
+ * Handles laser effects, damage application, and entity pulling.
+ */
 THINK(bfg_think) (edict_t* self) -> void
 {
-	// ---- Early Exit and Lifetime Checks (Snippet 1 & 2 - Combined) ----
+	// Early exit checks
 	if (!self || !self->owner)
 		return;
 
+	// Determine expiry time
 	const gtime_t expiry_time = (self->timestamp != 0_ms) ?
 		self->timestamp :
 		(self->air_finished + BFG_MAX_LIFETIME);
+
+	// Free entity if it has expired
 	if (level.time >= expiry_time)
 	{
 		G_FreeEdict(self);
 		return;
 	}
 
-	// ---- Initialization & Pre-calculations (Snippet 1 & 2 - Combined & Optimized) ----
-	bfg_spawn_laser(self); // Keep visual lasers every frame
+	// Spawn visual laser effect
+	bfg_spawn_laser(self);
 
-	int dmg = deathmatch->integer ? 5 : 10;
+	// Calculate damage based on game mode
+	const int dmg = deathmatch->integer ? BFG_DMG_DEATHMATCH : BFG_DMG_SINGLEPLAYER;
+
+	// Calculate range for effects
 	const int bfgrange = calculate_bfg_range(self);
 	const int bfgrange_squared = bfgrange * bfgrange;
+
+	// Determine if pulling should be applied
 	const bool should_pull = g_bfgpull->integer && self->owner->client;
-	const vec3_t self_origin = self->s.origin; // Cache origin
 
-	// ---- Entity Processing Tracking (Snippet 1 - Crucial for performance & correctness) ----
-	static int processed_count = 0;
-	static edict_t* processed_entities[MAX_EDICTS]; // Static array for efficiency
-	processed_count = 0; // Reset processed entities each frame
+	// Cache origin for performance
+	const vec3_t self_origin = self->s.origin;
 
+	// Use unordered_set for efficient entity tracking
+	std::unordered_set<edict_t*> processed_entities;
+
+	// Find all entities in range
 	edict_t* ent = nullptr;
 	while ((ent = findradius(ent, self_origin, bfgrange)) != nullptr)
 	{
-		// ---- Quick Entity Validity Checks (Snippet 1 & 2 - Combined) ----
+		// Skip entities that can't be damaged
 		if (!ent->takedamage || ent == self || ent == self->owner)
 			continue;
-		if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) &&
-			(!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
+
+		// Skip entities that shouldn't be affected by BFG
+		if (!can_be_affected_by_bfg(ent))
 			continue;
+
+		// Skip team members
 		if (CheckTeamDamage(ent, self->owner))
 			continue;
 
-		// ---- Calculate Entity Center and Direction (Snippet 1 & 2 - Combined & Optimized) ----
-		const vec3_t point = (ent->absmin + ent->absmax) * 0.5f;
+		// Calculate entity center once
+		const vec3_t point = calculate_entity_center(ent);
+
+		// Calculate direction and distance squared for efficiency
 		vec3_t dir = self_origin - point;
 		const float dist_squared = dir.lengthSquared();
 
+		// Skip entities outside range
 		if (dist_squared > bfgrange_squared)
-			continue; // Quick range check
+			continue;
 
-		const float dist = sqrtf(dist_squared); // Only calculate sqrt if in range
-		dir *= (1.0f / dist); // Normalize efficiently
-
-		// ---- Entity Processing Check (Snippet 1 - Prevent Double Hits) ----
-		bool already_processed = false;
-		for (int i = 0; i < processed_count; i++) {
-			if (processed_entities[i] == ent) {
-				already_processed = true;
-				break;
-			}
+		// Calculate actual distance and normalize direction
+		const float dist = sqrtf(dist_squared);
+		if (dist > BFG_VELOCITY_EPSILON) {
+			dir *= (1.0f / dist); // Normalize efficiently
 		}
-		if (already_processed)
-			continue; // Skip if already processed
+		else {
+			// Handle zero distance case
+			dir = vec3_t{ 0, 0, 1 }; // Default up direction
+		}
 
-		// ---- Visibility Check (Snippet 1 & 2 - Combined - Single Trace for Initial Visibility) ----
+		// Skip entities we've already processed
+		if (processed_entities.find(ent) != processed_entities.end())
+			continue;
+
+		// Check visibility
 		trace_t tr = gi.traceline(self_origin, point, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
 		if (tr.fraction < 1.0f)
 			continue; // Not visible
 
-		// ---- Mark Entity as Processed (Snippet 1) ----
-		if (processed_count < MAX_EDICTS)
-			processed_entities[processed_count++] = ent;
+		// Mark entity as processed
+		processed_entities.insert(ent);
 
-		// ---- Apply Initial Damage (Snippet 1 & 2 - Consistent Damage) ----
+		// Apply damage
 		T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
 
-		// ---- Piercing Laser Logic (Snippet 2 - Integrated) ----
-		vec3_t laser_end = self_origin + (dir * -2048.0f); // Precompute laser end
+		// Calculate laser endpoint for visuals
+		vec3_t laser_end = self_origin + (dir * -BFG_LASER_LENGTH);
+
+		// Perform piercing trace
 		trace_t pierce_tr = gi.traceline(self_origin, laser_end, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
 		bfg_laser_pierce_t pierce_args{ self, dir, dmg };
 		pierce_trace(self_origin, laser_end, self, pierce_args,
@@ -1949,78 +2138,104 @@ THINK(bfg_think) (edict_t* self) -> void
 			CONTENTS_DEADMONSTER | CONTENTS_PROJECTILECLIP);
 		laser_end = pierce_tr.endpos; // Update laser end to actual pierce end point
 
-		// ---- Pull Effect (Snippet 1 & 2 - Combined & Improved - Corrected Pull Force) ----
+		// Apply pull effect if enabled
 		if (should_pull && ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
 		{
-			const int pull_force = calculate_pull_force(ent); // Use calculated force for both velocity and knockback
+			// Calculate pull force based on entity state
+			const int pull_force = calculate_pull_force(ent);
 
-			// Apply velocity pull (similar to Snippet 1, but using calculated force)
+			// Apply velocity change
 			ent->velocity -= dir * pull_force;
 
-			// Break ground contact if pulling strongly (optional visual/gameplay effect)
-			if (ent->groundentity && pull_force >= 20) // Example threshold
+			// Break ground contact if pulling strongly
+			if (ent->groundentity && pull_force >= BFG_PULL_FORCE_GROUNDED)
 				ent->groundentity = nullptr;
 
-			// Apply knockback (Snippet 2 - Corrected, only knockback, no redundant damage)
-			T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0,  // No direct damage here
-				pull_force, // Use calculated force for knockback
-				DAMAGE_ENERGY,
-				MOD_BFG_LASER);
+			// Apply knockback with consolidated call
+			T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0,
+				pull_force, DAMAGE_ENERGY, MOD_BFG_LASER);
 		}
 
-		// ---- Visual Laser Effect (Snippet 1 & 2 - Combined - Using Pierce End) ----
+		// Visual laser effect
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BFG_LASER);
 		gi.WritePosition(self_origin);
-		gi.WritePosition(laser_end); // Use the end position from the piercing trace
+		gi.WritePosition(laser_end);
 		gi.multicast(self_origin, MULTICAST_PHS, false);
 	}
 
-	// ---- Consistent Think Rate (Snippet 1 & 2 - Adjusted for balance) ----
+	// Calculate next think time based on game mode
 	const gtime_t next_think_time = g_bfgslide->integer ?
-		FRAME_TIME_MS * 1.6 :  // Slightly faster for slide mode - tweaked value
-		FRAME_TIME_MS * 2.5;    // Slightly slower for normal mode - tweaked value
+		FRAME_TIME_MS * 1.6 :  // Slightly faster for slide mode
+		FRAME_TIME_MS * 2.5;   // Slightly slower for normal mode
+
+	// Schedule next update
 	self->nextthink = level.time + next_think_time;
 }
 
+/**
+ * Handles what happens when a BFG projectile touches something.
+ * Either causes it to slide along surfaces or explode on impact.
+ */
 TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
+	// Ignore collisions with owner
 	if (other == self->owner)
 		return;
 
+	// Destroy entity if it hits the sky
 	if (tr.surface && (tr.surface->flags & SURF_SKY))
 	{
 		G_FreeEdict(self);
 		return;
 	}
 
+	// Play noise if owner is a player
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
+	// Handle sliding mode
 	if (g_bfgslide->integer) {
-		// Update timestamp only if it hasn't been set yet
+		// Set expiry timestamp if not already set
 		if (self->timestamp == 0_ms) {
 			self->timestamp = level.time + BFG_WALL_EXPIRE_TIME;
 		}
 
-		// Calculate new velocity once
-		const float oldVelocity = self->velocity.length();
-		float newVelocity = (2 * BFG10K_INITIAL_SPEED) - oldVelocity;
-		newVelocity = std::max(100.0f, std::min(newVelocity, oldVelocity));
+		// Calculate new velocity more efficiently
+		const float oldVelocitySq = self->velocity.lengthSquared();
+		const float oldVelocity = std::sqrt(oldVelocitySq);
 
-		// Normalize and scale in one operation for efficiency
-		self->velocity.normalize();
-		self->velocity *= newVelocity;
+		// Target velocity is twice the initial speed minus current speed
+		float newVelocity = (2 * BFG10K_INITIAL_SPEED) - oldVelocity;
+
+		// Clamp velocity between minimum and original
+		newVelocity = std::max(BFG_MIN_VELOCITY, std::min(newVelocity, oldVelocity));
+
+		// Apply new velocity without redundant normalization if possible
+		if (oldVelocity > BFG_VELOCITY_EPSILON) {
+			// Scale existing velocity vector (more efficient than normalize + multiply)
+			self->velocity *= (newVelocity / oldVelocity);
+		}
+		else {
+			// In case velocity is near zero, use a default direction
+			self->velocity = vec3_t{ 1, 0, 0 } *newVelocity;
+		}
 	}
 	else
 	{
 		// Non-slide behavior - apply damage and explode
 		if (other->takedamage)
-			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, 200, 0, DAMAGE_ENERGY, MOD_BFG_BLAST);
+			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal,
+				BFG_EXPLOSION_DAMAGE, 0, DAMAGE_ENERGY, MOD_BFG_BLAST);
 
-		T_RadiusDamage(self, self->owner, 200, other, 100, DAMAGE_ENERGY, MOD_BFG_BLAST);
+		// Apply radius damage
+		T_RadiusDamage(self, self->owner, BFG_EXPLOSION_DAMAGE, other, BFG_EXPLOSION_RADIUS,
+			DAMAGE_ENERGY, MOD_BFG_BLAST);
 
+		// Play explosion sound
 		gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/bfg__x1b.wav"), 1, ATTN_NORM, 0);
+
+		// Make projectile non-solid
 		self->solid = SOLID_NOT;
 		self->touch = nullptr;
 
@@ -2037,6 +2252,7 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 		self->nextthink = level.time + 10_hz;
 		self->enemy = other;
 
+		// Visual explosion effect
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BFG_BIGEXPLOSION);
 		gi.WritePosition(self->s.origin);
@@ -2044,9 +2260,22 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	}
 }
 
+/**
+ * Creates and fires a BFG projectile.
+ *
+ * @param self The entity firing the BFG
+ * @param start Starting position of the projectile
+ * @param dir Direction vector for the projectile
+ * @param damage Base damage value
+ * @param speed Initial speed of the projectile
+ * @param damage_radius Radius for explosion damage
+ */
 void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius)
 {
+	// Create a new BFG entity
 	edict_t* bfg = G_Spawn();
+
+	// Set position and movement
 	bfg->s.origin = start;
 	bfg->s.angles = vectoangles(dir);
 	bfg->velocity = dir * speed;
@@ -2054,29 +2283,38 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->clipmask = MASK_PROJECTILE;
 	bfg->svflags = SVF_PROJECTILE;
 
-	// Collision handling for players
+	// Special handling for player-fired BFGs
 	if (self->client && !G_ShouldPlayersCollide(true))
 		bfg->clipmask &= ~CONTENTS_PLAYER;
 
+	// Set physical properties
 	bfg->solid = SOLID_BBOX;
 	bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
 	bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
+
+	// Set ownership and callbacks
 	bfg->owner = self;
 	bfg->touch = bfg_touch;
 	bfg->nextthink = level.time + FRAME_TIME_S;
 	bfg->think = bfg_think;
+
+	// Set damage properties
 	bfg->radius_dmg = damage;
 	bfg->dmg_radius = damage_radius;
 	bfg->classname = "bfg blast";
 	bfg->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
+
+	// Set timing properties
 	bfg->timestamp = 0_ms;
 	bfg->air_finished = level.time;
+
+	// Set team properties
 	bfg->teammaster = bfg;
 	bfg->teamchain = nullptr;
 
+	// Link entity into the world
 	gi.linkentity(bfg);
 }
-
 TOUCH(disintegrator_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	gi.WriteByte(svc_temp_entity);
