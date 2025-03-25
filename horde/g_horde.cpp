@@ -2513,18 +2513,6 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
 	return isSpecialWaveType || (GetMonsterWaveTypes(typeId) & waveRequirements) != MonsterWaveType::None;
 }
 
-// Add an overload that accepts classname for backward compatibility
-// Add a new overload that accepts MonsterTypeID
-//inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements) {
-//	// Convert type ID to classname
-//	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-//	if (!classname) return false;
-//
-//	// Now call the const char* version
-//	return IsValidMonsterForWave(classname, waveRequirements);
-//}
-
-
 static const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Static cache to avoid repeated allocations
 	static struct {
