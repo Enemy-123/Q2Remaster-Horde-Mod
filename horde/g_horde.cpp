@@ -20,6 +20,8 @@ static bool ambush_system_initialized = false;
 
 void ResetSpawnMonsterVars() {
 	need_spawn_cache_reset = true;
+	// Add reset for new trackers
+	horde::g_monsterSpawnTracker.Reset();
 }
 
 void ResetFrameTimers() {
@@ -28,6 +30,8 @@ void ResetFrameTimers() {
 
 void ResetQueueMonitorVars() {
 	need_queue_monitor_reset = true;
+	// Add reset for spawn point tracker
+	horde::g_spawnPointTimeTracker.Reset();
 }
 
 //champion monster to spawn on wave
@@ -1796,101 +1800,101 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
 
 // Structure to include wave level information
 struct MonsterTypeInfo {
-	const char* classname;
+	horde::MonsterTypeID typeId;  // Instead of const char* classname
 	MonsterWaveType types;
 	int minWave;
 	float weight;
 
-	// Add a constexpr constructor
-	constexpr MonsterTypeInfo(const char* n, MonsterWaveType t, int w, float wt)
-		: classname(n), types(t), minWave(w), weight(wt) {
+
+	constexpr MonsterTypeInfo(horde::MonsterTypeID id, MonsterWaveType t, int w, float wt)
+		: typeId(id), types(t), minWave(w), weight(wt) {
 	}
 };
 
 static const MonsterTypeInfo monsterTypes[] = {
 	// Basic Infantry (Waves 1-5)
-	{"monster_soldier_light", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f},
-	{"monster_soldier", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f},
-	{"monster_soldier_ss", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f},
-	{"monster_infantry_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f},
+	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f},
+	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f},
+	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f},
+	{horde::MonsterTypeID::INFANTRY_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f},
 
 	// Early Flying Units (Waves 1-8)
-	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
-	{"monster_fixbot", MonsterWaveType::Flying | MonsterWaveType::Light |MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.45f},
-	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
-	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.6f},
+	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
+	{horde::MonsterTypeID::FIXBOT, MonsterWaveType::Flying | MonsterWaveType::Light |MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.45f},
+	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
+	{horde::MonsterTypeID::FLOATER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.6f},
 
 	// Special Wave Units (Waves 4-9)
-	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
-	{"monster_parasite", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f},
-	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f},
-	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
+	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
+	{horde::MonsterTypeID::PARASITE, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f},
+	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f},
+	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
 
 	// Elite Infantry (Waves 4-12)
-	{"monster_soldier_hypergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f},
-	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f},
-	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f},
-	{"monster_chick", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f},
+	{horde::MonsterTypeID::SOLDIER_HYPERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f},
+	{horde::MonsterTypeID::SOLDIER_RIPPER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f},
+	{horde::MonsterTypeID::SOLDIER_LASERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f},
+	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f},
 
 	// Medium Units (Waves 7-12)
-	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f},
-	{"monster_infantry", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f},
-	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk , 6, 0.8f},
+	{horde::MonsterTypeID::GUNNER_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f},
+	{horde::MonsterTypeID::INFANTRY, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f},
+	{horde::MonsterTypeID::MEDIC, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
+	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk , 6, 0.8f},
 
 	// Arachnophobic Units (Waves 8-18)
-	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f},
-	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f},
-	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
-	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f},
-	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite | MonsterWaveType::Spawner, 25, 0.35f},
+	{horde::MonsterTypeID::SPIDER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f},
+	{horde::MonsterTypeID::GUNCMDR_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f},
+	{horde::MonsterTypeID::ARACHNID2, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
+	{horde::MonsterTypeID::GM_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f},
+	{horde::MonsterTypeID::PSX_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite | MonsterWaveType::Spawner, 25, 0.35f},
 
 	// Mutant Units (Waves 9-14)
-	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f},
-	{"monster_shambler_small", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.4f},
-	{"monster_redmutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f},
+	{horde::MonsterTypeID::MUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f},
+	{horde::MonsterTypeID::SHAMBLER_SMALL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.4f},
+	{horde::MonsterTypeID::REDMUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f},
 
 	// Heavy Ground Units (Waves 12-18)
-	{"monster_gladiator", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
-	{"monster_gunner", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f},
-	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 13, 0.6f},
-	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f},
-	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f},
-	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f},
-	{"monster_runnertank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 21, 0.5f},
-	{"monster_chick_heat", MonsterWaveType::Ground | MonsterWaveType::Heavy| MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f},
+	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
+	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f},
+	{horde::MonsterTypeID::TANK_SPAWNER, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 13, 0.6f},
+	{horde::MonsterTypeID::TANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f},
+	{horde::MonsterTypeID::TANK_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f},
+	{horde::MonsterTypeID::GUNCMDR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f},
+	{horde::MonsterTypeID::RUNNERTANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 21, 0.5f},
+	{horde::MonsterTypeID::CHICK_HEAT, MonsterWaveType::Ground | MonsterWaveType::Heavy| MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f},
 
 	// Elite Flying Units (Waves 18-27)
-	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
-	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f},
-	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 19, 0.45f},
-	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Bomber, 19, 0.35f},
+	{horde::MonsterTypeID::HOVER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
+	{horde::MonsterTypeID::DAEDALUS, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f},
+	{horde::MonsterTypeID::FLOATER_TRACKER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 19, 0.45f},
+	{horde::MonsterTypeID::DAEDALUS_BOMBER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Bomber, 19, 0.35f},
 
 	// Elite Ground Units (Waves 18+)
-	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
-	{"monster_gladc", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
-	{"monster_shambler", MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f},
-	{"monster_tank_64", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f},
+	{horde::MonsterTypeID::GLADIATOR_B, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
+	{horde::MonsterTypeID::GLADIATOR_C, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
+	{horde::MonsterTypeID::SHAMBLER, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f},
+	{horde::MonsterTypeID::TANK_64, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f},
 
 	// Special Heavy Units (Waves 20+)
-	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f},
-	{"monster_janitor2", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f},
-	{"monster_medic_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f},
+	{horde::MonsterTypeID::JANITOR, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f},
+	{horde::MonsterTypeID::JANITOR2, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f},
+	{horde::MonsterTypeID::MEDIC_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f},
 
 	// Semi-Boss Units (Waves 16+)
-	{"monster_makron", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f},
-	{"monster_perrokl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f},
-	{"monster_widow1", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f},
-	{"monster_shamblerkl", MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f},
-	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f},
-	{"monster_makronkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
-	{"monster_boss2kl", MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
-	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f},
+	{horde::MonsterTypeID::MAKRON, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f},
+	{horde::MonsterTypeID::PERRO_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f},
+	{horde::MonsterTypeID::WIDOW1, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f},
+	{horde::MonsterTypeID::SHAMBLER_KL, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f},
+	{horde::MonsterTypeID::GUNCMDR_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f},
+	{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
+	{horde::MonsterTypeID::BOSS2_KL, MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
+	{horde::MonsterTypeID::JORG_SMALL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f},
 
 	// Boss Units
-	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
-	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
-	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy |  MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f}
+	{horde::MonsterTypeID::BOSS2_64, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
+	{horde::MonsterTypeID::BOSS2_MINI, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
+	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy |  MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f}
 };
 
 // Optimized version using a precomputed map
@@ -1905,7 +1909,7 @@ static void InitializeMonsterWaveTypes() {
 
 	// Fill in all the wave types for each monster
 	for (const auto& monster : monsterTypes) {
-		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(monster.classname);
+		horde::MonsterTypeID typeId = monster.typeId;
 		if (typeId != horde::MonsterTypeID::UNKNOWN) {
 			g_monsterWaveTypes[static_cast<size_t>(typeId)] = monster.types;
 		}
@@ -1949,76 +1953,76 @@ inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept
 
 // Modified boss_t structure
 struct boss_t {
-    const char* classname;
-    int32_t min_level;
-    int32_t max_level;
-    float weight;
-    BossSizeCategory sizeCategory;
-    BossType type; // New field
+	horde::MonsterTypeID typeId;  // Instead of const char* classname
+	int32_t min_level;
+	int32_t max_level;
+	float weight;
+	BossSizeCategory sizeCategory;
+	BossType type;
 };
-
 static constexpr boss_t BOSS_SMALL[] = {
-	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
-	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
-	{"monster_fixbotkl", 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small, BossType::WIDOW2},
-	{"monster_tank_64", -1, -1, 0.25f, BossSizeCategory::Small, BossType::TANK_64},
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small, BossType::SHAMBLERKL},
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small, BossType::GUNCMDRKL},
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small, BossType::TANK_64},
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small, BossType::SHAMBLERKL},
-	{"monster_makronkl", 36, -1, 0.2f, BossSizeCategory::Small, BossType::MAKRONKL},
-	{"monster_makron", 16, 26, 0.1f, BossSizeCategory::Small, BossType::OTHER},
-	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small, BossType::PSX_ARACHNID},
-	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
+	{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
+	{horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
+	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
+	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.1f, BossSizeCategory::Small, BossType::WIDOW2},
+	{horde::MonsterTypeID::TANK_64, -1, -1, 0.25f, BossSizeCategory::Small, BossType::TANK_64},
+	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Small, BossType::SHAMBLERKL},
+	{horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Small, BossType::GUNCMDRKL},
+	{horde::MonsterTypeID::MAKRON_KL, 36, -1, 0.2f, BossSizeCategory::Small, BossType::MAKRONKL},
+	{horde::MonsterTypeID::MAKRON, 16, 26, 0.1f, BossSizeCategory::Small, BossType::OTHER},
+	{horde::MonsterTypeID::PSX_ARACHNID, 15, -1, 0.1f, BossSizeCategory::Small, BossType::PSX_ARACHNID},
+	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
 };
 
 static constexpr boss_t BOSS_MEDIUM[] = {
-	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
-	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
-	{"monster_fixbotkl", 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium, BossType::TANK_64},
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Medium, BossType::TANK_64},
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
-	{"monster_psxguardian", -1, 24, 0.1f, BossSizeCategory::Medium, BossType::PSX_GUARDIAN},
-	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium, BossType::WIDOW2},
-	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium, BossType::PSX_ARACHNID},
-	{"monster_makronkl", 26, -1, 0.2f, BossSizeCategory::Medium, BossType::MAKRONKL},
-	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium, BossType::OTHER},
-	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
+	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
+	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
+	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
+	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
+	{horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::TANK_64},
+	{horde::MonsterTypeID::SHAMBLER_KL, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
+	{horde::MonsterTypeID::GUNCMDR_KL, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
+	{horde::MonsterTypeID::PSX_GUARDIAN, -1, 24, 0.1f, BossSizeCategory::Medium, BossType::PSX_GUARDIAN},
+	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.1f, BossSizeCategory::Medium, BossType::WIDOW2},
+	{horde::MonsterTypeID::PSX_ARACHNID, -14, -1, 0.1f, BossSizeCategory::Medium, BossType::PSX_ARACHNID},
+	{horde::MonsterTypeID::MAKRON_KL, 26, -1, 0.2f, BossSizeCategory::Medium, BossType::MAKRONKL},
+	{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium, BossType::OTHER},
+	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
 };
 
 static constexpr boss_t BOSS_LARGE[] = {
-	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
-	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
-	{"monster_fixbotkl", 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
-	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large, BossType::TANK_64},
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large, BossType::SHAMBLERKL},
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Large, BossType::GUNCMDRKL},
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Large, BossType::TANK_64},
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Large, BossType::SHAMBLERKL},
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Large, BossType::GUNCMDRKL},
-	{"monster_psxarachnid", 14, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_ARACHNID},
-	{"monster_widow", -1, -1, 0.1f, BossSizeCategory::Large, BossType::WIDOW},
-	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_GUARDIAN},
-	{"monster_boss5", -1, 24, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
-	{"monster_jorg", 30, -1, 0.15f, BossSizeCategory::Large, BossType::JORG},
-	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large, BossType::MAKRONKL},
-	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
+	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
+	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
+	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
+	{horde::MonsterTypeID::BOSS5, -1, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
+	{horde::MonsterTypeID::TANK_64, -1, 20, 0.45f, BossSizeCategory::Large, BossType::TANK_64},
+	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Large, BossType::SHAMBLERKL},
+	{horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Large, BossType::GUNCMDRKL},
+	{horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Large, BossType::TANK_64},
+	{horde::MonsterTypeID::SHAMBLER_KL, 21, -1, 0.1f, BossSizeCategory::Large, BossType::SHAMBLERKL},
+	{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_ARACHNID},
+	{horde::MonsterTypeID::WIDOW, -1, -1, 0.1f, BossSizeCategory::Large, BossType::WIDOW},
+	{horde::MonsterTypeID::PSX_GUARDIAN, -1, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_GUARDIAN},
+	{horde::MonsterTypeID::BOSS5, -1, 24, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
+	{horde::MonsterTypeID::JORG, 30, -1, 0.15f, BossSizeCategory::Large, BossType::JORG},
+	{horde::MonsterTypeID::MAKRON_KL, 30, -1, 0.2f, BossSizeCategory::Large, BossType::MAKRONKL},
+	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
 };
 
 // Optimized GetBossList function
-static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
-	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
-		return std::span<const boss_t>(BOSS_SMALL);
-	}
+static std::span<const boss_t> GetBossList(const MapSize& mapSize, horde::MapID mapId) {
+    if (mapSize.isSmallMap || 
+        mapId == horde::MapID::Q2DM4 || 
+        mapId == horde::MapID::Q64_COMM || 
+        mapId == horde::MapID::TEST_TEST_KAISER) {
+        return std::span<const boss_t>(BOSS_SMALL);
+    }
 
-	if (mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1") {
-		if (mapname == "mgu6m3" || mapname == "rboss") {
+	if (mapSize.isMediumMap ||
+		mapId == horde::MapID::RDM8 ||
+		mapId == horde::MapID::XDM1) {
+		if (mapId == horde::MapID::MGU6M3 ||
+			mapId == horde::MapID::RBOSS) {
 			static std::array<boss_t, std::size(BOSS_MEDIUM)> filteredMediumBossList;
 			size_t count = 0;
 
@@ -2033,8 +2037,11 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 		return std::span<const boss_t>(BOSS_MEDIUM);
 	}
 
-	if (mapSize.isBigMap || mapname == "test/spbox" || mapname == "q2ctf4") {
-		if (mapname == "test/spbox" || mapname == "q2ctf4") {
+	if (mapSize.isBigMap ||
+		mapId == horde::MapID::TEST_SPBOX
+		|| mapId == horde::MapID::Q2CTF4) {
+		if (mapId == horde::MapID::TEST_SPBOX
+			|| mapId == horde::MapID::Q2CTF4) {
 			static std::array<boss_t, std::size(BOSS_LARGE)> filteredLargeBossList;
 			size_t count = 0;
 
@@ -2170,7 +2177,6 @@ static RecentBosses recent_bosses;
 struct BossEligibilityCache {
     // Assuming MAX_WAVE_LEVEL = 50 from earlier definition
     static constexpr int32_t MAX_PRECOMPUTED_WAVE = 50;
-    
     // For each map type and wave level, store eligible boss indices
     struct LevelEligibility {
         uint16_t indices[MAX_ELIGIBLE_BOSSES] = {0}; // Indices into respective boss list
@@ -2179,48 +2185,53 @@ struct BossEligibilityCache {
     
     // Cache by map type (0=small, 1=medium, 2=large) and wave level
     LevelEligibility eligibility[3][MAX_PRECOMPUTED_WAVE+1];
-    bool initialized = false;
+	inline static bool initialized = false;
     
-    // Initialize cache by pre-computing eligible bosses for each level
-    void initialize() {
-        // For each map type
-        for (int mapType = 0; mapType < 3; ++mapType) {
-            // Get the boss list for this map type
-            MapSize mapSize;
-            if (mapType == 0) { // Small
-                mapSize = {true, false, false};
-            } else if (mapType == 2) { // Large
-                mapSize = {false, true, false};
-            } else { // Medium
-                mapSize = {false, false, true};
-            }
-            
-            const auto bossList = GetBossList(mapSize, "");
-            
-            // For each wave level
-            for (int32_t wave = 0; wave <= MAX_PRECOMPUTED_WAVE; ++wave) {
-                auto& levelData = eligibility[mapType][wave];
-                levelData.count = 0;
-                
-                // Filter bosses by level requirements only
-                for (size_t i = 0; i < bossList.size(); ++i) {
-                    const auto& boss = bossList[i];
-                    
-                    if ((wave >= boss.min_level || boss.min_level == -1) &&
-                        (wave <= boss.max_level || boss.max_level == -1)) {
-                        
-                        if (levelData.count < MAX_ELIGIBLE_BOSSES) {
-                            levelData.indices[levelData.count++] = i;
-                        }
-                    }
-                }
-            }
-        }
-        initialized = true;
-    }
+// Initialize cache by pre-computing eligible bosses for each level
+	void initialize() {
+		// For each map type
+		for (int mapType = 0; mapType < 3; ++mapType) {
+			// Get the boss list for this map type
+			MapSize mapSize;
+			if (mapType == 0) { // Small
+				mapSize = { true, false, false };
+			}
+			else if (mapType == 2) { // Large
+				mapSize = { false, true, false };
+			}
+			else { // Medium
+				mapSize = { false, false, true };
+			}
+
+			// FIXED: Use MapID::UNKNOWN instead of a string
+			const auto bossList = GetBossList(mapSize, horde::MapID::UNKNOWN);
+
+			// For each wave level
+			for (int32_t wave = 0; wave <= MAX_PRECOMPUTED_WAVE; ++wave) {
+				auto& levelData = eligibility[mapType][wave];
+				levelData.count = 0;
+
+				// Filter bosses by level requirements only
+				for (size_t i = 0; i < bossList.size(); ++i) {
+					const auto& boss = bossList[i];
+
+					if ((wave >= boss.min_level || boss.min_level == -1) &&
+						(wave <= boss.max_level || boss.max_level == -1)) {
+
+						if (levelData.count < MAX_ELIGIBLE_BOSSES) {
+							levelData.indices[levelData.count++] = i;
+						}
+					}
+				}
+			}
+		}
+		initialized = true;
+	}
 } g_bossEligibilityCache;
 
 static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
+	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
+
 	// Initialize boss eligibility cache if needed
 	static bool cache_initialized = false;
 	if (!cache_initialized) {
@@ -2235,7 +2246,7 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
 
 	// Get boss list once
-	const auto boss_list = GetBossList(mapSize, mapname);
+	const auto boss_list = GetBossList(mapSize, mapId);
 	if (boss_list.empty()) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n",
@@ -2282,7 +2293,7 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 		const auto& boss = boss_list[bossIndex];
 
 		// Validate boss classname before checking contains
-		if (!boss.classname) {
+		if (!horde::MonsterTypeRegistry::GetClassname(boss.typeId)) {
 			if (developer->integer) {
 				gi.Com_PrintFmt("WARNING: Null classname in boss at index {}\n", bossIndex);
 			}
@@ -2290,95 +2301,96 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 		}
 
 		// Skip if in recent bosses list
-		if (recent_bosses.contains(boss.classname)) {
+		if (recent_bosses.contains(horde::MonsterTypeRegistry::GetClassname(boss.typeId))) {
 			continue;
 		}
-        
-        // Calculate weight with optimized factors
-        float weight = boss.weight;
-        
-        // Combined weight adjustment with fewer branches
-        if (waveNumber >= boss.min_level && boss.min_level != -1) {
-            // Boost if within ideal level range
-            if (waveNumber <= boss.min_level + 5) {
-                weight *= 1.3f;
-            }
-            // Reduce if well beyond ideal level
-            else if (waveNumber > boss.min_level + 10) {
-                weight *= 0.8f;
-            }
-        }
-        
-        // Apply difficulty adjustment in one check
-        if ((g_insane->integer || g_chaotic->integer) && 
-            boss.sizeCategory == BossSizeCategory::Large) {
-            weight *= 1.2f;
-        }
-        
-        // Add to weighted list
-        if (weightedCount < MAX_ELIGIBLE_BOSSES) {
-            totalWeight += weight;
-            weightedBosses[weightedCount].boss = &boss;
-            weightedBosses[weightedCount].weight = weight;
-            weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-            weightedCount++;
-        }
-    }
-    
-    // If no eligible bosses with history filter, retry without filter
-    if (weightedCount == 0 && recent_bosses.count > 0) {
-        recent_bosses.clear(); // Reset history
-        
-        // Use precomputed eligible bosses without history filtering
-        for (size_t i = 0; i < precomputedEligible.count; ++i) {
-            const auto& boss = boss_list[precomputedEligible.indices[i]];
-            
-            // Simplified weight calculation
-            float weight = boss.weight;
-            
-            // Add to weighted list
-            if (weightedCount < MAX_ELIGIBLE_BOSSES) {
-                totalWeight += weight;
-                weightedBosses[weightedCount].boss = &boss;
-                weightedBosses[weightedCount].weight = weight;
-                weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-                weightedCount++;
-            }
-        }
-    }
-    
-    // Still no eligible bosses? Return null
-    if (weightedCount == 0 || totalWeight <= 0.0f) {
-        return nullptr;
-    }
-    
-    // Select boss with binary search for better performance
-    const float randomValue = frandom() * totalWeight;
-    
-    // Binary search through accumulated weights
-    size_t left = 0;
-    size_t right = weightedCount - 1;
-    
-    while (left < right) {
-        const size_t mid = (left + right) / 2;
-        if (weightedBosses[mid].cumulativeWeight < randomValue) {
-            left = mid + 1;
-        } else {
-            right = mid;
-        }
-    }
-    
-    // Get selected boss
-    const boss_t* chosen_boss = weightedBosses[left].boss;
-    if (chosen_boss) {
-        recent_bosses.add(chosen_boss->classname);
-        bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
-        return chosen_boss->classname;
-    }
-    
-    return nullptr;
-}
 
+		// Calculate weight with optimized factors
+		float weight = boss.weight;
+
+		// Combined weight adjustment with fewer branches
+		if (waveNumber >= boss.min_level && boss.min_level != -1) {
+			// Boost if within ideal level range
+			if (waveNumber <= boss.min_level + 5) {
+				weight *= 1.3f;
+			}
+			// Reduce if well beyond ideal level
+			else if (waveNumber > boss.min_level + 10) {
+				weight *= 0.8f;
+			}
+		}
+
+		// Apply difficulty adjustment in one check
+		if ((g_insane->integer || g_chaotic->integer) &&
+			boss.sizeCategory == BossSizeCategory::Large) {
+			weight *= 1.2f;
+		}
+
+		// Add to weighted list
+		if (weightedCount < MAX_ELIGIBLE_BOSSES) {
+			totalWeight += weight;
+			weightedBosses[weightedCount].boss = &boss;
+			weightedBosses[weightedCount].weight = weight;
+			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
+			weightedCount++;
+		}
+	}
+
+	// If no eligible bosses with history filter, retry without filter
+	if (weightedCount == 0 && recent_bosses.count > 0) {
+		recent_bosses.clear(); // Reset history
+
+		// Use precomputed eligible bosses without history filtering
+		for (size_t i = 0; i < precomputedEligible.count; ++i) {
+			const auto& boss = boss_list[precomputedEligible.indices[i]];
+
+			// Simplified weight calculation
+			float weight = boss.weight;
+
+			// Add to weighted list
+			if (weightedCount < MAX_ELIGIBLE_BOSSES) {
+				totalWeight += weight;
+				weightedBosses[weightedCount].boss = &boss;
+				weightedBosses[weightedCount].weight = weight;
+				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
+				weightedCount++;
+			}
+		}
+	}
+
+	// Still no eligible bosses? Return null
+	if (weightedCount == 0 || totalWeight <= 0.0f) {
+		return nullptr;
+	}
+
+	// Select boss with binary search for better performance
+	const float randomValue = frandom() * totalWeight;
+
+	// Binary search through accumulated weights
+	size_t left = 0;
+	size_t right = weightedCount - 1;
+
+	while (left < right) {
+		const size_t mid = (left + right) / 2;
+		if (weightedBosses[mid].cumulativeWeight < randomValue) {
+			left = mid + 1;
+		}
+		else {
+			right = mid;
+		}
+	}
+
+	// Get selected boss
+	const boss_t* chosen_boss = weightedBosses[left].boss;
+	if (chosen_boss) {
+		// CHANGED: Use MonsterTypeRegistry::GetClassname instead of directly accessing classname
+		recent_bosses.add(horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId));
+		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
+		return horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId);
+	}
+
+	return nullptr;
+}
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -2505,11 +2517,11 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Static cache to avoid repeated allocations
 	static struct {
 		struct Entry {
-			const char* classname;
+			horde::MonsterTypeID typeId;
 			float weight;
 			float cumulative_weight;
 		};
-		Entry entries[32]; // Max number of entries
+		Entry entries[32];
 		size_t count;
 		float total_weight;
 	} monster_cache;
@@ -2630,9 +2642,9 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		bool any_eligible_monsters = false;
 		for (const auto& monster : monsterTypes) {
 			if (monster.minWave <= effectiveLevel &&
-				(currentWaveTypes == MonsterWaveType::None || IsValidMonsterForWave(monster.classname, currentWaveTypes))) {
+				(currentWaveTypes == MonsterWaveType::None || IsValidMonsterForWave(monster.typeId, currentWaveTypes))) {
 
-				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
+				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
 				if (!(isSpawnPointFlying && !isFlyingMonster)) {
 					any_eligible_monsters = true;
 					break;
@@ -2668,9 +2680,9 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		// Basic level check
 		if (monster.minWave > effectiveLevel) continue;
 
-		// Skip if not valid for current wave type (unless in emergency mode)
+		// Skip if not valid for current wave type using typeId directly
 		if (currentWaveTypes != MonsterWaveType::None &&
-			!IsValidMonsterForWave(monster.classname, currentWaveTypes)) {
+			!IsValidMonsterForWave(monster.typeId, currentWaveTypes)) {
 			continue;
 		}
 
@@ -2748,14 +2760,14 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		if (weight > 0.0f) {
 			monster_cache.total_weight += weight;
 			auto& entry = monster_cache.entries[monster_cache.count];
-			entry.classname = monster.classname;
+			entry.typeId = monster.typeId;
 			entry.weight = weight;
 			entry.cumulative_weight = monster_cache.total_weight;
 			monster_cache.count++;
 		}
 	}
 
-	const char* chosen_monster = nullptr;
+	horde::MonsterTypeID chosen_monster = horde::MonsterTypeID::UNKNOWN;
 	if (monster_cache.count == 0) {
 		// Create a weighted collection of appropriate fallback monsters based on wave level
 		WeightedSelection<MonsterTypeInfo> fallback_monsters;
@@ -2778,7 +2790,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		for (const auto& monster : monsterTypes) {
 			if (monster.minWave >= min_acceptable_wave && monster.minWave <= currentLevel) {
 				// Check basic flying compatibility
-				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
+				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
 
 				// Only enforce flying vs ground compatibility
 				if (!(isSpawnPointFlying && !isFlyingMonster)) {
@@ -2793,33 +2805,33 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		if (fallback_monsters.item_count > 0) {
 			const MonsterTypeInfo* selected = fallback_monsters.select();
 			if (selected) {
-				chosen_monster = selected->classname;
+				chosen_monster = selected->typeId;
 			}
 		}
 
 		// Last-resort fallback if still nothing found
-		if (!chosen_monster) {
+		if (chosen_monster == horde::MonsterTypeID::UNKNOWN) {
 			// Find ANY monster that meets basic requirements
 			for (const auto& monster : monsterTypes) {
 				if (monster.minWave <= currentLevel) {
-					const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.classname), MonsterWaveType::Flying);
+					const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
 					if (!(isSpawnPointFlying && !isFlyingMonster)) {
-						chosen_monster = monster.classname;
+						chosen_monster = monster.typeId;
 						break;
 					}
 				}
 			}
 		}
 
-		if (chosen_monster && developer->integer) {
+		if (chosen_monster != horde::MonsterTypeID::UNKNOWN && developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY FALLBACK: Selected {} after {} failed attempts\n",
-				chosen_monster, spawn_selection_failures);
+				horde::MonsterTypeRegistry::GetClassname(chosen_monster), spawn_selection_failures);
 		}
 
 		// If we found a monster via emergency fallback
-		if (chosen_monster) {
-			// Update cooldowns
-			UpdateCooldowns(spawn_point, chosen_monster);
+		if (chosen_monster != horde::MonsterTypeID::UNKNOWN) {
+			// Update cooldowns - FIXED: Use GetClassname here for consistency
+			UpdateCooldowns(spawn_point, horde::MonsterTypeRegistry::GetClassname(chosen_monster));
 
 			// Reset failure counters on success
 			spawn_selection_failures = 0;
@@ -2831,7 +2843,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 				saved_wave_type = MonsterWaveType::None;
 			}
 
-			return chosen_monster;
+			return horde::MonsterTypeRegistry::GetClassname(chosen_monster);
 		}
 
 		// No monster available even with emergency fallback
@@ -2856,11 +2868,11 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Get the selected monster
-	chosen_monster = monster_cache.entries[left].classname;
+	chosen_monster = monster_cache.entries[left].typeId;
 
 	// Update cooldowns if we have a valid selection
-	if (chosen_monster) {
-		UpdateCooldowns(spawn_point, chosen_monster);
+	if (chosen_monster != horde::MonsterTypeID::UNKNOWN) {
+		UpdateCooldowns(spawn_point, horde::MonsterTypeRegistry::GetClassname(chosen_monster));
 
 		// Reset failure counters on success
 		spawn_selection_failures = 0;
@@ -2873,7 +2885,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 	}
 
-	return chosen_monster;
+	return horde::MonsterTypeRegistry::GetClassname(chosen_monster);
 }
 
 void Horde_PreInit() {
@@ -2989,7 +3001,7 @@ void VerifyAndAdjustBots() {
 
 void InitializeWaveSystem() noexcept;
 
-static bool items_precached = false;
+static inline bool items_precached = false;  // Inline static variable for C++17+
 
 static void PrecacheItemsAndBosses() noexcept {
 	// Only precache once
@@ -3003,14 +3015,17 @@ static void PrecacheItemsAndBosses() noexcept {
 	std::unordered_set<std::string_view> unique_classnames;
 	unique_classnames.reserve(items_view.size() + monsters_view.size());
 
-	// Add classnames using spans
+	// Add item classnames using spans
 	for (const auto& item : items_view)
 		if (item.classname)  // Safety check
 			unique_classnames.emplace(item.classname);
 
-	for (const auto& monster : monsters_view)
-		if (monster.classname)  // Safety check
-			unique_classnames.emplace(monster.classname);
+	// Add monster classnames using MonsterTypeRegistry::GetClassname
+	for (const auto& monster : monsters_view) {
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster.typeId);
+		if (classname)  // Safety check
+			unique_classnames.emplace(classname);
+	}
 
 	// Precache items
 	for (const auto& classname : unique_classnames)
@@ -3020,7 +3035,7 @@ static void PrecacheItemsAndBosses() noexcept {
 	items_precached = true;
 }
 
-static bool monsters_precached = false;
+static inline bool monsters_precached = false;  // Use inline static for C++17+
 
 // Modified precache function with safety check
 static void PrecacheAllMonsters() noexcept {
@@ -3029,9 +3044,14 @@ static void PrecacheAllMonsters() noexcept {
 		return;
 
 	for (const auto& monster : monsterTypes) {
-		// Instead of spawning entities, just precache the models and sounds directly
-		if (gitem_t* item = FindItemByClassname(monster.classname)) {
-			PrecacheItem(item);
+		// Get classname from typeId using the registry
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster.typeId);
+
+		// Safety check and precache
+		if (classname && *classname) {
+			if (gitem_t* item = FindItemByClassname(classname)) {
+				PrecacheItem(item);
+			}
 		}
 	}
 
@@ -3545,10 +3565,11 @@ static void SpawnBossAutomatically() {
 
 	// Get map name (existing code remains unchanged)
 	const char* map_name = GetCurrentMapName();
+	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
 
 	// MODIFIED CODE: Use the new MapOriginRegistry instead of mapOrigins map
 	vec3_t spawn_origin;
-	if (!horde::MapOriginRegistry::GetOrigin(map_name, spawn_origin)) {
+	if (mapId == horde::MapID::UNKNOWN || !horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("Error: No spawn origin found for map {}\n", map_name);
 		}
