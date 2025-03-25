@@ -4,6 +4,7 @@
 #include "../shared.h"
 #include <set>
 #include "g_horde_benefits.h"
+#include "horde_ids.h"
 #include <span>
 
 
@@ -61,18 +62,18 @@ namespace HordeConstants {
 // Optimized spawn cooldown data structure
 struct SpawnPointData {
 	uint16_t attempts = 0;
-	gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
-	gtime_t lastSpawnTime = 0_sec;
+	gtime_t teleport_cooldown = 0_sec;  // Added teleport_cooldown
+	gtime_t lastSpawnTime = 0_sec;      // Added lastSpawnTime
 	bool isTemporarilyDisabled = false;
 	gtime_t cooldownEndsAt = 0_sec;
 	int32_t successfulSpawns = 0;
 
 	// New fields for alternative position tracking
-	uint16_t alternative_attempts = 0;
-	gtime_t alternative_cooldown = 0_sec;
-	bool needs_long_alternative_cooldown = false;
+	uint16_t alternative_attempts = 0;    // Added alternative_attempts
+	gtime_t alternative_cooldown = 0_sec; // Added alternative_cooldown
+	bool needs_long_alternative_cooldown = false; // Added needs_long_alternative_cooldown
 
-	// Add the success rate calculation method
+	// Update the success rate calculation method to accept current_time
 	float getSuccessRate(gtime_t current_time) const {
 		if (attempts == 0) return 1.0f;
 		// Use faster approximation - avoid division when possible
@@ -225,16 +226,18 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 }
 
 void OnSuccessfulSpawn(edict_t* spawn_point) {
-	if (!spawn_point) return;
+    if (!spawn_point) return;
 
-	auto& data = spawnPointsData[spawn_point];
-	data.successfulSpawns++;
-	data.lastSpawnTime = level.time;
-	data.attempts = 0; // Reset attempts after success
-	data.isTemporarilyDisabled = false;
+    auto& data = spawnPointsData[spawn_point];
+    data.successfulSpawns++;
+    data.attempts = 0; // Reset attempts after success
+    data.isTemporarilyDisabled = false;
 
-	// Short cooldown after successful spawn to prevent instant respawn
-	data.cooldownEndsAt = level.time + 0.5_sec;
+    // Short cooldown after successful spawn to prevent instant respawn
+    data.cooldownEndsAt = level.time + 0.5_sec;
+    
+    // Update the spawn time tracker
+    horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
 
 // Función de filtro optimizada
@@ -865,8 +868,6 @@ struct WeightedSelection {
 int16_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
-auto lastMonsterSpawnTime = std::unordered_map<std::string, gtime_t>{};
-auto lastSpawnPointTime = std::unordered_map<edict_t*, gtime_t>{};
 
 const std::unordered_set<std::string> smallMaps = {
 	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
@@ -1263,13 +1264,15 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 // Warning times in seconds
 constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 
-static void InitializeWaveType(int32_t lvl);
+
 inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel);
 
 void ResetChampionMonsterState() {
 	champion_spawned_this_wave = false;
 	champion_spawn_cooldown = 0;
 }
+
+void InitializeWaveType(int32_t waveLevel);
 
 static void Horde_InitLevel(const int32_t lvl) {
 
@@ -1683,6 +1686,10 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	return selected_type;
 }
 
+void InitializeWaveType(int32_t waveLevel) {
+	current_wave_type = GetWaveComposition(waveLevel);
+}
+
 // Wave difficulty multiplier
 //inline static float GetWaveDifficultyMultiplier(int waveNumber) noexcept {
 //	if (waveNumber <= 5) return 1.0f;
@@ -1695,6 +1702,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 //}
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 
+// Update the function to accept MonsterTypeID
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
 	// Fast exit for no requirements
 	if (waveRequirements == MonsterWaveType::None) {
@@ -1706,7 +1714,7 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 
 	// Special wave types should be exclusive - if one of these is set, the monster MUST have it
 	// These are the "headline" wave types that get special announcements
-	const bool isSpecialWaveType =
+	const bool isSpecialWaveType =  // Define isSpecialWaveType here
 		HasWaveType(waveRequirements, MonsterWaveType::Gekk) ||
 		HasWaveType(waveRequirements, MonsterWaveType::Berserk) ||
 		HasWaveType(waveRequirements, MonsterWaveType::Mutant) ||
@@ -1773,6 +1781,17 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 	// For mixed waves, check if there's at least one match in other categories
 	// This only applies to non-special wave types now
 	return isSpecialWaveType || (monsterTypes & waveRequirements) != MonsterWaveType::None;
+}
+
+// Add an overload that accepts classname for backward compatibility
+// Add a new overload that accepts MonsterTypeID
+inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements) {
+	// Convert type ID to classname
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	if (!classname) return false;
+
+	// Now call the const char* version
+	return IsValidMonsterForWave(classname, waveRequirements);
 }
 
 // Structure to include wave level information
@@ -1874,39 +1893,55 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Heavy |  MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f}
 };
 
-// Compile-time monster type mapping using constexpr array
-static constexpr std::array<std::pair<const char*, MonsterWaveType>, std::size(monsterTypes)> MONSTER_WAVE_TYPES = []() {
-    std::array<std::pair<const char*, MonsterWaveType>, std::size(monsterTypes)> result = {};
-    for (size_t i = 0; i < std::size(monsterTypes); i++) {
-        result[i] = {monsterTypes[i].classname, monsterTypes[i].types};
-    }
-    return result;
-}();
+// Optimized version using a precomputed map
+static std::array<MonsterWaveType, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterWaveTypes;
+static bool g_monsterWaveTypesInitialized = false;
 
-// Function to get wave types for a monster based on its classname using binary search
-inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
-    if (!classname) return MonsterWaveType::None;
-    
-    // Binary search through sorted array for better performance
-    // Note: This assumes MONSTER_WAVE_TYPES is sorted by classname
-    // If not sorted, consider using linear search for small arrays
-    for (const auto& [name, type] : MONSTER_WAVE_TYPES) {
-        if (strcmp(name, classname) == 0) {
-            return type;
-        }
-    }
-    
-    return MonsterWaveType::Ground; // Default fallback
+// Initialize the wave types array once
+static void InitializeMonsterWaveTypes() {
+	if (g_monsterWaveTypesInitialized) return;
+
+	g_monsterWaveTypes.fill(MonsterWaveType::None);
+
+	// Fill in all the wave types for each monster
+	for (const auto& monster : monsterTypes) {
+		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(monster.classname);
+		if (typeId != horde::MonsterTypeID::UNKNOWN) {
+			g_monsterWaveTypes[static_cast<size_t>(typeId)] = monster.types;
+		}
+	}
+
+	g_monsterWaveTypesInitialized = true;
 }
 
-static void InitializeWaveType(int32_t lvl) {
-	// Only initialize wave type for non-boss waves
-	if (!(lvl >= 10 && lvl % 5 == 0)) {
-		current_wave_type = GetWaveComposition(lvl);
+// Update GetMonsterWaveTypes to use the precomputed array
+inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
+	if (!classname) return MonsterWaveType::None;
+
+	// Make sure the wave types are initialized
+	if (!g_monsterWaveTypesInitialized) {
+		InitializeMonsterWaveTypes();
 	}
-	else {
-		current_wave_type = MonsterWaveType::None;  // Reset for boss waves
+
+	// Get the type ID and look up the wave type
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(classname);
+	if (typeId == horde::MonsterTypeID::UNKNOWN) {
+		return MonsterWaveType::Ground; // Default fallback
 	}
+
+	return g_monsterWaveTypes[static_cast<size_t>(typeId)];
+}
+
+// Add a version that accepts MonsterTypeID directly
+inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept {
+	if (typeId == horde::MonsterTypeID::UNKNOWN) return MonsterWaveType::None;
+
+	// Make sure the wave types are initialized
+	if (!g_monsterWaveTypesInitialized) {
+		InitializeMonsterWaveTypes();
+	}
+
+	return g_monsterWaveTypes[static_cast<size_t>(typeId)];
 }
 #include <array>
 #include <unordered_set>
@@ -3091,6 +3126,8 @@ void AllowReset() noexcept {
 }
 
 void Horde_Init() {
+
+	horde::InitializeHordeIDs();
 	// Reset precache state
 	sounds_precached = false;
 	items_precached = false;
@@ -3417,61 +3454,6 @@ void Horde_CleanBodies() {
 	}
 }
 
-// spawning boss origin
-std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
-	{"q2dm1", {1184, 568, 704}},
-	{"rdm4", {-336, 2456, -288}},
-	{"rdm8", {-1516, 976, -156}},
-	{"rdm9", {-984, -80, 232}},
-	{"rdm12", {32, -1888, 120}},
-	{"rdm14", {1248, 664, 896}},
-	{"q2dm2", {128, -960, 704}},
-	{"q2dm3", {192, -136, 72}},
-	{"q2dm4", {504, 876, 292}},
-	{"q2dm5", {48, 952, 376}},
-	{"q2dm6", {496, 1392, -88}},
-	{"q2dm7", {816, 832, 56}},
-	{"q2dm8", {112, 1216, 88}},
-	{"rboss", {856, -2080, 32}},
-	{"ndctf0", {-608, -304, 184}},
-	{"q2ctf4", {-2390, 1112, 218}},
-	{"q2ctf5", {2432, -960, 168}},
-	{"xdm1", {-312, 600, 144}},
-	{"xdm2", {-232, 472, 424}},
-	{"xdm3", {96, -96, 360}},
-	{"xdm4", {-160, -368, 360}},
-	{"xdm6", {-1088, -128, 528}},
-	{"rdm5", {1088, 592, -568}},
-	{"rdm6", {712, 1328, 48}},
-	{"industry", {-1009, -545, 79}},
-	{"mgu3m4", {3312, 3344, 864}},
-	{"mgdm1", {176, 64, 288}},
-	{"mgu6trial", {-848, 176, 96}},
-	{"fact3", {0, -64, 192}},
-	{"mgu4trial", {-960, -528, -328}},
-	{"mgu6m3", {0, 592, 1600}},
-	{"waste2", {-1152, -288, -40}},
-	{"q64/comm", {1464, -88, -432}},
-	{"q64/command", {0, -208, 56}},
-	{"q64/dm7", {64, 224, 120}},
-	{"q64/dm1", {-192, -320, 80}},
-	{"q64/dm2", {840, 80, 96}},
-	{"q64/dm3", {488, 392, 64}},
-	{"q64/dm4", {176,272, -24}},
-	{"q64/dm6", {-1568, 1680, 144}},
-	{"q64/dm7", {840, 80, 960}},
-	{"q64/dm8", {-800, 448, 56}},
-	{"q64/dm9", {160, 56, 40}},
-	{"q64/dm10", {-304, 512, -92}},
-	{"ec/base_ec", {-112, 704, 128}},
-	{"old/kmdm3", {-480, -572, 144}},
-	{"test/mals_barrier_test", {24, 136, 224}},
-	{"test/spbox", {112, 192, 168}},
-	{"test/test_kaiser", {1344, 176, -8}},
-	{"e3/jail_e3", {-572, -1312, 76}},
-	{"xintell", {2096, -992, 376}}
-};
-
 // Incluye otras cabeceras y definiciones necesarias
 static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
 	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
@@ -3531,7 +3513,7 @@ static void AttachHealthBar(edict_t* boss) {
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 void SP_target_orb(edict_t* ent);
 static void SpawnBossAutomatically() {
-	// Clear any existing bosses
+	// Clear any existing bosses (existing code remains unchanged)
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); ) {
 		edict_t* existing_boss = *it;
 		if (existing_boss && existing_boss->inuse) {
@@ -3542,10 +3524,10 @@ static void SpawnBossAutomatically() {
 		it = auto_spawned_bosses.erase(it);
 	}
 
-	// Reset wave type
+	// Reset wave type (existing code remains unchanged)
 	current_wave_type = MonsterWaveType::None;
 
-	// Clear health bar
+	// Clear health bar (existing code remains unchanged)
 	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
 		if (level.health_bar_entities[i]) {
 			G_FreeEdict(level.health_bar_entities[i]);
@@ -3553,32 +3535,27 @@ static void SpawnBossAutomatically() {
 		}
 	}
 
-	// Clear health bar name
+	// Clear health bar name (existing code remains unchanged)
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 
-	// Early return if not a boss wave
+	// Early return if not a boss wave (existing code remains unchanged)
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
 		return;
 	}
 
-	// Get map name and find spawn origin
+	// Get map name (existing code remains unchanged)
 	const char* map_name = GetCurrentMapName();
-	const auto it = mapOrigins.find(map_name);
-	if (it == mapOrigins.end()) {
+
+	// MODIFIED CODE: Use the new MapOriginRegistry instead of mapOrigins map
+	vec3_t spawn_origin;
+	if (!horde::MapOriginRegistry::GetOrigin(map_name, spawn_origin)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("Error: No spawn origin found for map {}\n", map_name);
 		}
 		return;
 	}
 
-	// Convert to vec3_t once
-	const vec3_t spawn_origin{
-		static_cast<float>(it->second[0]),
-		static_cast<float>(it->second[1]),
-		static_cast<float>(it->second[2])
-	};
-
-	// Validate origin
+	// Validate origin (slightly modified)
 	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("Error: Invalid spawn origin for map {}\n", map_name);
@@ -3733,24 +3710,38 @@ bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
 		level.intermissiontime || !g_horde->integer)
 		return false;
 
-	// Cache map name once to reduce string comparisons
+// Cache map name once to reduce string comparisons
 	static std::string last_map_name;
-	static std::unordered_map<std::string, std::array<int, 3>>::const_iterator map_origin_it;
+	static horde::MapID cached_map_id = horde::MapID::UNKNOWN;
 
-	// Only look up map origin if the map has changed
+	// Only look up map ID if the map has changed
 	const char* current_map = GetCurrentMapName();
 	if (last_map_name != current_map) {
 		last_map_name = current_map;
-		map_origin_it = mapOrigins.find(current_map);
+		cached_map_id = horde::MapOriginRegistry::GetMapID(current_map);
 
-		// If map not found, cache the end iterator for quick rejection
-		if (map_origin_it == mapOrigins.end())
+		// If map not found, cache the UNKNOWN ID for quick rejection
+		if (cached_map_id == horde::MapID::UNKNOWN)
 			return false;
 	}
-	else if (map_origin_it == mapOrigins.end()) {
+	else if (cached_map_id == horde::MapID::UNKNOWN) {
 		// Use cached failure result
 		return false;
 	}
+
+	// Get the origin and use it directly
+	vec3_t spawn_origin;
+	if (!horde::MapOriginRegistry::GetOrigin(cached_map_id, spawn_origin)) {
+		return false;
+	}
+
+	// Now spawn_origin contains the coordinates and can be used
+	// For example, in CheckAndTeleportBoss this would replace the previous conversion:
+	// const vec3_t spawn_origin{
+	//     static_cast<float>(map_origin_it->second[0]),
+	//     static_cast<float>(map_origin_it->second[1]),
+	//     static_cast<float>(map_origin_it->second[2])
+	// };
 
 	// Select appropriate cooldown based on reason - use constexpr for compiler optimization
 	constexpr gtime_t DROWNING_COOLDOWN = 1_sec;
@@ -3762,13 +3753,6 @@ bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
 	// Check if recently teleported
 	if (self->teleport_time && level.time < self->teleport_time + selected_cooldown)
 		return false;
-
-	// Convert spawn point to vec3_t - directly use map_origin_it
-	const vec3_t spawn_origin{
-		static_cast<float>(map_origin_it->second[0]),
-		static_cast<float>(map_origin_it->second[1]),
-		static_cast<float>(map_origin_it->second[2])
-	};
 
 	// Verify spawn point validity
 	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin)
@@ -3969,8 +3953,8 @@ void ResetCooldowns() noexcept {
 		spawnPointsData.data[i] = SpawnPointData{};
 	}
 
-	lastSpawnPointTime.clear();
-	lastMonsterSpawnTime.clear();
+	horde::g_monsterSpawnTracker.Reset();
+	horde::g_spawnPointTimeTracker.Reset();
 
 	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
@@ -4180,8 +4164,8 @@ void ResetGame() {
 	for (size_t i = 0; i < MAX_EDICTS; i++) {
 		spawnPointsData.data[i] = SpawnPointData{};
 	}
-	lastMonsterSpawnTime.clear();
-	lastSpawnPointTime.clear();
+	horde::g_monsterSpawnTracker.Reset();
+	horde::g_spawnPointTimeTracker.Reset();
 
 	// Reset static function variables
 	ResetSpawnMonsterVars();

@@ -95,7 +95,8 @@
       <EnablePREfast>true</EnablePREfast>
       <Optimization>Disabled</Optimization>
       <AdditionalOptions>/wd6285 /wd26821 /wd6246 /utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(VcpkgRoot)\installed\x64-windows-static\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VcpkgRoot)\installed\x64-windows-static\include, $(ProjectDir)horde
+</AdditionalIncludeDirectories>
       <LanguageStandard_C>Default</LanguageStandard_C>
     </ClCompile>
     <Link>
@@ -126,6 +127,7 @@
     <ClInclude Include="g_statusbar.h" />
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
+    <ClInclude Include="horde\horde_ids.h" />
     <ClInclude Include="laser.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
@@ -180,6 +182,7 @@
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
     <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
+    <ClCompile Include="horde\horde_ids.cpp" />
     <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="g_ai.cpp" />
