@@ -5041,8 +5041,36 @@ bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& m
 	return false;
 }
 // Improved CheckAndTeleportStuckMonster with enhanced safety
-// Improved CheckAndTeleportStuckMonster with enhanced safety and validation
+// Add these at file scope (outside any function)
+static int recent_teleport_count = 0;
+static gtime_t last_teleport_reset_time = 0_sec;
+static constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 3_sec;
+static constexpr int MAX_TELEPORTS_PER_INTERVAL = 2; // Cap at 2 teleports per 3 seconds
+
+// For tracking recent teleport locations
+static constexpr int MAX_RECENT_TELEPORT_LOCATIONS = 5;
+static std::array<vec3_t, MAX_RECENT_TELEPORT_LOCATIONS> recent_teleport_locations;
+static std::array<gtime_t, MAX_RECENT_TELEPORT_LOCATIONS> recent_teleport_times;
+static int next_teleport_location_index = 0;
+static constexpr float MIN_TELEPORT_DISTANCE_SQUARED = 250.0f * 250.0f; // 250 units min distance
+
 bool CheckAndTeleportStuckMonster(edict_t* self) {
+	// Reset the global counter periodically
+	if (level.time - last_teleport_reset_time > GLOBAL_TELEPORT_RESET_INTERVAL) {
+		recent_teleport_count = 0;
+		last_teleport_reset_time = level.time;
+	}
+
+	// Check if global rate limit is reached
+	int max_teleports = MAX_TELEPORTS_PER_INTERVAL;
+	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
+		max_teleports += 1; // Allow one more teleport in high difficulty modes
+	}
+
+	if (recent_teleport_count >= max_teleports) {
+		return false; // Too many recent teleports
+	}
+
 	// Early returns - unchanged
 	if (!self || !self->inuse || self->deadflag ||
 		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
@@ -5053,7 +5081,10 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	constexpr gtime_t STUCK_CHECK_TIME = 10_sec;
-	constexpr gtime_t TELEPORT_COOLDOWN = 15_sec;
+
+	// Using randomized cooldown range instead of fixed
+	constexpr gtime_t MIN_TELEPORT_COOLDOWN = 12_sec;
+	constexpr gtime_t MAX_TELEPORT_COOLDOWN = 20_sec;
 
 	// If can see enemy, don't teleport
 	if (self->monsterinfo.issummoned ||
@@ -5063,8 +5094,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false;
 	}
 
-	// Check general teleport cooldown
-	if (self->teleport_time && level.time < self->teleport_time + TELEPORT_COOLDOWN)
+	// Check individual teleport cooldown
+	if (self->teleport_time && level.time < self->teleport_time)
 		return false;
 
 	// For non-water damage, check stuck conditions
@@ -5086,20 +5117,25 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
+	// Add 40% chance to skip processing - additional natural staggering
+	if (frandom() < 0.4f) {
+		return false;
+	}
+
 	// Check if human players are present before attempting player-based teleport
 	bool humans_present = AreHumanPlayersPresent();
 
-	// Add chance to teleport near human players - scales with wave level
+	// Reduced teleport chance scaling - more conservative
 	float teleport_chance = 0.01f; // Base 1% chance
 	if (current_wave_level > 5) {
 		// Different scaling based on presence of humans
 		if (humans_present) {
-			// Higher chance when humans are present - up to 15%
-			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.005f, 0.15f);
+			// Cap at 8% instead of 15%
+			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.003f, 0.08f);
 		}
 		else {
-			// Lower chance when only bots are present - up to 8%
-			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.003f, 0.08f);
+			// Cap at 5% instead of 8%
+			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.002f, 0.05f);
 		}
 	}
 
@@ -5115,6 +5151,24 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		bool teleported_to_human = false;
 
 		if (FindEmergencySpawnPosition(new_origin, new_angles, teleported_to_human, self->classname)) {
+			// Check if too close to recent teleport locations
+			bool too_close_to_recent = false;
+			for (int i = 0; i < MAX_RECENT_TELEPORT_LOCATIONS; i++) {
+				if (level.time - recent_teleport_times[i] < 5_sec) { // Only check recent teleports
+					if ((new_origin - recent_teleport_locations[i]).lengthSquared() < MIN_TELEPORT_DISTANCE_SQUARED) {
+						too_close_to_recent = true;
+						break;
+					}
+				}
+			}
+
+			if (too_close_to_recent) {
+				// Too close to recent teleport, restore visibility and try again later
+				self->svflags &= ~SVF_NOCLIENT;
+				gi.linkentity(self);
+				return false;
+			}
+
 			// Backup original properties
 			const vec3_t old_velocity = self->velocity;
 			const vec3_t old_origin = self->s.origin;
@@ -5154,7 +5208,17 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->monsterinfo.was_stuck = false;
 			self->monsterinfo.stuck_check_time = 0_sec;
 			self->monsterinfo.react_to_damage_time = level.time;
-			self->teleport_time = level.time;
+
+			// Apply randomized cooldown instead of fixed
+			self->teleport_time = level.time + random_time(MIN_TELEPORT_COOLDOWN, MAX_TELEPORT_COOLDOWN);
+
+			// Update global teleport tracking
+			recent_teleport_count++;
+
+			// Record teleport location
+			recent_teleport_locations[next_teleport_location_index] = self->s.origin;
+			recent_teleport_times[next_teleport_location_index] = level.time;
+			next_teleport_location_index = (next_teleport_location_index + 1) % MAX_RECENT_TELEPORT_LOCATIONS;
 
 			// Only show human message if we actually teleported near a human
 			if (developer->integer) {
@@ -5233,7 +5297,13 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
 		self->monsterinfo.react_to_damage_time = level.time;
-		self->teleport_time = level.time;
+
+		// Apply randomized cooldown
+		self->teleport_time = level.time + random_time(MIN_TELEPORT_COOLDOWN, MAX_TELEPORT_COOLDOWN);
+
+		// Update global teleport tracking
+		recent_teleport_count++;
+
 		return true;
 	}
 
@@ -5247,6 +5317,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	gi.linkentity(self);
 	return false;
 }
+
 // Function to track created entities
 void OnEntityCreated(edict_t* ent) {
 	if (!ent || !ent->inuse)
