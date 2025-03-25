@@ -59,7 +59,6 @@ namespace HordeConstants {
 }
 
 // Optimized spawn cooldown data structure
-// Optimized spawn cooldown data structure
 struct SpawnPointData {
 	uint16_t attempts = 0;
 	gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
@@ -67,9 +66,13 @@ struct SpawnPointData {
 	bool isTemporarilyDisabled = false;
 	gtime_t cooldownEndsAt = 0_sec;
 	int32_t successfulSpawns = 0;
-	bool needs_alternative_position = false; // NEW: Flag to indicate this point needs alternatives
 
-	// Simplified success rate calculation
+	// New fields for alternative position tracking
+	uint16_t alternative_attempts = 0;
+	gtime_t alternative_cooldown = 0_sec;
+	bool needs_long_alternative_cooldown = false;
+
+	// Add the success rate calculation method
 	float getSuccessRate(gtime_t current_time) const {
 		if (attempts == 0) return 1.0f;
 		// Use faster approximation - avoid division when possible
@@ -104,6 +107,79 @@ struct SpawnPointDataArray {
 };
 SpawnPointDataArray spawnPointsData;
 
+void ApplySuccessfulAlternativeCooldown(edict_t* spawn_point) {
+	if (!spawn_point || !spawn_point->inuse) {
+		return;
+	}
+
+	auto& data = spawnPointsData[spawn_point];
+	const gtime_t current_time = level.time;
+
+	// Reset alternative attempts since we had a success
+	data.alternative_attempts = 0;
+	data.needs_long_alternative_cooldown = false;
+
+	// Use a shorter cooldown for successful alternatives
+	// This prevents spawning too many monsters in the same area at once
+	const gtime_t success_cooldown = 3.0_sec;
+
+	// Apply the cooldown
+	data.alternative_cooldown = current_time + success_cooldown;
+
+	if (developer->integer > 1) {
+		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n",
+			spawn_point->s.origin, success_cooldown.seconds());
+	}
+}
+
+void ApplyAlternativePositionCooldown(edict_t* spawn_point) {
+	if (!spawn_point || !spawn_point->inuse) {
+		return;
+	}
+
+	auto& data = spawnPointsData[spawn_point];
+	const gtime_t current_time = level.time;
+
+	// Increment alternative attempts counter
+	data.alternative_attempts++;
+
+	// Determine cooldown duration based on past attempts
+	gtime_t cooldown_duration;
+
+	// For the first few failures, use shorter cooldowns
+	if (data.alternative_attempts <= 2) {
+		cooldown_duration = 1.5_sec;
+	}
+	// For intermediate failures, use medium cooldowns
+	else if (data.alternative_attempts <= 5) {
+		cooldown_duration = 3.0_sec;
+	}
+	// For persistent failures, use longer cooldowns
+	else {
+		// Fixed: Use gtime_t::from_sec to properly calculate the additional time
+		cooldown_duration = 5.0_sec + gtime_t::from_sec(0.5f * (data.alternative_attempts - 5));
+		// Cap at 10 seconds
+		cooldown_duration = std::min(cooldown_duration, 10.0_sec);
+
+		// Mark for longer alternative cooldown on persistent failures
+		if (data.alternative_attempts >= 8) {
+			data.needs_long_alternative_cooldown = true;
+		}
+	}
+
+	// Apply the cooldown
+	data.alternative_cooldown = current_time + cooldown_duration;
+
+	// Also apply shorter disable on the spawn point itself
+	data.isTemporarilyDisabled = true;
+	data.cooldownEndsAt = current_time + cooldown_duration;
+
+	if (developer->integer) {
+		gi.Com_PrintFmt("Alternative position cooldown applied to spawn at {}: {:.1f}s (attempts: {})\n",
+			spawn_point->s.origin, cooldown_duration.seconds(), data.alternative_attempts);
+	}
+}
+
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	if (!spawn_point || !spawn_point->inuse) {
 		return;
@@ -124,7 +200,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	data.attempts++;
 
 	// Dynamic attempt limit based on current success rate - improved calculation
-	// Cache success rate calculation
+	// Cache success rate calculation - FIX: Initialize it in the same statement
 	const float success_rate = data.getSuccessRate(current_time);
 	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
 
@@ -438,11 +514,16 @@ struct SpawnMonsterFilter {
 
 		// Direct array access for cooldown check
 		const auto& data = spawnPointsData[spawnPoint];
+
+		// Check normal cooldown
 		if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
 			return false;
 
+		// NEW: Check alternative position cooldown
+		if (data.alternative_cooldown > 0_sec && currentTime < data.alternative_cooldown)
+			return false;
+
 		// Check if this is a flying spawn point but we need non-flying monsters
-		// (This check should be kept if needed for flying-specific spawn points)
 		if (spawnPoint->style == 1 && !HasWaveType(current_wave_type, MonsterWaveType::Flying))
 			return false;
 
@@ -459,11 +540,9 @@ struct SpawnMonsterFilter {
 				return false;
 		}
 
-		// Use the dedicated function for checking if spawn point is occupied
-		return !IsSpawnPointOccupied(spawnPoint);
+		return true;
 	}
 };
-
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
 constexpr size_t MAX_RECENT_BOSSES = 4;
@@ -3929,10 +4008,14 @@ void ResetAllSpawnAttempts() noexcept {
 			data.attempts = 0;
 			data.isTemporarilyDisabled = false;
 			data.cooldownEndsAt = 0_sec;
+
+			// Reset alternative position tracking too
+			data.alternative_attempts = 0;
+			data.alternative_cooldown = 0_sec;
+			data.needs_long_alternative_cooldown = false;
 		}
 	}
 }
-
 void ResetWaveAdvanceState() noexcept;
 
 static bool CheckRemainingMonstersCondition(WaveEndReason& reason) {
@@ -5260,6 +5343,39 @@ bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs
 	return false;
 }
 
+// Add this struct definition near the top of your file
+struct RecentSpawnPosition {
+	vec3_t position;
+	gtime_t cooldown_until;
+};
+
+// Add these global variables
+static constexpr size_t MAX_RECENT_POSITIONS = 32;
+static std::array<RecentSpawnPosition, MAX_RECENT_POSITIONS> g_recent_spawn_positions;
+static size_t g_recent_position_index = 0;
+
+// Add these helper functions
+void MarkPositionAsRecentlyUsed(const vec3_t& position, gtime_t cooldown_duration) {
+	g_recent_spawn_positions[g_recent_position_index] = {
+		position,
+		level.time + cooldown_duration
+	};
+	g_recent_position_index = (g_recent_position_index + 1) % MAX_RECENT_POSITIONS;
+}
+
+bool IsPositionTooCloseToRecent(const vec3_t& position, float min_distance) {
+	const gtime_t current_time = level.time;
+	for (const auto& recent : g_recent_spawn_positions) {
+		if (recent.cooldown_until > current_time) {
+			const float distance_squared = (position - recent.position).lengthSquared();
+			if (distance_squared < min_distance * min_distance) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles) {
 	// Constants for alternative spawn positions
 	constexpr float HEIGHT_OFFSET = 8.0f;
@@ -5280,9 +5396,14 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_class
 
 		// Use improved validation
 		if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
-			final_origin = test_origin;
-			final_angles = base_angles;
-			return true;
+			// Add check for proximity to recent spawn positions
+			if (!IsPositionTooCloseToRecent(test_origin, 60.0f)) {
+				final_origin = test_origin;
+				final_angles = base_angles;
+				// Mark this position as recently used
+				MarkPositionAsRecentlyUsed(test_origin, 3.0_sec);
+				return true;
+			}
 		}
 	}
 
@@ -6092,16 +6213,34 @@ edict_t* SpawnMonsters() {
 		vec3_t spawn_angles = spawn_point->s.angles;
 
 		// If the point needs alternatives, try to find them
+		// If the point needs alternatives, try to find them
+	// If the point needs alternatives, try to find them
 		if (needs_alternative) {
+			// Get spawn point data
+			auto& spawn_data = spawnPointsData[spawn_point];
+
+			// Check if this point is on long-term alternative cooldown
+			if (spawn_data.needs_long_alternative_cooldown && irandom(10) < 8) {
+				// 80% chance to skip points that consistently fail to find alternatives
+				if (developer->integer > 1) {
+					gi.Com_PrintFmt("  Skipping spawn point with history of failed alternatives\n");
+				}
+				continue;
+			}
+
 			if (!TryAlternativeSpawnPosition(spawn_point, monster_classname, spawn_origin, spawn_angles)) {
-				// Increase attempts if we couldn't find a valid alternative
+				// Apply cooldown for failed alternative position finding
+				ApplyAlternativePositionCooldown(spawn_point);
+
 				if (developer->integer > 1) {
 					gi.Com_PrintFmt("  Spawn attempt {}: Failed to find alternative position\n", i + 1);
 				}
-				IncreaseSpawnAttempts(spawn_point);
 				continue;  // Try next spawn attempt
 			}
-			// If we found an alternative position, proceed with that
+
+			// Apply a shorter cooldown even for successful alternative positions
+			// This prevents too many monsters from spawning close together
+			ApplySuccessfulAlternativeCooldown(spawn_point);
 		}
 
 		// Create the monster entity
