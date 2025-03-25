@@ -67,6 +67,7 @@ struct SpawnPointData {
 	bool isTemporarilyDisabled = false;
 	gtime_t cooldownEndsAt = 0_sec;
 	int32_t successfulSpawns = 0;
+	bool needs_alternative_position = false; // NEW: Flag to indicate this point needs alternatives
 
 	// Simplified success rate calculation
 	float getSuccessRate(gtime_t current_time) const {
@@ -182,6 +183,12 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 		return BoxEdictsResult_t::End; // Stop searching if a monster is found
 	}
 
+	// NEW: Check if the entity is a player-deployed defense
+	if (ent->inuse && IsPlayerDefense(ent)) {
+		filter_data->count++;
+		return BoxEdictsResult_t::End; // Stop searching if a player defense is found
+	}
+
 	return BoxEdictsResult_t::Skip;
 }
 
@@ -190,6 +197,7 @@ struct SpawnPointCache {
 	vec3_t last_check_origin;
 	gtime_t frame_time;  // Changed from frame_number to frame_time
 	bool was_occupied = false;
+	bool has_obstacle = false;
 };
 
 struct SpawnPointCacheArray {
@@ -230,8 +238,6 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	// Get cache entry using direct array access - much faster than map lookup
 	SpawnPointCache& cache = spawn_point_cache[spawn_point];
 
-	// Direct array access already gave us a reference for optimal performance
-
 	// Static duration to avoid reconstructing
 	static constexpr auto CACHE_DURATION = 25_ms;
 
@@ -257,10 +263,54 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 
 	// Use stack-allocated filter data
 	FilterData filter_data = { ignore_ent, 0 };
-	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
-	// Cache and return result
+	// Only check for players - we'll handle other obstructions via alternative position system
+	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID,
+		[](edict_t* ent, void* data) -> BoxEdictsResult_t {
+			FilterData* filter_data = static_cast<FilterData*>(data);
+
+			// Ignore the specified entity (if exists)
+			if (ent == filter_data->ignore_ent) {
+				return BoxEdictsResult_t::Skip;
+			}
+
+			// Only check for players - they're the only immediate blockers
+			if (ent->client && ent->inuse) {
+				filter_data->count++;
+				return BoxEdictsResult_t::End; // Stop searching if a player is found
+			}
+
+			return BoxEdictsResult_t::Skip;
+		}, &filter_data);
+
+	// Check for obstruction by any entity using a secondary check
+	// This marks the point as "needs alternative" without rejecting it completely
+	FilterData obstacle_data = { ignore_ent, 0 };
+	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID,
+		[](edict_t* ent, void* data) -> BoxEdictsResult_t {
+			FilterData* filter_data = static_cast<FilterData*>(data);
+
+			// Ignore the specified entity
+			if (ent == filter_data->ignore_ent) {
+				return BoxEdictsResult_t::Skip;
+			}
+
+			// Check for monsters or player defenses
+			if ((ent->svflags & SVF_MONSTER && !ent->deadflag) ||
+				(ent->inuse && IsPlayerDefense(ent))) {
+				filter_data->count++;
+				return BoxEdictsResult_t::End;
+			}
+
+			return BoxEdictsResult_t::Skip;
+		}, &obstacle_data);
+
+	// Store both states in the cache
 	cache.was_occupied = (filter_data.count > 0);
+	cache.has_obstacle = (obstacle_data.count > 0);
+
+	// Only block if a player is directly in the way
+	// Other obstacles will be handled via alternative position system
 	return cache.was_occupied;
 }
 
@@ -272,12 +322,14 @@ template <typename TFilter>
 edict_t* SelectRandomSpawnPoint(TFilter filter) {
 	// Pre-allocate on stack instead of using static vector
 	edict_t* availableSpawns[MAX_SPAWN_POINTS]{};
+	edict_t* occupiedButUsableSpawns[MAX_SPAWN_POINTS]{}; // NEW: Store occupied but potentially usable points
 	int availableCount = 0;
+	int occupiedCount = 0; // NEW: Track occupied but potentially usable points
 
 	// Get all spawn points but don't process them yet
 	auto spawnPoints = monster_spawn_points();
 
-	// First pass: collect only potentially valid spawn points
+	// First pass: collect all potentially valid spawn points
 	for (edict_t* spawnPoint : spawnPoints) {
 		// Combined validation check to reduce branches
 		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin))
@@ -288,40 +340,41 @@ edict_t* SelectRandomSpawnPoint(TFilter filter) {
 		if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt)
 			continue;
 
-		// Only check filter if point isn't disabled
-		if (filter(spawnPoint) && availableCount < MAX_SPAWN_POINTS) {
-			availableSpawns[availableCount++] = spawnPoint;
+		// NEW: Check filter conditions first
+		if (filter(spawnPoint)) {
+			// NEW: Check if spawn point is occupied but could be used with alternatives
+			if (IsSpawnPointOccupied(spawnPoint)) {
+				// Store in occupied but potentially usable array
+				if (occupiedCount < MAX_SPAWN_POINTS) {
+					occupiedButUsableSpawns[occupiedCount++] = spawnPoint;
+				}
+			}
+			else {
+				// Not occupied - add to available array
+				if (availableCount < MAX_SPAWN_POINTS) {
+					availableSpawns[availableCount++] = spawnPoint;
+				}
+			}
 		}
 	}
 
-	if (availableCount == 0)
-		return nullptr;
-
-	// Try spawn points in random order until we find a valid one
-	const int maxAttempts = std::min(3, availableCount);
-	for (int attempts = 0; attempts < maxAttempts; attempts++) {
+	// If we have unoccupied spawn points, use those preferentially
+	if (availableCount > 0) {
 		// Pick a random index
 		const size_t idx = irandom(availableCount);
-		edict_t* chosen = availableSpawns[idx];
+		return availableSpawns[idx];
+	}
 
-		// If spawn point is occupied, increase attempts and try another
-		if (IsSpawnPointOccupied(chosen)) {
-			IncreaseSpawnAttempts(chosen);
-
-			// Remove this point from available spawns and try another
-			availableSpawns[idx] = availableSpawns[--availableCount];
-			if (availableCount == 0)
-				break;
-
-			continue;
-		}
-
-		return chosen; // Found a valid spawn point
+	// If no unoccupied points but we have occupied points that pass the filter,
+	// return one of those and let SpawnMonsters try to find alternatives
+	if (occupiedCount > 0) {
+		// Pick a random occupied point
+		const size_t idx = irandom(occupiedCount);
+		return occupiedButUsableSpawns[idx];
 	}
 
 	return nullptr; // No valid spawn points found
 }
-
 // Monster wave type flags
 enum class MonsterWaveType : uint32_t {
 	None = 0,
@@ -4540,16 +4593,13 @@ struct StuckMonsterSpawnFilter {
 // Function to attempt dropping a monster to the floor
 bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
 
-// Forward declaration for ValidateSpawnPosition
-bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
-
 // Enhanced emergency spawn position finder
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
 {
 	// Debug trace to identify where freezes occur
-	if (developer->integer) {
-		gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition\n");
-	}
+	//if (developer->integer) {
+	//	gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition\n");
+	//}
 
 	// Initialize human player flag to false
 	used_human_player = false;
@@ -4619,9 +4669,9 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	// If we have no players at all, return false - no valid position
 	if (top_damage_count == 0 && high_spree_count == 0 &&
 		normal_count == 0 && bot_count == 0) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no players)\n");
-		}
+		//if (developer->integer) {
+		//	gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no players)\n");
+		//}
 		return false;
 	}
 
@@ -4784,8 +4834,131 @@ bool AreHumanPlayersPresent() {
 	return false;
 }
 
+// Create a comprehensive validation function that tries multiple heights
+// Improved ValidateSpawnPosition function
+bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs, bool allow_defense_fallback = false) {
+	// Try original position first
+	trace_t trace = gi.trace(position, mins, maxs, position, nullptr, MASK_MONSTERSOLID);
+	if (!trace.startsolid && !trace.allsolid) {
+		// Check for player defenses specifically
+		trace_t defense_trace = gi.trace(position, mins, maxs, position, nullptr, MASK_PLAYERSOLID);
+		bool has_defense = (defense_trace.ent && defense_trace.ent != world && IsPlayerDefense(defense_trace.ent));
 
+		// If no defenses found, position is valid
+		if (!has_defense) {
+			return true;
+		}
+
+		// Position has defenses but is otherwise valid
+		if (allow_defense_fallback) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("WARNING: Using fallback position with player defense\n");
+			}
+			return true;
+		}
+	}
+
+	// Define offsets with increasing distances
+	const std::array<float, 5> offsets = { 0.0f, 10.0f, -10.0f, 20.0f, -20.0f };
+
+	// Track positions blocked by defenses vs. solidness for debug
+	int defense_blocks = 0;
+	int solid_blocks = 0;
+
+	// Track the best position so far (blocked only by defense, not solid)
+	vec3_t best_fallback_pos = position;
+	bool found_fallback = false;
+
+	// Try different offsets in increasing distance
+	for (float xOffset : offsets) {
+		for (float yOffset : offsets) {
+			for (float zOffset : offsets) {
+				// Skip origin position (already checked)
+				if (xOffset == 0.0f && yOffset == 0.0f && zOffset == 0.0f)
+					continue;
+
+				vec3_t test_pos = position + vec3_t{ xOffset, yOffset, zOffset };
+
+				// Check if position is non-solid
+				trace_t trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_MONSTERSOLID);
+				if (trace.startsolid || trace.allsolid) {
+					solid_blocks++;
+					continue;  // Skip solid positions
+				}
+
+				// Check for player defenses
+				trace_t defense_trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_PLAYERSOLID);
+				if (defense_trace.ent && defense_trace.ent != world && IsPlayerDefense(defense_trace.ent)) {
+					defense_blocks++;
+
+					// Save as potential fallback position
+					if (!found_fallback) {
+						best_fallback_pos = test_pos;
+						found_fallback = true;
+					}
+					continue;  // Skip positions with player defenses
+				}
+
+				// Found a valid position
+				position = test_pos;
+
+				if (developer->integer > 1) {
+					gi.Com_PrintFmt("Adjusted spawn position by offset ({}, {}, {})\n",
+						xOffset, yOffset, zOffset);
+				}
+
+				return true;
+			}
+		}
+	}
+
+	// Enhanced grid search with wider range
+	const float extended_offsets[] = { 30.0f, -30.0f, 40.0f, -40.0f, 50.0f, -50.0f };
+	for (float xOffset : extended_offsets) {
+		for (float yOffset : extended_offsets) {
+			for (float zOffset : {0.0f, 10.0f, -10.0f, 20.0f, -20.0f}) {
+				vec3_t test_pos = position + vec3_t{ xOffset, yOffset, zOffset };
+
+				// Check if position is non-solid
+				trace_t trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_MONSTERSOLID);
+				if (trace.startsolid || trace.allsolid) {
+					continue;  // Skip solid positions
+				}
+
+				// Check for player defenses
+				trace_t defense_trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_PLAYERSOLID);
+				if (defense_trace.ent && defense_trace.ent != world && IsPlayerDefense(defense_trace.ent)) {
+					continue;  // Skip positions with player defenses
+				}
+
+				// Found a valid position
+				position = test_pos;
+				return true;
+			}
+		}
+	}
+
+	// No valid position found
+	if (developer->integer) {
+		gi.Com_PrintFmt("ValidateSpawnPosition failed: {} solid blocks, {} defense blocks\n",
+			solid_blocks, defense_blocks);
+	}
+
+	// Use fallback position if allowed and found
+	if (allow_defense_fallback && found_fallback) {
+		position = best_fallback_pos;
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("WARNING: Using fallback position with player defense\n");
+		}
+
+		return true;
+	}
+
+	return false;
+}
 // Improved CheckAndTeleportStuckMonster with enhanced safety
+// Improved CheckAndTeleportStuckMonster with enhanced safety and validation
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Early returns - unchanged
 	if (!self || !self->inuse || self->deadflag ||
@@ -4870,39 +5043,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->s.angles = new_angles;
 			self->velocity = vec3_origin;
 
-			// Run a comprehensive position validation, similar to Tank's approach
-			bool position_valid = true;
-
-			// If monster needs to be on the ground, drop it properly
-			if (!(self->flags & (FL_FLY | FL_SWIM))) {
-				if (!M_droptofloor(self)) {
-					position_valid = false;
-				}
-			}
-
-			// Additional validation to make sure we're not in a solid object
-			if (position_valid) {
-				trace_t trace = gi.trace(self->s.origin, self->mins, self->maxs,
-					self->s.origin, self, MASK_MONSTERSOLID);
-
-				if (trace.startsolid || trace.allsolid) {
-					position_valid = false;
-				}
-			}
-
-			// Extra validation to check content type (like water/lava)
-			if (position_valid) {
-				// Gekks can teleport into water, others generally shouldn't
-				bool is_gekk = (strcmp(self->classname, "monster_gekk") == 0);
-				int contents = gi.pointcontents(self->s.origin);
-
-				if (!is_gekk && (contents & MASK_WATER)) {
-					position_valid = false;
-				}
-				else if (is_gekk && (contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
-					position_valid = false;
-				}
-			}
+			// Use improved position validation
+			bool position_valid = ValidateSpawnPosition(self->s.origin, self->mins, self->maxs);
 
 			if (!position_valid) {
 				// Restore original values if teleport position is invalid
@@ -4916,9 +5058,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 				gi.linkentity(self);
 				return false;
 			}
-
-			// Clear any entities that might be in the way
-		//	PushEntitiesAway(self->s.origin, 1, 100.0f, 300.0f, 300.0f, 100.0f);
 
 			// Make visible again after successful teleport
 			self->svflags &= ~SVF_NOCLIENT;
@@ -4985,23 +5124,11 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
 
-		// One final check - make sure the position is suitable for this monster type
-		bool position_suitable = true;
-		// Special handling for Gekk monsters and water
-		if (strcmp(self->classname, "monster_gekk") == 0) {
-			// Gekks can go in water but not lava/slime
-			int contents = gi.pointcontents(self->s.origin);
-			if (contents & (CONTENTS_LAVA | CONTENTS_SLIME)) {
-				position_suitable = false;
-			}
-		}
-		else if (gi.pointcontents(self->s.origin) & MASK_WATER) {
-			// Other monsters shouldn't teleport into water
-			position_suitable = false;
-		}
+		// Use improved position validation
+		bool position_suitable = ValidateSpawnPosition(self->s.origin, self->mins, self->maxs);
 
 		if (!position_suitable) {
-			// Restore position if content type is unsuitable
+			// Restore position if position is unsuitable
 			self->s.origin = old_origin;
 			self->s.old_origin = old_origin;
 			self->velocity = old_velocity;
@@ -5011,9 +5138,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			gi.linkentity(self);
 			return false;
 		}
-
-		// Push away any interfering entities
-	//	PushEntitiesAway(self->s.origin, 1, 100.0f, 300.0f, 300.0f, 100.0f);
 
 		// Make visible again only after successful teleport
 		self->svflags &= ~SVF_NOCLIENT;
@@ -5136,57 +5260,128 @@ bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs
 	return false;
 }
 
-// Create a comprehensive validation function that tries multiple heights
-bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs) {
-	// First check if original position is valid
-	if (CheckSpawnPoint(position, mins, maxs))
-		return true;
+bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles) {
+	// Constants for alternative spawn positions
+	constexpr float HEIGHT_OFFSET = 8.0f;
+	constexpr float MIN_RADIUS = 40.0f;
+	constexpr float MAX_RADIUS = 120.0f;
+	constexpr int MAX_ATTEMPTS = 12;  // Increased from 8
+	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };  // Approximate monster bounds
+	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };     // Adjust as needed
 
-	// Try dropping to floor
-	vec3_t floor_pos = position;
-	if (AttemptDropToFloor(floor_pos, mins, maxs)) {
-		position = floor_pos;
-		return true;
-	}
+	// Start with the spawn point's position and angles
+	const vec3_t base_origin = spawn_point->s.origin;
+	const vec3_t base_angles = spawn_point->s.angles;
 
-	// Try different heights
-	const float heights[] = { 8.0f, 16.0f, 24.0f, 32.0f, -8.0f, -16.0f };
+	// Test different heights first at the original position
+	for (float height_offset : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET, HEIGHT_OFFSET * 2, -HEIGHT_OFFSET * 2}) {
+		vec3_t test_origin = base_origin;
+		test_origin.z += height_offset;
 
-	for (float height : heights) {
-		vec3_t test_pos = position + vec3_t{ 0, 0, height };
-
-		if (CheckSpawnPoint(test_pos, mins, maxs)) {
-			position = test_pos;
-			return true;
-		}
-
-		// Also try dropping from this height
-		vec3_t drop_pos = test_pos;
-		if (AttemptDropToFloor(drop_pos, mins, maxs)) {
-			position = drop_pos;
+		// Use improved validation
+		if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
+			final_origin = test_origin;
+			final_angles = base_angles;
 			return true;
 		}
 	}
 
-	// Use a direct trace method for position validation instead of G_FixStuckObject
-	// since we can't create dummy edicts
-	for (float xOffset : {0.0f, 10.0f, -10.0f, 20.0f, -20.0f}) {
-		for (float yOffset : {0.0f, 10.0f, -10.0f, 20.0f, -20.0f}) {
-			for (float zOffset : {0.0f, 10.0f, -10.0f, 20.0f, -20.0f}) {
-				vec3_t test_pos = position + vec3_t{ xOffset, yOffset, zOffset };
+	// Try concentric circles with increasing radius
+	const float radii[] = { 30.0f, 60.0f, 90.0f, 120.0f, 150.0f };
+	const int angles_per_circle = 8;  // Try 8 angles per radius
 
-				// Simple trace check
-				trace_t trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_MONSTERSOLID);
-				if (!trace.startsolid && !trace.allsolid) {
-					position = test_pos;
+	for (float radius : radii) {
+		for (int i = 0; i < angles_per_circle; i++) {
+			// Evenly distribute points around the circle
+			float angle = (i * 2.0f * PI) / angles_per_circle;
+
+			// Calculate offset
+			vec3_t offset = {
+				cosf(angle) * radius,
+				sinf(angle) * radius,
+				0.0f
+			};
+
+			// Test different heights at this position
+			for (float height_offset : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET, HEIGHT_OFFSET * 2, -HEIGHT_OFFSET * 2}) {
+				vec3_t test_origin = base_origin + offset;
+				test_origin.z += height_offset;
+
+				// Trace from spawn point to test position to ensure no obstacles
+				trace_t trace = gi.traceline(base_origin, test_origin, spawn_point, MASK_SOLID);
+				if (radius > 60.0f && trace.fraction < 0.8f)  // More forgiving than before
+					continue;
+
+				// Try drop to floor if we need to
+				if (height_offset >= 0) {  // Only drop from zero or above positions
+					AttemptDropToFloor(test_origin, MONSTER_MINS, MONSTER_MAXS);
+				}
+
+				if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
+					final_origin = test_origin;
+					// Adjust the angles to face away from the spawn point
+					final_angles = base_angles;
+					final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
 					return true;
 				}
 			}
 		}
 	}
 
-	// No valid position found
-	return false;
+	// Enhanced grid-based search as last resort
+	const float x_offsets[] = { 0.0f, 20.0f, -20.0f, 40.0f, -40.0f, 60.0f, -60.0f, 80.0f, -80.0f };
+	const float y_offsets[] = { 0.0f, 20.0f, -20.0f, 40.0f, -40.0f, 60.0f, -60.0f, 80.0f, -80.0f };
+	const float z_offsets[] = { 0.0f, 8.0f, -8.0f, 16.0f, -16.0f, 24.0f, -24.0f, 32.0f, -32.0f };
+
+	for (float xOffset : x_offsets) {
+		for (float yOffset : y_offsets) {
+			for (float zOffset : z_offsets) {
+				// Skip origin (already checked)
+				if (xOffset == 0.0f && yOffset == 0.0f && zOffset == 0.0f)
+					continue;
+
+				vec3_t test_origin = base_origin + vec3_t{ xOffset, yOffset, zOffset };
+
+				// Try drop to floor for positions with positive Z offset
+				if (zOffset >= 0) {
+					AttemptDropToFloor(test_origin, MONSTER_MINS, MONSTER_MAXS);
+				}
+
+				if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
+					final_origin = test_origin;
+					final_angles = base_angles;
+					// Adjust yaw to face away from the center point for better positioning
+					if (xOffset != 0.0f || yOffset != 0.0f) {
+						final_angles[YAW] = atan2f(yOffset, xOffset) * (180.0f / PI);
+					}
+					return true;
+				}
+			}
+		}
+	}
+
+	// Final attempt - try allowing spawn even with defenses if we couldn't find alternatives
+	for (float radius : {30.0f, 60.0f, 90.0f}) {
+		for (int i = 0; i < 8; i++) {
+			float angle = (i * 2.0f * PI) / 8;
+			vec3_t offset = {
+				cosf(angle) * radius,
+				sinf(angle) * radius,
+				0.0f
+			};
+
+			vec3_t test_origin = base_origin + offset;
+			// Allow defense fallback set to true as last resort
+			if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS, true)) {
+				final_origin = test_origin;
+				final_angles = base_angles;
+				final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
+				return true;
+			}
+		}
+	}
+
+	return false;  // No valid position found
 }
 
 // Modified emergency spawn function integrated with the SpawnMonsters system
@@ -5203,42 +5398,16 @@ bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname
 		return false;
 	}
 
-	// Additional validation of final position - similar to Tank's validation
+	// Additional validation of final position with improved validation
 	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
 	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
 
-	// Double-check the position with a trace
-	trace_t trace = gi.trace(emergency_origin, MONSTER_MINS, MONSTER_MAXS, emergency_origin, nullptr, MASK_MONSTERSOLID);
-	if (trace.startsolid || trace.allsolid) {
+	// Use improved validation logic
+	if (!ValidateSpawnPosition(emergency_origin, MONSTER_MINS, MONSTER_MAXS, true)) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Final position check failed\n");
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position validation failed\n");
 		}
 		return false;
-	}
-
-	// Make sure we're not intersecting with other entities
-	edict_t* blocker = nullptr;
-	trace = gi.trace(emergency_origin, MONSTER_MINS, MONSTER_MAXS, emergency_origin, nullptr, MASK_PLAYERSOLID);
-	if (trace.ent && trace.ent != world) {
-		blocker = trace.ent;
-		if (developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY SPAWN WARNING: Position blocked by {}\n",
-				blocker->classname ? blocker->classname : "unknown entity");
-		}
-
-		// Try to push away the blocking entity if it's not a player
-		if (blocker && !blocker->client) {
-			PushEntitiesAway(emergency_origin, 3, 100.0f, 300.0f, 300.0f, 100.0f);
-
-			// Re-check after pushing
-			trace = gi.trace(emergency_origin, MONSTER_MINS, MONSTER_MAXS, emergency_origin, nullptr, MASK_PLAYERSOLID);
-			if (trace.startsolid || trace.allsolid) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position still blocked after push attempt\n");
-				}
-				return false;
-			}
-		}
 	}
 
 	// Create the monster entity
@@ -5317,88 +5486,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname
 	}
 
 	return true;
-}
-// Try alternative spawn positions around a spawn point
-bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles) {
-	// Constants for alternative spawn positions
-	constexpr float HEIGHT_OFFSET = 8.0f;
-	constexpr float MIN_RADIUS = 40.0f;
-	constexpr float MAX_RADIUS = 120.0f;
-	constexpr int MAX_ATTEMPTS = 8;
-	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };  // Approximate monster bounds
-	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };     // Adjust as needed
-
-	// Start with the spawn point's position and angles
-	const vec3_t base_origin = spawn_point->s.origin;
-	const vec3_t base_angles = spawn_point->s.angles;
-
-	// Test different heights first at the original position
-	for (float height_offset : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
-		vec3_t test_origin = base_origin;
-		test_origin.z += height_offset;
-
-		// Check if this position is clear
-		if (CheckSpawnPoint(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
-			final_origin = test_origin;
-			final_angles = base_angles;
-			return true;
-		}
-	}
-
-	// Try positions in a circle around the spawn point
-	for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-		// Generate random angle and radius
-		float angle = frandom() * 2.0f * PI;
-		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
-
-		// Calculate offset
-		vec3_t offset = {
-			cosf(angle) * radius,
-			sinf(angle) * radius,
-			0.0f
-		};
-
-		// Test different heights at this position
-		for (float height_offset : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
-			vec3_t test_origin = base_origin + offset;
-			test_origin.z += height_offset;
-
-			// Trace from spawn point to test position to ensure no obstacles
-			trace_t trace = gi.traceline(base_origin, test_origin, spawn_point, MASK_SOLID);
-			if (trace.fraction < 0.9f)  // Require mostly clear path
-				continue;
-
-			// Check if this position is clear for spawning
-			if (CheckSpawnPoint(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
-				final_origin = test_origin;
-
-				// Adjust the angles to face away from the spawn point
-				final_angles = base_angles;
-				final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
-
-				return true;
-			}
-		}
-	}
-
-	// Try a grid-based search as last resort
-	vec3_t test_pos = base_origin;
-	for (float xOffset : {0.0f, 20.0f, -20.0f, 40.0f, -40.0f}) {
-		for (float yOffset : {0.0f, 20.0f, -20.0f, 40.0f, -40.0f}) {
-			for (float zOffset : {0.0f, 8.0f, -8.0f, 16.0f, -16.0f}) {
-				vec3_t test_origin = base_origin + vec3_t{ xOffset, yOffset, zOffset };
-
-				// Simple trace check
-				if (CheckSpawnPoint(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
-					final_origin = test_origin;
-					final_angles = base_angles;
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;  // No valid position found
 }
 
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
@@ -5812,8 +5899,11 @@ edict_t* SpawnMonsters() {
 		}
 	}
 
-	// Collect valid spawn points
-	SpawnMonsterFilter filter{ current_time };
+	// Modified spawn point collection - now we collect ALL valid spawn points
+	// including those with obstacles that we'll need to find alternatives for
+	std::vector<edict_t*> all_spawn_points;
+	std::vector<edict_t*> unobstructed_spawn_points;
+	std::vector<edict_t*> obstructed_spawn_points;
 
 	// DETAILED DEBUGGING: Track spawn point filtering
 	struct {
@@ -5821,8 +5911,9 @@ edict_t* SpawnMonsters() {
 		int disabled_points = 0;
 		int invalid_origin = 0;
 		int occupied_points = 0;
+		int obstructed_points = 0;
 		int flying_mismatch = 0;
-		int valid_points = 0;
+		int fully_valid_points = 0;
 	} filter_stats;
 
 	filter_stats.total_points = 0;
@@ -5833,6 +5924,7 @@ edict_t* SpawnMonsters() {
 	}
 
 	// Detailed point filtering with diagnostics
+	SpawnMonsterFilter filter{ current_time };
 	for (auto* point : monster_spawn_points()) {
 		if (!point || !point->inuse) continue;
 
@@ -5858,30 +5950,57 @@ edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		// Check occupation
-		if (IsSpawnPointOccupied(point)) {
-			filter_stats.occupied_points++;
-			continue;
-		}
+		// If the point passes basic filter conditions
+		if (filter(point)) {
+			// Check for player occupation - IMMEDIATE rejection
+			if (IsSpawnPointOccupied(point)) {
+				filter_stats.occupied_points++;
+				continue;
+			}
 
-		// If we got here, point is valid
-		filter_stats.valid_points++;
-		spawn_cache.available_spawns.push_back(point);
+			// At this point the spawn is not directly blocked by a player
+			all_spawn_points.push_back(point);
+
+			// Check for any obstruction that would need alternative positions
+			SpawnPointCache& cache = spawn_point_cache[point];
+			if (cache.has_obstacle) {
+				filter_stats.obstructed_points++;
+				obstructed_spawn_points.push_back(point);
+			}
+			else {
+				filter_stats.fully_valid_points++;
+				unobstructed_spawn_points.push_back(point);
+			}
+		}
 	}
 
 	// DEBUGGING: Print spawn point filtering results
-	if (developer->integer && (spawn_cache.available_spawns.empty() ||
+	if (developer->integer && (all_spawn_points.empty() ||
 		debug_stats.consecutive_failures >= 3)) {
 		gi.Com_PrintFmt("SPAWN POINT DIAGNOSTICS:\n");
 		gi.Com_PrintFmt("- Total spawn points: {}\n", filter_stats.total_points);
 		gi.Com_PrintFmt("- Disabled/cooldown: {}\n", filter_stats.disabled_points);
 		gi.Com_PrintFmt("- Invalid origin: {}\n", filter_stats.invalid_origin);
-		gi.Com_PrintFmt("- Occupied: {}\n", filter_stats.occupied_points);
+		gi.Com_PrintFmt("- Blocked by players: {}\n", filter_stats.occupied_points);
+		gi.Com_PrintFmt("- Obstructed (needs alternative): {}\n", filter_stats.obstructed_points);
 		gi.Com_PrintFmt("- Flying mismatch: {}\n", filter_stats.flying_mismatch);
-		gi.Com_PrintFmt("- Valid points: {}\n", filter_stats.valid_points);
+		gi.Com_PrintFmt("- Fully valid points: {}\n", filter_stats.fully_valid_points);
 	}
 
-	// Critical emergency recovery - if in severe failure state, reset wave type completely
+	// Populate our spawns list - PRIORITIZE unobstructed points, but include obstructed ones
+	spawn_cache.available_spawns.clear();
+
+	// First add all unobstructed points
+	for (auto* point : unobstructed_spawn_points) {
+		spawn_cache.available_spawns.push_back(point);
+	}
+
+	// Then add all obstructed points that will need alternative positions
+	for (auto* point : obstructed_spawn_points) {
+		spawn_cache.available_spawns.push_back(point);
+	}
+
+	// Critical emergency recovery - if in severe failure state with no valid points
 	if (spawn_cache.consecutive_failures >= 5 && spawn_cache.available_spawns.empty()) {
 		// Save current wave type if not already saved
 		if (original_wave_type == MonsterWaveType::None && current_wave_type != MonsterWaveType::None) {
@@ -5906,6 +6025,7 @@ edict_t* SpawnMonsters() {
 			const vec3_t& origin = point->s.origin;
 			if (!is_valid_vector(origin)) continue;
 
+			// Skip only points directly blocked by players
 			if (!IsSpawnPointOccupied(point)) {
 				spawn_cache.available_spawns.push_back(point);
 			}
@@ -5939,9 +6059,13 @@ edict_t* SpawnMonsters() {
 			break;
 		}
 
-		// Get random spawn point
-		if (spawn_cache.available_spawns.empty())
+		// Ensure we have available spawn points
+		if (spawn_cache.available_spawns.empty()) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("SpawnMonsters: No available spawn points\n");
+			}
 			break;
+		}
 
 		// Select random spawn point
 		size_t spawn_idx = irandom(spawn_cache.available_spawns.size());
@@ -5961,15 +6085,19 @@ edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		// Check if the spawn point is occupied
-		bool spawn_occupied = IsSpawnPointOccupied(spawn_point);
+		// Check if this point needs alternative positions
+		SpawnPointCache& cache = spawn_point_cache[spawn_point];
+		bool needs_alternative = cache.has_obstacle;
 		vec3_t spawn_origin = spawn_point->s.origin;
 		vec3_t spawn_angles = spawn_point->s.angles;
 
-		// If occupied, try to find an alternative position
-		if (spawn_occupied) {
+		// If the point needs alternatives, try to find them
+		if (needs_alternative) {
 			if (!TryAlternativeSpawnPosition(spawn_point, monster_classname, spawn_origin, spawn_angles)) {
-				// Increase attempts if we couldn't find an alternative position
+				// Increase attempts if we couldn't find a valid alternative
+				if (developer->integer > 1) {
+					gi.Com_PrintFmt("  Spawn attempt {}: Failed to find alternative position\n", i + 1);
+				}
 				IncreaseSpawnAttempts(spawn_point);
 				continue;  // Try next spawn attempt
 			}
@@ -6004,7 +6132,7 @@ edict_t* SpawnMonsters() {
 
 					// Calculate chance based on wave progression - improved scaling
 					float champion_chance = 0.15f + (std::min(g_horde_local.level, 25) - 3) * 0.01f;
-					
+
 					// Increase chance for higher waves
 					if (g_horde_local.level > 25) {
 						champion_chance += 0.07f; // Additional 7% chance for high waves
@@ -6103,8 +6231,8 @@ edict_t* SpawnMonsters() {
 				spawn_cache.last_spawn_time = current_time;
 
 				// Track successful spawn
-				if (!spawn_occupied) {
-					// Only update successful spawn for the original point if it wasn't occupied
+				if (!needs_alternative) {
+					// Only update successful spawn for direct original point usage
 					OnSuccessfulSpawn(spawn_point);
 				}
 
@@ -6120,7 +6248,7 @@ edict_t* SpawnMonsters() {
 				if (developer->integer > 1) {
 					gi.Com_PrintFmt("  Spawn attempt {}: Successfully spawned {} at {}{}\n",
 						i + 1, monster_classname, spawn_origin,
-						spawn_occupied ? " (alternative position)" : "");
+						needs_alternative ? " (alternative position)" : "");
 				}
 			}
 			else {
@@ -6196,7 +6324,7 @@ edict_t* SpawnMonsters() {
 			g_horde_local.queued_monsters += g_horde_local.num_to_spawn;
 			g_horde_local.num_to_spawn = 0;
 		}
-		// NEW: Also handle active_wave state after more failures
+		// Also handle active_wave state after more failures
 		else if (current_state == horde_state_t::active_wave &&
 			spawn_cache.consecutive_failures > 5) {
 			gi.Com_PrintFmt("Active wave: Moving {} monsters back to queue after repeated failures\n",

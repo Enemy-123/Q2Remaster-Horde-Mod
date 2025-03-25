@@ -49,6 +49,22 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	}
 }
 
+// Function to specifically check for player-deployed defenses
+// This is more focused than IsRemovableEntity and only checks for key defensive structures
+// Function to specifically check for player-deployed defenses
+bool IsPlayerDefense(const edict_t* ent)
+{
+	if (!ent || !ent->classname)
+		return false;
+
+	const char* classname = ent->classname;
+	return !strcmp(classname, "tesla_mine") ||
+		!strcmp(classname, "food_cube_trap") ||
+		!strcmp(classname, "prox_mine") ||
+		!strcmp(classname, "monster_sentrygun") ||
+		!strcmp(classname, "monster_turret");
+}
+
 bool IsRemovableEntity(const edict_t* ent)
 {
 	if (!ent || !ent->classname)
