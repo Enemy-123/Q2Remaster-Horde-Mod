@@ -1093,15 +1093,6 @@ constexpr int MAX_TESLA_MESSAGES_PER_FRAME = 12; // Limit messages per frame to 
 static int tesla_messages_this_frame = 0;
 static gtime_t tesla_message_frame_time = 0_sec;
 
-// Counters and timing for tesla effects
-struct TeslaEffectState {
-	gtime_t next_effect_time = 0_sec;
-	int effect_count = 0;
-};
-
-// Global map to track effect state per tesla
-static std::unordered_map<const edict_t*, TeslaEffectState> tesla_effect_states;
-
 void tesla_remove(edict_t* self)
 {
 	edict_t* cur, * next;
@@ -1133,12 +1124,11 @@ void tesla_remove(edict_t* self)
 	if ((self->dmg_radius) && (self->dmg > (TESLA_DAMAGE * TESLA_EXPLOSION_DAMAGE_MULT)))
 		gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
-	// Remove from effect tracking
-	tesla_effect_states.erase(self);
+	// Remove from effect tracking - THIS LINE IS REMOVED
+	// tesla_effect_states.erase(self);
 
 	Grenade_Explode(self);
 }
-
 DIE(tesla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	//OnEntityDeath(self);
@@ -1273,8 +1263,7 @@ bool TrySendTeslaEffect(edict_t* self, edict_t* target, const vec3_t& ray_start,
 	}
 
 	// Rate limit effects per tesla
-	auto& state = tesla_effect_states[self];
-	if (level.time < state.next_effect_time) {
+	if (level.time < self->monsterinfo.attack_finished) {
 		return false;
 	}
 
@@ -1289,17 +1278,19 @@ bool TrySendTeslaEffect(edict_t* self, edict_t* target, const vec3_t& ray_start,
 
 	// Update counters
 	tesla_messages_this_frame++;
-	state.effect_count++;
+
+	// Increment effect count stored in medicTries (integer field)
+	self->monsterinfo.medicTries++;
 
 	// Dynamic rate limiting based on how many effects we've sent
-	if (state.effect_count <= 5) {
-		state.next_effect_time = level.time + 0_hz; // No limit for first few effects
+	if (self->monsterinfo.medicTries <= 5) {
+		self->monsterinfo.attack_finished = level.time + 0_hz; // No limit for first few effects
 	}
-	else if (state.effect_count <= 10) {
-		state.next_effect_time = level.time + 5_hz; // Start limiting after a few
+	else if (self->monsterinfo.medicTries <= 10) {
+		self->monsterinfo.attack_finished = level.time + 5_hz; // Start limiting after a few
 	}
 	else {
-		state.next_effect_time = level.time + 10_hz; // More aggressive limiting
+		self->monsterinfo.attack_finished = level.time + 10_hz; // More aggressive limiting
 	}
 
 	return true;
@@ -1477,8 +1468,7 @@ THINK(tesla_activate) (edict_t* self) -> void
 	trigger->movetype = MOVETYPE_NONE;
 	trigger->solid = SOLID_TRIGGER;
 	trigger->owner = self;
-	trigger->touch = tesla_zap;
-	trigger->classname = "tesla trigger";
+	trigger->touch = tesla_zap; trigger->classname = "tesla trigger";
 	// doesn't need to be marked as a teamslave since the move code for bounce looks for teamchains
 	gi.linkentity(trigger);
 
@@ -1492,10 +1482,10 @@ THINK(tesla_activate) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_S + gtime_t::from_sec(frandom() * 0.1f);
 	self->air_finished = level.time + TESLA_TIME_TO_LIVE;
 
-	// Initialize effect tracking
-	tesla_effect_states[self] = { level.time, 0 };
+	// Initialize effect tracking fields
+	self->monsterinfo.attack_finished = level.time;  // Initialize next_effect_time
+	self->monsterinfo.medicTries = 0;                // Initialize effect_count using medicTries instead of lefty
 }
-
 THINK(tesla_think) (edict_t* ent) -> void
 {
 	if (gi.pointcontents(ent->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA))
@@ -1742,6 +1732,10 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 		tesla->clipmask &= ~CONTENTS_PLAYER;
 
 	tesla->flags |= FL_MECHANICAL;
+
+	// Initialize effect tracking fields
+	tesla->monsterinfo.attack_finished = level.time;  // Initialize next_effect_time
+	tesla->monsterinfo.medicTries = 0;               // Initialize effect_count using medicTries instead of lefty
 
 	gi.linkentity(tesla);
 
