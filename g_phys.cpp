@@ -51,8 +51,7 @@ contents_t G_GetClipMask(edict_t* ent)
 
 	mask &= ~CONTENTS_AREAPORTAL;
 
-	// horde mode - Solo proceder si es necesario
-// horde mode optimization
+	// horde mode optimization
 	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
 	{
 		// Fast path: check for excluded monster types first
@@ -71,17 +70,13 @@ contents_t G_GetClipMask(edict_t* ent)
 		}
 
 		if (!excluded) {
-			// Use your iterables to check nearby monsters first
-			// Only perform the expensive trace if potentially colliding
-			float radius = (ent->maxs - ent->mins).length() * 0.5f;
+			// Check for potential collisions with other monsters on the same team
 			bool potential_collision = false;
 
 			for (auto* other : active_monsters()) {
 				if (other != ent && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other)) {
-					// Quick AABB overlap test before trace
-					if (ent->absmin[0] <= other->absmax[0] && ent->absmax[0] >= other->absmin[0] &&
-						ent->absmin[1] <= other->absmax[1] && ent->absmax[1] >= other->absmin[1] &&
-						ent->absmin[2] <= other->absmax[2] && ent->absmax[2] >= other->absmin[2]) {
+					// Quick AABB overlap test using boxes_intersect function
+					if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax)) {
 						potential_collision = true;
 						break;
 					}
@@ -101,7 +96,6 @@ contents_t G_GetClipMask(edict_t* ent)
 
 	return mask;
 }
-
 /*
 ============
 SV_TestEntityPosition
