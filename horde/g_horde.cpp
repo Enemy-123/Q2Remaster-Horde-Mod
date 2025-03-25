@@ -7,7 +7,6 @@
 #include "horde_ids.h"
 #include <span>
 
-
 static bool need_spawn_cache_reset = false;
 static bool need_frame_timer_reset = false;
 static bool need_queue_monitor_reset = false;
@@ -1707,96 +1706,6 @@ void InitializeWaveType(int32_t waveLevel) {
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 
 // Update the function to accept MonsterTypeID
-inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
-	// Fast exit for no requirements
-	if (waveRequirements == MonsterWaveType::None) {
-		return true;
-	}
-
-	// Get monster types once using optimized lookup
-	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
-
-	// Special wave types should be exclusive - if one of these is set, the monster MUST have it
-	// These are the "headline" wave types that get special announcements
-	const bool isSpecialWaveType =  // Define isSpecialWaveType here
-		HasWaveType(waveRequirements, MonsterWaveType::Gekk) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Berserk) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Mutant) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Spawner) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Shambler) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic);
-
-	// For special wave types, enforce strict matching
-	if (isSpecialWaveType) {
-		// If wave is Gekk, only allow Gekk monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Gekk) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Gekk))
-			return false;
-
-		// If wave is Berserker, only allow Berserker monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Berserk) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Berserk))
-			return false;
-
-		// If wave is Mutant, only allow Mutant monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Mutant) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Mutant))
-			return false;
-
-		// If wave is Spawner, only allow Spawner monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Spawner) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Spawner))
-			return false;
-
-		// If wave is Shambler, only allow Shambler monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Shambler) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Shambler))
-			return false;
-
-		// If wave is Arachnophobic, only allow Arachnophobic monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic))
-			return false;
-	}
-	else {
-		// For regular wave types, check all required flags
-		// First check the most important exclusive categories that must match
-		if (HasWaveType(waveRequirements, MonsterWaveType::Flying) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Flying))
-			return false;
-
-		if (HasWaveType(waveRequirements, MonsterWaveType::Small) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Small))
-			return false;
-
-		if (HasWaveType(waveRequirements, MonsterWaveType::Heavy) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Heavy))
-			return false;
-
-		if (HasWaveType(waveRequirements, MonsterWaveType::Melee) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Melee))
-			return false;
-
-		if (HasWaveType(waveRequirements, MonsterWaveType::Bomber) &&
-			!HasWaveType(monsterTypes, MonsterWaveType::Bomber))
-			return false;
-	}
-
-	// For mixed waves, check if there's at least one match in other categories
-	// This only applies to non-special wave types now
-	return isSpecialWaveType || (monsterTypes & waveRequirements) != MonsterWaveType::None;
-}
-
-// Add an overload that accepts classname for backward compatibility
-// Add a new overload that accepts MonsterTypeID
-inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements) {
-	// Convert type ID to classname
-	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-	if (!classname) return false;
-
-	// Now call the const char* version
-	return IsValidMonsterForWave(classname, waveRequirements);
-}
 
 // Structure to include wave level information
 struct MonsterTypeInfo {
@@ -2513,6 +2422,109 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 }
 
+// Category check functions using TypeIDs
+inline bool IsFlying(horde::MonsterTypeID typeId) {
+	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Flying);
+}
+inline bool IsGroundUnit(horde::MonsterTypeID typeId) {
+	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Ground);
+}
+inline bool IsSmallUnit(horde::MonsterTypeID typeId) {
+	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Small);
+}
+inline bool IsBossUnit(horde::MonsterTypeID typeId) {
+	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Boss);
+}
+inline bool IsSpecialUnit(horde::MonsterTypeID typeId) {
+	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Special);
+}
+
+inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements) {
+	// Fast exit for no requirements
+	if (waveRequirements == MonsterWaveType::None) {
+		return true;
+	}
+
+	// Special wave types should be exclusive - if one of these is set, the monster MUST have it
+	const bool isSpecialWaveType =
+		HasWaveType(waveRequirements, MonsterWaveType::Gekk) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Berserk) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Mutant) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Spawner) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Shambler) ||
+		HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic);
+
+	// For special wave types, enforce strict matching
+	if (isSpecialWaveType) {
+		// If wave is Gekk, only allow Gekk monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Gekk) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Gekk))
+			return false;
+
+		// If wave is Berserker, only allow Berserker monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Berserk) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Berserk))
+			return false;
+
+		// If wave is Mutant, only allow Mutant monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Mutant) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Mutant))
+			return false;
+
+		// If wave is Spawner, only allow Spawner monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Spawner) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Spawner))
+			return false;
+
+		// If wave is Shambler, only allow Shambler monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Shambler) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Shambler))
+			return false;
+
+		// If wave is Arachnophobic, only allow Arachnophobic monsters
+		if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Arachnophobic))
+			return false;
+	}
+	else {
+		// For regular wave types, check all required flags
+		// First check the most important exclusive categories that must match
+		if (HasWaveType(waveRequirements, MonsterWaveType::Flying) && !IsFlying(typeId))
+			return false;
+
+		if (HasWaveType(waveRequirements, MonsterWaveType::Small) && !IsSmallUnit(typeId))
+			return false;
+
+		if (HasWaveType(waveRequirements, MonsterWaveType::Heavy) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Heavy))
+			return false;
+
+		if (HasWaveType(waveRequirements, MonsterWaveType::Melee) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Melee))
+			return false;
+
+		if (HasWaveType(waveRequirements, MonsterWaveType::Bomber) &&
+			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Bomber))
+			return false;
+	}
+
+	// For mixed waves, check if there's at least one match in other categories
+	// This only applies to non-special wave types now
+	return isSpecialWaveType || (GetMonsterWaveTypes(typeId) & waveRequirements) != MonsterWaveType::None;
+}
+
+// Add an overload that accepts classname for backward compatibility
+// Add a new overload that accepts MonsterTypeID
+//inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements) {
+//	// Convert type ID to classname
+//	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+//	if (!classname) return false;
+//
+//	// Now call the const char* version
+//	return IsValidMonsterForWave(classname, waveRequirements);
+//}
+
+
 static const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Static cache to avoid repeated allocations
 	static struct {
@@ -2674,6 +2686,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
 	// Build monster cache - prioritize compatibility with spawn point type
+	// In the monster filtering section
 	for (const auto& monster : monsterTypes) {
 		if (monster_cache.count >= 32) break;
 
@@ -2687,8 +2700,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 
 		// Flying compatibility check - always maintain this basic requirement
-		const bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
-		if (isSpawnPointFlying && !isFlyingMonster) continue;
+		if (isSpawnPointFlying && !IsFlying(monster.typeId)) continue;
 
 		// Calculate weight
 		float weight = monster.weight;
@@ -2705,7 +2717,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 		else {
 			// Special handling for Flying monsters to ensure they remain relevant in higher waves
-			if (HasWaveType(monster.types, MonsterWaveType::Flying)) {
+			if (IsFlying(monster.typeId)) {
 				// Less severe penalty for flying monsters, which are more specialized
 				weight *= 0.8f;
 			}
@@ -4689,9 +4701,9 @@ bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
 {
 	// Debug trace to identify where freezes occur
-	//if (developer->integer) {
-	//	gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition\n");
-	//}
+	if (developer->integer) {
+		gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition\n");
+	}
 
 	// Initialize human player flag to false
 	used_human_player = false;
@@ -4761,9 +4773,9 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	// If we have no players at all, return false - no valid position
 	if (top_damage_count == 0 && high_spree_count == 0 &&
 		normal_count == 0 && bot_count == 0) {
-		//if (developer->integer) {
-		//	gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no players)\n");
-		//}
+		if (developer->integer) {
+			gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no players)\n");
+		}
 		return false;
 	}
 
@@ -4781,7 +4793,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 		{ bots, bot_count, false }
 	};
 
-	// Helper function to validate a position - similar to Tank's spawn validation
+	// Helper function to validate a position
 	auto validatePosition = [&](const vec3_t& pos) -> bool {
 		// First check if position is fundamentally valid
 		if (!is_valid_vector(pos))
@@ -4792,8 +4804,13 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 		if (trace.startsolid || trace.allsolid)
 			return false;
 
+		// Get monster type ID for specific checks
+		horde::MonsterTypeID typeId = monster_classname ?
+			horde::MonsterTypeRegistry::GetTypeID(monster_classname) :
+			horde::MonsterTypeID::UNKNOWN;
+
 		// FIXED: Simplified Gekk water validation logic
-		if (monster_classname && strcmp(monster_classname, "monster_gekk") == 0) {
+		if (typeId == horde::MonsterTypeID::GEKK) {
 			int contents = gi.pointcontents(pos);
 			bool in_water = (contents & CONTENTS_WATER);
 			bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
@@ -4803,8 +4820,9 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 				return false;
 			}
 		}
-		// For non-gekk monsters, generally avoid water
-		else if (gi.pointcontents(pos) & MASK_WATER) {
+		// For non-gekk, non-flying monsters, generally avoid water
+		else if (typeId != horde::MonsterTypeID::UNKNOWN && !IsFlying(typeId) &&
+			(gi.pointcontents(pos) & MASK_WATER)) {
 			return false;
 		}
 
@@ -4913,6 +4931,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	}
 	return false;
 }
+
 // Helper function to check if any human (non-bot) players are active and not spectating
 bool AreHumanPlayersPresent() {
 	for (auto* player : active_players()) {
@@ -5518,12 +5537,40 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_class
 					AttemptDropToFloor(test_origin, MONSTER_MINS, MONSTER_MAXS);
 				}
 
+				// Special handling for Gekk monsters in water
+				if (monster_classname) {
+					horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(monster_classname);
+					if (typeId != horde::MonsterTypeID::UNKNOWN) {
+						// Check for Gekk specifically to handle water requirements
+						if (typeId == horde::MonsterTypeID::GEKK) {
+							int contents = gi.pointcontents(test_origin);
+							bool in_water = (contents & CONTENTS_WATER);
+							bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
+
+							// Gekks should generally be in water, but never in lava/slime
+							if (in_bad_liquid || (!in_water && frandom() < 0.5f)) {
+								continue;
+							}
+						}
+						// For non-Gekk monsters, generally avoid water
+						else if (!IsFlying(typeId) && (gi.pointcontents(test_origin) & MASK_WATER)) {
+							continue;
+						}
+					}
+				}
+
+				// Validate final position
 				if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS)) {
-					final_origin = test_origin;
-					// Adjust the angles to face away from the spawn point
-					final_angles = base_angles;
-					final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
-					return true;
+					// Check for proximity to recent spawn positions
+					if (!IsPositionTooCloseToRecent(test_origin, 60.0f)) {
+						final_origin = test_origin;
+						final_angles = base_angles;
+						// Adjust angles to face away from center
+						final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
+						// Mark this position as recently used
+						MarkPositionAsRecentlyUsed(test_origin, 3.0_sec);
+						return true;
+					}
 				}
 			}
 		}
