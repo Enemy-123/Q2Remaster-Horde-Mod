@@ -1828,24 +1828,7 @@ static void InitializeMonsterWaveTypes() {
 }
 
 // Update GetMonsterWaveTypes to use the precomputed array
-inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
-	if (!classname) return MonsterWaveType::None;
-
-	// Make sure the wave types are initialized
-	if (!g_monsterWaveTypesInitialized) {
-		InitializeMonsterWaveTypes();
-	}
-
-	// Get the type ID and look up the wave type
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(classname);
-	if (typeId == horde::MonsterTypeID::UNKNOWN) {
-		return MonsterWaveType::Ground; // Default fallback
-	}
-
-	return g_monsterWaveTypes[static_cast<size_t>(typeId)];
-}
-
-// Add a version that accepts MonsterTypeID directly
+// Add a TypeID overload for GetMonsterWaveTypes
 inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept {
 	if (typeId == horde::MonsterTypeID::UNKNOWN) return MonsterWaveType::None;
 
@@ -1856,6 +1839,7 @@ inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept
 
 	return g_monsterWaveTypes[static_cast<size_t>(typeId)];
 }
+
 #include <array>
 #include <unordered_set>
 #include <random>
@@ -2006,113 +1990,77 @@ struct EligibleBosses {
 
 // static array for recent bosses
 struct RecentBosses {
-	char items[MAX_RECENT_BOSSES][64] = {}; // Store fixed-size strings directly
+	horde::MonsterTypeID items[MAX_RECENT_BOSSES] = { horde::MonsterTypeID::UNKNOWN };
 	size_t count = 0;
 
-	void add(const char* boss) noexcept {
-		// Rigorous validation to prevent crashes
-		if (!boss) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: Attempted to add null boss to recent_bosses\n");
-			}
+	void add(horde::MonsterTypeID boss) noexcept {
+		// Ignore invalid TypeIDs
+		if (boss == horde::MonsterTypeID::UNKNOWN)
 			return;
-		}
 
-		// Now safe to check first character
-		if (boss[0] == '\0') {
-			return;
-		}
-
-		// Validate count is within expected bounds
-		if (count > MAX_RECENT_BOSSES) {
-			count = MAX_RECENT_BOSSES;
-		}
-
-		// Early return for empty slot
+		// Add to array, shift if needed
 		if (count < MAX_RECENT_BOSSES) {
-			strncpy(items[count], boss, 63);
-			items[count][63] = '\0'; // Ensure null termination
-			count++;
-			return;
+			items[count++] = boss;
 		}
-
-		// Fixed-size shift using memmove for better performance
-		memmove(&items[0], &items[1], sizeof(items[0]) * (MAX_RECENT_BOSSES - 1));
-		strncpy(items[MAX_RECENT_BOSSES - 1], boss, 63);
-		items[MAX_RECENT_BOSSES - 1][63] = '\0'; // Ensure null termination
+		else {
+			// Shift array entries
+			memmove(&items[0], &items[1], sizeof(items[0]) * (MAX_RECENT_BOSSES - 1));
+			items[MAX_RECENT_BOSSES - 1] = boss;
+		}
 	}
 
-	bool contains(const char* boss) const noexcept {
-		// Rigorous validation without prematurely accessing boss[0]
-		if (!boss) {
+	bool contains(horde::MonsterTypeID boss) const noexcept {
+		// Check if boss is in recent list
+		if (boss == horde::MonsterTypeID::UNKNOWN)
 			return false;
-		}
 
-		// Now it's safe to check the first character
-		if (boss[0] == '\0') {
-			return false;
-		}
-
-		// Validate count is within expected bounds
-		if (count == 0 || count > MAX_RECENT_BOSSES) {
-			return false;
-		}
-
-		// Use a bounded count value for extra safety
-		const size_t valid_count = std::min(count, static_cast<size_t>(MAX_RECENT_BOSSES));
-
-		// Linear search with explicit bounds checking
-		for (size_t i = 0; i < valid_count; ++i) {
-			// Ensure the string is valid before comparing
-			if (items[i][0] != '\0') {
-				// Use strncmp for bounded comparison to avoid buffer overruns
-				if (strncmp(items[i], boss, 63) == 0) {
-					return true;
-				}
-			}
+		for (size_t i = 0; i < count; ++i) {
+			if (items[i] == boss)
+				return true;
 		}
 		return false;
 	}
 
 	void clear() noexcept {
 		count = 0;
-		// Always clear all strings for extra safety
-		memset(items, 0, sizeof(items));
+		std::fill_n(items, MAX_RECENT_BOSSES, horde::MonsterTypeID::UNKNOWN);
 	}
-}; 
+
+	// Compatibility method for string interface
+	void add(const char* bossClassname) noexcept {
+		add(horde::MonsterTypeRegistry::GetTypeID(bossClassname));
+	}
+
+	// Compatibility method for string interface
+	bool contains(const char* bossClassname) const noexcept {
+		return contains(horde::MonsterTypeRegistry::GetTypeID(bossClassname));
+	}
+};
 static RecentBosses recent_bosses;
 
 // Precomputed boss eligibility cache to avoid repeated calculations
 struct BossEligibilityCache {
-    // Assuming MAX_WAVE_LEVEL = 50 from earlier definition
-    static constexpr int32_t MAX_PRECOMPUTED_WAVE = 50;
-    // For each map type and wave level, store eligible boss indices
-    struct LevelEligibility {
-        uint16_t indices[MAX_ELIGIBLE_BOSSES] = {0}; // Indices into respective boss list
-        uint8_t count = 0;
-    };
-    
-    // Cache by map type (0=small, 1=medium, 2=large) and wave level
-    LevelEligibility eligibility[3][MAX_PRECOMPUTED_WAVE+1];
+	static constexpr int32_t MAX_PRECOMPUTED_WAVE = 50;
+
+	struct LevelEligibility {
+		horde::MonsterTypeID typeIds[MAX_ELIGIBLE_BOSSES] = { horde::MonsterTypeID::UNKNOWN };
+		uint8_t count = 0;
+	};
+
+	// Cache by map type (0=small, 1=medium, 2=large) and wave level
+	LevelEligibility eligibility[3][MAX_PRECOMPUTED_WAVE + 1];
 	inline static bool initialized = false;
-    
-// Initialize cache by pre-computing eligible bosses for each level
+
 	void initialize() {
 		// For each map type
 		for (int mapType = 0; mapType < 3; ++mapType) {
-			// Get the boss list for this map type
+			// Get mapSize for this type
 			MapSize mapSize;
-			if (mapType == 0) { // Small
-				mapSize = { true, false, false };
-			}
-			else if (mapType == 2) { // Large
-				mapSize = { false, true, false };
-			}
-			else { // Medium
-				mapSize = { false, false, true };
-			}
+			if (mapType == 0) mapSize = { true, false, false };  // Small
+			else if (mapType == 2) mapSize = { false, true, false };  // Large
+			else mapSize = { false, false, true };  // Medium
 
-			// FIXED: Use MapID::UNKNOWN instead of a string
+			// Get boss list
 			const auto bossList = GetBossList(mapSize, horde::MapID::UNKNOWN);
 
 			// For each wave level
@@ -2120,15 +2068,13 @@ struct BossEligibilityCache {
 				auto& levelData = eligibility[mapType][wave];
 				levelData.count = 0;
 
-				// Filter bosses by level requirements only
-				for (size_t i = 0; i < bossList.size(); ++i) {
-					const auto& boss = bossList[i];
-
+				// Filter bosses by level and store TypeIDs directly
+				for (const auto& boss : bossList) {
 					if ((wave >= boss.min_level || boss.min_level == -1) &&
 						(wave <= boss.max_level || boss.max_level == -1)) {
 
 						if (levelData.count < MAX_ELIGIBLE_BOSSES) {
-							levelData.indices[levelData.count++] = i;
+							levelData.typeIds[levelData.count++] = boss.typeId;
 						}
 					}
 				}
@@ -2136,8 +2082,8 @@ struct BossEligibilityCache {
 		}
 		initialized = true;
 	}
-} g_bossEligibilityCache;
-
+};
+static BossEligibilityCache g_bossEligibilityCache;
 
 // Utility function to spawn a monster by TypeID
 edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin, const vec3_t& angles, bool applyHordeFlags = true) {
@@ -2224,13 +2170,13 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 	}
 
 	// Get precomputed eligible bosses for this level
-	const auto& precomputedEligible = g_bossEligibilityCache.eligibility[mapTypeIndex][safeWaveNumber];
+	const auto& eligibilityData = g_bossEligibilityCache.eligibility[mapTypeIndex][safeWaveNumber];
 
 	// Validate precomputed data
-	if (precomputedEligible.count == 0 || precomputedEligible.count > MAX_ELIGIBLE_BOSSES) {
+	if (eligibilityData.count == 0 || eligibilityData.count > MAX_ELIGIBLE_BOSSES) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("WARNING: Invalid precomputed eligible boss count: {}\n",
-				precomputedEligible.count);
+			gi.Com_PrintFmt("WARNING: Invalid eligible boss count: {}\n",
+				eligibilityData.count);
 		}
 		return horde::MonsterTypeID::UNKNOWN;
 	}
@@ -2247,24 +2193,33 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 	float totalWeight = 0.0f;
 
 	// First pass - check precomputed eligible bosses against recent history
-	for (size_t i = 0; i < precomputedEligible.count; ++i) {
-		// Validate index bounds before accessing the boss list
-		const size_t bossIndex = precomputedEligible.indices[i];
-		if (bossIndex >= boss_list.size()) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: Invalid boss index {} at wave {}\n",
-					bossIndex, waveNumber);
-			}
+	for (size_t i = 0; i < eligibilityData.count; ++i) {
+		// Get typeId directly from eligibility data
+		horde::MonsterTypeID bossTypeId = eligibilityData.typeIds[i];
+
+		// Skip if unknown type
+		if (bossTypeId == horde::MonsterTypeID::UNKNOWN) {
 			continue;
 		}
 
-		const auto& boss = boss_list[bossIndex];
+		// Find the boss_t entry with this typeId
+		const boss_t* boss = nullptr;
+		for (const auto& b : boss_list) {
+			if (b.typeId == bossTypeId) {
+				boss = &b;
+				break;
+			}
+		}
+
+		if (!boss) {
+			continue;
+		}
 
 		// Validate boss classname before checking contains
-		const char* bossClassname = horde::MonsterTypeRegistry::GetClassname(boss.typeId);
+		const char* bossClassname = horde::MonsterTypeRegistry::GetClassname(boss->typeId);
 		if (!bossClassname) {
 			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: Null classname in boss at index {}\n", bossIndex);
+				gi.Com_PrintFmt("WARNING: Null classname for boss type ID\n");
 			}
 			continue;
 		}
@@ -2275,30 +2230,30 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 		}
 
 		// Calculate weight with optimized factors
-		float weight = boss.weight;
+		float weight = boss->weight;
 
 		// Combined weight adjustment with fewer branches
-		if (waveNumber >= boss.min_level && boss.min_level != -1) {
+		if (waveNumber >= boss->min_level && boss->min_level != -1) {
 			// Boost if within ideal level range
-			if (waveNumber <= boss.min_level + 5) {
+			if (waveNumber <= boss->min_level + 5) {
 				weight *= 1.3f;
 			}
 			// Reduce if well beyond ideal level
-			else if (waveNumber > boss.min_level + 10) {
+			else if (waveNumber > boss->min_level + 10) {
 				weight *= 0.8f;
 			}
 		}
 
 		// Apply difficulty adjustment in one check
 		if ((g_insane->integer || g_chaotic->integer) &&
-			boss.sizeCategory == BossSizeCategory::Large) {
+			boss->sizeCategory == BossSizeCategory::Large) {
 			weight *= 1.2f;
 		}
 
 		// Add to weighted list
 		if (weightedCount < MAX_ELIGIBLE_BOSSES) {
 			totalWeight += weight;
-			weightedBosses[weightedCount].boss = &boss;
+			weightedBosses[weightedCount].boss = boss;
 			weightedBosses[weightedCount].weight = weight;
 			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 			weightedCount++;
@@ -2309,20 +2264,22 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 	if (weightedCount == 0 && recent_bosses.count > 0) {
 		recent_bosses.clear(); // Reset history
 
-		// Use precomputed eligible bosses without history filtering
-		for (size_t i = 0; i < precomputedEligible.count; ++i) {
-			const auto& boss = boss_list[precomputedEligible.indices[i]];
+		// Try all bosses from the list
+		for (const auto& boss : boss_list) {
+			// Check if this boss is eligible for the current wave
+			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
+				(waveNumber <= boss.max_level || boss.max_level == -1)) {
 
-			// Simplified weight calculation
-			float weight = boss.weight;
+				float weight = boss.weight;
 
-			// Add to weighted list
-			if (weightedCount < MAX_ELIGIBLE_BOSSES) {
-				totalWeight += weight;
-				weightedBosses[weightedCount].boss = &boss;
-				weightedBosses[weightedCount].weight = weight;
-				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-				weightedCount++;
+				// Add to weighted list
+				if (weightedCount < MAX_ELIGIBLE_BOSSES) {
+					totalWeight += weight;
+					weightedBosses[weightedCount].boss = &boss;
+					weightedBosses[weightedCount].weight = weight;
+					weightedBosses[weightedCount].cumulativeWeight = totalWeight;
+					weightedCount++;
+				}
 			}
 		}
 	}
@@ -2366,167 +2323,12 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 }
 
 static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
-	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
-
-	// Initialize boss eligibility cache if needed
-	static bool cache_initialized = false;
-	if (!cache_initialized) {
-		g_bossEligibilityCache.initialize();
-		cache_initialized = true;
-	}
-
-	// Determine map type index for cache lookup
-	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-
-	// Safe level clamping
-	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
-
-	// Get boss list once
-	const auto boss_list = GetBossList(mapSize, mapId);
-	if (boss_list.empty()) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n",
-				mapname.data(), waveNumber);
-		}
-		return nullptr;
-	}
-
-	// Get precomputed eligible bosses for this level
-	const auto& precomputedEligible = g_bossEligibilityCache.eligibility[mapTypeIndex][safeWaveNumber];
-
-	// Validate precomputed data
-	if (precomputedEligible.count == 0 || precomputedEligible.count > MAX_ELIGIBLE_BOSSES) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("WARNING: Invalid precomputed eligible boss count: {}\n",
-				precomputedEligible.count);
-		}
-		return nullptr;
-	}
-
-	// Use stack-based array for weight calculations
-	struct WeightedBoss {
-		const boss_t* boss;
-		float weight;
-		float cumulativeWeight;
-	};
-
-	WeightedBoss weightedBosses[MAX_ELIGIBLE_BOSSES];
-	size_t weightedCount = 0;
-	float totalWeight = 0.0f;
-
-	// First pass - check precomputed eligible bosses against recent history
-	for (size_t i = 0; i < precomputedEligible.count; ++i) {
-		// Validate index bounds before accessing the boss list
-		const size_t bossIndex = precomputedEligible.indices[i];
-		if (bossIndex >= boss_list.size()) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: Invalid boss index {} at wave {}\n",
-					bossIndex, waveNumber);
-			}
-			continue;
-		}
-
-		const auto& boss = boss_list[bossIndex];
-
-		// Validate boss classname before checking contains
-		if (!horde::MonsterTypeRegistry::GetClassname(boss.typeId)) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: Null classname in boss at index {}\n", bossIndex);
-			}
-			continue;
-		}
-
-		// Skip if in recent bosses list
-		if (recent_bosses.contains(horde::MonsterTypeRegistry::GetClassname(boss.typeId))) {
-			continue;
-		}
-
-		// Calculate weight with optimized factors
-		float weight = boss.weight;
-
-		// Combined weight adjustment with fewer branches
-		if (waveNumber >= boss.min_level && boss.min_level != -1) {
-			// Boost if within ideal level range
-			if (waveNumber <= boss.min_level + 5) {
-				weight *= 1.3f;
-			}
-			// Reduce if well beyond ideal level
-			else if (waveNumber > boss.min_level + 10) {
-				weight *= 0.8f;
-			}
-		}
-
-		// Apply difficulty adjustment in one check
-		if ((g_insane->integer || g_chaotic->integer) &&
-			boss.sizeCategory == BossSizeCategory::Large) {
-			weight *= 1.2f;
-		}
-
-		// Add to weighted list
-		if (weightedCount < MAX_ELIGIBLE_BOSSES) {
-			totalWeight += weight;
-			weightedBosses[weightedCount].boss = &boss;
-			weightedBosses[weightedCount].weight = weight;
-			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-			weightedCount++;
-		}
-	}
-
-	// If no eligible bosses with history filter, retry without filter
-	if (weightedCount == 0 && recent_bosses.count > 0) {
-		recent_bosses.clear(); // Reset history
-
-		// Use precomputed eligible bosses without history filtering
-		for (size_t i = 0; i < precomputedEligible.count; ++i) {
-			const auto& boss = boss_list[precomputedEligible.indices[i]];
-
-			// Simplified weight calculation
-			float weight = boss.weight;
-
-			// Add to weighted list
-			if (weightedCount < MAX_ELIGIBLE_BOSSES) {
-				totalWeight += weight;
-				weightedBosses[weightedCount].boss = &boss;
-				weightedBosses[weightedCount].weight = weight;
-				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-				weightedCount++;
-			}
-		}
-	}
-
-	// Still no eligible bosses? Return null
-	if (weightedCount == 0 || totalWeight <= 0.0f) {
-		return nullptr;
-	}
-
-	// Select boss with binary search for better performance
-	const float randomValue = frandom() * totalWeight;
-
-	// Binary search through accumulated weights
-	size_t left = 0;
-	size_t right = weightedCount - 1;
-
-	while (left < right) {
-		const size_t mid = (left + right) / 2;
-		if (weightedBosses[mid].cumulativeWeight < randomValue) {
-			left = mid + 1;
-		}
-		else {
-			right = mid;
-		}
-	}
-
-	// Get selected boss
-	const boss_t* chosen_boss = weightedBosses[left].boss;
-	if (chosen_boss) {
-		// CHANGED: Use MonsterTypeRegistry::GetClassname instead of directly accessing classname
-		recent_bosses.add(horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId));
-		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
-		return horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId);
-	}
-
-	return nullptr;
+	// Simply delegate to the TypeID version and convert the result
+	horde::MonsterTypeID typeId = G_HordePickBOSSType(mapSize, mapname, waveNumber, bossEntity);
+	return (typeId != horde::MonsterTypeID::UNKNOWN) ?
+		horde::MonsterTypeRegistry::GetClassname(typeId) : nullptr;
 }
+
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -2653,15 +2455,19 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 inline bool IsFlying(horde::MonsterTypeID typeId) {
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Flying);
 }
+
 inline bool IsGroundUnit(horde::MonsterTypeID typeId) {
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Ground);
 }
+
 inline bool IsSmallUnit(horde::MonsterTypeID typeId) {
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Small);
 }
+
 inline bool IsBossUnit(horde::MonsterTypeID typeId) {
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Boss);
 }
+
 inline bool IsSpecialUnit(horde::MonsterTypeID typeId) {
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Special);
 }
@@ -3112,378 +2918,10 @@ static horde::MonsterTypeID G_HordePickMonsterType(edict_t* spawn_point) {
 }
 
 static const char* G_HordePickMonster(edict_t* spawn_point) {
-	// Static cache to avoid repeated allocations
-	static struct {
-		struct Entry {
-			horde::MonsterTypeID typeId;
-			float weight;
-			float cumulative_weight;
-		};
-		Entry entries[32];
-		size_t count;
-		float total_weight;
-	} monster_cache;
-
-	// Track consecutive failures for emergency handling
-	static int spawn_selection_failures = 0;
-	static MonsterWaveType saved_wave_type = MonsterWaveType::None;
-	static bool emergency_mode = false;
-
-	// Reset cache counters
-	monster_cache.count = 0;
-	monster_cache.total_weight = 0.0f;
-
-	// Early exit checks
-	if (!spawn_point || !spawn_point->inuse) {
-		spawn_selection_failures++;
-		return nullptr;
-	}
-
-	// Check spawn point availability
-	auto& data = spawnPointsData[spawn_point];
-	if (data.isTemporarilyDisabled) {
-		if (level.time < data.cooldownEndsAt) {
-			spawn_selection_failures++;
-			return nullptr;
-		}
-		// Reset state if cooldown expired
-		data.isTemporarilyDisabled = false;
-		data.attempts = 0;
-	}
-
-	// Check if spawn point is occupied
-	if (IsSpawnPointOccupied(spawn_point)) {
-		IncreaseSpawnAttempts(spawn_point);
-		spawn_selection_failures++;
-		return nullptr;
-	}
-
-	// Cache commonly used values
-	const int32_t currentLevel = g_horde_local.level;
-	MonsterWaveType currentWaveTypes = current_wave_type;
-	const bool isSpawnPointFlying = spawn_point->style == 1;
-
-	// Enter emergency mode after multiple failures
-	if (spawn_selection_failures >= 3 && !emergency_mode) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("WARNING: Entering emergency monster selection mode after {} failures\n",
-				spawn_selection_failures);
-		}
-
-		// Save the original wave type if not already saved
-		if (saved_wave_type == MonsterWaveType::None && currentWaveTypes != MonsterWaveType::None) {
-			saved_wave_type = currentWaveTypes;
-		}
-
-		// Simplify wave type requirements
-		if (HasWaveType(currentWaveTypes, MonsterWaveType::Flying)) {
-			currentWaveTypes = MonsterWaveType::Flying; // Keep only flying requirement
-		}
-		else {
-			currentWaveTypes = MonsterWaveType::Ground; // Default to ground only
-		}
-
-		emergency_mode = true;
-	}
-
-	// In severe failure cases, disable wave type filtering completely
-	if (spawn_selection_failures >= 6) {
-		if (developer->integer && currentWaveTypes != MonsterWaveType::None) {
-			gi.Com_PrintFmt("CRITICAL: Disabling wave type filtering after {} failures\n",
-				spawn_selection_failures);
-		}
-		currentWaveTypes = MonsterWaveType::None; // Allow any monster type
-	}
-
-	// Determine if we should spawn a higher level monster
-	bool spawn_higher_level = false;
-	if (currentLevel <= 10) {
-		spawn_higher_level = frandom() < 0.16f;
-	}
-	else if (currentLevel <= 15) {
-		spawn_higher_level = frandom() < 0.05f;
-	}
-	else {
-		spawn_higher_level = frandom() < 0.02f;
-	}
-
-	// Disable higher level monsters in emergency mode
-	if (emergency_mode) {
-		spawn_higher_level = false;
-	}
-
-	// Calculate effective level for monster selection
-	int32_t effectiveLevel = currentLevel;
-
-	if (spawn_higher_level) {
-		// Calculate level boost
-		int32_t levelBoost;
-		if (currentLevel < 7) {
-			levelBoost = irandom(2, 4);  // Reduced from 4-7 to 2-4
-		}
-		else if (currentLevel <= 10) {
-			levelBoost = irandom(2, 3);  // Reduced from 3-5 to 2-3
-		}
-		else {
-			levelBoost = irandom(1, 2);  // Reduced from 2-3 to 1-2
-		}
-
-		// Cap the effective level conservatively
-		int32_t maxLevel = currentLevel < 7 ? irandom(5, 7) :
-			(currentLevel < 15 ? currentLevel + 5 : currentLevel + 3);
-		effectiveLevel = std::min(currentLevel + levelBoost, maxLevel);
-
-		// Absolute cap at 40
-		effectiveLevel = std::min(effectiveLevel, 40);
-
-		// Check if any monster is eligible at this level
-		bool any_eligible_monsters = false;
-		for (const auto& monster : monsterTypes) {
-			if (monster.minWave <= effectiveLevel &&
-				(currentWaveTypes == MonsterWaveType::None || IsValidMonsterForWave(monster.typeId, currentWaveTypes))) {
-
-				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
-				if (!(isSpawnPointFlying && !isFlyingMonster)) {
-					any_eligible_monsters = true;
-					break;
-				}
-			}
-		}
-
-		// If no eligible monsters, revert to current level
-		if (!any_eligible_monsters) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: No eligible monsters at level {}. Reverting to current wave {}\n",
-					effectiveLevel, currentLevel);
-			}
-			effectiveLevel = currentLevel;
-		}
-	}
-
-	// Skip boss wave checks in emergency mode
-	if (!emergency_mode && currentWaveTypes == MonsterWaveType::None &&
-		currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
-		spawn_selection_failures++;
-		return nullptr;
-	}
-
-	// Pre-compute flying spawn adjustment
-	const int32_t flyingSpawns = countFlyingSpawns();
-	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
-
-	// Build monster cache - prioritize compatibility with spawn point type
-	// In the monster filtering section
-	for (const auto& monster : monsterTypes) {
-		if (monster_cache.count >= 32) break;
-
-		// Basic level check
-		if (monster.minWave > effectiveLevel) continue;
-
-		// Skip if not valid for current wave type using typeId directly
-		if (currentWaveTypes != MonsterWaveType::None &&
-			!IsValidMonsterForWave(monster.typeId, currentWaveTypes)) {
-			continue;
-		}
-
-		// Flying compatibility check - always maintain this basic requirement
-		if (isSpawnPointFlying && !IsFlying(monster.typeId)) continue;
-
-		// Calculate weight
-		float weight = monster.weight;
-
-		// Apply level-based adjustments
-		if (currentLevel <= 5) {
-			if (!HasWaveType(monster.types, MonsterWaveType::Light)) weight *= 0.3f;
-		}
-		else if (currentLevel <= 10) {
-			if (!HasWaveType(monster.types, MonsterWaveType::Light | MonsterWaveType::Small)) weight *= 0.4f;
-		}
-		else if (currentLevel <= 15) {
-			if (!HasWaveType(monster.types, MonsterWaveType::Medium)) weight *= 0.5f;
-		}
-		else {
-			// Special handling for Flying monsters to ensure they remain relevant in higher waves
-			if (IsFlying(monster.typeId)) {
-				// Less severe penalty for flying monsters, which are more specialized
-				weight *= 0.8f;
-			}
-			else if (!HasWaveType(monster.types, MonsterWaveType::Heavy | MonsterWaveType::Elite)) {
-				weight *= 0.6f;
-			}
-			else {
-				weight *= 1.0f + ((currentLevel - 15) * 0.02f);
-			}
-		}
-
-		// Add after the level-based adjustments
-		// Ensure earlier monsters don't become too rare
-		if (monster.minWave < currentLevel) {
-			float relevance = 1.0f - std::min(0.4f, (currentLevel - monster.minWave) * 0.01f);
-			weight *= relevance;
-		}
-
-		// Add at the end of weight calculations, but with 0.2 instead of 0.3
-		// Ensure no monster drops below a reasonable minimum weight
-		if (weight < 0.2f && monster.weight >= 0.2f) {
-			weight = 0.2f;
-		}
-
-		// In emergency mode, make weights more uniform
-		if (emergency_mode) {
-			weight = std::max(weight, 0.5f);
-		}
-
-		// Special handling for boss wave minions
-		if (currentLevel >= 10 && currentLevel % 5 == 0 && boss_spawned_for_wave) {
-			weight *= HasWaveType(monster.types, currentWaveTypes) ? 2.0f : 0.3f;
-		}
-
-		// Apply difficulty adjustments
-		if (g_insane->integer || g_chaotic->integer) {
-			const float difficultyScale = currentLevel <= 10 ? 1.1f :
-				currentLevel <= 20 ? 1.2f : currentLevel <= 30 ? 1.3f : 1.4f;
-			weight *= difficultyScale;
-			if (HasWaveType(monster.types, MonsterWaveType::Elite)) weight *= 1.2f;
-		}
-
-		// Apply flying adjustment
-		weight *= adjustmentFactor;
-
-		// Higher level monster adjustment
-		if (spawn_higher_level && monster.minWave > currentLevel) {
-			if (monster.minWave - currentLevel > 5) weight *= 0.5f;
-		}
-
-		// Add to cache if weight is valid
-		if (weight > 0.0f) {
-			monster_cache.total_weight += weight;
-			auto& entry = monster_cache.entries[monster_cache.count];
-			entry.typeId = monster.typeId;
-			entry.weight = weight;
-			entry.cumulative_weight = monster_cache.total_weight;
-			monster_cache.count++;
-		}
-	}
-
-	horde::MonsterTypeID chosen_monster = horde::MonsterTypeID::UNKNOWN;
-	if (monster_cache.count == 0) {
-		// Create a weighted collection of appropriate fallback monsters based on wave level
-		WeightedSelection<MonsterTypeInfo> fallback_monsters;
-
-		// Find monsters appropriate for this wave level
-		int best_min_wave = 1;
-
-		// First pass - find the highest minWave that's still <= currentLevel
-		// This helps us find monsters that are most appropriate for current wave
-		for (const auto& monster : monsterTypes) {
-			if (monster.minWave <= currentLevel && monster.minWave > best_min_wave) {
-				best_min_wave = monster.minWave;
-			}
-		}
-
-		// Allow some wiggle room (prefer monsters with minWave within 5 levels of best)
-		int min_acceptable_wave = std::max(1, best_min_wave - 5);
-
-		// Second pass - collect appropriate monsters
-		for (const auto& monster : monsterTypes) {
-			if (monster.minWave >= min_acceptable_wave && monster.minWave <= currentLevel) {
-				// Check basic flying compatibility
-				const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
-
-				// Only enforce flying vs ground compatibility
-				if (!(isSpawnPointFlying && !isFlyingMonster)) {
-					// Higher weight for monsters closer to the current level
-					float weight = 1.0f + ((monster.minWave - min_acceptable_wave) * 0.5f);
-					fallback_monsters.add(&monster, weight);
-				}
-			}
-		}
-
-		// If we found any appropriate monsters, select one randomly (weighted)
-		if (fallback_monsters.item_count > 0) {
-			const MonsterTypeInfo* selected = fallback_monsters.select();
-			if (selected) {
-				chosen_monster = selected->typeId;
-			}
-		}
-
-		// Last-resort fallback if still nothing found
-		if (chosen_monster == horde::MonsterTypeID::UNKNOWN) {
-			// Find ANY monster that meets basic requirements
-			for (const auto& monster : monsterTypes) {
-				if (monster.minWave <= currentLevel) {
-					const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
-					if (!(isSpawnPointFlying && !isFlyingMonster)) {
-						chosen_monster = monster.typeId;
-						break;
-					}
-				}
-			}
-		}
-
-		if (chosen_monster != horde::MonsterTypeID::UNKNOWN && developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY FALLBACK: Selected {} after {} failed attempts\n",
-				horde::MonsterTypeRegistry::GetClassname(chosen_monster), spawn_selection_failures);
-		}
-
-		// If we found a monster via emergency fallback
-		if (chosen_monster != horde::MonsterTypeID::UNKNOWN) {
-			// Update cooldowns - FIXED: Use GetClassname here for consistency
-			UpdateCooldowns(spawn_point, horde::MonsterTypeRegistry::GetClassname(chosen_monster));
-
-			// Reset failure counters on success
-			spawn_selection_failures = 0;
-			emergency_mode = false;
-
-			// Restore original wave type if we were in emergency mode
-			if (saved_wave_type != MonsterWaveType::None) {
-				current_wave_type = saved_wave_type;
-				saved_wave_type = MonsterWaveType::None;
-			}
-
-			return horde::MonsterTypeRegistry::GetClassname(chosen_monster);
-		}
-
-		// No monster available even with emergency fallback
-		IncreaseSpawnAttempts(spawn_point);
-		spawn_selection_failures++;
-		return nullptr;
-	}
-
-	// Select monster using binary search for better performance
-	const float random_value = frandom() * monster_cache.total_weight;
-	size_t left = 0;
-	size_t right = monster_cache.count - 1;
-
-	while (left < right) {
-		const size_t mid = (left + right) / 2;
-		if (monster_cache.entries[mid].cumulative_weight < random_value) {
-			left = mid + 1;
-		}
-		else {
-			right = mid;
-		}
-	}
-
-	// Get the selected monster
-	chosen_monster = monster_cache.entries[left].typeId;
-
-	// Update cooldowns if we have a valid selection
-	if (chosen_monster != horde::MonsterTypeID::UNKNOWN) {
-		UpdateCooldowns(spawn_point, horde::MonsterTypeRegistry::GetClassname(chosen_monster));
-
-		// Reset failure counters on success
-		spawn_selection_failures = 0;
-		emergency_mode = false;
-
-		// Restore original wave type if we were in emergency mode
-		if (saved_wave_type != MonsterWaveType::None) {
-			current_wave_type = saved_wave_type;
-			saved_wave_type = MonsterWaveType::None;
-		}
-	}
-
-	return horde::MonsterTypeRegistry::GetClassname(chosen_monster);
+	// Simply delegate to the TypeID version and convert the result
+	horde::MonsterTypeID typeId = G_HordePickMonsterType(spawn_point);
+	return (typeId != horde::MonsterTypeID::UNKNOWN) ?
+		horde::MonsterTypeRegistry::GetClassname(typeId) : nullptr;
 }
 
 void Horde_PreInit() {
@@ -3744,8 +3182,8 @@ void AllowReset() noexcept {
 }
 
 void Horde_Init() {
-
 	horde::InitializeHordeIDs();
+
 	// Reset precache state
 	sounds_precached = false;
 	items_precached = false;
@@ -3766,6 +3204,9 @@ void Horde_Init() {
 	PrecacheAllMonsters();
 	PrecacheItemsAndBosses();
 	PrecacheWaveSounds();
+
+	// Initialize wave types
+	InitializeMonsterWaveTypes();
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
@@ -4212,59 +3653,114 @@ static void SpawnBossAutomatically() {
 	boss->think = BossSpawnThink;
 }
 
-// Incluye otras cabeceras y definiciones necesarias
-static const std::unordered_map<horde::MonsterTypeID, std::string_view> bossMessagesMapByID = {
-	{horde::MonsterTypeID::BOSS2, "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
-	{horde::MonsterTypeID::BOSS2_KL, "***** Boss incoming! Hornet is about to strike! *****\n"},
-	{horde::MonsterTypeID::FIXBOT_KL, "***** Boss incoming! The Fixer is coming to fix this... *****\n"},
-	{horde::MonsterTypeID::CARRIER_MINI, "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
-	{horde::MonsterTypeID::CARRIER, "***** Boss incoming! Carrier’s here with a deadly payload! *****\n"},
-	{horde::MonsterTypeID::TANK_64, "***** Boss incoming! Tank Commander is here to take limbs! *****\n"},
-	{horde::MonsterTypeID::SHAMBLER_KL, "***** Boss incoming! The Shambler is emerging watch out! *****\n"},
-	{horde::MonsterTypeID::GUNCMDR_KL, "***** Boss incoming! Gunner Commander has you in his sights! *****\n"},
-	{horde::MonsterTypeID::MAKRON_KL, "***** Boss incoming! Makron is here to personally finish you off! *****\n"},
-	{horde::MonsterTypeID::PSX_GUARDIAN, "***** Boss incoming! The Enhanced Guardian is ready to spam rockets! *****\n"},
-	{horde::MonsterTypeID::BOSS5, "***** Boss incoming! Super-Tank is here to show Strogg’s might! *****\n"},
-	{horde::MonsterTypeID::WIDOW2, "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n"},
-	{horde::MonsterTypeID::PSX_ARACHNID, "***** Boss incoming! Arachnid is here *****\n"},
-	//{"monster_gm_arachnid", "***** Boss incoming! Missile Arachnid is armed and ready! *****\n"},
-	{horde::MonsterTypeID::REDMUTANT, "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n"},
-	{horde::MonsterTypeID::JORG, "***** Boss incoming! Jorg’s mech is upgraded and deadly! *****\n"}
-};
+// Define the array
+static std::array<std::string_view, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_bossMessagesArray;
+static bool g_bossMessagesInitialized = false;
 
-// Helper to get boss message by TypeID
+// Initialize function
+void InitializeBossMessages() {
+	if (g_bossMessagesInitialized)
+		return;
+
+	// Fill with default message first
+	g_bossMessagesArray.fill("A Strogg Boss has spawned!\nPrepare for battle!\n");
+
+	// Set specific messages individually by index
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2)] = "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2_KL)] = "***** Boss incoming! Hornet is about to strike! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::FIXBOT_KL)] = "***** Boss incoming! The Fixer is coming to fix this... *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER_MINI)] = "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER)] = "***** Boss incoming! Carrier's here with a deadly payload! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::TANK_64)] = "***** Boss incoming! Tank Commander is here to take limbs! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_KL)] = "***** Boss incoming! The Shambler is emerging watch out! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_KL)] = "***** Boss incoming! Gunner Commander has you in his sights! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] = "***** Boss incoming! Makron is here to personally finish you off! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] = "***** Boss incoming! The Enhanced Guardian is ready to spam rockets! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] = "***** Boss incoming! Super-Tank is here to show Strogg's might! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW2)] = "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] = "***** Boss incoming! Arachnid is here *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] = "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::JORG)] = "***** Boss incoming! Jorg's mech is upgraded and deadly! *****\n";
+
+	g_bossMessagesInitialized = true;
+}
+
+// Helper function to get message
 inline std::string_view GetBossMessage(horde::MonsterTypeID typeId) {
-	auto it = bossMessagesMapByID.find(typeId);
-	if (it != bossMessagesMapByID.end())
-		return it->second;
+	if (!g_bossMessagesInitialized)
+		InitializeBossMessages();
+
+	size_t index = static_cast<size_t>(typeId);
+	if (index < g_bossMessagesArray.size())
+		return g_bossMessagesArray[index];
 	return "A Strogg Boss has spawned!\nPrepare for battle!\n";
 }
 
-// Static mapping for boss types to reduce string comparisons
-static const std::unordered_map<horde::MonsterTypeID, std::pair<MonsterWaveType, const char*>> bossTypeMapByID = {
-	{horde::MonsterTypeID::REDMUTANT, {MonsterWaveType::Mutant, "\n\n\nMutant's invasion approaches!\n"}},
-	{horde::MonsterTypeID::SHAMBLER_KL, {MonsterWaveType::Shambler, "\n\n\nMutant's invasion approaches!\n"}},
-	{horde::MonsterTypeID::WIDOW, {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
-	{horde::MonsterTypeID::WIDOW2, {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
-	{horde::MonsterTypeID::PSX_ARACHNID, {MonsterWaveType::Arachnophobic, "\n\n\nArachnophobia wave incoming!\n"}},
-	{horde::MonsterTypeID::BOSS2, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-	{horde::MonsterTypeID::CARRIER, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-	{horde::MonsterTypeID::CARRIER_MINI, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-	{horde::MonsterTypeID::BOSS2_KL, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-	{horde::MonsterTypeID::FIXBOT_KL, {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
-	{horde::MonsterTypeID::TANK_64, {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
-	{horde::MonsterTypeID::PSX_GUARDIAN, {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
-	{horde::MonsterTypeID::BOSS5, {MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"}},
-	{horde::MonsterTypeID::GUNCMDR_KL, {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
-	{horde::MonsterTypeID::MAKRON, {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}},
-	{horde::MonsterTypeID::MAKRON_KL, {MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"}}
+// Define a struct for boss wave info
+struct BossWaveInfo {
+	MonsterWaveType waveType;
+	const char* message;
 };
 
-// Helper to get boss wave type by TypeID
+// Create an array for boss wave types
+static std::array<BossWaveInfo, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_bossWaveTypeArray;
+static bool g_bossWaveTypesInitialized = false;
+
+// Initialize function
+void InitializeBossWaveTypes() {
+	if (g_bossWaveTypesInitialized)
+		return;
+
+	// Fill with default values first
+	for (auto& entry : g_bossWaveTypeArray) {
+		entry = { MonsterWaveType::Medium, "\n\n\nDefault wave incoming!\n" };
+	}
+
+	// Set specific entries
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] =
+	{ MonsterWaveType::Mutant, "\n\n\nMutant's invasion approaches!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_KL)] =
+	{ MonsterWaveType::Shambler, "\n\n\nMutant's invasion approaches!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW)] =
+	{ MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW2)] =
+	{ MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] =
+	{ MonsterWaveType::Arachnophobic, "\n\n\nArachnophobia wave incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2)] =
+	{ MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER)] =
+	{ MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER_MINI)] =
+	{ MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2_KL)] =
+	{ MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::FIXBOT_KL)] =
+	{ MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::TANK_64)] =
+	{ MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] =
+	{ MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] =
+	{ MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_KL)] =
+	{ MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON)] =
+	{ MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n" };
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] =
+	{ MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n" };
+
+	g_bossWaveTypesInitialized = true;
+}
+
+// Helper function
 inline std::pair<MonsterWaveType, const char*> GetBossWaveType(horde::MonsterTypeID typeId) {
-	auto it = bossTypeMapByID.find(typeId);
-	if (it != bossTypeMapByID.end())
-		return it->second;
+	if (!g_bossWaveTypesInitialized)
+		InitializeBossWaveTypes();
+
+	size_t index = static_cast<size_t>(typeId);
+	if (index < g_bossWaveTypeArray.size())
+		return { g_bossWaveTypeArray[index].waveType, g_bossWaveTypeArray[index].message };
 	return { MonsterWaveType::Medium, "\n\n\nDefault wave incoming!\n" };
 }
 
@@ -4278,19 +3774,19 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 	// Get the monster TypeID directly from the entity's classname
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
-	// Set wave type based on boss type
-	auto bossWaveType = GetBossWaveType(typeId);
-	if (TrySetWaveType(bossWaveType.first)) {
-		gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveType.second);
+	// Set wave type based on boss type - using array lookup
+	auto bossWaveInfo = GetBossWaveType(typeId);
+	if (TrySetWaveType(bossWaveInfo.first)) {
+		gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
 	}
-	else if (HasWaveType(bossWaveType.first, MonsterWaveType::Mutant) ||
-		HasWaveType(bossWaveType.first, MonsterWaveType::Shambler)) {
+	else if (HasWaveType(bossWaveInfo.first, MonsterWaveType::Mutant) ||
+		HasWaveType(bossWaveInfo.first, MonsterWaveType::Shambler)) {
 		// Fallback for mutant/shambler types
 		current_wave_type = MonsterWaveType::Medium;
 		StoreWaveType(MonsterWaveType::Medium);
 	}
 
-	// Boss spawn message
+	// Boss spawn message - using array lookup
 	std::string_view bossMessage = GetBossMessage(typeId);
 	gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data());
 
@@ -4329,13 +3825,18 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 	auto_spawned_bosses.insert(self);
 }
 
-bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
-	// Early validation for quick exit
-	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS ||
-		level.intermissiontime || !g_horde->integer)
+bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTeleportReason::DROWNING) {
+	// Early returns - unchanged
+	if (!self || !self->inuse || self->deadflag ||
+		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
 		return false;
 
-// Cache map name once to reduce string comparisons
+	// Get TypeID once instead of multiple string comparisons
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET)
+		return false;
+
+	// Cache map name once to reduce string comparisons
 	static std::string last_map_name;
 	static horde::MapID cached_map_id = horde::MapID::UNKNOWN;
 
@@ -4359,14 +3860,6 @@ bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
 	if (!horde::MapOriginRegistry::GetOrigin(cached_map_id, spawn_origin)) {
 		return false;
 	}
-
-	// Now spawn_origin contains the coordinates and can be used
-	// For example, in CheckAndTeleportBoss this would replace the previous conversion:
-	// const vec3_t spawn_origin{
-	//     static_cast<float>(map_origin_it->second[0]),
-	//     static_cast<float>(map_origin_it->second[1]),
-	//     static_cast<float>(map_origin_it->second[2])
-	// };
 
 	// Select appropriate cooldown based on reason - use constexpr for compiler optimization
 	constexpr gtime_t DROWNING_COOLDOWN = 1_sec;
