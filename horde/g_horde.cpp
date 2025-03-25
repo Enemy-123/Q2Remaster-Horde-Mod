@@ -4779,7 +4779,7 @@ struct StuckMonsterSpawnFilter {
 bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
 
 // Enhanced emergency spawn position finder
-bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, horde::MonsterTypeID typeId)
 {
 	// Debug trace to identify where freezes occur
 	if (developer->integer) {
@@ -4792,7 +4792,6 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	// Constants for spawn attempts
 	constexpr int MAX_ATTEMPTS = 40;
 	constexpr float MIN_PLAYER_DIST = 200.0f;
-	//constexpr float MAX_PLAYER_DIST = 1200.0f;
 	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
 	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
 
@@ -4885,26 +4884,23 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 		if (trace.startsolid || trace.allsolid)
 			return false;
 
-		// Get monster type ID for specific checks
-		horde::MonsterTypeID typeId = monster_classname ?
-			horde::MonsterTypeRegistry::GetTypeID(monster_classname) :
-			horde::MonsterTypeID::UNKNOWN;
+		// Specific checks based on monster type
+		if (typeId != horde::MonsterTypeID::UNKNOWN) {
+			// FIXED: Simplified Gekk water validation logic
+			if (typeId == horde::MonsterTypeID::GEKK) {
+				int contents = gi.pointcontents(pos);
+				bool in_water = (contents & CONTENTS_WATER);
+				bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
 
-		// FIXED: Simplified Gekk water validation logic
-		if (typeId == horde::MonsterTypeID::GEKK) {
-			int contents = gi.pointcontents(pos);
-			bool in_water = (contents & CONTENTS_WATER);
-			bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
-
-			// Gekks should generally be in water, but never in lava/slime
-			if (in_bad_liquid || (!in_water && frandom() < 0.5f)) {
+				// Gekks should generally be in water, but never in lava/slime
+				if (in_bad_liquid || (!in_water && frandom() < 0.5f)) {
+					return false;
+				}
+			}
+			// For non-gekk, non-flying monsters, generally avoid water
+			else if (!IsFlying(typeId) && (gi.pointcontents(pos) & MASK_WATER)) {
 				return false;
 			}
-		}
-		// For non-gekk, non-flying monsters, generally avoid water
-		else if (typeId != horde::MonsterTypeID::UNKNOWN && !IsFlying(typeId) &&
-			(gi.pointcontents(pos) & MASK_WATER)) {
-			return false;
 		}
 
 		return true;
@@ -5011,6 +5007,18 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 		gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no valid position)\n");
 	}
 	return false;
+}
+
+// String-based overload that delegates to the TypeID version
+bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
+{
+	// Convert classname to TypeID
+	horde::MonsterTypeID typeId = monster_classname ?
+		horde::MonsterTypeRegistry::GetTypeID(monster_classname) :
+		horde::MonsterTypeID::UNKNOWN;
+
+	// Delegate to the TypeID version
+	return FindEmergencySpawnPosition(position, angles, used_human_player, typeId);
 }
 
 // Helper function to check if any human (non-bot) players are active and not spectating
@@ -5556,12 +5564,9 @@ bool IsPositionTooCloseToRecent(const vec3_t& position, float min_distance) {
 	return false;
 }
 
-bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles) {
+bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles) {
 	// Constants for alternative spawn positions
 	constexpr float HEIGHT_OFFSET = 8.0f;
-	//constexpr float MIN_RADIUS = 40.0f;
-	//constexpr float MAX_RADIUS = 120.0f;
-	//constexpr int MAX_ATTEMPTS = 12;  // Increased from 8
 	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };  // Approximate monster bounds
 	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };     // Adjust as needed
 
@@ -5618,25 +5623,22 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_class
 					AttemptDropToFloor(test_origin, MONSTER_MINS, MONSTER_MAXS);
 				}
 
-				// Special handling for Gekk monsters in water
-				if (monster_classname) {
-					horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(monster_classname);
-					if (typeId != horde::MonsterTypeID::UNKNOWN) {
-						// Check for Gekk specifically to handle water requirements
-						if (typeId == horde::MonsterTypeID::GEKK) {
-							int contents = gi.pointcontents(test_origin);
-							bool in_water = (contents & CONTENTS_WATER);
-							bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
+				// Special handling for specific monster types
+				if (typeId != horde::MonsterTypeID::UNKNOWN) {
+					// Check for Gekk specifically to handle water requirements
+					if (typeId == horde::MonsterTypeID::GEKK) {
+						int contents = gi.pointcontents(test_origin);
+						bool in_water = (contents & CONTENTS_WATER);
+						bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
 
-							// Gekks should generally be in water, but never in lava/slime
-							if (in_bad_liquid || (!in_water && frandom() < 0.5f)) {
-								continue;
-							}
-						}
-						// For non-Gekk monsters, generally avoid water
-						else if (!IsFlying(typeId) && (gi.pointcontents(test_origin) & MASK_WATER)) {
+						// Gekks should generally be in water, but never in lava/slime
+						if (in_bad_liquid || (!in_water && frandom() < 0.5f)) {
 							continue;
 						}
+					}
+					// For non-Gekk, non-flying monsters, generally avoid water
+					else if (!IsFlying(typeId) && (gi.pointcontents(test_origin) & MASK_WATER)) {
+						continue;
 					}
 				}
 
@@ -5711,6 +5713,18 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_class
 	}
 
 	return false;  // No valid position found
+}
+
+// String-based overload that delegates to the TypeID version
+bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles)
+{
+	// Convert classname to TypeID
+	horde::MonsterTypeID typeId = monster_classname ?
+		horde::MonsterTypeRegistry::GetTypeID(monster_classname) :
+		horde::MonsterTypeID::UNKNOWN;
+
+	// Delegate to the TypeID version
+	return TryAlternativeSpawnPosition(spawn_point, typeId, final_origin, final_angles);
 }
 
 // TypeID-based overload for EmergencySpawnMonster
@@ -5987,8 +6001,6 @@ bool ShouldTriggerAmbushSpawn() {
 	return false;
 }
 
-// Modified SpawnAmbushMonsters function to skip announcements
-// Updated SpawnAmbushMonsters to use improved emergency spawning
 // Updated SpawnAmbushMonsters to use improved emergency spawning with TypeIDs
 int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	if (developer->integer) {
@@ -5999,7 +6011,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	const char* monster_classname = nullptr;
 	horde::MonsterTypeID monster_typeId = horde::MonsterTypeID::UNKNOWN;
 
-	// Try to get a valid monster type from existing spawn points
+// Try to get a valid monster type from existing spawn points
 	for (auto* point : monster_spawn_points()) {
 		if (point && point->inuse) {
 			// Use TypeID version for more efficient selection
@@ -6529,6 +6541,7 @@ edict_t* SpawnMonsters() {
 		spawnPointsData[spawn_point].teleport_cooldown = current_time + 1.5_sec;
 
 		// Get monster type for this spawn - USE TYPEID VERSION
+// When a monster type is selected:
 		horde::MonsterTypeID monster_type = G_HordePickMonsterType(spawn_point);
 		if (monster_type == horde::MonsterTypeID::UNKNOWN) {
 			if (developer->integer > 1) {
@@ -6537,7 +6550,7 @@ edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		// Get classname for use with engine functions
+		// Get classname for use with engine functions - only used at the end for final spawn
 		const char* monster_classname = horde::MonsterTypeRegistry::GetClassname(monster_type);
 
 		// Check if this point needs alternative positions
@@ -6560,7 +6573,8 @@ edict_t* SpawnMonsters() {
 				continue;
 			}
 
-			if (!TryAlternativeSpawnPosition(spawn_point, monster_classname, spawn_origin, spawn_angles)) {
+			// Use TypeID directly in TryAlternativeSpawnPosition
+			if (!TryAlternativeSpawnPosition(spawn_point, monster_type, spawn_origin, spawn_angles)) {
 				// Apply cooldown for failed alternative position finding
 				ApplyAlternativePositionCooldown(spawn_point);
 
