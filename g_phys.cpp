@@ -54,29 +54,58 @@ contents_t G_GetClipMask(edict_t* ent)
 	// horde mode optimization
 	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
 	{
-		// Fast path: check for excluded monster types first
-		// Using a switch on the first character for faster filtering
-		char first_char = ent->classname[0];
-		bool excluded = false;
+		// Set up static array for excluded monster types
+		static std::array<bool, 256> isExcludedType = {};
+		static bool exclusion_initialized = false;
 
-		if (first_char == 'm') {
-			if (!strcmp(ent->classname + 1, "onster_boss3_stand") ||
-				!strcmp(ent->classname + 1, "isc_eastertank") ||
-				!strcmp(ent->classname + 1, "isc_easterchick") ||
-				!strcmp(ent->classname + 1, "isc_easterchick2") ||
-				!strcmp(ent->classname + 1, "onster_commander_body") ||
-				!strcmp(ent->classname + 1, "isc_bigviper"))
-				excluded = true;
+		if (!exclusion_initialized)
+		{
+			exclusion_initialized = true;
+
+			// Set flags for excluded types
+			const char* excluded_monsters[] = {
+				"monster_boss3_stand",
+				"misc_eastertank",
+				"misc_easterchick",
+				"misc_easterchick2",
+				"monster_commander_body",
+				"misc_bigviper"
+			};
+
+			for (const char* monster_name : excluded_monsters)
+			{
+				uint8_t type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(monster_name));
+				isExcludedType[type_id] = true;
+			}
 		}
 
-		if (!excluded) {
+		// Get entity type ID with caching
+		if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN)
+		{
+			// First access: compute and cache the type ID
+			ent->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
+		}
+
+		// Fast check if this type is excluded
+		bool excluded = false;
+		if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN)
+		{
+			excluded = isExcludedType[ent->monster_type_id];
+		}
+
+		// If not excluded, continue with collision checking
+		if (!excluded)
+		{
 			// Check for potential collisions with other monsters on the same team
 			bool potential_collision = false;
 
-			for (auto* other : active_monsters()) {
-				if (other != ent && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other)) {
+			for (auto* other : active_monsters())
+			{
+				if (other != ent && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
+				{
 					// Quick AABB overlap test using boxes_intersect function
-					if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax)) {
+					if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax))
+					{
 						potential_collision = true;
 						break;
 					}
@@ -84,7 +113,8 @@ contents_t G_GetClipMask(edict_t* ent)
 			}
 
 			// Only do the expensive trace if there's a potential collision
-			if (potential_collision) {
+			if (potential_collision)
+			{
 				if (auto* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
 					other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
 				{

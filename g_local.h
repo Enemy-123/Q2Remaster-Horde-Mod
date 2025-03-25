@@ -3209,6 +3209,11 @@ enum plat2flags_t
 MAKE_ENUM_BITFLAGS(plat2flags_t);
 
 #include <bitset>
+#include "horde/horde_ids.h"
+
+
+static constexpr uint8_t MONSTER_TYPE_UNKNOWN = 255;
+
 
 struct edict_t
 {
@@ -3426,6 +3431,8 @@ struct edict_t
 	// in g_save.cpp too!
 
 	//Horde stuff
+
+	uint8_t monster_type_id = MONSTER_TYPE_UNKNOWN;
 
 	bool was_spawned_by_horde;
 	bool spawned_in_spawn_state;

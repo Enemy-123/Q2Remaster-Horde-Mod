@@ -571,6 +571,41 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 	if (!ent1 || !ent2 || ent1 == ent2)
 		return false;
 
+	// Initialize static variables outside the switch statement
+	static std::array<uint8_t, 3> specialEntityTypeIds;
+	static bool typeIds_initialized = false;
+	static std::array<bool, 256> isLaserType = {};
+	static bool laserTypes_initialized = false;
+
+	// Initialize lookup tables once
+	if (!typeIds_initialized)
+	{
+		typeIds_initialized = true;
+
+		// Get type IDs for special entities we check frequently
+		specialEntityTypeIds[0] = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID("tesla_mine"));
+		specialEntityTypeIds[1] = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID("food_cube_trap"));
+		specialEntityTypeIds[2] = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID("laser_emitter"));
+	}
+
+	if (!laserTypes_initialized)
+	{
+		laserTypes_initialized = true;
+
+		// Add all laser-related entity types
+		const char* laser_entities[] = {
+			"laser_emitter", "laser", "laser_target"
+			// Add any other laser-related classnames
+		};
+
+		for (const char* laser_name : laser_entities)
+		{
+			uint8_t id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(laser_name));
+			if (id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN))
+				isLaserType[id] = true;
+		}
+	}
+
 	// Determinar el modo de juego
 	enum GameMode {
 		MODE_COOPERATIVE,
@@ -580,7 +615,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 	};
 
 	GameMode currentMode;
-
 	if (G_IsCooperative())
 		currentMode = MODE_COOPERATIVE;
 	else if (G_TeamplayEnabled() && !g_horde->integer)
@@ -597,7 +631,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 	case MODE_TEAMPLAY:
 		if (ent1->client && ent2->client)
 			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
-
 		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
 			AssignMonsterTeam(ent1);
 			AssignMonsterTeam(ent2);
@@ -620,29 +653,34 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		// Verificar jugador vs monstruo
 		if (ent1->client && (ent2->svflags & SVF_MONSTER))
 			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
-
 		if (ent2->client && (ent1->svflags & SVF_MONSTER))
 			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
 
-		// Verificar minas tesla
-		if (CheckEntityClass(ent1, "tesla_mine"))
-			return CheckTeslaMineTeam(ent1, ent2);
+		// Get and cache type IDs for both entities
+		if ((ent1->monster_type_id == MONSTER_TYPE_UNKNOWN) && !ent1->client)
+			ent1->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent1->classname));
 
-		if (CheckEntityClass(ent2, "tesla_mine"))
+		if ((ent2->monster_type_id == MONSTER_TYPE_UNKNOWN) && !ent2->client)
+			ent2->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent2->classname));
+
+		// Use type IDs for fast entity checks
+
+		// Verificar minas tesla
+		if (ent1->monster_type_id == specialEntityTypeIds[0])
+			return CheckTeslaMineTeam(ent1, ent2);
+		if (ent2->monster_type_id == specialEntityTypeIds[0])
 			return CheckTeslaMineTeam(ent2, ent1);
 
 		// Verificar trampas
-		if (CheckEntityClass(ent1, "food_cube_trap"))
+		if (ent1->monster_type_id == specialEntityTypeIds[1])
 			return CheckTrapTeam(ent1, ent2);
-
-		if (CheckEntityClass(ent2, "food_cube_trap"))
+		if (ent2->monster_type_id == specialEntityTypeIds[1])
 			return CheckTrapTeam(ent2, ent1);
 
-		// Verificar láseres y emisores
-		if (IsLaserEntity(ent1))
+		// Check for laser entities using type ID
+		if (ent1->monster_type_id != MONSTER_TYPE_UNKNOWN && isLaserType[ent1->monster_type_id])
 			return CheckLaserTeam(ent1, ent2);
-
-		if (IsLaserEntity(ent2))
+		if (ent2->monster_type_id != MONSTER_TYPE_UNKNOWN && isLaserType[ent2->monster_type_id])
 			return CheckLaserTeam(ent2, ent1);
 
 		return false;
@@ -651,7 +689,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		return false;
 	}
 }
-
 
 
 #include <span>
