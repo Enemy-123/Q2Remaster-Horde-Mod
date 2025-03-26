@@ -698,7 +698,14 @@ void M_MoveFrame(edict_t* self)
 
 void G_MonsterKilled(edict_t* self)
 {
-	level.killed_monsters++;
+	// *** MODIFIED SECTION BELOW ***
+	// Only increment killed_monsters count if the monster is meant to be counted for level completion.
+	if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+	{
+		level.killed_monsters++;
+	}
+
+	// *** END OF MODIFICATION ***
 
 	// Verificar si el enemigo es un cliente (jugador) o una torreta propiedad de un jugador
 	if (self->enemy && self->enemy->client)
@@ -713,12 +720,12 @@ void G_MonsterKilled(edict_t* self)
 			{
 				if (self->enemy->client->quadfire_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
+					const gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
 					self->enemy->client->quadfire_time += extra_time;
 				}
 				if (self->enemy->client->quad_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
+					const gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
 					self->enemy->client->quad_time += extra_time;
 				}
 			}
@@ -737,28 +744,31 @@ void G_MonsterKilled(edict_t* self)
 			{
 				if (self->enemy->owner->client->quadfire_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
+					const gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->quadfire_time += extra_time;
 				}
 
 				if (self->enemy->owner->client->double_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
+					const gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->double_time += extra_time;
 				}
 
 				if (self->enemy->owner->client->quad_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
+					const gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->quad_time += extra_time;
 				}
 			}
 		}
 	}
+
+	// Debugging: Track monster kills if enabled
 	if (g_debug_monster_kills->integer)
 	{
 		bool found = false;
 
+		// Find the monster in the registered list and mark it as killed (null pointer)
 		for (auto& ent : level.monsters_registered)
 		{
 			if (ent == self)
@@ -769,15 +779,18 @@ void G_MonsterKilled(edict_t* self)
 			}
 		}
 
+		// If the monster wasn't found in the registered list, it might indicate an issue
 		if (!found)
 		{
 #if defined(_DEBUG) && defined(KEX_PLATFORM_WINPC)
-			__debugbreak();
+			__debugbreak(); // Trigger debugger breakpoint in debug builds on Windows
 #endif
+			// Print a message to the center of the screen for the first player
 			gi.Center_Print(&g_edicts[1], "found missing monster?");
 		}
 
-		if (level.killed_monsters == level.total_monsters)
+		// Check if all counted monsters have been killed
+		if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT) && level.killed_monsters == level.total_monsters)
 		{
 			gi.Center_Print(&g_edicts[1], "all monsters dead");
 		}
@@ -815,8 +828,12 @@ void M_ProcessPain(edict_t* e)
 			if ((e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER) && !(e->monsterinfo.aiflags & AI_SPAWNED_NEEDS_GIB))
 				dead_commander_check = true;
 
-			if (!(e->monsterinfo.aiflags & AI_DO_NOT_COUNT) && !(e->spawnflags & SPAWNFLAG_MONSTER_DEAD))
+			// *** MODIFIED LINE BELOW ***
+			// Always call G_MonsterKilled on death now, unless spawned dead.
+			// G_MonsterKilled will handle the AI_DO_NOT_COUNT logic internally for level stats.
+			if (!(e->spawnflags & SPAWNFLAG_MONSTER_DEAD))
 				G_MonsterKilled(e);
+			// *** END OF MODIFICATION ***
 
 			e->touch = nullptr;
 			monster_death_use(e);
@@ -841,10 +858,12 @@ void M_ProcessPain(edict_t* e)
 			commander = nullptr;
 		}
 
+		// [Paril-KEX] Fix for monsters getting stuck in last frame of death animation
 		if (e->inuse && e->health > e->gib_health && e->s.frame == e->monsterinfo.active_move->lastframe)
 		{
 			e->s.frame -= irandom(1, 3);
 
+			// Optional: Add slight angle jitter for visual variety on ground death
 			if (e->groundentity && e->movetype == MOVETYPE_TOSS && !(e->flags & FL_STATIONARY))
 				e->s.angles[1] += brandom() ? 4.5f : -4.5f;
 		}
@@ -852,23 +871,26 @@ void M_ProcessPain(edict_t* e)
 	else
 		e->pain(e, e->monsterinfo.damage_attacker, (float)e->monsterinfo.damage_knockback, e->monsterinfo.damage_blood, e->monsterinfo.damage_mod);
 
+	// Check if the entity is still in use after pain/death processing
 	if (!e->inuse)
 		return;
 
+	// Apply skin changes if necessary
 	if (e->monsterinfo.setskin)
 		e->monsterinfo.setskin(e);
 
+	// Reset damage tracking variables
 	e->monsterinfo.damage_blood = 0;
 	e->monsterinfo.damage_knockback = 0;
 	e->monsterinfo.damage_attacker = e->monsterinfo.damage_inflictor = nullptr;
 
-	// [Paril-KEX] fire health target
+	// [Paril-KEX] fire health target if health threshold met or monster died
 	if (e->healthtarget)
 	{
-		const char* target = e->target;
-		e->target = e->healthtarget;
-		G_UseTargets(e, e->enemy);
-		e->target = target;
+		const char* target = e->target; // Store original target
+		e->target = e->healthtarget;    // Temporarily set health target
+		G_UseTargets(e, e->enemy);      // Fire health target
+		e->target = target;             // Restore original target
 	}
 }
 
