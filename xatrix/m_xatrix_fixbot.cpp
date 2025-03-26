@@ -92,25 +92,45 @@ void AbortFixbotSpawn(edict_t* self) {
 
 // Helper function for player proximity check
 bool IsPlayerTooClose(const vec3_t& position, float min_dist, bool predict_movement = true) {
+	// Check standard players first
 	for (auto player : active_players_no_spect()) {
 		if (!player || !player->inuse || player->health <= 0)
 			continue;
 
-		// Check current position first (use squared distance for efficiency)
+		// Check current position with squared distance for efficiency
 		float dist_sq = (position - player->s.origin).lengthSquared();
 		if (dist_sq < min_dist * min_dist)
 			return true;
 
-		// Prediction for player movement - check multiple time steps
+		// Check player's predicted positions (with increased lookahead)
 		if (predict_movement && player->velocity.lengthSquared() > 1.0f) {
-			// Check 3 future positions (0.1s, 0.2s, 0.3s ahead)
-			for (float t = 0.1f; t <= 0.3f; t += 0.1f) {
+			// Check up to 0.4 seconds ahead for fast-moving players
+			for (float t = 0.1f; t <= 0.4f; t += 0.1f) {
 				vec3_t predicted_pos = player->s.origin + (player->velocity * t);
 				if ((position - predicted_pos).lengthSquared() < min_dist * min_dist)
 					return true;
 			}
 		}
 	}
+
+	// NEW: Check for existing turrets or sentry guns (avoid spawning on top of them)
+	edict_t* ent = nullptr;
+	while ((ent = findradius(ent, position, min_dist + 16.0f)) != nullptr) {
+		if (!ent->inuse)
+			continue;
+
+		// Check specifically for turrets/sentries by classname
+		if (ent->classname &&
+			(!strcmp(ent->classname, "monster_turret") ||
+				!strcmp(ent->classname, "monster_sentrygun") ||
+				!strcmp(ent->classname, "tesla_mine") ||
+				!strcmp(ent->classname, "food_cube_trap") ||
+				!strcmp(ent->classname, "prox_mine") ||
+				!strcmp(ent->classname, "emitter"))) {
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -538,46 +558,79 @@ void fixbot_start_spawn(edict_t* self)
 	}
 }
 
+THINK(turret_make_solid) (edict_t* self) -> void
+{
+	if (!self || !self->inuse)
+		return;
+
+	// Do one last check to make sure no players are inside our bounding box
+	edict_t* player = nullptr;
+	while ((player = findradius(player, self->s.origin, 48.0f)) != nullptr) {
+		if (player->client && player->inuse && player->health > 0) {
+			// A player is still too close - wait a bit longer
+			self->nextthink = level.time + 200_ms;
+			return;
+		}
+	}
+
+	// Safe to make solid now
+	self->solid = SOLID_BBOX;
+	gi.linkentity(self);
+}
+
 // New function to spawn a turret at a specific position
 // Spawn a turret at a specific position with proper safety checks
 void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
-	// Validate inputs
-	if (!self || !self->inuse || !is_valid_vector(position))
+	// Validate inputs with more thorough checks
+	if (!self || !self->inuse || !is_valid_vector(position) || position.equals(vec3_origin))
 		return;
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 	float min_player_dist = isboss ? 128.0f : 160.0f;
 
-	// Final check for players near the spawn position
+	// CRITICAL: Multiple player proximity checks with very short delays
+	// This simulates checking a few milliseconds into the future
 	if (IsPlayerTooClose(position, min_player_dist, true)) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("Fixbot: Player too close to spawn position. Aborting spawn.\n");
-		}
+		if (developer->integer)
+			gi.Com_PrintFmt("Fixbot: Player too close to spawn position (check 1). Aborting spawn.\n");
+		return;
+	}
+
+	// Double-check to catch fast-moving players
+	if (IsPlayerTooClose(position, min_player_dist, true)) {
+		if (developer->integer)
+			gi.Com_PrintFmt("Fixbot: Player too close to spawn position (check 2). Aborting spawn.\n");
 		return;
 	}
 
 	vec3_t mins = { -16, -16, -24 };
 	vec3_t maxs = { 16, 16, 24 };
 
-	// Final collision check
+	// More thorough collision check
 	if (!CheckSpawnPoint(position, mins, maxs)) {
-		if (developer->integer) {
+		if (developer->integer)
 			gi.Com_PrintFmt("Fixbot: Final position check failed. Aborting spawn.\n");
-		}
 		return;
 	}
 
-	// Try to push away any entities near the spawn point
-	PushEntitiesAway(position, 2, 100.0f, 120.0f, 100.0f, 50.0f);
+	// Try to clear the area
+	PushEntitiesAway(position, 3, 120.0f, 120.0f, 100.0f, 50.0f);
 
-	// Create the turret entity
+	// Triple-check again before proceeding
+	if (IsPlayerTooClose(position, min_player_dist, true)) {
+		if (developer->integer)
+			gi.Com_PrintFmt("Fixbot: Player detected after PushEntitiesAway. Aborting spawn.\n");
+		return;
+	}
+
+	// Create the turret entity with safe initialization
 	edict_t* ent = G_Spawn();
 	if (!ent) {
 		return;
 	}
 
-	// CRITICAL: Make the turret non-solid initially to prevent instant collisions
+	// CRITICAL: Keep the turret NON-SOLID initially
 	ent->solid = SOLID_NOT;
 
 	// Set up basic properties
@@ -616,7 +669,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	float size = 38.0f;
 	SpawnGrow_Spawn(position, size * 2.0f, size * 0.5f);
 
-	// One last check for players who might have moved since our earlier check
+	// CRITICAL: One final check for players right before spawning
 	if (IsPlayerTooClose(position, min_player_dist, false)) {
 		// Player moved too close during spawning, abort
 		G_FreeEdict(ent);
@@ -635,7 +688,18 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		self->monsterinfo.monster_used += 1;
 	}
 
-	// Initialize the turret - DELAY LINKING until fully initialized
+	// CRITICAL: Extra safety - If we have any timing issues, the player might move
+	// into the spawn area right at this moment, so let's do one more check
+	if (IsPlayerTooClose(position, min_player_dist, false)) {
+		// Last-ditch abort
+		G_FreeEdict(ent);
+		if (self->monsterinfo.monster_slots && self->monsterinfo.monster_used > 0) {
+			self->monsterinfo.monster_used -= 1; // Roll back counter
+		}
+		return;
+	}
+
+	// Initialize the turret
 	ED_CallSpawn(ent);
 
 	if (!ent->inuse) {
@@ -652,11 +716,15 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		FoundTarget(ent);
 	}
 
-	// Safe duration before the turret can be damaged
+	// CRITICAL: Safety period before the turret can be damaged 
+	// and also before it becomes solid - give players time to clear
 	ent->pain_debounce_time = level.time + 2_sec;
 
-	// Only AFTER everything is set up, make the turret solid
-	ent->solid = SOLID_BBOX;
+	// NEW: Add a think function to delay making the turret solid
+	ent->think = turret_make_solid; // You'll need to implement this function
+	ent->nextthink = level.time + 500_ms; // Half a second delay
+
+	// Link the entity but keep it non-solid until the think function runs
 	gi.linkentity(ent);
 }
 
@@ -767,17 +835,17 @@ void fixbot_spawn_check(edict_t* self)
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	// Check if we are actually in the spawning state
-	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
-		// Not in spawn state, reset just in case and return
-		self->monsterinfo.blind_fire_target = vec3_origin;
-		self->s.effects &= ~(EF_HYPERBLASTER | EF_PLASMA);
+	// Triple safety - non-boss should NEVER be in spawn mode
+	if (!isboss) {
+		AbortFixbotSpawn(self);
 		return;
 	}
 
-	// CRITICAL: Only boss fixbots can spawn
-	if (!isboss) {
-		AbortFixbotSpawn(self);
+	// Check if we are actually in the spawning state
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
+		// Not in spawn state, reset just in case
+		self->monsterinfo.blind_fire_target = vec3_origin;
+		self->s.effects &= ~(EF_HYPERBLASTER | EF_PLASMA);
 		return;
 	}
 
@@ -790,7 +858,7 @@ void fixbot_spawn_check(edict_t* self)
 		return;
 	}
 
-	// Determine if we *should* spawn based on slots
+	// Check slots again (might have changed during animation)
 	bool should_spawn = false;
 	if (self->monsterinfo.monster_slots &&
 		self->monsterinfo.monster_slots > self->monsterinfo.monster_used) {
@@ -889,17 +957,12 @@ void fixbot_spawn_turret(edict_t* self)
 
 mframe_t fixbot_frames_spawn[] = {
 	{ ai_move, 0, fixbot_prep_spawn },    // Find spawn position and start aiming
-	{ ai_move, 0, fixbot_fire_spawn_laser }, // Start the laser
-	{ ai_move, 0, fixbot_fire_spawn_laser },
-	{ ai_move, 0, fixbot_fire_spawn_laser },
-	{ ai_move, 0, fixbot_fire_spawn_laser }, // Continue laser for ~2 seconds
-	{ ai_move, 0, fixbot_fire_spawn_laser },
-	{ ai_move, 0, fixbot_fire_spawn_laser },
 	{ ai_move, 0, fixbot_fire_spawn_laser },
 	{ ai_move, 0, fixbot_spawn_check },   // Now spawn the turret
 	{ ai_move, 0, nullptr }               // End spawn sequence
+
 };
-MMOVE_T(fixbot_move_spawn) = { FRAME_weldstart_01, FRAME_weldstart_10, fixbot_frames_spawn, fixbot_run };
+MMOVE_T(fixbot_move_spawn) = { FRAME_weldstart_01, FRAME_weldstart_04, fixbot_frames_spawn, fixbot_run };
 
 // [Paril-KEX] clean up bot goals if we get interrupted
 THINK(bot_goal_check) (edict_t* self) -> void
