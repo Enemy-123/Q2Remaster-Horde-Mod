@@ -334,7 +334,25 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 {
-	if (!laser || !laser->inuse) return; // Basic validation
+	// Basic validation of the laser itself
+	if (!laser || !laser->inuse) return;
+
+	edict_t* self = laser->owner;
+
+	// Critical owner check - check for NULL *FIRST*
+	if (!self) { // Check for NULL pointer before accessing any members
+		if (laser->inuse) {
+			G_FreeEdict(laser);
+		}
+		return;
+	}
+	// Now that self is not NULL, check inuse and health
+	if (!self->inuse || self->health <= 0) {
+		if (laser->inuse) {
+			G_FreeEdict(laser);
+		}
+		return;
+	}
 
 	edict_t* self = laser->owner;
 
@@ -1013,15 +1031,25 @@ MMOVE_T(fixbot_move_spawn) = { FRAME_weldstart_01, FRAME_weldstart_10, fixbot_fr
 // [Paril-KEX] clean up bot goals if we get interrupted
 THINK(bot_goal_check) (edict_t* self) -> void
 {
-	if (!self->owner || !self->owner->inuse || self->owner->goalentity != self)
-	{
-		G_FreeEdict(self);
-		return;
-	}
+    // Basic validation of the goal entity itself
+    if (!self || !self->inuse) return;
 
-	self->nextthink = level.time + 1_ms;
+    edict_t* owner = self->owner; // Get owner pointer once
+
+    // Check owner pointer *FIRST*
+    if (!owner) {
+         G_FreeEdict(self); // Owner is gone, free the goal
+         return;
+    }
+    // Now check owner validity and goal relationship
+    if (!owner->inuse || owner->health <= 0 || owner->goalentity != self) {
+         G_FreeEdict(self); // Owner is invalid or no longer using this goal
+         return;
+    }
+
+    // Safe to proceed...
+    self->nextthink = level.time + 1_ms;
 }
-
 void ED_CallSpawn(edict_t* ent);
 
 edict_t* fixbot_FindDeadMonster(edict_t* self)
