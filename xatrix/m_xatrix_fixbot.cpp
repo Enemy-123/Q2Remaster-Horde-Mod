@@ -2693,11 +2693,12 @@ void fixbot_start_attack(edict_t* self)
 	}
 }
 
+
 MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 {
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	// Boss fixbots should spawn turrets periodically
+	// ONLY boss fixbots should spawn turrets periodically
 	if (isboss) {
 		// Check if we have monster slots available
 		int slots_left = 0;
@@ -2706,10 +2707,10 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		}
 
 		// Higher chance to spawn when we have more slots available
-		float spawn_chance = slots_left > 0 ? 0.7f : 0.0f;
+		float spawn_chance = slots_left > 0 ? 0.4f : 0.0f;
 
+		// IMPORTANT: Only try to spawn based on probability
 		if (frandom() < spawn_chance) {
-			//gi.Com_PrintFmt("FixbotKL choosing to spawn turret\n");
 			M_SetAnimation(self, &fixbot_move_spawn);
 			return;
 		}
@@ -2734,6 +2735,7 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 	// Regular attack with plasma
 	M_SetAnimation(self, &fixbot_move_attack2);
 }
+
 
 PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
