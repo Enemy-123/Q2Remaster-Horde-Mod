@@ -15,7 +15,7 @@ TURRET
 constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = spawnflags_t(0x0008);
 constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = spawnflags_t(0x0010);
 constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = spawnflags_t(0x0020); // Keep original rocket flag
-constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = spawnflags_t(0x0100); // New unique value
+constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = spawnflags_t(0x0100); // New unique valuef
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; // Same as blaster
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
@@ -772,19 +772,6 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 	    return;
     }
 	
-
-	// Verify clear shot
-	const vec3_t offset = { 20.f, 0.f, 0.f };
-	vec3_t shot_start;
-	if (!M_CheckClearShot(self, offset, shot_start))
-		return;
-
-	// Check minimum effective range
-	trace_t tr = gi.traceline(start, start + (dir * dist), self, MASK_PROJECTILE);
-	if (dist * tr.fraction <= 72) {
-		return;
-	}
-
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 1600 : 1420;
 	vec3_t fire_dir = dir;
 	vec3_t target_pos;
@@ -843,13 +830,6 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 	    return;
     }
 	
-
-	// Verify clear shot
-	const vec3_t offset = { 20.f, 0.f, 0.f };
-	vec3_t shot_start;
-	if (!M_CheckClearShot(self, offset, shot_start))
-		return;
-
 	const float projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1450 : 1250;
 	vec3_t fire_dir = dir;
 	vec3_t target_pos;
