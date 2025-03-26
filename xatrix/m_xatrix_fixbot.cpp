@@ -558,79 +558,46 @@ void fixbot_start_spawn(edict_t* self)
 	}
 }
 
-THINK(turret_make_solid) (edict_t* self) -> void
-{
-	if (!self || !self->inuse)
-		return;
-
-	// Do one last check to make sure no players are inside our bounding box
-	edict_t* player = nullptr;
-	while ((player = findradius(player, self->s.origin, 48.0f)) != nullptr) {
-		if (player->client && player->inuse && player->health > 0) {
-			// A player is still too close - wait a bit longer
-			self->nextthink = level.time + 200_ms;
-			return;
-		}
-	}
-
-	// Safe to make solid now
-	self->solid = SOLID_BBOX;
-	gi.linkentity(self);
-}
-
 // New function to spawn a turret at a specific position
 // Spawn a turret at a specific position with proper safety checks
 void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
-	// Validate inputs with more thorough checks
-	if (!self || !self->inuse || !is_valid_vector(position) || position.equals(vec3_origin))
+	// Validate inputs
+	if (!self || !self->inuse || !is_valid_vector(position))
 		return;
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 	float min_player_dist = isboss ? 128.0f : 160.0f;
 
-	// CRITICAL: Multiple player proximity checks with very short delays
-	// This simulates checking a few milliseconds into the future
+	// Final check for players near the spawn position
 	if (IsPlayerTooClose(position, min_player_dist, true)) {
-		if (developer->integer)
-			gi.Com_PrintFmt("Fixbot: Player too close to spawn position (check 1). Aborting spawn.\n");
-		return;
-	}
-
-	// Double-check to catch fast-moving players
-	if (IsPlayerTooClose(position, min_player_dist, true)) {
-		if (developer->integer)
-			gi.Com_PrintFmt("Fixbot: Player too close to spawn position (check 2). Aborting spawn.\n");
+		if (developer->integer) {
+			gi.Com_PrintFmt("Fixbot: Player too close to spawn position. Aborting spawn.\n");
+		}
 		return;
 	}
 
 	vec3_t mins = { -16, -16, -24 };
 	vec3_t maxs = { 16, 16, 24 };
 
-	// More thorough collision check
+	// Final collision check
 	if (!CheckSpawnPoint(position, mins, maxs)) {
-		if (developer->integer)
+		if (developer->integer) {
 			gi.Com_PrintFmt("Fixbot: Final position check failed. Aborting spawn.\n");
+		}
 		return;
 	}
 
-	// Try to clear the area
-	PushEntitiesAway(position, 3, 120.0f, 120.0f, 100.0f, 50.0f);
+	// Try to push away any entities near the spawn point
+	PushEntitiesAway(position, 2, 100.0f, 120.0f, 100.0f, 50.0f);
 
-	// Triple-check again before proceeding
-	if (IsPlayerTooClose(position, min_player_dist, true)) {
-		if (developer->integer)
-			gi.Com_PrintFmt("Fixbot: Player detected after PushEntitiesAway. Aborting spawn.\n");
-		return;
-	}
-
-	// Create the turret entity with safe initialization
+	// Create the turret entity
 	edict_t* ent = G_Spawn();
 	if (!ent) {
 		return;
 	}
 
-	// CRITICAL: Keep the turret NON-SOLID initially
+	// CRITICAL: Make the turret non-solid initially to prevent instant collisions
 	ent->solid = SOLID_NOT;
 
 	// Set up basic properties
@@ -669,7 +636,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	float size = 38.0f;
 	SpawnGrow_Spawn(position, size * 2.0f, size * 0.5f);
 
-	// CRITICAL: One final check for players right before spawning
+	// One last check for players who might have moved since our earlier check
 	if (IsPlayerTooClose(position, min_player_dist, false)) {
 		// Player moved too close during spawning, abort
 		G_FreeEdict(ent);
@@ -688,18 +655,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		self->monsterinfo.monster_used += 1;
 	}
 
-	// CRITICAL: Extra safety - If we have any timing issues, the player might move
-	// into the spawn area right at this moment, so let's do one more check
-	if (IsPlayerTooClose(position, min_player_dist, false)) {
-		// Last-ditch abort
-		G_FreeEdict(ent);
-		if (self->monsterinfo.monster_slots && self->monsterinfo.monster_used > 0) {
-			self->monsterinfo.monster_used -= 1; // Roll back counter
-		}
-		return;
-	}
-
-	// Initialize the turret
+	// Initialize the turret - DELAY LINKING until fully initialized
 	ED_CallSpawn(ent);
 
 	if (!ent->inuse) {
@@ -716,15 +672,11 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		FoundTarget(ent);
 	}
 
-	// CRITICAL: Safety period before the turret can be damaged 
-	// and also before it becomes solid - give players time to clear
+	// Safe duration before the turret can be damaged
 	ent->pain_debounce_time = level.time + 2_sec;
 
-	// NEW: Add a think function to delay making the turret solid
-	ent->think = turret_make_solid; // You'll need to implement this function
-	ent->nextthink = level.time + 500_ms; // Half a second delay
-
-	// Link the entity but keep it non-solid until the think function runs
+	// Only AFTER everything is set up, make the turret solid
+	ent->solid = SOLID_BBOX;
 	gi.linkentity(ent);
 }
 
