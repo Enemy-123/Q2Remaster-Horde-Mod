@@ -60,6 +60,55 @@ void roam_goal(edict_t* self);
 constexpr const char* fixbot_reinforcements = "monster_turret 1";
 constexpr int32_t fixbot_monster_slots_base = 6;
 
+mframe_t fixbot_frames_run[] = {
+	{ ai_run, 10 }
+};
+MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run, nullptr };
+
+
+// Helper function for player proximity check
+bool IsPlayerTooClose(const vec3_t& position, float min_dist, bool predict_movement = true) {
+	for (auto player : active_players_no_spect()) {
+		if (!player || !player->inuse || player->health <= 0) continue;
+
+		// Check current position
+		if ((position - player->s.origin).lengthSquared() < min_dist * min_dist) {
+			return true;
+		}
+
+		// Check predicted position (optional)
+		if (predict_movement) {
+			// Predict slightly into the future (e.g., 0.25 seconds)
+			vec3_t predicted_pos = player->s.origin + (player->velocity * 0.25f);
+			if ((position - predicted_pos).lengthSquared() < min_dist * min_dist) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+// Helper to abort spawning safely
+void AbortFixbotSpawn(edict_t* self) {
+	if (!self || !self->inuse) return;
+
+	// Clear spawning state
+	self->monsterinfo.blind_fire_target = vec3_origin;
+	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+	self->s.effects &= ~(EF_HYPERBLASTER | EF_PLASMA); // Clear effects
+
+	// Optional: Play a fizzle sound or effect
+	// gi.sound(self, CHAN_AUTO, gi.soundindex("misc/null.wav"), 1, ATTN_NORM, 0);
+
+	// Return to a standard state (e.g., run)
+	if (self->monsterinfo.run) {
+		self->monsterinfo.run(self);
+	} else {
+		// Fallback if run function is missing
+		M_SetAnimation(self, &fixbot_move_run); // Assuming fixbot_move_run exists
+	}
+}
+
 // This makes the fixbot gradually turn to face the spawn position over multiple frames
 void fixbot_face_position(edict_t* self, const vec3_t& target_pos)
 {
@@ -96,153 +145,134 @@ void fixbot_face_position(edict_t* self, const vec3_t& target_pos)
 
 bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction, int attempt = 0)
 {
+	// --- Existing local variables ---
 	vec3_t forward, right, up;
 	vec3_t start, end;
 	trace_t tr;
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	// Non-static structure for tracking best position
-	struct {
+	// Non-static structure for tracking best position (as before)
+	struct BestPositionData { // Renamed for clarity
 		vec3_t pos;
 		vec3_t dir;
 		float distance;
 		bool valid;
 		bool in_front;
-	} best_position{};
+	};
+	// Use thread_local or pass as parameter if multi-threading is a concern
+	// For standard Q2, static should be okay but let's make it local.
+	static BestPositionData best_position; // Keep static if single-threaded
 
 	// Reset on first attempt
 	if (attempt == 0) {
-		best_position.valid = false;
-		best_position.distance = 0;
-		best_position.in_front = false;
+		best_position = {}; // Zero-initialize
 	}
 
-	// Validate self
-	if (!self || !self->inuse) {
+	// Validate self and origin
+	if (!self || !self->inuse || !is_valid_vector(self->s.origin)) {
 		position = vec3_origin;
 		direction = vec3_origin;
 		return false;
 	}
 
-	// Create ray from fixbot position
+	// --- Existing angle/direction calculation ---
 	AngleVectors(self->s.angles, forward, right, up);
 	start = self->s.origin;
 
-	// If this is a retry attempt, try different directions
 	if (attempt > 0) {
-		// Create more varied search directions
+		// Create more varied search directions (as before)
 		vec3_t angles = vectoangles(forward);
-
-		// First 4 attempts use angles in front of the fixbot
 		if (attempt <= 4) {
-			// First attempts prioritize forward positions with small variations
-			angles[YAW] += (attempt - 1) * 30.0f - 45.0f; // -45, -15, +15, +45 degrees
-			angles[PITCH] = -15.0f; // Slight downward angle
+			angles[YAW] += (attempt - 1) * 30.0f - 45.0f;
+			angles[PITCH] = -15.0f;
+		} else {
+			angles[YAW] += (attempt - 4) * 45.0f;
+			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f;
 		}
-		else {
-			// Later attempts use full circular search
-			angles[YAW] += (attempt - 4) * 45.0f; // Try positions all around
-			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f; // Various pitches, mostly down
-		}
-
 		AngleVectors(angles, forward, nullptr, nullptr);
 	}
 
-	// Use longer trace for farther positions
 	float trace_distance = isboss ? 1000.0f : 700.0f;
 	end = start + (forward * trace_distance);
 
-	// Trace against world but exclude monsters and players
+	// Validate start and end vectors
+	if (!is_valid_vector(start) || !is_valid_vector(end)) {
+		return find_turret_spawn_position(self, position, direction, attempt + 1); // Try again
+	}
+
 	tr = gi.traceline(start, end, self, MASK_SOLID & ~(CONTENTS_MONSTER | CONTENTS_PLAYER));
 
-	if (tr.fraction < 1.0) {
-		// We hit something solid (hopefully a wall)
-
-		// Check if the hit entity is valid for spawning (not a player or monster)
+	if (tr.fraction < 1.0 && tr.ent && is_valid_vector(tr.endpos)) { // Check tr.ent and endpos
 		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
-			// Calculate the normal for the surface we hit
 			direction = tr.plane.normal;
-
-			// Make sure direction is not perfectly vertical
 			if (fabs(direction[2]) > 0.85f) {
 				direction[2] = 0.6f;
 				direction.normalize();
 			}
 
-			// Position a bit off the wall/floor for better placement
-			position = tr.endpos + (tr.plane.normal * 16.0f);
+			// Ensure direction is valid
+			if (!is_valid_vector(direction)) {
+				direction = forward; // Fallback
+			}
 
-			// Check if there's enough space for the turret
+			position = tr.endpos + (direction * 16.0f);
+
+			// Validate calculated position
+			if (!is_valid_vector(position)) {
+				return find_turret_spawn_position(self, position, direction, attempt + 1); // Try again
+			}
+
 			vec3_t mins = { -16, -16, -24 };
 			vec3_t maxs = { 16, 16, 24 };
 
-			// First use CheckSpawnPoint for basic validation
 			if (CheckSpawnPoint(position, mins, maxs)) {
-				// Check for player proximity 
-				bool player_too_close = false;
+				// Use helper function for player proximity check
 				float min_player_dist = isboss ? 96.0f : 128.0f;
-
-				// Use the iterable for player checks
-				for (auto player : active_players_no_spect()) {
-					// Check current position
-					float dist = (position - player->s.origin).length();
-					if (dist < min_player_dist) {
-						player_too_close = true;
-						break;
-					}
-
-					// Check predicted future position based on velocity
-					vec3_t predicted_pos = player->s.origin + (player->velocity * 0.5f);
-					float predicted_dist = (position - predicted_pos).length();
-					if (predicted_dist < min_player_dist) {
-						player_too_close = true;
-						break;
-					}
+				if (IsPlayerTooClose(position, min_player_dist, true)) { // Predict movement
+					// Try next attempt if player is too close
+					return find_turret_spawn_position(self, position, direction, attempt + 1);
 				}
 
-				if (player_too_close) {
-					return false;
-				}
-
-				// Then do more rigorous checks for entity overlap
+				// Check for entity overlap (more robustly)
 				bool entity_overlap = false;
 				edict_t* ent = nullptr;
-				while ((ent = findradius(ent, position, 48.0f)) != nullptr) {
-					if (ent == self) continue;
+				// Check a slightly larger radius
+				while ((ent = findradius(ent, position, 56.0f)) != nullptr) {
+					if (ent == self || !ent->inuse || ent->solid == SOLID_NOT) continue; // Skip self, invalid, non-solid
 
-					vec3_t ent_mins = position + mins;
-					vec3_t ent_maxs = position + maxs;
+					// Use entity's actual bounding box if available
+					vec3_t ent_absmin = ent->absmin;
+					vec3_t ent_absmax = ent->absmax;
 
-					if (EntitiesOverlap(ent, ent_mins, ent_maxs)) {
+					// Calculate potential turret bounds
+					vec3_t turret_absmin = position + mins;
+					vec3_t turret_absmax = position + maxs;
+
+					// Check for overlap using standard box intersection
+					if (boxes_intersect(turret_absmin, turret_absmax, ent_absmin, ent_absmax)) {
 						entity_overlap = true;
 						break;
 					}
 				}
 
+
 				if (!entity_overlap) {
-					// Safely compute vector from self to position
 					vec3_t to_pos = position - self->s.origin;
-					if (to_pos.length() > 0.1f) {
-						to_pos.normalize();
+					float dist = to_pos.length(); // Calculate dist first
+
+					if (dist > 0.1f) { // Check distance before normalizing
+						to_pos *= (1.0f / dist); // Normalize
 						bool pos_in_front = (to_pos.dot(forward) > 0.0f);
 
 						// Check clear path back to fixbot
-						bool clear_path = G_IsClearPath(self, MASK_SOLID, self->s.origin, position);
-
-						if (clear_path) {
-							// Calculate distance from fixbot to determine if this is the best position
-							float dist = (position - self->s.origin).length();
-
-							// Prefer positions in front with good distance
+						if (G_IsClearPath(self, MASK_SOLID, self->s.origin, position)) {
+							// --- Existing best position logic (seems okay) ---
 							bool better_position = false;
-
 							if (!best_position.valid) {
 								better_position = true;
-							}
-							else if (pos_in_front && !best_position.in_front) {
+							} else if (pos_in_front && !best_position.in_front) {
 								better_position = true;
-							}
-							else if ((pos_in_front == best_position.in_front) && dist > best_position.distance) {
+							} else if ((pos_in_front == best_position.in_front) && dist > best_position.distance) {
 								better_position = true;
 							}
 
@@ -256,10 +286,9 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 							// If this is an excellent position in front, use it immediately
 							if (pos_in_front && dist > trace_distance * 0.5f) {
-								// Final player proximity check
-								if (!player_too_close) {
-									// Pre-clear the area
-									PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
+								// Final check again before returning true
+								if (!IsPlayerTooClose(position, min_player_dist, true)) {
+									// REMOVED: PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
 									return true;
 								}
 							}
@@ -281,89 +310,92 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		direction = best_position.dir;
 
 		// Final check for player proximity
-		bool player_too_close = false;
 		float min_player_dist = isboss ? 96.0f : 128.0f;
-
-		for (auto player : active_players_no_spect()) {
-			float dist = (position - player->s.origin).length();
-			if (dist < min_player_dist) {
-				player_too_close = true;
-				break;
-			}
-		}
-
-		if (!player_too_close) {
-			// Pre-clear the area
-			PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
+		if (!IsPlayerTooClose(position, min_player_dist, true)) {
+			// REMOVED: PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
 			return true;
 		}
 	}
 
-	// Last resort fallback
+	// Fallback if absolutely no position found (or best was too close to player)
 	position = self->s.origin + (forward * (isboss ? 350.0f : 250.0f));
 	direction = forward;
-	return false;
+	// Even the fallback needs basic validation
+	if (CheckSpawnPoint(position, { -16,-16,-24 }, { 16,16,24 }) && !IsPlayerTooClose(position, 128.0f, true)) {
+		return true; // Use fallback if it's valid
+	}
+
+	return false; // Truly failed to find any position
 }
 
 PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 {
-	// Validate input
-	if (!laser || !laser->inuse)
-		return;
+	if (!laser || !laser->inuse) return; // Basic validation
 
 	edict_t* self = laser->owner;
 
-	// Owner check - critical for safety
-	if (!self || !self->inuse) {
+	// Critical owner check
+	if (!self || !self->inuse || self->health <= 0) { // Also check owner health
 		if (laser->inuse) {
 			G_FreeEdict(laser);
 		}
 		return;
 	}
 
-	// Start position
+	// Validate target position before using it
+	if (!is_valid_vector(self->monsterinfo.blind_fire_target)) {
+		// Target is invalid, stop the laser effect
+		if (laser->inuse) {
+			G_FreeEdict(laser);
+		}
+		// Optionally abort the whole spawn process here
+		AbortFixbotSpawn(self);
+		return;
+	}
+
+	// Start position calculation
 	vec3_t start, dir;
 	AngleVectors(self->s.angles, dir, nullptr, nullptr);
 	start = self->s.origin + (dir * 16);
 
-	// If we have a spawn position, aim at it
+	// Aiming logic (as before)
 	if ((self->monsterinfo.aiflags & AI_MANUAL_STEERING) &&
 		!self->monsterinfo.blind_fire_target.equals(vec3_origin)) {
 
-		// Get direction vector to spawn position
 		vec3_t spawn_dir = self->monsterinfo.blind_fire_target - start;
-		if (spawn_dir.length() > 0.1f) {
-			spawn_dir.normalize();
-			dir = spawn_dir;
+		if (spawn_dir.lengthSquared() > 0.01f) { // Use lengthSquared for efficiency
+			dir = spawn_dir.normalized(); // Use normalized()
 		}
 
-		// Adjust laser color based on whether it's a boss
 		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 		if (isboss) {
-			// Boss gets a more intense beam
-			laser->s.skinnum = 0xf0f0f0f0; // Brighter, more intense beam
+			laser->s.skinnum = 0xf0f0f0f0;
 		}
+	}
+
+	// Validate calculated vectors before assigning
+	if (!is_valid_vector(start) || !is_valid_vector(dir)) {
+		if (laser->inuse) G_FreeEdict(laser);
+		return;
 	}
 
 	laser->s.origin = start;
 	laser->movedir = dir;
 	gi.linkentity(laser);
-	// Restore original call
-	dabeam_update(laser, true);
+	dabeam_update(laser, true); // Call original update
 
-	// Add particle effects at the target spawn position
+	// Particle effects at target (check target validity again)
 	if ((self->monsterinfo.aiflags & AI_MANUAL_STEERING) &&
+		is_valid_vector(self->monsterinfo.blind_fire_target) &&
 		!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
-		// Enhanced particle effects at the target location
 		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
-		int particle_chance = isboss ? 5 : 7; // More frequent effects for boss
+		int particle_chance = isboss ? 5 : 7;
 
-		// Occasional sparks at the target location
 		if (frandom() * 10 > particle_chance) {
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_WELDING_SPARKS);
-			gi.WriteByte(isboss ? 10 : 5); // More particles for boss
+			gi.WriteByte(isboss ? 10 : 5);
 			gi.WritePosition(self->monsterinfo.blind_fire_target);
 			gi.WriteDir(vec3_origin);
 			gi.WriteByte(0xe0);
@@ -375,57 +407,70 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 void fixbot_fire_spawn_laser(edict_t* self)
 {
 	// Safety check
-	if (!self || !self->inuse)
+	if (!self || !self->inuse || self->health <= 0)
 		return;
 
 	// Only proceed if we're in spawning mode
 	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 		return;
 
-	// Continue turning smoothly toward the spawn position
-	if (!self->monsterinfo.blind_fire_target.equals(vec3_origin)) {
-		// Calculate direction to target - safely
-		vec3_t dir = self->monsterinfo.blind_fire_target - self->s.origin;
-		float dist = dir.length();
-
-		if (dist > 0.1f) {
-			float desired_yaw = vectoyaw(dir);
-
-			// Set ideal yaw
-			self->ideal_yaw = desired_yaw;
-
-			// Calculate delta angle
-			float delta = self->s.angles[YAW] - desired_yaw;
-			if (delta > 180)
-				delta -= 360;
-			if (delta < -180)
-				delta += 360;
-
-			// Smooth turn - maximum 5 degrees per frame for more natural movement
-			float turn_speed = 5.0f;
-			if (fabs(delta) > turn_speed) {
-				self->s.angles[YAW] -= (delta > 0) ? turn_speed : -turn_speed;
-			}
-			else {
-				self->s.angles[YAW] = desired_yaw;
-			}
-
-			// Normalize angle
-			while (self->s.angles[YAW] > 360)
-				self->s.angles[YAW] -= 360;
-			while (self->s.angles[YAW] < 0)
-				self->s.angles[YAW] += 360;
-		}
+	// Validate target position
+	if (!is_valid_vector(self->monsterinfo.blind_fire_target) ||
+		self->monsterinfo.blind_fire_target.equals(vec3_origin))
+	{
+		// Invalid target, abort spawning
+		AbortFixbotSpawn(self);
+		return;
 	}
 
-	// Fire the laser beam effect with safety check
+	// Check for players near the target position DURING the laser phase
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	float min_player_dist = isboss ? 112.0f : 144.0f; // Slightly larger radius during laser
+	if (IsPlayerTooClose(self->monsterinfo.blind_fire_target, min_player_dist, true)) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("Fixbot: Player too close to spawn target during laser phase. Aborting.\n");
+		}
+		AbortFixbotSpawn(self);
+		return;
+	}
+
+	// Continue turning smoothly toward the spawn position
+	vec3_t dir = self->monsterinfo.blind_fire_target - self->s.origin;
+	if (dir.lengthSquared() > 0.01f) { // Use lengthSquared for efficiency
+		float desired_yaw = vectoyaw(dir);
+		self->ideal_yaw = desired_yaw;
+
+		// Calculate delta angle and normalize it
+		float delta = self->s.angles[YAW] - desired_yaw;
+		if (delta > 180)
+			delta -= 360;
+		if (delta < -180)
+			delta += 360;
+
+		// Smooth turn - maximum 5 degrees per frame for more natural movement
+		float turn_speed = 5.0f;
+		if (fabs(delta) > turn_speed) {
+			self->s.angles[YAW] -= (delta > 0) ? turn_speed : -turn_speed;
+		}
+		else {
+			self->s.angles[YAW] = desired_yaw;
+		}
+
+		// Normalize angle
+		while (self->s.angles[YAW] > 360)
+			self->s.angles[YAW] -= 360;
+		while (self->s.angles[YAW] < 0)
+			self->s.angles[YAW] += 360;
+	}
+
+	// Fire the laser beam effect
 	monster_fire_dabeam(self, -1, false, fixbot_spawn_laser_update);
 
-	// Add particle effects at the target location
-	if (!self->monsterinfo.blind_fire_target.equals(vec3_origin))
+	// Particle effects at the target location (with validation)
+	if (is_valid_vector(self->monsterinfo.blind_fire_target) &&
+		!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
 		// More impressive effects for boss
-		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 		int num_sparks = isboss ? 20 : 8; // Increased particles
 
 		// Create welding sparks at the target position
@@ -500,139 +545,190 @@ void fixbot_start_spawn(edict_t* self)
 void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
 	// Validate inputs
-	if (!self || !self->inuse || position.equals(vec3_origin))
+	if (!self || !self->inuse || !is_valid_vector(position) || position.equals(vec3_origin))
 		return;
 
 	// Final spawn position check
 	vec3_t mins = { -16, -16, -24 };
 	vec3_t maxs = { 16, 16, 24 };
 
-	// Check for player proximity one last time
-	bool player_too_close = false;
-	float min_player_dist = 96.0f;
-
-	for (auto player : active_players_no_spect()) {
-		// Check current position
-		float dist = (position - player->s.origin).length();
-		if (dist < min_player_dist) {
-			player_too_close = true;
-			break;
+	// Use CheckSpawnPoint for consistent validation first
+	if (!CheckSpawnPoint(position, mins, maxs)) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("Fixbot: Final CheckSpawnPoint failed for turret at {}\n", position);
 		}
-
-		// Check predicted position
-		vec3_t predicted_pos = player->s.origin + (player->velocity * 0.5f);
-		float predicted_dist = (position - predicted_pos).length();
-		if (predicted_dist < min_player_dist) {
-			player_too_close = true;
-			break;
-		}
+		return;
 	}
 
-	if (player_too_close) {
-		// Abort spawning - optional effect to show failure
+	// Use our helper function for a cleaner player proximity check
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	float min_player_dist = isboss ? 96.0f : 128.0f;
+	if (IsPlayerTooClose(position, min_player_dist, true)) {
+		// Abort spawning with visual feedback
 		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_TELEPORT_EFFECT);
+		gi.WriteByte(TE_SPARKS); // More appropriate than teleport effect for failure
 		gi.WritePosition(position);
 		gi.multicast(position, MULTICAST_PVS, false);
 		return;
 	}
 
-	// Push entities away forcefully one more time
+	// Push entities away in a safe manner
+	try {
 	PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
+	} catch (...) {
+	// Just in case PushEntitiesAway has any issues
+	if (developer->integer) {
+	gi.Com_PrintFmt("Fixbot: Error during PushEntitiesAway at {}\n", position);
+	}
+	// Check for entity overlap again after PushEntitiesAway failure
+	    if (IsPlayerTooClose(position, min_player_dist, false)) {
+            // Abort if player is still too close
+            if (developer->integer) {
+                gi.Com_PrintFmt("Fixbot: Player still too close after PushEntitiesAway. Aborting spawn.\n");
+            }
+            return;
+        }
+        // Continue if no player is in the way
+    }
 
-	// Use CheckSpawnPoint for consistent validation
-	if (!CheckSpawnPoint(position, mins, maxs))
-		return;
+	// Calculate facing direction with better validation
+	vec3_t dir = { 1.0f, 0.0f, 0.0f }; // Default direction if calculations fail
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
-	vec3_t dir;
-	edict_t* ent;
-
-	// Determine best direction for the turret to face
-	if (self->enemy && self->enemy->inuse) {
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0 && is_valid_vector(self->enemy->s.origin)) {
 		// Face toward enemy if possible
-		dir = self->enemy->s.origin - position;
-		float len = dir.length();
-		if (len > 0.1f)
-			dir *= (1.0f / len);
-		else
-			dir = { 1.0f, 0.0f, 0.0f }; // Default direction if calculation fails
-	}
-	else {
-		// No enemy, face away from fixbot
-		dir = position - self->s.origin;
-		float len = dir.length();
-		if (len > 0.1f)
-			dir *= (1.0f / len);
-		else
-			dir = { 1.0f, 0.0f, 0.0f }; // Default direction if calculation fails
+		vec3_t temp_dir = self->enemy->s.origin - position;
+		float len_sq = temp_dir.lengthSquared();
+		if (len_sq > 0.01f) { // Use lengthSquared for efficiency
+			dir = temp_dir * (1.0f / sqrtf(len_sq)); // Normalize without extra length() call
+		}
+	} else if (is_valid_vector(self->s.origin)) {
+		// No valid enemy, face away from fixbot
+		vec3_t temp_dir = position - self->s.origin;
+		float len_sq = temp_dir.lengthSquared();
+		if (len_sq > 0.01f) {
+			dir = temp_dir * (1.0f / sqrtf(len_sq));
+		}
 	}
 
-	// Create the turret entity
-	ent = G_Spawn();
-	if (!ent)
+	// Final validation of direction vector
+	if (!is_valid_vector(dir)) {
+		dir = { 1.0f, 0.0f, 0.0f }; // Reset to default if invalid
+	}
+
+	// Create the turret entity with validation
+	edict_t* ent = G_Spawn();
+	if (!ent) {
+		gi.Com_PrintFmt("Fixbot: G_Spawn failed for turret\n");
 		return;
+	}
 
-	// Set basic properties
+	// Set properties with defensive programming approach
 	ent->enemy = nullptr;
 	ent->goalentity = nullptr;
 	ent->movetarget = nullptr;
-	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_IGNORE_SHOTS;
 	ent->classname = "monster_turret";
 	ent->owner = self;
+	ent->monsterinfo.team = self->monsterinfo.team; // Inherit team from spawner
+	ent->monsterinfo.commander = self;
 
-	// team relationship
-	ent->monsterinfo.team = self->monsterinfo.team;  // Inherit team from spawner
-	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
-	ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-
-	// Position and orient the turret
+	// Position and orient the turret (verified vectors)
 	ent->s.origin = position;
 	ent->s.angles = vectoangles(dir);
 
-	// Finalize the turret
-	ent->monsterinfo.commander = self;
-
-	// Sound and visual effects
-	if (sound_spawn)
+	// Sound effect with validation
+	if (sound_spawn.index) { // Check if sound is valid
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1, isboss ? ATTN_NONE : ATTN_NORM, 0);
-
-	// Enhanced visual effect - same style as tank spawner uses
-	float size = 38.0f;
-	SpawnGrow_Spawn(position, size * 2.0f, size * 0.5f);
-
-	// Additional teleport effect
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_TELEPORT_EFFECT);
-	gi.WritePosition(position);
-	gi.multicast(position, MULTICAST_PVS, false);
-
-	// Add to monster count
-	if (self->monsterinfo.monster_slots) {
-		self->monsterinfo.monster_used += 1;
 	}
 
-	// Use ED_CallSpawn to properly initialize the turret
-	ED_CallSpawn(ent);
+	// Enhanced visual effect with error handling
+	try {
+		// Spawn growth effect
+		float size = 38.0f;
+		SpawnGrow_Spawn(position, size * 2.0f, size * 0.5f);
 
-	// Post-spawn safety checks
-	if (ent->inuse) {
-		if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
-			ent->enemy = self->enemy;
-			FoundTarget(ent);  // Activates turret against current target immediately
+		// Additional teleport effect
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_TELEPORT_EFFECT);
+		gi.WritePosition(position);
+		gi.multicast(position, MULTICAST_PVS, false);
+	} catch (...) {
+		// Visual effects aren't critical, continue if they fail
+		if (developer->integer) {
+			gi.Com_PrintFmt("Fixbot: Error during visual effects at {}\n", position);
 		}
-		// Give it more time before searching
-		ent->monsterinfo.search_time = level.time + (isboss ? 4_sec : 3_sec);
+	}
 
-		// Add a brief invulnerability period after spawn
-		ent->pain_debounce_time = level.time + (isboss ? 2_sec : 1_sec);
+	// CRITICAL: Final player proximity check immediately before spawning
+	if (IsPlayerTooClose(position, min_player_dist, false)) { // Don't predict movement here, check actual position
+	// Abort spawning - player has moved into the spawn area at the last moment
+	    if (developer->integer) {
+            gi.Com_PrintFmt("Fixbot: Player detected in spawn area at final moment. Aborting spawn.\n");
+	    }
+        
+        // Free the entity
+        G_FreeEdict(ent);
+        
+        // Visual feedback
+        gi.WriteByte(svc_temp_entity);
+        gi.WriteByte(TE_SPARKS);
+        gi.WritePosition(position);
+        gi.multicast(position, MULTICAST_PVS, false);
+        
+        return;
+    }
+
+    // Add to monster count - increment before spawn to prevent underflow issues
+    if (self->monsterinfo.monster_slots) {
+        self->monsterinfo.monster_used += 1;
+    }
+
+    // Use ED_CallSpawn with validation
+	try {
+		ED_CallSpawn(ent);
+
+		// Post-spawn safety checks
+		if (ent && ent->inuse) {
+			// Set enemy if appropriate
+			if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
+				ent->enemy = self->enemy;
+				try {
+					FoundTarget(ent); // Activates turret against current target immediately
+				} catch (...) {
+					// If FoundTarget fails, just clear the enemy - not fatal
+					ent->enemy = nullptr;
+				}
+			}
+
+			// Give it more time before searching
+			ent->monsterinfo.search_time = level.time + (isboss ? 4_sec : 3_sec);
+
+			// Add a brief invulnerability period after spawn
+			ent->pain_debounce_time = level.time + (isboss ? 2_sec : 1_sec);
+		} else {
+			// ED_CallSpawn failed - roll back monster count
+			if (self->monsterinfo.monster_slots && self->monsterinfo.monster_used > 0) {
+				self->monsterinfo.monster_used -= 1;
+			}
+		}
+	} catch (...) {
+		// Something went wrong with ED_CallSpawn
+		if (developer->integer) {
+			gi.Com_PrintFmt("Fixbot: Error during ED_CallSpawn at {}\n", position);
+		}
+
+		// Roll back monster count
+		if (self->monsterinfo.monster_slots && self->monsterinfo.monster_used > 0) {
+			self->monsterinfo.monster_used -= 1;
+		}
+
+		// Try to free the entity if it still exists
+		if (ent && ent->inuse) {
+			G_FreeEdict(ent);
+		}
 	}
 }
 
-mframe_t fixbot_frames_run[] = {
-	{ ai_run, 10 }
-};
-MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run, nullptr };
 
 
 void fixbot_prep_spawn(edict_t* self)
@@ -734,130 +830,104 @@ void fixbot_prep_spawn(edict_t* self)
 void fixbot_spawn_check(edict_t* self)
 {
 	// Safety check first
-	if (!self || !self->inuse)
-		return;
+	if (!self || !self->inuse || self->health <= 0) return;
 
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-#if DEBUG_SPAWN_AT_PLAYER
-	// DEBUG MODE implementation removed for clarity
-#else
-	// Determine if we can spawn a turret
-	bool can_spawn = false;
+	// Check if we are actually in the spawning state
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
+		// Not in spawn state, reset just in case and return
+		self->monsterinfo.blind_fire_target = vec3_origin;
+		self->s.effects &= ~(EF_HYPERBLASTER | EF_PLASMA);
+		return;
+	}
 
-	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING) {
-		// Boss fixbots can spawn turrets if they have slots available
-		if (isboss && self->monsterinfo.monster_slots &&
+	// Validate the target position before proceeding
+	if (!is_valid_vector(self->monsterinfo.blind_fire_target) ||
+		self->monsterinfo.blind_fire_target.equals(vec3_origin))
+	{
+		// Invalid target, abort
+		AbortFixbotSpawn(self);
+		return;
+	}
+
+
+	// Determine if we *should* spawn (based on boss status, slots, probability)
+	bool should_spawn = false;
+	if (isboss) {
+		if (self->monsterinfo.monster_slots &&
 			self->monsterinfo.monster_slots > self->monsterinfo.monster_used) {
-			can_spawn = true;
+			should_spawn = true;
 		}
-		// Regular fixbots can occasionally spawn turrets too, but at a lower rate
-		else if (!isboss && frandom() < 0.30f) { // Increased chance to 30% for regular fixbots
-			can_spawn = true;
+	} else {
+		// Regular fixbots spawn less often
+		if (frandom() < 0.30f) { // 30% chance
+			should_spawn = true;
 		}
 	}
 
-	if (can_spawn) {
-		bool spawn_success = false;
-		int max_attempts = isboss ? 5 : 3;
+	if (should_spawn) {
+		// Re-validate the target position just before spawning
+		vec3_t mins = { -16, -16, -24 };
+		vec3_t maxs = { 16, 16, 24 };
+		bool is_safe = CheckSpawnPoint(self->monsterinfo.blind_fire_target, mins, maxs);
 
-		// Try multiple attempts with different positions if needed
-		for (int attempt = 0; attempt < max_attempts && !spawn_success; attempt++) {
-			// Check if we already have a target position
-			if (!self->monsterinfo.blind_fire_target.equals(vec3_origin)) {
-				// Validate existing target position 
-				vec3_t mins = { -16, -16, -24 };
-				vec3_t maxs = { 16, 16, 24 };
-				bool is_safe = CheckSpawnPoint(self->monsterinfo.blind_fire_target, mins, maxs);
+		// Check player proximity again using our helper
+		float min_player_dist = isboss ? 96.0f : 128.0f;
+		if (is_safe && IsPlayerTooClose(self->monsterinfo.blind_fire_target, min_player_dist, true)) {
+			is_safe = false; // Player moved in
+		}
 
-				// Check player proximity using our iterable
-				for (auto player : active_players_no_spect()) {
-					float dist = (self->monsterinfo.blind_fire_target - player->s.origin).length();
-					if (dist < 96.0f) {
-						is_safe = false;
-						break;
-					}
-
-					// Also check predicted player position
-					vec3_t predicted_pos = player->s.origin + (player->velocity * 0.5f);
-					float predicted_dist = (self->monsterinfo.blind_fire_target - predicted_pos).length();
-					if (predicted_dist < 128.0f) {
-						is_safe = false;
-						break;
-					}
-				}
-
-				// Verify distance from fixbot
-				vec3_t dist_vec = self->monsterinfo.blind_fire_target - self->s.origin;
-				float distance = dist_vec.length();
-
-				if (is_safe && distance > (isboss ? 80.0f : 100.0f)) {
-					// Position is valid, spawn the turret
-					spawn_turret_at_position(self, self->monsterinfo.blind_fire_target);
-					spawn_success = true;
-				}
-			}
-
-			// If we haven't spawned yet, try finding a new position
-			if (!spawn_success) {
-				vec3_t spawn_pos, spawn_dir;
-				// Pass attempt number to get varied positions
-				if (find_turret_spawn_position(self, spawn_pos, spawn_dir, attempt)) {
-					spawn_turret_at_position(self, spawn_pos);
-					spawn_success = true;
-
-					// Add special effect for boss spawns
-					if (isboss) {
-						gi.WriteByte(svc_temp_entity);
-						gi.WriteByte(TE_BFG_EXPLOSION);
-						gi.WritePosition(spawn_pos);
-						gi.multicast(spawn_pos, MULTICAST_PVS, false);
-					}
-				}
+		// Verify distance from fixbot
+		if (is_safe) {
+			float distance_sq = (self->monsterinfo.blind_fire_target - self->s.origin).lengthSquared();
+			float required_dist_sq = (isboss ? 80.0f : 100.0f);
+			required_dist_sq *= required_dist_sq;
+			if (distance_sq <= required_dist_sq) {
+				is_safe = false; // Too close to fixbot
 			}
 		}
 
-		// If boss still couldn't spawn after all attempts, try one last desperate attempt
-		if (!spawn_success && isboss) {
-			// Find any valid position, even if not ideal
-			vec3_t spawn_pos{}, spawn_dir{};
+		if (is_safe) {
+			// Position is valid, spawn the turret
+			spawn_turret_at_position(self, self->monsterinfo.blind_fire_target);
 
-			// Search in cardinal directions around the fixbot
-			for (int dir = 0; dir < 4; dir++) {
-				vec3_t angles = { 0, dir * 90.0f, 0 };
-				vec3_t forward;
-				AngleVectors(angles, forward, nullptr, nullptr);
-
-				vec3_t test_pos = self->s.origin + (forward * 250.0f);
-
-				// Simple check for open space
-				vec3_t mins = { -16, -16, -24 };
-				vec3_t maxs = { 16, 16, 24 };
-				if (CheckSpawnPoint(test_pos, mins, maxs)) {
-					// Check player proximity
-					bool player_too_close = false;
-					for (auto player : active_players_no_spect()) {
-						if ((test_pos - player->s.origin).length() < 128.0f) {
-							player_too_close = true;
-							break;
-						}
-					}
-
-					if (!player_too_close) {
-						spawn_turret_at_position(self, test_pos);
-						break;
-					}
+			// Add special effect for boss spawns
+			if (isboss) {
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte(TE_BFG_EXPLOSION);
+				gi.WritePosition(self->monsterinfo.blind_fire_target);
+				gi.multicast(self->monsterinfo.blind_fire_target, MULTICAST_PVS, false);
+			}
+		} else {
+			// Spawn position became invalid, just abort this attempt
+			if (developer->integer) {
+				gi.Com_PrintFmt("Fixbot: Spawn check failed for target {}. Aborting spawn.\n",
+					self->monsterinfo.blind_fire_target);
+			}
+			// Optional: try finding a new position
+			vec3_t spawn_pos, spawn_dir;
+			if (find_turret_spawn_position(self, spawn_pos, spawn_dir, 0)) {
+				// Found a new position, try spawning there
+				spawn_turret_at_position(self, spawn_pos);
+				
+				// Add special effect for boss spawns
+				if (isboss) {
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_BFG_EXPLOSION);
+					gi.WritePosition(spawn_pos);
+					gi.multicast(spawn_pos, MULTICAST_PVS, false);
 				}
 			}
 		}
 	}
-#endif
 
-	// Reset spawning state
+
+	// Always reset spawning state after the check, regardless of success
 	self->monsterinfo.blind_fire_target = vec3_origin;
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 	self->s.effects &= ~EF_HYPERBLASTER;
-	self->s.effects &= ~EF_PLASMA; // Also clear plasma effect if present
+	self->s.effects &= ~EF_PLASMA; // Clear effects
 }
 
 void fixbot_spawn_turret(edict_t* self)
@@ -1002,33 +1072,54 @@ static void fixbot_set_attack_fly_parameters(edict_t* self)
 // More aggressive search behavior
 int fixbot_search(edict_t* self)
 {
-extern void fixbot_start_attack(edict_t * self);
+	// CRITICAL SAFETY CHECK
+	if (!self || !self->inuse) {
+		return 0; // Cannot search if self is invalid
+	}
 
-	// Use standard FindTarget instead of custom enemy finder
-if (!self->enemy || (self->enemy && self->enemy->health <= 0) ||
-    (self->enemy && !visible(self, self->enemy)))
-{
-// Standard FindTarget behavior
- if (FindTarget(self))
-{
- // Only proceed if enemy is in front of the fixbot
-if (infront(self, self->enemy))
-{
- fixbot_set_attack_fly_parameters(self);
- fixbot_start_attack(self);
-  return 1;  // Enemy found and attack initiated
-  }
- }
+	extern void fixbot_start_attack(edict_t * self);
+
+	// Check current enemy validity first
+	if (self->enemy && (!self->enemy->inuse || self->enemy->health <= 0 || !visible(self, self->enemy))) {
+		self->enemy = nullptr; // Clear invalid enemy
 	}
-	else if (self->enemy && visible(self, self->enemy) && infront(self, self->enemy))
-	{
-		// Already has a valid enemy that's visible and in front
-		fixbot_set_attack_fly_parameters(self);
-		fixbot_start_attack(self);
-		return 1;
+
+	// If no valid enemy, try finding one
+	if (!self->enemy) {
+		if (FindTarget(self)) {
+			// Found a target, validate it again immediately
+			if (self->enemy && self->enemy->inuse && self->enemy->health > 0 && visible(self, self->enemy)) {
+				// Check if it's in front
+				if (infront(self, self->enemy)) {
+					fixbot_set_attack_fly_parameters(self);
+					fixbot_start_attack(self);
+					return 1; // Found and attacking
+				} else {
+					// Found target but not in front, clear it for now to allow turning/re-searching
+					self->enemy = nullptr;
+				}
+			} else {
+				// FindTarget returned true but enemy is invalid? Clear it.
+				self->enemy = nullptr;
+			}
+		}
+		// If FindTarget failed or enemy wasn't in front, fall through to return 0
 	}
-	
-	return 0;  // No suitable enemy found
+	// If we already have a valid, visible enemy
+	else if (visible(self, self->enemy)) {
+		// Check if it's in front
+		if (infront(self, self->enemy)) {
+			// Already has a valid enemy in front, ensure attack state is set
+			fixbot_set_attack_fly_parameters(self);
+			fixbot_start_attack(self); // Re-initiate attack just in case state was interrupted
+			return 1;
+		}
+		// If enemy is valid and visible but not in front, don't clear enemy,
+		// allow standard AI turning behavior to handle it.
+	}
+
+	// Default: No suitable enemy found or enemy not in position to attack this frame
+	return 0;
 }
 
 void landing_goal(edict_t* self)
@@ -2702,32 +2793,32 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		// Higher chance to spawn when we have more slots available
 		float spawn_chance = slots_left > 0 ? 0.7f : 0.0f;
 		
-		if (frandom() < spawn_chance) {
+		//if (frandom() < spawn_chance) {
 			//gi.Com_PrintFmt("FixbotKL choosing to spawn turret\n");
 			M_SetAnimation(self, &fixbot_move_spawn);
 			return;
 		}
 	}
 
-	// Add strafing behavior similar to hover
-	if (frandom() > 0.4f) // 60% chance to strafe
-	{
-		// Start strafing movement
-		if (frandom() <= 0.5f) // Randomly choose direction
-			self->monsterinfo.lefty = !self->monsterinfo.lefty;
+	//// Add strafing behavior similar to hover
+	//if (frandom() > 0.4f) // 60% chance to strafe
+	//{
+	//	// Start strafing movement
+	//	if (frandom() <= 0.5f) // Randomly choose direction
+	//		self->monsterinfo.lefty = !self->monsterinfo.lefty;
 
-		// Set our attack state for reference
-		self->monsterinfo.attack_state = AS_SLIDING;
-	}
-	else
-	{
-		// Standard forward attack
-		self->monsterinfo.attack_state = AS_STRAIGHT;
-	}
+	//	// Set our attack state for reference
+	//	self->monsterinfo.attack_state = AS_SLIDING;
+	//}
+	//else
+	//{
+	//	// Standard forward attack
+	//	self->monsterinfo.attack_state = AS_STRAIGHT;
+	//}
 
-	// Regular attack with plasma
-	M_SetAnimation(self, &fixbot_move_attack2);
-}
+	//// Regular attack with plasma
+	//M_SetAnimation(self, &fixbot_move_attack2);
+
 
 PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
