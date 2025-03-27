@@ -967,173 +967,159 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 }
 
 // Cache for common calculations in UnifiedAdjustSpawnRate
+// Cache for common calculations in UnifiedAdjustSpawnRate
 struct WaveScalingCache {
-    // Lookup tables for frequent calculations
-    static constexpr int32_t MAX_WAVE_LEVEL = 50;
-    static constexpr int32_t MAX_HUMAN_PLAYERS = 16;
-    
-    // Pre-computed cooldown scales to avoid recalculation
-    float cooldownScales[3][MAX_WAVE_LEVEL+1] = {}; // [mapType][level]
-    
-    // Cached base counts and additional spawns
-    int32_t baseCountsByLevel[3][MAX_WAVE_LEVEL+1] = {}; // [mapType][level]
-    int32_t additionalSpawnsByLevel[MAX_WAVE_LEVEL+1] = {};
-    
-    // Player multipliers (precomputed)
-    float playerMultipliers[MAX_HUMAN_PLAYERS+1] = {};
-    
-    // Initialize all cache tables
-    void initialize() {
-        using namespace HordeConstants;
-        
-        // Initialize player multipliers
-        for (int32_t players = 0; players <= MAX_HUMAN_PLAYERS; ++players) {
-            playerMultipliers[players] = (players <= 1) ? 
-                1.0f : BASE_DIFFICULTY_MULTIPLIER + ((players - 1) * PLAYER_COUNT_SCALE);
-        }
-        
-        // Initialize base counts by map type and level
-        for (int mapType = 0; mapType < 3; ++mapType) {
-            for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
-                // Select the appropriate base count based on level ranges
-                int32_t countIndex;
-                if (level <= 5) countIndex = 0;
-                else if (level <= 10) countIndex = 1;
-                else if (level <= 15) countIndex = 2;
-                else countIndex = 3;
-                
-                // Store pre-computed base count
-                baseCountsByLevel[mapType][level] = BASE_COUNTS[mapType][countIndex];
-            }
-        }
-        
-        // Initialize additional spawns by level
-        for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
-            if (level < 8) {
-                additionalSpawnsByLevel[level] = 6;
-            } else {
-                // Base values from ADDITIONAL_SPAWNS constants
-                int smallMapSpawn = ADDITIONAL_SPAWNS[0];
-                int mediumMapSpawn = ADDITIONAL_SPAWNS[1];
-                int bigMapSpawn = ADDITIONAL_SPAWNS[2];
-                
-                // Apply level-based adjustments
-                if (level > 25) {
-                    smallMapSpawn = static_cast<int32_t>(smallMapSpawn * 1.6f);
-                    mediumMapSpawn = static_cast<int32_t>(mediumMapSpawn * 1.6f);
-                    bigMapSpawn = static_cast<int32_t>(bigMapSpawn * 1.6f);
-                }
-                
-                // Store by map type
-                additionalSpawnsByLevel[level] = mediumMapSpawn; // Default to medium
-            }
-        }
-        
-        // Initialize cooldown scales (can be accessed by mapType and level)
-        MapSize smallMap = {true, false, false};
-        MapSize mediumMap = {false, false, true};
-        MapSize bigMap = {false, true, false};
-        
-        for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
-            cooldownScales[0][level] = CalculateCooldownScale(level, smallMap);
-            cooldownScales[1][level] = CalculateCooldownScale(level, mediumMap);
-            cooldownScales[2][level] = CalculateCooldownScale(level, bigMap);
-        }
-    }
-} g_waveScalingCache;
+	// Lookup tables for frequent calculations
+	static constexpr int32_t MAX_WAVE_LEVEL = 50;
+	static constexpr int32_t MAX_HUMAN_PLAYERS = 16;
 
+	// Pre-computed cooldown scales to avoid recalculation
+	float cooldownScales[3][MAX_WAVE_LEVEL + 1] = {}; // [mapType][level]
+
+	// Cached base counts
+	int32_t baseCountsByLevel[3][MAX_WAVE_LEVEL + 1] = {}; // [mapType][level]
+	// Removed: int32_t additionalSpawnsByLevel[MAX_WAVE_LEVEL+1] = {}; // Not needed, calculation moved
+
+	// Player multipliers (precomputed)
+	float playerMultipliers[MAX_HUMAN_PLAYERS + 1] = {};
+
+	// Initialize all cache tables
+	void initialize() {
+		using namespace HordeConstants;
+
+		// Initialize player multipliers
+		for (int32_t players = 0; players <= MAX_HUMAN_PLAYERS; ++players) {
+			playerMultipliers[players] = (players <= 1) ?
+				1.0f : BASE_DIFFICULTY_MULTIPLIER + ((players - 1) * PLAYER_COUNT_SCALE);
+		}
+
+		// Initialize base counts by map type and level
+		for (int mapType = 0; mapType < 3; ++mapType) {
+			for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
+				// Select the appropriate base count based on level ranges
+				int32_t countIndex;
+				if (level <= 5) countIndex = 0;
+				else if (level <= 10) countIndex = 1;
+				else if (level <= 15) countIndex = 2;
+				else countIndex = 3; // Levels > 15
+
+				// Store pre-computed base count
+				baseCountsByLevel[mapType][level] = BASE_COUNTS[mapType][countIndex];
+			}
+		}
+
+		// Removed initialization for additionalSpawnsByLevel as it's calculated directly
+		// in UnifiedAdjustSpawnRate now, eliminating the unused variables.
+
+		// Initialize cooldown scales (can be accessed by mapType and level)
+		MapSize smallMap = { true, false, false };
+		MapSize mediumMap = { false, false, true }; // Corrected: Medium map should have isMediumMap true
+		MapSize bigMap = { false, true, false };
+
+		for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
+			cooldownScales[0][level] = CalculateCooldownScale(level, smallMap);  // Index 0 = Small
+			cooldownScales[1][level] = CalculateCooldownScale(level, mediumMap); // Index 1 = Medium
+			cooldownScales[2][level] = CalculateCooldownScale(level, bigMap);    // Index 2 = Big
+		}
+	}
+} g_waveScalingCache;
 void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
-    using namespace HordeConstants;
-    
-    // Initialize cache if needed (one-time operation)
-    static bool cache_initialized = false;
-    if (!cache_initialized) {
-        g_waveScalingCache.initialize();
-        cache_initialized = true;
-    }
-    
-    // Clamp input values for safety
-    const int32_t safeLevel = std::min(lvl, WaveScalingCache::MAX_WAVE_LEVEL);
-    const int32_t safePlayerCount = std::min(humanPlayers, WaveScalingCache::MAX_HUMAN_PLAYERS);
-    
-    // Determine map type index for lookups
-    const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-    
-    // Get base values from cache
-    int32_t baseCount = g_waveScalingCache.baseCountsByLevel[mapTypeIndex][safeLevel];
-    
-    // Apply player multiplier using cached value
-    if (safePlayerCount > 1) {
-        const float playerMultiplier = g_waveScalingCache.playerMultipliers[safePlayerCount];
-        baseCount = static_cast<int32_t>(baseCount * playerMultiplier);
-    }
-    
-    // Get additional spawn count (with map type adjustment)
-    int32_t additionalSpawn = g_waveScalingCache.additionalSpawnsByLevel[safeLevel];
-    
-    // Apply map-specific adjustment to additional spawns
-    if (safeLevel >= 8) {
-        additionalSpawn = mapSize.isSmallMap ? ADDITIONAL_SPAWNS[0] :
-            mapSize.isBigMap ? ADDITIONAL_SPAWNS[2] : ADDITIONAL_SPAWNS[1];
-            
-        // Level-based adjustment for high levels
-        if (safeLevel > 25) {
-            additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
-        }
-    }
-    
-    // Apply difficulty adjustments
-    if (safeLevel >= 3 && (g_chaotic->integer || g_insane->integer)) {
-        additionalSpawn += CalculateChaosInsanityBonus(safeLevel);
-    }
-    
-    // Get cooldown from cache and apply adjustments
-    SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
-    const float cooldownScale = g_waveScalingCache.cooldownScales[mapTypeIndex][safeLevel];
-    SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
-    
-    // Apply difficulty-based cooldown adjustments
-    if (g_chaotic->integer || g_insane->integer) {
-        SPAWN_POINT_COOLDOWN *= TIME_REDUCTION_MULTIPLIER;
-    } else {
-        // Normal difficulty adjustment
-        SPAWN_POINT_COOLDOWN *= 1.2f;
-    }
-    
-    // Apply periodic difficulty scaling
-    if (safeLevel % 3 == 0) {
-        const float difficultyMultiplier = g_waveScalingCache.playerMultipliers[safePlayerCount];
-        baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
-        
-        const float cooldownReduction = (mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier;
-        SPAWN_POINT_COOLDOWN = std::max(
-            SPAWN_POINT_COOLDOWN - gtime_t::from_sec(cooldownReduction),
-            1.0_sec
-        );
-    }
-    
-    // Final cooldown clamping
-    SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.5_sec, 3.5_sec);
-    
-    // Calculate final spawn count
-    g_horde_local.num_to_spawn = baseCount + additionalSpawn;
-    ClampNumToSpawn(mapSize); // Handle clamping
-    
-    // Calculate queued monsters
-    const bool isHardMode = g_insane->integer || g_chaotic->integer;
-    g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, safeLevel, isHardMode);
-    
-    // Debug output
-    if (developer->integer == 3) {
-        gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", safeLevel);
-        gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
-            SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
-        gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
-        gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
-        gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
-        gi.Com_PrintFmt("  - Map type: {}\n",
-            mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
-    }
+	using namespace HordeConstants;
+
+	// Initialize cache if needed (one-time operation)
+	static bool cache_initialized = false;
+	if (!cache_initialized) {
+		g_waveScalingCache.initialize();
+		cache_initialized = true;
+	}
+
+	// Clamp input values for safety
+	const int32_t safeLevel = std::min(lvl, WaveScalingCache::MAX_WAVE_LEVEL);
+	const int32_t safePlayerCount = std::min(humanPlayers, WaveScalingCache::MAX_HUMAN_PLAYERS);
+
+	// Determine map type index for lookups
+	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
+
+	// Get base values from cache
+	int32_t baseCount = g_waveScalingCache.baseCountsByLevel[mapTypeIndex][safeLevel];
+
+	// Apply player multiplier using cached value
+	if (safePlayerCount > 1) {
+		const float playerMultiplier = g_waveScalingCache.playerMultipliers[safePlayerCount];
+		baseCount = static_cast<int32_t>(baseCount * playerMultiplier);
+	}
+
+	// --- CORRECTED SECTION ---
+	// Calculate additional spawn count directly, without using the removed cache array
+	int32_t additionalSpawn;
+	if (safeLevel < 8) {
+		additionalSpawn = 6; // Default for early levels
+	}
+	else {
+		// Apply map-specific base value from constants
+		additionalSpawn = mapSize.isSmallMap ? ADDITIONAL_SPAWNS[0] :
+			mapSize.isBigMap ? ADDITIONAL_SPAWNS[2] : ADDITIONAL_SPAWNS[1];
+
+		// Level-based adjustment for high levels
+		if (safeLevel > 25) {
+			additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
+		}
+	}
+	// --- END CORRECTED SECTION ---
+
+	// Apply difficulty adjustments (Chaos/Insanity bonus)
+	if (safeLevel >= 3 && (g_chaotic->integer || g_insane->integer)) {
+		additionalSpawn += CalculateChaosInsanityBonus(safeLevel);
+	}
+
+	// Get cooldown from cache and apply adjustments
+	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+	const float cooldownScale = g_waveScalingCache.cooldownScales[mapTypeIndex][safeLevel];
+	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
+
+	// Apply difficulty-based cooldown adjustments
+	if (g_chaotic->integer || g_insane->integer) {
+		SPAWN_POINT_COOLDOWN *= TIME_REDUCTION_MULTIPLIER;
+	}
+	else {
+		// Normal difficulty adjustment
+		SPAWN_POINT_COOLDOWN *= 1.2f;
+	}
+
+	// Apply periodic difficulty scaling (every 3 levels)
+	if (safeLevel > 0 && safeLevel % 3 == 0) { // Added check for safeLevel > 0
+		const float difficultyMultiplier = g_waveScalingCache.playerMultipliers[safePlayerCount];
+		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
+
+		const float cooldownReduction = (mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier;
+		SPAWN_POINT_COOLDOWN = std::max(
+			SPAWN_POINT_COOLDOWN - gtime_t::from_sec(cooldownReduction),
+			1.0_sec // Ensure cooldown doesn't go below 1.0 second
+		);
+	}
+
+	// Final cooldown clamping
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.5_sec, 3.5_sec);
+
+	// Calculate final spawn count
+	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
+	ClampNumToSpawn(mapSize); // Handle clamping
+
+	// Calculate queued monsters
+	const bool isHardMode = g_insane->integer || g_chaotic->integer;
+	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, safeLevel, isHardMode);
+
+	// Debug output
+	if (developer->integer == 3) {
+		gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", safeLevel);
+		gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
+			SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
+		gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
+		gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
+		gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
+		gi.Com_PrintFmt("  - Map type: {}\n",
+			mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
+	}
 }
 
 void ResetAllSpawnAttempts() noexcept;
@@ -1703,8 +1689,6 @@ void InitializeWaveType(int32_t waveLevel) {
 //	if (waveNumber <= 30) return 2.0f;
 //	return 2.0f + ((waveNumber - 30) * 0.1f);
 //}
-inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
-
 // Update the function to accept MonsterTypeID
 
 // Structure to include wave level information
