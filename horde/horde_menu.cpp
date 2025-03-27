@@ -25,6 +25,195 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p);
 void CategorizeMapList();
 pmenuhnd_t* CreateHUDMenu(edict_t* ent);
 
+//--------------------------------
+static void SetGameName(pmenu_t* p);
+static void SetLevelName(pmenu_t* p);
+void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p); // Handler for Join Horde
+void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);  // Handler for Chase Cam/Spectator
+
+// Updated joinmenu with more spacing before Join/Spectate options
+const pmenu_t joinmenu[] = {
+	{ "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr },        // 0: Title (Set by SetGameName)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 1: Blank Separator
+	{ "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr },        // 2: Level Name (Set by SetLevelName)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 3: Blank Separator
+	// --- Add more blank entries for spacing ---
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 4: Blank
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 5: Blank
+	// --- End extra spacing ---
+	{ "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, CTFJoinTeam1 }, // 6: Join Horde (Now lower)
+	{ "", PMENU_ALIGN_LEFT, nullptr },                      // 7: Player Count (filled dynamically)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 8: Blank Separator
+	// --- Add more blank entries for spacing ---
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 9: Blank
+	// --- End extra spacing ---
+	{ "Go Spectator", PMENU_ALIGN_LEFT, CTFChaseCam },     // 10: Go Spectator / Leave Chase (Now lower)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 11: Blank Separator
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 12: Blank (Spacing)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 13: Blank (Spacing)
+	{ "Discord: Enemy0416", PMENU_ALIGN_CENTER, nullptr },    // 14: Discord Info
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 15: Blank Separator
+	{ "", PMENU_ALIGN_LEFT, nullptr }                       // 16: Credits (filled dynamically)
+};
+
+// Recalculate size
+constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 17 now
+
+// Update indices based on the NEW joinmenu structure
+constexpr size_t JOINMENU_TITLE_IDX = 0;
+constexpr size_t JOINMENU_LEVELNAME_IDX = 2;
+constexpr size_t JOINMENU_JOIN_HORDE_IDX = 6; // New index
+constexpr size_t JOINMENU_JOIN_HORDE_COUNT_IDX = 7; // New index
+constexpr size_t JOINMENU_CHASECAM_IDX = 10; // New index
+constexpr size_t JOINMENU_DISCORD_IDX = 14; // New index
+constexpr size_t JOINMENU_CREDITS_IDX = 16; // New index
+
+// Re-verify assertions
+static_assert(JOINMENU_CREDITS_IDX < JOINMENU_SIZE, "JOINMENU_CREDITS_IDX is out of bounds for joinmenu");
+static_assert(JOINMENU_DISCORD_IDX < JOINMENU_SIZE, "JOINMENU_DISCORD_IDX is out of bounds for joinmenu");
+static_assert(JOINMENU_CHASECAM_IDX < JOINMENU_SIZE, "JOINMENU_CHASECAM_IDX is out of bounds for joinmenu");
+static_assert(JOINMENU_JOIN_HORDE_COUNT_IDX < JOINMENU_SIZE, "JOINMENU_JOIN_HORDE_COUNT_IDX is out of bounds for joinmenu");
+
+void CTFOpenJoinMenu(edict_t* ent)
+{
+	uint32_t num1 = 0, num2 = 0;
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
+		if (!g_edicts[i + 1].inuse)
+			continue;
+		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
+			num1++;
+		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
+			num2++;
+	}
+
+	int team;
+
+	if (num1 > num2)
+		team = CTF_TEAM1;
+	else if (num2 > num1)
+		team = CTF_TEAM2;
+	team = brandom() ? CTF_TEAM1 : CTF_TEAM2;
+
+	// Cerrar cualquier menú abierto antes de abrir uno nuevo
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, CTFUpdateJoinMenu);
+}
+
+
+void CTFUpdateJoinMenu(edict_t* ent)
+{
+	// --- Safety Checks ---
+	if (!ent || !ent->client || !ent->client->menu || !ent->client->menu->entries)
+	{
+		gi.Com_Print("Warning: CTFUpdateJoinMenu called with invalid ent/client/menu.\n");
+		return;
+	}
+	// Check if the menu size matches what we expect
+	if (ent->client->menu->num != JOINMENU_SIZE) {
+		gi.Com_PrintFmt("Warning: CTFUpdateJoinMenu - menu size mismatch (expected {}, got {}).\n", JOINMENU_SIZE, ent->client->menu->num);
+		// Optionally close the menu or return to prevent potential crashes
+		// PMenu_Close(ent);
+		return;
+	}
+
+
+	pmenu_t* entries = ent->client->menu->entries;
+
+	// --- Update Static/Common Entries ---
+	SetGameName(&entries[JOINMENU_TITLE_IDX]);       // Update Game Title
+	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]);  // Update Level Name
+
+	// --- Horde Specific Logic ---
+	if (g_horde->integer) // Check if Horde mode is active
+	{
+		// Set "Join Horde" option text and handler
+		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "Join and Fight the HORDE!", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
+		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = CTFJoinTeam1;
+
+		// Set Credits text
+		Q_strlcpy(entries[JOINMENU_CREDITS_IDX].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[JOINMENU_CREDITS_IDX].text));
+		entries[JOINMENU_CREDITS_IDX].SelectFunc = nullptr;
+
+		// Set Discord Text (ensure it's visible)
+		Q_strlcpy(entries[JOINMENU_DISCORD_IDX].text, "Discord: Enemy0416", sizeof(entries[JOINMENU_DISCORD_IDX].text));
+		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
+
+
+		// --- Update Player Count (Optimized) ---
+		uint32_t horde_player_count = 0;
+		for (const auto* player_ent : active_players()) {
+			if (player_ent->client->resp.ctf_team == CTF_TEAM1) {
+				horde_player_count++;
+			}
+		}
+
+		// Update the player count display entry
+		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text, "$g_pc_playercount", sizeof(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text));
+		// *** THE FIX IS HERE *** Remove the sizeof argument
+		G_FmtTo(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1, "{}", horde_player_count);
+
+	}
+	else // Not Horde mode
+	{
+		// Disable/Clear Horde-specific entries
+		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "(Horde Mode Disabled)", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
+		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = nullptr;
+		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text[0] = '\0';
+		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1[0] = '\0';
+		entries[JOINMENU_CREDITS_IDX].text[0] = '\0';
+		entries[JOINMENU_CREDITS_IDX].SelectFunc = nullptr;
+		// Clear Discord info if not in Horde mode
+		entries[JOINMENU_DISCORD_IDX].text[0] = '\0';
+		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
+	}
+
+
+	// --- Update Chase Cam / Spectator Option ---
+	const char* chase_text = ent->client->chase_target ?
+		"$g_pc_leave_chase_camera" :
+		"Go Spectator";
+	Q_strlcpy(entries[JOINMENU_CHASECAM_IDX].text, chase_text, sizeof(entries[JOINMENU_CHASECAM_IDX].text));
+	entries[JOINMENU_CHASECAM_IDX].SelectFunc = CTFChaseCam;
+
+	// Ensure other blank entries remain blank (already handled by array definition)
+}
+
+// Keep the SetGameName and SetLevelName definitions as they were in the previous correct version.
+// Definition of SetGameName
+static void SetGameName(pmenu_t* p)
+{
+	// Safety check
+	if (!p) return;
+
+	if (ctf->integer) // Check if CTF mode is active
+		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text)); // Use localized CTF name
+	else // Assume Horde or other modes
+		Q_strlcpy(p->text, "*Horde MOD BETA v0.0094*", sizeof(p->text)); // Horde title
+}
+
+// Definition of SetLevelName
+static void SetLevelName(pmenu_t* p)
+{
+	// Safety check
+	if (!p) return;
+
+	static char levelname[sizeof(pmenu_t::text)]; // Use size of destination buffer
+
+	levelname[0] = '*'; // Prefix with '*' for centered title look
+	if (g_edicts[0].message && *g_edicts[0].message) // Check if worldspawn has a message (level title)
+		Q_strlcpy(levelname + 1, g_edicts[0].message, sizeof(levelname) - 1);
+	else if (level.mapname && *level.mapname) // Fallback to map filename
+		Q_strlcpy(levelname + 1, level.mapname, sizeof(levelname) - 1);
+	else
+		Q_strlcpy(levelname + 1, "Unknown Level", sizeof(levelname) - 1); // Final fallback
+
+	// levelname is already null-terminated by Q_strlcpy or initialization
+	Q_strlcpy(p->text, levelname, sizeof(p->text));
+}
 
 // === Map Voting Menu ===
 

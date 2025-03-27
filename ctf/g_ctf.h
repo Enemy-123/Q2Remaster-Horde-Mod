@@ -201,6 +201,7 @@ void RemoveAllTechItems(edict_t* ent);              // For TechMenu_Handler
 void RemoveTech(edict_t* ent);
 void OpenTechMenu(edict_t* ent);
 void CTFOpenJoinMenu(edict_t* ent);
+void CTFUpdateJoinMenu(edict_t* ent);
 bool CTFStartClient(edict_t* ent);
 void CTFVoteYes(edict_t* ent); // Needed for MainMenu_Handler
 void CTFVoteNo(edict_t* ent);  // Needed for MainMenu_Handler

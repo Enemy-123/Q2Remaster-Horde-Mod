@@ -2772,12 +2772,14 @@ void CTFWinElection();
 
 static void SetGameName(pmenu_t* p)
 {
-	if (ctf->integer)
-		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
-	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0094\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
-}
+	// Safety check
+	if (!p) return;
 
+	if (ctf->integer) // Check if CTF mode is active
+		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text)); // Use localized CTF name
+	else // Assume Horde or other modes
+		Q_strlcpy(p->text, "*Horde MOD BETA v0.0094*", sizeof(p->text)); // Horde title (added '*' for centering style)
+}
 static void SetLevelName(pmenu_t* p)
 {
 	static char levelname[33];
@@ -3393,25 +3395,30 @@ static constexpr int jmenu_horde = 4;
 //static const int jmenu_blue = 7;
 static constexpr int jmenu_chase = 8;
 static constexpr int OriginalModBy = 14;
-
-const pmenu_t joinmenu[] = {
-	{ "*$g_pc_3wctf", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "$g_pc_join_red_team", PMENU_ALIGN_LEFT, CTFJoinTeam1 },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "$g_pc_chase_camera", PMENU_ALIGN_LEFT, CTFChaseCam },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-};
-
+//
+//const pmenu_t joinmenu[] = {
+//	{ "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr },        // 0: Title (Set by SetGameName)
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 1: Blank Separator
+//	{ "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr },        // 2: Level Name (Set by SetLevelName)
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 3: Blank Separator
+//	{ "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, CTFJoinTeam1 }, // 4: Join Horde (Moved Up)
+//	{ "", PMENU_ALIGN_LEFT, nullptr },                      // 5: Player Count (filled dynamically)
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 6: Blank Separator
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 7: Blank (Spacing)
+//	{ "Go Spectator", PMENU_ALIGN_LEFT, CTFChaseCam },     // 8: Go Spectator / Leave Chase (Moved Up)
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 9: Blank Separator
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 10: Blank (Spacing)
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 11: Blank (Spacing)
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 12: Blank (Spacing)
+//	{ "Discord: Enemy0416", PMENU_ALIGN_CENTER, nullptr },    // 13: Discord Info
+//	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 14: Blank Separator
+//	{ "", PMENU_ALIGN_LEFT, nullptr }                       // 15: Credits (filled dynamically)
+//};
+//
+//// Recalculate size
+//constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 16 now
+//
+//
 const pmenu_t nochasemenu[] = {
 	{ "Horde MOD BETA", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
@@ -3535,150 +3542,111 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 	DeathmatchScoreboard(ent);
 }
 
-void CTFUpdateJoinMenu(edict_t* ent)
-{
-	pmenu_t* entries = ent->client->menu->entries;
-
-	SetGameName(entries);
-
-	//if (ctfgame.match >= MATCH_PREGAME && matchlock->integer)
-	//{
-	//	Q_strlcpy(entries[jmenu_horde].text, "MATCH IS LOCKED", sizeof(entries[jmenu_horde].text));
-	//	entries[jmenu_horde].SelectFunc = nullptr;
-	//	//		Q_strlcpy(entries[jmenu_blue].text, "  (entry is not permitted)", sizeof(entries[jmenu_blue].text));
-	//	//		entries[jmenu_blue].SelectFunc = nullptr;
-	//}
-	//else
-	//{
-	//	if (ctfgame.match >= MATCH_PREGAME)
-	//	{
-	//		Q_strlcpy(entries[jmenu_horde].text, "Join Red MATCH Team", sizeof(entries[jmenu_horde].text));
-	//		//		Q_strlcpy(entries[jmenu_blue].text, "Join Blue MATCH Team", sizeof(entries[jmenu_blue].text));
-	//	}
-	//	else
-		//{
-	Q_strlcpy(entries[jmenu_horde].text, "Join and Fight the HORDE!", sizeof(entries[jmenu_horde].text));
-	//			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
+//void CTFUpdateJoinMenu(edict_t* ent)
+//{
+//	// --- Safety Checks ---
+//	if (!ent || !ent->client || !ent->client->menu || !ent->client->menu->entries)
+//	{
+//		gi.Com_Print("Warning: CTFUpdateJoinMenu called with invalid ent/client/menu.\n");
+//		return;
 //	}
-	entries[jmenu_horde].SelectFunc = CTFJoinTeam1;
-	//		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
+//	// Check if the menu size matches what we expect
+//	if (ent->client->menu->num != JOINMENU_SIZE) {
+//		gi.Com_PrintFmt("Warning: CTFUpdateJoinMenu - menu size mismatch (expected {}, got {}).\n", JOINMENU_SIZE, ent->client->menu->num);
+//		// Optionally close the menu or return to prevent potential crashes
+//		// PMenu_Close(ent);
+//		return;
+//	}
+//
+//
+//	pmenu_t* entries = ent->client->menu->entries;
+//
+//	// --- Update Static/Common Entries ---
+//	SetGameName(&entries[JOINMENU_TITLE_IDX]);       // Update Game Title
+//	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]);  // Update Level Name
+//
+//	// --- Horde Specific Logic ---
+//	if (g_horde->integer) // Check if Horde mode is active
+//	{
+//		// Set "Join Horde" option text and handler
+//		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "Join and Fight the HORDE!", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
+//		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = CTFJoinTeam1;
+//
+//		// Set Credits text
+//		Q_strlcpy(entries[JOINMENU_CREDITS_IDX].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[JOINMENU_CREDITS_IDX].text));
+//		entries[JOINMENU_CREDITS_IDX].SelectFunc = nullptr;
+//
+//		// Set Discord Text (already defined in joinmenu array, but ensure it's visible)
+//		// No action needed if it's static in the array definition. Ensure it's not cleared below.
+//
+//
+//		// --- Update Player Count (Optimized) ---
+//		uint32_t horde_player_count = 0;
+//		for (const auto* player_ent : active_players()) {
+//			if (player_ent->client->resp.ctf_team == CTF_TEAM1) {
+//				horde_player_count++;
+//			}
+//		}
+//
+//		// Update the player count display entry
+//		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text, "$g_pc_playercount", sizeof(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text));
+//		G_FmtTo(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1, sizeof(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1), "{}", horde_player_count);
+//
+//	}
+//	else // Not Horde mode
+//	{
+//		// Disable/Clear Horde-specific entries
+//		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "(Horde Mode Disabled)", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
+//		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = nullptr;
+//		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text[0] = '\0';
+//		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1[0] = '\0';
+//		entries[JOINMENU_CREDITS_IDX].text[0] = '\0';
+//		entries[JOINMENU_CREDITS_IDX].SelectFunc = nullptr;
+//		// Clear Discord info if not in Horde mode
+//		entries[JOINMENU_DISCORD_IDX].text[0] = '\0';
+//		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
+//	}
+//
+//
+//	// --- Update Chase Cam / Spectator Option ---
+//	const char* chase_text = ent->client->chase_target ?
+//		"$g_pc_leave_chase_camera" :
+//		"Go Spectator";
+//	Q_strlcpy(entries[JOINMENU_CHASECAM_IDX].text, chase_text, sizeof(entries[JOINMENU_CHASECAM_IDX].text));
+//	entries[JOINMENU_CHASECAM_IDX].SelectFunc = CTFChaseCam;
+//
+//	// Ensure other blank entries remain blank (already handled by array definition)
+//}
+//
+//void CTFOpenJoinMenu(edict_t* ent)
+//{
+//	uint32_t num1 = 0, num2 = 0;
+//	for (uint32_t i = 0; i < game.maxclients; i++)
+//	{
+//		if (!g_edicts[i + 1].inuse)
+//			continue;
+//		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
+//			num1++;
+//		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
+//			num2++;
+//	}
+//
+//	int team;
+//
+//	if (num1 > num2)
+//		team = CTF_TEAM1;
+//	else if (num2 > num1)
+//		team = CTF_TEAM2;
+//	team = brandom() ? CTF_TEAM1 : CTF_TEAM2;
+//
+//	// Cerrar cualquier menú abierto antes de abrir uno nuevo
+//	if (ent->client->menu) {
+//		PMenu_Close(ent);
+//	}
+//
+//	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, CTFUpdateJoinMenu);
 //}
 
-	entries[OriginalModBy].text[0] = '\0';
-	entries[OriginalModBy].SelectFunc = nullptr;
-	if (g_horde->integer)
-	{
-		Q_strlcpy(entries[OriginalModBy].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[OriginalModBy].text));
-	}
-
-	//// KEX_FIXME: what's this for?
-	//if (g_teamplay_force_join->string && *g_teamplay_force_join->string)
-	//{
-	//	if (Q_strcasecmp(g_teamplay_force_join->string, "red") == 0)
-	//	{
-	//		//			entries[jmenu_blue].text[0] = '\0';
-	//		//			entries[jmenu_blue].SelectFunc = nullptr;
-	//	}
-	//	else if (Q_strcasecmp(g_teamplay_force_join->string, "blue") == 0)
-	//	{
-	//		entries[jmenu_horde].text[0] = '\0';
-	//		entries[jmenu_horde].SelectFunc = nullptr;
-	//	}
-	//}
-
-	if (ent->client->chase_target)
-		Q_strlcpy(entries[jmenu_chase].text, "$g_pc_leave_chase_camera", sizeof(entries[jmenu_chase].text));
-	else
-		Q_strlcpy(entries[jmenu_chase].text, "Go Spectator", sizeof(entries[jmenu_chase].text));
-
-	SetLevelName(entries + jmenu_level);
-
-	uint32_t num1 = 0, num2 = 0;
-	for (uint32_t i = 0; i < game.maxclients; i++)
-	{
-		if (!g_edicts[i + 1].inuse)
-			continue;
-		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
-			num1++;
-		//else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
-		//	num2++;
-	}
-
-	//switch (ctfgame.match)
-	//{
-	//case MATCH_NONE:
-	//	entries[jmenu_match].text[0] = '\0';
-	//	break;
-
-	//case MATCH_SETUP:
-	//	Q_strlcpy(entries[jmenu_match].text, "*MATCH SETUP IN PROGRESS", sizeof(entries[jmenu_match].text));
-	//	break;
-
-	//case MATCH_PREGAME:
-	//	Q_strlcpy(entries[jmenu_match].text, "*MATCH STARTING", sizeof(entries[jmenu_match].text));
-	//	break;
-
-	//case MATCH_GAME:
-	//	Q_strlcpy(entries[jmenu_match].text, "*MATCH IN PROGRESS", sizeof(entries[jmenu_match].text));
-	//	break;
-
-	//default:
-	//	break;
-	//}
-
-	if (*entries[jmenu_horde].text)
-	{
-
-		Q_strlcpy(entries[jmenu_horde + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_horde + 1].text));
-		G_FmtTo(entries[jmenu_horde + 1].text_arg1, "{}", num1);
-	}
-	else
-	{
-		entries[jmenu_horde + 1].text[0] = '\0';
-		entries[jmenu_horde + 1].text_arg1[0] = '\0';
-	}
-	//	if (*entries[jmenu_blue].text)
-	{
-		//		Q_strlcpy(entries[jmenu_blue + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_blue + 1].text));
-		//		G_FmtTo(entries[jmenu_blue + 1].text_arg1, "{}", num2);
-		//	}
-		//	else
-		//	{
-			//	entries[jmenu_blue + 1].text[0] = '\0';
-			//	entries[jmenu_blue + 1].text_arg1[0] = '\0';
-	}
-
-
-}
-
-void CTFOpenJoinMenu(edict_t* ent)
-{
-	uint32_t num1 = 0, num2 = 0;
-	for (uint32_t i = 0; i < game.maxclients; i++)
-	{
-		if (!g_edicts[i + 1].inuse)
-			continue;
-		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
-			num1++;
-		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
-			num2++;
-	}
-
-	int team;
-
-	if (num1 > num2)
-		team = CTF_TEAM1;
-	else if (num2 > num1)
-		team = CTF_TEAM2;
-	team = brandom() ? CTF_TEAM1 : CTF_TEAM2;
-
-	// Cerrar cualquier menú abierto antes de abrir uno nuevo
-	if (ent->client->menu) {
-		PMenu_Close(ent);
-	}
-
-	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, CTFUpdateJoinMenu);
-}
 
 bool CTFStartClient(edict_t* ent)
 {
