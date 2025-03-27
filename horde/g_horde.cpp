@@ -6,6 +6,7 @@
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
 #include <span>
+#include "../laser.h" 
 
 static bool need_spawn_cache_reset = false;
 static bool need_frame_timer_reset = false;
