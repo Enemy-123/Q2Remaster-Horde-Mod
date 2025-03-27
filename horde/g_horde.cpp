@@ -1163,7 +1163,6 @@ constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
 constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
-constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 1.5_sec;
 
 static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 	// Calcular el tiempo base según el nivel
@@ -5994,23 +5993,22 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 		gi.Com_PrintFmt("DEBUG: Starting SpawnAmbushMonsters\n");
 	}
 
-	// Determine monster type - try to get a valid monster for current wave
-	const char* monster_classname = nullptr;
+	// Determine monster type ID - try to get a valid monster for current wave
 	horde::MonsterTypeID monster_typeId = horde::MonsterTypeID::UNKNOWN;
 
-	// Try to get a valid monster type from existing spawn points
+	// Try to get a valid monster type ID from existing spawn points
 	for (auto* point : monster_spawn_points()) {
 		if (point && point->inuse) {
 			// Use TypeID version for more efficient selection
 			monster_typeId = G_HordePickMonsterType(point);
 			if (monster_typeId != horde::MonsterTypeID::UNKNOWN) {
-				monster_classname = horde::MonsterTypeRegistry::GetClassname(monster_typeId);
+				// Found a valid type ID, no need to get classname here
 				break;
 			}
 		}
 	}
 
-	// Fallback to appropriate monster if none found
+	// Fallback to appropriate monster type ID if none found
 	if (monster_typeId == horde::MonsterTypeID::UNKNOWN) {
 		if (waveLevel >= 15) {
 			// Higher-level monsters for later waves
@@ -6022,7 +6020,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 				horde::MonsterTypeID::SOLDIER_LASERGUN
 			};
 			monster_typeId = high_level_monsters[irandom(0, 4)];
-			monster_classname = horde::MonsterTypeRegistry::GetClassname(monster_typeId);
+			// No need to get classname here
 		}
 		else {
 			// Basic monsters for early waves
@@ -6034,7 +6032,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 				horde::MonsterTypeID::FLYER
 			};
 			monster_typeId = basic_monsters[irandom(0, 4)];
-			monster_classname = horde::MonsterTypeRegistry::GetClassname(monster_typeId);
+			// No need to get classname here
 		}
 	}
 
@@ -6054,38 +6052,35 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	static gtime_t last_failed_spawn_time = 0_sec;
 	constexpr gtime_t SPAWN_RETRY_DELAY = 0.1_sec; // 100ms delay between failed attempts
 
-	// FIXED: Add safety counter to prevent infinite loops
+	// Add safety counter to prevent infinite loops
 	int safety_counter = 0;
 	const int MAX_TOTAL_ITERATIONS = 100;
 
 	// Spawn ambush monsters
 	for (int i = 0; i < ambushSize && consecutive_failures < MAX_FAILURES_PER_POSITION; i++) {
-		// FIXED: Add safety check to prevent infinite loops
+		// Add safety check to prevent infinite loops
 		if (safety_counter++ > MAX_TOTAL_ITERATIONS) {
-			gi.Com_PrintFmt("WARNING: Emergency spawn safety limit reached\n");
+			gi.Com_PrintFmt("WARNING: Emergency spawn safety limit reached in SpawnAmbushMonsters\n");
 			break;
 		}
 
 		// Check if we need to wait after a failed attempt
 		if (consecutive_failures > 0) {
 			if (level.time < last_failed_spawn_time + SPAWN_RETRY_DELAY) {
-				// FIXED: Don't decrement i if we're going to postpone spawning
-				if (safety_counter % 10 == 0) {
-					// Only retry at regular intervals
-					continue;
-				}
-				else {
-					// Skip this attempt but advance the counter
-					continue;
+				// Postpone this attempt, don't increment 'i' yet, but continue outer loop check
+				// To avoid busy-waiting, we only check periodically
+				if (safety_counter % 10 != 0) {
+					continue; // Skip this frame's attempt
 				}
 			}
 		}
 
 		// Use the TypeID version for more efficient spawning
+		// Check if a valid type ID was determined before calling EmergencySpawnMonster
 		if (monster_typeId != horde::MonsterTypeID::UNKNOWN &&
-			EmergencySpawnMonster(waveLevel, monster_typeId)) {
+			EmergencySpawnMonster(waveLevel, monster_typeId)) { // Pass the ID directly
 			ambushSuccessCount++;
-			consecutive_failures = 0;
+			consecutive_failures = 0; // Reset failures on success
 
 			// Update spawn counters
 			if (g_horde_local.num_to_spawn > 0) {
@@ -6103,7 +6098,13 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 		else {
 			// Track failures to avoid getting stuck in endless attempts
 			consecutive_failures++;
-			last_failed_spawn_time = level.time;
+			last_failed_spawn_time = level.time; // Record time of failure
+			// Optional: Log which type ID failed if in dev mode
+			if (developer->integer > 1) {
+				const char* failed_name = horde::MonsterTypeRegistry::GetClassname(monster_typeId);
+				gi.Com_PrintFmt("SpawnAmbushMonsters: EmergencySpawnMonster failed for TypeID %d (%s)\n",
+					static_cast<int>(monster_typeId), failed_name ? failed_name : "Unknown");
+			}
 		}
 	}
 
@@ -6111,13 +6112,18 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	if (ambushSuccessCount > 0) {
 		gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
 		if (developer->integer) {
-			gi.Com_PrintFmt("AMBUSH: Spawned {}/{} monsters near players\n",
+			gi.Com_PrintFmt("AMBUSH: Spawned %d/%d monsters near players\n",
 				ambushSuccessCount, ambushSize);
 		}
 	}
+	else if (consecutive_failures >= MAX_FAILURES_PER_POSITION && developer->integer) {
+		// Log if the loop terminated due to failures
+		gi.Com_PrintFmt("SpawnAmbushMonsters: Loop terminated due to %d consecutive failures.\n", consecutive_failures);
+	}
+
 
 	if (developer->integer) {
-		gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, spawned: {}\n", ambushSuccessCount);
+		gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, successfully spawned: %d\n", ambushSuccessCount);
 	}
 
 	return ambushSuccessCount;
