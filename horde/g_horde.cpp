@@ -5922,7 +5922,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
 bool ShouldTriggerAmbushSpawn() {
 	// Static variables for tracking
-	static int waves_since_ambush = 0;
 
 	// Only consider ambush spawning after wave 3 (earlier than before)
 	if (current_wave_level < 3) {
