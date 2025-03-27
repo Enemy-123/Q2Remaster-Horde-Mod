@@ -1357,82 +1357,89 @@ bool G_IsCooperative() noexcept {
 struct weighted_item_t;
 using weight_adjust_func_t = void(*)(const weighted_item_t& item, float& weight);
 
-static void adjust_weight_health(const weighted_item_t& item, float& weight) noexcept {}
-static void adjust_weight_weapon(const weighted_item_t& item, float& weight) noexcept {}
-static void adjust_weight_ammo(const weighted_item_t& item, float& weight) noexcept {}
-static void adjust_weight_armor(const weighted_item_t& item, float& weight) noexcept {}
-static void adjust_weight_powerup(const weighted_item_t& item, float& weight) noexcept {}
 
+// Define the function pointer type (keep this)
+struct weighted_item_t;
+using weight_adjust_func_t = void(*)(const weighted_item_t& item, float& weight);
+
+// Remove the unused stub function definitions:
+// static void adjust_weight_health(const weighted_item_t& item, float& weight) noexcept {}
+// static void adjust_weight_weapon(const weighted_item_t& item, float& weight) noexcept {}
+// static void adjust_weight_ammo(const weighted_item_t& item, float& weight) noexcept {}
+// static void adjust_weight_armor(const weighted_item_t& item, float& weight) noexcept {}
+// static void adjust_weight_powerup(const weighted_item_t& item, float& weight) noexcept {}
+
+// Reordered struct definition for optimal packing
 constexpr struct weighted_item_t {
-	const char* classname;
-	int32_t min_level = -1, max_level = -1;
-	float weight = 1.0f;
-	weight_adjust_func_t adjust_weight = nullptr;
-	uint32_t flags = 0;
+	const char* classname;                  // Pointer (8 bytes on 64-bit)
+	weight_adjust_func_t adjust_weight;     // Function Pointer (8 bytes on 64-bit)
+	int32_t min_level = -1;                 // 4 bytes
+	int32_t max_level = -1;                 // 4 bytes
+	float weight = 1.0f;                    // 4 bytes
+	uint32_t flags = 0;                     // 4 bytes
+	// Likely total: 32 bytes, well-aligned, no padding needed
 } items[] = {
-	{ "item_health", 3, 5, 0.20f, adjust_weight_health },
-	{ "item_health_large", -1, 4, 0.06f, adjust_weight_health },
-	{ "item_health_large", 5, -1, 0.12f, adjust_weight_health },
-	{ "item_health_mega", 4, -1, 0.04f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.07f, adjust_weight_health },
+	// Initialize 'adjust_weight' with nullptr since the stub functions are removed
+	{ "item_health",         nullptr, 3, 5, 0.20f },
+	{ "item_health_large",   nullptr, -1, 4, 0.06f },
+	{ "item_health_large",   nullptr, 5, -1, 0.12f },
+	{ "item_health_mega",    nullptr, 4, -1, 0.04f },
+	{ "item_adrenaline",     nullptr, -1, -1, 0.07f },
 
-	{ "item_armor_shard", -1, 7, 0.09f, adjust_weight_armor },
-	{ "item_armor_jacket", -1, 12, 0.1f, adjust_weight_armor },
-	{ "item_armor_combat", 13, -1, 0.06f, adjust_weight_armor },
-	{ "item_armor_body", 27, -1, 0.015f, adjust_weight_armor },
-	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
-	//{ "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
+	{ "item_armor_shard",    nullptr, -1, 7, 0.09f },
+	{ "item_armor_jacket",   nullptr, -1, 12, 0.1f },
+	{ "item_armor_combat",   nullptr, 13, -1, 0.06f },
+	{ "item_armor_body",     nullptr, 27, -1, 0.015f },
+	{ "item_power_screen",   nullptr, 2, 8, 0.03f },
+	//{ "item_power_shield",   nullptr, 14, -1, 0.07f },
 
-	{ "item_ir_goggles", 10, -1, 0.03f, adjust_weight_powerup },
-	{ "item_quad", 6, -1, 0.04f, adjust_weight_powerup },
-	{ "item_double", 4, -1, 0.05f, adjust_weight_powerup },
-	{ "item_quadfire", 2, -1, 0.04f, adjust_weight_powerup },
-	{ "item_invulnerability", 4, -1, 0.03f, adjust_weight_powerup },
-	{ "item_sphere_defender", 2, -1, 0.05f, adjust_weight_powerup },
-	//{ "item_sphere_vengeance", 23, -1, 0.06f, adjust_weight_powerup },
-	{ "item_sphere_hunter", 9, -1, 0.04f, adjust_weight_powerup },
-	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
-	{ "item_teleport_device", 4, -1, 0.06f, adjust_weight_powerup },
-	{ "item_doppleganger", 5, -1, 0.038f, adjust_weight_powerup },
-	{ "item_sentrygun", 2, 8, 0.028f, adjust_weight_powerup },
-	{ "item_sentrygun", 9, 19, 0.062f, adjust_weight_powerup },
-	{ "item_sentrygun", 9, 19, 0.062f, adjust_weight_powerup },
-	{ "item_sentrygun", 20, -1, 0.1f, adjust_weight_powerup },
+	{ "item_ir_goggles",     nullptr, 10, -1, 0.03f },
+	{ "item_quad",           nullptr, 6, -1, 0.04f },
+	{ "item_double",         nullptr, 4, -1, 0.05f },
+	{ "item_quadfire",       nullptr, 2, -1, 0.04f },
+	{ "item_invulnerability",nullptr, 4, -1, 0.03f },
+	{ "item_sphere_defender",nullptr, 2, -1, 0.05f },
+	//{ "item_sphere_vengeance", nullptr, 23, -1, 0.06f },
+	{ "item_sphere_hunter",  nullptr, 9, -1, 0.04f },
+	{ "item_invisibility",   nullptr, 4, -1, 0.06f },
+	{ "item_teleport_device",nullptr, 4, -1, 0.06f },
+	{ "item_doppleganger",   nullptr, 5, -1, 0.038f },
+	{ "item_sentrygun",      nullptr, 20, -1, 0.1f },
 
-	{ "weapon_chainfist", -1, 3, 0.05f, adjust_weight_weapon },
-	{ "weapon_shotgun", -1, -1, 0.22f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 5, -1, 0.17f, adjust_weight_weapon },
-	{ "weapon_machinegun", -1, -1, 0.25f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", 4, -1, 0.17f, adjust_weight_weapon },
-	{ "weapon_chaingun", 9, -1, 0.17f, adjust_weight_weapon },
-	{ "weapon_grenadelauncher", 10, -1, 0.17f, adjust_weight_weapon },
-	{ "weapon_proxlauncher", 4, -1, 0.1f, adjust_weight_weapon },
-	{ "weapon_boomer", 17, -1, 0.17f, adjust_weight_weapon },
-	{ "weapon_hyperblaster", 12, -1, 0.2f, adjust_weight_weapon },
-	{ "weapon_rocketlauncher", 14, -1, 0.19f, adjust_weight_weapon },
-	{ "weapon_railgun", 24, -1, 0.17f, adjust_weight_weapon },
-	{ "weapon_phalanx", 20, -1, 0.19f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 16, -1, 0.25f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 31, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_bfg", 26, -1, 0.17f, adjust_weight_weapon },
+	{ "weapon_chainfist",    nullptr, -1, 3, 0.05f },
+	{ "weapon_shotgun",      nullptr, -1, -1, 0.22f },
+	{ "weapon_supershotgun", nullptr, 5, -1, 0.17f },
+	{ "weapon_machinegun",   nullptr, -1, -1, 0.25f },
+	{ "weapon_etf_rifle",    nullptr, 4, -1, 0.17f },
+	{ "weapon_chaingun",     nullptr, 9, -1, 0.17f },
+	{ "weapon_grenadelauncher", nullptr, 10, -1, 0.17f },
+	{ "weapon_proxlauncher", nullptr, 4, -1, 0.1f },
+	{ "weapon_boomer",       nullptr, 17, -1, 0.17f },
+	{ "weapon_hyperblaster", nullptr, 12, -1, 0.2f },
+	{ "weapon_rocketlauncher", nullptr, 14, -1, 0.19f },
+	{ "weapon_railgun",      nullptr, 24, -1, 0.17f },
+	{ "weapon_phalanx",      nullptr, 20, -1, 0.19f },
+	{ "weapon_plasmabeam",   nullptr, 16, -1, 0.25f },
+	{ "weapon_disintegrator",nullptr, 31, -1, 0.15f },
+	{ "weapon_bfg",          nullptr, 26, -1, 0.17f },
 
-	{ "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },
-	{ "ammo_bullets", -1, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_grenades", -1, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_prox", 5, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_tesla", -1, -1, 0.1f, adjust_weight_ammo },
-	{ "ammo_cells", 13, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_cells", 2, 12, 0.12f, adjust_weight_ammo },
-	{ "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_slugs", 22, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_nuke", 12, -1, 0.03f, adjust_weight_ammo },
+	{ "ammo_trap",           nullptr, 4, -1, 0.18f },
+	{ "ammo_bullets",        nullptr, -1, -1, 0.25f },
+	{ "ammo_flechettes",     nullptr, 4, -1, 0.25f },
+	{ "ammo_grenades",       nullptr, -1, -1, 0.25f },
+	{ "ammo_prox",           nullptr, 5, -1, 0.25f },
+	{ "ammo_tesla",          nullptr, -1, -1, 0.1f },
+	{ "ammo_cells",          nullptr, 13, -1, 0.25f },
+	{ "ammo_cells",          nullptr, 2, 12, 0.12f },
+	{ "ammo_magslug",        nullptr, 15, -1, 0.25f },
+	{ "ammo_slugs",          nullptr, 22, -1, 0.25f },
+	{ "ammo_disruptor",      nullptr, 24, -1, 0.25f },
+	{ "ammo_rockets",        nullptr, 13, -1, 0.25f },
+	{ "ammo_nuke",           nullptr, 12, -1, 0.03f },
 
-	{ "item_bandolier", 4, -1, 0.2f, adjust_weight_ammo },
-	{ "item_pack", 15, -1, 0.34f, adjust_weight_ammo },
-	{ "item_silencer", 15, -1, 0.1f, adjust_weight_ammo },
+	{ "item_bandolier",      nullptr, 4, -1, 0.2f },
+	{ "item_pack",           nullptr, 15, -1, 0.34f },
+	{ "item_silencer",       nullptr, 15, -1, 0.1f },
 };
 
 // Allow flag operations on MonsterWaveType
