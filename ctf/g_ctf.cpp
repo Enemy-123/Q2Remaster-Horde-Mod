@@ -3382,10 +3382,10 @@ void RemoveTech(edict_t* ent) {
 	}
 }
 
-void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p);
+void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p);
 void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
-void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
+void GoChaseCam(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 //TEAMS MENU & STUFF
 
@@ -3401,11 +3401,11 @@ static constexpr int OriginalModBy = 14;
 //	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 1: Blank Separator
 //	{ "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr },        // 2: Level Name (Set by SetLevelName)
 //	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 3: Blank Separator
-//	{ "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, CTFJoinTeam1 }, // 4: Join Horde (Moved Up)
+//	{ "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, HordeJoinTeam }, // 4: Join Horde (Moved Up)
 //	{ "", PMENU_ALIGN_LEFT, nullptr },                      // 5: Player Count (filled dynamically)
 //	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 6: Blank Separator
 //	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 7: Blank (Spacing)
-//	{ "Go Spectator", PMENU_ALIGN_LEFT, CTFChaseCam },     // 8: Go Spectator / Leave Chase (Moved Up)
+//	{ "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam },     // 8: Go Spectator / Leave Chase (Moved Up)
 //	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 9: Blank Separator
 //	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 10: Blank (Spacing)
 //	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 11: Blank (Spacing)
@@ -3463,7 +3463,7 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 	CTFDirtyTeamMenu();
 }
 
-void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p)
+void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p)
 {
 	//CTFJoinTeam(ent, CTF_TEAM1);
 	OpenTechMenu(ent);
@@ -3483,7 +3483,7 @@ static void CTFNoChaseCamUpdate(edict_t* ent)
 	SetLevelName(&entries[jmenu_level]);
 }
 
-void CTFChaseCam(edict_t* ent, pmenuhnd_t* p)
+void GoChaseCam(edict_t* ent, pmenuhnd_t* p)
 {
 	edict_t* e;
 
@@ -3520,7 +3520,7 @@ void CTFChaseCam(edict_t* ent, pmenuhnd_t* p)
 void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p)
 {
 	PMenu_Close(ent);
-	CTFOpenJoinMenu(ent);
+	HordeOpenJoinMenu(ent);
 }
 
 void CTFRequestMatch(edict_t* ent, pmenuhnd_t* p)
@@ -3542,17 +3542,17 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 	DeathmatchScoreboard(ent);
 }
 
-//void CTFUpdateJoinMenu(edict_t* ent)
+//void HordeUpdateJoinMenu(edict_t* ent)
 //{
 //	// --- Safety Checks ---
 //	if (!ent || !ent->client || !ent->client->menu || !ent->client->menu->entries)
 //	{
-//		gi.Com_Print("Warning: CTFUpdateJoinMenu called with invalid ent/client/menu.\n");
+//		gi.Com_Print("Warning: HordeUpdateJoinMenu called with invalid ent/client/menu.\n");
 //		return;
 //	}
 //	// Check if the menu size matches what we expect
 //	if (ent->client->menu->num != JOINMENU_SIZE) {
-//		gi.Com_PrintFmt("Warning: CTFUpdateJoinMenu - menu size mismatch (expected {}, got {}).\n", JOINMENU_SIZE, ent->client->menu->num);
+//		gi.Com_PrintFmt("Warning: HordeUpdateJoinMenu - menu size mismatch (expected {}, got {}).\n", JOINMENU_SIZE, ent->client->menu->num);
 //		// Optionally close the menu or return to prevent potential crashes
 //		// PMenu_Close(ent);
 //		return;
@@ -3570,7 +3570,7 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 //	{
 //		// Set "Join Horde" option text and handler
 //		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "Join and Fight the HORDE!", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
-//		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = CTFJoinTeam1;
+//		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = HordeJoinTeam;
 //
 //		// Set Credits text
 //		Q_strlcpy(entries[JOINMENU_CREDITS_IDX].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[JOINMENU_CREDITS_IDX].text));
@@ -3613,12 +3613,12 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 //		"$g_pc_leave_chase_camera" :
 //		"Go Spectator";
 //	Q_strlcpy(entries[JOINMENU_CHASECAM_IDX].text, chase_text, sizeof(entries[JOINMENU_CHASECAM_IDX].text));
-//	entries[JOINMENU_CHASECAM_IDX].SelectFunc = CTFChaseCam;
+//	entries[JOINMENU_CHASECAM_IDX].SelectFunc = GoChaseCam;
 //
 //	// Ensure other blank entries remain blank (already handled by array definition)
 //}
 //
-//void CTFOpenJoinMenu(edict_t* ent)
+//void HordeOpenJoinMenu(edict_t* ent)
 //{
 //	uint32_t num1 = 0, num2 = 0;
 //	for (uint32_t i = 0; i < game.maxclients; i++)
@@ -3644,7 +3644,7 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 //		PMenu_Close(ent);
 //	}
 //
-//	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, CTFUpdateJoinMenu);
+//	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, HordeUpdateJoinMenu);
 //}
 
 
@@ -3673,7 +3673,7 @@ bool CTFStartClient(edict_t* ent)
 		ent->client->ps.gunskin = 0;
 		gi.linkentity(ent);
 
-		CTFOpenJoinMenu(ent);
+		HordeOpenJoinMenu(ent);
 		return true;
 	}
 	return false;

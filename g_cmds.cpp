@@ -813,7 +813,7 @@ void Cmd_Inven_f(edict_t* ent)
 
 	if (G_TeamplayEnabled() && cl->resp.ctf_team == CTF_NOTEAM)
 	{
-		CTFOpenJoinMenu(ent);
+		HordeOpenJoinMenu(ent);
 		return;
 	}
 	// ZOID
@@ -1587,14 +1587,14 @@ void Cmd_Switchteam_f(edict_t* ent)
 
 		// Puede ser un buen lugar para manejar el comportamiento si intentan cambiar de equipo de todos modos.
 		// Por ejemplo, puedes mandar al jugador al menú de equipo o ignorar el comando.
-		CTFOpenJoinMenu(ent);
+		HordeOpenJoinMenu(ent);
 		return;
 	}
 
 	// Si el jugador no tiene equipo, abrir el menú de equipo.
 	if (ent->client->resp.ctf_team == CTF_NOTEAM)
 	{
-		CTFOpenJoinMenu(ent);
+		HordeOpenJoinMenu(ent);
 	}
 }
 
