@@ -4235,27 +4235,82 @@ void ResetGame() {
 
 	// Si ya se ha ejecutado una vez, retornar inmediatamente
 	if (hasBeenReset) {
-		gi.Com_PrintFmt("PRINT: Reset already performed, skipping...\n");
+		// Avoid excessive printing if not in developer mode
+		if (developer && developer->integer > 1) { // Added null check
+			gi.Com_PrintFmt("INFO: Reset already performed, skipping...\n");
+		}
 		return;
 	}
 
 	// Establecer el flag al inicio de la ejecución
 	hasBeenReset = true;
 
+	if (developer && developer->integer) { // Added null check
+		gi.Com_PrintFmt("INFO: Performing full game state reset...\n");
+	}
+
+
+	// --- **NEW SAFETY CLEANUP** ---
+	// Iterate through all possible client slots to catch any missed laser managers
+	for (int i = 0; i < game.maxclients; ++i) {
+		edict_t* ent = &g_edicts[i + 1]; // Corresponding edict_t for the client slot
+
+		// Check directly in the game.clients array first (most reliable during reset)
+		if (game.clients[i].laser_manager) {
+			auto* holder = reinterpret_cast<LaserManagerHolder*>(game.clients[i].laser_manager);
+			if (holder) { // Extra safety check on the holder pointer itself
+				delete holder;
+				if (developer && developer->integer > 1) { // Added null check
+					gi.Com_PrintFmt("Cleaned up LaserManager for client slot {} during ResetGame (via game.clients)\n", i);
+				}
+			}
+			else {
+				if (developer && developer->integer) { // Added null check
+					gi.Com_PrintFmt("Warning: Found NULL LaserManagerHolder pointer for client slot {} during ResetGame (via game.clients)\n", i);
+				}
+			}
+			game.clients[i].laser_manager = nullptr; // Always clear the pointer
+		}
+		// Fallback check via edict_t->client (in case game.clients isn't populated or accessible)
+		else if (ent && ent->inuse && ent->client && ent->client->laser_manager) {
+			auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
+			if (holder) {
+				delete holder;
+				if (developer && developer->integer > 1) { // Added null check
+					gi.Com_PrintFmt("Cleaned up LaserManager via edict for client slot {} during ResetGame\n", i);
+				}
+			}
+			else {
+				if (developer && developer->integer) { // Added null check
+					gi.Com_PrintFmt("Warning: Found NULL LaserManagerHolder pointer via edict for client slot {} during ResetGame\n", i);
+				}
+			}
+			ent->client->laser_manager = nullptr; // Always clear the pointer
+		}
+	}
+	// --- End of NEW SAFETY CLEANUP ---
+
+
+	// --- Existing Reset Logic ---
 	ResetRecentBosses();
 	ResetAmbushSystem();
 	ResetWaveMemory();
+	ResetChampionMonsterState(); // Add reset for champion state
 
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
+	// Clear auto_spawned_bosses safely
+	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment here */) {
 		edict_t* boss = *it;
 		if (boss && boss->inuse) {
-			// Asegurarse de que el boss esté marcado como manejado
-			boss->monsterinfo.BOSS_DEATH_HANDLED = true;
-			// Limpiar cualquier estado pendiente
-			OnEntityRemoved(boss);
+			// Ensure boss death logic is finalized if needed, then free
+			if (!boss->monsterinfo.BOSS_DEATH_HANDLED) {
+				BossDeathHandler(boss); // Attempt final cleanup if not done
+			}
+			OnEntityRemoved(boss); // Call removal hook
+			G_FreeEdict(boss); // Free the entity
 		}
-		it = auto_spawned_bosses.erase(it);
+		it = auto_spawned_bosses.erase(it); // Erase and advance iterator
 	}
+	// auto_spawned_bosses set is now empty
 
 	g_adjusted_monster_cap = 0;
 
@@ -4277,28 +4332,26 @@ void ResetGame() {
 
 	// Limpiar cachés
 	CleanupSpawnPointCache();
-	for (size_t i = 0; i < MAX_EDICTS; i++) {
-		spawnPointsData.data[i] = SpawnPointData{};
-	}
+	spawnPointsData.clear(); // Assuming .clear() zeros out the array entries
 	horde::g_monsterSpawnTracker.Reset();
 	horde::g_spawnPointTimeTracker.Reset();
 
-	// Reset static function variables
-	ResetSpawnMonsterVars();
-	ResetFrameTimers();
-	ResetQueueMonitorVars();
+	// Reset static function variables by setting flags
+	need_spawn_cache_reset = true; // Will trigger cache rebuild on next SpawnMonsters
+	need_frame_timer_reset = true; // Will reset frame timers where checked
+	need_queue_monitor_reset = true; // Will reset queue monitor where checked
+
 
 	// Reiniciar variables de estado global
-	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
-	current_wave_level = 0;
+	g_horde_local = HordeState(); // Reset the main state struct
+	current_wave_level = 0;       // Explicitly reset wave level
+	last_wave_number = 0;         // Reset last wave number too
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 	allowWaveAdvance = false;
 
 	// Reiniciar otras variables relevantes
-	SPAWN_POINT_COOLDOWN = 2.8_sec;
-
-	g_totalMonstersInWave = 0;
+	SPAWN_POINT_COOLDOWN = 2.8_sec; // Reset to default
 
 	// Resetear el estado de las condiciones
 	g_horde_local.conditionTriggered = false;
@@ -4306,14 +4359,15 @@ void ResetGame() {
 	g_horde_local.conditionTimeThreshold = 0_sec;
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.timeWarningIssued = false;
+	for (auto& flag : g_horde_local.warningIssued) flag = false; // Reset all warning flags
+
 
 	// Resetear cualquier otro estado específico de la ola según sea necesario
-	boss_spawned_for_wave = false;
 	current_wave_type = MonsterWaveType::None;
 
 	// Reset core gameplay elements
 	ResetAllSpawnAttempts();
-	ResetCooldowns();
+	ResetCooldowns(); // This recalculates SPAWN_POINT_COOLDOWN based on map/level 0
 	ResetBenefits();
 
 	// Reiniciar la lista de bosses recientes
@@ -4322,40 +4376,44 @@ void ResetGame() {
 	// Reiniciar wave advance state
 	ResetWaveAdvanceState();
 
-	// Reset wave information
-	g_horde_local.level = 0; // Reset current wave level
+	// Reset wave information (redundant with g_horde_local = HordeState() above, but safe)
+	g_horde_local.level = 0; // Ensure level is 0
 	g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
 	g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
 	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
 
-	if (!developer->integer)
-		gi.cvar_set("bot_pause", "0");
+	// Re-initialize map size dependent variables AFTER resetting state
+	g_horde_local.update_map_size(GetCurrentMapName());
 
-	// Reset gameplay configuration variables
-	gi.cvar_set("g_chaotic", "0");
-	gi.cvar_set("g_insane", "0");
-	gi.cvar_set("g_hardcoop", "0");
-	gi.cvar_set("dm_monsters", "0");
-	gi.cvar_set("timelimit", "60");
-	gi.cvar_set("set cheats 0 s", "");
-	gi.cvar_set("ai_damage_scale", "1");
-	gi.cvar_set("ai_allow_dm_spawn", "1");
-	gi.cvar_set("g_damage_scale", "1");
 
-	// Reset bonuses
-	gi.cvar_set("g_vampire", "0");
-	gi.cvar_set("g_startarmor", "0");
-	gi.cvar_set("g_ammoregen", "0");
-	gi.cvar_set("g_upgradeproxs", "0");
-	gi.cvar_set("g_piercingbeam", "0");
-	gi.cvar_set("g_tracedbullets", "0");
-	gi.cvar_set("g_energyshells", "0");
-	gi.cvar_set("g_bouncygl", "0");
-	gi.cvar_set("g_bfgpull", "0");
-	gi.cvar_set("g_bfgslide", "1");
-	gi.cvar_set("g_autohaste", "0");
+
+	gi.cvar_set("bot_pause", "0");
+
+	// Reset gameplay configuration variables (Use gi.cvar_set for standard vars)
+	if (g_chaotic) gi.cvar_set("g_chaotic", "0");
+	if (g_insane) gi.cvar_set("g_insane", "0");
+	if (g_hardcoop) gi.cvar_set("g_hardcoop", "0");
+	if (dm_monsters) gi.cvar_set("dm_monsters", "0");
+	if (timelimit) gi.cvar_set("timelimit", "60");
+	gi.cvar_set("cheats", "0"); // Use standard 'cheats' cvar name
+	if (ai_damage_scale) gi.cvar_set("ai_damage_scale", "1");
+	if (ai_allow_dm_spawn) gi.cvar_set("ai_allow_dm_spawn", "1");
+	if (g_damage_scale) gi.cvar_set("g_damage_scale", "1");
+
+	// Reset bonuses (Use gi.cvar_set)
+	if (g_vampire) gi.cvar_set("g_vampire", "0");
+	if (g_startarmor) gi.cvar_set("g_startarmor", "0");
+	if (g_ammoregen) gi.cvar_set("g_ammoregen", "0");
+	if (g_upgradeproxs) gi.cvar_set("g_upgradeproxs", "0");
+	if (g_piercingbeam) gi.cvar_set("g_piercingbeam", "0");
+	if (g_tracedbullets) gi.cvar_set("g_tracedbullets", "0");
+	if (g_energyshells) gi.cvar_set("g_energyshells", "0");
+	if (g_bouncygl) gi.cvar_set("g_bouncygl", "0");
+	if (g_bfgpull) gi.cvar_set("g_bfgpull", "0");
+	if (g_bfgslide) gi.cvar_set("g_bfgslide", "1"); // Default is often 1
+	if (g_autohaste) gi.cvar_set("g_autohaste", "0");
 
 	// Reset sound tracking
 	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
@@ -4363,8 +4421,13 @@ void ResetGame() {
 	std::fill(used_start_sounds.begin(), used_start_sounds.end(), false);
 	remaining_start_sounds = NUM_START_SOUNDS;
 
+	// Clear Horde message
+	ClearHordeMessage();
+	g_horde_local.reset_hud_state(); // Reset HUD tracking
+
+
 	// Registrar el reinicio
-	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
+	gi.Com_PrintFmt("INFO: Horde game state reset complete.\n");
 }
 
 // Replace the existing CalculateRemainingMonsters() function

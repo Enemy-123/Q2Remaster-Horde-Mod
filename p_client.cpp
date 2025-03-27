@@ -3231,10 +3231,11 @@ Will not be called between levels.
 */
 void ClientDisconnect(edict_t* ent)
 {
-	if (!ent->client)
+	if (!ent || !ent->client) // Added null check for ent
 		return;
 
-	RemovePlayerOwnedEntities(ent);
+	// --- Existing Cleanup Logic ---
+	RemovePlayerOwnedEntities(ent); // This handles the laser edicts via laser_die
 
 	// ZOID
 	CTFDeadDropFlag(ent);
@@ -3246,7 +3247,7 @@ void ClientDisconnect(edict_t* ent)
 	//============
 	// ROGUE
 	// make sure no trackers are still hurting us.
-	if (ent->client->tracker_pain_time)
+	if (ent->client->tracker_pain_time > 0_ms) // Check against 0_ms
 		RemoveAttackingPainDaemons(ent);
 
 	if (ent->client->owned_sphere)
@@ -3256,7 +3257,7 @@ void ClientDisconnect(edict_t* ent)
 		ent->client->owned_sphere = nullptr;
 	}
 
-	if (gamerules->integer)
+	if (gamerules && gamerules->integer) // Added null check for gamerules cvar
 	{
 		if (DMGame.PlayerDisconnect)
 			DMGame.PlayerDisconnect(ent);
@@ -3264,7 +3265,20 @@ void ClientDisconnect(edict_t* ent)
 	// ROGUE
 	//============
 
-// send effect
+	// --- **NEW MEMORY CLEANUP** ---
+	// Check and delete the LaserManagerHolder if it exists
+	if (ent->client->laser_manager) {
+		auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
+		delete holder; // This calls ~LaserManagerHolder(), which deletes the PlayerLaserManager
+		ent->client->laser_manager = nullptr; // Clear the pointer
+		if (developer && developer->integer) { // Added null check for developer cvar
+			gi.Com_PrintFmt("Cleaned up LaserManager for disconnected client {}\n", ent->client - game.clients);
+		}
+	}
+	// --- End of NEW MEMORY CLEANUP ---
+
+	// --- Remaining Disconnect Logic ---
+	// send effect
 	if (!(ent->svflags & (SVF_NOCLIENT | SVF_BOT)))
 	{
 		gi.WriteByte(svc_muzzleflash);
@@ -3277,17 +3291,31 @@ void ClientDisconnect(edict_t* ent)
 	ent->s.modelindex = 0;
 	ent->solid = SOLID_NOT;
 	ent->inuse = false;
-	ent->sv.init = false;
+	ent->sv.init = false; // Mark for re-initialization if reused
 	ent->classname = "disconnected";
-	ent->client->pers.connected = false;
-	ent->client->pers.spawned = false;
-	ent->timestamp = level.time + 1_sec;
+	// Clear potentially sensitive parts of the client struct AFTER deleting managed objects
+	if (ent->client) { // Double check client pointer exists before accessing members
+		ent->client->pers.connected = false;
+		ent->client->pers.spawned = false;
+		// Other client fields are usually zeroed out by the engine or game logic
+		// when the slot is reused, but explicitly nulling pointers is safest.
+		ent->client->chase_target = nullptr;
+		ent->client->menu = nullptr;
+		ent->client->ctf_grapple = nullptr;
+		// Note: owned_sphere was already nulled above.
+	}
+	ent->timestamp = level.time + 1_sec; // Used elsewhere? Seems short for a disconnect timestamp.
+
 
 	// update active scoreboards
-	if (deathmatch->integer)
-		for (auto player : active_players())
-			if (player->client->showscores)
+	if (deathmatch && deathmatch->integer) { // Added null check
+		for (auto player : active_players()) {
+			// Added null check for player and player->client
+			if (player && player->client && player->client->showscores) {
 				player->client->menutime = level.time;
+			}
+		}
+	}
 }
 
 /*
@@ -3467,10 +3495,41 @@ static void WarnInactivePlayer(edict_t* ent) {
 }
 
 static void HandleInactivePlayer(edict_t* ent) {
+	// Check if already inactive or no client
+	if (!ent || !ent->client || ent->client->resp.inactive) {
+		return;
+	}
+
 	gi.LocClient_Print(ent, PRINT_CENTER, "\n\n\n\n\nYou have deserted the war against stroggs!\n UNACCEPTABLE\n");
+
+	// Force player into spectator mode
+	// Ensure CTFObserver correctly sets spectator flags (e.g., resp.spectator = true)
+	// and potentially changes movetype/solid state.
 	CTFObserver(ent);
-	ent->client->resp.inactive = true;
+
+	ent->client->resp.inactive = true; // Mark as inactive
+
+	// --- **NEW MEMORY CLEANUP for AFK Spectator** ---
+	if (ent->client->laser_manager) {
+		auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
+		delete holder; // Calls destructors
+		ent->client->laser_manager = nullptr; // Clear pointer
+		if (developer && developer->integer) { // Added null check
+			gi.Com_PrintFmt("Cleaned up LaserManager for inactive client {} moved to spectator\n", ent->client - game.clients);
+		}
+	}
+	// --- End of NEW MEMORY CLEANUP ---
+
+	// Additional cleanup that might happen when going spectator:
+	ent->client->ps.gunindex = 0; // Hide weapon model
+	ent->client->ps.gunskin = 0;
+	// Ensure movetype/solid are appropriate for spectator
+	ent->movetype = MOVETYPE_NOCLIP;
+	ent->solid = SOLID_NOT;
+	ent->svflags |= SVF_NOCLIENT; // Might already be set by CTFObserver
+	gi.linkentity(ent); // Relink after changes
 }
+
 
 static bool IsPlayerActive(const edict_t* ent) {
 	return (ent->client->latched_buttons & BUTTON_ANY) ||
