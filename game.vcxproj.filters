@@ -90,6 +90,9 @@
     <ClInclude Include="horde\horde_ids.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="horde\horde_menu.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -276,6 +279,9 @@
     <ClCompile Include="m_psxguardian.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="horde\horde_ids.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_menu.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>

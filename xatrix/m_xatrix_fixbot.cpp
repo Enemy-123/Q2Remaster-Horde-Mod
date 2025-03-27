@@ -101,8 +101,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	trace_t tr;
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	// Non-static structure for tracking best position
-	struct {
+	static struct {
 		vec3_t pos;
 		vec3_t dir;
 		float distance;
@@ -124,118 +123,95 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		return false;
 	}
 
-	// Create ray from fixbot position
 	AngleVectors(self->s.angles, forward, right, up);
 	start = self->s.origin;
 
-	// If this is a retry attempt, try different directions
+	// --- Retry / Angle Variation Logic ---
 	if (attempt > 0) {
-		// Create more varied search directions
 		vec3_t angles = vectoangles(forward);
-
-		// First 4 attempts use angles in front of the fixbot
 		if (attempt <= 4) {
-			// First attempts prioritize forward positions with small variations
-			angles[YAW] += (attempt - 1) * 30.0f - 45.0f; // -45, -15, +15, +45 degrees
-			angles[PITCH] = -15.0f; // Slight downward angle
+			angles[YAW] += (attempt - 1) * 30.0f - 45.0f;
+			angles[PITCH] = -15.0f;
 		}
 		else {
-			// Later attempts use full circular search
-			angles[YAW] += (attempt - 4) * 45.0f; // Try positions all around
-			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f; // Various pitches, mostly down
+			angles[YAW] += (attempt - 4) * 45.0f;
+			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f;
 		}
-
 		AngleVectors(angles, forward, nullptr, nullptr);
 	}
+	// --- End Retry / Angle Variation ---
 
-	// Use longer trace for farther positions
 	float trace_distance = isboss ? 1000.0f : 700.0f;
 	end = start + (forward * trace_distance);
-
-	// Trace against world but exclude monsters and players
 	tr = gi.traceline(start, end, self, MASK_SOLID & ~(CONTENTS_MONSTER | CONTENTS_PLAYER));
 
 	if (tr.fraction < 1.0) {
-		// We hit something solid (hopefully a wall)
-
-		// Check if the hit entity is valid for spawning (not a player or monster)
+		// Hit something solid
 		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
-			// Calculate the normal for the surface we hit
+			// Calculate position and direction off the surface
 			direction = tr.plane.normal;
-
-			// Make sure direction is not perfectly vertical
-			if (fabs(direction[2]) > 0.85f) {
-				direction[2] = 0.6f;
+			if (fabs(direction[2]) > 0.9f) {
+				direction[2] = (direction[2] > 0) ? 0.7f : -0.7f;
 				direction.normalize();
 			}
+			position = tr.endpos + (direction * 16.0f);
 
-			// Position a bit off the wall/floor for better placement
-			position = tr.endpos + (tr.plane.normal * 16.0f);
-
-			// Check if there's enough space for the turret
 			vec3_t mins = { -16, -16, -24 };
 			vec3_t maxs = { 16, 16, 24 };
 
-			// First use CheckSpawnPoint for basic validation
+			// 1. Basic Space Check
 			if (CheckSpawnPoint(position, mins, maxs)) {
-				// Check for player proximity 
-				bool player_too_close = false;
-				float min_player_dist = isboss ? 96.0f : 128.0f;
+				bool entity_too_close = false;
+				float min_entity_dist = isboss ? 112.0f : 144.0f; // Distance for initial check
 
-				// Use the iterable for player checks
+				// 2. Player Proximity Check
 				for (auto player : active_players_no_spect()) {
-					// Check current position
-					float dist = (position - player->s.origin).length();
-					if (dist < min_player_dist) {
-						player_too_close = true;
+					if ((position - player->s.origin).length() < min_entity_dist) {
+						entity_too_close = true;
 						break;
 					}
-
-					// Check predicted future position based on velocity
 					vec3_t predicted_pos = player->s.origin + (player->velocity * 0.5f);
-					float predicted_dist = (position - predicted_pos).length();
-					if (predicted_dist < min_player_dist) {
-						player_too_close = true;
+					if ((position - predicted_pos).length() < min_entity_dist) {
+						entity_too_close = true;
 						break;
 					}
 				}
 
-				if (player_too_close) {
-					return false;
-				}
-
-				// Then do more rigorous checks for entity overlap
-				bool entity_overlap = false;
-				edict_t* ent = nullptr;
-				while ((ent = findradius(ent, position, 48.0f)) != nullptr) {
-					if (ent == self) continue;
-
-					vec3_t ent_mins = position + mins;
-					vec3_t ent_maxs = position + maxs;
-
-					if (EntitiesOverlap(ent, ent_mins, ent_maxs)) {
-						entity_overlap = true;
-						break;
+				// 3. Monster Proximity Check (only if no player is too close)
+				if (!entity_too_close) {
+					for (auto monster : active_monsters()) {
+						if (monster == self) continue; // Don't check distance to self
+						// Check distance to monster's origin
+						if ((position - monster->s.origin).length() < min_entity_dist) {
+							entity_too_close = true;
+							break;
+						}
+						// Optional: Add prediction for monsters if desired (might be overkill)
+						// vec3_t predicted_monster_pos = monster->s.origin + (monster->velocity * 0.5f);
+						// if ((position - predicted_monster_pos).length() < min_entity_dist) {
+						//     entity_too_close = true;
+						//     break;
+						// }
 					}
 				}
 
-				if (!entity_overlap) {
-					// Safely compute vector from self to position
+				// 4. If No Entity is Too Close, proceed with further checks
+				if (!entity_too_close) {
+					// Optional: Rigorous BBOX Overlap Check (can be redundant with proximity)
+					// bool entity_overlap = false;
+					// ... overlap logic ...
+					// if (!entity_overlap) {
+
+					// 5. Path and Best Position Logic
 					vec3_t to_pos = position - self->s.origin;
 					if (to_pos.length() > 0.1f) {
-						to_pos.normalize();
-						bool pos_in_front = (to_pos.dot(forward) > 0.0f);
-
-						// Check clear path back to fixbot
 						bool clear_path = G_IsClearPath(self, MASK_SOLID, self->s.origin, position);
-
 						if (clear_path) {
-							// Calculate distance from fixbot to determine if this is the best position
+							to_pos.normalize();
+							bool pos_in_front = (to_pos.dot(forward) > 0.0f);
 							float dist = (position - self->s.origin).length();
 
-							// Prefer positions in front with good distance
 							bool better_position = false;
-
 							if (!best_position.valid) {
 								better_position = true;
 							}
@@ -254,55 +230,57 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 								best_position.in_front = pos_in_front;
 							}
 
-							// If this is an excellent position in front, use it immediately
-							if (pos_in_front && dist > trace_distance * 0.5f) {
-								// Final player proximity check
-								if (!player_too_close) {
-									// Pre-clear the area
-									PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
-									return true;
-								}
+							// Found a good candidate, return true immediately if it's far enough in front
+							if (pos_in_front && dist > trace_distance * 0.6f) {
+								return true;
 							}
-						}
-					}
-				}
-			}
-		}
-	}
+						} // end clear_path
+					} // end to_pos length check
+					// } // end !entity_overlap (if using rigorous overlap check)
+				} // end !entity_too_close
+			} // end CheckSpawnPoint
+		} // end valid hit entity check
+	} // end trace hit something
 
-	// Try more positions if we haven't found a good one yet
+	// --- Retry or Use Best Found ---
 	if (attempt < 12) {
 		return find_turret_spawn_position(self, position, direction, attempt + 1);
 	}
 
-	// If we've tried all attempts and found at least one valid position, use the best one
 	if (best_position.valid) {
 		position = best_position.pos;
 		direction = best_position.dir;
 
-		// Final check for player proximity
-		bool player_too_close = false;
-		float min_player_dist = isboss ? 96.0f : 128.0f;
+		// Final proximity check using the tighter distance before returning the best found
+		bool entity_too_close = false;
+		float min_final_dist = isboss ? 96.0f : 128.0f; // Slightly tighter for final check of best
 
 		for (auto player : active_players_no_spect()) {
-			float dist = (position - player->s.origin).length();
-			if (dist < min_player_dist) {
-				player_too_close = true;
+			if ((position - player->s.origin).length() < min_final_dist) {
+				entity_too_close = true;
 				break;
 			}
 		}
+		if (!entity_too_close) {
+			for (auto monster : active_monsters()) {
+				if (monster == self) continue;
+				if ((position - monster->s.origin).length() < min_final_dist) {
+					entity_too_close = true;
+					break;
+				}
+			}
+		}
 
-		if (!player_too_close) {
-			// Pre-clear the area
-			PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
-			return true;
+		if (!entity_too_close) {
+			return true; // Best position is valid and clear
 		}
 	}
+	// --- End Retry or Use Best Found ---
 
-	// Last resort fallback
-	position = self->s.origin + (forward * (isboss ? 350.0f : 250.0f));
-	direction = forward;
-	return false;
+	// Fallback if no suitable position found after all attempts
+	position = vec3_origin; // Indicate failure clearly
+	direction = vec3_origin;
+	return false; // Indicate failure
 }
 
 PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
@@ -503,132 +481,109 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	if (!self || !self->inuse || position.equals(vec3_origin))
 		return;
 
-	// Final spawn position check
+	// Final spawn position check - CRITICAL before G_Spawn
 	vec3_t mins = { -16, -16, -24 };
 	vec3_t maxs = { 16, 16, 24 };
-
-	// Check for player proximity one last time
-	bool player_too_close = false;
-	float min_player_dist = 96.0f;
-
-	for (auto player : active_players_no_spect()) {
-		// Check current position
-		float dist = (position - player->s.origin).length();
-		if (dist < min_player_dist) {
-			player_too_close = true;
-			break;
-		}
-
-		// Check predicted position
-		vec3_t predicted_pos = player->s.origin + (player->velocity * 0.5f);
-		float predicted_dist = (position - predicted_pos).length();
-		if (predicted_dist < min_player_dist) {
-			player_too_close = true;
-			break;
-		}
-	}
-
-	if (player_too_close) {
-		// Abort spawning - optional effect to show failure
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_TELEPORT_EFFECT);
-		gi.WritePosition(position);
-		gi.multicast(position, MULTICAST_PVS, false);
-		return;
-	}
-
-	// Push entities away forcefully one more time
-	PushEntitiesAway(position, 1, 80.0f, 100.0f, 100.0f, 50.0f);
-
-	// Use CheckSpawnPoint for consistent validation
-	if (!CheckSpawnPoint(position, mins, maxs))
-		return;
-
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+
+	// FINAL Proximity Check (Players AND Monsters) - Use tight radius
+	bool entity_too_close = false;
+	float min_final_dist = 96.0f; // Tight radius for final check
+
+	// Check Players
+	for (auto player : active_players_no_spect()) {
+		if ((position - player->s.origin).length() < min_final_dist) {
+			entity_too_close = true;
+			break;
+		}
+		// Optional prediction check (can be skipped for final check if desired)
+		// vec3_t predicted_pos = player->s.origin + (player->velocity * 0.1f); // Very short prediction
+		// if ((position - predicted_pos).length() < min_final_dist) {
+		//     entity_too_close = true;
+		//     break;
+		// }
+	}
+
+	// Check Monsters (only if no player was too close)
+	if (!entity_too_close) {
+		for (auto monster : active_monsters()) {
+			if (monster == self) continue;
+			if ((position - monster->s.origin).length() < min_final_dist) {
+				entity_too_close = true;
+				break;
+			}
+		}
+	}
+
+	// ABORT if any entity is too close in the final check
+	if (entity_too_close) {
+		// Optional: Fizzle effect
+		return;
+	}
+
+	// FINAL Space Check
+	if (!CheckSpawnPoint(position, mins, maxs)) {
+		// Optional: Fizzle effect
+		return; // ABORT
+	}
+
+	// --- Spawning is considered safe from this point ---
+
 	vec3_t dir;
 	edict_t* ent;
 
-	// Determine best direction for the turret to face
+	// Determine direction
 	if (self->enemy && self->enemy->inuse) {
-		// Face toward enemy if possible
 		dir = self->enemy->s.origin - position;
-		float len = dir.length();
-		if (len > 0.1f)
-			dir *= (1.0f / len);
-		else
-			dir = { 1.0f, 0.0f, 0.0f }; // Default direction if calculation fails
+		if (dir.length() <= 0.1f) dir = { 1.0f, 0.0f, 0.0f }; else dir.normalize();
 	}
 	else {
-		// No enemy, face away from fixbot
 		dir = position - self->s.origin;
-		float len = dir.length();
-		if (len > 0.1f)
-			dir *= (1.0f / len);
-		else
-			dir = { 1.0f, 0.0f, 0.0f }; // Default direction if calculation fails
+		if (dir.length() <= 0.1f) dir = { 1.0f, 0.0f, 0.0f }; else dir.normalize();
 	}
 
-	// Create the turret entity
+	// Create entity
 	ent = G_Spawn();
-	if (!ent)
-		return;
+	if (!ent) return;
 
-	// Set basic properties
-	ent->enemy = nullptr;
-	ent->goalentity = nullptr;
-	ent->movetarget = nullptr;
-	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	// Setup properties
 	ent->classname = "monster_turret";
-	ent->owner = self;
-
-	// team relationship
-	ent->monsterinfo.team = self->monsterinfo.team;  // Inherit team from spawner
-	ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
-	ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-
-	// Position and orient the turret
 	ent->s.origin = position;
 	ent->s.angles = vectoangles(dir);
-
-	// Finalize the turret
+	ent->owner = self;
 	ent->monsterinfo.commander = self;
+	ent->monsterinfo.team = self->monsterinfo.team;
+	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_IGNORE_SHOTS;
+	// Other properties like enemy, goalentity, movetarget are null by default
 
-	// Sound and visual effects
+	// Sound & Visuals
 	if (sound_spawn)
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1, isboss ? ATTN_NONE : ATTN_NORM, 0);
-
-	// Enhanced visual effect - same style as tank spawner uses
 	float size = 38.0f;
 	SpawnGrow_Spawn(position, size * 2.0f, size * 0.5f);
-
-	// Additional teleport effect
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_TELEPORT_EFFECT);
 	gi.WritePosition(position);
 	gi.multicast(position, MULTICAST_PVS, false);
 
-	// Add to monster count
+	// Update count
 	if (self->monsterinfo.monster_slots) {
 		self->monsterinfo.monster_used += 1;
 	}
 
-	// Use ED_CallSpawn to properly initialize the turret
+	// Finalize spawn
 	ED_CallSpawn(ent);
 
-	// Post-spawn safety checks
+	// Post-spawn setup
 	if (ent->inuse) {
 		if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
 			ent->enemy = self->enemy;
-			FoundTarget(ent);  // Activates turret against current target immediately
+			FoundTarget(ent);
 		}
-		// Give it more time before searching
-		ent->monsterinfo.search_time = level.time + (isboss ? 4_sec : 3_sec);
-
-		// Add a brief invulnerability period after spawn
-		ent->pain_debounce_time = level.time + (isboss ? 2_sec : 1_sec);
+		ent->monsterinfo.search_time = level.time + (isboss ? 4.5_sec : 3.5_sec);
+		ent->pain_debounce_time = level.time + (isboss ? 2.5_sec : 1.5_sec);
 	}
 }
-
 mframe_t fixbot_frames_run[] = {
 	{ ai_run, 10 }
 };
@@ -2892,8 +2847,8 @@ void SP_monster_fixbotkl(edict_t* self) {
 		self->monsterinfo.power_armor_power = 5000;
 	self->max_health = 7500;
 	self->health = self->max_health;
-	self->s.scale = 3.4f;
-	self->mins *= 3.4f;
-	self->maxs *= 3.4f;
+	self->s.scale = 2.6f;
+	self->mins *= 2.6f;
+	self->maxs *= 2.6f;
 
 }

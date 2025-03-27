@@ -128,6 +128,7 @@
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
     <ClInclude Include="horde\horde_ids.h" />
+    <ClInclude Include="horde\horde_menu.h" />
     <ClInclude Include="laser.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
@@ -183,6 +184,7 @@
     <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="horde\horde_ids.cpp" />
+    <ClCompile Include="horde\horde_menu.cpp" />
     <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="g_ai.cpp" />

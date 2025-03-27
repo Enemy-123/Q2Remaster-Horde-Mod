@@ -1,7 +1,12 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
+#pragma once
+
+#include "../g_local.h" // Include base types like edict_t, gclient_t, gtime_t, etc. BEFORE they are used here.
 
 constexpr const char* CTF_VERSION_STRING = "1.52";
+
+// --- Enums Moved from g_ctf.cpp ---
 
 enum ctfteam_t
 {
@@ -17,6 +22,28 @@ enum ctfgrapplestate_t
 	CTF_GRAPPLE_STATE_HANG
 };
 
+// Moved from g_ctf.cpp for horde_menu.cpp
+enum elect_t
+{
+	ELECT_NONE,
+	ELECT_MAP,
+	ELECT_TIME // Added for time extension vote in g_ctf.cpp
+};
+
+// Moved from g_ctf.cpp for CTFObserver logic
+enum match_t
+{
+	MATCH_NONE,
+	MATCH_SETUP,
+	MATCH_PREGAME,
+	MATCH_GAME,
+	MATCH_POST
+};
+
+
+// --- Structs Moved/Defined Here ---
+
+// Moved from g_ctf.cpp for horde_menu.cpp
 struct ghost_t
 {
 	char netname[MAX_NETNAME];
@@ -35,39 +62,76 @@ struct ghost_t
 	edict_t* ent;
 };
 
+
+// Moved from g_ctf.cpp for horde_menu.cpp (Needed for extern ctfgame)
+struct ctfgame_t
+{
+	int		team1, team2;
+	int		total1, total2; // these are only set when going into intermission except in teamplay
+	gtime_t last_flag_capture;
+	int		last_capture_team;
+
+	match_t match;	   // match state
+	gtime_t matchtime; // time for match start/end (depends on state)
+	int		lasttime;  // last time update, explicitly truncated to seconds
+	bool	countdown; // has audio countdown started?
+
+	elect_t	 election;	 // election type
+	edict_t* etarget;	 // for admin election, who's being elected
+	char	 elevel[32]; // for map election, target level
+	int		 evotes;	 // votes so far
+	int		 needvotes;	 // votes needed
+	gtime_t	 electtime;	 // remaining time until election times out
+	char	 emsg[256];	 // election name
+	int		 warnactive; // true if stat string 30 is active
+
+	ghost_t ghosts[MAX_CLIENTS]; // ghost codes
+};
+
+// --- Extern Declarations ---
+
+// Declare ctfgame as extern (definition is in g_ctf.cpp)
+extern ctfgame_t ctfgame;
+
+// CVars used elsewhere
 extern cvar_t* ctf;
 extern cvar_t* g_teamplay_force_join;
 extern cvar_t* teamplay;
+extern cvar_t* capturelimit; // Used in CTFCheckRules
+
+// --- Constants ---
 
 constexpr const char* CTF_TEAM1_SKIN = "ctf_r";
 constexpr const char* CTF_TEAM2_SKIN = "ctf_b";
 
-constexpr int32_t CTF_CAPTURE_BONUS = 15;	  // what you get for capture
-constexpr int32_t CTF_TEAM_BONUS = 10;		  // what your team gets for capture
-constexpr int32_t CTF_RECOVERY_BONUS = 1;	  // what you get for recovery
-constexpr int32_t CTF_FLAG_BONUS = 0;		  // what you get for picking up enemy flag
-constexpr int32_t CTF_FRAG_CARRIER_BONUS = 2; // what you get for fragging enemy flag carrier
-constexpr gtime_t CTF_FLAG_RETURN_TIME = 40_sec;  // seconds until auto return
+constexpr int32_t CTF_CAPTURE_BONUS = 15;
+constexpr int32_t CTF_TEAM_BONUS = 10;
+constexpr int32_t CTF_RECOVERY_BONUS = 1;
+constexpr int32_t CTF_FLAG_BONUS = 0;
+constexpr int32_t CTF_FRAG_CARRIER_BONUS = 2;
+constexpr gtime_t CTF_FLAG_RETURN_TIME = 40_sec;
 
-constexpr int32_t CTF_CARRIER_DANGER_PROTECT_BONUS = 2; // bonus for fraggin someone who has recently hurt your flag carrier
-constexpr int32_t CTF_CARRIER_PROTECT_BONUS = 1;		// bonus for fraggin someone while either you or your target are near your flag carrier
-constexpr int32_t CTF_FLAG_DEFENSE_BONUS = 1;			// bonus for fraggin someone while either you or your target are near your flag
-constexpr int32_t CTF_RETURN_FLAG_ASSIST_BONUS = 1;		// awarded for returning a flag that causes a capture to happen almost immediately
-constexpr int32_t CTF_FRAG_CARRIER_ASSIST_BONUS = 2;	// award for fragging a flag carrier if a capture happens almost immediately
+constexpr int32_t CTF_CARRIER_DANGER_PROTECT_BONUS = 2;
+constexpr int32_t CTF_CARRIER_PROTECT_BONUS = 1;
+constexpr int32_t CTF_FLAG_DEFENSE_BONUS = 1;
+constexpr int32_t CTF_RETURN_FLAG_ASSIST_BONUS = 1;
+constexpr int32_t CTF_FRAG_CARRIER_ASSIST_BONUS = 2;
 
-constexpr float CTF_TARGET_PROTECT_RADIUS = 400;   // the radius around an object being defended where a target will be worth extra frags
-constexpr float CTF_ATTACKER_PROTECT_RADIUS = 400; // the radius around an object being defended where an attacker will get extra frags when making kills
+constexpr float CTF_TARGET_PROTECT_RADIUS = 400;
+constexpr float CTF_ATTACKER_PROTECT_RADIUS = 400;
 
 constexpr gtime_t CTF_CARRIER_DANGER_PROTECT_TIMEOUT = 8_sec;
 constexpr gtime_t CTF_FRAG_CARRIER_ASSIST_TIMEOUT = 10_sec;
 constexpr gtime_t CTF_RETURN_FLAG_ASSIST_TIMEOUT = 10_sec;
 
-constexpr gtime_t CTF_AUTO_FLAG_RETURN_TIMEOUT = 30_sec; // number of seconds before dropped flag auto-returns
+constexpr gtime_t CTF_AUTO_FLAG_RETURN_TIMEOUT = 30_sec;
 
-constexpr gtime_t CTF_TECH_TIMEOUT = 45_sec; // seconds before techs spawn again
+constexpr gtime_t CTF_TECH_TIMEOUT = 45_sec; // Also used by horde_menu
 
-constexpr int32_t CTF_DEFAULT_GRAPPLE_SPEED = 650;		// speed of grapple in flight
-constexpr float	  CTF_DEFAULT_GRAPPLE_PULL_SPEED = 650; // speed player is pulled at
+constexpr int32_t CTF_DEFAULT_GRAPPLE_SPEED = 650;
+constexpr float	  CTF_DEFAULT_GRAPPLE_PULL_SPEED = 650;
+
+// --- Function Declarations ---
 
 void CTFInit();
 void CTFSpawn();
@@ -87,8 +151,8 @@ bool		CTFPickup_Flag(edict_t* ent, edict_t* other);
 void		CTFDrop_Flag(edict_t* ent, gitem_t* item);
 void		CTFEffects(edict_t* player);
 void		CTFCalcScores();
-void		CTFCalcRankings(std::array<uint32_t, MAX_CLIENTS>& player_ranks); // [Paril-KEX]
-void		CheckEndTDMLevel(); // [Paril-KEX]
+void		CTFCalcRankings(std::array<uint32_t, MAX_CLIENTS>& player_ranks);
+void		CheckEndTDMLevel();
 void		SetCTFStats(edict_t* ent);
 void		CTFDeadDropFlag(edict_t* self);
 void		CTFScoreboardMessage(edict_t* ent, edict_t* killer);
@@ -116,20 +180,31 @@ bool	 CTFPickup_Tech(edict_t* ent, edict_t* other);
 void	 CTFDrop_Tech(edict_t* ent, gitem_t* item);
 void	 CTFDeadDropTech(edict_t* ent);
 void	 CTFSetupTechSpawn();
-int		 CTFApplyResistance(edict_t* ent, int dmg);
+int		 CTFApplyResistance(edict_t* ent, int dmg); // Also needed for horde_menu Tech handler sound
 int		 CTFApplyStrength(edict_t* ent, int dmg);
-bool	 CTFApplyStrengthSound(edict_t* ent);
+bool	 CTFApplyStrengthSound(edict_t* ent);       // Also needed for horde_menu Tech handler sound
 bool	 CTFApplyHaste(edict_t* ent);
-void	 CTFApplyHasteSound(edict_t* ent);
-void	 CTFApplyRegeneration(edict_t* ent);
+void	 CTFApplyHasteSound(edict_t* ent);          // Also needed for horde_menu Tech handler sound
+void	 CTFApplyRegeneration(edict_t* ent);        // Also needed for horde_menu Tech handler sound
 bool	 CTFHasRegeneration(edict_t* ent);
 void	 CTFRespawnTech(edict_t* ent);
 void	 CTFResetTech();
 
-void CTFOpenJoinMenu(edict_t* ent);
+// --- Declarations specifically needed for horde_menu.cpp ---
+//void ShowInventory(edict_t* ent);                   // For MainMenu_Handler
+void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team); // For TechMenu_Handler
+bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg); // For MapVote_Handler
+void RemoveAllTechItems(edict_t* ent);              // For TechMenu_Handler
+// CTFObserver, CTFVoteYes, CTFVoteNo are already declared below
+
+// --- Other CTF Functions (Mostly keep as is) ---
+void RemoveTech(edict_t* ent);
+void OpenTechMenu(edict_t* ent);
+void HordeOpenJoinMenu(edict_t* ent);
+void HordeUpdateJoinMenu(edict_t* ent);
 bool CTFStartClient(edict_t* ent);
-void CTFVoteYes(edict_t* ent);
-void CTFVoteNo(edict_t* ent);
+void CTFVoteYes(edict_t* ent); // Needed for MainMenu_Handler
+void CTFVoteNo(edict_t* ent);  // Needed for MainMenu_Handler
 void CTFReady(edict_t* ent);
 void CTFNotReady(edict_t* ent);
 bool CTFNextMap();
@@ -152,7 +227,7 @@ void UpdateChaseCam(edict_t* ent);
 void ChaseNext(edict_t* ent);
 void ChasePrev(edict_t* ent);
 
-void CTFObserver(edict_t* ent);
+void CTFObserver(edict_t* ent); // Needed for MainMenu_Handler
 
 void SP_trigger_teleport(edict_t* ent);
 void SP_info_teleport_destination(edict_t* ent);
