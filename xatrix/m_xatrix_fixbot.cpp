@@ -101,15 +101,18 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	trace_t tr;
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
-	static struct {
+	// --- CRITICAL FIX: Removed 'static' keyword ---
+	// 'best_position' is now local to this function call, preventing concurrency issues.
+	struct {
 		vec3_t pos;
 		vec3_t dir;
 		float distance;
 		bool valid;
 		bool in_front;
 	} best_position{};
+	// --- End Fix ---
 
-	// Reset on first attempt
+	// Reset on first attempt (only relevant if called recursively, now safe with local struct)
 	if (attempt == 0) {
 		best_position.valid = false;
 		best_position.distance = 0;
@@ -127,49 +130,62 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	start = self->s.origin;
 
 	// --- Retry / Angle Variation Logic ---
+	// Try different angles on subsequent attempts
 	if (attempt > 0) {
 		vec3_t angles = vectoangles(forward);
+		// First few attempts focus forward/slightly angled
 		if (attempt <= 4) {
-			angles[YAW] += (attempt - 1) * 30.0f - 45.0f;
-			angles[PITCH] = -15.0f;
+			angles[YAW] += (attempt - 1) * 30.0f - 45.0f; // -45, -15, +15, +45 deg
+			angles[PITCH] = -15.0f; // Slightly downward
 		}
+		// Later attempts search more widely
 		else {
-			angles[YAW] += (attempt - 4) * 45.0f;
-			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f;
+			angles[YAW] += (attempt - 4) * 45.0f; // Wider yaw spread
+			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f; // Vary pitch
 		}
 		AngleVectors(angles, forward, nullptr, nullptr);
 	}
 	// --- End Retry / Angle Variation ---
 
+	// Trace distance varies for boss
 	float trace_distance = isboss ? 1000.0f : 700.0f;
 	end = start + (forward * trace_distance);
+
+	// Trace against solid world, ignoring players and monsters during the trace itself
 	tr = gi.traceline(start, end, self, MASK_SOLID & ~(CONTENTS_MONSTER | CONTENTS_PLAYER));
 
+	// Did we hit something before reaching max distance?
 	if (tr.fraction < 1.0) {
-		// Hit something solid
-		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
-			// Calculate position and direction off the surface
+		// Ensure we didn't hit another monster or a player (should be excluded by mask, but double check entity flags)
+		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client)
+		{
+			// Calculate potential position slightly off the surface
 			direction = tr.plane.normal;
-			if (fabs(direction[2]) > 0.9f) {
-				direction[2] = (direction[2] > 0) ? 0.7f : -0.7f;
-				direction.normalize();
-			}
-			position = tr.endpos + (direction * 16.0f);
 
+			// Avoid perfectly vertical surfaces if possible, slightly adjust normal
+			if (fabs(direction[2]) > 0.9f) {
+				direction[2] = (direction[2] > 0) ? 0.7f : -0.7f; // Adjust Z
+				direction.normalize();                           // Recalculate normalized vector
+			}
+			position = tr.endpos + (direction * 16.0f); // Position 16 units away from impact point along normal
+
+			// Define the bounding box for the turret
 			vec3_t mins = { -16, -16, -24 };
 			vec3_t maxs = { 16, 16, 24 };
 
-			// 1. Basic Space Check
+			// 1. Basic Space Check: Is the spot theoretically empty?
 			if (CheckSpawnPoint(position, mins, maxs)) {
 				bool entity_too_close = false;
-				float min_entity_dist = isboss ? 112.0f : 144.0f; // Distance for initial check
+				// Distance thresholds for proximity checks
+				float min_entity_dist = isboss ? 112.0f : 144.0f;
 
-				// 2. Player Proximity Check
+				// 2. Player Proximity Check: Check current and predicted player positions
 				for (auto player : active_players_no_spect()) {
 					if ((position - player->s.origin).length() < min_entity_dist) {
 						entity_too_close = true;
 						break;
 					}
+					// Check predicted position slightly ahead in time
 					vec3_t predicted_pos = player->s.origin + (player->velocity * 0.5f);
 					if ((position - predicted_pos).length() < min_entity_dist) {
 						entity_too_close = true;
@@ -177,51 +193,46 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 					}
 				}
 
-				// 3. Monster Proximity Check (only if no player is too close)
+				// 3. Monster Proximity Check: Only if no players are too close
 				if (!entity_too_close) {
 					for (auto monster : active_monsters()) {
 						if (monster == self) continue; // Don't check distance to self
-						// Check distance to monster's origin
 						if ((position - monster->s.origin).length() < min_entity_dist) {
 							entity_too_close = true;
 							break;
 						}
-						// Optional: Add prediction for monsters if desired (might be overkill)
-						// vec3_t predicted_monster_pos = monster->s.origin + (monster->velocity * 0.5f);
-						// if ((position - predicted_monster_pos).length() < min_entity_dist) {
-						//     entity_too_close = true;
-						//     break;
-						// }
 					}
 				}
 
 				// 4. If No Entity is Too Close, proceed with further checks
 				if (!entity_too_close) {
-					// Optional: Rigorous BBOX Overlap Check (can be redundant with proximity)
-					// bool entity_overlap = false;
-					// ... overlap logic ...
-					// if (!entity_overlap) {
-
-					// 5. Path and Best Position Logic
+					// 5. Path and Best Position Logic: Check visibility back to spawner and evaluate position quality
 					vec3_t to_pos = position - self->s.origin;
-					if (to_pos.length() > 0.1f) {
+					float dist = to_pos.length(); // Get distance first
+
+					if (dist > 0.1f) { // Ensure position is distinct from spawner origin
+						// Check if there's a clear line of sight back to the fixbot (optional but good)
 						bool clear_path = G_IsClearPath(self, MASK_SOLID, self->s.origin, position);
+
 						if (clear_path) {
-							to_pos.normalize();
-							bool pos_in_front = (to_pos.dot(forward) > 0.0f);
-							float dist = (position - self->s.origin).length();
+							to_pos.normalize(); // Normalize direction vector *after* getting distance
+							vec3_t current_fwd;
+							AngleVectors(self->s.angles, current_fwd, nullptr, nullptr); // Use current forward vector for 'in_front' check
+							bool pos_in_front = (to_pos.dot(current_fwd) > 0.0f);
 
+							// Determine if this position is better than the current best
 							bool better_position = false;
-							if (!best_position.valid) {
+							if (!best_position.valid) { // Is this the first valid position found?
 								better_position = true;
 							}
-							else if (pos_in_front && !best_position.in_front) {
+							else if (pos_in_front && !best_position.in_front) { // Prefer positions in front over those behind
 								better_position = true;
 							}
-							else if ((pos_in_front == best_position.in_front) && dist > best_position.distance) {
+							else if ((pos_in_front == best_position.in_front) && dist > best_position.distance) { // If both in front/behind, prefer farther
 								better_position = true;
 							}
 
+							// If better, update the best position found so far
 							if (better_position) {
 								best_position.pos = position;
 								best_position.dir = direction;
@@ -230,54 +241,61 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 								best_position.in_front = pos_in_front;
 							}
 
-							// Found a good candidate, return true immediately if it's far enough in front
+							// Optimization: If we found a good position reasonably far in front, return immediately
 							if (pos_in_front && dist > trace_distance * 0.6f) {
+								// Need to set the output params before returning true here
+								position = best_position.pos;
+								direction = best_position.dir;
 								return true;
 							}
-						} // end clear_path
-					} // end to_pos length check
-					// } // end !entity_overlap (if using rigorous overlap check)
-				} // end !entity_too_close
-			} // end CheckSpawnPoint
-		} // end valid hit entity check
-	} // end trace hit something
+						} // end clear_path check
+					} // end dist > 0.1f check
+				} // end !entity_too_close check
+			} // end CheckSpawnPoint check
+		} // end check for valid hit entity (not monster/player)
+	} // end trace hit something check
 
 	// --- Retry or Use Best Found ---
+	// If we haven't found an ideal spot yet and haven't exceeded attempts, try again
 	if (attempt < 12) {
+		// Recursive call for next attempt
 		return find_turret_spawn_position(self, position, direction, attempt + 1);
 	}
 
+	// If we've exhausted attempts, check if we found *any* valid position
 	if (best_position.valid) {
+		// Use the best position found
 		position = best_position.pos;
 		direction = best_position.dir;
 
-		// Final proximity check using the tighter distance before returning the best found
-		bool entity_too_close = false;
-		float min_final_dist = isboss ? 96.0f : 128.0f; // Slightly tighter for final check of best
+		// Final safety check for proximity using a tighter radius before returning the best found
+		bool entity_too_close_final = false;
+		float min_final_dist = isboss ? 96.0f : 128.0f; // Tighter radius for the final check
 
 		for (auto player : active_players_no_spect()) {
 			if ((position - player->s.origin).length() < min_final_dist) {
-				entity_too_close = true;
+				entity_too_close_final = true;
 				break;
 			}
 		}
-		if (!entity_too_close) {
+		if (!entity_too_close_final) {
 			for (auto monster : active_monsters()) {
 				if (monster == self) continue;
 				if ((position - monster->s.origin).length() < min_final_dist) {
-					entity_too_close = true;
+					entity_too_close_final = true;
 					break;
 				}
 			}
 		}
 
-		if (!entity_too_close) {
+		// If the final check passes, return true
+		if (!entity_too_close_final) {
 			return true; // Best position is valid and clear
 		}
 	}
 	// --- End Retry or Use Best Found ---
 
-	// Fallback if no suitable position found after all attempts
+	// Fallback: No suitable position found after all attempts and checks
 	position = vec3_origin; // Indicate failure clearly
 	direction = vec3_origin;
 	return false; // Indicate failure
