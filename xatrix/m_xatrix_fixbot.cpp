@@ -2890,7 +2890,7 @@ void SP_monster_fixbotkl(edict_t* self) {
 		self->monsterinfo.power_armor_power = 5000;
 	self->max_health = 7500;
 	self->health = self->max_health;
-	self->s.scale = 3.4f;
+	self->s.scale = 2.6f;
 	self->mins *= 3.4f;
 	self->maxs *= 3.4f;
 
