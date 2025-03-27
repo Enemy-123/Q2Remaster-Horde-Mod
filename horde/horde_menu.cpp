@@ -1,16 +1,41 @@
-#include "../g_local.h"
-#include "../shared.h"
-#include "../ctf/p_ctf_menu.h"
+// --- START OF FILE horde_menu.cpp ---
 
+#include "../g_local.h"  // Includes edict_t, gclient_t, gi, level, etc.
+#include "../shared.h"  // For MAX_ITEMS, etc.
+#include "../ctf/p_ctf_menu.h" // Menu system definitions and functions
+#include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
+#include "g_horde.h"    // For GetMapSize
+
+// Forward Declarations from this file
 void OpenVoteMenu(edict_t* ent);
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
 void UpdateVoteMenu();
+void ShowInventory(edict_t* ent);
+void OpenHordeMenu(edict_t* ent);
+void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p);
+pmenuhnd_t* CreateHordeMenu(edict_t* ent);
+void OpenTechMenu(edict_t* ent);
+void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void OpenHUDMenu(edict_t* ent);
+void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p);
+void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void CheckAndUpdateMenus();
+void OpenMapCategoryMenu(edict_t* ent);
+void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p);
+void CategorizeMapList();
+pmenuhnd_t* CreateHUDMenu(edict_t* ent);
+
+
+// === Map Voting Menu ===
 
 constexpr size_t MAX_MAPS_PER_PAGE = 11;
-// Definir el número correcto de elementos en el array `vote_menu`
-static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 5 + 1] = {
-	{ "*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
+constexpr size_t VOTE_MENU_SIZE = MAX_MAPS_PER_PAGE + 6; // Title, blank, N maps, blank, Next, Back, Close
+
+// vote_menu is dynamically updated by UpdateVoteMenu
+static pmenu_t vote_menu[VOTE_MENU_SIZE] = {
+	{ "*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr }, // Title (updated by category)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                 // Blank separator
+	// --- Map entries start here (index 2 to 2 + MAX_MAPS_PER_PAGE - 1) ---
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
@@ -22,58 +47,373 @@ static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 5 + 1] = {
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Next", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "Previous", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "Close", PMENU_ALIGN_LEFT, VoteMenuHandler }
+	// --- Map entries end here ---
+	{ "", PMENU_ALIGN_CENTER, nullptr },                 // Blank separator (index 2 + MAX_MAPS_PER_PAGE)
+	{ "Next", PMENU_ALIGN_LEFT, VoteMenuHandler },       // Navigation (index 3 + MAX_MAPS_PER_PAGE)
+	{ "Back", PMENU_ALIGN_LEFT, VoteMenuHandler },       // Navigation (index 4 + MAX_MAPS_PER_PAGE)
+	{ "Close", PMENU_ALIGN_LEFT, VoteMenuHandler }       // Close (index 5 + MAX_MAPS_PER_PAGE)
 };
 
-void ShowInventory(edict_t* ent) {
+// --- Map List Categorization ---
 
-	if (ent->svflags & SVF_BOT)
+struct map_lists_t {
+	std::vector<std::string> big_maps;
+	std::vector<std::string> medium_maps;
+	std::vector<std::string> small_maps;
+	size_t current_page = 0;
+	MapSize current_category = { false, true, false }; // Default to medium
+};
+
+static map_lists_t categorized_maps;
+
+// Function to categorize the maps based on g_map_list cvar
+void CategorizeMapList() {
+	categorized_maps.big_maps.clear();
+	categorized_maps.medium_maps.clear();
+	categorized_maps.small_maps.clear();
+
+	const char* mlist = g_map_list->string;
+	if (!mlist) return; // Safety check
+
+	char* token;
+	// Use a local copy to avoid modifying the cvar string directly
+	std::string mlist_copy = mlist;
+	const char* mlist_ptr = mlist_copy.c_str();
+
+
+	while (*(token = COM_Parse(&mlist_ptr)) != '\0') {
+		// Check if token is empty, can happen with consecutive spaces
+		if (token[0] == '\0') continue;
+
+		const char* map_name = token;
+		MapSize const mapSize = GetMapSize(map_name); // Assuming GetMapSize is safe
+
+		if (mapSize.isBigMap) {
+			categorized_maps.big_maps.push_back(map_name);
+		}
+		else if (mapSize.isSmallMap) {
+			categorized_maps.small_maps.push_back(map_name);
+		}
+		else { // isMediumMap or unknown defaults to medium
+			categorized_maps.medium_maps.push_back(map_name);
+		}
+	}
+}
+
+
+// --- Map Category Selection Menu ---
+
+static pmenu_t map_category_menu[] = {
+	{ "*Map Category Selection", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "Big Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },
+	{ "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },
+	{ "Small Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, MapCategoryHandler },
+	{ "Close", PMENU_ALIGN_LEFT, MapCategoryHandler }
+};
+constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t);
+
+// Handler for the map category selection menu
+void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p) {
+		return;
+	}
+
+	const int option = p->cur;
+
+	PMenu_Close(ent); // Close the category menu first
+
+	switch (option) {
+	case 2: // Big Maps
+		categorized_maps.current_category = MapSize{ false, false, true };
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu(); // Update vote menu data based on new category
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Open the map list
+		break;
+
+	case 3: // Medium Maps
+		categorized_maps.current_category = MapSize{ false, true, false };
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu();
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		break;
+
+	case 4: // Small Maps
+		categorized_maps.current_category = MapSize{ true, false, false };
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu();
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		break;
+
+	case 6: // Back to Horde Menu
+		OpenHordeMenu(ent); // Open the main menu
+		break;
+
+	case 7: // Close
+		// Menu already closed at the start
+		break;
+
+	default:
+		// Invalid option, menu already closed
+		break;
+	}
+}
+
+// Opens the map category selection menu
+void OpenMapCategoryMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Close any existing menu first
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Open the category menu
+	PMenu_Open(ent, map_category_menu, -1, MAP_CATEGORY_MENU_SIZE, nullptr, nullptr);
+}
+
+// --- Map Voting Logic ---
+
+// Opens the initial map category selection menu
+void OpenVoteMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+	CategorizeMapList(); // Ensure maps are categorized before opening the menu
+	OpenMapCategoryMenu(ent); // Start with category selection
+}
+
+// Handler for map selection and navigation within the vote menu
+void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	// Input validation
+	if (!ent || !ent->client || !p || p->cur < 0) {
+		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
+		return;
+	}
+
+	const int option = p->cur;
+	std::vector<std::string>* current_map_list = nullptr;
+
+	// Get current map list based on category
+	if (categorized_maps.current_category.isBigMap) {
+		current_map_list = &categorized_maps.big_maps;
+	}
+	else if (categorized_maps.current_category.isSmallMap) {
+		current_map_list = &categorized_maps.small_maps;
+	}
+	else { // Medium or default
+		current_map_list = &categorized_maps.medium_maps;
+	}
+
+	// Validate map list
+	if (!current_map_list || current_map_list->empty()) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "No maps available in this category.\n");
+		PMenu_Close(ent);
+		OpenMapCategoryMenu(ent); // Go back to category selection
+		return;
+	}
+
+	const size_t map_section_start = 2;
+	const size_t map_section_end = map_section_start + MAX_MAPS_PER_PAGE;
+	const size_t next_button_index = map_section_end + 1;
+	const size_t back_button_index = map_section_end + 2;
+	const size_t close_button_index = map_section_end + 3;
+
+	// Handle map selection (options within the map list part of the menu)
+	if (option >= map_section_start && option < map_section_end) {
+		// Calculate map index based on current page and selection
+		const size_t page_offset = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
+		const size_t map_index = page_offset + (option - map_section_start);
+
+		// Validate map index and menu entry text
+		if (map_index >= current_map_list->size() || vote_menu[option].text[0] == '\0') {
+			// Invalid selection (out of bounds or empty slot), do nothing or maybe close menu?
+			return;
+		}
+
+		const std::string& map_name = (*current_map_list)[map_index];
+
+		// Check if it's the current map
+		if (level.mapname && Q_strcasecmp(map_name.c_str(), level.mapname) == 0) {
+			gi.LocClient_Print(ent, PRINT_HIGH, "Can't vote for the current map.\n");
+			return; // Stay in the menu
+		}
+
+		// Initiate vote
+		Q_strlcpy(ctfgame.elevel, map_name.c_str(), sizeof(ctfgame.elevel));
+
+		char vote_msg[128]; // Safe buffer for vote message
+		snprintf(vote_msg, sizeof(vote_msg), "Change map to %s?", map_name.c_str());
+
+		// Close menu *before* starting election if successful
+		if (CTFBeginElection(ent, ELECT_MAP, vote_msg)) {
+			PMenu_Close(ent);
+		}
+		// If election failed (e.g., already in progress), menu remains open
+		return;
+	}
+
+	// Handle navigation buttons
+	PMenu_Close(ent); // Close current menu before navigating
+
+	if (option == next_button_index) { // Next Page
+		// Check if there is a next page
+		if ((categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size()) {
+			categorized_maps.current_page++;
+			UpdateVoteMenu(); // Update the menu data
+			PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Reopen the updated vote menu
+		}
+		else {
+			// No next page, maybe reopen the current one? Or handle differently?
+			// For now, just re-open the current (last) page
+			UpdateVoteMenu();
+			PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		}
+	}
+	else if (option == back_button_index) { // Back to Categories
+		OpenMapCategoryMenu(ent); // Go back to category selection
+	}
+	else if (option == close_button_index) { // Close
+		// Menu already closed
+	}
+	else {
+		// Invalid option outside map list and nav buttons
+		// Menu already closed
+	}
+}
+
+// Updates the contents of the static vote_menu array based on the current category and page
+void UpdateVoteMenu() {
+	std::vector<std::string>* current_map_list = nullptr;
+
+	// Determine current map list and category name
+	const char* category_name;
+	if (categorized_maps.current_category.isBigMap) {
+		current_map_list = &categorized_maps.big_maps;
+		category_name = "Big Maps";
+	}
+	else if (categorized_maps.current_category.isSmallMap) {
+		current_map_list = &categorized_maps.small_maps;
+		category_name = "Small Maps";
+	}
+	else { // Medium or default
+		current_map_list = &categorized_maps.medium_maps;
+		category_name = "Medium Maps";
+	}
+
+	// Safety check for empty list
+	if (!current_map_list) return; // Should not happen if CategorizeMapList was called
+
+	// Update category title (index 0)
+	char category_title[64];
+	snprintf(category_title, sizeof(category_title), "*%s*", category_name);
+	Q_strlcpy(vote_menu[0].text, category_title, sizeof(vote_menu[0].text));
+
+	// --- Calculate map indices for the current page ---
+	size_t const num_maps = current_map_list->size();
+	size_t start_index = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
+
+	// Handle potential invalid page (e.g., if map list changed)
+	if (start_index >= num_maps && num_maps > 0) {
+		categorized_maps.current_page = (num_maps - 1) / MAX_MAPS_PER_PAGE;
+		start_index = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
+	}
+	else if (num_maps == 0) {
+		start_index = 0; // No maps, start index is 0
+	}
+
+	size_t end_index = std::min(start_index + MAX_MAPS_PER_PAGE, num_maps);
+
+	// --- Clear/Fill map entries (indices 2 to 2 + MAX_MAPS_PER_PAGE - 1) ---
+	size_t const map_section_start = 2;
+	for (size_t i = 0; i < MAX_MAPS_PER_PAGE; ++i) {
+		size_t const current_map_idx = start_index + i;
+		size_t const menu_idx = map_section_start + i;
+
+		if (current_map_idx < end_index) {
+			// Fill entry
+			Q_strlcpy(vote_menu[menu_idx].text, (*current_map_list)[current_map_idx].c_str(), sizeof(vote_menu[menu_idx].text));
+			vote_menu[menu_idx].SelectFunc = VoteMenuHandler;
+		}
+		else {
+			// Clear entry
+			vote_menu[menu_idx].text[0] = '\0';
+			vote_menu[menu_idx].SelectFunc = nullptr;
+		}
+	}
+
+	// --- Update navigation buttons ---
+	size_t const nav_button_start_index = map_section_start + MAX_MAPS_PER_PAGE + 1; // Index after maps and blank
+
+	// "Next" button (index nav_button_start_index)
+	bool const has_next_page = (start_index + MAX_MAPS_PER_PAGE) < num_maps;
+	if (has_next_page) {
+		Q_strlcpy(vote_menu[nav_button_start_index].text, "Next", sizeof(vote_menu[nav_button_start_index].text));
+		vote_menu[nav_button_start_index].SelectFunc = VoteMenuHandler;
+	}
+	else {
+		vote_menu[nav_button_start_index].text[0] = '\0'; // Disable "Next"
+		vote_menu[nav_button_start_index].SelectFunc = nullptr;
+	}
+
+	// "Back" button (index nav_button_start_index + 1)
+	Q_strlcpy(vote_menu[nav_button_start_index + 1].text, "Back", sizeof(vote_menu[nav_button_start_index + 1].text));
+	vote_menu[nav_button_start_index + 1].SelectFunc = VoteMenuHandler;
+
+	// "Close" button (index nav_button_start_index + 2)
+	Q_strlcpy(vote_menu[nav_button_start_index + 2].text, "Close", sizeof(vote_menu[nav_button_start_index + 2].text));
+	vote_menu[nav_button_start_index + 2].SelectFunc = VoteMenuHandler;
+}
+
+
+// === Inventory Display ===
+
+void ShowInventory(edict_t* ent) {
+	// Basic validation
+	if (!ent || !ent->client || (ent->svflags & SVF_BOT))
 		return;
 
-	int i;
 	gclient_t* cl = ent->client;
-
-	cl->showinventory = true;
+	cl->showinventory = true; // Should this be set before sending? Maybe not needed if client handles it.
 
 	gi.WriteByte(svc_inventory);
-	for (i = 0; i < IT_TOTAL; i++) {
+
+	// Write current inventory counts up to IT_TOTAL
+	for (int i = 0; i < IT_TOTAL; i++) {
+		// Ensure index is valid for pers.inventory
+		if (i < 0 || i >= std::size(cl->pers.inventory)) {
+			gi.WriteShort(0); // Write 0 for invalid indices
+			continue;
+		}
 		gi.WriteShort(cl->pers.inventory[i]);
 	}
-	for (; i < MAX_ITEMS; i++) {
+
+	// Pad the rest up to MAX_ITEMS with zeros
+	// Use a safer loop condition based on IT_TOTAL and MAX_ITEMS
+	for (int i = IT_TOTAL; i < MAX_ITEMS; i++) {
 		gi.WriteShort(0);
 	}
+
 	gi.unicast(ent, true);
 }
 
-void OpenHordeMenu(edict_t* ent);
-void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p);
-void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p);
-void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
-void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
-void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
+// === Tech Menu ===
 
-void OpenHordeMenu(edict_t* ent)
-{
-	CreateHordeMenu(ent);
-}
-
-
-//Tech Menus
-void OpenTechMenu(edict_t* ent);
-void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
-
-// Definir los TECHS disponibles
+// Define the TECHS available
 static const char* tech_names[] = {
 	"Strength",
 	"Haste",
 	"Regeneration",
 	"Resistance"
 };
+constexpr size_t NUM_TECHS = sizeof(tech_names) / sizeof(tech_names[0]);
 
-static pmenu_t tech_menu[6] = {
+// Menu definition for when player is already in a team
+static pmenu_t tech_menu[] = {
 	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
@@ -81,26 +421,30 @@ static pmenu_t tech_menu[6] = {
 	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler }
 };
+constexpr size_t TECH_MENU_SIZE = sizeof(tech_menu) / sizeof(pmenu_t);
 
-static pmenu_t tech_menustart[18] = {
-	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
-	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
-	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
-	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "You can change it later", PMENU_ALIGN_LEFT, nullptr },
-	{ "On Horde Menu", PMENU_ALIGN_CENTER, nullptr },
+// Menu definition for when player is joining (CTF_NOTEAM)
+static pmenu_t tech_menustart[] = {
+	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },          // 0
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 1
+	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },          // 2
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 3
+	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },      // 4
+	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },          // 5
+	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },  // 6
+	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler },    // 7
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 8
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 9
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 10
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 11
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 12
+	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 13
+	{ "You can change it later", PMENU_ALIGN_LEFT, nullptr }, // 14
+	{ "On Horde Menu", PMENU_ALIGN_CENTER, nullptr },         // 15
 };
+constexpr size_t TECH_MENU_START_SIZE = sizeof(tech_menustart) / sizeof(pmenu_t);
 
+// Opens the appropriate tech menu
 void OpenTechMenu(edict_t* ent) {
 	if (!ent || !ent->client) {
 		return;
@@ -111,77 +455,77 @@ void OpenTechMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
-	const pmenu_t* menu = (ent->client->resp.ctf_team == CTF_NOTEAM) ?
-		tech_menustart : tech_menu;
-	const size_t menu_size = (ent->client->resp.ctf_team == CTF_NOTEAM) ?
-		sizeof(tech_menustart) / sizeof(pmenu_t) :
-		sizeof(tech_menu) / sizeof(pmenu_t);
+	// Select menu based on team status
+	const bool is_joining = (ent->client->resp.ctf_team == CTF_NOTEAM);
+	const pmenu_t* menu_to_open = is_joining ? tech_menustart : tech_menu;
+	const size_t menu_size = is_joining ? TECH_MENU_START_SIZE : TECH_MENU_SIZE;
 
-	PMenu_Open(ent, menu, -1, menu_size, nullptr, nullptr);
+	PMenu_Open(ent, menu_to_open, -1, menu_size, nullptr, nullptr);
 }
 
+// Handles selection in the tech menus
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option;
-
-	// Determinar si estamos usando el menú para CTF_NOTEAM o el menú regular
-	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
-		option = p->cur - 4; // Ajustar para el menú CTF_NOTEAM (2 líneas extra al principio)
-	}
-	else {
-		option = p->cur - 2; // Ajuste original para el menú regular
+	if (!ent || !ent->client || !p) {
+		return;
 	}
 
-	if (option >= 0 && option < sizeof(tech_names) / sizeof(tech_names[0])) {
-		// Eliminar TECHS anteriores
-		RemoveTech(ent);
+	const bool is_joining = (ent->client->resp.ctf_team == CTF_NOTEAM);
+	const int tech_option_offset = is_joining ? 4 : 2; // Starting index of tech options
+	const int option = p->cur - tech_option_offset;
 
-		// Mapear el índice de la opción al índice correcto en tech_ids
+	// Validate selected option index
+	if (option >= 0 && option < static_cast<int>(NUM_TECHS)) {
+		// Remove existing TECHS
+		RemoveTech(ent); // Assuming RemoveTech handles removing *all* techs
+
+		// Map the selected option text to the correct internal item ID
 		int tech_index = -1;
-		if (strcmp(tech_names[option], "Strength") == 0) {
+		const char* selected_tech_name = tech_names[option];
+
+		if (strcmp(selected_tech_name, "Strength") == 0) {
 			tech_index = IT_TECH_STRENGTH;
 		}
-		else if (strcmp(tech_names[option], "Haste") == 0) {
+		else if (strcmp(selected_tech_name, "Haste") == 0) {
 			tech_index = IT_TECH_HASTE;
 		}
-		else if (strcmp(tech_names[option], "Regeneration") == 0) {
+		else if (strcmp(selected_tech_name, "Regeneration") == 0) {
 			tech_index = IT_TECH_REGENERATION;
 		}
-		else if (strcmp(tech_names[option], "Resistance") == 0) {
+		else if (strcmp(selected_tech_name, "Resistance") == 0) {
 			tech_index = IT_TECH_RESISTANCE;
 		}
 
-		// Añadir el nuevo TECH seleccionado
+		// If a valid tech was selected
 		if (tech_index != -1) {
+			// Give the player the tech
 			ent->client->pers.inventory[tech_index] = 1;
-			gi.LocCenter_Print(ent, "\n\n\n\nSelected Tech: {}\n", tech_names[option]);
+			gi.LocCenter_Print(ent, "\n\n\n\nSelected Tech: {}\n", selected_tech_name);
 
-			// Ejecutar el sonido correspondiente al TECH seleccionado
+			// Join team if player was joining, and apply tech effect/sound
+			if (is_joining) {
+				CTFJoinTeam(ent, CTF_TEAM1); // Automatically join team 1
+			}
+
+			// Apply sound/effect based on the tech chosen
 			switch (tech_index) {
-			case IT_TECH_HASTE:
-				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyHasteSound(ent) : CTFApplyHasteSound(ent);
-				break;
-			case IT_TECH_STRENGTH:
-				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyStrengthSound(ent) : CTFApplyStrengthSound(ent);
-				break;
-			case IT_TECH_REGENERATION:
-				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyRegeneration(ent) : CTFApplyRegeneration(ent);
-				break;
-			case IT_TECH_RESISTANCE:
-				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyResistance(ent, 0) : CTFApplyResistance(ent, 0);
-				break;
+			case IT_TECH_HASTE:       CTFApplyHasteSound(ent); break;
+			case IT_TECH_STRENGTH:    CTFApplyStrengthSound(ent); break;
+			case IT_TECH_REGENERATION: CTFApplyRegeneration(ent); break;
+			case IT_TECH_RESISTANCE:  CTFApplyResistance(ent, 0); break; // ApplyResistance might need a value? Assuming 0 is base.
 			}
 		}
 	}
-	PMenu_Close(ent); // Cerrar el menú de TECHS
+
+	PMenu_Close(ent); // Close the tech menu after selection
 }
 
-// HUD Menu forward declarations
-void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p);
-void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
+// === HUD Options Menu ===
 
+constexpr size_t HUD_MENU_MAX_ENTRIES = 8;
+constexpr size_t HUD_TEXT_BUFFER_SIZE = 64;
 
+// Opens the HUD options menu
 void OpenHUDMenu(edict_t* ent) {
-	// Input validation
 	if (!ent || !ent->client) {
 		return;
 	}
@@ -191,16 +535,21 @@ void OpenHUDMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
+	// Use CreateHUDMenu to generate and open the menu
+	CreateHUDMenu(ent);
+}
+
+// Creates and returns the HUD menu handle (used by OpenHUDMenu and HUDMenuHandler)
+pmenuhnd_t* CreateHUDMenu(edict_t* ent) {
 	// Static allocation for menu entries
-	static pmenu_t entries[8];
+	static pmenu_t entries[HUD_MENU_MAX_ENTRIES];
 	memset(entries, 0, sizeof(entries)); // Zero initialize for safety
 
 	// Safe buffer sizes for formatting menu text
-	static constexpr size_t TEXT_BUFFER_SIZE = 64;
-	char id_text[TEXT_BUFFER_SIZE];
-	char dmg_text[TEXT_BUFFER_SIZE];
+	char id_text[HUD_TEXT_BUFFER_SIZE];
+	char dmg_text[HUD_TEXT_BUFFER_SIZE];
 
-	// Format option text safely
+	// Format option text safely using snprintf
 	snprintf(id_text, sizeof(id_text), "Enable/Disable ID [%s]",
 		ent->client->pers.id_state ? "ON" : "OFF");
 	snprintf(dmg_text, sizeof(dmg_text), "Enable/Disable ID-DMG [%s]",
@@ -208,504 +557,201 @@ void OpenHUDMenu(edict_t* ent) {
 
 	// Build menu entries with bounds checking
 	int count = 0;
-	const size_t max_entries = sizeof(entries) / sizeof(entries[0]);
 
 	// Title and spacing
-	if (count < max_entries) {
+	if (count < HUD_MENU_MAX_ENTRIES) {
 		Q_strlcpy(entries[count].text, "*HUD Options", sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_CENTER;
 		entries[count++].SelectFunc = nullptr;
 	}
-
-	if (count < max_entries) {
-		entries[count].text[0] = '\0';
+	if (count < HUD_MENU_MAX_ENTRIES) {
+		entries[count].text[0] = '\0'; // Blank separator
 		entries[count].align = PMENU_ALIGN_CENTER;
 		entries[count++].SelectFunc = nullptr;
 	}
 
 	// ID Toggle
-	if (count < max_entries) {
+	if (count < HUD_MENU_MAX_ENTRIES) {
 		Q_strlcpy(entries[count].text, id_text, sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
 	// ID-DMG Toggle
-	if (count < max_entries) {
+	if (count < HUD_MENU_MAX_ENTRIES) {
 		Q_strlcpy(entries[count].text, dmg_text, sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
 	// Spacing
-	if (count < max_entries) {
+	if (count < HUD_MENU_MAX_ENTRIES) {
 		entries[count].text[0] = '\0';
 		entries[count].align = PMENU_ALIGN_CENTER;
 		entries[count++].SelectFunc = nullptr;
 	}
 
 	// Back to Horde Menu
-	if (count < max_entries) {
+	if (count < HUD_MENU_MAX_ENTRIES) {
 		Q_strlcpy(entries[count].text, "Back to Horde Menu", sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
 	// Close
-	if (count < max_entries) {
+	if (count < HUD_MENU_MAX_ENTRIES) {
 		Q_strlcpy(entries[count].text, "Close", sizeof(entries[count].text));
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
-	// Open menu and update UI
-	auto p = PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
-	if (p) {
-		UpdateHUDMenu(ent, p);
-	}
+	// Open menu and return handle
+	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 
+// Updates the dynamic text in the HUD menu (ON/OFF status)
 void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || !p->entries) {
+	if (!ent || !ent->client || !p || !p->entries || p->num < 4) { // Need at least 4 entries for title, blank, ID, IDDMG
 		return;
 	}
 
-	// Convert G_Fmt result to std::string explicitly
-	std::string id_status = std::string(G_Fmt("Enable/Disable ID [{}]",
-		ent->client->pers.id_state ? "ON" : "OFF"));
-	std::string dmg_status = std::string(G_Fmt("Enable/Disable ID-DMG [{}]",
-		ent->client->pers.iddmg_state ? "ON" : "OFF"));
+	// Safe buffers for status text
+	char id_status_text[HUD_TEXT_BUFFER_SIZE];
+	char dmg_status_text[HUD_TEXT_BUFFER_SIZE];
 
-	// Ensure we don't exceed menu bounds
-	if (p->entries && p->entries + 2 && p->entries + 3) {
-		PMenu_UpdateEntry(p->entries + 2, id_status.c_str(),
-			PMENU_ALIGN_LEFT, HUDMenuHandler);
-		PMenu_UpdateEntry(p->entries + 3, dmg_status.c_str(),
-			PMENU_ALIGN_LEFT, HUDMenuHandler);
-	}
+	// Format status text safely
+	snprintf(id_status_text, sizeof(id_status_text), "Enable/Disable ID [%s]",
+		ent->client->pers.id_state ? "ON" : "OFF");
+	snprintf(dmg_status_text, sizeof(dmg_status_text), "Enable/Disable ID-DMG [%s]",
+		ent->client->pers.iddmg_state ? "ON" : "OFF");
 
+	// Update the menu entries (assuming indices 2 and 3 are ID and ID-DMG toggles)
+	PMenu_UpdateEntry(p->entries + 2, id_status_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
+	PMenu_UpdateEntry(p->entries + 3, dmg_status_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
+
+	// Force the menu to redraw on the client
 	PMenu_Update(ent);
 }
 
+// Handles selections in the HUD options menu
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (!ent || !ent->client || !p || p->cur < 0) {
+		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
 		return;
 	}
 
-	// Define valid option range
-	constexpr int MIN_OPTION = 2;
-	constexpr int MAX_OPTION = 6;
+	// Define valid option range based on the created menu structure
+	constexpr int ID_TOGGLE_OPTION = 2;
+	constexpr int IDDMG_TOGGLE_OPTION = 3;
+	constexpr int BACK_OPTION = 5;
+	constexpr int CLOSE_OPTION = 6;
 
 	const int option = p->cur;
-	if (option < MIN_OPTION || option > MAX_OPTION) {
-		PMenu_Close(ent);
-		return;
-	}
 
 	switch (option) {
-	case 2: // Toggle ID
-	case 3: { // Toggle ID-DMG
-		bool& state = (option == 2) ?
+	case ID_TOGGLE_OPTION: // Toggle ID
+	case IDDMG_TOGGLE_OPTION: { // Toggle ID-DMG
+		bool& state_to_toggle = (option == ID_TOGGLE_OPTION) ?
 			ent->client->pers.id_state :
 			ent->client->pers.iddmg_state;
-		state = !state;
+		state_to_toggle = !state_to_toggle;
 
-		// Use safer string handling
-		std::string msg = fmt::format("\n\n\n{} state toggled to {}\n",
-			(option == 2) ? "ID" : "ID-DMG",
-			state ? "ON" : "OFF");
+		// Use snprintf for safe message formatting
+		char msg_buffer[128];
+		snprintf(msg_buffer, sizeof(msg_buffer), "\n\n\n%s state toggled to %s\n",
+			(option == ID_TOGGLE_OPTION) ? "ID" : "ID-DMG",
+			state_to_toggle ? "ON" : "OFF");
 
-		gi.LocCenter_Print(ent, msg.c_str());
-		UpdateHUDMenu(ent, p);
+		gi.LocCenter_Print(ent, msg_buffer);
+		UpdateHUDMenu(ent, p); // Update the menu display without closing it
 		break;
 	}
-	case 5: // Back to Horde Menu
+	case BACK_OPTION: // Back to Horde Menu
 		PMenu_Close(ent);
-		if (ent->inuse) { // Extra validation
+		if (ent->inuse) { // Extra safety check
 			OpenHordeMenu(ent);
 		}
 		break;
-	case 6: // Close
+	case CLOSE_OPTION: // Close
+		PMenu_Close(ent);
+		break;
+	default: // Invalid option
 		PMenu_Close(ent);
 		break;
 	}
 }
 
+// Periodically checks if players have the HUD menu open and updates it
 void CheckAndUpdateMenus() {
-	for (auto const player : active_players()) {
-		if (!player->client || !player->client->menu) {
+	for (auto const* player : active_players()) { // Use range-based for loop
+		// Basic validation
+		if (!player || !player->client || !player->client->menu || !player->client->menu->entries) {
 			continue;
 		}
 
-		// Verificar si el jugador está en el menú HUD comparando con el primer elemento
-		bool const isInHUDMenu = (player->client->menu->entries[0].text == std::string("*HUD Options"));
-
-		if (isInHUDMenu) {
-			UpdateHUDMenu(player, player->client->menu);
-			gi.unicast(player, true);
+		// Check if the player is in the HUD menu by comparing the title text
+		// Using strcmp for C-style string comparison
+		if (strcmp(player->client->menu->entries[0].text, "*HUD Options") == 0) {
+			UpdateHUDMenu(const_cast<edict_t*>(player), player->client->menu); // Pass non-const edict_t
+			// gi.unicast(const_cast<edict_t*>(player), true); // Update might already handle this
 		}
-	}
-}
-
-// Saving VOTE INFO
-
-//maplist menu
-
-static pmenu_t map_category_menu[] = {
-	{ "*Map Category Selection", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Big Maps", PMENU_ALIGN_LEFT, nullptr },
-	{ "Medium Maps", PMENU_ALIGN_LEFT, nullptr },
-	{ "Small Maps", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, nullptr },
-	{ "Close", PMENU_ALIGN_LEFT, nullptr }
-};
-
-struct map_lists_t {
-	std::vector<std::string> big_maps;
-	std::vector<std::string> medium_maps;
-	std::vector<std::string> small_maps;
-	size_t current_page = 0;
-	MapSize current_category = MapSize{};
-};
-
-static map_lists_t categorized_maps;
-
-// Función para categorizar los mapas
-void CategorizeMapList() {
-	categorized_maps.big_maps.clear();
-	categorized_maps.medium_maps.clear();
-	categorized_maps.small_maps.clear();
-
-	const char* mlist = g_map_list->string;
-	char* token;
-
-	while (*(token = COM_Parse(&mlist)) != '\0') {
-		const char* map_name = token;
-		MapSize const mapSize = GetMapSize(map_name);
-
-		if (mapSize.isBigMap) {
-			categorized_maps.big_maps.push_back(map_name);
-		}
-		else if (mapSize.isSmallMap) {
-			categorized_maps.small_maps.push_back(map_name);
-		}
-		else {
-			categorized_maps.medium_maps.push_back(map_name);
-		}
-	}
-}
-
-// Handler para el menú de categorías
-void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p) {
-		return;
-	}
-
-	const int option = p->cur;
-
-	switch (option) {
-	case 2: // Big Maps
-		categorized_maps.current_category = MapSize{ false, false, true };
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu();
-		PMenu_Close(ent);
-		PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
-		break;
-
-	case 3: // Medium Maps
-		categorized_maps.current_category = MapSize{ false, true, false };
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu();
-		PMenu_Close(ent);
-		PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
-		break;
-
-	case 4: // Small Maps
-		categorized_maps.current_category = MapSize{ true, false, false };
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu();
-		PMenu_Close(ent);
-		PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
-		break;
-
-	case 6: // Back to Horde Menu
-		PMenu_Close(ent);
-		OpenHordeMenu(ent);
-		break;
-
-	case 7: // Close
-		PMenu_Close(ent);
-		break;
+		// Add checks for other dynamic menus if needed
 	}
 }
 
 
+// === Main Horde Menu ===
 
-
-//vote menu stuff
-
-//void LoadMapList() {
-//	const char* mlist = g_map_list->string;
-//	char* token;
-//
-//	map_list.num_maps = 0;
-//	while (*(token = COM_Parse(&mlist)) != '\0' && map_list.num_maps < 64) {
-//		Q_strlcpy(map_list.maps[map_list.num_maps], token, sizeof(map_list.maps[map_list.num_maps]));
-//		map_list.num_maps++;
-//	}
-//}
-
-std::string format_string(std::string_view fmt, auto&&... args) {
-	return fmt::format(fmt, std::forward<decltype(args)>(args)...);
-}
-
-
-void OpenMapCategoryMenu(edict_t* ent) {
-	if (!ent || !ent->client) {
-		return;
-	}
-
-	// Always close any existing menu first
-	if (ent->client->menu) {
-		PMenu_Close(ent);
-	}
-
-	// Create a local copy to modify
-	static pmenu_t menu_entries[8];
-	memcpy(menu_entries, map_category_menu, sizeof(map_category_menu));
-
-	// Set handlers safely
-	for (size_t i = 0; i < sizeof(menu_entries) / sizeof(menu_entries[0]); i++) {
-		if (i >= 2 && i <= 4) {
-			menu_entries[i].SelectFunc = MapCategoryHandler;
-		}
-		if (i == 6 || i == 7) {
-			menu_entries[i].SelectFunc = MapCategoryHandler;
-		}
-	}
-
-	PMenu_Open(ent, menu_entries, -1, sizeof(menu_entries) / sizeof(menu_entries[0]), nullptr, nullptr);
-}
-
-void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	// Input validation
-	if (!ent || !ent->client || !p || p->cur < 0) {
-		return;
-	}
-
-	const int option = p->cur;
-	std::vector<std::string>* current_map_list = nullptr;
-
-	// Get current map list with category check
-	if (categorized_maps.current_category.isBigMap) {
-		current_map_list = &categorized_maps.big_maps;
-	}
-	else if (categorized_maps.current_category.isSmallMap) {
-		current_map_list = &categorized_maps.small_maps;
-	}
-	else {
-		current_map_list = &categorized_maps.medium_maps;
-	}
-
-	// Validate map list
-	if (!current_map_list || current_map_list->empty()) {
-		PMenu_Close(ent);
-		return;
-	}
-
-	// Handle map selection (menu options 2 through 2+MAX_MAPS_PER_PAGE)
-	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
-		// Calculate map index with bounds checking
-		const size_t page_offset = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
-		const size_t map_index = page_offset + (option - 2);
-
-		// Validate map index and menu entry
-		if (map_index >= current_map_list->size()) {
-			return; // Invalid map index
-		}
-
-		if (vote_menu[option].text[0] == '\0') {
-			return; // Empty slot
-		}
-
-		const std::string& map_name = (*current_map_list)[map_index];
-
-		// Check if it's current map
-		if (Q_strcasecmp(map_name.c_str(), level.mapname) == 0) {
-			gi.LocClient_Print(ent, PRINT_HIGH, "Can't vote for the current map.\n");
-			return;
-		}
-
-		// Initiate vote with safe string operations
-		Q_strlcpy(ctfgame.elevel, map_name.c_str(), sizeof(ctfgame.elevel));
-
-		char vote_msg[128]; // Safe buffer for vote message
-		snprintf(vote_msg, sizeof(vote_msg), "Change map to %s?", map_name.c_str());
-
-		if (CTFBeginElection(ent, ELECT_MAP, vote_msg)) {
-			PMenu_Close(ent);
-		}
-		return;
-	}
-
-	// Navigation options - Next, Back, Close
-	switch (option) {
-	case MAX_MAPS_PER_PAGE + 3: // Next
-		if ((categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size()) {
-			categorized_maps.current_page++;
-			UpdateVoteMenu();
-
-			// Safely recreate menu
-			if (ent->client->menu) {
-				PMenu_Close(ent);
-			}
-			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(vote_menu[0]), nullptr, nullptr);
-		}
-		break;
-
-	case MAX_MAPS_PER_PAGE + 4: // Back
-		if (ent->client->menu) {
-			PMenu_Close(ent);
-		}
-		OpenMapCategoryMenu(ent);
-		break;
-
-	case MAX_MAPS_PER_PAGE + 5: // Close
-		PMenu_Close(ent);
-		break;
-	}
-}
-
-void UpdateVoteMenu() {
-	std::vector<std::string>* current_map_list = nullptr;
-
-	if (categorized_maps.current_category.isBigMap) {
-		current_map_list = &categorized_maps.big_maps;
-	}
-	else if (categorized_maps.current_category.isSmallMap) {
-		current_map_list = &categorized_maps.small_maps;
-	}
-	else {
-		current_map_list = &categorized_maps.medium_maps;
-	}
-
-	if (!current_map_list || current_map_list->empty()) {
-		return;
-	}
-
-	size_t start = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
-	size_t end = std::min(start + MAX_MAPS_PER_PAGE, current_map_list->size());
-
-	if (start >= current_map_list->size()) {
-		categorized_maps.current_page = 0;
-		start = 0;
-		end = std::min(MAX_MAPS_PER_PAGE, current_map_list->size());
-	}
-
-	// Update category title
-	const char* category_name = categorized_maps.current_category.isBigMap ? "Big Maps" :
-		categorized_maps.current_category.isSmallMap ? "Small Maps" :
-		"Medium Maps";
-
-	std::string category_title = "*" + std::string(category_name);
-	Q_strlcpy(vote_menu[0].text, category_title.c_str(), sizeof(vote_menu[0].text));
-
-	// Clear existing entries
-	for (size_t i = 2; i < 2 + MAX_MAPS_PER_PAGE; i++) {
-		vote_menu[i].text[0] = '\0';
-		vote_menu[i].SelectFunc = nullptr;
-	}
-
-	// Fill map entries
-	for (size_t i = 0; i < (end - start); i++) {
-		if ((i + 2) < std::size(vote_menu)) {
-			Q_strlcpy(vote_menu[i + 2].text, (*current_map_list)[start + i].c_str(),
-				sizeof(vote_menu[i + 2].text));
-			vote_menu[i + 2].SelectFunc = VoteMenuHandler;
-		}
-	}
-
-	// Update navigation buttons
-	bool has_next_page = (categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size();
-
-	// Next button
-	if (has_next_page) {
-		Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Next",
-			sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
-		vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = VoteMenuHandler;
-	}
-	else {
-		vote_menu[MAX_MAPS_PER_PAGE + 3].text[0] = '\0';
-		vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = nullptr;
-	}
-
-	// Back button
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 4].text, "Back",
-		sizeof(vote_menu[MAX_MAPS_PER_PAGE + 4].text));
-	vote_menu[MAX_MAPS_PER_PAGE + 4].SelectFunc = VoteMenuHandler;
-
-	// Close button
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 5].text, "Close",
-		sizeof(vote_menu[MAX_MAPS_PER_PAGE + 5].text));
-	vote_menu[MAX_MAPS_PER_PAGE + 5].SelectFunc = VoteMenuHandler;
-}
-
-void OpenVoteMenu(edict_t* ent) {
-	CategorizeMapList(); // Categorizar mapas al abrir el menú
-	categorized_maps.current_page = 0;
-
-	// Configurar handlers para el menú de categorías
-	for (size_t i = 2; i <= 4; i++) {
-		map_category_menu[i].SelectFunc = MapCategoryHandler;
-	}
-	map_category_menu[6].SelectFunc = MapCategoryHandler;
-	map_category_menu[7].SelectFunc = MapCategoryHandler;
-
-	PMenu_Open(ent, map_category_menu, -1, sizeof(map_category_menu) / sizeof(pmenu_t), nullptr, nullptr);
-}
-
-
+// Handles selections in the main Horde menu
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	const int option = p->cur;
+	if (!ent || !ent->client || !p) return;
 
-	// Cierra el menú sólo si es necesario al final de la ejecución del caso
-	bool shouldCloseMenu = true;
+	const int option = p->cur;
+	bool shouldCloseMenu = true; // Assume menu should close unless opening a sub-menu
 
 	if (ctfgame.election == ELECT_NONE) {
-		// Opciones cuando no hay votación en progreso
+		// --- Options when NO vote is in progress ---
+		// Indices based on CreateHordeMenu structure:
+		// 0: Title, 1: Blank, 2: Inv, 3: Spec, 4: Blank, 5: Vote Map, 6: Blank, 7: Tech, 8: HUD, 9: Blank, 10: Close
 		switch (option) {
 		case 2: // Show Inventory
 			ShowInventory(ent);
+			// Keep menu open? Decided to close for consistency.
 			break;
 		case 3: // Go Spectator/AFK
 			CTFObserver(ent);
+			// CTFObserver closes menus internally or handles player state change
+			shouldCloseMenu = false; // Let CTFObserver handle closing if needed
 			break;
 		case 5: // Vote Map
 			OpenVoteMenu(ent);
-			shouldCloseMenu = false; // El menú se volverá a abrir en OpenVoteMenu
+			shouldCloseMenu = false; // Vote menu opens, don't close this one yet
 			break;
 		case 7: // Change Tech
 			OpenTechMenu(ent);
-			shouldCloseMenu = false; // El menú se volverá a abrir en OpenTechMenu
+			shouldCloseMenu = false; // Tech menu opens
 			break;
 		case 8: // HUD Options
 			OpenHUDMenu(ent);
-			shouldCloseMenu = false; // El menú se volverá a abrir en OpenHUDMenu
+			shouldCloseMenu = false; // HUD menu opens
 			break;
-		case 11: // Close menu
+		case 10: // Close menu
+			break; // Will be closed by shouldCloseMenu logic
+		default: // Invalid selection
 			break;
 		}
 	}
 	else {
-		// Opciones cuando hay votación en progreso
+		// --- Options when a vote IS in progress ---
+		// Indices based on CreateHordeMenu structure:
+		// 0: Title, 1: Blank, 2: Inv, 3: Spec, 4: Blank, 5: Vote Yes, 6: Vote No, 7: Blank, 8: Tech, 9: HUD, 10: Blank, 11: Close
 		switch (option) {
 		case 2: // Show Inventory
 			ShowInventory(ent);
 			break;
 		case 3: // Go Spectator/AFK
 			CTFObserver(ent);
+			shouldCloseMenu = false;
 			break;
 		case 5: // Vote Yes
 			CTFVoteYes(ent);
@@ -715,40 +761,40 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			break;
 		case 8: // Change Tech
 			OpenTechMenu(ent);
-			shouldCloseMenu = false; // El menú se volverá a abrir en OpenTechMenu
+			shouldCloseMenu = false;
 			break;
 		case 9: // HUD Options
 			OpenHUDMenu(ent);
-			shouldCloseMenu = false; // El menú se volverá a abrir en OpenHUDMenu
+			shouldCloseMenu = false;
 			break;
-		case 10: // Close menu
+		case 11: // Close menu
+			break;
+		default: // Invalid selection
 			break;
 		}
 	}
 
-	if (shouldCloseMenu) {
+	if (shouldCloseMenu && ent->client->menu) { // Check if menu still exists before closing
 		PMenu_Close(ent);
 	}
 }
 
-
-// horde menu
-
-// // Helper function para crear menús de horda dinámicamente
+// Creates and opens the main Horde menu
 pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
-	// Close any existing menu to prevent memory leaks
+	// Close any existing menu to prevent issues
 	if (ent->client->menu) {
 		PMenu_Close(ent);
 	}
 
-	// Use global static array - more predictable memory usage
-	static pmenu_t entries[32];
-	const size_t max_entries = sizeof(entries) / sizeof(entries[0]);
-	int count = 0;
+	// Use a static array for the menu entries
+	static pmenu_t entries[12]; // Max size needed (Vote Yes/No case)
+	memset(entries, 0, sizeof(entries)); // Clear the array
 
-	// Safety check for array bounds
+	int count = 0; // Current entry index
+
+	// Helper lambda to add entries safely
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
-		if (count < max_entries) {
+		if (count < static_cast<int>(std::size(entries))) {
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
 			entries[count].align = align;
 			entries[count].SelectFunc = func;
@@ -756,80 +802,43 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		}
 		};
 
-	// Add menu entries using the safe function
-	add_entry("*Horde Menu", PMENU_ALIGN_CENTER);
-	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	add_entry("", PMENU_ALIGN_CENTER);
+	// Add common menu entries
+	add_entry("*Horde Menu*", PMENU_ALIGN_CENTER);                 // Index 0
+	add_entry("", PMENU_ALIGN_CENTER);                              // Index 1
+	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler); // Index 2
+	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler); // Index 3
+	add_entry("", PMENU_ALIGN_CENTER);                              // Index 4
 
+	// Add vote-related entries dynamically
 	if (ctfgame.election == ELECT_NONE) {
-		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
-		add_entry("", PMENU_ALIGN_CENTER);
-		add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
-		add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 5
 	}
 	else {
-		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
-		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
-		add_entry("", PMENU_ALIGN_CENTER);
-		add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
-		add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		// Format the vote question into a buffer
+		char vote_question[64];
+		snprintf(vote_question, sizeof(vote_question), "Vote: %s", ctfgame.emsg);
+		// Ensure the buffer isn't too long for the menu entry
+		vote_question[sizeof(entries[0].text) - 1] = '\0';
+
+		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr);       // Index 5 (Display vote question)
+		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 6 (Actual Vote Yes option)
+		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);    // Index 7 (Actual Vote No option)
 	}
 
-	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	add_entry("", PMENU_ALIGN_CENTER);                              // Index 6 or 8
+	add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 7 or 9
+	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 8 or 10
+	add_entry("", PMENU_ALIGN_CENTER);                              // Index 9 or 11
+	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);         // Index 10 or 12
 
+	// Open the menu with the constructed entries
 	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 
-pmenuhnd_t* CreateHUDMenu(edict_t* ent)
-{
-	// Uso de constexpr para tamaños fijos
-	static constexpr size_t MAX_ENTRIES = 8;
-	static constexpr size_t TEXT_BUFFER_SIZE = 64;
-	static pmenu_t entries[MAX_ENTRIES];
-
-	int count = 0;
-
-	// Struct helper para reducir repetición
-	struct MenuEntry {
-		const char* text;
-		int align;
-		SelectFunc_t func;
-	};
-
-	// Helper para añadir entradas
-	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
-		if (count < MAX_ENTRIES) {
-			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
-			entries[count].align = align;
-			entries[count].SelectFunc = func;
-			count++;
-		}
-		};
-
-	// Título y espaciado
-	add_entry("*HUD Options", PMENU_ALIGN_CENTER);
-	add_entry("", PMENU_ALIGN_CENTER);
-
-	// Buffer para los textos formateados
-	char id_text[TEXT_BUFFER_SIZE];
-	char dmg_text[TEXT_BUFFER_SIZE];
-
-	// Los snprintf están bien aquí
-	snprintf(id_text, sizeof(id_text), "Enable/Disable ID [%s]",
-		ent->client->pers.id_state ? "ON" : "OFF");
-	snprintf(dmg_text, sizeof(dmg_text), "Enable/Disable ID-DMG [%s]",
-		ent->client->pers.iddmg_state ? "ON" : "OFF");
-
-	// Opciones del menú
-	add_entry(id_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
-	add_entry(dmg_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
-	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("Back to Horde Menu", PMENU_ALIGN_LEFT, HUDMenuHandler);
-	add_entry("Close", PMENU_ALIGN_LEFT, HUDMenuHandler);
-
-	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
+// Entry point to open the main Horde menu
+void OpenHordeMenu(edict_t* ent) {
+	if (!ent || !ent->client) return;
+	CreateHordeMenu(ent); // Create and open the menu
 }
 
+// --- END OF FILE horde_menu.cpp ---
