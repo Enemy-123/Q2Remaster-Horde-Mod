@@ -1119,31 +1119,6 @@ constexpr int PLAYER_Y_SPACING = 8;
 constexpr int LAYOUT_SAFETY_MARGIN = 50;
 
 /**
- * @struct BonusMapping
- * @brief Maps internal benefit names to display text
- */
-struct BonusMapping {
-	std::string_view benefit_name;
-	std::string_view display_text;
-};
-
-/**
- * PlayerScore
- * Contains player score information for the scoreboard
- */
-struct PlayerScore {
-	unsigned int index;
-	int score;
-	int ping;
-	bool is_dead;
-
-	// Sort players by score in descending order
-	bool operator>(const PlayerScore& other) const {
-		return score > other.score;
-	}
-};
-
-/**
  *  StringBuilder
  * Helper class for efficient string concatenation
  */
@@ -1167,6 +1142,32 @@ public:
 
 	size_t size() const {
 		return buffer.size();
+	}
+};
+
+
+/**
+ * @struct BonusMapping
+ * @brief Maps internal benefit names to display text
+ */
+struct BonusMapping {
+	std::string_view benefit_name;
+	std::string_view display_text;
+};
+
+/**
+ * PlayerScore
+ * Contains player score information for the scoreboard
+ */
+struct PlayerScore {
+	unsigned int index;
+	int score;
+	int ping;
+	bool is_dead;
+
+	// Sort players by score in descending order
+	bool operator>(const PlayerScore& other) const {
+		return score > other.score;
 	}
 };
 
