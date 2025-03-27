@@ -128,7 +128,6 @@
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
     <ClInclude Include="horde\horde_ids.h" />
-    <ClInclude Include="horde\horde_menu.h" />
     <ClInclude Include="laser.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />

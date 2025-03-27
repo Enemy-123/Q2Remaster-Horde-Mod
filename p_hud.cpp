@@ -428,7 +428,7 @@ void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 	// ZOID
 	if (G_TeamplayEnabled())
 	{
-		CTFScoreboardMessage(ent, killer);
+		HordeScoreboardMessage(ent, killer);
 		return;
 	}
 	// ZOID

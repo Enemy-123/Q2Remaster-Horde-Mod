@@ -5,7 +5,7 @@
 #include "../g_local.h" // Include base types like edict_t, gclient_t, gtime_t, etc. BEFORE they are used here.
 
 constexpr const char* CTF_VERSION_STRING = "1.52";
-
+constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
 // --- Enums Moved from g_ctf.cpp ---
 
 enum ctfteam_t
@@ -155,7 +155,7 @@ void		CTFCalcRankings(std::array<uint32_t, MAX_CLIENTS>& player_ranks);
 void		CheckEndTDMLevel();
 void		SetCTFStats(edict_t* ent);
 void		CTFDeadDropFlag(edict_t* self);
-void		CTFScoreboardMessage(edict_t* ent, edict_t* killer);
+void		HordeScoreboardMessage(edict_t* ent, edict_t* killer);
 void		CTFTeam_f(edict_t* ent);
 void		CTFID_f(edict_t* ent);
 void		DMGID_f(edict_t* ent);

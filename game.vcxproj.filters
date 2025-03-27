@@ -86,11 +86,10 @@
     <ClInclude Include="m_gnorta.h" />
     <ClInclude Include="m_runnertank.h" />
     <ClInclude Include="laser.h" />
-    <ClInclude Include="horde\g_horde_benefits.h" />
     <ClInclude Include="horde\horde_ids.h">
       <Filter>horde</Filter>
     </ClInclude>
-    <ClInclude Include="horde\horde_menu.h">
+    <ClInclude Include="horde\g_horde_benefits.h">
       <Filter>horde</Filter>
     </ClInclude>
   </ItemGroup>
@@ -277,11 +276,13 @@
     <ClCompile Include="m_runnertank.cpp" />
     <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
-    <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="horde\horde_ids.cpp">
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\horde_menu.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_horde_benefits.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>
