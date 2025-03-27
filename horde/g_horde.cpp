@@ -2443,10 +2443,9 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
 	}
 }
 
-static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
+static void UpdateCooldowns(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	data.lastSpawnTime = level.time;
-	//data.spawn_cooldown = level.time + SPAWN_POINT_COOLDOWN;
 	data.isTemporarilyDisabled = true;
 	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 }
@@ -2860,7 +2859,7 @@ static horde::MonsterTypeID G_HordePickMonsterType(edict_t* spawn_point) {
 		// If we found a monster via emergency fallback
 		if (chosen_monster != horde::MonsterTypeID::UNKNOWN) {
 			// Update cooldowns - Need to use GetClassname here as UpdateCooldowns requires a classname
-			UpdateCooldowns(spawn_point, horde::MonsterTypeRegistry::GetClassname(chosen_monster));
+			UpdateCooldowns(spawn_point);
 
 			// Reset failure counters on success
 			spawn_selection_failures = 0;
@@ -2901,8 +2900,7 @@ static horde::MonsterTypeID G_HordePickMonsterType(edict_t* spawn_point) {
 
 	// Update cooldowns if we have a valid selection
 	if (chosen_monster != horde::MonsterTypeID::UNKNOWN) {
-		UpdateCooldowns(spawn_point, horde::MonsterTypeRegistry::GetClassname(chosen_monster));
-
+		UpdateCooldowns(spawn_point);
 		// Reset failure counters on success
 		spawn_selection_failures = 0;
 		emergency_mode = false;
@@ -3833,9 +3831,7 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTelepor
 
 	// Get TypeID once instead of multiple string comparisons
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET)
-		return false;
-
+	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) return false;
 	// Cache map name once to reduce string comparisons
 	static std::string last_map_name;
 	static horde::MapID cached_map_id = horde::MapID::UNKNOWN;
@@ -5193,8 +5189,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
 		return false;
 
-	if (!strcmp(self->classname, "misc_insane") || (!strcmp(self->classname, "monster_turret")))
-		return false;
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname); 
+	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) return false;
 
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	constexpr gtime_t STUCK_CHECK_TIME = 10_sec;
@@ -6011,7 +6007,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	const char* monster_classname = nullptr;
 	horde::MonsterTypeID monster_typeId = horde::MonsterTypeID::UNKNOWN;
 
-// Try to get a valid monster type from existing spawn points
+	// Try to get a valid monster type from existing spawn points
 	for (auto* point : monster_spawn_points()) {
 		if (point && point->inuse) {
 			// Use TypeID version for more efficient selection
