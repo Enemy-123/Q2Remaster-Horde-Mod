@@ -4,6 +4,7 @@
 #include "m_player.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
+#include "laser.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -3265,17 +3266,44 @@ void ClientDisconnect(edict_t* ent)
 	// ROGUE
 	//============
 
-	// --- **NEW MEMORY CLEANUP** ---
-	// Check and delete the LaserManagerHolder if it exists
-	if (ent->client->laser_manager) {
-		auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
-		delete holder; // This calls ~LaserManagerHolder(), which deletes the PlayerLaserManager
-		ent->client->laser_manager = nullptr; // Clear the pointer
-		if (developer && developer->integer) { // Added null check for developer cvar
-			gi.Com_PrintFmt("Cleaned up LaserManager for disconnected client {}\n", ent->client - game.clients);
+	// --- **NEW SAFETY CLEANUP** ---
+		// Iterate through all possible client slots to catch any missed laser managers
+	for (size_t i = 0; i < game.maxclients; ++i) { // Use size_t here
+		edict_t* ent = &g_edicts[i + 1]; // Corresponding edict_t for the client slot
+
+		// Check directly in the game.clients array first (most reliable during reset)
+		if (game.clients[i].laser_manager) {
+			// Cast to the correct type
+			auto* holder = static_cast<LaserManagerHolder*>(game.clients[i].laser_manager);
+			if (holder) {
+				// Delete the holder - This now calls ~LaserManagerHolder() correctly
+				delete holder;
+				if (developer && developer->integer > 1) {
+					gi.Com_PrintFmt("Cleaned up LaserManager for client slot {} during ClientDisconnect (via game.clients)\n", i);
+				}
+			}
+			else {
+				// This case should ideally not happen if allocation is managed correctly
+				if (developer && developer->integer) {
+					gi.Com_PrintFmt("Warning: Found NULL LaserManagerHolder pointer for client slot {} during ClientDisconnect (via game.clients)\n", i);
+				}
+			}
+			game.clients[i].laser_manager = nullptr; // Always clear the pointer in the game state
+		}
+		// Fallback check via edict_t->client (should be less necessary now)
+		else if (ent && ent->inuse && ent->client && ent->client->laser_manager) {
+			auto* holder = static_cast<LaserManagerHolder*>(ent->client->laser_manager);
+			if (holder) {
+				delete holder; // Calls destructor
+				if (developer && developer->integer > 1) {
+					gi.Com_PrintFmt("Cleaned up LaserManager via edict for client slot {} during ClientDisconnect\n", i);
+				}
+			}
+			// else { // Pointer exists in client but holder is null - log if needed }
+			ent->client->laser_manager = nullptr; // Always clear the pointer
 		}
 	}
-	// --- End of NEW MEMORY CLEANUP ---
+	// --- End of NEW SAFETY CLEANUP ---
 
 	// --- Remaining Disconnect Logic ---
 	// send effect
@@ -3509,16 +3537,44 @@ static void HandleInactivePlayer(edict_t* ent) {
 
 	ent->client->resp.inactive = true; // Mark as inactive
 
-	// --- **NEW MEMORY CLEANUP for AFK Spectator** ---
-	if (ent->client->laser_manager) {
-		auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
-		delete holder; // Calls destructors
-		ent->client->laser_manager = nullptr; // Clear pointer
-		if (developer && developer->integer) { // Added null check
-			gi.Com_PrintFmt("Cleaned up LaserManager for inactive client {} moved to spectator\n", ent->client - game.clients);
+	// --- **NEW SAFETY CLEANUP** ---
+			// Iterate through all possible client slots to catch any missed laser managers
+	for (size_t i = 0; i < game.maxclients; ++i) { // Use size_t here
+		edict_t* ent = &g_edicts[i + 1]; // Corresponding edict_t for the client slot
+
+		// Check directly in the game.clients array first (most reliable during reset)
+		if (game.clients[i].laser_manager) {
+			// Cast to the correct type
+			auto* holder = static_cast<LaserManagerHolder*>(game.clients[i].laser_manager);
+			if (holder) {
+				// Delete the holder - This now calls ~LaserManagerHolder() correctly
+				delete holder;
+				if (developer && developer->integer > 1) {
+					gi.Com_PrintFmt("Cleaned up LaserManager for client slot {} during HandleInactivePlayer (via game.clients)\n", i);
+				}
+			}
+			else {
+				// This case should ideally not happen if allocation is managed correctly
+				if (developer && developer->integer) {
+					gi.Com_PrintFmt("Warning: Found NULL LaserManagerHolder pointer for client slot {} during HandleInactivePlayer (via game.clients)\n", i);
+				}
+			}
+			game.clients[i].laser_manager = nullptr; // Always clear the pointer in the game state
+		}
+		// Fallback check via edict_t->client (should be less necessary now)
+		else if (ent && ent->inuse && ent->client && ent->client->laser_manager) {
+			auto* holder = static_cast<LaserManagerHolder*>(ent->client->laser_manager);
+			if (holder) {
+				delete holder; // Calls destructor
+				if (developer && developer->integer > 1) {
+					gi.Com_PrintFmt("Cleaned up LaserManager via edict for client slot {} during HandleInactivePlayer\n", i);
+				}
+			}
+			// else { // Pointer exists in client but holder is null - log if needed }
+			ent->client->laser_manager = nullptr; // Always clear the pointer
 		}
 	}
-	// --- End of NEW MEMORY CLEANUP ---
+	// --- End of NEW SAFETY CLEANUP ---
 
 	// Additional cleanup that might happen when going spectator:
 	ent->client->ps.gunindex = 0; // Hide weapon model
