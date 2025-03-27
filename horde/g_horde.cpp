@@ -1331,7 +1331,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 		gi.cvar_set("g_damage_scale", "3.0");
 		break;
 	//case 45:
-	//	gi.cvar_set("g_damage_scale", "4.5");
+		gi.cvar_set("g_damage_scale", "4.5");
 	//	break;
 	default:
 		break;
