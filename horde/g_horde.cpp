@@ -2354,13 +2354,6 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 	return horde::MonsterTypeID::UNKNOWN;
 }
 
-static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
-	// Simply delegate to the TypeID version and convert the result
-	horde::MonsterTypeID typeId = G_HordePickBOSSType(mapSize, mapname, waveNumber, bossEntity);
-	return (typeId != horde::MonsterTypeID::UNKNOWN) ?
-		horde::MonsterTypeRegistry::GetClassname(typeId) : nullptr;
-}
-
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -2945,13 +2938,6 @@ static horde::MonsterTypeID G_HordePickMonsterType(edict_t* spawn_point) {
 	}
 
 	return chosen_monster;
-}
-
-static const char* G_HordePickMonster(edict_t* spawn_point) {
-	// Simply delegate to the TypeID version and convert the result
-	horde::MonsterTypeID typeId = G_HordePickMonsterType(spawn_point);
-	return (typeId != horde::MonsterTypeID::UNKNOWN) ?
-		horde::MonsterTypeRegistry::GetClassname(typeId) : nullptr;
 }
 
 void Horde_PreInit() {
@@ -4147,96 +4133,6 @@ void ResetAllSpawnAttempts() noexcept {
 	}
 }
 void ResetWaveAdvanceState() noexcept;
-
-static bool CheckRemainingMonstersCondition(WaveEndReason& reason) {
-	// Cache frequently used values
-	const gtime_t currentTime = level.time;
-
-	// Check for fast path conditions first
-	if (allowWaveAdvance || Horde_AllMonstersDead()) {
-		reason = WaveEndReason::AllMonstersDead;
-		ResetWaveAdvanceState();
-		return true;
-	}
-
-	// Maximum time limit check
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
-	}
-
-	// Get remaining monster count - simple and reliable
-	const int32_t remainingMonsters = CalculateRemainingMonsters();
-
-	// Initialize wave end time if not set
-	if (g_horde_local.waveEndTime == 0_sec) {
-		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
-	}
-
-	// Handle wave deployment completion
-	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
-		g_independent_timer_start = currentTime;
-		g_horde_local.conditionTriggered = true;
-		g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
-		g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
-	}
-
-	// Determine if conditions should trigger countdown
-	if (!g_horde_local.conditionTriggered) {
-		// Calculate percentage of monsters remaining
-		float percentageRemaining = 0.0f;
-		if (g_totalMonstersInWave > 0) {
-			percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
-		}
-
-		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
-		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
-
-		if (maxMonstersReached || lowPercentageReached) {
-			g_horde_local.conditionTriggered = true;
-			g_horde_local.conditionStartTime = currentTime;
-
-			// Choose appropriate timer threshold
-			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
-				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
-				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
-
-			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
-
-			// Special handling for very few monsters
-			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-				g_horde_local.waveEndTime = std::min(g_horde_local.waveEndTime, currentTime + reduction);
-			}
-		}
-	}
-
-	// Handle time warnings and check for time expiration
-	if (g_horde_local.conditionTriggered) {
-		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
-
-		// Process time warnings
-		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
-			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
-			if (!g_horde_local.warningIssued[i] &&
-				remainingTime <= warningTime &&
-				remainingTime > (warningTime - 1_sec)) {
-				gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
-					static_cast<int>(WARNING_TIMES[i]));
-				g_horde_local.warningIssued[i] = true;
-			}
-		}
-
-		// Check if time has expired
-		if (currentTime >= g_horde_local.waveEndTime) {
-			reason = WaveEndReason::MonstersRemaining;
-			return true;
-		}
-	}
-
-	return false;
-}
 
 //
 // game resetting
