@@ -2190,7 +2190,7 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 		float cumulativeWeight;
 	};
 
-	WeightedBoss weightedBosses[MAX_ELIGIBLE_BOSSES];
+	WeightedBoss weightedBosses[MAX_ELIGIBLE_BOSSES]; // Ensure MAX_ELIGIBLE_BOSSES is large enough
 	size_t weightedCount = 0;
 	float totalWeight = 0.0f;
 
@@ -2204,7 +2204,14 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 			continue;
 		}
 
-		// Find the boss_t entry with this typeId
+		// --- CORRECTED CHECK ---
+		// Skip if this TypeID is in the recent bosses list using the ID directly
+		if (recent_bosses.contains(bossTypeId)) { // <-- Use contains(MonsterTypeID)
+			continue;
+		}
+		// --- END CORRECTION ---
+
+		// Find the boss_t entry with this typeId (only if not recently used)
 		const boss_t* boss = nullptr;
 		for (const auto& b : boss_list) {
 			if (b.typeId == bossTypeId) {
@@ -2213,21 +2220,7 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 			}
 		}
 
-		if (!boss) {
-			continue;
-		}
-
-		// Validate boss classname before checking contains
-		const char* bossClassname = horde::MonsterTypeRegistry::GetClassname(boss->typeId);
-		if (!bossClassname) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: Null classname for boss type ID\n");
-			}
-			continue;
-		}
-
-		// Skip if in recent bosses list
-		if (recent_bosses.contains(bossClassname)) {
+		if (!boss) { // Safety check
 			continue;
 		}
 
@@ -2247,7 +2240,7 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 		}
 
 		// Apply difficulty adjustment in one check
-		if ((g_insane->integer || g_chaotic->integer) &&
+		if (((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) &&
 			boss->sizeCategory == BossSizeCategory::Large) {
 			weight *= 1.2f;
 		}
@@ -2260,34 +2253,54 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 			weightedCount++;
 		}
-	}
+	} // End of first pass loop
 
 	// If no eligible bosses with history filter, retry without filter
 	if (weightedCount == 0 && recent_bosses.count > 0) {
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("INFO: No non-recent bosses eligible, resetting history and retrying...\n");
+		}
 		recent_bosses.clear(); // Reset history
 
-		// Try all bosses from the list
-		for (const auto& boss : boss_list) {
-			// Check if this boss is eligible for the current wave
-			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
-				(waveNumber <= boss.max_level || boss.max_level == -1)) {
+		// Try all bosses from the list based on eligibility data again (since we already filtered by level)
+		for (size_t i = 0; i < eligibilityData.count; ++i) {
+			horde::MonsterTypeID bossTypeId = eligibilityData.typeIds[i];
+			if (bossTypeId == horde::MonsterTypeID::UNKNOWN) continue;
 
-				float weight = boss.weight;
-
-				// Add to weighted list
-				if (weightedCount < MAX_ELIGIBLE_BOSSES) {
-					totalWeight += weight;
-					weightedBosses[weightedCount].boss = &boss;
-					weightedBosses[weightedCount].weight = weight;
-					weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-					weightedCount++;
+			// Find the boss_t entry again
+			const boss_t* boss = nullptr;
+			for (const auto& b : boss_list) {
+				if (b.typeId == bossTypeId) {
+					boss = &b;
+					break;
 				}
+			}
+			if (!boss) continue;
+
+			float weight = boss->weight; // Use base weight again
+
+			// Re-apply adjustments if necessary (e.g., difficulty) - copy from above
+			if (((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) &&
+				boss->sizeCategory == BossSizeCategory::Large) {
+				weight *= 1.2f;
+			}
+
+			// Add to weighted list
+			if (weightedCount < MAX_ELIGIBLE_BOSSES) {
+				totalWeight += weight;
+				weightedBosses[weightedCount].boss = boss;
+				weightedBosses[weightedCount].weight = weight;
+				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
+				weightedCount++;
 			}
 		}
 	}
 
 	// Still no eligible bosses? Return unknown
 	if (weightedCount == 0 || totalWeight <= 0.0f) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("WARNING: No eligible bosses found even after potential history reset.\n");
+		}
 		return horde::MonsterTypeID::UNKNOWN;
 	}
 
@@ -2298,29 +2311,46 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 	size_t left = 0;
 	size_t right = weightedCount - 1;
 
-	while (left < right) {
-		const size_t mid = (left + right) / 2;
-		if (weightedBosses[mid].cumulativeWeight < randomValue) {
-			left = mid + 1;
-		}
-		else {
-			right = mid;
+	// Handle edge case: only one item
+	if (left == right) {
+		// Directly select the only item
+	}
+	else {
+		// Perform binary search
+		while (left < right) {
+			const size_t mid = left + (right - left) / 2; // Safer midpoint calculation
+			if (weightedBosses[mid].cumulativeWeight < randomValue) {
+				left = mid + 1;
+			}
+			else {
+				right = mid;
+			}
 		}
 	}
+
 
 	// Get selected boss
 	const boss_t* chosen_boss = weightedBosses[left].boss;
 	if (chosen_boss) {
-		// Add to recent bosses - need to use classname for recent_bosses storage
-		recent_bosses.add(horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId));
+		// --- CORRECTED ADD ---
+		// Add to recent bosses using the MonsterTypeID directly
+		recent_bosses.add(chosen_boss->typeId); // <-- Use add(MonsterTypeID)
+		// --- END CORRECTION ---
 
 		// Set boss size category for the entity
 		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
+
+		if (developer->integer > 1) {
+			const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId);
+			gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n",
+				chosen_name ? chosen_name : "Unknown", weightedBosses[left].weight);
+		}
 
 		// Return the TypeID directly
 		return chosen_boss->typeId;
 	}
 
+	// Should ideally not happen if weightedCount > 0, but return UNKNOWN as a fallback
 	return horde::MonsterTypeID::UNKNOWN;
 }
 
@@ -4251,40 +4281,39 @@ void ResetGame() {
 
 
 	// --- **NEW SAFETY CLEANUP** ---
-	// Iterate through all possible client slots to catch any missed laser managers
-	for (int i = 0; i < game.maxclients; ++i) {
+		// Iterate through all possible client slots to catch any missed laser managers
+	for (size_t i = 0; i < game.maxclients; ++i) { // Use size_t here
 		edict_t* ent = &g_edicts[i + 1]; // Corresponding edict_t for the client slot
 
 		// Check directly in the game.clients array first (most reliable during reset)
 		if (game.clients[i].laser_manager) {
-			auto* holder = reinterpret_cast<LaserManagerHolder*>(game.clients[i].laser_manager);
-			if (holder) { // Extra safety check on the holder pointer itself
+			// Cast to the correct type
+			auto* holder = static_cast<LaserManagerHolder*>(game.clients[i].laser_manager);
+			if (holder) {
+				// Delete the holder - This now calls ~LaserManagerHolder() correctly
 				delete holder;
-				if (developer && developer->integer > 1) { // Added null check
+				if (developer && developer->integer > 1) {
 					gi.Com_PrintFmt("Cleaned up LaserManager for client slot {} during ResetGame (via game.clients)\n", i);
 				}
 			}
 			else {
-				if (developer && developer->integer) { // Added null check
+				// This case should ideally not happen if allocation is managed correctly
+				if (developer && developer->integer) {
 					gi.Com_PrintFmt("Warning: Found NULL LaserManagerHolder pointer for client slot {} during ResetGame (via game.clients)\n", i);
 				}
 			}
-			game.clients[i].laser_manager = nullptr; // Always clear the pointer
+			game.clients[i].laser_manager = nullptr; // Always clear the pointer in the game state
 		}
-		// Fallback check via edict_t->client (in case game.clients isn't populated or accessible)
+		// Fallback check via edict_t->client (should be less necessary now)
 		else if (ent && ent->inuse && ent->client && ent->client->laser_manager) {
-			auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
+			auto* holder = static_cast<LaserManagerHolder*>(ent->client->laser_manager);
 			if (holder) {
-				delete holder;
-				if (developer && developer->integer > 1) { // Added null check
+				delete holder; // Calls destructor
+				if (developer && developer->integer > 1) {
 					gi.Com_PrintFmt("Cleaned up LaserManager via edict for client slot {} during ResetGame\n", i);
 				}
 			}
-			else {
-				if (developer && developer->integer) { // Added null check
-					gi.Com_PrintFmt("Warning: Found NULL LaserManagerHolder pointer via edict for client slot {} during ResetGame\n", i);
-				}
-			}
+			// else { // Pointer exists in client but holder is null - log if needed }
 			ent->client->laser_manager = nullptr; // Always clear the pointer
 		}
 	}
