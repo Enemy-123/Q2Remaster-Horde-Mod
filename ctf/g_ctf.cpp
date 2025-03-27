@@ -1291,46 +1291,67 @@ void CTFSetIDView(edict_t* ent) {
 
 void OnEntityDeath(edict_t* self) noexcept
 {
-	// Early exit checks
 	if (!self || !self->inuse || self->monsterinfo.death_processed) {
 		return;
 	}
 
-	if (self->is_fading_out)
-		return;
-
 	self->monsterinfo.death_processed = true;
 
-	// Clear boss status if needed
-	if (self->monsterinfo.IS_BOSS) {
+	// --- MANDATORY RESOURCE CLEANUP ---
+	self->moveinfo.curve_positions.release();
+	// --- Add .release() calls for ANY OTHER savable_allocated_memory_t members HERE ---
+	// --- Add gi.TagFree for relevant dynamically allocated char* members HERE ---
+
+	// --- Entity Type Specific State Cleanup ---
+	if (self->svflags & SVF_MONSTER) {
+		self->monsterinfo.bonus_flags = 0;
+		self->monsterinfo.effects_applied = false;
 		self->monsterinfo.IS_BOSS = false;
 	}
+	// else if (self->client) { /* Client cleanup if needed */ }
+	// else { /* Other type cleanup */ }
 
-	//// Mark for EntityInfoManager cleanup
-	//int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
-	//if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
-	//	g_entityInfoManager.removeEntityInfo(entity_index);
-	//}
 
-	// Setup cleanup timing and flags
-	if (g_horde->integer) {
+	// --- Setup Post-Death Behavior (Timing/Flags for G_FreeEdict) ---
+	bool apply_horde_fade = (self->svflags & SVF_MONSTER) && g_horde && g_horde->integer;
+
+	if (apply_horde_fade) {
 		constexpr gtime_t FADE_START_DELAY = 4_sec;
 		constexpr gtime_t FADE_DURATION = 3_sec;
+
 		self->teleport_time = level.time + FADE_START_DELAY;
-		self->timestamp = level.time + FADE_START_DELAY + FADE_DURATION;
+		self->timestamp = self->teleport_time + FADE_DURATION;
 		self->wait = FADE_DURATION.seconds();
+
 		self->monsterinfo.aiflags |= AI_CLEANUP_FADE;
+		self->monsterinfo.aiflags &= ~AI_CLEANUP_NORMAL;
+
 		self->s.renderfx &= ~RF_DOT_SHADOW;
+		// Ensure StartFadeOut or similar sets think/nextthink for fading
 	}
 	else {
 		self->timestamp = level.time + 2_sec;
-		self->monsterinfo.aiflags |= AI_CLEANUP_NORMAL;
+
+		if (self->svflags & SVF_MONSTER) {
+			self->monsterinfo.aiflags |= AI_CLEANUP_NORMAL;
+			self->monsterinfo.aiflags &= ~AI_CLEANUP_FADE;
+		}
+		// Ensure a simple G_FreeEdict think is set elsewhere if needed for non-monsters
+		// self->think = G_FreeEdict;
+		// self->nextthink = self->timestamp;
 	}
-}// OnEntityRemoved now simply calls OnEntityDeath
+
+	// --- Optional Debug Logging ---
+	if (developer && developer->integer > 1) {
+		gi.Com_PrintFmt("OnEntityDeath: Processed entity {} ({}). HordeFade: {}\n",
+			self->s.number, self->classname ? self->classname : "unknown",
+			apply_horde_fade ? "Yes" : "No");
+	}
+}
+
 inline void OnEntityRemoved(edict_t* self) noexcept {
 	OnEntityDeath(self);
 }
-
 // CleanupInvalidEntities - remains largely the same
 void CleanupInvalidEntities() {
 	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
