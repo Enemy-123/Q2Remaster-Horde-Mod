@@ -6,7 +6,7 @@
 #include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
 #include "g_horde.h"    // For GetMapSize
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde MOD BETA v0.0094*";
+constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0095";
 
 // Forward Declarations from this file
 void OpenVoteMenu(edict_t* ent);
@@ -297,17 +297,30 @@ void CategorizeMapList() {
 
 // --- Map Category Selection Menu ---
 
+// Add a placeholder for the current map name
 static pmenu_t map_category_menu[] = {
-	{ "*Map Category Selection", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Big Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },
-	{ "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },
-	{ "Small Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, MapCategoryHandler },
-	{ "Close", PMENU_ALIGN_LEFT, MapCategoryHandler }
+	{ "Map Category Selection", PMENU_ALIGN_CENTER, nullptr }, // 0: Title
+	{ "", PMENU_ALIGN_CENTER, nullptr },                       // 1: Blank Separator
+	{ "*PLACEHOLDER_MAP*", PMENU_ALIGN_CENTER, nullptr },      // 2: Current Map (Set Dynamically)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                       // 3: Blank Separator
+	{ "Big Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },      // 4: Big Maps (was 2)
+	{ "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },   // 5: Medium Maps (was 3)
+	{ "Small Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },    // 6: Small Maps (was 4)
+	{ "", PMENU_ALIGN_CENTER, nullptr },                       // 7: Blank Separator (was 5)
+	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, MapCategoryHandler }, // 8: Back (was 6)
+	{ "Close", PMENU_ALIGN_LEFT, MapCategoryHandler }          // 9: Close (was 7)
 };
-constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t);
+// Update size
+constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t); // Now 10
+
+// Define indices for clarity (optional but helpful)
+constexpr size_t MAP_CAT_MENU_TITLE_IDX = 0;
+constexpr size_t MAP_CAT_MENU_CURRENT_MAP_IDX = 2;
+constexpr size_t MAP_CAT_MENU_BIG_IDX = 4;
+constexpr size_t MAP_CAT_MENU_MEDIUM_IDX = 5;
+constexpr size_t MAP_CAT_MENU_SMALL_IDX = 6;
+constexpr size_t MAP_CAT_MENU_BACK_IDX = 8;
+constexpr size_t MAP_CAT_MENU_CLOSE_IDX = 9;
 
 // Handler for the map category selection menu
 void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
@@ -319,42 +332,44 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	PMenu_Close(ent); // Close the category menu first
 
+	// Use the new indices defined above (or hardcode the updated numbers)
 	switch (option) {
-	case 2: // Big Maps
+	case MAP_CAT_MENU_BIG_IDX: // Big Maps (Now 4)
 		categorized_maps.current_category = MapSize{ false, false, true };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu(); // Update vote menu data based on new category
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Open the map list
 		break;
 
-	case 3: // Medium Maps
+	case MAP_CAT_MENU_MEDIUM_IDX: // Medium Maps (Now 5)
 		categorized_maps.current_category = MapSize{ false, true, false };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 		break;
 
-	case 4: // Small Maps
+	case MAP_CAT_MENU_SMALL_IDX: // Small Maps (Now 6)
 		categorized_maps.current_category = MapSize{ true, false, false };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 		break;
 
-	case 6: // Back to Horde Menu
+	case MAP_CAT_MENU_BACK_IDX: // Back to Horde Menu (Now 8)
 		OpenHordeMenu(ent); // Open the main menu
 		break;
 
-	case 7: // Close
+	case MAP_CAT_MENU_CLOSE_IDX: // Close (Now 9)
 		// Menu already closed at the start
 		break;
 
 	default:
-		// Invalid option, menu already closed
+		// Ignore selections on title, separators, or current map display
+		// Menu already closed
 		break;
 	}
 }
-
+// Opens the map category selection menu
 // Opens the map category selection menu
 void OpenMapCategoryMenu(edict_t* ent) {
 	if (!ent || !ent->client) {
@@ -366,7 +381,29 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
-	// Open the category menu
+	// --- Dynamically set the current map name ---
+	char current_map_text[sizeof(pmenu_t::text)]; // Use size of destination buffer
+	if (level.mapname && *level.mapname) {
+		snprintf(current_map_text, sizeof(current_map_text), "Current: %s", level.mapname);
+	}
+	else {
+		snprintf(current_map_text, sizeof(current_map_text), "Current: Unknown*");
+	}
+	// Ensure null termination just in case snprintf fills the buffer completely
+	current_map_text[sizeof(current_map_text) - 1] = '\0';
+
+	// Copy the formatted string into the static menu array entry
+	// Use the defined index for safety
+	Q_strlcpy(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text,
+		current_map_text,
+		sizeof(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text));
+	// Ensure this entry is not selectable
+	map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].SelectFunc = nullptr;
+	map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].align = PMENU_ALIGN_CENTER;
+	// --- End dynamic map name setting ---
+
+
+	// Open the category menu (using the updated static array)
 	PMenu_Open(ent, map_category_menu, -1, MAP_CATEGORY_MENU_SIZE, nullptr, nullptr);
 }
 
@@ -504,7 +541,7 @@ void UpdateVoteMenu() {
 
 	// Update category title (index 0)
 	char category_title[64];
-	snprintf(category_title, sizeof(category_title), "*%s*", category_name);
+	snprintf(category_title, sizeof(category_title), "%s", category_name);
 	Q_strlcpy(vote_menu[0].text, category_title, sizeof(vote_menu[0].text));
 
 	// --- Calculate map indices for the current page ---
