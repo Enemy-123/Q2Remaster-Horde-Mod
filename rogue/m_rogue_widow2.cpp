@@ -1122,7 +1122,7 @@ void SP_monster_widow2(edict_t* self)
 	if (G_IsCooperative())
 		self->health += 500 * skill->integer;
 	if (g_horde->integer) { self->health = 5500; }
-	self->gib_health = -900;
+	self->gib_health = -200;
 	self->mass = 2500;
 
 	if (skill->integer == 3)
