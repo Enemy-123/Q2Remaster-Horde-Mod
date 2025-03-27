@@ -2181,7 +2181,7 @@ static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::str
 		float cumulativeWeight;
 	};
 
-	WeightedBoss weightedBosses[MAX_ELIGIBLE_BOSSES]; // Ensure MAX_ELIGIBLE_BOSSES is large enough
+	WeightedBoss weightedBosses[MAX_ELIGIBLE_BOSSES]{}; // Ensure MAX_ELIGIBLE_BOSSES is large enough
 	size_t weightedCount = 0;
 	float totalWeight = 0.0f;
 
@@ -3340,7 +3340,7 @@ void BossDeathHandler(edict_t* boss) {
 	}
 
 	// Randomize standard item drops using Fisher-Yates shuffle
-	std::array<const char*, 8> shuffled;
+	std::array<const char*, 8> shuffled{};
 	std::copy(std::begin(standardItems), std::end(standardItems), shuffled.begin());
 	for (int i = 7; i > 0; --i) {
 		int j = irandom(0, i);
