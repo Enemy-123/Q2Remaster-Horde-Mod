@@ -6,6 +6,8 @@
 #include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
 #include "g_horde.h"    // For GetMapSize
 
+constexpr const char* HORDE_MOD_VERSION_STRING = "*Horde MOD BETA v0.0094*";
+
 // Forward Declarations from this file
 void OpenVoteMenu(edict_t* ent);
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
@@ -193,8 +195,10 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer) // Check if CTF mode is active
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text)); // Use localized CTF name
 	else // Assume Horde or other modes
-		Q_strlcpy(p->text, "*Horde MOD BETA v0.0094*", sizeof(p->text)); // Horde title
+		// Use the constexpr string defined in g_horde.h
+		Q_strlcpy(p->text, HORDE_MOD_VERSION_STRING, sizeof(p->text));
 }
+
 
 // Definition of SetLevelName
 static void SetLevelName(pmenu_t* p)
@@ -970,58 +974,87 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 }
 
 // Creates and opens the main Horde menu
+// Forward declaration for the handler function if not already visible
+void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p);
+
+// Creates and opens the main Horde menu
 pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
+	// Basic validation
+	if (!ent || !ent->client) {
+		return nullptr;
+	}
+
 	// Close any existing menu to prevent issues
 	if (ent->client->menu) {
 		PMenu_Close(ent);
 	}
 
-	// Use a static array for the menu entries
-	static pmenu_t entries[12]; // Max size needed (Vote Yes/No case)
+	// Use a static array for the menu entries.
+	// Size 13 needed: Title, Blank, Inv, Spec, Blank, VoteQ/Map, VoteY, VoteN, Blank, Tech, HUD, Blank, Close
+	// Let's use 13 for safety, although Vote Map uses one less slot than Vote Yes/No.
+	static pmenu_t entries[13];
 	memset(entries, 0, sizeof(entries)); // Clear the array
 
 	int count = 0; // Current entry index
 
-	// Helper lambda to add entries safely
+	// Helper lambda to add entries safely, preventing buffer overflows
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
 		if (count < static_cast<int>(std::size(entries))) {
+			// Use Q_strlcpy for safe string copying
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
 			entries[count].align = align;
 			entries[count].SelectFunc = func;
 			count++;
 		}
+		else {
+			// Optional: Log an error if the menu exceeds the allocated size
+			gi.Com_Print("Error: CreateHordeMenu exceeded static entry buffer size.\n");
+		}
 		};
 
 	// Add common menu entries
-	add_entry("*Horde Menu*", PMENU_ALIGN_CENTER);                 // Index 0
-	add_entry("", PMENU_ALIGN_CENTER);                              // Index 1
+	// --- Use the constant defined in g_horde.h for the title ---
+	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);                 // Index 0
+	add_entry("", PMENU_ALIGN_CENTER);                              // Index 1 (Blank Separator)
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler); // Index 2
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler); // Index 3
-	add_entry("", PMENU_ALIGN_CENTER);                              // Index 4
+	add_entry("", PMENU_ALIGN_CENTER);                              // Index 4 (Blank Separator)
 
 	// Add vote-related entries dynamically
 	if (ctfgame.election == ELECT_NONE) {
+		// No vote in progress
 		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 5
+		add_entry("", PMENU_ALIGN_CENTER);                           // Index 6 (Blank Separator) - Placeholder
+		// Indices shift here compared to the vote case
 	}
 	else {
+		// Vote is in progress
 		// Format the vote question into a buffer
-		char vote_question[64];
+		char vote_question[64]; // Buffer for the formatted question
 		snprintf(vote_question, sizeof(vote_question), "Vote: %s", ctfgame.emsg);
-		// Ensure the buffer isn't too long for the menu entry
-		vote_question[sizeof(entries[0].text) - 1] = '\0';
+		// Ensure null termination even if snprintf truncates (although Q_strlcpy handles this later)
+		vote_question[sizeof(vote_question) - 1] = '\0';
 
-		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr);       // Index 5 (Display vote question)
-		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 6 (Actual Vote Yes option)
-		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);    // Index 7 (Actual Vote No option)
+		// Display the vote question (not selectable)
+		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr);       // Index 5
+		// Add Vote Yes/No options
+		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 6
+		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);    // Index 7
+		add_entry("", PMENU_ALIGN_CENTER);                           // Index 8 (Blank Separator)
 	}
 
-	add_entry("", PMENU_ALIGN_CENTER);                              // Index 6 or 8
-	add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 7 or 9
-	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 8 or 10
-	add_entry("", PMENU_ALIGN_CENTER);                              // Index 9 or 11
-	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);         // Index 10 or 12
+	// Add remaining common entries (adjusting for vote status)
+	// The actual index depends on whether the vote section took 1 or 3 slots (+1 for the blank after)
+	// Instead of hardcoding indices, we just continue adding with the lambda
 
-	// Open the menu with the constructed entries
+	add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 7 (no vote) or 9 (vote)
+	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 8 (no vote) or 10 (vote)
+	add_entry("", PMENU_ALIGN_CENTER);                              // Index 9 (no vote) or 11 (vote) (Blank Separator)
+	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);         // Index 10 (no vote) or 12 (vote)
+
+	// Open the menu with the constructed entries and the actual count
+	// Use -1 for initial selection (usually defaults to first selectable item)
+	// No update function needed here as it's dynamically rebuilt each time
 	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 
