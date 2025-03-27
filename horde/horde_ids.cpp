@@ -131,7 +131,10 @@ void MonsterTypeRegistry::Initialize() {
         {"monster_widow2", MonsterTypeID::WIDOW2},
         {"monster_boss5", MonsterTypeID::BOSS5},
         {"monster_guardian", MonsterTypeID::GUARDIAN},
-        {"monster_psxguardian", MonsterTypeID::PSX_GUARDIAN}
+        {"monster_psxguardian", MonsterTypeID::PSX_GUARDIAN},
+
+        {"misc_insane", MonsterTypeID::MISC_INSANE},
+        {"monster_turret", MonsterTypeID::TURRET}
     };
     
     // Initialize the reverse mapping
