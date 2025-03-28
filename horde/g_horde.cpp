@@ -46,9 +46,11 @@ static int counter_mismatch_frames = 0;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
 namespace HordeConstants {
-// constexpr float PLAYER_MULTIPLIER = 0.2f;
+
+	constexpr gtime_t ALT_SPAWN_COOLDOWN_SHORT = 1.5_sec;
+	constexpr gtime_t ALT_SPAWN_COOLDOWN_MEDIUM = 3_sec;
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
-	//constexpr float DIFFICULTY_PLAYER_FACTOR = 0.075f;
+	constexpr float MIN_PLAYER_DIST_SQ = 150.0f * 150.0f; // Squared distance for efficiency
 	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.0f;
 	constexpr float PLAYER_COUNT_SCALE = 0.2f;
 
@@ -153,11 +155,11 @@ void ApplyAlternativePositionCooldown(edict_t* spawn_point) {
 
 	// For the first few failures, use shorter cooldowns
 	if (data.alternative_attempts <= 2) {
-		cooldown_duration = 1.5_sec;
+		cooldown_duration = HordeConstants::ALT_SPAWN_COOLDOWN_SHORT;  //short
 	}
 	// For intermediate failures, use medium cooldowns
 	else if (data.alternative_attempts <= 5) {
-		cooldown_duration = 3.0_sec;
+		cooldown_duration = HordeConstants::ALT_SPAWN_COOLDOWN_MEDIUM;
 	}
 	// For persistent failures, use longer cooldowns
 	else {
@@ -2669,17 +2671,24 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
 }
 
 static horde::MonsterTypeID G_HordePickMonsterType(edict_t* spawn_point) {
-	// Static cache to avoid repeated allocations
+	static constexpr size_t MONSTER_CACHE_SIZE = std::size(monsterTypes);
+
 	static struct {
 		struct Entry {
 			horde::MonsterTypeID typeId;
 			float weight;
 			float cumulative_weight;
 		};
-		Entry entries[32];
+		std::array<Entry, MONSTER_CACHE_SIZE> entries{};
 		size_t count;
 		float total_weight;
+		void clear() noexcept {
+			count = 0;
+			total_weight = 0.0;
+		}
+
 	} monster_cache;
+
 
 	// Track consecutive failures for emergency handling
 	static int spawn_selection_failures = 0;
@@ -3189,29 +3198,6 @@ static void PrecacheAllGameItems() noexcept {
 	}
 }
 
-static inline bool monsters_precached = false;  // Use inline static for C++17+
-
-// Modified precache function with safety check
-static void PrecacheAllMonsters() noexcept {
-	// Only precache once
-	if (monsters_precached)
-		return;
-
-	for (const auto& monster : monsterTypes) {
-		// Get classname from typeId using the registry
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster.typeId);
-
-		// Safety check and precache
-		if (classname && *classname) {
-			if (gitem_t* item = FindItemByClassname(classname)) {
-				PrecacheItem(item);
-			}
-		}
-	}
-
-	monsters_precached = true;
-}
-
 // Función para precarga de sonidos
 static bool sounds_precached = false;
 
@@ -3305,7 +3291,6 @@ void Horde_Init() {
 	// Reset precache state
 	sounds_precached = false;
 	items_precached = false;
-	monsters_precached = false;
 
 	// Clear existing bosses
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
@@ -3319,7 +3304,6 @@ void Horde_Init() {
 	auto_spawned_bosses.clear();
 
 	// Do precaching
-	PrecacheAllMonsters();
 	PrecacheAllGameItems();
 	PrecacheWaveSounds();
 
@@ -6298,9 +6282,8 @@ edict_t* SpawnMonsters() {
 
 			// Check Player Proximity: Skip if too close to a player
 			bool too_close_to_player = false;
-			constexpr float MIN_PLAYER_DIST_SQ = 150.0f * 150.0f; // Squared distance for efficiency
 			for (const auto* const player : active_players_no_spect()) { // Iterate non-spectating players
-				if ((spawn_point->s.origin - player->s.origin).lengthSquared() < MIN_PLAYER_DIST_SQ) {
+				if ((spawn_point->s.origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ) {
 					too_close_to_player = true;
 					break;
 				}
