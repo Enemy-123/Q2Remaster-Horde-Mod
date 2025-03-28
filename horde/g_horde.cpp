@@ -4005,50 +4005,6 @@ void SetHealthBarName(const edict_t* boss) {
 	// Set the configstring once
 	gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, buffer);
 }
-//CS HORDE
-
-void UpdateHordeHUD() {
-	// Rate limiting - exit early if called too frequently
-	static gtime_t last_update = 0_ms;
-	const gtime_t current_time = level.time;
-
-	if (current_time - last_update < 99_ms) {
-		return;
-	}
-	last_update = current_time;
-
-	// Get configstring once
-	const std::string_view current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-	if (current_msg.empty()) {
-		return;
-	}
-
-	// Track success
-	bool update_successful = false;
-
-	// Process active players efficiently using iterator pattern
-	for (auto* player : active_players()) {
-		// Use proper null and inuse checks
-		if (player && player->inuse && player->client &&
-			(player->client->voted_map[0] == '\0')) {
-			player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-			update_successful = true;
-		}
-	}
-
-	// Update HUD state tracking
-	if (update_successful) {
-		g_horde_local.last_successful_hud_update = current_time;
-		g_horde_local.failed_updates_count = 0;
-	}
-	else {
-		// If we exceed failure threshold, clear message
-		if (++g_horde_local.failed_updates_count > 5) {
-			ClearHordeMessage();
-			g_horde_local.reset_hud_state();
-		}
-	}
-}
 
 // Implementación de UpdateHordeMessage
 void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
@@ -7261,8 +7217,6 @@ void Horde_RunFrame() {
 		ResetWaveAdvanceState();
 	}
 
-	// Process HUD updates and expiring messages
-	UpdateHordeHUD();
 	if (horde_message_end_time != 0_sec && currentTime >= horde_message_end_time) {
 		ClearHordeMessage();
 	}

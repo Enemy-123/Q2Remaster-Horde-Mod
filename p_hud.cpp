@@ -807,7 +807,7 @@ void G_SetStats(edict_t* ent)
 		ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
 	ent->client->ps.stats[STAT_HEALTH] = ent->health;
 
-	if (ent->client->voted_map[0]) {
+	if (ctfgame.election != ELECT_NONE) { // Check the global election state
 		ent->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
 	}
 	else {
@@ -815,10 +815,12 @@ void G_SetStats(edict_t* ent)
 	}
 
 	// Horde Status
-	if (g_horde->integer && !(ent->client->voted_map[0])) {
+	if (g_horde->integer && gi.get_configstring(CONFIG_HORDEMSG)[0] != '\0') {
+		// Set stat only if Horde is active AND there's actually a message
 		ent->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
 	}
 	else {
+		// Otherwise, ensure the stat is cleared
 		ent->client->ps.stats[STAT_HORDEMSG] = 0;
 	}
 	//

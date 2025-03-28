@@ -973,10 +973,6 @@ inline void G_RunFrame_(bool main_loop)
         constexpr uint32_t BATCH_SIZE = 32;
         uint32_t processed = 0;
 
-        // Pre-fetch the HUD message once for later checks
-        const char* horde_msg = gi.get_configstring(CONFIG_HORDEMSG);
-        bool has_horde_msg = horde_msg && horde_msg[0];
-
         // Process monsters in batches
         for (auto ent : monsters) {
             if (processed >= BATCH_SIZE)
@@ -997,19 +993,6 @@ inline void G_RunFrame_(bool main_loop)
         if (horde_message_end_time > 0_sec) {
             if (level.time >= horde_message_end_time) {
                 ClearHordeMessage();
-            }
-            else if (!has_horde_msg) {
-                UpdateHordeHUD(); // Re-show message if lost
-            }
-        }
-
-        // Check player HUD status once
-        if (has_horde_msg) {
-            for (auto player : players) {
-                if (player->client && !player->client->ps.stats[STAT_HORDEMSG]) {
-                    // Restore message if lost for any player
-                    player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-                }
             }
         }
     }

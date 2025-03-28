@@ -987,7 +987,123 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 	return calculated_max_health;
 }
 
-// Modificación de InitClientPersistant
+// Forward declaration for Player_GiveStartItems if needed (it's defined in p_client.cpp)
+static void Player_GiveStartItems(edict_t* ent, const char* ptr);
+
+
+// Initializes Horde-specific persistent client data
+void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
+{
+	//
+	// HEALTH INITIALIZATION (Horde Override)
+	//
+	const int saved_adrenaline = client->resp.adrenaline_count; // Preserve adrenaline count
+	const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
+	client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
+	client->pers.health = new_max_health; // Start with full health
+	client->resp.adrenaline_count = saved_adrenaline; // Restore adrenaline count
+
+	//
+	// AMMO INITIALIZATION (Horde Override)
+	//
+	// Note: Base defaults are set in the main InitClientPersistant.
+	// Here we override max_ammo based on Horde wave level.
+	const bool is_high_level = current_wave_level >= 25;
+
+	if (is_high_level) {
+		// High level horde ammo caps
+		client->pers.max_ammo[AMMO_BULLETS] = 400;
+		client->pers.max_ammo[AMMO_SHELLS] = 175;
+		client->pers.max_ammo[AMMO_CELLS] = 400;
+		client->pers.max_ammo[AMMO_FLECHETTES] = 400;
+		client->pers.max_ammo[AMMO_GRENADES] = 125;
+		client->pers.max_ammo[AMMO_ROCKETS] = 100;
+		client->pers.max_ammo[AMMO_SLUGS] = 75;
+		client->pers.max_ammo[AMMO_MAGSLUG] = 125;
+		client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
+		client->pers.max_ammo[AMMO_TESLA] = 12;
+		client->pers.max_ammo[AMMO_PROX] = 125;
+		client->pers.max_ammo[AMMO_TRAP] = 8;
+	}
+	else {
+		// Basic horde ammo caps
+		client->pers.max_ammo[AMMO_BULLETS] = 250;
+		client->pers.max_ammo[AMMO_SHELLS] = 100;
+		client->pers.max_ammo[AMMO_CELLS] = 250;
+		client->pers.max_ammo[AMMO_FLECHETTES] = 250;
+		// Keep basic limits for special ammo in early waves
+		client->pers.max_ammo[AMMO_GRENADES] = 50; // Default
+		client->pers.max_ammo[AMMO_ROCKETS] = 50; // Default
+		client->pers.max_ammo[AMMO_SLUGS] = 50;   // Default
+		client->pers.max_ammo[AMMO_MAGSLUG] = 50; // Default
+		client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+		client->pers.max_ammo[AMMO_TESLA] = 5;
+		client->pers.max_ammo[AMMO_PROX] = 50;    // Default
+		client->pers.max_ammo[AMMO_TRAP] = 5;
+	}
+
+	//
+	// ITEM INITIALIZATION (Horde Specific)
+	//
+	client->pers.inventory[IT_ITEM_MENU] = 1;
+	client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1; // Horde gets flashlight
+
+	//
+	// BOT TECH INITIALIZATION (Horde Specific - Revised Logic)
+	//
+	if (ent->svflags & SVF_BOT && ent->client->resp.ctf_team != CTF_NOTEAM)
+	{
+		bool bot_has_any_tech = false;
+		// Check if the bot already holds *any* tech item
+		for (int i = 0; i < MAX_ITEMS; i++) {
+			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0) {
+				bot_has_any_tech = true;
+				break;
+			}
+		}
+		// If the bot has no tech items, give them Strength
+		if (!bot_has_any_tech) {
+			client->pers.inventory[IT_TECH_STRENGTH] = 1;
+		}
+		// Optional: If bot already has a tech, ensure Strength is 0
+		// else {
+		//     client->pers.inventory[IT_TECH_STRENGTH] = 0;
+		// }
+	}
+
+	//
+	// WEAPON INITIALIZATION (Horde Specific Loadout based on Wave)
+	// Only applies if it's also Deathmatch (which Horde mode forces)
+	//
+	if (G_IsDeathmatch()) { // Technically always true if g_horde is true
+		const bool give_advanced = current_wave_level >= 13;
+		const bool give_basic = current_wave_level >= 4;
+
+		if (give_advanced || give_basic) {
+			// Common weapons for both loadouts
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1; // Ensure blaster
+			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
+			client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
+			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+
+			// Additional weapons for advanced loadout
+			if (give_advanced) {
+				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
+				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
+				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
+			}
+		}
+	}
+	// Note: Initial ammo amounts for these weapons are usually granted via Player_GiveStartItems
+	// or when the weapon is first selected if ammo is 0. This logic only ensures the player *has* the weapon item.
+}
+
+
+
+// Modified InitClientPersistant
 void InitClientPersistant(edict_t* ent, gclient_t* client)
 {
 	// Backup & restore userinfo
@@ -996,21 +1112,16 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	ClientUserinfoChanged(ent, userinfo);
 
 	//
-	// HEALTH INITIALIZATION
+	// HEALTH INITIALIZATION (Default)
+	// Horde mode will override this if active.
 	//
-	if (g_horde->integer) {
-		const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
-		const int saved_adrenaline = client->resp.adrenaline_count;
-		client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
-		client->pers.health = new_max_health;
-		client->resp.adrenaline_count = saved_adrenaline;
-	}
-	else {
-		client->pers.health = client->pers.max_health = 100;
-	}
+	client->pers.health = 100;
+	client->pers.max_health = 100;
+	ent->max_health = 100; // Also set entity's max_health
+
 
 	//
-	// ARMOR INITIALIZATION
+	// ARMOR INITIALIZATION (Clear existing)
 	//
 	client->pers.inventory[IT_ARMOR_BODY] =
 		client->pers.inventory[IT_ARMOR_COMBAT] =
@@ -1022,7 +1133,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	//
 	bool taken_loadout = false;
 
-	// Check for coop inheritance
+	// Check for coop inheritance (remains the same)
 	if (G_IsCooperative()) {
 		for (auto player : active_players()) {
 			if (player == ent || !player->client->pers.spawned ||
@@ -1037,157 +1148,118 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		}
 	}
 
-	//// don't give us weapons if we shouldn't have any
-	//if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-	//	(!G_TeamplayEnabled() && !client->resp.spectator))
-	//{
+	if (!taken_loadout) {
+		// Base ammo initialization (Default values)
+		client->pers.max_ammo.fill(50); // Default small capacity
+		client->pers.max_ammo[AMMO_BULLETS] = 200;
+		client->pers.max_ammo[AMMO_SHELLS] = 100;
+		client->pers.max_ammo[AMMO_CELLS] = 200;
+		client->pers.max_ammo[AMMO_FLECHETTES] = 200;
+		// Special ammo defaults (usually low unless upgraded)
+		client->pers.max_ammo[AMMO_GRENADES] = 50;
+		client->pers.max_ammo[AMMO_ROCKETS] = 50;
+		client->pers.max_ammo[AMMO_SLUGS] = 50;
+		client->pers.max_ammo[AMMO_MAGSLUG] = 50;
+		client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+		client->pers.max_ammo[AMMO_TESLA] = 5;
+		client->pers.max_ammo[AMMO_PROX] = 50;
+		client->pers.max_ammo[AMMO_TRAP] = 5;
 
-		if (!taken_loadout) {
-			// Base ammo initialization
-			client->pers.max_ammo.fill(50);
 
-			// Set ammo based on game mode and wave level
-			const bool is_horde = g_horde->integer != 0;
-			const bool is_high_level = current_wave_level >= 15;
+		// Give blaster in deathmatch (non-Horde deathmatch)
+		// Horde handles its own blaster grant if needed inside Horde_Init...
+		if (deathmatch->integer && (!g_horde || !g_horde->integer)) // Added null check
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
-			if (is_horde && is_high_level) {
-				// High level horde ammo
-				client->pers.max_ammo[AMMO_BULLETS] = 400;
-				client->pers.max_ammo[AMMO_SHELLS] = 175;
-				client->pers.max_ammo[AMMO_CELLS] = 400;
-				client->pers.max_ammo[AMMO_FLECHETTES] = 400;
-				client->pers.max_ammo[AMMO_GRENADES] = 125;
-				client->pers.max_ammo[AMMO_ROCKETS] = 100;
-				client->pers.max_ammo[AMMO_SLUGS] = 75;
-				client->pers.max_ammo[AMMO_MAGSLUG] = 125;
-				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
-				client->pers.max_ammo[AMMO_TESLA] = 12;
-				client->pers.max_ammo[AMMO_PROX] = 125;
-				client->pers.max_ammo[AMMO_TRAP] = 8;
-			}
-			else if (is_horde) {
-				// Basic horde ammo
-				client->pers.max_ammo[AMMO_BULLETS] = 250;
-				client->pers.max_ammo[AMMO_SHELLS] = 100;
-				client->pers.max_ammo[AMMO_CELLS] = 250;
-				client->pers.max_ammo[AMMO_FLECHETTES] = 250;
-				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-				client->pers.max_ammo[AMMO_TESLA] = 5;
-				client->pers.max_ammo[AMMO_TRAP] = 5;
-			}
-			else {
-				// Standard ammo
-				client->pers.max_ammo[AMMO_BULLETS] = 200;
-				client->pers.max_ammo[AMMO_SHELLS] = 100;
-				client->pers.max_ammo[AMMO_CELLS] = 200;
-				client->pers.max_ammo[AMMO_FLECHETTES] = 200;
-				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-				client->pers.max_ammo[AMMO_TESLA] = 5;
-				client->pers.max_ammo[AMMO_TRAP] = 5;
-			}
+		// Process start items (remains the same)
+		if (g_start_items && *g_start_items->string) // Added null check
+			Player_GiveStartItems(ent, g_start_items->string);
+		if (level.start_items && *level.start_items)
+			Player_GiveStartItems(ent, level.start_items);
 
-			// Give blaster in deathmatch
-			if (deathmatch->integer)
-				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+		G_CheckPowerArmor(ent); // Check/apply power armor based on inventory
 
-			// Process start items
-			if (*g_start_items->string)
-				Player_GiveStartItems(ent, g_start_items->string);
-			if (level.start_items && *level.start_items)
-				Player_GiveStartItems(ent, level.start_items);
-
-			G_CheckPowerArmor(ent);
-
-			// Standard items for non-deathmatch/coop
-			if (!deathmatch->integer || coop->integer) {
-				client->pers.inventory[IT_ITEM_COMPASS] = 1;
+		// Standard items for non-deathmatch/coop (remains the same)
+		if (!deathmatch->integer || coop->integer) {
+			// Grant standard items if NOT deathmatch OR if coop IS enabled
+			// Horde mode will grant its own flashlight if active
+			if (!g_horde || !g_horde->integer) { // Added null check
 				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 			}
-
-			//
-			// HORDE MODE SPECIFICS
-			//
-			if (g_horde->integer) {
-				client->pers.inventory[IT_ITEM_MENU] = 1;
-				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
-
-				// Force TECHs on bots
-				if (ent->svflags & SVF_BOT && ent->client->resp.ctf_team != CTF_NOTEAM) {
-					for (int i = 0; i < MAX_ITEMS; i++) {
-						if (itemlist[i].flags & IF_TECH) {
-							client->pers.inventory[IT_TECH_STRENGTH] =
-								(ent->client->pers.inventory[i] == 0) ? 1 : 0;
-						}
-					}
-				}
-
-				// Horde mode weapons based on wave level
-				if (G_IsDeathmatch()) {
-					const bool give_advanced = current_wave_level >= 13;
-					const bool give_basic = current_wave_level >= 4;
-
-					if (give_advanced || give_basic) {
-						// Common weapons for both loadouts
-						client->pers.inventory[IT_WEAPON_BLASTER] =
-							client->pers.inventory[IT_WEAPON_CHAINFIST] =
-							client->pers.inventory[IT_WEAPON_SHOTGUN] =
-							client->pers.inventory[IT_WEAPON_SSHOTGUN] =
-							client->pers.inventory[IT_WEAPON_MACHINEGUN] =
-							client->pers.inventory[IT_WEAPON_ETF_RIFLE] =
-							client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
-
-						// Additional weapons for advanced loadout
-						if (give_advanced) {
-							client->pers.inventory[IT_WEAPON_CHAINGUN] =
-								client->pers.inventory[IT_WEAPON_GLAUNCHER] =
-								client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
-						}
-					}
-				}
-			}
-
-			// Handle grapple
-			const bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
-				(ctf->integer ? !level.no_grapple : 0) :
-				g_allow_grapple->integer;
-
-			if (give_grapple)
-				client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
+			client->pers.inventory[IT_ITEM_COMPASS] = 1;
 		}
 
 		//
-		// WEAPON SELECTION
+		// >>> CALL HORDE-SPECIFIC INITIALIZATION <<<
 		//
-		if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
-			client->pers.weapon = client->pers.lastweapon;
-			client->pers.selected_item = client->pers.lastweapon->id;
+		if (g_horde && g_horde->integer) { // Added null check
+			Horde_InitClientPersistant(ent, client);
+			// Horde function handles:
+			// - Overriding health/max_health
+			// - Overriding max_ammo
+			// - Granting Horde-specific items (Menu, Flashlight)
+			// - Granting Horde bot techs
+			// - Granting Horde wave-based weapons
+		}
+
+
+		// Handle grapple (remains the same, not Horde-specific)
+		// Ensure cvars exist before checking them
+		const bool give_grapple = (g_allow_grapple && !strcmp(g_allow_grapple->string, "auto")) ?
+			(ctf && ctf->integer ? !level.no_grapple : false) : // Fixed potential null deref on ctf
+			(g_allow_grapple && g_allow_grapple->integer); // Fixed potential null deref
+
+		if (give_grapple)
+			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
+	} // End if (!taken_loadout)
+
+	//
+	// WEAPON SELECTION (Remains the same)
+	// Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
+	//
+	if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
+		client->pers.weapon = client->pers.lastweapon;
+		client->pers.selected_item = client->pers.lastweapon->id;
+	}
+	else {
+		NoAmmoWeaponChange(ent, false); // Try to find a weapon with ammo
+		if (client->newweapon) {
+			client->pers.weapon = client->newweapon;
+			client->pers.selected_item = client->newweapon->id;
 		}
 		else {
-			NoAmmoWeaponChange(ent, false);
-			if (client->newweapon) {
-				client->pers.weapon = client->newweapon;
-				client->pers.selected_item = client->newweapon->id;
+			// Absolute fallback to Blaster if everything else fails
+			gitem_t* blasterItem = FindItem("Blaster");
+			if (blasterItem) { // Ensure Blaster item exists
+				client->pers.selected_item = blasterItem->id;
+				// Ensure blaster is in inventory (might not be if start_items removes it)
+				if (client->pers.inventory[blasterItem->id] <= 0)
+					client->pers.inventory[blasterItem->id] = 1;
+				client->pers.weapon = blasterItem;
 			}
 			else {
-				gitem_t* item = FindItem("Blaster");
-				client->pers.selected_item = item->id;
-				client->pers.inventory[item->id] = 1;
-				client->pers.weapon = item;
+				// Handle extremely unlikely case where Blaster item definition is missing
+				client->pers.weapon = nullptr;
+				client->pers.selected_item = IT_NULL;
 			}
 		}
-	//}
-	//
-	// FINAL SETUP
-	//
-	if (G_IsCooperative() && g_coop_enable_lives->integer)
-		client->pers.lives = g_coop_num_lives->integer + 1;
+	}
 
+	//
+	// FINAL SETUP (Remains the same)
+	//
+	if (G_IsCooperative() && g_coop_enable_lives && g_coop_enable_lives->integer) // Added null check
+		client->pers.lives = g_coop_num_lives ? g_coop_num_lives->integer + 1 : 1; // Added null check + fallback
+
+	// Handle autoshield preference (remains the same)
 	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
 		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
 
-	if (g_startarmor->integer)
+	// Grant starting body armor if cvar is set (remains the same)
+	if (g_startarmor && g_startarmor->integer) // Added null check
 		client->pers.inventory[IT_ARMOR_BODY] = 100;
 
+	// Set connected/spawned flags (remains the same)
 	client->pers.connected = true;
 	client->pers.spawned = true;
 }

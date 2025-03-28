@@ -31,10 +31,7 @@ void Weapon_Hook_Fire(edict_t* ent);
 void Weapon_Hook(edict_t* ent);
 
 // HORDE CS
-extern void ClearHordeMessage();
-extern void UpdateHordeMessage(std::string_view message, gtime_t duration);
-extern void UpdateHordeHUD();
-
+//extern void ClearHordeMessage();
 extern void CleanupInvalidEntities();
 
 extern uint16_t g_totalMonstersInWave;

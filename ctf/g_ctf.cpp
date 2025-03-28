@@ -2634,7 +2634,7 @@ void UpdateVoteHUD() {
 		//}
 
 		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
-		ClearHordeMessage();
+		//ClearHordeMessage();
 
 		for (auto player : active_players()) {
 			if (player->client) {
