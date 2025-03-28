@@ -1358,84 +1358,98 @@ using weight_adjust_func_t = void(*)(const weighted_item_t& item, float& weight)
 struct weighted_item_t;
 using weight_adjust_func_t = void(*)(const weighted_item_t& item, float& weight);
 
-// Remove the unused stub function definitions:
-// static void adjust_weight_health(const weighted_item_t& item, float& weight) noexcept {}
-// static void adjust_weight_weapon(const weighted_item_t& item, float& weight) noexcept {}
-// static void adjust_weight_ammo(const weighted_item_t& item, float& weight) noexcept {}
-// static void adjust_weight_armor(const weighted_item_t& item, float& weight) noexcept {}
-// static void adjust_weight_powerup(const weighted_item_t& item, float& weight) noexcept {}
 
-// Reordered struct definition for optimal packing
-constexpr struct weighted_item_t {
-	const char* classname;                  // Pointer (8 bytes on 64-bit)
-	weight_adjust_func_t adjust_weight;     // Function Pointer (8 bytes on 64-bit)
-	int32_t min_level = -1;                 // 4 bytes
-	int32_t max_level = -1;                 // 4 bytes
-	float weight = 1.0f;                    // 4 bytes
-	uint32_t flags = 0;                     // 4 bytes
-	// Likely total: 32 bytes, well-aligned, no padding needed
-} items[] = {
-	// Initialize 'adjust_weight' with nullptr since the stub functions are removed
-	{ "item_health",         nullptr, 3, 5, 0.20f },
-	{ "item_health_large",   nullptr, -1, 4, 0.06f },
-	{ "item_health_large",   nullptr, 5, -1, 0.12f },
-	{ "item_health_mega",    nullptr, 4, -1, 0.04f },
-	{ "item_adrenaline",     nullptr, -1, -1, 0.07f },
+// Structure definition (as you provided)
+struct HordeItemInfo {
+	item_id_t id;      // Use item_id_t instead of const char*
+	float weight;      // Relative probability (higher is more common)
+	int minWave;       // Minimum wave level for this item to appear
 
-	{ "item_armor_shard",    nullptr, -1, 7, 0.09f },
-	{ "item_armor_jacket",   nullptr, -1, 12, 0.1f },
-	{ "item_armor_combat",   nullptr, 13, -1, 0.06f },
-	{ "item_armor_body",     nullptr, 27, -1, 0.015f },
-	{ "item_power_screen",   nullptr, 2, 8, 0.03f },
-	//{ "item_power_shield",   nullptr, 14, -1, 0.07f },
+	constexpr HordeItemInfo(item_id_t item_id, float w, int mw)
+		: id(item_id), weight(w), minWave(mw) {
+	}
+};
 
-	{ "item_ir_goggles",     nullptr, 10, -1, 0.03f },
-	{ "item_quad",           nullptr, 6, -1, 0.04f },
-	{ "item_double",         nullptr, 4, -1, 0.05f },
-	{ "item_quadfire",       nullptr, 2, -1, 0.04f },
-	{ "item_invulnerability",nullptr, 4, -1, 0.03f },
-	{ "item_sphere_defender",nullptr, 2, -1, 0.05f },
-	//{ "item_sphere_vengeance", nullptr, 23, -1, 0.06f },
-	{ "item_sphere_hunter",  nullptr, 9, -1, 0.04f },
-	{ "item_invisibility",   nullptr, 4, -1, 0.06f },
-	{ "item_teleport_device",nullptr, 4, -1, 0.06f },
-	{ "item_doppleganger",   nullptr, 5, -1, 0.038f },
-	{ "item_sentrygun",      nullptr, 20, -1, 0.1f },
+// The comprehensive static array
+static const HordeItemInfo hordeItemData[] = {
+	// --- Armor ---
+	{ IT_ARMOR_SHARD,         1.5f,  1 }, // Common, small boost
+	{ IT_ARMOR_JACKET,        0.8f,  3 }, // Basic armor
+	{ IT_ARMOR_COMBAT,        0.5f,  8 }, // Better armor
+	{ IT_ARMOR_BODY,          0.2f, 15 }, // Best standard armor
+	{ IT_ITEM_POWER_SCREEN,   0.3f,  7 }, // Power Armor (early)
+	{ IT_ITEM_POWER_SHIELD,   0.01f, 19 }, // Power Armor (late)
 
-	{ "weapon_chainfist",    nullptr, -1, 3, 0.05f },
-	{ "weapon_shotgun",      nullptr, -1, -1, 0.22f },
-	{ "weapon_supershotgun", nullptr, 5, -1, 0.17f },
-	{ "weapon_machinegun",   nullptr, -1, -1, 0.25f },
-	{ "weapon_etf_rifle",    nullptr, 4, -1, 0.17f },
-	{ "weapon_chaingun",     nullptr, 9, -1, 0.17f },
-	{ "weapon_grenadelauncher", nullptr, 10, -1, 0.17f },
-	{ "weapon_proxlauncher", nullptr, 4, -1, 0.1f },
-	{ "weapon_boomer",       nullptr, 17, -1, 0.17f },
-	{ "weapon_hyperblaster", nullptr, 12, -1, 0.2f },
-	{ "weapon_rocketlauncher", nullptr, 14, -1, 0.19f },
-	{ "weapon_railgun",      nullptr, 24, -1, 0.17f },
-	{ "weapon_phalanx",      nullptr, 20, -1, 0.19f },
-	{ "weapon_plasmabeam",   nullptr, 16, -1, 0.25f },
-	{ "weapon_disintegrator",nullptr, 31, -1, 0.15f },
-	{ "weapon_bfg",          nullptr, 26, -1, 0.17f },
+	// --- Weapons ---
+	// Blaster is skipped (always have)
+	{ IT_WEAPON_CHAINFIST,    0.1f,  1 }, // Melee, niche drop
+	{ IT_WEAPON_SHOTGUN,      1.0f,  1 }, // Basic weapon
+	{ IT_WEAPON_SSHOTGUN,     0.7f,  3 }, // Strong early/mid weapon
+	{ IT_WEAPON_MACHINEGUN,   1.0f,  1 }, // Basic weapon
+	{ IT_WEAPON_ETF_RIFLE,    0.6f,  5 }, // Rogue weapon (mid)
+	{ IT_WEAPON_CHAINGUN,     0.5f,  7 }, // Mid-tier DPS
+	{ IT_WEAPON_GLAUNCHER,    0.5f,  5 }, // Area denial (mid)
+	{ IT_WEAPON_PROXLAUNCHER, 0.3f,  8 }, // Rogue weapon (mid/late trap)
+	{ IT_WEAPON_RLAUNCHER,    0.4f,  7 }, // Powerful splash (mid/late)
+	{ IT_WEAPON_HYPERBLASTER, 0.4f,  9 }, // Energy weapon (mid/late)
+	{ IT_WEAPON_IONRIPPER,    0.4f, 10 }, // Xatrix weapon (mid/late)
+	{ IT_WEAPON_PLASMABEAM,   0.2f, 12 }, // Rogue weapon (late, high DPS)
+	{ IT_WEAPON_RAILGUN,      0.25f, 15 }, // High skill/damage (late)
+	{ IT_WEAPON_PHALANX,      0.25f, 14 }, // Xatrix weapon (late)
+	{ IT_WEAPON_BFG,          0.05f, 20 }, // Ultimate weapon (very late, rare)
+	{ IT_WEAPON_DISRUPTOR,    0.15f, 18 }, // Rogue weapon (late, piercing)
+	// Grenades/Traps/Tesla as 'weapons' (for direct drop maybe?)
+	{ IT_AMMO_GRENADES,       0.4f,  2 }, // Hand grenades item
+	{ IT_AMMO_TRAP,           0.2f,  6 }, // Xatrix trap item
+	{ IT_AMMO_TESLA,          0.15f, 8 }, // Rogue tesla item
 
-	{ "ammo_trap",           nullptr, 4, -1, 0.18f },
-	{ "ammo_bullets",        nullptr, -1, -1, 0.25f },
-	{ "ammo_flechettes",     nullptr, 4, -1, 0.25f },
-	{ "ammo_grenades",       nullptr, -1, -1, 0.25f },
-	{ "ammo_prox",           nullptr, 5, -1, 0.25f },
-	{ "ammo_tesla",          nullptr, -1, -1, 0.1f },
-	{ "ammo_cells",          nullptr, 13, -1, 0.25f },
-	{ "ammo_cells",          nullptr, 2, 12, 0.12f },
-	{ "ammo_magslug",        nullptr, 15, -1, 0.25f },
-	{ "ammo_slugs",          nullptr, 22, -1, 0.25f },
-	{ "ammo_disruptor",      nullptr, 24, -1, 0.25f },
-	{ "ammo_rockets",        nullptr, 13, -1, 0.25f },
-	{ "ammo_nuke",           nullptr, 12, -1, 0.03f },
+	// --- Ammo --- (Generally higher weight than corresponding weapons)
+	{ IT_AMMO_SHELLS,         2.0f,  1 }, // Common
+	{ IT_AMMO_BULLETS,        2.0f,  1 }, // Common
+	{ IT_AMMO_GRENADES,       1.2f,  2 }, // Mid frequency
+	{ IT_AMMO_ROCKETS,        1.0f,  6 }, // Needed for RL
+	{ IT_AMMO_CELLS,          1.5f,  7 }, // Needed for energy weapons
+	{ IT_AMMO_SLUGS,          0.8f, 14 }, // Needed for Railgun
+	{ IT_AMMO_MAGSLUG,        0.8f, 13 }, // Needed for Phalanx (Xatrix)
+	{ IT_AMMO_FLECHETTES,     1.5f,  4 }, // Needed for ETF Rifle (Rogue)
+	{ IT_AMMO_PROX,           0.6f,  7 }, // Needed for Prox Launcher (Rogue)
+	{ IT_AMMO_ROUNDS,         0.5f, 17 }, // Needed for Disruptor (Rogue)
+	{ IT_AMMO_TRAP,           0.4f,  5 }, // Needed for Trap (Xatrix)
+	{ IT_AMMO_TESLA,          0.3f,  7 }, // Needed for Tesla (Rogue)
+	{ IT_AMMO_NUKE,           0.02f, 25 }, // Very rare ammo/powerup (Rogue)
 
-	{ "item_bandolier",      nullptr, 4, -1, 0.2f },
-	{ "item_pack",           nullptr, 15, -1, 0.34f },
-	{ "item_silencer",       nullptr, 15, -1, 0.1f },
+	// --- Powerups ---
+	{ IT_ITEM_QUAD,           0.1f,  8 }, // Rare, powerful
+	{ IT_ITEM_QUADFIRE,       0.1f,  6 }, // Rare, powerful (Xatrix)
+	{ IT_ITEM_INVULNERABILITY,0.05f, 12 }, // Very rare, very powerful
+	{ IT_ITEM_INVISIBILITY,   0.2f,  5 }, // Situational
+	{ IT_ITEM_SILENCER,       0.15f, 4 }, // Situational
+	//{ IT_ITEM_REBREATHER,     0.1f,  1 }, // Map dependent, low weight
+	//{ IT_ITEM_ENVIROSUIT,     0.1f,  1 }, // Map dependent, low weight
+	{ IT_ITEM_ADRENALINE,     0.3f,  3 }, // Permanent health boost, good reward
+	{ IT_ITEM_BANDOLIER,      0.5f,  4 }, // Good ammo capacity boost
+	{ IT_ITEM_PACK,           0.25f, 10 }, // Excellent ammo capacity boost
+	{ IT_ITEM_IR_GOGGLES,     0.15f, 7 }, // Situational (Rogue)
+	{ IT_ITEM_DOUBLE,         0.15f, 5 }, // Damage boost (Rogue)
+	//{ IT_ITEM_SPHERE_VENGEANCE, 0.1f, 15 }, // Powerful sphere (Rogue)
+	{ IT_ITEM_SPHERE_HUNTER,  0.1f, 12 }, // Powerful sphere (Rogue)
+	{ IT_ITEM_SPHERE_DEFENDER,0.1f,  8 }, // Powerful sphere (Rogue)
+	{ IT_ITEM_DOPPELGANGER,   0.15f, 6 }, // Utility/Distraction (Rogue)
+	{ IT_ITEM_TELEPORT,       0.2f,  3 }, // Utility Escape
+	{ IT_ITEM_SENTRYGUN,      0.3f,  5 }, // Deployable Defense
+
+	// --- Health ---
+	{ IT_HEALTH_SMALL,        1.8f,  1 }, // Very common
+	{ IT_HEALTH_MEDIUM,       1.5f,  1 }, // Common
+	{ IT_HEALTH_LARGE,        0.8f,  3 }, // Less common
+	{ IT_HEALTH_MEGA,         0.1f, 10 }, // Rare, powerful boost
+
+	// --- Legacy Heads (Optional - Minor permanent boost) ---
+	//{ IT_ITEM_ANCIENT_HEAD,   0.05f, 10 },
+	//{ IT_ITEM_LEGACY_HEAD,    0.05f, 10 },
+
+	// End of list marker (optional, but good practice if needed)
+	// { IT_NULL, 0.0f, 0 }
 };
 
 // Allow flag operations on MonsterWaveType
@@ -1570,6 +1584,73 @@ static bool WasLastWaveSpecial() noexcept {
 	return IsSpecialWaveType(previous_wave_types[last_index]);
 }
 
+// Structure for an optional component to add to a wave
+struct WaveOptionalComponent {
+	MonsterWaveType type = MonsterWaveType::None; // The type to potentially add
+	float chance = 0.0f;           // Probability (0.0 to 1.0) of adding this type
+	// int min_wave = 1;           // Optional: Could add min wave *within the range*
+};
+
+// Structure defining the composition rules up to a certain wave
+struct WaveDefinition {
+	int max_wave;                       // This definition applies for waves <= max_wave
+	MonsterWaveType base_type;          // Guaranteed monster types for this range
+	std::vector<WaveOptionalComponent> optionals; // List of potential additions
+};
+
+// Define the wave progression using the new structure
+// IMPORTANT: Keep this sorted by max_wave ascending!
+static const std::vector<WaveDefinition> wave_definitions = {
+	// Waves 1-5: Basic ground light units
+	{ 5, MonsterWaveType::Light | MonsterWaveType::Ground, {
+		// No optionals in the first 5 waves initially
+   }},
+   // Waves 6-10: Add chance for Small units and a small chance for Flying
+   { 10, MonsterWaveType::Light | MonsterWaveType::Ground, {
+		{MonsterWaveType::Small, 0.45f}, // Slightly increased chance
+		{MonsterWaveType::Flying, 0.20f} // Chance for flyers starts
+   }},
+	// Waves 11-15: Introduce Medium units, increase Special and Flying chance
+	{ 15, MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ground, {
+		 {MonsterWaveType::Special, 0.65f}, // Higher chance for Medics etc.
+		 {MonsterWaveType::Flying, 0.25f},
+		 {MonsterWaveType::Small, 0.2f} // Keep small units occasionally relevant
+	}},
+	// Waves 16-20: Introduce Heavy units, increase Fast and Flying chance
+	{ 20, MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ground, {
+		 {MonsterWaveType::Fast, 0.55f},
+		 {MonsterWaveType::Flying, 0.30f},
+		 {MonsterWaveType::Special, 0.3f} // Special units continue
+	}},
+	// Waves 21-35: Introduce Bomber units, increase Fast and Flying chance
+	{ 25, MonsterWaveType::Bomber | MonsterWaveType::Heavy | MonsterWaveType::Ground, {
+		 {MonsterWaveType::Bomber, 0.55f},
+		 {MonsterWaveType::Flying, 0.30f},
+		 {MonsterWaveType::Special, 0.3f} // Special units continue
+	}},
+	// Waves 36-40: Focus on Heavy/Elite, high chance for Fast/Special, moderate Flying
+	{ 35, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Ground, { // Added Ground base
+		 {MonsterWaveType::Special | MonsterWaveType::Fast, 0.75f}, // Combined for variety
+		 {MonsterWaveType::Flying, 0.30f}
+		 // Maybe add a small chance of Medium here? {MonsterWaveType::Medium, 0.1f}
+	}},
+	// Waves 41+: Add SemiBoss chance, keep others relevant
+	{ 40, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Ground, { // Added Ground base
+		 {MonsterWaveType::SemiBoss, 0.45f},
+		 {MonsterWaveType::Flying, 0.35f},
+		 {MonsterWaveType::Fast, 0.5f}
+	}},
+	// Waves 41+: High chance for SemiBoss, Flying, Fast
+	// Use a large number for max_wave to act as a catch-all for all subsequent waves
+	{ 999, MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Ground, { // Added Ground base
+		 {MonsterWaveType::SemiBoss, 0.65f},
+		 {MonsterWaveType::Flying, 0.40f},
+		 {MonsterWaveType::Bomber, 0.6f}
+	}}
+};
+
+
+// Updated function to get the wave type
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false) {
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 	MonsterWaveType selected_type = MonsterWaveType::None;
@@ -1583,7 +1664,6 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 		const char* message;
 	};
 
-	// Define special waves that can occur throughout the game
 	const SpecialWave special_waves[] = {
 		// Early game special waves (waves 5-15)
 		{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "*** Gekk invasion incoming! ***\n"},
@@ -1599,85 +1679,71 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 		{MonsterWaveType::Spawner, 0.75f, 25, -1, "*** Spawners Deployed! ***\n"}
 	};
 
-	// Try special waves first only if the previous wave wasn't special
-	// This prevents consecutive special waves
+
 	if (!forceSpecialWave && !WasLastWaveSpecial()) {
 		for (const auto& wave : special_waves) {
-			// Check if wave is eligible (within min/max range)
 			if (waveNumber >= wave.min_wave &&
 				(wave.max_wave == -1 || waveNumber <= wave.max_wave) &&
 				!WasRecentlyUsed(wave.type) &&
-				frandom() < wave.chance) {
+				frandom() < wave.chance)
+			{
 				selected_type = wave.type;
 				gi.LocBroadcast_Print(PRINT_HIGH, wave.message);
-				StoreWaveType(selected_type);
-				return selected_type;
+				StoreWaveType(selected_type); // Store special wave type
+				return selected_type;          // Return immediately
+			}
+		}
+	}
+	// --- End Special Wave Logic ---
+
+
+	// --- Regular Wave Composition using the new structure ---
+
+	// Find the first definition where waveNumber <= max_wave
+	// This works because the vector is sorted by max_wave
+	auto it = std::find_if(wave_definitions.begin(), wave_definitions.end(),
+		[waveNumber](const WaveDefinition& def) {
+			return waveNumber <= def.max_wave;
+		});
+
+	// Handle the case where no definition matches (shouldn't happen with a catch-all)
+	if (it == wave_definitions.end()) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("Warning: No wave definition found for wave %d. Using default.\n", waveNumber);
+		}
+		// Return a safe default (e.g., the first definition's base)
+		selected_type = wave_definitions[0].base_type;
+	}
+	else {
+		// Apply the base type from the found definition
+		const WaveDefinition& def = *it;
+		selected_type = def.base_type;
+
+		// Process optional components for this definition
+		for (const auto& optional : def.optionals) {
+			// Check if the type is valid, passes the random chance, and wasn't recently used
+			if (optional.type != MonsterWaveType::None &&
+				frandom() < optional.chance &&
+				!WasRecentlyUsed(optional.type))
+			{
+				// Combine the optional type with the selected type using the overloaded '|' operator
+				selected_type |= optional.type;
+
+				// Optional: Play sound only for specific significant additions like Flying
+				if (HasWaveType(optional.type, MonsterWaveType::Flying)) {
+					// Make sure 'incoming' sound index is valid and loaded
+					if (incoming) { // Check if the sound index is valid
+						gi.sound(world, CHAN_VOICE, incoming, 1, ATTN_NONE, 0);
+					}
+				}
 			}
 		}
 	}
 
-	// If no special wave was selected, fall back to regular wave composition
-	// [Rest of the existing wave composition code remains the same]
-	struct WaveComposition {
-		MonsterWaveType base_type;
-		MonsterWaveType optional_type;
-		float optional_chance;
-	};
-	const WaveComposition wave_types[] = {
-		// Waves 1-5
-		{MonsterWaveType::Light | MonsterWaveType::Ground, MonsterWaveType::None, 0.0f},
-
-		// Waves 6-10
-		{MonsterWaveType::Light | MonsterWaveType::Ground,
-		 MonsterWaveType::Small, 0.4f},
-
-		 // Waves 11-15
-		 {MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ground,
-		  MonsterWaveType::Special, 0.6f},
-
-		  // Waves 16-20
-		  {MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ground,
-		   MonsterWaveType::Fast, 0.5f},
-
-		   // Waves 21-25
-		   {MonsterWaveType::Heavy | MonsterWaveType::Elite,
-			MonsterWaveType::Special | MonsterWaveType::Fast, 0.7f},
-
-			// Waves 26-30
-			{MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special,
-			 MonsterWaveType::SemiBoss, 0.4f},
-
-			 // Waves 31+
-			 {MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special,
-			  MonsterWaveType::SemiBoss, 0.6f}
-	};
-
-	// Select appropriate wave composition based on wave number
-	const WaveComposition* comp;
-	if (waveNumber <= 5) comp = &wave_types[0];
-	else if (waveNumber <= 10) comp = &wave_types[1];
-	else if (waveNumber <= 15) comp = &wave_types[2];
-	else if (waveNumber <= 20) comp = &wave_types[3];
-	else if (waveNumber <= 25) comp = &wave_types[4];
-	else if (waveNumber <= 30) comp = &wave_types[5];
-	else comp = &wave_types[6];
-
-	// Build wave type with base + optional components
-	selected_type = comp->base_type;
-	if (frandom() < comp->optional_chance && !WasRecentlyUsed(comp->optional_type)) {
-		selected_type = selected_type | comp->optional_type;
-	}
-
-	// Special case for flying waves
-	if (waveNumber > 5 && frandom() < 0.30f && !WasRecentlyUsed(MonsterWaveType::Flying)) {
-		selected_type = selected_type | MonsterWaveType::Flying;
-		gi.sound(world, CHAN_VOICE, incoming, 1, ATTN_NONE, 0);
-	}
-
+	// Store the final selected type for history tracking
 	StoreWaveType(selected_type);
 	return selected_type;
 }
-
 void InitializeWaveType(int32_t waveLevel) {
 	current_wave_type = GetWaveComposition(waveLevel);
 }
@@ -2365,96 +2431,122 @@ struct picked_item_t {
 	float weight;
 };
 
-// Estructura optimizada para mantener los datos de selección
-struct SelectionCache {
-	static constexpr size_t MAX_ENTRIES = 32;
+// Adapted Caching Structure (using std::array for fixed size based on input)
+struct HordeItemSelectionCache {
+	// Automatically size based on the actual data array
+	static constexpr size_t MAX_ENTRIES = std::size(hordeItemData);
 	struct Entry {
-		const weighted_item_t* item;
-		const char* monster_classname;
+		const HordeItemInfo* itemInfo; // Pointer to the HordeItemInfo entry
 		float weight;
 		float cumulative_weight;
 	};
-	_Field_range_(0, MAX_ENTRIES) size_t count = 0;
+
+	size_t count = 0;
 	float total_weight = 0.0f;
-	_Field_size_(MAX_ENTRIES) Entry entries[MAX_ENTRIES] = { {} }; // Doble llaves  // Inicializar array
+	// Use std::array for compile-time sized array based on hordeItemData
+	std::array<Entry, MAX_ENTRIES> entries{}; // Value-initialize
 
 	void clear() noexcept {
 		count = 0;
 		total_weight = 0.0f;
-	}
-	_Success_(return != false)
-		bool add_entry(_In_ const Entry& new_entry) noexcept {
-		if (count >= MAX_ENTRIES) {
-			return false;
-		}
-		entries[count] = new_entry;
-		count++;
-		return true;
-	}
-	_Ret_maybenull_
-		const Entry* get_entry(_In_range_(0, count) size_t index) const noexcept {
-		if (index >= count) {
-			return nullptr;
-		}
-		return &entries[index];
+		// No need to clear array elements explicitly when count = 0
 	}
 };
-static SelectionCache item_cache;
+// Static cache instance specifically for Horde item selection
+static HordeItemSelectionCache horde_item_cache;
 
+// Modified Function using HordeItemInfo and item_id_t
 gitem_t* G_HordePickItem() {
-	// Reset cache
-	item_cache.clear();
+	// Reset cache for this selection attempt
+	horde_item_cache.clear();
 
-	// Recolectar items elegibles con mejor localidad de caché usando span
-	std::span<const weighted_item_t> items_view{ items };
+	// Use std::span for safe iteration over the hordeItemData array
+	std::span<const HordeItemInfo> items_view{ hordeItemData };
 
-	for (const auto& item : items_view) {
-		if (item_cache.count >= SelectionCache::MAX_ENTRIES)
+	// --- Collect Eligible Items ---
+	for (const auto& hordeItemInfo : items_view) {
+		// Check if cache is full (safety check, should not happen with std::array)
+		if (horde_item_cache.count >= HordeItemSelectionCache::MAX_ENTRIES) {
+			if (developer->integer) { // Log error if this happens unexpectedly
+				gi.Com_PrintFmt("Warning: HordeItemSelectionCache full! Increase MAX_ENTRIES if not using std::array.\n");
+			}
 			break;
+		}
 
-		if ((item.min_level == -1 || g_horde_local.level >= item.min_level) &&
-			(item.max_level == -1 || g_horde_local.level <= item.max_level)) {
+		// Filter based on minimum wave level required for the item
+		if (g_horde_local.level >= hordeItemInfo.minWave) {
 
-			float adjusted_weight = item.weight;
-			if (item.adjust_weight) {
-				item.adjust_weight(item, adjusted_weight);
-			}
+			// Use the weight directly from HordeItemInfo
+			// Future Enhancements: Add more complex weight adjustments here
+			// (e.g., based on player count, current inventory, game state)
+			float adjusted_weight = hordeItemInfo.weight;
 
+			// Ensure weight is positive before adding to the cache
 			if (adjusted_weight > 0.0f) {
-				item_cache.total_weight += adjusted_weight;
-				auto& entry = item_cache.entries[item_cache.count];
-				entry.item = &item;
+				horde_item_cache.total_weight += adjusted_weight;
+				// Get reference to the next entry in the cache array
+				auto& entry = horde_item_cache.entries[horde_item_cache.count];
+				entry.itemInfo = &hordeItemInfo; // Store pointer to the HordeItemInfo struct
 				entry.weight = adjusted_weight;
-				entry.cumulative_weight = item_cache.total_weight;
-				item_cache.count++;
+				entry.cumulative_weight = horde_item_cache.total_weight;
+				horde_item_cache.count++; // Increment the count of eligible items
+			}
+		}
+	} // End of item collection loop
+
+	// Check if any eligible items were found
+	if (horde_item_cache.count == 0 || horde_item_cache.total_weight <= 0.0f) {
+		// Log if no items found (useful for debugging balance/data issues)
+		if (developer->integer) {
+			gi.Com_PrintFmt("Warning: G_HordePickItem found no eligible items for wave %d.\n", g_horde_local.level);
+		}
+		return nullptr; // No items eligible or they all have zero/negative weight
+	}
+
+	// --- Weighted Random Selection ---
+	// Generate a random floating-point value within the total weight range
+	const float random_value = frandom() * horde_item_cache.total_weight;
+
+	// Use binary search to efficiently find the selected item based on cumulative weight
+	size_t left = 0;
+	size_t right = horde_item_cache.count - 1;
+
+	// Handle edge case: only one eligible item
+	if (left == right) {
+		// 'left' (or 'right') is the index of the only choice
+	}
+	else {
+		// Perform binary search
+		while (left < right) {
+			// Calculate midpoint safely to avoid potential overflow with large indices
+			const size_t mid = left + (right - left) / 2;
+			if (horde_item_cache.entries[mid].cumulative_weight < random_value) {
+				left = mid + 1; // Random value is in the upper half
+			}
+			else {
+				right = mid; // Random value is in the lower half (including mid)
 			}
 		}
 	}
+	// After the loop, 'left' holds the index of the chosen item entry in the cache
 
-	if (item_cache.count == 0)
+	// --- Retrieve and Return the Item ---
+	// Get the chosen HordeItemInfo pointer from the cache entry
+	const HordeItemInfo* chosen_info = horde_item_cache.entries[left].itemInfo;
+
+	// Safety check: Ensure chosen_info is not null (shouldn't happen if count > 0)
+	if (!chosen_info) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("Error: G_HordePickItem - chosen_info is null despite count > 0.\n");
+		}
 		return nullptr;
-
-	// Generar valor aleatorio una sola vez
-	const float random_value = frandom() * item_cache.total_weight;
-
-	// Búsqueda binaria optimizada usando span
-	size_t left = 0;
-	size_t right = item_cache.count - 1;
-
-	while (left < right) {
-		const size_t mid = (left + right) / 2;
-		if (item_cache.entries[mid].cumulative_weight < random_value) {
-			left = mid + 1;
-		}
-		else {
-			right = mid;
-		}
 	}
 
-	const auto* chosen_item = item_cache.entries[left].item;
-	return chosen_item ? FindItemByClassname(chosen_item->classname) : nullptr;
-}
+	// Use the item_id_t from the chosen info to get the actual gitem_t pointer
+	// This replaces the old FindItemByClassname call
+	return GetItemByIndex(chosen_info->id);
 
+}
 static int32_t countFlyingSpawns() noexcept {
 	return std::count_if(g_edicts + 1, g_edicts + globals.num_edicts,
 		[](const edict_t& ent) {
@@ -3059,38 +3151,42 @@ void VerifyAndAdjustBots() {
 
 void InitializeWaveSystem() noexcept;
 
-static inline bool items_precached = false;  // Inline static variable for C++17+
+// Guard variable
+static bool items_precached = false;
 
-static void PrecacheItemsAndBosses() noexcept {
+// Renamed function for clarity
+static void PrecacheAllGameItems() noexcept {
 	// Only precache once
 	if (items_precached)
 		return;
 
-	std::span<const weighted_item_t> items_view{ items };
-	std::span<const MonsterTypeInfo> monsters_view{ monsterTypes };
-
-	// Size hint for better performance
-	std::unordered_set<std::string_view> unique_classnames;
-	unique_classnames.reserve(items_view.size() + monsters_view.size());
-
-	// Add item classnames using spans
-	for (const auto& item : items_view)
-		if (item.classname)  // Safety check
-			unique_classnames.emplace(item.classname);
-
-	// Add monster classnames using MonsterTypeRegistry::GetClassname
-	for (const auto& monster : monsters_view) {
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster.typeId);
-		if (classname)  // Safety check
-			unique_classnames.emplace(classname);
+	if (developer->integer) {
+		gi.Com_Print("Precaching all game items...\n");
 	}
 
-	// Precache items
-	for (const auto& classname : unique_classnames)
-		if (gitem_t* item = FindItemByClassname(classname.data()))
-			PrecacheItem(item);
+	// Iterate directly through the global itemlist using item_id_t
+	// Start from IT_NULL + 1 because index 0 is unused.
+	for (item_id_t i = static_cast<item_id_t>(IT_NULL + 1); i < IT_TOTAL; i = static_cast<item_id_t>(i + 1))
+	{
+		// Get the gitem_t pointer directly using the index (ID)
+		gitem_t* item = &itemlist[i]; // Or use GetItemByIndex(i) if preferred
 
-	items_precached = true;
+		// Basic validation: Skip if item pointer is null (shouldn't happen)
+		// or if it lacks a classname (often indicates an internal/placeholder item)
+		if (!item || !item->classname) {
+			continue;
+		}
+
+		// Call the existing PrecacheItem function, which handles all necessary assets
+		// associated with this gitem_t (models, sounds, icons, nested precaches).
+		PrecacheItem(item);
+	}
+
+	items_precached = true; // Mark as done
+
+	if (developer->integer) {
+		gi.Com_Print("Item precaching complete.\n");
+	}
 }
 
 static inline bool monsters_precached = false;  // Use inline static for C++17+
@@ -3224,7 +3320,7 @@ void Horde_Init() {
 
 	// Do precaching
 	PrecacheAllMonsters();
-	PrecacheItemsAndBosses();
+	PrecacheAllGameItems();
 	PrecacheWaveSounds();
 
 	// Initialize wave types
@@ -3238,86 +3334,87 @@ void Horde_Init() {
 	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
 }
 
-// Constantes para mejorar la legibilidad y mantenibilidad
-constexpr int MIN_VELOCITY = -800;
-constexpr int MAX_VELOCITY = 800;
-constexpr int MIN_VERTICAL_VELOCITY = 400;
-constexpr int MAX_VERTICAL_VELOCITY = 950;
-
-// Función auxiliar para seleccionar un arma apropiada según el nivel
-static const char* SelectBossWeaponDrop(int32_t wave_level) {
-	// Array fijo de armas disponibles con sus niveles mínimos requeridos
-	static const std::array<std::pair<const char*, int32_t>, 8> weapons = { {
-		{"weapon_hyperblaster", 12},
-		{"weapon_railgun", 24},
-		{"weapon_rocketlauncher", 14},
-		{"weapon_phalanx", 16},
-		{"weapon_boomer", 14},
-		{"weapon_plasmabeam", 17},
-		{"weapon_disintegrator", 28},
-		{"weapon_bfg", 24}
+// Helper function to select a suitable boss weapon drop based on wave level
+static item_id_t SelectBossWeaponDrop(int32_t wave_level) {
+	// Define potential weapon drops with their minimum required wave level
+	static const std::array<std::pair<item_id_t, int32_t>, 8> boss_weapon_drops = { {
+		{IT_WEAPON_HYPERBLASTER, 9},
+		{IT_WEAPON_RLAUNCHER,    9},
+		{IT_WEAPON_PHALANX,      9}, // Xatrix
+		{IT_WEAPON_IONRIPPER,    9}, // Xatrix (originally boomer)
+		{IT_WEAPON_PLASMABEAM,   9}, // Rogue
+		{IT_WEAPON_RAILGUN,      9}, // Moved slightly later
+		{IT_WEAPON_DISRUPTOR,    19}, // Rogue (originally disintegrator)
+		{IT_WEAPON_BFG,          19}  // Moved slightly later
 	} };
 
-	// Filtrar armas que son de nivel inferior o igual al actual
-	std::vector<const char*> eligible_weapons;
-	eligible_weapons.reserve(weapons.size()); // Reservar espacio para evitar reallocaciones
+	// Collect weapons eligible for the current wave level
+	std::vector<item_id_t> eligible_weapons;
+	eligible_weapons.reserve(boss_weapon_drops.size()); // Pre-allocate memory
 
-	for (const auto& [weapon, min_level] : weapons) {
-		if (min_level <= wave_level) {
-			eligible_weapons.push_back(weapon);
+	for (const auto& [weapon_id, min_level] : boss_weapon_drops) {
+		if (wave_level >= min_level) {
+			eligible_weapons.push_back(weapon_id);
 		}
 	}
 
-	// Si no hay armas elegibles, retornar nullptr explícitamente
+	// If no weapons are eligible, return IT_NULL
 	if (eligible_weapons.empty()) {
-		return nullptr;
+		return IT_NULL;
 	}
 
-	// Usar mt_rand para una mejor generación de números aleatorios
-	// Asegurarnos de que el índice está dentro del rango válido
-	size_t random_index;
-	if (eligible_weapons.size() == 1) {
-		random_index = 0;
-	}
-	else {
-		random_index = mt_rand() % eligible_weapons.size();
-	}
+	// Select a random weapon from the eligible list
+	// Use a more robust random number generator if possible, otherwise fallback
+	// std::uniform_int_distribution<size_t> dist(0, eligible_weapons.size() - 1);
+	// size_t random_index = dist(mt_rand); // Requires <random> and mt_rand setup
+	size_t random_index = irandom(0, eligible_weapons.size() - 1); // Using irandom fallback
 
-	// Verificación adicional de seguridad
+	// Safety check (shouldn't be needed with correct random range)
 	if (random_index >= eligible_weapons.size()) {
-		return nullptr;
+		return IT_NULL;
 	}
 
 	return eligible_weapons[random_index];
 }
 
+
+// --- Modified BossDeathHandler using item_id_t ---
+
+// Constants for item dropping physics (if not defined globally)
+constexpr int MIN_VELOCITY = -800;
+constexpr int MAX_VELOCITY = 800;
+constexpr int MIN_VERTICAL_VELOCITY = 400;
+constexpr int MAX_VERTICAL_VELOCITY = 950;
+
 void BossDeathHandler(edict_t* boss) {
-	// Fast early-out with combined validation
-	if (!g_horde->integer || !boss || !boss->inuse || !boss->monsterinfo.IS_BOSS ||
+	// Fast early-out with combined validation (no change needed)
+	if (!g_horde || !g_horde->integer || !boss || !boss->inuse || !boss->monsterinfo.IS_BOSS ||
 		boss->monsterinfo.BOSS_DEATH_HANDLED || boss->health > 0) {
 		return;
 	}
 
-	// Mark as handled immediately to prevent double processing
+	// Mark as handled immediately (no change needed)
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
-	// Clean up entity tracking
+	// Clean up entity tracking (no change needed)
 	OnEntityDeath(boss);
 	OnEntityRemoved(boss);
-	auto_spawned_bosses.erase(boss);
+	auto_spawned_bosses.erase(boss); // Ensure this set is accessible
 
-	// Static drop tables to avoid repeated lookups
-	static const char* standardItems[] = {
-		"item_adrenaline", "item_pack", "item_sentrygun",
-		"item_sphere_defender", "item_armor_combat", "item_bandolier",
-		"item_invulnerability", "ammo_nuke"
+	// --- Use item_id_t for static drop tables ---
+	static const std::array<item_id_t, 8> standardItemIDs = {
+		IT_ITEM_ADRENALINE, IT_ITEM_PACK, IT_ITEM_SENTRYGUN,
+		IT_ITEM_SPHERE_DEFENDER, IT_ARMOR_COMBAT, IT_ITEM_BANDOLIER,
+		IT_ITEM_INVULNERABILITY, IT_AMMO_NUKE
 	};
+	// Note: Ensure the size `8` matches the number of items listed.
 
-	// Drop primary weapon based on wave level
-	if (const char* weapon_name = SelectBossWeaponDrop(current_wave_level)) {
-		if (gitem_t* weapon_item = FindItemByClassname(weapon_name)) {
+	// --- Drop primary weapon using item_id_t ---
+	item_id_t weapon_id = SelectBossWeaponDrop(current_wave_level);
+	if (weapon_id != IT_NULL) { // Check against IT_NULL
+		if (gitem_t* weapon_item = GetItemByIndex(weapon_id)) { // Use GetItemByIndex
 			if (edict_t* weapon = Drop_Item(boss, weapon_item)) {
-				// Set up weapon with enhanced visual effects
+				// Set up weapon visuals/physics (logic remains the same)
 				weapon->s.origin = boss->s.origin;
 				weapon->velocity = {
 					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
@@ -3336,9 +3433,11 @@ void BossDeathHandler(edict_t* boss) {
 		}
 	}
 
-	// Drop special power-up (quad or quadfire)
-	if (gitem_t* special_item = FindItemByClassname(brandom() ? "item_quadfire" : "item_quad")) {
+	// --- Drop special power-up using item_id_t ---
+	item_id_t special_id = brandom() ? IT_ITEM_QUADFIRE : IT_ITEM_QUAD; // Select ID
+	if (gitem_t* special_item = GetItemByIndex(special_id)) { // Use GetItemByIndex
 		if (edict_t* powerup = Drop_Item(boss, special_item)) {
+			// Set up powerup visuals/physics (logic remains the same)
 			powerup->s.origin = boss->s.origin;
 			powerup->velocity = {
 				static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
@@ -3354,20 +3453,26 @@ void BossDeathHandler(edict_t* boss) {
 		}
 	}
 
-	// Randomize standard item drops using Fisher-Yates shuffle
-	std::array<const char*, 8> shuffled{};
-	std::copy(std::begin(standardItems), std::end(standardItems), shuffled.begin());
-	for (int i = 7; i > 0; --i) {
-		int j = irandom(0, i);
+	// --- Randomize and drop standard items using item_id_t ---
+	std::array<item_id_t, standardItemIDs.size()> shuffledIDs = standardItemIDs; // Create a mutable copy
+
+	// Shuffle the IDs (using simple irandom-based shuffle as fallback)
+	for (size_t i = shuffledIDs.size() - 1; i > 0; --i) {
+		size_t j = irandom(0, i); // irandom needs to be inclusive [0, i]
 		if (i != j) {
-			std::swap(shuffled[i], shuffled[j]);
+			std::swap(shuffledIDs[i], shuffledIDs[j]);
 		}
 	}
+	// For a better shuffle, use std::shuffle with a proper random engine if available:
+	// std::shuffle(shuffledIDs.begin(), shuffledIDs.end(), mt_rand); // Requires setup
 
-	// Drop standard items
-	for (const char* item_name : shuffled) {
-		if (gitem_t* item = FindItemByClassname(item_name)) {
+	// Drop the shuffled standard items
+	for (item_id_t item_id : shuffledIDs) { // Iterate through shuffled IDs
+		if (item_id == IT_NULL) continue; // Safety check
+
+		if (gitem_t* item = GetItemByIndex(item_id)) { // Use GetItemByIndex
 			if (edict_t* drop = Drop_Item(boss, item)) {
+				// Set up standard drop visuals/physics (logic remains the same)
 				drop->s.origin = boss->s.origin;
 				drop->velocity = {
 					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
@@ -3383,10 +3488,9 @@ void BossDeathHandler(edict_t* boss) {
 		}
 	}
 
-	// Clean up boss entity
-//	boss->takedamage = true;
-//	boss->solid = SOLID_NOT;
-	gi.linkentity(boss);
+	// Clean up boss entity (no change needed)
+	// Setting solid/takedamage might interfere with death animations
+	gi.linkentity(boss); // Re-link just in case state needs update
 }
 
 void boss_die(edict_t* boss) {
@@ -3442,6 +3546,7 @@ static bool Horde_AllMonstersDead() {
 	// If we get here, no live monsters found
 	return true;
 }
+
 
 // Asegúrate de limpiar entidades muertas
 void Horde_CleanBodies() {
@@ -4125,7 +4230,6 @@ void ResetGame() {
 
 	// Reset global variables that ARE accessible
 	spawn_point_cache.clear();
-	item_cache.clear();
 
 	// Reset static counters (only ones accessible at this scope)
 	consistent_zero_counts = 0;
@@ -5630,19 +5734,6 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 	return false;  // No valid position found
 }
 
-// String-based overload that delegates to the TypeID version
-bool TryAlternativeSpawnPosition(edict_t* spawn_point, const char* monster_classname, vec3_t& final_origin, vec3_t& final_angles)
-{
-	// Convert classname to TypeID
-	horde::MonsterTypeID typeId = monster_classname ?
-		horde::MonsterTypeRegistry::GetTypeID(monster_classname) :
-		horde::MonsterTypeID::UNKNOWN;
-
-	// Delegate to the TypeID version
-	return TryAlternativeSpawnPosition(spawn_point, typeId, final_origin, final_angles);
-}
-
-// START OF FILE g_horde.cpp (Corrected EmergencySpawnMonster overloads)
 
 // TypeID-based overload for EmergencySpawnMonster
 bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) {
@@ -5748,28 +5839,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	}
 
 	return true;
-}
-
-
-// String-based overload - delegates to the TypeID version
-bool EmergencySpawnMonster(const int32_t levelNum, const char* monster_classname) {
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(monster_classname);
-	// Handle case where classname is invalid but we might want a default spawn
-	if (typeId == horde::MonsterTypeID::UNKNOWN && monster_classname != nullptr) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("Warning: Unknown classname '{}' in EmergencySpawnMonster. Attempting fallback.\n", monster_classname);
-		}
-		// Optionally, select a default fallback type ID here if desired
-		// typeId = horde::MonsterTypeID::SOLDIER; // Example fallback
-	}
-	// If still unknown after potential fallback, fail gracefully
-	if (typeId == horde::MonsterTypeID::UNKNOWN) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not determine valid monster type ID.\n");
-		}
-		return false;
-	}
-	return EmergencySpawnMonster(levelNum, typeId); // Call the TypeID version
 }
 
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
@@ -5945,7 +6014,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 			// Optional: Log which type ID failed if in dev mode
 			if (developer->integer > 1) {
 				const char* failed_name = horde::MonsterTypeRegistry::GetClassname(monster_typeId);
-				gi.Com_PrintFmt("SpawnAmbushMonsters: EmergencySpawnMonster failed for TypeID %d (%s)\n",
+				gi.Com_PrintFmt("SpawnAmbushMonsters: EmergencySpawnMonster failed for TypeID {} ({})\n",
 					static_cast<int>(monster_typeId), failed_name ? failed_name : "Unknown");
 			}
 		}
@@ -5961,12 +6030,12 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	}
 	else if (consecutive_failures >= MAX_FAILURES_PER_POSITION && developer->integer) {
 		// Log if the loop terminated due to failures
-		gi.Com_PrintFmt("SpawnAmbushMonsters: Loop terminated due to %d consecutive failures.\n", consecutive_failures);
+		gi.Com_PrintFmt("SpawnAmbushMonsters: Loop terminated due to {} consecutive failures.\n", consecutive_failures);
 	}
 
 
 	if (developer->integer) {
-		gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, successfully spawned: %d\n", ambushSuccessCount);
+		gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, successfully spawned: {}\n", ambushSuccessCount);
 	}
 
 	return ambushSuccessCount;
@@ -6620,64 +6689,66 @@ static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 	}
 }
 
-// Enumeration for different reward types with their relative weights
-enum class RewardType {
-	BANDOLIER = 0,
-	SENTRY_GUN = 1
-};
-
 struct RewardInfo {
 	item_id_t item_id;
 	int weight;  // Higher weight = more common
+
+	// Optional: Add constructor for cleaner initialization below
+	constexpr RewardInfo(item_id_t id, int w) : item_id(id), weight(w) {}
 };
 
-// Simplified reward table without tesla ammo
-static const std::unordered_map<RewardType, RewardInfo> REWARD_TABLE = {
-	{RewardType::BANDOLIER, {IT_ITEM_BANDOLIER, 60}},    // More common
-	{RewardType::SENTRY_GUN, {IT_ITEM_SENTRYGUN, 40}}    // Less common
-};
+// Define the rewards ONLY ONCE in this array
+static const std::array<RewardInfo, 3> TOP_DAMAGER_REWARDS = { {
+	{IT_ITEM_BANDOLIER, 60},    // More common
+	{IT_ITEM_SENTRYGUN, 30},     // Less common
+	{IT_AMMO_NUKE, 2}    // More common
+} };
 
-// Pre-computed total reward weight (calculated once)
+// Pre-computed total reward weight, calculated directly from the single array
 static const int TOTAL_REWARD_WEIGHT = [] {
 	int total = 0;
-	for (const auto& [type, info] : REWARD_TABLE) {
-		total += info.weight;
+	// Calculate sum directly from the array
+	for (const auto& reward : TOP_DAMAGER_REWARDS) {
+		// Ensure weight is positive to avoid issues
+		if (reward.weight > 0) {
+			total += reward.weight;
+		}
 	}
-	return total;
-	}();
-
-// Direct-access array of reward items for faster lookup
-static const std::array<std::pair<item_id_t, int>, 2> REWARD_ITEMS = { {
-	{IT_ITEM_BANDOLIER, 60},
-	{IT_ITEM_SENTRYGUN, 40}
-} };
+	// Return 1 if total is somehow zero to prevent division by zero later
+	return (total > 0) ? total : 1;
+	}(); // Immediately invoke the lambda
 
 static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::string& playerName) {
 	// Quick validation with early return
 	if (!topDamager.player || !topDamager.player->inuse || !topDamager.player->client)
 		return false;
 
-	// Select reward using pre-computed weights
-	const int roll = irandom(1, TOTAL_REWARD_WEIGHT);
-
-	// Determine selected item
-	item_id_t selectedItemId = IT_ITEM_BANDOLIER; // Default fallback
+	const int roll = irandom(1, TOTAL_REWARD_WEIGHT); 
+	item_id_t selectedItemId = TOP_DAMAGER_REWARDS[0].item_id; // Default fallback to the first item
 	int currentWeight = 0;
 
-	for (const auto& [itemId, weight] : REWARD_ITEMS) {
-		currentWeight += weight;
+	for (const auto& reward : TOP_DAMAGER_REWARDS) {
+		if (reward.weight <= 0) continue; // Skip items with no weight
+
+		currentWeight += reward.weight;
 		if (roll <= currentWeight) {
-			selectedItemId = itemId;
-			break;
+			selectedItemId = reward.item_id;
+			break; // Found the item
 		}
 	}
 
 	// Get item by ID
 	gitem_t* item = GetItemByIndex(selectedItemId);
-	if (!item || !item->classname)
+	if (!item || !item->classname) {
+		// Log error if item ID is invalid or item has no classname
+		if (developer->integer) {
+			gi.Com_PrintFmt("Error: GiveTopDamagerReward - Failed to get valid gitem_t for ID {}\n", static_cast<int>(selectedItemId));
+		}
 		return false;
+	}
 
-	// Spawn and give item directly to player
+
+	// Spawn and give item directly to player 
 	edict_t* entity = G_Spawn();
 	if (!entity)
 		return false;
@@ -6686,15 +6757,21 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 	entity->item = item;
 	SpawnItem(entity, item, spawn_temp_t::empty);
 
-	if (!entity->inuse)
+	// Check if SpawnItem succeeded (entity might be freed if e.g., item shouldn't spawn in DM)
+	if (!entity->inuse) {
+		// SpawnItem already freed it, just return false
 		return false;
+	}
 
 	// Give item to player
 	Touch_Item(entity, topDamager.player, null_trace, true);
-	if (entity->inuse)
-		G_FreeEdict(entity);
+	// Touch_Item might free the entity if pickup is successful
+	if (entity->inuse) {
+		G_FreeEdict(entity); // Free if Touch_Item didn't consume it
+	}
 
-	// Announce reward (safely handle potential null strings)
+
+	// Announce reward
 	const char* itemName = item->use_name ? item->use_name :
 		(item->classname ? item->classname : "reward");
 
@@ -6704,6 +6781,7 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 
 	return true;
 }
+
 static void SendCleanupMessage(WaveEndReason reason) {
 	// Avoid try-catch for performance in normal operation
 	// Wave completion message - use switch for better performance
@@ -6835,69 +6913,6 @@ inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel) 
 	g_adjusted_monster_cap = finalAdjustedCap;
 
 	return g_adjusted_monster_cap;
-}
-
-// Add this function to your code
-void CheckAndFixQueuedMonsters() {
-	static gtime_t last_queue_check = 0_sec;
-	static int consecutive_empty_spawns = 0;
-
-	if (need_queue_monitor_reset) {
-		last_queue_check = 0_sec;
-		consecutive_empty_spawns = 0;
-		need_queue_monitor_reset = false;
-	}
-
-	// Check every 5 seconds
-	if (level.time - last_queue_check < 5_sec)
-		return;
-
-	last_queue_check = level.time;
-
-	// If we're in active_wave state, have queued monsters, but nothing is spawning
-	if (g_horde_local.state == horde_state_t::active_wave &&
-		g_horde_local.queued_monsters > 0 &&
-		g_horde_local.num_to_spawn == 0) {
-
-		consecutive_empty_spawns++;
-
-		// After 3 consecutive checks with no progress, take action
-		if (consecutive_empty_spawns >= 3) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("WARNING: Detected stalled queue with {} monsters in wave {}\n",
-					g_horde_local.queued_monsters, current_wave_level);
-			}
-
-			// Force some monsters into num_to_spawn
-			const int32_t force_spawn = std::min(g_horde_local.queued_monsters, 5);
-			g_horde_local.num_to_spawn += force_spawn;
-			g_horde_local.queued_monsters -= force_spawn;
-
-			// If still no monsters can be spawned, and we're in a high wave, consider forcing completion
-			if (g_horde_local.num_to_spawn == 0 && g_horde_local.queued_monsters == 0 &&
-				current_wave_level >= 18 && GetStroggsNum() == 0) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("CRITICAL: Queue empty but wave not completing. Forcing wave {}"
-						"completion\n", current_wave_level);
-				}
-				allowWaveAdvance = true;
-			}
-
-			consecutive_empty_spawns = 0;
-		}
-	}
-	else {
-		consecutive_empty_spawns = 0; // Reset if conditions don't match
-	}
-
-	// Safety check for negative queued_monsters
-	if (g_horde_local.queued_monsters < 0) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("CRITICAL: Negative queued_monsters ({}) detected and fixed\n",
-				g_horde_local.queued_monsters);
-		}
-		g_horde_local.queued_monsters = 0;
-	}
 }
 
 void Horde_RunFrame() {
