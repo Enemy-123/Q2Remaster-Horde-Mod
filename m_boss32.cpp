@@ -263,8 +263,15 @@ THINK(makron_torso_think) (edict_t *self) -> void
 		self->s.angles[0] = max(0.f, self->s.angles[0] - 15);
 }
 
-void makron_torso(edict_t *ent)
+void makron_torso(edict_t* ent)
 {
+	// Ensure ent is valid before proceeding
+	if (!ent) {
+		// Use Com_PrintFmt for error logging
+		gi.Com_PrintFmt("ERROR: makron_torso called with NULL entity.\n");
+		return;
+	}
+
 	ent->s.frame = 346;
 	ent->s.modelindex = gi.modelindex("models/monsters/boss3/rider/tris.md2");
 	ent->s.skinnum = 1;
@@ -273,31 +280,78 @@ void makron_torso(edict_t *ent)
 	ent->s.sound = gi.soundindex("makron/spine.wav");
 	ent->movetype = MOVETYPE_TOSS;
 	ent->s.effects = EF_GIB;
+
+	// Use AngleVectors from q_vec3.h to get orientation vectors
 	vec3_t forward, up;
+	// The AngleVectors overload taking references and nullptr_t is available
 	AngleVectors(ent->s.angles, forward, nullptr, up);
-	ent->velocity += (up * 120);
-	ent->velocity += (forward * -120);
-	ent->s.origin += (forward * -10);
-	ent->s.angles[0] = 90;
-	ent->avelocity = {};
+
+	// Use vec3_t operators for velocity and origin adjustments
+	ent->velocity += (up * 120.f);      // operator*=(scalar), operator+=
+	ent->velocity += (forward * -120.f);
+	ent->s.origin += (forward * -10.f);
+
+	// Use operator[] to set angle component
+	// Assuming PITCH corresponds to index 0 based on typical Quake engine conventions
+	ent->s.angles[PITCH] = 90.f;
+
+	// Use vec3_origin for clarity when zeroing a vector
+	ent->avelocity = vec3_origin;
+
 	gi.linkentity(ent);
 }
 
-void makron_spawn_torso(edict_t *self)
+
+void makron_spawn_torso(edict_t* self)
 {
-	edict_t *tempent = ThrowGib(self, "models/monsters/boss3/rider/tris.md2", 0, GIB_NONE, self->s.scale);
+	// Ensure self is valid
+	if (!self) {
+		// Use Com_PrintFmt for error logging
+		gi.Com_PrintFmt("ERROR: makron_spawn_torso called with NULL self entity.\n");
+		return;
+	}
+
+	// Call ThrowGib - assumes it correctly returns edict_t* and initializes basic properties
+	edict_t* tempent = ThrowGib(self, "models/monsters/boss3/rider/tris.md2", 0, GIB_NONE, self->s.scale);
+
+	// Check if ThrowGib returned a valid entity
+	if (!tempent)
+	{
+		gi.Com_PrintFmt("ERROR: makron_spawn_torso failed to spawn torso gib for {} ({}) at {}\n",
+			self->classname ? self->classname : "unknown", // Safely handle potentially null classname
+			self->s.number,
+			self->s.origin); // Pass vec3_t directly, fmt should handle it
+
+		// Attempt to handle boss death even if gib fails, to avoid blocking game progression.
+		if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
+			BossDeathHandler(self);
+		}
+		return; // Exit the function to prevent dereferencing a NULL pointer
+	}
+
 	tempent->s.origin = self->s.origin;
 	tempent->s.angles = self->s.angles;
-	self->maxs[2] -= tempent->maxs[2];
-	tempent->s.origin[2] += self->maxs[2] - 15;
+
+	if (tempent->maxs[2] > 0.f) { // Basic sanity check using floating point comparison
+		self->maxs[2] -= tempent->maxs[2];
+	}
+	else {
+		// Log if tempent->maxs[2] seems invalid
+		gi.Com_PrintFmt("Warning: makron_spawn_torso encountered non-positive tempent->maxs[2] ({}) for {} ({})\n",
+			tempent->maxs[2], self->classname ? self->classname : "unknown", self->s.number);
+	}
+
+	tempent->s.origin[2] += self->maxs[2] - 15.f;
+
+	// Apply torso-specific properties and link the entity
 	makron_torso(tempent);
 
+	// Handle boss death logic after successfully spawning the torso
+	// Ensure IS_BOSS and BOSS_DEATH_HANDLED flags are managed correctly elsewhere
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		BossDeathHandler(self);
-
 	}
 }
-
 mframe_t makron_frames_death2[] = {
 	{ ai_move, -15 },
 	{ ai_move, 3 },
