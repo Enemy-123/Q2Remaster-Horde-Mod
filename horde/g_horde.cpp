@@ -1633,24 +1633,24 @@ static const std::vector<WaveDefinition> wave_definitions = {
 	// Waves 36-40: Focus on Heavy/Elite, high chance for Fast/Special, moderate Flying
 	{ 35, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Ground, { // Added Ground base
 		 {MonsterWaveType::Special | MonsterWaveType::Fast, 0.75f}, // Combined for variety
-		 {MonsterWaveType::Flying, 0.30f}
-		 // Maybe add a small chance of Medium here? {MonsterWaveType::Medium, 0.1f}
+		 {MonsterWaveType::Flying, 0.30f},
+		 {MonsterWaveType::Medium, 0.28f}
 	}},
 	// Waves 41+: Add SemiBoss chance, keep others relevant
 	{ 40, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Ground, { // Added Ground base
 		 {MonsterWaveType::SemiBoss, 0.45f},
 		 {MonsterWaveType::Flying, 0.35f},
-		 {MonsterWaveType::Fast, 0.5f}
+		 {MonsterWaveType::Fast | MonsterWaveType::Bomber, 0.35f },
+		 { MonsterWaveType::Medium, 0.30f }
 	}},
 	// Waves 41+: High chance for SemiBoss, Flying, Fast
 	// Use a large number for max_wave to act as a catch-all for all subsequent waves
-	{ 999, MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Ground, { // Added Ground base
-		 {MonsterWaveType::SemiBoss, 0.65f},
-		 {MonsterWaveType::Flying, 0.40f},
-		 {MonsterWaveType::Bomber, 0.6f}
+	{ 999, MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Ground, { // Base types
+		 {MonsterWaveType::SemiBoss, 0.35f},                                 
+		 {MonsterWaveType::Flying, 0.40f},                                   
+		 {MonsterWaveType::Bomber | MonsterWaveType::Spawner, 0.6f}              
 	}}
 };
-
 
 // Updated function to get the wave type
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false) {
