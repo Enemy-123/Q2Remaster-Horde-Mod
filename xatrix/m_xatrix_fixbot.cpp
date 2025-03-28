@@ -255,14 +255,14 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		gi.BoxEdicts(box_mins, box_maxs, nullptr, 0, AREA_SOLID, TurretSpawnBoxFilter, &filter_data);
 
 		if (filter_data.blocked) { // Blocked by proximity, other defense, liquid, etc.
-			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt %d): Candidate {} blocked by BoxEdicts.\n", attempt, candidate_pos);
+			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt {}): Candidate {} blocked by BoxEdicts.\n", attempt, candidate_pos);
 			continue;
 		}
 
 		// --- BoxEdicts check passed ---
 		// Check path from fixbot to candidate position
 		if (!G_IsClearPath(self, MASK_SOLID, self->s.origin, candidate_pos)) {
-			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt %d): Path to candidate {} blocked.\n", attempt, candidate_pos);
+			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt {}): Path to candidate {} blocked.\n", attempt, candidate_pos);
 			continue;
 		}
 
@@ -304,7 +304,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 			best_position.distance = dist;
 			best_position.valid = true;
 			best_position.in_front = pos_in_front;
-			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt %d): Found new best candidate pos {} (dist {:.1f}, front {})\n", attempt, candidate_pos, dist, pos_in_front);
+			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt {}): Found new best candidate pos {} (dist {:.1f}, front {})\n", attempt, candidate_pos, dist, pos_in_front);
 		}
 	} // --- End attempt loop ---
 
