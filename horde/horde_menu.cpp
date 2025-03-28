@@ -939,65 +939,73 @@ void CheckAndUpdateMenus() {
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (!ent || !ent->client || !p || !p->entries || p->cur < 0 || p->cur >= p->num) return; // Added bounds check for p->cur
 
-	const int option = p->cur;
+	const int option = p->cur; // Keep option index if needed elsewhere, but don't rely on it for branching here
 	const pmenu_t* selected_entry = &p->entries[option]; // Get the selected entry struct
 	bool shouldCloseMenu = true;
 
 	// Use text comparison for actions where index might vary
 	const char* selected_text = selected_entry->text;
 
-	// --- Standard Actions (some might still use index if fixed) ---
-	if (option == 2 && strcmp(selected_text, "Go Spectator/AFK") == 0) {
+	// --- Action Handling based on Text ---
+
+	// Check for "Go Spectator/AFK" using ONLY strcmp
+	if (strcmp(selected_text, "Go Spectator/AFK") == 0) { // <-- FIX: Removed "option == 2 &&"
 		CTFObserver(ent);
 		shouldCloseMenu = false; // CTFObserver might handle closing
 	}
+	// Check for "Remove Lasers" using strncmp
+	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
+		if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
+			if (manager->get_active_count() > 0) {
+				remove_lasers(ent);
+				gi.LocClient_Print(ent, PRINT_HIGH, "All your lasers have been removed.\n");
+			}
+			else {
+				gi.LocClient_Print(ent, PRINT_HIGH, "You have no active lasers to remove.\n");
+			}
+		}
+		shouldCloseMenu = true;
+	}
+	// Vote Map
 	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Map") == 0) {
 		OpenVoteMenu(ent);
 		shouldCloseMenu = false;
 	}
+	// Vote Yes
 	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote Yes") == 0) {
 		CTFVoteYes(ent);
+		// Keep shouldCloseMenu = true (default)
 	}
+	// Vote No
 	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote No") == 0) {
 		CTFVoteNo(ent);
+		// Keep shouldCloseMenu = true (default)
 	}
+	// HUD Options
 	else if (strcmp(selected_text, "HUD Options") == 0) {
 		OpenHUDMenu(ent);
 		shouldCloseMenu = false;
 	}
+	// Swap Tech
 	else if (strcmp(selected_text, "Swap Tech") == 0) {
 		OpenTechMenu(ent);
 		shouldCloseMenu = false;
 	}
+	// Show Inventory
 	else if (strcmp(selected_text, "Show Inventory") == 0) {
 		ShowInventory(ent);
 		// Decide if menu should close:
-		// shouldCloseMenu = true; // Closes after showing
-		shouldCloseMenu = false; // Stays open after showing
+		shouldCloseMenu = false; // Keep menu open after showing inventory
 	}
-	// --- New Action: Remove Lasers ---
-	// Use strncmp to check the beginning of the string, ignoring the count "(N)"
-	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
-		if (auto* manager = LaserHelpers::get_laser_manager(ent)) { // Check manager exists
-			if (manager->get_active_count() > 0) {
-				remove_lasers(ent); // Call the function from g_laser.cpp
-				gi.LocClient_Print(ent, PRINT_HIGH, "All your lasers have been removed.\n");
-			}
-			else {
-				gi.LocClient_Print(ent, PRINT_HIGH, "You have no active lasers to remove.\n"); // Should ideally not happen if menu item wasn't shown
-			}
-		}
-		// Menu should close after removing
-		shouldCloseMenu = true;
-	}
-	// --- End New Action ---
+	// Close Button
 	else if (strcmp(selected_text, "Close") == 0) {
-		// No action needed, handled by shouldCloseMenu
+		// No action needed, handled by shouldCloseMenu = true (default)
 	}
+	// --- Default Case (Clicked on non-actionable item like title, blank, vote question) ---
 	else {
-		// Clicked on title, blank, vote question, or other non-actionable item
-		shouldCloseMenu = false;
+		shouldCloseMenu = false; // Don't close menu for non-actionable items
 	}
+
 
 	// Close the menu if required and if it still exists
 	if (shouldCloseMenu && ent->client && ent->client->menu) { // Add ent->client check
@@ -1020,7 +1028,7 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	}
 
 	// Increased size slightly to accommodate the potential new entry + separators
-	static pmenu_t entries[20]; // Increased buffer slightly
+	static pmenu_t entries[20]; // Buffer size should be sufficient
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
@@ -1037,14 +1045,34 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		}
 		};
 
-	// 1. Title & Separator
+	// 1. Title & Separator (Always first)
 	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER); // Blank after title
+
+	// --- Conditional First Action: Remove Lasers (if available) ---
+	int laser_count = 0;
+	bool added_remove_lasers = false; // Flag to track if we added the laser option
+	if (auto* manager = LaserHelpers::get_laser_manager(ent)) { // Use the helper from laser.h/cpp
+		laser_count = manager->get_active_count();
+	}
+
+	if (laser_count > 0) {
+		char remove_laser_text[64];
+		snprintf(remove_laser_text, sizeof(remove_laser_text), "Remove Lasers (%d)", laser_count);
+		add_entry(remove_laser_text, PMENU_ALIGN_LEFT, HordeMenuHandler); // Add the entry first
+		added_remove_lasers = true;
+	}
+	// --- End Conditional "Remove Lasers" ---
+
+	// 2. Add Separator *after* the first action (either Lasers or Spectator)
+	// This separator will appear *before* Spectator if Lasers was added,
+	// or *after* Spectator if Lasers was not added.
 	add_entry("", PMENU_ALIGN_CENTER);
 
-	// 2. Go Spectator
+	// 3. Go Spectator (Always add this, position depends on lasers)
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// 3. Vote Section
+	// 4. Vote Section (Continues after Spectator)
 	if (ctfgame.election == ELECT_NONE) {
 		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
@@ -1058,35 +1086,20 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
-	// 4. HUD Options
+	// 5. HUD Options
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// 5. Change Tech
+	// 6. Change Tech
 	add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// 6. Show Inventory
+	// 7. Show Inventory
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// --- Conditional "Remove Lasers" ---
-	int laser_count = 0;
-	if (auto* manager = LaserHelpers::get_laser_manager(ent)) { // Use the helper
-		laser_count = manager->get_active_count();
-	}
-
-	if (laser_count > 0) {
-		char remove_laser_text[64];
-		snprintf(remove_laser_text, sizeof(remove_laser_text), "Remove Lasers (%d)", laser_count);
-		add_entry(remove_laser_text, PMENU_ALIGN_LEFT, HordeMenuHandler); // Add the entry if lasers exist
-	}
-	// --- End Conditional ---
-
 	// Optional blank separators before close
+	// Adjust number of blanks as needed for desired spacing below the main options
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
-	// ... (add more blanks if desired, up to the buffer limit) ...
-	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("", PMENU_ALIGN_CENTER);
-
+	// ...
 
 	// Last Entry: Close
 	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
