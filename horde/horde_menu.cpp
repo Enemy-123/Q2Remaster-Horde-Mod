@@ -646,7 +646,7 @@ constexpr size_t NUM_TECHS = sizeof(tech_names) / sizeof(tech_names[0]);
 
 // Menu definition for when player is already in a team
 static pmenu_t tech_menu[] = {
-	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "*Tech Selection", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
@@ -941,72 +941,56 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	const int option = p->cur;
 	bool shouldCloseMenu = true; // Assume menu should close unless opening a sub-menu
 
-	if (ctfgame.election == ELECT_NONE) {
-		// --- Options when NO vote is in progress ---
-		// Indices based on CreateHordeMenu structure:
-		// 0: Title, 1: Blank, 2: Inv, 3: Spec, 4: Blank, 5: Vote Map, 6: Blank, 7: Tech, 8: HUD, 9: Blank, 10: Close
-		switch (option) {
-		case 2: // Show Inventory
-			ShowInventory(ent);
-			// Keep menu open? Decided to close for consistency.
-			break;
-		case 3: // Go Spectator/AFK
-			CTFObserver(ent);
-			// CTFObserver closes menus internally or handles player state change
-			shouldCloseMenu = false; // Let CTFObserver handle closing if needed
-			break;
-		case 5: // Vote Map
-			OpenVoteMenu(ent);
-			shouldCloseMenu = false; // Vote menu opens, don't close this one yet
-			break;
-		case 7: // Change Tech
-			OpenTechMenu(ent);
-			shouldCloseMenu = false; // Tech menu opens
-			break;
-		case 8: // HUD Options
-			OpenHUDMenu(ent);
-			shouldCloseMenu = false; // HUD menu opens
-			break;
-		case 10: // Close menu
-			break; // Will be closed by shouldCloseMenu logic
-		default: // Invalid selection
-			break;
-		}
+	// Determine base index offset for options after the variable vote section
+	int base_offset_after_vote = 0;
+	bool vote_in_progress = (ctfgame.election != ELECT_NONE);
+
+	if (vote_in_progress) {
+		base_offset_after_vote = 6; // Title(0), Blank(1), Spec(2), VoteQ(3), VoteY(4), VoteN(5) -> Next option is 6
 	}
 	else {
-		// --- Options when a vote IS in progress ---
-		// Indices based on CreateHordeMenu structure:
-		// 0: Title, 1: Blank, 2: Inv, 3: Spec, 4: Blank, 5: Vote Yes, 6: Vote No, 7: Blank, 8: Tech, 9: HUD, 10: Blank, 11: Close
-		switch (option) {
-		case 2: // Show Inventory
-			ShowInventory(ent);
-			break;
-		case 3: // Go Spectator/AFK
-			CTFObserver(ent);
-			shouldCloseMenu = false;
-			break;
-		case 5: // Vote Yes
-			CTFVoteYes(ent);
-			break;
-		case 6: // Vote No
-			CTFVoteNo(ent);
-			break;
-		case 8: // Change Tech
-			OpenTechMenu(ent);
-			shouldCloseMenu = false;
-			break;
-		case 9: // HUD Options
-			OpenHUDMenu(ent);
-			shouldCloseMenu = false;
-			break;
-		case 11: // Close menu
-			break;
-		default: // Invalid selection
-			break;
-		}
+		base_offset_after_vote = 4; // Title(0), Blank(1), Spec(2), VoteMap(3) -> Next option is 4
 	}
 
-	if (shouldCloseMenu && ent->client->menu) { // Check if menu still exists before closing
+	// Map options to their corresponding actions based on the new order
+	if (option == 2) { // Go Spectator/AFK
+		CTFObserver(ent);
+		shouldCloseMenu = false; // CTFObserver handles menu closing if necessary
+	}
+	else if (!vote_in_progress && option == 3) { // Vote Map (only when no vote active)
+		OpenVoteMenu(ent);
+		shouldCloseMenu = false;
+	}
+	else if (vote_in_progress && option == 4) { // Vote Yes (only when vote active)
+		CTFVoteYes(ent);
+	}
+	else if (vote_in_progress && option == 5) { // Vote No (only when vote active)
+		CTFVoteNo(ent);
+	}
+	else if (option == base_offset_after_vote) { // HUD Options
+		OpenHUDMenu(ent);
+		shouldCloseMenu = false;
+	}
+	else if (option == base_offset_after_vote + 1) { // Change Tech
+		OpenTechMenu(ent);
+		shouldCloseMenu = false;
+	}
+	else if (option == base_offset_after_vote + 2) { // Show Inventory
+		ShowInventory(ent);
+		// Keep menu open? Let's close it for consistency.
+	}
+	else if (option == base_offset_after_vote + 3) { // Close
+		// No action needed, will be closed by shouldCloseMenu logic
+	}
+	else {
+		// Clicked on title, blank, vote question, or invalid option
+		shouldCloseMenu = false; // Don't close if clicking non-actionable items
+		// Or close it if you prefer that behavior:
+		// shouldCloseMenu = true;
+	}
+
+
+	if (shouldCloseMenu && ent->client->menu) {
 		PMenu_Close(ent);
 	}
 }
@@ -1017,82 +1001,70 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
 // Creates and opens the main Horde menu
 pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
-	// Basic validation
 	if (!ent || !ent->client) {
 		return nullptr;
 	}
 
-	// Close any existing menu to prevent issues
 	if (ent->client->menu) {
 		PMenu_Close(ent);
 	}
 
-	// Use a static array for the menu entries.
-	// Size 13 needed: Title, Blank, Inv, Spec, Blank, VoteQ/Map, VoteY, VoteN, Blank, Tech, HUD, Blank, Close
-	// Let's use 13 for safety, although Vote Map uses one less slot than Vote Yes/No.
+	// Max entries needed: Title(1)+Blank(1)+Spec(1)+VoteQ(1)+VoteY(1)+VoteN(1)+HUD(1)+Tech(1)+Inv(1)+Close(1) = 10
+	// Using 13 for safety margin.
 	static pmenu_t entries[13];
-	memset(entries, 0, sizeof(entries)); // Clear the array
+	memset(entries, 0, sizeof(entries));
+	int count = 0;
 
-	int count = 0; // Current entry index
-
-	// Helper lambda to add entries safely, preventing buffer overflows
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
 		if (count < static_cast<int>(std::size(entries))) {
-			// Use Q_strlcpy for safe string copying
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
 			entries[count].align = align;
 			entries[count].SelectFunc = func;
 			count++;
 		}
 		else {
-			// Optional: Log an error if the menu exceeds the allocated size
-			gi.Com_Print("Error: CreateHordeMenu exceeded static entry buffer size.\n");
+			// Error logging can be added here if needed
+			gi.Com_Print("Warning: CreateHordeMenu exceeded static entry buffer size.\n");
 		}
 		};
 
-	// Add common menu entries
-	// --- Use the constant defined in g_horde.h for the title ---
-	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);                 // Index 0
-	add_entry("", PMENU_ALIGN_CENTER);                              // Index 1 (Blank Separator)
-	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler); // Index 2
-	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler); // Index 3
-	add_entry("", PMENU_ALIGN_CENTER);                              // Index 4 (Blank Separator)
+	// 1. Title & Separator
+	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
 
-	// Add vote-related entries dynamically
+	// 2. Go Spectator
+	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
+
+	// 3. Vote Section
 	if (ctfgame.election == ELECT_NONE) {
-		// No vote in progress
-		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 5
-		add_entry("", PMENU_ALIGN_CENTER);                           // Index 6 (Blank Separator) - Placeholder
-		// Indices shift here compared to the vote case
+		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 	else {
-		// Vote is in progress
-		// Format the vote question into a buffer
-		char vote_question[64]; // Buffer for the formatted question
+		char vote_question[64];
 		snprintf(vote_question, sizeof(vote_question), "Vote: %s", ctfgame.emsg);
-		// Ensure null termination even if snprintf truncates (although Q_strlcpy handles this later)
-		vote_question[sizeof(vote_question) - 1] = '\0';
+		vote_question[sizeof(vote_question) - 1] = '\0'; // Ensure null termination
 
-		// Display the vote question (not selectable)
-		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr);       // Index 5
-		// Add Vote Yes/No options
-		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 6
-		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);    // Index 7
-		add_entry("", PMENU_ALIGN_CENTER);                           // Index 8 (Blank Separator)
+		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr); // Display question (not selectable)
+		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
+		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
-	// Add remaining common entries (adjusting for vote status)
-	// The actual index depends on whether the vote section took 1 or 3 slots (+1 for the blank after)
-	// Instead of hardcoding indices, we just continue adding with the lambda
+	// 4. HUD Options
+	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	add_entry("Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 7 (no vote) or 9 (vote)
-	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);   // Index 8 (no vote) or 10 (vote)
-	add_entry("", PMENU_ALIGN_CENTER);                              // Index 9 (no vote) or 11 (vote) (Blank Separator)
-	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);         // Index 10 (no vote) or 12 (vote)
+	// 5. Change Tech
+	add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// Open the menu with the constructed entries and the actual count
-	// Use -1 for initial selection (usually defaults to first selectable item)
-	// No update function needed here as it's dynamically rebuilt each time
+	// 6. Show Inventory
+	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
+
+	// Optional blank separator before close, if desired for spacing
+	// add_entry("", PMENU_ALIGN_CENTER);
+
+	// 7. Close
+	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
+
+	// Open the menu
 	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 
