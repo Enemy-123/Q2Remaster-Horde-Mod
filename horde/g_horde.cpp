@@ -18,6 +18,27 @@ static int32_t ambush_cooldown_frames = 0;
 static int32_t waves_since_ambush = 0;
 static bool ambush_system_initialized = false;
 
+// Add this struct definition near the top of your file
+struct RecentSpawnPosition {
+	vec3_t position = {}; // Initialize members to zero/default
+	gtime_t cooldown_until = 0_sec;
+};
+
+// Add these global variables
+static constexpr size_t MAX_RECENT_POSITIONS = 32;
+static std::array<RecentSpawnPosition, MAX_RECENT_POSITIONS> g_recent_spawn_positions;
+static size_t g_recent_position_index = 0;
+
+// Add these helper functions
+void MarkPositionAsRecentlyUsed(const vec3_t& position, gtime_t cooldown_duration) {
+	g_recent_spawn_positions[g_recent_position_index] = {
+		position,
+		level.time + cooldown_duration
+	};
+	g_recent_position_index = (g_recent_position_index + 1) % MAX_RECENT_POSITIONS;
+}
+
+
 void ResetSpawnMonsterVars() {
 	need_spawn_cache_reset = true;
 	// Add reset for new trackers
@@ -4160,6 +4181,8 @@ void ResetGame() {
 	}
 	// --- End of NEW SAFETY CLEANUP ---
 
+	std::fill(g_recent_spawn_positions.begin(), g_recent_spawn_positions.end(), RecentSpawnPosition{});
+	g_recent_position_index = 0; // Reset the index
 
 	// --- Existing Reset Logic ---
 	ResetRecentBosses();
@@ -4181,7 +4204,6 @@ void ResetGame() {
 		it = auto_spawned_bosses.erase(it); // Erase and advance iterator
 	}
 	// auto_spawned_bosses set is now empty
-
 	g_adjusted_monster_cap = 0;
 
 	// Reset global variables that ARE accessible
@@ -4214,7 +4236,7 @@ void ResetGame() {
 	// Reiniciar variables de estado global
 	g_horde_local = HordeState(); // Reset the main state struct
 	current_wave_level = 0;       // Explicitly reset wave level
-	last_wave_number = 0;         // Reset last wave number too
+	//last_wave_number = 0;         // Reset last wave number too
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 	allowWaveAdvance = false;
@@ -5559,26 +5581,6 @@ bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs
 	}
 
 	return false;
-}
-
-// Add this struct definition near the top of your file
-struct RecentSpawnPosition {
-	vec3_t position;
-	gtime_t cooldown_until;
-};
-
-// Add these global variables
-static constexpr size_t MAX_RECENT_POSITIONS = 32;
-static std::array<RecentSpawnPosition, MAX_RECENT_POSITIONS> g_recent_spawn_positions;
-static size_t g_recent_position_index = 0;
-
-// Add these helper functions
-void MarkPositionAsRecentlyUsed(const vec3_t& position, gtime_t cooldown_duration) {
-	g_recent_spawn_positions[g_recent_position_index] = {
-		position,
-		level.time + cooldown_duration
-	};
-	g_recent_position_index = (g_recent_position_index + 1) % MAX_RECENT_POSITIONS;
 }
 
 bool IsPositionTooCloseToRecent(const vec3_t& position, float min_distance) {

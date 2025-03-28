@@ -770,16 +770,13 @@ namespace {
 }
 
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
-	// Validate all input vectors
 	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
 		return;
 
-	// Calculate bounds with safe limits - using direct vector operations
-	const vec3_t safe_offset{26.0f, 26.0f, 26.0f};
+	const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
 	const vec3_t area_mins = origin + mins - safe_offset;
 	const vec3_t area_maxs = origin + maxs + safe_offset;
 
-	// Safe radius for search
 	const float max_dim = std::max({
 		maxs[0] - mins[0],
 		maxs[1] - mins[1],
@@ -787,14 +784,16 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		});
 	const float safe_radius = std::min(max_dim + 42.0f, 2048.0f);
 
-	// Safely collect entities
-	int entity_count = 0;
-	edict_t* ent = nullptr;
+	std::vector<edict_t*> entities_in_area;
+	// Optional: Reserve some space if you expect a certain number of entities often
+	// entities_in_area.reserve(32);
 
+	edict_t* ent = nullptr;
 	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
-		if (!ent || !ent->inuse || entity_count >= MAX_ENTITIES)
+		if (!ent || !ent->inuse)
 			continue;
 
+		// Skip monsters and non-solid/trigger entities
 		if ((ent->svflags & SVF_MONSTER) ||
 			ent->solid == SOLID_NOT ||
 			ent->solid == SOLID_TRIGGER)
@@ -809,76 +808,69 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		if (!EntitiesOverlap(ent, area_mins, area_maxs))
 			continue;
 
-		g_spawn_area_entities[entity_count++] = ent;
+		entities_in_area.push_back(ent);
 	}
 
 	// Process collected entities
-	for (int i = 0; i < entity_count; i++) {
-		ent = g_spawn_area_entities[i];
-		if (!ent || !ent->inuse)
+	for (edict_t* current_ent : entities_in_area) {
+		// Re-check inuse as processing might invalidate entities (though unlikely here)
+		if (!current_ent || !current_ent->inuse)
 			continue;
 
-		if (ent->client) {
-			edict_t* spawn_point = SelectSingleSpawnPoint(ent);
+		if (current_ent->client) {
+			edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
 			if (spawn_point && spawn_point->inuse) {
-				TeleportEntity(ent, spawn_point);
+				TeleportEntity(current_ent, spawn_point);
 			}
 		}
 		else {
-			RemoveEntity(ent);
+			RemoveEntity(current_ent);
 		}
 	}
 }
 
+
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength)
 {
-	// Radio mínimo y búsqueda
 	push_radius = std::max(push_radius, 1.0f);
 	const float search_radius = push_radius * 1.5f;
 
-	// Arrays estáticos para entidades
-	static edict_t* entities_to_process[MAX_ENTITIES];
-	static edict_t* entities_to_remove[MAX_ENTITIES];
-	size_t process_count = 0;
-	size_t remove_count = 0;
+	std::vector<edict_t*> entities_to_process;
+	std::vector<edict_t*> entities_to_remove;
+	// Optional: Reserve some space
+	// entities_to_process.reserve(64);
+	// entities_to_remove.reserve(16);
 
-
-
-	// Recolectar entidades
+	// Collect entities
 	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
 		if (!ent || !ent->inuse)
 			continue;
 
-		// Verificar PVS y línea de visión
 		if (gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f)
 			continue;
 
-		// Clasificar entidades
 		if (IsRemovableEntity(ent)) {
-			if (remove_count < MAX_ENTITIES)
-				entities_to_remove[remove_count++] = ent;
+			entities_to_remove.push_back(ent);
 		}
 		else if (ent->takedamage) {
-			if (process_count < MAX_ENTITIES)
-				entities_to_process[process_count++] = ent;
+			entities_to_process.push_back(ent);
 		}
 	}
 
-	// Remover entidades primero
-	for (size_t i = 0; i < remove_count; i++) {
-		if (entities_to_remove[i] && entities_to_remove[i]->inuse)
-			RemoveEntity(entities_to_remove[i]);
+	// Remove designated entities first
+	for (edict_t* ent_to_remove : entities_to_remove) {
+		// Check inuse again in case it was removed by another process
+		if (ent_to_remove && ent_to_remove->inuse)
+			RemoveEntity(ent_to_remove);
 	}
 
-	// Procesar olas
+	// Process waves
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float wave_progress = static_cast<float>(wave) / num_waves;
 		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
 
-		// Efecto visual mejorado
 		SpawnGrow_Spawn(center, size, size * 0.3f);
 
-		// Efectos adicionales para olas posteriores
 		if (wave > 0) {
 			vec3_t effect_pos = center;
 			for (int i = 0; i < 4; i++) {
@@ -889,56 +881,46 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 			}
 		}
 
-		// Procesar entidades
-		for (size_t entity_idx = 0; entity_idx < process_count; entity_idx++) {
-			edict_t* ent = entities_to_process[entity_idx];
-
+		// Process entities to push/affect
+		for (edict_t* ent : entities_to_process) {
+			// Check inuse status as entities might be removed/killed between waves or by removals
 			if (!ent || !ent->inuse)
 				continue;
 
 			if (!gi.inPVS(center, ent->s.origin, false))
 				continue;
 
-			// Calcular dirección y distancia
 			vec3_t push_dir = ent->s.origin - center;
-			const float dist = push_dir.length(); // Usar length() directamente en vez de sqrt(lengthSquared())
+			const float dist = push_dir.length();
 
 			if (dist < 0.01f) {
 				push_dir = vec3_t{ crandom(), crandom(), 0.1f };
 			}
+			else {
+				push_dir.normalize(); // Normalize only if dist is not near zero
+			}
 
-			push_dir.normalize();
 
-			// Calcular factor de distancia (1.0 cerca, 0.0 lejos)
 			const float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
 
-			// Calcular fuerza base del knockback
 			int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
 			if (ent->groundentity)
 				base_push *= 2;
 
-			// Aplicar el factor de distancia al knockback
 			base_push = static_cast<int>(base_push * dist_factor);
 
-			// Marcar la protección contra daño de caída
 			if (ent->client) {
 				ent->client->landmark_free_fall = true;
 			}
 
-			// Usar T_Damage con knockback positivo 
 			T_Damage(ent, ent, ent, push_dir, ent->s.origin, vec3_origin,
-				0,  // sin daño 
-				base_push,  // knockback escalado por distancia
-				DAMAGE_RADIUS,  // flags 
-				MOD_UNKNOWN);
+				0, base_push, DAMAGE_RADIUS, MOD_UNKNOWN);
 
-			// Añadir componente vertical si es necesario
 			if (vertical_push_strength > 0 && wave <= 1) {
 				const float boost = (wave == 0) ? 100.0f : 75.0f;
 				ent->velocity.z += boost;
 			}
 
-			// Actualizar cliente para efectos visuales
 			if (ent->client && wave == 0) {
 				ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
 				ent->client->ps.pmove.pm_time = 100;
@@ -946,7 +928,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		}
 	}
 }
-
 
 [[nodiscard]] constexpr bool string_equals(const char* str1, const std::string_view& str2) noexcept {
 	return str1 && str2.length() == strlen(str1) && !Q_strncasecmp(str1, str2.data(), str2.length());
