@@ -46,7 +46,8 @@ static int counter_mismatch_frames = 0;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
 namespace HordeConstants {
-
+	constexpr vec3_t VALIDATE_CHECK_MINS = { -16, -16, -24 };
+	constexpr vec3_t VALIDATE_CHECK_MAXS = { 16, 16,  32 };
 	constexpr gtime_t ALT_SPAWN_COOLDOWN_SHORT = 1.5_sec;
 	constexpr gtime_t ALT_SPAWN_COOLDOWN_MEDIUM = 3_sec;
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
@@ -246,37 +247,6 @@ void OnSuccessfulSpawn(edict_t* spawn_point) {
     horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
 
-//// Función de filtro optimizada
-//// Modified SpawnPointFilter function
-//static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
-//	FilterData* filter_data = static_cast<FilterData*>(data);
-//
-//	// Ignore the specified entity (if exists)
-//	if (ent == filter_data->ignore_ent) {
-//		return BoxEdictsResult_t::Skip;
-//	}
-//
-//	// Check if the entity is a player or bot
-//	if (ent->client && ent->inuse) {
-//		filter_data->count++;
-//		return BoxEdictsResult_t::End; // Stop searching if a player or bot is found
-//	}
-//
-//	// Check if the entity is a monster (using the SVF_MONSTER flag)
-//	if (ent->svflags & SVF_MONSTER && !ent->deadflag) {
-//		filter_data->count++;
-//		return BoxEdictsResult_t::End; // Stop searching if a monster is found
-//	}
-//
-//	// NEW: Check if the entity is a player-deployed defense
-//	if (ent->inuse && IsPlayerDefense(ent)) {
-//		filter_data->count++;
-//		return BoxEdictsResult_t::End; // Stop searching if a player defense is found
-//	}
-//
-//	return BoxEdictsResult_t::Skip;
-//}
-
 struct SpawnPointCache {
 	gtime_t last_check_time;
 	vec3_t last_check_origin;
@@ -363,6 +333,8 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 			if (ent->client && ent->inuse) {
 				filter_data->count++;
 				return BoxEdictsResult_t::End; // Stop searching if a player is found
+
+
 			}
 
 			return BoxEdictsResult_t::Skip;
@@ -4736,233 +4708,220 @@ struct StuckMonsterSpawnFilter {
 // Function to attempt dropping a monster to the floor
 bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
 
+bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs, bool allow_defense_fallback);
+
+edict_t* G_FindEntityInBox(const vec3_t& mins, const vec3_t& maxs, std::function<bool(edict_t*)> predicate) {
+
+	// Static buffer to hold entities found by BoxEdicts.
+	// Size should be reasonable, but doesn't need to be MAX_EDICTS.
+	static edict_t* entity_list[128]; // Buffer for up to 128 entities in the box
+	constexpr size_t max_entities_in_list = std::size(entity_list);
+
+	// Data structure for the BoxEdicts filter
+	struct FindData {
+		std::function<bool(edict_t*)> predicate;
+		edict_t* found_entity = nullptr;
+	} find_data;
+
+	find_data.predicate = predicate;
+
+	// Use BoxEdicts with a filter that applies the predicate
+	gi.BoxEdicts(mins, maxs, entity_list, max_entities_in_list, AREA_SOLID,
+		// Lambda filter for BoxEdicts
+		[](edict_t* ent, void* data) -> BoxEdictsResult_t {
+			FindData* fd = static_cast<FindData*>(data);
+
+			// Check if the entity is valid and matches the predicate
+			if (ent && ent->inuse && fd->predicate(ent)) {
+				fd->found_entity = ent;       // Store the found entity
+				return BoxEdictsResult_t::End; // Stop searching
+			}
+			return BoxEdictsResult_t::Skip; // Continue searching
+		},
+		&find_data // Pass the predicate and result storage
+	);
+
+	// Return the entity found by the filter (or nullptr if none matched)
+	return find_data.found_entity;
+}
+
+
 // Enhanced emergency spawn position finder
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, horde::MonsterTypeID typeId)
 {
-	// Debug trace to identify where freezes occur
-	if (developer->integer) {
-		gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition\n");
+	if (developer->integer > 1) {
+		gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition for TypeID {}\n", static_cast<int>(typeId));
 	}
 
-	// Initialize human player flag to false
-	used_human_player = false;
+	used_human_player = false; // Default
 
-	// Constants for spawn attempts
-	constexpr int MAX_ATTEMPTS = 40;
+	// Constants
+	constexpr int MAX_ATTEMPTS_PER_PLAYER = 8;
 	constexpr float MIN_PLAYER_DIST = 200.0f;
-	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
-	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
+	constexpr float CLOSE_RADIUS_MAX = 600.0f;
+	constexpr float FAR_RADIUS_MAX = 1200.0f;
+	// Use constants from namespace for consistency in calls to ValidateSpawnPosition
+	// constexpr vec3_t MONSTER_MINS = {-16, -16, -24}; // Defined in HordeConstants
+	// constexpr vec3_t MONSTER_MAXS = { 16, 16,  32}; // Defined in HordeConstants
+	constexpr size_t MAX_PLAYERS = MAX_CLIENTS;
 
-	// FIXED: Replace STL vectors with fixed-size arrays for better performance
-	constexpr size_t MAX_PLAYERS = 32; // Adjust based on your game's limits
+	// Player categorization arrays
 	edict_t* top_damage_humans[MAX_PLAYERS] = { nullptr };
 	edict_t* high_spree_humans[MAX_PLAYERS] = { nullptr };
 	edict_t* normal_humans[MAX_PLAYERS] = { nullptr };
 	edict_t* bots[MAX_PLAYERS] = { nullptr };
 	size_t top_damage_count = 0, high_spree_count = 0, normal_count = 0, bot_count = 0;
 
-	// Track highest damage/spree values for relative comparison
 	int32_t highest_damage = 0;
 	int highest_spree = 0;
 
-	// First pass - categorize players
+	// --- 1. Categorize Players ---
 	for (auto* player : active_players()) {
 		if (!player || !player->inuse || !player->client ||
 			player->health <= 0 || ClientIsSpectating(player->client))
 			continue;
 
-		// Check if this is a human or bot
 		bool is_human = !(player->svflags & SVF_BOT);
+		int32_t player_damage = player->client->total_damage;
+		int player_spree = player->client->resp.spree;
 
 		if (is_human) {
-			// Track damage and spree stats
-			int32_t player_damage = player->client->total_damage;
-			int player_spree = player->client->resp.spree;
-
-			// Track highest values for relative comparison
 			highest_damage = std::max(highest_damage, player_damage);
 			highest_spree = std::max(highest_spree, player_spree);
 
-			// Add to appropriate human categories using fixed arrays
-			if (player_damage > 0 && player_damage >= highest_damage * 0.7f) {
-				if (top_damage_count < MAX_PLAYERS) {
-					top_damage_humans[top_damage_count++] = player;
-				}
+			if (player_damage > 0 && player_damage >= highest_damage * 0.7f && top_damage_count < MAX_PLAYERS) {
+				top_damage_humans[top_damage_count++] = player;
 			}
-			else if (player_spree >= 20) {
-				if (high_spree_count < MAX_PLAYERS) {
-					high_spree_humans[high_spree_count++] = player;
-				}
+			else if (player_spree >= 20 && high_spree_count < MAX_PLAYERS) {
+				high_spree_humans[high_spree_count++] = player;
 			}
-			else {
-				if (normal_count < MAX_PLAYERS) {
-					normal_humans[normal_count++] = player;
-				}
+			else if (normal_count < MAX_PLAYERS) {
+				normal_humans[normal_count++] = player;
 			}
 		}
 		else {
-			// It's a bot
 			if (bot_count < MAX_PLAYERS) {
 				bots[bot_count++] = player;
 			}
 		}
 	}
 
-	// If we have no players at all, return false - no valid position
-	if (top_damage_count == 0 && high_spree_count == 0 &&
-		normal_count == 0 && bot_count == 0) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no players)\n");
-		}
+	if (top_damage_count == 0 && high_spree_count == 0 && normal_count == 0 && bot_count == 0) {
+		if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: No active players/bots found.\n");
 		return false;
 	}
 
-	// Define priority groups using fixed arrays
+	// Define priority groups
 	struct PlayerGroup {
 		edict_t** players;
 		size_t count;
 		bool is_human;
 	};
-
-	PlayerGroup priority_groups[4] = {
+	PlayerGroup priority_groups[] = {
 		{ top_damage_humans, top_damage_count, true },
 		{ high_spree_humans, high_spree_count, true },
 		{ normal_humans, normal_count, true },
 		{ bots, bot_count, false }
 	};
 
-	// Helper function to validate a position
-	auto validatePosition = [&](const vec3_t& pos) -> bool {
-		// First check if position is fundamentally valid
-		if (!is_valid_vector(pos))
-			return false;
+	// --- Helper Lambda for Basic Position Checks ---
+	auto isPosBasicallyValid = [&](const vec3_t& pos) -> bool {
+		if (!is_valid_vector(pos)) return false;
 
-		// Check if the position is in solid
-		trace_t trace = gi.trace(pos, MONSTER_MINS, MONSTER_MAXS, pos, nullptr, MASK_MONSTERSOLID);
-		if (trace.startsolid || trace.allsolid)
-			return false;
+		trace_t solid_trace = gi.trace(pos, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, pos, nullptr, MASK_MONSTERSOLID);
+		if (solid_trace.startsolid || solid_trace.allsolid) return false;
 
-		// Specific checks based on monster type
-		if (typeId != horde::MonsterTypeID::UNKNOWN) {
-			// FIXED: Simplified Gekk water validation logic
-			if (typeId == horde::MonsterTypeID::GEKK) {
-				int contents = gi.pointcontents(pos);
-				bool in_water = (contents & CONTENTS_WATER);
-				bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
-
-				// Gekks should generally be in water, but never in lava/slime
-				if (in_bad_liquid || (!in_water && frandom() < 0.5f)) {
-					return false;
-				}
-			}
-			// For non-gekk, non-flying monsters, generally avoid water
-			else if (!IsFlying(typeId) && (gi.pointcontents(pos) & MASK_WATER)) {
-				return false;
-			}
+		int contents = gi.pointcontents(pos);
+		if (typeId == horde::MonsterTypeID::GEKK) {
+			bool in_water = (contents & CONTENTS_WATER);
+			bool in_bad_liquid = (contents & (CONTENTS_LAVA | CONTENTS_SLIME));
+			if (in_bad_liquid || (!in_water && frandom() < 0.3f)) return false;
 		}
-
+		else if (!IsFlying(typeId)) {
+			if (contents & MASK_WATER) return false;
+		}
 		return true;
 		};
 
-	// Try each category in priority order
-	for (int group_idx = 0; group_idx < 4; group_idx++) {
-		const auto& group = priority_groups[group_idx];
-		if (group.count == 0)
-			continue;
 
-		// Try to find a position near a player from this group
-		for (int attempt = 0; attempt < MAX_ATTEMPTS / 4; attempt++) {
-			// Pick a random player from the group
-			edict_t* player = group.players[irandom(group.count)];
+	// --- 2. Iterate Through Priority Groups ---
+	for (const auto& group : priority_groups) {
+		if (group.count == 0) continue;
 
-			// Calculate random offset - bias toward closer distances for better gameplay
-			float radius;
-			if (frandom() < 0.6f) {
-				// Closer range (200-600)
-				radius = MIN_PLAYER_DIST + frandom() * 400.0f;
-			}
-			else {
-				// Farther range (600-1200)
-				radius = 600.0f + frandom() * 600.0f;
-			}
+		// --- 3. Try Spawning Near Players in this Group ---
+		for (size_t player_idx = 0; player_idx < group.count; ++player_idx) {
+			edict_t* player = group.players[player_idx];
 
-			float angle = frandom() * 2.0f * PI;
+			for (int attempt = 0; attempt < MAX_ATTEMPTS_PER_PLAYER; ++attempt) {
+				// Generate candidate position
+				float radius;
+				if (attempt < MAX_ATTEMPTS_PER_PLAYER / 2 || frandom() < 0.6f) {
+					radius = MIN_PLAYER_DIST + frandom() * (CLOSE_RADIUS_MAX - MIN_PLAYER_DIST);
+				}
+				else {
+					radius = CLOSE_RADIUS_MAX + frandom() * (FAR_RADIUS_MAX - CLOSE_RADIUS_MAX);
+				}
+				float angle = frandom() * 2.0f * PI;
 
-			// Set position at offset from player
-			vec3_t test_pos = {
-				player->s.origin[0] + cosf(angle) * radius,
-				player->s.origin[1] + sinf(angle) * radius,
-				player->s.origin[2] + 24.0f  // Start slightly above player Z
-			};
+				vec3_t candidate_base_pos = {
+					player->s.origin[0] + cosf(angle) * radius,
+					player->s.origin[1] + sinf(angle) * radius,
+					player->s.origin[2] + 16.0f
+				};
 
-			// Trace down to find floor
-			trace_t trace = gi.traceline(test_pos, test_pos - vec3_t{ 0, 0, 512 }, nullptr, MASK_SOLID);
+				vec3_t positions_to_validate[3];
+				int validate_count = 0;
 
-			if (trace.fraction < 1.0f) {
-				// Found something below - adjust to slightly above hit point
-				test_pos = trace.endpos + vec3_t{ 0, 0, 1.0f };
-
-				// Try different heights if initial position is invalid
-				vec3_t final_pos = test_pos;
-				bool found_valid = false;
-
-				// First try the base position
-				if (validatePosition(final_pos)) {
-					found_valid = true;
+				if (isPosBasicallyValid(candidate_base_pos)) {
+					positions_to_validate[validate_count++] = candidate_base_pos;
 				}
 
-				// Try a few different heights around this position
-				if (!found_valid) {
-					for (float height_adj : {8.0f, 16.0f, 24.0f, -8.0f, -16.0f}) {
-						final_pos = test_pos;
-						final_pos.z += height_adj;
+				vec3_t trace_end_down = candidate_base_pos - vec3_t{ 0, 0, 512 };
+				trace_t trace_down = gi.traceline(candidate_base_pos, trace_end_down, nullptr, MASK_SOLID);
+				if (trace_down.fraction < 1.0f) {
+					vec3_t ground_pos = trace_down.endpos + vec3_t{ 0, 0, 1.0f };
+					if (isPosBasicallyValid(ground_pos)) {
+						if (validate_count < 3) positions_to_validate[validate_count++] = ground_pos;
+					}
+				}
 
-						if (validatePosition(final_pos)) {
-							found_valid = true;
-							break;
+				if (validate_count == 0) {
+					vec3_t trace_end_up = candidate_base_pos + vec3_t{ 0, 0, 256 };
+					trace_t trace_up = gi.traceline(candidate_base_pos, trace_end_up, nullptr, MASK_SOLID);
+					if (trace_up.fraction < 1.0f) {
+						// Use HordeConstants for consistency
+						vec3_t ceiling_pos = trace_up.endpos - vec3_t{ 0, 0, 1.0f + fabs(HordeConstants::VALIDATE_CHECK_MINS[2]) };
+						if (isPosBasicallyValid(ceiling_pos)) {
+							if (validate_count < 3) positions_to_validate[validate_count++] = ceiling_pos;
 						}
 					}
 				}
 
-				// Try slight lateral adjustments if still not valid
-				if (!found_valid) {
-					for (float x_adj : {-16.0f, 16.0f, -32.0f, 32.0f}) {
-						for (float y_adj : {-16.0f, 16.0f, -32.0f, 32.0f}) {
-							final_pos = test_pos + vec3_t{ x_adj, y_adj, 0.0f };
-
-							if (validatePosition(final_pos)) {
-								found_valid = true;
-								break;
-							}
+				// --- 4. Final Validation with ValidateSpawnPosition ---
+				for (int k = 0; k < validate_count; ++k) {
+					vec3_t final_candidate = positions_to_validate[k];
+					// Use HordeConstants here too
+					if (ValidateSpawnPosition(final_candidate, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, true)) {
+						// SUCCESS!
+						position = final_candidate;
+						vec3_t dir = player->s.origin - position;
+						dir.z *= 0.1f;
+						angles = vectoangles(dir);
+						used_human_player = group.is_human;
+						if (developer->integer) {
+							gi.Com_PrintFmt("FindEmergencySpawnPosition: Success! Found valid pos {} near {} {}.\n",
+								position, group.is_human ? "human" : "bot", player->client->pers.netname);
 						}
-						if (found_valid) break;
+						return true;
 					}
 				}
+			} // End attempts loop
+		} // End player loop
+	} // End group loop
 
-				if (found_valid) {
-					// Found a valid position!
-					position = final_pos;
-
-					// Calculate angle facing the player
-					vec3_t dir = position - player->s.origin;
-					dir.z = 0; // Keep angle level
-					angles = vectoangles(dir);
-
-					// Set flag indicating whether we used a human player
-					used_human_player = group.is_human;
-
-					if (developer->integer) {
-						gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: true\n");
-					}
-					return true;
-				}
-			}
-		}
-	}
-
-	// No valid position found after all attempts
+	// --- 5. Failure ---
 	if (developer->integer) {
-		gi.Com_PrintFmt("DEBUG: Finished FindEmergencySpawnPosition, result: false (no valid position)\n");
+		gi.Com_PrintFmt("FindEmergencySpawnPosition: Failed to find any valid position after all attempts.\n");
 	}
 	return false;
 }
@@ -4992,113 +4951,187 @@ bool AreHumanPlayersPresent() {
 	return false;
 }
 
+static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
+	FilterData* filter_data = static_cast<FilterData*>(data);
 
-// --- ValidateSpawnPosition (Corrected Logging) ---
+	if (ent == filter_data->ignore_ent) { // Ignore self if specified
+		return BoxEdictsResult_t::Skip;
+	}
+	if (ent->client && ent->inuse) { // Player/Bot check
+		filter_data->count++;
+		return BoxEdictsResult_t::End;
+	}
+	if ((ent->svflags & SVF_MONSTER) && ent->inuse && !ent->deadflag) { // Live Monster check
+		filter_data->count++;
+		return BoxEdictsResult_t::End;
+	}
+	if (ent->inuse && IsPlayerDefense(ent)) { // Player Defense check
+		filter_data->count++;
+		return BoxEdictsResult_t::End;
+	}
+	return BoxEdictsResult_t::Skip;
+}
 
 bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs, bool allow_defense_fallback) {
-	// --- Original Initial Checks ---
+
+	// 1. Check Initial Position for Solid Geometry using Trace
 	trace_t trace = gi.trace(position, mins, maxs, position, nullptr, MASK_MONSTERSOLID);
-	bool is_initially_solid = trace.startsolid || trace.allsolid;
-	bool has_defense = false;
-	if (!is_initially_solid) {
-		trace_t defense_trace = gi.trace(position, mins, maxs, position, nullptr, MASK_PLAYERSOLID);
-		has_defense = (defense_trace.ent && defense_trace.ent != world && IsPlayerDefense(defense_trace.ent));
-	}
+	bool is_solid = trace.startsolid || trace.allsolid;
 
-	if (!is_initially_solid && !has_defense) {
-		// *** ADDED OUTWARD CHECK ***
-		// Check immediate surroundings for clearance after confirming center is clear
-		bool surroundings_clear = true;
-		constexpr float clearance_check_dist = 4.0f; // Check just a few units out
-		const vec3_t check_dirs[] = { {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0} }; // Check X and Y axes
-		for (const auto& dir : check_dirs) {
-			vec3_t end_check = position + dir * clearance_check_dist;
-			trace_t outward_trace = gi.trace(position, vec3_origin, vec3_origin, end_check, nullptr, MASK_SOLID); // Trace a point, not full bbox
-			if (outward_trace.fraction < 1.0f) {
-				surroundings_clear = false;
-				break;
-			}
+	// 2. Perform Initial Comprehensive BoxEdicts Check (Players, Monsters, Defenses)
+	FilterData box_check_data = { nullptr, 0 };
+	// Use constants from namespace
+	vec3_t box_mins = position + HordeConstants::VALIDATE_CHECK_MINS;
+	vec3_t box_maxs = position + HordeConstants::VALIDATE_CHECK_MAXS;
+	gi.BoxEdicts(box_mins, box_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &box_check_data);
+	bool is_box_blocked = (box_check_data.count > 0);
+
+	// 3. Differentiate Block Reason (if box blocked, but not by solid trace)
+	bool blocked_by_player_or_monster = false;
+	bool blocked_only_by_defense = false;
+	edict_t* blocking_entity = nullptr;
+
+	if (is_box_blocked && !is_solid) {
+		FilterData player_monster_check = { nullptr, 0 };
+		// Use same box bounds again for secondary check
+		gi.BoxEdicts(box_mins, box_maxs, nullptr, 0, AREA_SOLID,
+			[](edict_t* ent, void* data) -> BoxEdictsResult_t {
+				FilterData* fd = static_cast<FilterData*>(data);
+				if ((ent->client && ent->inuse) || ((ent->svflags & SVF_MONSTER) && ent->inuse && !ent->deadflag)) {
+					fd->count++;
+					return BoxEdictsResult_t::End;
+				}
+				return BoxEdictsResult_t::Skip;
+			},
+			&player_monster_check);
+
+		if (player_monster_check.count > 0) {
+			blocked_by_player_or_monster = true;
+			blocking_entity = G_FindEntityInBox(box_mins, box_maxs, [](edict_t* ent) {
+				return (ent->client && ent->inuse) || ((ent->svflags & SVF_MONSTER) && ent->inuse && !ent->deadflag);
+				});
 		}
-		if (surroundings_clear) {
-			return true; // Position is clear and has immediate clearance
+		else {
+			blocked_only_by_defense = true;
+			blocking_entity = G_FindEntityInBox(box_mins, box_maxs, [](edict_t* ent) {
+				return ent->inuse && IsPlayerDefense(ent);
+				});
 		}
+		if (developer->integer > 1 && blocking_entity) {
+			gi.Com_PrintFmt("ValidateSpawnPosition: Initial pos {} blocked by {} ({})\n", position, blocking_entity->classname ? blocking_entity->classname : "entity", blocking_entity - g_edicts);
+		}
+	}
+	else if (is_solid) {
 		if (developer->integer > 1) {
-			gi.Com_PrintFmt("ValidateSpawnPosition: Center clear at {} but failed immediate surroundings check.\n", position);
+			gi.Com_PrintFmt("ValidateSpawnPosition: Initial pos {} blocked by solid geometry.\n", position);
 		}
-		// If surroundings not clear, fall through to offset checking
-		is_initially_solid = true; // Treat as solid for offset logic
-		// --- END ADDED OUTWARD CHECK ---
 	}
 
-	// --- Fallback Logic for initial solid or defense blocking ---
-	if (is_initially_solid || (has_defense && !allow_defense_fallback)) {
-		// --- Offset Checking Logic (same as before) ---
-		const std::array<float, 5> offsets = { 0.0f, 10.0f, -10.0f, 20.0f, -20.0f };
-		int defense_blocks = 0;
-		int solid_blocks = 0;
-		vec3_t best_fallback_pos = position;
-		bool found_fallback = false;
+	// --- Scenario 1: Initially Clear ---
+	if (!is_solid && !is_box_blocked) {
+		if (developer->integer > 2) {
+			gi.Com_PrintFmt("ValidateSpawnPosition: Initial pos {} is clear.\n", position);
+		}
+		return true;
+	}
+
+	// --- Scenario 2: Blocked - Attempt Offset Checking ---
+	if (is_solid || blocked_by_player_or_monster || (blocked_only_by_defense && !allow_defense_fallback)) {
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("ValidateSpawnPosition: Initial pos {} blocked, attempting offsets...\n", position);
+		}
+
+		const std::array<float, 5> offsets = { 0.0f, 12.0f, -12.0f, 24.0f, -24.0f };
+		vec3_t original_pos = position;
+		vec3_t best_defense_fallback_pos = position;
+		bool found_clear_offset = false;
+		bool found_defense_fallback_offset = false;
 
 		for (float xOffset : offsets) {
 			for (float yOffset : offsets) {
 				for (float zOffset : offsets) {
 					if (xOffset == 0.0f && yOffset == 0.0f && zOffset == 0.0f) continue;
 
-					vec3_t test_pos = position + vec3_t{ xOffset, yOffset, zOffset };
+					vec3_t test_pos = original_pos + vec3_t{ xOffset, yOffset, zOffset };
+
+					// a) Check offset solidity (Trace)
 					trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_MONSTERSOLID);
+					if (trace.startsolid || trace.allsolid) continue;
 
-					if (trace.startsolid || trace.allsolid) {
-						solid_blocks++;
-						continue;
-					}
+					// b) Check offset box occupancy (SpawnPointFilter)
+					box_check_data = { nullptr, 0 };
+					vec3_t offset_box_mins = test_pos + HordeConstants::VALIDATE_CHECK_MINS; // Use constants
+					vec3_t offset_box_maxs = test_pos + HordeConstants::VALIDATE_CHECK_MAXS; // Use constants
+					gi.BoxEdicts(offset_box_mins, offset_box_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &box_check_data);
 
-					trace_t defense_trace = gi.trace(test_pos, mins, maxs, test_pos, nullptr, MASK_PLAYERSOLID);
-					if (defense_trace.ent && defense_trace.ent != world && IsPlayerDefense(defense_trace.ent)) {
-						defense_blocks++;
-						if (!found_fallback) {
-							best_fallback_pos = test_pos;
-							found_fallback = true;
+					if (box_check_data.count == 0) {
+						// Found a completely clear offset!
+						position = test_pos;
+						found_clear_offset = true;
+						if (developer->integer > 1) {
+							gi.Com_PrintFmt("ValidateSpawnPosition: Found clear offset at {}\n", position);
 						}
-						continue;
+						goto FoundValidOffset; // Exit loops
 					}
+					else {
+						// Box check failed. Check if it was ONLY a defense.
+						FilterData player_monster_check = { nullptr, 0 };
+						gi.BoxEdicts(offset_box_mins, offset_box_maxs, nullptr, 0, AREA_SOLID,
+							[](edict_t* ent, void* data) -> BoxEdictsResult_t {
+								FilterData* fd = static_cast<FilterData*>(data);
+								if ((ent->client && ent->inuse) || ((ent->svflags & SVF_MONSTER) && ent->inuse && !ent->deadflag)) {
+									fd->count++; return BoxEdictsResult_t::End;
+								}
+								return BoxEdictsResult_t::Skip;
+							}, &player_monster_check);
 
-					// Found a valid, clear position (double-check surroundings optional here too, but might be overkill)
-					position = test_pos;
-					if (developer->integer > 1) {
-						gi.Com_PrintFmt("ValidateSpawnPosition: Adjusted position to {}\n", position);
+						if (player_monster_check.count == 0) { // Blocked ONLY by defense
+							if (!found_defense_fallback_offset) {
+								best_defense_fallback_pos = test_pos;
+								found_defense_fallback_offset = true;
+							}
+						}
+						// Blocked by player/monster, continue
 					}
-					return true;
-				}
-			}
+				} // zOffset
+			} // yOffset
+		} // xOffset
+
+	FoundValidOffset:; // Label for goto
+
+		// --- Evaluate results after checking offsets ---
+		if (found_clear_offset) {
+			return true;
 		}
-
-		// No clear position found nearby via offsets. Use defense fallback if allowed.
-		if (allow_defense_fallback && found_fallback) {
-			position = best_fallback_pos;
+		else if (allow_defense_fallback && found_defense_fallback_offset) {
+			position = best_defense_fallback_pos;
 			if (developer->integer > 1) {
-				gi.Com_PrintFmt("ValidateSpawnPosition: Using defense-blocked fallback position {}\n", position);
+				gi.Com_PrintFmt("ValidateSpawnPosition: Using defense-blocked fallback offset position {}\n", position);
 			}
 			return true;
 		}
-
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("ValidateSpawnPosition failed for origin {}: {} solid, {} defense blocks nearby.\n",
-				position, solid_blocks, defense_blocks);
+		else {
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("ValidateSpawnPosition failed: Could not find suitable offset from origin {}.\n", original_pos);
+			}
+			return false;
 		}
-		return false; // No valid position found nearby
-	}
-	else if (has_defense && allow_defense_fallback) {
-		// Original position was not solid, but had defense, and fallback is allowed
+	} // End offset checking block
+
+	// --- Scenario 3: Initial position blocked ONLY by defense, AND fallback IS allowed ---
+	if (blocked_only_by_defense && allow_defense_fallback) {
 		if (developer->integer > 1) {
-			gi.Com_PrintFmt("ValidateSpawnPosition: Using fallback position with player defense at {}\n", position);
+			gi.Com_PrintFmt("ValidateSpawnPosition: Using initial pos {} blocked only by defense (fallback allowed).\n", position);
 		}
 		return true;
 	}
 
-	// Should not be reached if logic is correct, but acts as final false
+	// --- Default Fail ---
+	if (developer->integer) {
+		gi.Com_PrintFmt("ValidateSpawnPosition: Reached unexpected end state for origin {}.\n", position);
+	}
 	return false;
 }
-
 
 // --- Static/Global Variables specific to CheckAndTeleportStuckMonster ---
 static int recent_teleport_count = 0;
@@ -5566,9 +5599,6 @@ bool IsPositionTooCloseToRecent(const vec3_t& position, float min_distance) {
 bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles) {
 	// Constants for alternative spawn positions
 	constexpr float HEIGHT_OFFSET = 8.0f;
-	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };  // Approximate monster bounds
-	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };     // Adjust as needed
-
 	// Start with the spawn point's position and angles
 	const vec3_t base_origin = spawn_point->s.origin;
 	const vec3_t base_angles = spawn_point->s.angles;
@@ -5580,7 +5610,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
 		// Use improved validation - initially don't allow fallback
 		// *** ADDED 4th ARGUMENT (false) ***
-		if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS, false)) {
+		if (ValidateSpawnPosition(test_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, false)) {
 			// Add check for proximity to recent spawn positions
 			if (!IsPositionTooCloseToRecent(test_origin, 60.0f)) {
 				final_origin = test_origin;
@@ -5620,7 +5650,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
 				// Try drop to floor if we need to
 				if (height_offset >= 0) {  // Only drop from zero or above positions
-					AttemptDropToFloor(test_origin, MONSTER_MINS, MONSTER_MAXS);
+					AttemptDropToFloor(test_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS);
 				}
 
 				// Special handling for specific monster types
@@ -5644,7 +5674,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
 				// Validate final position - initially don't allow fallback
 				// *** ADDED 4th ARGUMENT (false) ***
-				if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS, false)) {
+				if (ValidateSpawnPosition(test_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, false)) {
 					// Check for proximity to recent spawn positions
 					if (!IsPositionTooCloseToRecent(test_origin, 60.0f)) {
 						final_origin = test_origin;
@@ -5676,11 +5706,11 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
 				// Try drop to floor for positions with positive Z offset
 				if (zOffset >= 0) {
-					AttemptDropToFloor(test_origin, MONSTER_MINS, MONSTER_MAXS);
+					AttemptDropToFloor(test_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS);
 				}
 
 				// *** ADDED 4th ARGUMENT (false) ***
-				if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS, false)) {
+				if (ValidateSpawnPosition(test_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, false)) {
 					final_origin = test_origin;
 					final_angles = base_angles;
 					// Adjust yaw to face away from the center point for better positioning
@@ -5706,7 +5736,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 			vec3_t test_origin = base_origin + offset;
 			// Allow defense fallback set to true as last resort
 			// *** ADDED 4th ARGUMENT (true) ***
-			if (ValidateSpawnPosition(test_origin, MONSTER_MINS, MONSTER_MAXS, true)) {
+			if (ValidateSpawnPosition(test_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, true)) {
 				final_origin = test_origin;
 				final_angles = base_angles;
 				final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
@@ -5742,13 +5772,9 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		return false;
 	}
 
-	// Additional validation of final position with improved validation
-	constexpr vec3_t MONSTER_MINS = { -16, -16, -24 };
-	constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
-
 	// Use improved validation logic - allow fallback since it's emergency
 	// *** ADDED 4th ARGUMENT (true) ***
-	if (!ValidateSpawnPosition(emergency_origin, MONSTER_MINS, MONSTER_MAXS, true)) {
+	if (!ValidateSpawnPosition(emergency_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, true)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position validation failed\n");
 		}
@@ -6354,37 +6380,21 @@ edict_t* SpawnMonsters() {
 			}
 
 			// *** PRE-SPAWN VALIDATION of final_origin ***
-			constexpr vec3_t MONSTER_MINS = { -16, -16, -24 }; // Use representative bounds
-			constexpr vec3_t MONSTER_MAXS = { 16, 16, 32 };
-			// Attempt validation, initially disallowing fallback into defense positions
-			if (!ValidateSpawnPosition(final_origin, MONSTER_MINS, MONSTER_MAXS, false))
-			{
-				// If initial validation fails, try again *allowing* fallback into defense positions
-				if (!ValidateSpawnPosition(final_origin, MONSTER_MINS, MONSTER_MAXS, true)) {
-					// If validation fails *even with* fallback allowed
-					if (developer->integer > 1) {
-						// Log the complete failure using fmt formatting for vec3_t
-						gi.Com_PrintFmt("SpawnMonsters: ValidateSpawnPosition failed completely for point {}, final_origin {}.\n",
-							(int)(spawn_point - g_edicts), final_origin);
-					}
-					// Penalize the spawn point (original or alternative appropriately)
-					if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
-					else IncreaseSpawnAttempts(spawn_point);
+			bool allow_fallback = used_alternative; // Allow fallback if we used an alternative? Or always allow? (Decision needed)
 
-					g_consecutive_spawn_failures++; // Increment global failure counter
-					continue; // Skip to the next spawn point for *this* monster attempt
-				}
-				// If validation succeeded *only with* fallback, log it and proceed
+			if (!ValidateSpawnPosition(final_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, allow_fallback)) {
 				if (developer->integer > 1) {
-					// Log using fmt formatting for vec3_t
-					gi.Com_PrintFmt("SpawnMonsters: Used defense fallback validation for point {}, final_origin {}.\n",
+					gi.Com_PrintFmt("SpawnMonsters: Final validation failed for point {}, origin {}.\n",
 						(int)(spawn_point - g_edicts), final_origin);
 				}
+				// Penalize the point appropriately (original or alternative)
+				if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
+				else IncreaseSpawnAttempts(spawn_point);
+				g_consecutive_spawn_failures++;
+				continue; // Skip to next point in the *outer* loop (try next spawn point for *this* monster)
 			}
-			// If validation succeeded (either initially or with fallback), proceed to spawn
 
-			// --- Spawn the Monster ---
-			// Attempt to spawn the selected monster at the validated final position
+			// Validation passed, now spawn:
 			edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles);
 
 			// Check if spawning the entity was successful

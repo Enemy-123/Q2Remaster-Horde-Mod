@@ -1341,12 +1341,12 @@ void OnEntityDeath(edict_t* self) noexcept
 		// self->nextthink = self->timestamp;
 	}
 
-	// --- Optional Debug Logging ---
-	if (developer && developer->integer > 1) {
-		gi.Com_PrintFmt("OnEntityDeath: Processed entity {} ({}). HordeFade: {}\n",
-			self->s.number, self->classname ? self->classname : "unknown",
-			apply_horde_fade ? "Yes" : "No");
-	}
+	//// --- Optional Debug Logging ---
+	//if (developer && developer->integer > 1) {
+	//	gi.Com_PrintFmt("OnEntityDeath: Processed entity {} ({}). HordeFade: {}\n",
+	//		self->s.number, self->classname ? self->classname : "unknown",
+	//		apply_horde_fade ? "Yes" : "No");
+	//}
 }
 
 inline void OnEntityRemoved(edict_t* self) noexcept {
