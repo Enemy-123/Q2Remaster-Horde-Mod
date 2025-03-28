@@ -979,7 +979,7 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		ShowInventory(ent);
 		// Keep menu open? Let's close it for consistency.
 	}
-	else if (option == base_offset_after_vote + 3) { // Close
+	else if (option == p->num - 1) { // Close ( will be always the last option p->num -1)
 		// No action needed, will be closed by shouldCloseMenu logic
 	}
 	else {
@@ -988,7 +988,6 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		// Or close it if you prefer that behavior:
 		// shouldCloseMenu = true;
 	}
-
 
 	if (shouldCloseMenu && ent->client->menu) {
 		PMenu_Close(ent);
@@ -1011,7 +1010,7 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 
 	// Max entries needed: Title(1)+Blank(1)+Spec(1)+VoteQ(1)+VoteY(1)+VoteN(1)+HUD(1)+Tech(1)+Inv(1)+Close(1) = 10
 	// Using 13 for safety margin.
-	static pmenu_t entries[13];
+	static pmenu_t entries[18];
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
@@ -1059,7 +1058,15 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
 	// Optional blank separator before close, if desired for spacing
-	// add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
+	 add_entry("", PMENU_ALIGN_CENTER);
 
 	// 7. Close
 	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
