@@ -166,158 +166,166 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 }
 // --- Ensure TurretSpawnFilterData and TurretSpawnBoxFilter are defined before this ---
 
-bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction, int attempt = 0)
+bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& direction)
 {
-	vec3_t forward, right, up;
-	vec3_t start, end;
-	trace_t tr;
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
-
-	struct BestPositionData {
-		vec3_t pos; vec3_t dir; float distance; bool valid; bool in_front;
-	};
-	static BestPositionData best_position;
-
-	if (attempt == 0) {
-		best_position = {}; // Reset for new search sequence
-	}
-
 	if (!self || !self->inuse) {
-		position = vec3_origin; // Ensure output params are cleared on failure
+		position = vec3_origin;
 		direction = vec3_origin;
 		return false;
 	}
 
-	AngleVectors(self->s.angles, forward, right, up);
-	start = self->s.origin;
+	// --- Data for tracking the best position found so far IN THIS SEARCH ---
+	struct BestPositionData {
+		vec3_t pos = vec3_origin;
+		vec3_t dir = vec3_origin; // Surface normal
+		float distance = -1.0f;
+		bool valid = false;
+		bool in_front = false;
+	} best_position; // Initialize fresh for each call
 
-	// --- Retry / Angle Variation Logic ---
-	if (attempt > 0) {
-		vec3_t current_forward = forward; // Store original forward vector if needed
-		vec3_t angles = vectoangles(current_forward); // Calculate angles from current forward
-		if (attempt <= 4) {
-			angles[YAW] += (attempt - 1) * 30.0f - 45.0f;
-			angles[PITCH] = -15.0f;
+	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	float trace_distance = isboss ? 1000.0f : 700.0f;
+	vec3_t start = self->s.origin;
+	vec3_t initial_forward;
+	AngleVectors(self->s.angles, initial_forward, nullptr, nullptr); // Get current facing
+
+	// --- Loop through different angles/attempts ---
+	const int max_attempts = 12;
+	for (int attempt = 0; attempt < max_attempts; ++attempt) {
+		vec3_t current_forward;
+		vec3_t angles = self->s.angles; // Start with current angles
+
+		// --- Angle Variation Logic ---
+		if (attempt == 0) {
+			current_forward = initial_forward; // Use initial facing for first attempt
 		}
 		else {
-			angles[YAW] += (attempt - 4) * 45.0f;
-			angles[PITCH] += (frandom() - 0.5f) * 20.0f - 15.0f;
+			// Modify angles based on attempt number
+			if (attempt <= 6) { // Check horizontal +/- 90 degrees first
+				angles[YAW] += (attempt - 1) * 30.0f - 75.0f; // Scan +/- 75 degrees
+				angles[PITCH] = -15.0f; // Slightly downward bias
+			}
+			else { // Check wider horizontal and some vertical variation
+				angles[YAW] += (attempt - 7) * 60.0f - 150.0f; // Scan +/- 150 degrees
+				angles[PITCH] += (frandom() - 0.5f) * 30.0f - 15.0f; // +/- 15 degree pitch variation around -15
+			}
+			// Normalize angles just in case
+			if (angles[YAW] > 360) angles[YAW] -= 360;
+			if (angles[YAW] < 0) angles[YAW] += 360;
+			if (angles[PITCH] > 360) angles[PITCH] -= 360;
+			if (angles[PITCH] < 0) angles[PITCH] += 360;
+
+			AngleVectors(angles, current_forward, nullptr, nullptr); // Update forward vector
 		}
-		AngleVectors(angles, forward, nullptr, nullptr); // Update forward vector based on new angles
-	}
-	// --- End Retry / Angle Variation ---
+		// --- End Angle Variation ---
 
-	float trace_distance = isboss ? 1000.0f : 700.0f;
-	end = start + (forward * trace_distance);
+		vec3_t end = start + (current_forward * trace_distance);
+		trace_t tr = gi.traceline(start, end, self, MASK_SOLID); // Trace only against world solid
 
-	tr = gi.traceline(start, end, self, MASK_SOLID); // Trace only against world solid first
+		if (tr.fraction >= 1.0) { // Didn't hit anything solid in range
+			continue;
+		}
 
-	if (tr.fraction < 1.0) { // Hit world geometry
 		// Check if hit entity is suitable (world, func_wall, etc.)
-		if (tr.ent == world || (tr.ent->classname && strstr(tr.ent->classname, "func_") == 0))
-		{
-			direction = tr.plane.normal;
-			if (fabs(direction[2]) > 0.9f) {
-				direction[2] = (direction[2] > 0) ? 0.7f : -0.7f;
-				direction.normalize();
-			}
-			vec3_t candidate_pos = tr.endpos + (direction * 16.0f);
-
-			vec3_t mins = { -16, -16, -24 }; // Turret bounds
-			vec3_t maxs = { 16, 16, 24 };
-
-			// --- Use BoxEdicts for validation ---
-			TurretSpawnFilterData filter_data;
-			filter_data.self = self;
-			filter_data.check_pos = candidate_pos;
-			filter_data.min_distance_sq = isboss ? (112.0f * 112.0f) : (144.0f * 144.0f);
-			filter_data.blocked = false;
-
-			vec3_t box_mins = candidate_pos + mins;
-			vec3_t box_maxs = candidate_pos + maxs;
-
-			gi.BoxEdicts(box_mins, box_maxs, nullptr, 0, AREA_SOLID, TurretSpawnBoxFilter, &filter_data);
-
-			if (!filter_data.blocked) {
-				// --- BoxEdicts check passed ---
-				vec3_t to_pos_vec = candidate_pos - self->s.origin;
-				float dist = to_pos_vec.length();
-
-				if (dist > 0.1f) {
-					// Use G_IsClearPath from shared utils if available, else basic traceline
-					bool clear_path = G_IsClearPath(self, MASK_SOLID, self->s.origin, candidate_pos);
-
-					if (clear_path) {
-						to_pos_vec.normalize();
-						vec3_t current_fwd;
-						AngleVectors(self->s.angles, current_fwd, nullptr, nullptr);
-						bool pos_in_front = (to_pos_vec.dot(current_fwd) > 0.1f);
-
-						// --- Evaluate position quality ---
-						bool better_position = false;
-						if (!best_position.valid) {
-							better_position = true;
-						}
-						else if (pos_in_front && !best_position.in_front) {
-							better_position = true;
-						}
-						else if (pos_in_front == best_position.in_front) {
-							if (dist > best_position.distance && dist < (best_position.distance * 1.5f)) {
-								better_position = true;
-							}
-							else if (dist < best_position.distance && best_position.distance > trace_distance * 0.7f) {
-								better_position = true;
-							}
-						}
-
-						if (better_position) {
-							best_position.pos = candidate_pos;
-							best_position.dir = direction; // Surface normal
-							best_position.distance = dist;
-							best_position.valid = true;
-							best_position.in_front = pos_in_front;
-							if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position: Found new best candidate pos {} (dist {:.1f}, front {})\n", candidate_pos, dist, pos_in_front);
-						}
-
-						// Don't return early, let all angles for this attempt be checked to find the *best* one
-					} // end clear_path
-					else if (developer->integer > 1) {
-						gi.Com_PrintFmt("find_turret_spawn_position: Candidate {} path blocked.\n", candidate_pos);
-					}
-				} // end dist > 0.1f
-			} // end !filter_data.blocked
-			else if (developer->integer > 1) {
-				// Already logged failure reason inside filter
-			}
-		} // end if valid trace hit entity
-		else if (developer->integer > 1) {
-			// Check classname exists before printing
-			const char* hit_classname = tr.ent->classname ? tr.ent->classname : "?";
-			gi.Com_PrintFmt("find_turret_spawn_position: Trace hit invalid entity %s\n", hit_classname);
+		if (tr.ent != world && !(tr.ent->classname && strstr(tr.ent->classname, "func_") == 0)) {
+			// Hit something unsuitable (e.g., another monster, player, invalid func_)
+			continue;
 		}
-	} // end trace hit something
 
-	// --- Retry or Use Best Found ---
-	if (attempt < 12) {
-		return find_turret_spawn_position(self, position, direction, attempt + 1);
-	}
+		vec3_t surface_normal = tr.plane.normal;
+		if (fabs(surface_normal[2]) > 0.9f) { // Too steep floor/ceiling? Adjust normal slightly
+			surface_normal[2] = (surface_normal[2] > 0) ? 0.7f : -0.7f;
+			surface_normal.normalize();
+		}
+		vec3_t candidate_pos = tr.endpos + (surface_normal * 16.0f); // Position slightly off the wall
 
-	// --- Exhausted attempts, evaluate best_position ---
+		// --- Use BoxEdicts for further validation ---
+		// Use turret specific bounds, adjust as needed
+		const vec3_t turret_mins = { -12, -12, -12 };
+		const vec3_t turret_maxs = { 12, 12, 12 };
+		TurretSpawnFilterData filter_data;
+		filter_data.self = self;
+		filter_data.check_pos = candidate_pos; // Center of the box check
+		filter_data.min_distance_sq = isboss ? (112.0f * 112.0f) : (144.0f * 144.0f);
+		filter_data.blocked = false;
+
+		vec3_t box_mins = candidate_pos + turret_mins;
+		vec3_t box_maxs = candidate_pos + turret_maxs;
+
+		gi.BoxEdicts(box_mins, box_maxs, nullptr, 0, AREA_SOLID, TurretSpawnBoxFilter, &filter_data);
+
+		if (filter_data.blocked) { // Blocked by proximity, other defense, liquid, etc.
+			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt %d): Candidate {} blocked by BoxEdicts.\n", attempt, candidate_pos);
+			continue;
+		}
+
+		// --- BoxEdicts check passed ---
+		// Check path from fixbot to candidate position
+		if (!G_IsClearPath(self, MASK_SOLID, self->s.origin, candidate_pos)) {
+			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt %d): Path to candidate {} blocked.\n", attempt, candidate_pos);
+			continue;
+		}
+
+		// --- Path Clear - Evaluate Position Quality ---
+		vec3_t to_pos_vec = candidate_pos - self->s.origin;
+		float dist = to_pos_vec.length();
+
+		if (dist <= 16.0f) { // Too close to self
+			continue;
+		}
+		to_pos_vec.normalize(); // Normalize after length check
+
+		bool pos_in_front = (to_pos_vec.dot(initial_forward) > 0.1f); // Check against initial facing
+
+		bool is_better = false;
+		if (!best_position.valid) {
+			is_better = true; // First valid position is the best so far
+		}
+		else {
+			// Prefer positions in front
+			if (pos_in_front && !best_position.in_front) {
+				is_better = true;
+			}
+			else if (pos_in_front == best_position.in_front) {
+				// If front/back status is same, prefer closer positions within reason
+				if (dist < best_position.distance) {
+					is_better = true;
+				}
+				// Consider slightly further positions if current best is very close
+				else if (dist < best_position.distance * 1.2f && best_position.distance < trace_distance * 0.3f) {
+					is_better = true;
+				}
+			}
+		}
+
+		if (is_better) {
+			best_position.pos = candidate_pos;
+			best_position.dir = surface_normal;
+			best_position.distance = dist;
+			best_position.valid = true;
+			best_position.in_front = pos_in_front;
+			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt %d): Found new best candidate pos {} (dist {:.1f}, front {})\n", attempt, candidate_pos, dist, pos_in_front);
+		}
+	} // --- End attempt loop ---
+
+	// --- Final Decision ---
 	if (best_position.valid) {
-		position = best_position.pos;
-		direction = best_position.dir;
+		// --- Perform a FINAL validation using the more robust ValidateSpawnPosition ---
+		// This ensures the spot is clear *right now* before returning success.
+		// Allow fallback into defenses might be okay here since it's a temporary entity.
+		vec3_t final_pos = best_position.pos; // Copy to avoid modifying best_position
+		const vec3_t turret_mins = { -12, -12, -12 };
+		const vec3_t turret_maxs = { 12, 12, 12 };
 
-		// Use constants from HordeConstants namespace if available
-		const vec3_t& turret_mins = { -12, -12, -12 };
-		const vec3_t& turret_maxs = { 12, 12, 12 };
-
-		// Perform a FINAL validation using the more robust ValidateSpawnPosition
-		if (ValidateSpawnPosition(position, turret_mins, turret_maxs, true)) {
-			if (developer->integer > 0) gi.Com_PrintFmt("find_turret_spawn_position: SUCCESS using best pos {} after {} attempts.\n", position, attempt + 1); // attempt+1 for total
+		if (ValidateSpawnPosition(final_pos, turret_mins, turret_maxs, true)) // Allow fallback=true
+		{
+			position = final_pos; // Update output parameter
+			direction = best_position.dir;
+			if (developer->integer > 0) gi.Com_PrintFmt("find_turret_spawn_position: SUCCESS using best pos {} after all attempts.\n", position);
 			return true;
 		}
 		else {
-			if (developer->integer > 0) gi.Com_PrintFmt("find_turret_spawn_position: Best pos {} FAILED final ValidateSpawnPosition check.\n", position);
+			if (developer->integer > 0) gi.Com_PrintFmt("find_turret_spawn_position: Best pos {} FAILED final ValidateSpawnPosition check.\n", best_position.pos);
 		}
 	}
 
@@ -325,7 +333,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	position = vec3_origin;
 	direction = vec3_origin;
 	if (developer->integer > 0) {
-		gi.Com_PrintFmt("find_turret_spawn_position: Failed to find ANY valid position after {} attempts.\n", attempt + 1); // attempt+1 for total
+		gi.Com_PrintFmt("find_turret_spawn_position: Failed to find ANY valid position after all attempts.\n");
 	}
 	return false;
 }
@@ -531,50 +539,45 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		return;
 	}
 
+	// *** REMOVED FINAL VALIDATION CALL HERE ***
+	// Validation is now assumed to be handled correctly by the caller (find_turret_spawn_position)
+
+	// --- Spawning proceeds ---
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
-
-	// --- FINAL VALIDATION REMOVED - Assumed valid by find_turret_spawn_position ---
-	// Note: ValidateSpawnPosition was called at the end of find_turret_spawn_position
-
-	// --- Spawning is considered safe from this point ---
-
 	vec3_t dir;
 	edict_t* ent;
 
-	// Determine direction
+	// Determine direction (same logic as before)
 	if (self->enemy && self->enemy->inuse) {
 		dir = self->enemy->s.origin - position;
 	}
 	else {
-		dir = position - self->s.origin; // Aim away from fixbot as fallback
+		dir = position - self->s.origin;
 	}
-	// Ensure direction is valid before normalizing and calculating angles
-	if (dir.lengthSquared() <= 0.01f) { // Check squared length to avoid sqrt
-		dir = { 1.0f, 0.0f, 0.0f }; // Default forward if too close
+	if (dir.lengthSquared() <= 0.01f) {
+		dir = { 1.0f, 0.0f, 0.0f };
 	}
 	else {
 		dir.normalize();
 	}
 
-
 	// Create entity
 	ent = G_Spawn();
 	if (!ent) {
 		if (developer->integer > 0) gi.Com_PrintFmt("spawn_turret_at_position: G_Spawn failed.\n");
-		return; // Critical failure
+		return;
 	}
 
-	// Setup properties
+	// Setup properties (same as before)
 	ent->classname = "monster_turret";
 	ent->s.origin = position;
-	ent->s.angles = vectoangles(dir); // Set angles based on calculated dir
+	ent->s.angles = vectoangles(dir);
 	ent->owner = self;
 	ent->monsterinfo.commander = self;
 	ent->monsterinfo.team = self->monsterinfo.team;
 	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_IGNORE_SHOTS;
 
-
-	// Sound & Visuals
+	// Sound & Visuals (same as before)
 	if (sound_spawn)
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1, isboss ? ATTN_NONE : ATTN_NORM, 0);
 	float size = 38.0f;
@@ -584,25 +587,22 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	gi.WritePosition(position);
 	gi.multicast(position, MULTICAST_PVS, false);
 
-
-	// Update count
+	// Update count (same as before)
 	if (self->monsterinfo.monster_slots) {
 		self->monsterinfo.monster_used += 1;
 	}
 
-
-	// Finalize spawn
+	// Finalize spawn (same as before)
 	ED_CallSpawn(ent);
-	if (!ent->inuse) { // Check if ED_CallSpawn failed
+	if (!ent->inuse) {
 		if (developer->integer > 0) gi.Com_PrintFmt("spawn_turret_at_position: ED_CallSpawn failed for turret.\n");
-		// Decrement slot count if ED_CallSpawn failed
 		if (self->monsterinfo.monster_slots) {
 			self->monsterinfo.monster_used = std::max(0, self->monsterinfo.monster_used - 1);
 		}
-		return; // Don't proceed with post-spawn setup
+		return;
 	}
 
-	// Post-spawn setup
+	// Post-spawn setup (same as before)
 	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
 		ent->enemy = self->enemy;
 		FoundTarget(ent);
@@ -614,6 +614,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		gi.Com_PrintFmt("spawn_turret_at_position: Successfully spawned turret at {}.\n", position);
 	}
 }
+
 mframe_t fixbot_frames_run[] = {
 	{ ai_run, 10 }
 };
