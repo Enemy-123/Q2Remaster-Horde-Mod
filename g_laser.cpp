@@ -171,7 +171,7 @@ namespace LaserHelpers {
         }
     }
 
-    static PlayerLaserManager* get_laser_manager(edict_t* ent) {
+    PlayerLaserManager* get_laser_manager(edict_t* ent) {
         if (!ent || !ent->client) return nullptr;
         auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
         return holder ? static_cast<PlayerLaserManager*>(holder->manager_ptr) : nullptr;

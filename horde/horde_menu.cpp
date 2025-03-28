@@ -6,6 +6,7 @@
 #include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
 #include "g_horde.h"    // For GetMapSize
 #include "g_horde_benefits.h"
+#include "../laser.h"
 
 constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0095";
 
@@ -936,60 +937,70 @@ void CheckAndUpdateMenus() {
 
 // Handles selections in the main Horde menu
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p) return;
+	if (!ent || !ent->client || !p || !p->entries || p->cur < 0 || p->cur >= p->num) return; // Added bounds check for p->cur
 
 	const int option = p->cur;
-	bool shouldCloseMenu = true; // Assume menu should close unless opening a sub-menu
+	const pmenu_t* selected_entry = &p->entries[option]; // Get the selected entry struct
+	bool shouldCloseMenu = true;
 
-	// Determine base index offset for options after the variable vote section
-	int base_offset_after_vote = 0;
-	bool vote_in_progress = (ctfgame.election != ELECT_NONE);
+	// Use text comparison for actions where index might vary
+	const char* selected_text = selected_entry->text;
 
-	if (vote_in_progress) {
-		base_offset_after_vote = 6; // Title(0), Blank(1), Spec(2), VoteQ(3), VoteY(4), VoteN(5) -> Next option is 6
-	}
-	else {
-		base_offset_after_vote = 4; // Title(0), Blank(1), Spec(2), VoteMap(3) -> Next option is 4
-	}
-
-	// Map options to their corresponding actions based on the new order
-	if (option == 2) { // Go Spectator/AFK
+	// --- Standard Actions (some might still use index if fixed) ---
+	if (option == 2 && strcmp(selected_text, "Go Spectator/AFK") == 0) {
 		CTFObserver(ent);
-		shouldCloseMenu = false; // CTFObserver handles menu closing if necessary
+		shouldCloseMenu = false; // CTFObserver might handle closing
 	}
-	else if (!vote_in_progress && option == 3) { // Vote Map (only when no vote active)
+	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Map") == 0) {
 		OpenVoteMenu(ent);
 		shouldCloseMenu = false;
 	}
-	else if (vote_in_progress && option == 4) { // Vote Yes (only when vote active)
+	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote Yes") == 0) {
 		CTFVoteYes(ent);
 	}
-	else if (vote_in_progress && option == 5) { // Vote No (only when vote active)
+	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote No") == 0) {
 		CTFVoteNo(ent);
 	}
-	else if (option == base_offset_after_vote) { // HUD Options
+	else if (strcmp(selected_text, "HUD Options") == 0) {
 		OpenHUDMenu(ent);
 		shouldCloseMenu = false;
 	}
-	else if (option == base_offset_after_vote + 1) { // Change Tech
+	else if (strcmp(selected_text, "Swap Tech") == 0) {
 		OpenTechMenu(ent);
 		shouldCloseMenu = false;
 	}
-	else if (option == base_offset_after_vote + 2) { // Show Inventory
+	else if (strcmp(selected_text, "Show Inventory") == 0) {
 		ShowInventory(ent);
-		// Keep menu open? Let's close it for consistency.
+		// Decide if menu should close:
+		// shouldCloseMenu = true; // Closes after showing
+		shouldCloseMenu = false; // Stays open after showing
 	}
-	else if (option == p->num - 1) { // Close ( will be always the last option p->num -1)
-		// No action needed, will be closed by shouldCloseMenu logic
+	// --- New Action: Remove Lasers ---
+	// Use strncmp to check the beginning of the string, ignoring the count "(N)"
+	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
+		if (auto* manager = LaserHelpers::get_laser_manager(ent)) { // Check manager exists
+			if (manager->get_active_count() > 0) {
+				remove_lasers(ent); // Call the function from g_laser.cpp
+				gi.LocClient_Print(ent, PRINT_HIGH, "All your lasers have been removed.\n");
+			}
+			else {
+				gi.LocClient_Print(ent, PRINT_HIGH, "You have no active lasers to remove.\n"); // Should ideally not happen if menu item wasn't shown
+			}
+		}
+		// Menu should close after removing
+		shouldCloseMenu = true;
+	}
+	// --- End New Action ---
+	else if (strcmp(selected_text, "Close") == 0) {
+		// No action needed, handled by shouldCloseMenu
 	}
 	else {
-		// Clicked on title, blank, vote question, or invalid option
-		shouldCloseMenu = false; // Don't close if clicking non-actionable items
-		// Or close it if you prefer that behavior:
-		// shouldCloseMenu = true;
+		// Clicked on title, blank, vote question, or other non-actionable item
+		shouldCloseMenu = false;
 	}
 
-	if (shouldCloseMenu && ent->client->menu) {
+	// Close the menu if required and if it still exists
+	if (shouldCloseMenu && ent->client && ent->client->menu) { // Add ent->client check
 		PMenu_Close(ent);
 	}
 }
@@ -1008,12 +1019,12 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
-	// Max entries needed: Title(1)+Blank(1)+Spec(1)+VoteQ(1)+VoteY(1)+VoteN(1)+HUD(1)+Tech(1)+Inv(1)+Close(1) = 10
-	// Using 13 for safety margin.
-	static pmenu_t entries[18];
+	// Increased size slightly to accommodate the potential new entry + separators
+	static pmenu_t entries[20]; // Increased buffer slightly
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
+	// Helper lambda remains the same
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
 		if (count < static_cast<int>(std::size(entries))) {
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
@@ -1022,7 +1033,6 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 			count++;
 		}
 		else {
-			// Error logging can be added here if needed
 			gi.Com_Print("Warning: CreateHordeMenu exceeded static entry buffer size.\n");
 		}
 		};
@@ -1043,7 +1053,7 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		snprintf(vote_question, sizeof(vote_question), "Vote: %s", ctfgame.emsg);
 		vote_question[sizeof(vote_question) - 1] = '\0'; // Ensure null termination
 
-		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr); // Display question (not selectable)
+		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr); // Display question
 		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
@@ -1057,18 +1067,28 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	// 6. Show Inventory
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// Optional blank separator before close, if desired for spacing
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
-	 add_entry("", PMENU_ALIGN_CENTER);
+	// --- Conditional "Remove Lasers" ---
+	int laser_count = 0;
+	if (auto* manager = LaserHelpers::get_laser_manager(ent)) { // Use the helper
+		laser_count = manager->get_active_count();
+	}
 
-	// 7. Close
+	if (laser_count > 0) {
+		char remove_laser_text[64];
+		snprintf(remove_laser_text, sizeof(remove_laser_text), "Remove Lasers (%d)", laser_count);
+		add_entry(remove_laser_text, PMENU_ALIGN_LEFT, HordeMenuHandler); // Add the entry if lasers exist
+	}
+	// --- End Conditional ---
+
+	// Optional blank separators before close
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+	// ... (add more blanks if desired, up to the buffer limit) ...
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+
+	// Last Entry: Close
 	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
 	// Open the menu

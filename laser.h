@@ -56,23 +56,36 @@ public:
     // ~PlayerLaserManager(); // Likely not needed if it just holds pointers
 };
 
+
 // --- LaserManagerHolder Definition ---
+// This acts as a wrapper to manage the PlayerLaserManager lifetime via the gclient_t pointer
 class LaserManagerHolder {
 public:
     PlayerLaserManager* manager_ptr;
 
     // Constructor: Allocates the PlayerLaserManager
-    LaserManagerHolder(edict_t* owner_edict);
+    explicit LaserManagerHolder(edict_t* owner_edict); // Implementation needed in .cpp
 
     // Destructor: Deletes the PlayerLaserManager
-    ~LaserManagerHolder();
+    ~LaserManagerHolder(); // Implementation needed in .cpp
 
-    // Disable copy/move semantics to prevent accidental double deletion
+    // Disable copy/move semantics
     LaserManagerHolder(const LaserManagerHolder&) = delete;
     LaserManagerHolder& operator=(const LaserManagerHolder&) = delete;
     LaserManagerHolder(LaserManagerHolder&&) = delete;
     LaserManagerHolder& operator=(LaserManagerHolder&&) = delete;
 };
+
+
+// --- Helper Namespace Declaration ---
+namespace LaserHelpers {
+    // Declaration of the function needed by horde_menu.cpp
+    // Retrieves the PlayerLaserManager associated with a player entity.
+    // Returns nullptr if the player is invalid or has no manager.
+    PlayerLaserManager* get_laser_manager(edict_t* ent);
+
+    // Other helper declarations could go here if needed by multiple files
+}
 
 // --- Function Declarations ---
 // Functions from g_laser.cpp that need to be called from other files
