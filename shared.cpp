@@ -235,98 +235,109 @@ void InitializeDisplayNames() {
 
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
+	// --- Early returns and Summoned logic remain the same ---
 	if (monster->monsterinfo.IS_BOSS)
 		return;
 
 	if (monster->monsterinfo.effects_applied)
 		return;
 
-	// Handle summoned monster logic first (this flag can coexist with others)
+	// Handle summoned monster logic first
 	if (monster->monsterinfo.issummoned) {
 		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
 		FindMTarget(monster);
 		monster->svflags |= SVF_PLAYER;
-		monster->monsterinfo.team = CTF_TEAM1;
-		monster->s.renderfx &= ~RF_DOT_SHADOW;
+		monster->monsterinfo.team = CTF_TEAM1; // Default team?
+		monster->s.renderfx &= ~RF_DOT_SHADOW; // Keep this specific renderfx change if intended
 
 		// Configurar equipo
-		if (monster->owner->client->resp.ctf_team == CTF_TEAM1)
-			monster->monsterinfo.team = CTF_TEAM1;
-		else if (monster->owner->client->resp.ctf_team == CTF_TEAM2)
-			monster->monsterinfo.team = CTF_TEAM2;
+		if (monster->owner && monster->owner->client) { // Check owner and client validity
+			if (monster->owner->client->resp.ctf_team == CTF_TEAM1)
+				monster->monsterinfo.team = CTF_TEAM1;
+			else if (monster->owner->client->resp.ctf_team == CTF_TEAM2)
+				monster->monsterinfo.team = CTF_TEAM2;
 
-		// Establecer equipo basado en CTF
-		if (monster->owner->client->resp.ctf_team == CTF_TEAM1) {
-			monster->team = TEAM1;
-		}
-		else if (monster->owner->client->resp.ctf_team == CTF_TEAM2) {
-			monster->team = TEAM2;
+			// Establecer equipo basado en CTF
+			if (monster->owner->client->resp.ctf_team == CTF_TEAM1) {
+				monster->team = TEAM1;
+			}
+			else if (monster->owner->client->resp.ctf_team == CTF_TEAM2) {
+				monster->team = TEAM2;
+			}
+			else {
+				monster->team = "neutral"; // Or nullptr? Check engine defaults
+			}
 		}
 		else {
-			monster->team = "neutral";
+			monster->team = "neutral"; // Fallback if no valid owner
 		}
 		gi.linkentity(monster);
 	}
 
-	// Fix: Actually *set* the flag rather than just checking it
-	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+	// Fix: Set NO_DROP flag
+	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Should this be conditional? Assumed always for bonus monsters.
 
+	// Adjust Gib Health
 	monster->gib_health *= 2.8f;
-	if (monster->gib_health <= -200)
-		monster->gib_health = -200;
+	monster->gib_health = std::max(monster->gib_health, -200); // Clamp gib health
 
-	// Using if-else to ensure only one bonus flag applies (in order of priority)
+	// Apply STAT changes and TIMER changes based on bonus flags
+	// REMOVE s.effects, s.renderfx, s.alpha modifications
 	if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
-		monster->s.effects |= EF_ROCKET | EF_FIREBALL;
-		monster->s.renderfx |= RF_SHELL_RED;
+		// monster->s.effects |= EF_ROCKET | EF_FIREBALL; // REMOVED
+		// monster->s.renderfx |= RF_SHELL_RED;           // REMOVED
 		monster->health *= 2.0f;
 		monster->monsterinfo.power_armor_power *= 1.25f;
 		monster->monsterinfo.armor_power *= 1.25f;
 		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 475_sec;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
+		// monster->s.effects |= EF_PLASMA | EF_TAGTRAIL; // REMOVED
 		monster->health *= 2.2f;
 		monster->monsterinfo.power_armor_power *= 1.4f;
 		monster->monsterinfo.armor_power *= 1.4f;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
-		monster->s.effects |= EF_BLUEHYPERBLASTER;
-		monster->s.alpha = 0.6f;
+		// monster->s.effects |= EF_BLUEHYPERBLASTER;    // REMOVED
+		// monster->s.alpha = 0.6f;                     // REMOVED
 		monster->health *= 1.4f;
 		monster->monsterinfo.power_armor_power *= 4.0f;
 		monster->monsterinfo.armor_power *= 4.0f;
-		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
+		monster->monsterinfo.invincible_time = std::max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
-		monster->s.effects |= EF_GIB | EF_FLAG2;
+		// monster->s.effects |= EF_GIB | EF_FLAG2;      // REMOVED
 		monster->health *= 1.6f;
 		monster->monsterinfo.power_armor_power *= 1.3f;
 		monster->monsterinfo.armor_power *= 1.3f;
-		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 475_sec;
+		monster->monsterinfo.quad_time = std::max(level.time, monster->monsterinfo.quad_time) + 475_sec;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
-		monster->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-		monster->s.alpha = 0.5f;
+		// monster->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE; // REMOVED
+		// monster->s.alpha = 0.5f;                                          // REMOVED
 		monster->health *= 2.4f;
 		monster->monsterinfo.power_armor_power *= 1.7f;
 		monster->monsterinfo.armor_power *= 1.7f;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
-		monster->s.effects |= EF_TRACKER | EF_FLAG1;
+		// monster->s.effects |= EF_TRACKER | EF_FLAG1;   // REMOVED
 		monster->health *= 2.5f;
 		monster->monsterinfo.power_armor_power *= 1.1f;
 		monster->monsterinfo.armor_power *= 1.1f;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 
+	// Update max_health AFTER applying health multiplier
 	monster->max_health = monster->health;
-	monster->s.renderfx |= RF_IR_VISIBLE;
 
+	// monster->s.renderfx |= RF_IR_VISIBLE; // REMOVED (M_SetEffects will add this if bonus_flags != 0)
+
+	// Mark effects as applied (prevents this function running again)
 	monster->monsterinfo.effects_applied = true;
 }
+
 // Función auxiliar para calcular los valores mínimos de salud y armadura
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {

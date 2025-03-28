@@ -450,17 +450,22 @@ bool M_droptofloor(edict_t* ent)
 
 void M_SetEffects(edict_t* ent)
 {
-	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES);
+	// Clear standard powerup/armor effects AND bonus flag effects for ALL monsters first
+	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES |
+		EF_DUALFIRE | EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE | EF_ROCKET |
+		EF_FIREBALL | EF_PLASMA | EF_TAGTRAIL | EF_BLUEHYPERBLASTER | EF_GIB |
+		EF_FLAG2 | EF_TRACKER | EF_FLAG1);
 	ent->s.renderfx &= ~(RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE);
+	// Consider resetting alpha here too, unless handled elsewhere carefully
+	// ent->s.alpha = 1.0f; // Or handle specific cases like resurrection below
 
-	if (ent->health <= 0)
-		ent->s.effects &= ~(EF_DUALFIRE | EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE | EF_ROCKET | EF_FIREBALL | EF_PLASMA | EF_TAGTRAIL | EF_BLUEHYPERBLASTER | EF_GIB | EF_FLAG2 | EF_TRACKER | EF_FLAG1);
+	// --- Rest of the function ---
 
 	ent->s.sound = 0;
 	ent->s.loop_attenuation = 0;
 
-	// we're gibbed
-	if (ent->s.renderfx & RF_LOW_PRIORITY)
+	// we're gibbed or fading
+	if (ent->s.renderfx & RF_LOW_PRIORITY || ent->is_fading_out) // Check fade flag too
 		return;
 
 	if (ent->monsterinfo.weapon_sound && ent->health > 0)
@@ -468,33 +473,79 @@ void M_SetEffects(edict_t* ent)
 		ent->s.sound = ent->monsterinfo.weapon_sound;
 		ent->s.loop_attenuation = ATTN_NORM;
 	}
-	else if (ent->monsterinfo.engine_sound)
+	else if (ent->monsterinfo.engine_sound) // Should this also check health > 0? Probably.
 		ent->s.sound = ent->monsterinfo.engine_sound;
 
-	// Verificar si AI_RESURRECTING está activo y si estamos dentro del tiempo de efecto
+	// Resurrecting check (sets alpha to 0)
 	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) &&
 		(level.time < ent->monsterinfo.attack_finished))
 	{
 		ent->s.effects |= EF_COLOR_SHELL;
 		ent->s.renderfx |= RF_SHELL_RED;
-		ent->s.alpha = 0.0f;
+		ent->s.alpha = 0.0f; // Make invisible during resurrection effect
 	}
-	else if (ent->monsterinfo.aiflags & AI_RESURRECTING)
+	// If not resurrecting and alpha wasn't reset earlier, apply bonus flag alpha
+	else if (ent->health > 0) // Only apply alpha mods if alive
 	{
-		(ent);
+		// Re-apply alpha based on bonus flags if needed, AFTER the potential reset above
+		if (ent->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
+			ent->s.alpha = 0.6f;
+			ent->s.renderfx |= RF_TRANSLUCENT; // Ensure renderfx is set for alpha
+		}
+		else if (ent->monsterinfo.bonus_flags & BF_POSSESSED) {
+			ent->s.alpha = 0.5f;
+			ent->s.renderfx |= RF_TRANSLUCENT; // Ensure renderfx is set for alpha
+		}
+		else {
+			ent->s.alpha = 1.0f; // Explicitly set back to opaque if no bonus flag sets it
+			ent->s.renderfx &= ~RF_TRANSLUCENT;
+		}
+	}
+	else { // Monster is dead but not resurrecting/gibbed/fading
+		ent->s.alpha = 1.0f; // Dead monsters should be opaque unless fading
+		ent->s.renderfx &= ~RF_TRANSLUCENT;
 	}
 
-	ent->s.renderfx |= RF_DOT_SHADOW;
-
-	if (ent->health <= 0)
-		return;
 
 	ent->s.renderfx |= RF_DOT_SHADOW;
 
-	// no power armor/powerup effects if we died
+	// No power armor/powerup effects if we died
 	if (ent->health <= 0)
 		return;
 
+	// Re-apply bonus flag effects AFTER clearing
+	// Note: ApplyMonsterBonusFlags already does this, so maybe M_SetEffects
+	// shouldn't re-apply them, just the powerups/armor?
+	// OR, M_SetEffects *should* re-apply *all* effects based on current state.
+	// Let's assume ApplyMonsterBonusFlags runs once, and M_SetEffects manages frame-to-frame state.
+
+	// Re-apply bonus flags effects here (could be redundant if ApplyMonsterBonusFlags is called elsewhere frequently)
+	// OR rely on ApplyMonsterBonusFlags to set these initially and they are now cleared/reapplied correctly
+	// based on M_SetEffects logic below.
+	 // Re-apply bonus flags effects here based on flags (this mirrors ApplyMonsterBonusFlags logic)
+	if (ent->monsterinfo.bonus_flags & BF_CHAMPION) {
+		ent->s.effects |= EF_ROCKET | EF_FIREBALL;
+		//ent->s.renderfx |= RF_SHELL_RED;
+	}
+	else if (ent->monsterinfo.bonus_flags & BF_CORRUPTED) {
+		ent->s.effects |= EF_PLASMA | EF_TAGTRAIL;
+	}
+	else if (ent->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
+		ent->s.effects |= EF_BLUEHYPERBLASTER;
+		// Alpha handled above
+	}
+	else if (ent->monsterinfo.bonus_flags & BF_BERSERKING) {
+		ent->s.effects |= EF_GIB | EF_FLAG2;
+	}
+	else if (ent->monsterinfo.bonus_flags & BF_POSSESSED) {
+		ent->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+		// Alpha handled above
+	}
+	else if (ent->monsterinfo.bonus_flags & BF_STYGIAN) {
+		ent->s.effects |= EF_TRACKER | EF_FLAG1;
+	}
+
+	// Power armor application
 	if (ent->powerarmor_time > level.time)
 	{
 		if (ent->monsterinfo.power_armor_type == IT_ITEM_POWER_SCREEN)
@@ -508,7 +559,7 @@ void M_SetEffects(edict_t* ent)
 		}
 	}
 
-	// PMM - new monster powerups
+	// Powerup application
 	if (ent->monsterinfo.quad_time > level.time)
 	{
 		if (G_PowerUpExpiring(ent->monsterinfo.quad_time))
@@ -531,6 +582,9 @@ void M_SetEffects(edict_t* ent)
 		if (G_PowerUpExpiring(ent->monsterinfo.quadfire_time))
 			ent->s.effects |= EF_DUALFIRE;
 	}
+
+		ent->s.renderfx |= RF_IR_VISIBLE;
+
 }
 
 bool M_AllowSpawn(edict_t* self) {
