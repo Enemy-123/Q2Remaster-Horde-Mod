@@ -82,7 +82,6 @@ struct PlayerStats {
     edict_t* player = nullptr;
     int32_t total_damage = 0;
 };
-bool ValidateSpawnPosition(vec3_t& position, const vec3_t& mins, const vec3_t& maxs, bool allow_defense_fallback);
 void ApplyGradualHealing(edict_t* ent);
 
 void AllowReset() noexcept;
