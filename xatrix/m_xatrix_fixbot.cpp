@@ -843,41 +843,6 @@ static void fixbot_set_attack_fly_parameters(edict_t* self)
 	self->monsterinfo.fly_max_distance = 800.f;  // Was 900, now 800
 }
 
-
-// Custom enemy finder removed in favor of standard FindTarget and infront
-
-// More aggressive search behavior
-int fixbot_search(edict_t* self)
-{
-	extern void fixbot_start_attack(edict_t * self);
-
-	// Use standard FindTarget instead of custom enemy finder
-	if (!self->enemy || (self->enemy && self->enemy->health <= 0) ||
-		(self->enemy && !visible(self, self->enemy)))
-	{
-		// Standard FindTarget behavior
-		if (FindTarget(self))
-		{
-			// Only proceed if enemy is in front of the fixbot
-			if (infront(self, self->enemy))
-			{
-				fixbot_set_attack_fly_parameters(self);
-				fixbot_start_attack(self);
-				return 1;  // Enemy found and attack initiated
-			}
-		}
-	}
-	else if (self->enemy && visible(self, self->enemy) && infront(self, self->enemy))
-	{
-		// Already has a valid enemy that's visible and in front
-		fixbot_set_attack_fly_parameters(self);
-		fixbot_start_attack(self);
-		return 1;
-	}
-
-	return 0;  // No suitable enemy found
-}
-
 void landing_goal(edict_t* self)
 {
 	trace_t	 tr;
@@ -2162,30 +2127,46 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 void fixbot_reattack(edict_t* self)
 {
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool enemy_valid = (self->enemy && self->enemy->inuse && !level.intermissiontime && !self->enemy->deadflag);
 
-	// if our enemy is still valid, then continue firing
-	if (self->enemy && self->enemy->inuse && !level.intermissiontime && !self->enemy->deadflag) { // Added inuse check
-		// Boss has higher chance to continue attack
+	// Explicitly check visibility here too, as the logic depends on it
+	if (enemy_valid && !visible(self, self->enemy)) {
+		enemy_valid = false; // Treat non-visible enemy as invalid for re-attack decision
+	}
+
+	// if our enemy is still valid AND visible, then consider continuing firing
+	if (enemy_valid) {
 		float reattack_chance = isboss ? 0.9f : 0.8f;
 
 		if (frandom() < reattack_chance) {
 			// Use minimal offset for more direct shots
-			// If plasma fails (no sky), try ionripper (handled inside fixbot_fire_plasma)
-			if (fixbot_fire_plasma(self, 0.0f)) { // Fire center plasma (or ionripper fallback)
-				self->monsterinfo.nextframe = FRAME_charging_27; // Go back in animation
-				return;
+			// fixbot_fire_plasma handles ionripper fallback
+			// It returns true if plasma was used, false otherwise (or if enemy invalid).
+			if (fixbot_fire_plasma(self, 0.0f)) {
+				// Plasma fired successfully, loop back in attack animation
+				self->monsterinfo.nextframe = FRAME_charging_27;
+				return; // Stay in attack state
 			}
-			// If fixbot_fire_plasma returned false (used ionripper or couldn't fire),
-			// we might want to still try the nextframe or end attack?
-			// For now, let it fall through to ending the attack if plasma wasn't used.
+			// If fixbot_fire_plasma returned false (used ionripper, couldn't fire, or enemy invalid),
+			// fall through to end the attack sequence.
 		}
+		// Else: Random chance failed, fall through to end the attack sequence.
 	}
+	// Else: Enemy was invalid or not visible at the start of the function.
 
-	// end attack
+	// --- End attack sequence ---
+	// Set attack cooldown timer
 	self->monsterinfo.attack_finished = level.time + (isboss ? 0.5_sec : 1.0_sec);
-	// Ensure we return to run state after attack finishes
-	self->monsterinfo.nextframe = 0; // Clear any pending frame override
-	M_SetAnimation(self, &fixbot_move_run); // Explicitly set next move to run
+
+	// *** CHANGE: Explicitly call fixbot_run to transition state ***
+	// This ensures we leave the attack animation cleanly.
+	fixbot_run(self);
+	// *** END CHANGE ***
+
+	// Remove the old lines which just set nextframe and M_SetAnimation,
+	// as fixbot_run() handles setting the correct animation now.
+	// self->monsterinfo.nextframe = 0; // Clear any pending frame override (handled by fixbot_run)
+	// M_SetAnimation(self, &fixbot_move_run); // (handled by fixbot_run)
 }
 
 mframe_t fixbot_frames_attack2[] = {
@@ -2357,10 +2338,13 @@ void fixbot_fire_blaster(edict_t* self)
 	vec3_t dir;
 
 	// Add enemy validity check
+	// Check visibility as well, as ai_charge might rely on a visible enemy implicitly
 	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy))
 	{
-		M_SetAnimation(self, &fixbot_move_run);
-		return; // Don't fire if no valid enemy
+		// *** CHANGE: Immediately transition out of attack state ***
+		fixbot_run(self); // Go back to run/search state to re-evaluate
+		return;           // Stop executing this frame's action
+		// *** END CHANGE ***
 	}
 
 	AngleVectors(self->s.angles, forward, right, up);
@@ -2379,17 +2363,17 @@ void fixbot_fire_blaster(edict_t* self)
 	self->pos1 = self->enemy->s.origin;
 	self->pos1[2] += self->enemy->viewheight;
 
-	if (frandom() < 0.080f && !isboss)
+	// Plasma/Ionripper chance (only for non-boss, as boss handles spawns)
+	if (!isboss && frandom() < 0.080f) // Reduced chance slightly from 0.080
 	{
-		// Try plasma first, if no sky use blaster instead
-		if (!fixbot_fire_plasma(self, 0.0f)) {
-			// If plasma failed (no sky), fire an extra blaster shot
-			monster_fire_blaster_bolt(self, start, dir, 7, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, 0);
-			gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0);
-		}
+		// Try plasma first, if no sky use ionripper instead
+		// fixbot_fire_plasma now handles the ionripper fallback
+		// Note: fixbot_fire_plasma itself contains enemy checks. If the enemy becomes
+		// invalid between the start of this function and here, fixbot_fire_plasma
+		// should handle it gracefully by returning false and not firing.
+		fixbot_fire_plasma(self, 0.0f);
 	}
 }
-
 MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 {
 	// Added more robust enemy check
@@ -2410,11 +2394,12 @@ MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
 	// Ensure the run animation is set if not already correct
 	// (ai_run might change it based on enemy state, but this ensures
 	// the base run animation is the default for this state)
-	if (self->monsterinfo.active_move != &fixbot_move_run) // Allow start_run too
 	{
-		M_SetAnimation(self, &fixbot_move_run);
+		if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+			M_SetAnimation(self, &fixbot_move_stand);
+		else
+			M_SetAnimation(self, &fixbot_move_run);
 	}
-
 	// Let the frame's ai_run call handle the rest (movement, calling ai_checkattack, etc.)
 }
 
@@ -2438,6 +2423,10 @@ void fixbot_start_attack(edict_t* self)
 
 MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 {
+	// *** ADDED: Set attack flight parameters when starting the attack sequence ***
+	fixbot_set_attack_fly_parameters(self);
+	// *** END ADDED ***
+
 	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
 
 	// ONLY boss fixbots should spawn turrets periodically
@@ -2446,8 +2435,9 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		if (self->monsterinfo.monster_slots) {
 			slots_left = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 		}
-		float spawn_chance = slots_left > 0 ? 0.4f : 0.0f;
+		float spawn_chance = slots_left > 0 ? 0.4f : 0.0f; // Boss always tries if slots available
 
+		// Increased spawn chance for boss if slots available
 		if (frandom() < spawn_chance) {
 			M_SetAnimation(self, &fixbot_move_spawn);
 			return; // Start spawn animation
@@ -2468,7 +2458,6 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 	// Regular attack (blaster/plasma/ionripper sequence)
 	M_SetAnimation(self, &fixbot_move_attack2);
 }
-
 
 PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
@@ -2594,8 +2583,6 @@ void SP_monster_fixbot(edict_t* self)
 	self->monsterinfo.run = fixbot_run;
 	self->monsterinfo.attack = fixbot_attack;
 
-	// flymonster_start sets FL_FLY, let's control flight via AI flags instead
-	// flymonster_start(self);
 	flymonster_start(self);
 
 	gi.linkentity(self);
