@@ -630,52 +630,72 @@ returns 1 if the entity is visible to self, even if not infront ()
 */
 bool visible(edict_t* self, edict_t* other, bool through_glass)
 {
-	// never visible
-	if (other->flags & FL_NOVISIBLE)
+	// --- ADD THIS CHECK ---
+	// If the 'other' entity pointer is null or the entity is not in use, it cannot be visible.
+	if (!other || !other->inuse)
+		return false;
+	// --- END CHECK ---
+
+	// never visible if flagged
+	if (other->flags & FL_NOVISIBLE) // Now this access is safe
 		return false;
 
-	// [Paril-KEX] bit of a hack, but we'll tweak monster-player visibility
-	// if they have the invisibility powerup.
+	// Handle client-specific visibility (players, potentially bots)
 	if (other->client)
 	{
-		// always visible in rtest
+		// Always visible in rtest (special mode?)
 		if (self->hackflags & HACKFLAG_ATTACK_PLAYER)
-			return self->inuse;
+			return self->inuse; // Check self is valid too
 
-		// fix intermission
-		if (!other->solid)
+		// Fix intermission / basic validity
+		if (!other->solid) // No need for !other->inuse check here, covered above
 			return false;
 
+		// --- Invisibility Check ---
 		if (other->client->invisible_time > level.time)
 		{
-			// can't see us at all after this time
+			// Fully invisible (fade time expired or hasn't started)
 			if (other->client->invisibility_fade_time <= level.time)
 				return false;
 
-			// otherwise, throw in some randomness
-			if (frandom() > other->s.alpha)
-				return false;
-		}
-	}
+			// --- Partially Invisible Handling ---
+			bool self_is_monster = ((self->svflags & SVF_MONSTER) != 0);
 
+			// If the viewer is NOT a monster, apply randomness
+			if (!self_is_monster)
+			{
+				if (frandom() > other->s.alpha)
+					return false; // Random chance failed for non-monster viewer
+			}
+			// If self_is_monster is true, we skip the frandom() check
+			// --- End Partially Invisible Handling ---
+
+		} // End invisibility check
+	} // End client checks
+
+	// --- Standard Line of Sight Trace ---
 	vec3_t  spot1;
 	vec3_t  spot2;
 	trace_t trace;
 
+	// Calculate eye positions (handle zero viewheight)
 	spot1 = self->s.origin;
-	spot1[2] += self->viewheight;
+	spot1.z += (self->viewheight != 0 ? self->viewheight : (self->maxs.z > 4 ? self->maxs.z - 4 : 0));
+
 	spot2 = other->s.origin;
-	spot2[2] += other->viewheight;
+	spot2.z += (other->viewheight != 0 ? other->viewheight : (other->maxs.z > 4 ? other->maxs.z - 4 : 0));
 
+	// Determine trace mask
 	contents_t mask = MASK_OPAQUE | CONTENTS_PROJECTILECLIP;
-
 	if (!through_glass)
 		mask |= CONTENTS_WINDOW;
 
-	trace = gi.traceline(spot1, spot2, self, mask);
-	return trace.fraction == 1.0f || trace.ent == other; // PGM
-}
+	// Perform the trace
+	trace = gi.trace(spot1, vec3_origin, vec3_origin, spot2, self, mask);
 
+	// Check trace result
+	return trace.fraction == 1.0f || trace.ent == other;
+}
 /*
 =============
 infront_cone
@@ -959,78 +979,102 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 }
 
 bool FindEnhancedTarget(edict_t* self) {
-	// Si es una unidad invocada, usar la lógica específica de FindMTarget
+	// Player-summoned units use FindMTarget (targets monsters/world)
 	if (self->monsterinfo.issummoned) {
 		return FindMTarget(self);
 	}
 
-	// Para monstruos normales, buscar el mejor objetivo
+	// --- Logic for regular monsters (targets players, other monsters, doppelgangers) ---
 	edict_t* best_target = nullptr;
-	float best_dist = MAX_RANGE_SQUARED;
+	float best_dist_sq = MAX_RANGE_SQUARED; // Use squared distance
 
-	// Iterar una sola vez, manteniendo el mejor objetivo
+	// Iterate through potential targets
 	for (unsigned int i = 1; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 
-		// Verificaciones rápidas primero para early-out
-		if (!ent->inuse || ent == self ||
-			ent->health <= 0 || ent->deadflag) {
+		// --- Basic Validity Checks ---
+		if (!ent->inuse) continue;
+		if (ent == self) continue;
+		if (ent->health <= 0) continue;
+		if (ent->deadflag) continue;
+
+		// --- Target Type and Team Checks ---
+		bool is_client = (ent->client != nullptr);
+		bool is_monster = ((ent->svflags & SVF_MONSTER) != 0);
+		bool is_doppelganger = (ent->classname && strcmp(ent->classname, "doppleganger") == 0);
+
+		// Must be a client, monster, or doppelganger
+		if (!is_client && !is_monster && !is_doppelganger) {
 			continue;
 		}
 
-		// Verificar si es un objetivo válido - incluir doppleganger aquí
-		if (!(!OnSameTeam(self, ent) &&
-			(ent->client || (ent->svflags & SVF_MONSTER) ||
-				(ent->classname && strcmp(ent->classname, "doppleganger") == 0)))) {
+		// Must NOT be on the same team
+		if (OnSameTeam(self, ent)) {
 			continue;
 		}
 
-		// Si el objetivo es un doppleganger, verificar que no sea del mismo equipo
-		if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) {
-			if (ent->teammaster == self->teammaster) {
-				continue;
-			}
+		// Specific check for doppelgangers on the same "effective" team
+		if (is_doppelganger && ent->teammaster && self->teammaster && ent->teammaster == self->teammaster) {
+			continue;
 		}
 
-		// Verificaciones específicas para clientes
-		if (ent->client) {
-			// Si el buscador es una unidad invocada, ignorar players
-			if (self->monsterinfo.issummoned) {
-				continue;
-			}
-			if (ent->client->invisible_time > level.time &&
-				ent->client->invisibility_fade_time <= level.time) {
-				continue;
-			}
+		// --- Client-Specific Checks ---
+		if (is_client) {
+			// Skip spectators
 			if (EntIsSpectating(ent)) {
 				continue;
 			}
+
+			// *** REMOVED REDUNDANT FULL INVISIBILITY CHECK HERE ***
+			// The modified visible() function now handles both full and partial
+			// invisibility checks correctly for monster viewers.
 		}
 
-		// Check de distancia
-		float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
-		if (dist_squared > MAX_RANGE_SQUARED) {
+		// --- Distance Check ---
+		float dist_sq = DistanceSquared(self->s.origin, ent->s.origin);
+
+		// Check if within max range AND closer than the current best target
+		if (dist_sq >= best_dist_sq) {
 			continue;
 		}
 
-		// Solo hacer el check de visibilidad si este objetivo está más cerca que el mejor actual
-		if (dist_squared < best_dist && visible(self, ent, false)) {
-			best_dist = dist_squared;
+		// --- Visibility Check (Most expensive check last) ---
+		// Check line-of-sight (not through glass).
+		// This call implicitly handles client invisibility based on the modified visible().
+		if (visible(self, ent, false)) {
+			// This is the new best target
+			best_dist_sq = dist_sq;
 			best_target = ent;
 		}
-	}
+	} // End of entity loop
 
+	// --- Set Enemy ---
 	if (best_target) {
-		// Si somos una unidad invocada y el mejor objetivo es un player, ignorarlo
+		// Defensive check: Ensure non-summoned monsters don't somehow target friendly summoned units
+		// (Though OnSameTeam should cover most cases)
+		// if (best_target->monsterinfo.issummoned && OnSameTeam(self, best_target)) {
+		//     self->enemy = nullptr; // Clear enemy if best target is friendly summon
+		//     return false;
+		// }
+
+		// Redundant check, but safe: If we somehow selected a player despite being summoned (shouldn't happen due to initial check)
+		// Note: This check is likely unnecessary if the initial 'if (self->monsterinfo.issummoned)' works correctly.
 		if (self->monsterinfo.issummoned && best_target->client) {
+			self->enemy = nullptr; // Summoned shouldn't target players via this function
 			return false;
 		}
+
 		self->enemy = best_target;
-		return true;
+		// Optionally call FoundTarget(self) here if needed after FindEnhancedTarget specifically succeeds
+		// FoundTarget(self); // Be careful not to cause loops if FoundTarget calls FindEnhancedTarget
+		return true; // Found a target
 	}
 
-	return false;
+	// No suitable target found
+	self->enemy = nullptr; // Clear enemy if none found
+	return false; // No target found
 }
+
 /*
 ===========
 FindTarget
@@ -1650,190 +1694,272 @@ bool ai_checkattack(edict_t* self, float dist)
 {
 	vec3_t temp;
 	bool   hesDeadJim;
-	// ROGUE
-	bool retval;
-	// ROGUE
+	bool   retval; // Stores the result of the monster-specific checkattack
+
+	// Safety check for self
+	if (!self || !self->inuse) {
+		return false;
+	}
 
 	if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
 		self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 
-	// this causes monsters to run blindly to the combat point w/o firing
+	// This causes monsters to run blindly to the combat point w/o firing
 	if (self->goalentity)
 	{
 		if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
 		{
-			if (self->enemy && range_to(self, self->enemy) > 100.f)
+			// If we have an enemy and they are far away while we're moving to a combat point, don't attack yet.
+			// Need null check for self->enemy before accessing it.
+			if (self->enemy && self->enemy->inuse && range_to(self, self->enemy) > 100.f)
 				return false;
 		}
 
 		if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
 		{
-			if ((level.time - self->enemy->teleport_time) > 5_sec)
+			// If the sound target hasn't been updated recently, stop pursuing it.
+			// Need null check for self->enemy before accessing teleport_time.
+			if (!self->enemy || !self->enemy->inuse || (level.time - self->enemy->teleport_time) > 5_sec)
 			{
-				if (self->goalentity == self->enemy)
+				if (self->goalentity == self->enemy) // If our goal was the sound target
 				{
-					if (self->movetarget)
+					if (self->movetarget) // Revert to path target if available
 						self->goalentity = self->movetarget;
 					else
 						self->goalentity = nullptr;
 				}
 				self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
+				self->enemy = nullptr; // Clear the sound target as enemy
 			}
-			else
+			else // Sound target is still fresh
 			{
-				self->enemy->show_hostile = level.time + 1_sec;
-				return false;
+				self->enemy->show_hostile = level.time + 1_sec; // Keep alerting others
+				return false; // Don't attack a sound target directly
 			}
 		}
 	}
 
-	enemy_vis = false;
+	enemy_vis = false; // Reset global flag
 
-	// see if the enemy is dead
+	// --- See if the current enemy is dead or invalid ---
 	hesDeadJim = false;
-	if ((!self->enemy) || (!self->enemy->inuse))
+	if (!self->enemy || !self->enemy->inuse) // Check pointer and inuse flag
 	{
 		hesDeadJim = true;
 	}
-	else if (self->monsterinfo.aiflags & AI_FORGET_ENEMY)
+	else if (self->monsterinfo.aiflags & AI_FORGET_ENEMY) // Flagged to forget
 	{
 		self->monsterinfo.aiflags &= ~AI_FORGET_ENEMY;
 		hesDeadJim = true;
 	}
-	else if (self->monsterinfo.aiflags & AI_MEDIC)
+	else if (self->monsterinfo.aiflags & AI_MEDIC) // Medic checking target validity
 	{
-		if (!(self->enemy->inuse) || (self->enemy->health > 0))
+		// Medic should stop if target is no longer inuse or is now alive
+		if (!self->enemy->inuse || (self->enemy->health > 0))
 			hesDeadJim = true;
 	}
-	else
+	else // Standard checks
 	{
-		if (!(self->monsterinfo.aiflags & AI_BRUTAL))
+		if (!(self->monsterinfo.aiflags & AI_BRUTAL)) // Non-brutal monsters stop attacking dead things
 		{
 			if (self->enemy->health <= 0)
 				hesDeadJim = true;
 		}
 
-		// [Paril-KEX] if our enemy was invisible, lose sight now
-		if (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time &&
-			(self->monsterinfo.aiflags & AI_PURSUE_NEXT))
+		// Check for fully invisible players when pursuing
+		// Ensure self->enemy->client exists before accessing it
+		if (!hesDeadJim && self->enemy->client &&
+			self->enemy->client->invisible_time > level.time &&
+			self->enemy->client->invisibility_fade_time <= level.time &&
+			(self->monsterinfo.aiflags & AI_PURSUE_NEXT)) // Only if actively pursuing
 		{
 			hesDeadJim = true;
 		}
 	}
 
+	// --- Handle dead/invalid enemy ---
 	if (hesDeadJim && !(self->hackflags & HACKFLAG_ATTACK_PLAYER))
 	{
-		// ROGUE
-		self->monsterinfo.aiflags &= ~AI_MEDIC;
-		// ROGUE
-		self->enemy = self->goalentity = nullptr;
+		self->monsterinfo.aiflags &= ~AI_MEDIC; // Clear medic flag if target invalid
+		self->enemy = nullptr;                 // Clear enemy pointer
+		self->goalentity = nullptr;            // Clear goal entity
 		self->monsterinfo.close_sight_tripped = false;
-		// FIXME: look all around for other targets
-		if (self->oldenemy && self->oldenemy->health > 0)
+
+		// Try to target old enemy if available and alive
+		if (self->oldenemy && self->oldenemy->inuse && self->oldenemy->health > 0)
 		{
 			self->enemy = self->oldenemy;
 			self->oldenemy = nullptr;
-			HuntTarget(self);
+			HuntTarget(self); // Re-engage old enemy
 		}
-		// ROGUE - multiple teslas make monsters lose track of the player.
-		else if (self->monsterinfo.last_player_enemy && self->monsterinfo.last_player_enemy->health > 0)
+		// Try last player enemy (Rogue feature)
+		else if (self->monsterinfo.last_player_enemy && self->monsterinfo.last_player_enemy->inuse && self->monsterinfo.last_player_enemy->health > 0)
 		{
 			self->enemy = self->monsterinfo.last_player_enemy;
 			self->oldenemy = nullptr;
 			self->monsterinfo.last_player_enemy = nullptr;
-			HuntTarget(self);
+			HuntTarget(self); // Re-engage last player enemy
 		}
-		// ROGUE
-		else
+		else // No other enemy available
 		{
-			if (self->movetarget && !(self->monsterinfo.aiflags & AI_STAND_GROUND))
+			if (self->movetarget && !(self->monsterinfo.aiflags & AI_STAND_GROUND)) // If has path target and not standing ground
 			{
 				self->goalentity = self->movetarget;
-				self->monsterinfo.walk(self);
+				self->monsterinfo.walk(self); // Resume walking path
 			}
-			else
+			else // Otherwise, stand ground or pause
 			{
-				// we need the pausetime otherwise the stand code
-				// will just revert to walking with no target and
-				// the monsters will wonder around aimlessly trying
-				// to hunt the world entity
-				self->monsterinfo.pausetime = HOLD_FOREVER;
-				self->monsterinfo.stand(self);
+				self->monsterinfo.pausetime = HOLD_FOREVER; // Pause indefinitely
+				self->monsterinfo.stand(self);           // Go to stand state
 
+				// Clear temporary stand ground flags if set
 				if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
 					self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 			}
+			// We handled the situation (enemy gone), return true to indicate action was taken (state change)
 			return true;
 		}
+		// If we switched to an old/last enemy, fall through to process them below.
 	}
 
-	// check knowledge of enemy
-	enemy_vis = visible(self, self->enemy);
+	// --- *** ROBUST ENEMY CHECK *** ---
+	// After the hesDeadJim block, double-check if the enemy pointer is *still* valid before proceeding.
+	// This catches cases where the enemy might have been freed externally (like kicking a bot)
+	// between the initial check and now.
+	if (!self->enemy || !self->enemy->inuse)
+	{
+		// Enemy became invalid. Treat as if dead/lost.
+		self->enemy = nullptr;
+		self->goalentity = nullptr;
+		self->monsterinfo.close_sight_tripped = false;
+
+		// Go back to standing or walking state (similar logic to hesDeadJim block)
+		if (self->movetarget && !(self->monsterinfo.aiflags & AI_STAND_GROUND))
+		{
+			self->goalentity = self->movetarget;
+			if (self->monsterinfo.walk) // Check if walk function exists
+				self->monsterinfo.walk(self);
+			else if (self->monsterinfo.run) // Fallback to run? Or stand? Stand is safer.
+				self->monsterinfo.stand(self);
+		}
+		else
+		{
+			self->monsterinfo.pausetime = HOLD_FOREVER;
+			if (self->monsterinfo.stand) // Check if stand function exists
+				self->monsterinfo.stand(self);
+			if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
+				self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
+		}
+		// Signaled a state change due to invalid enemy
+		return true;
+	}
+	// --- *** END ROBUST CHECK *** ---
+
+	// --- Enemy is currently valid, proceed with checks ---
+
+	// Check knowledge of enemy
+	enemy_vis = visible(self, self->enemy); // This call should now be safe
 	if (enemy_vis)
 	{
+		// Store if we had clear line of sight (ignoring glass)
 		self->monsterinfo.had_visibility = visible(self, self->enemy, false);
-		self->enemy->show_hostile = level.time + 1_sec; // wake up other monsters
+		// Make enemy hostile to wake up other monsters
+		self->enemy->show_hostile = level.time + 1_sec;
+		// Reset search timer, update last sighting
 		self->monsterinfo.search_time = level.time + 5_sec;
 		self->monsterinfo.last_sighting = self->monsterinfo.saved_goal = self->enemy->s.origin;
-		// ROGUE
+
+		// If we just regained sight
 		if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
 		{
-			self->monsterinfo.aiflags &= ~AI_LOST_SIGHT;
+			self->monsterinfo.aiflags &= ~AI_LOST_SIGHT; // Clear lost sight flag
 
+			// Reset temporary melee combat flag if enough time passed
 			if (self->monsterinfo.move_block_change_time < level.time)
 				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
 
-			self->monsterinfo.checkattack_time = self->monsterinfo.issummoned ? level.time + 30_ms : level.time + random_time(50_ms, 200_ms);
+			// Reset checkattack timer quickly after regaining sight
+			self->monsterinfo.checkattack_time = self->monsterinfo.issummoned ? (level.time + 30_ms) : (level.time + random_time(50_ms, 200_ms));
 		}
+		// Update trail time and blind fire target
 		self->monsterinfo.trail_time = level.time;
 		self->monsterinfo.blind_fire_target = self->monsterinfo.last_sighting + (self->enemy->velocity * -0.1f);
 		self->monsterinfo.blind_fire_delay = 0_ms;
-		// ROGUE
 	}
 
-	enemy_infront = infront(self, self->enemy);
-	temp = self->enemy->s.origin - self->s.origin;
-	enemy_yaw = vectoyaw(temp);
+	// --- Calculate relative position/angle ---
+	enemy_infront = infront(self, self->enemy); // This call should now be safe
+	temp = self->enemy->s.origin - self->s.origin; // This access should now be safe
+	enemy_yaw = vectoyaw(temp); // This call should now be safe
 
-	// PMM -- reordered so the monster specific checkattack is called before the run_missle/melee/checkvis
-	// stuff .. this allows for, among other things, circle strafing and attacking while in ai_run
-	retval = false;
+	// --- Call monster-specific attack checker ---
+	// This is where the monster decides IF it wants to attack based on range, chance, state, etc.
+	retval = false; // Default to not attacking this frame
 
 	if (self->monsterinfo.checkattack_time <= level.time)
 	{
-		self->monsterinfo.checkattack_time = level.time + 0.07_sec;
-		retval = self->monsterinfo.checkattack(self);
+		self->monsterinfo.checkattack_time = level.time + 0.07_sec; // Throttle checkattack calls
+		if (self->monsterinfo.checkattack) // Ensure the function pointer is valid
+			retval = self->monsterinfo.checkattack(self);
 	}
 
+	// --- Handle attack execution based on checkattack result and current state ---
 	if (retval || self->monsterinfo.attack_state >= AS_MISSILE)
 	{
-		// PMM
+		// If checkattack returned true (wants to attack) OR already in an attack state (missile, melee, blind)...
+
+		// Execute Missile Attack
 		if (self->monsterinfo.attack_state == AS_MISSILE)
 		{
-			ai_run_missile(self);
-			return true;
+			// Ensure enemy is still valid before running missile logic
+			if (self->enemy && self->enemy->inuse) {
+				ai_run_missile(self); // Turn and fire missile
+				return true;          // Attack action performed
+			}
+			else { // Enemy became invalid just before firing
+				return false; // Don't attack
+			}
 		}
+		// Execute Melee Attack
 		if (self->monsterinfo.attack_state == AS_MELEE)
 		{
-			ai_run_melee(self);
-			return true;
+			// Ensure enemy is still valid before running melee logic
+			if (self->enemy && self->enemy->inuse) {
+				ai_run_melee(self); // Turn and perform melee
+				return true;        // Attack action performed
+			}
+			else { // Enemy became invalid just before melee
+				return false; // Don't attack
+			}
 		}
-		// PMM -- added so monsters can shoot blind
+		// Execute Blind Fire Attack
 		if (self->monsterinfo.attack_state == AS_BLIND)
 		{
-			ai_run_missile(self);
-			return true;
+			// Ensure enemy is still valid (though we might be firing at last known pos)
+			// ai_run_missile handles the actual firing logic, which might use blind_fire_target
+			if (self->enemy && self->enemy->inuse) { // Still need a conceptual enemy for state
+				ai_run_missile(self);
+				return true; // Attack action performed
+			}
+			else { // Conceptual enemy gone
+				self->monsterinfo.attack_state = AS_STRAIGHT; // Reset state if enemy truly gone
+				return false; // Don't attack
+			}
 		}
-		// pmm
 
-		// if enemy is not currently visible, we will never attack
+		// If we reached here, checkattack returned true, but we weren't already in an attack state.
+		// We generally only proceed to attack if the enemy is currently visible.
 		if (!enemy_vis)
-			return false;
-		// PMM
+			return false; // Can't initiate attack if not visible right now
+
+		// Fall through if retval was true but state wasn't AS_MISSILE/MELEE/BLIND
+		// This implies checkattack set the state, but ai_run_missile/melee wasn't called yet.
+		// The return true/false below handles whether an attack *will* happen.
 	}
 
+	// Return the result from the monster-specific checkattack function.
+	// This indicates if an attack *was initiated* or decided upon during this check.
 	return retval;
-	// PMM
 }
 
 /*
