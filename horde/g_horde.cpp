@@ -69,7 +69,7 @@ namespace HordeConstants {
 	constexpr gtime_t STUCK_CHECK_TIME = 3_sec;
 	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
 	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
-	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 6_sec;
+	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 8_sec;
 	constexpr int MAX_TELEPORTS_PER_INTERVAL = 2;
 
 	// Base wave count constants
