@@ -147,7 +147,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 
 	// Check 3: Is it another turret or player defense? (Prevent stacking)
 	// Make sure classname exists before comparing
-	if (ent->inuse && ent->classname && (strcmp(ent->classname, "monster_turret") == 0 || IsPlayerDefense(ent))) {
+	if (ent->inuse && ent->classname && (strstr(ent->classname, "monster_") == 0 || IsPlayerDefense(ent))) {
 		filter_data->blocked = true;
 		if (developer->integer > 1) gi.Com_PrintFmt("TurretSpawnBoxFilter: Blocked by existing turret/defense\n");
 		return BoxEdictsResult_t::End;
@@ -668,6 +668,8 @@ void fixbot_prep_spawn(edict_t* self)
 void fixbot_spawn_check(edict_t* self) {
 	// This function is called at the end of the laser animation
 
+	bool spawned_successfully = false; // Flag to track success
+
 	// Check if we are still in the spawning state and have a target position
 	if ((self->monsterinfo.aiflags & AI_MANUAL_STEERING) &&
 		!self->monsterinfo.blind_fire_target.equals(vec3_origin))
@@ -675,9 +677,10 @@ void fixbot_spawn_check(edict_t* self) {
 		// The position was already validated by find_turret_spawn_position
 		// Perform the actual spawn
 		spawn_turret_at_position(self, self->monsterinfo.blind_fire_target);
+		spawned_successfully = true; // Assume success if we called spawn
 
 		// Add boss-specific effect after successful spawn attempt (Check classname again for safety)
-		if (strcmp(self->classname, "monster_fixbotkl") == 0) {
+		if (spawned_successfully && strcmp(self->classname, "monster_fixbotkl") == 0) { // Check flag and classname
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_EXPLOSION);
 			gi.WritePosition(self->monsterinfo.blind_fire_target);
@@ -694,8 +697,16 @@ void fixbot_spawn_check(edict_t* self) {
 	self->monsterinfo.blind_fire_target = vec3_origin;
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 	self->s.effects &= ~(EF_HYPERBLASTER | EF_PLASMA); // Clear effects
-}
 
+	// *** ADDED FIX ***
+	// Explicitly clear the enemy pointer after the spawn attempt.
+	// This forces the fixbot to find a new target when it transitions
+	// back to the run state, avoiding potential use-after-free if
+	// the spawning process invalidated the old enemy pointer.
+	self->enemy = nullptr;
+	self->goalentity = nullptr; // Also clear goalentity just in case
+	// *** END ADDED FIX ***
+	}
 void fixbot_spawn_turret(edict_t* self)
 {
 	vec3_t forward, right, up;
@@ -927,38 +938,55 @@ void takeoff_goal(edict_t* self)
 
 void change_to_roam(edict_t* self)
 {
-	if (self->enemy)
+	// If we already have a valid enemy, just start running
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
+		fixbot_run(self); // Transition to run state
 		return;
+	}
 
-	if (fixbot_search(self))
+	// Try to find a target using the standard function
+	if (FindTarget(self)) {
+		fixbot_run(self); // Found a target, transition to run state
 		return;
+	}
 
-	M_SetAnimation(self, &fixbot_move_roamgoal);
+	// --- No enemy found, proceed with roam/landing/takeoff/stand logic ---
 
+	// Existing logic for roam/landing/takeoff/stand:
 	if (self->spawnflags.has(SPAWNFLAG_FIXBOT_LANDING))
 	{
 		landing_goal(self);
 		M_SetAnimation(self, &fixbot_move_landing);
 		self->spawnflags &= ~SPAWNFLAG_FIXBOT_LANDING;
-		self->spawnflags = SPAWNFLAG_FIXBOT_WORKING;
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
 	}
-	if (self->spawnflags.has(SPAWNFLAG_FIXBOT_TAKEOFF))
+	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_TAKEOFF))
 	{
 		takeoff_goal(self);
 		M_SetAnimation(self, &fixbot_move_takeoff);
 		self->spawnflags &= ~SPAWNFLAG_FIXBOT_TAKEOFF;
-		self->spawnflags = SPAWNFLAG_FIXBOT_WORKING;
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
 	}
-	if (self->spawnflags.has(SPAWNFLAG_FIXBOT_FIXIT))
+	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_FIXIT)) // Assuming FIXIT implies roam
 	{
-		M_SetAnimation(self, &fixbot_move_roamgoal);
+		M_SetAnimation(self, &fixbot_move_roamgoal); // Set roam goal animation
 		self->spawnflags &= ~SPAWNFLAG_FIXBOT_FIXIT;
-		self->spawnflags = SPAWNFLAG_FIXBOT_WORKING;
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
 	}
-	if (!self->spawnflags)
+	else if (!self->spawnflags) // If no specific action flags are set
+	{
+		// Default to standing if no roam/landing/takeoff needed
+		M_SetAnimation(self, &fixbot_move_stand2);
+	}
+	else // Has some other SPAWNFLAG_FIXBOT_WORKING or similar? Go to stand.
 	{
 		M_SetAnimation(self, &fixbot_move_stand2);
 	}
+
+	// Note: The original code set fixbot_move_roamgoal first, then potentially overwrote it.
+	// This version checks specific actions first, then defaults to stand if none apply
+	// or if SPAWNFLAG_FIXBOT_WORKING is set without a specific sub-task.
+	// Consider if SPAWNFLAG_FIXBOT_WORKING should always lead to roam or stand.
 }
 
 void roam_goal(edict_t* self)
@@ -2376,14 +2404,18 @@ MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 
 MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
 {
-	// Always set the run animation
-	M_SetAnimation(self, &fixbot_move_run);
+	// The standard ai_run function handles enemy checks and finding new targets.
+	// We just need to make sure the correct 'run' animation is playing.
 
-	// More robust enemy check before searching
-	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy) || self->enemy->health <= 0) {
-		fixbot_search(self);
+	// Ensure the run animation is set if not already correct
+	// (ai_run might change it based on enemy state, but this ensures
+	// the base run animation is the default for this state)
+	if (self->monsterinfo.active_move != &fixbot_move_run) // Allow start_run too
+	{
+		M_SetAnimation(self, &fixbot_move_run);
 	}
-	// If enemy is valid and visible, M_MoveToGoal will handle movement during ai_run
+
+	// Let the frame's ai_run call handle the rest (movement, calling ai_checkattack, etc.)
 }
 
 MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void

@@ -724,13 +724,26 @@ void HuntTarget(edict_t* self, bool animate_state)
 {
 	vec3_t vec;
 
-	// Safety check to prevent access violation
-	if (!self->enemy || !self->enemy->inuse)
-	{
-		// Maybe set a default target or just return
-		return;
+	// --- Robust Safety Check ---
+	if (!self || !self->inuse) {
+		return; // Self check first
 	}
+	if (!self->enemy || !self->enemy->inuse) // Critical check before use
+	{
+		// Log if needed:
+		// if (developer->integer > 0) gi.Com_PrintFmt("HuntTarget: {} ({}) found invalid enemy pointer.\n", self->classname ? self->classname : "unknown", self->s.number);
+		self->enemy = nullptr;
+		self->goalentity = nullptr;
+		if (self->monsterinfo.stand) {
+			if (!FindTarget(self)) {
+				self->monsterinfo.stand(self);
+			}
+		}
+		return; // Prevent crash
+	}
+	// --- End Robust Safety Check ---
 
+	// --- Original Logic ---
 	self->goalentity = self->enemy;
 	if (animate_state)
 	{
@@ -739,14 +752,29 @@ void HuntTarget(edict_t* self, bool animate_state)
 		else
 			self->monsterinfo.run(self);
 	}
-	vec = self->enemy->s.origin - self->s.origin;
+	vec = self->enemy->s.origin - self->s.origin; // Now safe to access
 	self->ideal_yaw = vectoyaw(vec);
+	// --- End Original Logic ---
 }
 
 void FoundTarget(edict_t* self)
 {
-	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+	// --- Initial Checks ---
+	if (!self || !self->inuse) return;
+
+	// Check if enemy is valid *before* using it further
+	if (!self->enemy || !self->enemy->inuse) {
+		// Enemy became invalid between FindTarget setting it and now.
+		// Clear pointer and maybe try finding again or go to stand.
+		self->enemy = nullptr;
+		if (self->monsterinfo.stand) {
+			if (!FindTarget(self)) { // Try finding a new target immediately
+				self->monsterinfo.stand(self); // If none found, default to stand
+			}
+		}
 		return;
+	}
+	// --- End Initial Checks ---
 
 	// Verificar si somos una unidad invocada y el enemigo es un player
 	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
@@ -757,6 +785,31 @@ void FoundTarget(edict_t* self)
 		return;
 	}
 
+	// --- Player Noise Check ---
+	// If the found enemy is a temporary sound entity, handle it differently.
+	// Do not call HuntTarget for it, as it might be freed immediately.
+	// Let ai_run handle moving towards the sound goal based on the AI_SOUND_TARGET flag.
+	if (self->enemy->classname && strcmp(self->enemy->classname, "player_noise") == 0)
+	{
+		self->monsterinfo.aiflags |= AI_SOUND_TARGET; // Ensure the flag is set
+
+		// Set goalentity for movement functions (like M_MoveToGoal in ai_run)
+		self->goalentity = self->enemy;
+
+		// Trigger the appropriate movement state (run or stand)
+		if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
+			self->monsterinfo.stand(self); // Stay standing, but face the sound eventually
+		}
+		else {
+			self->monsterinfo.run(self); // Start running towards the sound
+		}
+		// DO NOT proceed to HuntTarget or the rest of FoundTarget for player_noise
+		return;
+	}
+	// --- End Player Noise Check ---
+
+
+	// --- Standard FoundTarget Logic (for valid players/monsters) ---
 	// let other monsters see this monster for a while
 	if (self->enemy->client)
 	{
@@ -771,56 +824,45 @@ void FoundTarget(edict_t* self)
 		self->enemy->show_hostile = level.time + 1_sec; // wake up other monsters
 	}
 
-	// [Paril-KEX] the first time we spot something, give us a bit of a grace
-	// period on firing
 	if (!self->monsterinfo.trail_time)
 		self->monsterinfo.attack_finished = level.time + 600_ms;
-
-	// give easy/medium a little more reaction time
 	self->monsterinfo.attack_finished += skill->integer == 0 ? 400_ms : skill->integer == 1 ? 200_ms : 0_ms;
-
 	self->monsterinfo.last_sighting = self->monsterinfo.saved_goal = self->enemy->s.origin;
 	self->monsterinfo.trail_time = level.time;
-	// ROGUE
 	self->monsterinfo.blind_fire_target = self->monsterinfo.last_sighting + (self->enemy->velocity * -0.1f);
 	self->monsterinfo.blind_fire_delay = 0_ms;
-	// ROGUE
-	// [Paril-KEX] for alternate fly, pick a new position immediately
 	self->monsterinfo.fly_position_time = 0_ms;
-
 	self->monsterinfo.aiflags &= ~AI_THIRD_EYE;
 
-	// Paril: if we're heading to a combat point/path corner, don't
-	// hunt the new target yet.
+	// --- Call HuntTarget (or handle combattarget) ---
 	if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
-		return;
+		return; // Already handled above if needed? Re-check original logic flow.
+
+	// Final check before HuntTarget call
+	if (!self->enemy || !self->enemy->inuse) return;
 
 	if (!self->combattarget)
 	{
-		HuntTarget(self);
+		HuntTarget(self); // Call HuntTarget
 		return;
 	}
 
+	// --- Combat Target Logic ---
 	self->goalentity = self->movetarget = G_PickTarget(self->combattarget);
 	if (!self->movetarget)
 	{
 		self->goalentity = self->movetarget = self->enemy;
-		HuntTarget(self);
+		// Final check before HuntTarget call
+		if (!self->enemy || !self->enemy->inuse) return;
+		HuntTarget(self); // Call HuntTarget
 		gi.Com_PrintFmt("{}: combattarget {} not found\n", *self, self->combattarget);
 		return;
 	}
-
-	// clear out our combattarget, these are a one shot deal
 	self->combattarget = nullptr;
 	self->monsterinfo.aiflags |= AI_COMBAT_POINT;
-
-	// clear the targetname, that point is ours!
-	// [Paril-KEX] not any more, we can re-use them
-	//self->movetarget->targetname = nullptr;
 	self->monsterinfo.pausetime = 0_ms;
-
-	// run for it
-	self->monsterinfo.run(self);
+	self->monsterinfo.run(self); // Run towards combat target
+	// Note: HuntTarget is NOT called here in the original logic if combattarget is found.
 }
 
 // [Paril-KEX] monsters that were alerted by players will
