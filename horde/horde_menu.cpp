@@ -658,7 +658,7 @@ constexpr size_t TECH_MENU_SIZE = sizeof(tech_menu) / sizeof(pmenu_t);
 
 // Menu definition for when player is joining (CTF_NOTEAM)
 static pmenu_t tech_menustart[] = {
-	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },          // 0
+	{ "*Tech Selection", PMENU_ALIGN_CENTER, nullptr },          // 0
 	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 1
 	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },          // 2
 	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 3
