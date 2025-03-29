@@ -5129,45 +5129,62 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
 
+		// ***** BEGIN STALKER FIX *****
+		// Explicitly reset orientation for Stalkers after successful teleport.
+		// Assumes teleport destinations are always floor-based.
+		// Use TypeID comparison which is safer and potentially faster
+		if (typeId == horde::MonsterTypeID::STALKER) {
+			//if (developer->integer) {
+			//	gi.Com_PrintFmt("Stalker teleport success: Resetting orientation for floor.\n");
+			//}
+			self->gravityVector = { 0, 0, -1 }; // Standard gravity downwards
+			self->s.angles[ROLL] = 0;           // Zero roll angle (ensure ROLL is defined or use 2)
+			self->gravity = 1.0f;              // Standard gravity multiplier
+
+			// Optionally ensure movetype allows falling if it got stuck in FLY somehow
+			// Although teleport should place it correctly.
+			// if (self->movetype == MOVETYPE_FLY)
+			//     self->movetype = MOVETYPE_STEP;
+
+			// Clear ground entity just in case linking didn't handle it perfectly after teleport
+			self->groundentity = nullptr;
+		}
+		// ***** END STALKER FIX *****
+
 		// Play effects
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f); // Use the actual final position
 
 		// Reset timers and apply cooldowns
 		self->monsterinfo.react_to_damage_time = level.time; // Reset stuck detection timer source
-		// Apply cooldown *to the monster* to prevent it teleporting again immediately
 		self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
 		// Increment global rate limiter
 		g_teleport_rate_count++;
 
-		// Mark the *destination position* as recently used for teleporting
+		// Mark the destination position as recently used for teleporting
 		MarkPositionAsRecentlyTeleported(final_teleport_origin);
 
-		// Apply cooldown *to the spawn point* if one was used for the teleport
-		if (!use_player_teleport && spawn_point) { // Ensure a spawn point was involved and is valid
-			// Calculate the cooldown duration for the spawn point, ensuring it meets the minimum
+		// Apply cooldown to the spawn point if one was used
+		if (!use_player_teleport && spawn_point) {
 			const gtime_t spawn_point_cooldown_duration = std::max(
-				HordeConstants::BASE_SPAWN_TELEPORT_COOLDOWN,  // Use the base duration constant
-				HordeConstants::MIN_SPAWN_TELEPORT_COOLDOWN   // Ensure it's not below the absolute minimum
+				HordeConstants::BASE_SPAWN_TELEPORT_COOLDOWN,
+				HordeConstants::MIN_SPAWN_TELEPORT_COOLDOWN
 			);
 			spawnPointsData[spawn_point].teleport_cooldown = level.time + spawn_point_cooldown_duration;
 		}
 	}
 	else {
-		// If teleport failed (either player or spawn point method)
-		// The monster was unlinked before the attempt, so it *must* be relinked at its original position.
-		self->svflags &= ~SVF_NOCLIENT; // Make visible again
-		gi.linkentity(self);            // Link back into the world
-		// No cooldowns or tracking updates are needed since the teleport didn't happen.
+		// If teleport failed, relink at original position
+		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity(self);
 	}
 
-	// Reset Stuck Flags regardless of success or failure of the *teleport attempt*.
-	// The condition that *triggered* the attempt is now considered handled.
+	// Reset Stuck Flags regardless of teleport success/failure
 	self->monsterinfo.was_stuck = false;
 	self->monsterinfo.stuck_check_time = 0_sec;
 
-	return teleport_succeeded; // Return true only if the monster was actually moved
+	return teleport_succeeded;
 }
 
 // Function to track created entities
