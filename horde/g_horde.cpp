@@ -5989,85 +5989,159 @@ edict_t* SpawnMonsters() {
 
 
 			// --- Spawn Execution (if a valid spot was found) ---
+			// --- Spawn Execution (if a valid spot was found) ---
 			if (found_valid_spot) {
 				edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles);
 
 				if (monster) {
-					// --- Success Handling ---
+					// --- Success Handling (Initial steps) ---
 					spawn_successful_for_this_monster = true;
 					last_spawned_this_call = monster;
 					spawned_count_this_call++;
 					if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
-					else if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: WARN - Spawned monster but num_to_spawn was already zero.\n");
+					else if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: WARN - Spawned monster but num_to_spawn was already zero.\n"); // {} not needed here
 					if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
-					else if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: WARN - Reached uint16_t max for g_totalMonstersInWave.\n");
+					else if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: WARN - Reached uint16_t max for g_totalMonstersInWave.\n"); // {} not needed here
 
 					// --- Apply Bonuses and Effects ---
-					// Champion Logic: Chance to spawn a champion
 					bool is_champion = false;
+
+					// --- Champion Logic ---
 					if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS && frandom() < 0.2f) {
 						monster->monsterinfo.bonus_flags |= BF_CHAMPION;
-						ApplyMonsterBonusFlags(monster); // Apply visual/stat changes for champion
+
+						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters Debug: Calling ApplyMonsterBonusFlags (Champion) for {}\n", monster - g_edicts); // Corrected format
+						ApplyMonsterBonusFlags(monster); // <<< SUSPECTED OF POTENTIALLY FREEING 'monster'
+
+						// ***** DEFENSIVE CHECK #1 *****
+						// Verify 'monster' is still valid after calling ApplyMonsterBonusFlags
+						if (!monster->inuse) {
+							if (developer->integer) {
+								// Note: Accessing monster->classname might be unsafe if monster is freed. Use ID carefully.
+								gi.Com_PrintFmt("SpawnMonsters: ERROR - Monster edict {} became invalid during or after ApplyMonsterBonusFlags (Champion)!\n", (int)(monster - g_edicts)); // Corrected format
+							}
+							// Mark overall spawn as failed and stop processing this monster
+							spawn_successful_for_this_monster = false;
+							// Skip the rest of the bonus/effect logic for this invalid edict
+							goto skip_invalid_monster_processing; // Use goto to jump past all remaining logic for this monster
+						}
+						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters Debug: Returned from ApplyMonsterBonusFlags (Champion) for {}\n", monster - g_edicts); // Corrected format
+
+
 						monster->item = G_HordePickItem(); // Champions always drop an item
-						if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP; // Ensure drop flag is correct
-						champion_spawned_this_wave = true; // Mark champion as spawned for this wave
-						champion_spawn_cooldown = irandom(15, 25); // Set cooldown (in ticks/frames)
-						gi.LocBroadcast_Print(PRINT_HIGH, "*** A Champion {} has appeared! ***\n", GetDisplayName(monster).c_str());
+
+						if (monster->item) {
+							monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP; // Ensure drop flag is correct
+						}
+
+						champion_spawned_this_wave = true;
+						champion_spawn_cooldown = irandom(15, 25);
+						// Use GetDisplayName cautiously IF the monster pointer could be invalid, but check above helps
+						gi.LocBroadcast_Print(PRINT_HIGH, "*** A Champion {} has appeared! ***\n", GetDisplayName(monster).c_str()); // LocBroadcast_Print might use C-style
 						is_champion = true;
 					}
+
+					// --- Non-Champion Item Logic ---
 					if (!is_champion) {
 						const float drop_chance = currentLevel <= 5 ? 0.8f : (currentLevel <= 8 ? 0.6f : 0.45f);
-						if (frandom() < drop_chance) { monster->item = G_HordePickItem(); if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP; else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; }
-						else { monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; }
+						if (frandom() < drop_chance) {
+							monster->item = G_HordePickItem();
+							// Check if monster is still valid after G_HordePickItem (less likely issue)
+							if (!monster->inuse) {
+								if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: ERROR - Monster edict {} became invalid during G_HordePickItem (Non-Champion)!\n", (int)(monster - g_edicts)); // Corrected format
+								spawn_successful_for_this_monster = false;
+								goto skip_invalid_monster_processing;
+							}
+							if (monster->item) {
+								monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+							}
+							else {
+								monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+							}
+						}
+						else {
+							monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+						}
 					}
-					if (currentLevel >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) { SetMonsterArmor(monster); }
+
+					// --- Armor Logic ---
+					// Check monster->inuse again before calling SetMonsterArmor, just in case item logic had issues
+					if (!monster->inuse) {
+						if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: ERROR - Monster edict {} became invalid before SetMonsterArmor!\n", (int)(monster - g_edicts)); // Corrected format
+						spawn_successful_for_this_monster = false;
+						goto skip_invalid_monster_processing;
+					}
+					if (currentLevel >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
+						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters Debug: Calling SetMonsterArmor for {}\n", monster - g_edicts); // Corrected format
+						SetMonsterArmor(monster);
+						// Check if monster is still valid after SetMonsterArmor
+						if (!monster->inuse) {
+							if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: ERROR - Monster edict {} became invalid during SetMonsterArmor!\n", (int)(monster - g_edicts)); // Corrected format
+							spawn_successful_for_this_monster = false;
+							goto skip_invalid_monster_processing;
+						}
+						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters Debug: Returned from SetMonsterArmor for {}\n", monster - g_edicts); // Corrected format
+					}
+
+					// --- Final Effects ---
+					// Final check before accessing monster->s.origin
+					if (!monster->inuse) {
+						if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: ERROR - Monster edict {} became invalid before final effects!\n", (int)(monster - g_edicts)); // Corrected format
+						spawn_successful_for_this_monster = false;
+						goto skip_invalid_monster_processing;
+					}
 					SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 					gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
-
-					// --- Update Spawn Point & Trackers ---
+					// --- Success Finalization (Only if monster is still valid) ---
+					// Update Spawn Point & Trackers
 					if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
-					else OnSuccessfulSpawn(spawn_point); // Only apply normal success cooldown if direct spawn worked
+					else OnSuccessfulSpawn(spawn_point);
 					horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type, level.time);
 
-					// --- Reset Failure Counters ---
+					// Reset Failure Counters
 					g_consecutive_spawn_failures = 0;
 					if (g_recovery_mode_active) { // Deactivate recovery mode on success
 						g_recovery_mode_active = false;
-						if (g_original_wave_type_before_recovery != MonsterWaveType::None) { current_wave_type = g_original_wave_type_before_recovery; g_original_wave_type_before_recovery = MonsterWaveType::None; if (developer->integer) gi.Com_PrintFmt("RECOVERY MODE DEACTIVATED (Spawn Success): Restored original wave type.\n"); }
-						else if (developer->integer) { gi.Com_PrintFmt("RECOVERY MODE DEACTIVATED (Spawn Success).\n"); }
+						if (g_original_wave_type_before_recovery != MonsterWaveType::None) {
+							current_wave_type = g_original_wave_type_before_recovery;
+							g_original_wave_type_before_recovery = MonsterWaveType::None;
+							if (developer->integer) gi.Com_PrintFmt("RECOVERY MODE DEACTIVATED (Spawn Success): Restored original wave type.\n"); // {} not needed here
+						}
+						else if (developer->integer) {
+							gi.Com_PrintFmt("RECOVERY MODE DEACTIVATED (Spawn Success).\n"); // {} not needed here
+						}
 					}
 
-					break; // Break inner loop (spawn point search), monster spawned successfully
+					// This label is jumped to if monster becomes invalid during processing
+				skip_invalid_monster_processing:;
+
+					// Break inner loop (spawn point search), whether successful or aborted due to invalid monster
+					break;
 
 				}
 				else { // SpawnMonsterByTypeID failed internally
-					if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: SpawnMonsterByTypeID failed internally for type %d at point %d (Pos: {}).\n", (int)monster_type, (int)(spawn_point - g_edicts), final_origin);
+					if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: SpawnMonsterByTypeID failed internally for type {} at point {} (Pos: {}).\n", (int)monster_type, (int)(spawn_point - g_edicts), final_origin); // Corrected format
 					// Penalize the point that was attempted
 					if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
 					else IncreaseSpawnAttempts(spawn_point);
 					g_consecutive_spawn_failures++;
 					// Continue inner loop (try next spawn point)
 				}
-			}
-			else {
-				// No valid spot found (neither direct nor alternative worked/was valid)
-				// Failure penalties/counters were already applied inside the if/else block above
-				// Continue inner loop (try next spawn point)
-			}
+			} // End if (found_valid_spot)
+			// else: No valid spot found, failure handled earlier, continue inner loop
 		} // End inner spawn point check loop (`while points_checked_for_this_monster < total_potential_points`)
 
+		// Check if this specific monster failed to spawn (even if others in batch might succeed)
 		if (!spawn_successful_for_this_monster) {
-			if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Failed to find suitable spawn point for monster attempt %d in batch after checking %d points.\n", i + 1, points_checked_for_this_monster);
-			// Don't break the outer loop, just means this *one* monster in the batch couldn't spawn.
-			// The failure counter was already incremented multiple times inside the inner loop.
+			if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Failed to find suitable spawn point OR monster became invalid for attempt {} in batch.\n", i + 1); // Corrected format
+			// Failure counter already incremented inside the loop if needed
 		}
 	} // End outer batch loop (`for i < spawnable_this_call`)
 
 	// --- Post-Spawn Processing ---
-	// (Same as before)
 	if (spawned_count_this_call == 0 && spawnable_this_call > 0) {
-		if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: Entire batch failed to spawn any monsters. Consecutive failures now: %d\n", g_consecutive_spawn_failures);
+		if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: Entire batch failed to spawn any monsters. Consecutive failures now: {}\n", g_consecutive_spawn_failures); // Corrected format
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
@@ -6077,6 +6151,7 @@ edict_t* SpawnMonsters() {
 
 	return last_spawned_this_call; // Return last successfully spawned monster this frame (or nullptr)
 }
+
 	static void SetMonsterArmor(edict_t * monster) {
 		// Cache frequently used constants to avoid recalculating
 		static constexpr float HEALTH_RATIO_POW = 1.1f;
