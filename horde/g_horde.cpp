@@ -39,6 +39,19 @@ static int g_recent_teleport_index = 0;
 
 // --- Constants for Spawning and Teleporting ---
 namespace HordeConstants {
+
+	constexpr gtime_t BASE_SPAWN_TELEPORT_COOLDOWN = 5.0_sec; // Base cooldown applied to spawn point after teleport
+	constexpr gtime_t MIN_SPAWN_TELEPORT_COOLDOWN = 2.0_sec; // Absolute minimum cooldown for spawn point after teleport
+	// --- Minimum Cooldown Durations ---
+	constexpr gtime_t MIN_GLOBAL_SPAWN_COOLDOWN = 1.5_sec; // Minimum for the base SPAWN_POINT_COOLDOWN (matches existing clamp)
+	constexpr gtime_t MIN_INDIVIDUAL_SUCCESS_COOLDOWN = 0.5_sec; // Min time after successful spawn
+	constexpr gtime_t MIN_INDIVIDUAL_FAILURE_COOLDOWN = 0.5_sec; // Min time after failed spawn attempt
+	constexpr gtime_t MIN_ALT_SUCCESS_COOLDOWN = 1.0_sec;      // Min time after successful *alternative* spawn
+	constexpr gtime_t MIN_ALT_FAILURE_COOLDOWN = 1.0_sec;      // Min time after failed *alternative* spawn attempt
+	constexpr gtime_t MIN_REDUCED_INDIVIDUAL_COOLDOWN = 0.5_sec; // Min duration when reducing cooldowns late wave
+	// MIN_TELEPORT_COOLDOWN_MONSTER already exists (12s) and is handled by random_time
+	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.1_sec;      // Absolute minimum time between monster spawns
+
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
 	constexpr vec3_t VALIDATE_CHECK_MINS = { -16, -16, -24 };
 	constexpr vec3_t VALIDATE_CHECK_MAXS = { 16,  16,  32 };
@@ -190,15 +203,6 @@ struct SpawnPointDataArray {
 };
 SpawnPointDataArray spawnPointsData;
 
-void ApplySuccessfulAlternativeCooldown(edict_t* spawn_point) {
-	if (!spawn_point || !spawn_point->inuse) return;
-	auto& data = spawnPointsData[spawn_point];
-	data.alternative_attempts = 0;
-	data.needs_long_alternative_cooldown = false;
-	data.alternative_cooldown = level.time + 3.0_sec; // Consistent 3s cooldown on success
-	if (developer->integer > 1) gi.Com_PrintFmt("Success cooldown applied to spawn at {}: 3.0s\n", spawn_point->s.origin);
-}
-
 void ApplyAlternativePositionCooldown(edict_t* spawn_point) {
 	if (!spawn_point || !spawn_point->inuse) return;
 	auto& data = spawnPointsData[spawn_point];
@@ -211,12 +215,28 @@ void ApplyAlternativePositionCooldown(edict_t* spawn_point) {
 		cooldown_duration = std::min(cooldown_duration, 10.0_sec);
 		if (data.alternative_attempts >= 8) data.needs_long_alternative_cooldown = true;
 	}
-	data.alternative_cooldown = level.time + cooldown_duration;
+
+	// Clamp the calculated alternative failure cooldown duration
+	const gtime_t final_alt_duration = std::max(cooldown_duration, HordeConstants::MIN_ALT_FAILURE_COOLDOWN);
+	data.alternative_cooldown = level.time + final_alt_duration;
+
 	data.isTemporarilyDisabled = true; // Also disable original point shortly
-	data.cooldownEndsAt = level.time + cooldown_duration * 0.5f; // Shorter disable for original
-	if (developer->integer) gi.Com_PrintFmt("Alternative position cooldown applied to spawn at {}: {:.1f}s (attempts: {})\n", spawn_point->s.origin, cooldown_duration.seconds(), data.alternative_attempts);
+	// Also clamp the normal point's shorter cooldown based on the *clamped* alternative duration
+	const gtime_t final_normal_duration = std::max(final_alt_duration * 0.5f, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
+	data.cooldownEndsAt = level.time + final_normal_duration;
+
+	if (developer->integer) gi.Com_PrintFmt("Alternative position cooldown applied to spawn at {}: {:.1f}s (attempts: {})\n", spawn_point->s.origin, final_alt_duration.seconds(), data.alternative_attempts);
 }
 
+void ApplySuccessfulAlternativeCooldown(edict_t* spawn_point) {
+	if (!spawn_point || !spawn_point->inuse) return;
+	auto& data = spawnPointsData[spawn_point];
+	data.alternative_attempts = 0;
+	data.needs_long_alternative_cooldown = false;
+	// Ensure the 3.0s meets the minimum alternative success cooldown
+	data.alternative_cooldown = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
+	if (developer->integer > 1) gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
+}
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	if (!spawn_point || !spawn_point->inuse) return;
 	auto& data = spawnPointsData[spawn_point];
@@ -226,16 +246,25 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	const float success_rate = data.getSuccessRate(level.time);
 	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
 
+	gtime_t calculated_duration = 0_sec; // Initialize
+
 	if (data.attempts >= max_attempts) {
 		data.isTemporarilyDisabled = true;
 		const float cooldown_factor = success_rate < 0.3f ? 1.5f : 0.75f;
 		const float attempt_multiplier = data.attempts <= 8 ? data.attempts * 0.25f : 2.0f;
-		data.cooldownEndsAt = level.time + gtime_t::from_sec(cooldown_factor * attempt_multiplier);
+		calculated_duration = gtime_t::from_sec(cooldown_factor * attempt_multiplier);
 		if (developer->integer == 1) gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n", spawn_point->s.origin);
 	}
 	else if ((data.attempts & 1) == 0) { // Every 2 attempts
-		data.cooldownEndsAt = level.time + gtime_t::from_sec(0.2f * data.attempts);
+		calculated_duration = gtime_t::from_sec(0.2f * data.attempts);
 	}
+
+	// Apply minimum duration clamp if a duration was calculated
+	if (calculated_duration > 0_sec) {
+		const gtime_t final_duration = std::max(calculated_duration, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
+		data.cooldownEndsAt = level.time + final_duration;
+	}
+	// No else needed, if no duration was calculated, cooldownEndsAt isn't set here
 }
 
 void OnSuccessfulSpawn(edict_t* spawn_point) {
@@ -244,10 +273,10 @@ void OnSuccessfulSpawn(edict_t* spawn_point) {
 	data.successfulSpawns++;
 	data.attempts = 0;
 	data.isTemporarilyDisabled = false;
-	data.cooldownEndsAt = level.time + 0.5_sec; // Short cooldown to prevent immediate respawn
+	// Use the minimum success cooldown constant
+	data.cooldownEndsAt = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
 	horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
-
 struct SpawnPointCache {
 	gtime_t last_check_time = 0_sec;
 	vec3_t last_check_origin = {};
@@ -626,24 +655,25 @@ void CheckAndReduceSpawnCooldowns() {
 
 		// Check if spawn point is disabled and cooldown is still active
 		if (data.isTemporarilyDisabled && current_time < data.cooldownEndsAt) {
-			// Found at least one cooldown to reset
 			found_cooldowns_to_reset = true;
 
-			// Calculate new cooldown directly
 			const gtime_t remaining_time = data.cooldownEndsAt - current_time;
-			data.cooldownEndsAt = current_time + (remaining_time * REDUCTION_FACTOR);
+			// Calculate reduced duration and ensure it meets the minimum
+			const gtime_t reduced_duration = remaining_time * REDUCTION_FACTOR;
+			const gtime_t final_duration = std::max(reduced_duration, HordeConstants::MIN_REDUCED_INDIVIDUAL_COOLDOWN);
+			data.cooldownEndsAt = current_time + final_duration; // Apply clamped duration
 
-			// Reset attempt counter for fresh spawning
 			data.attempts = 0;
 		}
 	}
 
-	// Only reduce global cooldown if we actually found cooldowns to reset
 	if (found_cooldowns_to_reset) {
 		SPAWN_POINT_COOLDOWN *= REDUCTION_FACTOR;
+		// Clamp the global cooldown after reduction
+		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN);
 
 		if (developer->integer > 1) {
-			gi.Com_PrintFmt("Global spawn cooldown reduced to {:.2f}s\n", SPAWN_POINT_COOLDOWN.seconds());
+			gi.Com_PrintFmt("Global spawn cooldown reduced and clamped to {:.2f}s\n", SPAWN_POINT_COOLDOWN.seconds());
 		}
 	}
 }
@@ -939,7 +969,6 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 }
 
 // Cache for common calculations in UnifiedAdjustSpawnRate
-// Cache for common calculations in UnifiedAdjustSpawnRate
 struct WaveScalingCache {
 	// Lookup tables for frequent calculations
 	static constexpr int32_t MAX_WAVE_LEVEL = 50;
@@ -1071,8 +1100,9 @@ void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPl
 	}
 
 	// Final cooldown clamping
-	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.5_sec, 3.5_sec);
-
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
+		HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN, // Use the constant
+		3.5_sec); // Keep upper bound or define a MAX constant
 	// Calculate final spawn count
 	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
 	ClampNumToSpawn(mapSize); // Handle clamping
@@ -5038,6 +5068,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// --- Perform Teleport Attempt ---
 	bool teleport_succeeded = false;
 	vec3_t final_teleport_origin = vec3_origin;
+	const edict_t* spawn_point = nullptr;
 
 	// --- Method 1: Teleport Near Player ---
 	if (use_player_teleport) {
@@ -5094,28 +5125,49 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	// --- Post-Teleport Actions ---
 	if (teleport_succeeded) {
-		self->svflags &= ~SVF_NOCLIENT; gi.linkentity(self); // Link at final position
+		// Make visible again and link at the new final position
+		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity(self);
+
+		// Play effects
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-		SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f);
-		self->monsterinfo.react_to_damage_time = level.time;
+		SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f); // Use the actual final position
+
+		// Reset timers and apply cooldowns
+		self->monsterinfo.react_to_damage_time = level.time; // Reset stuck detection timer source
+		// Apply cooldown *to the monster* to prevent it teleporting again immediately
 		self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
-		g_teleport_rate_count++; // Increment global counter
-		MarkPositionAsRecentlyTeleported(final_teleport_origin); // Update history
-	}
-	else if (use_player_teleport) {
-		// If player teleport was tried but failed, ensure monster is relinked
-		self->svflags &= ~SVF_NOCLIENT; gi.linkentity(self);
+
+		// Increment global rate limiter
+		g_teleport_rate_count++;
+
+		// Mark the *destination position* as recently used for teleporting
+		MarkPositionAsRecentlyTeleported(final_teleport_origin);
+
+		// Apply cooldown *to the spawn point* if one was used for the teleport
+		if (!use_player_teleport && spawn_point) { // Ensure a spawn point was involved and is valid
+			// Calculate the cooldown duration for the spawn point, ensuring it meets the minimum
+			const gtime_t spawn_point_cooldown_duration = std::max(
+				HordeConstants::BASE_SPAWN_TELEPORT_COOLDOWN,  // Use the base duration constant
+				HordeConstants::MIN_SPAWN_TELEPORT_COOLDOWN   // Ensure it's not below the absolute minimum
+			);
+			spawnPointsData[spawn_point].teleport_cooldown = level.time + spawn_point_cooldown_duration;
+		}
 	}
 	else {
-		// If spawn point teleport was tried but failed, ensure monster is relinked
-		self->svflags &= ~SVF_NOCLIENT; gi.linkentity(self);
+		// If teleport failed (either player or spawn point method)
+		// The monster was unlinked before the attempt, so it *must* be relinked at its original position.
+		self->svflags &= ~SVF_NOCLIENT; // Make visible again
+		gi.linkentity(self);            // Link back into the world
+		// No cooldowns or tracking updates are needed since the teleport didn't happen.
 	}
 
-	// Reset Stuck Flags regardless of success/failure
+	// Reset Stuck Flags regardless of success or failure of the *teleport attempt*.
+	// The condition that *triggered* the attempt is now considered handled.
 	self->monsterinfo.was_stuck = false;
 	self->monsterinfo.stuck_check_time = 0_sec;
 
-	return teleport_succeeded;
+	return teleport_succeeded; // Return true only if the monster was actually moved
 }
 
 // Function to track created entities
@@ -6116,29 +6168,57 @@ edict_t* SpawnMonsters() {
 		}
 	}
 
-	static void SetNextMonsterSpawnTime(const MapSize & mapSize) {
-		// Original spawn time ranges
+	static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
+		// Original spawn time ranges (Big maps are faster)
 		constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = { {
 			{0.6_sec, 0.8_sec},  // Small maps
 			{0.8_sec, 1.0_sec},  // Medium maps
 			{0.4_sec, 0.6_sec}   // Big maps
 		} };
 
-		// Apply early wave modifier (waves 1-10)
+		// Apply early wave modifier (waves 1-10) - slows down spawn rate initially
 		float earlyWaveMultiplier = 1.0f;
-		if (g_horde_local.level <= 10) {
-			// Start with 2.0x slower at wave 1, gradually reduce to 1.0x at wave 10
-			earlyWaveMultiplier = 2.0f - ((g_horde_local.level - 1) * 0.1f);
+		// Check level is valid before calculation
+		if (g_horde_local.level >= 1 && g_horde_local.level <= 10) {
+			// Linearly decreases interval multiplier from 2.0x at wave 1 down to 1.1x at wave 10.
+			// After wave 10, the multiplier is 1.0x (no modification).
+			earlyWaveMultiplier = 2.0f - ((static_cast<float>(g_horde_local.level) - 1.0f) * 0.1f);
+			// Clamp just in case level somehow goes outside 1-10 despite the check
+			earlyWaveMultiplier = std::clamp(earlyWaveMultiplier, 1.1f, 2.0f);
 		}
 
+		// Select base times based on map size
 		const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
 		const auto& [base_min_time, base_max_time] = BASE_SPAWN_TIMES[mapIndex];
 
-		// Apply multiplier to spawn times
+		// Apply the early wave multiplier to get the target time range
 		const gtime_t min_time = gtime_t::from_sec(base_min_time.seconds() * earlyWaveMultiplier);
 		const gtime_t max_time = gtime_t::from_sec(base_max_time.seconds() * earlyWaveMultiplier);
 
-		g_horde_local.monster_spawn_time = level.time + random_time(min_time, max_time);
+		// Calculate the random interval within the adjusted range
+		// Ensure min_time <= max_time before calling random_time to avoid potential issues
+		const gtime_t calculated_interval = (min_time <= max_time) ?
+			random_time(min_time, max_time) :
+			min_time; // Fallback to min_time if somehow inverted
+
+		// --- CLAMPING ---
+		// Ensure the final interval is never less than the absolute minimum allowed
+		const gtime_t final_interval = std::max(calculated_interval, HordeConstants::MIN_MONSTER_SPAWN_INTERVAL);
+
+		// Set the time for the next spawn attempt
+		g_horde_local.monster_spawn_time = level.time + final_interval;
+
+		//// Optional Debugging
+		//if (developer->integer > 2) {
+		//	gi.Com_PrintFmt("SetNextMonsterSpawnTime: Level=%d, MapIdx=%zu, EarlyMult=%.2f, Base=[%.2f-%.2f], Adjusted=[%.2f-%.2f], Calculated=%.2f, Final=%.2f\n",
+		//		g_horde_local.level,
+		//		mapIndex,
+		//		earlyWaveMultiplier,
+		//		base_min_time.seconds(), base_max_time.seconds(),
+		//		min_time.seconds(), max_time.seconds(),
+		//		calculated_interval.seconds(),
+		//		final_interval.seconds());
+		//}
 	}
 	// Usar enum class para mejorar la seguridad de tipos
 	enum class MessageType {
