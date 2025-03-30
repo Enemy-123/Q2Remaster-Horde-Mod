@@ -608,18 +608,17 @@ void ApplyBossEffects(edict_t* boss)
 }
 
 extern void SP_target_earthquake(edict_t* self);
-constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
-[[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
-constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
+extern constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
+extern constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity)
 {
 	// Constantes para mejor legibilidad y mantenimiento
-	constexpr int   NUM_SECONDARY_EFFECTS = 9;
+	constexpr int   NUM_SECONDARY_EFFECTS = 12;
 	constexpr float RANDOM_OFFSET_RANGE = 255.0f;
 	constexpr float EFFECT_SCALE = 0.55f;
 	constexpr float EARTHQUAKE_SPEED = 500.0f;
-	constexpr int   EARTHQUAKE_DURATION = 7;
+	constexpr int   EARTHQUAKE_DURATION = 12;
 
 	// Crear el efecto principal de spawn
 	SpawnGrow_Spawn(position, start_size, end_size);

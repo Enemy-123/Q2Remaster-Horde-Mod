@@ -1007,7 +1007,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     trap->mins = { -4, -4, 0 };
     trap->maxs = { 4, 4, 8 };
     trap->die = trap_die;
-    trap->health = 200;
+    trap->health = 250;
     trap->s.modelindex = gi.modelindex("models/weapons/z_trap/tris.md2");
     trap->owner = trap->teammaster = self;
 
