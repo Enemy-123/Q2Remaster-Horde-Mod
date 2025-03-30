@@ -1474,89 +1474,138 @@ parsing textual entity definitions out of an ent file.
 */
 constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN // Also good practice
 #include <windows.h>
-#include <string>
-#include <format>
 #include <filesystem>
 #include <fstream>
 
-bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::string& outFilename) {
+bool LoadEntityFileModern(std::string_view mapname, std::vector<char>& buffer, std::string& outFilename) {
 	namespace fs = std::filesystem;
+
 	try {
-		std::array<char, MAX_PATH> modulePath{};
-
-		auto [success, hModule] = [&] {
-			HMODULE h = nullptr;
-			bool s = GetModuleHandleExA(
-				GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-				reinterpret_cast<LPCSTR>(&LoadEntityFile),
-				&h);
-			return std::make_pair(s, h);
-			}();
-
-		if (!success) {
-			gi.Com_PrintFmt("Error obtaining module handle.\n");
+		// 1. Get Module Handle (using the address of this function)
+		HMODULE hModule = nullptr;
+		if (!GetModuleHandleExW(
+			GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+			reinterpret_cast<LPCWSTR>(&LoadEntityFileModern), // Use W version API
+			&hModule)) {
+			gi.Com_PrintFmt("Error obtaining module handle (WinError {}).\n", GetLastError());
 			return false;
 		}
 
-		if (DWORD result = GetModuleFileNameA(hModule, modulePath.data(), MAX_PATH);
-			result == 0 || result == MAX_PATH) {
-			gi.Com_PrintFmt("Error obtaining module path.\n");
-			return false;
+		// 2. Get Module Filename (using W version for Unicode paths)
+		std::vector<wchar_t> modulePathBuf(MAX_PATH); // Start with MAX_PATH
+		DWORD pathLen = 0;
+		while (true) {
+			pathLen = GetModuleFileNameW(hModule, modulePathBuf.data(), static_cast<DWORD>(modulePathBuf.size()));
+			DWORD lastError = GetLastError();
+
+			if (pathLen == 0) {
+				gi.Com_PrintFmt("Error obtaining module path (WinError {}).\n", lastError);
+				return false;
+			}
+			// Success: Buffer was large enough
+			if (pathLen < modulePathBuf.size()) {
+				// Optional: Resize down to actual length if desired, but not necessary
+				// modulePathBuf.resize(pathLen + 1); // +1 for potential null-terminator usage
+				break;
+			}
+			// Buffer too small: Resize and try again
+			if (lastError == ERROR_INSUFFICIENT_BUFFER) {
+				// Prevent excessive resizing / potential infinite loop
+				if (modulePathBuf.size() >= 32767) { // Windows max path theoretical limit
+					gi.Com_PrintFmt("Module path exceeds maximum allowable length (32767).\n");
+					return false;
+				}
+				modulePathBuf.resize(modulePathBuf.size() * 2); // Double buffer size
+			}
+			else {
+				// Another unexpected error occurred
+				gi.Com_PrintFmt("Error obtaining module path, unexpected state (WinError {}).\n", lastError);
+				return false;
+			}
 		}
+		// Ensure null termination, although GetModuleFileNameW should do it if buffer is sufficient
+		modulePathBuf[pathLen] = L'\0';
 
-		const fs::path entfile = fs::path(modulePath.data()).parent_path() / "maps" /
-			std::format("{}.ent", mapname);
-		outFilename = entfile.string();
+		// 3. Construct Entity File Path using std::filesystem
+		// Construct path from wide string buffer
+		fs::path moduleDir = fs::path(modulePathBuf.data()).parent_path();
 
-		FILE* fp = fopen(outFilename.c_str(), "rb");
-		if (!fp) {
+		// Convert mapname (UTF-8 assumed) to wstring for path construction if needed
+		// fs::path can often handle UTF-8 directly on Windows now, but explicit conversion is safer.
+		// C++20 std::format needs matching type (L"" for wchar_t)
+		std::wstring mapname_w(mapname.begin(), mapname.end()); // Simple conversion (assumes mapname is compatible)
+		fs::path entFilePath = moduleDir / "maps" / std::format(L"{}.ent", mapname_w);
+
+		// Store the final path as a narrow UTF-8 string for output
+		// This conversion might be lossy if the path contains characters not representable in the target narrow encoding
+		// but filesystem::path::string() usually aims for UTF-8 on modern systems.
+		outFilename = entFilePath.string(); // Get possibly narrow string representation
+
+		// 4. Open and Read File using std::ifstream (RAII handles closing)
+		std::ifstream entFile(entFilePath, std::ios::binary | std::ios::ate); // Open at end to get size easily
+
+		if (!entFile) {
+			// Don't treat "not found" as a critical error necessarily, but report it
+			// The original code reported failure here.
 			gi.Com_PrintFmt("Failed to open entity file: {}\n", outFilename);
 			return false;
 		}
 
-		struct FileGuard {
-			FILE* fp;
-			FileGuard(FILE* f) : fp(f) {}
-			~FileGuard() { if (fp) fclose(fp); }
-		} guard(fp);
-
-		if (fseek(fp, 0, SEEK_END) != 0) {
-			gi.Com_PrintFmt("Error seeking entity file: {}\n", outFilename);
+		// 5. Check File Size
+		std::streamsize size = entFile.tellg();
+		if (size < 0) {
+			gi.Com_PrintFmt("Error determining entity file size (tellg failed): {}\n", outFilename);
+			return false;
+		}
+		// Check if size exceeds potential limits of size_t or our custom limit
+		if (static_cast<uintmax_t>(size) > std::numeric_limits<size_t>::max()) {
+			gi.Com_PrintFmt("Entity file size exceeds size_t limits: \"{}\"\n", outFilename);
 			return false;
 		}
 
-		const long file_length = ftell(fp);
-		if (file_length < 0) {
-			gi.Com_PrintFmt("Error getting entity file size: {}\n", outFilename);
-			return false;
-		}
-
-		const size_t length = static_cast<size_t>(file_length);
+		const size_t length = static_cast<size_t>(size);
 		if (length > static_cast<size_t>(MAX_ENTITY_FILE_SIZE)) {
-			gi.Com_PrintFmt("Entity file size exceeds maximum allowed: \"{}\"\n", outFilename);
+			gi.Com_PrintFmt("Entity file size ({}) exceeds maximum allowed ({}): \"{}\"\n", length, MAX_ENTITY_FILE_SIZE, outFilename);
 			return false;
 		}
 
-		if (fseek(fp, 0, SEEK_SET) != 0) {
-			gi.Com_PrintFmt("Error seeking entity file: {}\n", outFilename);
-			return false;
+		// 6. Read File Contents
+		entFile.seekg(0, std::ios::beg); // Seek back to the beginning
+
+		buffer.resize(length + 1); // Resize buffer (+1 for null terminator)
+
+		// Read the data directly into the vector's buffer
+		if (!entFile.read(buffer.data(), length)) {
+			// Check if read failed *before* reaching EOF (partial read)
+			if (entFile.gcount() != length) {
+				gi.Com_PrintFmt("Error reading entity file (read {} of {} bytes): \"{}\"\n", entFile.gcount(), length, outFilename);
+				buffer.clear(); // Clear potentially partial data
+				return false;
+			}
+			// If gcount() == length, it means we read everything, even if EOF/fail bits are set, which is okay.
 		}
 
-		buffer.resize(length + 1);
-
-		if (fread(buffer.data(), 1, length, fp) != length) {
-			gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", outFilename);
-			return false;
-		}
-
+		// 7. Null-terminate the buffer
 		buffer[length] = '\0';
-		return true;
+
+		return true; // Success!
+
+	}
+	catch (const fs::filesystem_error& e) {
+		// Catch potential exceptions from filesystem operations
+		gi.Com_PrintFmt("Filesystem error loading entity file: {} (Code: {}, Path1: {}, Path2: {})\n",
+			e.what(), e.code().message(), e.path1().string(), e.path2().string());
+		return false;
 	}
 	catch (const std::exception& e) {
+		// Catch other potential standard exceptions (e.g., from std::vector::resize, std::format)
 		gi.Com_PrintFmt("Unexpected error loading entity file: {}\n", e.what());
 		return false;
 	}
+	// Note: Catching (...) is generally discouraged unless you rethrow or terminate.
 }
 
 //#include <map>
@@ -1619,19 +1668,20 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	// reserve some spots for dead player bodies for coop / deathmatch
 	InitBodyQue();
 
-	// Load entity file
+	// Load entity file using the modern function
 	std::vector<char> entity_buffer;
 	std::string ent_filename;
-	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer, ent_filename);
+	const bool ent_file_loaded = LoadEntityFileModern(mapname, entity_buffer, ent_filename); // Call the new function
 
 	if (ent_file_loaded) {
 		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+		// Assuming VerifyEntityString takes const char*
 		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
-			entities = entity_buffer.data();
+			entities = entity_buffer.data(); // Point to the vector's data
 			gi.Com_PrintFmt("PRINT: Entity override file verified and loaded: \"{}\"\n", ent_filename);
 		}
 	}
-	
+
 	// parse ents
 	while (1)
 	{

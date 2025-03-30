@@ -1707,7 +1707,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	// Handle the case where no definition matches (shouldn't happen with a catch-all)
 	if (it == wave_definitions.end()) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("Warning: No wave definition found for wave %d. Using default.\n", waveNumber);
+			gi.Com_PrintFmt("Warning: No wave definition found for wave {}. Using default.\n", waveNumber);
 		}
 		// Return a safe default (e.g., the first definition's base)
 		selected_type = wave_definitions[0].base_type;
@@ -2152,7 +2152,7 @@ static edict_t* CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 	edict_t* monster = G_Spawn();
 	if (!monster) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("CreateBaseHordeMonster: G_Spawn failed for %s\n", classname);
+			gi.Com_PrintFmt("CreateBaseHordeMonster: G_Spawn failed for {}\n", classname);
 		}
 		return nullptr;
 	}
@@ -2524,7 +2524,7 @@ gitem_t* G_HordePickItem() {
 	if (horde_item_cache.count == 0 || horde_item_cache.total_weight <= 0.0f) {
 		// Log if no items found (useful for debugging balance/data issues)
 		if (developer->integer) {
-			gi.Com_PrintFmt("Warning: G_HordePickItem found no eligible items for wave %d.\n", g_horde_local.level);
+			gi.Com_PrintFmt("Warning: G_HordePickItem found no eligible items for wave {}.\n", g_horde_local.level);
 		}
 		return nullptr; // No items eligible or they all have zero/negative weight
 	}
@@ -5392,7 +5392,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	// Use the TypeID version of FindEmergencySpawnPosition
 	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID %d\n", static_cast<int>(typeId));
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}\n", static_cast<int>(typeId));
 		}
 		return false;
 	}
@@ -5409,7 +5409,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	edict_t* monster = CreateBaseHordeMonster(typeId, emergency_origin, emergency_angles);
 	if (!monster) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: CreateBaseHordeMonster failed for TypeID %d\n", static_cast<int>(typeId));
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: CreateBaseHordeMonster failed for TypeID {}\n", static_cast<int>(typeId));
 		}
 		return false; // Creation failed
 	}
@@ -5660,7 +5660,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	if (ambushSuccessCount > 0) {
 		gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
 		if (developer->integer) {
-			gi.Com_PrintFmt("AMBUSH: Spawned %d/%d monsters near players\n",
+			gi.Com_PrintFmt("AMBUSH: Spawned {}/{} monsters near players\n",
 				ambushSuccessCount, ambushSize);
 		}
 	}
@@ -5733,7 +5733,7 @@ edict_t* SpawnMonsters() {
 		g_original_wave_type_before_recovery = MonsterWaveType::None;
 
 		if (developer->integer) {
-			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: %zu potential points found and shuffled.\n",
+			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} potential points found and shuffled.\n",
 				g_potential_spawn_points.size());
 		}
 	}
@@ -5756,12 +5756,12 @@ edict_t* SpawnMonsters() {
 	// --- Hard Cap Check ---
 	if (activeMonsters >= hardCap) {
 		if (developer->integer > 1) {
-			gi.Com_PrintFmt("SpawnMonsters: Hard monster cap reached (%d/%d), SoftCap=%d, PlayerAdjustedCap=%d\n",
+			gi.Com_PrintFmt("SpawnMonsters: Hard monster cap reached ({}/{}), SoftCap={}, PlayerAdjustedCap={}\n",
 				activeMonsters, hardCap, softCap, g_adjusted_monster_cap);
 		}
 		if (current_state == horde_state_t::spawning && !next_wave_message_sent) {
 			VerifyAndAdjustBots();
-			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed (Hard Cap Reached).\nWave Level: %d\n", currentLevel);
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed (Hard Cap Reached).\nWave Level: {}\n", currentLevel);
 			next_wave_message_sent = true;
 			g_horde_local.state = horde_state_t::active_wave;
 		}
@@ -5789,7 +5789,7 @@ edict_t* SpawnMonsters() {
 	int32_t availableSpace = softCap - activeMonsters;
 	if (availableSpace <= 0) {
 		if (developer->integer > 1) {
-			gi.Com_PrintFmt("SpawnMonsters: Soft monster cap reached (%d/%d), PlayerAdjustedCap=%d\n", activeMonsters, softCap, g_adjusted_monster_cap);
+			gi.Com_PrintFmt("SpawnMonsters: Soft monster cap reached ({}/{}), PlayerAdjustedCap={}\n", activeMonsters, softCap, g_adjusted_monster_cap);
 		}
 		return nullptr;
 	}
@@ -5802,7 +5802,7 @@ edict_t* SpawnMonsters() {
 			g_horde_local.num_to_spawn += transfer_amount;
 			g_horde_local.queued_monsters -= transfer_amount;
 			if (developer->integer > 1) {
-				gi.Com_PrintFmt("SpawnMonsters: Transferred %d monsters from queue (%d remaining).\n", transfer_amount, g_horde_local.queued_monsters);
+				gi.Com_PrintFmt("SpawnMonsters: Transferred {} monsters from queue ({} remaining).\n", transfer_amount, g_horde_local.queued_monsters);
 			}
 			availableSpace -= transfer_amount;
 		}
@@ -5827,12 +5827,12 @@ edict_t* SpawnMonsters() {
 		wave_type_override = HasWaveType(current_wave_type, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground;
 		ResetAllSpawnAttempts();
 		if (developer->integer) {
-			gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures=%d. Simplified wave type, reset spawn points.\n", g_consecutive_spawn_failures);
+			gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}. Simplified wave type, reset spawn points.\n", g_consecutive_spawn_failures);
 		}
 	}
 	else if (g_consecutive_spawn_failures >= MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures=%d. Attempting spawn near players.\n", g_consecutive_spawn_failures);
+			gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}. Attempting spawn near players.\n", g_consecutive_spawn_failures);
 		}
 		int emergency_spawned_count = 0;
 		for (int i = 0; i < std::min(spawnable_this_call, 3); ++i) {
@@ -5847,7 +5847,7 @@ edict_t* SpawnMonsters() {
 				if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
 			}
 			else {
-				if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not spawn type %d.\n", (int)emergency_type);
+				if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not spawn type {}.\n", (int)emergency_type);
 				break;
 			}
 		}
@@ -5890,12 +5890,12 @@ edict_t* SpawnMonsters() {
 			const auto& sp_data = spawnPointsData[spawn_point];
 			if ((sp_data.isTemporarilyDisabled && current_time < sp_data.cooldownEndsAt) || (current_time < sp_data.alternative_cooldown)) {
 				// Point on cooldown, skip silently unless debugging high
-				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d skipped (cooldown).\n", (int)(spawn_point - g_edicts));
+				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (cooldown).\n", (int)(spawn_point - g_edicts));
 				continue; // Skip this point entirely for now
 			}
 			const bool is_flying_spawn_point = (spawn_point->style == 1);
 			if (effective_wave_type != MonsterWaveType::None && is_flying_spawn_point && !HasWaveType(effective_wave_type, MonsterWaveType::Flying)) {
-				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d skipped (wave/spawn flying mismatch).\n", (int)(spawn_point - g_edicts));
+				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (wave/spawn flying mismatch).\n", (int)(spawn_point - g_edicts));
 				IncreaseSpawnAttempts(spawn_point); // Penalize
 				g_consecutive_spawn_failures++;
 				continue;
@@ -5903,14 +5903,14 @@ edict_t* SpawnMonsters() {
 			bool too_close_to_player = false;
 			for (const auto* const player : active_players_no_spect()) { if ((spawn_point->s.origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_CHECK) { too_close_to_player = true; break; } }
 			if (too_close_to_player) {
-				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d skipped (too close to player).\n", (int)(spawn_point - g_edicts));
+				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (too close to player).\n", (int)(spawn_point - g_edicts));
 				IncreaseSpawnAttempts(spawn_point); // Penalize
 				g_consecutive_spawn_failures++;
 				continue;
 			}
 			SpawnPointCache& cache = spawn_point_cache[spawn_point];
 			if (IsSpawnPointOccupied(spawn_point)) { // Checks only player block
-				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d skipped (player occupied - IsOccupied).\n", (int)(spawn_point - g_edicts));
+				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (player occupied - IsOccupied).\n", (int)(spawn_point - g_edicts));
 				IncreaseSpawnAttempts(spawn_point);
 				g_consecutive_spawn_failures++;
 				continue;
@@ -5928,7 +5928,7 @@ edict_t* SpawnMonsters() {
 
 			// --- Flying Compatibility Check (Post-Selection) ---
 			if (is_flying_spawn_point && !monster_is_flying) {
-				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d skipped (flying point, non-flying monster %d).\n", (int)(spawn_point - g_edicts), (int)monster_type);
+				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (flying point, non-flying monster {}).\n", (int)(spawn_point - g_edicts), (int)monster_type);
 				IncreaseSpawnAttempts(spawn_point); g_consecutive_spawn_failures++; continue;
 			}
 			// Optional: Add check for non-flying point + flying monster if wave isn't specifically flying? (already present before selection, maybe redundant)
@@ -5955,21 +5955,21 @@ edict_t* SpawnMonsters() {
 					final_origin = direct_origin;
 					final_angles = spawn_point->s.angles;
 					found_valid_spot = true;
-					if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d direct location {} is valid.\n", (int)(spawn_point - g_edicts), final_origin);
+					if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} direct location {} is valid.\n", (int)(spawn_point - g_edicts), final_origin);
 				}
 				else {
-					if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d direct location {} failed final occupation check.\n", (int)(spawn_point - g_edicts), direct_origin);
+					if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} direct location {} failed final occupation check.\n", (int)(spawn_point - g_edicts), direct_origin);
 				}
 			}
 			else {
-				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point %d direct location {} failed IsValidSpawnLocation.\n", (int)(spawn_point - g_edicts), spawn_point->s.origin);
+				if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} direct location {} failed IsValidSpawnLocation.\n", (int)(spawn_point - g_edicts), spawn_point->s.origin);
 			}
 
 			// ** Attempt 2: Alternative Spawn Point (if direct failed OR cache indicated obstacle initially) **
 			// Only try alternative if direct failed AND alternative is not on cooldown
 			if (!found_valid_spot && current_time >= sp_data.alternative_cooldown)
 			{
-				if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Direct spawn failed or point congested for point %d, trying alternative...\n", (int)(spawn_point - g_edicts));
+				if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Direct spawn failed or point congested for point {}, trying alternative...\n", (int)(spawn_point - g_edicts));
 				if (TryAlternativeSpawnPosition(spawn_point, monster_type, final_origin, final_angles)) {
 					// Alternative position FOUND, now re-validate IT
 					used_alternative = true;
@@ -5987,17 +5987,17 @@ edict_t* SpawnMonsters() {
 						if (final_check_data_alt.count == 0) {
 							// Alternative spot is valid and clear!
 							found_valid_spot = true;
-							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point %d alternative location {} is valid.\n", (int)(spawn_point - g_edicts), final_origin);
+							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point {} alternative location {} is valid.\n", (int)(spawn_point - g_edicts), final_origin);
 						}
 						else {
-							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point %d alternative location {} failed final occupation check.\n", (int)(spawn_point - g_edicts), final_origin);
+							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point {} alternative location {} failed final occupation check.\n", (int)(spawn_point - g_edicts), final_origin);
 							ApplyAlternativePositionCooldown(spawn_point); // Penalize failed alternative attempt
 							g_consecutive_spawn_failures++;
 							// found_valid_spot remains false
 						}
 					}
 					else {
-						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point %d alternative location {} failed IsValidSpawnLocation.\n", (int)(spawn_point - g_edicts), final_origin);
+						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point {} alternative location {} failed IsValidSpawnLocation.\n", (int)(spawn_point - g_edicts), final_origin);
 						ApplyAlternativePositionCooldown(spawn_point); // Penalize failed alternative attempt
 						g_consecutive_spawn_failures++;
 						// found_valid_spot remains false
@@ -6005,7 +6005,7 @@ edict_t* SpawnMonsters() {
 				}
 				else {
 					// TryAlternativeSpawnPosition itself failed to find anything
-					if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point %d TryAlternativeSpawnPosition returned false.\n", (int)(spawn_point - g_edicts));
+					if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point {} TryAlternativeSpawnPosition returned false.\n", (int)(spawn_point - g_edicts));
 					ApplyAlternativePositionCooldown(spawn_point); // Penalize failed alternative attempt
 					g_consecutive_spawn_failures++;
 					// found_valid_spot remains false
@@ -6016,7 +6016,7 @@ edict_t* SpawnMonsters() {
 				// Apply normal penalty as if direct failed validation
 				IncreaseSpawnAttempts(spawn_point);
 				g_consecutive_spawn_failures++;
-				if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point %d direct failed, alternative skipped (cooldown?).\n", (int)(spawn_point - g_edicts));
+				if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Point {} direct failed, alternative skipped (cooldown?).\n", (int)(spawn_point - g_edicts));
 			}
 
 
@@ -6317,7 +6317,7 @@ edict_t* SpawnMonsters() {
 
 		//// Optional Debugging
 		//if (developer->integer > 2) {
-		//	gi.Com_PrintFmt("SetNextMonsterSpawnTime: Level=%d, MapIdx=%zu, EarlyMult=%.2f, Base=[%.2f-%.2f], Adjusted=[%.2f-%.2f], Calculated=%.2f, Final=%.2f\n",
+		//	gi.Com_PrintFmt("SetNextMonsterSpawnTime: Level={}, MapIdx={}, EarlyMult={:.2f}, Base=[{:.2f}-{:.2f}], Adjusted=[{:.2f}-{:.2f}], Calculated={:.2f}, Final={:.2f}\n",
 		//		g_horde_local.level,
 		//		mapIndex,
 		//		earlyWaveMultiplier,
@@ -6585,7 +6585,7 @@ edict_t* SpawnMonsters() {
 			finalAdjustedCap += playerBonus;
 
 			if (developer->integer > 1) {
-				gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap=%d, Humans={}, BonusPlayers={}, Bonus={}, FinalCap={}\n",
+				gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, BonusPlayers={}, Bonus={}, FinalCap={}\n",
 					waveLevel, baseCap, numHumanPlayers, extraPlayers, playerBonus, finalAdjustedCap);
 			}
 		}
