@@ -28,6 +28,8 @@ void OpenMapCategoryMenu(edict_t* ent);
 void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p);
 void CategorizeMapList();
 pmenuhnd_t* CreateHUDMenu(edict_t* ent);
+void OpenMiscMenu(edict_t* ent); // Forward declare Misc menu functions
+void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
 //--------------------------------
 static void SetGameName(pmenu_t* p);
@@ -316,7 +318,7 @@ static pmenu_t map_category_menu[] = {
 constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t); // Now 10
 
 // Define indices for clarity (optional but helpful)
-constexpr size_t MAP_CAT_MENU_TITLE_IDX = 0;
+//constexpr size_t MAP_CAT_MENU_TITLE_IDX = 0;
 constexpr size_t MAP_CAT_MENU_CURRENT_MAP_IDX = 2;
 constexpr size_t MAP_CAT_MENU_BIG_IDX = 4;
 constexpr size_t MAP_CAT_MENU_MEDIUM_IDX = 5;
@@ -752,6 +754,100 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	PMenu_Close(ent); // Close the tech menu after selection
 }
 
+
+// === Misc Options Menu ===
+
+// Handler for the Misc submenu
+void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num) {
+		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
+		return;
+	}
+
+	const pmenu_t* selected_entry = &p->entries[p->cur];
+	const char* selected_text = selected_entry->text;
+	bool shouldCloseMenu = true;
+
+	// Use strncmp for options that might have counts appended
+	if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
+		Cmd_RemoveLaser_f(ent); // Directly call the function
+		// Message is handled by Cmd_RemoveLaser_f
+	}
+	else if (strncmp(selected_text, "Remove Sentry Gun", strlen("Remove Sentry Gun")) == 0) {
+		Cmd_RemoveSentry_f(ent); // Directly call the function
+		// Message is handled by Cmd_RemoveSentry_f
+	}
+	else if (strcmp(selected_text, "Back") == 0) {
+		PMenu_Close(ent);
+		OpenHordeMenu(ent); // Go back to the main menu
+		shouldCloseMenu = false; // Already handled
+	}
+	else if (strcmp(selected_text, "Close") == 0) {
+		// Default action is to close
+	}
+	else {
+		// Clicked on title or separator
+		shouldCloseMenu = false;
+	}
+
+	if (shouldCloseMenu && ent->client && ent->client->menu) {
+		PMenu_Close(ent);
+	}
+}
+
+// Creates and opens the Misc submenu
+void OpenMiscMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	static pmenu_t entries[10]; // Buffer for Misc menu entries
+	memset(entries, 0, sizeof(entries));
+	int count = 0;
+
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
+		if (count < static_cast<int>(std::size(entries))) {
+			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
+			entries[count].align = align;
+			entries[count].SelectFunc = func;
+			count++;
+		}
+		};
+
+	add_entry("*Misc Options*", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER); // Separator
+
+	// Conditional "Remove Lasers"
+	int laser_count = 0;
+	if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
+		laser_count = manager->get_active_count();
+	}
+	if (laser_count > 0) {
+		char remove_laser_text[64];
+		snprintf(remove_laser_text, sizeof(remove_laser_text), "Remove Lasers (%d)", laser_count);
+		add_entry(remove_laser_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
+
+	// Conditional "Remove Sentry Gun"
+	int sentry_count = ent->client->num_sentries;
+	if (sentry_count > 0) {
+		char remove_sentry_text[64];
+		snprintf(remove_sentry_text, sizeof(remove_sentry_text), "Remove Sentry Gun (%d)", sentry_count);
+		add_entry(remove_sentry_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
+
+	add_entry("", PMENU_ALIGN_CENTER); // Separator
+	add_entry("Back", PMENU_ALIGN_LEFT, MiscMenuHandler);
+	add_entry("Close", PMENU_ALIGN_LEFT, MiscMenuHandler);
+
+	PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
+}
+
+
 // === HUD Options Menu ===
 
 constexpr size_t HUD_MENU_MAX_ENTRIES = 8;
@@ -948,23 +1044,15 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	// --- Action Handling based on Text ---
 
-	// Check for "Go Spectator/AFK" using ONLY strcmp
-	if (strcmp(selected_text, "Go Spectator/AFK") == 0) { // <-- FIX: Removed "option == 2 &&"
+	// Check for "Go Spectator/AFK"
+	if (strcmp(selected_text, "Go Spectator/AFK") == 0) {
 		CTFObserver(ent);
 		shouldCloseMenu = false; // CTFObserver might handle closing
 	}
-	// Check for "Remove Lasers" using strncmp
-	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
-		if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
-			if (manager->get_active_count() > 0) {
-				remove_lasers(ent);
-				gi.LocClient_Print(ent, PRINT_HIGH, "All your lasers have been removed.\n");
-			}
-			else {
-				gi.LocClient_Print(ent, PRINT_HIGH, "You have no active lasers to remove.\n");
-			}
-		}
-		shouldCloseMenu = true;
+	// Check for "Misc Options"
+	else if (strcmp(selected_text, "Misc Options") == 0) {
+		OpenMiscMenu(ent);
+		shouldCloseMenu = false;
 	}
 	// Vote Map
 	else if (ctfgame.election == ELECT_NONE && strcmp(selected_text, "Vote Map") == 0) {
@@ -1049,30 +1137,11 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Blank after title
 
-	// --- Conditional First Action: Remove Lasers (if available) ---
-	int laser_count = 0;
-	bool added_remove_lasers = false; // Flag to track if we added the laser option
-	if (auto* manager = LaserHelpers::get_laser_manager(ent)) { // Use the helper from laser.h/cpp
-		laser_count = manager->get_active_count();
-	}
-
-	if (laser_count > 0) {
-		char remove_laser_text[64];
-		snprintf(remove_laser_text, sizeof(remove_laser_text), "Remove Lasers (%d)", laser_count);
-		add_entry(remove_laser_text, PMENU_ALIGN_LEFT, HordeMenuHandler); // Add the entry first
-		added_remove_lasers = true;
-	}
-	// --- End Conditional "Remove Lasers" ---
-
-	// 2. Add Separator *after* the first action (either Lasers or Spectator)
-	// This separator will appear *before* Spectator if Lasers was added,
-	// or *after* Spectator if Lasers was not added.
-	add_entry("", PMENU_ALIGN_CENTER);
-
-	// 3. Go Spectator (Always add this, position depends on lasers)
+	// 2. Go Spectator (Always add this)
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	add_entry("", PMENU_ALIGN_CENTER); // Separator after Spectator
 
-	// 4. Vote Section (Continues after Spectator)
+	// 3. Vote Section
 	if (ctfgame.election == ELECT_NONE) {
 		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
@@ -1084,6 +1153,17 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr); // Display question
 		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
+	add_entry("", PMENU_ALIGN_CENTER); // Separator after Vote section
+
+	// 4. Misc Options (Conditional)
+	int laser_count = 0;
+	if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
+		laser_count = manager->get_active_count();
+	}
+	int sentry_count = ent->client->num_sentries;
+	if (laser_count > 0 || sentry_count > 0) {
+		add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	}
 
 	// 5. HUD Options

@@ -2085,6 +2085,8 @@ extern gitem_t itemlist[IT_TOTAL];
 bool CheckFlood(edict_t* ent);
 void Cmd_Help_f(edict_t* ent);
 void Cmd_Score_f(edict_t* ent);
+void Cmd_RemoveLaser_f(edict_t* ent); // Added forward declaration
+void Cmd_RemoveSentry_f(edict_t* ent); // Added forward declaration
 
 //
 // g_items.c

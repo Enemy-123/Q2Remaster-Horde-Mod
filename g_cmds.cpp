@@ -501,6 +501,9 @@ void Cmd_Spawn_f(edict_t* ent)
 #include "laser.h"
 #include "shared.h"
 
+// Forward declaration for sentry die function (likely already in g_local.h but doesn't hurt)
+void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+
 void Cmd_Laser_f(edict_t* ent)
 {
 	create_laser(ent);
@@ -511,6 +514,43 @@ void Cmd_RemoveLaser_f(edict_t* ent)
 	remove_lasers(ent);
 	gi.LocClient_Print(ent, PRINT_HIGH, "All lasers removed.\n");
 }
+
+void Cmd_RemoveSentry_f(edict_t* ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	int removed_count = 0;
+	edict_t* current_ent = nullptr;
+
+	// Iterate through all entities to find sentries owned by the player
+	// Start after clients (index game.maxclients)
+	for (int i = game.maxclients + 1; i < globals.num_edicts; i++) {
+		current_ent = &g_edicts[i];
+
+		// Check if the entity is in use, is a sentry gun, and is owned by the command issuer
+		if (current_ent->inuse &&
+			current_ent->classname &&
+			strcmp(current_ent->classname, "monster_sentrygun") == 0 &&
+			current_ent->owner == ent)
+		{
+			// Call the sentry's die function to remove it properly
+			// Use high damage to ensure removal, attacker is the owner
+			// MOD_UNKNOWN prevents score changes/kill messages etc.
+			turret2_die(current_ent, ent, ent, 99999, current_ent->s.origin, MOD_UNKNOWN);
+			removed_count++;
+			// Note: turret2_die should handle decrementing ent->client->num_sentries
+		}
+	}
+
+	if (removed_count > 0) {
+		// Use LocClient_Print for localized output if needed, otherwise Client_Print is fine
+		gi.LocClient_Print(ent, PRINT_HIGH, "Removed %d sentry gun(s).\n", removed_count);
+	} else {
+		gi.LocClient_Print(ent, PRINT_HIGH, "No active sentry guns found to remove.\n");
+	}
+}
+
 
 /*
 Teleport
@@ -1708,6 +1748,10 @@ void ClientCommand(edict_t* ent)
 	}
 	if (Q_strcasecmp(cmd, "removelaser") == 0) {
 		Cmd_RemoveLaser_f(ent);
+		return;
+	}
+	if (Q_strcasecmp(cmd, "removesentry") == 0) {
+		Cmd_RemoveSentry_f(ent);
 		return;
 	}
 
