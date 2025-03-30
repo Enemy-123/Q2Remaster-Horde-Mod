@@ -979,100 +979,77 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 }
 
 bool FindEnhancedTarget(edict_t* self) {
-	// Player-summoned units use FindMTarget (targets monsters/world)
+	// Si es una unidad invocada, usar la lógica específica de FindMTarget
 	if (self->monsterinfo.issummoned) {
 		return FindMTarget(self);
 	}
 
-	// --- Logic for regular monsters (targets players, other monsters, doppelgangers) ---
+	// Para monstruos normales, buscar el mejor objetivo
 	edict_t* best_target = nullptr;
-	float best_dist_sq = MAX_RANGE_SQUARED; // Use squared distance
+	float best_dist = MAX_RANGE_SQUARED;
 
-	// Iterate through potential targets
+	// Iterar una sola vez, manteniendo el mejor objetivo
 	for (unsigned int i = 1; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 
-		// --- Basic Validity Checks ---
-		if (!ent->inuse) continue;
-		if (ent == self) continue;
-		if (ent->health <= 0) continue;
-		if (ent->deadflag) continue;
-
-		// --- Target Type and Team Checks ---
-		bool is_client = (ent->client != nullptr);
-		bool is_monster = ((ent->svflags & SVF_MONSTER) != 0);
-		bool is_doppelganger = (ent->classname && strcmp(ent->classname, "doppleganger") == 0);
-
-		// Must be a client, monster, or doppelganger
-		if (!is_client && !is_monster && !is_doppelganger) {
+		// Verificaciones rápidas primero para early-out
+		if (!ent->inuse || ent == self ||
+			ent->health <= 0 || ent->deadflag) {
 			continue;
 		}
 
-		// Must NOT be on the same team
-		if (OnSameTeam(self, ent)) {
+		// Verificar si es un objetivo válido - incluir doppleganger aquí
+		if (!(!OnSameTeam(self, ent) &&
+			(ent->client || (ent->svflags & SVF_MONSTER) ||
+				(ent->classname && strcmp(ent->classname, "doppleganger") == 0)))) {
 			continue;
 		}
 
-		// Specific check for doppelgangers on the same "effective" team
-		if (is_doppelganger && ent->teammaster && self->teammaster && ent->teammaster == self->teammaster) {
-			continue;
+		// Si el objetivo es un doppleganger, verificar que no sea del mismo equipo
+		if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) {
+			if (ent->teammaster == self->teammaster) {
+				continue;
+			}
 		}
 
-		// --- Client-Specific Checks ---
-		if (is_client) {
-			// Skip spectators
+		// Verificaciones específicas para clientes
+		if (ent->client) {
+			// Si el buscador es una unidad invocada, ignorar players
+			if (self->monsterinfo.issummoned) {
+				continue;
+			}
+			if (ent->client->invisible_time > level.time &&
+				ent->client->invisibility_fade_time <= level.time) {
+				continue;
+			}
 			if (EntIsSpectating(ent)) {
 				continue;
 			}
-
-			// *** REMOVED REDUNDANT FULL INVISIBILITY CHECK HERE ***
-			// The modified visible() function now handles both full and partial
-			// invisibility checks correctly for monster viewers.
 		}
 
-		// --- Distance Check ---
-		float dist_sq = DistanceSquared(self->s.origin, ent->s.origin);
-
-		// Check if within max range AND closer than the current best target
-		if (dist_sq >= best_dist_sq) {
+		// Check de distancia
+		float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
+		if (dist_squared > MAX_RANGE_SQUARED) {
 			continue;
 		}
 
-		// --- Visibility Check (Most expensive check last) ---
-		// Check line-of-sight (not through glass).
-		// This call implicitly handles client invisibility based on the modified visible().
-		if (visible(self, ent, false)) {
-			// This is the new best target
-			best_dist_sq = dist_sq;
+		// Solo hacer el check de visibilidad si este objetivo está más cerca que el mejor actual
+		if (dist_squared < best_dist && visible(self, ent, false)) {
+			best_dist = dist_squared;
 			best_target = ent;
 		}
-	} // End of entity loop
-
-	// --- Set Enemy ---
-	if (best_target) {
-		// Defensive check: Ensure non-summoned monsters don't somehow target friendly summoned units
-		// (Though OnSameTeam should cover most cases)
-		// if (best_target->monsterinfo.issummoned && OnSameTeam(self, best_target)) {
-		//     self->enemy = nullptr; // Clear enemy if best target is friendly summon
-		//     return false;
-		// }
-
-		// Redundant check, but safe: If we somehow selected a player despite being summoned (shouldn't happen due to initial check)
-		// Note: This check is likely unnecessary if the initial 'if (self->monsterinfo.issummoned)' works correctly.
-		if (self->monsterinfo.issummoned && best_target->client) {
-			self->enemy = nullptr; // Summoned shouldn't target players via this function
-			return false;
-		}
-
-		self->enemy = best_target;
-		// Optionally call FoundTarget(self) here if needed after FindEnhancedTarget specifically succeeds
-		// FoundTarget(self); // Be careful not to cause loops if FoundTarget calls FindEnhancedTarget
-		return true; // Found a target
 	}
 
-	// No suitable target found
-	self->enemy = nullptr; // Clear enemy if none found
-	return false; // No target found
+	if (best_target) {
+		// Si somos una unidad invocada y el mejor objetivo es un player, ignorarlo
+		if (self->monsterinfo.issummoned && best_target->client) {
+			return false;
+		}
+		self->enemy = best_target;
+		return true;
+	}
+
+	return false;
 }
 
 /*

@@ -40,7 +40,7 @@ void fixbot_fire_blaster(edict_t* self);
 void fixbot_fire_welder(edict_t* self);
 
 void use_scanner(edict_t* self);
-//void change_to_roam(edict_t* self);
+void change_to_roam(edict_t* self);
 void fly_vertical(edict_t* self);
 
 void fixbot_stand(edict_t* self);
@@ -872,88 +872,88 @@ void landing_goal(edict_t* self)
 	M_SetAnimation(self, &fixbot_move_landing);
 }
 
-//void takeoff_goal(edict_t* self)
-//{
-//	trace_t	 tr;
-//	vec3_t	 forward, right, up;
-//	vec3_t	 end;
-//	edict_t* ent;
-//
-//	ent = G_Spawn();
-//	ent->classname = "bot_goal";
-//	ent->solid = SOLID_BBOX;
-//	ent->owner = self;
-//	ent->think = bot_goal_check;
-//	gi.linkentity(ent);
-//
-//	ent->mins = { -32, -32, -24 };
-//	ent->maxs = { 32, 32, 24 };
-//
-//	AngleVectors(self->s.angles, forward, right, up);
-//	end = self->s.origin + (forward * 32);
-//	end = self->s.origin + (up * 128);
-//
-//	tr = gi.trace(self->s.origin, ent->mins, ent->maxs, end, self, MASK_MONSTERSOLID);
-//
-//	ent->s.origin = tr.endpos;
-//
-//	self->goalentity = self->enemy = ent;
-//	M_SetAnimation(self, &fixbot_move_takeoff);
-//}
+void takeoff_goal(edict_t* self)
+{
+	trace_t	 tr;
+	vec3_t	 forward, right, up;
+	vec3_t	 end;
+	edict_t* ent;
 
-//void change_to_roam(edict_t* self)
-//{
-//	// If we already have a valid enemy, just start running
-//	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
-//		fixbot_run(self); // Transition to run state
-//		return;
-//	}
-//
-//	// Try to find a target using the standard function
-//	if (FindTarget(self)) {
-//		fixbot_run(self); // Found a target, transition to run state
-//		return;
-//	}
-//
-//	// --- No enemy found, proceed with roam/landing/takeoff/stand logic ---
-//
-//	// Existing logic for roam/landing/takeoff/stand:
-//	if (self->spawnflags.has(SPAWNFLAG_FIXBOT_LANDING))
-//	{
-//		landing_goal(self);
-//		M_SetAnimation(self, &fixbot_move_landing);
-//		self->spawnflags &= ~SPAWNFLAG_FIXBOT_LANDING;
-//		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
-//	}
-//	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_TAKEOFF))
-//	{
-//		takeoff_goal(self);
-//		M_SetAnimation(self, &fixbot_move_takeoff);
-//		self->spawnflags &= ~SPAWNFLAG_FIXBOT_TAKEOFF;
-//		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
-//	}
-//	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_FIXIT)) // Assuming FIXIT implies roam
-//	{
-//		M_SetAnimation(self, &fixbot_move_roamgoal); // Set roam goal animation
-//		self->spawnflags &= ~SPAWNFLAG_FIXBOT_FIXIT;
-//		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
-//	}
-//	else if (!self->spawnflags) // If no specific action flags are set
-//	{
-//		// Default to standing if no roam/landing/takeoff needed
-//		M_SetAnimation(self, &fixbot_move_stand2);
-//	}
-//	else // Has some other SPAWNFLAG_FIXBOT_WORKING or similar? Go to stand.
-//	{
-//		M_SetAnimation(self, &fixbot_move_stand2);
-//	}
-//
-//	// Note: The original code set fixbot_move_roamgoal first, then potentially overwrote it.
-//	// This version checks specific actions first, then defaults to stand if none apply
-//	// or if SPAWNFLAG_FIXBOT_WORKING is set without a specific sub-task.
-//	// Consider if SPAWNFLAG_FIXBOT_WORKING should always lead to roam or stand.
-//}
-//
+	ent = G_Spawn();
+	ent->classname = "bot_goal";
+	ent->solid = SOLID_BBOX;
+	ent->owner = self;
+	ent->think = bot_goal_check;
+	gi.linkentity(ent);
+
+	ent->mins = { -32, -32, -24 };
+	ent->maxs = { 32, 32, 24 };
+
+	AngleVectors(self->s.angles, forward, right, up);
+	end = self->s.origin + (forward * 32);
+	end = self->s.origin + (up * 128);
+
+	tr = gi.trace(self->s.origin, ent->mins, ent->maxs, end, self, MASK_MONSTERSOLID);
+
+	ent->s.origin = tr.endpos;
+
+	self->goalentity = self->enemy = ent;
+	M_SetAnimation(self, &fixbot_move_takeoff);
+}
+
+void change_to_roam(edict_t* self)
+{
+	// If we already have a valid enemy, just start running
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
+		fixbot_run(self); // Transition to run state
+		return;
+	}
+
+	// Try to find a target using the standard function
+	if (FindTarget(self)) {
+		fixbot_run(self); // Found a target, transition to run state
+		return;
+	}
+
+	// --- No enemy found, proceed with roam/landing/takeoff/stand logic ---
+
+	// Existing logic for roam/landing/takeoff/stand:
+	if (self->spawnflags.has(SPAWNFLAG_FIXBOT_LANDING))
+	{
+		landing_goal(self);
+		M_SetAnimation(self, &fixbot_move_landing);
+		self->spawnflags &= ~SPAWNFLAG_FIXBOT_LANDING;
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
+	}
+	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_TAKEOFF))
+	{
+		takeoff_goal(self);
+		M_SetAnimation(self, &fixbot_move_takeoff);
+		self->spawnflags &= ~SPAWNFLAG_FIXBOT_TAKEOFF;
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
+	}
+	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_FIXIT)) // Assuming FIXIT implies roam
+	{
+		M_SetAnimation(self, &fixbot_move_roamgoal); // Set roam goal animation
+		self->spawnflags &= ~SPAWNFLAG_FIXBOT_FIXIT;
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
+	}
+	else if (!self->spawnflags) // If no specific action flags are set
+	{
+		// Default to standing if no roam/landing/takeoff needed
+		M_SetAnimation(self, &fixbot_move_stand2);
+	}
+	else // Has some other SPAWNFLAG_FIXBOT_WORKING or similar? Go to stand.
+	{
+		M_SetAnimation(self, &fixbot_move_stand2);
+	}
+
+	// Note: The original code set fixbot_move_roamgoal first, then potentially overwrote it.
+	// This version checks specific actions first, then defaults to stand if none apply
+	// or if SPAWNFLAG_FIXBOT_WORKING is set without a specific sub-task.
+	// Consider if SPAWNFLAG_FIXBOT_WORKING should always lead to roam or stand.
+}
+
 void roam_goal(edict_t* self)
 {
 
@@ -1396,23 +1396,23 @@ MMOVE_T(fixbot_move_landing) = { FRAME_landing_01, FRAME_landing_58, fixbot_fram
 mframe_t fixbot_frames_stand[] = {
 	{ ai_move },
 	{ ai_move },
+	{ ai_move, 1, change_to_roam },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 1, change_to_roam },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
+	{ ai_move, 1, change_to_roam },
 
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
+	{ ai_move, 1, change_to_roam },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
+	{ ai_move, 1, change_to_roam },
 	{ ai_move }
 
 };
@@ -1421,23 +1421,20 @@ MMOVE_T(fixbot_move_stand) = { FRAME_ambient_01, FRAME_ambient_19, fixbot_frames
 mframe_t fixbot_frames_stand2[] = {
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, change_to_roam },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
+{ ai_stand, 0, change_to_roam },	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 
 	{ ai_stand },
+{ ai_stand, 0, change_to_roam },	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
+{ ai_stand, 0, change_to_roam },	{ ai_stand },
 	{ ai_stand }
 };
 MMOVE_T(fixbot_move_stand2) = { FRAME_ambient_01, FRAME_ambient_19, fixbot_frames_stand2, fixbot_run };
