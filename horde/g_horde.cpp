@@ -4655,7 +4655,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
 		"New Tactics!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!",
-		"Improved Traps!\n\nTraps are reutilizable after 5secs of eating a strogg!\n\nExploding if strogg is bigger!, up to 60 seconds of life!"
+		"Improved Traps!\n\nTraps are reutilizable after 5sec of eating a strogg!"
 	};
 
 	// Usar distribución uniforme con mt_rand
