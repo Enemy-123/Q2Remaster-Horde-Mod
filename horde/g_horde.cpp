@@ -4802,42 +4802,6 @@ struct StuckMonsterSpawnFilter {
 // Function to attempt dropping a monster to the floor
 bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
 
-edict_t* G_FindEntityInBox(const vec3_t& mins, const vec3_t& maxs, std::function<bool(edict_t*)> predicate) {
-
-	// Static buffer to hold entities found by BoxEdicts.
-	// Size should be reasonable, but doesn't need to be MAX_EDICTS.
-	static edict_t* entity_list[128]; // Buffer for up to 128 entities in the box
-	constexpr size_t max_entities_in_list = std::size(entity_list);
-
-	// Data structure for the BoxEdicts filter
-	struct FindData {
-		std::function<bool(edict_t*)> predicate;
-		edict_t* found_entity = nullptr;
-	} find_data;
-
-	find_data.predicate = predicate;
-
-	// Use BoxEdicts with a filter that applies the predicate
-	gi.BoxEdicts(mins, maxs, entity_list, max_entities_in_list, AREA_SOLID,
-		// Lambda filter for BoxEdicts
-		[](edict_t* ent, void* data) -> BoxEdictsResult_t {
-			FindData* fd = static_cast<FindData*>(data);
-
-			// Check if the entity is valid and matches the predicate
-			if (ent && ent->inuse && fd->predicate(ent)) {
-				fd->found_entity = ent;       // Store the found entity
-				return BoxEdictsResult_t::End; // Stop searching
-			}
-			return BoxEdictsResult_t::Skip; // Continue searching
-		},
-		&find_data // Pass the predicate and result storage
-	);
-
-	// Return the entity found by the filter (or nullptr if none matched)
-	return find_data.found_entity;
-}
-
-
 // --- FindEmergencySpawnPosition Function ---
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, horde::MonsterTypeID typeId) {
 	if (developer->integer > 1) gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition for TypeID {}\n", static_cast<int>(typeId));
