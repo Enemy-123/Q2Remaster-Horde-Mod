@@ -1149,20 +1149,22 @@ struct ConditionParams {
 	}
 };
 
-// Constantes y funciones auxiliares
-constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
-constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
-constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
+// Constants and helper functions
+// constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec; // Original
+constexpr gtime_t BASE_MAX_WAVE_TIME = 95_sec;    // Increased base time
+// constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec; // Original
+constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.7_sec; // Slightly faster increase per level
+constexpr gtime_t BOSS_TIME_BONUS = 60_sec;          // Keep boss bonus the same
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5; // Keep this threshold constant for now
 
 static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
-	// Calcular el tiempo base según el nivel
+	// Calculate the time base based on level
 	gtime_t base_time = BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level;
 
-	// Limitar el tiempo base a 90 segundos
-	base_time = (base_time <= 200_sec) ? base_time : 200_sec;
+	// Limit base time to 220 seconds (Increased from 200)
+	base_time = (base_time <= 220_sec) ? base_time : 220_sec;
 
-	// Añadir tiempo extra si es una ola con jefe (niveles múltiplos de 5 después del 10)
+	// Add extra time if it's a boss wave (levels multiples of 5 after 10)
 	if (wave_level >= 10 && wave_level % 5 == 0) {
 		base_time += BOSS_TIME_BONUS;
 	}
@@ -1181,72 +1183,73 @@ static bool g_lowPercentageTriggered = false;
 static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
-	// Validación inicial
+	// Initial validation
 	if (g_horde_local.level < 0 || lvl < 0) {
-		return params; // Retorna parámetros por defecto seguros
+		return params; // Returns default safe parameters
 	}
 
 	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
 			params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 22;
-			params.timeThreshold = random_time(17_sec, 22_sec);
+			// params.timeThreshold = random_time(17_sec, 22_sec); // Original
+			params.timeThreshold = random_time(20_sec, 26_sec); // Increased
 		}
 		else if (mapSize.isSmallMap) {
 			params.maxMonsters = (numHumanPlayers >= 3) ? 12 : 9;
-			params.timeThreshold = random_time(14_sec, 20_sec);
+			// params.timeThreshold = random_time(14_sec, 20_sec); // Original
+			params.timeThreshold = random_time(18_sec, 25_sec); // Increased more for small maps
 		}
-		else {
+		else { // Medium maps
 			params.maxMonsters = (numHumanPlayers >= 3) ? 17 : 13;
-			params.timeThreshold = random_time(18_sec, 25_sec);
+			// params.timeThreshold = random_time(18_sec, 25_sec); // Original
+			params.timeThreshold = random_time(20_sec, 27_sec); // Increased
 		}
 		};
 
 	configureMapParams(params);
 
-	// Ajuste progresivo basado en el nivel - más agresivo
+	// Progressive adjustment based on level - more aggressive (Keep this part)
 	params.maxMonsters += std::min(lvl / 4, 8);
 	params.timeThreshold += gtime_t::from_ms(75ll * std::min(lvl / 3, 4));
 
-	// Early wave time REDUCTION (Modified)
+	// Early wave time REDUCTION (Keep this logic, multiplier is fine)
 	float timeMultiplier = 1.0f;
 	if (lvl <= 10) {
-		// Instead of increasing time, we now DECREASE it.
-		// Start with a multiplier of 0.7 at level 1
-		// and go to 1.0 at level 10.
-		// Formula:  1.0 - (0.25 * (lvl - 1) / 9)
 		timeMultiplier = 1.0f - (0.25f * (static_cast<float>(lvl - 1) / 9.0f));
-		timeMultiplier = std::max(0.1f, timeMultiplier); // Ensure multiplier is never below 0.1 (10% of original time)
+		timeMultiplier = std::max(0.1f, timeMultiplier);
 	}
 
-	// Ajuste para niveles altos
+	// High level adjustment (Keep this part)
 	if (lvl > 10) {
 		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f);
 		params.timeThreshold += 0.15_sec;
 	}
 
-	// Ajuste basado en dificultad
+	// Difficulty adjustment (Keep this part)
 	if (g_chaotic->integer || g_insane->integer) {
 		if (numHumanPlayers <= 3) {
-			params.timeThreshold += random_time(5_sec, 8_sec);
+			// params.timeThreshold += random_time(5_sec, 8_sec); // Original
+			params.timeThreshold += random_time(6_sec, 10_sec); // Slightly increased bonus time
 		}
 		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
 	}
 
-	// Configuración para el porcentaje bajo de monstruos restantes
-	params.lowPercentageTimeThreshold = random_time(8_sec, 17_sec);
-	params.lowPercentageThreshold = 0.3f;
+	// Configuration for low percentage of remaining monsters
+	// params.lowPercentageTimeThreshold = random_time(8_sec, 17_sec); // Original
+	params.lowPercentageTimeThreshold = random_time(10_sec, 20_sec); // Increased
+	params.lowPercentageThreshold = 0.3f; // Keep threshold
 
-	// Configuración para tiempo independiente basado en el nivel
+	// Configuration for independent time based on level (uses the updated calculate_max_wave_time)
 	params.independentTimeThreshold = calculate_max_wave_time(lvl);
 
-	// Apply multiplier to time thresholds for early waves (No Change, just applying the modified multiplier)
+	// Apply multiplier to time thresholds for early waves (Keep this part)
 	if (lvl <= 10) {
 		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * timeMultiplier);
 		params.lowPercentageTimeThreshold = gtime_t::from_sec(params.lowPercentageTimeThreshold.seconds() * timeMultiplier);
 		params.independentTimeThreshold = gtime_t::from_sec(params.independentTimeThreshold.seconds() * timeMultiplier);
 	}
 
-	// Validación final de parámetros
+	// Final parameter validation (Keep this part)
 	params.maxMonsters = std::max(1, params.maxMonsters);
 	params.timeThreshold = std::max(1_sec, params.timeThreshold);
 	params.lowPercentageTimeThreshold = std::max(1_sec, params.lowPercentageTimeThreshold);
@@ -4459,49 +4462,71 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	// Apply aggressive time reduction for few monsters
 	// This happens even if conditions are already triggered
 	if (g_horde_local.conditionTriggered && remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-		// Base calculation - smoother scaling based on remaining monsters
-		float base_time = 3.0f + (remainingMonsters * 0.8f); // 3.8s for 1, 4.6s for 2, 5.4s for 3, etc.
 
-		// Boss wave consideration - give substantially more time
+		// --- MODIFIED AGGRESSIVE TIME CALCULATION ---
+
+		// Base calculation - smoother scaling, slightly increased base time
+		// float base_time = 3.0f + (remainingMonsters * 0.8f); // Original
+		float base_time = 4.0f + (remainingMonsters * 1.0f); // Increased base and per-monster time (e.g., 5s for 1, 7s for 3)
+
+		// Map Size Multiplier: Give more time on smaller maps
+		float map_size_multiplier = 1.0f;
+		if (mapSize.isSmallMap) {
+			map_size_multiplier = 1.3f; // 30% more time for small maps
+		}
+		else if (mapSize.isMediumMap) {
+			map_size_multiplier = 1.15f; // 15% more time for medium maps
+		}
+		// Big maps use 1.0x multiplier (no change)
+
+		base_time *= map_size_multiplier; // Apply the map size adjustment
+
+		// --- END MODIFIED AGGRESSIVE TIME CALCULATION ---
+
+
+		// Boss wave consideration - give substantially more time (Keep this logic)
 		if (IsBossWave() && boss_spawned_for_wave) {
-			// Boss waves get significantly more time
-			base_time *= 2.0f + (0.2f * remainingMonsters); // 2.2x-3.0x multiplier based on monsters
-
-			// Add a minimum time threshold for boss waves
-			base_time = std::max(base_time, 8.0f);
+			base_time *= 2.0f + (0.2f * remainingMonsters);
+			base_time = std::max(base_time, 8.0f); // Keep minimum for boss waves
 		}
 		else {
 			// Non-boss wave adjustments
 
-			// Wave level factor - higher waves get less time (only for non-boss waves)
+			// Wave level factor - higher waves get less time (Keep this logic)
 			if (current_wave_level >= 15) {
-				float reduction = std::min((current_wave_level - 15) * 0.02f, 0.3f); // Up to 30% reduction
+				float reduction = std::min((current_wave_level - 15) * 0.02f, 0.3f);
 				base_time *= (1.0f - reduction);
 			}
 
-			// Player count consideration (only for non-boss waves)
+			// Player count consideration (Keep this logic)
 			int32_t playerCount = GetNumHumanPlayers();
 			if (playerCount > 1) {
-				// Slightly reduce time with more players (they can clear faster)
-				float player_reduction = std::min((playerCount - 1) * 0.07f, 0.2f); // Up to 20% reduction
+				float player_reduction = std::min((playerCount - 1) * 0.07f, 0.2f);
 				base_time *= (1.0f - player_reduction);
 			}
 		}
 
-		// Ensure minimum time thresholds (higher for boss waves)
-		float min_time = (IsBossWave() && boss_spawned_for_wave) ? 5.0f : 2.0f;
+		// Ensure minimum time thresholds (slightly increased for non-boss waves)
+		// float min_time = (IsBossWave() && boss_spawned_for_wave) ? 5.0f : 2.0f; // Original
+		float min_time = (IsBossWave() && boss_spawned_for_wave) ? 5.0f : 3.0f; // Increased min for non-boss
+		// Adjust min_time based on map size as well? Optional, but let's try it:
+		if (!IsBossWave() || !boss_spawned_for_wave) {
+			min_time *= map_size_multiplier; // Scale the minimum too
+		}
 		gtime_t aggressive_time = gtime_t::from_sec(std::max(min_time, base_time));
 
-		// Calculate how much original time remains
+		// Calculate how much original time remains (Keep this logic)
 		const gtime_t original_remaining = g_horde_local.waveEndTime - currentTime;
 
-		// Only apply reduction if it's actually faster than current end time
+		// Only apply reduction if it's actually faster than current end time (Keep this logic)
 		if (aggressive_time < original_remaining) {
 			g_horde_local.waveEndTime = currentTime + aggressive_time;
 
 			if (developer->integer) {
-				gi.Com_PrintFmt("Aggressive time reduction: {} seconds remaining for {} monsters (wave: {}, boss: {})\n",
-					aggressive_time.seconds(), remainingMonsters, current_wave_level,
+				gi.Com_PrintFmt("Aggressive time reduction: {:.1f}s remaining (Map Size Mult: {:.2f}) for {} monsters (wave: {}, boss: {})\n",
+					aggressive_time.seconds(),
+					map_size_multiplier, // Add multiplier to debug output
+					remainingMonsters, current_wave_level,
 					(IsBossWave() && boss_spawned_for_wave) ? "yes" : "no");
 			}
 		}
