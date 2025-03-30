@@ -2955,6 +2955,7 @@ struct client_respawn_t
 	bool inactive;
 	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 	int adrenaline_count = 0;
+	sentrytype_t sentry_gun_choice; //save preference after death
 };
 
 // [Paril-KEX] seconds until we are fully invisible after

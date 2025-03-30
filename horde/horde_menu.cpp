@@ -778,6 +778,7 @@ void HordeMenu_SentryChoice(edict_t* ent, pmenuhnd_t* p) {
 	int current_choice = static_cast<int>(ent->client->pers.sentry_gun_choice);
 	current_choice = (current_choice + 1) % SENTRY_TYPE_COUNT;
 	ent->client->pers.sentry_gun_choice = static_cast<sentrytype_t>(current_choice);
+	ent->client->resp.sentry_gun_choice = static_cast<sentrytype_t>(current_choice); // <<< ADD THIS LINE
 
 	// Inform the player
 	gi.LocCenter_Print(ent, "Sentrygun Type set to: {}\n", GetSentryTypeName(ent->client->pers.sentry_gun_choice));

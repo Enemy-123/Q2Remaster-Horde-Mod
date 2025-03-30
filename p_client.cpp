@@ -778,6 +778,7 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	char userinfo[MAX_INFO_STRING];
 	bool saved_id_state = client->pers.id_state;
 	bool saved_iddmg_state = client->pers.iddmg_state;
+	sentrytype_t saved_sentrygun_state = client->pers.sentry_gun_choice;
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
 	// For Horde mode, check score to maybe reset team
@@ -798,6 +799,7 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	Q_strlcpy(client->pers.userinfo, userinfo, sizeof(client->pers.userinfo));
 	client->pers.id_state = saved_id_state;
 	client->pers.iddmg_state = saved_iddmg_state;
+	client->pers.sentry_gun_choice = saved_sentrygun_state;
 
 	// Reset health values
 	client->pers.health = 100;
@@ -1129,9 +1131,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.connected = true;
 	client->pers.spawned = true;
 	//client->pers.bob_skip = false;
-	client->pers.id_state = false;
-	client->pers.iddmg_state = false;
-	client->pers.sentry_gun_choice = SENTRY_RANDOM; // Initialize sentry choice to random
+	//client->pers.id_state = false;
+	//client->pers.iddmg_state = false;
 }
 
 void InitClientResp(gclient_t* client)
@@ -1139,13 +1140,13 @@ void InitClientResp(gclient_t* client)
 	const ctfteam_t ctf_team = client->resp.ctf_team;
 	const bool id_state = client->pers.id_state;      // just save current state
 	const bool iddmg_state = client->pers.iddmg_state; // just save current state
-	const bool sentry_gun_choice = client->pers.sentry_gun_choice; // just save current state
 
 	memset(&client->resp, 0, sizeof(client->resp));
 
 	client->resp.ctf_team = ctf_team;
 	client->pers.id_state = id_state;
 	client->pers.iddmg_state = iddmg_state;
+	client->resp.sentry_gun_choice = client->pers.sentry_gun_choice;
 
 	client->resp.entertime = level.time;
 	client->resp.coop_respawn = client->pers;
@@ -2403,6 +2404,7 @@ void PutClientInServer(edict_t* ent)
 	// REVERTED: Direct assignment from stack variable
 	client->resp = resp;
 
+	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
 	// On a new, fresh spawn (always in DM, clear inventory
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
