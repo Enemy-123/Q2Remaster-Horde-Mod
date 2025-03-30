@@ -857,10 +857,6 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 	return calculated_max_health;
 }
 
-// Forward declaration for Player_GiveStartItems if needed (it's defined in p_client.cpp)
-static void Player_GiveStartItems(edict_t* ent, const char* ptr);
-
-
 // Initializes Horde-specific persistent client data
 void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 {
