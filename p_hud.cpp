@@ -728,9 +728,9 @@ void G_SetCoopStats(edict_t* ent) {
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 	UpdateVoteHUD();
 
-	if (G_IsDeathmatch() && level.intermissiontime) {
-		ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
-	}
+	//if (G_IsDeathmatch() && level.intermissiontime) {
+	//	ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
+	//}
 
 	ent->client->ps.stats[STAT_REMAINING_MONSTERS] = GetStroggsNum();
 

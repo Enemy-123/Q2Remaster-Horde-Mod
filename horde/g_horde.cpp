@@ -50,7 +50,7 @@ namespace HordeConstants {
 	constexpr gtime_t MIN_ALT_FAILURE_COOLDOWN = 1.0_sec;      // Min time after failed *alternative* spawn attempt
 	constexpr gtime_t MIN_REDUCED_INDIVIDUAL_COOLDOWN = 0.5_sec; // Min duration when reducing cooldowns late wave
 	// MIN_TELEPORT_COOLDOWN_MONSTER already exists (12s) and is handled by random_time
-	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.1_sec;      // Absolute minimum time between monster spawns
+	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.8_sec;      // Absolute minimum time between monster spawns
 
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
 	constexpr vec3_t VALIDATE_CHECK_MINS = { -16, -16, -24 };
@@ -66,6 +66,9 @@ namespace HordeConstants {
 	constexpr gtime_t RECENT_SPAWN_COOLDOWN = 3.0_sec;  // How long a regular spawn pos is considered recent
 	constexpr gtime_t RECENT_TELEPORT_COOLDOWN = 5.0_sec; // How long a teleport pos is considered recent
 
+	// ---  CheckAndTeleportStuckMonster coonstants ---
+	int g_teleport_rate_count = 0;
+	gtime_t g_teleport_rate_reset_time = level.time;
 
 	// Alt position constants
 	constexpr gtime_t ALT_SPAWN_COOLDOWN_SHORT = 1.5_sec;
@@ -86,7 +89,7 @@ namespace HordeConstants {
 	constexpr int MAX_TELEPORTS_PER_INTERVAL = 2;
 
 	// Base wave count constants
-	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.0f;
+	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.1f;
 	constexpr float PLAYER_COUNT_SCALE = 0.2f;
 	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = { {
 		{{6, 8, 10, 12}},  // Small maps
@@ -971,7 +974,7 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 // Cache for common calculations in UnifiedAdjustSpawnRate
 struct WaveScalingCache {
 	// Lookup tables for frequent calculations
-	static constexpr int32_t MAX_WAVE_LEVEL = 50;
+	static constexpr int32_t MAX_WAVE_LEVEL = 250;
 	static constexpr int32_t MAX_HUMAN_PLAYERS = 16;
 
 	// Pre-computed cooldown scales to avoid recalculation
@@ -4151,6 +4154,21 @@ void ResetWaveMemory() {
 static void ResetRecentBosses() noexcept {
 	recent_bosses.clear();
 }
+
+static void ResetTeleportTracking() noexcept {
+	// Reset recent teleport position history
+	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{});
+	g_recent_teleport_index = 0;
+
+	// Reset global teleport rate limiting
+	HordeConstants::g_teleport_rate_count = 0;
+	HordeConstants::g_teleport_rate_reset_time = level.time; // Reset the timer completely
+
+	if (developer && developer->integer > 1) { // Optional debug print
+		gi.Com_PrintFmt("Teleport tracking reset.\n");
+	}
+}
+
 void ResetGame() {
 
 	// Si ya se ha ejecutado una vez, retornar inmediatamente
@@ -4213,6 +4231,7 @@ void ResetGame() {
 	g_recent_position_index = 0; // Reset the index
 
 	// --- Existing Reset Logic ---
+	ResetTeleportTracking();
 	ResetRecentBosses();
 	ResetAmbushSystem();
 	ResetWaveMemory();
@@ -5017,19 +5036,15 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	return true;
 }
 
-// --- Full CheckAndTeleportStuckMonster Function ---
-static int g_teleport_rate_count = 0;
-static gtime_t g_teleport_rate_reset_time = 0_sec;
-
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Global Rate Limiting
-	if (level.time - g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
-		g_teleport_rate_count = 0;
-		g_teleport_rate_reset_time = level.time;
+	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
+		HordeConstants::g_teleport_rate_count = 0;
+		HordeConstants::g_teleport_rate_reset_time = level.time;
 	}
 	int max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL;
 	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) max_teleports++;
-	if (g_teleport_rate_count >= max_teleports) return false;
+	if (HordeConstants::g_teleport_rate_count >= max_teleports) return false;
 
 	// Initial Validation (as before)
 	if (!self || !self->inuse || self->deadflag || level.intermissiontime || !g_horde->integer || self->monsterinfo.IS_BOSS) return false;
@@ -5160,7 +5175,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
 		// Increment global rate limiter
-		g_teleport_rate_count++;
+		HordeConstants::g_teleport_rate_count++;
 
 		// Mark the destination position as recently used for teleporting
 		MarkPositionAsRecentlyTeleported(final_teleport_origin);
