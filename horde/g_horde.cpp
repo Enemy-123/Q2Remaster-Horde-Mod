@@ -5253,7 +5253,7 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 		static int32_t spawn_state_deaths = 0;
 		static gtime_t last_death_time = 0_sec;
 
-		// Reset counter if too much time has passed
+		// Reset counter if too much time has passed (8 seconds seems reasonable)
 		if (level.time - last_death_time > 8_sec) {
 			spawn_state_deaths = 0;
 		}
@@ -5262,41 +5262,48 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 		last_death_time = level.time;
 
 		if (developer->integer) {
-			gi.Com_PrintFmt("Monster killed during spawning state ({} total)\n", spawn_state_deaths);
+			gi.Com_PrintFmt("Monster killed during spawning state ({} total recent)\n", spawn_state_deaths);
 		}
 
 		// Calculate spawn progress - how many monsters were spawned vs. total planned
-		const int32_t total_planned = g_totalMonstersInWave + g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
-		const float spawn_progress = total_planned > 0 ?
-			static_cast<float>(g_totalMonstersInWave) / total_planned : 0.0f;
+		// Ensure total_planned is at least 1 to avoid division by zero issues
+		const int32_t total_planned_raw = g_totalMonstersInWave + g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
+		const int32_t total_planned = (total_planned_raw > 0) ? total_planned_raw : 1; // Avoid divide by zero
+		const float spawn_progress = static_cast<float>(g_totalMonstersInWave) / total_planned;
 
-		// Only transition if:
-		// 1. Multiple monsters have been killed during spawning AND
-		// 2. We've either spawned a significant portion of the wave OR a minimum number of monsters
-		// 3. The last condition ensures we don't transition too early in the wave
-		if (spawn_state_deaths >= 4 && (spawn_progress >= 0.5f || g_totalMonstersInWave >= 8)) {
+		// --- MODIFIED TRANSITION CONDITIONS ---
+		// Increased the required number of recent deaths and the minimum total spawned monsters
+
+		// Original thresholds: spawn_state_deaths >= 4 && (spawn_progress >= 0.5f || g_totalMonstersInWave >= 8)
+		constexpr int32_t MIN_RECENT_DEATHS_FOR_TRANSITION = 6;  // Increased from 4
+		constexpr float MIN_SPAWN_PROGRESS_FOR_TRANSITION = 0.5f; // Kept at 50%
+		constexpr uint16_t MIN_TOTAL_SPAWNED_FOR_TRANSITION = 12; // Increased from 8
+
+		if (spawn_state_deaths >= MIN_RECENT_DEATHS_FOR_TRANSITION &&
+			(spawn_progress >= MIN_SPAWN_PROGRESS_FOR_TRANSITION || g_totalMonstersInWave >= MIN_TOTAL_SPAWNED_FOR_TRANSITION))
+		{
 			if (developer->integer) {
-				gi.Com_PrintFmt("SPAWN TRANSITION: {} monsters killed during spawning. "
-					"{} spawned of {} planned ({:.1f}%). Transitioning to active_wave.\n",
-					spawn_state_deaths, g_totalMonstersInWave, total_planned,
-					spawn_progress * 100.0f);
+				gi.Com_PrintFmt("SPAWN TRANSITION: {} recent deaths (>= {}), progress {:.1f}% (>= {:.0f}%) OR total spawned {} (>= {}). Transitioning to active_wave.\n",
+					spawn_state_deaths, MIN_RECENT_DEATHS_FOR_TRANSITION,
+					spawn_progress * 100.0f, MIN_SPAWN_PROGRESS_FOR_TRANSITION * 100.0f,
+					g_totalMonstersInWave, MIN_TOTAL_SPAWNED_FOR_TRANSITION);
 			}
 
 			// Force transition to active_wave
 			if (!next_wave_message_sent) {
 				VerifyAndAdjustBots();
-				// Use a more immersive message
-				//gi.LocBroadcast_Print(PRINT_CHAT,
-				//	"\n\n\nStrogg forces engaged! Combat phase activated.\n");
-				next_wave_message_sent = true;
+				// You can uncomment this message if you want explicit notification
+				// gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nStrogg forces engaged! Combat phase activated early.\n");
+				next_wave_message_sent = true; // Mark message as sent even if not displayed
 			}
 
 			g_horde_local.state = horde_state_t::active_wave;
-			spawn_state_deaths = 0; // Reset for next wave
+			spawn_state_deaths = 0; // Reset the counter for the next wave
 		}
+		// --- END MODIFIED CONDITIONS ---
 	}
 
-	// Clear flags once monster is dead
+	// Clear flags once monster is dead (These flags are only relevant during its lifetime)
 	monster->was_spawned_by_horde = false;
 	monster->spawned_in_spawn_state = false;
 }
