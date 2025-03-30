@@ -4289,105 +4289,133 @@ bool HasMonsterAtPoint(const vec3_t& point) {
 }
 
 // [Paril-KEX] from the given player, find a good spot to spawn a player
-inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
+inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot) // Using spot reference is fine
 {
-	// sanity check; make sure there's enough room for ourselves.
-	// (crouching in a small area, etc)
+	// --- Initial player state check ---
+	// Sanity check: make sure the player themselves has room.
+	// Use a more specific mask if needed, MASK_PLAYERSOLID might be better?
+	// Using MASK_SOLID as original.
 	trace_t tr = gi.trace(player->s.origin, PLAYER_MINS, PLAYER_MAXS, player->s.origin, player, MASK_SOLID);
+	if (tr.startsolid || tr.allsolid) {
+		return false; // Player is stuck, can't find a spot relative to them
+	}
 
-	if (tr.startsolid || tr.allsolid)
-		return false;
+	// --- Constants ---
+	// Use std::array for compile-time array
+	static constexpr std::array<float, 5> yaw_spread = { 0.f, 90.f, 45.f, -45.f, -90.f };
+	static constexpr float BACK_DISTANCE = 128.0f;
+	static constexpr float UP_DISTANCE = 128.0f;
+	static constexpr float DOWN_DISTANCE_MULTIPLIER = 4.0f; // How far down to trace
+	static constexpr float PLAYER_VIEWHEIGHT = 22.0f;
+	static constexpr float MIN_SLOPE_Z = 0.7f; // Minimum Z normal for valid ground
+	static constexpr float MAX_STEP_HEIGHT = STEPSIZE * 4.0f; // Max Z difference allowed
 
-	// throw five boxes a short-ish distance from the player and see if they land in a good, visible spot
-	constexpr float yaw_spread[] = { 0, 90, 45, -45, -90 };
-	constexpr float back_distance = 128.f;
-	constexpr float up_distance = 128.f;
-	constexpr float player_viewheight = 22.f;
+	// Mask for finding the spawn spot (avoid solid, hazards, player clips)
+	static constexpr contents_t SPAWN_SEARCH_MASK = MASK_SOLID | CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_PLAYERCLIP;
+	// Mask for final visibility checks (don't need to check playerclip etc.)
+	static constexpr contents_t VISIBILITY_MASK = MASK_SOLID;
 
-	// we don't want to spawn inside of these
-	const contents_t mask = MASK_SOLID | CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_PLAYERCLIP;
-
-	for (auto& yaw : yaw_spread)
+	// --- Loop through candidate directions ---
+	for (const float yaw : yaw_spread) // Use const float& or float
 	{
-		vec3_t angles = { 0, (player->s.angles[YAW] + 180) + yaw, 0 };
+		vec3_t angles = { 0.f, (player->s.angles[YAW] + 180.f) + yaw, 0.f }; // Ensure .f for floats
 
-		// throw the box three times:
-		// one up & back
-		// one back
-		// one up, then back
-		// pick the one that went the farthest
+		// --- Trace Up ---
 		vec3_t start = player->s.origin;
-		vec3_t end = start + vec3_t{ 0, 0, up_distance };
+		vec3_t end = start + vec3_t{ 0.f, 0.f, UP_DISTANCE };
+		tr = gi.trace(start, PLAYER_MINS, PLAYER_MAXS, end, player, SPAWN_SEARCH_MASK);
 
-		tr = gi.trace(start, PLAYER_MINS, PLAYER_MAXS, end, player, mask);
-
-		// stuck
-		if (tr.startsolid || tr.allsolid || (tr.contents & (CONTENTS_LAVA | CONTENTS_SLIME)))
-			continue;
-
-		vec3_t fwd;
-		AngleVectors(angles, fwd, nullptr, nullptr);
-
-		start = tr.endpos;
-		end = start + fwd * back_distance;
-
-		tr = gi.trace(start, PLAYER_MINS, PLAYER_MAXS, end, player, mask);
-
-		// stuck
-		if (tr.startsolid || tr.allsolid || (tr.contents & (CONTENTS_LAVA | CONTENTS_SLIME)))
-			continue;
-
-		// plop us down now
-		start = tr.endpos;
-		end = tr.endpos - vec3_t{ 0, 0, up_distance * 4 };
-
-		tr = gi.trace(start, PLAYER_MINS, PLAYER_MAXS, end, player, mask);
-
-		// stuck, or floating, or touching some other entity
-		if (tr.startsolid || tr.allsolid || (tr.contents & (CONTENTS_LAVA | CONTENTS_SLIME)) || tr.fraction == 1.0f || tr.ent != world)
-			continue;
-
-		// don't spawn us *inside* liquids
-		if (gi.pointcontents(tr.endpos + vec3_t{ 0, 0, player_viewheight }) & MASK_WATER)
-			continue;
-
-		// don't spawn us on steep slopes
-		if (tr.plane.normal.z < 0.7f)
-			continue;
-
-		// Check if the spot is inside a trigger_hurt
-		if (IsInsideTriggerHurt(tr.endpos))
-			continue;
-
-		if (HasMonsterAtPoint(tr.endpos))
-			continue;
-
-		spot = tr.endpos;
-
-		const float z_diff = fabsf(player->s.origin[2] - tr.endpos[2]);
-
-		// 5 steps is way too many steps
-		if (z_diff > STEPSIZE * 4.f)
-			continue;
-
-		// if we went up or down 1 step, make sure we can still see their origin and their head
-		if (z_diff > STEPSIZE)
-		{
-			tr = gi.traceline(player->s.origin, tr.endpos, player, mask);
-
-			if (tr.fraction != 1.0f)
-				continue;
-
-			tr = gi.traceline(player->s.origin + vec3_t{ 0, 0, player_viewheight }, tr.endpos + vec3_t{ 0, 0, player_viewheight }, player, mask);
-
-			if (tr.fraction != 1.0f)
-				continue;
+		// Check if stuck or hit hazard going up
+		if (tr.startsolid || tr.allsolid || (tr.contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
+			continue; // Try next direction
 		}
 
-		// good spot!
+		// --- Trace Back ---
+		vec3_t fwd;
+		AngleVectors(angles, fwd, nullptr, nullptr); // Calculate forward vector for this yaw
+
+		start = tr.endpos; // Start from where the upward trace ended
+		end = start + fwd * BACK_DISTANCE;
+		tr = gi.trace(start, PLAYER_MINS, PLAYER_MAXS, end, player, SPAWN_SEARCH_MASK);
+
+		// Check if stuck or hit hazard going back
+		if (tr.startsolid || tr.allsolid || (tr.contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
+			continue; // Try next direction
+		}
+
+		// --- Trace Down to find ground ---
+		start = tr.endpos; // Start from where the backward trace ended
+		end = start - vec3_t{ 0.f, 0.f, UP_DISTANCE * DOWN_DISTANCE_MULTIPLIER }; // Trace down further
+		tr = gi.trace(start, PLAYER_MINS, PLAYER_MAXS, end, player, SPAWN_SEARCH_MASK);
+
+		// --- Validate Ground Spot (Perform cheap checks first!) ---
+
+		// 1. Check if trace failed badly (stuck, floating, hazard content hit)
+		if (tr.startsolid || tr.allsolid || (tr.contents & (CONTENTS_LAVA | CONTENTS_SLIME)) || tr.fraction == 1.0f) {
+			continue; // Bad spot: stuck, floating, or hit hazard directly
+		}
+
+		// 2. Check if landed on something other than the world (e.g., another entity)
+		// Allow landing on world or solid func_ entities maybe? Check original intent.
+		// Original code checked `tr.ent != world`. Assuming that's correct.
+		if (tr.ent != world) {
+			continue; // Landed on an entity, not ground
+		}
+
+		// 3. Check slope (Cheap: uses last trace result)
+		if (tr.plane.normal.z < MIN_SLOPE_Z) {
+			continue; // Too steep
+		}
+
+		// 4. Check Z distance (Cheap)
+		const float z_diff = std::fabs(player->s.origin[2] - tr.endpos[2]); // Use std::fabs
+		if (z_diff > MAX_STEP_HEIGHT) {
+			continue; // Too high or too low difference
+		}
+
+		// --- More Expensive Checks ---
+
+		// 5. Check for liquid at head height (Moderately expensive)
+		vec3_t head_check_pos = tr.endpos + vec3_t{ 0.f, 0.f, PLAYER_VIEWHEIGHT };
+		if (gi.pointcontents(head_check_pos) & MASK_WATER) { // MASK_WATER includes LAVA, SLIME too
+			continue; // Head would be underwater/in hazard
+		}
+
+		// 6. Check if inside trigger_hurt (Potentially expensive)
+		if (IsInsideTriggerHurt(tr.endpos)) {
+			continue;
+		}
+
+		// 7. Check for monster collision (Potentially expensive)
+		if (HasMonsterAtPoint(tr.endpos)) {
+			continue;
+		}
+
+		// --- Final Visibility Check (Most Expensive, only if needed) ---
+		// Only check visibility if the height difference is significant (> 1 step)
+		if (z_diff > STEPSIZE)
+		{
+			// Check visibility from player origin to spot origin
+			trace_t vis_tr = gi.traceline(player->s.origin, tr.endpos, player, VISIBILITY_MASK);
+			if (vis_tr.fraction != 1.0f) {
+				continue; // Path blocked
+			}
+
+			// Check visibility from player head to spot head
+			vec3_t player_head = player->s.origin + vec3_t{ 0.f, 0.f, PLAYER_VIEWHEIGHT };
+			vec3_t spot_head = tr.endpos + vec3_t{ 0.f, 0.f, PLAYER_VIEWHEIGHT };
+			vis_tr = gi.traceline(player_head, spot_head, player, VISIBILITY_MASK);
+			if (vis_tr.fraction != 1.0f) {
+				continue; // Head path blocked
+			}
+		}
+
+		// --- Found a valid spot! ---
+		spot = tr.endpos; // Assign the valid spot
 		return true;
 	}
 
+	// Looped through all directions, no suitable spot found
 	return false;
 }
 
