@@ -602,3 +602,153 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 
 	return true; // all clear
 }
+
+
+void OnEntityDeath(edict_t* self) noexcept
+{
+	if (!self || !self->inuse || self->monsterinfo.death_processed) {
+		return;
+	}
+
+	self->monsterinfo.death_processed = true;
+
+	// --- MANDATORY RESOURCE CLEANUP ---
+	self->moveinfo.curve_positions.release();
+	// --- Add .release() calls for ANY OTHER savable_allocated_memory_t members HERE ---
+	// --- Add gi.TagFree for relevant dynamically allocated char* members HERE ---
+
+	// --- Entity Type Specific State Cleanup ---
+	if (self->svflags & SVF_MONSTER) {
+		self->monsterinfo.bonus_flags = 0;
+		self->monsterinfo.effects_applied = false;
+		self->monsterinfo.IS_BOSS = false;
+	}
+	// else if (self->client) { /* Client cleanup if needed */ }
+	// else { /* Other type cleanup */ }
+
+
+	// --- Setup Post-Death Behavior (Timing/Flags for G_FreeEdict) ---
+	bool apply_horde_fade = (self->svflags & SVF_MONSTER) && g_horde && g_horde->integer;
+
+	if (apply_horde_fade) {
+		constexpr gtime_t FADE_START_DELAY = 4_sec;
+		constexpr gtime_t FADE_DURATION = 3_sec;
+
+		self->teleport_time = level.time + FADE_START_DELAY;
+		self->timestamp = self->teleport_time + FADE_DURATION;
+		self->wait = FADE_DURATION.seconds();
+
+		self->monsterinfo.aiflags |= AI_CLEANUP_FADE;
+		self->monsterinfo.aiflags &= ~AI_CLEANUP_NORMAL;
+
+		self->s.renderfx &= ~RF_DOT_SHADOW;
+		// Ensure StartFadeOut or similar sets think/nextthink for fading
+	}
+	else {
+		self->timestamp = level.time + 2_sec;
+
+		if (self->svflags & SVF_MONSTER) {
+			self->monsterinfo.aiflags |= AI_CLEANUP_NORMAL;
+			self->monsterinfo.aiflags &= ~AI_CLEANUP_FADE;
+		}
+	}
+}
+
+// Modify the CheckAndRestoreMonsterAlpha function to batch updates
+void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
+	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
+		return;
+	}
+
+	// Batch multiple attribute changes before linking
+	bool needs_update = false;
+	if (ent->health > 0 && !ent->deadflag && ent->s.alpha < 1.0f) {
+		ent->s.alpha = 0.0f;
+		ent->s.renderfx &= ~RF_TRANSLUCENT;
+		ent->takedamage = true;
+		needs_update = true;
+	}
+
+	// Only link if necessary
+	if (needs_update) {
+		gi.linkentity(ent);
+	}
+}
+
+
+// Constante para el tiempo de vida del fade
+constexpr gtime_t FADE_LIFESPAN = 0.5_sec;
+
+THINK(fade_out_think)(edict_t* self) -> void {
+	// Si el monstruo está vivo, restaurar su estado
+	if (self->health > 0 && !self->deadflag) {
+		CheckAndRestoreMonsterAlpha(self);
+		//	self->think = monster_think;
+		self->nextthink = level.time + FRAME_TIME_MS;
+		self->is_fading_out = false;  // Usar bool
+		return;
+	}
+
+	if (level.time >= self->timestamp) {
+		self->is_fading_out = false;  // Limpiar el bool antes de liberar
+		G_FreeEdict(self);
+		return;
+	}
+
+	// Calcular el factor de fade usando el mismo método que spawngrow
+	const float t = 1.f - ((level.time - self->teleport_time).seconds() / self->wait);
+	self->s.alpha = t * t; // Usar t^2 para un fade más suave como spawngrow
+
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+void StartFadeOut(edict_t* ent) {
+	// No iniciar fade out si el monstruo está vivo o ya está en fade
+	if ((ent->health > 0 && !ent->deadflag) ||
+		ent->is_fading_out ||
+		(ent->monsterinfo.aiflags & (AI_CLEANUP_FADE | AI_CLEANUP_NORMAL))) {
+		return;
+	}
+
+	// Configurar tiempos
+	ent->teleport_time = level.time;
+	ent->timestamp = level.time + FADE_LIFESPAN;
+	ent->wait = FADE_LIFESPAN.seconds();
+
+	// Configurar pensamiento
+	ent->think = fade_out_think;
+	ent->nextthink = level.time + FRAME_TIME_MS;
+
+	// Marcar que está en proceso de fade
+	ent->is_fading_out = true;
+
+	// Configurar estados
+	ent->solid = SOLID_NOT;
+	ent->movetype = MOVETYPE_NONE;
+	ent->takedamage = false;
+	ent->svflags &= ~SVF_NOCLIENT;
+	ent->s.renderfx &= ~RF_DOT_SHADOW;
+
+	// Asegurar que la entidad está enlazada
+	gi.linkentity(ent);
+}
+
+
+inline void OnEntityRemoved(edict_t* self) noexcept {
+	OnEntityDeath(self);
+}
+
+void CleanupInvalidEntities() {
+	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent->inuse && ent->svflags & SVF_MONSTER) {
+			if (ent->solid == SOLID_NOT && ent->health > 0) {
+				gi.Com_PrintFmt("PRINT: Removing Bug/Immortal monster: {}\n", ent->classname);
+				ent->health = -1;
+				OnEntityDeath(ent);
+				G_FreeEdict(ent);
+			}
+		}
+	}
+}
+
