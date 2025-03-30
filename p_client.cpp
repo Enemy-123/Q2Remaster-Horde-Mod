@@ -2342,20 +2342,25 @@ Called when a player connects to a server or respawns in
 a deathmatch.
 ===========
 */
+/*
+===========
+PutClientInServer
+
+Called when a player connects to a server or respawns in
+a deathmatch.
+===========
+*/
 void PutClientInServer(edict_t* ent)
 {
 	int index;
 	vec3_t spawn_origin, spawn_angles;
 	gclient_t* client;
 
-	// Mover estructuras grandes al heap
-	std::unique_ptr<client_persistant_t> saved = std::make_unique<client_persistant_t>();
-	std::unique_ptr<client_respawn_t> resp = std::make_unique<client_respawn_t>();
+	// REVERTED: Use stack allocation for these temporary structures
+	client_persistant_t saved;
+	client_respawn_t	resp;
 
-	// Mover buffers grandes al heap
-	std::unique_ptr<char[]> userinfo = std::make_unique<char[]>(MAX_INFO_STRING);
-	std::unique_ptr<char[]> social_id = std::make_unique<char[]>(MAX_INFO_VALUE);
-	std::unique_ptr<char[]> val = std::make_unique<char[]>(MAX_INFO_VALUE);
+	// NOTE: char arrays are declared closer to use below
 
 	index = ent - g_edicts - 1;
 	client = ent->client;
@@ -2397,8 +2402,10 @@ void PutClientInServer(edict_t* ent)
 		// Only do this once per spawn
 		if (!client->awaiting_respawn)
 		{
-			memcpy(userinfo.get(), client->pers.userinfo, MAX_INFO_STRING);
-			ClientUserinfoChanged(ent, userinfo.get());
+			// REVERTED: Use stack allocation for temporary userinfo buffer
+			char userinfo[MAX_INFO_STRING];
+			memcpy(userinfo, client->pers.userinfo, MAX_INFO_STRING);
+			ClientUserinfoChanged(ent, userinfo); // Pass the stack array directly
 
 			client->respawn_timeout = level.time + 3_sec;
 		}
@@ -2433,7 +2440,7 @@ void PutClientInServer(edict_t* ent)
 			else
 			{
 				// If pt is nullptr, no valid intermission point found
-// Log a warning and prevent the player from spawning
+				// Log a warning and prevent the player from spawning
 				vec3_t default_origin = vec3_origin;
 				vec3_t default_angles = vec3_origin;
 				level.intermission_origin = default_origin;
@@ -2472,7 +2479,9 @@ void PutClientInServer(edict_t* ent)
 	client->awaiting_respawn = false;
 	client->respawn_timeout = 0_ms;
 
-	Q_strlcpy(social_id.get(), ent->client->pers.social_id, MAX_INFO_VALUE);
+	// REVERTED: Use stack allocation for temporary social_id buffer
+	char social_id[MAX_INFO_VALUE];
+	Q_strlcpy(social_id, ent->client->pers.social_id, MAX_INFO_VALUE);
 
 	// Deathmatch wipes most client data every spawn
 	if (deathmatch->integer)
@@ -2481,23 +2490,27 @@ void PutClientInServer(edict_t* ent)
 		client->resp.inactivity_warning = false;
 		client->resp.inactive = false;
 		client->pers.health = 0;
-		*resp = client->resp;
+		// REVERTED: Direct assignment to stack variable
+		resp = client->resp;
 	}
 	else
 	{
 		// [Kex] Maintain user info in singleplayer to keep the player skin.
-		memcpy(userinfo.get(), client->pers.userinfo, MAX_INFO_STRING);
+		// REVERTED: Use stack allocation for temporary userinfo buffer
+		char userinfo[MAX_INFO_STRING];
+		memcpy(userinfo, client->pers.userinfo, MAX_INFO_STRING);
 
 		if (G_IsCooperative() || (deathmatch->integer && g_horde->integer))
 		{
-			*resp = client->resp;
+			// REVERTED: Direct assignment to stack variable
+			resp = client->resp;
 
 			if (!P_UseCoopInstancedItems())
 			{
-				resp->coop_respawn.game_help1changed = client->pers.game_help1changed;
-				resp->coop_respawn.game_help2changed = client->pers.game_help2changed;
-				resp->coop_respawn.helpchanged = client->pers.helpchanged;
-				client->pers = resp->coop_respawn;
+				resp.coop_respawn.game_help1changed = client->pers.game_help1changed;
+				resp.coop_respawn.game_help2changed = client->pers.game_help2changed;
+				resp.coop_respawn.helpchanged = client->pers.helpchanged;
+				client->pers = resp.coop_respawn;
 			}
 			else
 			{
@@ -2506,22 +2519,26 @@ void PutClientInServer(edict_t* ent)
 			}
 		}
 
-		ClientUserinfoChanged(ent, userinfo.get());
+		ClientUserinfoChanged(ent, userinfo); // Pass stack array directly
 
 		if (G_IsCooperative())
 		{
-			if (resp->score > client->pers.score)
-				client->pers.score = resp->score;
+			if (resp.score > client->pers.score)
+				client->pers.score = resp.score;
 		}
 		else
-			memset(resp.get(), 0, sizeof(client_respawn_t));
+			// REVERTED: Use address of stack variable for memset
+			memset(&resp, 0, sizeof(client_respawn_t));
 	}
 
 	// Clear everything but the persistent data
-	*saved = client->pers;
+	// REVERTED: Direct assignment to stack variable
+	saved = client->pers;
 	memset(client, 0, sizeof(*client));
-	client->pers = *saved;
-	client->resp = *resp;
+	// REVERTED: Direct assignment from stack variable
+	client->pers = saved;
+	// REVERTED: Direct assignment from stack variable
+	client->resp = resp;
 
 	// On a new, fresh spawn (always in DM, clear inventory
 	// or new spawns in SP/coop)
@@ -2529,7 +2546,8 @@ void PutClientInServer(edict_t* ent)
 		InitClientPersistant(ent, client);
 
 	// Restore social ID
-	Q_strlcpy(ent->client->pers.social_id, social_id.get(), MAX_INFO_VALUE);
+	// REVERTED: Pass stack array directly
+	Q_strlcpy(ent->client->pers.social_id, social_id, MAX_INFO_VALUE);
 
 	// Fix level switch issue
 	ent->client->pers.connected = true;
@@ -2569,8 +2587,10 @@ void PutClientInServer(edict_t* ent)
 	// Clear playerstate values
 	memset(&ent->client->ps, 0, sizeof(client->ps));
 
-	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val.get(), MAX_INFO_VALUE);
-	ent->client->ps.fov = clamp((float)atoi(val.get()), 1.f, 160.f);
+	// REVERTED: Use stack allocation for temporary val buffer
+	char val[MAX_INFO_VALUE];
+	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val, MAX_INFO_VALUE); // Pass stack array
+	ent->client->ps.fov = clamp((float)atoi(val), 1.f, 160.f); // Use stack array
 
 	ent->client->ps.pmove.viewheight = ent->viewheight;
 	ent->client->ps.team_id = ent->client->resp.ctf_team;
@@ -2676,6 +2696,7 @@ void PutClientInServer(edict_t* ent)
 	if (was_waiting_for_respawn)
 		G_PostRespawn(ent);
 }
+
 /*
 =====================
 ClientBeginDeathmatch
