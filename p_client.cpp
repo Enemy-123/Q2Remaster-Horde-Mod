@@ -103,355 +103,225 @@ bool P_UseCoopInstancedItems()
 }
 
 //=======================================================================
+extern std::string GetDisplayName(const edict_t* ent);
 
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
-	const char* base = nullptr;
-
-	if ((G_IsCooperative() && attacker->client) || (deathmatch->integer))
-		mod.friendly_fire = true;
-
-	switch (mod.id)
-	{
-	case MOD_SUICIDE:
-		base = "{0} becomes bored with life\n";
-		break;
-	case MOD_FALLING:
-		base = "{0} made a leap of faith\n";
-		break;
-	case MOD_CRUSH:
-		base = "{0} suffers from claustrophobia\n";
-		break;
-	case MOD_WATER:
-		base = "{0} forgot to breathe\n";
-		break;
-	case MOD_SLIME:
-		base = "$g_mod_generic_slime";
-		break;
-	case MOD_LAVA:
-		base = "{0} joins the lava gods\n";
-		break;
-	case MOD_EXPLOSIVE:
-	case MOD_BARREL:
-		base = "$g_mod_generic_explosive";
-		break;
-	case MOD_EXIT:
-		base = "$g_mod_generic_exit";
-		break;
-	case MOD_TARGET_LASER:
-		if (attacker->svflags & ~SVF_MONSTER)
-			base = "{0} saw the light!\n";
-		break;
-	case MOD_TARGET_BLASTER:
-		base = "$g_mod_generic_blaster";
-		break;
-	case MOD_BOMB:
-	case MOD_SPLASH:
-	case MOD_TRIGGER_HURT:
-		base = "$g_mod_generic_hurt";
-		break;
-	default:
-		base = nullptr;
-		break;
+	// Ensure self and client are valid
+	if (!self || !self->client) {
+		// Should not happen, but good practice
+		gi.Com_Print("ClientObituary: Error - null self or self->client\n");
+		return;
 	}
 
+	const char* base = nullptr;
+	bool handled = false; // Flag to track if a message was processed
+
+	// Determine friendly fire status early (only affects the mod struct, not message logic directly)
+	if ((G_IsCooperative() && attacker && attacker->client) || (deathmatch->integer)) {
+		mod.friendly_fire = true; // Note: Modifying the 'mod' copy passed in
+	}
+
+	// --- 1. Handle Self-Kills ---
 	if (attacker == self)
 	{
 		switch (mod.id)
 		{
-		case MOD_HELD_GRENADE:
-			base = "$g_mod_self_held_grenade";
-			break;
+		case MOD_HELD_GRENADE:      base = "$g_mod_self_held_grenade"; break;
 		case MOD_HG_SPLASH:
-		case MOD_G_SPLASH:
-			base = "$g_mod_self_grenade_splash";
-			break;
-		case MOD_R_SPLASH:
-			base = "$g_mod_self_rocket_splash";
-			break;
-		case MOD_BFG_BLAST:
-			base = "$g_mod_self_bfg_blast";
-			break;
-		case MOD_TRAP:
-			base = "$g_mod_self_trap";
-			break;
-		case MOD_DOPPLE_EXPLODE:
-			base = "$g_mod_self_dopple_explode";
-			break;
-		default:
-			base = "{0} becomes bored with life\n";
-			break;
+		case MOD_G_SPLASH:          base = "$g_mod_self_grenade_splash"; break;
+		case MOD_R_SPLASH:          base = "$g_mod_self_rocket_splash"; break;
+		case MOD_BFG_BLAST:         base = "$g_mod_self_bfg_blast"; break;
+		case MOD_TRAP:              base = "$g_mod_self_trap"; break;
+		case MOD_DOPPLE_EXPLODE:    base = "$g_mod_self_dopple_explode"; break;
+			// MOD_SUICIDE falls through to generic section if not overridden here explicitly
+		default:                    /* base remains null initially */ break;
 		}
-	}
 
-	// send generic/self
-	if (base)
-	{
+		// If a specific self-kill message wasn't found, use the generic suicide one
+		if (!base) {
+			base = "{0} becomes bored with life\n"; // Default self-kill/suicide
+		}
+
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
-		if (deathmatch->integer && !mod.no_point_loss)
-		{
-			self->client->resp.score--;
-
-			if (teamplay->integer)
-				G_AdjustTeamScore(self->client->resp.ctf_team, -1);
+		if (deathmatch->integer && !mod.no_point_loss) {
+			if (gamerules->integer && DMGame.Score) {
+				DMGame.Score(self, self, -1, mod); // Let game rules handle score
+			}
+			else {
+				self->client->resp.score--;
+				if (teamplay->integer) {
+					// Assuming self->client->resp.ctf_team is valid
+					G_AdjustTeamScore(self->client->resp.ctf_team, -1);
+				}
+			}
 		}
-		self->enemy = nullptr;
-		return;
+		self->enemy = nullptr; // No enemy for self-kill
+		return; // Handled self-kill
 	}
 
-	// has a killer
-	self->enemy = attacker;
+	// --- 2. Handle Player Kills ---
+	// Check attacker validity *before* accessing attacker->client
 	if (attacker && attacker->client)
 	{
-		switch (mod.id)
-		{
-		case MOD_BLASTER:
-			base = "$g_mod_kill_blaster";
-			break;
-		case MOD_SHOTGUN:
-			base = "$g_mod_kill_shotgun";
-			break;
-		case MOD_SSHOTGUN:
-			base = "$g_mod_kill_sshotgun";
-			break;
-		case MOD_MACHINEGUN:
-			base = "$g_mod_kill_machinegun";
-			break;
-		case MOD_CHAINGUN:
-			base = "$g_mod_kill_chaingun";
-			break;
-		case MOD_GRENADE:
-			base = "$g_mod_kill_grenade";
-			break;
-		case MOD_G_SPLASH:
-			base = "$g_mod_kill_grenade_splash";
-			break;
-		case MOD_ROCKET:
-			base = "$g_mod_kill_rocket";
-			break;
-		case MOD_R_SPLASH:
-			base = "$g_mod_kill_rocket_splash";
-			break;
-		case MOD_HYPERBLASTER:
-			base = "$g_mod_kill_hyperblaster";
-			break;
-		case MOD_RAILGUN:
-			base = "$g_mod_kill_railgun";
-			break;
-		case MOD_BFG_LASER:
-			base = "$g_mod_kill_bfg_laser";
-			break;
-		case MOD_BFG_BLAST:
-			base = "$g_mod_kill_bfg_blast";
-			break;
-		case MOD_BFG_EFFECT:
-			base = "$g_mod_kill_bfg_effect";
-			break;
-		case MOD_HANDGRENADE:
-			base = "$g_mod_kill_handgrenade";
-			break;
-		case MOD_HG_SPLASH:
-			base = "$g_mod_kill_handgrenade_splash";
-			break;
-		case MOD_HELD_GRENADE:
-			base = "$g_mod_kill_held_grenade";
-			break;
-		case MOD_TELEFRAG:
-		case MOD_TELEFRAG_SPAWN:
-			base = "$g_mod_kill_telefrag";
-			break;
-		case MOD_RIPPER:
-			base = "$g_mod_kill_ripper";
-			break;
-		case MOD_PHALANX:
-			base = "$g_mod_kill_phalanx";
-			break;
-		case MOD_TRAP:
-			base = "$g_mod_kill_trap";
-			break;
-		case MOD_CHAINFIST:
-			base = "$g_mod_kill_chainfist";
-			break;
-		case MOD_DISINTEGRATOR:
-			base = "$g_mod_kill_disintegrator";
-			break;
-		case MOD_ETF_RIFLE:
-			base = "$g_mod_kill_etf_rifle";
-			break;
-		case MOD_HEATBEAM:
-			base = "$g_mod_kill_heatbeam";
-			break;
-		case MOD_TESLA:
-			base = "$g_mod_kill_tesla";
-			break;
-		case MOD_PROX:
-			base = "$g_mod_kill_prox";
-			break;
-		case MOD_NUKE:
-			base = "$g_mod_kill_nuke";
-			break;
-		case MOD_VENGEANCE_SPHERE:
-			base = "$g_mod_kill_vengeance_sphere";
-			break;
-		case MOD_DEFENDER_SPHERE:
-			base = "$g_mod_kill_defender_sphere";
-			break;
-		case MOD_HUNTER_SPHERE:
-			base = "$g_mod_kill_hunter_sphere";
-			break;
-		case MOD_TRACKER:
-			base = "$g_mod_kill_tracker";
-			break;
-		case MOD_DOPPLE_EXPLODE:
-			base = "$g_mod_kill_dopple_explode";
-			break;
-		case MOD_DOPPLE_VENGEANCE:
-			base = "$g_mod_kill_dopple_vengeance";
-			break;
-		case MOD_DOPPLE_HUNTER:
-			base = "$g_mod_kill_dopple_hunter";
-			break;
-		case MOD_GRAPPLE:
-			base = "$g_mod_kill_grapple";
-			break;
-		case MOD_HOOK:     // Kyper - Lithium port
-			base = "{0} was disemboweled by {1}'s hook.\n";
-			break;
-		default:
-			base = "$g_mod_kill_generic";
-			break;
+		// Ensure victim and attacker clients are valid before accessing netname
+		if (!attacker->client) {
+			gi.Com_Print("ClientObituary: Error - null attacker->client\n");
+			// Fall through to generic handling maybe? Or handle error explicitly?
+			// For now, let's fall through, might result in generic death message.
 		}
+		else {
+			switch (mod.id)
+			{
+			case MOD_BLASTER:           base = "$g_mod_kill_blaster"; break;
+			case MOD_SHOTGUN:           base = "$g_mod_kill_shotgun"; break;
+			case MOD_SSHOTGUN:          base = "$g_mod_kill_sshotgun"; break;
+			case MOD_MACHINEGUN:        base = "$g_mod_kill_machinegun"; break;
+			case MOD_CHAINGUN:          base = "$g_mod_kill_chaingun"; break;
+			case MOD_GRENADE:           base = "$g_mod_kill_grenade"; break;
+			case MOD_G_SPLASH:          base = "$g_mod_kill_grenade_splash"; break;
+			case MOD_ROCKET:            base = "$g_mod_kill_rocket"; break;
+			case MOD_R_SPLASH:          base = "$g_mod_kill_rocket_splash"; break;
+			case MOD_HYPERBLASTER:      base = "$g_mod_kill_hyperblaster"; break;
+			case MOD_RAILGUN:           base = "$g_mod_kill_railgun"; break;
+			case MOD_BFG_LASER:         base = "$g_mod_kill_bfg_laser"; break;
+			case MOD_BFG_BLAST:         base = "$g_mod_kill_bfg_blast"; break;
+			case MOD_BFG_EFFECT:        base = "$g_mod_kill_bfg_effect"; break;
+			case MOD_HANDGRENADE:       base = "$g_mod_kill_handgrenade"; break;
+			case MOD_HG_SPLASH:         base = "$g_mod_kill_handgrenade_splash"; break;
+			case MOD_HELD_GRENADE:      base = "$g_mod_kill_held_grenade"; break;
+			case MOD_TELEFRAG:
+			case MOD_TELEFRAG_SPAWN:    base = "$g_mod_kill_telefrag"; break;
+			case MOD_RIPPER:            base = "$g_mod_kill_ripper"; break;
+			case MOD_PHALANX:           base = "$g_mod_kill_phalanx"; break;
+			case MOD_TRAP:              base = "$g_mod_kill_trap"; break;
+			case MOD_CHAINFIST:         base = "$g_mod_kill_chainfist"; break;
+			case MOD_DISINTEGRATOR:     base = "$g_mod_kill_disintegrator"; break;
+			case MOD_ETF_RIFLE:         base = "$g_mod_kill_etf_rifle"; break;
+			case MOD_HEATBEAM:          base = "$g_mod_kill_heatbeam"; break;
+			case MOD_TESLA:             base = "$g_mod_kill_tesla"; break;
+			case MOD_PROX:              base = "$g_mod_kill_prox"; break;
+			case MOD_NUKE:              base = "$g_mod_kill_nuke"; break;
+			case MOD_VENGEANCE_SPHERE:  base = "$g_mod_kill_vengeance_sphere"; break;
+			case MOD_DEFENDER_SPHERE:   base = "$g_mod_kill_defender_sphere"; break;
+			case MOD_HUNTER_SPHERE:     base = "$g_mod_kill_hunter_sphere"; break;
+			case MOD_TRACKER:           base = "$g_mod_kill_tracker"; break;
+			case MOD_DOPPLE_EXPLODE:    base = "$g_mod_kill_dopple_explode"; break;
+			case MOD_DOPPLE_VENGEANCE:  base = "$g_mod_kill_dopple_vengeance"; break;
+			case MOD_DOPPLE_HUNTER:     base = "$g_mod_kill_dopple_hunter"; break;
+			case MOD_GRAPPLE:           base = "$g_mod_kill_grapple"; break;
+			case MOD_HOOK:              base = "{0} was disemboweled by {1}'s hook.\n"; break; // Non-localized example
+			default:                    base = "$g_mod_kill_generic"; break; // Default for player kills by unknown means?
+			}
 
-		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
-		return;
+			// Print message with both player names
+			gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
+			// Score for player kills is handled by CTFFragBonuses / DMGame.Score called elsewhere (e.g., player_die)
+			self->enemy = attacker; // Set enemy
+			return; // Handled player kill
+		}
 	}
 
-	// Si el atacante es un monstruo
+	// --- 3. Handle Monster Kills ---
+	// Check attacker validity *before* checking flags
 	if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
-		std::string monster_display_name = GetDisplayName(attacker);
+		std::string monster_display_name = GetDisplayName(attacker); // Get name once
 		switch (mod.id)
 		{
-		case MOD_BLASTER:
-			base = brandom() ? "{0} was humiliated by a {1}\n" : "{0} was blasted by a {1}\n";
-			break;
-		case MOD_SHOTGUN:
-			base = "{0}'s face was impacted by a {1}\n";
-			break;
-		case MOD_SSHOTGUN:
-			base = brandom() ? "{0} was blown to pieces by a {1}\n" : "{0}'s ribs were shattered by a {1}\n";
-			break;
-		case MOD_MACHINEGUN:
-			base = "{0} was shredded by a {1}\n";
-			break;
-		case MOD_CHAINGUN:
-			base = "{0}'s torso was removed by a {1}\n";
-			break;
-		case MOD_GRENADE:
-			base = "{0} was gibbed by a {1}'s grenade\n";
-			break;
-		case MOD_G_SPLASH:
-			base = "{0} was splattered all over by a {1}\n";
-			break;
-		case MOD_ROCKET:
-			base = "{0} ate the rocket of a {1}\n";
-			break;
-		case MOD_FIREBALL:
-			base = "{0} was reduced to ashes by a {1}\n";
-			break;
-		case MOD_R_SPLASH:
-			base = "{0} was blown up by a {1}\n";
-			break;
-		case MOD_HYPERBLASTER:
-			base = "{0} was blasted by a {1}\n";
-			break;
-		case MOD_RAILGUN:
-			base = "{0} was railed by a {1}\n";
-			break;
-		case MOD_BFG_LASER:
-			base = "{0} ate the lights of a {1}'s BFG Lasers\n";
-			break;
-		case MOD_BFG_BLAST:
-			base = "{0} was disintegrated by a {1}\n";
-			break;
-		case MOD_BFG_EFFECT:
-			base = "{0} couldn't escape the apocalyptic fury of a {1}'s BFG\n";
-			break;
-		case MOD_HANDGRENADE:
-			base = "{0} was blown up by a {1}\n";
-			break;
-		case MOD_HG_SPLASH:
-			base = "{0} was splashed by a {1}\n";
-			break;
-		case MOD_HELD_GRENADE:
-			base = "{0} was blown up by a {1}\n";
-			break;
-		case MOD_RIPPER:
-			base = "{0} got ionripped by a {1}\n";
-			break;
-		case MOD_TARGET_LASER:
-			base = "{0} was laser-cooked by a {1}\n";
-			break;
-		case MOD_TESLA:
-			base = "{0} got a shocking end thanks to a {1}\n";
-			break;
+			// Using brandom() directly in ternary operators
+		case MOD_BLASTER:       base = brandom() ? "{0} was humiliated by a {1}\n" : "{0} was blasted by a {1}\n"; break;
+		case MOD_SHOTGUN:       base = "{0}'s face was impacted by a {1}\n"; break;
+		case MOD_SSHOTGUN:      base = brandom() ? "{0} was blown to pieces by a {1}\n" : "{0}'s ribs were shattered by a {1}\n"; break;
+		case MOD_MACHINEGUN:    base = "{0} was shredded by a {1}\n"; break;
+		case MOD_CHAINGUN:      base = "{0}'s torso was removed by a {1}\n"; break;
+		case MOD_GRENADE:       base = "{0} was gibbed by a {1}'s grenade\n"; break;
+		case MOD_G_SPLASH:      base = "{0} was splattered all over by a {1}\n"; break;
+		case MOD_ROCKET:        base = "{0} ate the rocket of a {1}\n"; break;
+		case MOD_FIREBALL:      base = "{0} was reduced to ashes by a {1}\n"; break;
+		case MOD_R_SPLASH:      base = "{0} was blown up by a {1}\n"; break;
+		case MOD_HYPERBLASTER:  base = "{0} was blasted by a {1}\n"; break;
+		case MOD_RAILGUN:       base = "{0} was railed by a {1}\n"; break;
+		case MOD_BFG_LASER:     base = "{0} ate the lights of a {1}'s BFG Lasers\n"; break;
+		case MOD_BFG_BLAST:     base = "{0} was disintegrated by a {1}\n"; break;
+		case MOD_BFG_EFFECT:    base = "{0} couldn't escape the apocalyptic fury of a {1}'s BFG\n"; break;
+		case MOD_HANDGRENADE:   base = "{0} was blown up by a {1}\n"; break;
+		case MOD_HG_SPLASH:     base = "{0} was splashed by a {1}\n"; break;
+		case MOD_HELD_GRENADE:  base = "{0} was blown up by a {1}\n"; break;
+		case MOD_RIPPER:        base = "{0} got ionripped by a {1}\n"; break;
+		case MOD_TARGET_LASER:  base = "{0} was laser-cooked by a {1}\n"; break;
+		case MOD_TESLA:         base = "{0} got a shocking end thanks to a {1}\n"; break;
 		case MOD_TELEFRAG:
-		case MOD_TELEFRAG_SPAWN:
-			base = "{0} was telefragged by a {1}\n";
-			break;
-		case MOD_BRAINTENTACLE:
-			base = brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a {1}\n";
-			break;
-		case MOD_GEKK:
-			base = "{0} was spat to death by a {1}. Yuck!\n";
-			break;
-		case MOD_TANK_PUNCH:
-			base = "{0} was pulverized by a {1}\n";
-			break;
-		default:
-			base = brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n";
-			break;
+		case MOD_TELEFRAG_SPAWN: base = "{0} was telefragged by a {1}\n"; break;
+		case MOD_BRAINTENTACLE: base = brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a {1}\n"; break;
+		case MOD_GEKK:          base = "{0} was spat to death by a {1}. Yuck!\n"; break;
+		case MOD_TANK_PUNCH:    base = "{0} was pulverized by a {1}\n"; break;
+		default:                base = brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n"; break;
 		}
+
+		// Print message with player name and monster name
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name.c_str());
-		return;
+		// Score for monster kills (if any) would typically be handled elsewhere
+		self->enemy = attacker; // Set enemy
+		return; // Handled monster kill
 	}
 
-	// Otros casos de muerte (como MOD_LAVA, MOD_SLIME, etc.)
+
+	// --- 4. Handle Generic / World Kills (if not handled above) ---
+	// This section is reached if attacker is null, world, or not self/player/monster,
+	// OR if a specific MOD wasn't found in the sections above for that attacker type.
 	switch (mod.id)
 	{
-	case MOD_FALLING:
-		base = "{0} fell to their death.";
+	case MOD_SUICIDE:       base = "{0} becomes bored with life\n"; break; // Should have been caught by self-kill check? Redundant but safe.
+	case MOD_FALLING:       base = "{0} made a leap of faith\n"; break;
+	case MOD_CRUSH:         base = "{0} suffers from claustrophobia\n"; break;
+	case MOD_WATER:         base = "{0} forgot to breathe\n"; break;
+	case MOD_SLIME:         base = "$g_mod_generic_slime"; break;
+	case MOD_LAVA:          base = "{0} joins the lava gods\n"; break;
+	case MOD_EXPLOSIVE:
+	case MOD_BARREL:        base = "$g_mod_generic_explosive"; break;
+	case MOD_EXIT:          base = "$g_mod_generic_exit"; break;
+	case MOD_TARGET_LASER:  // Already handled in monster/player potentially, but attacker might be world/trigger
+		// Original code had: if (attacker->svflags & ~SVF_MONSTER) -> this check seems wrong (bitwise NOT).
+		// Let's assume generic laser message if attacker isn't player/monster/self.
+		base = "{0} saw the light!\n";
 		break;
-	case MOD_CRUSH:
-		base = "{0} was crushed.";
-		break;
-	default:
-		base = "{0} died.\n";
-		break;
+	case MOD_TARGET_BLASTER: base = "$g_mod_generic_blaster"; break;
+	case MOD_BOMB:
+	case MOD_SPLASH:
+	case MOD_TRIGGER_HURT:  base = "$g_mod_generic_hurt"; break;
+	default:                base = "{0} died.\n"; break; // Final fallback
 	}
 
 	gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
 
-
-	if (deathmatch->integer && !mod.no_point_loss)
-	{
-		// ROGUE
-		if (gamerules->integer)
-		{
-			if (DMGame.Score)
-			{
-				DMGame.Score(self, self, -1, mod);
-			}
-			return;
+	// Score adjustment for generic deaths (like original code)
+	if (deathmatch->integer && !mod.no_point_loss) {
+		if (gamerules->integer && DMGame.Score) {
+			// Pass self as attacker for score loss purposes in generic deaths
+			DMGame.Score(self, self, -1, mod);
 		}
-		else
-		{
-			//	self->client->resp.score--;
-
-			if (teamplay->integer)
-				G_AdjustTeamScore(attacker->client->resp.ctf_team, -1);
+		else {
+			self->client->resp.score--;
+			if (teamplay->integer) {
+				// Team score adjustment might need attacker if it's e.g. a trigger owned by a team?
+				// For now, assume loss applies to victim's team for generic death.
+				if (self->client->resp.ctf_team != CTF_NOTEAM) { // Avoid adjusting NOTEAM
+					G_AdjustTeamScore(self->client->resp.ctf_team, -1);
+				}
+			}
 		}
 	}
+
+	// If attacker exists but wasn't player/monster, set enemy. Otherwise, null.
+	// World kills (attacker == world or null) shouldn't set an enemy.
+	if (attacker && attacker != world && attacker != self) {
+		self->enemy = attacker;
+	}
+	else {
+		self->enemy = nullptr;
+	}
+	// No return needed, end of function.
 }
 
 void TossClientWeapon(edict_t* self)
