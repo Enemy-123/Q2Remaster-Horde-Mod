@@ -2342,14 +2342,6 @@ Called when a player connects to a server or respawns in
 a deathmatch.
 ===========
 */
-/*
-===========
-PutClientInServer
-
-Called when a player connects to a server or respawns in
-a deathmatch.
-===========
-*/
 void PutClientInServer(edict_t* ent)
 {
 	int index;
