@@ -4977,7 +4977,6 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 			return false;
 		}
 
-
 		// Check immediate ground support using GEOMETRY_MASK
 		bool has_immediate_ground = M_CheckBottom_Slow_Generic(io_position, monster_mins, monster_maxs, nullptr, GEOMETRY_MASK, false, false); // OK
 
@@ -5133,27 +5132,38 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
 
-		// ***** BEGIN STALKER FIX *****
-		// Explicitly reset orientation for Stalkers after successful teleport.
-		// Assumes teleport destinations are always floor-based.
-		// Use TypeID comparison which is safer and potentially faster
+		// ***** BEGIN STALKER FIX / MODIFICATION *****
+				// Explicitly reset orientation for Stalkers after successful teleport.
 		if (typeId == horde::MonsterTypeID::STALKER) {
 			//if (developer->integer) {
-			//	gi.Com_PrintFmt("Stalker teleport success: Resetting orientation for floor.\n");
+			//    gi.Com_PrintFmt("Stalker teleport success: Resetting orientation for floor.\n");
 			//}
+
+			// Reset orientation and gravity for floor-based movement
 			self->gravityVector = { 0, 0, -1 }; // Standard gravity downwards
 			self->s.angles[ROLL] = 0;           // Zero roll angle (ensure ROLL is defined or use 2)
 			self->gravity = 1.0f;              // Standard gravity multiplier
 
-			// Optionally ensure movetype allows falling if it got stuck in FLY somehow
-			// Although teleport should place it correctly.
-			// if (self->movetype == MOVETYPE_FLY)
-			//     self->movetype = MOVETYPE_STEP;
+			// Ensure the movetype allows falling (important if it got stuck in FLY)
+			if (self->movetype == MOVETYPE_FLY || self->movetype == MOVETYPE_NOCLIP) {
+				self->movetype = MOVETYPE_STEP;
+			}
 
-			// Clear ground entity just in case linking didn't handle it perfectly after teleport
+			// Clear ground entity so it falls naturally after elevation
 			self->groundentity = nullptr;
+
+			// *** ADDED: Raise the Stalker slightly above the final teleport floor ***
+			constexpr float STALKER_SPAWN_ELEVATION = 10.0f; // Adjust this value as needed (e.g., 8.0f, 12.0f)
+			self->s.origin[2] += STALKER_SPAWN_ELEVATION;
+			// We assume the teleport validation functions (IsValidSpawnLocation/FindEmergency)
+			// provided enough headroom that this small elevation won't push it into a ceiling.
+			// A more robust solution might re-trace upwards, but this is simpler.
+
+			//if (developer->integer > 1) { // Optional debug print
+			//	gi.Com_PrintFmt("Stalker teleport: Reset orientation and elevated origin by %.1f units.\n", STALKER_SPAWN_ELEVATION);
+			//}
 		}
-		// ***** END STALKER FIX *****
+		// ***** END STALKER FIX / MODIFICATION *****
 
 		// Play effects
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
