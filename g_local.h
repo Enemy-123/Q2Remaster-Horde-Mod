@@ -734,6 +734,15 @@ enum class auto_switch_t
 	NEVER
 };
 
+// Sentry Gun Type Choices
+enum sentrytype_t : int32_t {
+	SENTRY_RANDOM,
+	SENTRY_HEATBEAM,    // Corresponds to SPAWNFLAG_TURRET2_BLASTER
+	SENTRY_MACHINEGUN,  // Corresponds to SPAWNFLAG_TURRET2_MACHINEGUN
+	SENTRY_FLECHETTE,   // Corresponds to SPAWNFLAG_TURRET2_FLECHETTE
+	SENTRY_TYPE_COUNT   // For cycling logic
+};
+
 constexpr uint32_t SFL_CROSS_TRIGGER_MASK = (0xffffffffu & ~SPAWNFLAG_EDITOR_MASK.value);
 
 // noise types for PlayerNoise
@@ -2907,6 +2916,7 @@ struct client_persistant_t
 	//horde
 	bool	 id_state;
 	bool	 iddmg_state;
+	sentrytype_t sentry_gun_choice; // Player's preferred sentry type (default SENTRY_RANDOM)
 };
 
 // client data that stays across deathmatch respawns

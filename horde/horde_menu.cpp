@@ -31,6 +31,17 @@ pmenuhnd_t* CreateHUDMenu(edict_t* ent);
 void OpenMiscMenu(edict_t* ent); // Forward declare Misc menu functions
 void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
+// Helper to get sentry type name
+static const char* GetSentryTypeName(sentrytype_t type) {
+	switch (type) {
+	case SENTRY_HEATBEAM:    return "Beam/Phalanx";
+	case SENTRY_MACHINEGUN:  return "Mg/Rocket";
+	case SENTRY_FLECHETTE:   return "Flech/Grenade";
+	case SENTRY_RANDOM:      // fallthrough
+	default:                 return "Random";
+	}
+}
+
 //--------------------------------
 static void SetGameName(pmenu_t* p);
 static void SetLevelName(pmenu_t* p);
@@ -757,6 +768,25 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 // === Misc Options Menu ===
 
+// Handler for cycling Sentry Gun choice
+void HordeMenu_SentryChoice(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Cycle to the next choice
+	int current_choice = static_cast<int>(ent->client->pers.sentry_gun_choice);
+	current_choice = (current_choice + 1) % SENTRY_TYPE_COUNT;
+	ent->client->pers.sentry_gun_choice = static_cast<sentrytype_t>(current_choice);
+
+	// Inform the player
+	gi.LocCenter_Print(ent, "Sentrygun Type set to: {}\n", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
+
+	// Update the menu display immediately by reopening THE MISC MENU
+	// PMenu_Close(ent); // OpenMiscMenu implicitly closes the current menu
+	OpenMiscMenu(ent); // <--- THIS SHOULD CALL OpenMiscMenu
+}
+
 // Handler for the Misc submenu
 void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num) {
@@ -766,30 +796,37 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	const pmenu_t* selected_entry = &p->entries[p->cur];
 	const char* selected_text = selected_entry->text;
-	bool shouldCloseMenu = true;
+	bool shouldCloseMenu = true; // Default to closing the menu
 
-	// Use strncmp for options that might have counts appended
+	// Use strncmp for options that might have counts appended or dynamic text
 	if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
-		Cmd_RemoveLaser_f(ent); // Directly call the function
-		// Message is handled by Cmd_RemoveLaser_f
+		Cmd_RemoveLaser_f(ent);
+		// Message handled internally, menu should close.
 	}
 	else if (strncmp(selected_text, "Remove Sentry Gun", strlen("Remove Sentry Gun")) == 0) {
-		Cmd_RemoveSentry_f(ent); // Directly call the function
-		// Message is handled by Cmd_RemoveSentry_f
+		Cmd_RemoveSentry_f(ent);
+		// Message handled internally, menu should close.
 	}
+	// **** Check Sentry Type selection ****
+	else if (strncmp(selected_text, "Sentry Type:", strlen("Sentry Type:")) == 0) {
+		HordeMenu_SentryChoice(ent, p); // Call the dedicated handler
+		shouldCloseMenu = false; // Don't close, HordeMenu_SentryChoice will reopen Misc Menu
+	}
+	// **** END Check ****
 	else if (strcmp(selected_text, "Back") == 0) {
 		PMenu_Close(ent);
 		OpenHordeMenu(ent); // Go back to the main menu
-		shouldCloseMenu = false; // Already handled
+		shouldCloseMenu = false; // Already handled closing/opening
 	}
 	else if (strcmp(selected_text, "Close") == 0) {
-		// Default action is to close
+		// No specific action, default close behavior is fine.
 	}
 	else {
-		// Clicked on title or separator
+		// Clicked on title or separator - don't close
 		shouldCloseMenu = false;
 	}
 
+	// Close the menu if required and if it still exists
 	if (shouldCloseMenu && ent->client && ent->client->menu) {
 		PMenu_Close(ent);
 	}
@@ -805,10 +842,12 @@ void OpenMiscMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
-	static pmenu_t entries[10]; // Buffer for Misc menu entries
+	// Increase buffer size slightly for the new entry + potential separator
+	static pmenu_t entries[12]; // Increased size should be safe
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
+	// Helper lambda remains the same
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
 		if (count < static_cast<int>(std::size(entries))) {
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
@@ -816,12 +855,23 @@ void OpenMiscMenu(edict_t* ent) {
 			entries[count].SelectFunc = func;
 			count++;
 		}
+		else {
+			gi.Com_Print("Warning: OpenMiscMenu exceeded static entry buffer size.\n");
+		}
 		};
 
 	add_entry("*Misc Options*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
 
-	// Conditional "Remove Lasers"
+	// --- ALWAYS Add Sentry Gun Choice FIRST ---
+	char sentry_choice_text[64];
+	snprintf(sentry_choice_text, sizeof(sentry_choice_text), "Sentry Type: [%s]",
+		GetSentryTypeName(ent->client->pers.sentry_gun_choice));
+	// Use MiscMenuHandler here, it will call HordeMenu_SentryChoice internally
+	add_entry(sentry_choice_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
+	// --- END ALWAYS ---
+
+	// --- Conditional Remove Options ---
 	int laser_count = 0;
 	if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
 		laser_count = manager->get_active_count();
@@ -832,21 +882,20 @@ void OpenMiscMenu(edict_t* ent) {
 		add_entry(remove_laser_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
-	// Conditional "Remove Sentry Gun"
 	int sentry_count = ent->client->num_sentries;
 	if (sentry_count > 0) {
 		char remove_sentry_text[64];
 		snprintf(remove_sentry_text, sizeof(remove_sentry_text), "Remove Sentry Gun (%d)", sentry_count);
 		add_entry(remove_sentry_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
+	// --- END Conditional Remove Options ---
 
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
 	add_entry("Back", PMENU_ALIGN_LEFT, MiscMenuHandler);
 	add_entry("Close", PMENU_ALIGN_LEFT, MiscMenuHandler);
 
-	PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, entries, -1, count, nullptr, nullptr); // Use the dynamic count
 }
-
 
 // === HUD Options Menu ===
 
@@ -1132,12 +1181,11 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 			gi.Com_Print("Warning: CreateHordeMenu exceeded static entry buffer size.\n");
 		}
 		};
-
-	// 1. Title & Separator (Always first)
+	// 1. Title & Separator
 	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Blank after title
 
-	// 2. Go Spectator (Always add this)
+	// 2. Go Spectator
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("", PMENU_ALIGN_CENTER); // Separator after Spectator
 
@@ -1153,18 +1201,17 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr); // Display question
 		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	}
-	add_entry("", PMENU_ALIGN_CENTER); // Separator after Vote section
+	}	add_entry("", PMENU_ALIGN_CENTER); // Separator after Vote section
 
-	// 4. Misc Options (Conditional)
-	int laser_count = 0;
-	if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
-		laser_count = manager->get_active_count();
-	}
-	int sentry_count = ent->client->num_sentries;
-	if (laser_count > 0 || sentry_count > 0) {
-		add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	}
+	// 4. Misc Options <<-- REMOVE THE IF CONDITION HERE
+	// int laser_count = 0; // No longer need these counts here
+	// if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
+	//     laser_count = manager->get_active_count();
+	// }
+	// int sentry_count = ent->client->num_sentries;
+	// if (laser_count > 0 || sentry_count > 0) { // <-- REMOVE THIS IF
+	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler); // <-- ALWAYS ADD THIS
+	// } // <-- REMOVE THIS ENDING BRACE
 
 	// 5. HUD Options
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
@@ -1176,7 +1223,6 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
 	// Optional blank separators before close
-	// Adjust number of blanks as needed for desired spacing below the main options
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 	// ...

@@ -1828,21 +1828,45 @@ void SP_monster_sentrygun(edict_t* self)
 	self->pain = turret2_pain;
 	self->die = turret2_die;
 
-	// map designer didn't specify weapon type. set it now.
-	const float randomValue = frandom();
+	// Determine weapon type: Priority is Map Flags > Owner Choice > Random
+	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE))
+	{
+		sentrytype_t choice = SENTRY_RANDOM; // Default to random
 
-//	 Updated random weapon selection to include new types
-	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE)) {
-		const float randomValue = frandom();
-
-		if (randomValue < 0.3f) {
-			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
+		// Check if spawned by a player and use their preference
+		if (self->owner && self->owner->client)
+		{
+			choice = self->owner->client->pers.sentry_gun_choice;
 		}
-		else if (randomValue < 0.7f) {
+
+		// Apply the choice or default to random if needed
+		switch (choice)
+		{
+		case SENTRY_HEATBEAM:
+			self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER; // Remember Heatbeam uses Blaster flag
+			break;
+		case SENTRY_MACHINEGUN:
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
-		}
-		else {
+			break;
+		case SENTRY_FLECHETTE:
 			self->spawnflags |= SPAWNFLAG_TURRET2_FLECHETTE;
+			break;
+		case SENTRY_RANDOM: // Fall through to default random logic
+		default:
+		{
+			// Original random selection logic as fallback
+			const float randomValue = frandom();
+			if (randomValue < 0.3f) {
+				self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER; // Heatbeam
+			}
+			else if (randomValue < 0.7f) {
+				self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+			}
+			else {
+				self->spawnflags |= SPAWNFLAG_TURRET2_FLECHETTE;
+			}
+			break;
+		}
 		}
 	}
 

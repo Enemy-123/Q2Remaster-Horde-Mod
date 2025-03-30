@@ -1128,6 +1128,10 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// Set connected/spawned flags (remains the same)
 	client->pers.connected = true;
 	client->pers.spawned = true;
+	//client->pers.bob_skip = false;
+	client->pers.id_state = false;
+	client->pers.iddmg_state = false;
+	client->pers.sentry_gun_choice = SENTRY_RANDOM; // Initialize sentry choice to random
 }
 
 void InitClientResp(gclient_t* client)
@@ -1135,6 +1139,7 @@ void InitClientResp(gclient_t* client)
 	const ctfteam_t ctf_team = client->resp.ctf_team;
 	const bool id_state = client->pers.id_state;      // just save current state
 	const bool iddmg_state = client->pers.iddmg_state; // just save current state
+	const bool sentry_gun_choice = client->pers.sentry_gun_choice; // just save current state
 
 	memset(&client->resp, 0, sizeof(client->resp));
 
