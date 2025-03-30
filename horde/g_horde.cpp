@@ -6101,7 +6101,7 @@ edict_t* SpawnMonsters() {
 						champion_spawned_this_wave = true;
 						champion_spawn_cooldown = irandom(15, 25);
 						// Use GetDisplayName cautiously IF the monster pointer could be invalid, but check above helps
-						gi.LocBroadcast_Print(PRINT_HIGH, "*** A Champion {} has appeared! ***\n", GetDisplayName(monster).c_str()); // LocBroadcast_Print might use C-style
+						gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster).c_str()); // LocBroadcast_Print might use C-style
 						is_champion = true;
 					}
 

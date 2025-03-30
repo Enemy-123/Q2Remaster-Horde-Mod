@@ -233,14 +233,15 @@ void InitializeDisplayNames() {
 	return base_name;
 }
 
-
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
+	if (!monster || !monster->inuse)
+		return;
+
+	// Check IS_BOSS using the member within monsterinfo
 	if (monster->monsterinfo.IS_BOSS)
 		return;
 
-	if (monster->monsterinfo.effects_applied)
-		return;
 
 	// Handle summoned monster logic first (this flag can coexist with others)
 	if (monster->monsterinfo.issummoned) {
@@ -326,7 +327,8 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
 
-	monster->monsterinfo.effects_applied = true;
+	// Link the entity *after* all changes to ensure visuals are sent
+	gi.linkentity(monster);
 }
 
 // Función auxiliar para calcular los valores mínimos de salud y armadura
@@ -401,6 +403,8 @@ void ApplyBossEffects(edict_t* boss)
 	// Verificar si es un jefe y si ya se han aplicado los efectos
 	if (!boss->monsterinfo.IS_BOSS || boss->monsterinfo.effects_applied)
 		return;
+
+	boss->monsterinfo.effects_applied = false;
 
 	// Obtener la categoría de tamaño del jefe
 	const BossSizeCategory sizeCategory = boss->bossSizeCategory;
