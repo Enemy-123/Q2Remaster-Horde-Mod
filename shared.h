@@ -7,6 +7,8 @@
 
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 #include <string>
+#include "horde/horde_ids.h"
+#include "horde/horde_ids.h"
 
 bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs);
 
@@ -49,14 +51,7 @@ extern void CheckForMonsterDeathsInSpawningState(edict_t* monster);
 extern void Monster_MoveSpawn(edict_t* self); 
 extern void ConfigureBossArmor(edict_t* self);
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
-struct MapSize {
-    bool isSmallMap = false;
-    bool isMediumMap = false;
-    bool isBigMap = false;
-};
-
-MapSize GetMapSize(const char* mapname);
-
+extern horde::MapSize GetMapSize(const char* mapname);
 extern inline gtime_t GetWaveTimer();
 extern inline int32_t GetStroggsNum() noexcept;
 extern inline bool IsBossWave() noexcept;

@@ -16,6 +16,29 @@ void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, 
 void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 bool hasEntities = false;
 
+horde::MapSize GetMapSize(const char* mapname) {
+	// Use the namespace qualifier for the cache type
+	static std::unordered_map<std::string, horde::MapSize> cache;
+
+	// Check cache first
+	const auto it = cache.find(mapname);
+	if (it != cache.end()) {
+		return it->second;
+	}
+
+	// Cache miss: Determine size using MapID
+	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
+
+	// Get size from the registry based on MapID
+	// Use the namespace qualifier for the local variable type
+	horde::MapSize size = horde::MapOriginRegistry::GetMapSize(mapId);
+	// Note: GetMapSize(MapID) handles UNKNOWN and defaults to Medium
+
+	// Store in cache and return
+	cache[mapname] = size;
+	return size;
+}
+
 void RemovePlayerOwnedEntities(edict_t* player)
 {
 	if (!player)

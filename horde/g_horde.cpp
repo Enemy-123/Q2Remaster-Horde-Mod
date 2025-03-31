@@ -699,7 +699,7 @@ static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 		return 1.2_sec;  // Increased from 0.8 to 1.2
 }
 
-static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
+static float CalculateCooldownScale(int32_t lvl, const horde::MapSize& mapSize) {
 	// Early return for low levels - improves branch prediction
 	if (lvl <= 10) {
 		return 1.0f;
@@ -772,7 +772,7 @@ struct HordeState {
 	gtime_t         last_successful_hud_update = 0_sec;
 	uint32_t        failed_updates_count = 0;
 
-	MapSize current_map_size;
+	horde::MapSize current_map_size;
 	int32_t max_monsters{};  // Cacheado basado en map_size
 	gtime_t base_spawn_cooldown;  // Cacheado basado en map_size
 
@@ -880,34 +880,6 @@ int16_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
 
-const std::unordered_set<std::string> smallMaps = {
-	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
-	"q64/dm9", "q64/dm7", "q64/dm2", "test/spbox",
-	"q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","mgu3m4",
-	"mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0", "q64/dm6",
-	"q64/dm8", "q64/dm4", "q64/dm3", "industry", "e3/jail_e3"
-};
-
-const std::unordered_set<std::string> bigMaps = {
-	"q2ctf5", "old/kmdm3", "xdm2", "xdm4", "xdm6", "xdm3", "rdm6", "rdm8", "xdm1", "waste2", "rdm5", "rdm9", "rdm12", "xintell", "sewer64", "base64", "city64"
-};
-
-MapSize GetMapSize(const char* mapname) {
-	static std::unordered_map<std::string, MapSize> cache;
-
-	const auto it = cache.find(mapname);
-	if (it != cache.end())
-		return it->second;
-
-	MapSize size;
-	size.isSmallMap = smallMaps.count(mapname) > 0;
-	size.isBigMap = bigMaps.count(mapname) > 0;
-	size.isMediumMap = !size.isSmallMap && !size.isBigMap;
-
-	cache[mapname] = size;
-	return size;
-}
-
 // Función para calcular el bono de locura y caos
 static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	if (g_chaotic->integer) return (lvl <= 3) ? 6 : 3;
@@ -919,7 +891,7 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 }
 
 // Modify the existing ClampNumToSpawn function
-inline static void ClampNumToSpawn(const MapSize& mapSize) { // mapSize parameter might no longer be needed here
+inline static void ClampNumToSpawn(const horde::MapSize& mapSize) { // mapSize parameter might no longer be needed here
 	// g_adjusted_monster_cap is now calculated in GetAdjustedMonsterCap and includes player bonus
 	const int32_t maxAllowed = g_adjusted_monster_cap;
 
@@ -942,7 +914,7 @@ inline static void ClampNumToSpawn(const MapSize& mapSize) { // mapSize paramete
 	}
 }
 
-static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHardMode) noexcept {
+static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lvl, bool isHardMode) noexcept {
 	if (lvl <= 3)
 		return 0;
 
@@ -1025,9 +997,9 @@ struct WaveScalingCache {
 		// in UnifiedAdjustSpawnRate now, eliminating the unused variables.
 
 		// Initialize cooldown scales (can be accessed by mapType and level)
-		MapSize smallMap = { true, false, false };
-		MapSize mediumMap = { false, false, true }; // Corrected: Medium map should have isMediumMap true
-		MapSize bigMap = { false, true, false };
+		horde::MapSize smallMap = { true, false, false };
+		horde::MapSize mediumMap = { false, false, true }; // Corrected: Medium map should have isMediumMap true
+		horde::MapSize bigMap = { false, true, false };
 
 		for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level) {
 			cooldownScales[0][level] = CalculateCooldownScale(level, smallMap);  // Index 0 = Small
@@ -1036,7 +1008,7 @@ struct WaveScalingCache {
 		}
 	}
 } g_waveScalingCache;
-void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
+void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	using namespace HordeConstants;
 
 	// Initialize cache if needed (one-time operation)
@@ -1189,7 +1161,7 @@ static int32_t g_lastNumHumanPlayers = -1;
 static bool g_maxMonstersReached = false;
 static bool g_lowPercentageTriggered = false;
 
-static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
+static ConditionParams GetConditionParams(const horde::MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
 	// Initial validation
@@ -1271,7 +1243,7 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 
 
-inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel);
+inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t waveLevel);
 
 void ResetChampionMonsterState() {
 	champion_spawned_this_wave = false;
@@ -1972,7 +1944,7 @@ static constexpr boss_t BOSS_LARGE[] = {
 };
 
 // Optimized GetBossList function
-static std::span<const boss_t> GetBossList(const MapSize& mapSize, horde::MapID mapId) {
+static std::span<const boss_t> GetBossList(const horde::MapSize& mapSize, horde::MapID mapId) {
 	if (mapSize.isSmallMap ||
 		mapId == horde::MapID::Q2DM4 ||
 		mapId == horde::MapID::Q64_COMM ||
@@ -2124,7 +2096,7 @@ struct BossEligibilityCache {
 		// For each map type
 		for (int mapType = 0; mapType < 3; ++mapType) {
 			// Get mapSize for this type
-			MapSize mapSize;
+			horde::MapSize mapSize;
 			if (mapType == 0) mapSize = { true, false, false };  // Small
 			else if (mapType == 2) mapSize = { false, true, false };  // Large
 			else mapSize = { false, false, true };  // Medium
@@ -2276,7 +2248,7 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin)
 }
 
 
-static horde::MonsterTypeID G_HordePickBOSSType(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
+static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
 	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
 
 	// Initialize boss eligibility cache if needed
@@ -3178,7 +3150,7 @@ void VerifyAndAdjustBots() {
 		gi.cvar_set("bot_minClients", "-1");
 	}
 	else {
-		const MapSize mapSize = GetMapSize(static_cast<const char*>(level.mapname));
+		const horde::MapSize mapSize = GetMapSize(static_cast<const char*>(level.mapname));
 		const int32_t spectPlayers = GetNumSpectPlayers();
 		const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 
@@ -4093,7 +4065,7 @@ void ResetCooldowns() noexcept {
 	horde::g_monsterSpawnTracker.Reset();
 	horde::g_spawnPointTimeTracker.Reset();
 
-	const MapSize& mapSize = g_horde_local.current_map_size;
+	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 	const int32_t humanPlayers = GetNumHumanPlayers();
 
@@ -4386,7 +4358,7 @@ int32_t CalculateRemainingMonsters() noexcept {
 	return std::max(0, remaining);  // Ensure non-negative
 }
 // Enhanced version of CheckRemainingMonstersCondition
-static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveEndReason& reason) {
 	// Cache frequently used values
 	const gtime_t currentTime = level.time;
 	const int32_t remainingMonsters = CalculateRemainingMonsters();
@@ -4672,7 +4644,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	UpdateHordeMessage(messages[choice], duration);
 }
 
-void HandleWaveCleanupMessage(const MapSize& mapSize, const WaveEndReason reason) noexcept {
+void HandleWaveCleanupMessage(const horde::MapSize& mapSize, const WaveEndReason reason) noexcept {
 	// Obtener el número de jugadores humanos
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
 
@@ -4781,7 +4753,7 @@ void InitializeWaveSystem() noexcept {
 }
 
 static void SetMonsterArmor(edict_t* monster);
-static void SetNextMonsterSpawnTime(const MapSize& mapSize);
+static void SetNextMonsterSpawnTime(const horde::MapSize& mapSize);
 
 struct StuckMonsterSpawnFilter {
 	bool operator()(edict_t* ent) const {
@@ -5289,7 +5261,7 @@ horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel) {
 	return (waveLevel > 10) ? horde::MonsterTypeID::GUNNER : horde::MonsterTypeID::INFANTRY;
 }
 
-int SpawnRetaliationAmbush(const MapSize& mapSize, int32_t waveLevel, edict_t* target_player) {
+int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edict_t* target_player) {
 	int baseCount = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2); // Smaller size
 	int ambushSize = baseCount; // No level scaling for this small ambush
 	int spawnedCount = 0;
@@ -5761,7 +5733,7 @@ bool ShouldTriggerAmbushSpawn() {
 }
 
 // Updated SpawnAmbushMonsters to use improved emergency spawning with TypeIDs
-int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
+int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 	if (developer->integer) {
 		//	gi.Com_PrintFmt("DEBUG: Starting SpawnAmbushMonsters\n");
 	}
@@ -5916,7 +5888,7 @@ edict_t* SpawnMonsters() {
 	if (developer->integer == 2) return nullptr; // Debug mode check
 
 	const gtime_t current_time = level.time;
-	const MapSize& mapSize = g_horde_local.current_map_size;
+	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const horde_state_t current_state = g_horde_local.state;
 	const int32_t currentLevel = g_horde_local.level;
 
@@ -6392,7 +6364,7 @@ static void SetMonsterArmor(edict_t* monster) {
 	}
 }
 
-static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
+static void SetNextMonsterSpawnTime(const horde::MapSize& mapSize) {
 	// Original spawn time ranges (Big maps are faster)
 	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = { {
 		{0.6_sec, 0.8_sec},  // Small maps
@@ -6663,7 +6635,7 @@ void CheckAndResetDisabledSpawnPoints() {
 	}
 }
 
-inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel) {
+inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t waveLevel) {
 	// Original base caps
 	const int32_t baseSmallCap = MAX_MONSTERS_SMALL_MAP;  // 14
 	const int32_t baseMediumCap = MAX_MONSTERS_MEDIUM_MAP; // 16
@@ -6725,7 +6697,7 @@ inline int32_t GetAdjustedMonsterCap(const MapSize& mapSize, int32_t waveLevel) 
 
 void Horde_RunFrame() {
 	// Cache frequently used state variables
-	const MapSize& mapSize = g_horde_local.current_map_size;
+	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 	const horde_state_t currentState = g_horde_local.state;
 	const gtime_t currentTime = level.time;

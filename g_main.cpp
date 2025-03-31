@@ -958,7 +958,7 @@ inline void G_RunFrame_(bool main_loop)
 
         // Cache map size - only update if map changes
         static std::string last_mapname;
-        static MapSize cached_mapSize;
+        static horde::MapSize cached_mapSize;
         if (last_mapname != level.mapname) {
             cached_mapSize = GetMapSize(level.mapname);
             last_mapname = level.mapname;

@@ -270,7 +270,7 @@ struct map_lists_t {
 	std::vector<std::string> medium_maps;
 	std::vector<std::string> small_maps;
 	size_t current_page = 0;
-	MapSize current_category = { false, true, false }; // Default to medium
+	horde::MapSize current_category = { false, true, false }; // Default to medium
 };
 
 static map_lists_t categorized_maps;
@@ -295,7 +295,7 @@ void CategorizeMapList() {
 		if (token[0] == '\0') continue;
 
 		const char* map_name = token;
-		MapSize const mapSize = GetMapSize(map_name); // Assuming GetMapSize is safe
+		horde::MapSize const mapSize = GetMapSize(map_name); // Assuming GetMapSize is safe
 
 		if (mapSize.isBigMap) {
 			categorized_maps.big_maps.push_back(map_name);
@@ -350,21 +350,21 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 	// Use the new indices defined above (or hardcode the updated numbers)
 	switch (option) {
 	case MAP_CAT_MENU_BIG_IDX: // Big Maps (Now 4)
-		categorized_maps.current_category = MapSize{ false, false, true };
+		categorized_maps.current_category = horde::MapSize{ false, false, true };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu(); // Update vote menu data based on new category
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Open the map list
 		break;
 
 	case MAP_CAT_MENU_MEDIUM_IDX: // Medium Maps (Now 5)
-		categorized_maps.current_category = MapSize{ false, true, false };
+		categorized_maps.current_category = horde::MapSize{ false, true, false };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 		break;
 
 	case MAP_CAT_MENU_SMALL_IDX: // Small Maps (Now 6)
-		categorized_maps.current_category = MapSize{ true, false, false };
+		categorized_maps.current_category = horde::MapSize{ true, false, false };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
