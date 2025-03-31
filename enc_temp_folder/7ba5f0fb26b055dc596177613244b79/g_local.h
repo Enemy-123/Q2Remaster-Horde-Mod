@@ -1791,6 +1791,7 @@ struct monsterinfo_t
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
 	gtime_t spawn_complete_time; // Time when monster_start_go finished
+	//gtime_t fade_in_start_time;  // NEW: Time fade-in effect started
 
 
 	bonus_flags_t bonus_flags = BF_NONE; //Powerups or Special Flags for horde
