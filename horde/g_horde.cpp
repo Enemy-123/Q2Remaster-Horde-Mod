@@ -5823,12 +5823,6 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 			// Track failures to avoid getting stuck in endless attempts
 			consecutive_failures++;
 			last_failed_spawn_time = level.time; // Record time of failure
-			// Optional: Log which type ID failed if in dev mode
-			if (developer->integer > 1) {
-				const char* failed_name = horde::MonsterTypeRegistry::GetClassname(monster_typeId);
-	//			gi.Com_PrintFmt("SpawnAmbushMonsters: EmergencySpawnMonster failed for TypeID {} ({})\n",
-					static_cast<int>(monster_typeId), failed_name ? failed_name : "Unknown");
-			}
 		}
 	}
 
