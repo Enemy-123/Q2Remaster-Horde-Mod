@@ -988,7 +988,7 @@ inline void G_RunFrame_(bool main_loop)
         // Cleanup operations
         CleanupInvalidEntities();
 		CleanupStuckEntities();
-
+		CheckAndResetDisabledSpawnPoints();
         // HUD message handling
         if (horde_message_end_time > 0_sec) {
             if (level.time >= horde_message_end_time) {
