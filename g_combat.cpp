@@ -525,266 +525,129 @@ bool CheckEntityClass(edict_t* ent, const char* className) {
 	return ent->classname && !strcmp(ent->classname, className);
 }
 
-bool IsLaserEntity(const edict_t* ent) {
+bool IsLaserEntity(edict_t* ent) {
 	return ent->classname &&
 		(!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"));
 }
 
 bool CheckTeslaMineTeam(edict_t* mine, edict_t* other) {
-	// Check if mine->team is valid before using it
-	if (!mine || !mine->team || !other)
+	if (!mine->team)
 		return false;
 
-	const char* otherTeam = nullptr; // Initialize to nullptr
-	if (other->client) {
-		otherTeam = (other->client->resp.ctf_team == CTF_TEAM1) ? TEAM1 : TEAM2;
-	}
-	else if (other->svflags & SVF_MONSTER) {
-		AssignMonsterTeam(other); // Assign team if needed (consider mode)
-		otherTeam = (other->monsterinfo.team == CTF_TEAM1) ? TEAM1 : TEAM2;
-	}
-	else if (other->team) { // Maybe other is a deployable too? Check its team field
-		otherTeam = other->team;
-	}
-	else {
-		return false; // Cannot determine other's team
-	}
-
-	// Make sure otherTeam was actually set
-	if (!otherTeam) {
+	const char* otherTeam;
+	if (other->client)
+		otherTeam = other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2;
+	else if (other->svflags & SVF_MONSTER)
+		otherTeam = other->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2;
+	else
 		return false;
-	}
 
-	return strcmp(mine->team, otherTeam) == 0; // Use strcmp == 0 for equality
+	return !strcmp(mine->team, otherTeam);
 }
 
 bool CheckTrapTeam(edict_t* trap, edict_t* other) {
-	// Add null checks for trap and trap->team
-	if (!trap || !trap->team || !other)
-		return false;
+	const char* otherTeam = other->client ?
+		(other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
+		(other->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
 
-	const char* otherTeam = nullptr; // Initialize
-	if (other->client) {
-		otherTeam = (other->client->resp.ctf_team == CTF_TEAM1) ? TEAM1 : TEAM2;
-	}
-	else if (other->svflags & SVF_MONSTER) {
-		AssignMonsterTeam(other); // Assign team if needed (consider mode)
-		otherTeam = (other->monsterinfo.team == CTF_TEAM1) ? TEAM1 : TEAM2;
-	}
-	else if (other->team) { // Check other's team field
-		otherTeam = other->team;
-	}
-	else {
-		return false;
-	}
-
-	if (!otherTeam) {
-		return false;
-	}
-
-	return strcmp(trap->team, otherTeam) == 0; // Use strcmp == 0
+	return !strcmp(trap->team, otherTeam);
 }
 
 bool CheckLaserTeam(edict_t* laser, edict_t* other) {
-	// Add null checks for laser and laser->team
-	if (!laser || !laser->team || !other)
-		return false;
+	const char* otherTeam = other->client ?
+		(other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
+		(other->team ? other->team : "neutral");
 
-	const char* otherTeam = nullptr; // Initialize
-	if (other->client) {
-		otherTeam = (other->client->resp.ctf_team == CTF_TEAM1) ? TEAM1 : TEAM2;
-	}
-	else if (other->svflags & SVF_MONSTER) {
-		AssignMonsterTeam(other); // Assign team if needed (consider mode)
-		otherTeam = (other->monsterinfo.team == CTF_TEAM1) ? TEAM1 : TEAM2;
-		// Check other->team field FIRST for deployables/lasers
-	}
-	else if (other->team) {
-		otherTeam = other->team;
-	}
-	// Removed the ambiguous fallback to "neutral" unless explicitly needed
-	else {
-		return false; // Cannot determine team
-	}
-
-	if (!otherTeam) {
-		return false;
-	}
-
-	return strcmp(laser->team, otherTeam) == 0; // Use strcmp == 0
+	return !strcmp(laser->team, otherTeam);
 }
 
 bool CheckTeamDamage(edict_t* targ, edict_t* attacker) {
 	return !g_friendly_fire->integer && OnSameTeam(targ, attacker);
 }
-// --- Refactored OnSameTeam ---
 
 bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
 	// Validaciones iniciales
-	if (!ent1 || !ent2 || ent1 == ent2 || !ent1->inuse || !ent2->inuse) // Added inuse check
+	if (!ent1 || !ent2 || ent1 == ent2)
 		return false;
 
-	// --- Caching / Lookups (Keep as is) ---
-	static std::array<uint8_t, 3> specialEntityTypeIds;
-	static bool typeIds_initialized = false;
-	static std::array<bool, 256> isLaserType = {};
-	static bool laserTypes_initialized = false;
+	// Determinar el modo de juego
+	enum GameMode {
+		MODE_COOPERATIVE,
+		MODE_TEAMPLAY,
+		MODE_HORDE,
+		MODE_OTHER
+	};
 
-	if (!typeIds_initialized) { /* ... initialize typeIds ... */ }
-	if (!laserTypes_initialized) { /* ... initialize laserTypes ... */ }
-
-	// --- Cache Type IDs on Entities (Keep as is) ---
-	if ((ent1->monster_type_id == MONSTER_TYPE_UNKNOWN) && !ent1->client && ent1->classname)
-		ent1->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent1->classname));
-	if ((ent2->monster_type_id == MONSTER_TYPE_UNKNOWN) && !ent2->client && ent2->classname)
-		ent2->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent2->classname));
-
-	// --- Mode-Independent Teammaster Check (Important!) ---
-	// An entity should always be considered "on the same team" as its direct deployer (teammaster)
-	// unless specific game logic dictates otherwise (which is rare).
-	// NOTE: This check assumes teammaster points to the *deploying* entity.
-	if (ent1->teammaster == ent2 || ent2->teammaster == ent1) {
-		// Check if teammaster is valid and in use
-		if ((ent1->teammaster == ent2 && ent2->inuse) || (ent2->teammaster == ent1 && ent1->inuse)) {
-			// We generally consider an entity and its deployer the same team
-			// unless perhaps friendly fire is *explicitly* enabled against deployables?
-			// For now, assume they are the same team.
-			return true;
-		}
-	}
-
-	// --- Determine Game Mode (Keep as is) ---
-	enum GameMode { MODE_COOPERATIVE, MODE_TEAMPLAY, MODE_HORDE, MODE_OTHER };
 	GameMode currentMode;
 
-	// Assign a value in all cases
-	if (G_IsCooperative()) {
+	if (G_IsCooperative())
 		currentMode = MODE_COOPERATIVE;
-	}
-	else if (G_TeamplayEnabled() && !g_horde->integer) { // Ensure g_teamplay is checked too
+	else if (G_TeamplayEnabled() && !g_horde->integer)
 		currentMode = MODE_TEAMPLAY;
-	}
-	else if (g_horde && g_horde->integer) { // Check g_horde exists before accessing integer
+	else if (g_horde->integer)
 		currentMode = MODE_HORDE;
-	}
-	else { // <-- ADD THIS ELSE
-		currentMode = MODE_OTHER; // Default case (e.g., standard Deathmatch)
-	}
+	else
+		currentMode = MODE_OTHER;
 
-
-	// --- UNIVERSAL DEPLOYABLE CHECKS ---
-	// These checks use the deployable's stored 'team' string, which should
-	// have been set based on the deployer's team when it was fired.
-	// Do these *before* mode-specific logic if they should override it.
-	bool checked_deployable = false;
-
-	// Check Teslas
-	if (ent1->monster_type_id == specialEntityTypeIds[0]) { // ent1 is tesla
-		if (CheckTeslaMineTeam(ent1, ent2)) return true;
-		checked_deployable = true;
-	}
-	else if (ent2->monster_type_id == specialEntityTypeIds[0]) { // ent2 is tesla
-		if (CheckTeslaMineTeam(ent2, ent1)) return true;
-		checked_deployable = true;
-	}
-
-	// Check Traps
-	if (!checked_deployable) { // Avoid re-checking if already matched tesla
-		if (ent1->monster_type_id == specialEntityTypeIds[1]) { // ent1 is trap
-			if (CheckTrapTeam(ent1, ent2)) return true;
-			checked_deployable = true;
-		}
-		else if (ent2->monster_type_id == specialEntityTypeIds[1]) { // ent2 is trap
-			if (CheckTrapTeam(ent2, ent1)) return true;
-			checked_deployable = true;
-		}
-	}
-
-	// Check Lasers
-	if (!checked_deployable) { // Avoid re-checking if already matched tesla/trap
-		bool ent1_is_laser = (ent1->monster_type_id != MONSTER_TYPE_UNKNOWN && isLaserType[ent1->monster_type_id]);
-		bool ent2_is_laser = (ent2->monster_type_id != MONSTER_TYPE_UNKNOWN && isLaserType[ent2->monster_type_id]);
-
-		if (ent1_is_laser) {
-			if (CheckLaserTeam(ent1, ent2)) return true;
-			checked_deployable = true;
-		}
-		else if (ent2_is_laser) {
-			if (CheckLaserTeam(ent2, ent1)) return true;
-			checked_deployable = true;
-		}
-	}
-
-	// If we identified one of the entities as a deployable and performed the check,
-	// and the check returned false, then they are NOT on the same team based on that rule.
-	// We might stop here, OR continue to mode-specific checks if those should take precedence.
-	// For preventing friendly fire, if the deployable check failed, they likely aren't teammates.
-	if (checked_deployable) {
-		return false; // The specific deployable check failed, so they aren't teammates via that rule.
-	}
-
-
-	// --- Mode-Specific Logic ---
 	switch (currentMode) {
 	case MODE_COOPERATIVE:
-		// All players are on the same team.
-		if (ent1->client && ent2->client)
-			return true;
-		// Player vs their own deployable was handled by teammaster check earlier.
-		// Player vs OTHER player's deployable -> Handled by universal deployable check above.
-		// Monster vs Player/Deployable -> Generally false in Coop unless friendly monsters exist.
-		return false; // Default: not same team unless both players
+		return (ent1->client && ent2->client);
 
 	case MODE_TEAMPLAY:
-		// Client vs Client
 		if (ent1->client && ent2->client)
 			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
 
-		// Monster vs Monster (Re-evaluate AssignMonsterTeam - might not be needed if teams set elsewhere)
 		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
-			// AssignMonsterTeam(ent1); // Be careful with this - is it correct for Teamplay?
-			// AssignMonsterTeam(ent2);
-			return ent1->monsterinfo.team == ent2->monsterinfo.team; // Check if teams match
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
 		}
-
-		// Player vs their deployable -> handled by teammaster check
-		// Player vs teammate's deployable -> handled by universal deployable check
-		// Player vs enemy deployable -> handled by universal deployable check (returns false)
-		// Monster vs Player/Deployable -> Usually false unless monsters are part of teams
-
-		return false; // Default: No match based on Teamplay rules
+		return false;
 
 	case MODE_HORDE:
-		// Client vs Client
+		// Verificar jugadores
 		if (ent1->client && ent2->client)
 			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
 
-		// Monster vs Monster
+		// Verificar monstruos
 		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
-			AssignMonsterTeam(ent1); // AssignMonsterTeam seems appropriate for Horde
+			AssignMonsterTeam(ent1);
 			AssignMonsterTeam(ent2);
 			return ent1->monsterinfo.team == ent2->monsterinfo.team;
 		}
 
-		// Player vs Monster
-		if (ent1->client && (ent2->svflags & SVF_MONSTER)) {
-			AssignMonsterTeam(ent2); // Make sure monster team is assigned
+		// Verificar jugador vs monstruo
+		if (ent1->client && (ent2->svflags & SVF_MONSTER))
 			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
-		}
-		if (ent2->client && (ent1->svflags & SVF_MONSTER)) {
-			AssignMonsterTeam(ent1); // Make sure monster team is assigned
-			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
-		}
 
-		// Deployable checks were already done universally above.
-		// If we reach here in Horde mode, it means none of the specific
-		// client/monster/deployable rules matched.
+		if (ent2->client && (ent1->svflags & SVF_MONSTER))
+			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
+
+		// Verificar minas tesla
+		if (CheckEntityClass(ent1, "tesla_mine"))
+			return CheckTeslaMineTeam(ent1, ent2);
+
+		if (CheckEntityClass(ent2, "tesla_mine"))
+			return CheckTeslaMineTeam(ent2, ent1);
+
+		// Verificar trampas
+		if (CheckEntityClass(ent1, "food_cube_trap"))
+			return CheckTrapTeam(ent1, ent2);
+
+		if (CheckEntityClass(ent2, "food_cube_trap"))
+			return CheckTrapTeam(ent2, ent1);
+
+		// Verificar láseres y emisores
+		if (IsLaserEntity(ent1))
+			return CheckLaserTeam(ent1, ent2);
+
+		if (IsLaserEntity(ent2))
+			return CheckLaserTeam(ent2, ent1);
+
 		return false;
 
-	default: // MODE_OTHER (Deathmatch, etc.)
-		// Player vs their deployable -> handled by teammaster check
-		// No other team relationships usually exist in standard DM.
+	default:
 		return false;
 	}
 }
