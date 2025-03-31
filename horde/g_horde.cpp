@@ -5613,7 +5613,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	// Check if ED_CallSpawn succeeded
 	if (!monster->inuse) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: ED_CallSpawn failed for {}\n", monster->classname);
+		//	gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: ED_CallSpawn failed for {}\n", monster->classname);
 		}
 		return false;
 	}
@@ -5714,7 +5714,7 @@ bool ShouldTriggerAmbushSpawn() {
 // Updated SpawnAmbushMonsters to use improved emergency spawning with TypeIDs
 int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 	if (developer->integer) {
-		gi.Com_PrintFmt("DEBUG: Starting SpawnAmbushMonsters\n");
+	//	gi.Com_PrintFmt("DEBUG: Starting SpawnAmbushMonsters\n");
 	}
 
 	// Determine monster type ID - try to get a valid monster for current wave
@@ -5826,7 +5826,7 @@ int SpawnAmbushMonsters(const MapSize& mapSize, int32_t waveLevel) {
 			// Optional: Log which type ID failed if in dev mode
 			if (developer->integer > 1) {
 				const char* failed_name = horde::MonsterTypeRegistry::GetClassname(monster_typeId);
-				gi.Com_PrintFmt("SpawnAmbushMonsters: EmergencySpawnMonster failed for TypeID {} ({})\n",
+	//			gi.Com_PrintFmt("SpawnAmbushMonsters: EmergencySpawnMonster failed for TypeID {} ({})\n",
 					static_cast<int>(monster_typeId), failed_name ? failed_name : "Unknown");
 			}
 		}
