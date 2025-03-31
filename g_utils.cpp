@@ -752,3 +752,43 @@ void CleanupInvalidEntities() {
 	}
 }
 
+void CleanupStuckEntities() {
+	// Calculate the starting index AFTER the body queue
+	const uint32_t start_index = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U;
+
+	// Iterate through edicts, skipping players AND body queue slots.
+	for (uint32_t i = start_index; i < globals.num_edicts; i++) { // <-- MODIFIED START INDEX
+		edict_t* ent = &g_edicts[i];
+
+		// Basic validity checks
+		if (!ent || !ent->inuse) {
+			continue;
+		}
+
+		// Skip active items (can keep this check)
+		if (ent->item) {
+			continue;
+		}
+
+		// --- Conditions for identifying a stuck/lingering entity ---
+		if ((ent->solid == SOLID_BSP || ent->solid == SOLID_BBOX) && ent->health <= 0) {
+			bool stopped_thinking = (!ent->think || ent->nextthink <= level.time - 5_sec); // Corrected check
+			bool not_fading = !ent->is_fading_out;
+			bool likely_monster = (ent->svflags & (SVF_MONSTER | SVF_DEADMONSTER)) || ent->was_spawned_by_horde;
+
+			if (stopped_thinking && not_fading && likely_monster) {
+				if (developer->integer) {
+					gi.Com_PrintFmt("CleanupStuckEntities: Removing stuck entity #{} (Class: {}, Solid: {}, Health: {}, Think: {}, NextThink: {:.2f}, Fading: {})\n",
+						(int)(ent - g_edicts),
+						ent->classname ? ent->classname : "null",
+						static_cast<int>(ent->solid), // Corrected cast
+						ent->health,
+						ent->think ? "Yes" : "No",
+						ent->nextthink.seconds(),
+						ent->is_fading_out ? "Yes" : "No");
+				}
+				G_FreeEdict(ent);
+			}
+		}
+	}
+}

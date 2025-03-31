@@ -1289,14 +1289,6 @@ void CTFSetIDView(edict_t* ent) {
 	}
 }
 
-//void CleanupStaleCS() {
-//	//if (level.intermissiontime) {
-//	//	return;
-//	//}
-//
-//	g_entityInfoManager.cleanupStaleEntries();
-//}
-
 void SetCTFStats(edict_t* ent)
 {
 

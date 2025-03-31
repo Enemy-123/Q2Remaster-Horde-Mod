@@ -78,7 +78,7 @@ bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, 
 
 extern gtime_t horde_message_end_time;
 extern void CheckAndUpdateMenus();
-extern void CheckAndResetDisabledSpawnPoints();
+//extern void CheckAndResetDisabledSpawnPoints();
 extern void CheckAndRestoreMonsterAlpha(edict_t* const ent);
 
 // Estructura para pasar datos adicionales a la función de filtro

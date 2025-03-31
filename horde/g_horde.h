@@ -33,6 +33,7 @@ void Weapon_Hook(edict_t* ent);
 // HORDE CS
 //extern void ClearHordeMessage();
 extern void CleanupInvalidEntities();
+extern void CleanupStuckEntities();
 
 extern uint16_t g_totalMonstersInWave;
 extern inline int32_t CalculateRemainingMonsters() noexcept;
