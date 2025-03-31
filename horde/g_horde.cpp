@@ -5402,7 +5402,7 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 				// This assumes 'monster->enemy' is the killer, which might not always be true
 				// A more robust way might be needed if damage tracking is complex
 				g_horde_retaliation_target_player = nullptr;
-				if (monster->enemy && monster->enemy->client && !(monster->enemy->svflags & SVF_BOT)) {
+				if (monster->enemy && monster->enemy->client/* && !(monster->enemy->svflags & SVF_BOT|*/) {
 					g_horde_retaliation_target_player = monster->enemy;
 				}
 				else {

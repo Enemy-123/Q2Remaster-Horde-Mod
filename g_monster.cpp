@@ -1618,6 +1618,15 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 
 stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 {
+	// <<< HORDE >>>
+	// If Horde mode is active and this entity was spawned by Horde,
+	// let the Horde mod's specific stuck logic (CheckAndTeleportStuckMonster) handle it.
+	// Return GOOD_POSITION immediately to prevent the base game's nudge logic.
+	if (g_horde && g_horde->integer && self->was_spawned_by_horde) {
+		return stuck_result_t::GOOD_POSITION;
+	}
+	// <<< HORDE >>>
+
 	contents_t mask = G_GetClipMask(self);
 	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
 		return gi.trace(start, mins, maxs, end, self, mask);
