@@ -15,19 +15,6 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
     return wave_level <= 3;
 }
 
-enum bonus_flags_t : uint32_t {
-    BF_NONE = 0,
-    BF_CHAMPION = bit_v<0>,      // 1 << 0
-    BF_CORRUPTED = bit_v<1>,     // 1 << 1
-    BF_RAGEQUITTER = bit_v<2>,   // 1 << 2
-    BF_BERSERKING = bit_v<3>,    // 1 << 3
-    BF_POSSESSED = bit_v<4>,      // 1 << 4
-    BF_STYGIAN = bit_v<5>,        // 1 << 5
-    BF_FRIENDLY = bit_v<6>        // 1 << 6
-};
-
-MAKE_ENUM_BITFLAGS(bonus_flags_t);
-
 // boss stuff
 
 enum class BossTeleportReason {

@@ -619,7 +619,7 @@ void OnEntityDeath(edict_t* self) noexcept
 
 	// --- Entity Type Specific State Cleanup ---
 	if (self->svflags & SVF_MONSTER) {
-		self->monsterinfo.bonus_flags = 0;
+		self->monsterinfo.bonus_flags = BF_NONE;
 		self->monsterinfo.effects_applied = false;
 		self->monsterinfo.IS_BOSS = false;
 	}

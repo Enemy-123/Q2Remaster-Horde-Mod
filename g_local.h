@@ -1631,6 +1631,20 @@ std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t* self, int3
 
 constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 
+// HORDE BONUS_FLAGS MONSTERS 
+
+enum bonus_flags_t : uint32_t {
+	BF_NONE = 0,
+	BF_CHAMPION = bit_v<0>,      // 1 << 0
+	BF_CORRUPTED = bit_v<1>,     // 1 << 1
+	BF_RAGEQUITTER = bit_v<2>,   // 1 << 2
+	BF_BERSERKING = bit_v<3>,    // 1 << 3
+	BF_POSSESSED = bit_v<4>,      // 1 << 4
+	BF_STYGIAN = bit_v<5>,        // 1 << 5
+	BF_FRIENDLY = bit_v<6>        // 1 << 6
+};
+MAKE_ENUM_BITFLAGS(bonus_flags_t);
+
 struct monsterinfo_t
 {
 	// [Paril-KEX] allow some moves to be done instantaneously, but
@@ -1777,7 +1791,7 @@ struct monsterinfo_t
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
 
-	int bonus_flags; //Powerups or Special Flags for horde
+	bonus_flags_t bonus_flags = BF_NONE; //Powerups or Special Flags for horde
 	int team; // Setting a team, test
 
 };

@@ -1633,6 +1633,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 	//	}
 	//}
 	// signal from checkattack to spawn
+
 	if (self->monsterinfo.aiflags & AI_BLOCKED)
 	{
 		M_SetAnimation(self, &medic_move_callReinforcements);
@@ -1642,7 +1643,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 	float const r = frandom();
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
+		if ((self->monsterinfo.bonus_flags != BF_NONE && r < 0.7) || (self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
 			M_SetAnimation(self, &medic_move_attackCable);

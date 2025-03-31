@@ -410,8 +410,9 @@ void ApplyBossEffects(edict_t* boss)
 	const BossSizeCategory sizeCategory = boss->bossSizeCategory;
 
 	// Generar un flag aleatorio
-	const int32_t random_flag = 1 << (rand() % 6);
-	boss->monsterinfo.bonus_flags = random_flag;
+	// Generar un flag aleatorio
+	const int32_t random_flag_int = 1 << (rand() % 6);
+	boss->monsterinfo.bonus_flags = static_cast<bonus_flags_t>(random_flag_int);
 
 	float health_multiplier = 1.0f;
 	float power_armor_multiplier = 1.0f;
