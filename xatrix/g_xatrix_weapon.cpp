@@ -513,7 +513,7 @@ void SpawnDamage(int type, const vec3_t& origin, const vec3_t& normal, int damag
 // New touch function for trap sticking behavior
 TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-    if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH))
+    if (!other || !other->inuse || other == ent->owner || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH || other->solid == SOLID_BBOX)) // Added SOLID_BBOX check for things like doors/plats
         return;
 
     // Handle non-world entities (similar to tesla)
@@ -596,7 +596,7 @@ TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
     // Stop movement and set up trap behavior
     ent->velocity = {};
     ent->avelocity = {};
-    ent->movetype = MOVETYPE_NONE;
+    ent->movetype = MOVETYPE_TOSS;
     ent->touch = nullptr;
     ent->solid = SOLID_BBOX;
 
