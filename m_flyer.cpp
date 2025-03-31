@@ -899,7 +899,7 @@ MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 		}
 		else
 		{
-			if (frandom() > 0.4f)
+			if (frandom() > 0.4f || (self->monsterinfo.bonus_flags != BF_NONE && frandom() > 0.75f))
 			{
 				M_SetAnimation(self, &flyer_move_attack2);
 			}

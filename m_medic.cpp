@@ -1643,7 +1643,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 	float const r = frandom();
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		if ((self->monsterinfo.bonus_flags != BF_NONE && r < 0.7) || (self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
+		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
 			M_SetAnimation(self, &medic_move_attackCable);
@@ -1655,7 +1655,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &medic_move_callReinforcements);
 			return;
 		}
-		if ((self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self))
+		if ((self->monsterinfo.bonus_flags != BF_NONE && r < 0.7) || (self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self))
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
 			M_SetAnimation(self, &medic_move_attackBlaster);
