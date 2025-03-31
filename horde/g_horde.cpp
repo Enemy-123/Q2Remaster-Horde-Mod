@@ -2559,14 +2559,28 @@ gitem_t* G_HordePickItem() {
 	}
 	// After the loop, 'left' holds the index of the chosen item entry in the cache
 
+	// *** ADDED SAFETY CHECK ***
+	// Although the binary search should ensure 'left' is valid, this check
+	// satisfies static analysis and guards against potential edge cases.
+	if (left >= horde_item_cache.count) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("CRITICAL ERROR: G_HordePickItem - Binary search resulted in invalid index 'left' ({}) >= 'count' ({}).\n",
+				left, horde_item_cache.count);
+		}
+		return nullptr; // Prevent accessing invalid memory
+	}
+	// *** END SAFETY CHECK ***
+
+
 	// --- Retrieve and Return the Item ---
 	// Get the chosen HordeItemInfo pointer from the cache entry
-	const HordeItemInfo* chosen_info = horde_item_cache.entries[left].itemInfo;
+	const HordeItemInfo* chosen_info = horde_item_cache.entries[left].itemInfo; // Now accessing with checked 'left'
 
-	// Safety check: Ensure chosen_info is not null (shouldn't happen if count > 0)
+	// Safety check: Ensure chosen_info is not null (shouldn't happen if count > 0 and check above passed)
 	if (!chosen_info) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("Error: G_HordePickItem - chosen_info is null despite count > 0.\n");
+			// This would indicate an error storing the pointer earlier, less likely
+			gi.Com_PrintFmt("Error: G_HordePickItem - chosen_info is null despite valid index {}.\n", left);
 		}
 		return nullptr;
 	}
@@ -2574,8 +2588,8 @@ gitem_t* G_HordePickItem() {
 	// Use the item_id_t from the chosen info to get the actual gitem_t pointer
 	// This replaces the old FindItemByClassname call
 	return GetItemByIndex(chosen_info->id);
-
 }
+
 static int32_t countFlyingSpawns() noexcept {
 	return std::count_if(g_edicts + 1, g_edicts + globals.num_edicts,
 		[](const edict_t& ent) {
@@ -4948,80 +4962,98 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 // --- IsValidSpawnLocation Function ---
 [[nodiscard]] bool IsValidSpawnLocation(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying) {
 	// Define the mask to use for world geometry checks
-	constexpr contents_t GEOMETRY_MASK = MASK_SOLID; // Use MASK_SOLID (world, doors, plats) - Already contents_t is good
+	constexpr contents_t GEOMETRY_MASK = MASK_SOLID;
+
+	// --- NEW: Early Point Contents Check ---
+	int initial_contents = gi.pointcontents(io_position);
+	// Check for solid (often indicates outside PVS or inside world brush)
+	if (initial_contents & MASK_SOLID) {
+		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
+		return false;
+	}
+	// Only reject water/slime/lava if the monster isn't meant to be in it
+	if (!is_flying && (initial_contents & MASK_WATER)) {
+		// TODO: Could add a check here if the monster *can* swim (e.g., self->flags & FL_SWIM)
+		// Assume non-flying ground monsters shouldn't spawn directly *in* liquid for now.
+		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
+		return false;
+	}
+	// --- END NEW ---
 
 	// 1. Basic Volume Check (Trace at the location against world geometry)
-	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK); // OK - GEOMETRY_MASK is contents_t
+	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 	if (trace.startsolid || trace.allsolid) {
-		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial solid check (MASK_SOLID) at {}\n", io_position);
+		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial solid volume check (MASK_SOLID) at {}\n", io_position);
 		return false;
 	}
 
 	// 2. Ground/Liquid Check (Only for non-flying)
 	if (!is_flying) {
-		// Check if feet are in liquid (pointcontents check is fine)
-		vec3_t foot_pos = io_position;
-		foot_pos.z += monster_mins[2] + 1.0f;
-		int contents = gi.pointcontents(foot_pos);
-		if (contents & MASK_WATER) { // OK - MASK_WATER is contents_t
-			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed liquid check at feet {} (Contents: {})\n", foot_pos, contents);
-			return false;
-		}
-
-		// Check if there's ground below using GEOMETRY_MASK
+		// --- ENHANCED: Check for ground below with a longer trace ---
 		vec3_t ground_check_end = io_position;
-		ground_check_end.z -= 32;
-		trace_t ground_trace = gi.trace(io_position, monster_mins, monster_maxs, ground_check_end, nullptr, GEOMETRY_MASK); // OK
-		if (ground_trace.startsolid) { // Added check: If the *trace itself* starts in solid, it's bad
+		constexpr float GROUND_CHECK_DISTANCE = 1024.0f; // Increased distance
+		ground_check_end.z -= GROUND_CHECK_DISTANCE;
+		trace_t ground_trace = gi.trace(io_position, monster_mins, monster_maxs, ground_check_end, nullptr, GEOMETRY_MASK);
+
+		// Fail if trace started in solid (should be caught earlier, but good safety)
+		if (ground_trace.startsolid) {
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}\n", io_position);
 			return false;
 		}
 
-		// Check immediate ground support using GEOMETRY_MASK
-		bool has_immediate_ground = M_CheckBottom_Slow_Generic(io_position, monster_mins, monster_maxs, nullptr, GEOMETRY_MASK, false, false); // OK
+		// --- NEW: Explicit Void Check ---
+		// If the trace went the full distance without hitting anything solid, assume it's over a void.
+		if (ground_trace.fraction == 1.0f) {
+			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
+			return false;
+		}
+		// --- END NEW ---
 
-		// Attempt M_droptofloor only if potentially needed and safe
-		if (ground_trace.fraction < 1.0f && !has_immediate_ground) {
+		// Attempt M_droptofloor only if the ground trace hit something (ground_trace.fraction < 1.0f)
+		// This implies there is ground *somewhere* below, but maybe not immediately.
+		if (ground_trace.fraction < 1.0f) {
 			vec3_t original_pos = io_position;
 			// M_droptofloor_generic using GEOMETRY_MASK
-			if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false)) { // OK
-				// Drop failed, check if stuck in *world* geometry now
-				trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK); // OK
-				if (trace.startsolid || trace.allsolid) {
-					io_position = original_pos;
-					if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor (ended stuck in solid) at {}. Reverted.\n", original_pos);
-					return false;
-				}
-				io_position = original_pos;
-				if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor failed but didn't end stuck in solid at {}. Reverted.\n", original_pos);
-				// Need to re-check ground after reverting
-				has_immediate_ground = M_CheckBottom_Slow_Generic(io_position, monster_mins, monster_maxs, nullptr, GEOMETRY_MASK, false, false); // OK
-				if (!has_immediate_ground) {
-					if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: No immediate ground after reverting from failed drop at {}.\n", io_position);
-					return false; // Still no ground after reverting
-				}
-
+			if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false)) {
+				// Drop failed, position is unchanged. This implies it couldn't find a valid spot to drop to.
+				// We already checked for void, so this likely means the space below is obstructed or invalid.
+				io_position = original_pos; // Ensure position is reverted
+				if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
+				return false; // Fail if drop failed
 			}
-			else {
-				if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z: {:.2f}.\n", io_position.z);
-			}
+			// If drop succeeded, io_position is now the new Z.
 
 			// Final check after potential drop: Is the *new* position clear of *world* geometry?
-			trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK); // OK
+			trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 			if (trace.startsolid || trace.allsolid) {
-				if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* potential drop at {}\n", io_position);
+				if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor at {}\n", io_position);
 				io_position = original_pos; // Revert if final check failed
 				return false;
 			}
+			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z: {:.2f}.\n", io_position.z);
 		}
-		else if (ground_trace.fraction == 1.0f && !has_immediate_ground) {
-			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: No ground found below or immediately under {} for non-flying unit.\n", io_position);
-			return false;
-		}
-	}
+		// If ground_trace.fraction == 1.0f, we already failed the void check above.
+	} // End non-flying checks
 
-	if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Success (MASK_SOLID checks) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
-	return true;
+	// --- FINAL CHECK: Proximity to Other Entities (Players/Monsters/Defenses) ---
+	// This check should happen *after* geometric validation and potential dropping.
+	// Use a slightly larger box for entity checks to prevent clipping issues
+	const vec3_t entity_check_mins = monster_mins - vec3_t{ 2, 2, 0 };
+	const vec3_t entity_check_maxs = monster_maxs + vec3_t{ 2, 2, 0 };
+	FilterData final_check_data = { nullptr, 0 };
+	const vec3_t check_mins = io_position + entity_check_mins; // Use potentially modified io_position
+	const vec3_t check_maxs = io_position + entity_check_maxs;
+	// Using SpawnPointFilter which checks players, monsters, defenses
+	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_check_data);
+	if (final_check_data.count > 0) {
+		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed final entity occupation check at validated position {}\n", io_position);
+		return false;
+	}
+	// --- END FINAL CHECK ---
+
+
+	if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
+	return true; // All checks passed
 }
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
