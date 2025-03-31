@@ -525,7 +525,8 @@ void Cmd_RemoveSentry_f(edict_t* ent)
 
 	// Iterate through all entities to find sentries owned by the player
 	// Start after clients (index game.maxclients)
-	for (int i = game.maxclients + 1; i < globals.num_edicts; i++) {
+	// Use uint32_t for the loop index to match globals.num_edicts
+	for (uint32_t i = game.maxclients + 1; i < globals.num_edicts; i++) {
 		current_ent = &g_edicts[i];
 
 		// Check if the entity is in use, is a sentry gun, and is owned by the command issuer
@@ -545,8 +546,9 @@ void Cmd_RemoveSentry_f(edict_t* ent)
 
 	if (removed_count > 0) {
 		// Use LocClient_Print for localized output if needed, otherwise Client_Print is fine
-		gi.LocClient_Print(ent, PRINT_HIGH, "Removed %d sentry gun(s).\n", removed_count);
-	} else {
+		gi.LocClient_Print(ent, PRINT_HIGH, "Removed {} sentry gun(s).\n", removed_count);
+	}
+	else {
 		gi.LocClient_Print(ent, PRINT_HIGH, "No active sentry guns found to remove.\n");
 	}
 }

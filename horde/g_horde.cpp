@@ -644,7 +644,7 @@ void CheckAndReduceSpawnCooldowns() {
 	spawn_points.reserve(MAX_SPAWN_POINTS);
 
 	// Find all active spawn points by scanning entities
-	for (unsigned int i = 1; i < globals.num_edicts; i++) {
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 		if (ent && ent->inuse && ent->classname &&
 			!strcmp(ent->classname, "info_player_deathmatch")) {
@@ -4130,7 +4130,7 @@ void ResetCooldowns() noexcept {
 
 void ResetAllSpawnAttempts() noexcept {
 	// Find all active spawn points and reset them
-	for (unsigned int i = 1; i < globals.num_edicts; i++) {
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 		if (ent && ent->inuse && ent->classname &&
 			!strcmp(ent->classname, "info_player_deathmatch")) {
@@ -6581,7 +6581,7 @@ edict_t* SpawnMonsters() {
 	// Add this function in the appropriate source file that deals with spawn management.
 	void CheckAndResetDisabledSpawnPoints() {
 		// Find all active spawn points that are disabled
-		for (unsigned int i = 1; i < globals.num_edicts; i++) {
+		for (uint32_t i = 1; i < globals.num_edicts; i++) {
 			edict_t* ent = &g_edicts[i];
 			if (ent && ent->inuse && ent->classname &&
 				strcmp(ent->classname, "info_player_deathmatch") == 0) {

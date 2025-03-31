@@ -2038,7 +2038,7 @@ void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 	ent->client->pers.inventory[item->id] = 0;
 
 	// Reiniciar el estado de todos los tech items del mismo tipo
-	for (unsigned int i = 0; i < game.maxentities; i++)
+	for (uint32_t i = 0; i < game.maxentities; i++)
 	{
 		edict_t* tech = &g_edicts[i];
 		if (tech->inuse && tech->item == item)
@@ -2747,7 +2747,7 @@ void CTFWinElection() {
 			ctfgame.elevel);
 		if (g_horde->integer) {
 			HandleResetEvent();
-			for (unsigned int i = 0; i < game.maxclients; i++) {
+			for (uint32_t i = 0; i < game.maxclients; i++) {
 				edict_t* ent = g_edicts + 1 + i;
 				if (ent->inuse && ent->client) {
 					InitClientPt(ent, ent->client);
@@ -2985,7 +2985,7 @@ void RemoveTech(edict_t* ent) {
 			ent->client->pers.inventory[tech_index] = 0;
 
 			// Reiniciar el estado de todos los TECH items del mismo tipo
-			for (unsigned int j = 0; j < game.maxentities; j++) {
+			for (uint32_t j = 0; j < game.maxentities; j++) {
 				edict_t* tech = &g_edicts[j];
 				if (tech->inuse && tech->item && tech->item->id == tech_index) {
 					tech->svflags &= ~SVF_NOCLIENT;
@@ -3332,7 +3332,7 @@ void RemoveAllTechItems(edict_t* ent)
 		ent->client->pers.inventory[i] = 0;
 
 		// Reset all entities of this item type
-		for (unsigned int j = 0; j < game.maxentities; j++)
+		for (uint32_t j = 0; j < game.maxentities; j++)
 		{
 			edict_t* tech = &g_edicts[j];
 
