@@ -5414,7 +5414,6 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 					}
 				}
 
-
 				if (developer->integer) {
 					gi.Com_PrintFmt("HORDE: Retaliation Mode Activated for 10s (Target: {}). Triggered by rapid kills during spawning.\n",
 						g_horde_retaliation_target_player ? g_horde_retaliation_target_player->client->pers.netname : "None");
@@ -5423,8 +5422,23 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 				// Trigger the immediate mini-ambush
 				SpawnRetaliationAmbush(g_horde_local.current_map_size, g_horde_local.level, g_horde_retaliation_target_player);
 
+				// --- START: Add monsters to the queue as reinforcement ---
+				int32_t monsters_to_add_to_queue = 6 + (g_horde_local.level / 5); // Base 3, +1 every 5 levels
+				// Optional: Add map size bonus
+				if (g_horde_local.current_map_size.isBigMap) monsters_to_add_to_queue += 6;
+				else if (g_horde_local.current_map_size.isMediumMap) monsters_to_add_to_queue += 4;
+
+				g_horde_local.queued_monsters += monsters_to_add_to_queue;
+
+				if (developer->integer) {
+					gi.Com_PrintFmt("HORDE: Retaliation added {} monsters to the queue (New total: {}).\n",
+						monsters_to_add_to_queue, g_horde_local.queued_monsters);
+				}
+				// --- END: Add monsters to the queue ---
+
+
 				// Play an alert sound?
-				gi.sound(world, CHAN_AUTO, gi.soundindex("misc/pc_up.wav"), 1, ATTN_NORM, 0);
+				//gi.sound(world, CHAN_AUTO, gi.soundindex("misc/pc_up.wav"), 1, ATTN_NORM, 0);
 
 				spawn_state_deaths = 0; // Reset the death counter
 			}
