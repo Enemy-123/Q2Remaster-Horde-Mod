@@ -596,7 +596,8 @@ TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
     // Stop movement and set up trap behavior
     ent->velocity = {};
     ent->avelocity = {};
-    ent->movetype = MOVETYPE_TOSS;
+    ent->movetype = MOVETYPE_NONE;
+   // ent->gravity = 0.1f;
     ent->touch = nullptr;
     ent->solid = SOLID_BBOX;
 
