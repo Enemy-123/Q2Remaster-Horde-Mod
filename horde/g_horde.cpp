@@ -4802,7 +4802,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 // --- IsValidSpawnLocation Function ---
 [[nodiscard]] bool IsValidSpawnLocation(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying) {
 	constexpr contents_t GEOMETRY_MASK = MASK_SOLID;
-	constexpr float Z_EPSILON = 0.5f;
+	constexpr float Z_EPSILON = 1.5f;
 
 	int initial_contents = gi.pointcontents(io_position);
 	if (initial_contents & MASK_SOLID) {
@@ -5029,6 +5029,10 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f);
 
+		// Briefly pause AI to re-evaluate surroundings
+		self->monsterinfo.pausetime = level.time + 150_ms;
+		// Clear pathfinding goal
+		self->goalentity = nullptr;
 		self->monsterinfo.react_to_damage_time = level.time;
 		self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
@@ -6877,9 +6881,8 @@ inline bool IsBossWave() noexcept {
 // Helper to get predicted *scaled* bounds for validation checks
 // Returns false if typeId is invalid or info not found
 bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs) {
-	// Find the MonsterTypeInfo entry
 	const MonsterTypeInfo* info = nullptr;
-	for (const auto& entry : monsterTypes) { // Iterate through the global array
+	for (const auto& entry : monsterTypes) {
 		if (entry.typeId == typeId) {
 			info = &entry;
 			break;
@@ -6887,41 +6890,17 @@ bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec
 	}
 
 	if (!info) {
-		// Fallback to generic bounds if info not found
-		out_mins = HordeConstants::VALIDATE_CHECK_MINS;
-		out_maxs = HordeConstants::VALIDATE_CHECK_MAXS;
+		out_mins = HordeConstants::VALIDATE_CHECK_MINS; // Fallback generic
+		out_maxs = HordeConstants::VALIDATE_CHECK_MAXS; // Fallback generic
 		if (developer->integer) gi.Com_PrintFmt("GetPredictedScaledBounds: WARN - MonsterTypeInfo not found for TypeID {}, using generic bounds.\n", (int)typeId);
-		return false; // Indicate failure to find specific info
+		return false;
 	}
 
-	// Start with the default unscaled bounds from the info struct
+	// --- REMOVED SCALING LOGIC ---
+	// Just return the default bounds directly
 	out_mins = info->default_mins;
 	out_maxs = info->default_maxs;
+	// --- END REMOVED SCALING LOGIC ---
 
-	// Predict scaling based on cvars (mirroring monster_start logic)
-	float scale = 1.0f; // Default scale
-
-	// Check ai_model_scale cvar (ensure it exists and is checked safely)
-	// Make sure 'ai_model_scale' is accessible here or pass it as an argument if needed
-	if (ai_model_scale && ai_model_scale->value > 0) {
-		scale = ai_model_scale->value;
-	}
-	// Add other potential scaling factors here if necessary (e.g., specific monster flags)
-
-	// Apply the predicted scale
-	if (scale != 1.0f) {
-		out_mins *= scale;
-		out_maxs *= scale;
-		// Note: We don't predict the Z-origin shift here, as IsValidSpawnLocation
-		// handles floor dropping. We just need the scaled box dimensions.
-	}
-
-	// Consider PSX scaling if relevant (check if this cvar/flag exists in your codebase)
-	// Example:
-	// if (pm_config.physics_flags & PHYSICS_PSX_SCALE) {
-	//     out_mins *= PSX_PHYSICS_SCALAR;
-	//     out_maxs *= PSX_PHYSICS_SCALAR;
-	// }
-
-	return true; // Indicate success
+	return true;
 }
