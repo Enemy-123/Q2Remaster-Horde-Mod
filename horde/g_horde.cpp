@@ -2232,7 +2232,6 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 	}
 	// *** End Stuck Check ***
 
-	// Set spawn_complete_time *after* calling StartFadeIn (or setting normal think if stuck)
 	monster->monsterinfo.spawn_complete_time = level.time;
 
 	return monster;
@@ -5633,7 +5632,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		monster->nextthink = level.time + FRAME_TIME_S;
 	}
 
-	// Set spawn_complete_time *after* calling StartFadeIn (or setting normal think if stuck)
 	monster->monsterinfo.spawn_complete_time = level.time;
 
 
