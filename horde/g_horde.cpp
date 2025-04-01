@@ -3289,6 +3289,30 @@ void AllowReset() noexcept {
 	hasBeenReset = false;
 }
 
+void ResetBosses()
+{
+	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment here */) {
+		edict_t* boss = *it;
+		// CRITICAL CHECK: Ensure the pointer is not null AND the entity is still in use
+		// before attempting to access or free it.
+		if (boss && boss->inuse) {
+			// Ensure boss death logic is finalized if needed, then free
+			if (!boss->monsterinfo.BOSS_DEATH_HANDLED) {
+				// Optional: Add a check here if boss->die is valid before calling
+				// if (boss->die.pointer()) { boss->die(boss, boss, boss, 0, boss->s.origin, mod_t{}); }
+				// Or just call the handler which should be safe
+				BossDeathHandler(boss); // Attempt final cleanup if not done
+			}
+			OnEntityRemoved(boss); // Call removal hook
+			G_FreeEdict(boss);     // Free the entity
+		}
+		// Erase the pointer from the set regardless of whether it was valid/freed,
+		// then advance the iterator safely.
+		it = auto_spawned_bosses.erase(it);
+	}
+}
+
+
 void Horde_Init() {
 	horde::InitializeHordeIDs();
 
@@ -3296,16 +3320,7 @@ void Horde_Init() {
 	sounds_precached = false;
 	items_precached = false;
 
-	// Clear existing bosses
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
-		edict_t* boss = *it;
-		if (boss && boss->inuse) {
-			boss->monsterinfo.BOSS_DEATH_HANDLED = true;
-			OnEntityRemoved(boss);
-		}
-		it = auto_spawned_bosses.erase(it);
-	}
-	auto_spawned_bosses.clear();
+	ResetBosses();
 
 	// Do precaching
 	PrecacheAllGameItems();
@@ -4056,39 +4071,46 @@ void ClearHordeMessage() {
 // reset cooldowns, fixed no monster spawning on next map
 // En UnifiedAdjustSpawnRate y ResetCooldowns:
 void ResetCooldowns() noexcept {
-	// Instead of clearing the map, we'll reset every entry to default values
-	// This is much simpler with the array approach
-	for (size_t i = 0; i < MAX_EDICTS; i++) {
-		spawnPointsData.data[i] = SpawnPointData{};
+	// Reset data for all *active* spawn points
+	for (edict_t* spawnPoint : monster_spawn_points()) {
+		// Check if the pointer is valid (monster_spawn_points should guarantee inuse)
+		if (spawnPoint) {
+			// Direct array access is safe here as spawnPoint is a valid edict
+			spawnPointsData[spawnPoint] = SpawnPointData{}; // Reset to default values
+		}
 	}
 
+	// Reset global trackers
 	horde::g_monsterSpawnTracker.Reset();
 	horde::g_spawnPointTimeTracker.Reset();
 
-	const horde::MapSize& mapSize = g_horde_local.current_map_size;
-	const int32_t currentLevel = g_horde_local.level;
+	// Recalculate global SPAWN_POINT_COOLDOWN based on current state (level 0 likely after reset)
+	const horde::MapSize& mapSize = g_horde_local.current_map_size; // Assumes g_horde_local is reset
+	const int32_t currentLevel = g_horde_local.level;             // Should be 0 after ResetGame
 	const int32_t humanPlayers = GetNumHumanPlayers();
 
 	// Get base cooldown based on map size
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 
-	// Apply scale based on level
+	// Apply scale based on level (will be minimal for level 0)
 	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-	// Additional adjustments (reduced but maintained for balance)
+	// Additional adjustments (will have minimal effect at level 0)
 	if (humanPlayers > 1) {
 		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
 		SPAWN_POINT_COOLDOWN *= playerAdjustment;
 	}
 
-	// Difficulty mode adjustments with safety verification
+	// Difficulty mode adjustments (should be off after reset)
 	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
 		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
 
-	// Apply absolute limits
-	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
+	// Apply absolute limits (using constants from HordeConstants namespace)
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
+		HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN,
+		3.0_sec); // Keep upper bound reasonable
 }
 
 void ResetAllSpawnAttempts() noexcept {
@@ -4221,18 +4243,8 @@ void ResetGame() {
 	ResetChampionMonsterState(); // Add reset for champion state
 
 	// Clear auto_spawned_bosses safely
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment here */) {
-		edict_t* boss = *it;
-		if (boss && boss->inuse) {
-			// Ensure boss death logic is finalized if needed, then free
-			if (!boss->monsterinfo.BOSS_DEATH_HANDLED) {
-				BossDeathHandler(boss); // Attempt final cleanup if not done
-			}
-			OnEntityRemoved(boss); // Call removal hook
-			G_FreeEdict(boss); // Free the entity
-		}
-		it = auto_spawned_bosses.erase(it); // Erase and advance iterator
-	}
+	ResetBosses();
+
 	// auto_spawned_bosses set is now empty
 	g_adjusted_monster_cap = 0;
 
@@ -6757,83 +6769,107 @@ void Horde_RunFrame() {
 		break;
 
 	case horde_state_t::spawning: {
-		// Failsafe for stuck in spawning state
-		static gtime_t spawning_start_time = 0_sec;
-		if (spawning_start_time == 0_sec) {
-			spawning_start_time = currentTime;
+		// Failsafe 1: Stuck in spawning state for too long
+		static gtime_t spawning_state_start_time = 0_sec; // Renamed for clarity
+		if (spawning_state_start_time == 0_sec) {
+			spawning_state_start_time = currentTime; // Record when spawning started
 		}
-		else if (currentTime - spawning_start_time > 25_sec) {
+		else if (currentTime - spawning_state_start_time > 25_sec) { // Timeout after 25 seconds
 			if (!next_wave_message_sent) {
 				VerifyAndAdjustBots();
-				//gi.LocBroadcast_Print(PRINT_CENTER,
-				//	"\n\n\nWave deployment timeout. Moving to active phase.\n");
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Timed Out.\nWave Level: {}\n", currentLevel);
 				next_wave_message_sent = true;
 			}
-			g_horde_local.state = horde_state_t::active_wave;
-			spawning_start_time = 0_sec;
-			break;
+			g_horde_local.state = horde_state_t::active_wave; // Force transition
+			spawning_state_start_time = 0_sec; // Reset timer for next time
+			break; // Exit spawning state processing
 		}
 
-		// Independent time limit check
+		// Failsafe 2: Independent wave time limit reached during spawning
 		const gtime_t independentTimeLimit = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 		if (currentTime >= independentTimeLimit) {
 			currentWaveEndReason = WaveEndReason::TimeLimitReached;
-			waveEnded = true;
-			spawning_start_time = 0_sec;
-			break;
+			waveEnded = true; // Signal wave end
+			spawning_state_start_time = 0_sec; // Reset timer
+			break; // Exit spawning state processing
 		}
 
+		// Check if it's time for a spawn action (monster or boss)
 		if (g_horde_local.monster_spawn_time <= currentTime) {
-			// Boss wave handling
-			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
-				SpawnBossAutomatically();
-			}
+			bool boss_action_taken = false; // Track if boss logic ran this cycle
 
-			const int32_t activeMonsters = CalculateRemainingMonsters();
-			const int32_t maxMonsters = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
-				(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-					(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
+			// --- Boss Wave Specific Logic ---
+			if (IsBossWave()) {
+				// Failsafe 3: Boss spawn timeout
+				static gtime_t boss_wave_start_time = 0_sec;
+				constexpr gtime_t BOSS_SPAWN_TIMEOUT = 30_sec;
 
-			// Queue transfer handling
-			if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0 &&
-				activeMonsters < maxMonsters) {
-
-				const int32_t base_transfer = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
-				const int32_t transfer_amount = std::min({
-					g_horde_local.queued_monsters,
-					maxMonsters - activeMonsters,
-					base_transfer
-					});
-
-				if (transfer_amount > 0) {
-					g_horde_local.num_to_spawn += transfer_amount;
-					g_horde_local.queued_monsters -= transfer_amount;
+				if (boss_wave_start_time == 0_sec) { // Record start time only once per boss wave
+					boss_wave_start_time = currentTime;
 				}
-			}
 
-			// Spawn monsters
-			if (g_horde_local.num_to_spawn > 0 && activeMonsters < maxMonsters) {
-				SpawnMonsters();
-			}
+				// Check timeout ONLY if boss hasn't spawned yet
+				if (!boss_spawned_for_wave && currentTime > boss_wave_start_time + BOSS_SPAWN_TIMEOUT) {
+					if (developer->integer) {
+						gi.Com_PrintFmt("CRITICAL: Boss spawn timeout ({:.1f}s) reached for wave {}. Forcing spawn attempt.\n",
+							BOSS_SPAWN_TIMEOUT.seconds(), currentLevel);
+					}
+					SpawnBossAutomatically(); // Attempt to force spawn
+					boss_wave_start_time = 0_sec; // Reset timer after force attempt
+					boss_action_taken = true;     // Mark that boss logic ran
+				}
+				// Normal Boss Spawn Attempt (if not already spawned by failsafe or previous cycle)
+				else if (!boss_spawned_for_wave) {
+					SpawnBossAutomatically();
+					boss_wave_start_time = 0_sec; // Reset timer after normal attempt
+					boss_action_taken = true;     // Mark that boss logic ran
+				}
+			} // End IsBossWave() check
 
-			// Check if all monsters have been spawned
-			if (g_horde_local.num_to_spawn == 0 && g_horde_local.queued_monsters == 0) {
+			// --- Regular Monster Spawning Logic ---
+			// Only run if it's NOT a boss wave OR if the boss has successfully spawned
+			if (!IsBossWave() || boss_spawned_for_wave) {
+				const int32_t activeMonsters = CalculateRemainingMonsters();
+				// Use the globally calculated cap (includes player bonus)
+				const int32_t maxMonsters = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
+					(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+						(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP)); // Fallback
+
+				// Queue Transfer: Move monsters from queue to spawn pool if needed and space available
+				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0 && activeMonsters < maxMonsters) {
+					const int32_t base_transfer = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
+					const int32_t transfer_amount = std::min({ g_horde_local.queued_monsters, maxMonsters - activeMonsters, base_transfer });
+					if (transfer_amount > 0) {
+						g_horde_local.num_to_spawn += transfer_amount;
+						g_horde_local.queued_monsters -= transfer_amount;
+					}
+				}
+
+				// Spawn Monsters: Attempt to spawn from the main pool if available and under cap
+				if (g_horde_local.num_to_spawn > 0 && activeMonsters < maxMonsters) {
+					SpawnMonsters(); // This function handles batching and returns last spawned (or nullptr)
+				}
+			} // End Regular Monster Spawning Logic
+
+			// Check if wave deployment is complete (no more monsters to spawn or queue)
+			if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
+				// Only print message and change state once
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
-					gi.LocBroadcast_Print(PRINT_CENTER,
-						"\n\n\nWave Fully Deployed.\nWave Level: {}\n",
-						currentLevel);
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 					next_wave_message_sent = true;
 				}
-				g_horde_local.state = horde_state_t::active_wave;
-				spawning_start_time = 0_sec;
+				g_horde_local.state = horde_state_t::active_wave; // Transition to active phase
+				spawning_state_start_time = 0_sec; // Reset failsafe timer
 			}
 
-			// Set next spawn attempt time
+			// Set time for the *next* spawn attempt cycle
 			SetNextMonsterSpawnTime(mapSize);
-		}
-		break;
-	}
+
+		} // End if (g_horde_local.monster_spawn_time <= currentTime)
+
+		break; // End spawning case
+	} // End spawning block
 
 	case horde_state_t::active_wave: {
 
