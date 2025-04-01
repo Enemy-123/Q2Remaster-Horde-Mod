@@ -1,3 +1,4 @@
+
 // --- START OF FILE laser.h ---
 #pragma once // Include guard
 
@@ -8,7 +9,7 @@
 // Forward declaration
 struct edict_t;
 
-// Constants (Moved here for accessibility if needed elsewhere, or keep in .cpp if purely internal)
+// Constants
 namespace LaserConstants {
     constexpr int32_t MAX_LASERS = 6;
     constexpr int32_t LASER_COST = 25;
@@ -33,7 +34,6 @@ private:
         bool active = false;
     };
 
-    // Use the constant from the namespace now defined above
     std::array<LaserEntry, LaserConstants::MAX_LASERS> lasers;
     int active_count = 0;
     edict_t* owner; // Pointer to the owning player edict
@@ -55,27 +55,6 @@ public:
     // Destructor (optional, only if PlayerLaserManager itself owns resources)
     // ~PlayerLaserManager(); // Likely not needed if it just holds pointers
 };
-
-
-// --- LaserManagerHolder Definition ---
-// This acts as a wrapper to manage the PlayerLaserManager lifetime via the gclient_t pointer
-class LaserManagerHolder {
-public:
-    PlayerLaserManager* manager_ptr;
-
-    // Constructor: Allocates the PlayerLaserManager
-    explicit LaserManagerHolder(edict_t* owner_edict); // Implementation needed in .cpp
-
-    // Destructor: Deletes the PlayerLaserManager
-    ~LaserManagerHolder(); // Implementation needed in .cpp
-
-    // Disable copy/move semantics
-    LaserManagerHolder(const LaserManagerHolder&) = delete;
-    LaserManagerHolder& operator=(const LaserManagerHolder&) = delete;
-    LaserManagerHolder(LaserManagerHolder&&) = delete;
-    LaserManagerHolder& operator=(LaserManagerHolder&&) = delete;
-};
-
 
 // --- Helper Namespace Declaration ---
 namespace LaserHelpers {
@@ -104,3 +83,4 @@ void remove_lasers(edict_t* ent) noexcept;
 // ^-- Declaration might not be strictly necessary if only called internally via function pointer
 
 // --- END OF FILE laser.h ---
+

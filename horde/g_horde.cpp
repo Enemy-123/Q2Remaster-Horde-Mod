@@ -4130,34 +4130,18 @@ void ResetGame() {
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
-	// --- LaserManager Cleanup ---
-	// Iterate through all possible client slots
+	// --- LaserManager Cleanup (Using delete) ---
 	for (size_t i = 0; i < game.maxclients; ++i) {
-		// Check game.clients first (most reliable during reset)
+		// Check game.clients directly
 		if (game.clients[i].laser_manager) {
-			auto* holder = static_cast<LaserManagerHolder*>(game.clients[i].laser_manager);
-			if (holder) {
-				delete holder; // Calls ~LaserManagerHolder()
-				if (developer && developer->integer > 1) {
-					gi.Com_PrintFmt("Cleaned up LaserManager for client slot {} during ResetGame (via game.clients)\n", i);
-				}
-			}
+			// Delete the PlayerLaserManager object directly
+			delete game.clients[i].laser_manager;
 			game.clients[i].laser_manager = nullptr; // Clear pointer
-		}
-		// Fallback check via edict_t->client
-		else {
-			edict_t* ent = &g_edicts[i + 1];
-			if (ent && ent->inuse && ent->client && ent->client->laser_manager) {
-				auto* holder = static_cast<LaserManagerHolder*>(ent->client->laser_manager);
-				if (holder) {
-					delete holder; // Calls destructor
-					if (developer && developer->integer > 1) {
-						gi.Com_PrintFmt("Cleaned up LaserManager via edict for client slot {} during ResetGame\n", i);
-					}
-				}
-				ent->client->laser_manager = nullptr; // Clear pointer
+			if (developer && developer->integer > 1) {
+				gi.Com_PrintFmt("Cleaned up PlayerLaserManager for client slot {} during ResetGame\n", i);
 			}
 		}
+		// No need for fallback check via edict_t, game.clients is authoritative here
 	}
 	// --- End LaserManager Cleanup ---
 
@@ -6683,7 +6667,7 @@ void Horde_RunFrame() {
 		else if (currentTime > spawning_state_start_time + SPAWNING_TIMEOUT) {
 			if (!next_wave_message_sent) { // Only print/transition once
 				VerifyAndAdjustBots();
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized (Timeout).\nWave Level: {}\n", currentLevel);
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized.\nWave Level: {}\n", currentLevel);
 				next_wave_message_sent = true;
 			}
 			g_horde_local.state = horde_state_t::active_wave; // Force transition
