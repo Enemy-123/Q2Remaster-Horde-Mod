@@ -2209,7 +2209,6 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 		if (developer->integer) { // Added dev print for clarity
 			gi.Com_PrintFmt("SpawnMonsterByTypeID: ED_CallSpawn failed for {}\n", monster->classname ? monster->classname : "Unknown");
 		}
-		// G_FreeEdict(monster); // ED_CallSpawn usually handles freeing on failure
 		return nullptr;
 	}
 
@@ -2217,57 +2216,33 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 	monster->solid = SOLID_BBOX;
 	gi.linkentity(monster);
 
-	// *** Initial Post-Link Stuck Check ***
-	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
+	// *** Final Post-Link Stuck Check ***
+	// This check happens AFTER monster_start_go might have already flagged it
+	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
 		monster->s.origin, monster, MASK_MONSTERSOLID); // Use MASK_MONSTERSOLID
 
-	bool spawn_was_stuck = post_spawn_trace.startsolid;
-
-	// ***** START CONDITIONAL NUDGE *****
-	// Attempt nudge ONLY IF initially stuck and NOT flying
-	if (spawn_was_stuck && !(monster->flags & FL_FLY)) {
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("SpawnMonsterByTypeID: {} stuck post-link, attempting nudge...\n", monster->classname);
-		}
-		vec3_t nudged_origin = monster->s.origin;
-		nudged_origin[2] += 2.0f; // Try a slightly larger nudge (2 units)
-
-		// Check if nudged position is clear
-		trace_t nudge_trace = gi.trace(nudged_origin, monster->mins, monster->maxs, nudged_origin, monster, MASK_MONSTERSOLID);
-		if (!nudge_trace.startsolid) {
-			// Apply nudge and relink
-			monster->s.origin = nudged_origin;
-			gi.unlinkentity(monster);
-			gi.linkentity(monster);
-			if (developer->integer > 1) {
-				gi.Com_PrintFmt("SpawnMonsterByTypeID: Nudge successful for {}.\n", monster->classname);
-			}
-			// Re-run the post-link check AFTER nudging
-			post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_MONSTERSOLID);
-			spawn_was_stuck = post_spawn_trace.startsolid; // Update stuck status
-		}
-		else {
-			if (developer->integer > 1) {
-				gi.Com_PrintFmt("SpawnMonsterByTypeID: Nudge failed for {} (target pos stuck).\n", monster->classname);
-			}
-			// Nudge failed, 'spawn_was_stuck' remains true
-		}
-	}
-	// ***** END CONDITIONAL NUDGE *****
+	bool spawn_was_stuck = post_link_trace.startsolid;
 
 	// --- Final Stuck Handling ---
-	if (spawn_was_stuck) { // Check the potentially updated stuck status
-		edict_t* blocker = post_spawn_trace.ent;
-		if (developer->integer) {
-			gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} STILL stuck (Post-Link/Nudge Check) at {}. Blocker: {} ({}). Flagging for teleport.\n", // Changed message slightly
-				monster->classname, monster->s.origin,
-				blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown",
-				blocker ? (blocker - g_edicts) : -1);
+	if (spawn_was_stuck) {
+		// Only flag if not already flagged by monster_start_go
+		if (!monster->monsterinfo.was_stuck) {
+			edict_t* blocker = post_link_trace.ent;
+			if (developer->integer) {
+				gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} stuck (Post-Link Check ONLY) at {}. Blocker: {} ({}). Flagging for teleport.\n",
+					monster->classname, monster->s.origin,
+					blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown",
+					blocker ? (blocker - g_edicts) : -1);
+			}
+			monster->monsterinfo.was_stuck = true;
+			monster->monsterinfo.stuck_check_time = level.time;
+			monster->think = monster_think; // Ensure think is set
+			monster->nextthink = level.time + FRAME_TIME_S;
 		}
-		monster->monsterinfo.was_stuck = true;
-		monster->monsterinfo.stuck_check_time = level.time;
-		monster->think = monster_think;
-		monster->nextthink = level.time + FRAME_TIME_S;
+		else if (developer->integer > 1) {
+			// Already flagged by monster_start_go, just log confirmation
+			gi.Com_PrintFmt("SpawnMonsterByTypeID: {} confirmed stuck (already flagged by monster_start_go).\n", monster->classname);
+		}
 	}
 
 	monster->monsterinfo.spawn_complete_time = level.time;
@@ -4985,6 +4960,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 [[nodiscard]] bool IsValidSpawnLocation(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying) {
 	// Define the mask to use for world geometry checks
 	constexpr contents_t GEOMETRY_MASK = MASK_SOLID;
+	constexpr float Z_EPSILON = 0.5f; // Slightly larger epsilon
 
 	// --- Early Point Contents Check ---
 	int initial_contents = gi.pointcontents(io_position);
@@ -5009,36 +4985,33 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	if (!is_flying) {
 		// --- Enhanced Ground/Void Check ---
 		vec3_t ground_check_end = io_position;
-		constexpr float GROUND_CHECK_DISTANCE = 1024.0f; // Check far below
+		constexpr float GROUND_CHECK_DISTANCE = 1024.0f;
 		ground_check_end.z -= GROUND_CHECK_DISTANCE;
 		trace_t ground_trace = gi.trace(io_position, monster_mins, monster_maxs, ground_check_end, nullptr, GEOMETRY_MASK);
 
-		if (ground_trace.startsolid) { // Safety check
+		if (ground_trace.startsolid) {
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}\n", io_position);
 			return false;
 		}
-		if (ground_trace.fraction == 1.0f) { // Void Check
+		if (ground_trace.fraction == 1.0f) {
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
 			return false;
 		}
 		// --- End Ground/Void Check ---
 
 		// Attempt M_droptofloor only if ground was found somewhere below
-		vec3_t original_pos = io_position; // Store original position before drop attempt
+		vec3_t original_pos = io_position;
 		if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false)) {
-			// Drop failed - likely obstructed path down, or couldn't find a clear spot
-			io_position = original_pos; // Revert position
+			io_position = original_pos;
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
-			return false; // Fail if drop failed
+			return false;
 		}
 		// Drop succeeded, io_position is now the new Z.
 
-		// ***** ADD EPSILON *****
-		// Add a tiny amount to Z to prevent exact floor plane intersection issues.
-		io_position.z += 0.1f;
-		// ***** END EPSILON *****
+		// Add epsilon to prevent exact floor plane intersection
+		io_position.z += Z_EPSILON;
 
-		// Final check after drop + epsilon: Is the *new* position clear of *world* geometry?
+		// Re-check volume at the final dropped+epsilon position against world geometry
 		trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 		if (trace.startsolid || trace.allsolid) {
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
@@ -5049,20 +5022,26 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 	} // End non-flying checks
 
-	// --- FINAL CHECK: Proximity to Other Entities ---
-	// Use a slightly larger box for entity checks to prevent clipping issues
-	const vec3_t entity_check_mins = monster_mins - vec3_t{ 2, 2, 0 }; // Adjusted for safety
-	const vec3_t entity_check_maxs = monster_maxs + vec3_t{ 2, 2, 0 }; // Adjusted for safety
-	FilterData final_check_data = { nullptr, 0 };
-	const vec3_t check_mins = io_position + entity_check_mins; // Use potentially modified io_position
-	const vec3_t check_maxs = io_position + entity_check_maxs;
-	// Using SpawnPointFilter which checks players, monsters, defenses
-	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_check_data);
-	if (final_check_data.count > 0) {
-		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed final entity occupation check at validated position {}\n", io_position);
+	// --- FINAL VALIDATION STEP: Check against entities AND world at the final position ---
+	// This ensures the final candidate position is truly clear before returning true.
+	trace_t final_world_check = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
+	if (final_world_check.startsolid || final_world_check.allsolid) {
+		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL world geometry check at {}.\n", io_position);
 		return false;
 	}
-	// --- END FINAL CHECK ---
+
+	// Check proximity to other entities (Players/Monsters/Defenses)
+	const vec3_t entity_check_mins = monster_mins - vec3_t{ 2, 2, 0 }; // Use slightly larger box
+	const vec3_t entity_check_maxs = monster_maxs + vec3_t{ 2, 2, 0 };
+	FilterData final_entity_check_data = { nullptr, 0 };
+	const vec3_t check_mins = io_position + entity_check_mins;
+	const vec3_t check_maxs = io_position + entity_check_maxs;
+	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check_data);
+	if (final_entity_check_data.count > 0) {
+		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL entity occupation check at validated position {}\n", io_position);
+		return false;
+	}
+	// --- END FINAL VALIDATION STEP ---
 
 	if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
 	return true; // All checks passed
@@ -5683,15 +5662,14 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	}
 
 	// Re-validate the final position found by FindEmergencySpawnPosition just to be safe
-	vec3_t final_valid_pos = emergency_origin; // Copy origin before validation potentially modifies it
+	vec3_t final_valid_pos = emergency_origin;
 	if (!IsValidSpawnLocation(final_valid_pos, predicted_mins, predicted_maxs, is_flying)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position {} found by FindEmergency failed final IsValidSpawnLocation.\n", emergency_origin);
 		}
-		// Optionally, could retry FindEmergencySpawnPosition here
 		return false;
 	}
-	emergency_origin = final_valid_pos; // Use the re-validated (and potentially floor-dropped + epsilon'd) position
+	emergency_origin = final_valid_pos;
 
 	edict_t* monster = CreateBaseHordeMonster(typeId, emergency_origin, emergency_angles);
 	if (!monster) {
@@ -5705,7 +5683,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	monster->s.origin = emergency_origin;
 	monster->s.angles = emergency_angles;
 
-	// Apply SOLID_NOT toggle here too
+	// Apply SOLID_NOT toggle
 	monster->solid = SOLID_NOT;
 	ED_CallSpawn(monster);
 
@@ -5720,54 +5698,33 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	monster->solid = SOLID_BBOX;
 	gi.linkentity(monster);
 
-	// ***** START FIX: Nudge Upwards Slightly (Conditional) *****
-	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
+	// *** Post-Link Stuck Check (No Nudge Here Anymore) ***
+	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
 		monster->s.origin, monster, MASK_MONSTERSOLID);
-	bool spawn_was_stuck = post_spawn_trace.startsolid;
-
-	if (spawn_was_stuck && !(monster->flags & FL_FLY)) {
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("EmergencySpawnMonster: {} stuck post-link, attempting nudge...\n", monster->classname);
-		}
-		vec3_t nudged_origin = monster->s.origin;
-		nudged_origin[2] += 2.0f;
-
-		trace_t nudge_trace = gi.trace(nudged_origin, monster->mins, monster->maxs, nudged_origin, monster, MASK_MONSTERSOLID);
-		if (!nudge_trace.startsolid) {
-			monster->s.origin = nudged_origin;
-			gi.unlinkentity(monster);
-			gi.linkentity(monster);
-			if (developer->integer > 1) {
-				gi.Com_PrintFmt("EmergencySpawnMonster: Nudge successful for {}.\n", monster->classname);
-			}
-			// Re-run post-link check
-			post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_MONSTERSOLID);
-			spawn_was_stuck = post_spawn_trace.startsolid;
-		}
-		else {
-			if (developer->integer > 1) {
-				gi.Com_PrintFmt("EmergencySpawnMonster: Nudge failed for {} (target pos stuck).\n", monster->classname);
-			}
-		}
-	}
-	// ***** END FIX *****
+	bool spawn_was_stuck = post_link_trace.startsolid;
 
 	// --- Final Stuck Handling ---
 	if (spawn_was_stuck) {
-		edict_t* blocker = post_spawn_trace.ent;
-		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) STILL stuck (Post-Link/Nudge Check) at {}. Blocker: {}. Flagging for teleport.\n",
-			monster->classname, monster->s.origin, blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown");
+		// Only flag if not already flagged by monster_start_go
+		if (!monster->monsterinfo.was_stuck) {
+			edict_t* blocker = post_link_trace.ent;
+			if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck (Post-Link Check ONLY) at {}. Blocker: {}. Flagging for teleport.\n",
+				monster->classname, monster->s.origin, blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown");
 
-		monster->monsterinfo.was_stuck = true;
-		monster->monsterinfo.stuck_check_time = level.time;
-		monster->think = monster_think;
-		monster->nextthink = level.time + FRAME_TIME_S;
+			monster->monsterinfo.was_stuck = true;
+			monster->monsterinfo.stuck_check_time = level.time;
+			monster->think = monster_think;
+			monster->nextthink = level.time + FRAME_TIME_S;
+		}
+		else if (developer->integer > 1) {
+			gi.Com_PrintFmt("EmergencySpawnMonster: {} confirmed stuck (already flagged by monster_start_go).\n", monster->classname);
+		}
 	}
 
 	monster->monsterinfo.spawn_complete_time = level.time;
 
 	// --- Apply Modifiers ---
-	// (Champion/Bonus flags logic remains the same as your last provided version)
+	// ... (Champion/Bonus flags logic remains the same) ...
 	float champion_chance = 0.2f;
 	if (g_horde_retaliation_active) champion_chance = 0.4f;
 	if (levelNum >= 3 && frandom() < champion_chance && !monster->monsterinfo.IS_BOSS) {
@@ -5782,16 +5739,16 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		}
 		if (monster->monsterinfo.bonus_flags != BF_NONE) {
 			ApplyMonsterBonusFlags(monster);
-			if (!monster->inuse) return false; // ApplyMonsterBonusFlags might free the entity
+			if (!monster->inuse) return false;
 			monster->item = G_HordePickItem();
 			if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
-			else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure no drop if no item
+			else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 		}
 	}
 
 	if (levelNum >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
 		SetMonsterArmor(monster);
-		if (!monster->inuse) return false; // SetMonsterArmor might free (unlikely but possible)
+		if (!monster->inuse) return false;
 	}
 
 	// Item drop logic (same as your last version)
@@ -5807,8 +5764,8 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		}
 	}
 	else { // Champion
-		if (!monster->item) monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure no drop if bonus logic didn't assign one
-		else monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP; // Ensure drop if item WAS assigned
+		if (!monster->item) monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+		else monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
 	}
 	// --- End Apply Modifiers ---
 
