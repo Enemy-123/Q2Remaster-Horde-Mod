@@ -5057,9 +5057,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	bool should_consider_teleport = false;
 	bool currently_stuck = false;
 	if (!self->waterlevel) {
-	//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
-
-		currently_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+		contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
+		currently_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
 		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= 25_sec; // Use constant
 		if (!currently_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck) return false;
 		if (!self->monsterinfo.was_stuck) { self->monsterinfo.stuck_check_time = level.time; self->monsterinfo.was_stuck = true; return false; }
@@ -5169,9 +5168,9 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			// *** ADD AI PAUSE: Give physics a moment before AI acts ***
 			self->monsterinfo.pausetime = level.time + 100_ms; // Pause AI for 0.1 seconds
 
-			// (Optional but recommended) Final check *after* elevation
-				//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
-			trace_t final_check_trace = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
+			// Final check *after* elevation
+			contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
+			trace_t final_check_trace = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask);
 			if (final_check_trace.startsolid) {
 				// If even the elevated position is stuck, log it and potentially revert/fail teleport
 				if (developer->integer) {
