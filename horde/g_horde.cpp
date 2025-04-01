@@ -2198,8 +2198,6 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 		}
 	}
 
-	// Spawn the entity with protection from errors
-	monster->solid = SOLID_NOT;  // Start as non-solid to avoid immediate collisions
 	ED_CallSpawn(monster);
 
 	// Check if spawn succeeded
@@ -2208,14 +2206,12 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 		return nullptr;
 	}
 
-	// Re-set solid state and properly link
-	monster->solid = SOLID_BBOX; // Make solid before fade if collisions desired during fade
-	monster->takedamage = true; // Ensure it can take damage after spawning
 	gi.linkentity(monster);
 
 	// *** Final Post-Link Stuck Check using MASK_MONSTERSOLID ***
+	contents_t check_mask = G_GetClipMask(monster); // Get the monster's potentially modified mask
 	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, MASK_MONSTERSOLID);
+		monster->s.origin, monster, check_mask); // Use the monster's mask;
 
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
 
@@ -3955,6 +3951,9 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTelepor
 	}
 
 	// Check collisions at new position
+	// FIXME better?
+	//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
+
 	if (gi.trace(self->s.origin, self->mins, self->maxs,
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
 		// Restore on failure
@@ -5058,6 +5057,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	bool should_consider_teleport = false;
 	bool currently_stuck = false;
 	if (!self->waterlevel) {
+	//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
+
 		currently_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
 		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= 25_sec; // Use constant
 		if (!currently_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck) return false;
@@ -5169,6 +5170,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->monsterinfo.pausetime = level.time + 100_ms; // Pause AI for 0.1 seconds
 
 			// (Optional but recommended) Final check *after* elevation
+				//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
 			trace_t final_check_trace = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
 			if (final_check_trace.startsolid) {
 				// If even the elevated position is stuck, log it and potentially revert/fail teleport
@@ -5357,7 +5359,6 @@ int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edi
 	return spawnedCount;
 }
 
-
 void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 	if (!monster || !monster->inuse)
 		return;
@@ -5386,8 +5387,8 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 		const int32_t total_planned = (total_planned_raw > 0) ? total_planned_raw : 1;
 		const float spawn_progress = static_cast<float>(g_totalMonstersInWave) / total_planned;
 
-		constexpr int32_t MIN_RECENT_DEATHS_FOR_TRANSITION = 5;
-		constexpr float MIN_SPAWN_PROGRESS_FOR_TRANSITION = 0.3f;
+		constexpr int32_t MIN_RECENT_DEATHS_FOR_TRANSITION = 10;
+		constexpr float MIN_SPAWN_PROGRESS_FOR_TRANSITION = 0.1f;
 		constexpr uint16_t MIN_TOTAL_SPAWNED_FOR_TRANSITION = 12;
 
 		if (spawn_state_deaths >= MIN_RECENT_DEATHS_FOR_TRANSITION &&
@@ -5454,6 +5455,9 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 
 // Function to attempt dropping a monster to the floor
 bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs) {
+
+	//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
+
 	// Try a trace straight down to find floor
 	vec3_t start = position;
 	vec3_t end = position - vec3_t{ 0, 0, 512 };
@@ -5597,8 +5601,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	monster->s.origin = emergency_origin; // Use validated origin
 	monster->s.angles = emergency_angles;
 	// Flags applied by CreateBaseHordeMonster
-
-	monster->solid = SOLID_NOT;
 	ED_CallSpawn(monster);
 
 	if (!monster->inuse) {
@@ -5608,13 +5610,12 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		return false;
 	}
 
-	monster->solid = SOLID_BBOX;
-	monster->takedamage = true; // Ensure damageable
 	gi.linkentity(monster);
 
 	// Post-link stuck check
+	contents_t check_mask = G_GetClipMask(monster); // Get the monster's potentially modified mask
 	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, MASK_MONSTERSOLID);
+		monster->s.origin, monster, check_mask); // Use the monster's mask
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
 	if (spawn_was_stuck) {
 		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck post-link at {}.\n",
