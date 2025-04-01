@@ -6786,7 +6786,7 @@ void Horde_RunFrame() {
 		else if (currentTime - spawning_state_start_time > 25_sec) { // Timeout after 25 seconds
 			if (!next_wave_message_sent) {
 				VerifyAndAdjustBots();
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Timed Out.\nWave Level: {}\n", currentLevel);
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Done.\nWave Level: {}\n", currentLevel);
 				next_wave_message_sent = true;
 			}
 			g_horde_local.state = horde_state_t::active_wave; // Force transition
