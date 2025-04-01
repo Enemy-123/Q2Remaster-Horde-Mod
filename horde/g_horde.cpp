@@ -2210,23 +2210,30 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
 
 	if (spawn_was_stuck) {
+		edict_t* blocker = post_spawn_trace.ent;
+		bool blocker_is_teammate = (blocker && (blocker->svflags & SVF_MONSTER) && OnSameTeam(monster, blocker));
+
 		if (developer->integer) {
-			edict_t* blocker = post_spawn_trace.ent;
-			gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} spawned stuck (Post-Link Check) at {}. Blocker: {} ({}). Flagging for teleport.\n",
+			gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} spawned stuck (Post-Link Check) at {}. Blocker: {} ({}), Teammate: {}\n",
 				monster->classname, monster->s.origin,
 				blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown",
-				blocker ? (blocker - g_edicts) : -1);
+				blocker ? (blocker - g_edicts) : -1,
+				blocker_is_teammate ? "Yes" : "No");
 		}
-		// Flag for teleport logic
-		monster->monsterinfo.was_stuck = true;
-		monster->monsterinfo.stuck_check_time = level.time; // Set time immediately
-		// If stuck, immediately set to normal think, StartFadeIn will skip
-		monster->think = monster_think;
-		monster->nextthink = level.time + FRAME_TIME_S;
-	}
-	// *** End Stuck Check ***
 
-	// Set spawn complete time *after* the stuck check
+		if (!blocker_is_teammate) {
+			monster->monsterinfo.was_stuck = true;
+			monster->monsterinfo.stuck_check_time = level.time;
+			monster->think = monster_think;
+			monster->nextthink = level.time + FRAME_TIME_S;
+		}
+		else {
+			monster->think = monster_think;
+			monster->nextthink = level.time + FRAME_TIME_S;
+		}
+	}
+	// *** End Stuck Check Modification ***
+
 	monster->monsterinfo.spawn_complete_time = level.time;
 
 	return monster;
@@ -5623,16 +5630,25 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
 		monster->s.origin, monster, check_mask);
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
+
 	if (spawn_was_stuck) {
-		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck post-link at {}.\n",
-			monster->classname, monster->s.origin);
-		monster->monsterinfo.was_stuck = true;
-		monster->monsterinfo.stuck_check_time = level.time;
-		monster->think = monster_think;
-		monster->nextthink = level.time + FRAME_TIME_S;
+		edict_t* blocker = post_spawn_trace.ent;
+		bool blocker_is_teammate = (blocker && (blocker->svflags & SVF_MONSTER) && OnSameTeam(monster, blocker));
+
+		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck post-link at {}. Blocker Teammate: {}\n",
+			monster->classname, monster->s.origin, blocker_is_teammate ? "Yes" : "No");
+
+		if (!blocker_is_teammate) {
+			monster->monsterinfo.was_stuck = true;
+			monster->monsterinfo.stuck_check_time = level.time;
+			monster->think = monster_think;
+			monster->nextthink = level.time + FRAME_TIME_S;
+		} else {
+			monster->think = monster_think;
+			monster->nextthink = level.time + FRAME_TIME_S;
+		}
 	}
 
-	// Set spawn complete time *after* the stuck check
 	monster->monsterinfo.spawn_complete_time = level.time;
 
 	// --- Apply Modifiers ---
@@ -5689,7 +5705,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 
 	return true;
 }
-
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
 bool ShouldTriggerAmbushSpawn() {
 	// Static variables for tracking time-based cooldowns

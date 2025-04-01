@@ -42,7 +42,6 @@ contents_t G_GetClipMask(edict_t* ent)
 			mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
 	}
 
-	// Optimización: Hacer estos checks una sola vez usando bool
 	bool const is_nonsolid = (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER);
 	bool const is_dead = (ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER);
 
@@ -51,82 +50,46 @@ contents_t G_GetClipMask(edict_t* ent)
 
 	mask &= ~CONTENTS_AREAPORTAL;
 
-	// horde mode optimization
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
+	// --- Horde Mode Monster Clipping Refinement ---
+	if (g_horde && g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
 	{
-		// Set up static array for excluded monster types
 		static std::array<bool, 256> isExcludedType = {};
 		static bool exclusion_initialized = false;
-
-		if (!exclusion_initialized)
-		{
+		if (!exclusion_initialized) {
 			exclusion_initialized = true;
-
-			// Set flags for excluded types
 			const char* excluded_monsters[] = {
-				"monster_boss3_stand",
-				"misc_eastertank",
-				"misc_easterchick",
-				"misc_easterchick2",
-				"monster_commander_body",
-				"misc_bigviper"
+				"monster_boss3_stand", "misc_eastertank", "misc_easterchick",
+				"misc_easterchick2", "monster_commander_body", "misc_bigviper"
 			};
-
-			for (const char* monster_name : excluded_monsters)
-			{
+			for (const char* monster_name : excluded_monsters) {
 				uint8_t type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(monster_name));
-				isExcludedType[type_id] = true;
+				if (type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) {
+					isExcludedType[type_id] = true;
+				}
 			}
 		}
-
-		// Get entity type ID with caching
-		if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN)
-		{
-			// First access: compute and cache the type ID
+		if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN) {
 			ent->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
 		}
-
-		// Fast check if this type is excluded
-		bool excluded = false;
-		if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN)
-		{
-			excluded = isExcludedType[ent->monster_type_id];
+		if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN && isExcludedType[ent->monster_type_id]) {
+			// Is an excluded type, do nothing special
 		}
-
-		// If not excluded, continue with collision checking
-		if (!excluded)
+		else // Is a regular Horde monster, apply refined check
 		{
-			// Check for potential collisions with other monsters on the same team
-			bool potential_collision = false;
+			vec3_t check_mins = ent->mins - vec3_t{ 1,1,0 };
+			vec3_t check_maxs = ent->maxs + vec3_t{ 1,1,0 };
+			trace_t overlap_trace = gi.trace(ent->s.origin, check_mins, check_maxs, ent->s.origin, ent, MASK_MONSTERSOLID);
 
-			for (auto* other : active_monsters())
+			if (overlap_trace.ent && (overlap_trace.ent->svflags & SVF_MONSTER) && OnSameTeam(ent, overlap_trace.ent))
 			{
-				if (other != ent && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
-				{
-					// Quick AABB overlap test using boxes_intersect function
-					if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax))
-					{
-						potential_collision = true;
-						break;
-					}
-				}
-			}
-
-			// Only do the expensive trace if there's a potential collision
-			if (potential_collision)
-			{
-				if (auto* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
-					other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
-				{
-					mask &= ~CONTENTS_MONSTER;
-				}
+				mask &= ~CONTENTS_MONSTER;
 			}
 		}
 	}
+	// --- End Horde Mode Refinement ---
 
 	return mask;
-}
-/*
+}/*
 ============
 SV_TestEntityPosition
 
