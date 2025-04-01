@@ -1618,14 +1618,14 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 
 stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 {
-	// <<< HORDE >>>
-	// If Horde mode is active and this entity was spawned by Horde,
-	// let the Horde mod's specific stuck logic (CheckAndTeleportStuckMonster) handle it.
-	// Return GOOD_POSITION immediately to prevent the base game's nudge logic.
-	if (g_horde && g_horde->integer && self->was_spawned_by_horde) {
-		return stuck_result_t::GOOD_POSITION;
-	}
-	// <<< HORDE >>>
+	//// <<< HORDE >>> unused, better keeping this out
+	//// If Horde mode is active and this entity was spawned by Horde,
+	//// let the Horde mod's specific stuck logic (CheckAndTeleportStuckMonster) handle it.
+	//// Return GOOD_POSITION immediately to prevent the base game's nudge logic.
+	//if (g_horde && g_horde->integer && self->was_spawned_by_horde) {
+	//	return stuck_result_t::GOOD_POSITION;
+	//}
+	//// <<< HORDE >>>
 
 	contents_t mask = G_GetClipMask(self);
 	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
@@ -1645,70 +1645,103 @@ stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 
 void monster_start_go(edict_t* self)
 {
-	// Paril: moved here so this applies to swim/fly monsters too
 	if (!(self->flags & FL_STATIONARY))
 	{
-		const vec3_t check = self->s.origin;
-
-		// [Paril-KEX] different nudge method; see if any of the bbox sides are clear,
-		// if so we can see how much headroom we have in that direction and shift us.
-		// most of the monsters stuck in solids will only be stuck on one side, which
-		// conveniently leaves only one side not in a solid; this won't fix monsters
-		// stuck in a corner though.
+		vec3_t check = self->s.origin; // Store original position before potential nudges
 		bool is_stuck = false;
+		contents_t check_mask = G_GetClipMask(self); // Get mask once
 
+		// Determine if stuck (using appropriate method)
 		if ((self->monsterinfo.aiflags & AI_GOOD_GUY) || (self->flags & (FL_FLY | FL_SWIM)))
-			is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+			is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
 		else
 			is_stuck = !M_droptofloor(self) || !M_walkmove(self, 0, 0);
 
+
 		if (is_stuck)
 		{
-			if (G_FixStuckObject(self, check) != stuck_result_t::NO_GOOD_POSITION)
+			// Attempt G_FixStuckObject (which now runs for Horde monsters too)
+			// Pass 'check' which will be updated by G_FixStuckObject if it finds a fix.
+			stuck_result_t fix_result = G_FixStuckObject(self, check);
+
+			// Re-check if still stuck *after* G_FixStuckObject attempt, using the potentially updated self->s.origin
+			if (fix_result == stuck_result_t::NO_GOOD_POSITION || fix_result == stuck_result_t::GOOD_POSITION) // If it didn't fix or wasn't stuck initially
 			{
-				if (self->monsterinfo.aiflags & AI_GOOD_GUY)
-					is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+				// Re-evaluate stuck status based on current position
+				if ((self->monsterinfo.aiflags & AI_GOOD_GUY) || (self->flags & (FL_FLY | FL_SWIM)))
+					is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
 				else if (!(self->flags & (FL_FLY | FL_SWIM)))
-					M_droptofloor(self);
+					is_stuck = !M_walkmove(self, 0, 0); // M_droptofloor was already attempted if needed
+				else
+					is_stuck = false; // Flying/Swimming monsters don't use walkmove check here
+			}
+			else {
+				// G_FixStuckObject returned FIXED, so it's not stuck anymore
 				is_stuck = false;
 			}
+
+
+			// --- Horde Specific Handling ---
+			if (is_stuck && g_horde && g_horde->integer && self->was_spawned_by_horde)
+			{
+				// Flag for delayed Horde teleport logic, DO NOT try brute force nudge
+				self->monsterinfo.was_stuck = true;
+				self->monsterinfo.stuck_check_time = level.time;
+				if (developer->integer) {
+					gi.Com_PrintFmt("monster_start_go: Horde monster {} still stuck after G_FixStuckObject. Flagged for teleport check.\n", *self);
+				}
+				// Prevent brute-force nudge below by setting is_stuck false *for the base game logic*
+				is_stuck = false;
+			}
+			// --- End Horde Specific Handling ---
 		}
 
-		// last ditch effort: brute force
-		if (is_stuck)
+
+		// last ditch effort: brute force (Only for non-Horde monsters now)
+		if (is_stuck) // This will be false if it was a Horde monster flagged above
 		{
-			// Paril: try nudging them out. this fixes monsters stuck
-			// in very shallow slopes.
 			constexpr const int32_t adjust[] = { 0, -1, 1, -2, 2, -4, 4, -8, 8 };
 			bool					walked = false;
+			vec3_t original_pos_brute = self->s.origin; // Store position before brute force
 
 			for (int32_t y = 0; !walked && y < 3; y++)
 				for (int32_t x = 0; !walked && x < 3; x++)
 					for (int32_t z = 0; !walked && z < 3; z++)
 					{
-						self->s.origin[0] = check[0] + adjust[x];
-						self->s.origin[1] = check[1] + adjust[y];
-						self->s.origin[2] = check[2] + adjust[z];
+						self->s.origin[0] = original_pos_brute[0] + adjust[x];
+						self->s.origin[1] = original_pos_brute[1] + adjust[y];
+						self->s.origin[2] = original_pos_brute[2] + adjust[z];
 
 						if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 						{
-							is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
-
+							is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
 							if (!is_stuck)
 								walked = true;
 						}
 						else if (!(self->flags & (FL_FLY | FL_SWIM)))
 						{
-							M_droptofloor(self);
-							walked = M_walkmove(self, 0, 0);
+							if (M_droptofloor(self)) // Check drop before walkmove
+								walked = M_walkmove(self, 0, 0);
 						}
+						// Flying/Swimming monsters don't use this brute force
 					}
+
+			if (!walked) { // If brute force failed, restore original position
+				self->s.origin = original_pos_brute;
+				is_stuck = true; // Mark as still stuck
+			}
+			else {
+				is_stuck = false; // Brute force succeeded
+			}
 		}
 
+		// Final warning print (Only for non-Horde monsters now, or if brute force failed)
 		if (is_stuck)
 			gi.Com_PrintFmt("WARNING: {} stuck in solid\n", *self);
-	}
 
+	} // end if (!FL_STATIONARY)
+
+	// --- Rest of monster_start_go ---
 	vec3_t v;
 
 	if (self->health <= 0)
