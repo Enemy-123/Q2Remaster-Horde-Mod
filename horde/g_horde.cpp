@@ -5711,8 +5711,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 
 			monster->monsterinfo.was_stuck = true;
 			monster->monsterinfo.stuck_check_time = level.time;
-			monster->think = monster_think;
-			monster->nextthink = level.time + FRAME_TIME_S;
+
 		}
 		else if (developer->integer > 1) {
 			gi.Com_PrintFmt("EmergencySpawnMonster: {} confirmed stuck (already flagged by monster_start_go).\n", monster->classname);
