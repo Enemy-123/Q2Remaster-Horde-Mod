@@ -5378,21 +5378,27 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 		last_death_time = level.time;
 
 		if (developer->integer) {
-			gi.Com_PrintFmt("Monster killed during spawning state ({} total recent)\n", spawn_state_deaths);
+			// Use a temporary variable to potentially show the count even if retaliation doesn't trigger yet
+			std::string killer_name = "Unknown"; // Default if enemy isn't a player
+			if (monster->enemy && monster->enemy->client) {
+				killer_name = GetPlayerName(monster->enemy);
+			}
+			gi.Com_PrintFmt("Monster killed during spawning state by {} ({} total recent)\n", killer_name.c_str(), spawn_state_deaths);
 		}
 
 		// Calculate spawn progress - how many monsters were spawned vs. total planned
 		// Ensure total_planned is at least 1 to avoid division by zero issues
 		const int32_t total_planned_raw = g_totalMonstersInWave + g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
 		const int32_t total_planned = (total_planned_raw > 0) ? total_planned_raw : 1;
-		const float spawn_progress = static_cast<float>(g_totalMonstersInWave) / total_planned;
+		const float spawn_progress =
+			static_cast<float>(g_totalMonstersInWave) / total_planned;
 
 		constexpr int32_t MIN_RECENT_DEATHS_FOR_TRANSITION = 10;
 		constexpr float MIN_SPAWN_PROGRESS_FOR_TRANSITION = 0.1f;
 		constexpr uint16_t MIN_TOTAL_SPAWNED_FOR_TRANSITION = 12;
 
-		if (spawn_state_deaths >= MIN_RECENT_DEATHS_FOR_TRANSITION &&
-			(spawn_progress >= MIN_SPAWN_PROGRESS_FOR_TRANSITION || g_totalMonstersInWave >= MIN_TOTAL_SPAWNED_FOR_TRANSITION))
+		if (spawn_state_deaths >= MIN_RECENT_DEATHS_FOR_TRANSITION
+			&& (spawn_progress >= MIN_SPAWN_PROGRESS_FOR_TRANSITION || g_totalMonstersInWave >= MIN_TOTAL_SPAWNED_FOR_TRANSITION))
 		{
 			// --- ACTIVATE RETALIATION ---
 			if (!g_horde_retaliation_active) {
@@ -5400,14 +5406,12 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 				g_horde_retaliation_end_time = level.time + 10_sec; // Set duration
 
 				// Identify the player who likely triggered this (the one who killed 'monster')
-				// This assumes 'monster->enemy' is the killer, which might not always be true
-				// A more robust way might be needed if damage tracking is complex
 				g_horde_retaliation_target_player = nullptr;
-				if (monster->enemy && monster->enemy->client/* && !(monster->enemy->svflags & SVF_BOT|*/) {
+				if (monster->enemy && monster->enemy->client/* && !(monster->enemy->svflags & SVF_BOT)*/) { // Check if enemy is a player
 					g_horde_retaliation_target_player = monster->enemy;
 				}
 				else {
-					// Fallback: Find highest damage/spree player if killer unclear
+					// Fallback: Find highest damage/spree player if killer unclear or not a player
 					PlayerStats top_player_stats; float percentage; // percentage unused here
 					CalculateTopDamager(top_player_stats, percentage);
 					if (top_player_stats.player && top_player_stats.player->client) {
@@ -5415,19 +5419,26 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 					}
 				}
 
+				// *** MODIFICATION IS HERE ***
 				if (developer->integer) {
+					// Call GetPlayerName and use .c_str() for the C-style string format function expects
+					std::string target_player_name = GetPlayerName(g_horde_retaliation_target_player);
 					gi.Com_PrintFmt("HORDE: Retaliation Mode Activated for 10s (Target: {}). Triggered by rapid kills during spawning.\n",
-						g_horde_retaliation_target_player ? g_horde_retaliation_target_player->client->pers.netname : "None");
+						target_player_name.c_str()); // Use the result from GetPlayerName
 				}
+				// *** END OF MODIFICATION ***
+
 
 				// Trigger the immediate mini-ambush
 				SpawnRetaliationAmbush(g_horde_local.current_map_size, g_horde_local.level, g_horde_retaliation_target_player);
 
 				// --- START: Add monsters to the queue as reinforcement ---
-				int32_t monsters_to_add_to_queue = 6 + (g_horde_local.level / 5); // Base 3, +1 every 5 levels
+				int32_t monsters_to_add_to_queue = 6 + (g_horde_local.level / 3); // Base 6, +1 every 3 levels
 				// Optional: Add map size bonus
-				if (g_horde_local.current_map_size.isBigMap) monsters_to_add_to_queue += 6;
-				else if (g_horde_local.current_map_size.isMediumMap) monsters_to_add_to_queue += 4;
+				if (g_horde_local.current_map_size.isBigMap)
+					monsters_to_add_to_queue += 6;
+				else if (g_horde_local.current_map_size.isMediumMap)
+					monsters_to_add_to_queue += 4;
 
 				g_horde_local.queued_monsters += monsters_to_add_to_queue;
 
@@ -5437,21 +5448,16 @@ void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
 				}
 				// --- END: Add monsters to the queue ---
 
-
-				// Play an alert sound?
-				//gi.sound(world, CHAN_AUTO, gi.soundindex("misc/pc_up.wav"), 1, ATTN_NORM, 0);
-
 				spawn_state_deaths = 0; // Reset the death counter
 			}
 			// --- DO NOT CHANGE g_horde_local.state here ---
 
-		} // End
+		} // End if check for transition conditions
 
-		monster->was_spawned_by_horde = false;
-		monster->spawned_in_spawn_state = false;
-	}
+		monster->was_spawned_by_horde = false;    // Reset flag as it's processed
+		monster->spawned_in_spawn_state = false; // Reset flag as it's processed
+	} // End if spawned_in_spawn_state
 }
-
 
 // Function to attempt dropping a monster to the floor
 bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs) {
