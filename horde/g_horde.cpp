@@ -22,7 +22,7 @@ static edict_t* g_horde_retaliation_target_player = nullptr;
 
 // Ambush system tracking variables
 static gtime_t last_ambush_time = 0_sec;
-static int32_t ambush_cooldown_frames = 0;
+static gtime_t ambush_cooldown_end = 0_sec;
 static int32_t waves_since_ambush = 0;
 static bool ambush_system_initialized = false;
 
@@ -4140,7 +4140,7 @@ void ResetWaveAdvanceState() noexcept;
 // Reset ambush system state
 void ResetAmbushSystem() {
 	last_ambush_time = 0_sec;
-	ambush_cooldown_frames = 0;
+	ambush_cooldown_end = 0_sec;
 	waves_since_ambush = 0;
 	ambush_system_initialized = false;
 }
@@ -5561,7 +5561,8 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 	if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Failed for point {}.\n", (int)(spawn_point - g_edicts));
 	return false;
 }
-// TypeID-based overload for EmergencySpawnMonster
+
+// TypeID-based EmergencySpawnMonster
 bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) {
 	const char* monster_classname = horde::MonsterTypeRegistry::GetClassname(typeId);
 	if (!monster_classname) {
@@ -5689,60 +5690,62 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
 bool ShouldTriggerAmbushSpawn() {
-	// Static variables for tracking
+	// Static variables for tracking time-based cooldowns
+	
 
-	// Only consider ambush spawning after wave 3 (earlier than before)
+	// Only consider ambush spawning after wave 3
 	if (current_wave_level < 3) {
 		return false;
 	}
 
-	// Check if cooldown has expired - REDUCED cooldown
-	if (ambush_cooldown_frames > 0) {
-		ambush_cooldown_frames--;
-		return false;
-	}
-
-	// Check if enough time has passed since last ambush - REDUCED from 45 to 25 seconds
+	// Check global cooldown (25 seconds between ambushes)
 	if (level.time - last_ambush_time < 25_sec) {
 		return false;
 	}
 
-	// Base chance increases with waves since last ambush - INCREASED base chance
-	float baseChance = 0.08f + (waves_since_ambush * 0.03f);  // Higher starting value and progression
+	// Check short-term cooldown (random 3-7 seconds between attempts)
+	if (level.time < ambush_cooldown_end) {
+		return false;
+	}
 
-	// Higher chance in higher waves, capped at 45% (increased from 35%)
-	int cappedLevel = (current_wave_level > 25) ? 25 : current_wave_level;
-	baseChance += (cappedLevel - 3) * 0.015f;  // Faster scaling with wave level
-	baseChance = (baseChance > 0.45f) ? 0.45f : baseChance;
+	// Calculate base chance
+	float baseChance = 0.08f + (waves_since_ambush * 0.03f);
 
-	// Higher chance if players have high health/armor or are on killing sprees
+	// Wave level modifier (capped at 45%)
+	const int cappedLevel = (current_wave_level > 25) ? 25 : current_wave_level;
+	baseChance += (cappedLevel - 3) * 0.015f;
+	baseChance = std::min(baseChance, 0.45f);
+
+	// Player performance bonus
 	float playerBonus = 0.0f;
 	int playerCount = 0;
 	for (auto* player : active_players_no_spect()) {
 		if (player && player->inuse && player->health > 0) {
-			// Add chance bonus for healthy players or those on sprees
 			if (player->health >= 125 || player->client->resp.spree >= 50) {
-				playerBonus += 0.04f;  // Increased from 0.03f
+				playerBonus += 0.04f;
 			}
 			playerCount++;
 		}
 	}
 
-	// Only apply bonus if there are players, capped at reasonable amount
+	// Apply player bonus with cap
 	if (playerCount > 0) {
-		baseChance += std::min(playerBonus, 0.15f);  // Increased cap from 0.12f
+		baseChance += std::min(playerBonus, 0.15f);
 	}
 
-	// Roll for chance
+	// Final chance roll
 	if (frandom() < baseChance) {
-		// If successful, set cooldown and timestamp
+		// Update timestamps
 		last_ambush_time = level.time;
-		ambush_cooldown_frames = irandom(100, 220);  // 3-7 seconds cooldown (reduced from 5-10)
+		ambush_cooldown_end = level.time + random_time(3_sec, 7_sec);
 		waves_since_ambush = 0;
 		return true;
 	}
-
-	return false;
+	else {
+		// Set short cooldown even on failure to prevent spam checks
+		ambush_cooldown_end = level.time + random_time(1_sec, 3_sec);
+		return false;
+	}
 }
 
 // Updated SpawnAmbushMonsters to use improved emergency spawning with TypeIDs
