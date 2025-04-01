@@ -1,1088 +1,1566 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
-// g_phys.c
+// g_combat.c
 
 #include "g_local.h"
+#include "shared.h"
+
 
 /*
-
-
-pushmove objects do not obey gravity, and do not interact with each other or trigger fields, but block normal movement
-and push normal objects when they move.
-
-onground is set for toss objects when they come to a complete rest.  it is set for steping or walking objects
-
-doors, plats, etc are SOLID_BSP, and MOVETYPE_PUSH
-bonus items are SOLID_TRIGGER touch, and MOVETYPE_TOSS
-corpses are SOLID_NOT and MOVETYPE_TOSS
-crates are SOLID_BBOX and MOVETYPE_TOSS
-walking monsters are SOLID_SLIDEBOX and MOVETYPE_STEP
-flying/floating monsters are SOLID_SLIDEBOX and MOVETYPE_FLY
-
-solid_edge items only clip against bsp models.
-
-*/
-
-void SV_Physics_NewToss(edict_t* ent); // PGM
-
-// [Paril-KEX] fetch the clipmask for this entity; certain modifiers
-// affect the clipping behavior of objects.
-contents_t G_GetClipMask(edict_t* ent)
-{
-	contents_t mask = ent->clipmask;
-
-	// default masks
-	if (!mask)
-	{
-		if (ent->svflags & SVF_MONSTER)
-			mask = MASK_MONSTERSOLID;
-		else if (ent->svflags & SVF_PROJECTILE)
-			mask = MASK_PROJECTILE;
-		else
-			mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
-	}
-
-	bool const is_nonsolid = (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER);
-	bool const is_dead = (ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER);
-
-	if (is_nonsolid || is_dead)
-		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
-
-	mask &= ~CONTENTS_AREAPORTAL;
-
-	// --- Horde Mode Monster Clipping Refinement ---
-	if (g_horde && g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
-	{
-		static std::array<bool, 256> isExcludedType = {};
-		static bool exclusion_initialized = false;
-		if (!exclusion_initialized) {
-			exclusion_initialized = true;
-			const char* excluded_monsters[] = {
-				"monster_boss3_stand", "misc_eastertank", "misc_easterchick",
-				"misc_easterchick2", "monster_commander_body", "misc_bigviper"
-			};
-			for (const char* monster_name : excluded_monsters) {
-				uint8_t type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(monster_name));
-				if (type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) {
-					isExcludedType[type_id] = true;
-				}
-			}
-		}
-		if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN) {
-			ent->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
-		}
-		if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN && isExcludedType[ent->monster_type_id]) {
-			// Is an excluded type, do nothing special
-		}
-		else // Is a regular Horde monster, apply refined check
-		{
-			vec3_t check_mins = ent->mins - vec3_t{ 1,1,0 };
-			vec3_t check_maxs = ent->maxs + vec3_t{ 1,1,0 };
-			trace_t overlap_trace = gi.trace(ent->s.origin, check_mins, check_maxs, ent->s.origin, ent, MASK_MONSTERSOLID);
-
-			if (overlap_trace.ent && (overlap_trace.ent->svflags & SVF_MONSTER) && OnSameTeam(ent, overlap_trace.ent))
-			{
-				mask &= ~CONTENTS_MONSTER;
-			}
-		}
-	}
-	// --- End Horde Mode Refinement ---
-
-	return mask;
-}/*
 ============
-SV_TestEntityPosition
+CanDamage
 
+Returns true if the inflictor can directly damage the target.  Used for
+explosions and melee attacks.
 ============
 */
-edict_t* SV_TestEntityPosition(edict_t* ent)
+bool CanDamage(edict_t* targ, edict_t* inflictor)
 {
-	trace_t	   trace;
+	vec3_t	dest;
+	trace_t trace;
 
-	trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, G_GetClipMask(ent));
+	// bmodels need special checking because their origin is 0,0,0
+	vec3_t inflictor_center;
 
-	if (trace.startsolid)
-		return g_edicts;
+	if (inflictor->linked)
+		inflictor_center = (inflictor->absmin + inflictor->absmax) * 0.5f;
+	else
+		inflictor_center = inflictor->s.origin;
 
-	return nullptr;
-}
+	if (targ->solid == SOLID_BSP)
+	{
+		dest = closest_point_to_box(inflictor_center, targ->absmin, targ->absmax);
 
-/*
-================
-SV_CheckVelocity
-================
-*/
-void SV_CheckVelocity(edict_t* ent)
-{
-	//
-	// bound velocity
-	//
-	float speed = ent->velocity.length();
+		trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+		if (trace.fraction == 1.0f)
+			return true;
+	}
 
-	if (speed > sv_maxvelocity->value)
-		ent->velocity = (ent->velocity / speed) * sv_maxvelocity->value;
-}
+	vec3_t targ_center;
 
-/*
-=============
-SV_RunThink
+	if (targ->linked)
+		targ_center = (targ->absmin + targ->absmax) * 0.5f;
+	else
+		targ_center = targ->s.origin;
 
-Runs thinking code for this frame if necessary
-=============
-*/
-bool SV_RunThink(edict_t* ent)
-{
-	gtime_t thinktime = ent->nextthink;
-	if (thinktime <= 0_ms)
-		return true;
-	if (thinktime > level.time)
+	trace = gi.traceline(inflictor_center, targ_center, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	if (trace.fraction == 1.0f)
 		return true;
 
-	ent->nextthink = 0_ms;
-	if (!ent->think)
-		gi.Com_Error("nullptr ent->think");
-	ent->think(ent);
+	dest = targ_center;
+	dest[0] += 15.0f;
+	dest[1] += 15.0f;
+	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	if (trace.fraction == 1.0f)
+		return true;
+
+	dest = targ_center;
+	dest[0] += 15.0f;
+	dest[1] -= 15.0f;
+	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	if (trace.fraction == 1.0f)
+		return true;
+
+	dest = targ_center;
+	dest[0] -= 15.0f;
+	dest[1] += 15.0f;
+	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	if (trace.fraction == 1.0f)
+		return true;
+
+	dest = targ_center;
+	dest[0] -= 15.0f;
+	dest[1] -= 15.0f;
+	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	if (trace.fraction == 1.0f)
+		return true;
 
 	return false;
 }
 
 /*
-==================
-G_Impact
-
-Two entities have touched, so run their touch functions
-==================
-*/
-void G_Impact(edict_t* e1, const trace_t& trace)
-{
-	edict_t* e2 = trace.ent;
-
-	if (e1->touch && (e1->solid != SOLID_NOT || (e1->flags & FL_ALWAYS_TOUCH)))
-		e1->touch(e1, e2, trace, false);
-
-	if (e2->touch && (e2->solid != SOLID_NOT || (e2->flags & FL_ALWAYS_TOUCH)))
-		e2->touch(e2, e1, trace, true);
-}
-
-/*
 ============
-SV_FlyMove
-
-The basic solid body movement clip that slides along multiple planes
+Killed
 ============
 */
-void SV_FlyMove(edict_t* ent, float time, contents_t mask)
+void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, mod_t mod)
 {
-	ent->groundentity = nullptr;
+	if (!targ)  // First check if targ is valid
+		return;
 
-	touch_list_t touch;
-	PM_StepSlideMove_Generic(ent->s.origin, ent->velocity, time, ent->mins, ent->maxs, touch, false, [&](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end)
-		{
-			return gi.trace(start, mins, maxs, end, ent, mask);
-		});
+	if (targ->health < -999)
+		targ->health = -999;
 
-	for (size_t i = 0; i < touch.num; i++)
+	// [Paril-KEX]
+	if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.aiflags & AI_MEDIC)
 	{
-		auto& trace = touch.traces[i];
-
-		if (trace.plane.normal[2] > 0.7f)
+		if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so
 		{
-			ent->groundentity = trace.ent;
-			ent->groundentity_linkcount = trace.ent->linkcount;
+			cleanupHealTarget(targ->enemy);
 		}
 
-		//
-		// run the impact function
-		//
-		G_Impact(ent, trace);
-
-		// impact func requested velocity kill
-		if (ent->flags & FL_KILL_VELOCITY)
-		{
-			ent->flags &= ~FL_KILL_VELOCITY;
-			ent->velocity = {};
-		}
+		// clean up self
+		targ->monsterinfo.aiflags &= ~AI_MEDIC;
 	}
+
+	targ->enemy = attacker;
+	targ->lastMOD = mod;
+
+	// [Paril-KEX] monsters call die in their damage handler
+	if (targ->svflags & SVF_MONSTER)
+		return;
+
+	if (targ && targ->die)
+		targ->die(targ, inflictor, attacker, damage, point, mod); //crashed here
+
+	if (targ->monsterinfo.setskin)
+		targ->monsterinfo.setskin(targ);
+}
+
+/*
+================
+SpawnDamage
+================
+*/
+void SpawnDamage(int type, const vec3_t& origin, const vec3_t& normal, int damage)
+{
+	if (damage > 255)
+		damage = 255;
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(type);
+	//	gi.WriteByte (damage);
+	gi.WritePosition(origin);
+	gi.WriteDir(normal);
+	gi.multicast(origin, MULTICAST_PVS, false);
 }
 
 /*
 ============
-SV_AddGravity
+T_Damage
 
+targ		entity that is being damaged
+inflictor	entity that is causing the damage
+attacker	entity that caused the inflictor to damage targ
+	example: targ=monster, inflictor=rocket, attacker=player
+
+dir			direction of the attack
+point		point at which the damage is being inflicted
+normal		normal vector from that point
+damage		amount of damage being inflicted
+knockback	force to be applied against targ as a result of the damage
+
+dflags		these flags are used to control how T_Damage works
+	DAMAGE_RADIUS			damage was indirect (from a nearby explosion)
+	DAMAGE_NO_ARMOR			armor does not protect from this damage
+	DAMAGE_ENERGY			damage is from an energy based weapon
+	DAMAGE_NO_KNOCKBACK		do not affect velocity, just view angles
+	DAMAGE_BULLET			damage is from a bullet (used for ricochets)
+	DAMAGE_NO_PROTECTION	kills godmode, armor, everything
 ============
 */
-void SV_AddGravity(edict_t* ent)
+static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, int damage, damageflags_t dflags)
 {
-	if (ent->movetype == MOVETYPE_SLIDE)
-		ent->velocity += ent->gravityVector * (ent->gravity * level.gravity * gi.frame_time_s) / 2;
+	gclient_t* client;
+	int		   save;
+	item_id_t  power_armor_type;
+	int		   damagePerCell;
+	int		   pa_te_type;
+	int* power;
+	int		   power_used;
+
+	if (ent->health <= 0)
+		return 0;
+
+	if (!damage)
+		return 0;
+
+	client = ent->client;
+
+	if (dflags & (DAMAGE_NO_ARMOR | DAMAGE_NO_POWER_ARMOR)) // PGM
+		return 0;
+
+	if (client)
+	{
+		power_armor_type = PowerArmorType(ent);
+		power = &client->pers.inventory[IT_AMMO_CELLS];
+	}
+	else if (ent->svflags & SVF_MONSTER)
+	{
+		power_armor_type = ent->monsterinfo.power_armor_type;
+		power = &ent->monsterinfo.power_armor_power;
+	}
 	else
-		ent->velocity += ent->gravityVector * (ent->gravity * level.gravity * gi.frame_time_s);
+		return 0;
+
+	if (power_armor_type == IT_NULL)
+		return 0;
+	if (!*power)
+		return 0;
+
+	if (power_armor_type == IT_ITEM_POWER_SCREEN)
+	{
+		vec3_t vec;
+		float  dot;
+		vec3_t forward;
+
+		// only works if damage point is in front
+		AngleVectors(ent->s.angles, forward, nullptr, nullptr);
+		vec = point - ent->s.origin;
+		vec.normalize();
+		dot = vec.dot(forward);
+		if (dot <= 0.3f)
+			return 0;
+
+		damagePerCell = 1;
+		pa_te_type = TE_SCREEN_SPARKS;
+		damage = damage / 3;
+	}
+	else
+	{
+		if (ctf->integer)
+			damagePerCell = 2; // power armor is weaker in CTF
+		else
+			damagePerCell = 2;
+		pa_te_type = TE_SCREEN_SPARKS;
+		damage = (2 * damage) / 3;
+	}
+
+	// Paril: fix small amounts of damage not
+	// being absorbed
+	damage = max(1, damage);
+
+	save = *power * damagePerCell;
+
+	if (!save)
+		return 0;
+
+	// [Paril-KEX] energy damage should do more to power armor, not ETF Rifle shots.
+	if (dflags & DAMAGE_ENERGY)
+		save = max(1, save / 2);
+
+	if (save > damage)
+		save = damage;
+
+	// [Paril-KEX] energy damage should do more to power armor, not ETF Rifle shots.
+	if (dflags & DAMAGE_ENERGY)
+		power_used = (save / damagePerCell) * 2;
+	else
+		power_used = save / damagePerCell;
+
+	power_used = max(1, power_used);
+
+	SpawnDamage(pa_te_type, point, normal, save);
+	ent->powerarmor_time = level.time + 200_ms;
+
+	// Paril: adjustment so that power armor
+	// always uses damagePerCell even if it does
+	// only a single point of damage
+	*power = max(0, *power - max(damagePerCell, power_used));
+
+	// check power armor turn-off states
+	if (ent->client)
+		G_CheckPowerArmor(ent);
+	else if (!*power)
+	{
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/mon_power2.wav"), 1.f, ATTN_NORM, 0.f);
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_POWER_SPLASH);
+		gi.WriteEntity(ent);
+		gi.WriteByte((power_armor_type == IT_ITEM_POWER_SCREEN) ? 1 : 0);
+		gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+	}
+
+	return save;
 }
 
-/*
-===============================================================================
-
-PUSHMOVE
-
-===============================================================================
-*/
-
-/*
-============
-SV_PushEntity
-
-Does not change the entities velocity at all
-============
-*/
-trace_t SV_PushEntity(edict_t* ent, const vec3_t& push)
+static int CheckArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, int damage, int te_sparks,
+	damageflags_t dflags)
 {
-	vec3_t start = ent->s.origin;
-	vec3_t end = start + push;
+	gclient_t* client;
+	int		   save;
+	item_id_t  index;
+	gitem_t* armor;
+	int* power;
 
-	trace_t trace = gi.trace(start, ent->mins, ent->maxs, end, ent, G_GetClipMask(ent));
+	if (!damage)
+		return 0;
 
-	ent->s.origin = trace.endpos + (trace.plane.normal * .5f);
-	gi.linkentity(ent);
+	// ROGUE
+	if (dflags & (DAMAGE_NO_ARMOR | DAMAGE_NO_REG_ARMOR))
+		// ROGUE
+		return 0;
 
-	if (trace.fraction != 1.0f || trace.startsolid)
+	client = ent->client;
+	index = ArmorIndex(ent);
+
+	if (!index)
+		return 0;
+
+	armor = GetItemByIndex(index);
+
+	if (dflags & DAMAGE_ENERGY)
+		save = (int)ceilf(armor->armor_info->energy_protection * damage);
+	else
+		save = (int)ceilf(armor->armor_info->normal_protection * damage);
+
+	if (client)
+		power = &client->pers.inventory[index];
+	else
+		power = &ent->monsterinfo.armor_power;
+
+	if (save >= *power)
+		save = *power;
+
+	if (!save)
+		return 0;
+
+	*power -= save;
+
+	if (!client && !ent->monsterinfo.armor_power)
+		ent->monsterinfo.armor_type = IT_NULL;
+
+	SpawnDamage(te_sparks, point, normal, save);
+
+	return save;
+}
+
+void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
+{
+	// pmm
+	bool new_tesla;
+	static constexpr gtime_t sentrygun_target_cooldown = 1.5_sec;
+
+	if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
+		return;
+
+	//=======
+	// ROGUE
+	// logic for tesla - if you are hit by a tesla, and can't see who you should be mad at (attacker)
+	// attack the tesla
+	// also, target the tesla if it's a "new" tesla
+	if ((inflictor) && (!strcmp(inflictor->classname, "tesla_mine") || !strcmp(inflictor->classname, "monster_sentrygun") || !strcmp(inflictor->classname, "emitter")))
 	{
-		G_Impact(ent, trace);
-
-		// if the pushed entity went away and the pusher is still there
-		if (!trace.ent->inuse && ent->inuse)
+		new_tesla = MarkTeslaArea(targ, inflictor);
+		if (!strcmp(inflictor->classname, "monster_sentrygun") || !strcmp(inflictor->classname, "emitter"))
 		{
-			// move the pusher back and try again
-			ent->s.origin = start;
-			gi.linkentity(ent);
-			return SV_PushEntity(ent, push);
+			// Check if enough time has passed since last sentrygun/emitter targeting
+			if (level.time - targ->monsterinfo.last_sentrygun_target_time > sentrygun_target_cooldown)
+			{
+				if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname ||
+					(strcmp(targ->enemy->classname, "monster_sentrygun") && strcmp(targ->enemy->classname, "emitter"))))
+				{
+					TargetTesla(targ, inflictor);
+					targ->monsterinfo.last_sentrygun_target_time = level.time;
+				}
+			}
+		}
+		else if (!strcmp(inflictor->classname, "tesla_mine"))
+		{
+			if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "tesla_mine")))
+				TargetTesla(targ, inflictor);
+		}
+		return;
+	}
+	// ROGUE
+	//=======
+
+	if (attacker == targ || attacker == targ->enemy)
+		return;
+
+	// if we are a good guy monster and our attacker is a player
+	// or another good guy, do not get mad at them
+	if (targ->monsterinfo.aiflags & AI_GOOD_GUY)
+	{
+		if (attacker->client || (attacker->monsterinfo.aiflags & AI_GOOD_GUY))
+			return;
+	}
+
+	// PGM
+	//  if we're currently mad at something a target_anger made us mad at, ignore
+	//  damage
+	if (targ->enemy && targ->monsterinfo.aiflags & AI_TARGET_ANGER)
+	{
+		float percentHealth;
+
+		// make sure whatever we were pissed at is still around.
+		if (targ->enemy->inuse)
+		{
+			percentHealth = (float)(targ->health) / (float)(targ->max_health);
+			if (targ->enemy->inuse && percentHealth > 0.33f)
+				return;
+		}
+
+		// remove the target anger flag
+		targ->monsterinfo.aiflags &= ~AI_TARGET_ANGER;
+	}
+	// PGM
+
+	// we recently switched from reacting to damage, don't do it
+	if (targ->monsterinfo.react_to_damage_time > level.time)
+		return;
+
+	// PMM
+	// if we're healing someone, do like above and try to stay with them
+	if ((targ->enemy) && (targ->monsterinfo.aiflags & AI_MEDIC))
+	{
+		float percentHealth;
+
+		percentHealth = (float)(targ->health) / (float)(targ->max_health);
+		// ignore it some of the time
+		if (targ->enemy->inuse && percentHealth > 0.25f)
+			return;
+
+		// remove the medic flag
+		cleanupHealTarget(targ->enemy);
+		targ->monsterinfo.aiflags &= ~AI_MEDIC;
+	}
+	// PMM
+
+	// we now know that we are not both good guys
+	targ->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
+
+	// if attacker is a client, get mad at them because he's good and we're not
+	if (attacker->client)
+	{
+		targ->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
+
+		// this can only happen in coop (both new and old enemies are clients)
+		// only switch if can't see the current enemy
+		if (targ->enemy != attacker)
+		{
+			if (targ->enemy && targ->enemy->client)
+			{
+				if (visible(targ, targ->enemy))
+				{
+					targ->oldenemy = attacker;
+					return;
+				}
+				targ->oldenemy = targ->enemy;
+			}
+
+			// [Paril-KEX]
+			if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.aiflags & AI_MEDIC)
+			{
+				if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so
+				{
+					cleanupHealTarget(targ->enemy);
+				}
+
+				// clean up self
+				targ->monsterinfo.aiflags &= ~AI_MEDIC;
+			}
+
+			targ->enemy = attacker;
+			if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+				FoundTarget(targ);
+		}
+		return;
+	}
+
+	if (attacker->enemy == targ // if they *meant* to shoot us, then shoot back
+		// it's the same base (walk/swim/fly) type and both don't ignore shots,
+		// get mad at them
+		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
+			(strcmp(targ->classname, attacker->classname) != 0) &&
+			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
+				!strcmp(attacker->classname, "monster_sentrygun") ||
+				!strcmp(attacker->classname, "emitter")) &&
+			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
+	{
+		if (targ->enemy != attacker)
+		{
+			// [Paril-KEX]
+			if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.aiflags & AI_MEDIC)
+			{
+				if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so
+				{
+					cleanupHealTarget(targ->enemy);
+				}
+
+				// clean up self
+				targ->monsterinfo.aiflags &= ~AI_MEDIC;
+			}
+
+			if (targ->enemy && targ->enemy->client)
+				targ->oldenemy = targ->enemy;
+			targ->enemy = attacker;
+			if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+				FoundTarget(targ);
+		}
+	}
+	// otherwise get mad at whoever they are mad at (help our buddy) unless it is us!
+	else if (attacker->enemy && attacker->enemy != targ && targ->enemy != attacker->enemy)
+	{
+		if (targ->enemy != attacker->enemy)
+		{
+			// [Paril-KEX]
+			if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.aiflags & AI_MEDIC)
+			{
+				if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so
+				{
+					cleanupHealTarget(targ->enemy);
+				}
+
+				// clean up self
+				targ->monsterinfo.aiflags &= ~AI_MEDIC;
+			}
+
+			if (targ->enemy && targ->enemy->client)
+				targ->oldenemy = targ->enemy;
+			targ->enemy = attacker->enemy;
+			if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+				FoundTarget(targ);
+		}
+	}
+}
+void AssignMonsterTeam(edict_t* ent) {
+	if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.team != CTF_TEAM1) {
+		ent->monsterinfo.team = CTF_TEAM2;
+	}
+}
+
+// Funciones auxiliares
+bool CheckEntityClass(edict_t* ent, const char* className) {
+	return ent->classname && !strcmp(ent->classname, className);
+}
+
+bool IsLaserEntity(const edict_t* ent) {
+	return ent->classname &&
+		(!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"));
+}
+
+bool CheckTeslaMineTeam(edict_t* mine, edict_t* other) {
+	if (!mine->team)
+		return false;
+
+	const char* otherTeam;
+	if (other->client)
+		otherTeam = other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2;
+	else if (other->svflags & SVF_MONSTER)
+		otherTeam = other->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2;
+	else
+		return false;
+
+	return !strcmp(mine->team, otherTeam);
+}
+
+bool CheckTrapTeam(edict_t* trap, edict_t* other) {
+	const char* otherTeam = other->client ?
+		(other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
+		(other->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+
+	return !strcmp(trap->team, otherTeam);
+}
+
+bool CheckLaserTeam(edict_t* laser, edict_t* other) {
+	const char* otherTeam = other->client ?
+		(other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
+		(other->team ? other->team : "neutral");
+
+	return !strcmp(laser->team, otherTeam);
+}
+
+bool CheckTeamDamage(edict_t* targ, edict_t* attacker) {
+	return !g_friendly_fire->integer && OnSameTeam(targ, attacker);
+}
+
+bool OnSameTeam(edict_t* ent1, edict_t* ent2)
+{
+	// Validaciones iniciales
+	if (!ent1 || !ent2 || ent1 == ent2)
+		return false;
+
+	// Initialize static variables outside the switch statement
+	static std::array<uint8_t, 3> specialEntityTypeIds;
+	static bool typeIds_initialized = false;
+	static std::array<bool, 256> isLaserType = {};
+	static bool laserTypes_initialized = false;
+
+	// Initialize lookup tables once
+	if (!typeIds_initialized)
+	{
+		typeIds_initialized = true;
+
+		// Get type IDs for special entities we check frequently
+		specialEntityTypeIds[0] = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID("tesla_mine"));
+		specialEntityTypeIds[1] = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID("food_cube_trap"));
+		specialEntityTypeIds[2] = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID("laser_emitter"));
+	}
+
+	if (!laserTypes_initialized)
+	{
+		laserTypes_initialized = true;
+
+		// Add all laser-related entity types
+		const char* laser_entities[] = {
+			"laser_emitter", "laser", "laser_target"
+			// Add any other laser-related classnames
+		};
+
+		for (const char* laser_name : laser_entities)
+		{
+			uint8_t id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(laser_name));
+			if (id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN))
+				isLaserType[id] = true;
 		}
 	}
 
-	// ================
-	// PGM
-	// FIXME - is this needed?
-	ent->gravity = 1.0;
-	// PGM
-	// ================
+	// Determinar el modo de juego
+	enum GameMode {
+		MODE_COOPERATIVE,
+		MODE_TEAMPLAY,
+		MODE_HORDE,
+		MODE_OTHER
+	};
 
-	if (ent->inuse)
-		G_TouchTriggers(ent);
+	GameMode currentMode;
+	if (G_IsCooperative())
+		currentMode = MODE_COOPERATIVE;
+	else if (G_TeamplayEnabled() && !g_horde->integer)
+		currentMode = MODE_TEAMPLAY;
+	else if (g_horde->integer)
+		currentMode = MODE_HORDE;
+	else
+		currentMode = MODE_OTHER;
 
-	return trace;
+	switch (currentMode) {
+	case MODE_COOPERATIVE:
+		return (ent1->client && ent2->client);
+
+	case MODE_TEAMPLAY:
+		if (ent1->client && ent2->client)
+			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
+		}
+		return false;
+
+	case MODE_HORDE:
+		// Verificar jugadores
+		if (ent1->client && ent2->client)
+			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+
+		// Verificar monstruos
+		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
+		}
+
+		// Verificar jugador vs monstruo
+		if (ent1->client && (ent2->svflags & SVF_MONSTER))
+			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
+		if (ent2->client && (ent1->svflags & SVF_MONSTER))
+			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
+
+		// Get and cache type IDs for both entities
+		if ((ent1->monster_type_id == MONSTER_TYPE_UNKNOWN) && !ent1->client)
+			ent1->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent1->classname));
+
+		if ((ent2->monster_type_id == MONSTER_TYPE_UNKNOWN) && !ent2->client)
+			ent2->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent2->classname));
+
+		// Use type IDs for fast entity checks
+
+		// Verificar minas tesla
+		if (ent1->monster_type_id == specialEntityTypeIds[0])
+			return CheckTeslaMineTeam(ent1, ent2);
+		if (ent2->monster_type_id == specialEntityTypeIds[0])
+			return CheckTeslaMineTeam(ent2, ent1);
+
+		// Verificar trampas
+		if (ent1->monster_type_id == specialEntityTypeIds[1])
+			return CheckTrapTeam(ent1, ent2);
+		if (ent2->monster_type_id == specialEntityTypeIds[1])
+			return CheckTrapTeam(ent2, ent1);
+
+		// Check for laser entities using type ID
+		if (ent1->monster_type_id != MONSTER_TYPE_UNKNOWN && isLaserType[ent1->monster_type_id])
+			return CheckLaserTeam(ent1, ent2);
+		if (ent2->monster_type_id != MONSTER_TYPE_UNKNOWN && isLaserType[ent2->monster_type_id])
+			return CheckLaserTeam(ent2, ent1);
+
+		return false;
+
+	default:
+		return false;
+	}
 }
 
-struct pushed_t
-{
-	edict_t* ent;
-	vec3_t	 origin;
-	vec3_t	 angles;
-	bool	 rotated;
-	float	 yaw;
+
+#include <span>
+
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage);
+void ApplyGradualArmor(edict_t* ent);
+// Nueva estructura para manejar la regeneración gradual
+
+
+namespace VampireConfig {
+	constexpr float BASE_MULTIPLIER = 0.8f;
+	constexpr float QUAD_DIVISOR = 2.7f;
+	constexpr float DOUBLE_DIVISOR = 1.5f;
+	constexpr float TECH_STRENGTH_DIVISOR = 1.6f;
+	constexpr int MAX_ARMOR = 200;
+
+	// Nuevos parámetros para el sistema de regeneración gradual
+	constexpr gtime_t REGEN_INTERVAL = 80_ms;  // Intervalo de regeneración en segundos
+	constexpr float SENTRY_HEALING_FACTOR = 0.4f;  // Factor de reducción para sentries
+	constexpr int MAX_STORED_HEALING = 35;  // Máximo de curación almacenada
+
+	constexpr float ARMOR_STEAL_RATIO = 0.166f;
+	constexpr int MAX_STORED_ARMOR = 25;  // Máximo de armor almacenado
+	constexpr float ARMOR_REGEN_AMOUNT = 1.0f;  // Cantidad de armor regenerado por tick
+}
+
+void ApplyGradualHealing(edict_t* ent) {
+	// Fast-path early returns grouped for better branch prediction
+	if (!ent || ent->health <= 0 || level.time < ent->regen_info.next_regen_time)
+		return;
+
+	// Apply health regeneration with optimized checks and calculations
+	if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
+		// Use direct min operation to simplify logic
+		const float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
+
+		// Calculate new health with single-step clamping
+		const int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
+		const int actual_healed = new_health - ent->health;
+
+		// Only update if actual healing occurred (avoids unnecessary writes)
+		if (actual_healed > 0) {
+			ent->health = new_health;
+			ent->regen_info.stored_healing -= actual_healed;
+		}
+	}
+
+	// Apply armor regeneration if player - direct condition check
+	if (ent->client) {
+		ApplyGradualArmor(ent);
+	}
+
+	// Set next regeneration time
+	ent->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
+}
+
+void ApplyGradualArmor(edict_t* ent) {
+	// Grouped early returns for better branch prediction
+	if (!ent || !ent->client)
+		return;
+
+	// Cache armor index to avoid repeated function calls
+	const int index = ArmorIndex(ent);
+	if (!index) {
+		ent->regen_info.stored_armor = 0;
+		return;
+	}
+
+	// Use reference for direct access to armor value
+	int& current_armor = ent->client->pers.inventory[index];
+
+	// Combined condition check for better branching
+	if (current_armor <= 0 || current_armor >= VampireConfig::MAX_ARMOR) {
+		ent->regen_info.stored_armor = 0;
+		return;
+	}
+
+	// Fast path for no regeneration needed
+	if (ent->regen_info.stored_armor <= 0 || level.time < ent->regen_info.next_regen_time)
+		return;
+
+	// Calculate regeneration with a single min operation
+	const float regen_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
+
+	// Direct calculation of new armor with clamping
+	const int new_armor = std::min(
+		current_armor + static_cast<int>(regen_amount),
+		VampireConfig::MAX_ARMOR
+	);
+
+	// Only apply changes if needed (avoid unnecessary writes)
+	const int actual_added = new_armor - current_armor;
+	if (actual_added > 0) {
+		current_armor = new_armor;
+		ent->regen_info.stored_armor -= actual_added;
+
+		// Fast cleanup if max reached
+		if (new_armor >= VampireConfig::MAX_ARMOR)
+			ent->regen_info.stored_armor = 0;
+	}
+}
+
+struct WeaponMultiplier {
+	item_id_t weapon_id;
+	float multiplier;
 };
 
-pushed_t pushed[MAX_EDICTS], * pushed_p;
+static constexpr std::array<WeaponMultiplier, 8> WEAPON_MULTIPLIERS = { {
+	{IT_WEAPON_SHOTGUN, 1.0f / DEFAULT_SHOTGUN_COUNT},
+	{IT_WEAPON_SSHOTGUN, 0.5f},
+	{IT_WEAPON_RLAUNCHER, 0.5f},
+	{IT_WEAPON_HYPERBLASTER, 0.5f},
+	{IT_WEAPON_PHALANX, 0.5f},
+	{IT_WEAPON_RAILGUN, 0.5f},
+	{IT_WEAPON_IONRIPPER, 1.0f / 3.0f},
+	{IT_WEAPON_GLAUNCHER, 0.5f}
+} };
 
-edict_t* obstacle;
+static int CalculateRealDamage(const edict_t* targ, int take, int initial_health) {
+	if (!targ) return take;
+	if (targ->svflags & SVF_DEADMONSTER) return std::min(take, 5);
+	if (initial_health <= 0) return std::min(take, 10);
 
-/*
-============
-SV_Push
+	int real_damage = std::min(take, initial_health);
+	if (targ->health <= 0) {
+		real_damage += std::min(abs(targ->gib_health), initial_health);
+	}
+	return real_damage;
+}
 
-Objects need to be moved back on a failed push,
-otherwise riders would continue to slide.
-============
-*/
-bool SV_Push(edict_t* pusher, vec3_t& move, vec3_t& amove)
-{
-	edict_t* check, * block = nullptr;
-	vec3_t	  mins, maxs;
-	pushed_t* p;
-	vec3_t	  org, org2, move2, forward, right, up;
+void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
+	// Early return if target doesn't exist
+	if (!targ) return;
 
-	// find the bounding box
-	mins = pusher->absmin + move;
-	maxs = pusher->absmax + move;
+	// Use 64-bit integers for calculations to prevent overflow
+	const int64_t initial_health = targ->health;
 
-	// we need this for pushing things later
-	org = -amove;
-	AngleVectors(org, forward, right, up);
+	// Calculate real damage safely with direct checks
+	int64_t real_damage;
+	if (targ->svflags & SVF_DEADMONSTER)
+		real_damage = std::min<int64_t>(take, 5);
+	else if (initial_health <= 0)
+		real_damage = std::min<int64_t>(take, 10);
+	else {
+		real_damage = std::min<int64_t>(take, initial_health);
+		if (targ->health <= 0) {
+			real_damage += std::min<int64_t>(abs(targ->gib_health), initial_health);
+		}
+	}
 
-	// save the pusher's original position
-	pushed_p->ent = pusher;
-	pushed_p->origin = pusher->s.origin;
-	pushed_p->angles = pusher->s.angles;
-	pushed_p->rotated = false;
-	pushed_p++;
+	// Fast path: Only process if we have valid entities and damage
+	if (real_damage > 0 && attacker && attacker->client) {
+		HandleIDDamage(attacker, targ, static_cast<int>(real_damage));
+	}
+}
 
-	// move the pusher to it's final position
-	pusher->s.origin += move;
-	pusher->s.angles += amove;
-	gi.linkentity(pusher);
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
+	// Fast path early returns for improved performance
+	if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
+		!attacker->client->pers.iddmg_state || !targ ||
+		targ->monsterinfo.invincible_time > level.time) {
+		return;
+	}
 
-	// no clip mask, so it won't move anything
-	if (!G_GetClipMask(pusher))
-		return true;
+	auto& client = *attacker->client;
+	const bool should_reset = level.time - attacker->client->lastdmg > 1.65_sec ||
+		client.dmg_counter > 99999;
 
-	// see if any solid entities are inside the final position
-	check = g_edicts + 1;
-	for (uint32_t e = 1; e < globals.num_edicts; e++, check++)
-	{
-		if (!check->inuse)
+	// Cast to uint64_t to prevent overflow during addition
+	client.dmg_counter = should_reset ?
+		static_cast<uint64_t>(real_damage) :
+		client.dmg_counter + static_cast<uint64_t>(real_damage);
+
+	// For display, cap at 32-bit max if needed
+	client.ps.stats[STAT_ID_DAMAGE] = static_cast<int>(std::min<uint64_t>(client.dmg_counter, INT_MAX));
+	attacker->client->lastdmg = level.time;
+
+	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
+		// Cast to uint64_t to prevent overflow during addition
+		client.total_damage += static_cast<uint64_t>(real_damage);
+	}
+}
+
+static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
+	if (!g_autohaste->integer || !attacker || !attacker->client ||
+		attacker->client->quadfire_time >= level.time ||
+		damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
+		return;
+	}
+
+	constexpr float DAMAGE_FACTOR = 1.0f / 1150.0f;
+	if (frandom() <= damage * DAMAGE_FACTOR) {
+		attacker->client->quadfire_time = level.time + 5_sec;
+	}
+}
+
+int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
+	if (!attacker || !attacker->client || !attacker->client->pers.weapon) {
+		return base_health_stolen;
+	}
+
+	float multiplier = VampireConfig::BASE_MULTIPLIER;
+	const item_id_t weapon_id = attacker->client->pers.weapon->id;
+
+	// Usar span para acceder al array de multiplicadores
+	std::span<const WeaponMultiplier> multipliers_view{ WEAPON_MULTIPLIERS };
+	auto it = std::find_if(multipliers_view.begin(), multipliers_view.end(),
+		[weapon_id](const WeaponMultiplier& wm) { return wm.weapon_id == weapon_id; });
+
+	if (it != multipliers_view.end()) {
+		multiplier = it->multiplier;
+
+		if (weapon_id == IT_WEAPON_MACHINEGUN && g_tracedbullets->integer) {
+			multiplier = 0.5f;
+		}
+		else if (weapon_id == IT_WEAPON_GLAUNCHER && g_bouncygl->integer) {
+			multiplier *= 0.5f;
+		}
+	}
+
+	// Aplicar modificadores de poder
+	if (attacker->client->quad_time > level.time)
+		multiplier /= VampireConfig::QUAD_DIVISOR;
+	if (attacker->client->double_time > level.time)
+		multiplier /= VampireConfig::DOUBLE_DIVISOR;
+	if (attacker->client->pers.inventory[IT_TECH_STRENGTH])
+		multiplier /= VampireConfig::TECH_STRENGTH_DIVISOR;
+
+	return std::max(1, static_cast<int>(base_health_stolen * multiplier));
+}
+
+void heal_attacker_sentries(const edict_t* attacker, int health_stolen) noexcept {
+	if (!attacker || current_wave_level < 17) return;
+
+	// Usar span para iterar sobre las entidades
+	std::span entities_view{ g_edicts, globals.num_edicts };
+	for (auto& ent : entities_view) {
+		if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
+			strcmp(ent.classname, "monster_sentrygun") != 0) {
 			continue;
-		if (check->movetype == MOVETYPE_PUSH || check->movetype == MOVETYPE_STOP ||
-			check->movetype == MOVETYPE_NONE || check->movetype == MOVETYPE_NOCLIP)
-			continue;
-
-		if (!check->linked)
-			continue; // not linked in anywhere
-
-		// if the entity is standing on the pusher, it will definitely be moved
-		if (check->groundentity != pusher)
-		{
-			// see if the ent needs to be tested
-			if (check->absmin[0] >= maxs[0] || check->absmin[1] >= maxs[1] || check->absmin[2] >= maxs[2] ||
-				check->absmax[0] <= mins[0] || check->absmax[1] <= mins[1] || check->absmax[2] <= mins[2])
-				continue;
-
-			// see if the ent's bbox is inside the pusher's final position
-			if (!SV_TestEntityPosition(check))
-				continue;
 		}
 
-		if ((pusher->movetype == MOVETYPE_PUSH) || (check->groundentity == pusher))
-		{
-			// move this entity
-			pushed_p->ent = check;
-			pushed_p->origin = check->s.origin;
-			pushed_p->angles = check->s.angles;
-			pushed_p->rotated = !!amove[YAW];
-			if (pushed_p->rotated)
-				pushed_p->yaw =
-				pusher->client ? (float)pusher->client->ps.pmove.delta_angles[YAW] : pusher->s.angles[YAW];
-			pushed_p++;
+		ent.health = std::min(ent.health + health_stolen, ent.max_health);
+	}
+}
 
-			vec3_t old_position = check->s.origin;
+void apply_armor_vampire(edict_t* attacker, int damage) {
+	if (!attacker || !attacker->client)
+		return;
 
-			// try moving the contacted entity
-			check->s.origin += move;
-			if (check->client)
-			{
-				// Paril: disabled because in vanilla delta_angles are never
-				// lerped. delta_angles can probably be lerped as long as event
-				// isn't EV_PLAYER_TELEPORT or a new RDF flag is set
-				// check->client->ps.pmove.delta_angles[YAW] += amove[YAW];
-			}
-			else
-				check->s.angles[YAW] += amove[YAW];
+	const int index = ArmorIndex(attacker);
+	if (!index) {
+		attacker->regen_info.stored_armor = 0;
+		return;
+	}
 
-			// figure movement due to the pusher's amove
-			org = check->s.origin - pusher->s.origin;
-			org2[0] = org.dot(forward);
-			org2[1] = -(org.dot(right));
-			org2[2] = org.dot(up);
-			move2 = org2 - org;
-			check->s.origin += move2;
+	int current_armor = attacker->client->pers.inventory[index];
 
-			// may have pushed them off an edge
-			if (check->groundentity != pusher)
-				check->groundentity = nullptr;
+	if (current_armor <= 0) {
+		attacker->regen_info.stored_armor = 0;
+		return;
+	}
 
-			block = SV_TestEntityPosition(check);
+	if (current_armor >= VampireConfig::MAX_ARMOR)
+		return;
 
-			// [Paril-KEX] this is a bit of a hack; allow dead player skulls
-			// to be a blocker because otherwise elevators/doors get stuck
-			if (block && check->client && !check->takedamage)
-			{
-				check->s.origin = old_position;
-				block = nullptr;
-			}
+	// Calculamos el armor directamente del daño, sin considerar el health
+	const float armor_stolen = VampireConfig::ARMOR_STEAL_RATIO * (damage / 4.0f);
 
-			if (!block)
-			{ // pushed ok
-				gi.linkentity(check);
-				// impact?
-				continue;
-			}
+	// Almacenar el armor hasta el límite de almacenamiento
+	attacker->regen_info.stored_armor = std::min(
+		attacker->regen_info.stored_armor + armor_stolen,
+		static_cast<float>(VampireConfig::MAX_STORED_ARMOR)
+	);
+}
 
-			// if it is ok to leave in the old position, do it.
-			// this is only relevent for riding entities, not pushed
-			check->s.origin = old_position;
-			block = SV_TestEntityPosition(check);
-			if (!block)
-			{
-				pushed_p--;
-				continue;
-			}
-		}
 
-		// save off the obstacle so we can call the block function
-		obstacle = check;
-
-		// move back any entities we already moved
-		// go backwards, so if the same entity was pushed
-		// twice, it goes back to the original position
-		for (p = pushed_p - 1; p >= pushed; p--)
-		{
-			p->ent->s.origin = p->origin;
-			p->ent->s.angles = p->angles;
-			if (p->rotated)
-			{
-				//if (p->ent->client)
-				//	p->ent->client->ps.pmove.delta_angles[YAW] = p->yaw;
-				//else
-				p->ent->s.angles[YAW] = p->yaw;
-			}
-			gi.linkentity(p->ent);
-		}
+static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // const and noexcept for better optimization
+	// Fast early returns for invalid cases
+	if (!attacker || attacker->health <= 0 || attacker->deadflag) {
 		return false;
 	}
 
-	// FIXME: is there a better way to handle this?
-	//  see if anything we moved has touched a trigger
-	for (p = pushed_p - 1; p >= pushed; p--)
-		G_TouchTriggers(p->ent);
+	// Check for sentrygun first (most common special case)
+	if (attacker->classname && strcmp(attacker->classname, "monster_sentrygun") == 0) {
+		return true;
+	}
 
-	return true;
+	// Check if it's a player (not a monster)
+	if (!(attacker->svflags & SVF_MONSTER)) {
+		return true;  // Players can use vampire
+	}
+
+	// Final check for special monsters - using direct bitwise operations
+	constexpr uint32_t VALID_BONUS_FLAGS = (BF_STYGIAN | BF_POSSESSED);
+	return (attacker->monsterinfo.bonus_flags & VALID_BONUS_FLAGS) &&
+		!attacker->monsterinfo.IS_BOSS;
 }
 
-/*
-================
-SV_Physics_Pusher
-
-Bmodel objects don't interact with each other, but
-push all box objects
-================
-*/
-void SV_Physics_Pusher(edict_t* ent)
-{
-	vec3_t	 move, amove;
-	edict_t* part;
-
-	// if not a team captain, so movement will be handled elsewhere
-	if (ent->flags & FL_TEAMSLAVE)
+void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
+	// Fast path early exits with direct boolean checks for optimal branching
+	if (!g_vampire || !g_vampire->integer || !attacker || !targ || damage <= 0) {
 		return;
+	}
 
-	// make sure all team slaves can move before commiting
-	// any moves or calling any think functions
-	// if the move is blocked, all moved objects will be backed out
-retry:
-	pushed_p = pushed;
-	for (part = ent; part; part = part->teamchain)
-	{
-		if (part->velocity[0] || part->velocity[1] || part->velocity[2] || part->avelocity[0] || part->avelocity[1] ||
-			part->avelocity[2])
-		{ // object is moving
-			move = part->velocity * gi.frame_time_s;
-			amove = part->avelocity * gi.frame_time_s;
+	// Additional early return checks to avoid deeper nesting
+	if (attacker == targ || OnSameTeam(targ, attacker) ||
+		(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
+		return;
+	}
 
-			if (!SV_Push(part, move, amove))
-				break; // move was blocked
+	// Check if attacker can use vampire effect before proceeding
+	if (!CanUseVampireEffect(attacker)) {
+		return;
+	}
+
+	// Cache this result to avoid repeated string comparison
+	const bool isSentrygun = attacker->classname &&
+		strcmp(attacker->classname, "monster_sentrygun") == 0;
+
+	// Pre-calculate health stolen once
+	float health_stolen = damage / 4.0f;
+	if (isSentrygun) {
+		health_stolen *= VampireConfig::SENTRY_HEALING_FACTOR;
+	}
+
+	// Only process healing if needed (attacker isn't at max health)
+	if (attacker->health < attacker->max_health) {
+		// Apply weapon-specific modifiers only if needed
+		if (!isSentrygun) {
+			health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
+		}
+
+		// Use direct clamping with std::min to simplify logic
+		const float max_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
+		attacker->regen_info.stored_healing = std::min(
+			attacker->regen_info.stored_healing + health_stolen,
+			max_healing
+		);
+	}
+
+	// Process sentry healing only in applicable game states
+	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
+		// Cache constants to avoid repeated access
+		const float sentry_factor = VampireConfig::SENTRY_HEALING_FACTOR;
+		const float max_stored = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
+		const float sentry_heal = health_stolen * sentry_factor;
+
+		// Use std::span for more efficient iteration
+		std::span entities_view{ g_edicts, globals.num_edicts };
+		for (auto& ent : entities_view) {
+			// Combined all conditions in a single if statement for better branch prediction
+			if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
+				!ent.classname || strcmp(ent.classname, "monster_sentrygun") != 0) {
+				continue;
+			}
+
+			// Single operation to update stored healing with clamping
+			ent.regen_info.stored_healing = std::min(
+				ent.regen_info.stored_healing + sentry_heal,
+				max_stored
+			);
 		}
 	}
-	if (pushed_p > &pushed[MAX_EDICTS])
-		gi.Com_Error("pushed_p > &pushed[MAX_EDICTS], memory corrupted");
 
-	if (part)
+	// Only apply armor vampire at level 2 - direct check
+	if (g_vampire->integer == 2) {
+		apply_armor_vampire(attacker, damage);
+	}
+}
+
+//t_damage
+//t_damage
+void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
+	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
+{
+	gclient_t* client;
+	int		   take = 0;
+	int		   save;
+	int		   asave;
+	int		   psave;
+	int		   te_sparks;
+	bool	   sphere_notified; // PGM
+	const int initial_health = targ->health;
+	const int real_damage = CalculateRealDamage(targ, take, initial_health);
+
+	if (!targ->takedamage)
+		return;
+
+	// Si es daño por agua, intentar teletransportar inmediatamente
+	if (mod.id == MOD_WATER && (targ->svflags & SVF_MONSTER) && !targ->monsterinfo.IS_BOSS) {
+		CheckAndTeleportStuckMonster(targ);
+	}
+
+	// Si el atacante es nulo, usamos el inflictor como atacante
+	if (!attacker)
+		attacker = inflictor;
+
+	// Si aún así el atacante es nulo, usamos el mundo como atacante
+	if (!attacker)
+		attacker = world;
+
+	if (attacker && (attacker->svflags & SVF_MONSTER)) {
+		UpdatePowerUpTimes(attacker);
+		damage *= M_DamageModifier(attacker);
+	}
+
+	if (g_instagib->integer && !g_horde->integer && attacker->client && targ->client) {
+
+		// [Kex] always kill no matter what on instagib
+		damage = 9999;
+	}
+
+	sphere_notified = false; // PGM
+
+	// friendly fire avoidance
+	// if enabled you can't hurt teammates (but you can hurt yourself)
+	// knockback still occurs
+	if ((targ != attacker) && !(dflags & DAMAGE_NO_PROTECTION))
 	{
-		// if the pusher has a "blocked" function, call it
-		// otherwise, just stay in place until the obstacle is gone
-		if (part->moveinfo.blocked)
-			part->moveinfo.blocked(part, obstacle);
+		// mark as friendly fire
+		if (OnSameTeam(targ, attacker))
+		{
+			mod.friendly_fire = true;
 
-		if (!obstacle->inuse)
-			goto retry;
+			// if we're not a nuke & friendly fire is disabled, just kill the damage
+			if (!g_friendly_fire->integer && (mod.id != MOD_TARGET_LASER) /*&& (mod.id != MOD_NUKE)*/) {
+				damage = 0;
+			}
+			else if (attacker->svflags & SVF_MONSTER && targ->svflags & SVF_MONSTER && mod.id == MOD_TARGET_LASER)
+			{
+				damage = 0; // Monsters don't hurt each other with lasers
+			}
+		}
+	}
+	// Q2ETweaks self damage avoidance
+	// if enabled you can't hurt yourself
+	// knockback still occurs
+	if ((targ == attacker) && !(dflags & DAMAGE_NO_PROTECTION))
+	{
+		// if we're not a nuke & self damage is disabled, just kill the damage
+				//if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_TRAP) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
+		if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) /*&& (mod.id != MOD_NUKE)*/ && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) /*&& (mod.id != MOD_DOPPLE_EXPLODE)*/)
+			damage = 0;
+	}
+	//
+	// ROGUE
+	// allow the deathmatch game to change values
+	if (G_IsDeathmatch() && gamerules->integer)
+	{
+		if (DMGame.ChangeDamage)
+			damage = DMGame.ChangeDamage(targ, attacker, damage, mod);
+		if (DMGame.ChangeKnockback)
+			knockback = DMGame.ChangeKnockback(targ, attacker, knockback, mod);
+
+		if (!damage)
+			return;
+	}
+
+	// easy mode takes half damage
+	if (skill->integer == 0 && !G_IsDeathmatch() && targ->client && damage)
+	{
+		damage /= 2;
+		if (!damage)
+			damage = 1;
+	}
+
+	if ((targ->svflags & SVF_MONSTER) != 0) {
+		damage *= ai_damage_scale->integer;
+	}
+	else {
+		damage *= g_damage_scale->integer;
+	} // mal: just for debugging...
+
+	client = targ->client;
+
+	// PMM - defender sphere takes half damage
+	if (damage && (client) && (client->owned_sphere) && (client->owned_sphere->spawnflags == SPHERE_DEFENDER))
+	{
+		damage /= 2;
+		if (!damage)
+			damage = 1;
+	}
+
+	if (dflags & DAMAGE_BULLET)
+		te_sparks = TE_BULLET_SPARKS;
+	else
+		te_sparks = TE_SPARKS;
+
+	// bonus damage for surprising a monster
+	if (!(dflags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER) && (attacker->client) &&
+		(!targ->enemy || targ->monsterinfo.surprise_time == level.time) && (targ->health > 0))
+	{
+		damage *= 2;
+		targ->monsterinfo.surprise_time = level.time;
+	}
+
+	// ZOID
+	// strength tech
+	damage = CTFApplyStrength(attacker, damage);
+	// ZOID
+
+	if ((targ->flags & FL_NO_KNOCKBACK) ||
+		((targ->flags & FL_ALIVE_KNOCKBACK_ONLY) && (!targ->deadflag || targ->dead_time != level.time)))
+		knockback = 0;
+
+	// figure momentum add
+	if (!(dflags & DAMAGE_NO_KNOCKBACK))
+	{
+		if ((knockback) && (targ->movetype != MOVETYPE_NONE) && (targ->movetype != MOVETYPE_BOUNCE) &&
+			(targ->movetype != MOVETYPE_PUSH) && (targ->movetype != MOVETYPE_STOP))
+		{
+			vec3_t normalized = dir.normalized();
+			vec3_t kvel;
+
+			// Skip mass calculation for BFG pull
+			if (g_bfgpull->integer && mod.id == MOD_BFG_LASER) {
+				kvel = normalized * (500.0f * knockback / 50);
+			}
+			else {
+				float mass;
+				if (targ->mass < 50)
+					mass = 50;
+				else
+					mass = (float)targ->mass;
+
+				if (targ->client && attacker == targ)
+					kvel = normalized * (1600.0f * knockback / mass);
+				else
+					kvel = normalized * (500.0f * knockback / mass);
+			}
+
+			targ->velocity += kvel;
+		}
+	}
+
+	take = damage;
+	save = 0;
+
+	// check for godmode
+	if ((targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION))
+	{
+		take = 0;
+		save = damage;
+		SpawnDamage(te_sparks, point, normal, save);
+	}
+
+	// check for invincibility
+	// ROGUE
+	if (!(dflags & DAMAGE_NO_PROTECTION) &&
+		(((client && client->invincible_time > level.time)) ||
+			((targ->svflags & SVF_MONSTER) && targ->monsterinfo.invincible_time > level.time)))
+		// ROGUE
+	{
+		if (targ->pain_debounce_time < level.time)
+		{
+			gi.sound(targ, CHAN_ITEM, gi.soundindex("items/protect4.wav"), 1, ATTN_NORM, 0);
+			targ->pain_debounce_time = level.time + 2_sec;
+		}
+		take = 0;
+		save = damage;
+	}
+
+	// Handle Horde Bonus Stuff
+	// Simpler and clearer
+	if (attacker && attacker->client &&              // 1. Check if attacker and client exist
+		(g_horde->integer == 0 ||                    // 2. Either not in horde mode
+			!ClientIsSpectating(attacker->client)))      // 3. Or attacker is not spectating 
+	{
+		HandleAutoHaste(attacker, targ, damage);
+		HandleVampireEffect(attacker, targ, damage);
+		HandleIDDamage(attacker, targ, real_damage);
+		ProcessDamage(targ, attacker, take);
+	}
+
+	// ZOID
+	// team armor protect
+	if (G_TeamplayEnabled() && targ->client && attacker->client &&
+		targ->client->resp.ctf_team == attacker->client->resp.ctf_team && targ != attacker &&
+		g_teamplay_armor_protect->integer)
+	{
+		psave = asave = 0;
 	}
 	else
 	{
-		// the move succeeded, so call all think functions
-		for (part = ent; part; part = part->teamchain)
-		{
-			// prevent entities that are on trains that have gone away from thinking!
-			if (part->inuse)
-				SV_RunThink(part);
-		}
-	}
-}
+		// ZOID
+		psave = CheckPowerArmor(targ, point, normal, take, dflags);
+		take -= psave;
 
-//==================================================================
-
-/*
-=============
-SV_Physics_None
-
-Non moving objects can only think
-=============
-*/
-void SV_Physics_None(edict_t* ent)
-{
-	// regular thinking
-	SV_RunThink(ent);
-}
-
-/*
-=============
-SV_Physics_Noclip
-
-A moving object that doesn't obey physics
-=============
-*/
-void SV_Physics_Noclip(edict_t* ent)
-{
-	// regular thinking
-	if (!SV_RunThink(ent) || !ent->inuse)
-		return;
-
-	ent->s.angles += (ent->avelocity * gi.frame_time_s);
-	ent->s.origin += (ent->velocity * gi.frame_time_s);
-
-	gi.linkentity(ent);
-}
-
-/*
-==============================================================================
-
-TOSS / BOUNCE
-
-==============================================================================
-*/
-
-/*
-=============
-SV_Physics_Toss
-
-Toss, bounce, and fly movement.  When onground, do nothing.
-=============
-*/
-void SV_Physics_Toss(edict_t* ent)
-{
-	trace_t	 trace;
-	vec3_t	 move;
-	float	 backoff;
-	edict_t* slave;
-	bool	 wasinwater;
-	bool	 isinwater;
-	vec3_t	 old_origin;
-
-	// regular thinking
-	SV_RunThink(ent);
-
-	if (!ent->inuse)
-		return;
-
-	// if not a team captain, so movement will be handled elsewhere
-	if (ent->flags & FL_TEAMSLAVE)
-		return;
-
-	if (ent->velocity[2] > 0)
-		ent->groundentity = nullptr;
-
-	// check for the groundentity going away
-	if (ent->groundentity)
-		if (!ent->groundentity->inuse)
-			ent->groundentity = nullptr;
-
-	// if onground, return without moving
-	if (ent->groundentity && ent->gravity > 0.0f) // PGM - gravity hack
-	{
-		if (ent->svflags & SVF_MONSTER)
-		{
-			M_CatagorizePosition(ent, ent->s.origin, ent->waterlevel, ent->watertype);
-			M_WorldEffects(ent);
-		}
-
-		return;
+		asave = CheckArmor(targ, point, normal, take, te_sparks, dflags);
+		take -= asave;
 	}
 
-	old_origin = ent->s.origin;
+	// treat cheat/powerup savings the same as armor
+	asave += save;
 
-	SV_CheckVelocity(ent);
+	// ZOID
+	// resistance tech
+	take = CTFApplyResistance(targ, take);
+	// ZOID
 
-	// add gravity
-	if (ent->movetype != MOVETYPE_FLY &&
-		ent->movetype != MOVETYPE_FLYMISSILE &&
-		ent->movetype != MOVETYPE_WALLBOUNCE &&
-		ent->movetype != MOVETYPE_SLIDE)  // Added MOVETYPE_SLIDE check
-		SV_AddGravity(ent);
+	// ZOID
+	//CTFCheckHurtCarrier(targ, attacker);
+	// ZOID
 
-	// move angles
-	ent->s.angles += (ent->avelocity * gi.frame_time_s);
-
-	// move origin
-	int num_tries = 5;
-	float time_left = gi.frame_time_s;
-
-	while (time_left)
+	// ROGUE - this option will do damage both to the armor and person. originally for DPU rounds
+	if (dflags & DAMAGE_DESTROY_ARMOR)
 	{
-		if (num_tries == 0)
-			break;
-
-		num_tries--;
-		move = ent->velocity * time_left;
-		trace = SV_PushEntity(ent, move);
-
-		if (!ent->inuse)
-			return;
-
-		if (trace.fraction == 1.f)
-			break;
-		// [Paril-KEX] don't build up velocity if we're stuck.
-		// just assume that the object we hit is our ground.
-		else if (trace.allsolid)
+		if (!(targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION) &&
+			!(client && client->invincible_time > level.time))
 		{
-			ent->groundentity = trace.ent;
-			ent->groundentity_linkcount = trace.ent->linkcount;
-			ent->velocity = {};
-			ent->avelocity = {};
-			break;
+			take = damage;
 		}
+	}
+	// ROGUE
 
-		time_left -= time_left * trace.fraction;
+	// [Paril-KEX] player hit markers
+	if (targ != attacker && attacker && attacker->client && targ->health > 0 &&
+		!((targ && targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) &&
+		mod.id != MOD_TARGET_LASER &&
+		!(attacker && attacker->movetype == MOVETYPE_NOCLIP) &&
+		targ->monsterinfo.invincible_time <= level.time)
+	{
+		attacker->client->ps.stats[STAT_HIT_MARKER] += take + psave + asave;
+	}
 
-		if (ent->movetype == MOVETYPE_TOSS)
-			ent->velocity = SlideClipVelocity(ent->velocity, trace.plane.normal, 0.5f);
-		else if (ent->movetype == MOVETYPE_SLIDE)  // Added MOVETYPE_SLIDE handling
-			ent->velocity = SlideClipVelocity(ent->velocity, trace.plane.normal, 1.0f);
-		else
+	// do the damage
+	if (take)
+	{
+		if (!(targ->flags & FL_NO_DAMAGE_EFFECTS))
 		{
-			// RAFAEL
-			if (ent->movetype == MOVETYPE_WALLBOUNCE)
-				backoff = 2.0f;
-			// RAFAEL
-			else
-				backoff = 1.6f;
-
-			ent->velocity = ClipVelocity(ent->velocity, trace.plane.normal, backoff);
-		}
-
-		// RAFAEL
-		if (ent->movetype == MOVETYPE_WALLBOUNCE)
-			ent->s.angles = vectoangles(ent->velocity);
-		// RAFAEL
-		// stop if on ground
-		else if (ent->movetype != MOVETYPE_SLIDE)  // Added check to prevent SLIDE from stopping
-		{
-			if (trace.plane.normal[2] > 0.7f)
+			// ROGUE
+			if (targ->flags & FL_MECHANICAL)
+				SpawnDamage(TE_ELECTRIC_SPARKS, point, normal, take);
+			// ROGUE
+			else if ((targ->svflags & SVF_MONSTER) || (client))
 			{
-				if ((ent->movetype == MOVETYPE_TOSS && ent->velocity.length() < 60.f) ||
-					(ent->movetype != MOVETYPE_TOSS && ent->velocity.scaled(trace.plane.normal).length() < 60.f))
+				// XATRIX
+				if (strcmp(targ->classname, "monster_gekk") == 0)
+					SpawnDamage(TE_GREENBLOOD, point, normal, take);
+				// XATRIX
+				// ROGUE
+				else if (mod.id == MOD_CHAINFIST)
+					SpawnDamage(TE_MOREBLOOD, point, normal, 255);
+				// ROGUE
+				else
+					//  SpawnDamage(TE_BLOOD, point, normal, take);
+					SpawnDamage(TE_BLOOD, point, normal, take);
+			}
+			else
+				SpawnDamage(te_sparks, point, normal, take);
+		}
+
+		if (!CTFMatchSetup())
+			targ->health = targ->health - take;
+
+		if ((targ->flags & FL_IMMORTAL) && targ->health <= 0)
+			targ->health = 1;
+
+		// PGM - spheres need to know who to shoot at
+		if (client && client->owned_sphere)
+		{
+			sphere_notified = true;
+			if (client->owned_sphere->pain)
+				client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
+		}
+		// PGM
+
+		if (targ->health <= 0)
+		{
+			if (!targ) {
+				return;
+			}
+
+			if ((targ->svflags & SVF_MONSTER) || (client))
+			{
+				targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
+				targ->dead_time = level.time;
+			}
+
+			// Safety checks for all parameters
+			if (!targ || !inflictor || !attacker) {
+				return;
+			}
+
+			// Initialize monsterinfo if necessary
+			if (&targ->monsterinfo) {
+				targ->monsterinfo.damage_blood += take;
+				targ->monsterinfo.damage_attacker = attacker;
+				targ->monsterinfo.damage_inflictor = inflictor;
+				targ->monsterinfo.damage_from = point;
+				targ->monsterinfo.damage_mod = mod;
+				targ->monsterinfo.damage_knockback += knockback;
+			}
+
+			Killed(targ, inflictor, attacker, take, point, mod);
+			return;
+		}
+	}
+
+	// PGM - spheres need to know who to shoot at
+	if (!sphere_notified)
+	{
+		if (client && client->owned_sphere)
+		{
+			sphere_notified = true;
+			if (client->owned_sphere->pain)
+				client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
+		}
+	}
+	// PGM
+
+	if (targ && targ->client) {
+		targ->client->last_attacker_time = level.time;
+		// Update last_damage only if damage is greater than 0 and not invincible/immune
+		if ((take > 0 || psave > 0 || asave > 0) &&
+			!(targ->client->invincible_time > level.time) &&
+			!(dflags & DAMAGE_NO_PROTECTION)) {
+			targ->client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
+		}
+	}
+
+	if (targ->svflags & SVF_MONSTER)
+	{
+		if (damage > 0)
+		{
+			M_ReactToDamage(targ, attacker, inflictor);
+
+			targ->monsterinfo.damage_attacker = attacker;
+			targ->monsterinfo.damage_inflictor = inflictor;
+			targ->monsterinfo.damage_blood += take;
+			targ->monsterinfo.damage_from = point;
+			targ->monsterinfo.damage_mod = mod;
+			targ->monsterinfo.damage_knockback += knockback;
+		}
+
+		if (targ->monsterinfo.setskin)
+			targ->monsterinfo.setskin(targ);
+	}
+	else if (take && targ->pain)
+		targ->pain(targ, attacker, (float)knockback, take, mod);
+
+	// add to the damage inflicted on a player this frame
+	// the total will be turned into screen blends and view angle kicks
+	// at the end of the frame
+	if (client)
+	{
+		client->damage_parmor += psave;
+		client->damage_armor += asave;
+		client->damage_blood += take;
+		client->damage_knockback += knockback;
+		client->damage_from = point;
+
+		if (!(dflags & DAMAGE_NO_INDICATOR) && inflictor != world && attacker != world && (take || psave || asave))
+		{
+			damage_indicator_t* indicator = nullptr;
+			size_t i;
+
+			for (i = 0; i < client->num_damage_indicators; i++)
+			{
+				if ((point - client->damage_indicators[i].from).length() < 32.f)
 				{
-					if (!(ent->flags & FL_NO_STANDING) || trace.ent->solid == SOLID_BSP)
-					{
-						ent->groundentity = trace.ent;
-						ent->groundentity_linkcount = trace.ent->linkcount;
-					}
-					ent->velocity = {};
-					ent->avelocity = {};
+					indicator = &client->damage_indicators[i];
 					break;
 				}
+			}
 
-				// friction for tossing stuff (gibs, etc)
-				if (ent->movetype == MOVETYPE_TOSS)
-				{
-					ent->velocity *= 0.75f;
-					ent->avelocity *= 0.75f;
-				}
+			if (!indicator && i != MAX_DAMAGE_INDICATORS)
+			{
+				indicator = &client->damage_indicators[i];
+				// for projectile direct hits, use the attacker; otherwise
+				// use the inflictor (rocket splash should point to the rocket)
+				indicator->from = (dflags & DAMAGE_RADIUS) ? inflictor->s.origin : attacker->s.origin;
+				indicator->health = indicator->armor = indicator->power = 0;
+				client->num_damage_indicators++;
+			}
+
+			if (indicator)
+			{
+				indicator->health += take;
+				indicator->power += psave;
+				indicator->armor += asave;
 			}
 		}
-
-		// only toss and slide can do multiple iterations
-		if (ent->movetype != MOVETYPE_TOSS && ent->movetype != MOVETYPE_SLIDE)
-			break;
-	}
-
-	// check for water transition
-	wasinwater = (ent->watertype & MASK_WATER);
-	ent->watertype = gi.pointcontents(ent->s.origin);
-	isinwater = ent->watertype & MASK_WATER;
-
-	if (isinwater)
-		ent->waterlevel = WATER_FEET;
-	else
-		ent->waterlevel = WATER_NONE;
-
-	if (ent->svflags & SVF_MONSTER)
-	{
-		M_CatagorizePosition(ent, ent->s.origin, ent->waterlevel, ent->watertype);
-		M_WorldEffects(ent);
-	}
-	else
-	{
-		if (!wasinwater && isinwater)
-			gi.positioned_sound(old_origin, g_edicts, CHAN_AUTO, gi.soundindex("misc/h2ohit1.wav"), 1, 1, 0);
-		else if (wasinwater && !isinwater)
-			gi.positioned_sound(ent->s.origin, g_edicts, CHAN_AUTO, gi.soundindex("misc/h2ohit1.wav"), 1, 1, 0);
-	}
-
-	// prevent softlocks from keys falling into slime/lava
-	if (isinwater && ent->watertype & (CONTENTS_SLIME | CONTENTS_LAVA) && ent->item &&
-		(ent->item->flags & IF_KEY) && ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED))
-		ent->velocity = { crandom_open() * 300, crandom_open() * 300, 300.f + (crandom_open() * 300.f) };
-
-	// move teamslaves
-	for (slave = ent->teamchain; slave; slave = slave->teamchain)
-	{
-		slave->s.origin = ent->s.origin;
-		gi.linkentity(slave);
 	}
 }
 /*
-===============================================================================
-
-STEPPING MOVEMENT
-
-===============================================================================
+============
+T_RadiusDamage
+============
 */
-
-/*
-=============
-SV_Physics_Step
-
-Monsters freefall when they don't have a ground entity, otherwise
-all movement is done with discrete steps.
-
-This is also used for objects that have become still on the ground, but
-will fall if the floor is pulled out from under them.
-=============
-*/
-
-void SV_AddRotationalFriction(edict_t* ent)
+void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t* ignore, float radius, damageflags_t dflags, mod_t mod)
 {
-	int	  n;
-	float adjustment;
-
-	ent->s.angles += (ent->avelocity * gi.frame_time_s);
-	adjustment = gi.frame_time_s * sv_stopspeed->value * sv_friction; // PGM now a cvar
-
-	for (n = 0; n < 3; n++)
-	{
-		if (ent->avelocity[n] > 0)
-		{
-			ent->avelocity[n] -= adjustment;
-			if (ent->avelocity[n] < 0)
-				ent->avelocity[n] = 0;
-		}
-		else
-		{
-			ent->avelocity[n] += adjustment;
-			if (ent->avelocity[n] > 0)
-				ent->avelocity[n] = 0;
-		}
-	}
-}
-
-void SV_Physics_Step(edict_t* ent)
-{
-	bool	   wasonground;
-	bool	   hitsound = false;
-	float* vel;
-	float	   speed, newspeed, control;
-	float	   friction;
-	edict_t* groundentity;
-	contents_t mask = G_GetClipMask(ent);
-
-	// [Paril-KEX]
-	if (ent->no_gravity_time > level.time)
-		ent->groundentity = nullptr;
-	// airborne monsters should always check for ground
-	else if (!ent->groundentity)
-		M_CheckGround(ent, mask);
-
-	groundentity = ent->groundentity;
-
-	SV_CheckVelocity(ent);
-
-	if (groundentity)
-		wasonground = true;
-	else
-		wasonground = false;
-
-	if (ent->avelocity[0] || ent->avelocity[1] || ent->avelocity[2])
-		SV_AddRotationalFriction(ent);
-
-	// FIXME: figure out how or why this is happening
-	if (isnan(ent->velocity[0]) || isnan(ent->velocity[1]) || isnan(ent->velocity[2]))
-		ent->velocity = {};
-
-	// add gravity except:
-	//   flying monsters
-	//   swimming monsters who are in the water
-	if (!wasonground)
-		if (!(ent->flags & FL_FLY))
-			if (!((ent->flags & FL_SWIM) && (ent->waterlevel > WATER_WAIST)))
-			{
-				if (ent->velocity[2] < level.gravity * -0.1f)
-					hitsound = true;
-				if (ent->waterlevel != WATER_UNDER)
-					SV_AddGravity(ent);
-			}
-
-	// friction for flying monsters that have been given vertical velocity
-	if ((ent->flags & FL_FLY) && (ent->velocity[2] != 0) && !(ent->monsterinfo.aiflags & AI_ALTERNATE_FLY))
-	{
-		speed = fabsf(ent->velocity[2]);
-		control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
-		friction = sv_friction / 3;
-		newspeed = speed - (gi.frame_time_s * control * friction);
-		if (newspeed < 0)
-			newspeed = 0;
-		newspeed /= speed;
-		ent->velocity[2] *= newspeed;
-	}
-
-	// friction for flying monsters that have been given vertical velocity
-	if ((ent->flags & FL_SWIM) && (ent->velocity[2] != 0) && !(ent->monsterinfo.aiflags & AI_ALTERNATE_FLY))
-	{
-		speed = fabsf(ent->velocity[2]);
-		control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
-		newspeed = speed - (gi.frame_time_s * control * sv_waterfriction * (float)ent->waterlevel);
-		if (newspeed < 0)
-			newspeed = 0;
-		newspeed /= speed;
-		ent->velocity[2] *= newspeed;
-	}
-
-	if (ent->velocity[2] || ent->velocity[1] || ent->velocity[0] || ent->no_gravity_time > level.time)
-	{
-		// apply friction
-		if ((wasonground || (ent->flags & (FL_SWIM | FL_FLY))) && !(ent->monsterinfo.aiflags & AI_ALTERNATE_FLY))
-		{
-			vel = &ent->velocity.x;
-			speed = sqrtf(vel[0] * vel[0] + vel[1] * vel[1]);
-			if (speed)
-			{
-				friction = sv_friction;
-
-				// Paril: lower friction for dead monsters
-				if (ent->deadflag)
-					friction *= 0.5f;
-
-				control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
-				newspeed = speed - gi.frame_time_s * control * friction;
-
-				if (newspeed < 0)
-					newspeed = 0;
-				newspeed /= speed;
-
-				vel[0] *= newspeed;
-				vel[1] *= newspeed;
-			}
-		}
-
-		vec3_t old_origin = ent->s.origin;
-
-		SV_FlyMove(ent, gi.frame_time_s, mask);
-
-		G_TouchProjectiles(ent, old_origin);
-
-		M_CheckGround(ent, mask);
-
-		gi.linkentity(ent);
-
-		// ========
-		// PGM - reset this every time they move.
-		//       G_touchtriggers will set it back if appropriate
-		ent->gravity = 1.0;
-		// ========
-
-		// [Paril-KEX] this is something N64 does to avoid doors opening
-		// at the start of a level, which triggers some monsters to spawn.
-		if (!g_horde->integer) // Paril
-			if (!level.is_n64 || level.time > FRAME_TIME_S)
-				G_TouchTriggers(ent);
-
-		if (!ent->inuse)
-			return;
-
-		if (ent->groundentity)
-			if (!wasonground)
-				if (hitsound)
-					ent->s.event = EV_FOOTSTEP;
-	}
-
-	if (g_horde->integer)
-		G_TouchTriggers(ent);
-
-	if (!ent->inuse) // PGM g_touchtrigger free problem
+	// Early return if inflictor is invalid
+	if (!inflictor)
 		return;
 
-	if (ent->svflags & SVF_MONSTER)
-	{
-		M_CatagorizePosition(ent, ent->s.origin, ent->waterlevel, ent->watertype);
-		M_WorldEffects(ent);
+	// Set attacker to inflictor if null
+	if (!attacker)
+		attacker = inflictor;
 
-		// [Paril-KEX] last minute hack to fix Stalker upside down gravity
-		if (wasonground != !!ent->groundentity)
-		{
-			if (ent->monsterinfo.physics_change)
-				ent->monsterinfo.physics_change(ent);
-		}
-	}
-
-	// regular thinking
-	SV_RunThink(ent);
-}
-
-// [Paril-KEX]
-inline void G_RunBmodelAnimation(edict_t* ent)
-{
-	auto& anim = ent->bmodel_anim;
-
-	if (anim.currently_alternate != anim.alternate)
-	{
-		anim.currently_alternate = anim.alternate;
-		anim.next_tick = 0_ms;
-	}
-
-	if (level.time < anim.next_tick)
-		return;
-
-	const auto& speed = anim.alternate ? anim.alt_speed : anim.speed;
-
-	anim.next_tick = level.time + gtime_t::from_ms(speed);
-
-	const auto& style = anim.alternate ? anim.alt_style : anim.style;
-
-	const auto& start = anim.alternate ? anim.alt_start : anim.start;
-	const auto& end = anim.alternate ? anim.alt_end : anim.end;
-
-	switch (style)
-	{
-	case BMODEL_ANIM_FORWARDS:
-		if (end >= start)
-			ent->s.frame++;
-		else
-			ent->s.frame--;
-		break;
-	case BMODEL_ANIM_BACKWARDS:
-		if (end >= start)
-			ent->s.frame--;
-		else
-			ent->s.frame++;
-		break;
-	case BMODEL_ANIM_RANDOM:
-		ent->s.frame = irandom(start, end + 1);
-		break;
-	}
-
-	const auto& nowrap = anim.alternate ? anim.alt_nowrap : anim.nowrap;
-
-	if (nowrap)
-	{
-		if (end >= start)
-			ent->s.frame = clamp(ent->s.frame, start, end);
-		else
-			ent->s.frame = clamp(ent->s.frame, end, start);
-	}
+	// Calculate inflictor center position once
+	vec3_t inflictor_center;
+	if (inflictor->linked)
+		inflictor_center = (inflictor->absmax + inflictor->absmin) * 0.5f;
 	else
-	{
-		if (ent->s.frame < start)
-			ent->s.frame = end;
-		else if (ent->s.frame > end)
-			ent->s.frame = start;
-	}
-}
+		inflictor_center = inflictor->s.origin;
 
-//============================================================================
-
-/*
-================
-G_RunEntity
-
-================
-*/
-void G_RunEntity(edict_t* ent)
-{
-	// PGM
-	trace_t trace;
-	vec3_t	previous_origin;
-	bool	has_previous_origin = false;
-
-	if (ent->movetype == MOVETYPE_STEP)
-	{
-		previous_origin = ent->s.origin;
-		has_previous_origin = true;
-	}
-	// PGM
-
-	if (ent->prethink)
-		ent->prethink(ent);
-
-	// bmodel animation stuff runs first, so custom entities
-	// can override them
-	if (ent->bmodel_anim.enabled)
-		G_RunBmodelAnimation(ent);
-
-	switch ((int)ent->movetype)
-	{
-	case MOVETYPE_PUSH:
-	case MOVETYPE_STOP:
-		SV_Physics_Pusher(ent);
-		break;
-	case MOVETYPE_NONE:
-		SV_Physics_None(ent);
-		break;
-	case MOVETYPE_NOCLIP:
-		SV_Physics_Noclip(ent);
-		break;
-	case MOVETYPE_STEP:
-		SV_Physics_Step(ent);
-		break;
-	case MOVETYPE_TOSS:
-	case MOVETYPE_BOUNCE:
-	case MOVETYPE_FLY:
-	case MOVETYPE_FLYMISSILE:
-	case MOVETYPE_SLIDE:
-		// RAFAEL
-	case MOVETYPE_WALLBOUNCE:
-		// RAFAEL
-		SV_Physics_Toss(ent);
-		break;
-		// ROGUE
-	case MOVETYPE_NEWTOSS:
-		SV_Physics_NewToss(ent);
-		break;
-		// ROGUE
-	default:
-		gi.Com_ErrorFmt("SV_Physics: bad movetype {}", (int32_t)ent->movetype);
+	// Pre-calculate damage modifier for monsters
+	float damage_modifier = 1.0f;
+	if (attacker && (attacker->svflags & SVF_MONSTER)) {
+		UpdatePowerUpTimes(attacker);
+		damage_modifier = M_DamageModifier(attacker);
 	}
 
-	// PGM
-	if (has_previous_origin && ent->movetype == MOVETYPE_STEP)
+	// Iterate through entities in radius
+	edict_t* ent = nullptr;
+	while ((ent = findradius(ent, inflictor_center, radius)) != nullptr)
 	{
-		// if we moved, check and fix origin if needed
-		if (ent->s.origin != previous_origin)
-		{
-			trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, previous_origin, ent, G_GetClipMask(ent));
-			if (trace.allsolid || trace.startsolid)
-				ent->s.origin = previous_origin;
-		}
-	}
-	// PGM
+		// Fast path for entities that can't take damage
+		if (ent == ignore || !ent->takedamage)
+			continue;
 
-#if 0
-	// disintegrator stuff; only for non-players
-	if (ent->disintegrator_time)
-	{
-		if (ent->disintegrator_time > 100_sec)
-		{
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(TE_BOSSTPORT);
-			gi.WritePosition(ent->s.origin);
-			gi.multicast(ent->s.origin, MULTICAST_PHS, false);
-
-			Killed(ent, ent->disintegrator, ent->disintegrator, 999999, vec3_origin, MOD_NUKE);
-			G_FreeEdict(ent);
-		}
-
-		ent->disintegrator_time = max(0_ms, ent->disintegrator_time - (15000_ms / gi.tick_rate));
-
-		if (ent->disintegrator_time)
-			ent->s.alpha = max(1 / 255.f, 1.f - (ent->disintegrator_time.seconds() / 100.f));
+		// Calculate closest point to entity
+		vec3_t v;
+		if (ent->solid == SOLID_BSP && ent->linked)
+			v = closest_point_to_box(inflictor_center, ent->absmin, ent->absmax);
 		else
-			ent->s.alpha = 1;
-	}
-#endif
+		{
+			v = ent->mins + ent->maxs;
+			v = ent->s.origin + (v * 0.5f);
+		}
 
-	if (ent->postthink)
-		ent->postthink(ent);
+		// Calculate damage based on distance
+		v = inflictor_center - v;
+		float points = damage - 0.5f * v.length();
+
+		// Reduce damage to self
+		if (ent == attacker)
+			points *= 0.5f;
+
+		// Skip if no damage would be done
+		if (points <= 0)
+			continue;
+
+		// Check if damage can reach the entity
+		if (!CanDamage(ent, inflictor))
+			continue;
+
+		// Calculate normalized direction vector once
+		vec3_t dir = (ent->s.origin - inflictor_center).normalized();
+
+		// Apply damage if all entities are valid
+		if (ent && inflictor && attacker) {
+			// Apply damage modifier
+			const float modified_points = points * damage_modifier;
+
+			// Calculate damage point once
+			vec3_t damage_point = closest_point_to_box(inflictor_center, ent->absmin, ent->absmax);
+
+			T_Damage(
+				ent,
+				inflictor,
+				attacker,
+				dir,
+				damage_point,
+				dir,
+				static_cast<int>(modified_points),
+				static_cast<int>(modified_points),
+				dflags | DAMAGE_RADIUS,
+				mod
+			);
+		}
+	}
 }
