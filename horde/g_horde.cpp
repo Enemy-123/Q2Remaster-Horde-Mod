@@ -2236,8 +2236,6 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 			}
 			monster->monsterinfo.was_stuck = true;
 			monster->monsterinfo.stuck_check_time = level.time;
-			monster->think = monster_think; // Ensure think is set
-			monster->nextthink = level.time + FRAME_TIME_S;
 		}
 		else if (developer->integer > 1) {
 			// Already flagged by monster_start_go, just log confirmation
