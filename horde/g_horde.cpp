@@ -2193,19 +2193,18 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 			monster->spawned_in_spawn_state = true;
 		}
 	}
-
+	monster->solid = SOLID_NOT;
 	ED_CallSpawn(monster);
 
 	if (!monster->inuse) {
 		return nullptr;
 	}
-
+	monster->solid = SOLID_BBOX;
 	gi.linkentity(monster);
 
 	// *** Final Post-Link Stuck Check ***
-	contents_t check_mask = G_GetClipMask(monster);
 	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, check_mask);
+		monster->s.origin, monster, MASK_MONSTERSOLID);
 
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
 
@@ -5623,6 +5622,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	monster->s.origin = emergency_origin;
 	monster->s.angles = emergency_angles;
 
+	monster->solid = SOLID_NOT;
 	ED_CallSpawn(monster);
 
 	if (!monster->inuse) {
@@ -5631,13 +5631,12 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		}
 		return false;
 	}
-
+	monster->solid = SOLID_BBOX;
 	gi.linkentity(monster);
 
 	// Post-link stuck check
-	contents_t check_mask = G_GetClipMask(monster);
 	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, check_mask);
+		monster->s.origin, monster, MASK_MONSTERSOLID);
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
 
 	if (spawn_was_stuck) {
@@ -5711,7 +5710,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
 bool ShouldTriggerAmbushSpawn() {
 	// Static variables for tracking time-based cooldowns
-	
+
 
 	// Only consider ambush spawning after wave 3
 	if (current_wave_level < 3) {
