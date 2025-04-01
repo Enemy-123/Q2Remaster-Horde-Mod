@@ -1649,11 +1649,10 @@ void monster_start_go(edict_t* self)
 	{
 		vec3_t check = self->s.origin; // Store original position before potential nudges
 		bool is_stuck = false;
-		contents_t check_mask = G_GetClipMask(self); // Get mask once
 
 		// Determine if stuck (using appropriate method)
 		if ((self->monsterinfo.aiflags & AI_GOOD_GUY) || (self->flags & (FL_FLY | FL_SWIM)))
-			is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
+			is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
 		else
 			is_stuck = !M_droptofloor(self) || !M_walkmove(self, 0, 0);
 
@@ -1669,7 +1668,7 @@ void monster_start_go(edict_t* self)
 			{
 				// Re-evaluate stuck status based on current position
 				if ((self->monsterinfo.aiflags & AI_GOOD_GUY) || (self->flags & (FL_FLY | FL_SWIM)))
-					is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
+					is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
 				else if (!(self->flags & (FL_FLY | FL_SWIM)))
 					is_stuck = !M_walkmove(self, 0, 0); // M_droptofloor was already attempted if needed
 				else
@@ -1714,7 +1713,7 @@ void monster_start_go(edict_t* self)
 
 						if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 						{
-							is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
+							is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
 							if (!is_stuck)
 								walked = true;
 						}

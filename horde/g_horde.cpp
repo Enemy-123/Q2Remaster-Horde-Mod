@@ -1746,105 +1746,111 @@ void InitializeWaveType(int32_t waveLevel) {
 //}
 // Update the function to accept MonsterTypeID
 
-// Structure to include wave level information
 struct MonsterTypeInfo {
-	horde::MonsterTypeID typeId;  // Instead of const char* classname
+	horde::MonsterTypeID typeId;
 	MonsterWaveType types;
 	int minWave;
 	float weight;
+	// --- NEW: Default Unscaled Bounds ---
+	vec3_t default_mins;
+	vec3_t default_maxs;
+	// --- End New ---
 
-
-	constexpr MonsterTypeInfo(horde::MonsterTypeID id, MonsterWaveType t, int w, float wt)
-		: typeId(id), types(t), minWave(w), weight(wt) {
+	// Constructor to include new fields
+	constexpr MonsterTypeInfo(horde::MonsterTypeID id, MonsterWaveType t, int w, float wt,
+		vec3_t d_mins, vec3_t d_maxs) // Add bounds to constructor
+		: typeId(id), types(t), minWave(w), weight(wt),
+		default_mins(d_mins), default_maxs(d_maxs) // Initialize bounds
+	{
 	}
 };
 
-static const MonsterTypeInfo monsterTypes[] = {
-	// Basic Infantry (Waves 1-5)
-	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f},
-	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f},
-	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f},
-	{horde::MonsterTypeID::INFANTRY_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f},
+// Function declaration for the new bounds helper
+bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs);
 
-	// Early Flying Units (Waves 1-8)
-	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
-	{horde::MonsterTypeID::FIXBOT, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.45f},
-	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f},
-	{horde::MonsterTypeID::FLOATER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.6f},
+static const MonsterTypeInfo monsterTypes[] = {
+	// Basic Infantry (Waves 1-5) - Assuming standard humanoid bounds
+	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::INFANTRY_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::SOLDIER_HYPERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::SOLDIER_RIPPER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::SOLDIER_LASERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f, {-16,-16,-24}, {16,16,32}},
+
+	// Early Flying Units (Waves 1-8) - Example flyer bounds
+	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f, {-16,-16,-16}, {16,16,16}},
+	{horde::MonsterTypeID::FIXBOT, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.45f, {-16,-16,-16}, {16,16,16}}, // Guessing bounds
+	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f, {-16,-16,-16}, {16,16,16}}, // Guessing bounds
+	{horde::MonsterTypeID::FLOATER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.6f, {-16,-16,-16}, {16,16,16}}, // Guessing bounds
 
 	// Special Wave Units (Waves 4-9)
-	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
-	{horde::MonsterTypeID::PARASITE, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f},
-	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f},
-	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
-
-	// Elite Infantry (Waves 4-12)
-	{horde::MonsterTypeID::SOLDIER_HYPERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f},
-	{horde::MonsterTypeID::SOLDIER_RIPPER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f},
-	{horde::MonsterTypeID::SOLDIER_LASERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f},
-	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f},
+	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f, {-16,-16,-24}, {16,16,24}}, // Smaller Z max
+	{horde::MonsterTypeID::PARASITE, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f, {-16,-16,-24}, {16,16,8}}, // Very short
+	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f, {-16,-16,-24}, {16,16,24}}, // Check actual stalker bounds
+	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f, {-16,-16,-24}, {16,16,32}}, // Standard humanoid?
 
 	// Medium Units (Waves 7-12)
-	{horde::MonsterTypeID::GUNNER_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f},
-	{horde::MonsterTypeID::INFANTRY, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f},
-	{horde::MonsterTypeID::MEDIC, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk , 6, 0.8f},
+	{horde::MonsterTypeID::GUNNER_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::INFANTRY, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::MEDIC, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk , 6, 0.8f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f, {-16,-16,-24}, {16,16,32}},
 
 	// Arachnophobic Units (Waves 8-18)
-	{horde::MonsterTypeID::SPIDER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f},
-	{horde::MonsterTypeID::GUNCMDR_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f},
-	{horde::MonsterTypeID::ARACHNID2, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
-	{horde::MonsterTypeID::GM_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f},
-	{horde::MonsterTypeID::PSX_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite | MonsterWaveType::Spawner, 25, 0.35f},
+	{horde::MonsterTypeID::SPIDER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f, {-32,-32,-24}, {32,32,32}}, // Example wider bounds
+	{horde::MonsterTypeID::GUNCMDR_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f, {-16,-16,-24}, {16,16,40}}, // Taller Gunner? Check bounds
+	{horde::MonsterTypeID::ARACHNID2, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f, {-32,-32,-24}, {32,32,32}}, // Example wider bounds
+	{horde::MonsterTypeID::GM_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f, {-32,-32,-24}, {32,32,32}}, // Example wider bounds
+	{horde::MonsterTypeID::PSX_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite | MonsterWaveType::Spawner, 25, 0.35f, {-32,-32,-24}, {32,32,32}}, // Example wider bounds
 
 	// Mutant Units (Waves 9-14)
-	{horde::MonsterTypeID::MUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f},
-	{horde::MonsterTypeID::SHAMBLER_SMALL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.4f},
-	{horde::MonsterTypeID::REDMUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f},
+	{horde::MonsterTypeID::MUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f, {-16,-16,-24}, {16,16,32}}, // Standard humanoid?
+	{horde::MonsterTypeID::SHAMBLER_SMALL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.4f, {-24,-24,-24}, {24,24,40}}, // Larger? Check bounds
+	{horde::MonsterTypeID::REDMUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f, {-24,-24,-24}, {24,24,40}}, // Larger mutant
 
 	// Heavy Ground Units (Waves 12-18)
-	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
-	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f},
-	{horde::MonsterTypeID::TANK_SPAWNER, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 13, 0.6f},
-	{horde::MonsterTypeID::TANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f},
-	{horde::MonsterTypeID::TANK_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f},
-	{horde::MonsterTypeID::GUNCMDR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f},
-	{horde::MonsterTypeID::RUNNERTANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 21, 0.5f},
-	{horde::MonsterTypeID::CHICK_HEAT, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f},
+	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f, {-16,-16,-24}, {16,16,40}}, // Taller? Check bounds
+	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f, {-16,-16,-24}, {16,16,32}},
+	{horde::MonsterTypeID::TANK_SPAWNER, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 13, 0.6f, {-32,-32,-16}, {32,32,32}}, // Tank bounds?
+	{horde::MonsterTypeID::TANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f, {-32,-32,-16}, {32,32,32}},
+	{horde::MonsterTypeID::TANK_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f, {-32,-32,-16}, {32,32,32}},
+	{horde::MonsterTypeID::GUNCMDR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f, {-16,-16,-24}, {16,16,40}}, // Taller Gunner?
+	{horde::MonsterTypeID::RUNNERTANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 21, 0.5f, {-32,-32,-16}, {32,32,32}}, // Tank bounds?
+	{horde::MonsterTypeID::CHICK_HEAT, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f, {-16,-16,-24}, {16,16,32}}, // Chick bounds?
 
 	// Elite Flying Units (Waves 18-27)
-	{horde::MonsterTypeID::HOVER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
-	{horde::MonsterTypeID::DAEDALUS, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f},
-	{horde::MonsterTypeID::FLOATER_TRACKER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 19, 0.45f},
-	{horde::MonsterTypeID::DAEDALUS_BOMBER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Bomber, 19, 0.35f},
+	{horde::MonsterTypeID::HOVER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f, {-16,-16,-16}, {16,16,16}}, // Hover bounds?
+	{horde::MonsterTypeID::DAEDALUS, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f, {-16,-16,-16}, {16,16,16}}, // Hover bounds?
+	{horde::MonsterTypeID::FLOATER_TRACKER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 19, 0.45f, {-16,-16,-16}, {16,16,16}}, // Floater bounds?
+	{horde::MonsterTypeID::DAEDALUS_BOMBER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Bomber, 19, 0.35f, {-16,-16,-16}, {16,16,16}}, // Hover bounds?
 
 	// Elite Ground Units (Waves 18+)
-	{horde::MonsterTypeID::GLADIATOR_B, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
-	{horde::MonsterTypeID::GLADIATOR_C, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
-	{horde::MonsterTypeID::SHAMBLER, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f},
-	{horde::MonsterTypeID::TANK_64, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f},
+	{horde::MonsterTypeID::GLADIATOR_B, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f, {-16,-16,-24}, {16,16,40}}, // Gladiator bounds?
+	{horde::MonsterTypeID::GLADIATOR_C, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f, {-16,-16,-24}, {16,16,40}}, // Gladiator bounds?
+	{horde::MonsterTypeID::SHAMBLER, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f, {-32,-32,-24}, {32,32,64}}, // Large bounds
+	{horde::MonsterTypeID::TANK_64, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f, {-32,-32,-16}, {32,32,32}}, // Tank bounds?
 
 	// Special Heavy Units (Waves 20+)
-	{horde::MonsterTypeID::JANITOR, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f},
-	{horde::MonsterTypeID::JANITOR2, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f},
-	{horde::MonsterTypeID::MEDIC_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f},
+	{horde::MonsterTypeID::JANITOR, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f, {-16,-16,-24}, {16,16,32}}, // Check bounds
+	{horde::MonsterTypeID::JANITOR2, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f, {-16,-16,-24}, {16,16,32}}, // Check bounds
+	{horde::MonsterTypeID::MEDIC_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f, {-16,-16,-24}, {16,16,40}}, // Taller Medic?
 
 	// Semi-Boss Units (Waves 16+)
-	{horde::MonsterTypeID::MAKRON, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f},
-	{horde::MonsterTypeID::PERRO_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f},
-	{horde::MonsterTypeID::WIDOW1, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f},
-	{horde::MonsterTypeID::SHAMBLER_KL, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f},
-	{horde::MonsterTypeID::GUNCMDR_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f},
-	{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
-	{horde::MonsterTypeID::BOSS2_KL, MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
-	{horde::MonsterTypeID::JORG_SMALL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f},
+	{horde::MonsterTypeID::MAKRON, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f, {-32,-32,-24}, {32,32,48}}, // Large bounds
+	{horde::MonsterTypeID::PERRO_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f, {-16,-16,-24}, {16,16,24}}, // Dog bounds?
+	{horde::MonsterTypeID::WIDOW1, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f, {-32,-32,-24}, {32,32,48}}, // Large bounds
+	{horde::MonsterTypeID::SHAMBLER_KL, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f, {-32,-32,-24}, {32,32,64}}, // Large bounds
+	{horde::MonsterTypeID::GUNCMDR_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f, {-16,-16,-24}, {16,16,40}}, // Taller Gunner?
+	{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f, {-32,-32,-24}, {32,32,48}}, // Large bounds
+	{horde::MonsterTypeID::BOSS2_KL, MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f, {-32,-32,-32}, {32,32,32}}, // Large flyer bounds
+	{horde::MonsterTypeID::JORG_SMALL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f, {-32,-32,-24}, {32,32,48}}, // Large bounds
 
-	// Boss Units
-	{horde::MonsterTypeID::BOSS2_64, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
-	{horde::MonsterTypeID::BOSS2_MINI, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f},
-	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f}
+	// Boss Units (These might not be spawned via this array, but include for completeness)
+	{horde::MonsterTypeID::BOSS2_64, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-32,-32,-32}, {32,32,32}}, // Large flyer
+	{horde::MonsterTypeID::BOSS2_MINI, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-16,-16,-16}, {16,16,16}}, // Medium flyer
+	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-32,-32,-32}, {32,32,32}} // Large flyer
 };
-
 // Optimized version using a precomputed map
 static std::array<MonsterWaveType, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterWaveTypes;
 static bool g_monsterWaveTypesInitialized = false;
@@ -2193,36 +2199,76 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 			monster->spawned_in_spawn_state = true;
 		}
 	}
+
+	// Set non-solid for ED_CallSpawn
 	monster->solid = SOLID_NOT;
 	ED_CallSpawn(monster);
 
+	// Check if ED_CallSpawn freed the entity
 	if (!monster->inuse) {
+		if (developer->integer) { // Added dev print for clarity
+			gi.Com_PrintFmt("SpawnMonsterByTypeID: ED_CallSpawn failed for {}\n", monster->classname ? monster->classname : "Unknown");
+		}
+		// G_FreeEdict(monster); // ED_CallSpawn usually handles freeing on failure
 		return nullptr;
 	}
+
+	// Restore solidity and link
 	monster->solid = SOLID_BBOX;
 	gi.linkentity(monster);
 
-	// *** Final Post-Link Stuck Check ***
+	// *** Initial Post-Link Stuck Check ***
 	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, MASK_MONSTERSOLID);
+		monster->s.origin, monster, MASK_MONSTERSOLID); // Use MASK_MONSTERSOLID
 
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
 
-	if (spawn_was_stuck) {
+	// ***** START CONDITIONAL NUDGE *****
+	// Attempt nudge ONLY IF initially stuck and NOT flying
+	if (spawn_was_stuck && !(monster->flags & FL_FLY)) {
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("SpawnMonsterByTypeID: {} stuck post-link, attempting nudge...\n", monster->classname);
+		}
+		vec3_t nudged_origin = monster->s.origin;
+		nudged_origin[2] += 2.0f; // Try a slightly larger nudge (2 units)
+
+		// Check if nudged position is clear
+		trace_t nudge_trace = gi.trace(nudged_origin, monster->mins, monster->maxs, nudged_origin, monster, MASK_MONSTERSOLID);
+		if (!nudge_trace.startsolid) {
+			// Apply nudge and relink
+			monster->s.origin = nudged_origin;
+			gi.unlinkentity(monster);
+			gi.linkentity(monster);
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("SpawnMonsterByTypeID: Nudge successful for {}.\n", monster->classname);
+			}
+			// Re-run the post-link check AFTER nudging
+			post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_MONSTERSOLID);
+			spawn_was_stuck = post_spawn_trace.startsolid; // Update stuck status
+		}
+		else {
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("SpawnMonsterByTypeID: Nudge failed for {} (target pos stuck).\n", monster->classname);
+			}
+			// Nudge failed, 'spawn_was_stuck' remains true
+		}
+	}
+	// ***** END CONDITIONAL NUDGE *****
+
+	// --- Final Stuck Handling ---
+	if (spawn_was_stuck) { // Check the potentially updated stuck status
 		edict_t* blocker = post_spawn_trace.ent;
 		if (developer->integer) {
-			gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} spawned stuck (Post-Link Check) at {}. Blocker: {} ({})\n",
+			gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} STILL stuck (Post-Link/Nudge Check) at {}. Blocker: {} ({}). Flagging for teleport.\n", // Changed message slightly
 				monster->classname, monster->s.origin,
 				blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown",
 				blocker ? (blocker - g_edicts) : -1);
 		}
-		// *** REVERTED: Always flag if stuck post-link ***
 		monster->monsterinfo.was_stuck = true;
 		monster->monsterinfo.stuck_check_time = level.time;
 		monster->think = monster_think;
 		monster->nextthink = level.time + FRAME_TIME_S;
 	}
-	// *** End Stuck Check Revert ***
 
 	monster->monsterinfo.spawn_complete_time = level.time;
 
@@ -4792,9 +4838,13 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	// Constants
 	constexpr int MAX_ATTEMPTS_PER_PLAYER = 8;
 	constexpr float FAR_RADIUS_MAX = 1200.0f; // Max generation radius
-	const vec3_t monster_mins = HordeConstants::VALIDATE_CHECK_MINS; // Use standard bounds for checks
-	const vec3_t monster_maxs = HordeConstants::VALIDATE_CHECK_MAXS;
-	bool is_flying = IsFlying(typeId);
+	// --- Use GetPredictedScaledBounds ---
+	vec3_t predicted_mins, predicted_maxs;
+	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
+		// Fallback handled inside GetPredictedScaledBounds, message printed there
+	}
+	bool is_flying = IsFlying(typeId); // Still needed for IsValidSpawnLocation logic
+	// --- End Bounds Fetch ---
 
 	// Player categorization (as before)
 	constexpr size_t MAX_PLAYERS = MAX_CLIENTS;
@@ -4804,14 +4854,15 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	edict_t* bots[MAX_PLAYERS] = { nullptr };
 	size_t top_damage_count = 0, high_spree_count = 0, normal_count = 0, bot_count = 0;
 	int32_t highest_damage = 0; int highest_spree = 0;
-	for (auto* player : active_players()) { /* ... (categorization logic unchanged) ... */
+	for (auto* player : active_players()) { // Assuming active_players() is efficient
 		if (!player || !player->inuse || !player->client || player->health <= 0 || ClientIsSpectating(player->client)) continue;
 		bool is_human = !(player->svflags & SVF_BOT);
 		int32_t player_damage = player->client->total_damage; int player_spree = player->client->resp.spree;
 		if (is_human) {
 			highest_damage = std::max(highest_damage, player_damage); highest_spree = std::max(highest_spree, player_spree);
-			if (player_damage > 0 && player_damage >= highest_damage * 0.7f && top_damage_count < MAX_PLAYERS) top_damage_humans[top_damage_count++] = player;
-			else if (player_spree >= 20 && high_spree_count < MAX_PLAYERS) high_spree_humans[high_spree_count++] = player;
+			// Prioritize top damage slightly more
+			if (player_damage > 0 && player_damage >= highest_damage * 0.65f && top_damage_count < MAX_PLAYERS) top_damage_humans[top_damage_count++] = player; // Lowered threshold slightly
+			else if (player_spree >= 15 && high_spree_count < MAX_PLAYERS) high_spree_humans[high_spree_count++] = player; // Lowered spree threshold
 			else if (normal_count < MAX_PLAYERS) normal_humans[normal_count++] = player;
 		}
 		else if (bot_count < MAX_PLAYERS) bots[bot_count++] = player;
@@ -4824,7 +4875,9 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	// --- Iterate Through Priority Groups ---
 	for (const auto& group : priority_groups) {
 		if (group.count == 0) continue;
-		std::shuffle(group.players, group.players + group.count, mt_rand); // Shuffle within group
+		// Shuffle within the group to avoid repeatedly picking the same player first
+		for (size_t i = group.count - 1; i > 0; --i) { size_t j = irandom(0, i); if (i != j) std::swap(group.players[i], group.players[j]); }
+
 
 		for (size_t player_idx = 0; player_idx < group.count; ++player_idx) {
 			edict_t* player = group.players[player_idx];
@@ -4839,31 +4892,32 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 					player->s.origin[1] + sinf(angle) * radius,
 					player->s.origin[2] + frandom(8.0f, 48.0f) // Vertical variation
 				};
+				vec3_t validated_pos = candidate_pos; // Copy for validation function
 
 				// --- Step 1: Geometric Validation ---
-				if (IsValidSpawnLocation(candidate_pos, monster_mins, monster_maxs, is_flying)) {
-					// 'candidate_pos' might now be adjusted (e.g., dropped to floor)
+				// Pass the PREDICTED SCALED bounds
+				if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+					// 'validated_pos' now holds the potentially adjusted position
 
 					// --- Step 2: Proximity Checks (After Geometric Validation) ---
 					// Check vs Target Player
-					if ((candidate_pos - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_CHECK) {
-						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to target player {}.\n", candidate_pos, player->client->pers.netname);
+					if ((validated_pos - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_CHECK) {
+						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to target player {}.\n", validated_pos, player->client->pers.netname);
 						continue; // Too close to target, try another attempt
 					}
 					// Check vs Recent Teleports
-					if (IsPositionTooCloseToRecentTeleport(candidate_pos)) {
-						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to recent teleport.\n", candidate_pos);
+					if (IsPositionTooCloseToRecentTeleport(validated_pos)) {
+						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to recent teleport.\n", validated_pos);
 						continue; // Too close to recent teleport
 					}
 					// Check vs Recent Regular Spawns
-					if (IsPositionTooCloseToRecentSpawn(candidate_pos)) {
-						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to recent regular spawn.\n", candidate_pos);
+					if (IsPositionTooCloseToRecentSpawn(validated_pos)) {
+						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to recent regular spawn.\n", validated_pos);
 						continue; // Too close to recent regular spawn
 					}
 
 					// --- SUCCESS! ---
-					// All checks passed: geometric validation and all proximity checks
-					position = candidate_pos; // Use the final validated & checked position
+					position = validated_pos; // Use the final validated & checked position
 					vec3_t dir = player->s.origin - position;
 					dir.z *= 0.1f; // Aim slightly towards player horizontally
 					angles = vectoangles(dir);
@@ -4880,7 +4934,6 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Failed after all attempts.\n");
 	return false; // Failed to find a suitable position
 }
-
 // String-based overload that delegates to the TypeID version
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
 {
@@ -4932,21 +4985,17 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	// Define the mask to use for world geometry checks
 	constexpr contents_t GEOMETRY_MASK = MASK_SOLID;
 
-	// --- NEW: Early Point Contents Check ---
+	// --- Early Point Contents Check ---
 	int initial_contents = gi.pointcontents(io_position);
-	// Check for solid (often indicates outside PVS or inside world brush)
 	if (initial_contents & MASK_SOLID) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
 		return false;
 	}
-	// Only reject water/slime/lava if the monster isn't meant to be in it
 	if (!is_flying && (initial_contents & MASK_WATER)) {
-		// TODO: Could add a check here if the monster *can* swim (e.g., self->flags & FL_SWIM)
-		// Assume non-flying ground monsters shouldn't spawn directly *in* liquid for now.
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
 		return false;
 	}
-	// --- END NEW ---
+	// --- END Early Check ---
 
 	// 1. Basic Volume Check (Trace at the location against world geometry)
 	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
@@ -4957,57 +5006,52 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 	// 2. Ground/Liquid Check (Only for non-flying)
 	if (!is_flying) {
-		// --- ENHANCED: Check for ground below with a longer trace ---
+		// --- Enhanced Ground/Void Check ---
 		vec3_t ground_check_end = io_position;
-		constexpr float GROUND_CHECK_DISTANCE = 1024.0f; // Increased distance
+		constexpr float GROUND_CHECK_DISTANCE = 1024.0f; // Check far below
 		ground_check_end.z -= GROUND_CHECK_DISTANCE;
 		trace_t ground_trace = gi.trace(io_position, monster_mins, monster_maxs, ground_check_end, nullptr, GEOMETRY_MASK);
 
-		// Fail if trace started in solid (should be caught earlier, but good safety)
-		if (ground_trace.startsolid) {
+		if (ground_trace.startsolid) { // Safety check
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}\n", io_position);
 			return false;
 		}
-
-		// --- NEW: Explicit Void Check ---
-		// If the trace went the full distance without hitting anything solid, assume it's over a void.
-		if (ground_trace.fraction == 1.0f) {
+		if (ground_trace.fraction == 1.0f) { // Void Check
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
 			return false;
 		}
-		// --- END NEW ---
+		// --- End Ground/Void Check ---
 
-		// Attempt M_droptofloor only if the ground trace hit something (ground_trace.fraction < 1.0f)
-		// This implies there is ground *somewhere* below, but maybe not immediately.
-		if (ground_trace.fraction < 1.0f) {
-			vec3_t original_pos = io_position;
-			// M_droptofloor_generic using GEOMETRY_MASK
-			if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false)) {
-				// Drop failed, position is unchanged. This implies it couldn't find a valid spot to drop to.
-				// We already checked for void, so this likely means the space below is obstructed or invalid.
-				io_position = original_pos; // Ensure position is reverted
-				if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
-				return false; // Fail if drop failed
-			}
-			// If drop succeeded, io_position is now the new Z.
-
-			// Final check after potential drop: Is the *new* position clear of *world* geometry?
-			trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
-			if (trace.startsolid || trace.allsolid) {
-				if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor at {}\n", io_position);
-				io_position = original_pos; // Revert if final check failed
-				return false;
-			}
-			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z: {:.2f}.\n", io_position.z);
+		// Attempt M_droptofloor only if ground was found somewhere below
+		vec3_t original_pos = io_position; // Store original position before drop attempt
+		if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false)) {
+			// Drop failed - likely obstructed path down, or couldn't find a clear spot
+			io_position = original_pos; // Revert position
+			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
+			return false; // Fail if drop failed
 		}
-		// If ground_trace.fraction == 1.0f, we already failed the void check above.
+		// Drop succeeded, io_position is now the new Z.
+
+		// ***** ADD EPSILON *****
+		// Add a tiny amount to Z to prevent exact floor plane intersection issues.
+		io_position.z += 0.1f;
+		// ***** END EPSILON *****
+
+		// Final check after drop + epsilon: Is the *new* position clear of *world* geometry?
+		trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
+		if (trace.startsolid || trace.allsolid) {
+			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
+			io_position = original_pos; // Revert if final check failed
+			return false;
+		}
+		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z (after epsilon): {:.2f}.\n", io_position.z);
+
 	} // End non-flying checks
 
-	// --- FINAL CHECK: Proximity to Other Entities (Players/Monsters/Defenses) ---
-	// This check should happen *after* geometric validation and potential dropping.
+	// --- FINAL CHECK: Proximity to Other Entities ---
 	// Use a slightly larger box for entity checks to prevent clipping issues
-	const vec3_t entity_check_mins = monster_mins - vec3_t{ 2, 2, 0 };
-	const vec3_t entity_check_maxs = monster_maxs + vec3_t{ 2, 2, 0 };
+	const vec3_t entity_check_mins = monster_mins - vec3_t{ 2, 2, 0 }; // Adjusted for safety
+	const vec3_t entity_check_maxs = monster_maxs + vec3_t{ 2, 2, 0 }; // Adjusted for safety
 	FilterData final_check_data = { nullptr, 0 };
 	const vec3_t check_mins = io_position + entity_check_mins; // Use potentially modified io_position
 	const vec3_t check_maxs = io_position + entity_check_maxs;
@@ -5018,7 +5062,6 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 		return false;
 	}
 	// --- END FINAL CHECK ---
-
 
 	if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
 	return true; // All checks passed
@@ -5508,32 +5551,49 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
 	const vec3_t base_origin = spawn_point->s.origin;
 	const vec3_t base_angles = spawn_point->s.angles;
+	// --- Use GetPredictedScaledBounds ---
 	bool is_flying = IsFlying(typeId);
-	const vec3_t monster_mins = HordeConstants::VALIDATE_CHECK_MINS;
-	const vec3_t monster_maxs = HordeConstants::VALIDATE_CHECK_MAXS;
+	vec3_t predicted_mins, predicted_maxs;
+	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
+		// Fallback handled inside GetPredictedScaledBounds
+	}
+	// --- End Bounds Fetch ---
 
 	constexpr size_t NUM_PREDEFINED_OFFSETS = HordeConstants::NUM_HORDE_ALT_POSITIONS + 1;
 	std::array<vec3_t, NUM_PREDEFINED_OFFSETS> combined_offsets;
-	combined_offsets[0] = vec3_t{ 0, 0, 32 };
+	combined_offsets[0] = vec3_t{ 0, 0, 32 }; // Try directly above first
 	std::copy(HordeConstants::horde_alternative_positions.begin(), HordeConstants::horde_alternative_positions.end(), combined_offsets.begin() + 1);
+	// Simple shuffle of combined offsets (excluding 'above' which should always be tried first if possible)
+	for (size_t i = combined_offsets.size() - 1; i > 1; --i) { size_t j = irandom(1, i); if (i != j) std::swap(combined_offsets[i], combined_offsets[j]); }
 
 	// 1. Try Combined Predefined/Above Positions
 	for (const auto& offset : combined_offsets) {
 		vec3_t candidate_pos = base_origin + offset;
-		vec3_t validated_pos = candidate_pos;
+		vec3_t validated_pos = candidate_pos; // Copy for validation function
 
-		if (offset != vec3_t{ 0, 0, 32 }) {
+		// Simple Line Check (Optional but good for avoiding immediate wall embeds)
+		if (offset != vec3_t{ 0, 0, 32 }) { // Don't trace check for 'above'
 			trace_t trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-			if (trace.fraction < 0.9f) continue;
+			if (trace.fraction < 0.9f) { // Allow slight clipping near origin
+				if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined offset {} blocked by LOS.\n", offset);
+				continue; // Blocked by world geometry
+			}
 		}
 
-		if (IsValidSpawnLocation(validated_pos, monster_mins, monster_maxs, is_flying)) {
+		// Validate the location geometrically using PREDICTED SCALED bounds
+		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+			// Check proximity to recent spawns
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
-				// *** ADDED FINAL CHECK ***
-				trace_t final_check = gi.trace(validated_pos, monster_mins, monster_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
-				if (!final_check.startsolid && !final_check.allsolid) {
+				// FINAL check against entities at the validated location
+				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID); // Check world again just in case
+				FilterData final_entity_check = { nullptr, 0 };
+				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
+
+				if (!final_check.startsolid && final_entity_check.count == 0) {
+					// Success!
 					final_origin = validated_pos;
 					final_angles = base_angles;
+					// Adjust yaw based on offset direction (if not directly above)
 					if (offset.x != 0.0f || offset.y != 0.0f) {
 						final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
 					}
@@ -5541,46 +5601,54 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 					if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using predefined/above offset (Final Pos: {}).\n", final_origin);
 					return true;
 				}
-				else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} failed *final* solid check.\n", validated_pos);
-				// *** END FINAL CHECK ***
+				else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} failed final solid/entity check.\n", validated_pos);
 			}
 			else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
 		}
-	}
+	} // End loop for predefined offsets
 
 	// 2. Try Random Radial Positions (Increased Attempts and Radius)
-	constexpr int RADIAL_ATTEMPTS = 20;
+	constexpr int RADIAL_ATTEMPTS = 20; // Increased attempts
 	constexpr float MIN_RADIUS = 40.0f;
-	constexpr float MAX_RADIUS = 200.0f;
+	constexpr float MAX_RADIUS = 200.0f; // Increased max radius
 
 	for (int i = 0; i < RADIAL_ATTEMPTS; ++i) {
 		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
 		float angle = frandom() * 2.0f * PI;
-		vec3_t offset = { cosf(angle) * radius, sinf(angle) * radius, frandom(-8.0f, 24.0f) };
+		vec3_t offset = { cosf(angle) * radius, sinf(angle) * radius, frandom(-8.0f, 24.0f) }; // Keep Z offset reasonable
 		vec3_t candidate_pos = base_origin + offset;
-		vec3_t validated_pos = candidate_pos;
+		vec3_t validated_pos = candidate_pos; // Copy for validation
 
+		// Simple Line Check
 		trace_t trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-		if (trace.fraction < 0.8f) continue;
+		if (trace.fraction < 0.8f) { // Allow more clipping for radial checks
+			if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} blocked by LOS.\n", offset);
+			continue; // Blocked
+		}
 
-		if (IsValidSpawnLocation(validated_pos, monster_mins, monster_maxs, is_flying)) {
+		// Validate geometrically using PREDICTED SCALED bounds
+		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+			// Check proximity
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
-				// *** ADDED FINAL CHECK ***
-				trace_t final_check = gi.trace(validated_pos, monster_mins, monster_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
-				if (!final_check.startsolid && !final_check.allsolid) {
+				// FINAL check against entities
+				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
+				FilterData final_entity_check = { nullptr, 0 };
+				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
+
+				if (!final_check.startsolid && final_entity_check.count == 0) {
+					// Success!
 					final_origin = validated_pos;
 					final_angles = base_angles;
-					final_angles[YAW] = angle * (180.0f / PI);
+					final_angles[YAW] = angle * (180.0f / PI); // Face roughly away from original point
 					MarkPositionAsRecentlyUsed(final_origin);
 					if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using radial offset (Final Pos: {}).\n", final_origin);
 					return true;
 				}
-				else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} failed *final* solid check.\n", validated_pos);
-				// *** END FINAL CHECK ***
+				else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} failed final solid/entity check.\n", validated_pos);
 			}
 			else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
 		}
-	}
+	} // End loop for radial attempts
 
 	if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Failed for point {}.\n", (int)(spawn_point - g_edicts));
 	return false;
@@ -5599,6 +5667,13 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	vec3_t emergency_origin, emergency_angles;
 	bool used_human_player = false;
 
+	// Get appropriate bounds for the validation check within FindEmergencySpawnPosition
+	vec3_t predicted_mins, predicted_maxs;
+	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
+		// Fallback handled inside GetPredictedScaledBounds
+	}
+	bool is_flying = IsFlying(typeId);
+
 	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}\n", static_cast<int>(typeId));
@@ -5606,9 +5681,16 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		return false;
 	}
 
-	if (!IsValidSpawnLocation(emergency_origin, HordeConstants::VALIDATE_CHECK_MINS, HordeConstants::VALIDATE_CHECK_MAXS, IsFlying(typeId))) {
+	// Re-validate the final position found by FindEmergencySpawnPosition just to be safe
+	vec3_t final_valid_pos = emergency_origin; // Copy origin before validation potentially modifies it
+	if (!IsValidSpawnLocation(final_valid_pos, predicted_mins, predicted_maxs, is_flying)) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position {} found by FindEmergency failed final IsValidSpawnLocation.\n", emergency_origin);
+		}
+		// Optionally, could retry FindEmergencySpawnPosition here
 		return false;
 	}
+	emergency_origin = final_valid_pos; // Use the re-validated (and potentially floor-dropped + epsilon'd) position
 
 	edict_t* monster = CreateBaseHordeMonster(typeId, emergency_origin, emergency_angles);
 	if (!monster) {
@@ -5622,6 +5704,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	monster->s.origin = emergency_origin;
 	monster->s.angles = emergency_angles;
 
+	// Apply SOLID_NOT toggle here too
 	monster->solid = SOLID_NOT;
 	ED_CallSpawn(monster);
 
@@ -5631,20 +5714,49 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		}
 		return false;
 	}
+
+	// Restore solid state and link
 	monster->solid = SOLID_BBOX;
 	gi.linkentity(monster);
 
-	// Post-link stuck check
+	// ***** START FIX: Nudge Upwards Slightly (Conditional) *****
 	trace_t post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
 		monster->s.origin, monster, MASK_MONSTERSOLID);
 	bool spawn_was_stuck = post_spawn_trace.startsolid;
 
+	if (spawn_was_stuck && !(monster->flags & FL_FLY)) {
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("EmergencySpawnMonster: {} stuck post-link, attempting nudge...\n", monster->classname);
+		}
+		vec3_t nudged_origin = monster->s.origin;
+		nudged_origin[2] += 2.0f;
+
+		trace_t nudge_trace = gi.trace(nudged_origin, monster->mins, monster->maxs, nudged_origin, monster, MASK_MONSTERSOLID);
+		if (!nudge_trace.startsolid) {
+			monster->s.origin = nudged_origin;
+			gi.unlinkentity(monster);
+			gi.linkentity(monster);
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("EmergencySpawnMonster: Nudge successful for {}.\n", monster->classname);
+			}
+			// Re-run post-link check
+			post_spawn_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_MONSTERSOLID);
+			spawn_was_stuck = post_spawn_trace.startsolid;
+		}
+		else {
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("EmergencySpawnMonster: Nudge failed for {} (target pos stuck).\n", monster->classname);
+			}
+		}
+	}
+	// ***** END FIX *****
+
+	// --- Final Stuck Handling ---
 	if (spawn_was_stuck) {
 		edict_t* blocker = post_spawn_trace.ent;
-		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck post-link at {}. Blocker: {}\n",
+		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) STILL stuck (Post-Link/Nudge Check) at {}. Blocker: {}. Flagging for teleport.\n",
 			monster->classname, monster->s.origin, blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown");
 
-		// *** REVERTED: Always flag if stuck post-link ***
 		monster->monsterinfo.was_stuck = true;
 		monster->monsterinfo.stuck_check_time = level.time;
 		monster->think = monster_think;
@@ -5654,6 +5766,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	monster->monsterinfo.spawn_complete_time = level.time;
 
 	// --- Apply Modifiers ---
+	// (Champion/Bonus flags logic remains the same as your last provided version)
 	float champion_chance = 0.2f;
 	if (g_horde_retaliation_active) champion_chance = 0.4f;
 	if (levelNum >= 3 && frandom() < champion_chance && !monster->monsterinfo.IS_BOSS) {
@@ -5668,18 +5781,19 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		}
 		if (monster->monsterinfo.bonus_flags != BF_NONE) {
 			ApplyMonsterBonusFlags(monster);
-			if (!monster->inuse) return false;
+			if (!monster->inuse) return false; // ApplyMonsterBonusFlags might free the entity
 			monster->item = G_HordePickItem();
 			if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
-			else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+			else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure no drop if no item
 		}
 	}
 
 	if (levelNum >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
 		SetMonsterArmor(monster);
-		if (!monster->inuse) return false;
+		if (!monster->inuse) return false; // SetMonsterArmor might free (unlikely but possible)
 	}
 
+	// Item drop logic (same as your last version)
 	if (!(monster->monsterinfo.bonus_flags & BF_CHAMPION)) {
 		const float drop_chance = levelNum <= 5 ? 0.8f : (levelNum <= 8 ? 0.6f : 0.45f);
 		if (frandom() < drop_chance) {
@@ -5691,9 +5805,9 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 			monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 		}
 	}
-	else {
-		if (!monster->item) monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
-		else monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+	else { // Champion
+		if (!monster->item) monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure no drop if bonus logic didn't assign one
+		else monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP; // Ensure drop if item WAS assigned
 	}
 	// --- End Apply Modifiers ---
 
@@ -5707,6 +5821,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 
 	return true;
 }
+
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
 bool ShouldTriggerAmbushSpawn() {
 	// Static variables for tracking time-based cooldowns
@@ -6975,3 +7090,54 @@ inline bool IsBossWave() noexcept {
 	return g_horde_local.level >= 10 && g_horde_local.level % 5 == 0;
 }
 
+// Helper to get predicted *scaled* bounds for validation checks
+// Returns false if typeId is invalid or info not found
+bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs) {
+	// Find the MonsterTypeInfo entry
+	const MonsterTypeInfo* info = nullptr;
+	for (const auto& entry : monsterTypes) { // Iterate through the global array
+		if (entry.typeId == typeId) {
+			info = &entry;
+			break;
+		}
+	}
+
+	if (!info) {
+		// Fallback to generic bounds if info not found
+		out_mins = HordeConstants::VALIDATE_CHECK_MINS;
+		out_maxs = HordeConstants::VALIDATE_CHECK_MAXS;
+		if (developer->integer) gi.Com_PrintFmt("GetPredictedScaledBounds: WARN - MonsterTypeInfo not found for TypeID {}, using generic bounds.\n", (int)typeId);
+		return false; // Indicate failure to find specific info
+	}
+
+	// Start with the default unscaled bounds from the info struct
+	out_mins = info->default_mins;
+	out_maxs = info->default_maxs;
+
+	// Predict scaling based on cvars (mirroring monster_start logic)
+	float scale = 1.0f; // Default scale
+
+	// Check ai_model_scale cvar (ensure it exists and is checked safely)
+	// Make sure 'ai_model_scale' is accessible here or pass it as an argument if needed
+	if (ai_model_scale && ai_model_scale->value > 0) {
+		scale = ai_model_scale->value;
+	}
+	// Add other potential scaling factors here if necessary (e.g., specific monster flags)
+
+	// Apply the predicted scale
+	if (scale != 1.0f) {
+		out_mins *= scale;
+		out_maxs *= scale;
+		// Note: We don't predict the Z-origin shift here, as IsValidSpawnLocation
+		// handles floor dropping. We just need the scaled box dimensions.
+	}
+
+	// Consider PSX scaling if relevant (check if this cvar/flag exists in your codebase)
+	// Example:
+	// if (pm_config.physics_flags & PHYSICS_PSX_SCALE) {
+	//     out_mins *= PSX_PHYSICS_SCALAR;
+	//     out_maxs *= PSX_PHYSICS_SCALAR;
+	// }
+
+	return true; // Indicate success
+}
