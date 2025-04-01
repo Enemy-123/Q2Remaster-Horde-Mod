@@ -72,27 +72,12 @@ enum class MonsterWaveType : uint32_t {
 
 extern MonsterWaveType current_wave_type;
 
+// Boss types
 enum class BossType {
-	CARRIER,
-	BOSS2,
-	BOSS2KL,
-	FIXBOTKL,
-	CARRIER_MINI,
-	TANK_64,
-	SHAMBLERKL,
-	GUNCMDRKL,
-	GUARDIAN,
-	PSX_GUARDIAN,
-	BOSS5,
-	WIDOW,
-	WIDOW2,
-	JORG,
-	MAKRONKL,
-	PSX_ARACHNID,
-	REDMUTANT,
-	OTHER
+	CARRIER, BOSS2, BOSS2KL, FIXBOTKL, CARRIER_MINI, TANK_64,
+	SHAMBLERKL, GUNCMDRKL, GUARDIAN, PSX_GUARDIAN, BOSS5,
+	WIDOW, WIDOW2, JORG, MAKRONKL, PSX_ARACHNID, REDMUTANT, OTHER
 };
-
 
 template<typename E>
 constexpr auto to_underlying(E e) noexcept {
