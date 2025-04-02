@@ -58,8 +58,10 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_gunner_vanilla 1;monster_gunner_vanilla 2;monster_janitor2 3;monster_infantry 3;monster_gunner 4;monster_gladiator 6";
-constexpr int32_t default_monster_slots_base = 3;
+constexpr const char* commander_reinforcements = "monster_gunner_vanilla 1;monster_gunner_vanilla 2;monster_janitor2 3;monster_infantry 3;monster_gunner 4;monster_gladiator 6";
+constexpr const char* default_reinforcements = "monster_gunner_vanilla 1;monster_gladiator 1;monster_gladb 1";
+constexpr int32_t commander_monster_slots_base = 3;
+constexpr int32_t default_monster_slots_base = 2;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
 
@@ -1870,10 +1872,10 @@ void SP_monster_medic(edict_t* self)
 		commander_sound_spawn.assign("medic_commander/monsterspawn1.wav");
 		gi.soundindex("tank/tnkatck3.wav");
 
-		const char* reinforcements = default_reinforcements;
+		const char* reinforcements = commander_reinforcements;
 
 		if (!st.was_key_specified("monster_slots"))
-			self->monsterinfo.monster_slots = default_monster_slots_base;
+			self->monsterinfo.monster_slots = commander_monster_slots_base;
 		if (st.was_key_specified("reinforcements"))
 			reinforcements = st.reinforcements;
 
@@ -1898,8 +1900,24 @@ void SP_monster_medic(edict_t* self)
 		sound_hook_heal.assign("medic/medatck4.wav");
 		sound_hook_retract.assign("medic/medatck5.wav");
 		gi.soundindex("medic/medatck1.wav");
+		commander_sound_spawn.assign("medic_commander/monsterspawn1.wav");
 
 		self->s.skinnum = 0;
+
+		const char* reinforcements = default_reinforcements;
+
+		if (!st.was_key_specified("monster_slots"))
+			self->monsterinfo.monster_slots = default_monster_slots_base;
+		if (st.was_key_specified("reinforcements"))
+			reinforcements = st.reinforcements;
+
+		if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
+		{
+			if (skill->integer)
+				self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
+
+			M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+		}
 	}
 	// pmm
 
