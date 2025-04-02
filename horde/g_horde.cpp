@@ -4863,7 +4863,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-	// --- Rate Limiting (Unchanged) ---
+	// --- Rate Limiting ---
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
 		HordeConstants::g_teleport_rate_count = 0;
 		HordeConstants::g_teleport_rate_reset_time = level.time;
@@ -4872,7 +4872,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) max_teleports++;
 	if (HordeConstants::g_teleport_rate_count >= max_teleports) return false;
 
-	// --- Basic Validation & Cooldowns (Unchanged) ---
+	// --- Basic Validation & Cooldowns ---
 	if (!self || !self->inuse || self->deadflag || level.intermissiontime || !g_horde->integer || self->monsterinfo.IS_BOSS) return false;
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) return false;
@@ -4883,7 +4883,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false; // Don't teleport immediately after spawning
 	}
 
-	// --- Jump Check (Unchanged) ---
+	// --- Jump Check ---
 	if (IsMonsterJumping(self)) {
 		if (self->monsterinfo.was_stuck) {
 			self->monsterinfo.was_stuck = false;
@@ -4895,7 +4895,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false;
 	}
 
-	// --- Stuck Detection Logic (Unchanged) ---
+	// --- Stuck Detection Logic ---
 	if (self->monsterinfo.issummoned || (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
 		if (self->monsterinfo.was_stuck) {
 			self->monsterinfo.was_stuck = false;
@@ -4944,7 +4944,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	if (!should_consider_teleport) return false;
 
-	// --- Find Suitable Teleport Destination (IMPROVED with NEAR PLAYER CHANCE) ---
+	// --- Find Suitable Teleport Destination (IMPROVED) ---
+	bool teleport_succeeded = false;
 	vec3_t final_teleport_origin = vec3_origin;
 	edict_t* chosen_spawn_point = nullptr; // Renamed for clarity
 	vec3_t predicted_mins, predicted_maxs;
@@ -4955,7 +4956,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	// --- Ensure spawn points are cached and shuffled ---
 	if (!g_spawn_points_cached || need_spawn_cache_reset) {
-		// Rebuild cache logic (same as before)
+		// Rebuild cache logic (same as in SpawnMonsters)
 		g_potential_spawn_points.clear();
 		g_potential_spawn_points.reserve(MAX_SPAWN_POINTS);
 		for (auto* point_entry : monster_spawn_points()) {
@@ -4997,15 +4998,14 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		points_checked++;
 		current_check_index = (current_check_index + 1) % g_potential_spawn_points.size(); // Cycle index for next iteration
 
-		if (!point || !point->inuse) continue;
+		if (!point) continue; // Null check here, before inuse check
 
-		// Check cooldowns and basic validity
+		// Check all conditions for this point
 		if (level.time < spawnPointsData[point].teleport_cooldown) continue;
-		if (IsSpawnPointOccupied(point, self)) continue; // Pass `self` to ignore the monster itself
+		if (IsSpawnPointOccupied(point, self)) continue;
 		bool is_flying_point = (point->style == 1);
-		if (is_flying && !is_flying_point) continue; // Flying monster needs flying point
-		if (!is_flying && is_flying_point) continue; // Ground monster needs ground point
-		if (IsPositionTooCloseToRecentTeleport(point->s.origin)) continue;
+		if (is_flying && !is_flying_point) continue;
+		if (!is_flying && is_flying_point) continue;
 
 		// Validate the location geometry
 		vec3_t candidate_pos = point->s.origin;
@@ -5078,8 +5078,9 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false; // Teleport failed
 	}
 
-	// --- Teleport Execution (if a point was chosen) ---
-	self->svflags |= SVF_NOCLIENT; gi.unlinkentity(self); // Hide
+	// --- Teleport Execution (Largely Unchanged) ---
+	if (teleport_succeeded) {
+		self->svflags |= SVF_NOCLIENT; gi.unlinkentity(self); // Hide
 
 	vec3_t old_origin = self->s.origin;
 	vec3_t old_velocity = self->velocity;
