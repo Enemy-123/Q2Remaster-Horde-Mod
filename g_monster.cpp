@@ -1269,9 +1269,8 @@ THINK(monster_think) (edict_t* self) -> void
 
 	// Agregar el chequeo de monstruo atascado
 	if (g_horde->integer)
-	CheckAndTeleportStuckMonster(self);
+		if (self) CheckAndTeleportStuckMonster(self); // Null check before calling CheckAndTeleportStuckMonster
 }
-
 /*
 ================
 monster_use
@@ -1789,7 +1788,7 @@ void monster_start_go(edict_t* self)
 			}
 		}
 		if (notcombat && self->combattarget)
-			gi.Com_PrintFmt("{}: has target with mixed types\n", *self);
+	//		gi.Com_PrintFmt("{}: has target with mixed types\n", *self, self->target);
 		if (fixup)
 			self->target = nullptr;
 	}
