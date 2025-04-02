@@ -1197,10 +1197,10 @@ extern const mmove_t brain_move_jump2;
 extern const mmove_t chick_move_jump;
 extern const mmove_t chick_move_jump2;
 
-// Gnorta (Assuming this is a custom monster or typo for another)
-extern const mmove_t gnorta_move_jump_straightup;
-extern const mmove_t gnorta_move_jump_up;
-extern const mmove_t gnorta_move_jump_down;
+//// Gnorta 
+//extern const mmove_t gnorta_move_jump_straightup;
+//extern const mmove_t gnorta_move_jump_up;
+//extern const mmove_t gnorta_move_jump_down;
 
 // Gun Commander
 extern const mmove_t guncmdr_move_jump;
@@ -1219,7 +1219,7 @@ extern const mmove_t infantry_move_jump;
 extern const mmove_t infantry_move_jump2;
 
 // Insane
-extern const mmove_t insane_move_jumpdown; // Assuming this involves a jump
+//extern const mmove_t insane_move_jumpdown; // Assuming this involves a jump
 
 // Mutant
 extern const mmove_t mutant_move_jump;
@@ -1276,10 +1276,10 @@ extern const mmove_t gekk_move_jump_down;
 		// Chick
 		current_move == &chick_move_jump ||
 		current_move == &chick_move_jump2 ||
-		// Gnorta (Assuming m_gnorta.h declares these)
-		current_move == &gnorta_move_jump_straightup ||
-		current_move == &gnorta_move_jump_up ||
-		current_move == &gnorta_move_jump_down ||
+		// Gnorta 
+		//current_move == &gnorta_move_jump_straightup ||
+		//current_move == &gnorta_move_jump_up ||
+		//current_move == &gnorta_move_jump_down ||
 		// Gun Commander
 		current_move == &guncmdr_move_jump ||
 		current_move == &guncmdr_move_jump2 ||
@@ -1293,7 +1293,7 @@ extern const mmove_t gekk_move_jump_down;
 		current_move == &infantry_move_jump ||
 		current_move == &infantry_move_jump2 ||
 		// Insane (Assuming m_insane.h declares this)
-		current_move == &insane_move_jumpdown ||
+		//current_move == &insane_move_jumpdown ||
 		// Mutant
 		current_move == &mutant_move_jump ||
 		current_move == &mutant_move_jump_up ||
@@ -1308,9 +1308,9 @@ extern const mmove_t gekk_move_jump_down;
 		// Runner Tank (Assuming m_runnertank.h declares these)
 		current_move == &runnertank_move_jump ||
 		current_move == &runnertank_move_jump2 ||
-		// Shocker (Assuming m_shocker.h declares these)
-		current_move == &shocker_move_jump ||
-		current_move == &shocker_move_jump2 ||
+		// Shocker 
+		//current_move == &shocker_move_jump ||
+		//current_move == &shocker_move_jump2 ||
 		// Soldier
 		current_move == &soldier_move_jump ||
 		current_move == &soldier_move_jump2 ||
