@@ -396,12 +396,18 @@ bool M_droptofloor_generic(vec3_t& origin, const vec3_t& mins, const vec3_t& max
 	trace_t trace;
 
 	// PGM
-	if (gi.trace(origin, mins, maxs, origin, ignore, mask).startsolid)
+	// Check if starting inside solid
+	trace_t initial_trace = gi.trace(origin, mins, maxs, origin, ignore, mask);
+	if (initial_trace.startsolid)
 	{
-		if (!ceiling)
-			origin[2] += 1;
-		else
-			origin[2] -= 1;
+		// Try nudging slightly away from solid
+		origin[2] += (ceiling ? -1.0f : 1.0f);
+		// Re-check if still inside solid after nudge
+		initial_trace = gi.trace(origin, mins, maxs, origin, ignore, mask);
+		if (initial_trace.startsolid) {
+			// Still stuck after nudge, drop failed
+			return false;
+		}
 	}
 
 	if (!ceiling)

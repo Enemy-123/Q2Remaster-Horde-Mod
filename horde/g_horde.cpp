@@ -5013,6 +5013,17 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f);
 
+		//// *** ADDED NUDGE *** ( will uncomment if im having issues again)
+		//if (!(self->flags & (FL_FLY | FL_SWIM))) {
+		//	vec3_t check_pos = self->s.origin;
+		//	check_pos.z += 0.1f; // Tiny nudge up
+		//	trace_t tr = gi.trace(self->s.origin, self->mins, self->maxs, check_pos, self, MASK_MONSTERSOLID);
+		//	if (!tr.startsolid) {
+		//		self->s.origin = tr.endpos; // Apply nudge if clear
+		//		gi.linkentity(self); // Relink after nudge
+		//	}
+		//} // *** END ADDED NUDGE ***
+
 		// Briefly pause AI to re-evaluate surroundings
 		self->monsterinfo.pausetime = level.time + 150_ms;
 		// Clear pathfinding goal
