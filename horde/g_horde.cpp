@@ -3304,8 +3304,7 @@ static item_id_t SelectBossWeaponDrop(int32_t wave_level) {
 	// Use a more robust random number generator if possible, otherwise fallback
 	// std::uniform_int_distribution<size_t> dist(0, eligible_weapons.size() - 1);
 	// size_t random_index = dist(mt_rand); // Requires <random> and mt_rand setup
-	size_t random_index = irandom(0, eligible_weapons.size() - 1); // Using irandom fallback
-
+	size_t random_index = irandom(eligible_weapons.size());
 	// Safety check (shouldn't be needed with correct random range)
 	if (random_index >= eligible_weapons.size()) {
 		return IT_NULL;
@@ -5450,7 +5449,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 	// --- Try Predefined Offsets (including directly above) ---
 	// Combine "above" offset with the predefined list and shuffle them (excluding index 0 which is "above")
 	constexpr size_t NUM_PREDEFINED_OFFSETS = HordeConstants::NUM_HORDE_ALT_POSITIONS + 1; // +1 for the "above" offset
-	std::array<vec3_t, NUM_PREDEFINED_OFFSETS> combined_offsets;
+	std::array<vec3_t, NUM_PREDEFINED_OFFSETS> combined_offsets{};
 	combined_offsets[0] = vec3_t{ 0, 0, 32 }; // "Above" offset first
 	std::copy(HordeConstants::horde_alternative_positions.begin(), HordeConstants::horde_alternative_positions.end(), combined_offsets.begin() + 1);
 
