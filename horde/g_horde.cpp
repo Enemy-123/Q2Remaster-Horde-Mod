@@ -4863,7 +4863,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-	// --- Rate Limiting (Unchanged) ---
+	// --- Rate Limiting ---
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
 		HordeConstants::g_teleport_rate_count = 0;
 		HordeConstants::g_teleport_rate_reset_time = level.time;
@@ -4872,7 +4872,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) max_teleports++;
 	if (HordeConstants::g_teleport_rate_count >= max_teleports) return false;
 
-	// --- Basic Validation & Cooldowns (Unchanged) ---
+	// --- Basic Validation & Cooldowns ---
 	if (!self || !self->inuse || self->deadflag || level.intermissiontime || !g_horde->integer || self->monsterinfo.IS_BOSS) return false;
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) return false;
@@ -4883,7 +4883,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false; // Don't teleport immediately after spawning
 	}
 
-	// --- Jump Check (Unchanged) ---
+	// --- Jump Check ---
 	if (IsMonsterJumping(self)) {
 		if (self->monsterinfo.was_stuck) {
 			self->monsterinfo.was_stuck = false;
@@ -4895,7 +4895,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false;
 	}
 
-	// --- Stuck Detection Logic (Unchanged) ---
+	// --- Stuck Detection Logic ---
 	if (self->monsterinfo.issummoned || (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
 		if (self->monsterinfo.was_stuck) {
 			self->monsterinfo.was_stuck = false;
@@ -4944,7 +4944,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	if (!should_consider_teleport) return false;
 
-	// --- Find Suitable Teleport Destination (IMPROVED) ---
+	// --- Find Suitable Teleport Destination (IMPROVED & Null Check) ---
 	bool teleport_succeeded = false;
 	vec3_t final_teleport_origin = vec3_origin;
 	edict_t* spawn_point_used = nullptr;
@@ -4957,7 +4957,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// --- IMPROVED: Iterate through shuffled points ONCE, checking all conditions ---
 	// Ensure spawn points are cached and shuffled
 	if (!g_spawn_points_cached || need_spawn_cache_reset) {
-		// Rebuild cache logic (same as in SpawnMonsters)
 		g_potential_spawn_points.clear();
 		g_potential_spawn_points.reserve(MAX_SPAWN_POINTS);
 		for (auto* point : monster_spawn_points()) {
@@ -4989,14 +4988,16 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		g_spawn_point_shuffle_index = (g_spawn_point_shuffle_index + 1) % g_potential_spawn_points.size(); // Cycle index
 		points_checked++;
 
-		if (!point || !point->inuse) continue;
+		if (!point) continue; // Null check here, before inuse check
 
-		// Check all conditions for this point
+		if (!point->inuse) continue;
+
+		// Check all conditions for this point (simplified conditions)
 		if (level.time < spawnPointsData[point].teleport_cooldown) continue;
 		if (IsSpawnPointOccupied(point, self)) continue;
+
 		bool is_flying_point = (point->style == 1);
-		if (is_flying && !is_flying_point) continue;
-		if (!is_flying && is_flying_point) continue;
+		if ((is_flying && !is_flying_point) || (!is_flying && is_flying_point)) continue; // Combined flying point check
 
 		bool too_close_to_player = false;
 		for (const auto* const player : active_players_no_spect()) {
@@ -5021,7 +5022,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	}
 	// --- END IMPROVED Destination Finding ---
 
-	// --- Teleport Execution (Largely Unchanged) ---
+	// --- Teleport Execution ---
 	if (teleport_succeeded) {
 		self->svflags |= SVF_NOCLIENT; gi.unlinkentity(self); // Hide
 
