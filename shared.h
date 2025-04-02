@@ -47,7 +47,7 @@ void UpdatePowerUpTimes(edict_t* monster);
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
 extern void check_target_healthbar(edict_t* self);
-extern void CheckForMonsterDeathsInSpawningState(edict_t* monster);
+extern void HandleSpawnPhaseAggression(edict_t* monster);
 extern void Monster_MoveSpawn(edict_t* self); 
 extern void ConfigureBossArmor(edict_t* self);
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);

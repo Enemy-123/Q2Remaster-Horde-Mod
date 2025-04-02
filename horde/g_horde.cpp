@@ -5186,7 +5186,7 @@ int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edi
 	return spawnedCount;
 }
 
-void CheckForMonsterDeathsInSpawningState(edict_t* monster) {
+void HandleSpawnPhaseAggression(edict_t* monster) {
 	if (!monster || !monster->inuse)
 		return;
 
