@@ -1181,3 +1181,146 @@ bool TeleportSelf(edict_t* ent)
 	return true;
 }
 
+
+// --- Extern Declarations for Monster Jump Moves ---
+
+// Berserk
+extern const mmove_t berserk_move_jump;
+extern const mmove_t berserk_move_jump2;
+
+// Brain
+extern const mmove_t brain_move_jumpattack; // Assuming this involves a jump
+extern const mmove_t brain_move_jump;
+extern const mmove_t brain_move_jump2;
+
+// Chick
+extern const mmove_t chick_move_jump;
+extern const mmove_t chick_move_jump2;
+
+// Gnorta (Assuming this is a custom monster or typo for another)
+extern const mmove_t gnorta_move_jump_straightup;
+extern const mmove_t gnorta_move_jump_up;
+extern const mmove_t gnorta_move_jump_down;
+
+// Gun Commander
+extern const mmove_t guncmdr_move_jump;
+extern const mmove_t guncmdr_move_jump2;
+
+// Gunner
+extern const mmove_t gunner_move_jump;
+extern const mmove_t gunner_move_jump2;
+
+// Gunner Vanilla
+extern const mmove_t gunner_vanilla_move_jump;
+extern const mmove_t gunner_vanilla_move_jump2;
+
+// Infantry
+extern const mmove_t infantry_move_jump;
+extern const mmove_t infantry_move_jump2;
+
+// Insane
+extern const mmove_t insane_move_jumpdown; // Assuming this involves a jump
+
+// Mutant
+extern const mmove_t mutant_move_jump;
+extern const mmove_t mutant_move_jump_up;
+extern const mmove_t mutant_move_jump_down;
+
+// Parasite
+extern const mmove_t parasite_move_jump_up;
+extern const mmove_t parasite_move_jump_down;
+
+// Red Mutant
+extern const mmove_t redmutant_move_jump;
+extern const mmove_t redmutant_move_jump_up;
+extern const mmove_t redmutant_move_jump_down;
+
+// Runner Tank
+extern const mmove_t runnertank_move_jump;
+extern const mmove_t runnertank_move_jump2;
+
+// Shocker
+extern const mmove_t shocker_move_jump;
+extern const mmove_t shocker_move_jump2;
+
+// Soldier
+extern const mmove_t soldier_move_jump;
+extern const mmove_t soldier_move_jump2;
+
+// Stalker
+extern const mmove_t stalker_move_jump_straightup;
+extern const mmove_t stalker_move_jump_up;
+extern const mmove_t stalker_move_jump_down;
+
+// Gekk
+extern const mmove_t gekk_move_jump_up;
+extern const mmove_t gekk_move_jump_down;
+
+// --- End Extern Declarations ---
+
+[[nodiscard]] bool IsMonsterJumping(const edict_t* self) {
+	if (!self || !self->monsterinfo.active_move) {
+		return false;
+	}
+
+	// Compare against known jump animation move pointers from various monsters
+	const auto current_move = self->monsterinfo.active_move;
+	return (
+		// Berserk
+		current_move == &berserk_move_jump ||
+		current_move == &berserk_move_jump2 ||
+		// Brain
+		current_move == &brain_move_jumpattack || // Assuming this is a jump
+		current_move == &brain_move_jump ||
+		current_move == &brain_move_jump2 ||
+		// Chick
+		current_move == &chick_move_jump ||
+		current_move == &chick_move_jump2 ||
+		// Gnorta (Assuming m_gnorta.h declares these)
+		current_move == &gnorta_move_jump_straightup ||
+		current_move == &gnorta_move_jump_up ||
+		current_move == &gnorta_move_jump_down ||
+		// Gun Commander
+		current_move == &guncmdr_move_jump ||
+		current_move == &guncmdr_move_jump2 ||
+		// Gunner
+		current_move == &gunner_move_jump ||
+		current_move == &gunner_move_jump2 ||
+		// Gunner Vanilla
+		current_move == &gunner_vanilla_move_jump ||
+		current_move == &gunner_vanilla_move_jump2 ||
+		// Infantry
+		current_move == &infantry_move_jump ||
+		current_move == &infantry_move_jump2 ||
+		// Insane (Assuming m_insane.h declares this)
+		current_move == &insane_move_jumpdown ||
+		// Mutant
+		current_move == &mutant_move_jump ||
+		current_move == &mutant_move_jump_up ||
+		current_move == &mutant_move_jump_down ||
+		// Parasite
+		current_move == &parasite_move_jump_up ||
+		current_move == &parasite_move_jump_down ||
+		// Red Mutant
+		current_move == &redmutant_move_jump ||
+		current_move == &redmutant_move_jump_up ||
+		current_move == &redmutant_move_jump_down ||
+		// Runner Tank (Assuming m_runnertank.h declares these)
+		current_move == &runnertank_move_jump ||
+		current_move == &runnertank_move_jump2 ||
+		// Shocker (Assuming m_shocker.h declares these)
+		current_move == &shocker_move_jump ||
+		current_move == &shocker_move_jump2 ||
+		// Soldier
+		current_move == &soldier_move_jump ||
+		current_move == &soldier_move_jump2 ||
+		// Stalker
+		current_move == &stalker_move_jump_straightup ||
+		current_move == &stalker_move_jump_up ||
+		current_move == &stalker_move_jump_down ||
+		// Gekk (Assuming m_xatrix_gekk.h declares these)
+		current_move == &gekk_move_jump_up ||
+		current_move == &gekk_move_jump_down
+		// Add any other monster jump moves here if they exist
+		);
+}

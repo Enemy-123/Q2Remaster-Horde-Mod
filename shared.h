@@ -88,4 +88,5 @@ extern bool CTFCheckTimeExtensionVote();
 extern void ClearHordeMessage();
 bool IsPlayerDefense(const edict_t* ent);
 extern void StartFadeOut(edict_t* ent);
+extern [[nodiscard]] bool IsMonsterJumping(const edict_t* self);
 #endif // SHARED_H

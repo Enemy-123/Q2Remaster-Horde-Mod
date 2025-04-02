@@ -4880,7 +4880,24 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false; // Don't teleport immediately after spawning
 	}
 
-	// --- Stuck Detection Logic (Unchanged) ---
+	// *** MODIFIED SECTION: Check if monster is actively jumping ***
+	if (IsMonsterJumping(self)) {
+		// If it's jumping, it's not stuck in the traditional sense.
+		// Reset stuck timer if it was previously flagged but is now jumping.
+		if (self->monsterinfo.was_stuck) {
+			self->monsterinfo.was_stuck = false;
+			self->monsterinfo.stuck_check_time = 0_sec;
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} is jumping, resetting stuck flag.\n", self->classname);
+			}
+		}
+		// Don't teleport jumping monsters.
+		return false;
+	}
+	// *** END MODIFIED SECTION ***
+
+
+	// --- Stuck Detection Logic (Largely Unchanged, but now runs *after* jump check) ---
 	if (self->monsterinfo.issummoned || (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
 		if (self->monsterinfo.was_stuck) { // Clear stuck flag if now visible/attacking
 			self->monsterinfo.was_stuck = false;
@@ -4929,12 +4946,10 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	if (!should_consider_teleport) return false;
 
-	// --- REMOVED: use_player_teleport logic ---
-
-	// --- NEW: Find Suitable Teleport Destination ---
+	// --- Find Suitable Teleport Destination (Unchanged) ---
 	bool teleport_succeeded = false;
 	vec3_t final_teleport_origin = vec3_origin;
-	edict_t* spawn_point_used = nullptr; // Use edict_t* here
+	edict_t* spawn_point_used = nullptr;
 	vec3_t predicted_mins, predicted_maxs;
 	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
 		// Fallback handled inside
@@ -4998,7 +5013,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->velocity = vec3_origin; // Stop movement
 
 		// --- Final Sanity Check (Optional but good) ---
-		// Check if somehow stuck *after* moving, before making visible
 		trace_t final_trace = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
 		if (final_trace.startsolid) {
 			if (developer->integer) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: WARNING - Teleport destination {} became stuck after move! Reverting.\n", self->s.origin);
@@ -5024,7 +5038,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->groundentity = nullptr;
 			constexpr float STALKER_SPAWN_ELEVATION = 16.0f;
 			self->s.origin[2] += STALKER_SPAWN_ELEVATION; // Try to ensure it's above ground
-			// Re-check if elevated position is stuck (optional but good)
 			trace_t stalker_check = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
 			if (stalker_check.startsolid && developer->integer) {
 				gi.Com_PrintFmt("Stalker teleport FIX WARNING: Elevated position {} is still stuck!\n", self->s.origin);
@@ -5038,17 +5051,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		// Effects and Cooldowns
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0); // Use regular spawn sound
 		SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f);
-
-		//// *** ADDED NUDGE *** ( will uncomment if im having issues again)
-//if (!(self->flags & (FL_FLY | FL_SWIM))) {
-//	vec3_t check_pos = self->s.origin;
-//	check_pos.z += 0.1f; // Tiny nudge up
-//	trace_t tr = gi.trace(self->s.origin, self->mins, self->maxs, check_pos, self, MASK_MONSTERSOLID);
-//	if (!tr.startsolid) {
-//		self->s.origin = tr.endpos; // Apply nudge if clear
-//		gi.linkentity(self); // Relink after nudge
-//	}
-//} // *** END ADDED NUDGE ***
 
 		self->monsterinfo.pausetime = level.time + 150_ms; // Briefly pause AI
 		self->goalentity = nullptr; // Clear pathfinding
@@ -5071,7 +5073,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	else {
 		// Teleport failed (no suitable point found)
 		if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Failed to find any suitable teleport destination for {}.\n", self->classname);
-		// Don't make visible again if it wasn't hidden, or link if not unlinked
 	}
 
 	// Reset stuck state regardless of success/failure for this attempt
@@ -5080,7 +5081,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	return teleport_succeeded;
 }
-
+// --- END CheckAndTeleportStuckMonster ---
+// 
 // Function to track created entities
 void OnEntityCreated(edict_t* ent) {
 	if (!ent || !ent->inuse)
