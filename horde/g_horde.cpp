@@ -354,7 +354,7 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	cache.was_occupied_by_player = false;
 	cache.has_obstacle = false;
 
-	// Define bounding box for the check
+	// Define bounding box for the check - use static const for efficiency
 	static const vec3_t mins_scale = vec3_t{ 16, 16, 24 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
 	static const vec3_t maxs_scale = vec3_t{ 16, 16, 32 }.scaled(vec3_t{ 1.75f, 1.75f, 1.75f });
 	const vec3_t spawn_mins = spawn_point->s.origin - mins_scale;
@@ -413,7 +413,6 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	// to decide if alternative positions should be tried.
 	return cache.was_occupied_by_player;
 }
-
 // --- Corrected SelectRandomSpawnPoint ---
 template <typename TFilter>
 edict_t* SelectRandomSpawnPoint(TFilter filter) {
@@ -4142,14 +4141,14 @@ void ResetGame() {
 
 	// --- LaserManager Cleanup (Using delete) ---
 	for (size_t i = 0; i < game.maxclients; ++i) {
-		// Check game.clients directly
+		// Check game.clients directly and ensure pointer is not null before deleting
 		if (game.clients[i].laser_manager) {
-			// Delete the PlayerLaserManager object directly
-			delete game.clients[i].laser_manager;
-			game.clients[i].laser_manager = nullptr; // Clear pointer
 			if (developer && developer->integer > 1) {
 				gi.Com_PrintFmt("Cleaned up PlayerLaserManager for client slot {} during ResetGame\n", i);
 			}
+			// Delete the PlayerLaserManager object directly
+			delete game.clients[i].laser_manager;
+			game.clients[i].laser_manager = nullptr; // Clear pointer
 		}
 		// No need for fallback check via edict_t, game.clients is authoritative here
 	}
@@ -4200,12 +4199,12 @@ void ResetGame() {
 	g_horde_local.update_map_size(GetCurrentMapName());
 
 	gi.cvar_set("bot_pause", "0");
+	gi.cvar_set("cheats", "0");
 	if (g_chaotic) gi.cvar_set("g_chaotic", "0");
 	if (g_insane) gi.cvar_set("g_insane", "0");
 	if (g_hardcoop) gi.cvar_set("g_hardcoop", "0");
 	if (dm_monsters) gi.cvar_set("dm_monsters", "0");
 	if (timelimit) gi.cvar_set("timelimit", "60");
-	gi.cvar_set("cheats", "0");
 	if (ai_damage_scale) gi.cvar_set("ai_damage_scale", "1");
 	if (ai_allow_dm_spawn) gi.cvar_set("ai_allow_dm_spawn", "1");
 	if (g_damage_scale) gi.cvar_set("g_damage_scale", "1");
@@ -4793,73 +4792,90 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 // --- IsValidSpawnLocation Function ---
 [[nodiscard]] bool IsValidSpawnLocation(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying) {
 	constexpr contents_t GEOMETRY_MASK = MASK_SOLID;
-	constexpr float Z_EPSILON = 1.5f;
+	constexpr float Z_EPSILON = 1.75f; // Small vertical offset after dropping
 
+	// 1. Initial Point Contents Check
 	int initial_contents = gi.pointcontents(io_position);
 	if (initial_contents & MASK_SOLID) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
 		return false;
 	}
+	// Only check for liquid if not flying/swimming (assuming swimming monsters handle water)
 	if (!is_flying && (initial_contents & MASK_WATER)) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
 		return false;
 	}
 
+	// 2. Initial Volume Check (World Geometry Only)
 	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 	if (trace.startsolid || trace.allsolid) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial solid volume check (MASK_SOLID) at {}\n", io_position);
 		return false;
 	}
 
+	// 3. Drop to Floor (for non-flying units)
 	if (!is_flying) {
+		// Check for void below first
 		vec3_t ground_check_end = io_position;
 		constexpr float GROUND_CHECK_DISTANCE = 1024.0f;
 		ground_check_end.z -= GROUND_CHECK_DISTANCE;
 		trace_t ground_trace = gi.trace(io_position, monster_mins, monster_maxs, ground_check_end, nullptr, GEOMETRY_MASK);
 
 		if (ground_trace.startsolid) {
+			// This case is less likely if step 2 passed, but check anyway
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}\n", io_position);
 			return false;
 		}
 		if (ground_trace.fraction == 1.0f) {
+			// No solid ground found below
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
 			return false;
 		}
 
-		vec3_t original_pos = io_position;
+		// Attempt to drop the position to the floor
+		vec3_t original_pos = io_position; // Store original in case drop fails
 		if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false)) {
-			io_position = original_pos;
+			// M_droptofloor failed to find a valid spot
+			io_position = original_pos; // Restore original position
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
 			return false;
 		}
+
+		// Apply small vertical offset after successful drop
 		io_position.z += Z_EPSILON;
 
+		// Re-check volume at the dropped position
 		trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 		if (trace.startsolid || trace.allsolid) {
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
-			io_position = original_pos;
+			io_position = original_pos; // Restore original position
 			return false;
 		}
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z (after epsilon): {:.2f}.\n", io_position.z);
-	}
+	} // End if (!is_flying)
 
+	// 4. Final Volume Check (World Geometry) - Redundant if step 3 ran and succeeded, but harmless
 	trace_t final_world_check = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 	if (final_world_check.startsolid || final_world_check.allsolid) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL world geometry check at {}.\n", io_position);
 		return false;
 	}
 
+	// 5. Final Volume Check (Entities - Players, Monsters, Defenses)
+	// Slightly expand the check box horizontally for safety
 	const vec3_t entity_check_mins = monster_mins - vec3_t{ 2, 2, 0 };
 	const vec3_t entity_check_maxs = monster_maxs + vec3_t{ 2, 2, 0 };
 	FilterData final_entity_check_data = { nullptr, 0 };
 	const vec3_t check_mins = io_position + entity_check_mins;
 	const vec3_t check_maxs = io_position + entity_check_maxs;
+
 	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check_data);
 	if (final_entity_check_data.count > 0) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL entity occupation check at validated position {}\n", io_position);
 		return false;
 	}
 
+	// If all checks passed
 	if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
 	return true;
 }
@@ -5143,9 +5159,9 @@ int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edi
 	int spawnedCount = 0;
 
 	if (developer->integer) {
-		std::string target_name = target_player ? GetPlayerName(target_player) : "None";
+		std::string target_name = GetPlayerName(target_player); // Use helper
 		gi.Com_PrintFmt("HORDE: Attempting Retaliation Ambush (Size: {}). Target: {}\n",
-			ambushSize, target_name.c_str()); // Use fetched name
+			ambushSize, target_name.c_str());
 	}
 
 	for (int i = 0; i < ambushSize; ++i) {
@@ -5159,21 +5175,27 @@ int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edi
 
 			// Use FindEmergencySpawnPosition to get a spot *near* the target
 			if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, monster_typeId)) {
-				// *** FIXED CALL: Pass 4th argument (true by default) ***
+				// SpawnMonsterByTypeID returns the edict_t* on success
 				monster = SpawnMonsterByTypeID(monster_typeId, emergency_origin, emergency_angles, true);
 			}
 		}
 
 		// --- Fallback to general emergency spawn if targeting failed or no target ---
 		if (!monster) {
-			// *** FIXED CALL: Check return value directly ***
+			// EmergencySpawnMonster returns bool
 			if (EmergencySpawnMonster(waveLevel, monster_typeId)) {
 				spawnedCount++; // Count success
-				// Update counters (same as before)
+				// Update counters
 				if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
 				else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters;
-				if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
-				// Note: Can't easily apply champion logic here yet as EmergencySpawnMonster doesn't return edict_t*
+				// Check for overflow before incrementing g_totalMonstersInWave
+				if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+					++g_totalMonstersInWave;
+				}
+				else if (developer->integer) {
+					gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnRetaliationAmbush (Emergency).\n");
+				}
+				// Note: Can't easily apply champion logic here as EmergencySpawnMonster doesn't return edict_t*
 				continue; // Skip champion logic for emergency fallback
 			}
 			else {
@@ -5189,10 +5211,16 @@ int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edi
 		// This block now only executes if the targeted spawn near player succeeded
 		if (monster && monster->inuse) {
 			spawnedCount++;
-			// Update counters (same as before)
+			// Update counters
 			if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
 			else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters;
-			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
+			// Check for overflow before incrementing g_totalMonstersInWave
+			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+				++g_totalMonstersInWave;
+			}
+			else if (developer->integer) {
+				gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnRetaliationAmbush (Targeted).\n");
+			}
 
 			// Apply HIGH champion chance
 			float champ_chance_ambush = 0.5f + (frandom() * 0.3f);
@@ -5244,7 +5272,7 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 			// Use a temporary variable to potentially show the count even if retaliation doesn't trigger yet
 			std::string killer_name = "Unknown"; // Default if enemy isn't a player
 			if (monster->enemy && monster->enemy->client) {
-				killer_name = GetPlayerName(monster->enemy);
+				killer_name = GetPlayerName(monster->enemy); // Use helper
 			}
 			gi.Com_PrintFmt("Monster killed during spawning state by {} ({} total recent)\n", killer_name.c_str(), spawn_state_deaths);
 		}
@@ -5282,15 +5310,11 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 					}
 				}
 
-				// *** MODIFICATION IS HERE ***
 				if (developer->integer) {
-					// Call GetPlayerName and use .c_str() for the C-style string format function expects
-					std::string target_player_name = GetPlayerName(g_horde_retaliation_target_player);
+					std::string target_player_name = GetPlayerName(g_horde_retaliation_target_player); // Use helper
 					gi.Com_PrintFmt("HORDE: Retaliation Mode Activated for 10s (Target: {}). Triggered by rapid kills during spawning.\n",
-						target_player_name.c_str()); // Use the result from GetPlayerName
+						target_player_name.c_str());
 				}
-				// *** END OF MODIFICATION ***
-
 
 				// Trigger the immediate mini-ambush
 				SpawnRetaliationAmbush(g_horde_local.current_map_size, g_horde_local.level, g_horde_retaliation_target_player);
@@ -5372,86 +5396,118 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 	bool is_flying = IsFlying(typeId);
 	vec3_t predicted_mins, predicted_maxs;
 	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
-		// Fallback handled inside
+		// Fallback handled inside GetPredictedScaledBounds
 	}
 
-	constexpr size_t NUM_PREDEFINED_OFFSETS = HordeConstants::NUM_HORDE_ALT_POSITIONS + 1;
+	// --- Try Predefined Offsets (including directly above) ---
+	// Combine "above" offset with the predefined list and shuffle them (excluding index 0 which is "above")
+	constexpr size_t NUM_PREDEFINED_OFFSETS = HordeConstants::NUM_HORDE_ALT_POSITIONS + 1; // +1 for the "above" offset
 	std::array<vec3_t, NUM_PREDEFINED_OFFSETS> combined_offsets;
-	combined_offsets[0] = vec3_t{ 0, 0, 32 };
+	combined_offsets[0] = vec3_t{ 0, 0, 32 }; // "Above" offset first
 	std::copy(HordeConstants::horde_alternative_positions.begin(), HordeConstants::horde_alternative_positions.end(), combined_offsets.begin() + 1);
-	for (size_t i = combined_offsets.size() - 1; i > 1; --i) { size_t j = irandom(1, i); if (i != j) std::swap(combined_offsets[i], combined_offsets[j]); }
+
+	// Shuffle the predefined offsets (indices 1 to end) for less predictability
+	for (size_t i = combined_offsets.size() - 1; i > 1; --i) { // Shuffle indices 1..N-1
+		size_t j = irandom(1, i); // Random index between 1 and i (inclusive)
+		if (i != j) {
+			std::swap(combined_offsets[i], combined_offsets[j]);
+		}
+	}
 
 	for (const auto& offset : combined_offsets) {
 		vec3_t candidate_pos = base_origin + offset;
-		vec3_t validated_pos = candidate_pos;
+		vec3_t validated_pos = candidate_pos; // Copy for IsValidSpawnLocation
 
-		if (offset != vec3_t{ 0, 0, 32 }) {
+		// Check Line-of-Sight from base origin to candidate (skip for "above" offset)
+		if (offset != vec3_t{ 0, 0, 32 }) { // Don't check LOS for straight up
 			trace_t trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-			if (trace.fraction < 0.9f) {
+			if (trace.fraction < 0.9f) { // Require mostly clear LOS
 				if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined offset {} blocked by LOS.\n", offset);
 				continue;
 			}
 		}
 
+		// Check if the location itself is valid (geometry, floor, etc.)
 		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+			// Check proximity to recent spawns
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
-				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
+				// Final check: Ensure no entities (player/monster/defense) are at the validated spot
+				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID); // Check world geometry again just in case
 				FilterData final_entity_check = { nullptr, 0 };
 				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
 
 				if (!final_check.startsolid && final_entity_check.count == 0) {
+					// Success!
 					final_origin = validated_pos;
-					final_angles = base_angles;
+					final_angles = base_angles; // Start with base angles
+					// Adjust Yaw to face away from the offset direction (relative to base)
 					if (offset.x != 0.0f || offset.y != 0.0f) {
 						final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
 					}
-					MarkPositionAsRecentlyUsed(final_origin);
+					MarkPositionAsRecentlyUsed(final_origin); // Mark this specific spot
 					if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using predefined/above offset (Final Pos: {}).\n", final_origin);
 					return true;
 				}
-				else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} failed final solid/entity check.\n", validated_pos);
+				else if (developer->integer > 2) {
+					gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} failed final solid/entity check.\n", validated_pos);
+				}
 			}
-			else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+			else if (developer->integer > 2) {
+				gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+			}
 		}
+		// If IsValidSpawnLocation failed or other checks failed, continue to next offset
 	}
 
+	// --- Try Radial Offsets ---
 	constexpr int RADIAL_ATTEMPTS = 20;
 	constexpr float MIN_RADIUS = 40.0f;
-	constexpr float MAX_RADIUS = 200.0f;
+	constexpr float MAX_RADIUS = 200.0f; // Increased max radius slightly
 
 	for (int i = 0; i < RADIAL_ATTEMPTS; ++i) {
 		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
-		float angle = frandom() * 2.0f * PI;
-		vec3_t offset = { cosf(angle) * radius, sinf(angle) * radius, frandom(-8.0f, 24.0f) };
+		float angle = frandom() * 2.0f * PI; // Full circle
+		vec3_t offset = { cosf(angle) * radius, sinf(angle) * radius, frandom(-8.0f, 24.0f) }; // Random Z offset
 		vec3_t candidate_pos = base_origin + offset;
-		vec3_t validated_pos = candidate_pos;
+		vec3_t validated_pos = candidate_pos; // Copy for IsValidSpawnLocation
 
+		// Check Line-of-Sight from base origin to candidate
 		trace_t trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-		if (trace.fraction < 0.8f) {
+		if (trace.fraction < 0.8f) { // Slightly more lenient LOS check for radial
 			if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} blocked by LOS.\n", offset);
 			continue;
 		}
 
+		// Check if the location itself is valid
 		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+			// Check proximity to recent spawns
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
+				// Final check: Ensure no entities are at the validated spot
 				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
 				FilterData final_entity_check = { nullptr, 0 };
 				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
 
 				if (!final_check.startsolid && final_entity_check.count == 0) {
+					// Success!
 					final_origin = validated_pos;
-					final_angles = base_angles;
-					final_angles[YAW] = angle * (180.0f / PI);
-					MarkPositionAsRecentlyUsed(final_origin);
+					final_angles = base_angles; // Start with base angles
+					final_angles[YAW] = angle * (180.0f / PI); // Set Yaw to face direction of offset
+					MarkPositionAsRecentlyUsed(final_origin); // Mark this specific spot
 					if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using radial offset (Final Pos: {}).\n", final_origin);
 					return true;
 				}
-				else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} failed final solid/entity check.\n", validated_pos);
+				else if (developer->integer > 2) {
+					gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} failed final solid/entity check.\n", validated_pos);
+				}
 			}
-			else if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+			else if (developer->integer > 2) {
+				gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+			}
 		}
+		// If IsValidSpawnLocation failed or other checks failed, continue to next attempt
 	}
 
+	// If all attempts failed
 	if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Failed for point {}.\n", (int)(spawn_point - g_edicts));
 	return false;
 }
@@ -5470,10 +5526,11 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	bool used_human_player = false;
 	vec3_t predicted_mins, predicted_maxs;
 	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
-		// Fallback handled inside
+		// Fallback handled inside GetPredictedScaledBounds
 	}
 	bool is_flying = IsFlying(typeId);
 
+	// Find a suitable position near a player
 	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}\n", static_cast<int>(typeId));
@@ -5481,15 +5538,18 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		return false;
 	}
 
-	vec3_t final_valid_pos = emergency_origin;
+	// Validate the found position again using IsValidSpawnLocation
+	vec3_t final_valid_pos = emergency_origin; // Copy before validation potentially modifies it
 	if (!IsValidSpawnLocation(final_valid_pos, predicted_mins, predicted_maxs, is_flying)) {
 		if (developer->integer) {
+			// Use {} for vec3_t formatting
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position {} found by FindEmergency failed final IsValidSpawnLocation.\n", emergency_origin);
 		}
 		return false;
 	}
-	emergency_origin = final_valid_pos;
+	emergency_origin = final_valid_pos; // Use the validated (potentially adjusted) position
 
+	// Create the base monster entity
 	edict_t* monster = CreateBaseHordeMonster(typeId, emergency_origin, emergency_angles);
 	if (!monster) {
 		if (developer->integer) {
@@ -5498,23 +5558,28 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		return false;
 	}
 
+	// Set classname and position again (redundant but safe)
 	monster->classname = monster_classname;
 	monster->s.origin = emergency_origin;
 	monster->s.angles = emergency_angles;
 
-	monster->solid = SOLID_NOT;
+	// Call the spawn function
+	monster->solid = SOLID_NOT; // Temporarily non-solid for spawn function
 	ED_CallSpawn(monster);
 
+	// Check if spawn function freed the entity
 	if (!monster->inuse) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: ED_CallSpawn failed for {}\n", monster_classname);
 		}
-		return false;
+		return false; // Entity was freed during spawn
 	}
 
+	// Restore solidity and link
 	monster->solid = SOLID_BBOX;
 	gi.linkentity(monster);
 
+	// Post-link stuck check
 	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
 		monster->s.origin, monster, MASK_MONSTERSOLID);
 	bool spawn_was_stuck = post_link_trace.startsolid;
@@ -5522,9 +5587,12 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	if (spawn_was_stuck) {
 		if (!monster->monsterinfo.was_stuck) {
 			edict_t* blocker = post_link_trace.ent;
-			if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck (Post-Link Check ONLY) at {}. Blocker: {}. Flagging for teleport.\n",
-				monster->classname, monster->s.origin, blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown");
-
+			if (developer->integer) {
+				// Use {} for vec3_t formatting and check blocker->classname
+				gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck (Post-Link Check ONLY) at {}. Blocker: {}. Flagging for teleport.\n",
+					monster->classname, monster->s.origin,
+					blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown");
+			}
 			monster->monsterinfo.was_stuck = true;
 			monster->monsterinfo.stuck_check_time = level.time;
 			// Let monster_think handle the teleport check after grace period
@@ -5537,32 +5605,35 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	monster->monsterinfo.spawn_complete_time = level.time;
 	OnEntityCreated(monster); // Track creation
 
+	// Apply bonuses (Champion, Armor, Item Drop)
 	float champion_chance = 0.2f;
-	if (g_horde_retaliation_active) champion_chance = 0.4f;
+	if (g_horde_retaliation_active) champion_chance = 0.4f; // Higher chance during retaliation
 	if (levelNum >= 3 && frandom() < champion_chance && !monster->monsterinfo.IS_BOSS) {
-		int flag_type = irandom(0, 5);
+		int flag_type = irandom(0, 5); // Random bonus type
 		switch (flag_type) {
 		case 0: monster->monsterinfo.bonus_flags |= BF_CHAMPION; break;
 		case 1: monster->monsterinfo.bonus_flags |= BF_CORRUPTED; break;
 		case 2: monster->monsterinfo.bonus_flags |= BF_BERSERKING; break;
 		case 3: monster->monsterinfo.bonus_flags |= BF_POSSESSED; break;
 		case 4: monster->monsterinfo.bonus_flags |= BF_STYGIAN; break;
-		default: break;
+		default: break; // Should not happen
 		}
 		if (monster->monsterinfo.bonus_flags != BF_NONE) {
 			ApplyMonsterBonusFlags(monster);
-			if (!monster->inuse) return false;
+			if (!monster->inuse) return false; // Monster might be freed by bonus application
 			monster->item = G_HordePickItem();
 			if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
-			else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+			else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure flag set if no item
 		}
 	}
 
+	// Apply armor if applicable and not already set
 	if (levelNum >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
 		SetMonsterArmor(monster);
-		if (!monster->inuse) return false;
+		if (!monster->inuse) return false; // Monster might be freed
 	}
 
+	// Set item drop chance (if not champion)
 	if (!(monster->monsterinfo.bonus_flags & BF_CHAMPION)) {
 		const float drop_chance = levelNum <= 5 ? 0.8f : (levelNum <= 8 ? 0.6f : 0.45f);
 		if (frandom() < drop_chance) {
@@ -5574,13 +5645,22 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 			monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 		}
 	}
-	else {
+	else { // Ensure champion drop flag matches item presence
 		if (!monster->item) monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 		else monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
 	}
 
+	// Apply spawn effects
 	SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 	gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+
+	// Increment total monster count for the wave (with overflow check)
+	if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+		g_totalMonstersInWave++;
+	}
+	else if (developer->integer) {
+		gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in EmergencySpawnMonster.\n");
+	}
 
 	if (developer->integer) {
 		gi.Com_PrintFmt("EMERGENCY SPAWN SUCCESSFUL: Spawned {} at emergency position\n",
@@ -5719,7 +5799,7 @@ int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 	const int MAX_TOTAL_ITERATIONS = 100;
 
 	// Spawn ambush monsters
-	for (int i = 0; i < ambushSize && consecutive_failures < MAX_FAILURES_PER_POSITION; i++) {
+	for (int i = 0; i < ambushSize && consecutive_failures < MAX_FAILURES_PER_POSITION; /* i incremented below */) {
 		// Add safety check to prevent infinite loops
 		if (safety_counter++ > MAX_TOTAL_ITERATIONS) {
 			gi.Com_PrintFmt("WARNING: Emergency spawn safety limit reached in SpawnAmbushMonsters\n");
@@ -5752,15 +5832,20 @@ int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 				--g_horde_local.queued_monsters;
 			}
 
-			// Update total monsters counter
+			// Update total monsters counter (with overflow check)
 			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
 				++g_totalMonstersInWave;
 			}
+			else if (developer->integer) {
+				gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnAmbushMonsters.\n");
+			}
+			i++; // Increment loop counter ONLY on successful spawn attempt
 		}
 		else {
 			// Track failures to avoid getting stuck in endless attempts
 			consecutive_failures++;
 			last_failed_spawn_time = level.time; // Record time of failure
+			// Do NOT increment 'i' here, we retry for the same monster index
 		}
 	}
 
@@ -5944,8 +6029,7 @@ edict_t* SpawnMonsters() {
 				// Decrement counters correctly
 				if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
 				else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters; // Should not happen if num_to_spawn was > 0, but safe check
-				// Increment total wave count
-				if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
+				// Increment total wave count (overflow check inside EmergencySpawnMonster)
 				last_spawned_this_call = nullptr; // Emergency spawn doesn't return the edict easily
 			}
 			else {
@@ -6099,68 +6183,81 @@ edict_t* SpawnMonsters() {
 				if (found_valid_spot) {
 					edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
 					if (monster) {
-						spawn_successful_for_this_monster = true;
-						last_spawned_this_call = monster;
-						spawned_count_this_call++;
-						// Decrement counters
-						if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
-						// Increment total wave count
-						if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
+						bool monster_still_valid = true; // Flag to track monster validity
 
 						// --- Apply Bonuses and Effects ---
 						bool is_champion = false;
-						// Champion check (only if not already spawned this wave and cooldown allows)
-						if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) {
+						// Champion check
+						if (monster_still_valid && currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) {
 							monster->monsterinfo.bonus_flags |= BF_CHAMPION;
 							ApplyMonsterBonusFlags(monster);
-							// ** GOTO JUMP POINT **
-							if (!monster->inuse) { spawn_successful_for_this_monster = false; goto skip_invalid_monster_processing; } // Monster became invalid
-							monster->item = G_HordePickItem();
-							if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
-							else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure flag set if no item
-							champion_spawned_this_wave = true;
-							champion_spawn_cooldown = irandom(15, 25); // Cooldown until next *possible* champion
-							gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster).c_str());
-							is_champion = true;
+							if (!monster->inuse) { monster_still_valid = false; } // Check validity
+							else {
+								monster->item = G_HordePickItem();
+								if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+								else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+								champion_spawned_this_wave = true;
+								champion_spawn_cooldown = irandom(15, 25);
+								gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster).c_str());
+								is_champion = true;
+							}
 						}
-						// Regular item drop check (if not champion)
-						if (!is_champion) {
+						// Regular item drop check
+						if (monster_still_valid && !is_champion) {
 							const float drop_chance = currentLevel <= 5 ? 0.8f : (currentLevel <= 8 ? 0.6f : 0.45f);
 							if (frandom() < drop_chance) {
 								monster->item = G_HordePickItem();
-								// ** GOTO JUMP POINT **
-								if (!monster->inuse) { spawn_successful_for_this_monster = false; goto skip_invalid_monster_processing; } // Monster became invalid
-								if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
-								else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+								if (!monster->inuse) { monster_still_valid = false; } // Check validity
+								else {
+									if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+									else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+								}
 							}
 							else {
 								monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 							}
 						}
 						// Armor check
-						if (currentLevel >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
+						if (monster_still_valid && currentLevel >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
 							SetMonsterArmor(monster);
-							// ** GOTO JUMP POINT **
-							if (!monster->inuse) { spawn_successful_for_this_monster = false; goto skip_invalid_monster_processing; } // Monster became invalid
+							if (!monster->inuse) { monster_still_valid = false; } // Check validity
 						}
 
-						// Spawn effects (only if monster is still valid)
-						SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-						gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+						// --- Final Processing (only if monster is still valid) ---
+						if (monster_still_valid) {
+							spawn_successful_for_this_monster = true;
+							last_spawned_this_call = monster;
+							spawned_count_this_call++;
+							// Decrement counters
+							if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
+							// Increment total wave count (with overflow check)
+							if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+								++g_totalMonstersInWave;
+							}
+							else if (developer->integer) {
+								gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnMonsters.\n");
+							}
 
-						// Label for the goto jump
-					skip_invalid_monster_processing:;
+							// Spawn effects
+							SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+							gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
-						// Final processing only if spawn was truly successful
-						if (spawn_successful_for_this_monster) {
+							// Update spawn point data and trackers
 							if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
-							else OnSuccessfulSpawn(spawn_point); // Mark success for the spawn point
-							horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type, level.time); // Track last spawn time for this type
-							g_consecutive_spawn_failures = 0; // Reset failure counter
-							g_recovery_mode_active = false; // Exit recovery mode
-							current_wave_type = g_original_wave_type_before_recovery; // Restore original wave type
+							else OnSuccessfulSpawn(spawn_point);
+							horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type, level.time);
+							g_consecutive_spawn_failures = 0;
+							g_recovery_mode_active = false;
+							current_wave_type = g_original_wave_type_before_recovery;
 						}
-						break; // Break inner loop (found a spot and spawned/handled)
+						else {
+							// Monster became invalid during bonus application
+							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Monster {} became invalid during bonus/effect application.\n", monster->classname ? monster->classname : "Unknown");
+							// Don't count this as a successful spawn, but don't necessarily penalize the point heavily unless it happens often
+							g_consecutive_spawn_failures++; // Increment failure count as the spawn didn't fully succeed
+						}
+
+						break; // Break inner loop (processed this monster attempt)
 
 					}
 					else {
