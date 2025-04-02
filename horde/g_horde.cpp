@@ -4132,20 +4132,18 @@ void ResetGame() {
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
-	// --- LaserManager Cleanup (Using delete) ---
+	// --- MODIFIED: LaserManager Cleanup (Using unique_ptr::reset) ---
 	for (size_t i = 0; i < game.maxclients; ++i) {
-		// Check game.clients directly and ensure pointer is not null before deleting
+		// Check if the unique_ptr holds an object before trying to reset
 		if (game.clients[i].laser_manager) {
 			if (developer && developer->integer > 1) {
-				gi.Com_PrintFmt("Cleaned up PlayerLaserManager for client slot {} during ResetGame\n", i);
+				gi.Com_PrintFmt("Resetting PlayerLaserManager for client slot {} during ResetGame\n", i);
 			}
-			// Delete the PlayerLaserManager object directly
-			delete game.clients[i].laser_manager;
-			game.clients[i].laser_manager = nullptr; // Clear pointer
+			// reset() deletes the managed object and sets the unique_ptr to null
+			game.clients[i].laser_manager.reset();
 		}
-		// No need for fallback check via edict_t, game.clients is authoritative here
 	}
-	// --- End LaserManager Cleanup ---
+	// --- END MODIFIED ---
 
 	std::fill(g_recent_spawn_positions.begin(), g_recent_spawn_positions.end(), RecentSpawnPosition{});
 	g_recent_position_index = 0;

@@ -3224,16 +3224,17 @@ void ClientDisconnect(edict_t* ent)
 	// ROGUE
 	//============
 
-		// --- LaserManager Cleanup (Using delete) ---
+
+	// --- MODIFIED: LaserManager Cleanup (Using unique_ptr::reset) ---
 	if (ent->client && ent->client->laser_manager) {
-		// Delete the PlayerLaserManager object directly
-		delete ent->client->laser_manager;
-		ent->client->laser_manager = nullptr; // Clear pointer
+		// reset() deletes the managed object and sets the unique_ptr to null
+		ent->client->laser_manager.reset();
 		if (developer && developer->integer > 1) {
-			gi.Com_PrintFmt("Cleaned up PlayerLaserManager for disconnecting client {}\n", (int)(ent - g_edicts));
+			gi.Com_PrintFmt("Reset PlayerLaserManager for disconnecting client {}\n", (int)(ent - g_edicts));
 		}
 	}
-	// --- End LaserManager Cleanup ---
+	// --- END MODIFIED ---
+
 
 	// --- Remaining Disconnect Logic ---
 	// send effect
@@ -3467,15 +3468,14 @@ static void HandleInactivePlayer(edict_t* ent) {
 
 	ent->client->resp.inactive = true; // Mark as inactive
 
-	// --- LaserManager Cleanup (Using delete) ---
+	// --- MODIFIED: LaserManager Cleanup (Using unique_ptr::reset) ---
 	if (ent->client && ent->client->laser_manager) {
-		// Delete the PlayerLaserManager object directly
-		delete ent->client->laser_manager;
-		ent->client->laser_manager = nullptr; // Clear pointer
+		ent->client->laser_manager.reset(); // Reset the unique_ptr
 		if (developer && developer->integer > 1) {
-			gi.Com_PrintFmt("Cleaned up PlayerLaserManager for inactive client {}\n", (int)(ent - g_edicts));
+			gi.Com_PrintFmt("Reset PlayerLaserManager for inactive client {}\n", (int)(ent - g_edicts));
 		}
 	}
+	// --- END MODIFIED ---
 
 	// Additional cleanup that might happen when going spectator:
 	ent->client->ps.gunindex = 0; // Hide weapon model

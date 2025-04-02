@@ -147,7 +147,8 @@ namespace LaserHelpers {
 
     PlayerLaserManager* get_laser_manager(edict_t* ent) {
         if (!ent || !ent->client) return nullptr;
-        return ent->client->laser_manager;
+        // Use .get() to return the raw pointer managed by the unique_ptr
+        return ent->client->laser_manager.get();
     }
 
     [[nodiscard]] static float get_angle_between_vectors(const vec3_t& v1, const vec3_t& v2) {
@@ -430,6 +431,7 @@ THINK(emitter_think)(edict_t* self) -> void {
 
 // create_laser: Handles the command/action to create a new laser
 void create_laser(edict_t* ent) {
+    // --- Initial Checks (Remain the same) ---
     if (!ent || !ent->client) return;
 
     if (!g_horde || !g_horde->integer) {
@@ -441,19 +443,38 @@ void create_laser(edict_t* ent) {
         return;
     }
 
-    // Initialize the manager directly if needed
+    // --- Lazy Initialization with unique_ptr ---
+    // Initialize the manager directly if needed using make_unique
     if (!ent->client->laser_manager) {
-        ent->client->laser_manager = new PlayerLaserManager(ent);
+        try {
+            // Use std::make_unique for exception safety and conciseness
+            ent->client->laser_manager = std::make_unique<PlayerLaserManager>(ent);
+            if (developer && developer->integer > 1) {
+                gi.Com_PrintFmt("Allocated PlayerLaserManager for client {}\n", (int)(ent - g_edicts));
+            }
+        }
+        catch (const std::bad_alloc& e) {
+            // Handle allocation failure gracefully
+            gi.Com_PrintFmt("ERROR: Failed to allocate PlayerLaserManager: %s\n", e.what());
+            // Ensure the unique_ptr is null after a failed allocation attempt
+            ent->client->laser_manager = nullptr;
+            return; // Cannot proceed without the manager
+        }
+        // Check again after make_unique in case it returned null (though unlikely with standard make_unique)
         if (!ent->client->laser_manager) {
-            gi.Com_Print("Error: Failed to allocate memory for PlayerLaserManager\n");
+            gi.Com_Print("Error: PlayerLaserManager allocation resulted in null pointer.\n");
             return;
         }
-        if (developer && developer->integer > 1) {
-            gi.Com_PrintFmt("Allocated PlayerLaserManager for client {}\n", (int)(ent - g_edicts));
-        }
     }
+    // --- End Lazy Initialization ---
 
-    PlayerLaserManager* manager = ent->client->laser_manager;
+    // Get the raw pointer from the unique_ptr for use within this function scope
+    // .get() returns the managed pointer without transferring ownership.
+    PlayerLaserManager* manager = ent->client->laser_manager.get();
+
+    // --- Subsequent Checks (Use the raw pointer 'manager') ---
+    // Check if the manager pointer is valid (it should be after the block above)
+    // and if the player can add more lasers.
     if (!manager || !manager->can_add_laser()) {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
         return;
@@ -464,6 +485,7 @@ void create_laser(edict_t* ent) {
         return;
     }
 
+    // --- Trace and Geometry Checks (Remain the same) ---
     vec3_t forward, right;
     AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
     vec3_t const offset{ 0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f };
@@ -476,6 +498,7 @@ void create_laser(edict_t* ent) {
         return;
     }
 
+    // --- Spawn Laser Components (Remain the same) ---
     edict_t* laser = G_Spawn();
     edict_t* grenade = G_Spawn(); // Emitter
     edict_t* flare = G_Spawn();
@@ -488,7 +511,7 @@ void create_laser(edict_t* ent) {
         return;
     }
 
-    // --- Configure Grenade (Emitter) FIRST ---
+    // --- Configure Grenade (Emitter) FIRST (Remains the same) ---
     grenade->classname = "emitter";
     grenade->s.origin = tr.endpos;
     grenade->s.angles = vectoangles(tr.plane.normal);
@@ -515,7 +538,7 @@ void create_laser(edict_t* ent) {
     else if (ent->client->resp.ctf_team == CTF_TEAM2) grenade->team = TEAM2;
     else grenade->team = "neutral";
 
-    // --- Configure Laser (Beam) ---
+    // --- Configure Laser (Beam) (Remains the same) ---
     laser->classname = "laser";
     laser->movetype = MOVETYPE_NONE;
     laser->solid = SOLID_NOT;
@@ -546,7 +569,7 @@ void create_laser(edict_t* ent) {
     laser->s.frame = (laser->health < 1) ? 0 : (laser->health >= 1000) ? 4 : 2;
 
 
-    // --- Configure Flare ---
+    // --- Configure Flare (Remains the same) ---
     flare->classname = "misc_flare";
     flare->s.origin = tr.endpos;
     flare->s.angles = { 90, 0, 0 };
@@ -557,15 +580,15 @@ void create_laser(edict_t* ent) {
     st.radius = 0.5f;
     ED_CallSpawn(flare, st);
 
-    // Link entities
+    // --- Link Entities (Remains the same) ---
     gi.linkentity(grenade); // Link emitter first
     gi.linkentity(laser);   // Then beam
     if (flare->inuse) gi.linkentity(flare); // Then flare if valid
 
-    // Update player state
+    // --- Update Player State (Remains the same) ---
     ent->client->pers.inventory[IT_AMMO_CELLS] -= LaserConstants::LASER_COST;
 
-    // Add to manager
+    // --- Add to Manager (Use the raw pointer 'manager') ---
     manager->add_laser(grenade, laser);
     gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n",
         manager->get_active_count(), LaserConstants::MAX_LASERS);

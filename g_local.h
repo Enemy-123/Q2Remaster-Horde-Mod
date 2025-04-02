@@ -3221,7 +3221,7 @@ struct gclient_t
 	bool ir_tracking_active; //horde tracking
 	int ir_frame_count;
 
-	PlayerLaserManager* laser_manager;  // In gclient_t
+	std::unique_ptr<PlayerLaserManager> laser_manager;  // In gclient_t
 };
 
 // ==========================================
