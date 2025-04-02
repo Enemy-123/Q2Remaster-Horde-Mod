@@ -171,7 +171,7 @@ void HordeUpdateJoinMenu(edict_t* ent)
 
 		// Update the player count display entry
 		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text, "$g_pc_playercount", sizeof(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text));
-		// *** THE FIX IS HERE *** Remove the sizeof argument
+		// *** FIX: Removed the sizeof argument from G_FmtTo ***
 		G_FmtTo(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1, "{}", horde_player_count);
 
 	}
@@ -350,21 +350,24 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 	// Use the new indices defined above (or hardcode the updated numbers)
 	switch (option) {
 	case MAP_CAT_MENU_BIG_IDX: // Big Maps (Now 4)
-		categorized_maps.current_category = horde::MapSize{ false, false, true };
+		// *** FIX: Set category correctly for Big Maps ***
+		categorized_maps.current_category = horde::MapSize{ false, true, false }; // {isSmall=false, isBig=true, isMedium=false}
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu(); // Update vote menu data based on new category
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Open the map list
 		break;
 
 	case MAP_CAT_MENU_MEDIUM_IDX: // Medium Maps (Now 5)
-		categorized_maps.current_category = horde::MapSize{ false, true, false };
+		// *** FIX: Set category correctly for Medium Maps ***
+		categorized_maps.current_category = horde::MapSize{ false, false, true }; // {isSmall=false, isBig=false, isMedium=true}
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 		break;
 
 	case MAP_CAT_MENU_SMALL_IDX: // Small Maps (Now 6)
-		categorized_maps.current_category = horde::MapSize{ true, false, false };
+		// This one was already correct
+		categorized_maps.current_category = horde::MapSize{ true, false, false }; // {isSmall=true, isBig=false, isMedium=false}
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
@@ -383,8 +386,7 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		// Menu already closed
 		break;
 	}
-}
-// Opens the map category selection menu
+}// Opens the map category selection menu
 // Opens the map category selection menu
 void OpenMapCategoryMenu(edict_t* ent) {
 	if (!ent || !ent->client) {
@@ -778,14 +780,14 @@ void HordeMenu_SentryChoice(edict_t* ent, pmenuhnd_t* p) {
 	int current_choice = static_cast<int>(ent->client->pers.sentry_gun_choice);
 	current_choice = (current_choice + 1) % SENTRY_TYPE_COUNT;
 	ent->client->pers.sentry_gun_choice = static_cast<sentrytype_t>(current_choice);
-	ent->client->resp.sentry_gun_choice = static_cast<sentrytype_t>(current_choice); // <<< ADD THIS LINE
+	ent->client->resp.sentry_gun_choice = static_cast<sentrytype_t>(current_choice); // Persist choice
 
 	// Inform the player
 	gi.LocCenter_Print(ent, "Sentrygun Type set to: {}\n", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
 
 	// Update the menu display immediately by reopening THE MISC MENU
-	// PMenu_Close(ent); // OpenMiscMenu implicitly closes the current menu
-	OpenMiscMenu(ent); // <--- THIS SHOULD CALL OpenMiscMenu
+	// PMenu_Close is handled by OpenMiscMenu
+	OpenMiscMenu(ent); // Reopen the Misc menu to show the updated choice
 }
 
 // Handler for the Misc submenu

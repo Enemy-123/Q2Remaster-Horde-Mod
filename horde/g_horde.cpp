@@ -972,6 +972,7 @@ struct WaveScalingCache {
 		}
 	}
 } g_waveScalingCache;
+
 void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	using namespace HordeConstants;
 
@@ -2252,9 +2253,8 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 			continue;
 		}
 
-		// --- CORRECTED CHECK ---
-		// Skip if this TypeID is in the recent bosses list using the ID directly
-		if (recent_bosses.contains(bossTypeId)) { // <-- Use contains(MonsterTypeID)
+		// --- CORRECTED CHECK: Use contains(MonsterTypeID) ---
+		if (recent_bosses.contains(bossTypeId)) {
 			continue;
 		}
 		// --- END CORRECTION ---
@@ -2277,14 +2277,8 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 
 		// Combined weight adjustment with fewer branches
 		if (waveNumber >= boss->min_level && boss->min_level != -1) {
-			// Boost if within ideal level range
-			if (waveNumber <= boss->min_level + 5) {
-				weight *= 1.3f;
-			}
-			// Reduce if well beyond ideal level
-			else if (waveNumber > boss->min_level + 10) {
-				weight *= 0.8f;
-			}
+			if (waveNumber <= boss->min_level + 5) weight *= 1.3f;
+			else if (waveNumber > boss->min_level + 10) weight *= 0.8f;
 		}
 
 		// Apply difficulty adjustment in one check
@@ -2380,9 +2374,8 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 	// Get selected boss
 	const boss_t* chosen_boss = weightedBosses[left].boss;
 	if (chosen_boss) {
-		// --- CORRECTED ADD ---
-		// Add to recent bosses using the MonsterTypeID directly
-		recent_bosses.add(chosen_boss->typeId); // <-- Use add(MonsterTypeID)
+		// --- CORRECTED ADD: Use add(MonsterTypeID) ---
+		recent_bosses.add(chosen_boss->typeId);
 		// --- END CORRECTION ---
 
 		// Set boss size category for the entity
@@ -3444,6 +3437,7 @@ void BossDeathHandler(edict_t* boss) {
 	// Setting solid/takedamage might interfere with death animations
 	gi.linkentity(boss); // Re-link just in case state needs update
 }
+
 void boss_die(edict_t* boss) {
 	if (!boss || !boss->inuse || !g_horde->integer ||
 		!boss->monsterinfo.IS_BOSS || boss->health > 0 ||
@@ -4800,7 +4794,6 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
 		return false;
 	}
-	// Only check for liquid if not flying/swimming (assuming swimming monsters handle water)
 	if (!is_flying && (initial_contents & MASK_WATER)) {
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
 		return false;
@@ -4814,6 +4807,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	}
 
 	// 3. Drop to Floor (for non-flying units)
+	vec3_t original_pos = io_position; // Store original in case drop fails or no drop needed
 	if (!is_flying) {
 		// Check for void below first
 		vec3_t ground_check_end = io_position;
@@ -4822,29 +4816,23 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 		trace_t ground_trace = gi.trace(io_position, monster_mins, monster_maxs, ground_check_end, nullptr, GEOMETRY_MASK);
 
 		if (ground_trace.startsolid) {
-			// This case is less likely if step 2 passed, but check anyway
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}\n", io_position);
 			return false;
 		}
 		if (ground_trace.fraction == 1.0f) {
-			// No solid ground found below
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
 			return false;
 		}
 
 		// Attempt to drop the position to the floor
-		vec3_t original_pos = io_position; // Store original in case drop fails
 		if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false)) {
-			// M_droptofloor failed to find a valid spot
 			io_position = original_pos; // Restore original position
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
 			return false;
 		}
+		io_position.z += Z_EPSILON; // Apply small vertical offset after successful drop
 
-		// Apply small vertical offset after successful drop
-		io_position.z += Z_EPSILON;
-
-		// Re-check volume at the dropped position
+		// Re-check volume at the dropped position (only needed if dropped)
 		trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 		if (trace.startsolid || trace.allsolid) {
 			if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
@@ -4852,16 +4840,10 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 			return false;
 		}
 		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z (after epsilon): {:.2f}.\n", io_position.z);
-	} // End if (!is_flying)
-
-	// 4. Final Volume Check (World Geometry) - Redundant if step 3 ran and succeeded, but harmless
-	trace_t final_world_check = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
-	if (final_world_check.startsolid || final_world_check.allsolid) {
-		if (developer->integer > 2) gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL world geometry check at {}.\n", io_position);
-		return false;
 	}
+	// If flying, io_position remains unchanged from original_pos here
 
-	// 5. Final Volume Check (Entities - Players, Monsters, Defenses)
+	// 4. Final Volume Check (Entities - Players, Monsters, Defenses)
 	// Slightly expand the check box horizontally for safety
 	const vec3_t entity_check_mins = monster_mins - vec3_t{ 2, 2, 0 };
 	const vec3_t entity_check_maxs = monster_maxs + vec3_t{ 2, 2, 0 };
@@ -4901,10 +4883,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false; // Don't teleport immediately after spawning
 	}
 
-	// *** MODIFIED SECTION: Check if monster is actively jumping ***
+	// --- Jump Check (Unchanged) ---
 	if (IsMonsterJumping(self)) {
-		// If it's jumping, it's not stuck in the traditional sense.
-		// Reset stuck timer if it was previously flagged but is now jumping.
 		if (self->monsterinfo.was_stuck) {
 			self->monsterinfo.was_stuck = false;
 			self->monsterinfo.stuck_check_time = 0_sec;
@@ -4912,34 +4892,31 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 				gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} is jumping, resetting stuck flag.\n", self->classname);
 			}
 		}
-		// Don't teleport jumping monsters.
 		return false;
 	}
-	// *** END MODIFIED SECTION ***
 
-
-	// --- Stuck Detection Logic (Largely Unchanged, but now runs *after* jump check) ---
+	// --- Stuck Detection Logic (Unchanged) ---
 	if (self->monsterinfo.issummoned || (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
-		if (self->monsterinfo.was_stuck) { // Clear stuck flag if now visible/attacking
+		if (self->monsterinfo.was_stuck) {
 			self->monsterinfo.was_stuck = false;
 			self->monsterinfo.stuck_check_time = 0_sec;
 		}
-		return false; // Don't teleport if actively engaged or summoned
+		return false;
 	}
 
 	bool should_consider_teleport = false;
 	bool currently_stuck = false;
-	if (!self->waterlevel) { // Don't teleport out of water this way
+	if (!self->waterlevel) {
 		contents_t check_mask = G_GetClipMask(self);
 		currently_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
 
 		if (currently_stuck && !self->monsterinfo.was_stuck) {
 			self->monsterinfo.was_stuck = true;
 			self->monsterinfo.stuck_check_time = level.time;
-			return false; // Start timer, don't teleport yet
+			return false;
 		}
 		if (!currently_stuck && self->monsterinfo.was_stuck) {
-			self->monsterinfo.was_stuck = false; // No longer stuck
+			self->monsterinfo.was_stuck = false;
 			self->monsterinfo.stuck_check_time = 0_sec;
 			return false;
 		}
@@ -4948,26 +4925,26 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		const bool stuck_timer_expired = self->monsterinfo.was_stuck && (level.time >= self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME);
 
 		if (no_damage_timeout || stuck_timer_expired) {
-			if (currently_stuck || no_damage_timeout) { // Teleport if stuck timer expired OR hasn't taken damage in a long time
+			if (currently_stuck || no_damage_timeout) {
 				should_consider_teleport = true;
 			}
-			else { // Stuck timer expired but not actually stuck anymore
+			else {
 				self->monsterinfo.was_stuck = false;
 				self->monsterinfo.stuck_check_time = 0_sec;
 				return false;
 			}
 		}
 		else {
-			return false; // Not time yet
+			return false;
 		}
 	}
 	else {
-		return false; // In water, don't teleport
+		return false;
 	}
 
 	if (!should_consider_teleport) return false;
 
-	// --- Find Suitable Teleport Destination (Unchanged) ---
+	// --- Find Suitable Teleport Destination (IMPROVED) ---
 	bool teleport_succeeded = false;
 	vec3_t final_teleport_origin = vec3_origin;
 	edict_t* spawn_point_used = nullptr;
@@ -4977,22 +4954,50 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	}
 	bool is_flying = (self->flags & FL_FLY);
 
-	// Iterate through the shuffled global list of potential spawn points
-	for (edict_t* point : g_potential_spawn_points) {
-		if (!point || !point->inuse) continue; // Basic check
+	// --- IMPROVED: Iterate through shuffled points ONCE, checking all conditions ---
+	// Ensure spawn points are cached and shuffled
+	if (!g_spawn_points_cached || need_spawn_cache_reset) {
+		// Rebuild cache logic (same as in SpawnMonsters)
+		g_potential_spawn_points.clear();
+		g_potential_spawn_points.reserve(MAX_SPAWN_POINTS);
+		for (auto* point : monster_spawn_points()) {
+			if (point && point->inuse && point->classname && strcmp(point->classname, "info_player_deathmatch") == 0 && is_valid_vector(point->s.origin)) {
+				g_potential_spawn_points.push_back(point);
+			}
+		}
+		if (!g_potential_spawn_points.empty()) {
+			for (size_t i = g_potential_spawn_points.size() - 1; i > 0; --i) {
+				size_t j = irandom(0, i);
+				if (i != j) std::swap(g_potential_spawn_points[i], g_potential_spawn_points[j]);
+			}
+		}
+		g_spawn_point_shuffle_index = 0;
+		g_spawn_points_cached = true;
+		need_spawn_cache_reset = false;
+	}
 
-		// 1. Check Teleport Cooldown for the *point*
+	if (g_potential_spawn_points.empty()) {
+		if (developer->integer) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: No potential spawn points found.\n");
+		return false; // Cannot teleport if no points exist
+	}
+
+	// Iterate through the shuffled list, starting from the current index
+	size_t start_idx = g_spawn_point_shuffle_index;
+	size_t points_checked = 0;
+	while (points_checked < g_potential_spawn_points.size()) {
+		edict_t* point = g_potential_spawn_points[g_spawn_point_shuffle_index];
+		g_spawn_point_shuffle_index = (g_spawn_point_shuffle_index + 1) % g_potential_spawn_points.size(); // Cycle index
+		points_checked++;
+
+		if (!point || !point->inuse) continue;
+
+		// Check all conditions for this point
 		if (level.time < spawnPointsData[point].teleport_cooldown) continue;
-
-		// 2. Check Occupation
-		if (IsSpawnPointOccupied(point, self)) continue; // Ignore self when checking occupation
-
-		// 3. Check Flying Compatibility
+		if (IsSpawnPointOccupied(point, self)) continue;
 		bool is_flying_point = (point->style == 1);
-		if (is_flying && !is_flying_point) continue; // Flying monster needs flying point (optional, could allow ground)
-		if (!is_flying && is_flying_point) continue; // Ground monster needs ground point
+		if (is_flying && !is_flying_point) continue;
+		if (!is_flying && is_flying_point) continue;
 
-		// 4. Check Distance from Players (NEW)
 		bool too_close_to_player = false;
 		for (const auto* const player : active_players_no_spect()) {
 			if ((point->s.origin - player->s.origin).lengthSquared() < HordeConstants::MIN_TELEPORT_PLAYER_DIST_SQ) {
@@ -5002,53 +5007,42 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		}
 		if (too_close_to_player) continue;
 
-		// 5. Check Distance from Recent Teleports
 		if (IsPositionTooCloseToRecentTeleport(point->s.origin)) continue;
 
-		// 6. Validate the Location Geometry
+		// Validate the Location Geometry
 		vec3_t candidate_pos = point->s.origin;
 		if (IsValidSpawnLocation(candidate_pos, predicted_mins, predicted_maxs, is_flying)) {
-			// Found a suitable point!
-			spawn_point_used = point; // Store the chosen point
-			final_teleport_origin = candidate_pos; // Use the validated position
+			spawn_point_used = point;
+			final_teleport_origin = candidate_pos;
 			teleport_succeeded = true;
 			if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Found suitable teleport point {} at {} for {}.\n", (int)(spawn_point_used - g_edicts), final_teleport_origin, self->classname);
-			break; // Stop searching
+			break; // Found a suitable point, stop searching
 		}
-		// If IsValidSpawnLocation failed, continue to the next point
 	}
-	// --- End NEW Destination Finding ---
+	// --- END IMPROVED Destination Finding ---
 
-
-	// --- Teleport Execution (Largely Unchanged, uses results from above) ---
+	// --- Teleport Execution (Largely Unchanged) ---
 	if (teleport_succeeded) {
 		self->svflags |= SVF_NOCLIENT; gi.unlinkentity(self); // Hide
 
-		// Store old state in case of final check failure (though unlikely now)
 		vec3_t old_origin = self->s.origin;
 		vec3_t old_velocity = self->velocity;
 
-		// Move the monster
 		self->s.origin = final_teleport_origin;
-		self->s.old_origin = final_teleport_origin; // Sync old_origin
-		self->velocity = vec3_origin; // Stop movement
+		self->s.old_origin = final_teleport_origin;
+		self->velocity = vec3_origin;
 
-		// --- Final Sanity Check (Optional but good) ---
 		trace_t final_trace = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
 		if (final_trace.startsolid) {
 			if (developer->integer) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: WARNING - Teleport destination {} became stuck after move! Reverting.\n", self->s.origin);
-			// Revert position
 			self->s.origin = old_origin;
 			self->s.old_origin = old_origin;
 			self->velocity = old_velocity;
-			self->svflags &= ~SVF_NOCLIENT; // Make visible again
+			self->svflags &= ~SVF_NOCLIENT;
 			gi.linkentity(self);
-			return false; // Teleport failed
+			return false;
 		}
-		// --- End Final Sanity Check ---
 
-
-		// Stalker specific ground fix (Unchanged)
 		if (typeId == horde::MonsterTypeID::STALKER) {
 			self->gravityVector = { 0, 0, -1 };
 			self->s.angles[ROLL] = 0;
@@ -5058,32 +5052,28 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			}
 			self->groundentity = nullptr;
 			constexpr float STALKER_SPAWN_ELEVATION = 16.0f;
-			self->s.origin[2] += STALKER_SPAWN_ELEVATION; // Try to ensure it's above ground
+			self->s.origin[2] += STALKER_SPAWN_ELEVATION;
 			trace_t stalker_check = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
 			if (stalker_check.startsolid && developer->integer) {
 				gi.Com_PrintFmt("Stalker teleport FIX WARNING: Elevated position {} is still stuck!\n", self->s.origin);
 			}
 		}
 
-		// Make visible and link
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
 
-		// Effects and Cooldowns
-		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0); // Use regular spawn sound
+		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f);
 
-		self->monsterinfo.pausetime = level.time + 150_ms; // Briefly pause AI
-		self->goalentity = nullptr; // Clear pathfinding
-		self->monsterinfo.react_to_damage_time = level.time; // Reset damage timer
-		// Set monster's *own* cooldown
+		self->monsterinfo.pausetime = level.time + 150_ms;
+		self->goalentity = nullptr;
+		self->monsterinfo.react_to_damage_time = level.time;
 		self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
-		HordeConstants::g_teleport_rate_count++; // Increment global rate counter
-		MarkPositionAsRecentlyTeleported(final_teleport_origin); // Add to recent history
+		HordeConstants::g_teleport_rate_count++;
+		MarkPositionAsRecentlyTeleported(final_teleport_origin);
 
-		// Apply cooldown to the *spawn point* that was used
-		if (spawn_point_used) { // Check if a point was actually found and used
+		if (spawn_point_used) {
 			const gtime_t spawn_point_cooldown_duration = std::max(
 				HordeConstants::BASE_SPAWN_TELEPORT_COOLDOWN,
 				HordeConstants::MIN_SPAWN_TELEPORT_COOLDOWN
@@ -5092,16 +5082,15 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		}
 	}
 	else {
-		// Teleport failed (no suitable point found)
 		if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Failed to find any suitable teleport destination for {}.\n", self->classname);
 	}
 
-	// Reset stuck state regardless of success/failure for this attempt
 	self->monsterinfo.was_stuck = false;
 	self->monsterinfo.stuck_check_time = 0_sec;
 
 	return teleport_succeeded;
 }
+
 // --- END CheckAndTeleportStuckMonster ---
 // 
 // Function to track created entities

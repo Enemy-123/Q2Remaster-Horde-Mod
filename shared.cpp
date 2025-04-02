@@ -162,7 +162,8 @@ float M_DamageModifier(edict_t* monster) noexcept {
 		else if (monster->monsterinfo.double_time > level.time)
 			modifier = 1.5f;  // Reduced from 2.0 to 1.5
 
-		monster->monsterinfo.damage_modifier_applied = false;
+		// *** FIX: Resetting the flag here was incorrect. It should be reset *after* use. ***
+		// monster->monsterinfo.damage_modifier_applied = false; // REMOVED
 		return modifier;
 	}
 
@@ -175,8 +176,8 @@ float M_DamageModifier(edict_t* monster) noexcept {
 	else if (monster->monsterinfo.double_time > level.time)
 		modifier = 2.0f;
 
-	// Reset the flag for next time - this ensures modifiers are always applied
-	monster->monsterinfo.damage_modifier_applied = false;
+	// *** FIX: Resetting the flag here was incorrect. It should be reset *after* use. ***
+	// monster->monsterinfo.damage_modifier_applied = false; // REMOVED
 
 	return modifier;
 }
@@ -237,10 +238,11 @@ void InitializeDisplayNames() {
 	// Convert to TypeID and use fast array lookup
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(classname);
 	if (typeId != horde::MonsterTypeID::UNKNOWN) {
+		// Use the cached name from the array
 		return g_displayNamesByID[static_cast<size_t>(typeId)];
 	}
 
-	// Fallback for non-monster entities
+	// Fallback for non-monster entities or unknown monsters
 	auto it = name_replacements.find(classname);
 	return it != name_replacements.end() ? std::string(it->second) : classname;
 }
@@ -293,7 +295,8 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		gi.linkentity(monster);
 	}
 
-	// Fix: Actually *set* the flag rather than just checking it
+	// *** FIX: Set the NO_DROP flag correctly ***
+	// This ensures the flag is set regardless of whether a bonus is applied later
 	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 
 	monster->gib_health *= 2.8f;
@@ -308,6 +311,8 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.power_armor_power *= 1.25f;
 		monster->monsterinfo.armor_power *= 1.25f;
 		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 475_sec;
+		// *** FIX: Ensure NO_DROP flag is cleared if champion gets an item ***
+		// (This logic is now handled later after item assignment)
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
 		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
@@ -350,10 +355,20 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
 
+	//// *** FIX: Adjust NO_DROP flag based on item presence AFTER potential item assignment ***
+	//// This logic should ideally be called *after* the item drop chance is determined
+	//// in the calling function (e.g., SpawnMonsters, EmergencySpawnMonster).
+	//// Assuming monster->item has been potentially set by the caller:
+	//if (monster->item) {
+	//	monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP; // Clear flag if item exists
+	//}
+	//else {
+	//	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure flag is set if no item
+	//}
+
 	// Link the entity *after* all changes to ensure visuals are sent
 	gi.linkentity(monster);
 }
-
 // Función auxiliar para calcular los valores mínimos de salud y armadura
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {

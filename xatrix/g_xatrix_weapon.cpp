@@ -735,6 +735,12 @@ void FindTrapTargets(edict_t* ent, trap_data_t* trap_data) {
         if (target != ent->teammaster && CheckTeamDamage(target, ent->teammaster))
             continue;
 
+        // <<< ADDED CHECK HERE >>>
+        // Skip stationary turrets as they cannot be pulled
+        if (strcmp(target->classname, "monster_turret") == 0)
+            continue;
+        // <<< END ADDED CHECK >>>
+
         // Quick distance check before more expensive operations
         const float len_squared = DistanceSquared(ent->s.origin, target->s.origin);
         if (len_squared > TRAP_RADIUS_SQUARED)

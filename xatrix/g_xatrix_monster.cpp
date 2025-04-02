@@ -7,7 +7,7 @@
 // RAFAEL
 void monster_fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
 {
-	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 	fire_blueblaster(self, start, dir, damage, speed, effect);
 	monster_muzzleflash(self, start, flashtype);
 }
@@ -15,7 +15,7 @@ void monster_fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& 
 // RAFAEL
 void monster_fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
 {
-	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 	fire_ionripper(self, start, dir, damage, speed, effect);
 	monster_muzzleflash(self, start, flashtype);
 }
@@ -23,7 +23,7 @@ void monster_fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& di
 // RAFAEL
 void monster_fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, float turn_fraction)
 {
-	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 	fire_heat(self, start, dir, damage, speed, (float)damage, damage, turn_fraction);
 	monster_muzzleflash(self, start, flashtype);
 }
@@ -113,7 +113,7 @@ THINK(beam_think) (edict_t* self) -> void
 // RAFAEL
 void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update_func)(edict_t* self))
 {
-	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 	edict_t*& beam_ptr = secondary ? self->beam2 : self->beam;
 
 	if (!beam_ptr)
