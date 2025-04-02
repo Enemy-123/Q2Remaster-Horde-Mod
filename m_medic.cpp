@@ -1904,19 +1904,22 @@ void SP_monster_medic(edict_t* self)
 
 		self->s.skinnum = 0;
 
-		const char* reinforcements = default_reinforcements;
+		if (self->monsterinfo.bonus_flags != BF_NONE) {
+			const char* reinforcements = default_reinforcements;
 
-		if (!st.was_key_specified("monster_slots"))
-			self->monsterinfo.monster_slots = default_monster_slots_base;
-		if (st.was_key_specified("reinforcements"))
-			reinforcements = st.reinforcements;
+			if (!st.was_key_specified("monster_slots"))
+				self->monsterinfo.monster_slots = default_monster_slots_base;
+			if (st.was_key_specified("reinforcements"))
+				reinforcements = st.reinforcements;
 
-		if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
-		{
-			if (skill->integer)
-				self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
 
-			M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+			if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
+			{
+				if (skill->integer)
+					self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
+
+				M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+			}
 		}
 	}
 	// pmm
