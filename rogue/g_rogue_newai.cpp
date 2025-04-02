@@ -1401,7 +1401,14 @@ MONSTERINFO_DODGE(M_MonsterDodge) (edict_t *self, edict_t *attacker, gtime_t eta
 			// on Easy & Normal, don't sidestep as often (25% on Easy, 50% on Normal)
 			if (!G_SkillCheck({ 0.25f, 0.50f, 1.0f, 1.0f }))
 			{
-				self->monsterinfo.dodge_time = level.time + random_time(0.8_sec, 1.4_sec);
+				if (self->monsterinfo.bonus_flags != BF_NONE && !self->monsterinfo.IS_BOSS) {
+					// Set a faster dodge animation if bonus flaggged HORDEBONUS
+
+					self->monsterinfo.dodge_time = level.time + 500_ms; // faster cooldown
+				}
+				else {
+					self->monsterinfo.dodge_time = level.time + random_time(0.8_sec, 1.4_sec);
+				}
 				return;
 			}
 			else

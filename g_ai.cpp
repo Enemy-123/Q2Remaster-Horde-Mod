@@ -2168,6 +2168,11 @@ void ai_run(edict_t* self, float dist)
 			return;
 	}
 
+	// Apply bonus speed multiplier ( HORDEBONUS FLAGGED MONSTER )
+	if (self->monsterinfo.bonus_flags != BF_NONE && !self->monsterinfo.IS_BOSS) {
+		dist *= 1.5f; // Example: 50% faster
+	}
+
 	// PMM -- moved ai_checkattack up here so the monsters can attack while strafing or charging
 
 	// PMM -- if we're dodging, make sure to keep the attack_state AS_SLIDING
