@@ -2565,7 +2565,7 @@ void SP_monster_fixbot(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 225 * st.health_multiplier;
+	self->health = 180 * st.health_multiplier;
 	self->mass = 150;
 	self->s.scale = 1.4f;
 
@@ -2617,6 +2617,7 @@ void SP_monster_fixbotkl(edict_t* self) {
 	self->max_health = 7500;
 	self->health = self->max_health;
 	self->s.scale = 2.6f;
+	self->mass = 400;
 	// Scale mins/maxs correctly AFTER initial values are set
 	self->mins *= self->s.scale / 1.4f; // Scale relative to base fixbot scale
 	self->maxs *= self->s.scale / 1.4f; // Scale relative to base fixbot scale
