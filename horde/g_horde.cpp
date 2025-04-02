@@ -4711,7 +4711,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 
 				if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
 					if ((validated_pos - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_CHECK) {
-						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to target player {}.\n", validated_pos, player->client->pers.netname);
+						gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to target player {}.\n", validated_pos, GetPlayerName(player).c_str()); // Use GetPlayerName
 						continue;
 					}
 					if (IsPositionTooCloseToRecentTeleport(validated_pos)) {
@@ -4729,7 +4729,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 					angles = vectoangles(dir);
 					used_human_player = group.is_human;
 
-					if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Success! Found valid pos {} near {} {}.\n", position, group.is_human ? "human" : "bot", player->client->pers.netname);
+					gi.Com_PrintFmt("FindEmergencySpawnPosition: Success! Found valid pos {} near {} {}.\n", position, group.is_human ? "human" : "bot", GetPlayerName(player).c_str()); // Use GetPlayerName
 					return true;
 				}
 			}
@@ -5136,8 +5136,9 @@ int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edi
 	int spawnedCount = 0;
 
 	if (developer->integer) {
+		std::string target_name = target_player ? GetPlayerName(target_player) : "None";
 		gi.Com_PrintFmt("HORDE: Attempting Retaliation Ambush (Size: {}). Target: {}\n",
-			ambushSize, target_player ? target_player->client->pers.netname : "None");
+			ambushSize, target_name.c_str()); // Use fetched name
 	}
 
 	for (int i = 0; i < ambushSize; ++i) {
