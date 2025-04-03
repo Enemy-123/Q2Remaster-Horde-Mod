@@ -3628,110 +3628,6 @@ static void AttachHealthBar(edict_t* boss) {
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 void SP_target_orb(edict_t* ent);
 
-static void SpawnBossAutomatically() {
-	// Clear any existing bosses (existing code remains unchanged)
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); ) {
-		edict_t* existing_boss = *it;
-		if (existing_boss && existing_boss->inuse) {
-			existing_boss->monsterinfo.BOSS_DEATH_HANDLED = true;
-			OnEntityRemoved(existing_boss);
-			G_FreeEdict(existing_boss);
-		}
-		it = auto_spawned_bosses.erase(it);
-	}
-
-	// Reset wave type (existing code remains unchanged)
-	current_wave_type = MonsterWaveType::None;
-
-	// Clear health bar (existing code remains unchanged)
-	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
-		if (level.health_bar_entities[i]) {
-			G_FreeEdict(level.health_bar_entities[i]);
-			level.health_bar_entities[i] = nullptr;
-		}
-	}
-
-	// Clear health bar name (existing code remains unchanged)
-	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
-
-	// Early return if not a boss wave (existing code remains unchanged)
-	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
-		return;
-	}
-
-	// Get map name (existing code remains unchanged)
-	const char* map_name = GetCurrentMapName();
-	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
-
-	// MODIFIED CODE: Use the new MapOriginRegistry instead of mapOrigins map
-	vec3_t spawn_origin;
-	if (mapId == horde::MapID::UNKNOWN || !horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin)) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("Error: No spawn origin found for map {}\n", map_name);
-		}
-		return;
-	}
-
-	// Validate origin (slightly modified)
-	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("Error: Invalid spawn origin for map {}\n", map_name);
-		}
-		return;
-	}
-
-	// Create orb effect
-	edict_t* orb = G_Spawn();
-	if (orb) {
-		orb->classname = "target_orb";
-		orb->s.origin = spawn_origin;
-		SP_target_orb(orb);
-	}
-
-	// Spawn boss entity
-	edict_t* boss = G_Spawn();
-	if (!boss) {
-		if (orb) G_FreeEdict(orb);
-		if (developer->integer) {
-			gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
-		}
-		return;
-	}
-
-	// Use TypeID version for boss selection
-	horde::MonsterTypeID boss_type = G_HordePickBOSSType(
-		g_horde_local.current_map_size, map_name, g_horde_local.level, boss);
-
-	if (boss_type == horde::MonsterTypeID::UNKNOWN) {
-		if (orb) G_FreeEdict(orb);
-		G_FreeEdict(boss);
-		if (developer->integer) {
-			gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
-		}
-		return;
-	}
-
-	// Get the classname from TypeID for engine functions
-	const char* boss_classname = horde::MonsterTypeRegistry::GetClassname(boss_type);
-
-	// Set up boss entity
-	boss_spawned_for_wave = true;
-	boss->classname = boss_classname;
-	boss->s.origin = spawn_origin;
-
-	// Push away nearby entities
-	constexpr float push_radius = 500.0f;
-	constexpr float push_force = 600.0f;
-	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 750.0f, 75.0f);
-
-	// Store orb entity
-	boss->owner = orb;
-
-	// Set up delayed spawn
-	boss->nextthink = level.time + 750_ms;
-	boss->think = BossSpawnThink;
-}
-
 // Define the array
 static std::array<std::string_view, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_bossMessagesArray;
 static bool g_bossMessagesInitialized = false;
@@ -3841,67 +3737,6 @@ inline std::pair<MonsterWaveType, const char*> GetBossWaveType(horde::MonsterTyp
 	if (index < g_bossWaveTypeArray.size())
 		return { g_bossWaveTypeArray[index].waveType, g_bossWaveTypeArray[index].message };
 	return { MonsterWaveType::Medium, "\n\n\nDefault wave incoming!\n" };
-}
-
-THINK(BossSpawnThink)(edict_t* self) -> void {
-	// Remove the black light effect immediately
-	if (self->owner) {
-		G_FreeEdict(self->owner);
-		self->owner = nullptr;
-	}
-
-	// Get the monster TypeID directly from the entity's classname
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-
-	// Set wave type based on boss type - using array lookup
-	auto bossWaveInfo = GetBossWaveType(typeId);
-	if (TrySetWaveType(bossWaveInfo.first)) {
-		gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
-	}
-	else if (HasWaveType(bossWaveInfo.first, MonsterWaveType::Mutant) ||
-		HasWaveType(bossWaveInfo.first, MonsterWaveType::Shambler)) {
-		// Fallback for mutant/shambler types
-		current_wave_type = MonsterWaveType::Medium;
-		StoreWaveType(MonsterWaveType::Medium);
-	}
-
-	// Boss spawn message - using array lookup
-	std::string_view bossMessage = GetBossMessage(typeId);
-	gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data());
-
-	// Set boss flags in a single group
-	self->monsterinfo.IS_BOSS = true;
-	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-	self->monsterinfo.last_sentrygun_target_time = 0_ms;
-
-	// Spawn entity
-	{
-		self->solid = SOLID_NOT;
-		ED_CallSpawn(self);
-		ClearSpawnArea(self->s.origin, self->mins, self->maxs);
-		self->solid = SOLID_BBOX;
-		gi.linkentity(self);
-	}
-
-	// Configure boss properties
-	ConfigureBossArmor(self);
-	ApplyBossEffects(self);
-	self->monsterinfo.attack_state = AS_BLIND;
-
-	// Calculate spawn effect sizes once
-	const vec3_t spawn_pos = self->s.origin;
-	const float magnitude = spawn_pos.length();
-	const float base_size = magnitude * 0.35f;
-	const float end_size = base_size * 0.005f;
-
-	// Apply visual effects
-	ImprovedSpawnGrow(spawn_pos, base_size, end_size, self);
-	SpawnGrow_Spawn(spawn_pos, base_size, end_size);
-
-	// Set up health bar and track boss
-	AttachHealthBar(self);
-	SetHealthBarName(self);
-	auto_spawned_bosses.insert(self);
 }
 
 bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTeleportReason::DROWNING) {
@@ -4084,6 +3919,272 @@ void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
 
 	// Set duration
 	horde_message_end_time = level.time + duration;
+}
+
+static void SpawnBossAutomatically() {
+	// --- 1. Cleanup Existing Bosses ---
+	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment */) {
+		edict_t* existing_boss = *it;
+		if (existing_boss && existing_boss->inuse) {
+			if (!existing_boss->monsterinfo.BOSS_DEATH_HANDLED) {
+				BossDeathHandler(existing_boss);
+			}
+			OnEntityRemoved(existing_boss);
+			G_FreeEdict(existing_boss);
+		}
+		it = auto_spawned_bosses.erase(it);
+	}
+	boss_spawned_for_wave = false; // Reset flag
+
+	// --- 2. Basic Wave Check ---
+	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
+		return; // Not a boss wave
+	}
+
+	// --- 3. Select Boss Type ---
+	edict_t* temp_boss_for_size = G_Spawn(); // Still need this temporary entity
+	if (!temp_boss_for_size) {
+		if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to spawn temp entity for size category.\n");
+		return;
+	}
+	const char* map_name = GetCurrentMapName();
+	horde::MonsterTypeID boss_type = G_HordePickBOSSType(
+		g_horde_local.current_map_size, map_name, g_horde_local.level, temp_boss_for_size);
+	// BossSizeCategory selected_boss_size = temp_boss_for_size->bossSizeCategory; // Store size category if needed later
+	G_FreeEdict(temp_boss_for_size);
+
+	if (boss_type == horde::MonsterTypeID::UNKNOWN) {
+		if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to pick a boss type for wave {}.\n", g_horde_local.level);
+		return;
+	}
+	const char* boss_classname = horde::MonsterTypeRegistry::GetClassname(boss_type);
+	if (!boss_classname) {
+		if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to get classname for boss type ID {}.\n", (int)boss_type);
+		return;
+	}
+
+	// --- 4. Determine Spawn Location (Fixed Origin or Random Fallback) ---
+	vec3_t spawn_origin = vec3_origin;
+	vec3_t spawn_angles = vec3_origin; // Default angles
+	bool location_found = false;
+	edict_t* selected_point = nullptr; // Used only for random fallback path
+	bool free_selected_point = false; // Flag if selected_point is temporary
+
+	// Get boss properties needed for validation
+	vec3_t predicted_mins, predicted_maxs;
+	GetPredictedScaledBounds(boss_type, predicted_mins, predicted_maxs);
+	bool boss_is_flying = IsFlying(boss_type);
+
+	// Try getting fixed origin first
+	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
+	vec3_t fixed_origin;
+	if (mapId != horde::MapID::UNKNOWN && horde::MapOriginRegistry::GetOrigin(mapId, fixed_origin)) {
+		if (is_valid_vector(fixed_origin) && fixed_origin != vec3_origin) {
+			vec3_t validated_fixed_origin = fixed_origin;
+			if (IsValidSpawnLocation(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying)) {
+				spawn_origin = validated_fixed_origin;
+				location_found = true;
+				if (developer->integer > 1) gi.Com_PrintFmt("SpawnBossAutomatically: Using validated predefined map origin {} for boss {}.\n", spawn_origin, boss_classname);
+			}
+			else {
+				if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Predefined map origin {} failed validation for boss {}. Falling back to random.\n", fixed_origin, boss_classname);
+			}
+		}
+		else {
+			if (developer->integer > 1) gi.Com_PrintFmt("SpawnBossAutomatically: Invalid predefined map origin found for {}. Falling back to random.\n", map_name);
+		}
+	}
+	else {
+		if (developer->integer > 1) gi.Com_PrintFmt("SpawnBossAutomatically: No predefined map origin found for {}. Using random spawn point fallback.\n", map_name);
+	}
+
+	// Fallback to random spawn point selection if fixed origin wasn't found or wasn't valid
+	if (!location_found) {
+		constexpr float MIN_BOSS_PLAYER_DIST_SQ = 250.0f * 250.0f;
+		auto BossSpawnFilter = [&](edict_t* spawnPoint) -> bool {
+			// (Same filter logic as before)
+			if (!spawnPoint || !spawnPoint->inuse) return false;
+			const auto& data = spawnPointsData[spawnPoint];
+			if ((data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) ||
+				level.time < data.teleport_cooldown ||
+				level.time < data.alternative_cooldown) return false;
+			bool is_flying_point = (spawnPoint->style == 1);
+			if (boss_is_flying && !is_flying_point) return false;
+			if (!boss_is_flying && is_flying_point) return false;
+			for (const auto* const player : active_players_no_spect()) {
+				if ((spawnPoint->s.origin - player->s.origin).lengthSquared() < MIN_BOSS_PLAYER_DIST_SQ) return false;
+			}
+			if (IsSpawnPointOccupied(spawnPoint)) return false;
+			return true;
+			};
+
+		selected_point = SelectRandomSpawnPoint(BossSpawnFilter);
+
+		if (!selected_point) {
+			if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to find suitable random spawn point for boss {}. Trying emergency spawn.\n", boss_classname);
+			vec3_t emergency_origin, emergency_angles;
+			bool used_human = false;
+			if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human, boss_type)) {
+				vec3_t final_emergency_pos = emergency_origin;
+				if (IsValidSpawnLocation(final_emergency_pos, predicted_mins, predicted_maxs, boss_is_flying)) {
+					// Use the emergency location directly
+					spawn_origin = final_emergency_pos;
+					spawn_angles = emergency_angles;
+					location_found = true;
+					if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Using validated emergency spawn location {}.\n", final_emergency_pos);
+				}
+				else {
+					if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Emergency position {} failed IsValidSpawnLocation for boss.\n", emergency_origin);
+					// Abort if emergency location is also invalid
+					return;
+				}
+			}
+			else {
+				if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Emergency spawn position finding failed for boss.\n");
+				return; // Failed to find any spot
+			}
+		}
+		else {
+			// Use the location from the selected random spawn point
+			spawn_origin = selected_point->s.origin;
+			spawn_angles = selected_point->s.angles;
+			location_found = true;
+			if (developer->integer > 1) gi.Com_PrintFmt("SpawnBossAutomatically: Using random spawn point {} for boss {}.\n", spawn_origin, boss_classname);
+		}
+	}
+
+	// --- 5. Setup Delayed Spawn if Location Found ---
+	if (location_found) {
+		// Create orb effect at the chosen location
+		edict_t* orb = G_Spawn();
+		if (orb) {
+			orb->classname = "target_orb";
+			orb->s.origin = spawn_origin; // Orb at the final spawn location
+			SP_target_orb(orb);
+		}
+		else {
+			if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to spawn orb effect.\n");
+			// Continue without orb? Or abort? Let's continue.
+		}
+
+		// Spawn the boss entity placeholder
+		edict_t* boss = G_Spawn();
+		if (!boss) {
+			if (orb) G_FreeEdict(orb);
+			if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to G_Spawn boss entity.\n");
+			return;
+		}
+
+		// Set basic info needed before think
+		boss->classname = boss_classname;
+		boss->s.origin = spawn_origin; // Set origin now
+		boss->s.angles = spawn_angles; // Set angles now
+		boss->owner = orb; // Link orb for removal in think
+
+		// --- Perform Area Clearing Actions NOW ---
+		// Push away nearby entities before the think function runs
+		constexpr float push_radius = 500.0f;
+		constexpr float push_force = 1000.0f; // Increased force maybe?
+		PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f);
+		// Potentially add other clearing logic here (e.g., destroying minor obstacles)
+
+		// Set up the delayed spawn via think function
+		boss->nextthink = level.time + 750_ms; // Keep the delay
+		boss->think = BossSpawnThink;
+		gi.linkentity(boss); // Link the placeholder entity
+
+		// Note: boss_spawned_for_wave is set inside BossSpawnThink after ED_CallSpawn succeeds
+
+	}
+	else {
+		// This case should ideally not be reached if emergency spawn works, but is a safeguard
+		if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: CRITICAL - Failed to determine any valid spawn location for boss.\n");
+	}
+}
+
+// BossSpawnThink function (largely unchanged, but origin/angles are already set)
+THINK(BossSpawnThink)(edict_t* self) -> void {
+	// Remove the black light effect immediately
+	if (self->owner) {
+		G_FreeEdict(self->owner);
+		self->owner = nullptr;
+	}
+
+	// Get the monster TypeID directly from the entity's classname
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+
+	// Set wave type based on boss type - using array lookup
+	auto bossWaveInfo = GetBossWaveType(typeId);
+	if (TrySetWaveType(bossWaveInfo.first)) {
+		gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
+	}
+	else if (HasWaveType(bossWaveInfo.first, MonsterWaveType::Mutant) ||
+		HasWaveType(bossWaveInfo.first, MonsterWaveType::Shambler)) {
+		// Fallback for mutant/shambler types
+		current_wave_type = MonsterWaveType::Medium;
+		StoreWaveType(MonsterWaveType::Medium);
+	}
+	else {
+		// Handle other potential fallbacks or log if needed
+		if (developer->integer) {
+			gi.Com_PrintFmt("BossSpawnThink: Boss wave type %d recently used or invalid, falling back to Medium.\n", static_cast<int>(bossWaveInfo.first));
+		}
+		current_wave_type = MonsterWaveType::Medium;
+		StoreWaveType(current_wave_type);
+	}
+
+
+	// Boss spawn message - using array lookup
+	std::string_view bossMessage = GetBossMessage(typeId);
+	gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data());
+
+	// Set boss flags in a single group
+	self->monsterinfo.IS_BOSS = true;
+	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+	self->monsterinfo.last_sentrygun_target_time = 0_ms;
+	// Retrieve size category if needed (might need to store it on the edict before think)
+	// BossSizeCategory boss_size = self->bossSizeCategory; // Assuming it was stored
+
+	// --- Call ED_CallSpawn to fully initialize the monster ---
+	self->solid = SOLID_NOT; // Temporarily non-solid for spawn function
+	ED_CallSpawn(self);
+
+	// Check if ED_CallSpawn freed the entity (e.g., spawn failed internally)
+	if (!self->inuse) {
+		if (developer->integer) gi.Com_PrintFmt("BossSpawnThink: ED_CallSpawn failed for boss {}.\n", self->classname ? self->classname : "Unknown");
+		boss_spawned_for_wave = false; // Ensure flag is false
+		return; // Abort if spawn failed
+	}
+
+	// --- Post ED_CallSpawn Setup ---
+	boss_spawned_for_wave = true; // Set flag *after* successful spawn
+
+	// Restore solidity and link
+	self->solid = SOLID_BBOX;
+	gi.linkentity(self);
+
+	// Configure boss properties
+	ConfigureBossArmor(self);
+	ApplyBossEffects(self);
+	self->monsterinfo.attack_state = AS_BLIND;
+
+	// Apply visual effects
+	const vec3_t spawn_pos = self->s.origin; // Use the final origin
+	const float magnitude = spawn_pos.length();
+	const float base_size = std::max(100.0f, magnitude * 0.15f);
+	const float end_size = base_size * 0.01f;
+	ImprovedSpawnGrow(spawn_pos, base_size, end_size, self);
+	SpawnGrow_Spawn(spawn_pos, base_size, end_size);
+	gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0); // Play spawn sound
+
+	// Set up health bar and track boss
+	AttachHealthBar(self);
+	SetHealthBarName(self);
+	auto_spawned_bosses.insert(self);
+
+	if (developer->integer > 1) {
+		gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {}.\n", self->classname, self->s.origin);
+	}
 }
 
 void ClearHordeMessage() {
