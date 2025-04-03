@@ -4700,29 +4700,6 @@ void InitializeWaveSystem() noexcept {
 static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const horde::MapSize& mapSize);
 
-struct StuckMonsterSpawnFilter {
-	bool operator()(edict_t* ent) const {
-		if (!ent || !ent->inuse || !ent->classname ||
-			strcmp(ent->classname, "info_player_deathmatch") != 0 ||
-			ent->style == 1)  // Exclude flying spawns
-			return false;
-
-		// Cooldown check - direct array access
-		if (level.time < spawnPointsData[ent].teleport_cooldown)
-			return false;
-
-		if (IsSpawnPointOccupied(ent))
-			return false;
-
-		// Check proximity to players
-		for (const auto* const player : active_players_no_spect()) {
-			if ((ent->s.origin - player->s.origin).length() < 512.0f) {
-				return true;  // Accept spawn points near players
-			}
-		}
-		return false; // No player nearby
-	}
-};
 
 // --- FindEmergencySpawnPosition Function ---
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, horde::MonsterTypeID typeId) {
@@ -4933,6 +4910,32 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	return true;
 }
 
+struct StuckMonsterSpawnFilter {
+	bool operator()(edict_t* ent) const {
+		if (!ent || !ent->inuse || !ent->classname ||
+			strcmp(ent->classname, "info_player_deathmatch") != 0 ||
+			ent->style == 1)  // Exclude flying spawns
+			return false;
+
+		// Cooldown check - direct array access
+		if (level.time < spawnPointsData[ent].teleport_cooldown)
+			return false;
+
+		if (IsSpawnPointOccupied(ent))
+			return false;
+
+		// Check proximity to players
+		for (const auto* const player : active_players_no_spect()) { // Keep const here if possible
+			if ((ent->s.origin - player->s.origin).length() < 512.0f) {
+				return true;  // Accept spawn points near players
+			}
+		}
+		return false; // No player nearby
+	}
+};
+
+
+// --- Modified CheckAndTeleportStuckMonster ---
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Reset the global counter periodically
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
@@ -4959,27 +4962,55 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
 		return false;
 
-	// If can see enemy, don't teleport
-	if (self->monsterinfo.issummoned ||
-		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
-		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = 0_sec;
-		return false;
+	bool attempt_immediate_teleport = false;
+
+	// --- Drowning Special Case ---
+	if (self->waterlevel > 0) {
+		bool can_see_target = false;
+		// Check visibility to current enemy
+		if (self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
+			can_see_target = true;
+		}
+		else {
+			// If no visible enemy, check visibility to any active player
+			// *** MODIFICATION HERE: Remove 'const' from 'player' ***
+			for (auto* player : active_players_no_spect()) {
+				if (player && player->inuse && visible(self, player, false)) { // Pass non-const player
+					can_see_target = true;
+					break;
+				}
+			}
+			// *** END MODIFICATION ***
+		}
+
+		if (!can_see_target) {
+			// Drowning and cannot see target - flag for immediate teleport attempt
+			attempt_immediate_teleport = true;
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} is drowning with no target visibility. Attempting immediate teleport.\n", self->classname);
+			}
+		}
+		else {
+			// Drowning but can see a target - reset stuck state and proceed with normal checks
+			self->monsterinfo.was_stuck = false;
+			self->monsterinfo.stuck_check_time = 0_sec;
+		}
 	}
 
-	// Check individual teleport cooldown (uses self->teleport_time set by Horde_TeleportMonster)
-	if (self->teleport_time > level.time) {
-		return false;
-	}
+	// --- Standard Stuck/Cooldown Checks (if not attempting immediate teleport) ---
+	if (!attempt_immediate_teleport) {
+		// Check individual teleport cooldown
+		if (self->teleport_time > level.time) {
+			return false;
+		}
 
-	// For non-water damage, check stuck conditions
-	if (!self->waterlevel) {
+		// Check stuck conditions (startsolid, no damage timeout)
 		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
 			self->s.origin, self, MASK_MONSTERSOLID).startsolid;
 		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= HordeConstants::NO_DAMAGE_TIMEOUT;
 
 		if (!is_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck)
-			return false;
+			return false; // Not stuck, hasn't timed out, wasn't previously stuck
 
 		// Start tracking stuck time if not already
 		if (!self->monsterinfo.was_stuck) {
@@ -4990,9 +5021,10 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 		// Check if stuck duration has passed
 		if (level.time < self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME)
-			return false;
+			return false; // Still within the stuck grace period
 	}
-	// If we reach here, the monster is either in water and needs help, or has been stuck long enough.
+
+	// --- Proceed to Teleport Attempt Logic ---
 
 	// Add 40% chance to skip processing - additional natural staggering
 	if (frandom() < 0.4f) {
@@ -5002,111 +5034,72 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	bool teleported = false; // Flag to track success
 
 	// --- Check if any clients (players/bots) are active ---
-	// Use begin() == end() to check for emptiness
 	if (active_players_no_spect().begin() == active_players_no_spect().end()) {
 		// --- No Clients Present: Teleport to a random valid spawn point ---
 		if (developer->integer > 1) {
 			gi.Com_PrintFmt("CheckAndTeleportStuckMonster: No clients present, attempting random spawn point teleport for {}.\n", self->classname);
 		}
-
-		// Define a simple filter for selecting a spawn point when no clients are around
 		auto no_client_filter = [](edict_t* ent) -> bool {
 			if (!ent || !ent->inuse || !ent->classname ||
 				strcmp(ent->classname, "info_player_deathmatch") != 0 ||
-				ent->style == 1) // Exclude flying spawns
-				return false;
-
-			// Check teleport cooldown for the point
-			if (level.time < spawnPointsData[ent].teleport_cooldown)
-				return false;
-
-			// Check basic occupation (monsters/defenses - players won't be present)
-			if (IsSpawnPointOccupied(ent))
-				return false;
-
-			// Check proximity to recent teleports (important even without players)
-			if (IsPositionTooCloseToRecentTeleport(ent->s.origin))
-				return false;
-
-			return true; // Point seems suitable
+				ent->style == 1) return false;
+			if (level.time < spawnPointsData[ent].teleport_cooldown) return false;
+			if (IsSpawnPointOccupied(ent)) return false;
+			if (IsPositionTooCloseToRecentTeleport(ent->s.origin)) return false;
+			return true;
 			};
-
 		const edict_t* const spawn_point = SelectRandomSpawnPoint(no_client_filter);
-
 		if (spawn_point) {
-			teleported = Horde_TeleportMonster(self, spawn_point->s.origin, spawn_point->s.angles, true); // Play effects
-
+			teleported = Horde_TeleportMonster(self, spawn_point->s.origin, spawn_point->s.angles, true);
 			if (teleported) {
-				// Add cooldown specifically to the spawn point used for stuck teleport
-				spawnPointsData[spawn_point].teleport_cooldown = level.time + 3.5_sec; // Example cooldown
-
-				if (developer->integer) {
-					gi.Com_PrintFmt("Monster teleported (no clients) via Horde_TeleportMonster: {}\n", self->classname);
-				}
+				spawnPointsData[spawn_point].teleport_cooldown = level.time + 3.5_sec;
+				if (developer->integer) gi.Com_PrintFmt("Monster teleported (no clients) via Horde_TeleportMonster: {}\n", self->classname);
 			}
 		}
 		else if (developer->integer > 1) {
 			gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Failed to find suitable random spawn point (no clients).\n");
 		}
-		// --- End No Clients Logic ---
-
 	}
 	else {
 		// --- Clients Present: Original Logic ---
-		// Calculate teleport chance near players
-		float teleport_chance = 0.01f; // Base 1% chance
+		float teleport_chance = 0.01f;
 		if (current_wave_level > 5) {
-			if (AreHumanPlayersPresent()) { // Check specifically for humans here
-				teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.003f, 0.08f);
-			}
-			else { // Only bots present
-				teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.002f, 0.05f);
-			}
+			if (AreHumanPlayersPresent()) teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.003f, 0.08f);
+			else teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.002f, 0.05f);
 		}
-
 		const bool use_player_teleport = (frandom() < teleport_chance);
 
 		// --- Try Teleporting Near Player/Bot (Emergency) ---
 		if (use_player_teleport) {
 			vec3_t emergency_origin, emergency_angles;
-			bool teleported_to_human = false; // Info might not be needed by caller anymore
+			bool teleported_to_human = false;
+			horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname); // Get TypeID
 
-			if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, teleported_to_human, self->classname)) {
-				// Check proximity to recent teleports before committing
+			if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, teleported_to_human, typeId)) { // Pass TypeID
 				if (!IsPositionTooCloseToRecentTeleport(emergency_origin)) {
-					teleported = Horde_TeleportMonster(self, emergency_origin, emergency_angles, true); // Play effects
+					teleported = Horde_TeleportMonster(self, emergency_origin, emergency_angles, true);
 					if (teleported) {
-						MarkPositionAsRecentlyTeleported(emergency_origin); // Mark the successful teleport location
-						if (developer->integer) {
-							gi.Com_PrintFmt("Monster teleported (emergency) via Horde_TeleportMonster: {}\n", self->classname);
-						}
+						MarkPositionAsRecentlyTeleported(emergency_origin);
+						if (developer->integer) gi.Com_PrintFmt("Monster teleported (emergency) via Horde_TeleportMonster: {}\n", self->classname);
 					}
 				}
 				else if (developer->integer > 1) {
 					gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Emergency position {} too close to recent teleport, skipping.\n", emergency_origin);
 				}
 			}
-			// If FindEmergencySpawnPosition failed or proximity check failed, teleported remains false, try next method
 		}
 
 		// --- Try Teleporting to a Spawn Point (Standard Stuck) ---
 		if (!teleported) {
 			StuckMonsterSpawnFilter filter;
 			const edict_t* const spawn_point = SelectRandomSpawnPoint(filter);
-
 			if (spawn_point) {
-				// Check proximity to recent teleports before committing
 				if (!IsPositionTooCloseToRecentTeleport(spawn_point->s.origin)) {
-					teleported = Horde_TeleportMonster(self, spawn_point->s.origin, spawn_point->s.angles, true); // Play effects
-
+					teleported = Horde_TeleportMonster(self, spawn_point->s.origin, spawn_point->s.angles, true);
 					if (teleported) {
-						MarkPositionAsRecentlyTeleported(spawn_point->s.origin); // Mark the successful teleport location
-						// Add cooldown specifically to the spawn point used for stuck teleport
-						spawnPointsData[spawn_point].teleport_cooldown = level.time + 3.5_sec; // Example cooldown
-
-						if (developer->integer) {
-							gi.Com_PrintFmt("Monster teleported (stuck) via Horde_TeleportMonster: {}\n", self->classname);
-						}
+						MarkPositionAsRecentlyTeleported(spawn_point->s.origin);
+						spawnPointsData[spawn_point].teleport_cooldown = level.time + 3.5_sec;
+						if (developer->integer) gi.Com_PrintFmt("Monster teleported (stuck) via Horde_TeleportMonster: {}\n", self->classname);
 					}
 				}
 				else if (developer->integer > 1) {
@@ -5114,20 +5107,21 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 				}
 			}
 		}
-		// --- End Clients Present Logic ---
 	}
-
 
 	// --- Update Global Counter on Success ---
 	if (teleported) {
 		HordeConstants::recent_teleport_count++; // Increment global counter
-		// Reset stuck state regardless of success/failure of teleport *attempt*
-		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = 0_sec;
 	}
+
+	// Reset stuck state regardless of success/failure of teleport *attempt*
+	// This prevents getting stuck in the stuck check loop if teleport fails repeatedly
+	self->monsterinfo.was_stuck = false;
+	self->monsterinfo.stuck_check_time = 0_sec;
 
 	return teleported; // Return whether any teleport method succeeded
 }
+
 // --- END CheckAndTeleportStuckMonster ---
 // 
 
