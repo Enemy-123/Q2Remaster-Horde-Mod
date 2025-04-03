@@ -17,8 +17,6 @@ static size_t g_spawn_point_shuffle_index = 0; // Index for iterating shuffled l
 
 // State for failure tracking and recovery
 static int g_consecutive_spawn_failures = 0;
-static constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY = 5;
-static constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY = 10;
 static bool g_recovery_mode_active = false;
 static MonsterWaveType g_original_wave_type_before_recovery = MonsterWaveType::None;
 
@@ -57,70 +55,97 @@ static constexpr int MAX_RECENT_TELEPORT_LOCATIONS = 8; // History for CheckAndT
 static std::array<RecentTeleportPosition, MAX_RECENT_TELEPORT_LOCATIONS> g_recent_teleport_positions;
 static int g_recent_teleport_index = 0;
 
-// --- Constants for Spawning and Teleporting ---
+// --- Horde Mode Constants ---
 namespace HordeConstants {
 
-	constexpr gtime_t BASE_SPAWN_TELEPORT_COOLDOWN = 5.0_sec; // Base cooldown applied to spawn point after teleport
-	constexpr gtime_t MIN_SPAWN_TELEPORT_COOLDOWN = 2.0_sec; // Absolute minimum cooldown for spawn point after teleport
-	// --- Minimum Cooldown Durations ---
-	constexpr gtime_t MIN_GLOBAL_SPAWN_COOLDOWN = 1.5_sec; // Minimum for the base SPAWN_POINT_COOLDOWN (matches existing clamp)
-	constexpr gtime_t MIN_INDIVIDUAL_SUCCESS_COOLDOWN = 0.5_sec; // Min time after successful spawn
-	constexpr gtime_t MIN_INDIVIDUAL_FAILURE_COOLDOWN = 0.5_sec; // Min time after failed spawn attempt
-	constexpr gtime_t MIN_ALT_SUCCESS_COOLDOWN = 1.0_sec;      // Min time after successful *alternative* spawn
-	constexpr gtime_t MIN_ALT_FAILURE_COOLDOWN = 1.0_sec;      // Min time after failed *alternative* spawn attempt
-	constexpr gtime_t MIN_REDUCED_INDIVIDUAL_COOLDOWN = 0.5_sec; // Min duration when reducing cooldowns late wave
-	// MIN_TELEPORT_COOLDOWN_MONSTER already exists (12s) and is handled by random_time
-	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.8_sec;      // Absolute minimum time between monster spawns
+	// --- Gameplay Balance ---
+	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;     // General multiplier for reducing certain timers
+	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.1f;     // Base multiplier for player count scaling
+	constexpr float PLAYER_COUNT_SCALE = 0.2f;         // How much each additional player scales difficulty/counts
 
-	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
-	constexpr vec3_t VALIDATE_CHECK_MINS = { -16, -16, -24 };
-	constexpr vec3_t VALIDATE_CHECK_MAXS = { 16,  16,  32 };
-	constexpr float MIN_PLAYER_DIST_GENERATE = 200.0f; // Minimum radius for *generating* emergency positions
-	constexpr float MIN_PLAYER_DIST_CHECK = 180.0f;    // Minimum final distance *after* validation/drop
-	constexpr float MIN_PLAYER_DIST_SQ_CHECK = MIN_PLAYER_DIST_CHECK * MIN_PLAYER_DIST_CHECK;
-	constexpr float MIN_PLAYER_DIST_SQ = 150.0f * 150.0f; // Squared distance for efficiency
-	constexpr float MIN_RECENT_SPAWN_DIST = 60.0f;      // Min distance between regular/alternative spawns
-	constexpr float MIN_RECENT_SPAWN_DIST_SQ = MIN_RECENT_SPAWN_DIST * MIN_RECENT_SPAWN_DIST;
-	constexpr float MIN_RECENT_TELEPORT_DIST = 250.0f;  // Min distance between teleport destinations
-	constexpr float MIN_RECENT_TELEPORT_DIST_SQ = MIN_RECENT_TELEPORT_DIST * MIN_RECENT_TELEPORT_DIST;
-	constexpr gtime_t RECENT_SPAWN_COOLDOWN = 3.0_sec;  // How long a regular spawn pos is considered recent
-	constexpr gtime_t RECENT_TELEPORT_COOLDOWN = 5.0_sec; // How long a teleport pos is considered recent
-
-	// ---  CheckAndTeleportStuckMonster coonstants ---
-	int g_teleport_rate_count = 0;
-	gtime_t g_teleport_rate_reset_time = level.time;
-
-	// Alt position constants
-	constexpr gtime_t ALT_SPAWN_COOLDOWN_SHORT = 1.5_sec;
-	constexpr gtime_t ALT_SPAWN_COOLDOWN_MEDIUM = 3.0_sec;
-	constexpr size_t NUM_HORDE_ALT_POSITIONS = 8;
-	constexpr std::array<vec3_t, NUM_HORDE_ALT_POSITIONS> horde_alternative_positions = {
-		vec3_t{ 40, 0, 8 },   vec3_t{ -40, 0, 8 },
-		vec3_t{ 0, 40, 8 },   vec3_t{ 0, -40, 8 },
-		vec3_t{ 30, 30, 0 },  vec3_t{ -30, 30, 0 },
-		vec3_t{ 30, -30, 0 }, vec3_t{ -30, -30, 0 }
-	};
-
-	// Teleport stuck monster constants
-	constexpr gtime_t STUCK_CHECK_TIME = 3_sec;
-	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
-	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
-	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 8_sec;
-	constexpr int MAX_TELEPORTS_PER_INTERVAL = 2;
-	constexpr float MIN_TELEPORT_PLAYER_DIST = 400.0f; // Min distance for a *teleport* destination from a player
-	constexpr float MIN_TELEPORT_PLAYER_DIST_SQ = MIN_TELEPORT_PLAYER_DIST * MIN_TELEPORT_PLAYER_DIST;
-
-	// Base wave count constants
-	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.1f;
-	constexpr float PLAYER_COUNT_SCALE = 0.2f;
+	// --- Monster Counts & Caps ---
+	constexpr int8_t MAX_MONSTERS_BIG_MAP = 32;           // Default max monsters for large maps
+	constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;        // Default max monsters for medium maps
+	constexpr int8_t MAX_MONSTERS_SMALL_MAP = 14;         // Default max monsters for small maps
+	// Base counts for different map sizes and early wave levels (Level Ranges: <=5, <=10, <=15, >15)
 	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = { {
 		{{6, 8, 10, 12}},  // Small maps
 		{{8, 12, 14, 16}}, // Medium maps
 		{{15, 18, 23, 26}} // Large maps
 	} };
-	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = { 8, 7, 12 }; // Small, Medium, Large
-}
+	// Base additional spawns per wave (Small, Medium, Large) applied from wave 8+
+	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = { 8, 7, 12 };
 
+	// --- Spawn Point Cooldowns ---
+	// Note: SPAWN_POINT_COOLDOWN (the global variable) is calculated dynamically
+	constexpr gtime_t MIN_GLOBAL_SPAWN_COOLDOWN = 1.5_sec;       // Absolute minimum for the dynamic SPAWN_POINT_COOLDOWN
+	constexpr gtime_t MIN_INDIVIDUAL_SUCCESS_COOLDOWN = 0.5_sec; // Min time a point is disabled after *successful* direct spawn
+	constexpr gtime_t MIN_INDIVIDUAL_FAILURE_COOLDOWN = 0.5_sec; // Min time a point is disabled after *failed* direct spawn attempts
+	constexpr gtime_t MIN_REDUCED_INDIVIDUAL_COOLDOWN = 0.5_sec; // Min cooldown when reduced late-wave (CheckAndReduceSpawnCooldowns)
+
+	// --- Alternative Spawn Position Cooldowns & Logic ---
+	constexpr gtime_t ALT_SPAWN_COOLDOWN_SHORT = 1.5_sec;         // Cooldown after 1-2 failed alternative position attempts
+	constexpr gtime_t ALT_SPAWN_COOLDOWN_MEDIUM = 3.0_sec;        // Cooldown after 3-5 failed alternative position attempts
+	// Min cooldowns applied after alternative spawn success/failure
+	constexpr gtime_t MIN_ALT_SUCCESS_COOLDOWN = 1.0_sec;
+	constexpr gtime_t MIN_ALT_FAILURE_COOLDOWN = 1.0_sec;
+	// Predefined offsets tried by TryAlternativeSpawnPosition
+	constexpr size_t NUM_HORDE_ALT_POSITIONS = 8;
+	constexpr std::array<vec3_t, NUM_HORDE_ALT_POSITIONS> horde_alternative_positions = {
+		vec3_t{ 40, 0, 8 },  vec3_t{ -40, 0, 8 },
+		vec3_t{ 0, 40, 8 },  vec3_t{ 0, -40, 8 },
+		vec3_t{ 30, 30, 0 }, vec3_t{ -30, 30, 0 },
+		vec3_t{ 30, -30, 0 }, vec3_t{ -30, -30, 0 }
+	};
+
+	// --- Monster Spawning Timing ---
+	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.8_sec;      // Absolute minimum time between any two monster spawns (SetNextMonsterSpawnTime)
+
+	// --- Stuck Monster / Teleport Logic ---
+	constexpr gtime_t STUCK_CHECK_TIME = 3_sec;                   // How long monster must be stuck before teleport check
+	// CONSOLIDATED: Cooldown applied *to the monster* after any teleport (stuck or boss)
+	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
+	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
+	// Global rate limiting for stuck monster teleports
+	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 8_sec;    // Interval to reset the rate limit counter
+	constexpr int MAX_TELEPORTS_PER_INTERVAL = 2;                // Max stuck teleports allowed within the interval (adjusted for difficulty)
+	// Rate limit counter and timer (defined as static within the namespace)
+	int g_teleport_rate_count = 0;                        // Current count within the interval
+	gtime_t g_teleport_rate_reset_time = level.time;      // Time the counter was last reset
+	int recent_teleport_count = 0;          // Tracks teleports within the current interval
+
+	// --- Proximity / Distance Checks ---
+	constexpr vec3_t VALIDATE_CHECK_MINS = { -16, -16, -24 };     // Default mins for IsValidSpawnLocation fallback
+	constexpr vec3_t VALIDATE_CHECK_MAXS = { 16,  16,  32 };      // Default maxs for IsValidSpawnLocation fallback
+	// Emergency Spawn Position Generation
+	constexpr float MIN_PLAYER_DIST_GENERATE = 200.0f;           // Min distance from player when *generating* emergency spots
+	// Minimum Distances (Final Checks) - Use squared values for performance
+	constexpr float MIN_PLAYER_DIST_CHECK = 180.0f;              // Min final distance from player for *emergency* spawns
+	constexpr float MIN_PLAYER_DIST_SQ_CHECK = MIN_PLAYER_DIST_CHECK * MIN_PLAYER_DIST_CHECK;
+	constexpr float MIN_PLAYER_DIST_SPAWNPOINT = 150.0f;         // Min distance from player for *regular* spawn point filtering
+	constexpr float MIN_PLAYER_DIST_SQ_SPAWNPOINT = MIN_PLAYER_DIST_SPAWNPOINT * MIN_PLAYER_DIST_SPAWNPOINT;
+	// Recent Spawn/Teleport Proximity
+	constexpr float MIN_RECENT_SPAWN_DIST = 60.0f;               // Min distance between sequential regular/alternative spawns
+	constexpr float MIN_RECENT_SPAWN_DIST_SQ = MIN_RECENT_SPAWN_DIST * MIN_RECENT_SPAWN_DIST;
+	constexpr float MIN_RECENT_TELEPORT_DIST = 250.0f;           // Min distance between sequential *teleport* destinations
+	constexpr float MIN_RECENT_TELEPORT_DIST_SQ = MIN_RECENT_TELEPORT_DIST * MIN_RECENT_TELEPORT_DIST;
+	constexpr gtime_t RECENT_SPAWN_COOLDOWN = 3.0_sec;           // How long a regular spawn position affects proximity checks
+	constexpr gtime_t RECENT_TELEPORT_COOLDOWN = 5.0_sec;        // How long a teleport destination affects proximity checks
+
+	// --- Failure Recovery ---
+	constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY = 5;  // Threshold to enter recovery mode (simplify wave type)
+	constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY = 10; // Threshold to trigger emergency spawning near players
+
+	// --- Wave Timing ---
+	// For calculate_max_wave_time
+	constexpr gtime_t BASE_MAX_WAVE_TIME = 105_sec;              // Increased base time limit for waves
+	constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.8_sec;         // How much max time increases per wave
+	constexpr gtime_t BOSS_TIME_BONUS = 60_sec;                  // Extra time added for boss waves
+	// For CheckRemainingMonstersCondition (aggressive timer)
+	constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 6;       // Trigger aggressive timer when <= this many monsters remain
+
+
+} // namespace HordeConstants
 // --- Forward Declarations ---
 bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId);
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage);
@@ -578,9 +603,6 @@ inline int8_t GetNumSpectPlayers();
 inline int8_t GetNumHumanPlayers();
 
 int32_t g_adjusted_monster_cap = 0;
-constexpr int8_t MAX_MONSTERS_BIG_MAP = 32;
-constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;
-constexpr int8_t MAX_MONSTERS_SMALL_MAP = 14;
 
 bool allowWaveAdvance = false; // Global variable to control wave advancement
 
@@ -742,8 +764,8 @@ struct HordeState {
 
 	void update_map_size(const char* mapname) {
 		current_map_size = GetMapSize(mapname);
-		max_monsters = current_map_size.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-			(current_map_size.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+		max_monsters = current_map_size.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP :
+			(current_map_size.isMediumMap ? HordeConstants::MAX_MONSTERS_MEDIUM_MAP : HordeConstants::MAX_MONSTERS_BIG_MAP);
 		base_spawn_cooldown = GetBaseSpawnCooldown(
 			current_map_size.isSmallMap,
 			current_map_size.isBigMap
@@ -854,6 +876,66 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	}
 }
 
+inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t waveLevel) {
+	// Original base caps
+	const int32_t baseSmallCap = HordeConstants::MAX_MONSTERS_SMALL_MAP;  // 14
+	const int32_t baseMediumCap = HordeConstants::MAX_MONSTERS_MEDIUM_MAP; // 16
+	const int32_t baseBigCap = HordeConstants::MAX_MONSTERS_BIG_MAP;      // 32
+
+	int32_t baseCap;
+
+	// Determine base cap based on map size first
+	if (mapSize.isSmallMap) {
+		baseCap = baseSmallCap;
+	}
+	else if (mapSize.isMediumMap) {
+		baseCap = baseMediumCap;
+	}
+	else { // Big map
+		baseCap = baseBigCap;
+	}
+
+	// Apply early wave reduction (only for non-big maps)
+	if (waveLevel <= 10 && !mapSize.isBigMap) {
+		// Scale from 60% at wave 1 up to 100% at wave 10
+		float reductionFactor = 0.6f + ((waveLevel - 1) * 0.0444f); // (1.0 - 0.6) / 9 = 0.0444...
+		reductionFactor = std::clamp(reductionFactor, 0.6f, 1.0f); // Ensure it stays within bounds
+		baseCap = static_cast<int32_t>(baseCap * reductionFactor);
+	}
+
+	// --- Player Count Bonus ---
+	int32_t finalAdjustedCap = baseCap; // Start with the potentially reduced base cap
+	const int32_t numHumanPlayers = GetNumHumanPlayers();
+
+	if (numHumanPlayers > 1) {
+		constexpr int32_t MAX_BONUS_PLAYERS = 3; // Cap bonus contribution at 3 extra players (i.e., players 2, 3, 4)
+		constexpr int32_t BONUS_PER_PLAYER = 2;  // +2 monsters per extra contributing player
+		const int32_t extraPlayers = std::min(numHumanPlayers - 1, MAX_BONUS_PLAYERS);
+		const int32_t playerBonus = extraPlayers * BONUS_PER_PLAYER;
+		finalAdjustedCap += playerBonus;
+
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, BonusPlayers={}, Bonus={}, FinalCap={}\n",
+				waveLevel, baseCap, numHumanPlayers, extraPlayers, playerBonus, finalAdjustedCap);
+		}
+	}
+	else {
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, No Bonus, FinalCap={}\n",
+				waveLevel, baseCap, numHumanPlayers, finalAdjustedCap);
+		}
+	}
+	// --- End Player Count Bonus ---
+
+	// Ensure the cap doesn't go below a minimum reasonable value (e.g., 6)
+	finalAdjustedCap = std::max(6, finalAdjustedCap);
+
+	// Store globally
+	g_adjusted_monster_cap = finalAdjustedCap;
+
+	return g_adjusted_monster_cap;
+}
+
 // Modify the existing ClampNumToSpawn function
 inline static void ClampNumToSpawn(const horde::MapSize& mapSize) { // mapSize parameter might no longer be needed here
 	// g_adjusted_monster_cap is now calculated in GetAdjustedMonsterCap and includes player bonus
@@ -862,8 +944,8 @@ inline static void ClampNumToSpawn(const horde::MapSize& mapSize) { // mapSize p
 	// Ensure g_adjusted_monster_cap was initialized (fallback if called too early)
 	if (maxAllowed <= 0) {
 		// Fallback to basic map defaults if the global cap isn't ready
-		const int32_t fallbackCap = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-			(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+		const int32_t fallbackCap = mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP :
+			(mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP);
 		g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, fallbackCap);
 		if (developer->integer) {
 			gi.Com_PrintFmt("ClampNumToSpawn: WARN - g_adjusted_monster_cap not ready, used fallback {}\n", fallbackCap);
@@ -1095,25 +1177,16 @@ struct ConditionParams {
 	}
 };
 
-// In the constants near calculate_max_wave_time
-// constexpr gtime_t BASE_MAX_WAVE_TIME = 95_sec;    // Original Increased base time
-constexpr gtime_t BASE_MAX_WAVE_TIME = 105_sec;   // MODIFIED: Further increase base time
-// constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.7_sec; // Original Slightly faster increase per level
-constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.8_sec; // MODIFIED: Slightly faster increase again
-constexpr gtime_t BOSS_TIME_BONUS = 60_sec;          // Keep boss bonus the same
-// constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5; // Original threshold
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 6; // MODIFIED: Start aggressive reduction slightly later
-
 static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 	// Calculate the time base based on level
-	gtime_t base_time = BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level;
+	gtime_t base_time = HordeConstants::BASE_MAX_WAVE_TIME + HordeConstants::TIME_INCREASE_PER_LEVEL * wave_level;
 
 	// Limit base time to 240 seconds (Increased from 220)
 	base_time = (base_time <= 240_sec) ? base_time : 240_sec; // MODIFIED: Increased cap
 
 	// Add extra time if it's a boss wave (levels multiples of 5 after 10)
 	if (wave_level >= 10 && wave_level % 5 == 0) {
-		base_time += BOSS_TIME_BONUS;
+		base_time += HordeConstants::BOSS_TIME_BONUS;
 	}
 
 	return base_time;
@@ -4145,8 +4218,16 @@ void ResetGame() {
 	}
 	// --- END MODIFIED ---
 
-	std::fill(g_recent_spawn_positions.begin(), g_recent_spawn_positions.end(), RecentSpawnPosition{});
-	g_recent_position_index = 0;
+// Reset Recent Spawn Position Tracking
+	std::fill(g_recent_spawn_positions.begin(), g_recent_spawn_positions.end(), RecentSpawnPosition{}); // Zero out the array
+	g_recent_position_index = 0; // Reset the index
+
+	// Reset Recent Teleport Position Tracking
+	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{}); // Zero out the array
+	g_recent_teleport_index = 0; // Reset the index
+
+	HordeConstants::recent_teleport_count = 0; // Reset the counter (might need HordeConstants:: if namespaced)
+	HordeConstants::g_teleport_rate_reset_time = level.time; // Reset the timer base (might need HordeConstants::)
 
 	ResetTeleportTracking();
 	ResetRecentBosses();
@@ -4312,7 +4393,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
 
 	// Apply aggressive time reduction for few monsters
 	// This happens even if conditions are already triggered
-	if (g_horde_local.conditionTriggered && remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
+	if (g_horde_local.conditionTriggered && remainingMonsters <= HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
 
 		// --- MODIFIED AGGRESSIVE TIME CALCULATION ---
 
@@ -4859,296 +4940,226 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	return true;
 }
 
+
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-	// --- Rate Limiting (Unchanged) ---
+	// Reset the global counter periodically
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
-		HordeConstants::g_teleport_rate_count = 0;
+		HordeConstants::recent_teleport_count = 0;
 		HordeConstants::g_teleport_rate_reset_time = level.time;
 	}
+
+	// Check if global rate limit is reached
 	int max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL;
-	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) max_teleports++;
-	if (HordeConstants::g_teleport_rate_count >= max_teleports) return false;
-
-	// --- Basic Validation & Cooldowns (Unchanged) ---
-	if (!self || !self->inuse || self->deadflag || level.intermissiontime || !g_horde->integer || self->monsterinfo.IS_BOSS) return false;
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) return false;
-	if (self->teleport_time && level.time < self->teleport_time) return false; // Monster's own cooldown
-
-	constexpr gtime_t TELEPORT_GRACE_PERIOD = 2.0_sec;
-	if (self->monsterinfo.spawn_complete_time > 0_sec && level.time < self->monsterinfo.spawn_complete_time + TELEPORT_GRACE_PERIOD) {
-		return false; // Don't teleport immediately after spawning
+	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
+		max_teleports += 1; // Allow one more teleport in high difficulty modes
 	}
 
-	// --- Jump Check (Unchanged) ---
-	if (IsMonsterJumping(self)) {
-		if (self->monsterinfo.was_stuck) {
-			self->monsterinfo.was_stuck = false;
-			self->monsterinfo.stuck_check_time = 0_sec;
-			if (developer->integer > 1) {
-				gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} is jumping, resetting stuck flag.\n", self->classname);
-			}
-		}
+	if (HordeConstants::recent_teleport_count >= max_teleports) {
+		return false; // Too many recent teleports globally
+	}
+
+	// Early basic validation returns
+	if (!self || !self->inuse || self->deadflag ||
+		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
+		return false;
+
+	// Skip specific types
+	if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
+		return false;
+
+	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
+	constexpr gtime_t STUCK_CHECK_TIME = 10_sec;
+
+	// If can see enemy, don't teleport
+	if (self->monsterinfo.issummoned ||
+		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
+		self->monsterinfo.was_stuck = false;
+		self->monsterinfo.stuck_check_time = 0_sec;
 		return false;
 	}
 
-	// --- Stuck Detection Logic (Unchanged) ---
-	if (self->monsterinfo.issummoned || (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
-		if (self->monsterinfo.was_stuck) {
-			self->monsterinfo.was_stuck = false;
-			self->monsterinfo.stuck_check_time = 0_sec;
-		}
+	// Check individual teleport cooldown (uses self->teleport_time set by Horde_TeleportMonster)
+	if (self->teleport_time > level.time) {
 		return false;
 	}
 
-	bool should_consider_teleport = false;
-	bool currently_stuck = false;
+	// For non-water damage, check stuck conditions
 	if (!self->waterlevel) {
-		contents_t check_mask = G_GetClipMask(self);
-		currently_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, check_mask).startsolid;
+		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
+			self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= NO_DAMAGE_TIMEOUT;
 
-		if (currently_stuck && !self->monsterinfo.was_stuck) {
-			self->monsterinfo.was_stuck = true;
+		if (!is_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck)
+			return false;
+
+		// Start tracking stuck time if not already
+		if (!self->monsterinfo.was_stuck) {
 			self->monsterinfo.stuck_check_time = level.time;
-			return false;
-		}
-		if (!currently_stuck && self->monsterinfo.was_stuck) {
-			self->monsterinfo.was_stuck = false;
-			self->monsterinfo.stuck_check_time = 0_sec;
-			return false;
+			self->monsterinfo.was_stuck = true;
+			return false; // Wait for the STUCK_CHECK_TIME duration
 		}
 
-		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= 25_sec;
-		const bool stuck_timer_expired = self->monsterinfo.was_stuck && (level.time >= self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME);
+		// Check if stuck duration has passed
+		if (level.time < self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME)
+			return false;
+	}
+	// If we reach here, the monster is either in water and needs help, or has been stuck long enough.
 
-		if (no_damage_timeout || stuck_timer_expired) {
-			if (currently_stuck || no_damage_timeout) {
-				should_consider_teleport = true;
-			}
-			else {
-				self->monsterinfo.was_stuck = false;
-				self->monsterinfo.stuck_check_time = 0_sec;
-				return false;
-			}
+	// Add 40% chance to skip processing - additional natural staggering
+	if (frandom() < 0.4f) {
+		return false;
+	}
+
+	// Check if human players are present before attempting player-based teleport
+	bool humans_present = AreHumanPlayersPresent();
+
+	// Calculate teleport chance near players
+	float teleport_chance = 0.01f; // Base 1% chance
+	if (current_wave_level > 5) {
+		if (humans_present) {
+			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.003f, 0.08f);
 		}
 		else {
-			return false;
+			teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.002f, 0.05f);
 		}
 	}
-	else {
-		return false; // Don't teleport if in water (might be handled by drowning logic)
-	}
 
-	if (!should_consider_teleport) return false;
+	const bool use_player_teleport = (frandom() < teleport_chance);
 
-	// --- Find Suitable Teleport Destination (IMPROVED with NEAR PLAYER CHANCE) ---
-	vec3_t final_teleport_origin = vec3_origin;
-	edict_t* chosen_spawn_point = nullptr; // Renamed for clarity
-	vec3_t predicted_mins, predicted_maxs;
-	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
-		// Fallback handled inside
-	}
-	bool is_flying = (self->flags & FL_FLY);
+	bool teleported = false; // Flag to track success
 
-	// --- Ensure spawn points are cached and shuffled ---
-	if (!g_spawn_points_cached || need_spawn_cache_reset) {
-		// Rebuild cache logic (same as before)
-		g_potential_spawn_points.clear();
-		g_potential_spawn_points.reserve(MAX_SPAWN_POINTS);
-		for (auto* point_entry : monster_spawn_points()) {
-			if (point_entry && point_entry->inuse && point_entry->classname && strcmp(point_entry->classname, "info_player_deathmatch") == 0 && is_valid_vector(point_entry->s.origin)) {
-				g_potential_spawn_points.push_back(point_entry);
+	// --- Try Teleporting Near Player/Bot (Emergency) ---
+	if (use_player_teleport) {
+		vec3_t emergency_origin, emergency_angles;
+		bool teleported_to_human = false; // Info might not be needed by caller anymore
+
+		if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, teleported_to_human, self->classname)) {
+			// Optional: Check proximity to recent locations here if not done in Horde_TeleportMonster
+			// if (IsPositionTooCloseToRecent(emergency_origin, ...)) return false;
+
+			// *** CALL NEW TELEPORT FUNCTION ***
+			teleported = Horde_TeleportMonster(self, emergency_origin, emergency_angles, true); // Play effects
+
+			if (teleported && developer->integer) {
+				gi.Com_PrintFmt("Monster teleported (emergency) via Horde_TeleportMonster: {}\n", self->classname);
 			}
 		}
-		if (!g_potential_spawn_points.empty()) {
-			for (size_t i = g_potential_spawn_points.size() - 1; i > 0; --i) {
-				size_t j = irandom(0, i);
-				if (i != j) std::swap(g_potential_spawn_points[i], g_potential_spawn_points[j]);
+		// If FindEmergencySpawnPosition failed, teleported remains false, try next method
+	}
+
+	// --- Try Teleporting to a Spawn Point (Standard Stuck) ---
+	if (!teleported) {
+		StuckMonsterSpawnFilter filter;
+		const edict_t* const spawn_point = SelectRandomSpawnPoint(filter);
+
+		if (spawn_point) {
+			// Optional: Check proximity to recent locations here
+			// if (IsPositionTooCloseToRecent(spawn_point->s.origin, ...)) return false;
+
+			// *** CALL NEW TELEPORT FUNCTION ***
+			teleported = Horde_TeleportMonster(self, spawn_point->s.origin, spawn_point->s.angles, true); // Play effects
+
+			if (teleported) {
+				// Add cooldown specifically to the spawn point used for stuck teleport
+				spawnPointsData[spawn_point].teleport_cooldown = level.time + 3.5_sec; // Example cooldown
+
+				if (developer->integer) {
+					gi.Com_PrintFmt("Monster teleported (stuck) via Horde_TeleportMonster: {}\n", self->classname);
+				}
 			}
 		}
-		g_spawn_point_shuffle_index = 0;
-		g_spawn_points_cached = true;
-		need_spawn_cache_reset = false;
-		if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Spawn Point Cache Rebuilt ({} points).\n", g_potential_spawn_points.size());
 	}
 
-	// --- Check if the cache is empty ---
-	if (g_potential_spawn_points.empty()) {
-		if (developer->integer) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: No potential spawn points found in cache. Cannot teleport {}.\n", self->classname);
-		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = 0_sec;
-		return false;
+	// --- Update Global Counter on Success ---
+	if (teleported) {
+		HordeConstants::recent_teleport_count++; // Increment global counter
 	}
 
-	// --- Iterate through points to find candidates ---
-	edict_t* best_far_point = nullptr;
-	vec3_t best_far_origin = vec3_origin;
-	edict_t* best_near_point = nullptr;
-	vec3_t best_near_origin = vec3_origin;
-
-	// Iterate through the shuffled list, starting from the current index
-	size_t current_check_index = g_spawn_point_shuffle_index;
-	size_t points_checked = 0;
-	while (points_checked < g_potential_spawn_points.size()) {
-		edict_t* point = g_potential_spawn_points[current_check_index];
-		points_checked++;
-		current_check_index = (current_check_index + 1) % g_potential_spawn_points.size(); // Cycle index for next iteration
-
-		if (!point || !point->inuse) continue;
-
-		// Check cooldowns and basic validity
-		if (level.time < spawnPointsData[point].teleport_cooldown) continue;
-		if (IsSpawnPointOccupied(point, self)) continue; // Pass `self` to ignore the monster itself
-		bool is_flying_point = (point->style == 1);
-		if (is_flying && !is_flying_point) continue; // Flying monster needs flying point
-		if (!is_flying && is_flying_point) continue; // Ground monster needs ground point
-		if (IsPositionTooCloseToRecentTeleport(point->s.origin)) continue;
-
-		// Validate the location geometry
-		vec3_t candidate_pos = point->s.origin;
-		if (IsValidSpawnLocation(candidate_pos, predicted_mins, predicted_maxs, is_flying)) {
-			// Double-check for entities right before teleport
-			trace_t final_check = gi.trace(candidate_pos, predicted_mins, predicted_maxs, candidate_pos, self, MASK_PLAYERSOLID | MASK_MONSTERSOLID);
-			if (!final_check.startsolid) {
-				// --- Check Proximity to Players ---
-				bool is_near_player = false;
-				// **Only check proximity for ground monsters teleporting to ground points**
-				if (!is_flying && !is_flying_point) {
-					constexpr float NEAR_PLAYER_DIST_SQ = 512.0f * 512.0f; // Squared distance for check
-					for (const auto* const player : active_players_no_spect()) {
-						if (!player || !player->inuse) continue;
-						if ((candidate_pos - player->s.origin).lengthSquared() < NEAR_PLAYER_DIST_SQ) {
-							is_near_player = true;
-							break;
-						}
-					}
-				}
-
-				// Store the first valid point found for each category
-				if (is_near_player && !best_near_point) {
-					best_near_point = point;
-					best_near_origin = candidate_pos;
-					if (developer->integer > 2) gi.Com_PrintFmt("Teleport Candidate: Found NEAR point {} at {}\n", (int)(point - g_edicts), candidate_pos);
-				}
-				else if (!is_near_player && !best_far_point) {
-					best_far_point = point;
-					best_far_origin = candidate_pos;
-					if (developer->integer > 2) gi.Com_PrintFmt("Teleport Candidate: Found FAR point {} at {}\n", (int)(point - g_edicts), candidate_pos);
-				}
-
-				// Optimization: If we have found both a near and far point, we can stop searching early
-				if (best_near_point && best_far_point) {
-					break;
-				}
-			} // end if !final_check.startsolid
-		} // end if IsValidSpawnLocation
-	} // end while points_checked
-
-	// --- Selection Logic based on found points and random chance ---
-	bool use_near_point = false;
-	if (best_near_point && frandom() < 0.3f) {
-		use_near_point = true;
-	}
-
-	if (use_near_point) {
-		chosen_spawn_point = best_near_point;
-		final_teleport_origin = best_near_origin;
-		if (developer->integer > 1) gi.Com_PrintFmt("Teleport Choice: Selected NEAR point {} (Chance Roll).\n", (int)(chosen_spawn_point - g_edicts));
-	}
-	else if (best_far_point) {
-		chosen_spawn_point = best_far_point;
-		final_teleport_origin = best_far_origin;
-		if (developer->integer > 1) gi.Com_PrintFmt("Teleport Choice: Selected FAR point {}.\n", (int)(chosen_spawn_point - g_edicts));
-	}
-	else if (best_near_point) {
-		// Fallback to near point if far point wasn't found and chance roll failed
-		chosen_spawn_point = best_near_point;
-		final_teleport_origin = best_near_origin;
-		if (developer->integer > 1) gi.Com_PrintFmt("Teleport Choice: Selected NEAR point {} (Fallback).\n", (int)(chosen_spawn_point - g_edicts));
-	}
-	else {
-		// No valid point found at all
-		if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Failed to find ANY suitable teleport destination for {}.\n", self->classname);
-		// Reset stuck flags since we couldn't find anywhere to go
-		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = 0_sec;
-		return false; // Teleport failed
-	}
-
-	// --- Teleport Execution (if a point was chosen) ---
-	self->svflags |= SVF_NOCLIENT; gi.unlinkentity(self); // Hide
-
-	vec3_t old_origin = self->s.origin;
-	vec3_t old_velocity = self->velocity;
-
-	self->s.origin = final_teleport_origin;
-	self->s.old_origin = final_teleport_origin; // Update old_origin as well
-	self->velocity = vec3_origin;
-
-	// Final check after moving
-	trace_t final_trace = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
-	if (final_trace.startsolid) {
-		if (developer->integer) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: WARNING - Teleport destination {} became stuck after move! Reverting.\n", self->s.origin);
-		self->s.origin = old_origin;
-		self->s.old_origin = old_origin;
-		self->velocity = old_velocity;
-		self->svflags &= ~SVF_NOCLIENT;
-		gi.linkentity(self);
-		return false; // Teleport aborted
-	}
-
-	// Special handling for Stalker (unchanged)
-	if (typeId == horde::MonsterTypeID::STALKER) {
-		self->gravityVector = { 0, 0, -1 };
-		self->s.angles[ROLL] = 0;
-		self->gravity = 1.0f;
-		if (self->movetype == MOVETYPE_FLY || self->movetype == MOVETYPE_NOCLIP) {
-			self->movetype = MOVETYPE_STEP;
-		}
-		self->groundentity = nullptr;
-		constexpr float STALKER_SPAWN_ELEVATION = 16.0f;
-		self->s.origin[2] += STALKER_SPAWN_ELEVATION;
-		trace_t stalker_check = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID);
-		if (stalker_check.startsolid && developer->integer) {
-			gi.Com_PrintFmt("Stalker teleport FIX WARNING: Elevated position {} is still stuck!\n", self->s.origin);
-		}
-	}
-
-	// Make visible again and link
-	self->svflags &= ~SVF_NOCLIENT;
-	gi.linkentity(self);
-
-	// Effects and state updates
-	gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-	SpawnGrow_Spawn(final_teleport_origin, 80.0f, 10.0f);
-
-	self->monsterinfo.pausetime = level.time + 150_ms; // Short pause after teleport
-	self->goalentity = nullptr; // Clear pathing goal
-	self->monsterinfo.react_to_damage_time = level.time; // Reset damage reaction timer
-	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
-
-	HordeConstants::g_teleport_rate_count++; // Increment global rate counter
-	MarkPositionAsRecentlyTeleported(final_teleport_origin); // Mark the destination
-
-	// Apply cooldown to the chosen spawn point
-	const gtime_t spawn_point_cooldown_duration = std::max(
-		HordeConstants::BASE_SPAWN_TELEPORT_COOLDOWN,
-		HordeConstants::MIN_SPAWN_TELEPORT_COOLDOWN // Ensure minimum duration
-	);
-	spawnPointsData[chosen_spawn_point].teleport_cooldown = level.time + spawn_point_cooldown_duration;
-	if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Applied {:.1f}s teleport cooldown to spawn point {}.\n", spawn_point_cooldown_duration.seconds(), (int)(chosen_spawn_point - g_edicts));
-
-	if (developer->integer) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Teleported stuck monster {} to {}.\n", self->classname, self->s.origin);
-
-	// Reset stuck flags ONLY if teleport was successful
-	self->monsterinfo.was_stuck = false;
-	self->monsterinfo.stuck_check_time = 0_sec;
-
-	return true; // Indicate teleport succeeded
+	return teleported; // Return whether any teleport method succeeded
 }
 
 // --- END CheckAndTeleportStuckMonster ---
 // 
+
+bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects)
+{
+	// Basic validation
+	if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles)) {
+		return false;
+	}
+
+	// --- Effect Handling ---
+	effects_t original_effects = self->s.effects;
+	renderfx_t original_renderfx = self->s.renderfx;
+
+	// --- Hide Entity and Clear Effects ---
+	self->svflags |= SVF_NOCLIENT;
+	self->s.effects = EF_NONE; // Clear effects
+	self->s.renderfx = (original_renderfx & RF_IR_VISIBLE); // Clear renderfx, keeping IR
+	gi.unlinkentity(self);
+
+	// --- Store Old State & Move ---
+	const vec3_t old_origin = self->s.origin;
+	const vec3_t old_angles = self->s.angles;
+	const vec3_t old_velocity = self->velocity;
+
+	self->s.origin = destination_origin;
+	self->s.old_origin = destination_origin; // Update old_origin as well
+	self->s.angles = destination_angles;
+	self->velocity = vec3_origin; // Reset velocity
+
+	// --- Validate New Position ---
+	// Use the improved validation (allow defense fallback might be needed for stuck teleports)
+	vec3_t final_pos = self->s.origin; // ValidateSpawnPosition might modify this
+	if (!IsValidSpawnLocation(final_pos, self->mins, self->maxs, true)) // Allow fallback for stuck cases
+	{
+		// Teleport failed validation, restore state
+		self->s.origin = old_origin;
+		self->s.old_origin = old_origin;
+		self->s.angles = old_angles;
+		self->velocity = old_velocity;
+
+		// Restore effects before making visible on failure
+		self->s.effects = original_effects;
+		self->s.renderfx = original_renderfx;
+
+		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity(self);
+		return false;
+	}
+	// Update origin if ValidateSpawnPosition adjusted it
+	self->s.origin = final_pos;
+	self->s.old_origin = final_pos;
+
+
+	// --- Restore Effects and Make Visible ---
+	self->s.effects = original_effects;
+	self->s.renderfx = original_renderfx;
+	self->svflags &= ~SVF_NOCLIENT;
+	gi.linkentity(self);
+
+	// --- Post-Teleport Effects ---
+	if (play_effects) {
+		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f); // Example effect
+		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0); // Example sound (ensure sound_spawn1 is accessible)
+	}
+
+	// --- Reset Stuck/Damage Timers ---
+	self->monsterinfo.was_stuck = false;
+	self->monsterinfo.stuck_check_time = 0_sec;
+	self->monsterinfo.react_to_damage_time = level.time;
+
+	// Apply randomized cooldown instead of fixed
+	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER); // Ensure these constants are accessible
+
+	// Update global teleport tracking (if desired, requires access to those statics)
+	// recent_teleport_count++;
+	// Record teleport location (if desired)
+
+	return true; // Teleport successful
+}
+
+
 // Function to track created entities
 void OnEntityCreated(edict_t* ent) {
 	if (!ent || !ent->inuse)
@@ -5962,7 +5973,7 @@ edict_t* SpawnMonsters() {
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	// Use the globally calculated cap (includes player bonus)
 	const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
-		(mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP)); // Fallback
+		(mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP)); // Fallback
 	const int32_t hardCap = static_cast<int32_t>(softCap * 1.2f); // Hard cap slightly above soft cap
 
 	// --- Hard Cap Check ---
@@ -6031,14 +6042,14 @@ edict_t* SpawnMonsters() {
 
 	// --- Failure Recovery & Emergency Logic ---
 	bool use_emergency_spawn = false;
-	if (g_consecutive_spawn_failures >= MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY) {
+	if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}. Attempting spawn near players.\n", g_consecutive_spawn_failures);
 		}
 		use_emergency_spawn = true;
 	}
 	// Optional: Recovery mode (less aggressive than emergency)
-	else if (g_consecutive_spawn_failures >= MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY && !g_recovery_mode_active) {
+	else if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY && !g_recovery_mode_active) {
 		if (developer->integer) {
 			gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}. Simplifying spawn criteria.\n", g_consecutive_spawn_failures);
 		}
@@ -6699,66 +6710,6 @@ void CheckAndResetDisabledSpawnPoints() {
 			}
 		}
 	}
-}
-
-inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t waveLevel) {
-	// Original base caps
-	const int32_t baseSmallCap = MAX_MONSTERS_SMALL_MAP;  // 14
-	const int32_t baseMediumCap = MAX_MONSTERS_MEDIUM_MAP; // 16
-	const int32_t baseBigCap = MAX_MONSTERS_BIG_MAP;      // 32
-
-	int32_t baseCap;
-
-	// Determine base cap based on map size first
-	if (mapSize.isSmallMap) {
-		baseCap = baseSmallCap;
-	}
-	else if (mapSize.isMediumMap) {
-		baseCap = baseMediumCap;
-	}
-	else { // Big map
-		baseCap = baseBigCap;
-	}
-
-	// Apply early wave reduction (only for non-big maps)
-	if (waveLevel <= 10 && !mapSize.isBigMap) {
-		// Scale from 60% at wave 1 up to 100% at wave 10
-		float reductionFactor = 0.6f + ((waveLevel - 1) * 0.0444f); // (1.0 - 0.6) / 9 = 0.0444...
-		reductionFactor = std::clamp(reductionFactor, 0.6f, 1.0f); // Ensure it stays within bounds
-		baseCap = static_cast<int32_t>(baseCap * reductionFactor);
-	}
-
-	// --- Player Count Bonus ---
-	int32_t finalAdjustedCap = baseCap; // Start with the potentially reduced base cap
-	const int32_t numHumanPlayers = GetNumHumanPlayers();
-
-	if (numHumanPlayers > 1) {
-		constexpr int32_t MAX_BONUS_PLAYERS = 3; // Cap bonus contribution at 3 extra players (i.e., players 2, 3, 4)
-		constexpr int32_t BONUS_PER_PLAYER = 2;  // +2 monsters per extra contributing player
-		const int32_t extraPlayers = std::min(numHumanPlayers - 1, MAX_BONUS_PLAYERS);
-		const int32_t playerBonus = extraPlayers * BONUS_PER_PLAYER;
-		finalAdjustedCap += playerBonus;
-
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, BonusPlayers={}, Bonus={}, FinalCap={}\n",
-				waveLevel, baseCap, numHumanPlayers, extraPlayers, playerBonus, finalAdjustedCap);
-		}
-	}
-	else {
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("GetAdjustedMonsterCap: Wave={}, BaseCap={}, Humans={}, No Bonus, FinalCap={}\n",
-				waveLevel, baseCap, numHumanPlayers, finalAdjustedCap);
-		}
-	}
-	// --- End Player Count Bonus ---
-
-	// Ensure the cap doesn't go below a minimum reasonable value (e.g., 6)
-	finalAdjustedCap = std::max(6, finalAdjustedCap);
-
-	// Store globally
-	g_adjusted_monster_cap = finalAdjustedCap;
-
-	return g_adjusted_monster_cap;
 }
 
 void Horde_RunFrame() {
