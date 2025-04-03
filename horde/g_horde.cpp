@@ -102,7 +102,8 @@ namespace HordeConstants {
 	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.8_sec;      // Absolute minimum time between any two monster spawns (SetNextMonsterSpawnTime)
 
 	// --- Stuck Monster / Teleport Logic ---
-	constexpr gtime_t STUCK_CHECK_TIME = 3_sec;                   // How long monster must be stuck before teleport check
+	constexpr gtime_t STUCK_CHECK_TIME = 10_sec;                   // How long monster must be stuck before teleport check
+	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	// CONSOLIDATED: Cooldown applied *to the monster* after any teleport (stuck or boss)
 	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
 	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
@@ -503,48 +504,48 @@ edict_t* SelectRandomSpawnPoint(TFilter filter) {
 
 static void CleanupSpawnPointCache() noexcept { spawn_point_cache.clear(); }
 
-// Spawn point selection filter
-struct SpawnMonsterFilter {
-	gtime_t currentTime;
-
-	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
-
-	bool operator()(edict_t* spawnPoint) const {
-		// Combined validation to reduce branches
-		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin))
-			return false;
-
-		// Direct array access for cooldown check
-		const auto& data = spawnPointsData[spawnPoint];
-
-		// Check normal cooldown
-		if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
-			return false;
-
-		// NEW: Check alternative position cooldown
-		if (data.alternative_cooldown > 0_sec && currentTime < data.alternative_cooldown)
-			return false;
-
-		// Check if this is a flying spawn point but we need non-flying monsters
-		if (spawnPoint->style == 1 && !HasWaveType(current_wave_type, MonsterWaveType::Flying))
-			return false;
-
-		// Cache the origin reference to avoid multiple member accesses
-		const vec3_t& origin = spawnPoint->s.origin;
-
-		// Check minimum distance from players using modern vector operations
-		for (const auto* const player : active_players()) {
-			if (!player || !player->inuse)
-				continue;
-
-			// Use squared distance to avoid unnecessary sqrt calculations
-			if ((origin - player->s.origin).lengthSquared() < 22500.0f) // 150^2 = 22500
-				return false;
-		}
-
-		return true;
-	}
-};
+//// Spawn point selection filter
+//struct SpawnMonsterFilter {
+//	gtime_t currentTime;
+//
+//	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
+//
+//	bool operator()(edict_t* spawnPoint) const {
+//		// Combined validation to reduce branches
+//		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin))
+//			return false;
+//
+//		// Direct array access for cooldown check
+//		const auto& data = spawnPointsData[spawnPoint];
+//
+//		// Check normal cooldown
+//		if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
+//			return false;
+//
+//		// NEW: Check alternative position cooldown
+//		if (data.alternative_cooldown > 0_sec && currentTime < data.alternative_cooldown)
+//			return false;
+//
+//		// Check if this is a flying spawn point but we need non-flying monsters
+//		if (spawnPoint->style == 1 && !HasWaveType(current_wave_type, MonsterWaveType::Flying))
+//			return false;
+//
+//		// Cache the origin reference to avoid multiple member accesses
+//		const vec3_t& origin = spawnPoint->s.origin;
+//
+//		// Check minimum distance from players using modern vector operations
+//		for (const auto* const player : active_players()) {
+//			if (!player || !player->inuse)
+//				continue;
+//
+//			// Use squared distance to avoid unnecessary sqrt calculations
+//			if ((origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_SPAWNPOINT) // 150^2 = 22500
+//				return false;
+//		}
+//
+//		return true;
+//	}
+//};
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
 constexpr size_t MAX_RECENT_BOSSES = 4;
@@ -605,12 +606,7 @@ inline int8_t GetNumHumanPlayers();
 int32_t g_adjusted_monster_cap = 0;
 
 bool allowWaveAdvance = false; // Global variable to control wave advancement
-
 bool boss_spawned_for_wave = false; // to avoid boss spamming
-
-//bool flying_monsters_mode = false;  // flying wave
-bool melee_monsters_mode = false;   // For RedMutant waves
-bool small_monsters_mode = false;   // For Widow waves
 
 int16_t last_wave_number = 0;              // Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
@@ -4535,11 +4531,12 @@ void AllowNextWaveAdvance() noexcept {
 }
 
 void fastNextWave() noexcept {
+	Horde_InitLevel(g_horde_local.level + 1);
 	g_horde_local.monster_spawn_time = level.time;
 	g_horde_local.warm_time = level.time;
 
 	// Permitir el avance inmediato
-	allowWaveAdvance = true;
+	//allowWaveAdvance = true;
 
 	// Resetear variables importantes
 	g_horde_local.num_to_spawn = 0;
@@ -4551,8 +4548,7 @@ void fastNextWave() noexcept {
 	// Limpiar cualquier mensaje pendiente
 	ClearHordeMessage();
 
-	g_horde_local.state = horde_state_t::spawning;
-	Horde_InitLevel(g_horde_local.level + 1);
+
 }
 inline int8_t GetNumActivePlayers() {
 	const auto& players = active_players();
@@ -4727,9 +4723,6 @@ struct StuckMonsterSpawnFilter {
 		return false; // No player nearby
 	}
 };
-
-// Function to attempt dropping a monster to the floor
-bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs);
 
 // --- FindEmergencySpawnPosition Function ---
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, horde::MonsterTypeID typeId) {
@@ -4966,9 +4959,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
 		return false;
 
-	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
-	constexpr gtime_t STUCK_CHECK_TIME = 10_sec;
-
 	// If can see enemy, don't teleport
 	if (self->monsterinfo.issummoned ||
 		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
@@ -4986,7 +4976,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (!self->waterlevel) {
 		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
 			self->s.origin, self, MASK_MONSTERSOLID).startsolid;
-		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= NO_DAMAGE_TIMEOUT;
+		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= HordeConstants::NO_DAMAGE_TIMEOUT;
 
 		if (!is_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck)
 			return false;
@@ -4999,7 +4989,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		}
 
 		// Check if stuck duration has passed
-		if (level.time < self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME)
+		if (level.time < self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME)
 			return false;
 	}
 	// If we reach here, the monster is either in water and needs help, or has been stuck long enough.
@@ -5460,44 +5450,6 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 		monster->was_spawned_by_horde = false;    // Reset flag as it's processed
 		monster->spawned_in_spawn_state = false; // Reset flag as it's processed
 	} // End if spawned_in_spawn_state
-}
-
-// Function to attempt dropping a monster to the floor
-bool AttemptDropToFloor(vec3_t& position, const vec3_t& mins, const vec3_t& maxs) {
-
-	//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
-
-	// Try a trace straight down to find floor
-	vec3_t start = position;
-	vec3_t end = position - vec3_t{ 0, 0, 512 };
-
-	trace_t trace = gi.trace(start, mins, maxs, end, nullptr, MASK_MONSTERSOLID);
-
-	// If we hit something that isn't immediately below us
-	if (trace.fraction > 0.01f && trace.fraction < 1.0f) {
-		// Found floor, set position to just above it
-		position = trace.endpos + vec3_t{ 0, 0, 1.0f };
-
-		// Final check to make sure position is valid
-		trace = gi.trace(position, mins, maxs, position, nullptr, MASK_MONSTERSOLID);
-		if (!trace.startsolid && !trace.allsolid)
-			return true;
-	}
-
-	return false;
-}
-
-bool IsPositionTooCloseToRecent(const vec3_t& position, float min_distance) {
-	const gtime_t current_time = level.time;
-	for (const auto& recent : g_recent_spawn_positions) {
-		if (recent.cooldown_until > current_time) {
-			const float distance_squared = (position - recent.position).lengthSquared();
-			if (distance_squared < min_distance * min_distance) {
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 // --- TryAlternativeSpawnPosition Function ---
