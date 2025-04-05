@@ -2139,7 +2139,7 @@ THINK(bfg_think) (edict_t* self) -> void
 		laser_end = pierce_tr.endpos; // Update laser end to actual pierce end point
 
 		// Apply pull effect if enabled
-		if (should_pull && ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
+		if (should_pull && !OnSameTeam(ent, self->owner) && ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
 		{
 			// Calculate pull force based on entity state
 			const int pull_force = calculate_pull_force(ent);

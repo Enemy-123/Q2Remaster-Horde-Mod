@@ -5167,6 +5167,16 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 		return false;
 	}
 
+	// Prevent teleport if monster can see its enemy
+	if (self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
+		// Reset cooldown so it can try again sooner if it gets stuck later
+		self->teleport_time = level.time;
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - enemy visible.\n", self->classname);
+		}
+		return false; // Abort teleport
+	}
+
 	// --- Effect Handling ---
 	effects_t original_effects = self->s.effects;
 	renderfx_t original_renderfx = self->s.renderfx;
