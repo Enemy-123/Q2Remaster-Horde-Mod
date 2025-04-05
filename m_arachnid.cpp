@@ -44,6 +44,31 @@ constexpr const char* default_boss_reinforcements = "monster_tank_spawner 2";
 constexpr const char* coop_reinforcements = "monster_stalker 2";
 constexpr int32_t default_monster_slots_base = 5;
 
+// Forward declarations for spider jump/ceiling logic
+bool spider_ok_to_transition(edict_t* self);
+void spider_jump_transition(edict_t* self);
+void spider_jump_wait_land(edict_t* self);
+bool spider_do_pounce(edict_t* self, const vec3_t& dest);
+void spider_jump_straightup(edict_t* self);
+void spider_jump(edict_t* self, blocked_jump_result_t result);
+void spider_dodge_jump(edict_t* self);
+void spider_run(edict_t* self); // Need forward declaration for animation callbacks
+// Forward declarations for base arachnid functions needed by spider
+void arachnid_stand(edict_t* self);
+void arachnid_run(edict_t* self);
+
+//// Forward declarations for spider dodge/blocked
+//MONSTERINFO_BLOCKED(spider_blocked) (edict_t* self, float dist) -> bool;
+//MONSTERINFO_DODGE(spider_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void;
+
+void spider_stand(edict_t* self); // Need forward declaration for animation callbacks
+
+// Helper macro for ceiling check
+inline bool SPIDER_ON_CEILING(edict_t* ent)
+{
+	return (ent->gravityVector[2] > 0);
+}
+
 //==========================================================================================
 // SHARED ANIMATIONS AND FUNCTIONS
 //==========================================================================================
@@ -167,15 +192,427 @@ void arachnid_die_internal(edict_t* self, edict_t* inflictor, edict_t* attacker,
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
     self->deadflag = true;
     self->takedamage = true;
+// Ensure spider falls correctly if on ceiling
+if (self->spawnflags.has(SPAWNFLAG_SPIDER)) {
+    self->movetype = MOVETYPE_TOSS; // Make sure it falls
+    self->s.angles[2] = 0;
+    self->gravityVector = { 0, 0, -1 };
+}
 
+// Clear AI manual steering flag if it's set (mainly for PSX arachnid)
     // Clear AI manual steering flag if it's set (mainly for PSX arachnid)
     self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+
+    // Ensure spider falls correctly if on ceiling
+    if (self->spawnflags.has(SPAWNFLAG_SPIDER)) {
+        self->movetype = MOVETYPE_TOSS; // Make sure it falls
+        self->s.angles[2] = 0;
+        self->gravityVector = { 0, 0, -1 };
+    }
 
     M_SetAnimation(self, death_move);
 
     if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
         BossDeathHandler(self);
     }
+}
+
+
+//==========================================================================================
+// SPIDER JUMPING AND CEILING LOGIC (Adapted from Stalker)
+//==========================================================================================
+
+// Placeholder jump animations using run frames
+mframe_t spider_frames_jump[] = {
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move },
+    { ai_move }
+};
+MMOVE_T(spider_move_jump_up) = { FRAME_walk1, FRAME_walk7, spider_frames_jump, spider_run }; // Placeholder frames
+MMOVE_T(spider_move_jump_down) = { FRAME_walk1, FRAME_walk7, spider_frames_jump, spider_run }; // Placeholder frames
+MMOVE_T(spider_move_jump_transition) = { FRAME_walk1, FRAME_walk4, spider_frames_jump, spider_run }; // Placeholder frames
+
+// --- spider_ok_to_transition ---
+bool spider_ok_to_transition(edict_t* self)
+{
+	trace_t trace;
+	vec3_t	pt, start;
+	float	max_dist;
+	float	margin;
+	float	end_height;
+
+	if (SPIDER_ON_CEILING(self))
+	{
+		// if we get knocked off the ceiling, always fall downwards
+		if (!self->groundentity)
+			return true;
+
+		max_dist = -384; // How far down to check for floor
+		margin = self->mins[2] - 8;
+	}
+	else
+	{
+		max_dist = 180; // How far up to check for ceiling
+		margin = self->maxs[2] + 8;
+	}
+
+	pt = self->s.origin;
+	pt[2] += max_dist;
+	trace = gi.trace(self->s.origin, self->mins, self->maxs, pt, self, MASK_MONSTERSOLID);
+
+	if (trace.fraction == 1.0f ||
+		!(trace.contents & CONTENTS_SOLID) ||
+		(trace.ent != world))
+	{
+		return false; // No surface found in range
+	}
+
+    // Check surface normal
+	if (SPIDER_ON_CEILING(self))
+	{
+		if (trace.plane.normal[2] < 0.9f) // Must be reasonably flat floor
+			return false;
+	}
+	else
+	{
+		if (trace.plane.normal[2] > -0.9f) // Must be reasonably flat ceiling
+			return false;
+	}
+
+	end_height = trace.endpos[2];
+
+	// Check the four corners at the transition height to ensure enough space
+	pt[0] = self->absmin[0];
+	pt[1] = self->absmin[1];
+	pt[2] = trace.endpos[2] + margin;
+	start = pt;
+	start[2] = self->s.origin[2];
+	trace = gi.traceline(start, pt, self, MASK_MONSTERSOLID);
+	if (trace.fraction == 1.0f || !(trace.contents & CONTENTS_SOLID) || (trace.ent != world))
+		return false;
+	if (fabsf(end_height + margin - trace.endpos[2]) > 8)
+		return false;
+
+	pt[0] = self->absmax[0];
+	pt[1] = self->absmin[1];
+	start = pt;
+	start[2] = self->s.origin[2];
+	trace = gi.traceline(start, pt, self, MASK_MONSTERSOLID);
+	if (trace.fraction == 1.0f || !(trace.contents & CONTENTS_SOLID) || (trace.ent != world))
+		return false;
+	if (fabsf(end_height + margin - trace.endpos[2]) > 8)
+		return false;
+
+	pt[0] = self->absmax[0];
+	pt[1] = self->absmax[1];
+	start = pt;
+	start[2] = self->s.origin[2];
+	trace = gi.traceline(start, pt, self, MASK_MONSTERSOLID);
+	if (trace.fraction == 1.0f || !(trace.contents & CONTENTS_SOLID) || (trace.ent != world))
+		return false;
+	if (fabsf(end_height + margin - trace.endpos[2]) > 8)
+		return false;
+
+	pt[0] = self->absmin[0];
+	pt[1] = self->absmax[1];
+	start = pt;
+	start[2] = self->s.origin[2];
+	trace = gi.traceline(start, pt, self, MASK_MONSTERSOLID);
+	if (trace.fraction == 1.0f || !(trace.contents & CONTENTS_SOLID) || (trace.ent != world))
+		return false;
+	if (fabsf(end_height + margin - trace.endpos[2]) > 8)
+		return false;
+
+	return true;
+}
+
+// --- spider_jump_transition ---
+void spider_jump_transition(edict_t* self)
+{
+	if (self->deadflag)
+		return;
+
+	if (SPIDER_ON_CEILING(self))
+	{
+		if (spider_ok_to_transition(self))
+		{
+			self->gravityVector[2] = -1;
+			self->s.angles[2] += 180.0f;
+			if (self->s.angles[2] > 360.0f)
+				self->s.angles[2] -= 360.0f;
+			self->groundentity = nullptr;
+		}
+	}
+	else if (self->groundentity) // make sure we're standing on SOMETHING...
+	{
+		self->velocity[0] += crandom() * 5;
+		self->velocity[1] += crandom() * 5;
+		self->velocity[2] += -400 * self->gravityVector[2]; // Jump upwards relative to current gravity
+		if (spider_ok_to_transition(self))
+		{
+			self->gravityVector[2] = 1;
+			self->s.angles[2] = 180.0;
+			self->groundentity = nullptr;
+		}
+	}
+}
+
+// --- spider_jump_wait_land ---
+void spider_jump_wait_land(edict_t* self)
+{
+	// Optional: Add chance to shoot while in air?
+	/*
+	if ((frandom() < 0.7f) && (level.time >= self->monsterinfo.attack_finished))
+	{
+		self->monsterinfo.attack_finished = level.time + 300_ms;
+		spider_plasma(self); // Or appropriate attack
+	}
+	*/
+
+	if (self->groundentity == nullptr)
+	{
+		self->gravity = 1.3f; // Slightly increased gravity during jump
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+		{
+			self->gravity = 1;
+			self->monsterinfo.nextframe = self->s.frame + 1;
+		}
+	}
+	else
+	{
+		self->gravity = 1;
+		self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+}
+
+// --- spider_jump_up / spider_jump_down (for ledges) ---
+void spider_jump_up(edict_t* self)
+{
+	vec3_t forward, up;
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 200);
+	self->velocity += (up * 450);
+}
+
+void spider_jump_down(edict_t* self)
+{
+	vec3_t forward, up;
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 100);
+	self->velocity += (up * 300);
+}
+
+// --- spider_jump (ledge jump animation trigger) ---
+void spider_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	// Use placeholder animations
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+	{
+		// Need specific frames/functions for the jump action itself
+		spider_jump_up(self);
+		M_SetAnimation(self, &spider_move_jump_up);
+	}
+	else
+	{
+		spider_jump_down(self);
+		M_SetAnimation(self, &spider_move_jump_down);
+	}
+}
+
+// --- spider_do_pounce ---
+bool spider_check_lz(edict_t* self, edict_t* target, const vec3_t& dest)
+{
+	if (!target || !target->inuse)
+		return false;
+	if ((gi.pointcontents(dest) & MASK_WATER) || (target->waterlevel))
+		return false;
+	if (!target->groundentity)
+		return false;
+
+	// Basic check under target center
+	vec3_t jumpLZ = dest;
+	jumpLZ[2] -= 1; // Check slightly below destination
+	if (!(gi.pointcontents(jumpLZ) & MASK_SOLID))
+		return false;
+
+	return true;
+}
+
+bool spider_do_pounce(edict_t* self, const vec3_t& dest)
+{
+	vec3_t	dist;
+	float	length;
+	vec3_t	jumpAngles;
+	vec3_t	jumpLZ;
+	float	velocity = 400.1f;
+
+	if (SPIDER_ON_CEILING(self))
+		return false; // No pouncing from ceiling
+
+	if (!self->enemy || !self->enemy->inuse)
+		return false;
+
+	if (!spider_check_lz(self, self->enemy, dest))
+		return false;
+
+	dist = dest - self->s.origin;
+
+	jumpAngles = vectoangles(dist);
+	if (fabsf(jumpAngles[YAW] - self->s.angles[YAW]) > 45)
+		return false; // Not facing target enough
+
+	if (std::isnan(jumpAngles[YAW]))
+		return false;
+
+	self->ideal_yaw = jumpAngles[YAW];
+	M_ChangeYaw(self);
+
+	length = dist.length();
+	if (length > 450)
+		return false; // Too far
+
+	jumpLZ = dest;
+	vec3_t dir = dist.normalized();
+
+	// Find valid trajectory
+	while (velocity <= 800)
+	{
+		if (M_CalculatePitchToFire(self, jumpLZ, self->s.origin, dir, velocity, 3, false, true))
+			break;
+		velocity += 200;
+	}
+
+	if (velocity > 800)
+		return false; // No valid trajectory found
+
+	self->velocity = dir * velocity;
+	// Set a jump animation (placeholder)
+	M_SetAnimation(self, &spider_move_jump_up);
+	return true;
+}
+
+// --- spider_jump_straightup (for ceiling transition / dodge) ---
+void spider_jump_straightup(edict_t* self)
+{
+}
+
+// --- spider_blocked ---
+MONSTERINFO_BLOCKED(spider_blocked) (edict_t* self, float dist) -> bool
+{
+	if (!has_valid_enemy(self))
+		return false;
+
+	bool onCeiling = SPIDER_ON_CEILING(self);
+
+	if (!onCeiling)
+	{
+		// Check for ledge jumps first
+		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		{
+			if (result != blocked_jump_result_t::JUMP_TURN)
+				spider_jump(self, result); // Use our spider jump function
+			return true;
+		}
+
+		// Check for platform drops (less relevant for spider?)
+		// if (blocked_checkplat(self, dist))
+		// 	 return true;
+
+		// Chance to pounce if blocked and enemy visible
+		if (visible(self, self->enemy) && frandom() < 0.1f)
+		{
+			if (spider_do_pounce(self, self->enemy->s.origin))
+				return true;
+		}
+
+        // Chance to transition to ceiling if blocked
+        if (frandom() < 0.3f && spider_ok_to_transition(self))
+        {
+            spider_jump_transition(self);
+            return true;
+        }
+	}
+	else // Currently on ceiling
+	{
+		// If blocked on ceiling, try to transition down
+		if (spider_ok_to_transition(self))
+		{
+			spider_jump_transition(self);
+			return true;
+		}
+	}
+
+	// Default blocked behavior (turn away)
+	return false;
+}
+
+// --- spider_dodge ---
+MONSTERINFO_DODGE(spider_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
+{
+	if (!self->groundentity || self->health <= 0)
+		return;
+
+	if (!self->enemy)
+	{
+		self->enemy = attacker;
+		FoundTarget(self);
+		return;
+	}
+
+	// Don't dodge if projectile impact is too soon or too far away
+	if ((eta < FRAME_TIME_MS) || (eta > 5_sec))
+		return;
+
+    // Cooldown for dodging
+	if (self->timestamp > level.time)
+		return;
+	self->timestamp = level.time + random_time(1_sec, 3_sec); // Shorter cooldown than stalker?
+
+	// Perform the dodge jump (which handles ceiling transition)
+	spider_dodge_jump(self);
+}
+
+
+// --- spider_dodge_jump ---
+void spider_dodge_jump(edict_t* self)
+{
+	spider_jump_transition(self);
+	// Use placeholder animation
+	M_SetAnimation(self, &spider_move_jump_transition);
+}
+
+// --- spider_physics_change ---
+MONSTERINFO_PHYSCHANGED(spider_physics_change) (edict_t* self) -> void
+{
+	if (SPIDER_ON_CEILING(self) && !self->groundentity)
+	{
+		self->gravityVector[2] = -1;
+		self->s.angles[2] += 180.0f;
+		if (self->s.angles[2] > 360.0f)
+			self->s.angles[2] -= 360.0f;
+	}
+}
+
+// --- spider_stand / spider_run (needed for animation callbacks) ---
+MONSTERINFO_STAND(spider_stand) (edict_t* self) -> void
+{
+    // Redirect to the standard arachnid stand
+    arachnid_stand(self);
+}
+
+MONSTERINFO_RUN(spider_run) (edict_t* self) -> void
+{
+    // Redirect to the standard arachnid run
+    arachnid_run(self);
 }
 
 //==========================================================================================
@@ -463,9 +900,33 @@ MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
     if (!self->enemy || !self->enemy->inuse)
         return;
 
-    if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < MELEE_DISTANCE)
+    float dist = range_to(self, self->enemy);
+
+    // Melee check first
+    if (self->monsterinfo.melee_debounce_time < level.time && dist < MELEE_DISTANCE) {
         M_SetAnimation(self, &arachnid_melee);
-    else if ((self->enemy->s.origin[2] - self->s.origin[2]) > 150.f)
+        return;
+    }
+
+    // Chance to jump/pounce before shooting
+    if (self->groundentity && frandom() < 0.2f) // 20% chance
+    {
+        if (!SPIDER_ON_CEILING(self) && dist > 100 && dist < 400 && frandom() < 0.5f) // Pounce condition
+        {
+            if (spider_do_pounce(self, self->enemy->s.origin))
+                return; // Pounce initiated
+        }
+        else // Otherwise, try a transition jump
+        {
+             if (spider_ok_to_transition(self)) {
+                 spider_dodge_jump(self); // Use dodge jump for transition
+                 return; // Jump initiated
+             }
+        }
+    }
+
+    // Standard ranged attack logic
+    if ((self->enemy->s.origin[2] - self->s.origin[2]) > 150.f)
         M_SetAnimation(self, &spider_attack_up1);
     else
         M_SetAnimation(self, &spider_attack1);
@@ -1430,8 +1891,16 @@ void SP_monster_spider(edict_t* self)
     self->spawnflags |= SPAWNFLAG_SPIDER;
     SP_monster_arachnid(self);
 
-    // Override the attack function with our plasma variant
+    // Override functions for spider variant
     self->monsterinfo.attack = spider_attack;
+    // Assign new functions for jumping/ceiling/dodging
+    self->monsterinfo.dodge = spider_dodge; // We'll define this next
+    self->monsterinfo.blocked = spider_blocked; // We'll define this next
+    self->monsterinfo.physics_change = spider_physics_change;
+    self->monsterinfo.can_jump = true;
+    self->monsterinfo.jump_height = 68; // From stalker
+    self->monsterinfo.drop_height = 256; // From stalker
+    self->gravityVector = { 0, 0, -1 }; // Start with normal gravity
 
     // Add plasma weapon visuals
     //self->s.effects = EF_PLASMA;
