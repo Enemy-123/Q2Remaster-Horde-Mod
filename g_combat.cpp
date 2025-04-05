@@ -768,43 +768,19 @@ static constexpr std::array<WeaponMultiplier, 8> WEAPON_MULTIPLIERS = { {
 	{IT_WEAPON_GLAUNCHER, 0.5f}
 } };
 
-static int CalculateRealDamage(const edict_t* targ, int take, int initial_health) {
+static int64_t CalculateRealDamage(const edict_t* targ, int64_t take, int64_t initial_health) {
 	if (!targ) return take;
-	if (targ->svflags & SVF_DEADMONSTER) return std::min(take, 5);
-	if (initial_health <= 0) return std::min(take, 10);
+	if (targ->svflags & SVF_DEADMONSTER) return std::min<int64_t>(take, 5);
+	if (initial_health <= 0) return std::min<int64_t>(take, 10);
 
-	int real_damage = std::min(take, initial_health);
+	int64_t real_damage = std::min<int64_t>(take, initial_health);
 	if (targ->health <= 0) {
-		real_damage += std::min(abs(targ->gib_health), initial_health);
+		// Ensure abs() result is cast to int64_t before comparison if targ->gib_health is int
+		real_damage += std::min<int64_t>(static_cast<int64_t>(abs(targ->gib_health)), initial_health);
 	}
 	return real_damage;
 }
 
-void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
-	// Early return if target doesn't exist
-	if (!targ) return;
-
-	// Use 64-bit integers for calculations to prevent overflow
-	const int64_t initial_health = targ->health;
-
-	// Calculate real damage safely with direct checks
-	int64_t real_damage;
-	if (targ->svflags & SVF_DEADMONSTER)
-		real_damage = std::min<int64_t>(take, 5);
-	else if (initial_health <= 0)
-		real_damage = std::min<int64_t>(take, 10);
-	else {
-		real_damage = std::min<int64_t>(take, initial_health);
-		if (targ->health <= 0) {
-			real_damage += std::min<int64_t>(abs(targ->gib_health), initial_health);
-		}
-	}
-
-	// Fast path: Only process if we have valid entities and damage
-	if (real_damage > 0 && attacker && attacker->client) {
-		HandleIDDamage(attacker, targ, static_cast<int>(real_damage));
-	}
-}
 
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
 	// Fast path early returns for improved performance
@@ -854,12 +830,11 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	float multiplier = VampireConfig::BASE_MULTIPLIER;
 	const item_id_t weapon_id = attacker->client->pers.weapon->id;
 
-	// Usar span para acceder al array de multiplicadores
-	std::span<const WeaponMultiplier> multipliers_view{ WEAPON_MULTIPLIERS };
-	auto it = std::find_if(multipliers_view.begin(), multipliers_view.end(),
+	// Iterate directly over the std::array (replaces std::span)
+	auto it = std::find_if(WEAPON_MULTIPLIERS.begin(), WEAPON_MULTIPLIERS.end(),
 		[weapon_id](const WeaponMultiplier& wm) { return wm.weapon_id == weapon_id; });
 
-	if (it != multipliers_view.end()) {
+	if (it != WEAPON_MULTIPLIERS.end()) {
 		multiplier = it->multiplier;
 
 		if (weapon_id == IT_WEAPON_MACHINEGUN && g_tracedbullets->integer) {
@@ -884,14 +859,13 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 void heal_attacker_sentries(const edict_t* attacker, int health_stolen) noexcept {
 	if (!attacker || current_wave_level < 17) return;
 
-	// Usar span para iterar sobre las entidades
+	// Use traditional loop (replaces std::span)
 	std::span entities_view{ g_edicts, globals.num_edicts };
 	for (auto& ent : entities_view) {
 		if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
 			strcmp(ent.classname, "monster_sentrygun") != 0) {
 			continue;
 		}
-
 		ent.health = std::min(ent.health + health_stolen, ent.max_health);
 	}
 }
@@ -998,7 +972,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 		const float max_stored = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
 		const float sentry_heal = health_stolen * sentry_factor;
 
-		// Use std::span for more efficient iteration
+		// Use traditional loop (replaces std::span)
 		std::span entities_view{ g_edicts, globals.num_edicts };
 		for (auto& ent : entities_view) {
 			// Combined all conditions in a single if statement for better branch prediction
@@ -1033,8 +1007,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	int		   psave;
 	int		   te_sparks;
 	bool	   sphere_notified; // PGM
-	const int initial_health = targ->health;
-	const int real_damage = CalculateRealDamage(targ, take, initial_health);
+	const int64_t initial_health = targ->health; // Use int64_t here too for consistency
+	// Note: 'take' is still int at this point, needs casting later if used directly with CalculateRealDamage
+	// We calculate real_damage later after 'take' is determined.
 
 	if (!targ->takedamage)
 		return;
@@ -1221,8 +1196,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	{
 		HandleAutoHaste(attacker, targ, damage);
 		HandleVampireEffect(attacker, targ, damage);
-		HandleIDDamage(attacker, targ, real_damage);
-		ProcessDamage(targ, attacker, take);
+		// Calculate real_damage here, after 'take' has been potentially modified
+		const int64_t real_damage = CalculateRealDamage(targ, static_cast<int64_t>(take), initial_health);
+		// Cast real_damage back to int if HandleIDDamage expects int (assuming it does based on its definition)
+		HandleIDDamage(attacker, targ, static_cast<int>(real_damage));
+		// REMOVED: ProcessDamage(targ, attacker, take); // Call removed as function is now redundant/empty
 	}
 
 	// ZOID
