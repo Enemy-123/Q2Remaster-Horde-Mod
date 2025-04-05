@@ -111,6 +111,9 @@
       <Command>
       </Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>echo Copying $(TargetFileName) to Quake II Enhanced directory...</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bg_local.h" />

@@ -1,27 +1,35 @@
+// .vscode/tasks.json
 {
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build (Release x64)", // More descriptive label
+            "label": "build (Release x64)", // Good descriptive label
             "type": "shell",
-            "command": "msbuild",
+            // Ensure you are using the Developer PowerShell for VS 2022 environment
+            // If not launched from there, you might need the full path to msbuild
+            // or run the vcvarsall.bat script first.
+            "command": "msbuild.exe", // Using .exe can sometimes be more reliable
             "args": [
                 "Q2HordeRemaster.sln",      // Your solution file
                 "/p:Configuration=Release", // Explicitly set Configuration
                 "/p:Platform=x64",          // Explicitly set Platform
                 "/property:GenerateFullPaths=true",
-                "/t:build",
-                "/consoleloggerparameters:NoSummary"
+                "/t:build", // Target 'build' is usually default, but explicit is fine
+                "/nologo", // Optional: Cleaner output
+                "/clp:NoSummary" // Changed from /consoleloggerparameters:
             ],
             "group": {
                 "kind": "build",
-                "isDefault": true // Make this the default build task for Ctrl+Shift+B
+                "isDefault": true // Make this the default build task (Ctrl+Shift+B)
             },
             "presentation": {
-                "reveal": "silent"
+                "reveal": "silent", // Keeps terminal hidden unless errors
+                "panel": "shared",  // Use a shared terminal panel
+                "clear": true       // Clear terminal before running task
             },
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile" // Correct problem matcher for C++
         }
-        // You could add other tasks (e.g., for Debug) here later
+        // You could add a separate "copy" task here if you didn't use
+        // the Post-Build event in the project settings.
     ]
 }
