@@ -49,13 +49,11 @@
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>
-    </OutDir>
+    <OutDir>C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\baseq2\</OutDir>
     <TargetName>$(projectname)_x64</TargetName>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>false</RunCodeAnalysis>
-    <IntDir>C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\baseq2\</IntDir>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <VcpkgUseStatic>true</VcpkgUseStatic>
