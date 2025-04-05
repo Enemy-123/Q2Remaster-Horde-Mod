@@ -1240,6 +1240,22 @@ THINK(monster_think) (edict_t* self) -> void
 	self->s.renderfx &= ~(RF_STAIR_STEP | RF_OLD_FRAME_LERP);
 
 	M_ProcessPain(self);
+	// Stygian/Friendly Health Regeneration
+	bool flagged_stygian_or_friendly = (self->monsterinfo.bonus_flags & BF_STYGIAN) || (self->monsterinfo.bonus_flags & BF_FRIENDLY);
+	if ((self->svflags & SVF_MONSTER) &&
+		flagged_stygian_or_friendly &&
+		!self->monsterinfo.IS_BOSS &&
+		self->health > 0 && self->health < self->max_health &&
+		level.time >= self->monsterinfo.next_regen_time)
+	{
+		// Regenerate 8% of max health per interval, minimum 1 HP
+		const int REGEN_AMOUNT = std::max(1, static_cast<int>(self->max_health * 0.08f));
+		constexpr gtime_t REGEN_INTERVAL = 5_sec; // Regenerate every 5 seconds
+
+		self->health = std::min(self->health + REGEN_AMOUNT, self->max_health);
+		self->monsterinfo.next_regen_time = level.time + REGEN_INTERVAL;
+	}
+
 
 	// pain/die above freed us
 	if (!self->inuse || self->think != monster_think)

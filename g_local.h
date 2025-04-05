@@ -1796,6 +1796,8 @@ struct monsterinfo_t
 	bonus_flags_t bonus_flags = BF_NONE; //Powerups or Special Flags for horde
 	int team; // Setting a team, test
 
+	gtime_t next_regen_time; // Timer for Stygian/other regen effects
+
 };
 
 // non-monsterinfo save stuff

@@ -856,19 +856,19 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	return std::max(1, static_cast<int>(base_health_stolen * multiplier));
 }
 
-void heal_attacker_sentries(const edict_t* attacker, int health_stolen) noexcept {
-	if (!attacker || current_wave_level < 17) return;
-
-	// Use traditional loop (replaces std::span)
-	std::span entities_view{ g_edicts, globals.num_edicts };
-	for (auto& ent : entities_view) {
-		if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
-			strcmp(ent.classname, "monster_sentrygun") != 0) {
-			continue;
-		}
-		ent.health = std::min(ent.health + health_stolen, ent.max_health);
-	}
-}
+//void heal_attacker_sentries(const edict_t* attacker, int health_stolen) noexcept {
+//	if (!attacker || current_wave_level < 17) return;
+//
+//	// Use traditional loop (replaces std::span)
+//	std::span entities_view{ g_edicts, globals.num_edicts };
+//	for (auto& ent : entities_view) {
+//		if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
+//			strcmp(ent.classname, "monster_sentrygun") != 0) {
+//			continue;
+//		}
+//		ent.health = std::min(ent.health + health_stolen, ent.max_health);
+//	}
+//}
 
 void apply_armor_vampire(edict_t* attacker, int damage) {
 	if (!attacker || !attacker->client)
@@ -909,7 +909,7 @@ static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // const an
 
 	// Check for sentrygun first (most common special case)
 	if (attacker->classname && strcmp(attacker->classname, "monster_sentrygun") == 0) {
-		return true;
+		return false; // Sentry guns should not benefit from vampire effect when attacking
 	}
 
 	// Check if it's a player (not a monster)
@@ -941,21 +941,21 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 	}
 
 	// Cache this result to avoid repeated string comparison
-	const bool isSentrygun = attacker->classname &&
-		strcmp(attacker->classname, "monster_sentrygun") == 0;
+	//const bool isSentrygun = attacker->classname &&
+	//	strcmp(attacker->classname, "monster_sentrygun") == 0;
 
 	// Pre-calculate health stolen once
 	float health_stolen = damage / 4.0f;
-	if (isSentrygun) {
-		health_stolen *= VampireConfig::SENTRY_HEALING_FACTOR;
-	}
+	//if (isSentrygun) {
+	//	health_stolen *= VampireConfig::SENTRY_HEALING_FACTOR;
+	//}
 
 	// Only process healing if needed (attacker isn't at max health)
 	if (attacker->health < attacker->max_health) {
 		// Apply weapon-specific modifiers only if needed
-		if (!isSentrygun) {
-			health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
-		}
+		//if (!isSentrygun) {
+		//	health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
+		//}
 
 		// Use direct clamping with std::min to simplify logic
 		const float max_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
@@ -1283,6 +1283,19 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 		if (!CTFMatchSetup())
 			targ->health = targ->health - take;
+
+		// Stygian Vampirism for non-boss, non-friendly monsters
+		if (attacker && (attacker->svflags & SVF_MONSTER) && 
+			(attacker->monsterinfo.bonus_flags & BF_STYGIAN) && 
+			!(attacker->monsterinfo.bonus_flags & BF_FRIENDLY) /*&& 
+			!attacker->monsterinfo.IS_BOSS*/ && 
+			take > 0 && attacker->health > 0) 
+		{
+			constexpr float VAMP_FACTOR = 0.3f; // Heal for 30% of damage dealt
+			int heal_amount = std::max(1, static_cast<int>(take * VAMP_FACTOR));
+			attacker->health = std::min(attacker->health + heal_amount, attacker->max_health);
+		}
+
 
 		if ((targ->flags & FL_IMMORTAL) && targ->health <= 0)
 			targ->health = 1;

@@ -1527,6 +1527,11 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 			else
 				strafe_chance *= strafe_scalar;
 
+				// Apply bonus evasion (higher strafe chance)
+				if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY) && !self->monsterinfo.IS_BOSS) {
+					strafe_chance = std::min(strafe_chance * 1.5f, 0.95f); // Increase chance by 50%, cap at 95%
+				}
+
 			if (strafe_chance)
 			{
 				monster_attack_state_t new_state = AS_STRAIGHT;
@@ -1601,7 +1606,14 @@ void ai_run_missile(edict_t* self)
 		if (self->monsterinfo.attack)
 		{
 			self->monsterinfo.attack(self);
-			self->monsterinfo.attack_finished = level.time + random_time(1.0_sec, 2.0_sec);
+			// Apply bonus aggression (faster attacks)
+			gtime_t attack_cooldown_min = 1.0_sec;
+			gtime_t attack_cooldown_max = 2.0_sec;
+			if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY) && !self->monsterinfo.IS_BOSS) {
+				attack_cooldown_min = 0.4_sec; // Faster min cooldown
+				attack_cooldown_max = 0.7_sec; // Faster max cooldown
+			}
+			self->monsterinfo.attack_finished = level.time + random_time(attack_cooldown_min, attack_cooldown_max);
 		}
 
 		// ROGUE
@@ -2177,8 +2189,8 @@ void ai_run(edict_t* self, float dist)
 	}
 
 	// Apply bonus speed multiplier ( HORDEBONUS FLAGGED MONSTER )
-	if (self->monsterinfo.bonus_flags != BF_NONE && !self->monsterinfo.IS_BOSS) {
-		dist *= 1.5f; // Example: 50% faster
+	if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY) && !self->monsterinfo.IS_BOSS) {
+		dist *= 1.6f; // Example: 60% faster
 	}
 
 	// PMM -- moved ai_checkattack up here so the monsters can attack while strafing or charging
