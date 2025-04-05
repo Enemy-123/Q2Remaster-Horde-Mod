@@ -1,0 +1,27 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build (Release x64)", // More descriptive label
+            "type": "shell",
+            "command": "msbuild",
+            "args": [
+                "Q2HordeRemaster.sln",      // Your solution file
+                "/p:Configuration=Release", // Explicitly set Configuration
+                "/p:Platform=x64",          // Explicitly set Platform
+                "/property:GenerateFullPaths=true",
+                "/t:build",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true // Make this the default build task for Ctrl+Shift+B
+            },
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$msCompile"
+        }
+        // You could add other tasks (e.g., for Debug) here later
+    ]
+}

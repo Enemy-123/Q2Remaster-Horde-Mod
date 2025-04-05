@@ -92,6 +92,12 @@
     <ClInclude Include="horde\g_horde_benefits.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="horde\horde_boss.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\horde_spawning.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -283,6 +289,12 @@
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\g_horde_benefits.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_boss.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\horde_spawning.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>
