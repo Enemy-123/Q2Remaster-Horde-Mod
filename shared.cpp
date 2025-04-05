@@ -44,11 +44,11 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	if (!player)
 		return;
 
-	const std::span<edict_t> edicts(g_edicts, static_cast<size_t>(globals.num_edicts));
-
-	for (size_t i = 0; i < edicts.size(); i++)
+	// Use size_t for index, start from 1
+	size_t num_edicts = static_cast<size_t>(globals.num_edicts);
+	for (size_t i = 1; i < num_edicts; i++) // Start from 1, g_edicts[0] is world
 	{
-		edict_t* ent = &edicts[i];
+		edict_t* ent = &g_edicts[i];
 		if (!ent->inuse)
 			continue;
 
