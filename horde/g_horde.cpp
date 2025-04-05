@@ -5162,6 +5162,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects)
 {
+	if (level.intermissiontime)
+		return false;
 	// Basic validation
 	if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles)) {
 		return false;
@@ -5981,6 +5983,8 @@ int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 // SpawnMonsters - Main function to spawn regular wave monsters
 //-----------------------------------------------------
 edict_t* SpawnMonsters() {
+	if (level.intermissiontime)
+		return nullptr;
 	// --- Initial Checks & Caching ---
 	if (developer->integer == 2) return nullptr;
 
@@ -6764,6 +6768,8 @@ void CheckAndResetDisabledSpawnPoints() {
 }
 
 void Horde_RunFrame() {
+	if (level.intermissiontime)
+		return;
 	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 	const horde_state_t currentState = g_horde_local.state;

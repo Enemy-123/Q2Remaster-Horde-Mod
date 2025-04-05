@@ -530,6 +530,8 @@ struct target_data_t {
 };
 
 bool FindMTarget(edict_t* self) {
+	if (level.intermissiontime)
+		return false;
 	// Early exit checks
 	if (!self)
 		return false;
@@ -979,6 +981,8 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 }
 
 bool FindEnhancedTarget(edict_t* self) {
+	if (level.intermissiontime)
+		return false;
 	// Si es una unidad invocada, usar la lógica específica de FindMTarget
 	if (self->monsterinfo.issummoned) {
 		return FindMTarget(self);
@@ -1071,6 +1075,8 @@ slower noticing monsters.
 */
 bool FindTarget(edict_t* self)
 {
+	if (level.intermissiontime)
+		return false;
 
 	// Primero verificamos si es una unidad invocada que tiene un player como enemigo
 	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
@@ -1669,6 +1675,8 @@ used by ai_run and ai_stand
 */
 bool ai_checkattack(edict_t* self, float dist)
 {
+	if (level.intermissiontime)
+		return false;
 	vec3_t temp;
 	bool   hesDeadJim;
 	bool   retval; // Stores the result of the monster-specific checkattack
