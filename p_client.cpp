@@ -1175,10 +1175,14 @@ void SaveClientData()
 		game.clients[i].pers.max_health = ent->max_health;
 		game.clients[i].pers.savedFlags = (ent->flags & (FL_FLASHLIGHT | FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR | FL_WANTS_POWER_ARMOR));
 		if (coop->integer)
+		{
 			game.clients[i].pers.score = ent->client->resp.score;
+			game.clients[i].pers.id_state = ent->client->pers.id_state; // Save id_state
+			game.clients[i].pers.iddmg_state = ent->client->pers.iddmg_state; // Save iddmg_state
+			game.clients[i].pers.sentry_gun_choice = ent->client->pers.sentry_gun_choice; // Save sentry choice
+		}
 	}
 }
-
 void FetchClientEntData(edict_t* ent)
 {
 	ent->health = ent->client->pers.health;

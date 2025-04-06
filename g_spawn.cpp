@@ -635,6 +635,8 @@ static constexpr MonsterReplacement hardcoop_replacements[] = {
 
 // Función modernizada para aplicar reemplazos
 static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement> replacements, float prob) {
+	// Use a static random engine for better randomness per spawn
+
 	if (!ent || !ent->classname) {
 		return false;
 	}
@@ -655,24 +657,39 @@ static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement
 			return false; // No valid replacements in this set
 		}
 
-		if (available_replacements.size() > 1) {
-			//Ensure it's within bounds, just in case.
-			size_t index = irandom(0, available_replacements.size() - 1);
+		// Select a random replacement using the Mersenne Twister engine
+		std::uniform_int_distribution<size_t> distrib(0, available_replacements.size() - 1);
+		size_t index = distrib(mt_rand);
+
+		// Ensure the selected replacement is not null or empty before assigning
+		if (available_replacements[index] && available_replacements[index][0] != '\0') {
 			ent->classname = G_CopyString(available_replacements[index], TAG_LEVEL);
 
-			// Bonus effect application
+			// Bonus effect application (only if a replacement happened)
 			if (frandom() < prob) {
 				ApplyMonsterBonusFlags(ent);
 			}
+			return true; // Replacement occurred
+		} else {
+			// If the chosen replacement is invalid, try finding the next valid one or default back
+			// This part might need refinement based on desired behavior for empty slots
+			for(size_t i = 1; i < available_replacements.size(); ++i) {
+				size_t next_index = (index + i) % available_replacements.size();
+				if (available_replacements[next_index] && available_replacements[next_index][0] != '\0') {
+					ent->classname = G_CopyString(available_replacements[next_index], TAG_LEVEL);
+					if (frandom() < prob) {
+						ApplyMonsterBonusFlags(ent);
+					}
+					return true; // Replacement occurred
+				}
+			}
+			// If no valid replacement found in the list, maybe keep original? Or log error?
+			// For now, let's just not replace if the random pick was invalid and no other valid option found.
+			return false;
 		}
-		else {
-			ent->classname = G_CopyString(available_replacements[0], TAG_LEVEL);
-		}
-
-		return true; // Replacement occurred
 	}
 
-	return false; // No replacement found
+	return false; // No matching original classname found
 }
 
 /*
