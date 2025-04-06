@@ -256,8 +256,8 @@ bool spider_ok_to_transition(edict_t* self)
 	}
 	else
 	{
-		max_dist = 180; // How far up to check for ceiling
-		margin = self->maxs[2] + 8;
+		max_dist = 384; // How far up to check for ceiling (Increased from 180)
+		margin = self->maxs[2] + 4; // Margin adjustment for ceiling check (Added +4 back)
 	}
 
 	pt = self->s.origin;
@@ -384,10 +384,18 @@ void spider_jump_wait_land(edict_t* self)
 			self->monsterinfo.nextframe = self->s.frame + 1;
 		}
 	}
-	else
+	else // Landed
 	{
 		self->gravity = 1;
 		self->monsterinfo.nextframe = self->s.frame + 1;
+
+		// Adjust origin if landed on ceiling to prevent clipping
+		if (SPIDER_ON_CEILING(self) && self->groundentity && self->groundentity->solid == SOLID_BSP)
+		{
+			// Position origin so the spider's bottom (mins[2]) is flush with the ceiling surface, with a slight adjustment
+			self->s.origin[2] = self->groundentity->s.origin[2] - fabsf(self->mins[2]) - 6.0f; // Added -2.0f offset
+			gi.linkentity(self); // Re-link after origin change
+		}
 	}
 }
 
@@ -585,9 +593,32 @@ MONSTERINFO_DODGE(spider_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, 
 // --- spider_dodge_jump ---
 void spider_dodge_jump(edict_t* self)
 {
-	spider_jump_transition(self);
-	// Use placeholder animation
-	M_SetAnimation(self, &spider_move_jump_transition);
+	vec3_t right;
+	float side_speed = 280.0f; // Adjust speed as needed
+
+	vec3_t up, forward; // Added forward vector declaration
+	float upward_speed = 250.0f; // Adjust upward speed as needed
+
+	// Get the forward, right and up vectors based on current facing angle and gravity
+	AngleVectors(self->s.angles, forward, right, up); // Pass 'forward' instead of nullptr
+
+	// Clear existing vertical velocity to ensure consistent jump height
+	self->velocity[2] = 0;
+
+	// Add upward velocity (relative to gravity)
+	self->velocity -= (up * upward_speed * self->gravityVector[2]); // Use gravityVector for direction
+
+	// Randomly choose left or right strafe and add horizontal velocity
+	if (frandom() < 0.5f)
+		self->velocity += (right * side_speed); // Strafe right
+	else
+		self->velocity -= (right * side_speed); // Strafe left
+
+	// Ensure the spider leaves the ground
+	self->groundentity = nullptr;
+
+	// Use placeholder jump animation (maybe a dedicated one later?)
+	M_SetAnimation(self, &spider_move_jump_up); // Using jump_up animation
 }
 
 // --- spider_physics_change ---
@@ -814,7 +845,7 @@ void spider_plasma(edict_t* self)
 {
     vec3_t start;
     vec3_t dir;
-    vec3_t forward, right;
+    vec3_t forward, right, up; // Added 'up' vector
     monster_muzzleflash_id_t id;
 
     // Choose appropriate muzzle flash based on the animation frame
@@ -836,12 +867,16 @@ void spider_plasma(edict_t* self)
     }
 
 
-    // Use PredictAim to lead the target based on plasma projectile speed
     float constexpr plasma_speed = 900;
-    PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &self->pos1);
-
-    AngleVectors(self->s.angles, forward, right, nullptr);
+   
+    AngleVectors(self->s.angles, forward, right, up); // Get vectors first
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
+    // Adjust origin slightly forward and upward (adjust as needed)
+    start += (forward * 5);
+    start += (up * 8);
+   
+    // Use PredictAim to lead the target based on plasma projectile speed, using the calculated start position
+    PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &self->pos1);
 
     // calc direction to where we targeted (predicted position)
     dir = self->pos1 - start;
