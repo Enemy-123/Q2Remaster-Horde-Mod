@@ -19,6 +19,7 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = spawnflags_t(0x0100); // Ne
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; // Same as blaster
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
+constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag; // Added Wall Unit flag
 
 // State tracking for smoother animation transitions
 static gtime_t last_target_time[MAX_EDICTS] = { 0_sec };
@@ -114,28 +115,28 @@ void turret2Aim(edict_t* self)
 			speed_multiplier = 0.5f + (time_since_change / 0.3f) * 0.5f;
 	}
 
-if (!self->enemy || self->enemy == world)
-{
-	// Add minimum time between target searches to reduce CPU usage
-	// and allow animations to play
-	static gtime_t next_target_search[MAX_EDICTS] = { 0_sec };
+	if (!self->enemy || self->enemy == world)
+	{
+		// Add minimum time between target searches to reduce CPU usage
+		// and allow animations to play
+		static gtime_t next_target_search[MAX_EDICTS] = { 0_sec };
 
-	if (level.time >= next_target_search[self->s.number]) {
-		if (!FindMTarget(self)) {
-			next_target_search[self->s.number] = level.time + 300_ms;
-			return;
+		if (level.time >= next_target_search[self->s.number]) {
+			if (!FindMTarget(self)) {
+				next_target_search[self->s.number] = level.time + 300_ms;
+				return;
+			}
+			// Successful target found, set shorter cooldown
+			next_target_search[self->s.number] = level.time + 100_ms;
+			self->monsterinfo.search_time = level.time + 300_ms;
 		}
-		// Successful target found, set shorter cooldown
-		next_target_search[self->s.number] = level.time + 100_ms;
-		self->monsterinfo.search_time = level.time + 300_ms;
+		else {
+			return; // Skip this frame if we're not ready to search
+		}
 	}
-	else {
-		return; // Skip this frame if we're not ready to search
-	}
-}
 
-// Update previous enemy before exiting the function
-previous_enemy[entity_index] = self->enemy;
+	// Update previous enemy before exiting the function
+	previous_enemy[entity_index] = self->enemy;
 
 	// Actualizar la posición del efecto visual
 	UpdateSmokePosition(self);
@@ -506,7 +507,7 @@ previous_enemy[entity_index] = self->enemy;
 		self->target_ent->s.frame = 1;
 		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->classname = "turret_lasersight";
-		self->target_ent->s.effects = EF_BOB;
+		//self->target_ent->s.effects = EF_BOB;
 		self->target_ent->s.origin = self->s.origin;
 	}
 
@@ -756,7 +757,7 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.4f : 0.7f;
 
 
-	monster_fire_bullet(self, start, dir, damage, 8, DEFAULT_BULLET_HSPREAD * spread_mult, DEFAULT_BULLET_VSPREAD * spread_mult,	MZ2_TURRET_MACHINEGUN);
+	monster_fire_bullet(self, start, dir, damage, 8, DEFAULT_BULLET_HSPREAD * spread_mult, DEFAULT_BULLET_VSPREAD * spread_mult, MZ2_TURRET_MACHINEGUN);
 
 	self->monsterinfo.melee_debounce_time = level.time +
 		(self->monsterinfo.quadfire_time > level.time ? 9_hz : 15_hz);
@@ -765,13 +766,13 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 //Fire rocket
 static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
 	// Check fire rate - REMOVED
-	
+
 	// Check rate limit for rockets
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
-	(self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec)) {
-	    return;
-    }
-	
+		(self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec)) {
+		return;
+	}
+
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 1600 : 1420;
 	vec3_t fire_dir = dir;
 	vec3_t target_pos;
@@ -823,13 +824,13 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 //Fire plasma
 static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& dir) {
 	// Check fire rate - REMOVED
-	
+
 	// Check rate limit for plasma
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
-	(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
-	    return;
-    }
-	
+		(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
+		return;
+	}
+
 	const float projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1450 : 1250;
 	vec3_t fire_dir = dir;
 	vec3_t target_pos;
@@ -1524,6 +1525,7 @@ void turret2_wall_spawn(edict_t* turret)
 	gi.linkentity(ent);
 }
 
+
 MOVEINFO_ENDFUNC(turret2_wake) (edict_t* ent) -> void
 {
 	// the wall section will call this when it stops moving.
@@ -1752,7 +1754,7 @@ void CreateTurretGlowEffect(edict_t* turret) {
 	smoke->solid = SOLID_NOT;
 	smoke->s.modelindex = 0;  // No necesitamos modelo para el efecto de humo
 	smoke->s.renderfx = RF_FULLBRIGHT;
-	smoke->s.effects = EF_BOB;  // Efecto de bobbing
+	//smoke->s.effects = EF_BOB;  // Efecto de bobbing
 	smoke->owner = turret;
 	smoke->classname = "turret_smoke";
 	smoke->think = EmitSmokeEffect;
@@ -1772,8 +1774,8 @@ void CreateTurretGlowEffect(edict_t* turret) {
 void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
-	//self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
+	self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
+	// Check if it's a wall unit
 
 	// Al crear la torreta, verificar si el owner tiene power-ups activos
 	if (self->owner && self->owner->client) {
@@ -1789,7 +1791,7 @@ void SP_monster_sentrygun(edict_t* self)
 	self->monsterinfo.attack_state = AS_BLIND;
 
 	//test EF grenade
-	self->s.effects = EF_BOB; // Quitar EF_GRENADE de aquí
+	//self->s.effects = EF_BOB; // Quitar EF_GRENADE de aquí
 	self->target_hint_chain = nullptr; // Inicializar el puntero del efecto
 	// Crear el efecto visual después de establecer la posición y ángulos
 	CreateTurretGlowEffect(self);
@@ -1876,7 +1878,7 @@ void SP_monster_sentrygun(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
 	}
 
-	//	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
+	//if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
 	{
 		self->monsterinfo.stand = turret2_stand;
 		self->monsterinfo.walk = turret2_walk;
@@ -1900,48 +1902,72 @@ void SP_monster_sentrygun(edict_t* self)
 	angle = (int)self->s.angles[1];
 	switch (angle)
 	{
-	case -1: // up
-		self->s.angles[0] = 270;
-		self->s.angles[1] = 0;
-		self->s.origin[2] += 2;
+	case -1: // up (Ceiling)
+		self->s.angles[0] = 270; // Set turret pitch for ceiling
+		self->s.angles[1] = 0;   // Keep yaw aligned
+		// self->s.origin[2] += 2; // REMOVED: Don't push away from ceiling
 		break;
-	case -2: // down
-		self->s.angles[0] = 90;
-		self->s.angles[1] = 0;
-		self->s.origin[2] -= 2;
+	case -2: // down (Floor)
+		self->s.angles[0] = 90;  // Set turret pitch for floor
+		self->s.angles[1] = 0;   // Keep yaw aligned
+		// self->s.origin[2] -= 2; // REMOVED: Don't push away from floor
 		break;
-	case 0:
-		self->s.origin[0] += 2;
+	case 0: // +X Wall
+		// self->s.origin[0] += 2; // REMOVED: Don't push away from wall
 		break;
-	case 90:
-		self->s.origin[1] += 2;
+	case 90: // +Y Wall
+		// self->s.origin[1] += 2; // REMOVED: Don't push away from wall
 		break;
-	case 180:
-		self->s.origin[0] -= 2;
+	case 180: // -X Wall
+		// self->s.origin[0] -= 2; // REMOVED: Don't push away from wall
 		break;
-	case 270:
-		self->s.origin[1] -= 2;
+	case 270: // -Y Wall
+		// self->s.origin[1] -= 2; // REMOVED: Don't push away from wall
 		break;
-	default:
+	default: // Should not happen with current placement logic
 		break;
 	}
 
 	gi.linkentity(self);
 
-	/*	if (self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
-		{
-			if (!self->targetname)
-			{
-				G_FreeEdict(self);
-				return;
-			}
-
-			self->takedamage = false;
-			self->use = turret2_activate;
-			turret2_wall_spawn(self);
-		}
-		else*/
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
 	{
+		// Map-placed wall units require a targetname for activation
+		if (!self->targetname && !(self->owner && self->owner->client))
+		{
+			gi.Com_PrintFmt("monster_sentrygun wall unit at {} without a targetname\n", self->s.origin);
+			G_FreeEdict(self);
+			return;
+		}
+
+		self->takedamage = false; // Can't be damaged until activated
+		// Only set use function for map-placed units that need triggering
+		if (!(self->owner && self->owner->client)) {
+			self->use = turret2_activate;
+		}
+		turret2_wall_spawn(self); // Spawn the base part
+
+		// ADD THIS: Activate player-spawned wall units immediately
+		if (self->owner && self->owner->client) {
+			// We need to simulate the wake-up process slightly
+			self->monsterinfo.stand = turret2_stand;
+			self->monsterinfo.walk = turret2_walk;
+			self->monsterinfo.run = turret2_run;
+			self->monsterinfo.dodge = nullptr;
+			self->monsterinfo.attack = turret2_attack;
+			self->monsterinfo.melee = nullptr;
+			self->monsterinfo.sight = turret2_sight;
+			self->monsterinfo.search = turret2_search;
+			M_SetAnimation(self, &turret2_move_stand); // Start in stand anim
+			self->takedamage = true; // Allow taking damage
+			self->movetype = MOVETYPE_NONE; // Should be stationary
+			gi.linkentity(self); // Relink after potential changes
+			stationarymonster_start(self, spawn_temp_t::empty);
+			self->monsterinfo.aiflags |= AI_DO_NOT_COUNT; // Ensure flag is set
+		}
+		// Player-placed wall units should activate immediately via stationarymonster_start below
+	}
+	else {
 		stationarymonster_start(self, spawn_temp_t::empty);
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	}
@@ -1982,11 +2008,11 @@ void SP_monster_sentrygun(edict_t* self)
 		gi.soundindex("weapons/hyprbf1a.wav");
 		gi.soundindex("gunner/gunidle1.wav");
 
-			gi.modelindex("models/objects/grenade/tris.md2");
-	gi.soundindex("gunner/gunatck3.wav");
-	gi.soundindex("tank/tnkpain2.wav");
-	gi.soundindex("weapons/grenlx1a.wav");
-	gi.soundindex("gunner/gunidle1.wav");
+		gi.modelindex("models/objects/grenade/tris.md2");
+		gi.soundindex("gunner/gunatck3.wav");
+		gi.soundindex("tank/tnkpain2.wav");
+		gi.soundindex("weapons/grenlx1a.wav");
+		gi.soundindex("gunner/gunidle1.wav");
 
 		self->s.skinnum = 0; // Use a different skin
 	}
