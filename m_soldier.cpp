@@ -831,6 +831,31 @@ void soldierh_hyper_refire1(edict_t* self)
 	}
 }
 
+
+void soldierh_hyper_reattack(edict_t* self)
+{
+	// Only apply reattack logic after the first three waves
+	if (IsFirstThreeWaves(current_wave_level))
+	{
+		// If it's early waves, just proceed to run state after attack
+		soldier_run(self);
+		return;
+	}
+
+	// Check if the enemy is still valid, visible, and we should reattack based on chance
+	if (self->enemy && self->enemy->inuse && visible(self, self->enemy) && frandom() < 0.75f) // Adjust reattack chance as needed
+	{
+		// Go back to a frame within the attack sequence to fire again
+		// Let's loop back to the frame where the first shot happens in the hard attack sequence
+		self->monsterinfo.nextframe = FRAME_attak103; // Frame index within soldierh_frames_attack1hard where soldier_fire1 is called
+	}
+	else
+	{
+		// End the attack sequence and transition back to running state
+		soldier_run(self);
+	}
+}
+
 void soldierh_hyperripper1(edict_t* self)
 {
 	soldier_style_t style(self);
@@ -867,7 +892,7 @@ mframe_t soldierh_frames_attack1hard[] = {
 	{ ai_charge, 0, soldier_attack1_refire2 },
 	{ ai_charge, 0, soldierh_hyper_sound_end },
 	{ ai_charge, 0, soldier_fire1 },
-	{ ai_charge, 0, soldier_fire1 }
+	{ ai_charge, 0, soldierh_hyper_reattack } // Check for reattack
 };
 MMOVE_T(soldierh_move_attack1hard) = { FRAME_attak101, FRAME_attak112, soldierh_frames_attack1hard, soldier_run };
 
