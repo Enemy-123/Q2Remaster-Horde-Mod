@@ -203,7 +203,7 @@ void ResetSpawnMonsterVars() {
 	need_spawn_cache_reset = true;
 	horde::g_monsterSpawnTracker.Reset();
 }
-void ResetFrameTimers() { need_frame_timer_reset = true; }
+
 void ResetQueueMonitorVars() {
 	need_queue_monitor_reset = true;
 	horde::g_spawnPointTimeTracker.Reset();
