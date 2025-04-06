@@ -1004,8 +1004,7 @@ inline void G_RunFrame_(bool main_loop)
     level.time += FRAME_TIME_MS;
 
     // Handle intermission timing
-    if (level.intermissiontime) {
-        if (g_horde->integer)
+    if (level.intermissiontime && g_horde->integer) {
             level.intermission_fade = true;
         constexpr gtime_t INTERMISSION_DURATION = 30_sec;
 
