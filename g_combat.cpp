@@ -694,6 +694,10 @@ void ApplyGradualHealing(edict_t* ent) {
 		if (actual_healed > 0) {
 			ent->health = new_health;
 			ent->regen_info.stored_healing -= actual_healed;
+		          // Clear remaining stored healing if max health is reached or exceeded
+		          if (ent->health >= ent->max_health) {
+		              ent->regen_info.stored_healing = 0;
+		          }
 		}
 	}
 
