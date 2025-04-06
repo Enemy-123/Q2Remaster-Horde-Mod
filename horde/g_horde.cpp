@@ -5144,9 +5144,52 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		}
 	}
 
-	// --- Update Global Counter on Success ---
+	// --- Post-Teleport Fixes ---
 	if (teleported) {
-		HordeConstants::recent_teleport_count++; // Increment global counter
+		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+
+		if (typeId == horde::MonsterTypeID::STALKER) {
+			if (developer->integer > 1) { // Optional debug print
+				gi.Com_PrintFmt("Stalker teleport: Applying specific fix...\n");
+			}
+			// Reset orientation and gravity for floor-based movement
+			self->gravityVector = { 0, 0, -1 }; // Standard gravity downwards
+			self->s.angles[ROLL] = 0;           // Zero roll angle
+			self->gravity = 1.0f;              // Standard gravity multiplier
+			// Ensure the movetype allows falling (important if it got stuck in FLY)
+			if (self->movetype == MOVETYPE_FLY || self->movetype == MOVETYPE_NOCLIP) {
+				self->movetype = MOVETYPE_STEP;
+			}
+			// Clear ground entity so it falls naturally after elevation
+			self->groundentity = nullptr;
+			// Elevate slightly more
+			constexpr float STALKER_SPAWN_ELEVATION = 16.0f;
+			self->s.origin[2] += STALKER_SPAWN_ELEVATION;
+			gi.linkentity(self); // Relink after origin change
+		}
+		// Use else if to check for Spider variant using its spawnflag
+		else if (typeId == horde::MonsterTypeID::SPIDER) {
+	           if (developer->integer > 1) { // Optional debug print
+	               gi.Com_PrintFmt("Spider teleport: Applying specific fix...\n");
+	           }
+	           // Reset orientation and gravity for floor-based movement
+	           self->gravityVector = { 0, 0, -1 }; // Standard gravity downwards
+	           self->s.angles[ROLL] = 0;           // Zero roll angle
+	           self->gravity = 1.0f;              // Standard gravity multiplier
+	           // Ensure the movetype allows falling
+	           if (self->movetype == MOVETYPE_FLY || self->movetype == MOVETYPE_NOCLIP) {
+	               self->movetype = MOVETYPE_STEP;
+	           }
+	           // Clear ground entity so it falls naturally after elevation
+	           self->groundentity = nullptr;
+	           // Elevate slightly
+	           constexpr float SPIDER_SPAWN_ELEVATION = 16.0f; // Use same elevation as Stalker for now
+	           self->s.origin[2] += SPIDER_SPAWN_ELEVATION;
+	           gi.linkentity(self); // Relink after origin change
+	       }
+
+		// Increment global counter (moved here to ensure it only happens on success)
+		HordeConstants::recent_teleport_count++;
 	}
 
 	// Reset stuck state regardless of success/failure of teleport *attempt*

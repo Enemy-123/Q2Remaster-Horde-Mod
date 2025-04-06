@@ -267,6 +267,14 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->monsterinfo.IS_BOSS)
 		return;
 
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+	
+		if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
+			if (!st.was_key_specified("power_armor_power"))
+				monster->monsterinfo.power_armor_power = monster->max_health * 0.4f;
+		if (!st.was_key_specified("power_armor_type"))
+			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	}
 
 	// Handle summoned monster logic first (this flag can coexist with others)
 	if (monster->monsterinfo.issummoned) {
@@ -930,7 +938,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 				push_dir = vec3_t{ crandom(), crandom(), 0.1f };
 			}
 			else {
-				push_dir.normalize(); // Normalize only if dist is not near zero
+				push_dir.normalize(); // Normalize only if dist is not near zeroF
 			}
 
 
