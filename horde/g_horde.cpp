@@ -4997,6 +4997,11 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
 		return false;
 
+	// Don't teleport summoned monsters
+	if (self->monsterinfo.issummoned) {
+		return false;
+	}
+
 	bool attempt_immediate_teleport = false;
 
 	// --- Drowning Special Case ---
@@ -5025,8 +5030,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 				gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} is drowning with no target visibility. Attempting immediate teleport.\n", self->classname);
 			}
 		}
-		else {
-			// Drowning but can see a target - reset stuck state and proceed with normal checks
+		// If can see a target, reset stuck state and proceed with normal checks
+		else if (can_see_target) {
 			self->monsterinfo.was_stuck = false;
 			self->monsterinfo.stuck_check_time = 0_sec;
 		}
@@ -5212,12 +5217,13 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 		return false;
 	}
 
-	// Prevent teleport if monster can see its enemy
-	if (self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
+	// Prevent teleport if monster is summoned OR can see its enemy
+	if (self->monsterinfo.issummoned ||
+		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
 		// Reset cooldown so it can try again sooner if it gets stuck later
 		self->teleport_time = level.time;
 		if (developer->integer > 1) {
-			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - enemy visible.\n", self->classname);
+			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible.\n", self->classname);
 		}
 		return false; // Abort teleport
 	}

@@ -961,6 +961,35 @@ FIELD_AUTO(sound2_entity),
 FIELD_AUTO(sound2_entity_time),
 
 FIELD_AUTO(last_firing_time),
+
+// Horde Specific gclient_t fields
+FIELD_AUTO(lastdmg),
+FIELD_AUTO(hook_release_time),
+FIELD_AUTO(hook_out),
+FIELD_AUTO(hook_on),
+FIELD_AUTO(hook_toggle),
+FIELD_AUTO(hook), // edict_t*
+FIELD_AUTO(last_hook_time),
+FIELD_AUTO(hook_damage),
+FIELD_AUTO(old_origin),
+FIELD_AUTO(old_angles),
+FIELD_AUTO(time_in_bad_area),
+FIELD_AUTO(idtarget), // edict_t*
+FIELD_AUTO(dmg_counter),
+FIELD_AUTO(total_damage),
+FIELD_AUTO(num_lasers),
+FIELD_AUTO(num_teslas),
+FIELD_AUTO(num_sentries),
+FIELD_AUTO(last_wave_timer_horde_update),
+FIELD_AUTO(voted_map),
+FIELD_AUTO(teleport_cooldown),
+FIELD_AUTO(emergency_teleport),
+FIELD_AUTO(ctf_lasttechmsg_count),
+FIELD_AUTO(ammoregentime),
+FIELD_AUTO(ir_tracking_active),
+FIELD_AUTO(ir_frame_count),
+// FIELD_AUTO(laser_manager), // Needs custom handling
+
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT
 // clang-format on
@@ -1275,25 +1304,27 @@ FIELD_AUTO(monsterinfo.jump_time),
 
 FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),
 FIELD_AUTO(monsterinfo.chosen_reinforcements),
+FIELD_AUTO(monsterinfo.physics_change), // Added missing function pointer
+// FIELD_AUTO(monsterinfo.nav_path), // Needs custom handling for PathInfo struct
 
 //Horde Stuff monsterinfo
-FIELD_AUTO(monsterinfo.quadfire_time), // Horde
-
+FIELD_AUTO(monsterinfo.quadfire_time),
 FIELD_AUTO(monsterinfo.last_sentry_missile_fire_time),
 FIELD_AUTO(monsterinfo.last_sentrygun_target_time),
 FIELD_AUTO(monsterinfo.lastnoisecooldown),
-FIELD_AUTO(monsterinfo.spawn_cooldown), 
+FIELD_AUTO(monsterinfo.spawn_cooldown),
 FIELD_AUTO(monsterinfo.stuck_check_time),
-
 FIELD_AUTO(monsterinfo.was_stuck),
-FIELD_AUTO(monsterinfo.issummoned), // corpse cleaning management
-FIELD_AUTO(monsterinfo.IS_BOSS), // Is monster a boss?
-FIELD_AUTO(monsterinfo.BOSS_DEATH_HANDLED), // is dead?
+FIELD_AUTO(monsterinfo.issummoned),
+FIELD_AUTO(monsterinfo.IS_BOSS),
+FIELD_AUTO(monsterinfo.effects_applied), // Added missing Horde field
+FIELD_AUTO(monsterinfo.BOSS_DEATH_HANDLED),
 FIELD_AUTO(monsterinfo.damage_modifier_applied),
-FIELD_AUTO(monsterinfo.death_processed), // death management for onentitydeath
-
-FIELD_AUTO(monsterinfo.bonus_flags), //Powerups or Special Flags for horde
-FIELD_AUTO(monsterinfo.team), // Setting a team, test
+FIELD_AUTO(monsterinfo.death_processed),
+FIELD_AUTO(monsterinfo.spawn_complete_time), // Added missing Horde field
+FIELD_AUTO(monsterinfo.bonus_flags),
+FIELD_AUTO(monsterinfo.team),
+FIELD_AUTO(monsterinfo.next_regen_time), // Added missing Horde field
 
 // back to edict_t
 FIELD_AUTO(plat2flags),

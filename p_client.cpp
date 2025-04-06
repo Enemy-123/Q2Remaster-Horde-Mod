@@ -3565,7 +3565,6 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		ent->client->resp.inactivity_time = level.time + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
 		ent->client->resp.inactive = false;
-		ent->client->techItemsRemoved = false;
 		return true;
 	}
 
