@@ -1535,6 +1535,30 @@ constexpr vec3_t GUN_OFFSET = { 0.0f, 8.0f, -8.0f }; // -8 relative to viewheigh
 constexpr vec3_t TRACER_OFFSET_STANDING = { 0.0f, 10.5f, -11.0f };
 constexpr vec3_t TRACER_OFFSET_DUCKED = { 0.0f, 8.0f, -6.0f };
 
+// Helper function for firing tracer bullets
+void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
+{
+    if (!g_tracedbullets->integer || ent->lasthbshot > level.time)
+        return;
+
+    // Select appropriate offset based on stance
+    const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+        ? TRACER_OFFSET_DUCKED
+        : TRACER_OFFSET_STANDING;
+
+    // Calculate tracer starting position and direction using the specific offset
+    vec3_t tracer_start;
+    vec3_t dir;
+    P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true); // Use P_ProjectSource for accuracy
+
+    // Fire tracer
+    fire_blaster2(ent, tracer_start, dir, damage, 3150, EF_NONE, false);
+
+    // Reset cooldown
+    ent->lasthbshot = level.time + cooldown_duration;
+}
+
+
 void Machinegun_Fire(edict_t* ent)
 {
 	if (!ent || !ent->client)
@@ -1609,31 +1633,8 @@ void Machinegun_Fire(edict_t* ent)
 	// Remove ammo
 	G_RemoveAmmo(ent);
 
-	// Handle tracer logic - only if enabled and cooldown has elapsed
-	if (g_tracedbullets->integer && ent->lasthbshot <= level.time) {
-		// Select appropriate offset based on stance
-		const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-			? TRACER_OFFSET_DUCKED
-			: TRACER_OFFSET_STANDING;
-
-		// Calculate tracer starting position
-		vec3_t tracer_start = start;
-		for (int i = 0; i < 3; i++) {
-			tracer_start[i] += tracer_offset[i];
-		}
-
-		// Calculate direction vector
-		vec3_t dir;
-		P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
-
-		// Fire tracer (could add randomization back if desired)
-		// if (frandom() < 0.3f) {
-		fire_blaster2(ent, tracer_start, dir, TRACER_DAMAGE, 3150, EF_NONE, false);
-		// }
-
-		// Reset cooldown
-		ent->lasthbshot = level.time + TRACER_COOLDOWN;
-	}
+	// Handle tracer logic using the helper function
+	Fire_TracerBullet(ent, TRACER_DAMAGE, TRACER_COOLDOWN);
 
 	// Configure player animation based on stance
 	ent->client->anim_priority = ANIM_ATTACK;
@@ -1814,29 +1815,8 @@ void Chaingun_Fire(edict_t* ent)
 	// Remove ammo based on shot count
 	G_RemoveAmmo(ent, shots);
 
-	// Handle tracer logic - only if enabled and cooldown has elapsed
-	if (g_tracedbullets->integer && ent->lasthbshot <= level.time) {
-		// Select appropriate offset based on stance
-		const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-			? TRACER_OFFSET_DUCKED
-			: TRACER_OFFSET_STANDING;
-
-		// Calculate tracer starting position
-		vec3_t tracer_start = start;
-		for (int i = 0; i < 3; i++) {
-			tracer_start[i] += tracer_offset[i];
-		}
-
-		// Calculate direction vector
-		vec3_t dir;
-		P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
-
-		// Fire tracer
-		fire_blaster2(ent, tracer_start, dir, CG_TRACER_DMG, 3150, EF_NONE, false);
-
-		// Reset cooldown
-		ent->lasthbshot = level.time + CG_TRACER_COOLDOWN;
-	}
+	// Handle tracer logic using the helper function
+	Fire_TracerBullet(ent, CG_TRACER_DMG, CG_TRACER_COOLDOWN);
 }
 
 void Weapon_Chaingun(edict_t* ent)
