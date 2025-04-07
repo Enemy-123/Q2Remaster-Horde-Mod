@@ -2994,16 +2994,19 @@ static horde::MonsterTypeID G_HordePickMonsterType(edict_t* spawn_point) {
 }
 void Horde_PreInit() {
 	gi.Com_Print("Horde mode must be DM. Set <deathmatch 1> and <horde 1>, then <map mapname>.\n");
-	gi.Com_Print("COOP requires <coop 1> and <horde 0>, optionally <g_hardcoop 1/0>.\n");
+	gi.Com_Print("COOP requires <coop 1> and <horde 0>.\n");
 
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 	//gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
 
-	if (!g_horde->integer) {
-		//deathmatch->integer == 0;
-		gi.cvar_forceset("deathmatch", "0");
-		return;
+	if (!g_horde->integer) { // If horde mode is OFF (0)
+		// Ensure g_hardcoop is registered if it isn't already (safe check)
+		// Assuming g_hardcoop is already declared in g_local.h and registered in InitGame
+		// We just need to set its value here.
+		gi.cvar_set("g_hardcoop", "1"); // Force hardcoop ON
+		gi.cvar_forceset("deathmatch", "0"); // Keep this line
+		return; // Exit Horde_PreInit early if horde mode is off
 	}
 
 	// Configuración automática cuando horde está activo
