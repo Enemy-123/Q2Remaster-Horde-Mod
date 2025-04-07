@@ -19,7 +19,6 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_FLECHETTE = spawnflags_t(0x0100); // Ne
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; // Same as blaster
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
-constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag; // Added Wall Unit flag
 
 // State tracking for smoother animation transitions
 static gtime_t last_target_time[MAX_EDICTS] = { 0_sec };
@@ -507,7 +506,7 @@ void turret2Aim(edict_t* self)
 		self->target_ent->s.frame = 1;
 		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->classname = "turret_lasersight";
-		//self->target_ent->s.effects = EF_BOB;
+		self->target_ent->s.effects = EF_BOB;
 		self->target_ent->s.origin = self->s.origin;
 	}
 
@@ -1525,7 +1524,6 @@ void turret2_wall_spawn(edict_t* turret)
 	gi.linkentity(ent);
 }
 
-
 MOVEINFO_ENDFUNC(turret2_wake) (edict_t* ent) -> void
 {
 	// the wall section will call this when it stops moving.
@@ -1754,7 +1752,7 @@ void CreateTurretGlowEffect(edict_t* turret) {
 	smoke->solid = SOLID_NOT;
 	smoke->s.modelindex = 0;  // No necesitamos modelo para el efecto de humo
 	smoke->s.renderfx = RF_FULLBRIGHT;
-	//smoke->s.effects = EF_BOB;  // Efecto de bobbing
+	smoke->s.effects = EF_BOB;  // Efecto de bobbing
 	smoke->owner = turret;
 	smoke->classname = "turret_smoke";
 	smoke->think = EmitSmokeEffect;
@@ -1774,8 +1772,8 @@ void CreateTurretGlowEffect(edict_t* turret) {
 void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-	self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
-	// Check if it's a wall unit
+
+	//self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
 
 	// Al crear la torreta, verificar si el owner tiene power-ups activos
 	if (self->owner && self->owner->client) {
@@ -1791,7 +1789,7 @@ void SP_monster_sentrygun(edict_t* self)
 	self->monsterinfo.attack_state = AS_BLIND;
 
 	//test EF grenade
-	//self->s.effects = EF_BOB; // Quitar EF_GRENADE de aquí
+	self->s.effects = EF_BOB; // Quitar EF_GRENADE de aquí
 	self->target_hint_chain = nullptr; // Inicializar el puntero del efecto
 	// Crear el efecto visual después de establecer la posición y ángulos
 	CreateTurretGlowEffect(self);
@@ -1878,7 +1876,7 @@ void SP_monster_sentrygun(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
 	}
 
-	//if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
+	//	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
 	{
 		self->monsterinfo.stand = turret2_stand;
 		self->monsterinfo.walk = turret2_walk;
@@ -1902,72 +1900,48 @@ void SP_monster_sentrygun(edict_t* self)
 	angle = (int)self->s.angles[1];
 	switch (angle)
 	{
-	case -1: // up (Ceiling)
-		self->s.angles[0] = 270; // Set turret pitch for ceiling
-		self->s.angles[1] = 0;   // Keep yaw aligned
-		// self->s.origin[2] += 2; // REMOVED: Don't push away from ceiling
+	case -1: // up
+		self->s.angles[0] = 270;
+		self->s.angles[1] = 0;
+		self->s.origin[2] += 2;
 		break;
-	case -2: // down (Floor)
-		self->s.angles[0] = 90;  // Set turret pitch for floor
-		self->s.angles[1] = 0;   // Keep yaw aligned
-		// self->s.origin[2] -= 2; // REMOVED: Don't push away from floor
+	case -2: // down
+		self->s.angles[0] = 90;
+		self->s.angles[1] = 0;
+		self->s.origin[2] -= 2;
 		break;
-	case 0: // +X Wall
-		// self->s.origin[0] += 2; // REMOVED: Don't push away from wall
+	case 0:
+		self->s.origin[0] += 2;
 		break;
-	case 90: // +Y Wall
-		// self->s.origin[1] += 2; // REMOVED: Don't push away from wall
+	case 90:
+		self->s.origin[1] += 2;
 		break;
-	case 180: // -X Wall
-		// self->s.origin[0] -= 2; // REMOVED: Don't push away from wall
+	case 180:
+		self->s.origin[0] -= 2;
 		break;
-	case 270: // -Y Wall
-		// self->s.origin[1] -= 2; // REMOVED: Don't push away from wall
+	case 270:
+		self->s.origin[1] -= 2;
 		break;
-	default: // Should not happen with current placement logic
+	default:
 		break;
 	}
 
 	gi.linkentity(self);
 
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
-	{
-		// Map-placed wall units require a targetname for activation
-		if (!self->targetname && !(self->owner && self->owner->client))
+	/*	if (self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
 		{
-			gi.Com_PrintFmt("monster_sentrygun wall unit at {} without a targetname\n", self->s.origin);
-			G_FreeEdict(self);
-			return;
-		}
+			if (!self->targetname)
+			{
+				G_FreeEdict(self);
+				return;
+			}
 
-		self->takedamage = false; // Can't be damaged until activated
-		// Only set use function for map-placed units that need triggering
-		if (!(self->owner && self->owner->client)) {
+			self->takedamage = false;
 			self->use = turret2_activate;
+			turret2_wall_spawn(self);
 		}
-		turret2_wall_spawn(self); // Spawn the base part
-
-		// ADD THIS: Activate player-spawned wall units immediately
-		if (self->owner && self->owner->client) {
-			// We need to simulate the wake-up process slightly
-			self->monsterinfo.stand = turret2_stand;
-			self->monsterinfo.walk = turret2_walk;
-			self->monsterinfo.run = turret2_run;
-			self->monsterinfo.dodge = nullptr;
-			self->monsterinfo.attack = turret2_attack;
-			self->monsterinfo.melee = nullptr;
-			self->monsterinfo.sight = turret2_sight;
-			self->monsterinfo.search = turret2_search;
-			M_SetAnimation(self, &turret2_move_stand); // Start in stand anim
-			self->takedamage = true; // Allow taking damage
-			self->movetype = MOVETYPE_NONE; // Should be stationary
-			gi.linkentity(self); // Relink after potential changes
-			stationarymonster_start(self, spawn_temp_t::empty);
-			self->monsterinfo.aiflags |= AI_DO_NOT_COUNT; // Ensure flag is set
-		}
-		// Player-placed wall units should activate immediately via stationarymonster_start below
-	}
-	else {
+		else*/
+	{
 		stationarymonster_start(self, spawn_temp_t::empty);
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	}

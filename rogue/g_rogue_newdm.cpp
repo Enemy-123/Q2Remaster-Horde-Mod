@@ -300,148 +300,106 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	body->owner = ent;
 	gi.sound(body, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 }
-extern constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag; // Added Wall Unit flag
+
 // ***************************
 //  SPAWN TURRET LOGIC
 // ***************************
 
 // Función principal para colocar la torreta
-// Modified to allow placement on walls and ceilings
-// Modified to allow placement on walls and ceilings
 bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	if (!ent || !ent->client)
 		return false;
 
 	// Constantes
-	constexpr vec3_t TURRET_MINS = { -12, -12, -12 }; // Use actual turret mins/maxs
-	constexpr vec3_t TURRET_MAXS = { 12, 12, 12 };
-	constexpr float PLACE_DISTANCE = 156.0f; // How far to trace for placement
-	constexpr float SURFACE_OFFSET = 12.0f; // How far off the wall/ceiling to place (Increased from 4.0)
+	constexpr vec3_t MINS = { -12, -12, -12 };
+	constexpr vec3_t MAXS = { 12, 12, 12 };
+	constexpr float HEIGHT_OFFSET = 8.0f;
+	constexpr int MAX_ATTEMPTS = 16;
+	constexpr float MIN_HEIGHT = 50.0f;  // Altura mínima requerida
 
-	vec3_t forward, right, up;
-	AngleVectors(ent->client->v_angle, forward, right, up);
-	vec3_t view_start = ent->s.origin + ent->client->ps.viewoffset;
-	vec3_t view_end = view_start + (forward * PLACE_DISTANCE);
+	// Asegurarnos que la altura no sea menor que el mínimo
+	height = max(height, MIN_HEIGHT);
 
-	trace_t tr = gi.traceline(view_start, view_end, ent, MASK_SOLID);
+	// Función auxiliar para verificar si una posición es válida
+	auto trySpawnPosition = [&](const vec3_t& spawn_origin, const vec3_t& spawn_angles) -> bool {
+		// Verificar espacio libre en diferentes alturas
+		for (float const height_test : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
+			vec3_t test_origin = spawn_origin;
+			test_origin.z += height_test;
 
-	// Check if we hit a valid surface (world or simple brush)
-	if (tr.fraction < 1.0 && tr.ent && (tr.ent == world || tr.ent->movetype == MOVETYPE_NONE || tr.ent->movetype == MOVETYPE_PUSH))
-	{
-		vec3_t normal = tr.plane.normal;
-		vec3_t spawn_origin = tr.endpos + (normal * SURFACE_OFFSET);
-		vec3_t spawn_angles = { 0, ent->client->v_angle[YAW], 0 }; // Start with player yaw
-		int offset_angle = 0; // For offset[1] used by SP_monster_sentrygun
-		bool is_wall_unit = false;
+			// Asegurarnos que respetamos la altura mínima
+			if (test_origin.z - ent->s.origin.z < MIN_HEIGHT)
+				continue;
 
-		if (normal[2] < -0.7) // Ceiling?
-		{
-			spawn_angles[PITCH] = 270; // Point down
-			offset_angle = -1;
-			is_wall_unit = true;
-		}
-		else if (normal[2] > 0.7) // Floor? Treat as normal placement for now
-		{
-			// Fall through to floor placement logic below
-		}
-		else // Wall?
-		{
-			is_wall_unit = true;
-			spawn_angles[PITCH] = 0; // Level pitch for walls
+			// Trazar línea desde el jugador hasta la posición de spawn
+			trace_t const trace = gi.traceline(ent->s.origin, test_origin, ent, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+			if (trace.fraction < 1.0f)
+				continue;
 
-			// Determine wall orientation and set angles/offset
-			float dot_x = normal.dot({ 1, 0, 0 });
-			float dot_y = normal.dot({ 0, 1, 0 });
-			float dot_nx = normal.dot({ -1, 0, 0 });
-			float dot_ny = normal.dot({ 0, -1, 0 });
+			// Verificar espacio suficiente
+			if (!CheckSpawnPoint(test_origin, MINS, MAXS))
+				continue;
 
-			if (dot_x > 0.7) { offset_angle = 0; spawn_angles[YAW] = 0; }       // Hit +X wall, face +X (yaw 0)
-			else if (dot_y > 0.7) { offset_angle = 90; spawn_angles[YAW] = 90; }    // Hit +Y wall, face +Y (yaw 90)
-			else if (dot_nx > 0.7) { offset_angle = 180; spawn_angles[YAW] = 180; } // Hit -X wall, face -X (yaw 180)
-			else if (dot_ny > 0.7) { offset_angle = 270; spawn_angles[YAW] = 270; } // Hit -Y wall, face -Y (yaw 270)
-			else {
-				is_wall_unit = false; // Not a clear cardinal wall, treat as floor placement
+			// Si llegamos aquí, encontramos una posición válida
+			edict_t* turret = G_Spawn();
+			if (!turret)
+				return false;
+
+			turret->monsterinfo.issummoned = true;
+			//turret->classname = "monster_hover";
+			turret->classname = "monster_sentrygun";
+			turret->s.origin = test_origin;
+			turret->s.angles = spawn_angles;
+			turret->owner = ent;
+			turret->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
+			ApplyMonsterBonusFlags(turret);
+			ED_CallSpawn(turret);
+
+			if (turret->inuse) {
+				// Efecto visual de spawn
+				SpawnGrow_Spawn(test_origin, 24.f, 48.f);
+				return true;
 			}
+
+			G_FreeEdict(turret);
+			return false;
 		}
+		return false;
+		};
 
-		if (is_wall_unit)
-		{
-			// Check if the calculated wall/ceiling spot is clear
-			if (CheckSpawnPoint(spawn_origin, TURRET_MINS, TURRET_MAXS))
-			{
-				edict_t* turret = G_Spawn();
-				if (!turret) return false;
+	// Calcular posición final intentada
+	vec3_t angles = vectoangles(aimdir);
+	angles = vec3_t{ 0, angles.y, 0 };  // Solo preservamos el yaw
+	vec3_t end = start + (aimdir * distance);
+	end.z += height;  // Aplicar la altura deseada
 
-				turret->monsterinfo.issummoned = true;
-				turret->classname = "monster_sentrygun";
-				turret->s.origin = spawn_origin;
-				turret->s.angles = spawn_angles;
-				turret->offset = spawn_angles; // Copy angles to offset initially
-				turret->offset[1] = (float)offset_angle; // Set the special wall angle
-				turret->owner = ent;
-				turret->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-				turret->spawnflags |= SPAWNFLAG_TURRET2_WALL_UNIT; // Set the wall unit flag
+	// Primer intento en la posición deseada
+	if (trySpawnPosition(end, angles))
+		return true;
 
-				ApplyMonsterBonusFlags(turret); // Apply horde bonuses if any
-				ED_CallSpawn(turret);
+	// Si falla, intentar posiciones alternativas en un radio
+	constexpr float RADIUS_MIN = 50.0f;
+	constexpr float RADIUS_MAX = 100.0f;
 
-				if (turret->inuse) {
-					SpawnGrow_Spawn(spawn_origin, 24.f, 48.f);
-					gi.sound(ent, CHAN_ITEM, gi.soundindex("plats/pt1_mid.wav"), 1, ATTN_NORM, 0); // Placement sound
-					return true; // Success!
-				}
-				else {
-					G_FreeEdict(turret);
-					// Fall through to failure message
-				}
-			}
-			// If wall/ceiling spot wasn't clear, fall through to failure message
-		}
-		// If it wasn't a wall/ceiling hit, or placement failed, fall through
+	for (int i = 0; i < MAX_ATTEMPTS; i++) {
+		float spawn_angle = frandom(2.0f * PIf);
+		float const radius = frandom(RADIUS_MIN, RADIUS_MAX);
+		vec3_t const offset{
+			cosf(spawn_angle) * radius,
+			sinf(spawn_angle) * radius,
+			0  // No añadimos altura extra aquí ya que end ya tiene la altura correcta
+		};
+
+		vec3_t const spawn_origin = end + offset;
+		vec3_t spawn_angles = angles;
+		spawn_angles[YAW] += spawn_angle * (180.0f / PIf);
+
+		if (trySpawnPosition(spawn_origin, spawn_angles))
+			return true;
 	}
 
-	// Fallback: Try simple floor placement directly below trace end (if trace hit something)
-	if (tr.fraction < 1.0)
-	{
-		vec3_t floor_origin = tr.endpos;
-		floor_origin.z -= 1; // Start trace slightly below hit point
-		trace_t floor_tr = gi.trace(tr.endpos, TURRET_MINS, TURRET_MAXS, floor_origin, ent, MASK_SOLID);
-
-		if (floor_tr.fraction < 1.0 && floor_tr.plane.normal[2] > 0.7) // Found floor?
-		{
-			vec3_t spawn_origin = floor_tr.endpos;
-			vec3_t spawn_angles = { 0, ent->client->v_angle[YAW], 0 };
-
-			if (CheckSpawnPoint(spawn_origin, TURRET_MINS, TURRET_MAXS))
-			{
-				edict_t* turret = G_Spawn();
-				if (!turret) return false;
-
-				turret->monsterinfo.issummoned = true;
-				turret->classname = "monster_sentrygun";
-				turret->s.origin = spawn_origin;
-				turret->s.angles = spawn_angles;
-				turret->owner = ent;
-				turret->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-				// DO NOT set SPAWNFLAG_TURRET2_WALL_UNIT for floor placement
-
-				ApplyMonsterBonusFlags(turret);
-				ED_CallSpawn(turret);
-
-				if (turret->inuse) {
-					SpawnGrow_Spawn(spawn_origin, 24.f, 48.f);
-					gi.sound(ent, CHAN_ITEM, gi.soundindex("plats/pt1_mid.wav"), 1, ATTN_NORM, 0); // Placement sound
-					return true; // Success!
-				}
-				else {
-					G_FreeEdict(turret);
-				}
-			}
-		}
-	}
-
-	// If all placements failed
 	gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
 	return false;
 }
