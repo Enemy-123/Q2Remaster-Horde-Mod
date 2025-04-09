@@ -1789,7 +1789,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::WIDOW2, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 19, 0.15f, {-40,-40,0}, {40,40,144}, 0.8f}, // Scale 0.8
 	{horde::MonsterTypeID::BOSS5, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-32,-32,-16}, {32,32,64}, 1.0f}, // Supertank
 	{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.15f, {-80,-80,0}, {80,80,140}, 1.0f},
-	{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 25, 0.1f, {-32,-32,-24}, {32,32,64}, 1.0f}, // Assuming 1.0
+	//{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 25, 0.1f, {-32,-32,-24}, {32,32,64}, 1.0f}, // Assuming 1.0
 
 	// Turret (Not typically spawned via this array, but included)
 	//{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 1, 0.0f, {-16,-16,-16}, {16,16,16}, 1.0f}, // Weight 0, likely not picked
