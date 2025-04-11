@@ -1,14 +1,11 @@
 #pragma once
 
-#ifndef SHARED_H
-#define SHARED_H
-
 #include "g_local.h"
-
-constexpr int ADRENALINE_HEALTH_BONUS = 5;
 #include <string>
 #include "horde/horde_ids.h"
 #include "horde/horde_ids.h"
+
+constexpr int ADRENALINE_HEALTH_BONUS = 5;
 
 bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs);
 
@@ -42,7 +39,7 @@ void ApplyBossEffects(edict_t* boss);
 //extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
 void UpdatePowerUpTimes(edict_t* monster);
 
-inline std::string GetPlayerName(const edict_t* player);
+std::string GetPlayerName(const edict_t* player);
 // healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
@@ -89,6 +86,9 @@ extern void ClearHordeMessage();
 bool IsPlayerDefense(const edict_t* ent);
 extern void StartFadeOut(edict_t* ent);
 extern bool IsMonsterJumping(const edict_t* self);
-#endif // SHARED_H
 
 extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects);
+
+extern std::string GetPlayerName(const edict_t* player);
+extern std::string GetDisplayName(const edict_t* ent);
+extern std::string GetTitleFromFlags(int bonus_flags);

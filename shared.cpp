@@ -641,7 +641,7 @@ void ApplyBossEffects(edict_t* boss)
 }
 
 //getting real name
-inline std::string GetPlayerName(const edict_t* player) {
+std::string GetPlayerName(const edict_t* player) {
 	if (!player || !player->client) {
 		return "N/A";
 	}

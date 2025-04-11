@@ -41,6 +41,7 @@ target_include_directories(Q2HordeModDLL PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ctf
     ${CMAKE_CURRENT_SOURCE_DIR}/rogue
     ${CMAKE_CURRENT_SOURCE_DIR}/bots
+	${CMAKE_CURRENT_SOURCE_DIR}/ctf # Add ctf directory again to be sure
     # --- Include path for headers (still use vcpkg-installed headers) ---
     # We use the headers from the vcpkg installation even if linking a manual build
     ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows-static/x64-windows-static/include

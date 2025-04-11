@@ -1,7 +1,7 @@
 // Includes y definiciones relevantes
+#include "../shared.h"
 #include "../g_local.h"
 #include "g_horde.h"
-#include "../shared.h"
 #include <set>
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
