@@ -1,9 +1,9 @@
 CMakeFiles/Q2HordeModDLL.dir/ctf/g_ctf.cpp.obj: \
  /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/g_ctf.cpp \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/shared.h \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/g_local.h \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/bg_local.h \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/q_std.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../shared.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../g_local.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../bg_local.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../q_std.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/cmath \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/x86_64-w64-mingw32/bits/c++config.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/x86_64-w64-mingw32/bits/os_defines.h \
@@ -212,8 +212,8 @@ CMakeFiles/Q2HordeModDLL.dir/ctf/g_ctf.cpp.obj: \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/bits/basic_ios.tcc \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/bits/ostream.tcc \
  /usr/share/mingw-w64/include/io.h \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/q_vec3.h \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/game.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../q_vec3.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../game.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/memory \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/bits/stl_raw_storage_iter.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/bits/ranges_uninitialized.h \
@@ -233,11 +233,11 @@ CMakeFiles/Q2HordeModDLL.dir/ctf/g_ctf.cpp.obj: \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/bits/random.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/x86_64-w64-mingw32/bits/opt_random.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/bits/random.tcc \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/g_ctf.h \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/p_ctf_menu.h \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/horde/g_horde.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../ctf/g_ctf.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../ctf/p_ctf_menu.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../horde/g_horde.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/bitset \
- /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/horde/horde_ids.h \
+ /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../horde/horde_ids.h \
  /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake\ 2/rerelease/repos/Q2Remaster-Horde-Mod/ctf/../m_player.h \
  /usr/share/mingw-w64/include/assert.h \
  /usr/lib/gcc/x86_64-w64-mingw32/10-win32/include/c++/queue \

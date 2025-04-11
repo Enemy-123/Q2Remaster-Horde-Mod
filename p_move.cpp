@@ -3,7 +3,7 @@
 
 #include "q_std.h"
 
-#define GAME_INCLUDE
+//#define GAME_INCLUDE
 #include "bg_local.h"
 
 // In PSX SP, step-ups aren't allowed

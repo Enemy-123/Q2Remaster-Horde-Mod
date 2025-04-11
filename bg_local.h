@@ -9,7 +9,7 @@
 // define GAME_INCLUDE so that game.h does not define the
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
-#define GAME_INCLUDE
+//#define GAME_INCLUDE
 #include "game.h"
 
 // physics modifiers

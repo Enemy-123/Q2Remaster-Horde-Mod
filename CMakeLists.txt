@@ -1,39 +1,40 @@
-# CMakeLists.txt (Static Runtime Linking Enabled)
+# CMakeLists.txt (Using CUSTOM MinGW Toolchain, Manual JsonCpp Link, Manual fmt Headers, Static Runtime)
 cmake_minimum_required(VERSION 3.15)
 project(Q2HordeMod LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# --- Automatically find source files AND Exclude vcpkg sources ---
-# Glob ALL .cpp files recursively from the project root first
+# --- Automatically find source files AND Exclude unwanted dirs ---
 file(GLOB_RECURSE ALL_PROJECT_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 )
-
-# Filter out files from the vcpkg_installed directory
-set(PROJECT_SOURCES "") # Start with an empty list for final sources
+set(PROJECT_SOURCES "")
 foreach(SOURCE_FILE ${ALL_PROJECT_SOURCES})
-    # Check if the file path contains the vcpkg directory path
-    string(FIND "${SOURCE_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/" IS_VCPKG_FILE)
-    # If FIND returns -1, it means the substring was NOT found
-    if(IS_VCPKG_FILE EQUAL -1)
-        # Only add the file if it's NOT in vcpkg_installed
-        list(APPEND PROJECT_SOURCES ${SOURCE_FILE})
+    # Exclude files within the build directory (CMAKE_BINARY_DIR)
+    string(FIND "${SOURCE_FILE}" "${CMAKE_BINARY_DIR}/" IS_BUILD_FILE)
+    if(IS_BUILD_FILE EQUAL -1)
+        # Exclude files within vcpkg_installed if it exists (belt-and-suspenders)
+        string(FIND "${SOURCE_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/" IS_VCPKG_FILE)
+        if(IS_VCPKG_FILE EQUAL -1)
+            # Exclude files within the vendor directory (fmt source files)
+            string(FIND "${SOURCE_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/vendor/" IS_VENDOR_FILE)
+            if(IS_VENDOR_FILE EQUAL -1)
+                list(APPEND PROJECT_SOURCES ${SOURCE_FILE})
+            endif()
+        endif()
     endif()
 endforeach()
-message(STATUS "Project Sources: ${PROJECT_SOURCES}") # Add this to list compiled files
+message(STATUS "Compiling Project Sources: ${PROJECT_SOURCES}") # List compiled files
 # --- End of source file finding/filtering ---
 
 
 # --- Define the library ---
-# Use the filtered PROJECT_SOURCES list
 add_library(Q2HordeModDLL SHARED
     ${PROJECT_SOURCES}
 )
 
 # --- Add include directories ---
-# Add directories containing .h files needed by your source files
 target_include_directories(Q2HordeModDLL PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} # Root directory
     ${CMAKE_CURRENT_SOURCE_DIR}/horde
@@ -41,70 +42,55 @@ target_include_directories(Q2HordeModDLL PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ctf
     ${CMAKE_CURRENT_SOURCE_DIR}/rogue
     ${CMAKE_CURRENT_SOURCE_DIR}/bots
-    ${CMAKE_CURRENT_SOURCE_DIR}/ctf # Add ctf directory again to be sure
-    # --- Include path for headers (still use vcpkg-installed headers) ---
-    ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows-static/x64-windows-static/include
+    # --- Include path for MANUALLY placed fmt headers ---
+    # Points to the directory containing the 'fmt' subdirectory with headers
+    "${CMAKE_CURRENT_SOURCE_DIR}/vendor/fmt"
+    # --- Include path for MANUALLY built JsonCpp headers ---
+    # !!! IMPORTANT: Verify this path is correct !!!
+    "/home/perrobjorn/dev/jsoncpp-1.9.6/build/install/include"
 )
 
 # --- Add preprocessor definitions ---
-# Add definitions based on README and vcxproj Release configuration
 target_compile_definitions(Q2HordeModDLL PRIVATE
-    # Required defines:
-    GAME_INCLUDE
-    KEX_Q2_GAME
-    KEX_Q2GAME_EXPORTS
-    KEX_Q2GAME_DYNAMIC
-    FMT_HEADER_ONLY         # Using header-only {fmt}
-    NO_FMT_SOURCE         # Prevent include of format.cc
-    _CRT_SECURE_NO_WARNINGS
-
-    # Common Windows defines (likely needed)
-    _WINDOWS
-    WIN32
-
-    # Standard Release define (usually added by CMake for Release type anyway)
-    NDEBUG
-
-    # Present in vcxproj, unclear if strictly needed for DLL
-    _CONSOLE
+    GAME_INCLUDE KEX_Q2_GAME KEX_Q2GAME_EXPORTS KEX_Q2GAME_DYNAMIC
+    FMT_HEADER_ONLY             # Using header-only {fmt}
+    _CRT_SECURE_NO_WARNINGS     # Common Windows define, often needed by libraries/code
+    _WINDOWS                    # Common Windows define
+    WIN32                       # Common Windows define
+    NDEBUG                      # Standard define for Release builds
+    _CONSOLE                    # Present in original vcxproj, usually harmless
 )
 
 # --- Add link libraries ---
-# Add libraries your DLL depends on
 target_link_libraries(Q2HordeModDLL PRIVATE
     # --- Link the MANUALLY built JsonCpp library ---
-    "/home/perrobjorn/dev/jsoncpp-1.9.6/build/install/lib/libjsoncpp.a" #<-- Path to manually built lib
+    # !!! IMPORTANT: Verify this path and ensure it ends with .a !!!
+    "/home/perrobjorn/dev/jsoncpp-1.9.6/build/install/lib/libjsoncpp.a"
 
-    # fmt.lib is NOT needed because FMT_HEADER_ONLY is defined above
-
-    # NO Explicit Engine Import Library needed based on vcxproj
-
-    # Windows system libraries often needed when cross-compiling with MinGW
-    ws2_32 # For Winsock networking
-    winmm  # For multimedia functions (timers, sound)
-    user32 # Basic windowing APIs (sometimes indirectly needed)
-    gdi32  # Graphics Device Interface (sometimes indirectly needed)
-    ole32  # COM support (less likely needed unless using COM)
-    uuid   # UUID generation (less likely needed)
+    # Windows system libraries needed for cross-compiling with MinGW
+    ws2_32  # Winsock networking
+    winmm   # Multimedia functions (timers, sound)
+    user32  # Basic windowing APIs
+    gdi32   # Graphics Device Interface
+    ole32   # COM support (less likely needed)
+    uuid    # UUID generation (less likely needed)
 )
 
 # --- Set output name ---
 set_target_properties(Q2HordeModDLL PROPERTIES OUTPUT_NAME "game_x64")
 
 # --- Statically link MinGW C/C++ Runtime ---
-# This can help avoid runtime conflicts when running via Proton
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    # Add flags to link libgcc and libstdc++ statically
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-    # If linking an EXE instead of DLL, you might use CMAKE_EXE_LINKER_FLAGS
-    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-endif()
+# Essential for MinGW cross-compiles targeting Windows/Proton.
+# Bundles the runtime libs into the DLL, avoiding conflicts.
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 
 # --- Optional: Add compile options ---
-# Add specific compiler flags if needed (e.g., optimization, warnings)
-# Check the original VS project settings (.vcxproj) for flags under C/C++ -> Command Line
-# target_compile_options(Q2HordeModDLL PRIVATE
-#    -Wall # Example: Enable more warnings
-#    -Wextra # Example: Enable even more warnings
-#    -O2 # Usually handled by CMAKE_BUILD_TYPE=Release
-# )
+target_compile_options(Q2HordeModDLL PRIVATE
+    # Suppress specific warning originating from {fmt} library headers with MinGW GCC
+    $<$<CXX_COMPILER_ID:GNU>:-Wno-stringop-overflow>
+    # Add other flags if needed, e.g. from original vcxproj C/C++ -> Command Line
+)
+
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Using CXX Compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "DLL Output: ${CMAKE_BINARY_DIR}/libgame_x64.dll") # Adjust if different generator/path
