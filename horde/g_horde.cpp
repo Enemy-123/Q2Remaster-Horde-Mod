@@ -1782,13 +1782,13 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56,-56,-44}, {56,56,44}, 0.6f}, // Scale 0.6
 
 	// Other Bosses (Assuming scale 1.0 unless specified otherwise in their SP_ functions)
-	{horde::MonsterTypeID::BOSS2, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.1f, {-60,-60,0}, {60,60,90}, 1.0f},
-	{horde::MonsterTypeID::CARRIER, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 24, 0.1f, {-56,-56,-44}, {56,56,44}, 1.0f},
+	//{horde::MonsterTypeID::BOSS2, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.1f, {-60,-60,0}, {60,60,90}, 1.0f},
+	//{horde::MonsterTypeID::CARRIER, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 24, 0.1f, {-56,-56,-44}, {56,56,44}, 1.0f},
 	//{horde::MonsterTypeID::FIXBOT_KL, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 0, 0.4f, {-16,-16,-12}, {16,16,12}, 2.6f}, // Scale 2.6
-	{horde::MonsterTypeID::WIDOW, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-40,-40,0}, {40,40,144}, 1.0f},
-	{horde::MonsterTypeID::WIDOW2, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 19, 0.15f, {-40,-40,0}, {40,40,144}, 0.8f}, // Scale 0.8
-	{horde::MonsterTypeID::BOSS5, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-32,-32,-16}, {32,32,64}, 1.0f}, // Supertank
-	{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.15f, {-80,-80,0}, {80,80,140}, 1.0f},
+	//{horde::MonsterTypeID::WIDOW, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-40,-40,0}, {40,40,144}, 1.0f},
+	//{horde::MonsterTypeID::WIDOW2, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 19, 0.15f, {-40,-40,0}, {40,40,144}, 0.8f}, // Scale 0.8
+	//{horde::MonsterTypeID::BOSS5, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-32,-32,-16}, {32,32,64}, 1.0f}, // Supertank
+	//{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.15f, {-80,-80,0}, {80,80,140}, 1.0f},
 	//{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 25, 0.1f, {-32,-32,-24}, {32,32,64}, 1.0f}, // Assuming 1.0
 
 	// Turret (Not typically spawned via this array, but included)
