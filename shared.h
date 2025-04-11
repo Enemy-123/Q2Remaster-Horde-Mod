@@ -42,7 +42,7 @@ void ApplyBossEffects(edict_t* boss);
 //extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
 void UpdatePowerUpTimes(edict_t* monster);
 
-[[nodiscard]]  inline std::string GetPlayerName(const edict_t* player);
+inline std::string GetPlayerName(const edict_t* player);
 // healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
@@ -52,8 +52,8 @@ extern void Monster_MoveSpawn(edict_t* self);
 extern void ConfigureBossArmor(edict_t* self);
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 extern horde::MapSize GetMapSize(const char* mapname);
-extern inline gtime_t GetWaveTimer();
-extern inline int32_t GetStroggsNum() noexcept;
+extern gtime_t GetWaveTimer();
+extern int32_t GetStroggsNum() noexcept;
 extern inline bool IsBossWave() noexcept;
 
 bool TeleportSelf(edict_t* ent);
@@ -88,7 +88,7 @@ extern bool CTFCheckTimeExtensionVote();
 extern void ClearHordeMessage();
 bool IsPlayerDefense(const edict_t* ent);
 extern void StartFadeOut(edict_t* ent);
-extern [[nodiscard]] bool IsMonsterJumping(const edict_t* self);
+extern bool IsMonsterJumping(const edict_t* self);
 #endif // SHARED_H
 
 extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects);

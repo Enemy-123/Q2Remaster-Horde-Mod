@@ -734,7 +734,7 @@ void StartFadeOut(edict_t* ent) {
 }
 
 
-inline void OnEntityRemoved(edict_t* self) noexcept {
+void OnEntityRemoved(edict_t* self) noexcept {
 	OnEntityDeath(self);
 }
 

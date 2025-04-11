@@ -90,11 +90,11 @@ const benefit_t BENEFITS[MAX_BENEFITS] = {
 };
 
 // Helper functions
-inline bool has_benefit(size_t index) noexcept {
+bool has_benefit(size_t index) noexcept {
     return (obtained_benefits_mask & (1u << index)) != 0;
 }
 
-static inline void mark_benefit_obtained(size_t index) noexcept {
+ inline void mark_benefit_obtained(size_t index) noexcept {
     obtained_benefits_mask |= (1u << index);
     recent_benefits[recent_index] = static_cast<uint8_t>(index);
     recent_index = (recent_index + 1) % 3;

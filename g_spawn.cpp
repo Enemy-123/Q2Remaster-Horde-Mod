@@ -1523,7 +1523,7 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 		}
 
 		const fs::path entfile = fs::path(modulePath.data()).parent_path() / "maps" /
-			std::format("{}.ent", mapname);
+		fmt::format("{}.ent", mapname);
 		outFilename = entfile.string();
 
 		FILE* fp = fopen(outFilename.c_str(), "rb");

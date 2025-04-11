@@ -5,7 +5,7 @@
 #pragma once
 
 #include "bg_local.h"
-
+#include <memory>
 // the "gameversion" client command will print this plus compile date
 constexpr const char* GAMEVERSION = "baseq2";
 
@@ -39,8 +39,7 @@ public:
 	template<typename... Args>
 	inline void Com_PrintFmt(std::format_string<Args...> format_str, Args &&... args)
 #else
-#define Com_PrintFmt(str, ...) \
-	Com_PrintFmt_(FMT_STRING(str), __VA_ARGS__)
+#define Com_PrintFmt(str, ...) Com_PrintFmt_(FMT_STRING(str) __VA_OPT__(,) __VA_ARGS__)
 
 	template<typename S, typename... Args>
 	inline void Com_PrintFmt_(const S& format_str, Args &&... args)
@@ -54,8 +53,7 @@ public:
 	template<typename... Args>
 	inline void Com_ErrorFmt(std::format_string<Args...> format_str, Args &&... args)
 #else
-#define Com_ErrorFmt(str, ...) \
-	Com_ErrorFmt_(FMT_STRING(str), __VA_ARGS__)
+#define Com_ErrorFmt(str, ...) Com_ErrorFmt_(FMT_STRING(str) __VA_OPT__(,) __VA_ARGS__)
 
 	template<typename S, typename... Args>
 	inline void Com_ErrorFmt_(const S& format_str, Args &&... args)
@@ -68,23 +66,60 @@ public:
 private:
 	// localized print functions
 	template<typename T>
-	inline void loc_embed(T input, char* buffer, const char*& output)
+	inline void loc_embed(T input, char* buffer, const char*& output) // buffer is the static array element, output is the ptr to store result
 	{
-		if constexpr (std::is_floating_point_v<T> || std::is_integral_v<T>)
-		{
-			auto result = std::to_chars(buffer, buffer + MAX_INFO_STRING - 1, input);
-			*result.ptr = '\0';
-			output = buffer;
+		// Ensure includes are available: <fmt/format.h>, <cstring>, <type_traits>
+	
+		// Check for potential null pointer if T could be a pointer type other than const char*
+		if constexpr (std::is_pointer_v<T> && !is_char_ptr_v<T>) {
+			 if (!input) {
+				  Com_Error("null pointer passed to loc_embed");
+				  output = ""; // Assign empty string on error
+				  return;
+			 }
 		}
-		else if constexpr (is_char_ptr_v<T>)
+	
+	
+		if constexpr (std::is_floating_point_v<std::remove_cvref_t<T>> || std::is_integral_v<std::remove_cvref_t<T>>)
 		{
-			if (!input)
-				Com_Error("null const char ptr passed to loc");
-
-			output = input;
+			// Use fmt::format_to to write directly into the provided buffer
+			try {
+				auto result = fmt::format_to_n(buffer, MAX_INFO_STRING - 1, "{}", input);
+				*result.out = '\0'; // Null-terminate the resulting string in the buffer
+				output = buffer;    // Store the pointer TO THE START of the buffer (where the string now resides)
+			} catch (const std::exception& e) {
+				 Com_PrintFmt("Formatting error in loc_embed: {}\n", e.what());
+				 *buffer = '\0'; // Ensure buffer is empty on error
+				 output = buffer; // Point to the empty string
+			}
+	
 		}
-		else
-			Com_Error("invalid loc argument");
+		else if constexpr (is_char_ptr_v<T>) // Handle const char*, char*, char[], etc.
+		{
+			if (!input) {
+				// Com_Error("null const char ptr passed to loc"); // Maybe too strict, allow null?
+				output = ""; // Assign pointer to an empty string if input is null
+			} else {
+				 // Simply store the pointer to the existing C-string
+				 output = input;
+			}
+		}
+		// Add handling for std::string, std::string_view if needed
+		else if constexpr (std::is_convertible_v<T, std::string_view>) {
+			 std::string_view sv(input);
+			 // Cannot directly store pointer to potentially temporary string_view data.
+			 // Copy it into the buffer.
+			 size_t len_to_copy = std::min(sv.length(), MAX_INFO_STRING - 1);
+			 memcpy(buffer, sv.data(), len_to_copy);
+			 buffer[len_to_copy] = '\0';
+			 output = buffer; // Point to the copied string in the buffer
+		}
+		else {
+			// Use static_assert to give a compile-time error for unsupported types
+			static_assert(!std::is_same_v<T,T>, "Unsupported type passed to loc_embed");
+			// Com_Error("invalid loc argument type"); // Runtime error if static_assert fails somehow
+			output = "[INVALID_TYPE]";
+		}
 	}
 
 	static std::array<char[MAX_INFO_STRING], MAX_LOCALIZATION_ARGS> buffers;
@@ -3672,7 +3707,12 @@ public:
 	inline entity_iterator_t<TFilter> end() const { return end_index; }
 };
 
-extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
+inline constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
+	float dx = v1.x - v2.x;
+	float dy = v1.y - v2.y;
+	float dz = v1.z - v2.z;
+	return dx * dx + dy * dy + dz * dz;
+}
 
 // 1. First, define the spawn point filter template
 struct monster_spawn_point_filter_t {
@@ -3979,7 +4019,7 @@ extern cached_soundindex snd_fry;
 
 
 extern void OnEntityDeath(edict_t* self) noexcept;
-extern inline void OnEntityRemoved(edict_t* self) noexcept;
+extern void OnEntityRemoved(edict_t* self) noexcept;
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
@@ -3996,7 +4036,7 @@ extern void UpdateVoteHUD();
 
 
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
-extern inline std::string GetDisplayName(const edict_t* ent);
-extern inline std::string GetTitleFromFlags(int bonus_flags);
+std::string GetDisplayName(const edict_t* ent);
+std::string GetTitleFromFlags(int bonus_flags);
 extern float M_DamageModifier(edict_t* monster) noexcept;
 extern inline bool G_CheatCheck(edict_t* ent);

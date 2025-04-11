@@ -7077,7 +7077,7 @@ void HandleResetEvent() {
 }
 
 // Get the remaining time for the current wave
-inline gtime_t GetWaveTimer() {
+gtime_t GetWaveTimer() {
 	const gtime_t currentTime = level.time;
 	gtime_t remainingTime = 0_sec;
 
@@ -7100,7 +7100,7 @@ inline gtime_t GetWaveTimer() {
 }
 
 // Helper functionget stroggs alive on the map
-inline int32_t GetStroggsNum() noexcept {
+int32_t GetStroggsNum() noexcept {
 	return level.total_monsters - level.killed_monsters;
 }
 

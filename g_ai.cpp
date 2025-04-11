@@ -3,7 +3,7 @@
 // g_ai.c
 
 #include "g_local.h"
-
+#include <cfloat>
 bool FindTarget(edict_t* self);
 bool ai_checkattack(edict_t* self, float dist);
 
@@ -16,12 +16,7 @@ constexpr float MAX_SIDESTEP = 8.0f;
 // ROGUE
 
 //============================================================================
-constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
-	float dx = v1.x - v2.x;
-	float dy = v1.y - v2.y;
-	float dz = v1.z - v2.z;
-	return dx * dx + dy * dy + dz * dz;
-}
+
 /*
 =================
 AI_GetSightClient

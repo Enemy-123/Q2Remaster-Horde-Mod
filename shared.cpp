@@ -182,7 +182,7 @@ float M_DamageModifier(edict_t* monster) noexcept {
 	return modifier;
 }
 
-[[nodiscard]] inline std::string GetTitleFromFlags(int bonus_flags) {
+std::string GetTitleFromFlags(int bonus_flags) {
     if (bonus_flags == 0)
         return "";
         
@@ -227,7 +227,7 @@ void InitializeDisplayNames() {
 }
 
 // Keep the same signature but use the ID system internally
-[[nodiscard]] inline std::string GetDisplayName(const char* classname) {
+std::string GetDisplayName(const char* classname) {
 	if (!classname) return "Unknown";
 
 	// Make sure names are initialized
@@ -248,7 +248,7 @@ void InitializeDisplayNames() {
 }
 
 // Entity version remains simple but now uses the optimized classname version
-[[nodiscard]] inline std::string GetDisplayName(const edict_t* ent) {
+std::string GetDisplayName(const edict_t* ent) {
 	if (!ent) return "Unknown";
 
 	std::string base_name = GetDisplayName(ent->classname);
@@ -641,7 +641,7 @@ void ApplyBossEffects(edict_t* boss)
 }
 
 //getting real name
-[[nodiscard]] inline std::string GetPlayerName(const edict_t* player) {
+inline std::string GetPlayerName(const edict_t* player) {
 	if (!player || !player->client) {
 		return "N/A";
 	}
@@ -1281,7 +1281,7 @@ extern const mmove_t gekk_move_jump_down;
 
 // --- End Extern Declarations ---
 
-[[nodiscard]] bool IsMonsterJumping(const edict_t* self) {
+bool IsMonsterJumping(const edict_t* self) {
 	if (!self || !self->monsterinfo.active_move) {
 		return false;
 	}

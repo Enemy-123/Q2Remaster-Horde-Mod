@@ -984,19 +984,9 @@ static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 	"doppleganger"
 } };
 
-//std::string GetDisplayName(struct edict_t const* ent) {
-//	if (!ent || !ent->classname)
-//		return "Unknown";
-//	return GetDisplayName(ent->classname);
-//}
 
-[[nodiscard]] inline std::string GetDisplayName(const char* classname) {
-	if (!classname) return "Unknown";
-	const auto it = name_replacements.find(classname);
-	return std::string(it != name_replacements.end() ? it->second : classname);
-}
 
-[[nodiscard]] inline std::string FormatClassname(const std::string& classname) {
+std::string FormatClassname(const std::string& classname) {
 	std::string result;
 	result.reserve(classname.length());
 
@@ -1054,6 +1044,7 @@ int GetArmorInfo(edict_t* ent) {
 	int const index = ArmorIndex(ent);
 	return (index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
+std::string GetDisplayName(const char* classname);
 
 template<typename Duration>
 int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
@@ -1066,14 +1057,14 @@ enum class EntityType {
 	Other
 };
 
-[[nodiscard]] inline EntityType GetEntityType(const edict_t* ent) {
+EntityType GetEntityType(const edict_t* ent) {
 	if (!ent) return EntityType::Other;
 	if (ent->client) return EntityType::Player;
 	if (ent->svflags & SVF_MONSTER) return EntityType::Monster;
 	return EntityType::Other;
 }
 
-[[nodiscard]] inline std::string FormatEntityInfo(edict_t* ent) {
+std::string FormatEntityInfo(edict_t* ent) {
 	if (!ent || !ent->inuse) {
 		return {};
 	}
@@ -1122,7 +1113,7 @@ enum class EntityType {
 	}
 
 	case EntityType::Player: {
-		std::string playerName = GetPlayerName(ent);
+		const std::string  playerName = GetPlayerName(ent);
 		info = fmt::format("{}\nH: {}", playerName, ent->health);
 
 		int armor_value = GetArmorInfo(ent);

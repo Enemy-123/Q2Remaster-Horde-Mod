@@ -1,0 +1,3 @@
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build-windows/CMakeFiles/Q2HordeModDLL.dir
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build-windows/CMakeFiles/edit_cache.dir
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build-windows/CMakeFiles/rebuild_cache.dir

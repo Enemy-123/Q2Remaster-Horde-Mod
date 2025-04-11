@@ -103,7 +103,7 @@ bool P_UseCoopInstancedItems()
 }
 
 //=======================================================================
-extern std::string GetDisplayName(const edict_t* ent);
+
 
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
@@ -226,7 +226,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	// Check attacker validity *before* checking flags
 	if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
-		std::string monster_display_name = GetDisplayName(attacker); // Get name once
+		const std::string monster_display_name = GetDisplayName(attacker); // Get name once
 		switch (mod.id)
 		{
 			// Using brandom() directly in ternary operators

@@ -5,6 +5,7 @@
 #include <array>
 #include <unordered_map>
 #include <new>
+#include <cmath>
 
 // Forward declarations
 void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
@@ -156,7 +157,7 @@ namespace LaserHelpers {
         vec3_t const normalized_v1 = safe_normalized(v1);
         vec3_t const normalized_v2 = safe_normalized(v2);
         float const dot = normalized_v1.dot(normalized_v2);
-        return std::acosf(std::clamp(dot, -1.0f, 1.0f)) * (180.0f / PIf);
+        return acosf(std::clamp(dot, -1.0f, 1.0f)) * (180.0f / PIf);
     }
 
     [[nodiscard]] static bool is_vector_within_angle(const vec3_t& vec, const vec3_t& reference, float max_angle) {

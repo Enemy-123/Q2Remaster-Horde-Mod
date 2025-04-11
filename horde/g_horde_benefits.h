@@ -25,7 +25,7 @@ extern size_t recent_index;
 extern int32_t vampire_level;
 
 // Funciones públicas
-inline bool has_benefit(size_t index) noexcept;
+bool has_benefit(size_t index) noexcept;
 void mark_benefit_obtained(size_t index) noexcept;
 void ResetBenefits() noexcept;
 void CheckAndApplyBenefit(int32_t wave);
