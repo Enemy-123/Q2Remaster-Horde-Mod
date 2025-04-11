@@ -1,4 +1,4 @@
-# CMakeLists.txt (Linking Manually Compiled JsonCpp)
+# CMakeLists.txt (Static Runtime Linking Enabled)
 cmake_minimum_required(VERSION 3.15)
 project(Q2HordeMod LANGUAGES CXX)
 
@@ -41,12 +41,9 @@ target_include_directories(Q2HordeModDLL PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ctf
     ${CMAKE_CURRENT_SOURCE_DIR}/rogue
     ${CMAKE_CURRENT_SOURCE_DIR}/bots
-	${CMAKE_CURRENT_SOURCE_DIR}/ctf # Add ctf directory again to be sure
+    ${CMAKE_CURRENT_SOURCE_DIR}/ctf # Add ctf directory again to be sure
     # --- Include path for headers (still use vcpkg-installed headers) ---
-    # We use the headers from the vcpkg installation even if linking a manual build
     ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows-static/x64-windows-static/include
-    # --- OR: Include path from manual build (if preferred) ---
-    # "/home/perrobjorn/dev/jsoncpp-1.9.6/build/install/include" # Alternative
 )
 
 # --- Add preprocessor definitions ---
@@ -76,7 +73,7 @@ target_compile_definitions(Q2HordeModDLL PRIVATE
 # Add libraries your DLL depends on
 target_link_libraries(Q2HordeModDLL PRIVATE
     # --- Link the MANUALLY built JsonCpp library ---
-    "/home/perrobjorn/dev/jsoncpp-1.9.6/build/install/lib/libjsoncpp.a" #<-- Updated Path & Name
+    "/home/perrobjorn/dev/jsoncpp-1.9.6/build/install/lib/libjsoncpp.a" #<-- Path to manually built lib
 
     # fmt.lib is NOT needed because FMT_HEADER_ONLY is defined above
 
@@ -94,11 +91,14 @@ target_link_libraries(Q2HordeModDLL PRIVATE
 # --- Set output name ---
 set_target_properties(Q2HordeModDLL PROPERTIES OUTPUT_NAME "game_x64")
 
-# --- Optional: Specify Windows subsystem ---
-# Usually not needed for DLLs
-# if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    # set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-# endif()
+# --- Statically link MinGW C/C++ Runtime ---
+# This can help avoid runtime conflicts when running via Proton
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # Add flags to link libgcc and libstdc++ statically
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    # If linking an EXE instead of DLL, you might use CMAKE_EXE_LINKER_FLAGS
+    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+endif()
 
 # --- Optional: Add compile options ---
 # Add specific compiler flags if needed (e.g., optimization, warnings)
