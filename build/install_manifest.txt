@@ -1,0 +1,2 @@
+/usr/local/lib/libgame_x64.dll.a
+/usr/local/bin/libgame_x64.dll

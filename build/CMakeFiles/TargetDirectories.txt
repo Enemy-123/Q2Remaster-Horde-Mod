@@ -1,3 +1,7 @@
 /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build/CMakeFiles/Q2HordeModDLL.dir
 /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build/CMakeFiles/edit_cache.dir
 /home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build/CMakeFiles/rebuild_cache.dir
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build/CMakeFiles/list_install_components.dir
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build/CMakeFiles/install.dir
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build/CMakeFiles/install/local.dir
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/repos/Q2Remaster-Horde-Mod/build/CMakeFiles/install/strip.dir
