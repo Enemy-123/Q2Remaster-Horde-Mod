@@ -6016,11 +6016,28 @@ int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 	// Fallback to appropriate monster type ID if none found
 	if (monster_typeId == horde::MonsterTypeID::UNKNOWN) {
 		if (waveLevel >= 15) {
-			const horde::MonsterTypeID high_level_monsters[] = { /* ... */ };
+			// Higher-level monsters for later waves
+			const horde::MonsterTypeID high_level_monsters[] = {
+				horde::MonsterTypeID::GUNNER,
+				horde::MonsterTypeID::GLADIATOR,
+				horde::MonsterTypeID::TANK,
+				horde::MonsterTypeID::SOLDIER_HYPERGUN,
+				horde::MonsterTypeID::SOLDIER_LASERGUN
+			};
 			monster_typeId = high_level_monsters[irandom(0, 4)];
-		} else {
-			const horde::MonsterTypeID basic_monsters[] = { /* ... */ };
+			// No need to get classname here
+		}
+		else {
+			// Basic monsters for early waves
+			const horde::MonsterTypeID basic_monsters[] = {
+				horde::MonsterTypeID::SOLDIER_LIGHT,
+				horde::MonsterTypeID::SOLDIER,
+				horde::MonsterTypeID::INFANTRY,
+				horde::MonsterTypeID::SOLDIER_SS,
+				horde::MonsterTypeID::FLYER
+			};
 			monster_typeId = basic_monsters[irandom(0, 4)];
+			// No need to get classname here
 		}
 	}
 
