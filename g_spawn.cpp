@@ -1491,7 +1491,7 @@ parsing textual entity definitions out of an ent file.
 */
 constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
-#define NOMINMAX
+//#define NOMINMAX
 #define WIN32_LEAN_AND_MEAN // Also good practice
 #include <windows.h>
 #include <filesystem>

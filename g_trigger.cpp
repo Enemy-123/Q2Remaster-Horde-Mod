@@ -1177,10 +1177,22 @@ TOUCH(trigger_fog_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool
 		vec3_t half_size = (self->size * 0.5f) + (other->size * 0.5f);
 		vec3_t start = (-self->movedir).scaled(half_size);
 		vec3_t end = (self->movedir).scaled(half_size);
-		vec3_t player_dist = (other->s.origin - center).scaled(vec3_t{ fabs(self->movedir[0]),fabs(self->movedir[1]),fabs(self->movedir[2]) });
+
+		// Use fabsf() here
+		vec3_t player_dist = (other->s.origin - center).scaled(vec3_t{
+			fabsf(self->movedir[0]), // Use fabsf
+			fabsf(self->movedir[1]), // Use fabsf
+			fabsf(self->movedir[2])  // Use fabsf
+		});
 
 		float dist = (player_dist - start).length();
-		dist /= (start - end).length();
+		float total_dist = (start - end).length(); // Calculate total distance
+        // Avoid division by zero or near-zero
+        if (total_dist > 0.001f) {
+		    dist /= total_dist;
+        } else {
+            dist = 0.0f; // Or handle as appropriate if total_dist is zero
+        }
 		dist = clamp(dist, 0.f, 1.f);
 
 		if (self->spawnflags.has(SPAWNFLAG_FOG_AFFECT_FOG))

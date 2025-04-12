@@ -178,19 +178,24 @@ vec3_t SpawnGro_laser_pos(edict_t* ent)
 {
 	if (!ent || !ent->owner) {
 		// Handle error case, maybe return a default position or log an error
-		return vec3_t{ 0, 0, 0 };
+        if (developer->integer) { // Optional: Log the error
+             gi.Com_PrintFmt("SpawnGro_laser_pos: Error - ent or ent->owner is null.\n");
+        }
+		return vec3_origin; // Use vec3_origin constant if available, else {0,0,0}
 	}
 
 	// pick random direction
 	float theta = frandom(2 * PIf);
-	float phi = acos(crandom());
+	float phi = acosf(crandom()); // Use acosf
 	vec3_t d{
-		sin(phi) * cos(theta),
-		sin(phi) * sin(theta),
-		cos(phi)
+		sinf(phi) * cosf(theta), // Use sinf, cosf
+		sinf(phi) * sinf(theta), // Use sinf, sinf
+		cosf(phi)                // Use cosf
 	};
 
-	float scale = std::max(ent->owner->s.scale, 0.001f); // Prevent division by zero
+	// Ensure scale is positive to avoid issues with direction reversal if scale was negative
+    // Using std::max is good. Clamping might also be an option depending on desired behavior.
+	float scale = std::max(ent->owner->s.scale, 0.001f);
 	return ent->s.origin + (d * scale * 9.f);
 }
 

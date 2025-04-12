@@ -1783,13 +1783,15 @@ inline vec3_t calculate_entity_center(const edict_t* ent) {
  */
 static vec3_t bfg_laser_pos(const vec3_t& p, float dist)
 {
+	// These are already floats, which is fine for the 'f' functions
 	const float theta = frandom(2 * PIf);
-	const float phi = acos(crandom());
+	const float phi = acosf(crandom()); // Use acosf
 
+	// Use sinf and cosf which return float
 	const vec3_t d{
-		sin(phi) * cos(theta),
-		sin(phi) * sin(theta),
-		cos(phi)
+		sinf(phi) * cosf(theta), // Use sinf, cosf
+		sinf(phi) * sinf(theta), // Use sinf, sinf
+		cosf(phi)                // Use cosf
 	};
 
 	return p + (d * dist);

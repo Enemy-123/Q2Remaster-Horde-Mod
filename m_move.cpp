@@ -129,28 +129,27 @@ bool IsBadAhead(edict_t* self, edict_t* bad, const vec3_t& move)
 	// Early return for default cases
 	if ((!ent->enemy && !(ent->monsterinfo.aiflags & AI_MEDIC)) ||
 		(ent->monsterinfo.aiflags & SKIP_FLAGS)) {
-		return vec3_origin;
+		return vec3_origin; // Use constant if available
 	}
 
 	// Calculate random angle in horizontal plane
-	const float theta = frandom(2 * PIf);
+	const float theta = frandom(2 * PIf); // theta is already float
 
-	// Calculate vertical angle based on entity type
-	const float phi = ent->monsterinfo.fly_above ? acos(0.7f + frandom(0.3f)) :
-		(ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC)) ? acos(frandom()) :
-		acos(frandom() * 0.7f);
+	// Calculate vertical angle based on entity type using acosf
+	const float phi = ent->monsterinfo.fly_above ? acosf(0.7f + frandom(0.3f)) :
+		(ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC)) ? acosf(frandom()) :
+		acosf(frandom() * 0.7f); // Use acosf here
 
-	// Calculate direction vector
+	// Calculate direction vector using sinf and cosf
 	const vec3_t direction{
-		sin(phi) * cos(theta),
-		sin(phi) * sin(theta),
-		cos(phi)
+		sinf(phi) * cosf(theta), // Use sinf, cosf
+		sinf(phi) * sinf(theta), // Use sinf, sinf
+		cosf(phi)                // Use cosf
 	};
 
 	// Scale direction by random distance within range
 	return direction * frandom(ent->monsterinfo.fly_min_distance, ent->monsterinfo.fly_max_distance);
 }
-
 inline bool SV_flystep_testvisposition(vec3_t start, vec3_t end, vec3_t starta, vec3_t startb, edict_t* ent)
 {
 	trace_t tr = gi.traceline(start, end, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
