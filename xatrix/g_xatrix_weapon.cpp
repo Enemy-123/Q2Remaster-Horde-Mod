@@ -737,7 +737,7 @@ void FindTrapTargets(edict_t* ent, trap_data_t* trap_data) {
 
         // <<< ADDED CHECK HERE >>>
         // Skip stationary turrets as they cannot be pulled
-        if (strcmp(target->classname, "monster_turret") == 0)
+        if (strcmp(target->classname, "monster_turret") == 0 || strcmp(target->classname, "misc_insane") == 0 )
             continue;
         // <<< END ADDED CHECK >>>
 
