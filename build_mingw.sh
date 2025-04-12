@@ -8,14 +8,12 @@ set -u
 set -o pipefail
 
 # --- Configuration ---
-# Get the directory where the script resides (project root)
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR="$SCRIPT_DIR/build"
 TOOLCHAIN_FILE="$SCRIPT_DIR/mingw-w64-x86_64.cmake"
 BUILD_TYPE="Release" # Or "Debug" if needed
 
 # --- Check for Deployment Path Argument ---
-# The script expects the desired deployment path as the first argument
 if [ -z "${1:-}" ]; then
   echo "Usage: $0 /path/to/deployment/directory"
   echo "Error: Deployment directory argument is required."
@@ -28,14 +26,10 @@ if [ ! -f "$TOOLCHAIN_FILE" ]; then
     echo "Error: Toolchain file not found at $TOOLCHAIN_FILE"
     exit 1
 fi
-# Check if the deployment directory *parent* exists (safer than checking the dir itself, as CMake might create it)
 DEPLOY_PARENT_DIR=$(dirname "$DEPLOY_PATH")
 if [ ! -d "$DEPLOY_PARENT_DIR" ]; then
     echo "Warning: Parent directory of deployment path does not exist: $DEPLOY_PARENT_DIR"
-    # Decide if you want to exit or continue
-    # exit 1
 fi
-
 
 # --- Build Steps ---
 echo "--- Starting MinGW Cross-Compile Build ---"
@@ -47,7 +41,6 @@ echo "[2/5] Creating build directory..."
 mkdir -p "$BUILD_DIR"
 
 echo "[3/5] Configuring CMake..."
-# Change directory into the build dir to run cmake
 cd "$BUILD_DIR"
 cmake .. \
     -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" \
@@ -56,16 +49,26 @@ cmake .. \
     -G "Unix Makefiles"
 
 echo "[4/5] Building target (make)..."
-# Use nproc to get the number of CPU cores for parallel build
 make -j$(nproc)
 
 echo "[5/5] Installing target (make install)..."
-make install
+# Check if install target exists and needs running
+if ! make -q install > /dev/null 2>&1; then
+    make install # No sudo needed
+else
+    echo "[5/5] Skipping installation (install target is up-to-date or DEPLOY_DIRECTORY was invalid)."
+fi
 
-# Go back to the original directory
 cd "$SCRIPT_DIR"
 
 echo "--- Build and Installation Complete ---"
-echo "Output DLL: $DEPLOY_PATH/game_x86.dll"
+# *** UPDATED FILENAME HERE ***
+FINAL_DLL_PATH="$DEPLOY_PATH/game_x64.dll"
+if [ -f "$FINAL_DLL_PATH" ]; then
+    echo "Output DLL successfully installed to: $FINAL_DLL_PATH"
+else
+    echo "Warning: Expected DLL not found at $FINAL_DLL_PATH after installation."
+    echo "Check CMake output and permissions for directory: $DEPLOY_PATH"
+fi
 
 exit 0

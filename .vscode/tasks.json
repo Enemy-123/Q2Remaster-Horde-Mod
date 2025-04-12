@@ -1,35 +1,37 @@
-// .vscode/tasks.json
 {
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build (Release x64)", // Good descriptive label
+            // Updated label to reflect full process
+            "label": "Configure, Build & Install Horde Mod (MinGW)",
             "type": "shell",
-            // Ensure you are using the Developer PowerShell for VS 2022 environment
-            // If not launched from there, you might need the full path to msbuild
-            // or run the vcvarsall.bat script first.
-            "command": "msbuild.exe", // Using .exe can sometimes be more reliable
-            "args": [
-                "Q2HordeRemaster.sln",      // Your solution file
-                "/p:Configuration=Release", // Explicitly set Configuration
-                "/p:Platform=x64",          // Explicitly set Platform
-                "/property:GenerateFullPaths=true",
-                "/t:build", // Target 'build' is usually default, but explicit is fine
-                "/nologo", // Optional: Cleaner output
-                "/clp:NoSummary" // Changed from /consoleloggerparameters:
-            ],
+            // Chain make and make install after cmake
+            "command": "rm -rf build && mkdir build && cd build && echo '--- Running CMake Configure ---' && cmake .. -DCMAKE_TOOLCHAIN_FILE=../mingw-w64-x86_64.cmake -DCMAKE_BUILD_TYPE=Release -G \"Unix Makefiles\" -DDEPLOY_DIRECTORY=\"${input:deployPathInput}\" && echo '--- Running Make ---' && make -j$(nproc) && echo '--- Running Make Install ---' && make install",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "/bin/bash",
+                    "args": ["-c"]
+                }
+            },
             "group": {
                 "kind": "build",
-                "isDefault": true // Make this the default build task (Ctrl+Shift+B)
+                "isDefault": true
             },
             "presentation": {
-                "reveal": "silent", // Keeps terminal hidden unless errors
-                "panel": "shared",  // Use a shared terminal panel
-                "clear": true       // Clear terminal before running task
+                "echo": true, "reveal": "always", "focus": true,
+                "panel": "shared", "showReuseMessage": false, "clear": true
             },
-            "problemMatcher": "$msCompile" // Correct problem matcher for C++
+            "problemMatcher": ["$gcc"]
         }
-        // You could add a separate "copy" task here if you didn't use
-        // the Post-Build event in the project settings.
+        // Keep the commented out separate tasks example if you prefer that structure later
+    ],
+    "inputs": [
+        {
+            "id": "deployPathInput",
+            "type": "promptString",
+            "description": "Enter the absolute path for deployment (e.g., /path/to/Quake2/baseq2)",
+            "default": "/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/baseq2"
+        }
     ]
 }

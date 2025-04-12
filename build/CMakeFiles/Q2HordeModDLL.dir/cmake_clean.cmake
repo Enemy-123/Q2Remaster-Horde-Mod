@@ -219,9 +219,9 @@ file(REMOVE_RECURSE
   "CMakeFiles/Q2HordeModDLL.dir/xatrix/m_xatrix_gekk.cpp.obj.d"
   "CMakeFiles/Q2HordeModDLL.dir/xatrix/p_xatrix_weapon.cpp.obj"
   "CMakeFiles/Q2HordeModDLL.dir/xatrix/p_xatrix_weapon.cpp.obj.d"
-  "libgame_x64.dll"
+  "game_x64.dll"
+  "game_x64.pdb"
   "libgame_x64.dll.a"
-  "libgame_x64.pdb"
 )
 
 # Per-language clean rules from dependency scanning.

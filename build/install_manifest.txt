@@ -1,2 +1,1 @@
-/usr/local/lib/libgame_x64.dll.a
-/usr/local/bin/libgame_x64.dll
+/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/baseq2/game_x64.dll

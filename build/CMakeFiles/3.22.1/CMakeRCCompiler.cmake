@@ -1,4 +1,4 @@
-set(CMAKE_RC_COMPILER "x86_64-w64-mingw32-windres")
+set(CMAKE_RC_COMPILER "/usr/bin/x86_64-w64-mingw32-windres")
 set(CMAKE_RC_COMPILER_ARG1 "")
 set(CMAKE_RC_COMPILER_LOADED 1)
 set(CMAKE_RC_SOURCE_FILE_EXTENSIONS rc;RC)
