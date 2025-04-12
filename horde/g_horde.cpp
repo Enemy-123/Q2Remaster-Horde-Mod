@@ -601,7 +601,7 @@ enum class WaveEndReason {
 
 inline int8_t GetNumActivePlayers();
 inline int8_t GetNumSpectPlayers();
-inline int8_t GetNumHumanPlayers();
+int8_t GetNumHumanPlayers();
 
 int32_t g_adjusted_monster_cap = 0;
 
