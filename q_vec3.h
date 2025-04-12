@@ -399,7 +399,7 @@ R_ConcatRotations
 	float len_squared = 0.0f;
 	float d;
 
-	// Calcular diferencia en el eje x
+	// Calculate difference on x-axis
 	if (absmaxsa.x < absminsb.x) {
 		d = absminsb.x - absmaxsa.x;
 		len_squared += d * d;
@@ -407,9 +407,9 @@ R_ConcatRotations
 	else if (absminsa.x > absmaxsb.x) {
 		d = absminsa.x - absmaxsb.x;
 		len_squared += d * d;
-	}
+	} // else: overlap on X, contribution is 0
 
-	// Calcular diferencia en el eje y
+	// Calculate difference on y-axis
 	if (absmaxsa.y < absminsb.y) {
 		d = absminsb.y - absmaxsa.y;
 		len_squared += d * d;
@@ -417,9 +417,9 @@ R_ConcatRotations
 	else if (absminsa.y > absmaxsb.y) {
 		d = absminsa.y - absmaxsb.y;
 		len_squared += d * d;
-	}
+	} // else: overlap on Y, contribution is 0
 
-	// Calcular diferencia en el eje z
+	// Calculate difference on z-axis
 	if (absmaxsa.z < absminsb.z) {
 		d = absminsb.z - absmaxsa.z;
 		len_squared += d * d;
@@ -427,12 +427,11 @@ R_ConcatRotations
 	else if (absminsa.z > absmaxsb.z) {
 		d = absminsa.z - absmaxsb.z;
 		len_squared += d * d;
-	}
+	} // else: overlap on Z, contribution is 0
 
-	// Solo calcular la raíz cuadrada si len_squared no es 0
-	return len_squared == 0.0f ? 0.0f : std::sqrt(len_squared);
+	// std::sqrt(0.0f) is valid and returns 0.0f
+	return std::sqrt(len_squared);
 }
-
 
 [[nodiscard]] constexpr bool boxes_intersect(const vec3_t& amins, const vec3_t& amaxs, const vec3_t& bmins, const vec3_t& bmaxs)
 {
