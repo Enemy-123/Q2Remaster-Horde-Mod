@@ -2047,6 +2047,8 @@ extern cvar_t* g_hook_wave;
 extern cvar_t* g_speedstuff;
 extern cvar_t* g_mover_debug;
 
+extern cvar_t* g_horde_profiler;
+
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
 extern cvar_t* g_hardcoop;

@@ -154,6 +154,8 @@ cvar_t* ai_allow_dm_spawn;
 cvar_t* ai_movement_disabled;
 
 //HORDE STUFF
+cvar_t* g_horde_profiler;
+
 cvar_t* g_use_hook;
 cvar_t* g_hook_wave;
 cvar_t* g_loadent;
@@ -403,6 +405,8 @@ void InitGame()
 	g_teamplay_force_join = gi.cvar("g_teamplay_force_join", "0", CVAR_NOFLAGS);
 	g_teamplay_armor_protect = gi.cvar("g_teamplay_armor_protect", "0", CVAR_NOFLAGS);
 	g_allow_techs = gi.cvar("g_allow_techs", "auto", CVAR_NOFLAGS);
+
+	g_horde_profiler = gi.cvar("g_horde_profiler", "1", CVAR_NOFLAGS);
 
 	g_loadent = gi.cvar("g_loadent", "1", CVAR_LATCH);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
@@ -938,6 +942,9 @@ G_RunFrame
 Advances the world by 0.1 seconds
 ================
 */
+
+#include "profiler.h"
+
 inline void G_RunFrame_(bool main_loop)
 {
     // Cache iterators at the start of the frame
@@ -951,6 +958,14 @@ inline void G_RunFrame_(bool main_loop)
             ApplyGradualHealing(&ent);
         }
     }
+
+	if (g_horde_profiler) {
+        g_profiler_enabled = g_horde_profiler->integer != 0;
+    } else {
+        g_profiler_enabled = false; // Default to off if cvar is missing
+    }
+	
+	Profiler_ResetFrame();
 
     if (g_horde->integer) {
         //CleanupStaleCS();
@@ -1164,6 +1179,8 @@ inline void G_RunFrame_(bool main_loop)
     }
 
     level.in_frame = false;
+
+	Profiler_RunFrame_End();
 }
 inline bool G_AnyPlayerSpawned()
 {

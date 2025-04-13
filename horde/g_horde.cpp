@@ -7,6 +7,7 @@
 #include "horde_ids.h"
 #include <span>
 #include "../laser.h" 
+#include "profiler.h"
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 
@@ -5044,7 +5045,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	if (level.intermissiontime)
 	return false; 
-
+	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 	// Reset the global counter periodically
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
 		HordeConstants::recent_teleport_count = 0;
@@ -5658,6 +5659,9 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 
 // --- TryAlternativeSpawnPosition Function ---
 bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles) {
+
+	PROFILE_SCOPE("TryAlternativeSpawnPosition");
+
 	if (!spawn_point || !spawn_point->inuse || !is_valid_vector(spawn_point->s.origin)) {
 		if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Invalid spawn_point.\n");
 		return false;
@@ -5786,6 +5790,8 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
 // TypeID-based EmergencySpawnMonster
 bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) {
+	PROFILE_SCOPE("EmergencySpawnMonster");
+
     const char* monster_classname = horde::MonsterTypeRegistry::GetClassname(typeId);
     if (!monster_classname) {
         if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Invalid TypeID {}\n", static_cast<int>(typeId));
@@ -6088,10 +6094,15 @@ int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 	if (developer->integer) gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, successfully spawned: {}\n", ambushSuccessCount);
 	return ambushSuccessCount;
 }
+
+
 //-----------------------------------------------------
 // SpawnMonsters - Main function to spawn regular wave monsters
 //-----------------------------------------------------
 edict_t* SpawnMonsters() {
+
+	PROFILE_SCOPE("SpawnMonsters");
+
 	if (level.intermissiontime)
 		return nullptr;
 	// --- Initial Checks & Caching ---
