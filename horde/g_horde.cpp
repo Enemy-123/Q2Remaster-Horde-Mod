@@ -109,7 +109,7 @@ namespace HordeConstants {
 	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
 	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
 	// Global rate limiting for stuck monster teleports
-	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 8_sec;    // Interval to reset the rate limit counter
+	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 12_sec;    // Interval to reset the rate limit counter
 	constexpr int MAX_TELEPORTS_PER_INTERVAL = 2;                // Max stuck teleports allowed within the interval (adjusted for difficulty)
 	// Rate limit counter and timer (defined as static within the namespace)
 	int g_teleport_rate_count = 0;                        // Current count within the interval
@@ -132,7 +132,7 @@ namespace HordeConstants {
 	constexpr float MIN_RECENT_TELEPORT_DIST = 300.0f;           // Min distance between sequential *teleport* destinations
 	constexpr float MIN_RECENT_TELEPORT_DIST_SQ = MIN_RECENT_TELEPORT_DIST * MIN_RECENT_TELEPORT_DIST;
 	constexpr gtime_t RECENT_SPAWN_COOLDOWN = 5.0_sec;           // How long a regular spawn position affects proximity checks
-	constexpr gtime_t RECENT_TELEPORT_COOLDOWN = 15.0_sec;        // How long a teleport destination affects proximity checks
+	constexpr gtime_t RECENT_TELEPORT_COOLDOWN = 20.0_sec;        // How long a teleport destination affects proximity checks
 
 	// --- Failure Recovery ---
 	constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY = 5;  // Threshold to enter recovery mode (simplify wave type)
@@ -2163,7 +2163,7 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 	// *** Final Post-Link Stuck Check ***
 	// This check happens AFTER monster_start_go might have already flagged it
 	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, CONTENTS_SOLID); // Use CONTENTS_SOLID
+		monster->s.origin, monster, MASK_MONSTERSOLID); // Use MASK_MONSTERSOLID
 
 	bool spawn_was_stuck = post_link_trace.startsolid;
 
@@ -3742,7 +3742,7 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTelepor
 	//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
 
 	if (gi.trace(self->s.origin, self->mins, self->maxs,
-		self->s.origin, self, CONTENTS_SOLID).startsolid) {
+		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
 		// Restore on failure
 		self->s.origin = old_origin;
 		self->s.old_origin = old_origin;
@@ -5052,7 +5052,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 		// Check stuck conditions (startsolid, no damage timeout)
 		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
-									   self->s.origin, self, CONTENTS_SOLID).startsolid;
+									   self->s.origin, self, MASK_MONSTERSOLID).startsolid;
 		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= HordeConstants::NO_DAMAGE_TIMEOUT;
 
 		if (!is_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck) {
@@ -5617,7 +5617,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 			// Check proximity to recent spawns
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
 				// Final check: Ensure no entities (player/monster/defense) are at the validated spot
-				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, CONTENTS_SOLID); // Check world geometry again just in case
+				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID); // Check world geometry again just in case
 				FilterData final_entity_check = { nullptr, 0 };
 				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
 
@@ -5668,7 +5668,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 			// Check proximity to recent spawns
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
 				// Final check: Ensure no entities are at the validated spot
-				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, CONTENTS_SOLID);
+				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
 				FilterData final_entity_check = { nullptr, 0 };
 				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
 
@@ -5770,7 +5770,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 
 	// Post-link stuck check
 	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, CONTENTS_SOLID);
+		monster->s.origin, monster, MASK_MONSTERSOLID);
 	bool spawn_was_stuck = post_link_trace.startsolid;
 
 	if (spawn_was_stuck) {
