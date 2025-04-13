@@ -114,4 +114,29 @@ private:
 // Creates a ProfilerScope object with a unique variable name based on the line number.
 #define PROFILE_SCOPE(name) ProfilerScope _profiler_scope##__LINE__(name)
 
+
+// Macro to safely increment a uint16_t counter with a runtime limit check
+// and an optional compile-time type check.
+#define INCREMENT_U16_WITH_LIMIT(counter, context_string) \
+    do { \
+        /* Compile-time check: Ensure the variable passed IS a uint16_t */ \
+        static_assert(std::is_same_v<decltype(counter), uint16_t>, \
+                      #counter " passed to INCREMENT_U16_WITH_LIMIT is not a uint16_t"); \
+        \
+        /* Runtime check: Prevent overflow */ \
+        if ((counter) < std::numeric_limits<uint16_t>::max()) { \
+            (counter)++; \
+        } else if (developer && developer->integer) { \
+            /* Optional runtime warning when limit is hit */ \
+            /* Use ## to create unique static variable names based on the counter name */ \
+            static int overflow_warn_##counter = -1; \
+            if (overflow_warn_##counter != g_horde_local.level) { \
+                 /* Print context string passed to the macro */ \
+                 gi.Com_PrintFmt("Warning: uint16_t limit reached for " #counter " in %s (Wave %d)\n", \
+                                 context_string, g_horde_local.level); \
+                 overflow_warn_##counter = g_horde_local.level; \
+            } \
+        } \
+    } while(0) // do-while(0) idiom for safe macro usage
+    
 #endif // PROFILER_H

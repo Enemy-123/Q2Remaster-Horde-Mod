@@ -5407,23 +5407,6 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 	return true; // Teleport successful
 }
 
-
-// Function to track created entities
-void OnEntityCreated(edict_t* ent) {
-	if (!ent || !ent->inuse)
-		return;
-
-	// Add entity tracking logic here if needed
-	// For most implementations, this can be a simple stub function
-	// that can be expanded later with actual tracking needs
-
-	if (developer->integer > 2) {
-		gi.Com_PrintFmt("Entity created: {} ({})\n",
-			ent->classname ? ent->classname : "unknown",
-			ent - g_edicts);
-	}
-}
-
 // Helper function to select a retaliation-themed monster
 horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel) {
 	WeightedSelection<MonsterTypeInfo> selection;
@@ -5872,7 +5855,6 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 	}
 
     monster->monsterinfo.spawn_complete_time = level.time;
-    OnEntityCreated(monster);
 
     // Apply bonuses (Champion, Armor, Item Drop) - Logic remains the same
     // ... (existing bonus application code) ...
