@@ -7,7 +7,7 @@
 #include "horde_ids.h"
 #include <span>
 #include "../laser.h" 
-#include "profiler.h"
+#include "../profiler.h"
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 

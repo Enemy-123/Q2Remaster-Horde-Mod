@@ -164,6 +164,7 @@
     <ClInclude Include="m_soldier.h" />
     <ClInclude Include="m_supertank.h" />
     <ClInclude Include="m_tank.h" />
+    <ClInclude Include="profiler.h" />
     <ClInclude Include="q_std.h" />
     <ClInclude Include="q_vec3.h" />
     <ClInclude Include="m_redmutant.h" />
@@ -240,6 +241,7 @@
     <ClCompile Include="m_redmutant.cpp" />
     <ClCompile Include="m_shocker.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
+    <ClCompile Include="profiler.cpp" />
     <ClCompile Include="rogue/m_rogue_turret.cpp" />
     <ClCompile Include="m_shambler.cpp" />
     <ClCompile Include="m_soldier.cpp" />
