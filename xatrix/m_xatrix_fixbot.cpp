@@ -261,7 +261,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 
 		// --- BoxEdicts check passed ---
 		// Check path from fixbot to candidate position
-		if (!G_IsClearPath(self, MASK_SOLID, self->s.origin, candidate_pos)) {
+		if (!G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, candidate_pos)) {
 			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt {}): Path to candidate {} blocked.\n", attempt, candidate_pos);
 			continue;
 		}
@@ -270,7 +270,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		vec3_t to_pos_vec = candidate_pos - self->s.origin;
 		float dist = to_pos_vec.length();
 
-		if (dist <= 16.0f) { // Too close to self
+		if (dist <= 56.0f) { // Too close to self
 			continue;
 		}
 		to_pos_vec.normalize(); // Normalize after length check

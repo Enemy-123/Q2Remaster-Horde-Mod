@@ -1726,13 +1726,13 @@ void monster_start_go(edict_t* self)
 		// (which means it's likely not a Horde monster, or the teleport flag logic failed somehow).
 		if (is_stuck)
 		{
-			constexpr const int32_t adjust[] = { 0, -1, 1, -2, 2, -4, 4, -8, 8 };
+			constexpr const int32_t adjust[] = { 0, -16, 16, -32, 32, -64, 64 };
 			bool					walked = false;
 			vec3_t original_pos_brute = self->s.origin; // Store position before brute force
 
-			for (int32_t y = 0; !walked && y < 3; y++) {
-				for (int32_t x = 0; !walked && x < 3; x++) {
-					for (int32_t z = 0; !walked && z < 3; z++)
+			for (int32_t z = 0; !walked && z < 7; z++) {
+				for (int32_t y = 0; !walked && y < 7; y++) {
+					for (int32_t x = 0; !walked && x < 7; x++)
 					{
 						self->s.origin[0] = original_pos_brute[0] + adjust[x];
 						self->s.origin[1] = original_pos_brute[1] + adjust[y];
