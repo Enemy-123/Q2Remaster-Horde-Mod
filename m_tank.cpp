@@ -630,102 +630,110 @@ void TankStrike(edict_t* self)
 
 void TankRocket(edict_t* self)
 {
-	vec3_t					 forward, right;
-	vec3_t					 start;
-	vec3_t					 dir;
-	vec3_t					 vec;
-	monster_muzzleflash_id_t flash_number;
-	int						 rocketSpeed;
-	// pmm - blindfire support
-	vec3_t target;
+    vec3_t                   forward, right;
+    vec3_t                   start;
+    vec3_t                   dir;
+    vec3_t                   vec;
+    monster_muzzleflash_id_t flash_number;
+    int                      rocketSpeed;
+    vec3_t target;
+    trace_t trace; // PMM - needed for trace check
 
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+    // --- Primary Check for self and enemy ---
+    if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+        return;
+    // --- End Check ---
 
-	const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+    const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
-	if (self->s.frame == FRAME_attak322 || (self->s.frame == FRAME_attak324))
-		flash_number = MZ2_TANK_ROCKET_1;
-	else if (self->s.frame == FRAME_attak327)
-		flash_number = MZ2_TANK_ROCKET_2;
-	else // (self->s.frame == FRAME_attak330)
-		flash_number = MZ2_TANK_ROCKET_3;
+    // Determine flash_number based on frame
+    if (self->s.frame == FRAME_attak322 || (self->s.frame == FRAME_attak324))
+        flash_number = MZ2_TANK_ROCKET_1;
+    else if (self->s.frame == FRAME_attak327)
+        flash_number = MZ2_TANK_ROCKET_2;
+    else // (self->s.frame == FRAME_attak330)
+        flash_number = MZ2_TANK_ROCKET_3;
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+    AngleVectors(self->s.angles, forward, right, nullptr);
+    start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	if (self->speed)
-		rocketSpeed = self->speed;
-	else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
-		rocketSpeed = 600;
-	else
-		rocketSpeed = 480;
+    // Determine rocketSpeed
+    if (self->speed)
+        rocketSpeed = self->speed;
+    else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN)) // Ensure SPAWNFLAG is defined correctly
+        rocketSpeed = 600;
+    else
+        rocketSpeed = 480;
 
-	// PMM
-	if (blindfire)
-		target = self->monsterinfo.blind_fire_target;
-	else
-		target = self->enemy->s.origin;
-	// pmm
+    // Determine target position
+    if (blindfire)
+    {
+        // --- Check added for blind_fire_target ---
+        if (!self->monsterinfo.blind_fire_target) // Ensure target exists
+             return;
+        target = self->monsterinfo.blind_fire_target;
+        // --- End Check ---
+    }
+    else
+    {
+        // --- self->enemy is guaranteed valid here due to the primary check ---
+        target = self->enemy->s.origin;
+    }
 
-	// PGM
-	//  PMM - blindfire shooting
-	if (blindfire)
-	{
-		vec = target;
-		dir = vec - start;
-	}
-	// pmm
-	// don't shoot at feet if they're above me.
-	else if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
-	{
-		vec = self->enemy->s.origin;
-		vec[2] += self->enemy->viewheight;
-		dir = vec - start;
-	}
-	else
-	{
-		vec = self->enemy->s.origin;
-		vec[2] = self->enemy->absmin[2] + 1;
-		dir = vec - start;
-	}
-	// PGM
+    // Calculate initial direction
+    if (blindfire)
+    {
+        vec = target;
+        dir = vec - start;
+    }
+    // --- self->enemy is guaranteed valid here ---
+    else if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
+    {
+        vec = self->enemy->s.origin;
+        vec[2] += self->enemy->viewheight; // Access viewheight safely
+        dir = vec - start;
+    }
+    else
+    {
+        vec = self->enemy->s.origin;
+        vec[2] = self->enemy->absmin[2] + 1; // Access absmin safely
+        dir = vec - start;
+    }
 
-	//======
-	// PMM - lead target  (not when blindfiring)
-	// 20, 35, 50, 65 chance of leading
-	if ((!blindfire) && ((frandom() < (0.2f + ((3 - skill->integer) * 0.15f)))))
-		PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &vec);
-	// PMM - lead target
-	//======//
 
-	dir.normalize();
+    // Lead target if not blindfiring
+    // --- self->enemy is guaranteed valid here ---
+    if ((!blindfire) && ((frandom() < (0.2f + ((3 - skill->integer) * 0.15f)))))
+        PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &vec);
 
-	// pmm blindfire doesn't check target (done in checkattack)
-	// paranoia, make sure we're not shooting a target right next to us
-	if (blindfire)
-	{
-		// blindfire has different fail criteria for the trace
-		if (M_AdjustBlindfireTarget(self, start, vec, right, dir))
-		{
-			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
-			else
-				monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
-		}
-	}
-	else
-	{
-		const trace_t trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
 
-		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
-		{
-			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
-			else
-				monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
-		}
-	}
+    dir.normalize(); // Normalize direction after potential prediction
+
+    // Perform fire check (trace) and fire projectile
+    if (blindfire)
+    {
+        if (M_AdjustBlindfireTarget(self, start, vec, right, dir)) // Pass 'vec' (potentially adjusted target)
+        {
+             // --- self->enemy is guaranteed valid here for spawnflags check ---
+             if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
+                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+            else
+                monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+        }
+    }
+    else
+    {
+        trace = gi.traceline(start, vec, self, MASK_PROJECTILE); // Use 'vec' (potentially adjusted target) for trace
+
+        if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
+        {
+            // --- self->enemy is guaranteed valid here for spawnflags check ---
+            if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
+                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+            else
+                 monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+        }
+    }
 }
 
 void TankMachineGun(edict_t* self)

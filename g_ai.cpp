@@ -319,75 +319,89 @@ Turns towards target and advances
 Use this call with a distance of 0 to replace ai_face
 ==============
 */
+/*
+=============
+ai_charge
+
+Turns towards target and advances
+Use this call with a distance of 0 to replace ai_face
+==============
+*/
 void ai_charge(edict_t* self, float dist)
 {
-	vec3_t v;
-	// ROGUE
-	float ofs;
+    vec3_t v;
+    float ofs;
 
-	// PMM - made AI_MANUAL_STEERING affect things differently here .. they turn, but
-	// don't set the ideal_yaw
+    // --- Robust check for self and enemy ---
+    if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+        return;
+    // --- End Check ---
 
-	// This is put in there so monsters won't move towards the origin after killing
-	// a tesla. This could be problematic, so keep an eye on it.
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;                              // PGM
+    // PMM - made AI_MANUAL_STEERING affect things differently here .. they turn, but
+    // don't set the ideal_yaw
 
-	// PMM - save blindfire target
-	if (visible(self, self->enemy))
-		self->monsterinfo.blind_fire_target = self->enemy->s.origin + (self->enemy->velocity * -0.1f);
-	// pmm
+    // This is put in there so monsters won't move towards the origin after killing
+    // a tesla. This could be problematic, so keep an eye on it.
+    // (Initial check already present and confirmed)
 
-	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
-	{
-		// ROGUE
-		v = self->enemy->s.origin - self->s.origin;
-		self->ideal_yaw = vectoyaw(v);
-		// ROGUE
-	}
-	// ROGUE
-	M_ChangeYaw(self);
+    // PMM - save blindfire target
+    // --- Check added before accessing enemy members ---
+    if (self->enemy && self->enemy->inuse && visible(self, self->enemy))
+        self->monsterinfo.blind_fire_target = self->enemy->s.origin + (self->enemy->velocity * -0.1f);
+    // --- End Check ---
 
-	if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
-		// ROGUE
-	{
-		if (self->monsterinfo.aiflags & AI_CHARGING)
-		{
-			M_MoveToGoal(self, dist);
-			return;
-		}
-		// circle strafe support
-		if (self->monsterinfo.attack_state == AS_SLIDING)
-		{
-			// if we're fighting a tesla, NEVER circle strafe
-			if ((self->enemy) && (self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))
-				ofs = 0;
-			else if (self->monsterinfo.lefty)
-				ofs = 90;
-			else
-				ofs = -90;
+    if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+    {
+        // --- Check added before accessing enemy origin ---
+        if (self->enemy && self->enemy->inuse)
+        {
+            v = self->enemy->s.origin - self->s.origin;
+            self->ideal_yaw = vectoyaw(v);
+        }
+        // --- End Check ---
+    }
 
-			dist *= self->monsterinfo.active_move->sidestep_scale;
+    M_ChangeYaw(self);
 
-			if (M_walkmove(self, self->ideal_yaw + ofs, dist))
-				return;
+    if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
+    {
+        if (self->monsterinfo.aiflags & AI_CHARGING)
+        {
+            M_MoveToGoal(self, dist);
+            return;
+        }
+        // circle strafe support
+        if (self->monsterinfo.attack_state == AS_SLIDING)
+        {
+            // if we're fighting a tesla, NEVER circle strafe
+            // --- Check added before accessing enemy classname ---
+            if ((self->enemy && self->enemy->inuse && self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))
+                ofs = 0;
+            // --- End Check ---
+            else if (self->monsterinfo.lefty)
+                ofs = 90;
+            else
+                ofs = -90;
 
-			self->monsterinfo.lefty = !self->monsterinfo.lefty;
-			M_walkmove(self, self->ideal_yaw - ofs, dist);
-		}
-		else
-			// ROGUE
-			M_walkmove(self, self->s.angles[YAW], dist);
-		// ROGUE
-	}
-	// ROGUE
+            dist *= self->monsterinfo.active_move->sidestep_scale;
 
-	// [Paril-KEX] if our enemy is literally right next to us, give
-	// us more rotational speed so we don't get circled
-	if (range_to(self, self->enemy) <= RANGE_MELEE * 2.5f)
-		M_ChangeYaw(self);
+            if (M_walkmove(self, self->ideal_yaw + ofs, dist))
+                return;
+
+            self->monsterinfo.lefty = !self->monsterinfo.lefty;
+            M_walkmove(self, self->ideal_yaw - ofs, dist);
+        }
+        else
+            M_walkmove(self, self->s.angles[YAW], dist);
+    }
+
+    // [Paril-KEX] if our enemy is literally right next to us, give
+    // us more rotational speed so we don't get circled
+    // --- Check added before accessing self->enemy for range_to ---
+    if (self->enemy && self->enemy->inuse && range_to(self, self->enemy) <= RANGE_MELEE * 2.5f)
+        M_ChangeYaw(self);
+    // --- End Check ---
 }
-
 /*
 =============
 ai_turn
