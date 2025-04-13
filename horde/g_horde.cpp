@@ -6675,49 +6675,42 @@ enum class MessageType {
 };
 
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
-	constexpr int32_t MAX_DAMAGE = 100000;
-	int32_t total_damage = 0;
-	topDamager = PlayerStats(); // Reset stats
+    constexpr int32_t MAX_DAMAGE = 100000;
+    int32_t total_damage = 0;
+    topDamager = PlayerStats(); // Reset stats
+    topDamager.total_damage = -1; // Use -1 to ensure first valid player is picked
 
-	// First pass - calculate total damage
-	for (const auto& player : active_players()) {
-		if (!player || !player->client || !player->inuse)
-			continue;
+    for (const auto& player : active_players()) {
+        if (!player || !player->client || !player->inuse)
+            continue;
 
-		// Fix 1: Initialize const variable with explicit casting to resolve type ambiguity
-		const int32_t player_damage = static_cast<int32_t>(std::min(
-			static_cast<int32_t>(player->client->total_damage),
-			MAX_DAMAGE));
+        const int32_t player_damage = static_cast<int32_t>(std::min(
+            static_cast<int32_t>(player->client->total_damage),
+            MAX_DAMAGE));
 
-		if (player_damage > 0) {
-			total_damage += player_damage;
-		}
-	}
+        if (player_damage > 0) {
+            total_damage += player_damage;
+        }
 
-	// Second pass - find top damager
-	for (const auto& player : active_players()) {
-		if (!player || !player->client || !player->inuse)
-			continue;
+        if (player_damage > topDamager.total_damage) {
+            topDamager.total_damage = player_damage;
+            topDamager.player = player;
+        }
+    }
 
-		// Fix 2: Same explicit casting approach for the second instance
-		const int32_t player_damage = static_cast<int32_t>(std::min(
-			static_cast<int32_t>(player->client->total_damage),
-			MAX_DAMAGE));
+    // Reset damage if it was initialized to -1 and no one dealt damage
+    if (topDamager.total_damage == -1) {
+         topDamager.total_damage = 0;
+    }
 
-		if (player_damage > topDamager.total_damage) {
-			topDamager.total_damage = player_damage;
-			topDamager.player = player;
-		}
-	}
-
-	// Calculate percentage with extra safety
-	percentage = 0.0f;
-	if (total_damage > 0 && topDamager.total_damage > 0) {
-		percentage = std::min(
-			(static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f,
-			100.0f);
-		percentage = std::round(percentage * 100.0f) / 100.0f;
-	}
+    // Calculate percentage (same as before)
+    percentage = 0.0f;
+    if (total_damage > 0 && topDamager.total_damage > 0) {
+        percentage = std::min(
+            (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f,
+            100.0f);
+        percentage = std::round(percentage * 100.0f) / 100.0f;
+    }
 }
 
 struct RewardInfo {
