@@ -11,14 +11,10 @@
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 
-
 // Cache for potentially valid spawn points (pointers)
 static std::vector<edict_t*> g_potential_spawn_points;
 static bool g_spawn_points_cached = false;
 static size_t g_spawn_point_shuffle_index = 0; // Index for iterating shuffled list
-
-//bool IsSpawnPointReachable(const edict_t* spawn_point, horde::MonsterTypeID monster_typeId);
-bool IsPositionReachable(const vec3_t& position, horde::MonsterTypeID monster_typeId);
 
 // State for failure tracking and recovery
 static int g_consecutive_spawn_failures = 0;
@@ -162,34 +158,6 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin, const vec3_t& angles, bool applyHordeFlags);
 
 // --- Helper Functions ---
-
-// Helper to find the nearest active, non-spectating player to a given point
-// (Ensure this function exists or add it)
-edict_t* FindNearestPlayer(const vec3_t& point) {
-    edict_t* nearest_player = nullptr;
-    float min_dist_sq = std::numeric_limits<float>::max();
-
-    for (auto* player : active_players_no_spect()) { // Iterate through active, non-spectating players
-        if (!player || !player->inuse || player->health <= 0) continue;
-
-        float dist_sq = (player->s.origin - point).lengthSquared();
-        if (dist_sq < min_dist_sq) {
-            min_dist_sq = dist_sq;
-            nearest_player = player;
-        }
-    }
-    return nearest_player;
-}
-
-// OLD function now delegates
-bool IsSpawnPointReachable(const edict_t* spawn_point, horde::MonsterTypeID monster_typeId) {
-    if (!spawn_point || !spawn_point->inuse) {
-        return false;
-    }
-    // Delegate to the position-based check
-    return IsPositionReachable(spawn_point->s.origin, monster_typeId);
-}
-
 void MarkPositionAsRecentlyUsed(const vec3_t& position) {
 	g_recent_spawn_positions[g_recent_position_index] = {
 		position,
@@ -473,100 +441,66 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	return cache.was_occupied_by_player;
 }
 // --- Corrected SelectRandomSpawnPoint ---
-template <typename TFilter> // Keep the template for flexibility
-edict_t* SelectRandomSpawnPoint(TFilter filter) { // TFilter likely checks things like flying/ground preference
-    edict_t* availableSpawns[MAX_SPAWN_POINTS]{};
-    edict_t* occupiedButUsableSpawns[MAX_SPAWN_POINTS]{}; // For alternative spawns
-    int availableCount = 0;
-    int occupiedCount = 0;
+template <typename TFilter>
+edict_t* SelectRandomSpawnPoint(TFilter filter) {
+	edict_t* availableSpawns[MAX_SPAWN_POINTS]{};
+	edict_t* occupiedButUsableSpawns[MAX_SPAWN_POINTS]{};
+	int availableCount = 0;
+	int occupiedCount = 0;
 
-    // --- Access the cached and shuffled points ---
-    if (!g_spawn_points_cached || g_potential_spawn_points.empty()) {
-        // Handle case where cache isn't ready or is empty (should be rebuilt by SpawnMonsters)
-        if (developer->integer) gi.Com_PrintFmt("SelectRandomSpawnPoint: Warning - Spawn point cache not ready or empty.\n");
-        return nullptr;
-    }
+	for (edict_t* spawnPoint : monster_spawn_points()) {
+		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin)) continue;
+		const auto& data = spawnPointsData[spawnPoint]; // Get cooldown data
+		if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) continue; // Check normal cooldown
+		if (level.time < data.alternative_cooldown) continue; // Check alternative cooldown
 
-    // Iterate using the cached list to benefit from shuffling
-    // Check a limited number per call to avoid excessive checks if many points exist
-    size_t points_to_check = g_potential_spawn_points.size(); // Or a smaller number like 32
-    size_t initial_shuffle_index = g_spawn_point_shuffle_index;
+		// Apply the custom filter first
+		if (filter(spawnPoint)) {
+			// Check if a player is directly blocking the spawn
+			if (IsSpawnPointOccupied(spawnPoint)) {
+				// Player is blocking, this point is completely unusable for direct spawn.
+				// IsSpawnPointOccupied handles cache update.
+				// Do NOT add to any list for this function's purpose.
+				if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} skipped (player occupied).\n", (int)(spawnPoint - g_edicts));
+				continue; // Skip this point entirely
+			}
+			else {
+				// Not blocked by a player. Now check the cache for non-player obstacles.
+				const SpawnPointCache& cache = spawn_point_cache[spawnPoint]; // Get cache entry (already updated by IsSpawnPointOccupied call)
+				if (cache.has_obstacle) {
+					// Blocked by monster/defense - add to the list for potential alternative spawn.
+					if (occupiedCount < MAX_SPAWN_POINTS) {
+						occupiedButUsableSpawns[occupiedCount++] = spawnPoint;
+					}
+					if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to occupiedButUsable (obstacle present).\n", (int)(spawnPoint - g_edicts));
+				}
+				else {
+					// Not blocked by player AND no obstacle found -> add to available list.
+					if (availableCount < MAX_SPAWN_POINTS) {
+						availableSpawns[availableCount++] = spawnPoint;
+					}
+					if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to available.\n", (int)(spawnPoint - g_edicts));
+				}
+			}
+		}
+	}
 
-    for (size_t i = 0; i < points_to_check; ++i) {
-        // Cycle through the shuffled list
-        if (g_spawn_point_shuffle_index >= g_potential_spawn_points.size()) {
-            g_spawn_point_shuffle_index = 0;
-        }
-        edict_t* spawnPoint = g_potential_spawn_points[g_spawn_point_shuffle_index++];
+	// Prioritize completely available spawns
+	if (availableCount > 0) {
+		const size_t idx = irandom(availableCount);
+		if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected available point {}\n", (int)(availableSpawns[idx] - g_edicts));
+		return availableSpawns[idx];
+	}
 
-        // --- Basic & Cooldown Checks ---
-        if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin)) continue;
-        const auto& data = spawnPointsData[spawnPoint];
-        if ((data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) ||
-            level.time < data.alternative_cooldown ||
-            level.time < data.teleport_cooldown) { // Added teleport cooldown check
-            continue;
-        }
+	// If no completely available spawns, try one blocked by an obstacle
+	if (occupiedCount > 0) {
+		const size_t idx = irandom(occupiedCount);
+		if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected obstacle-occupied point {} (will try alternative).\n", (int)(occupiedButUsableSpawns[idx] - g_edicts));
+		return occupiedButUsableSpawns[idx]; // Let SpawnMonsters handle TryAlternative
+	}
 
-        // --- Custom Filter Application (e.g., flying/ground preference) ---
-        if (!filter(spawnPoint)) { // Apply the passed-in filter first
-             continue;
-        }
-
-        // --- Navigation Proximity Check (NEEDS gi.FindNearestNavNode) ---
-        constexpr float MAX_DIST_TO_NAV_NODE = 150.0f;
-        bool near_nav_node = false;
-        // NavNodeRef nearest_node = gi.FindNearestNavNode(spawnPoint->s.origin, MAX_DIST_TO_NAV_NODE);
-        // if (nearest_node != NAV_NODE_NULL) {
-        //     near_nav_node = true;
-        // }
-        // *** Placeholder: Assume true if function doesn't exist yet ***
-        near_nav_node = true; // REMOVE THIS PLACEHOLDER WHEN API IS READY
-
-        if (!near_nav_node) {
-             if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} skipped (too far from nav mesh).\n", (int)(spawnPoint - g_edicts));
-             continue;
-        }
-        // --- End Navigation Check ---
-
-        // --- Occupation Checks (using existing IsSpawnPointOccupied and cache) ---
-        bool player_occupied = IsSpawnPointOccupied(spawnPoint); // Checks player, updates cache
-        const SpawnPointCache& cache = spawn_point_cache[spawnPoint]; // Get updated cache
-
-        if (player_occupied) {
-            if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} skipped (player occupied).\n", (int)(spawnPoint - g_edicts));
-            continue; // Skip entirely if player is directly on it
-        }
-        else if (cache.has_obstacle) {
-             // Obstacle (monster/defense) present - add to list for potential alternative spawn
-             if (occupiedCount < MAX_SPAWN_POINTS) {
-                 occupiedButUsableSpawns[occupiedCount++] = spawnPoint;
-             }
-             if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to occupiedButUsable (obstacle present).\n", (int)(spawnPoint - g_edicts));
-        }
-        else {
-             // Clear! Add to the primary available list
-             if (availableCount < MAX_SPAWN_POINTS) {
-                 availableSpawns[availableCount++] = spawnPoint;
-             }
-             if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to available.\n", (int)(spawnPoint - g_edicts));
-        }
-    } // End loop through potential points
-
-    // --- Selection Logic (Prioritize available, fallback to occupied) ---
-    if (availableCount > 0) {
-        const size_t idx = irandom(availableCount);
-        if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected available point {}\n", (int)(availableSpawns[idx] - g_edicts));
-        return availableSpawns[idx];
-    }
-    if (occupiedCount > 0) {
-        const size_t idx = irandom(occupiedCount);
-        if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected obstacle-occupied point {} (will try alternative).\n", (int)(occupiedButUsableSpawns[idx] - g_edicts));
-        return occupiedButUsableSpawns[idx]; // Let SpawnMonsters handle TryAlternative
-    }
-
-    if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: No suitable spawn points found after checking {} points.\n", points_to_check);
-    return nullptr; // No valid spawn points found
+	if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: No suitable spawn points found.\n");
+	return nullptr; // No valid spawn points found
 }
 
 static void CleanupSpawnPointCache() noexcept { spawn_point_cache.clear(); }
@@ -5042,10 +4976,10 @@ struct StuckMonsterSpawnFilter {
 
 // --- Modified CheckAndTeleportStuckMonster ---
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-
+	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 	if (level.intermissiontime)
 	return false; 
-	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
+
 	// Reset the global counter periodically
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
 		HordeConstants::recent_teleport_count = 0;
@@ -5441,107 +5375,100 @@ horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel) {
 }
 
 int SpawnRetaliationAmbush(const horde::MapSize& mapSize, int32_t waveLevel, edict_t* target_player) {
-    int baseCount = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
-    int ambushSize = baseCount;
-    int spawnedCount = 0;
+	int baseCount = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2); // Smaller size
+	int ambushSize = baseCount; // No level scaling for this small ambush
+	int spawnedCount = 0;
 
-    if (developer->integer) {
-        std::string target_name = GetPlayerName(target_player);
-        gi.Com_PrintFmt("HORDE: Attempting Retaliation Ambush (Size: {}). Target: {}\n", ambushSize, target_name.c_str());
-    }
+	if (developer->integer) {
+		std::string target_name = GetPlayerName(target_player); // Use helper
+		gi.Com_PrintFmt("HORDE: Attempting Retaliation Ambush (Size: {}). Target: {}\n",
+			ambushSize, target_name.c_str());
+	}
 
-    for (int i = 0; i < ambushSize; ++i) {
-        horde::MonsterTypeID monster_typeId = PickRetaliationMonsterTypeID(waveLevel);
-        edict_t* monster = nullptr;
-        bool spawn_attempted = false; // Track if we tried the targeted spawn
+	for (int i = 0; i < ambushSize; ++i) {
+		horde::MonsterTypeID monster_typeId = PickRetaliationMonsterTypeID(waveLevel);
+		edict_t* monster = nullptr; // Will hold the spawned monster
 
-        // --- Try spawning near the target player first ---
-        if (target_player) {
-            vec3_t emergency_origin, emergency_angles;
-            bool used_human_player = false;
+		// --- Try spawning near the target player first ---
+		if (target_player) {
+			vec3_t emergency_origin, emergency_angles;
+			bool used_human_player = false; // Doesn't matter much here
 
-            // Step 1: Find potential position near target
-            if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, monster_typeId)) {
-                spawn_attempted = true; // Mark that we tried this path
+			// Use FindEmergencySpawnPosition to get a spot *near* the target
+			if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, monster_typeId)) {
+				// SpawnMonsterByTypeID returns the edict_t* on success
+				monster = SpawnMonsterByTypeID(monster_typeId, emergency_origin, emergency_angles, true);
+			}
+		}
 
-                // Step 2: Validate Geometry/Entities
-                vec3_t validated_pos = emergency_origin;
-                vec3_t predicted_mins, predicted_maxs;
-                GetPredictedScaledBounds(monster_typeId, predicted_mins, predicted_maxs); // Get bounds for validation
-                bool is_flying = IsFlying(monster_typeId);
+		// --- Fallback to general emergency spawn if targeting failed or no target ---
+		if (!monster) {
+			// EmergencySpawnMonster returns bool
+			if (EmergencySpawnMonster(waveLevel, monster_typeId)) {
+				spawnedCount++; // Count success
+				// Update counters
+				if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
+				else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters;
+				// Check for overflow before incrementing g_totalMonstersInWave
+				if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+					++g_totalMonstersInWave;
+				}
+				else if (developer->integer) {
+					gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnRetaliationAmbush (Emergency).\n");
+				}
+				// Note: Can't easily apply champion logic here as EmergencySpawnMonster doesn't return edict_t*
+				continue; // Skip champion logic for emergency fallback
+			}
+			else {
+				// Both targeted and general emergency failed
+				if (developer->integer > 1) {
+					gi.Com_PrintFmt("SpawnRetaliationAmbush: Failed to spawn monster type {}\n", (int)monster_typeId);
+				}
+				continue; // Try next monster in ambush
+			}
+		}
 
-                if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
-                    emergency_origin = validated_pos; // Use validated position
+		// --- If monster was successfully spawned (likely via targeted FindEmergency...) ---
+		// This block now only executes if the targeted spawn near player succeeded
+		if (monster && monster->inuse) {
+			spawnedCount++;
+			// Update counters
+			if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
+			else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters;
+			// Check for overflow before incrementing g_totalMonstersInWave
+			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+				++g_totalMonstersInWave;
+			}
+			else if (developer->integer) {
+				gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnRetaliationAmbush (Targeted).\n");
+			}
 
-                    // Step 3: Validate Reachability
-                    if (IsPositionReachable(emergency_origin, monster_typeId)) {
-                        // Step 4: Spawn if all checks pass
-                        monster = SpawnMonsterByTypeID(monster_typeId, emergency_origin, emergency_angles, true);
-                        if (!monster) {
-                             if (developer->integer > 1) gi.Com_PrintFmt("SpawnRetaliationAmbush: SpawnMonsterByTypeID failed near target player even after validation.\n");
-                        }
-                    } else {
-                        if (developer->integer > 1) gi.Com_PrintFmt("SpawnRetaliationAmbush: Position near target player failed reachability check.\n");
-                    }
-                } else {
-                    if (developer->integer > 1) gi.Com_PrintFmt("SpawnRetaliationAmbush: Position near target player failed IsValidSpawnLocation check.\n");
-                }
-            } else {
-                 if (developer->integer > 1) gi.Com_PrintFmt("SpawnRetaliationAmbush: FindEmergencySpawnPosition failed for target player.\n");
-            }
-        } // End if (target_player)
+			// Apply HIGH champion chance
+			float champ_chance_ambush = 0.5f + (frandom() * 0.3f);
+			if (waveLevel >= 3 && frandom() < champ_chance_ambush && !monster->monsterinfo.IS_BOSS) {
+				monster->monsterinfo.bonus_flags |= BF_CHAMPION;
+				ApplyMonsterBonusFlags(monster); // Apply flags/stats
 
-        // --- Fallback to general emergency spawn if targeted spawn wasn't tried or failed ---
-        if (!monster) { // If monster is still null (either no target, or targeted spawn failed)
-            if (spawn_attempted && developer->integer > 1) { // Log if we are falling back after a failed targeted attempt
-                 gi.Com_PrintFmt("SpawnRetaliationAmbush: Targeted spawn failed, falling back to general emergency spawn.\n");
-            }
+				if (monster->inuse) { // Re-check after applying flags
+					monster->item = G_HordePickItem();
+					if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+					else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure flag set if no item
+					champion_spawned_this_wave = true;
+					// champion_spawn_cooldown = 5; // Optional cooldown
+					if (developer->integer > 1) gi.Com_PrintFmt("Retaliation Ambush: Spawned Champion {}\n", monster->classname);
+				}
+				else {
+					if (developer->integer) gi.Com_PrintFmt("SpawnRetaliationAmbush: Monster freed during ApplyMonsterBonusFlags!\n");
+				}
+			}
+			// Other effects like armor are handled within SpawnMonsterByTypeID or EmergencySpawnMonster
+		}
+	} // End loop
 
-            // Use the modified EmergencySpawnMonster which includes all checks
-            if (EmergencySpawnMonster(waveLevel, monster_typeId)) {
-                spawnedCount++;
-                // Counters updated inside EmergencySpawnMonster
-                // No need to handle champion logic here, it's in EmergencySpawnMonster
-                continue; // Move to the next monster in the ambush
-            } else {
-                // Both targeted and general emergency failed
-                if (developer->integer > 1) gi.Com_PrintFmt("SpawnRetaliationAmbush: Fallback EmergencySpawnMonster also failed for type {}.\n", (int)monster_typeId);
-                continue; // Try next monster in ambush
-            }
-        }
-
-        // --- If monster was successfully spawned (via the targeted path) ---
-        if (monster && monster->inuse) {
-            spawnedCount++;
-            // Update counters (only if spawned via targeted path, fallback handles its own)
-            if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
-            else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters;
-            if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
-            else if (developer->integer) gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented.\n");
-
-            // Apply HIGH champion chance (only for targeted spawns, fallback handles its own)
-            float champ_chance_ambush = 0.5f + (frandom() * 0.3f);
-            if (waveLevel >= 3 && frandom() < champ_chance_ambush && !monster->monsterinfo.IS_BOSS) {
-                monster->monsterinfo.bonus_flags |= BF_CHAMPION;
-                ApplyMonsterBonusFlags(monster);
-                if (monster->inuse) {
-                    monster->item = G_HordePickItem();
-                    if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
-                    else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
-                    champion_spawned_this_wave = true;
-                    if (developer->integer > 1) gi.Com_PrintFmt("Retaliation Ambush: Spawned Champion {} near target.\n", monster->classname);
-                } else {
-                    if (developer->integer) gi.Com_PrintFmt("SpawnRetaliationAmbush: Monster freed during ApplyMonsterBonusFlags!\n");
-                }
-            }
-            // Armor/item drops handled by SpawnMonsterByTypeID or EmergencySpawnMonster
-        }
-    } // End loop
-
-    if (spawnedCount > 0 && developer->integer) {
-        gi.Com_PrintFmt("HORDE: Retaliation Ambush Spawned {}/{} monsters.\n", spawnedCount, ambushSize);
-    }
-    return spawnedCount;
+	if (spawnedCount > 0 && developer->integer) {
+		gi.Com_PrintFmt("HORDE: Retaliation Ambush Spawned {}/{} monsters.\n", spawnedCount, ambushSize);
+	}
+	return spawnedCount;
 }
 
 void HandleSpawnPhaseAggression(edict_t* monster) {
@@ -5642,7 +5569,6 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 
 // --- TryAlternativeSpawnPosition Function ---
 bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles) {
-
 	PROFILE_SCOPE("TryAlternativeSpawnPosition");
 
 	if (!spawn_point || !spawn_point->inuse || !is_valid_vector(spawn_point->s.origin)) {
@@ -5773,67 +5699,76 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 
 // TypeID-based EmergencySpawnMonster
 bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) {
+
 	PROFILE_SCOPE("EmergencySpawnMonster");
 
-    const char* monster_classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-    if (!monster_classname) {
-        if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Invalid TypeID {}\n", static_cast<int>(typeId));
-        return false;
-    }
 
-    vec3_t emergency_origin, emergency_angles;
-    bool used_human_player = false;
-    vec3_t predicted_mins, predicted_maxs;
-    if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
-        // Fallback handled inside
-    }
-    bool is_flying = IsFlying(typeId);
+	const char* monster_classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	if (!monster_classname) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Invalid TypeID {}\n", static_cast<int>(typeId));
+		}
+		return false;
+	}
 
-    // --- Step 1: Find a potential position near a player ---
-    if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
-        if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find potential position for TypeID {}\n", static_cast<int>(typeId));
-        return false;
-    }
+	vec3_t emergency_origin, emergency_angles;
+	bool used_human_player = false;
+	vec3_t predicted_mins, predicted_maxs;
+	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
+		// Fallback handled inside GetPredictedScaledBounds
+	}
+	bool is_flying = IsFlying(typeId);
 
-    // --- Step 2: Validate Geometry and Entity Occupation ---
-    // Re-validate explicitly, as FindEmergency might not return the modified position from IsValidSpawnLocation
-    vec3_t validated_pos = emergency_origin; // Copy before validation potentially modifies it
-    if (!IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
-        if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position {} found by FindEmergency failed IsValidSpawnLocation.\n", emergency_origin);
-        return false;
-    }
-    emergency_origin = validated_pos; // Use the validated (potentially adjusted) position
+	// Find a suitable position near a player
+	if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}\n", static_cast<int>(typeId));
+		}
+		return false;
+	}
 
-    // --- Step 3: Validate Navigation Reachability ---
-    if (!IsPositionReachable(emergency_origin, typeId)) {
-         if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position {} failed IsPositionReachable check.\n", emergency_origin);
-         return false;
-    }
+	// Validate the found position again using IsValidSpawnLocation
+	vec3_t final_valid_pos = emergency_origin; // Copy before validation potentially modifies it
+	if (!IsValidSpawnLocation(final_valid_pos, predicted_mins, predicted_maxs, is_flying)) {
+		if (developer->integer) {
+			// Use {} for vec3_t formatting
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Position {} found by FindEmergency failed final IsValidSpawnLocation.\n", emergency_origin);
+		}
+		return false;
+	}
+	emergency_origin = final_valid_pos; // Use the validated (potentially adjusted) position
 
-    // --- Step 4: Spawn the Monster (All checks passed) ---
-    edict_t* monster = CreateBaseHordeMonster(typeId, emergency_origin, emergency_angles);
-    if (!monster) {
-        if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: CreateBaseHordeMonster failed for TypeID {}\n", static_cast<int>(typeId));
-        return false;
-    }
+	// Create the base monster entity
+	edict_t* monster = CreateBaseHordeMonster(typeId, emergency_origin, emergency_angles);
+	if (!monster) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: CreateBaseHordeMonster failed for TypeID {}\n", static_cast<int>(typeId));
+		}
+		return false;
+	}
 
-    monster->classname = monster_classname; // Ensure classname is set
-    monster->s.origin = emergency_origin;   // Ensure position is set
-    monster->s.angles = emergency_angles;   // Ensure angles are set
+	// Set classname and position again (redundant but safe)
+	monster->classname = monster_classname;
+	monster->s.origin = emergency_origin;
+	monster->s.angles = emergency_angles;
 
-    monster->solid = SOLID_NOT;
-    ED_CallSpawn(monster);
+	// Call the spawn function
+	monster->solid = SOLID_NOT; // Temporarily non-solid for spawn function
+	ED_CallSpawn(monster);
 
-    if (!monster->inuse) {
-        if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: ED_CallSpawn failed for {}\n", monster_classname);
-        return false;
-    }
+	// Check if spawn function freed the entity
+	if (!monster->inuse) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: ED_CallSpawn failed for {}\n", monster_classname);
+		}
+		return false; // Entity was freed during spawn
+	}
 
-    monster->solid = SOLID_BBOX;
-    gi.linkentity(monster);
+	// Restore solidity and link
+	monster->solid = SOLID_BBOX;
+	gi.linkentity(monster);
 
-    // --- Step 5: Post-Spawn Checks and Setup ---
-    // Post-link stuck check (important!)
+	// Post-link stuck check
 	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
 		monster->s.origin, monster, CONTENTS_SOLID);
 	bool spawn_was_stuck = post_link_trace.startsolid;
@@ -5842,23 +5777,24 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		if (!monster->monsterinfo.was_stuck) {
 			edict_t* blocker = post_link_trace.ent;
 			if (developer->integer) {
+				// Use {} for vec3_t formatting and check blocker->classname
 				gi.Com_PrintFmt("EMERGENCY SPAWN: WARNING - Monster ({}) stuck (Post-Link Check ONLY) at {}. Blocker: {}. Flagging for teleport.\n",
 					monster->classname, monster->s.origin,
 					blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown");
 			}
 			monster->monsterinfo.was_stuck = true;
 			monster->monsterinfo.stuck_check_time = level.time;
+			// Let monster_think handle the teleport check after grace period
 		}
 		else if (developer->integer > 1) {
 			gi.Com_PrintFmt("EmergencySpawnMonster: {} confirmed stuck (already flagged by monster_start_go).\n", monster->classname);
 		}
 	}
 
-    monster->monsterinfo.spawn_complete_time = level.time;
+	monster->monsterinfo.spawn_complete_time = level.time;
 
-    // Apply bonuses (Champion, Armor, Item Drop) - Logic remains the same
-    // ... (existing bonus application code) ...
-    float champion_chance = 0.2f;
+	// Apply bonuses (Champion, Armor, Item Drop)
+	float champion_chance = 0.2f;
 	if (g_horde_retaliation_active) champion_chance = 0.4f; // Higher chance during retaliation
 	if (levelNum >= 3 && frandom() < champion_chance && !monster->monsterinfo.IS_BOSS) {
 		int flag_type = irandom(0, 5); // Random bonus type
@@ -5902,25 +5838,25 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 		else monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
 	}
 
-    // Apply spawn effects
-    SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-    gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+	// Apply spawn effects
+	SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+	gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
-    // Increment total monster count for the wave (with overflow check)
-    if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
-        g_totalMonstersInWave++;
-    } else if (developer->integer) {
-        gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in EmergencySpawnMonster.\n");
-    }
+	// Increment total monster count for the wave (with overflow check)
+	if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+		g_totalMonstersInWave++;
+	}
+	else if (developer->integer) {
+		gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in EmergencySpawnMonster.\n");
+	}
 
-    if (developer->integer) {
-        gi.Com_PrintFmt("EMERGENCY SPAWN SUCCESSFUL: Spawned {} at validated & reachable position {}\n",
-            monster->classname, monster->s.origin);
-    }
+	if (developer->integer) {
+		gi.Com_PrintFmt("EMERGENCY SPAWN SUCCESSFUL: Spawned {} at emergency position\n",
+			monster->classname);
+	}
 
-    return true;
+	return true;
 }
-
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
 bool ShouldTriggerAmbushSpawn() {
 	// Static variables for tracking time-based cooldowns
@@ -5996,6 +5932,7 @@ int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 			// Use TypeID version for more efficient selection
 			monster_typeId = G_HordePickMonsterType(point);
 			if (monster_typeId != horde::MonsterTypeID::UNKNOWN) {
+				// Found a valid type ID, no need to get classname here
 				break;
 			}
 		}
@@ -6030,65 +5967,105 @@ int SpawnAmbushMonsters(const horde::MapSize& mapSize, int32_t waveLevel) {
 	}
 
 	// Determine ambush size based on wave and map - INCREASED size
-	const int baseCount = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
+	const int baseCount = mapSize.isSmallMap ? 3 :
+		mapSize.isBigMap ? 5 : 4;
 	const int ambushSize = baseCount + (waveLevel >= 15 ? 2 : 1);
+
+	// Track successful spawns
 	int ambushSuccessCount = 0;
+
+	// Keep track of spawn attempts per position
 	constexpr int MAX_FAILURES_PER_POSITION = 3;
 	int consecutive_failures = 0;
+
+	// Track timing for spawn attempts
 	static gtime_t last_failed_spawn_time = 0_sec;
-	constexpr gtime_t SPAWN_RETRY_DELAY = 0.1_sec;
+	constexpr gtime_t SPAWN_RETRY_DELAY = 0.1_sec; // 100ms delay between failed attempts
+
+	// Add safety counter to prevent infinite loops
 	int safety_counter = 0;
 	const int MAX_TOTAL_ITERATIONS = 100;
 
 	// Spawn ambush monsters
 	for (int i = 0; i < ambushSize && consecutive_failures < MAX_FAILURES_PER_POSITION; /* i incremented below */) {
+		// Add safety check to prevent infinite loops
 		if (safety_counter++ > MAX_TOTAL_ITERATIONS) {
 			gi.Com_PrintFmt("WARNING: Emergency spawn safety limit reached in SpawnAmbushMonsters\n");
 			break;
 		}
-		if (consecutive_failures > 0 && level.time < last_failed_spawn_time + SPAWN_RETRY_DELAY) {
-			if (safety_counter % 10 != 0) continue;
+
+		// Check if we need to wait after a failed attempt
+		if (consecutive_failures > 0) {
+			if (level.time < last_failed_spawn_time + SPAWN_RETRY_DELAY) {
+				// Postpone this attempt, don't increment 'i' yet, but continue outer loop check
+				// To avoid busy-waiting, we only check periodically
+				if (safety_counter % 10 != 0) {
+					continue; // Skip this frame's attempt
+				}
+			}
 		}
 
-		// *** Call the MODIFIED EmergencySpawnMonster which now includes all checks ***
+		// Use the TypeID version for more efficient spawning
+		// Check if a valid type ID was determined before calling EmergencySpawnMonster
 		if (monster_typeId != horde::MonsterTypeID::UNKNOWN &&
-			EmergencySpawnMonster(waveLevel, monster_typeId)) {
+			EmergencySpawnMonster(waveLevel, monster_typeId)) { // Pass the ID directly
 			ambushSuccessCount++;
-			consecutive_failures = 0;
-			if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
-			else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters;
-			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
-			else if (developer->integer) gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented.\n");
-			i++;
-		} else {
+			consecutive_failures = 0; // Reset failures on success
+
+			// Update spawn counters
+			if (g_horde_local.num_to_spawn > 0) {
+				--g_horde_local.num_to_spawn;
+			}
+			else if (g_horde_local.queued_monsters > 0) {
+				--g_horde_local.queued_monsters;
+			}
+
+			// Update total monsters counter (with overflow check)
+			if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+				++g_totalMonstersInWave;
+			}
+			else if (developer->integer) {
+				gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnAmbushMonsters.\n");
+			}
+			i++; // Increment loop counter ONLY on successful spawn attempt
+		}
+		else {
+			// Track failures to avoid getting stuck in endless attempts
 			consecutive_failures++;
-			last_failed_spawn_time = level.time;
+			last_failed_spawn_time = level.time; // Record time of failure
+			// Do NOT increment 'i' here, we retry for the same monster index
 		}
 	}
 
+	// Only play sound effect without text message for subtlety
 	if (ambushSuccessCount > 0) {
 		gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
-		if (developer->integer) gi.Com_PrintFmt("AMBUSH: Spawned {}/{} monsters near players\n", ambushSuccessCount, ambushSize);
-	} else if (consecutive_failures >= MAX_FAILURES_PER_POSITION && developer->integer) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("AMBUSH: Spawned {}/{} monsters near players\n",
+				ambushSuccessCount, ambushSize);
+		}
+	}
+	else if (consecutive_failures >= MAX_FAILURES_PER_POSITION && developer->integer) {
+		// Log if the loop terminated due to failures
 		gi.Com_PrintFmt("SpawnAmbushMonsters: Loop terminated due to {} consecutive failures.\n", consecutive_failures);
 	}
 
-	if (developer->integer) gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, successfully spawned: {}\n", ambushSuccessCount);
+
+	if (developer->integer) {
+		gi.Com_PrintFmt("DEBUG: Finished SpawnAmbushMonsters, successfully spawned: {}\n", ambushSuccessCount);
+	}
+
 	return ambushSuccessCount;
 }
-
 
 //-----------------------------------------------------
 // SpawnMonsters - Main function to spawn regular wave monsters
 //-----------------------------------------------------
 edict_t* SpawnMonsters() {
-
-	PROFILE_SCOPE("SpawnMonsters");
-
 	if (level.intermissiontime)
 		return nullptr;
 	// --- Initial Checks & Caching ---
-	if (developer->integer == 2) return nullptr; // Dev check to disable spawning
+	if (developer->integer == 2) return nullptr;
 
 	const gtime_t current_time = level.time;
 	const horde::MapSize& mapSize = g_horde_local.current_map_size;
@@ -6107,8 +6084,10 @@ edict_t* SpawnMonsters() {
 		if (!g_potential_spawn_points.empty()) {
 			// Simple shuffle using engine's irandom
 			for (size_t i = g_potential_spawn_points.size() - 1; i > 0; --i) {
-				size_t j = irandom(0, i);
-				if (i != j) { std::swap(g_potential_spawn_points[i], g_potential_spawn_points[j]); }
+				size_t j = irandom(0, i); // irandom is inclusive [min, max]
+				if (i != j) {
+					std::swap(g_potential_spawn_points[i], g_potential_spawn_points[j]);
+				}
 			}
 		}
 		g_spawn_point_shuffle_index = 0;
@@ -6117,6 +6096,7 @@ edict_t* SpawnMonsters() {
 		g_consecutive_spawn_failures = 0; // Reset failures when cache rebuilds
 		if (developer->integer) gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} potential points found and shuffled.\n", g_potential_spawn_points.size());
 	}
+
 	if (g_potential_spawn_points.empty()) {
 		if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: No potential spawn points found in level. Cannot spawn.\n");
 		g_consecutive_spawn_failures++;
@@ -6125,13 +6105,16 @@ edict_t* SpawnMonsters() {
 
 	// --- Calculate Monster Caps ---
 	const int32_t activeMonsters = CalculateRemainingMonsters();
+	// Use the globally calculated cap (includes player bonus)
 	const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
 		(mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP)); // Fallback
-	const int32_t hardCap = static_cast<int32_t>(softCap * 1.2f);
+	const int32_t hardCap = static_cast<int32_t>(softCap * 1.2f); // Hard cap slightly above soft cap
 
 	// --- Hard Cap Check ---
 	if (activeMonsters >= hardCap) {
+		// Optional: Log only if dev level is high to reduce spam
 		if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Hard monster cap reached ({}/{}), SoftCap={}, PlayerAdjustedCap={}\n", activeMonsters, hardCap, softCap, g_adjusted_monster_cap);
+		// If we hit the hard cap during the spawning phase, force transition to active wave
 		if (current_state == horde_state_t::spawning && !next_wave_message_sent) {
 			VerifyAndAdjustBots();
 			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed (Hard Cap Reached).\nWave Level: {}\n", currentLevel);
@@ -6143,6 +6126,7 @@ edict_t* SpawnMonsters() {
 	}
 
 	// --- AMBUSH SYSTEM CHECK ---
+	// Only trigger ambushes during the active wave phase when below the soft cap
 	if (current_state == horde_state_t::active_wave && activeMonsters < softCap && ShouldTriggerAmbushSpawn()) {
 		int spawnedCount = SpawnAmbushMonsters(mapSize, currentLevel);
 		if (spawnedCount > 0) {
@@ -6150,7 +6134,6 @@ edict_t* SpawnMonsters() {
 			SetNextMonsterSpawnTime(mapSize); // Set time for next regular spawn check
 			return nullptr; // Don't attempt regular spawns immediately after ambush
 		}
-		// If ambush failed, continue to regular spawning
 	}
 
 	// --- Check Spawn Conditions & Calculate Available Space ---
@@ -6161,6 +6144,7 @@ edict_t* SpawnMonsters() {
 	}
 
 	// --- Queue Transfer Logic ---
+	// If main spawn pool is empty, try transferring from queue if space allows
 	if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0) {
 		const int32_t base_transfer = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
 		const int32_t transfer_amount = std::min({ g_horde_local.queued_monsters, availableSpace, base_transfer });
@@ -6175,6 +6159,7 @@ edict_t* SpawnMonsters() {
 	// Check if anything left to spawn in the main pool
 	if (g_horde_local.num_to_spawn <= 0) {
 		if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: No monsters available in spawn pool or queue.\n");
+		// If queue is also empty during spawning phase, finalize wave deployment
 		if (g_horde_local.queued_monsters <= 0 && current_state == horde_state_t::spawning && !next_wave_message_sent) {
 			VerifyAndAdjustBots();
 			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
@@ -6185,27 +6170,33 @@ edict_t* SpawnMonsters() {
 	}
 
 	// --- Calculate Batch Size ---
+	// Determine how many monsters to attempt spawning in this single call
 	const int32_t base_batch = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
 	const int32_t spawnable_this_call = std::min({ g_horde_local.num_to_spawn, base_batch, availableSpace });
 
 	// --- Failure Recovery & Emergency Logic ---
-	bool use_emergency_spawn = false; // This flag determines if we skip normal logic
+	bool use_emergency_spawn = false;
 	if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY) {
-		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}. Attempting emergency spawn.\n", g_consecutive_spawn_failures);
+		if (developer->integer) {
+			gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}. Attempting spawn near players.\n", g_consecutive_spawn_failures);
+		}
 		use_emergency_spawn = true;
 	}
+	// Optional: Recovery mode (less aggressive than emergency)
 	else if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY && !g_recovery_mode_active) {
-		if (developer->integer) gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}. Simplifying spawn criteria.\n", g_consecutive_spawn_failures);
+		if (developer->integer) {
+			gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}. Simplifying spawn criteria.\n", g_consecutive_spawn_failures);
+		}
 		g_recovery_mode_active = true;
-		// Save original wave type and simplify it
 		g_original_wave_type_before_recovery = current_wave_type;
+		// Simplify wave type for recovery (e.g., just Ground or Flying)
 		current_wave_type = HasWaveType(current_wave_type, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground;
 	}
 
 	// --- Retaliation Mode Active Check ---
 	float champion_chance = 0.2f; // Base chance
 	if (g_horde_retaliation_active) {
-		champion_chance = 0.40f;
+		champion_chance = 0.40f; // Increased chance during retaliation
 		if (developer->integer > 1) gi.Com_PrintFmt("Retaliation Mode: Champion chance increased to {:.0f}%\n", champion_chance * 100.0f);
 	}
 
@@ -6216,230 +6207,262 @@ edict_t* SpawnMonsters() {
 	if (use_emergency_spawn) {
 		// --- Execute Emergency Spawn Logic ---
 		int emergency_spawned_count = 0;
-		for (int i = 0; i < std::min(spawnable_this_call, 3); ++i) { // Limit emergency spawns per call
-			// Pick a relatively common, robust type for emergency
+		// Limit emergency spawns per call to avoid overwhelming
+		for (int i = 0; i < std::min(spawnable_this_call, 3); ++i) {
+			// Pick a suitable emergency monster type based on level
 			horde::MonsterTypeID emergency_type = (currentLevel < 10) ? horde::MonsterTypeID::SOLDIER : horde::MonsterTypeID::GUNNER;
 			if (currentLevel >= 15) emergency_type = horde::MonsterTypeID::TANK;
 			if (currentLevel >= 20) emergency_type = horde::MonsterTypeID::GLADIATOR;
 
 			if (EmergencySpawnMonster(currentLevel, emergency_type)) {
 				emergency_spawned_count++;
-				last_spawned_this_call = nullptr; // Can't easily track specific monster from emergency
-			} else {
+				// Decrement counters correctly
+				if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
+				else if (g_horde_local.queued_monsters > 0) --g_horde_local.queued_monsters; // Should not happen if num_to_spawn was > 0, but safe check
+				// Increment total wave count (overflow check inside EmergencySpawnMonster)
+				last_spawned_this_call = nullptr; // Emergency spawn doesn't return the edict easily
+			}
+			else {
 				if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not spawn type {}.\n", (int)emergency_type);
-				// Don't break; maybe the next attempt works near a different player/area
+				break; // Stop emergency attempts if one fails
 			}
 		}
 		spawned_count_this_call = emergency_spawned_count;
 		if (emergency_spawned_count > 0) {
 			g_consecutive_spawn_failures = 0; // Reset failures on success
-			if (g_recovery_mode_active) { // Exit recovery mode if emergency spawn succeeded
-                 g_recovery_mode_active = false;
-                 current_wave_type = g_original_wave_type_before_recovery;
-                 if (developer->integer) gi.Com_PrintFmt("Exited Recovery Mode after successful emergency spawn.\n");
-            }
+			g_recovery_mode_active = false; // Exit recovery mode
+			current_wave_type = g_original_wave_type_before_recovery; // Restore original wave type
 			if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: Spawned {} monsters.\n", emergency_spawned_count);
-		} else {
-             if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN: Failed to spawn any monsters via emergency.\n");
-             // Failure counter remains high, potentially triggering again next frame
-        }
+		}
 		// --- End Emergency Spawn Logic ---
-
-	} else { // --- Execute Normal Spawn Loop ---
-
+	}
+	else {
+		// --- Execute Normal Spawn Loop ---
 		int points_checked_total_this_batch = 0;
 		const size_t total_potential_points = g_potential_spawn_points.size();
 
-		for (int i = 0; i < spawnable_this_call; ++i) { // Loop for the number of monsters we want to spawn this call
+		for (int i = 0; i < spawnable_this_call; ++i) {
 			bool spawn_successful_for_this_monster = false;
 			int points_checked_for_this_monster = 0;
 
-			// Iterate through shuffled spawn points until one works or we check all available points
+			// Iterate through shuffled spawn points
 			while (points_checked_for_this_monster < total_potential_points) {
 				// Cycle through the shuffled list
 				if (g_spawn_point_shuffle_index >= total_potential_points) g_spawn_point_shuffle_index = 0;
 				edict_t* spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
 				points_checked_for_this_monster++;
-				points_checked_total_this_batch++; // Increment count of points checked in this batch
+				points_checked_total_this_batch++;
 
-				// --- Preliminary Checks (Continue to next point if fail) ---
+				// --- Initial Spawn Point Validation ---
 				const auto& sp_data = spawnPointsData[spawn_point];
+				// Check various cooldowns
 				if ((sp_data.isTemporarilyDisabled && current_time < sp_data.cooldownEndsAt) ||
 					(current_time < sp_data.teleport_cooldown) ||
 					(current_time < sp_data.alternative_cooldown)) {
-					//if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (cooldown).\n", spawn_point->s.origin);
-					continue;
+					continue; // Skip point if on cooldown
 				}
+				// Check flying compatibility for the point itself
 				const bool is_flying_spawn_point = (spawn_point->style == 1);
-				// Use original wave type for filtering if recovery is active but spawn point check is happening before monster selection
-				MonsterWaveType wave_type_for_point_check = g_recovery_mode_active ? g_original_wave_type_before_recovery : current_wave_type;
-				if (wave_type_for_point_check != MonsterWaveType::None && is_flying_spawn_point && !HasWaveType(wave_type_for_point_check, MonsterWaveType::Flying)) {
-					//if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (flying point incompatible with wave).\n", spawn_point->s.origin);
-					continue;
+				MonsterWaveType type_to_check = g_recovery_mode_active ? current_wave_type : g_original_wave_type_before_recovery; // Use simplified type in recovery
+				if (type_to_check != MonsterWaveType::None && is_flying_spawn_point && !HasWaveType(type_to_check, MonsterWaveType::Flying)) {
+					continue; // Flying point but wave doesn't allow flyers
 				}
+				// Check distance to players
 				bool too_close_to_player = false;
 				for (const auto* const player : active_players_no_spect()) {
-					if ((spawn_point->s.origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_SPAWNPOINT) { // Use spawn point check distance
+					if ((spawn_point->s.origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_CHECK) {
 						too_close_to_player = true;
 						break;
 					}
 				}
 				if (too_close_to_player) {
-					//if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (too close to player).\n", spawn_point->s.origin);
-					// Don't penalize heavily, just skip - players move
-					continue;
+					IncreaseSpawnAttempts(spawn_point); // Penalize point
+					g_consecutive_spawn_failures++;
+					continue; // Skip point too close to player
+				}
+				// Check if point is occupied by player/monster/defense
+				if (IsSpawnPointOccupied(spawn_point)) {
+					IncreaseSpawnAttempts(spawn_point); // Penalize point
+					g_consecutive_spawn_failures++;
+					continue; // Skip occupied point for direct spawn
 				}
 
-				// --- Monster Selection (using potentially simplified wave type in recovery) ---
-				horde::MonsterTypeID monster_type = G_HordePickMonsterType(spawn_point); // G_HordePickMonsterType uses 'current_wave_type' internally
+				// --- Monster Selection ---
+				horde::MonsterTypeID monster_type = G_HordePickMonsterType(spawn_point);
 				if (monster_type == horde::MonsterTypeID::UNKNOWN) {
-					//if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (monster pick failed).\n", spawn_point->s.origin);
-					// G_HordePickMonsterType applies penalties
-					continue;
+					// G_HordePickMonsterType already increments failure count if needed
+					continue; // Failed to pick a suitable monster for this point
 				}
 				const bool monster_is_flying = IsFlying(monster_type);
 				vec3_t predicted_mins, predicted_maxs;
-				if (!GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs)) { /* Fallback handled inside */ }
-
-				// --- Final Flying Compatibility Check (Monster vs Point) ---
-				if (is_flying_spawn_point && !monster_is_flying) {
-					//if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Point {} skipped (flying point incompatible with monster type {}).\n", spawn_point->s.origin, (int)monster_type);
-					IncreaseSpawnAttempts(spawn_point); g_consecutive_spawn_failures++;
-					continue;
+				if (!GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs)) {
+					// Fallback handled inside, continue with generic bounds
 				}
 
-				// --- Occupation Check ---
-				bool player_occupied = IsSpawnPointOccupied(spawn_point); // Checks player presence, updates cache
-				const SpawnPointCache& cache = spawn_point_cache[spawn_point]; // Get updated cache data
-				bool obstacle_occupied = cache.has_obstacle; // Check if non-player obstacle is present
+				// --- Flying Compatibility Check (Monster vs Point) ---
+				if (is_flying_spawn_point && !monster_is_flying) {
+					IncreaseSpawnAttempts(spawn_point); // Penalize point for mismatch
+					g_consecutive_spawn_failures++;
+					continue; // Flying point needs flying monster
+				}
+				// Optional: Ground point + Flying monster check (if strict ground waves needed)
+				// if (!is_flying_spawn_point && monster_is_flying && !HasWaveType(type_to_check, MonsterWaveType::Flying)) continue;
 
-				// --- Determine Spawn Strategy ---
+				// --- Attempt Spawn: Direct First, then Alternative ---
 				vec3_t final_origin;
 				vec3_t final_angles;
 				bool used_alternative = false;
 				bool found_valid_spot = false;
 
-				// Strategy 1: Try Direct Spawn IF point is clear
-				if (!player_occupied && !obstacle_occupied) {
-					vec3_t direct_origin = spawn_point->s.origin; // Start with original point
-					// Check direct location validity AND reachability
-					if (IsValidSpawnLocation(direct_origin, predicted_mins, predicted_maxs, monster_is_flying) &&
-						IsPositionReachable(direct_origin, monster_type))
-					{
-						final_origin = direct_origin; // Use validated (potentially adjusted) position
+				// Try direct spawn first
+				vec3_t direct_origin = spawn_point->s.origin;
+				if (IsValidSpawnLocation(direct_origin, predicted_mins, predicted_maxs, monster_is_flying)) {
+					// Final check for entities at the validated location
+					FilterData final_check_data = { nullptr, 0 };
+					const vec3_t check_mins = direct_origin + predicted_mins;
+					const vec3_t check_maxs = direct_origin + predicted_maxs;
+					gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_check_data);
+					if (final_check_data.count == 0) {
+						final_origin = direct_origin;
 						final_angles = spawn_point->s.angles;
 						found_valid_spot = true;
-						if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Direct spawn location {} validated and reachable.\n", final_origin);
-					} else {
-						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Direct location {} failed validation or reachability.\n", spawn_point->s.origin);
-						// Don't penalize yet, allow fallback to alternative below
 					}
-				} else {
-					// If direct isn't tried because it's occupied
-					if (developer->integer > 2) gi.Com_PrintFmt("SpawnMonsters: Direct spawn at {} skipped (occupied by {}).\n", spawn_point->s.origin, player_occupied ? "player" : "obstacle");
 				}
 
-				// Strategy 2: Try Alternative Spawn IF direct failed OR point was occupied
+				// If direct failed, try alternative positions (if not on alt cooldown)
 				if (!found_valid_spot && current_time >= sp_data.alternative_cooldown) {
-					if (developer->integer > 1 && (player_occupied || obstacle_occupied)) gi.Com_PrintFmt("SpawnMonsters: Point {} occupied, trying alternatives.\n", (int)(spawn_point - g_edicts));
-					else if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Direct spawn failed for point {}, trying alternatives.\n", (int)(spawn_point - g_edicts));
-
 					if (TryAlternativeSpawnPosition(spawn_point, monster_type, final_origin, final_angles)) {
 						used_alternative = true;
-						vec3_t alternative_origin_copy = final_origin;
-
-						// Validate the *alternative* position's geometry AND reachability
-						if (IsValidSpawnLocation(alternative_origin_copy, predicted_mins, predicted_maxs, monster_is_flying) &&
-							IsPositionReachable(alternative_origin_copy, monster_type)) // Check reachability here
-						{
-							final_origin = alternative_origin_copy; // Use validated & reachable alternative position
-							found_valid_spot = true;
-							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Alternative position {} validated and reachable.\n", final_origin);
-						} else { // Alternative failed validation or reachability
-							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Alternative position {} failed validation or reachability.\n", alternative_origin_copy);
-							ApplyAlternativePositionCooldown(spawn_point); g_consecutive_spawn_failures++;
+						// Re-validate the spot returned by TryAlternativeSpawnPosition
+						vec3_t alternative_origin_copy = final_origin; // Copy before validation modifies it
+						if (IsValidSpawnLocation(alternative_origin_copy, predicted_mins, predicted_maxs, monster_is_flying)) {
+							final_origin = alternative_origin_copy; // Use validated position
+							// Final entity check at the alternative spot
+							FilterData final_check_data_alt = { nullptr, 0 };
+							const vec3_t check_mins_alt = final_origin + predicted_mins;
+							const vec3_t check_maxs_alt = final_origin + predicted_maxs;
+							gi.BoxEdicts(check_mins_alt, check_maxs_alt, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_check_data_alt);
+							if (final_check_data_alt.count == 0) {
+								found_valid_spot = true;
+							}
+							else {
+								// Alternative spot found but occupied
+								ApplyAlternativePositionCooldown(spawn_point);
+								g_consecutive_spawn_failures++;
+							}
 						}
-					} else { // TryAlternativeSpawnPosition itself failed to find any clear spot
-						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: TryAlternativeSpawnPosition failed for point {}.\n", (int)(spawn_point - g_edicts));
-						ApplyAlternativePositionCooldown(spawn_point); g_consecutive_spawn_failures++;
+						else {
+							// Alternative spot failed IsValidSpawnLocation
+							ApplyAlternativePositionCooldown(spawn_point);
+							g_consecutive_spawn_failures++;
+						}
 					}
-				} else if (!found_valid_spot) { // Alternative not tried (e.g., on cooldown) or not needed
-					// If direct wasn't tried due to occupation, don't penalize here.
-					// If direct *was* tried and failed validation/reachability, penalize now.
-					if (!player_occupied && !obstacle_occupied) {
-						IncreaseSpawnAttempts(spawn_point); g_consecutive_spawn_failures++;
+					else {
+						// TryAlternativeSpawnPosition itself failed
+						ApplyAlternativePositionCooldown(spawn_point);
+						g_consecutive_spawn_failures++;
 					}
 				}
+				else if (!found_valid_spot) {
+					// Direct failed and alternative wasn't tried (e.g., on cooldown)
+					IncreaseSpawnAttempts(spawn_point); // Penalize direct attempt
+					g_consecutive_spawn_failures++;
+				}
 
-				// --- Spawn Execution (if a valid, reachable spot was found either way) ---
+				// --- Spawn Execution (if a valid spot was found) ---
 				if (found_valid_spot) {
-					// Final proximity check just before spawning
-					if (IsPositionTooCloseToRecentSpawn(final_origin)) {
-						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Final chosen spot {} too close to recent spawn, skipping.\n", final_origin);
-						IncreaseSpawnAttempts(spawn_point); g_consecutive_spawn_failures++;
-						continue; // Skip this point attempt, try next in shuffle
-					}
-
-					// --- Actually Spawn ---
 					edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
 					if (monster) {
-						// --- Success ---
-						MarkPositionAsRecentlyUsed(final_origin);
-						bool monster_still_valid = true; // Flag for bonus checks
+						bool monster_still_valid = true; // Flag to track monster validity
 
-						// Apply Bonuses and Effects
-						// ... (Bonus/Armor/Item logic remains the same) ...
+						// --- Apply Bonuses and Effects ---
 						bool is_champion = false;
-						if (monster_still_valid && currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) { /*...*/ }
-						if (monster_still_valid && !is_champion) { /*...*/ }
-						if (monster_still_valid && currentLevel >= 14 /*...*/) { /*...*/ }
+						// Champion check
+						if (monster_still_valid && currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown <= 0 && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance) {
+							monster->monsterinfo.bonus_flags |= BF_CHAMPION;
+							ApplyMonsterBonusFlags(monster);
+							if (!monster->inuse) { monster_still_valid = false; } // Check validity
+							else {
+								monster->item = G_HordePickItem();
+								if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+								else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+								champion_spawned_this_wave = true;
+								champion_spawn_cooldown = irandom(15, 25);
+								gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster).c_str());
+								is_champion = true;
+							}
+						}
+						// Regular item drop check
+						if (monster_still_valid && !is_champion) {
+							const float drop_chance = currentLevel <= 5 ? 0.8f : (currentLevel <= 8 ? 0.6f : 0.45f);
+							if (frandom() < drop_chance) {
+								monster->item = G_HordePickItem();
+								if (!monster->inuse) { monster_still_valid = false; } // Check validity
+								else {
+									if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
+									else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+								}
+							}
+							else {
+								monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+							}
+						}
+						// Armor check
+						if (monster_still_valid && currentLevel >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
+							SetMonsterArmor(monster);
+							if (!monster->inuse) { monster_still_valid = false; } // Check validity
+						}
 
-						// Final Processing (only if monster is still valid)
+						// --- Final Processing (only if monster is still valid) ---
 						if (monster_still_valid) {
 							spawn_successful_for_this_monster = true;
 							last_spawned_this_call = monster;
 							spawned_count_this_call++;
-
+							// Decrement counters
 							if (g_horde_local.num_to_spawn > 0) --g_horde_local.num_to_spawn;
-							if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) ++g_totalMonstersInWave;
-							else if (developer->integer) gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented.\n");
+							// Increment total wave count (with overflow check)
+							if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+								++g_totalMonstersInWave;
+							}
+							else if (developer->integer) {
+								gi.Com_PrintFmt("Warning: g_totalMonstersInWave overflow prevented in SpawnMonsters.\n");
+							}
 
+							// Spawn effects
 							SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 							gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
+							// Update spawn point data and trackers
 							if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
 							else OnSuccessfulSpawn(spawn_point);
 							horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type, level.time);
-
-							g_consecutive_spawn_failures = 0; // Reset global failures on success
-							if (g_recovery_mode_active) { // Exit recovery mode on success
-								 g_recovery_mode_active = false;
-								 current_wave_type = g_original_wave_type_before_recovery;
-								 if (developer->integer) gi.Com_PrintFmt("Exited Recovery Mode after successful spawn.\n");
-							}
-							break; // Break inner while loop (spawned this monster)
-						} else {
-							// Monster became invalid during bonus application
-							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Monster became invalid during bonus/effect application.\n");
-							g_consecutive_spawn_failures++; // Count as failure
+							g_consecutive_spawn_failures = 0;
+							g_recovery_mode_active = false;
+							current_wave_type = g_original_wave_type_before_recovery;
 						}
-					} else {
-						// SpawnMonsterByTypeID failed
-						if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: SpawnMonsterByTypeID failed unexpectedly for type {}.\n", (int)monster_type);
+						else {
+							// Monster became invalid during bonus application
+							if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Monster {} became invalid during bonus/effect application.\n", monster->classname ? monster->classname : "Unknown");
+							// Don't count this as a successful spawn, but don't necessarily penalize the point heavily unless it happens often
+							g_consecutive_spawn_failures++; // Increment failure count as the spawn didn't fully succeed
+						}
+
+						break; // Break inner loop (processed this monster attempt)
+
+					}
+					else {
+						// SpawnMonsterByTypeID failed (should be rare if spot was valid)
 						if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
 						else IncreaseSpawnAttempts(spawn_point);
 						g_consecutive_spawn_failures++;
 					}
 				} // End if (found_valid_spot)
-				// If no valid spot found for this point (direct and/or alternative failed),
-				// failure counter was already incremented inside the checks. Loop continues.
-
 			} // End inner spawn point check loop (while)
 
 			// If we checked all points and couldn't spawn this monster
 			if (!spawn_successful_for_this_monster) {
 				if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Failed to find suitable spawn point OR monster became invalid for attempt {} in batch.\n", i + 1);
-				// Failure counter was incremented inside the loop for each failed point check
+				// No need to increment g_consecutive_spawn_failures here, it was incremented inside the loop on each point failure
 			}
 		} // End outer batch loop (for)
 		// --- End Normal Spawn Loop ---
@@ -6447,17 +6470,18 @@ edict_t* SpawnMonsters() {
 
 	// --- Post-Spawn Processing ---
 	if (spawned_count_this_call == 0 && spawnable_this_call > 0 && !use_emergency_spawn) {
+		// Only log if normal spawn failed completely for the batch
 		if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: Entire batch failed to spawn any monsters. Consecutive failures now: {}\n", g_consecutive_spawn_failures);
 	}
 
-	// --- Set Next Spawn Time ---
+	// Set time for the *next* spawn attempt cycle
 	SetNextMonsterSpawnTime(mapSize);
 	// Decrement champion cooldown timer
 	if (champion_spawn_cooldown > 0) {
 		champion_spawn_cooldown--;
 	}
 
-	return last_spawned_this_call;
+	return last_spawned_this_call; // Return last successfully spawned monster in this call (or nullptr)
 }
 
 static void SetMonsterArmor(edict_t* monster) {
@@ -7142,88 +7166,4 @@ bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec
 	}
 
 	return true; // Indicate success (even if fallback bounds were used due to bad scale)
-}
-
-
-// NEW function to check reachability from a specific position
-bool IsPositionReachable(const vec3_t& position, horde::MonsterTypeID monster_typeId) {
-    // --- Determine Monster Movement Capabilities ---
-    bool monster_can_walk = IsGroundUnit(monster_typeId);
-    bool monster_can_fly = IsFlying(monster_typeId);
-    // TODO: Add checks for jumping/swimming if your pathfinder supports specific flags for them
-
-    // --- Handle Flying Monsters ---
-    if (monster_can_fly) {
-        // Flying monsters likely don't use the ground navigation mesh.
-        // Rely on IsValidSpawnLocation for geometry checks.
-        if (developer->integer > 2) gi.Com_PrintFmt("IsPositionReachable: Skipping nav check for flying monster type {}.\n", (int)monster_typeId);
-        return true; // Pass flying monsters automatically for nav check purposes
-    }
-
-    // --- Handle Ground/Walking Monsters ---
-    if (monster_can_walk) {
-        // Find the nearest active player to the target position
-        edict_t* nearest_player = FindNearestPlayer(position);
-        if (!nearest_player) {
-            if (developer->integer > 1) {
-                gi.Com_PrintFmt("IsPositionReachable: Path check failed - no active players found near {}.\n", position);
-            }
-            // If no players, we can't check reachability *from* a player.
-            // In this scenario, maybe default to true, assuming the area might be generally navigable?
-            // Or return false if strict reachability *from a player* is required. Let's default to true for now.
-            return true;
-        }
-
-        // --- Prepare Path Request ---
-        PathRequest request = {};
-        request.start = nearest_player->s.origin;
-        request.goal = position; // Use the target position
-        request.pathFlags = PathFlags::Walk; // Basic walking path
-        request.moveDist = 1.0f; // Distance doesn't matter for reachability check
-
-        // Optional: Add flags/traversals based on monster capabilities if supported
-        // ...
-
-        // Debug drawing (optional)
-        //cvar_t* g_debug_monster_paths = gi.cvar("g_debug_monster_paths", "0", 0); // Example cvar lookup
-        //if (g_debug_monster_paths && g_debug_monster_paths->integer == 1) {
-         //   request.debugging.drawTime = 2.0f; // Draw path for 2 seconds
-       // }
-
-        // --- Execute Path Request ---
-        PathInfo info = {};
-        if (gi.GetPathToGoal(request, info)) {
-            // --- Evaluate Result ---
-            // Consider a path reachable if it found a path, even if incomplete (InProgress)
-            // or reached the end of the available path near the goal (ReachedPathEnd)
-            if (info.returnCode <= PathReturnCode::InProgress) {
-                 if (developer->integer > 2) {
-                     gi.Com_PrintFmt("IsPositionReachable: Path check SUCCESS (Code: {}) from player '{}' to position {}.\n",
-                         (int)info.returnCode, GetPlayerName(nearest_player).c_str(), position);
-                 }
-                return true; // Path is possible
-            } else {
-                // Pathfinding failed (NoPathFound, InvalidGoal, etc.)
-                if (developer->integer > 1) { // Log failures more visibly
-                    gi.Com_PrintFmt("IsPositionReachable: Path check FAILED (Code: {}) from player '{}' to position {}.\n",
-                         (int)info.returnCode, GetPlayerName(nearest_player).c_str(), position);
-                }
-                return false; // Path not found
-            }
-        } else {
-            // gi.GetPathToGoal itself returned false (e.g., no nav mesh loaded)
-            if (developer->integer > 1) {
-                gi.Com_PrintFmt("IsPositionReachable: gi.GetPathToGoal returned false for position {}.\n", position);
-            }
-            // If pathfinder fails entirely, maybe assume not reachable? Or log and return true?
-            // Let's return false if the pathfinder call fails.
-            return false;
-        }
-    }
-
-    // --- Fallback for non-walking, non-flying monsters ---
-    if (developer->integer > 1) {
-        gi.Com_PrintFmt("IsPositionReachable: Skipping nav check for non-walking/non-flying monster type {}.\n", (int)monster_typeId);
-    }
-    return true; // Assume reachable if movement type isn't handled by nav check yet
 }
