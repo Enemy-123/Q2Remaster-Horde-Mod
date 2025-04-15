@@ -11,6 +11,7 @@ void ResetSpawnMonsterVars();
 void ResetFrameTimers();
 void ResetQueueMonitorVars();
 
+bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr);
 // Item selection in Horde mode
 gitem_t* G_HordePickItem();
 
