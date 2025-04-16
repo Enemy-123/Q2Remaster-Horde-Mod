@@ -381,8 +381,6 @@ struct StuckMonsterSpawnFilter {
 	}
 };
 
-constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
-
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent) {
 	// --- Basic Validation ---
 	if (!spawn_point || !spawn_point->inuse || !is_valid_vector(spawn_point->s.origin)) {

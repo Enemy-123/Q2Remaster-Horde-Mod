@@ -6,6 +6,7 @@
 #include "horde/horde_ids.h"
 
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
+constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
 
 bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs);
 

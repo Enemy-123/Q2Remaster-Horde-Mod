@@ -1070,41 +1070,129 @@ static bool projectile_infront(edict_t* self, edict_t* other)
 	return dot > 0.35f;
 }
 
+// Filter function called by gi.BoxEdicts in M_CheckDodge
 static BoxEdictsResult_t M_CheckDodge_BoxEdictsFilter(edict_t* ent, void* data)
 {
 	edict_t* self = (edict_t*)data;
 
-	// not a valid projectile
-	if (!(ent->svflags & SVF_PROJECTILE) || !(ent->flags & FL_DODGE))
+	// --- Essential Pointer Validation ---
+	// Check the monster ('self') that initiated the dodge check
+	if (!self || !self->inuse) {
+		// This shouldn't happen if M_CheckDodge validates 'self' first, but good safety.
+		if (developer->integer) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Invalid 'self' (monster) pointer.\n");
+		return BoxEdictsResult_t::Skip; // Cannot proceed without the monster
+	}
+	// Check the entity ('ent') found in the box (potential projectile)
+	if (!ent || !ent->inuse) {
+		// This can happen if an entity is freed during BoxEdicts iteration. Usually safe to just skip.
+		// if (developer->integer > 1) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Invalid 'ent' (potential projectile) pointer.\n");
 		return BoxEdictsResult_t::Skip;
+	}
+	// --- End Pointer Validation ---
 
-	// not moving
-	if (ent->velocity.lengthSquared() < 16.f)
+	// --- Projectile Identification ---
+	// Check if 'ent' is flagged as a projectile and is dodgeable
+	if (!(ent->svflags & SVF_PROJECTILE) || !(ent->flags & FL_DODGE)) {
+		return BoxEdictsResult_t::Skip; // Not a dodgeable projectile
+	}
+	// --- End Projectile Identification ---
+
+	// --- Movement Check ---
+	// Check if the projectile is actually moving significantly
+	if (ent->velocity.lengthSquared() < VECTOR_LENGTH_SQ_EPSILON) {
+		// if (developer->integer > 2) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Projectile {} not moving significantly.\n", ent->classname);
+		return BoxEdictsResult_t::Skip; // Not moving, nothing to dodge yet
+	}
+	// --- End Movement Check ---
+
+	// --- Visibility/Direction Check ---
+	// Check if the projectile is generally in front of the monster
+	if (!projectile_infront(self, ent)) {
+		// if (developer->integer > 2) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Projectile {} is behind monster {}.\n", ent->classname, self->classname);
+		return BoxEdictsResult_t::Skip; // Can't see it to dodge it
+	}
+	// --- End Visibility/Direction Check ---
+
+	// --- Trace Preparation & Validation ---
+	// Calculate trace points
+	vec3_t trace_start = ent->s.origin;
+	vec3_t trace_end = ent->s.origin + ent->velocity; // Project forward by one second's worth of velocity
+
+	// Validate all vectors involved in the trace *before* calling gi.trace
+	if (!is_valid_vector(trace_start) || !is_valid_vector(ent->mins) || !is_valid_vector(ent->maxs) || !is_valid_vector(trace_end)) {
+		if (developer->integer) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Invalid vector(s) for trace input (projectile {}).\n", ent->classname);
 		return BoxEdictsResult_t::Skip;
+	}
+	// Also validate 'self' vectors, as gi.trace might use them internally when passing 'self'
+	if (!is_valid_vector(self->s.origin) || !is_valid_vector(self->mins) || !is_valid_vector(self->maxs)) {
+         if (developer->integer) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Invalid vector(s) for trace 'passent' (monster {}).\n", self->classname);
+         return BoxEdictsResult_t::Skip;
+    }
+	// --- End Trace Preparation & Validation ---
 
-	// projectile is behind us, we can't see it
-	if (!projectile_infront(self, ent))
-		return BoxEdictsResult_t::Skip;
+	// --- Perform Trace ---
+	// Trace the projectile's path to see if it hits the monster ('self')
+	// Pass 'ent' as the ignore entity so the projectile doesn't hit itself.
+	trace_t tr = gi.trace(trace_start, ent->mins, ent->maxs, trace_end, ent, ent->clipmask);
+	// --- End Perform Trace ---
 
-	// will it hit us within 1 second? gives us enough time to dodge
-	trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + ent->velocity, ent, ent->clipmask);
-
+	// --- Process Trace Result ---
+	// Check if the trace hit the monster that is trying to dodge
 	if (tr.ent == self)
 	{
-		vec3_t v = tr.endpos - ent->s.origin;
-		gtime_t eta = gtime_t::from_sec(v.length() / ent->velocity.length());
+		// Validate the trace result's end position
+		if (!is_valid_vector(tr.endpos)) {
+			 if (developer->integer) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Invalid trace endpos returned after hitting self.\n");
+			 return BoxEdictsResult_t::Skip; // Cannot calculate ETA without valid endpos
+		}
 
-		self->monsterinfo.dodge(self, ent->owner, eta, &tr, (ent->movetype == MOVETYPE_BOUNCE || ent->movetype == MOVETYPE_TOSS));
+		// Calculate Estimated Time of Arrival (ETA)
+		vec3_t v = tr.endpos - trace_start; // Vector from projectile start to impact point on monster
+		float vel_len = ent->velocity.length(); // Get projectile speed
+		gtime_t eta = 0_sec; // Initialize ETA
 
-		return BoxEdictsResult_t::End;
-	}
+		if (vel_len > std::numeric_limits<float>::epsilon()) { // Check for non-zero speed before division
+			float time_to_impact = v.length() / vel_len;
+			eta = gtime_t::from_sec(time_to_impact);
+		} else {
+            // Should have been caught by lengthSquared check earlier, but safety first
+             if (developer->integer > 1) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Projectile {} has near-zero velocity after trace hit.\n", ent->classname);
+             // Cannot calculate ETA, maybe skip dodge? Or assume immediate impact? Let's skip.
+             return BoxEdictsResult_t::Skip;
+        }
 
+		// Validate the projectile's owner (who fired it)
+		edict_t* owner = ent->owner;
+		if (!owner || !owner->inuse) {
+             if (developer->integer > 1) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Projectile {} owner is invalid, cannot dodge.\n", ent->classname);
+             return BoxEdictsResult_t::Skip; // Cannot dodge if we don't know who fired
+        }
+
+		// Check if the monster actually has a dodge function assigned
+		if (self->monsterinfo.dodge) {
+			// Call the monster's specific dodge function
+			self->monsterinfo.dodge(self, owner, eta, &tr, (ent->movetype == MOVETYPE_BOUNCE || ent->movetype == MOVETYPE_TOSS));
+			// After a successful dodge call, stop checking other projectiles for this monster this frame
+			return BoxEdictsResult_t::End;
+		} else {
+             if (developer->integer) gi.Com_PrintFmt("M_CheckDodge_BoxEdictsFilter: Monster {} has no dodge function assigned.\n", self->classname);
+             // Monster can't dodge, but the projectile *is* going to hit, so maybe still End?
+             // Let's Skip for now, as no action can be taken.
+             return BoxEdictsResult_t::Skip;
+        }
+	} // End if (tr.ent == self)
+
+	// If the trace didn't hit 'self', skip this projectile
 	return BoxEdictsResult_t::Skip;
 }
 
 // [Paril-KEX] active checking for projectiles to dodge
 static void M_CheckDodge(edict_t* self)
 {
+	if (!self || !self->inuse || !self->monsterinfo.dodge) { // Also check if dodge function exists
+		return;
+	}
+
 	// we recently made a valid dodge, don't try again for a bit
 	if (self->monsterinfo.dodge_time > level.time)
 		return;
