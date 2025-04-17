@@ -783,7 +783,23 @@ void HuntTarget(edict_t* self, bool animate_state)
 		else
 			self->monsterinfo.run(self);
 	}
-	vec = self->enemy->s.origin - self->s.origin; // Now safe to access
+    // --- ADD EXTRA CHECK ---
+    // Double-check enemy validity immediately before use, in case it became invalid
+    // between the initial check and this point (e.g., use-after-free).
+    if (!self->enemy || !self->enemy->inuse) {
+        // Log if needed: gi.Com_PrintFmt("HuntTarget: Enemy became invalid between check and use for {} ({})\n", self->classname ? self->classname : "unknown", self->s.number);
+        self->enemy = nullptr;
+        self->goalentity = nullptr;
+        // Attempt to recover state
+        if (self->monsterinfo.stand) {
+            if (!FindTarget(self)) { // Try finding a new target
+                self->monsterinfo.stand(self); // If none, go back to standing
+            }
+        }
+        return; // Prevent crash
+    }
+    // --- END EXTRA CHECK ---
+	vec = self->enemy->s.origin - self->s.origin; // Access should now be safer
 	self->ideal_yaw = vectoyaw(vec);
 	// --- End Original Logic ---
 }
