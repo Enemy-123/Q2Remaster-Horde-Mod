@@ -915,7 +915,7 @@ void medic_fire_blaster(edict_t* self)
 	dir.normalize();
 
 	if (!strcmp(self->enemy->classname, "tesla_mine"))
-		damage = 3;
+		damage = 4;
 
 	// medic commander shoots blaster2
 	if (self->mass > 400)

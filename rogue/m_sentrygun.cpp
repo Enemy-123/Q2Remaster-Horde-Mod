@@ -708,17 +708,6 @@ static void TurretRespondPowerup(edict_t* turret, edict_t* owner) {
 	}
 }
 
-
-static void TurretCheckPowerups(edict_t* turret) {
-	if (!turret || !turret->owner || !turret->owner->client)
-		return;
-
-	edict_t* owner = turret->owner;
-
-	// Ensure the turret always inherits quad, double, and invincibility from the player
-	TurretRespondPowerup(turret, owner);
-} // Now, turrets will also inherit invincibility from their owners, just like quad and double.
-
 // **********************
 //  ATTACK
 // **********************

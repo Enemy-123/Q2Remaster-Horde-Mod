@@ -83,7 +83,34 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -stat
 
 # --- Optional: Add compile options ---
 target_compile_options(Q2HordeModDLL PRIVATE
+    # Existing flag (keep if relevant)
     $<$<CXX_COMPILER_ID:GNU>:-Wno-stringop-overflow>
+
+    # --- Add General and Null Pointer Warnings for GCC/Clang ---
+    # Check if the compiler is GNU (GCC) or Clang
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:
+        -Wall                          # Enable common warnings
+        -Wextra                        # Enable extra warnings
+        # --- C-specific -Werror flags removed ---
+        # -Werror=implicit-function-declaration # (Removed)
+        # -Werror=incompatible-pointer-types    # (Removed)
+
+        # Specific Null Pointer Related Warnings (Keep these)
+        -Wnull-dereference             # Warn on definite null dereferences (GCC 8+, needs optimization)
+        -Wzero-as-null-pointer-constant # Warn on using 0/NULL instead of nullptr (C++11+)
+        # -Wnonnull                    # Warn if NULL passed to 'nonnull' attributed functions
+        # -fanalyzer                   # Advanced static analysis (GCC 10+, slower builds)
+
+        # --- Disable Unused Entity Warnings ---
+        -Wno-unused-parameter          # Disable warnings for unused function parameters
+        -Wno-unused-variable           # Disable warnings for unused local variables (includes unused-but-set)
+        -Wno-unused-function           # Disable warnings for unused static functions
+        # --- End Disable Unused Warnings ---
+    >
+    # --- End of Added/Modified Warnings ---
+
+    # Example for MSVC specific warnings (if you ever build with MSVC via CMake)
+    # $<$<CXX_COMPILER_ID:MSVC>:/W4 /analyze>
 )
 
 # --- Installation Step (Copy DLL, No Rename) ---

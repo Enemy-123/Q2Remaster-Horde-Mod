@@ -122,43 +122,94 @@ gitem_t* FindItem(const char* pickup_name)
 
 THINK(DoRespawn) (edict_t* ent) -> void
 {
+	// --- ADDED: Initial check for safety ---
+	if (!ent) {
+		return;
+	}
+	// --- END ADDED ---
+
 	if (ent->team)
 	{
 		edict_t* master;
-		int		 count;
-		int		 choice;
+		int      count = 0; // Initialize count
+		int      choice;
 
 		master = ent->teammaster;
 
+		// --- ADDED: Check if master is valid ---
+		if (!master) {
+			return;
+		}
+		// --- END ADDED ---
+
 		// ZOID
-		// in ctf, when we are weapons stay, only the master of a team of weapons
-		// is spawned
 		if (ctf->integer && g_dm_weapons_stay->integer && master->item && (master->item->flags & IF_WEAPON))
-			ent = master;
+			ent = master; // Respawn the master directly
 		else
 		{
-			// ZOID
-			ent->svflags |= SVF_NOCLIENT;
-			ent->solid = SOLID_NOT;
-			gi.linkentity(ent);
+			edict_t* original_ent = ent; // Keep track of the original entity
 
-			for (count = 0, ent = master; ent; ent = ent->chain, count++)
-				;
+			// Make the original entity non-solid temporarily (only if it's not the master)
+			// This prevents the trigger from activating itself if it's part of the chain
+			if (ent != master) {
+				ent->svflags |= SVF_NOCLIENT;
+				ent->solid = SOLID_NOT;
+				gi.linkentity(ent);
+			}
 
-			choice = irandom(count);
+			// Count team members starting from master
+			edict_t* current = master; // Use a temporary variable for counting
+			while (current) {
+				count++;
+				current = current->chain;
+			}
 
-			for (count = 0, ent = master; count < choice; ent = ent->chain, count++)
-				;
+			if (count == 0) {		
+				ent = master; // Default to respawning the master
+			} else {
+				choice = irandom(count); // irandom(N) returns 0 to N-1
+
+				// Find the chosen entity
+				ent = master; // Start searching from master again
+				for (int current_count = 0; current_count < choice; current_count++) {
+					// --- ADDED: Safety check inside loop ---
+					if (!ent->chain) { // Check BEFORE assigning to chain
+						ent = master; // Fallback to master if chain breaks unexpectedly
+						break;
+					}
+					// --- END ADDED ---
+					ent = ent->chain;
+				}
+				// 'ent' now points to the randomly chosen entity (or master if chain broke)
+			}
+
+			// If the chosen entity is different from the original one we started with,
+			// ensure the original one stays non-solid if needed.
+			if (ent != original_ent && original_ent != master) {
+				// We already made original_ent non-solid earlier if it wasn't master
+			} else if (ent == original_ent && original_ent != master) {
+				// We chose the original entity back, but we made it non-solid.
+				// It will be made solid again below.
+			}
 		}
-	}
+	} // end if (ent->team)
 
+	// --- ADDED: Final Null Check ---
+	// After all the logic above, 'ent' MUST point to a valid entity to respawn.
+	if (!ent) {
+		return;
+	}
+	// --- END ADDED ---
+
+	// 'ent' now refers to the entity that should actually respawn
 	ent->svflags &= ~SVF_NOCLIENT;
 	ent->svflags &= ~SVF_RESPAWNING;
-	ent->solid = SOLID_TRIGGER;
+	ent->solid = SOLID_TRIGGER; // <-- Warning fixed: 'ent' is guaranteed non-null here
 	gi.linkentity(ent);
 
 	// Reiniciar el marcado para este objeto
-	ent->item_picked_up_by.reset();
+	if (ent->item) // Check item exists before resetting pickup flags
+		ent->item_picked_up_by.reset();
 
 	// send an effect
 	ent->s.event = EV_ITEM_RESPAWN;
@@ -167,17 +218,28 @@ THINK(DoRespawn) (edict_t* ent) -> void
 	// ROGUE
 	if (g_dm_random_items->integer)
 	{
+		// --- ADDED: Check if ent->item is valid before accessing ---
+		if (!ent->item) {
+			return; // Cannot proceed with random respawn logic
+		}
+		// --- END ADDED ---
+
 		item_id_t new_item = DoRandomRespawn(ent);
 
-		// if we've changed entities, then do some sleight of hand.
-		// otherwise, the old entity will respawn
-		if (new_item)
+		if (new_item) // Check if a new item was actually chosen
 		{
-			ent->item = GetItemByIndex(new_item);
+			gitem_t* newItemPtr = GetItemByIndex(new_item); // Store in temp var
 
-			ent->classname = ent->item->classname;
-			ent->s.effects = ent->item->world_model_flags;
-			gi.setmodel(ent, ent->item->world_model);
+			// --- ADDED: Check if GetItemByIndex succeeded ---
+			if (!newItemPtr) {
+				// Don't change the item if lookup failed
+			} else {
+				// --- END ADDED ---
+				ent->item = newItemPtr; // Assign the valid pointer
+				ent->classname = ent->item->classname;
+				ent->s.effects = ent->item->world_model_flags;
+				gi.setmodel(ent, ent->item->world_model);
+			}
 		}
 	}
 	// ROGUE

@@ -937,7 +937,7 @@ pmenuhnd_t* CreateHUDMenu(edict_t* ent) {
 		ent->client->pers.iddmg_state ? "ON" : "OFF");
 
 	// Build menu entries with bounds checking
-	int count = 0;
+	size_t count = 0;
 
 	// Title and spacing
 	if (count < HUD_MENU_MAX_ENTRIES) {

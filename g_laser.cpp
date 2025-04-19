@@ -27,8 +27,12 @@ struct EmitterState {
 };
 
 // --- PlayerLaserManager Implementation ---
-PlayerLaserManager::PlayerLaserManager(edict_t* player) : owner(player), active_count(0) {}
-
+PlayerLaserManager::PlayerLaserManager(edict_t* player)
+  : owner(player) // Initialize owner. active_count(0) is handled by the in-class initializer.
+                  // lasers is default-constructed.
+{
+    // Constructor body is empty, which is fine
+}
 bool PlayerLaserManager::can_add_laser() const {
     return active_count < LaserConstants::MAX_LASERS;
 }

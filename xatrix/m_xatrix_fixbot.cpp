@@ -126,7 +126,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 			// It's some other solid object we probably shouldn't spawn inside
 			// unless it's something specifically allowed (e.g., func_pushable)
 			// Make sure classname exists before comparing
-			if (!ent->classname || strstr(ent->classname, "func_") != 0) {
+			if (!ent->classname || strstr(ent->classname, "func_") != nullptr) {
 				filter_data->blocked = true;
 				if (developer->integer > 1) gi.Com_PrintFmt("TurretSpawnBoxFilter: Blocked by solid entity {}\n", ent->classname ? ent->classname : "?");
 				return BoxEdictsResult_t::End;
@@ -147,7 +147,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 
 	// Check 3: Is it another turret or player defense? (Prevent stacking)
 	// Make sure classname exists before comparing
-	if (ent->inuse && ent->classname && (strstr(ent->classname, "monster_") == 0 || IsPlayerDefense(ent))) {
+	if (ent->inuse && ent->classname && (strstr(ent->classname, "monster_") == nullptr || IsPlayerDefense(ent))) {
 		filter_data->blocked = true;
 		if (developer->integer > 1) gi.Com_PrintFmt("TurretSpawnBoxFilter: Blocked by existing turret/defense\n");
 		return BoxEdictsResult_t::End;
@@ -227,7 +227,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		}
 
 		// Check if hit entity is suitable (world, func_wall, etc.)
-		if (tr.ent != world && !(tr.ent->classname && strstr(tr.ent->classname, "func_") == 0)) {
+		if (tr.ent != world && !(tr.ent->classname && strstr(tr.ent->classname, "func_") == nullptr)) {
 			// Hit something unsuitable (e.g., another monster, player, invalid func_)
 			continue;
 		}

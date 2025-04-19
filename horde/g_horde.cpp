@@ -477,64 +477,73 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent)
 // --- Corrected SelectRandomSpawnPoint ---
 template <typename TFilter>
 edict_t* SelectRandomSpawnPoint(TFilter filter) {
-	edict_t* availableSpawns[MAX_SPAWN_POINTS]{};
-	edict_t* occupiedButUsableSpawns[MAX_SPAWN_POINTS]{};
-	int availableCount = 0;
-	int occupiedCount = 0;
+    edict_t* availableSpawns[MAX_SPAWN_POINTS]{};
+    edict_t* occupiedButUsableSpawns[MAX_SPAWN_POINTS]{};
+    // CHANGE: Use size_t for counts, matching MAX_SPAWN_POINTS
+    size_t availableCount = 0;
+    size_t occupiedCount = 0;
 
-	for (edict_t* spawnPoint : monster_spawn_points()) {
-		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin)) continue;
-		const auto& data = spawnPointsData[spawnPoint]; // Get cooldown data
-		if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) continue; // Check normal cooldown
-		if (level.time < data.alternative_cooldown) continue; // Check alternative cooldown
+    for (edict_t* spawnPoint : monster_spawn_points()) {
+        if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin)) continue;
+        const auto& data = spawnPointsData[spawnPoint]; // Get cooldown data
+        if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) continue; // Check normal cooldown
+        if (level.time < data.alternative_cooldown) continue; // Check alternative cooldown
 
-		// Apply the custom filter first
-		if (filter(spawnPoint)) {
-			// Check if a player is directly blocking the spawn
-			if (IsSpawnPointOccupied(spawnPoint)) {
-				// Player is blocking, this point is completely unusable for direct spawn.
-				// IsSpawnPointOccupied handles cache update.
-				// Do NOT add to any list for this function's purpose.
-				if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} skipped (player occupied).\n", (int)(spawnPoint - g_edicts));
-				continue; // Skip this point entirely
-			}
-			else {
-				// Not blocked by a player. Now check the cache for non-player obstacles.
-				const SpawnPointCache& cache = spawn_point_cache[spawnPoint]; // Get cache entry (already updated by IsSpawnPointOccupied call)
-				if (cache.has_obstacle) {
-					// Blocked by monster/defense - add to the list for potential alternative spawn.
-					if (occupiedCount < MAX_SPAWN_POINTS) {
-						occupiedButUsableSpawns[occupiedCount++] = spawnPoint;
-					}
-					if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to occupiedButUsable (obstacle present).\n", (int)(spawnPoint - g_edicts));
-				}
-				else {
-					// Not blocked by player AND no obstacle found -> add to available list.
-					if (availableCount < MAX_SPAWN_POINTS) {
-						availableSpawns[availableCount++] = spawnPoint;
-					}
-					if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to available.\n", (int)(spawnPoint - g_edicts));
-				}
-			}
-		}
-	}
+        // Apply the custom filter first
+        if (filter(spawnPoint)) {
+            // Check if a player is directly blocking the spawn
+            if (IsSpawnPointOccupied(spawnPoint)) {
+                // Player is blocking, this point is completely unusable for direct spawn.
+                // IsSpawnPointOccupied handles cache update.
+                // Do NOT add to any list for this function's purpose.
+                if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} skipped (player occupied).\n", (int)(spawnPoint - g_edicts));
+                continue; // Skip this point entirely
+            }
+            else {
+                // Not blocked by a player. Now check the cache for non-player obstacles.
+                const SpawnPointCache& cache = spawn_point_cache[spawnPoint]; // Get cache entry (already updated by IsSpawnPointOccupied call)
+                if (cache.has_obstacle) {
+                    // Blocked by monster/defense - add to the list for potential alternative spawn.
+                    // COMPARISON IS NOW: size_t < size_t (OK)
+                    if (occupiedCount < MAX_SPAWN_POINTS) {
+                        occupiedButUsableSpawns[occupiedCount++] = spawnPoint;
+                    }
+                    if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to occupiedButUsable (obstacle present).\n", (int)(spawnPoint - g_edicts));
+                }
+                else {
+                    // Not blocked by player AND no obstacle found -> add to available list.
+                    // COMPARISON IS NOW: size_t < size_t (OK)
+                    if (availableCount < MAX_SPAWN_POINTS) {
+                        availableSpawns[availableCount++] = spawnPoint;
+                    }
+                    if (developer->integer > 2) gi.Com_PrintFmt("SelectRandomSpawnPoint: Point {} added to available.\n", (int)(spawnPoint - g_edicts));
+                }
+            }
+        }
+    }
 
-	// Prioritize completely available spawns
-	if (availableCount > 0) {
-		const size_t idx = irandom(availableCount);
-		if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected available point {}\n", (int)(availableSpawns[idx] - g_edicts));
-		return availableSpawns[idx];
-	}
+    // Prioritize completely available spawns
+    if (availableCount > 0) {
+        // NOTE: Assuming irandom can handle size_t or the cast is safe because
+        // availableCount is limited by MAX_SPAWN_POINTS (32).
+        // If irandom strictly takes int, you might need:
+        // const size_t idx = irandom(static_cast<int>(availableCount));
+        // But modern implementations often handle unsigned types correctly.
+        const size_t idx = irandom(availableCount);
+        if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected available point {}\n", (int)(availableSpawns[idx] - g_edicts));
+        return availableSpawns[idx];
+    }
 
-	// If no completely available spawns, try one blocked by an obstacle
-	if (occupiedCount > 0) {
-		const size_t idx = irandom(occupiedCount);
-		if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected obstacle-occupied point {} (will try alternative).\n", (int)(occupiedButUsableSpawns[idx] - g_edicts));
-		return occupiedButUsableSpawns[idx]; // Let SpawnMonsters handle TryAlternative
-	}
+    // If no completely available spawns, try one blocked by an obstacle
+    if (occupiedCount > 0) {
+        // NOTE: Same potential consideration for irandom's argument type as above.
+        const size_t idx = irandom(occupiedCount);
+        if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected obstacle-occupied point {} (will try alternative).\n", (int)(occupiedButUsableSpawns[idx] - g_edicts));
+        return occupiedButUsableSpawns[idx]; // Let SpawnMonsters handle TryAlternative
+    }
 
-	if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: No suitable spawn points found.\n");
-	return nullptr; // No valid spawn points found
+    if (developer->integer > 1) gi.Com_PrintFmt("SelectRandomSpawnPoint: No suitable spawn points found.\n");
+    return nullptr; // No valid spawn points found
 }
 
 static void CleanupSpawnPointCache() noexcept { spawn_point_cache.clear(); }
@@ -6269,7 +6278,7 @@ edict_t* SpawnMonsters() {
 
 		for (int i = 0; i < spawnable_this_call; ++i) {
 			bool spawn_successful_for_this_monster = false;
-			int points_checked_for_this_monster = 0;
+			size_t points_checked_for_this_monster = 0;
 
 			// Iterate through shuffled spawn points
 			while (points_checked_for_this_monster < total_potential_points) {

@@ -1939,7 +1939,7 @@ gitem_t* CTFWhat_Tech(edict_t* ent)
 
 bool CTFPickup_Tech(edict_t* ent, edict_t* other)
 {
-	int i;
+	size_t i;
 
 	i = 0;
 	for (; i < q_countof(tech_ids); i++)
@@ -2044,7 +2044,7 @@ void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 
 void CTFDeadDropTech(edict_t* ent)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < q_countof(tech_ids); i++)
 	{
@@ -2110,7 +2110,7 @@ static void SpawnTech(gitem_t* item, edict_t* spot)
 THINK(SpawnTechs) (edict_t* ent) -> void
 {
 	edict_t* spot;
-	int i;
+	size_t i;
 
 	i = 0;
 	for (; i < q_countof(tech_ids); i++)
@@ -2963,7 +2963,7 @@ bool CTFMatchOn()
 
 void RemoveTech(edict_t* ent) {
 	// Recorrer los TECHS específicos
-	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
+	for (size_t i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
 		int const tech_index = tech_ids[i];
 		if (ent->client->pers.inventory[tech_index] > 0) {
 			// Eliminar el TECH item del inventario del jugador

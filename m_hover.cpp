@@ -566,7 +566,7 @@ void hover_fire_grenades(edict_t* self)
     vec3_t               forward, right, up;
     vec3_t               aim;
     monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
-    float                spread;
+    float                spread{};
     float                pitch = 0;
     vec3_t               target;
     vec3_t               offset{};

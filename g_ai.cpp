@@ -62,11 +62,14 @@ edict_t* AI_GetSightClient(edict_t* self)
 		bool touching = boxes_intersect(self_absmin, self_absmax,
 			player->absmin, player->absmax);
 
-		if (!touching &&
-			(!(self->monsterinfo.aiflags & AI_THIRD_EYE) &&
-				!infront(self, player)) ||
-			!visible(self, player))
-			continue;
+			if ( (!touching && 
+				(!(self->monsterinfo.aiflags & AI_THIRD_EYE) &&
+				 !infront(self, player))
+			   ) ||
+			   !visible(self, player) )
+		  {
+			  continue;
+		  }
 
 		visible_players[num_visible++] = player;
 	}
@@ -2129,7 +2132,7 @@ void ai_run(edict_t* self, float dist)
 			return;
 		}
 
-		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
 		{
 			// if we're in coop, check my real enemy first .. if I SEE him, set gotcha to true
 			if (self->enemy && visible(self, realEnemy))
@@ -2330,7 +2333,7 @@ void ai_run(edict_t* self, float dist)
 
 	// PMM - moved down here to allow monsters to get on hint paths
 	// coop will change to another enemy if visible
-	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+	if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
 		FindTarget(self);
 	// pmm
 

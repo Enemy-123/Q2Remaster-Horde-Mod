@@ -3924,15 +3924,23 @@ enum pois_t : uint16_t
 // implementation of pierce stuff
 inline bool pierce_args_t::mark(edict_t* ent)
 {
+    // --- ADDED: Null Pointer Check ---
+    if (!ent) {
+        // Cannot mark a null entity, indicate failure to mark.
+        return false;
+    }
+    // --- END ADDED ---
+
 	// ran out of pierces
 	if (num_pierced == MAX_PIERCE)
 		return false;
 
+	// 'ent' is now guaranteed non-null here
 	pierced[num_pierced] = ent;
-	pierce_solidities[num_pierced] = ent->solid;
+	pierce_solidities[num_pierced] = ent->solid; // SAFE
 	num_pierced++;
 
-	ent->solid = SOLID_NOT;
+	ent->solid = SOLID_NOT; // SAFE
 	gi.linkentity(ent);
 
 	return true;

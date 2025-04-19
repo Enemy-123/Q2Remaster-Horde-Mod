@@ -1326,7 +1326,7 @@ void ThrowMoreStuff(edict_t* self, const vec3_t& point)
 {
 	int n;
 
-	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+	if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
 	{
 		ThrowSmallStuff(self, point);
 		return;

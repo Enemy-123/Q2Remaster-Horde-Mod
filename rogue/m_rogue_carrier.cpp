@@ -66,7 +66,7 @@ void CarrierRocket(edict_t *self);
 MONSTERINFO_SIGHT(carrier_sight) (edict_t *self, edict_t *other) -> void
 {
 
-	(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
 //
