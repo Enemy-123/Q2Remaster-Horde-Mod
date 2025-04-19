@@ -65,6 +65,11 @@ static std::unordered_map<std::tuple<const void*, save_data_tag_t>, const save_d
 
 #include <cassert>
 
+#include <cassert> // Make sure assert is included if not already
+
+// Assuming list_hash maps const void* to const save_data_list_t*
+// Assuming list_str_hash maps std::string (or const char*) to const save_data_list_t*
+
 void InitSave()
 {
 	if (save_data_initialized)
@@ -74,34 +79,56 @@ void InitSave()
 	{
 		const void* link_ptr = link;
 
-		if (list_hash.find(link_ptr) != list_hash.end())
+		// --- FIX 1: Check list_hash safely ---
+		auto it_ptr = list_hash.find(link_ptr); // Call find ONCE and store the iterator
+		if (it_ptr != list_hash.end()) // Check if the iterator is valid (not end())
 		{
-			auto existing = *list_hash.find(link_ptr);
+			// Now it's safe to use the iterator
+			const save_data_list_t* existing_link_info = it_ptr->second; // Access the value part
 
-			// [0] is just to silence warning
+			// [0] is just to silence warning (original assert logic kept)
 			assert(false || "invalid save pointer; break here to find which pointer it is"[0]);
 
 			if (g_strict_saves->integer)
-				gi.Com_ErrorFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
+				// Use the safely retrieved info: existing_link_info->name
+				gi.Com_ErrorFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing_link_info->name);
 			else
-				gi.Com_PrintFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
+				gi.Com_PrintFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing_link_info->name);
 		}
+		// --- End FIX 1 ---
 
-		if (list_str_hash.find(link->name) != list_str_hash.end())
-		{
-			auto existing = *list_str_hash.find(link->name);
+		// --- FIX 2: Check list_str_hash safely ---
+        // Ensure link->name is valid before using it as a key
+        if (link->name) {
+            auto it_str = list_str_hash.find(link->name); // Call find ONCE
+            if (it_str != list_str_hash.end()) // Check if the iterator is valid
+            {
+                // Now it's safe to use the iterator
+                const save_data_list_t* existing_link_info = it_str->second; // Access the value part
 
-			// [0] is just to silence warning
-			assert(false || "invalid save pointer; break here to find which pointer it is"[0]);
+                // [0] is just to silence warning (original assert logic kept)
+                assert(false || "invalid save pointer; break here to find which pointer it is"[0]);
 
-			if (g_strict_saves->integer)
-				gi.Com_ErrorFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
-			else
-				gi.Com_PrintFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
-		}
+                // Assuming link_ptr is still relevant here for the message, otherwise use existing_link_info->ptr
+                if (g_strict_saves->integer)
+                    // Use the safely retrieved info: existing_link_info->name
+                    gi.Com_ErrorFmt("link name '{}' already used by pointer {}; fatal error", link->name, existing_link_info->ptr); // Adjusted message slightly
+                else
+                    gi.Com_PrintFmt("link name '{}' already used by pointer {}; fatal error", link->name, existing_link_info->ptr); // Adjusted message slightly
+            }
+        } else {
+            // Handle case where link->name is null if necessary
+             assert(!"Save link found with null name"); // Or other error handling
+        }
+		// --- End FIX 2 ---
 
-		list_hash.emplace(link_ptr, link);
-		list_str_hash.emplace(link->name, link);
+		// Only emplace if no duplicates were found (implicitly handled by reaching here)
+		// Add null check for link->name before emplacing in string hash map
+        if (link->name) {
+		    list_hash.emplace(link_ptr, link);
+		    list_str_hash.emplace(link->name, link);
+        }
+        // Add null check for link->ptr? Assuming link->ptr should always be valid if link itself is.
 		list_from_ptr_hash.emplace(std::make_tuple(link->ptr, link->tag), link);
 	}
 
@@ -110,17 +137,22 @@ void InitSave()
 	// at compile time but it complicates the code a bit
 	for (const save_data_list_t* link = list_head; link; link = link->next)
 	{
-		if (link->tag == SAVE_DATA_MMOVE)
+		if (link->tag == SAVE_DATA_MMOVE && link->ptr) // Add null check for ptr
 		{
 			// mmove_t integrity check
 			const mmove_t* move = reinterpret_cast<const mmove_t*>(link->ptr);
-			size_t defined_frames = (move->lastframe - move->firstframe + 1);
+			// Add null check for move? reinterpret_cast doesn't guarantee non-null.
+            if (move) {
+                size_t defined_frames = (move->lastframe - move->firstframe + 1);
 
-			if (defined_frames != move->framecount)
-			{
-				gi.Com_ErrorFmt("monster move {} has mismatched frame counts (defined as {} frames, but array has {} elements)",
-					link->name, defined_frames, move->framecount);
-			}
+                if (defined_frames != move->framecount)
+                {
+                    // Check link->name validity before using
+                    const char* link_name = (link->name) ? link->name : "[Unknown Name]";
+                    gi.Com_ErrorFmt("monster move {} has mismatched frame counts (defined as {} frames, but array has {} elements)",
+                        link_name, defined_frames, move->framecount);
+                }
+            }
 		}
 	}
 #endif

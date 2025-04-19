@@ -57,15 +57,15 @@ bool stalker_ok_to_transition(edict_t* self)
 		margin = self->mins[2] - 8;
 	}
 	else
-	{
-		// her stalkers are just better
-		if (self->monsterinfo.commander && self->monsterinfo.commander->inuse && !strncmp(self->monsterinfo.commander->classname, "monster_widow", 13)
-		|| (self->monsterinfo.commander && self->monsterinfo.commander->inuse && !strncmp(self->monsterinfo.commander->classname, "monster_widow2", 13)))
-			max_dist = 256;
-		else
-			max_dist = 180;
-		margin = self->maxs[2] + 8;
-	}
+{
+        // her stalkers are just better
+        if ( (self->monsterinfo.commander && self->monsterinfo.commander->inuse && !strncmp(self->monsterinfo.commander->classname, "monster_widow", 13)) // Group 1
+        ||   (self->monsterinfo.commander && self->monsterinfo.commander->inuse && !strncmp(self->monsterinfo.commander->classname, "monster_widow2", 13)) ) // Group 2
+            max_dist = 256;
+        else
+            max_dist = 180;
+        margin = self->maxs[2] + 8;
+    }
 
 	pt = self->s.origin;
 	pt[2] += max_dist;

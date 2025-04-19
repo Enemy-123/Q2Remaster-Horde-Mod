@@ -747,7 +747,7 @@ MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 	}
 	else if (r > 300.f && frandom() < (max(r, 1000.f) / 1200.f))
 	{
-		if (self->count <= 0 && frandom() * 0.25f)
+		if (self->count <= 0 && frandom() < 0.25f)
 		{
 			M_SetAnimation(self, &guardianpsx_move_rocket);
 			self->count = 6;

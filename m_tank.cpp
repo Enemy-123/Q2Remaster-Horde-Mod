@@ -2599,8 +2599,6 @@ void SP_monster_tank(edict_t* self)
 		{
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-			else
-				nullptr;
 		}
 	}
 
@@ -2726,14 +2724,6 @@ void SP_monster_tank_spawner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-			else
-				nullptr;
-		}
-	}
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

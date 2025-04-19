@@ -824,25 +824,38 @@ void runnertank_consider_strafe(edict_t* self)
 	if (self->monsterinfo.active_move == &runnertank_move_attack_blast ||
 		self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket ||
 		self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket ||
-		self->monsterinfo.active_move == &tank_move_punch_attack)
+		self->monsterinfo.active_move == &tank_move_punch_attack) // Assuming tank_move_punch_attack is relevant here
 		return;
 
+	// Check if enemy exists and is valid before trying to access its properties
+	if (!self->enemy || !self->enemy->inuse)
+		return; // Cannot determine strafe conditions without a valid enemy
+
 	float strafe_chance = 0.3f; // Base chance más baja para no ser tan errático
+
 	// Aumentar probabilidad en situaciones críticas
+	// Ensure enemy is a client before accessing client buttons
 	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
 		strafe_chance += 0.4f;
 	if (self->health < self->max_health * 0.5f)
 		strafe_chance += 0.35f;
 
+	// Clamp the chance just in case it exceeds 1.0f
+	strafe_chance = std::min(strafe_chance, 1.0f);
+
 	// Solo strafear si tenemos una buena razón
 	if (frandom() < strafe_chance)
 	{
-		// Decidir dirección
-		self->monsterinfo.lefty = (frandom() < 0.5f) ? 1 : -1;
+		// Decidir dirección (Replaced ternary with if/else)
+		if (frandom() < 0.5f) {
+			self->monsterinfo.lefty = 1;
+		} else {
+			self->monsterinfo.lefty = -1;
+		}
 
 		// Calcular velocidad de strafe
 		vec3_t right;
-		AngleVectors(self->s.angles, nullptr, right, nullptr);
+		AngleVectors(self->s.angles, nullptr, right, nullptr); // Calculate side vector
 		float strafe_speed = 180.0f; // Velocidad base más controlada
 
 		// Ajustar velocidad según la situación
@@ -850,10 +863,18 @@ void runnertank_consider_strafe(edict_t* self)
 			strafe_speed *= 1.6f; // Más rápido si está herido
 
 		// Aplicar el strafe directamente usando los operadores de vec3_t
-		self->velocity = self->velocity + (right * (strafe_speed * self->monsterinfo.lefty));
+		// Ensure 'right' vector is valid before using it
+		if (is_valid_vector(right)) {
+			self->velocity = self->velocity + (right * (strafe_speed * self->monsterinfo.lefty));
+		} else {
+			// Fallback or error handling if 'right' vector is invalid
+			// For now, just skip applying strafe velocity
+		}
 
 		// Tiempo más corto de strafe para mayor control
 		self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.2_sec);
+		// Consider setting an active_move state for strafing if needed for AI logic
+		// For example: self->monsterinfo.next_move_state = &runnertank_move_strafe;
 	}
 }
 

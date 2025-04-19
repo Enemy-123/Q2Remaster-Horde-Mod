@@ -4290,21 +4290,48 @@ Called by worldspawn
 */
 void SetItemNames()
 {
+	// Ensure itemlist pointer is valid if it's dynamic or external
+	if (!itemlist) {
+		gi.Com_Error("itemlist is not initialized in SetItemNames");
+		return;
+	}
+
+	// Ensure indices are valid before accessing itemlist[i]
+	// Assuming IT_TOTAL is the boundary and IT_NULL is the start
+	if (IT_NULL >= IT_TOTAL) {
+		gi.Com_Print("Warning: IT_NULL is not less than IT_TOTAL in SetItemNames.\n");
+		// Potentially return or handle error if indices are illogical
+	}
+
 	for (item_id_t i = IT_NULL; i < IT_TOTAL; i = static_cast<item_id_t>(i + 1))
-		gi.configstring(CS_ITEMS + i, itemlist[i].pickup_name);
+	{
+		// Basic bounds check (optional but safer)
+		if (i < IT_NULL || i >= IT_TOTAL) continue; // Skip invalid indices
+
+		// Ensure pickup_name is not null before passing to configstring
+		const char* name = itemlist[i].pickup_name ? itemlist[i].pickup_name : ""; // Use empty string if null
+		gi.configstring(CS_ITEMS + i, name);
+	}
+
 
 	// [Paril-KEX] set ammo wheel indices first
 	int32_t cs_index = 0;
 
 	for (item_id_t i = IT_NULL; i < IT_TOTAL; i = static_cast<item_id_t>(i + 1))
 	{
+		if (i < IT_NULL || i >= IT_TOTAL) continue; // Bounds check
 		if (!(itemlist[i].flags & IF_AMMO))
 			continue;
 
-		if (cs_index >= MAX_WHEEL_ITEMS)
-			gi.Com_Error("out of wheel indices");
+		if (cs_index >= MAX_WHEEL_ITEMS) {
+			gi.Com_Error("out of wheel indices for ammo"); // More specific error
+			return; // Exit if error occurs
+		}
 
-		gi.configstring(CS_WHEEL_AMMO + cs_index, G_Fmt("{}|{}", (int32_t)i, gi.imageindex(itemlist[i].icon)).data());
+		// Ensure icon is not null if gi.imageindex requires it
+		int image_idx = itemlist[i].icon ? gi.imageindex(itemlist[i].icon) : -1; // Example: handle null icon
+
+		gi.configstring(CS_WHEEL_AMMO + cs_index, G_Fmt("{}|{}", (int32_t)i, image_idx).data());
 		itemlist[i].ammo_wheel_index = cs_index;
 		cs_index++;
 	}
@@ -4314,23 +4341,50 @@ void SetItemNames()
 
 	for (item_id_t i = IT_NULL; i < IT_TOTAL; i = static_cast<item_id_t>(i + 1))
 	{
+		if (i < IT_NULL || i >= IT_TOTAL) continue; // Bounds check
 		if (!(itemlist[i].flags & IF_WEAPON))
 			continue;
 
-		if (cs_index >= MAX_WHEEL_ITEMS)
-			gi.Com_Error("out of wheel indices");
+		if (cs_index >= MAX_WHEEL_ITEMS) {
+			gi.Com_Error("out of wheel indices for weapons");
+			return;
+		}
 
 		int32_t min_ammo = (itemlist[i].flags & IF_AMMO) ? 1 : itemlist[i].quantity;
 
+		// --- Calculate safe index ---
+		int32_t ammo_wheel_idx = -1;
+		if (itemlist[i].ammo)
+		{
+			// Ensure ammo ID is valid before calling GetItemByIndex
+			if (itemlist[i].ammo > IT_NULL && itemlist[i].ammo < IT_TOTAL) {
+				gitem_t* ammo_item = GetItemByIndex(itemlist[i].ammo);
+				if (ammo_item)
+				{
+					// Assuming ammo_wheel_index was set correctly in the previous loop
+					ammo_wheel_idx = ammo_item->ammo_wheel_index;
+				} else {
+					// Optional: Log warning if ammo item not found for a valid ID
+					// gi.Com_PrintFmt("Warning: Ammo item %d not found for weapon %d\n", itemlist[i].ammo, i);
+				}
+			} else {
+				// Optional: Log warning for invalid ammo ID
+				// gi.Com_PrintFmt("Warning: Invalid ammo ID %d for weapon %d\n", itemlist[i].ammo, i);
+			}
+		}
+		// --- End safe calculation ---
+
+		int image_idx = itemlist[i].icon ? gi.imageindex(itemlist[i].icon) : -1;
+
 		gi.configstring(CS_WHEEL_WEAPONS + cs_index, G_Fmt("{}|{}|{}|{}|{}|{}|{}|{}",
 			(int32_t)i,
-			gi.imageindex(itemlist[i].icon),
-			itemlist[i].ammo ? GetItemByIndex(itemlist[i].ammo)->ammo_wheel_index : -1,
+			image_idx,
+			ammo_wheel_idx, // <-- USE THE SAFE VARIABLE HERE
 			min_ammo,
 			(itemlist[i].flags & IF_POWERUP_WHEEL) ? 1 : 0,
 			itemlist[i].sort_id,
 			itemlist[i].quantity_warn,
-			G_CanDropItem(itemlist[i]) ? 1 : 0
+			G_CanDropItem(itemlist[i]) ? 1 : 0 // Assuming G_CanDropItem handles itemlist[i] safely
 		).data());
 		itemlist[i].weapon_wheel_index = cs_index;
 		cs_index++;
@@ -4341,19 +4395,38 @@ void SetItemNames()
 
 	for (item_id_t i = IT_NULL; i < IT_TOTAL; i = static_cast<item_id_t>(i + 1))
 	{
+		if (i < IT_NULL || i >= IT_TOTAL) continue; // Bounds check
 		if (!(itemlist[i].flags & IF_POWERUP_WHEEL) || (itemlist[i].flags & IF_WEAPON))
 			continue;
 
-		if (cs_index >= MAX_WHEEL_ITEMS)
-			gi.Com_Error("out of wheel indices");
+		if (cs_index >= MAX_WHEEL_ITEMS) {
+			gi.Com_Error("out of wheel indices for powerups");
+			return;
+		}
+
+		// --- Calculate safe index ---
+		int32_t ammo_wheel_idx = -1;
+		if (itemlist[i].ammo)
+		{
+			if (itemlist[i].ammo > IT_NULL && itemlist[i].ammo < IT_TOTAL) {
+				gitem_t* ammo_item = GetItemByIndex(itemlist[i].ammo);
+				if (ammo_item)
+				{
+					ammo_wheel_idx = ammo_item->ammo_wheel_index;
+				}
+			}
+		}
+		// --- End safe calculation ---
+
+		int image_idx = itemlist[i].icon ? gi.imageindex(itemlist[i].icon) : -1;
 
 		gi.configstring(CS_WHEEL_POWERUPS + cs_index, G_Fmt("{}|{}|{}|{}|{}|{}",
 			(int32_t)i,
-			gi.imageindex(itemlist[i].icon),
+			image_idx,
 			(itemlist[i].flags & IF_POWERUP_ONOFF) ? 1 : 0,
 			itemlist[i].sort_id,
 			G_CanDropItem(itemlist[i]) ? 1 : 0,
-			itemlist[i].ammo ? GetItemByIndex(itemlist[i].ammo)->ammo_wheel_index : -1
+			ammo_wheel_idx // <-- USE THE SAFE VARIABLE HERE
 		).data());
 		itemlist[i].powerup_wheel_index = cs_index;
 		cs_index++;

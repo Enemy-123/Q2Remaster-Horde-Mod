@@ -1630,8 +1630,6 @@ void SP_monster_gekk(edict_t* self)
 		{
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, gi.soundindex("gek/wolfboy3.wav"), 1, ATTN_NORM, 0);
-			else
-				nullptr;
 		}
 	}
 

@@ -1551,22 +1551,28 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 
 			// if enemy is tesla, never strafe
 			if ((self->enemy) && (self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))
+			{ // Added braces
 				strafe_chance = 0;
+			} // End of if block
 			else
+			{ // Added braces - THIS MAKES THE SCOPE CLEAR
 				strafe_chance *= strafe_scalar;
-
-				// Apply bonus evasion (higher strafe chance)
-				if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY) && !self->monsterinfo.IS_BOSS) {
-					strafe_chance = std::min(strafe_chance * 1.5f, 0.95f); // Increase chance by 50%, cap at 95%
-				}
-
-			if (strafe_chance)
+			} // End of else block
+		
+			// Apply bonus evasion (higher strafe chance)
+			// Now this IF is clearly separate and its indentation is no longer misleading
+			if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY) && !self->monsterinfo.IS_BOSS) {
+				strafe_chance = std::min(strafe_chance * 1.5f, 0.95f); // Increase chance by 50%, cap at 95%
+			}
+		
+			// The rest of the logic follows, now clearly separate
+			if (strafe_chance > 0) // Using > 0 for float comparison clarity
 			{
 				monster_attack_state_t new_state = AS_STRAIGHT;
-
+		
 				if (frandom() < strafe_chance)
 					new_state = AS_SLIDING;
-
+		
 				if (new_state != self->monsterinfo.attack_state)
 				{
 					self->monsterinfo.strafe_check_time = level.time + random_time(1_sec, 3_sec);

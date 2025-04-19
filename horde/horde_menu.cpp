@@ -443,7 +443,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		return;
 	}
 
-	const int option = p->cur;
+	const size_t option = p->cur;
 	std::vector<std::string>* current_map_list = nullptr;
 
 	// Get current map list based on category

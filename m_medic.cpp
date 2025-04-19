@@ -1463,89 +1463,120 @@ void medic_spawngrows(edict_t* self)
 
 void medic_finish_spawn(edict_t* self)
 {
-	edict_t* ent;
-	vec3_t	 f, r, offset, startpoint, spawnpoint;
-	int		 count;
-	int		 num_summoned; // should be 1, 3, or 5
-	edict_t* designated_enemy;
+    edict_t* ent;
+    vec3_t   f, r, offset, startpoint, spawnpoint;
+    int      count;
+    size_t   num_summoned = 0; // Use size_t for counts/indices
+    edict_t* designated_enemy;
 
-	AngleVectors(self->s.angles, f, r, nullptr);
+    AngleVectors(self->s.angles, f, r, nullptr);
 
-	num_summoned = 0;
+    // --- FIX: Use size_t for the loop index ---
+    for (size_t i = 0; i < MAX_REINFORCEMENTS; i++) // Now comparing size_t with const size_t
+    {
+        // Check if we should stop counting early
+        if (self->monsterinfo.chosen_reinforcements[i] == 255) {
+            break; // Stop counting reinforcements
+        }
+        num_summoned++; // Increment count only if we didn't break
+    }
+    // --- End FIX ---
 
-	for (int32_t i = 0; i < MAX_REINFORCEMENTS; i++, num_summoned++)
-		if (self->monsterinfo.chosen_reinforcements[i] == 255)
-			break;
+    // Use size_t for this loop index too for consistency
+    for (size_t count_idx = 0; count_idx < num_summoned; count_idx++)
+    {
+        // Get the index from the chosen list
+        uint8_t reinforcement_index = self->monsterinfo.chosen_reinforcements[count_idx];
 
-	for (count = 0; count < num_summoned; count++)
-	{
-		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
-		offset = reinforcement_position[count];
+        // Basic validation (though 255 should have been caught by the break above)
+        if (reinforcement_index >= MAX_REINFORCEMENTS) {
+             gi.Com_Print("Warning: Invalid reinforcement index in medic_finish_spawn.\n");
+             continue;
+        }
 
-		startpoint = M_ProjectFlashSource(self, offset, f, r);
+        auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[reinforcement_index];
 
-		// a little off the ground
-		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
+        // Use count_idx to get position offset
+        // Ensure count_idx is within bounds of reinforcement_position array
+        if (count_idx >= std::size(reinforcement_position)) { // Assuming reinforcement_position is a C-style array
+             gi.Com_Print("Warning: Ran out of reinforcement positions in medic_finish_spawn.\n");
+             continue;
+        }
+        offset = reinforcement_position[count_idx];
 
-		ent = nullptr;
-		if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
-		{
-			if (CheckSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs))
-				ent = CreateGroundMonster(spawnpoint, self->s.angles, reinforcement.mins, reinforcement.maxs, reinforcement.classname, 256);
-		}
+        startpoint = M_ProjectFlashSource(self, offset, f, r);
 
-		if (!ent)
-			continue;
+        // a little off the ground
+        startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-		if (ent->think)
-		{
-			ent->nextthink = level.time;
-			ent->think(ent);
-		}
+        ent = nullptr;
+        if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
+        {
+            if (CheckSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs))
+                ent = CreateGroundMonster(spawnpoint, self->s.angles, reinforcement.mins, reinforcement.maxs, reinforcement.classname, 256);
+        }
 
-		ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_SPAWNED_NEEDS_GIB;
-		ent->monsterinfo.commander = self;
-		ent->monsterinfo.slots_from_commander = reinforcement.strength;
+        if (!ent)
+            continue;
 
-		if (g_horde->integer)
-			ent->item = brandom() ? G_HordePickItem() : nullptr;
+        if (ent->think)
+        {
+            ent->nextthink = level.time;
+            ent->think(ent);
+        }
 
-		ApplyMonsterBonusFlags(ent);
-		self->monsterinfo.monster_used += reinforcement.strength;
+        ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_SPAWNED_NEEDS_GIB;
+        ent->monsterinfo.commander = self;
+        ent->monsterinfo.slots_from_commander = reinforcement.strength;
 
-		if (self->monsterinfo.aiflags & AI_MEDIC)
-			designated_enemy = self->oldenemy;
-		else
-			designated_enemy = self->enemy;
+        // Optional: Apply Horde item logic
+        if (g_horde && g_horde->integer) { // Check g_horde pointer too
+             if (brandom()) { // Use brandom() for boolean random chance
+                 ent->item = G_HordePickItem();
+             } else {
+                 ent->item = nullptr;
+             }
+        } else {
+            ent->item = nullptr; // Ensure item is null if not horde mode
+        }
 
-		if (coop->integer)
-		{
-			designated_enemy = PickCoopTarget(ent);
-			if (designated_enemy)
-			{
-				// try to avoid using my enemy
-				if (designated_enemy == self->enemy)
-				{
-					designated_enemy = PickCoopTarget(ent);
-					if (!designated_enemy)
-						designated_enemy = self->enemy;
-				}
-			}
-			else
-				designated_enemy = self->enemy;
-		}
 
-		if ((designated_enemy) && (designated_enemy->inuse) && (designated_enemy->health > 0))
-		{
-			ent->enemy = designated_enemy;
-			FoundTarget(ent);
-		}
-		else
-		{
-			ent->enemy = nullptr;
-			ent->monsterinfo.stand(ent);
-		}
-	}
+        ApplyMonsterBonusFlags(ent);
+        self->monsterinfo.monster_used += reinforcement.strength;
+
+        if (self->monsterinfo.aiflags & AI_MEDIC)
+            designated_enemy = self->oldenemy;
+        else
+            designated_enemy = self->enemy;
+
+        if (coop && coop->integer) // Check coop pointer too
+        {
+            designated_enemy = PickCoopTarget(ent);
+            if (designated_enemy)
+            {
+                // try to avoid using my enemy
+                if (designated_enemy == self->enemy)
+                {
+                    designated_enemy = PickCoopTarget(ent);
+                    if (!designated_enemy)
+                        designated_enemy = self->enemy;
+                }
+            }
+            else
+                designated_enemy = self->enemy;
+        }
+
+        if ((designated_enemy) && (designated_enemy->inuse) && (designated_enemy->health > 0))
+        {
+            ent->enemy = designated_enemy;
+            FoundTarget(ent);
+        }
+        else
+        {
+            ent->enemy = nullptr;
+            ent->monsterinfo.stand(ent);
+        }
+    }
 }
 
 mframe_t medic_frames_callReinforcements[] = {
@@ -1657,7 +1688,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &medic_move_callReinforcements);
 			return;
 		}
-		if ((self->monsterinfo.bonus_flags != BF_NONE && r < 0.7) || (self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self))
+		if ((self->monsterinfo.bonus_flags != BF_NONE && r < 0.7) || ((self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self)))
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
 			M_SetAnimation(self, &medic_move_attackBlaster);

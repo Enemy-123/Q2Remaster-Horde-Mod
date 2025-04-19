@@ -270,18 +270,34 @@ void M_CatagorizePosition(edict_t* self, const vec3_t& in_point, water_level_t& 
 
 bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 {
+	if (!self || !self->inuse || !&mod) // Added null checks for safety
+		return false;
+
 	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
 		return false;
 
-	if (g_horde->integer) {
-		// This correctly handles the priority: early wave/special weapon overrides bonus rule
-		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET)
-			|| current_wave_level <= 10 && (!self->monsterinfo.bonus_flags && !self->monsterinfo.IS_BOSS)
-			|| self->monsterinfo.IS_BOSS;
+	// Ensure g_horde and skill pointers are valid before accessing integer member
+	if (g_horde && g_horde->integer) {
+		// Group conditions explicitly with parentheses for clarity
+		bool const is_special_weapon = (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET);
+		bool const is_early_wave_normal_monster = (current_wave_level <= 10 && !self->monsterinfo.bonus_flags && !self->monsterinfo.IS_BOSS);
+		bool const is_boss = self->monsterinfo.IS_BOSS; // Assuming IS_BOSS correctly handles null checks if necessary
+
+		return (is_special_weapon || is_early_wave_normal_monster || is_boss);
 	}
-	else {
+	else if (skill && skill->integer) { // Check skill pointer too
+		// Original logic for non-horde mode
 		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
 	}
+    else {
+        // Default behavior if neither horde nor skill is set appropriately?
+        // Maybe return false or apply a default rule.
+        // Example: Fallback to skill < 3 logic if skill pointer exists
+        if (skill) {
+             return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
+        }
+        return false; // Default if no rules apply
+    }
 }
 
 void M_WorldEffects(edict_t* ent)
