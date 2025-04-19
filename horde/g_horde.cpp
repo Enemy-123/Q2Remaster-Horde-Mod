@@ -4789,7 +4789,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	if (developer->integer > 1) gi.Com_PrintFmt("DEBUG: Starting FindEmergencySpawnPosition for TypeID {}\n", static_cast<int>(typeId));
 	used_human_player = false;
 
-	constexpr int MAX_ATTEMPTS_PER_PLAYER = 10; // Slightly more attempts
+	constexpr int MAX_ATTEMPTS_PER_PLAYER = 10;
 	constexpr float FAR_RADIUS_MAX = 1200.0f;
 	vec3_t predicted_mins, predicted_maxs;
 	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
@@ -4854,13 +4854,13 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 
 			// *** CRITICAL VALIDATION 1: Check player before starting attempts for them ***
 			if (!player || !player->inuse || !player->client || player->health <= 0 || ClientIsSpectating(player->client)) {
-				if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player %d in group became invalid before attempts.\n", (int)(player - g_edicts));
+				if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player {} in group became invalid before attempts.\n", (int)(player - g_edicts));
 				continue; // Skip this player
 			}
 			// Cache player origin *after* validation
 			const vec3_t player_origin = player->s.origin;
 			if (!is_valid_vector(player_origin)) {
-                 if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player %d origin invalid.\n", (int)(player - g_edicts));
+                 if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player {} origin invalid.\n", (int)(player - g_edicts));
                  continue; // Skip player with invalid origin
             }
 
@@ -4888,13 +4888,13 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 
 					// *** CRITICAL VALIDATION 2: Re-check player state *before* distance/angle calcs ***
 					if (!player || !player->inuse || !player->client || player->health <= 0 || ClientIsSpectating(player->client)) {
-						if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player %d became invalid *after* IsValidSpawnLocation.\n", (int)(player - g_edicts));
+						if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player {} became invalid *after* IsValidSpawnLocation.\n", (int)(player - g_edicts));
 						break; // Stop attempts for this now-invalid player
 					}
                     // Re-cache origin *just in case* it somehow changed, though unlikely if player is valid
                     const vec3_t current_player_origin = player->s.origin;
                     if (!is_valid_vector(current_player_origin)) {
-                         if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player %d origin became invalid after IsValidSpawnLocation.\n", (int)(player - g_edicts));
+                         if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Player {} origin became invalid after IsValidSpawnLocation.\n", (int)(player - g_edicts));
                          break; // Stop attempts for this player
                     }
 
@@ -4920,6 +4920,26 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 						if (developer->integer > 2) gi.Com_PrintFmt("FindEmergencySpawnPosition: Candidate {} too close to recent regular spawn.\n", validated_pos);
 						continue;
 					}
+
+					// ******************************************************
+					// ***** ADDED MONSTERSOLID TRACE CHECK HERE *****
+					// ******************************************************
+					trace_t monster_trace = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
+					if (monster_trace.startsolid) {
+						// This trace hit something solid to monsters (another monster, player, solid defense)
+						if (developer->integer > 1) {
+							edict_t* blocker = monster_trace.ent;
+							gi.Com_PrintFmt("FindEmergencySpawnPosition: Validated pos {} blocked by MONSTERSOLID entity: {} ({})\n",
+								validated_pos,
+								blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown",
+								blocker ? (blocker - g_edicts) : -1);
+						}
+						continue; // Spot is blocked, try next attempt/player
+					}
+					// ******************************************************
+					// ***** END MONSTERSOLID TRACE CHECK *****
+					// ******************************************************
+
 
 					// --- Calculate Angles ---
 					vec3_t dir = current_player_origin - validated_pos; // Use current validated vectors
@@ -4947,6 +4967,7 @@ bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_hum
 	if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Failed after all attempts.\n");
 	return false;
 }
+
 
 // String-based overload that delegates to the TypeID version
 bool FindEmergencySpawnPosition(vec3_t& position, vec3_t& angles, bool& used_human_player, const char* monster_classname)
