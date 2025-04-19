@@ -270,33 +270,37 @@ void M_CatagorizePosition(edict_t* self, const vec3_t& in_point, water_level_t& 
 
 bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 {
-	if (!self || !self->inuse || !&mod) // Added null checks for safety
+	if (!self || !self->inuse)
 		return false;
 
+	// Don't react if ducking or at a combat point (specific AI states)
 	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
 		return false;
 
-	// Ensure g_horde and skill pointers are valid before accessing integer member
+	// Horde mode logic (check if g_horde is valid first)
 	if (g_horde && g_horde->integer) {
 		// Group conditions explicitly with parentheses for clarity
 		bool const is_special_weapon = (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET);
+		// Check monster type and wave (ensure monsterinfo members are safe to access)
 		bool const is_early_wave_normal_monster = (current_wave_level <= 10 && !self->monsterinfo.bonus_flags && !self->monsterinfo.IS_BOSS);
-		bool const is_boss = self->monsterinfo.IS_BOSS; // Assuming IS_BOSS correctly handles null checks if necessary
+		bool const is_boss = self->monsterinfo.IS_BOSS;
 
+		// React if weapon is special, or it's an early normal monster, or it's a boss
 		return (is_special_weapon || is_early_wave_normal_monster || is_boss);
 	}
-	else if (skill && skill->integer) { // Check skill pointer too
-		// Original logic for non-horde mode
+	// Non-horde mode logic (check if skill is valid first)
+	else if (skill && skill->integer) {
+		// Original logic: react to specific weapons or if skill level is low
 		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
 	}
     else {
-        // Default behavior if neither horde nor skill is set appropriately?
-        // Maybe return false or apply a default rule.
-        // Example: Fallback to skill < 3 logic if skill pointer exists
+        // Fallback logic if neither horde mode nor skill level dictates behavior
         if (skill) {
+             // Re-check original logic (this handles skill->integer == 0 case included above)
              return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
         }
-        return false; // Default if no rules apply
+        // If no skill pointer or horde mode active, default to not reacting
+        return false;
     }
 }
 

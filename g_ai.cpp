@@ -1245,8 +1245,15 @@ bool FindTarget(edict_t* self)
 	}
 
 	// ROGUE - hintpath coop fix
-	if (((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative()) || (self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsDeathmatch() && g_horde->integer)
+	bool const uses_hint_path = (self->monsterinfo.aiflags & AI_HINT_PATH);
+
+	// Check the mode-specific conditions
+	bool const mode_condition = G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer);
+
+	// Combine: If it uses hint paths AND (it's Coop OR it's Deathmatch Horde)
+	if ( uses_hint_path && mode_condition ) {
 		heardit = false;
+	}
 	// ROGUE
 
 	if (client->svflags & SVF_MONSTER)

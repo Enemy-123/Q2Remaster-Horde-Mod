@@ -2066,7 +2066,7 @@ void SP_worldspawn(edict_t* ent)
 
 	if (override_physics == -1)
 	{
-		if (g_horde->integer || deathmatch->integer && st.was_key_specified("physics_flags_dm"))
+		if (g_horde->integer || (deathmatch->integer && st.was_key_specified("physics_flags_dm")))
 			override_physics = st.physics_flags_dm;
 		else if (!g_horde->integer && !deathmatch->integer && st.was_key_specified("physics_flags_sp"))
 			override_physics = st.physics_flags_sp;

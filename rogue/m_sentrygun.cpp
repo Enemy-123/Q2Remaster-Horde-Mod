@@ -99,19 +99,9 @@ void turret2Aim(edict_t* self)
 		}
 	}
 
-	// Calculate speed multiplier based on state
-	float speed_multiplier = 1.0f;
-	if (transition_state[entity_index] == 3) {
-		// Reduce turning speed during cooldown for smoother transitions
-		speed_multiplier = 0.6f;
-	}
-	else if (self->enemy && self->enemy != previous_enemy[entity_index]) {
+ 	if (self->enemy && self->enemy != previous_enemy[entity_index]) {
 		// Target changed - use a variable speed based on time since change
 		float time_since_change = (level.time - last_enemy_change_time[entity_index]).seconds();
-
-		// Start slower, gradually speed up as we track the new target
-		if (time_since_change < 0.3f)
-			speed_multiplier = 0.5f + (time_since_change / 0.3f) * 0.5f;
 	}
 
 	if (!self->enemy || self->enemy == world)

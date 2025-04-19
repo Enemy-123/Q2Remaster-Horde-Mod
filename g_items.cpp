@@ -291,9 +291,9 @@ bool Pickup_Powerup(edict_t* ent, edict_t* other)
 		(skill->integer >= 2 && quantity >= 1))
 		return false;
 
-	if (G_IsCooperative() && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0) ||
-		g_horde->integer && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))
-		return false;
+		if ( (G_IsCooperative() && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0)) ||
+		(g_horde->integer && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0)) )
+	   return false;
 
 	other->client->pers.inventory[ent->item->id]++;
 
