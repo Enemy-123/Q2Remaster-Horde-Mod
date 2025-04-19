@@ -2204,9 +2204,9 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 	gi.linkentity(monster);
 
 	// *** Final Post-Link Stuck Check ***
-	// This check happens AFTER monster_start_go might have already flagged it
+	// Check against world geometry ONLY to avoid flagging stuck on other monsters at spawn
 	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, MASK_MONSTERSOLID); // Use MASK_MONSTERSOLID
+		monster->s.origin, monster, MASK_SOLID); // <-- CHANGED MASK
 
 	bool spawn_was_stuck = post_link_trace.startsolid;
 
@@ -2216,13 +2216,14 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin,
 		if (!monster->monsterinfo.was_stuck) {
 			edict_t* blocker = post_link_trace.ent;
 			if (developer->integer) {
-				gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} stuck (Post-Link Check ONLY) at {}. Blocker: {} ({}). Flagging for teleport.\n",
+				// Clarified log message
+				gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} stuck in GEOMETRY (Post-Link Check) at {}. Blocker: {} ({}). Flagging for teleport.\n",
 					monster->classname, monster->s.origin,
 					blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown",
 					blocker ? (blocker - g_edicts) : -1);
 			}
 			monster->monsterinfo.was_stuck = true;
-			monster->monsterinfo.stuck_check_time = level.time;
+			monster->monsterinfo.stuck_check_time = level.time; // Start timer immediately
 		}
 		else if (developer->integer > 1) {
 			// Already flagged by monster_start_go, just log confirmation
@@ -3945,11 +3946,11 @@ static void SpawnBossAutomatically() {
 	if (mapId != horde::MapID::UNKNOWN && horde::MapOriginRegistry::GetOrigin(mapId, fixed_origin)) {
 		if (is_valid_vector(fixed_origin) && fixed_origin != vec3_origin) {
 			vec3_t validated_fixed_origin = fixed_origin;
-			if (IsValidSpawnLocation(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying)) {
+			//if (IsValidSpawnLocation(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying)) {
 				spawn_origin = validated_fixed_origin;
 				location_found = true;
 				if (developer->integer > 1) gi.Com_PrintFmt("SpawnBossAutomatically: Using validated predefined map origin {} for boss {}.\n", spawn_origin, boss_classname);
-			}
+		//} removed so bosses spawns where it belongs
 			else {
 				if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Predefined map origin {} failed validation for boss {}. Falling back to random.\n", fixed_origin, boss_classname);
 			}
@@ -5089,7 +5090,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 	if (level.intermissiontime) return false;
 
-	// --- Rate Limiting & Basic Validation (Same as before) ---
+	// --- Rate Limiting & Basic Validation ---
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
 		HordeConstants::recent_teleport_count = 0;
 		HordeConstants::g_teleport_rate_reset_time = level.time;
@@ -5109,14 +5110,14 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	bool attempt_teleport_now = false; // Flag to trigger teleport attempt
 
-	// --- Drowning Check (Same as before) ---
+	// --- Drowning Check ---
     if (self->waterlevel > 0) {
         bool can_see_target = false;
-        if (self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
+        if (self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) { // Assuming visible() exists and works
             can_see_target = true;
         } else {
             for (auto* player : active_players_no_spect()) {
-                if (player && player->inuse && visible(self, player, false)) {
+                if (player && player->inuse && visible(self, player, false)) { // Assuming visible() exists and works
                     can_see_target = true;
                     break;
                 }
@@ -5126,53 +5127,98 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
             attempt_teleport_now = true;
             if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} drowning, flagging for immediate teleport.\n", self->classname);
         } else {
+            // If drowning but can see target, don't teleport and reset stuck flag
             self->monsterinfo.was_stuck = false;
             self->monsterinfo.stuck_check_time = 0_sec;
+            // Also reset teleport cooldown so it can try again if it loses sight
+            self->teleport_time = level.time;
         }
     }
 	// --- End Drowning Check ---
 
 	// --- Standard Stuck/Cooldown Checks (if not drowning) ---
-	if (!attempt_teleport_now) {
+	if (!attempt_teleport_now) { // Only run if not already flagged for drowning teleport
 		if (self->teleport_time > level.time) return false; // Individual cooldown
 
-		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+		// Check if physically stuck in ACTUAL WORLD GEOMETRY
+		// Use MASK_SOLID to ignore other monsters/players for this specific check.
+		const bool is_stuck_in_geometry = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid; // <-- CHANGED MASK
+
 		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= HordeConstants::NO_DAMAGE_TIMEOUT;
 
-		if (!is_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck) return false;
+		// If previously flagged but NOT currently stuck in geometry, reset the flag.
+		if (self->monsterinfo.was_stuck && !is_stuck_in_geometry) {
+			self->monsterinfo.was_stuck = false;
+			self->monsterinfo.stuck_check_time = 0_sec;
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Resetting 'was_stuck' for {} as it's no longer in geometry.\n", self->classname);
+			}
+		}
 
+		// Monster must be physically stuck in geometry OR timed out OR previously flagged (and still stuck or just flagged)
+		if (!is_stuck_in_geometry && !no_damage_timeout && !self->monsterinfo.was_stuck) {
+			 return false; // Not meeting any stuck criteria
+		}
+
+		// If it just met the criteria now (and wasn't already flagged), start the timer
+		// Note: This condition is now only met if is_stuck_in_geometry or no_damage_timeout is true,
+		// because the block above resets was_stuck if !is_stuck_in_geometry.
 		if (!self->monsterinfo.was_stuck) {
 			self->monsterinfo.stuck_check_time = level.time;
 			self->monsterinfo.was_stuck = true;
 		}
 
+        // Check for immediate teleport condition (stuck right after spawning)
 		bool attempt_immediate_teleport_spawn = false;
         if (self->monsterinfo.was_stuck && self->monsterinfo.stuck_check_time > 0_sec) {
-            constexpr gtime_t SPAWN_STUCK_IMMEDIATE_THRESHOLD = 0.5_sec;
-		    attempt_immediate_teleport_spawn = (level.time < self->monsterinfo.stuck_check_time + SPAWN_STUCK_IMMEDIATE_THRESHOLD);
+            constexpr gtime_t SPAWN_STUCK_IMMEDIATE_THRESHOLD = 0.5_sec; // 500ms grace period after spawn
+		    // Check if current time is very close to the time the stuck flag was set
+            // This implies it got stuck very recently, likely during its spawn process
+            attempt_immediate_teleport_spawn = (level.time < self->monsterinfo.stuck_check_time + SPAWN_STUCK_IMMEDIATE_THRESHOLD);
             if(attempt_immediate_teleport_spawn && developer->integer > 1) {
-                 gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} potentially stuck on spawn. Flagging for immediate teleport.\n", self->classname);
+                 gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} potentially stuck on spawn. Flagging for immediate teleport check.\n", self->classname);
             }
         }
 
-		if (attempt_immediate_teleport_spawn) {
+        // Check if immediate teleport is needed OR the standard stuck duration has passed
+		if (attempt_immediate_teleport_spawn ||
+            (self->monsterinfo.was_stuck && level.time >= self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME))
+        {
             attempt_teleport_now = true;
-        } else if (self->monsterinfo.was_stuck && (level.time >= self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME)) {
-            attempt_teleport_now = true;
-        } else if (self->monsterinfo.was_stuck) {
-             return false; // Still within grace period
-        } else {
-            return false; // Should not be reached
         }
+		else if (self->monsterinfo.was_stuck) {
+             return false; // Stuck, but still within the grace period
+        }
+        // No else needed, attempt_teleport_now remains false if none of the above conditions met
 	}
 	// --- End Standard Stuck/Cooldown Checks ---
 
-	if (!attempt_teleport_now) return false; // Exit if no reason to teleport
+	// If no condition triggered a teleport attempt this frame, exit
+	if (!attempt_teleport_now) return false;
 
-	// *** NEW: Add random chance to skip teleport attempt for staggering ***
+    // *** NEW CHECK: Prevent teleport if actively attacking ***
+    // (The visible enemy check is already handled inside Horde_TeleportMonster)
+    bool is_attacking = (self->enemy && self->enemy->inuse && self->monsterinfo.attack_finished > level.time);
+
+    if (is_attacking) {
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Skipping teleport for {} - Attacking (Enemy: {}, AttackFinished: {:.2f})\n",
+                self->classname, GetPlayerName(self->enemy).c_str(), self->monsterinfo.attack_finished.seconds());
+        }
+        // Reset stuck state so it can re-evaluate if it remains stuck after attacking
+        self->monsterinfo.was_stuck = false;
+        self->monsterinfo.stuck_check_time = 0_sec;
+        // Reset the teleport cooldown so it can try again soon if it stops attacking
+        self->teleport_time = level.time;
+        return false; // Don't teleport this frame
+    }
+    // *** END NEW CHECK ***
+
+
+	// *** Random chance to skip teleport attempt for staggering ***
 	if (frandom() < 0.4f) { // 40% chance to skip this frame's attempt
 		if (developer->integer > 2) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Randomly skipped teleport attempt for {}.\n", self->classname);
-		// Don't reset was_stuck here, let it try again next frame
+		// Don't reset was_stuck here, let it try again next frame if still stuck and inactive
 		return false;
 	}
 
@@ -5222,7 +5268,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			vec3_t potential_dest = final_dest_origin;
 			bool use_offset_dest = false;
 
-			// *** NEW: Attempt small random offset ***
+			// Attempt small random offset
 			constexpr float MAX_OFFSET_RADIUS = 24.0f;
 			vec3_t offset = { frandom(-MAX_OFFSET_RADIUS, MAX_OFFSET_RADIUS), frandom(-MAX_OFFSET_RADIUS, MAX_OFFSET_RADIUS), 0 };
 			vec3_t offset_dest = final_dest_origin + offset;
@@ -5239,6 +5285,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 			// If offset failed or wasn't better, potential_dest remains final_dest_origin
 			// Now, teleport to the 'potential_dest' (which is either original or offset)
+			// Horde_TeleportMonster internally checks for visible enemy before completing the teleport.
 			teleported = Horde_TeleportMonster(self, potential_dest, final_dest_angles, true);
 
 			if (teleported) {
@@ -5247,7 +5294,14 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 					spawnPointsData[used_spawn_point].teleport_cooldown = level.time + 3.5_sec;
 				}
 				if (developer->integer) gi.Com_PrintFmt("Monster teleported (stuck/emergency) via Horde_TeleportMonster: {}\n", self->classname);
-			}
+			} else {
+                 // Horde_TeleportMonster returned false, likely due to visible enemy or validation fail inside it.
+                 if (developer->integer > 1) {
+                    gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Horde_TeleportMonster call failed for {} at {}. Visible enemy or validation issue?\n",
+                       self->classname, potential_dest);
+                 }
+                 // Horde_TeleportMonster already resets the teleport cooldown if it fails due to visible enemy.
+            }
 		} else {
 			if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Chosen destination {} too close to recent teleport, skipping.\n", final_dest_origin);
 		}
@@ -5259,7 +5313,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	// --- Post-Teleport Fixes & State Reset ---
 	if (teleported) {
-		// Apply specific fixes (Stalker/Spider) - same as before
+		// Apply specific fixes (Stalker/Spider)
 		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 		if (typeId == horde::MonsterTypeID::STALKER || typeId == horde::MonsterTypeID::SPIDER) {
 			if (developer->integer > 1) gi.Com_PrintFmt("{} teleport: Applying specific fix...\n", self->classname);
@@ -5277,13 +5331,14 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	}
 
 	// Reset stuck state regardless of teleport success/failure *for this attempt*
+	// This runs if the teleport was attempted (passed the attacking check)
 	self->monsterinfo.was_stuck = false;
 	self->monsterinfo.stuck_check_time = 0_sec;
 
 	return teleported;
 }
 // --- END CheckAndTeleportStuckMonster ---
-// 
+
 
 bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects)
 {
@@ -5296,11 +5351,16 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 
 	// Prevent teleport if monster is summoned OR can see its enemy
 	if (self->monsterinfo.issummoned ||
-		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
-		// Reset cooldown so it can try again sooner if it gets stuck later
-		self->teleport_time = level.time;
+		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) { // Assuming visible() exists and works
+
+        // *** APPLY SHORT COOLDOWN ON VISIBLE ENEMY CANCEL ***
+        constexpr gtime_t VISIBLE_ENEMY_CANCEL_COOLDOWN = 1.5_sec; // Cooldown duration (e.g., 1.5 seconds)
+        self->teleport_time = level.time + VISIBLE_ENEMY_CANCEL_COOLDOWN;
+        // *** END CHANGE ***
+
 		if (developer->integer > 1) {
-			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible.\n", self->classname);
+			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible. Applying short cooldown ({:.1f}s).\n",
+                 self->classname, VISIBLE_ENEMY_CANCEL_COOLDOWN.seconds());
 		}
 		return false; // Abort teleport
 	}
@@ -5328,7 +5388,8 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 	// --- Validate New Position ---
 	// Use the improved validation (allow defense fallback might be needed for stuck teleports)
 	vec3_t final_pos = self->s.origin; // ValidateSpawnPosition might modify this
-	if (!IsValidSpawnLocation(final_pos, self->mins, self->maxs, true)) // Allow fallback for stuck cases
+	bool is_flying = IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname)); // Check if monster is flying
+	if (!IsValidSpawnLocation(final_pos, self->mins, self->maxs, is_flying)) // Pass flying status
 	{
 		// Teleport failed validation, restore state
 		self->s.origin = old_origin;
@@ -5342,6 +5403,10 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
+
+        // Apply a short cooldown even on validation failure to prevent rapid retries on bad spots
+        self->teleport_time = level.time + 0.5_sec; // Shorter cooldown for validation fail
+
 		return false;
 	}
 	// Update origin if ValidateSpawnPosition adjusted it
@@ -5366,12 +5431,8 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
 	self->monsterinfo.stuck_check_time = 0_sec;
 	self->monsterinfo.react_to_damage_time = level.time;
 
-	// Apply randomized cooldown instead of fixed
-	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER); // Ensure these constants are accessible
-
-	// Update global teleport tracking (if desired, requires access to those statics)
-	// recent_teleport_count++;
-	// Record teleport location (if desired)
+	// Apply randomized cooldown AFTER successful teleport
+	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
 	return true; // Teleport successful
 }
@@ -5652,7 +5713,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 			// Check proximity to recent spawns
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
 				// Final check: Ensure no entities (player/monster/defense) are at the validated spot
-				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID); // Check world geometry again just in case
+				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_SOLID); // Check world geometry again just in case
 				FilterData final_entity_check = { nullptr, 0 };
 				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
 
@@ -5703,7 +5764,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 			// Check proximity to recent spawns
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
 				// Final check: Ensure no entities are at the validated spot
-				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_MONSTERSOLID);
+				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_SOLID);
 				FilterData final_entity_check = { nullptr, 0 };
 				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
 
@@ -5805,7 +5866,7 @@ bool EmergencySpawnMonster(const int32_t levelNum, horde::MonsterTypeID typeId) 
 
 	// Post-link stuck check
 	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-		monster->s.origin, monster, MASK_MONSTERSOLID);
+		monster->s.origin, monster, MASK_SOLID);
 	bool spawn_was_stuck = post_link_trace.startsolid;
 
 	if (spawn_was_stuck) {

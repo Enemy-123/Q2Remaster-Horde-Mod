@@ -1648,7 +1648,7 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
-	//summoned monsters won't have count // Horde
+	// player's summoned monsters won't have count // Horde
 	if (self->monsterinfo.issummoned)
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
@@ -1748,21 +1748,12 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	return true;
 }
 
-stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
+stuck_result_t G_FixStuckObject(edict_t *self, vec3_t check)
 {
-	//// <<< HORDE >>> unused, better keeping this out
-	//// If Horde mode is active and this entity was spawned by Horde,
-	//// let the Horde mod's specific stuck logic (CheckAndTeleportStuckMonster) handle it.
-	//// Return GOOD_POSITION immediately to prevent the base game's nudge logic.
-	//if (g_horde && g_horde->integer && self->was_spawned_by_horde) {
-	//	return stuck_result_t::GOOD_POSITION;
-	//}
-	//// <<< HORDE >>>
-
 	contents_t mask = G_GetClipMask(self);
-	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
+	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask] (const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end) {
 		return gi.trace(start, mins, maxs, end, self, mask);
-		});
+	});
 
 	if (result == stuck_result_t::NO_GOOD_POSITION)
 		return result;
@@ -1775,113 +1766,72 @@ stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 	return result;
 }
 
-void monster_start_go(edict_t* self)
+void monster_start_go(edict_t *self)
 {
+	// Paril: moved here so this applies to swim/fly monsters too
 	if (!(self->flags & FL_STATIONARY))
 	{
-		vec3_t check = self->s.origin; // Store original position before potential nudges
+		const vec3_t check = self->s.origin;
+
+		// [Paril-KEX] different nudge method; see if any of the bbox sides are clear,
+		// if so we can see how much headroom we have in that direction and shift us.
+		// most of the monsters stuck in solids will only be stuck on one side, which
+		// conveniently leaves only one side not in a solid; this won't fix monsters
+		// stuck in a corner though.
 		bool is_stuck = false;
 
-		// Determine if stuck (using appropriate method)
-		if ((self->monsterinfo.aiflags & AI_GOOD_GUY) || (self->flags & (FL_FLY | FL_SWIM))) {
-			// For good guys, flyers, swimmers: simple trace check
+		if ((self->monsterinfo.aiflags & AI_GOOD_GUY) || (self->flags & (FL_FLY | FL_SWIM)))
 			is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
-		}
-		else {
-			// For ground monsters: try dropping and walking
+		else
 			is_stuck = !M_droptofloor(self) || !M_walkmove(self, 0, 0);
-		}
-
 
 		if (is_stuck)
 		{
-			// Attempt G_FixStuckObject (which now runs for Horde monsters too)
-			// Pass 'check' which will be updated by G_FixStuckObject if it finds a fix.
-			stuck_result_t fix_result = G_FixStuckObject(self, check); // 'check' is updated by the function
-
-			// Re-check if still stuck *after* G_FixStuckObject attempt, using the potentially updated self->s.origin
-			// Only re-check if G_FixStuckObject didn't definitively fix it.
-			if (fix_result == stuck_result_t::NO_GOOD_POSITION || fix_result == stuck_result_t::GOOD_POSITION)
+			if (G_FixStuckObject(self, check) != stuck_result_t::NO_GOOD_POSITION)
 			{
-				// Re-evaluate stuck status based on current position
-				if ((self->monsterinfo.aiflags & AI_GOOD_GUY) || (self->flags & (FL_FLY | FL_SWIM))) {
+				if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 					is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
-				}
-				else if (!(self->flags & (FL_FLY | FL_SWIM))) {
-					// M_droptofloor was already attempted if needed by the initial check or G_FixStuckObject
-					// Only need to check walkmove again if not flying/swimming
-					is_stuck = !M_walkmove(self, 0, 0);
-				}
-				else {
-					is_stuck = false; // Flying/Swimming monsters don't use walkmove check here
-				}
-			}
-			else {
-				// G_FixStuckObject returned FIXED, so it's not stuck anymore
+				else if (!(self->flags & (FL_FLY | FL_SWIM)))
+					M_droptofloor(self);
 				is_stuck = false;
 			}
-
-			// --- REMOVED HORDE-SPECIFIC FLAGGING BLOCK ---
-			// The logic to set monsterinfo.was_stuck = true here for Horde monsters
-			// has been removed. CheckAndTeleportStuckMonster will handle flagging
-			// based on a startsolid check later in monster_think.
-			// --- END REMOVAL ---
 		}
 
-
-		// last ditch effort: brute force (Only for non-Horde monsters OR if Horde teleport flag wasn't set)
-		// This block now only runs if the monster is *still* considered stuck after the above checks
-		// (which means it's likely not a Horde monster, or the teleport flag logic failed somehow).
+		// last ditch effort: brute force
 		if (is_stuck)
 		{
-			constexpr const int32_t adjust[] = { 0, -16, 16, -32, 32, -64, 64 };
+			// Paril: try nudging them out. this fixes monsters stuck
+			// in very shallow slopes.
+			constexpr const int32_t adjust[] = { 0, -1, 1, -2, 2, -4, 4, -8, 8 };
 			bool					walked = false;
-			vec3_t original_pos_brute = self->s.origin; // Store position before brute force
 
-			for (int32_t z = 0; !walked && z < 7; z++) {
-				for (int32_t y = 0; !walked && y < 7; y++) {
-					for (int32_t x = 0; !walked && x < 7; x++)
+			for (int32_t y = 0; !walked && y < 3; y++)
+				for (int32_t x = 0; !walked && x < 3; x++)
+					for (int32_t z = 0; !walked && z < 3; z++)
 					{
-						self->s.origin[0] = original_pos_brute[0] + adjust[x];
-						self->s.origin[1] = original_pos_brute[1] + adjust[y];
-						self->s.origin[2] = original_pos_brute[2] + adjust[z];
-
+						self->s.origin[0] = check[0] + adjust[x];
+						self->s.origin[1] = check[1] + adjust[y];
+						self->s.origin[2] = check[2] + adjust[z];
+						
 						if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 						{
 							is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+
 							if (!is_stuck)
 								walked = true;
 						}
 						else if (!(self->flags & (FL_FLY | FL_SWIM)))
 						{
-							if (M_droptofloor(self)) // Check drop before walkmove
-								walked = M_walkmove(self, 0, 0);
+							M_droptofloor(self);
+							walked = M_walkmove(self, 0, 0);
 						}
-						// Flying/Swimming monsters don't use this brute force
 					}
-				}
-			}
-
-
-			if (!walked) { // If brute force failed, restore original position
-				self->s.origin = original_pos_brute;
-				is_stuck = true; // Mark as still stuck
-			}
-			else {
-				is_stuck = false; // Brute force succeeded
-			}
 		}
 
-		// Final warning print (Only if still stuck after all attempts)
-		if (is_stuck) {
-			// Use {} formatting for vec3_t
-			gi.Com_PrintFmt("WARNING: {} stuck in solid at {}\n", *self, self->s.origin);
-		}
+		if (is_stuck)
+			gi.Com_PrintFmt("WARNING: {} stuck in solid\n", *self);
+	}
 
-
-	} // end if (!FL_STATIONARY)
-
-	// --- Rest of monster_start_go (unchanged) ---
 	vec3_t v;
 
 	if (self->health <= 0)
@@ -1894,7 +1844,7 @@ void monster_start_go(edict_t* self)
 	{
 		bool	 notcombat;
 		bool	 fixup;
-		edict_t* target;
+		edict_t *target;
 
 		target = nullptr;
 		notcombat = false;
@@ -1912,7 +1862,7 @@ void monster_start_go(edict_t* self)
 			}
 		}
 		if (notcombat && self->combattarget)
-	//		gi.Com_PrintFmt("{}: has target with mixed types\n", *self, self->target);
+			gi.Com_PrintFmt("{}: has target with mixed types\n", *self);
 		if (fixup)
 			self->target = nullptr;
 	}
@@ -1920,7 +1870,7 @@ void monster_start_go(edict_t* self)
 	// validate combattarget
 	if (self->combattarget)
 	{
-		edict_t* target;
+		edict_t *target;
 
 		target = nullptr;
 		while ((target = G_FindByString<&edict_t::targetname>(target, self->combattarget)) != nullptr)
@@ -1968,7 +1918,7 @@ void monster_start_go(edict_t* self)
 		if (!spawn_dead)
 			self->monsterinfo.stand(self);
 	}
-
+	
 	if (spawn_dead)
 	{
 		// to spawn dead, we'll mimick them dying naturally
