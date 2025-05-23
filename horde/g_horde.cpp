@@ -4195,7 +4195,7 @@ void ResetCooldowns() noexcept {
     }
 }
 
-void ResetAllSpawnAttempts() noexcept {7
+void ResetAllSpawnAttempts() noexcept {
 	// Find all active spawn points and reset them
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
