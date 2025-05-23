@@ -291,16 +291,33 @@ void ApplySuccessfulAlternativeCooldown(edict_t* spawn_point) {
 	data.alternative_cooldown = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
 	if (developer->integer > 1) gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
 }
+
+// --- MODIFIED IncreaseSpawnAttempts ---
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	if (!spawn_point || !spawn_point->inuse) return;
 	auto& data = spawnPointsData[spawn_point];
-	if (level.time - data.lastSpawnTime > 6_sec) { data = {}; return; } // Reset if long time passed
+
+    // --- FIX: Less aggressive reset for inactive points ---
+	if (level.time - data.lastSpawnTime > 6_sec) { 
+        // Instead of data = {}, reset only relevant fields for a "fresh start"
+        // but try to preserve some long-term success info if desired.
+        // For now, let's just reset attempts and cooldown status.
+        data.attempts = 0;
+        data.isTemporarilyDisabled = false;
+        data.cooldownEndsAt = 0_sec;
+        // Optionally, update lastSpawnTime to now to mark this "reset" point
+        // data.lastSpawnTime = level.time; 
+        // Or, if you want to keep successfulSpawns, don't reset it.
+        // For this fix, we'll keep it simple and reset attempts/disabled.
+		return; 
+	}
+    // --- END FIX ---
 
 	data.attempts++;
 	const float success_rate = data.getSuccessRate(level.time);
 	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
 
-	gtime_t calculated_duration = 0_sec; // Initialize
+	gtime_t calculated_duration = 0_sec;
 
 	if (data.attempts >= max_attempts) {
 		data.isTemporarilyDisabled = true;
@@ -313,14 +330,13 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 		calculated_duration = gtime_t::from_sec(0.2f * data.attempts);
 	}
 
-	// Apply minimum duration clamp if a duration was calculated
 	if (calculated_duration > 0_sec) {
 		const gtime_t final_duration = std::max(calculated_duration, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
 		data.cooldownEndsAt = level.time + final_duration;
 	}
-	// No else needed, if no duration was calculated, cooldownEndsAt isn't set here
+    // Update lastSpawnTime on every attempt, successful or not, to track activity
+    data.lastSpawnTime = level.time;
 }
-
 void OnSuccessfulSpawn(edict_t* spawn_point) {
 	if (!spawn_point || !spawn_point->inuse) return;
 	auto& data = spawnPointsData[spawn_point];
@@ -1250,80 +1266,77 @@ void InitializeWaveType(int32_t waveLevel);
 
 static void Horde_InitLevel(const int32_t lvl) {
 
-	g_horde_retaliation_active = false;
-	g_horde_retaliation_end_time = 0_sec;
-	g_horde_retaliation_target_player = nullptr;
+    g_horde_retaliation_active = false;
+    g_horde_retaliation_end_time = 0_sec;
+    g_horde_retaliation_target_player = nullptr;
 
-	ResetChampionMonsterState();
+    ResetChampionMonsterState();
 
-	// Only initialize wave type for non-boss waves
-	if (!(lvl >= 10 && lvl % 5 == 0)) {
-		InitializeWaveType(lvl);
-	}
-	else {
-		current_wave_type = MonsterWaveType::None;  // Reset for boss waves
-	}
+    if (!(lvl >= 10 && lvl % 5 == 0)) { // If NOT a boss wave
+        InitializeWaveType(lvl);
+    }
+    else {                             // If IT IS a boss wave
+        current_wave_type = MonsterWaveType::None;
+    }
 
-	g_horde_local.update_map_size(GetCurrentMapName());
+    g_horde_local.update_map_size(GetCurrentMapName());
+    GetAdjustedMonsterCap(g_horde_local.current_map_size, lvl); // Sets g_adjusted_monster_cap
 
-	// ***** CALL GetAdjustedMonsterCap HERE *****
-	// This calculates the cap including the player bonus and stores it globally
-	GetAdjustedMonsterCap(g_horde_local.current_map_size, lvl);
+    g_independent_timer_start = level.time;
 
-	// Reset independent timer for this wave - this is critical for correct wave timing
-	g_independent_timer_start = level.time;
+    // g_totalMonstersInWave IS MOVED FURTHER DOWN
 
-	// Configuración de variables iniciales para el nivel
-	// Verify that we're not somehow about to overflow
-	if (g_horde_local.num_to_spawn > std::numeric_limits<uint16_t>::max())
-		g_horde_local.num_to_spawn = std::numeric_limits<uint16_t>::max();
+    last_wave_number++;
+    g_horde_local.level = lvl;
+    current_wave_level = lvl;
+    boss_spawned_for_wave = false;
+    next_wave_message_sent = false;
 
-	g_totalMonstersInWave = static_cast<uint16_t>(g_horde_local.num_to_spawn);
+    CleanupSpawnPointCache();
+    VerifyAndAdjustBots();
 
-	last_wave_number++;
-	g_horde_local.level = lvl;
-	current_wave_level = lvl;
-	boss_spawned_for_wave = false;
-	next_wave_message_sent = false;
+    g_independent_timer_start = level.time;
+    g_horde_local.conditionStartTime = 0_sec;
+    g_horde_local.conditionTriggered = false;
+    g_horde_local.waveEndTime = 0_sec;
+    g_horde_local.lastPrintTime = 0_sec;
 
-	CleanupSpawnPointCache();
-	VerifyAndAdjustBots();
+    g_lastParams = GetConditionParams(g_horde_local.current_map_size, GetNumHumanPlayers(), lvl);
 
-	// Configurar tiempos iniciales - reset all timing variables
-	g_independent_timer_start = level.time;
-	g_horde_local.conditionStartTime = 0_sec;
-	g_horde_local.conditionTriggered = false;
-	g_horde_local.waveEndTime = 0_sec;
-	g_horde_local.lastPrintTime = 0_sec;
+    for (size_t i = 0; i < 4; i++) {
+        g_horde_local.warningIssued[i] = false;
+    }
 
-	// Calculate fresh parameters for this wave - this fixes using stale parameters
-	g_lastParams = GetConditionParams(g_horde_local.current_map_size, GetNumHumanPlayers(), lvl);
+    if (developer->integer) {
+        gi.Com_PrintFmt("Debug: Wave {} init - Timer threshold: {:.2f}s\n",
+            lvl, g_lastParams.timeThreshold.seconds());
+    }
 
-	// Reset warning flags for time warnings
-	for (size_t i = 0; i < 4; i++) {
-		g_horde_local.warningIssued[i] = false;
-	}
+    // UnifiedAdjustSpawnRate sets g_horde_local.num_to_spawn and global SPAWN_POINT_COOLDOWN
+    UnifiedAdjustSpawnRate(g_horde_local.current_map_size, lvl, GetNumHumanPlayers());
 
-	if (developer->integer) {
-		gi.Com_PrintFmt("Debug: Wave {} init - Timer threshold: {:.2f}s\n",
-			lvl, g_lastParams.timeThreshold.seconds());
-	}
+    // ***** FIX: Set g_totalMonstersInWave AFTER num_to_spawn is determined *****
+    if (g_horde_local.num_to_spawn < 0) g_horde_local.num_to_spawn = 0; // Safety check
+    // Ensure num_to_spawn (int32_t) doesn't overflow uint16_t for g_totalMonstersInWave.
+    // ClampNumToSpawn (called within UnifiedAdjustSpawnRate) should already limit num_to_spawn.
+    g_totalMonstersInWave = static_cast<uint16_t>(
+        std::min(g_horde_local.num_to_spawn, static_cast<int32_t>(std::numeric_limits<uint16_t>::max()))
+    );
+    // Optional: If queued monsters should count towards the initial total for percentage calculations:
+    // g_totalMonstersInWave = static_cast<uint16_t>(
+    //    std::min(g_horde_local.num_to_spawn + g_horde_local.queued_monsters, 
+    //             static_cast<int32_t>(std::numeric_limits<uint16_t>::max()))
+    // );
+    // Based on current logic elsewhere, g_totalMonstersInWave seems to track only the immediate spawn pool.
 
-	// Ajustar la escala de daño según el nivel
-	// ... (damage scale switch remains the same) ...
-
-	// ***** UnifiedAdjustSpawnRate is called AFTER GetAdjustedMonsterCap *****
-	// It calculates the *initial* number of monsters and calls ClampNumToSpawn,
-	// which now uses the correct player-adjusted cap.
-	UnifiedAdjustSpawnRate(g_horde_local.current_map_size, lvl, GetNumHumanPlayers());
-
-	CheckAndApplyBenefit(lvl);
-	ResetAllSpawnAttempts();
-	ResetCooldowns();
-	Horde_CleanBodies();
-
-	//gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
+    CheckAndApplyBenefit(lvl);
+    // ResetAllSpawnAttempts(); // This is now redundant if ResetCooldowns (revised) does a full SpawnPointData{} reset.
+    ResetCooldowns();          // Call the REVISED ResetCooldowns. It resets individual spawn point data
+                               // and the two specific trackers (g_monsterSpawnTracker, g_spawnPointTimeTracker).
+                               // It NO LONGER sets the global SPAWN_POINT_COOLDOWN.
+    Horde_CleanBodies();
 }
+
 bool G_IsDeathmatch() noexcept {
 	return deathmatch->integer;
 }
@@ -3616,7 +3629,7 @@ void InitializeBossMessages() {
 	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_KL)] = "***** Boss incoming! Gunner Commander has you in his sights! *****\n";
 	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] = "***** Boss incoming! Makron is here to personally finish you off! *****\n";
 	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] = "***** Boss incoming! The Enhanced Guardian is ready to spam rockets! *****\n";
-	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] = "***** Boss incoming! Super-Tank is here to show Strogg's might! *****\n";
+	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] = "***** Boss incoming! Super-Tank is here to show it's might! *****\n";
 	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW2)] = "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n";
 	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] = "***** Boss incoming! Arachnid is here *****\n";
 	g_bossMessagesArray[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] = "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n";
@@ -3704,134 +3717,129 @@ inline std::pair<MonsterWaveType, const char*> GetBossWaveType(horde::MonsterTyp
 	return { MonsterWaveType::Medium, "\n\n\nDefault wave incoming!\n" };
 }
 
+// --- REVISED CheckAndTeleportBoss ---
 bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTeleportReason::DROWNING) {
-	// Early returns - unchanged
-	if (!self || !self->inuse || self->deadflag ||
-		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
-		return false;
-
-	// Get TypeID once instead of multiple string comparisons
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) return false;
-	// Cache map name once to reduce string comparisons
-	static std::string last_map_name;
-	static horde::MapID cached_map_id = horde::MapID::UNKNOWN;
-
-	// Only look up map ID if the map has changed
-	const char* current_map = GetCurrentMapName();
-	if (last_map_name != current_map) {
-		last_map_name = current_map;
-		cached_map_id = horde::MapOriginRegistry::GetMapID(current_map);
-
-		// If map not found, cache the UNKNOWN ID for quick rejection
-		if (cached_map_id == horde::MapID::UNKNOWN)
-			return false;
-	}
-	else if (cached_map_id == horde::MapID::UNKNOWN) {
-		// Use cached failure result
+	PROFILE_SCOPE("CheckAndTeleportBoss");
+	if (level.intermissiontime) {
+		// if (developer->integer > 1) gi.Com_PrintFmt("CTB: Early exit - level.intermissiontime.\n");
 		return false;
 	}
 
-	// Get the origin and use it directly
-	vec3_t spawn_origin;
-	if (!horde::MapOriginRegistry::GetOrigin(cached_map_id, spawn_origin)) {
+	if (!self) {
+		// if (developer->integer) gi.Com_PrintFmt("CTB: Early exit - self is null.\n");
 		return false;
 	}
-
-	// Select appropriate cooldown based on reason - use constexpr for compiler optimization
-	constexpr gtime_t DROWNING_COOLDOWN = 1_sec;
-	constexpr gtime_t TRIGGER_COOLDOWN = 3_sec;
-
-	const gtime_t selected_cooldown = reason == BossTeleportReason::DROWNING ?
-		DROWNING_COOLDOWN : TRIGGER_COOLDOWN;
-
-	// Check if recently teleported
-	if (self->teleport_time && level.time < self->teleport_time + selected_cooldown)
-		return false;
-
-	// Verify spawn point validity
-	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin)
-		return false;
-
-	// Hide from clients before teleport attempt
-	self->svflags |= SVF_NOCLIENT;
-	gi.unlinkentity(self);
-
-	// Store current velocity and origin
-	const vec3_t old_velocity = self->velocity;
-	const vec3_t old_origin = self->s.origin;
-
-	// Attempt teleport
-	self->s.origin = spawn_origin;
-	self->s.old_origin = spawn_origin;
-	self->velocity = vec3_origin;
-
-	// Check if new position is valid - use early returns for performance
-	bool teleport_success = true;
-	if (!(self->flags & (FL_FLY | FL_SWIM))) {
-		teleport_success = M_droptofloor(self);
-		if (!teleport_success) {
-			// Restore on failure
-			self->s.origin = old_origin;
-			self->s.old_origin = old_origin;
-			self->velocity = old_velocity;
-			self->svflags &= ~SVF_NOCLIENT;
-			gi.linkentity(self);
-			return false;
+	if (!self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS || !g_horde || !g_horde->integer) {
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("CTB: Early exit for {}. InUse:{} Dead:{} IsBoss:{} HordeInt:{}\n",
+				self->classname ? self->classname : "NO_CLASSNAME",
+				self->inuse, self->deadflag, self->monsterinfo.IS_BOSS,
+				g_horde ? g_horde->integer : -1);
 		}
-	}
-
-	// Check collisions at new position
-	// FIXME better?
-	//using this better? contents_t check_mask = G_GetClipMask(self); // Get the self's potentially modified mask
-
-	if (gi.trace(self->s.origin, self->mins, self->maxs,
-		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
-		// Restore on failure
-		self->s.origin = old_origin;
-		self->s.old_origin = old_origin;
-		self->velocity = old_velocity;
-		self->svflags &= ~SVF_NOCLIENT;
-		gi.linkentity(self);
 		return false;
 	}
 
-	// Make visible again before effects
-	self->svflags &= ~SVF_NOCLIENT;
-	gi.linkentity(self);
-
-	// Visual and sound effects based on reason - use cached display name
-	static std::string cached_name;
-	if (cached_name.empty() || self->client) {
-		cached_name = GetDisplayName(self);
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) {
+		// if (developer->integer > 1) gi.Com_PrintFmt("CTB: Early exit - {} is misc_insane or turret.\n", self->classname);
+		return false;
 	}
 
-	// Sound effects and messages based on reason
+	static std::string last_map_name_boss_teleport;
+	static horde::MapID cached_map_id_boss_teleport = horde::MapID::UNKNOWN;
+	const char* current_map = GetCurrentMapName();
+
+	if (last_map_name_boss_teleport != current_map) {
+		last_map_name_boss_teleport = current_map;
+		cached_map_id_boss_teleport = horde::MapOriginRegistry::GetMapID(current_map);
+	}
+	if (cached_map_id_boss_teleport == horde::MapID::UNKNOWN) {
+		if (developer->integer > 1) gi.Com_PrintFmt("CTB: MapID unknown for {}, cannot get teleport origin.\n", current_map);
+		return false;
+	}
+
+	vec3_t destination_origin;
+	if (!horde::MapOriginRegistry::GetOrigin(cached_map_id_boss_teleport, destination_origin)) {
+		if (developer->integer > 1) gi.Com_PrintFmt("CTB: Failed to get MapOriginRegistry origin for map_id {}.\n", (int)cached_map_id_boss_teleport);
+		return false;
+	}
+	if (!is_valid_vector(destination_origin) || destination_origin == vec3_origin) {
+		if (developer->integer > 1) gi.Com_PrintFmt("CTB: Invalid destination_origin ({},{},{}) from MapOriginRegistry.\n", destination_origin.x, destination_origin.y, destination_origin.z);
+		return false;
+	}
+	vec3_t destination_angles = self->s.angles;
+	destination_angles.x = 0;
+	destination_angles.z = 0;
+    constexpr gtime_t TRIGGER_HURT_RETRIGGER_COOLDOWN = 0.1_sec;
+	constexpr gtime_t DROWNING_COOLDOWN_BOSS = 1_sec;
+	const gtime_t selected_trigger_cooldown = (reason == BossTeleportReason::DROWNING) ? DROWNING_COOLDOWN_BOSS : TRIGGER_HURT_RETRIGGER_COOLDOWN; // Assuming TRIGGER_HURT_RETRIGGER_COOLDOWN is defined
+
+	static gtime_t last_boss_teleport_attempt_time[MAX_EDICTS] = {};
+	const int boss_edict_num = self - g_edicts;
+
+	if (level.time < last_boss_teleport_attempt_time[boss_edict_num] + selected_trigger_cooldown) {
+		if (developer->integer > 1) {
+            // Print components of gtime_t or its .seconds() value
+            gtime_t cooldown_remaining = (last_boss_teleport_attempt_time[boss_edict_num] + selected_trigger_cooldown) - level.time;
+            gi.Com_PrintFmt("CTB: Boss {} on REASON-specific cooldown. Remaining: {:.2f}s\n",
+                self->classname ? self->classname : "UNKNOWN",
+                cooldown_remaining.seconds());
+        }
+		return false;
+	}
+	if (self->teleport_time > level.time) {
+        if (developer->integer > 1) {
+            gtime_t cooldown_remaining = self->teleport_time - level.time;
+            gi.Com_PrintFmt("CTB: Boss {} on general monster teleport cooldown. Remaining: {:.2f}s\n",
+                self->classname ? self->classname : "UNKNOWN",
+                cooldown_remaining.seconds());
+        }
+        return false;
+    }
+
+    last_boss_teleport_attempt_time[boss_edict_num] = level.time;
+
+    bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING);
+
+	if (developer->integer > 1) {
+        gi.Com_PrintFmt("CTB: Attempting Horde_TeleportMonster for boss {} to ({},{},{}) (ForceVisible: {})\n",
+            self->classname ? self->classname : "UNKNOWN",
+            destination_origin.x, destination_origin.y, destination_origin.z,
+            force_teleport);
+    }
+
+	if (!Horde_TeleportMonster(self, destination_origin, destination_angles, false /* play_effects */, force_teleport)) {
+		if (developer->integer > 1) gi.Com_PrintFmt("CTB: Horde_TeleportMonster returned false for boss {}.\n", self->classname ? self->classname : "UNKNOWN");
+		return false;
+	}
+
+	std::string boss_display_name = GetDisplayName(self);
+
 	switch (reason) {
 	case BossTeleportReason::DROWNING:
-		gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", cached_name.c_str());
+		if (sound_tele3) gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", boss_display_name.c_str());
 		break;
 	case BossTeleportReason::TRIGGER_HURT:
-		gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", cached_name.c_str());
+		if (sound_tele_up) gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", boss_display_name.c_str());
 		break;
 	}
+	SpawnGrow_Spawn(self->s.origin, 100.0f, 15.0f);
+	PushEntitiesAway(self->s.origin, 3, 600.0f, 1200.0f, 4000.0f, 1800.0f);
 
-	SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-	self->teleport_time = level.time;
-
-	// Push away nearby entities
-	PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
-
-	// Restore some health if heavily damaged - use multiplication instead of division
-	if (self->health < (self->max_health >> 2)) { // Bit shift is faster than division by 4
+	if (self->health < (self->max_health >> 2)) {
 		self->health = (self->max_health >> 2);
 	}
 
+	MarkPositionAsRecentlyTeleported(destination_origin);
+
 	if (developer->integer) {
 		const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
-		gi.Com_PrintFmt("Boss teleported due to {} to: {}\n", reason_str, self->s.origin);
+		gi.Com_PrintFmt("CTB: Boss {} successfully teleported due to {} to ({},{},{}).\n",
+            self->classname ? self->classname : "UNKNOWN",
+            reason_str,
+            self->s.origin.x, self->s.origin.y, self->s.origin.z);
 	}
 
 	return true;
@@ -4165,51 +4173,29 @@ void ClearHordeMessage() {
 }
 
 // reset cooldowns, fixed no monster spawning on next map
-// En UnifiedAdjustSpawnRate y ResetCooldowns:
 void ResetCooldowns() noexcept {
-	// Reset data for all *active* spawn points
-	for (edict_t* spawnPoint : monster_spawn_points()) {
-		// Check if the pointer is valid (monster_spawn_points should guarantee inuse)
-		if (spawnPoint) {
-			// Direct array access is safe here as spawnPoint is a valid edict
-			spawnPointsData[spawnPoint] = SpawnPointData{}; // Reset to default values
-		}
-	}
+    // Reset data for all *active* spawn points
+    for (edict_t* spawnPoint : monster_spawn_points()) {
+        if (spawnPoint && spawnPoint->inuse) { // Added explicit inuse check for safety
+            spawnPointsData[spawnPoint] = SpawnPointData{}; // Full reset of individual data
+        }
+    } // Ensure this brace is correctly placed
 
-	// Reset global trackers
-	horde::g_monsterSpawnTracker.Reset();
-	horde::g_spawnPointTimeTracker.Reset();
+    // Reset global trackers
+    horde::g_monsterSpawnTracker.Reset();
+    horde::g_spawnPointTimeTracker.Reset();
 
-	// Recalculate global SPAWN_POINT_COOLDOWN based on current state (level 0 likely after reset)
-	const horde::MapSize& mapSize = g_horde_local.current_map_size; // Assumes g_horde_local is reset
-	const int32_t currentLevel = g_horde_local.level;             // Should be 0 after ResetGame
-	const int32_t humanPlayers = GetNumHumanPlayers();
+    // DO NOT recalculate global SPAWN_POINT_COOLDOWN here.
+    // It's managed by:
+    // 1. ResetAllSpawnPointDataAndTrackers() during full game init.
+    // 2. UnifiedAdjustSpawnRate() during per-wave init (Horde_InitLevel).
 
-	// Get base cooldown based on map size
-	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
-
-	// Apply scale based on level (will be minimal for level 0)
-	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
-	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
-
-	// Additional adjustments (will have minimal effect at level 0)
-	if (humanPlayers > 1) {
-		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
-		SPAWN_POINT_COOLDOWN *= playerAdjustment;
-	}
-
-	// Difficulty mode adjustments (should be off after reset)
-	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
-		SPAWN_POINT_COOLDOWN *= 0.95f;
-	}
-
-	// Apply absolute limits (using constants from HordeConstants namespace)
-	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
-		HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN,
-		3.0_sec); // Keep upper bound reasonable
+    if (developer->integer > 1) {
+         gi.Com_PrintFmt("ResetCooldowns: Individual spawn point data and specific trackers reset.\n");
+    }
 }
 
-void ResetAllSpawnAttempts() noexcept {
+void ResetAllSpawnAttempts() noexcept {7
 	// Find all active spawn points and reset them
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
@@ -4267,6 +4253,53 @@ static void ResetTeleportTracking() noexcept {
 	}
 }
 
+static void ResetAllSpawnPointDataAndTrackers() {
+    // 1. Reset data for all potential spawn points
+    // Iterate all edicts to find spawn points, similar to ResetAllSpawnAttempts
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent && ent->inuse && ent->classname &&
+			!strcmp(ent->classname, "info_player_deathmatch")) {
+			spawnPointsData[ent] = SpawnPointData{}; // Reset to default values
+		}
+	}
+    // If you prefer to iterate only known spawn points (e.g., from monster_spawn_points()):
+    // for (edict_t* spawnPoint : monster_spawn_points()) {
+    //     if (spawnPoint) { // monster_spawn_points() should ensure inuse
+    //         spawnPointsData[spawnPoint] = SpawnPointData{};
+    //     }
+    // }
+
+    // 2. Reset global trackers
+	horde::g_monsterSpawnTracker.Reset();
+	horde::g_spawnPointTimeTracker.Reset();
+
+    // 3. Recalculate global SPAWN_POINT_COOLDOWN
+    // (Assuming g_horde_local is already reset or will be reset by the caller)
+	const horde::MapSize& mapSize = g_horde_local.current_map_size;
+	const int32_t currentLevel = g_horde_local.level; // Should be 0 after ResetGame
+	const int32_t humanPlayers = GetNumHumanPlayers();
+
+	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
+	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
+
+	if (humanPlayers > 1) {
+		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
+		SPAWN_POINT_COOLDOWN *= playerAdjustment;
+	}
+	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
+		SPAWN_POINT_COOLDOWN *= 0.95f;
+	}
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
+		HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN,
+		3.0_sec);
+
+    if (developer->integer > 1) {
+        gi.Com_PrintFmt("ResetAllSpawnPointDataAndTrackers: Complete. Global Cooldown: %.2fs\n", SPAWN_POINT_COOLDOWN.seconds());
+    }
+}
+
 void ResetGame() {
 	if (hasBeenReset) {
 		if (developer && developer->integer > 1) {
@@ -4284,66 +4317,62 @@ void ResetGame() {
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
-	// --- MODIFIED: LaserManager Cleanup (Using unique_ptr::reset) ---
 	for (size_t i = 0; i < game.maxclients; ++i) {
-		// Check if the unique_ptr holds an object before trying to reset
 		if (game.clients[i].laser_manager) {
 			if (developer && developer->integer > 1) {
 				gi.Com_PrintFmt("Resetting PlayerLaserManager for client slot {} during ResetGame\n", i);
 			}
-			// reset() deletes the managed object and sets the unique_ptr to null
 			game.clients[i].laser_manager.reset();
 		}
 	}
-	// --- END MODIFIED ---
 
-// Reset Recent Spawn Position Tracking
-	std::fill(g_recent_spawn_positions.begin(), g_recent_spawn_positions.end(), RecentSpawnPosition{}); // Zero out the array
-	g_recent_position_index = 0; // Reset the index
+	std::fill(g_recent_spawn_positions.begin(), g_recent_spawn_positions.end(), RecentSpawnPosition{});
+	g_recent_position_index = 0;
+	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{});
+	g_recent_teleport_index = 0;
 
-	// Reset Recent Teleport Position Tracking
-	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{}); // Zero out the array
-	g_recent_teleport_index = 0; // Reset the index
-
-	HordeConstants::recent_teleport_count = 0; // Reset the counter (might need HordeConstants:: if namespaced)
-	HordeConstants::g_teleport_rate_reset_time = level.time; // Reset the timer base (might need HordeConstants::)
+	HordeConstants::recent_teleport_count = 0;
+	HordeConstants::g_teleport_rate_reset_time = level.time;
 
 	ResetTeleportTracking();
 	ResetRecentBosses();
 	ResetAmbushSystem();
 	ResetWaveMemory();
 	ResetChampionMonsterState();
-	ResetBosses(); // Clears auto_spawned_bosses set
+	ResetBosses();
 
 	g_adjusted_monster_cap = 0;
-	spawn_point_cache.clear();
+	// spawn_point_cache.clear(); // This is handled by CleanupSpawnPointCache
 	consistent_zero_counts = 0;
 	counter_mismatch_frames = 0;
 	horde_message_end_time = 0_sec;
 	g_totalMonstersInWave = 0;
 	g_maxMonstersReached = false;
 	g_lowPercentageTriggered = false;
-	CleanupSpawnPointCache();
-	spawnPointsData.clear();
-	horde::g_monsterSpawnTracker.Reset();
-	horde::g_spawnPointTimeTracker.Reset();
+	
+    CleanupSpawnPointCache(); // Clears spawn_point_cache
 
-	need_spawn_cache_reset = true;
+    // --- FIX: Call the new consolidated reset function ---
+	ResetAllSpawnPointDataAndTrackers();
+    // --- END FIX ---
+    // Note: spawnPointsData.clear(), ResetAllSpawnAttempts(), ResetCooldowns() are now covered by the above.
+
+	need_spawn_cache_reset = true; // For g_potential_spawn_points cache
 	need_frame_timer_reset = true;
-	need_queue_monitor_reset = true;
-	g_consecutive_spawn_failures = 0; // Reset failure counter
-	g_recovery_mode_active = false; // Reset recovery mode flag
-	g_original_wave_type_before_recovery = MonsterWaveType::None; // Reset saved wave type
+	need_queue_monitor_reset = true; // Assuming this resets other queue-specific logic not covered
+	g_consecutive_spawn_failures = 0;
+	g_recovery_mode_active = false;
+	g_original_wave_type_before_recovery = MonsterWaveType::None;
 
 	g_horde_local = HordeState();
 	current_wave_level = 0;
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 	allowWaveAdvance = false;
-	SPAWN_POINT_COOLDOWN = 2.8_sec;
+	// SPAWN_POINT_COOLDOWN is set in ResetAllSpawnPointDataAndTrackers
 
-	ResetAllSpawnAttempts();
-	ResetCooldowns();
+	// ResetAllSpawnAttempts(); // Now covered by ResetAllSpawnPointDataAndTrackers
+	// ResetCooldowns();       // Now covered by ResetAllSpawnPointDataAndTrackers
 	ResetBenefits();
 	ResetWaveAdvanceState();
 
@@ -5106,7 +5135,9 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 
-// --- Modified CheckAndTeleportStuckMonster ---
+// In g_horde.cpp
+
+// --- MODIFIED CheckAndTeleportStuckMonster ---
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 	if (level.intermissiontime) return false;
@@ -5123,22 +5154,21 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (HordeConstants::recent_teleport_count >= max_teleports) {
 		return false; // Global rate limit reached
 	}
-	if (!self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer) return false;
+	if (!self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde || !g_horde->integer) return false;
 	if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret")) return false;
 	if (self->monsterinfo.issummoned) return false;
 	// --- End Rate Limiting & Basic Validation ---
 
-
-	bool attempt_teleport_now = false; // Flag to trigger teleport attempt
+	bool attempt_teleport_now = false;
 
 	// --- Drowning Check ---
     if (self->waterlevel > 0) {
         bool can_see_target = false;
-        if (self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) { // Assuming visible() exists and works
+        if (self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
             can_see_target = true;
         } else {
             for (auto* player : active_players_no_spect()) {
-                if (player && player->inuse && visible(self, player, false)) { // Assuming visible() exists and works
+                if (player && player->inuse && visible(self, player, false)) {
                     can_see_target = true;
                     break;
                 }
@@ -5146,100 +5176,78 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
         }
         if (!can_see_target) {
             attempt_teleport_now = true;
-            if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} drowning, flagging for immediate teleport.\n", self->classname);
+            if (developer->integer > 1) gi.Com_PrintFmt("CATS: {} drowning, flagging for immediate teleport.\n", self->classname);
         } else {
-            // If drowning but can see target, don't teleport and reset stuck flag
             self->monsterinfo.was_stuck = false;
             self->monsterinfo.stuck_check_time = 0_sec;
-            // Also reset teleport cooldown so it can try again if it loses sight
-            self->teleport_time = level.time;
+            self->teleport_time = level.time; 
         }
     }
 	// --- End Drowning Check ---
 
-	// --- Standard Stuck/Cooldown Checks (if not drowning) ---
-	if (!attempt_teleport_now) { // Only run if not already flagged for drowning teleport
-		if (self->teleport_time > level.time) return false; // Individual cooldown
+	// --- Standard Stuck/Cooldown Checks ---
+	if (!attempt_teleport_now) {
+		if (self->teleport_time > level.time) return false;
 
-		// Check if physically stuck in ACTUAL WORLD GEOMETRY
-		// Use MASK_SOLID to ignore other monsters/players for this specific check.
-		const bool is_stuck_in_geometry = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid; // <-- CHANGED MASK
-
+		const bool is_stuck_in_geometry = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid;
 		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= HordeConstants::NO_DAMAGE_TIMEOUT;
 
-		// If previously flagged but NOT currently stuck in geometry, reset the flag.
 		if (self->monsterinfo.was_stuck && !is_stuck_in_geometry) {
 			self->monsterinfo.was_stuck = false;
 			self->monsterinfo.stuck_check_time = 0_sec;
 			if (developer->integer > 1) {
-				gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Resetting 'was_stuck' for {} as it's no longer in geometry.\n", self->classname);
+				gi.Com_PrintFmt("CATS: Resetting 'was_stuck' for {} as it's no longer in geometry.\n", self->classname);
 			}
 		}
 
-		// Monster must be physically stuck in geometry OR timed out OR previously flagged (and still stuck or just flagged)
 		if (!is_stuck_in_geometry && !no_damage_timeout && !self->monsterinfo.was_stuck) {
-			 return false; // Not meeting any stuck criteria
+			 return false;
 		}
 
-		// If it just met the criteria now (and wasn't already flagged), start the timer
-		// Note: This condition is now only met if is_stuck_in_geometry or no_damage_timeout is true,
-		// because the block above resets was_stuck if !is_stuck_in_geometry.
-		if (!self->monsterinfo.was_stuck) {
+		if (!self->monsterinfo.was_stuck && (is_stuck_in_geometry || no_damage_timeout)) {
 			self->monsterinfo.stuck_check_time = level.time;
 			self->monsterinfo.was_stuck = true;
+            if (developer->integer > 1) gi.Com_PrintFmt("CATS: {} now flagged as stuck. StuckInGeom: {}, NoDmgTimeout: {}\n", self->classname, is_stuck_in_geometry, no_damage_timeout);
 		}
 
-        // Check for immediate teleport condition (stuck right after spawning)
 		bool attempt_immediate_teleport_spawn = false;
         if (self->monsterinfo.was_stuck && self->monsterinfo.stuck_check_time > 0_sec) {
-            constexpr gtime_t SPAWN_STUCK_IMMEDIATE_THRESHOLD = 0.5_sec; // 500ms grace period after spawn
-		    // Check if current time is very close to the time the stuck flag was set
-            // This implies it got stuck very recently, likely during its spawn process
+            constexpr gtime_t SPAWN_STUCK_IMMEDIATE_THRESHOLD = 0.5_sec;
             attempt_immediate_teleport_spawn = (level.time < self->monsterinfo.stuck_check_time + SPAWN_STUCK_IMMEDIATE_THRESHOLD);
             if(attempt_immediate_teleport_spawn && developer->integer > 1) {
-                 gi.Com_PrintFmt("CheckAndTeleportStuckMonster: {} potentially stuck on spawn. Flagging for immediate teleport check.\n", self->classname);
+                 gi.Com_PrintFmt("CATS: {} potentially stuck on spawn. Flagging for immediate teleport check.\n", self->classname);
             }
         }
 
-        // Check if immediate teleport is needed OR the standard stuck duration has passed
 		if (attempt_immediate_teleport_spawn ||
             (self->monsterinfo.was_stuck && level.time >= self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME))
         {
             attempt_teleport_now = true;
         }
 		else if (self->monsterinfo.was_stuck) {
-             return false; // Stuck, but still within the grace period
+             return false; 
         }
-        // No else needed, attempt_teleport_now remains false if none of the above conditions met
 	}
 	// --- End Standard Stuck/Cooldown Checks ---
 
-	// If no condition triggered a teleport attempt this frame, exit
 	if (!attempt_teleport_now) return false;
 
-    // *** NEW CHECK: Prevent teleport if actively attacking ***
-    // (The visible enemy check is already handled inside Horde_TeleportMonster)
     bool is_attacking = (self->enemy && self->enemy->inuse && self->monsterinfo.attack_finished > level.time);
-
     if (is_attacking) {
         if (developer->integer > 1) {
-            gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Skipping teleport for {} - Attacking (Enemy: {}, AttackFinished: {:.2f})\n",
-                self->classname, GetPlayerName(self->enemy).c_str(), self->monsterinfo.attack_finished.seconds());
+            gi.Com_PrintFmt("CATS: Skipping teleport for {} - Attacking. Will re-evaluate.\n", self->classname);
         }
-        // Reset stuck state so it can re-evaluate if it remains stuck after attacking
-        self->monsterinfo.was_stuck = false;
-        self->monsterinfo.stuck_check_time = 0_sec;
-        // Reset the teleport cooldown so it can try again soon if it stops attacking
-        self->teleport_time = level.time;
-        return false; // Don't teleport this frame
+        const bool is_stuck_in_geometry_for_attack_check = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid;
+        if (!is_stuck_in_geometry_for_attack_check) {
+            self->monsterinfo.was_stuck = false;
+            self->monsterinfo.stuck_check_time = 0_sec;
+        }
+        self->teleport_time = level.time; // Allow quick re-check after attack
+        return false;
     }
-    // *** END NEW CHECK ***
 
-
-	// *** Random chance to skip teleport attempt for staggering ***
-	if (frandom() < 0.4f) { // 40% chance to skip this frame's attempt
-		if (developer->integer > 2) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Randomly skipped teleport attempt for {}.\n", self->classname);
-		// Don't reset was_stuck here, let it try again next frame if still stuck and inactive
+	if (frandom() < 0.4f) {
+		if (developer->integer > 2) gi.Com_PrintFmt("CATS: Randomly skipped teleport attempt for {}.\n", self->classname);
 		return false;
 	}
 
@@ -5247,97 +5255,85 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	bool teleported = false;
 	vec3_t final_dest_origin = vec3_origin;
 	vec3_t final_dest_angles = vec3_origin;
-	edict_t* used_spawn_point = nullptr; // Track if a spawn point was used for cooldown
+	edict_t* used_spawn_point = nullptr;
 
-	// Determine if we should try emergency teleport near player
 	float teleport_chance = 0.01f;
 	if (current_wave_level > 5) {
 		if (AreHumanPlayersPresent()) teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.003f, 0.08f);
 		else teleport_chance = std::min(0.01f + (current_wave_level - 5) * 0.002f, 0.05f);
 	}
-	const bool use_player_teleport = (frandom() < teleport_chance) && AreHumanPlayersPresent(); // Only if players exist
+	const bool use_player_teleport = (frandom() < teleport_chance) && AreHumanPlayersPresent();
 
-	// --- Try Emergency Teleport Near Player ---
 	if (use_player_teleport) {
 		vec3_t emergency_origin, emergency_angles;
 		bool teleported_to_human = false;
-		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-
-		if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, teleported_to_human, typeId)) {
+		horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+		if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, teleported_to_human, monsterTypeId)) {
 			final_dest_origin = emergency_origin;
 			final_dest_angles = emergency_angles;
-			// Don't set teleported = true yet, need to check proximity and offset
+            if (developer->integer > 1) gi.Com_PrintFmt("CATS: Found emergency player-based spot for {}: {}\n", self->classname, final_dest_origin);
 		}
 	}
 
-	// --- Try Standard Spawn Point Teleport (if emergency failed or wasn't tried) ---
-	if (final_dest_origin == vec3_origin) { // Check if emergency destination wasn't found
+	if (final_dest_origin == vec3_origin) { // If player-based teleport wasn't used or failed
 		StuckMonsterSpawnFilter filter;
 		const edict_t* const spawn_point = SelectRandomSpawnPoint(filter);
 		if (spawn_point) {
 			final_dest_origin = spawn_point->s.origin;
 			final_dest_angles = spawn_point->s.angles;
-			used_spawn_point = const_cast<edict_t*>(spawn_point); // Store for cooldown
-			// Don't set teleported = true yet
+			used_spawn_point = const_cast<edict_t*>(spawn_point);
+            if (developer->integer > 1) gi.Com_PrintFmt("CATS: Found spawn point spot for {}: {}\n", self->classname, final_dest_origin);
 		}
 	}
 
-	// --- Validate and Potentially Offset the Chosen Destination ---
-	if (final_dest_origin != vec3_origin) { // Check if *any* destination was found
-		// Check proximity to recent teleports *before* offsetting
+	if (final_dest_origin != vec3_origin) { // If any destination was found
 		if (!IsPositionTooCloseToRecentTeleport(final_dest_origin)) {
 			vec3_t potential_dest = final_dest_origin;
 			bool use_offset_dest = false;
-
-			// Attempt small random offset
+			
+            // Try small random offset from the chosen destination
+            // This helps if the base destination (e.g. spawn point center) is slightly problematic
+            // but nearby areas are fine.
 			constexpr float MAX_OFFSET_RADIUS = 24.0f;
 			vec3_t offset = { frandom(-MAX_OFFSET_RADIUS, MAX_OFFSET_RADIUS), frandom(-MAX_OFFSET_RADIUS, MAX_OFFSET_RADIUS), 0 };
-			vec3_t offset_dest = final_dest_origin + offset;
+			vec3_t offset_candidate_dest = final_dest_origin + offset;
+            vec3_t validated_offset_dest = offset_candidate_dest; // For IsValidSpawnLocation
 
-			// Validate the *offset* position
-			if (IsValidSpawnLocation(offset_dest, self->mins, self->maxs, IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname)))) {
-				// Check proximity of the offset position too
-				if (!IsPositionTooCloseToRecentTeleport(offset_dest)) {
-					potential_dest = offset_dest; // Use the valid offset position
+			if (IsValidSpawnLocation(validated_offset_dest, self->mins, self->maxs, IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname)))) {
+				if (!IsPositionTooCloseToRecentTeleport(validated_offset_dest)) { // Check offset pos too
+					potential_dest = validated_offset_dest; 
 					use_offset_dest = true;
-					if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Using offset destination {} for {}.\n", potential_dest, self->classname);
+					if (developer->integer > 1) gi.Com_PrintFmt("CATS: Using offset destination {} for {}.\n", potential_dest, self->classname);
 				}
 			}
+            // If offset failed or wasn't better, potential_dest remains final_dest_origin (the original chosen spot)
 
-			// If offset failed or wasn't better, potential_dest remains final_dest_origin
-			// Now, teleport to the 'potential_dest' (which is either original or offset)
-			// Horde_TeleportMonster internally checks for visible enemy before completing the teleport.
-			teleported = Horde_TeleportMonster(self, potential_dest, final_dest_angles, true);
-
+            // Call Horde_TeleportMonster. For stuck monsters, we usually don't force despite visibility.
+			teleported = Horde_TeleportMonster(self, potential_dest, final_dest_angles, true /* play_effects */, false /* force_despite_visibility */);
+			
 			if (teleported) {
 				MarkPositionAsRecentlyTeleported(potential_dest); // Mark the actual final spot
-				if (used_spawn_point && !use_offset_dest) { // Apply cooldown only if original spawn point was used
+				if (used_spawn_point && !use_offset_dest) { // Cooldown original spawn point only if it was directly used
 					spawnPointsData[used_spawn_point].teleport_cooldown = level.time + 3.5_sec;
 				}
-				if (developer->integer) gi.Com_PrintFmt("Monster teleported (stuck/emergency) via Horde_TeleportMonster: {}\n", self->classname);
+				if (developer->integer) gi.Com_PrintFmt("CATS: Monster {} teleported (stuck/emergency) via Horde_TeleportMonster to {}.\n", self->classname, potential_dest);
 			} else {
-                 // Horde_TeleportMonster returned false, likely due to visible enemy or validation fail inside it.
                  if (developer->integer > 1) {
-                    gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Horde_TeleportMonster call failed for {} at {}. Visible enemy or validation issue?\n",
+                    gi.Com_PrintFmt("CATS: Horde_TeleportMonster call failed for {} at {}. Visible enemy or validation issue?\n",
                        self->classname, potential_dest);
                  }
-                 // Horde_TeleportMonster already resets the teleport cooldown if it fails due to visible enemy.
             }
 		} else {
-			if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Chosen destination {} too close to recent teleport, skipping.\n", final_dest_origin);
+			if (developer->integer > 1) gi.Com_PrintFmt("CATS: Chosen destination {} for {} too close to recent teleport, skipping.\n", final_dest_origin, self->classname);
 		}
 	} else {
-		if (developer->integer > 1) gi.Com_PrintFmt("CheckAndTeleportStuckMonster: Failed to find any suitable teleport destination for {}.\n", self->classname);
+		if (developer->integer > 1) gi.Com_PrintFmt("CATS: Failed to find any suitable teleport destination for {}.\n", self->classname);
 	}
-	// --- End Destination Validation and Offsetting ---
 
-
-	// --- Post-Teleport Fixes & State Reset ---
 	if (teleported) {
-		// Apply specific fixes (Stalker/Spider)
-		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-		if (typeId == horde::MonsterTypeID::STALKER || typeId == horde::MonsterTypeID::SPIDER) {
-			if (developer->integer > 1) gi.Com_PrintFmt("{} teleport: Applying specific fix...\n", self->classname);
+		horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+		if (monsterTypeId == horde::MonsterTypeID::STALKER || monsterTypeId == horde::MonsterTypeID::SPIDER) {
+			if (developer->integer > 1) gi.Com_PrintFmt("CATS: {} teleport: Applying specific fix...\n", self->classname);
 			self->gravityVector = { 0, 0, -1 };
 			self->s.angles[ROLL] = 0;
 			self->gravity = 1.0f;
@@ -5347,115 +5343,21 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->s.origin[2] += TELEPORT_FIX_ELEVATION;
 			gi.linkentity(self);
 		}
-		// Increment global counter on success
 		HordeConstants::recent_teleport_count++;
 	}
 
-	// Reset stuck state regardless of teleport success/failure *for this attempt*
-	// This runs if the teleport was attempted (passed the attacking check)
-	self->monsterinfo.was_stuck = false;
-	self->monsterinfo.stuck_check_time = 0_sec;
+    const bool is_still_stuck_in_geometry_after_attempt = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid;
+	if (teleported || !is_still_stuck_in_geometry_after_attempt) {
+        self->monsterinfo.was_stuck = false;
+        self->monsterinfo.stuck_check_time = 0_sec;
+    } else {
+        if (developer->integer > 1 && self->monsterinfo.was_stuck) {
+            gi.Com_PrintFmt("CATS: Teleport attempt failed for {}, but still stuck in geometry. Stuck timer remains active (remaining: {:.2f}s).\n",
+                self->classname, (self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME - level.time).seconds());
+        }
+    }
 
 	return teleported;
-}
-// --- END CheckAndTeleportStuckMonster ---
-
-
-bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects)
-{
-	if (level.intermissiontime)
-		return false;
-	// Basic validation
-	if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles)) {
-		return false;
-	}
-
-	// Prevent teleport if monster is summoned OR can see its enemy
-	if (self->monsterinfo.issummoned ||
-		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) { // Assuming visible() exists and works
-
-        // *** APPLY SHORT COOLDOWN ON VISIBLE ENEMY CANCEL ***
-        constexpr gtime_t VISIBLE_ENEMY_CANCEL_COOLDOWN = 1.5_sec; // Cooldown duration (e.g., 1.5 seconds)
-        self->teleport_time = level.time + VISIBLE_ENEMY_CANCEL_COOLDOWN;
-        // *** END CHANGE ***
-
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible. Applying short cooldown ({:.1f}s).\n",
-                 self->classname, VISIBLE_ENEMY_CANCEL_COOLDOWN.seconds());
-		}
-		return false; // Abort teleport
-	}
-
-	// --- Effect Handling ---
-	effects_t original_effects = self->s.effects;
-	renderfx_t original_renderfx = self->s.renderfx;
-
-	// --- Hide Entity and Clear Effects ---
-	self->svflags |= SVF_NOCLIENT;
-	self->s.effects = EF_NONE; // Clear effects
-	self->s.renderfx = (original_renderfx & RF_IR_VISIBLE); // Clear renderfx, keeping IR
-	gi.unlinkentity(self);
-
-	// --- Store Old State & Move ---
-	const vec3_t old_origin = self->s.origin;
-	const vec3_t old_angles = self->s.angles;
-	const vec3_t old_velocity = self->velocity;
-
-	self->s.origin = destination_origin;
-	self->s.old_origin = destination_origin; // Update old_origin as well
-	self->s.angles = destination_angles;
-	self->velocity = vec3_origin; // Reset velocity
-
-	// --- Validate New Position ---
-	// Use the improved validation (allow defense fallback might be needed for stuck teleports)
-	vec3_t final_pos = self->s.origin; // ValidateSpawnPosition might modify this
-	bool is_flying = IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname)); // Check if monster is flying
-	if (!IsValidSpawnLocation(final_pos, self->mins, self->maxs, is_flying)) // Pass flying status
-	{
-		// Teleport failed validation, restore state
-		self->s.origin = old_origin;
-		self->s.old_origin = old_origin;
-		self->s.angles = old_angles;
-		self->velocity = old_velocity;
-
-		// Restore effects before making visible on failure
-		self->s.effects = original_effects;
-		self->s.renderfx = original_renderfx;
-
-		self->svflags &= ~SVF_NOCLIENT;
-		gi.linkentity(self);
-
-        // Apply a short cooldown even on validation failure to prevent rapid retries on bad spots
-        self->teleport_time = level.time + 0.5_sec; // Shorter cooldown for validation fail
-
-		return false;
-	}
-	// Update origin if ValidateSpawnPosition adjusted it
-	self->s.origin = final_pos;
-	self->s.old_origin = final_pos;
-
-
-	// --- Restore Effects and Make Visible ---
-	self->s.effects = original_effects;
-	self->s.renderfx = original_renderfx;
-	self->svflags &= ~SVF_NOCLIENT;
-	gi.linkentity(self);
-
-	// --- Post-Teleport Effects ---
-	if (play_effects) {
-		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f); // Example effect
-		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0); // Example sound (ensure sound_spawn1 is accessible)
-	}
-
-	// --- Reset Stuck/Damage Timers ---
-	self->monsterinfo.was_stuck = false;
-	self->monsterinfo.stuck_check_time = 0_sec;
-	self->monsterinfo.react_to_damage_time = level.time;
-
-	// Apply randomized cooldown AFTER successful teleport
-	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
-
-	return true; // Teleport successful
 }
 
 // Helper function to select a retaliation-themed monster
@@ -7283,4 +7185,110 @@ bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec
 	}
 
 	return true; // Indicate success (even if fallback bounds were used due to bad scale)
+}
+
+bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects, bool force_despite_visibility = false)
+{
+	PROFILE_SCOPE("Horde_TeleportMonster");
+	if (level.intermissiontime) {
+		return false;
+    }
+
+	if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles)) {
+        if (developer->integer > 1 && self) {
+            gi.Com_PrintFmt("Horde_TeleportMonster: Basic validation failed for {}. InUse:{} Dead:{} DestOrigin:({:.1f},{:.1f},{:.1f}) DestAngles:({:.1f},{:.1f},{:.1f})\n",
+                self->classname ? self->classname : "NO_CLASSNAME",
+                self ? self->inuse : 0, self ? self->deadflag : 0,
+                destination_origin.x, destination_origin.y, destination_origin.z,
+                destination_angles.x, destination_angles.y, destination_angles.z);
+        }
+		return false;
+	}
+
+	if (self->monsterinfo.issummoned ||
+		(!force_despite_visibility &&
+         (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) ) {
+        constexpr gtime_t VISIBLE_ENEMY_CANCEL_COOLDOWN = 1.5_sec;
+        self->teleport_time = level.time + VISIBLE_ENEMY_CANCEL_COOLDOWN;
+		if (developer->integer > 1) {
+			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible (force_vis: {}). Applying short cooldown ({:.1f}s).\n",
+                 self->classname ? self->classname : "UNKNOWN",
+                 force_despite_visibility,
+                 VISIBLE_ENEMY_CANCEL_COOLDOWN.seconds());
+		}
+		return false;
+	}
+
+	effects_t original_effects = self->s.effects;
+	renderfx_t original_renderfx = self->s.renderfx;
+
+	self->svflags |= SVF_NOCLIENT;
+	self->s.effects = EF_NONE;
+	self->s.renderfx = (original_renderfx & RF_IR_VISIBLE);
+	gi.unlinkentity(self);
+
+	const vec3_t old_origin = self->s.origin;
+	const vec3_t old_angles = self->s.angles;
+	const vec3_t old_velocity = self->velocity;
+
+	self->s.origin = destination_origin;
+	self->s.old_origin = destination_origin;
+	self->s.angles = destination_angles;
+	self->velocity = vec3_origin;
+
+	vec3_t final_pos_after_validation = self->s.origin;
+	horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+	bool is_flying_monster = IsFlying(monsterTypeId);
+    vec3_t predicted_mins, predicted_maxs;
+    if (!GetPredictedScaledBounds(monsterTypeId, predicted_mins, predicted_maxs)) {
+        // Warning logged by GetPredictedScaledBounds
+    }
+
+	if (!IsValidSpawnLocation(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
+	{
+		self->s.origin = old_origin;
+		self->s.old_origin = old_origin;
+		self->s.angles = old_angles;
+		self->velocity = old_velocity;
+		self->s.effects = original_effects;
+		self->s.renderfx = original_renderfx;
+		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity(self);
+        self->teleport_time = level.time + 0.5_sec;
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("Horde_TeleportMonster: IsValidSpawnLocation failed for {} at intended ({:.1f},{:.1f},{:.1f}). Restored to ({:.1f},{:.1f},{:.1f}).\n",
+                self->classname ? self->classname : "UNKNOWN",
+                destination_origin.x, destination_origin.y, destination_origin.z,
+                old_origin.x, old_origin.y, old_origin.z);
+        }
+		return false;
+	}
+	self->s.origin = final_pos_after_validation;
+	self->s.old_origin = final_pos_after_validation;
+
+	self->s.effects = original_effects;
+	self->s.renderfx = original_renderfx;
+	self->svflags &= ~SVF_NOCLIENT;
+	gi.linkentity(self);
+
+	if (play_effects) {
+		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+        if (sound_spawn1) {
+		    gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+        }
+	}
+
+	self->monsterinfo.was_stuck = false;
+	self->monsterinfo.stuck_check_time = 0_sec;
+	self->monsterinfo.react_to_damage_time = level.time;
+	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
+
+    if (developer->integer > 1) {
+        gtime_t time_until_next_teleport = self->teleport_time - level.time;
+        gi.Com_PrintFmt("Horde_TeleportMonster: Successfully teleported {} to ({:.1f},{:.1f},{:.1f}). Next teleport possible in {:.1f}s.\n",
+            self->classname ? self->classname : "UNKNOWN",
+            self->s.origin.x, self->s.origin.y, self->s.origin.z,
+            time_until_next_teleport.seconds());
+    }
+	return true;
 }

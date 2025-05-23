@@ -88,7 +88,7 @@ bool IsPlayerDefense(const edict_t* ent);
 extern void StartFadeOut(edict_t* ent);
 extern bool IsMonsterJumping(const edict_t* self);
 
-extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects);
+extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects, bool force_despite_visibility);
 
 extern std::string GetPlayerName(const edict_t* player);
 extern std::string GetDisplayName(const edict_t* ent);

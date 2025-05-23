@@ -1956,10 +1956,11 @@ void monster_start_go(edict_t *self)
 		if (!self->inuse)
 			return;
 
-		if (self->monsterinfo.start_frame)
+		if (self->monsterinfo.start_frame) {
 			self->s.frame = self->monsterinfo.start_frame;
-		else
+		} else {
 			self->s.frame = move->lastframe;
+		}
 
 		self->s.origin = f;
 		gi.linkentity(self);
