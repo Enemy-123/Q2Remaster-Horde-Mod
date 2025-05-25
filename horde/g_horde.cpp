@@ -683,22 +683,24 @@ void CheckAndReduceSpawnCooldowns() {
 	// Pre-compute the reduction factor once
 	constexpr float REDUCTION_FACTOR = 0.4f;  // Changed from 0.15f to 0.4f to make late-wave cooldown reduction less aggressive
 
-	// Process all spawn points in use
-	// We need to track the spawn points to process
-	std::vector<edict_t*> spawn_points;
-	spawn_points.reserve(MAX_SPAWN_POINTS);
-
-	// Find all active spawn points by scanning entities
-	for (uint32_t i = 1; i < globals.num_edicts; i++) {
-		edict_t* ent = &g_edicts[i];
-		if (ent && ent->inuse && ent->classname &&
-			!strcmp(ent->classname, "info_player_deathmatch")) {
-			spawn_points.push_back(ent);
+	// Process spawn points by directly iterating over monster_spawn_points()
+	// This avoids a manual scan of all g_edicts.
+	for (edict_t* spawn_point : monster_spawn_points()) {
+		// Basic validation: monster_spawn_points() should ideally only return valid
+		// info_player_deathmatch entities that are inuse.
+		if (!spawn_point || !spawn_point->inuse) {
+			// Optionally log if unexpected entities are returned
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("CheckAndReduceSpawnCooldowns: monster_spawn_points() returned an invalid or !inuse entity.\n");
+			}
+			continue;
 		}
-	}
+		// Further classname check can be added if monster_spawn_points() is not guaranteed
+		// to return only "info_player_deathmatch", though its name implies it should.
+		// if (!spawn_point->classname || strcmp(spawn_point->classname, "info_player_deathmatch") != 0) {
+		//     continue;
+		// }
 
-	// Process spawn points with early termination after collecting
-	for (edict_t* spawn_point : spawn_points) {
 		auto& data = spawnPointsData[spawn_point];
 
 		// Check if spawn point is disabled and cooldown is still active
@@ -2230,8 +2232,19 @@ edict_t* SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t& origin)
 	return SpawnMonsterByTypeID(typeId, origin, vec3_origin, true);
 }
 
+// Add this struct definition in your header file or at the top
+struct BossPickResult {
+    horde::MonsterTypeID typeId;
+    BossSizeCategory sizeCategory;
+    
+    // Constructor for convenience
+    BossPickResult(horde::MonsterTypeID id = horde::MonsterTypeID::UNKNOWN, 
+                   BossSizeCategory size = BossSizeCategory::Medium) 
+        : typeId(id), sizeCategory(size) {}
+};
 
-static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
+// Updated function - no longer takes edict_t* parameter
+static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber) {
 	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
 
 	// Initialize boss eligibility cache if needed
@@ -2254,7 +2267,7 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n",
 				mapname.data(), waveNumber);
 		}
-		return horde::MonsterTypeID::UNKNOWN;
+		return BossPickResult(); // Returns UNKNOWN typeId with default size
 	}
 
 	// Get precomputed eligible bosses for this level
@@ -2266,7 +2279,7 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 			gi.Com_PrintFmt("WARNING: Invalid eligible boss count: {}\n",
 				eligibilityData.count);
 		}
-		return horde::MonsterTypeID::UNKNOWN;
+		return BossPickResult(); // Returns UNKNOWN typeId with default size
 	}
 
 	// Use stack-based array for weight calculations
@@ -2380,7 +2393,7 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 		if (developer->integer) {
 			gi.Com_PrintFmt("WARNING: No eligible bosses found even after potential history reset.\n");
 		}
-		return horde::MonsterTypeID::UNKNOWN;
+		return BossPickResult(); // Returns UNKNOWN typeId with default size
 	}
 
 	// Select boss with binary search for better performance
@@ -2390,24 +2403,16 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 	size_t left = 0;
 	size_t right = weightedCount - 1;
 
-	// // Handle edge case: only one item
-	// if (left == right) {
-	// 	// Directly select the only item
-	// }
-	// else
-	 {
-		// Perform binary search
-		while (left < right) {
-			const size_t mid = left + (right - left) / 2; // Safer midpoint calculation
-			if (weightedBosses[mid].cumulativeWeight < randomValue) {
-				left = mid + 1;
-			}
-			else {
-				right = mid;
-			}
+	// Perform binary search
+	while (left < right) {
+		const size_t mid = left + (right - left) / 2; // Safer midpoint calculation
+		if (weightedBosses[mid].cumulativeWeight < randomValue) {
+			left = mid + 1;
+		}
+		else {
+			right = mid;
 		}
 	}
-
 
 	// Get selected boss
 	const boss_t* chosen_boss = weightedBosses[left].boss;
@@ -2416,21 +2421,18 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 		recent_bosses.add(chosen_boss->typeId);
 		// --- END CORRECTION ---
 
-		// Set boss size category for the entity
-		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
-
 		if (developer->integer > 1) {
 			const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId);
 			gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n",
 				chosen_name ? chosen_name : "Unknown", weightedBosses[left].weight);
 		}
 
-		// Return the TypeID directly
-		return chosen_boss->typeId;
+		// Return both the TypeID and size category in the struct
+		return BossPickResult(chosen_boss->typeId, chosen_boss->sizeCategory);
 	}
 
 	// Should ideally not happen if weightedCount > 0, but return UNKNOWN as a fallback
-	return horde::MonsterTypeID::UNKNOWN;
+	return BossPickResult(); // Returns UNKNOWN typeId with default size
 }
 
 struct picked_item_t {
@@ -3892,17 +3894,13 @@ static void SpawnBossAutomatically() {
 		return; // Not a boss wave
 	}
 
-	// --- 3. Select Boss Type ---
-	edict_t* temp_boss_for_size = G_Spawn(); // Still need this temporary entity
-	if (!temp_boss_for_size) {
-		if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to spawn temp entity for size category.\n");
-		return;
-	}
+	// --- 3. Select Boss Type (FIXED - No temporary entity needed) ---
 	const char* map_name = GetCurrentMapName();
-	horde::MonsterTypeID boss_type = G_HordePickBOSSType(
-		g_horde_local.current_map_size, map_name, g_horde_local.level, temp_boss_for_size);
-	// BossSizeCategory selected_boss_size = temp_boss_for_size->bossSizeCategory; // Store size category if needed later
-	G_FreeEdict(temp_boss_for_size);
+	BossPickResult boss_pick_result = G_HordePickBOSSType(
+		g_horde_local.current_map_size, map_name, g_horde_local.level);
+	
+	horde::MonsterTypeID boss_type = boss_pick_result.typeId;
+	BossSizeCategory selected_boss_size = boss_pick_result.sizeCategory; // Now available without temp entity
 
 	if (boss_type == horde::MonsterTypeID::UNKNOWN) {
 		if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to pick a boss type for wave {}.\n", g_horde_local.level);
@@ -4031,6 +4029,9 @@ static void SpawnBossAutomatically() {
 		boss->s.origin = spawn_origin; // Set origin now
 		boss->s.angles = spawn_angles; // Set angles now
 		boss->owner = orb; // Link orb for removal in think
+
+		// Store the boss size category for later use if needed
+		boss->bossSizeCategory = selected_boss_size;
 
 		// --- Perform Area Clearing Actions NOW ---
 		// Push away nearby entities before the think function runs
