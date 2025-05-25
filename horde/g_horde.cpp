@@ -1300,37 +1300,39 @@ static void Horde_InitLevel(const int32_t lvl) {
 
     g_lastParams = GetConditionParams(g_horde_local.current_map_size, GetNumHumanPlayers(), lvl);
 
-for (size_t i = 0; i < WARNING_TIMES.size(); i++) { // Use WARNING_TIMES.size()
-    g_horde_local.warningIssued[i] = false;
-}
+    for (size_t i = 0; i < WARNING_TIMES.size(); i++) { // Use WARNING_TIMES.size()
+        g_horde_local.warningIssued[i] = false;
+    }
 
     if (developer->integer) {
         gi.Com_PrintFmt("Debug: Wave {} init - Timer threshold: {:.2f}s\n",
             lvl, g_lastParams.timeThreshold.seconds());
     }
 
-    // UnifiedAdjustSpawnRate sets g_horde_local.num_to_spawn and global SPAWN_POINT_COOLDOWN
+    // UnifiedAdjustSpawnRate sets g_horde_local.num_to_spawn and g_horde_local.queued_monsters
+    // and global SPAWN_POINT_COOLDOWN
     UnifiedAdjustSpawnRate(g_horde_local.current_map_size, lvl, GetNumHumanPlayers());
 
-    // ***** FIX: Set g_totalMonstersInWave AFTER num_to_spawn is determined *****
-    if (g_horde_local.num_to_spawn < 0) g_horde_local.num_to_spawn = 0; // Safety check
-    // Ensure num_to_spawn (int32_t) doesn't overflow uint16_t for g_totalMonstersInWave.
-    // ClampNumToSpawn (called within UnifiedAdjustSpawnRate) should already limit num_to_spawn.
+    // ***** MODIFIED: Set g_totalMonstersInWave to the full planned wave size *****
+    if (g_horde_local.num_to_spawn < 0) g_horde_local.num_to_spawn = 0; // Safety
+    if (g_horde_local.queued_monsters < 0) g_horde_local.queued_monsters = 0; // Safety
+
+    int32_t total_planned_for_wave = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
+    
+    // Ensure it doesn't overflow uint16_t
     g_totalMonstersInWave = static_cast<uint16_t>(
-        std::min(g_horde_local.num_to_spawn, static_cast<int32_t>(std::numeric_limits<uint16_t>::max()))
+        std::min(total_planned_for_wave, static_cast<int32_t>(std::numeric_limits<uint16_t>::max()))
     );
-    // Optional: If queued monsters should count towards the initial total for percentage calculations:
-    // g_totalMonstersInWave = static_cast<uint16_t>(
-    //    std::min(g_horde_local.num_to_spawn + g_horde_local.queued_monsters, 
-    //             static_cast<int32_t>(std::numeric_limits<uint16_t>::max()))
-    // );
-    // Based on current logic elsewhere, g_totalMonstersInWave seems to track only the immediate spawn pool.
+
+    if (developer->integer) {
+        gi.Com_PrintFmt("Horde_InitLevel: Wave {}. num_to_spawn: {}, queued_monsters: {}. g_totalMonstersInWave set to: {}\n",
+            lvl, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, g_totalMonstersInWave);
+    }
+    // ***** END MODIFICATION *****
+
 
     CheckAndApplyBenefit(lvl);
-    // ResetAllSpawnAttempts(); // This is now redundant if ResetCooldowns (revised) does a full SpawnPointData{} reset.
-    ResetCooldowns();          // Call the REVISED ResetCooldowns. It resets individual spawn point data
-                               // and the two specific trackers (g_monsterSpawnTracker, g_spawnPointTimeTracker).
-                               // It NO LONGER sets the global SPAWN_POINT_COOLDOWN.
+    ResetCooldowns();
     Horde_CleanBodies();
 }
 
@@ -2022,7 +2024,7 @@ struct EligibleBosses {
         }
         if (count >= MAX_ELIGIBLE_BOSSES) {
             // Optionally log an error or warning if the list is full
-            // Example: gi.Com_PrintFmt("Warning: EligibleBosses list is full (max %zu). Cannot add more.\n", MAX_ELIGIBLE_BOSSES);
+            // Example: gi.Com_PrintFmt("Warning: EligibleBosses list is full (max {}). Cannot add more.\n", MAX_ELIGIBLE_BOSSES);
             return false; // List is full
         }
 
@@ -6376,25 +6378,28 @@ static int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call, int32_t c
 }
 
 static int ExecuteNormalSpawnProcedure(
-    int32_t spawnable_this_call,          // How many monsters we're trying to spawn in this batch
-    int32_t currentLevel_param,           // Current wave level
-    float champion_chance_param,          // Chance for a champion
-    // MODIFIED: Removed out_last_spawned_this_call parameter
-    // Context parameters to be passed down to AttemptSpawnSingleMonster
+    int32_t spawnable_this_call,
+    int32_t currentLevel_param,
+    float champion_chance_param,
     bool is_recovery_mode_active_param,
     bool is_retaliation_active_param,
     MonsterWaveType current_actual_wave_type_param,
     MonsterWaveType original_wave_type_before_recovery_param
+    // (Ensure all parameters passed to AttemptSpawnSingleMonster are included here)
 ) {
     int spawned_count_this_call = 0;
-    // MODIFIED: Removed out_last_spawned_this_call initialization
-
     if (spawnable_this_call <= 0) {
         return 0;
     }
 
     for (int i = 0; i < spawnable_this_call; ++i) {
-        // MODIFIED: AttemptSpawnSingleMonster no longer takes an edict_t*& output param
+        // This check is good for robustness, though spawnable_this_call should ideally
+        // already be <= g_horde_local.num_to_spawn when this function is called.
+        if (g_horde_local.num_to_spawn <= 0) {
+            if (developer->integer) gi.Com_PrintFmt("ExecuteNormalSpawnProcedure: num_to_spawn is 0, breaking batch.\n");
+            break;
+        }
+
         if (AttemptSpawnSingleMonster(
                 currentLevel_param,
                 champion_chance_param,
@@ -6404,17 +6409,23 @@ static int ExecuteNormalSpawnProcedure(
                 original_wave_type_before_recovery_param
             )) {
             spawned_count_this_call++;
-            // MODIFIED: No need to update out_last_spawned_this_call
+            // ***** THIS IS THE KEY CORRECTION *****
+            if (g_horde_local.num_to_spawn > 0) { // Decrement from the main pool
+                 g_horde_local.num_to_spawn--;
+            }
+            // ***** END KEY CORRECTION *****
         } else {
-            if (developer->integer > 1) {
-                gi.Com_PrintFmt("ExecuteNormalSpawnProcedure: Failed to spawn monster for slot {} of {} in batch. (Total consecutive failures: {})\n",
-                    i + 1, spawnable_this_call, g_consecutive_spawn_failures);
+            // Failure logic from AttemptSpawnSingleMonster already handles g_consecutive_spawn_failures.
+            // We just check if we need to abort the batch.
+            if (developer->integer > 1) { // Optional: Log batch-level failure for this slot
+                gi.Com_PrintFmt("ExecuteNormalSpawnProcedure: AttemptSpawnSingleMonster failed for slot {} of {} in batch.\n",
+                    i + 1, spawnable_this_call);
             }
             if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY) {
                 if (developer->integer) {
                     gi.Com_PrintFmt("ExecuteNormalSpawnProcedure: Aborting batch spawn due to {} consecutive failures.\n", g_consecutive_spawn_failures);
                 }
-                break;
+                break; // Abort this batch
             }
         }
     }
@@ -6512,7 +6523,6 @@ static void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_s
 // static horde::MonsterTypeID G_HordePickMonsterType(edict_t*, int32_t, MonsterWaveType, bool, bool, MonsterWaveType);
 
 static bool AttemptSpawnSingleMonster(
-    // MODIFIED: Removed out_last_spawned_monster_this_attempt parameter
     int32_t currentLevel_param,
     float champion_chance_param,
     bool is_recovery_mode_active_param,
@@ -6525,8 +6535,6 @@ static bool AttemptSpawnSingleMonster(
         return false;
     }
     size_t points_checked_for_this_monster = 0;
-
-    // MODIFIED: Removed out_last_spawned_monster_this_attempt initialization
 
     while (points_checked_for_this_monster < total_potential_points) {
         if (g_spawn_point_shuffle_index >= total_potential_points) {
@@ -6559,7 +6567,7 @@ static bool AttemptSpawnSingleMonster(
         const bool is_flying_spawn_point = (spawn_point->style == 1);
 
         if (is_flying_spawn_point && !monster_is_flying) {
-            if (developer->integer > 1) gi.Com_PrintFmt("AttemptSpawnSingleMonster: Flying point requires flying monster. Point: {}, Monster: {}\n", (int)(spawn_point-g_edicts), horde::MonsterTypeRegistry::GetClassname(monster_type_id));
+            // ... (failure logic as before)
             IncreaseSpawnAttempts(spawn_point);
             g_consecutive_spawn_failures++;
             continue;
@@ -6567,31 +6575,37 @@ static bool AttemptSpawnSingleMonster(
         if (!is_flying_spawn_point && monster_is_flying &&
             !HasWaveType(current_actual_wave_type_param, MonsterWaveType::Flying) &&
             !is_recovery_mode_active_param) {
-            if (developer->integer > 1) gi.Com_PrintFmt("AttemptSpawnSingleMonster: Ground point, non-flying wave, but picked flying monster. Point: {}, Monster: {}\n", (int)(spawn_point-g_edicts), horde::MonsterTypeRegistry::GetClassname(monster_type_id));
+            // ... (failure logic as before)
             IncreaseSpawnAttempts(spawn_point);
             g_consecutive_spawn_failures++;
             continue;
         }
 
-        // MODIFIED: FindValidSpotAndSpawn now returns edict_t*
         edict_t* spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
         
-        if (spawned_monster_entity) { // If a monster was successfully spawned
-            // MODIFIED: No longer setting out_last_spawned_monster_this_attempt
+        if (spawned_monster_entity) {
+            // Monster was successfully spawned.
+            // It came from the g_horde_local.num_to_spawn pool, which was already accounted for
+            // in g_totalMonstersInWave during Horde_InitLevel.
 
-            if (g_horde_local.num_to_spawn > 0) {
-                --g_horde_local.num_to_spawn;
-            } else if (developer->integer) {
-                gi.Com_PrintFmt("AttemptSpawnSingleMonster: Warning - num_to_spawn was 0 but a monster was spawned.\n");
-            }
+            // ***** MODIFICATION: DO NOT INCREMENT g_totalMonstersInWave HERE *****
+            // if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+            //     ++g_totalMonstersInWave; // REMOVED!
+            // } else if (developer->integer) {
+            //     gi.Com_PrintFmt("AttemptSpawnSingleMonster: Warning - g_totalMonstersInWave overflow prevented.\n");
+            // }
+            // ***** END MODIFICATION *****
 
-            if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
-                ++g_totalMonstersInWave;
-            } else if (developer->integer) {
-                gi.Com_PrintFmt("AttemptSpawnSingleMonster: Warning - g_totalMonstersInWave overflow prevented.\n");
-            }
 
-            if (spawned_monster_entity->inuse) { // Re-check after all modifications in FindValidSpotAndSpawn
+            // Decrement num_to_spawn is handled by the caller (SpawnMonsters -> ExecuteNormalSpawnProcedure)
+            // if (g_horde_local.num_to_spawn > 0) { // This check/decrement is done in SpawnMonsters's helpers
+            //     --g_horde_local.num_to_spawn;
+            // } else if (developer->integer) {
+            //     gi.Com_PrintFmt("AttemptSpawnSingleMonster: Warning - num_to_spawn was 0 but a monster was spawned.\n");
+            // }
+
+
+            if (spawned_monster_entity->inuse) {
                  SpawnGrow_Spawn(spawned_monster_entity->s.origin, 80.0f, 10.0f);
                  if (sound_spawn1) {
                     gi.sound(spawned_monster_entity, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
@@ -6606,8 +6620,7 @@ static bool AttemptSpawnSingleMonster(
             }
             return true;
         }
-        // If FindValidSpotAndSpawn returned nullptr, it failed.
-        // It already handled IncreaseSpawnAttempts/ApplyAlternativePositionCooldown and g_consecutive_spawn_failures++.
+        // If FindValidSpotAndSpawn returned nullptr, it failed and handled its own failure logging.
     }
 
     if (developer->integer > 1 && total_potential_points > 0) {
