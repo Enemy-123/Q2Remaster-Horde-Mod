@@ -1996,70 +1996,166 @@ static std::span<const boss_t> GetBossList(const horde::MapSize& mapSize, horde:
 	return std::span<const boss_t>(); // Empty span for no match
 }
 
-// static arrays to replace std::vectors
 struct EligibleBosses {
-	const boss_t* items[MAX_ELIGIBLE_BOSSES] = {};
-	size_t count = 0;
+    // The array stores pointers to const boss_t objects.
+    // The pointers themselves can be changed (which boss_t they point to),
+    // but the boss_t objects they point to cannot be modified through these pointers.
+    std::array<const boss_t*, MAX_ELIGIBLE_BOSSES> items;
+    size_t count; // Number of valid pointers currently in the array
 
-	void clear() noexcept { count = 0; }
+    // Type alias for the iterator type returned by const begin()/end()
+    // items.data() in a const member function returns: const (value_type)*
+    // where value_type is (const boss_t*).
+    // So, it's const (const boss_t*)*, which is const boss_t* const*
+    using const_iterator = const boss_t* const*;
 
-    bool add(const boss_t* boss) noexcept {
-        if (!boss || count >= MAX_ELIGIBLE_BOSSES) { // Check if boss is null or array is full
-            return false;
+    // Default constructor
+    EligibleBosses() noexcept : count(0) {
+        items.fill(nullptr); // Initialize all pointers to nullptr
+    }
+
+    // Adds a pointer to a const boss_t struct to the list.
+    // Returns true if successful, false if the list is full or boss_ptr is null.
+    bool add(const boss_t* boss_ptr) noexcept {
+        if (!boss_ptr) {
+            return false; // Do not add null pointers
         }
-        items[count] = boss; // Direct assignment
+        if (count >= MAX_ELIGIBLE_BOSSES) {
+            // Optionally log an error or warning if the list is full
+            // Example: gi.Com_PrintFmt("Warning: EligibleBosses list is full (max %zu). Cannot add more.\n", MAX_ELIGIBLE_BOSSES);
+            return false; // List is full
+        }
+
+        items[count] = boss_ptr;
         count++;
         return true;
     }
+
+    // Clears the list of eligible bosses.
+    void clear() noexcept {
+        // Only fill the portion that was used, for minor efficiency.
+        // Or, items.fill(nullptr) if you prefer to clear the whole array.
+        if (count > 0) {
+            std::fill_n(items.begin(), count, nullptr);
+        }
+        count = 0;
+    }
+
+    // Gets the number of eligible bosses currently tracked.
+    size_t size() const noexcept {
+        return count;
+    }
+
+    // Checks if the list is empty.
+    bool empty() const noexcept {
+        return count == 0;
+    }
+
+    // Accesses an item by index (const version).
+    // Returns nullptr if the index is out of bounds.
+    const boss_t* get(size_t index) const noexcept {
+        if (index < count) {
+            return items[index];
+        }
+        return nullptr;
+    }
+
+    // Provides a const_iterator to the beginning of the valid data.
+    // Allows: for (const boss_t* boss_ptr : eligible_boss_instance)
+    const_iterator begin() const noexcept {
+        return items.data(); // Returns const (const boss_t*)*
+    }
+
+    // Provides a const_iterator to one past the end of the valid data.
+    const_iterator end() const noexcept {
+        return items.data() + count; // Pointer arithmetic
+    }
 };
 
-// static array for recent bosses
 struct RecentBosses {
-	horde::MonsterTypeID items[MAX_RECENT_BOSSES] = { horde::MonsterTypeID::UNKNOWN };
-	size_t count = 0;
+    std::array<horde::MonsterTypeID, MAX_RECENT_BOSSES> items;
+    size_t count; // Number of valid items currently in the array (from index 0 to count-1)
 
-	void add(horde::MonsterTypeID boss) noexcept {
-		// Ignore invalid TypeIDs
-		if (boss == horde::MonsterTypeID::UNKNOWN)
-			return;
+    // Default constructor
+    RecentBosses() noexcept : count(0) {
+        items.fill(horde::MonsterTypeID::UNKNOWN); // Initialize all slots to UNKNOWN
+    }
 
-		// Add to array, shift if needed
-		if (count < MAX_RECENT_BOSSES) {
-			items[count++] = boss;
-		}
-		else {
-			// Shift array entries
-			memmove(&items[0], &items[1], sizeof(items[0]) * (MAX_RECENT_BOSSES - 1));
-			items[MAX_RECENT_BOSSES - 1] = boss;
-		}
-	}
+    // Adds a boss TypeID to the recent list.
+    // If the list is full, the oldest entry is removed (shifts elements).
+    void add(horde::MonsterTypeID boss_id) noexcept {
+        if (boss_id == horde::MonsterTypeID::UNKNOWN) {
+            return; // Do not add unknown/invalid bosses
+        }
 
-	bool contains(horde::MonsterTypeID boss) const noexcept {
-		// Check if boss is in recent list
-		if (boss == horde::MonsterTypeID::UNKNOWN)
-			return false;
+        // Optional: Prevent adding if it's already the most recent one.
+        // if (count > 0 && items[count - 1] == boss_id) {
+        //     return;
+        // }
 
-		for (size_t i = 0; i < count; ++i) {
-			if (items[i] == boss)
-				return true;
-		}
-		return false;
-	}
+        if (count < MAX_RECENT_BOSSES) {
+            // List is not full, just add to the next available slot
+            items[count] = boss_id;
+            count++;
+        } else {
+            // List is full. Shift all elements to the left to make space at the end.
+            // The oldest element (items[0]) is overwritten.
+            for (size_t i = 0; i < MAX_RECENT_BOSSES - 1; ++i) {
+                items[i] = items[i + 1];
+            }
+            items[MAX_RECENT_BOSSES - 1] = boss_id;
+            // count remains MAX_RECENT_BOSSES
+        }
+    }
 
-	void clear() noexcept {
-		count = 0;
-		std::fill_n(items, MAX_RECENT_BOSSES, horde::MonsterTypeID::UNKNOWN);
-	}
+    // Compatibility overload: Adds a boss by its classname.
+    void add(const char* boss_classname) noexcept {
+        if (!boss_classname) {
+            return;
+        }
+        // Assuming MonsterTypeRegistry is accessible, e.g., via g_MonsterTypeRegistry or similar
+        horde::MonsterTypeID boss_id = horde::MonsterTypeRegistry::GetTypeID(boss_classname);
+        add(boss_id); // Delegate to the TypeID version
+    }
 
-	// Compatibility method for string interface
-	void add(const char* bossClassname) noexcept {
-		add(horde::MonsterTypeRegistry::GetTypeID(bossClassname));
-	}
+    // Checks if a boss TypeID is in the recent list.
+    bool contains(horde::MonsterTypeID boss_id) const noexcept {
+        if (boss_id == horde::MonsterTypeID::UNKNOWN) {
+            return false;
+        }
+        // Iterate only up to 'count' valid items
+        for (size_t i = 0; i < count; ++i) {
+            if (items[i] == boss_id) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-	// Compatibility method for string interface
-	bool contains(const char* bossClassname) const noexcept {
-		return contains(horde::MonsterTypeRegistry::GetTypeID(bossClassname));
-	}
+    // Compatibility overload: Checks if a boss classname is in the recent list.
+    bool contains(const char* boss_classname) const noexcept {
+        if (!boss_classname) {
+            return false;
+        }
+        horde::MonsterTypeID boss_id = horde::MonsterTypeRegistry::GetTypeID(boss_classname);
+        return contains(boss_id); // Delegate to the TypeID version
+    }
+
+    // Clears the list of recent bosses.
+    void clear() noexcept {
+        items.fill(horde::MonsterTypeID::UNKNOWN);
+        count = 0;
+    }
+
+    // Gets the number of bosses currently tracked.
+    size_t size() const noexcept {
+        return count;
+    }
+
+    // Checks if the list is empty.
+    bool empty() const noexcept {
+        return count == 0;
+    }
 };
 static RecentBosses recent_bosses;
 
