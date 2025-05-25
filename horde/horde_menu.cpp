@@ -51,27 +51,23 @@ void GoChaseCam(edict_t* ent, pmenuhnd_t* p);  // Handler for Chase Cam/Spectato
 
 // Updated joinmenu with more spacing before Join/Spectate options
 const pmenu_t joinmenu[] = {
-	{ "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr },        // 0: Title (Set by SetGameName)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 1: Blank Separator
-	{ "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr },        // 2: Level Name (Set by SetLevelName)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 3: Blank Separator
-	// --- Add more blank entries for spacing ---
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 4: Blank
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 5: Blank
-	// --- End extra spacing ---
-	{ "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, HordeJoinTeam }, // 6: Join Horde (Now lower)
-	{ "", PMENU_ALIGN_LEFT, nullptr },                      // 7: Player Count (filled dynamically)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 8: Blank Separator
-	// --- Add more blank entries for spacing ---
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 9: Blank
-	// --- End extra spacing ---
-	{ "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam },     // 10: Go Spectator / Leave Chase (Now lower)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 11: Blank Separator
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 12: Blank (Spacing)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 13: Blank (Spacing)
-	{ "Discord: Enemy0416", PMENU_ALIGN_CENTER, nullptr },    // 14: Discord Info
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 15: Blank Separator
-	{ "", PMENU_ALIGN_LEFT, nullptr }                       // 16: Credits (filled dynamically)
+    { "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, "" },        // 0: Title (Set by SetGameName)
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 1: Blank Separator
+    { "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, "" },        // 2: Level Name (Set by SetLevelName)
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 3: Blank Separator
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 4: Blank
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 5: Blank
+    { "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, HordeJoinTeam, "" }, // 6: Join Horde
+    { "", PMENU_ALIGN_LEFT, nullptr, "" },                      // 7: Player Count
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 8: Blank Separator
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 9: Blank
+    { "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, "" },     // 10: Go Spectator
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 11: Blank Separator
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 12: Blank (Spacing)
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 13: Blank (Spacing)
+    { "Discord: Enemy0416", PMENU_ALIGN_CENTER, nullptr, "" },    // 14: Discord Info
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 15: Blank Separator
+    { "", PMENU_ALIGN_LEFT, nullptr, "" }                       // 16: Credits
 };
 
 // Recalculate size
@@ -242,27 +238,24 @@ constexpr size_t VOTE_MENU_SIZE = MAX_MAPS_PER_PAGE + 6; // Title, blank, N maps
 
 // vote_menu is dynamically updated by UpdateVoteMenu
 static pmenu_t vote_menu[VOTE_MENU_SIZE] = {
-	{ "*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr }, // Title (updated by category)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                 // Blank separator
-	// --- Map entries start here (index 2 to 2 + MAX_MAPS_PER_PAGE - 1) ---
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
-	// --- Map entries end here ---
-	{ "", PMENU_ALIGN_CENTER, nullptr },                 // Blank separator (index 2 + MAX_MAPS_PER_PAGE)
-	{ "Next", PMENU_ALIGN_LEFT, VoteMenuHandler },       // Navigation (index 3 + MAX_MAPS_PER_PAGE)
-	{ "Back", PMENU_ALIGN_LEFT, VoteMenuHandler },       // Navigation (index 4 + MAX_MAPS_PER_PAGE)
-	{ "Close", PMENU_ALIGN_LEFT, VoteMenuHandler }       // Close (index 5 + MAX_MAPS_PER_PAGE)
+    { "*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Next", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "Back", PMENU_ALIGN_LEFT, VoteMenuHandler, "" },
+    { "Close", PMENU_ALIGN_LEFT, VoteMenuHandler, "" }
 };
-
 // --- Map List Categorization ---
 
 struct map_lists_t {
@@ -314,16 +307,16 @@ void CategorizeMapList() {
 
 // Add a placeholder for the current map name
 static pmenu_t map_category_menu[] = {
-	{ "Map Category Selection", PMENU_ALIGN_CENTER, nullptr }, // 0: Title
-	{ "", PMENU_ALIGN_CENTER, nullptr },                       // 1: Blank Separator
-	{ "*PLACEHOLDER_MAP*", PMENU_ALIGN_CENTER, nullptr },      // 2: Current Map (Set Dynamically)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                       // 3: Blank Separator
-	{ "Big Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },      // 4: Big Maps (was 2)
-	{ "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },   // 5: Medium Maps (was 3)
-	{ "Small Maps", PMENU_ALIGN_LEFT, MapCategoryHandler },    // 6: Small Maps (was 4)
-	{ "", PMENU_ALIGN_CENTER, nullptr },                       // 7: Blank Separator (was 5)
-	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, MapCategoryHandler }, // 8: Back (was 6)
-	{ "Close", PMENU_ALIGN_LEFT, MapCategoryHandler }          // 9: Close (was 7)
+    { "Map Category Selection", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "*PLACEHOLDER_MAP*", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Big Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
+    { "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
+    { "Small Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Back to Horde Menu", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
+    { "Close", PMENU_ALIGN_LEFT, MapCategoryHandler, "" }
 };
 // Update size
 constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t); // Now 10
@@ -662,33 +655,33 @@ constexpr size_t NUM_TECHS = sizeof(tech_names) / sizeof(tech_names[0]);
 
 // Menu definition for when player is already in a team
 static pmenu_t tech_menu[] = {
-	{ "*Tech Selection", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
-	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
-	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
-	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler }
+    { "*Tech Selection", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Strength", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "Haste", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, "" }
 };
 constexpr size_t TECH_MENU_SIZE = sizeof(tech_menu) / sizeof(pmenu_t);
 
 // Menu definition for when player is joining (CTF_NOTEAM)
 static pmenu_t tech_menustart[] = {
-	{ "*Tech Selection", PMENU_ALIGN_CENTER, nullptr },          // 0
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 1
-	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },          // 2
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 3
-	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },      // 4
-	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },          // 5
-	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },  // 6
-	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler },    // 7
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 8
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 9
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 10
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 11
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 12
-	{ "", PMENU_ALIGN_CENTER, nullptr },                      // 13
-	{ "You can change it later", PMENU_ALIGN_LEFT, nullptr }, // 14
-	{ "On Horde Menu", PMENU_ALIGN_CENTER, nullptr },         // 15
+    { "*Tech Selection", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Select a TECH:", PMENU_ALIGN_LEFT, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Strength", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "Haste", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "You can change it later", PMENU_ALIGN_LEFT, nullptr, "" },
+    { "On Horde Menu", PMENU_ALIGN_CENTER, nullptr, "" },
 };
 constexpr size_t TECH_MENU_START_SIZE = sizeof(tech_menustart) / sizeof(pmenu_t);
 
