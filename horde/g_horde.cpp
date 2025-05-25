@@ -36,7 +36,7 @@ static edict_t* g_horde_retaliation_target_player = nullptr;
 static gtime_t last_ambush_time = 0_sec;
 static gtime_t ambush_cooldown_end = 0_sec;
 static int32_t waves_since_ambush = 0;
-static bool ambush_system_initialized = false;
+//static bool ambush_system_initialized = false;
 
 // --- Recent Spawn Position Tracking ---
 struct RecentSpawnPosition {
@@ -3444,18 +3444,11 @@ void BossDeathHandler(edict_t* boss) {
 	// --- Randomize and drop standard items using item_id_t ---
 	std::array<item_id_t, standardItemIDs.size()> shuffledIDs = standardItemIDs; // Create a mutable copy
 
-	// Shuffle the IDs (using simple irandom-based shuffle as fallback)
-	for (size_t i = shuffledIDs.size() - 1; i > 0; --i) {
-		size_t j = irandom(0, i); // irandom needs to be inclusive [0, i]
-		if (i != j) {
-			std::swap(shuffledIDs[i], shuffledIDs[j]);
-		}
-	}
-	// For a better shuffle, use std::shuffle with a proper random engine if available:
-	// std::shuffle(shuffledIDs.begin(), shuffledIDs.end(), mt_rand); // Requires setup
+	// Shuffle using std::shuffle and your mt_rand engine
+	std::shuffle(shuffledIDs.begin(), shuffledIDs.end(), mt_rand);
 
-	// Drop the shuffled standard items
-	for (item_id_t item_id : shuffledIDs) { // Iterate through shuffled IDs
+// Now proceed to drop items from the shuffledIDs
+for (item_id_t item_id : shuffledIDs) {
 		if (item_id == IT_NULL) continue; // Safety check
 
 		if (gitem_t* item = GetItemByIndex(item_id)) { // Use GetItemByIndex
@@ -4204,7 +4197,7 @@ void ResetAmbushSystem() {
 	last_ambush_time = 0_sec;
 	ambush_cooldown_end = 0_sec;
 	waves_since_ambush = 0;
-	ambush_system_initialized = false;
+	//ambush_system_initialized = false;
 }
 
 
