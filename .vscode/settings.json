@@ -91,6 +91,8 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "codecvt": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "cwctype": "cpp",
+        "memory_resource": "cpp"
     }
 }
