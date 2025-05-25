@@ -6252,7 +6252,7 @@ edict_t* SpawnMonsters() {
         // This means ExecuteNormalSpawnProcedure tried to spawn `spawnable_this_call` monsters
         // but failed for all of them. g_consecutive_spawn_failures would have been incremented.
         if (developer->integer) {
-            gi.Com_PrintFmt("SpawnMonsters: Entire batch of %d normal spawns failed. Consecutive failures now: %d\n",
+            gi.Com_PrintFmt("SpawnMonsters: Entire batch of {} normal spawns failed. Consecutive failures now: {}\n",
                 spawnable_this_call, g_consecutive_spawn_failures);
         }
     }
@@ -6576,7 +6576,7 @@ static bool AttemptSpawnSingleMonster(
 
     // If loop finishes, no monster was spawned after checking all potential points
     if (developer->integer > 1 && total_potential_points > 0) {
-        gi.Com_PrintFmt("AttemptSpawnSingleMonster: Failed to spawn a monster after checking %zu points.\n", total_potential_points);
+        gi.Com_PrintFmt("AttemptSpawnSingleMonster: Failed to spawn a monster after checking {} points.\n", total_potential_points);
     }
     return false;
 }
