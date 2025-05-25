@@ -114,7 +114,7 @@ namespace HordeConstants {
 	// Rate limit counter and timer (defined as static within the namespace)
 	int g_teleport_rate_count = 0;                        // Current count within the interval
 	gtime_t g_teleport_rate_reset_time = level.time;      // Time the counter was last reset
-	int recent_teleport_count = 0;          // Tracks teleports within the current interval
+	//int recent_teleport_count = 0;          // Tracks teleports within the current interval
 
 	// --- Proximity / Distance Checks ---
 	constexpr vec3_t VALIDATE_CHECK_MINS = { -16, -16, -24 };     // Default mins for IsValidSpawnLocation fallback
@@ -298,19 +298,13 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 
     // --- FIX: Less aggressive reset for inactive points ---
-	if (level.time - data.lastSpawnTime > 6_sec) { 
-        // Instead of data = {}, reset only relevant fields for a "fresh start"
-        // but try to preserve some long-term success info if desired.
-        // For now, let's just reset attempts and cooldown status.
-        data.attempts = 0;
-        data.isTemporarilyDisabled = false;
-        data.cooldownEndsAt = 0_sec;
-        // Optionally, update lastSpawnTime to now to mark this "reset" point
-        // data.lastSpawnTime = level.time; 
-        // Or, if you want to keep successfulSpawns, don't reset it.
-        // For this fix, we'll keep it simple and reset attempts/disabled.
-		return; 
-	}
+if (level.time - data.lastSpawnTime > 6_sec) {
+    data.attempts = 0;
+    data.isTemporarilyDisabled = false;
+    data.cooldownEndsAt = 0_sec;
+    data.lastSpawnTime = level.time; // Mark this reset attempt time
+    return;
+}
     // --- END FIX ---
 
 	data.attempts++;
@@ -791,6 +785,9 @@ enum class horde_state_t {
 	rest
 };
 
+// Warning times in seconds
+constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
+
 // En HordeState, reemplazar el vector con array estático
 struct HordeState {
 	gtime_t         warm_time = 4_sec;
@@ -806,7 +803,7 @@ struct HordeState {
 	gtime_t         conditionTimeThreshold = 0_sec;
 	bool            timeWarningIssued = false;
 	gtime_t         waveEndTime = 0_sec;
-	bool            warningIssued[4] = { false, false, false, false };
+	bool warningIssued[WARNING_TIMES.size()] = { false }; // Initialize all to false
 
 	// Failsafe timeout to prevent getting stuck in a state
 	gtime_t         failsafe_timeout = 0_sec;
@@ -1251,8 +1248,6 @@ static ConditionParams GetConditionParams(const horde::MapSize& mapSize, int32_t
 
 	return params;
 }
-// Warning times in seconds
-constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 
 
 inline int32_t GetAdjustedMonsterCap(const horde::MapSize& mapSize, int32_t waveLevel);
@@ -1303,9 +1298,9 @@ static void Horde_InitLevel(const int32_t lvl) {
 
     g_lastParams = GetConditionParams(g_horde_local.current_map_size, GetNumHumanPlayers(), lvl);
 
-    for (size_t i = 0; i < 4; i++) {
-        g_horde_local.warningIssued[i] = false;
-    }
+for (size_t i = 0; i < WARNING_TIMES.size(); i++) { // Use WARNING_TIMES.size()
+    g_horde_local.warningIssued[i] = false;
+}
 
     if (developer->integer) {
         gi.Com_PrintFmt("Debug: Wave {} init - Timer threshold: {:.2f}s\n",
@@ -2006,33 +2001,14 @@ struct EligibleBosses {
 
 	void clear() noexcept { count = 0; }
 
-	bool add(const boss_t* boss) noexcept {
-		if (!boss || count >= MAX_ELIGIBLE_BOSSES)
-			return false;
-
-		// Use constant expressions for array access
-		switch (count) {
-		case 0:  items[0] = boss; break;
-		case 1:  items[1] = boss; break;
-		case 2:  items[2] = boss; break;
-		case 3:  items[3] = boss; break;
-		case 4:  items[4] = boss; break;
-		case 5:  items[5] = boss; break;
-		case 6:  items[6] = boss; break;
-		case 7:  items[7] = boss; break;
-		case 8:  items[8] = boss; break;
-		case 9:  items[9] = boss; break;
-		case 10: items[10] = boss; break;
-		case 11: items[11] = boss; break;
-		case 12: items[12] = boss; break;
-		case 13: items[13] = boss; break;
-		case 14: items[14] = boss; break;
-		case 15: items[15] = boss; break;
-		default: return false;
-		}
-		count++;
-		return true;
-	}
+    bool add(const boss_t* boss) noexcept {
+        if (!boss || count >= MAX_ELIGIBLE_BOSSES) { // Check if boss is null or array is full
+            return false;
+        }
+        items[count] = boss; // Direct assignment
+        count++;
+        return true;
+    }
 };
 
 // static array for recent bosses
@@ -2414,11 +2390,12 @@ static horde::MonsterTypeID G_HordePickBOSSType(const horde::MapSize& mapSize, s
 	size_t left = 0;
 	size_t right = weightedCount - 1;
 
-	// Handle edge case: only one item
-	if (left == right) {
-		// Directly select the only item
-	}
-	else {
+	// // Handle edge case: only one item
+	// if (left == right) {
+	// 	// Directly select the only item
+	// }
+	// else
+	 {
 		// Perform binary search
 		while (left < right) {
 			const size_t mid = left + (right - left) / 2; // Safer midpoint calculation
@@ -2542,10 +2519,11 @@ gitem_t* G_HordePickItem() {
 	size_t right = horde_item_cache.count - 1;
 
 	// Handle edge case: only one eligible item
-	if (left == right) {
-		// 'left' (or 'right') is the index of the only choice
-	}
-	else {
+	// if (left == right) {
+	// 	// 'left' (or 'right') is the index of the only choice
+	// }
+	// else 
+	{
 		// Perform binary search
 		while (left < right) {
 			// Calculate midpoint safely to avoid potential overflow with large indices
@@ -4331,7 +4309,8 @@ void ResetGame() {
 	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{});
 	g_recent_teleport_index = 0;
 
-	HordeConstants::recent_teleport_count = 0;
+	//HordeConstants::recent_teleport_count = 0;
+	HordeConstants::g_teleport_rate_count = 0;
 	HordeConstants::g_teleport_rate_reset_time = level.time;
 
 	ResetTeleportTracking();
@@ -4621,7 +4600,9 @@ void ResetWaveAdvanceState() noexcept {
 	g_horde_local.waveEndTime = 0_sec;
 
 	// Make sure warning flags are reset
-	for (size_t i = 0; i < 4; i++) {
+
+	for (size_t i = 0; i < WARNING_TIMES.size(); i++)
+	{ // Use WARNING_TIMES.size()
 		g_horde_local.warningIssued[i] = false;
 	}
 
@@ -4798,7 +4779,8 @@ static void AnnounceIncomingWave(gtime_t duration = 3_sec) {
 	g_horde_local.conditionTimeThreshold = 0_sec;
 
 	// Resetear las advertencias usando un bucle for simple
-	for (size_t i = 0; i < 4; i++) {
+	for (size_t i = 0; i < WARNING_TIMES.size(); i++)
+	{ // Use WARNING_TIMES.size()
 		g_horde_local.warningIssued[i] = false;
 	}
 
@@ -5148,14 +5130,14 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	// --- Rate Limiting & Basic Validation ---
 	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
-		HordeConstants::recent_teleport_count = 0;
+		HordeConstants::g_teleport_rate_count = 0;
 		HordeConstants::g_teleport_rate_reset_time = level.time;
 	}
 	int max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL;
 	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
 		max_teleports += 1;
 	}
-	if (HordeConstants::recent_teleport_count >= max_teleports) {
+	if (HordeConstants::g_teleport_rate_count >= max_teleports) {
 		return false; // Global rate limit reached
 	}
 	if (!self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde || !g_horde->integer) return false;
@@ -5347,7 +5329,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->s.origin[2] += TELEPORT_FIX_ELEVATION;
 			gi.linkentity(self);
 		}
-		HordeConstants::recent_teleport_count++;
+		HordeConstants::g_teleport_rate_count++;
 	}
 
     const bool is_still_stuck_in_geometry_after_attempt = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid;
