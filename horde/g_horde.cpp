@@ -87,14 +87,31 @@ namespace HordeConstants {
     constexpr gtime_t ALT_SPAWN_COOLDOWN_MEDIUM = 3.0_sec;
     constexpr gtime_t MIN_ALT_SUCCESS_COOLDOWN = 1.0_sec;
     constexpr gtime_t MIN_ALT_FAILURE_COOLDOWN = 1.0_sec;
-    constexpr size_t NUM_HORDE_ALT_POSITIONS = 8;
-    constexpr std::array<vec3_t, NUM_HORDE_ALT_POSITIONS> horde_alternative_positions = {
-        vec3_t{ 40, 0, 8 },  vec3_t{ -40, 0, 8 },
-        vec3_t{ 0, 40, 8 },  vec3_t{ 0, -40, 8 },
-        vec3_t{ 30, 30, 0 }, vec3_t{ -30, 30, 0 },
-        vec3_t{ 30, -30, 0 }, vec3_t{ -30, -30, 0 }
-    };
 
+	constexpr size_t NUM_HORDE_ALT_POSITIONS = 24; // Changed from 8 to 24
+
+	constexpr std::array<vec3_t, NUM_HORDE_ALT_POSITIONS> horde_alternative_positions = {
+		// --- Original 8 Positions ---
+		vec3_t{ 40, 0, 8 },    vec3_t{ -40, 0, 8 },
+		vec3_t{ 0, 40, 8 },    vec3_t{ 0, -40, 8 },
+		vec3_t{ 30, 30, 0 },   vec3_t{ -30, 30, 0 },
+		vec3_t{ 30, -30, 0 },  vec3_t{ -30, -30, 0 },
+
+		// --- New 8 Positions (Suggestions) ---
+		// Further axial positions with slightly different Z
+		vec3_t{ 60, 0, 4 },    vec3_t{ -60, 0, 4 },
+		vec3_t{ 0, 60, 4 },    vec3_t{ 0, -60, 4 },
+
+		// Further diagonal positions, could also vary Z more
+		vec3_t{ 50, 50, 2 },   vec3_t{ -50, 50, 2 },
+		vec3_t{ 50, -50, 2 },  vec3_t{ -50, -50, 2 },
+
+		// Alternative new 8 positions (more varied Z)
+		vec3_t{ 20, 0, 16 },   vec3_t{ -20, 0, 16 }, // Closer, higher up
+		vec3_t{ 0, 20, 16 },   vec3_t{ 0, -20, 16 },
+		vec3_t{ 45, 45, -4 },  vec3_t{ -45, 45, -4 }, // Wider, slightly below origin if possible
+		vec3_t{ 45, -45, -4 }, vec3_t{ -45, -45, -4 }
+	};
     // --- Monster Spawning Timing ---
     constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.8_sec;
 
@@ -5698,9 +5715,9 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
 	}
 
 	// --- Try Radial Offsets ---
-	constexpr int RADIAL_ATTEMPTS = 20;
+	constexpr int RADIAL_ATTEMPTS = 35;
 	constexpr float MIN_RADIUS = 40.0f;
-	constexpr float MAX_RADIUS = 200.0f; // Increased max radius slightly
+	constexpr float MAX_RADIUS = 225.0f; // Increased max radius slightly
 
 	for (int i = 0; i < RADIAL_ATTEMPTS; ++i) {
 		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
