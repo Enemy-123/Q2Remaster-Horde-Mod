@@ -3101,14 +3101,14 @@ static horde::MonsterTypeID G_HordePickMonsterType(
         if (developer->integer > 1) gi.Com_PrintFmt("G_HordePickMonsterType: Invalid spawn_point parameter.\n");
         return horde::MonsterTypeID::UNKNOWN;
     }
-    if (currentActualLevel_param <= 0 || currentActualLevel_param > WaveScalingCache::MAX_WAVE_LEVEL) { // Assuming WaveScalingCache::MAX_WAVE_LEVEL
+    if (currentActualLevel_param <= 0 || currentActualLevel_param > WaveScalingCache::MAX_WAVE_LEVEL) {
         if (developer->integer > 1) {
             gi.Com_PrintFmt("G_HordePickMonsterType: Invalid currentActualLevel_param: {}.\n", currentActualLevel_param);
         }
         return horde::MonsterTypeID::UNKNOWN;
     }
 
-    // --- 1. Build Selection Context ---
+    // --- 1. Build Selection Context (Initial) ---
     MonsterSelectionContext ctx;
     ctx.currentActualLevel = currentActualLevel_param;
     ctx.currentActualWaveType = currentActualWaveType_param;
@@ -3116,7 +3116,7 @@ static horde::MonsterTypeID G_HordePickMonsterType(
     ctx.isRetaliationActive = isRetaliationActive_param;
     ctx.isRecoveryModeActive = isRecoveryModeActive_param;
     ctx.isBossWaveMinionPhase = (ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 && boss_spawned_for_wave);
-    ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(countFlyingSpawns());
+    ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_cached_flying_spawn_count); // Use cached count
 
     if (ctx.isRecoveryModeActive) {
         ctx.waveTypeForFiltering = HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ?
@@ -3128,35 +3128,73 @@ static horde::MonsterTypeID G_HordePickMonsterType(
     bool attemptHigherLevel = ShouldAttemptHigherLevelSpawn(ctx.currentActualLevel, ctx.isRetaliationActive, ctx.isRecoveryModeActive);
     ctx.effectiveLevel = CalculateEffectiveMonsterLevel(ctx.currentActualLevel, attemptHigherLevel, ctx.waveTypeForFiltering);
 
+    // --- 1.5 Create a mutable build context for filtering ---
+    MonsterSelectionContext build_ctx = ctx; // Copy base context
+
+    // --- ADJUSTMENT FOR FLYING POINTS ---
+    // If it's a flying spawn point, certain wave filter flags might be overly restrictive.
+    if (build_ctx.isSpawnPointFlying) {
+        // Scenario 1: Wave filter includes 'Small', but no suitable 'Small & Flying' monsters exist.
+        if (HasWaveType(build_ctx.waveTypeForFiltering, MonsterWaveType::Small)) {
+            bool suitable_small_flyer_exists = false;
+            for (const auto& monster : monsterTypes) {
+                if (monster.minWave <= build_ctx.effectiveLevel &&
+                    IsFlying(monster.typeId) &&
+                    IsSmallUnit(monster.typeId) &&
+                    IsValidMonsterForWave(monster.typeId, ctx.waveTypeForFiltering)) { // Check against original full filter
+                    suitable_small_flyer_exists = true;
+                    break;
+                }
+            }
+            if (!suitable_small_flyer_exists) {
+                if (developer->integer > 1) {
+                    gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint & WaveType includes Small, but no suitable Small Flyers. Relaxing 'Small' constraint for this pick at Lvl %d.\n", build_ctx.currentActualLevel);
+                }
+                build_ctx.waveTypeForFiltering &= ~MonsterWaveType::Small; // Remove 'Small'
+            }
+        }
+
+        // Scenario 2: Wave filter includes 'Ground'. This is irrelevant for a flying monster on a flying point.
+        if (HasWaveType(build_ctx.waveTypeForFiltering, MonsterWaveType::Ground)) {
+            if (developer->integer > 1 && HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Ground)) { // Log only if original had Ground
+                 gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint=true. Removing 'Ground' from filter for this pick at Lvl %d.\n", build_ctx.currentActualLevel);
+            }
+            build_ctx.waveTypeForFiltering &= ~MonsterWaveType::Ground; // Remove 'Ground'
+        }
+    }
+    // --- END ADJUSTMENT FOR FLYING POINTS ---
+
+
     // --- 2. Skip Boss Wave Minion Picking if Boss Not Spawned ---
+    // Use the original ctx.waveTypeForFiltering for this check, as build_ctx might be relaxed
     if (!ctx.isRetaliationActive &&
-        ctx.waveTypeForFiltering == MonsterWaveType::None && // Check simplified type
+        ctx.waveTypeForFiltering == MonsterWaveType::None && 
         ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 &&
         !boss_spawned_for_wave) {
         return horde::MonsterTypeID::UNKNOWN;
     }
 
-    // --- 3. Build Monster Cache & Select ---
-    // Use the global static cache instance, it's cleared by BuildMonsterCache
-    BuildMonsterCache(g_monster_picker_internal_cache, ctx);
+    // --- 3. Build Monster Cache & Select (using build_ctx) ---
+    BuildMonsterCache(g_monster_picker_internal_cache, build_ctx); // Use the potentially modified context
     horde::MonsterTypeID chosen_monster = SelectFromCache(g_monster_picker_internal_cache);
 
     // --- 4. Emergency Fallback if Needed ---
     if (chosen_monster == horde::MonsterTypeID::UNKNOWN) {
+        // Pass the original, unmodified context 'ctx' to the fallback,
+        // as the fallback has its own logic to handle flying points correctly.
         chosen_monster = EmergencyFallbackSelection(ctx);
         if (chosen_monster != horde::MonsterTypeID::UNKNOWN && developer->integer) {
             const char* classname = horde::MonsterTypeRegistry::GetClassname(chosen_monster);
-            gi.Com_PrintFmt("G_HordePickMonsterType: EMERGENCY FALLBACK PICK: Selected {}\n",
-                classname ? classname : "UNKNOWN_CLASSNAME");
+            gi.Com_PrintFmt("G_HordePickMonsterType: EMERGENCY FALLBACK PICK: Selected %s (Lvl: %d, FlyPoint: %s, OrigFilter: %d, BuildFilter: %d)\n",
+                classname ? classname : "UNKNOWN_CLASSNAME",
+                ctx.currentActualLevel,
+                ctx.isSpawnPointFlying ? "true" : "false",
+                static_cast<int>(ctx.waveTypeForFiltering),
+                static_cast<int>(build_ctx.waveTypeForFiltering)
+                );
         }
     }
 
-    // --- 5. Return Chosen Monster (or UNKNOWN) ---
-    // The caller (e.g., AttemptSpawnSingleMonster) is responsible for:
-    // - Incrementing g_consecutive_spawn_failures if this returns UNKNOWN.
-    // - Calling IncreaseSpawnAttempts(spawn_point) if this returns UNKNOWN.
-    // - Calling OnSuccessfulSpawn(spawn_point) if a monster is actually spawned using this point.
-    // - Managing g_recovery_mode_active and g_original_wave_type_before_recovery.
     return chosen_monster;
 }
 

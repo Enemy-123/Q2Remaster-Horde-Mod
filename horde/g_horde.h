@@ -104,6 +104,11 @@ inline MonsterWaveType& operator&=(MonsterWaveType& a, MonsterWaveType b) noexce
 	return a;
 }
 
+constexpr MonsterWaveType operator~(MonsterWaveType val) noexcept {
+    using T = std::underlying_type_t<MonsterWaveType>;
+    return static_cast<MonsterWaveType>(~static_cast<T>(val));
+}
+
 inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck) noexcept {
 	return (entityTypes & typeToCheck) != MonsterWaveType::None;
 }
