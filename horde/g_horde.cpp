@@ -6371,7 +6371,7 @@ static void RebuildSpawnPointCacheIfNeeded() {
                         g_cached_flying_spawn_count++; // This should now work
                     }
                 } else if (developer->integer) {
-                    gi.Com_PrintFmt("RebuildSpawnPointCacheIfNeeded: Warning - Exceeded MAX_SPAWN_POINTS (%zu) while caching.\n", MAX_SPAWN_POINTS);
+                    gi.Com_PrintFmt("RebuildSpawnPointCacheIfNeeded: Warning - Exceeded MAX_SPAWN_POINTS ({}) while caching.\n", MAX_SPAWN_POINTS);
                     break;
                 }
             }
