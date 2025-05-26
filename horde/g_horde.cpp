@@ -3836,75 +3836,71 @@ inline std::pair<MonsterWaveType, const char*> GetBossWaveType(horde::MonsterTyp
 
 // --- REVISED CheckAndTeleportBoss ---
 bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTeleportReason::DROWNING) {
-	PROFILE_SCOPE("CheckAndTeleportBoss");
-	if (level.intermissiontime) {
-		// if (developer->integer > 1) gi.Com_PrintFmt("CTB: Early exit - level.intermissiontime.\n");
-		return false;
-	}
+    PROFILE_SCOPE("CheckAndTeleportBoss");
+    if (level.intermissiontime) {
+        return false;
+    }
 
-	if (!self) {
-		// if (developer->integer) gi.Com_PrintFmt("CTB: Early exit - self is null.\n");
-		return false;
-	}
-	if (!self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS || !g_horde || !g_horde->integer) {
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("CTB: Early exit for {}. InUse:{} Dead:{} IsBoss:{} HordeInt:{}\n",
-				self->classname ? self->classname : "NO_CLASSNAME",
-				self->inuse, self->deadflag, self->monsterinfo.IS_BOSS,
-				g_horde ? g_horde->integer : -1);
-		}
-		return false;
-	}
+    if (!self) {
+        return false;
+    }
+    if (!self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS || !g_horde || !g_horde->integer) {
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("CTB: Early exit for {}. InUse:{} Dead:{} IsBoss:{} HordeInt:{}\n",
+                self->classname ? self->classname : "NO_CLASSNAME",
+                self->inuse, self->deadflag, self->monsterinfo.IS_BOSS,
+                g_horde ? g_horde->integer : -1);
+        }
+        return false;
+    }
 
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) {
-		// if (developer->integer > 1) gi.Com_PrintFmt("CTB: Early exit - {} is misc_insane or turret.\n", self->classname);
-		return false;
-	}
+    horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+    if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET) {
+        return false;
+    }
 
-	static std::string last_map_name_boss_teleport;
-	static horde::MapID cached_map_id_boss_teleport = horde::MapID::UNKNOWN;
-	const char* current_map = GetCurrentMapName();
+    static std::string last_map_name_boss_teleport;
+    static horde::MapID cached_map_id_boss_teleport = horde::MapID::UNKNOWN;
+    const char* current_map = GetCurrentMapName();
 
-	if (last_map_name_boss_teleport != current_map) {
-		last_map_name_boss_teleport = current_map;
-		cached_map_id_boss_teleport = horde::MapOriginRegistry::GetMapID(current_map);
-	}
-	if (cached_map_id_boss_teleport == horde::MapID::UNKNOWN) {
-		if (developer->integer > 1) gi.Com_PrintFmt("CTB: MapID unknown for {}, cannot get teleport origin.\n", current_map);
-		return false;
-	}
+    if (last_map_name_boss_teleport != current_map) {
+        last_map_name_boss_teleport = current_map;
+        cached_map_id_boss_teleport = horde::MapOriginRegistry::GetMapID(current_map);
+    }
+    if (cached_map_id_boss_teleport == horde::MapID::UNKNOWN) {
+        if (developer->integer > 1) gi.Com_PrintFmt("CTB: MapID unknown for {}, cannot get teleport origin.\n", current_map);
+        return false;
+    }
 
-	vec3_t destination_origin;
-	if (!horde::MapOriginRegistry::GetOrigin(cached_map_id_boss_teleport, destination_origin)) {
-		if (developer->integer > 1) gi.Com_PrintFmt("CTB: Failed to get MapOriginRegistry origin for map_id {}.\n", (int)cached_map_id_boss_teleport);
-		return false;
-	}
-	if (!is_valid_vector(destination_origin) || destination_origin == vec3_origin) {
-		if (developer->integer > 1) gi.Com_PrintFmt("CTB: Invalid destination_origin ({},{},{}) from MapOriginRegistry.\n", destination_origin.x, destination_origin.y, destination_origin.z);
-		return false;
-	}
-	vec3_t destination_angles = self->s.angles;
-	destination_angles.x = 0;
-	destination_angles.z = 0;
+    vec3_t destination_origin;
+    if (!horde::MapOriginRegistry::GetOrigin(cached_map_id_boss_teleport, destination_origin)) {
+        if (developer->integer > 1) gi.Com_PrintFmt("CTB: Failed to get MapOriginRegistry origin for map_id {}.\n", (int)cached_map_id_boss_teleport);
+        return false;
+    }
+    if (!is_valid_vector(destination_origin) || destination_origin == vec3_origin) {
+        if (developer->integer > 1) gi.Com_PrintFmt("CTB: Invalid destination_origin ({},{},{}) from MapOriginRegistry.\n", destination_origin.x, destination_origin.y, destination_origin.z);
+        return false;
+    }
+    vec3_t destination_angles = self->s.angles;
+    destination_angles.x = 0;
+    destination_angles.z = 0;
     constexpr gtime_t TRIGGER_HURT_RETRIGGER_COOLDOWN = 0.1_sec;
-	constexpr gtime_t DROWNING_COOLDOWN_BOSS = 1_sec;
-	const gtime_t selected_trigger_cooldown = (reason == BossTeleportReason::DROWNING) ? DROWNING_COOLDOWN_BOSS : TRIGGER_HURT_RETRIGGER_COOLDOWN; // Assuming TRIGGER_HURT_RETRIGGER_COOLDOWN is defined
+    constexpr gtime_t DROWNING_COOLDOWN_BOSS = 1_sec;
+    const gtime_t selected_trigger_cooldown = (reason == BossTeleportReason::DROWNING) ? DROWNING_COOLDOWN_BOSS : TRIGGER_HURT_RETRIGGER_COOLDOWN; 
 
-	static gtime_t last_boss_teleport_attempt_time[MAX_EDICTS] = {};
-	const int boss_edict_num = self - g_edicts;
+    static gtime_t last_boss_teleport_attempt_time[MAX_EDICTS] = {};
+    const int boss_edict_num = self - g_edicts;
 
-	if (level.time < last_boss_teleport_attempt_time[boss_edict_num] + selected_trigger_cooldown) {
-		if (developer->integer > 1) {
-            // Print components of gtime_t or its .seconds() value
+    if (level.time < last_boss_teleport_attempt_time[boss_edict_num] + selected_trigger_cooldown) {
+        if (developer->integer > 1) {
             gtime_t cooldown_remaining = (last_boss_teleport_attempt_time[boss_edict_num] + selected_trigger_cooldown) - level.time;
             gi.Com_PrintFmt("CTB: Boss {} on REASON-specific cooldown. Remaining: {:.2f}s\n",
                 self->classname ? self->classname : "UNKNOWN",
                 cooldown_remaining.seconds());
         }
-		return false;
-	}
-	if (self->teleport_time > level.time) {
+        return false;
+    }
+    if (self->teleport_time > level.time) {
         if (developer->integer > 1) {
             gtime_t cooldown_remaining = self->teleport_time - level.time;
             gi.Com_PrintFmt("CTB: Boss {} on general monster teleport cooldown. Remaining: {:.2f}s\n",
@@ -3918,48 +3914,60 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason = BossTelepor
 
     bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING);
 
-	if (developer->integer > 1) {
+    if (developer->integer > 1) {
         gi.Com_PrintFmt("CTB: Attempting Horde_TeleportMonster for boss {} to ({},{},{}) (ForceVisible: {})\n",
             self->classname ? self->classname : "UNKNOWN",
             destination_origin.x, destination_origin.y, destination_origin.z,
             force_teleport);
     }
 
-	if (!Horde_TeleportMonster(self, destination_origin, destination_angles, false /* play_effects */, force_teleport)) {
-		if (developer->integer > 1) gi.Com_PrintFmt("CTB: Horde_TeleportMonster returned false for boss {}.\n", self->classname ? self->classname : "UNKNOWN");
-		return false;
-	}
+    if (!Horde_TeleportMonster(self, destination_origin, destination_angles, false , force_teleport)) {
+        if (developer->integer > 1) gi.Com_PrintFmt("CTB: Horde_TeleportMonster returned false for boss {}.\n", self->classname ? self->classname : "UNKNOWN");
+        return false;
+    }
 
-	std::string boss_display_name = GetDisplayName(self);
+    std::string boss_display_name = GetDisplayName(self);
 
-	switch (reason) {
-	case BossTeleportReason::DROWNING:
-		if (sound_tele3) gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", boss_display_name.c_str());
-		break;
-	case BossTeleportReason::TRIGGER_HURT:
-		if (sound_tele_up) gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", boss_display_name.c_str());
-		break;
-	}
-	SpawnGrow_Spawn(self->s.origin, 100.0f, 15.0f);
-	PushEntitiesAway(self->s.origin, 3, 600.0f, 1200.0f, 4000.0f, 1800.0f);
+    switch (reason) {
+    case BossTeleportReason::DROWNING:
+        if (sound_tele3) gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
+        gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", boss_display_name.c_str());
+        break;
+    case BossTeleportReason::TRIGGER_HURT:
+        if (sound_tele_up) gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
+        gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", boss_display_name.c_str());
+        break;
+    }
+    
+    PushEntitiesAway(self->s.origin, 3, 600.0f, 1200.0f, 4000.0f, 1800.0f);
+    
+    // MODIFIED GUARD for SpawnGrow_Spawn
+    if (self->inuse && !self->deadflag && self->health > 0) {
+        SpawnGrow_Spawn(self->s.origin, 100.0f, 15.0f);
+    } else if (self->inuse && developer->integer > 1) { 
+        gi.Com_PrintFmt("SpawnGrow_Spawn (boss teleport effect) skipped: Boss {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
+            (self->classname ? self->classname : "Unknown"),
+            (int)(self - g_edicts),
+            self->deadflag,
+            self->health);
+    }
 
-	if (self->health < (self->max_health >> 2)) {
-		self->health = (self->max_health >> 2);
-	}
 
-	MarkPositionAsRecentlyTeleported(destination_origin);
+    if (self->health < (self->max_health >> 2)) {
+        self->health = (self->max_health >> 2);
+    }
 
-	if (developer->integer) {
-		const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
-		gi.Com_PrintFmt("CTB: Boss {} successfully teleported due to {} to ({},{},{}).\n",
+    MarkPositionAsRecentlyTeleported(destination_origin);
+
+    if (developer->integer) {
+        const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
+        gi.Com_PrintFmt("CTB: Boss {} successfully teleported due to {} to ({},{},{}).\n",
             self->classname ? self->classname : "UNKNOWN",
             reason_str,
             self->s.origin.x, self->s.origin.y, self->s.origin.z);
-	}
+    }
 
-	return true;
+    return true;
 }
 
 void SetHealthBarName(const edict_t* boss) {
@@ -4193,87 +4201,81 @@ static void SpawnBossAutomatically() {
 
 // BossSpawnThink function (largely unchanged, but origin/angles are already set)
 THINK(BossSpawnThink)(edict_t* self) -> void {
-	// Remove the black light effect immediately
-	if (self->owner) {
-		G_FreeEdict(self->owner);
-		self->owner = nullptr;
-	}
+    if (self->owner) {
+        G_FreeEdict(self->owner);
+        self->owner = nullptr;
+    }
 
-	// Get the monster TypeID directly from the entity's classname
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+    horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
-	// Set wave type based on boss type - using array lookup
-	auto bossWaveInfo = GetBossWaveType(typeId);
-	if (TrySetWaveType(bossWaveInfo.first)) {
-		gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
-	}
-	else if (HasWaveType(bossWaveInfo.first, MonsterWaveType::Mutant) ||
-		HasWaveType(bossWaveInfo.first, MonsterWaveType::Shambler)) {
-		// Fallback for mutant/shambler types
-		current_wave_type = MonsterWaveType::Medium;
-		StoreWaveType(MonsterWaveType::Medium);
-	}
-	else {
-		// Handle other potential fallbacks or log if needed
-		if (developer->integer) {
-			gi.Com_PrintFmt("BossSpawnThink: Boss wave type {} recently used or invalid, falling back to Medium.\n", static_cast<int>(bossWaveInfo.first));
-		}
-		current_wave_type = MonsterWaveType::Medium;
-		StoreWaveType(current_wave_type);
-	}
+    auto bossWaveInfo = GetBossWaveType(typeId);
+    if (TrySetWaveType(bossWaveInfo.first)) {
+        gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
+    }
+    else if (HasWaveType(bossWaveInfo.first, MonsterWaveType::Mutant) ||
+        HasWaveType(bossWaveInfo.first, MonsterWaveType::Shambler)) {
+        current_wave_type = MonsterWaveType::Medium;
+        StoreWaveType(MonsterWaveType::Medium);
+    }
+    else {
+        if (developer->integer) {
+            gi.Com_PrintFmt("BossSpawnThink: Boss wave type {} recently used or invalid, falling back to Medium.\n", static_cast<int>(bossWaveInfo.first));
+        }
+        current_wave_type = MonsterWaveType::Medium;
+        StoreWaveType(current_wave_type);
+    }
 
+    std::string_view bossMessage = GetBossMessage(typeId);
+    gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data());
 
-	// Boss spawn message - using array lookup
-	std::string_view bossMessage = GetBossMessage(typeId);
-	gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data());
+    self->monsterinfo.IS_BOSS = true;
+    self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+    self->monsterinfo.last_sentrygun_target_time = 0_ms;
+    
+    self->solid = SOLID_NOT; 
+    ED_CallSpawn(self);
 
-	// Set boss flags in a single group
-	self->monsterinfo.IS_BOSS = true;
-	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-	self->monsterinfo.last_sentrygun_target_time = 0_ms;
-	// Retrieve size category if needed (might need to store it on the edict before think)
-	// BossSizeCategory boss_size = self->bossSizeCategory; // Assuming it was stored
+    if (!self->inuse) {
+        if (developer->integer) gi.Com_PrintFmt("BossSpawnThink: ED_CallSpawn failed for boss {}.\n", self->classname ? self->classname : "Unknown");
+        boss_spawned_for_wave = false; 
+        return; 
+    }
 
-	// --- Call ED_CallSpawn to fully initialize the monster ---
-	self->solid = SOLID_NOT; // Temporarily non-solid for spawn function
-	ED_CallSpawn(self);
+    boss_spawned_for_wave = true; 
 
-	// Check if ED_CallSpawn freed the entity (e.g., spawn failed internally)
-	if (!self->inuse) {
-		if (developer->integer) gi.Com_PrintFmt("BossSpawnThink: ED_CallSpawn failed for boss {}.\n", self->classname ? self->classname : "Unknown");
-		boss_spawned_for_wave = false; // Ensure flag is false
-		return; // Abort if spawn failed
-	}
+    self->solid = SOLID_BBOX;
+    gi.linkentity(self);
 
-	// --- Post ED_CallSpawn Setup ---
-	boss_spawned_for_wave = true; // Set flag *after* successful spawn
+    ConfigureBossArmor(self);
+    ApplyBossEffects(self);
+    self->monsterinfo.attack_state = AS_BLIND;
 
-	// Restore solidity and link
-	self->solid = SOLID_BBOX;
-	gi.linkentity(self);
+    // MODIFIED GUARD for ImprovedSpawnGrow and SpawnGrow_Spawn
+    if (self->inuse && !self->deadflag && self->health > 0) {
+        const vec3_t spawn_pos = self->s.origin; 
+        const float magnitude = spawn_pos.length();
+        const float base_size = std::max(100.0f, magnitude * 0.15f);
+        const float end_size = base_size * 0.01f;
+        ImprovedSpawnGrow(spawn_pos, base_size, end_size, self); 
+        SpawnGrow_Spawn(spawn_pos, base_size, end_size);
+        if (sound_spawn1) { 
+             gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0); 
+        }
+    } else if (self->inuse && developer->integer) { 
+        gi.Com_PrintFmt("SpawnGrow_Spawn/ImprovedSpawnGrow skipped in BossSpawnThink: Boss {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
+            (self->classname ? self->classname : "Unknown"),
+            (int)(self - g_edicts),
+            self->deadflag,
+            self->health);
+    }
 
-	// Configure boss properties
-	ConfigureBossArmor(self);
-	ApplyBossEffects(self);
-	self->monsterinfo.attack_state = AS_BLIND;
+    AttachHealthBar(self);
+    SetHealthBarName(self);
+    auto_spawned_bosses.insert(self);
 
-	// Apply visual effects
-	const vec3_t spawn_pos = self->s.origin; // Use the final origin
-	const float magnitude = spawn_pos.length();
-	const float base_size = std::max(100.0f, magnitude * 0.15f);
-	const float end_size = base_size * 0.01f;
-	ImprovedSpawnGrow(spawn_pos, base_size, end_size, self);
-	SpawnGrow_Spawn(spawn_pos, base_size, end_size);
-	gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0); // Play spawn sound
-
-	// Set up health bar and track boss
-	AttachHealthBar(self);
-	SetHealthBarName(self);
-	auto_spawned_bosses.insert(self);
-
-	if (developer->integer > 1) {
-		gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {}.\n", self->classname, self->s.origin);
-	}
+    if (developer->integer > 1) {
+        gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {}.\n", self->classname, self->s.origin);
+    }
 }
 
 void ClearHordeMessage() {
@@ -5787,7 +5789,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
     vec3_t emergency_origin, emergency_angles;
     bool used_human_player = false;
     vec3_t predicted_mins, predicted_maxs;
-    GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs); // Fallback handled inside
+    GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs); 
     bool is_flying = IsFlying(typeId);
 
     if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
@@ -5814,11 +5816,6 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         return false;
     }
 
-    // Classname, origin, angles are set by CreateBaseHordeMonster or immediately after
-    // monster->classname = monster_classname; // Already set by CreateBaseHordeMonster if using TypeID correctly
-    // monster->s.origin = emergency_origin;
-    // monster->s.angles = emergency_angles;
-
     monster->solid = SOLID_NOT;
     ED_CallSpawn(monster);
 
@@ -5832,7 +5829,6 @@ bool EmergencySpawnMonster(const int32_t levelNum,
     monster->solid = SOLID_BBOX;
     gi.linkentity(monster);
 
-    // Post-link stuck check
     trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
     if (post_link_trace.startsolid) {
         if (!monster->monsterinfo.was_stuck) {
@@ -5848,17 +5844,16 @@ bool EmergencySpawnMonster(const int32_t levelNum,
     }
     monster->monsterinfo.spawn_complete_time = level.time;
 
-    // --- Apply bonuses ---
     bool became_champion_this_spawn = false;
     if (levelNum >= 3 && !monster->monsterinfo.IS_BOSS &&
         !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time &&
         frandom() < champion_chance_for_this_spawn) {
 
         monster->monsterinfo.bonus_flags |= BF_CHAMPION;
-        ApplyMonsterBonusFlags(monster); // This applies the already set BF_CHAMPION
+        ApplyMonsterBonusFlags(monster); 
         if (!monster->inuse) {
             if (developer->integer) gi.Com_PrintFmt("EmergencySpawnMonster: Monster freed during ApplyMonsterBonusFlags (Champion)!\n");
-            return false; // Monster was freed
+            return false; 
         }
 
         monster->item = G_HordePickItem();
@@ -5871,11 +5866,9 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         became_champion_this_spawn = true;
     }
 
-    // Apply other non-champion bonus flags if it didn't become a champion
     if (!became_champion_this_spawn && !monster->monsterinfo.IS_BOSS) {
-        // Example: 15% chance for a *different* random bonus type
         if (frandom() < 0.15f) {
-            int other_bonus_roll = irandom(1, 4); // Roll for Corrupted, Berserking, Possessed, Stygian
+            int other_bonus_roll = irandom(1, 4); 
             switch (other_bonus_roll) {
                 case 1: monster->monsterinfo.bonus_flags |= BF_CORRUPTED; break;
                 case 2: monster->monsterinfo.bonus_flags |= BF_BERSERKING; break;
@@ -5883,13 +5876,12 @@ bool EmergencySpawnMonster(const int32_t levelNum,
                 case 4: monster->monsterinfo.bonus_flags |= BF_STYGIAN; break;
                 default: break;
             }
-            if (monster->monsterinfo.bonus_flags != BF_NONE) { // Check if any non-champion flag was actually added
+            if (monster->monsterinfo.bonus_flags != BF_NONE) { 
                 ApplyMonsterBonusFlags(monster);
                 if (!monster->inuse) {
                      if (developer->integer) gi.Com_PrintFmt("EmergencySpawnMonster: Monster freed during ApplyMonsterBonusFlags (Other Bonus)!\n");
-                    return false; // Monster was freed
+                    return false; 
                 }
-                // Standard item drop for other bonus monsters
                 monster->item = G_HordePickItem();
                 if (monster->item) monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP;
                 else monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
@@ -5897,17 +5889,15 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         }
     }
 
-    // Apply armor
     if (levelNum >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
         SetMonsterArmor(monster);
         if (!monster->inuse) {
             if (developer->integer) gi.Com_PrintFmt("EmergencySpawnMonster: Monster freed during SetMonsterArmor!\n");
-            return false; // Monster was freed
+            return false; 
         }
     }
 
-    // Standard item drop if no bonus flags were applied or if it's a champion (already handled item above)
-    if (!became_champion_this_spawn && (monster->monsterinfo.bonus_flags == BF_NONE || monster->monsterinfo.bonus_flags == BF_CHAMPION /* champion item is set above */)) {
+    if (!became_champion_this_spawn && (monster->monsterinfo.bonus_flags == BF_NONE || monster->monsterinfo.bonus_flags == BF_CHAMPION )) {
         const float drop_chance = levelNum <= 5 ? 0.8f : (levelNum <= 8 ? 0.6f : 0.45f);
         if (frandom() < drop_chance) {
             monster->item = G_HordePickItem();
@@ -5918,17 +5908,25 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         }
     } else if (became_champion_this_spawn) {
         // Item for champion already handled
-    } else { // Has other bonus flags, item also handled
-        if (!monster->item) monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure NO_DROP if item pick failed for other bonus
+    } else { 
+        if (!monster->item) monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; 
+    }
+
+    // MODIFIED GUARD for SpawnGrow_Spawn
+    if (monster->inuse && !monster->deadflag && monster->health > 0) {
+        SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+        if (sound_spawn1) { 
+            gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+        }
+    } else if (monster->inuse && developer->integer) { 
+        gi.Com_PrintFmt("SpawnGrow_Spawn skipped in EmergencySpawnMonster: Monster {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
+            (monster->classname ? monster->classname : "Unknown"),
+            (int)(monster - g_edicts),
+            monster->deadflag,
+            monster->health);
     }
 
 
-    SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-    if (sound_spawn1) { // Check if sound index is valid
-        gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-    }
-
-    // Increment total monster count for the wave ONLY if it's an additional monster
     if (is_additional_monster) {
         if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
             g_totalMonstersInWave++;
@@ -6518,7 +6516,6 @@ static bool AttemptSpawnSingleMonster(
         const bool is_flying_spawn_point = (spawn_point->style == 1);
 
         if (is_flying_spawn_point && !monster_is_flying) {
-            // ... (failure logic as before)
             IncreaseSpawnAttempts(spawn_point);
             g_consecutive_spawn_failures++;
             continue;
@@ -6526,7 +6523,6 @@ static bool AttemptSpawnSingleMonster(
         if (!is_flying_spawn_point && monster_is_flying &&
             !HasWaveType(current_actual_wave_type_param, MonsterWaveType::Flying) &&
             !is_recovery_mode_active_param) {
-            // ... (failure logic as before)
             IncreaseSpawnAttempts(spawn_point);
             g_consecutive_spawn_failures++;
             continue;
@@ -6535,33 +6531,25 @@ static bool AttemptSpawnSingleMonster(
         edict_t* spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
         
         if (spawned_monster_entity) {
-            // Monster was successfully spawned.
-            // It came from the g_horde_local.num_to_spawn pool, which was already accounted for
-            // in g_totalMonstersInWave during Horde_InitLevel.
+            // Monster was successfully processed by FindValidSpotAndSpawn.
+            // It might have been allocated and then freed if bonuses failed,
+            // or it might be fully live.
 
-            // ***** MODIFICATION: DO NOT INCREMENT g_totalMonstersInWave HERE *****
-            // if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
-            //     ++g_totalMonstersInWave; // REMOVED!
-            // } else if (developer->integer) {
-            //     gi.Com_PrintFmt("AttemptSpawnSingleMonster: Warning - g_totalMonstersInWave overflow prevented.\n");
-            // }
-            // ***** END MODIFICATION *****
-
-
-            // Decrement num_to_spawn is handled by the caller (SpawnMonsters -> ExecuteNormalSpawnProcedure)
-            // if (g_horde_local.num_to_spawn > 0) { // This check/decrement is done in SpawnMonsters's helpers
-            //     --g_horde_local.num_to_spawn;
-            // } else if (developer->integer) {
-            //     gi.Com_PrintFmt("AttemptSpawnSingleMonster: Warning - num_to_spawn was 0 but a monster was spawned.\n");
-            // }
-
-
-            if (spawned_monster_entity->inuse) {
+            // MODIFIED GUARD for SpawnGrow_Spawn
+            if (spawned_monster_entity->inuse && !spawned_monster_entity->deadflag && spawned_monster_entity->health > 0) {
                  SpawnGrow_Spawn(spawned_monster_entity->s.origin, 80.0f, 10.0f);
-                 if (sound_spawn1) {
+                 if (sound_spawn1) { // Check if sound index is valid
                     gi.sound(spawned_monster_entity, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
                  }
+            } else if (spawned_monster_entity->inuse && developer->integer) { // Log if monster exists but is not valid for SpawnGrow
+                gi.Com_PrintFmt("SpawnGrow_Spawn skipped in AttemptSpawnSingleMonster: Monster {} (idx {}) not fully alive. InUse:{}, DeadFlag:{}, Health:%.0f\n",
+                    (spawned_monster_entity->classname ? spawned_monster_entity->classname : "Unknown"),
+                    (int)(spawned_monster_entity - g_edicts),
+                    spawned_monster_entity->inuse,
+                    spawned_monster_entity->deadflag,
+                    spawned_monster_entity->health);
             }
+            // If spawned_monster_entity is !inuse here, FindValidSpotAndSpawn would have returned nullptr or it was freed after bonuses.
 
             horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type_id, level.time);
             g_consecutive_spawn_failures = 0;
@@ -6569,9 +6557,9 @@ static bool AttemptSpawnSingleMonster(
             if (is_recovery_mode_active_param) {
                 if (developer->integer) gi.Com_PrintFmt("AttemptSpawnSingleMonster: Successful spawn during recovery mode. Recovery may now end.\n");
             }
-            return true;
+            return true; // A monster entity was processed (successfully spawned or bonus failed freeing it)
         }
-        // If FindValidSpotAndSpawn returned nullptr, it failed and handled its own failure logging.
+        // If FindValidSpotAndSpawn returned nullptr, it failed and handled its own failure logging / cooldowns.
     }
 
     if (developer->integer > 1 && total_potential_points > 0) {
@@ -7373,12 +7361,12 @@ bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec
 
 bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects, bool force_despite_visibility = false)
 {
-	PROFILE_SCOPE("Horde_TeleportMonster");
-	if (level.intermissiontime) {
-		return false;
+    PROFILE_SCOPE("Horde_TeleportMonster");
+    if (level.intermissiontime) {
+        return false;
     }
 
-	if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles)) {
+    if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles)) {
         if (developer->integer > 1 && self) {
             gi.Com_PrintFmt("Horde_TeleportMonster: Basic validation failed for {}. InUse:{} Dead:{} DestOrigin:({:.1f},{:.1f},{:.1f}) DestAngles:({:.1f},{:.1f},{:.1f})\n",
                 self->classname ? self->classname : "NO_CLASSNAME",
@@ -7386,58 +7374,58 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
                 destination_origin.x, destination_origin.y, destination_origin.z,
                 destination_angles.x, destination_angles.y, destination_angles.z);
         }
-		return false;
-	}
+        return false;
+    }
 
-	if (self->monsterinfo.issummoned ||
-		(!force_despite_visibility &&
+    if (self->monsterinfo.issummoned ||
+        (!force_despite_visibility &&
          (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) ) {
         constexpr gtime_t VISIBLE_ENEMY_CANCEL_COOLDOWN = 1.5_sec;
         self->teleport_time = level.time + VISIBLE_ENEMY_CANCEL_COOLDOWN;
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible (force_vis: {}). Applying short cooldown ({:.1f}s).\n",
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible (force_vis: {}). Applying short cooldown ({:.1f}s).\n",
                  self->classname ? self->classname : "UNKNOWN",
                  force_despite_visibility,
                  VISIBLE_ENEMY_CANCEL_COOLDOWN.seconds());
-		}
-		return false;
-	}
+        }
+        return false;
+    }
 
-	effects_t original_effects = self->s.effects;
-	renderfx_t original_renderfx = self->s.renderfx;
+    effects_t original_effects = self->s.effects;
+    renderfx_t original_renderfx = self->s.renderfx;
 
-	self->svflags |= SVF_NOCLIENT;
-	self->s.effects = EF_NONE;
-	self->s.renderfx = (original_renderfx & RF_IR_VISIBLE);
-	gi.unlinkentity(self);
+    self->svflags |= SVF_NOCLIENT;
+    self->s.effects = EF_NONE;
+    self->s.renderfx = (original_renderfx & RF_IR_VISIBLE);
+    gi.unlinkentity(self);
 
-	const vec3_t old_origin = self->s.origin;
-	const vec3_t old_angles = self->s.angles;
-	const vec3_t old_velocity = self->velocity;
+    const vec3_t old_origin = self->s.origin;
+    const vec3_t old_angles = self->s.angles;
+    const vec3_t old_velocity = self->velocity;
 
-	self->s.origin = destination_origin;
-	self->s.old_origin = destination_origin;
-	self->s.angles = destination_angles;
-	self->velocity = vec3_origin;
+    self->s.origin = destination_origin;
+    self->s.old_origin = destination_origin;
+    self->s.angles = destination_angles;
+    self->velocity = vec3_origin;
 
-	vec3_t final_pos_after_validation = self->s.origin;
-	horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-	bool is_flying_monster = IsFlying(monsterTypeId);
+    vec3_t final_pos_after_validation = self->s.origin;
+    horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+    bool is_flying_monster = IsFlying(monsterTypeId);
     vec3_t predicted_mins, predicted_maxs;
     if (!GetPredictedScaledBounds(monsterTypeId, predicted_mins, predicted_maxs)) {
         // Warning logged by GetPredictedScaledBounds
     }
 
-	if (!IsValidSpawnLocation(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
-	{
-		self->s.origin = old_origin;
-		self->s.old_origin = old_origin;
-		self->s.angles = old_angles;
-		self->velocity = old_velocity;
-		self->s.effects = original_effects;
-		self->s.renderfx = original_renderfx;
-		self->svflags &= ~SVF_NOCLIENT;
-		gi.linkentity(self);
+    if (!IsValidSpawnLocation(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
+    {
+        self->s.origin = old_origin;
+        self->s.old_origin = old_origin;
+        self->s.angles = old_angles;
+        self->velocity = old_velocity;
+        self->s.effects = original_effects;
+        self->s.renderfx = original_renderfx;
+        self->svflags &= ~SVF_NOCLIENT;
+        gi.linkentity(self);
         self->teleport_time = level.time + 0.5_sec;
         if (developer->integer > 1) {
             gi.Com_PrintFmt("Horde_TeleportMonster: IsValidSpawnLocation failed for {} at intended ({:.1f},{:.1f},{:.1f}). Restored to ({:.1f},{:.1f},{:.1f}).\n",
@@ -7445,27 +7433,36 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
                 destination_origin.x, destination_origin.y, destination_origin.z,
                 old_origin.x, old_origin.y, old_origin.z);
         }
-		return false;
-	}
-	self->s.origin = final_pos_after_validation;
-	self->s.old_origin = final_pos_after_validation;
+        return false;
+    }
+    self->s.origin = final_pos_after_validation;
+    self->s.old_origin = final_pos_after_validation;
 
-	self->s.effects = original_effects;
-	self->s.renderfx = original_renderfx;
-	self->svflags &= ~SVF_NOCLIENT;
-	gi.linkentity(self);
+    self->s.effects = original_effects;
+    self->s.renderfx = original_renderfx;
+    self->svflags &= ~SVF_NOCLIENT;
+    gi.linkentity(self);
 
-	if (play_effects) {
-		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-        if (sound_spawn1) {
-		    gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+    if (play_effects) {
+        // MODIFIED GUARD
+        if (self->inuse && !self->deadflag && self->health > 0) {
+            SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+            if (sound_spawn1) { 
+                gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+            }
+        } else if (self->inuse && developer->integer > 1) { 
+             gi.Com_PrintFmt("SpawnGrow_Spawn (teleport effect) skipped: Monster {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
+                (self->classname ? self->classname : "Unknown"),
+                (int)(self - g_edicts),
+                self->deadflag,
+                self->health);
         }
-	}
+    }
 
-	self->monsterinfo.was_stuck = false;
-	self->monsterinfo.stuck_check_time = 0_sec;
-	self->monsterinfo.react_to_damage_time = level.time;
-	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
+    self->monsterinfo.was_stuck = false;
+    self->monsterinfo.stuck_check_time = 0_sec;
+    self->monsterinfo.react_to_damage_time = level.time;
+    self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
     if (developer->integer > 1) {
         gtime_t time_until_next_teleport = self->teleport_time - level.time;
@@ -7474,5 +7471,5 @@ bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, cons
             self->s.origin.x, self->s.origin.y, self->s.origin.z,
             time_until_next_teleport.seconds());
     }
-	return true;
+    return true;
 }

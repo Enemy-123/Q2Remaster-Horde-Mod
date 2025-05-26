@@ -424,7 +424,7 @@ bool M_droptofloor_generic(vec3_t& origin, const vec3_t& mins, const vec3_t& max
 	if (initial_trace.startsolid)
 	{
 		// Try nudging slightly away from solid
-		origin[2] += (ceiling ? -1.0f : 1.0f);
+		origin[2] += (ceiling ? -2.0f : 2.0f);
 		// Re-check if still inside solid after nudge
 		initial_trace = gi.trace(origin, mins, maxs, origin, ignore, mask);
 		if (initial_trace.startsolid) {
