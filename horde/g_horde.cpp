@@ -3148,7 +3148,7 @@ static horde::MonsterTypeID G_HordePickMonsterType(
             }
             if (!suitable_small_flyer_exists) {
                 if (developer->integer > 1) {
-                    gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint & WaveType includes Small, but no suitable Small Flyers. Relaxing 'Small' constraint for this pick at Lvl %d.\n", build_ctx.currentActualLevel);
+                    gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint & WaveType includes Small, but no suitable Small Flyers. Relaxing 'Small' constraint for this pick at Lvl {}.\n", build_ctx.currentActualLevel);
                 }
                 build_ctx.waveTypeForFiltering &= ~MonsterWaveType::Small; // Remove 'Small'
             }
@@ -3157,7 +3157,7 @@ static horde::MonsterTypeID G_HordePickMonsterType(
         // Scenario 2: Wave filter includes 'Ground'. This is irrelevant for a flying monster on a flying point.
         if (HasWaveType(build_ctx.waveTypeForFiltering, MonsterWaveType::Ground)) {
             if (developer->integer > 1 && HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Ground)) { // Log only if original had Ground
-                 gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint=true. Removing 'Ground' from filter for this pick at Lvl %d.\n", build_ctx.currentActualLevel);
+                 gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint=true. Removing 'Ground' from filter for this pick at Lvl {}.\n", build_ctx.currentActualLevel);
             }
             build_ctx.waveTypeForFiltering &= ~MonsterWaveType::Ground; // Remove 'Ground'
         }
@@ -3185,7 +3185,7 @@ static horde::MonsterTypeID G_HordePickMonsterType(
         chosen_monster = EmergencyFallbackSelection(ctx);
         if (chosen_monster != horde::MonsterTypeID::UNKNOWN && developer->integer) {
             const char* classname = horde::MonsterTypeRegistry::GetClassname(chosen_monster);
-            gi.Com_PrintFmt("G_HordePickMonsterType: EMERGENCY FALLBACK PICK: Selected %s (Lvl: %d, FlyPoint: %s, OrigFilter: %d, BuildFilter: %d)\n",
+            gi.Com_PrintFmt("G_HordePickMonsterType: EMERGENCY FALLBACK PICK: Selected {} (Lvl: {}, FlyPoint: {}, OrigFilter: {}, BuildFilter: {})\n",
                 classname ? classname : "UNKNOWN_CLASSNAME",
                 ctx.currentActualLevel,
                 ctx.isSpawnPointFlying ? "true" : "false",
