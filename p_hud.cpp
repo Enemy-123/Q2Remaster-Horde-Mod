@@ -19,8 +19,9 @@ void MoveClientToIntermission(edict_t* ent)
 	// [Paril-KEX]
 	if (ent->client->ps.pmove.pm_type != PM_FREEZE)
 		ent->s.event = EV_OTHER_TELEPORT;
-	if (deathmatch->integer)
-		ent->client->showscores = true;
+	// This initial setting of showscores is overridden later, so it can be removed.
+	// if (deathmatch->integer)
+	//	ent->client->showscores = true; 
 	ent->s.origin = level.intermission_origin;
 	ent->client->ps.pmove.origin = level.intermission_origin;
 	ent->client->ps.viewangles = level.intermission_angle;
@@ -40,7 +41,7 @@ void MoveClientToIntermission(edict_t* ent)
 	ent->client->grenade_time = 0_ms;
 
 	ent->client->showhelp = false;
-	ent->client->showscores = false;
+	ent->client->showscores = false; // Set to false, will be set to true later if deathmatch
 
 	globals.server_flags &= ~SERVER_FLAG_SLOW_TIME;
 
@@ -55,10 +56,10 @@ void MoveClientToIntermission(edict_t* ent)
 	// ROGUE
 
 	ent->viewheight = 0;
-	ent->s.modelindex = 0;
+	ent->s.modelindex = 0; // Only one assignment needed
 	ent->s.modelindex2 = 0;
 	ent->s.modelindex3 = 0;
-	ent->s.modelindex = 0;
+	// ent->s.modelindex = 0; // Redundant
 	ent->s.effects = EF_NONE;
 	ent->s.sound = 0;
 	ent->solid = SOLID_NOT;
@@ -87,7 +88,7 @@ void G_UpdateLevelEntry()
 	level.entry->total_monsters = level.total_monsters;
 }
 
-inline void G_EndOfUnitEntry(std::stringstream& layout, const int& y, const level_entry_t& entry)
+inline void G_EndOfUnitEntry(std::stringstream& layout, int y, const level_entry_t& entry)
 {
 	layout << G_Fmt("yv {} ", y);
 
@@ -118,6 +119,8 @@ void G_EndOfUnitMessage()
 
 	// sort entries
 	std::sort(game.level_entries.begin(), game.level_entries.end(), [](const level_entry_t& a, const level_entry_t& b) {
+		// This logic is a bit dense but functional. A comment could clarify priorities.
+		// Priority: 1. visit_order (if non-zero), 2. pretty_name exists, 3. others
 		int32_t const a_order = a.visit_order ? a.visit_order : (*a.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
 		int32_t const b_order = b.visit_order ? b.visit_order : (*b.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
 
@@ -132,7 +135,7 @@ void G_EndOfUnitMessage()
 
 	for (auto& entry : game.level_entries)
 	{
-		if (!*entry.map_name)
+		if (!*entry.map_name) // Stop if map_name is empty (end of valid entries)
 			break;
 
 		G_EndOfUnitEntry(layout, y, entry);
@@ -145,17 +148,17 @@ void G_EndOfUnitMessage()
 		totals.total_monsters += entry.total_monsters;
 		totals.total_secrets += entry.total_secrets;
 
-		if (entry.visit_order)
+		if (entry.visit_order) // Count actual visited levels for totals display condition
 			num_rows++;
 	}
 
 	y += 8;
 
 	// make this a space so it prints totals
-	if (num_rows > 1)
+	if (num_rows > 1) // Only show totals if more than one level was visited
 	{
 		layout << "table_row 0 "; // empty row to separate totals
-		totals.pretty_name[0] = ' ';
+		totals.pretty_name[0] = ' '; // Hack to make G_EndOfUnitEntry format totals; consider a dedicated totals row format
 		G_EndOfUnitEntry(layout, y, totals);
 	}
 
@@ -186,80 +189,93 @@ void G_EndOfUnitMessage()
 // ]
 void G_ReportMatchDetails(bool is_end)
 {
-	static std::array<uint32_t, MAX_CLIENTS> player_ranks;
+	static std::array<uint32_t, MAX_CLIENTS> player_ranks; // Static is fine as it's used as a temporary buffer, zeroed each call.
 
-	player_ranks = {};
+	player_ranks = {}; // Zero out ranks
 
 	// CTF/TDM is simple
 	if (ctf->integer || teamplay->integer)
 	{
 		CTFCalcRankings(player_ranks);
 
-		gi.WriteByte(2);
-		gi.WriteString("Stroggicide Squad"); // team 0
-		gi.WriteString("BLUE TEAM"); // team 1
+		gi.WriteByte(2); // num_teams
+		gi.WriteString("Stroggicide Squad"); // team 0 name
+		gi.WriteString("BLUE TEAM");         // team 1 name
 	}
-	else
+	else // Deathmatch
 	{
 		// sort players by score, then match everybody to
 		// the current highest score downwards until we run out of players.
-		static std::array<edict_t*, MAX_CLIENTS> sorted_players;
+		static std::array<edict_t*, MAX_CLIENTS> sorted_players_buffer; // Static buffer for sorting
 		size_t num_active_players = 0;
 
 		for (auto player : active_players())
-			sorted_players[num_active_players++] = player;
+		{
+			if (num_active_players < MAX_CLIENTS) // Ensure we don't overflow buffer
+				sorted_players_buffer[num_active_players++] = player;
+			else
+				break; // Should not happen if MAX_CLIENTS is sane
+		}
+		
+		std::sort(sorted_players_buffer.begin(), sorted_players_buffer.begin() + num_active_players, 
+			[](const edict_t* a, const edict_t* b) { 
+				return b->client->resp.score < a->client->resp.score; // Higher score first
+			});
 
-		std::sort(sorted_players.begin(), sorted_players.begin() + num_active_players, [](const edict_t* a, const edict_t* b) { return b->client->resp.score < a->client->resp.score; });
-
-		int32_t current_score = INT_MIN;
+		int32_t current_score = INT_MIN; // Use a very low initial score
 		int32_t current_rank = 0;
 
 		for (size_t i = 0; i < num_active_players; i++)
 		{
-			if (!current_rank || sorted_players[i]->client->resp.score != current_score)
+			if (!current_rank || sorted_players_buffer[i]->client->resp.score != current_score)
 			{
 				current_rank++;
-				current_score = sorted_players[i]->client->resp.score;
+				current_score = sorted_players_buffer[i]->client->resp.score;
 			}
-
-			player_ranks[sorted_players[i]->s.number - 1] = current_rank;
+			// Ensure player index is within bounds for player_ranks
+			size_t player_idx = sorted_players_buffer[i]->s.number - 1;
+			if (player_idx < MAX_CLIENTS)
+				player_ranks[player_idx] = current_rank;
 		}
 
-		gi.WriteByte(0);
+		gi.WriteByte(0); // num_teams for non-team modes
 	}
 
-	uint8_t num_players = 0;
+	uint8_t num_players_to_report = 0; // Renamed for clarity
 
+	// First pass to count reportable players (if protocol requires count first)
 	for (const auto* const player : active_players())
 	{
-		// leave spectators out of this data, they don't need to be seen.
 		if (player->client->pers.spawned && !player->client->resp.spectator)
 		{
-			// just in case...
 			if (G_TeamplayEnabled() && player->client->resp.ctf_team == CTF_NOTEAM)
 				continue;
-
-			num_players++;
+			num_players_to_report++;
 		}
 	}
 
-	gi.WriteByte(num_players);
+	gi.WriteByte(num_players_to_report);
 
+	// Second pass to write player data
 	for (const auto* const player : active_players())
 	{
-		// leave spectators out of this data, they don't need to be seen.
 		if (player->client->pers.spawned && !player->client->resp.spectator)
 		{
-			// just in case...
 			if (G_TeamplayEnabled() && player->client->resp.ctf_team == CTF_NOTEAM)
 				continue;
+			
+			size_t player_idx = player->s.number - 1;
+			gi.WriteByte(static_cast<uint8_t>(player_idx)); // client_index
+			gi.WriteLong(player->client->resp.score); // score
+			
+			if(player_idx < MAX_CLIENTS)
+				gi.WriteByte(static_cast<uint8_t>(player_ranks[player_idx])); // ranking
+			else
+				gi.WriteByte(0); // Default rank if out of bounds (should not happen)
 
-			gi.WriteByte(player->s.number - 1);
-			gi.WriteLong(player->client->resp.score);
-			gi.WriteByte(player_ranks[player->s.number - 1]);
 
 			if (G_TeamplayEnabled())
-				gi.WriteByte(player->client->resp.ctf_team == CTF_TEAM1 ? 0 : 1);
+				gi.WriteByte(player->client->resp.ctf_team == CTF_TEAM1 ? 0 : 1); // team index
 		}
 	}
 
@@ -406,6 +422,7 @@ void BeginIntermission(edict_t* targ)
 }
 
 constexpr size_t MAX_SCOREBOARD_SIZE = 1024;
+constexpr size_t SCOREBOARD_ENTRY_RESERVE_SIZE = 128; 
 
 /*
 ==================
@@ -415,14 +432,15 @@ DeathmatchScoreboardMessage
 */
 void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 {
-	static std::string entry, string;
-	size_t		j;
-	int			sorted[MAX_CLIENTS];
-	int			sortedscores[MAX_CLIENTS];
-	int			score;
-	int			x, y;
+	std::string entry_buffer;
+	std::string layout_string_buffer; // Renamed to avoid conflict with 'string' from <string>
+	
+	entry_buffer.reserve(SCOREBOARD_ENTRY_RESERVE_SIZE); 
+	layout_string_buffer.reserve(MAX_SCOREBOARD_SIZE);
+
+	int x, y;
 	gclient_t* cl;
-	edict_t* cl_ent;
+	// edict_t* cl_ent; // Will get this from PlayerScoreInfo
 	const char* tag;
 
 	// ZOID
@@ -433,109 +451,97 @@ void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 	}
 	// ZOID
 
-	entry.clear();
-	string.clear();
+	struct PlayerScoreInfo {
+		int client_idx;
+		int score;
+		int ping;
+		gtime_t entertime;
+		edict_t* entity; 
+	};
 
-	//  sort the clients by score
-	uint32_t total = 0;
+	std::vector<PlayerScoreInfo> sorted_players_info;
+	sorted_players_info.reserve(game.maxclients);
+
 	for (uint32_t i = 0; i < game.maxclients; i++)
 	{
-		cl_ent = g_edicts + 1 + i;
-		if (!cl_ent->inuse || game.clients[i].resp.spectator)
+		edict_t* current_cl_ent = g_edicts + 1 + i;
+		if (!current_cl_ent->inuse || game.clients[i].resp.spectator)
 			continue;
-		score = game.clients[i].resp.score;
-		for (j = 0; j < total; j++)
-		{
-			if (score > sortedscores[j])
-				break;
-		}
-		for (uint32_t k = total; k > j; k--)
-		{
-			sorted[k] = sorted[k - 1];
-			sortedscores[k] = sortedscores[k - 1];
-		}
-		sorted[j] = i;
-		sortedscores[j] = score;
-		total++;
+		
+		sorted_players_info.push_back({
+			(int)i, 
+			game.clients[i].resp.score,
+			game.clients[i].ping,
+			game.clients[i].resp.entertime,
+			current_cl_ent
+		});
 	}
 
-	// add the clients in sorted order
-	if (total > 16)
-		total = 16;
+	std::sort(sorted_players_info.begin(), sorted_players_info.end(), 
+		[](const PlayerScoreInfo& a, const PlayerScoreInfo& b) {
+		if (a.score != b.score) {
+			return a.score > b.score; // Higher score first
+		}
+		return a.client_idx < b.client_idx; // Tie-break by client index
+	});
 
-	for (uint32_t i = 0; i < total; i++)
+	size_t players_to_display_count = std::min(sorted_players_info.size(), (size_t)16);
+
+	for (size_t i = 0; i < players_to_display_count; i++)
 	{
-		cl = &game.clients[sorted[i]];
-		cl_ent = g_edicts + 1 + sorted[i];
+		const auto& p_info = sorted_players_info[i];
+		cl = &game.clients[p_info.client_idx]; 
 
-		x = (i >= 8) ? 130 : -72;
-		y = 0 + 32 * (i % 8);
+		x = (i >= 8) ? 130 : -72; 
+		y = 0 + 32 * (i % 8);    
 
-		// add a dogtag
-		// [Paril-KEX] use dynamic dogtags
-		tag = nullptr;
+		tag = nullptr; 
 
-		//===============
-		// ROGUE
-		// allow new DM games to override the tag picture
 		if (gamerules->integer)
 		{
 			if (DMGame.DogTag)
-				DMGame.DogTag(cl_ent, killer, &tag);
+				DMGame.DogTag(p_info.entity, killer, &tag);
 		}
-		// ROGUE
-		//===============
 
+		entry_buffer.clear(); 
 		if (tag)
 		{
-			fmt::format_to(std::back_inserter(entry), FMT_STRING("xv {} yv {} picn {} "), x + 32, y, tag);
-
-			if (string.length() + entry.length() > MAX_SCOREBOARD_SIZE)
-				break;
-
-			string += entry;
+			fmt::format_to(std::back_inserter(entry_buffer), FMT_STRING("xv {} yv {} picn {} "), x + 32, y, tag);
 		}
 		else
 		{
-			fmt::format_to(std::back_inserter(entry), FMT_STRING("xv {} yv {} dogtag {} "), x + 32, y, sorted[i]);
-
-			if (string.length() + entry.length() > MAX_SCOREBOARD_SIZE)
-				break;
-
-			string += entry;
+			fmt::format_to(std::back_inserter(entry_buffer), FMT_STRING("xv {} yv {} dogtag {} "), x + 32, y, p_info.client_idx);
 		}
-
-		entry.clear();
-
-		fmt::format_to(std::back_inserter(entry),
-			FMT_STRING("client {} {} {} {} {} {} "),
-			x, y, sorted[i], cl->resp.score, cl->ping, (int32_t)(level.time - cl->resp.entertime).minutes());
-
-		if (string.length() + entry.length() > MAX_SCOREBOARD_SIZE)
+		
+		if (layout_string_buffer.length() + entry_buffer.length() > MAX_SCOREBOARD_SIZE)
 			break;
+		layout_string_buffer += entry_buffer;
+		
+		entry_buffer.clear();
+		fmt::format_to(std::back_inserter(entry_buffer),
+			FMT_STRING("client {} {} {} {} {} {} "),
+			x, y, p_info.client_idx, cl->resp.score, cl->ping, (int32_t)(level.time - cl->resp.entertime).minutes());
 
-		string += entry;
-
-		entry.clear();
+		if (layout_string_buffer.length() + entry_buffer.length() > MAX_SCOREBOARD_SIZE)
+			break;
+		layout_string_buffer += entry_buffer;
 	}
 
-	// [Paril-KEX] time & frags
 	if (fraglimit->integer)
 	{
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
+		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
 	}
 	if (timelimit->value && !level.intermissiontime)
 	{
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -10 time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
+		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("xv 340 yv -10 time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
 	if (level.intermissiontime)
-		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 
 	gi.WriteByte(svc_layout);
-	gi.WriteString(string.c_str());
+	gi.WriteString(layout_string_buffer.c_str());
 }
-
 /*
 ==================
 DeathmatchScoreboard
@@ -807,7 +813,7 @@ void G_SetStats(edict_t* ent)
 		ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
 	ent->client->ps.stats[STAT_HEALTH] = ent->health;
 
-	if (ctfgame.election != ELECT_NONE) { // Check the global election state
+	if (ctfgame.election != ELECT_NONE) { 
 		ent->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
 	}
 	else {
@@ -816,11 +822,9 @@ void G_SetStats(edict_t* ent)
 
 	// Horde Status
 	if (g_horde->integer && gi.get_configstring(CONFIG_HORDEMSG)[0] != '\0') {
-		// Set stat only if Horde is active AND there's actually a message
 		ent->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
 	}
 	else {
-		// Otherwise, ensure the stat is cleared
 		ent->client->ps.stats[STAT_HORDEMSG] = 0;
 	}
 	//
@@ -878,7 +882,7 @@ void G_SetStats(edict_t* ent)
 
 	index = ArmorIndex(ent);
 	if (power_armor_type && (!index || (level.time.milliseconds() % 3000) < 1500))
-	{ // flash between power armor and other armor icon
+	{ 
 		ent->client->ps.stats[STAT_ARMOR_ICON] = power_armor_type == IT_ITEM_POWER_SHIELD ? gi.imageindex("i_powershield") : gi.imageindex("i_powerscreen");
 		ent->client->ps.stats[STAT_ARMOR] = cells;
 	}
@@ -941,65 +945,64 @@ void G_SetStats(edict_t* ent)
 	ent->client->ps.stats[STAT_TIMER_ICON] = 0;
 	ent->client->ps.stats[STAT_TIMER] = 0;
 
-	// Improved powerup and sphere timer management
 	struct active_powerup_t {
-		const powerup_info_t* info;
+		const powerup_info_t* info; // Can be null if it's a sphere
 		int16_t timer_value;
 		const char* icon;
 		bool is_sphere;
 	};
 
 	std::vector<active_powerup_t> active_powerups;
+    active_powerups.reserve(8); // Pre-allocate for a few common powerups + sphere
 
-	// Collect active powerups
-	for (auto& powerup : powerup_table)
+	for (auto& powerup_entry : powerup_table) // Iterate through the global powerup_table
 	{
-		const auto* const powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
-		const auto* const powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
+		const auto* const powerup_time = powerup_entry.time_ptr ? &(ent->client->*(powerup_entry.time_ptr)) : nullptr;
+		const auto* const powerup_count = powerup_entry.count_ptr ? &(ent->client->*(powerup_entry.count_ptr)) : nullptr;
 
 		if ((powerup_time && *powerup_time > level.time) ||
 			(powerup_count && *powerup_count > 0))
 		{
 			active_powerup_t ap = {};
-			ap.info = &powerup;
+			ap.info = &powerup_entry;
+            ap.is_sphere = false;
 
-			// Calculate timer value
-			if (powerup.count_ptr)
-				ap.timer_value = (ent->client->*powerup.count_ptr);
+			if (powerup_entry.count_ptr)
+				ap.timer_value = (ent->client->*(powerup_entry.count_ptr));
 			else
-				ap.timer_value = ceil((ent->client->*powerup.time_ptr - level.time).seconds());
+				ap.timer_value = static_cast<int16_t>(ceil((ent->client->*(powerup_entry.time_ptr) - level.time).seconds()));
 
-			const gitem_t* const item = GetItemByIndex(powerup.item);
-			if (item)
-				ap.icon = item->icon;
+			const gitem_t* const item_def = GetItemByIndex(powerup_entry.item);
+			if (item_def)
+				ap.icon = item_def->icon;
+            else
+                ap.icon = "i_fixme"; // Fallback icon
 
 			active_powerups.push_back(ap);
 		}
 	}
 
-	// Add sphere if active (treat it as another powerup)
 	if (ent->client->owned_sphere)
 	{
-		active_powerup_t sphere = {};
-		sphere.is_sphere = true;
-		sphere.timer_value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
+		active_powerup_t sphere_ap = {};
+        sphere_ap.info = nullptr; // Not from powerup_table
+		sphere_ap.is_sphere = true;
+		sphere_ap.timer_value = static_cast<int16_t>(ceil(ent->client->owned_sphere->wait - level.time.seconds()));
 
 		if (ent->client->owned_sphere->spawnflags.has(SPHERE_DEFENDER))
-			sphere.icon = "p_defender";
+			sphere_ap.icon = "p_defender";
 		else if (ent->client->owned_sphere->spawnflags.has(SPHERE_HUNTER))
-			sphere.icon = "p_hunter";
+			sphere_ap.icon = "p_hunter";
 		else if (ent->client->owned_sphere->spawnflags.has(SPHERE_VENGEANCE))
-			sphere.icon = "p_vengeance";
+			sphere_ap.icon = "p_vengeance";
 		else {
-			sphere.icon = "i_fixme";
-		//	gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n",
-		//		SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
+			sphere_ap.icon = "i_fixme";
+			// gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n",
+			//	SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
 		}
-
-		active_powerups.push_back(sphere);
+		active_powerups.push_back(sphere_ap);
 	}
 
-	// Sort all powerups (including sphere) by time remaining (lowest time first)
 	if (!active_powerups.empty())
 	{
 		std::sort(active_powerups.begin(), active_powerups.end(),
@@ -1007,34 +1010,25 @@ void G_SetStats(edict_t* ent)
 				return a.timer_value < b.timer_value;
 			});
 
-		// Handle display logic with alternation
 		const bool should_alternate = ((level.time.milliseconds() % 3000) < 1500);
 		active_powerup_t* display_powerup = nullptr;
 
 		if (active_powerups.size() > 1)
 		{
-			// Always alternate between the two lowest timer powerups/spheres
 			display_powerup = should_alternate ? &active_powerups[1] : &active_powerups[0];
 		}
 		else
 		{
-			// Single powerup/sphere case
 			display_powerup = &active_powerups[0];
 		}
 
-		// Update both stats atomically
 		if (display_powerup && display_powerup->icon)
 		{
 			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(display_powerup->icon);
 			ent->client->ps.stats[STAT_TIMER] = display_powerup->timer_value;
 		}
 	}
-	else
-	{
-		ent->client->ps.stats[STAT_TIMER_ICON] = 0;
-		ent->client->ps.stats[STAT_TIMER] = 0;
-	}
-	// PGM
+	// PGM (End of powerup timer modification)
 
 	//
 	// selected item
@@ -1079,10 +1073,8 @@ void G_SetStats(edict_t* ent)
 		if (ent->client->awaiting_respawn || (level.intermission_eou || level.is_n64 || (G_IsDeathmatch() && level.intermissiontime)))
 			ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_HIDE_HUD;
 
-		// N64 always merges into one screen on level ends
 		if (level.intermission_eou || level.is_n64 || (G_IsDeathmatch() && level.intermissiontime))
 			ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_INTERMISSION;
-
 	}
 
 	if (level.story_active)
@@ -1100,26 +1092,31 @@ void G_SetStats(edict_t* ent)
 			ent->client->ps.stats[STAT_KEY_B] =
 			ent->client->ps.stats[STAT_KEY_C] = 0;
 
-		// there's probably a way to do this in one pass but
-		// I'm lazy
-		std::array<item_id_t, IT_TOTAL> keys_held;
-		size_t num_keys_held = 0;
+		std::vector<item_id_t> keys_held; // Use std::vector instead of large stack array
+        keys_held.reserve(10); // Pre-allocate for a reasonable number of keys
 
-		for (auto& item : itemlist)
+		for (size_t i = 0; i < IT_TOTAL; ++i) // Iterate using index for global C array
 		{
-			if (!(item.flags & IF_KEY))
+            const gitem_t& current_item = itemlist[i];
+			if (!(current_item.flags & IF_KEY))
 				continue;
-			else if (!ent->client->pers.inventory[item.id])
+			else if (!ent->client->pers.inventory[current_item.id])
 				continue;
 
-			keys_held[num_keys_held++] = item.id;
+			keys_held.push_back(current_item.id);
 		}
 
-		if (num_keys_held > 3)
-			key_offset = (int32_t)(level.time.seconds() / 5);
+		if (!keys_held.empty()) // Proceed only if keys are held
+		{
+			if (keys_held.size() > 3)
+				key_offset = (int32_t)(level.time.seconds() / 5);
 
-		for (int32_t i = 0; i < min(num_keys_held, (size_t)3); i++, stat = (player_stat_t)(stat + 1))
-			ent->client->ps.stats[stat] = gi.imageindex(GetItemByIndex(keys_held[(i + key_offset) % num_keys_held])->icon);
+			for (int32_t i = 0; i < std::min(keys_held.size(), (size_t)3); i++, stat = (player_stat_t)(stat + 1))
+			{
+				size_t key_index_to_display = (i + key_offset) % keys_held.size();
+				ent->client->ps.stats[stat] = gi.imageindex(GetItemByIndex(keys_held[key_index_to_display])->icon);
+			}
+		}
 	}
 
 	//
@@ -1130,7 +1127,7 @@ void G_SetStats(edict_t* ent)
 	//
 	// help icon / current weapon if not shown
 	//
-	if (ent->client->pers.helpchanged >= 1 && ent->client->pers.helpchanged <= 2 && (level.time.milliseconds() % 1000) < 500) // haleyjd: time-limited
+	if (ent->client->pers.helpchanged >= 1 && ent->client->pers.helpchanged <= 2 && (level.time.milliseconds() % 1000) < 500) 
 		ent->client->ps.stats[STAT_HELPICON] = gi.imageindex("i_help");
 	else if ((ent->client->pers.hand == CENTER_HANDED) && ent->client->pers.weapon)
 		ent->client->ps.stats[STAT_HELPICON] = gi.imageindex(ent->client->pers.weapon->icon);
@@ -1139,7 +1136,6 @@ void G_SetStats(edict_t* ent)
 
 	ent->client->ps.stats[STAT_SPECTATOR] = 0;
 
-	// set & run the health bar stuff
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
 	{
 		byte* health_byte = reinterpret_cast<byte*>(&ent->client->ps.stats[STAT_HEALTH_BARS]) + i;
@@ -1154,15 +1150,12 @@ void G_SetStats(edict_t* ent)
 				*health_byte = 0;
 				continue;
 			}
-
 			*health_byte = 0b10000000;
 		}
 		else
 		{
-			// enemy dead
 			if (!level.health_bar_entities[i]->enemy->inuse || level.health_bar_entities[i]->enemy->health <= 0)
 			{
-				// hack for Makron
 				if (level.health_bar_entities[i]->enemy->monsterinfo.aiflags & AI_DOUBLE_TROUBLE)
 				{
 					*health_byte = 0b10000000;
@@ -1179,7 +1172,6 @@ void G_SetStats(edict_t* ent)
 					level.health_bar_entities[i] = nullptr;
 					*health_byte = 0;
 				}
-
 				continue;
 			}
 			else if (level.health_bar_entities[i]->spawnflags.has(SPAWNFLAG_HEALTHBAR_PVS_ONLY) && !gi.inPVS(ent->s.origin, level.health_bar_entities[i]->enemy->s.origin, true))
@@ -1191,28 +1183,27 @@ void G_SetStats(edict_t* ent)
 			float health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->max_health;
 			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}
-		void CTFSetIDView(edict_t * ent);
-		//ID DMG and CTFIDVIEW
-
-	//if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
-		if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER))
-			CTFSetIDView(ent);
-
-		else
-		{
-		//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
-		}
-
-
-		// DMG ID
-		if (level.time > ent->client->lastdmg  + 1.75_sec || !g_iddmg->integer) {
-			ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
-		}
-		else if (ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
-			ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
-		}
 	}
+     void CTFSetIDView(edict_t * ent); // Declaration moved up for clarity
+	
+	if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER)) // Removed !(ent->svflags & SVF_BOT) as per original
+			CTFSetIDView(ent);
+	else
+	{
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+	}
+
+	if (level.time > ent->client->lastdmg  + 1.75_sec || !g_iddmg->integer) {
+		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
+	}
+	// Original code had an `else if` here, but the condition was identical to the one for CTFSetIDView.
+	// Assuming the intent was that if id_state is true, dmg_counter is set.
+	// If id_state is false, or time expired, or g_iddmg is false, it's cleared.
+	// The CTFSetIDView call seems independent of this specific damage counter logic.
+	else if (ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) { // This condition was in original
+		ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
+	}
+
 
 	// ZOID
 	SetCTFStats(ent);
