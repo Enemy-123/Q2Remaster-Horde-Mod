@@ -3245,8 +3245,8 @@ struct gclient_t
 	edict_t* idtarget;
 	uint64_t dmg_counter;     // ID DMG
 	uint64_t total_damage;    // Total damage dealt
-	int num_lasers = 0;
-	int num_teslas = 0; // max teslas per client
+	int num_lasers = 0; // tracks max lasers per client
+	int num_teslas = 0; // tracks max teslas per client
 	//int num_traps; //foodcube trap per client
 	int num_sentries = 0; //Sentry Guns per client
 	int last_wave_timer_horde_update; //eaks hud timer
@@ -3259,6 +3259,7 @@ struct gclient_t
 	bool ir_tracking_active; //horde tracking
 	int ir_frame_count;
 
+	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 	std::unique_ptr<PlayerLaserManager> laser_manager;  // In gclient_t
 };
 
@@ -3514,11 +3515,9 @@ struct edict_t
 	gtime_t safety_time;
 	gtime_t hook_time;
 
-	// Kyper
-	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 	gtime_t beam_hit_time; // heatbeam piercing balance
-
-	int bounce_count; // max blaster/hb bounces to avoid sound overflow
+		int bounce_count; // max blaster/hb bounces to avoid sound overflow
+	// Kyper
 };
 
 static constexpr const char* TEAM1 = "team1";

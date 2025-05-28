@@ -1535,28 +1535,24 @@ constexpr vec3_t GUN_OFFSET = { 0.0f, 8.0f, -8.0f }; // -8 relative to viewheigh
 constexpr vec3_t TRACER_OFFSET_STANDING = { 0.0f, 10.5f, -11.0f };
 constexpr vec3_t TRACER_OFFSET_DUCKED = { 0.0f, 8.0f, -6.0f };
 
-// Helper function for firing tracer bullets
 void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
 {
-    if (!g_tracedbullets->integer || ent->lasthbshot > level.time)
+    if (!g_tracedbullets->integer || !ent || !ent->client || ent->client->lasthbshot > level.time)
         return;
 
-    // Select appropriate offset based on stance
     const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
         ? TRACER_OFFSET_DUCKED
         : TRACER_OFFSET_STANDING;
 
-    // Calculate tracer starting position and direction using the specific offset
     vec3_t tracer_start;
     vec3_t dir;
-    P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true); // Use P_ProjectSource for accuracy
+    P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
 
-    // Fire tracer
     fire_blaster2(ent, tracer_start, dir, damage, 3150, EF_NONE, false);
 
-    // Reset cooldown
-    ent->lasthbshot = level.time + cooldown_duration;
+    ent->client->lasthbshot = level.time + cooldown_duration;
 }
+
 
 
 void Machinegun_Fire(edict_t* ent)
@@ -1655,28 +1651,11 @@ void Weapon_Machinegun(edict_t* ent)
 	Weapon_Repeating(ent, 3, 5, 45, 49, pause_frames, Machinegun_Fire);
 }
 
-void chaingun_smoke(edict_t* ent)
-{
-	vec3_t tempVec, dir;
-	// Aumentamos el primer valor (forward) para mover el humo más adelante
-	// Opciones de offset:
-	// Original: { 8, 8, -4 }  // cerca del arma
-	// Opción 1: { 20, 8, -4 } // un poco más adelante
-	// Opción 2: { 32, 8, -4 } // bastante más adelante
-	// Opción 3: { 48, 8, -4 } // muy adelante
-
-	P_ProjectSource(ent, ent->client->v_angle, { 20, 8, -4 }, tempVec, dir);
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_CHAINFIST_SMOKE);
-	gi.WritePosition(tempVec);
-	gi.unicast(ent, 0);
-}
-
-constexpr int SPINUP_FRAMES = 5;      // Number of frames for spin-up
-constexpr int SPINDOWN_FRAMES = 2;    // Number of frames for spin-down
-// Constants for better readability and maintainability
+// Constants for Chaingun_Fire visuals and mechanics
 constexpr float KICK_BASE_ANGLE = 0.5f;
 constexpr float KICK_PER_SHOT = 0.15f;
+
+// Frame numbers critical to Chaingun_Fire's internal logic
 constexpr int CHAINGUN_START_FRAME = 5;
 constexpr int CHAINGUN_END_FRAME = 21;
 constexpr int CHAINGUN_PAUSE_FRAME = 14;
@@ -1684,10 +1663,14 @@ constexpr int CHAINGUN_LOOP_FRAME = 15;
 constexpr int CHAINGUN_SPINDOWN_FRAME = 32;
 constexpr int CHAINGUN_SOUND_FRAME = 22;
 constexpr int CHAINGUN_READY_FRAME = 31;
+
+// Shot logic frames
 constexpr int CHAINGUN_SINGLE_SHOT_FRAME = 9;
 constexpr int CHAINGUN_DOUBLE_SHOT_FRAME = 14;
+
+// Tracer bullet specifics
 constexpr int CG_TRACER_DMG = 20;
-constexpr gtime_t CG_TRACER_COOLDOWN = 200_ms;
+constexpr gtime_t CG_TRACER_COOLDOWN = 300_ms;
 
 void Chaingun_Fire(edict_t* ent)
 {
@@ -1700,43 +1683,41 @@ void Chaingun_Fire(edict_t* ent)
 
 	// Handle gun state transitions
 	if (ent->client->ps.gunframe > CHAINGUN_READY_FRAME) {
-		// Restart the firing sequence
 		ent->client->ps.gunframe = CHAINGUN_START_FRAME;
 		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
 	}
 	else if ((ent->client->ps.gunframe == CHAINGUN_PAUSE_FRAME) &&
 		!(ent->client->buttons & BUTTON_ATTACK)) {
-		// Player released trigger during firing - start spin down
 		ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME;
 		ent->client->weapon_sound = 0;
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
 		return;
 	}
 	else if ((ent->client->ps.gunframe == CHAINGUN_END_FRAME) &&
 		(ent->client->buttons & BUTTON_ATTACK) &&
 		ent->client->pers.inventory[ent->client->pers.weapon->ammo]) {
-		// Player still holding trigger at end of sequence - loop back
 		ent->client->ps.gunframe = CHAINGUN_LOOP_FRAME;
 	}
 	else {
-		// Normal frame advancement
 		ent->client->ps.gunframe++;
 	}
 
-	// Handle spindown sound
 	if (ent->client->ps.gunframe == CHAINGUN_SOUND_FRAME) {
 		ent->client->weapon_sound = 0;
 		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
 	}
 
-	// Only fire when in active frames
-	if (ent->client->ps.gunframe < CHAINGUN_START_FRAME ||
-		ent->client->ps.gunframe > CHAINGUN_END_FRAME)
-		return;
+    if (ent->client->ps.gunframe >= CHAINGUN_SPINDOWN_FRAME) {
+        ent->client->weapon_sound = 0;
+        return;
+    }
 
-	// Set firing sound
+	if (ent->client->ps.gunframe < CHAINGUN_START_FRAME || ent->client->ps.gunframe > CHAINGUN_END_FRAME) {
+		return;
+    }
+
 	ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
 
-	// Determine number of shots based on frame
 	if (ent->client->ps.gunframe <= CHAINGUN_SINGLE_SHOT_FRAME)
 		shots = 1;
 	else if (ent->client->ps.gunframe <= CHAINGUN_DOUBLE_SHOT_FRAME)
@@ -1744,7 +1725,6 @@ void Chaingun_Fire(edict_t* ent)
 	else
 		shots = 3;
 
-	// Configure player animation based on stance
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
@@ -1756,23 +1736,23 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	ent->client->anim_time = 0_ms;
 
-	// Check ammo
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < shots) {
 		shots = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
 	}
 
 	if (!shots) {
 		NoAmmoWeaponChange(ent, true);
+		ent->client->ps.gunframe = CHAINGUN_SPINDOWN_FRAME;
+		ent->client->weapon_sound = 0;
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
 		return;
 	}
 
-	// Apply quad damage modifier if active
 	if (is_quad) {
 		damage *= damage_multiplier;
 		kick *= damage_multiplier;
 	}
 
-	// Initialize kick vectors - more kick for more shots
 	vec3_t kick_origin{};
 	vec3_t kick_angles{};
 	for (int i = 0; i < 3; i++) {
@@ -1781,57 +1761,53 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// Calculate firing vectors
-	vec3_t start;
-	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
+	vec3_t start_pos;
+    vec3_t fire_dir;
+	P_ProjectSource(ent, ent->client->v_angle, GUN_OFFSET, start_pos, fire_dir, true);
 
-	// Calculate gun position with viewheight adjustment
-	vec3_t offset = GUN_OFFSET;
-	offset[2] += ent->viewheight; // Adjust for player's view height
-
-	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
-	start[2] -= GUN_HEIGHT_ADJUST;  // Additional height adjustment
-
-	// Fire with lag compensation
-	G_LagCompensate(ent, start, forward);
+	G_LagCompensate(ent, start_pos, fire_dir);
 	for (int i = 0; i < shots; i++) {
-		fire_bullet(ent, start, forward, damage, kick,
+		fire_bullet(ent, start_pos, fire_dir, damage, kick,
 			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
 	}
 	G_UnLagCompensate();
 
-	// Play weapon sound with power-up effects
 	Weapon_PowerupSound(ent);
 
-	// Send muzzle flash effect to clients - intensity based on shot count
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
 	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	// Generate noise event for AI awareness
-	PlayerNoise(ent, start, PNOISE_WEAPON);
-
-	// Remove ammo based on shot count
+	PlayerNoise(ent, start_pos, PNOISE_WEAPON);
+	
 	G_RemoveAmmo(ent, shots);
 
-	// Handle tracer logic using the helper function
 	Fire_TracerBullet(ent, CG_TRACER_DMG, CG_TRACER_COOLDOWN);
 }
 
 void Weapon_Chaingun(edict_t* ent)
 {
-	if (g_energyshells->integer) {
-		constexpr int pause_frames[] = { 0 };
-		Weapon_Repeating(ent, 1, SPINUP_FRAMES + SPINDOWN_FRAMES,
-			SPINUP_FRAMES + SPINDOWN_FRAMES + 1,
-			SPINUP_FRAMES + SPINDOWN_FRAMES + 1,
-			pause_frames, Chaingun_Fire);
-	}
-	else {
-		constexpr int pause_frames[] = { 38, 43, 51, 61, 0 };
-		Weapon_Repeating(ent, 4, 31, 61, 64, pause_frames, Chaingun_Fire);
-	}
+    // Standard chaingun animation frame parameters for Weapon_Repeating.
+    // These are designed to be compatible with Chaingun_Fire's internal frame logic.
+    // FRAME_ACTIVATE_LAST = 4  => FRAME_FIRE_FIRST = 5 (Chaingun_Fire starts its logic)
+    // FRAME_FIRE_LAST = 31     => FRAME_IDLE_FIRST = 32 (Chaingun_Fire handles this as end of cycle/spindown)
+    // FRAME_IDLE_LAST = 61     (Duration of the idle animation part)
+    // FRAME_DEACTIVATE_LAST = 64 (Duration of the weapon lowering animation)
+    constexpr int STD_CHAINGUN_ACTIVATE_LAST = 4;
+    constexpr int STD_CHAINGUN_FIRE_LAST = 31;
+    constexpr int STD_CHAINGUN_IDLE_LAST = 61;
+    constexpr int STD_CHAINGUN_DEACTIVATE_LAST = 64;
+
+    constexpr int pause_frames[] = { 38, 43, 51, 61, 0 }; // Standard chaingun idle pause frames
+
+    Weapon_Repeating(ent,
+        STD_CHAINGUN_ACTIVATE_LAST,
+        STD_CHAINGUN_FIRE_LAST,
+        STD_CHAINGUN_IDLE_LAST,
+        STD_CHAINGUN_DEACTIVATE_LAST,
+        pause_frames,
+        Chaingun_Fire);
 }
 /*
 ======================================================================
