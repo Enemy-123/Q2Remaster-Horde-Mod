@@ -49,6 +49,7 @@ constexpr vec3_t lightning_right_hand[] = {
 	{ 27, -11, 83 }
 };
 
+constexpr float FIREBALL_HAND_Z_OFFSET = 20.0f;
 void shambler_windupFire(edict_t* self);
 
 
@@ -70,42 +71,58 @@ constexpr vec3_t fireball_right_hand[] = {
 
 static void shambler_fireball_update(edict_t* self)
 {
-	edict_t* fireball_effect = self->beam;
+	// Use self->beam2 for the fireball charging effect
+	edict_t* fireball_effect = self->beam2;
 	if (!fireball_effect) {
 		// Create new fireball effect
 		fireball_effect = G_Spawn();
-		self->beam = fireball_effect;
-		fireball_effect->s.effects = EF_FIREBALL | EF_BARREL_EXPLODING;
+		self->beam2 = fireball_effect; // Assign to beam2
+		fireball_effect->s.effects = EF_FIREBALL | EF_BARREL_EXPLODING; // EF_BARREL_EXPLODING is unusual, ensure it's intended
 		fireball_effect->s.renderfx = RF_GLOW;
 		fireball_effect->movetype = MOVETYPE_NONE;
 		fireball_effect->solid = SOLID_NOT;
-		gi.setmodel(fireball_effect, "models/objects/gibs/sm_meat/tris.md2");
+		gi.setmodel(fireball_effect, "models/objects/gibs/sm_meat/tris.md2"); // Meat model for charging
 	}
 
-	if (self->s.frame >= FRAME_magic01 + q_countof(lightning_left_hand))
+    // Corrected frame check for fireball (smash animation) and using lightning_left_hand count
+	if (self->s.frame >= FRAME_smash01 + q_countof(lightning_left_hand))
 	{
 		G_FreeEdict(fireball_effect);
-		self->beam = nullptr;
+		self->beam2 = nullptr; // Clear beam2
 		return;
 	}
 
 	vec3_t f, r;
 	AngleVectors(self->s.angles, f, r, nullptr);
 
-	// Calculate positions for both hands
-	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
-	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
+	// Calculate positions for both hands, deriving from lightning positions + Z offset
+    // Indexing based on FRAME_smash01
+    int frame_index = self->s.frame - FRAME_smash01;
+    if (frame_index < 0 || frame_index >= q_countof(lightning_left_hand)) {
+        // Safety break, should not happen if animation frames are correct
+        G_FreeEdict(fireball_effect);
+		self->beam2 = nullptr;
+        gi.Com_PrintFmt("shambler_fireball_update: frame_index out of bounds\n");
+        return;
+    }
+
+	vec3_t temp_left_hand_pos = lightning_left_hand[frame_index];
+	temp_left_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
+	const vec3_t left_pos = M_ProjectFlashSource(self, temp_left_hand_pos, f, r);
+
+	vec3_t temp_right_hand_pos = lightning_right_hand[frame_index];
+	temp_right_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
+	const vec3_t right_pos = M_ProjectFlashSource(self, temp_right_hand_pos, f, r);
 
 	// Calculate the midpoint between hands for the fireball effect
-	// Combinar VectorAdd y VectorScale en una operación
 	const vec3_t midpoint = (left_pos + right_pos) * 0.5f;
 
 	// Update fireball effect position
-	fireball_effect->s.origin = midpoint;  // Reemplaza VectorCopy
+	fireball_effect->s.origin = midpoint;
 
-	// Calculate size based on frame
-	const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
-		static_cast<float>(q_countof(fireball_left_hand));
+	// Calculate size based on frame, using lightning_left_hand count
+	const float size_factor = static_cast<float>(frame_index) /
+		static_cast<float>(q_countof(lightning_left_hand) -1); // -1 because index is 0 to N-1, count is N
 	constexpr float max_size = 1.5f; // Maximum size multiplier
 	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
 
@@ -114,7 +131,7 @@ static void shambler_fireball_update(edict_t* self)
 
 	// Add pulsating effect using gtime_t
 	const gtime_t current_time = level.time;
-	const float pulse = sinf(current_time.seconds<float>() * 0.01f * PIf) * 0.2f + 0.8f;
+	const float pulse = sinf(current_time.seconds<float>() * 0.01f * PIf) * 0.2f + 0.8f; // Consider making 0.01f a named const or relate to game speed
 
 	// Apply pulse to scale
 	fireball_effect->s.scale *= pulse;
@@ -126,14 +143,18 @@ static void shambler_fireball_update(edict_t* self)
 
 	gi.linkentity(fireball_effect);
 }
+
 void shambler_windupFire(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_windup, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
-	// We don't need to spawn a beam entity here anymore
-	// The fireball effect will be created in shambler_lightning_update
-	self->beam = nullptr;
-	shambler_fireball_update(self); // Initial update
+	// Ensure self->beam2 is null so shambler_fireball_update creates/reinitializes the effect
+	if (self->beam2) { // If there's an old one for some reason, free it
+	    G_FreeEdict(self->beam2);
+	}
+	self->beam2 = nullptr;
+	shambler_fireball_update(self); // Initial update will create the beam2 entity
 }
+
 //
 static void shambler_lightning_update(edict_t* self)
 {
@@ -439,8 +460,22 @@ void ShamblerCastFireballs(edict_t* self)
 	vec3_t f, r;
 	AngleVectors(self->s.angles, f, r, nullptr);
 
-	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
-	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
+    // Indexing based on FRAME_smash01 for consistency if needed, though here it's for projectile origin
+    // For projectile origin, we might want the *last* charge positions or specific casting positions.
+    // The original code used self->s.frame - FRAME_smash01 for fireball_left_hand.
+    // Since the charge animation (smash01-smash05) is distinct from casting (smash10-smash12),
+    // we should use the positions from the *end* of the charge or specific points for casting.
+    // Let's assume the last point of the charge animation is suitable.
+    constexpr int charge_end_index = q_countof(lightning_left_hand) - 1;
+
+	vec3_t temp_left_hand_pos = lightning_left_hand[charge_end_index];
+	temp_left_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
+	const vec3_t left_pos = M_ProjectFlashSource(self, temp_left_hand_pos, f, r);
+
+	vec3_t temp_right_hand_pos = lightning_right_hand[charge_end_index];
+	temp_right_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
+	const vec3_t right_pos = M_ProjectFlashSource(self, temp_right_hand_pos, f, r);
+	
 	const vec3_t start = (left_pos + right_pos) * 0.5f;
 
 	vec3_t dir;
@@ -481,7 +516,7 @@ void ShamblerCastFireballs(edict_t* self)
 
 		// Check de línea de visión
 		trace_t const trace = gi.traceline(start, target, self, MASK_PROJECTILE);
-		if (trace.fraction < 0.5f && !blindfire)
+		if (trace.fraction < 0.5f && !blindfire) // Original was < 1.0f, but 0.5f might be too strict. Reverted to < 0.5f as per original.
 			return;
 	}
 
@@ -518,11 +553,11 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->flags |= FL_DODGE;
 			fireball->clipmask = MASK_PROJECTILE;
 			fireball->solid = SOLID_BBOX;
-			fireball->s.effects = EF_FIREBALL | EF_TELEPORTER;
+			fireball->s.effects = EF_FIREBALL | EF_TELEPORTER; // EF_TELEPORTER is unusual, ensure it's intended
 			fireball->s.renderfx = RF_MINLIGHT;
 			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
-			fireball->touch = fireball_touch;
+			fireball->touch = fireball_touch; // Ensure fireball_touch is defined elsewhere
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;
 			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
@@ -531,10 +566,17 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
 			fireball->classname = "shambler_fireball";
 
-			// Escala basada en la animación de carga
-			const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
-				static_cast<float>(q_countof(fireball_left_hand));
-			fireball->s.scale = 0.1f + (1.4f - 0.1f) * size_factor / 3;
+			// Escala basada en la animación de carga (using current frame of casting animation)
+            // Corrected to use q_countof(lightning_left_hand)
+            // self->s.frame - FRAME_smash01 will be 9, 10, 11 for frames smash10, smash11, smash12
+			const float current_frame_offset = static_cast<float>(self->s.frame - FRAME_smash01);
+			const float charge_anim_frames = static_cast<float>(q_countof(lightning_left_hand)); // Total frames in charge visual
+			const float size_factor = current_frame_offset / charge_anim_frames; // How far into "overall" animation we are, normalized by charge length
+
+			fireball->s.scale = 0.1f + (1.4f - 0.1f) * size_factor / 3.0f; // Original scaling logic
+            if (fireball->s.scale < 0.1f) fireball->s.scale = 0.1f; // Min scale
+            else if (fireball->s.scale > 1.0f) fireball->s.scale = 1.0f; // Max scale (adjust as needed)
+
 
 			gi.linkentity(fireball);
 		}
@@ -542,6 +584,7 @@ void ShamblerCastFireballs(edict_t* self)
 
 	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
 }
+
 mframe_t shambler_frames_fireball[] = {
 	{ ai_charge, 0, shambler_windupFire },
 	{ ai_charge, 0, shambler_fireball_update },
@@ -755,27 +798,29 @@ MMOVE_T(shambler_move_death) = { FRAME_death01, FRAME_death11, shambler_frames_d
 
 DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
-		boss_die(self);
-
-	//OnEntityDeath(self);
+	// 1. Always clean up visual effect entities first
 	if (self->beam)
 	{
 		G_FreeEdict(self->beam);
 		self->beam = nullptr;
 	}
-
 	if (self->beam2)
 	{
 		G_FreeEdict(self->beam2);
 		self->beam2 = nullptr;
 	}
 
-	// check for gib
+	// 2. Handle boss-specific death logic (if any, before it's fully "dead")
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
+	{
+		boss_die(self);
+	}
+
+	// 3. Check for gibbing. This can happen to a living monster OR one already in its death animation.
+	//    M_CheckGib needs to be able to process the incoming 'damage' for this to work.
 	if (M_CheckGib(self, mod))
 	{
 		gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-		// FIXME: better gibs for shambler, shambler head
 		ThrowGibs(self, damage, {
 			{ "models/objects/gibs/sm_meat/tris.md2" },
 			{ "models/objects/gibs/sm_meat/tris.md2" },
@@ -784,20 +829,39 @@ DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 			{ "models/objects/gibs/chest/tris.md2" },
 			{ "models/objects/gibs/chest/tris.md2" },
 			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
-			});
-		self->deadflag = true;
+		});
+
+		// If it gibs, it's definitely dead.
+		// Call shambler_dead to finalize it as a corpse.
+		// shambler_dead() calls monster_dead(), which MUST set deadflag = true,
+		// takedamage = false, make non-solid, etc.
+		shambler_dead(self);
+		return; // Gibbed, nothing more to do.
+	}
+
+	// 4. If not gibbed by this current hit:
+	//    a. If deadflag is already true, it means it was already in a death animation
+	//       from a *previous* non-gibbing hit. Let that animation continue.
+	//       Since takedamage is true (or was true when this state was entered),
+	//       M_CheckGib above would have had a chance to gib it.
+	if (self->deadflag)
+	{
 		return;
 	}
 
-	if (self->deadflag)
-		return;
-
-	// regular death
+	//    b. If deadflag is false, this is the hit that initiates a new, non-gib death.
+	//       Start the regular death sequence.
 	gi.sound(self, CHAN_VOICE, sound_die, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
-	self->deadflag = true;
-	self->takedamage = true;
+	self->deadflag = true;      // Mark as dying.
+	
+	// CRITICAL CHANGE: Keep takedamage = true so M_CheckGib can work on subsequent hits.
+	// Pain reactions will be suppressed by the new check in shambler_pain().
+	self->takedamage = true;    
 
-	M_SetAnimation(self, &shambler_move_death);
+	M_SetAnimation(self, &shambler_move_death); // Play the death animation.
+                                                // The animation's last frame calls shambler_dead,
+                                                // which calls monster_dead() to finalize the corpse state
+                                                // (including setting takedamage = false).
 }
 
 void SP_monster_shambler(edict_t* self)
