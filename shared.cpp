@@ -5,16 +5,7 @@
 #include <span>
 #include "horde/horde_ids.h"
 
-bool IsRemovableEntity(const edict_t* ent);
-void RemoveEntity(edict_t* ent);
 
-void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void turret_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void prox_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void tesla_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-bool hasEntities = false;
 
 horde::MapSize GetMapSize(const char* mapname) {
 	// Use the namespace qualifier for the cache type
@@ -39,101 +30,167 @@ horde::MapSize GetMapSize(const char* mapname) {
 	return size;
 }
 
-void RemovePlayerOwnedEntities(edict_t* player)
-{
-	if (!player)
-		return;
+bool IsRemovableEntity(const edict_t* ent);
+void RemoveEntity(edict_t* ent);
 
-	// Use size_t for index, start from 1
-	size_t num_edicts = static_cast<size_t>(globals.num_edicts);
-	for (size_t i = 1; i < num_edicts; i++) // Start from 1, g_edicts[0] is world
-	{
-		edict_t* ent = &g_edicts[i];
-		if (!ent->inuse)
-			continue;
+void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void turret_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void prox_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void tesla_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 
-		const bool shouldRemove = (ent->owner == player ||
-			(ent->owner && ent->owner->owner == player) ||
-			ent->teammaster == player ||
-			(ent->teammaster && ent->teammaster->teammaster == player));
 
-		if (shouldRemove)
-		{
-			OnEntityDeath(ent);
-			if (IsRemovableEntity(ent))
-			{
-				RemoveEntity(ent);
-			}
-		}
-	}
+void RemovePlayerOwnedEntities(edict_t* player) {
+    if (!player || !player->client) { // Added player->client check for safety before accessing num_lasers
+        return;
+    }
 
-	if (player->client)
-	{
-		player->client->num_lasers = 0;
-	}
+    // Iterate through entities (starting from 1, as g_edicts[0] is world)
+    size_t num_edicts = static_cast<size_t>(globals.num_edicts);
+    for (size_t i = 1; i < num_edicts; ++i) {
+        edict_t* ent = &g_edicts[i];
+
+        if (!ent->inuse) {
+            continue;
+        }
+
+        // Check ownership (direct owner or teammaster, and their owners/teammasters for two levels)
+        bool is_owned_by_player = (ent->owner == player) ||
+                                  (ent->owner && ent->owner->owner == player) ||
+                                  (ent->teammaster == player) ||
+                                  (ent->teammaster && ent->teammaster->teammaster == player);
+
+        if (is_owned_by_player) {
+            // Step 1: Perform generic "death" processing (scoring, events, etc.)
+            // This function is assumed NOT to free the entity or run its specific die sequence.
+            OnEntityDeath(ent);
+
+            // Step 2: If the entity is of a type that has a specific removal sequence
+            // (like turrets dying, mines exploding), then trigger that.
+            if (IsRemovableEntity(ent)) { // Use the refactored IsRemovableEntity
+                RemoveEntity(ent); // Use the refactored RemoveEntity
+            }
+            // If an entity is owned and OnEntityDeath is called, but it's not "IsRemovableEntity",
+            // it implies its removal is handled elsewhere or it's not supposed to be removed
+            // in this specific "player owned entity removal" pass beyond OnEntityDeath.
+            // This matches the original logic flow.
+        }
+    }
+
+    // Reset player-specific counts if any
+    if (player->client) { // Ensure client exists
+        player->client->num_lasers = 0;
+        // Potentially reset other counts here if needed
+    }
 }
 
-// Function to specifically check for player-deployed defenses
-// This is more focused than IsRemovableEntity and only checks for key defensive structures
-// Function to specifically check for player-deployed defenses
-bool IsPlayerDefense(const edict_t* ent)
-{
-	if (!ent || !ent->classname)
-		return false;
+// --- Data-Driven Definitions for Entity Properties and Actions ---
 
-	const char* classname = ent->classname;
-	return !strcmp(classname, "tesla_mine") ||
-		!strcmp(classname, "food_cube_trap") ||
-		!strcmp(classname, "prox_mine") ||
-		!strcmp(classname, "monster_sentrygun") ||
-		!strcmp(classname, "monster_turret");
+// Set of classnames considered "player defenses"
+static const std::unordered_set<std::string_view> g_player_defense_classnames = {
+    "tesla_mine",
+    "food_cube_trap",
+    "prox_mine",
+    "monster_sentrygun",
+    "monster_turret"
+};
+
+// Type alias for the entity die handler function pointer
+using EntityDieHandler = void(*)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+
+// Wrapper for turret2_die to include health check
+// This is needed because monster_sentrygun has a specific health check before its die function.
+void Turret2DieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
+    if (self && self->health > 0) { // Ensure self is not null before accessing health
+        self->health = -1;
+    }
+    turret2_die(self, inflictor, attacker, damage, point, mod);
 }
 
-bool IsRemovableEntity(const edict_t* ent)
-{
-	if (!ent || !ent->classname)
-		return false;
-
-	const char* classname = ent->classname;
-	return !strcmp(classname, "tesla_mine") ||
-		!strcmp(classname, "food_cube_trap") ||
-		!strcmp(classname, "prox_mine") ||
-		!strcmp(classname, "monster_sentrygun") ||
-		!strcmp(classname, "monster_turret") ||
-		!strcmp(classname, "emitter") ||
-		!strcmp(classname, "laser");
+// Wrapper for turret_die to include health check
+// This is needed because monster_turret has a specific health check before its die function.
+void TurretDieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
+    if (self && self->health > 0) { // Ensure self is not null before accessing health
+        self->health = -1;
+    }
+    turret_die(self, inflictor, attacker, damage, point, mod);
 }
 
-void RemoveEntity(edict_t* ent)
-{
-	if (!ent || !ent->inuse || !ent->classname)
-		return;
+// Dispatch table mapping classnames to their specific removal (die) functions.
+// Entities not in this map but considered "removable" will use a generic removal.
+static const std::unordered_map<std::string_view, EntityDieHandler> g_entity_specific_remove_handlers = {
+    {"monster_sentrygun", Turret2DieWrapper}, // Uses wrapper for health pre-set
+    {"monster_turret",    TurretDieWrapper},  // Uses wrapper for health pre-set
+    {"tesla_mine",        tesla_die},
+    {"prox_mine",         prox_die},
+    {"food_cube_trap",    trap_die},
+    {"emitter",           laser_die},         // Assuming laser_die handles emitters
+    {"laser",             laser_die}
+    // Any other entity with a specific _die function for removal goes here.
+};
 
-	const char* classname = ent->classname;
+// Set of classnames that are considered "removable" in general.
+// This includes all entities with specific handlers, plus any that should use generic removal.
+// This set is primarily for the IsRemovableEntity check.
+static const std::unordered_set<std::string_view> g_all_removable_classnames = {
+    "tesla_mine",
+    "food_cube_trap",
+    "prox_mine",
+    "monster_sentrygun",
+    "monster_turret",
+    "emitter",
+    "laser"
+    // If there are entities that should be removed by BecomeExplosion1() via RemoveEntity()
+    // but are NOT in g_entity_specific_remove_handlers, add their classnames here.
+    // For example, if "some_generic_explosive_barrel" should be removable:
+    // , "some_generic_explosive_barrel"
+};
 
-	if (!strcmp(classname, "monster_sentrygun") && ent->health > 0) {
-		ent->health = -1;
-		turret2_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	if (!strcmp(classname, "monster_turret") && ent->health > 0) {
-		ent->health = -1;
-		turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(classname, "tesla_mine")) {
-		tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(classname, "prox_mine")) {
-		prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(classname, "food_cube_trap")) {
-		trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(classname, "emitter") || !strcmp(classname, "laser")) {
-		laser_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else {
-		BecomeExplosion1(ent);
-	}
+
+// --- Refactored Functions ---
+
+bool IsPlayerDefense(const edict_t* ent) {
+    if (!ent || !ent->classname) {
+        return false;
+    }
+    return g_player_defense_classnames.count(ent->classname);
+}
+
+bool IsRemovableEntity(const edict_t* ent) {
+    if (!ent || !ent->classname) {
+        return false;
+    }
+    // An entity is removable if it's in our comprehensive list of removable entities.
+    // This list (g_all_removable_classnames) should be the single source of truth for this check.
+    return g_all_removable_classnames.count(ent->classname);
+}
+
+void RemoveEntity(edict_t* ent) {
+    if (!ent || !ent->inuse || !ent->classname) {
+        return;
+    }
+
+    std::string_view classname_sv = ent->classname;
+
+    // Try to find a specific handler first
+    auto it = g_entity_specific_remove_handlers.find(classname_sv);
+    if (it != g_entity_specific_remove_handlers.end()) {
+        // Found a specific handler, call it.
+        // The health pre-set for turrets is now handled by their wrappers.
+        it->second(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+    }
+    // If no specific handler, but it's in the broader "all removable" list,
+    // it implies it should use the generic removal.
+    // This also catches cases where an entity might be in g_all_removable_classnames
+    // but not have a specific handler (intended for generic explosion).
+    // The original logic was: if not any of the specific strcmp, then BecomeExplosion1.
+    // This maintains that: if not in specific map, then BecomeExplosion1.
+    else {
+        // Default removal action for entities not specifically handled
+        // but still considered for removal by the game logic that calls RemoveEntity.
+        BecomeExplosion1(ent);
+    }
 }
 
 void UpdatePowerUpTimes(edict_t* monster) {
@@ -450,14 +507,12 @@ void ApplyBossEffects(edict_t* boss)
 	if (!boss->monsterinfo.IS_BOSS || boss->monsterinfo.effects_applied)
 		return;
 
-	boss->monsterinfo.effects_applied = false;
-
 	// Obtener la categoría de tamaño del jefe
 	const BossSizeCategory sizeCategory = boss->bossSizeCategory;
 
 	// Generar un flag aleatorio
 	// Generar un flag aleatorio
-	const int32_t random_flag_int = 1 << (rand() % 6);
+	const int32_t random_flag_int = 1 << irandom(6);
 	boss->monsterinfo.bonus_flags = static_cast<bonus_flags_t>(random_flag_int);
 
 	float health_multiplier = 1.0f;
@@ -804,12 +859,6 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 	return boxes_intersect(ent_mins, ent_maxs, area_mins, area_maxs);
 }
 
-// Arrays estáticos a nivel de archivo (fuera de las funciones)
-namespace {
-	constexpr int MAX_ENTITIES = 300;
-	edict_t* g_spawn_area_entities[MAX_ENTITIES];  // Para ClearSpawnArea
-}
-
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
 	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
 		return;
@@ -1064,146 +1113,118 @@ const std::unordered_map<std::string_view, std::string_view> name_replacements =
 bool SpawnPointClear(edict_t* spot);
 float PlayersRangeFromSpot(edict_t* spot);
 
-bool TeleportSelf(edict_t* ent)
-{
-	// Basic validation
-	if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag)
-		return false;
+bool TeleportSelf(edict_t* ent) {
+    if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag) {
+        return false;
+    }
 
-	// Check cooldown
-	if (ent->client->teleport_cooldown > level.time)
-	{
-		// Inform player of remaining cooldown
-		float remaining = std::floor((ent->client->teleport_cooldown - level.time).seconds() * 10.0f) / 10.0f;
-		gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining);
-		return false;
-	}
+    // Use direct client members
+    if (ent->client->teleport_cooldown > level.time) {
+        // Assuming teleport_cooldown and level.time are gtime_t or compatible
+        float remaining_seconds = (ent->client->teleport_cooldown - level.time).seconds();
+        float remaining_display = std::floor(remaining_seconds * 10.0f) / 10.0f;
+        gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining_display);
+        return false;
+    }
 
-	// Set cooldown
-	ent->client->teleport_cooldown = level.time + 3_sec;
-	std::string playerName = GetPlayerName(ent);
+    ent->client->teleport_cooldown = level.time + 3_sec; // Apply cooldown
+    std::string playerName = GetPlayerName(ent);
 
-	// Define spawn point structure
-	struct spawn_point_t
-	{
-		edict_t* point;
-		float dist;
-	};
+    struct spawn_point_info_t {
+        edict_t* point;
+        float dist; // Distance from players or some other metric
+    };
 
-	// Pre-allocate a reasonable capacity
-	std::vector<spawn_point_t> spawn_points;
-	spawn_points.reserve(16);
+    std::vector<spawn_point_info_t> spawn_points;
+    spawn_points.reserve(16);
 
-	// Find valid spawn points
-	edict_t* spot = nullptr;
-	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
-		if (spot->style == 0) {
-			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-		}
-	}
+    edict_t* spot = nullptr;
+    // Ensure this G_FindByString call matches your engine's actual function
+    while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
+        if (spot->style == 0) { // Assuming style 0 are valid teleport spots
+            spawn_points.push_back({spot, PlayersRangeFromSpot(spot)});
+        }
+    }
 
-	// No valid spawn points found
-	if (spawn_points.empty()) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
-		}
-		return false;
-	}
+    if (spawn_points.empty()) {
+        if (developer->integer) {
+            gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+        }
+        return false;
+    }
 
-	// Handle single spawn point case
-	if (spawn_points.size() == 1) {
-		if (SpawnPointClear(spawn_points[0].point)) {
-			// Perform teleport
-			TeleportEntity(ent, spawn_points[0].point);
+    // Helper lambda to perform the teleport and associated actions
+    auto perform_teleport_actions = [&](edict_t* destination_spot) {
+        TeleportEntity(ent, destination_spot);
 
-			// Move sphere if owned
-			if (ent->client->owned_sphere) {
-				edict_t* sphere = ent->client->owned_sphere;
-				sphere->s.origin = ent->s.origin;
-				sphere->s.origin[2] = ent->absmax[2];
-				sphere->s.angles[YAW] = ent->s.angles[YAW];
-				gi.linkentity(sphere);
-			}
+        if (ent->client->owned_sphere) {
+            edict_t* sphere = ent->client->owned_sphere;
+            sphere->s.origin = ent->s.origin;
+            // Assuming vec3_t has .z or you use [2]
+            // Using absmax.z (or absmax[2]) to place it on top of the player's new bounding box
+            sphere->s.origin.z = ent->absmax.z; 
+            sphere->s.angles[YAW] = ent->s.angles[YAW];
+            gi.linkentity(sphere);
+        }
 
-			// Announce teleport
-			if (!ent->client->emergency_teleport) {
-				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
-			}
+        if (!ent->client->emergency_teleport) {
+            gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+        }
+        
+        // Use std::max for gtime_t or ensure types are compatible
+        ent->client->invincible_time = std::max(level.time, ent->client->invincible_time) + 2_sec;
+    };
 
-			// Grant invincibility
-			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
-			return true;
-		}
+    if (spawn_points.size() == 1) {
+        if (SpawnPointClear(spawn_points[0].point)) {
+            perform_teleport_actions(spawn_points[0].point);
+            // If this was an emergency teleport, and it succeeded, reset the flag.
+            // This depends on desired logic: reset on any success, or only on fallback?
+            // Original reset only on fallback. Let's assume reset on any successful emergency TP.
+            if (ent->client->emergency_teleport) {
+                ent->client->emergency_teleport = false;
+            }
+            return true;
+        }
+        if (developer->integer) {
+            gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
+        }
+        return false; 
+    }
 
-		if (developer->integer) {
-			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
-		}
-		return false;
-	}
+    // Sort spawn points by distance (farthest first for iteration)
+    std::sort(spawn_points.begin(), spawn_points.end(),
+              [](const spawn_point_info_t& a, const spawn_point_info_t& b) {
+                  return a.dist > b.dist; // Sort descending by distance (farthest first)
+              });
 
-	// Sort spawn points by distance (ascending)
-	std::sort(spawn_points.begin(), spawn_points.end(),
-		[](const spawn_point_t& a, const spawn_point_t& b) {
-			return a.dist < b.dist;
-		});
+    for (const auto& sp_info : spawn_points) {
+        if (SpawnPointClear(sp_info.point)) {
+            perform_teleport_actions(sp_info.point);
+            if (ent->client->emergency_teleport) { // Reset if it was an emergency TP
+                ent->client->emergency_teleport = false;
+            }
+            return true;
+        }
+    }
 
-	// Try to find the farthest clear spawn point
-	for (int32_t i = spawn_points.size() - 1; i >= 0; --i) {
-		if (SpawnPointClear(spawn_points[i].point)) {
-			// Perform teleport
-			TeleportEntity(ent, spawn_points[i].point);
+    // Fallback: No clear spot found, teleport to a random one from the available (but likely blocked) spots.
+    // Use your provided random_index template function.
+    const int32_t random_idx = random_index(spawn_points); 
+    edict_t* random_destination = spawn_points[random_idx].point;
 
-			// Move sphere if owned
-			if (ent->client->owned_sphere) {
-				edict_t* sphere = ent->client->owned_sphere;
-				sphere->s.origin = ent->s.origin;
-				sphere->s.origin[2] = ent->absmax[2];
-				sphere->s.angles[YAW] = ent->s.angles[YAW];
-				gi.linkentity(sphere);
-			}
-
-			// Announce teleport
-			if (!ent->client->emergency_teleport) {
-				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
-			}
-
-			// Grant invincibility
-			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
-			return true;
-		}
-	}
-
-	// If no clear points found, use a random one with telefrags allowed
-	const size_t random_index = rand() % spawn_points.size();
-
-	// Perform teleport
-	TeleportEntity(ent, spawn_points[random_index].point);
-
-	// Move sphere if owned
-	if (ent->client->owned_sphere) {
-		edict_t* sphere = ent->client->owned_sphere;
-		sphere->s.origin = ent->s.origin;
-		sphere->s.origin[2] = ent->absmax[2];
-		sphere->s.angles[YAW] = ent->s.angles[YAW];
-		gi.linkentity(sphere);
-	}
-
-	// Announce teleport
-	if (!ent->client->emergency_teleport) {
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
-	}
-
-	// Grant invincibility and reset emergency flag
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
-	ent->client->emergency_teleport = false;
-
-	if (developer->integer) {
-		gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
-	}
-
-	return true;
+    if (developer->integer) {
+        gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index %i, potentially blocked).\n", random_idx);
+    }
+    
+    perform_teleport_actions(random_destination);
+    
+    // Unconditionally reset emergency_teleport if we hit this fallback path,
+    // consistent with original code's structure where it was reset here.
+    ent->client->emergency_teleport = false; 
+    
+    return true;
 }
-
 
 // --- Extern Declarations for Monster Jump Moves ---
 
