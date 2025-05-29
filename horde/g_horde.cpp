@@ -5914,7 +5914,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	// 0. Initial Vector Check
 	if (!is_valid_vector(io_position) || !is_valid_vector(monster_mins) || !is_valid_vector(monster_maxs))
 	{
-		if (developer->integer > 1)
+		if (developer->integer)
 			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial vector validation.\n");
 		return false;
 	}
@@ -5923,14 +5923,14 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	int initial_contents = gi.pointcontents(io_position);
 	if (initial_contents & GEOMETRY_MASK)
 	{
-		if (developer->integer > 2)
+		if (developer->integer)
 			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
 		return false;
 	}
 	// Check liquids only if the monster cannot fly or swim (assuming flying implies can handle liquids)
 	if (!is_flying && (initial_contents & LIQUID_MASK))
 	{
-		if (developer->integer > 2)
+		if (developer->integer)
 			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
 		return false;
 	}
@@ -5939,7 +5939,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 	if (trace.startsolid || trace.allsolid)
 	{
-		if (developer->integer > 2)
+		if (developer->integer)
 			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial solid volume check (MASK_SOLID) at {}\n", io_position);
 		return false;
 	}
@@ -5956,13 +5956,13 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 		if (ground_trace.startsolid)
 		{
 			// This can happen if the initial position is slightly embedded in the floor
-			if (developer->integer > 2)
+			if (developer->integer)
 				gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}. Attempting drop anyway.\n", io_position);
 			// Proceed to M_droptofloor, it might still succeed
 		}
 		else if (ground_trace.fraction == 1.0f)
 		{ // Check if ground trace hit anything
-			if (developer->integer > 2)
+			if (developer->integer)
 				gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
 			return false; // No ground below
 		}
@@ -5971,7 +5971,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 		if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false))
 		{
 			io_position = original_pos; // Restore original position
-			if (developer->integer > 2)
+			if (developer->integer)
 				gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
 			return false;
 		}
@@ -5981,12 +5981,12 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 		trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 		if (trace.startsolid || trace.allsolid)
 		{
-			if (developer->integer > 2)
+			if (developer->integer)
 				gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
 			io_position = original_pos; // Restore original position
 			return false;
 		}
-		if (developer->integer > 2)
+		if (developer->integer)
 			gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z (after epsilon): {:.2f}.\n", io_position.z);
 	}
 	// If flying, io_position remains unchanged from original_pos here
@@ -6003,13 +6003,13 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check_data);
 	if (final_entity_check_data.count > 0)
 	{
-		if (developer->integer > 2)
+		if (developer->integer)
 			gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL entity occupation check at validated position {}\n", io_position);
 		return false;
 	}
 
 	// If all checks passed
-	if (developer->integer > 2)
+	if (developer->integer)
 		gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
 	return true;
 }
@@ -6070,8 +6070,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		{
 			attempt_teleport_now = true;
 			is_critical_teleport_reason = true; // --- MODIFIED --- Drowning is critical
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("CATS: {} drowning, flagging for immediate CRITICAL teleport.\n", self->classname);
+			//if (developer->integer)
+				//gi.Com_PrintFmt("CATS: {} drowning, flagging for immediate CRITICAL teleport.\n", self->classname);
 		}
 		else
 		{
@@ -6094,9 +6094,9 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		{
 			self->monsterinfo.was_stuck = false;
 			self->monsterinfo.stuck_check_time = 0_sec;
-			if (developer->integer > 1)
+			if (developer->integer)
 			{
-				gi.Com_PrintFmt("CATS: Resetting 'was_stuck' for {} as it's no longer in geometry.\n", self->classname);
+			//	gi.Com_PrintFmt("CATS: Resetting 'was_stuck' for {} as it's no longer in geometry.\n", self->classname);
 			}
 		}
 
@@ -6109,8 +6109,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		{
 			self->monsterinfo.stuck_check_time = level.time;
 			self->monsterinfo.was_stuck = true;
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("CATS: {} now flagged as stuck. StuckInGeom: {}, NoDmgTimeout: {}\n", self->classname, is_stuck_in_geometry, no_damage_timeout);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("CATS: {} now flagged as stuck. StuckInGeom: {}, NoDmgTimeout: {}\n", self->classname, is_stuck_in_geometry, no_damage_timeout);
 		}
 
 		bool attempt_immediate_teleport_spawn = false;
@@ -6120,7 +6120,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 			attempt_immediate_teleport_spawn = (level.time < self->monsterinfo.stuck_check_time + SPAWN_STUCK_IMMEDIATE_THRESHOLD);
 			if (attempt_immediate_teleport_spawn)
 			{
-				if (developer->integer > 1)
+				if (developer->integer)
 					gi.Com_PrintFmt("CATS: {} potentially stuck on spawn. Flagging for immediate teleport check.\n", self->classname);
 				// is_critical_teleport_reason = true; // Optionally make spawn-stuck critical
 			}
@@ -6143,9 +6143,9 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 	bool is_attacking = (self->enemy && self->enemy->inuse && self->monsterinfo.attack_finished > level.time);
 	if (is_attacking)
 	{
-		if (developer->integer > 1)
+		if (developer->integer)
 		{
-			gi.Com_PrintFmt("CATS: Skipping teleport for {} - Attacking. Will re-evaluate.\n", self->classname);
+		//	gi.Com_PrintFmt("CATS: Skipping teleport for {} - Attacking. Will re-evaluate.\n", self->classname);
 		}
 		const bool is_stuck_in_geometry_for_attack_check = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid;
 		if (!is_stuck_in_geometry_for_attack_check)
@@ -6160,9 +6160,9 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 	// --- MODIFIED --- Apply random skip ONLY if not a critical teleport reason
 	if (!is_critical_teleport_reason && frandom() < 0.4f)
 	{
-		if (developer->integer > 2)
-			gi.Com_PrintFmt("CATS: Randomly skipped non-critical teleport attempt for {}.\n", self->classname);
-		self->teleport_time = level.time + random_time(0.5_sec, 1.5_sec); // Short cooldown before re-evaluating
+		if (developer->integer)
+	//		gi.Com_PrintFmt("CATS: Randomly skipped non-critical teleport attempt for {}.\n", self->classname);
+	//	self->teleport_time = level.time + random_time(0.5_sec, 1.5_sec); // Short cooldown before re-evaluating
 		return false;
 	}
 	// --- END MODIFIED ---
@@ -6191,8 +6191,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		{
 			final_dest_origin = emergency_origin;
 			final_dest_angles = emergency_angles;
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("CATS: Found emergency player-based spot for {}: {}\n", self->classname, final_dest_origin);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("CATS: Found emergency player-based spot for {}: {}\n", self->classname, final_dest_origin);
 		}
 	}
 
@@ -6205,8 +6205,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 			final_dest_origin = spawn_point->s.origin;
 			final_dest_angles = spawn_point->s.angles;
 			used_spawn_point = const_cast<edict_t *>(spawn_point);
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("CATS: Found spawn point spot for {}: {}\n", self->classname, final_dest_origin);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("CATS: Found spawn point spot for {}: {}\n", self->classname, final_dest_origin);
 		}
 	}
 
@@ -6228,8 +6228,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 				{
 					potential_dest = validated_offset_dest;
 					use_offset_dest = true;
-					if (developer->integer > 1)
-						gi.Com_PrintFmt("CATS: Using offset destination {} for {}.\n", potential_dest, self->classname);
+			//		if (developer->integer > 1)
+			//			gi.Com_PrintFmt("CATS: Using offset destination {} for {}.\n", potential_dest, self->classname);
 				}
 			}
 
@@ -6242,28 +6242,28 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 				{
 					spawnPointsData[used_spawn_point].teleport_cooldown = level.time + 3.5_sec;
 				}
-				if (developer->integer)
-					gi.Com_PrintFmt("CATS: Monster {} teleported (stuck/emergency) via Horde_TeleportMonster to {}.\n", self->classname, potential_dest);
+				//if (developer->integer)
+				//	gi.Com_PrintFmt("CATS: Monster {} teleported (stuck/emergency) via Horde_TeleportMonster to {}.\n", self->classname, potential_dest);
 			}
 			else
 			{
-				if (developer->integer > 1)
+				if (developer->integer)
 				{
-					gi.Com_PrintFmt("CATS: Horde_TeleportMonster call failed for {} at {}. Visible enemy or validation issue?\n",
-									self->classname, potential_dest);
+			//		gi.Com_PrintFmt("CATS: Horde_TeleportMonster call failed for {} at {}. Visible enemy or validation issue?\n",
+			//						self->classname, potential_dest);
 				}
 			}
 		}
 		else
 		{
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("CATS: Chosen destination {} for {} too close to recent teleport, skipping.\n", final_dest_origin, self->classname);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("CATS: Chosen destination {} for {} too close to recent teleport, skipping.\n", final_dest_origin, self->classname);
 		}
 	}
 	else
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("CATS: Failed to find any suitable teleport destination for {}.\n", self->classname);
+		//if (developer->integer)
+		//	gi.Com_PrintFmt("CATS: Failed to find any suitable teleport destination for {}.\n", self->classname);
 	}
 
 	if (teleported)
@@ -6271,8 +6271,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 		if (monsterTypeId == horde::MonsterTypeID::STALKER || monsterTypeId == horde::MonsterTypeID::SPIDER)
 		{
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("CATS: {} teleport: Applying specific fix...\n", self->classname);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("CATS: {} teleport: Applying specific fix...\n", self->classname);
 			self->gravityVector = {0, 0, -1};
 			self->s.angles[ROLL] = 0;
 			self->gravity = 1.0f;
@@ -6296,8 +6296,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 	{
 		if (developer->integer > 1 && self->monsterinfo.was_stuck)
 		{
-			gi.Com_PrintFmt("CATS: Teleport attempt failed for {}, but still stuck in geometry. Stuck timer remains active (remaining: {:.2f}s).\n",
-							self->classname, (self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME - level.time).seconds());
+		//	gi.Com_PrintFmt("CATS: Teleport attempt failed for {}, but still stuck in geometry. Stuck timer remains active (remaining: {:.2f}s).\n",
+		//					self->classname, (self->monsterinfo.stuck_check_time + HordeConstants::STUCK_CHECK_TIME - level.time).seconds());
 		}
 	}
 	return teleported;
@@ -6381,7 +6381,7 @@ int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edi
 		}
 		else
 		{
-			if (developer->integer > 1)
+			if (developer->integer)
 			{
 				gi.Com_PrintFmt("SpawnRetaliationAmbush: EmergencySpawnMonster failed for type {}.\n", (int)monster_typeId);
 			}
@@ -6470,7 +6470,7 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 				SpawnRetaliationAmbush(g_horde_local.current_map_size, g_horde_local.level, g_horde_retaliation_target_player);
 
                 int32_t base_retaliation_add = (g_horde_local.level <= 7) ? 4 : 7;
-                if (g_horde_local.level > 12) base_retaliation_add = 8;
+                if (g_horde_local.level > 12) base_retaliation_add = 10;
                 int32_t monsters_to_add_to_queue = base_retaliation_add + (g_horde_local.level / 4);
                 if (g_horde_local.current_map_size.isBigMap)
                     monsters_to_add_to_queue += (g_horde_local.level > 7 ? 5 : 2);
@@ -6506,114 +6506,156 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 		monster->spawned_in_spawn_state = false;
 	}
 }
-	bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles) {
+
+// Includes and definitions assumed to be available from your original code
+// (e.g., HordeConstants, IsFlying, GetPredictedScaledBounds, IsValidSpawnLocation,
+// IsPositionTooCloseToRecentSpawn, MarkPositionAsRecentlyUsed, SpawnPointFilter, etc.)
+
+bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles) {
 	PROFILE_SCOPE("TryAlternativeSpawnPosition");
 
 	if (!spawn_point || !spawn_point->inuse || !is_valid_vector(spawn_point->s.origin)) {
-		if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Invalid spawn_point.\n");
+		if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Invalid spawn_point parameter.\n");
 		return false;
 	}
 
 	const vec3_t base_origin = spawn_point->s.origin;
 	const vec3_t base_angles = spawn_point->s.angles;
-	bool is_flying = IsFlying(typeId);
+	bool is_flying = IsFlying(typeId); // Assumes GetMonsterWaveTypes and HasWaveType are available
 	vec3_t predicted_mins, predicted_maxs;
-	GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs); // Assuming this handles fallback
+	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
+		// GetPredictedScaledBounds logs its own warning and provides fallback bounds
+		if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Using fallback bounds due to GetPredictedScaledBounds issue.\n");
+	}
 
+	// --- Try Predefined/Above Offset First ---
+	// The first offset is directly above, others are from HordeConstants
 	constexpr size_t NUM_PREDEFINED_OFFSETS = HordeConstants::NUM_HORDE_ALT_POSITIONS + 1;
 	std::array<vec3_t, NUM_PREDEFINED_OFFSETS> combined_offsets{};
-	combined_offsets[0] = vec3_t{ 0, 0, 32 };
+	combined_offsets[0] = vec3_t{ 0, 0, 32 }; // Directly above
+	// Copy the predefined alternative positions, skipping the first slot already used
 	std::copy(HordeConstants::horde_alternative_positions.begin(), HordeConstants::horde_alternative_positions.end(), combined_offsets.begin() + 1);
 
-	for (size_t i = combined_offsets.size() - 1; i > 1; --i) {
-		size_t j = irandom(1, i);
-		if (i != j) {
-			std::swap(combined_offsets[i], combined_offsets[j]);
+	// Shuffle the predefined offsets (except the first one, which is a specific "above" check)
+	// Start shuffling from index 1
+	if (NUM_PREDEFINED_OFFSETS > 2) { // Only shuffle if there's more than one alternative to shuffle
+		for (size_t i = NUM_PREDEFINED_OFFSETS - 1; i > 1; --i) { // Iterate from last down to index 2
+			size_t j = irandom(1, i); // Random index between 1 and i (inclusive)
+			if (i != j) {
+				std::swap(combined_offsets[i], combined_offsets[j]);
+			}
 		}
 	}
 
 	for (const auto& offset : combined_offsets) {
 		vec3_t candidate_pos = base_origin + offset;
-		vec3_t validated_pos = candidate_pos;
+		vec3_t validated_pos = candidate_pos; // IsValidSpawnLocation will modify this
 
-		if (offset != vec3_t{ 0, 0, 32 }) {
-			trace_t trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-			if (trace.fraction < 0.9f) {
-				if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined offset {} blocked by LOS.\n", offset);
-				continue;
+		// Line of Sight check from original spawn point to candidate (unless it's the "directly above" offset)
+		if (offset != vec3_t{ 0, 0, 32 }) { // Skip LOS for the direct "above" check
+			trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point /*ignore self*/, MASK_SOLID);
+			if (los_trace.fraction < 0.9f) { // If less than 90% of the way is clear
+				if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined offset {} from {} to {} blocked by LOS (fraction: {:.2f}).\n", offset, base_origin, candidate_pos, los_trace.fraction);
+				continue; // Try next offset
 			}
 		}
 
 		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
-				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_SOLID);
-				FilterData final_entity_check = { nullptr, 0 };
-				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
+				// SUCCESS: IsValidSpawnLocation and IsPositionTooCloseToRecentSpawn passed.
+				// No further redundant checks needed here.
+				final_origin = validated_pos;
+				final_angles = base_angles; // Start with base angles
 
-				if (!final_check.startsolid && final_entity_check.count == 0) {
-					final_origin = validated_pos;
-					final_angles = base_angles;
-					if (offset.x != 0.0f || offset.y != 0.0f) {
-						final_angles[YAW] = atan2f(offset.y, offset.x) * (180.0f / PI);
+				// Adjust YAW to face away from the original spawn point if offset was lateral
+				if (offset.x != 0.0f || offset.y != 0.0f) {
+					// Calculate direction from original spawn point towards the new alternative position
+					vec3_t dir_to_alt = validated_pos - base_origin;
+					if (dir_to_alt.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) { // Ensure dir is not zero
+						// Set monster to face this direction (or away from original, depending on desired behavior)
+						// To face towards the original spawn point (e.g., monster looking back):
+						// vec3_t dir_to_original = base_origin - validated_pos;
+						// final_angles = vectoangles(dir_to_original);
+
+						// To face away from the original spawn point (e.g. monster looking outwards from spawn):
+						final_angles = vectoangles(dir_to_alt);
 					}
-					MarkPositionAsRecentlyUsed(final_origin);
-					if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using predefined/above offset (Final Pos: {}).\n", final_origin);
-					return true;
-				} else if (developer->integer > 2) {
-					gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} failed final solid/entity check.\n", validated_pos);
+					// If monster is ground-based, ensure pitch is zeroed after vectoangles
+					if (!is_flying) {
+						final_angles[PITCH] = 0;
+					}
 				}
-			} else if (developer->integer > 2) {
-				gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+
+
+				MarkPositionAsRecentlyUsed(final_origin);
+				if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using predefined/above offset (Offset: {}, Final Pos: {}).\n", offset, final_origin);
+				return true;
+			} else {
+				if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Predefined/above offset {} (validated to {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+				// Continue to next offset, no specific cooldown applied here by this function for this failure.
+				// The caller (FindValidSpotAndSpawn) will handle cooldowns if TryAlternativeSpawnPosition ultimately fails.
 			}
 		}
+		// If IsValidSpawnLocation failed, it logs its own reason. Continue to next offset.
 	}
 
-	// --- Try Radial Offsets ---
-	constexpr int RADIAL_ATTEMPTS = 35; // Ensure this is not excessive if IsValidSpawnLocation is slow
+	// --- Try Radial Offsets if predefined/above failed ---
+	constexpr int RADIAL_ATTEMPTS = 35;
 	constexpr float MIN_RADIUS = 40.0f;
-	constexpr float MAX_RADIUS = 225.0f;
+	constexpr float MAX_RADIUS = 225.0f; // Reduced from 250 for potentially tighter placement
 
-	for (int i = 0; i < RADIAL_ATTEMPTS; ++i) { // THIS IS THE START OF THE FOR LOOP THAT WAS MISPLACED
+	for (int i = 0; i < RADIAL_ATTEMPTS; ++i) {
 		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
-		float angle = frandom() * 2.0f * PI;
-		vec3_t offset = { cosf(angle) * radius, sinf(angle) * radius, frandom(-8.0f, 24.0f) };
+		float angle_rad = frandom() * 2.0f * PI; // Radians for cos/sin
+		vec3_t offset = { cosf(angle_rad) * radius, sinf(angle_rad) * radius, frandom(-8.0f, 24.0f) }; // Z offset can be slightly below or above
 		vec3_t candidate_pos = base_origin + offset;
-		vec3_t validated_pos = candidate_pos;
+		vec3_t validated_pos = candidate_pos; // IsValidSpawnLocation will modify this
 
-		trace_t trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-		if (trace.fraction < 0.8f) {
-			if (developer->integer > 2) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} blocked by LOS.\n", offset);
-			continue;
+		// Line of Sight check from original spawn point to candidate
+		trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point /*ignore self*/, MASK_SOLID);
+		if (los_trace.fraction < 0.8f) { // If less than 80% of the way is clear (slightly more lenient for radial)
+			if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} from {} to {} blocked by LOS (fraction: {:.2f}).\n", offset, base_origin, candidate_pos, los_trace.fraction);
+			continue; // Try next radial attempt
 		}
 
 		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
-				trace_t final_check = gi.trace(validated_pos, predicted_mins, predicted_maxs, validated_pos, nullptr, MASK_SOLID);
-				FilterData final_entity_check = { nullptr, 0 };
-				gi.BoxEdicts(validated_pos + predicted_mins, validated_pos + predicted_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check);
+				// SUCCESS: IsValidSpawnLocation and IsPositionTooCloseToRecentSpawn passed.
+				final_origin = validated_pos;
+				final_angles = base_angles; // Start with base angles
 
-				if (!final_check.startsolid && final_entity_check.count == 0) {
-					final_origin = validated_pos;
-					final_angles = base_angles;
-					final_angles[YAW] = angle * (180.0f / PI);
-					MarkPositionAsRecentlyUsed(final_origin);
-					if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using radial offset (Final Pos: {}).\n", final_origin);
-					return true;
-				} else if (developer->integer > 2) {
-					gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} failed final solid/entity check.\n", validated_pos);
+				// Set YAW to face towards the original spawn point (or away, adjust as needed)
+				// vec3_t dir_to_original = base_origin - validated_pos;
+				// if (dir_to_original.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
+				//     final_angles = vectoangles(dir_to_original);
+				// }
+				// Or, to face in the direction of the offset (outwards from original point)
+				if (offset.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
+				    final_angles = vectoangles(offset);
 				}
-			} else if (developer->integer > 2) {
-				gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} (validated {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+
+
+				// If monster is ground-based, ensure pitch is zeroed
+				if (!is_flying) {
+					final_angles[PITCH] = 0;
+				}
+
+				MarkPositionAsRecentlyUsed(final_origin);
+				if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success using radial offset (Offset: {}, Final Pos: {}).\n", offset, final_origin);
+				return true;
+			} else {
+				if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Radial offset {} (validated to {}) too close to recent spawn.\n", candidate_pos, validated_pos);
+				// Continue to next radial attempt.
 			}
 		}
-	} // THIS IS THE END OF THE FOR LOOP THAT WAS MISPLACED
+		// If IsValidSpawnLocation failed, it logs its own reason. Continue to next radial attempt.
+	}
 
-	if (developer->integer > 1)
-		gi.Com_PrintFmt("TryAlternativeSpawnPosition: Failed for point {}.\n", (int)(spawn_point - g_edicts));
+	if (developer->integer) {
+		gi.Com_PrintFmt("TryAlternativeSpawnPosition: Failed to find any alternative position for spawn point {} (idx {}).\n", spawn_point->s.origin, (int)(spawn_point - g_edicts));
+	}
 	return false;
-} // THIS IS THE CORRECTED CLOSING BRACE FOR THE FUNCTION
-
-
+}
 
 // TypeID-based EmergencySpawnMonster
 // Takes is_additional_monster to control g_totalMonstersInWave increment
