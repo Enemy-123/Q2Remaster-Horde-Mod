@@ -5914,8 +5914,8 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	// 0. Initial Vector Check
 	if (!is_valid_vector(io_position) || !is_valid_vector(monster_mins) || !is_valid_vector(monster_maxs))
 	{
-		if (developer->integer)
-			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial vector validation.\n");
+	//	if (developer->integer)
+	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial vector validation.\n");
 		return false;
 	}
 
@@ -5923,15 +5923,15 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	int initial_contents = gi.pointcontents(io_position);
 	if (initial_contents & GEOMETRY_MASK)
 	{
-		if (developer->integer)
-			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
+	//	if (developer->integer)
+	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
 		return false;
 	}
 	// Check liquids only if the monster cannot fly or swim (assuming flying implies can handle liquids)
 	if (!is_flying && (initial_contents & LIQUID_MASK))
 	{
-		if (developer->integer)
-			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
+	//	if (developer->integer)
+	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
 		return false;
 	}
 
@@ -5939,8 +5939,8 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 	if (trace.startsolid || trace.allsolid)
 	{
-		if (developer->integer)
-			gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial solid volume check (MASK_SOLID) at {}\n", io_position);
+	//	if (developer->integer)
+	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial solid volume check (MASK_SOLID) at {}\n", io_position);
 		return false;
 	}
 
@@ -5956,14 +5956,14 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 		if (ground_trace.startsolid)
 		{
 			// This can happen if the initial position is slightly embedded in the floor
-			if (developer->integer)
-				gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}. Attempting drop anyway.\n", io_position);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}. Attempting drop anyway.\n", io_position);
 			// Proceed to M_droptofloor, it might still succeed
 		}
 		else if (ground_trace.fraction == 1.0f)
 		{ // Check if ground trace hit anything
-			if (developer->integer)
-				gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
 			return false; // No ground below
 		}
 
@@ -5971,8 +5971,8 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 		if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false))
 		{
 			io_position = original_pos; // Restore original position
-			if (developer->integer)
-				gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
 			return false;
 		}
 		io_position.z += Z_EPSILON; // Apply small vertical offset after successful drop
@@ -5981,13 +5981,13 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 		trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
 		if (trace.startsolid || trace.allsolid)
 		{
-			if (developer->integer)
-				gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
+		//	if (developer->integer)
+		//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
 			io_position = original_pos; // Restore original position
 			return false;
 		}
-		if (developer->integer)
-			gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z (after epsilon): {:.2f}.\n", io_position.z);
+		//if (developer->integer)
+		//	gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z (after epsilon): {:.2f}.\n", io_position.z);
 	}
 	// If flying, io_position remains unchanged from original_pos here
 
@@ -6003,14 +6003,14 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check_data);
 	if (final_entity_check_data.count > 0)
 	{
-		if (developer->integer)
-			gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL entity occupation check at validated position {}\n", io_position);
+	//	if (developer->integer)
+	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL entity occupation check at validated position {}\n", io_position);
 		return false;
 	}
 
 	// If all checks passed
-	if (developer->integer)
-		gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
+	//if (developer->integer)
+//		gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
 	return true;
 }
 
@@ -6120,8 +6120,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 			attempt_immediate_teleport_spawn = (level.time < self->monsterinfo.stuck_check_time + SPAWN_STUCK_IMMEDIATE_THRESHOLD);
 			if (attempt_immediate_teleport_spawn)
 			{
-				if (developer->integer)
-					gi.Com_PrintFmt("CATS: {} potentially stuck on spawn. Flagging for immediate teleport check.\n", self->classname);
+				//if (developer->integer)
+				//	gi.Com_PrintFmt("CATS: {} potentially stuck on spawn. Flagging for immediate teleport check.\n", self->classname);
 				// is_critical_teleport_reason = true; // Optionally make spawn-stuck critical
 			}
 		}
