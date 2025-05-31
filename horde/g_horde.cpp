@@ -4330,44 +4330,54 @@ void InitializeBossWaveTypes()
 		return;
 
 	// Fill with default values first
+	// Removed leading newlines, AppendHordeMessage will add one.
 	for (auto &entry : g_bossWaveTypeArray)
 	{
-		entry = {MonsterWaveType::Medium, "\n\n\nDefault wave incoming!\n"};
+		entry = {MonsterWaveType::Medium, "A new wave of Strogg approaches!"};
 	}
 
-	// Set specific entries
+	// Set specific entries with more descriptive and varied messages
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] =
-		{MonsterWaveType::Mutant, "\n\n\nMutant's invasion approaches!\n"};
+		{MonsterWaveType::Mutant, "The Bloody Mutant hungers for flesh!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_KL)] =
-		{MonsterWaveType::Shambler, "\n\n\nMutant's invasion approaches!\n"};
+		{MonsterWaveType::Shambler, "The Shambler's thunderous steps approach!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW)] =
-		{MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"};
+		{MonsterWaveType::Small, "Widow's disruptor beams seek new targets!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW2)] =
-		{MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"};
+		{MonsterWaveType::Small, "The Widow weaves a web of destruction!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] =
-		{MonsterWaveType::Arachnophobic, "\n\n\nArachnophobia wave incoming!\n"};
+		{MonsterWaveType::Arachnophobic, "Arachnid's venomous brood swarms!"};
+
+	// Flying Bosses - more varied messages
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Hornet's deadly sting descends from above!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Carrier unleashes its aerial swarm!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER_MINI)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Carrier Mini is delivering pain right to your face!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2_KL)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Hornet buzzes with destructive intent!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::FIXBOT_KL)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Fixer arrives to repair your demise!"};
+
+	// Heavy/Medium Armored Bosses - more varied messages
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::TANK_64)] =
-		{MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"};
+		{MonsterWaveType::Medium, "Tank Commander rolls in, prepare for impact!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] =
-		{MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"};
+		{MonsterWaveType::Medium, "The Guardian unleashes a barrage of rockets!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] =
-		{MonsterWaveType::Medium, "\n\n\nHeavy/Mid armored division incoming!\n"};
+		{MonsterWaveType::Medium, "Supertank: The ultimate Strogg war machine!"};
+
+	// Close Combat / Ranged Heavy Bosses - more varied messages
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_KL)] =
-		{MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"};
+		{MonsterWaveType::Medium, "Gunner Commander has you in his sights!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON)] =
-		{MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"};
+		{MonsterWaveType::Medium, "Makron demands your surrender!"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] =
-		{MonsterWaveType::Medium, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n"};
+		{MonsterWaveType::Medium, "Makron: The Strogg's true leader has arrived!"};
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::JORG)] =
+		{MonsterWaveType::Medium, "Jorg's upgraded mech is a force of destruction!"};
+
 
 	g_bossWaveTypesInitialized = true;
 }
@@ -4828,7 +4838,39 @@ static void SpawnBossAutomatically()
 	}
 }
 
-// BossSpawnThink function (largely unchanged, but origin/angles are already set)
+void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
+{
+    // Early validation for empty messages or zero duration
+    if (message.empty() || duration <= 0_ms)
+    {
+        // If an empty message is appended, we might choose to do nothing,
+        // or clear the message if that's the desired effect of an "empty append".
+        // For now, we'll just return if the new message is empty.
+        return;
+    }
+
+    // Get current message from the configstring
+    std::string current_msg_str = gi.get_configstring(CONFIG_HORDEMSG);
+
+    // Append the new message with a newline for readability
+    if (!current_msg_str.empty()) {
+        current_msg_str += "\n"; // Add a newline before appending
+    }
+    current_msg_str += message;
+
+    // Ensure the combined message does not exceed configstring limits (typically 256 chars)
+    // MAX_STRING_CHARS is usually 256. We reserve space for the null terminator.
+    if (current_msg_str.length() >= MAX_STRING_CHARS) {
+        current_msg_str.resize(MAX_STRING_CHARS - 1); // Truncate to fit
+    }
+
+    // Set the combined message back to the configstring
+    gi.configstring(CONFIG_HORDEMSG, current_msg_str.c_str());
+
+    // Extend or set the duration for the new combined message
+    horde_message_end_time = level.time + duration;
+}
+
 THINK(BossSpawnThink)(edict_t *self)->void
 {
 	if (self->owner)
@@ -4839,7 +4881,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
-    // This part sets the wave type and prints a wave theme message. This STAYS.
+	// This part sets the wave type and prints a wave theme message. This STAYS.
 	auto bossWaveInfo = GetBossWaveType(typeId);
 	if (TrySetWaveType(bossWaveInfo.first))
 	{
@@ -4861,7 +4903,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		StoreWaveType(current_wave_type);
 	}
 
-    // OLD long boss announcement via PRINT_CHAT is now removed.
+	// OLD long boss announcement via PRINT_CHAT is now removed.
 	// std::string_view bossMessage = GetBossMessage(typeId); // REMOVED
 	// gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data()); // REMOVED
 
@@ -4882,15 +4924,27 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	boss_spawned_for_wave = true;
 
-    // NEW: Boss Announce Message via EXISTING UpdateHordeMessage
+	// NEW: Boss Announce Message via AppendHordeMessage
 	std::string boss_display_name = GetDisplayName(self);
 	if (!boss_display_name.empty()) {
-		char announce_buffer[128];
-		// Format the message: "The <BossName> Enters The Arena!"
-		snprintf(announce_buffer, sizeof(announce_buffer), "ALERT: %s Spawned!", boss_display_name.c_str()); // Use snprintf
-		UpdateHordeMessage(announce_buffer, 4_sec);
+		// Define random phrases for boss arrival
+		static constexpr std::array<const char*, 6> arrival_phrases = {
+			"enters the arena!",
+			"has joined the fight!",
+			"has spawned!",
+			"teleported in!",
+			"is here to end this!",
+			"makes its presence known!"
+		};
+		const char* random_phrase = arrival_phrases[irandom(arrival_phrases.size() - 1)];
+
+		char announce_buffer[128]; // Use a buffer for the combined string
+		// Format the message: "BOSS: <BossName> <random_phrase>!"
+		// snprintf is safer than sprintf as it prevents buffer overflows.
+		snprintf(announce_buffer, sizeof(announce_buffer), "\nBOSS: %s %s", boss_display_name.c_str(), random_phrase);
+		AppendHordeMessage(announce_buffer, 4_sec); // Use the new AppendHordeMessage
 	}
-    // END NEW
+	// END NEW
 
 	self->solid = SOLID_BBOX;
 	gi.linkentity(self);
@@ -4931,6 +4985,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {}.\n", self->classname, self->s.origin);
 	}
 }
+
 
 void ClearHordeMessage()
 {
@@ -5559,35 +5614,77 @@ void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason
 	g_horde_local.state = horde_state_t::rest;
 }
 
+// ... (rest of your includes and global variables) ...
+
+// MODIFIED FUNCTION: AnnounceIncomingWave
 static void AnnounceIncomingWave(gtime_t duration = 3_sec)
 {
 	const char *message;
 
+    // Define message pools for each difficulty level
+    static constexpr std::array<const char*, 4> normal_messages = {
+        "Strogg forces are pushing! Stay alert!",
+        "Incoming wave detected! Hold position!",
+        "Prepare for the next assault!",
+        "The horde advances! Brace yourselves!"
+    };
+
+    static constexpr std::array<const char*, 4> chaotic1_messages = {
+        "Chaotic wave incoming! Steel yourself!",
+        "Chaos approaches! Ready for battle!",
+        "The horde is restless! Expect the unexpected!",
+        "Unpredictable forces approaching! Adapt or die!"
+    };
+
+    static constexpr std::array<const char*, 4> chaotic2_messages = {
+        "Relentless wave incoming! Stand your ground!",
+        "Overwhelming forces approaching! Hold the line!",
+        "The horde shows no mercy! Fight with all you have!",
+        "An unstoppable tide approaches! This is it!"
+    };
+
+    static constexpr std::array<const char*, 4> insane1_messages = {
+        "Intense wave incoming! Show no mercy!",
+        "Fierce battle ahead! Stand ready!",
+        "The Strogg are enraged! Push them back!",
+        "Survival is not guaranteed! Fight for every inch!"
+    };
+
+    // Expanded and refined insane2_messages
+    static constexpr std::array<const char*, 5> insane2_messages = { // Increased size to 5
+        "This is it, marines! Make it count!",       // Keep this classic
+        "No retreat! Fight until your last breath!", // Desperate, but determined
+        "Overwhelmed! Make them pay for every inch!",// Focus on making them suffer
+        "They're everywhere! Don't give an inch!",   // Sense of being surrounded
+        "Looks like a glorious death! Take 'em with you!" // Dark humor
+    };
+
+    // Select message based on difficulty and level
 	if (g_chaotic->integer > 0 && g_horde_local.level >= 5)
-	{ // Solo después de la ola 5
+	{
 		if (g_chaotic->integer == 2)
 		{
-			message = brandom() ? "***RELENTLESS WAVE INCOMING***\n\nSTAND YOUR GROUND!\n" : "***OVERWHELMING FORCES APPROACHING***\n\nHOLD THE LINE!\n";
+            message = chaotic2_messages[irandom(chaotic2_messages.size() - 1)];
 		}
-		else
+		else // g_chaotic->integer == 1
 		{
-			message = brandom() ? "***CHAOTIC WAVE INCOMING***\n\nSTEEL YOURSELF!\n" : "***CHAOS APPROACHES***\n\nREADY FOR BATTLE!\n";
+            message = chaotic1_messages[irandom(chaotic1_messages.size() - 1)];
 		}
 	}
 	else if (g_insane->integer > 0)
 	{
 		if (g_insane->integer == 2)
 		{
-			message = brandom() ? "***MERCILESS WAVE INCOMING***\n\nNO RETREAT!\n" : "***DEADLY WAVE APPROACHES***\n\nFIGHT TO SURVIVE!\n";
+            message = insane2_messages[irandom(insane2_messages.size() - 1)];
 		}
-		else
+		else // g_insane->integer == 1
 		{
-			message = brandom() ? "***INTENSE WAVE INCOMING***\n\nSHOW NO MERCY!\n" : "***FIERCE BATTLE AHEAD***\n\nSTAND READY!\n";
+            message = insane1_messages[irandom(insane1_messages.size() - 1)];
 		}
 	}
-	else
+	else // Normal difficulty
 	{
-		message = brandom() ? "STROGGS STARTING TO PUSH!\n\nSTAY ALERT!\n" : "PREPARE FOR INCOMING WAVE!\n\nHOLD POSITION!\n";
+        message = normal_messages[irandom(normal_messages.size() - 1)];
 	}
 
 	for (auto player : active_players())
@@ -5598,20 +5695,9 @@ static void AnnounceIncomingWave(gtime_t duration = 3_sec)
 		}
 	}
 
-    // If it's a boss wave and the boss hasn't spawned yet,
-    // we might shorten or skip this general wave announcement,
-    // as the boss announcement is coming soon.
-    // However, the sound is still good.
-    bool is_boss_wave_starting = (g_horde_local.level >= 10 && (g_horde_local.level % 5 == 0) && !boss_spawned_for_wave);
-
-    if (is_boss_wave_starting) {
-        // For boss waves, maybe just play the sound and don't set a long text message
-        // that will be immediately overwritten. Or set a very short one.
-        // For now, let's allow it to be set; the boss message will override.
-        UpdateHordeMessage(message, duration);
-    } else {
-	    UpdateHordeMessage(message, duration);
-    }
+	// This general wave announcement is now appended, not replaced.
+	// The boss announcement (if applicable) will be appended by BossSpawnThink.
+	AppendHordeMessage(message, duration); // Changed from UpdateHordeMessage to AppendHordeMessage
 
 
 	g_independent_timer_start = level.time;
