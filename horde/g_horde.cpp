@@ -4839,6 +4839,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
+    // This part sets the wave type and prints a wave theme message. This STAYS.
 	auto bossWaveInfo = GetBossWaveType(typeId);
 	if (TrySetWaveType(bossWaveInfo.first))
 	{
@@ -4860,8 +4861,9 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		StoreWaveType(current_wave_type);
 	}
 
-	std::string_view bossMessage = GetBossMessage(typeId);
-	gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data());
+    // OLD long boss announcement via PRINT_CHAT is now removed.
+	// std::string_view bossMessage = GetBossMessage(typeId); // REMOVED
+	// gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", bossMessage.data()); // REMOVED
 
 	self->monsterinfo.IS_BOSS = true;
 	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
@@ -4879,6 +4881,16 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	}
 
 	boss_spawned_for_wave = true;
+
+    // NEW: Boss Announce Message via EXISTING UpdateHordeMessage
+	std::string boss_display_name = GetDisplayName(self);
+	if (!boss_display_name.empty()) {
+		char announce_buffer[128];
+		// Format the message: "The <BossName> Enters The Arena!"
+		snprintf(announce_buffer, sizeof(announce_buffer), "ALERT: %s Spawned!", boss_display_name.c_str()); // Use snprintf
+		UpdateHordeMessage(announce_buffer, 4_sec);
+	}
+    // END NEW
 
 	self->solid = SOLID_BBOX;
 	gi.linkentity(self);
@@ -5586,7 +5598,21 @@ static void AnnounceIncomingWave(gtime_t duration = 3_sec)
 		}
 	}
 
-	UpdateHordeMessage(message, duration);
+    // If it's a boss wave and the boss hasn't spawned yet,
+    // we might shorten or skip this general wave announcement,
+    // as the boss announcement is coming soon.
+    // However, the sound is still good.
+    bool is_boss_wave_starting = (g_horde_local.level >= 10 && (g_horde_local.level % 5 == 0) && !boss_spawned_for_wave);
+
+    if (is_boss_wave_starting) {
+        // For boss waves, maybe just play the sound and don't set a long text message
+        // that will be immediately overwritten. Or set a very short one.
+        // For now, let's allow it to be set; the boss message will override.
+        UpdateHordeMessage(message, duration);
+    } else {
+	    UpdateHordeMessage(message, duration);
+    }
+
 
 	g_independent_timer_start = level.time;
 	g_horde_local.waveEndTime = 0_sec;
@@ -5594,9 +5620,8 @@ static void AnnounceIncomingWave(gtime_t duration = 3_sec)
 	g_horde_local.conditionStartTime = 0_sec;
 	g_horde_local.conditionTimeThreshold = 0_sec;
 
-	// Resetear las advertencias usando un bucle for simple
 	for (size_t i = 0; i < WARNING_TIMES.size(); i++)
-	{ // Use WARNING_TIMES.size()
+	{
 		g_horde_local.warningIssued[i] = false;
 	}
 

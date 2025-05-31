@@ -158,13 +158,9 @@ void arachnid_dead(edict_t* self)
 {
     self->mins = { -16, -16, -24 };
     self->maxs = { 16, 16, -8 };
-    self->movetype = MOVETYPE_TOSS;
-    self->svflags |= SVF_DEADMONSTER;
-    self->nextthink = 0_ms;
-    gi.linkentity(self);
+  	monster_dead(self);
 }
 
-// Shared die function
 void arachnid_die_internal(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod, const mmove_t* death_move)
 {
     // check for gib
@@ -192,14 +188,7 @@ void arachnid_die_internal(edict_t* self, edict_t* inflictor, edict_t* attacker,
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
     self->deadflag = true;
     self->takedamage = true;
-// Ensure spider falls correctly if on ceiling
-if (self->spawnflags.has(SPAWNFLAG_SPIDER)) {
-    self->movetype = MOVETYPE_TOSS; // Make sure it falls
-    self->s.angles[2] = 0;
-    self->gravityVector = { 0, 0, -1 };
-}
 
-// Clear AI manual steering flag if it's set (mainly for PSX arachnid)
     // Clear AI manual steering flag if it's set (mainly for PSX arachnid)
     self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 
