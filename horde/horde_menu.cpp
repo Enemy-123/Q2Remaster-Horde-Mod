@@ -128,12 +128,9 @@ void HordeUpdateJoinMenu(edict_t* ent)
 	}
 	// Check if the menu size matches what we expect
 	if (ent->client->menu->num != JOINMENU_SIZE) {
-		gi.Com_PrintFmt("Warning: HordeUpdateJoinMenu - menu size mismatch (expected {}, got {}).\n", JOINMENU_SIZE, ent->client->menu->num);
-		// Optionally close the menu or return to prevent potential crashes
-		// PMenu_Close(ent);
+		 gi.Com_PrintFmt("Warning: HordeUpdateJoinMenu - menu size mismatch (expected {}, got {}).", JOINMENU_SIZE, ent->client->menu->num);
 		return;
 	}
-
 
 	pmenu_t* entries = ent->client->menu->entries;
 
@@ -156,7 +153,6 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		Q_strlcpy(entries[JOINMENU_DISCORD_IDX].text, "Discord: Enemy0416", sizeof(entries[JOINMENU_DISCORD_IDX].text));
 		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
 
-
 		// --- Update Player Count (Optimized) ---
 		uint32_t horde_player_count = 0;
 		for (const auto* player_ent : active_players()) {
@@ -167,9 +163,8 @@ void HordeUpdateJoinMenu(edict_t* ent)
 
 		// Update the player count display entry
 		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text, "$g_pc_playercount", sizeof(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text));
-		// *** FIX: Removed the sizeof argument from G_FmtTo ***
+		// G_FmtTo is correctly used for the argument here.
 		G_FmtTo(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1, "{}", horde_player_count);
-
 	}
 	else // Not Horde mode
 	{
@@ -185,15 +180,12 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
 	}
 
-
 	// --- Update Chase Cam / Spectator Option ---
 	const char* chase_text = ent->client->chase_target ?
 		"$g_pc_leave_chase_camera" :
 		"Go Spectator";
 	Q_strlcpy(entries[JOINMENU_CHASECAM_IDX].text, chase_text, sizeof(entries[JOINMENU_CHASECAM_IDX].text));
 	entries[JOINMENU_CHASECAM_IDX].SelectFunc = GoChaseCam;
-
-	// Ensure other blank entries remain blank (already handled by array definition)
 }
 
 // Keep the SetGameName and SetLevelName definitions as they were in the previous correct version.
@@ -380,7 +372,6 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		break;
 	}
 }// Opens the map category selection menu
-// Opens the map category selection menu
 void OpenMapCategoryMenu(edict_t* ent) {
 	if (!ent || !ent->client) {
 		return;
@@ -392,26 +383,18 @@ void OpenMapCategoryMenu(edict_t* ent) {
 	}
 
 	// --- Dynamically set the current map name ---
-	char current_map_text[sizeof(pmenu_t::text)]; // Use size of destination buffer
 	if (level.mapname && *level.mapname) {
-		snprintf(current_map_text, sizeof(current_map_text), "Current: %s", level.mapname);
+		// Use G_FmtTo for formatting when there's an argument
+		G_FmtTo(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text, "Current: {}", level.mapname);
 	}
 	else {
-		snprintf(current_map_text, sizeof(current_map_text), "Current: Unknown*");
+		// For a plain string copy without formatting, Q_strlcpy is more direct and avoids macro issues.
+		Q_strlcpy(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text, "Current: Unknown*", sizeof(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text));
 	}
-	// Ensure null termination just in case snprintf fills the buffer completely
-	current_map_text[sizeof(current_map_text) - 1] = '\0';
-
-	// Copy the formatted string into the static menu array entry
-	// Use the defined index for safety
-	Q_strlcpy(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text,
-		current_map_text,
-		sizeof(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text));
 	// Ensure this entry is not selectable
 	map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].SelectFunc = nullptr;
 	map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].align = PMENU_ALIGN_CENTER;
 	// --- End dynamic map name setting ---
-
 
 	// Open the category menu (using the updated static array)
 	PMenu_Open(ent, map_category_menu, -1, MAP_CATEGORY_MENU_SIZE, nullptr, nullptr);
@@ -547,12 +530,10 @@ void UpdateVoteMenu() {
 	}
 
 	// Safety check for empty list
-	if (!current_map_list) return; // Should not happen if CategorizeMapList was called
+	if (!current_map_list) return;
 
-	// Update category title (index 0)
-	char category_title[64];
-	snprintf(category_title, sizeof(category_title), "%s", category_name);
-	Q_strlcpy(vote_menu[0].text, category_title, sizeof(vote_menu[0].text));
+	// Update category title (index 0) using G_FmtTo
+	G_FmtTo(vote_menu[0].text, "{}", category_name);
 
 	// --- Calculate map indices for the current page ---
 	size_t const num_maps = current_map_list->size();
@@ -609,7 +590,6 @@ void UpdateVoteMenu() {
 	Q_strlcpy(vote_menu[nav_button_start_index + 2].text, "Close", sizeof(vote_menu[nav_button_start_index + 2].text));
 	vote_menu[nav_button_start_index + 2].SelectFunc = VoteMenuHandler;
 }
-
 
 // === Inventory Display ===
 
@@ -838,34 +818,27 @@ void OpenMiscMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
-	// Increase buffer size slightly for the new entry + potential separator
-	static pmenu_t entries[12]; // Increased size should be safe
+	static pmenu_t entries[12];
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
-	// Helper lambda remains the same
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
 		if (count < static_cast<int>(std::size(entries))) {
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
 			entries[count].align = align;
 			entries[count].SelectFunc = func;
 			count++;
-		}
-		else {
+		} else {
 			gi.Com_Print("Warning: OpenMiscMenu exceeded static entry buffer size.\n");
 		}
-		};
+	};
 
 	add_entry("*Misc Options*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
 
 	// --- ALWAYS Add Sentry Gun Choice FIRST ---
-	char sentry_choice_text[64];
-	snprintf(sentry_choice_text, sizeof(sentry_choice_text), "Sentry Type: [%s]",
-		GetSentryTypeName(ent->client->pers.sentry_gun_choice));
-	// Use MiscMenuHandler here, it will call HordeMenu_SentryChoice internally
-	add_entry(sentry_choice_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
-	// --- END ALWAYS ---
+	// Use G_Fmt for the sentry choice text
+	add_entry(G_Fmt("Sentry Type: [{}]", GetSentryTypeName(ent->client->pers.sentry_gun_choice)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- Conditional Remove Options ---
 	int laser_count = 0;
@@ -873,24 +846,21 @@ void OpenMiscMenu(edict_t* ent) {
 		laser_count = manager->get_active_count();
 	}
 	if (laser_count > 0) {
-		char remove_laser_text[64];
-		snprintf(remove_laser_text, sizeof(remove_laser_text), "Remove Lasers (%d)", laser_count);
-		add_entry(remove_laser_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
+		// Use G_Fmt for remove laser text
+		add_entry(G_Fmt("Remove Lasers ({})", laser_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	int sentry_count = ent->client->num_sentries;
 	if (sentry_count > 0) {
-		char remove_sentry_text[64];
-		snprintf(remove_sentry_text, sizeof(remove_sentry_text), "Remove Sentry Gun (%d)", sentry_count);
-		add_entry(remove_sentry_text, PMENU_ALIGN_LEFT, MiscMenuHandler);
+		// Use G_Fmt for remove sentry text
+		add_entry(G_Fmt("Remove Sentry Gun ({})", sentry_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
-	// --- END Conditional Remove Options ---
 
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
 	add_entry("Back", PMENU_ALIGN_LEFT, MiscMenuHandler);
 	add_entry("Close", PMENU_ALIGN_LEFT, MiscMenuHandler);
 
-	PMenu_Open(ent, entries, -1, count, nullptr, nullptr); // Use the dynamic count
+	PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 
 // === HUD Options Menu ===
@@ -915,21 +885,9 @@ void OpenHUDMenu(edict_t* ent) {
 
 // Creates and returns the HUD menu handle (used by OpenHUDMenu and HUDMenuHandler)
 pmenuhnd_t* CreateHUDMenu(edict_t* ent) {
-	// Static allocation for menu entries
 	static pmenu_t entries[HUD_MENU_MAX_ENTRIES];
-	memset(entries, 0, sizeof(entries)); // Zero initialize for safety
+	memset(entries, 0, sizeof(entries));
 
-	// Safe buffer sizes for formatting menu text
-	char id_text[HUD_TEXT_BUFFER_SIZE];
-	char dmg_text[HUD_TEXT_BUFFER_SIZE];
-
-	// Format option text safely using snprintf
-	snprintf(id_text, sizeof(id_text), "Enable/Disable ID [%s]",
-		ent->client->pers.id_state ? "ON" : "OFF");
-	snprintf(dmg_text, sizeof(dmg_text), "Enable/Disable ID-DMG [%s]",
-		ent->client->pers.iddmg_state ? "ON" : "OFF");
-
-	// Build menu entries with bounds checking
 	size_t count = 0;
 
 	// Title and spacing
@@ -944,16 +902,16 @@ pmenuhnd_t* CreateHUDMenu(edict_t* ent) {
 		entries[count++].SelectFunc = nullptr;
 	}
 
-	// ID Toggle
+	// ID Toggle using G_FmtTo
 	if (count < HUD_MENU_MAX_ENTRIES) {
-		Q_strlcpy(entries[count].text, id_text, sizeof(entries[count].text));
+		G_FmtTo(entries[count].text, "Enable/Disable ID [{}]", ent->client->pers.id_state ? "ON" : "OFF");
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
-	// ID-DMG Toggle
+	// ID-DMG Toggle using G_FmtTo
 	if (count < HUD_MENU_MAX_ENTRIES) {
-		Q_strlcpy(entries[count].text, dmg_text, sizeof(entries[count].text));
+		G_FmtTo(entries[count].text, "Enable/Disable ID-DMG [{}]", ent->client->pers.iddmg_state ? "ON" : "OFF");
 		entries[count].align = PMENU_ALIGN_LEFT;
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
@@ -979,31 +937,19 @@ pmenuhnd_t* CreateHUDMenu(edict_t* ent) {
 		entries[count++].SelectFunc = HUDMenuHandler;
 	}
 
-	// Open menu and return handle
 	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 
 // Updates the dynamic text in the HUD menu (ON/OFF status)
 void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p || !p->entries || p->num < 4) { // Need at least 4 entries for title, blank, ID, IDDMG
+	if (!ent || !ent->client || !p || !p->entries || p->num < 4) {
 		return;
 	}
 
-	// Safe buffers for status text
-	char id_status_text[HUD_TEXT_BUFFER_SIZE];
-	char dmg_status_text[HUD_TEXT_BUFFER_SIZE];
+	// Update the menu entries using G_Fmt (PMenu_UpdateEntry takes const char*)
+	PMenu_UpdateEntry(p->entries + 2, G_Fmt("Enable/Disable ID [{}]", ent->client->pers.id_state ? "ON" : "OFF").data(), PMENU_ALIGN_LEFT, HUDMenuHandler);
+	PMenu_UpdateEntry(p->entries + 3, G_Fmt("Enable/Disable ID-DMG [{}]", ent->client->pers.iddmg_state ? "ON" : "OFF").data(), PMENU_ALIGN_LEFT, HUDMenuHandler);
 
-	// Format status text safely
-	snprintf(id_status_text, sizeof(id_status_text), "Enable/Disable ID [%s]",
-		ent->client->pers.id_state ? "ON" : "OFF");
-	snprintf(dmg_status_text, sizeof(dmg_status_text), "Enable/Disable ID-DMG [%s]",
-		ent->client->pers.iddmg_state ? "ON" : "OFF");
-
-	// Update the menu entries (assuming indices 2 and 3 are ID and ID-DMG toggles)
-	PMenu_UpdateEntry(p->entries + 2, id_status_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
-	PMenu_UpdateEntry(p->entries + 3, dmg_status_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
-
-	// Force the menu to redraw on the client
 	PMenu_Update(ent);
 }
 
@@ -1014,7 +960,6 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		return;
 	}
 
-	// Define valid option range based on the created menu structure
 	constexpr int ID_TOGGLE_OPTION = 2;
 	constexpr int IDDMG_TOGGLE_OPTION = 3;
 	constexpr int BACK_OPTION = 5;
@@ -1023,33 +968,31 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	const int option = p->cur;
 
 	switch (option) {
-	case ID_TOGGLE_OPTION: // Toggle ID
-	case IDDMG_TOGGLE_OPTION: { // Toggle ID-DMG
+	case ID_TOGGLE_OPTION:
+	case IDDMG_TOGGLE_OPTION: {
 		bool& state_to_toggle = (option == ID_TOGGLE_OPTION) ?
 			ent->client->pers.id_state :
 			ent->client->pers.iddmg_state;
 		state_to_toggle = !state_to_toggle;
 
-		// Use snprintf for safe message formatting
-		char msg_buffer[128];
-		snprintf(msg_buffer, sizeof(msg_buffer), "\n\n\n%s state toggled to %s\n",
+		// Use G_Fmt for the message
+		gi.LocCenter_Print(ent, G_Fmt("\n\n\n{} state toggled to {}\n",
 			(option == ID_TOGGLE_OPTION) ? "ID" : "ID-DMG",
-			state_to_toggle ? "ON" : "OFF");
+			state_to_toggle ? "ON" : "OFF").data());
 
-		gi.LocCenter_Print(ent, msg_buffer);
-		UpdateHUDMenu(ent, p); // Update the menu display without closing it
+		UpdateHUDMenu(ent, p);
 		break;
 	}
-	case BACK_OPTION: // Back to Horde Menu
+	case BACK_OPTION:
 		PMenu_Close(ent);
-		if (ent->inuse) { // Extra safety check
+		if (ent->inuse) {
 			OpenHordeMenu(ent);
 		}
 		break;
-	case CLOSE_OPTION: // Close
+	case CLOSE_OPTION:
 		PMenu_Close(ent);
 		break;
-	default: // Invalid option
+	default:
 		PMenu_Close(ent);
 		break;
 	}
@@ -1160,73 +1103,47 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
-	// Increased size slightly to accommodate the potential new entry + separators
-	static pmenu_t entries[20]; // Buffer size should be sufficient
+	static pmenu_t entries[20];
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
-	// Helper lambda remains the same
 	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
 		if (count < static_cast<int>(std::size(entries))) {
 			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
 			entries[count].align = align;
 			entries[count].SelectFunc = func;
 			count++;
-		}
-		else {
+		} else {
 			gi.Com_Print("Warning: CreateHordeMenu exceeded static entry buffer size.\n");
 		}
-		};
-	// 1. Title & Separator
+	};
+
 	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
-	add_entry("", PMENU_ALIGN_CENTER); // Blank after title
+	add_entry("", PMENU_ALIGN_CENTER);
 
-	// 2. Go Spectator
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	add_entry("", PMENU_ALIGN_CENTER); // Separator after Spectator
+	add_entry("", PMENU_ALIGN_CENTER);
 
-	// 3. Vote Section
 	if (ctfgame.election == ELECT_NONE) {
 		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	}
-	else {
-		char vote_question[64];
-		snprintf(vote_question, sizeof(vote_question), "Vote: %s", ctfgame.emsg);
-		vote_question[sizeof(vote_question) - 1] = '\0'; // Ensure null termination
-
-		add_entry(vote_question, PMENU_ALIGN_CENTER, nullptr); // Display question
+	} else {
+		// Use G_Fmt for the vote question
+		add_entry(G_Fmt("Vote: {}", ctfgame.emsg).data(), PMENU_ALIGN_CENTER, nullptr);
 		add_entry("Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler);
 		add_entry("Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	}	add_entry("", PMENU_ALIGN_CENTER); // Separator after Vote section
+	}
+	add_entry("", PMENU_ALIGN_CENTER);
 
-	// 4. Misc Options <<-- REMOVE THE IF CONDITION HERE
-	// int laser_count = 0; // No longer need these counts here
-	// if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
-	//     laser_count = manager->get_active_count();
-	// }
-	// int sentry_count = ent->client->num_sentries;
-	// if (laser_count > 0 || sentry_count > 0) { // <-- REMOVE THIS IF
-	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler); // <-- ALWAYS ADD THIS
-	// } // <-- REMOVE THIS ENDING BRACE
-
-	// 5. HUD Options
+	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
-
-	// 6. Change Tech
 	add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
-
-	// 7. Show Inventory
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// Optional blank separators before close
 	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
-	// ...
 
-	// Last Entry: Close
 	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	// Open the menu
 	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 

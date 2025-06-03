@@ -4933,11 +4933,12 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		};
 		const char* random_phrase = arrival_phrases[irandom(arrival_phrases.size() - 1)];
 
-		char announce_buffer[128]; // Use a buffer for the combined string
-		// Format the message: "BOSS: <BossName> <random_phrase>!"
-		// snprintf is safer than sprintf as it prevents buffer overflows.
-		snprintf(announce_buffer, sizeof(announce_buffer), "\nBOSS: %s %s", boss_display_name.c_str(), random_phrase);
-		AppendHordeMessage(announce_buffer, 4_sec); // Use the new AppendHordeMessage
+	// New version using G_FmtTo:
+	char announce_buffer[128];
+	// G_FmtTo automatically null-terminates. The G_FmtTo macro in q_std.h handles
+	// FMT_STRING for non-C++20 fmt or uses std::format_string for C++20.
+	G_FmtTo(announce_buffer, "\nBOSS: {} {}", boss_display_name.c_str(), random_phrase);
+	AppendHordeMessage(announce_buffer, 4_sec);
 	}
 	// END NEW
 
@@ -5829,7 +5830,7 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 			{
 				// Generate candidate position (same logic)
 				float radius = HordeConstants::MIN_PLAYER_DIST_GENERATE + frandom() * (FAR_RADIUS_MAX - HordeConstants::MIN_PLAYER_DIST_GENERATE);
-				float angle = frandom() * 2.0f * PI;
+				float angle = frandom() * 2.0f * PIf;
 				vec3_t candidate_pos = {
 					player_origin[0] + cosf(angle) * radius, // Use cached player_origin
 					player_origin[1] + sinf(angle) * radius, // Use cached player_origin
