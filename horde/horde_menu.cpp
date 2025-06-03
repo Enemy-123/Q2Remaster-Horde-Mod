@@ -756,8 +756,8 @@ void HordeMenu_SentryChoice(edict_t* ent, pmenuhnd_t* p) {
 	ent->client->resp.sentry_gun_choice = static_cast<sentrytype_t>(current_choice); // Persist choice
 
 	// Inform the player
-	gi.LocCenter_Print(ent, "Sentrygun Type set to: {}\n", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
-
+	
+	gi.LocCenter_Print(ent, "\n\n\nSentrygun Type set to: {}\n", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
 	// Update the menu display immediately by reopening THE MISC MENU
 	// PMenu_Close is handled by OpenMiscMenu
 	OpenMiscMenu(ent); // Reopen the Misc menu to show the updated choice
