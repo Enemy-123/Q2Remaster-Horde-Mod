@@ -157,11 +157,31 @@ namespace LaserHelpers {
     }
 
     [[nodiscard]] static float get_angle_between_vectors(const vec3_t& v1, const vec3_t& v2) {
-        if (!is_valid_vector(v1) || !is_valid_vector(v2)) return 0.0f;
-        vec3_t const normalized_v1 = safe_normalized(v1);
-        vec3_t const normalized_v2 = safe_normalized(v2);
-        float const dot = normalized_v1.dot(normalized_v2);
-        return acosf(std::clamp(dot, -1.0f, 1.0f)) * (180.0f / PIf);
+        if (!is_valid_vector(v1) || !is_valid_vector(v2)) { // Initial check for NaN components
+            return 0.0f; // Or handle error appropriately
+        }
+
+        vec3_t const normalized_v1 = safe_normalized(v1); // Use safe_normalized from q_vec3.h
+        vec3_t const normalized_v2 = safe_normalized(v2); // Use safe_normalized from q_vec3.h
+
+        // If either normalization resulted in a zero vector (e.g., original was zero or NaN length)
+        // the dot product will be 0. acosf(0) is PI/2 (90 degrees).
+        // This is a reasonable default if one vector is zero.
+        // If both are zero, dot product is 0, angle is 90 degrees.
+        // You might want specific handling if both input vectors were zero length.
+        if (normalized_v1 == vec3_origin || normalized_v2 == vec3_origin) {
+            // Optionally, handle the case where one or both vectors were zero-length after normalization.
+            // For example, return 0 if they are considered "parallel" in a degenerate sense,
+            // or a specific error/NaN if the angle is undefined.
+            // For now, letting it proceed to 90 degrees if one is zero is a common behavior.
+        }
+
+        float const dot_product = normalized_v1.dot(normalized_v2); // dot() from q_vec3.h
+
+        // Clamp dot_product to [-1, 1] to avoid domain errors with acosf due to potential floating point inaccuracies
+        float clamped_dot = std::clamp(dot_product, -1.0f, 1.0f);
+
+        return acosf(clamped_dot) * (180.0f / PIf); // PIf from q_std.h
     }
 
     [[nodiscard]] static bool is_vector_within_angle(const vec3_t& vec, const vec3_t& reference, float max_angle) {
