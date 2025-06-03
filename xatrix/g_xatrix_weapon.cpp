@@ -366,7 +366,7 @@ constexpr float TRAP_MAX_TARGET_MASS = 400.0f; // Maximum mass that can be consu
 constexpr int TRAP_WAIT_START = 64;            // Initial wait value for consuming
 constexpr int TRAP_FRAME_CONSUME = 5;          // Frame for consumption animation
 constexpr int TRAP_FRAME_ACTIVE = 4;           // Frame for active trap
-constexpr gtime_t TRAP_DURATION = 60_sec;         // Total trap lifetime in seconds
+constexpr gtime_t TRAP_DURATION = 80_sec;         // Total trap lifetime in seconds
 
 
 
