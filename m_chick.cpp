@@ -555,6 +555,32 @@ void ChickRocket(edict_t* self)
 	}
 }
 
+void ChickLocRail(edict_t* self)
+{
+	vec3_t	target;
+	float	r;
+
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	target = self->enemy->s.origin;
+	target[2] += self->enemy->viewheight; // Aim at enemy's viewheight
+
+	// Introduce a random offset for "miss by a small delay"
+	r = frandom();
+	if (r < 0.3f) // 30% chance to miss slightly
+	{
+		vec3_t forward, right;
+		AngleVectors(self->s.angles, forward, right, nullptr);
+		if (frandom() < 0.5f)
+			target += (right * (frandom() * 20 - 15)); // Random horizontal offset
+		else
+			target += (forward * (frandom() * 20 - 15)); // Random forward/backward offset
+	}
+
+	self->pos1 = target; // Store the calculated target for ChickRailgun
+}
+
 void ChickRailgun(edict_t* self)
 {
 	vec3_t	start;
@@ -575,19 +601,10 @@ void ChickRailgun(edict_t* self)
 	if (blindfire)
 		target = self->monsterinfo.blind_fire_target;
 	else
-		target = self->enemy->s.origin;
+		target = self->pos1;
 
 	dir = target - start;
 	dir.normalize();
-
-	// Implement a "fail" mechanism similar to gladiator
-	trace_t trace = gi.traceline(start, target, self, MASK_SHOT);
-	if (trace.fraction < 1.0f && trace.ent != self->enemy) // If something is blocking the shot to the enemy
-	{
-		// Chick fails the railgun shot, maybe shoot slightly off or do nothing
-		//gi.sound(self, CHAN_WEAPON, sound_melee_miss, 1, ATTN_NORM, 0); // Use a miss sound
-		return;
-	}
 
 	gi.sound(self, CHAN_WEAPON, sound_railgun, 1, ATTN_NORM, 0);
 	monster_fire_railgun(self, start, dir, 80, 100, MZ2_CHICK_ROCKET_1); // Using MZ2_CHICK_ROCKET_1 for flash
@@ -604,8 +621,10 @@ void Chick_PreAttack1(edict_t* self)
 	}
 }
 
+void chick_endanim(edict_t* self);
+
 mframe_t chick_frames_attack_railgun[] = {
-		{ ai_charge, 0, Chick_PreAttack1 },
+	{ ai_charge, 0, Chick_PreAttack1 },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 4 },
@@ -617,10 +636,10 @@ mframe_t chick_frames_attack_railgun[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge },
-{ ai_charge, 0, ChickRailgun },
+	{ ai_charge, 0, ChickLocRail }, // Call ChickLocRail to set target
+	{ ai_charge, 0, ChickRailgun }, // ChickRailgun uses self->pos1
 };
-MMOVE_T(chick_move_attack_railgun) = { FRAME_attak114, FRAME_attak127, chick_frames_attack_railgun, chick_run };
+MMOVE_T(chick_move_attack_railgun) = { FRAME_attak114, FRAME_attak127, chick_frames_attack_railgun, chick_endanim };
 
 void ChickReload(edict_t* self)
 {
@@ -696,6 +715,11 @@ void chick_rerocket(edict_t* self)
 					return;
 				}
 	}
+	M_SetAnimation(self, &chick_move_end_attack1);
+}
+
+void chick_endanim(edict_t* self)
+{
 	M_SetAnimation(self, &chick_move_end_attack1);
 }
 
@@ -812,12 +836,6 @@ MONSTERINFO_ATTACK(chick_attack) (edict_t* self) -> void
 	}
 	else // 20% chance for railgun
 	{
-		if (!M_CheckClearShot(self, monster_flash_offset[MZ2_CHICK_ROCKET_1])) // Using same offset for now
-		{
-			// Chick fails the railgun shot, similar to gladiator
-			//gi.sound(self, CHAN_WEAPON, sound_melee_miss, 1, ATTN_NORM, 0);
-			return;
-		}
 		M_SetAnimation(self, &chick_move_attack_railgun);
 	}
 }
