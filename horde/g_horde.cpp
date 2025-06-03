@@ -6,7 +6,7 @@
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
 #include <span>
-#include "../laser.h"
+#include "../g_laser.h"
 #include "../profiler.h"
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
@@ -1508,6 +1508,9 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	CleanupSpawnPointCache();
 	VerifyAndAdjustBots();
+
+	//lasers
+	G_UpdateActiveLasersForWaveProgression(current_wave_level);
 
 	g_independent_timer_start = level.time;
 	g_horde_local.conditionStartTime = 0_sec;

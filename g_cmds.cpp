@@ -500,7 +500,7 @@ void Cmd_Spawn_f(edict_t* ent)
 	ent->solid = backup;
 	gi.linkentity(ent);
 }
-#include "laser.h"
+#include "g_laser.h"
 #include "shared.h"
 
 // Forward declaration for sentry die function (likely already in g_local.h but doesn't hurt)

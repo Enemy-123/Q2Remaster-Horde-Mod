@@ -1,7 +1,7 @@
 // --- START OF FILE g_laser.cpp ---
 #include "g_local.h"
 #include "shared.h"
-#include "laser.h" // Include the header file
+#include "g_laser.h" // Include the header file
 #include <array>
 #include <unordered_map>
 #include <new>
@@ -11,6 +11,103 @@
 void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 
 // Constants are now in laser.h
+
+// Helper function to calculate laser damage based on wave level
+static int CalculateWaveBasedLaserDamage(int wave_level) {
+    // Ensure wave_level is at least 1 for calculation to prevent negative multipliers
+    // if wave_level could be 0 or uninitialized.
+    int effective_wave_level = std::max(1, wave_level);
+    return LaserConstants::LASER_INITIAL_DAMAGE +
+           (LaserConstants::LASER_ADDON_DAMAGE * (effective_wave_level - 1));
+}
+
+// Helper function to calculate laser max health based on wave level
+static int CalculateWaveBasedLaserMaxHealth(int wave_level) {
+    // Ensure wave_level is at least 1
+    int effective_wave_level = std::max(1, wave_level);
+    return std::min(LaserConstants::LASER_INITIAL_HEALTH +
+                    (LaserConstants::LASER_ADDON_HEALTH * (effective_wave_level - 1)),
+                    LaserConstants::MAX_LASER_HEALTH);
+}
+
+// Global function to update all active lasers based on the current wave level
+void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game) {
+    if (!g_horde || !g_horde->integer) { // Only apply in horde mode
+        return;
+    }
+
+    if (developer && developer->integer) {
+        gi.Com_PrintFmt("Updating active lasers for wave: {}\n", current_wave_level_from_game);
+    }
+
+    for (uint32_t i = 1; i <= globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+
+        if (!ent->inuse || !ent->classname) {
+            continue;
+        }
+
+        // Check if it's a laser beam
+        if (strcmp(ent->classname, "laser") == 0) {
+            edict_t* laser_beam = ent;
+
+            // Calculate new stats based on the provided current_wave_level_from_game
+            int new_damage = CalculateWaveBasedLaserDamage(current_wave_level_from_game);
+            int new_max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level_from_game);
+
+            // Update damage
+            if (laser_beam->dmg != new_damage) {
+                 if (developer && developer->integer > 1) {
+                    gi.Com_PrintFmt("Laser (ent {}) damage: {} -> {}\n", (ptrdiff_t)(laser_beam - g_edicts), laser_beam->dmg, new_damage);
+                }
+                laser_beam->dmg = new_damage;
+            }
+
+            // Update health (proportionally)
+            if (new_max_health != laser_beam->max_health) {
+                if (developer && developer->integer > 1) {
+                     gi.Com_PrintFmt("Laser (ent {}) max_health: {} -> {} (current health: {})\n",
+                        (ptrdiff_t)(laser_beam - g_edicts), laser_beam->max_health, new_max_health, laser_beam->health);
+                }
+
+                if (laser_beam->health > 0) { // Only adjust if it was alive
+                    float health_ratio = 1.0f;
+                    if (laser_beam->max_health > 0) { // Avoid division by zero
+                        health_ratio = (float)laser_beam->health / (float)laser_beam->max_health;
+                    }
+                    
+                    int new_current_health = static_cast<int>(health_ratio * new_max_health);
+                    // Ensure health is at least 1 (if it was positive) and does not exceed new max.
+                    laser_beam->health = std::max(1, std::min(new_current_health, new_max_health));
+                     if (developer && developer->integer > 1) {
+                        gi.Com_PrintFmt("Laser (ent {}) new current health: {}\n", (ptrdiff_t)(laser_beam - g_edicts), laser_beam->health);
+                    }
+                }
+                // If laser_beam->health was <= 0, it remains so.
+                // The new_max_health is updated regardless.
+                laser_beam->max_health = new_max_health;
+
+                // Note: If health drops to 0 or below due to this update,
+                // the laser's own think function (laser_beam_think) or its damage
+                // application logic (laser_pierce_t::hit) should eventually call laser_die.
+            }
+            // The laser_beam_think function already calls gi.linkentity(self)
+            // and updates s.frame and s.skinnum based on health, so those will update automatically.
+        }
+        // --- Optional: Update Emitter Health ---
+        /*
+        else if (strcmp(ent->classname, "emitter") == 0) {
+            edict_t* emitter = ent;
+            // You would need a CalculateWaveBasedEmitterMaxHealth function
+            // int new_emitter_max_health = CalculateWaveBasedEmitterMaxHealth(current_wave_level_from_game);
+            // if (new_emitter_max_health != emitter->max_health) { // Assuming emitter has max_health field
+            //    // ... similar proportional health update logic for the emitter ...
+            //    emitter->max_health = new_emitter_max_health; // If emitter has max_health
+            // }
+        }
+        */
+    }
+}
 
 // Estructuras de apoyo
 struct LaserState {
@@ -480,7 +577,7 @@ void create_laser(edict_t* ent) {
         }
         catch (const std::bad_alloc& e) {
             // Handle allocation failure gracefully
-            gi.Com_PrintFmt("ERROR: Failed to allocate PlayerLaserManager: %s\n", e.what());
+            gi.Com_PrintFmt("ERROR: Failed to allocate PlayerLaserManager: {}\n", e.what());
             // Ensure the unique_ptr is null after a failed allocation attempt
             ent->client->laser_manager = nullptr;
             return; // Cannot proceed without the manager
@@ -574,12 +671,9 @@ void create_laser(edict_t* ent) {
     laser->owner = grenade; // Beam is owned by emitter
     laser->pos1 = tr.endpos;
     laser->s.angles = grenade->s.angles; // Match emitter angles
-    laser->dmg = LaserConstants::LASER_INITIAL_DAMAGE +
-        (LaserConstants::LASER_ADDON_DAMAGE * (current_wave_level - 1));
-    laser->health = std::min(LaserConstants::LASER_INITIAL_HEALTH +
-        (LaserConstants::LASER_ADDON_HEALTH * (current_wave_level - 1)),
-        LaserConstants::MAX_LASER_HEALTH);
-    laser->max_health = laser->health;
+    laser->dmg = CalculateWaveBasedLaserDamage(current_wave_level);
+    laser->max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+    laser->health = laser->max_health; // New lasers start at full health
     laser->gib_health = -100;
     laser->mass = 50;
     laser->takedamage = false;

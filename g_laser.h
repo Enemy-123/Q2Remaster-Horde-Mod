@@ -1,5 +1,5 @@
 
-// --- START OF FILE laser.h ---
+// --- START OF FILE g_laser.h ---
 #pragma once // Include guard
 
 #include "g_local.h" // Include necessary base headers (for edict_t, vec3_t, gtime_t, etc.)
@@ -7,7 +7,7 @@
 #include <cstdint>   // For int32_t
 
 // Forward declaration
-struct edict_t;
+void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game);
 
 // Constants
 namespace LaserConstants {
@@ -82,5 +82,5 @@ void remove_lasers(edict_t* ent) noexcept;
 // }
 // ^-- Declaration might not be strictly necessary if only called internally via function pointer
 
-// --- END OF FILE laser.h ---
+// --- END OF FILE g_laser.h ---
 

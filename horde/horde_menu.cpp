@@ -6,7 +6,7 @@
 #include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
 #include "g_horde.h"    // For GetMapSize
 #include "g_horde_benefits.h"
-#include "../laser.h"
+#include "../g_laser.h"
 
 constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0096";
 
