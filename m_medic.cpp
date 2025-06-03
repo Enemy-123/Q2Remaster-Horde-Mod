@@ -1649,11 +1649,8 @@ MMOVE_T(medic_move_callReinforcements) = { FRAME_attack33, FRAME_attack55, medic
 
 MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 {
-	monster_done_dodge(self);
 
-	float const enemy_range = range_to(self, self->enemy);
-
-	//// Check for tesla mines to convert
+		//// Check for tesla mines to convert
 	//edict_t* tesla = nullptr;
 	//while ((tesla = findradius(tesla, self->s.origin, MEDIC_MAX_HEAL_DISTANCE)) != nullptr)
 	//{
@@ -1666,33 +1663,68 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 	//	}
 	//}
 	// signal from checkattack to spawn
+    monster_done_dodge(self);
 
-	if (self->monsterinfo.aiflags & AI_BLOCKED)
-	{
-		M_SetAnimation(self, &medic_move_callReinforcements);
-		self->monsterinfo.aiflags &= ~AI_BLOCKED;
-	}
+    float const enemy_range = range_to(self, self->enemy); // Calculate once
 
-	float const r = frandom();
-	if (self->monsterinfo.aiflags & AI_MEDIC)
-	{
-		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
-			M_SetAnimation(self, &medic_move_callReinforcements);
-		else
-			M_SetAnimation(self, &medic_move_attackCable);
-	}
-	else
-	{
-		if (self->monsterinfo.attack_state == AS_BLIND)
-		{
-			M_SetAnimation(self, &medic_move_callReinforcements);
-			return;
-		}
-		if ((self->monsterinfo.bonus_flags != BF_NONE && r < 0.7) || ((self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self)))
-			M_SetAnimation(self, &medic_move_callReinforcements);
-		else
-			M_SetAnimation(self, &medic_move_attackBlaster);
-	}
+    // AI_BLOCKED signal from checkattack to spawn.
+    // medic_checkattack ensures slots are available if AI_BLOCKED is set for spawning.
+    if (self->monsterinfo.aiflags & AI_BLOCKED)
+    {
+        M_SetAnimation(self, &medic_move_callReinforcements);
+        self->monsterinfo.aiflags &= ~AI_BLOCKED; // Clear the flag
+        return; // Spawning action decided
+    }
+
+    float const r = frandom(); // Random factor for decisions
+
+    if (self->monsterinfo.aiflags & AI_MEDIC) // Healing/reviving mode
+    {
+        // Commander medic might also spawn while in AI_MEDIC mode (healing someone)
+        // This part already checks M_SlotsLeft(self)
+        if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self) > 0)
+        {
+            M_SetAnimation(self, &medic_move_callReinforcements);
+        }
+        else // Default to cable attack for healing
+        {
+            M_SetAnimation(self, &medic_move_attackCable);
+        }
+    }
+    else // Not AI_MEDIC (Combat mode)
+    {
+        if (self->monsterinfo.attack_state == AS_BLIND)
+        {
+            // medic_checkattack already ensures M_SlotsLeft(self) > 0 for AS_BLIND state.
+            M_SetAnimation(self, &medic_move_callReinforcements);
+            return; // Spawning action decided
+        }
+
+        // --- MODIFICATION START ---
+        // Now, the main decision logic for combat: spawn or attack?
+        bool has_available_slots = (M_SlotsLeft(self) > 0); // True if monster_used < monster_slots
+
+        // Determine if conditions are met for spawning, *if slots were hypothetically available*
+        bool wants_to_spawn_as_bonus_medic = (self->monsterinfo.bonus_flags != BF_NONE && r < 0.7f);
+        // For commander, enemy_range is also a factor for spawning.
+        // The original commander condition also included M_SlotsLeft(self),
+        // but we've factored slot availability into 'has_available_slots'.
+        bool wants_to_spawn_as_commander = (self->mass > 400 && r > 0.2f && enemy_range > RANGE_MELEE);
+
+        if (has_available_slots && (wants_to_spawn_as_bonus_medic || wants_to_spawn_as_commander))
+        {
+            // Attempt to spawn if:
+            // 1. Slots are available AND
+            // 2. EITHER it's a bonus_flags medic wanting to spawn
+            // 3. OR it's a commander medic wanting to spawn.
+            M_SetAnimation(self, &medic_move_callReinforcements);
+        }
+        else // No slots available, or random chance/other conditions for spawning not met
+        {
+            M_SetAnimation(self, &medic_move_attackBlaster);
+        }
+        // --- MODIFICATION END ---
+    }
 }
 
 MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
