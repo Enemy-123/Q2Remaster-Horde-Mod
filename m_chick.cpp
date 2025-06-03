@@ -34,6 +34,7 @@ static cached_soundindex sound_pain2;
 static cached_soundindex sound_pain3;
 static cached_soundindex sound_sight;
 static cached_soundindex sound_search;
+static cached_soundindex sound_railgun;
 
 void ChickMoan(edict_t* self)
 {
@@ -554,6 +555,44 @@ void ChickRocket(edict_t* self)
 	}
 }
 
+void ChickRailgun(edict_t* self)
+{
+	vec3_t	start;
+	vec3_t	dir;
+	vec3_t	forward, right;
+	vec3_t	target;
+	bool	blindfire = false;
+
+	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+		blindfire = true;
+
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
+
+	if (blindfire)
+		target = self->monsterinfo.blind_fire_target;
+	else
+		target = self->enemy->s.origin;
+
+	dir = target - start;
+	dir.normalize();
+
+	// Implement a "fail" mechanism similar to gladiator
+	trace_t trace = gi.traceline(start, target, self, MASK_SHOT);
+	if (trace.fraction < 1.0f && trace.ent != self->enemy) // If something is blocking the shot to the enemy
+	{
+		// Chick fails the railgun shot, maybe shoot slightly off or do nothing
+		//gi.sound(self, CHAN_WEAPON, sound_melee_miss, 1, ATTN_NORM, 0); // Use a miss sound
+		return;
+	}
+
+	gi.sound(self, CHAN_WEAPON, sound_railgun, 1, ATTN_NORM, 0);
+	monster_fire_railgun(self, start, dir, 80, 100, MZ2_CHICK_ROCKET_1); // Using MZ2_CHICK_ROCKET_1 for flash
+}
+
 void Chick_PreAttack1(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_missile_prelaunch, 1, ATTN_NORM, 0);
@@ -564,6 +603,24 @@ void Chick_PreAttack1(edict_t* self)
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
+
+mframe_t chick_frames_attack_railgun[] = {
+		{ ai_charge, 0, Chick_PreAttack1 },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 4 },
+	{ ai_charge },
+	{ ai_charge, -3 },
+	{ ai_charge, 3 },
+	{ ai_charge, 5 },
+	{ ai_charge, 13, monster_footstep },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+{ ai_charge, 0, ChickRailgun },
+};
+MMOVE_T(chick_move_attack_railgun) = { FRAME_attak114, FRAME_attak127, chick_frames_attack_railgun, chick_run };
 
 void ChickReload(edict_t* self)
 {
@@ -708,9 +765,6 @@ MONSTERINFO_MELEE(chick_melee) (edict_t* self) -> void
 
 MONSTERINFO_ATTACK(chick_attack) (edict_t* self) -> void
 {
-	if (!M_CheckClearShot(self, monster_flash_offset[MZ2_CHICK_ROCKET_1]))
-		return;
-
 	float r, chance;
 
 	monster_done_dodge(self);
@@ -747,7 +801,25 @@ MONSTERINFO_ATTACK(chick_attack) (edict_t* self) -> void
 	}
 	// pmm
 
-	M_SetAnimation(self, &chick_move_start_attack1);
+	// Choose between rocket and railgun attack
+	r = frandom();
+	if (r < 0.8f
+	) // 80% chance for rocket
+	{
+		if (!M_CheckClearShot(self, monster_flash_offset[MZ2_CHICK_ROCKET_1]))
+			return;
+		M_SetAnimation(self, &chick_move_start_attack1);
+	}
+	else // 20% chance for railgun
+	{
+		if (!M_CheckClearShot(self, monster_flash_offset[MZ2_CHICK_ROCKET_1])) // Using same offset for now
+		{
+			// Chick fails the railgun shot, similar to gladiator
+			//gi.sound(self, CHAN_WEAPON, sound_melee_miss, 1, ATTN_NORM, 0);
+			return;
+		}
+		M_SetAnimation(self, &chick_move_attack_railgun);
+	}
 }
 
 MONSTERINFO_SIGHT(chick_sight) (edict_t* self, edict_t* other) -> void
@@ -909,6 +981,7 @@ void SP_monster_chick(edict_t* self)
 	sound_pain3.assign("chick/chkpain3.wav");
 	sound_sight.assign("chick/chksght1.wav");
 	sound_search.assign("chick/chksrch1.wav");
+	sound_railgun.assign("weapons/railgr1a.wav"); // Using railgun sound from chick_heat
 
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;

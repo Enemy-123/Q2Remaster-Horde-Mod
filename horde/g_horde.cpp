@@ -282,11 +282,6 @@ struct SpawnPointDataArray
 		for (auto &item : data)
 			item = SpawnPointData{};
 	}
-	bool find_and_access(const edict_t *key, SpawnPointData *&data_ptr)
-	{
-		data_ptr = &data[key - g_edicts];
-		return true;
-	}
 };
 SpawnPointDataArray spawnPointsData;
 
