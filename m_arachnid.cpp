@@ -1935,8 +1935,8 @@ void SP_monster_spider(edict_t* self)
         self->health = IsFirstThreeWaves(current_wave_level) ? 350 * st.health_multiplier : 550 * st.health_multiplier;
         self->max_health = self->health;
         self->gib_health = -150;
-        self->mins = { -41, -41, -17 };
-        self->maxs = { 41, 41, 41 };
+        self->mins *= self->s.scale;
+        self->maxs *= self->s.scale;
     }
     ApplyMonsterBonusFlags(self);
 }
@@ -1964,8 +1964,8 @@ void SP_monster_arachnid2(edict_t* self)
     if (!strcmp(self->classname, "monster_arachnid2") && !self->monsterinfo.IS_BOSS)
     {
         self->s.scale = 0.85f;
-        self->mins = { -41, -41, -17 };
-        self->maxs = { 41, 41, 41 };
+        self->mins *= self->s.scale;
+        self->maxs *= self->s.scale;
     }
     self->gib_health = -200;
     self->mass = 450;
@@ -2000,14 +2000,12 @@ void SP_monster_gm_arachnid(edict_t* self)
     self->health = 1000 * st.health_multiplier;
     if (g_horde->integer) {
         self->s.scale = 0.85f;
-        self->mins = { -48, -48, -20 };
-        self->maxs = { 48, 48, 48 };
+        self->mins *= self->s.scale;
+        self->maxs *= self->s.scale;
     }
 
     if (!strcmp(self->classname, "monster_gm_arachnid") && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
         self->health = 2800 + (1.08 * current_wave_level);
-        self->mins = { -41, -41, -17 };
-        self->maxs = { 41, 41, 41 };
     }
     ApplyMonsterBonusFlags(self);
 }
