@@ -277,31 +277,23 @@ bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
 		return false;
 
-	// Horde mode logic (check if g_horde is valid first)
+	// Horde mode has its own reaction rules
 	if (g_horde && g_horde->integer) {
-		// Group conditions explicitly with parentheses for clarity
 		bool const is_special_weapon = (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET);
-		// Check monster type and wave (ensure monsterinfo members are safe to access)
 		bool const is_early_wave_normal_monster = (current_wave_level <= 10 && !self->monsterinfo.bonus_flags && !self->monsterinfo.IS_BOSS);
 		bool const is_boss = self->monsterinfo.IS_BOSS;
-
-		// React if weapon is special, or it's an early normal monster, or it's a boss
 		return (is_special_weapon || is_early_wave_normal_monster || is_boss);
 	}
-	// Non-horde mode logic (check if skill is valid first)
-	else if (skill && skill->integer) {
-		// Original logic: react to specific weapons or if skill level is low
-		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
+
+	// Default/non-horde mode logic based on skill level
+	// If the skill cvar isn't available, default to not reacting.
+	if (!skill) {
+		return false;
 	}
-    else {
-        // Fallback logic if neither horde mode nor skill level dictates behavior
-        if (skill) {
-             // Re-check original logic (this handles skill->integer == 0 case included above)
-             return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
-        }
-        // If no skill pointer or horde mode active, default to not reacting
-        return false;
-    }
+
+	// React to special weapons regardless of skill, or to any weapon if skill is low.
+	bool const is_special_weapon = (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA);
+	return is_special_weapon || (skill->integer < 3);
 }
 
 void M_WorldEffects(edict_t* ent)
@@ -350,9 +342,12 @@ void M_WorldEffects(edict_t* ent)
 		// Aplicar daño por ahogamiento si corresponde
 		if (take_drown_damage && ent->pain_debounce_time < level.time)
 		{
-			dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
-			if (dmg > 15)
-				dmg = 120;
+	// Drowning damage increases over time.
+	dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
+	if (dmg > 15) {
+		// After a certain point, drowning becomes rapidly fatal.
+		dmg = 120; 
+	}
 			T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR,
 				MOD_WATER);
 			ent->pain_debounce_time = level.time + 1_sec;
@@ -785,73 +780,47 @@ void M_MoveFrame(edict_t* self)
 	}
 }
 
+// Helper function to award kill credit and bonuses to a player
+static void AwardKillToPlayer(edict_t* player)
+{
+	if (!player || !player->client)
+		return;
+
+	if (G_IsCooperative() || g_horde->integer)
+	{
+		player->client->resp.score++;
+		player->client->resp.spree++;
+
+		// Increment powerup time if g_autohaste is active
+		if (g_autohaste->integer)
+		{
+			if (player->client->quadfire_time > level.time)
+				player->client->quadfire_time += 0.75_sec;
+			if (player->client->double_time > level.time)
+				player->client->double_time += 0.5_sec;
+			if (player->client->quad_time > level.time)
+				player->client->quad_time += 0.5_sec;
+		}
+	}
+}
+
 void G_MonsterKilled(edict_t* self)
 {
-	// *** MODIFIED SECTION BELOW ***
-	// Only increment killed_monsters count if the monster is meant to be counted for level completion.
 	if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
 	{
 		level.killed_monsters++;
 	}
 
-	// *** END OF MODIFICATION ***
-
-	// Verificar si el enemigo es un cliente (jugador) o una torreta propiedad de un jugador
+	// Award kill to the player or the owner of the entity that got the kill
 	if (self->enemy && self->enemy->client)
 	{
-		if (G_IsCooperative() || (g_horde->integer))
-		{
-			self->enemy->client->resp.score++;
-			self->enemy->client->resp.spree++;
-
-			// Incrementar el tiempo de quadfire si g_autohaste está activo
-			if (g_autohaste->integer)
-			{
-				if (self->enemy->client->quadfire_time > level.time)
-				{
-					const gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
-					self->enemy->client->quadfire_time += extra_time;
-				}
-				if (self->enemy->client->quad_time > level.time)
-				{
-					const gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
-					self->enemy->client->quad_time += extra_time;
-				}
-			}
-		}
+		AwardKillToPlayer(self->enemy);
 	}
 	else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
 	{
-		// Acreditar la muerte al propietario de la torreta
-		if (G_IsCooperative() || (g_horde->integer))
-		{
-			self->enemy->owner->client->resp.score++;
-			self->enemy->owner->client->resp.spree++;
-
-			// Incrementar el tiempo de quadfire si g_autohaste está activo
-			if (g_autohaste->integer)
-			{
-				if (self->enemy->owner->client->quadfire_time > level.time)
-				{
-					const gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
-					self->enemy->owner->client->quadfire_time += extra_time;
-				}
-
-				if (self->enemy->owner->client->double_time > level.time)
-				{
-					const gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
-					self->enemy->owner->client->double_time += extra_time;
-				}
-
-				if (self->enemy->owner->client->quad_time > level.time)
-				{
-					const gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
-					self->enemy->owner->client->quad_time += extra_time;
-				}
-			}
-		}
+		AwardKillToPlayer(self->enemy->owner);
 	}
-
+	
 	// Debugging: Track monster kills if enabled
 	if (g_debug_monster_kills->integer)
 	{
@@ -888,20 +857,21 @@ void G_MonsterKilled(edict_t* self)
 
 void M_ProcessPain(edict_t* e)
 {
+	// No damage was processed, so there's nothing to do.
 	if (!e->monsterinfo.damage_blood)
 		return;
 
+	// --- Handle Lethal Damage (Death) ---
 	if (e->health <= 0)
 	{
-		// ROGUE
+		// ROGUE: Cleanup for medic-type monsters
 		if (e->monsterinfo.aiflags & AI_MEDIC)
 		{
-			if (e->enemy && e->enemy->inuse && (e->enemy->svflags & SVF_MONSTER)) // god, I hope so
+			if (e->enemy && e->enemy->inuse && (e->enemy->svflags & SVF_MONSTER))
 			{
 				cleanupHealTarget(e->enemy);
 			}
-
-			// clean up self
+			// Clean up self
 			e->monsterinfo.aiflags &= ~AI_MEDIC;
 		}
 		// ROGUE
@@ -912,25 +882,23 @@ void M_ProcessPain(edict_t* e)
 		{
 			e->enemy = e->monsterinfo.damage_attacker;
 
-			// ROGUE
-			// ROGUE - free up slot for spawned monster if it's spawned
+			// ROGUE: Free up a slot for spawned monsters if it was spawned by a commander
 			if ((e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER) && !(e->monsterinfo.aiflags & AI_SPAWNED_NEEDS_GIB))
 				dead_commander_check = true;
 
-			// *** MODIFIED LINE BELOW ***
-			// Always call G_MonsterKilled on death now, unless spawned dead.
-			// G_MonsterKilled will handle the AI_DO_NOT_COUNT logic internally for level stats.
+			// Always call G_MonsterKilled on death, unless it was spawned dead.
+			// G_MonsterKilled handles the AI_DO_NOT_COUNT logic for level stats.
 			if (!(e->spawnflags & SPAWNFLAG_MONSTER_DEAD))
 				G_MonsterKilled(e);
-			// *** END OF MODIFICATION ***
 
 			e->touch = nullptr;
-			monster_death_use(e);
+			monster_death_use(e); // This function fires deathtarget and healthtarget on death
 		}
 
+		// Call the monster's specific death function (e.g., animations, sounds)
 		e->die(e, e->monsterinfo.damage_inflictor, e->monsterinfo.damage_attacker, e->monsterinfo.damage_blood, e->monsterinfo.damage_from, e->monsterinfo.damage_mod);
 
-		// [Paril-KEX] medic commander only gets his slots back after the monster is gibbed, since we can revive them
+		// [Paril-KEX] Medic commander only gets his slots back after the monster is gibbed, since we can revive them
 		if (e->health <= e->gib_health)
 		{
 			if ((e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER) && (e->monsterinfo.aiflags & AI_SPAWNED_NEEDS_GIB))
@@ -940,46 +908,51 @@ void M_ProcessPain(edict_t* e)
 		if (dead_commander_check)
 		{
 			edict_t*& commander = e->monsterinfo.commander;
-
 			if (commander && commander->inuse)
 				commander->monsterinfo.monster_used = max(0, commander->monsterinfo.monster_used - e->monsterinfo.slots_from_commander);
-
 			commander = nullptr;
 		}
 
-		// [Paril-KEX] Fix for monsters getting stuck in last frame of death animation
+		// [Paril-KEX] Fix for monsters getting stuck in the last frame of death animation
 		if (e->inuse && e->health > e->gib_health && e->s.frame == e->monsterinfo.active_move->lastframe)
 		{
 			e->s.frame -= irandom(1, 3);
-
 			// Optional: Add slight angle jitter for visual variety on ground death
 			if (e->groundentity && e->movetype == MOVETYPE_TOSS && !(e->flags & FL_STATIONARY))
 				e->s.angles[1] += brandom() ? 4.5f : -4.5f;
 		}
 	}
+	// --- Handle Non-Lethal Damage (Pain) ---
 	else
+	{
+		// Call the monster's specific pain function
 		e->pain(e, e->monsterinfo.damage_attacker, (float)e->monsterinfo.damage_knockback, e->monsterinfo.damage_blood, e->monsterinfo.damage_mod);
+	}
+
+	// --- Post-Damage Processing (for both pain and death paths) ---
 
 	// Check if the entity is still in use after pain/death processing
 	if (!e->inuse)
 		return;
 
-	// Apply skin changes if necessary
+	// Apply skin changes if necessary (e.g., for damage skins)
 	if (e->monsterinfo.setskin)
 		e->monsterinfo.setskin(e);
 
-	// Reset damage tracking variables
+	// Reset damage tracking variables for the next frame
 	e->monsterinfo.damage_blood = 0;
 	e->monsterinfo.damage_knockback = 0;
 	e->monsterinfo.damage_attacker = e->monsterinfo.damage_inflictor = nullptr;
 
-	// [Paril-KEX] fire health target if health threshold met or monster died
-	if (e->healthtarget)
+	// *** IMPROVEMENT IMPLEMENTED HERE ***
+	// Fire healthtarget only if the monster survived the damage and has a healthtarget.
+	// This prevents a double-trigger on death, as monster_death_use() already handles it.
+	if (e->health > 0 && e->healthtarget)
 	{
-		const char* target = e->target; // Store original target
-		e->target = e->healthtarget;    // Temporarily set health target
-		G_UseTargets(e, e->enemy);      // Fire health target
-		e->target = target;             // Restore original target
+		const char* original_target = e->target; // Store original target
+		e->target = e->healthtarget;             // Temporarily set health target
+		G_UseTargets(e, e->enemy);               // Fire health target
+		e->target = original_target;             // Restore original target
 	}
 }
 
@@ -1014,17 +987,16 @@ THINK(monster_dead_think) (edict_t* self) -> void
 		}
 	}
 
-	// Advance animation frame
-	if (self->s.frame != self->monsterinfo.active_move->lastframe)
+// Advance death animation until the last frame.
+	if (self->s.frame < self->monsterinfo.active_move->lastframe)
 	{
 		self->s.frame++;
 		self->nextthink = level.time + 10_hz;
 		return;
 	}
 
-	// Ensure we're exactly at last frame
-	if (self->s.frame != self->monsterinfo.active_move->lastframe)
-		self->s.frame = self->monsterinfo.active_move->lastframe;
+	// Pin to the last frame to ensure end-of-animation logic triggers correctly.
+	self->s.frame = self->monsterinfo.active_move->lastframe;
 
 
 	// If we reached the last frame and death hasn't been processed
