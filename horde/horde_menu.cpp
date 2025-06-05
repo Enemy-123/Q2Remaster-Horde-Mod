@@ -8,7 +8,7 @@
 #include "g_horde_benefits.h"
 #include "../g_laser.h"
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0096b";
+constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0097";
 
 // Forward Declarations from this file
 void OpenVoteMenu(edict_t* ent);
