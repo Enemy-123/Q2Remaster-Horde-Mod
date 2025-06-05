@@ -1129,7 +1129,8 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 	vec3_t start = ent->s.origin + vec3_t{ 0.f, 0.f, (float)ent->viewheight };
 	vec3_t end = start + ent->client->v_forward * 1024.f;
 
-	looked_at = gi.traceline(start, end, ent, MASK_SHOT).ent;
+	// Using MASK_MONSTERSOLID is slightly better for targeting monsters
+	looked_at = gi.traceline(start, end, ent, MASK_MONSTERSOLID).ent;
 
 	const int numEdicts = globals.num_edicts;
 	for (int edictIdx = 1; edictIdx < numEdicts; ++edictIdx) {
@@ -1149,10 +1150,9 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 
 	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");
 
-	// Permitir avanzar a la siguiente ola inmediatamente
-	AllowNextWaveAdvance();  // Llamamos la función para avanzar la ola
 	// Forzar limpieza de cuerpos
 	Horde_CleanBodies();
+	// This now calls the corrected function for an instant, clean skip.
 	fastNextWave();
 }
 

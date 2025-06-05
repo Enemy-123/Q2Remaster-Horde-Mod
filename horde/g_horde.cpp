@@ -164,7 +164,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
 edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool applyHordeFlags);
-
+static void AnnounceIncomingWave(gtime_t duration = 3_sec);
 bool EmergencySpawnMonster(const int32_t levelNum,
 						   horde::MonsterTypeID typeId,
 						   bool is_additional_monster,
@@ -5471,25 +5471,28 @@ void AllowNextWaveAdvance() noexcept
 	allowWaveAdvance = true;
 }
 
+// This new version correctly and instantly starts the next wave.
 void fastNextWave() noexcept
 {
-	Horde_InitLevel(g_horde_local.level + 1);
-	g_horde_local.monster_spawn_time = level.time;
-	g_horde_local.warm_time = level.time;
-
-	// Permitir el avance inmediato
-	// allowWaveAdvance = true;
-
-	// Resetear variables importantes
-	g_horde_local.num_to_spawn = 0;
-	g_horde_local.queued_monsters = 0;
-
-	g_horde_local.conditionTriggered = true;
-	g_horde_local.waveEndTime = level.time;
-
-	// Limpiar cualquier mensaje pendiente
+	// 1. Clean up any lingering state from the wave we are skipping.
 	ClearHordeMessage();
+	ResetWaveAdvanceState(); // Resets timers and flags.
+
+	// 2. Initialize all game variables for the *next* wave.
+	// Horde_InitLevel already handles setting the level, calculating monster counts, etc.
+	Horde_InitLevel(g_horde_local.level + 1);
+
+	// 3. Force the state machine directly into the spawning state for the new wave.
+	g_horde_local.state = horde_state_t::spawning;
+
+	// 4. Set timers to the current time to ensure spawning begins on the very next frame.
+	g_horde_local.monster_spawn_time = level.time;
+	g_horde_local.warm_time = level.time; // Also reset the warmup timer for consistency.
+
+	// 5. Announce the new wave so the player knows what's happening.
+	AnnounceIncomingWave(3_sec);
 }
+
 inline int8_t GetNumActivePlayers()
 {
 	const auto &players = active_players();
@@ -5598,7 +5601,7 @@ void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason
 // ... (rest of your includes and global variables) ...
 
 // MODIFIED FUNCTION: AnnounceIncomingWave
-static void AnnounceIncomingWave(gtime_t duration = 3_sec)
+static void AnnounceIncomingWave(gtime_t duration)
 {
 	const char *message;
 
