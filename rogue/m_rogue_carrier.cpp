@@ -1227,14 +1227,17 @@ void SP_monster_carrier_mini(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (!strcmp(self->classname, "monster_carrier_mini")) {
+    // This check is redundant, the engine only calls this function
+    // for this classname anyway. It can be removed.
+	// if (!strcmp(self->classname, "monster_carrier_mini")) {
+
 		SP_monster_carrier(self);
 
 		self->s.scale = 0.6f;
 
-		// Aplicar la escala a mins y maxs
-		self->mins *= 0.6f;
-		self->mins *= 0.6f;
+		// Apply the scale to mins and maxs
+		self->mins *= self->s.scale; // Scale mins
+		self->maxs *= self->s.scale; // FIX: Scale maxs
 
 		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;
@@ -1244,7 +1247,7 @@ void SP_monster_carrier_mini(edict_t* self)
 		}
 
 		ApplyMonsterBonusFlags(self);
-	}
+	// }
 }
 
 

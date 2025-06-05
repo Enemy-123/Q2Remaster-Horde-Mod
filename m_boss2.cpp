@@ -564,13 +564,12 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
-	if (damage < 10)
-		M_SetAnimation(self, &boss2_move_pain_light);
-	else if (damage < 30)
+	// Simplified
+	if (damage < 30)
 		M_SetAnimation(self, &boss2_move_pain_light);
 	else
 		M_SetAnimation(self, &boss2_move_pain_heavy);
-}
+	}
 
 MONSTERINFO_SETSKIN(boss2_setskin) (edict_t* self) -> void
 {
@@ -776,9 +775,9 @@ void SP_monster_boss2_64(edict_t* self)
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
 
-		// Ajustar la caja de colisi칩n con un Z m치s elevado
+   // Scale the collision box to match the model scale
 		self->mins *= (self->s.scale);
-		self->mins *= (self->s.scale);
+		self->maxs *= (self->s.scale);
 	}
 
 	self->health = 900 * st.health_multiplier;
@@ -797,9 +796,9 @@ void SP_monster_boss2_mini(edict_t* self)
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
 
-		// Ajustar la caja de colisi칩n con un Z m치s elevado
-		self->mins *= (self->s.scale * 0.6f);
-		self->mins *= (self->s.scale * 0.6f);
+   // Scale the collision box to match the model scale
+		self->mins *= self->s.scale;
+		self->maxs *= self->s.scale;
 	}
 
 	self->health = 1000 * st.health_multiplier;
@@ -819,7 +818,7 @@ void SP_monster_boss2kl(edict_t* self)
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
 
-		// Ajustar la caja de colisi칩n con un Z m치s elevado
+   // Scale the collision box to match the model scale
 		self->mins *= (self->s.scale);
 		self->mins *= (self->s.scale);
 	}
