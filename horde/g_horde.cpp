@@ -7917,26 +7917,19 @@ void CheckAndResetDisabledSpawnPoints()
 }
 
 void Horde_RunFrame() {
-	if (level.intermissiontime)
+	if (level.intermissiontime) {
 		return;
+	}
+
+	// --- Cache Frequently Used Variables ---
+	const gtime_t currentTime = level.time;
 	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
-	const horde_state_t currentState = g_horde_local.state;
-	const gtime_t currentTime = level.time;
 
-    static int32_t prev_wave_level_for_spawning_timers = -1;
-    // static int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
-    // /*static*/ int32_t monsters_spawned_in_current_phase = 0; // Made non-static, will be reset if needed or passed
-    //                                                           // If this needs to persist across Horde_RunFrame calls for some reason,
-    //                                                           // it should be static or a member of g_horde_local.
-    //                                                           // For now, assuming it's for within one spawning phase.
-
-
-	// Regular maintenance
+	// --- Pre-State-Machine Maintenance ---
 	CleanupSpawnPointCache();
 	CheckAndReduceSpawnCooldowns();
 
-	// --- Retaliation Mode Timeout ---
 	if (g_horde_retaliation_active && currentTime >= g_horde_retaliation_end_time) {
 		g_horde_retaliation_active = false;
 		g_horde_retaliation_end_time = 0_sec;
@@ -7947,292 +7940,143 @@ void Horde_RunFrame() {
 	}
 
 	// --- Stuck Wave Failsafe ---
-	static gtime_t last_wave_change_time_stuck_failsafe = 0_sec;
-	static int32_t wave_level_at_last_stuck_check = 0;
+	static gtime_t last_wave_change_time = 0_sec;
+	static int32_t wave_at_last_check = 0;
 	constexpr gtime_t WAVE_STUCK_TIMEOUT = 3_min;
 
-	if (need_frame_timer_reset) {
-		last_wave_change_time_stuck_failsafe = 0_sec;
-		wave_level_at_last_stuck_check = 0;
-        // Reset spawning phase specific trackers if frame timer reset implies full level reset
-        prev_wave_level_for_spawning_timers = -1; 
-        initial_total_monsters_for_spawning_phase_timeout = 0;
-        monsters_spawned_in_current_phase = 0;
-		need_frame_timer_reset = false;
-	}
-
-	if (wave_level_at_last_stuck_check != currentLevel) {
-		last_wave_change_time_stuck_failsafe = currentTime;
-		wave_level_at_last_stuck_check = currentLevel;
-	}
-	else if (currentState != horde_state_t::warmup &&
-		currentTime > last_wave_change_time_stuck_failsafe + WAVE_STUCK_TIMEOUT) {
+	if (wave_at_last_check != currentLevel) {
+		last_wave_change_time = currentTime;
+		wave_at_last_check = currentLevel;
+	} else if (g_horde_local.state != horde_state_t::warmup && currentTime > last_wave_change_time + WAVE_STUCK_TIMEOUT) {
 		if (GetStroggsNum() == 0) {
 			if (developer->integer) {
 				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over {}s with 0 monsters. Forcing progression.\n",
 					currentLevel, WAVE_STUCK_TIMEOUT.seconds());
 			}
-			g_horde_local.state = horde_state_t::spawning;
-			g_horde_local.monster_spawn_time = currentTime + 1.5_sec;
-			Horde_InitLevel(currentLevel + 1);
-			return;
+			g_horde_local.state = horde_state_t::cleanup; // Go to cleanup to properly end the wave
+			g_horde_local.monster_spawn_time = currentTime; // Trigger immediately
+		} else {
+			last_wave_change_time = currentTime; // Reset timer if monsters are still alive
 		}
-		else {
-			last_wave_change_time_stuck_failsafe = currentTime;
-			if (developer->integer > 1) {
-				gi.Com_PrintFmt("Wave {} duration exceeded {}s, but monsters remain. Resetting stuck wave failsafe timer.\n",
-					currentLevel, WAVE_STUCK_TIMEOUT.seconds());
-			}
-		}
-	}
-
-	if (dm_monsters && dm_monsters->integer >= 1) {
-		g_horde_local.num_to_spawn = dm_monsters->integer;
-		g_horde_local.queued_monsters = 0;
-		ClampNumToSpawn(mapSize);
 	}
 
 	bool waveEnded = false;
 	WaveEndReason currentWaveEndReason = WaveEndReason::AllMonstersDead;
 
-	// STATE MACHINE
+	// --- STATE MACHINE ---
 	switch (g_horde_local.state) {
-	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < currentTime) {
-			g_horde_local.state = horde_state_t::spawning;
-			Horde_InitLevel(1);
-			PlayWaveStartSound();
-			DisplayWaveMessage();
-		}
-		break;
-
-	case horde_state_t::spawning: {
-		static gtime_t spawning_phase_timeout_start_time = 0_sec;
-		constexpr gtime_t BASE_SPAWNING_PHASE_ABSOLUTE_TIMEOUT = 35_sec;
-        constexpr gtime_t MAX_SPAWNING_PHASE_ABSOLUTE_TIMEOUT = 120_sec;
-		static gtime_t min_deploy_duration_start_time = 0_sec;
-		constexpr gtime_t MIN_SPAWNING_DURATION_FOR_BIG_MEDIUM_MAPS = 10_sec;
-        static int32_t prev_wave_level_for_boss_timer = -1;
-
-
-        if (currentLevel != prev_wave_level_for_spawning_timers) {
-            spawning_phase_timeout_start_time = currentTime;
-            min_deploy_duration_start_time = currentTime;
-            prev_wave_level_for_spawning_timers = currentLevel;
-            initial_total_monsters_for_spawning_phase_timeout = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
-            monsters_spawned_in_current_phase = 0; // Reset for the new wave's spawning phase
-            if (developer->integer > 0) {
-                gi.Com_PrintFmt("Spawning State: Timers reset for wave {}. Initial monsters for timeout: {}.\n",
-                    currentLevel, initial_total_monsters_for_spawning_phase_timeout);
-            }
-        }
-
-        gtime_t current_spawning_phase_duration = BASE_SPAWNING_PHASE_ABSOLUTE_TIMEOUT;
-        if (currentLevel > 5) {
-            float additional_seconds_per_level = 0.75f;
-            float additional_seconds = static_cast<float>(currentLevel - 5) * additional_seconds_per_level;
-            current_spawning_phase_duration += gtime_t::from_sec(additional_seconds);
-        }
-        if (initial_total_monsters_for_spawning_phase_timeout > 0) {
-            constexpr float SECONDS_PER_MONSTER_FOR_TIMEOUT = 0.65f;
-            float monster_count_bonus_seconds = static_cast<float>(initial_total_monsters_for_spawning_phase_timeout) * SECONDS_PER_MONSTER_FOR_TIMEOUT;
-            current_spawning_phase_duration += gtime_t::from_sec(monster_count_bonus_seconds);
-        }
-        if (mapSize.isBigMap) {
-            current_spawning_phase_duration += 15_sec;
-        } else if (mapSize.isMediumMap) {
-            current_spawning_phase_duration += 7_sec;
-        }
-        current_spawning_phase_duration = std::min(current_spawning_phase_duration, MAX_SPAWNING_PHASE_ABSOLUTE_TIMEOUT);
-        current_spawning_phase_duration = std::max(current_spawning_phase_duration, BASE_SPAWNING_PHASE_ABSOLUTE_TIMEOUT);
-
-        if (developer->integer > 1 && spawning_phase_timeout_start_time > 0_sec && currentTime < spawning_phase_timeout_start_time + 1.0_sec) {
-             gi.Com_PrintFmt("Spawning State: Wave {}, Dynamic Timeout Calculated: {}s (Base: {}s, LvlBonus: {}s, MonsterBonus: {}s)\n",
-                currentLevel,
-                current_spawning_phase_duration.seconds(),
-                BASE_SPAWNING_PHASE_ABSOLUTE_TIMEOUT.seconds(),
-                (currentLevel > 5 ? static_cast<float>(currentLevel - 5) * 0.75f : 0.0f),
-                (initial_total_monsters_for_spawning_phase_timeout > 0 ? static_cast<float>(initial_total_monsters_for_spawning_phase_timeout) * 0.65f : 0.0f)
-             );
-        }
-
-		if (spawning_phase_timeout_start_time > 0_sec &&
-            currentTime > spawning_phase_timeout_start_time + current_spawning_phase_duration) {
-			if (!next_wave_message_sent) {
-				VerifyAndAdjustBots();
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized.\nWave Level: {}\n", currentLevel);
-				next_wave_message_sent = true;
-                 if (developer->integer) {
-                    gi.Com_PrintFmt("DevLog: Spawning phase ended due to dynamic timeout: {}s for wave {}\n",
-                        current_spawning_phase_duration.seconds(), currentLevel);
-                }
+		case horde_state_t::warmup:
+			if (g_horde_local.warm_time < currentTime) {
+				// Start the first wave
+				g_horde_local.state = horde_state_t::spawning;
+				Horde_InitLevel(1);
+				PlayWaveStartSound();
+				DisplayWaveMessage();
 			}
-			g_horde_local.state = horde_state_t::active_wave;
-			spawning_phase_timeout_start_time = 0_sec;
-            min_deploy_duration_start_time = 0_sec;
 			break;
-		}
 
-		const gtime_t independentTimeLimit = g_independent_timer_start + g_lastParams.independentTimeThreshold;
-		if (currentTime >= independentTimeLimit) {
-			currentWaveEndReason = WaveEndReason::TimeLimitReached;
-			waveEnded = true;
-			spawning_phase_timeout_start_time = 0_sec;
-            min_deploy_duration_start_time = 0_sec;
-			break;
-		}
+		case horde_state_t::spawning: {
+			static gtime_t spawning_phase_timeout_start_time = 0_sec;
+			static int32_t prev_wave_level_for_spawning_timers = -1;
 
-		if (g_horde_local.monster_spawn_time <= currentTime) {
-			int32_t num_to_spawn_before_call = g_horde_local.num_to_spawn;
-
-			if (IsBossWave()) {
-				static gtime_t boss_wave_start_time_local = 0_sec;
-				constexpr gtime_t BOSS_SPAWN_TIMEOUT_LOCAL = 30_sec;
-
-                if (currentLevel != prev_wave_level_for_boss_timer || boss_wave_start_time_local == 0_sec) {
-                    if (currentLevel != 0) {
-					    boss_wave_start_time_local = currentTime;
-                        if (developer->integer > 1 && currentLevel != prev_wave_level_for_boss_timer) {
-                             gi.Com_PrintFmt("Spawning State: Boss spawn timer reset for wave {}.\n", currentLevel);
-                        }
-                    }
-				}
-                if (currentLevel != prev_wave_level_for_boss_timer) {
-                    prev_wave_level_for_boss_timer = currentLevel;
-                }
-
-				if (boss_wave_start_time_local > 0_sec &&
-                    !boss_spawned_for_wave && currentTime > boss_wave_start_time_local + BOSS_SPAWN_TIMEOUT_LOCAL) {
-					if (developer->integer) {
-						gi.Com_PrintFmt("CRITICAL: Boss spawn timeout ({}s) reached for wave {}. Forcing spawn attempt.\n",
-							BOSS_SPAWN_TIMEOUT_LOCAL.seconds(), currentLevel);
-					}
-					SpawnBossAutomatically();
-                    if(boss_spawned_for_wave) boss_wave_start_time_local = 0_sec;
-				}
-				else if (!boss_spawned_for_wave) {
-					SpawnBossAutomatically();
-                    if(boss_spawned_for_wave) boss_wave_start_time_local = 0_sec;
-				}
+			if (currentLevel != prev_wave_level_for_spawning_timers) {
+				spawning_phase_timeout_start_time = currentTime;
+				prev_wave_level_for_spawning_timers = currentLevel;
+				initial_total_monsters_for_spawning_phase_timeout = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
+				monsters_spawned_in_current_phase = 0;
 			}
 
-			if (!IsBossWave() || boss_spawned_for_wave) {
-				SpawnMonsters();
-			}
-            
-            int32_t spawned_this_iteration = num_to_spawn_before_call - g_horde_local.num_to_spawn;
-            if (spawned_this_iteration > 0) {
-                monsters_spawned_in_current_phase += spawned_this_iteration;
-            }
-
-			if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
-                bool canDeclareDeployed = false;
-                if (mapSize.isSmallMap) {
-                    canDeclareDeployed = true;
-                } else { // Medium or Big maps
-                    if (min_deploy_duration_start_time > 0_sec) { // Ensure timer started
-                        canDeclareDeployed = (currentTime >= min_deploy_duration_start_time + MIN_SPAWNING_DURATION_FOR_BIG_MEDIUM_MAPS);
-                    }
-                }
-                if (!canDeclareDeployed && (currentTime >= independentTimeLimit - 5_sec)) {
-                    canDeclareDeployed = true;
-                    if (developer->integer > 0 && !next_wave_message_sent) {
-                        gi.Com_PrintFmt("Spawning State: Forcing 'Fully Deployed' (pools empty) due to proximity to independent time limit.\n");
-                    }
-                }
-                
-                float spawnProgressPercent = 0.0f;
-                if (initial_total_monsters_for_spawning_phase_timeout > 0) { // Avoid division by zero
-                     spawnProgressPercent = static_cast<float>(monsters_spawned_in_current_phase) / initial_total_monsters_for_spawning_phase_timeout;
-                }
-                constexpr float MIN_PERCENT_OF_TOTAL_SPAWNED_FOR_DEPLOY = 0.85f;
-
-                if (!canDeclareDeployed && spawnProgressPercent >= MIN_PERCENT_OF_TOTAL_SPAWNED_FOR_DEPLOY) {
-                    canDeclareDeployed = true;
-                     if (developer->integer > 0 && !next_wave_message_sent) {
-                        gi.Com_PrintFmt("Spawning State: Forcing 'Fully Deployed' (pools empty) - {}%% of initial total spawned.\n", static_cast<int>(spawnProgressPercent * 100.0f));
-                    }
-                }
-
-				if (canDeclareDeployed && !next_wave_message_sent) {
-					VerifyAndAdjustBots();
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
+			// Failsafe timeout for the spawning phase
+			if (currentTime > spawning_phase_timeout_start_time + 90_sec) {
+				if (!next_wave_message_sent) {
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized (Timeout).\nWave Level: {}\n", currentLevel);
 					next_wave_message_sent = true;
-                    g_horde_local.state = horde_state_t::active_wave;
-                    spawning_phase_timeout_start_time = 0_sec;
-                    min_deploy_duration_start_time = 0_sec;
-                    // monsters_spawned_in_current_phase is reset when prev_wave_level_for_spawning_timers changes
-				} else if (!canDeclareDeployed && !next_wave_message_sent && developer->integer > 0) {
-                    if (!mapSize.isSmallMap) { // Only log the delay reason for med/big maps
-                        gi.Com_PrintFmt("Spawning State: Pools empty. Min deploy duration ({}s of {}s) not met for Med/Big map. Spawned {}/{} ({}%%) of initial total.\n",
-                           (min_deploy_duration_start_time > 0_sec ? (currentTime - min_deploy_duration_start_time).seconds() : 0.0f),
-                            MIN_SPAWNING_DURATION_FOR_BIG_MEDIUM_MAPS.seconds(),
-                            monsters_spawned_in_current_phase, initial_total_monsters_for_spawning_phase_timeout, static_cast<int>(spawnProgressPercent * 100.0f));
-                    }
-                }
+				}
+				g_horde_local.state = horde_state_t::active_wave;
+				break;
 			}
-			SetNextMonsterSpawnTime(mapSize);
-		}
-		break;
-	}
 
-	case horde_state_t::active_wave: {
-        if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn == 0) {
-            const int32_t activeMonsters = CalculateRemainingMonsters();
-            const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap :
-                (mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP));
-            int32_t availableSpace = softCap - activeMonsters;
+			// If it's time to spawn...
+			if (g_horde_local.monster_spawn_time <= currentTime) {
+				int32_t num_to_spawn_before = g_horde_local.num_to_spawn;
 
-            if (availableSpace > 0) {
-                const int32_t transfer_batch_active = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 8 : 6);
-                const int32_t transfer_amount = std::min({g_horde_local.queued_monsters, availableSpace, transfer_batch_active});
-                if (transfer_amount > 0) {
-                    g_horde_local.num_to_spawn += transfer_amount;
-                    g_horde_local.queued_monsters -= transfer_amount;
-                    if (developer->integer > 0) {
-                        gi.Com_PrintFmt("Active Wave: Transferred {} from queue to spawn pool (Queue: {}, NumToSpawn: {}).\n",
-                            transfer_amount, g_horde_local.queued_monsters, g_horde_local.num_to_spawn);
-                    }
-                }
-            }
-        }
+				if (IsBossWave() && !boss_spawned_for_wave) {
+					SpawnBossAutomatically();
+				}
+				
+				// Spawn regular monsters or minions (or boss wave minions)
+				if (!IsBossWave() || boss_spawned_for_wave) {
+					SpawnMonsters();
+				}
 
-		if (CheckRemainingMonstersCondition(mapSize, currentWaveEndReason)) {
-            if (g_horde_local.queued_monsters > 5 && currentWaveEndReason != WaveEndReason::AllMonstersDead) {
-                 if (developer->integer) {
-                    gi.Com_PrintFmt("Warning: Wave ended with {} monsters still in queue. Reason: {}\n",
-                        g_horde_local.queued_monsters, static_cast<int>(currentWaveEndReason));
-                }
-            }
-			waveEnded = true;
+				int32_t spawned_this_frame = num_to_spawn_before - g_horde_local.num_to_spawn;
+				if (spawned_this_frame > 0) {
+					monsters_spawned_in_current_phase += spawned_this_frame;
+				}
+
+				// If all initial monsters are spawned, transition to active wave
+				// *** THE ONLY CHANGE IS IN THIS IF STATEMENT ***
+				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
+					// This condition now prevents the state change if it's a boss wave and the boss hasn't spawned.
+					if (!IsBossWave() || boss_spawned_for_wave) {
+						if (!next_wave_message_sent) {
+							VerifyAndAdjustBots();
+							gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
+							next_wave_message_sent = true;
+						}
+						g_horde_local.state = horde_state_t::active_wave;
+					}
+				}
+				SetNextMonsterSpawnTime(mapSize);
+			}
 			break;
 		}
 
-		if (g_horde_local.monster_spawn_time <= currentTime) {
-			SpawnMonsters();
-			SetNextMonsterSpawnTime(mapSize);
-		}
-		break;
+		case horde_state_t::active_wave:
+			if (CheckRemainingMonstersCondition(mapSize, currentWaveEndReason)) {
+				waveEnded = true;
+				break;
+			}
+			// Reinforcement logic
+			if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn == 0) {
+				const int32_t activeMonsters = CalculateRemainingMonsters();
+				const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : HordeConstants::MAX_MONSTERS_MEDIUM_MAP;
+				int32_t availableSpace = softCap - activeMonsters;
+				if (availableSpace > 0) {
+					const int32_t transfer_batch = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 8 : 6);
+					int32_t transfer_amount = std::min({g_horde_local.queued_monsters, availableSpace, transfer_batch});
+					if (transfer_amount > 0) {
+						g_horde_local.num_to_spawn += transfer_amount;
+						g_horde_local.queued_monsters -= transfer_amount;
+					}
+				}
+			}
+			// Spawn reinforcements if any were added
+			if (g_horde_local.num_to_spawn > 0 && g_horde_local.monster_spawn_time <= currentTime) {
+				SpawnMonsters();
+				SetNextMonsterSpawnTime(mapSize);
+			}
+			break;
+
+		case horde_state_t::cleanup:
+			if (g_horde_local.monster_spawn_time < currentTime) {
+				HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
+				g_horde_local.warm_time = currentTime + random_time(0.8_sec, 1.5_sec);
+				g_horde_local.state = horde_state_t::rest;
+				CheckAndResetDisabledSpawnPoints();
+			}
+			break;
+
+		case horde_state_t::rest:
+			if (g_horde_local.warm_time < currentTime) {
+				AnnounceIncomingWave(3_sec);
+				g_horde_local.state = horde_state_t::spawning;
+				Horde_InitLevel(g_horde_local.level + 1);
+			}
+			break;
 	}
 
-	case horde_state_t::cleanup:
-		if (g_horde_local.monster_spawn_time < currentTime) {
-			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
-			g_horde_local.warm_time = currentTime + random_time(0.8_sec, 1.5_sec);
-			g_horde_local.state = horde_state_t::rest;
-			CheckAndResetDisabledSpawnPoints();
-		}
-		break;
-
-	case horde_state_t::rest:
-		if (g_horde_local.warm_time < currentTime) {
-			AnnounceIncomingWave(3_sec);
-			g_horde_local.state = horde_state_t::spawning;
-			Horde_InitLevel(g_horde_local.level + 1);
-		}
-		break;
-	}
-
+	// --- Post-State-Machine Actions ---
 	if (waveEnded) {
 		SendCleanupMessage(currentWaveEndReason);
 		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
