@@ -4056,37 +4056,32 @@ constexpr spawnflags_t SPAWNFLAG_HURT_START_OFF = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_HURT_NO_PLAYERS = 32_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_HURT_CLIPPED = 128_spawnflag;
 
-// Function to check if a point is inside a trigger_hurt
-bool IsInsideTriggerHurt(const vec3_t& point) {
-	for (size_t i = 1; i < globals.num_edicts; i++) {
-		edict_t* ent = &g_edicts[i];
-		if (!ent->inuse || strcmp(ent->classname, "trigger_hurt") != 0)
-			continue;
+// Helper struct and function for the filter
+struct HurtFilterData {
+    bool found;
+};
 
-		// Skip if the trigger_hurt is not solid (START_OFF flag is set)
-		if (ent->spawnflags.has(SPAWNFLAG_HURT_START_OFF) && ent->solid == SOLID_NOT)
-			continue;
+static BoxEdictsResult_t HurtFilter(edict_t* ent, void* data) {
+    auto* filterData = static_cast<HurtFilterData*>(data);
 
-		// Skip if it's set to not affect players
-		if (ent->spawnflags.has(SPAWNFLAG_HURT_NO_PLAYERS))
-			continue;
-
-		if (ent->absmin[0] <= point[0] && point[0] <= ent->absmax[0] &&
-			ent->absmin[1] <= point[1] && point[1] <= ent->absmax[1] &&
-			ent->absmin[2] <= point[2] && point[2] <= ent->absmax[2]) {
-
-			if (ent->spawnflags.has(SPAWNFLAG_HURT_CLIPPED)) {
-				const trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, nullptr, MASK_SOLID);
-				if (tr.fraction < 1.0f && tr.ent == ent)
-					return true;
-			}
-			else {
-				return true;
-			}
-		}
-	}
-	return false;
+    if (strcmp(ent->classname, "trigger_hurt") == 0 &&
+        !(ent->spawnflags.has(SPAWNFLAG_HURT_START_OFF) && ent->solid == SOLID_NOT) &&
+        !ent->spawnflags.has(SPAWNFLAG_HURT_NO_PLAYERS))
+    {
+        filterData->found = true;
+        return BoxEdictsResult_t::End; // Stop searching
+    }
+    return BoxEdictsResult_t::Skip;
 }
+
+// Rewritten function
+bool IsInsideTriggerHurt(const vec3_t& point) {
+    HurtFilterData filterData = { false };
+    // Use a small box around the point to check for triggers
+    gi.BoxEdicts(point, point, nullptr, 0, AREA_TRIGGERS, HurtFilter, &filterData);
+    return filterData.found;
+}
+
 static BoxEdictsResult_t MonsterOnlyFilter(edict_t* ent, void* data) {
 	FilterData* filter_data = static_cast<FilterData*>(data);
 	if (ent == filter_data->ignore_ent)

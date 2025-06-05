@@ -841,8 +841,8 @@ void SP_monster_janitor(edict_t* self)
 	self->s.skinnum = 2;
 
 	self->s.scale = 0.6f;
-	self->mins *= 0.6f;
-	self->maxs *= 0.6f;
+	self->mins *= self->s.scale;
+	self->maxs *= self->s.scale;
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;

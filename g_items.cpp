@@ -354,35 +354,26 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 	if (!ent->client)
 		return;
 
-	// Incrementar el contador de adrenalina
 	ent->client->resp.adrenaline_count++;
 
+	int new_max;
 	if (g_horde->integer) {
-		// En modo horde, usar el sistema de cálculo basado en oleadas
-		const int new_max = CalculateWaveBasedMaxHealth(100, ent->client);
-
-		// Actualizar todos los valores de salud relevantes
-		ent->max_health = new_max;
-		ent->client->pers.max_health = new_max;
-		ent->client->resp.max_health = new_max;
-		ent->client->resp.coop_respawn.max_health = new_max;
-	}
-	else {
-		// Fuera del modo horde, aplicar un bonus fijo por cada uso
-		const int new_max = ent->max_health + ADRENALINE_HEALTH_BONUS;
-
-		// Actualizar los valores de salud
-		ent->max_health = new_max;
-		ent->client->pers.max_health = new_max;
-		ent->client->resp.max_health = new_max;
-		ent->client->resp.coop_respawn.max_health = new_max;
+		// In horde mode, use the wave-based calculation
+		new_max = CalculateWaveBasedMaxHealth(100, ent->client);
+	} else {
+		// Outside horde mode, apply a fixed bonus
+		new_max = ent->max_health + ADRENALINE_HEALTH_BONUS;
 	}
 
-	// Restaurar la salud al nuevo máximo si está por debajo
+	// Update all relevant health values
+	ent->max_health = new_max;
+	ent->client->pers.max_health = new_max;
+	ent->client->resp.max_health = new_max;
+	ent->client->resp.coop_respawn.max_health = new_max;
+
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
 
-	// Consumir el item y reproducir el sonido
 	ent->client->pers.inventory[item->id]--;
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
 }
