@@ -510,195 +510,109 @@ inline bool IsValidTarget(edict_t* self, edict_t* ent) {
 }
 
 // Helper: IsValidTarget - Tailored for FindMTarget's needs (non-player, non-summoned monster)
-// This version assumes 'ent' has already been confirmed to be a monster and not a client by the caller.
 static inline bool IsValidMonsterTargetForSummon(edict_t* self, edict_t* ent, gtime_t current_time) {
-    // Basic validity checks (already a monster, not self, not another summon)
-    if (!ent || !ent->inuse || ent == self || ent->monsterinfo.issummoned)
+    // Basic validity checks
+    if (!ent || !ent->inuse || ent == self || ent->client || ent->monsterinfo.issummoned)
         return false;
 
     // Health and state checks
-    if (ent->health <= 0 || ent->deadflag)
+    if (ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
         return false;
 
-    // Team check
-    if (OnSameTeam(self, ent))
+    // Team and invincibility checks
+    if (OnSameTeam(self, ent) || ent->monsterinfo.invincible_time > current_time)
         return false;
-
-    // Invincibility check
-    if (ent->monsterinfo.invincible_time > current_time)
-        return false;
-
-    // SOLID_NOT might be for specific non-targetable monster states.
-    // If all targetable monsters are SOLID_BBOX or similar, this might be too restrictive
-    // or could be `ent->solid == SOLID_NOT`.
-    // For now, keeping original logic: if (ent->solid == SOLID_NOT) return false;
-    // However, many monsters *are* SOLID_BBOX. A monster that is SOLID_NOT is usually
-    // unshootable/untargetable by default. This check seems more like it should be
-    // `if (ent->solid == SOLID_NOT)` then it's an invalid target.
-    // Let's adjust to what's typical: targetable entities are not SOLID_NOT.
-    if (ent->solid == SOLID_NOT) {
-        return false;
-    }
 
     return true;
 }
 
-// Helper: CalculateTargetPriority - (Same as before, ensure distSquared is passed)
-static float CalculateTargetPriority(edict_t* self, edict_t* target, float dist_squared, bool is_attacker, bool is_visible) {
-    // Base priority: attackers are highest, then visible, then non-visible (though FindMTarget filters for visible)
-    float priority = 0.0f;
-    if (is_attacker) {
-        priority = 2000.0f; // Significantly higher for current/last attacker
-    } else if (is_visible) {
-        priority = 1000.0f; // Base for visible targets
-    } else {
-        return -1.0f; // Should not happen if FindMTarget pre-filters for visibility
+// Helper: Calculate a score for a potential target
+static float CalculateTargetPriority(edict_t* self, edict_t* target, float dist_squared) {
+    float priority = 1000000.0f / (dist_squared + 1.0f); // Closer is much better
+
+    // Big bonus for the entity that last damaged us
+    if (target == self->monsterinfo.damage_attacker) {
+        priority *= 2.0f;
     }
 
-    // Add inverse distance-based score (closer = higher)
-    // Adding 1.0f to denominator to prevent division by zero if dist_squared is 0
-    priority += 1000.0f / (dist_squared + 1.0f);
-
-    // Optional: Health multiplier (slightly prefer less damaged targets, or more, depending on strategy)
-    // Example: prefer targets with more health (bigger threat)
-    if (target->health > 100) { // Arbitrary threshold
-        priority *= 1.1f;
-    }
-
-    // Consider if target is actively attacking someone (not necessarily 'self')
-    if (target->enemy && target->enemy->inuse) {
-        priority *= 1.05f; // Slight bonus if it's engaged
-    }
+    // Bonus for targets with more health (bigger threats)
+    priority += target->health;
 
     return priority;
 }
 
+// Refactored FindMTarget
 bool FindMTarget(edict_t* self) {
-    // --- Initial Sanity and Role Checks ---
-    if (!self || !self->inuse) {
-        // gi.dprintf("FindMTarget: self is null or not inuse\n");
+    if (!self || !self->inuse || !self->monsterinfo.issummoned || level.intermissiontime) {
         return false;
     }
-
-    if (level.intermissiontime) {
-        return false;
-    }
-
-    // This function is specifically for summoned monsters.
-    // If called on a non-summoned monster, it's a logical error or should use a different finder.
-    if (!self->monsterinfo.issummoned) {
-        // gi.dprintf("FindMTarget: Called on non-summoned monster %s\n", self->classname);
-        return false; // Or assert, or call a general FindTarget
-    }
-
-    // --- Cache Frequently Used Values ---
-    const vec3_t& self_origin = self->s.origin;
-    edict_t* current_target_snapshot = self->enemy; // Snapshot of enemy before we start looking
-    edict_t* last_attacker = self->monsterinfo.damage_attacker;
-    const gtime_t current_time = level.time;
 
     // --- Clear Invalid Current Target ---
-    // If current enemy is a player or another summoned unit, it's invalid for this summon.
-    if (current_target_snapshot && current_target_snapshot->inuse) {
-        if (current_target_snapshot->client || current_target_snapshot->monsterinfo.issummoned) {
-            self->enemy = nullptr;
-            current_target_snapshot = nullptr; // No longer a valid starting point
-        }
-    } else if (current_target_snapshot) { // Not inuse
+    // If current enemy is a player, another summon, or invalid, clear it.
+    if (self->enemy && !IsValidMonsterTargetForSummon(self, self->enemy, level.time)) {
         self->enemy = nullptr;
-        current_target_snapshot = nullptr;
     }
 
+    // If we have a valid, visible enemy, and it's not time to re-evaluate, stick with it.
+    if (self->enemy && self->monsterinfo.react_to_damage_time > level.time && visible(self, self->enemy, false)) {
+        return true;
+    }
 
-    // --- Variables for Best Target Selection ---
-    edict_t* best_target_found = nullptr;
-    float highest_priority = -1.0f; // Initialize to a value lower than any possible priority
+    // --- Find the Best Target ---
+    edict_t* best_target = nullptr;
+    float highest_priority = -1.0f;
+    const vec3_t& self_origin = self->s.origin;
+    const gtime_t current_time = level.time;
 
-    // If we still have a valid current_target_snapshot (i.e., it was a non-summoned monster),
-    // evaluate it first as a candidate.
-    if (current_target_snapshot && current_target_snapshot->inuse &&
-        IsValidMonsterTargetForSummon(self, current_target_snapshot, current_time)) {
-
-        float dist_sq_to_current = DistanceSquared(self_origin, current_target_snapshot->s.origin);
-        if (dist_sq_to_current <= MAX_RANGE_SQUARED) {
-            if (gi.inPVS(self_origin, current_target_snapshot->s.origin, true)) {
-                bool current_is_visible = visible(self, current_target_snapshot, false);
-                if (current_is_visible) { // Only consider current if visible
-                    bool is_current_attacker = (current_target_snapshot == last_attacker && last_attacker && !last_attacker->client);
-                    highest_priority = CalculateTargetPriority(self, current_target_snapshot, dist_sq_to_current, is_current_attacker, true);
-                    best_target_found = current_target_snapshot;
-                }
-            }
+    // Consider the current enemy as a baseline candidate
+    if (self->enemy) {
+        if (visible(self, self->enemy, false)) {
+            float dist_sq = DistanceSquared(self_origin, self->enemy->s.origin);
+            highest_priority = CalculateTargetPriority(self, self->enemy, dist_sq);
+            best_target = self->enemy;
         }
     }
-
 
     // --- Iterate Through Active Monsters to Find a Better Target ---
     for (auto ent : active_monsters()) {
-        // --- Fast Rejection Checks (cheapest first) ---
-        if (!ent || !ent->inuse) continue; // Should not happen with active_monsters()
-        if (ent == self) continue;          // Don't target self
-        if (ent->client) continue;          // Summoned units don't target players
-        if (ent->monsterinfo.issummoned) continue; // Summoned units don't target other summoned units
-
-        // If this entity is the one we already evaluated as current_target_snapshot, skip re-evaluation.
-        if (ent == current_target_snapshot && best_target_found == current_target_snapshot) {
-            continue;
-        }
-
-        // Health, dead state, team, invincibility (covered by IsValidMonsterTargetForSummon)
+        // --- Fast Rejection Checks ---
         if (!IsValidMonsterTargetForSummon(self, ent, current_time)) {
             continue;
         }
 
-        // --- Distance Check (moderately cheap) ---
+        // --- Distance Check ---
         float dist_squared = DistanceSquared(self_origin, ent->s.origin);
         if (dist_squared > MAX_RANGE_SQUARED) {
             continue;
         }
 
-        // --- PVS Check (more expensive) ---
-        // Consider if PVS check is always needed or if visible() implies it for monsters.
-        // For safety and explicit control, keeping it.
-        if (!gi.inPVS(self_origin, ent->s.origin, true)) {
-            continue;
-        }
-
-        // --- Visibility Check (most expensive of the common checks) ---
-        bool is_ent_visible = visible(self, ent, false); // false = don't see through glass
-        if (!is_ent_visible) {
+        // --- Visibility Check (most expensive) ---
+        if (!visible(self, ent, false)) {
             continue;
         }
 
         // --- Priority Calculation ---
-        // An "attacker" for a summon means a non-summoned monster that last damaged it.
-        bool is_ent_attacker = (ent == last_attacker && last_attacker && !last_attacker->client);
-        float current_priority = CalculateTargetPriority(self, ent, dist_squared, is_ent_attacker, true);
+        float current_priority = CalculateTargetPriority(self, ent, dist_squared);
 
         // --- Update Best Target ---
         if (current_priority > highest_priority) {
             highest_priority = current_priority;
-            best_target_found = ent;
+            best_target = ent;
         }
     }
 
     // --- Finalize Target ---
-    if (best_target_found) {
-        if (self->enemy != best_target_found) {
-            self->enemy = best_target_found;
-            // Set a short "stickiness" timer. If FindMTarget is called again quickly,
-            // this helps prevent rapid target switching unless a significantly better target appears.
-            // The original `react_to_damage_time` was used for this.
-            self->monsterinfo.react_to_damage_time = current_time + 0.5_sec; // Example: 0.5 second stickiness
-            // No FoundTarget(self) call here, as that has broader implications (alerting, etc.)
-            // which are not the direct responsibility of just finding a monster target for a summon.
+    if (best_target) {
+        if (self->enemy != best_target) {
+            self->enemy = best_target;
+            // Set a short "stickiness" timer to prevent rapid target switching.
+            self->monsterinfo.react_to_damage_time = current_time + 0.5_sec;
         }
         return true; // Target found (or confirmed)
     }
 
-    // If no suitable target was found (best_target_found is still nullptr)
-    self->enemy = nullptr; // Ensure enemy is cleared
-    return false;          // No target found
+    self->enemy = nullptr; // No suitable target found
+    return false;
 }
 /*
 =============

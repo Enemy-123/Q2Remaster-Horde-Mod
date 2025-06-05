@@ -6153,11 +6153,13 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		chosen_spawn_point = random_element(fallback_destinations);
 		if (developer->integer > 1) gi.Com_PrintFmt("[CATS] No preferred spots found. Selected a fallback destination.\n");
 	}
-
-	if (!chosen_spawn_point) {
-		if (developer->integer) gi.Com_PrintFmt("[CATS] CRITICAL: No valid teleport destinations found on map for {}.\n", self->classname);
-		return false;
-	}
+if (!chosen_spawn_point) {
+    if (developer->integer) gi.Com_PrintFmt("[CATS] CRITICAL: No valid teleport destinations found on map for {}. Applying failure cooldown.\n", self->classname);
+    
+    // Apply a short cooldown to the monster itself to prevent spamming this check every frame.
+    self->teleport_time = level.time + random_time(2.0_sec, 4.0_sec); 
+    return false;
+}
 
 	// --- 4. Execute the Teleport ---
 	vec3_t dest_origin = chosen_spawn_point->s.origin;
