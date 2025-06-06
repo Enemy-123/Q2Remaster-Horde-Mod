@@ -8,8 +8,7 @@
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
 
-bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs);
-
+void InitializeMonsterMoveSets();
 // Replace the macro with a constexpr function for better type safety and debugging
 [[nodiscard]] constexpr bool IsFirstThreeWaves(int32_t wave_level) noexcept {
     return wave_level <= 3;
@@ -22,10 +21,9 @@ enum class BossTeleportReason {
     TRIGGER_HURT,
 //    STUCK
 };
-
-bool CheckAndTeleportBoss(edict_t* boss, const BossTeleportReason reason);
-
+void InitializeMonsterMoveSets();
 bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir);
+bool CheckAndTeleportBoss(edict_t* boss, const BossTeleportReason reason);
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
 extern void SetHealthBarName(const edict_t* boss);

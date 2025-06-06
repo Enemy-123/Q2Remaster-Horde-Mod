@@ -1302,69 +1302,89 @@ extern const mmove_t gekk_move_jump_down;
 
 // --- End Extern Declarations ---
 
-bool IsMonsterJumping(const edict_t* self) {
-	if (!self || !self->monsterinfo.active_move) {
-		return false;
-	}
+// --- Global Set for Fast Lookups ---
+static std::unordered_set<const mmove_t*> g_jump_moves;
 
-	// Compare against known jump animation move pointers from various monsters
-	const auto current_move = self->monsterinfo.active_move;
-	return (
-		// Berserk
-		current_move == &berserk_move_jump ||
-		current_move == &berserk_move_jump2 ||
-		// Brain
-		current_move == &brain_move_jumpattack || // Assuming this is a jump
-		current_move == &brain_move_jump ||
-		current_move == &brain_move_jump2 ||
-		// Chick
-		current_move == &chick_move_jump ||
-		current_move == &chick_move_jump2 ||
-		// Gnorta 
-		//current_move == &gnorta_move_jump_straightup ||
-		//current_move == &gnorta_move_jump_up ||
-		//current_move == &gnorta_move_jump_down ||
-		// Gun Commander
-		current_move == &guncmdr_move_jump ||
-		current_move == &guncmdr_move_jump2 ||
-		// Gunner
-		current_move == &gunner_move_jump ||
-		current_move == &gunner_move_jump2 ||
-		// Gunner Vanilla
-		current_move == &gunner_vanilla_move_jump ||
-		current_move == &gunner_vanilla_move_jump2 ||
-		// Infantry
-		current_move == &infantry_move_jump ||
-		current_move == &infantry_move_jump2 ||
-		// Insane (Assuming m_insane.h declares this)
-		//current_move == &insane_move_jumpdown ||
-		// Mutant
-		current_move == &mutant_move_jump ||
-		current_move == &mutant_move_jump_up ||
-		current_move == &mutant_move_jump_down ||
-		// Parasite
-		current_move == &parasite_move_jump_up ||
-		current_move == &parasite_move_jump_down ||
-		// Red Mutant
-		current_move == &redmutant_move_jump ||
-		current_move == &redmutant_move_jump_up ||
-		current_move == &redmutant_move_jump_down ||
-		// Runner Tank (Assuming m_runnertank.h declares these)
-		current_move == &runnertank_move_jump ||
-		current_move == &runnertank_move_jump2 ||
-		// Shocker 
-		//current_move == &shocker_move_jump ||
-		//current_move == &shocker_move_jump2 ||
-		// Soldier
-		current_move == &soldier_move_jump ||
-		current_move == &soldier_move_jump2 ||
-		// Stalker
-		current_move == &stalker_move_jump_straightup ||
-		current_move == &stalker_move_jump_up ||
-		current_move == &stalker_move_jump_down ||
-		// Gekk (Assuming m_xatrix_gekk.h declares these)
-		current_move == &gekk_move_jump_up ||
-		current_move == &gekk_move_jump_down
-		// Add any other monster jump moves here if they exist
-		);
+
+// --- Initialization Function ---
+// Call this function ONCE during your game/mod initialization (e.g., in InitGame).
+void InitializeMonsterMoveSets() {
+    // Prevent re-initialization
+    if (!g_jump_moves.empty()) {
+        return;
+    }
+
+    // FIX #1: Populate the set using .insert() for compatibility with older C++ standards.
+    
+    // Berserk
+    g_jump_moves.insert(&berserk_move_jump);
+    g_jump_moves.insert(&berserk_move_jump2);
+    
+    // Brain
+    g_jump_moves.insert(&brain_move_jumpattack);
+    g_jump_moves.insert(&brain_move_jump);
+    g_jump_moves.insert(&brain_move_jump2);
+    
+    // Chick
+    g_jump_moves.insert(&chick_move_jump);
+    g_jump_moves.insert(&chick_move_jump2);
+    
+    // Gun Commander
+    g_jump_moves.insert(&guncmdr_move_jump);
+    g_jump_moves.insert(&guncmdr_move_jump2);
+    
+    // Gunner
+    g_jump_moves.insert(&gunner_move_jump);
+    g_jump_moves.insert(&gunner_move_jump2);
+    
+    // Gunner Vanilla
+    g_jump_moves.insert(&gunner_vanilla_move_jump);
+    g_jump_moves.insert(&gunner_vanilla_move_jump2);
+    
+    // Infantry
+    g_jump_moves.insert(&infantry_move_jump);
+    g_jump_moves.insert(&infantry_move_jump2);
+    
+    // Mutant
+    g_jump_moves.insert(&mutant_move_jump);
+    g_jump_moves.insert(&mutant_move_jump_up);
+    g_jump_moves.insert(&mutant_move_jump_down);
+    
+    // Parasite
+    g_jump_moves.insert(&parasite_move_jump_up);
+    g_jump_moves.insert(&parasite_move_jump_down);
+    
+    // Red Mutant
+    g_jump_moves.insert(&redmutant_move_jump);
+    g_jump_moves.insert(&redmutant_move_jump_up);
+    g_jump_moves.insert(&redmutant_move_jump_down);
+    
+    // Runner Tank
+    g_jump_moves.insert(&runnertank_move_jump);
+    g_jump_moves.insert(&runnertank_move_jump2);
+    
+    // Soldier
+    g_jump_moves.insert(&soldier_move_jump);
+    g_jump_moves.insert(&soldier_move_jump2);
+    
+    // Stalker
+    g_jump_moves.insert(&stalker_move_jump_straightup);
+    g_jump_moves.insert(&stalker_move_jump_up);
+    g_jump_moves.insert(&stalker_move_jump_down);
+    
+    // Gekk
+    g_jump_moves.insert(&gekk_move_jump_up);
+    g_jump_moves.insert(&gekk_move_jump_down);
+}
+
+
+// --- REFACTORED IsMonsterJumping Function ---
+// This replaces the old, long if-statement version.
+bool IsMonsterJumping(const edict_t* self) {
+    if (!self || !self->monsterinfo.active_move) {
+        return false;
+    }
+
+    // FIX #2: Use the .pointer() method to get the raw pointer from the save_data_t wrapper.
+    return g_jump_moves.count(self->monsterinfo.active_move.pointer());
 }

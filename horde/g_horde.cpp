@@ -3949,8 +3949,8 @@ void InitializeMonsterInfoLUT()
 
 void Horde_Init()
 {
+	InitializeMonsterMoveSets(); //jump animations 
 	horde::InitializeHordeIDs();
-
 	sounds_precached = false;
 	items_precached = false;
 	ResetBosses();
@@ -6073,6 +6073,16 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 
 	if (!self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde || !g_horde->integer || self->monsterinfo.issummoned)
 		return false;
+
+	//Don't teleport a jumping monster ---
+    if (IsMonsterJumping(self)) {
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("[CATS] Teleport for {} cancelled: Monster is currently jumping.\n", self->classname);
+        }
+        // Apply a very short cooldown to re-check soon after the jump might have finished.
+        self->teleport_time = level.time + 0.5_sec; 
+        return false;
+    }
 
 	if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
 		return false;
