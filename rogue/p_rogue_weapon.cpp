@@ -82,14 +82,14 @@ void weapon_chainfist_fire(edict_t* ent)
 			return;
 		}
 	}
-	int damage{};
 
+	int damage;
 
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() || G_IsCooperative())
 		damage = irandom(18, 27);
-	if (G_IsCooperative())
-		damage = irandom(18, 27);
-
+	else // For single-player mode
+		damage = irandom(18, 27); 
+		
 	if (is_quad)
 		damage *= damage_multiplier;
 
