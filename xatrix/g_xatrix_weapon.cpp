@@ -24,7 +24,7 @@ void fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->s.skinnum = 1;
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
-	bolt->touch = blaster_touch;
+	bolt->touch = blaster_unified_touch;
 	bolt->nextthink = level.time + 2_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;

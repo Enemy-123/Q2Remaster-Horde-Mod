@@ -2475,7 +2475,7 @@ void fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir
 	int vspread, mod_t mod);
 void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, int count, mod_t mod);
-void blaster_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+void blaster_unified_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect,
 	mod_t mod, int bounces = 0);
 edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod, int bounces);

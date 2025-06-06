@@ -8,6 +8,14 @@ fire_hit
 Used for all impact(hit / punch / slash) attacks
 ================ =
 */
+// MODIFIED FUNCTION
+/*
+================ =
+fire_hit
+
+Used for all impact(hit / punch / slash) attacks
+================ =
+*/
 bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 {
 	trace_t tr;
@@ -16,18 +24,11 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 	vec3_t	point;
 	float	range;
 	vec3_t	dir;
-	//	char buffer[256];
 
-		// Verificación inicial de null para enemy
+	// Verificación inicial de null para enemy
 	if (!self->enemy) {
-		return false; // Manejar el error apropiadamente
+		return false;
 	}
-	//// Verificación de null para attacker si es "monster_sentrygun"
-	//if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
-	//	//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_sentrygun\n");
-	//	//gi.Com_Print(buffer);
-	//	return false; // Manejar el error apropiadamente
-	//}
 
 	// see if enemy is in range
 	range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
@@ -45,29 +46,35 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 
 	point = closest_point_to_box(self->s.origin, self->enemy->absmin, self->enemy->absmax);
 
+	// --- MODIFICATION START ---
+	// The original code would forcefully change the hit entity to self->enemy,
+	// causing it to "hit through" obstacles. This version respects what the trace hits.
+
 	// check that we can hit the point on the bbox
 	tr = gi.traceline(self->s.origin, point, self, MASK_PROJECTILE);
 
-	if (tr.fraction < 1)
+	// if the trace hit something before reaching the target point...
+	if (tr.fraction < 1.0f)
 	{
-		if (!tr.ent->takedamage)
+		// ...and it wasn't our intended enemy, then the attack is blocked.
+		if (tr.ent != self->enemy)
 			return false;
-		// if it will hit any client/monster then hit the one we wanted to hit
-		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
-			tr.ent = self->enemy;
 	}
 
-	// check that we can hit the player from the point
+	// check that we can hit the player's origin from the point on their bbox
 	tr = gi.traceline(point, self->enemy->s.origin, self, MASK_PROJECTILE);
 
-	if (tr.fraction < 1)
+	// if the trace hit something before reaching the enemy's origin...
+	if (tr.fraction < 1.0f)
 	{
-		if (!tr.ent->takedamage)
+		// ...and it wasn't our intended enemy, then the attack is blocked.
+		if (tr.ent != self->enemy)
 			return false;
-		// if it will hit any client/monster then hit the one we wanted to hit
-		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
-			tr.ent = self->enemy;
 	}
+	// --- MODIFICATION END ---
+
+	// If we've reached here, we have a clear line of sight.
+	tr.ent = self->enemy; // We can now be certain this is the correct entity to hit.
 
 	AngleVectors(self->s.angles, forward, right, up);
 	point = self->s.origin + (forward * range);
@@ -90,6 +97,7 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 		self->enemy->groundentity = nullptr;
 	return true;
 }
+
 // helper routine for piercing traces;
 // mask = the input mask for finding what to hit
 // you can adjust the mask for the re-trace (for water, etc).
@@ -674,139 +682,90 @@ Fires a single blaster bolt.  Used by the blaster and hyper blaster.
 =================
 */
 
-TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+// FINAL CORRECTED FUNCTION
+TOUCH(blaster_unified_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	if (!self || !self->owner) {
-		return;
-	}
-	if (other == self->owner) {
-		return;
-	}
-	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
-		G_FreeEdict(self);
-		return;
-	}
-	if (self->owner->client) {
-		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
-	}
-	if (other->takedamage) {
-		T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal,
-			self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
-		G_FreeEdict(self);
-	}
-	else
+	if (!self || !self->owner) return;
+	if (other == self->owner) return;
+
+	if (tr.surface && (tr.surface->flags & SURF_SKY))
 	{
-		{
-			// No bounce, destroy the bolt
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
-			gi.WritePosition(self->s.origin);
-			gi.WriteDir(tr.plane.normal);
-			gi.multicast(self->s.origin, MULTICAST_PHS, false);
-			G_FreeEdict(self);
-			return;
-		}
-
-		// Bounce logic
-		if (tr.ent && tr.ent->solid == SOLID_BSP) // check if bouncing against walls 
-		{
-			self->bounce_count--;
-			if (self->bounce_count <= 0)
-			{
-				// vanilla effect for last bounce
-				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
-				gi.WritePosition(self->s.origin);
-				gi.WriteDir(tr.plane.normal);
-				gi.multicast(self->s.origin, MULTICAST_PHS, false);
-				G_FreeEdict(self);
-				return;
-			}
-		}
-	}
-}
-
-TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
-{
-	if (!self || !self->owner) {
-		return;
-	}
-	if (other == self->owner)
-		return;
-
-	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
 		G_FreeEdict(self);
 		return;
 	}
 
 	if (self->owner->client)
+	{
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
+	}
 
-	if (other->takedamage) {
-		// Check if this is a hyperblaster bolt explicitly
-		// We'll use the bolt's style field which was already set in fire_blaster
-		bool isHyperblasterBolt = (self->style == MOD_HYPERBLASTER);
+	// If we hit a damageable entity
+	if (other->takedamage)
+	{
+		mod_t mod = mod_t(static_cast<mod_id_t>(self->style));
 
-		// Apply direct damage first
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin,
-			tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
+			tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 
-		// Apply radius damage for Hyperblaster bolts
-		if (isHyperblasterBolt || (self->owner->svflags & SVF_MONSTER)) {
-			// Cap the radius damage to prevent excessive stacking with quad damage
-			float radius_dmg = self->dmg;
-			const float max_radius_dmg = 60.0f;  // 4x base damage of 15
-
-			if (radius_dmg > max_radius_dmg)
-				radius_dmg = max_radius_dmg;
-
-			T_RadiusDamage(self, self->owner, radius_dmg, self,
+		if (self->bounce_count > 0 && self->dmg_radius > 0)
+		{
+			T_RadiusDamage(self, self->owner, (float)self->dmg, self,
 				self->dmg_radius, DAMAGE_ENERGY, MOD_HYPERBLASTER);
 		}
 
 		G_FreeEdict(self);
+		return;
 	}
-	else {
-		// Bounce logic remains unchanged
-		if (tr.ent && tr.ent->solid == SOLID_BSP) {
-			self->bounce_count--;
-			if (self->bounce_count > 0) {
-				// Only show bounce effect for hyperblaster bolts
-				if (self->style == MOD_HYPERBLASTER || self->owner->svflags & SVF_MONSTER)
-				{
-					// Apply radius damage on bounce impacts
-					float radius_dmg = self->dmg;
-					const float max_radius_dmg = 60.0f;
 
-					if (radius_dmg > max_radius_dmg)
-						radius_dmg = max_radius_dmg;
+	// If we hit a non-damageable surface (a wall)
+	if (self->bounce_count > 0)
+	{
+		// --- MODIFICATION START ---
+		// Determine if we should show a bounce effect based on the weapon type and bounce count.
 
-					if (radius_dmg >= 5)
-					{
-						T_RadiusDamage(self, self->owner, radius_dmg, self,
-							self->dmg_radius, DAMAGE_ENERGY, MOD_HYPERBLASTER);
-					}
+		bool show_effect = false;
+		mod_id_t mod_id = static_cast<mod_id_t>(self->style);
 
-					// Visual effect for bounce
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
-					gi.WritePosition(self->s.origin);
-					gi.WriteDir(tr.plane.normal);
-					gi.multicast(self->s.origin, MULTICAST_PHS, false);
-				}
-				return;
+		if (mod_id == MOD_BLASTER)
+		{
+			// For the standard blaster, ONLY show an effect on the final bounce.
+			if (self->bounce_count == 1)
+			{
+				show_effect = true;
 			}
 		}
+		else
+		{
+			// For all other bouncing types (Hyperblaster, etc.), show an effect on EVERY bounce.
+			show_effect = true;
+		}
 
-		// Final impact effect
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
-		gi.WritePosition(self->s.origin);
-		gi.WriteDir(tr.plane.normal);
-		gi.multicast(self->s.origin, MULTICAST_PHS, false);
-		G_FreeEdict(self);
+		// Now, decrement the bounce count for the next impact.
+		self->bounce_count--;
+
+		if (show_effect)
+		{
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
+			gi.WritePosition(self->s.origin);
+			gi.WriteDir(tr.plane.normal);
+			gi.multicast(self->s.origin, MULTICAST_PHS, false);
+		}
+		// --- MODIFICATION END ---
+
+		// Return without freeing the edict to allow the physics engine to handle the bounce.
+		return;
 	}
+
+	// No bounces left, or it wasn't a bouncing bolt to begin with. Explode on the wall.
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
+	gi.WritePosition(self->s.origin);
+	gi.WriteDir(tr.plane.normal);
+	gi.multicast(self->s.origin, MULTICAST_PHS, false);
+	G_FreeEdict(self);
 }
+
 edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod, int bounces )
 {
 	edict_t* bolt = fire_blaster(self, start, dir, damage, speed, effect, mod, bounces);
@@ -830,6 +789,7 @@ edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir
 	return bolt;
 }
 
+// MODIFIED FUNCTION
 edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod, int bounces)
 {
 	edict_t* bolt = G_Spawn();
@@ -851,9 +811,15 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
 
-	// Si tiene rebotes, usa el touch especial
+	// --- MODIFICATION ---
+	// Assign the new unified touch function
+	bolt->touch = blaster_unified_touch;
 	bolt->bounce_count = bounces;
-	bolt->touch = bounces > 0 ? blaster_bolt_touch : blaster_touch;
+	// Set damage radius if it's a bouncing (hyperblaster-style) bolt
+	if (bounces > 0) {
+		bolt->dmg_radius = 128;
+	}
+	// --- END MODIFICATION ---
 
 	bolt->nextthink = level.time + 2_sec;
 	bolt->think = G_FreeEdict;
