@@ -2040,8 +2040,8 @@ void SP_monster_psxarachnid(edict_t* self)
         M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
 
     self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
-    self->mins = { -40, -40, -20 };
-    self->maxs = { 40, 40, 48 };
+    self->mins = { -48, -48, -20 };
+    self->maxs = { 48, 48, 48 };
     self->movetype = MOVETYPE_STEP;
     self->solid = SOLID_BBOX;
 

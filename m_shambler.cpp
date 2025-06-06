@@ -949,8 +949,8 @@ void SP_monster_shambler_small(edict_t* self)
 		self->health = 350 + st.health_multiplier;
 		self->gib_health = -190;
 		self->s.scale = 0.6f;
-		self->mins *= 0.6f;
-		self->maxs *= 0.6f;
+		self->mins *= self->s.scale;
+		self->maxs *= self->s.scale;
 	}
 
 	self->yaw_speed = 65;

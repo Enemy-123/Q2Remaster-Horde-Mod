@@ -2565,9 +2565,10 @@ void SP_monster_fixbot(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 180 * st.health_multiplier;
+	self->health = 130 * st.health_multiplier;
+	self->monsterinfo.scale = MODEL_SCALE;
 	self->mass = 150;
-	self->s.scale = 1.4f;
+	self->s.scale = 1.55f;
 
 	self->pain = fixbot_pain;
 	self->die = fixbot_die;
@@ -2619,11 +2620,8 @@ void SP_monster_fixbotkl(edict_t* self) {
 	self->s.scale = 2.6f;
 	self->mass = 400;
 	// Scale mins/maxs correctly AFTER initial values are set
-	self->mins *= self->s.scale / 1.4f; // Scale relative to base fixbot scale
-	self->maxs *= self->s.scale / 1.4f; // Scale relative to base fixbot scale
-
-	// Ensure monsterinfo scale reflects final model scale for AI calculations
-	self->monsterinfo.scale = self->s.scale;
+	self->mins *= self->s.scale;
+	self->maxs *= self->s.scale;
 
 	// Re-link after changing size
 	gi.linkentity(self);

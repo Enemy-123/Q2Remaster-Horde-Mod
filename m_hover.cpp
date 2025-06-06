@@ -909,7 +909,7 @@ void SP_monster_hover(edict_t* self)
         self->health = 350 * st.health_multiplier;
     }
     else {
-        self->health = 240 * st.health_multiplier;
+        self->health = 280 * st.health_multiplier;
     }
 
     self->gib_health = -100;

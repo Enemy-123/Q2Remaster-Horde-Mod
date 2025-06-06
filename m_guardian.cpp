@@ -693,8 +693,8 @@ void SP_monster_janitor2(edict_t* self)
 		self->s.scale = 0.4f;
 	self->health = 600 * st.health_multiplier;
 
-	self->mins = { -18, -18, -24 };
-	self->maxs = { 18, 18, 30 };
+	self->mins *= self->s.scale;
+	self->maxs *= self->s.scale;
 
 	ApplyMonsterBonusFlags(self);
 }
