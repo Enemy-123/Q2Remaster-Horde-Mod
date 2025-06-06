@@ -366,25 +366,18 @@ Used for energy shells bonus.
 */
 void fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
 {
-	edict_t *attacker;
-	if(self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
-	{
-		attacker = self->owner->owner; // If the owner is a turret, the attacker is the turret's owner (the player)
-	}
-	else
-	{
-		attacker = self->owner; // Otherwise, the attacker is the owner
-	}
+    // REMOVED: Redundant attacker logic. It's handled in the pierce_t struct.
+    // edict_t *attacker;
+    // if(self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0) ...
 
-	// Apply damage modifier, if applicable. We still need to apply this.
-	if (self->svflags & SVF_MONSTER) {
-		damage *= M_DamageModifier(self);
-	}
+    // Apply damage modifier, if applicable.
+    if (self->svflags & SVF_MONSTER) {
+        damage *= M_DamageModifier(self);
+    }
 
-	// Use TE_BLASTER for energy impact effect
-	fire_lead_energy(self, start, aimdir, damage, kick, TE_BLASTER, hspread, vspread, mod);
+    // Use TE_BLASTER for energy impact effect
+    fire_lead_energy(self, start, aimdir, damage, kick, TE_BLASTER, hspread, vspread, mod);
 }
-
 /*
 =================
 fire_energy_shotgun
@@ -1401,14 +1394,14 @@ TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool oth
 	// FIXED: Reduced radius damage for players
 	if (other->client)
 	{
-		// Reduced radius damage amount for players to prevent excessive knockback
-	//	float reduced_radius_dmg = ent->radius_dmg * 0.7f;
-	//	T_RadiusDamage(ent, ent->owner, reduced_radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+		//Reduced radius damage amount for players to prevent excessive knockback
+		float reduced_radius_dmg = ent->radius_dmg * 0.7f;
+		T_RadiusDamage(ent, ent->owner, reduced_radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
 	}
 	else
 	{
-		// Normal radius damage for non-players
-	//	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+		//Normal radius damage for non-players
+		T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
 	}
 
 	gi.WriteByte(svc_temp_entity);
