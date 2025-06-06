@@ -46,6 +46,9 @@ void Hook_InitGame(void)
 	hook_initdamage = gi.cvar("hook_initdamage", "10", CVAR_NOFLAGS);
 	hook_maxdamage = gi.cvar("hook_maxdamage", "20", CVAR_NOFLAGS);
 	hook_delay = gi.cvar("hook_delay", "0.2", CVAR_NOFLAGS);
+
+	gi.AddCommandString("alias +hook hook\n");
+	gi.AddCommandString("alias -hook unhook\n");
 }
 
 void Hook_PlayerDie(edict_t* attacker, edict_t* self)
