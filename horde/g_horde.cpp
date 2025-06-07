@@ -3230,8 +3230,8 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 	}
 
 	// Define probabilities based on wave progression
-	if (currentLevel <= 10) return frandom() < 0.18f; // 18% chance in early waves
-	if (currentLevel <= 20) return frandom() < 0.12f; // 12% chance in mid waves
+	if (currentLevel <= 10) return frandom() < 0.32f; // 32% chance in early waves
+	if (currentLevel <= 20) return frandom() < 0.19f; // 19% chance in mid waves
 	return frandom() < 0.07f;	                      // 7% chance in late waves
 }
 
@@ -3253,7 +3253,7 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	if (isFlyingWave)
 	{
 		// For flying waves, use a much larger, more random boost
-		levelBoost = irandom(3, 10);
+		levelBoost = irandom(6, 17);
 		// Set a safety cap to prevent absurdly high levels
 		maxLevelCap = currentActualLevel + 11; 
 		if (developer->integer)
@@ -3265,9 +3265,9 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	{
 		// For non-flying waves, use the original, more conservative boost
 		if (currentActualLevel < 7)      levelBoost = irandom(2, 4);
-		else if (currentActualLevel <= 15) levelBoost = irandom(2, 3);
+		else if (currentActualLevel <= 15) levelBoost = irandom(4, 8);
 		else                             levelBoost = irandom(1, 2);
-		maxLevelCap = currentActualLevel + 5;
+		maxLevelCap = currentActualLevel + 8;
 	}
 	// *** END OF NEW LOGIC ***
 
