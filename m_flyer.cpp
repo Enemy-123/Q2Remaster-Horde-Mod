@@ -969,11 +969,16 @@ void flyer_laser_off(edict_t* self)
         if (ent->inuse && ent->owner == self && ent->classname &&
             strcmp(ent->classname, "flyer_flare_controller") == 0)
         {
-            // Calling G_FreeEdict on the controller will trigger its
-            // own cleanup logic in flyer_flare_think, removing the flares.
+            // Explicitly free the flares first to prevent orphaning them.
+            if (ent->mynoise && ent->mynoise->inuse)
+                G_FreeEdict(ent->mynoise);
+            if (ent->mynoise2 && ent->mynoise2->inuse)
+                G_FreeEdict(ent->mynoise2);
+
+            // Now free the controller itself.
             G_FreeEdict(ent);
             // We assume a flyer only has one controller at a time, so we can stop.
-            break; 
+            break;
         }
     }
 }
