@@ -736,7 +736,6 @@ void loogie(edict_t* self)
 {
 	vec3_t start;
 	vec3_t forward, right, up;
-	vec3_t end;
 	vec3_t dir;
 	vec3_t gekkoffset = { -18, -0.8f, 24 };
 
@@ -748,8 +747,8 @@ void loogie(edict_t* self)
 
 	start += (up * 2);
 
-	end = self->enemy->s.origin;
-	end[2] += self->enemy->viewheight;
+	// The target position 'end' is now self->pos1, which was set by gekk_save_enemy_pos
+	vec3_t end = self->pos1;
 	dir = end - start;
 	dir.normalize();
 
@@ -784,6 +783,16 @@ void gekk_continue_spit(edict_t* self)
 	self->monsterinfo.attack_finished = level.time + 1.0_sec;
 }
 
+void gekk_save_enemy_pos(edict_t* self)
+{
+	if (!self->enemy)
+		return;
+
+	// Save the enemy's current position for the loogie to aim at.
+	self->pos1 = self->enemy->s.origin;
+	self->pos1[2] += self->enemy->viewheight;
+}
+
 void gekk_aim_and_spit(edict_t* self)
 {
 	if (!self->enemy)
@@ -791,21 +800,20 @@ void gekk_aim_and_spit(edict_t* self)
 
 	// Force the monster to face the enemy's current location.
 	// This ensures each spit in a volley is aimed correctly.
-	ai_face(self, 0);
+	//ai_face(self, 0);
 
 	// Now fire the projectile.
 	loogie(self);
 }
 
 // A single, dynamic spit animation.
-// NOTE: This replaces both gekk_move_spit and gekk_move_spitharder
 mframe_t gekk_frames_spit[] = {
 	{ ai_charge },						// FRAME_spit_01
 	{ ai_charge },						// FRAME_spit_02
 	{ ai_charge },						// FRAME_spit_03
 	{ ai_charge },						// FRAME_spit_04 (Loop point)
-	{ ai_charge },						// FRAME_spit_05 (Wind-up)
-	{ ai_charge, 0, gekk_aim_and_spit },		// FRAME_spit_06 (Aim and Fire!)
+	{ ai_charge, 0, gekk_save_enemy_pos },		// FRAME_spit_05 (Aim)
+	{ ai_charge, 0, loogie },			// FRAME_spit_06 (Fire!)
 	{ ai_charge, 0, gekk_continue_spit }	// FRAME_spit_07 (Check for refire)
 };
 MMOVE_T(gekk_move_spit) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spit, gekk_run_start };
