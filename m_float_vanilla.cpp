@@ -707,7 +707,7 @@ void SP_monster_floater(edict_t* self)
 	self->maxs = { 24, 24, 48 };
 
 
-	self->health = 200 * st.health_multiplier;
+	self->health = 360 * st.health_multiplier;
 	self->gib_health = -80;
 	self->mass = 300;
 	self->s.scale = 0.9f;
