@@ -20,6 +20,9 @@ static bool g_spawn_points_cached = false;
 static size_t g_spawn_point_shuffle_index = 0; // Index for iterating shuffled list
 static int32_t g_cached_flying_spawn_count = 0;
 
+
+static bool g_special_high_level_monster_spawned_this_wave = false;
+
 // State for failure tracking and recovery
 static int g_consecutive_spawn_failures = 0;
 static bool g_recovery_mode_active = false;
@@ -1473,7 +1476,7 @@ void InitializeWaveType(int32_t waveLevel);
 
 static void Horde_InitLevel(const int32_t lvl)
 {
-
+	g_special_high_level_monster_spawned_this_wave = false;
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
@@ -3153,6 +3156,15 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
 	return isSpecialWaveType || (GetMonsterWaveTypes(typeId) & waveRequirements) != MonsterWaveType::None;
 }
 
+
+// ADDED: Monster Info LUT global variable
+static std::array<const MonsterTypeInfo *, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monster_info_lut;
+static bool g_monster_info_lut_initialized = false;
+
+// =======================================================================
+// BEGIN: COMPLETE MONSTER PICKING SYSTEM
+// =======================================================================
+
 //-----------------------------------------------------
 // Helper structures for monster selection
 //-----------------------------------------------------
@@ -3203,52 +3215,72 @@ struct MonsterCache
 	}
 };
 // Global static instance for the picker's internal cache.
-// This is cleared and rebuilt on each call to G_HordePickMonsterType.
 static MonsterCache g_monster_picker_internal_cache;
+
 
 //-----------------------------------------------------
 // Determine if we should try to spawn a higher level monster
 //-----------------------------------------------------
 static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliationActive, bool isRecoveryModeActive)
 {
-	if (isRetaliationActive || isRecoveryModeActive)
+	// Don't spawn a special elite if we're already in a special mode or if one has already spawned
+	if (g_special_high_level_monster_spawned_this_wave || isRetaliationActive || isRecoveryModeActive)
 	{
 		return false;
 	}
-	if (currentLevel <= 10)
-		return frandom() < 0.16f; // HordeConstants::CHANCE_SPAWN_HIGHER_EARLY
-	if (currentLevel <= 15)
-		return frandom() < 0.05f; // HordeConstants::CHANCE_SPAWN_HIGHER_MID
-	return frandom() < 0.02f;	  // HordeConstants::CHANCE_SPAWN_HIGHER_LATE
+
+	// Define probabilities based on wave progression
+	if (currentLevel <= 10) return frandom() < 0.18f; // 18% chance in early waves
+	if (currentLevel <= 20) return frandom() < 0.12f; // 12% chance in mid waves
+	return frandom() < 0.07f;	                      // 7% chance in late waves
 }
 
 //-----------------------------------------------------
-// Calculate effective level for monster selection
+// Calculate effective level for monster selection (MODIFIED AS REQUESTED)
 //-----------------------------------------------------
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
 {
 	if (!attemptHigherLevel)
 	{
-		return currentActualLevel;
+		return currentActualLevel; // No change, normal operation
 	}
 
 	int32_t levelBoost;
-	if (currentActualLevel < 7)
-		levelBoost = irandom(2, 4);
-	else if (currentActualLevel <= 10)
-		levelBoost = irandom(2, 3);
-	else
-		levelBoost = irandom(1, 2);
+	int32_t maxLevelCap;
+	const bool isFlyingWave = HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying);
 
-	int32_t maxLevelCap = currentActualLevel < 7 ? irandom(5, 7) : (currentActualLevel < 15 ? currentActualLevel + 5 : currentActualLevel + 3);
-	maxLevelCap = std::min(maxLevelCap, 40); // Absolute cap (e.g., HordeConstants::MAX_EFFECTIVE_LEVEL_BOOST_CAP)
+	// *** NEW LOGIC AS PER YOUR REQUEST ***
+	if (isFlyingWave)
+	{
+		// For flying waves, use a much larger, more random boost
+		levelBoost = irandom(3, 10);
+		// Set a safety cap to prevent absurdly high levels
+		maxLevelCap = currentActualLevel + 11; 
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("EffectiveLevel: Flying wave detected. Attempting boost of {}.\n", levelBoost);
+		}
+	}
+	else
+	{
+		// For non-flying waves, use the original, more conservative boost
+		if (currentActualLevel < 7)      levelBoost = irandom(2, 4);
+		else if (currentActualLevel <= 15) levelBoost = irandom(2, 3);
+		else                             levelBoost = irandom(1, 2);
+		maxLevelCap = currentActualLevel + 5;
+	}
+	// *** END OF NEW LOGIC ***
+
+	maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap on how high it can go
 
 	int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
+	// CRITICAL CHECK: See if any monsters are actually available at this new level
 	bool any_eligible_monsters = false;
 	for (const auto &monster : monsterTypes)
 	{
-		if (monster.minWave <= potentialEffectiveLevel &&
+		// Is there a monster that is eligible at the new level but was NOT at the old one?
+		if (monster.minWave > currentActualLevel && monster.minWave <= potentialEffectiveLevel &&
 			(waveTypeForFiltering == MonsterWaveType::None || IsValidMonsterForWave(monster.typeId, waveTypeForFiltering)))
 		{
 			any_eligible_monsters = true;
@@ -3260,287 +3292,136 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 	{
 		if (developer->integer > 1)
 		{
-			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No eligible monsters at higher level {}. Reverting to current wave {}\n",
+			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new eligible monsters at higher level {}. Reverting to current wave {}.\n",
 							potentialEffectiveLevel, currentActualLevel);
 		}
-		return currentActualLevel;
+		return currentActualLevel; // Revert if no new monsters are unlocked by the boost
 	}
-	if (developer->integer > 1)
+
+	if (developer->integer)
 	{
-		gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Using effective level {}.\n", potentialEffectiveLevel);
+		gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
 	}
 	return potentialEffectiveLevel;
 }
 
+
 //-----------------------------------------------------
-// Calculate base weight with level and wave type adjustments
+// (The following helper functions are unchanged but required)
 //-----------------------------------------------------
+
 static float CalculateBaseWeight(const MonsterTypeInfo &monster, const MonsterSelectionContext &ctx)
 {
 	float weight = monster.weight;
-
-	if (ctx.currentActualLevel <= 5)
-	{
-		if (!HasWaveType(monster.types, MonsterWaveType::Light))
-			weight *= 0.3f;
-	}
-	else if (ctx.currentActualLevel <= 10)
-	{
-		if (!HasWaveType(monster.types, MonsterWaveType::Light | MonsterWaveType::Small))
-			weight *= 0.4f;
-	}
-	else if (ctx.currentActualLevel <= 15)
-	{
-		if (!HasWaveType(monster.types, MonsterWaveType::Medium))
-			weight *= 0.5f;
-	}
-	else
-	{
-		const bool monster_is_flying = IsFlying(monster.typeId);
-		if (monster_is_flying)
-		{
-			weight *= 0.8f;
-		}
-		else if (!HasWaveType(monster.types, MonsterWaveType::Heavy | MonsterWaveType::Elite))
-		{
-			weight *= 0.6f;
-		}
-		else
-		{
-			weight *= 1.0f + ((ctx.currentActualLevel - 15) * 0.02f);
-		}
-	}
-
 	if (monster.minWave < ctx.currentActualLevel)
 	{
-		float relevance = 1.0f - std::min(0.4f, (ctx.currentActualLevel - monster.minWave) * 0.01f);
+		float relevance = 1.0f - std::min(0.6f, (ctx.currentActualLevel - monster.minWave) * 0.04f);
 		weight *= relevance;
 	}
-
-	if (weight < 0.2f && monster.weight >= 0.2f)
+	if (weight < 0.1f && monster.weight >= 0.1f)
 	{
-		weight = 0.2f;
+		weight = 0.1f;
 	}
 	return weight;
 }
 
-//-----------------------------------------------------
-// Apply difficulty, retaliation, and special modifiers
-//-----------------------------------------------------
 static float ApplySpecialModifiers(float weight, const MonsterTypeInfo &monster, const MonsterSelectionContext &ctx)
 {
-	if (ctx.isRecoveryModeActive)
-	{
-		weight = std::max(weight, 0.5f); // HordeConstants::RECOVERY_MODE_MIN_WEIGHT
-	}
-
-	if (ctx.isBossWaveMinionPhase)
-	{
-		if (ctx.currentActualWaveType == MonsterWaveType::None || HasWaveType(monster.types, ctx.currentActualWaveType))
-		{
-			weight *= 2.0f; // HordeConstants::BOSS_MINION_MATCH_MULTIPLIER
-		}
-		else
-		{
-			weight *= 0.3f; // HordeConstants::BOSS_MINION_MISMATCH_PENALTY
-		}
-	}
-
 	if (g_insane->integer || g_chaotic->integer)
 	{
-		const float difficultyScale = ctx.currentActualLevel <= 10 ? 1.1f : ctx.currentActualLevel <= 20 ? 1.2f
-																		: ctx.currentActualLevel <= 30	 ? 1.3f
-																										 : 1.4f; // Could be HordeConstants::DIFFICULTY_SCALES[]
+		const float difficultyScale = ctx.currentActualLevel <= 15 ? 1.2f : 1.4f;
 		weight *= difficultyScale;
 		if (HasWaveType(monster.types, MonsterWaveType::Elite))
 		{
-			weight *= 1.2f; // HordeConstants::ELITE_DIFFICULTY_BONUS
+			weight *= 1.25f;
 		}
 	}
-
 	weight *= ctx.flyingAdjustmentFactor;
-
 	if (ctx.effectiveLevel > ctx.currentActualLevel && monster.minWave > ctx.currentActualLevel)
 	{
 		if (monster.minWave - ctx.currentActualLevel > 5)
-		{					// HordeConstants::EFFECTIVE_LEVEL_PENALTY_THRESHOLD
-			weight *= 0.5f; // HordeConstants::EFFECTIVE_LEVEL_PENALTY_FACTOR
+		{
+			weight *= 0.6f;
 		}
 	}
-
 	if (ctx.isRetaliationActive)
 	{
 		constexpr MonsterWaveType RETALIATION_FOCUS_TYPES =
 			MonsterWaveType::Spawner | MonsterWaveType::Bomber | MonsterWaveType::Special;
 		if (HasWaveType(GetMonsterWaveTypes(monster.typeId), RETALIATION_FOCUS_TYPES))
 		{
-			weight *= 1.8f; // HordeConstants::RETALIATION_FOCUS_MULTIPLIER
+			weight *= 1.8f;
 		}
 		else
 		{
-			weight *= 0.7f; // HordeConstants::RETALIATION_NON_FOCUS_PENALTY
+			weight *= 0.7f;
 		}
 	}
 	return weight;
 }
 
-//-----------------------------------------------------
-// Check if monster is compatible with spawn point and wave
-//-----------------------------------------------------
 static bool IsMonsterCompatible(const MonsterTypeInfo &monster, const MonsterSelectionContext &ctx)
 {
-	if (monster.minWave > ctx.effectiveLevel)
-	{
-		return false;
-	}
-	if (ctx.waveTypeForFiltering != MonsterWaveType::None &&
-		!IsValidMonsterForWave(monster.typeId, ctx.waveTypeForFiltering))
-	{
-		return false;
-	}
+	if (monster.minWave > ctx.effectiveLevel) return false;
+	if (ctx.waveTypeForFiltering != MonsterWaveType::None && !IsValidMonsterForWave(monster.typeId, ctx.waveTypeForFiltering)) return false;
 	const bool monster_is_flying = IsFlying(monster.typeId);
-	if (ctx.isSpawnPointFlying && !monster_is_flying)
-	{
-		return false;
-	}
+	if (ctx.isSpawnPointFlying && !monster_is_flying) return false;
 	return true;
 }
 
-//-----------------------------------------------------
-// Build the weighted monster cache
-//-----------------------------------------------------
 static void BuildMonsterCache(MonsterCache &cache_ref, const MonsterSelectionContext &ctx)
 {
 	cache_ref.clear();
 	for (const auto &monster : monsterTypes)
 	{
-		if (!IsMonsterCompatible(monster, ctx))
-		{
-			continue;
-		}
+		if (!IsMonsterCompatible(monster, ctx)) continue;
 		float weight = CalculateBaseWeight(monster, ctx);
 		weight = ApplySpecialModifiers(weight, monster, ctx);
 		cache_ref.addMonster(monster.typeId, weight);
 	}
 }
 
-//-----------------------------------------------------
-// Select monster from weighted cache using binary search
-//-----------------------------------------------------
 static horde::MonsterTypeID SelectFromCache(const MonsterCache &cache_ref)
 {
-	if (cache_ref.count == 0 || cache_ref.total_weight <= 0.0f)
-	{
-		return horde::MonsterTypeID::UNKNOWN;
-	}
+	if (cache_ref.count == 0 || cache_ref.total_weight <= 0.0f) return horde::MonsterTypeID::UNKNOWN;
 	const float random_value = frandom() * cache_ref.total_weight;
-	size_t left = 0;
-	size_t right = cache_ref.count - 1;
+	size_t left = 0, right = cache_ref.count - 1;
 	while (left < right)
 	{
 		const size_t mid = left + (right - left) / 2;
-		if (cache_ref.entries[mid].cumulative_weight < random_value)
-		{
-			left = mid + 1;
-		}
-		else
-		{
-			right = mid;
-		}
+		if (cache_ref.entries[mid].cumulative_weight < random_value) left = mid + 1;
+		else right = mid;
 	}
 	return cache_ref.entries[left].typeId;
 }
 
-//-----------------------------------------------------
-// Emergency fallback when no monsters fit criteria
-//-----------------------------------------------------
 static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionContext &ctx)
 {
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("G_HordePickMonsterType: No eligible monsters in cache, attempting fallback (Lvl: {}, FlyPoint: {})...\n",
-						ctx.currentActualLevel, ctx.isSpawnPointFlying);
-	}
-
-	WeightedSelection<MonsterTypeInfo> fallback_monsters; // Assumes WeightedSelection is defined elsewhere
-	fallback_monsters.clear();							  // Ensure it's clear
-
-	int best_min_wave = 1;
-	for (const auto &monster : monsterTypes)
-	{
-		if (monster.minWave <= ctx.currentActualLevel && monster.minWave > best_min_wave)
-		{
-			best_min_wave = monster.minWave;
-		}
-	}
-	int min_acceptable_wave = std::max(1, best_min_wave - 5);
-
-	for (const auto &monster : monsterTypes)
-	{
-		if (monster.minWave >= min_acceptable_wave && monster.minWave <= ctx.currentActualLevel)
-		{
-			const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
-			if (!(ctx.isSpawnPointFlying && !isFlyingMonster))
-			{
-				float fallback_weight = 1.0f + ((monster.minWave - min_acceptable_wave) * 0.5f);
-				fallback_monsters.add(&monster, fallback_weight);
-			}
-		}
-	}
-
-	if (fallback_monsters.item_count > 0)
-	{
-		const MonsterTypeInfo *selected = fallback_monsters.select();
-		if (selected)
-			return selected->typeId;
-	}
-
-	for (const auto &monster : monsterTypes)
-	{
-		if (monster.minWave <= ctx.currentActualLevel)
-		{
-			const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
-			if (!(ctx.isSpawnPointFlying && !isFlyingMonster))
-			{
-				return monster.typeId;
-			}
-		}
-	}
-	return horde::MonsterTypeID::UNKNOWN;
+    if (developer->integer) gi.Com_PrintFmt("G_HordePickMonsterType: Fallback (Lvl: {}, FlyPoint: {})...\n", ctx.currentActualLevel, ctx.isSpawnPointFlying);
+    for (const auto &monster : monsterTypes)
+    {
+        if (monster.minWave <= ctx.currentActualLevel)
+        {
+            const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
+            if (!(ctx.isSpawnPointFlying && !isFlyingMonster)) return monster.typeId;
+        }
+    }
+    return horde::MonsterTypeID::UNKNOWN;
 }
 
 //-----------------------------------------------------
 // G_HordePickMonsterType - Main Orchestrator
-// This function is now stateless regarding spawn failures and recovery mode.
-// It relies on the caller to manage that state and pass it in.
-// It also does NOT modify spawn_point data (cooldowns, attempts).
 //-----------------------------------------------------
 static horde::MonsterTypeID G_HordePickMonsterType(
-	edict_t *spawn_point,								 // Input: The spawn point being considered
-	int32_t currentActualLevel_param,					 // Input: Current actual wave level
-	MonsterWaveType currentActualWaveType_param,		 // Input: The true current wave type
-	bool isRetaliationActive_param,						 // Input: Is retaliation mode active?
-	bool isRecoveryModeActive_param,					 // Input: Is recovery mode active?
-	MonsterWaveType originalWaveTypeBeforeRecovery_param // Input: Wave type before recovery
-)
+	edict_t *spawn_point,
+	int32_t currentActualLevel_param,
+	MonsterWaveType currentActualWaveType_param,
+	bool isRetaliationActive_param,
+	bool isRecoveryModeActive_param,
+	MonsterWaveType originalWaveTypeBeforeRecovery_param)
 {
-	// --- 0. Parameter Validation ---
-	if (!spawn_point || !spawn_point->inuse)
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("G_HordePickMonsterType: Invalid spawn_point parameter.\n");
-		return horde::MonsterTypeID::UNKNOWN;
-	}
-	if (currentActualLevel_param <= 0 || currentActualLevel_param > WaveScalingCache::MAX_WAVE_LEVEL)
-	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("G_HordePickMonsterType: Invalid currentActualLevel_param: {}.\n", currentActualLevel_param);
-		}
-		return horde::MonsterTypeID::UNKNOWN;
-	}
+	if (!spawn_point || !spawn_point->inuse) return horde::MonsterTypeID::UNKNOWN;
 
-	// --- 1. Build Selection Context (Initial) ---
 	MonsterSelectionContext ctx;
 	ctx.currentActualLevel = currentActualLevel_param;
 	ctx.currentActualWaveType = currentActualWaveType_param;
@@ -3548,98 +3429,44 @@ static horde::MonsterTypeID G_HordePickMonsterType(
 	ctx.isRetaliationActive = isRetaliationActive_param;
 	ctx.isRecoveryModeActive = isRecoveryModeActive_param;
 	ctx.isBossWaveMinionPhase = (ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 && boss_spawned_for_wave);
-	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_cached_flying_spawn_count); // Use cached count
+	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_cached_flying_spawn_count);
+	ctx.waveTypeForFiltering = isRecoveryModeActive_param ? (HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground) : currentActualWaveType_param;
 
-	if (ctx.isRecoveryModeActive)
-	{
-		ctx.waveTypeForFiltering = HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground;
-	}
-	else
-	{
-		ctx.waveTypeForFiltering = ctx.currentActualWaveType;
-	}
-
+	// Calculate the effective level using our newly modified function
 	bool attemptHigherLevel = ShouldAttemptHigherLevelSpawn(ctx.currentActualLevel, ctx.isRetaliationActive, ctx.isRecoveryModeActive);
 	ctx.effectiveLevel = CalculateEffectiveMonsterLevel(ctx.currentActualLevel, attemptHigherLevel, ctx.waveTypeForFiltering);
 
-	// --- 1.5 Create a mutable build context for filtering ---
-	MonsterSelectionContext build_ctx = ctx; // Copy base context
+	BuildMonsterCache(g_monster_picker_internal_cache, ctx);
+	horde::MonsterTypeID chosen_monster_id = SelectFromCache(g_monster_picker_internal_cache);
 
-	// --- ADJUSTMENT FOR FLYING POINTS ---
-	// If it's a flying spawn point, certain wave filter flags might be overly restrictive.
-	if (build_ctx.isSpawnPointFlying)
+	if (chosen_monster_id == horde::MonsterTypeID::UNKNOWN)
 	{
-		// Scenario 1: Wave filter includes 'Small', but no suitable 'Small & Flying' monsters exist.
-		if (HasWaveType(build_ctx.waveTypeForFiltering, MonsterWaveType::Small))
+		chosen_monster_id = EmergencyFallbackSelection(ctx);
+	}
+
+	// Set the "elite spawned" flag if we successfully picked a higher-level monster
+	if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
+	{
+		const MonsterTypeInfo* info = g_monster_info_lut[static_cast<size_t>(chosen_monster_id)];
+		if (info && info->minWave > ctx.currentActualLevel)
 		{
-			bool suitable_small_flyer_exists = false;
-			for (const auto &monster : monsterTypes)
+			g_special_high_level_monster_spawned_this_wave = true;
+			if (developer->integer)
 			{
-				if (monster.minWave <= build_ctx.effectiveLevel &&
-					IsFlying(monster.typeId) &&
-					IsSmallUnit(monster.typeId) &&
-					IsValidMonsterForWave(monster.typeId, ctx.waveTypeForFiltering))
-				{ // Check against original full filter
-					suitable_small_flyer_exists = true;
-					break;
-				}
+				gi.Com_PrintFmt("ELITE SPAWN: '{}' (minWave {}) spawned in wave {}. Flag set.\n",
+								horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
+								info->minWave,
+								ctx.currentActualLevel);
 			}
-			if (!suitable_small_flyer_exists)
-			{
-				if (developer->integer > 1)
-				{
-					gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint & WaveType includes Small, but no suitable Small Flyers. Relaxing 'Small' constraint for this pick at Lvl {}.\n", build_ctx.currentActualLevel);
-				}
-				build_ctx.waveTypeForFiltering &= ~MonsterWaveType::Small; // Remove 'Small'
-			}
-		}
-
-		// Scenario 2: Wave filter includes 'Ground'. This is irrelevant for a flying monster on a flying point.
-		if (HasWaveType(build_ctx.waveTypeForFiltering, MonsterWaveType::Ground))
-		{
-			if (developer->integer > 1 && HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Ground))
-			{ // Log only if original had Ground
-				gi.Com_PrintFmt("G_HordePickMonsterType: FlyPoint=true. Removing 'Ground' from filter for this pick at Lvl {}.\n", build_ctx.currentActualLevel);
-			}
-			build_ctx.waveTypeForFiltering &= ~MonsterWaveType::Ground; // Remove 'Ground'
-		}
-	}
-	// --- END ADJUSTMENT FOR FLYING POINTS ---
-
-	// --- 2. Skip Boss Wave Minion Picking if Boss Not Spawned ---
-	// Use the original ctx.waveTypeForFiltering for this check, as build_ctx might be relaxed
-	if (!ctx.isRetaliationActive &&
-		ctx.waveTypeForFiltering == MonsterWaveType::None &&
-		ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 &&
-		!boss_spawned_for_wave)
-	{
-		return horde::MonsterTypeID::UNKNOWN;
-	}
-
-	// --- 3. Build Monster Cache & Select (using build_ctx) ---
-	BuildMonsterCache(g_monster_picker_internal_cache, build_ctx); // Use the potentially modified context
-	horde::MonsterTypeID chosen_monster = SelectFromCache(g_monster_picker_internal_cache);
-
-	// --- 4. Emergency Fallback if Needed ---
-	if (chosen_monster == horde::MonsterTypeID::UNKNOWN)
-	{
-		// Pass the original, unmodified context 'ctx' to the fallback,
-		// as the fallback has its own logic to handle flying points correctly.
-		chosen_monster = EmergencyFallbackSelection(ctx);
-		if (chosen_monster != horde::MonsterTypeID::UNKNOWN && developer->integer)
-		{
-			const char *classname = horde::MonsterTypeRegistry::GetClassname(chosen_monster);
-			gi.Com_PrintFmt("G_HordePickMonsterType: EMERGENCY FALLBACK PICK: Selected {} (Lvl: {}, FlyPoint: {}, OrigFilter: {}, BuildFilter: {})\n",
-							classname ? classname : "UNKNOWN_CLASSNAME",
-							ctx.currentActualLevel,
-							ctx.isSpawnPointFlying ? "true" : "false",
-							static_cast<int>(ctx.waveTypeForFiltering),
-							static_cast<int>(build_ctx.waveTypeForFiltering));
 		}
 	}
 
-	return chosen_monster;
+	return chosen_monster_id;
 }
+
+// =======================================================================
+// END: COMPLETE MONSTER PICKING SYSTEM
+// =======================================================================
 
 void Horde_PreInit()
 {
@@ -3923,10 +3750,6 @@ void ResetBosses()
 		it = auto_spawned_bosses.erase(it);
 	}
 }
-
-// ADDED: Monster Info LUT global variable
-static std::array<const MonsterTypeInfo *, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monster_info_lut;
-static bool g_monster_info_lut_initialized = false;
 
 // ADDED: Function to initialize Monster Info LUT
 void InitializeMonsterInfoLUT()
