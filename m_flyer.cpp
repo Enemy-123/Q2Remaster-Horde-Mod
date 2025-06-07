@@ -280,41 +280,80 @@ void flyer_kamikaze_check(edict_t* self)
 
 static void flyer_checkstrafe(edict_t* self)
 {
-	// Validate enemy exists and is visible 
-	if (!self->enemy || !visible(self, self->enemy))
-		return;
+    // --- Tunable Parameters ---
+    // The forward speed of the flyer during its attack run.
+    constexpr float FORWARD_ATTACK_SPEED = 350.0f;
+    // How far to the side the flyer checks for walls before strafing.
+    constexpr float STRAFE_CHECK_DISTANCE = 192.0f;
+    // The base speed for the strafe.
+    constexpr float BASE_STRAFE_SPEED = 300.0f;
+    // The random additional speed for the strafe.
+    constexpr float RANDOM_STRAFE_SPEED = 200.0f;
 
-	const float range = range_to(self, self->enemy);
-	if (range <= RANGE_MID)
-	{
-		vec3_t right;
-		AngleVectors(self->s.angles, nullptr, right, nullptr);
+    // Validate enemy exists and is visible
+    if (!self->enemy || !visible(self, self->enemy))
+        return;
 
-		// Validate the direction vector
-		if (!is_valid_vector(right)) {
-			// Handle invalid vector case
-			return;
-		}
+    const float range = range_to(self, self->enemy);
+    if (range > RANGE_MID) // Only perform this maneuver at mid-range or closer
+        return;
 
-		// Ensure right vector is normalized
-		right = safe_normalized(right);
+    // --- Strafe Decision Logic ---
+    float strafe_chance = 0.5f; // Base chance to try strafing
+    if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+        strafe_chance += 0.25f; // More likely to dodge if player is firing
+    if (self->health < self->max_health * 0.65f)
+        strafe_chance += 0.4f; // More likely to dodge if wounded
 
-		float strafe_chance = 1.0f;
-		if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-			strafe_chance += 0.2f;
-		if (self->health < self->max_health * 0.65f)
-			strafe_chance += 0.4f;
+    if (frandom() < strafe_chance)
+    {
+        vec3_t forward, right;
+        AngleVectors(self->s.angles, forward, right, nullptr);
 
-		if (frandom() < strafe_chance)
-		{
-			self->monsterinfo.lefty = frandom() < 0.5;
-			const float strafe_speed = 300 + (frandom() * 200);
+        // Ensure vectors are valid before proceeding
+        if (!is_valid_vector(right) || !is_valid_vector(forward)) {
+            return;
+        }
+        right.normalize();
+        forward.normalize();
 
-			// Apply strafe movement using validated vector
-			self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
-			self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 1.3_sec);
-		}
-	}
+        // --- Intelligent Strafe Direction Check ---
+        // 1. Randomly pick a preferred direction (-1 for left, 1 for right)
+        float strafe_direction = (frandom() < 0.5f) ? -1.0f : 1.0f;
+
+        // 2. Check if the preferred direction is clear
+        vec3_t check_end = self->s.origin + (right * strafe_direction * STRAFE_CHECK_DISTANCE);
+        trace_t tr = gi.traceline(self->s.origin, check_end, self, MASK_MONSTERSOLID);
+
+        if (tr.fraction < 1.0f) // The path is blocked
+        {
+            // 3. Try the other direction
+            strafe_direction *= -1.0f; // Flip direction
+            check_end = self->s.origin + (right * strafe_direction * STRAFE_CHECK_DISTANCE);
+            tr = gi.traceline(self->s.origin, check_end, self, MASK_MONSTERSOLID);
+
+            if (tr.fraction < 1.0f) // Both directions are blocked
+            {
+                return; // Abort the strafe entirely
+            }
+        }
+
+        // --- Apply Strafe ---
+        // At this point, 'strafe_direction' is guaranteed to be a clear path.
+        const float strafe_speed = BASE_STRAFE_SPEED + (frandom() * RANDOM_STRAFE_SPEED);
+        const float vertical_velocity = self->velocity.z; // Preserve existing vertical speed
+
+        // Construct a new velocity instead of adding to the old one.
+        // This prevents runaway speed buildup from ai_charge and this function.
+        self->velocity = (forward * FORWARD_ATTACK_SPEED) + (right * strafe_direction * strafe_speed);
+        self->velocity.z = vertical_velocity; // Restore vertical speed
+
+        // Set lefty for compatibility with any other code that might check it
+        self->monsterinfo.lefty = (strafe_direction < 0);
+        
+        // Prevent the AI from making another move too quickly
+        self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 1.3_sec);
+    }
 }
 
 void flyer_rocket(edict_t* self)
@@ -721,6 +760,116 @@ static void flyer_set_fly_parameters(edict_t* self, bool melee)
 constexpr vec3_t FLYER_LEFT_LASER = { 14.1f, -13.4f, -7.0f };
 constexpr vec3_t FLYER_RIGHT_LASER = { 14.1f, 13.4f, -7.0f };
 
+
+// This function runs on a temporary "flare controller" entity.
+// It's responsible for updating the position of the two warning flares
+// so they stick to the flyer as it moves.
+THINK(flyer_flare_think) (edict_t* controller) -> void
+{
+    edict_t* self = controller->owner; // The flyer is the owner of the controller
+
+    // --- Self-Destruct and Safety Checks ---
+    if (level.time >= controller->timestamp || !self || !self->inuse || self->deadflag || controller->enemy != self->enemy)
+    {
+        // Find and remove the flares using the correct pointers.
+        if (controller->mynoise && controller->mynoise->inuse)
+            G_FreeEdict(controller->mynoise); // Free left flare
+        if (controller->mynoise2 && controller->mynoise2->inuse)
+            G_FreeEdict(controller->mynoise2); // Free right flare
+        
+        G_FreeEdict(controller); // Free the controller itself
+        return;
+    }
+
+    // --- Update Flare Positions ---
+    vec3_t forward, right, up;
+    AngleVectors(self->s.angles, forward, right, up);
+
+    // Update left flare (stored in mynoise)
+    if (controller->mynoise && controller->mynoise->inuse)
+    {
+        vec3_t left_pos = self->s.origin + (forward * FLYER_LEFT_LASER.x);
+        left_pos += (right * FLYER_LEFT_LASER.y);
+        left_pos += (up * FLYER_LEFT_LASER.z);
+        controller->mynoise->s.origin = left_pos;
+        gi.linkentity(controller->mynoise);
+    }
+
+    // Update right flare (stored in mynoise2)
+    if (controller->mynoise2 && controller->mynoise2->inuse)
+    {
+        vec3_t right_pos = self->s.origin + (forward * FLYER_RIGHT_LASER.x);
+        right_pos += (right * FLYER_RIGHT_LASER.y);
+        right_pos += (up * FLYER_RIGHT_LASER.z);
+        controller->mynoise2->s.origin = right_pos;
+        gi.linkentity(controller->mynoise2);
+    }
+
+    // Keep thinking until the timer runs out
+    controller->nextthink = level.time + FRAME_TIME_MS;
+}
+
+// Spawns a controller that manages two temporary warning flares.
+void flyer_laser_warn(edict_t* self)
+{
+    constexpr uint32_t WARNING_FLARE_COLOR = 0xFF0000FF;
+    constexpr gtime_t FLARE_LIFETIME = 0.6_sec;
+
+    if (!self || !self->inuse)
+        return;
+
+    // --- Spawn the Controller Entity ---
+    edict_t* controller = G_Spawn();
+    if (!controller)
+        return;
+
+    controller->classname = "flyer_flare_controller";
+    controller->owner = self;
+    controller->movetype = MOVETYPE_NONE;
+    controller->solid = SOLID_NOT;
+    controller->enemy = self->enemy;
+
+    // --- Timer Setup ---
+    controller->timestamp = level.time + FLARE_LIFETIME;
+    controller->think = flyer_flare_think;
+    controller->nextthink = level.time + FRAME_TIME_MS;
+
+    // --- Spawn the Flares and Attach to Controller ---
+    edict_t* left_flare = G_Spawn();
+    if (left_flare)
+    {
+        left_flare->classname = "misc_flare";
+        left_flare->owner = controller;
+        left_flare->s.skinnum = WARNING_FLARE_COLOR;
+		left_flare->spawnflags = 9_spawnflag;
+        spawn_temp_t st{};
+        st.radius = 0.5f;
+        ED_CallSpawn(left_flare, st);
+        gi.linkentity(left_flare);
+        controller->mynoise = left_flare; // Store left flare reference in mynoise
+    }
+
+    edict_t* right_flare = G_Spawn();
+    if (right_flare)
+    {
+        right_flare->classname = "misc_flare";
+        right_flare->owner = controller;
+        right_flare->s.skinnum = WARNING_FLARE_COLOR;
+		right_flare->spawnflags = 9_spawnflag;
+        spawn_temp_t st{};
+        st.radius = 0.5f;
+        ED_CallSpawn(right_flare, st);
+        gi.linkentity(right_flare);
+        controller->mynoise2 = right_flare; // Store right flare reference in mynoise2
+    }
+
+    // The first call to flyer_flare_think will position the flares correctly.
+    flyer_flare_think(controller);
+
+    // Play a charge-up sound if you have one
+    // gi.sound(self, CHAN_WEAPON, sound_laser_charge, 1, ATTN_NORM, 0);
+}
+
 PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
@@ -802,40 +951,60 @@ void flyer_laser_on(edict_t* self)
 
 void flyer_laser_off(edict_t* self)
 {
-	if (self->beam) {
-		G_FreeEdict(self->beam);
-		self->beam = nullptr;
-	}
-	if (self->beam2) {
-		G_FreeEdict(self->beam2);
-		self->beam2 = nullptr;
-	}
+    // --- Original beam cleanup ---
+    if (self->beam) {
+        G_FreeEdict(self->beam);
+        self->beam = nullptr;
+    }
+    if (self->beam2) {
+        G_FreeEdict(self->beam2);
+        self->beam2 = nullptr;
+    }
+
+    // --- New flare controller cleanup ---
+    // Find and remove any flare controllers this flyer owns.
+    for (uint32_t i = 1; i <= globals.num_edicts; i++)
+    {
+        edict_t* ent = &g_edicts[i];
+        if (ent->inuse && ent->owner == self && ent->classname &&
+            strcmp(ent->classname, "flyer_flare_controller") == 0)
+        {
+            // Calling G_FreeEdict on the controller will trigger its
+            // own cleanup logic in flyer_flare_think, removing the flares.
+            G_FreeEdict(ent);
+            // We assume a flyer only has one controller at a time, so we can stop.
+            break; 
+        }
+    }
 }
 
 void flyer_recharge(edict_t* self);
 
-// Frames para el ataque láser
+// Frames for the laser attack - CORRECTED to fit within 17 frames
 mframe_t flyer_frames_laser_right[] = {
-	{ ai_charge, 0, nullptr },           // Preparación
-	{ ai_charge, 0, nullptr },    // Inicio del láser
-	{ ai_charge, 0, nullptr },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
-	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+    // --- Warning Phase (Telegraph) ---
+    { ai_charge, 0, flyer_laser_warn },  // Frame 1 (attak201): Spawn warning flares
+    { ai_charge, 0, nullptr },           // Frame 2 (attak202): Hold
+    { ai_charge, 0, nullptr },           // Frame 3 (attak203): Hold
+    { ai_charge, 0, nullptr },           // Frame 4 (attak204): Hold
+    { ai_charge, 0, nullptr },           // Frame 5 (attak205): Hold (Total warning time: ~0.5s)
+    
+    // --- Firing Phase ---
+    { ai_charge, 0, flyer_laser_on },    // Frame 6 (attak206): Start firing
+    { ai_charge, 0, flyer_laser_on },    // Frame 7 (attak207)
+    { ai_charge, 0, flyer_laser_on },    // Frame 8 (attak208)
+    { ai_charge, 0, flyer_laser_on },    // Frame 9 (attak209)
+    { ai_charge, 0, flyer_laser_on },    // Frame 10 (attak210)
+    { ai_charge, 0, flyer_laser_on },    // Frame 11 (attak211)
+    { ai_charge, 0, flyer_laser_on },    // Frame 12 (attak212)
+    { ai_charge, 0, flyer_laser_on },    // Frame 13 (attak213)
+    { ai_charge, 0, flyer_laser_on },    // Frame 14 (attak214)
+    { ai_charge, 0, flyer_laser_on },    // Frame 15 (attak215)
+    { ai_charge, 0, flyer_laser_on },    // Frame 16 (attak216)
+    { ai_charge, 0, flyer_laser_on },    // Frame 17 (attak217)
 };
-MMOVE_T(flyer_move_laser_right) = { FRAME_attak201, FRAME_attak216, flyer_frames_laser_right, flyer_recharge };
+// CORRECTED MMOVE_T definition
+MMOVE_T(flyer_move_laser_right) = { FRAME_attak201, FRAME_attak217, flyer_frames_laser_right, flyer_recharge };
 
 mframe_t flyer_frames_laser_left[] = {
 	{ ai_charge, 0, nullptr },           // Preparación
@@ -862,73 +1031,89 @@ void flyer_recharge(edict_t* self)
 {
 	M_SetAnimation(self, &flyer_move_laser_recharge);
 }
+
 MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 {
-	// Early return if self is null
-	if (!self)
-		return;
+    // Early return if self is null
+    if (!self)
+        return;
 
-	if (self->mass > 50)
-	{
-		flyer_run(self);
-		return;
-	}
+    if (self->mass > 50)
+    {
+        flyer_run(self);
+        return;
+    }
 
-	// Early return if enemy is null before calculating range
-	if (!self->enemy)
-		return;
+    // Early return if enemy is null before calculating range
+    if (!self->enemy)
+        return;
 
-	const float range = range_to(self, self->enemy);
-	const float attack_chance = frandom();
+    const float range = range_to(self, self->enemy);
+    const float attack_chance = frandom();
 
-	if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
-	{
-		// fly-by slicing!
-		self->monsterinfo.attack_state = AS_STRAIGHT;
-		M_SetAnimation(self, &flyer_move_start_melee);
-		flyer_set_fly_parameters(self, true);
-	}
-	else
-	{
-		self->monsterinfo.attack_state = AS_STRAIGHT;
-		if (IsFirstThreeWaves(current_wave_level))
-		{
-			frandom() > 0.22f ?
-				M_SetAnimation(self, &flyer_move_attack2normal) :
-				M_SetAnimation(self, &flyer_move_rollright);
-		}
-		else
-		{
-			if (frandom() > 0.4f || (self->monsterinfo.bonus_flags != BF_NONE && frandom() > 0.75f))
-			{
-				M_SetAnimation(self, &flyer_move_attack2);
-			}
-			else
-			{
-				M_SetAnimation(self, &flyer_move_rollright);
-			}
-		}
+    // =================================================================
+    // TEMPORARY DEBUGGING: Force laser attack if conditions are met
+    // =================================================================
+    if (self->enemy && visible(self, self->enemy) && range > 100 && range < 400)
+    {
+        M_SetAnimation(self, &flyer_move_laser_right);
+        return; // Force the attack and exit the function
+    }
+    // =================================================================
+    // END OF TEMPORARY DEBUGGING
+    // =================================================================
 
-		// Laser attack at medium range - added null checks
-		if (self->enemy && self->enemy->health < self->enemy->max_health * 0.65f &&
-			range > 100 && range < 250 && attack_chance < 0.85f)
-		{
-			M_SetAnimation(self, &flyer_move_laser_right);
-			return;
-		}
-	}
 
-	// Pin down behavior - added null check for enemy
-	if (!self->monsterinfo.fly_pinned && brandom() && self->enemy && visible(self, self->enemy))
-	{
-		self->monsterinfo.fly_pinned = true;
-		self->monsterinfo.fly_position_time = max(self->monsterinfo.fly_position_time,
-			self->monsterinfo.fly_position_time + 1.7_sec);
-		if (brandom())
-			self->monsterinfo.fly_ideal_position = self->s.origin + (self->velocity * frandom());
-		else
-			self->monsterinfo.fly_ideal_position += self->enemy->s.origin;
-	}
+    if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
+    {
+        // fly-by slicing!
+        self->monsterinfo.attack_state = AS_STRAIGHT;
+        M_SetAnimation(self, &flyer_move_start_melee);
+        flyer_set_fly_parameters(self, true);
+    }
+    else
+    {
+        // Laser attack at medium range - added null checks
+        // This is the original logic. The debug block above will trigger it first.
+        if (self->enemy && self->enemy->health < self->enemy->max_health * 0.65f &&
+            range > 100 && range < 250 && attack_chance < 0.85f)
+        {
+            M_SetAnimation(self, &flyer_move_laser_right);
+            return;
+        }
+
+        // Fallback to other attacks if laser conditions aren't met
+        self->monsterinfo.attack_state = AS_STRAIGHT;
+        if (IsFirstThreeWaves(current_wave_level))
+        {
+            frandom() > 0.92f ?
+                M_SetAnimation(self, &flyer_move_attack2normal) :
+                M_SetAnimation(self, &flyer_move_rollright);
+        }
+        else
+        {
+            if (frandom() > 0.4f || (self->monsterinfo.bonus_flags != BF_NONE && frandom() > 0.75f))
+            {
+                M_SetAnimation(self, &flyer_move_attack2);
+            }
+            else
+            {
+                M_SetAnimation(self, &flyer_move_rollright);
+            }
+        }
+    }
+
+    // Pin down behavior - added null check for enemy
+    if (!self->monsterinfo.fly_pinned && brandom() && self->enemy && visible(self, self->enemy))
+    {
+        self->monsterinfo.fly_pinned = true;
+        self->monsterinfo.fly_position_time = max(self->monsterinfo.fly_position_time,
+            self->monsterinfo.fly_position_time + 1.7_sec);
+        if (brandom())
+            self->monsterinfo.fly_ideal_position = self->s.origin + (self->velocity * frandom());
+        else
+            self->monsterinfo.fly_ideal_position += self->enemy->s.origin;
+    }
 }
 
 MONSTERINFO_MELEE(flyer_melee) (edict_t* self) -> void
