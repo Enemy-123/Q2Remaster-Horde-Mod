@@ -515,7 +515,7 @@ void SP_monster_gladiator(edict_t* self)
 	switch (self->style) {
 	case 1: // gladb
 		sound_gunb.assign("weapons/disrupt.wav");
-		self->health = 280 * st.health_multiplier;
+		self->health = 480 * st.health_multiplier;
 		self->mass = 350;
 
 		if (!self->monsterinfo.power_armor_type != IT_NULL || (!st.was_key_specified("armor_type")))
@@ -527,7 +527,7 @@ void SP_monster_gladiator(edict_t* self)
 				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 				if (!st.was_key_specified("armor_power"))
 				{
-					self->monsterinfo.armor_power = 200 + (frandom() * 100); // 200-300
+					self->monsterinfo.armor_power = 400 + (frandom() * 100); // 400-500
 				}
 			}
 			else
@@ -544,7 +544,7 @@ void SP_monster_gladiator(edict_t* self)
 
 	case 3: // gladc
 		sound_gunc.assign("weapons/plasshot.wav");
-		self->health = 250 * st.health_multiplier;
+		self->health = 350 * st.health_multiplier;
 		self->mass = 350;
 
 		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
@@ -553,7 +553,7 @@ void SP_monster_gladiator(edict_t* self)
 			self->monsterinfo.armor_type = IT_NULL;
 			if (!st.was_key_specified("power_armor_power"))
 			{
-				self->monsterinfo.power_armor_power = 250;
+				self->monsterinfo.power_armor_power = 380;
 			}
 		}
 
@@ -563,15 +563,13 @@ void SP_monster_gladiator(edict_t* self)
 
 	default: // normal gladiator
 		sound_gun.assign("gladiator/railgun.wav");
-		self->health = 320 * st.health_multiplier;
+		self->health = 420 * st.health_multiplier;
 		self->mass = 400;
 
 		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
 		{
-			self->monsterinfo.power_armor_type = IT_NULL;
-			self->monsterinfo.armor_type = IT_NULL;
-			self->monsterinfo.power_armor_power = 0;
-			self->monsterinfo.armor_power = 0;
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		self->monsterinfo.armor_power = 300;
 		}
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");
