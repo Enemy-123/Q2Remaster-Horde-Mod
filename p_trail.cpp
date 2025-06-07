@@ -29,36 +29,48 @@ constexpr size_t TRAIL_LENGTH = 8;
 // is at the end.
 static edict_t* PlayerTrail_Spawn(edict_t* owner)
 {
-	size_t len = 0;
+	// Safety check: Ensure owner is a valid player.
+	if (!owner || !owner->client)
+		return nullptr;
 
-	for (edict_t* tail = owner->client->trail_tail; tail; tail = tail->chain)
+	size_t len = 0;
+	for (edict_t* current = owner->client->trail_tail; current; current = current->chain)
 		len++;
 
 	edict_t* trail;
 
-	// move the tail to the head
-	if (len == TRAIL_LENGTH)
+	// If the trail is full, recycle the tail node to become the new head.
+	if (len >= TRAIL_LENGTH)
 	{
-		// unlink the old tail
 		trail = owner->client->trail_tail;
+
+		// Unlink the old tail.
+		// The new tail is the next one in the chain.
 		owner->client->trail_tail = trail->chain;
-		owner->client->trail_tail->enemy = nullptr;
-		trail->chain = trail->enemy = nullptr;
+		if (owner->client->trail_tail)
+			owner->client->trail_tail->enemy = nullptr; // The new tail has no previous node.
+		
+		// Clear the old links of the recycled node.
+		trail->chain = nullptr;
+		trail->enemy = nullptr;
 	}
 	else
 	{
-		// spawn a new head
+		// If the trail is not full, spawn a new entity for the trail.
 		trail = G_Spawn();
+		if (!trail) // G_Spawn can fail if edict limit is reached.
+			return nullptr;
 		trail->classname = "player_trail";
 	}
 
-	// link as new head
+	// Link the new node as the new head of the list.
+	trail->enemy = owner->client->trail_head; // New head's 'prev' is the old head.
 	if (owner->client->trail_head)
-		owner->client->trail_head->chain = trail;
-	trail->enemy = owner->client->trail_head;
-	owner->client->trail_head = trail;
+		owner->client->trail_head->chain = trail; // Old head's 'next' is the new head.
+	
+	owner->client->trail_head = trail; // The player now points to the new head.
 
-	// if there's no tail, we become the tail too
+	// If there was no tail, this new node is also the tail.
 	if (!owner->client->trail_tail)
 		owner->client->trail_tail = trail;
 
@@ -84,68 +96,89 @@ void PlayerTrail_Destroy(edict_t* player)
 // for this player.
 void PlayerTrail_Add(edict_t* player)
 {
-	// if we can still see the head, we don't want a new one.
+	// Safety check: Ensure player is valid and has a client structure.
+	if (!player || !player->client)
+		return;
+
+	// Don't add a new trail marker if the player can still see the last one they dropped.
+	// This prevents spamming markers when standing still or moving slowly.
 	if (player->client->trail_head && visible(player, player->client->trail_head))
 		return;
-	// don't spawn trails in intermission, if we're dead, if we're noclipping or not on ground yet
-	else if (level.intermissiontime || player->health <= 0 || player->movetype == MOVETYPE_NOCLIP ||
-		!player->groundentity)
+		
+	// Don't spawn trails under certain conditions.
+	if (level.intermissiontime || player->health <= 0 || player->movetype == MOVETYPE_NOCLIP || !player->groundentity)
 		return;
 
 	edict_t* trail = PlayerTrail_Spawn(player);
+	if (!trail)
+		return; // PlayerTrail_Spawn can fail.
+
 	trail->s.origin = player->s.old_origin;
 	trail->timestamp = level.time;
 	trail->owner = player;
 }
 
+
 edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 {
-	// Verifica si self o self->enemy son nulos // fixing crash probably
+	// This is your safety check. It's excellent.
+	// With the G_FreeEdict fix, this should only be triggered by actual monsters,
+	// but keeping this check is good practice to prevent crashes from other potential bugs.
 	if (!self || !self->enemy || !self->enemy->client || !self->enemy->client->trail_head)
 		return nullptr;
 
-	// find which marker head that was dropped while we
-	// were searching for this enemy
+	// Find the first marker in the player's trail that is *newer* than the last one
+	// this monster was pursuing. This prevents the monster from going back to an old spot.
 	edict_t* marker;
-
 	for (marker = self->enemy->client->trail_head; marker; marker = marker->enemy)
 	{
-		if (marker->timestamp <= self->monsterinfo.trail_time)
-			continue;
-
-		break;
+		// self->monsterinfo.trail_time is updated when a monster successfully reaches a trail marker.
+		if (marker->timestamp > self->monsterinfo.trail_time)
+			break; // Found a marker newer than the one we last pursued.
 	}
+
+	// If no new markers are found, there's nothing to pick.
+	if (!marker)
+		return nullptr;
 
 	if (next)
 	{
-		// find the marker we're closest to
-		float closest_dist = std::numeric_limits<float>::infinity();
+		// 'next' is true when the monster has reached a trail point and wants the *next* one.
+		// We find the marker on the trail we are currently closest to, and then
+		// return the one after it. This helps the monster re-sync if it gets off path.
+		float closest_dist_sq = std::numeric_limits<float>::infinity();
 		edict_t* closest = nullptr;
 
+		// Iterate from the newest marker we can pursue backwards.
 		for (edict_t* m2 = marker; m2; m2 = m2->enemy)
 		{
-			float const len = (m2->s.origin - self->s.origin).lengthSquared();
-
-			if (len < closest_dist)
+			float const len_sq = (m2->s.origin - self->s.origin).lengthSquared();
+			if (len_sq < closest_dist_sq)
 			{
-				closest_dist = len;
+				closest_dist_sq = len_sq;
 				closest = m2;
 			}
 		}
 
-		// should never happen
+		// This should not happen if 'marker' was valid, but it's a good safety check.
 		if (!closest)
 			return nullptr;
 
-		// use the next one from the closest one
-		marker = closest->chain;
+		// Return the next marker in the chain (the one that is older).
+		// The monster will follow the trail from newest to oldest.
+		return closest->chain;
 	}
 	else
 	{
-		// from that marker, find the first one we can see
-		for (; marker && !visible(self, marker); marker = marker->enemy)
-			continue;
+		// 'next' is false when the monster has just lost sight of the player.
+		// From the newest available marker, find the first one the monster can see.
+		for (; marker; marker = marker->enemy)
+		{
+			if (visible(self, marker))
+				return marker; // Found a visible marker to run to.
+		}
 	}
 
-	return marker;
+	// If we got here, no suitable marker was found.
+	return nullptr;
 }
