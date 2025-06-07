@@ -60,12 +60,12 @@ void floater_tracker_fire_blaster(edict_t* self)
 		// calc direction to where we targeted
 		dir = self->pos1 - start;
 		dir.normalize();
-		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_UNUSED_0);
+		monster_fire_tracker(self, start, dir, 8, 950, self->enemy, MZ2_UNUSED_0);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 13, 860, nullptr, MZ2_UNUSED_0);
+		monster_fire_tracker(self, start, dir, 9, 860, nullptr, MZ2_UNUSED_0);
 	}
 }
 mframe_t floater_tracker_frames_stand1[] = {
@@ -727,9 +727,9 @@ void SP_monster_floater_tracker(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 180;
+		self->monsterinfo.power_armor_power = 200;
 
-	self->health = 230 * st.health_multiplier;
+	self->health = 330 * st.health_multiplier;
 	self->s.effects = EF_BARREL_EXPLODING;
 	self->gib_health = -80;
 	self->mass = 300;

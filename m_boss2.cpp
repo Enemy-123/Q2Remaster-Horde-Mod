@@ -780,7 +780,7 @@ void SP_monster_boss2_64(edict_t* self)
 		self->maxs *= (self->s.scale);
 	}
 
-	self->health = 900 * st.health_multiplier;
+	self->health = 1300 * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;

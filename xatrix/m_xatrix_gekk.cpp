@@ -758,39 +758,55 @@ void loogie(edict_t* self)
 	gi.sound(self, CHAN_BODY, sound_speet, 1.0f, ATTN_NORM, 0);
 }
 
-void reloogie(edict_t* self)
+// This new function checks if the Gekk should spit again, looping the animation.
+// It replaces the old `reloogie` and the need for a separate `spitharder` move.
+void gekk_continue_spit(edict_t* self)
 {
-	if (frandom() > 0.8f && self->health < self->max_health)
+	// Stop if the enemy is dead, gone, or not visible
+	if (!self->enemy || self->enemy->health <= 0 || !visible(self, self->enemy, false))
 	{
-		M_SetAnimation(self, &gekk_move_idle2);
+		self->monsterinfo.attack_finished = level.time + 1.0_sec;
 		return;
 	}
 
-	if (self->enemy->health > 0)
-		if ((range_to(self, self->enemy) <= RANGE_NEAR))
-			M_SetAnimation(self, &gekk_move_spit);
+	// In later waves, the Gekk has a higher chance to spit multiple times
+	float chance_to_refire = IsFirstThreeWaves(current_wave_level) ? 0.4f : 0.75f;
+
+	if (frandom() < chance_to_refire)
+	{
+		// Loop back to an earlier frame in the animation to spit again.
+		// This creates a variable-length burst of spit.
+		self->monsterinfo.nextframe = FRAME_spit_04;
+		return;
+	}
+
+	// If we don't refire, the animation continues to its endfunc (gekk_run_start)
+	self->monsterinfo.attack_finished = level.time + 1.0_sec;
 }
 
-mframe_t gekk_frames_spitharder[] = {
-	{ ai_charge, 0, loogie },
-	{ ai_charge, 0, loogie },
-	{ ai_charge },
-	{ ai_charge, 0, loogie },
-	{ ai_charge },
-	{ ai_charge, 0, loogie },
-	{ ai_charge, 0, reloogie }
-};
-MMOVE_T(gekk_move_spitharder) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spitharder, gekk_run_start };
+void gekk_aim_and_spit(edict_t* self)
+{
+	if (!self->enemy)
+		return;
 
+	// Force the monster to face the enemy's current location.
+	// This ensures each spit in a volley is aimed correctly.
+	ai_face(self, 0);
 
+	// Now fire the projectile.
+	loogie(self);
+}
+
+// A single, dynamic spit animation.
+// NOTE: This replaces both gekk_move_spit and gekk_move_spitharder
 mframe_t gekk_frames_spit[] = {
-	{ ai_charge, 0, },
-	{ ai_charge, 0, },
-	{ ai_charge },
-	{ ai_charge, 0 },
-	{ ai_charge },
-	{ ai_charge, 0, loogie },
-	{ ai_charge, 0, reloogie }
+	{ ai_charge },						// FRAME_spit_01
+	{ ai_charge },						// FRAME_spit_02
+	{ ai_charge },						// FRAME_spit_03
+	{ ai_charge },						// FRAME_spit_04 (Loop point)
+	{ ai_charge },						// FRAME_spit_05 (Wind-up)
+	{ ai_charge, 0, gekk_aim_and_spit },		// FRAME_spit_06 (Aim and Fire!)
+	{ ai_charge, 0, gekk_continue_spit }	// FRAME_spit_07 (Check for refire)
 };
 MMOVE_T(gekk_move_spit) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spit, gekk_run_start };
 
@@ -1076,6 +1092,7 @@ void gekk_check_landing(edict_t* self)
 	}
 }
 
+// The attack logic is now simpler, as it only needs to call one dynamic spit attack.
 MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 {
 	const float r = range_to(self, self->enemy);
@@ -1094,9 +1111,7 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 	{
 		if (r >= RANGE_MID) {
 			if (frandom() > 0.4f) {
-				IsFirstThreeWaves(current_wave_level) ? 
-					M_SetAnimation(self, &gekk_move_spit) :
-					M_SetAnimation(self, &gekk_move_spitharder);
+				M_SetAnimation(self, &gekk_move_spit);
 			}
 			else {
 				M_SetAnimation(self, &gekk_move_run_start);
@@ -1104,9 +1119,7 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 			}
 		}
 		else if (frandom() > 0.7f) {
-			IsFirstThreeWaves(current_wave_level) ? 
-				M_SetAnimation(self, &gekk_move_spit) : 
-				M_SetAnimation(self, &gekk_move_spitharder);
+			M_SetAnimation(self, &gekk_move_spit);
 		}
 		else {
 			if (self->spawnflags.has(SPAWNFLAG_GEKK_NOJUMPING) || frandom() > 0.7f) {

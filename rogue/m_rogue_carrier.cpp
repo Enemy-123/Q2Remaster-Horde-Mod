@@ -1239,7 +1239,7 @@ void SP_monster_carrier_mini(edict_t* self)
 		self->mins *= self->s.scale; // Scale mins
 		self->maxs *= self->s.scale; // FIX: Scale maxs
 
-		self->health = 1060 * st.health_multiplier;
+		self->health = 1500 * st.health_multiplier;
 		self->mass = 1000;
 
 		if (self->monsterinfo.IS_BOSS) {
