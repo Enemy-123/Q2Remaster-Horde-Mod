@@ -616,7 +616,17 @@ void jorg_dead(edict_t* self)
 		{ "models/monsters/boss3/jorg/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
 		});
 
-		MakronToss(self);
+	// THE REAL FIX: Check the monster's scale.
+	// The small jorg has a scale of 0.35, the regular one has a scale of 1.0.
+	// This is a reliable property that won't be changed during the monster's life.
+	if (self->s.scale < 1.0f)
+	{
+		// This is the small jorg, do not spawn a Makron.
+		return;
+	}
+
+	// If we get here, it's the regular jorg, so spawn the Makron.
+	MakronToss(self);
 }
 
 DIE(jorg_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
