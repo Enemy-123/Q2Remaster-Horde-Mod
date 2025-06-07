@@ -58,9 +58,15 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 };
 
 // Reinforcement configuration strings
-constexpr const char* tank_vanilla_default_reinforcements =
-"monster_soldier 2;"
-"monster_gunner 1;";
+constexpr const char* tank_vanilla_special_reinforcements =
+"monster_chick_heat 1;"
+"monster_chick_heat 1;"
+"monster_guncmdr 1;"
+"monster_spider 1;"
+"monster_spider 1;"
+"monster_brain 1;"
+"monster_janitor 1;";
+
 
 constexpr const char* tank_vanilla_hard_reinforcements =
 "monster_soldier 1;"
@@ -2735,9 +2741,24 @@ void SP_monster_tank_spawner(edict_t* self)
 	self->monsterinfo.monster_used = 0;
 
 	// Single reinforcements setup
-	const char* reinforcements = current_wave_level >= 25 ? tank_vanilla_insane_reinforcements : tank_vanilla_hard_reinforcements;
-	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+	const char* reinforcements = nullptr; // Or nullptr in C++11 and later
 
+	// First, check for the special case
+	bool is_special_case = (current_wave_level >= 10 &&
+							self->monsterinfo.bonus_flags != BF_NONE &&
+							!(self->monsterinfo.bonus_flags & BF_FRIENDLY));
+
+	if (is_special_case)
+	{
+		reinforcements = tank_vanilla_special_reinforcements;
+	}
+	else
+	{
+		// If not the special case, fall back to the original logic
+		reinforcements = current_wave_level >= 25 ? tank_vanilla_insane_reinforcements : tank_vanilla_hard_reinforcements;
+	}
+
+	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
 	// Asignar modelo y dimensiones
 	self->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
 	self->mins = { -32, -32, -16 };
@@ -2771,9 +2792,9 @@ void SP_monster_tank_spawner(edict_t* self)
 	gi.soundindex("tank/tnkatck3.wav");
 
 	// Configurar salud y propiedades según tipo
-	if (strcmp(self->classname, "monster_tank_spawner_commander") == 0)
+	if (strcmp(self->classname, "monster_tank_spawner") == 0)
 	{
-		self->health = 1000 * st.health_multiplier;
+		self->health = 1200 * st.health_multiplier;
 		self->gib_health = -225;
 		self->count = 1;
 		sound_pain2.assign("tank/pain.wav");
@@ -2825,7 +2846,7 @@ void SP_monster_tank_spawner(edict_t* self)
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	self->monsterinfo.blindfire = true;
 
-	if (strcmp(self->classname, "monster_tank_spawner_commander") == 0)
+	if (strcmp(self->classname, "monster_tank_spawner") == 0)
 		self->s.skinnum = 2;
 
 	// Aplicar banderas de bonificación
