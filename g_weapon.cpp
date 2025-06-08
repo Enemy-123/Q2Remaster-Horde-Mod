@@ -831,6 +831,8 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	return bolt;
 }
 
+// ... (previous code in the file remains the same) ...
+
 constexpr spawnflags_t SPAWNFLAG_GRENADE_HAND = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GRENADE_HELD = 2_spawnflag;
 
@@ -839,7 +841,7 @@ constexpr spawnflags_t SPAWNFLAG_GRENADE_HELD = 2_spawnflag;
 fire_grenade
 =================
 */
-static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edict_t* attacker)
+static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edict_t* attacker, bool is_final_explosion)
 {
 	vec3_t origin;
 	mod_t  mod;
@@ -847,24 +849,25 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
-	// FIXME: if we are onground then raise our Z just a bit since we are a point?
-	if (other)
+	// Direct impact damage is applied here if 'other' is not null
+	if (other && other->takedamage)
 	{
 		vec3_t const dir = other->s.origin - ent->s.origin;
 		if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
 			mod = MOD_HANDGRENADE;
 		else
 			mod = MOD_GRENADE;
-		T_Damage(other, ent, attacker, dir, ent->s.origin, normal, ent->dmg, ent->dmg, mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_NONE, mod);
+		T_Damage(other, ent, attacker, dir, ent->s.origin, normal, ent->dmg, ent->dmg, DAMAGE_RADIUS, mod);
 	}
 
+	// Radius damage for the explosion
 	if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD))
 		mod = MOD_HELD_GRENADE;
 	else if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
 		mod = MOD_HG_SPLASH;
 	else
 		mod = MOD_G_SPLASH;
-	T_RadiusDamage(ent, attacker, (float)ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
+	T_RadiusDamage(ent, attacker, (float)ent->dmg, other, ent->dmg_radius, DAMAGE_NONE, mod);
 
 	origin = ent->s.origin + normal;
 	gi.WriteByte(svc_temp_entity);
@@ -877,10 +880,11 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 	}
 	else
 	{
-		if (ent->groundentity)
-			gi.WriteByte(TE_GRENADE_EXPLOSION);
-		else
+        // Use a bigger explosion effect for the final bounce
+		if (ent->groundentity || is_final_explosion)
 			gi.WriteByte(TE_ROCKET_EXPLOSION);
+		else
+			gi.WriteByte(TE_GRENADE_EXPLOSION);
 	}
 	gi.WritePosition(origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
@@ -890,17 +894,12 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 
 THINK(Grenade_Explode) (edict_t* ent) -> void
 {
-	// Determine the attacker
-	edict_t* attacker;
-	if (ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0)
+	edict_t* attacker = ent->owner;
+	if (ent->owner && ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0)
 	{
-		attacker = ent->owner->owner; // If the owner is a turret, the attacker is the turret's owner (the player)
+		attacker = ent->owner->owner;
 	}
-	else
-	{
-		attacker = ent->owner; // Otherwise, the attacker is the owner
-	}
-	Grenade_ExplodeReal(ent, nullptr, ent->velocity * -0.02f, attacker);
+	Grenade_ExplodeReal(ent, nullptr, ent->velocity * -0.02f, attacker, true);
 }
 
 TOUCH(Grenade_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -931,20 +930,12 @@ TOUCH(Grenade_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool othe
 	}
 
 	ent->enemy = other;
-
-	// Determine the attacker
-	edict_t* attacker;
-	if (ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0)
+	edict_t* attacker = ent->owner;
+	if (ent->owner && ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0)
 	{
-		attacker = ent->owner->owner; // If the owner is a turret, the attacker is the turret's owner (the player)
+		attacker = ent->owner->owner;
 	}
-	else
-	{
-		attacker = ent->owner; // Otherwise, the attacker is the owner
-	}
-
-	// Pass the attacker to Grenade_ExplodeReal
-	Grenade_ExplodeReal(ent, other, tr.plane.normal, attacker);
+	Grenade_ExplodeReal(ent, other, tr.plane.normal, attacker, true);
 }
 
 THINK(Grenade4_Think) (edict_t* self) -> void
@@ -968,269 +959,120 @@ THINK(Grenade4_Think) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-// Constants for better readability
-constexpr float GRAVITY_ADJUSTMENT_FACTOR = 800.0f;
-constexpr float BOUNCY_SPEED_MULTIPLIER = 1.5f;
-constexpr float BOUNCY_DAMAGE_MULTIPLIER = 1.3f;
-constexpr float BOUNCY_RADIUS_MULTIPLIER = 1.5f;
-constexpr float MIN_VELOCITY_FOR_NORMAL = 10.0f;
+//====================================================================================
+// FINAL IMPROVED BOUNCY/CLUSTER GRENADE LOGIC (V5 - Immediate Final Boom & More Damage)
+//====================================================================================
 
-// Configuration for bouncy grenades with clear documentation
 struct BouncyGrenadeConfig {
-	int max_bounces = 4;                  // Maximum number of bounces before final explosion
-	float bounce_scale = 1.4f;            // Velocity multiplier after bounce
-	float damage_decay = 0.85f;           // Damage reduction per bounce (percentage)
-	float min_damage_fraction = 0.35f;    // Minimum damage as a fraction of original
-	float random_dir_scale = 360.0f;      // Maximum angle for random direction generation
-	gtime_t think_time = 1.0_sec;         // Time between bounces/explosions
+    int max_bounces = 4;
+    // Final explosion is 40% stronger with a 60% larger radius
+    float damage_multiplier = 1.40f;
+    float radius_multiplier = 1.60f;
+    // Cluster explosions are now much more powerful
+    float cluster_damage_fraction = 0.60f; // 60% of final damage
+    float cluster_radius_fraction = 0.75f; // 75% of final radius
+    gtime_t life_time = 5.0_sec;
 };
-
 static const BouncyGrenadeConfig BOUNCY_CONFIG;
 
 /**
- * Handles grenade explosion and potential bounce
- * @param ent The grenade entity
- * @param other The entity hit (if any)
- * @param normal Surface normal at impact point
+ * @brief Triggers a smaller "cluster" explosion without destroying the grenade.
  */
-void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal)
+static void BouncyGrenade_ClusterExplode(edict_t* ent, const trace_t& tr)
 {
-	if (!ent || !ent->owner)
-		return;
+    if (!ent || !ent->owner) return;
 
-	// Ensure normal is normalized
-	if (normal.length() < 0.1f) {
-		// If normal is too small, use a default up vector
-		normal = { 0.0f, 0.0f, 1.0f };
-	}
-	else {
-		normal = normal.normalized();
-	}
+    float cluster_damage = (ent->dmg * BOUNCY_CONFIG.cluster_damage_fraction);
+    float cluster_radius = (ent->dmg_radius * BOUNCY_CONFIG.cluster_radius_fraction);
 
-	// Notify owner of impact noise for AI awareness
-	if (ent->owner->client)
-		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
+    T_RadiusDamage(ent, ent->owner, cluster_damage, nullptr, cluster_radius, DAMAGE_NONE, MOD_G_SPLASH);
 
-	// Handle direct impact damage
-	if (other) {
-		vec3_t dir = other->s.origin - ent->s.origin;
-		float distance = dir.normalize();
+    vec3_t origin = ent->s.origin + tr.plane.normal;
+    gi.WriteByte(svc_temp_entity);
+    gi.WriteByte(TE_GRENADE_EXPLOSION);
+    gi.WritePosition(origin);
+    gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-		mod_t const mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND)
-			? MOD_HANDGRENADE
-			: MOD_GRENADE;
-
-
-		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal,
-			ent->dmg, ent->dmg, mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_RADIUS
-			, mod);
-	}
-
-	// Handle area damage
-	mod_t const splash_mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD)
-		? MOD_HELD_GRENADE
-		: ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND)
-		? MOD_HG_SPLASH
-		: MOD_G_SPLASH;
-
-	T_RadiusDamage(ent, ent->owner, static_cast<float>(ent->dmg), other,
-		ent->dmg_radius, DAMAGE_NONE, splash_mod);
-
-	// Visual explosion effects
-	vec3_t const origin = ent->s.origin + normal;
-	gi.WriteByte(svc_temp_entity);
-
-	// Select appropriate explosion effect based on environment
-	int explosion_type;
-	if (ent->waterlevel) {
-		explosion_type = ent->groundentity
-			? TE_GRENADE_EXPLOSION_WATER
-			: TE_ROCKET_EXPLOSION_WATER;
-	}
-	else {
-		explosion_type = ent->groundentity
-			? TE_GRENADE_EXPLOSION
-			: TE_ROCKET_EXPLOSION;
-	}
-
-	gi.WriteByte(explosion_type);
-	gi.WritePosition(origin);
-	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
-
-	// Process bounce if there are bounces remaining
-	if (ent->count > 0) {
-		// Generate new random direction if on ground
-		if (ent->groundentity) {
-			// Create random direction within spherical bounds
-			float pitch = crandom() * BOUNCY_CONFIG.random_dir_scale;
-			float yaw = crandom() * BOUNCY_CONFIG.random_dir_scale;
-			float roll = crandom() * BOUNCY_CONFIG.random_dir_scale;
-
-			// Convert angles to direction vector more accurately
-			vec3_t angles = { pitch, yaw, roll };
-			auto [forward, right, up] = AngleVectors(angles);
-
-			// Apply new velocity - use forward direction with maintained speed
-			ent->velocity = forward * (ent->speed * BOUNCY_CONFIG.bounce_scale);
-
-			// Add a bit of upward force to ensure it bounces
-			if (forward.z < 0.3f) {
-				ent->velocity.z += ent->speed * 0.4f;
-			}
-		}
-
-		// Reduce damage for next explosion, maintaining minimum threshold
-		const float min_damage = ent->dmg * BOUNCY_CONFIG.min_damage_fraction;
-		ent->dmg = std::max(min_damage, ent->dmg * BOUNCY_CONFIG.damage_decay);
-
-		// Decrement bounce count and set next think time
-		ent->count--;
-		ent->nextthink = level.time + BOUNCY_CONFIG.think_time;
-	}
-	else {
-		// No more bounces - destroy entity
-		G_FreeEdict(ent);
-	}
+    gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/grenlb1b.wav"), 1, ATTN_NORM, 0);
 }
 
 /**
- * Think function for timed explosion
+ * @brief The "think" function for the cluster grenade, acts as a failsafe timer.
  */
-THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
+THINK(BouncyGrenade_Think)(edict_t* self) -> void
 {
-	if (!ent)
-		return;
-
-	vec3_t normal;
-
-	// Get a reliable normal vector from velocity
-	if (ent->velocity.lengthSquared() > MIN_VELOCITY_FOR_NORMAL * MIN_VELOCITY_FOR_NORMAL) {
-		normal = -ent->velocity.normalized();
-	}
-	else {
-		// If velocity is too low, use a default up vector
-		normal = { 0.0f, 0.0f, 1.0f };
-	}
-
-	BouncyGrenade_ExplodeReal(ent, ent->groundentity, normal);
+    if (level.time >= self->timestamp)
+    {
+        Grenade_Explode(self);
+        return;
+    }
+    self->nextthink = level.time + FRAME_TIME_S;
 }
 
 /**
- * Touch function for collision-based explosion
+ * @brief The "touch" function for the cluster grenade, handles all impact logic.
  */
 TOUCH(BouncyGrenade_Touch)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	if (!ent || !other)
-		return;
+    if (other == ent->owner) return;
+    if (tr.surface && (tr.surface->flags & SURF_SKY)) { G_FreeEdict(ent); return; }
 
-	// Ignore collision with owner
-	if (other == ent->owner)
-		return;
+    edict_t* attacker = ent->owner;
+    if (ent->owner && ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0) {
+        attacker = ent->owner->owner;
+    }
 
-	// Handle skybox collision - just remove the grenade
-	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
-		G_FreeEdict(ent);
-		return;
-	}
+    // If we hit a damageable entity, it's always a final, full-damage explosion.
+    if (other->takedamage)
+    {
+        Grenade_ExplodeReal(ent, other, tr.plane.normal, attacker, true);
+        return;
+    }
 
-	// Remember what was hit for damage purposes
-	if (other->takedamage)
-		ent->enemy = other;
+    // --- KEY CHANGE: Immediate Final Explosion on Last Bounce ---
+    // If this is the last bounce (`count` is 1), this impact IS the final explosion.
+    if (ent->count <= 1)
+    {
+        Grenade_ExplodeReal(ent, nullptr, tr.plane.normal, attacker, true);
+        return;
+    }
 
-	// Use the surface normal from the trace for accurate bounce physics
-	BouncyGrenade_ExplodeReal(ent, other, tr.plane.normal);
+    // Otherwise, it's a regular cluster bounce.
+    ent->count--;
+    BouncyGrenade_ClusterExplode(ent, tr);
 }
 
 /**
- * Think function for checking bounce conditions
- */
-THINK(BouncyGrenade_Think)(edict_t* ent) -> void
-{
-	if (!ent)
-		return;
-
-	// Check if on ground or stopped moving vertically
-	if (ent->groundentity || fabsf(ent->velocity.z) < 1.0f) {
-		vec3_t normal;
-
-		// Get normal from velocity or use ground normal
-		if (ent->groundentity && ent->groundentity->solid == SOLID_BSP) {
-			// Try to get the ground plane normal if possible
-			normal = { 0.0f, 0.0f, 1.0f }; // Default to up
-		}
-		else if (ent->velocity.lengthSquared() > MIN_VELOCITY_FOR_NORMAL * MIN_VELOCITY_FOR_NORMAL) {
-			normal = -ent->velocity.normalized();
-		}
-		else {
-			normal = { 0.0f, 0.0f, 1.0f }; // Default to up
-		}
-
-		BouncyGrenade_ExplodeReal(ent, ent->groundentity, normal);
-	}
-	else {
-		// Still in air, continue checking
-		ent->nextthink = level.time + FRAME_TIME_S;
-
-		// Update grenade angles to match velocity for visual effect
-		if (ent->velocity.lengthSquared() > 1.0f) {
-			ent->s.angles = vectoangles(ent->velocity);
-		}
-	}
-}
-
-/**
- * Creates and fires a grenade projectile
- *
- * @param self Entity firing the grenade
- * @param start Starting position
- * @param aimdir Direction vector
- * @param damage Base damage amount
- * @param speed Projectile speed
- * @param timer Time until explosion
- * @param damage_radius Explosion radius
- * @param right_adjust Right vector adjustment (for offset)
- * @param up_adjust Up vector adjustment (for arc)
- * @param monster Whether fired by a monster
+ * Creates and fires a grenade projectile.
  */
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	int damage, int speed, gtime_t timer, float damage_radius,
 	float right_adjust, float up_adjust, bool monster)
 {
-	if (!self || speed <= 0)
-		return;
+	if (!self || speed <= 0) return;
 
-	// Calculate firing vectors from aim direction
 	vec3_t dir = vectoangles(aimdir);
 	auto [forward, right, up] = AngleVectors(dir);
 
-	// Create the grenade entity
 	edict_t* grenade = G_Spawn();
-	if (!grenade)
-		return;
+	if (!grenade) return;
 
-	// Set position and base velocity
 	grenade->s.origin = start;
 	grenade->velocity = aimdir * speed;
 
-	// Apply trajectory adjustments
 	if (up_adjust != 0.0f) {
-		float const gravityAdjustment = level.gravity / GRAVITY_ADJUSTMENT_FACTOR;
+		float const gravityAdjustment = level.gravity / 800.0f;
 		grenade->velocity += up * up_adjust * gravityAdjustment;
 	}
-
 	if (right_adjust != 0.0f) {
 		grenade->velocity += right * right_adjust;
 	}
 
-	// Set common grenade properties
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_PROJECTILE;
-
-	// Skip player collision if configured
 	if (self->client && !G_ShouldPlayersCollide(true)) {
 		grenade->clipmask &= ~CONTENTS_PLAYER;
 	}
-
 	grenade->solid = SOLID_BBOX;
 	grenade->svflags |= SVF_PROJECTILE;
 	grenade->flags |= (FL_DODGE | FL_TRAP);
@@ -1242,28 +1084,23 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	grenade->classname = "grenade";
 	grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 
-	// Apply specific behavior based on type
-	// Fix for the SVF_MONSTER check - using bitwise AND instead of negated AND
 	const bool use_bouncy = (g_bouncygl->integer && !(self->svflags & SVF_MONSTER));
 
 	if (use_bouncy) {
-		// Bouncy grenade behavior
-		grenade->s.angles = vectoangles(grenade->velocity);
-		grenade->nextthink = level.time + FRAME_TIME_S;
-		grenade->timestamp = level.time + timer;
+		// --- NEW Cluster-Bouncy Grenade Behavior ---
 		grenade->think = BouncyGrenade_Think;
-		grenade->s.renderfx |= RF_MINLIGHT;
-		grenade->s.effects |= EF_GRENADE;
-		grenade->count = BOUNCY_CONFIG.max_bounces;
 		grenade->touch = BouncyGrenade_Touch;
+        grenade->nextthink = level.time + FRAME_TIME_S;
+		grenade->timestamp = level.time + BOUNCY_CONFIG.life_time;
+		grenade->count = BOUNCY_CONFIG.max_bounces;
+		grenade->s.renderfx |= RF_MINLIGHT;
 
-		// Enhanced properties for bouncy grenades
-		grenade->speed *= BOUNCY_SPEED_MULTIPLIER;
-		grenade->dmg *= BOUNCY_DAMAGE_MULTIPLIER;
-		grenade->dmg_radius *= BOUNCY_RADIUS_MULTIPLIER;
+        // Apply damage and radius multipliers to make it more powerful
+        grenade->dmg = static_cast<int>(grenade->dmg * BOUNCY_CONFIG.damage_multiplier);
+        grenade->dmg_radius *= BOUNCY_CONFIG.radius_multiplier;
 	}
 	else if (monster) {
-		// Monster-thrown grenade
+		// --- Monster-thrown grenade ---
 		grenade->avelocity = { crandom() * 360, crandom() * 360, crandom() * 360 };
 		grenade->nextthink = level.time + timer;
 		grenade->think = Grenade_Explode;
@@ -1271,7 +1108,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 		grenade->touch = Grenade_Touch;
 	}
 	else {
-		// Regular player grenade
+		// --- Regular player grenade ---
 		grenade->s.angles = vectoangles(grenade->velocity);
 		grenade->nextthink = level.time + FRAME_TIME_S;
 		grenade->timestamp = level.time + timer;
@@ -1280,7 +1117,6 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 		grenade->touch = Grenade_Touch;
 	}
 
-	// Finalize entity creation
 	gi.linkentity(grenade);
 }
 
@@ -1305,7 +1141,6 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 	grenade->avelocity = { crandom() * 360, crandom() * 360, crandom() * 360 };
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_PROJECTILE;
-	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		grenade->clipmask &= ~CONTENTS_PLAYER;
 	grenade->solid = SOLID_BBOX;
@@ -1335,6 +1170,7 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 	}
 }
 
+// ... (rest of the file remains the same) ...
 
 //FIREBALL
 
