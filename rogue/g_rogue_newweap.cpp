@@ -245,7 +245,6 @@ static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
 		PlayerNoise(owner, ent->s.origin, PNOISE_IMPACT);
 	}
 
-	// Direct damage to the entity that triggered the mine
 	if (other && other->takedamage) {
 		vec3_t const dir = other->s.origin - ent->s.origin;
 		T_Damage(other, ent, owner, dir, ent->s.origin, normal,
@@ -259,23 +258,22 @@ static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
 	ent->takedamage = false;
 	vec3_t const explosion_origin = ent->s.origin + normal;
 
-	// Main radius damage
+	// --- RADIUS CHANGE ---
+	// Use the mine's specific, calculated radius instead of the global constant.
 	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other,
-		PROX_DAMAGE_RADIUS, DAMAGE_NONE, MOD_PROX);
+		ent->dmg_radius, DAMAGE_NONE, MOD_PROX);
 
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION);
 	gi.WritePosition(explosion_origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
-	// --- LETHALITY UPGRADE: Spawn the deadly cluster grenade swarm ---
 	if (g_upgradeproxs->integer) {
 		SpawnClusterGrenades(ent, explosion_origin, ent->dmg);
 	}
 
 	G_FreeEdict(ent);
 }
-
 
 THINK(Prox_Explode) (edict_t* ent) -> void
 {
@@ -600,13 +598,10 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int pro
 	prox->flags |= (FL_DODGE | FL_TRAP);
 	prox->clipmask = MASK_PROJECTILE | CONTENTS_LAVA | CONTENTS_SLIME;
 
-	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		prox->clipmask &= ~CONTENTS_PLAYER;
 
 	prox->s.renderfx |= RF_IR_VISIBLE;
-	// FIXME - this needs to be bigger.  Has other effects, though.  Maybe have to change origin to compensate
-	//  so it sinks in correctly.  Also in lavacheck, might have to up the distance
 	prox->mins = { -6, -6, -6 };
 	prox->maxs = { 6, 6, 6 };
 	prox->s.modelindex = gi.modelindex("models/weapons/g_prox/tris.md2");
@@ -615,29 +610,28 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int pro
 	prox->touch = prox_land;
 	prox->think = Prox_Think;
 	prox->nextthink = level.time;
-	prox->dmg = PROX_DAMAGE * prox_damage_multiplier;
 	prox->classname = "prox_mine";
 	prox->flags |= FL_DAMAGEABLE;
 	prox->flags |= FL_MECHANICAL;
 
-	switch (prox_damage_multiplier)
-	{
-	case 1:
-		prox->timestamp = level.time + PROX_TIME_TO_LIVE;
-		break;
-	case 2:
-		prox->timestamp = level.time + 30_sec;
-		break;
-	case 4:
-		prox->timestamp = level.time + 15_sec;
-		break;
-	case 8:
-		prox->timestamp = level.time + 10_sec;
-		break;
-	default:
-		prox->timestamp = level.time + PROX_TIME_TO_LIVE;
-		break;
-	}
+	// --- DAMAGE & RADIUS CLAMPING ---
+	// 1. Clamp the multiplier to a maximum of 3x.
+	int const effective_multiplier = std::min(prox_damage_multiplier, 3);
+
+	// 2. Set the final damage using the clamped multiplier.
+	prox->dmg = PROX_DAMAGE * effective_multiplier;
+
+	// 3. Set the final radius using a balanced scaling formula.
+	// This makes the radius larger, but not excessively so.
+	// 1x = 1.0 * base_radius
+	// 2x = 1.5 * base_radius
+	// 3x = 2.0 * base_radius
+	prox->dmg_radius = PROX_DAMAGE_RADIUS * (1.0f + 0.5f * (effective_multiplier - 1));
+	// --- END CLAMPING LOGIC ---
+
+	// This lifetime logic is now redundant since we calculate lifetime in prox_open/prox_seek
+	// but we'll leave it as a fallback.
+	prox->timestamp = level.time + PROX_TIME_TO_LIVE;
 
 	gi.linkentity(prox);
 }
