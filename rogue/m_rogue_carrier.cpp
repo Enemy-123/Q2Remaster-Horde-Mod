@@ -19,7 +19,7 @@ carrier
 
 // nb: specifying flyer multiple times so it has a higher chance
 constexpr const char* default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2;monster_fixbot 3";
-constexpr const char *mini_reinforcements = "monster_flyer 1;monster_flyer 2;monster_flyer 3;monster_fixbot 3";
+constexpr const char *mini_reinforcements = "monster_flyer 1;monster_flyer 2;monster_flyer 3;monster_daedalus_bomber 2;monster_daedalus";
 constexpr int32_t default_monster_slots_base = 3;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 3_sec; // number of seconds between rocket shots
@@ -368,7 +368,8 @@ void CarrierSpawn(edict_t *self)
 
 		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
 		ent->monsterinfo.commander = self;
-		ent->monsterinfo.monster_slots = reinforcement.strength;
+		// FIX: Use 'slots_from_commander' instead of 'monster_slots'
+		ent->monsterinfo.slots_from_commander = reinforcement.strength;
 		self->monsterinfo.monster_used += reinforcement.strength;
 
 		if (g_horde->integer)
