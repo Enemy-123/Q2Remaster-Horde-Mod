@@ -2049,7 +2049,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::SHAMBLER_KL, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
 	{horde::MonsterTypeID::GUNCMDR_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f, {-16, -16, -24}, {16, 16, 36}, 1.25f}, // Scale 1.25
 	{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
-	{horde::MonsterTypeID::BOSS2_KL, MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},							   // Scale 0.6
+	//{horde::MonsterTypeID::BOSS2_KL, MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},							   // Scale 0.6
 	{horde::MonsterTypeID::JORG_SMALL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f, {-80, -80, 0}, {80, 80, 140}, 0.35f}, // Scale 0.35
 
 	// Boss Units (Included for completeness, scale might be set differently if spawned via specific boss logic)
@@ -3266,7 +3266,7 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 		// For non-flying waves, use the original, more conservative boost
 		if (currentActualLevel < 7)      levelBoost = irandom(2, 4);
 		else if (currentActualLevel <= 15) levelBoost = irandom(4, 8);
-		else                             levelBoost = irandom(1, 2);
+		else                             levelBoost = irandom(3, 6);
 		maxLevelCap = currentActualLevel + 8;
 	}
 	// *** END OF NEW LOGIC ***
