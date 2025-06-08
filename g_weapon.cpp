@@ -881,7 +881,7 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 	else
 	{
         // Use a bigger explosion effect for the final bounce
-		if (ent->groundentity || is_final_explosion)
+		if (is_final_explosion)
 			gi.WriteByte(TE_ROCKET_EXPLOSION);
 		else
 			gi.WriteByte(TE_GRENADE_EXPLOSION);
@@ -960,17 +960,15 @@ THINK(Grenade4_Think) (edict_t* self) -> void
 }
 
 //====================================================================================
-// FINAL IMPROVED BOUNCY/CLUSTER GRENADE LOGIC (V5 - Immediate Final Boom & More Damage)
+// FINAL IMPROVED BOUNCY/CLUSTER GRENADE LOGIC (V6 - With Safety Limits)
 //====================================================================================
 
 struct BouncyGrenadeConfig {
     int max_bounces = 4;
-    // Final explosion is 40% stronger with a 60% larger radius
     float damage_multiplier = 1.40f;
     float radius_multiplier = 1.60f;
-    // Cluster explosions are now much more powerful
-    float cluster_damage_fraction = 0.60f; // 60% of final damage
-    float cluster_radius_fraction = 0.75f; // 75% of final radius
+    float cluster_damage_fraction = 0.60f;
+    float cluster_radius_fraction = 0.75f;
     gtime_t life_time = 5.0_sec;
 };
 static const BouncyGrenadeConfig BOUNCY_CONFIG;
@@ -1022,22 +1020,18 @@ TOUCH(BouncyGrenade_Touch)(edict_t* ent, edict_t* other, const trace_t& tr, bool
         attacker = ent->owner->owner;
     }
 
-    // If we hit a damageable entity, it's always a final, full-damage explosion.
     if (other->takedamage)
     {
         Grenade_ExplodeReal(ent, other, tr.plane.normal, attacker, true);
         return;
     }
 
-    // --- KEY CHANGE: Immediate Final Explosion on Last Bounce ---
-    // If this is the last bounce (`count` is 1), this impact IS the final explosion.
     if (ent->count <= 1)
     {
         Grenade_ExplodeReal(ent, nullptr, tr.plane.normal, attacker, true);
         return;
     }
 
-    // Otherwise, it's a regular cluster bounce.
     ent->count--;
     BouncyGrenade_ClusterExplode(ent, tr);
 }
@@ -1095,9 +1089,14 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 		grenade->count = BOUNCY_CONFIG.max_bounces;
 		grenade->s.renderfx |= RF_MINLIGHT;
 
-        // Apply damage and radius multipliers to make it more powerful
-        grenade->dmg = static_cast<int>(grenade->dmg * BOUNCY_CONFIG.damage_multiplier);
-        grenade->dmg_radius *= BOUNCY_CONFIG.radius_multiplier;
+        // --- NEW: Capped multipliers to prevent excessive power ---
+        constexpr float MAX_MULTIPLIER = 3.0f;
+        float capped_dmg_multiplier = std::min(BOUNCY_CONFIG.damage_multiplier, MAX_MULTIPLIER);
+        float capped_radius_multiplier = std::min(BOUNCY_CONFIG.radius_multiplier, MAX_MULTIPLIER);
+
+        // Apply the capped damage and radius multipliers
+        grenade->dmg = static_cast<int>(grenade->dmg * capped_dmg_multiplier);
+        grenade->dmg_radius *= capped_radius_multiplier;
 	}
 	else if (monster) {
 		// --- Monster-thrown grenade ---
