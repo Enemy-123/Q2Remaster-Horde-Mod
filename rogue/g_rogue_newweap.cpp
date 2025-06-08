@@ -108,224 +108,173 @@ void fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 	}
 }
 
-// **************************
-// PROX
-// **************************
+// =======================================================================
+// PROXIMITY MINE (g_upgradeprox) - Lethality & Intelligence Overhaul
+// =======================================================================
 
-constexpr gtime_t PROX_TIME_TO_LIVE = 45_sec; // 45, 30, 15, 10
-constexpr gtime_t PROX_TIME_DELAY = 500_ms;
+// --- Tuned Constants for Increased Lethality ---
+constexpr gtime_t PROX_TIME_TO_LIVE = 45_sec;
+constexpr gtime_t PROX_TIME_DELAY = 350_ms;      // Reduced delay for faster detonation
 constexpr float	  PROX_BOUND_SIZE = 96;
-constexpr float	  PROX_DAMAGE_RADIUS = 192;
-constexpr int32_t PROX_HEALTH = 20;
-constexpr int32_t PROX_DAMAGE = 80;
+constexpr float	  PROX_DAMAGE_RADIUS = 220;      // Increased radius
+constexpr int32_t PROX_HEALTH = 30;              // Increased health
+constexpr int32_t PROX_DAMAGE = 95;              // Increased base damage
 constexpr float PROX_DAMAGE_OPEN_MULTIPLIER = 1.5f;
 
-
-// Estructura para configurar el comportamiento de las granadas fragmentarias
+// --- Configuration for a much deadlier cluster explosion ---
 struct ClusterConfig {
-	int num_grenades;          // Número total de granadas
-	int direct_grenades;       // Granadas que caen directamente
-	float spread_angle;        // Ángulo de dispersión para fragmentación
-	float min_velocity;        // Velocidad mínima de las granadas
-	float max_velocity;        // Velocidad máxima de las granadas
-	float min_fuse_time;       // Tiempo mínimo de explosión
-	float max_fuse_time;       // Tiempo máximo de explosión
-	float damage_multiplier;   // Multiplicador de daño para fragmentos
-	float homing_bias;         // Influencia del direcionamiento hacia enemigos (0-1)
-	float search_radius;       // Radio de búsqueda de enemigos
+	int num_grenades;          // Total number of fragments
+	int direct_grenades;       // Fragments fired directly down for immediate area denial
+	float spread_angle;        // Base spread angle for fragments
+	float min_velocity;        // Minimum fragment speed
+	float max_velocity;        // Maximum fragment speed
+	float min_fuse_time;       // Minimum fragment fuse time
+	float max_fuse_time;       // Maximum fragment fuse time
+	float damage_multiplier;   // Damage of each fragment relative to the main explosion
+	float homing_bias;         // Aggressiveness of homing towards enemies (0-1)
+	float search_radius;       // How far the mine looks for targets to home towards
 };
 
-// Configuración por defecto para el clustering
-static const ClusterConfig DEFAULT_CLUSTER_CONFIG = {
-	15,     // num_grenades
-	3,      // direct_grenades
-	45.0f,  // spread_angle
-	400.0f, // min_velocity
-	600.0f, // max_velocity
-	0.5f,   // min_fuse_time
-	2.0f,   // max_fuse_time
-	0.5f,   // damage_multiplier
-	0.3f,   // homing_bias (30% de influencia)
-	384.0f  // search_radius (2x PROX_DAMAGE_RADIUS)
+// --- New, more aggressive cluster configuration ---
+static const ClusterConfig UPGRADED_CLUSTER_CONFIG = {
+	15,     // num_grenades (was 15)
+	5,      // direct_grenades (was 3)
+	50.0f,  // spread_angle (was 45.0f)
+	500.0f, // min_velocity (was 400.0f)
+	750.0f, // max_velocity (was 600.0f)
+	0.4f,   // min_fuse_time (was 0.5f)
+	1.8f,   // max_fuse_time (was 2.0f)
+	0.6f,   // damage_multiplier (was 0.5f)
+	0.55f,  // homing_bias (was 0.3f, now much more aggressive)
+	512.0f  // search_radius (was 384.0f)
 };
 
-// Función para encontrar el enemigo más cercano
-edict_t* FindNearestEnemy(edict_t* owner, const vec3_t& origin, float search_radius) {
+// --- Smarter Enemy Finding: Now checks for line-of-sight ---
+edict_t* FindNearestVisibleEnemy(edict_t* from, const vec3_t& origin, float search_radius) {
 	edict_t* nearest = nullptr;
 	float nearest_dist_squared = search_radius * search_radius;
 	edict_t* current = nullptr;
 
 	while ((current = findradius(current, origin, search_radius)) != nullptr) {
-		// Ignorar entidades no válidas o muertas (verificación rápida primero)
-		if (!current->inuse || current->health <= 0) {
+		if (!current->inuse || current->health <= 0)
 			continue;
-		}
 
-		// Verificar si es un objetivo válido (monstruo o jugador enemigo)
-		if (!(current->svflags & SVF_MONSTER) && !current->client) {
+		if (!(current->svflags & SVF_MONSTER) && !current->client)
 			continue;
-		}
 
-		// Evitar dañar a compañeros de equipo o al propietario
-		if (current == owner || CheckTeamDamage(current, owner)) {
+		if (current == from->teammaster || OnSameTeam(current, from->teammaster))
 			continue;
-		}
 
-		// Calcular distancia usando el vec3_t moderno
+		// --- INTELLIGENCE UPGRADE: Ensure we can actually see the target ---
+		if (!visible(from, current))
+			continue;
+
 		vec3_t const diff = current->s.origin - origin;
 		float const dist_squared = diff.lengthSquared();
 
-		// Actualizar si encontramos uno más cercano
 		if (dist_squared < nearest_dist_squared) {
 			nearest = current;
 			nearest_dist_squared = dist_squared;
 		}
 	}
-
 	return nearest;
 }
 
-// Función separada para el manejo de granadas fragmentarias
-void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage) {
-	const ClusterConfig& config = DEFAULT_CLUSTER_CONFIG;
+// --- More Lethal Clustering Logic ---
+void SpawnClusterGrenades(edict_t* owner_mine, const vec3_t& origin, int base_damage) {
+	const ClusterConfig& config = UPGRADED_CLUSTER_CONFIG;
 
-	// Buscar el enemigo más cercano para influenciar la dirección
-	const edict_t* nearest_enemy = FindNearestEnemy(owner, origin, config.search_radius);
+	// Find the best visible enemy to target
+	const edict_t* nearest_enemy = FindNearestVisibleEnemy(owner_mine, origin, config.search_radius);
 
-	// Calcular dirección base hacia el enemigo si existe
 	vec3_t enemy_dir{};
-	float enemy_distance = 0.0f;
 	if (nearest_enemy) {
 		enemy_dir = nearest_enemy->s.origin - origin;
-		enemy_distance = enemy_dir.length();
-		if (enemy_distance > 0.0f) {
-			enemy_dir = enemy_dir / enemy_distance; // Normalizar de forma segura
-		}
+		enemy_dir.normalize();
 	}
 
-	// Calcular el daño para cada granada fragmentaria
 	int const fragment_damage = static_cast<int>(base_damage * config.damage_multiplier);
-
-	// Pequeña influencia gravitacional para trayectorias más naturales
-	vec3_t gravity_influence{ 0, 0, -0.15f };
+	vec3_t gravity_influence{ 0, 0, -0.1f }; // Softer gravity for wider spread
 
 	for (int n = 0; n < config.num_grenades; n++) {
 		vec3_t forward;
 
 		if (n < config.direct_grenades) {
-			// Granadas que caen directamente con pequeña variación aleatoria
-			forward = vec3_t{
-				(frandom() - 0.5f) * 0.15f,
-				(frandom() - 0.5f) * 0.15f,
-				-1.0f
-			};
-			forward = safe_normalized(forward);
-		}
-		else {
-			// Distribución angular usando Golden Ratio para mejor cobertura
-			float golden_ratio = 0.618033988749895f;
-			float angle_step = 360.0f * golden_ratio;
-			float yaw = n * angle_step;
-			// Añadir una pequeña variación al yaw para más naturalidad
-			yaw += (frandom() - 0.5f) * 5.0f;
-
-			// Mayor variación para ángulos de elevación en granadas posteriores
-			float elevation_variance = 15.0f + 10.0f * static_cast<float>(n) / config.num_grenades;
-			float const pitch = -config.spread_angle + (frandom() - 0.5f) * elevation_variance;
-
-			vec3_t const angles{ pitch, yaw, 0 };
+			// Direct downward burst for anyone standing on the mine
+			forward = { (frandom() - 0.5f) * 0.2f, (frandom() - 0.5f) * 0.2f, -1.0f };
+		} else {
+			// Create a lethal cone of shrapnel
+			float yaw = crandom() * 180.0f; // 360 degree horizontal spread
+			float pitch = -config.spread_angle - (frandom() * 30.0f); // Varying upward angle
+			vec3_t angles{ pitch, yaw, 0 };
 			auto [fwd, right, up] = AngleVectors(angles);
 			forward = fwd;
-
-			// Añadir influencia de la gravedad para trayectorias más realistas
-			forward = safe_normalized(forward + gravity_influence);
-
-			// Si hay un enemigo cercano, influenciar la dirección
-			if (nearest_enemy && enemy_distance > 0.0f) {
-				// Calcular factor de influencia basado en la distancia
-				float distance_factor = std::min(1.0f, config.search_radius / enemy_distance);
-				distance_factor = std::max(0.2f, distance_factor * 0.5f); // Limitar el rango de influencia
-
-				// Ajustar la influencia basado en la posición en la secuencia de granadas
-				float sequence_factor = 1.0f - (static_cast<float>(n) / config.num_grenades);
-				float adjusted_bias = config.homing_bias * distance_factor * sequence_factor;
-
-				// Interpolar entre la dirección calculada y la dirección al enemigo
-				forward = safe_normalized(forward * (1.0f - adjusted_bias) + enemy_dir * adjusted_bias);
-			}
 		}
 
-		// Velocidad con variación no uniforme para más realismo
-		float velocity_variance = 0.3f + 0.5f * static_cast<float>(n) / config.num_grenades;
-		float velocity_randomness = frandom() * frandom() * velocity_variance; // Distribución no uniforme
-		float const velocity = config.min_velocity + (config.max_velocity - config.min_velocity) * velocity_randomness;
-
-		// Tiempo de explosión con distribución más realista
-		float fuse_randomness = 0.2f + 0.8f * powf(frandom(), 1.3f); // Distribución no lineal
-		float const explode_time = config.min_fuse_time + (config.max_fuse_time - config.min_fuse_time) * fuse_randomness;
-
-		// Daño variable basado en la distribución para mayor realismo
-		int adjusted_damage = fragment_damage;
-		if (n >= config.direct_grenades) {
-			// Ligera variación en el daño entre fragmentos
-			adjusted_damage = static_cast<int>(fragment_damage * (0.9f + frandom() * 0.2f));
+		// --- SMARTER HOMING: Aggressively steer fragments towards the target ---
+		if (nearest_enemy) {
+			// Interpolate between random spread and direct-to-target vector
+			forward = safe_normalized(forward * (1.0f - config.homing_bias) + enemy_dir * config.homing_bias);
 		}
 
-		// Lanzar la granada con los parámetros calculados
-		fire_grenade2(owner, origin, forward, adjusted_damage, velocity,
+		// Add slight gravity influence for a more natural arc
+		forward = safe_normalized(forward + gravity_influence);
+
+		float const velocity = config.min_velocity + (config.max_velocity - config.min_velocity) * frandom();
+		float const explode_time = config.min_fuse_time + (config.max_fuse_time - config.min_fuse_time) * frandom();
+		
+		// Vary damage slightly to make it less predictable
+		int adjusted_damage = static_cast<int>(fragment_damage * (0.9f + frandom() * 0.2f));
+
+		// Use the player who threw the mine as the owner for proper kill credit
+		fire_grenade2(owner_mine->teammaster, origin, forward, adjusted_damage, velocity,
 			gtime_t::from_sec(explode_time),
 			static_cast<float>(adjusted_damage), false);
 	}
 }
 
+// --- Main Explosion Logic ---
 static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
-	// Cleanup trigger field
 	if (ent->teamchain && ent->teamchain->owner == ent) {
 		G_FreeEdict(ent->teamchain);
 	}
 
-	// Determine owner for damage attribution
 	edict_t* owner = ent->teammaster ? ent->teammaster : ent;
 
-	// Generate noise for owner awareness
 	if (ent->teammaster) {
 		PlayerNoise(owner, ent->s.origin, PNOISE_IMPACT);
 	}
 
-	// Direct damage to triggering entity
-	if (other) {
+	// Direct damage to the entity that triggered the mine
+	if (other && other->takedamage) {
 		vec3_t const dir = other->s.origin - ent->s.origin;
 		T_Damage(other, ent, owner, dir, ent->s.origin, normal,
 			ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
 	}
 
-	// Quad damage sound effect
 	if (ent->dmg > PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER) {
 		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 	}
 
-	// Prepare for explosion
 	ent->takedamage = false;
-	vec3_t const origin = ent->s.origin + normal;
+	vec3_t const explosion_origin = ent->s.origin + normal;
 
-	// Apply radius damage
+	// Main radius damage
 	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other,
 		PROX_DAMAGE_RADIUS, DAMAGE_NONE, MOD_PROX);
 
-	// Visual explosion effect
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION);
-	gi.WritePosition(origin);
+	gi.WritePosition(explosion_origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
-	// Enhanced proximity mine features
+	// --- LETHALITY UPGRADE: Spawn the deadly cluster grenade swarm ---
 	if (g_upgradeproxs->integer) {
-		SpawnClusterGrenades(owner, origin, ent->dmg);
+		SpawnClusterGrenades(ent, explosion_origin, ent->dmg);
 	}
 
 	G_FreeEdict(ent);
 }
-
 
 
 THINK(Prox_Explode) (edict_t* ent) -> void
@@ -429,16 +378,11 @@ THINK(prox_seek) (edict_t* ent) -> void
 
 //===============
 //===============
+// --- More Aggressive Ambush Logic ---
 THINK(prox_open) (edict_t* ent) -> void
 {
-	edict_t* search;
-
-	search = nullptr;
-
-	if (ent->s.frame == 9) // end of opening animation
+	if (ent->s.frame == 9) // End of opening animation
 	{
-		// set the owner to nullptr so the owner can walk through it.  needs to be done here so the owner
-		// doesn't get stuck on it while it's opening if fired at point blank wall
 		ent->s.sound = 0;
 
 		if (G_IsDeathmatch() && !g_horde->integer)
@@ -446,72 +390,39 @@ THINK(prox_open) (edict_t* ent) -> void
 
 		if (ent->teamchain)
 			ent->teamchain->touch = Prox_Field_Touch;
-		while ((search = findradius(search, ent->s.origin, PROX_DAMAGE_RADIUS + 10)) != nullptr)
+
+		// --- SMARTER AMBUSH: Scan a larger radius for enemies upon arming ---
+		edict_t* search = nullptr;
+		const float ambush_radius = PROX_DAMAGE_RADIUS * 1.2f; // Increased scan radius
+
+		while ((search = findradius(search, ent->s.origin, ambush_radius)) != nullptr)
 		{
-			if (!search->classname) // tag token and other weird shit
+			if (!search->inuse || search == ent || OnSameTeam(search, ent->teammaster))
 				continue;
 
-			// teammate avoidance
-			if (CheckTeamDamage(search, ent->teammaster))
-				continue;
-
-			// if it's a monster or player with health > 0
-			// or it's a player start point
-			// and we can see it
-			// blow up
-			if (
-				search != ent &&
-				(
-					(((search->svflags & SVF_MONSTER) ||
-						(G_IsDeathmatch() && !g_horde->integer &&
-							(search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) &&
-						(search->health > 0)) ||
-					(G_IsDeathmatch() && !g_horde->integer &&
-						search->classname && // Added null check here
-						((!strcmp(search->classname, "misc_teleporter_dest")) ||
-							(!strncmp(search->classname, "item_flag_", 10))))
-					) &&
-				(visible(search, ent)))
+			// If a visible monster or enemy player is nearby, detonate immediately
+			if (search->takedamage && (search->svflags & SVF_MONSTER))//| search->client))
 			{
-				gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
-				Prox_Explode(ent);
-				return;
+				if (visible(ent, search))
+				{
+					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
+					Prox_Explode(ent);
+					return;
+				}
 			}
 		}
 
-		if (g_dm_strong_mines->integer)
-			ent->wait = (level.time + PROX_TIME_TO_LIVE).seconds();
-		else
-		{
-			switch ((int)(ent->dmg / (PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER)))
-			{
-			case 1:
-				ent->wait = (level.time + PROX_TIME_TO_LIVE).seconds();
-				break;
-			case 2:
-				ent->wait = (level.time + 30_sec).seconds();
-				break;
-			case 4:
-				ent->wait = (level.time + 15_sec).seconds();
-				break;
-			case 8:
-				ent->wait = (level.time + 10_sec).seconds();
-				break;
-			default:
-				ent->wait = (level.time + PROX_TIME_TO_LIVE).seconds();
-				break;
-			}
-		}
-
+		// Standard lifetime logic if no ambush target is found
+		ent->wait = (level.time + PROX_TIME_TO_LIVE).seconds();
 		ent->think = prox_seek;
 		ent->nextthink = level.time + 200_ms;
 	}
-	else
+	else // Opening animation
 	{
 		if (ent->s.frame == 0)
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxopen.wav"), 1, ATTN_NORM, 0);
-			ent->dmg *= PROX_DAMAGE_OPEN_MULTIPLIER;
+			ent->dmg = static_cast<int>(ent->dmg * PROX_DAMAGE_OPEN_MULTIPLIER);
 		}
 		ent->s.frame++;
 		ent->think = prox_open;
