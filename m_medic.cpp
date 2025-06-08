@@ -873,10 +873,7 @@ void medic_fire_blaster_bolt(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	if (!strcmp(self->enemy->classname, "tesla_mine"))
-		damage = 60;
-
-	monster_fire_blaster_bolt(self, start, dir, self->monsterinfo.IS_BOSS ? 6 : 4, 1150, mz, EF_BLUEHYPERBLASTER);
+	monster_fire_blaster_bolt(self, start, dir, damage, 1150, mz, EF_BLUEHYPERBLASTER);
 }
 
 void medic_fire_blaster(edict_t* self)

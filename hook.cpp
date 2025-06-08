@@ -63,7 +63,7 @@ void Hook_Reset(edict_t* rhook)
 	if (!rhook)
 		return;
 
-	// start with NULL pointer checks
+	// start with nullptr pointer checks
 	if (rhook->owner && rhook->owner->client)
 	{
 		// client's hook is no longer out
@@ -274,27 +274,27 @@ THINK(Hook_Think) (edict_t* self) -> void
 	vec3_t dir;   // Kyper - Lithium port - remove forward and right?
 
 	if (!self) {
-		gi.Com_Print("Hook_Think: self is null\n");
+		gi.Com_Print("Hook_Think: self is nullptr\n");
 		return;
 	}
 	if (!self->owner) {
-		gi.Com_Print("Hook_Think: self->owner is null\n");
+		gi.Com_Print("Hook_Think: self->owner is nullptr\n");
 		G_FreeEdict(self);
 		return;
 	}
 	if (!self->owner->owner) {
-		gi.Com_Print("Hook_Think: self->owner->owner is null\n");
+		gi.Com_Print("Hook_Think: self->owner->owner is nullptr\n");
 		G_FreeEdict(self);
 		return;
 	}
 	if (!self->owner->owner->client) {
-		gi.Com_Print("Hook_Think: self->owner->owner->client is null\n");
+		gi.Com_Print("Hook_Think: self->owner->owner->client is nullptr\n");
 		G_FreeEdict(self);
 		return;
 	}
 
 	// put start position into start
-	AngleVectors(self->owner->owner->client->v_angle, forward, right, NULL);   // Kyper - Lithium port - remove forward and right?
+	AngleVectors(self->owner->owner->client->v_angle, forward, right, nullptr);   // Kyper - Lithium port - remove forward and right?
 	offset = vec3_t{ 24, 8, -8 };  // Kyper - Lithium port - changed "ent->viewheight - 8" to "-8" following example in p_weapon.cpp
 	P_ProjectSource(self->owner->owner, self->owner->owner->client->v_angle, offset, start, dir);
 
@@ -424,7 +424,7 @@ void Weapon_Hook_Fire(edict_t* ent)
 	ent->client->hook_damage = 0;
 
 	// calculate start position and forward direction
-	AngleVectors(ent->client->v_angle, forward, right, NULL);
+	AngleVectors(ent->client->v_angle, forward, right, nullptr);
 	offset = vec3_t{ 24, 8, -8 };    // Kyper - Lithium port - changed "ent->viewheight - 8" to "-8" following example in p_weapon.cpp
 
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, dir);
