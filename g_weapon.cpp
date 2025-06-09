@@ -1121,6 +1121,11 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 
 void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held)
 {
+	if (!self)
+	{
+		return;
+	}
+
 	edict_t* grenade;
 	vec3_t	 dir;
 	vec3_t	 forward, right, up;
