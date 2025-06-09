@@ -60,6 +60,10 @@ void widow_start_run_10(edict_t* self);
 void widow_start_run_12(edict_t* self);
 
 void WidowCalcSlots(edict_t* self);
+// --- JUMP ATTACK ADDED ---
+// Forward declaration for the jump dispatcher
+void widow_jump(edict_t* self, blocked_jump_result_t result);
+
 
 // --- IMPROVED: Constants are clearer and balanced ---
 constexpr gtime_t RAIL_COOLDOWN = 2.0_sec;
@@ -999,19 +1003,107 @@ MONSTERINFO_CHECKATTACK(Widow_CheckAttack) (edict_t* self) -> bool
 	return M_CheckAttack_Base(self, 0.4f, 0.8f, 0.7f, 0.6f, 0.5f, 0.f);
 }
 
+// --- JUMP ATTACK ADDED ---
+void widow_jump_down(edict_t* self)
+{
+	vec3_t forward, up;
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 200);
+	self->velocity += (up * 350);
+}
+
+void widow_jump_up(edict_t* self)
+{
+	vec3_t forward, up;
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 300);
+	self->velocity += (up * 500);
+}
+
+void widow_jump_wait_land(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+}
+
+// --- FIX: Created two separate, constant animation definitions ---
+
+// Animation for jumping UP
+mframe_t widow_frames_jump_up[] = {
+	{ ai_move, -8 },
+	{ ai_move, -8 },
+	{ ai_move, -8, widow_jump_up }, // Jump action is here
+	{ ai_move, -8 },
+	{ ai_move, 0, widow_jump_wait_land },
+	{ ai_move, 0 },
+	{ ai_move, 0 },
+	{ ai_move, 0 }
+};
+MMOVE_T(widow_move_jump_up) = { FRAME_pain01, FRAME_pain08, widow_frames_jump_up, widow_run };
+
+// Animation for jumping DOWN
+mframe_t widow_frames_jump_down[] = {
+	{ ai_move, -8 },
+	{ ai_move, -8 },
+	{ ai_move, -8, widow_jump_down }, // Jump action is here
+	{ ai_move, -8 },
+	{ ai_move, 0, widow_jump_wait_land },
+	{ ai_move, 0 },
+	{ ai_move, 0 },
+	{ ai_move, 0 }
+};
+MMOVE_T(widow_move_jump_down) = { FRAME_pain01, FRAME_pain08, widow_frames_jump_down, widow_run };
+
+
+// --- FIX: Simplified the jump function to select the correct pre-defined animation ---
+void widow_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+	{
+		M_SetAnimation(self, &widow_move_jump_up);
+	}
+	else
+	{
+		M_SetAnimation(self, &widow_move_jump_down);
+	}
+}
+
 MONSTERINFO_BLOCKED(widow_blocked) (edict_t* self, float dist) -> bool
 {
+	// --- JUMP ATTACK ADDED ---
+	// First, check if we can jump over the obstacle
+	if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	{
+		if (result != blocked_jump_result_t::JUMP_TURN)
+			widow_jump(self, result);
+		return true;
+	}
+
+	// Original logic for when blocked during a charge
 	if (self->monsterinfo.active_move == &widow_move_run_attack)
 	{
-		// If blocked during a charge, re-evaluate attack options
 		if (self->monsterinfo.checkattack(self))
 			self->monsterinfo.attack(self);
 		else
 			self->monsterinfo.run(self);
 		return true;
 	}
+
+	if (blocked_checkplat(self, dist))
+		return true;
+
 	return false;
 }
+// --- END JUMP ATTACK ---
 
 void WidowCalcSlots(edict_t* self)
 {
@@ -1117,6 +1209,11 @@ void SP_monster_widow(edict_t* self) {
 	self->monsterinfo.setskin = widow_setskin;
 	self->monsterinfo.blocked = widow_blocked;
 
+	// --- JUMP ATTACK ADDED ---
+	self->monsterinfo.can_jump = true;
+	self->monsterinfo.jump_height = 120;
+	self->monsterinfo.drop_height = 256;
+
 	gi.linkentity(self);
 	M_SetAnimation(self, &widow_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
@@ -1181,6 +1278,11 @@ void SP_monster_widow1(edict_t* self) {
 	self->monsterinfo.sight = widow_sight;
 	self->monsterinfo.setskin = widow_setskin;
 	self->monsterinfo.blocked = widow_blocked;
+
+	// --- JUMP ATTACK ADDED ---
+	self->monsterinfo.can_jump = true;
+	self->monsterinfo.jump_height = 120;
+	self->monsterinfo.drop_height = 256;
 
 	gi.linkentity(self);
 	M_SetAnimation(self, &widow_move_stand);
