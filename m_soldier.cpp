@@ -2136,7 +2136,7 @@ void SP_monster_soldier_light(edict_t* self)
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 52 * st.health_multiplier;
+	self->health = self->max_health = 60 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2165,9 +2165,15 @@ void SP_monster_soldier(edict_t* self)
 	sound_death.assign("soldier/soldeth1.wav");
 	gi.soundindex("soldier/solatck1.wav");
 
+	if (!st.was_key_specified("armor_power"))
+	self->monsterinfo.armor_power = 50;
+	if (!st.was_key_specified("armor_type"))
+	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
+	: self->monsterinfo.power_armor_type = IT_NULL;
+
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 48 * st.health_multiplier;
+	self->health = self->max_health = 56 * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
@@ -2193,9 +2199,15 @@ void SP_monster_soldier_ss(edict_t* self)
 	sound_death_ss.assign("soldier/soldeth3.wav");
 	gi.soundindex("soldier/solatck3.wav");
 
+		if (!st.was_key_specified("armor_power"))
+	self->monsterinfo.armor_power = 80;
+	if (!st.was_key_specified("armor_type"))
+	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
+	: self->monsterinfo.power_armor_type = IT_NULL;
+
 	self->s.skinnum = 4;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 55 * st.health_multiplier;
+	self->health = self->max_health = 65 * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
@@ -2240,7 +2252,7 @@ void SP_monster_soldier_ripper(edict_t* self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = ((IsFirstThreeWaves(current_wave_level)) ? 35 : (g_hardcoop->integer ? 25 : 0));
+		self->monsterinfo.power_armor_power = ((IsFirstThreeWaves(current_wave_level)) ? 45 : (g_hardcoop->integer ? 35 : 0));
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
@@ -2308,6 +2320,12 @@ void SP_monster_soldier_lasergun(edict_t* self)
 	sound_pain_ss.assign("soldier/solpain3.wav");
 	sound_death_ss.assign("soldier/soldeth3.wav");
 	gi.soundindex("soldier/solatck3.wav");
+
+	if (!st.was_key_specified("armor_power"))
+	self->monsterinfo.armor_power = 50;
+	if (!st.was_key_specified("armor_type"))
+	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
+	: self->monsterinfo.power_armor_type = IT_NULL;
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;

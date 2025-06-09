@@ -3078,84 +3078,74 @@ inline bool IsSpecialUnit(horde::MonsterTypeID typeId)
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Special);
 }
 
+// =======================================================================
+// REPLACEMENT for IsValidMonsterForWave
+// =======================================================================
 inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements)
 {
-	// Fast exit for no requirements
-	if (waveRequirements == MonsterWaveType::None)
-	{
-		return true;
-	}
+    // Fast exit for no requirements (e.g., boss minion waves)
+    if (waveRequirements == MonsterWaveType::None) {
+        return true;
+    }
 
-	// Special wave types should be exclusive - if one of these is set, the monster MUST have it
-	const bool isSpecialWaveType =
-		HasWaveType(waveRequirements, MonsterWaveType::Gekk) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Berserk) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Mutant) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Spawner) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Shambler) ||
-		HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic);
+    const MonsterWaveType monster_flags = GetMonsterWaveTypes(typeId);
 
-	// For special wave types, enforce strict matching
-	if (isSpecialWaveType)
-	{
-		// If wave is Gekk, only allow Gekk monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Gekk) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Gekk))
-			return false;
+    // --- Step 1: Handle Exclusive, Thematic Waves (Strict Matching) ---
+    // If the wave is a special theme, the monster MUST match that theme. This preserves the feel of these waves.
+    static constexpr std::array<MonsterWaveType, 6> special_themes = {
+        MonsterWaveType::Gekk, MonsterWaveType::Berserk, MonsterWaveType::Mutant,
+        MonsterWaveType::Spawner, MonsterWaveType::Shambler, MonsterWaveType::Arachnophobic
+    };
 
-		// If wave is Berserker, only allow Berserker monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Berserk) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Berserk))
-			return false;
+    for (const auto& theme : special_themes) {
+        if (HasWaveType(waveRequirements, theme)) {
+            // If the wave has this theme, the monster must also have it.
+            return HasWaveType(monster_flags, theme);
+        }
+    }
 
-		// If wave is Mutant, only allow Mutant monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Mutant) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Mutant))
-			return false;
+    // --- Step 2: Handle General Wave Composition (Flexible Matching) ---
+    // This part is for non-special waves, allowing a mix of units.
 
-		// If wave is Spawner, only allow Spawner monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Spawner) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Spawner))
-			return false;
+    // A. Movement Type Check: This is a hard requirement. Ground units don't spawn in pure flying waves.
+    const bool wave_wants_ground = HasWaveType(waveRequirements, MonsterWaveType::Ground);
+    const bool wave_wants_flying = HasWaveType(waveRequirements, MonsterWaveType::Flying);
+    const bool monster_is_ground = HasWaveType(monster_flags, MonsterWaveType::Ground);
+    const bool monster_is_flying = HasWaveType(monster_flags, MonsterWaveType::Flying);
 
-		// If wave is Shambler, only allow Shambler monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Shambler) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Shambler))
-			return false;
+    if (wave_wants_ground && !wave_wants_flying) { // Ground-only wave
+        if (!monster_is_ground) return false;
+    }
+    else if (wave_wants_flying && !wave_wants_ground) { // Flying-only wave
+        if (!monster_is_flying) return false;
+    }
+    else if (wave_wants_ground && wave_wants_flying) { // Mixed ground/air wave
+        if (!monster_is_ground && !monster_is_flying) return false;
+    }
+    // If neither is specified, we don't filter based on movement (unlikely but safe).
 
-		// If wave is Arachnophobic, only allow Arachnophobic monsters
-		if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Arachnophobic))
-			return false;
-	}
-	else
-	{
-		// For regular wave types, check all required flags
-		// First check the most important exclusive categories that must match
-		if (HasWaveType(waveRequirements, MonsterWaveType::Flying) && !IsFlying(typeId))
-			return false;
+    // B. Category Check: The monster must match at least one of the main categories of the wave.
+    // This allows a "Light | Medium" wave to spawn both Light monsters AND Medium monsters.
+    constexpr MonsterWaveType category_mask =
+        MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Heavy |
+        MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Elite |
+        MonsterWaveType::Melee | MonsterWaveType::Ranged | MonsterWaveType::Bomber |
+        MonsterWaveType::Special; // 'Special' here means units like Medics.
 
-		if (HasWaveType(waveRequirements, MonsterWaveType::Small) && !IsSmallUnit(typeId))
-			return false;
+    // Get the categories the wave is looking for.
+    const MonsterWaveType required_categories = waveRequirements & category_mask;
 
-		if (HasWaveType(waveRequirements, MonsterWaveType::Heavy) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Heavy))
-			return false;
+    // If the wave has specific category requirements...
+    if (required_categories != MonsterWaveType::None) {
+        // ...the monster must have at least one of those categories.
+        if ((monster_flags & required_categories) == MonsterWaveType::None) {
+            return false;
+        }
+    }
 
-		if (HasWaveType(waveRequirements, MonsterWaveType::Melee) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Melee))
-			return false;
-
-		if (HasWaveType(waveRequirements, MonsterWaveType::Bomber) &&
-			!HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Bomber))
-			return false;
-	}
-
-	// For mixed waves, check if there's at least one match in other categories
-	// This only applies to non-special wave types now
-	return isSpecialWaveType || (GetMonsterWaveTypes(typeId) & waveRequirements) != MonsterWaveType::None;
+    // If all checks pass, the monster is valid for this wave.
+    return true;
 }
-
 
 // ADDED: Monster Info LUT global variable
 static std::array<const MonsterTypeInfo *, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monster_info_lut;

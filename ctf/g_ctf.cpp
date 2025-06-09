@@ -2190,7 +2190,7 @@ int CTFApplyStrength(edict_t* ent, int dmg) {
 	}
 
 	if (ent->client && dmg && ent->client->pers.inventory[IT_TECH_STRENGTH]) {
-		return (ent->client->resp.spree >= 10 || current_wave_level >= 15) ? dmg * 2.0f : dmg * 1.5f;
+		return (ent->client->resp.spree >= 10 || current_wave_level >= 20) ? dmg * 2.0f : dmg * 1.5f;
 	}
 
 	return dmg;
