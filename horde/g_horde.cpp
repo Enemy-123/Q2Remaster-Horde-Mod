@@ -5485,6 +5485,7 @@ static void SetMonsterArmor(edict_t *monster);
 static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 
 // --- REVISED FindEmergencySpawnPosition (Streamlined & Robust) ---
+// --- REVISED FindEmergencySpawnPosition (Streamlined & Robust) ---
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId)
 {
 	PROFILE_SCOPE("FindEmergencySpawnPosition");
@@ -5549,9 +5550,10 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 				vec3_t dir_to_player = player_origin - validated_pos;
 				if (dir_to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
 					angles = vectoangles(dir_to_player);
-					if (!is_flying) {
-						angles[PITCH] = 0; // Ground monsters don't look up/down
-					}
+					// --- BUG FIX ---
+					// Always zero out the pitch to prevent monsters from looking up/down.
+					angles[PITCH] = 0;
+					// --- END FIX ---
 				} else {
 					angles = player->s.angles; // Fallback
 				}
@@ -5800,7 +5802,6 @@ static edict_t* FindTeleportDestination(edict_t* self)
     return random_element(candidates);
 }
 
-
 // --- REVISED CheckAndTeleportStuckMonster ---
 bool CheckAndTeleportStuckMonster(edict_t *self)
 {
@@ -5901,6 +5902,11 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Chosen destination is too close to recent teleport, skipping.\n");
 		return false;
 	}
+    
+    // --- BUG FIX ---
+    // Ensure the monster is not looking up or down after teleporting.
+    dest_angles[PITCH] = 0;
+    // --- END FIX ---
 
 	if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
 		MarkPositionAsRecentlyTeleported(self->s.origin);
@@ -5929,7 +5935,6 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 
 	return false;
 }
-
 // Helper function to select a retaliation-themed monster
 horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel)
 {
@@ -6165,9 +6170,10 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 				// Calculate angle to face away from the original blocked point.
 				if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
 					final_angles = vectoangles(offset_dir);
-					if (!is_flying) {
-						final_angles[PITCH] = 0; // Ground monsters look straight ahead.
-					}
+					// --- BUG FIX ---
+					// Always zero out the pitch to prevent flying monsters from looking up/down.
+					final_angles[PITCH] = 0; 
+					// --- END FIX ---
 				} else {
 					final_angles = base_angles; // Fallback to original angle.
 				}

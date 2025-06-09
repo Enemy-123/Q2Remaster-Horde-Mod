@@ -727,7 +727,7 @@ void SP_monster_floater_tracker(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 150;
+		self->monsterinfo.power_armor_power = 200;
 
 	self->health = 450 * st.health_multiplier;
 	self->s.effects = EF_BARREL_EXPLODING;
