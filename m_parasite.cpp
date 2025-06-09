@@ -356,13 +356,13 @@ MMOVE_T(parasite_move_break) = { FRAME_break01, FRAME_break32, parasite_frames_b
 
 TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	// owner isn't trying to probe any more, don't touch anything
-	if (self->owner->monsterinfo.active_move != &parasite_move_fire_proboscis)
+	// Safety checks: owner must be valid and in the attack animation.
+	if (!self->owner || !self->owner->inuse || self->owner->monsterinfo.active_move != &parasite_move_fire_proboscis)
 		return;
 
 	vec3_t p;
 
-	// hit what we want to succ
+	// --- SUCCESS CASE: HIT INTENDED TARGET ---
 	if ((other->svflags & SVF_PLAYER) || other == self->owner->enemy)
 	{
 		if (tr.startsolid)
@@ -374,37 +374,60 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		self->movetype = MOVETYPE_NONE;
 		self->solid = SOLID_NOT;
 		self->style = 1;
-		// stick to this guy
 		self->move_origin = p - other->s.origin;
 		self->enemy = other;
 		self->s.alpha = 0.35f;
 		gi.sound(self, CHAN_WEAPON, sound_suck, 1, ATTN_NORM, 0);
 	}
+	// --- FAILURE CASE: HIT ANYTHING ELSE ---
 	else
 	{
-		p = tr.endpos + tr.plane.normal;
-		// hit monster, don't suck but do small damage
-		// and retract immediately
-		if (other->svflags & (SVF_MONSTER | SVF_DEADMONSTER))
+		// Play impact sound at the point of collision.
+		gi.positioned_sound(tr.endpos, self->owner, CHAN_AUTO, sound_impact, 1, ATTN_NORM, 0);
+
+		// Deal minor impact damage.
+		if (other->takedamage)
+			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
+
+		// Decide how the parasite reacts to the miss.
+		if (self->owner->monsterinfo.bonus_flags != BF_NONE && !(self->owner->monsterinfo.bonus_flags & BF_FRIENDLY))
+		{
+			// Bonus monsters retract immediately.
 			proboscis_retract(self);
+			parasite_start_run(self->owner);
+		}
 		else
 		{
-			// hit wall; stick to it and do break animation
-			self->owner->monsterinfo.active_move = &parasite_move_break;
-			self->movetype = MOVETYPE_NONE;
-			self->solid = SOLID_NOT;
-			self->style = 1;
-			self->owner->s.angles[YAW] = self->s.angles[YAW];
+			// Standard monsters play the fail animation if they hit a wall.
+			if (other->svflags & (SVF_MONSTER | SVF_DEADMONSTER))
+			{
+				proboscis_retract(self);
+			}
+			else
+			{
+				// Hit a wall; get stuck and play the break animation.
+				self->owner->monsterinfo.active_move = &parasite_move_break;
+				self->movetype = MOVETYPE_NONE;
+				self->solid = SOLID_NOT;
+				self->style = 1;
+				self->owner->s.angles[YAW] = self->s.angles[YAW];
+				self->s.origin = tr.endpos + tr.plane.normal;
+				self->nextthink = level.time + FRAME_TIME_S;
+				gi.linkentity(self);
+			}
 		}
+		// Since we've handled the miss, we are done with this function.
+		return;
 	}
 
+	// This part only runs on a successful hit.
 	if (other->takedamage)
 		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
 
 	gi.positioned_sound(tr.endpos, self->owner, CHAN_AUTO, sound_impact, 1, ATTN_NORM, 0);
 
 	self->s.origin = p;
-	self->nextthink = level.time + FRAME_TIME_S; // start doing stuff on next frame
+	self->nextthink = level.time + FRAME_TIME_S;
 	gi.linkentity(self);
 }
 
@@ -506,40 +529,50 @@ THINK(proboscis_think) (edict_t* self) -> void
 			proboscis_retract(self);
 			return;
 		}
-		if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
-		{
-			proboscis_retract(self);
-			return;
-		}
 
-		self->s.origin = self->enemy->s.origin + self->move_origin;
-		vec3_t const start = parasite_get_proboscis_start(self->owner);
-		self->s.angles = vectoangles((self->s.origin - start).normalized());
-
-		trace_t const tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
-		if (tr.fraction != 1.0f)
+		// --- CORRECTED LOGIC ---
+		// First, check if we are attached to an enemy.
+		if (self->enemy)
 		{
-			proboscis_retract(self);
-			self->s.origin = self->s.old_origin;
-		}
-		else
-		{
-			if (self->timestamp <= level.time)
+			// If we are, check if that enemy is now dead or invalid.
+			if (!self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
 			{
-				int damage = irandom(2, 4);
-				if (M_DamageModifier(self)) {
-					damage *= M_DamageModifier(self->owner->owner);
-				}
-				T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
-
-				self->owner->health = min(self->owner->max_health, self->owner->health + 4);
-				if (self->owner->monsterinfo.setskin) {
-					self->owner->monsterinfo.setskin(self->owner);
-				}
-				self->timestamp = level.time + 10_hz;
+				proboscis_retract(self);
+				return;
 			}
+
+			// The enemy is valid, so update position and drain health.
+			self->s.origin = self->enemy->s.origin + self->move_origin;
+			vec3_t const start = parasite_get_proboscis_start(self->owner);
+			self->s.angles = vectoangles((self->s.origin - start).normalized());
+
+			trace_t const tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
+			if (tr.fraction != 1.0f)
+			{
+				proboscis_retract(self);
+				self->s.origin = self->s.old_origin;
+			}
+			else
+			{
+				if (self->timestamp <= level.time)
+				{
+					int damage = irandom(2, 4);
+					if (M_DamageModifier(self)) {
+						damage *= M_DamageModifier(self->owner->owner);
+					}
+					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
+
+					self->owner->health = min(self->owner->max_health, self->owner->health + 4);
+					if (self->owner->monsterinfo.setskin) {
+						self->owner->monsterinfo.setskin(self->owner);
+					}
+					self->timestamp = level.time + 10_hz;
+				}
+			}
+			gi.linkentity(self);
 		}
-		gi.linkentity(self);
+		// If self->enemy is null, we are stuck in a wall. Do nothing.
+		// The parasite's 'parasite_move_break' animation will handle retraction.
 	}
 	// flying
 	else if (self->style == 0)
@@ -629,8 +662,8 @@ static void fire_proboscis(edict_t* self, vec3_t start, vec3_t dir, float speed)
 
 static void parasite_fire_proboscis(edict_t* self)
 {
-	if (self->proboscus && self->proboscus->style != 2)
-		proboscis_reset(self->proboscus);
+	// if (self->proboscus && self->proboscus->style != 2)
+	// 	proboscis_reset(self->proboscus);
 
 	vec3_t const start = parasite_get_proboscis_start(self);
 
@@ -703,7 +736,10 @@ MMOVE_T(parasite_move_fire_proboscis) = { FRAME_drain01, FRAME_drain18, parasite
 
 MONSTERINFO_ATTACK(parasite_attack) (edict_t* self) -> void
 {
-	if (!M_CheckClearShot(self, parasite_drain_offsets[0]))
+	// if (!M_CheckClearShot(self, parasite_drain_offsets[0]))
+	// 	return;
+
+		if (self->proboscus)
 		return;
 
 	if (self->proboscus && self->proboscus->style != 2)
@@ -988,22 +1024,22 @@ void SP_monster_parasite(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 //HORDE BOSS
-constexpr spawnflags_t SPAWNFLAG_PERROKL = 8_spawnflag;
 void SP_monster_perrokl(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->spawnflags |= SPAWNFLAG_PERROKL;
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;
 	self->yaw_speed = 65;
-	self->style = 1;
-	self->s.alpha = 0.4f;
-	self->s.effects = EF_FLAG1;
+	//self->style = 1;
+	//self->s.alpha = 0.4f;
+	//self->s.effects = EF_FLAG1;
 	if (!strcmp(self->classname, "monster_perrokl")) {
+		// CORRECTED: Use |= to assign the flag
+		self->monsterinfo.bonus_flags |= BF_CORRUPTED;
 		self->gib_health = -70;
 		if (G_IsCooperative())
-		self->health = 375 * st.health_multiplier;
+			self->health = 375 * st.health_multiplier;
 		if (g_horde->integer) {
 			self->health = 775 * current_wave_level;
 			self->s.scale = 1.2f;
