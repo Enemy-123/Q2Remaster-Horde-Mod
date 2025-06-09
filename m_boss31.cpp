@@ -271,16 +271,16 @@ mframe_t jorg_frames_pain1[] = {
 };
 MMOVE_T(jorg_move_pain1) = { FRAME_pain101, FRAME_pain103, jorg_frames_pain1, jorg_run };
 
-mframe_t jorg_frames_deathsmall[] = {
+mframe_t jorg_frames_deathsmall[] = { //reduced numbers by scale 0.35
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move, -2 },
-	{ ai_move, -5 },
-	{ ai_move, -8 },
-	{ ai_move, -15, jorg_step_left },
+	{ ai_move, -0.7 },
+	{ ai_move, -1.75 },
+	{ ai_move, -2.8 },
+	{ ai_move, -5.25, jorg_step_left },
 	{ ai_move } // 10
 };
 MMOVE_T(jorg_move_deathsmall) = { FRAME_death01, FRAME_death10, jorg_frames_deathsmall, jorg_dead };
