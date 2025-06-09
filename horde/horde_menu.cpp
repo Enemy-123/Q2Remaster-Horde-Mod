@@ -1302,7 +1302,7 @@ public:
 			layout_builder.append(fmt::format(
 				"if 25 xv -90 yv 10 dogtag endif "
 				"if 25 xv 205 yv 8 pic 25 endif "
-				"if 0 xv 70 yv -20 num 2 19 endif \n",
+				"if 0 xv 70 yv -20 19 endif \n",
 				total_score, team_players.size()));
 		}
 	}
