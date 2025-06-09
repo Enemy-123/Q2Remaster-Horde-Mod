@@ -278,11 +278,8 @@ void WidowSpawn(edict_t* self) {
 		return;
 	}
 
+	// This check is now also performed in the attack function, but it's good practice here too.
 	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots) {
-		return;
-	}
-
-	if (level.time < self->monsterinfo.spawn_cooldown) {
 		return;
 	}
 
@@ -339,7 +336,8 @@ void WidowSpawn(edict_t* self) {
 		}
 	}
 
-	self->monsterinfo.spawn_cooldown = level.time + 5_sec; // Increased cooldown to prevent spam
+	// Set a cooldown to prevent instant re-spawning
+	self->monsterinfo.spawn_cooldown = level.time + 8_sec;
 }
 
 void widow_spawn_check(edict_t* self)
@@ -734,7 +732,6 @@ MONSTERINFO_WALK(widow_walk) (edict_t* self) -> void
 	M_SetAnimation(self, &widow_move_walk);
 }
 
-// --- MAJOR IMPROVEMENT: Restored charging attack and created a more dynamic AI ---
 MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy)) {
 		return;
@@ -743,9 +740,33 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	self->movetarget = nullptr;
 	const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
 	const float range = realrange(self, self->enemy);
-	const bool can_spawn = M_SlotsLeft(self) >= 2;
 
-	// 1. Charging Attack (The missing attack)
+	// --- 1. Spawning Logic (Inspired by Tank Spawner) ---
+	bool can_spawn = false;
+	// Check cooldown and if there are enough slots for a pair of stalkers
+	if (level.time >= self->monsterinfo.spawn_cooldown && M_SlotsLeft(self) >= 2)
+	{
+		if (is_widow1) {
+			// widow1 is a skirmisher, not a dedicated spawner.
+			// Limit it to a max of 2 active stalkers to encourage other attacks.
+			if (self->monsterinfo.monster_used <= 2) {
+				can_spawn = true;
+			}
+		}
+		else {
+			// The main widow boss can spawn as long as it has slots.
+			can_spawn = true;
+		}
+	}
+
+	// If all conditions are met, there's a high chance to spawn.
+	if (can_spawn && range > 150 && frandom() < 0.75f) {
+		M_SetAnimation(self, &widow_move_spawn);
+		// The cooldown is set within the WidowSpawn function itself.
+		return;
+	}
+
+	// --- 2. Charging Attack ---
 	// More likely at long range. widow1 is faster and more likely to charge.
 	const float charge_chance = is_widow1 ? 0.6f : 0.3f;
 	if (range > 400 && frandom() < charge_chance) {
@@ -753,28 +774,29 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 		return;
 	}
 
-	// 2. Spawning Attack
-	// High priority if slots are available, but not guaranteed.
-	if (can_spawn && range > 150 && frandom() < 0.75f) {
-		M_SetAnimation(self, &widow_move_spawn);
-		return;
-	}
-
-	// 3. Ranged Attacks (Railgun vs Blaster)
-	// If not charging or spawning, decide on a direct attack.
+	// --- 3. Ranged Attack Selection (Less Blaster Spam) ---
 	const bool rail_is_ready = level.time >= self->timestamp;
 	const bool blaster_is_ready = level.time >= self->monsterinfo.fire_wait;
 
-	if (rail_is_ready && (frandom() < 0.5f || !blaster_is_ready)) {
-		// Prefer railgun if it's ready and blaster is not, or by random chance
+	// If both attacks are ready, choose one probabilistically.
+	if (rail_is_ready && blaster_is_ready) {
+		if (frandom() < 0.6f) { // 60% chance to prefer the powerful railgun
+			gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
+			M_SetAnimation(self, &widow_move_attack_pre_rail);
+		}
+		else {
+			M_SetAnimation(self, &widow_move_attack_pre_blaster);
+		}
+	}
+	// Otherwise, fire whichever is ready.
+	else if (rail_is_ready) {
 		gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
 		M_SetAnimation(self, &widow_move_attack_pre_rail);
 	}
 	else if (blaster_is_ready) {
-		// Otherwise, use the blaster if it's ready
 		M_SetAnimation(self, &widow_move_attack_pre_blaster);
 	}
-	// If no attacks are ready, the widow will continue its run/walk cycle and try again.
+	// If no attacks are ready, the widow will continue its run/walk cycle.
 }
 
 void widow_attack_blaster(edict_t* self)
