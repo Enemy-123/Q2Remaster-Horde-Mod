@@ -722,7 +722,7 @@ TOUCH(blaster_unified_touch) (edict_t* self, edict_t* other, const trace_t& tr, 
 		if (mod_id == MOD_BLASTER)
 		{
 			// For the standard blaster, ONLY show an effect on the final bounce.
-			if (self->bounce_count == 1)
+			if (self->bounce_count == 0)
 			{
 				show_effect = true;
 			}
