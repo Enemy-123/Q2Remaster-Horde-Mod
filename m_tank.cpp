@@ -2846,8 +2846,8 @@ void SP_monster_tank_spawner(edict_t* self)
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	self->monsterinfo.blindfire = true;
 
-	if (strcmp(self->classname, "monster_tank_spawner") == 0)
-		self->s.skinnum = 2;
+	// if (strcmp(self->classname, "monster_tank_spawner") == 0)
+	// 	self->s.skinnum = 2;
 
 	// Aplicar banderas de bonificación
 	ApplyMonsterBonusFlags(self);

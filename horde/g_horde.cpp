@@ -7088,7 +7088,11 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
         }
     }
 
-    if (currentLevel >= 14 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
+    if (currentLevel >= 6 && monster->monsterinfo.power_armor_type == IT_NULL && 
+							monster->monsterinfo.armor_type == IT_NULL && 
+							monster->monsterinfo.power_armor_type == IT_NULL && 
+							monster->monsterinfo.armor_type == IT_NULL) {
+
         SetMonsterArmor(monster);
         if (!monster->inuse) return false;
     }
@@ -7198,6 +7202,27 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
 
 static void SetMonsterArmor(edict_t *monster)
 {
+	// Input validation and exception for specific monster types ---
+	if (!monster || !monster->inuse || !monster->classname)
+	{
+		return;
+	}
+
+	// Get the monster's unique type ID from its classname
+	const horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(monster->classname);
+
+	// Check if this monster type should be excluded from getting armor
+	if (typeId == horde::MonsterTypeID::MUTANT ||
+		typeId == horde::MonsterTypeID::REDMUTANT ||
+		typeId == horde::MonsterTypeID::GEKK)
+	{
+		// These monsters are fast, agile, or swarming units. Giving them armor
+		// can be unbalanced, so they are explicitly excluded from this bonus.
+		return;
+	}
+	// --- END OF ADDED CODE ---
+
+
 	// Cache frequently used constants to avoid recalculating
 	static constexpr float HEALTH_RATIO_POW = 1.1f;
 	static constexpr float SIZE_FACTOR_POW = 0.7f;
@@ -7209,7 +7234,7 @@ static void SetMonsterArmor(edict_t *monster)
 	const spawn_temp_t &st = ED_GetSpawnTemp();
 
 	// Assign default armor type if not specified
-	if (!st.was_key_specified("power_armor_power"))
+	if (!st.was_key_specified("armor_power") && !st.was_key_specified("power_armor_power"))
 	{
 		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	}
@@ -7245,18 +7270,18 @@ static void SetMonsterArmor(edict_t *monster)
 	armor_power *= level_scaling;
 
 	// Apply level-based multiplier
-	float armor_multiplier = current_wave_level <= 30 ? 0.4f : current_wave_level <= 40 ? 0.5f
+	float armor_multiplier = current_wave_level <= 24 ? 0.4f : current_wave_level <= 30 ? 0.5f
 																						: 0.6f;
 	armor_power *= armor_multiplier;
 
 	// Difficulty adjustment
 	if (g_insane->integer)
 	{
-		armor_power *= 1.2f;
+		armor_power *= 1.25f;
 	}
 	else if (g_chaotic->integer)
 	{
-		armor_power *= 1.1f;
+		armor_power *= 1.2f;
 	}
 
 	// Apply random factor - use faster random generation
