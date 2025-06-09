@@ -271,6 +271,21 @@ mframe_t jorg_frames_pain1[] = {
 };
 MMOVE_T(jorg_move_pain1) = { FRAME_pain101, FRAME_pain103, jorg_frames_pain1, jorg_run };
 
+mframe_t jorg_frames_deathsmall[] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, -2 },
+	{ ai_move, -5 },
+	{ ai_move, -8 },
+	{ ai_move, -15, jorg_step_left },
+	{ ai_move } // 10
+};
+MMOVE_T(jorg_move_deathsmall) = { FRAME_death01, FRAME_death10, jorg_frames_deathsmall, jorg_dead };
+
+
 mframe_t jorg_frames_death1[] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
@@ -324,6 +339,7 @@ mframe_t jorg_frames_death1[] = {
 	{ ai_move } // 50
 };
 MMOVE_T(jorg_move_death) = { FRAME_death01, FRAME_death50, jorg_frames_death1, jorg_dead };
+
 
 mframe_t jorg_frames_attack2[] = {
 	{ ai_charge },
@@ -637,7 +653,11 @@ DIE(jorg_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	self->deadflag = true;
 	self->takedamage = false;
 	self->count = 0;
+
+	if (self->s.scale >= 1.0f)
 	M_SetAnimation(self, &jorg_move_death);
+	else
+	M_SetAnimation(self, &jorg_move_deathsmall);
 }
 
 // [Paril-KEX] use generic function
