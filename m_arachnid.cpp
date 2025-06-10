@@ -621,16 +621,26 @@ MONSTERINFO_PHYSCHANGED(spider_physics_change) (edict_t* self) -> void
 // --- spider_stand / spider_run (needed for animation callbacks) ---
 MONSTERINFO_STAND(spider_stand) (edict_t* self) -> void
 {
+    if (SPIDER_ON_CEILING(self)) {
+        self->viewheight = -16;
+    } else {
+        self->viewheight = 24;
+    }
     // Redirect to the standard arachnid stand
     arachnid_stand(self);
 }
 
 MONSTERINFO_RUN(spider_run) (edict_t* self) -> void
 {
+    if (SPIDER_ON_CEILING(self)) {
+        self->viewheight = -16;
+    } else {
+        self->viewheight = 24;
+    }
+    
     // Redirect to the standard arachnid run
     arachnid_run(self);
 }
-
 //==========================================================================================
 // STANDARD ARACHNID IMPLEMENTATION 
 //==========================================================================================
@@ -1916,6 +1926,9 @@ void SP_monster_spider(edict_t* self)
     SP_monster_arachnid(self);
 
     // Override functions for spider variant
+    self->monsterinfo.stand = spider_stand;
+    self->monsterinfo.run = spider_run;
+
     self->monsterinfo.attack = spider_attack;
     // Assign new functions for jumping/ceiling/dodging
     self->monsterinfo.dodge = spider_dodge; // We'll define this next
