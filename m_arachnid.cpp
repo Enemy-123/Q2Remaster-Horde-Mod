@@ -378,13 +378,8 @@ void spider_jump_wait_land(edict_t* self)
 		self->gravity = 1;
 		self->monsterinfo.nextframe = self->s.frame + 1;
 
-		// Adjust origin if landed on ceiling to prevent clipping
-		if (SPIDER_ON_CEILING(self) && self->groundentity && self->groundentity->solid == SOLID_BSP)
-		{
-			// Position origin so the spider's bottom (mins[2]) is flush with the ceiling surface, with a slight adjustment
-			self->s.origin[2] = self->groundentity->s.origin[2] - fabsf(self->mins[2]) - 6.0f; // Added -2.0f offset
-			gi.linkentity(self); // Re-link after origin change
-		}
+		// THE PROBLEMATIC BLOCK HAS BEEN REMOVED.
+		// The physics engine will handle correct placement on the ground/ceiling.
 	}
 }
 
