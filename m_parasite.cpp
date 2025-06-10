@@ -676,12 +676,12 @@ static void parasite_fire_proboscis(edict_t* self)
 	//AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	//self->enemy->velocity = forward * -200;
 
-	if (strcmp(self->classname, "monster_perrokl")) {
+	if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY)) {
 
-		fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed);
+		fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed * 2.5f);
 	}
-else
-		fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed * 5);
+	else
+		fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed);
 	}
 
 static void parasite_proboscis_wait(edict_t* self)
@@ -736,15 +736,15 @@ MMOVE_T(parasite_move_fire_proboscis) = { FRAME_drain01, FRAME_drain18, parasite
 
 MONSTERINFO_ATTACK(parasite_attack) (edict_t* self) -> void
 {
-	// if (!M_CheckClearShot(self, parasite_drain_offsets[0]))
-	// 	return;
+	// If an old proboscis entity still exists from a previous attack,
+	// we must forcefully remove it *before* starting the new attack animation.
+	// This cleans the state and prevents the AI from getting stuck or hesitating
+	// because it thinks an attack is already in progress.
+	if (self->proboscus)
+		proboscis_reset(self->proboscus);
 
-		if (self->proboscus)
-		return;
-
-	if (self->proboscus && self->proboscus->style != 2)
-		proboscis_retract(self->proboscus);
-
+	// Now that the state is clean, we can safely start the attack animation.
+	// A few frames into this animation, a new proboscis will be created.
 	M_SetAnimation(self, &parasite_move_fire_proboscis);
 }
 
@@ -955,6 +955,19 @@ MONSTERINFO_SETSKIN(parasite_setskin) (edict_t* self) -> void
 		self->s.skinnum = 0;
 }
 
+// This is the custom checkattack function for the Parasite.
+// It uses the engine's robust base checking function but provides
+// aggressive probabilities to encourage long-range attacks.
+MONSTERINFO_CHECKATTACK(parasite_check_attack) (edict_t* self) -> bool
+{
+	// Parameters for M_CheckAttack_Base:
+	// self, stand_chance, melee_chance, near_chance, mid_chance, far_chance, strafe_scalar
+
+	// We set a high chance to attack at all ranges, especially 'far'.
+	// This overrides the default behavior where far_chance is 0.
+	return M_CheckAttack_Base(self, 0.9f, 0.95f, 0.8f, 0.7f, 0.5f, 1.0f);
+}
+
 constexpr spawnflags_t SPAWNFLAG_PARASITE_NOJUMPING = 8_spawnflag;
 
 /*QUAKED monster_parasite (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight NoJumping
@@ -1010,7 +1023,7 @@ void SP_monster_parasite(edict_t* self)
 	self->monsterinfo.idle = parasite_idle;
 	self->monsterinfo.blocked = parasite_blocked; // PGM
 	self->monsterinfo.setskin = parasite_setskin;
-
+    self->monsterinfo.checkattack = parasite_check_attack;
 	gi.linkentity(self);
 
 	M_SetAnimation(self, &parasite_move_stand);

@@ -770,89 +770,79 @@ static void infantry_grenade(edict_t* self)
     constexpr float DIRECT_THROW_RANGE = 450.f;  // Max distance for a fast, direct throw.
 
     vec3_t start_pos;
-    vec3_t target_pos;
     vec3_t aim_dir;
     float  effective_speed;
     const vec3_t offset = { 24, 10, 10 }; // Offset from model origin to hand
 
-    // --- Step 1: Determine the Target Position ---
-    // This handles both normal combat and blind-firing.
+    // --- Step 1: Turn to Face the Target ---
+    // PredictAim requires an entity, so we must have a valid enemy.
+    // The blind-fire case needs a different approach.
     bool const is_blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
     if (is_blindfire)
     {
-        // For blind-fire, the target is a pre-calculated position.
+        // Blind-fire case: PredictAim cannot be used as it requires an entity target.
+        // We fall back to the robust manual lob calculation.
         if (!self->monsterinfo.blind_fire_target) {
-            infantry_grenade_cleanup(self); // Cleanup and abort if target is invalid
+            infantry_grenade_cleanup(self);
             return;
         }
-        target_pos = self->monsterinfo.blind_fire_target;
+        vec3_t target_pos = self->monsterinfo.blind_fire_target;
+
+        // Turn to face the target location
+        vec3_t dir_to_target = target_pos - self->s.origin;
+        self->ideal_yaw = vectoyaw(dir_to_target);
+        M_ChangeYaw(self);
+
+        // Calculate start position
+        vec3_t forward, right, up;
+        AngleVectors(self->s.angles, forward, right, up);
+        start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+        
+        // Use the simple and reliable upward lob calculation
+        float dist_to_target = (target_pos - start_pos).length();
+        aim_dir = target_pos - start_pos;
+        aim_dir.z += dist_to_target * 0.4f; // Add upward velocity proportional to distance
+        aim_dir.normalize();
+        effective_speed = LOB_GRENADE_SPEED;
     }
     else
     {
-        // For normal combat, predict the enemy's position.
+        // Normal combat case: Use PredictAim for high accuracy.
         if (!self->enemy || !self->enemy->inuse) {
-            infantry_grenade_cleanup(self); // Cleanup and abort if enemy is gone
+            infantry_grenade_cleanup(self);
             return;
         }
-        // Predict based on a typical lob speed. It's a good general estimate.
-        PredictAim(self, self->enemy, self->s.origin, LOB_GRENADE_SPEED, true, 0.0f, nullptr, &target_pos);
-    }
 
-    // --- Step 2: Turn to Face the Target ---
-    // Ensures the infantry is looking where they are throwing.
-    vec3_t dir_to_target = target_pos - self->s.origin;
-    self->ideal_yaw = vectoyaw(dir_to_target);
-    M_ChangeYaw(self);
+        // Turn to face the enemy
+        self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
+        M_ChangeYaw(self);
 
-    // --- Step 3: Calculate Grenade's Start Position & Distance ---
-    vec3_t forward, right, up;
-    AngleVectors(self->s.angles, forward, right, up);
-    start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-    float const dist_to_target = (target_pos - start_pos).length();
+        // Calculate start position
+        vec3_t forward, right, up;
+        AngleVectors(self->s.angles, forward, right, up);
+        start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+        float const dist_to_target = range_to(self, self->enemy);
 
-    // --- Step 4: Choose Throw Type (Aggressive Direct vs. Tactical Lob) ---
-    bool use_direct_throw = false;
-    if (!is_blindfire && self->enemy && dist_to_target < DIRECT_THROW_RANGE)
-    {
-        // Check for a clear line of sight for a direct throw.
+        // Decide on throw speed based on distance and line-of-sight
         trace_t tr = gi.traceline(start_pos, self->enemy->s.origin + vec3_t{0, 0, 16.f}, self, MASK_SOLID);
-        if (tr.ent == self->enemy)
+        if (dist_to_target < DIRECT_THROW_RANGE && tr.ent == self->enemy)
         {
-            use_direct_throw = true;
+            effective_speed = FAST_GRENADE_SPEED; // Fast, direct throw
         }
-    }
-
-    // --- Step 5: Calculate the Final Trajectory ---
-    if (use_direct_throw)
-    {
-        // AGGRESSIVE THROW: Fast and direct. Good for close, visible targets.
-        effective_speed = FAST_GRENADE_SPEED;
+        else
+        {
+            effective_speed = LOB_GRENADE_SPEED; // Slower, higher-arcing lob
+        }
+        
+        // This is the key: Use PredictAim with gravity compensation enabled.
+        // It calculates the perfect arcing shot to the enemy's future position.
         PredictAim(self, self->enemy, start_pos, effective_speed, true, 0.0f, &aim_dir, nullptr);
     }
-    else
-    {
-        // TACTICAL LOB: Slower, higher arc. Good for long range, obstacles, or blind-fire.
-        effective_speed = LOB_GRENADE_SPEED;
-        aim_dir = target_pos - start_pos;
-        aim_dir.normalize();
 
-        // This is the robust calculation inspired by the Gun Commander.
-        if (!M_CalculatePitchToFire(self, target_pos, start_pos, aim_dir, effective_speed, 2.5f, false, false))
-        {
-            // FALLBACK: If a perfect arc can't be found, don't fail!
-            // Instead, use a simple, reliable upward lob. This prevents firing into the ground.
-            aim_dir = target_pos - start_pos;
-            aim_dir.z += dist_to_target * 0.4f; // Add upward velocity proportional to distance
-            aim_dir.normalize();
-        }
-    }
-
-    // --- Step 6: Fire the Grenade ---
+    // --- Step 2: Fire the Grenade ---
     fire_grenade2(self, start_pos, aim_dir, 40, effective_speed, 2.5_sec, 80, false);
     gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
-
-    // The cleanup is handled by the MMOVE_T definition, so no need to call it here.
 }
 
 // [Paril-KEX] run-attack, inspired by q2test
