@@ -419,7 +419,6 @@ void spider_jump(edict_t* self, blocked_jump_result_t result)
 		M_SetAnimation(self, &spider_move_jump_down);
 	}
 }
-
 // --- spider_do_pounce ---
 bool spider_check_lz(edict_t* self, edict_t* target, const vec3_t& dest)
 {
@@ -526,8 +525,8 @@ MONSTERINFO_BLOCKED(spider_blocked) (edict_t* self, float dist) -> bool
 				return true;
 		}
 
-        // Chance to transition to ceiling if blocked
-        if (frandom() < 0.3f && spider_ok_to_transition(self))
+        // MODIFICATION: Increased the chance to transition to the ceiling when blocked on the floor from 30% to 60%.
+        if (frandom() < 0.6f && spider_ok_to_transition(self))
         {
             spider_jump_transition(self);
             return true;
@@ -535,8 +534,10 @@ MONSTERINFO_BLOCKED(spider_blocked) (edict_t* self, float dist) -> bool
 	}
 	else // Currently on ceiling
 	{
-		// If blocked on ceiling, try to transition down
-		if (spider_ok_to_transition(self))
+		// MODIFICATION: If blocked on the ceiling, give it only a 25% chance to jump down.
+		// This makes it more likely to stay on the ceiling and try to find another path,
+		// effectively making it stay on the ceiling for longer periods.
+		if (frandom() < 0.25f && spider_ok_to_transition(self))
 		{
 			spider_jump_transition(self);
 			return true;
@@ -927,8 +928,8 @@ MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
         return;
     }
 
-    // Chance to jump/pounce before shooting
-    if (self->groundentity && frandom() < 0.2f) // 20% chance
+    // MODIFICATION: Increased chance to attempt a jump during combat from 20% to 40%.
+    if (self->groundentity && frandom() < 0.4f)
     {
         if (!SPIDER_ON_CEILING(self) && dist > 100 && dist < 400 && frandom() < 0.5f) // Pounce condition
         {
@@ -938,7 +939,9 @@ MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
         else // Otherwise, try a transition jump
         {
              if (spider_ok_to_transition(self)) {
-                 spider_dodge_jump(self); // Use dodge jump for transition
+                 // MODIFICATION: Fixed a bug. It was calling spider_dodge_jump, which is for strafing.
+                 // The correct function to flip to/from the ceiling is spider_jump_transition.
+                 spider_jump_transition(self);
                  return; // Jump initiated
              }
         }
@@ -950,6 +953,7 @@ MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
     else
         M_SetAnimation(self, &spider_attack1);
 }
+
 
 MONSTERINFO_ATTACK(arachnid_attack) (edict_t* self) -> void
 {
@@ -1858,6 +1862,12 @@ void SP_monster_arachnid(edict_t* self)
 
     initialize_arachnid_sounds();
 
+    if (!self->monsterinfo.IS_BOSS)
+    {
+        self->health = 1000 * st.health_multiplier;
+        self->gib_health = -200;
+    }
+
     self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
     self->mins = { -48, -48, -20 };
     self->maxs = { 48, 48, 48 };
@@ -1885,11 +1895,6 @@ void SP_monster_arachnid(edict_t* self)
     if (!strcmp(self->classname, "monster_arachnid") && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
         self->health = 3500 + (1.08 * current_wave_level);
         self->gib_health = -99999;
-    }
-    else if (!strcmp(self->classname, "monster_arachnid") && !self->monsterinfo.IS_BOSS)
-    {
-        self->health = 1000 * st.health_multiplier;
-        self->gib_health = -200;
     }
     ApplyMonsterBonusFlags(self);
 }
@@ -1929,7 +1934,6 @@ void SP_monster_spider(edict_t* self)
         self->s.scale = 0.7f;
         self->health = IsFirstThreeWaves(current_wave_level) ? 350 * st.health_multiplier : 550 * st.health_multiplier;
         self->max_health = self->health;
-        self->gib_health = -150;
         self->mins *= self->s.scale;
         self->maxs *= self->s.scale;
     }
