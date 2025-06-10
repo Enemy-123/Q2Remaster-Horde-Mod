@@ -478,9 +478,8 @@ mframe_t berserk_frames_run_attack1[] = {
 };
 MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frames_run_attack1, berserk_run };
 
-
 //============================================================================
-// NEW TESLA-STYLE RANGED ATTACK
+// NEW TESLA-STYLE RANGED ATTACK (REVISED AND CLEANER)
 //============================================================================
 
 // Attack parameters
@@ -489,31 +488,15 @@ constexpr int   BERSERK_ZAP_DAMAGE      = 8;
 constexpr int   BERSERK_ZAP_KNOCKBACK   = 10;
 constexpr int   BERSERK_ZAP_MAX_TARGETS = 2; // Max enemies to zap per tick
 
-// Forward declaration for the looping animation
-extern const mmove_t berserk_move_run_ranged;
-
-// This is the core logic, adapted from the Tesla mine.
-// It runs continuously while the Berserker is in its ranged attack state.
-THINK(berserk_ranged_think) (edict_t* self) -> void
+// This function contains the lightning logic and is called on a specific frame.
+void berserk_zap_enemies(edict_t* self)
 {
-	// --- Stop Condition ---
-	// If the enemy is gone, or we've been knocked out of the special animation
-	// (e.g., by a pain animation), stop this attack.
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 ||
-		self->monsterinfo.active_move != &berserk_move_run_ranged)
-	{
-		self->think = nullptr; // Stop thinking
-		if (self->deadflag == false)
-			berserk_run(self); // Go back to normal run
-		return;
-	}
-
 	// --- Target Acquisition ---
 	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	
-	// The source of the lightning is the Berserker's raised hand
-	vec3_t const zap_origin = G_ProjectSource(self->s.origin, {30.f, 8.f, 28.f}, forward, right);
+	// Corrected coordinates for the Berserker's raised LEFT hand.
+	vec3_t const zap_origin = G_ProjectSource(self->s.origin, {25.f, -20.f, 40.f}, forward, right);
 
 	int targets_hit = 0;
 	edict_t* target = nullptr;
@@ -522,72 +505,66 @@ THINK(berserk_ranged_think) (edict_t* self) -> void
 	while ((target = findradius(target, self->s.origin, BERSERK_ZAP_RADIUS)) != nullptr)
 	{
 		if (targets_hit >= BERSERK_ZAP_MAX_TARGETS)
-			break; // Don't attack more than the max number of targets per tick
+			break;
 
 		if (!target->inuse || target == self || target->health <= 0 || !target->takedamage)
 			continue;
 
-		// Don't attack teammates
 		if (OnSameTeam(self, target))
 			continue;
 
-		// Check for a clear line of sight from hand to target
-		trace_t tr = gi.traceline(zap_origin, target->s.origin, self, MASK_SHOT);
+		vec3_t target_center = (target->absmin + target->absmax) * 0.5f;
+		trace_t tr = gi.traceline(zap_origin, target_center, self, MASK_SHOT);
 		if (tr.ent != target)
-			continue; // Path is blocked
+			continue;
 
 		// --- Attack Phase ---
 		targets_hit++;
-
-		// Apply damage
-		vec3_t dir = target->s.origin - zap_origin;
-		dir.normalize();
-		T_Damage(target, self, self, dir, tr.endpos, tr.plane.normal,
+		T_Damage(target, self, self, vec3_origin, tr.endpos, tr.plane.normal,
 			BERSERK_ZAP_DAMAGE, BERSERK_ZAP_KNOCKBACK, DAMAGE_ENERGY, MOD_TESLA);
 
-		// Draw the lightning effect
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_LIGHTNING);
-		gi.WriteEntity(self);      // Source is the Berserker itself
-		gi.WriteEntity(target);    // Destination is the entity we hit
-		gi.WritePosition(zap_origin); // Start of the beam
-		gi.WritePosition(tr.endpos);  // End of the beam
+		gi.WriteEntity(self);
+		gi.WriteEntity(target);
+		gi.WritePosition(zap_origin);
+		gi.WritePosition(tr.endpos);
 		gi.multicast(zap_origin, MULTICAST_PVS, false);
 	}
-
-	// Schedule the next think
-	self->nextthink = level.time + 10_hz;
 }
 
-// This function is called when the wind-up animation finishes.
-// It transitions the Berserker into the looping animation and starts the attack logic.
-void berserk_start_ranged_attack(edict_t* self)
+// This function is called at the end of the loop to decide whether to continue or stop.
+void berserk_run_ranged_check(edict_t* self)
 {
-	M_SetAnimation(self, &berserk_move_run_ranged);
-	self->think = berserk_ranged_think;
-	self->nextthink = level.time;
-}
-
-// The looping part of the run animation. It just keeps looping.
-// The actual attack logic is handled by the think function.
-void berserk_run_ranged_loop(edict_t* self)
-{
-	// This function is called at the end of the animation sequence.
-	// We just set it back to the beginning to make it loop.
+	// If enemy is gone, gets too close, or we're no longer in the right animation, stop.
+	if (!self->enemy || !self->enemy->inuse || range_to(self, self->enemy) < 150)
+	{
+		berserk_run(self);
+		return;
+	}
+	
+	// Loop the animation by resetting to the start of the loop.
 	self->monsterinfo.nextframe = FRAME_r_att7;
 }
 
+// The looping part of the run animation.
 mframe_t berserk_frames_run_ranged[] = {
-	{ ai_run, 21 },                   // FRAME_r_att7
-	{ ai_run, 11, monster_footstep }, // FRAME_r_att8
-	{ ai_run, 21 },                   // FRAME_r_att9
-	{ ai_run, 25 },                   // FRAME_r_att10
-	{ ai_run, 18, monster_footstep }, // FRAME_r_att11
-	{ ai_run, 19 }                    // FRAME_r_att12
+	{ ai_run, 21 },                                   // FRAME_r_att7
+	{ ai_run, 11, monster_footstep },                 // FRAME_r_att8
+	{ ai_run, 21, berserk_zap_enemies },              // FRAME_r_att9 - Zap on this frame
+	{ ai_run, 25 },                                   // FRAME_r_att10
+	{ ai_run, 18, monster_footstep },                 // FRAME_r_att11
+	{ ai_run, 19, berserk_run_ranged_check }          // FRAME_r_att12 - Check to loop or stop
 };
-MMOVE_T(berserk_move_run_ranged) = { FRAME_r_att7, FRAME_r_att12, berserk_frames_run_ranged, berserk_run_ranged_loop };
+MMOVE_T(berserk_move_run_ranged) = { FRAME_r_att7, FRAME_r_att12, berserk_frames_run_ranged, berserk_run };
 
-// The wind-up animation to get into the ranged attack state
+// Function to transition to the main loop.
+void berserk_start_ranged_loop(edict_t* self)
+{
+	M_SetAnimation(self, &berserk_move_run_ranged);
+}
+
+// The wind-up animation to get into the ranged attack state.
 mframe_t berserk_frames_run_ranged_start[] = {
 	{ ai_run, 21 },                   // FRAME_r_att1
 	{ ai_run, 11, monster_footstep }, // FRAME_r_att2
@@ -596,11 +573,8 @@ mframe_t berserk_frames_run_ranged_start[] = {
 	{ ai_run, 18, monster_footstep }, // FRAME_r_att5
 	{ ai_run, 19 }                    // FRAME_r_att6
 };
-MMOVE_T(berserk_move_run_ranged_start) = { FRAME_r_att1, FRAME_r_att6, berserk_frames_run_ranged_start, berserk_start_ranged_attack };
+MMOVE_T(berserk_move_run_ranged_start) = { FRAME_r_att1, FRAME_r_att6, berserk_frames_run_ranged_start, berserk_start_ranged_loop };
 
-//============================================================================
-//============================================================================
-//============================================================================
 
 MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 {
@@ -609,36 +583,31 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 	// 1. Melee attack if close enough
 	if (self->monsterinfo.melee_debounce_time <= level.time && (dist < MELEE_DISTANCE))
 	{
-		self->think = nullptr; // Stop ranged attack if we switch to melee
 		berserk_melee(self);
 		return;
 	}
 
-	// If we are already in the ranged attack state, let the think function handle it.
+	// If we are already in the ranged attack state, let the animation handler do its job.
 	if (self->monsterinfo.active_move == &berserk_move_run_ranged)
 	{
-		// If the enemy gets too close, stop the ranged attack and charge them
-		if (dist < 150) {
-			self->think = nullptr;
-			berserk_run(self);
-		}
 		return;
 	}
 
 	// 2. NEW: Ranged attack if at a distance
-	// Only do this if not jumping and with a random chance
-	if (!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && dist > 200.f && dist < 700.f && frandom() < 0.1f)
+	if (!strcmp(self->enemy->classname, "tesla_mine") ||
+		!strcmp(self->enemy->classname, "monster_sentrygun") ||
+		(!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && dist > 40.f && dist < 700.f && frandom() < 0.33f))
+
 	{
-		gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0); // Use a windup sound
+		gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
 		M_SetAnimation(self, &berserk_move_run_ranged_start);
 		return;
 	}
-	
+
 	// 3. Jump attack if they are far enough away
 	if (!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && (self->timestamp < level.time && brandom()) && dist > 150.f)
 	{
 		M_SetAnimation(self, &berserk_move_attack_strike);
-		// don't do this for a while, otherwise we just keep doing it
 		gi.sound(self, CHAN_WEAPON, sound_jump, 1, ATTN_NORM, 0);
 		self->timestamp = level.time + 5_sec;
 		return;
