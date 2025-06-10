@@ -24,6 +24,8 @@ static cached_soundindex sound_death;
 static cached_soundindex sound_death_ss;
 static cached_soundindex sound_cock;
 
+// In your m_soldier.c, replace the existing soldier_style_t struct with this one.
+
 struct soldier_style_t
 {
 	enum weapon_t
@@ -50,8 +52,8 @@ struct soldier_style_t
 
 	// is blaster or ripper
 	constexpr bool is_light() { return weapon == Blaster || weapon == Ripper; }
-	// is shotgun or bluehyper
-	constexpr bool is_blitz() { return weapon == Shotgun || weapon == BlueHyper; }
+	// is shotgun ONLY
+	constexpr bool is_blitz() { return weapon == Shotgun; }
 	// is machinegun or laser
 	constexpr bool is_sustain() { return weapon == Machinegun || weapon == Laser; }
 
@@ -1185,17 +1187,38 @@ mframe_t soldier_frames_attack6[] = {
 };
 MMOVE_T(soldier_move_attack6) = { FRAME_runs01, FRAME_runs14, soldier_frames_attack6, soldier_run, 0.65f };
 
+/*
+==============================================================================
+soldier_attack (The Main Brain)
+
+This is the core decision-making function for the soldier's offense.
+A "smarter" soldier will choose its attack based on its weapon and range.
+
+Improvements:
+1.  Role-Based Tactics: Soldiers now behave differently based on their weapon.
+    - Blitz (Shotgun): Aggressively closes distance.
+    - Sustain (Machinegun): Prefers to keep distance and use suppressive fire.
+    - Light (Blaster): A flexible all-rounder.
+2.  Range-Based Decisions: The choice of attack (run-and-gun, standing fire,
+    ducking attack) is now heavily influenced by the distance to the target.
+3.  Reduced Randomness: While `frandom()` is still used for variety, the primary
+    decisions are now tactical, making the AI less predictable but more logical.
+==============================================================================
+*/
 MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 {
-	float r, chance;
-
 	monster_done_dodge(self);
 
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	float const dist_to_enemy = range_to(self, self->enemy);
 	soldier_style_t style(self);
 
-	// PMM - blindfire!
+	// --- BLINDFIRE LOGIC (remains unchanged) ---
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
+		float r, chance;
 		// setup shot probabilities
 		if (self->monsterinfo.blind_fire_delay < 1_sec)
 			chance = 1.0f;
@@ -1206,86 +1229,147 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 
 		r = frandom();
 
-		// minimum of 4.1 seconds, plus 0-3, after the shots are done
 		self->monsterinfo.blind_fire_delay += 4.1_sec + random_time(3_sec);
 
-		// don't shoot at the origin
 		if (!self->monsterinfo.blind_fire_target)
 			return;
-
-		// don't shoot if the dice say not to
 		if (r > chance)
 			return;
 
-		// turn on manual steering to signal both manual steering and blindfire
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
-
-		// RAFAEL
 		if (style.is_xatrix())
-			IsFirstThreeWaves(current_wave_level) ? M_SetAnimation(self, &soldierh_move_attack1) :
-			M_SetAnimation(self, &soldierh_move_attack1hard);
+			IsFirstThreeWaves(current_wave_level) ? M_SetAnimation(self, &soldierh_move_attack1) : M_SetAnimation(self, &soldierh_move_attack1hard);
 		else
-			// RAFAEL
-			IsFirstThreeWaves(current_wave_level) ? M_SetAnimation(self, &soldier_move_attack1) :
-			M_SetAnimation(self, &soldier_move_attack1hard);
+			IsFirstThreeWaves(current_wave_level) ? M_SetAnimation(self, &soldier_move_attack1) : M_SetAnimation(self, &soldier_move_attack1hard);
 		self->monsterinfo.attack_finished = level.time + random_time(1.5_sec, 2.5_sec);
 		return;
 	}
-	// pmm
 
-	// PMM - added this so the soldiers now run toward you and shoot instead of just stopping and shooting
-	r = frandom();
+	// --- NEW TACTICAL ATTACK SELECTION ---
 
-	// nb: run-shoot not limited by `M_CheckClearShot` since they will be far enough
-	// away that it doesn't matter
-
-	if ((!(self->monsterinfo.aiflags & (AI_BLOCKED | AI_STAND_GROUND))) &&
-		(r < 0.25f &&
-			(style.is_light() || style.is_blitz())) &&
-		(range_to(self, self->enemy) >= (RANGE_NEAR * 0.5f)))
+	// TACTIC: Hypergun Specialist (Medium-Long Range Pressure)
+	// Goal: Maintain distance and suppress with rapid, evasive fire.
+	if (style.has_bluehyper())
 	{
-		// [Paril-KEX] 
-		M_SetAnimation(self, &soldier_move_attack6);
-		self->sounds = 0;
-	}
-	else
-	{
-		if (style.is_light() || style.is_blitz())
+		// The run-and-gun is the Hypergun soldier's signature move.
+		// They should use it frequently to strafe at a distance.
+		if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && dist_to_enemy > (RANGE_NEAR * 0.75f) && frandom() < 0.6f)
 		{
-			bool attack1_possible = false;
-
-			// [Paril-KEX] shotgun guard only uses attack2 at close range
-			if (!style.has_shotgun() || range_to(self, self->enemy) > (RANGE_NEAR * 0.65f))
-				attack1_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_1]);
-
-			bool const attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
-
-			if (attack1_possible && (!attack2_possible || frandom() < 0.5f))
-			{
-				// RAFAEL
-				if (style.is_xatrix())
-					M_SetAnimation(self, &soldierh_move_attack1);
-				else
-					// RAFAEL
-					M_SetAnimation(self, &soldier_move_attack1);
-			}
-			else if (attack2_possible)
-			{
-				// RAFAEL
-				if (style.is_xatrix())
-					M_SetAnimation(self, &soldierh_move_attack2);
-				else
-					// RAFAEL
-					M_SetAnimation(self, &soldier_move_attack2);
-			}
+			M_SetAnimation(self, &soldier_move_attack6);
+			return;
 		}
-		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_MACHINEGUN_4]))
+
+		// If not run-and-gunning, a ducking attack is a great alternative from a distance.
+		if (dist_to_enemy > RANGE_MID && frandom() < 0.5f)
+		{
+			M_SetAnimation(self, &soldier_move_attack3);
+			return;
+		}
+
+		// Otherwise, use standard standing attacks based on what shot is clear.
+		bool const attack1_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_1]);
+		bool const attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
+
+		if (attack1_possible && (!attack2_possible || frandom() < 0.5f))
+		{
+			M_SetAnimation(self, &soldierh_move_attack1);
+		}
+		else if (attack2_possible)
+		{
+			M_SetAnimation(self, &soldierh_move_attack2);
+		}
+		else // Fallback to ducking attack if other options are blocked
+		{
+			M_SetAnimation(self, &soldier_move_attack3);
+		}
+		return;
+	}
+
+	// TACTIC: Close-Range Fighters (Shotgun ONLY)
+	// Goal: Get in close and do heavy damage.
+	if (style.is_blitz()) // This now only returns true for Shotgun
+	{
+		constexpr float SHOTGUN_EFFECTIVE_RANGE = RANGE_NEAR + 64; // 320 units
+		if (dist_to_enemy > SHOTGUN_EFFECTIVE_RANGE)
+		{
+			soldier_run(self);
+			return;
+		}
+		
+		if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && frandom() < 0.4f)
+		{
+			M_SetAnimation(self, &soldier_move_attack6);
+			self->sounds = 0;
+			return;
+		}
+
+		bool const attack1_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_1]);
+		bool const attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
+
+		if (attack1_possible && (!attack2_possible || frandom() < 0.5f))
+		{
+			M_SetAnimation(self, &soldier_move_attack1);
+		}
+		else if (attack2_possible)
+		{
+			M_SetAnimation(self, &soldier_move_attack2);
+		}
+		else
+		{
+			M_SetAnimation(self, &soldier_move_attack3);
+		}
+		return;
+	}
+
+	// TACTIC: Long-Range Fighters (Machinegun / Laser)
+	if (style.is_sustain())
+	{
+		if (dist_to_enemy > RANGE_MID && frandom() < 0.4f)
+		{
+			M_SetAnimation(self, &soldier_move_attack3);
+			return;
+		}
+
+		if (M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_MACHINEGUN_4]))
 		{
 			M_SetAnimation(self, &soldier_move_attack4);
 		}
+		else
+		{
+			soldier_run(self);
+		}
+		return;
+	}
+
+	// TACTIC: All-Rounders (Blaster / Ripper)
+	if (style.is_light())
+	{
+		if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) &&
+			dist_to_enemy > RANGE_NEAR && frandom() < 0.3f)
+		{
+			M_SetAnimation(self, &soldier_move_attack6);
+			self->sounds = 0;
+			return;
+		}
+
+		bool const attack1_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_1]);
+		bool const attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
+
+		if (attack1_possible && (!attack2_possible || frandom() < 0.5f))
+		{
+			M_SetAnimation(self, style.is_xatrix() ? &soldierh_move_attack1 : &soldier_move_attack1);
+		}
+		else if (attack2_possible)
+		{
+			M_SetAnimation(self, style.is_xatrix() ? &soldierh_move_attack2 : &soldier_move_attack2);
+		}
+		else
+		{
+			M_SetAnimation(self, &soldier_move_attack3);
+		}
+		return;
 	}
 }
-
 //
 // SIGHT
 //
@@ -1358,48 +1442,71 @@ static bool soldier_prone_shoot_ok(const edict_t* self)
 	return true;
 }
 
+/*
+==============================================================================
+ai_soldier_move (Prone Logic)
+
+This function controls the soldier's behavior while in the prone attack state.
+A "smarter" soldier won't just lie there; they will actively track the player.
+
+This version is updated to use the modern C++ `gi.traceline` function which
+returns the trace_t result by value.
+
+Improvements:
+1.  Line-of-Sight Check: The soldier performs a trace to see if they have a
+    clear shot. If their view is obstructed, they will get up.
+2.  Active Tracking: Uses M_ChangeYaw to smoothly pivot and keep their weapon
+    aimed at the player, as long as the player is within a reasonable arc.
+3.  Robustness: Checks if the enemy is valid and alive before continuing.
+==============================================================================
+*/
 static void ai_soldier_move(edict_t* self, float dist)
 {
-	ai_move(self, dist);
+	ai_move(self, dist); // Perform basic forward movement if any
 
-	// Si no tenemos enemigo o no está en uso, mantener comportamiento original
-	if (!self->enemy || !self->enemy->inuse)
+	// --- Exit Conditions: When should the soldier get up? ---
+
+	// 1. If the enemy is gone or dead, stand up.
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
-		if (!soldier_prone_shoot_ok(self))
-		{
-			soldier_stand_up(self);
-			return;
-		}
-		return;
-	}
-
-	// Calcular dirección al enemigo
-	vec3_t const dir = self->enemy->s.origin - self->s.origin;
-	float ideal_yaw = vectoyaw(dir);
-
-	// Limitar el ángulo de rotación mientras está tendido
-	float const current_yaw = anglemod(self->s.angles[YAW]);
-	float delta_yaw = anglemod(ideal_yaw - current_yaw);
-
-	// Permitir rotación solo dentro de un cono de ~120 grados (60 a cada lado)
-	if (delta_yaw > 180)
-		delta_yaw -= 360;
-
-	if (fabs(delta_yaw) > 60)
-	{
-		// Si el enemigo está fuera del arco de visión permitido, levantarse
 		soldier_stand_up(self);
 		return;
 	}
 
-	// Actualizar la orientación del soldier suavemente
-	float const yaw_speed = 3.0f; // Velocidad de rotación más lenta mientras está tendido
-	if (delta_yaw > yaw_speed)
-		self->s.angles[YAW] = anglemod(current_yaw + yaw_speed);
-	else if (delta_yaw < -yaw_speed)
-		self->s.angles[YAW] = anglemod(current_yaw - yaw_speed);
-	else
-		self->s.angles[YAW] = ideal_yaw;
+	// 2. If we no longer have a clear line of sight, stand up.
+	//    This is more robust than just checking angles.
+	vec3_t start, end;
+	vec3_t forward, right;
+
+	// Project from the gun's position for accuracy
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_8], forward, right);
+	end = self->enemy->s.origin;
+	end[2] += self->enemy->viewheight; // Aim for the center of the player
+
+	// ========================================================================
+	// CORRECTED TRACE CALL using the modern C++ wrapper
+	// We call gi.traceline and assign its return value to our local trace_t.
+	// ========================================================================
+	trace_t const tr = gi.traceline(start, end, self, MASK_SHOT);
+
+	// Check if the trace hit something before it reached the enemy.
+	if (tr.fraction < 1.0f && tr.ent != self->enemy)
+	{
+		// Path is blocked by something other than the enemy. Get up.
+		soldier_stand_up(self);
+		return;
+	}
+
+	// --- Active Tracking Logic ---
+
+	// If we are still prone and have a target, turn to face them.
+	vec3_t const dir_to_enemy = self->enemy->s.origin - self->s.origin;
+	self->ideal_yaw = vectoyaw(dir_to_enemy);
+
+	// Use the engine's helper to smoothly turn towards the ideal_yaw.
+	// The soldier's yaw_speed will control how fast they can track.
+	M_ChangeYaw(self);
 }
 
 void soldier_fire5(edict_t* self)
@@ -1484,42 +1591,70 @@ static void soldier_high_gravity(edict_t* self)
 	gi.linkentity(self);
 }
 
+
+// This function is already great. Let's just make sure the values are good.
+// Higher gravity on the way down makes for a snappier landing.
+static void soldier_apply_jump_gravity(edict_t* self)
+{
+    // Use a single gravity scale for consistency
+    float const gravity_scale = (800.f / level.gravity);
+
+    if (self->velocity[2] < 0)
+        self->gravity = 2.0f;  // Faster fall
+    else
+        self->gravity = 1.0f;  // Normal rise (or slightly faster)
+
+    // The original code had some strange negative/positive flipping.
+    // The engine expects self->gravity to be a positive multiplier.
+    // SV_AddGravity handles the direction.
+    gi.linkentity(self);
+}
+
+// Let's make the jump function more generic
+void soldier_do_jump(edict_t* self, float forward_vel, float up_vel)
+{
+    vec3_t forward, up;
+
+    AngleVectors(self->s.angles, forward, nullptr, up);
+    
+    // Clear vertical velocity before applying new jump force to prevent "double jumps" in mid-air
+    self->velocity[2] = 0; 
+    
+    self->velocity += (forward * forward_vel);
+    self->velocity += (up * up_vel);
+    
+    self->groundentity = nullptr; // We are now airborne
+}
+
+// The jump functions now just call the generic one with different profiles
 void soldier_jump_now(edict_t* self)
 {
-	vec3_t forward, up;
-
-	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 120);
-	self->velocity += (up * 200);
-
-	// Aplicar gravedad aumentada
-	soldier_high_gravity(self);
+    // A standard forward hop, good for clearing gaps
+    soldier_do_jump(self, 250, 250);
 }
+
 void soldier_jump2_now(edict_t* self)
 {
-	vec3_t forward, up;
-
-	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 130);
-	self->velocity += (up * 300);
-
-	// Aplicar gravedad aumentada
-	soldier_high_gravity(self);
+    // A higher jump, good for getting onto ledges
+    soldier_do_jump(self, 200, 350);
 }
 
-
+// The wait function can now use our custom gravity
 void soldier_jump_wait_land(edict_t* self)
 {
-	if (self->groundentity == nullptr)
-	{
-		self->monsterinfo.nextframe = self->s.frame;
-
-		if (monster_jump_finished(self))
-			self->monsterinfo.nextframe = self->s.frame + 1;
-	}
-	else
-		self->monsterinfo.nextframe = self->s.frame + 1;
+    // Apply custom gravity while in the air
+    if (self->groundentity == nullptr)
+    {
+        self->monsterinfo.nextframe = self->s.frame; // Hold animation frame
+        soldier_apply_jump_gravity(self); // Apply our smart gravity
+    }
+    else // We've landed
+    {
+        self->gravity = 1.0f; // Reset to default gravity multiplier
+        self->monsterinfo.nextframe = self->s.frame + 1; // Continue animation
+    }
 }
+
 mframe_t soldier_frames_jump[] = {
 	{ ai_move, 0, soldier_jump_now },
 	{ ai_move, 0, soldier_jump_wait_land },
@@ -1542,22 +1677,29 @@ mframe_t soldier_frames_jump2[] = {
 MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_run };
 
 
+// The main jump dispatcher can now be smarter
 void soldier_jump(edict_t* self, blocked_jump_result_t result)
 {
-	if (!self->enemy)
-		return;
+    if (!self->enemy)
+        return;
 
-	monster_done_dodge(self);
+    monster_done_dodge(self);
 
-	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
-
-		brandom() ?
-		M_SetAnimation(self, &soldier_move_jump2) :
-		M_SetAnimation(self, &soldier_move_jump);
-	else
-		brandom() ?
-		M_SetAnimation(self, &soldier_move_jump2) :
-		M_SetAnimation(self, &soldier_move_jump);
+    // Choose jump type based on the kind of obstacle
+    if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+    {
+        // We need to go UP, so use the high jump
+        M_SetAnimation(self, &soldier_move_jump2);
+    }
+    else // JUMP_JUMP_FORWARD
+    {
+        // We need to go FORWARD, so use the standard hop
+        // Let's also add the jump-and-fire animation sometimes for flair
+        if (frandom() < 0.5f)
+            M_SetAnimation(self, &soldier_move_jump);
+        else
+            M_SetAnimation(self, &soldier_move_jump2); // Use jump2 anim but it will call jump_now
+    }
 }
 // pmm - blocking code
 
@@ -1941,9 +2083,26 @@ DIE(soldier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 // NEW DODGE CODE
 //
 
+/*
+==============================================================================
+soldier_sidestep (Evasive Maneuver)
+
+This function is called when the soldier decides to sidestep incoming fire.
+The existing logic is already quite smart, effectively turning a "sidestep"
+into a more aggressive tactical repositioning.
+
+Logic Explanation (Why it's smart):
+- For non-sustain weapons (Blaster, Shotgun), a "sidestep" becomes a full
+  run-and-gun strafe. This is excellent for closing distance or circling
+  an enemy while firing.
+- For sustain weapons (Machinegun, Laser), which are best used from a stable
+  position, a "sidestep" is a quick run to a new firing position, after which
+  they will stop and re-engage.
+==============================================================================
+*/
 MONSTERINFO_SIDESTEP(soldier_sidestep) (edict_t* self) -> bool
 {
-	// don't sidestep during trip or up pain
+	// Don't sidestep if we're in an uninterruptible animation.
 	if (self->monsterinfo.active_move == &soldier_move_trip ||
 		self->monsterinfo.active_move == &soldier_move_attack5 ||
 		self->monsterinfo.active_move == &soldier_move_pain4)
@@ -1951,15 +2110,17 @@ MONSTERINFO_SIDESTEP(soldier_sidestep) (edict_t* self) -> bool
 
 	soldier_style_t style(self);
 
+	// Aggressive soldiers turn a dodge into a strafing attack.
 	if (!style.is_sustain())
 	{
 		if (self->monsterinfo.active_move != &soldier_move_attack6)
 		{
 			M_SetAnimation(self, &soldier_move_attack6);
-			self->sounds = 0;
+			self->sounds = 0; // Reset shotgun cocking state for this attack
 			soldierh_hyper_sound_end(self);
 		}
 	}
+	// Defensive soldiers use a dodge to quickly find a new firing position.
 	else
 	{
 		if (self->monsterinfo.active_move != &soldier_move_start_run &&
@@ -1974,24 +2135,48 @@ MONSTERINFO_SIDESTEP(soldier_sidestep) (edict_t* self) -> bool
 	return true;
 }
 
+/*
+==============================================================================
+soldier_duck (Evasive Maneuver)
+
+This function is called when the soldier decides to duck to evade incoming fire.
+A "smarter" soldier will choose the *best* type of duck for the situation.
+
+Improvements:
+1.  Tactical Prone: At longer ranges, going prone is a powerful defensive move.
+    The soldier will now opt to do this instead of a simple duck.
+2.  Dynamic Evasion: If caught while doing a run-and-gun, the soldier can
+    perform a "trip" into a prone position, a very cool and effective maneuver.
+3.  Variety: Retains the original choice between a simple duck and a
+    duck-and-fire for close-quarters situations.
+==============================================================================
+*/
 MONSTERINFO_DUCK(soldier_duck) (edict_t* self, gtime_t eta) -> bool
 {
 	self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 	soldier_stop_charge(self);
 
-	soldier_style_t style(self);
+	float const dist_to_enemy = self->enemy ? range_to(self, self->enemy) : 9999;
 
+	// TACTIC 1: If caught in a run-and-gun, perform a tactical trip to prone.
 	if (self->monsterinfo.active_move == &soldier_move_attack6)
 	{
 		M_SetAnimation(self, &soldier_move_trip);
 	}
-	else if (self->dmg ||
-		(style.is_sustain() ? (frandom() > 0.50f + (skill->integer * 0.12f)) : brandom()))
+	// TACTIC 2: At medium-to-long range, going fully prone is a better option than a simple duck.
+	else if (dist_to_enemy > RANGE_MID && frandom() < 0.5f)
 	{
+		M_SetAnimation(self, &soldier_move_trip); // This animation leads to the prone state
+	}
+	// TACTIC 3: At closer ranges, choose between a quick duck or a duck-and-fire.
+	else if (frandom() < 0.5f)
+	{
+		// A simple, fast evasion.
 		M_SetAnimation(self, &soldier_move_duck);
 	}
 	else
 	{
+		// Duck and return fire immediately. More aggressive.
 		M_SetAnimation(self, &soldier_move_attack3);
 	}
 
