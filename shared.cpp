@@ -788,13 +788,13 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 		return;
 
 	// Store original position for effect
-	const vec3_t old_origin = ent->s.origin;
+	//const vec3_t old_origin = ent->s.origin;
 
 	// Teleport effect at source
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_TELEPORT_EFFECT);
-	gi.WritePosition(old_origin);
-	gi.multicast(old_origin, MULTICAST_PVS, false);
+	// gi.WriteByte(svc_temp_entity);
+	// gi.WriteByte(TE_TELEPORT_EFFECT);
+	// gi.WritePosition(old_origin);
+	// gi.multicast(old_origin, MULTICAST_PVS, false);
 
 	// Hide entity during teleport
 	ent->svflags |= SVF_NOCLIENT;
@@ -837,10 +837,10 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 	KillBox(ent, false, MOD_TELEFRAG, true);
 
 	// Teleport effect at destination
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_TELEPORT_EFFECT);
-	gi.WritePosition(ent->s.origin);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	// gi.WriteByte(svc_temp_entity);
+	// gi.WriteByte(TE_TELEPORT_EFFECT);
+	// gi.WritePosition(ent->s.origin);
+	// gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 }
 
 //constexpr spawnflags_t SPAWNFLAG_LAVABALL_NO_EXPLODE = 1_spawnflag;

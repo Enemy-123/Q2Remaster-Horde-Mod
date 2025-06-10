@@ -539,6 +539,9 @@ void berserk_run_ranged_check(edict_t* self)
 	// If enemy is gone, gets too close, or we're no longer in the right animation, stop.
 	if (!self->enemy || !self->enemy->inuse || range_to(self, self->enemy) < 150)
 	{
+		// ADD THIS LINE: Turn off the visual effect before switching states.
+		self->s.effects &= ~EF_BARREL_EXPLODING;
+
 		berserk_run(self);
 		return;
 	}
@@ -561,6 +564,7 @@ MMOVE_T(berserk_move_run_ranged) = { FRAME_r_att7, FRAME_r_att12, berserk_frames
 // Function to transition to the main loop.
 void berserk_start_ranged_loop(edict_t* self)
 {
+
 	M_SetAnimation(self, &berserk_move_run_ranged);
 }
 
@@ -583,6 +587,8 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 	// 1. Melee attack if close enough
 	if (self->monsterinfo.melee_debounce_time <= level.time && (dist < MELEE_DISTANCE))
 	{
+		//Turn off the effect if we are forced into melee.
+		self->s.effects &= ~EF_BARREL_EXPLODING;
 		berserk_melee(self);
 		return;
 	}
@@ -599,6 +605,7 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 		(!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && dist > 40.f && dist < 700.f && frandom() < 0.33f))
 
 	{
+		self->s.effects |= EF_BARREL_EXPLODING;
 		gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
 		M_SetAnimation(self, &berserk_move_run_ranged_start);
 		return;
@@ -657,6 +664,9 @@ extern const mmove_t berserk_move_jump, berserk_move_jump2;
 
 PAIN(berserk_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
+	//Always remove the effect if the monster gets hurt.
+	self->s.effects &= ~EF_BARREL_EXPLODING;
+
 	// if we're jumping, don't pain
 	if ((self->monsterinfo.active_move == &berserk_move_jump) ||
 		(self->monsterinfo.active_move == &berserk_move_jump2) ||
@@ -736,6 +746,9 @@ MMOVE_T(berserk_move_death2) = { FRAME_deathc1, FRAME_deathc8, berserk_frames_de
 DIE(berserk_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	//OnEntityDeath(self);
+
+	//Clean up the effect on death.
+	self->s.effects &= ~EF_BARREL_EXPLODING;
 
 	if (M_CheckGib(self, mod))
 	{
