@@ -764,70 +764,93 @@ MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_fram
 
 static void infantry_grenade(edict_t* self)
 {
-    constexpr float GRENADE_SPEED = 760.f;
+    // Define base speeds for different throw types. These are easy to tweak.
+    constexpr float FAST_GRENADE_SPEED = 1000.f; // For direct, aggressive throws at close range.
+    constexpr float LOB_GRENADE_SPEED = 650.f;   // For higher-arcing lobs at long range or blindfire.
+    constexpr float CLOSE_GRENADE_RANGE = 512.f; // The distance to switch to an aggressive throw.
 
-    vec3_t start{};
-    vec3_t aim{};
-    const vec3_t offset = { 24, 10, 10 };
-    constexpr float speed = GRENADE_SPEED;
-    bool const blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+    vec3_t start_pos;
     vec3_t target_pos;
+    vec3_t aim_dir;
+    const vec3_t offset = { 24, 10, 10 };
+    float effective_speed; // This will be set based on the situation.
 
-    // Step 1: Determine the target position (vec3_t) for the grenade.
-    if (blindfire)
+    // Step 1: Determine the target position for the grenade.
+    // ------------------------------------------------------
+    bool const is_blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+
+    if (is_blindfire)
     {
-        // For blindfire, the target is a static, known location.
-        if (!self->monsterinfo.blind_fire_target)
-            return; // No target, do nothing.
+        if (!self->monsterinfo.blind_fire_target) {
+            infantry_grenade_cleanup(self);
+            return;
+        }
         target_pos = self->monsterinfo.blind_fire_target;
     }
     else
     {
-        // For normal fire, predict the enemy's future position.
-        if (!self->enemy || !self->enemy->inuse)
+        if (!self->enemy || !self->enemy->inuse) {
+            infantry_grenade_cleanup(self);
             return;
-        
-        const float dist = range_to(self, self->enemy);
-        // Simple prediction: where the enemy will be when the grenade gets there.
-        target_pos = self->enemy->s.origin + (self->enemy->velocity * (dist / speed));
+        }
+        // We predict based on a 'typical' speed for now; it's a close enough estimate.
+        PredictAim(self, self->enemy, self->s.origin, 760.f, true, 0.0f, nullptr, &target_pos);
     }
 
-    // ====================================================================
-    // NEW CODE BLOCK: Local Turning Override
-    // ====================================================================
-    // Make the infantry turn to face the location it's throwing at.
-    // This ensures the model's visual angle matches the grenade's trajectory,
-    // especially during a blindfire attack.
+    // Step 2: Make the infantry turn to face the target location.
+    // -----------------------------------------------------------
     vec3_t dir_to_target = target_pos - self->s.origin;
     self->ideal_yaw = vectoyaw(dir_to_target);
     M_ChangeYaw(self);
-    // ====================================================================
-    // END NEW CODE BLOCK
-    // ====================================================================
 
-    // Step 2: Calculate the trajectory to the determined target_pos.
-    // First, get the directional vectors from the monster's current facing angle.
+    // Step 3: Calculate the grenade's starting position.
+    // -----------------------------------------------------------------
     vec3_t forward, right, up;
     AngleVectors(self->s.angles, forward, right, up);
+    start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
-    // Now, use those vectors to project the grenade's start position.
-    start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-
-    // Initial aim vector towards the target
-    aim = target_pos - start;
-    aim.normalize();
-
-    // Use the arc calculation function to find the best pitch
-    if (!M_CalculatePitchToFire(self, target_pos, start, aim, speed, 2.5f, false, false))
+    // Step 4: Set the effective grenade speed based on the context.
+    // -----------------------------------------------------------------
+    float const dist_to_target = (target_pos - start_pos).length();
+    
+    if (!is_blindfire && self->enemy && dist_to_target < CLOSE_GRENADE_RANGE)
     {
-        // Better Failsafe: If no perfect arc is found, perform a low-angle lob forward.
-        // This prevents the grenade from going straight up.
-        aim = target_pos - start;
-        aim[2] += 128; // Add some height to the aim vector to create a gentle arc
-        aim.normalize();
+        // Target is close and not a blindfire. Check for a clear shot.
+        trace_t tr = gi.traceline(start_pos, self->enemy->s.origin, self, MASK_SOLID);
+        if (tr.ent == self->enemy)
+        {
+            // AGGRESSIVE MODE: Use a fast, direct throw.
+            effective_speed = FAST_GRENADE_SPEED;
+        }
+        else
+        {
+            // Target is close but behind cover, use a lob.
+            effective_speed = LOB_GRENADE_SPEED;
+        }
+    }
+    else
+    {
+        // TACTICAL MODE: It's a blindfire or long-range shot, so use a higher-arcing lob.
+        effective_speed = LOB_GRENADE_SPEED;
     }
 
-    fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
+    // Step 5: Calculate the final trajectory using the chosen speed.
+    // -----------------------------------------------------------------
+    aim_dir = target_pos - start_pos;
+    aim_dir.normalize();
+
+    // Use the arc calculation function to find the best pitch for our chosen speed.
+    if (!M_CalculatePitchToFire(self, target_pos, start_pos, aim_dir, effective_speed, 2.5f, false, false))
+    {
+        // ROBUST FAILSAFE: If no arc can be found, just throw it directly at the target.
+        // This is the simplest and most reliable fallback. It avoids all weird sky-shots.
+        aim_dir = target_pos - start_pos;
+        aim_dir.normalize();
+    }
+
+    // Step 6: Fire the grenade with the calculated aim and speed.
+    // -----------------------------------------------------------------
+    fire_grenade2(self, start_pos, aim_dir, 40, effective_speed, 2.5_sec, 80, false);
     gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 
