@@ -425,6 +425,7 @@ void Cmd_Spawn_f(edict_t* ent)
 	other->classname = gi.argv(1);
 	other->s.origin = ent->s.origin + (AngleVectors(ent->s.angles).forward * 24.f);
 	other->s.angles[1] = ent->s.angles[1];
+	other->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 	if (developer->integer == 2)
 	other->monsterinfo.bonus_flags |= BF_STYGIAN;
 

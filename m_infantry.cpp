@@ -14,6 +14,8 @@ INFANTRY BLASTER2
 #include "shared.h"
 
 void InfantryMachineGun(edict_t* self);
+void infantry_run(edict_t* self);
+
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -214,6 +216,8 @@ PAIN(infantry_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 		return;
 
 	monster_done_dodge(self);
+	// clear blindfire flag if we get hurt
+	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 
 	if (level.time < self->pain_debounce_time)
 	{
@@ -566,6 +570,14 @@ void infantry_prep_grenade(edict_t* self)
 	self->count = 1;
 }
 
+// New function to clean up after a grenade throw
+void infantry_grenade_cleanup(edict_t* self)
+{
+	// clear the blindfire flag
+	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+	infantry_run(self);
+}
+
 mframe_t infantry_frames_grenade_throw[] = {
 	{ ai_charge, 3, nullptr },
 	{ ai_charge, 6 },
@@ -576,7 +588,7 @@ mframe_t infantry_frames_grenade_throw[] = {
 	{ ai_charge, 8, monster_footstep },
 	{ ai_charge, 3 }
 };
-MMOVE_T(infantry_move_grenade_throw) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade_throw, infantry_run };
+MMOVE_T(infantry_move_grenade_throw) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade_throw, infantry_grenade_cleanup };
 
 static void infantry_continue_grenade_throw(edict_t* self)
 {
@@ -752,64 +764,72 @@ MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_fram
 
 static void infantry_grenade(edict_t* self)
 {
-	constexpr float MORTAR_SPEED = 1050.f;
-	constexpr float GRENADE_SPEED = 760.f;
+    constexpr float GRENADE_SPEED = 760.f;
 
-	vec3_t start{};
-	vec3_t forward{}, right{}, up{};
-	vec3_t aim{};
-	const vec3_t offset = { 24, 10, 10 };
-	constexpr float speed = GRENADE_SPEED;
+    vec3_t start{};
+    vec3_t aim{};
+    const vec3_t offset = { 24, 10, 10 };
+    constexpr float speed = GRENADE_SPEED;
+    bool const blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+    vec3_t target_pos;
 
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+    // Step 1: Determine the target position (vec3_t) for the grenade.
+    if (blindfire)
+    {
+        // For blindfire, the target is a static, known location.
+        if (!self->monsterinfo.blind_fire_target)
+            return; // No target, do nothing.
+        target_pos = self->monsterinfo.blind_fire_target;
+    }
+    else
+    {
+        // For normal fire, predict the enemy's future position.
+        if (!self->enemy || !self->enemy->inuse)
+            return;
+        
+        const float dist = range_to(self, self->enemy);
+        // Simple prediction: where the enemy will be when the grenade gets there.
+        target_pos = self->enemy->s.origin + (self->enemy->velocity * (dist / speed));
+    }
 
-	AngleVectors(self->s.angles, forward, right, up);
-	start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+    // ====================================================================
+    // NEW CODE BLOCK: Local Turning Override
+    // ====================================================================
+    // Make the infantry turn to face the location it's throwing at.
+    // This ensures the model's visual angle matches the grenade's trajectory,
+    // especially during a blindfire attack.
+    vec3_t dir_to_target = target_pos - self->s.origin;
+    self->ideal_yaw = vectoyaw(dir_to_target);
+    M_ChangeYaw(self);
+    // ====================================================================
+    // END NEW CODE BLOCK
+    // ====================================================================
 
-	// Predict target position
-	const float dist = range_to(self, self->enemy);
+    // Step 2: Calculate the trajectory to the determined target_pos.
+    // First, get the directional vectors from the monster's current facing angle.
+    vec3_t forward, right, up;
+    AngleVectors(self->s.angles, forward, right, up);
 
-	// Para distancias cortas, usar PredictAim
-	if (dist < 400) // Ajusta este valor según necesites
-	{
-		PredictAim(self, self->enemy, start, speed, false, 0.f, &aim, nullptr);
+    // Now, use those vectors to project the grenade's start position.
+    start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
-		// Pequeño ajuste aleatorio y compensación de gravedad para corta distancia
-		aim += right * (crandom() * 0.02f);
-		aim += up * (crandom() * 0.02f - 0.01f); // Ligero ajuste hacia abajo
-		aim.normalize();
-	}
-	// Para distancias más largas, usar CalculatePitch
-	else
-	{
-		const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * (dist / speed));
-		aim = predicted_pos - start;
-		aim.normalize();
+    // Initial aim vector towards the target
+    aim = target_pos - start;
+    aim.normalize();
 
-		if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.5f, false))
-		{
-			aim[2] += crandom_open() * 0.01f;
-			aim.normalize();
-		}
-	}
+    // Use the arc calculation function to find the best pitch
+    if (!M_CalculatePitchToFire(self, target_pos, start, aim, speed, 2.5f, false, false))
+    {
+        // Better Failsafe: If no perfect arc is found, perform a low-angle lob forward.
+        // This prevents the grenade from going straight up.
+        aim = target_pos - start;
+        aim[2] += 128; // Add some height to the aim vector to create a gentle arc
+        aim.normalize();
+    }
 
-	fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
-	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
+    fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
+    gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
-
-// mframe_t infantry_frames_grenade[] = {
-// 	{ ai_charge, 3 },
-// 	{ ai_charge, 6 },
-// 	{ ai_charge, 5 },
-// 	{ ai_charge, 0, infantry_swing },
-// 	{ ai_charge, 8 },
-// 	{ ai_charge, 8, infantry_grenade },
-// 	{ ai_charge, 8, monster_footstep },
-// 	{ ai_charge, 3 }
-// };
-// MMOVE_T(infantry_move_grenade) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade, infantry_run };
-
 
 // [Paril-KEX] run-attack, inspired by q2test
 void infantry_attack4_refire(edict_t* self)
@@ -851,6 +871,37 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
+	// handle blindfire grenade
+	if (self->monsterinfo.attack_state == AS_BLIND)
+	{
+		// don't shoot at the origin
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+
+		float chance;
+
+		// setup shot probabilities
+		if (self->monsterinfo.blind_fire_delay < 1.0_sec)
+			chance = 1.0;
+		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+			chance = 0.4f;
+		else
+			chance = 0.1f;
+
+		// minimum of 2 seconds, plus 0-3, after the shots are done
+		self->monsterinfo.blind_fire_delay += random_time(2.0_sec, 5.0_sec);
+
+		// don't shoot if the dice say not to
+		if (frandom() > chance)
+			return;
+
+		// turn on manual steering to signal blindfire
+		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+		M_SetAnimation(self, &infantry_move_grenade_prep);
+		self->monsterinfo.attack_finished = level.time + random_time(2_sec);
+		return;
+	}
+
 	float  const r = range_to(self, self->enemy);
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
@@ -860,7 +911,6 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 	else if (r > RANGE_MELEE && frandom() <= 0.35f)
 	{
 		// 35% chance to throw a grenade when enemy is beyond melee range
-        // vvv CHANGE THIS LINE vvv
 		M_SetAnimation(self, &infantry_move_grenade_prep);
 	}
 	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_INFANTRY_MACHINEGUN_1]))
@@ -1105,6 +1155,9 @@ void SP_monster_infantry_vanilla(edict_t* self)
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_INFANTRY_NOJUMPING);
 	self->monsterinfo.drop_height = 192;
 	self->monsterinfo.jump_height = 40;
+
+	// Enable blindfire capability for this monster
+	self->monsterinfo.blindfire = true;
 
 	//	self->s.renderfx |= RF_CUSTOMSKIN;
 	//	self->s.skinnum = gi.imageindex("models/vault/monsters/infantry/camo.pcx");
