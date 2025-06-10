@@ -29,6 +29,7 @@ static cached_soundindex sound_sight;
 static cached_soundindex sound_search;
 static cached_soundindex sound_idle;
 static cached_soundindex sound_handgrenade;
+static cached_soundindex sound_grenade_pin;
 
 // range at which we'll try to initiate a run-attack to close distance
 constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.75f;
@@ -555,6 +556,41 @@ void infantry_cock_gun(edict_t* self)
 	self->count = 1;
 }
 
+static void infantry_grenade(edict_t* self);
+
+void infantry_prep_grenade(edict_t* self)
+{
+	gi.sound(self, CHAN_WEAPON, sound_grenade_pin, 1, ATTN_NORM, 0);
+
+	// gun cocked
+	self->count = 1;
+}
+
+mframe_t infantry_frames_grenade_throw[] = {
+	{ ai_charge, 3, nullptr },
+	{ ai_charge, 6 },
+	{ ai_charge, 5 },
+	{ ai_charge, 0, nullptr }, // No swing sound needed
+	{ ai_charge, 8 },
+	{ ai_charge, 8, infantry_grenade }, // Throws grenade and plays pin sound
+	{ ai_charge, 8, monster_footstep },
+	{ ai_charge, 3 }
+};
+MMOVE_T(infantry_move_grenade_throw) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade_throw, infantry_run };
+
+static void infantry_continue_grenade_throw(edict_t* self)
+{
+	M_SetAnimation(self, &infantry_move_grenade_throw);
+}
+
+mframe_t infantry_frames_grenade_prep[] = {
+	{ ai_charge, 1,  nullptr },
+		{ ai_charge, 0,  infantry_prep_grenade },	// Plays the cocking sound as a cue
+	{ ai_charge, 1,  nullptr },
+	{ ai_charge, 2,  infantry_continue_grenade_throw } // <-- Transitions to the throw
+};
+MMOVE_T(infantry_move_grenade_prep) = { FRAME_pain107, FRAME_pain110, infantry_frames_grenade_prep, nullptr };
+
 void infantry_fire(edict_t* self);
 
 // cock-less attack, used if he has already cocked his gun
@@ -762,17 +798,18 @@ static void infantry_grenade(edict_t* self)
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 
-mframe_t infantry_frames_grenade[] = {
-	{ ai_charge, 3 },
-	{ ai_charge, 6 },
-	{ ai_charge, 5 },
-	{ ai_charge, 0, infantry_swing },
-	{ ai_charge, 8 },
-	{ ai_charge, 8, infantry_grenade },
-	{ ai_charge, 8, monster_footstep },
-	{ ai_charge, 3 }
-};
-MMOVE_T(infantry_move_grenade) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade, infantry_run };
+// mframe_t infantry_frames_grenade[] = {
+// 	{ ai_charge, 3 },
+// 	{ ai_charge, 6 },
+// 	{ ai_charge, 5 },
+// 	{ ai_charge, 0, infantry_swing },
+// 	{ ai_charge, 8 },
+// 	{ ai_charge, 8, infantry_grenade },
+// 	{ ai_charge, 8, monster_footstep },
+// 	{ ai_charge, 3 }
+// };
+// MMOVE_T(infantry_move_grenade) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade, infantry_run };
+
 
 // [Paril-KEX] run-attack, inspired by q2test
 void infantry_attack4_refire(edict_t* self)
@@ -823,7 +860,8 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 	else if (r > RANGE_MELEE && frandom() <= 0.35f)
 	{
 		// 35% chance to throw a grenade when enemy is beyond melee range
-		M_SetAnimation(self, &infantry_move_grenade);
+        // vvv CHANGE THIS LINE vvv
+		M_SetAnimation(self, &infantry_move_grenade_prep);
 	}
 	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_INFANTRY_MACHINEGUN_1]))
 	{
@@ -998,6 +1036,7 @@ void InfantryPrecache()
 	sound_search.assign("infantry/infsrch1.wav");
 	sound_idle.assign("infantry/infidle1.wav");
 	sound_handgrenade.assign("weapons/hgrent1a.wav");
+	sound_grenade_pin.assign("weapons/hgrenc1b.wav"); // <-- ADD THIS LINE
 }
 
 constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;
