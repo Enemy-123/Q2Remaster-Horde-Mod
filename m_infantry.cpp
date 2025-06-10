@@ -584,12 +584,12 @@ static void infantry_continue_grenade_throw(edict_t* self)
 }
 
 mframe_t infantry_frames_grenade_prep[] = {
-	{ ai_charge, 1,  nullptr },
+	//{ ai_charge, 1,  nullptr },
 		{ ai_charge, 0,  infantry_prep_grenade },	// Plays the cocking sound as a cue
 	{ ai_charge, 1,  nullptr },
 	{ ai_charge, 2,  infantry_continue_grenade_throw } // <-- Transitions to the throw
 };
-MMOVE_T(infantry_move_grenade_prep) = { FRAME_pain107, FRAME_pain110, infantry_frames_grenade_prep, nullptr };
+MMOVE_T(infantry_move_grenade_prep) = { FRAME_pain108, FRAME_pain110, infantry_frames_grenade_prep, nullptr };
 
 void infantry_fire(edict_t* self);
 
