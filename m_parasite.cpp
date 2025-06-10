@@ -390,7 +390,7 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
 
 		// Decide how the parasite reacts to the miss.
-		if (self->owner->monsterinfo.bonus_flags != BF_NONE && !(self->owner->monsterinfo.bonus_flags & BF_FRIENDLY))
+		if (IsBonusMonster(self->owner))
 		{
 			// Bonus monsters retract immediately.
 			proboscis_retract(self);

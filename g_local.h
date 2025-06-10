@@ -3709,6 +3709,16 @@ public:
 	inline entity_iterator_t<TFilter> end() const { return end_index; }
 };
 
+inline bool IsBonusMonster(const edict_t* ent)
+{
+    if (!ent)
+    {
+        return false;
+    }
+
+    return (ent->monsterinfo.bonus_flags != BF_NONE && !(ent->monsterinfo.bonus_flags & BF_FRIENDLY));
+}
+
 inline constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
 	float dx = v1.x - v2.x;
 	float dy = v1.y - v2.y;

@@ -1057,7 +1057,7 @@ MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 
     // --- Attack Priority 1: Melee Attack ---
     // If we are very close, perform a fly-by slicing attack.
-    if (visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
+    if (!IsBonusMonster(self) &&  visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
     {
         self->monsterinfo.attack_state = AS_STRAIGHT;
         M_SetAnimation(self, &flyer_move_start_melee);
@@ -1068,8 +1068,7 @@ MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
     // --- Attack Priority 2: Special Laser Attack ---
     // If not doing melee, consider the special laser attack under specific conditions.
     // We check if the enemy is wounded and at a good medium range.
-    if (self->enemy->health < self->enemy->max_health * 0.75f &&
-        range > 150 && range < 400 && frandom() < 0.65f)
+    if (range > 150 && range < 400 && frandom() < 0.65f)
     {
         self->monsterinfo.attack_state = AS_STRAIGHT;
         M_SetAnimation(self, &flyer_move_laser_right);
