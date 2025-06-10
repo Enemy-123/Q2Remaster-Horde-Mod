@@ -536,13 +536,26 @@ void berserk_zap_enemies(edict_t* self)
 // This function is called at the end of the loop to decide whether to continue or stop.
 void berserk_run_ranged_check(edict_t* self)
 {
-	// If enemy is gone, gets too close, or we're no longer in the right animation, stop.
-	if (!self->enemy || !self->enemy->inuse || range_to(self, self->enemy) < 150)
+	// Determine the minimum safe distance based on the enemy type.
+	// We want to get closer to stationary targets than to mobile players.
+	float min_dist;
+	if (self->enemy->client)
 	{
-		// ADD THIS LINE: Turn off the visual effect before switching states.
-		self->s.effects &= ~EF_BARREL_EXPLODING;
+		min_dist = 40.0f; // Keep a larger distance from players
+	}
+	else
+	{
+		min_dist = 20.0f;  // Get closer to things like Sentries and Teslas
+	}
 
-		berserk_run(self);
+	// Check for multiple failure conditions to avoid getting stuck.
+	if (!self->enemy || !self->enemy->inuse ||           // Enemy is gone
+		range_to(self, self->enemy) < min_dist ||        // Enemy is too close (using our new variable)
+		!visible(self, self->enemy) ||                   // Can't see the enemy anymore
+		level.time > self->monsterinfo.attack_finished)  // Attack has timed out
+	{
+		self->s.effects &= ~EF_BARREL_EXPLODING; // Turn off the visual effect
+		berserk_run(self);                       // Go back to normal running
 		return;
 	}
 	
@@ -587,8 +600,7 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 	// 1. Melee attack if close enough
 	if (self->monsterinfo.melee_debounce_time <= level.time && (dist < MELEE_DISTANCE))
 	{
-		//Turn off the effect if we are forced into melee.
-		self->s.effects &= ~EF_BARREL_EXPLODING;
+		self->s.effects &= ~EF_BARREL_EXPLODING; // Clean up effect
 		berserk_melee(self);
 		return;
 	}
@@ -600,14 +612,21 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 	}
 
 	// 2. NEW: Ranged attack if at a distance
+	// FIX: Increased probability and added a crucial visibility check
 	if (!strcmp(self->enemy->classname, "tesla_mine") ||
 		!strcmp(self->enemy->classname, "monster_sentrygun") ||
-		(!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && dist > 40.f && dist < 700.f && frandom() < 0.33f))
-
+		(!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && dist > 20.f && dist < 700.f && frandom() < 0.5f)) // Increased to 50%
 	{
+		// FIX: Don't start the attack if we can't even see the enemy or full health.
+		if (!visible(self, self->enemy) || self->health >= self->max_health / 1.1)
+			return;
+
 		self->s.effects |= EF_BARREL_EXPLODING;
 		gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
 		M_SetAnimation(self, &berserk_move_run_ranged_start);
+		
+		// FIX: Set a timeout for the attack. It will last a maximum of 4 seconds.
+		self->monsterinfo.attack_finished = level.time + random_time(2_sec, 4_sec);
 		return;
 	}
 
