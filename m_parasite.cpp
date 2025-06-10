@@ -676,7 +676,7 @@ static void parasite_fire_proboscis(edict_t* self)
 	//AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	//self->enemy->velocity = forward * -200;
 
-	if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY)) {
+	if (IsBonusMonster(self)) {
 
 		fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed * 2.5f);
 	}
