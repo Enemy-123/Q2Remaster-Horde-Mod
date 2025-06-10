@@ -477,20 +477,121 @@ mframe_t berserk_frames_run_attack1[] = {
 };
 MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frames_run_attack1, berserk_run };
 
+
+//============================================================================
+// NEW RANGED ATTACK
+//============================================================================
+
+// Forward declaration for the new movement structure
+extern const mmove_t berserk_move_run_ranged;
+
+// Fires a projectile from the Berserker's raised hand
+void berserk_fire_bolt(edict_t* self)
+{
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	vec3_t forward, right;
+	vec3_t start;
+	vec3_t dir;
+
+	// Aim at the enemy's center
+	dir = self->enemy->s.origin - self->s.origin;
+	dir[2] += self->enemy->viewheight / 2;
+	dir.normalize();
+
+	// Calculate start position (from the raised hand)
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	// FIX 1: Use G_ProjectSource and remove the 'self' argument.
+	start = G_ProjectSource(self->s.origin, {30.f, 8.f, 28.f}, forward, right);
+
+	// Fire a blaster bolt
+	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/disrupt.wav"), 1, ATTN_NORM, 0);
+	fire_blaster2(self, start, dir, 15, 900, EF_BLASTER, false);
+}
+
+// Checks if the Berserker should continue the ranged attack or stop
+void berserk_run_loop_check(edict_t* self)
+{
+	// If enemy is gone or gets too close, stop this attack and go back to normal run/melee
+	if (!self->enemy || !self->enemy->inuse || range_to(self, self->enemy) < 200)
+	{
+		berserk_run(self);
+		return;
+	}
+	// Otherwise, loop the animation by resetting to the start of the loop
+	self->monsterinfo.nextframe = FRAME_r_att7;
+}
+
+// The looping part of the run, where the Berserker fires
+mframe_t berserk_frames_run_ranged[] = {
+	{ ai_run, 21 },                                 // FRAME_r_att7
+	{ ai_run, 11, monster_footstep },               // FRAME_r_att8
+	{ ai_run, 21 },                                 // FRAME_r_att9
+	{ ai_run, 25, berserk_fire_bolt },              // FRAME_r_att10 - Fire on this frame
+	{ ai_run, 18, monster_footstep },               // FRAME_r_att11
+	{ ai_run, 19, berserk_run_loop_check }          // FRAME_r_att12 - Check to loop or stop
+};
+MMOVE_T(berserk_move_run_ranged) = { FRAME_r_att7, FRAME_r_att12, berserk_frames_run_ranged, berserk_run };
+
+// FIX 2: Create a function to transition to the next move.
+void berserk_start_ranged_loop(edict_t* self)
+{
+	M_SetAnimation(self, &berserk_move_run_ranged);
+}
+
+// The wind-up animation to get into the ranged attack state
+mframe_t berserk_frames_run_ranged_start[] = {
+	{ ai_run, 21 }, // FRAME_r_att1
+	{ ai_run, 11, monster_footstep }, // FRAME_r_att2
+	{ ai_run, 21 }, // FRAME_r_att3
+	{ ai_run, 25 }, // FRAME_r_att4
+	{ ai_run, 18, monster_footstep }, // FRAME_r_att5
+	{ ai_run, 19 }  // FRAME_r_att6
+};
+// FIX 2: Use the new function as the end function.
+MMOVE_T(berserk_move_run_ranged_start) = { FRAME_r_att1, FRAME_r_att6, berserk_frames_run_ranged_start, berserk_start_ranged_loop };
+
+//============================================================================
+//============================================================================
+
 MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 {
-	if (self->monsterinfo.melee_debounce_time <= level.time && (range_to(self, self->enemy) < MELEE_DISTANCE))
+	float const dist = range_to(self, self->enemy);
+
+	// 1. Melee attack if close enough
+	if (self->monsterinfo.melee_debounce_time <= level.time && (dist < MELEE_DISTANCE))
+	{
 		berserk_melee(self);
-	// only jump if they are far enough away for it to make sense (otherwise
-	// it gets annoying to have them keep hopping over and over again)
-	else if (!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && (self->timestamp < level.time && brandom()) && range_to(self, self->enemy) > 150.f)
+		return;
+	}
+
+	// If we are already in the ranged attack, let it continue
+	if (self->monsterinfo.active_move == &berserk_move_run_ranged)
+	{
+		return;
+	}
+
+	// 2. NEW: Ranged attack if at a distance
+	// Only do this if not jumping and with a random chance
+	if (!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && dist > 250.f && dist < 800.f && frandom() < 0.1f)
+	{
+		M_SetAnimation(self, &berserk_move_run_ranged_start);
+		return;
+	}
+	
+	// 3. Jump attack if they are far enough away
+	if (!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && (self->timestamp < level.time && brandom()) && dist > 150.f)
 	{
 		M_SetAnimation(self, &berserk_move_attack_strike);
 		// don't do this for a while, otherwise we just keep doing it
 		gi.sound(self, CHAN_WEAPON, sound_jump, 1, ATTN_NORM, 0);
 		self->timestamp = level.time + 5_sec;
+		return;
 	}
-	else if (self->monsterinfo.active_move == &berserk_move_run1 && (range_to(self, self->enemy) <= RANGE_NEAR))
+	
+	// 4. Transition from normal run to a running melee attack if we get close
+	if (self->monsterinfo.active_move == &berserk_move_run1 && (dist <= RANGE_NEAR))
 	{
 		M_SetAnimation(self, &berserk_move_run_attack1);
 		self->monsterinfo.nextframe = FRAME_r_att1 + (self->s.frame - FRAME_run1) + 1;
