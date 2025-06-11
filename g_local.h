@@ -2482,8 +2482,8 @@ edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir
 void Grenade_Explode(edict_t* ent);
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
 	float damage_radius, float right_adjust, float up_adjust, bool monster);
-void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
-	float damage_radius, bool held);
+void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, 
+	float damage_radius, bool held, bool from_upgraded_prox = false);
 void rocket_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 void fireball_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius,
@@ -3720,10 +3720,7 @@ inline bool IsBonusMonster(const edict_t* ent)
 }
 
 inline constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
-	float dx = v1.x - v2.x;
-	float dy = v1.y - v2.y;
-	float dz = v1.z - v2.z;
-	return dx * dx + dy * dy + dz * dz;
+    return (v1 - v2).lengthSquared(); // Implement it using the class's own methods
 }
 
 // 1. First, define the spawn point filter template

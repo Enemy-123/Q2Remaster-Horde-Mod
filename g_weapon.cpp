@@ -1119,7 +1119,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	gi.linkentity(grenade);
 }
 
-void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held)
+void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held, bool from_upgraded_prox)
 {
 	if (!self)
 	{
@@ -1164,6 +1164,11 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 	if (held)
 		grenade->spawnflags |= SPAWNFLAG_GRENADE_HELD;
 	grenade->s.sound = gi.soundindex("weapons/hgrenc1b.wav");
+
+	    if (from_upgraded_prox)
+        grenade->count = 1; // Use 'count' as our special tag
+    else
+        grenade->count = 0;
 
 	if (timer <= 0_ms)
 		Grenade_Explode(grenade);

@@ -1015,6 +1015,14 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// Note: 'take' is still int at this point, needs casting later if used directly with CalculateRealDamage
 	// We calculate real_damage later after 'take' is determined.
 
+    if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.IS_BOSS &&
+        (mod.id == MOD_HANDGRENADE || mod.id == MOD_HG_SPLASH) &&
+        (inflictor && inflictor->count == 1))
+    {
+        // It's a cluster grenade from an upgraded prox hitting a boss. Reduce damage by half.
+        damage *= 0.2; // You can adjust this multiplier, e.g., 0.3 for 70% reduction.
+    }
+
 	if (!targ->takedamage)
 		return;
 

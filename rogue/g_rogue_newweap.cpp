@@ -229,7 +229,7 @@ void SpawnClusterGrenades(edict_t* owner_mine, const vec3_t& origin, int base_da
 		// Use the player who threw the mine as the owner for proper kill credit
 		fire_grenade2(owner_mine->teammaster, origin, forward, adjusted_damage, velocity,
 			gtime_t::from_sec(explode_time),
-			static_cast<float>(adjusted_damage), false);
+			static_cast<float>(adjusted_damage), false, true);
 	}
 }
 
