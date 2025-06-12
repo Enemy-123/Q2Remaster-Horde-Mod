@@ -1149,16 +1149,26 @@ PAIN(flyer_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 {
 	int n;
 
-	//	pmm	 - kamikaze's don't feel pain
+	// kamikazes don't feel pain
 	if (self->mass != 50)
 		return;
-	// pmm
+
+	// Don't take pain during special attacks (laser or rocket).
+	// This prevents these key attacks from being interrupted.
+	if (self->monsterinfo.active_move == &flyer_move_laser_right ||
+		self->monsterinfo.active_move == &flyer_move_laser_left ||
+		self->monsterinfo.active_move == &flyer_move_laser_recharge ||
+		self->monsterinfo.active_move == &flyer_move_rollright)
+	{
+		return;
+	}
 
 	if (level.time < self->pain_debounce_time)
 		return;
 
 	self->pain_debounce_time = level.time + 3_sec;
 
+	// Play a random pain sound
 	n = irandom(3);
 	if (n == 0)
 		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
@@ -1167,11 +1177,14 @@ PAIN(flyer_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 	else
 		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
 
+	// Don't play pain animation on nightmare skill
 	if (!M_ShouldReactToPain(self, mod))
-		return; // no pain anims in nightmare
+		return;
 
+	// Reset flight parameters to default non-melee behavior
 	flyer_set_fly_parameters(self, false);
 
+	// Set a random pain animation
 	if (n == 0)
 		M_SetAnimation(self, &flyer_move_pain1);
 	else if (n == 1)

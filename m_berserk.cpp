@@ -136,12 +136,16 @@ void()	berserk_runb12	=[	$r_att12 ,	berserk_runb7	] {ai_run(19);};
 // running with arm in air : end loop
 */
 
+// Forward declaration for the new passive zap check
+void berserk_check_passive_zap(edict_t* self);
+
 mframe_t berserk_frames_run1[] = {
 	{ ai_run, 21 },
 	{ ai_run, 11, monster_footstep },
 	{ ai_run, 21 },
 	{ ai_run, 25, monster_done_dodge },
-	{ ai_run, 18, monster_footstep },
+	// On this frame, play a footstep sound AND check if we can fire a passive lightning bolt
+	{ ai_run, 18, [](edict_t* self) { monster_footstep(self); berserk_check_passive_zap(self); } },
 	{ ai_run, 19 }
 };
 MMOVE_T(berserk_move_run1) = { FRAME_run1, FRAME_run6, berserk_frames_run1, nullptr };
@@ -480,7 +484,9 @@ MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frame
 
 
 //============================================================================
-// NEW TESLA-STYLE RANGED ATTACK (REVISED AND OPTIMIZED)
+// NEW: PASSIVE DYNAMIC LIGHTNING ATTACK
+// This attack can be used while the Berserker is running, without
+// interrupting its movement or preventing it from starting a melee attack.
 //============================================================================
 
 // Attack parameters
@@ -489,9 +495,11 @@ constexpr float BERSERK_ZAP_RADIUS_SQUARED = BERSERK_ZAP_RADIUS * BERSERK_ZAP_RA
 constexpr int   BERSERK_ZAP_DAMAGE         = 10;
 constexpr int   BERSERK_ZAP_KNOCKBACK      = 10;
 constexpr int   BERSERK_ZAP_MAX_TARGETS    = 3;
+constexpr gtime_t BERSERK_ZAP_COOLDOWN       = 2.0_sec;   // Time between zaps
+constexpr float BERSERK_ZAP_MIN_RANGE      = 128.0f; // Don't zap if enemy is in melee range
+constexpr float BERSERK_ZAP_MAX_RANGE      = 600.0f; // Max range for zapping
 
 // Helper function to fire a single lightning bolt.
-// This cleans up the main zap function.
 static void berserk_fire_bolt(edict_t* self, edict_t* target, const vec3_t& zap_origin)
 {
 	// Get the center of the target for a better trace
@@ -520,7 +528,7 @@ static void berserk_fire_bolt(edict_t* self, edict_t* target, const vec3_t& zap_
 	gi.multicast(zap_origin, MULTICAST_PVS, false);
 }
 
-// This function contains the lightning logic and is called on a specific frame.
+// This function contains the multi-target lightning logic.
 void berserk_zap_enemies(edict_t* self)
 {
 	vec3_t forward, right;
@@ -534,7 +542,6 @@ void berserk_zap_enemies(edict_t* self)
 	// --- 1. Prioritize the main enemy ---
 	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
 	{
-		// Performance: Check squared distance first.
 		if (DistanceSquared(self->s.origin, self->enemy->s.origin) <= BERSERK_ZAP_RADIUS_SQUARED)
 		{
 			berserk_fire_bolt(self, self->enemy, zap_origin);
@@ -549,104 +556,65 @@ void berserk_zap_enemies(edict_t* self)
 		if (targets_hit >= BERSERK_ZAP_MAX_TARGETS)
 			break;
 
-		// Basic validity checks
 		if (!target->inuse || target->health <= 0 || !target->takedamage)
 			continue;
 		
-		// Skip self, the main enemy (already handled), and teammates
 		if (target == self || target == self->enemy || OnSameTeam(self, target))
 			continue;
 
-		// Performance: Use squared distance to filter out targets in the corners of findradius's box
 		if (DistanceSquared(self->s.origin, target->s.origin) > BERSERK_ZAP_RADIUS_SQUARED)
 			continue;
 
-		// Fire the bolt (this helper includes the line-of-sight trace)
 		berserk_fire_bolt(self, target, zap_origin);
 		targets_hit++;
 	}
 }
 
-// This function is called at the end of the loop to decide whether to continue or stop.
-void berserk_run_ranged_check(edict_t* self)
+// NEW function to check if a passive zap should occur.
+// This is called during the run animation.
+void berserk_check_passive_zap(edict_t* self)
 {
-	float min_dist = (self->enemy && self->enemy->client) ? 150.0f : 20.0f;
+    // Use an unused monsterinfo field for the cooldown timer.
+    // trail_time is a good candidate.
+    if (level.time < self->monsterinfo.trail_time)
+        return;
 
-	// Check for multiple failure conditions to avoid getting stuck.
-	if (!self->enemy || !self->enemy->inuse ||
-		range_to(self, self->enemy) < min_dist ||
-		!visible(self, self->enemy) ||
-		level.time > self->monsterinfo.attack_finished)
-	{
-		self->s.effects &= ~EF_BARREL_EXPLODING; // Use a more fitting effect
-		berserk_run(self);
-		return;
-	}
-	
-	// Loop the animation by resetting to the start of the loop.
-	self->monsterinfo.nextframe = FRAME_r_att7;
+    if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+        return;
+
+    // Don't zap if we're about to do a melee attack or already in one.
+    if (self->monsterinfo.melee_debounce_time > level.time)
+        return;
+
+    float const dist = range_to(self, self->enemy);
+    if (dist < BERSERK_ZAP_MIN_RANGE || dist > BERSERK_ZAP_MAX_RANGE)
+        return;
+
+    if (!visible(self, self->enemy))
+        return;
+
+    // All clear, fire the zaps!
+    berserk_zap_enemies(self);
+
+    // Set the cooldown
+    self->monsterinfo.trail_time = level.time + BERSERK_ZAP_COOLDOWN;
 }
-
-// The looping part of the run animation.
-mframe_t berserk_frames_run_ranged[] = {
-	{ ai_run, 21 },
-	{ ai_run, 11, monster_footstep },
-	{ ai_run, 21, berserk_zap_enemies }, // Zap on this frame
-	{ ai_run, 25 },
-	{ ai_run, 18, monster_footstep },
-	{ ai_run, 19, berserk_run_ranged_check }
-};
-MMOVE_T(berserk_move_run_ranged) = { FRAME_r_att7, FRAME_r_att12, berserk_frames_run_ranged, berserk_run };
-
-// Function to transition to the main loop.
-void berserk_start_ranged_loop(edict_t* self)
-{
-	M_SetAnimation(self, &berserk_move_run_ranged);
-}
-
-// The wind-up animation to get into the ranged attack state.
-mframe_t berserk_frames_run_ranged_start[] = {
-	{ ai_run, 21 },
-	{ ai_run, 11, monster_footstep },
-	{ ai_run, 21 },
-	{ ai_run, 25 },
-	{ ai_run, 18, monster_footstep },
-	{ ai_run, 19 }
-};
-MMOVE_T(berserk_move_run_ranged_start) = { FRAME_r_att1, FRAME_r_att6, berserk_frames_run_ranged_start, berserk_start_ranged_loop };
-
 
 MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 {
 	float const dist = range_to(self, self->enemy);
 
+	// If in melee range, perform a melee attack.
 	if (self->monsterinfo.melee_debounce_time <= level.time && (dist < MELEE_DISTANCE))
 	{
-		self->s.effects &= ~EF_BARREL_EXPLODING;
 		berserk_melee(self);
 		return;
 	}
 
-	if (self->monsterinfo.active_move == &berserk_move_run_ranged)
-	{
-		return;
-	}
+	// The old dedicated ranged attack has been removed. The new passive zap
+	// happens automatically during the run animation via berserk_check_passive_zap.
 
-	if (!strcmp(self->enemy->classname, "tesla_mine") ||
-		!strcmp(self->enemy->classname, "monster_sentrygun") ||
-		(!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && dist > 200.f && dist < 700.f && frandom() < 0.5f))
-	{
-		if (!visible(self, self->enemy) || self->health >= self->max_health / 1.1)
-			return;
-
-		self->s.effects |= EF_BARREL_EXPLODING;
-		gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
-		M_SetAnimation(self, &berserk_move_run_ranged_start);
-		
-		self->monsterinfo.attack_finished = level.time + random_time(2_sec, 4_sec);
-		return;
-	}
-
+	// Logic for the jump/slam attack.
 	if (!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && (self->timestamp < level.time && brandom()) && dist > 150.f)
 	{
 		M_SetAnimation(self, &berserk_move_attack_strike);
@@ -655,6 +623,7 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 		return;
 	}
 	
+	// Logic to transition from a standard run into a running-melee attack.
 	if (self->monsterinfo.active_move == &berserk_move_run1 && (dist <= RANGE_NEAR))
 	{
 		M_SetAnimation(self, &berserk_move_run_attack1);
@@ -698,9 +667,6 @@ extern const mmove_t berserk_move_jump, berserk_move_jump2;
 
 PAIN(berserk_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	//Always remove the effect if the monster gets hurt.
-	self->s.effects &= ~EF_BARREL_EXPLODING;
-
 	// if we're jumping, don't pain
 	if ((self->monsterinfo.active_move == &berserk_move_jump) ||
 		(self->monsterinfo.active_move == &berserk_move_jump2) ||
@@ -780,9 +746,6 @@ MMOVE_T(berserk_move_death2) = { FRAME_deathc1, FRAME_deathc8, berserk_frames_de
 DIE(berserk_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	//OnEntityDeath(self);
-
-	//Clean up the effect on death.
-	self->s.effects &= ~EF_BARREL_EXPLODING;
 
 	if (M_CheckGib(self, mod))
 	{
