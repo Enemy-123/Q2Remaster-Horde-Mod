@@ -2,16 +2,16 @@
     "version": "2.0.0",
     "tasks": [
         {
-            // Updated label to reflect full process
-            "label": "Configure, Build & Install Horde Mod (MinGW)",
+            "label": "Configure & Build for Linux",
             "type": "shell",
-            // Chain make and make install after cmake
-            "command": "rm -rf build && mkdir build && cd build && echo '--- Running CMake Configure ---' && cmake .. -DCMAKE_TOOLCHAIN_FILE=../mingw-w64-x86_64.cmake -DCMAKE_BUILD_TYPE=Release -G \"Unix Makefiles\" -DDEPLOY_DIRECTORY=\"${input:deployPathInput}\" && echo '--- Running Make ---' && make -j$(nproc) && echo '--- Running Make Install ---' && make install",
+            "command": "rm -rf build && mkdir build && cd build && echo '--- Running CMake Configure ---' && cmake .. -DCMAKE_BUILD_TYPE=Release -G \"Unix Makefiles\" -DDEPLOY_DIRECTORY=\"${input:deployPathInput}\" && echo '--- Running Make ---' && make -j$(nproc) && echo '--- Running Make Install ---' && make install",
             "options": {
                 "cwd": "${workspaceFolder}",
                 "shell": {
                     "executable": "/bin/bash",
-                    "args": ["-c"]
+                    "args": [
+                        "-c"
+                    ]
                 }
             },
             "group": {
@@ -19,19 +19,24 @@
                 "isDefault": true
             },
             "presentation": {
-                "echo": true, "reveal": "always", "focus": true,
-                "panel": "shared", "showReuseMessage": false, "clear": true
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
             },
-            "problemMatcher": ["$gcc"]
+            "problemMatcher": [
+                "$gcc"
+            ]
         }
-        // Keep the commented out separate tasks example if you prefer that structure later
     ],
     "inputs": [
         {
             "id": "deployPathInput",
             "type": "promptString",
             "description": "Enter the absolute path for deployment (e.g., /path/to/Quake2/baseq2)",
-            "default": "/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/baseq2"
+            "default": "/home/perrobjorn/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Quake 2/rerelease/baseq2/"
         }
     ]
 }

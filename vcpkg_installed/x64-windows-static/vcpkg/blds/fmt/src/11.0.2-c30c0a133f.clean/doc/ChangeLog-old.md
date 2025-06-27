@@ -2135,7 +2135,7 @@
 
 - Removed `FMT_CPPFORMAT` CMake option.
 
-- Fixed a name conflict with the macro `CHAR_WIDTH` in glibc
+- Fixed a name conflict with the macro `GAME_CHAR_WIDTH` in glibc
   (https://github.com/fmtlib/fmt/pull/616). Thanks @aroig.
 
 - Fixed handling of nested braces in `fmt::join`
