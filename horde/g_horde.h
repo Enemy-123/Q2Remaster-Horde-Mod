@@ -1,11 +1,23 @@
 #pragma once
-// Horde mode game initialization and management functions
+
+// --- C++ Standard Library Includes ---
+// It's good practice to include necessary headers here.
+// This ensures that any file including g_horde.h gets what it needs.
+#include <vector>
+
+// --- Forward Declarations ---
+// These tell the compiler that these types exist, without needing their full definition.
+// This is crucial for preventing circular include dependencies.
+struct MonsterTypeInfo; 
+struct PlayerStats;
+
+// --- Horde Mode Game Initialization and Management Functions ---
 extern cvar_t* g_horde;
-void Horde_PreInit()  ;
-void Horde_Init()  ;
-void Horde_RunFrame()  ;
-void ResetGame()  ;
-void HandleResetEvent()  ;
+void Horde_PreInit();
+void Horde_Init();
+void Horde_RunFrame();
+void ResetGame();
+void HandleResetEvent();
 
 void ResetSpawnMonsterVars();
 void ResetFrameTimers();
@@ -25,7 +37,7 @@ extern void CleanupInvalidEntities();
 extern void CleanupStuckEntities();
 
 extern uint16_t g_totalMonstersInWave;
-extern inline int32_t CalculateRemainingMonsters() noexcept;
+extern int32_t CalculateRemainingMonsters() noexcept; // Changed from inline to extern
 void ValidateMonsterCount();
 
 
@@ -58,7 +70,11 @@ enum class MonsterWaveType : uint32_t {
 	Spawner = 1 << 19  // Spawning reinforcements users wave
 };
 
+// --- Global Variable DECLARATIONS ---
+// 'extern' tells other .cpp files that these variables exist and are defined elsewhere.
 extern MonsterWaveType current_wave_type;
+extern std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave; // <<< THIS IS THE KEY ADDITION
+
 
 // Boss types
 enum class BossType {
@@ -67,6 +83,8 @@ enum class BossType {
 	WIDOW, WIDOW2, JORG, MAKRONKL, PSX_ARACHNID, REDMUTANT, OTHER
 };
 
+// --- Operator Overloads for MonsterWaveType ---
+// These are fine to keep in the header as they are small, inline, and constexpr.
 template<typename E>
 constexpr auto to_underlying(E e) noexcept {
 	static_assert(std::is_enum_v<E>, "to_underlying can only be used with enum types");
