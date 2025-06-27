@@ -1,9 +1,14 @@
-# CMakeLists.txt (Final version with install exclusion)
+# CMakeLists.txt (Final version with link-time stripping)
 cmake_minimum_required(VERSION 3.15)
 project(Q2HordeMod LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# --- Release Build Optimizations ---
+# This single linker flag tells the linker to strip all symbols,
+# producing the smallest possible binary. This is only for Release builds.
+set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -s")
 
 # --- Deployment directory option ---
 set(DEPLOY_DIRECTORY "" CACHE PATH "Directory where game_x64.dll should be copied")
@@ -16,8 +21,6 @@ set(JSONCPP_WITH_TESTS OFF CACHE BOOL "" FORCE)
 set(JSONCPP_WITH_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-
-# THIS IS THE FIX: EXCLUDE_FROM_ALL tells CMake to ignore jsoncpp's install rules.
 add_subdirectory(vendor/jsoncpp/jsoncpp-1.9.6 EXCLUDE_FROM_ALL)
 
 # --- Define the source files for YOUR mod ---
