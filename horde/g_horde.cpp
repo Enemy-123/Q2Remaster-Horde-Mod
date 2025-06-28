@@ -6449,144 +6449,104 @@ static int ExecuteNormalSpawnProcedure(
 //-----------------------------------------------------
 // SpawnMonsters - Main function (Refactored)
 //-----------------------------------------------------
+//======================================================================
+// SpawnMonsters (REFACTORED for Single Spawn Attempt)
+//
+// This function is now called on a timer and attempts to spawn just ONE monster.
+// It handles all pre-flight checks like caps, queue management, and failure recovery.
+//======================================================================
 void SpawnMonsters()
 {
-	if (level.intermissiontime)
+	if (level.intermissiontime || (developer->integer == 2 && g_horde->integer)) {
 		return;
-	if (developer->integer == 2 && g_horde->integer)
-		return;
+    }
 
-	// --- Cache Globals (Read-only for this scope, mostly) ---
-	const gtime_t current_time = level.time;
-	const horde::MapSize &mapSize = g_horde_local.current_map_size;
-	const horde_state_t current_horde_state = g_horde_local.state;
+	// --- Cache Globals ---
+	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 
 	// --- 1. Spawn Point Cache Management ---
 	RebuildSpawnPointCacheIfNeeded();
-
-	if (g_potential_spawn_points.empty())
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnMonsters: No potential spawn points found in cache.\n");
-		if (g_consecutive_spawn_failures < HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY - 1)
-		{
-			g_consecutive_spawn_failures++;
-		}
-		if (!need_spawn_cache_reset)
-		{
-			need_spawn_cache_reset = true;
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnMonsters: Forcing spawn point cache reset for next frame due to empty cache.\n");
-		}
+	if (g_potential_spawn_points.empty()) {
+		if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: No potential spawn points. Forcing cache reset.\n");
+		g_consecutive_spawn_failures++;
+		need_spawn_cache_reset = true;
 		return;
 	}
 
-	// --- 2. Calculate Monster Caps & Hard Cap Check ---
+	// --- 2. Monster Cap & Queue Management ---
 	const int32_t activeMonsters = CalculateRemainingMonsters();
-	const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : (mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP));
+	const int32_t softCap = g_adjusted_monster_cap;
 	const int32_t hardCap = static_cast<int32_t>(softCap * 1.4f);
 
-	if (CheckHardCapAndLog(activeMonsters, hardCap, softCap, current_horde_state, currentLevel))
-	{
-		return;
+	if (CheckHardCapAndLog(activeMonsters, hardCap, softCap, g_horde_local.state, currentLevel)) {
+		return; // Hard cap reached, stop all spawning.
 	}
 
-	// --- 3. Ambush System ---
-	if (TrySpawnAmbush(mapSize, currentLevel, activeMonsters, softCap))
-	{
-		SetNextMonsterSpawnTime(mapSize);
-		return;
+	if (TrySpawnAmbush(mapSize, currentLevel, activeMonsters, softCap)) {
+		return; // Ambush was triggered, so we skip a regular spawn this frame.
 	}
 
-	// --- 4. Spawn Quota Management ---
 	int32_t availableSpace = softCap - activeMonsters;
-	if (availableSpace <= 0)
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("SpawnMonsters: Soft monster cap reached ({}/{}), PlayerAdjustedCap={}\n", activeMonsters, softCap, g_adjusted_monster_cap);
+	if (availableSpace <= 0) {
+		return; // Soft cap reached, wait for monsters to die.
+	}
+
+	// Transfer from queue if the main spawn pool is empty.
+	ManageSpawnCountsAndQueue(mapSize, availableSpace);
+
+	// If there's still nothing to spawn, exit.
+	if (g_horde_local.num_to_spawn <= 0) {
 		return;
 	}
-	availableSpace = ManageSpawnCountsAndQueue(mapSize, availableSpace);
 
-	if (g_horde_local.num_to_spawn <= 0)
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("SpawnMonsters: No monsters in spawn pool after queue check.\n");
-		if (g_horde_local.queued_monsters <= 0 && current_horde_state == horde_state_t::spawning && !next_wave_message_sent)
-		{
-			VerifyAndAdjustBots();
-			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
-			next_wave_message_sent = true;
-			g_horde_local.state = horde_state_t::active_wave;
+	// --- 3. Determine Spawn Strategy (Normal vs. Emergency) ---
+	bool use_emergency_spawn = false;
+	float champion_chance = 0.2f; // Base champion chance
+
+	if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY) {
+		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}.\n", g_consecutive_spawn_failures);
+		use_emergency_spawn = true;
+	} else if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY && !g_recovery_mode_active) {
+		if (developer->integer) gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}.\n", g_consecutive_spawn_failures);
+		g_recovery_mode_active = true;
+		g_original_wave_type_before_recovery = current_wave_type;
+		current_wave_type = HasWaveType(current_wave_type, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground;
+	}
+
+	if (g_horde_retaliation_active) {
+		champion_chance = 0.40f;
+	}
+
+	// --- 4. Execute a SINGLE Spawn Attempt ---
+	bool spawn_succeeded = false;
+	if (use_emergency_spawn) {
+		horde::MonsterTypeID emergency_type = (currentLevel < 10) ? horde::MonsterTypeID::SOLDIER : horde::MonsterTypeID::GUNNER;
+		if (EmergencySpawnMonster(currentLevel, emergency_type, false, champion_chance)) {
+			spawn_succeeded = true;
 		}
-		return;
+	} else {
+		if (AttemptSpawnSingleMonster(currentLevel, champion_chance, g_recovery_mode_active, g_horde_retaliation_active, current_wave_type, g_original_wave_type_before_recovery)) {
+			spawn_succeeded = true;
+		}
 	}
 
-	// --- 5. Spawn Strategy Determination ---
-	int32_t spawnable_this_call;
-	bool use_emergency_spawn_flag;
-	float champion_chance_for_batch; // This will be set by DetermineSpawnStrategy
-
-	DetermineSpawnStrategy(
-		mapSize,
-		spawnable_this_call,
-		use_emergency_spawn_flag,
-		g_recovery_mode_active,	   // Pass the global variable
-		champion_chance_for_batch, // Pass by reference to be set
-		availableSpace,
-		currentLevel);
-
-	// --- 6. Monster Spawning Execution ---
-	int num_spawned_this_call = 0;
-
-	if (use_emergency_spawn_flag)
-	{
-		num_spawned_this_call = ExecuteEmergencySpawnProcedure(
-			spawnable_this_call,
-			currentLevel,
-			champion_chance_for_batch // <<< NOW PASSING THE ARGUMENT
-		);
-		if (num_spawned_this_call > 0 && g_recovery_mode_active)
-		{
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful EMERGENCY spawns.\n");
+	// --- 5. Update State Based on Outcome ---
+	if (spawn_succeeded) {
+		if (g_horde_local.num_to_spawn > 0) {
+			g_horde_local.num_to_spawn--;
+		}
+		monsters_spawned_in_current_phase++;
+		
+		// If the successful spawn was during recovery, we can now exit recovery mode.
+		if (g_recovery_mode_active) {
+			if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful spawn.\n");
 			g_recovery_mode_active = false;
 			current_wave_type = g_original_wave_type_before_recovery;
 			g_original_wave_type_before_recovery = MonsterWaveType::None;
 		}
 	}
-	else
-	{
-		num_spawned_this_call = ExecuteNormalSpawnProcedure(
-			spawnable_this_call,
-			currentLevel,
-			champion_chance_for_batch,
-			g_recovery_mode_active,
-			g_horde_retaliation_active,
-			current_wave_type,
-			g_original_wave_type_before_recovery);
-		if (g_recovery_mode_active && g_consecutive_spawn_failures == 0 && num_spawned_this_call > 0)
-		{
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful NORMAL spawns.\n");
-			g_recovery_mode_active = false;
-			current_wave_type = g_original_wave_type_before_recovery;
-			g_original_wave_type_before_recovery = MonsterWaveType::None;
-		}
-	}
-
-	if (num_spawned_this_call == 0 && spawnable_this_call > 0 && !use_emergency_spawn_flag)
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("SpawnMonsters: Entire batch of {} normal spawns failed. Consecutive failures now: {}\n",
-							spawnable_this_call, g_consecutive_spawn_failures);
-		}
-	}
-
-	// --- 7. Final Actions ---
-	SetNextMonsterSpawnTime(mapSize);
+	// Note: Failure counting is handled inside the attempt functions.
 }
 
 // --- Helper Function Implementations ---
@@ -7251,56 +7211,39 @@ static void SetMonsterArmor(edict_t *monster)
 
 static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize)
 {
-	// Original spawn time ranges (Big maps are faster)
+	// --- MODIFIED VALUES ---
+	// Let's try much faster intervals, like 100ms to 300ms.
+	// This means the game will try to spawn a monster 3-10 times per second.
 	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = {{
-		{0.6_sec, 0.8_sec}, // Small maps
-		{0.8_sec, 1.0_sec}, // Medium maps
-		{0.4_sec, 0.6_sec}	// Big maps
+		{0.2_sec, 0.3_sec}, // Small maps (was 0.6-0.8)
+		{0.15_sec, 0.25_sec}, // Medium maps (was 0.8-1.0)
+		{0.1_sec, 0.2_sec}	// Big maps (was 0.4-0.6)
 	}};
+	// --- END MODIFICATION ---
 
-	// Apply early wave modifier (waves 1-10) - slows down spawn rate initially
+	// The rest of the function can remain the same. It will apply multipliers
+	// to these new, faster base times.
 	float earlyWaveMultiplier = 1.0f;
-	// Check level is valid before calculation
 	if (g_horde_local.level >= 1 && g_horde_local.level <= 10)
 	{
-		// Linearly decreases interval multiplier from 2.0x at wave 1 down to 1.1x at wave 10.
-		// After wave 10, the multiplier is 1.0x (no modification).
 		earlyWaveMultiplier = 2.0f - ((static_cast<float>(g_horde_local.level) - 1.0f) * 0.1f);
-		// Clamp just in case level somehow goes outside 1-10 despite the check
 		earlyWaveMultiplier = std::clamp(earlyWaveMultiplier, 1.1f, 2.0f);
 	}
 
-	// Select base times based on map size
 	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
 	const auto &[base_min_time, base_max_time] = BASE_SPAWN_TIMES[mapIndex];
 
-	// Apply the early wave multiplier to get the target time range
 	const gtime_t min_time = gtime_t::from_sec(base_min_time.seconds() * earlyWaveMultiplier);
 	const gtime_t max_time = gtime_t::from_sec(base_max_time.seconds() * earlyWaveMultiplier);
 
-	// Calculate the random interval within the adjusted range
-	// Ensure min_time <= max_time before calling random_time to avoid potential issues
-	const gtime_t calculated_interval = (min_time <= max_time) ? random_time(min_time, max_time) : min_time; // Fallback to min_time if somehow inverted
+	const gtime_t calculated_interval = (min_time <= max_time) ? random_time(min_time, max_time) : min_time;
 
-	// --- CLAMPING ---
-	// Ensure the final interval is never less than the absolute minimum allowed
-	const gtime_t final_interval = std::max(calculated_interval, HordeConstants::MIN_MONSTER_SPAWN_INTERVAL);
+	// We can also lower the absolute minimum interval.
+	const gtime_t final_interval = std::max(calculated_interval, 100_ms); // Was MIN_MONSTER_SPAWN_INTERVAL (0.8s)
 
-	// Set the time for the next spawn attempt
 	g_horde_local.monster_spawn_time = level.time + final_interval;
-
-	//// Optional Debugging
-	// if (developer->integer > 2) {
-	//	gi.Com_PrintFmt("SetNextMonsterSpawnTime: Level={}, MapIdx={}, EarlyMult={:.2f}, Base=[{:.2f}-{:.2f}], Adjusted=[{:.2f}-{:.2f}], Calculated={:.2f}, Final={:.2f}\n",
-	//		g_horde_local.level,
-	//		mapIndex,
-	//		earlyWaveMultiplier,
-	//		base_min_time.seconds(), base_max_time.seconds(),
-	//		min_time.seconds(), max_time.seconds(),
-	//		calculated_interval.seconds(),
-	//		final_interval.seconds());
-	// }
 }
+
 // Usar enum class para mejorar la seguridad de tipos
 enum class MessageType
 {
@@ -7619,28 +7562,20 @@ void Horde_RunFrame() {
 				break;
 			}
 
-			// If it's time to spawn...
+			// If it's time to attempt a spawn...
 			if (g_horde_local.monster_spawn_time <= currentTime) {
-				int32_t num_to_spawn_before = g_horde_local.num_to_spawn;
-
+				// Handle boss wave logic first
 				if (IsBossWave() && !boss_spawned_for_wave) {
 					SpawnBossAutomatically();
 				}
 				
-				// Spawn regular monsters or minions (or boss wave minions)
-				if (!IsBossWave() || boss_spawned_for_wave) {
-					SpawnMonsters();
+				// Spawn regular monsters or boss minions if the pool is not empty
+				if ((!IsBossWave() || boss_spawned_for_wave) && g_horde_local.num_to_spawn > 0) {
+					SpawnMonsters(); // This now attempts to spawn only ONE monster.
 				}
 
-				int32_t spawned_this_frame = num_to_spawn_before - g_horde_local.num_to_spawn;
-				if (spawned_this_frame > 0) {
-					monsters_spawned_in_current_phase += spawned_this_frame;
-				}
-
-				// If all initial monsters are spawned, transition to active wave
-				// *** THE ONLY CHANGE IS IN THIS IF STATEMENT ***
+				// Check if the wave is now fully deployed
 				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
-					// This condition now prevents the state change if it's a boss wave and the boss hasn't spawned.
 					if (!IsBossWave() || boss_spawned_for_wave) {
 						if (!next_wave_message_sent) {
 							VerifyAndAdjustBots();
@@ -7650,36 +7585,53 @@ void Horde_RunFrame() {
 						g_horde_local.state = horde_state_t::active_wave;
 					}
 				}
+				
+				// ALWAYS schedule the next spawn attempt to spread the load.
 				SetNextMonsterSpawnTime(mapSize);
 			}
 			break;
 		}
 
 		case horde_state_t::active_wave:
-			if (CheckRemainingMonstersCondition(mapSize, currentWaveEndReason)) {
-				waveEnded = true;
-				break;
-			}
-			// Reinforcement logic
-			if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn == 0) {
-				const int32_t activeMonsters = CalculateRemainingMonsters();
-				const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : HordeConstants::MAX_MONSTERS_MEDIUM_MAP;
-				int32_t availableSpace = softCap - activeMonsters;
-				if (availableSpace > 0) {
-					const int32_t transfer_batch = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 8 : 6);
-					int32_t transfer_amount = std::min({g_horde_local.queued_monsters, availableSpace, transfer_batch});
-					if (transfer_amount > 0) {
-						g_horde_local.num_to_spawn += transfer_amount;
-						g_horde_local.queued_monsters -= transfer_amount;
-					}
-				}
-			}
-			// Spawn reinforcements if any were added
-			if (g_horde_local.num_to_spawn > 0 && g_horde_local.monster_spawn_time <= currentTime) {
-				SpawnMonsters();
-				SetNextMonsterSpawnTime(mapSize);
-			}
-			break;
+    // --- NEW PRIORITY CHECK ---
+    // First, check for the absolute win condition.
+    if (CalculateRemainingMonsters() == 0 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
+        // Double-check with the more expensive function to be certain.
+        if (Horde_AllMonstersDead()) {
+            currentWaveEndReason = WaveEndReason::AllMonstersDead;
+            waveEnded = true;
+            break; // Exit the switch immediately.
+        }
+    }
+    // --- END NEW PRIORITY CHECK ---
+
+    // Now, check for the timed-out conditions.
+    if (CheckRemainingMonstersCondition(mapSize, currentWaveEndReason)) {
+        waveEnded = true;
+        break;
+    }
+
+    // If the wave has NOT ended, then proceed with reinforcement logic.
+    if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn == 0) {
+        const int32_t activeMonsters = CalculateRemainingMonsters();
+        const int32_t softCap = g_adjusted_monster_cap;
+        int32_t availableSpace = softCap - activeMonsters;
+        if (availableSpace > 0) {
+            const int32_t transfer_batch = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 8 : 6);
+            int32_t transfer_amount = std::min({g_horde_local.queued_monsters, availableSpace, transfer_batch});
+            if (transfer_amount > 0) {
+                g_horde_local.num_to_spawn += transfer_amount;
+                g_horde_local.queued_monsters -= transfer_amount;
+            }
+        }
+    }
+
+    // Spawn reinforcements if any were added to the pool.
+    if (g_horde_local.num_to_spawn > 0 && g_horde_local.monster_spawn_time <= currentTime) {
+        SpawnMonsters();
+        SetNextMonsterSpawnTime(mapSize);
+    }
+    break;
 
 		case horde_state_t::cleanup:
 			if (g_horde_local.monster_spawn_time < currentTime) {
