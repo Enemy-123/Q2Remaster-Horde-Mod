@@ -11,11 +11,9 @@
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave;
+
 int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
-
-static int32_t g_spawn_state_deaths = 0;
-static gtime_t g_last_spawn_state_death_time = 0_sec;
 
 // Cache for potentially valid spawn points (pointers)
 static std::vector<edict_t *> g_potential_spawn_points;
@@ -163,6 +161,7 @@ namespace HordeConstants
 } // namespace HordeConstants
 
 // --- Forward Declarations ---
+static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
 [[nodiscard]] bool IsValidSpawnLocation(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
@@ -1328,129 +1327,6 @@ static int32_t g_lastWaveNumber = -1;
 static int32_t g_lastNumHumanPlayers = -1;
 static bool g_maxMonstersReached = false;
 static bool g_lowPercentageTriggered = false;
-static void Horde_InitLevel(const int32_t lvl);
-
-struct MonsterTypeInfo
-{
-	// wave typeid
-	horde::MonsterTypeID typeId;
-	MonsterWaveType types;
-	int minWave;
-	float weight;
-
-	// bounds check
-	vec3_t default_mins;
-	vec3_t default_maxs;
-	float s_scale; // <-- ADDED: Intended scale for this monster type
-
-	// Constructor updated to include scale (defaults to 1.0f)
-	constexpr MonsterTypeInfo(horde::MonsterTypeID id, MonsterWaveType t, int w, float wt,
-							  vec3_t d_mins, vec3_t d_maxs, float scale = 1.0f) // Add scale parameter
-		: typeId(id), types(t), minWave(w), weight(wt),
-		  default_mins(d_mins), default_maxs(d_maxs), s_scale(scale) // Initialize scale
-	{
-	}
-};
-
-// 2. The complete monsterTypes array with s_scale added
-static const MonsterTypeInfo monsterTypes[] = {
-	// Basic Infantry (Scale 1.0)
-	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::INFANTRY_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::SOLDIER_HYPERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::SOLDIER_RIPPER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::SOLDIER_LASERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-
-	// Early Flying Units
-	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f, {-16, -16, -24}, {16, 16, 16}, 1.0f},
-	{horde::MonsterTypeID::FIXBOT, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.45f, {-16, -16, -12}, {16, 16, 12}, 1.4f}, // Scale 1.4
-	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-	{horde::MonsterTypeID::FLOATER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 11, 0.6f, {-24, -24, -24}, {24, 24, 48}, 0.9f}, // Scale 0.9
-
-	// Special Wave Units
-	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
-	{horde::MonsterTypeID::PARASITE, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f, {-16, -16, -24}, {16, 16, 24}, 1.0f},
-	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f, {-28, -28, -18}, {28, 28, -4}, 1.0f},
-	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
-
-	// Medium Units
-	{horde::MonsterTypeID::GUNNER_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
-	{horde::MonsterTypeID::INFANTRY, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f, {-16, -16, -24}, {16, 16, 32}, 1.2f}, // Scale 1.2
-	{horde::MonsterTypeID::MEDIC, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
-	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
-
-	// Arachnophobic Units
-	{horde::MonsterTypeID::SPIDER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f, {-48, -48, -20}, {48, 48, 48}, 0.7f},		  // Scale 0.7
-	{horde::MonsterTypeID::GUNCMDR_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f, {-16, -16, -24}, {16, 16, 36}, 1.25f},	  // Scale 1.25
-	{horde::MonsterTypeID::ARACHNID2, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f, {-48, -48, -20}, {48, 48, 48}, 0.85f},							  // Scale 0.85
-	{horde::MonsterTypeID::GM_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f, {-48, -48, -20}, {48, 48, 48}, 0.85f}, // Scale 0.85
-	{horde::MonsterTypeID::PSX_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite | MonsterWaveType::Spawner, 25, 0.35f, {-48, -48, -20}, {48, 48, 48}, 1.0f},
-
-	// Mutant Units
-	{horde::MonsterTypeID::MUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f, {-18, -18, -24}, {18, 18, 30}, 1.0f},
-	{horde::MonsterTypeID::SHAMBLER_SMALL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.4f, {-32, -32, -24}, {32, 32, 64}, 0.6f},												// Scale 0.6
-	{horde::MonsterTypeID::REDMUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f, {-18, -18, -24}, {18, 18, 30}, 1.1f}, // Scale 1.1
-
-	// Heavy Ground Units
-	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
-	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
-	{horde::MonsterTypeID::TANK_SPAWNER, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 13, 0.6f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
-	{horde::MonsterTypeID::TANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
-	{horde::MonsterTypeID::TANK_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
-	{horde::MonsterTypeID::GUNCMDR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f, {-16, -16, -24}, {16, 16, 36}, 1.25f}, // Scale 1.25
-	{horde::MonsterTypeID::RUNNERTANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Fast, 17, 0.5f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
-	{horde::MonsterTypeID::CHICK_HEAT, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
-
-	// Elite Flying Units
-	{horde::MonsterTypeID::HOVER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.5f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-	{horde::MonsterTypeID::DAEDALUS, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-	{horde::MonsterTypeID::FLOATER_TRACKER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 19, 0.45f, {-24, -24, -24}, {24, 24, 48}, 1.0f},
-	{horde::MonsterTypeID::DAEDALUS_BOMBER, MonsterWaveType::Flying | MonsterWaveType::Fast| MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 19, 0.35f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-
-	// Elite Ground Units
-	{horde::MonsterTypeID::GLADIATOR_B, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
-	{horde::MonsterTypeID::GLADIATOR_C, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
-	{horde::MonsterTypeID::SHAMBLER, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
-	{horde::MonsterTypeID::TANK_64, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f, {-32, -32, -16}, {32, 32, 64}, 1.1f}, // Scale 1.1
-
-	// Special Heavy Units
-	{horde::MonsterTypeID::JANITOR, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f, {-64, -64, -0}, {64, 64, 112}, 0.6f},							 // Scale 0.6
-	{horde::MonsterTypeID::JANITOR2, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f, {-96, -96, -66}, {96, 96, 62}, 0.4f}, // Scale 0.4
-	{horde::MonsterTypeID::MEDIC_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
-
-	// Semi-Boss Units
-	{horde::MonsterTypeID::MAKRON, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
-	{horde::MonsterTypeID::PERRO_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f, {-16, -16, -24}, {16, 16, 24}, 1.0f},
-	{horde::MonsterTypeID::WIDOW1, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.15f, {-40, -40, 0}, {40, 40, 144}, 0.6f}, // Scale 0.6
-	{horde::MonsterTypeID::SHAMBLER_KL, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
-	{horde::MonsterTypeID::GUNCMDR_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f, {-16, -16, -24}, {16, 16, 36}, 1.25f}, // Scale 1.25
-	{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
-	//{horde::MonsterTypeID::BOSS2_KL, MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},							   // Scale 0.6
-	{horde::MonsterTypeID::JORG_SMALL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f, {-80, -80, 0}, {80, 80, 140}, 0.35f}, // Scale 0.35
-
-	// Boss Units (Included for completeness, scale might be set differently if spawned via specific boss logic)
-	{horde::MonsterTypeID::BOSS2_64, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},														  // Scale 0.6
-	{horde::MonsterTypeID::BOSS2_MINI, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},														  // Scale 0.6
-	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56, -56, -44}, {56, 56, 44}, 0.6f} // Scale 0.6
-
-	// Other Bosses (Assuming scale 1.0 unless specified otherwise in their SP_ functions)
-	//{horde::MonsterTypeID::BOSS2, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.1f, {-60,-60,0}, {60,60,90}, 1.0f},
-	//{horde::MonsterTypeID::CARRIER, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 24, 0.1f, {-56,-56,-44}, {56,56,44}, 1.0f},
-	//{horde::MonsterTypeID::FIXBOT_KL, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 0, 0.4f, {-16,-16,-12}, {16,16,12}, 2.6f}, // Scale 2.6
-	//{horde::MonsterTypeID::WIDOW, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-40,-40,0}, {40,40,144}, 1.0f},
-	//{horde::MonsterTypeID::WIDOW2, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 19, 0.15f, {-40,-40,0}, {40,40,144}, 0.8f}, // Scale 0.8
-	//{horde::MonsterTypeID::BOSS5, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-32,-32,-16}, {32,32,64}, 1.0f}, // Supertank
-	//{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.15f, {-80,-80,0}, {80,80,140}, 1.0f},
-	//{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 25, 0.1f, {-32,-32,-24}, {32,32,64}, 1.0f}, // Assuming 1.0
-
-	// Turret (Not typically spawned via this array, but included)
-	//{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 1, 0.0f, {-16,-16,-16}, {16,16,16}, 1.0f}, // Weight 0, likely not picked
-};
-// Optimized version using a precomputed map
-static std::array<MonsterWaveType, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterWaveTypes;
 
 // Forward declaration for calculate_max_wave_time if it's not already visible
 // static constexpr gtime_t calculate_max_wave_time(int32_t wave_level); // (already provided in previous context)
@@ -1992,7 +1868,128 @@ void InitializeWaveType(int32_t waveLevel)
 // Function declaration for the new bounds helper
 bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &out_mins, vec3_t &out_maxs);
 
+// 1. Modified MonsterTypeInfo struct definition (ensure this is defined before the array)
+struct MonsterTypeInfo
+{
+	// wave typeid
+	horde::MonsterTypeID typeId;
+	MonsterWaveType types;
+	int minWave;
+	float weight;
 
+	// bounds check
+	vec3_t default_mins;
+	vec3_t default_maxs;
+	float s_scale; // <-- ADDED: Intended scale for this monster type
+
+	// Constructor updated to include scale (defaults to 1.0f)
+	constexpr MonsterTypeInfo(horde::MonsterTypeID id, MonsterWaveType t, int w, float wt,
+							  vec3_t d_mins, vec3_t d_maxs, float scale = 1.0f) // Add scale parameter
+		: typeId(id), types(t), minWave(w), weight(wt),
+		  default_mins(d_mins), default_maxs(d_maxs), s_scale(scale) // Initialize scale
+	{
+	}
+};
+
+// 2. The complete monsterTypes array with s_scale added
+static const MonsterTypeInfo monsterTypes[] = {
+	// Basic Infantry (Scale 1.0)
+	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER_SS, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::INFANTRY_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER_HYPERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 4, 0.7f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER_RIPPER, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::SOLDIER_LASERGUN, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 10, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+
+	// Early Flying Units
+	{horde::MonsterTypeID::FLYER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f, {-16, -16, -24}, {16, 16, 16}, 1.0f},
+	{horde::MonsterTypeID::FIXBOT, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.45f, {-16, -16, -12}, {16, 16, 12}, 1.4f}, // Scale 1.4
+	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+	{horde::MonsterTypeID::FLOATER, MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 11, 0.6f, {-24, -24, -24}, {24, 24, 48}, 0.9f}, // Scale 0.9
+
+	// Special Wave Units
+	{horde::MonsterTypeID::GEKK, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
+	{horde::MonsterTypeID::PARASITE, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f, {-16, -16, -24}, {16, 16, 24}, 1.0f},
+	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f, {-28, -28, -18}, {28, 28, -4}, 1.0f},
+	{horde::MonsterTypeID::BRAIN, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f, {-16, -16, -24}, {16, 16, -8}, 1.0f},
+
+	// Medium Units
+	{horde::MonsterTypeID::GUNNER_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
+	{horde::MonsterTypeID::INFANTRY, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f, {-16, -16, -24}, {16, 16, 32}, 1.2f}, // Scale 1.2
+	{horde::MonsterTypeID::MEDIC, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
+	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
+
+	// Arachnophobic Units
+	{horde::MonsterTypeID::SPIDER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f, {-48, -48, -20}, {48, 48, 48}, 0.7f},		  // Scale 0.7
+	{horde::MonsterTypeID::GUNCMDR_VANILLA, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f, {-16, -16, -24}, {16, 16, 36}, 1.25f},	  // Scale 1.25
+	{horde::MonsterTypeID::ARACHNID2, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f, {-48, -48, -20}, {48, 48, 48}, 0.85f},							  // Scale 0.85
+	{horde::MonsterTypeID::GM_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f, {-48, -48, -20}, {48, 48, 48}, 0.85f}, // Scale 0.85
+	{horde::MonsterTypeID::PSX_ARACHNID, MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite | MonsterWaveType::Spawner, 25, 0.35f, {-48, -48, -20}, {48, 48, 48}, 1.0f},
+
+	// Mutant Units
+	{horde::MonsterTypeID::MUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f, {-18, -18, -24}, {18, 18, 30}, 1.0f},
+	{horde::MonsterTypeID::SHAMBLER_SMALL, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.4f, {-32, -32, -24}, {32, 32, 64}, 0.6f},												// Scale 0.6
+	{horde::MonsterTypeID::REDMUTANT, MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f, {-18, -18, -24}, {18, 18, 30}, 1.1f}, // Scale 1.1
+
+	// Heavy Ground Units
+	{horde::MonsterTypeID::GLADIATOR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
+	{horde::MonsterTypeID::GUNNER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f, {-16, -16, -24}, {16, 16, 36}, 1.0f},
+	{horde::MonsterTypeID::TANK_SPAWNER, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite, 13, 0.6f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::TANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::TANK_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::GUNCMDR, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f, {-16, -16, -24}, {16, 16, 36}, 1.25f}, // Scale 1.25
+	{horde::MonsterTypeID::RUNNERTANK, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Fast, 17, 0.5f, {-32, -32, -16}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::CHICK_HEAT, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Fast, 13, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
+
+	// Elite Flying Units
+	{horde::MonsterTypeID::HOVER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.5f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+	{horde::MonsterTypeID::DAEDALUS, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+	{horde::MonsterTypeID::FLOATER_TRACKER, MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 19, 0.45f, {-24, -24, -24}, {24, 24, 48}, 1.0f},
+	{horde::MonsterTypeID::DAEDALUS_BOMBER, MonsterWaveType::Flying | MonsterWaveType::Fast| MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 19, 0.35f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+
+	// Elite Ground Units
+	{horde::MonsterTypeID::GLADIATOR_B, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
+	{horde::MonsterTypeID::GLADIATOR_C, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f, {-32, -32, -24}, {32, 32, 42}, 1.0f},
+	{horde::MonsterTypeID::SHAMBLER, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::TANK_64, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f, {-32, -32, -16}, {32, 32, 64}, 1.1f}, // Scale 1.1
+
+	// Special Heavy Units
+	{horde::MonsterTypeID::JANITOR, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f, {-64, -64, -0}, {64, 64, 112}, 0.6f},							 // Scale 0.6
+	{horde::MonsterTypeID::JANITOR2, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f, {-96, -96, -66}, {96, 96, 62}, 0.4f}, // Scale 0.4
+	{horde::MonsterTypeID::MEDIC_COMMANDER, MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.3f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+
+	// Semi-Boss Units
+	{horde::MonsterTypeID::MAKRON, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.01f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
+	{horde::MonsterTypeID::PERRO_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f, {-16, -16, -24}, {16, 16, 24}, 1.0f},
+	{horde::MonsterTypeID::WIDOW1, MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.15f, {-40, -40, 0}, {40, 40, 144}, 0.6f}, // Scale 0.6
+	{horde::MonsterTypeID::SHAMBLER_KL, MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.23f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
+	{horde::MonsterTypeID::GUNCMDR_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f, {-16, -16, -24}, {16, 16, 36}, 1.25f}, // Scale 1.25
+	{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
+	//{horde::MonsterTypeID::BOSS2_KL, MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},							   // Scale 0.6
+	{horde::MonsterTypeID::JORG_SMALL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Medium, 33, 0.4f, {-80, -80, 0}, {80, 80, 140}, 0.35f}, // Scale 0.35
+
+	// Boss Units (Included for completeness, scale might be set differently if spawned via specific boss logic)
+	{horde::MonsterTypeID::BOSS2_64, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},														  // Scale 0.6
+	{horde::MonsterTypeID::BOSS2_MINI, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},														  // Scale 0.6
+	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56, -56, -44}, {56, 56, 44}, 0.6f} // Scale 0.6
+
+	// Other Bosses (Assuming scale 1.0 unless specified otherwise in their SP_ functions)
+	//{horde::MonsterTypeID::BOSS2, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.1f, {-60,-60,0}, {60,60,90}, 1.0f},
+	//{horde::MonsterTypeID::CARRIER, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 24, 0.1f, {-56,-56,-44}, {56,56,44}, 1.0f},
+	//{horde::MonsterTypeID::FIXBOT_KL, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 0, 0.4f, {-16,-16,-12}, {16,16,12}, 2.6f}, // Scale 2.6
+	//{horde::MonsterTypeID::WIDOW, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-40,-40,0}, {40,40,144}, 1.0f},
+	//{horde::MonsterTypeID::WIDOW2, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 19, 0.15f, {-40,-40,0}, {40,40,144}, 0.8f}, // Scale 0.8
+	//{horde::MonsterTypeID::BOSS5, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-32,-32,-16}, {32,32,64}, 1.0f}, // Supertank
+	//{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.15f, {-80,-80,0}, {80,80,140}, 1.0f},
+	//{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 25, 0.1f, {-32,-32,-24}, {32,32,64}, 1.0f}, // Assuming 1.0
+
+	// Turret (Not typically spawned via this array, but included)
+	//{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 1, 0.0f, {-16,-16,-16}, {16,16,16}, 1.0f}, // Weight 0, likely not picked
+};
+// Optimized version using a precomputed map
+static std::array<MonsterWaveType, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterWaveTypes;
 static bool g_monsterWaveTypesInitialized = false;
 
 // Initialize the wave types array once
@@ -4968,95 +4965,161 @@ int32_t CalculateRemainingMonsters() noexcept
 	return std::max(0, remaining); // Ensure non-negative
 }
 
-//======================================================================
-// CheckRemainingMonstersCondition (Robust for Trickle Spawning)
-//======================================================================
 static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveEndReason& reason) {
     const gtime_t currentTime = level.time;
     const int32_t liveMonsters = CalculateRemainingMonsters();
-    
-    // --- 1. Absolute Win Condition (Fast Path) ---
+    // Use g_horde_local.level which is the definitive current wave level
+    const int32_t local_currentLevel = g_horde_local.level; 
+    const uint16_t initialWaveTotalForPercentage = (g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1;
+
+
+    if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
+        g_independent_timer_start = currentTime;
+        g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
+        if (g_horde_local.queued_monsters > initialWaveTotalForPercentage * 0.2f && g_horde_local.queued_monsters > 5) {
+            gtime_t queue_bonus = gtime_t::from_sec(static_cast<float>(g_horde_local.queued_monsters) * 0.5f);
+            queue_bonus = std::min(queue_bonus, 15_sec);
+            g_horde_local.conditionTimeThreshold += queue_bonus;
+            if (developer->integer) {
+                gi.Com_PrintFmt("Post-Deploy Timer: Adding {}s bonus ({} queued). New threshold: {}s.\n",
+                    queue_bonus.seconds(), g_horde_local.queued_monsters, g_horde_local.conditionTimeThreshold.seconds());
+            }
+        }
+        g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
+        g_horde_local.conditionTriggered = true;
+        g_horde_local.conditionStartTime = currentTime;
+
+        if (developer->integer) {
+            gi.Com_PrintFmt("Debug: Conditional timer initiated post-deployment. Ends in {}s.\n",
+                g_horde_local.conditionTimeThreshold.seconds());
+        }
+    }
+
     if (allowWaveAdvance || (liveMonsters == 0 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)) {
         if (Horde_AllMonstersDead()) {
              reason = WaveEndReason::AllMonstersDead;
              ResetWaveAdvanceState();
              return true;
+        } else if (developer->integer) {
+            gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but Horde_AllMonstersDead is false. Live: {}, NumSpawn: {}, Queued: {}. TotalLevel: {}. KilledLevel: {}\n",
+                liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, level.total_monsters, level.killed_monsters);
         }
     }
     
-    // --- 2. Absolute Max Time Limit (Failsafe) ---
     if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
         reason = WaveEndReason::TimeLimitReached;
-        if (developer->integer) gi.Com_PrintFmt("Wave ended: Independent time limit of %.1fs reached.\n", g_lastParams.independentTimeThreshold.seconds());
+        if (developer->integer) gi.Com_PrintFmt("Wave ended: Independent time limit reached ({}s).\n", g_lastParams.independentTimeThreshold.seconds());
         return true;
     }
 
-    // --- 3. Mop-Up Phase Logic (Only runs AFTER all monsters are deployed) ---
-    if (next_wave_message_sent) {
-        // A. Start the mop-up timer if it hasn't been started yet.
-        if (!g_horde_local.conditionTriggered) {
+    const float percentageOfInitialWaveRemaining = static_cast<float>(liveMonsters) / initialWaveTotalForPercentage;
+
+    if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
+        const bool maxMonstersReached = liveMonsters <= g_lastParams.maxMonsters;
+        const bool lowPercentageReached = percentageOfInitialWaveRemaining <= g_lastParams.lowPercentageThreshold;
+
+        if (maxMonstersReached || lowPercentageReached) {
             g_horde_local.conditionTriggered = true;
             g_horde_local.conditionStartTime = currentTime;
-            g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
+
+            if (maxMonstersReached && lowPercentageReached) {
+                g_horde_local.conditionTimeThreshold = std::min(
+                    g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
+            } else {
+                g_horde_local.conditionTimeThreshold = maxMonstersReached ?
+                    g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
+            }
+
+            if (g_horde_local.queued_monsters > 5) {
+                gtime_t queue_bonus = gtime_t::from_sec(static_cast<float>(g_horde_local.queued_monsters) * 0.3f);
+                queue_bonus = std::min(queue_bonus, 10_sec);
+                g_horde_local.conditionTimeThreshold += queue_bonus;
+                if (developer->integer) {
+                    gi.Com_PrintFmt("Pre-Deploy ConditionalTimer: Adding {}s bonus ({} queued). New threshold: {}s.\n",
+                        queue_bonus.seconds(), g_horde_local.queued_monsters, g_horde_local.conditionTimeThreshold.seconds());
+                }
+            }
             g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
 
-            if (developer->integer) {
-                gi.Com_PrintFmt("Debug: Mop-up timer initiated. Ends in %.1fs.\n", g_horde_local.conditionTimeThreshold.seconds());
-            }
-        }
-
-        // B. Apply Aggressive Time Reduction if few monsters are left.
-        if (liveMonsters <= HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION) { 
-            float base_time = 6.0f + (liveMonsters * 1.5f);
-            float map_size_multiplier = 1.0f;
-            if (mapSize.isSmallMap) map_size_multiplier = 1.3f;
-            else if (mapSize.isMediumMap) map_size_multiplier = 1.15f;
-            base_time *= map_size_multiplier;
-
-            if (IsBossWave() && boss_spawned_for_wave) {
-                base_time *= 2.0f + (0.2f * liveMonsters);
-                base_time = std::max(base_time, 10.0f);
-            } else {
-                if (g_horde_local.level >= 15) {
-                    float reduction = std::min((g_horde_local.level - 15) * 0.02f, 0.3f);
-                    base_time *= (1.0f - reduction);
-                }
-                int32_t playerCount = GetNumHumanPlayers();
-                if (playerCount > 1) {
-                    float player_reduction = std::min((playerCount - 1) * 0.07f, 0.2f);
-                    base_time *= (1.0f - player_reduction);
-                }
-            }
-            float min_time = (IsBossWave() && boss_spawned_for_wave) ? 7.0f : 5.0f;
-            if (!IsBossWave() || !boss_spawned_for_wave) min_time *= map_size_multiplier;
-            
-            gtime_t aggressive_time = gtime_t::from_sec(std::max(min_time, base_time));
-            const gtime_t original_remaining_conditional = (g_horde_local.waveEndTime > currentTime) ? (g_horde_local.waveEndTime - currentTime) : 0_sec;
-
-            if (original_remaining_conditional > 0_sec && aggressive_time < original_remaining_conditional) {
-                g_horde_local.waveEndTime = currentTime + aggressive_time;
+            if (local_currentLevel >= 15 && liveMonsters <= 5 && g_horde_local.queued_monsters < 3) {
+                const float reduction_factor = 0.6f;
+                g_horde_local.waveEndTime = currentTime + std::max(1_sec, g_horde_local.conditionTimeThreshold * reduction_factor);
                 if (developer->integer) {
-                    gi.Com_PrintFmt("Aggressive time reduction: %.1fs remaining for {} live monsters.\n",
-                        aggressive_time.seconds(), liveMonsters);
+                    gi.Com_PrintFmt("High wave with few live & queued monsters (pre-deploy): reduced timeout by {}%%. New end in {}s.\n",
+                        static_cast<int>((1.0f - reduction_factor) * 100.0f), (g_horde_local.waveEndTime - currentTime).seconds());
                 }
             }
+             if (developer->integer) {
+                gi.Com_PrintFmt("Debug: Conditional timer initiated pre-deployment. Ends in {}s. Trigger: maxM ({}), lowP ({}). Queue: {}\n",
+                    g_horde_local.conditionTimeThreshold.seconds(), maxMonstersReached, lowPercentageReached, g_horde_local.queued_monsters);
+            }
         }
+    }
 
-        // C. Issue warnings to players based on the timer.
-        const gtime_t remaining = GetWaveTimer();
-        if (remaining > 0_sec) {
+    if (g_horde_local.conditionTriggered &&
+        liveMonsters <= HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION &&
+        g_horde_local.queued_monsters < 3) { 
+		float base_time = 6.0f + (liveMonsters * 1.5f);
+		float map_size_multiplier = 1.0f;
+		if (mapSize.isSmallMap) map_size_multiplier = 1.3f;
+		else if (mapSize.isMediumMap) map_size_multiplier = 1.15f;
+		base_time *= map_size_multiplier;
+
+		if (IsBossWave() && boss_spawned_for_wave) {
+			base_time *= 2.0f + (0.2f * liveMonsters);
+			base_time = std::max(base_time, 10.0f);
+		} else {
+			if (local_currentLevel >= 15) { // Use local_currentLevel
+				float reduction = std::min((local_currentLevel - 15) * 0.02f, 0.3f);
+				base_time *= (1.0f - reduction);
+			}
+			int32_t playerCount = GetNumHumanPlayers();
+			if (playerCount > 1) {
+				float player_reduction = std::min((playerCount - 1) * 0.07f, 0.2f);
+				base_time *= (1.0f - player_reduction);
+			}
+		}
+		float min_time = (IsBossWave() && boss_spawned_for_wave) ? 7.0f : 5.0f;
+		if (!IsBossWave() || !boss_spawned_for_wave) min_time *= map_size_multiplier;
+		gtime_t aggressive_time = gtime_t::from_sec(std::max(min_time, base_time));
+		const gtime_t original_remaining_conditional = (g_horde_local.waveEndTime > currentTime) ? (g_horde_local.waveEndTime - currentTime) : 0_sec;
+
+        if (original_remaining_conditional > 0_sec && aggressive_time < original_remaining_conditional) {
+            g_horde_local.waveEndTime = currentTime + aggressive_time;
+            if (developer->integer) {
+                gi.Com_PrintFmt("Aggressive time reduction (low queue): {}s remaining for {} live monsters.\n",
+                    aggressive_time.seconds(), liveMonsters);
+            }
+        }
+    }
+
+    bool should_issue_warnings = g_horde_local.conditionTriggered || (g_horde_local.state == horde_state_t::active_wave && next_wave_message_sent);
+    if (should_issue_warnings) {
+        const gtime_t actualRelevantRemainingTime = GetWaveTimer();
+        if (actualRelevantRemainingTime > 0_sec) {
             for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
-                if (!g_horde_local.warningIssued[i] && remaining <= gtime_t::from_sec(WARNING_TIMES[i])) {
+                if (!g_horde_local.warningIssued[i] &&
+                    actualRelevantRemainingTime <= gtime_t::from_sec(WARNING_TIMES[i]) &&
+                    actualRelevantRemainingTime > gtime_t::from_sec(WARNING_TIMES[i]) - 1_sec) {
                     gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n", static_cast<int>(WARNING_TIMES[i]));
                     g_horde_local.warningIssued[i] = true;
                 }
             }
         }
+    }
 
-        // D. End the wave if the timer has expired.
-        if (g_horde_local.conditionTriggered && currentTime >= g_horde_local.waveEndTime) {
+    if (g_horde_local.conditionTriggered && currentTime >= g_horde_local.waveEndTime) {
+        reason = WaveEndReason::MonstersRemaining;
+        if (developer->integer) gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", liveMonsters, g_horde_local.queued_monsters);
+        return true;
+    }
+
+    if (local_currentLevel >= 15 && liveMonsters <= 3 && g_horde_local.queued_monsters < 2 && g_horde_local.conditionTriggered) { // Use local_currentLevel
+        const gtime_t elapsed_since_condition_start = currentTime - g_horde_local.conditionStartTime;
+        if (g_horde_local.conditionTimeThreshold > 0_sec &&
+            elapsed_since_condition_start >= (g_horde_local.conditionTimeThreshold * 0.7f)) {
             reason = WaveEndReason::MonstersRemaining;
-            if (developer->integer) gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", liveMonsters, g_horde_local.queued_monsters);
+            if (developer->integer) gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
             return true;
         }
     }
@@ -5117,7 +5180,7 @@ void fastNextWave() noexcept
 
 	// 4. Set timers to the current time to ensure spawning begins on the very next frame.
 	g_horde_local.monster_spawn_time = level.time;
-	//g_horde_local.warm_time = level.time; // Also reset the warmup timer for consistency.
+	g_horde_local.warm_time = level.time; // Also reset the warmup timer for consistency.
 
 	// 5. Announce the new wave so the player knows what's happening.
 	AnnounceIncomingWave(3_sec);
@@ -5882,40 +5945,41 @@ int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edi
 	return spawnedCount;
 }
 
-//======================================================================
-// HandleSpawnPhaseAggression (Using Global State)
-//======================================================================
+// Corrected HandleSpawnPhaseAggression
 void HandleSpawnPhaseAggression(edict_t* monster) {
 	if (!monster || !monster->inuse)
 		return;
 
-	if (monster->spawned_in_spawn_state) {
-        // Use the new global variables instead of static ones
-		if (level.time - g_last_spawn_state_death_time > 8_sec) {
-			g_spawn_state_deaths = 0;
+	if (monster->spawned_in_spawn_state && g_horde_local.state == horde_state_t::spawning) {
+		static int32_t spawn_state_deaths = 0;
+		static gtime_t last_death_time = 0_sec;
+
+		if (level.time - last_death_time > 8_sec) {
+			spawn_state_deaths = 0;
 		}
-		g_spawn_state_deaths++;
-		g_last_spawn_state_death_time = level.time;
+		spawn_state_deaths++;
+		last_death_time = level.time;
 
 		if (developer->integer) {
 			std::string killer_name = "Unknown";
 			if (monster->enemy && monster->enemy->client) {
 				killer_name = GetPlayerName(monster->enemy);
 			}
-			gi.Com_PrintFmt("Monster killed during spawning state by {} ({} total recent)\n", killer_name.c_str(), g_spawn_state_deaths);
+			gi.Com_PrintFmt("Monster killed during spawning state by {} ({} total recent)\n", killer_name.c_str(), spawn_state_deaths);
 		}
 
-		const uint16_t initial_wave_size = (g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1;
-		const float spawn_progress = static_cast<float>(monsters_spawned_in_current_phase) / static_cast<float>(initial_wave_size);
+        // --- IMPROVEMENT: Use g_totalMonstersInWave for a stable denominator ---
+		const uint16_t initial_wave_size_for_progress = (g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1;
+		const float spawn_progress = static_cast<float>(monsters_spawned_in_current_phase) / static_cast<float>(initial_wave_size_for_progress);
+        // --- END IMPROVEMENT ---
 
 		constexpr int32_t MIN_RECENT_DEATHS_FOR_RETALIATION = 8;
 		constexpr float MIN_SPAWN_PROGRESS_FOR_RETALIATION = 0.05f;
 		constexpr uint16_t MIN_TOTAL_SPAWNED_FOR_RETALIATION = 8;
 
-		if (g_spawn_state_deaths >= MIN_RECENT_DEATHS_FOR_RETALIATION &&
+		if (spawn_state_deaths >= MIN_RECENT_DEATHS_FOR_RETALIATION &&
             (spawn_progress >= MIN_SPAWN_PROGRESS_FOR_RETALIATION || monsters_spawned_in_current_phase >= MIN_TOTAL_SPAWNED_FOR_RETALIATION)) {
-			
-            if (!g_horde_retaliation_active) {
+			if (!g_horde_retaliation_active) {
 				g_horde_retaliation_active = true;
 				g_horde_retaliation_end_time = level.time + 12_sec;
 
@@ -5931,14 +5995,13 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 				}
 
 				if (developer->integer) {
-					std::string target_name = GetPlayerName(g_horde_retaliation_target_player);
+					std::string target_player_name = GetPlayerName(g_horde_retaliation_target_player);
 					gi.Com_PrintFmt("HORDE: Retaliation Mode Activated for {}s (Target: {}). Triggered by rapid kills during spawning.\n",
-						(g_horde_retaliation_end_time - level.time).seconds(), target_name.c_str());
+						(g_horde_retaliation_end_time - level.time).seconds(), target_player_name.c_str());
 				}
 
 				SpawnRetaliationAmbush(g_horde_local.current_map_size, g_horde_local.level, g_horde_retaliation_target_player);
 
-                // (Your retaliation monster queuing logic is fine and remains unchanged)
                 int32_t base_retaliation_add = (g_horde_local.level <= 7) ? 4 : 7;
                 if (g_horde_local.level > 12) base_retaliation_add = 10;
                 int32_t monsters_to_add_to_queue = base_retaliation_add + (g_horde_local.level / 4);
@@ -5968,11 +6031,11 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
                 } else if (developer->integer) {
                     gi.Com_PrintFmt("HORDE: Retaliation wanted to add monsters, but no space against hard cap for queue.\n");
                 }
-				
-                // Reset the global counter after triggering retaliation.
-				g_spawn_state_deaths = 0;
+				spawn_state_deaths = 0;
 			}
 		}
+		monster->was_spawned_by_horde = false;
+		monster->spawned_in_spawn_state = false;
 	}
 }
 
@@ -6383,100 +6446,147 @@ static int ExecuteNormalSpawnProcedure(
 	MonsterWaveType current_actual_wave_type_param,
 	MonsterWaveType original_wave_type_before_recovery_param);
 
-//======================================================================
-// SpawnMonsters (Refactored for Single Spawn Attempt)
-//======================================================================
+//-----------------------------------------------------
+// SpawnMonsters - Main function (Refactored)
+//-----------------------------------------------------
 void SpawnMonsters()
 {
-	if (level.intermissiontime || (developer->integer == 2 && g_horde->integer)) {
+	if (level.intermissiontime)
 		return;
-    }
+	if (developer->integer == 2 && g_horde->integer)
+		return;
 
-	// --- Cache Globals ---
-	const horde::MapSize& mapSize = g_horde_local.current_map_size;
+	// --- Cache Globals (Read-only for this scope, mostly) ---
+	const gtime_t current_time = level.time;
+	const horde::MapSize &mapSize = g_horde_local.current_map_size;
+	const horde_state_t current_horde_state = g_horde_local.state;
 	const int32_t currentLevel = g_horde_local.level;
 
 	// --- 1. Spawn Point Cache Management ---
 	RebuildSpawnPointCacheIfNeeded();
-	if (g_potential_spawn_points.empty()) {
-		if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: No potential spawn points. Forcing cache reset.\n");
-		g_consecutive_spawn_failures++;
-		need_spawn_cache_reset = true;
+
+	if (g_potential_spawn_points.empty())
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("SpawnMonsters: No potential spawn points found in cache.\n");
+		if (g_consecutive_spawn_failures < HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY - 1)
+		{
+			g_consecutive_spawn_failures++;
+		}
+		if (!need_spawn_cache_reset)
+		{
+			need_spawn_cache_reset = true;
+			if (developer->integer)
+				gi.Com_PrintFmt("SpawnMonsters: Forcing spawn point cache reset for next frame due to empty cache.\n");
+		}
 		return;
 	}
 
-	// --- 2. Monster Cap & Queue Management ---
+	// --- 2. Calculate Monster Caps & Hard Cap Check ---
 	const int32_t activeMonsters = CalculateRemainingMonsters();
-	const int32_t softCap = g_adjusted_monster_cap;
+	const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : (mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP));
 	const int32_t hardCap = static_cast<int32_t>(softCap * 1.4f);
 
-	if (CheckHardCapAndLog(activeMonsters, hardCap, softCap, g_horde_local.state, currentLevel)) {
-		return; // Hard cap reached, stop all spawning.
-	}
-
-	if (TrySpawnAmbush(mapSize, currentLevel, activeMonsters, softCap)) {
-		SetNextMonsterSpawnTime(mapSize); // Set timer and exit if ambush happened
+	if (CheckHardCapAndLog(activeMonsters, hardCap, softCap, current_horde_state, currentLevel))
+	{
 		return;
 	}
 
+	// --- 3. Ambush System ---
+	if (TrySpawnAmbush(mapSize, currentLevel, activeMonsters, softCap))
+	{
+		SetNextMonsterSpawnTime(mapSize);
+		return;
+	}
+
+	// --- 4. Spawn Quota Management ---
 	int32_t availableSpace = softCap - activeMonsters;
-	if (availableSpace <= 0) {
-		return; // Soft cap reached, wait for monsters to die.
+	if (availableSpace <= 0)
+	{
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("SpawnMonsters: Soft monster cap reached ({}/{}), PlayerAdjustedCap={}\n", activeMonsters, softCap, g_adjusted_monster_cap);
+		return;
 	}
+	availableSpace = ManageSpawnCountsAndQueue(mapSize, availableSpace);
 
-	// Transfer from queue if the main spawn pool is empty.
-	ManageSpawnCountsAndQueue(mapSize, availableSpace);
-
-	// If there's still nothing to spawn, exit.
-	if (g_horde_local.num_to_spawn <= 0) {
+	if (g_horde_local.num_to_spawn <= 0)
+	{
+		if (developer->integer > 1)
+			gi.Com_PrintFmt("SpawnMonsters: No monsters in spawn pool after queue check.\n");
+		if (g_horde_local.queued_monsters <= 0 && current_horde_state == horde_state_t::spawning && !next_wave_message_sent)
+		{
+			VerifyAndAdjustBots();
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
+			next_wave_message_sent = true;
+			g_horde_local.state = horde_state_t::active_wave;
+		}
 		return;
 	}
 
-	// --- 3. Determine Spawn Strategy (Normal vs. Emergency) ---
-	bool use_emergency_spawn = false;
-	float champion_chance = 0.2f; // Base champion chance
+	// --- 5. Spawn Strategy Determination ---
+	int32_t spawnable_this_call;
+	bool use_emergency_spawn_flag;
+	float champion_chance_for_batch; // This will be set by DetermineSpawnStrategy
 
-	if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY) {
-		if (developer->integer) gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}.\n", g_consecutive_spawn_failures);
-		use_emergency_spawn = true;
-	} else if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY && !g_recovery_mode_active) {
-		if (developer->integer) gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}.\n", g_consecutive_spawn_failures);
-		g_recovery_mode_active = true;
-		g_original_wave_type_before_recovery = current_wave_type;
-		current_wave_type = HasWaveType(current_wave_type, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground;
-	}
+	DetermineSpawnStrategy(
+		mapSize,
+		spawnable_this_call,
+		use_emergency_spawn_flag,
+		g_recovery_mode_active,	   // Pass the global variable
+		champion_chance_for_batch, // Pass by reference to be set
+		availableSpace,
+		currentLevel);
 
-	if (g_horde_retaliation_active) {
-		champion_chance = 0.40f;
-	}
+	// --- 6. Monster Spawning Execution ---
+	int num_spawned_this_call = 0;
 
-	// --- 4. Execute a SINGLE Spawn Attempt ---
-	bool spawn_succeeded = false;
-	if (use_emergency_spawn) {
-		horde::MonsterTypeID emergency_type = (currentLevel < 10) ? horde::MonsterTypeID::SOLDIER : horde::MonsterTypeID::GUNNER;
-		if (EmergencySpawnMonster(currentLevel, emergency_type, false, champion_chance)) {
-			spawn_succeeded = true;
-		}
-	} else {
-		if (AttemptSpawnSingleMonster(currentLevel, champion_chance, g_recovery_mode_active, g_horde_retaliation_active, current_wave_type, g_original_wave_type_before_recovery)) {
-			spawn_succeeded = true;
-		}
-	}
-
-	// --- 5. Update State Based on Outcome ---
-	if (spawn_succeeded) {
-		if (g_horde_local.num_to_spawn > 0) {
-			g_horde_local.num_to_spawn--;
-		}
-		monsters_spawned_in_current_phase++;
-		
-		if (g_recovery_mode_active) {
-			if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful spawn.\n");
+	if (use_emergency_spawn_flag)
+	{
+		num_spawned_this_call = ExecuteEmergencySpawnProcedure(
+			spawnable_this_call,
+			currentLevel,
+			champion_chance_for_batch // <<< NOW PASSING THE ARGUMENT
+		);
+		if (num_spawned_this_call > 0 && g_recovery_mode_active)
+		{
+			if (developer->integer)
+				gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful EMERGENCY spawns.\n");
 			g_recovery_mode_active = false;
 			current_wave_type = g_original_wave_type_before_recovery;
 			g_original_wave_type_before_recovery = MonsterWaveType::None;
 		}
 	}
+	else
+	{
+		num_spawned_this_call = ExecuteNormalSpawnProcedure(
+			spawnable_this_call,
+			currentLevel,
+			champion_chance_for_batch,
+			g_recovery_mode_active,
+			g_horde_retaliation_active,
+			current_wave_type,
+			g_original_wave_type_before_recovery);
+		if (g_recovery_mode_active && g_consecutive_spawn_failures == 0 && num_spawned_this_call > 0)
+		{
+			if (developer->integer)
+				gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful NORMAL spawns.\n");
+			g_recovery_mode_active = false;
+			current_wave_type = g_original_wave_type_before_recovery;
+			g_original_wave_type_before_recovery = MonsterWaveType::None;
+		}
+	}
+
+	if (num_spawned_this_call == 0 && spawnable_this_call > 0 && !use_emergency_spawn_flag)
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("SpawnMonsters: Entire batch of {} normal spawns failed. Consecutive failures now: {}\n",
+							spawnable_this_call, g_consecutive_spawn_failures);
+		}
+	}
+
+	// --- 7. Final Actions ---
+	SetNextMonsterSpawnTime(mapSize);
 }
 
 // --- Helper Function Implementations ---
@@ -7141,34 +7251,56 @@ static void SetMonsterArmor(edict_t *monster)
 
 static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize)
 {
-	// Use very fast intervals for a smooth "trickle" spawn effect.
+	// Original spawn time ranges (Big maps are faster)
 	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> BASE_SPAWN_TIMES = {{
-		{0.20_sec, 0.30_sec}, // Small maps
-		{0.15_sec, 0.25_sec}, // Medium maps
-		{0.10_sec, 0.20_sec}	 // Big maps
+		{0.6_sec, 0.8_sec}, // Small maps
+		{0.8_sec, 1.0_sec}, // Medium maps
+		{0.4_sec, 0.6_sec}	// Big maps
 	}};
 
+	// Apply early wave modifier (waves 1-10) - slows down spawn rate initially
 	float earlyWaveMultiplier = 1.0f;
+	// Check level is valid before calculation
 	if (g_horde_local.level >= 1 && g_horde_local.level <= 10)
 	{
+		// Linearly decreases interval multiplier from 2.0x at wave 1 down to 1.1x at wave 10.
+		// After wave 10, the multiplier is 1.0x (no modification).
 		earlyWaveMultiplier = 2.0f - ((static_cast<float>(g_horde_local.level) - 1.0f) * 0.1f);
+		// Clamp just in case level somehow goes outside 1-10 despite the check
 		earlyWaveMultiplier = std::clamp(earlyWaveMultiplier, 1.1f, 2.0f);
 	}
 
+	// Select base times based on map size
 	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
 	const auto &[base_min_time, base_max_time] = BASE_SPAWN_TIMES[mapIndex];
 
+	// Apply the early wave multiplier to get the target time range
 	const gtime_t min_time = gtime_t::from_sec(base_min_time.seconds() * earlyWaveMultiplier);
 	const gtime_t max_time = gtime_t::from_sec(base_max_time.seconds() * earlyWaveMultiplier);
 
-	const gtime_t calculated_interval = (min_time <= max_time) ? random_time(min_time, max_time) : min_time;
+	// Calculate the random interval within the adjusted range
+	// Ensure min_time <= max_time before calling random_time to avoid potential issues
+	const gtime_t calculated_interval = (min_time <= max_time) ? random_time(min_time, max_time) : min_time; // Fallback to min_time if somehow inverted
 
-	// Use a very low minimum interval for trickle spawning.
-	const gtime_t final_interval = std::max(calculated_interval, 100_ms);
+	// --- CLAMPING ---
+	// Ensure the final interval is never less than the absolute minimum allowed
+	const gtime_t final_interval = std::max(calculated_interval, HordeConstants::MIN_MONSTER_SPAWN_INTERVAL);
 
+	// Set the time for the next spawn attempt
 	g_horde_local.monster_spawn_time = level.time + final_interval;
-}
 
+	//// Optional Debugging
+	// if (developer->integer > 2) {
+	//	gi.Com_PrintFmt("SetNextMonsterSpawnTime: Level={}, MapIdx={}, EarlyMult={:.2f}, Base=[{:.2f}-{:.2f}], Adjusted=[{:.2f}-{:.2f}], Calculated={:.2f}, Final={:.2f}\n",
+	//		g_horde_local.level,
+	//		mapIndex,
+	//		earlyWaveMultiplier,
+	//		base_min_time.seconds(), base_max_time.seconds(),
+	//		min_time.seconds(), max_time.seconds(),
+	//		calculated_interval.seconds(),
+	//		final_interval.seconds());
+	// }
+}
 // Usar enum class para mejorar la seguridad de tipos
 enum class MessageType
 {
@@ -7407,9 +7539,6 @@ void CheckAndResetDisabledSpawnPoints()
 	}
 }
 
-//======================================================================
-// Horde_RunFrame (Full, Corrected Version)
-//======================================================================
 void Horde_RunFrame() {
 	if (level.intermissiontime) {
 		return;
@@ -7444,13 +7573,13 @@ void Horde_RunFrame() {
 	} else if (g_horde_local.state != horde_state_t::warmup && currentTime > last_wave_change_time + WAVE_STUCK_TIMEOUT) {
 		if (GetStroggsNum() == 0) {
 			if (developer->integer) {
-				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over %.0fs with 0 monsters. Forcing progression.\n",
+				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over {}s with 0 monsters. Forcing progression.\n",
 					currentLevel, WAVE_STUCK_TIMEOUT.seconds());
 			}
-			g_horde_local.state = horde_state_t::cleanup;
-			g_horde_local.monster_spawn_time = currentTime;
+			g_horde_local.state = horde_state_t::cleanup; // Go to cleanup to properly end the wave
+			g_horde_local.monster_spawn_time = currentTime; // Trigger immediately
 		} else {
-			last_wave_change_time = currentTime;
+			last_wave_change_time = currentTime; // Reset timer if monsters are still alive
 		}
 	}
 
@@ -7461,6 +7590,7 @@ void Horde_RunFrame() {
 	switch (g_horde_local.state) {
 		case horde_state_t::warmup:
 			if (g_horde_local.warm_time < currentTime) {
+				// Start the first wave
 				g_horde_local.state = horde_state_t::spawning;
 				Horde_InitLevel(1);
 				PlayWaveStartSound();
@@ -7479,6 +7609,7 @@ void Horde_RunFrame() {
 				monsters_spawned_in_current_phase = 0;
 			}
 
+			// Failsafe timeout for the spawning phase
 			if (currentTime > spawning_phase_timeout_start_time + 90_sec) {
 				if (!next_wave_message_sent) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized (Timeout).\nWave Level: {}\n", currentLevel);
@@ -7488,16 +7619,28 @@ void Horde_RunFrame() {
 				break;
 			}
 
+			// If it's time to spawn...
 			if (g_horde_local.monster_spawn_time <= currentTime) {
+				int32_t num_to_spawn_before = g_horde_local.num_to_spawn;
+
 				if (IsBossWave() && !boss_spawned_for_wave) {
 					SpawnBossAutomatically();
 				}
 				
-				if ((!IsBossWave() || boss_spawned_for_wave) && g_horde_local.num_to_spawn > 0) {
-					SpawnMonsters(); // This attempts to spawn ONE monster.
+				// Spawn regular monsters or minions (or boss wave minions)
+				if (!IsBossWave() || boss_spawned_for_wave) {
+					SpawnMonsters();
 				}
 
+				int32_t spawned_this_frame = num_to_spawn_before - g_horde_local.num_to_spawn;
+				if (spawned_this_frame > 0) {
+					monsters_spawned_in_current_phase += spawned_this_frame;
+				}
+
+				// If all initial monsters are spawned, transition to active wave
+				// *** THE ONLY CHANGE IS IN THIS IF STATEMENT ***
 				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
+					// This condition now prevents the state change if it's a boss wave and the boss hasn't spawned.
 					if (!IsBossWave() || boss_spawned_for_wave) {
 						if (!next_wave_message_sent) {
 							VerifyAndAdjustBots();
@@ -7507,7 +7650,6 @@ void Horde_RunFrame() {
 						g_horde_local.state = horde_state_t::active_wave;
 					}
 				}
-				
 				SetNextMonsterSpawnTime(mapSize);
 			}
 			break;
@@ -7518,8 +7660,22 @@ void Horde_RunFrame() {
 				waveEnded = true;
 				break;
 			}
-			
-			if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters > 0 && g_horde_local.monster_spawn_time <= currentTime) {
+			// Reinforcement logic
+			if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn == 0) {
+				const int32_t activeMonsters = CalculateRemainingMonsters();
+				const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : HordeConstants::MAX_MONSTERS_MEDIUM_MAP;
+				int32_t availableSpace = softCap - activeMonsters;
+				if (availableSpace > 0) {
+					const int32_t transfer_batch = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 8 : 6);
+					int32_t transfer_amount = std::min({g_horde_local.queued_monsters, availableSpace, transfer_batch});
+					if (transfer_amount > 0) {
+						g_horde_local.num_to_spawn += transfer_amount;
+						g_horde_local.queued_monsters -= transfer_amount;
+					}
+				}
+			}
+			// Spawn reinforcements if any were added
+			if (g_horde_local.num_to_spawn > 0 && g_horde_local.monster_spawn_time <= currentTime) {
 				SpawnMonsters();
 				SetNextMonsterSpawnTime(mapSize);
 			}
@@ -7783,14 +7939,6 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
-	// *** THIS IS THE CRITICAL FIX ***
-	// Reset the global aggression counters at the very start of a new wave.
-	g_spawn_state_deaths = 0;
-	g_last_spawn_state_death_time = 0_sec;
-    if (developer->integer) {
-        gi.Com_PrintFmt("Horde_InitLevel: Spawn-phase aggression counters reset for wave %d.\n", lvl);
-    }
-    // *** END CRITICAL FIX ***
 
 	ResetChampionMonsterState();
 
