@@ -2041,17 +2041,26 @@ inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept
 #include <unordered_set>
 #include <random>
 
-// Modified boss_t structure
+//======================================================================
+// SECTION: Boss Definitions and Selection
+//======================================================================
+
+// The structure defining a boss type for the spawner.
 struct boss_t
 {
-	horde::MonsterTypeID typeId; // Instead of const char* classname
+	horde::MonsterTypeID typeId;
 	int32_t min_level;
 	int32_t max_level;
 	float weight;
 	BossSizeCategory sizeCategory;
 	BossType type;
 };
-static constexpr boss_t BOSS_SMALL[] = {
+
+// --- Boss Lists ---
+// Converted to std::array for type safety and modern C++ practices.
+// We explicitly provide the type and size for maximum compiler compatibility.
+
+static constexpr std::array<boss_t, 11> BOSS_SMALL = {{
 	{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
 	{horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
 	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
@@ -2062,9 +2071,10 @@ static constexpr boss_t BOSS_SMALL[] = {
 	{horde::MonsterTypeID::MAKRON_KL, 36, -1, 0.2f, BossSizeCategory::Small, BossType::MAKRONKL},
 	{horde::MonsterTypeID::MAKRON, 16, 26, 0.1f, BossSizeCategory::Small, BossType::OTHER},
 	{horde::MonsterTypeID::PSX_ARACHNID, 15, -1, 0.1f, BossSizeCategory::Small, BossType::PSX_ARACHNID},
-	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}};
+	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
+}};
 
-static constexpr boss_t BOSS_MEDIUM[] = {
+static constexpr std::array<boss_t, 13> BOSS_MEDIUM = {{
 	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
 	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
 	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
@@ -2077,9 +2087,10 @@ static constexpr boss_t BOSS_MEDIUM[] = {
 	{horde::MonsterTypeID::PSX_ARACHNID, -14, -1, 0.1f, BossSizeCategory::Medium, BossType::PSX_ARACHNID},
 	{horde::MonsterTypeID::MAKRON_KL, 26, -1, 0.2f, BossSizeCategory::Medium, BossType::MAKRONKL},
 	{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium, BossType::OTHER},
-	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}};
+	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}
+}};
 
-static constexpr boss_t BOSS_LARGE[] = {
+static constexpr std::array<boss_t, 17> BOSS_LARGE = {{
 	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
 	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
 	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
@@ -2096,64 +2107,68 @@ static constexpr boss_t BOSS_LARGE[] = {
 	{horde::MonsterTypeID::JORG, 30, -1, 0.15f, BossSizeCategory::Large, BossType::JORG},
 	{horde::MonsterTypeID::MAKRON_KL, 30, -1, 0.2f, BossSizeCategory::Large, BossType::MAKRONKL},
 	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT},
-	{horde::MonsterTypeID::WIDOW2, -1, 24, 0.19f, BossSizeCategory::Small, BossType::WIDOW2}};
+	{horde::MonsterTypeID::WIDOW2, -1, 24, 0.19f, BossSizeCategory::Small, BossType::WIDOW2}
+}};
 
-// Optimized GetBossList function
+// This function selects the appropriate boss list based on map size and specific map IDs.
+// It returns a std::span, which is a safe, non-owning view of the underlying array data.
 static std::span<const boss_t> GetBossList(const horde::MapSize &mapSize, horde::MapID mapId)
 {
+	// --- Small Maps ---
 	if (mapSize.isSmallMap ||
 		mapId == horde::MapID::Q2DM4 ||
 		mapId == horde::MapID::Q64_COMM ||
 		mapId == horde::MapID::TEST_TEST_KAISER)
 	{
-		return std::span<const boss_t>(BOSS_SMALL);
+		return BOSS_SMALL;
 	}
 
+	// --- Medium Maps ---
 	if (mapSize.isMediumMap ||
 		mapId == horde::MapID::RDM8 ||
 		mapId == horde::MapID::XDM1)
 	{
-		if (mapId == horde::MapID::MGU6M3 ||
-			mapId == horde::MapID::RBOSS)
+		if (mapId == horde::MapID::MGU6M3 || mapId == horde::MapID::RBOSS)
 		{
-			static std::array<boss_t, std::size(BOSS_MEDIUM)> filteredMediumBossList;
-			size_t count = 0;
-
-			for (const auto &boss : std::span<const boss_t>(BOSS_MEDIUM))
-			{
-				if (boss.type != BossType::GUARDIAN && boss.type != BossType::PSX_GUARDIAN)
-				{
-					filteredMediumBossList[count++] = boss;
+			// Create a static, filtered list once at program startup.
+			static const auto filtered_medium_list = [] {
+				std::vector<boss_t> list;
+				list.reserve(std::size(BOSS_MEDIUM));
+				for (const auto& boss : BOSS_MEDIUM) {
+					if (boss.type != BossType::PSX_GUARDIAN) {
+						list.push_back(boss);
+					}
 				}
-			}
-
-			return std::span<const boss_t>(filteredMediumBossList.data(), count);
+				return list;
+			}();
+			return filtered_medium_list;
 		}
-		return std::span<const boss_t>(BOSS_MEDIUM);
+		return BOSS_MEDIUM;
 	}
 
+	// --- Large Maps ---
 	if (mapSize.isBigMap ||
 		mapId == horde::MapID::TEST_SPBOX || mapId == horde::MapID::Q2CTF4)
 	{
 		if (mapId == horde::MapID::TEST_SPBOX || mapId == horde::MapID::Q2CTF4)
 		{
-			static std::array<boss_t, std::size(BOSS_LARGE)> filteredLargeBossList;
-			size_t count = 0;
-
-			for (const auto &boss : std::span<const boss_t>(BOSS_LARGE))
-			{
-				if (boss.type != BossType::BOSS5)
-				{
-					filteredLargeBossList[count++] = boss;
+			// Create a static, filtered list once at program startup.
+			static const auto filtered_large_list = [] {
+				std::vector<boss_t> list;
+				list.reserve(std::size(BOSS_LARGE));
+				for (const auto& boss : BOSS_LARGE) {
+					if (boss.type != BossType::BOSS5) {
+						list.push_back(boss);
+					}
 				}
-			}
-
-			return std::span<const boss_t>(filteredLargeBossList.data(), count);
+				return list;
+			}();
+			return filtered_large_list;
 		}
-		return std::span<const boss_t>(BOSS_LARGE);
+		return BOSS_LARGE;
 	}
 
-	return std::span<const boss_t>(); // Empty span for no match
+	return {}; // Return an empty span if no conditions match
 }
 
 struct EligibleBosses
@@ -5547,117 +5562,87 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 }
 
 // --- IsValidSpawnLocation Function (Refined Logging) ---
+//======================================================================
+// REPLACEMENT: IsValidSpawnLocation (Corrected and Optimized)
+// This version correctly separates world and entity checks to fix
+// overlapping spawns and enable alternative position logic.
+//======================================================================
 [[nodiscard]] bool IsValidSpawnLocation(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying)
 {
-	constexpr contents_t GEOMETRY_MASK = MASK_SOLID;			// Walls, solid architecture
-	constexpr contents_t LIQUID_MASK = MASK_WATER;				// Water, slime, lava
-	constexpr contents_t FINAL_ENTITY_MASK = MASK_MONSTERSOLID; // Players, monsters, solid defenses
-	constexpr float Z_EPSILON = 1.75f;							// Small vertical offset after dropping
-	constexpr float GROUND_CHECK_DISTANCE = 1024.0f;
-
-	// 0. Initial Vector Check
+	// --- 1. Initial Validation ---
 	if (!is_valid_vector(io_position) || !is_valid_vector(monster_mins) || !is_valid_vector(monster_maxs))
 	{
-	//	if (developer->integer)
-	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial vector validation.\n");
 		return false;
 	}
 
-	// 1. Initial Point Contents Check
-	int initial_contents = gi.pointcontents(io_position);
-	if (initial_contents & GEOMETRY_MASK)
+	// --- 2. Flying Monster Handling (Simple and Fast) ---
+	if (is_flying)
 	{
-	//	if (developer->integer)
-	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (SOLID) at {}\n", io_position);
-		return false;
-	}
-	// Check liquids only if the monster cannot fly or swim (assuming flying implies can handle liquids)
-	if (!is_flying && (initial_contents & LIQUID_MASK))
-	{
-	//	if (developer->integer)
-	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial pointcontents check (LIQUID) at {} for non-flying/non-swimming\n", io_position);
-		return false;
+		// For flying monsters, we just need to check if the target volume is empty of
+		// both world geometry and other entities. MASK_MONSTERSOLID does this.
+		trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
+		return !(trace.startsolid || trace.allsolid);
 	}
 
-	// 2. Initial Volume Check (World Geometry Only)
-	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
-	if (trace.startsolid || trace.allsolid)
+	// --- 3. Ground Monster: World Geometry and Floor Finding ---
+	vec3_t final_pos = io_position;
+
+	// First, check if the initial point is inside a solid wall.
+	if (gi.pointcontents(final_pos) & MASK_SOLID)
 	{
-	//	if (developer->integer)
-	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed initial solid volume check (MASK_SOLID) at {}\n", io_position);
 		return false;
 	}
 
-	// 3. Drop to Floor (for non-flying units)
-	vec3_t original_pos = io_position; // Store original in case drop fails or no drop needed
-	if (!is_flying)
+	// Use a single downward trace to find a valid floor position, checking only against the world.
+	// This is faster than multiple traces and M_droptofloor.
+	vec3_t start = final_pos;
+	start.z += 1.0f; // Start slightly above to avoid starting in the floor
+	vec3_t end = final_pos;
+	end.z -= 256.0f; // Look for ground up to 256 units below
+
+	// IMPORTANT: Trace only against MASK_SOLID (world geometry) for this step.
+	trace_t ground_trace = gi.trace(start, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
+
+	// A. If the trace started in a wall, it's an invalid starting point.
+	if (ground_trace.startsolid)
 	{
-		// Check for void below first
-		vec3_t ground_check_end = io_position;
-		ground_check_end.z -= GROUND_CHECK_DISTANCE;
-		trace_t ground_trace = gi.trace(io_position, monster_mins, monster_maxs, ground_check_end, nullptr, GEOMETRY_MASK);
-
-		if (ground_trace.startsolid)
-		{
-			// This can happen if the initial position is slightly embedded in the floor
-		//	if (developer->integer)
-		//		gi.Com_PrintFmt("IsValidSpawnLocation: Ground trace started in solid at {}. Attempting drop anyway.\n", io_position);
-			// Proceed to M_droptofloor, it might still succeed
-		}
-		else if (ground_trace.fraction == 1.0f)
-		{ // Check if ground trace hit anything
-		//	if (developer->integer)
-		//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed void check (no solid ground found below within {} units) at {}\n", GROUND_CHECK_DISTANCE, io_position);
-			return false; // No ground below
-		}
-
-		// Attempt to drop the position to the floor using the geometry mask
-		if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, GEOMETRY_MASK, false))
-		{
-			io_position = original_pos; // Restore original position
-		//	if (developer->integer)
-		//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed M_droptofloor at {}. Could not find valid drop spot.\n", original_pos);
-			return false;
-		}
-		io_position.z += Z_EPSILON; // Apply small vertical offset after successful drop
-
-		// Re-check volume at the dropped position against geometry
-		trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, GEOMETRY_MASK);
-		if (trace.startsolid || trace.allsolid)
-		{
-		//	if (developer->integer)
-		//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed solid check *after* M_droptofloor + epsilon at {}\n", io_position);
-			io_position = original_pos; // Restore original position
-			return false;
-		}
-		//if (developer->integer)
-		//	gi.Com_PrintFmt("IsValidSpawnLocation: M_droptofloor succeeded, new Z (after epsilon): {:.2f}.\n", io_position.z);
-	}
-	// If flying, io_position remains unchanged from original_pos here
-
-	// 4. Final Volume Check (Entities - Players, Monsters, Defenses)
-	// Use a slightly expanded box for entity checks as a safety margin
-	const vec3_t entity_check_mins = monster_mins - vec3_t{2, 2, 0};
-	const vec3_t entity_check_maxs = monster_maxs + vec3_t{2, 2, 0};
-	FilterData final_entity_check_data = {nullptr, 0};
-	const vec3_t check_mins = io_position + entity_check_mins;
-	const vec3_t check_maxs = io_position + entity_check_maxs;
-
-	// Check against entities using BoxEdicts and the filter
-	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &final_entity_check_data);
-	if (final_entity_check_data.count > 0)
-	{
-	//	if (developer->integer)
-	//		gi.Com_PrintFmt("IsValidSpawnLocation: Failed FINAL entity occupation check at validated position {}\n", io_position);
 		return false;
 	}
 
-	// If all checks passed
-	//if (developer->integer)
-//		gi.Com_PrintFmt("IsValidSpawnLocation: Success (All checks passed) for pos {} (Flying: {})\n", io_position, is_flying ? "Yes" : "No");
+	// B. If it didn't hit anything, it's over a void.
+	if (ground_trace.fraction == 1.0f)
+	{
+		return false;
+	}
+
+	// C. Check the surface it landed on.
+	if ((ground_trace.contents & MASK_WATER) || (ground_trace.plane.normal.z < 0.7f))
+	{
+		return false;
+	}
+
+	// We found a valid ground position. Update our final position.
+	final_pos = ground_trace.endpos;
+	final_pos.z += 0.25f; // Epsilon to prevent sticking
+
+	// --- 4. Final Entity Check ---
+	// Now that we have a valid position relative to the world, check if any
+	// MONSTERS or PLAYERS are in that exact spot.
+	// We use a separate, final trace for this.
+	trace_t entity_trace = gi.trace(final_pos, monster_mins, monster_maxs, final_pos, nullptr, MASK_MONSTERSOLID);
+
+	if (entity_trace.startsolid)
+	{
+		// This indicates the spot is valid in the world, but occupied by an entity.
+		// The calling function can now correctly decide to try an alternative position.
+		return false;
+	}
+
+	// --- 5. Success ---
+	// The position is valid against the world and is not occupied by another entity.
+	io_position = final_pos; // Write the validated position back
 	return true;
 }
-
 // helper function 
 static edict_t* FindBestPlayerTargetForTeleport()
 {
@@ -7931,7 +7916,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	}
 
 	if (developer->integer) {
-		gi.Com_PrintFmt("Horde_InitLevel: Built cache with %zu eligible monsters for wave %d.\n",
+		gi.Com_PrintFmt("Horde_InitLevel: Built cache with {} eligible monsters for wave {}.\n",
 						g_eligible_monsters_for_wave.size(), current_wave_level);
 	}
 
@@ -7965,7 +7950,7 @@ static void Horde_InitLevel(const int32_t lvl)
 		std::min(total_planned_for_wave, static_cast<int32_t>(std::numeric_limits<uint16_t>::max())));
 
 	if (developer->integer) {
-		gi.Com_PrintFmt("Horde_InitLevel: Wave %d. num_to_spawn: %d, queued: %d. Total for wave: %u\n",
+		gi.Com_PrintFmt("Horde_InitLevel: Wave {}. num_to_spawn: {}, queued: {}. Total for wave: {}\n",
 						lvl, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, g_totalMonstersInWave);
 	}
 
