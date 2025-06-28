@@ -15,6 +15,14 @@ std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave;
 int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
 
+      
+// NEW state variables for time-slicing batches
+static int32_t g_monsters_to_spawn_in_current_batch = 0;
+static gtime_t g_next_single_monster_spawn_time = 0_sec;
+static float g_champion_chance_for_current_batch = 0.2f; // Store champion chance for the batch
+
+    
+
 // Cache for potentially valid spawn points (pointers)
 static std::vector<edict_t *> g_potential_spawn_points;
 static bool g_spawn_points_cached = false;
@@ -6446,9 +6454,11 @@ static int ExecuteNormalSpawnProcedure(
 	MonsterWaveType current_actual_wave_type_param,
 	MonsterWaveType original_wave_type_before_recovery_param);
 
-//-----------------------------------------------------
-// SpawnMonsters - Main function (Refactored)
-//-----------------------------------------------------
+//======================================================================
+// MODIFIED: SpawnMonsters
+// This function no longer spawns monsters directly. Instead, it INITIATES
+// a time-sliced batch by setting the new global state variables.
+//======================================================================
 void SpawnMonsters()
 {
 	if (level.intermissiontime)
@@ -6456,28 +6466,20 @@ void SpawnMonsters()
 	if (developer->integer == 2 && g_horde->integer)
 		return;
 
-	// --- Cache Globals (Read-only for this scope, mostly) ---
-	const gtime_t current_time = level.time;
-	const horde::MapSize &mapSize = g_horde_local.current_map_size;
-	const horde_state_t current_horde_state = g_horde_local.state;
+	// --- Cache Globals ---
+	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 
 	// --- 1. Spawn Point Cache Management ---
 	RebuildSpawnPointCacheIfNeeded();
-
 	if (g_potential_spawn_points.empty())
 	{
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnMonsters: No potential spawn points found in cache.\n");
-		if (g_consecutive_spawn_failures < HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY - 1)
-		{
-			g_consecutive_spawn_failures++;
-		}
+		if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: No potential spawn points found.\n");
+		if (g_consecutive_spawn_failures < HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY - 1) g_consecutive_spawn_failures++;
 		if (!need_spawn_cache_reset)
 		{
 			need_spawn_cache_reset = true;
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnMonsters: Forcing spawn point cache reset for next frame due to empty cache.\n");
+			if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: Forcing spawn point cache reset.\n");
 		}
 		return;
 	}
@@ -6486,8 +6488,7 @@ void SpawnMonsters()
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : (mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP));
 	const int32_t hardCap = static_cast<int32_t>(softCap * 1.4f);
-
-	if (CheckHardCapAndLog(activeMonsters, hardCap, softCap, current_horde_state, currentLevel))
+	if (CheckHardCapAndLog(activeMonsters, hardCap, softCap, g_horde_local.state, currentLevel))
 	{
 		return;
 	}
@@ -6503,17 +6504,13 @@ void SpawnMonsters()
 	int32_t availableSpace = softCap - activeMonsters;
 	if (availableSpace <= 0)
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("SpawnMonsters: Soft monster cap reached ({}/{}), PlayerAdjustedCap={}\n", activeMonsters, softCap, g_adjusted_monster_cap);
+		if (developer->integer > 1) gi.Com_PrintFmt("SpawnMonsters: Soft monster cap reached.\n");
 		return;
 	}
 	availableSpace = ManageSpawnCountsAndQueue(mapSize, availableSpace);
-
 	if (g_horde_local.num_to_spawn <= 0)
 	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("SpawnMonsters: No monsters in spawn pool after queue check.\n");
-		if (g_horde_local.queued_monsters <= 0 && current_horde_state == horde_state_t::spawning && !next_wave_message_sent)
+		if (g_horde_local.queued_monsters <= 0 && g_horde_local.state == horde_state_t::spawning && !next_wave_message_sent)
 		{
 			VerifyAndAdjustBots();
 			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
@@ -6526,66 +6523,48 @@ void SpawnMonsters()
 	// --- 5. Spawn Strategy Determination ---
 	int32_t spawnable_this_call;
 	bool use_emergency_spawn_flag;
-	float champion_chance_for_batch; // This will be set by DetermineSpawnStrategy
+	float champion_chance_for_batch;
+	DetermineSpawnStrategy(mapSize, spawnable_this_call, use_emergency_spawn_flag, g_recovery_mode_active, champion_chance_for_batch, availableSpace, currentLevel);
 
-	DetermineSpawnStrategy(
-		mapSize,
-		spawnable_this_call,
-		use_emergency_spawn_flag,
-		g_recovery_mode_active,	   // Pass the global variable
-		champion_chance_for_batch, // Pass by reference to be set
-		availableSpace,
-		currentLevel);
+	// ==================================================================
+	// --- 6. NEW BATCH SPAWNING LOGIC ---
+	// ==================================================================
 
-	// --- 6. Monster Spawning Execution ---
-	int num_spawned_this_call = 0;
+	// If we are already in the middle of spawning a batch, do nothing here.
+	// The SpawnSingleMonsterFromBatch() call in Horde_RunFrame will handle it.
+	if (g_monsters_to_spawn_in_current_batch > 0)
+	{
+		return;
+	}
 
+	// Emergency spawns are still immediate, single-frame actions.
 	if (use_emergency_spawn_flag)
 	{
-		num_spawned_this_call = ExecuteEmergencySpawnProcedure(
-			spawnable_this_call,
-			currentLevel,
-			champion_chance_for_batch // <<< NOW PASSING THE ARGUMENT
-		);
-		if (num_spawned_this_call > 0 && g_recovery_mode_active)
+		int num_spawned = ExecuteEmergencySpawnProcedure(spawnable_this_call, currentLevel, champion_chance_for_batch);
+		if (num_spawned > 0 && g_recovery_mode_active)
 		{
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful EMERGENCY spawns.\n");
+			if (developer->integer) gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode (emergency success).\n");
 			g_recovery_mode_active = false;
 			current_wave_type = g_original_wave_type_before_recovery;
 			g_original_wave_type_before_recovery = MonsterWaveType::None;
 		}
 	}
-	else
+	else // This is the normal spawn path.
 	{
-		num_spawned_this_call = ExecuteNormalSpawnProcedure(
-			spawnable_this_call,
-			currentLevel,
-			champion_chance_for_batch,
-			g_recovery_mode_active,
-			g_horde_retaliation_active,
-			current_wave_type,
-			g_original_wave_type_before_recovery);
-		if (g_recovery_mode_active && g_consecutive_spawn_failures == 0 && num_spawned_this_call > 0)
+		// Instead of calling a loop, we just set up the batch counter.
+		if (spawnable_this_call > 0)
 		{
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnMonsters: Exiting recovery mode due to successful NORMAL spawns.\n");
-			g_recovery_mode_active = false;
-			current_wave_type = g_original_wave_type_before_recovery;
-			g_original_wave_type_before_recovery = MonsterWaveType::None;
+			g_monsters_to_spawn_in_current_batch = spawnable_this_call;
+			g_champion_chance_for_current_batch = champion_chance_for_batch; // Store the chance
+			
+			// Set the timer to immediately trigger the first spawn of the batch on the next frame.
+			g_next_single_monster_spawn_time = level.time;
 		}
-	}
-
-	if (num_spawned_this_call == 0 && spawnable_this_call > 0 && !use_emergency_spawn_flag)
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("SpawnMonsters: Entire batch of {} normal spawns failed. Consecutive failures now: {}\n",
-							spawnable_this_call, g_consecutive_spawn_failures);
-		}
+		// NOTE: The old ExecuteNormalSpawnProcedure() call is now gone from here.
 	}
 
 	// --- 7. Final Actions ---
+	// This now sets the timer for the NEXT BATCH, not the next monster.
 	SetNextMonsterSpawnTime(mapSize);
 }
 
@@ -6630,72 +6609,6 @@ static int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
 			gi.Com_PrintFmt("EMERGENCY SPAWN PROCEDURE: Spawned {}.\n", emergency_spawned_count);
 	}
 	return emergency_spawned_count;
-}
-
-static int ExecuteNormalSpawnProcedure(
-	int32_t spawnable_this_call,
-	int32_t currentLevel_param,
-	float champion_chance_param,
-	bool is_recovery_mode_active_param,
-	bool is_retaliation_active_param,
-	MonsterWaveType current_actual_wave_type_param,
-	MonsterWaveType original_wave_type_before_recovery_param
-	// (Ensure all parameters passed to AttemptSpawnSingleMonster are included here)
-)
-{
-	int spawned_count_this_call = 0;
-	if (spawnable_this_call <= 0)
-	{
-		return 0;
-	}
-
-	for (int i = 0; i < spawnable_this_call; ++i)
-	{
-		// This check is good for robustness, though spawnable_this_call should ideally
-		// already be <= g_horde_local.num_to_spawn when this function is called.
-		if (g_horde_local.num_to_spawn <= 0)
-		{
-			if (developer->integer)
-				gi.Com_PrintFmt("ExecuteNormalSpawnProcedure: num_to_spawn is 0, breaking batch.\n");
-			break;
-		}
-
-		if (AttemptSpawnSingleMonster(
-				currentLevel_param,
-				champion_chance_param,
-				is_recovery_mode_active_param,
-				is_retaliation_active_param,
-				current_actual_wave_type_param,
-				original_wave_type_before_recovery_param))
-		{
-			spawned_count_this_call++;
-			// ***** THIS IS THE KEY CORRECTION *****
-			if (g_horde_local.num_to_spawn > 0)
-			{ // Decrement from the main pool
-				g_horde_local.num_to_spawn--;
-			}
-			// ***** END KEY CORRECTION *****
-		}
-		else
-		{
-			// Failure logic from AttemptSpawnSingleMonster already handles g_consecutive_spawn_failures.
-			// We just check if we need to abort the batch.
-			if (developer->integer > 1)
-			{ // Optional: Log batch-level failure for this slot
-				gi.Com_PrintFmt("ExecuteNormalSpawnProcedure: AttemptSpawnSingleMonster failed for slot {} of {} in batch.\n",
-								i + 1, spawnable_this_call);
-			}
-			if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY)
-			{
-				if (developer->integer)
-				{
-					gi.Com_PrintFmt("ExecuteNormalSpawnProcedure: Aborting batch spawn due to {} consecutive failures.\n", g_consecutive_spawn_failures);
-				}
-				break; // Abort this batch
-			}
-		}
-	}
-	return spawned_count_this_call;
 }
 
 static void RebuildSpawnPointCacheIfNeeded()
@@ -7539,10 +7452,64 @@ void CheckAndResetDisabledSpawnPoints()
 	}
 }
 
+//======================================================================
+// NEW HELPER FUNCTION: SpawnSingleMonsterFromBatch
+// This function attempts to spawn exactly ONE monster from an active batch
+// and is the core of the time-slicing solution.
+//======================================================================
+static void SpawnSingleMonsterFromBatch()
+{
+	// Early exit if we are not currently processing a batch or it's not time yet.
+	if (g_monsters_to_spawn_in_current_batch <= 0 || level.time < g_next_single_monster_spawn_time)
+	{
+		return;
+	}
+
+	// Attempt to spawn one monster. We reuse your existing robust function for this.
+	// The context parameters are passed in from the main game state.
+	bool success = AttemptSpawnSingleMonster(
+		g_horde_local.level,
+		g_champion_chance_for_current_batch, // Use the stored chance for this batch
+		g_recovery_mode_active,
+		g_horde_retaliation_active,
+		current_wave_type,
+		g_original_wave_type_before_recovery
+	);
+
+	if (success)
+	{
+		// A monster was successfully spawned and processed.
+		// Decrement the main spawn pool that the game state logic uses.
+		if (g_horde_local.num_to_spawn > 0)
+		{
+			g_horde_local.num_to_spawn--;
+		}
+		monsters_spawned_in_current_phase++;
+	}
+	// If it failed, AttemptSpawnSingleMonster already handled incrementing g_consecutive_spawn_failures.
+
+	// Decrement the batch counter regardless of success or failure. This is crucial
+	// to prevent infinite loops if spawning fails repeatedly.
+	g_monsters_to_spawn_in_current_batch--;
+
+	// If there are more monsters left to spawn in this batch, set the timer for the next frame.
+	if (g_monsters_to_spawn_in_current_batch > 0)
+	{
+		// Use a constant frame time to ensure one spawn attempt per frame.
+		g_next_single_monster_spawn_time = level.time + FRAME_TIME_MS;
+	}
+}
+
 void Horde_RunFrame() {
 	if (level.intermissiontime) {
 		return;
 	}
+
+	// --- NEW PER-FRAME BATCH SPAWN CALL ---
+	// This should be one of the first things you do in the frame.
+	// It will execute one spawn from the active batch if it's time.
+	SpawnSingleMonsterFromBatch();
+	// --- END NEW CALL ---
 
 	// --- Cache Frequently Used Variables ---
 	const gtime_t currentTime = level.time;
@@ -7550,6 +7517,7 @@ void Horde_RunFrame() {
 	const int32_t currentLevel = g_horde_local.level;
 
 	// --- Pre-State-Machine Maintenance ---
+	// (The rest of your Horde_RunFrame function remains exactly the same)
 	CleanupSpawnPointCache();
 	CheckAndReduceSpawnCooldowns();
 
