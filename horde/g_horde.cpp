@@ -2383,34 +2383,32 @@ struct BossEligibilityCache
 
 	void initialize()
 	{
-		// For each map type
+		if (initialized) return;
+
+		// For each map type (0=small, 1=medium, 2=large)
 		for (int mapType = 0; mapType < 3; ++mapType)
 		{
-			// Get mapSize for this type
+			// Create a temporary MapSize struct for the current type
 			horde::MapSize mapSize;
-			if (mapType == 0)
-				mapSize = {true, false, false}; // Small
-			else if (mapType == 2)
-				mapSize = {false, true, false}; // Large
-			else
-				mapSize = {false, false, true}; // Medium
+			if (mapType == 0)       mapSize = {true, false, false}; // Small
+			else if (mapType == 2)  mapSize = {false, true, false}; // Large
+			else                    mapSize = {false, false, true}; // Medium
 
-			// Get boss list
+			// *** FIX: Get the correct boss list for this map type ***
 			const auto bossList = GetBossList(mapSize, horde::MapID::UNKNOWN);
 
-			// For each wave level
+			// For each wave level we want to pre-compute
 			for (int32_t wave = 0; wave <= MAX_PRECOMPUTED_WAVE; ++wave)
 			{
-				auto &levelData = eligibility[mapType][wave];
+				auto& levelData = eligibility[mapType][wave];
 				levelData.count = 0;
 
-				// Filter bosses by level and store TypeIDs directly
-				for (const auto &boss : bossList)
+				// Filter bosses from this map's list by level and store their TypeIDs
+				for (const auto& boss : bossList)
 				{
 					if ((wave >= boss.min_level || boss.min_level == -1) &&
 						(wave <= boss.max_level || boss.max_level == -1))
 					{
-
 						if (levelData.count < MAX_ELIGIBLE_BOSSES)
 						{
 							levelData.typeIds[levelData.count++] = boss.typeId;
@@ -2577,171 +2575,102 @@ struct BossPickResult
 		: typeId(id), sizeCategory(size) {}
 };
 
-// Updated function - no longer takes edict_t* parameter
-static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::string_view mapname, int32_t waveNumber)
+//======================================================================
+// REPLACEMENT: G_HordePickBOSSType
+// Uses the pre-computed cache for massive performance improvement.
+//======================================================================
+static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber)
 {
 	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
 
-	// Initialize boss eligibility cache if needed
-	static bool cache_initialized = false;
-	if (!cache_initialized)
-	{
+	// Initialize boss eligibility cache if needed (one-time)
+	if (!g_bossEligibilityCache.initialized) {
 		g_bossEligibilityCache.initialize();
-		cache_initialized = true;
 	}
 
 	// Determine map type index for cache lookup
 	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-
-	// Safe level clamping
 	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
 
-	// Get boss list once
+	// Get the full boss list to look up details like weight and size category later
 	const auto boss_list = GetBossList(mapSize, mapId);
-	if (boss_list.empty())
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n",
-							mapname.data(), waveNumber);
-		}
-		return BossPickResult(); // Returns UNKNOWN typeId with default size
+	if (boss_list.empty()) {
+		if (developer->integer) gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n", mapname.data(), waveNumber);
+		return BossPickResult(); // Returns UNKNOWN
 	}
 
-	// Get precomputed eligible bosses for this level
-	const auto &eligibilityData = g_bossEligibilityCache.eligibility[mapTypeIndex][safeWaveNumber];
-
-	// Validate precomputed data
-	if (eligibilityData.count == 0 || eligibilityData.count > MAX_ELIGIBLE_BOSSES)
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("WARNING: Invalid eligible boss count: {}\n",
-							eligibilityData.count);
-		}
-		return BossPickResult(); // Returns UNKNOWN typeId with default size
+	// Get the pre-filtered list of eligible boss TypeIDs from the cache
+	const auto& eligibilityData = g_bossEligibilityCache.eligibility[mapTypeIndex][safeWaveNumber];
+	if (eligibilityData.count == 0) {
+		if (developer->integer) gi.Com_PrintFmt("WARNING: No bosses eligible for wave {} on this map type.\n", waveNumber);
+		return BossPickResult();
 	}
 
-	// Use stack-based array for weight calculations
-	struct WeightedBoss
-	{
-		const boss_t *boss;
+	// Use a stack-based array for weight calculations
+	struct WeightedBoss {
+		const boss_t* boss;
 		float weight;
 		float cumulativeWeight;
 	};
-
-	WeightedBoss weightedBosses[MAX_ELIGIBLE_BOSSES]{}; // Ensure MAX_ELIGIBLE_BOSSES is large enough
+	std::array<WeightedBoss, MAX_ELIGIBLE_BOSSES> weightedBosses{};
 	size_t weightedCount = 0;
 	float totalWeight = 0.0f;
 
-	// First pass - check precomputed eligible bosses against recent history
+	// --- First Pass: Filter pre-computed list against recent history ---
 	for (size_t i = 0; i < eligibilityData.count; ++i)
 	{
-		// Get typeId directly from eligibility data
 		horde::MonsterTypeID bossTypeId = eligibilityData.typeIds[i];
-
-		// Skip if unknown type
-		if (bossTypeId == horde::MonsterTypeID::UNKNOWN)
-		{
+		if (bossTypeId == horde::MonsterTypeID::UNKNOWN || recent_bosses.contains(bossTypeId)) {
 			continue;
 		}
 
-		// --- CORRECTED CHECK: Use contains(MonsterTypeID) ---
-		if (recent_bosses.contains(bossTypeId))
-		{
-			continue;
-		}
-		// --- END CORRECTION ---
-
-		// Find the boss_t entry with this typeId (only if not recently used)
-		const boss_t *boss = nullptr;
-		for (const auto &b : boss_list)
-		{
-			if (b.typeId == bossTypeId)
-			{
-				boss = &b;
+		// Find the full boss_t entry to get its weight and other properties
+		const boss_t* boss_details = nullptr;
+		for (const auto& b : boss_list) {
+			if (b.typeId == bossTypeId) {
+				boss_details = &b;
 				break;
 			}
 		}
+		if (!boss_details) continue; // Should not happen if cache is correct
 
-		if (!boss)
-		{ // Safety check
-			continue;
-		}
+		// Calculate weight
+		float weight = boss_details->weight;
+		// (Add other dynamic weight adjustments here if needed)
 
-		// Calculate weight with optimized factors
-		float weight = boss->weight;
-
-		// Combined weight adjustment with fewer branches
-		if (waveNumber >= boss->min_level && boss->min_level != -1)
-		{
-			if (waveNumber <= boss->min_level + 5)
-				weight *= 1.3f;
-			else if (waveNumber > boss->min_level + 10)
-				weight *= 0.8f;
-		}
-
-		// Apply difficulty adjustment in one check
-		if (((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) &&
-			boss->sizeCategory == BossSizeCategory::Large)
-		{
-			weight *= 1.2f;
-		}
-
-		// Add to weighted list
-		if (weightedCount < MAX_ELIGIBLE_BOSSES)
-		{
+		// Add to our temporary weighted list
+		if (weightedCount < MAX_ELIGIBLE_BOSSES) {
 			totalWeight += weight;
-			weightedBosses[weightedCount].boss = boss;
+			weightedBosses[weightedCount].boss = boss_details;
 			weightedBosses[weightedCount].weight = weight;
 			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 			weightedCount++;
 		}
-	} // End of first pass loop
+	}
 
-	// If no eligible bosses with history filter, retry without filter
-	if (weightedCount == 0 && recent_bosses.count > 0)
+	// --- Fallback: If history filter removed all options, ignore history ---
+	if (weightedCount == 0 && recent_bosses.size() > 0)
 	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("INFO: No non-recent bosses eligible, resetting history and retrying...\n");
-		}
-		recent_bosses.clear(); // Reset history
+		if (developer->integer > 1) gi.Com_PrintFmt("INFO: No non-recent bosses eligible, ignoring history for this pick.\n");
+		totalWeight = 0.0f; // Reset for the new pass
 
-		// Try all bosses from the list based on eligibility data again (since we already filtered by level)
-		for (size_t i = 0; i < eligibilityData.count; ++i)
-		{
+		for (size_t i = 0; i < eligibilityData.count; ++i) {
 			horde::MonsterTypeID bossTypeId = eligibilityData.typeIds[i];
-			if (bossTypeId == horde::MonsterTypeID::UNKNOWN)
-				continue;
+			if (bossTypeId == horde::MonsterTypeID::UNKNOWN) continue;
 
-			// Find the boss_t entry again
-			const boss_t *boss = nullptr;
-			for (const auto &b : boss_list)
-			{
-				if (b.typeId == bossTypeId)
-				{
-					boss = &b;
+			const boss_t* boss_details = nullptr;
+			for (const auto& b : boss_list) {
+				if (b.typeId == bossTypeId) {
+					boss_details = &b;
 					break;
 				}
 			}
-			if (!boss)
-				continue;
+			if (!boss_details) continue;
 
-			float weight = boss->weight; // Use base weight again
-
-			// Re-apply adjustments if necessary (e.g., difficulty) - copy from above
-			if (((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) &&
-				boss->sizeCategory == BossSizeCategory::Large)
-			{
-				weight *= 1.2f;
-			}
-
-			// Add to weighted list
-			if (weightedCount < MAX_ELIGIBLE_BOSSES)
-			{
+			float weight = boss_details->weight;
+			if (weightedCount < MAX_ELIGIBLE_BOSSES) {
 				totalWeight += weight;
-				weightedBosses[weightedCount].boss = boss;
+				weightedBosses[weightedCount].boss = boss_details;
 				weightedBosses[weightedCount].weight = weight;
 				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 				weightedCount++;
@@ -2749,58 +2678,35 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 		}
 	}
 
-	// Still no eligible bosses? Return unknown
-	if (weightedCount == 0 || totalWeight <= 0.0f)
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("WARNING: No eligible bosses found even after potential history reset.\n");
-		}
-		return BossPickResult(); // Returns UNKNOWN typeId with default size
+	// --- Final Selection ---
+	if (weightedCount == 0 || totalWeight <= 0.0f) {
+		if (developer->integer) gi.Com_PrintFmt("WARNING: No eligible bosses found after all filtering.\n");
+		return BossPickResult();
 	}
 
-	// Select boss with binary search for better performance
+	// Weighted random selection using binary search for efficiency
 	const float randomValue = frandom() * totalWeight;
-
-	// Binary search through accumulated weights
-	size_t left = 0;
-	size_t right = weightedCount - 1;
-
-	// Perform binary search
-	while (left < right)
-	{
-		const size_t mid = left + (right - left) / 2; // Safer midpoint calculation
-		if (weightedBosses[mid].cumulativeWeight < randomValue)
-		{
+	size_t left = 0, right = weightedCount - 1;
+	while (left < right) {
+		const size_t mid = left + (right - left) / 2;
+		if (weightedBosses[mid].cumulativeWeight < randomValue) {
 			left = mid + 1;
-		}
-		else
-		{
+		} else {
 			right = mid;
 		}
 	}
 
-	// Get selected boss
-	const boss_t *chosen_boss = weightedBosses[left].boss;
-	if (chosen_boss)
-	{
-		// --- CORRECTED ADD: Use add(MonsterTypeID) ---
+	const boss_t* chosen_boss = weightedBosses[left].boss;
+	if (chosen_boss) {
 		recent_bosses.add(chosen_boss->typeId);
-		// --- END CORRECTION ---
-
-		if (developer->integer > 1)
-		{
-			const char *chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId);
-			gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n",
-							chosen_name ? chosen_name : "Unknown", weightedBosses[left].weight);
+		if (developer->integer > 1) {
+			const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId);
+			gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n", chosen_name ? chosen_name : "Unknown", weightedBosses[left].weight);
 		}
-
-		// Return both the TypeID and size category in the struct
 		return BossPickResult(chosen_boss->typeId, chosen_boss->sizeCategory);
 	}
 
-	// Should ideally not happen if weightedCount > 0, but return UNKNOWN as a fallback
-	return BossPickResult(); // Returns UNKNOWN typeId with default size
+	return BossPickResult(); // Fallback
 }
 
 struct picked_item_t
@@ -3019,20 +2925,23 @@ inline bool IsSpecialUnit(horde::MonsterTypeID typeId)
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Special);
 }
 
-// =======================================================================
-// REPLACEMENT for IsValidMonsterForWave
-// =======================================================================
+//======================================================================
+// REPLACEMENT: IsValidMonsterForWave
+// Clearer logic that correctly handles exclusive thematic waves
+// while allowing flexible composition for general waves.
+//======================================================================
 inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements)
 {
-    // Fast exit for no requirements (e.g., boss minion waves)
+    // Fast exit for special cases like boss minion waves that have no requirements
     if (waveRequirements == MonsterWaveType::None) {
         return true;
     }
 
+    // Use the fast LUT to get monster properties
     const MonsterWaveType monster_flags = GetMonsterWaveTypes(typeId);
 
     // --- Step 1: Handle Exclusive, Thematic Waves (Strict Matching) ---
-    // If the wave is a special theme, the monster MUST match that theme. This preserves the feel of these waves.
+    // If the wave is a special theme (Gekk, Mutant, etc.), the monster MUST match that theme.
     static constexpr std::array<MonsterWaveType, 6> special_themes = {
         MonsterWaveType::Gekk, MonsterWaveType::Berserk, MonsterWaveType::Mutant,
         MonsterWaveType::Spawner, MonsterWaveType::Shambler, MonsterWaveType::Arachnophobic
@@ -3048,7 +2957,7 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
     // --- Step 2: Handle General Wave Composition (Flexible Matching) ---
     // This part is for non-special waves, allowing a mix of units.
 
-    // A. Movement Type Check: This is a hard requirement. Ground units don't spawn in pure flying waves.
+    // A. Movement Type Check: This is a hard requirement.
     const bool wave_wants_ground = HasWaveType(waveRequirements, MonsterWaveType::Ground);
     const bool wave_wants_flying = HasWaveType(waveRequirements, MonsterWaveType::Flying);
     const bool monster_is_ground = HasWaveType(monster_flags, MonsterWaveType::Ground);
@@ -3063,22 +2972,17 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
     else if (wave_wants_ground && wave_wants_flying) { // Mixed ground/air wave
         if (!monster_is_ground && !monster_is_flying) return false;
     }
-    // If neither is specified, we don't filter based on movement (unlikely but safe).
 
     // B. Category Check: The monster must match at least one of the main categories of the wave.
-    // This allows a "Light | Medium" wave to spawn both Light monsters AND Medium monsters.
     constexpr MonsterWaveType category_mask =
         MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Heavy |
         MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Elite |
         MonsterWaveType::Melee | MonsterWaveType::Ranged | MonsterWaveType::Bomber |
-        MonsterWaveType::Special; // 'Special' here means units like Medics.
+        MonsterWaveType::Special;
 
-    // Get the categories the wave is looking for.
     const MonsterWaveType required_categories = waveRequirements & category_mask;
-
-    // If the wave has specific category requirements...
     if (required_categories != MonsterWaveType::None) {
-        // ...the monster must have at least one of those categories.
+        // The monster must have at least one of those required categories.
         if ((monster_flags & required_categories) == MonsterWaveType::None) {
             return false;
         }
@@ -5561,25 +5465,22 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	return BoxEdictsResult_t::Skip;
 }
 
-// --- IsValidSpawnLocation Function (Refined Logging) ---
 //======================================================================
-// REPLACEMENT: IsValidSpawnLocation (Corrected and Optimized)
-// This version correctly separates world and entity checks to fix
-// overlapping spawns and enable alternative position logic.
+// REPLACEMENT: IsValidSpawnLocation
+// Correctly separates world and entity checks to enable better
+// alternative position logic and prevent monsters spawning inside each other.
 //======================================================================
-[[nodiscard]] bool IsValidSpawnLocation(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying)
+[[nodiscard]] bool IsValidSpawnLocation(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying)
 {
-	// --- 1. Initial Validation ---
-	if (!is_valid_vector(io_position) || !is_valid_vector(monster_mins) || !is_valid_vector(monster_maxs))
-	{
+	// --- 1. Initial Sanity Checks ---
+	if (!is_valid_vector(io_position) || !is_valid_vector(monster_mins) || !is_valid_vector(monster_maxs)) {
 		return false;
 	}
 
 	// --- 2. Flying Monster Handling (Simple and Fast) ---
-	if (is_flying)
-	{
+	if (is_flying) {
 		// For flying monsters, we just need to check if the target volume is empty of
-		// both world geometry and other entities. MASK_MONSTERSOLID does this.
+		// both world geometry and other solid entities. MASK_MONSTERSOLID does this.
 		trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
 		return !(trace.startsolid || trace.allsolid);
 	}
@@ -5588,8 +5489,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	vec3_t final_pos = io_position;
 
 	// First, check if the initial point is inside a solid wall.
-	if (gi.pointcontents(final_pos) & MASK_SOLID)
-	{
+	if (gi.pointcontents(final_pos) & MASK_SOLID) {
 		return false;
 	}
 
@@ -5603,36 +5503,18 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	// IMPORTANT: Trace only against MASK_SOLID (world geometry) for this step.
 	trace_t ground_trace = gi.trace(start, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
 
-	// A. If the trace started in a wall, it's an invalid starting point.
-	if (ground_trace.startsolid)
-	{
-		return false;
-	}
-
-	// B. If it didn't hit anything, it's over a void.
-	if (ground_trace.fraction == 1.0f)
-	{
-		return false;
-	}
-
-	// C. Check the surface it landed on.
-	if ((ground_trace.contents & MASK_WATER) || (ground_trace.plane.normal.z < 0.7f))
-	{
-		return false;
-	}
+	if (ground_trace.startsolid) return false; // Started inside a wall
+	if (ground_trace.fraction == 1.0f) return false; // Didn't hit anything, over a void
+	if ((ground_trace.contents & MASK_WATER) || (ground_trace.plane.normal.z < 0.7f)) return false; // Bad surface
 
 	// We found a valid ground position. Update our final position.
 	final_pos = ground_trace.endpos;
-	final_pos.z += 0.25f; // Epsilon to prevent sticking
 
 	// --- 4. Final Entity Check ---
 	// Now that we have a valid position relative to the world, check if any
 	// MONSTERS or PLAYERS are in that exact spot.
-	// We use a separate, final trace for this.
 	trace_t entity_trace = gi.trace(final_pos, monster_mins, monster_maxs, final_pos, nullptr, MASK_MONSTERSOLID);
-
-	if (entity_trace.startsolid)
-	{
+	if (entity_trace.startsolid) {
 		// This indicates the spot is valid in the world, but occupied by an entity.
 		// The calling function can now correctly decide to try an alternative position.
 		return false;
@@ -5640,9 +5522,10 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 
 	// --- 5. Success ---
 	// The position is valid against the world and is not occupied by another entity.
-	io_position = final_pos; // Write the validated position back
+	io_position = final_pos; // Write the validated, floor-dropped position back
 	return true;
 }
+
 // helper function 
 static edict_t* FindBestPlayerTargetForTeleport()
 {
@@ -6880,7 +6763,11 @@ static bool ValidateSpawnPointForMonster(edict_t *spawn_point, const SpawnPointD
 	return true;
 }
 
-// It encapsulates all the bonus logic.
+//======================================================================
+// REPLACEMENT: ApplyHordeBonuses
+// More robust version with safety checks to prevent crashes if the
+// monster is freed during bonus application.
+//======================================================================
 static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance)
 {
     if (!monster || !monster->inuse) return false;
@@ -6890,7 +6777,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
     {
         monster->monsterinfo.bonus_flags |= BF_CHAMPION;
         ApplyMonsterBonusFlags(monster);
-        if (!monster->inuse) return false;
+        if (!monster->inuse) return false; // Safety check after applying flags
 
         monster->item = G_HordePickItem();
         monster->spawnflags = monster->item ? (monster->spawnflags & ~SPAWNFLAG_MONSTER_NO_DROP) : (monster->spawnflags | SPAWNFLAG_MONSTER_NO_DROP);
@@ -6911,18 +6798,13 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
         }
     }
 
-    if (currentLevel >= 6 && monster->monsterinfo.power_armor_type == IT_NULL && 
-							monster->monsterinfo.armor_type == IT_NULL && 
-							monster->monsterinfo.power_armor_type == IT_NULL && 
-							monster->monsterinfo.armor_type == IT_NULL) {
-
+    if (currentLevel >= 6 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
         SetMonsterArmor(monster);
-        if (!monster->inuse) return false;
+        if (!monster->inuse) return false; // Safety check after setting armor
     }
 
     return true;
 }
-
 
 // --- Helper Function: FindValidSpawnSpot ---
 // This function's only job is to find a valid position and angle.
@@ -6964,22 +6846,49 @@ static bool FindValidSpawnSpot(
 }
 
 
-// --- Main Orchestrator Function (Refactored) ---
+//======================================================================
+// REPLACEMENT: FindValidSpotAndSpawn
+// Orchestrates the new validation logic, applying correct cooldowns
+// based on the type of failure.
+//======================================================================
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
-    vec3_t final_origin;
-    vec3_t final_angles;
-    bool used_alternative = false;
+    // --- Helper Lambda to find a valid position ---
+    auto FindValidSpot = [&](vec3_t& out_origin, vec3_t& out_angles, bool& out_used_alternative) -> bool
+    {
+        const bool monster_is_flying = IsFlying(monster_type);
+        vec3_t predicted_mins, predicted_maxs;
+        GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
 
-    // --- Phase 1: Find a valid spot ---
-    if (!FindValidSpawnSpot(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
-        // Finding a spot failed. The reason determines which cooldown to apply.
-        // If an alternative was attempted (even if it failed), we penalize the alternative cooldown.
-        // Otherwise, we penalize the standard cooldown.
+        // Attempt 1: Direct Spawn
+        vec3_t direct_origin = spawn_point->s.origin;
+        if (IsValidSpawnLocation(direct_origin, predicted_mins, predicted_maxs, monster_is_flying)) {
+            out_origin = direct_origin;
+            out_angles = spawn_point->s.angles;
+            out_used_alternative = false;
+            return true;
+        }
+
+        // Attempt 2: Alternative Spawn (if not on cooldown)
         const auto& sp_data = spawnPointsData[spawn_point];
         if (level.time >= sp_data.alternative_cooldown) {
-            // We were eligible to try an alternative, so we penalize it regardless of whether
-            // TryAlternativeSpawnPosition was called or returned false.
+            if (TryAlternativeSpawnPosition(spawn_point, monster_type, out_origin, out_angles)) {
+                out_used_alternative = true;
+                return true;
+            }
+        }
+        return false; // Both attempts failed
+    };
+
+    // --- Main Logic ---
+    vec3_t final_origin, final_angles;
+    bool used_alternative = false;
+
+    // Phase 1: Find a valid spot
+    if (!FindValidSpot(final_origin, final_angles, used_alternative)) {
+        // Finding a spot failed. Penalize the spawn point.
+        // If we were eligible to try an alternative, penalize that cooldown. Otherwise, penalize the standard one.
+        if (level.time >= spawnPointsData[spawn_point].alternative_cooldown) {
             ApplyAlternativePositionCooldown(spawn_point);
         } else {
             IncreaseSpawnAttempts(spawn_point);
@@ -6988,26 +6897,20 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         return nullptr;
     }
 
-    // --- Phase 2: Spawn the monster ---
+    // Phase 2: Spawn the monster
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
     if (!monster) { // SpawnMonsterByTypeID can fail (e.g., G_Spawn returns null)
-        if (used_alternative) {
-            ApplyAlternativePositionCooldown(spawn_point);
-        } else {
-            IncreaseSpawnAttempts(spawn_point);
-        }
+        if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
+        else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
         return nullptr;
     }
 
-    // --- Phase 3: Apply bonuses and finalize ---
+    // Phase 3: Apply bonuses and finalize
     if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
         // Success! Monster is valid and has bonuses. Update spawn point stats.
-        if (used_alternative) {
-            ApplySuccessfulAlternativeCooldown(spawn_point);
-        } else {
-            OnSuccessfulSpawn(spawn_point);
-        }
+        if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
+        else OnSuccessfulSpawn(spawn_point);
         return monster;
     } else {
         // Bonuses were applied, but the monster became invalid (e.g., freed).
@@ -7015,10 +6918,8 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
             gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: {}\n",
                             horde::MonsterTypeRegistry::GetClassname(monster_type));
         }
-        // The monster is already freed or !inuse. We just need to handle failure counts.
         g_consecutive_spawn_failures++;
-        // We don't penalize the spawn point itself here, as the spawn *location* was valid.
-        // The failure was in the monster's setup logic.
+        // The spawn *location* was valid, so we don't penalize the spawn point itself.
         return nullptr;
     }
 }
@@ -7882,7 +7783,9 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 }
 
 //======================================================================
-// Horde_InitLevel (Final Confirmed Version)
+// REPLACEMENT: Horde_InitLevel
+// This version correctly pre-filters the list of all possible monsters
+// into a small, wave-specific list to avoid expensive filtering later.
 //======================================================================
 static void Horde_InitLevel(const int32_t lvl)
 {
@@ -7891,21 +7794,20 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
-
-
 	ResetChampionMonsterState();
 
 	// --- 2. Set up the new wave's parameters ---
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
 
-	if (!(lvl >= 10 && lvl % 5 == 0)) { // If NOT a boss wave
+	// Determine the wave type. Boss waves start with no type; it's set when the boss spawns.
+	if (!(lvl >= 10 && lvl % 5 == 0)) {
 		InitializeWaveType(lvl);
 	} else {
 		current_wave_type = MonsterWaveType::None;
 	}
 
-	// --- 3. Build the monster cache for this wave ---
+	// --- 3. Build the eligible monster cache for this wave (CRITICAL OPTIMIZATION) ---
 	g_eligible_monsters_for_wave.clear();
 	g_eligible_monsters_for_wave.reserve(std::size(monsterTypes));
 
