@@ -3714,11 +3714,11 @@ void BossDeathHandler(edict_t *boss)
 	// Mark as handled immediately (no change needed)
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
-	boss_spawned_for_wave = false;
-	if (developer->integer)
-	{ // Optional debug print
-		gi.Com_PrintFmt("BossDeathHandler: Reset boss_spawned_for_wave flag for wave {}.\n", g_horde_local.level);
-	}
+	//boss_spawned_for_wave = false;
+	// if (developer->integer)
+	// { // Optional debug print
+	// 	gi.Com_PrintFmt("BossDeathHandler: Reset boss_spawned_for_wave flag for wave {}.\n", g_horde_local.level);
+	// }
 
 	// Clean up entity tracking (no change needed)
 	OnEntityDeath(boss);
