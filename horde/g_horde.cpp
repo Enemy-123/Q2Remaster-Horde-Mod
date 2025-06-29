@@ -4759,6 +4759,20 @@ static void ResetAllSpawnPointDataAndTrackers()
 	}
 }
 
+// NEW HELPER FUNCTION
+static void ResetSpawnBatchState()
+{
+    // Reset normal spawn batch state
+    g_monsters_to_spawn_in_current_batch = 0;
+    g_next_single_monster_spawn_time = 0_sec;
+    g_champion_chance_for_current_batch = 0.2f; // Reset to default
+
+    // Reset ambush/retaliation batch state
+    g_monsters_to_spawn_in_current_ambush = 0;
+    g_next_single_ambush_monster_spawn_time = 0_sec;
+    g_current_ambush_info = AmbushSpawnInfo{}; // Reset to default
+}
+
 void ResetGame()
 {
 	if (hasBeenReset)
@@ -4807,6 +4821,7 @@ void ResetGame()
 	ResetWaveMemory();
 	ResetChampionMonsterState();
 	ResetBosses();
+	ResetSpawnBatchState();
 
 	g_adjusted_monster_cap = 0;
 	// spawn_point_cache.clear(); // This is handled by CleanupSpawnPointCache
@@ -7666,7 +7681,9 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 //======================================================================
 static void Horde_InitLevel(const int32_t lvl)
 {
+	
 	// --- 1. Reset All Wave-Specific State ---
+	ResetSpawnBatchState();
 	g_special_high_level_monster_spawned_this_wave = false;
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
