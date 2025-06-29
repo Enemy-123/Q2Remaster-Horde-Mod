@@ -662,48 +662,6 @@ edict_t *SelectRandomSpawnPoint(TFilter filter)
 
 static void CleanupSpawnPointCache() noexcept { spawn_point_cache.clear(); }
 
-//// Spawn point selection filter
-// struct SpawnMonsterFilter {
-//	gtime_t currentTime;
-//
-//	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
-//
-//	bool operator()(edict_t* spawnPoint) const {
-//		// Combined validation to reduce branches
-//		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin))
-//			return false;
-//
-//		// Direct array access for cooldown check
-//		const auto& data = spawnPointsData[spawnPoint];
-//
-//		// Check normal cooldown
-//		if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
-//			return false;
-//
-//		// NEW: Check alternative position cooldown
-//		if (data.alternative_cooldown > 0_sec && currentTime < data.alternative_cooldown)
-//			return false;
-//
-//		// Check if this is a flying spawn point but we need non-flying monsters
-//		if (spawnPoint->style == 1 && !HasWaveType(current_wave_type, MonsterWaveType::Flying))
-//			return false;
-//
-//		// Cache the origin reference to avoid multiple member accesses
-//		const vec3_t& origin = spawnPoint->s.origin;
-//
-//		// Check minimum distance from players using modern vector operations
-//		for (const auto* const player : active_players()) {
-//			if (!player || !player->inuse)
-//				continue;
-//
-//			// Use squared distance to avoid unnecessary sqrt calculations
-//			if ((origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_SPAWNPOINT) // 150^2 = 22500
-//				return false;
-//		}
-//
-//		return true;
-//	}
-// };
 //  Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
 constexpr size_t MAX_RECENT_BOSSES = 4;
@@ -714,10 +672,12 @@ static constexpr size_t NUM_START_SOUNDS = 8;
 // precache//
 static cached_soundindex wave_sounds[NUM_WAVE_SOUNDS];
 static cached_soundindex start_sounds[NUM_START_SOUNDS];
-static cached_soundindex sound_tele3;	// Para teleport
-static cached_soundindex sound_tele_up; // Para teleport escape
-static cached_soundindex sound_spawn1;	// Para spawn de monstruos
-static cached_soundindex incoming;		// Para spawn de monstruos
+static cached_soundindex sound_tele3;
+static cached_soundindex sound_tele_up;
+static cached_soundindex sound_spawn1;
+static cached_soundindex incoming;
+static cached_soundindex sound_quake; 
+static cached_soundindex talk; 
 
 // Arrays de strings con los nombres de los sonidos
 static constexpr const char *WAVE_SOUND_PATHS[NUM_WAVE_SOUNDS] = {
@@ -3494,10 +3454,14 @@ static void PrecacheWaveSounds() noexcept
 	if (sounds_precached)
 		return;
 
-	static const std::array<std::pair<cached_soundindex *, const char *>, 4> individual_sounds = {{{&sound_tele3, "misc/r_tele3.wav"},
-																								   {&sound_tele_up, "misc/tele_up.wav"},
-																								   {&sound_spawn1, "misc/spawn1.wav"},
-																								   {&incoming, "world/incoming.wav"}}};
+	static const std::array<std::pair<cached_soundindex *, const char *>, 6> individual_sounds = { {
+        {&sound_tele3, "misc/r_tele3.wav"},
+        {&sound_tele_up, "misc/tele_up.wav"},
+        {&sound_spawn1, "misc/spawn1.wav"},
+        {&incoming, "world/incoming.wav"},
+		{&talk, "misc/talk.wav"},
+        {&sound_quake, "world/quake.wav"} } };
+
 
 	// Use std::span for safe iteration
 	std::span individual_view{individual_sounds};

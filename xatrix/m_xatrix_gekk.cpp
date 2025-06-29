@@ -13,6 +13,7 @@ constexpr spawnflags_t SPAWNFLAG_GEKK_CHANT = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOSWIM = 32_spawnflag;
 
+static cached_soundindex sound_hordespawn;
 static cached_soundindex sound_swing;
 static cached_soundindex sound_hit;
 static cached_soundindex sound_hit2;
@@ -1650,7 +1651,7 @@ void SP_monster_gekk(edict_t* self)
 	if (g_horde->integer) {
 		{
 			if (brandom())
-				gi.sound(self, CHAN_VOICE, gi.soundindex("gek/wolfboy3.wav"), 1, ATTN_NORM, 0);
+				gi.sound(self, CHAN_VOICE, sound_hordespawn, 1, ATTN_NORM, 0);
 		}
 	}
 
@@ -1659,6 +1660,7 @@ void SP_monster_gekk(edict_t* self)
 		return;
 	}
 
+	sound_hordespawn.assign("gek/wolfboy3.wav");
 	sound_swing.assign("gek/gk_atck1.wav");
 	sound_hit.assign("gek/gk_atck2.wav");
 	sound_hit2.assign("gek/gk_atck3.wav");
