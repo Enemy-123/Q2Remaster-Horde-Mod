@@ -183,7 +183,7 @@ namespace HordeConstants
 static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
-[[nodiscard]] bool IsValidSpawnLocation(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
+[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
 bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t* specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
@@ -4306,7 +4306,7 @@ static void SpawnBossAutomatically()
 		if (is_valid_vector(fixed_origin) && fixed_origin != vec3_origin)
 		{
 			vec3_t validated_fixed_origin = fixed_origin;
-			// if (IsValidSpawnLocation(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying)) {
+			// if (IsPositionPhysicallyValid(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying)) {
 			spawn_origin = validated_fixed_origin;
 			location_found = true;
 			if (developer->integer > 1)
@@ -4370,7 +4370,7 @@ static void SpawnBossAutomatically()
 			if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human, boss_type))
 			{
 				vec3_t final_emergency_pos = emergency_origin;
-				if (IsValidSpawnLocation(final_emergency_pos, predicted_mins, predicted_maxs, boss_is_flying))
+				if (IsPositionPhysicallyValid(final_emergency_pos, predicted_mins, predicted_maxs, boss_is_flying))
 				{
 					// Use the emergency location directly
 					spawn_origin = final_emergency_pos;
@@ -4382,7 +4382,7 @@ static void SpawnBossAutomatically()
 				else
 				{
 					if (developer->integer)
-						gi.Com_PrintFmt("SpawnBossAutomatically: Emergency position {} failed IsValidSpawnLocation for boss.\n", emergency_origin);
+						gi.Com_PrintFmt("SpawnBossAutomatically: Emergency position {} failed IsPositionPhysicallyValid for boss.\n", emergency_origin);
 					// Abort if emergency location is also invalid
 					return;
 				}
@@ -5354,7 +5354,7 @@ void InitializeWaveSystem() noexcept
 static void SetMonsterArmor(edict_t *monster);
 static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 
-// REPLACEMENT: FindEmergencySpawnPosition (with specific_target support)
+// REPLACEMENT: FindEmergencySpawnPosition (with robust checks)
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t* specific_target)
 {
 	PROFILE_SCOPE("FindEmergencySpawnPosition");
@@ -5364,34 +5364,28 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 	GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 	const bool is_flying = IsFlying(typeId);
 
-	// --- 1. Build the list of potential targets ---
 	std::vector<edict_t*> target_candidates;
 	target_candidates.reserve(MAX_CLIENTS);
 
 	if (specific_target && specific_target->inuse && specific_target->health > 0) {
-		// If a specific, valid target is provided, use only that one.
 		target_candidates.push_back(specific_target);
-		if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Using specific target: {}\n", GetPlayerName(specific_target).c_str());
 	} else {
-		// Otherwise, gather all active players.
 		for (auto* p : active_players_no_spect()) {
 			target_candidates.push_back(p);
 		}
-		// Shuffle to vary which player is chosen first in a general ambush.
 		if (!target_candidates.empty()) {
 			std::shuffle(target_candidates.begin(), target_candidates.end(), mt_rand);
 		}
 	}
 
 	if (target_candidates.empty()) {
-		if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: No valid targets found.\n");
 		return false;
 	}
 
-	// --- 2. Attempt to find a spot near a target ---
-	constexpr int MAX_ATTEMPTS_PER_PLAYER = 12;
+	constexpr int MAX_ATTEMPTS_PER_PLAYER = 16;
 	constexpr float MIN_RADIUS = HordeConstants::MIN_PLAYER_DIST_GENERATE;
-	constexpr float MAX_RADIUS = 1000.0f;
+	constexpr float MAX_RADIUS = 800.0f; // Reduced radius slightly
+    static const vec3_t trace_box = {-4, -4, -4}; // Box for fat trace
 
 	for (edict_t* player : target_candidates)
 	{
@@ -5403,27 +5397,33 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 			vec3_t candidate_pos = {
 				player_origin.x + cosf(angle_rad) * radius,
 				player_origin.y + sinf(angle_rad) * radius,
-				player_origin.z + frandom(16.0f, 64.0f)
+				player_origin.z + frandom(8.0f, 48.0f) // Adjusted Z offset
 			};
 
-			vec3_t validated_pos = candidate_pos;
-			if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying) &&
-				!IsPositionTooCloseToRecentSpawn(validated_pos) &&
-				!IsPositionTooCloseToRecentTeleport(validated_pos))
+            // TWO-STEP VALIDATION FOR EMERGENCY SPAWNS
+            
+            // Step A: "Fat" trace from PLAYER to candidate position to ensure reachability.
+            trace_t los_trace = gi.trace(player_origin, trace_box, trace_box, candidate_pos, player, MASK_SOLID);
+            if (los_trace.fraction < 1.0f) {
+                continue; // Path from player is blocked by world geometry.
+            }
+
+			// Step B: Check if the spot itself is physically valid.
+			if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying) &&
+				!IsPositionTooCloseToRecentSpawn(candidate_pos) &&
+				!IsPositionTooCloseToRecentTeleport(candidate_pos))
 			{
-				position = validated_pos;
-				vec3_t dir_to_player = player_origin - validated_pos;
+				position = candidate_pos;
+				vec3_t dir_to_player = player_origin - candidate_pos;
 				angles = (dir_to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) ? vectoangles(dir_to_player) : player->s.angles;
-				angles[PITCH] = 0; // Prevent looking up/down
+				angles[PITCH] = 0;
 
 				used_human_player = !(player->svflags & SVF_BOT);
-				if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Success! Found pos {} near {}.\n", position, GetPlayerName(player).c_str());
 				return true;
 			}
 		}
 	}
 
-	if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Failed after all attempts for all targets.\n");
 	return false;
 }
 
@@ -5476,65 +5476,44 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	return BoxEdictsResult_t::Skip;
 }
 
-//======================================================================
-// REPLACEMENT: IsValidSpawnLocation
-// Correctly separates world and entity checks to enable better
-// alternative position logic and prevent monsters spawning inside each other.
-//======================================================================
-[[nodiscard]] bool IsValidSpawnLocation(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying)
+// REPLACEMENT for IsPositionPhysicallyValid
+// This is a low-level validator. Its only job is to answer:
+// "Can a monster physically exist at this specific coordinate?"
+// It checks for solid world geometry, finds a valid floor, and checks for entity occupation.
+[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying)
 {
-	// --- 1. Initial Sanity Checks ---
-	if (!is_valid_vector(io_position) || !is_valid_vector(monster_mins) || !is_valid_vector(monster_maxs)) {
-		return false;
-	}
+    // --- 1. Flying Monster Check (Simple Case) ---
+    if (is_flying) {
+        // Flying monsters don't need a floor. Just check if the volume is free of any solid object (world or entity).
+        trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
+        if (trace.startsolid || trace.allsolid) {
+            return false; // The space is occupied.
+        }
+        return true; // The space is clear.
+    }
 
-	// --- 2. Flying Monster Handling (Simple and Fast) ---
-	if (is_flying) {
-		// For flying monsters, we just need to check if the target volume is empty of
-		// both world geometry and other solid entities. MASK_MONSTERSOLID does this.
-		trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
-		return !(trace.startsolid || trace.allsolid);
-	}
+    // --- 2. Ground Monster Check (Multi-Stage) ---
 
-	// --- 3. Ground Monster: World Geometry and Floor Finding ---
-	vec3_t final_pos = io_position;
+    // Stage A: Check against world geometry ONLY. Is the spot inside a wall or over a void?
+    vec3_t original_pos = io_position; // Keep original position in case drop fails.
+    if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false)) {
+        // M_droptofloor failed. This means it couldn't find a valid, non-steep, non-water ground surface below.
+        // This is the most common failure for bad alternative positions (e.g., over a pit or inside a wall).
+        io_position = original_pos; // Restore original position for safety.
+        return false;
+    }
+    // At this point, io_position is now on a valid floor surface.
 
-	// First, check if the initial point is inside a solid wall.
-	if (gi.pointcontents(final_pos) & MASK_SOLID) {
-		return false;
-	}
+    // Stage B: Check for other entities at the new, floor-dropped position.
+    // Now that we know the spot is valid in the world, we check if another monster/player is already there.
+    trace_t entity_trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
+    if (entity_trace.startsolid) {
+        // The spot is on valid ground, but another entity is occupying it.
+        return false;
+    }
 
-	// Use a single downward trace to find a valid floor position, checking only against the world.
-	// This is faster than multiple traces and M_droptofloor.
-	vec3_t start = final_pos;
-	start.z += 1.0f; // Start slightly above to avoid starting in the floor
-	vec3_t end = final_pos;
-	end.z -= 256.0f; // Look for ground up to 256 units below
-
-	// IMPORTANT: Trace only against MASK_SOLID (world geometry) for this step.
-	trace_t ground_trace = gi.trace(start, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
-
-	if (ground_trace.startsolid) return false; // Started inside a wall
-	if (ground_trace.fraction == 1.0f) return false; // Didn't hit anything, over a void
-	if ((ground_trace.contents & MASK_WATER) || (ground_trace.plane.normal.z < 0.7f)) return false; // Bad surface
-
-	// We found a valid ground position. Update our final position.
-	final_pos = ground_trace.endpos;
-
-	// --- 4. Final Entity Check ---
-	// Now that we have a valid position relative to the world, check if any
-	// MONSTERS or PLAYERS are in that exact spot.
-	trace_t entity_trace = gi.trace(final_pos, monster_mins, monster_maxs, final_pos, nullptr, MASK_MONSTERSOLID);
-	if (entity_trace.startsolid) {
-		// This indicates the spot is valid in the world, but occupied by an entity.
-		// The calling function can now correctly decide to try an alternative position.
-		return false;
-	}
-
-	// --- 5. Success ---
-	// The position is valid against the world and is not occupied by another entity.
-	io_position = final_pos; // Write the validated, floor-dropped position back
-	return true;
+    // If we passed all checks, the position is physically valid.
+    return true;
 }
 
 // helper function 
@@ -5966,10 +5945,10 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 	return ambushSize;
 }
 
-// Includes and definitions assumed to be available from your original code
-// (e.g., HordeConstants, IsFlying, GetPredictedScaledBounds, IsValidSpawnLocation,
-// IsPositionTooCloseToRecentSpawn, MarkPositionAsRecentlyUsed, SpawnPointFilter, etc.)
-
+// REPLACEMENT: TryAlternativeSpawnPosition
+// This function now incorporates the Line-of-Sight (LOS) check inspired by the tank's
+// spawning logic, preventing monsters from spawning behind walls relative to the
+// original spawn point.
 [[nodiscard]] bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles)
 {
 	PROFILE_SCOPE("TryAlternativeSpawnPosition");
@@ -5990,34 +5969,34 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 	}
 
 	// --- 2. Helper Lambda for Core Validation Logic ---
-	// This lambda encapsulates the repeated checks to keep our code DRY.
+	// This lambda encapsulates the repeated checks to keep our code DRY (Don't Repeat Yourself).
 	auto check_and_set_position = 
 		[&](const vec3_t& candidate_pos, const vec3_t& offset_dir) -> bool 
 	{
-		// 2a. Line-of-Sight Check (cheap and effective)
+		// 2a. Line-of-Sight Check (THE "TANK" LOGIC)
+		// Trace from the original spawn point to the candidate position.
+		// If it's blocked by the world (MASK_SOLID), this spot is invalid.
 		trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-		if (los_trace.fraction < 0.9f) {
-			return false; // Blocked by world geometry.
+		if (los_trace.fraction < 1.0f) { // Use 1.0f for a strict check
+			return false; // Path is blocked by the world, this is a bad spot.
 		}
 
-		// 2b. Full Location Validation (expensive)
+		// 2b. Full Location Validation (using our refined function)
 		vec3_t validated_pos = candidate_pos;
-		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+		if (IsPositionPhysicallyValid(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
 			
-			// 2c. Final Proximity Check
+			// 2c. Final Proximity Check (to avoid clustering)
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
-				// SUCCESS!
+				// SUCCESS! We found a valid, visible, and non-clustered spot.
 				final_origin = validated_pos;
 				
 				// Calculate angle to face away from the original blocked point.
 				if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
 					final_angles = vectoangles(offset_dir);
-					// --- BUG FIX ---
-					// Always zero out the pitch to prevent flying monsters from looking up/down.
+					// Always zero out the pitch to prevent monsters from looking up/down on spawn.
 					final_angles[PITCH] = 0; 
-					// --- END FIX ---
 				} else {
-					final_angles = base_angles; // Fallback to original angle.
+					final_angles = base_angles; // Fallback to original angle if offset is zero.
 				}
 
 				MarkPositionAsRecentlyUsed(final_origin);
@@ -6028,28 +6007,30 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 	};
 
 	// --- 3. Phase 1: Try Shuffled Predefined Offsets ---
+	// This is a fast way to check common, nearby valid spots.
 	auto alternative_offsets = HordeConstants::horde_alternative_positions;
 	std::shuffle(alternative_offsets.begin(), alternative_offsets.end(), mt_rand);
 
 	for (const auto& offset : alternative_offsets) {
 		if (check_and_set_position(base_origin + offset, offset)) {
-			if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with predefined offset {}.\n", offset);
+			if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with predefined offset {}.\n", offset);
 			return true;
 		}
 	}
 
 	// --- 4. Phase 2: Fallback to Radial Offsets ---
+	// If predefined offsets fail, we search in a wider, random radius.
 	constexpr int RADIAL_ATTEMPTS = 35;
 	constexpr float MIN_RADIUS = 40.0f;
 	constexpr float MAX_RADIUS = 225.0f;
 
 	for (int i = 0; i < RADIAL_ATTEMPTS; ++i) {
 		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
-		float angle_rad = frandom() * 2.0f * PI;
+		float angle_rad = frandom() * 2.0f * PIf;
 		vec3_t offset = { cosf(angle_rad) * radius, sinf(angle_rad) * radius, frandom(-8.0f, 24.0f) };
 		
 		if (check_and_set_position(base_origin + offset, offset)) {
-			if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with radial offset {}.\n", offset);
+			if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with radial offset {}.\n", offset);
 			return true;
 		}
 	}
@@ -6779,10 +6760,9 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
     return true;
 }
 
-// --- Helper Function: FindValidSpawnSpot ---
-// This function's only job is to find a valid position and angle.
+// NEW HELPER FUNCTION - This replaces TryAlternativeSpawnPosition
+// This is the high-level orchestrator that finds a valid spawn spot, implementing the "tank logic" with robust checks.
 // It returns true on success and populates the out_ parameters.
-// It does NOT handle cooldowns; the caller does.
 static bool FindValidSpawnSpot(
     edict_t* spawn_point,
     horde::MonsterTypeID monster_type,
@@ -6790,72 +6770,67 @@ static bool FindValidSpawnSpot(
     vec3_t& out_angles,
     bool& out_used_alternative)
 {
-    const bool monster_is_flying = IsFlying(monster_type);
+    // --- 1. Get Prerequisites ---
+    const vec3_t base_origin = spawn_point->s.origin;
+    const vec3_t base_angles = spawn_point->s.angles;
+    const bool is_flying = IsFlying(monster_type);
     vec3_t predicted_mins, predicted_maxs;
     GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
 
-    // --- Attempt 1: Direct Spawn ---
-    vec3_t direct_origin = spawn_point->s.origin;
-    if (IsValidSpawnLocation(direct_origin, predicted_mins, predicted_maxs, monster_is_flying)) {
-        // IsValidSpawnLocation already checks for entities, so we can trust it.
-        out_origin = direct_origin;
-        out_angles = spawn_point->s.angles;
+    // --- 2. Attempt Direct Spawn ---
+    // First, try to spawn directly at the spawn point's location.
+    vec3_t direct_pos = base_origin;
+    if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying)) {
+        out_origin = direct_pos;
+        out_angles = base_angles;
         out_used_alternative = false;
         return true;
     }
 
-    // --- Attempt 2: Alternative Spawn ---
-    const auto& sp_data = spawnPointsData[spawn_point];
-    if (level.time >= sp_data.alternative_cooldown) {
-        if (TryAlternativeSpawnPosition(spawn_point, monster_type, out_origin, out_angles)) {
-            // TryAlternativeSpawnPosition already calls IsValidSpawnLocation and marks the spot.
+    // --- 3. Attempt Alternative Spawn (if direct spawn failed) ---
+    auto alternative_offsets = HordeConstants::horde_alternative_positions;
+    std::shuffle(alternative_offsets.begin(), alternative_offsets.end(), mt_rand);
+
+    // Define a small box for our "fat" trace to prevent passing through cracks.
+    static const vec3_t trace_box = {-4, -4, -4};
+
+    for (const auto& offset : alternative_offsets) {
+        vec3_t candidate_pos = base_origin + offset;
+
+        // *** THE CRUCIAL TWO-STEP VALIDATION ***
+        
+        // Step A: "Fat" Line-of-Sight Check. Can a small box move from the spawn point to the candidate position?
+        // This is much more reliable than a simple traceline.
+        trace_t los_trace = gi.trace(base_origin, trace_box, trace_box, candidate_pos, spawn_point, MASK_SOLID);
+        if (los_trace.fraction < 1.0f) {
+            continue; // Path is blocked by the world. This spot is unreachable.
+        }
+
+        // Step B: Physical Validity Check. Is the candidate position itself physically valid?
+        if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying)) {
+            // Success! We found a spot that is both reachable and physically valid.
+            out_origin = candidate_pos;
+            out_angles = vectoangles(offset); // Face away from the original blocked point.
+            out_angles[PITCH] = 0;
             out_used_alternative = true;
             return true;
         }
     }
 
-    // If both attempts fail
+    // If we get here, both direct and alternative spawns failed.
     return false;
 }
 
-// REPLACEMENT: FindValidSpotAndSpawn (Refactored for clarity and robustness)
+// REPLACEMENT: FindValidSpotAndSpawn (Refactored to use the new system)
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
-    // --- Helper Lambda to find a valid position ---
-    auto FindValidSpot = [&](vec3_t& out_origin, vec3_t& out_angles, bool& out_used_alternative) -> bool
-    {
-        const bool monster_is_flying = IsFlying(monster_type);
-        vec3_t predicted_mins, predicted_maxs;
-        GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
-
-        // Attempt 1: Direct Spawn
-        vec3_t direct_origin = spawn_point->s.origin;
-        if (IsValidSpawnLocation(direct_origin, predicted_mins, predicted_maxs, monster_is_flying)) {
-            out_origin = direct_origin;
-            out_angles = spawn_point->s.angles;
-            out_used_alternative = false;
-            return true;
-        }
-
-        // Attempt 2: Alternative Spawn (if not on cooldown)
-        const auto& sp_data = spawnPointsData[spawn_point];
-        if (level.time >= sp_data.alternative_cooldown) {
-            if (TryAlternativeSpawnPosition(spawn_point, monster_type, out_origin, out_angles)) {
-                out_used_alternative = true;
-                return true;
-            }
-        }
-        return false; // Both attempts failed
-    };
-
-    // --- Main Logic ---
     vec3_t final_origin, final_angles;
     bool used_alternative = false;
 
-    // Phase 1: Find a valid spot
-    if (!FindValidSpot(final_origin, final_angles, used_alternative)) {
-        // Finding a spot failed. Penalize the spawn point.
-        if (level.time >= spawnPointsData[spawn_point].alternative_cooldown) {
+    // --- Phase 1: Find a valid spot using our new high-level orchestrator ---
+    if (!FindValidSpawnSpot(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
+        // Finding a spot failed completely. Penalize the spawn point.
+        if (used_alternative) { // This check is a bit redundant now but safe
             ApplyAlternativePositionCooldown(spawn_point);
         } else {
             IncreaseSpawnAttempts(spawn_point);
@@ -6864,29 +6839,32 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         return nullptr;
     }
 
-    // Phase 2: Spawn the monster
+    // --- Phase 2: Spawn the monster at the validated location ---
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
-    if (!monster) { // SpawnMonsterByTypeID can fail
+    if (!monster) { // SpawnMonsterByTypeID can fail for other reasons (e.g., no free edicts)
         if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
         else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
         return nullptr;
     }
 
-    // Phase 3: Apply bonuses and finalize
+    // --- Phase 3: Apply bonuses and finalize ---
     if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
-        // Success!
-        if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
-        else OnSuccessfulSpawn(spawn_point);
+        // Success! The monster is live. Apply the correct cooldown to the spawn point.
+        if (used_alternative) {
+            ApplySuccessfulAlternativeCooldown(spawn_point);
+        } else {
+            OnSuccessfulSpawn(spawn_point);
+        }
         return monster;
     } else {
-        // Bonuses were applied, but the monster became invalid (freed).
+        // Bonuses were applied, but the monster became invalid (was freed).
+        // This is a failure, but not the fault of the spawn point itself.
         if (developer->integer > 1) {
             gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: {}\n",
                             horde::MonsterTypeRegistry::GetClassname(monster_type));
         }
         g_consecutive_spawn_failures++;
-        // The spawn location was valid, so we don't penalize the spawn point itself.
         return nullptr;
     }
 }
@@ -7666,7 +7644,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 		// Warning logged by GetPredictedScaledBounds
 	}
 
-	if (!IsValidSpawnLocation(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
+	if (!IsPositionPhysicallyValid(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
 	{
 		self->s.origin = old_origin;
 		self->s.old_origin = old_origin;
@@ -7679,7 +7657,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 		self->teleport_time = level.time + 0.5_sec;
 		if (developer->integer > 1)
 		{
-			gi.Com_PrintFmt("Horde_TeleportMonster: IsValidSpawnLocation failed for {} at intended ({:.1f},{:.1f},{:.1f}). Restored to ({:.1f},{:.1f},{:.1f}).\n",
+			gi.Com_PrintFmt("Horde_TeleportMonster: IsPositionPhysicallyValid failed for {} at intended ({:.1f},{:.1f},{:.1f}). Restored to ({:.1f},{:.1f},{:.1f}).\n",
 							self->classname ? self->classname : "UNKNOWN",
 							destination_origin.x, destination_origin.y, destination_origin.z,
 							old_origin.x, old_origin.y, old_origin.z);
