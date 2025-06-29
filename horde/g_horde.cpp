@@ -5780,16 +5780,34 @@ int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edi
 {
 	if (g_monsters_to_spawn_in_current_ambush > 0) return 0;
 
-	int ambushSize = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
-	
+	// <<< FIX: New dynamic calculation for ambush size >>>
+	int baseSize = mapSize.isSmallMap ? 2 : (mapSize.isBigMap ? 4 : 3);
+	int spreeBonus = 0;
+	int levelBonus = waveLevel / 10; // +1 monster for every 10 waves
+
+	// Add a bonus based on the target player's performance
+	if (target_player && target_player->client) {
+		// Add +1 monster for every 8 kills in the player's spree
+		spreeBonus = target_player->client->resp.spree / 8;
+	}
+
+	// Combine and cap the size to prevent it from getting out of control
+	int ambushSize = baseSize + spreeBonus + levelBonus;
+	ambushSize = std::min(ambushSize, 7); // Cap at a max of 7 retaliation monsters
+
 	if (developer->integer) {
-		gi.Com_PrintFmt("HORDE: INITIATING Retaliation Ambush (Size: {}). Target: {}\n", ambushSize, GetPlayerName(target_player).c_str());
+		gi.Com_PrintFmt("HORDE: INITIATING Retaliation Ambush (Size: {}). Target: {} (Spree: {}, Lvl: {})\n",
+			ambushSize,
+			GetPlayerName(target_player).c_str(),
+			(target_player && target_player->client) ? target_player->client->resp.spree : 0,
+			waveLevel);
 	}
 
 	horde::MonsterTypeID typeId = PickRetaliationMonsterTypeID(waveLevel);
 	if (typeId == horde::MonsterTypeID::UNKNOWN) return 0;
 
-	g_current_ambush_info = {typeId, 0.5f + (frandom() * 0.3f), true, target_player};
+	// Set a very high champion chance for these priority spawns
+	g_current_ambush_info = {typeId, 0.6f + (frandom() * 0.25f), true, target_player};
 	g_monsters_to_spawn_in_current_ambush = ambushSize;
 	g_next_single_ambush_monster_spawn_time = level.time;
 
@@ -6188,10 +6206,26 @@ static void SpawnSingleAmbushMonsterFromBatch()
 
 	if (info.typeId != horde::MonsterTypeID::UNKNOWN)
 	{
-		// Find a position. If a specific target is set (for retaliation), it will be used.
 		vec3_t spawn_pos, spawn_angles;
 		bool used_human_player = false;
-		if (FindEmergencySpawnPosition(spawn_pos, spawn_angles, used_human_player, info.typeId, info.target_player))
+		bool position_found = false;
+
+		// <<< FIX: Implement a two-pass spawn attempt for reliability >>>
+		// --- Attempt 1: Try to spawn near the specific retaliation target ---
+		if (info.is_retaliation && info.target_player) {
+			position_found = FindEmergencySpawnPosition(spawn_pos, spawn_angles, used_human_player, info.typeId, info.target_player);
+			if (!position_found && developer->integer) {
+				gi.Com_PrintFmt("Retaliation Spawn: Failed to find spot near primary target. Trying fallback...\n");
+			}
+		}
+
+		// --- Attempt 2: If the first attempt failed or it's a general ambush, try spawning near ANY player ---
+		if (!position_found) {
+			position_found = FindEmergencySpawnPosition(spawn_pos, spawn_angles, used_human_player, info.typeId, nullptr);
+		}
+		// <<< END FIX >>>
+
+		if (position_found)
 		{
 			// Spawn the monster at the found position
 			edict_t* monster = SpawnMonsterByTypeID(info.typeId, spawn_pos, spawn_angles, true);
@@ -6210,6 +6244,10 @@ static void SpawnSingleAmbushMonsterFromBatch()
 				}
 			}
 		}
+		else if (developer->integer) {
+			// This log will now only appear if both passes failed.
+			gi.Com_PrintFmt("Ambush Spawn FAILED: Could not find any valid emergency spawn position on the map.\n");
+		}
 	}
 
 	// Decrement the batch counter regardless of success to prevent infinite loops.
@@ -6221,7 +6259,6 @@ static void SpawnSingleAmbushMonsterFromBatch()
 		g_next_single_ambush_monster_spawn_time = level.time + FRAME_TIME_MS;
 	}
 }
-
 
 // Forward declarations for new helper functions
 static void RebuildSpawnPointCacheIfNeeded();
