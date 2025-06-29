@@ -5948,6 +5948,281 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 	return ambushSize;
 }
 
+// Includes and definitions assumed to be available from your original code
+// (e.g., HordeConstants, IsFlying, GetPredictedScaledBounds, IsValidSpawnLocation,
+// IsPositionTooCloseToRecentSpawn, MarkPositionAsRecentlyUsed, SpawnPointFilter, etc.)
+
+[[nodiscard]] bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID typeId, vec3_t& final_origin, vec3_t& final_angles)
+{
+	PROFILE_SCOPE("TryAlternativeSpawnPosition");
+
+	// --- 1. Input Validation and Prerequisites ---
+	if (!spawn_point || !spawn_point->inuse || !is_valid_vector(spawn_point->s.origin)) {
+		if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Invalid spawn_point parameter.\n");
+		return false;
+	}
+
+	const vec3_t base_origin = spawn_point->s.origin;
+	const vec3_t base_angles = spawn_point->s.angles;
+	const bool is_flying = IsFlying(typeId);
+
+	vec3_t predicted_mins, predicted_maxs;
+	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
+		if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Using fallback bounds for TypeID {}.\n", (int)typeId);
+	}
+
+	// --- 2. Helper Lambda for Core Validation Logic ---
+	// This lambda encapsulates the repeated checks to keep our code DRY.
+	auto check_and_set_position = 
+		[&](const vec3_t& candidate_pos, const vec3_t& offset_dir) -> bool 
+	{
+		// 2a. Line-of-Sight Check (cheap and effective)
+		trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
+		if (los_trace.fraction < 0.9f) {
+			return false; // Blocked by world geometry.
+		}
+
+		// 2b. Full Location Validation (expensive)
+		vec3_t validated_pos = candidate_pos;
+		if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+			
+			// 2c. Final Proximity Check
+			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
+				// SUCCESS!
+				final_origin = validated_pos;
+				
+				// Calculate angle to face away from the original blocked point.
+				if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
+					final_angles = vectoangles(offset_dir);
+					// --- BUG FIX ---
+					// Always zero out the pitch to prevent flying monsters from looking up/down.
+					final_angles[PITCH] = 0; 
+					// --- END FIX ---
+				} else {
+					final_angles = base_angles; // Fallback to original angle.
+				}
+
+				MarkPositionAsRecentlyUsed(final_origin);
+				return true;
+			}
+		}
+		return false; // One of the checks failed.
+	};
+
+	// --- 3. Phase 1: Try Shuffled Predefined Offsets ---
+	auto alternative_offsets = HordeConstants::horde_alternative_positions;
+	std::shuffle(alternative_offsets.begin(), alternative_offsets.end(), mt_rand);
+
+	for (const auto& offset : alternative_offsets) {
+		if (check_and_set_position(base_origin + offset, offset)) {
+			if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with predefined offset {}.\n", offset);
+			return true;
+		}
+	}
+
+	// --- 4. Phase 2: Fallback to Radial Offsets ---
+	constexpr int RADIAL_ATTEMPTS = 35;
+	constexpr float MIN_RADIUS = 40.0f;
+	constexpr float MAX_RADIUS = 225.0f;
+
+	for (int i = 0; i < RADIAL_ATTEMPTS; ++i) {
+		float radius = frandom(MIN_RADIUS, MAX_RADIUS);
+		float angle_rad = frandom() * 2.0f * PI;
+		vec3_t offset = { cosf(angle_rad) * radius, sinf(angle_rad) * radius, frandom(-8.0f, 24.0f) };
+		
+		if (check_and_set_position(base_origin + offset, offset)) {
+			if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with radial offset {}.\n", offset);
+			return true;
+		}
+	}
+
+	// --- 5. Failure ---
+	if (developer->integer) {
+		gi.Com_PrintFmt("TryAlternativeSpawnPosition: Failed to find any valid alternative for spawn point at {}.\n", base_origin);
+	}
+	return false;
+}
+
+// TypeID-based EmergencySpawnMonster
+// Takes is_additional_monster to control g_totalMonstersInWave increment
+// Takes champion_chance_for_this_spawn to control champion probability
+bool EmergencySpawnMonster(const int32_t levelNum,
+                           horde::MonsterTypeID typeId,
+                           bool is_additional_monster,
+                           float champion_chance_for_this_spawn)
+{
+    PROFILE_SCOPE("EmergencySpawnMonster");
+
+    // --- Phase 1: Find a valid spot ---
+    vec3_t emergency_origin, emergency_angles;
+    bool used_human_player = false; // This isn't used after, but FindEmergency needs it.
+
+    if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
+        if (developer->integer) {
+            gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}.\n", static_cast<int>(typeId));
+        }
+        return false;
+    }
+
+    // --- Phase 2: Spawn the monster ---
+    edict_t* monster = SpawnMonsterByTypeID(typeId, emergency_origin, emergency_angles, true);
+    if (!monster) {
+        if (developer->integer) {
+            gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: SpawnMonsterByTypeID failed for TypeID {}.\n", static_cast<int>(typeId));
+        }
+        return false;
+    }
+
+    // --- Phase 3: Apply bonuses using the new helper ---
+    if (!ApplyHordeBonuses(monster, levelNum, champion_chance_for_this_spawn)) {
+        // The monster was freed or became invalid during bonus application.
+        if (developer->integer) {
+            const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+            gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Monster '{}' became invalid after applying bonuses.\n",
+                            classname ? classname : "Unknown");
+        }
+        // The monster is already !inuse, so we just return failure.
+        return false;
+    }
+
+    // --- Phase 4: Finalize and add effects ---
+    SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+    if (sound_spawn1) {
+        gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+    }
+
+    // If this was an "additional" monster (like from an ambush), update the total count for the wave.
+    if (is_additional_monster) {
+        if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+            g_totalMonstersInWave++;
+        }
+    }
+
+    if (developer->integer) {
+        gi.Com_PrintFmt("EMERGENCY SPAWN SUCCESSFUL: Spawned '{}' (Additional: {}).\n",
+                        monster->classname, is_additional_monster ? "Yes" : "No");
+    }
+
+    return true;
+}
+
+// Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
+bool ShouldTriggerAmbushSpawn()
+{
+	// Static variables for tracking time-based cooldowns
+
+	// Only consider ambush spawning after wave 3
+	if (current_wave_level < 3)
+	{
+		return false;
+	}
+
+	// Check global cooldown (25 seconds between ambushes)
+	if (level.time - last_ambush_time < 25_sec)
+	{
+		return false;
+	}
+
+	// Check short-term cooldown (random 3-7 seconds between attempts)
+	if (level.time < ambush_cooldown_end)
+	{
+		return false;
+	}
+
+	// Calculate base chance
+	float baseChance = 0.08f + (waves_since_ambush * 0.03f);
+
+	// Wave level modifier (capped at 45%)
+	const int cappedLevel = (current_wave_level > 25) ? 25 : current_wave_level;
+	baseChance += (cappedLevel - 3) * 0.015f;
+	baseChance = std::min(baseChance, 0.45f);
+
+	// Player performance bonus
+	float playerBonus = 0.0f;
+	int playerCount = 0;
+	for (auto *player : active_players_no_spect())
+	{
+		if (player && player->inuse && player->health > 0)
+		{
+			if (player->health >= 125 || player->client->resp.spree >= 50)
+			{
+				playerBonus += 0.04f;
+			}
+			playerCount++;
+		}
+	}
+
+	// Apply player bonus with cap
+	if (playerCount > 0)
+	{
+		baseChance += std::min(playerBonus, 0.15f);
+	}
+
+	// Final chance roll
+	if (frandom() < baseChance)
+	{
+		// Update timestamps
+		last_ambush_time = level.time;
+		ambush_cooldown_end = level.time + random_time(3_sec, 7_sec);
+		waves_since_ambush = 0;
+		return true;
+	}
+	else
+	{
+		// Set short cooldown even on failure to prevent spam checks
+		ambush_cooldown_end = level.time + random_time(1_sec, 3_sec);
+		return false;
+	}
+}
+
+// NEW HELPER: Spawns one monster from an active ambush/retaliation batch.
+static void SpawnSingleAmbushMonsterFromBatch()
+{
+	// Early exit if no ambush batch is active or it's not time yet.
+	if (g_monsters_to_spawn_in_current_ambush <= 0 || level.time < g_next_single_ambush_monster_spawn_time)
+	{
+		return;
+	}
+
+	const AmbushSpawnInfo& info = g_current_ambush_info;
+
+	if (info.typeId != horde::MonsterTypeID::UNKNOWN)
+	{
+		// Find a position. If a specific target is set (for retaliation), it will be used.
+		vec3_t spawn_pos, spawn_angles;
+		bool used_human_player = false;
+		if (FindEmergencySpawnPosition(spawn_pos, spawn_angles, used_human_player, info.typeId, info.target_player))
+		{
+			// Spawn the monster at the found position
+			edict_t* monster = SpawnMonsterByTypeID(info.typeId, spawn_pos, spawn_angles, true);
+			if (monster)
+			{
+				// Apply bonuses and effects
+				if (ApplyHordeBonuses(monster, g_horde_local.level, info.champion_chance) && monster->inuse) {
+					SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+					if (sound_spawn1) {
+						gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+					}
+					// This is an "additional" monster, so we must increment the total wave count
+					if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+						g_totalMonstersInWave++;
+					}
+				}
+			}
+		}
+	}
+
+	// Decrement the batch counter regardless of success to prevent infinite loops.
+	g_monsters_to_spawn_in_current_ambush--;
+
+	// If more monsters are left in this batch, set the timer for the next frame.
+	if (g_monsters_to_spawn_in_current_ambush > 0)
+	{
+		g_next_single_ambush_monster_spawn_time = level.time + FRAME_TIME_MS;
+	}
+}
+
+
 // Forward declarations for new helper functions
 static void RebuildSpawnPointCacheIfNeeded();
 static bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t softCap, horde_state_t currentState, int32_t currentLevel);
