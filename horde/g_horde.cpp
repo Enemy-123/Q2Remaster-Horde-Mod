@@ -30,6 +30,7 @@ struct AmbushSpawnInfo {
     horde::MonsterTypeID typeId = horde::MonsterTypeID::UNKNOWN;
     float champion_chance = 0.0f;
     bool is_retaliation = false;
+    edict_t* target_player = nullptr;
 };
 static AmbushSpawnInfo g_current_ambush_info;
 
@@ -184,7 +185,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
 [[nodiscard]] bool IsValidSpawnLocation(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
 bool CheckAndTeleportStuckMonster(edict_t *self);
-bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId);
+bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t* specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
 edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool applyHordeFlags);
 static void AnnounceIncomingWave(gtime_t duration = 3_sec);
@@ -2391,6 +2392,7 @@ struct BossEligibilityCache
 	LevelEligibility eligibility[3][MAX_PRECOMPUTED_WAVE + 1];
 	inline static bool initialized = false;
 
+	// REPLACEMENT: BossEligibilityCache::initialize (with bug fix)
 	void initialize()
 	{
 		if (initialized) return;
@@ -2398,13 +2400,13 @@ struct BossEligibilityCache
 		// For each map type (0=small, 1=medium, 2=large)
 		for (int mapType = 0; mapType < 3; ++mapType)
 		{
-			// Create a temporary MapSize struct for the current type
+			// FIX: Correctly create a MapSize struct for the current type
 			horde::MapSize mapSize;
 			if (mapType == 0)       mapSize = {true, false, false}; // Small
-			else if (mapType == 2)  mapSize = {false, true, false}; // Large
-			else                    mapSize = {false, false, true}; // Medium
+			else if (mapType == 1)  mapSize = {false, false, true}; // Medium
+			else                    mapSize = {false, true, false}; // Large
 
-			// *** Get the correct boss list for this map type ***
+			// Get the correct boss list for this map type
 			const auto bossList = GetBossList(mapSize, horde::MapID::UNKNOWN);
 
 			// For each wave level we want to pre-compute
@@ -5337,101 +5339,84 @@ void InitializeWaveSystem() noexcept
 static void SetMonsterArmor(edict_t *monster);
 static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 
-// --- REVISED FindEmergencySpawnPosition (Streamlined & Robust) ---
-// --- REVISED FindEmergencySpawnPosition (Streamlined & Robust) ---
-bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId)
+// REPLACEMENT: FindEmergencySpawnPosition (with specific_target support)
+bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t* specific_target)
 {
 	PROFILE_SCOPE("FindEmergencySpawnPosition");
 	used_human_player = false;
 
-	// --- 1. Get Monster Properties ---
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 	const bool is_flying = IsFlying(typeId);
 
-	// --- 2. Prioritize Players ---
-	// (Player prioritization logic is good, keeping it as is)
+	// --- 1. Build the list of potential targets ---
 	std::vector<edict_t*> target_candidates;
 	target_candidates.reserve(MAX_CLIENTS);
-	for (auto* p : active_players_no_spect()) {
-		target_candidates.push_back(p);
+
+	if (specific_target && specific_target->inuse && specific_target->health > 0) {
+		// If a specific, valid target is provided, use only that one.
+		target_candidates.push_back(specific_target);
+		if (developer->integer > 1) gi.Com_PrintFmt("FindEmergencySpawnPosition: Using specific target: {}\n", GetPlayerName(specific_target).c_str());
+	} else {
+		// Otherwise, gather all active players.
+		for (auto* p : active_players_no_spect()) {
+			target_candidates.push_back(p);
+		}
+		// Shuffle to vary which player is chosen first in a general ambush.
+		if (!target_candidates.empty()) {
+			std::shuffle(target_candidates.begin(), target_candidates.end(), mt_rand);
+		}
 	}
 
 	if (target_candidates.empty()) {
-		if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: No active players/bots found.\n");
+		if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: No valid targets found.\n");
 		return false;
 	}
 
-	// Shuffle to vary which player is chosen first
-	std::shuffle(target_candidates.begin(), target_candidates.end(), mt_rand);
-
-	// --- 3. Attempt to Find a Spot ---
+	// --- 2. Attempt to find a spot near a target ---
 	constexpr int MAX_ATTEMPTS_PER_PLAYER = 12;
 	constexpr float MIN_RADIUS = HordeConstants::MIN_PLAYER_DIST_GENERATE;
-	constexpr float MAX_RADIUS = 1000.0f; // Slightly reduced from 1200 for tighter placement
+	constexpr float MAX_RADIUS = 1000.0f;
 
 	for (edict_t* player : target_candidates)
 	{
-		// Re-validate player at the start of their turn
-		if (!player || !player->inuse || player->health <= 0) continue;
-		
 		const vec3_t player_origin = player->s.origin;
-
 		for (int attempt = 0; attempt < MAX_ATTEMPTS_PER_PLAYER; ++attempt)
 		{
-			// Generate a candidate position
 			const float radius = frandom(MIN_RADIUS, MAX_RADIUS);
 			const float angle_rad = frandom() * 2.0f * PIf;
 			vec3_t candidate_pos = {
 				player_origin.x + cosf(angle_rad) * radius,
 				player_origin.y + sinf(angle_rad) * radius,
-				player_origin.z + frandom(16.0f, 64.0f) // Give more vertical clearance
+				player_origin.z + frandom(16.0f, 64.0f)
 			};
 
-			// Use a copy for validation, as IsValidSpawnLocation modifies its input
 			vec3_t validated_pos = candidate_pos;
-
-			// Core validation logic
 			if (IsValidSpawnLocation(validated_pos, predicted_mins, predicted_maxs, is_flying) &&
 				!IsPositionTooCloseToRecentSpawn(validated_pos) &&
 				!IsPositionTooCloseToRecentTeleport(validated_pos))
 			{
-				// SUCCESS! We found a valid spot.
 				position = validated_pos;
-				
-				// Calculate angles to face the player
 				vec3_t dir_to_player = player_origin - validated_pos;
-				if (dir_to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
-					angles = vectoangles(dir_to_player);
-					// --- BUG FIX ---
-					// Always zero out the pitch to prevent monsters from looking up/down.
-					angles[PITCH] = 0;
-					// --- END FIX ---
-				} else {
-					angles = player->s.angles; // Fallback
-				}
+				angles = (dir_to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) ? vectoangles(dir_to_player) : player->s.angles;
+				angles[PITCH] = 0; // Prevent looking up/down
 
 				used_human_player = !(player->svflags & SVF_BOT);
-				if (developer->integer) {
-					gi.Com_PrintFmt("FindEmergencySpawnPosition: Success! Found pos {} near {}.\n", position, GetPlayerName(player).c_str());
-				}
+				if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Success! Found pos {} near {}.\n", position, GetPlayerName(player).c_str());
 				return true;
 			}
 		}
 	}
 
-	if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Failed after all attempts.\n");
+	if (developer->integer) gi.Com_PrintFmt("FindEmergencySpawnPosition: Failed after all attempts for all targets.\n");
 	return false;
 }
 
 // String-based overload that delegates to the TypeID version
-bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, const char *monster_classname)
+bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, const char *monster_classname, edict_t* specific_target)
 {
-	// Convert classname to TypeID
 	horde::MonsterTypeID typeId = monster_classname ? horde::MonsterTypeRegistry::GetTypeID(monster_classname) : horde::MonsterTypeID::UNKNOWN;
-
-	// Delegate to the TypeID version
-	return FindEmergencySpawnPosition(position, angles, used_human_player, typeId);
+	return FindEmergencySpawnPosition(position, angles, used_human_player, typeId, specific_target);
 }
 
 // Helper function to check if any human (non-bot) players are active and not spectating
@@ -5774,41 +5759,28 @@ horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel)
 	return (waveLevel > 10) ? horde::MonsterTypeID::GUNNER : horde::MonsterTypeID::INFANTRY;
 }
 
-//======================================================================
-// REPLACEMENT: SpawnRetaliationAmbush
-// No longer spawns in a loop. Instead, it sets up the ambush batch.
-//======================================================================
+
+// REPLACEMENT: SpawnRetaliationAmbush (initiates a time-sliced batch)
 int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edict_t *target_player)
 {
-	// If an ambush is already in progress, don't start another one.
-	if (g_monsters_to_spawn_in_current_ambush > 0) {
-		return 0;
-	}
+	if (g_monsters_to_spawn_in_current_ambush > 0) return 0;
 
-	int baseCount = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
-	int ambushSize = baseCount;
+	int ambushSize = mapSize.isSmallMap ? 1 : (mapSize.isBigMap ? 3 : 2);
 	
 	if (developer->integer) {
-		std::string target_name = GetPlayerName(target_player);
-		gi.Com_PrintFmt("HORDE: INITIATING Retaliation Ambush (Size: {}). Target: {}\n",
-						ambushSize, target_name.c_str());
+		gi.Com_PrintFmt("HORDE: INITIATING Retaliation Ambush (Size: {}). Target: {}\n", ambushSize, GetPlayerName(target_player).c_str());
 	}
 
-	// Set up the batch information
-	g_current_ambush_info.typeId = PickRetaliationMonsterTypeID(waveLevel);
-	g_current_ambush_info.champion_chance = 0.5f + (frandom() * 0.3f); // 50% to 80%
-    g_current_ambush_info.is_retaliation = true;
+	horde::MonsterTypeID typeId = PickRetaliationMonsterTypeID(waveLevel);
+	if (typeId == horde::MonsterTypeID::UNKNOWN) return 0;
 
-	if (g_current_ambush_info.typeId == horde::MonsterTypeID::UNKNOWN) {
-		return 0; // Failed to pick a monster
-	}
-
-	// Set the batch counters to start the process on the next frame
+	g_current_ambush_info = {typeId, 0.5f + (frandom() * 0.3f), true, target_player};
 	g_monsters_to_spawn_in_current_ambush = ambushSize;
 	g_next_single_ambush_monster_spawn_time = level.time;
 
-	return ambushSize; // Return the number of monsters we *plan* to spawn.
+	return ambushSize;
 }
+
 // Corrected HandleSpawnPhaseAggression
 void HandleSpawnPhaseAggression(edict_t* monster) {
 	if (!monster || !monster->inuse)
@@ -6130,11 +6102,7 @@ bool ShouldTriggerAmbushSpawn()
 	}
 }
 
-//======================================================================
-// NEW HELPER: SpawnSingleAmbushMonsterFromBatch
-// This function is called every frame to spawn ONE monster from an
-// active ambush/retaliation batch, smoothing out the performance impact.
-//======================================================================
+// NEW HELPER: Spawns one monster from an active ambush/retaliation batch.
 static void SpawnSingleAmbushMonsterFromBatch()
 {
 	// Early exit if no ambush batch is active or it's not time yet.
@@ -6143,129 +6111,81 @@ static void SpawnSingleAmbushMonsterFromBatch()
 		return;
 	}
 
-	// Use the stored info for the current ambush
 	const AmbushSpawnInfo& info = g_current_ambush_info;
 
 	if (info.typeId != horde::MonsterTypeID::UNKNOWN)
 	{
-		// All ambush monsters are "additional" and use the emergency spawn logic.
-		// The 'true' flag ensures g_totalMonstersInWave is correctly incremented.
-		EmergencySpawnMonster(g_horde_local.level, info.typeId, true, info.champion_chance);
-	}
-
-	// Decrement the batch counter. This happens even if the spawn fails,
-	// preventing an infinite loop.
-	g_monsters_to_spawn_in_current_ambush--;
-
-	// If more monsters are left in this ambush batch, set the timer for the next frame.
-	if (g_monsters_to_spawn_in_current_ambush > 0)
-	{
-		g_next_single_ambush_monster_spawn_time = level.time + FRAME_TIME_MS;
-	}
-    else
-    {
-        // The batch is finished, play a sound effect if it was a retaliation.
-        if (info.is_retaliation) {
-            if (sound_spawn1) {
-			    gi.sound(world, CHAN_AUTO, sound_spawn1, 1, ATTN_NONE, 0);
-            }
-        }
-    }
-}
-
-//======================================================================
-// REPLACEMENT: SpawnAmbushMonsters
-// This version no longer spawns in a loop. Instead, it sets up the
-// ambush batch to be processed over multiple frames, preventing stutters.
-//======================================================================
-int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
-{
-	// If an ambush batch is already being spawned, don't start a new one.
-	if (g_monsters_to_spawn_in_current_ambush > 0) {
-		return 0;
-	}
-
-	if (developer->integer > 1) {
-		gi.Com_PrintFmt("DEBUG: Attempting to initiate SpawnAmbushMonsters for waveLevel {}\n", waveLevel);
-	}
-
-	// --- 1. Pick a suitable monster type for the entire ambush ---
-	horde::MonsterTypeID monster_typeId_for_ambush = horde::MonsterTypeID::UNKNOWN;
-	
-	// We can use the main monster picking logic to get a context-appropriate monster.
-	// We'll check a few random spawn points to get a good candidate.
-	const int32_t currentLevel_ctx = g_horde_local.level;
-	const MonsterWaveType actualWaveType_ctx = current_wave_type;
-	constexpr int MAX_TYPE_PICK_ATTEMPTS = 5;
-
-	for (int i = 0; i < MAX_TYPE_PICK_ATTEMPTS; ++i)
-	{
-		// Grab a random spawn point from the pre-shuffled cache
-        if (g_potential_spawn_points.empty()) break;
-		edict_t* point = g_potential_spawn_points[irandom(g_potential_spawn_points.size() - 1)];
-
-		if (point && point->inuse)
+		// Find a position. If a specific target is set (for retaliation), it will be used.
+		vec3_t spawn_pos, spawn_angles;
+		bool used_human_player = false;
+		if (FindEmergencySpawnPosition(spawn_pos, spawn_angles, used_human_player, info.typeId, info.target_player))
 		{
-			monster_typeId_for_ambush = G_HordePickMonsterType(
-				point, currentLevel_ctx, actualWaveType_ctx,
-				false, false, MonsterWaveType::None); // Not retaliation or recovery
-
-			if (monster_typeId_for_ambush != horde::MonsterTypeID::UNKNOWN)
+			// Spawn the monster at the found position
+			edict_t* monster = SpawnMonsterByTypeID(info.typeId, spawn_pos, spawn_angles, true);
+			if (monster)
 			{
-				if (developer->integer > 1) {
-					const char *name = horde::MonsterTypeRegistry::GetClassname(monster_typeId_for_ambush);
-					gi.Com_PrintFmt("SpawnAmbushMonsters: Picked type '{}' for ambush.\n", name ? name : "UNKNOWN");
+				// Apply bonuses and effects
+				if (ApplyHordeBonuses(monster, g_horde_local.level, info.champion_chance) && monster->inuse) {
+					SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+					if (sound_spawn1) {
+						gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+					}
+					// This is an "additional" monster, so we must increment the total wave count
+					if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
+						g_totalMonstersInWave++;
+					}
 				}
-				break; // Found a valid type
 			}
 		}
 	}
 
-	// Fallback if no type was picked (e.g., all checked points were unsuitable)
-	if (monster_typeId_for_ambush == horde::MonsterTypeID::UNKNOWN)
+	// Decrement the batch counter regardless of success to prevent infinite loops.
+	g_monsters_to_spawn_in_current_ambush--;
+
+	// If more monsters are left in this batch, set the timer for the next frame.
+	if (g_monsters_to_spawn_in_current_ambush > 0)
 	{
-		if (developer->integer > 1) {
-			gi.Com_PrintFmt("SpawnAmbushMonsters: G_HordePickMonsterType failed. Using hardcoded fallback.\n");
-		}
-		if (waveLevel >= 15) {
-			static const std::array<horde::MonsterTypeID, 5> high_level_monsters = {
-				horde::MonsterTypeID::GUNNER, horde::MonsterTypeID::GLADIATOR,
-				horde::MonsterTypeID::TANK, horde::MonsterTypeID::SOLDIER_HYPERGUN,
-				horde::MonsterTypeID::SOLDIER_LASERGUN};
-			monster_typeId_for_ambush = high_level_monsters[irandom(high_level_monsters.size() - 1)];
-		} else {
-			static const std::array<horde::MonsterTypeID, 5> basic_monsters = {
-				horde::MonsterTypeID::SOLDIER_LIGHT, horde::MonsterTypeID::SOLDIER,
-				horde::MonsterTypeID::INFANTRY, horde::MonsterTypeID::SOLDIER_SS,
-				horde::MonsterTypeID::FLYER};
-			monster_typeId_for_ambush = basic_monsters[irandom(basic_monsters.size() - 1)];
+		g_next_single_ambush_monster_spawn_time = level.time + FRAME_TIME_MS;
+	}
+}
+
+// REPLACEMENT: SpawnAmbushMonsters (initiates a time-sliced batch)
+int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
+{
+	if (g_monsters_to_spawn_in_current_ambush > 0) return 0;
+
+	horde::MonsterTypeID monster_typeId_for_ambush = horde::MonsterTypeID::UNKNOWN;
+	const int32_t currentLevel_ctx = g_horde_local.level;
+	const MonsterWaveType actualWaveType_ctx = current_wave_type;
+	
+	for (int i = 0; i < 5; ++i) {
+        if (g_potential_spawn_points.empty()) break;
+		edict_t* point = g_potential_spawn_points[irandom(g_potential_spawn_points.size() - 1)];
+		if (point && point->inuse) {
+			monster_typeId_for_ambush = G_HordePickMonsterType(point, currentLevel_ctx, actualWaveType_ctx, false, false, MonsterWaveType::None);
+			if (monster_typeId_for_ambush != horde::MonsterTypeID::UNKNOWN) break;
 		}
 	}
 
-    if (monster_typeId_for_ambush == horde::MonsterTypeID::UNKNOWN) {
-        if (developer->integer) gi.Com_PrintFmt("SpawnAmbushMonsters: CRITICAL - Could not determine any monster type for ambush.\n");
-        return 0;
-    }
+	if (monster_typeId_for_ambush == horde::MonsterTypeID::UNKNOWN) {
+		if (waveLevel >= 15) {
+			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::GUNNER, horde::MonsterTypeID::GLADIATOR, horde::MonsterTypeID::TANK, horde::MonsterTypeID::SOLDIER_HYPERGUN, horde::MonsterTypeID::SOLDIER_LASERGUN};
+			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
+		} else {
+			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::SOLDIER_LIGHT, horde::MonsterTypeID::SOLDIER, horde::MonsterTypeID::INFANTRY, horde::MonsterTypeID::SOLDIER_SS, horde::MonsterTypeID::FLYER};
+			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
+		}
+	}
 
-	// --- 2. Determine Ambush Size ---
 	const int baseCount = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
 	const int ambushSize = baseCount + (waveLevel >= 15 ? 2 : 1);
 
-	if (developer->integer) {
-		gi.Com_PrintFmt("HORDE: INITIATING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
-	}
+	if (developer->integer) gi.Com_PrintFmt("HORDE: INITIATING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
 
-	// --- 3. Set up the global batch variables ---
-	g_current_ambush_info.typeId = monster_typeId_for_ambush;
-	g_current_ambush_info.champion_chance = 0.20f; // Standard ambush champion chance
-    g_current_ambush_info.is_retaliation = false;
-
-	// Set the batch counters to start the process on the next frame
+	g_current_ambush_info = {monster_typeId_for_ambush, 0.20f, false, nullptr};
 	g_monsters_to_spawn_in_current_ambush = ambushSize;
 	g_next_single_ambush_monster_spawn_time = level.time;
 
-	// Return the number of monsters we *plan* to spawn. The actual spawning
-	// is now handled by SpawnSingleAmbushMonsterFromBatch().
 	return ambushSize;
 }
 
@@ -6748,6 +6668,7 @@ static bool ValidateSpawnPointForMonster(edict_t *spawn_point, const SpawnPointD
 // More robust version with safety checks to prevent crashes if the
 // monster is freed during bonus application.
 //======================================================================
+// REPLACEMENT: ApplyHordeBonuses (more robust)
 static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance)
 {
     if (!monster || !monster->inuse) return false;
@@ -6757,7 +6678,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
     {
         monster->monsterinfo.bonus_flags |= BF_CHAMPION;
         ApplyMonsterBonusFlags(monster);
-        if (!monster->inuse) return false; // Safety check after applying flags
+        if (!monster->inuse) return false; // FIX: Safety check
 
         monster->item = G_HordePickItem();
         monster->spawnflags = monster->item ? (monster->spawnflags & ~SPAWNFLAG_MONSTER_NO_DROP) : (monster->spawnflags | SPAWNFLAG_MONSTER_NO_DROP);
@@ -6780,7 +6701,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
 
     if (currentLevel >= 6 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL) {
         SetMonsterArmor(monster);
-        if (!monster->inuse) return false; // Safety check after setting armor
+        if (!monster->inuse) return false; // FIX: Safety check
     }
 
     return true;
@@ -6825,12 +6746,7 @@ static bool FindValidSpawnSpot(
     return false;
 }
 
-
-//======================================================================
-// REPLACEMENT: FindValidSpotAndSpawn
-// Orchestrates the new validation logic, applying correct cooldowns
-// based on the type of failure.
-//======================================================================
+// REPLACEMENT: FindValidSpotAndSpawn (Refactored for clarity and robustness)
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
     // --- Helper Lambda to find a valid position ---
@@ -6867,7 +6783,6 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
     // Phase 1: Find a valid spot
     if (!FindValidSpot(final_origin, final_angles, used_alternative)) {
         // Finding a spot failed. Penalize the spawn point.
-        // If we were eligible to try an alternative, penalize that cooldown. Otherwise, penalize the standard one.
         if (level.time >= spawnPointsData[spawn_point].alternative_cooldown) {
             ApplyAlternativePositionCooldown(spawn_point);
         } else {
@@ -6879,7 +6794,7 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
 
     // Phase 2: Spawn the monster
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
-    if (!monster) { // SpawnMonsterByTypeID can fail (e.g., G_Spawn returns null)
+    if (!monster) { // SpawnMonsterByTypeID can fail
         if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
         else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
@@ -6888,18 +6803,18 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
 
     // Phase 3: Apply bonuses and finalize
     if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
-        // Success! Monster is valid and has bonuses. Update spawn point stats.
+        // Success!
         if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
         else OnSuccessfulSpawn(spawn_point);
         return monster;
     } else {
-        // Bonuses were applied, but the monster became invalid (e.g., freed).
+        // Bonuses were applied, but the monster became invalid (freed).
         if (developer->integer > 1) {
             gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: {}\n",
                             horde::MonsterTypeRegistry::GetClassname(monster_type));
         }
         g_consecutive_spawn_failures++;
-        // The spawn *location* was valid, so we don't penalize the spawn point itself.
+        // The spawn location was valid, so we don't penalize the spawn point itself.
         return nullptr;
     }
 }
@@ -7366,14 +7281,15 @@ static void SpawnSingleMonsterFromBatch()
 	}
 }
 
+// REPLACEMENT: Horde_RunFrame (with both time-slicing workers)
 void Horde_RunFrame() {
 	if (level.intermissiontime) {
 		return;
 	}
 
-// --- Time-slice regular spawns ---
+	// --- Time-slice regular spawns ---
 	SpawnSingleMonsterFromBatch();
-    // --- Time-slice ambush spawns ---
+    // --- Time-slice ambush/retaliation spawns ---
 	SpawnSingleAmbushMonsterFromBatch();
 
 	// --- Cache Frequently Used Variables ---
@@ -7382,7 +7298,6 @@ void Horde_RunFrame() {
 	const int32_t currentLevel = g_horde_local.level;
 
 	// --- Pre-State-Machine Maintenance ---
-	// (The rest of your Horde_RunFrame function remains exactly the same)
 	CleanupSpawnPointCache();
 	CheckAndReduceSpawnCooldowns();
 
@@ -7409,10 +7324,10 @@ void Horde_RunFrame() {
 				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over {}s with 0 monsters. Forcing progression.\n",
 					currentLevel, WAVE_STUCK_TIMEOUT.seconds());
 			}
-			g_horde_local.state = horde_state_t::cleanup; // Go to cleanup to properly end the wave
-			g_horde_local.monster_spawn_time = currentTime; // Trigger immediately
+			g_horde_local.state = horde_state_t::cleanup;
+			g_horde_local.monster_spawn_time = currentTime;
 		} else {
-			last_wave_change_time = currentTime; // Reset timer if monsters are still alive
+			last_wave_change_time = currentTime;
 		}
 	}
 
@@ -7423,7 +7338,6 @@ void Horde_RunFrame() {
 	switch (g_horde_local.state) {
 		case horde_state_t::warmup:
 			if (g_horde_local.warm_time < currentTime) {
-				// Start the first wave
 				g_horde_local.state = horde_state_t::spawning;
 				Horde_InitLevel(1);
 				PlayWaveStartSound();
@@ -7442,7 +7356,6 @@ void Horde_RunFrame() {
 				monsters_spawned_in_current_phase = 0;
 			}
 
-			// Failsafe timeout for the spawning phase
 			if (currentTime > spawning_phase_timeout_start_time + 90_sec) {
 				if (!next_wave_message_sent) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployment Finalized (Timeout).\nWave Level: {}\n", currentLevel);
@@ -7452,28 +7365,16 @@ void Horde_RunFrame() {
 				break;
 			}
 
-			// If it's time to spawn...
 			if (g_horde_local.monster_spawn_time <= currentTime) {
-				int32_t num_to_spawn_before = g_horde_local.num_to_spawn;
-
 				if (IsBossWave() && !boss_spawned_for_wave) {
 					SpawnBossAutomatically();
 				}
 				
-				// Spawn regular monsters or minions (or boss wave minions)
 				if (!IsBossWave() || boss_spawned_for_wave) {
 					SpawnMonsters();
 				}
 
-				int32_t spawned_this_frame = num_to_spawn_before - g_horde_local.num_to_spawn;
-				if (spawned_this_frame > 0) {
-					monsters_spawned_in_current_phase += spawned_this_frame;
-				}
-
-				// If all initial monsters are spawned, transition to active wave
-				// *** THE ONLY CHANGE IS IN THIS IF STATEMENT ***
 				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
-					// This condition now prevents the state change if it's a boss wave and the boss hasn't spawned.
 					if (!IsBossWave() || boss_spawned_for_wave) {
 						if (!next_wave_message_sent) {
 							VerifyAndAdjustBots();
@@ -7493,7 +7394,6 @@ void Horde_RunFrame() {
 				waveEnded = true;
 				break;
 			}
-			// Reinforcement logic
 			if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn == 0) {
 				const int32_t activeMonsters = CalculateRemainingMonsters();
 				const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : HordeConstants::MAX_MONSTERS_MEDIUM_MAP;
@@ -7507,7 +7407,6 @@ void Horde_RunFrame() {
 					}
 				}
 			}
-			// Spawn reinforcements if any were added
 			if (g_horde_local.num_to_spawn > 0 && g_horde_local.monster_spawn_time <= currentTime) {
 				SpawnMonsters();
 				SetNextMonsterSpawnTime(mapSize);
@@ -7532,7 +7431,6 @@ void Horde_RunFrame() {
 			break;
 	}
 
-	// --- Post-State-Machine Actions ---
 	if (waveEnded) {
 		SendCleanupMessage(currentWaveEndReason);
 		g_horde_local.monster_spawn_time = currentTime + 0.5_sec;
@@ -7775,6 +7673,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_retaliation_target_player = nullptr;
 	ResetChampionMonsterState();
 
+   	waves_since_ambush++;
 	// --- 2. Set up the new wave's parameters ---
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
