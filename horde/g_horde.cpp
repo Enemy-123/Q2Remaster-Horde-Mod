@@ -9,6 +9,7 @@
 #include "../g_laser.h"
 #include "../profiler.h"
 
+static bool monsters_precached = false; 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave;
 
@@ -711,7 +712,6 @@ static constexpr size_t NUM_WAVE_SOUNDS = 12;
 static constexpr size_t NUM_START_SOUNDS = 8;
 
 // precache//
-//  Arrays estáticos de cached_soundindex
 static cached_soundindex wave_sounds[NUM_WAVE_SOUNDS];
 static cached_soundindex start_sounds[NUM_START_SOUNDS];
 static cached_soundindex sound_tele3;	// Para teleport
@@ -3625,6 +3625,67 @@ void InitializeMonsterInfoLUT()
 		gi.Com_PrintFmt("Monster Info LUT Initialized.\n");
 }
 
+static void PrecacheAllMonsters() noexcept
+{
+	// Only precache once per map load.
+	if (monsters_precached)
+	{
+		return;
+	}
+
+	if (developer->integer)
+	{
+		gi.Com_Print("Precaching all horde monster assets...\n");
+	}
+
+	// Iterate through your comprehensive monster list.
+	// Using std::span for safe, modern iteration.
+	std::span<const MonsterTypeInfo> monster_view{ monsterTypes };
+
+	for (const auto& monster_info : monster_view)
+	{
+		// Get the classname from your type registry.
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
+		if (!classname || !*classname)
+		{
+			// Skip if classname is invalid or empty.
+			continue;
+		}
+
+		// The classic precache routine: Spawn, let it load assets, then free.
+		edict_t* temp_monster = G_Spawn();
+		if (!temp_monster)
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("PrecacheAllMonsters: G_Spawn() failed, cannot continue precaching.\n");
+			}
+			break; // Can't spawn entities, stop trying.
+		}
+
+		temp_monster->classname = classname;
+		temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
+		// ED_CallSpawn will trigger the monster's SP_* function, which in turn
+		// calls modelindex and soundindex, loading the assets into memory.
+		ED_CallSpawn(temp_monster);
+
+		// The spawn function might have failed and already freed the entity.
+		// If it's still in use, we must free it now.
+		if (temp_monster->inuse)
+		{
+			G_FreeEdict(temp_monster);
+		}
+	}
+
+	monsters_precached = true; // Mark as done for this level.
+
+	if (developer->integer)
+	{
+		gi.Com_Print("Monster asset precaching complete.\n");
+	}
+}
+
 void Horde_Init()
 {
 	InitializeMonsterMoveSets(); //jump animations 
@@ -3635,7 +3696,9 @@ void Horde_Init()
 
 	PrecacheAllGameItems();
 	PrecacheWaveSounds();
+	monsters_precached = false; // Reset the precache flag for the new map.
 
+	PrecacheAllMonsters();
 	InitializeMonsterWaveTypes();
 	InitializeMonsterInfoLUT(); // ADDED: Initialize LUT here
 	InitializeWaveSystem();
@@ -4900,6 +4963,8 @@ void ResetGame()
 		gi.cvar_set("g_bfgslide", "1");
 	if (g_autohaste)
 		gi.cvar_set("g_autohaste", "0");
+
+		monsters_precached = false;
 
 	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
 	remaining_wave_sounds = NUM_WAVE_SOUNDS;

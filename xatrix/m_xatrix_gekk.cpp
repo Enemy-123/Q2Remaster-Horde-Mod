@@ -1689,6 +1689,7 @@ void SP_monster_gekk(edict_t* self)
 	gi.modelindex("models/objects/gekkgib/claw/tris.md2");
 	gi.modelindex("models/objects/gekkgib/leg/tris.md2");
 	gi.modelindex("models/objects/gekkgib/head/tris.md2");
+	gi.modelindex("models/objects/loogy/tris.md2");
 
 	self->health = 125 * st.health_multiplier;
 	self->gib_health = -30;
