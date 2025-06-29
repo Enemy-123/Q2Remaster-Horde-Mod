@@ -438,38 +438,6 @@ struct SpawnPointCacheArray
 };
 static SpawnPointCacheArray spawn_point_cache;
 
-// This filter now performs only the most basic validation for a teleport destination.
-// Player proximity will be handled separately for prioritization.
-// struct StuckMonsterSpawnFilter
-// {
-// 	bool operator()(const edict_t *ent) const
-// 	{
-// 		// Basic validation: Must be a valid, usable spawn point entity.
-// 		if (!ent || !ent->inuse || !ent->classname || strcmp(ent->classname, "info_player_deathmatch") != 0) {
-// 			return false;
-// 		}
-
-// 		// Exclude flying-only spawn points for stuck ground monsters.
-// 		// (This assumes most stuck monsters are ground-based; a safe assumption).
-// 		if (ent->style == 1) {
-// 			return false;
-// 		}
-
-// 		// Check if the spawn point itself is on a teleport-specific cooldown.
-// 		if (level.time < spawnPointsData[ent].teleport_cooldown) {
-// 			return false;
-// 		}
-
-// 		// Check if the spawn point is directly occupied by a player or obstacle.
-// 		if (IsSpawnPointOccupied(ent)) {
-// 			return false;
-// 		}
-        
-//         // If all checks pass, it's a candidate for teleportation.
-// 		return true;
-// 	}
-// };
-
 // A dedicated struct to pass data to our unified BoxEdicts lambda.
 // This is clearer than reusing a generic struct.
 struct OccupiedCheckData {
@@ -678,6 +646,7 @@ static cached_soundindex sound_spawn1;
 static cached_soundindex incoming;
 static cached_soundindex sound_quake; 
 static cached_soundindex talk; 
+static cached_soundindex tele1; 
 
 // Arrays de strings con los nombres de los sonidos
 static constexpr const char *WAVE_SOUND_PATHS[NUM_WAVE_SOUNDS] = {
@@ -1952,8 +1921,12 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Boss Units (Included for completeness, scale might be set differently if spawned via specific boss logic)
 	{horde::MonsterTypeID::BOSS2_64, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},														  // Scale 0.6
 	{horde::MonsterTypeID::BOSS2_MINI, MonsterWaveType::Flying | MonsterWaveType::Elite, 19, 0.2f, {-60, -60, 0}, {60, 60, 90}, 0.6f},														  // Scale 0.6
-	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56, -56, -44}, {56, 56, 44}, 0.6f} // Scale 0.6
+	{horde::MonsterTypeID::CARRIER_MINI, MonsterWaveType::Flying | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Spawner, 27, 0.2f, {-56, -56, -44}, {56, 56, 44}, 0.6f}, // Scale 0.6
 
+
+	//just precaching
+ 	{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 999, 0.0f, {-16, -16, -16}, {16, 16, 16}, 1.0f},
+	 {horde::MonsterTypeID::SENTRYGUN, MonsterWaveType::Ground | MonsterWaveType::Special, 999, 0.0f, {-16, -16, -16}, {16, 16, 16}, 1.0f}
 	// Other Bosses (Assuming scale 1.0 unless specified otherwise in their SP_ functions)
 	//{horde::MonsterTypeID::BOSS2, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.1f, {-60,-60,0}, {60,60,90}, 1.0f},
 	//{horde::MonsterTypeID::CARRIER, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 24, 0.1f, {-56,-56,-44}, {56,56,44}, 1.0f},
@@ -3454,12 +3427,13 @@ static void PrecacheWaveSounds() noexcept
 	if (sounds_precached)
 		return;
 
-	static const std::array<std::pair<cached_soundindex *, const char *>, 6> individual_sounds = { {
+	static const std::array<std::pair<cached_soundindex *, const char *>, 7> individual_sounds = { {
         {&sound_tele3, "misc/r_tele3.wav"},
         {&sound_tele_up, "misc/tele_up.wav"},
         {&sound_spawn1, "misc/spawn1.wav"},
         {&incoming, "world/incoming.wav"},
 		{&talk, "misc/talk.wav"},
+		{&tele1, "misc/tele1.wav"},
         {&sound_quake, "world/quake.wav"} } };
 
 

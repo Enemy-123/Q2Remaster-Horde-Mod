@@ -138,8 +138,10 @@ namespace horde {
             {"monster_guardian", MonsterTypeID::GUARDIAN},                   // 66
             {"monster_psxguardian", MonsterTypeID::PSX_GUARDIAN},            // 67
 
-            {"misc_insane", MonsterTypeID::MISC_INSANE},                     // 68
-            {"monster_turret", MonsterTypeID::TURRET}                        // 69
+             {"misc_insane", MonsterTypeID::MISC_INSANE},                     // 68
+            {"monster_turret", MonsterTypeID::TURRET}    ,                    // 69
+
+            {"monster_sentrygun", MonsterTypeID::SENTRYGUN}                    // 70
         };
     
         // Initialize the reverse mapping

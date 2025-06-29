@@ -84,8 +84,10 @@ namespace horde {
 
         // Add other monster types if needed
 
-        MISC_INSANE = 67,
-        TURRET = 68,
+        MISC_INSANE = 68,
+        TURRET = 69,
+
+        SENTRYGUN = 70,
 
         MAX_TYPES = 128,  // Set this to a value higher than the largest ID
         UNKNOWN = 255

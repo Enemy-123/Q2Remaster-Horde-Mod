@@ -1748,31 +1748,64 @@ void CreateTurretGlowEffect(edict_t* turret) {
 	gi.linkentity(smoke);
 	turret->target_hint_chain = smoke;
 }
+
 void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	//self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
+	// --- Unconditional Pre-caching Block ---
+	// By placing all asset loading at the top, we guarantee that every possible
+	// model and sound for every sentry variant is precached when this function
+	// is called once by PrecacheAllMonsters(), regardless of spawnflags.
 
-	// Al crear la torreta, verificar si el owner tiene power-ups activos
+	// Common Models & Sounds
+	gi.modelindex("models/monsters/turret/tris.md2");
+	gi.modelindex("models/objects/debris1/tris.md2");
+	gi.soundindex("tank/tnkpain2.wav");
+	gi.soundindex("gunner/gunidle1.wav");
+	gi.soundindex("turret/moving.wav");
+	gi.soundindex("makron/blaster.wav");
+
+	// Machinegun & Rocket-specific Assets
+	gi.modelindex("models/objects/laser/tris.md2"); // Laser sight model
+	gi.modelindex("models/objects/rocket/tris.md2");
+	gi.soundindex("infantry/infatck1.wav");
+	gi.soundindex("weapons/chngnu1a.wav");
+	gi.soundindex("weapons/rockfly.wav");
+	gi.soundindex("chick/chkatck2.wav");
+
+	// Blaster/Heatbeam-specific Assets
+	gi.soundindex("misc/lasfly.wav");
+	gi.soundindex("soldier/solatck2.wav");
+
+	// Flechette & Grenade-specific Assets
+	gi.modelindex("models/objects/blaser/tris.md2"); // Flechette projectile model
+	gi.modelindex("models/objects/grenade/tris.md2");
+	gi.soundindex("tank/tnkatck3.wav");
+	gi.soundindex("weapons/hyprbf1a.wav");
+	gi.soundindex("gunner/gunatck3.wav");
+	gi.soundindex("weapons/grenlx1a.wav");
+
+	// Assign to cached_soundindex variables
+	sound_pew.assign("makron/blaster.wav");
+	sound_moved.assign("gunner/gunidle1.wav");
+	sound_moving.assign("turret/moving.wav");
+	sound_grenade_launcher.assign("gunner/gunatck3.wav");
+	sound_flechette.assign("tank/tnkatck3.wav");
+	// --- End of Pre-caching Block ---
+
+
+	// Standard monster setup begins here
 	if (self->owner && self->owner->client) {
 		TurretRespondPowerup(self, self->owner);
 	}
 
-
-#define playeref self->owner->s.effects;
-	self->monsterinfo.last_sentry_missile_fire_time = gtime_t::from_sec(2); // Inicializa el tiempo de último disparo de cohete
-	int angle;
-
+	self->monsterinfo.last_sentry_missile_fire_time = gtime_t::from_sec(2);
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	self->monsterinfo.attack_state = AS_BLIND;
-
-	//test EF grenade
-	self->s.effects = EF_BOB; // Quitar EF_GRENADE de aquí
-	self->target_hint_chain = nullptr; // Inicializar el puntero del efecto
-	// Crear el efecto visual después de establecer la posición y ángulos
-	CreateTurretGlowEffect(self);
-
+	self->s.effects = EF_BOB;
+	self->target_hint_chain = nullptr;
+	
 	ApplyMonsterBonusFlags(self);
 
 	if (!M_AllowSpawn(self))
@@ -1780,16 +1813,6 @@ void SP_monster_sentrygun(edict_t* self)
 		G_FreeEdict(self);
 		return;
 	}
-
-	// pre-caches
-	sound_pew.assign("makron/blaster.wav");
-	sound_moved.assign("gunner/gunidle1.wav");
-	sound_moving.assign("turret/moving.wav");
-	// NEW: Add sounds for grenade launcher and flechette
-	sound_grenade_launcher.assign("gunner/gunatck3.wav");
-	sound_flechette.assign("tank/tnkatck3.wav");
-
-	gi.modelindex("models/objects/debris1/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
 	self->mins = { -12, -12, -12 };
@@ -1807,22 +1830,19 @@ void SP_monster_sentrygun(edict_t* self)
 	self->pain = turret2_pain;
 	self->die = turret2_die;
 
-	// Determine weapon type: Priority is Map Flags > Owner Choice > Random
+	// Determine weapon type for this specific instance
 	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE))
 	{
-		sentrytype_t choice = SENTRY_RANDOM; // Default to random
-
-		// Check if spawned by a player and use their preference
+		sentrytype_t choice = SENTRY_RANDOM;
 		if (self->owner && self->owner->client)
 		{
 			choice = self->owner->client->pers.sentry_gun_choice;
 		}
 
-		// Apply the choice or default to random if needed
 		switch (choice)
 		{
 		case SENTRY_HEATBEAM:
-			self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER; // Remember Heatbeam uses Blaster flag
+			self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
 			break;
 		case SENTRY_MACHINEGUN:
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
@@ -1830,13 +1850,12 @@ void SP_monster_sentrygun(edict_t* self)
 		case SENTRY_FLECHETTE:
 			self->spawnflags |= SPAWNFLAG_TURRET2_FLECHETTE;
 			break;
-		case SENTRY_RANDOM: // Fall through to default random logic
+		case SENTRY_RANDOM:
 		default:
 		{
-			// Original random selection logic as fallback
 			const float randomValue = frandom();
 			if (randomValue < 0.3f) {
-				self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER; // Heatbeam
+				self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
 			}
 			else if (randomValue < 0.7f) {
 				self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
@@ -1855,139 +1874,69 @@ void SP_monster_sentrygun(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
 	}
 
-	//	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
-	{
-		self->monsterinfo.stand = turret2_stand;
-		self->monsterinfo.walk = turret2_walk;
-		self->monsterinfo.run = turret2_run;
-		self->monsterinfo.dodge = nullptr;
-		self->monsterinfo.attack = turret2_attack;
-		self->monsterinfo.melee = nullptr;
-		self->monsterinfo.sight = turret2_sight;
-		self->monsterinfo.search = turret2_search;
-		M_SetAnimation(self, &turret2_move_stand);
-	}
-
-	// PMM
+	// Set AI functions
+	self->monsterinfo.stand = turret2_stand;
+	self->monsterinfo.walk = turret2_walk;
+	self->monsterinfo.run = turret2_run;
+	self->monsterinfo.dodge = nullptr;
+	self->monsterinfo.attack = turret2_attack;
+	self->monsterinfo.melee = nullptr;
+	self->monsterinfo.sight = turret2_sight;
+	self->monsterinfo.search = turret2_search;
 	self->monsterinfo.checkattack = turret2_checkattack;
+	M_SetAnimation(self, &turret2_move_stand);
 
 	self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
 	self->monsterinfo.scale = MODEL_SCALE;
 	self->gravity = 0;
 
+	// Wall placement logic
 	self->offset = self->s.angles;
-	angle = (int)self->s.angles[1];
+	int angle = (int)self->s.angles[1];
 	switch (angle)
 	{
-	case -1: // up
-		self->s.angles[0] = 270;
-		self->s.angles[1] = 0;
-		self->s.origin[2] += 2;
-		break;
-	case -2: // down
-		self->s.angles[0] = 90;
-		self->s.angles[1] = 0;
-		self->s.origin[2] -= 2;
-		break;
-	case 0:
-		self->s.origin[0] += 2;
-		break;
-	case 90:
-		self->s.origin[1] += 2;
-		break;
-	case 180:
-		self->s.origin[0] -= 2;
-		break;
-	case 270:
-		self->s.origin[1] -= 2;
-		break;
-	default:
-		break;
+	case -1: self->s.angles = { 270, 0, 0 }; self->s.origin.z += 2; break;
+	case -2: self->s.angles = { 90, 0, 0 };  self->s.origin.z -= 2; break;
+	case 0:  self->s.origin.x += 2; break;
+	case 90: self->s.origin.y += 2; break;
+	case 180:self->s.origin.x -= 2; break;
+	case 270:self->s.origin.y -= 2; break;
+	default: break;
 	}
 
 	gi.linkentity(self);
+	
+	stationarymonster_start(self, spawn_temp_t::empty);
+	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	
+	// Create visual effects after linking
+	CreateTurretGlowEffect(self);
 
-	/*	if (self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT))
-		{
-			if (!self->targetname)
-			{
-				G_FreeEdict(self);
-				return;
-			}
-
-			self->takedamage = false;
-			self->use = turret2_activate;
-			turret2_wall_spawn(self);
-		}
-		else*/
-	{
-		stationarymonster_start(self, spawn_temp_t::empty);
-		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	}
-
-	// Set skinnum based on weapon type for visual distinction
+	// Set runtime properties based on the chosen weapon
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 	{
-		gi.modelindex("models/objects/laser/tris.md2");
-		gi.soundindex("infantry/infatck1.wav");
-		gi.soundindex("weapons/chngnu1a.wav");
-		gi.soundindex("weapons/rockfly.wav");
-		gi.modelindex("models/objects/rocket/tris.md2");
-		gi.soundindex("chick/chkatck2.wav");
-		gi.soundindex("tank/tnkpain2.wav");
-		gi.soundindex("makron/blaster.wav");
-		gi.soundindex("gunner/gunidle1.wav");
-
 		self->s.skinnum = 2;
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 	{
-		gi.modelindex("models/objects/laser/tris.md2");
-		gi.soundindex("misc/lasfly.wav");
-		gi.soundindex("soldier/solatck2.wav");
-		gi.soundindex("tank/tnkpain2.wav");
-		gi.soundindex("makron/blaster.wav");
-		gi.soundindex("gunner/gunidle1.wav");
-
 		self->s.skinnum = 0;
 	}
-
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE))
 	{
-		// Load flechette resources
-		gi.modelindex("models/objects/blaser/tris.md2");
-		gi.soundindex("tank/tnkatck3.wav");
-		gi.soundindex("tank/tnkpain2.wav");
-		gi.soundindex("weapons/hyprbf1a.wav");
-		gi.soundindex("gunner/gunidle1.wav");
-
-		gi.modelindex("models/objects/grenade/tris.md2");
-		gi.soundindex("gunner/gunatck3.wav");
-		gi.soundindex("tank/tnkpain2.wav");
-		gi.soundindex("weapons/grenlx1a.wav");
-		gi.soundindex("gunner/gunidle1.wav");
-
-		self->s.skinnum = 0; // Use a different skin
+		self->s.skinnum = 0;
 	}
 
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 
-	// Adjust yaw speed based on weapon type
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 		self->yaw_speed = 15;
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE))
-		self->yaw_speed = 20; // Faster tracking for flechette
-	//else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE))
-	//	self->yaw_speed = 14; // Slower for grenade launcher
+		self->yaw_speed = 20;
 
-	// Enable blindfire for certain weapons
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER |
-		SPAWNFLAG_TURRET2_FLECHETTE))
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER | SPAWNFLAG_TURRET2_FLECHETTE))
 		self->monsterinfo.blindfire = true;
 
 	if (self->monsterinfo.quadfire_time > level.time) {
 		self->yaw_speed *= 2.0f;
 	}
-
-	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 }
