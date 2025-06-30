@@ -188,7 +188,7 @@ namespace HordeConstants
 static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
-[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
+[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying, bool is_predefined_location = false);
 bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t* specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
@@ -4290,13 +4290,13 @@ static void SpawnBossAutomatically()
 		return; // Not a boss wave
 	}
 
-	// --- 3. Select Boss Type (FIXED - No temporary entity needed) ---
+	// --- 3. Select Boss Type ---
 	const char *map_name = GetCurrentMapName();
 	BossPickResult boss_pick_result = G_HordePickBOSSType(
 		g_horde_local.current_map_size, map_name, g_horde_local.level);
 
 	horde::MonsterTypeID boss_type = boss_pick_result.typeId;
-	BossSizeCategory selected_boss_size = boss_pick_result.sizeCategory; // Now available without temp entity
+	BossSizeCategory selected_boss_size = boss_pick_result.sizeCategory;
 
 	if (boss_type == horde::MonsterTypeID::UNKNOWN)
 	{
@@ -4314,17 +4314,16 @@ static void SpawnBossAutomatically()
 
 	// --- 4. Determine Spawn Location (Fixed Origin or Random Fallback) ---
 	vec3_t spawn_origin = vec3_origin;
-	vec3_t spawn_angles = vec3_origin; // Default angles
+	vec3_t spawn_angles = vec3_origin;
 	bool location_found = false;
-	edict_t *selected_point = nullptr; // Used only for random fallback path
-	bool free_selected_point = false;  // Flag if selected_point is temporary
+	edict_t *selected_point = nullptr;
 
 	// Get boss properties needed for validation
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(boss_type, predicted_mins, predicted_maxs);
 	bool boss_is_flying = IsFlying(boss_type);
 
-	// Try getting fixed origin first
+	// --- Pass 1: Try getting a fixed origin from the map registry ---
 	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
 	vec3_t fixed_origin;
 	if (mapId != horde::MapID::UNKNOWN && horde::MapOriginRegistry::GetOrigin(mapId, fixed_origin))
@@ -4332,22 +4331,19 @@ static void SpawnBossAutomatically()
 		if (is_valid_vector(fixed_origin) && fixed_origin != vec3_origin)
 		{
 			vec3_t validated_fixed_origin = fixed_origin;
-			// if (IsPositionPhysicallyValid(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying)) {
-			spawn_origin = validated_fixed_origin;
-			location_found = true;
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Using validated predefined map origin {} for boss {}.\n", spawn_origin, boss_classname);
-			//} removed so bosses spawns where it belongs
+			// Call with the new flag set to TRUE, allowing mid-air spawns for predefined locations.
+			if (IsPositionPhysicallyValid(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying, true))
+			{
+				spawn_origin = validated_fixed_origin;
+				location_found = true;
+				if (developer->integer > 1)
+					gi.Com_PrintFmt("SpawnBossAutomatically: Using validated predefined map origin {} for boss {}.\n", spawn_origin, boss_classname);
+			}
 			else
 			{
 				if (developer->integer)
-					gi.Com_PrintFmt("SpawnBossAutomatically: Predefined map origin {} failed validation for boss {}. Falling back to random.\n", fixed_origin, boss_classname);
+					gi.Com_PrintFmt("SpawnBossAutomatically: Predefined map origin {} failed validation (occupied). Falling back to random.\n", fixed_origin, boss_classname);
 			}
-		}
-		else
-		{
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Invalid predefined map origin found for {}. Falling back to random.\n", map_name);
 		}
 	}
 	else
@@ -4356,13 +4352,12 @@ static void SpawnBossAutomatically()
 			gi.Com_PrintFmt("SpawnBossAutomatically: No predefined map origin found for {}. Using random spawn point fallback.\n", map_name);
 	}
 
-	// Fallback to random spawn point selection if fixed origin wasn't found or wasn't valid
+	// --- Pass 2: Fallback to random spawn point selection if fixed origin wasn't found or wasn't valid ---
 	if (!location_found)
 	{
 		constexpr float MIN_BOSS_PLAYER_DIST_SQ = 250.0f * 250.0f;
 		auto BossSpawnFilter = [&](edict_t *spawnPoint) -> bool
 		{
-			// (Same filter logic as before)
 			if (!spawnPoint || !spawnPoint->inuse)
 				return false;
 			const auto &data = spawnPointsData[spawnPoint];
@@ -4371,9 +4366,7 @@ static void SpawnBossAutomatically()
 				level.time < data.alternative_cooldown)
 				return false;
 			bool is_flying_point = (spawnPoint->style == 1);
-			if (boss_is_flying && !is_flying_point)
-				return false;
-			if (!boss_is_flying && is_flying_point)
+			if (boss_is_flying != is_flying_point) // Simplified check: must match flying status
 				return false;
 			for (const auto *const player : active_players_no_spect())
 			{
@@ -4387,42 +4380,8 @@ static void SpawnBossAutomatically()
 
 		selected_point = SelectRandomSpawnPoint(BossSpawnFilter);
 
-		if (!selected_point)
+		if (selected_point)
 		{
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Failed to find suitable random spawn point for boss {}. Trying emergency spawn.\n", boss_classname);
-			vec3_t emergency_origin, emergency_angles;
-			bool used_human = false;
-			if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human, boss_type))
-			{
-				vec3_t final_emergency_pos = emergency_origin;
-				if (IsPositionPhysicallyValid(final_emergency_pos, predicted_mins, predicted_maxs, boss_is_flying))
-				{
-					// Use the emergency location directly
-					spawn_origin = final_emergency_pos;
-					spawn_angles = emergency_angles;
-					location_found = true;
-					if (developer->integer)
-						gi.Com_PrintFmt("SpawnBossAutomatically: Using validated emergency spawn location {}.\n", final_emergency_pos);
-				}
-				else
-				{
-					if (developer->integer)
-						gi.Com_PrintFmt("SpawnBossAutomatically: Emergency position {} failed IsPositionPhysicallyValid for boss.\n", emergency_origin);
-					// Abort if emergency location is also invalid
-					return;
-				}
-			}
-			else
-			{
-				if (developer->integer)
-					gi.Com_PrintFmt("SpawnBossAutomatically: Emergency spawn position finding failed for boss.\n");
-				return; // Failed to find any spot
-			}
-		}
-		else
-		{
-			// Use the location from the selected random spawn point
 			spawn_origin = selected_point->s.origin;
 			spawn_angles = selected_point->s.angles;
 			location_found = true;
@@ -4431,7 +4390,32 @@ static void SpawnBossAutomatically()
 		}
 	}
 
-	// --- 5. Setup Delayed Spawn if Location Found ---
+	// --- Pass 3: Fallback to emergency spawn if no other location was found ---
+	if (!location_found)
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to find suitable spawn point. Trying emergency spawn.\n", boss_classname);
+		
+		vec3_t emergency_origin, emergency_angles;
+		bool used_human = false;
+		if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human, boss_type))
+		{
+			// The emergency position is already checked for validity inside FindEmergencySpawnPosition
+			spawn_origin = emergency_origin;
+			spawn_angles = emergency_angles;
+			location_found = true;
+			if (developer->integer)
+				gi.Com_PrintFmt("SpawnBossAutomatically: Using validated emergency spawn location {}.\n", spawn_origin);
+		}
+		else
+		{
+			if (developer->integer)
+				gi.Com_PrintFmt("SpawnBossAutomatically: CRITICAL - All spawn attempts failed for boss.\n");
+			return; // Absolutely no spot found, abort.
+		}
+	}
+
+	// --- 5. Setup Delayed Spawn if a Location Was Found ---
 	if (location_found)
 	{
 		// Create orb effect at the chosen location
@@ -4439,55 +4423,39 @@ static void SpawnBossAutomatically()
 		if (orb)
 		{
 			orb->classname = "target_orb";
-			orb->s.origin = spawn_origin; // Orb at the final spawn location
+			orb->s.origin = spawn_origin;
 			SP_target_orb(orb);
 		}
-		else
+		else if (developer->integer)
 		{
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Failed to spawn orb effect.\n");
-			// Continue without orb? Or abort? Let's continue.
+			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to spawn orb effect.\n");
 		}
 
 		// Spawn the boss entity placeholder
 		edict_t *boss = G_Spawn();
 		if (!boss)
 		{
-			if (orb)
-				G_FreeEdict(orb);
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Failed to G_Spawn boss entity.\n");
+			if (orb) G_FreeEdict(orb);
+			if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to G_Spawn boss entity.\n");
 			return;
 		}
 
 		// Set basic info needed before think
 		boss->classname = boss_classname;
-		boss->s.origin = spawn_origin; // Set origin now
-		boss->s.angles = spawn_angles; // Set angles now
-		boss->owner = orb;			   // Link orb for removal in think
-
-		// Store the boss size category for later use if needed
+		boss->s.origin = spawn_origin;
+		boss->s.angles = spawn_angles;
+		boss->owner = orb; // Link orb for removal in think
 		boss->bossSizeCategory = selected_boss_size;
 
-		// --- Perform Area Clearing Actions NOW ---
-		// Push away nearby entities before the think function runs
+		// Perform Area Clearing Actions NOW
 		constexpr float push_radius = 500.0f;
-		constexpr float push_force = 1000.0f; // Increased force maybe?
+		constexpr float push_force = 1000.0f;
 		PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f);
-		// Potentially add other clearing logic here (e.g., destroying minor obstacles)
 
 		// Set up the delayed spawn via think function
-		boss->nextthink = level.time + 750_ms; // Keep the delay
+		boss->nextthink = level.time + 750_ms;
 		boss->think = BossSpawnThink;
-		gi.linkentity(boss); // Link the placeholder entity
-
-		// Note: boss_spawned_for_wave is set inside BossSpawnThink after ED_CallSpawn succeeds
-	}
-	else
-	{
-		// This case should ideally not be reached if emergency spawn works, but is a safeguard
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: CRITICAL - Failed to determine any valid spawn location for boss.\n");
+		gi.linkentity(boss);
 	}
 }
 
@@ -5508,39 +5476,32 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 // This is a low-level validator. Its only job is to answer:
 // "Can a monster physically exist at this specific coordinate?"
 // It checks for solid world geometry, finds a valid floor, and checks for entity occupation.
-[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying)
+[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying, bool is_predefined_location)
 {
-    // --- 1. Flying Monster Check (Simple Case) ---
-    if (is_flying) {
-        // Flying monsters don't need a floor. Just check if the volume is free of any solid object (world or entity).
+    // For flying monsters OR any monster at a predefined spot, we only care if the space is clear.
+    // We don't need to find a floor.
+    if (is_flying || is_predefined_location) {
         trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
         if (trace.startsolid || trace.allsolid) {
-            return false; // The space is occupied.
+            return false; // The space is occupied by something.
         }
-        return true; // The space is clear.
+        return true; // The space is clear, it's a valid spawn.
     }
 
-    // --- 2. Ground Monster Check (Multi-Stage) ---
-
-    // Stage A: Check against world geometry ONLY. Is the spot inside a wall or over a void?
-    vec3_t original_pos = io_position; // Keep original position in case drop fails.
+    // --- This block now ONLY runs for NON-FLYING monsters at NON-PREDEFINED locations (e.g., random spawns) ---
+    // Stage A: We MUST find a floor for these.
+    vec3_t original_pos = io_position;
     if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false)) {
-        // M_droptofloor failed. This means it couldn't find a valid, non-steep, non-water ground surface below.
-        // This is the most common failure for bad alternative positions (e.g., over a pit or inside a wall).
-        io_position = original_pos; // Restore original position for safety.
+        io_position = original_pos;
         return false;
     }
-    // At this point, io_position is now on a valid floor surface.
 
     // Stage B: Check for other entities at the new, floor-dropped position.
-    // Now that we know the spot is valid in the world, we check if another monster/player is already there.
     trace_t entity_trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
     if (entity_trace.startsolid) {
-        // The spot is on valid ground, but another entity is occupying it.
         return false;
     }
 
-    // If we passed all checks, the position is physically valid.
     return true;
 }
 
