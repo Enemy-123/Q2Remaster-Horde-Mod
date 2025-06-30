@@ -9,6 +9,10 @@
 #include "../g_laser.h"
 #include "../profiler.h"
 
+static std::vector<horde::MonsterTypeID> g_monsters_for_warmup_precache;
+static std::unordered_set<horde::MonsterTypeID> g_precached_monster_types;
+static bool g_full_precache_done = false;
+
 static bool monsters_precached = false; 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave;
@@ -3563,70 +3567,86 @@ void InitializeMonsterInfoLUT()
 		gi.Com_PrintFmt("Monster Info LUT Initialized.\n");
 }
 
-// In g_horde.cpp
-
-static void PrecacheAllMonsters() noexcept
+void PrecacheAllMonsters() noexcept
 {
-	// Only precache once per map load.
-	if (monsters_precached)
-	{
-		return;
-	}
+    if (monsters_precached) return;
 
-	if (developer->integer)
-	{
-		gi.Com_Print("Precaching monsters for EARLY WAVES...\n");
-	}
+    g_precached_monster_types.clear();
+    g_monsters_for_warmup_precache.clear(); // Clear our new list
 
-    // *** THIS IS THE KEY CHANGE ***
-    // We will only load assets for monsters that can appear up to wave 7.
-    // This is a tunable number, but 7 is a great, safe starting point.
+    if (developer->integer) {
+        gi.Com_Print("PHASE 1 PRECACHE: Loading monsters for early waves...\n");
+    }
+
     constexpr int PRECACHE_UP_TO_WAVE = 7;
+    std::span<const MonsterTypeInfo> monster_view{ monsterTypes };
 
-	std::span<const MonsterTypeInfo> monster_view{ monsterTypes };
+    for (const auto& monster_info : monster_view)
+    {
+        const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
+        if (!classname || !*classname) continue;
 
-	for (const auto& monster_info : monster_view)
-	{
-        // If the monster's minimum wave is higher than our precache limit, skip it.
-        if (monster_info.minWave > PRECACHE_UP_TO_WAVE)
+        if (monster_info.minWave <= PRECACHE_UP_TO_WAVE)
         {
-            continue;
+            // This is an early-wave monster, load it now.
+            edict_t* temp_monster = G_Spawn();
+            if (!temp_monster) break;
+            temp_monster->classname = classname;
+            temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+            ED_CallSpawn(temp_monster);
+            if (temp_monster->inuse) G_FreeEdict(temp_monster);
+
+            g_precached_monster_types.insert(monster_info.typeId);
         }
+        else
+        {
+            // This is a late-wave monster. Add it to the list for Phase 2.
+            g_monsters_for_warmup_precache.push_back(monster_info.typeId);
+        }
+    }
 
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
-		if (!classname || !*classname)
-		{
-			continue;
-		}
+    monsters_precached = true;
+    if (developer->integer) {
+        gi.Com_PrintFmt("PHASE 1 PRECACHE: Complete. {} monsters queued for warmup precache.\n", g_monsters_for_warmup_precache.size());
+    }
+}
 
-		// The classic precache routine: Spawn, let it load assets, then free.
-		edict_t* temp_monster = G_Spawn();
-		if (!temp_monster)
-		{
-			if (developer->integer)
-			{
-				gi.Com_PrintFmt("PrecacheAllMonsters: G_Spawn() failed, cannot continue precaching.\n");
-			}
-			break; 
-		}
+// Add this new function to g_horde.cpp
+static void PrecacheSingleMonsterDuringWarmup()
+{
+    // Only run during warmup and if there are monsters left to load.
+    if (g_horde_local.state != horde_state_t::warmup || g_monsters_for_warmup_precache.empty()) {
+        return;
+    }
 
-		temp_monster->classname = classname;
-		temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-		
-		ED_CallSpawn(temp_monster);
+    // Get the next monster TypeID from the back of the vector.
+    horde::MonsterTypeID typeId_to_precache = g_monsters_for_warmup_precache.back();
+    g_monsters_for_warmup_precache.pop_back(); // Remove it from the list
 
-		if (temp_monster->inuse)
-		{
-			G_FreeEdict(temp_monster);
-		}
-	}
+    // Use the same spawn/free routine to trigger the engine's loading
+    const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId_to_precache);
+    if (classname && *classname)
+    {
+        edict_t* temp_monster = G_Spawn();
+        if (temp_monster)
+        {
+            temp_monster->classname = classname;
+            temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+            ED_CallSpawn(temp_monster);
+            if (temp_monster->inuse) {
+                G_FreeEdict(temp_monster);
+            }
 
-	monsters_precached = true; // Mark as done for this level.
+            if (developer->integer > 1) {
+                gi.Com_PrintFmt("Warmup Precache: Loaded %s. ({} remaining)\n", classname, g_monsters_for_warmup_precache.size());
+            }
+        }
+    }
 
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("Early wave monster asset precaching complete. (Loaded monsters up to wave %d)\n", PRECACHE_UP_TO_WAVE);
-	}
+    // If the list is now empty, we are done.
+    if (g_monsters_for_warmup_precache.empty() && developer->integer) {
+        gi.Com_Print("Warmup Precache: All remaining monsters are now in memory.\n");
+    }
 }
 
 void Horde_Init()
@@ -4907,7 +4927,7 @@ void ResetGame()
 	if (g_autohaste)
 		gi.cvar_set("g_autohaste", "0");
 
-	//	monsters_precached = false;
+	g_full_precache_done = false; // Add this line
 
 	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
 	remaining_wave_sounds = NUM_WAVE_SOUNDS;
@@ -7344,6 +7364,8 @@ void Horde_RunFrame() {
 	if (level.intermissiontime) {
 		return;
 	}
+
+	PrecacheSingleMonsterDuringWarmup();
 
 	// --- Time-slice regular spawns ---
 	SpawnSingleMonsterFromBatch();
