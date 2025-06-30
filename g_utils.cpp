@@ -606,7 +606,7 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 
 void OnEntityDeath(edict_t* self) noexcept
 {
-	if (!self || !self->inuse || self->monsterinfo.death_processed) {
+	if (!self || !self->inuse || self->monsterinfo.death_processed || !g_horde->integer) {
 		return;
 	}
 
