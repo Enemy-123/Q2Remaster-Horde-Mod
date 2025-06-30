@@ -3563,6 +3563,8 @@ void InitializeMonsterInfoLUT()
 		gi.Com_PrintFmt("Monster Info LUT Initialized.\n");
 }
 
+// In g_horde.cpp
+
 static void PrecacheAllMonsters() noexcept
 {
 	// Only precache once per map load.
@@ -3573,20 +3575,27 @@ static void PrecacheAllMonsters() noexcept
 
 	if (developer->integer)
 	{
-		gi.Com_Print("Precaching all horde monster assets...\n");
+		gi.Com_Print("Precaching monsters for EARLY WAVES...\n");
 	}
 
-	// Iterate through your comprehensive monster list.
-	// Using std::span for safe, modern iteration.
+    // *** THIS IS THE KEY CHANGE ***
+    // We will only load assets for monsters that can appear up to wave 7.
+    // This is a tunable number, but 7 is a great, safe starting point.
+    constexpr int PRECACHE_UP_TO_WAVE = 7;
+
 	std::span<const MonsterTypeInfo> monster_view{ monsterTypes };
 
 	for (const auto& monster_info : monster_view)
 	{
-		// Get the classname from your type registry.
+        // If the monster's minimum wave is higher than our precache limit, skip it.
+        if (monster_info.minWave > PRECACHE_UP_TO_WAVE)
+        {
+            continue;
+        }
+
 		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
 		if (!classname || !*classname)
 		{
-			// Skip if classname is invalid or empty.
 			continue;
 		}
 
@@ -3598,18 +3607,14 @@ static void PrecacheAllMonsters() noexcept
 			{
 				gi.Com_PrintFmt("PrecacheAllMonsters: G_Spawn() failed, cannot continue precaching.\n");
 			}
-			break; // Can't spawn entities, stop trying.
+			break; 
 		}
 
 		temp_monster->classname = classname;
 		temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-
-		// ED_CallSpawn will trigger the monster's SP_* function, which in turn
-		// calls modelindex and soundindex, loading the assets into memory.
+		
 		ED_CallSpawn(temp_monster);
 
-		// The spawn function might have failed and already freed the entity.
-		// If it's still in use, we must free it now.
 		if (temp_monster->inuse)
 		{
 			G_FreeEdict(temp_monster);
@@ -3620,7 +3625,7 @@ static void PrecacheAllMonsters() noexcept
 
 	if (developer->integer)
 	{
-		gi.Com_Print("Monster asset precaching complete.\n");
+		gi.Com_PrintFmt("Early wave monster asset precaching complete. (Loaded monsters up to wave %d)\n", PRECACHE_UP_TO_WAVE);
 	}
 }
 
