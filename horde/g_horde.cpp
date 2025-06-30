@@ -4582,11 +4582,11 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		};
 		const char* random_phrase = arrival_phrases[irandom(arrival_phrases.size() - 1)];
 
-		char announce_buffer[128];
-		G_FmtTo(announce_buffer, "\nBOSS: {} {}", boss_display_name.c_str(), random_phrase);
-		AppendHordeMessage(announce_buffer, 4_sec);
+		// Use the G_Fmt helper which returns a std::string_view to a temporary buffer.
+		// This avoids manual buffer declaration and size management.
+		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name.c_str(), random_phrase);
+		AppendHordeMessage(announce_message.data(), 4_sec);
 	}
-	// --- END IMPROVEMENT ---
 
 	self->solid = SOLID_BBOX;
 	gi.linkentity(self);
