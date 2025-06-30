@@ -4902,7 +4902,7 @@ void ResetGame()
 	if (g_autohaste)
 		gi.cvar_set("g_autohaste", "0");
 
-		monsters_precached = false;
+	//	monsters_precached = false;
 
 	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
 	remaining_wave_sounds = NUM_WAVE_SOUNDS;
