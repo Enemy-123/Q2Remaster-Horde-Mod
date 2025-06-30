@@ -79,6 +79,9 @@ mframe_t berserk_frames_stand_fidget[] = {
 };
 MMOVE_T(berserk_move_stand_fidget) = { FRAME_standb1, FRAME_standb20, berserk_frames_stand_fidget, berserk_stand };
 
+void berserk_start_run_loop(edict_t* self); 
+extern const mmove_t berserk_move_run_start; 
+extern const mmove_t berserk_move_run_loop;
 void berserk_fidget(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
@@ -136,29 +139,58 @@ void()	berserk_runb12	=[	$r_att12 ,	berserk_runb7	] {ai_run(19);};
 // running with arm in air : end loop
 */
 
-// Forward declaration for the new passive zap check
-void berserk_check_passive_zap(edict_t* self);
 
-mframe_t berserk_frames_run1[] = {
+void berserk_check_passive_zap(edict_t* self); // Keep this forward declaration
+
+// This is the looping part of the "hand up" run.
+mframe_t berserk_frames_run_loop[] = {
+	{ ai_run, 21 },
+	{ ai_run, 11, monster_footstep },
+	{ ai_run, 21, berserk_check_passive_zap }, // PASSIVE ZAP IS CALLED HERE!
+	{ ai_run, 25 },
+	{ ai_run, 18, monster_footstep },
+	{ ai_run, 19 }
+};
+// When this animation ends, it calls berserk_start_run_loop, which sets the animation again, creating a perfect loop.
+MMOVE_T(berserk_move_run_loop) = { FRAME_r_att7, FRAME_r_att12, berserk_frames_run_loop, berserk_start_run_loop };
+
+// A tiny helper function to ensure we stay in the looping run animation.
+void berserk_start_run_loop(edict_t* self)
+{
+	M_SetAnimation(self, &berserk_move_run_loop);
+}
+
+// This is the "wind up" that raises the arm before the main loop.
+mframe_t berserk_frames_run_start[] = {
 	{ ai_run, 21 },
 	{ ai_run, 11, monster_footstep },
 	{ ai_run, 21 },
 	{ ai_run, 25, monster_done_dodge },
-	// On this frame, play a footstep sound AND check if we can fire a passive lightning bolt
-	{ ai_run, 18, [](edict_t* self) { monster_footstep(self); berserk_check_passive_zap(self); } },
+	{ ai_run, 18, monster_footstep },
 	{ ai_run, 19 }
 };
-MMOVE_T(berserk_move_run1) = { FRAME_run1, FRAME_run6, berserk_frames_run1, nullptr };
+// After this finishes, it calls berserk_start_run_loop to begin the main loop.
+MMOVE_T(berserk_move_run_start) = { FRAME_r_att1, FRAME_r_att6, berserk_frames_run_start, berserk_start_run_loop };
 
+// This is now our main run function.
 MONSTERINFO_RUN(berserk_run) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
+	// Don't restart the animation if we are already in the "hand up" run.
+	if (self->monsterinfo.active_move == &berserk_move_run_loop ||
+		self->monsterinfo.active_move == &berserk_move_run_start)
+	{
+		return;
+	}
+
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &berserk_move_stand);
 	else
-		M_SetAnimation(self, &berserk_move_run1);
+		M_SetAnimation(self, &berserk_move_run_start); // Start the "hand up" run sequence.
 }
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+// END OF NEW BLOCK
 
 void berserk_attack_spike(edict_t* self)
 {
@@ -624,7 +656,7 @@ MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 	}
 	
 	// Logic to transition from a standard run into a running-melee attack.
-	if (self->monsterinfo.active_move == &berserk_move_run1 && (dist <= RANGE_NEAR))
+if ((self->monsterinfo.active_move == &berserk_move_run_start || self->monsterinfo.active_move == &berserk_move_run_loop) && (dist <= RANGE_NEAR))
 	{
 		M_SetAnimation(self, &berserk_move_run_attack1);
 		self->monsterinfo.nextframe = FRAME_r_att1 + (self->s.frame - FRAME_run1) + 1;
@@ -877,8 +909,8 @@ MONSTERINFO_SIDESTEP(berserk_sidestep) (edict_t* self) -> bool
 		(self->monsterinfo.active_move == &berserk_move_pain2))
 		return false;
 
-	if (self->monsterinfo.active_move != &berserk_move_run1)
-		M_SetAnimation(self, &berserk_move_run1);
+	if (self->monsterinfo.active_move != &berserk_move_run_start)
+		M_SetAnimation(self, &berserk_move_run_start);
 
 	return true;
 }
