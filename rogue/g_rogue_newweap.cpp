@@ -84,7 +84,7 @@ void fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 	flechette->flags |= FL_DODGE;
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		flechette->clipmask &= ~CONTENTS_PLAYER;
 
 	flechette->solid = SOLID_BBOX;
@@ -598,7 +598,7 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int pro
 	prox->flags |= (FL_DODGE | FL_TRAP);
 	prox->clipmask = MASK_PROJECTILE | CONTENTS_LAVA | CONTENTS_SLIME;
 
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		prox->clipmask &= ~CONTENTS_PLAYER;
 
 	prox->s.renderfx |= RF_IR_VISIBLE;
@@ -1633,7 +1633,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->classname = "tesla_mine";
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
-	if (self->client && !G_ShouldPlayersCollide(true))
+if (self && self->client && !G_ShouldPlayersCollide(true))
 		tesla->clipmask &= ~CONTENTS_PLAYER;
 
 	tesla->flags |= FL_MECHANICAL;
@@ -1743,7 +1743,7 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 		vec3_t end = start + (aimdir * 8192);
 		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
 
-		if (self->client && !G_ShouldPlayersCollide(true))
+		if (self && self->client && !G_ShouldPlayersCollide(true))
 			content_mask &= ~CONTENTS_PLAYER;
 
 		heatbeam_pierce_t pierce(self, aimdir, damage, kick, mod);
@@ -1784,7 +1784,7 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 			attacker = self->owner->owner ? self->owner->owner : self->owner;
 		}
 
-		if (self->client && !G_ShouldPlayersCollide(true))
+		if (self && self->client && !G_ShouldPlayersCollide(true))
 			content_mask &= ~CONTENTS_PLAYER;
 
 		vec3_t beam_endpt;
@@ -1971,7 +1971,7 @@ void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int da
 	bolt->flags |= FL_DODGE;
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+if (self && self->client && !G_ShouldPlayersCollide(true))
 		bolt->clipmask &= ~CONTENTS_PLAYER;
 
 	bolt->solid = SOLID_BBOX;
@@ -2199,7 +2199,7 @@ void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 	bolt->clipmask = MASK_PROJECTILE;
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+if (self && self->client && !G_ShouldPlayersCollide(true))
 		bolt->clipmask &= ~CONTENTS_PLAYER;
 
 	bolt->solid = SOLID_BBOX;

@@ -102,7 +102,7 @@ void fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 	ion->clipmask = MASK_PROJECTILE;
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+if (self && self->client && !G_ShouldPlayersCollide(true))
 		ion->clipmask &= ~CONTENTS_PLAYER;
 
 	ion->solid = SOLID_BBOX;

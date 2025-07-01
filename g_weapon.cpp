@@ -300,7 +300,7 @@ static void fire_lead_energy(edict_t* self, const vec3_t& start, const vec3_t& a
 	};
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		args.mask &= ~CONTENTS_PLAYER;
 
 	// special case: we started in water.
@@ -566,7 +566,7 @@ static void fire_lead(edict_t* self, const vec3_t& start, const vec3_t& aimdir, 
 	};
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		args.mask &= ~CONTENTS_PLAYER;
 
 	// special case: we started in water.
@@ -793,7 +793,7 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->velocity = dir * speed;
 	bolt->movetype = bounces > 0 ? MOVETYPE_WALLBOUNCE : MOVETYPE_FLYMISSILE;
 	bolt->clipmask = MASK_PROJECTILE;
-	if (self->client && !G_ShouldPlayersCollide(true)) {
+	if (self && self->client && !G_ShouldPlayersCollide(true)) {
 		bolt->clipmask &= ~CONTENTS_PLAYER;
 	}
 
@@ -1064,7 +1064,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_PROJECTILE;
-	if (self->client && !G_ShouldPlayersCollide(true)) {
+	if (self && self->client && !G_ShouldPlayersCollide(true)) {
 		grenade->clipmask &= ~CONTENTS_PLAYER;
 	}
 	grenade->solid = SOLID_BBOX;
@@ -1145,7 +1145,7 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 	grenade->avelocity = { crandom() * 360, crandom() * 360, crandom() * 360 };
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_PROJECTILE;
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		grenade->clipmask &= ~CONTENTS_PLAYER;
 	grenade->solid = SOLID_BBOX;
 	grenade->svflags |= SVF_PROJECTILE;
@@ -1327,7 +1327,7 @@ edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int 
 	rocket->flags |= FL_DODGE;
 	rocket->clipmask = MASK_PROJECTILE;
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		rocket->clipmask &= ~CONTENTS_PLAYER;
 	rocket->solid = SOLID_BBOX;
 	rocket->s.effects |= EF_ROCKET;
@@ -1461,7 +1461,7 @@ bool fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 	contents_t mask = MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA;
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		mask &= ~CONTENTS_PLAYER;
 
 	vec3_t const end = start + (aimdir * 8192);
@@ -2090,7 +2090,7 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->svflags = SVF_PROJECTILE;
 
 	// Special handling for player-fired BFGs
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		bfg->clipmask &= ~CONTENTS_PLAYER;
 
 	// Set physical properties
@@ -2149,7 +2149,7 @@ void fire_disintegrator(edict_t* self, const vec3_t& start, const vec3_t& forwar
 	bfg->movetype = MOVETYPE_FLYMISSILE;
 	bfg->clipmask = MASK_PROJECTILE;
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		bfg->clipmask &= ~CONTENTS_PLAYER;
 	bfg->solid = SOLID_BBOX;
 	bfg->s.effects |= EF_TAGTRAIL | EF_ANIM_ALL;
