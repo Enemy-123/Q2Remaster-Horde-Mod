@@ -5634,7 +5634,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 
     if (!needs_teleport) return false;
 
-    if (developer->integer) gi.Com_PrintFmt("[CATS] Trigger for %s: %s.\n", self->classname, reason_str);
+    if (developer->integer) gi.Com_PrintFmt("[CATS] Trigger for {}: {}.\n", self->classname, reason_str);
 
     // --- 4. Find Teleport Destination (Multi-Pass Strategy) ---
     vec3_t dest_origin = vec3_origin;
@@ -5648,7 +5648,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
     }
 
     if (dest_origin == vec3_origin || frandom() < 0.40f) {
-        if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Attempting Pass 2 (Emergency Teleport) for %s.\n", self->classname);
+        if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Attempting Pass 2 (Emergency Teleport) for {}.\n", self->classname);
         
         bool used_human_player = false;
         horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
@@ -5656,7 +5656,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         if (FindEmergencySpawnPosition(dest_origin, dest_angles, used_human_player, monsterTypeId, FindBestPlayerTargetForTeleport())) {
             used_spawn_point = nullptr;
         } else if (dest_origin == vec3_origin) {
-            if (developer->integer) gi.Com_PrintFmt("[CATS] CRITICAL: All teleport attempts failed for %s.\n", self->classname);
+            if (developer->integer) gi.Com_PrintFmt("[CATS] CRITICAL: All teleport attempts failed for {}.\n", self->classname);
             self->teleport_time = level.time + 5.0_sec;
             return false;
         }
