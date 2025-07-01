@@ -1930,19 +1930,20 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	//just precaching
  	{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 999, 0.0f, {-16, -16, -16}, {16, 16, 16}, 1.0f},
-	 {horde::MonsterTypeID::SENTRYGUN, MonsterWaveType::Ground | MonsterWaveType::Special, 999, 0.0f, {-16, -16, -16}, {16, 16, 16}, 1.0f}
+	 {horde::MonsterTypeID::SENTRYGUN, MonsterWaveType::Ground | MonsterWaveType::Special, 999, 0.0f, {-16, -16, -16}, {16, 16, 16}, 1.0f},
 	// Other Bosses (Assuming scale 1.0 unless specified otherwise in their SP_ functions)
-	//{horde::MonsterTypeID::BOSS2, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.1f, {-60,-60,0}, {60,60,90}, 1.0f},
-	//{horde::MonsterTypeID::CARRIER, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 24, 0.1f, {-56,-56,-44}, {56,56,44}, 1.0f},
-	//{horde::MonsterTypeID::FIXBOT_KL, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 0, 0.4f, {-16,-16,-12}, {16,16,12}, 2.6f}, // Scale 2.6
-	//{horde::MonsterTypeID::WIDOW, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-40,-40,0}, {40,40,144}, 1.0f},
-	//{horde::MonsterTypeID::WIDOW2, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 19, 0.15f, {-40,-40,0}, {40,40,144}, 0.8f}, // Scale 0.8
-	//{horde::MonsterTypeID::BOSS5, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.1f, {-32,-32,-16}, {32,32,64}, 1.0f}, // Supertank
-	//{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 30, 0.15f, {-80,-80,0}, {80,80,140}, 1.0f},
-	//{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 25, 0.1f, {-32,-32,-24}, {32,32,64}, 1.0f}, // Assuming 1.0
+	{horde::MonsterTypeID::BOSS2, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-60,-60,0}, {60,60,90}, 1.0f},
+	{horde::MonsterTypeID::CARRIER, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-56,-56,-44}, {56,56,44}, 1.0f},
+	{horde::MonsterTypeID::FIXBOT_KL, MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-16,-16,-12}, {16,16,12}, 2.6f}, // Scale 2.6
+	{horde::MonsterTypeID::WIDOW, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-40,-40,0}, {40,40,144}, 1.0f},
+	{horde::MonsterTypeID::WIDOW2, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 999, 0.0f, {-40,-40,0}, {40,40,144}, 0.8f}, // Scale 0.8
+	{horde::MonsterTypeID::BOSS5, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-32,-32,-16}, {32,32,64}, 1.0f}, // Supertank
+	{horde::MonsterTypeID::JORG, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-80,-80,0}, {80,80,140}, 1.0f},
+	{horde::MonsterTypeID::PSX_GUARDIAN, MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-32,-32,-24}, {32,32,64}, 1.0f}, // Assuming 1.0
 
 	// Turret (Not typically spawned via this array, but included)
-	//{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 1, 0.0f, {-16,-16,-16}, {16,16,16}, 1.0f}, // Weight 0, likely not picked
+	{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 0, 0.0f, {-16,-16,-16}, {16,16,16}, 1.0f}, // Weight 0, likely not picked
+	{horde::MonsterTypeID::SENTRYGUN, MonsterWaveType::Ground | MonsterWaveType::Special, 0, 0.0f, {-16,-16,-16}, {16,16,16}, 1.0f}
 };
 // Optimized version using a precomputed map
 static std::array<MonsterWaveType, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterWaveTypes;
@@ -3020,74 +3021,73 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 	return frandom() < 0.07f;	                      // 7% chance in late waves
 }
 
-//-----------------------------------------------------
-// Calculate effective level for monster selection (MODIFIED AS REQUESTED)
-//-----------------------------------------------------
+// REPLACEMENT: CalculateEffectiveMonsterLevel (Optimized and Logically Updated)
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
 {
-	if (!attemptHigherLevel)
-	{
-		return currentActualLevel; // No change, normal operation
-	}
+    if (!attemptHigherLevel)
+    {
+        return currentActualLevel; // No change, normal operation
+    }
 
-	int32_t levelBoost;
-	int32_t maxLevelCap;
-	const bool isFlyingWave = HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying);
+    int32_t levelBoost;
+    int32_t maxLevelCap;
+    const bool isFlyingWave = HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying);
 
-	// *** NEW LOGIC AS PER YOUR REQUEST ***
-	if (isFlyingWave)
-	{
-		// For flying waves, use a much larger, more random boost
-		levelBoost = irandom(6, 17);
-		// Set a safety cap to prevent absurdly high levels
-		maxLevelCap = currentActualLevel + 11; 
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("EffectiveLevel: Flying wave detected. Attempting boost of {}.\n", levelBoost);
-		}
-	}
-	else
-	{
-		// For non-flying waves, use the original, more conservative boost
-		if (currentActualLevel < 7)      levelBoost = irandom(2, 4);
-		else if (currentActualLevel <= 15) levelBoost = irandom(4, 8);
-		else                             levelBoost = irandom(3, 6);
-		maxLevelCap = currentActualLevel + 8;
-	}
-	// *** END OF NEW LOGIC ***
+    // --- NEW LOGIC: More aggressive boost for flying waves ---
+    if (isFlyingWave)
+    {
+        // For flying waves, use a much larger, more random boost to introduce elite flyers.
+        levelBoost = irandom(6, 17);
+        // Set a safety cap to prevent absurdly high levels.
+        maxLevelCap = currentActualLevel + 11; 
+        if (developer->integer)
+        {
+            gi.Com_PrintFmt("EffectiveLevel: Flying wave detected. Attempting boost of {}.\n", levelBoost);
+        }
+    }
+    else
+    {
+        // For non-flying waves, use the original, more conservative boost.
+        if (currentActualLevel < 7)      levelBoost = irandom(2, 4);
+        else if (currentActualLevel <= 15) levelBoost = irandom(4, 8);
+        else                             levelBoost = irandom(3, 6);
+        maxLevelCap = currentActualLevel + 8;
+    }
+    // --- END OF NEW LOGIC ---
 
-	maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap on how high it can go
+    maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap on how high it can go.
 
-	int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
+    int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
-	// CRITICAL CHECK: See if any monsters are actually available at this new level
-	bool any_eligible_monsters = false;
-	for (const auto &monster : monsterTypes)
-	{
-		// Is there a monster that is eligible at the new level but was NOT at the old one?
-		if (monster.minWave > currentActualLevel && monster.minWave <= potentialEffectiveLevel &&
-			(waveTypeForFiltering == MonsterWaveType::None || IsValidMonsterForWave(monster.typeId, waveTypeForFiltering)))
-		{
-			any_eligible_monsters = true;
-			break;
-		}
-	}
+    // CRITICAL CHECK: See if any monsters are actually available at this new level.
+    // This check is still necessary to ensure the boost is meaningful.
+    bool any_eligible_monsters = false;
+    for (const auto& monster : monsterTypes) // Iterate the full list here is required to find *newly* eligible ones
+    {
+        // Is there a monster that is eligible at the new level but was NOT at the old one?
+        if (monster.minWave > currentActualLevel && monster.minWave <= potentialEffectiveLevel &&
+            IsValidMonsterForWave(monster.typeId, waveTypeForFiltering))
+        {
+            any_eligible_monsters = true;
+            break;
+        }
+    }
 
-	if (!any_eligible_monsters)
-	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new eligible monsters at higher level {}. Reverting to current wave {}.\n",
-							potentialEffectiveLevel, currentActualLevel);
-		}
-		return currentActualLevel; // Revert if no new monsters are unlocked by the boost
-	}
+    if (!any_eligible_monsters)
+    {
+        if (developer->integer > 1)
+        {
+            gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new monsters unlocked at level {}. Reverting to {}.\n",
+                            potentialEffectiveLevel, currentActualLevel);
+        }
+        return currentActualLevel; // Revert if no new monsters are unlocked by the boost.
+    }
 
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
-	}
-	return potentialEffectiveLevel;
+    if (developer->integer)
+    {
+        gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
+    }
+    return potentialEffectiveLevel;
 }
 
 
@@ -3638,7 +3638,7 @@ static void PrecacheSingleMonsterDuringWarmup()
             }
 
             if (developer->integer > 1) {
-                gi.Com_PrintFmt("Warmup Precache: Loaded %s. ({} remaining)\n", classname, g_monsters_for_warmup_precache.size());
+                gi.Com_PrintFmt("Warmup Precache: Loaded {}. ({} remaining)\n", classname, g_monsters_for_warmup_precache.size());
             }
         }
     }
@@ -5572,139 +5572,132 @@ static edict_t* FindTeleportDestination(edict_t* self)
     return random_element(candidates);
 }
 
-// --- REVISED CheckAndTeleportStuckMonster ---
+// REPLACEMENT: CheckAndTeleportStuckMonster (with global rate limiting and bug fixes)
 bool CheckAndTeleportStuckMonster(edict_t *self)
 {
-	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
+    PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 
-	// --- 1. Initial Validation & Cooldowns ---
-	if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.issummoned)
-		return false;
+    // --- 1. Initial Validation & Cooldowns ---
+    if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.issummoned)
+        return false;
 
-	// Give the monster a brief moment to unstick itself naturally after a check
-	if (level.time < self->monsterinfo.stuck_check_time)
-		return false;
-	self->monsterinfo.stuck_check_time = level.time + random_time(2.0_sec, 4.0_sec);
+    if (level.time < self->monsterinfo.stuck_check_time)
+        return false;
+    self->monsterinfo.stuck_check_time = level.time + random_time(2.0_sec, 4.0_sec);
 
-	if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
-		return false;
-	
-	if (IsMonsterJumping(self)) {
-		self->teleport_time = level.time + 0.5_sec; // Don't teleport mid-jump
-		return false;
-	}
-
-	// --- 2. Global Rate Limiting ---
-	if (level.time - HordeConstants::g_teleport_rate_reset_time > HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL) {
-		HordeConstants::g_teleport_rate_count = 0;
-		HordeConstants::g_teleport_rate_reset_time = level.time;
-	}
-	int max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL + ((g_insane->integer || g_chaotic->integer) ? 1 : 0);
-	if (HordeConstants::g_teleport_rate_count >= max_teleports) {
-		return false;
-	}
-
-	// --- 3. Determine if Teleport is Needed ---
-	bool needs_teleport = false;
-	const char* reason_str = "Unknown";
-
-	if (self->waterlevel > 0 && !(self->enemy && visible(self, self->enemy, false))) {
-		needs_teleport = true;
-		reason_str = "Drowning";
-	} else if (gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid) {
-		needs_teleport = true;
-		reason_str = "Stuck in Geometry";
-	} else if (self->teleport_time <= level.time) {
-		if (self->enemy && self->monsterinfo.attack_finished > level.time) return false; // Don't teleport mid-attack
-		
-		if (!self->enemy || !self->enemy->inuse) {
-			if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec) self->monsterinfo.no_enemy_timeout_start_time = level.time;
-			if (level.time > self->monsterinfo.no_enemy_timeout_start_time + 12_sec) {
-				needs_teleport = true;
-				reason_str = "No Enemy Timeout";
-			}
-		} else {
-			self->monsterinfo.no_enemy_timeout_start_time = 0_sec; // Reset if it finds an enemy
-		}
-
-		if (!needs_teleport && level.time > self->monsterinfo.react_to_damage_time + HordeConstants::NO_DAMAGE_TIMEOUT) {
-			needs_teleport = true;
-			reason_str = "No Damage Timeout";
-		}
-	}
-
-	if (!needs_teleport) return false;
-
-	if (developer->integer) gi.Com_PrintFmt("[CATS] Trigger for {}: {}.\n", self->classname, reason_str);
-
-	// --- 4. Find Teleport Destination (Multi-Pass Strategy) ---
-	vec3_t dest_origin = vec3_origin;
-	vec3_t dest_angles = self->s.angles;
-	edict_t* used_spawn_point = nullptr;
-
-	// Pass 1: Try to find a standard, valid spawn point.
-	used_spawn_point = FindTeleportDestination(self);
-	if (used_spawn_point) {
-		dest_origin = used_spawn_point->s.origin;
-		dest_angles = used_spawn_point->s.angles;
-	}
-
-	// Pass 2: If no standard point is found OR with a random chance, try an emergency teleport near a player.
-	// This restores the aggressive, player-focused behavior.
-	if (dest_origin == vec3_origin || frandom() < 0.40f) {
-		if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Attempting Pass 2 (Emergency Teleport) for {}.\n", self->classname);
-		
-		bool used_human_player = false;
-		horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-		
-		if (FindEmergencySpawnPosition(dest_origin, dest_angles, used_human_player, monsterTypeId)) {
-			used_spawn_point = nullptr; // We didn't use a standard point
-		} else if (dest_origin == vec3_origin) {
-			// If both standard and emergency failed, we can't teleport.
-			if (developer->integer) gi.Com_PrintFmt("[CATS] CRITICAL: All teleport attempts failed for {}. No valid spot found.\n", self->classname);
-			self->teleport_time = level.time + 5.0_sec; // Give a longer cooldown
-			return false;
-		}
-	}
-
-	// --- 5. Execute the Teleport ---
-	if (IsPositionTooCloseToRecentTeleport(dest_origin)) {
-		if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Chosen destination is too close to recent teleport, skipping.\n");
-		return false;
-	}
+    if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
+        return false;
     
-    // --- BUG FIX ---
-    // Ensure the monster is not looking up or down after teleporting.
+    if (IsMonsterJumping(self)) {
+        self->teleport_time = level.time + 0.5_sec; // Don't teleport mid-jump
+        return false;
+    }
+
+    // --- 2. Global Rate Limiting ---
+    if (level.time > HordeConstants::g_teleport_rate_reset_time) {
+        HordeConstants::g_teleport_rate_count = 0;
+        HordeConstants::g_teleport_rate_reset_time = level.time + HordeConstants::GLOBAL_TELEPORT_RESET_INTERVAL;
+    }
+    int max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL + ((g_insane->integer || g_chaotic->integer) ? 1 : 0);
+    if (HordeConstants::g_teleport_rate_count >= max_teleports) {
+        return false; // Global limit reached for this interval.
+    }
+
+    // --- 3. Determine if Teleport is Needed ---
+    bool needs_teleport = false;
+    const char* reason_str = "Unknown";
+
+    if (self->waterlevel > 0 && !(self->enemy && visible(self, self->enemy, false))) {
+        needs_teleport = true;
+        reason_str = "Drowning";
+    } else if (gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid) {
+        needs_teleport = true;
+        reason_str = "Stuck in Geometry";
+    } else if (self->teleport_time <= level.time) {
+        if (self->enemy && self->monsterinfo.attack_finished > level.time) return false; // Don't teleport mid-attack
+        
+        if (!self->enemy || !self->enemy->inuse) {
+            if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec) self->monsterinfo.no_enemy_timeout_start_time = level.time;
+            if (level.time > self->monsterinfo.no_enemy_timeout_start_time + 12_sec) {
+                needs_teleport = true;
+                reason_str = "No Enemy Timeout";
+            }
+        } else {
+            self->monsterinfo.no_enemy_timeout_start_time = 0_sec; // Reset if it finds an enemy
+        }
+
+        if (!needs_teleport && level.time > self->monsterinfo.react_to_damage_time + HordeConstants::NO_DAMAGE_TIMEOUT) {
+            needs_teleport = true;
+            reason_str = "No Damage Timeout";
+        }
+    }
+
+    if (!needs_teleport) return false;
+
+    if (developer->integer) gi.Com_PrintFmt("[CATS] Trigger for %s: %s.\n", self->classname, reason_str);
+
+    // --- 4. Find Teleport Destination (Multi-Pass Strategy) ---
+    vec3_t dest_origin = vec3_origin;
+    vec3_t dest_angles = self->s.angles;
+    edict_t* used_spawn_point = nullptr;
+
+    used_spawn_point = FindTeleportDestination(self);
+    if (used_spawn_point) {
+        dest_origin = used_spawn_point->s.origin;
+        dest_angles = used_spawn_point->s.angles;
+    }
+
+    if (dest_origin == vec3_origin || frandom() < 0.40f) {
+        if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Attempting Pass 2 (Emergency Teleport) for %s.\n", self->classname);
+        
+        bool used_human_player = false;
+        horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+        
+        if (FindEmergencySpawnPosition(dest_origin, dest_angles, used_human_player, monsterTypeId, FindBestPlayerTargetForTeleport())) {
+            used_spawn_point = nullptr;
+        } else if (dest_origin == vec3_origin) {
+            if (developer->integer) gi.Com_PrintFmt("[CATS] CRITICAL: All teleport attempts failed for %s.\n", self->classname);
+            self->teleport_time = level.time + 5.0_sec;
+            return false;
+        }
+    }
+
+    // --- 5. Execute the Teleport ---
+    if (IsPositionTooCloseToRecentTeleport(dest_origin)) {
+        if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Chosen destination is too close to recent teleport, skipping.\n");
+        return false;
+    }
+    
+    // <<< BUG FIX: Ensure monster isn't looking up/down after teleport >>>
     dest_angles[PITCH] = 0;
-    // --- END FIX ---
 
-	if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
-		MarkPositionAsRecentlyTeleported(self->s.origin);
-		if (used_spawn_point) {
-			spawnPointsData[used_spawn_point].teleport_cooldown = level.time + 3.5_sec;
-		}
+    if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
+        MarkPositionAsRecentlyTeleported(self->s.origin);
+        if (used_spawn_point) {
+            spawnPointsData[used_spawn_point].teleport_cooldown = level.time + 3.5_sec;
+        }
 
-		// Spider fix
-		horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-		if (monsterTypeId == horde::MonsterTypeID::STALKER || monsterTypeId == horde::MonsterTypeID::SPIDER) {
-			self->gravityVector = {0, 0, -1};
-			self->s.angles[ROLL] = 0;
-			self->gravity = 1.0f;
-			if (self->movetype == MOVETYPE_FLY || self->movetype == MOVETYPE_NOCLIP) self->movetype = MOVETYPE_STEP;
-			self->groundentity = nullptr;
-			self->s.origin.z += 16.0f;
-			gi.linkentity(self);
-		}
+        horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+        if (monsterTypeId == horde::MonsterTypeID::STALKER || monsterTypeId == horde::MonsterTypeID::SPIDER) {
+            self->gravityVector = {0, 0, -1};
+            self->s.angles[ROLL] = 0;
+            self->gravity = 1.0f;
+            if (self->movetype == MOVETYPE_FLY || self->movetype == MOVETYPE_NOCLIP) self->movetype = MOVETYPE_STEP;
+            self->groundentity = nullptr;
+            self->s.origin.z += 16.0f;
+            gi.linkentity(self);
+        }
 
-		HordeConstants::g_teleport_rate_count++;
-		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = 0_sec;
-		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
-		return true;
-	}
+        HordeConstants::g_teleport_rate_count++;
+        self->monsterinfo.was_stuck = false;
+        self->monsterinfo.stuck_check_time = 0_sec;
+        self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+        return true;
+    }
 
-	return false;
+    return false;
 }
+
 // Helper function to select a retaliation-themed monster
 horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel)
 {
