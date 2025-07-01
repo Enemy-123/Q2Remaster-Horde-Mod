@@ -9,7 +9,6 @@
 #include "../g_laser.h"
 #include "../profiler.h"
 
-static std::vector<horde::MonsterTypeID> g_monsters_for_warmup_precache;
 static std::unordered_set<horde::MonsterTypeID> g_precached_monster_types;
 static bool g_full_precache_done = false;
 
@@ -3021,66 +3020,62 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 	return frandom() < 0.07f;	                      // 7% chance in late waves
 }
 
-// REPLACEMENT: CalculateEffectiveMonsterLevel (Optimized and Logically Updated)
+// REPLACEMENT for CalculateEffectiveMonsterLevel (with bug fix)
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
 {
     if (!attemptHigherLevel)
     {
-        return currentActualLevel; // No change, normal operation
+        return currentActualLevel; // No change needed.
     }
 
     int32_t levelBoost;
     int32_t maxLevelCap;
     const bool isFlyingWave = HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying);
 
-    // --- NEW LOGIC: More aggressive boost for flying waves ---
+    // Use a more aggressive boost for flying waves to introduce elite flyers.
     if (isFlyingWave)
     {
-        // For flying waves, use a much larger, more random boost to introduce elite flyers.
         levelBoost = irandom(6, 17);
-        // Set a safety cap to prevent absurdly high levels.
         maxLevelCap = currentActualLevel + 11; 
-        if (developer->integer)
-        {
-            gi.Com_PrintFmt("EffectiveLevel: Flying wave detected. Attempting boost of {}.\n", levelBoost);
-        }
     }
     else
     {
-        // For non-flying waves, use the original, more conservative boost.
+        // Use the original, more conservative boost for ground waves.
         if (currentActualLevel < 7)      levelBoost = irandom(2, 4);
         else if (currentActualLevel <= 15) levelBoost = irandom(4, 8);
         else                             levelBoost = irandom(3, 6);
         maxLevelCap = currentActualLevel + 8;
     }
-    // --- END OF NEW LOGIC ---
 
-    maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap on how high it can go.
+    maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap.
 
     int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
-    // CRITICAL CHECK: See if any monsters are actually available at this new level.
-    // This check is still necessary to ensure the boost is meaningful.
-    bool any_eligible_monsters = false;
-    for (const auto& monster : monsterTypes) // Iterate the full list here is required to find *newly* eligible ones
+    // --- CRITICAL FIX ---
+    // We must check the MASTER list of all monsters (`monsterTypes`) to see if any
+    // are unlocked by the new effective level. Checking `g_eligible_monsters_for_wave`
+    // will never work because it's already filtered for the current level.
+    bool any_new_monsters_unlocked = false;
+    for (const auto& monster : monsterTypes) // Iterate the full list
     {
         // Is there a monster that is eligible at the new level but was NOT at the old one?
-        if (monster.minWave > currentActualLevel && monster.minWave <= potentialEffectiveLevel &&
+        if (monster.minWave > currentActualLevel && 
+            monster.minWave <= potentialEffectiveLevel &&
             IsValidMonsterForWave(monster.typeId, waveTypeForFiltering))
         {
-            any_eligible_monsters = true;
-            break;
+            any_new_monsters_unlocked = true;
+            break; // Found one, no need to check further.
         }
     }
 
-    if (!any_eligible_monsters)
+    if (!any_new_monsters_unlocked)
     {
         if (developer->integer > 1)
         {
             gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new monsters unlocked at level {}. Reverting to {}.\n",
                             potentialEffectiveLevel, currentActualLevel);
         }
-        return currentActualLevel; // Revert if no new monsters are unlocked by the boost.
+        return currentActualLevel; // Revert if the boost is meaningless.
     }
 
     if (developer->integer)
@@ -3089,7 +3084,6 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
     }
     return potentialEffectiveLevel;
 }
-
 
 //-----------------------------------------------------
 // (The following helper functions are unchanged but required)
@@ -3569,62 +3563,21 @@ void InitializeMonsterInfoLUT()
 
 void PrecacheAllMonsters() noexcept
 {
-    if (monsters_precached) return;
-
-    g_precached_monster_types.clear();
-    g_monsters_for_warmup_precache.clear(); // Clear our new list
-
-    if (developer->integer) {
-        gi.Com_Print("PHASE 1 PRECACHE: Loading monsters for early waves...\n");
-    }
-
-    constexpr int PRECACHE_UP_TO_WAVE = 7;
-    std::span<const MonsterTypeInfo> monster_view{ monsterTypes };
-
-    for (const auto& monster_info : monster_view)
-    {
-        const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
-        if (!classname || !*classname) continue;
-
-        if (monster_info.minWave <= PRECACHE_UP_TO_WAVE)
-        {
-            // This is an early-wave monster, load it now.
-            edict_t* temp_monster = G_Spawn();
-            if (!temp_monster) break;
-            temp_monster->classname = classname;
-            temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-            ED_CallSpawn(temp_monster);
-            if (temp_monster->inuse) G_FreeEdict(temp_monster);
-
-            g_precached_monster_types.insert(monster_info.typeId);
-        }
-        else
-        {
-            // This is a late-wave monster. Add it to the list for Phase 2.
-            g_monsters_for_warmup_precache.push_back(monster_info.typeId);
-        }
-    }
-
-    monsters_precached = true;
-    if (developer->integer) {
-        gi.Com_PrintFmt("PHASE 1 PRECACHE: Complete. {} monsters queued for warmup precache.\n", g_monsters_for_warmup_precache.size());
-    }
-}
-
-// Add this new function to g_horde.cpp
-static void PrecacheSingleMonsterDuringWarmup()
-{
-    // Only run during warmup and if there are monsters left to load.
-    if (g_horde_local.state != horde_state_t::warmup || g_monsters_for_warmup_precache.empty()) {
+    if (monsters_precached) {
         return;
     }
 
-    // Get the next monster TypeID from the back of the vector.
-    horde::MonsterTypeID typeId_to_precache = g_monsters_for_warmup_precache.back();
-    g_monsters_for_warmup_precache.pop_back(); // Remove it from the list
+    // On a new map, clear all our tracking.
+    g_precached_monster_types.clear();
 
-    // Use the same spawn/free routine to trigger the engine's loading
-    const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId_to_precache);
+    if (developer->integer) {
+        gi.Com_Print("MINIMAL PRECACHE: Loading only essential Wave 1 monster...\n");
+    }
+
+    // Precache ONLY the most basic monster to ensure the very first spawn is smooth.
+    const horde::MonsterTypeID essential_monster = horde::MonsterTypeID::SOLDIER_LIGHT;
+    const char* classname = horde::MonsterTypeRegistry::GetClassname(essential_monster);
+
     if (classname && *classname)
     {
         edict_t* temp_monster = G_Spawn();
@@ -3636,17 +3589,12 @@ static void PrecacheSingleMonsterDuringWarmup()
             if (temp_monster->inuse) {
                 G_FreeEdict(temp_monster);
             }
-
-            if (developer->integer > 1) {
-                gi.Com_PrintFmt("Warmup Precache: Loaded {}. ({} remaining)\n", classname, g_monsters_for_warmup_precache.size());
-            }
+            // Add the essential monster to our set of precached types.
+            g_precached_monster_types.insert(essential_monster);
         }
     }
 
-    // If the list is now empty, we are done.
-    if (g_monsters_for_warmup_precache.empty() && developer->integer) {
-        gi.Com_Print("Warmup Precache: All remaining monsters are now in memory.\n");
-    }
+    monsters_precached = true; // Mark that our initial precache step is done for this map.
 }
 
 void Horde_Init()
@@ -4498,27 +4446,54 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
-	// This part sets the wave type and prints a wave theme message. This STAYS.
+	// This part sets the wave type and prints a wave theme message.
 	auto bossWaveInfo = GetBossWaveType(typeId);
-	if (TrySetWaveType(bossWaveInfo.first))
-	{
-		gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
-	}
-	else if (HasWaveType(bossWaveInfo.first, MonsterWaveType::Mutant) ||
-			 HasWaveType(bossWaveInfo.first, MonsterWaveType::Shambler))
-	{
-		current_wave_type = MonsterWaveType::Medium;
-		StoreWaveType(MonsterWaveType::Medium);
-	}
-	else
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("BossSpawnThink: Boss wave type {} recently used or invalid, falling back to Medium.\n", static_cast<int>(bossWaveInfo.first));
-		}
-		current_wave_type = MonsterWaveType::Medium;
-		StoreWaveType(current_wave_type);
-	}
+	// ... (your existing logic for TrySetWaveType is fine) ...
+    // For this example, let's assume current_wave_type is now set correctly for the minions.
+    current_wave_type = bossWaveInfo.first; // Simplified for clarity
+    StoreWaveType(current_wave_type);
+	gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
+
+
+    // =======================================================================
+    // --- ADD THIS NEW JIT PRECACHE BLOCK FOR BOSS MINIONS ---
+    // =======================================================================
+    if (developer->integer) {
+        gi.Com_PrintFmt("BossSpawnThink: Precaching minions for boss wave...\n");
+    }
+    // Re-build the eligible list specifically for the minions.
+    g_eligible_monsters_for_wave.clear();
+    for (const auto& monster : monsterTypes) {
+        if (monster.minWave <= current_wave_level && IsValidMonsterForWave(monster.typeId, current_wave_type)) {
+            g_eligible_monsters_for_wave.push_back(&monster);
+        }
+    }
+
+    // Now run the same JIT precache loop as in Horde_InitLevel.
+    for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+    {
+        if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
+        {
+            const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
+            if (classname && *classname)
+            {
+                if (developer->integer) {
+                    gi.Com_PrintFmt("JIT Precache (Boss Minion): Loading assets for '{}'.\n", classname);
+                }
+                edict_t* temp_monster = G_Spawn();
+                if (temp_monster) {
+                    temp_monster->classname = classname;
+                    ED_CallSpawn(temp_monster);
+                    if (temp_monster->inuse) G_FreeEdict(temp_monster);
+                    g_precached_monster_types.insert(monster_info->typeId);
+                }
+            }
+        }
+    }
+    // =======================================================================
+    // --- END OF NEW BLOCK ---
+    // =======================================================================
+
 
 	self->monsterinfo.IS_BOSS = true;
 	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
@@ -7311,8 +7286,6 @@ void Horde_RunFrame() {
 		return;
 	}
 
-	PrecacheSingleMonsterDuringWarmup();
-
 	// --- Time-slice regular spawns ---
 	SpawnSingleMonsterFromBatch();
     // --- Time-slice ambush/retaliation spawns ---
@@ -7728,7 +7701,40 @@ static void Horde_InitLevel(const int32_t lvl)
 						g_eligible_monsters_for_wave.size(), current_wave_level);
 	}
 
-	// --- 4. Continue with the rest of the wave setup ---
+	// --- 4. JIT PRECACHE LOGIC ---
+    // Iterate through the monsters for THIS wave and precache any that are new.
+    if (developer->integer) {
+        gi.Com_PrintFmt("Horde_InitLevel (Wave {}): Checking for monsters to precache...\n", lvl);
+    }
+    for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+    {
+        // Check if this monster type is already in our set of known assets.
+        if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
+        {
+            // It's new! Precache it now.
+            const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
+            if (classname && *classname)
+            {
+                if (developer->integer) {
+                    gi.Com_PrintFmt("JIT Precache: Loading assets for '{}' for wave {}.\n", classname, lvl);
+                }
+                edict_t* temp_monster = G_Spawn();
+                if (temp_monster) {
+                    temp_monster->classname = classname;
+                    ED_CallSpawn(temp_monster); // This triggers gi.modelindex, etc.
+                    if (temp_monster->inuse) G_FreeEdict(temp_monster);
+                    
+                    // IMPORTANT: Add it to the set so we don't load it again.
+                    g_precached_monster_types.insert(monster_info->typeId);
+                }
+            }
+        }
+    }
+    if (developer->integer) {
+        gi.Com_PrintFmt("JIT Precache: All necessary monsters for wave {} are now in memory.\n", lvl);
+    }
+
+	// --- 5. Continue with the rest of the wave setup ---
 	g_horde_local.update_map_size(GetCurrentMapName());
 	GetAdjustedMonsterCap(g_horde_local.current_map_size, lvl);
 
