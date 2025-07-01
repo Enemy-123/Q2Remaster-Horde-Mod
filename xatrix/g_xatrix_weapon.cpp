@@ -296,7 +296,7 @@ TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
         return;
     }
 
-	if (ent->owner->client)
+	if (ent->owner && ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
 	// calculate position for the explosion entity

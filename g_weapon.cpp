@@ -846,7 +846,7 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 	vec3_t origin;
 	mod_t  mod;
 
-	if (ent->owner->client)
+	if (ent->owner && ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
 	// Direct impact damage is applied here if 'other' is not null
@@ -1196,7 +1196,7 @@ TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool oth
 		return;
 	}
 
-	if (ent->owner->client)
+	if (ent->owner && ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
 	// calculate position for the explosion entity
@@ -1277,7 +1277,7 @@ TOUCH(rocket_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 		return;
 	}
 
-	if (ent->owner->client)
+	if (ent && ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
 	// calculate position for the explosion entity
