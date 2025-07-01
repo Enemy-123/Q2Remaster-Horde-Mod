@@ -3561,40 +3561,40 @@ void InitializeMonsterInfoLUT()
 		gi.Com_PrintFmt("Monster Info LUT Initialized.\n");
 }
 
+// The correct, stable, and scalable PrecacheAllMonsters function.
 void PrecacheAllMonsters() noexcept
 {
     if (monsters_precached) {
         return;
     }
 
-    // On a new map, clear all our tracking.
     g_precached_monster_types.clear();
 
     if (developer->integer) {
-        gi.Com_Print("MINIMAL PRECACHE: Loading only essential Wave 1 monster...\n");
+        gi.Com_Print("INITIAL PRECACHE: Loading all monsters for Wave 1...\n");
     }
 
-    // Precache ONLY the most basic monster to ensure the very first spawn is smooth.
-    const horde::MonsterTypeID essential_monster = horde::MonsterTypeID::SOLDIER_LIGHT;
-    const char* classname = horde::MonsterTypeRegistry::GetClassname(essential_monster);
-
-    if (classname && *classname)
+    // Iterate through the master list and precache ONLY Wave 1 monsters.
+    for (const auto& monster_info : monsterTypes)
     {
-        edict_t* temp_monster = G_Spawn();
-        if (temp_monster)
+        if (monster_info.minWave == 1)
         {
-            temp_monster->classname = classname;
-            temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-            ED_CallSpawn(temp_monster);
-            if (temp_monster->inuse) {
-                G_FreeEdict(temp_monster);
+            const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
+            if (classname && *classname)
+            {
+                edict_t* temp_monster = G_Spawn();
+                if (temp_monster)
+                {
+                    temp_monster->classname = classname;
+                    ED_CallSpawn(temp_monster);
+                    if (temp_monster->inuse) G_FreeEdict(temp_monster);
+                    g_precached_monster_types.insert(monster_info.typeId);
+                }
             }
-            // Add the essential monster to our set of precached types.
-            g_precached_monster_types.insert(essential_monster);
         }
     }
 
-    monsters_precached = true; // Mark that our initial precache step is done for this map.
+    monsters_precached = true;
 }
 
 void Horde_Init()
