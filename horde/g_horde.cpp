@@ -3591,17 +3591,22 @@ void InitializeMonsterInfoLUT()
 		gi.Com_PrintFmt("Monster Info LUT Initialized.\n");
 }
 
+// --- MODIFIED ---
+// This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
+// Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
 void PrecacheAllMonsters() noexcept
 {
+    // Only run this initial precache once per map load.
     if (monsters_precached) {
         return;
     }
-    g_precached_monster_types.clear();
+    g_precached_monster_types.clear(); // Ensure our tracking set is empty.
 
     if (developer->integer) {
         gi.Com_Print("INITIAL PRECACHE: Loading all monsters for Wave 1...\n");
     }
 
+    // The monsterTypes array is sorted by minWave, so we can iterate efficiently.
     for (const auto& monster_info : monsterTypes)
     {
         // Since the array is sorted, we can stop as soon as we're past wave 1.
@@ -3617,13 +3622,21 @@ void PrecacheAllMonsters() noexcept
             if (temp_monster)
             {
                 temp_monster->classname = classname;
+                // *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
                 temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+                
                 ED_CallSpawn(temp_monster);
-                if (temp_monster->inuse) G_FreeEdict(temp_monster);
+
+                if (temp_monster->inuse) {
+                    G_FreeEdict(temp_monster);
+                }
+                // Mark this monster type as loaded.
                 g_precached_monster_types.insert(monster_info.typeId);
             }
         }
     }
+    
+    // Mark the initial precache as done for this map.
     monsters_precached = true;
 }
 
@@ -3638,8 +3651,8 @@ void Horde_Init()
 	PrecacheAllGameItems();
 	PrecacheWaveSounds();
 	monsters_precached = false; // Reset the precache flag for the new map.
-
 	PrecacheAllMonsters();
+	
 	InitializeMonsterWaveTypes();
 	InitializeMonsterInfoLUT(); // ADDED: Initialize LUT here
 	InitializeWaveSystem();
@@ -4466,6 +4479,7 @@ void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
     horde_message_end_time = level.time + duration;
 }
 
+// --- MODIFIED ---
 THINK(BossSpawnThink)(edict_t *self)->void
 {
 	if (self->owner)
@@ -4478,15 +4492,12 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	// This part sets the wave type and prints a wave theme message.
 	auto bossWaveInfo = GetBossWaveType(typeId);
-	// ... (your existing logic for TrySetWaveType is fine) ...
-    // For this example, let's assume current_wave_type is now set correctly for the minions.
-    current_wave_type = bossWaveInfo.first; // Simplified for clarity
+    current_wave_type = bossWaveInfo.first;
     StoreWaveType(current_wave_type);
 	gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
 
-
     // =======================================================================
-    // --- ADD THIS NEW JIT PRECACHE BLOCK FOR BOSS MINIONS ---
+    // --- NEW JIT PRECACHE BLOCK FOR BOSS MINIONS ---
     // =======================================================================
     if (developer->integer) {
         gi.Com_PrintFmt("BossSpawnThink: Precaching minions for boss wave...\n");
@@ -4513,7 +4524,6 @@ THINK(BossSpawnThink)(edict_t *self)->void
 				edict_t* temp_monster = G_Spawn();
 				if (temp_monster) {
 					temp_monster->classname = classname;
-
 					// *** CRITICAL FIX APPLIED HERE ***
 					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
@@ -4529,7 +4539,6 @@ THINK(BossSpawnThink)(edict_t *self)->void
     // =======================================================================
     // --- END OF NEW BLOCK ---
     // =======================================================================
-
 
 	self->monsterinfo.IS_BOSS = true;
 	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
@@ -4561,8 +4570,6 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		};
 		const char* random_phrase = arrival_phrases[irandom(arrival_phrases.size() - 1)];
 
-		// Use the G_Fmt helper which returns a std::string_view to a temporary buffer.
-		// This avoids manual buffer declaration and size management.
 		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name.c_str(), random_phrase);
 		AppendHordeMessage(announce_message.data(), 4_sec);
 	}
@@ -4906,7 +4913,7 @@ void ResetGame()
 	if (g_autohaste)
 		gi.cvar_set("g_autohaste", "0");
 
-	g_full_precache_done = false; // Add this line
+	g_full_precache_done = false;
 
 	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
 	remaining_wave_sounds = NUM_WAVE_SOUNDS;
@@ -7694,14 +7701,11 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	return true;
 }
 
-//======================================================================
-// REPLACEMENT: Horde_InitLevel
-// This version correctly pre-filters the list of all possible monsters
-// into a small, wave-specific list to avoid expensive filtering later.
-//======================================================================
+// --- MODIFIED ---
+// This function now contains the main JIT (Just-In-Time) precaching logic.
+// It runs before each wave to load only the assets needed for that specific wave.
 static void Horde_InitLevel(const int32_t lvl)
 {
-	
 	// --- 1. Reset All Wave-Specific State ---
 	ResetSpawnBatchState();
 	g_special_high_level_monster_spawned_this_wave = false;
@@ -7709,8 +7713,8 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 	ResetChampionMonsterState();
-
    	waves_since_ambush++;
+
 	// --- 2. Set up the new wave's parameters ---
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
@@ -7726,14 +7730,13 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_eligible_monsters_for_wave.clear();
 	g_eligible_monsters_for_wave.reserve(std::size(monsterTypes));
 
+    // The monsterTypes array is sorted by minWave, which makes this efficient.
 	for (const auto& monster : monsterTypes) {
-		// *** THE OPTIMIZATION ***
 		// Stop iterating once we pass the current wave level.
 		if (monster.minWave > current_wave_level) {
 			break;
 		}
-
-		// This monster is potentially eligible, now check its type flags.
+		// Check if the monster's flags match the requirements for this wave.
 		if (IsValidMonsterForWave(monster.typeId, current_wave_type)) {
 			g_eligible_monsters_for_wave.push_back(&monster);
 		}
@@ -7751,6 +7754,7 @@ static void Horde_InitLevel(const int32_t lvl)
     }
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 	{
+        // Check if this monster type has already been loaded.
 		if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
 		{
 			const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
@@ -7762,14 +7766,14 @@ static void Horde_InitLevel(const int32_t lvl)
 				edict_t* temp_monster = G_Spawn();
 				if (temp_monster) {
 					temp_monster->classname = classname;
-
-					// *** CRITICAL FIX APPLIED HERE ***
+					// *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
 					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 					ED_CallSpawn(temp_monster);
 					if (temp_monster->inuse) {
 						G_FreeEdict(temp_monster);
 					}
+                    // Add to the set so we don't load it again.
 					g_precached_monster_types.insert(monster_info->typeId);
 				}
 			}
@@ -7818,9 +7822,6 @@ static void Horde_InitLevel(const int32_t lvl)
 	case 35:
 		gi.cvar_set("g_damage_scale", "3.0");
 		break;
-	//case 45:
-	//	gi.cvar_set("g_damage_scale", "4.5");
-	//	break;
 	default:
 		break;
 	}
