@@ -6841,7 +6841,7 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         g_consecutive_spawn_failures++;
         return nullptr;
     }
-}x 
+}
 
 static void SetMonsterArmor(edict_t *monster)
 {
