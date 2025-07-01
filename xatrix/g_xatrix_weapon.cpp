@@ -331,7 +331,7 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	plasma->clipmask = MASK_PROJECTILE;
 
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		plasma->clipmask &= ~CONTENTS_PLAYER;
 
 	plasma->solid = SOLID_BBOX;

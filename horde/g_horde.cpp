@@ -6742,9 +6742,8 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
     return true;
 }
 
-// NEW HELPER FUNCTION - This replaces TryAlternativeSpawnPosition
-// This is the high-level orchestrator that finds a valid spawn spot, implementing the "tank logic" with robust checks.
-// It returns true on success and populates the out_ parameters.
+// NEW HELPER FUNCTION - This is the high-level orchestrator for finding a valid spawn spot.
+// It implements the "tank logic" with robust checks.
 static bool FindValidSpawnSpot(
     edict_t* spawn_point,
     horde::MonsterTypeID monster_type,
@@ -6760,7 +6759,6 @@ static bool FindValidSpawnSpot(
     GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
 
     // --- 2. Attempt Direct Spawn ---
-    // First, try to spawn directly at the spawn point's location.
     vec3_t direct_pos = base_origin;
     if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying)) {
         out_origin = direct_pos;
@@ -6773,37 +6771,32 @@ static bool FindValidSpawnSpot(
     auto alternative_offsets = HordeConstants::horde_alternative_positions;
     std::shuffle(alternative_offsets.begin(), alternative_offsets.end(), mt_rand);
 
-    // Define a small box for our "fat" trace to prevent passing through cracks.
-    static const vec3_t trace_box = {-4, -4, -4};
+    static const vec3_t trace_box = {-4, -4, -4}; // A small box for our "fat" trace
 
     for (const auto& offset : alternative_offsets) {
         vec3_t candidate_pos = base_origin + offset;
 
-        // *** THE CRUCIAL TWO-STEP VALIDATION ***
-        
-        // Step A: "Fat" Line-of-Sight Check. Can a small box move from the spawn point to the candidate position?
-        // This is much more reliable than a simple traceline.
+        // Step A: "Fat" Line-of-Sight Check from the original point to the candidate.
         trace_t los_trace = gi.trace(base_origin, trace_box, trace_box, candidate_pos, spawn_point, MASK_SOLID);
         if (los_trace.fraction < 1.0f) {
-            continue; // Path is blocked by the world. This spot is unreachable.
+            continue; // Path is blocked by world geometry.
         }
 
-        // Step B: Physical Validity Check. Is the candidate position itself physically valid?
+        // Step B: Physical Validity Check of the candidate position itself.
         if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying)) {
-            // Success! We found a spot that is both reachable and physically valid.
             out_origin = candidate_pos;
-            out_angles = vectoangles(offset); // Face away from the original blocked point.
+            out_angles = vectoangles(offset); // Face away from the original blocked point
             out_angles[PITCH] = 0;
             out_used_alternative = true;
             return true;
         }
     }
 
-    // If we get here, both direct and alternative spawns failed.
-    return false;
+    return false; // All attempts failed.
 }
 
-// REPLACEMENT: FindValidSpotAndSpawn (Refactored to use the new system)
+// REPLACEMENT: FindValidSpotAndSpawn (Now uses the new helper system)
+// This function replaces the old TryAlternativeSpawnPosition.
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
     vec3_t final_origin, final_angles;
@@ -6812,7 +6805,7 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
     // --- Phase 1: Find a valid spot using our new high-level orchestrator ---
     if (!FindValidSpawnSpot(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
         // Finding a spot failed completely. Penalize the spawn point.
-        if (used_alternative) { // This check is a bit redundant now but safe
+        if (used_alternative) {
             ApplyAlternativePositionCooldown(spawn_point);
         } else {
             IncreaseSpawnAttempts(spawn_point);
@@ -6823,7 +6816,7 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
 
     // --- Phase 2: Spawn the monster at the validated location ---
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
-    if (!monster) { // SpawnMonsterByTypeID can fail for other reasons (e.g., no free edicts)
+    if (!monster) {
         if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
         else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
@@ -6832,7 +6825,7 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
 
     // --- Phase 3: Apply bonuses and finalize ---
     if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
-        // Success! The monster is live. Apply the correct cooldown to the spawn point.
+        // Success! The monster is live. Apply the correct cooldown.
         if (used_alternative) {
             ApplySuccessfulAlternativeCooldown(spawn_point);
         } else {
@@ -6841,15 +6834,14 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         return monster;
     } else {
         // Bonuses were applied, but the monster became invalid (was freed).
-        // This is a failure, but not the fault of the spawn point itself.
         if (developer->integer > 1) {
-            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: {}\n",
+            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: %s\n",
                             horde::MonsterTypeRegistry::GetClassname(monster_type));
         }
         g_consecutive_spawn_failures++;
         return nullptr;
     }
-}
+}x 
 
 static void SetMonsterArmor(edict_t *monster)
 {
