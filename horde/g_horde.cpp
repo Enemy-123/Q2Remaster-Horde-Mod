@@ -3652,7 +3652,7 @@ void Horde_Init()
 	PrecacheWaveSounds();
 	monsters_precached = false; // Reset the precache flag for the new map.
 	PrecacheAllMonsters();
-	
+
 	InitializeMonsterWaveTypes();
 	InitializeMonsterInfoLUT(); // ADDED: Initialize LUT here
 	InitializeWaveSystem();
@@ -6611,27 +6611,23 @@ static bool AttemptSpawnSingleMonster(
 			continue;
 		}
 
-		const bool monster_is_flying = IsFlying(monster_type_id);
-		const bool is_flying_spawn_point = (spawn_point->style == 1);
+	const bool monster_is_flying = IsFlying(monster_type_id);
+const bool is_flying_spawn_point = (spawn_point->style == 1);
 
-		if (is_flying_spawn_point && !monster_is_flying)
-		{
-			IncreaseSpawnAttempts(spawn_point);
-			g_consecutive_spawn_failures++;
-			continue;
-		}
-		if (!is_flying_spawn_point && monster_is_flying &&
-			!HasWaveType(current_actual_wave_type_param, MonsterWaveType::Flying) &&
-			!is_recovery_mode_active_param)
-		{
-			IncreaseSpawnAttempts(spawn_point);
-			g_consecutive_spawn_failures++;
-			continue;
-		}
+	// This check is CORRECT. A ground-only monster cannot spawn at a flying-only point
+	// because it would fall to its death. Keep this.
+	if (is_flying_spawn_point && !monster_is_flying)
+	{
+		IncreaseSpawnAttempts(spawn_point);
+		g_consecutive_spawn_failures++;
+		continue;
+	}
 
-		edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
+	// The second, problematic 'if' block has been completely removed.
+	// A flying monster is now free to spawn at a ground point and take off.
 
-		if (spawned_monster_entity)
+	edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
+			if (spawned_monster_entity)
 		{
 			// Monster was successfully processed by FindValidSpotAndSpawn.
 			// It might have been allocated and then freed if bonuses failed,
@@ -6687,19 +6683,13 @@ static bool ValidateSpawnPointForMonster(edict_t *spawn_point, const SpawnPointD
 		return false;
 	}
 
-	// Check flying compatibility for the point itself
-	const bool is_flying_spawn_point = (spawn_point->style == 1);
-	MonsterWaveType type_to_check = recovery_mode_active_param ? current_wave_type : g_original_wave_type_before_recovery;
-	if (type_to_check != MonsterWaveType::None && is_flying_spawn_point && !HasWaveType(type_to_check, MonsterWaveType::Flying))
-	{
-		return false;
-	}
+    // The incorrect "flying compatibility" check has been removed from here.
 
 	// Check distance to players
 	for (const auto *const player : active_players_no_spect())
 	{
 		if ((spawn_point->s.origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_SPAWNPOINT)
-		{ // MIN_PLAYER_DIST_SQ_SPAWNPOINT was used before, check which is correct
+		{ 
 			IncreaseSpawnAttempts(spawn_point);
 			g_consecutive_spawn_failures++;
 			return false;
