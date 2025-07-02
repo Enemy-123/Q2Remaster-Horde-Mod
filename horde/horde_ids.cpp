@@ -308,6 +308,10 @@ namespace horde {
         s_origins[static_cast<size_t>(MapID::Q2DM7)] = { {vec3_t{816, 832, 56}}, true };
         // Q2DM8
         s_origins[static_cast<size_t>(MapID::Q2DM8)] = { {vec3_t{112, 1216, 88}}, true };
+         // RDM1
+        s_origins[static_cast<size_t>(MapID::RDM1)] = { {vec3_t{410, 373, 30}}, true };
+         // RDM2
+        s_origins[static_cast<size_t>(MapID::RDM2)] = { {vec3_t{-1104, -483, 370}}, true };
         // RDM4
         s_origins[static_cast<size_t>(MapID::RDM4)] = { {vec3_t{-336, 2456, -288}}, true };
         // RDM5
