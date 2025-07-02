@@ -251,6 +251,7 @@ namespace horde {
             {"q2ctf4", MapID::Q2CTF4}, {"q2ctf5", MapID::Q2CTF5},
 
             // RDM maps
+            {"rdm2", MapID::RDM2},  {"rdm1", MapID::RDM1},
             {"rdm4", MapID::RDM4}, {"rdm5", MapID::RDM5}, {"rdm6", MapID::RDM6},
             {"rdm8", MapID::RDM8}, {"rdm9", MapID::RDM9}, {"rdm12", MapID::RDM12},
 
@@ -413,7 +414,7 @@ namespace horde {
         const MapID bigMapIDs[] = {
             MapID::Q2CTF5, MapID::OLD_KMDM3, MapID::XDM2, MapID::XDM4, MapID::XDM6, MapID::XDM3, MapID::RDM6,
             MapID::RDM8, MapID::XDM1, MapID::WASTE2, MapID::RDM5, MapID::RDM9, MapID::RDM12, MapID::XINTELL,
-            MapID::SEWER64, MapID::BASE64, MapID::CITY64
+            MapID::SEWER64, MapID::BASE64, MapID::CITY64, MapID::RDM1, MapID::RDM2
         };
         for (MapID id : bigMapIDs) {
             size_t index = static_cast<size_t>(id);
