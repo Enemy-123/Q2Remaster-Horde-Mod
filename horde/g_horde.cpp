@@ -6066,9 +6066,6 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 	return false;
 }
 
-// TypeID-based EmergencySpawnMonster
-// Takes is_additional_monster to control g_totalMonstersInWave increment
-// Takes champion_chance_for_this_spawn to control champion probability
 bool EmergencySpawnMonster(const int32_t levelNum,
                            horde::MonsterTypeID typeId,
                            bool is_additional_monster,
@@ -6109,9 +6106,12 @@ bool EmergencySpawnMonster(const int32_t levelNum,
     }
 
     // --- Phase 4: Finalize and add effects ---
-    SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-    if (sound_spawn1) {
-        gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+	// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
+    if (monster->inuse && !monster->deadflag && monster->health > 0) {
+        SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+        if (sound_spawn1) {
+            gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+        }
     }
 
     // If this was an "additional" monster (like from an ambush), update the total count for the wave.
@@ -6238,9 +6238,12 @@ static void SpawnSingleAmbushMonsterFromBatch()
 			{
 				// Apply bonuses and effects
 				if (ApplyHordeBonuses(monster, g_horde_local.level, info.champion_chance) && monster->inuse) {
-					SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-					if (sound_spawn1) {
-						gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+					// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
+					if (monster->inuse && !monster->deadflag && monster->health > 0) {
+						SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+						if (sound_spawn1) {
+							gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+						}
 					}
 					// This is an "additional" monster, so we must increment the total wave count
 					if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
@@ -6587,7 +6590,6 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 	}
 }
 
-// REPLACEMENT: AttemptSpawnSingleMonster
 static bool AttemptSpawnSingleMonster(
 	int32_t currentLevel_param,
 	float champion_chance_param,
@@ -6653,6 +6655,7 @@ static bool AttemptSpawnSingleMonster(
 		edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
 		if (spawned_monster_entity)
 		{
+			// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
 			if (spawned_monster_entity->inuse && !spawned_monster_entity->deadflag && spawned_monster_entity->health > 0)
 			{
 				SpawnGrow_Spawn(spawned_monster_entity->s.origin, 80.0f, 10.0f);
@@ -7673,7 +7676,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 
 	if (play_effects)
 	{
-		// MODIFIED GUARD
+		// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
 		if (self->inuse && !self->deadflag && self->health > 0)
 		{
 			SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
