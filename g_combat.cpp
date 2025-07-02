@@ -1000,7 +1000,6 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 }
 
 //t_damage
-//t_damage
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
 	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
 {

@@ -5615,11 +5615,12 @@ static edict_t* FindTeleportDestination(edict_t* self)
 }
 
 // REPLACEMENT: CheckAndTeleportStuckMonster (with global rate limiting and bug fixes)
+// REPLACEMENT: CheckAndTeleportStuckMonster (with corrected logic flow)
 bool CheckAndTeleportStuckMonster(edict_t *self)
 {
     PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 
-    // --- 1. Initial Validation & Cooldowns ---
+    // --- 1. Initial Validation ---
     if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.issummoned)
         return false;
 
@@ -5642,22 +5643,33 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
     }
     int max_teleports = HordeConstants::MAX_TELEPORTS_PER_INTERVAL + ((g_insane->integer || g_chaotic->integer) ? 1 : 0);
     if (HordeConstants::g_teleport_rate_count >= max_teleports) {
-        return false; // Global limit reached for this interval.
+        return false;
     }
 
-    // --- 3. Determine if Teleport is Needed ---
+    // --- 3. Determine if Teleport is Needed (Refactored Logic) ---
     bool needs_teleport = false;
     const char* reason_str = "Unknown";
 
-    if (self->waterlevel > 0 && !(self->enemy && visible(self, self->enemy, false))) {
-        needs_teleport = true;
-        reason_str = "Drowning";
-    } else if (gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid) {
+    // Primary, immediate reasons for teleport
+    if (gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid) {
         needs_teleport = true;
         reason_str = "Stuck in Geometry";
-    } else if (self->teleport_time <= level.time) {
-        if (self->enemy && self->monsterinfo.attack_finished > level.time) return false; // Don't teleport mid-attack
-        
+    } else if (self->waterlevel > 0 && !(self->enemy && visible(self, self->enemy, false))) {
+        needs_teleport = true;
+        reason_str = "Drowning";
+    }
+
+    // Secondary, time-based reasons for teleport. These are only checked if a primary reason wasn't found.
+    if (!needs_teleport) {
+        // Check if the monster is on its own teleport cooldown from a previous attempt/success
+        if (self->teleport_time > level.time) {
+            return false; // On cooldown, so no time-based teleports should happen.
+        }
+        if (self->enemy && self->monsterinfo.attack_finished > level.time) {
+            return false; // Don't teleport mid-attack
+        }
+
+        // Check for "no enemy" timeout
         if (!self->enemy || !self->enemy->inuse) {
             if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec) self->monsterinfo.no_enemy_timeout_start_time = level.time;
             if (level.time > self->monsterinfo.no_enemy_timeout_start_time + 12_sec) {
@@ -5668,6 +5680,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
             self->monsterinfo.no_enemy_timeout_start_time = 0_sec; // Reset if it finds an enemy
         }
 
+        // Check for "no damage" timeout
         if (!needs_teleport && level.time > self->monsterinfo.react_to_damage_time + HordeConstants::NO_DAMAGE_TIMEOUT) {
             needs_teleport = true;
             reason_str = "No Damage Timeout";
@@ -5710,7 +5723,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         return false;
     }
     
-    // <<< BUG FIX: Ensure monster isn't looking up/down after teleport >>>
+    // Ensure monster isn't looking up/down after teleport
     dest_angles[PITCH] = 0;
 
     if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
