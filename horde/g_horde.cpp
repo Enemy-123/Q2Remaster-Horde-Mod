@@ -3110,19 +3110,19 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
     if (!any_new_monsters_unlocked)
     {
-        if (developer->integer > 1)
-        {
-            gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new monsters unlocked at level {}. Reverting to {}.\n",
-                            potentialEffectiveLevel, currentActualLevel);
-        }
+        //if (developer->integer > 1)
+        // {
+        //     gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new monsters unlocked at level {}. Reverting to {}.\n",
+        //                     potentialEffectiveLevel, currentActualLevel);
+        // }
         return currentActualLevel; // Revert if the boost is meaningless.
     }
 
-    if (developer->integer)
-    {
-        gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
-    }
-    return potentialEffectiveLevel;
+	// if (developer->integer)
+	// {
+	// 	gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
+	// }
+	return potentialEffectiveLevel;
 }
 
 //-----------------------------------------------------
@@ -4962,7 +4962,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
             queue_bonus = std::min(queue_bonus, 15_sec);
             g_horde_local.conditionTimeThreshold += queue_bonus;
             if (developer->integer) {
-                gi.Com_PrintFmt("Post-Deploy Timer: Adding {}s bonus ({} queued). New threshold: {}s.\n",
+                gi.Com_PrintFmt("Post-Deploy Timer: Adding ({:.1f}s bonus ({} queued). New threshold: ({:.1f}s).\n",
                     queue_bonus.seconds(), g_horde_local.queued_monsters, g_horde_local.conditionTimeThreshold.seconds());
             }
         }
@@ -4970,10 +4970,10 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
         g_horde_local.conditionTriggered = true;
         g_horde_local.conditionStartTime = currentTime;
 
-        if (developer->integer) {
-            gi.Com_PrintFmt("Debug: Conditional timer initiated post-deployment. Ends in {}s.\n",
-                g_horde_local.conditionTimeThreshold.seconds());
-        }
+        // if (developer->integer) {
+        //     gi.Com_PrintFmt("Debug: Conditional timer initiated post-deployment. Ends in ({:.1f}s.\n",
+        //         g_horde_local.conditionTimeThreshold.seconds());
+        // }
     }
 
     if (allowWaveAdvance || (liveMonsters == 0 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)) {
@@ -4989,7 +4989,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
     
     if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
         reason = WaveEndReason::TimeLimitReached;
-        if (developer->integer) gi.Com_PrintFmt("Wave ended: Independent time limit reached ({}s).\n", g_lastParams.independentTimeThreshold.seconds());
+        if (developer->integer) gi.Com_PrintFmt("Wave ended: Independent time limit reached (({:.1f}s).\n", g_lastParams.independentTimeThreshold.seconds());
         return true;
     }
 
@@ -5016,7 +5016,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
                 queue_bonus = std::min(queue_bonus, 10_sec);
                 g_horde_local.conditionTimeThreshold += queue_bonus;
                 if (developer->integer) {
-                    gi.Com_PrintFmt("Pre-Deploy ConditionalTimer: Adding {}s bonus ({} queued). New threshold: {}s.\n",
+                    gi.Com_PrintFmt("Pre-Deploy ConditionalTimer: Adding ({:.1f}s bonus ({} queued). New threshold: ({:.1f}s.\n",
                         queue_bonus.seconds(), g_horde_local.queued_monsters, g_horde_local.conditionTimeThreshold.seconds());
                 }
             }
@@ -5026,12 +5026,12 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
                 const float reduction_factor = 0.6f;
                 g_horde_local.waveEndTime = currentTime + std::max(1_sec, g_horde_local.conditionTimeThreshold * reduction_factor);
                 if (developer->integer) {
-                    gi.Com_PrintFmt("High wave with few live & queued monsters (pre-deploy): reduced timeout by {}%%. New end in {}s.\n",
+                    gi.Com_PrintFmt("High wave with few live & queued monsters (pre-deploy): reduced timeout by {}%%. New end in ({:.1f}s.\n",
                         static_cast<int>((1.0f - reduction_factor) * 100.0f), (g_horde_local.waveEndTime - currentTime).seconds());
                 }
             }
              if (developer->integer) {
-                gi.Com_PrintFmt("Debug: Conditional timer initiated pre-deployment. Ends in {}s. Trigger: maxM ({}), lowP ({}). Queue: {}\n",
+                gi.Com_PrintFmt("Debug: Conditional timer initiated pre-deployment. Ends in ({:.1f}s. Trigger: maxM ({}), lowP ({}). Queue: {}\n",
                     g_horde_local.conditionTimeThreshold.seconds(), maxMonstersReached, lowPercentageReached, g_horde_local.queued_monsters);
             }
         }
@@ -5068,8 +5068,8 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
         if (original_remaining_conditional > 0_sec && aggressive_time < original_remaining_conditional) {
             g_horde_local.waveEndTime = currentTime + aggressive_time;
             if (developer->integer) {
-                gi.Com_PrintFmt("Aggressive time reduction (low queue): {}s remaining for {} live monsters.\n",
-                    aggressive_time.seconds(), liveMonsters);
+             //   gi.Com_PrintFmt("Aggressive time reduction (low queue): ({:.1f}s remaining for {} live monsters.\n",
+             //       aggressive_time.seconds(), liveMonsters);
             }
         }
     }
@@ -5100,7 +5100,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveE
         if (g_horde_local.conditionTimeThreshold > 0_sec &&
             elapsed_since_condition_start >= (g_horde_local.conditionTimeThreshold * 0.7f)) {
             reason = WaveEndReason::MonstersRemaining;
-            if (developer->integer) gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
+       //     if (developer->integer) gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
             return true;
         }
     }
@@ -5848,13 +5848,13 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 		spawn_state_deaths++;
 		last_death_time = level.time;
 
-		if (developer->integer) {
-			std::string killer_name = "Unknown";
-			if (monster->enemy && monster->enemy->client) {
-				killer_name = GetPlayerName(monster->enemy);
-			}
-			gi.Com_PrintFmt("Monster killed during spawning state by {} ({} total recent)\n", killer_name.c_str(), spawn_state_deaths);
-		}
+		// if (developer->integer) {
+		// 	std::string killer_name = "Unknown";
+		// 	if (monster->enemy && monster->enemy->client) {
+		// 		killer_name = GetPlayerName(monster->enemy);
+		// 	}
+			//gi.Com_PrintFmt("Monster killed during spawning state by {} ({} total recent)\n", killer_name.c_str(), spawn_state_deaths);
+		//}
 
 		const uint16_t initial_wave_size_for_progress = (g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1;
 		const float spawn_progress = static_cast<float>(monsters_spawned_in_current_phase) / static_cast<float>(initial_wave_size_for_progress);
@@ -5909,7 +5909,7 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 
 				if (developer->integer) {
 					std::string target_player_name = GetPlayerName(g_horde_retaliation_target_player);
-					gi.Com_PrintFmt("HORDE: Retaliation Mode Activated for {}s (Target: {}). Triggered by rapid kills during spawning.\n",
+					gi.Com_PrintFmt("HORDE: Retaliation Mode Activated for ({:.1f}s (Target: {}). Triggered by rapid kills during spawning.\n",
 						(g_horde_retaliation_end_time - level.time).seconds(), target_player_name.c_str());
 				}
 
@@ -7388,7 +7388,7 @@ void Horde_RunFrame() {
 	} else if (g_horde_local.state != horde_state_t::warmup && currentTime > last_wave_change_time + WAVE_STUCK_TIMEOUT) {
 		if (GetStroggsNum() == 0) {
 			if (developer->integer) {
-				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over {}s with 0 monsters. Forcing progression.\n",
+				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over ({:.1f}s with 0 monsters. Forcing progression.\n",
 					currentLevel, WAVE_STUCK_TIMEOUT.seconds());
 			}
 			g_horde_local.state = horde_state_t::cleanup;
