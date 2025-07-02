@@ -5627,7 +5627,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 
     if (level.time < self->monsterinfo.stuck_check_time)
         return false;
-    self->monsterinfo.stuck_check_time = level.time + random_time(2.0_sec, 4.0_sec);
+    self->monsterinfo.stuck_check_time = level.time + random_time(7.0_sec, 9.0_sec);
 
     if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
         return false;
@@ -5799,7 +5799,7 @@ int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edi
 	if (g_monsters_to_spawn_in_current_ambush > 0) return 0;
 
 	// <<< FIX: New dynamic calculation for ambush size >>>
-	int baseSize = mapSize.isSmallMap ? 2 : (mapSize.isBigMap ? 4 : 3);
+	int baseSize = mapSize.isSmallMap ? 2 : (mapSize.isBigMap ? 4 : 2);
 	int spreeBonus = 0;
 	int levelBonus = waveLevel / 10; // +1 monster for every 10 waves
 
@@ -5811,7 +5811,7 @@ int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edi
 
 	// Combine and cap the size to prevent it from getting out of control
 	int ambushSize = baseSize + spreeBonus + levelBonus;
-	ambushSize = std::min(ambushSize, 7); // Cap at a max of 7 retaliation monsters
+	ambushSize = std::min(ambushSize, 5); // Cap at a max of 5 retaliation monsters
 
 	if (developer->integer) {
 		gi.Com_PrintFmt("HORDE: INITIATING Retaliation Ambush (Size: {}). Target: {} (Spree: {}, Lvl: {})\n",
@@ -5832,7 +5832,6 @@ int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edi
 	return ambushSize;
 }
 
-// Corrected HandleSpawnPhaseAggression
 // Corrected HandleSpawnPhaseAggression
 void HandleSpawnPhaseAggression(edict_t* monster) {
 	if (!monster || !monster->inuse)
@@ -6754,7 +6753,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
     bool became_champion = false;
     if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance)
     {
-        monster->monsterinfo.bonus_flags |= BF_CHAMPION;
+        monster->monsterinfo.bonus_flags |= frandom() < 0.09f ? BF_BERSERKING : brandom() ? BF_CHAMPION : BF_POSSESSED;
         ApplyMonsterBonusFlags(monster);
         if (!monster->inuse) return false; // FIX: Safety check
 
@@ -6763,7 +6762,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
         
         champion_spawned_this_wave = true;
         champion_spawn_cooldown_ends_at = level.time + random_time(10_sec, 20_sec);
-        gi.LocBroadcast_Print(PRINT_HIGH, "*** A Champion {} has appeared! ***\n", GetDisplayName(monster).c_str());
+        gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster).c_str());
         became_champion = true;
     }
 
