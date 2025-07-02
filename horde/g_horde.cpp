@@ -5571,9 +5571,13 @@ static edict_t* FindBestPlayerTargetForTeleport()
 }
 
 // --- HELPER: Finds a valid standard spawn point for teleporting ---
+// REPLACEMENT: FindTeleportDestination (Corrected Logic)
 static edict_t* FindTeleportDestination(edict_t* self)
 {
-    const bool is_flying_monster = (self->flags & FL_FLY);
+    // Get the monster's fundamental capability (can it EVER fly?)
+    horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+    const bool can_monster_fly = IsFlying(monsterTypeId);
+
     std::vector<edict_t*> candidates;
     candidates.reserve(MAX_SPAWN_POINTS);
 
@@ -5581,14 +5585,24 @@ static edict_t* FindTeleportDestination(edict_t* self)
     {
         if (!spawn_point || !spawn_point->inuse) continue;
 
-        // Check compatibility (flying/ground)
-        const bool is_flying_point = (spawn_point->style == 1);
-        if (is_flying_monster != is_flying_point) continue;
-
         // Check cooldowns and occupation
         if (level.time < spawnPointsData[spawn_point].teleport_cooldown || IsSpawnPointOccupied(spawn_point)) {
             continue;
         }
+
+        const bool is_flying_point = (spawn_point->style == 1);
+
+        // --- REVISED LOGIC ---
+        // The only invalid combination is a ground-only monster trying to use a flying point.
+        if (!can_monster_fly && is_flying_point) {
+            // This monster cannot fly, but the point is for flyers. Skip it.
+            continue;
+        }
+        
+        // In all other cases, the point is valid:
+        // - A flyer (can_monster_fly = true) can use a ground point.
+        // - A flyer (can_monster_fly = true) can use a flying point.
+        // - A grounder (can_monster_fly = false) can use a ground point.
 
         candidates.push_back(spawn_point);
     }
