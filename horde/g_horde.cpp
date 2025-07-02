@@ -149,7 +149,7 @@ namespace HordeConstants
 
 	// --- Stuck Monster / Teleport Logic ---
 	constexpr gtime_t STUCK_CHECK_TIME = 18_sec;
-	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
+	constexpr gtime_t NO_DAMAGE_TIMEOUT = 32_sec;
 	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
 	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
 	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 12_sec;
