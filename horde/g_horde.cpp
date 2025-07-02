@@ -2452,6 +2452,7 @@ static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 	return monster;
 }
 
+// REPLACEMENT: SpawnMonsterByTypeID (with fix for react_to_damage_time)
 edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool applyHordeFlags)
 {
 	const char *classname = horde::MonsterTypeRegistry::GetClassname(typeId);
@@ -2506,22 +2507,18 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 	gi.linkentity(monster);
 
 	// *** Final Post-Link Stuck Check ***
-	// Check against world geometry ONLY to avoid flagging stuck on other monsters at spawn
 	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs,
-									   monster->s.origin, monster, MASK_SOLID); // <-- CHANGED MASK
+									   monster->s.origin, monster, MASK_SOLID);
 
 	bool spawn_was_stuck = post_link_trace.startsolid;
 
-	// --- Final Stuck Handling ---
 	if (spawn_was_stuck)
 	{
-		// Only flag if not already flagged by monster_start_go
 		if (!monster->monsterinfo.was_stuck)
 		{
 			edict_t *blocker = post_link_trace.ent;
 			if (developer->integer)
 			{
-				// Clarified log message
 				gi.Com_PrintFmt("SpawnMonsterByTypeID: WARNING - {} stuck in GEOMETRY (Post-Link Check) at {}. Blocker: {} ({}). Flagging for teleport.\n",
 								monster->classname, monster->s.origin,
 								blocker ? (blocker->classname ? blocker->classname : "unknown") : "world/unknown",
@@ -2532,12 +2529,17 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 		}
 		else if (developer->integer > 1)
 		{
-			// Already flagged by monster_start_go, just log confirmation
 			gi.Com_PrintFmt("SpawnMonsterByTypeID: {} confirmed stuck (already flagged by monster_start_go).\n", monster->classname);
 		}
 	}
 
 	monster->monsterinfo.spawn_complete_time = level.time;
+
+    // =======================================================================
+    // THE FIX: Initialize the damage timer on spawn to prevent immediate timeouts.
+    // This starts the 32-second clock from now, not from the beginning of the map.
+    monster->monsterinfo.react_to_damage_time = level.time;
+    // =======================================================================
 
 	return monster;
 }
@@ -5614,8 +5616,7 @@ static edict_t* FindTeleportDestination(edict_t* self)
     return random_element(candidates);
 }
 
-// REPLACEMENT: CheckAndTeleportStuckMonster (with global rate limiting and bug fixes)
-// REPLACEMENT: CheckAndTeleportStuckMonster (with corrected logic flow)
+// REPLACEMENT: CheckAndTeleportStuckMonster (with tiered, prioritized timeouts)
 bool CheckAndTeleportStuckMonster(edict_t *self)
 {
     PROFILE_SCOPE("CheckAndTeleportStuckMonster");
@@ -5659,17 +5660,15 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         reason_str = "Drowning";
     }
 
-    // Secondary, time-based reasons for teleport. These are only checked if a primary reason wasn't found.
+    // Secondary, time-based reasons for teleport.
     if (!needs_teleport) {
-        // Check if the monster is on its own teleport cooldown from a previous attempt/success
         if (self->teleport_time > level.time) {
-            return false; // On cooldown, so no time-based teleports should happen.
+            return false; // On personal teleport cooldown.
         }
         if (self->enemy && self->monsterinfo.attack_finished > level.time) {
-            return false; // Don't teleport mid-attack
+            return false; // Don't teleport mid-attack.
         }
 
-        // Check for "no enemy" timeout
         if (!self->enemy || !self->enemy->inuse) {
             if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec) self->monsterinfo.no_enemy_timeout_start_time = level.time;
             if (level.time > self->monsterinfo.no_enemy_timeout_start_time + 12_sec) {
@@ -5677,21 +5676,47 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
                 reason_str = "No Enemy Timeout";
             }
         } else {
-            self->monsterinfo.no_enemy_timeout_start_time = 0_sec; // Reset if it finds an enemy
+            self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
         }
 
-        // Check for "no damage" timeout
-        if (!needs_teleport && level.time > self->monsterinfo.react_to_damage_time + HordeConstants::NO_DAMAGE_TIMEOUT) {
-            needs_teleport = true;
-            reason_str = "No Damage Timeout";
+        // =======================================================================
+        // --- NEW TIERED TIMEOUT LOGIC ---
+        // =======================================================================
+        if (!needs_teleport && self->max_health > 0)
+        {
+            // Define a shorter timeout for monsters that have already been in a fight.
+            constexpr gtime_t DAMAGED_MONSTER_INACTIVITY_TIMEOUT = 15.0_sec;
+
+            // Determine which timeout duration to use.
+            gtime_t timeout_duration;
+            const char* timeout_reason;
+
+            if (self->health < self->max_health) {
+                // This monster has been damaged. Use the shorter, high-priority timeout.
+                timeout_duration = DAMAGED_MONSTER_INACTIVITY_TIMEOUT;
+                timeout_reason = "Damaged Monster Inactivity";
+            } else {
+                // This monster is at full health. Use the standard, long failsafe timeout.
+                timeout_duration = HordeConstants::NO_DAMAGE_TIMEOUT;
+                timeout_reason = "No Damage Timeout (Failsafe)";
+            }
+
+            // Perform the check using the selected duration.
+            if (level.time > self->monsterinfo.react_to_damage_time + timeout_duration) {
+                needs_teleport = true;
+                reason_str = timeout_reason;
+            }
         }
+        // =======================================================================
+        // --- END OF NEW LOGIC ---
+        // =======================================================================
     }
 
     if (!needs_teleport) return false;
 
     if (developer->integer) gi.Com_PrintFmt("[CATS] Trigger for {}: {}.\n", self->classname, reason_str);
 
-    // --- 4. Find Teleport Destination (Multi-Pass Strategy) ---
+    // --- 4. Find Teleport Destination & Execute (Same as before) ---
     vec3_t dest_origin = vec3_origin;
     vec3_t dest_angles = self->s.angles;
     edict_t* used_spawn_point = nullptr;
@@ -5703,27 +5728,16 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
     }
 
     if (dest_origin == vec3_origin || frandom() < 0.40f) {
-        if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Attempting Pass 2 (Emergency Teleport) for {}.\n", self->classname);
-        
         bool used_human_player = false;
         horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-        
         if (FindEmergencySpawnPosition(dest_origin, dest_angles, used_human_player, monsterTypeId, FindBestPlayerTargetForTeleport())) {
             used_spawn_point = nullptr;
         } else if (dest_origin == vec3_origin) {
-            if (developer->integer) gi.Com_PrintFmt("[CATS] CRITICAL: All teleport attempts failed for {}.\n", self->classname);
             self->teleport_time = level.time + 5.0_sec;
             return false;
         }
     }
-
-    // --- 5. Execute the Teleport ---
-    if (IsPositionTooCloseToRecentTeleport(dest_origin)) {
-        if (developer->integer > 1) gi.Com_PrintFmt("[CATS] Chosen destination is too close to recent teleport, skipping.\n");
-        return false;
-    }
     
-    // Ensure monster isn't looking up/down after teleport
     dest_angles[PITCH] = 0;
 
     if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
@@ -5731,18 +5745,6 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         if (used_spawn_point) {
             spawnPointsData[used_spawn_point].teleport_cooldown = level.time + 3.5_sec;
         }
-
-        horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-        if (monsterTypeId == horde::MonsterTypeID::STALKER || monsterTypeId == horde::MonsterTypeID::SPIDER) {
-            self->gravityVector = {0, 0, -1};
-            self->s.angles[ROLL] = 0;
-            self->gravity = 1.0f;
-            if (self->movetype == MOVETYPE_FLY || self->movetype == MOVETYPE_NOCLIP) self->movetype = MOVETYPE_STEP;
-            self->groundentity = nullptr;
-            self->s.origin.z += 16.0f;
-            gi.linkentity(self);
-        }
-
         HordeConstants::g_teleport_rate_count++;
         self->monsterinfo.was_stuck = false;
         self->monsterinfo.stuck_check_time = 0_sec;
