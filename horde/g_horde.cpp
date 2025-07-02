@@ -1680,23 +1680,31 @@ struct WaveDefinition
 	// Constexpr constructor if needed, or aggregate initialization
 };
 
-constexpr std::array<WaveDefinition, 8> wave_definitions = {{																			   // Waves 1-5: Basic ground light units
-															 {5, MonsterWaveType::Light | MonsterWaveType::Ground, {{{}, {}, {}, {}}}, 0}, // No optionals
-															 // Waves 6-10: Add chance for Small units and a small chance for Flying
-															 {10, MonsterWaveType::Light | MonsterWaveType::Ground, {{{MonsterWaveType::Small, 0.45f}, {MonsterWaveType::Flying, 0.20f}, {}, {}}}, 2},
-															 // Waves 11-15: Introduce Medium units, increase Special and Flying chance
-															 {15, MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ground, {{{MonsterWaveType::Special, 0.65f}, {MonsterWaveType::Flying, 0.25f}, {MonsterWaveType::Small, 0.2f}, {}}}, 3},
-															 // Waves 16-20: Introduce Heavy units, increase Fast and Flying chance
-															 {20, MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ground, {{{MonsterWaveType::Fast, 0.55f}, {MonsterWaveType::Flying, 0.30f}, {MonsterWaveType::Special, 0.3f}, {}}}, 3},
-															 // Waves 21-35: Introduce Bomber units, increase Fast and Flying chance
-															 {25, MonsterWaveType::Bomber | MonsterWaveType::Heavy | MonsterWaveType::Ground, {{{MonsterWaveType::Bomber, 0.55f}, {MonsterWaveType::Flying, 0.30f}, {MonsterWaveType::Special, 0.3f}, {}}}, 3},
-															 // Waves 36-40: Focus on Heavy/Elite, high chance for Fast/Special, moderate Flying
-															 {35, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Ground, {{{MonsterWaveType::Special | MonsterWaveType::Fast, 0.75f}, {MonsterWaveType::Flying, 0.30f}, {MonsterWaveType::Medium, 0.28f}, {}}}, 3},
-															 // Waves 41-45: Add SemiBoss chance, keep others relevant
-															 {40, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Ground, {{{MonsterWaveType::SemiBoss, 0.45f}, {MonsterWaveType::Flying, 0.35f}, {MonsterWaveType::Fast | MonsterWaveType::Bomber, 0.35f}, {MonsterWaveType::Medium, 0.30f}}}, 4},
-															 // Waves 46+: High chance for SemiBoss, Flying, Fast
-															 {999, MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Ground, {{{MonsterWaveType::SemiBoss, 0.35f}, {MonsterWaveType::Flying, 0.40f}, {MonsterWaveType::Bomber | MonsterWaveType::Spawner, 0.6f}, {}}}, 3}}};
+constexpr std::array<WaveDefinition, 8> wave_definitions = {{
+    // Waves 1-5: Allow Light units, both Ground and Flying.
+    {5, MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{}, {}, {}, {}}}, 0},
 
+    // Waves 6-10: Still Light, Ground/Flying, but add a chance for Small units.
+    {10, MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Small, 0.45f}, {}, {}, {}}}, 1},
+
+    // Waves 11-15: Introduce Medium units, increase Special and keep Flying chance.
+    {15, MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Special, 0.65f}, {MonsterWaveType::Small, 0.2f}, {}, {}}}, 2},
+
+    // Waves 16-20: Introduce Heavy units, high chance for Fast, keep Flying.
+    {20, MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Fast, 0.55f}, {MonsterWaveType::Special, 0.3f}, {}, {}}}, 2},
+
+    // Waves 21-25: Introduce Bomber units, keep others relevant.
+    {25, MonsterWaveType::Bomber | MonsterWaveType::Heavy | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Fast, 0.55f}, {MonsterWaveType::Special, 0.3f}, {}, {}}}, 2},
+
+    // Waves 26-35: Focus on Heavy/Elite, high chance for Fast/Special, moderate Flying
+    {35, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Special | MonsterWaveType::Fast, 0.75f}, {MonsterWaveType::Medium, 0.28f}, {}, {}}}, 2},
+
+    // Waves 36-40: Add SemiBoss chance, keep others relevant
+    {40, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::SemiBoss, 0.45f}, {MonsterWaveType::Fast | MonsterWaveType::Bomber, 0.35f}, {MonsterWaveType::Medium, 0.30f}, {}}}, 3},
+
+    // Waves 41+: High chance for SemiBoss, Flying, Fast
+    {999, MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::SemiBoss, 0.35f}, {MonsterWaveType::Bomber | MonsterWaveType::Spawner, 0.6f}, {}, {}}}, 2}
+}};
 // Updated function to get the wave type
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false)
 {
@@ -2903,19 +2911,16 @@ inline bool IsSpecialUnit(horde::MonsterTypeID typeId)
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Special);
 }
 
-//======================================================================
 // REPLACEMENT: IsValidMonsterForWave
-// Clearer logic that correctly handles exclusive thematic waves
-// while allowing flexible composition for general waves.
-//======================================================================
+
 inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements)
 {
-    // Fast exit for special cases like boss minion waves that have no requirements
+    // Fast exit for special cases like boss minion waves that have no requirements.
     if (waveRequirements == MonsterWaveType::None) {
         return true;
     }
 
-    // Use the fast LUT to get monster properties
+    // Use the fast LUT to get the monster's properties.
     const MonsterWaveType monster_flags = GetMonsterWaveTypes(typeId);
 
     // --- Step 1: Handle Exclusive, Thematic Waves (Strict Matching) ---
@@ -2935,21 +2940,25 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
     // --- Step 2: Handle General Wave Composition (Flexible Matching) ---
     // This part is for non-special waves, allowing a mix of units.
 
-    // A. Movement Type Check: This is a hard requirement.
+    // A. Movement Type Check: This is now flexible.
     const bool wave_wants_ground = HasWaveType(waveRequirements, MonsterWaveType::Ground);
     const bool wave_wants_flying = HasWaveType(waveRequirements, MonsterWaveType::Flying);
     const bool monster_is_ground = HasWaveType(monster_flags, MonsterWaveType::Ground);
     const bool monster_is_flying = HasWaveType(monster_flags, MonsterWaveType::Flying);
 
-    if (wave_wants_ground && !wave_wants_flying) { // Ground-only wave
-        if (!monster_is_ground) return false;
-    }
-    else if (wave_wants_flying && !wave_wants_ground) { // Flying-only wave
-        if (!monster_is_flying) return false;
-    }
-    else if (wave_wants_ground && wave_wants_flying) { // Mixed ground/air wave
+    // If the wave wants BOTH ground and flying, the monster must be one or the other.
+    if (wave_wants_ground && wave_wants_flying) {
         if (!monster_is_ground && !monster_is_flying) return false;
     }
+    // If the wave wants ONLY ground, the monster must be ground.
+    else if (wave_wants_ground) {
+        if (!monster_is_ground) return false;
+    }
+    // If the wave wants ONLY flying, the monster must be flying.
+    else if (wave_wants_flying) {
+        if (!monster_is_flying) return false;
+    }
+    // If the wave specifies no movement type, any monster is fine in this regard.
 
     // B. Category Check: The monster must match at least one of the main categories of the wave.
     constexpr MonsterWaveType category_mask =
@@ -2959,8 +2968,9 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
         MonsterWaveType::Special;
 
     const MonsterWaveType required_categories = waveRequirements & category_mask;
+
+    // If the wave specifies any categories, the monster must have at least one of them.
     if (required_categories != MonsterWaveType::None) {
-        // The monster must have at least one of those required categories.
         if ((monster_flags & required_categories) == MonsterWaveType::None) {
             return false;
         }
@@ -3051,7 +3061,7 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 // REPLACEMENT for CalculateEffectiveMonsterLevel (with bug fix)
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
 {
-    if (!attemptHigherLevel)
+    if (!attemptHigherLevel || g_horde_local.level <= 3)
     {
         return currentActualLevel; // No change needed.
     }
@@ -6563,9 +6573,7 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 	}
 }
 
-// Forward declaration if G_HordePickMonsterType is defined after this function
-// static horde::MonsterTypeID G_HordePickMonsterType(edict_t*, int32_t, MonsterWaveType, bool, bool, MonsterWaveType);
-
+// REPLACEMENT: AttemptSpawnSingleMonster
 static bool AttemptSpawnSingleMonster(
 	int32_t currentLevel_param,
 	float champion_chance_param,
@@ -6611,39 +6619,36 @@ static bool AttemptSpawnSingleMonster(
 			continue;
 		}
 
-	const bool monster_is_flying = IsFlying(monster_type_id);
-const bool is_flying_spawn_point = (spawn_point->style == 1);
+        // --- START OF CORRECTION ---
+		const bool monster_is_flying = IsFlying(monster_type_id);
+		const bool is_flying_spawn_point = (spawn_point->style == 1);
 
-	// This check is CORRECT. A ground-only monster cannot spawn at a flying-only point
-	// because it would fall to its death. Keep this.
-	if (is_flying_spawn_point && !monster_is_flying)
-	{
-		IncreaseSpawnAttempts(spawn_point);
-		g_consecutive_spawn_failures++;
-		continue;
-	}
-
-	// The second, problematic 'if' block has been completely removed.
-	// A flying monster is now free to spawn at a ground point and take off.
-
-	edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
-			if (spawned_monster_entity)
+		// This check is CORRECT and REMAINS. A ground-only monster cannot spawn at a 
+        // flying-only point because it would fall to its death.
+		if (is_flying_spawn_point && !monster_is_flying)
 		{
-			// Monster was successfully processed by FindValidSpotAndSpawn.
-			// It might have been allocated and then freed if bonuses failed,
-			// or it might be fully live.
+			IncreaseSpawnAttempts(spawn_point);
+			g_consecutive_spawn_failures++;
+			continue;
+		}
 
-			// MODIFIED GUARD for SpawnGrow_Spawn
+		// The second, problematic 'if' block that prevented flyers from using ground
+        // points has been completely REMOVED.
+        // --- END OF CORRECTION ---
+
+		edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
+		if (spawned_monster_entity)
+		{
 			if (spawned_monster_entity->inuse && !spawned_monster_entity->deadflag && spawned_monster_entity->health > 0)
 			{
 				SpawnGrow_Spawn(spawned_monster_entity->s.origin, 80.0f, 10.0f);
 				if (sound_spawn1)
-				{ // Check if sound index is valid
+				{
 					gi.sound(spawned_monster_entity, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 				}
 			}
 			else if (spawned_monster_entity->inuse && developer->integer)
-			{ // Log if monster exists but is not valid for SpawnGrow
+			{
 				gi.Com_PrintFmt("SpawnGrow_Spawn skipped in AttemptSpawnSingleMonster: Monster {} (idx {}) not fully alive. InUse:{}, DeadFlag:{}, Health:%.0f\n",
 								(spawned_monster_entity->classname ? spawned_monster_entity->classname : "Unknown"),
 								(int)(spawned_monster_entity - g_edicts),
@@ -6651,7 +6656,6 @@ const bool is_flying_spawn_point = (spawn_point->style == 1);
 								spawned_monster_entity->deadflag,
 								spawned_monster_entity->health);
 			}
-			// If spawned_monster_entity is !inuse here, FindValidSpotAndSpawn would have returned nullptr or it was freed after bonuses.
 
 			horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type_id, level.time);
 			g_consecutive_spawn_failures = 0;
@@ -6661,9 +6665,8 @@ const bool is_flying_spawn_point = (spawn_point->style == 1);
 				if (developer->integer)
 					gi.Com_PrintFmt("AttemptSpawnSingleMonster: Successful spawn during recovery mode. Recovery may now end.\n");
 			}
-			return true; // A monster entity was processed (successfully spawned or bonus failed freeing it)
+			return true;
 		}
-		// If FindValidSpotAndSpawn returned nullptr, it failed and handled its own failure logging / cooldowns.
 	}
 
 	if (developer->integer > 1 && total_potential_points > 0)
