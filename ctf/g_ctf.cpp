@@ -1018,19 +1018,16 @@ bool IsValidClassname(const char* classname) noexcept {
 	return false;
 }
 
-bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
+bool IsValidTarget(edict_t* ent, edict_t* other, bool check_visibility) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT) {
 		return false;
 	}
-
-	if (other == ent || other->svflags & SVF_DEADMONSTER) {
+	if (other == ent || (other->svflags & SVF_DEADMONSTER)) {
 		return false;
 	}
-
-	if (vis && ent && !visible(ent, other)) {
+	if (check_visibility && ent && !visible(ent, other)) {
 		return false;
 	}
-
 	return other->client || IsValidClassname(other->classname);
 }
 
@@ -1159,13 +1156,12 @@ std::string FormatEntityInfo(edict_t* ent) {
 	return info;
 }
 
-// Configuration constants
 struct CTFIDViewConfig {
-	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
-	static constexpr float MAX_DISTANCE = 2048.0f;
-	static constexpr float MIN_DOT = 0.98f;
-	static constexpr float CLOSE_DISTANCE = 100.0f;
-	static constexpr float CLOSE_MIN_DOT = 0.5f;
+	static constexpr gtime_t UPDATE_INTERVAL = 108_ms; // How often to run the check (about 9 times/sec)
+	static constexpr float MAX_DISTANCE = 2048.0f;     // Max distance to identify a target
+	static constexpr float MIN_DOT = 0.98f;            // How close to the crosshair a target must be (higher is stricter)
+	static constexpr float CLOSE_DISTANCE = 100.0f;    // A closer distance for a wider check angle
+	static constexpr float CLOSE_MIN_DOT = 0.5f;       // A wider angle for very close targets
 };
 
 [[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
@@ -1190,42 +1186,37 @@ struct TargetSearchResult {
 	TargetSearchResult result;
 	vec3_t const& viewer_pos = ent->s.origin;
 
-	// Process entities in priority order: players -> monsters -> other entities
 	auto checkEntity = [&](edict_t* who) {
 		if (!IsValidTarget(ent, who, false)) return;
 
-		// Calculate direction and distance
 		vec3_t dir = who->s.origin - viewer_pos;
 		float const dist = dir.normalize();
 
-		// Early return if this entity is farther than our current best
-		if (dist >= result.distance) return;
+		if (dist >= result.distance || dist > CTFIDViewConfig::MAX_DISTANCE) return;
 
-		// Check angle requirements
 		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
 			? CTFIDViewConfig::CLOSE_MIN_DOT
 			: CTFIDViewConfig::MIN_DOT;
+
 		if (forward.dot(dir) <= min_dot) return;
 
-		// Line of sight check
-		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) return;
+		trace_t const tr = gi.traceline(viewer_pos, who->s.origin, ent, MASK_SOLID);
+		if (tr.fraction != 1.0f && tr.ent != who) return;
 
-		// Update result
 		result.distance = dist;
 		result.target = who;
-		};
+	};
 
-	// Check in priority order with early exits for close targets
+	// Prioritized search: check players first, then monsters, then others.
+	// This loop structure with early-outs is a great performance heuristic.
 	for (edict_t* who : active_players()) {
 		checkEntity(who);
 		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
 	}
-
 	for (edict_t* who : active_monsters()) {
 		checkEntity(who);
 		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
 	}
-
 	for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
 		if (who->client || (who->svflags & SVF_MONSTER)) continue;
 		checkEntity(who);
@@ -1236,48 +1227,61 @@ struct TargetSearchResult {
 }
 
 void CTFSetIDView(edict_t* ent) {
-	static bool is_processing = false;
-
-	if (is_processing || level.intermissiontime ||
+	// Throttling: Exit early if the function was called recently for this client,
+	// or if the game is in intermission. This is the primary performance control.
+	if (level.intermissiontime ||
 		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
 		return;
 	}
 
-	// Use RAII to ensure is_processing is reset
-	is_processing = true;
-	struct ScopeGuard {
-		~ScopeGuard() { is_processing = false; }
-	} guard;
-
+	// Update the timestamp for the next throttled call.
 	ent->client->resp.lastidtime = level.time;
 
-	// Get unique configstring index for this client
+	// Determine the unique configstring index for this client's HUD.
 	int const client_cs = CONFIG_CTF_PLAYER_NAME + (ent - g_edicts - 1);
 
+	// Get the player's view direction.
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
-	// Find best target
+	// Find the best new target in the player's field of view.
 	TargetSearchResult result = FindBestTarget(ent, forward);
-	edict_t* best = result.target;
+	edict_t* current_target = result.target;
 
-	// Check if we should keep the previous target
-	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
-		best = ent->client->idtarget;
+	// "Sticky Target" logic: If no new target is found, but the previous target is still
+	// valid and visible, keep it selected. This improves user experience by reducing flicker.
+	if (!current_target && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
+		current_target = ent->client->idtarget;
 	}
 
-	// Only clear stats if we're actually changing targets
-	if (ent->client->idtarget != best) {
-		gi.configstring(client_cs, "");
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
-		ent->client->idtarget = best;
+	// If the final target is different from the one we have cached, update the cache.
+	if (ent->client->idtarget != current_target) {
+		ent->client->idtarget = current_target;
+
+		// If there's no longer a target, clear the HUD display and we are done.
+		if (!current_target) {
+			gi.configstring(client_cs, "");
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+			return;
+		}
 	}
 
-	if (best) {
-		std::string info = FormatEntityInfo(best);
+	// If we have a valid target (either new or sticky), format its info and update the HUD.
+	// This block is now executed every throttled frame for a selected target, ensuring
+	// that dynamic data like health and armor is kept up-to-date.
+	if (current_target) {
+		std::string info = FormatEntityInfo(current_target);
 		if (!info.empty()) {
+			// The game engine is smart enough not to send a network update
+			// if the configstring content hasn't changed.
 			gi.configstring(client_cs, info.c_str());
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = client_cs;
+		}
+		else {
+			// If formatting fails or returns an empty string, treat it as no target.
+			ent->client->idtarget = nullptr;
+			gi.configstring(client_cs, "");
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 		}
 	}
 }
