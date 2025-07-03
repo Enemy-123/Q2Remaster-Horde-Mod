@@ -950,22 +950,17 @@ inline void G_RunFrame_(bool main_loop)
     // Cache iterators at the start of the frame
     auto monsters = active_monsters();
     auto players = active_players();
-    
-    // Apply healing to all entities in one pass
-    std::span entities_view{ g_edicts, globals.num_edicts };
-    for (auto& ent : entities_view) {
-        if (ent.inuse) {
-            ApplyGradualHealing(&ent);
-        }
-    }
 
-	if (g_horde_profiler) {
+    // OPTIMIZATION: The loop for ApplyGradualHealing has been removed from here
+    // and merged into the main entity loop below for better cache coherency.
+
+    if (g_horde_profiler) {
         g_profiler_enabled = g_horde_profiler->integer != 0;
     } else {
         g_profiler_enabled = false; // Default to off if cvar is missing
     }
-	
-	Profiler_ResetFrame();
+
+    Profiler_ResetFrame();
 
     if (g_horde->integer) {
         //CleanupStaleCS();
@@ -1002,8 +997,8 @@ inline void G_RunFrame_(bool main_loop)
 
         // Cleanup operations
         CleanupInvalidEntities();
-		CleanupStuckEntities();
-		CheckAndResetDisabledSpawnPoints();
+        CleanupStuckEntities();
+        CheckAndResetDisabledSpawnPoints();
         // HUD message handling
         if (horde_message_end_time > 0_sec) {
             if (level.time >= horde_message_end_time) {
@@ -1020,7 +1015,7 @@ inline void G_RunFrame_(bool main_loop)
 
     // Handle intermission timing
     if (level.intermissiontime && g_horde->integer) {
-            level.intermission_fade = true;
+        level.intermission_fade = true;
         constexpr gtime_t INTERMISSION_DURATION = 30_sec;
 
         if (level.intermissiontime == level.time) {
@@ -1073,9 +1068,9 @@ inline void G_RunFrame_(bool main_loop)
     }
 
     // Handle coop respawn states - move conditional outside of loop for better branching
-    bool check_coop_respawn = (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer)) || 
-                             (G_IsDeathmatch() && g_horde->integer && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer));
-    
+    bool check_coop_respawn = (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer)) ||
+        (G_IsDeathmatch() && g_horde->integer && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer));
+
     if (check_coop_respawn) {
         for (auto player : players) {
             if (player->client->respawn_time >= level.time)
@@ -1089,7 +1084,10 @@ inline void G_RunFrame_(bool main_loop)
         }
     }
 
-    // Process all entities - main entity processing loop
+    // --- CONSOLIDATED MAIN ENTITY LOOP ---
+    // This single loop now handles healing, entity logic, and monster pain processing.
+    // This avoids iterating over all entities multiple times per frame, which is much
+    // more efficient for the CPU cache.
     edict_t* ent = &g_edicts[0];
     for (uint32_t i = 0; i < globals.num_edicts; i++, ent++) {
         if (!ent->inuse) {
@@ -1105,6 +1103,9 @@ inline void G_RunFrame_(bool main_loop)
         }
 
         level.current_entity = ent;
+
+        // OPTIMIZATION: Merged from a separate loop at the start of the function.
+        ApplyGradualHealing(ent);
 
         // Update old_origin for non-beam entities
         if (!(ent->s.renderfx & RF_BEAM))
@@ -1134,10 +1135,17 @@ inline void G_RunFrame_(bool main_loop)
         // Process clients separately
         if (i > 0 && i <= game.maxclients) {
             ClientBeginServerFrame(ent);
-            continue;
+        }
+        else // Process all other entities
+        {
+            G_RunEntity(ent);
         }
 
-        G_RunEntity(ent);
+        // OPTIMIZATION: Merged from a separate loop at the end of the function.
+        // Process monster pain immediately after its main logic has run.
+        if (ent->svflags & SVF_MONSTER) {
+            M_ProcessPain(ent);
+        }
     }
 
     // Game rules checks
@@ -1169,19 +1177,14 @@ inline void G_RunFrame_(bool main_loop)
     if (level.entry && !level.intermissiontime && g_edicts[1].inuse && g_edicts[1].client->pers.connected)
         level.entry->time += FRAME_TIME_S;
 
-    // Process monster pains - use a different iterator to avoid rebuilding
-    std::span monster_span{ g_edicts, globals.num_edicts + 1 + game.maxclients + BODY_QUEUE_SIZE };
-    for (auto& e : monster_span) {
-        if (!e.inuse || !(e.svflags & SVF_MONSTER))
-            continue;
-
-        M_ProcessPain(&e);
-    }
+    // OPTIMIZATION: The separate monster pain processing loop has been removed from here
+    // and merged into the main entity loop above.
 
     level.in_frame = false;
 
-	Profiler_RunFrame_End();
+    Profiler_RunFrame_End();
 }
+
 inline bool G_AnyPlayerSpawned()
 {
 	for (auto const player : active_players())
