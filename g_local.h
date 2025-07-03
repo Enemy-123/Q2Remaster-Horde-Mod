@@ -3193,6 +3193,7 @@ struct gclient_t
 	coop_respawn_t coop_respawn_state;
 	gtime_t last_damage_time;
 
+
 	// [Paril-KEX] these are now per-player, to work better in coop
 	edict_t* sight_entity;
 	gtime_t	 sight_entity_time;
@@ -3230,6 +3231,13 @@ struct gclient_t
 	gtime_t	 last_firing_time;
 
 	// HORDE STUFF
+
+		//coop respawn
+
+	vec3_t      cached_squad_spot;          // The last valid spot found by G_FindRespawnSpot.
+    gtime_t     squad_spot_cache_time;      // The level.time when the spot was cached.
+    vec3_t      squad_spot_cached_at_pos;   // The player's position when the spot was cached.
+
 	gtime_t lastdmg; // ID DMG
 
 	float hook_release_time;

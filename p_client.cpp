@@ -4233,201 +4233,193 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot) // Using spot refer
 	return false;
 }
 
+// A helper struct to hold the processed status of each player.
+struct PlayerStatus {
+	edict_t* player;
+	coop_respawn_t state;
+	vec3_t spot; // Only valid for candidates (state == COOP_RESPAWN_NONE)
+};
+
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
-	// Constants
-	static constexpr auto BAD_AREA_TIMEOUT = 3_sec;
-	static constexpr auto ZERO_TIME = 0_ms;
-	static constexpr auto MAX_INT64_VAL = std::numeric_limits<int64_t>::max(); // Renamed to avoid conflict
+	// --- PART 1: UI LOGIC (Runs Every Frame for Smoothness) ---
+	
+	// These static variables will hold the state calculated by the throttled logic.
+	// This allows the UI to remain stable on frames where the heavy logic is skipped.
+	static gtime_t s_min_combat_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
+	static gtime_t s_min_bad_area_time_left = 3_sec;
+	static bool s_player_in_combat = false;
+	static bool s_player_in_bad_area = false;
 
-	// Use std::vector for dynamic size - This is for candidates, now static
-	static std::vector<std::pair<edict_t*, vec3_t>> candidates_static_vec;
-	candidates_static_vec.clear();
-    // Optional: Reserve once
-    // static bool reserved_candidates = false;
-    // if (!reserved_candidates && game.maxclients > 0 && game.maxclients < 128) {
-    //     candidates_static_vec.reserve(game.maxclients);
-    //     reserved_candidates = true;
-    // }
-
-	const bool is_horde_mode = g_horde->integer != 0;
-    // Variables to be updated by process_single_player, matching original names
-	gtime_t min_combat_time_left = gtime_t::from_ms(MAX_INT64_VAL);
-	gtime_t min_bad_area_time_left = BAD_AREA_TIMEOUT; // Original initialization
-	bool player_in_combat = false;
-	bool player_in_bad_area = false;
-	bool force_respawn_possible = false;
-
-	// --- UI Message State Caching (from original code) ---
-	static bool last_frame_in_combat = false;
-	static bool last_frame_in_bad_area = false;
-	static gtime_t last_displayed_combat_time = ZERO_TIME;
-	static gtime_t last_displayed_bad_area_time = ZERO_TIME;
+	// UI Message Rendering (Runs Every Frame)
 	static std::string cached_combat_message;
 	static std::string cached_bad_area_message;
-	// --- End UI Caching ---
+
+	std::string combat_msg;
+	if (s_player_in_combat) {
+		float seconds = s_min_combat_time_left.seconds<float>();
+		combat_msg = fmt::format("In Combat! Reviving in: {:.1f}s", seconds);
+	}
+	if (combat_msg != cached_combat_message) {
+		cached_combat_message = combat_msg;
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, cached_combat_message.c_str());
+	}
+
+	std::string bad_area_msg;
+	if (s_player_in_bad_area && s_min_bad_area_time_left > 0_ms) {
+		float seconds = s_min_bad_area_time_left.seconds<float>();
+		bad_area_msg = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}s", seconds);
+	}
+	if (bad_area_msg != cached_bad_area_message) {
+		cached_bad_area_message = bad_area_msg;
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, bad_area_msg.c_str());
+	}
+	// --- End of UI Logic ---
+
+
+	// --- PART 2: HEAVY GAME LOGIC (Throttled for Performance) ---
+	static constexpr auto THROTTLE_INTERVAL = 10_ms;
+	static gtime_t next_run_time = 0_ms;
+	static std::tuple<edict_t*, vec3_t> last_result = { nullptr, vec3_t{} };
+
+	if (level.time < next_run_time) {
+		return last_result; // On skipped frames, return the last calculated target.
+	}
+	next_run_time = level.time + THROTTLE_INTERVAL;
+
+	// --- Constants ---
+	static constexpr auto BAD_AREA_TIMEOUT = 3_sec;
+	static constexpr auto ZERO_TIME = 0_ms;
+	static constexpr auto MAX_INT64_VAL = std::numeric_limits<int64_t>::max();
+
+	// --- Data Structures for Single-Pass Algorithm ---
+	static std::vector<PlayerStatus> player_statuses;
+	static std::vector<PlayerStatus*> candidate_pointers;
+	player_statuses.clear();
+	candidate_pointers.clear();
+
+	static bool reserved_once = false;
+	if (!reserved_once && game.maxclients > 0) {
+		player_statuses.reserve(game.maxclients);
+		candidate_pointers.reserve(game.maxclients);
+		reserved_once = true;
+	}
+
+	const bool is_horde_mode = g_horde->integer != 0;
+	// Use temporary variables for this run's calculation.
+	gtime_t current_min_combat_time = gtime_t::from_ms(MAX_INT64_VAL);
+	gtime_t current_min_bad_area_time = BAD_AREA_TIMEOUT;
+	bool is_combat_this_run = false;
+	bool is_bad_area_this_run = false;
+	bool force_respawn_possible = false;
 
 	// --- Single Processing Loop ---
 	auto process_single_player = [&](edict_t* player) {
-		if (!player || !player->client) [[unlikely]] return; 
+		if (!player || !player->client) [[unlikely]] return;
+
+		PlayerStatus current_status = { player, COOP_RESPAWN_NONE, vec3_t{} };
 
 		if (player->deadflag) [[unlikely]] {
-			player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
-			return;
-		}
+			current_status.state = COOP_RESPAWN_WAITING;
+		} else {
+			gtime_t combat_time_for_player = player->client->last_damage_time - level.time;
+			if (combat_time_for_player > ZERO_TIME) [[likely]] {
+				current_status.state = COOP_RESPAWN_IN_COMBAT;
+				is_combat_this_run = true;
+				current_min_combat_time = std::min(current_min_combat_time, combat_time_for_player);
+				player->client->time_in_bad_area = ZERO_TIME;
+			} else {
+				vec3_t spot;
+				bool is_valid_spot = false;
+				static constexpr auto CACHE_DURATION = 250_ms;
+				static constexpr float CACHE_INVALIDATE_DISTANCE_SQ = 64.0f * 64.0f;
 
-        gtime_t current_combat_time_for_player = player->client->last_damage_time - level.time;
-		if (current_combat_time_for_player > ZERO_TIME) [[likely]] { // Check based on subtraction for clarity
-			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
-			player_in_combat = true; // Set global flag
-			min_combat_time_left = std::min(min_combat_time_left, current_combat_time_for_player);
-			player->client->time_in_bad_area = ZERO_TIME; 
-			return; 
-		}
+				gtime_t cache_expiry_time = player->client->squad_spot_cache_time + CACHE_DURATION;
+				vec3_t dist_vec = player->s.origin - player->client->squad_spot_cached_at_pos;
+				float dist_sq = dist_vec.x * dist_vec.x + dist_vec.y * dist_vec.y + dist_vec.z * dist_vec.z;
 
-		vec3_t spot;
-		bool is_valid_spot = G_FindRespawnSpot(player, spot); 
-		bool is_currently_in_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
+				if (player->client->squad_spot_cache_time > 0_ms && level.time < cache_expiry_time && dist_sq < CACHE_INVALIDATE_DISTANCE_SQ) {
+					spot = player->client->cached_squad_spot;
+					is_valid_spot = true;
+				} else {
+					is_valid_spot = G_FindRespawnSpot(player, spot);
+					if (is_valid_spot) {
+						player->client->cached_squad_spot = spot;
+						player->client->squad_spot_cache_time = level.time;
+						player->client->squad_spot_cached_at_pos = player->s.origin;
+					} else {
+						player->client->squad_spot_cache_time = 0_ms;
+					}
+				}
 
-		if (is_currently_in_bad_area || !is_valid_spot) [[unlikely]] {
-			player->client->coop_respawn_state = is_currently_in_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
-			player->client->time_in_bad_area += FRAME_TIME_MS; 
+				bool is_currently_in_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
 
-			gtime_t time_left_for_player = std::max(ZERO_TIME, BAD_AREA_TIMEOUT - player->client->time_in_bad_area);
-			min_bad_area_time_left = std::min(min_bad_area_time_left, time_left_for_player); // Update global min
-			player_in_bad_area = true; // Set global flag
-
-			if (time_left_for_player <= ZERO_TIME) {
-				force_respawn_possible = true; 
+				if (is_currently_in_bad_area || !is_valid_spot) [[unlikely]] {
+					current_status.state = is_currently_in_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
+					player->client->time_in_bad_area += THROTTLE_INTERVAL; // Use throttle interval for stable timing
+					gtime_t time_left_for_player = std::max(ZERO_TIME, BAD_AREA_TIMEOUT - player->client->time_in_bad_area);
+					current_min_bad_area_time = std::min(current_min_bad_area_time, time_left_for_player);
+					is_bad_area_this_run = true;
+					if (time_left_for_player <= ZERO_TIME) {
+						force_respawn_possible = true;
+					}
+				} else {
+					current_status.state = COOP_RESPAWN_NONE;
+					current_status.spot = spot;
+					player->client->time_in_bad_area = ZERO_TIME;
+				}
 			}
-			return; 
 		}
 
-		player->client->time_in_bad_area = ZERO_TIME;
-		player->client->coop_respawn_state = COOP_RESPAWN_NONE; 
-		candidates_static_vec.emplace_back(player, spot ); // Use the static vector
+		player->client->coop_respawn_state = current_status.state;
+		player_statuses.push_back(current_status);
+		if (current_status.state == COOP_RESPAWN_NONE) {
+			candidate_pointers.push_back(&player_statuses.back());
+		}
 	};
 
-	// Execute the loop with the correct iterator
 	if (is_horde_mode) {
-		for (auto player_ent : active_players_no_spect()) { // Renamed loop var to avoid conflict if needed
-			process_single_player(player_ent);
-		}
-	}
-	else {
-		for (auto player_ent : active_players()) {
-			process_single_player(player_ent);
-		}
-	}
-	// --- End of player processing loop ---
-
-
-	// --- Update UI Messages (from original code) ---
-	bool update_combat_msg = false;
-	bool update_bad_area_msg = false;
-
-	if (player_in_combat != last_frame_in_combat || (player_in_combat && min_combat_time_left != last_displayed_combat_time)) {
-		update_combat_msg = true;
-		last_displayed_combat_time = min_combat_time_left; 
+		for (auto player_ent : active_players_no_spect()) { process_single_player(player_ent); }
+	} else {
+		for (auto player_ent : active_players()) { process_single_player(player_ent); }
 	}
 
-    // If no one is in a bad area anymore, min_bad_area_time_left might still hold an old value.
-    // Reset it if player_in_bad_area is false to ensure correct comparison or message clearing.
-    // The original logic implicitly handled this because min_bad_area_time_left was re-calculated fresh or min'd from BAD_AREA_TIMEOUT.
-    // With MAX_TIME init for min_combat and BAD_AREA_TIMEOUT for min_bad_area_time_left (original way):
-    if (!player_in_bad_area && last_frame_in_bad_area) { // If just exited bad area state globally
-         update_bad_area_msg = true; // Force update to clear message
-         min_bad_area_time_left = BAD_AREA_TIMEOUT; // Reset to default for next check or display
-    } else if (player_in_bad_area != last_frame_in_bad_area || (player_in_bad_area && min_bad_area_time_left != last_displayed_bad_area_time)) {
-		update_bad_area_msg = true;
-		last_displayed_bad_area_time = min_bad_area_time_left; 
-	}
-
-
-	if (update_combat_msg) {
-		std::string new_combat_message_str; // Renamed to avoid conflict
-		if (player_in_combat) {
-			float combat_seconds = (min_combat_time_left.milliseconds() == MAX_INT64_VAL) ? BAD_AREA_TIMEOUT.seconds<float>() : min_combat_time_left.seconds<float>();
-			new_combat_message_str = fmt::format("In Combat! Reviving in: {:.1f}s", combat_seconds); // (s) vs s
-		}
-		if (new_combat_message_str != cached_combat_message) {
-			cached_combat_message = new_combat_message_str;
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, cached_combat_message.c_str()); 
-		}
-	}
-
-	if (update_bad_area_msg) {
-		std::string new_bad_area_message_str; // Renamed to avoid conflict
-		if (player_in_bad_area && min_bad_area_time_left > ZERO_TIME) {
-            // Original formatting for bad_area_seconds:
-			float bad_area_seconds = (min_bad_area_time_left >= BAD_AREA_TIMEOUT) ? BAD_AREA_TIMEOUT.seconds<float>() : min_bad_area_time_left.seconds<float>();
-			new_bad_area_message_str = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}s", bad_area_seconds); // (s) vs s
-		}
-		if (new_bad_area_message_str != cached_bad_area_message) {
-			cached_bad_area_message = new_bad_area_message_str;
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, cached_bad_area_message.c_str());
-		}
-	}
-
-	last_frame_in_combat = player_in_combat;
-	last_frame_in_bad_area = player_in_bad_area;
-	// --- End Update UI Messages ---
-
+	// After the loop, update the static UI state variables.
+	s_player_in_combat = is_combat_this_run;
+	s_player_in_bad_area = is_bad_area_this_run;
+	s_min_combat_time_left = current_min_combat_time;
+	s_min_bad_area_time_left = current_min_bad_area_time;
 
 	// --- Select Respawn Target ---
-	if (!candidates_static_vec.empty()) [[likely]] {
-		size_t index = static_cast<size_t>(irandom(static_cast<int32_t>(candidates_static_vec.size())));
-		return { candidates_static_vec[index].first, candidates_static_vec[index].second };
+	if (!candidate_pointers.empty()) {
+		size_t index = static_cast<size_t>(irandom(static_cast<int32_t>(candidate_pointers.size())));
+		PlayerStatus* chosen_candidate = candidate_pointers[index];
+
+		for (auto* candidate : candidate_pointers) {
+			if (candidate != chosen_candidate) {
+				candidate->player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
+			}
+		}
+		
+		last_result = { chosen_candidate->player, chosen_candidate->spot };
+		return last_result;
 	}
 
-	// --- Post-Candidate Check Loops (Forced Respawn and Waiting) ---
-    // Using the more structured loop from newer versions
-    auto check_player_for_forced_respawn_lambda = [&](edict_t* p_check) -> std::tuple<edict_t*, vec3_t> {
-        if (!p_check || !p_check->client) return { nullptr, vec3_t{} };
-        if ((p_check->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA ||
-             p_check->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) &&
-            (BAD_AREA_TIMEOUT - p_check->client->time_in_bad_area <= ZERO_TIME)) // Condition from original
-        {
-            if (edict_t* spawn_point = SelectSingleSpawnPoint(p_check)) {
-                p_check->client->coop_respawn_state = COOP_RESPAWN_NONE; 
-                return { p_check, spawn_point->s.origin }; 
-            }
-        }
-        return { nullptr, vec3_t{} };
-    };
+	// --- Handle Forced Respawn ---
+	if (force_respawn_possible) {
+		for (const auto& status : player_statuses) {
+			if ((status.state == COOP_RESPAWN_BAD_AREA || status.state == COOP_RESPAWN_BLOCKED) &&
+				(BAD_AREA_TIMEOUT - status.player->client->time_in_bad_area <= ZERO_TIME)) {
+				if (edict_t* spawn_point = SelectSingleSpawnPoint(status.player)) {
+					status.player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+					last_result = { status.player, spawn_point->s.origin };
+					return last_result;
+				}
+			}
+		}
+	}
 
-	if (force_respawn_possible) [[unlikely]] { // Only if any player triggered this possibility
-        if (is_horde_mode) {
-            for (auto p_ent : active_players_no_spect()) {
-                auto forced_res = check_player_for_forced_respawn_lambda(p_ent);
-                if (std::get<0>(forced_res) != nullptr) return forced_res;
-            }
-        } else {
-            for (auto p_ent : active_players()) {
-                auto forced_res = check_player_for_forced_respawn_lambda(p_ent);
-                if (std::get<0>(forced_res) != nullptr) return forced_res;
-            }
-        }
-    }
-
-    // Mark remaining players as waiting
-    auto update_player_to_waiting_lambda = [](edict_t* p_update) {
-        if (p_update && p_update->client && !p_update->deadflag && 
-            p_update->client->coop_respawn_state == COOP_RESPAWN_NONE) {
-            p_update->client->coop_respawn_state = COOP_RESPAWN_WAITING;
-        }
-    };
-
-    if (is_horde_mode) {
-        for (auto p_ent : active_players_no_spect()) {
-            update_player_to_waiting_lambda(p_ent);
-        }
-    } else {
-        for (auto p_ent : active_players()) {
-            update_player_to_waiting_lambda(p_ent);
-        }
-    }
-
-	return { nullptr, vec3_t{} };
+	last_result = { nullptr, vec3_t{} };
+	return last_result;
 }
 
 enum respawn_state_t
