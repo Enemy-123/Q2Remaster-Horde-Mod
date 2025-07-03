@@ -153,9 +153,9 @@ bool CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const ve
 // SPAWNGROW stuff
 // ****************************
 
-constexpr gtime_t SPAWNGROW_LIFESPAN = 1200_ms;
+constexpr gtime_t SPAWNGROW_LIFESPAN = 1000_ms;
 
-THINK(spawngrow_think) (edict_t* self) -> void
+THINK(spawngrow_think) (edict_t *self) -> void
 {
 	if (level.time >= self->timestamp)
 	{
@@ -199,25 +199,23 @@ vec3_t SpawnGro_laser_pos(edict_t* ent)
 	return ent->s.origin + (d * scale * 9.f);
 }
 
-THINK(SpawnGro_laser_think) (edict_t* self) -> void
+THINK(SpawnGro_laser_think) (edict_t *self) -> void
 {
-	if (self) {
-		self->s.old_origin = SpawnGro_laser_pos(self);
-		gi.linkentity(self);
-		self->nextthink = level.time + 1_ms;
-	}
+	self->s.old_origin = SpawnGro_laser_pos(self);
+	gi.linkentity(self);
+	self->nextthink = level.time + 1_ms;
 }
 
-void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
+void SpawnGrow_Spawn(const vec3_t &startpos, float start_size, float end_size)
 {
-	edict_t* ent;
+	edict_t *ent;
 
 	ent = G_Spawn();
 	ent->s.origin = startpos;
 
-	ent->s.angles[0] = (float)irandom(360);
-	ent->s.angles[1] = (float)irandom(360);
-	ent->s.angles[2] = (float)irandom(360);
+	ent->s.angles[0] = (float) irandom(360);
+	ent->s.angles[1] = (float) irandom(360);
+	ent->s.angles[2] = (float) irandom(360);
 
 	ent->avelocity[0] = frandom(280.f, 360.f) * 2.f;
 	ent->avelocity[1] = frandom(280.f, 360.f) * 2.f;
@@ -225,8 +223,7 @@ void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
 
 	ent->solid = SOLID_NOT;
 	ent->s.renderfx |= RF_IR_VISIBLE;
-	ent->s.effects |= EF_ROTATE;
-	ent->movetype = MOVETYPE_SLIDE;
+	ent->movetype = MOVETYPE_NONE;
 	ent->classname = "spawngro";
 
 	ent->s.modelindex = gi.modelindex("models/items/spawngro3/tris.md2");
@@ -247,12 +244,11 @@ void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
 	gi.linkentity(ent);
 
 	// [Paril-KEX]
-	edict_t* beam = ent->target_ent = G_Spawn();
+	edict_t *beam = ent->target_ent = G_Spawn();
 	beam->s.modelindex = MODELINDEX_WORLD;
 	beam->s.renderfx = RF_BEAM_LIGHTNING | RF_NO_ORIGIN_LERP;
 	beam->s.frame = 1;
-	//beam->s.skinnum = 0x30303030;
-	beam->s.skinnum = 0xf0f0f0f0;
+	beam->s.skinnum = 0x30303030;
 	beam->classname = "spawngro_beam";
 	beam->angle = end_size;
 	beam->owner = ent;
