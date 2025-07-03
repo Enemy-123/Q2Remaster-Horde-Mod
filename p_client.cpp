@@ -1248,102 +1248,102 @@ bool SpawnPointClear(edict_t* spot)
 
 select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start)
 {
-	struct spawn_point_t
-	{
-		edict_t* point;
-		float dist;
-	};
+    struct spawn_point_t
+    {
+        edict_t* point;
+        float dist;
+    };
 
-	static std::vector<spawn_point_t> spawn_points;
+    static std::vector<spawn_point_t> spawn_points;
+    spawn_points.clear();
 
-	spawn_points.clear();
+    // OPTIMIZATION: Gather all potential spawn points in a single pass over the edict list.
+    edict_t* spot = nullptr;
+    for (int i = 1; i < globals.num_edicts; i++)
+    {
+        spot = &g_edicts[i];
+        if (!spot->inuse || !spot->classname)
+            continue;
 
-	// gather all spawn points 
-	edict_t* spot = nullptr;
+        bool is_dm_spawn = strcmp(spot->classname, "info_player_deathmatch") == 0;
+        bool is_ctf_spawn = false;
 
-	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr)
-		spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+        if (fallback_to_ctf_or_start)
+        {
+            is_ctf_spawn = (strcmp(spot->classname, "info_player_team1") == 0 ||
+                            strcmp(spot->classname, "info_player_team2") == 0);
+        }
 
-	// no points
-	if (spawn_points.size() == 0)
-	{
-		// try CTF spawns...
-		if (fallback_to_ctf_or_start)
-		{
-			spot = nullptr;
-			while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_team1")) != nullptr)
-				spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-			spot = nullptr;
-			while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_team2")) != nullptr)
-				spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+        if (is_dm_spawn || is_ctf_spawn)
+        {
+            spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+        }
+    }
 
-			// we only have an info_player_start then
-			if (spawn_points.size() == 0)
-			{
-				spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+    // If still no points after the main loop, try the absolute fallback.
+    if (spawn_points.empty() && fallback_to_ctf_or_start)
+    {
+        spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+        if (spot)
+            spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+    }
 
-				if (spot)
-					spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+    // no points at all
+    if (spawn_points.empty())
+    {
+        return { nullptr, false };
+    }
 
-				// map is malformed
-				if (spawn_points.size() == 0)
-					return { nullptr, false };
-			}
-		}
-		else
-			return { nullptr, false };
-	}
+    // if there's only one spawn point, that's the one.
+    if (spawn_points.size() == 1)
+    {
+        if (force_spawn || SpawnPointClear(spawn_points[0].point))
+            return { spawn_points[0].point, true };
 
-	// if there's only one spawn point, that's the one.
-	if (spawn_points.size() == 1)
-	{
-		if (force_spawn || SpawnPointClear(spawn_points[0].point))
-			return { spawn_points[0].point, true };
+        return { nullptr, true };
+    }
 
-		return { nullptr, true };
-	}
+    // order by distances ascending (top of list has closest players to point)
+    std::sort(spawn_points.begin(), spawn_points.end(), [](const spawn_point_t& a, const spawn_point_t& b) { return a.dist < b.dist; });
 
-	// order by distances ascending (top of list has closest players to point)
-	std::sort(spawn_points.begin(), spawn_points.end(), [](const spawn_point_t& a, const spawn_point_t& b) { return a.dist < b.dist; });
+    // farthest spawn is simple
+    if (farthest)
+    {
+        for (int32_t i = spawn_points.size() - 1; i >= 0; --i)
+        {
+            if (SpawnPointClear(spawn_points[i].point))
+                return { spawn_points[i].point, true };
+        }
+    }
+    else
+    {
+        // for random, select a random point other than the two
+        // that are closest to the player if possible.
+        if (spawn_points.size() > 2)
+            std::shuffle(spawn_points.begin() + 2, spawn_points.end(), mt_rand);
 
-	// farthest spawn is simple
-	if (farthest)
-	{
-		for (int32_t i = spawn_points.size() - 1; i >= 0; --i)
-		{
-			if (SpawnPointClear(spawn_points[i].point))
-				return { spawn_points[i].point, true };
-		}
+        // run down the list and pick the first one that we can use
+        if (spawn_points.size() > 2)
+        {
+            for (auto it = spawn_points.begin() + 2; it != spawn_points.end(); ++it)
+            {
+                if (SpawnPointClear(it->point))
+                    return { it->point, true };
+            }
+        }
 
-		// none clear
-	}
-	else
-	{
-		// for random, select a random point other than the two
-		// that are closest to the player if possible.
-		// shuffle the non-distance-related spawn points
-		std::shuffle(spawn_points.begin() + 2, spawn_points.end(), mt_rand);
+        // none clear, so we have to pick one of the other two
+        if (SpawnPointClear(spawn_points[1].point))
+            return { spawn_points[1].point, true };
+        else if (SpawnPointClear(spawn_points[0].point))
+            return { spawn_points[0].point, true };
+    }
 
-		// run down the list and pick the first one that we can use
-		for (auto it = spawn_points.begin() + 2; it != spawn_points.end(); ++it)
-		{
-			auto spot = it->point;
+    // If all checks fail but we must spawn, pick a random one.
+    if (force_spawn)
+        return { random_element(spawn_points).point, true };
 
-			if (SpawnPointClear(spot))
-				return { spot, true };
-		}
-
-		// none clear, so we have to pick one of the other two
-		if (SpawnPointClear(spawn_points[1].point))
-			return { spawn_points[1].point, true };
-		else if (SpawnPointClear(spawn_points[0].point))
-			return { spawn_points[0].point, true };
-	}
-
-	if (force_spawn)
-		return { random_element(spawn_points).point, true };
-
-	return { nullptr, true };
+    return { nullptr, true };
 }
 
 //===============
