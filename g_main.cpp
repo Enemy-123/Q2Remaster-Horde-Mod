@@ -602,107 +602,162 @@ EndDMLevel
 The timelimit or fraglimit has been exceeded
 =================
 */
+
+// --- HELPER FUNCTIONS START ---
+// These helpers perform the string operations efficiently without extra memory allocations.
+
+// Helper function to split a string_view into a vector of string_views
+// without allocating new strings for each part.
+inline std::vector<std::string_view> split_string_view(std::string_view str, char delimiter = ' ')
+{
+    std::vector<std::string_view> result;
+    size_t start = 0;
+    size_t end = 0;
+
+    while ((start = str.find_first_not_of(delimiter, end)) != std::string_view::npos)
+    {
+        end = str.find(delimiter, start);
+        result.push_back(str.substr(start, end - start));
+    }
+
+    return result;
+}
+
+// Helper to join a vector of string_views back into a single string.
+// This makes one allocation for the final result string, which is optimal.
+inline std::string join_string_views(const std::vector<std::string_view>& views, const char* separator = " ")
+{
+    if (views.empty()) {
+        return "";
+    }
+
+    // Pre-calculate the final string size to avoid reallocations during append
+    size_t total_size = (views.size() - 1) * strlen(separator);
+    for (const auto& v : views) {
+        total_size += v.length();
+    }
+
+    std::string result;
+    result.reserve(total_size);
+
+    // Append the views
+    result.append(views[0]);
+    for (size_t i = 1; i < views.size(); ++i) {
+        result.append(separator);
+        result.append(views[i]);
+    }
+
+    return result;
+}
+// --- HELPER FUNCTIONS END ---
+
+
 void EndDMLevel()
 {
-	edict_t* ent;
+    edict_t* ent;
 
-	// stay on same level flag
-	if (g_dm_same_level->integer)
-	{
-		BeginIntermission(CreateTargetChangeLevel(level.mapname));
-		return;
-	}
+    // stay on same level flag
+    if (g_dm_same_level->integer)
+    {
+        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+        return;
+    }
 
-	if (*level.forcemap)
-	{
-		BeginIntermission(CreateTargetChangeLevel(level.forcemap));
-		return;
-	}
+    if (*level.forcemap)
+    {
+        BeginIntermission(CreateTargetChangeLevel(level.forcemap));
+        return;
+    }
 
-	// see if it's in the map list
-	if (*g_map_list->string)
-	{
-		const char* str = g_map_list->string;
-		char first_map[MAX_QPATH]{ 0 };
-		char* map;
+    // see if it's in the map list
+    if (*g_map_list->string)
+    {
+        const char* str = g_map_list->string;
+        char first_map[MAX_QPATH]{ 0 };
+        char* map;
 
-		while (1)
-		{
-			map = COM_ParseEx(&str, " ");
+        while (true)
+        {
+            map = COM_ParseEx(&str, " ");
 
-			if (!*map)
-				break;
+            if (!*map)
+                break;
 
-			if (Q_strcasecmp(map, level.mapname) == 0)
-			{
-				// it's in the list, go to the next one
-				map = COM_ParseEx(&str, " ");
-				if (!*map)
-				{
-					// end of list, go to first one
-					if (!first_map[0]) // there isn't a first one, same level
-					{
-						BeginIntermission(CreateTargetChangeLevel(level.mapname));
-						return;
-					}
-					else
-					{
-						// [Paril-KEX] re-shuffle if necessary
-						if (g_map_list_shuffle->integer)
-						{
-							auto values = str_split(g_map_list->string, ' ');
+            if (Q_strcasecmp(map, level.mapname) == 0)
+            {
+                // it's in the list, go to the next one
+                map = COM_ParseEx(&str, " ");
+                if (!*map)
+                {
+                    // end of list, go to first one
+                    if (!first_map[0]) // there isn't a first one, same level
+                    {
+                        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                        return;
+                    }
+                    else
+                    {
+                        // [Paril-KEX] re-shuffle if necessary
+                        if (g_map_list_shuffle->integer)
+                        {
+                            // Use the allocation-free split_string_view helper.
+                            auto values = split_string_view(g_map_list->string);
 
-							if (values.size() == 1)
-							{
-								// meh
-								BeginIntermission(CreateTargetChangeLevel(level.mapname));
-								return;
-							}
+                            if (values.size() <= 1)
+                            {
+                                BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                                return;
+                            }
 
-							std::shuffle(values.begin(), values.end(), mt_rand);
+                            std::shuffle(values.begin(), values.end(), mt_rand);
 
-							// if the current map is the map at the front, push it to the end
-							if (values[0] == level.mapname)
-								std::swap(values[0], values[values.size() - 1]);
+                            // if the current map is the map at the front, push it to the end
+                            if (values[0] == level.mapname)
+                                std::swap(values[0], values.back());
 
-							gi.cvar_forceset("g_map_list", fmt::format("{}", join_strings(values, " ")).data());
+                            // Join the views back into a single string with one allocation.
+                            std::string new_map_list = join_string_views(values);
+                            gi.cvar_forceset("g_map_list", new_map_list.c_str());
 
-							BeginIntermission(CreateTargetChangeLevel(values[0].c_str()));
-							return;
-						}
+                            // A string_view is not guaranteed to be null-terminated, so we create a
+                            // temporary std::string to safely pass a C-string to the next function.
+                            std::string next_map(values[0]);
+                            BeginIntermission(CreateTargetChangeLevel(next_map.c_str()));
+                            return;
+                        }
 
-						BeginIntermission(CreateTargetChangeLevel(first_map));
-						return;
-					}
-				}
-				else
-				{
-					BeginIntermission(CreateTargetChangeLevel(map));
-					return;
-				}
-			}
-			if (!first_map[0])
-				Q_strlcpy(first_map, map, sizeof(first_map));
-		}
-	}
+                        BeginIntermission(CreateTargetChangeLevel(first_map));
+                        return;
+                    }
+                }
+                else
+                {
+                    BeginIntermission(CreateTargetChangeLevel(map));
+                    return;
+                }
+            }
+            if (!first_map[0])
+                Q_strlcpy(first_map, map, sizeof(first_map));
+        }
+    }
 
-	if (level.nextmap[0]) // go to a specific map
-	{
-		BeginIntermission(CreateTargetChangeLevel(level.nextmap));
-		return;
-	}
+    if (level.nextmap[0]) // go to a specific map
+    {
+        BeginIntermission(CreateTargetChangeLevel(level.nextmap));
+        return;
+    }
 
-	// search for a changelevel
-	ent = G_FindByString<&edict_t::classname>(nullptr, "target_changelevel");
+    // search for a changelevel
+    ent = G_FindByString<&edict_t::classname>(nullptr, "target_changelevel");
 
-	if (!ent)
-	{ // the map designer didn't include a changelevel,
-		// so create a fake ent that goes back to the same level
-		BeginIntermission(CreateTargetChangeLevel(level.mapname));
-		return;
-	}
+    if (!ent)
+    { // the map designer didn't include a changelevel,
+        // so create a fake ent that goes back to the same level
+        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+        return;
+    }
 
-	BeginIntermission(ent);
+    BeginIntermission(ent);
 }
 
 /*
