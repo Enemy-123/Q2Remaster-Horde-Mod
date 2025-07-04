@@ -1233,18 +1233,13 @@ extern const mmove_t berserk_move_jump;
 extern const mmove_t berserk_move_jump2;
 
 // Brain
-extern const mmove_t brain_move_jumpattack; // Assuming this involves a jump
+extern const mmove_t brain_move_jumpattack;
 extern const mmove_t brain_move_jump;
 extern const mmove_t brain_move_jump2;
 
 // Chick
 extern const mmove_t chick_move_jump;
 extern const mmove_t chick_move_jump2;
-
-//// Gnorta 
-//extern const mmove_t gnorta_move_jump_straightup;
-//extern const mmove_t gnorta_move_jump_up;
-//extern const mmove_t gnorta_move_jump_down;
 
 // Gun Commander
 extern const mmove_t guncmdr_move_jump;
@@ -1261,9 +1256,6 @@ extern const mmove_t gunner_vanilla_move_jump2;
 // Infantry
 extern const mmove_t infantry_move_jump;
 extern const mmove_t infantry_move_jump2;
-
-// Insane
-//extern const mmove_t insane_move_jumpdown; // Assuming this involves a jump
 
 // Mutant
 extern const mmove_t mutant_move_jump;
@@ -1302,8 +1294,11 @@ extern const mmove_t gekk_move_jump_down;
 
 // --- End Extern Declarations ---
 
-// --- Global Set for Fast Lookups ---
-static std::unordered_set<const mmove_t*> g_jump_moves;
+// --- Global Data Structure for Fast Lookups ---
+// Using a sorted vector for lookups. For a relatively small, static set of pointers,
+// this offers superior cache locality and can outperform hash-based containers like
+// std::unordered_set due to lower overhead from hashing and pointer chasing.
+static std::vector<const mmove_t*> g_jump_moves;
 
 
 // --- Initialization Function ---
@@ -1314,77 +1309,88 @@ void InitializeMonsterMoveSets() {
         return;
     }
 
-    // FIX #1: Populate the set using .insert() for compatibility with older C++ standards.
-    
+    // Reserve memory to prevent reallocations while populating the vector.
+    // There are 34 jump moves defined.
+    g_jump_moves.reserve(34);
+
+    // Populate the vector with all known jump moves.
     // Berserk
-    g_jump_moves.insert(&berserk_move_jump);
-    g_jump_moves.insert(&berserk_move_jump2);
+    g_jump_moves.push_back(&berserk_move_jump);
+    g_jump_moves.push_back(&berserk_move_jump2);
     
     // Brain
-    g_jump_moves.insert(&brain_move_jumpattack);
-    g_jump_moves.insert(&brain_move_jump);
-    g_jump_moves.insert(&brain_move_jump2);
+    g_jump_moves.push_back(&brain_move_jumpattack);
+    g_jump_moves.push_back(&brain_move_jump);
+    g_jump_moves.push_back(&brain_move_jump2);
     
     // Chick
-    g_jump_moves.insert(&chick_move_jump);
-    g_jump_moves.insert(&chick_move_jump2);
+    g_jump_moves.push_back(&chick_move_jump);
+    g_jump_moves.push_back(&chick_move_jump2);
     
     // Gun Commander
-    g_jump_moves.insert(&guncmdr_move_jump);
-    g_jump_moves.insert(&guncmdr_move_jump2);
+    g_jump_moves.push_back(&guncmdr_move_jump);
+    g_jump_moves.push_back(&guncmdr_move_jump2);
     
     // Gunner
-    g_jump_moves.insert(&gunner_move_jump);
-    g_jump_moves.insert(&gunner_move_jump2);
+    g_jump_moves.push_back(&gunner_move_jump);
+    g_jump_moves.push_back(&gunner_move_jump2);
     
     // Gunner Vanilla
-    g_jump_moves.insert(&gunner_vanilla_move_jump);
-    g_jump_moves.insert(&gunner_vanilla_move_jump2);
+    g_jump_moves.push_back(&gunner_vanilla_move_jump);
+    g_jump_moves.push_back(&gunner_vanilla_move_jump2);
     
     // Infantry
-    g_jump_moves.insert(&infantry_move_jump);
-    g_jump_moves.insert(&infantry_move_jump2);
+    g_jump_moves.push_back(&infantry_move_jump);
+    g_jump_moves.push_back(&infantry_move_jump2);
     
     // Mutant
-    g_jump_moves.insert(&mutant_move_jump);
-    g_jump_moves.insert(&mutant_move_jump_up);
-    g_jump_moves.insert(&mutant_move_jump_down);
+    g_jump_moves.push_back(&mutant_move_jump);
+    g_jump_moves.push_back(&mutant_move_jump_up);
+    g_jump_moves.push_back(&mutant_move_jump_down);
     
     // Parasite
-    g_jump_moves.insert(&parasite_move_jump_up);
-    g_jump_moves.insert(&parasite_move_jump_down);
+    g_jump_moves.push_back(&parasite_move_jump_up);
+    g_jump_moves.push_back(&parasite_move_jump_down);
     
     // Red Mutant
-    g_jump_moves.insert(&redmutant_move_jump);
-    g_jump_moves.insert(&redmutant_move_jump_up);
-    g_jump_moves.insert(&redmutant_move_jump_down);
+    g_jump_moves.push_back(&redmutant_move_jump);
+    g_jump_moves.push_back(&redmutant_move_jump_up);
+    g_jump_moves.push_back(&redmutant_move_jump_down);
     
     // Runner Tank
-    g_jump_moves.insert(&runnertank_move_jump);
-    g_jump_moves.insert(&runnertank_move_jump2);
+    g_jump_moves.push_back(&runnertank_move_jump);
+    g_jump_moves.push_back(&runnertank_move_jump2);
     
     // Soldier
-    g_jump_moves.insert(&soldier_move_jump);
-    g_jump_moves.insert(&soldier_move_jump2);
+    g_jump_moves.push_back(&soldier_move_jump);
+    g_jump_moves.push_back(&soldier_move_jump2);
     
     // Stalker
-    g_jump_moves.insert(&stalker_move_jump_straightup);
-    g_jump_moves.insert(&stalker_move_jump_up);
-    g_jump_moves.insert(&stalker_move_jump_down);
+    g_jump_moves.push_back(&stalker_move_jump_straightup);
+    g_jump_moves.push_back(&stalker_move_jump_up);
+    g_jump_moves.push_back(&stalker_move_jump_down);
     
     // Gekk
-    g_jump_moves.insert(&gekk_move_jump_up);
-    g_jump_moves.insert(&gekk_move_jump_down);
+    g_jump_moves.push_back(&gekk_move_jump_up);
+    g_jump_moves.push_back(&gekk_move_jump_down);
+
+    // Sort the vector to allow for fast binary searching.
+    std::sort(g_jump_moves.begin(), g_jump_moves.end());
 }
 
 
-// --- REFACTORED IsMonsterJumping Function ---
-// This replaces the old, long if-statement version.
+// --- Optimized IsMonsterJumping Function ---
+// This version uses a pre-sorted vector and binary search for a fast, cache-friendly lookup.
 bool IsMonsterJumping(const edict_t* self) {
+    // Early exit for invalid entity or if no move is active.
     if (!self || !self->monsterinfo.active_move) {
         return false;
     }
 
-    // FIX #2: Use the .pointer() method to get the raw pointer from the save_data_t wrapper.
-    return g_jump_moves.count(self->monsterinfo.active_move.pointer());
+    // Get the raw pointer to the current move from the save_data_t wrapper.
+    const mmove_t* current_move = self->monsterinfo.active_move.pointer();
+
+    // Perform a binary search on the sorted vector of jump moves.
+    // This is very efficient for this type of check.
+    return std::binary_search(g_jump_moves.cbegin(), g_jump_moves.cend(), current_move);
 }
