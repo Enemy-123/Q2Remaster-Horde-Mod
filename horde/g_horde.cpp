@@ -2564,7 +2564,8 @@ struct BossPickResult
 
 //======================================================================
 // REPLACEMENT: G_HordePickBOSSType
-// Uses the pre-computed cache for massive performance improvement.
+// Uses the pre-computed cache for massive performance improvement and
+// std::lower_bound for the final weighted selection.
 //======================================================================
 static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber)
 {
@@ -2672,24 +2673,34 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::st
 		return BossPickResult();
 	}
 
-	// Weighted random selection using binary search for efficiency
+	// --- MODIFIED: Weighted random selection using std::lower_bound ---
 	const float randomValue = frandom() * totalWeight;
-	size_t left = 0, right = weightedCount - 1;
-	while (left < right) {
-		const size_t mid = left + (right - left) / 2;
-		if (weightedBosses[mid].cumulativeWeight < randomValue) {
-			left = mid + 1;
-		} else {
-			right = mid;
+	
+    // Find the first element whose cumulativeWeight is not less than the random value.
+	auto it = std::lower_bound(
+		weightedBosses.begin(),
+		weightedBosses.begin() + weightedCount, // Search only the valid range
+		randomValue,
+		[](const WeightedBoss& boss, float value) {
+			return boss.cumulativeWeight < value;
 		}
-	}
+	);
 
-	const boss_t* chosen_boss = weightedBosses[left].boss;
+    // Robustness check: if lower_bound returns the end iterator, it means the random value
+    // was greater than all cumulative weights (should not happen with correct logic, but safe to handle).
+    // We fall back to the last valid element.
+    if (it == weightedBosses.begin() + weightedCount) {
+        it = std::prev(it);
+    }
+    
+	const boss_t* chosen_boss = it->boss;
+	// --- END MODIFICATION ---
+
 	if (chosen_boss) {
 		recent_bosses.add(chosen_boss->typeId);
 		if (developer->integer > 1) {
 			const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_boss->typeId);
-			gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n", chosen_name ? chosen_name : "Unknown", weightedBosses[left].weight);
+			gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n", chosen_name ? chosen_name : "Unknown", it->weight);
 		}
 		return BossPickResult(chosen_boss->typeId, chosen_boss->sizeCategory);
 	}
@@ -2786,68 +2797,38 @@ gitem_t *G_HordePickItem()
 		return nullptr; // No items eligible or they all have zero/negative weight
 	}
 
-	// --- Weighted Random Selection ---
-	// Generate a random floating-point value within the total weight range
+	// --- MODIFIED: Weighted Random Selection using std::lower_bound ---
 	const float random_value = frandom() * horde_item_cache.total_weight;
 
-	// Use binary search to efficiently find the selected item based on cumulative weight
-	size_t left = 0;
-	size_t right = horde_item_cache.count - 1;
-
-	// Handle edge case: only one eligible item
-	// if (left == right) {
-	// 	// 'left' (or 'right') is the index of the only choice
-	// }
-	// else
-	{
-		// Perform binary search
-		while (left < right)
-		{
-			// Calculate midpoint safely to avoid potential overflow with large indices
-			const size_t mid = left + (right - left) / 2;
-			if (horde_item_cache.entries[mid].cumulative_weight < random_value)
-			{
-				left = mid + 1; // Random value is in the upper half
-			}
-			else
-			{
-				right = mid; // Random value is in the lower half (including mid)
-			}
+	// Use std::lower_bound to find the first entry whose cumulative_weight is not less than random_value.
+	auto it = std::lower_bound(
+		horde_item_cache.entries.begin(),
+		horde_item_cache.entries.begin() + horde_item_cache.count, // Search only the valid range
+		random_value,
+		[](const HordeItemSelectionCache::Entry& entry, float value) {
+			return entry.cumulative_weight < value;
 		}
-	}
-	// After the loop, 'left' holds the index of the chosen item entry in the cache
+	);
 
-	// *** ADDED SAFETY CHECK ***
-	// Although the binary search should ensure 'left' is valid, this check
-	// satisfies static analysis and guards against potential edge cases.
-	if (left >= horde_item_cache.count)
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("CRITICAL ERROR: G_HordePickItem - Binary search resulted in invalid index 'left' ({}) >= 'count' ({}).\n",
-							left, horde_item_cache.count);
-		}
-		return nullptr; // Prevent accessing invalid memory
-	}
-	// *** END SAFETY CHECK ***
+    // Robustness check: if lower_bound returns the end iterator, fall back to the last valid element.
+    if (it == horde_item_cache.entries.begin() + horde_item_cache.count) {
+        it = std::prev(it);
+    }
+	// --- END MODIFICATION ---
 
 	// --- Retrieve and Return the Item ---
-	// Get the chosen HordeItemInfo pointer from the cache entry
-	const HordeItemInfo *chosen_info = horde_item_cache.entries[left].itemInfo; // Now accessing with checked 'left'
+	const HordeItemInfo *chosen_info = it->itemInfo;
 
-	// Safety check: Ensure chosen_info is not null (shouldn't happen if count > 0 and check above passed)
 	if (!chosen_info)
 	{
 		if (developer->integer)
 		{
-			// This would indicate an error storing the pointer earlier, less likely
-			gi.Com_PrintFmt("Error: G_HordePickItem - chosen_info is null despite valid index {}.\n", left);
+			gi.Com_PrintFmt("Error: G_HordePickItem - chosen_info is null after selection.\n");
 		}
 		return nullptr;
 	}
 
 	// Use the item_id_t from the chosen info to get the actual gitem_t pointer
-	// This replaces the old FindItemByClassname call
 	return GetItemByIndex(chosen_info->id);
 }
 
@@ -3209,18 +3190,29 @@ static void BuildMonsterCache(MonsterCache &cache_ref, const MonsterSelectionCon
 	}
 }
 
+// REPLACEMENT for the helper function inside the monster picking system
 static horde::MonsterTypeID SelectFromCache(const MonsterCache &cache_ref)
 {
 	if (cache_ref.count == 0 || cache_ref.total_weight <= 0.0f) return horde::MonsterTypeID::UNKNOWN;
-	const float random_value = frandom() * cache_ref.total_weight;
-	size_t left = 0, right = cache_ref.count - 1;
-	while (left < right)
-	{
-		const size_t mid = left + (right - left) / 2;
-		if (cache_ref.entries[mid].cumulative_weight < random_value) left = mid + 1;
-		else right = mid;
-	}
-	return cache_ref.entries[left].typeId;
+	
+    const float random_value = frandom() * cache_ref.total_weight;
+
+    // Use std::lower_bound to find the first entry whose cumulative_weight is not less than random_value.
+	auto it = std::lower_bound(
+		cache_ref.entries.begin(),
+		cache_ref.entries.begin() + cache_ref.count, // Search only the valid range
+		random_value,
+		[](const MonsterCache::Entry& entry, float value) {
+			return entry.cumulative_weight < value;
+		}
+	);
+
+    // Robustness check: if lower_bound returns the end iterator, fall back to the last valid element.
+    if (it == cache_ref.entries.begin() + cache_ref.count) {
+        it = std::prev(it);
+    }
+    
+	return it->typeId;
 }
 
 static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionContext &ctx)
