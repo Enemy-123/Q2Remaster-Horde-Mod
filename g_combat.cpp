@@ -43,41 +43,38 @@ bool CanDamage(edict_t* targ, edict_t* inflictor)
 	else
 		targ_center = targ->s.origin;
 
+	// Check center point first
 	trace = gi.traceline(inflictor_center, targ_center, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
 	if (trace.fraction == 1.0f)
 		return true;
 
-	dest = targ_center;
-	dest[0] += 15.0f;
-	dest[1] += 15.0f;
-	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	// Check 4 other points without repeatedly copying targ_center
+	vec3_t check_point = targ_center;
+
+	check_point[0] += 15.0f;
+	check_point[1] += 15.0f;
+	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
 	if (trace.fraction == 1.0f)
 		return true;
 
-	dest = targ_center;
-	dest[0] += 15.0f;
-	dest[1] -= 15.0f;
-	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	check_point[1] -= 30.0f; // From +15 to -15
+	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
 	if (trace.fraction == 1.0f)
 		return true;
 
-	dest = targ_center;
-	dest[0] -= 15.0f;
-	dest[1] += 15.0f;
-	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	check_point[0] -= 30.0f; // From +15 to -15
+	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
 	if (trace.fraction == 1.0f)
 		return true;
 
-	dest = targ_center;
-	dest[0] -= 15.0f;
-	dest[1] -= 15.0f;
-	trace = gi.traceline(inflictor_center, dest, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
+	check_point[1] += 30.0f; // From -15 to +15
+	trace = gi.traceline(inflictor_center, check_point, inflictor, MASK_SOLID | CONTENTS_PROJECTILECLIP);
 	if (trace.fraction == 1.0f)
 		return true;
+
 
 	return false;
 }
-
 /*
 ============
 Killed
@@ -110,13 +107,17 @@ void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, co
 	if (targ->svflags & SVF_MONSTER)
 		return;
 
-	if (targ && targ->die)
-	targ->die(targ, inflictor, attacker, damage, point, mod); //crashed here
+	if (targ->die)
+		targ->die(targ, inflictor, attacker, damage, point, mod);
+
+	// If the entity is freed in its die function, it will no longer be in use.
+	// This check prevents a crash on the subsequent line.
+	if (!targ->inuse)
+		return;
 
 	if (targ->monsterinfo.setskin)
 		targ->monsterinfo.setskin(targ);
 }
-
 /*
 ================
 SpawnDamage
@@ -1148,12 +1149,14 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		if ((knockback) && (targ->movetype != MOVETYPE_NONE) && (targ->movetype != MOVETYPE_BOUNCE) &&
 			(targ->movetype != MOVETYPE_PUSH) && (targ->movetype != MOVETYPE_STOP))
 		{
-			vec3_t normalized = dir.normalized();
+			// CORRECTED: The 'dir' vector is not guaranteed to be normalized.
+			// It must be normalized here to ensure correct knockback force.
+			vec3_t normalized_dir = dir.normalized();
 			vec3_t kvel;
 
 			// Skip mass calculation for BFG pull
 			if (g_bfgpull->integer && mod.id == MOD_BFG_LASER) {
-				kvel = normalized * (500.0f * knockback / 50);
+				kvel = normalized_dir * (500.0f * knockback / 50);
 			}
 			else {
 				float mass;
@@ -1163,9 +1166,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 					mass = (float)targ->mass;
 
 				if (targ->client && attacker == targ)
-					kvel = normalized * (1600.0f * knockback / mass);
+					kvel = normalized_dir * (1600.0f * knockback / mass);
 				else
-					kvel = normalized * (500.0f * knockback / mass);
+					kvel = normalized_dir * (500.0f * knockback / mass);
 			}
 
 			targ->velocity += kvel;
@@ -1445,79 +1448,74 @@ T_RadiusDamage
 */
 void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t* ignore, float radius, damageflags_t dflags, mod_t mod)
 {
-	// Early return if inflictor is invalid
 	if (!inflictor)
 		return;
 
-	// Set attacker to inflictor if null
 	if (!attacker)
 		attacker = inflictor;
 
-	// Calculate inflictor center position once
 	vec3_t inflictor_center;
 	if (inflictor->linked)
-		inflictor_center = (inflictor->absmax + inflictor->absmin) * 0.5f;
+		inflictor_center = (inflictor->absmin + inflictor->absmax) * 0.5f;
 	else
 		inflictor_center = inflictor->s.origin;
 
-	// Pre-calculate damage modifier for monsters
 	float damage_modifier = 1.0f;
 	if (attacker && (attacker->svflags & SVF_MONSTER)) {
 		UpdatePowerUpTimes(attacker);
 		damage_modifier = M_DamageModifier(attacker);
 	}
 
-	// Iterate through entities in radius
 	edict_t* ent = nullptr;
 	while ((ent = findradius(ent, inflictor_center, radius)) != nullptr)
 	{
-		// Fast path for entities that can't take damage
 		if (ent == ignore || !ent->takedamage)
 			continue;
 
-		// Calculate closest point to entity
-		vec3_t v;
-		if (ent->solid == SOLID_BSP && ent->linked)
-			v = closest_point_to_box(inflictor_center, ent->absmin, ent->absmax);
-		else
-		{
-			v = ent->mins + ent->maxs;
-			v = ent->s.origin + (v * 0.5f);
+		// Determine the single point of impact on the entity.
+		// This makes all subsequent calculations consistent.
+		vec3_t damage_point;
+		if (ent->solid == SOLID_BSP && ent->linked) {
+			damage_point = closest_point_to_box(inflictor_center, ent->absmin, ent->absmax);
+		}
+		else {
+			// This logic matches the original code's method for finding the center
+			// of players/monsters, ensuring identical behavior.
+			vec3_t center = ent->mins + ent->maxs;
+			center *= 0.5f;
+			damage_point = ent->s.origin + center;
 		}
 
-		// Calculate damage based on distance
-		v = inflictor_center - v;
-		float points = damage - 0.5f * v.length();
-		
-		// Reduce damage to self
+		// Vector from explosion center to the entity's impact point
+		vec3_t force_vec = damage_point - inflictor_center;
+		float dist = force_vec.length();
+
+		float points = damage - 0.5f * dist;
+
 		if (ent == attacker)
 			points *= 0.5f;
 
-		// Skip if no damage would be done
 		if (points <= 0)
 			continue;
 
-		// Check if damage can reach the entity
 		if (!CanDamage(ent, inflictor))
 			continue;
 
-		// Calculate normalized direction vector once
-		vec3_t dir = (ent->s.origin - inflictor_center).normalized();
+		// Calculate knockback direction.
+		vec3_t dir;
+		if (dist > 0.001f)
+			dir = force_vec * (1.0f / dist); // Efficient normalization
+		else
+			dir = vec3_t(0, 0, 1); // Default up direction if at the same spot
 
-		// Apply damage if all entities are valid
 		if (ent && inflictor && attacker) {
-			// Apply damage modifier
 			const float modified_points = points * damage_modifier;
-
-			// Calculate damage point once
-			vec3_t damage_point = closest_point_to_box(inflictor_center, ent->absmin, ent->absmax);
-
 			T_Damage(
 				ent,
 				inflictor,
 				attacker,
 				dir,
-				damage_point,
+				damage_point, // Use the consistent impact point
 				dir,
 				static_cast<int>(modified_points),
 				static_cast<int>(modified_points),
