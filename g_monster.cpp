@@ -472,18 +472,16 @@ bool M_droptofloor(edict_t* ent)
 	return true;
 }
 
-// --- Revised M_SetEffects ---
+// --- Optimized M_SetEffects ---
+// This function is called every frame for visible monsters to set visual effects
+// based on their state (powerups, damage, special flags, etc.).
 void M_SetEffects(edict_t* ent)
 {
-	if (!ent || !ent->inuse) // Basic null checks
+	if (!ent || !ent->inuse)
 		return;
 
-	// --- Step 1: Store persistent renderfx flags and clear transient ones ---
-	// Fix: Use the correct type 'renderfx_t'
-	renderfx_t persistent_renderfx = ent->s.renderfx & (RF_LOW_PRIORITY /* | any other persistent flags */);
-	ent->s.renderfx = persistent_renderfx; // Start with only persistent flags
-
-	// Define masks for all transient effects/renderfx managed by this function
+	// Define masks for all transient effects/renderfx managed by this function.
+	// These are flags that are recalculated and set every frame.
 	constexpr effects_t TRANSIENT_EFFECTS_MASK = (
 		EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES | EF_DUALFIRE |
 		EF_ROCKET | EF_FIREBALL | EF_PLASMA | EF_TAGTRAIL | EF_BLUEHYPERBLASTER |
@@ -495,128 +493,110 @@ void M_SetEffects(edict_t* ent)
 		RF_IR_VISIBLE
 		);
 
-	// Clear transient effects and renderfx
+	// --- Step 1: Reset transient state from the previous frame ---
+	// This is more efficient than clearing and restoring persistent flags separately.
 	ent->s.effects &= ~TRANSIENT_EFFECTS_MASK;
 	ent->s.renderfx &= ~TRANSIENT_RENDERFX_MASK;
-
-	// Reset sound and alpha
 	ent->s.sound = 0;
 	ent->s.loop_attenuation = 0;
-	ent->s.alpha = 1.0f; // Default to fully visible
+	ent->s.alpha = 1.0f;
 
-	// --- Step 2: Handle special states (Gibbed, Resurrecting) ---
-	if (ent->s.renderfx & RF_LOW_PRIORITY) // Gibbed
-	{
-		return; // Nothing more to do
+	// --- Step 2: Handle terminal states (Gibbed / Dead) with early returns ---
+	// RF_LOW_PRIORITY is used to mark gibbed entities. They have no other effects.
+	if (ent->s.renderfx & RF_LOW_PRIORITY) {
+		return;
 	}
 
-	// Resurrecting visuals
-	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) && (level.time < ent->monsterinfo.attack_finished))
-	{
+	if (ent->health <= 0) {
+		ent->s.renderfx &= ~RF_DOT_SHADOW; // No shadow when dead.
+		return;
+	}
+
+	// --- Step 3: Monster is ALIVE - Apply all active effects ---
+
+	// Resurrecting visuals (takes precedence over other shell effects)
+	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) && (level.time < ent->monsterinfo.attack_finished)) {
 		ent->s.effects |= EF_COLOR_SHELL;
 		ent->s.renderfx |= RF_SHELL_RED;
-		ent->s.alpha = 0.0f; // restoring alpha is corpse wasnt removed yet
+		ent->s.alpha = 0.0f; // Corpse is invisible until resurrected
 	}
 
-	// --- Step 3: Handle Dead state ---
-	if (ent->health <= 0)
-	{
-		ent->s.renderfx &= ~RF_DOT_SHADOW; // No shadow when dead
-		// Sound/alpha already reset, effects/renderfx cleared
-		return; // Nothing more to apply
+	// Bonus Flag visuals (mutually exclusive effects)
+	int current_bonus_flags = ent->monsterinfo.bonus_flags;
+	if (current_bonus_flags) { // Micro-optimization: only check flags if any are set
+		bool has_bonus_flag_visual = false;
+		if (current_bonus_flags & BF_CHAMPION) {
+			ent->s.effects |= EF_ROCKET | EF_FIREBALL;
+			has_bonus_flag_visual = true;
+		}
+		else if (current_bonus_flags & BF_CORRUPTED) {
+			ent->s.effects |= EF_PLASMA | EF_TAGTRAIL;
+			has_bonus_flag_visual = true;
+		}
+		else if (current_bonus_flags & BF_RAGEQUITTER) {
+			ent->s.effects |= EF_BLUEHYPERBLASTER;
+			ent->s.alpha = 0.6f;
+			has_bonus_flag_visual = true;
+		}
+		else if (current_bonus_flags & BF_BERSERKING) {
+			ent->s.effects |= EF_GIB | EF_FLAG2;
+			has_bonus_flag_visual = true;
+		}
+		else if (current_bonus_flags & BF_POSSESSED) {
+			ent->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+			ent->s.alpha = 0.5f;
+			has_bonus_flag_visual = true;
+		}
+		else if (current_bonus_flags & BF_STYGIAN) {
+			ent->s.effects |= EF_TRACKER | EF_FLAG1;
+			has_bonus_flag_visual = true;
+		}
+
+		if (has_bonus_flag_visual) {
+			ent->s.renderfx |= RF_IR_VISIBLE;
+		}
 	}
 
-	// --- Step 4: Monster is ALIVE - Apply effects ---
-
-	// Apply Bonus Flag visuals
-	bool has_bonus_flag = false; // Track if *any* visual flag is set for RF_IR_VISIBLE
-	int current_bonus_flags = ent->monsterinfo.bonus_flags; // Cache for efficiency
-
-	if (current_bonus_flags & BF_CHAMPION) {
-		ent->s.effects |= EF_ROCKET | EF_FIREBALL;
-		//ent->s.renderfx |= RF_SHELL_RED; // Champion Red Shell (High priority)
-		has_bonus_flag = true;
-	}
-	else if (current_bonus_flags & BF_CORRUPTED) {
-		ent->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-		has_bonus_flag = true;
-	}
-	else if (current_bonus_flags & BF_RAGEQUITTER) {
-		ent->s.effects |= EF_BLUEHYPERBLASTER;
-		ent->s.alpha = 0.6f;
-		has_bonus_flag = true;
-	}
-	else if (current_bonus_flags & BF_BERSERKING) {
-		ent->s.effects |= EF_GIB | EF_FLAG2;
-		has_bonus_flag = true;
-	}
-	else if (current_bonus_flags & BF_POSSESSED) {
-		ent->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-		ent->s.alpha = 0.5f;
-		has_bonus_flag = true;
-	}
-	else if (current_bonus_flags & BF_STYGIAN) {
-		ent->s.effects |= EF_TRACKER | EF_FLAG1;
-		has_bonus_flag = true;
-	}
-
-	// Apply RF_IR_VISIBLE if any visual bonus flag was set
-	if (has_bonus_flag) {
-		ent->s.renderfx |= RF_IR_VISIBLE;
-	}
-
-	// Apply Power Armor effects (Check for conflicts)
-	if (ent->powerarmor_time > level.time)
-	{
+	// Power Armor effects
+	if (ent->powerarmor_time > level.time) {
 		if (ent->monsterinfo.power_armor_type == IT_ITEM_POWER_SCREEN) {
 			ent->s.effects |= EF_POWERSCREEN;
 		}
 		else if (ent->monsterinfo.power_armor_type == IT_ITEM_POWER_SHIELD) {
-			// Only apply green shell if not already using red (Champion/Resurrect)
+			// Green shell doesn't override red (from resurrecting)
 			if (!(ent->s.renderfx & RF_SHELL_RED)) {
 				ent->s.effects |= EF_COLOR_SHELL;
-				ent->s.renderfx |= RF_SHELL_GREEN; // Green Shell (Lower priority)
+				ent->s.renderfx |= RF_SHELL_GREEN;
 			}
 		}
 	}
 
-	// Apply Powerup effects (using expiry check)
-	if (ent->monsterinfo.quad_time > level.time) {
-		if (G_PowerUpExpiring(ent->monsterinfo.quad_time))
-			ent->s.effects |= EF_QUAD;
-	}
-	if (ent->monsterinfo.double_time > level.time) {
-		if (G_PowerUpExpiring(ent->monsterinfo.double_time))
-			ent->s.effects |= EF_DOUBLE;
-	}
-	if (ent->monsterinfo.invincible_time > level.time) {
-		if (G_PowerUpExpiring(ent->monsterinfo.invincible_time))
-			ent->s.effects |= EF_PENT;
-	}
-	if (ent->monsterinfo.quadfire_time > level.time) {
-		if (G_PowerUpExpiring(ent->monsterinfo.quadfire_time))
-			ent->s.effects |= EF_DUALFIRE;
-	}
+	// Powerup effects (blinking when expiring)
+	if (ent->monsterinfo.quad_time > level.time && G_PowerUpExpiring(ent->monsterinfo.quad_time))
+		ent->s.effects |= EF_QUAD;
+	if (ent->monsterinfo.double_time > level.time && G_PowerUpExpiring(ent->monsterinfo.double_time))
+		ent->s.effects |= EF_DOUBLE;
+	if (ent->monsterinfo.invincible_time > level.time && G_PowerUpExpiring(ent->monsterinfo.invincible_time))
+		ent->s.effects |= EF_PENT;
+	if (ent->monsterinfo.quadfire_time > level.time && G_PowerUpExpiring(ent->monsterinfo.quadfire_time))
+		ent->s.effects |= EF_DUALFIRE;
 
-	// Set Sounds
+	// Sounds
 	if (ent->monsterinfo.weapon_sound) {
 		ent->s.sound = ent->monsterinfo.weapon_sound;
 		ent->s.loop_attenuation = ATTN_NORM;
 	}
 	else if (ent->monsterinfo.engine_sound) {
 		ent->s.sound = ent->monsterinfo.engine_sound;
-		ent->s.loop_attenuation = ATTN_NORM; // Adjust if needed
+		ent->s.loop_attenuation = ATTN_NORM;
 	}
 
-	// Handle RF_DOT_SHADOW
-	if (!ent->monsterinfo.issummoned) // Check flag set in ApplyMonsterBonusFlags
-	{
-		// Add shadow back if alive, not gibbed, not summoned
+	// Shadow (add back if alive and not a summoned creature)
+	if (!ent->monsterinfo.issummoned) {
 		ent->s.renderfx |= RF_DOT_SHADOW;
 	}
-	// If issummoned, shadow remains off. If dead, it was removed.
-
 }
+
 bool M_AllowSpawn(edict_t* self) {
 	if (G_IsDeathmatch() && !ai_allow_dm_spawn->integer) {
 		return false;
@@ -1246,10 +1226,10 @@ static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 
 THINK(monster_think) (edict_t* self) -> void
 {
-		// Agregar el chequeo de monstruo atascado
+	// Check horde stuck monster
 	if (g_horde->integer)
-	 CheckAndTeleportStuckMonster(self);
-	 
+		CheckAndTeleportStuckMonster(self);
+
 	// [Paril-KEX] monster sniff testing; if we can make an unobstructed path to the player, murder ourselves.
 	if (g_debug_monster_kills->integer)
 	{
@@ -1324,13 +1304,18 @@ THINK(monster_think) (edict_t* self) -> void
 	self->s.renderfx &= ~(RF_STAIR_STEP | RF_OLD_FRAME_LERP);
 
 	M_ProcessPain(self);
+
+	// pain/die above may have freed the entity
+	if (!self->inuse || self->think != monster_think)
+		return;
+
 	// Stygian/Friendly Health Regeneration
-	bool flagged_stygian_or_friendly = (self->monsterinfo.bonus_flags & BF_STYGIAN) || (self->monsterinfo.bonus_flags & BF_FRIENDLY);
-	if ((self->svflags & SVF_MONSTER) &&
-		flagged_stygian_or_friendly &&
-		!self->monsterinfo.IS_BOSS &&
-		self->health > 0 && self->health < self->max_health &&
-		level.time >= self->monsterinfo.next_regen_time)
+	// Optimized check order for fast early-out. The timer check is first as it fails most often.
+	if (level.time >= self->monsterinfo.next_regen_time &&
+		self->health > 0 &&
+		(self->monsterinfo.bonus_flags & (BF_STYGIAN | BF_FRIENDLY)) &&
+		self->health < self->max_health &&
+		!self->monsterinfo.IS_BOSS)
 	{
 		// Regenerate 8% of max health per interval, minimum 1 HP
 		const int REGEN_AMOUNT = std::max(1, static_cast<int>(self->max_health * 0.08f));
@@ -1339,11 +1324,6 @@ THINK(monster_think) (edict_t* self) -> void
 		self->health = std::min(self->health + REGEN_AMOUNT, self->max_health);
 		self->monsterinfo.next_regen_time = level.time + REGEN_INTERVAL;
 	}
-
-
-	// pain/die above freed us
-	if (!self->inuse || self->think != monster_think)
-		return;
 
 	if (self->hackflags & HACKFLAG_ATTACK_PLAYER)
 	{
@@ -1367,6 +1347,7 @@ THINK(monster_think) (edict_t* self) -> void
 	M_WorldEffects(self);
 	M_SetEffects(self);
 }
+
 /*
 ================
 monster_use
