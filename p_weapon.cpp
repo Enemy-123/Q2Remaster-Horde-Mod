@@ -1597,16 +1597,14 @@ void Machinegun_Fire(edict_t* ent)
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// Calculate firing vectors
+	// Calculate firing vectors correctly.
+	// The offset is relative to the player's eye level. This fixes a bug
+	// where viewheight was added twice and the start position was modified
+	// after the direction vector was calculated.
 	vec3_t start;
-	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
-
-	// Calculate gun position with viewheight adjustment
-	vec3_t offset = GUN_OFFSET;
-	offset[2] += ent->viewheight; // Adjust for player's view height
-
-	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
-	start[2] -= GUN_HEIGHT_ADJUST;  // Additional height adjustment
+	vec3_t forward;
+	vec3_t machinegun_offset = { 0.0f, 8.0f, -8.0f - GUN_HEIGHT_ADJUST };
+	P_ProjectSource(ent, ent->client->v_angle, machinegun_offset, start, forward, true);
 
 	// Fire with lag compensation
 	G_LagCompensate(ent, start, forward);
@@ -1644,6 +1642,7 @@ void Machinegun_Fire(edict_t* ent)
 	}
 	ent->client->anim_time = 0_ms;
 }
+
 void Weapon_Machinegun(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 23, 45, 0 };
@@ -2006,7 +2005,7 @@ void weapon_bfg_fire(edict_t* ent)
 	else
 		damage = 700;
 
-	// Handle muzzle flash for pull mode
+	// Handle muzzle flash for standard BFG charge-up
 	if (!g_bfgslide->integer && ent->client->ps.gunframe == 9)
 	{
 		gi.WriteByte(svc_muzzleflash);
@@ -2017,7 +2016,7 @@ void weapon_bfg_fire(edict_t* ent)
 		return;
 	}
 
-	// Check ammo
+	// Check for required ammo
 	int const required_ammo = g_bfgslide->integer ? 25 : 50;
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < required_ammo)
 		return;
@@ -2028,7 +2027,7 @@ void weapon_bfg_fire(edict_t* ent)
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
 
-	// Fire BFG 
+	// Fire BFG projectile
 	fire_bfg(ent, start, dir, damage, 600, damage_radius);
 
 	// Apply weapon kick
@@ -2036,7 +2035,7 @@ void weapon_bfg_fire(edict_t* ent)
 	ent->client->kick.total = DAMAGE_TIME();
 	ent->client->kick.time = level.time + ent->client->kick.total;
 
-	// Muzzle flash
+	// Muzzle flash for the actual firing
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
 	gi.WriteByte(MZ_BFG2 | is_silenced);
@@ -2044,15 +2043,8 @@ void weapon_bfg_fire(edict_t* ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	// Remove ammo
-	if (g_bfgslide->integer) {
-		G_RemoveAmmo(ent);
-	}
-	else
-	{
-		G_RemoveAmmo(ent);
-		G_RemoveAmmo(ent);
-	}
+	// Remove the correct amount of ammo in a single, clear call
+	G_RemoveAmmo(ent, required_ammo);
 
 	// Advance gunframe
 	if (g_bfgslide->integer)
@@ -2060,7 +2052,6 @@ void weapon_bfg_fire(edict_t* ent)
 	else
 		ent->client->ps.gunframe++;
 }
-
 
 void Weapon_BFG(edict_t* ent)
 {
