@@ -2388,8 +2388,10 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer) // Check if CTF mode is active
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text)); // Use localized CTF name
 	else // Assume Horde or other modes
-		Q_strlcpy(p->text, "*Horde MOD BETA v0.0094*", sizeof(p->text)); // Horde title (added '*' for centering style)
+		// Use the constexpr string defined at the top of the file
+		Q_strlcpy(p->text, HORDE_MOD_VERSION_STRING, sizeof(p->text));
 }
+
 static void SetLevelName(pmenu_t* p)
 {
 	static char levelname[33];

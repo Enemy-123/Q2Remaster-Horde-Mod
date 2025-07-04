@@ -514,8 +514,24 @@ void Cmd_Laser_f(edict_t* ent)
 
 void Cmd_RemoveLaser_f(edict_t* ent)
 {
-	remove_lasers(ent);
-	gi.LocClient_Print(ent, PRINT_HIGH, "All lasers removed.\n");
+    if (!ent || !ent->client) {
+        return;
+    }
+
+    // Use an if-statement with initializer to get the manager.
+    // Then, check if the manager exists AND has lasers to remove.
+    if (auto* manager = LaserHelpers::get_laser_manager(ent); manager && manager->get_active_count() > 0) 
+    {
+        // If we are here, the player had at least one laser.
+        manager->remove_all_lasers();
+        gi.LocClient_Print(ent, PRINT_HIGH, "All your lasers have been removed.\n");
+    } 
+    else 
+    {
+        // If we are here, the player either never built a laser (no manager)
+        // or all their lasers were already destroyed.
+        gi.LocClient_Print(ent, PRINT_HIGH, "You have no active lasers to remove.\n");
+    }
 }
 
 void Cmd_RemoveSentry_f(edict_t* ent)

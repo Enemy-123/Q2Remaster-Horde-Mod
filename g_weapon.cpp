@@ -103,6 +103,7 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 // you can adjust the mask for the re-trace (for water, etc).
 // note that you must take care in your pierce callback to mark
 // the entities that are being pierced.
+// CORRECTED pierce_trace FUNCTION
 void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierce_args_t& pierce, contents_t mask)
 {
 	int	   loop_count = MAX_EDICTS;
@@ -112,7 +113,8 @@ void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierc
 
 	while (--loop_count)
 	{
-		pierce.tr = gi.traceline(start, own_end, ignore, mask);
+		// FIXED: Use 'own_start' which is updated each loop, not the original 'start'.
+		pierce.tr = gi.traceline(own_start, own_end, ignore, mask);
 
 		// didn't hit anything, so we're done
 		if (!pierce.tr.ent || pierce.tr.fraction == 1.0f)
@@ -122,9 +124,11 @@ void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierc
 		if (!pierce.hit(mask, own_end))
 			return;
 
+		// Update the start position for the next segment of the trace
 		own_start = pierce.tr.endpos;
 	}
 
+	// This message will now only appear in legitimate edge cases, not every time you pierce something.
 	gi.Com_Print("runaway pierce_trace\n");
 }
 

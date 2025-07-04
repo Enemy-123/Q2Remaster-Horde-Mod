@@ -7,6 +7,13 @@
 #include <new>
 #include <cmath>
 
+struct EmitterState {
+    bool is_warning_phase = false;
+    bool is_blink_on = false;
+    gtime_t last_blink_time = 0_ms;
+};
+
+static std::unordered_map<const edict_t*, EmitterState> g_emitter_states;
 // Forward declarations
 void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 
@@ -115,12 +122,6 @@ struct LaserState {
     vec3_t last_trace_end;
     gtime_t last_trace_time = 0_ms;
     bool needs_retrace = true;
-};
-
-struct EmitterState {
-    bool is_warning_phase = false;
-    bool is_blink_on = false;
-    gtime_t last_blink_time = 0_ms;
 };
 
 // --- PlayerLaserManager Implementation ---
@@ -399,66 +400,79 @@ void laser_remove(edict_t* self) {
     // Note: G_FreeEdict(self) is implicitly handled by BecomeExplosion1 sequence
 }
 
-// laser_die: Handles the death/destruction of a laser component (emitter or beam)
+// A single, robust function to handle the death of any laser component.
 DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void {
-    if (!self || !self->inuse) return;
+    if (!self || !self->inuse) {
+        return;
+    }
 
     edict_t* emitter = nullptr;
     edict_t* beam = nullptr;
-    edict_t* flare = nullptr;
-    edict_t* teammaster = self->teammaster; // Cache teammaster
+    edict_t* teammaster = self->teammaster; // Cache before we start freeing things
 
-    // Identify components based on classname
+    // Step 1: Identify the core components (emitter and beam)
     if (self->classname && strcmp(self->classname, "emitter") == 0) {
         emitter = self;
-        beam = self->owner;
-    }
-    else if (self->classname && strcmp(self->classname, "laser") == 0) {
+        beam = self->owner; // Emitter owns the beam
+    } else if (self->classname && strcmp(self->classname, "laser") == 0) {
         beam = self;
-        emitter = self->owner;
-    }
-    else {
-        // Unknown type, attempt basic cleanup
-        if (self->owner && self->owner->inuse) G_FreeEdict(self->owner);
+        emitter = self->owner; // Beam is owned by the emitter
+    } else {
+        // Not a known laser part, just free it to be safe.
         G_FreeEdict(self);
         return;
     }
 
-    // Update manager first (using the component that died)
+    // Step 2: Update the player's manager FIRST. This is critical.
+    // This prevents logic errors if we try to find the manager after freeing the player.
     if (teammaster && teammaster->inuse && teammaster->client) {
         if (auto* manager = LaserHelpers::get_laser_manager(teammaster)) {
-            manager->remove_laser(self);
-            // Optional: Print message here if needed
+            // Remove based on the emitter, which is the primary entity.
+            // If emitter is null, use the beam. This covers all cases.
+            manager->remove_laser(emitter ? emitter : beam);
+            
+            // Optional: You can print the "Laser destroyed" message here if you want.
+            // gi.LocClient_Print(teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
+            //    manager->get_active_count(), LaserConstants::MAX_LASERS);
         }
     }
 
-    // Find and clean up flare associated with the emitter
+    // Step 3: Clean up all associated edicts. Check for `inuse` at each step.
     if (emitter && emitter->inuse) {
+        // Clean up the state map for the emitter
+        g_emitter_states.erase(emitter);
+
+        // Find and free the flare owned by the emitter
         for (uint32_t i = 1; i <= globals.num_edicts; i++) {
             edict_t* potential_flare = &g_edicts[i];
             if (potential_flare->inuse && potential_flare->classname &&
                 strcmp(potential_flare->classname, "misc_flare") == 0 &&
-                potential_flare->owner == emitter)
-            {
+                potential_flare->owner == emitter) {
                 G_FreeEdict(potential_flare);
-                break; // Assume only one flare per emitter
+                break; // Assume only one
             }
         }
     }
 
-    // Clean up the other component and start explosion on the emitter (if it exists)
-    if (emitter && emitter->inuse) {
-        if (beam && beam != emitter && beam->inuse) { // Free beam if it exists and isn't self
-            G_FreeEdict(beam);
-        }
-        BecomeExplosion1(emitter); // Start explosion on the emitter
-    }
-    else if (beam && beam->inuse) {
-        // If emitter is already gone, just free the beam
+    // Free the beam if it exists and isn't the entity we're about to explode
+    if (beam && beam->inuse && beam != emitter) {
         G_FreeEdict(beam);
     }
-    // If self was the emitter, BecomeExplosion1 handles its freeing.
-    // If self was the beam and emitter was already gone, self was freed above.
+
+    // Finally, handle the emitter's death.
+    // If the emitter is the entity that died, start its explosion sequence.
+    // This will handle freeing the emitter edict itself.
+    if (emitter && emitter->inuse) {
+        // If self is the emitter, it will be handled by BecomeExplosion1.
+        // If self was the beam, we are now explicitly killing the emitter.
+        emitter->health = 0; // Ensure it's dead
+        emitter->takedamage = false;
+        BecomeExplosion1(emitter);
+    }
+    
+    // If self was the entity that initiated the die call, and it wasn't the emitter
+    // (which is handled by BecomeExplosion1), it needs to be freed if it hasn't been already.
+    // The check `if (beam && beam->inuse && beam != emitter)` handles this.
 }
 
 
@@ -513,40 +527,63 @@ THINK(laser_beam_think)(edict_t* self) -> void {
 
 // emitter_think: Per-frame logic for the laser emitter entity (grenade model)
 THINK(emitter_think)(edict_t* self) -> void {
-    if (!self || !self->inuse) return;
-
-    static std::unordered_map<const edict_t*, EmitterState> emitter_states;
-    auto it = emitter_states.find(self);
-    if (it == emitter_states.end()) {
-        // Initialize state if not found
-        it = emitter_states.emplace(self, EmitterState{}).first;
+    // --- Step 1: Basic Validity Check ---
+    if (!self || !self->inuse) {
+        // As a safety net, if we find an entity that is no longer in use,
+        // remove it from the map. The primary cleanup is in laser_die.
+        g_emitter_states.erase(self);
+        return;
     }
+
+    // --- Step 2: Get or Create the Emitter's State ---
+    // Find the state for this specific emitter in our global map.
+    auto it = g_emitter_states.find(self);
+    if (it == g_emitter_states.end()) {
+        // If this is the first time we're thinking for this emitter,
+        // create a new state for it in the map.
+        it = g_emitter_states.emplace(self, EmitterState{}).first;
+    }
+    // Get a convenient reference to the state object.
     auto& state = it->second;
 
-
+    // --- Step 3: Handle Timeout ---
+    // Check if the laser's lifetime has expired.
     if (level.time >= self->timestamp) {
         if (self->teammaster && self->teammaster->client) {
             gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
         }
+        
+        // The laser's time is up. Call the master cleanup function.
+        // laser_die will handle removing the emitter from g_emitter_states,
+        // freeing the beam/flare, and starting the explosion.
         laser_die(self, nullptr, self->teammaster, 9999, self->s.origin, MOD_UNKNOWN);
-        emitter_states.erase(it); // Use iterator to erase
+        
+        // The entity is now being destroyed, so we must stop its think loop.
         return;
     }
 
+    // --- Step 4: Handle Warning/Blink Visuals ---
+    // Check if we are in the final warning period before timeout.
     bool const should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
+    
+    // If we just entered the warning phase, reset the blink timer.
     if (should_warn != state.is_warning_phase) {
         state.is_warning_phase = should_warn;
         state.last_blink_time = 0_ms;
         state.is_blink_on = false;
     }
 
+    // If we are in the warning phase, toggle the blink state at a set interval.
     if (state.is_warning_phase && level.time >= state.last_blink_time + LaserConstants::BLINK_INTERVAL) {
         state.is_blink_on = !state.is_blink_on;
         state.last_blink_time = level.time;
     }
 
+    // Update the emitter's visual effect (the green shell) based on the blink state.
     LaserHelpers::update_visual_state(self, state.is_warning_phase, state.is_blink_on);
 
+    // --- Step 5: Schedule the Next Think ---
+    // Tell the engine to call this function again on the next frame.
     self->nextthink = level.time + FRAME_TIME_MS;
     gi.linkentity(self);
 }
