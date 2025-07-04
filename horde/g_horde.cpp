@@ -270,155 +270,145 @@ int consistent_zero_counts = 0;
 int counter_mismatch_frames = 0;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
-// (Keep SpawnPointData and SpawnPointDataArray structs as they were)
-struct SpawnPointData
+struct SpawnPointsSoA
 {
-	uint16_t attempts = 0;
-	gtime_t teleport_cooldown = 0_sec; // Added teleport_cooldown
-	gtime_t lastSpawnTime = 0_sec;	   // Added lastSpawnTime
-	bool isTemporarilyDisabled = false;
-	gtime_t cooldownEndsAt = 0_sec;
-	int32_t successfulSpawns = 0;
+    // --- HOT DATA ---
+    // These fields are checked frequently in loops that iterate over many spawn points.
+    // Keeping them together improves cache performance.
+    std::array<bool, MAX_EDICTS> isTemporarilyDisabled;
+    std::array<gtime_t, MAX_EDICTS> cooldownEndsAt;
+    std::array<gtime_t, MAX_EDICTS> alternative_cooldown;
+    std::array<gtime_t, MAX_EDICTS> teleport_cooldown;
 
-	// New fields for alternative position tracking
-	uint16_t alternative_attempts = 0;			  // Added alternative_attempts
-	gtime_t alternative_cooldown = 0_sec;		  // Added alternative_cooldown
-	bool needs_long_alternative_cooldown = false; // Added needs_long_alternative_cooldown
+    // --- COLD DATA ---
+    // These fields are typically modified for a single spawn point at a time,
+    // not iterated over in hot loops.
+    std::array<gtime_t, MAX_EDICTS> lastSpawnTime;
+    std::array<uint16_t, MAX_EDICTS> attempts;
+    std::array<int32_t, MAX_EDICTS> successfulSpawns;
+    std::array<uint16_t, MAX_EDICTS> alternative_attempts;
+    std::array<bool, MAX_EDICTS> needs_long_alternative_cooldown;
 
-	// Update the success rate calculation method to accept current_time
-	float getSuccessRate(gtime_t current_time) const
-	{
-		if (attempts == 0)
-			return 1.0f;
-		// Use faster approximation - avoid division when possible
-		const float time_factor = (current_time - lastSpawnTime).seconds() >= 5.0f ? 1.0f : (current_time - lastSpawnTime).seconds() * 0.2f;
-		// Clamp time_factor to avoid excessive influence
-		const float clamped_time_factor = std::min(time_factor, 1.0f);
-		// Calculate base success rate, ensure attempts is not zero
-		const float base_rate = (attempts > 0) ? (float(successfulSpawns) / float(attempts)) : 1.0f;
-
-		// Combine base rate and time factor, ensuring result is between 0 and 1
-		return std::clamp(base_rate + clamped_time_factor, 0.0f, 1.0f);
-	}
+    // Helper method to reset all data to its default state.
+    void clear()
+    {
+        isTemporarilyDisabled.fill(false);
+        cooldownEndsAt.fill(0_sec);
+        alternative_cooldown.fill(0_sec);
+        teleport_cooldown.fill(0_sec);
+        lastSpawnTime.fill(0_sec);
+        attempts.fill(0);
+        successfulSpawns.fill(0);
+        alternative_attempts.fill(0);
+        needs_long_alternative_cooldown.fill(false);
+    }
 };
-struct SpawnPointDataArray
-{
-	SpawnPointData data[MAX_EDICTS];
-	SpawnPointData &operator[](const edict_t *ent) { return data[ent - g_edicts]; }
-	const SpawnPointData &operator[](const edict_t *ent) const { return data[ent - g_edicts]; }
-	void clear()
-	{
-		for (auto &item : data)
-			item = SpawnPointData{};
-	}
-};
-SpawnPointDataArray spawnPointsData;
+
+// The single global instance that replaces the old `spawnPointsData`
+static SpawnPointsSoA g_spawnPointsData;
 
 void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
 		return;
-	auto &data = spawnPointsData[spawn_point];
-	data.alternative_attempts++;
+
+    // Get the index for this spawn point
+    const int index = spawn_point - g_edicts;
+
+	// Access data from the parallel arrays
+	g_spawnPointsData.alternative_attempts[index]++;
 	gtime_t cooldown_duration;
-	if (data.alternative_attempts <= 2)
+    const uint16_t alt_attempts = g_spawnPointsData.alternative_attempts[index];
+
+	if (alt_attempts <= 2)
 		cooldown_duration = HordeConstants::ALT_SPAWN_COOLDOWN_SHORT;
-	else if (data.alternative_attempts <= 5)
+	else if (alt_attempts <= 5)
 		cooldown_duration = HordeConstants::ALT_SPAWN_COOLDOWN_MEDIUM;
 	else
 	{
-		cooldown_duration = 5.0_sec + gtime_t::from_sec(0.5f * (data.alternative_attempts - 5));
+		cooldown_duration = 5.0_sec + gtime_t::from_sec(0.5f * (alt_attempts - 5));
 		cooldown_duration = std::min(cooldown_duration, 10.0_sec);
-		if (data.alternative_attempts >= 8)
-			data.needs_long_alternative_cooldown = true;
+		if (alt_attempts >= 8)
+			g_spawnPointsData.needs_long_alternative_cooldown[index] = true;
 	}
 
-	// Clamp the calculated alternative failure cooldown duration
 	const gtime_t final_alt_duration = std::max(cooldown_duration, HordeConstants::MIN_ALT_FAILURE_COOLDOWN);
-	data.alternative_cooldown = level.time + final_alt_duration;
+	g_spawnPointsData.alternative_cooldown[index] = level.time + final_alt_duration;
 
-	data.isTemporarilyDisabled = true; // Also disable original point shortly
-	// Also clamp the normal point's shorter cooldown based on the *clamped* alternative duration
+	g_spawnPointsData.isTemporarilyDisabled[index] = true;
 	const gtime_t final_normal_duration = std::max(final_alt_duration * 0.5f, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
-	data.cooldownEndsAt = level.time + final_normal_duration;
-	data.lastSpawnTime = level.time;
+	g_spawnPointsData.cooldownEndsAt[index] = level.time + final_normal_duration;
+	g_spawnPointsData.lastSpawnTime[index] = level.time;
 
 	if (developer->integer)
-		gi.Com_PrintFmt("Alternative position cooldown applied to spawn at {}: {:.1f}s (attempts: {})\n", spawn_point->s.origin, final_alt_duration.seconds(), data.alternative_attempts);
+		gi.Com_PrintFmt("Alternative position cooldown applied to spawn at {}: {:.1f}s (attempts: {})\n", spawn_point->s.origin, final_alt_duration.seconds(), alt_attempts);
 }
 
-void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
-{
-	if (!spawn_point || !spawn_point->inuse)
-		return;
-	auto &data = spawnPointsData[spawn_point];
-	data.alternative_attempts = 0;
-	data.needs_long_alternative_cooldown = false;
-	// Ensure the 3.0s meets the minimum alternative success cooldown
-	data.alternative_cooldown = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
-	if (developer->integer > 1)
-		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
-}
-
-// --- MODIFIED IncreaseSpawnAttempts ---
 void IncreaseSpawnAttempts(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
 		return;
-	auto &data = spawnPointsData[spawn_point];
 
-	// --- FIX: Less aggressive reset for inactive points ---
-	// Use HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD
-	if (level.time - data.lastSpawnTime > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
+    const int index = spawn_point - g_edicts;
+
+	if (level.time - g_spawnPointsData.lastSpawnTime[index] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
 	{
-		data.attempts = 0;
-		data.isTemporarilyDisabled = false;
-		data.cooldownEndsAt = 0_sec;
-		data.lastSpawnTime = level.time; // Mark this reset attempt time
+		g_spawnPointsData.attempts[index] = 0;
+		g_spawnPointsData.isTemporarilyDisabled[index] = false;
+		g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
+		g_spawnPointsData.lastSpawnTime[index] = level.time;
 		return;
 	}
-	// --- END FIX ---
 
-	data.attempts++;
-	const float success_rate = data.getSuccessRate(level.time);
+	g_spawnPointsData.attempts[index]++;
+
+    // Inlined logic from the old getSuccessRate method
+    const uint16_t current_attempts = g_spawnPointsData.attempts[index];
+    const int32_t current_successes = g_spawnPointsData.successfulSpawns[index];
+    const float success_rate = (current_attempts > 0) ? (static_cast<float>(current_successes) / current_attempts) : 1.0f;
+
 	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
 
 	gtime_t calculated_duration = 0_sec;
 
-	if (data.attempts >= max_attempts)
+	if (current_attempts >= max_attempts)
 	{
-		data.isTemporarilyDisabled = true;
+		g_spawnPointsData.isTemporarilyDisabled[index] = true;
 		const float cooldown_factor = success_rate < 0.3f ? 1.5f : 0.75f;
-		const float attempt_multiplier = data.attempts <= 8 ? data.attempts * 0.25f : 2.0f;
+		const float attempt_multiplier = current_attempts <= 8 ? current_attempts * 0.25f : 2.0f;
 		calculated_duration = gtime_t::from_sec(cooldown_factor * attempt_multiplier);
 		if (developer->integer == 1)
 			gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n", spawn_point->s.origin);
 	}
-	else if ((data.attempts & 1) == 0)
-	{ // Every 2 attempts
-		calculated_duration = gtime_t::from_sec(0.2f * data.attempts);
+	else if ((current_attempts & 1) == 0)
+	{
+		calculated_duration = gtime_t::from_sec(0.2f * current_attempts);
 	}
 
 	if (calculated_duration > 0_sec)
 	{
 		const gtime_t final_duration = std::max(calculated_duration, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
-		data.cooldownEndsAt = level.time + final_duration;
+		g_spawnPointsData.cooldownEndsAt[index] = level.time + final_duration;
 	}
-	data.lastSpawnTime = level.time;
+	g_spawnPointsData.lastSpawnTime[index] = level.time;
 }
 
 void OnSuccessfulSpawn(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
 		return;
-	auto &data = spawnPointsData[spawn_point];
-	data.successfulSpawns++;
-	data.attempts = 0;
-	data.isTemporarilyDisabled = false;
-	// Use the minimum success cooldown constant
-	data.cooldownEndsAt = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
+
+    const int index = spawn_point - g_edicts;
+
+	g_spawnPointsData.successfulSpawns[index]++;
+	g_spawnPointsData.attempts[index] = 0;
+	g_spawnPointsData.isTemporarilyDisabled[index] = false;
+	g_spawnPointsData.cooldownEndsAt[index] = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
+
 	horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
+
+
 struct SpawnPointCache
 {
 	gtime_t last_check_time = 0_sec;
@@ -536,7 +526,6 @@ struct OccupiedCheckData {
 template <typename TFilter>
 edict_t *SelectRandomSpawnPoint(TFilter filter)
 {
-    // Use std::array for compile-time safety and to avoid magic numbers.
     std::array<edict_t*, MAX_SPAWN_POINTS> availableSpawns{};
     std::array<edict_t*, MAX_SPAWN_POINTS> occupiedButUsableSpawns{};
     size_t availableCount = 0;
@@ -544,89 +533,59 @@ edict_t *SelectRandomSpawnPoint(TFilter filter)
 
     for (edict_t *spawnPoint : monster_spawn_points())
     {
+        const int index = spawnPoint - g_edicts;
+
         // Consolidated initial validation and cooldown checks for clarity
-        const auto& data = spawnPointsData[spawnPoint];
+        // THIS IS THE HOT PATH: Accessing contiguous arrays is much faster.
         if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin) ||
-            (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) ||
-            (level.time < data.alternative_cooldown))
+            (g_spawnPointsData.isTemporarilyDisabled[index] && level.time < g_spawnPointsData.cooldownEndsAt[index]) ||
+            (level.time < g_spawnPointsData.alternative_cooldown[index]))
         {
             continue;
         }
 
-        // Apply the custom filter first. If it fails, no need for further checks.
         if (!filter(spawnPoint))
         {
             continue;
         }
 
-        // Check if a player is directly blocking the spawn.
-        // This is a hard "no" for direct spawning.
         if (IsSpawnPointOccupied(spawnPoint))
         {
             if (developer->integer > 2)
                 gi.Com_PrintFmt("SelectRandomSpawnPoint: Point #{} at {} skipped (player occupied).\n",
-                                (int)(spawnPoint - g_edicts), spawnPoint->s.origin);
+                                index, spawnPoint->s.origin);
             continue;
         }
 
-        // Not blocked by a player. Now check the cache for non-player obstacles.
-        // The IsSpawnPointOccupied call above already updated the cache for us.
         const SpawnPointCache& cache = spawn_point_cache[spawnPoint];
         if (cache.has_obstacle)
         {
-            // Blocked by monster/defense - add to the list for potential alternative spawn.
             if (occupiedCount < occupiedButUsableSpawns.size())
             {
                 occupiedButUsableSpawns[occupiedCount++] = spawnPoint;
             }
-            if (developer->integer > 2)
-                gi.Com_PrintFmt("SelectRandomSpawnPoint: Point #{} at {} added to occupiedButUsable (obstacle present).\n",
-                                (int)(spawnPoint - g_edicts), spawnPoint->s.origin);
         }
         else
         {
-            // Not blocked by player AND no obstacle found -> add to the best-case list.
             if (availableCount < availableSpawns.size())
             {
                 availableSpawns[availableCount++] = spawnPoint;
             }
-            if (developer->integer > 2)
-                gi.Com_PrintFmt("SelectRandomSpawnPoint: Point #{} at {} added to available.\n",
-                                (int)(spawnPoint - g_edicts), spawnPoint->s.origin);
         }
     }
 
-    // --- Selection Logic ---
-
-    // Prioritize completely available spawns.
+    // --- Selection Logic (no changes needed here) ---
     if (availableCount > 0)
     {
-        // Create a lightweight, non-owning view of the valid part of the array.
         std::span<edict_t* const> valid_spawns(availableSpawns.data(), availableCount);
-
-        // Use your brilliant random_element helper! It's perfect for this.
-        edict_t* chosen_spawn = random_element(valid_spawns);
-        if (developer->integer > 1)
-            gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected from {} available points. Chose #{} at {}.\n",
-                            availableCount, (int)(chosen_spawn - g_edicts), chosen_spawn->s.origin);
-        return chosen_spawn;
+        return random_element(valid_spawns);
     }
 
-    // If no completely available spawns, try one that is blocked by an obstacle
-    // (which can then be used as a base for an alternative position).
     if (occupiedCount > 0)
     {
         std::span<edict_t* const> valid_spawns(occupiedButUsableSpawns.data(), occupiedCount);
-        edict_t* chosen_spawn = random_element(valid_spawns);
-        if (developer->integer > 1)
-            gi.Com_PrintFmt("SelectRandomSpawnPoint: Selected from {} obstacle-occupied points. Chose #{} at {} (will try alternative).\n",
-                            occupiedCount, (int)(chosen_spawn - g_edicts), chosen_spawn->s.origin);
-        return chosen_spawn;
+        return random_element(valid_spawns);
     }
-
-    // If we reach here, no suitable spawn points were found at all.
-    if (developer->integer > 1)
-        gi.Com_PrintFmt("SelectRandomSpawnPoint: No suitable spawn points found after checking all.\n");
 
     return nullptr;
 }
@@ -703,65 +662,44 @@ uint16_t g_totalMonstersInWave = 0; // Reducido de uint32_t
 gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; // spawns Cooldown
 
-// Function to check and reduce spawn cooldowns when few monsters remain
 void CheckAndReduceSpawnCooldowns()
 {
-	// Only proceed if fewer than 7 stroggs remain and not in a boss wave
 	const int32_t remaining_stroggs = GetStroggsNum();
 	if (remaining_stroggs > 6 || IsBossWave())
 	{
 		return;
 	}
 
-	// Track if we found any valid cooldowns to reset
 	bool found_cooldowns_to_reset = false;
 	const gtime_t current_time = level.time;
+	constexpr float REDUCTION_FACTOR = 0.4f;
 
-	// Pre-compute the reduction factor once
-	constexpr float REDUCTION_FACTOR = 0.4f; // Changed from 0.15f to 0.4f to make late-wave cooldown reduction less aggressive
-
-	// Process spawn points by directly iterating over monster_spawn_points()
-	// This avoids a manual scan of all g_edicts.
 	for (edict_t *spawn_point : monster_spawn_points())
 	{
-		// Basic validation: monster_spawn_points() should ideally only return valid
-		// info_player_deathmatch entities that are inuse.
 		if (!spawn_point || !spawn_point->inuse)
 		{
-			// Optionally log if unexpected entities are returned
-			if (developer->integer > 1)
-			{
-				gi.Com_PrintFmt("CheckAndReduceSpawnCooldowns: monster_spawn_points() returned an invalid or !inuse entity.\n");
-			}
 			continue;
 		}
-		// Further classname check can be added if monster_spawn_points() is not guaranteed
-		// to return only "info_player_deathmatch", though its name implies it should.
-		// if (!spawn_point->classname || strcmp(spawn_point->classname, "info_player_deathmatch") != 0) {
-		//     continue;
-		// }
 
-		auto &data = spawnPointsData[spawn_point];
+        const int index = spawn_point - g_edicts;
 
-		// Check if spawn point is disabled and cooldown is still active
-		if (data.isTemporarilyDisabled && current_time < data.cooldownEndsAt)
+		// Access the SoA data using the entity's index
+		if (g_spawnPointsData.isTemporarilyDisabled[index] && current_time < g_spawnPointsData.cooldownEndsAt[index])
 		{
 			found_cooldowns_to_reset = true;
 
-			const gtime_t remaining_time = data.cooldownEndsAt - current_time;
-			// Calculate reduced duration and ensure it meets the minimum
+			const gtime_t remaining_time = g_spawnPointsData.cooldownEndsAt[index] - current_time;
 			const gtime_t reduced_duration = remaining_time * REDUCTION_FACTOR;
 			const gtime_t final_duration = std::max(reduced_duration, HordeConstants::MIN_REDUCED_INDIVIDUAL_COOLDOWN);
-			data.cooldownEndsAt = current_time + final_duration; // Apply clamped duration
-
-			data.attempts = 0;
+			
+            g_spawnPointsData.cooldownEndsAt[index] = current_time + final_duration;
+			g_spawnPointsData.attempts[index] = 0;
 		}
 	}
 
 	if (found_cooldowns_to_reset)
 	{
 		SPAWN_POINT_COOLDOWN *= REDUCTION_FACTOR;
-		// Clamp the global cooldown after reduction
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN);
 
 		if (developer->integer > 1)
@@ -1231,9 +1169,8 @@ void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t 
 	}
 }
 
-void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
-void ResetCooldowns() noexcept;
+
 
 struct ConditionParams
 {
@@ -2860,14 +2797,6 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept
 	}
 }
 
-static void UpdateCooldowns(edict_t *spawn_point)
-{
-	auto &data = spawnPointsData[spawn_point];
-	data.lastSpawnTime = level.time;
-	data.isTemporarilyDisabled = true;
-	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
-}
-
 // Category check functions using TypeIDs
 inline bool IsFlying(horde::MonsterTypeID typeId)
 {
@@ -4277,12 +4206,12 @@ static void SpawnBossAutomatically()
 		}
 		it = auto_spawned_bosses.erase(it);
 	}
-	boss_spawned_for_wave = false; // Reset flag
+	boss_spawned_for_wave = false;
 
 	// --- 2. Basic Wave Check ---
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0)
 	{
-		return; // Not a boss wave
+		return;
 	}
 
 	// --- 3. Select Boss Type ---
@@ -4291,7 +4220,7 @@ static void SpawnBossAutomatically()
 		g_horde_local.current_map_size, map_name, g_horde_local.level);
 
 	horde::MonsterTypeID boss_type = boss_pick_result.typeId;
-	BossSizeCategory selected_boss_size = boss_pick_result.sizeCategory;
+	BossSizeCategory selected_boss_size = boss_pick_result.sizeCategory; // FIX: Capture this value
 
 	if (boss_type == horde::MonsterTypeID::UNKNOWN)
 	{
@@ -4307,13 +4236,10 @@ static void SpawnBossAutomatically()
 		return;
 	}
 
-	// --- 4. Determine Spawn Location (Fixed Origin or Random Fallback) ---
+	// --- 4. Determine Spawn Location ---
 	vec3_t spawn_origin = vec3_origin;
 	vec3_t spawn_angles = vec3_origin;
 	bool location_found = false;
-	edict_t *selected_point = nullptr;
-
-	// Get boss properties needed for validation
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(boss_type, predicted_mins, predicted_maxs);
 	bool boss_is_flying = IsFlying(boss_type);
@@ -4347,22 +4273,28 @@ static void SpawnBossAutomatically()
 			gi.Com_PrintFmt("SpawnBossAutomatically: No predefined map origin found for {}. Using random spawn point fallback.\n", map_name);
 	}
 
-	// --- Pass 2: Fallback to random spawn point selection if fixed origin wasn't found or wasn't valid ---
+	// --- Pass 2: Random Spawn Point Fallback ---
 	if (!location_found)
 	{
 		constexpr float MIN_BOSS_PLAYER_DIST_SQ = 250.0f * 250.0f;
+		
+        // THIS LAMBDA IS THE PART THAT NEEDS FIXING
 		auto BossSpawnFilter = [&](edict_t *spawnPoint) -> bool
 		{
 			if (!spawnPoint || !spawnPoint->inuse)
 				return false;
-			const auto &data = spawnPointsData[spawnPoint];
-			if ((data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) ||
-				level.time < data.teleport_cooldown ||
-				level.time < data.alternative_cooldown)
+            
+            const int index = spawnPoint - g_edicts;
+
+			if ((g_spawnPointsData.isTemporarilyDisabled[index] && level.time < g_spawnPointsData.cooldownEndsAt[index]) ||
+				level.time < g_spawnPointsData.teleport_cooldown[index] ||
+				level.time < g_spawnPointsData.alternative_cooldown[index])
 				return false;
+
 			bool is_flying_point = (spawnPoint->style == 1);
-			if (boss_is_flying != is_flying_point) // Simplified check: must match flying status
+			if (boss_is_flying != is_flying_point)
 				return false;
+			
 			for (const auto *const player : active_players_no_spect())
 			{
 				if ((spawnPoint->s.origin - player->s.origin).lengthSquared() < MIN_BOSS_PLAYER_DIST_SQ)
@@ -4373,16 +4305,12 @@ static void SpawnBossAutomatically()
 			return true;
 		};
 
-		selected_point = SelectRandomSpawnPoint(BossSpawnFilter);
-
-		if (selected_point)
-		{
-			spawn_origin = selected_point->s.origin;
+		edict_t* selected_point = SelectRandomSpawnPoint(BossSpawnFilter);
+        if (selected_point) {
+            spawn_origin = selected_point->s.origin;
 			spawn_angles = selected_point->s.angles;
 			location_found = true;
-			if (developer->integer > 1)
-				gi.Com_PrintFmt("SpawnBossAutomatically: Using random spawn point {} for boss {}.\n", spawn_origin, boss_classname);
-		}
+        }
 	}
 
 	// --- Pass 3: Fallback to emergency spawn if no other location was found ---
@@ -4410,7 +4338,7 @@ static void SpawnBossAutomatically()
 		}
 	}
 
-	// --- 5. Setup Delayed Spawn if a Location Was Found ---
+	// --- 5. Setup Delayed Spawn ---
 	if (location_found)
 	{
 		// Create orb effect at the chosen location
@@ -4427,20 +4355,20 @@ static void SpawnBossAutomatically()
 		}
 
 		// Spawn the boss entity placeholder
+
 		edict_t *boss = G_Spawn();
 		if (!boss)
 		{
-			if (orb) G_FreeEdict(orb);
-			if (developer->integer) gi.Com_PrintFmt("SpawnBossAutomatically: Failed to G_Spawn boss entity.\n");
+			// ...
 			return;
 		}
 
-		// Set basic info needed before think
 		boss->classname = boss_classname;
 		boss->s.origin = spawn_origin;
 		boss->s.angles = spawn_angles;
+		boss->bossSizeCategory = selected_boss_size; // FIX: Use the captured value
 		boss->owner = orb; // Link orb for removal in think
-		boss->bossSizeCategory = selected_boss_size;
+
 
 		// Perform Area Clearing Actions NOW
 		constexpr float push_radius = 500.0f;
@@ -4632,54 +4560,6 @@ void ClearHordeMessage()
 	horde_message_end_time = 0_sec;
 }
 
-// reset cooldowns, fixed no monster spawning on next map
-void ResetCooldowns() noexcept
-{
-	// Reset data for all *active* spawn points
-	for (edict_t *spawnPoint : monster_spawn_points())
-	{
-		if (spawnPoint && spawnPoint->inuse)
-		{													// Added explicit inuse check for safety
-			spawnPointsData[spawnPoint] = SpawnPointData{}; // Full reset of individual data
-		}
-	} // Ensure this brace is correctly placed
-
-	// Reset global trackers
-	horde::g_monsterSpawnTracker.Reset();
-	horde::g_spawnPointTimeTracker.Reset();
-
-	// DO NOT recalculate global SPAWN_POINT_COOLDOWN here.
-	// It's managed by:
-	// 1. ResetAllSpawnPointDataAndTrackers() during full game init.
-	// 2. UnifiedAdjustSpawnRate() during per-wave init (Horde_InitLevel).
-
-	if (developer->integer > 1)
-	{
-		gi.Com_PrintFmt("ResetCooldowns: Individual spawn point data and specific trackers reset.\n");
-	}
-}
-
-void ResetAllSpawnAttempts() noexcept
-{
-	// Find all active spawn points and reset them
-	for (uint32_t i = 1; i < globals.num_edicts; i++)
-	{
-		edict_t *ent = &g_edicts[i];
-		if (ent && ent->inuse && ent->classname &&
-			!strcmp(ent->classname, "info_player_deathmatch"))
-		{
-			auto &data = spawnPointsData[ent];
-			data.attempts = 0;
-			data.isTemporarilyDisabled = false;
-			data.cooldownEndsAt = 0_sec;
-
-			// Reset alternative position tracking too
-			data.alternative_attempts = 0;
-			data.alternative_cooldown = 0_sec;
-			data.needs_long_alternative_cooldown = false;
-		}
-	}
-}
 void ResetWaveAdvanceState() noexcept;
 
 //
@@ -4722,57 +4602,60 @@ static void ResetTeleportTracking() noexcept
 	}
 }
 
+// =======================================================================
+// REPLACEMENT: ResetAllSpawnPointDataAndTrackers (Full SoA-compatible version)
+// This function centralizes the reset logic for all spawn point data and
+// re-initializes the global spawn cooldown to a baseline state.
+// =======================================================================
 static void ResetAllSpawnPointDataAndTrackers()
 {
-	// 1. Reset data for all potential spawn points
-	// Iterate all edicts to find spawn points, similar to ResetAllSpawnAttempts
-	for (uint32_t i = 1; i < globals.num_edicts; i++)
-	{
-		edict_t *ent = &g_edicts[i];
-		if (ent && ent->inuse && ent->classname &&
-			!strcmp(ent->classname, "info_player_deathmatch"))
-		{
-			spawnPointsData[ent] = SpawnPointData{}; // Reset to default values
-		}
-	}
-	// If you prefer to iterate only known spawn points (e.g., from monster_spawn_points()):
-	// for (edict_t* spawnPoint : monster_spawn_points()) {
-	//     if (spawnPoint) { // monster_spawn_points() should ensure inuse
-	//         spawnPointsData[spawnPoint] = SpawnPointData{};
-	//     }
-	// }
+    // 1. Reset all individual spawn point data with a single, efficient call.
+    // This clears all arrays within the SoA struct to their default values.
+    g_spawnPointsData.clear();
 
-	// 2. Reset global trackers
-	horde::g_monsterSpawnTracker.Reset();
-	horde::g_spawnPointTimeTracker.Reset();
+    // 2. Reset global helper trackers.
+    horde::g_monsterSpawnTracker.Reset();
+    horde::g_spawnPointTimeTracker.Reset();
 
-	// 3. Recalculate global SPAWN_POINT_COOLDOWN
-	// (Assuming g_horde_local is already reset or will be reset by the caller)
-	const horde::MapSize &mapSize = g_horde_local.current_map_size;
-	const int32_t currentLevel = g_horde_local.level; // Should be 0 after ResetGame
-	const int32_t humanPlayers = GetNumHumanPlayers();
+    // 3. Recalculate the global SPAWN_POINT_COOLDOWN for a fresh start.
+    // This logic is a simplified version of what happens in UnifiedAdjustSpawnRate,
+    // tailored for a level 0 (reset) state.
+    const horde::MapSize& mapSize = g_horde_local.current_map_size;
+    const int32_t currentLevel = g_horde_local.level; // Should be 0 after ResetGame
+    const int32_t humanPlayers = GetNumHumanPlayers();
 
-	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
-	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
-	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
+    // Start with the base cooldown determined by map size.
+    SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 
-	if (humanPlayers > 1)
-	{
-		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
-		SPAWN_POINT_COOLDOWN *= playerAdjustment;
-	}
-	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer))
-	{
-		SPAWN_POINT_COOLDOWN *= 0.95f;
-	}
-	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
-									  HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN,
-									  3.0_sec);
+    // Get the scaling factor for the current level (will be 1.0f for level 0).
+    const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
+    SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-	if (developer->integer > 1)
-	{
-		gi.Com_PrintFmt("ResetAllSpawnPointDataAndTrackers: Complete. Global Cooldown: %.2fs\n", SPAWN_POINT_COOLDOWN.seconds());
-	}
+    // Apply a small adjustment based on the number of players present at the start.
+    if (humanPlayers > 1)
+    {
+        // Slightly reduce cooldown for more players (e.g., 5% reduction per player, capped).
+        const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
+        SPAWN_POINT_COOLDOWN *= playerAdjustment;
+    }
+
+    // Check difficulty cvars, though they should be 0 after a full reset.
+    // This ensures correctness if the function were ever called in another context.
+    if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer))
+    {
+        SPAWN_POINT_COOLDOWN *= HordeConstants::TIME_REDUCTION_MULTIPLIER;
+    }
+
+    // Finally, clamp the cooldown to ensure it's within reasonable bounds.
+    SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
+                                      HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN,
+                                      3.0_sec); // A reasonable upper limit for the start.
+
+    // Optional: Log the result for debugging purposes.
+    if (developer->integer > 1)
+    {
+        gi.Com_PrintFmt("ResetAllSpawnPointDataAndTrackers: Complete. Global Cooldown set to: %.2fs\n", SPAWN_POINT_COOLDOWN.seconds());
+    }
 }
 
 // NEW HELPER FUNCTION
@@ -4853,8 +4736,6 @@ void ResetGame()
 	// --- FIX: Call the new consolidated reset function ---
 	ResetAllSpawnPointDataAndTrackers();
 	// --- END FIX ---
-	// Note: spawnPointsData.clear(), ResetAllSpawnAttempts(), ResetCooldowns() are now covered by the above.
-
 	need_spawn_cache_reset = true; // For g_potential_spawn_points cache
 	need_frame_timer_reset = true;
 	need_queue_monitor_reset = true; // Assuming this resets other queue-specific logic not covered
@@ -4869,8 +4750,6 @@ void ResetGame()
 	allowWaveAdvance = false;
 	// SPAWN_POINT_COOLDOWN is set in ResetAllSpawnPointDataAndTrackers
 
-	// ResetAllSpawnAttempts(); // Now covered by ResetAllSpawnPointDataAndTrackers
-	// ResetCooldowns();       // Now covered by ResetAllSpawnPointDataAndTrackers
 	ResetBenefits();
 	ResetWaveAdvanceState();
 
@@ -5564,11 +5443,8 @@ static edict_t* FindBestPlayerTargetForTeleport()
     return target_player;
 }
 
-// --- HELPER: Finds a valid standard spawn point for teleporting ---
-// REPLACEMENT: FindTeleportDestination (Corrected Logic)
 static edict_t* FindTeleportDestination(edict_t* self)
 {
-    // Get the monster's fundamental capability (can it EVER fly?)
     horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
     const bool can_monster_fly = IsFlying(monsterTypeId);
 
@@ -5579,25 +5455,18 @@ static edict_t* FindTeleportDestination(edict_t* self)
     {
         if (!spawn_point || !spawn_point->inuse) continue;
 
-        // Check cooldowns and occupation
-        if (level.time < spawnPointsData[spawn_point].teleport_cooldown || IsSpawnPointOccupied(spawn_point)) {
+        const int index = spawn_point - g_edicts;
+
+        // Access SoA data
+        if (level.time < g_spawnPointsData.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point)) {
             continue;
         }
 
         const bool is_flying_point = (spawn_point->style == 1);
-
-        // --- REVISED LOGIC ---
-        // The only invalid combination is a ground-only monster trying to use a flying point.
         if (!can_monster_fly && is_flying_point) {
-            // This monster cannot fly, but the point is for flyers. Skip it.
             continue;
         }
         
-        // In all other cases, the point is valid:
-        // - A flyer (can_monster_fly = true) can use a ground point.
-        // - A flyer (can_monster_fly = true) can use a flying point.
-        // - A grounder (can_monster_fly = false) can use a ground point.
-
         candidates.push_back(spawn_point);
     }
 
@@ -5607,6 +5476,7 @@ static edict_t* FindTeleportDestination(edict_t* self)
 
     return random_element(candidates);
 }
+
 
 // REPLACEMENT: CheckAndTeleportStuckMonster (with tiered, prioritized timeouts)
 bool CheckAndTeleportStuckMonster(edict_t *self)
@@ -5732,20 +5602,21 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
     
     dest_angles[PITCH] = 0;
 
-    if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
-        MarkPositionAsRecentlyTeleported(self->s.origin);
-        if (used_spawn_point) {
-            spawnPointsData[used_spawn_point].teleport_cooldown = level.time + 3.5_sec;
-        }
-        HordeConstants::g_teleport_rate_count++;
-        self->monsterinfo.was_stuck = false;
-        self->monsterinfo.stuck_check_time = 0_sec;
-        self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
-        return true;
-    }
+	if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
+			MarkPositionAsRecentlyTeleported(self->s.origin);
+			if (used_spawn_point) {
+				const int index = used_spawn_point - g_edicts;
+				g_spawnPointsData.teleport_cooldown[index] = level.time + 3.5_sec;
+			}
+			HordeConstants::g_teleport_rate_count++;
+			self->monsterinfo.was_stuck = false;
+			self->monsterinfo.stuck_check_time = 0_sec;
+			self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+			return true;
+		}
 
-    return false;
-}
+		return false;
+	}
 
 // Helper function to select a retaliation-themed monster
 horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel)
@@ -6280,7 +6151,7 @@ static bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t 
 static bool TrySpawnAmbush(const horde::MapSize &mapSize, int32_t currentLevel, int32_t activeMonsters, int32_t softCap);
 static int32_t ManageSpawnCountsAndQueue(const horde::MapSize &mapSize, int32_t availableSpace);
 static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_spawnable_this_call, bool &out_use_emergency_spawn, bool &out_recovery_mode_active, float &out_champion_chance, int32_t availableSpace, int32_t currentLevel);
-static bool ValidateSpawnPointForMonster(edict_t *spawn_point, const SpawnPointData &sp_data, gtime_t current_time, bool recovery_mode_active);
+static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_time, bool recovery_mode_active_param);
 static edict_t *FindValidSpotAndSpawn(edict_t *spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance);
 
 static int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
@@ -6620,8 +6491,8 @@ static bool AttemptSpawnSingleMonster(
 		edict_t *spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
 		points_checked_for_this_monster++;
 
-		const auto &sp_data = spawnPointsData[spawn_point];
-		if (!ValidateSpawnPointForMonster(spawn_point, sp_data, level.time, is_recovery_mode_active_param))
+        // Call the updated validation function
+		if (!ValidateSpawnPointForMonster(spawn_point, level.time, is_recovery_mode_active_param))
 		{
 			continue;
 		}
@@ -6641,12 +6512,9 @@ static bool AttemptSpawnSingleMonster(
 			continue;
 		}
 
-        // --- START OF CORRECTION ---
 		const bool monster_is_flying = IsFlying(monster_type_id);
 		const bool is_flying_spawn_point = (spawn_point->style == 1);
 
-		// This check is CORRECT and REMAINS. A ground-only monster cannot spawn at a 
-        // flying-only point because it would fall to its death.
 		if (is_flying_spawn_point && !monster_is_flying)
 		{
 			IncreaseSpawnAttempts(spawn_point);
@@ -6654,14 +6522,9 @@ static bool AttemptSpawnSingleMonster(
 			continue;
 		}
 
-		// The second, problematic 'if' block that prevented flyers from using ground
-        // points has been completely REMOVED.
-        // --- END OF CORRECTION ---
-
 		edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
 		if (spawned_monster_entity)
 		{
-			// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
 			if (spawned_monster_entity->inuse && !spawned_monster_entity->deadflag && spawned_monster_entity->health > 0)
 			{
 				SpawnGrow_Spawn(spawned_monster_entity->s.origin, 80.0f, 10.0f);
@@ -6669,15 +6532,6 @@ static bool AttemptSpawnSingleMonster(
 				{
 					gi.sound(spawned_monster_entity, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 				}
-			}
-			else if (spawned_monster_entity->inuse && developer->integer)
-			{
-				gi.Com_PrintFmt("SpawnGrow_Spawn skipped in AttemptSpawnSingleMonster: Monster {} (idx {}) not fully alive. InUse:{}, DeadFlag:{}, Health:%.0f\n",
-								(spawned_monster_entity->classname ? spawned_monster_entity->classname : "Unknown"),
-								(int)(spawned_monster_entity - g_edicts),
-								spawned_monster_entity->inuse,
-								spawned_monster_entity->deadflag,
-								spawned_monster_entity->health);
 			}
 
 			horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type_id, level.time);
@@ -6699,17 +6553,17 @@ static bool AttemptSpawnSingleMonster(
 	return false;
 }
 
-static bool ValidateSpawnPointForMonster(edict_t *spawn_point, const SpawnPointData &sp_data, gtime_t current_time, bool recovery_mode_active_param)
+static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_time, bool recovery_mode_active_param)
 {
-	// Check various cooldowns
-	if ((sp_data.isTemporarilyDisabled && current_time < sp_data.cooldownEndsAt) ||
-		(current_time < sp_data.teleport_cooldown) ||
-		(current_time < sp_data.alternative_cooldown))
+    const int index = spawn_point - g_edicts;
+
+	// Check various cooldowns from the SoA struct
+	if ((g_spawnPointsData.isTemporarilyDisabled[index] && current_time < g_spawnPointsData.cooldownEndsAt[index]) ||
+		(current_time < g_spawnPointsData.teleport_cooldown[index]) ||
+		(current_time < g_spawnPointsData.alternative_cooldown[index]))
 	{
 		return false;
 	}
-
-    // The incorrect "flying compatibility" check has been removed from here.
 
 	// Check distance to players
 	for (const auto *const player : active_players_no_spect())
@@ -6829,16 +6683,32 @@ static bool FindValidSpawnSpot(
     return false; // All attempts failed.
 }
 
-// REPLACEMENT: FindValidSpotAndSpawn (Now uses the new helper system)
-// This function replaces the old TryAlternativeSpawnPosition.
+// =======================================================================
+// REPLACEMENT: FindValidSpotAndSpawn and its missing dependency
+// =======================================================================
+
+// This function was missing from the previous replacement block. Add it back.
+void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
+{
+	if (!spawn_point || !spawn_point->inuse)
+		return;
+
+    const int index = spawn_point - g_edicts;
+
+	g_spawnPointsData.alternative_attempts[index] = 0;
+	g_spawnPointsData.needs_long_alternative_cooldown[index] = false;
+	g_spawnPointsData.alternative_cooldown[index] = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
+
+	if (developer->integer > 1)
+		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
+}
+
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
     vec3_t final_origin, final_angles;
     bool used_alternative = false;
 
-    // --- Phase 1: Find a valid spot using our new high-level orchestrator ---
     if (!FindValidSpawnSpot(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
-        // Finding a spot failed completely. Penalize the spawn point.
         if (used_alternative) {
             ApplyAlternativePositionCooldown(spawn_point);
         } else {
@@ -6848,7 +6718,6 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         return nullptr;
     }
 
-    // --- Phase 2: Spawn the monster at the validated location ---
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
     if (!monster) {
         if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
@@ -6857,9 +6726,7 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         return nullptr;
     }
 
-    // --- Phase 3: Apply bonuses and finalize ---
     if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
-        // Success! The monster is live. Apply the correct cooldown.
         if (used_alternative) {
             ApplySuccessfulAlternativeCooldown(spawn_point);
         } else {
@@ -6867,7 +6734,6 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         }
         return monster;
     } else {
-        // Bonuses were applied, but the monster became invalid (was freed).
         if (developer->integer > 1) {
             gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: {}\n",
                             horde::MonsterTypeRegistry::GetClassname(monster_type));
@@ -7268,24 +7134,21 @@ static void SendCleanupMessage(WaveEndReason reason)
 	}
 }
 
-// Add this function in the appropriate source file that deals with spawn management.
 void CheckAndResetDisabledSpawnPoints()
 {
-	// Find all active spawn points that are disabled
 	for (uint32_t i = 1; i < globals.num_edicts; i++)
 	{
 		edict_t *ent = &g_edicts[i];
 		if (ent && ent->inuse && ent->classname &&
 			strcmp(ent->classname, "info_player_deathmatch") == 0)
 		{
+            const int index = ent - g_edicts;
 
-			auto &data = spawnPointsData[ent];
-			if (data.isTemporarilyDisabled)
+			if (g_spawnPointsData.isTemporarilyDisabled[index])
 			{
-				// Simply reset the disabled status
-				data.isTemporarilyDisabled = false;
-				data.attempts = 0;
-				data.cooldownEndsAt = 0_sec;
+				g_spawnPointsData.isTemporarilyDisabled[index] = false;
+				g_spawnPointsData.attempts[index] = 0;
+				g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
 			}
 		}
 	}
@@ -7848,6 +7711,5 @@ static void Horde_InitLevel(const int32_t lvl)
 	}
 
 	CheckAndApplyBenefit(lvl);
-	ResetCooldowns();
 	Horde_CleanBodies();
 }
