@@ -612,6 +612,12 @@ PRETHINK(brain_right_eye_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
 
+		if (!self || !self->inuse || self->health <= 0)
+	{
+		G_FreeEdict(laser);
+		return;
+	}
+	
 	vec3_t start, forward, right, up, dir;
 
 	// check for max distance
@@ -632,6 +638,12 @@ PRETHINK(brain_right_eye_laser_update) (edict_t* laser) -> void
 PRETHINK(brain_left_eye_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
+
+		if (!self || !self->inuse || self->health <= 0)
+	{
+		G_FreeEdict(laser);
+		return;
+	}
 
 	vec3_t start, forward, right, up, dir;
 
