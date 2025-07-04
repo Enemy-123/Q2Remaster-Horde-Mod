@@ -122,127 +122,91 @@ gitem_t* FindItem(const char* pickup_name)
 
 THINK(DoRespawn) (edict_t* ent) -> void
 {
-	// --- ADDED: Initial check for safety ---
 	if (!ent) {
 		return;
 	}
-	// --- END ADDED ---
 
 	if (ent->team)
 	{
-		edict_t* master;
-		int      count = 0; // Initialize count
-		int      choice;
-
-		master = ent->teammaster;
-
-		// --- ADDED: Check if master is valid ---
+		edict_t* master = ent->teammaster;
 		if (!master) {
-			return;
+			return; // Cannot proceed with team logic without a master
 		}
-		// --- END ADDED ---
 
-		// ZOID
+		// ZOID - Special case for CTF with weapon stay
 		if (ctf->integer && g_dm_weapons_stay->integer && master->item && (master->item->flags & IF_WEAPON))
+		{
 			ent = master; // Respawn the master directly
+		}
 		else
 		{
-			edict_t* original_ent = ent; // Keep track of the original entity
-
-			// Make the original entity non-solid temporarily (only if it's not the master)
-			// This prevents the trigger from activating itself if it's part of the chain
-			if (ent != master) {
-				ent->svflags |= SVF_NOCLIENT;
-				ent->solid = SOLID_NOT;
-				gi.linkentity(ent);
-			}
-
-			// Count team members starting from master
-			edict_t* current = master; // Use a temporary variable for counting
-			while (current) {
+			// Count the number of spawn points in the team chain, starting from the master.
+			int count = 0;
+			for (edict_t* current = master; current; current = current->chain) {
 				count++;
-				current = current->chain;
 			}
 
-			if (count == 0) {		
-				ent = master; // Default to respawning the master
-			} else {
-				choice = irandom(count); // irandom(N) returns 0 to N-1
+			if (count > 0)
+			{
+				int choice = irandom(count); // irandom(N) returns 0 to N-1
 
-				// Find the chosen entity
-				ent = master; // Start searching from master again
-				for (int current_count = 0; current_count < choice; current_count++) {
-					// --- ADDED: Safety check inside loop ---
-					if (!ent->chain) { // Check BEFORE assigning to chain
-						ent = master; // Fallback to master if chain breaks unexpectedly
+				// Find the chosen entity to respawn.
+				edict_t* chosen_ent = master;
+				for (int i = 0; i < choice; i++) {
+					// This check prevents a crash if the chain is broken unexpectedly.
+					if (!chosen_ent->chain) {
 						break;
 					}
-					// --- END ADDED ---
-					ent = ent->chain;
+					chosen_ent = chosen_ent->chain;
 				}
-				// 'ent' now points to the randomly chosen entity (or master if chain broke)
+				ent = chosen_ent; // This is the entity we will actually respawn.
 			}
-
-			// If the chosen entity is different from the original one we started with,
-			// ensure the original one stays non-solid if needed.
-			if (ent != original_ent && original_ent != master) {
-				// We already made original_ent non-solid earlier if it wasn't master
-			} else if (ent == original_ent && original_ent != master) {
-				// We chose the original entity back, but we made it non-solid.
-				// It will be made solid again below.
+			else
+			{
+				// Fallback to the master if the chain was empty for some reason.
+				ent = master;
 			}
 		}
-	} // end if (ent->team)
+	}
 
-	// --- ADDED: Final Null Check ---
-	// After all the logic above, 'ent' MUST point to a valid entity to respawn.
+	// After the logic above, 'ent' MUST point to a valid entity to respawn.
 	if (!ent) {
 		return;
 	}
-	// --- END ADDED ---
 
-	// 'ent' now refers to the entity that should actually respawn
-	ent->svflags &= ~SVF_NOCLIENT;
-	ent->svflags &= ~SVF_RESPAWNING;
-	ent->solid = SOLID_TRIGGER; // <-- Warning fixed: 'ent' is guaranteed non-null here
+	// 'ent' now refers to the entity that should actually respawn.
+	ent->svflags &= ~(SVF_NOCLIENT | SVF_RESPAWNING);
+	ent->solid = SOLID_TRIGGER;
 	gi.linkentity(ent);
 
-	// Reiniciar el marcado para este objeto
-	if (ent->item) // Check item exists before resetting pickup flags
+	// Reset pickup flags for this item
+	if (ent->item) {
 		ent->item_picked_up_by.reset();
+	}
 
 	// send an effect
 	ent->s.event = EV_ITEM_RESPAWN;
 
-
-	// ROGUE
+	// ROGUE - Handle random item respawning
 	if (g_dm_random_items->integer)
 	{
-		// --- ADDED: Check if ent->item is valid before accessing ---
 		if (!ent->item) {
-			return; // Cannot proceed with random respawn logic
+			return; // Can't do random respawn without a base item type.
 		}
-		// --- END ADDED ---
 
-		item_id_t new_item = DoRandomRespawn(ent);
+		item_id_t new_item_id = DoRandomRespawn(ent);
 
-		if (new_item) // Check if a new item was actually chosen
+		if (new_item_id != IT_NULL) // Check if a new item was actually chosen
 		{
-			gitem_t* newItemPtr = GetItemByIndex(new_item); // Store in temp var
-
-			// --- ADDED: Check if GetItemByIndex succeeded ---
-			if (!newItemPtr) {
-				// Don't change the item if lookup failed
-			} else {
-				// --- END ADDED ---
-				ent->item = newItemPtr; // Assign the valid pointer
-				ent->classname = ent->item->classname;
-				ent->s.effects = ent->item->world_model_flags;
-				gi.setmodel(ent, ent->item->world_model);
+			gitem_t* new_item = GetItemByIndex(new_item_id);
+			if (new_item) { // Check if the lookup was successful
+				ent->item = new_item;
+				ent->classname = new_item->classname;
+				ent->s.effects = new_item->world_model_flags;
+				gi.setmodel(ent, new_item->world_model);
 			}
 		}
 	}
-	// ROGUE
 }
 
 void SetRespawn(edict_t* ent, gtime_t delay, bool hide_self)
@@ -283,18 +247,25 @@ bool IsInstantItemsEnabled()
 
 bool Pickup_Powerup(edict_t* ent, edict_t* other)
 {
-	int quantity;
+	int quantity = other->client->pers.inventory[ent->item->id];
 
-	quantity = other->client->pers.inventory[ent->item->id];
-	
-	if (((skill->integer == 0 && quantity >= 3) ||
-		(skill->integer == 1 && quantity >= 2) ||
-		(skill->integer >= 2 && quantity >= 1))
-		|| // <-- Combine the conditions with OR
-		((G_IsCooperative() && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0)) ||
-		(g_horde->integer && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))))
-	{
+	// Determine max quantity based on skill level
+	int max_quantity = 1;
+	if (skill->integer == 1) {
+		max_quantity = 2;
+	} else if (skill->integer == 0) {
+		max_quantity = 3;
+	}
+
+	if (quantity >= max_quantity) {
 		return false;
+	}
+
+	// In classic coop/horde, non-instanced items that stay can only be picked up once
+	if (!P_UseCoopInstancedItems() && (G_IsCooperative() || g_horde->integer)) {
+		if ((ent->item->flags & IF_STAY_COOP) && (quantity > 0)) {
+			return false;
+		}
 	}
 
 	other->client->pers.inventory[ent->item->id]++;
