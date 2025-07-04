@@ -1000,7 +1000,7 @@ bool FindEnhancedTarget(edict_t* self) {
 	float best_dist = MAX_RANGE_SQUARED;
 
 	// Iterar una sola vez, manteniendo el mejor objetivo
-	for (uint32_t i = 1; i < globals.num_edicts; i++) {
+	for (uint32_t i = 1; i < game.maxclients; i++) {
 		edict_t* ent = &g_edicts[i];
 
 		// Verificaciones rápidas primero para early-out

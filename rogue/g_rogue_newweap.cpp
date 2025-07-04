@@ -749,20 +749,17 @@ THINK(Nuke_Quake) (edict_t* self) -> void
 		self->last_move_time = level.time + 500_ms;
 	}
 
-	for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++)
-	{
-		if (!e->inuse)
-			continue;
-		if (!e->client)
-			continue;
-		if (!e->groundentity)
-			continue;
+    for (int i = 0; i < game.maxclients; ++i) {
+        edict_t* player = &g_edicts[1 + i];
+        if (!player->inuse || !player->client || !player->groundentity) {
+            continue;
+        }
 
-		e->groundentity = nullptr;
-		e->velocity[0] += crandom() * 150;
-		e->velocity[1] += crandom() * 150;
-		e->velocity[2] = self->speed * (100.0f / e->mass);
-	}
+        player->groundentity = nullptr;
+        player->velocity[0] += crandom() * 150;
+        player->velocity[1] += crandom() * 150;
+        player->velocity[2] = self->speed * (100.0f / player->mass);
+    }
 
 	if (level.time < self->timestamp)
 		self->nextthink = level.time + FRAME_TIME_S;
@@ -977,8 +974,6 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
-
-constexpr int MAX_TESLAS = 9; // Define el máximo de teslas permitidas por jugador
 
 // Constantes para ajustar el comportamiento del rebote
 constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f;    // Multiplicador base del rebote
@@ -1537,40 +1532,25 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 // Función para contar y manejar el número de teslas de un jugador
 void check_player_tesla_limit(edict_t* self)
 {
-	if (!self->client)
-		return;
-
-	// No need to check if below limit
-	if (self->client->num_teslas < MAX_TESLAS)
-		return;
-
-	// Find oldest tesla
-	edict_t* oldest_tesla = nullptr;
-	gtime_t oldest_timestamp = level.time;
-
-	for (edict_t* e = g_edicts; e < g_edicts + globals.num_edicts; ++e)
-	{
-		if (e->inuse && e->classname && strcmp(e->classname, "tesla_mine") == 0 && e->owner == self)
-		{
-			if (e->timestamp < oldest_timestamp)
-			{
-				oldest_timestamp = e->timestamp;
-				oldest_tesla = e;
-			}
-		}
-	}
-
-	if (oldest_tesla)
-	{
-		G_FreeEdict(oldest_tesla);
-		self->client->num_teslas--; // Decrementar el contador al eliminar la más antigua
-	}
 }
 
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
-	// Verificar y manejar el límite de teslas por jugador
-	check_player_tesla_limit(self);
+	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.
+	// This logic replaces the inefficient check_player_tesla_limit() function.
+	if (self && self->client && self->client->num_teslas >= MAX_TESLAS)
+	{
+		// Get the oldest tesla from our circular buffer.
+		edict_t* oldest = self->client->deployed_teslas[self->client->oldest_tesla_idx];
+		
+		// Ensure it's a valid, in-use tesla before freeing. This handles cases
+		// where the tesla was destroyed by other means and the pointer is stale.
+		if (oldest && oldest->inuse && oldest->classname && strcmp(oldest->classname, "tesla_mine") == 0)
+		{
+			// G_FreeEdict will call tesla_remove(), which correctly decrements num_teslas.
+			G_FreeEdict(oldest);
+		}
+	}
 
 	edict_t* tesla;
 	vec3_t   dir;
@@ -1633,19 +1613,25 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->classname = "tesla_mine";
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
-if (self && self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		tesla->clipmask &= ~CONTENTS_PLAYER;
 
 	tesla->flags |= FL_MECHANICAL;
 
 	// Initialize effect tracking fields
-	tesla->monsterinfo.attack_finished = level.time;  // Initialize next_effect_time
-	tesla->monsterinfo.medicTries = 0;               // Initialize effect_count using medicTries instead of lefty
+	tesla->monsterinfo.attack_finished = level.time;
+	tesla->monsterinfo.medicTries = 0;
 
 	gi.linkentity(tesla);
 
 	if (self->client)
 	{
+		// O(1) PERFORMANCE: Track the newly deployed tesla.
+		// Add the new tesla to our tracking array.
+		self->client->deployed_teslas[self->client->oldest_tesla_idx] = tesla;
+		// Advance the index for the next "oldest".
+		self->client->oldest_tesla_idx = (self->client->oldest_tesla_idx + 1) % MAX_TESLAS;
+		
 		self->client->num_teslas++; // Incrementar el contador de teslas del jugador
 	}
 }

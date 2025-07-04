@@ -2766,6 +2766,7 @@ void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* mons
 // g_rogue_items
 
 void Use_SentryGun(edict_t* ent, gitem_t* item);
+bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 bool Pickup_SentryGun(edict_t* ent, edict_t* other);
 void Use_TeleportSelf(edict_t* ent, gitem_t* item);
 bool Pickup_Teleport(edict_t* ent, edict_t* other);
@@ -2800,7 +2801,6 @@ bool	 Tag_PickupToken(edict_t* ent, edict_t* other);
 void	 Tag_DropToken(edict_t* ent, gitem_t* item);
 void	 fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir);
 
-bool	 fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 
 //
 // p_client.c
@@ -3039,6 +3039,7 @@ constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;
 class PlayerLaserManager;
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
+constexpr int MAX_TESLAS = 9;
 struct gclient_t
 {
 	// shared with server; do not touch members until the "private" section
@@ -3256,8 +3257,11 @@ struct gclient_t
 	uint64_t total_damage;    // Total damage dealt
 	int num_lasers = 0; // tracks max lasers per client
 	int num_teslas = 0; // tracks max teslas per client
+	edict_t* deployed_teslas[MAX_TESLAS];
+	int      oldest_tesla_idx;
 	//int num_traps; //foodcube trap per client
 	int num_sentries = 0; //Sentry Guns per client
+
 	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];
 	gtime_t teleport_cooldown = 3_sec;
