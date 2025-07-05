@@ -1222,9 +1222,9 @@ static constexpr gtime_t calculate_max_wave_time(int32_t wave_level)
 static gtime_t g_independent_timer_start;
 static ConditionParams g_lastParams;
 static int32_t g_lastWaveNumber = -1;
-static int32_t g_lastNumHumanPlayers = -1;
-static bool g_maxMonstersReached = false;
-static bool g_lowPercentageTriggered = false;
+//static int32_t g_lastNumHumanPlayers = -1;
+//static bool g_maxMonstersReached = false;
+//static bool g_lowPercentageTriggered = false;
 
 // Forward declaration for calculate_max_wave_time if it's not already visible
 // static constexpr gtime_t calculate_max_wave_time(int32_t wave_level); // (already provided in previous context)
@@ -1383,13 +1383,6 @@ bool G_IsCooperative() noexcept
 {
 	return coop->integer && !g_horde->integer;
 }
-
-struct weighted_item_t;
-using weight_adjust_func_t = void (*)(const weighted_item_t &item, float &weight);
-
-// Define the function pointer type (keep this)
-struct weighted_item_t;
-using weight_adjust_func_t = void (*)(const weighted_item_t &item, float &weight);
 
 // Structure definition (as you provided)
 struct HordeItemInfo
@@ -2531,12 +2524,6 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::st
 	return BossPickResult(chosen_typeId, chosen_sizeCategory);
 }
 
-
-struct picked_item_t
-{
-	const weighted_item_t *item;
-	float weight;
-};
 
 // Adapted Caching Structure (using std::array for fixed size based on input)
 struct HordeItemSelectionCache
@@ -4608,8 +4595,8 @@ void ResetGame()
 	counter_mismatch_frames = 0;
 	horde_message_end_time = 0_sec;
 	g_totalMonstersInWave = 0;
-	g_maxMonstersReached = false;
-	g_lowPercentageTriggered = false;
+	//g_maxMonstersReached = false;
+	//g_lowPercentageTriggered = false;
 
 	CleanupSpawnPointCache(); // Clears spawn_point_cache
 
@@ -4697,166 +4684,217 @@ int32_t CalculateRemainingMonsters() noexcept
 	return std::max(0, remaining); // Ensure non-negative
 }
 
+// --- Helper Struct to pass context around ---
+struct WaveConditionContext {
+    const gtime_t currentTime;
+    const int32_t liveMonsters;
+    const int32_t currentLevel;
+    const float remainingPercentage;
+    const bool isBossWaveActive;
+    const horde::MapSize& mapSize;
+    const ConditionParams& params;
+};
+
+// --- Forward declarations for new helper functions ---
+static void StartConditionalTimer(const WaveConditionContext& ctx);
+static void ApplyAggressiveTimeReduction(const WaveConditionContext& ctx);
+static void IssueTimeWarnings();
+
+
+// REPLACEMENT for CheckRemainingMonstersCondition
+// This is the new main function that orchestrates the wave end checks.
 static bool CheckRemainingMonstersCondition(const horde::MapSize& mapSize, WaveEndReason& reason) {
-    const gtime_t currentTime = level.time;
-    const int32_t liveMonsters = CalculateRemainingMonsters();
-    // Use g_horde_local.level which is the definitive current wave level
-    const int32_t local_currentLevel = g_horde_local.level; 
-    const uint16_t initialWaveTotalForPercentage = (g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1;
+    // --- 1. Setup Context ---
+    // Cache all frequently used values once at the start.
+    const WaveConditionContext ctx = {
+        .currentTime = level.time,
+        .liveMonsters = CalculateRemainingMonsters(),
+        .currentLevel = g_horde_local.level,
+        .remainingPercentage = static_cast<float>(CalculateRemainingMonsters()) / ((g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1),
+        .isBossWaveActive = IsBossWave(),
+        .mapSize = mapSize,
+        .params = g_lastParams
+    };
 
-
-    if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
-        g_independent_timer_start = currentTime;
-        g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
-        if (g_horde_local.queued_monsters > initialWaveTotalForPercentage * 0.2f && g_horde_local.queued_monsters > 5) {
-            gtime_t queue_bonus = gtime_t::from_sec(static_cast<float>(g_horde_local.queued_monsters) * 0.5f);
-            queue_bonus = std::min(queue_bonus, 15_sec);
-            g_horde_local.conditionTimeThreshold += queue_bonus;
-            if (developer->integer) {
-                gi.Com_PrintFmt("Post-Deploy Timer: Adding ({:.1f}s bonus ({} queued). New threshold: ({:.1f}s).\n",
-                    queue_bonus.seconds(), g_horde_local.queued_monsters, g_horde_local.conditionTimeThreshold.seconds());
-            }
-        }
-        g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
-        g_horde_local.conditionTriggered = true;
-        g_horde_local.conditionStartTime = currentTime;
-
-        // if (developer->integer) {
-        //     gi.Com_PrintFmt("Debug: Conditional timer initiated post-deployment. Ends in ({:.1f}s.\n",
-        //         g_horde_local.conditionTimeThreshold.seconds());
-        // }
-    }
-
-    if (allowWaveAdvance || (liveMonsters == 0 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)) {
+    // --- 2. Immediate Win/Advance Condition ---
+    // Check if the wave is over because all monsters are gone or an admin forced it.
+    if (allowWaveAdvance || (ctx.liveMonsters == 0 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0)) {
         if (Horde_AllMonstersDead()) {
              reason = WaveEndReason::AllMonstersDead;
              ResetWaveAdvanceState();
              return true;
         } else if (developer->integer) {
+            // This warning is useful for debugging desyncs between counters and reality.
             gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but Horde_AllMonstersDead is false. Live: {}, NumSpawn: {}, Queued: {}. TotalLevel: {}. KilledLevel: {}\n",
-                liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, level.total_monsters, level.killed_monsters);
+                ctx.liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, level.total_monsters, level.killed_monsters);
         }
     }
-    
-    if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+
+    // --- 3. Absolute Failsafe Timer ---
+    // A hard time limit for the wave, regardless of other conditions.
+    if (ctx.currentTime >= g_independent_timer_start + ctx.params.independentTimeThreshold) {
         reason = WaveEndReason::TimeLimitReached;
-        if (developer->integer) gi.Com_PrintFmt("Wave ended: Independent time limit reached (({:.1f}s).\n", g_lastParams.independentTimeThreshold.seconds());
+        if (developer->integer) gi.Com_PrintFmt("Wave ended: Independent time limit reached ({:.1f}s).\n", ctx.params.independentTimeThreshold.seconds());
         return true;
     }
 
-    const float percentageOfInitialWaveRemaining = static_cast<float>(liveMonsters) / initialWaveTotalForPercentage;
-
-    if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
-        const bool maxMonstersReached = liveMonsters <= g_lastParams.maxMonsters;
-        const bool lowPercentageReached = percentageOfInitialWaveRemaining <= g_lastParams.lowPercentageThreshold;
-
-        if (maxMonstersReached || lowPercentageReached) {
-            g_horde_local.conditionTriggered = true;
-            g_horde_local.conditionStartTime = currentTime;
-
-            if (maxMonstersReached && lowPercentageReached) {
-                g_horde_local.conditionTimeThreshold = std::min(
-                    g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
-            } else {
-                g_horde_local.conditionTimeThreshold = maxMonstersReached ?
-                    g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
-            }
-
-            if (g_horde_local.queued_monsters > 5) {
-                gtime_t queue_bonus = gtime_t::from_sec(static_cast<float>(g_horde_local.queued_monsters) * 0.3f);
-                queue_bonus = std::min(queue_bonus, 10_sec);
-                g_horde_local.conditionTimeThreshold += queue_bonus;
-                if (developer->integer) {
-                    gi.Com_PrintFmt("Pre-Deploy ConditionalTimer: Adding ({:.1f}s bonus ({} queued). New threshold: ({:.1f}s.\n",
-                        queue_bonus.seconds(), g_horde_local.queued_monsters, g_horde_local.conditionTimeThreshold.seconds());
-                }
-            }
-            g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
-
-            if (local_currentLevel >= 15 && liveMonsters <= 5 && g_horde_local.queued_monsters < 3) {
-                const float reduction_factor = 0.6f;
-                g_horde_local.waveEndTime = currentTime + std::max(1_sec, g_horde_local.conditionTimeThreshold * reduction_factor);
-                if (developer->integer) {
-                    gi.Com_PrintFmt("High wave with few live & queued monsters (pre-deploy): reduced timeout by {}%%. New end in ({:.1f}s.\n",
-                        static_cast<int>((1.0f - reduction_factor) * 100.0f), (g_horde_local.waveEndTime - currentTime).seconds());
-                }
-            }
-             if (developer->integer) {
-                gi.Com_PrintFmt("Debug: Conditional timer initiated pre-deployment. Ends in ({:.1f}s. Trigger: maxM ({}), lowP ({}). Queue: {}\n",
-                    g_horde_local.conditionTimeThreshold.seconds(), maxMonstersReached, lowPercentageReached, g_horde_local.queued_monsters);
-            }
-        }
+    // --- 4. Conditional Timer Logic ---
+    // This block manages the "mop-up" timer that starts when the wave is winding down.
+    if (!g_horde_local.conditionTriggered) {
+        // If the timer hasn't started yet, check if it should.
+        StartConditionalTimer(ctx);
+    } else {
+        // If the timer is running, check if it should be shortened.
+        ApplyAggressiveTimeReduction(ctx);
     }
 
-    if (g_horde_local.conditionTriggered &&
-        liveMonsters <= HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION &&
-        g_horde_local.queued_monsters < 3) { 
-		float base_time = 6.0f + (liveMonsters * 1.5f);
-		float map_size_multiplier = 1.0f;
-		if (mapSize.isSmallMap) map_size_multiplier = 1.3f;
-		else if (mapSize.isMediumMap) map_size_multiplier = 1.15f;
-		base_time *= map_size_multiplier;
-
-		if (IsBossWave() && boss_spawned_for_wave) {
-			base_time *= 2.0f + (0.2f * liveMonsters);
-			base_time = std::max(base_time, 10.0f);
-		} else {
-			if (local_currentLevel >= 15) { // Use local_currentLevel
-				float reduction = std::min((local_currentLevel - 15) * 0.02f, 0.3f);
-				base_time *= (1.0f - reduction);
-			}
-			int32_t playerCount = GetNumHumanPlayers();
-			if (playerCount > 1) {
-				float player_reduction = std::min((playerCount - 1) * 0.07f, 0.2f);
-				base_time *= (1.0f - player_reduction);
-			}
-		}
-		float min_time = (IsBossWave() && boss_spawned_for_wave) ? 7.0f : 5.0f;
-		if (!IsBossWave() || !boss_spawned_for_wave) min_time *= map_size_multiplier;
-		gtime_t aggressive_time = gtime_t::from_sec(std::max(min_time, base_time));
-		const gtime_t original_remaining_conditional = (g_horde_local.waveEndTime > currentTime) ? (g_horde_local.waveEndTime - currentTime) : 0_sec;
-
-        if (original_remaining_conditional > 0_sec && aggressive_time < original_remaining_conditional) {
-            g_horde_local.waveEndTime = currentTime + aggressive_time;
-            if (developer->integer) {
-             //   gi.Com_PrintFmt("Aggressive time reduction (low queue): ({:.1f}s remaining for {} live monsters.\n",
-             //       aggressive_time.seconds(), liveMonsters);
-            }
-        }
-    }
-
+    // --- 5. Issue Warnings and Check for Timer Expiry ---
+    // This runs only if a timer (either the main one or the conditional one) is active.
     bool should_issue_warnings = g_horde_local.conditionTriggered || (g_horde_local.state == horde_state_t::active_wave && next_wave_message_sent);
     if (should_issue_warnings) {
-        const gtime_t actualRelevantRemainingTime = GetWaveTimer();
-        if (actualRelevantRemainingTime > 0_sec) {
-            for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
-                if (!g_horde_local.warningIssued[i] &&
-                    actualRelevantRemainingTime <= gtime_t::from_sec(WARNING_TIMES[i]) &&
-                    actualRelevantRemainingTime > gtime_t::from_sec(WARNING_TIMES[i]) - 1_sec) {
-                    gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n", static_cast<int>(WARNING_TIMES[i]));
-                    g_horde_local.warningIssued[i] = true;
-                }
-            }
-        }
+        IssueTimeWarnings();
     }
 
-    if (g_horde_local.conditionTriggered && currentTime >= g_horde_local.waveEndTime) {
+    // Check if the conditional timer has run out.
+    if (g_horde_local.conditionTriggered && ctx.currentTime >= g_horde_local.waveEndTime) {
         reason = WaveEndReason::MonstersRemaining;
-        if (developer->integer) gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", liveMonsters, g_horde_local.queued_monsters);
+        if (developer->integer) gi.Com_PrintFmt("Wave ended: Conditional timer expired. Live: {}, Queued: {}.\n", ctx.liveMonsters, g_horde_local.queued_monsters);
         return true;
     }
-
-    if (local_currentLevel >= 15 && liveMonsters <= 3 && g_horde_local.queued_monsters < 2 && g_horde_local.conditionTriggered) { // Use local_currentLevel
-        const gtime_t elapsed_since_condition_start = currentTime - g_horde_local.conditionStartTime;
+    
+    // --- 6. Special Mop-Up Condition for High Levels ---
+    // End the wave early if it's a high level, very few monsters are left, and most of the timer has passed.
+    if (ctx.currentLevel >= 15 && ctx.liveMonsters <= 3 && g_horde_local.queued_monsters < 2 && g_horde_local.conditionTriggered) {
+        const gtime_t elapsed_since_condition_start = ctx.currentTime - g_horde_local.conditionStartTime;
         if (g_horde_local.conditionTimeThreshold > 0_sec &&
             elapsed_since_condition_start >= (g_horde_local.conditionTimeThreshold * 0.7f)) {
             reason = WaveEndReason::MonstersRemaining;
-       //     if (developer->integer) gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
+            if (developer->integer) gi.Com_PrintFmt("Wave ended: High level, few monsters, 70%% of conditional timer elapsed.\n");
             return true;
         }
     }
 
+    // If no end condition was met, the wave continues.
     return false;
+}
+
+// Helper to start the conditional "mop-up" timer.
+static void StartConditionalTimer(const WaveConditionContext& ctx) {
+    // Determine if a trigger condition is met.
+    const bool maxMonstersReached = !next_wave_message_sent && (ctx.liveMonsters <= ctx.params.maxMonsters);
+    const bool lowPercentageReached = !next_wave_message_sent && (ctx.remainingPercentage <= ctx.params.lowPercentageThreshold);
+    const bool postDeploymentTrigger = next_wave_message_sent;
+
+    if (!maxMonstersReached && !lowPercentageReached && !postDeploymentTrigger) {
+        return; // No trigger, do nothing.
+    }
+
+    // Set the base duration for the timer.
+    gtime_t time_threshold;
+    if (postDeploymentTrigger) {
+        time_threshold = ctx.params.timeThreshold;
+    } else if (maxMonstersReached && lowPercentageReached) {
+        time_threshold = std::min(ctx.params.timeThreshold, ctx.params.lowPercentageTimeThreshold);
+    } else {
+        time_threshold = maxMonstersReached ? ctx.params.timeThreshold : ctx.params.lowPercentageTimeThreshold;
+    }
+
+    // Add a bonus to the timer if there are still monsters in the queue.
+    if (g_horde_local.queued_monsters > 5) {
+        const float bonus_per_monster = postDeploymentTrigger ? 0.5f : 0.3f;
+        const gtime_t max_bonus = postDeploymentTrigger ? 15_sec : 10_sec;
+        gtime_t queue_bonus = gtime_t::from_sec(static_cast<float>(g_horde_local.queued_monsters) * bonus_per_monster);
+        time_threshold += std::min(queue_bonus, max_bonus);
+    }
+
+    // Activate the timer state.
+    g_horde_local.conditionTriggered = true;
+    g_horde_local.conditionStartTime = ctx.currentTime;
+    g_horde_local.conditionTimeThreshold = time_threshold;
+    g_horde_local.waveEndTime = ctx.currentTime + time_threshold;
+
+    // Special reduction for high-level waves with very few monsters.
+    if (ctx.currentLevel >= 15 && ctx.liveMonsters <= 5 && g_horde_local.queued_monsters < 3) {
+        const float reduction_factor = 0.6f;
+        g_horde_local.waveEndTime = ctx.currentTime + std::max(1_sec, time_threshold * reduction_factor);
+    }
+
+    if (developer->integer) {
+        const char* trigger_reason = postDeploymentTrigger ? "Post-Deploy" : (maxMonstersReached ? "MaxMonsters" : "LowPercentage");
+        gi.Com_PrintFmt("Conditional timer started ({:.1f}s). Trigger: {}. Queue: {}.\n",
+            time_threshold.seconds(), trigger_reason, g_horde_local.queued_monsters);
+    }
+}
+
+// Helper to apply the aggressive time reduction when few monsters are left.
+static void ApplyAggressiveTimeReduction(const WaveConditionContext& ctx) {
+    // This logic only applies if few monsters are left alive and in the queue.
+    if (ctx.liveMonsters > HordeConstants::MONSTERS_FOR_AGGRESSIVE_REDUCTION || g_horde_local.queued_monsters >= 3) {
+        return;
+    }
+
+    // --- Calculate the new, shorter time limit ---
+    float base_time = 6.0f + (ctx.liveMonsters * 1.5f);
+
+    // Map size multiplier
+    if (ctx.mapSize.isSmallMap) base_time *= 1.3f;
+    else if (ctx.mapSize.isMediumMap) base_time *= 1.15f;
+
+    // Boss wave multiplier
+    if (ctx.isBossWaveActive && boss_spawned_for_wave) {
+        base_time *= 2.0f + (0.2f * ctx.liveMonsters);
+    } else {
+        // High level reduction
+        if (ctx.currentLevel >= 15) {
+            float reduction = std::min((ctx.currentLevel - 15) * 0.02f, 0.3f);
+            base_time *= (1.0f - reduction);
+        }
+        // Player count reduction (now called infrequently)
+        int32_t playerCount = GetNumHumanPlayers();
+        if (playerCount > 1) {
+            float player_reduction = std::min((playerCount - 1) * 0.07f, 0.2f);
+            base_time *= (1.0f - player_reduction);
+        }
+    }
+
+    // Determine minimum allowed time
+    float min_time = (ctx.isBossWaveActive && boss_spawned_for_wave) ? 7.0f : 5.0f;
+    if (!ctx.isBossWaveActive || !boss_spawned_for_wave) {
+        if (ctx.mapSize.isSmallMap) min_time *= 1.3f;
+        else if (ctx.mapSize.isMediumMap) min_time *= 1.15f;
+    }
+    
+    gtime_t aggressive_time = gtime_t::from_sec(std::max(min_time, base_time));
+
+    // --- Apply the new time if it's shorter than the current remaining time ---
+    const gtime_t original_remaining_conditional = (g_horde_local.waveEndTime > ctx.currentTime) ? (g_horde_local.waveEndTime - ctx.currentTime) : 0_sec;
+    if (original_remaining_conditional > 0_sec && aggressive_time < original_remaining_conditional) {
+        g_horde_local.waveEndTime = ctx.currentTime + aggressive_time;
+        if (developer->integer) {
+            gi.Com_PrintFmt("Aggressive time reduction: New limit is {:.1f}s for {} monsters.\n",
+                aggressive_time.seconds(), ctx.liveMonsters);
+        }
+    }
+}
+
+// Helper to issue the 30, 10, 5 second warnings.
+static void IssueTimeWarnings() {
+    const gtime_t actualRelevantRemainingTime = GetWaveTimer();
+    if (actualRelevantRemainingTime <= 0_sec) {
+        return;
+    }
+
+    for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
+        const gtime_t warning_time = gtime_t::from_sec(WARNING_TIMES[i]);
+        // Check if the timer is within a 1-second window of the warning time.
+        if (!g_horde_local.warningIssued[i] &&
+            actualRelevantRemainingTime <= warning_time &&
+            actualRelevantRemainingTime > warning_time - 1_sec) 
+        {
+            gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n", static_cast<int>(WARNING_TIMES[i]));
+            g_horde_local.warningIssued[i] = true;
+        }
+    }
 }
 
 void ResetWaveAdvanceState() noexcept
@@ -4884,7 +4922,7 @@ void ResetWaveAdvanceState() noexcept
 	boss_spawned_for_wave = false;
 
 	g_lastWaveNumber = -1;
-	g_lastNumHumanPlayers = -1;
+	//g_lastNumHumanPlayers = -1;
 
 	// Reset monster detection variables
 	consistent_zero_counts = 0;
