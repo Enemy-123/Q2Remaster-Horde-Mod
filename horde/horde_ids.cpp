@@ -13,6 +13,9 @@ namespace horde {
     std::array<MapSize, static_cast<size_t>(MapID::MAX_MAPS)> MapOriginRegistry::s_mapSizes;
     bool MapOriginRegistry::s_initialized = false;
 
+    // Map for traps/teslas
+    static std::unordered_map<std::string_view, SpecialEntityTypeID> s_specialTypeMap;
+
     // Map of classnames to type IDs - used during initialization
     static std::unordered_map<std::string_view, MonsterTypeID> s_monsterTypeMap;
 
@@ -27,11 +30,35 @@ namespace horde {
     void InitializeHordeIDs() {
         MonsterTypeRegistry::Initialize();
         MapOriginRegistry::Initialize(); // This will now initialize origins and sizes
+        SpecialTypeRegistry::Initialize();
 
         // Reset the trackers
         g_monsterSpawnTracker.Reset();
         g_spawnPointTimeTracker.Reset();
     }
+
+    // Special types ( traps, teslas, sentry turret )
+
+    void SpecialTypeRegistry::Initialize() {
+    s_specialTypeMap.clear();
+    s_specialTypeMap = {
+        {"tesla_mine",        SpecialEntityTypeID::TESLA_MINE},
+        {"food_cube_trap",    SpecialEntityTypeID::FOOD_CUBE_TRAP},
+        {"prox_mine",         SpecialEntityTypeID::PROX_MINE},
+        {"monster_sentrygun", SpecialEntityTypeID::SENTRY_GUN},
+        {"monster_turret",    SpecialEntityTypeID::TURRET},
+        {"emitter",           SpecialEntityTypeID::LASER_EMITTER},
+        {"laser",             SpecialEntityTypeID::LASER_EMITTER} // Map "laser" to the same ID
+    };
+}
+
+SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
+    if (!classname || !classname[0]) {
+        return SpecialEntityTypeID::UNKNOWN;
+    }
+    auto it = s_specialTypeMap.find(classname);
+    return (it != s_specialTypeMap.end()) ? it->second : SpecialEntityTypeID::UNKNOWN;
+}
 
     //
     // MonsterTypeRegistry implementation

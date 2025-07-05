@@ -93,6 +93,30 @@ namespace horde {
         UNKNOWN = 255
     };
 
+    // IDs for special, non-monster entities
+enum class SpecialEntityTypeID : uint8_t {
+    TESLA_MINE,
+    FOOD_CUBE_TRAP,
+    PROX_MINE,
+    SENTRY_GUN,
+    TURRET,
+    LASER_EMITTER, // Used for both "emitter" and "laser"
+    // ---
+    COUNT, // The total number of special entity types
+    UNKNOWN = 255
+};
+
+// Class for efficient special entity type lookups
+class SpecialTypeRegistry {
+public:
+    // Initialize the registry with all special entity mappings
+    static void Initialize();
+
+    // Get special entity type ID from classname
+    static SpecialEntityTypeID GetTypeID(const char* classname);
+};
+
+
     // Maps for known game maps - allows array-based lookup
     enum class MapID : uint16_t {
         // Standard Q2 maps

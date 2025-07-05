@@ -4,7 +4,7 @@
 #include <algorithm>  // For std::max
 #include <span>
 #include "horde/horde_ids.h"
-
+#include "horde/g_entity_properties.h"
 
 
 horde::MapSize GetMapSize(const char* mapname) {
@@ -32,13 +32,6 @@ horde::MapSize GetMapSize(const char* mapname) {
 
 bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
-
-void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void turret_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void prox_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void tesla_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 
 
 void RemovePlayerOwnedEntities(edict_t* player) {
@@ -85,85 +78,30 @@ void RemovePlayerOwnedEntities(edict_t* player) {
     }
 }
 
-// --- Data-Driven Definitions for Entity Properties and Actions ---
-
-// Set of classnames considered "player defenses"
-static const std::unordered_set<std::string_view> g_player_defense_classnames = {
-    "tesla_mine",
-    "food_cube_trap",
-    "prox_mine",
-    "monster_sentrygun",
-    "monster_turret"
-};
-
-// Type alias for the entity die handler function pointer
-using EntityDieHandler = void(*)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-
-// Wrapper for turret2_die to include health check
-// This is needed because monster_sentrygun has a specific health check before its die function.
-void Turret2DieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
-    if (self && self->health > 0) { // Ensure self is not null before accessing health
-        self->health = -1;
-    }
-    turret2_die(self, inflictor, attacker, damage, point, mod);
-}
-
-// Wrapper for turret_die to include health check
-// This is needed because monster_turret has a specific health check before its die function.
-void TurretDieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
-    if (self && self->health > 0) { // Ensure self is not null before accessing health
-        self->health = -1;
-    }
-    turret_die(self, inflictor, attacker, damage, point, mod);
-}
-
-// Dispatch table mapping classnames to their specific removal (die) functions.
-// Entities not in this map but considered "removable" will use a generic removal.
-static const std::unordered_map<std::string_view, EntityDieHandler> g_entity_specific_remove_handlers = {
-    {"monster_sentrygun", Turret2DieWrapper}, // Uses wrapper for health pre-set
-    {"monster_turret",    TurretDieWrapper},  // Uses wrapper for health pre-set
-    {"tesla_mine",        tesla_die},
-    {"prox_mine",         prox_die},
-    {"food_cube_trap",    trap_die},
-    {"emitter",           laser_die},         // Assuming laser_die handles emitters
-    {"laser",             laser_die}
-    // Any other entity with a specific _die function for removal goes here.
-};
-
-// Set of classnames that are considered "removable" in general.
-// This includes all entities with specific handlers, plus any that should use generic removal.
-// This set is primarily for the IsRemovableEntity check.
-static const std::unordered_set<std::string_view> g_all_removable_classnames = {
-    "tesla_mine",
-    "food_cube_trap",
-    "prox_mine",
-    "monster_sentrygun",
-    "monster_turret",
-    "emitter",
-    "laser"
-    // If there are entities that should be removed by BecomeExplosion1() via RemoveEntity()
-    // but are NOT in g_entity_specific_remove_handlers, add their classnames here.
-    // For example, if "some_generic_explosive_barrel" should be removable:
-    // , "some_generic_explosive_barrel"
-};
-
-
 // --- Refactored Functions ---
 
 bool IsPlayerDefense(const edict_t* ent) {
     if (!ent || !ent->classname) {
         return false;
     }
-    return g_player_defense_classnames.count(ent->classname);
+    // Get the ID from the classname
+    horde::SpecialEntityTypeID id = horde::SpecialTypeRegistry::GetTypeID(ent->classname);
+    if (id == horde::SpecialEntityTypeID::UNKNOWN) {
+        return false;
+    }
+    // Use the ID for a fast array lookup
+    return g_entityProperties.is_defense[static_cast<size_t>(id)];
 }
 
 bool IsRemovableEntity(const edict_t* ent) {
     if (!ent || !ent->classname) {
         return false;
     }
-    // An entity is removable if it's in our comprehensive list of removable entities.
-    // This list (g_all_removable_classnames) should be the single source of truth for this check.
-    return g_all_removable_classnames.count(ent->classname);
+    horde::SpecialEntityTypeID id = horde::SpecialTypeRegistry::GetTypeID(ent->classname);
+    if (id == horde::SpecialEntityTypeID::UNKNOWN) {
+        return false;
+    }
+    return g_entityProperties.is_removable[static_cast<size_t>(id)];
 }
 
 void RemoveEntity(edict_t* ent) {
@@ -171,26 +109,21 @@ void RemoveEntity(edict_t* ent) {
         return;
     }
 
-    std::string_view classname_sv = ent->classname;
+    horde::SpecialEntityTypeID id = horde::SpecialTypeRegistry::GetTypeID(ent->classname);
+    if (id != horde::SpecialEntityTypeID::UNKNOWN) {
+        // Use the ID to look up the specific die handler
+        EntityDieHandler handler = g_entityProperties.die_handler[static_cast<size_t>(id)];
+        if (handler) {
+            // Call the specific handler if it exists
+            handler(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+            return;
+        }
+    }
 
-    // Try to find a specific handler first
-    auto it = g_entity_specific_remove_handlers.find(classname_sv);
-    if (it != g_entity_specific_remove_handlers.end()) {
-        // Found a specific handler, call it.
-        // The health pre-set for turrets is now handled by their wrappers.
-        it->second(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-    }
-    // If no specific handler, but it's in the broader "all removable" list,
-    // it implies it should use the generic removal.
-    // This also catches cases where an entity might be in g_all_removable_classnames
-    // but not have a specific handler (intended for generic explosion).
-    // The original logic was: if not any of the specific strcmp, then BecomeExplosion1.
-    // This maintains that: if not in specific map, then BecomeExplosion1.
-    else {
-        // Default removal action for entities not specifically handled
-        // but still considered for removal by the game logic that calls RemoveEntity.
-        BecomeExplosion1(ent);
-    }
+    // If no specific handler was found, use the generic explosion.
+    // This also correctly handles any entity that is "removable" but doesn't
+    // have a specific die function assigned in our source data.
+    BecomeExplosion1(ent);
 }
 
 void UpdatePowerUpTimes(edict_t* monster) {
