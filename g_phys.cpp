@@ -25,106 +25,77 @@ solid_edge items only clip against bsp models.
 
 void SV_Physics_NewToss(edict_t* ent); // PGM
 
+#include "horde/g_horde_phys.h"
+
 // [Paril-KEX] fetch the clipmask for this entity; certain modifiers
 // affect the clipping behavior of objects.
 contents_t G_GetClipMask(edict_t* ent)
 {
-	contents_t mask = ent->clipmask;
+    // --- 1. Base Mask Determination ---
+    contents_t mask = ent->clipmask;
+    if (!mask) {
+        if (ent->svflags & SVF_MONSTER)     mask = MASK_MONSTERSOLID;
+        else if (ent->svflags & SVF_PROJECTILE) mask = MASK_PROJECTILE;
+        else                                mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
+    }
 
-	// default masks
-	if (!mask)
-	{
-		if (ent->svflags & SVF_MONSTER)
-			mask = MASK_MONSTERSOLID;
-		else if (ent->svflags & SVF_PROJECTILE)
-			mask = MASK_PROJECTILE;
-		else
-			mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
-	}
+    // --- 2. Standard Clipping Adjustments ---
+    bool const is_nonsolid = (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER);
+    bool const is_dead = (ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER);
 
-	// Optimización: Hacer estos checks una sola vez usando bool
-	bool const is_nonsolid = (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER);
-	bool const is_dead = (ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER);
+    if (is_nonsolid || is_dead) {
+        mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
+    }
 
-	if (is_nonsolid || is_dead)
-		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
+    mask &= ~CONTENTS_AREAPORTAL;
 
-	mask &= ~CONTENTS_AREAPORTAL;
-
-	// horde mode optimization
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
-	{
-		// Set up static array for excluded monster types
-		static std::array<bool, 256> isExcludedType = {};
-		static bool exclusion_initialized = false;
-
-		if (!exclusion_initialized)
-		{
-			exclusion_initialized = true;
-
-			// Set flags for excluded types
-			const char* excluded_monsters[] = {
-				"monster_boss3_stand",
-				"misc_eastertank",
-				"misc_easterchick",
-				"misc_easterchick2",
-				"monster_commander_body",
-				"misc_bigviper"
-			};
-
-			for (const char* monster_name : excluded_monsters)
-			{
-				uint8_t type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(monster_name));
-				isExcludedType[type_id] = true;
+    // --- 3. Horde-Specific Monster-on-Monster Collision ---
+    if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
+    {
+	static const auto excluded_types = [] {
+		std::array<bool, 256> arr{};
+		arr.fill(false);
+		const char* excluded_classnames[] = {
+			"monster_boss3_stand", "misc_eastertank", "misc_easterchick",
+			"misc_easterchick2", "monster_commander_body", "misc_bigviper"
+		};
+		for (const char* classname : excluded_classnames) {
+			// Add a check for UNKNOWN
+			uint8_t type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(classname));
+			if (type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) {
+				arr[type_id] = true;
 			}
 		}
+		return arr;
+	}();
 
-		// Get entity type ID with caching
-		if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN)
-		{
-			// First access: compute and cache the type ID
-			ent->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
-		}
+        if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN) {
+            ent->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
+        }
 
-		// Fast check if this type is excluded
-		bool excluded = false;
-		if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN)
-		{
-			excluded = isExcludedType[ent->monster_type_id];
-		}
+        if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN && excluded_types[ent->monster_type_id]) {
+            return mask;
+        }
 
-		// If not excluded, continue with collision checking
-		if (!excluded)
-		{
-			// Check for potential collisions with other monsters on the same team
-			bool potential_collision = false;
+        // --- THE CORE FIX ---
+        // The grid tells us if there's *any* potential collision nearby.
+        // If the list of potential colliders is not empty, we proceed to the trace.
+        if (!HordePhys::g_monster_grid.GetPotentialColliders(ent).empty())
+        {
+            // Perform a single trace at the entity's current position using the full mask.
+            // This is exactly what your original working code did.
+            trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask);
 
-			for (auto* other : active_monsters())
-			{
-				if (other != ent && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
-				{
-					// Quick AABB overlap test using boxes_intersect function
-					if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax))
-					{
-						potential_collision = true;
-						break;
-					}
-				}
-			}
+            // Check if the trace hit another monster on the same team.
+            if (tr.ent && (tr.ent->svflags & SVF_MONSTER) && OnSameTeam(ent, tr.ent))
+            {
+                // If so, disable monster-on-monster collision for this physics step.
+                mask &= ~CONTENTS_MONSTER;
+            }
+        }
+    }
 
-			// Only do the expensive trace if there's a potential collision
-			if (potential_collision)
-			{
-				if (auto* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
-					other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
-				{
-					mask &= ~CONTENTS_MONSTER;
-				}
-			}
-		}
-	}
-
-	return mask;
+    return mask;
 }
 /*
 ============

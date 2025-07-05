@@ -168,7 +168,14 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
              {"misc_insane", MonsterTypeID::MISC_INSANE},                     // 68
             {"monster_turret", MonsterTypeID::TURRET}    ,                    // 69
 
-            {"monster_sentrygun", MonsterTypeID::SENTRYGUN}                    // 70
+            {"monster_sentrygun", MonsterTypeID::SENTRYGUN},                // 70
+
+            {"monster_boss3_stand", MonsterTypeID::BOSS3_STAND}, // 71
+            {"misc_eastertank", MonsterTypeID::EASTERTANK}, // 72
+            {"misc_easterchick", MonsterTypeID::EASTERCHICK},   // 73
+            {"misc_easterchick2", MonsterTypeID::EASTERCHICK2}, // 74
+            {"monster_commander_body", MonsterTypeID::COMMANDER_BODY},  // 75
+            {"misc_bigviper", MonsterTypeID::BIGVIPER}  // 76
         };
     
         // Initialize the reverse mapping

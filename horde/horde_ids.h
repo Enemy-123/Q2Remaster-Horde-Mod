@@ -89,6 +89,13 @@ namespace horde {
 
         SENTRYGUN = 70,
 
+        BOSS3_STAND = 71,
+        EASTERTANK = 72,
+        EASTERCHICK = 73,
+        EASTERCHICK2 = 74,
+        COMMANDER_BODY = 75,
+        BIGVIPER = 76,
+
         MAX_TYPES = 128,  // Set this to a value higher than the largest ID
         UNKNOWN = 255
     };

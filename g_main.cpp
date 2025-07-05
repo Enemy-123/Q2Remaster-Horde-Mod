@@ -999,7 +999,7 @@ Advances the world by 0.1 seconds
 */
 
 #include "profiler.h"
-
+#include "horde/g_horde_phys.h"
 inline void G_RunFrame_(bool main_loop)
 {
     // Cache iterators at the start of the frame
@@ -1018,6 +1018,43 @@ inline void G_RunFrame_(bool main_loop)
     Profiler_ResetFrame();
 
     if (g_horde->integer) {
+
+		        
+        {
+            PROFILE_SCOPE("BuildProximityGrid");
+            
+            // Calculate world bounds once per map load for stability.
+            static vec3_t world_mins{}, world_maxs{};
+            
+            // Use a static variable to track the map name and reset bounds on change.
+            static std::string last_map_for_bounds;
+            if (last_map_for_bounds != level.mapname) {
+                ClearBounds(world_mins, world_maxs);
+                
+                // THIS IS THE FIX: Use your existing monster_spawn_points() function.
+                // It correctly iterates through all the spawn points.
+                for (auto* sp : monster_spawn_points()) {
+                    AddPointToBounds(sp->s.origin, world_mins, world_maxs);
+                }
+
+                // Add some padding to ensure the grid covers the entire playable area.
+                world_mins -= vec3_t{512, 512, 512};
+                world_maxs += vec3_t{512, 512, 512};
+                
+                last_map_for_bounds = level.mapname;
+            }
+
+            HordePhys::g_monster_grid.Build(world_mins, world_maxs);
+            for (auto* monster : monsters) {
+                HordePhys::g_monster_grid.Add(monster);
+            }
+
+           // if (g_debug_horde_grid->integer) {
+           //     HordePhys::g_monster_grid.DebugDraw(gi.frame_time_s);
+           // }
+        }
+
+
         //CleanupStaleCS();
         CheckAndUpdateMenus();
 
