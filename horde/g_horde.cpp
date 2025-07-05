@@ -7037,24 +7037,17 @@ static void SendCleanupMessage(WaveEndReason reason)
 
 void CheckAndResetDisabledSpawnPoints()
 {
-	for (uint32_t i = 1; i < globals.num_edicts; i++)
-	{
-		edict_t *ent = &g_edicts[i];
-		if (ent && ent->inuse && ent->classname &&
-			strcmp(ent->classname, "info_player_deathmatch") == 0)
-		{
-            const int index = ent - g_edicts;
-
-			if (g_spawnPointsData.isTemporarilyDisabled[index])
-			{
-				g_spawnPointsData.isTemporarilyDisabled[index] = false;
-				g_spawnPointsData.attempts[index] = 0;
-				g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
-			}
-		}
-	}
+    for (edict_t* spawn_point : monster_spawn_points())
+    {
+        const int index = spawn_point - g_edicts;
+        if (g_spawnPointsData.isTemporarilyDisabled[index])
+        {
+            g_spawnPointsData.isTemporarilyDisabled[index] = false;
+            g_spawnPointsData.attempts[index] = 0;
+            g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
+        }
+    }
 }
-
 //======================================================================
 // NEW HELPER FUNCTION: SpawnSingleMonsterFromBatch
 // This function attempts to spawn exactly ONE monster from an active batch

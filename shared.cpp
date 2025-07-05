@@ -1071,13 +1071,11 @@ bool TeleportSelf(edict_t* ent) {
     std::vector<spawn_point_info_t> spawn_points;
     spawn_points.reserve(16);
 
-    edict_t* spot = nullptr;
-    // Ensure this G_FindByString call matches your engine's actual function
-    while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
-        if (spot->style == 0) { // Assuming style 0 are valid teleport spots
-            spawn_points.push_back({spot, PlayersRangeFromSpot(spot)});
-        }
-    }
+	for (edict_t* spot : monster_spawn_points()) {
+		if (spot->style == 0) {
+			spawn_points.push_back({spot, PlayersRangeFromSpot(spot)});
+		}
+	}
 
     if (spawn_points.empty()) {
         if (developer->integer) {
