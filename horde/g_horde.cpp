@@ -89,7 +89,6 @@ struct RecentTeleportsSoA {
 static RecentTeleportsSoA g_recent_teleports;
 static int g_recent_teleport_index = 0; 
 
-// --- Horde Mode Constants ---
 namespace HordeConstants
 {
 	// --- Gameplay Balance ---
@@ -101,6 +100,7 @@ namespace HordeConstants
 	constexpr int8_t MAX_MONSTERS_BIG_MAP = 32;
 	constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;
 	constexpr int8_t MAX_MONSTERS_SMALL_MAP = 14;
+    
 	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = {{
 		{{6, 8, 10, 12}},  // Small maps
 		{{8, 12, 14, 16}}, // Medium maps
@@ -1604,173 +1604,202 @@ static bool WasLastWaveSpecial() noexcept
 	return IsSpecialWaveType(previous_wave_types[last_index]);
 }
 
-// Structure for an optional component to add to a wave
-struct WaveOptionalComponent
-{
-	MonsterWaveType type = MonsterWaveType::None; // The type to potentially add
-	float chance = 0.0f;						  // Probability (0.0 to 1.0) of adding this type
-												  // int min_wave = 1;           // Optional: Could add min wave *within the range*
+//======================================================================
+// SECTION: Wave Composition and Initialization (SoA Refactor)
+//======================================================================
+
+// --- Step 1: Define Source Data Structures ---
+
+struct WaveOptionalComponent {
+	MonsterWaveType type = MonsterWaveType::None;
+	float chance = 0.0f;
 };
 
-// Define the wave progression using constexpr std::array
-// IMPORTANT: Keep this sorted by max_wave ascending!
-struct WaveDefinition
-{
-	int max_wave;			   // This definition applies for waves <= max_wave
-	MonsterWaveType base_type; // Guaranteed monster types for this range
-	// Use std::array for optionals if the max number is known and fixed,
-	// otherwise std::vector is acceptable here as it's only initialized once.
-	// Let's assume a max of 4 optionals for this example.
+struct WaveDefinition {
+	int max_wave;
+	MonsterWaveType base_type;
 	std::array<WaveOptionalComponent, 4> optionals;
-	size_t num_optionals; // Track how many are actually used
-
-	// Constexpr constructor if needed, or aggregate initialization
+		//size_t num_optionals;
 };
 
-constexpr std::array<WaveDefinition, 8> wave_definitions = {{
-    // Waves 1-5: Allow Light units, both Ground and Flying.
-    {5, MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{}, {}, {}, {}}}, 0},
+struct SpecialWave {
+    MonsterWaveType type;
+    float chance;
+    int min_wave;
+    int max_wave;
+    const char* message;
+};
 
-    // Waves 6-10: Still Light, Ground/Flying, but add a chance for Small units.
-    {10, MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Small, 0.45f}, {}, {}, {}}}, 1},
+// --- Step 2: Define Source Data in Human-Readable Format (AoS) ---
 
-    // Waves 11-15: Introduce Medium units, increase Special and keep Flying chance.
-    {15, MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Special, 0.65f}, {MonsterWaveType::Small, 0.2f}, {}, {}}}, 2},
+// Corrected WAVE_DEFINITIONS_SRC array
+constexpr std::array<WaveDefinition, 8> WAVE_DEFINITIONS_SRC = {{
+    // Waves 1-5:
+    {5, MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{}, {}, {}, {}}}}, // REMOVED the trailing ", 0"
 
-    // Waves 16-20: Introduce Heavy units, high chance for Fast, keep Flying.
-    {20, MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Fast, 0.55f}, {MonsterWaveType::Special, 0.3f}, {}, {}}}, 2},
+    // Waves 6-10:
+    {10, MonsterWaveType::Light | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Small, 0.45f}, {}, {}, {}}}}, // REMOVED the trailing ", 1"
 
-    // Waves 21-25: Introduce Bomber units, keep others relevant.
-    {25, MonsterWaveType::Bomber | MonsterWaveType::Heavy | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Fast, 0.55f}, {MonsterWaveType::Special, 0.3f}, {}, {}}}, 2},
+    // Waves 11-15:
+    {15, MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Special, 0.65f}, {MonsterWaveType::Small, 0.2f}, {}, {}}}}, // REMOVED the trailing ", 2"
 
-    // Waves 26-35: Focus on Heavy/Elite, high chance for Fast/Special, moderate Flying
-    {35, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Special | MonsterWaveType::Fast, 0.75f}, {MonsterWaveType::Medium, 0.28f}, {}, {}}}, 2},
+    // Waves 16-20:
+    {20, MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Fast, 0.55f}, {MonsterWaveType::Special, 0.3f}, {}, {}}}}, // REMOVED the trailing ", 2"
 
-    // Waves 36-40: Add SemiBoss chance, keep others relevant
-    {40, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::SemiBoss, 0.45f}, {MonsterWaveType::Fast | MonsterWaveType::Bomber, 0.35f}, {MonsterWaveType::Medium, 0.30f}, {}}}, 3},
+    // Waves 21-25:
+    {25, MonsterWaveType::Bomber | MonsterWaveType::Heavy | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Fast, 0.55f}, {MonsterWaveType::Special, 0.3f}, {}, {}}}}, // REMOVED the trailing ", 2"
 
-    // Waves 41+: High chance for SemiBoss, Flying, Fast
-    {999, MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::SemiBoss, 0.35f}, {MonsterWaveType::Bomber | MonsterWaveType::Spawner, 0.6f}, {}, {}}}, 2}
+    // Waves 26-35:
+    {35, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::Special | MonsterWaveType::Fast, 0.75f}, {MonsterWaveType::Medium, 0.28f}, {}, {}}}}, // REMOVED the trailing ", 2"
+
+    // Waves 36-40:
+    {40, MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::SemiBoss, 0.45f}, {MonsterWaveType::Fast | MonsterWaveType::Bomber, 0.35f}, {MonsterWaveType::Medium, 0.30f}, {}}}}, // REMOVED the trailing ", 3"
+
+    // Waves 41+:
+    {999, MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Ground | MonsterWaveType::Flying, {{{MonsterWaveType::SemiBoss, 0.35f}, {MonsterWaveType::Bomber | MonsterWaveType::Spawner, 0.6f}, {}, {}}}} // REMOVED the trailing ", 2"
 }};
-// Updated function to get the wave type
+
+// Source data for special waves (chance is calculated at runtime based on player count)
+static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = {{
+    {MonsterWaveType::Gekk,                 0.0f, 5,  7,  "*** Gekk invasion incoming! ***\n"},
+    {MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8,  25, "*** Enraged Horde approaching! ***\n"},
+    {MonsterWaveType::Flying | MonsterWaveType::Fast, 0.2f,  9,  -1, "*** Aerial assault incoming! ***\n"},
+    {MonsterWaveType::Berserk,              0.2f,  8,  12, "*** Berserkers incoming! ***\n"},
+    {MonsterWaveType::Bomber,               0.35f, 10, -1, "*** Strogg Bomber Units Arrived! ***\n"},
+    {MonsterWaveType::Heavy,                0.2f,  12, -1, "*** Heavy Armored Units incoming! ***\n"},
+    {MonsterWaveType::Spawner,              0.75f, 25, -1, "*** Spawners Deployed! ***\n"}
+}};
+
+
+// --- Step 3: Define Optimized Data Structures (SoA) ---
+
+struct WaveDefinitionsSoA {
+    static constexpr size_t DEF_COUNT = WAVE_DEFINITIONS_SRC.size();
+    static constexpr size_t OPTIONALS_PER_DEF = 4;
+
+    std::array<int, DEF_COUNT> max_waves;
+    std::array<MonsterWaveType, DEF_COUNT> base_types;
+    std::array<MonsterWaveType, DEF_COUNT * OPTIONALS_PER_DEF> optional_types;
+    std::array<float, DEF_COUNT * OPTIONALS_PER_DEF> optional_chances;
+};
+
+struct SpecialWavesSoA {
+    static constexpr size_t WAVE_COUNT = SPECIAL_WAVES_SRC.size();
+    std::array<MonsterWaveType, WAVE_COUNT> types;
+    std::array<float, WAVE_COUNT> base_chances;
+    std::array<int, WAVE_COUNT> min_waves;
+    std::array<int, WAVE_COUNT> max_waves;
+    std::array<const char*, WAVE_COUNT> messages;
+};
+
+
+// --- Step 4: Define Compile-Time Transformation Functions ---
+
+constexpr WaveDefinitionsSoA create_wave_definitions_soa() {
+    WaveDefinitionsSoA soa_data{};
+    for (size_t i = 0; i < WAVE_DEFINITIONS_SRC.size(); ++i) {
+        soa_data.max_waves[i] = WAVE_DEFINITIONS_SRC[i].max_wave;
+        soa_data.base_types[i] = WAVE_DEFINITIONS_SRC[i].base_type;
+        for (size_t j = 0; j < WaveDefinitionsSoA::OPTIONALS_PER_DEF; ++j) {
+            const size_t flat_index = i * WaveDefinitionsSoA::OPTIONALS_PER_DEF + j;
+            if (j < WAVE_DEFINITIONS_SRC[i].optionals.size()) {
+                soa_data.optional_types[flat_index] = WAVE_DEFINITIONS_SRC[i].optionals[j].type;
+                soa_data.optional_chances[flat_index] = WAVE_DEFINITIONS_SRC[i].optionals[j].chance;
+            }
+        }
+    }
+    return soa_data;
+}
+
+constexpr SpecialWavesSoA create_special_waves_soa() {
+    SpecialWavesSoA soa_data{};
+    for (size_t i = 0; i < SPECIAL_WAVES_SRC.size(); ++i) {
+        soa_data.types[i] = SPECIAL_WAVES_SRC[i].type;
+        soa_data.base_chances[i] = SPECIAL_WAVES_SRC[i].chance;
+        soa_data.min_waves[i] = SPECIAL_WAVES_SRC[i].min_wave;
+        soa_data.max_waves[i] = SPECIAL_WAVES_SRC[i].max_wave;
+        soa_data.messages[i] = SPECIAL_WAVES_SRC[i].message;
+    }
+    return soa_data;
+}
+
+
+// --- Step 5: Create Global, Constant, SoA Data Instances ---
+static const WaveDefinitionsSoA g_waveDefinitions = create_wave_definitions_soa();
+static const SpecialWavesSoA g_specialWaves = create_special_waves_soa();
+
+
+// --- Step 6: REPLACEMENT for GetWaveComposition and InitializeWaveType ---
+
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false)
 {
-	const int32_t numHumanPlayers = GetNumHumanPlayers();
-	MonsterWaveType selected_type = MonsterWaveType::None;
-
-	// Special waves check - removed the wave 5-9 restriction
-	struct SpecialWave
-	{
-		MonsterWaveType type;
-		float chance;
-		int min_wave;
-		int max_wave;
-		const char *message;
-	};
-
-	const SpecialWave special_waves[] = {
-		// Early game special waves (waves 5-15)
-		{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "*** Gekk invasion incoming! ***\n"},
-		{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 25, "*** Enraged Horde approaching! ***\n"},
-		{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.2f, 9, -1, "*** Aerial assault incoming! ***\n"},
-
-		// Mid game special waves (waves 8+)
-		{MonsterWaveType::Berserk, 0.2f, 8, 12, "*** Berserkers incoming! ***\n"},
-		{MonsterWaveType::Bomber, 0.35f, 10, -1, "*** Strogg Bomber Units Arrived! ***\n"},
-
-		// Late game special waves
-		{MonsterWaveType::Heavy, 0.2f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
-		{MonsterWaveType::Spawner, 0.75f, 25, -1, "*** Spawners Deployed! ***\n"}};
-
-	if (!forceSpecialWave && !WasLastWaveSpecial())
-	{
-		for (const auto &wave : special_waves)
-		{
-			if (waveNumber >= wave.min_wave &&
-				(wave.max_wave == -1 || waveNumber <= wave.max_wave) &&
-				!WasRecentlyUsed(wave.type) &&
-				frandom() < wave.chance)
+	// --- Part 1: Check for Special Waves ---
+	if (!forceSpecialWave && !WasLastWaveSpecial()) {
+		const int32_t numHumanPlayers = GetNumHumanPlayers();
+		for (size_t i = 0; i < g_specialWaves.WAVE_COUNT; ++i) {
+			// Fast checks on contiguous SoA data
+			if (waveNumber >= g_specialWaves.min_waves[i] &&
+				(g_specialWaves.max_waves[i] == -1 || waveNumber <= g_specialWaves.max_waves[i]))
 			{
-				selected_type = wave.type;
-				gi.LocBroadcast_Print(PRINT_HIGH, wave.message);
-				StoreWaveType(selected_type); // Store special wave type
-				return selected_type;		  // Return immediately
-			}
-		}
-	}
-	// --- End Special Wave Logic ---
+				// Slower checks only if level is valid
+				const MonsterWaveType type = g_specialWaves.types[i];
+				if (!WasRecentlyUsed(type)) {
+					float chance = g_specialWaves.base_chances[i];
+					// Handle dynamic chance for Gekk wave
+					if (type == MonsterWaveType::Gekk) {
+						chance = (numHumanPlayers <= 2 ? 0.35f : 0.20f);
+					}
 
-	// --- Regular Wave Composition using the new structure ---
-
-	// Find the first definition where waveNumber <= max_wave
-	// This works because the vector is sorted by max_wave
-	auto it = std::find_if(wave_definitions.begin(), wave_definitions.end(),
-						   [waveNumber](const WaveDefinition &def)
-						   {
-							   return waveNumber <= def.max_wave;
-						   });
-
-	// Handle the case where no definition matches (shouldn't happen with a catch-all)
-	if (it == wave_definitions.end())
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("Warning: No wave definition found for wave {}. Using default.\n", waveNumber);
-		}
-		// Return a safe default (e.g., the first definition's base)
-		selected_type = wave_definitions[0].base_type;
-	}
-	else
-	{
-		// Apply the base type from the found definition
-		const WaveDefinition &def = *it;
-		selected_type = def.base_type;
-
-		// Process optional components for this definition
-		for (const auto &optional : def.optionals)
-		{
-			// Check if the type is valid, passes the random chance, and wasn't recently used
-			if (optional.type != MonsterWaveType::None &&
-				frandom() < optional.chance &&
-				!WasRecentlyUsed(optional.type))
-			{
-				// Combine the optional type with the selected type using the overloaded '|' operator
-				selected_type |= optional.type;
-
-				// Optional: Play sound only for specific significant additions like Flying
-				if (HasWaveType(optional.type, MonsterWaveType::Flying))
-				{
-					// Make sure 'incoming' sound index is valid and loaded
-					if (incoming)
-					{ // Check if the sound index is valid
-						gi.sound(world, CHAN_VOICE, incoming, 1, ATTN_NONE, 0);
+					if (frandom() < chance) {
+						gi.LocBroadcast_Print(PRINT_HIGH, g_specialWaves.messages[i]);
+						StoreWaveType(type);
+						return type;
 					}
 				}
 			}
 		}
 	}
 
-	// Store the final selected type for history tracking
+	// --- Part 2: Regular Wave Composition ---
+	MonsterWaveType selected_type = MonsterWaveType::None;
+	
+	// Find the correct wave definition index by iterating the fast `max_waves` array
+	size_t def_index = 0;
+	for (size_t i = 0; i < g_waveDefinitions.DEF_COUNT; ++i) {
+		if (waveNumber <= g_waveDefinitions.max_waves[i]) {
+			def_index = i;
+			break;
+		}
+	}
+
+	// Apply the base type
+	selected_type = g_waveDefinitions.base_types[def_index];
+
+	// Process optional components for this definition
+	const size_t start_optional_index = def_index * WaveDefinitionsSoA::OPTIONALS_PER_DEF;
+	for (size_t i = 0; i < WaveDefinitionsSoA::OPTIONALS_PER_DEF; ++i) {
+		const size_t current_optional_index = start_optional_index + i;
+		const MonsterWaveType optional_type = g_waveDefinitions.optional_types[current_optional_index];
+		
+		if (optional_type != MonsterWaveType::None &&
+			frandom() < g_waveDefinitions.optional_chances[current_optional_index] &&
+			!WasRecentlyUsed(optional_type))
+		{
+			selected_type |= optional_type;
+			if (HasWaveType(optional_type, MonsterWaveType::Flying) && incoming) {
+				gi.sound(world, CHAN_VOICE, incoming, 1, ATTN_NONE, 0);
+			}
+		}
+	}
+
 	StoreWaveType(selected_type);
 	return selected_type;
 }
+
 void InitializeWaveType(int32_t waveLevel)
 {
 	current_wave_type = GetWaveComposition(waveLevel);
 }
-
-// Wave difficulty multiplier
-// inline static float GetWaveDifficultyMultiplier(int waveNumber) noexcept {
-//	if (waveNumber <= 5) return 1.0f;
-//	if (waveNumber <= 10) return 1.2f;
-//	if (waveNumber <= 15) return 1.4f;
-//	if (waveNumber <= 20) return 1.6f;
-//	if (waveNumber <= 25) return 1.8f;
-//	if (waveNumber <= 30) return 2.0f;
-//	return 2.0f + ((waveNumber - 30) * 0.1f);
-//}
-// Update the function to accept MonsterTypeID
-
 // Function declaration for the new bounds helper
 bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &out_mins, vec3_t &out_maxs);
 
