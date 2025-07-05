@@ -1,32 +1,61 @@
 #pragma once
-#include "../g_local.h"
+#include "../g_local.h" // For gtime_t, int32_t, etc.
+#include <array>        // For std::array
 
-// Forward declarations
-struct benefit_t {
-    const char* name;
-    const char* center_msg;
-    const char* chat_msg;
-    const char* cvar_name;
-    const char* cvar_value;
-    int32_t min_level;
-    int32_t max_level;
-    float weight;
+// --- Enum and Struct Definitions (These are fine in a header) ---
+
+enum class BenefitID : uint8_t {
+    VAMPIRE,
+    VAMPIRE_UPGRADED,
+    AMMO_REGEN,
+    AUTO_HASTE,
+    START_ARMOR,
+    TRACED_BULLETS,
+    ENERGY_SHELLS,
+    CLUSTER_PROX,
+    PIERCING_PLASMA,
+    NAPALM_GRENADES,
+    BFG_PULL,
+    // ---
+    COUNT, // The total number of benefits
+    NONE = 255
 };
 
-// Constantes globales
-constexpr size_t MAX_BENEFITS = 11;  // Número de beneficios en el array
+struct BenefitsDataSoA {
+    static constexpr size_t NUM_BENEFITS = static_cast<size_t>(BenefitID::COUNT);
+
+    std::array<const char*, NUM_BENEFITS> names;
+    std::array<const char*, NUM_BENEFITS> center_msgs;
+    std::array<const char*, NUM_BENEFITS> chat_msgs;
+    std::array<const char*, NUM_BENEFITS> cvar_names;
+    std::array<const char*, NUM_BENEFITS> cvar_values;
+    std::array<int32_t, NUM_BENEFITS> min_levels;
+    std::array<int32_t, NUM_BENEFITS> max_levels;
+    std::array<float, NUM_BENEFITS> weights;
+    std::array<BenefitID, NUM_BENEFITS> prerequisites;
+};
+
+// --- Constants (These are also fine in a header) ---
+
+constexpr size_t MAX_BENEFITS = static_cast<size_t>(BenefitID::COUNT);
 constexpr size_t MAX_RECENT_BENEFITS = 3;
 
-// Declaraciones externas
-extern const benefit_t BENEFITS[MAX_BENEFITS];
+// --- Declarations of Global Variables and Functions ---
+// Use 'extern' to tell the compiler that these exist somewhere else (in the .cpp file).
+
+// Global Data
+extern const BenefitsDataSoA g_benefitsData;
+
+// Global State
 extern uint32_t obtained_benefits_mask;
-extern uint8_t recent_benefits[MAX_RECENT_BENEFITS];
+extern std::array<BenefitID, MAX_RECENT_BENEFITS> recent_benefits;
 extern size_t recent_index;
 extern int32_t vampire_level;
+extern bool bfg_pull_active;
 
-// Funciones públicas
-bool has_benefit(size_t index) noexcept;
-void mark_benefit_obtained(size_t index) noexcept;
+// Function Prototypes (Declarations)
 void ResetBenefits() noexcept;
 void CheckAndApplyBenefit(int32_t wave);
-std::string GetActiveBonusesString();
+bool has_benefit(BenefitID id) noexcept;
+void mark_benefit_obtained(BenefitID id) noexcept;
+std::string GetActiveBonusesString(); // Declaration for the function used in horde_menu.cpp

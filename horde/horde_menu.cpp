@@ -1196,15 +1196,6 @@ public:
 
 
 /**
- * @struct BonusMapping
- * @brief Maps internal benefit names to display text
- */
-struct BonusMapping {
-	std::string_view benefit_name;
-	std::string_view display_text;
-};
-
-/**
  * PlayerScore
  * Contains player score information for the scoreboard
  */
@@ -1402,80 +1393,6 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 	// Send to client
 	gi.WriteByte(svc_layout);
 	gi.WriteString(final_layout.c_str());
-}
-
-	//HORDE BONUS STRINGS
-/**
- * Gets a formatted string of all active player bonuses
- * return Formatted string with all active bonuses
- */
-std::string GetActiveBonusesString() {
-	// Define mappings from internal names to display names
-	static const std::array<BonusMapping, 11> bonus_mappings = { {
-		{"vampire upgraded", "Health & Armor Vampirism"},
-		{"vampire", "Health Vampirism"},
-		{"ammo regen", "Ammo Regen"},
-		{"start armor", "Starting Armor"},
-		{"auto haste", "Auto-Haste"},
-		{"Cluster Prox Grenades", "Upgraded Prox Launcher"},
-		{"Traced-Piercing Bullets", "Traced-Energy Bullets"},
-		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
-		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"},
-		{"Piercing Plasma", "Piercing Plasma-Beam"},
-		{"Energy Shells", "Energy Shells"}
-	} };
-
-	// Create bonus name to index lookup for faster lookups
-	static const auto benefit_name_to_index = []() {
-		std::unordered_map<std::string_view, size_t> result;
-		for (size_t i = 0; i < MAX_BENEFITS; i++) {
-			result.emplace(BENEFITS[i].name, i);
-		}
-		return result;
-		}();
-
-	std::vector<std::string_view> active_bonuses;
-	active_bonuses.reserve(bonus_mappings.size()); // Reserve space to avoid reallocation
-
-	// Check if "vampire upgraded" is active
-	bool has_vampire_upgraded = false;
-	auto vampire_upgraded_it = benefit_name_to_index.find("vampire upgraded");
-	if (vampire_upgraded_it != benefit_name_to_index.end()) {
-		has_vampire_upgraded = has_benefit(vampire_upgraded_it->second);
-	}
-
-	// Loop through all benefits to find active ones
-	for (const auto& [benefit_name, display_text] : bonus_mappings) {
-		// Skip "vampire" if "vampire upgraded" is already active
-		if (benefit_name == "vampire" && has_vampire_upgraded) {
-			continue;
-		}
-
-		// Check if the benefit is active
-		auto it = benefit_name_to_index.find(benefit_name);
-		if (it != benefit_name_to_index.end() && has_benefit(it->second)) {
-			active_bonuses.push_back(display_text);
-		}
-	}
-
-	// Return early if no bonuses are active
-	if (active_bonuses.empty()) {
-		return "";
-	}
-
-	// Create formatted result string
-	StringBuilder result(active_bonuses.size() * 30); // Estimate average length
-
-	for (size_t i = 0; i < active_bonuses.size(); ++i) {
-		result.append("* ");
-		result.append(active_bonuses[i]);
-
-		if (i < active_bonuses.size() - 1) {
-			result.append("\n");
-		}
-	}
-
-	return result.str();
 }
 
 // --- END OF FILE horde_menu.cpp ---
