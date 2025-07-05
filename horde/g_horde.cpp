@@ -78,15 +78,16 @@ static constexpr size_t MAX_RECENT_POSITIONS = 32; // History for TryAlternative
 static RecentSpawnsSoA g_recent_spawns;
 static size_t g_recent_spawn_index = 0; // Renamed from g_recent_position_index for clarity
 
-// --- Recent Teleport Position Tracking ---
-struct RecentTeleportPosition
-{
-	vec3_t position = {};
-	gtime_t teleport_time = 0_sec;
+// --- Recent Teleport Position Tracking (SoA) ---
+static constexpr int MAX_RECENT_TELEPORT_LOCATIONS = 8;
+
+struct RecentTeleportsSoA {
+    std::array<vec3_t, MAX_RECENT_TELEPORT_LOCATIONS> positions;
+    std::array<gtime_t, MAX_RECENT_TELEPORT_LOCATIONS> teleport_times;
 };
-static constexpr int MAX_RECENT_TELEPORT_LOCATIONS = 8; // History for CheckAndTeleportStuckMonster
-static std::array<RecentTeleportPosition, MAX_RECENT_TELEPORT_LOCATIONS> g_recent_teleport_positions;
-static int g_recent_teleport_index = 0;
+
+static RecentTeleportsSoA g_recent_teleports;
+static int g_recent_teleport_index = 0; 
 
 // --- Horde Mode Constants ---
 namespace HordeConstants
@@ -230,22 +231,26 @@ bool IsPositionTooCloseToRecentSpawn(const vec3_t &position)
 
 void MarkPositionAsRecentlyTeleported(const vec3_t &position)
 {
-	g_recent_teleport_positions[g_recent_teleport_index] = {
-		position,
-		level.time + HordeConstants::RECENT_TELEPORT_COOLDOWN // Mark when it becomes not recent
-	};
+    // Assign to the two parallel arrays at the current index.
+	g_recent_teleports.positions[g_recent_teleport_index] = position;
+	g_recent_teleports.teleport_times[g_recent_teleport_index] = level.time + HordeConstants::RECENT_TELEPORT_COOLDOWN;
+
+    // Index update logic is unchanged.
 	g_recent_teleport_index = (g_recent_teleport_index + 1) % MAX_RECENT_TELEPORT_LOCATIONS;
 }
 
 bool IsPositionTooCloseToRecentTeleport(const vec3_t &position)
 {
 	const gtime_t current_time = level.time;
-	for (const auto &recent : g_recent_teleport_positions)
+    // Iterate with a standard index-based for loop.
+	for (int i = 0; i < MAX_RECENT_TELEPORT_LOCATIONS; ++i)
 	{
-		// Check if the cooldown has expired (teleport_time stores the time *until* it's no longer recent)
-		if (recent.teleport_time > current_time)
+        // Fast, cache-friendly check on the times array first.
+		if (g_recent_teleports.teleport_times[i] > current_time)
 		{
-			if ((position - recent.position).lengthSquared() < HordeConstants::MIN_RECENT_TELEPORT_DIST_SQ)
+            // Only if the cooldown is active do we access the positions array
+            // and perform the expensive vector math.
+			if ((position - g_recent_teleports.positions[i]).lengthSquared() < HordeConstants::MIN_RECENT_TELEPORT_DIST_SQ)
 			{
 				return true;
 			}
@@ -4594,7 +4599,8 @@ static void ResetRecentBosses() noexcept
 static void ResetTeleportTracking() noexcept
 {
 	// Reset recent teleport position history
-	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{});
+	g_recent_teleports.positions.fill(vec3_origin);
+	g_recent_teleports.teleport_times.fill(0_sec);
 	g_recent_teleport_index = 0;
 
 	// Reset global teleport rate limiting
@@ -4715,14 +4721,14 @@ void ResetGame()
 	g_recent_spawns.cooldowns_until.fill(0_sec);
 	g_recent_spawn_index = 0;
 
-	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{});
-	g_recent_teleport_index = 0;
+	// recent teleport
+	ResetTeleportTracking();
 
 	// HordeConstants::recent_teleport_count = 0;
 	HordeConstants::g_teleport_rate_count = 0;
 	HordeConstants::g_teleport_rate_reset_time = level.time;
 
-	ResetTeleportTracking();
+
 	ResetRecentBosses();
 	ResetAmbushSystem();
 	ResetWaveMemory();
