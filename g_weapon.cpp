@@ -1844,129 +1844,143 @@ struct bfg_laser_pierce_t : pierce_args_t
 	}
 };
 
-#include <ranges> // Required for std::views
-
-// --- Step 1: The custom C++20 range view (no changes needed here) ---
-struct find_radius_view : std::ranges::view_base
-{
-    // ... (iterator implementation from previous answer remains the same) ...
-    struct iterator {
-        using iterator_category = std::input_iterator_tag;
-        using value_type = edict_t*;
-        using difference_type = std::ptrdiff_t;
-        using pointer = edict_t**;
-        using reference = edict_t*&;
-
-        edict_t* current = nullptr;
-        vec3_t   origin;
-        float    radius;
-
-        iterator() = default;
-        iterator(vec3_t o, float r) : origin(o), radius(r) {
-            current = findradius(nullptr, origin, radius);
-        }
-
-        edict_t* operator*() const { return current; }
-        iterator& operator++() {
-            if (current) {
-                current = findradius(current, origin, radius);
-            }
-            return *this;
-        }
-        void operator++(int) { ++(*this); }
-
-        bool operator==(const std::default_sentinel_t&) const { return current == nullptr; }
-        bool operator!=(const std::default_sentinel_t&) const { return current != nullptr; }
-    };
-
-    vec3_t origin;
-    float  radius;
-
-    auto begin() const { return iterator(origin, radius); }
-    auto end() const { return std::default_sentinel; }
-};
-
-
-// --- Step 2: The fully refactored and FIXED bfg_think function ---
-
 /**
  * Main update function for active BFG projectiles.
  * Handles laser effects, damage application, and entity pulling.
- *
- * REFACTORED with C++20 Ranges for improved readability and maintainability.
  */
 THINK(bfg_think) (edict_t* self) -> void
 {
-    // --- 1. Early Exit & Setup (Unchanged) ---
-    if (!self || !self->owner)
-        return;
+	// Early exit checks
+	if (!self || !self->owner)
+		return;
 
-    const gtime_t expiry_time = (self->timestamp != 0_ms) ? self->timestamp : (self->air_finished + BFG_MAX_LIFETIME);
-    if (level.time >= expiry_time) {
-        G_FreeEdict(self);
-        return;
-    }
+	// Determine expiry time
+	const gtime_t expiry_time = (self->timestamp != 0_ms) ?
+		self->timestamp :
+		(self->air_finished + BFG_MAX_LIFETIME);
 
-    bfg_spawn_laser(self); // Visual effect
+	// Free entity if it has expired
+	if (level.time >= expiry_time)
+	{
+		G_FreeEdict(self);
+		return;
+	}
 
-    const int dmg = deathmatch->integer ? BFG_DMG_DEATHMATCH : BFG_DMG_SINGLEPLAYER;
-    const int bfgrange = calculate_bfg_range(self);
-    const bool should_pull = g_bfgpull->integer && self->owner->client;
-    const vec3_t self_origin = self->s.origin;
+	// Spawn visual laser effect
+	bfg_spawn_laser(self);
 
-    // --- 2. Declarative Target Selection using a C++20 Range Pipeline ---
+	// Calculate damage based on game mode
+	const int dmg = deathmatch->integer ? BFG_DMG_DEATHMATCH : BFG_DMG_SINGLEPLAYER;
 
-    // FIX 1: Use C++20 designated initializers for clarity and to fix the compile error.
-    auto targets = find_radius_view{ .origin = self_origin, .radius = (float)bfgrange }
-        // Basic filtering: must be damageable and not the BFG or its owner.
-        | std::views::filter([&](const edict_t* ent) {
-            return ent->takedamage && ent != self && ent != self->owner;
-        })
-        // Filter by entities that can be affected by the BFG's logic.
-        | std::views::filter(can_be_affected_by_bfg)
-        // Filter out teammates.
-        | std::views::filter([&](const edict_t* ent) {
-            // FIX 2: Use const_cast to interface with the non-const-correct legacy function.
-            return !CheckTeamDamage(const_cast<edict_t*>(ent), self->owner);
-        })
-        // Filter for visibility: only affect targets with a clear line of sight.
-        | std::views::filter([&](const edict_t* ent) {
-            trace_t tr = gi.traceline(self_origin, calculate_entity_center(ent), nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
-            return tr.fraction >= 1.0f;
-        });
+	// Calculate range for effects
+	const int bfgrange = calculate_bfg_range(self);
+	const int bfgrange_squared = bfgrange * bfgrange;
 
-    // --- 3. Process Validated Targets ---
-    // The loop now only contains the "work" to be done. All validation is handled above.
-    for (edict_t* ent : targets)
-    {
-        const vec3_t point = calculate_entity_center(ent);
-        vec3_t dir = self_origin - point;
-        dir.normalize(); // Normalize once for all subsequent calculations.
+	// Determine if pulling should be applied
+	const bool should_pull = g_bfgpull->integer && self->owner->client;
 
-        // Apply damage
-        T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+	// Cache origin for performance
+	const vec3_t self_origin = self->s.origin;
 
-        // Apply pull effect if enabled
-        if (should_pull && !OnSameTeam(ent, self->owner) && ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
-        {
-            const int pull_force = calculate_pull_force(ent);
-            ent->velocity -= dir * pull_force;
-            if (ent->groundentity && pull_force >= BFG_PULL_FORCE_GROUNDED)
-                ent->groundentity = nullptr;
-            T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0, pull_force, DAMAGE_ENERGY, MOD_BFG_LASER);
-        }
+	// Use unordered_set for efficient entity tracking
+	std::unordered_set<edict_t*> processed_entities;
 
-        // Visual laser effect
-        gi.WriteByte(svc_temp_entity);
-        gi.WriteByte(TE_BFG_LASER);
-        gi.WritePosition(self_origin);
-        gi.WritePosition(point); // The laser now correctly targets the entity's center.
-        gi.multicast(self_origin, MULTICAST_PHS, false);
-    }
+	// Find all entities in range
+	edict_t* ent = nullptr;
+	while ((ent = findradius(ent, self_origin, bfgrange)) != nullptr)
+	{
+		// Skip entities that can't be damaged
+		if (!ent->takedamage || ent == self || ent == self->owner)
+			continue;
 
-    // --- 4. Schedule Next Think (Unchanged) ---
-    const gtime_t next_think_time = g_bfgslide->integer ? FRAME_TIME_MS * 1.6 : FRAME_TIME_MS * 2.5;
-    self->nextthink = level.time + next_think_time;
+		// Skip entities that shouldn't be affected by BFG
+		if (!can_be_affected_by_bfg(ent))
+			continue;
+
+		// Skip team members
+		if (CheckTeamDamage(ent, self->owner))
+			continue;
+
+		// Calculate entity center once
+		const vec3_t point = calculate_entity_center(ent);
+
+		// Calculate direction and distance squared for efficiency
+		vec3_t dir = self_origin - point;
+		const float dist_squared = dir.lengthSquared();
+
+		// Skip entities outside range
+		if (dist_squared > bfgrange_squared)
+			continue;
+
+		// Calculate actual distance and normalize direction
+		const float dist = sqrtf(dist_squared);
+		if (dist > BFG_VELOCITY_EPSILON) {
+			dir *= (1.0f / dist); // Normalize efficiently
+		}
+		else {
+			// Handle zero distance case
+			dir = vec3_t{ 0, 0, 1 }; // Default up direction
+		}
+
+		// Skip entities we've already processed
+		if (processed_entities.find(ent) != processed_entities.end())
+			continue;
+
+		// Check visibility
+		trace_t tr = gi.traceline(self_origin, point, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
+		if (tr.fraction < 1.0f)
+			continue; // Not visible
+
+		// Mark entity as processed
+		processed_entities.insert(ent);
+
+		// Apply damage
+		T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+
+		// Calculate laser endpoint for visuals
+		vec3_t laser_end = self_origin + (dir * -BFG_LASER_LENGTH);
+
+		// Perform piercing trace
+		trace_t pierce_tr = gi.traceline(self_origin, laser_end, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
+		bfg_laser_pierce_t pierce_args{ self, dir, dmg };
+		pierce_trace(self_origin, laser_end, self, pierce_args,
+			CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER |
+			CONTENTS_DEADMONSTER | CONTENTS_PROJECTILECLIP);
+		laser_end = pierce_tr.endpos; // Update laser end to actual pierce end point
+
+		// Apply pull effect if enabled
+		if (should_pull && !OnSameTeam(ent, self->owner) && ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
+		{
+			// Calculate pull force based on entity state
+			const int pull_force = calculate_pull_force(ent);
+
+			// Apply velocity change
+			ent->velocity -= dir * pull_force;
+
+			// Break ground contact if pulling strongly
+			if (ent->groundentity && pull_force >= BFG_PULL_FORCE_GROUNDED)
+				ent->groundentity = nullptr;
+
+			// Apply knockback with consolidated call
+			T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0,
+				pull_force, DAMAGE_ENERGY, MOD_BFG_LASER);
+		}
+
+		// Visual laser effect
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BFG_LASER);
+		gi.WritePosition(self_origin);
+		gi.WritePosition(laser_end);
+		gi.multicast(self_origin, MULTICAST_PHS, false);
+	}
+
+	// Calculate next think time based on game mode
+	const gtime_t next_think_time = g_bfgslide->integer ?
+		FRAME_TIME_MS * 1.6 :  // Slightly faster for slide mode
+		FRAME_TIME_MS * 2.5;   // Slightly slower for normal mode
+
+	// Schedule next update
+	self->nextthink = level.time + next_think_time;
 }
 
 /**
