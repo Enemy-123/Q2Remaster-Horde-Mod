@@ -70,14 +70,13 @@ static int32_t waves_since_ambush = 0;
 // static bool ambush_system_initialized = false;
 
 // --- Recent Spawn Position Tracking ---
-struct RecentSpawnPosition
-{
-	vec3_t position = {};
-	gtime_t cooldown_until = 0_sec;
+struct RecentSpawnsSoA {
+    std::array<vec3_t, 32> positions;       // Tightly packed array of vectors
+    std::array<gtime_t, 32> cooldowns_until; // Tightly packed array of times
 };
 static constexpr size_t MAX_RECENT_POSITIONS = 32; // History for TryAlternativeSpawnPosition
-static std::array<RecentSpawnPosition, MAX_RECENT_POSITIONS> g_recent_spawn_positions;
-static size_t g_recent_position_index = 0;
+static RecentSpawnsSoA g_recent_spawns;
+static size_t g_recent_spawn_index = 0; // Renamed from g_recent_position_index for clarity
 
 // --- Recent Teleport Position Tracking ---
 struct RecentTeleportPosition
@@ -201,26 +200,32 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 // --- Helper Functions ---
 void MarkPositionAsRecentlyUsed(const vec3_t &position)
 {
-	g_recent_spawn_positions[g_recent_position_index] = {
-		position,
-		level.time + HordeConstants::RECENT_SPAWN_COOLDOWN};
-	g_recent_position_index = (g_recent_position_index + 1) % MAX_RECENT_POSITIONS;
+    // Instead of assigning one struct, we assign to two parallel arrays at the same index.
+    g_recent_spawns.positions[g_recent_spawn_index] = position;
+    g_recent_spawns.cooldowns_until[g_recent_spawn_index] = level.time + HordeConstants::RECENT_SPAWN_COOLDOWN;
+
+    // The index update logic remains identical.
+	g_recent_spawn_index = (g_recent_spawn_index + 1) % MAX_RECENT_POSITIONS;
 }
 
 bool IsPositionTooCloseToRecentSpawn(const vec3_t &position)
 {
 	const gtime_t current_time = level.time;
-	for (const auto &recent : g_recent_spawn_positions)
+    // We iterate with a standard index-based for loop now.
+	for (size_t i = 0; i < MAX_RECENT_POSITIONS; ++i)
 	{
-		if (recent.cooldown_until > current_time)
+        // First, the fast, cache-friendly check on the cooldowns array.
+		if (g_recent_spawns.cooldowns_until[i] > current_time)
 		{
-			if ((position - recent.position).lengthSquared() < HordeConstants::MIN_RECENT_SPAWN_DIST_SQ)
+            // Only if the cooldown is active do we access the positions array
+            // and perform the expensive vector math.
+			if ((position - g_recent_spawns.positions[i]).lengthSquared() < HordeConstants::MIN_RECENT_SPAWN_DIST_SQ)
 			{
-				return true;
+				return true; // Found a recent spawn that's too close.
 			}
 		}
 	}
-	return false;
+	return false; // No conflicting spawns found.
 }
 
 void MarkPositionAsRecentlyTeleported(const vec3_t &position)
@@ -4705,8 +4710,11 @@ void ResetGame()
 		}
 	}
 
-	std::fill(g_recent_spawn_positions.begin(), g_recent_spawn_positions.end(), RecentSpawnPosition{});
-	g_recent_position_index = 0;
+	//recent spawns
+	g_recent_spawns.positions.fill(vec3_origin); // Or vec3_t{}
+	g_recent_spawns.cooldowns_until.fill(0_sec);
+	g_recent_spawn_index = 0;
+
 	std::fill(g_recent_teleport_positions.begin(), g_recent_teleport_positions.end(), RecentTeleportPosition{});
 	g_recent_teleport_index = 0;
 
