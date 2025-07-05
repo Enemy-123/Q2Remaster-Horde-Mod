@@ -291,7 +291,7 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
 
             // XDM maps
             {"xdm1", MapID::XDM1}, {"xdm2", MapID::XDM2}, {"xdm3", MapID::XDM3},
-            {"xdm4", MapID::XDM4}, {"xdm6", MapID::XDM6},
+            {"xdm4", MapID::XDM4}, {"xdm5", MapID::XDM5}, {"xdm6", MapID::XDM6},
 
             // Q64 maps
             {"q64/dm1", MapID::Q64_DM1}, {"q64/dm2", MapID::Q64_DM2}, {"q64/dm3", MapID::Q64_DM3},
@@ -374,6 +374,8 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
         s_origins[static_cast<size_t>(MapID::XDM3)] = { {vec3_t{96, -96, 360}}, true };
         // XDM4
         s_origins[static_cast<size_t>(MapID::XDM4)] = { {vec3_t{-160, -368, 360}}, true };
+        // XDM5 
+         s_origins[static_cast<size_t>(MapID::XDM5)] = { {vec3_t{8.2, -635, 367}}, true };
         // XDM6
         s_origins[static_cast<size_t>(MapID::XDM6)] = { {vec3_t{-1088, -128, 528}}, true };
         // INDUSTRY
@@ -452,7 +454,7 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
         const MapID bigMapIDs[] = {
             MapID::Q2CTF5, MapID::OLD_KMDM3, MapID::XDM2, MapID::XDM4, MapID::XDM6, MapID::XDM3, MapID::RDM6,
             MapID::RDM8, MapID::XDM1, MapID::WASTE2, MapID::RDM5, MapID::RDM9, MapID::RDM12, MapID::XINTELL,
-            MapID::SEWER64, MapID::BASE64, MapID::CITY64, MapID::RDM1, MapID::RDM2
+            MapID::SEWER64, MapID::BASE64, MapID::CITY64, MapID::RDM1, MapID::RDM2, MapID::XDM5
         };
         for (MapID id : bigMapIDs) {
             size_t index = static_cast<size_t>(id);

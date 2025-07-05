@@ -204,6 +204,7 @@ public:
 
         RDM1 = 52,
         RDM2 = 53,
+        XDM5 = 54,
 
         MAX_MAPS = 64,  // Set this to a value higher than the largest ID
         UNKNOWN = 0xFFFF

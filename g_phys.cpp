@@ -52,37 +52,52 @@ contents_t G_GetClipMask(edict_t* ent)
     // --- 3. Horde-Specific Monster-on-Monster Collision ---
     if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
     {
-	static const auto excluded_types = [] {
-		std::array<bool, 256> arr{};
-		arr.fill(false);
-		const char* excluded_classnames[] = {
-			"monster_boss3_stand", "misc_eastertank", "misc_easterchick",
-			"misc_easterchick2", "monster_commander_body", "misc_bigviper"
-		};
-		for (const char* classname : excluded_classnames) {
-			// Add a check for UNKNOWN
-			uint8_t type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(classname));
-			if (type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) {
-				arr[type_id] = true;
-			}
-		}
-		return arr;
-	}();
+        // --- Exclusion list (this part is fine) ---
+        static const auto excluded_types = [] {
+            std::array<bool, 256> arr{};
+            arr.fill(false);
+            const char* excluded_classnames[] = {
+                "monster_boss3_stand", "misc_eastertank", "misc_easterchick",
+                "misc_easterchick2", "monster_commander_body", "misc_bigviper"
+            };
+            for (const char* classname : excluded_classnames) {
+                uint8_t type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(classname));
+                if (type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) {
+                    arr[type_id] = true;
+                }
+            }
+            return arr;
+        }();
 
         if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN) {
             ent->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
         }
 
         if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN && excluded_types[ent->monster_type_id]) {
-            return mask;
+            return mask; // Early exit for excluded types is fine
         }
 
         // --- THE CORE FIX ---
-        // The grid tells us if there's *any* potential collision nearby.
-        // If the list of potential colliders is not empty, we proceed to the trace.
-        if (!HordePhys::g_monster_grid.GetPotentialColliders(ent).empty())
+        // First, check if there's a potential collision with a TEAMMATE, just like the old code.
+        // This restores the original logic while still benefiting from the grid's speed.
+        bool potential_teammate_collision = false;
+        const auto& potential_colliders = HordePhys::g_monster_grid.GetPotentialColliders(ent);
+
+        for (auto* other : potential_colliders)
         {
-            // Perform a single trace at the entity's current position using the full mask.
+            // The old code checked this before tracing. We must do the same.
+            // We don't need to check for `other != ent` because the grid should not return `ent` itself.
+            if (OnSameTeam(ent, other))
+            {
+                potential_teammate_collision = true;
+                break; // Found one, no need to check further
+            }
+        }
+
+        // Only do the expensive trace if there's a potential collision with a teammate.
+        if (potential_teammate_collision)
+        {
+            // Perform a single trace at the entity's current position.
             // This is exactly what your original working code did.
             trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask);
 
