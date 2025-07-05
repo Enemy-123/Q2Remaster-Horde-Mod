@@ -1182,48 +1182,75 @@ struct TargetSearchResult {
 	float distance{ CTFIDViewConfig::MAX_DISTANCE };
 };
 
+// REPLACEMENT for FindBestTarget - Optimized Linear Scan
 [[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) noexcept {
-	TargetSearchResult result;
-	vec3_t const& viewer_pos = ent->s.origin;
+    TargetSearchResult result;
+    vec3_t const& viewer_pos = ent->s.origin;
+    
+    edict_t* best_candidate = nullptr;
+    float best_score = -1.0f; // Use a score instead of just distance
 
-	auto checkEntity = [&](edict_t* who) {
-		if (!IsValidTarget(ent, who, false)) return;
+    auto checkEntity = [&](edict_t* who) {
+        if (!IsValidTarget(ent, who, false)) { // The 'false' skips the visibility check in IsValidTarget
+            return;
+        }
 
-		vec3_t dir = who->s.origin - viewer_pos;
-		float const dist = dir.normalize();
+        vec3_t dir = who->s.origin - viewer_pos;
+        float const dist_sq = dir.lengthSquared(); // Use squared distance to avoid sqrt
 
-		if (dist >= result.distance || dist > CTFIDViewConfig::MAX_DISTANCE) return;
+        // Use a generous max distance check to quickly discard far away entities
+        static constexpr float MAX_DISTANCE_SQ = CTFIDViewConfig::MAX_DISTANCE * CTFIDViewConfig::MAX_DISTANCE;
+        if (dist_sq > MAX_DISTANCE_SQ) {
+            return;
+        }
 
-		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
-			? CTFIDViewConfig::CLOSE_MIN_DOT
-			: CTFIDViewConfig::MIN_DOT;
+        dir.normalize(); // Normalize only after distance check
+        float const dot = forward.dot(dir);
 
-		if (forward.dot(dir) <= min_dot) return;
+        // Determine the minimum required dot product based on distance
+        static constexpr float CLOSE_DISTANCE_SQ = CTFIDViewConfig::CLOSE_DISTANCE * CTFIDViewConfig::CLOSE_DISTANCE;
+        float const min_dot = (dist_sq < CLOSE_DISTANCE_SQ)
+            ? CTFIDViewConfig::CLOSE_MIN_DOT
+            : CTFIDViewConfig::MIN_DOT;
 
-		trace_t const tr = gi.traceline(viewer_pos, who->s.origin, ent, MASK_SOLID);
-		if (tr.fraction != 1.0f && tr.ent != who) return;
+        if (dot < min_dot) {
+            return;
+        }
 
-		result.distance = dist;
-		result.target = who;
-	};
+        // Calculate a score. Higher dot product is better, lower distance is better.
+        // We prioritize dot product heavily.
+        float score = (dot * 1000.0f) - sqrtf(dist_sq); // sqrt is slow, but we only do it for valid candidates
+        if (score > best_score) {
+            best_score = score;
+            best_candidate = who;
+        }
+    };
 
-	// Prioritized search: check players first, then monsters, then others.
-	// This loop structure with early-outs is a great performance heuristic.
-	for (edict_t* who : active_players()) {
-		checkEntity(who);
-		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
-	}
-	for (edict_t* who : active_monsters()) {
-		checkEntity(who);
-		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
-	}
-	for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
-		if (who->client || (who->svflags & SVF_MONSTER)) continue;
-		checkEntity(who);
-		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
-	}
+    // --- The same iteration logic as before ---
+    for (edict_t* who : active_players()) {
+        checkEntity(who);
+    }
+    for (edict_t* who : active_monsters()) {
+        checkEntity(who);
+    }
+    for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
+        if (who->client || (who->svflags & SVF_MONSTER)) continue;
+        checkEntity(who);
+    }
 
-	return result;
+    // --- Final Visibility Check ---
+    // After checking all entities, we perform ONE traceline on the best candidate found.
+    if (best_candidate) {
+        trace_t const tr = gi.traceline(viewer_pos, best_candidate->s.origin, ent, MASK_SOLID);
+        if (tr.fraction == 1.0f || tr.ent == best_candidate) {
+            // It's visible! This is our target.
+            result.target = best_candidate;
+            // We can calculate the final distance now.
+            result.distance = (best_candidate->s.origin - viewer_pos).length();
+        }
+    }
+
+    return result;
 }
 
 void CTFSetIDView(edict_t* ent) {
