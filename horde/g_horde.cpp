@@ -1927,47 +1927,58 @@ static const MonsterTypeInfo monsterTypes[] = {
     {horde::MonsterTypeID::JORG,             MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-80,-80,0}, {80,80,140}, 1.0f},
     {horde::MonsterTypeID::PSX_GUARDIAN,     MonsterWaveType::Ground | MonsterWaveType::Boss | MonsterWaveType::Heavy, 999, 0.0f, {-32,-32,-24}, {32,32,64}, 1.0f}
 };
-// Optimized version using a precomputed map
-static std::array<MonsterWaveType, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterWaveTypes;
-static bool g_monsterWaveTypesInitialized = false;
 
-// Initialize the wave types array once
-static void InitializeMonsterWaveTypes()
-{
-	if (g_monsterWaveTypesInitialized)
-		return;
+// Define a constant for the number of monsters, derived from the array itself.
+constexpr size_t MONSTER_DATA_COUNT = std::size(monsterTypes);
 
-	g_monsterWaveTypes.fill(MonsterWaveType::None);
+// The new SoA (Structure of Arrays) definition.
+struct MonsterDataSoA {
+    // We use std::array for compile-time safety and size checking.
+    // The size is based on the highest enum value for direct indexing.
+    static constexpr size_t MONSTER_ARRAY_SIZE = static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES);
 
-	// Fill in all the wave types for each monster
-	for (const auto &monster : monsterTypes)
-	{
-		horde::MonsterTypeID typeId = monster.typeId;
-		if (typeId != horde::MonsterTypeID::UNKNOWN)
-		{
-			g_monsterWaveTypes[static_cast<size_t>(typeId)] = monster.types;
-		}
-	}
+    std::array<MonsterWaveType, MONSTER_ARRAY_SIZE> waveTypes;
+    std::array<int, MONSTER_ARRAY_SIZE> minWaves;
+    std::array<float, MONSTER_ARRAY_SIZE> weights;
+    std::array<vec3_t, MONSTER_ARRAY_SIZE> default_mins;
+    std::array<vec3_t, MONSTER_ARRAY_SIZE> default_maxs;
+    std::array<float, MONSTER_ARRAY_SIZE> s_scales;
+};
 
-	g_monsterWaveTypesInitialized = true;
+// This is the core of the compile-time conversion.
+// This function is executed by the compiler, not at runtime.
+constexpr MonsterDataSoA create_monster_data_soa() {
+    MonsterDataSoA soa_data{}; // Initialize with default values (zeros)
+
+    // The compiler will iterate through the AoS array...
+    for (const auto& monster_info : monsterTypes) {
+        // ...and place each piece of data into the correct parallel array
+        // using the MonsterTypeID as the index.
+        const size_t index = static_cast<size_t>(monster_info.typeId);
+        if (index < soa_data.MONSTER_ARRAY_SIZE) {
+            soa_data.waveTypes[index] = monster_info.types;
+            soa_data.minWaves[index] = monster_info.minWave;
+            soa_data.weights[index] = monster_info.weight;
+            soa_data.default_mins[index] = monster_info.default_mins;
+            soa_data.default_maxs[index] = monster_info.default_maxs;
+            soa_data.s_scales[index] = monster_info.s_scale;
+        }
+    }
+    return soa_data;
 }
 
-// Update GetMonsterWaveTypes to use the precomputed array
-// Add a TypeID overload for GetMonsterWaveTypes
+// Create the global, constant, SoA data structure.
+// The compiler runs create_monster_data_soa() and bakes the result directly into the executable.
+static const MonsterDataSoA g_monsterData = create_monster_data_soa();
+
 inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept
 {
-	if (typeId == horde::MonsterTypeID::UNKNOWN)
-		return MonsterWaveType::None;
-
-	// Make sure the wave types are initialized
-	if (!g_monsterWaveTypesInitialized)
-	{
-		InitializeMonsterWaveTypes();
-	}
-
-	return g_monsterWaveTypes[static_cast<size_t>(typeId)];
+    const size_t index = static_cast<size_t>(typeId);
+    if (index >= g_monsterData.MONSTER_ARRAY_SIZE) {
+        return MonsterWaveType::None;
+    }
+	return g_monsterData.waveTypes[index];
 }
-
 #include <array>
 #include <unordered_set>
 #include <random>
@@ -2902,10 +2913,6 @@ inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType w
     return true;
 }
 
-// ADDED: Monster Info LUT global variable
-static std::array<const MonsterTypeInfo *, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monster_info_lut;
-static bool g_monster_info_lut_initialized = false;
-
 // =======================================================================
 // BEGIN: COMPLETE MONSTER PICKING SYSTEM
 // =======================================================================
@@ -2959,7 +2966,7 @@ struct MonsterCache
 		count++;
 	}
 };
-// Global static instance for the picker's internal cache.
+
 static MonsterCache g_monster_picker_internal_cache;
 
 
@@ -3049,45 +3056,57 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 // (The following helper functions are unchanged but required)
 //-----------------------------------------------------
 
-static float CalculateBaseWeight(const MonsterTypeInfo &monster, const MonsterSelectionContext &ctx)
+// This function now takes the index `i` and the context `ctx`
+// to calculate the base weight for the monster at that index.
+static float CalculateBaseWeight(size_t i, const MonsterSelectionContext &ctx)
 {
-	float weight = monster.weight;
-	if (monster.minWave < ctx.currentActualLevel)
+    float weight = g_monsterData.weights[i];
+    const int minWave = g_monsterData.minWaves[i];
+
+	if (minWave < ctx.currentActualLevel)
 	{
-		float relevance = 1.0f - std::min(0.6f, (ctx.currentActualLevel - monster.minWave) * 0.04f);
+		float relevance = 1.0f - std::min(0.6f, (ctx.currentActualLevel - minWave) * 0.04f);
 		weight *= relevance;
 	}
-	if (weight < 0.1f && monster.weight >= 0.1f)
+	// Ensure a minimum weight for monsters that are still relevant.
+	if (weight < 0.1f && g_monsterData.weights[i] >= 0.1f)
 	{
 		weight = 0.1f;
 	}
 	return weight;
 }
-
-static float ApplySpecialModifiers(float weight, const MonsterTypeInfo &monster, const MonsterSelectionContext &ctx)
+// This function now takes the index `i` and the context `ctx`
+// to apply special modifiers.
+static float ApplySpecialModifiers(float weight, size_t i, const MonsterSelectionContext &ctx)
 {
+    const horde::MonsterTypeID currentId = static_cast<horde::MonsterTypeID>(i);
+    const int minWave = g_monsterData.minWaves[i];
+
 	if (g_insane->integer || g_chaotic->integer)
 	{
 		const float difficultyScale = ctx.currentActualLevel <= 15 ? 1.2f : 1.4f;
 		weight *= difficultyScale;
-		if (HasWaveType(monster.types, MonsterWaveType::Elite))
+		if (HasWaveType(g_monsterData.waveTypes[i], MonsterWaveType::Elite))
 		{
 			weight *= 1.25f;
 		}
 	}
+
 	weight *= ctx.flyingAdjustmentFactor;
-	if (ctx.effectiveLevel > ctx.currentActualLevel && monster.minWave > ctx.currentActualLevel)
+
+	if (ctx.effectiveLevel > ctx.currentActualLevel && minWave > ctx.currentActualLevel)
 	{
-		if (monster.minWave - ctx.currentActualLevel > 5)
+		if (minWave - ctx.currentActualLevel > 5)
 		{
 			weight *= 0.6f;
 		}
 	}
+
 	if (ctx.isRetaliationActive)
 	{
 		constexpr MonsterWaveType RETALIATION_FOCUS_TYPES =
 			MonsterWaveType::Spawner | MonsterWaveType::Bomber | MonsterWaveType::Special;
-		if (HasWaveType(GetMonsterWaveTypes(monster.typeId), RETALIATION_FOCUS_TYPES))
+		if (HasWaveType(g_monsterData.waveTypes[i], RETALIATION_FOCUS_TYPES))
 		{
 			weight *= 1.8f;
 		}
@@ -3099,32 +3118,33 @@ static float ApplySpecialModifiers(float weight, const MonsterTypeInfo &monster,
 	return weight;
 }
 
-static bool IsMonsterCompatible(const MonsterTypeInfo &monster, const MonsterSelectionContext &ctx)
+// This function now takes the index `i` and the context `ctx`
+// to check for compatibility.
+static bool IsMonsterCompatible(size_t i, const MonsterSelectionContext &ctx)
 {
-	if (monster.minWave > ctx.effectiveLevel) return false;
-	if (ctx.waveTypeForFiltering != MonsterWaveType::None && !IsValidMonsterForWave(monster.typeId, ctx.waveTypeForFiltering)) return false;
-	const bool monster_is_flying = IsFlying(monster.typeId);
-	if (ctx.isSpawnPointFlying && !monster_is_flying) return false;
-	return true;
-}
+    const horde::MonsterTypeID currentId = static_cast<horde::MonsterTypeID>(i);
 
-// REPLACEMENT: BuildMonsterCache (with bug fix)
+	if (g_monsterData.minWaves[i] > ctx.effectiveLevel) return false;
+	if (ctx.waveTypeForFiltering != MonsterWaveType::None && !IsValidMonsterForWave(currentId, ctx.waveTypeForFiltering)) return false;
+	
+    const bool monster_is_flying = IsFlying(currentId);
+	if (ctx.isSpawnPointFlying && !monster_is_flying) return false;
+	
+    return true;
+}
 static void BuildMonsterCache(MonsterCache &cache_ref, const MonsterSelectionContext &ctx)
 {
 	cache_ref.clear();
 
-	// --- CRITICAL FIX ---
-	// We must iterate the MASTER list (`monsterTypes`) to find monsters that
-	// are unlocked by the new `effectiveLevel`. Iterating the pre-filtered
-	// `g_eligible_monsters_for_wave` list will never find them.
-	for (const auto& monster : monsterTypes) // CORRECT: Iterate the full list
+	// Iterate from 0 to the max number of defined monster types.
+	for (size_t i = 0; i < g_monsterData.MONSTER_ARRAY_SIZE; ++i)
 	{
-		// We now perform all compatibility checks here.
-		if (IsMonsterCompatible(monster, ctx)) 
+		// Perform all compatibility checks using the index `i`.
+		if (IsMonsterCompatible(i, ctx)) 
 		{
-			float weight = CalculateBaseWeight(monster, ctx);
-			weight = ApplySpecialModifiers(weight, monster, ctx);
-			cache_ref.addMonster(monster.typeId, weight);
+			float weight = CalculateBaseWeight(i, ctx);
+			weight = ApplySpecialModifiers(weight, i, ctx);
+			cache_ref.addMonster(static_cast<horde::MonsterTypeID>(i), weight);
 		}
 	}
 }
@@ -3169,7 +3189,7 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 }
 
 //-----------------------------------------------------
-// G_HordePickMonsterType - Main Orchestrator
+// G_HordePickMonsterType - Main Orchestrator (SoA Version)
 //-----------------------------------------------------
 static horde::MonsterTypeID G_HordePickMonsterType(
 	edict_t *spawn_point,
@@ -3181,6 +3201,7 @@ static horde::MonsterTypeID G_HordePickMonsterType(
 {
 	if (!spawn_point || !spawn_point->inuse) return horde::MonsterTypeID::UNKNOWN;
 
+	// --- 1. Setup Context (no changes) ---
 	MonsterSelectionContext ctx;
 	ctx.currentActualLevel = currentActualLevel_param;
 	ctx.currentActualWaveType = currentActualWaveType_param;
@@ -3191,10 +3212,11 @@ static horde::MonsterTypeID G_HordePickMonsterType(
 	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_cached_flying_spawn_count);
 	ctx.waveTypeForFiltering = isRecoveryModeActive_param ? (HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground) : currentActualWaveType_param;
 
-	// Calculate the effective level using our newly modified function
+	// --- 2. Calculate Effective Level (no changes) ---
 	bool attemptHigherLevel = ShouldAttemptHigherLevelSpawn(ctx.currentActualLevel, ctx.isRetaliationActive, ctx.isRecoveryModeActive);
 	ctx.effectiveLevel = CalculateEffectiveMonsterLevel(ctx.currentActualLevel, attemptHigherLevel, ctx.waveTypeForFiltering);
 
+	// --- 3. Build Cache and Select Monster (no changes) ---
 	BuildMonsterCache(g_monster_picker_internal_cache, ctx);
 	horde::MonsterTypeID chosen_monster_id = SelectFromCache(g_monster_picker_internal_cache);
 
@@ -3203,18 +3225,19 @@ static horde::MonsterTypeID G_HordePickMonsterType(
 		chosen_monster_id = EmergencyFallbackSelection(ctx);
 	}
 
-	// Set the "elite spawned" flag if we successfully picked a higher-level monster
+	// --- 4. Final Check for Elite Spawn (THE MAIN CHANGE) ---
 	if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
 	{
-		const MonsterTypeInfo* info = g_monster_info_lut[static_cast<size_t>(chosen_monster_id)];
-		if (info && info->minWave > ctx.currentActualLevel)
-		{
+        // Instead of using a LUT, we directly access the `minWaves` array from our SoA struct.
+        const size_t index = static_cast<size_t>(chosen_monster_id);
+        if (index < g_monsterData.MONSTER_ARRAY_SIZE && g_monsterData.minWaves[index] > ctx.currentActualLevel)
+        {
 			g_special_high_level_monster_spawned_this_wave = true;
 			if (developer->integer)
 			{
 				gi.Com_PrintFmt("ELITE SPAWN: '{}' (minWave {}) spawned in wave {}. Flag set.\n",
 								horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
-								info->minWave,
+								g_monsterData.minWaves[index], // Use the value from the SoA array
 								ctx.currentActualLevel);
 			}
 		}
@@ -3222,7 +3245,6 @@ static horde::MonsterTypeID G_HordePickMonsterType(
 
 	return chosen_monster_id;
 }
-
 // =======================================================================
 // END: COMPLETE MONSTER PICKING SYSTEM
 // =======================================================================
@@ -3515,25 +3537,6 @@ void ResetBosses()
 	}
 }
 
-// ADDED: Function to initialize Monster Info LUT
-void InitializeMonsterInfoLUT()
-{
-	if (g_monster_info_lut_initialized)
-		return;
-	g_monster_info_lut.fill(nullptr);
-	for (const auto &monster_entry : monsterTypes)
-	{ // Iterate over the actual monsterTypes array
-		if (monster_entry.typeId != horde::MonsterTypeID::UNKNOWN &&
-			static_cast<size_t>(monster_entry.typeId) < g_monster_info_lut.size())
-		{
-			g_monster_info_lut[static_cast<size_t>(monster_entry.typeId)] = &monster_entry;
-		}
-	}
-	g_monster_info_lut_initialized = true;
-	if (developer->integer)
-		gi.Com_PrintFmt("Monster Info LUT Initialized.\n");
-}
-
 // --- MODIFIED ---
 // This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
 // Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
@@ -3595,9 +3598,6 @@ void Horde_Init()
 	PrecacheWaveSounds();
 	monsters_precached = false; // Reset the precache flag for the new map.
 	PrecacheAllMonsters();
-
-	InitializeMonsterWaveTypes();
-	InitializeMonsterInfoLUT(); // ADDED: Initialize LUT here
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
@@ -7416,54 +7416,27 @@ inline bool IsBossWave() noexcept
 	return g_horde_local.level >= 10 && g_horde_local.level % 5 == 0;
 }
 
-// Helper to get predicted *scaled* bounds for validation checks
-// Returns false if typeId is invalid or info not found
-// MODIFIED: GetPredictedScaledBounds to use LUT
 bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &out_mins, vec3_t &out_maxs)
 {
-	if (!g_monster_info_lut_initialized)
-	{ // Should have been called in Horde_Init
-		InitializeMonsterInfoLUT();
-		if (!g_monster_info_lut_initialized && developer->integer)
-		{ // Still not initialized?
-			gi.Com_PrintFmt("GetPredictedScaledBounds: CRITICAL - Monster Info LUT not initialized on demand!\n");
-		}
-	}
+    const size_t index = static_cast<size_t>(typeId);
+    if (typeId == horde::MonsterTypeID::UNKNOWN || index >= g_monsterData.MONSTER_ARRAY_SIZE) {
+        // Fallback for invalid ID
+        out_mins = HordeConstants::VALIDATE_CHECK_MINS;
+        out_maxs = HordeConstants::VALIDATE_CHECK_MAXS;
+        return false;
+    }
 
-	const MonsterTypeInfo *info = nullptr;
-	float scale = 1.0f;
-
-	if (typeId != horde::MonsterTypeID::UNKNOWN &&
-		typeId < horde::MonsterTypeID::MAX_TYPES && // Basic bounds check for enum direct use
-		static_cast<size_t>(typeId) < g_monster_info_lut.size())
-	{
-		info = g_monster_info_lut[static_cast<size_t>(typeId)];
-	}
-
-	if (info)
-	{
-		scale = info->s_scale;
-	}
-	else
-	{
-		out_mins = HordeConstants::VALIDATE_CHECK_MINS;
-		out_maxs = HordeConstants::VALIDATE_CHECK_MAXS;
-		if (developer->integer)
-			gi.Com_PrintFmt("GetPredictedScaledBounds: WARN - MonsterTypeInfo not found or invalid TypeID {}, using generic bounds.\n", static_cast<int>(typeId));
-		return false;
-	}
-
-	out_mins = info->default_mins * scale;
-	out_maxs = info->default_maxs * scale;
-
-	if (scale <= 0.0f)
-	{ // Check for invalid scale
-		if (developer->integer)
-			gi.Com_PrintFmt("GetPredictedScaledBounds: WARN - MonsterTypeID {} has invalid scale %.2f. Using unscaled default bounds.\n", static_cast<int>(typeId), scale);
-		out_mins = info->default_mins; // Revert to unscaled if scale is bad
-		out_maxs = info->default_maxs;
-	}
-	return true;
+    const float scale = g_monsterData.s_scales[index];
+    
+    if (scale <= 0.0f) {
+        // Use unscaled bounds if scale is invalid
+        out_mins = g_monsterData.default_mins[index];
+        out_maxs = g_monsterData.default_maxs[index];
+    } else {
+        out_mins = g_monsterData.default_mins[index] * scale;
+        out_maxs = g_monsterData.default_maxs[index] * scale;
+    }
+    return true;
 }
 
 bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, const vec3_t &destination_angles, bool play_effects, bool force_despite_visibility = false)
@@ -7619,17 +7592,20 @@ static void Horde_InitLevel(const int32_t lvl)
 		current_wave_type = MonsterWaveType::None;
 	}
 
-	// --- 3. Build the eligible monster cache for this wave (CRITICAL OPTIMIZATION) ---
 	g_eligible_monsters_for_wave.clear();
-	g_eligible_monsters_for_wave.reserve(std::size(monsterTypes));
+	// NOTE: We still build g_eligible_monsters_for_wave because it's a *filtered subset*
+	// of all monsters, which is useful for the JIT precacher loop that follows.
+	// The iteration to build it is now more cache-friendly.
+	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i) {
+		// Use the original monsterTypes array here, as it's sorted by minWave,
+		// which allows for the efficient 'break' statement. This is a hybrid approach
+		// that gets the best of both worlds for this specific function.
+		const auto& monster = monsterTypes[i]; 
 
-    // The monsterTypes array is sorted by minWave, which makes this efficient.
-	for (const auto& monster : monsterTypes) {
-		// Stop iterating once we pass the current wave level.
 		if (monster.minWave > current_wave_level) {
-			break;
+			break; // This optimization is why we still use monsterTypes here
 		}
-		// Check if the monster's flags match the requirements for this wave.
+
 		if (IsValidMonsterForWave(monster.typeId, current_wave_type)) {
 			g_eligible_monsters_for_wave.push_back(&monster);
 		}
