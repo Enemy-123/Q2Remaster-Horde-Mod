@@ -6438,11 +6438,11 @@ static bool AttemptSpawnSingleMonster(
 			horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type_id, level.time);
 			g_consecutive_spawn_failures = 0;
 
-			if (is_recovery_mode_active_param)
-			{
-				if (developer->integer)
-					gi.Com_PrintFmt("AttemptSpawnSingleMonster: Successful spawn during recovery mode. Recovery may now end.\n");
-			}
+			// if (is_recovery_mode_active_param)
+			// {
+			// 	if (developer->integer)
+			// 		gi.Com_PrintFmt("AttemptSpawnSingleMonster: Successful spawn during recovery mode. Recovery may now end.\n");
+			// }
 			return true;
 		}
 	}
