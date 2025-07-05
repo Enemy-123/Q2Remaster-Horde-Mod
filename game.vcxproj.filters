@@ -98,6 +98,13 @@
     <ClInclude Include="horde\horde_spawning.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="profiler.h" />
+    <ClInclude Include="horde\g_entity_properties.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_horde_phys.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -295,6 +302,13 @@
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\horde_spawning.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="profiler.cpp" />
+    <ClCompile Include="horde\g_entity_properties.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_horde_phys.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>
