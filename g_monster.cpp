@@ -1227,13 +1227,38 @@ static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 THINK(monster_think) (edict_t* self) -> void
 {
 
-    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
+    // Check if the monster's ID is uninitialized (using UNKNOWN as the sentinel value).
+    // This catches monsters spawned without an explicit ID set in their SP_... function.
+    if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) 
+    {
+        // Attempt to assign the ID based on its classname.
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(self->classname));
-       // if (developer->integer) {
-        //    gi.Com_PrintFmt("LAZY-INIT from monster_think: Set ID for #{} ({}) to {}\n",
-        //                    (int)(self - g_edicts), self->classname, self->monsterinfo.monster_type_id);
-       // }
+
+        // Check the result of the assignment.
+        if (self->monsterinfo.monster_type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN))
+        {
+            // SUCCESS: We found a valid ID. Log this for the developer.
+            if (developer->integer) {
+                gi.Com_PrintFmt(
+                    "LAZY-INIT: Assigned monster ID for #{} (classname '{}') to {}\n",
+                    (int)(self - g_edicts), 
+                    self->classname, 
+                    self->monsterinfo.monster_type_id
+                );
+            }
+        }
+        else
+        {
+            // FAILURE: The classname is not in the registry. This is a critical warning.
+            // We log this regardless of the 'developer' cvar because it's an error.
+            gi.Com_PrintFmt(
+                "WARNING: UNKNOWN MONSTER - Classname '{}' (#{}) has no registered MonsterTypeID.\n",
+                self->classname,
+                (int)(self - g_edicts)
+            );
+        }
     }
+
 	// Check horde stuck monster
 	if (g_horde->integer)
 		CheckAndTeleportStuckMonster(self);
