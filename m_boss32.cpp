@@ -509,7 +509,7 @@ void makronBFG(edict_t *self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_VOICE, sound_attack_bfg, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, !strcmp(self->classname, "monster_makronkl") ? 40 : 15, 300, 100, 300, MZ2_MAKRON_BFG);
+	monster_fire_bfg(self, start, dir, (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) ? 40 : 15, 300, 100, 300, MZ2_MAKRON_BFG);
 }
 
 mframe_t makron_frames_attack3boss[] = {
@@ -681,7 +681,7 @@ void MakronHyperblaster(edict_t *self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	if (!strcmp(self->classname, "monster_makron"))
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON))
 		monster_fire_blaster2(self, start, forward, 35, 1300, flash_number, EF_BLASTER);
 	else
 		monster_fire_blaster_bolt(self, start, forward, 35, 2300, flash_number, EF_HYPERBLASTER);
@@ -760,7 +760,7 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t* self) -> void
 
 	r = frandom();
 	if (r <= 0.3f) {
-		if (!strcmp(self->classname, "monster_makronkl")) {
+		if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) {
 			M_SetAnimation(self, &makron_move_attack3boss);
 		}
 		else {
@@ -884,11 +884,19 @@ void SP_monster_makron(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer) {
-		if (!strcmp(self->classname, "monster_makronkl"))
-		{
-			const float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MAKRON);
+    }
 
+	if (g_horde->integer) {
+        // --- REFACTORED ---
+        // Use the fast helper function. Note that at this point in the code,
+        // if SP_monster_makronkl was called, the ID has NOT been overridden yet.
+        // This check is based on the classname, which is fine for a one-off sound.
+        // Alternatively, move this sound logic to SP_monster_makronkl.
+		if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL))
+		{
+			const float randomsearch = frandom();
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, sound_taunt1, 1, ATTN_NONE, 0);
 			else if (randomsearch < 0.56f)
@@ -913,24 +921,27 @@ void SP_monster_makron(edict_t* self)
 	self->maxs = { 30, 30, 90 };
 	self->health = 2300 * st.health_multiplier;
 
-	if (!strcmp(self->classname, "monster_makronkl")) {
+    // --- REFACTORED ---
+    // This logic will be run *after* the ID has been potentially overridden by the KL spawner.
+    // So we check the ID here.
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) {
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.power_armor_power = 700;
 	}
-	if (!strcmp(self->classname, "monster_makron")) {
+	else if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON)) { // Explicitly check for base Makron
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.armor_power = 700;
 	}
+
 	if (g_horde->integer && !self->monsterinfo.IS_BOSS) {
 		self->health = 3500 + (1.08 * current_wave_level);
 		if (self->health >= 6500)
 			self->health = 6500;
 	}
-
 	self->gib_health = -800;
 	self->mass = 500;
 
@@ -964,6 +975,28 @@ void SP_monster_makron(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
+//HORDE BOSS
+void SP_monster_makronkl(edict_t* self)
+{
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MAKRON_KL);
+
+	// 1. Call the base spawner. It sets up a standard Makron.
+	SP_monster_makron(self);
+
+	self->s.skinnum = 2;
+	self->health = 2600 + (600 * current_wave_level);
+	self->s.alpha = 0.4f;
+	self->s.effects = EF_FLAG1;
+
+    // --- REFACTORED ---
+    // This check is now clean and specific to this function.
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) {
+		if (self->health > 9000) {
+			self->health = 9000;
+			ApplyMonsterBonusFlags(self);
+		}
+	}
+}
 /*
 =================
 MakronSpawn
@@ -1068,19 +1101,3 @@ void MakronToss(edict_t* self)
 			level.health_bar_entities[i]->enemy = ent;
 }
 
-//HORDE BOSS
-void SP_monster_makronkl(edict_t* self)
-{
-	SP_monster_makron(self);
-	self->s.skinnum = 2;
-	self->health = 2600 + (600 * current_wave_level);
-	self->s.alpha = 0.4f;
-	self->s.effects = EF_FLAG1;
-
-	if (!strcmp(self->classname, "monster_makronkl")) {
-		if (self->health > 9000) {
-			self->health = 9000;
-			ApplyMonsterBonusFlags(self);
-		}
-	}
-}

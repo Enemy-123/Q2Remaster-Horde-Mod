@@ -1848,6 +1848,10 @@ void SP_monster_medic(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MEDIC);
+    }
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1867,7 +1871,7 @@ void SP_monster_medic(edict_t* self)
 	self->maxs = { 24, 24, 32 };
 
 	// PMM
-	if (strcmp(self->classname, "monster_medic_commander") == 0)
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::MEDIC_COMMANDER))
 	{
 		self->health = 600 * st.health_multiplier;
 		self->gib_health = -130;
@@ -1916,6 +1920,8 @@ void SP_monster_medic(edict_t* self)
 
 	if (self->mass > 400)
 	{
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MEDIC_COMMANDER);
+    
 		self->s.skinnum = 2;
 
 		// commander sounds

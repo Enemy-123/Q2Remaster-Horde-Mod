@@ -475,6 +475,10 @@ void SP_monster_gladiator(edict_t* self)
 		return;
 	}
 
+	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR);
+    }
+
 	if (g_horde->integer && current_wave_level <= 18)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1

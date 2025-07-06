@@ -95,6 +95,11 @@ namespace horde {
         EASTERCHICK2 = 74,
         COMMANDER_BODY = 75,
         BIGVIPER = 76,
+        ARACHNID = 77,
+        KAMIKAZE = 78,
+
+        SUPERTANK = 79,
+        SUPERTANKKL = 80,
 
         MAX_TYPES = 128,  // Set this to a value higher than the largest ID
         UNKNOWN = 255
@@ -302,4 +307,7 @@ public:
     // Initialization function - call once at startup
     void InitializeHordeIDs();
 
+    bool IsMonsterType(const edict_t* ent, horde::MonsterTypeID type_to_check);
+    bool IsSpecialType(const edict_t* ent, horde::SpecialEntityTypeID type_to_check);
 } // namespace horde
+

@@ -3441,8 +3441,6 @@ void PrecacheAllMonsters() noexcept
 
 void Horde_Init()
 {
-	InitializeMonsterMoveSets(); //jump animations 
-	horde::InitializeHordeIDs();
 	sounds_precached = false;
 	items_precached = false;
 	ResetBosses();
@@ -5392,7 +5390,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         return false;
     self->monsterinfo.stuck_check_time = level.time + random_time(7.0_sec, 9.0_sec);
 
-    if (!strcmp(self->classname, "misc_insane") || !strcmp(self->classname, "monster_turret"))
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)))
         return false;
     
     if (IsMonsterJumping(self)) {

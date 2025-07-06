@@ -1872,6 +1872,12 @@ void SP_monster_arachnid(edict_t* self)
 
     initialize_arachnid_sounds();
 
+    // --- EAGER INITIALIZATION ---
+    // Set the ID to the base ARACHNID type.
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::ARACHNID);
+    }
+
     if (!self->monsterinfo.IS_BOSS)
     {
         self->health = 1000 * st.health_multiplier;
@@ -1902,7 +1908,10 @@ void SP_monster_arachnid(edict_t* self)
 
     walkmonster_start(self);
 
-    if (!strcmp(self->classname, "monster_arachnid") && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
+    // --- REFACTORED ---
+    // This check is now clean and clear. It only applies to the base arachnid
+    // when it's spawned as a boss.
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::ARACHNID) && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
         self->health = 3500 + (1.08 * current_wave_level);
         self->gib_health = -99999;
     }
@@ -1919,37 +1928,35 @@ void SP_monster_spider(edict_t* self)
     sound_plasma.assign("weapons/plasshot.wav");
     sound_plasma_hit.assign("weapons/plasma/hit.wav");
 
-    gi.soundindex("weapons/plasma/fire1.wav");  // Plasma firing sound
-    gi.soundindex("weapons/plasma/hit.wav");    // Plasma impact sound
+    gi.soundindex("weapons/plasma/fire1.wav");
+    gi.soundindex("weapons/plasma/hit.wav");
 
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SPIDER);
     self->spawnflags |= SPAWNFLAG_SPIDER;
-    SP_monster_arachnid(self);
+    SP_monster_arachnid(self); // Call the base spawner
 
     // Override functions for spider variant
     self->monsterinfo.stand = spider_stand;
     self->monsterinfo.run = spider_run;
-
     self->monsterinfo.attack = spider_attack;
-    // Assign new functions for jumping/ceiling/dodging
-    self->monsterinfo.dodge = spider_dodge; // We'll define this next
-    self->monsterinfo.blocked = spider_blocked; // We'll define this next
+    self->monsterinfo.dodge = spider_dodge;
+    self->monsterinfo.blocked = spider_blocked;
     self->monsterinfo.physics_change = spider_physics_change;
     self->monsterinfo.can_jump = true;
-    self->monsterinfo.jump_height = 68; // From stalker
-    self->monsterinfo.drop_height = 256; // From stalker
-    self->gravityVector = { 0, 0, -1 }; // Start with normal gravity
+    self->monsterinfo.jump_height = 68;
+    self->monsterinfo.drop_height = 256;
+    self->gravityVector = { 0, 0, -1 };
 
-    // Add plasma weapon visuals
-    //self->s.effects = EF_PLASMA;
     self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
 
-    if (!strcmp(self->classname, "monster_spider")) {
-        self->s.scale = 0.7f;
-        self->health = IsFirstThreeWaves(current_wave_level) ? 350 * st.health_multiplier : 550 * st.health_multiplier;
-        self->max_health = self->health;
-        self->mins *= self->s.scale;
-        self->maxs *= self->s.scale;
-    }
+    // --- REFACTORED ---
+    // The strcmp is no longer needed because we know this is a spider.
+    self->s.scale = 0.7f;
+    self->health = IsFirstThreeWaves(current_wave_level) ? 350 * st.health_multiplier : 550 * st.health_multiplier;
+    self->max_health = self->health;
+    self->mins *= self->s.scale;
+    self->maxs *= self->s.scale;
+    
     ApplyMonsterBonusFlags(self);
 }
 
@@ -1963,6 +1970,8 @@ void SP_monster_arachnid2(edict_t* self)
         G_FreeEdict(self);
         return;
     }
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::ARACHNID2);
 
     initialize_arachnid_sounds();
 
@@ -1973,7 +1982,9 @@ void SP_monster_arachnid2(edict_t* self)
     self->solid = SOLID_BBOX;
     self->monsterinfo.scale = MODEL_SCALE;
 
-    if (!strcmp(self->classname, "monster_arachnid2") && !self->monsterinfo.IS_BOSS)
+    // --- REFACTORED ---
+    // Use the ID check instead of strcmp.
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::ARACHNID2) && !self->monsterinfo.IS_BOSS)
     {
         self->s.scale = 0.85f;
         self->mins *= self->s.scale;
@@ -2004,11 +2015,13 @@ void SP_monster_gm_arachnid(edict_t* self)
 {
     const spawn_temp_t& st = ED_GetSpawnTemp();
 
-    SP_monster_arachnid2(self);
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GM_ARACHNID);
+    SP_monster_arachnid2(self); // Calls the base spawner
+
 
     self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
     self->monsterinfo.armor_power = 500;
-    self->style = 1;
+    self->style = 1; // This style flag is used in arachnid2_attack, we can replace that later.
     self->health = 1000 * st.health_multiplier;
     if (g_horde->integer) {
         self->s.scale = 0.85f;
@@ -2016,8 +2029,12 @@ void SP_monster_gm_arachnid(edict_t* self)
         self->maxs *= self->s.scale;
     }
 
-    if (!strcmp(self->classname, "monster_gm_arachnid") && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-        self->health = 2800 + (1.08 * current_wave_level);
+    // --- REFACTORED ---
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::GM_ARACHNID) && 
+    self->monsterinfo.IS_BOSS && 
+    !self->monsterinfo.BOSS_DEATH_HANDLED) {     
+    
+    self->health = 2800 + (1.08 * current_wave_level);
     }
     ApplyMonsterBonusFlags(self);
 }
@@ -2035,6 +2052,9 @@ void SP_monster_psxarachnid(edict_t* self)
 
     initialize_arachnid_sounds();
     sound_pissed.assign("guncmdr/gcdrsrch1.wav");
+
+    // --- EAGER INITIALIZATION ---
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PSX_ARACHNID);
 
     const char* reinforcements = nullptr;
 

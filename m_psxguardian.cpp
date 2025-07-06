@@ -932,6 +932,10 @@ void SP_monster_psxguardian(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PSX_GUARDIAN);
+    }
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

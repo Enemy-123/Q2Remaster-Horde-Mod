@@ -2330,6 +2330,7 @@ void SP_monster_soldier_light(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 48;
 	self->monsterinfo.can_jump = true;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LIGHT);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2364,6 +2365,7 @@ void SP_monster_soldier(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 48;
 	self->monsterinfo.can_jump = true;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2398,6 +2400,7 @@ void SP_monster_soldier_ss(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 48;
 	self->monsterinfo.can_jump = true;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_SS);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2452,6 +2455,7 @@ void SP_monster_soldier_ripper(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 48;
 	self->monsterinfo.can_jump = true;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_RIPPER);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2486,6 +2490,7 @@ void SP_monster_soldier_hypergun(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 48;
 	self->monsterinfo.can_jump = true;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_HYPERGUN);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2520,6 +2525,7 @@ void SP_monster_soldier_lasergun(edict_t* self)
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 48;
 	self->monsterinfo.can_jump = true;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LASERGUN);
 	ApplyMonsterBonusFlags(self);
 }
 

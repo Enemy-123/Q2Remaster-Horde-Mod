@@ -774,7 +774,7 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 
 	// Contra objetivos especiales siempre usar láser
 	if (!strcmp(self->enemy->classname, "tesla_mine") ||
-		!strcmp(self->enemy->classname, "monster_sentrygun"))
+		horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
 	{
 		if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 			M_SetAnimation(self, &brain_move_attack4);
@@ -1027,7 +1027,7 @@ void brain_jump_wait_land_attack(edict_t* self)
     // Check if self->enemy is not null before accessing it
     if (self->enemy)
     {
-        if (!strcmp(self->enemy->classname, "tesla_mine") || !strcmp(self->enemy->classname, "monster_sentrygun"))
+        if (!strcmp(self->enemy->classname, "tesla_mine") || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
             M_SetAnimation(self, &brain_move_attack4);
         else if (visible(self, self->enemy))
             M_SetAnimation(self, &brain_move_attack3);
@@ -1115,6 +1115,8 @@ MONSTERINFO_BLOCKED(brain_blocked) (edict_t* self, float dist) -> bool
 void SP_monster_brain(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BRAIN);
 
 	if (g_horde->integer) {
 		{

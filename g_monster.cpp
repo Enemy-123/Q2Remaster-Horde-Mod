@@ -1226,6 +1226,14 @@ static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 
 THINK(monster_think) (edict_t* self) -> void
 {
+
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(self->classname));
+       // if (developer->integer) {
+        //    gi.Com_PrintFmt("LAZY-INIT from monster_think: Set ID for #{} ({}) to {}\n",
+        //                    (int)(self - g_edicts), self->classname, self->monsterinfo.monster_type_id);
+       // }
+    }
 	// Check horde stuck monster
 	if (g_horde->integer)
 		CheckAndTeleportStuckMonster(self);

@@ -685,6 +685,8 @@ void SP_monster_floater_tracker(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLOATER_TRACKER);
+
 	if (g_horde->integer && current_wave_level <= 18)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1

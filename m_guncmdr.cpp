@@ -51,7 +51,7 @@ int GetFlechetteDamage(int style) {
 	return (style == GUNCMDR_STYLE_GRENADIER) ? 4 : 8;
 }
 int GetGrenadeDamage(edict_t* self) {
-	if (!strcmp(self->classname, "monster_guncmdrkl") || self->style == GUNCMDR_STYLE_BOSS)
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::GUNCMDR_KL) || self->style == GUNCMDR_STYLE_BOSS)
 		return 50;
 
 	return (self->style == GUNCMDR_STYLE_GRENADIER) ? 50 : 35;
@@ -1300,7 +1300,7 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
 		return;
 	}
 
-	if (!strcmp(self->enemy->classname, "monster_sentrygun")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
 		M_SetAnimation(self, &guncmdr_move_attack_chain);
 		return;
 	}
@@ -1681,6 +1681,9 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR_VANILLA);
+
 	// Inicializar estilo si no está ya configurado
 	if (self->style < 0 || self->style > 2)
 		self->style = GUNCMDR_STYLE_NORMAL;
@@ -1795,6 +1798,8 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 // Función para mantener compatibilidad con la entidad vanilla
 void SP_monster_guncmdr(edict_t* self)
 {
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR);
 	self->style = GUNCMDR_STYLE_GRENADIER;
 	SP_monster_guncmdr_vanilla(self);
 }
@@ -1802,6 +1807,7 @@ void SP_monster_guncmdr(edict_t* self)
 // Función para mantener compatibilidad con la versión jefe
 void SP_monster_guncmdrkl(edict_t* self)
 {
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR_KL);
 	self->style = GUNCMDR_STYLE_BOSS;
 	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
 	SP_monster_guncmdr(self);

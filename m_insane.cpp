@@ -628,6 +628,8 @@ void SP_misc_insane(edict_t *self)
 		return;
 	}
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MISC_INSANE);
+
 	sound_fist.assign("insane/insane11.wav");
 	if (!self->spawnflags.has(SPAWNFLAG_INSANE_QUIET))
 	{

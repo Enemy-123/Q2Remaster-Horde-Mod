@@ -704,6 +704,7 @@ model="models/monsters/mutant/tris.md2"
 void SP_monster_mutant(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MUTANT);
 
 	if (g_horde->integer) {
 		{

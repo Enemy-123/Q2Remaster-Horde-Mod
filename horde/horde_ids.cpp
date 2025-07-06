@@ -52,6 +52,23 @@ namespace horde {
     };
 }
 
+    bool IsMonsterType(const edict_t* ent, horde::MonsterTypeID type_to_check)
+    {
+        if (!ent) {
+            return false;
+        }
+        return ent->monsterinfo.monster_type_id == static_cast<uint8_t>(type_to_check);
+    }
+
+    bool IsSpecialType(const edict_t* ent, horde::SpecialEntityTypeID type_to_check)
+    {
+        if (!ent) {
+            return false;
+        }
+        return ent->special_type_id == static_cast<uint8_t>(type_to_check);
+    }
+    
+
 SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
     if (!classname || !classname[0]) {
         return SpecialEntityTypeID::UNKNOWN;
@@ -165,8 +182,8 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             {"monster_guardian", MonsterTypeID::GUARDIAN},                   // 66
             {"monster_psxguardian", MonsterTypeID::PSX_GUARDIAN},            // 67
 
-             {"misc_insane", MonsterTypeID::MISC_INSANE},                     // 68
-            {"monster_turret", MonsterTypeID::TURRET}    ,                    // 69
+            {"misc_insane", MonsterTypeID::MISC_INSANE},                     // 68
+            {"monster_turret", MonsterTypeID::TURRET},                    // 69
 
             {"monster_sentrygun", MonsterTypeID::SENTRYGUN},                // 70
 
@@ -175,7 +192,11 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             {"misc_easterchick", MonsterTypeID::EASTERCHICK},   // 73
             {"misc_easterchick2", MonsterTypeID::EASTERCHICK2}, // 74
             {"monster_commander_body", MonsterTypeID::COMMANDER_BODY},  // 75
-            {"misc_bigviper", MonsterTypeID::BIGVIPER}  // 76
+            {"misc_bigviper", MonsterTypeID::BIGVIPER}, // 76
+            {"monster_kamikaze", MonsterTypeID::KAMIKAZE}, // 77
+            {"monster_arachnid", MonsterTypeID::ARACHNID}, // 78
+            {"monster_supertank", MonsterTypeID::SUPERTANK}, // 79
+            {"monster_supertankkl", MonsterTypeID::SUPERTANKKL}, // 80
         };
     
         // Initialize the reverse mapping

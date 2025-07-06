@@ -356,6 +356,8 @@ void G_InitEdict(edict_t* e)
 	e->gravityVector[1] = 0.0;
 	e->gravityVector[2] = -1.0;
 	// PGM
+    e->monsterinfo.monster_type_id = MONSTER_TYPE_UNKNOWN; // Access it via monsterinfo
+    e->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN); // Access it directly
 }
 
 /*

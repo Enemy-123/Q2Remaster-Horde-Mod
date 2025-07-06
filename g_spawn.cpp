@@ -134,6 +134,7 @@ void SP_monster_soldier_light(edict_t* self);
 void SP_monster_soldier(edict_t* self);
 void SP_monster_soldier_ss(edict_t* self);
 void SP_monster_tank(edict_t* self);
+void SP_monster_tank_commander(edict_t* self);
 void SP_monster_tank_spawner(edict_t* self);
 void SP_monster_runnertank(edict_t* self);
 void SP_monster_tank_64(edict_t* self);
@@ -148,6 +149,8 @@ void SP_monster_floater(edict_t* self);
 void SP_monster_floater_tracker(edict_t* self);
 void SP_monster_hover(edict_t* self);
 void SP_monster_hover_vanilla(edict_t* self);
+void SP_monster_daedalus(edict_t* self);
+void SP_monster_daedalus_bomber(edict_t* self);
 void SP_monster_mutant(edict_t* self);
 void SP_monster_redmutant(edict_t* self);
 void SP_monster_supertank(edict_t* self);
@@ -383,7 +386,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_tank_spawner", SP_monster_tank_spawner },
 	{ "monster_runnertank", SP_monster_runnertank },
 	{ "monster_tank_64", SP_monster_tank_64 },
-	{ "monster_tank_commander", SP_monster_tank },
+	{ "monster_tank_commander", SP_monster_tank_commander },
 	{ "monster_medic", SP_monster_medic },
 	{ "monster_flipper", SP_monster_flipper },
 	{ "monster_chick", SP_monster_chick },
@@ -474,8 +477,8 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "target_blacklight", SP_target_blacklight },
 	{ "target_orb", SP_target_orb },
 	// pmm
-	{ "monster_daedalus", SP_monster_hover },
-	{ "monster_daedalus_bomber", SP_monster_hover_vanilla },
+	{ "monster_daedalus", SP_monster_daedalus },
+	{ "monster_daedalus_bomber", SP_monster_daedalus_bomber },
 	{ "hint_path", SP_hint_path },
 	{ "monster_carrier", SP_monster_carrier },
 	{ "monster_carrier_mini", SP_monster_carrier_mini },

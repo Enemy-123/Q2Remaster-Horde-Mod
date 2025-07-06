@@ -3,7 +3,7 @@
 // m_move.c -- monster movement
 
 #include "g_local.h"
-
+#include "horde/horde_ids.h"
 // this is used for communications out of sv_movestep to say what entity
 // is blocking us
 edict_t* new_bad; // pmm
@@ -419,11 +419,18 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	// from shooting his fliers, who spawn in below him
 	float minheight;
 
-	if (!strcmp(ent->classname, "monster_carrier") || !strcmp(ent->classname, "monster_carrier_mini"))
-		minheight = 104;
-	else
-		minheight = 40;
 
+
+// The fast comparison happens every time after the first.
+if (horde::IsMonsterType(ent, horde::MonsterTypeID::CARRIER) ||
+    horde::IsMonsterType(ent, horde::MonsterTypeID::CARRIER_MINI))
+{
+    minheight = 104;
+}
+else
+{
+    minheight = 40;
+}
 	// try one move with vertical motion, then one without
 	for (int i = 0; i < 2; i++)
 	{
@@ -630,8 +637,16 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// Paril: horde
-	if ((g_horde->integer && strcmp(ent->classname, "monster_sentrygun")) || (ent->svflags & SVF_PLAYER && EntIsSpectating(ent)))
-		mask &= ~CONTENTS_MONSTER;
+if (ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN)) {
+    ent->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(ent->classname));
+}
+
+// The logic is: if horde is on AND the entity is NOT a sentry gun...
+if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::SENTRY_GUN)) || 
+    (ent->svflags & SVF_PLAYER && EntIsSpectating(ent)))
+{
+    mask &= ~CONTENTS_MONSTER;
+}
 
 	vec3_t start_up = oldorg + ent->gravityVector * (-1 * stepsize);
 
@@ -957,10 +972,10 @@ bool SV_StepDirection(edict_t* ent, float yaw, float dist, bool allow_no_turns)
 		0
 	};
 
-	// Special handling for specific monster types
-	const bool is_widow = !strncmp(ent->classname, "monster_widow", 13) ||
-		!strncmp(ent->classname, "monster_widow1", 13);
-
+// Special handling for specific monster types
+const bool is_widow = (horde::IsMonsterType(ent, horde::MonsterTypeID::WIDOW) ||
+    horde::IsMonsterType(ent, horde::MonsterTypeID::WIDOW2) || horde::IsMonsterType(ent, horde::MonsterTypeID::WIDOW1));
+	
 	// Attempt movement
 	if (SV_movestep(ent, move, false))
 	{
@@ -1200,10 +1215,10 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 
 		// Special handling for specific monster types
 		// Consider using monster dimensions for radius calculation
-		if (!strcmp(self->classname, "monster_guardian") || !strcmp(self->classname, "monster_psxguardian"))
-		{
-			request.nodeSearch.radius = std::max(2048.f, width * 4); // Use width to inform radius
-		}
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN) || horde::IsMonsterType(self, horde::MonsterTypeID::PSX_GUARDIAN))
+	{
+		request.nodeSearch.radius = std::max(2048.f, width * 4); // Use width to inform radius
+	}
 
 		// Configure movement capabilities
 		if (self->monsterinfo.can_jump || (self->flags & FL_FLY))

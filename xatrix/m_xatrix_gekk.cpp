@@ -1648,6 +1648,8 @@ void SP_monster_gekk(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GEKK);
+
 	if (g_horde->integer) {
 		{
 			if (brandom())

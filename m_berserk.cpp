@@ -1006,6 +1006,9 @@ void SP_monster_berserk(edict_t* self)
 	sound_jump.assign("berserk/jump.wav");
 	sound_windup.assign("shambler/sattck1.wav");
 
+	// Set the base ID. This is the default.
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERK);
+
 	self->s.modelindex = gi.modelindex("models/monsters/berserk/tris.md2");
 
 	gi.modelindex("models/monsters/berserk/gibs/head.md2");

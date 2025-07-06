@@ -1109,6 +1109,10 @@ void SP_monster_carrier(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+		if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER);
+    }
+
 	if (g_horde->integer) {
 		{
 			if (brandom())
@@ -1165,7 +1169,7 @@ void SP_monster_carrier(edict_t* self)
 	if (coop->integer)
 		self->health += 500 * skill->integer;
 
-	if (self->monsterinfo.IS_BOSS && !strcmp(self->classname, "monster_carrier"))
+	if (self->monsterinfo.IS_BOSS && horde::IsMonsterType(self, horde::MonsterTypeID::CARRIER))
 		self->health *= 2.6f;
 
 	self->gib_health = -200;
@@ -1199,7 +1203,7 @@ void SP_monster_carrier(edict_t* self)
 
 	self->monsterinfo.attack_finished = 0_ms;
 
-	const char* reinforcements = (strcmp(self->classname, "monster_carrier") == 0) ? default_reinforcements : mini_reinforcements;
+	const char* reinforcements = (horde::IsMonsterType(self, horde::MonsterTypeID::CARRIER)) ? default_reinforcements : mini_reinforcements;
 
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = default_monster_slots_base;
@@ -1228,6 +1232,7 @@ void SP_monster_carrier_mini(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER_MINI);
     // This check is redundant, the engine only calls this function
     // for this classname anyway. It can be removed.
 	// if (!strcmp(self->classname, "monster_carrier_mini")) {

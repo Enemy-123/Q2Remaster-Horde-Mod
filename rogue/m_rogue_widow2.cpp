@@ -583,7 +583,7 @@ void Widow2TonguePull(edict_t* self)
 
 void Widow2Crunch(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
+	if (self->enemy && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
 		return;
 	}
 	vec3_t aim;
@@ -1091,6 +1091,8 @@ void Widow2Precache()
 void SP_monster_widow2(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW2);
 
 	if (g_horde->integer) {
 		if (brandom())

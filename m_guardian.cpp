@@ -222,7 +222,7 @@ void guardian_atk1_charge(edict_t* self)
 {
 	self->monsterinfo.weapon_sound = sound_spin_loop;
 
-	if (!strcmp(self->classname, "monster_guardian"))
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN))
 	gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
 }
 
@@ -233,7 +233,7 @@ void guardian_fire_blaster(edict_t* self)
 	monster_muzzleflash_id_t id;
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	if (!strcmp(self->classname, "monster_janitor2")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2)){
 		id = static_cast<monster_muzzleflash_id_t>(MZ2_SOLDIER_RIPPER_1);
 		// Aplicar el offset escalado
 		vec3_t offset = { 88.f * self->s.scale, 50.f * self->s.scale, 60.f * self->s.scale };
@@ -252,11 +252,11 @@ void guardian_fire_blaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
-	if (!strcmp(self->classname, "monster_guardian"))
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN))
 	{
 		monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
 	}
-	else if (!strcmp(self->classname, "monster_janitor2"))
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2))
 	{
 		// Usar Ionripper para janitor2
 		monster_fire_ionripper(self, start, forward, 25, 950, id, EF_IONRIPPER);
@@ -418,7 +418,22 @@ static void guardian_grenade(edict_t* self)
 void guardian_laser_fire(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1.f, ATTN_NORM, 0.f);
-	monster_fire_dabeam(self, self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 25 : 5, self->s.frame & 1, guardian_fire_update);
+
+    // --- REFACTORED LOGIC ---
+    // 1. Determine the damage value first and store it in a variable.
+    //    This is much clearer and avoids the comma operator bug.
+    int damage;
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) {
+        damage = 25;
+    } else {
+        damage = 5; // Assuming this is the fallback for other types like PSX_GUARDIAN
+    }
+
+    // 2. Assign the damage to the power_armor_power field.
+    self->monsterinfo.power_armor_power = damage;
+
+    // 3. Call the function with the correct arguments.
+	monster_fire_dabeam(self, damage, self->s.frame & 1, guardian_fire_update);
 }
 
 // Nueva función para manejar ataques basados en el tipo de entidad
@@ -427,11 +442,11 @@ void guardian_fire_attack(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	if (strcmp(self->classname, "monster_janitor2") == 0) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2)) {
 		// Ataque con granadas para janitor2
 		guardian_grenade(self);
 	}
-	else if (strcmp(self->classname, "monster_guardian") == 0) {
+	else if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) {
 		// Ataque con láser para guardian
 		guardian_laser_fire(self);
 	}
@@ -472,7 +487,7 @@ void guardian_kick(edict_t* self)
 {
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, !strcmp(self->classname, "monster_guardian") ? 85 : 30, 700))
+		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ? 85 : 30, 700))
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 	}
 	else {
@@ -512,8 +527,8 @@ MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 	if (r > RANGE_NEAR)
 		M_SetAnimation(self, &guardian_move_atk2_in);
 	else if (
-		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_guardian")) ||
-		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_janitor2") && r <= RANGE_MELEE)
+		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && ! (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ||
+		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2) && r <= RANGE_MELEE))
 		)
 		M_SetAnimation(self, &guardian_move_kick);
 	else
@@ -614,7 +629,7 @@ DIE(guardian_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	self->deadflag = true;
 	self->takedamage = false;
 
-	if (!strcmp(self->classname, "monster_guardian") || strcmp(self->classname, "monster_janitor2")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) {
 		M_SetAnimation(self, &guardian_move_deathboss);
 	}
 	else {
@@ -632,6 +647,9 @@ void SP_monster_guardian(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUARDIAN);
+    }
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -660,7 +678,7 @@ void SP_monster_guardian(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 550 : 385;
+		self->monsterinfo.power_armor_power = (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ? 550 : 385;
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
@@ -685,6 +703,8 @@ void SP_monster_guardian(edict_t* self)
 void SP_monster_janitor2(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JANITOR2);
 
 	self->spawnflags |= SPAWNFLAG_GUARDIAN_JANITOR;
 	SP_monster_guardian(self);

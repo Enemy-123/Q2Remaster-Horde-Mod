@@ -183,7 +183,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		bool in_front = false;
 	} best_position; // Initialize fresh for each call
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 	float trace_distance = isboss ? 1000.0f : 700.0f;
 	vec3_t start = self->s.origin;
 	vec3_t initial_forward;
@@ -363,7 +363,7 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 		}
 
 		// Adjust laser color based on whether it's a boss
-		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 		if (isboss) {
 			// Boss gets a more intense beam
 			laser->s.skinnum = 0xf0f0f0f0; // Brighter, more intense beam
@@ -381,7 +381,7 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 		!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
 		// Enhanced particle effects at the target location
-		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 		int particle_chance = isboss ? 5 : 7; // More frequent effects for boss
 
 		// Occasional sparks at the target location
@@ -450,7 +450,7 @@ void fixbot_fire_spawn_laser(edict_t* self)
 	if (!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
 		// More impressive effects for boss
-		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 		int num_sparks = isboss ? 20 : 8; // Increased particles
 
 		// Create welding sparks at the target position
@@ -478,7 +478,7 @@ void fixbot_start_spawn(edict_t* self)
 	if (!self || !self->inuse)
 		return;
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 
 	// Create visual charge effect
 	gi.WriteByte(svc_temp_entity);
@@ -534,7 +534,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// Validation is now assumed to be handled correctly by the caller (find_turret_spawn_position)
 
 	// --- Spawning proceeds ---
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 	vec3_t dir;
 	edict_t* ent;
 
@@ -618,7 +618,7 @@ void fixbot_prep_spawn(edict_t* self)
 	self->monsterinfo.blind_fire_target = vec3_origin;
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING; // Ensure flag is off initially
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 
 	// First, check if this fixbot is allowed to spawn at all
 	bool can_spawn = false;
@@ -680,7 +680,7 @@ void fixbot_spawn_check(edict_t* self) {
 		spawned_successfully = true; // Assume success if we called spawn
 
 		// Add boss-specific effect after successful spawn attempt (Check classname again for safety)
-		if (spawned_successfully && strcmp(self->classname, "monster_fixbotkl") == 0) { // Check flag and classname
+		if (spawned_successfully && horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL)) { // Check flag and classname
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_EXPLOSION);
 			gi.WritePosition(self->monsterinfo.blind_fire_target);
@@ -743,7 +743,7 @@ void fixbot_spawn_turret(edict_t* self)
 		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
 		ent->monsterinfo.commander = self;
 
-		bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
 
 		// Initialize the turret
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1, isboss ? ATTN_NONE : ATTN_NORM, 0);
@@ -1993,7 +1993,7 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 	plasma->dmg_radius = damage_radius;
 	plasma->s.sound = gi.soundindex("weapons/rockfly.wav");
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
 
 	// Set timestamp for initial upward flight phase
 	plasma->timestamp = level.time + (isboss ? 0.7_sec : 1.0_sec);
@@ -2044,7 +2044,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 			start += up * 50.f;
 
 			// Use ionripper instead of plasma
-			bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+			bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
 
 			// Determine direction to enemy
 			vec3_t dir_to_enemy = self->enemy->s.origin - start;
@@ -2093,7 +2093,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 	vec3_t dir = forward + (up * 0.5f); // 45 degree upward if sky clear
 	dir.normalize();
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
 
 	// Base parameters
 	float speed = isboss ? irandom(450, 600) : irandom(350, 450);
@@ -2123,7 +2123,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 
 void fixbot_reattack(edict_t* self)
 {
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
 	bool enemy_valid = (self->enemy && self->enemy->inuse && !level.intermissiontime && !self->enemy->deadflag);
 
 	// Explicitly check visibility here too, as the logic depends on it
@@ -2352,8 +2352,7 @@ void fixbot_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
-
+	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
 
 	monster_fire_blaster_bolt(self, start, dir, 7, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, isboss ? 3 : 0);
 	// save for aiming the shot
@@ -2424,7 +2423,7 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 	fixbot_set_attack_fly_parameters(self);
 	// *** END ADDED ***
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
 
 	// ONLY boss fixbots should spawn turrets periodically
 	if (isboss) {
@@ -2499,8 +2498,8 @@ DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 	// Find and destroy all spawned turrets
 	for (auto ent : active_monsters()) { // Use helper iterator
-		if (ent->inuse && ent->owner == self && ent->classname && // Added null check for classname
-			(strcmp(ent->classname, "monster_turret") == 0)) {
+	if (ent->inuse && ent->owner == self && ent->classname &&
+		horde::IsMonsterType(ent, horde::MonsterTypeID::TURRET)) {
 			// Create explosion effect at turret location
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_BIGEXPLOSION);
@@ -2557,6 +2556,11 @@ void SP_monster_fixbot(edict_t* self)
 	gi.soundindex("misc/welder3.wav");
 	gi.soundindex("infantry/inflies1.wav");
 
+   // Set the base ID. This is the default.
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT);
+    }
+
 	self->s.modelindex = gi.modelindex("models/monsters/fixbot/tris.md2");
 
 	self->mins = { -16, -16, -12 };
@@ -2589,7 +2593,7 @@ void SP_monster_fixbot(edict_t* self)
 	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
 	fixbot_set_attack_fly_parameters(self);
 
-	bool isboss = (strcmp(self->classname, "monster_fixbotkl") == 0);
+	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
 
 	// Setup reinforcement system if it's a boss
 	if (isboss && !st.was_key_specified("monster_slots")) {
@@ -2607,9 +2611,14 @@ void SP_monster_fixbot(edict_t* self)
 }
 
 void SP_monster_fixbotkl(edict_t* self) {
+
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT_KL);
+
 	SP_monster_fixbot(self);
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;

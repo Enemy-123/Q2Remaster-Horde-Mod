@@ -32,6 +32,7 @@ void SV_Physics_NewToss(edict_t* ent); // PGM
 contents_t G_GetClipMask(edict_t* ent)
 {
     // --- 1. Base Mask Determination ---
+    // This part is standard and correct.
     contents_t mask = ent->clipmask;
     if (!mask) {
         if (ent->svflags & SVF_MONSTER)     mask = MASK_MONSTERSOLID;
@@ -40,6 +41,7 @@ contents_t G_GetClipMask(edict_t* ent)
     }
 
     // --- 2. Standard Clipping Adjustments ---
+    // This part is also standard and correct.
     bool const is_nonsolid = (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER);
     bool const is_dead = (ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER);
 
@@ -52,7 +54,7 @@ contents_t G_GetClipMask(edict_t* ent)
     // --- 3. Horde-Specific Monster-on-Monster Collision ---
     if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
     {
-        // --- Exclusion list (this part is fine) ---
+        // --- Exclusion list (this part is fine and very efficient) ---
         static const auto excluded_types = [] {
             std::array<bool, 256> arr{};
             arr.fill(false);
@@ -69,15 +71,21 @@ contents_t G_GetClipMask(edict_t* ent)
             return arr;
         }();
 
-        if (ent->monster_type_id == MONSTER_TYPE_UNKNOWN) {
-            ent->monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
-        }
+        // =======================================================================
+        // --- LAZY INITIALIZATION REMOVED ---
+        // This function no longer needs to initialize the ID. It assumes
+        // monster_think() has already done it. This makes the code cleaner
+        // and gives this function a single responsibility.
+        // =======================================================================
 
-        if (ent->monster_type_id != MONSTER_TYPE_UNKNOWN && excluded_types[ent->monster_type_id]) {
+        // We can now directly and safely use the monster_type_id.
+        // The check for UNKNOWN is a good safety measure in case this function
+        // is ever called on an entity that doesn't have its ID set.
+        if (ent->monsterinfo.monster_type_id != MONSTER_TYPE_UNKNOWN && excluded_types[ent->monsterinfo.monster_type_id]) {
             return mask; // Early exit for excluded types is fine
         }
 
-        // --- THE CORE FIX ---
+        // --- THE CORE FIX (This logic is preserved exactly) ---
         // First, check if there's a potential collision with a TEAMMATE, just like the old code.
         // This restores the original logic while still benefiting from the grid's speed.
         bool potential_teammate_collision = false;

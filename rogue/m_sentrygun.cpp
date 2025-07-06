@@ -1367,7 +1367,7 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 
 	// Handle summoned entity notifications
 	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
-		if (strcmp(self->classname, "monster_sentrygun") == 0) {
+		if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
 			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
 			self->owner->client->num_sentries--;
 		}
@@ -1753,6 +1753,7 @@ void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SENTRYGUN);
 	// --- Unconditional Pre-caching Block ---
 	// By placing all asset loading at the top, we guarantee that every possible
 	// model and sound for every sentry variant is precached when this function

@@ -234,10 +234,13 @@ void flyer_kamikaze_explode(edict_t* self)
 {
 	vec3_t dir;
 
-	if (self->monsterinfo.commander && self->monsterinfo.commander->inuse &&
-		!strcmp(self->monsterinfo.commander->classname, "monster_carrier"))
-		self->monsterinfo.commander->monsterinfo.monster_slots++;
+edict_t* commander = self->monsterinfo.commander;
 
+// Check if the commander is valid and is a Carrier type.
+if (commander && commander->inuse && horde::IsMonsterType(commander, horde::MonsterTypeID::CARRIER))
+{
+    commander->monsterinfo.monster_slots++;
+}
 	if (self->enemy)
 	{
 		dir = self->enemy->s.origin - self->s.origin;
@@ -1276,6 +1279,10 @@ void SP_monster_flyer(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLYER);
+    }
+
 	if (g_horde->integer && current_wave_level <= 18) {
 		const	float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
@@ -1365,8 +1372,11 @@ void SP_monster_kamikaze(edict_t* self)
 	}
 
 	self->s.effects |= EF_ROCKET;
-
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::KAMIKAZE);
 	SP_monster_flyer(self);
+
+
+
 	ApplyMonsterBonusFlags(self);
 
 }

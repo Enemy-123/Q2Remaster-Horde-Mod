@@ -593,7 +593,10 @@ void TankBlaster(edict_t* self)
 	else
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 
-	const bool isBoss = ((!strcmp(self->classname, "monster_tank_64") && self->monsterinfo.IS_BOSS) || (g_hardcoop->integer && !strcmp(self->classname, "monster_tank_64")));
+	const bool isBoss = 
+    (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64) && self->monsterinfo.IS_BOSS) ||
+    (g_hardcoop->integer && horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64));
+
 	if (isBoss) {
 		PredictAim(self, self->enemy, bullet_start, 0, false, 0.075f, &dir, nullptr);
 		const vec3_t end = bullet_start + (dir * 8192);
@@ -724,7 +727,7 @@ void TankRocket(edict_t* self)
              if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
                 monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
             else
-                monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+                monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
         }
     }
     else
@@ -737,7 +740,7 @@ void TankRocket(edict_t* self)
             if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
                 monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
             else
-                 monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+                 monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
         }
     }
 }
@@ -777,7 +780,7 @@ void TankMachineGun(edict_t* self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	if (!strcmp(self->classname, "monster_tank_commander") || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER) || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS) {
 		monster_fire_flechette(self, start, forward, 20,
 			self->monsterinfo.IS_BOSS ? 1150 : 700,
 			flash_number);
@@ -2595,17 +2598,17 @@ MONSTERINFO_BLOCKED(tank_vanilla_blocked) (edict_t* self, float dist) -> bool
 /*QUAKED monster_tank (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
 model="models/monsters/tank/tris.md2"
 */
-/*QUAKED monster_tank_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
- */
 void SP_monster_tank(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-		}
+	// Set a default ID if one hasn't been set by a more specific spawner.
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK);
+    }
+
+	if (g_horde->integer && brandom()) {
+		gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
 	}
 
 	if (!M_AllowSpawn(self)) {
@@ -2643,27 +2646,18 @@ void SP_monster_tank(edict_t* self)
 	gi.soundindex("tank/tnkatk2e.wav");
 	gi.soundindex("tank/tnkatck3.wav");
 
-	if (strcmp(self->classname, "monster_tank_commander") == 0)
+	// --- REFACTORED: Use the monster ID to determine stats and appearance ---
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER))
 	{
 		self->health = 1000 * st.health_multiplier;
 		self->gib_health = -225;
 		self->count = 1;
 		sound_pain2.assign("tank/pain.wav");
+        self->s.skinnum = 2; // Set commander skin
 	}
-	else
-	{
-		self->health = 630 * st.health_multiplier;
-		self->gib_health = -200;
-		sound_pain.assign("tank/tnkpain2.wav");
-	}
-
-	self->monsterinfo.scale = MODEL_SCALE;
-
-	// [Paril-KEX] N64 tank commander is a chonky boy
-	if (!strcmp(self->classname, "monster_tank_64"))
+	else if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64))
 	{
 		self->health = 800;
-
 		self->accel = 0.075f;
 		if (g_horde->integer) {
 			if (!self->s.scale)
@@ -2683,13 +2677,18 @@ void SP_monster_tank(edict_t* self)
 			self->s.scale = 1.1f;
 			self->health = 1000;
 		}
-
 		self->gib_health = -250;
-
 		if (self->monsterinfo.bonus_flags & BF_BERSERKING)
 			self->accel *= 0.1f;
 	}
+	else // Default case for base TANK
+	{
+		self->health = 630 * st.health_multiplier;
+		self->gib_health = -200;
+		sound_pain.assign("tank/tnkpain2.wav");
+	}
 
+	self->monsterinfo.scale = MODEL_SCALE;
 	self->mass = 500;
 
 	self->pain = tank_pain;
@@ -2706,60 +2705,45 @@ void SP_monster_tank(edict_t* self)
 	self->monsterinfo.setskin = tank_setskin;
 
 	gi.linkentity(self);
-
 	M_SetAnimation(self, &tank_move_stand);
-
 	walkmonster_start(self);
 
-	// PMM
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	self->monsterinfo.blindfire = true;
-	// pmm
-	if (strcmp(self->classname, "monster_tank_commander") == 0)
-		self->s.skinnum = 2;
 
 	ApplyMonsterBonusFlags(self);
 }
 
 /*QUAKED monster_tank_spawner (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
-model="models/monsters/tank_vanilla/tris.md2"
 */
-/*QUAKED monster_tank_spawner_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
- */
 void SP_monster_tank_spawner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+    // --- EAGER INITIALIZATION ---
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_SPAWNER);
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
 
-	// Inicializar slots
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
 	self->monsterinfo.monster_used = 0;
 
-	// Single reinforcements setup
-	const char* reinforcements = nullptr; // Or nullptr in C++11 and later
-
-	// First, check for the special case
+	const char* reinforcements = nullptr;
 	bool is_special_case = (current_wave_level >= 10 &&
 							self->monsterinfo.bonus_flags != BF_NONE &&
 							!(self->monsterinfo.bonus_flags & BF_FRIENDLY));
 
 	if (is_special_case)
-	{
 		reinforcements = tank_vanilla_special_reinforcements;
-	}
 	else
-	{
-		// If not the special case, fall back to the original logic
 		reinforcements = current_wave_level >= 25 ? tank_vanilla_insane_reinforcements : tank_vanilla_hard_reinforcements;
-	}
 
 	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
-	// Asignar modelo y dimensiones
+	
 	self->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
 	self->mins = { -32, -32, -16 };
 	self->maxs = { 32, 32, 64 };
@@ -2791,24 +2775,16 @@ void SP_monster_tank_spawner(edict_t* self)
 	gi.soundindex("tank/tnkatk2e.wav");
 	gi.soundindex("tank/tnkatck3.wav");
 
-	// Configurar salud y propiedades según tipo
-	if (strcmp(self->classname, "monster_tank_spawner") == 0)
-	{
-		self->health = 1200 * st.health_multiplier;
-		self->gib_health = -225;
-		self->count = 1;
-		sound_pain2.assign("tank/pain.wav");
-	}
-	else
-	{
-		self->health = 550 * st.health_multiplier;
-		self->gib_health = -200;
-		sound_pain.assign("tank/tnkpain2.wav");
-	}
+
+    // --- REFACTORED ---
+    // The strcmp is removed as this function only spawns one type.
+	self->health = 1200 * st.health_multiplier;
+	self->gib_health = -225;
+	self->count = 1;
+	sound_pain2.assign("tank/pain.wav");
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
-	// Ajustar dimensiones si es comandante
 	if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN))
 	{
 		if (!self->s.scale)
@@ -2818,7 +2794,6 @@ void SP_monster_tank_spawner(edict_t* self)
 		self->health = 1500 * st.health_multiplier;
 	}
 
-	// Configurar otros atributos
 	self->mass = 500;
 	self->pain = tank_vanilla_pain;
 	self->die = tank_vanilla_die;
@@ -2833,23 +2808,13 @@ void SP_monster_tank_spawner(edict_t* self)
 	self->monsterinfo.blocked = tank_vanilla_blocked;
 	self->monsterinfo.setskin = tank_vanilla_setskin;
 
-	// Enlazar entidad
 	gi.linkentity(self);
-
-	// Iniciar animación de stand
 	M_SetAnimation(self, &tank_vanilla_move_stand);
-
-	// Iniciar comportamiento de walkmonster
 	walkmonster_start(self);
 
-	// Configurar flags adicionales
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	self->monsterinfo.blindfire = true;
 
-	// if (strcmp(self->classname, "monster_tank_spawner") == 0)
-	// 	self->s.skinnum = 2;
-
-	// Aplicar banderas de bonificación
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2874,8 +2839,6 @@ THINK(Think_tank_vanillaStand) (edict_t* ent) -> void
 }
 
 /*QUAKED monster_tank_stand (1 .5 0) (-32 -32 0) (32 32 90)
-Just stands and cycles in one place until targeted, then teleports away.
-N64 edition!
 */
 void SP_monster_tank_stand(edict_t* self)
 {
@@ -2883,25 +2846,19 @@ void SP_monster_tank_stand(edict_t* self)
 		G_FreeEdict(self);
 		return;
 	}
-
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->model = "models/monsters/tank/tris.md2";
 	self->s.modelindex = gi.modelindex(self->model);
 	self->s.frame = FRAME_stand01;
 	self->s.skinnum = 2;
-
 	gi.soundindex("misc/bigtele.wav");
-
 	self->mins = { -32, -32, -16 };
 	self->maxs = { 32, 32, 64 };
-
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-
 	self->mins *= self->s.scale;
 	self->maxs *= self->s.scale;
-
 	self->use = Use_Boss3;
 	self->think = Think_Tank_Stand;
 	self->nextthink = level.time + 10_hz;
@@ -2909,8 +2866,6 @@ void SP_monster_tank_stand(edict_t* self)
 }
 
 /*QUAKED monster_tank_spawner_stand (1 .5 0) (-32 -32 0) (32 32 90)
-Just stands and cycles in one place until targeted, then teleports away.
-Spawner variant, N64 edition!
 */
 void SP_monster_tank_spawner_stand(edict_t* self)
 {
@@ -2918,25 +2873,19 @@ void SP_monster_tank_spawner_stand(edict_t* self)
 		G_FreeEdict(self);
 		return;
 	}
-
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->model = "models/monsters/tank/tris.md2";
 	self->s.modelindex = gi.modelindex(self->model);
 	self->s.frame = FRAME_stand01;
 	self->s.skinnum = 2;
-
 	gi.soundindex("misc/bigtele.wav");
-
 	self->mins = { -32, -32, -16 };
 	self->maxs = { 32, 32, 64 };
-
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-
 	self->mins *= self->s.scale;
 	self->maxs *= self->s.scale;
-
 	self->use = Use_Boss3;
 	self->think = Think_tank_vanillaStand;
 	self->nextthink = level.time + 10_hz;
@@ -2946,11 +2895,29 @@ void SP_monster_tank_spawner_stand(edict_t* self)
 // N64 tank
 void SP_monster_tank_64(edict_t* self)
 {
+    // --- EAGER INITIALIZATION ---
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_64);
+
 	brandom() ?
 		self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN :
 		self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING;
-	SP_monster_tank(self);
+	
+    SP_monster_tank(self); // Call base spawner
 	self->s.skinnum = 2;
 
 	ApplyMonsterBonusFlags(self);
+}
+
+// --- NEWLY ADDED SPAWN FUNCTION ---
+/*QUAKED monster_tank_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
+ */
+void SP_monster_tank_commander(edict_t* self)
+{
+    // --- EAGER INITIALIZATION ---
+    // Set the specific ID *before* calling the base spawner.
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_COMMANDER);
+
+    // Call the base spawner. It will now use the ID we just set to apply
+    // the correct health, sounds, and skin.
+    SP_monster_tank(self);
 }

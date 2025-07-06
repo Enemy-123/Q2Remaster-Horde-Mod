@@ -1027,7 +1027,8 @@ constexpr spawnflags_t SPAWNFLAG_STALKER_NOJUMPING = 16_spawnflag;
 
 void SP_monster_stalker(edict_t* self)
 {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
+	const spawn_temp_t& st = ED_GetSpawnTemp();	
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::STALKER);
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);

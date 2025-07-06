@@ -1827,6 +1827,7 @@ struct monsterinfo_t
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
 	gtime_t spawn_complete_time; // Time when monster_start_go finished
+	uint8_t monster_type_id;
 
 
 	bonus_flags_t bonus_flags = BF_NONE; //Powerups or Special Flags for horde
@@ -3513,7 +3514,7 @@ struct edict_t
 
 	//Horde stuff
 
-	uint8_t monster_type_id = MONSTER_TYPE_UNKNOWN;
+	 uint8_t special_type_id;;
 
 	bool was_spawned_by_horde;
 	bool spawned_in_spawn_state;

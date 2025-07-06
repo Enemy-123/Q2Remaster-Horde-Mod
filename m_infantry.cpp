@@ -558,7 +558,7 @@ void infantry_set_firetime(edict_t* self)
 
 void infantry_cock_gun(edict_t* self)
 {
-	gi.sound(self, CHAN_WEAPON, (!strcmp(self->classname, "monster_infantry_vanilla")) ? sound_weapon_cock_mg : sound_weapon_cock_hb, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, (horde::IsMonsterType(self, horde::MonsterTypeID::INFANTRY_VANILLA)) ? sound_weapon_cock_mg : sound_weapon_cock_hb, 1, ATTN_NORM, 0);
 
 	// gun cocked
 	self->count = 1;
@@ -1123,6 +1123,8 @@ constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;
  */
 void SP_monster_infantry_vanilla(edict_t* self)
 {
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA);
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
@@ -1198,6 +1200,8 @@ void SP_monster_infantry_vanilla(edict_t* self)
 void SP_monster_infantry(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY);
+
 	self->style = 1;
 
 	if (g_horde->integer) {

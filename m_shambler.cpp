@@ -606,7 +606,7 @@ MMOVE_T(shambler_attack_fireball) = { FRAME_smash01, FRAME_smash12, shambler_fra
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
-	if (!strcmp(self->classname, "monster_shambler_small")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) {
 		M_SetAnimation(self, &shambler_attack_magic);
 		return;
 	}
@@ -650,7 +650,7 @@ void sham_smash10(edict_t* self)
 		return;
 
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	const bool hit = fire_hit(self, aim, !strcmp(self->classname, "monster_shambler_small") ? 45 : irandom(110, 120), 120); // Slower attack
+	const bool hit = fire_hit(self, aim, (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 45 : irandom(110, 120), 120); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
@@ -675,7 +675,7 @@ void ShamClaw(edict_t* self)
 		return;
 
 	const vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	const bool hit = fire_hit(self, aim, !strcmp(self->classname, "monster_shambler_small") ? 30 : irandom(70, 80), 80); // Slower attack
+	const bool hit = fire_hit(self, aim, (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 30 : irandom(70, 80), 80); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
@@ -868,6 +868,9 @@ void SP_monster_shambler(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER);
+    }
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -891,7 +894,7 @@ void SP_monster_shambler(edict_t* self)
 	sound_boom.assign("shambler/sboom.wav");
 	sound_fireball.assign("weapons/rocklx1a.wav");
 
-	if (!strcmp(self->classname, "monster_shambler")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER)) {
 		self->health = 650 * st.health_multiplier;
 		self->gib_health = -190;
 	}
@@ -926,8 +929,9 @@ void SP_monster_shambler(edict_t* self)
 //HORDE BOSS
 void SP_monster_shamblerkl(edict_t* self)
 {
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_KL);
 	SP_monster_shambler(self);
-	if (!strcmp(self->classname, "monster_shamblerkl")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_KL)) {
 		self->health = 6500 + (1.08 * current_wave_level);
 		self->gib_health = -190;
 	}
@@ -943,9 +947,9 @@ void SP_monster_shamblerkl(edict_t* self)
 void SP_monster_shambler_small(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
+self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_SMALL);
 	SP_monster_shambler(self);
-	if (!strcmp(self->classname, "monster_shambler_small")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) {
 		self->health = 350 + st.health_multiplier;
 		self->gib_health = -190;
 		self->s.scale = 0.6f;

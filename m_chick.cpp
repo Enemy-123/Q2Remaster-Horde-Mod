@@ -971,6 +971,10 @@ void SP_monster_chick(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK);
+    }
+
 	if (g_horde->integer)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
@@ -1060,8 +1064,12 @@ void SP_monster_chick(edict_t* self)
 /*QUAKED monster_chick_heat (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
 void SP_monster_chick_heat(edict_t* self)
-{
+{	
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
 	SP_monster_chick(self);
+
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
+
 	self->s.skinnum = 2;
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 68;

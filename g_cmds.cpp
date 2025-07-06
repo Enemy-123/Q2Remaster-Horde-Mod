@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "m_player.h"
+#include "horde/horde_ids.h"
 
 void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu = true)
 {
@@ -542,36 +543,40 @@ void Cmd_RemoveSentry_f(edict_t* ent)
 	int removed_count = 0;
 	edict_t* current_ent = nullptr;
 
-	// Iterate through all entities to find sentries owned by the player
-	// Start after clients (index game.maxclients)
-	// Use uint32_t for the loop index to match globals.num_edicts
 	for (uint32_t i = game.maxclients + 1; i < globals.num_edicts; i++) {
 		current_ent = &g_edicts[i];
 
-		// Check if the entity is in use, is a sentry gun, and is owned by the command issuer
-		if (current_ent->inuse &&
-			current_ent->classname &&
-			strcmp(current_ent->classname, "monster_sentrygun") == 0 &&
-			current_ent->owner == ent)
+		// We only care about entities that are in use and owned by the player.
+		if (!current_ent->inuse || current_ent->owner != ent) {
+			continue;
+		}
+
+        // =======================================================================
+        // --- ARCHITECTURAL IMPROVEMENT ---
+        // We use IsSpecialType because a sentry is a deployable, not a true monster.
+        // Since it doesn't run monster_think(), we do a quick lazy-init here.
+        // =======================================================================
+
+        // 1. Lazy-init the special_type_id if it hasn't been set yet.
+        if (current_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN)) {
+            current_ent->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(current_ent->classname));
+        }
+
+        // 2. Use the fast, clean helper function to check the ID.
+		if (horde::IsSpecialType(current_ent, horde::SpecialEntityTypeID::SENTRY_GUN))
 		{
-			// Call the sentry's die function to remove it properly
-			// Use high damage to ensure removal, attacker is the owner
-			// MOD_UNKNOWN prevents score changes/kill messages etc.
 			turret2_die(current_ent, ent, ent, 99999, current_ent->s.origin, MOD_UNKNOWN);
 			removed_count++;
-			// Note: turret2_die should handle decrementing ent->client->num_sentries
 		}
 	}
 
 	if (removed_count > 0) {
-		// Use LocClient_Print for localized output if needed, otherwise Client_Print is fine
 		gi.LocClient_Print(ent, PRINT_HIGH, "Removed {} sentry gun(s).\n", removed_count);
 	}
 	else {
 		gi.LocClient_Print(ent, PRINT_HIGH, "No active sentry guns found to remove.\n");
 	}
 }
-
 
 /*
 Teleport

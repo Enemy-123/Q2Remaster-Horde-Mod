@@ -975,7 +975,9 @@ constexpr spawnflags_t SPAWNFLAG_PARASITE_NOJUMPING = 8_spawnflag;
 void SP_monster_parasite(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PARASITE);
+    }
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1040,6 +1042,7 @@ void SP_monster_parasite(edict_t* self)
 void SP_monster_perrokl(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PERRO_KL);
 
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;
@@ -1047,7 +1050,7 @@ void SP_monster_perrokl(edict_t* self)
 	//self->style = 1;
 	//self->s.alpha = 0.4f;
 	//self->s.effects = EF_FLAG1;
-	if (!strcmp(self->classname, "monster_perrokl")) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::PERRO_KL)){
 		// CORRECTED: Use |= to assign the flag
 		self->monsterinfo.bonus_flags |= BF_CORRUPTED;
 		self->gib_health = -70;

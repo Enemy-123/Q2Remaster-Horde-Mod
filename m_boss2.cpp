@@ -674,6 +674,12 @@ void SP_monster_boss2(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	    // --- EAGER INITIALIZATION ---
+    // Set the base ID. This will be overridden by more specific spawners.
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2);
+    }
+
 
 	if (self->monsterinfo.IS_BOSS) {
 		{
@@ -771,7 +777,11 @@ void SP_monster_boss2_64(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_64);
+
+
 	SP_monster_boss2(self);
+
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
 
@@ -792,6 +802,7 @@ void SP_monster_boss2_mini(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	self->spawnflags &= ~SPAWNFLAG_BOSS2_N64;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_MINI);
 	SP_monster_boss2(self);
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
@@ -814,7 +825,9 @@ void SP_monster_boss2kl(edict_t* self)
 {
 //	if (brandom())
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_KL);
 	SP_monster_boss2(self);
+
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
 

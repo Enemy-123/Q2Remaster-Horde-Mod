@@ -498,11 +498,21 @@ void jorgBFG(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-	(strcmp(self->classname, "monster_jorg") == 0) ?
-		monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG) :
-		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
+	
+    // --- REFACTORED LOGIC ---
+    // Use a clear if/else block to choose which function to call.
+    // This is the standard and most readable way to handle this.
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
+    {
+        // This is the standard Jorg, fire the BFG.
+        monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
+    }
+    else
+    {
+        // This is another variant (e.g., jorg_small), fire the tracker.
+        monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
+    }
 }
-
 void jorg_firebullet_right(edict_t* self)
 {
 	//	vec3_t forward, right;
@@ -535,7 +545,7 @@ void jorg_firebullet_right(edict_t* self)
 	int constexpr damage = 35;
 	int constexpr radius_damage = 45;
 
-	if (strcmp(self->classname, "monster_jorg") == 0) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG)) {
 		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
 	}
 	else
@@ -563,7 +573,7 @@ void jorg_firebullet_left(edict_t* self)
 	int constexpr damage = 35;
 	int constexpr radius_damage = 45;
 
-	if (strcmp(self->classname, "monster_jorg") == 0) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG)) {
 		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
 	}
 	else
@@ -674,8 +684,12 @@ void SP_monster_jorg(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JORG);
+    }
+
 	if (g_horde->integer) {
-		if (!strcmp(self->classname, "monster_jorg"))
+		if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
 		{
 			const float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
@@ -762,8 +776,9 @@ void SP_monster_jorg(edict_t* self)
 void SP_monster_jorg_small(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JORG_SMALL);
 	SP_monster_jorg(self);
+
 
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	self->monsterinfo.armor_power = 500;

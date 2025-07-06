@@ -868,6 +868,9 @@ void SP_monster_gunner_vanilla(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNNER_VANILLA);
+
     if (g_horde->integer && frandom() < 0.23f) {
         gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
     }

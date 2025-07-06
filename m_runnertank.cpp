@@ -1223,6 +1223,10 @@ void SP_monster_runnertank(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::RUNNERTANK);
+    }
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1256,14 +1260,14 @@ void SP_monster_runnertank(edict_t* self)
 	gi.soundindex("tank/tnkatk2e.wav");
 	gi.soundindex("tank/tnkatck3.wav");
 
-	if (strcmp(self->classname, "monster_runnertank_commander") == 0)
-	{
-		self->health = 1000 * st.health_multiplier;
-		self->gib_health = -225;
-		self->count = 1;
-		sound_pain2.assign("tank/pain.wav");
-	}
-	else
+	// if (strcmp(self->classname, "monster_runnertank_commander") == 0)
+	// {
+	// 	self->health = 1000 * st.health_multiplier;
+	// 	self->gib_health = -225;
+	// 	self->count = 1;
+	// 	sound_pain2.assign("tank/pain.wav");
+	// }
+	// else
 	{
 		self->health = 750 * st.health_multiplier;
 		self->gib_health = -200;
@@ -1314,8 +1318,8 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	self->monsterinfo.blindfire = true;
 	// pmm
-	if (strcmp(self->classname, "monster_runnertank_commander") == 0)
-		self->s.skinnum = 2;
+// 	if (strcmp(self->classname, "monster_runnertank_commander") == 0)
+// 		self->s.skinnum = 2;
 
 	self->monsterinfo.can_jump = true;
 	self->monsterinfo.drop_height = 256;

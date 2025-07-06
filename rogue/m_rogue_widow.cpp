@@ -177,7 +177,7 @@ void WidowBlaster(edict_t* self)
 	vec3_t start;
 	monster_muzzleflash_id_t flashnum;
 	effects_t effect;
-	const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
+	const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
 
 	// Helper to get scaled flash offset for widow1
 	auto GetScaledFlashOffset = [&](const vec3_t& original_offset) -> vec3_t {
@@ -492,7 +492,7 @@ void WidowRail(edict_t* self)
 
 	vec3_t start, dir, forward, right;
 	monster_muzzleflash_id_t flash;
-	const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
+	const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
@@ -738,7 +738,7 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	}
 
 	self->movetarget = nullptr;
-	const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
+	const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
 	const float range = realrange(self, self->enemy);
 
 	// --- 1. Spawning Logic (Inspired by Tank Spawner) ---
@@ -827,7 +827,7 @@ PAIN(widow_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 		return;
 
 	self->pain_debounce_time = level.time + 5_sec;
-	const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
+	const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
 
 	// Set sound attenuation based on widow type
 	const int attenuation = is_widow1 ? ATTN_NORM : ATTN_NONE;
@@ -889,7 +889,8 @@ DIE(widow_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	self->monsterinfo.invincible_time = 0_ms;
 
 	// --- FIX: Use correct death animation for each type ---
-	if (strcmp(self->classname, "monster_widow1") == 0) {
+	const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
+	if (is_widow1) {
 		M_SetAnimation(self, &widow1_move_death);
 	}
 	else {
@@ -926,7 +927,7 @@ void WidowPowerArmor(edict_t* self)
 void WidowRespondPowerup(edict_t* self, edict_t* other)
 {
 	// --- FIX: This logic only applies to the main widow boss ---
-	if (strcmp(self->classname, "monster_widow1") == 0) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1)) {
 		return;
 	}
 
@@ -969,7 +970,7 @@ void WidowRespondPowerup(edict_t* self, edict_t* other)
 
 void WidowPowerups(edict_t* self)
 {
-	if (strcmp(self->classname, "monster_widow1") == 0) {
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1)) {
 		return;
 	}
 
@@ -1190,6 +1191,10 @@ void SP_monster_widow(edict_t* self) {
 	}
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW);
+    }
+
 	sound_pain1.assign("widow/bw1pain1.wav");
 	sound_pain2.assign("widow/bw1pain2.wav");
 	sound_pain3.assign("widow/bw1pain3.wav");
@@ -1259,6 +1264,8 @@ void SP_monster_widow1(edict_t* self) {
 		return;
 	}
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW1);
 
 	sound_pain1.assign("widow/bw1pain1.wav");
 	sound_pain2.assign("widow/bw1pain2.wav");
