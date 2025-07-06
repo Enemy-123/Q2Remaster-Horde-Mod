@@ -672,6 +672,7 @@ void create_laser(edict_t* ent) {
 
     // --- Configure Grenade (Emitter) FIRST (Remains the same) ---
     grenade->classname = "emitter";
+    grenade->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(grenade->classname));
     grenade->s.origin = tr.endpos;
     grenade->s.angles = vectoangles(tr.plane.normal);
     grenade->movetype = MOVETYPE_NONE;

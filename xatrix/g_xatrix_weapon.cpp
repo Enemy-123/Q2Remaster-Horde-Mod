@@ -1035,6 +1035,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     trap->nextthink = level.time + 1_sec;
     trap->think = Trap_Think;
     trap->classname = "food_cube_trap";
+    trap->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(trap->classname));
     trap->s.sound = gi.soundindex("weapons/traploop.wav");
 
     trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);

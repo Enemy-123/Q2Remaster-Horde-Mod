@@ -291,6 +291,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	body->think = body_think;
 	body->nextthink = level.time + FRAME_TIME_MS;
 	body->monsterinfo.issummoned = true;
+	
 	gi.linkentity(body);
 
 	base->teamchain = body;
@@ -298,6 +299,8 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 
 	// [Paril-KEX]
 	body->owner = ent;
+	//base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));
+	body->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(body->classname));
 	gi.sound(body, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 }
 

@@ -551,19 +551,9 @@ void Cmd_RemoveSentry_f(edict_t* ent)
 			continue;
 		}
 
-        // =======================================================================
-        // --- ARCHITECTURAL IMPROVEMENT ---
-        // We use IsSpecialType because a sentry is a deployable, not a true monster.
-        // Since it doesn't run monster_think(), we do a quick lazy-init here.
-        // =======================================================================
-
-        // 1. Lazy-init the special_type_id if it hasn't been set yet.
-        if (current_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN)) {
-            current_ent->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(current_ent->classname));
-        }
 
         // 2. Use the fast, clean helper function to check the ID.
-		if (horde::IsSpecialType(current_ent, horde::SpecialEntityTypeID::SENTRY_GUN))
+if (horde::IsMonsterType(current_ent, horde::MonsterTypeID::SENTRYGUN))
 		{
 			turret2_die(current_ent, ent, ent, 99999, current_ent->s.origin, MOD_UNKNOWN);
 			removed_count++;

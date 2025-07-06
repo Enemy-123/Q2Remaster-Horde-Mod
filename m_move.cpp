@@ -637,10 +637,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// Paril: horde
-if (ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN)) {
-    ent->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(ent->classname));
-}
-
+// would be better it as special or monster? on special side it manages it removal, but its a monster. 
 // The logic is: if horde is on AND the entity is NOT a sentry gun...
 if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::SENTRY_GUN)) || 
     (ent->svflags & SVF_PLAYER && EntIsSpectating(ent)))
@@ -771,7 +768,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 						TargetTesla(ent, new_bad->owner);
 						ent->monsterinfo.aiflags |= AI_BLOCKED;
 					}
-					else if (!strcmp(ent->enemy->classname, "tesla_mine") || !strcmp(ent->enemy->classname, "monster_sentrygun"))
+					else if (!strcmp(ent->enemy->classname, "tesla_mine") || if (horde::IsMonsterType(monster, horde::MonsterTypeID::SENTRYGUN))
 					{
 						// already targeting a tesla or sentrygun, do nothing
 					}

@@ -110,10 +110,11 @@ enum class SpecialEntityTypeID : uint8_t {
     TESLA_MINE,
     FOOD_CUBE_TRAP,
     PROX_MINE,
-    SENTRY_GUN,
     TURRET,
+    SENTRY_GUN,
+    NUKE_MINE,
     LASER_EMITTER, // Used for both "emitter" and "laser"
-    // ---
+    DOPPLEGANGER,
     COUNT, // The total number of special entity types
     UNKNOWN = 255
 };

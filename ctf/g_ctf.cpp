@@ -1043,7 +1043,7 @@ int GetArmorInfo(edict_t* ent) {
 	int const index = ArmorIndex(ent);
 	return (index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
-std::string GetDisplayName(const char* classname);
+
 
 template<typename Duration>
 int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
@@ -1063,97 +1063,133 @@ EntityType GetEntityType(const edict_t* ent) {
 	return EntityType::Other;
 }
 
+// This function now uses the fully refactored ID-based display name system.
 std::string FormatEntityInfo(edict_t* ent) {
-	if (!ent || !ent->inuse) {
-		return {};
-	}
+    if (!ent || !ent->inuse) {
+        return {};
+    }
 
-	std::string info;
-	info.reserve(256);
+    std::string info;
+    info.reserve(256);
 
-	const EntityType type = GetEntityType(ent);
+    const EntityType type = GetEntityType(ent);
 
-	switch (type) {
-	case EntityType::Monster: {
-		// Get the title first for monsters
-		std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
-		std::string name = GetDisplayName(ent->classname ? ent->classname : "Unknown Monster");
+    switch (type) {
+    case EntityType::Monster: {
+        std::string full_name;
 
-		fmt::format_to(std::back_inserter(info), "{}{}\nH: {}",
-			title, FormatClassname(name), ent->health);
+        // *** DEBUGGING FEATURE ***
+        // If a monster has an unknown ID, flag it in the display.
+        if (ent->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) {
+            // Manually construct the debug name with its title.
+            std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
+            full_name = fmt::format("{}[!!BAD_ID!!] {}", title, ent->classname ? ent->classname : "Unknown");
+        } else {
+            // Use the fast, unified GetDisplayName function. It already includes the title.
+            full_name = GetDisplayName(ent);
+        }
 
-		if (ent->monsterinfo.armor_power >= 1) {
-			fmt::format_to(std::back_inserter(info), " A: {}", ent->monsterinfo.armor_power);
-		}
+        // Format the main info line.
+        fmt::format_to(std::back_inserter(info), "{}\nH: {}", full_name, ent->health);
 
-		if (ent->monsterinfo.power_armor_power >= 1) {
-			fmt::format_to(std::back_inserter(info), " PA: {}", ent->monsterinfo.power_armor_power);
-		}
+        // Append armor info if present.
+        if (ent->monsterinfo.armor_power >= 1) {
+            fmt::format_to(std::back_inserter(info), " A: {}", ent->monsterinfo.armor_power);
+        }
+        if (ent->monsterinfo.power_armor_power >= 1) {
+            fmt::format_to(std::back_inserter(info), " PA: {}", ent->monsterinfo.power_armor_power);
+        }
 
-		struct PowerupInfo {
-			gtime_t time;
-			const char* label;
-		};
+        // Append powerup timers.
+        struct PowerupInfo { gtime_t time; const char* label; };
+        std::array<PowerupInfo, 4> powerups{{
+            {ent->monsterinfo.quad_time, "Quad"},
+            {ent->monsterinfo.double_time, "Double"},
+            {ent->monsterinfo.invincible_time, "Invuln"},
+            {ent->monsterinfo.quadfire_time, "Accel"}
+        }};
+        for (const auto& powerup : powerups) {
+            if (powerup.time > level.time) {
+                fmt::format_to(std::back_inserter(info), "\n{}: {}s", powerup.label, GetRemainingTime<float>(level.time, powerup.time));
+            }
+        }
+        break;
+    }
 
-		std::array<PowerupInfo, 4> powerups{ {
-			{ent->monsterinfo.quad_time, "Quad"},
-			{ent->monsterinfo.double_time, "Double"},
-			{ent->monsterinfo.invincible_time, "Invuln"},
-			{ent->monsterinfo.quadfire_time, "Accel"}
-		} };
+    case EntityType::Player: {
+        const std::string playerName = GetPlayerName(ent);
+        info = fmt::format("{}\nH: {}", playerName, ent->health);
 
-		for (const auto& powerup : powerups) {
-			if (powerup.time > level.time) {
-				fmt::format_to(std::back_inserter(info), "\n{}: {}s",
-					powerup.label, GetRemainingTime<float>(level.time, powerup.time));
-			}
-		}
-		break;
-	}
+        int armor_value = GetArmorInfo(ent);
+        if (armor_value > 0) {
+            info += fmt::format(" A: {}", armor_value);
+        }
+        break;
+    }
 
-	case EntityType::Player: {
-		const std::string  playerName = GetPlayerName(ent);
-		info = fmt::format("{}\nH: {}", playerName, ent->health);
+ case EntityType::Other: {
+        auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+        if (special_id == horde::SpecialEntityTypeID::UNKNOWN) {
+            return {}; // Don't display info for unknown "other" entities.
+        }
 
-		int armor_value = GetArmorInfo(ent);
-		if (armor_value > 0) {
-			info += fmt::format(" A: {}", armor_value);
-		}
-		break;
-	}
+        // --- Doppleganger Fix: The "Stats Source" Pointer ---
+        // By default, the entity we are looking at is the source of its own stats.
+        edict_t* stats_source = ent;
 
-	case EntityType::Other: {
-		if (!ent->classname) return {};
-		// Use the char* overload for other entities
-		std::string name = GetDisplayName(ent->classname);
-		if (name.empty()) return {};
+        // If it's a doppleganger, the visible "body" has no health. The real stats
+        // are on the invisible "base" entity, which is linked via teammaster.
+        if (special_id == horde::SpecialEntityTypeID::DOPPLEGANGER && ent->teammaster && ent->teammaster->inuse)
+        {
+            // We are looking at the body, so redirect our stats source to the base.
+            stats_source = ent->teammaster;
+        }
+        // --- End of Doppleganger Fix ---
 
-		fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, ent->health);
+        // Get the display name from the entity we are targeting.
+        std::string name = GetDisplayName(ent);
+        // Get the health from our corrected stats_source.
+        fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
 
-		if (strcmp(ent->classname, "tesla_mine") == 0 ||
-			strcmp(ent->classname, "food_cube_trap") == 0) {
+        // Use a fast switch on the ID to add extra info like timers.
+        switch (special_id) {
+            case horde::SpecialEntityTypeID::TESLA_MINE: {
+                gtime_t const time_active = level.time - stats_source->timestamp;
+                gtime_t const time_remaining = TESLA_TIME_TO_LIVE - time_active;
+                fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                break;
+            }
+            case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: {
+                gtime_t const time_active = level.time - stats_source->timestamp;
+                gtime_t const time_remaining = -time_active; // Preserving your original logic
+                fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                break;
+            }
+            case horde::SpecialEntityTypeID::LASER_EMITTER: {
+                if (stats_source->owner && stats_source->owner->inuse) {
+                    fmt::format_to(std::back_inserter(info), " DMG: {}", stats_source->owner->health);
+                    gtime_t const time_active = level.time - stats_source->owner->timestamp;
+                    gtime_t const time_remaining = stats_source->timestamp - time_active;
+                    fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                }
+                break;
+            }
+            case horde::SpecialEntityTypeID::DOPPLEGANGER: {
+                // The self-destruct timer is on the base entity's think function.
+                gtime_t const time_remaining = stats_source->nextthink - level.time;
+                fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                break;
+            }
+            default:
+                // No special info for other types like Sentry Gun, Prox Mine, etc.
+                break;
+        }
+        break; // Exit the switch
+    }
+    }
 
-			gtime_t const time_active = level.time - ent->timestamp;
-			gtime_t const time_remaining = (strcmp(ent->classname, "tesla_mine") == 0)
-				? TESLA_TIME_TO_LIVE - time_active
-				: -time_active;
-
-			fmt::format_to(std::back_inserter(info), " T: {}s",
-				GetRemainingTime<float>(gtime_t{}, time_remaining));
-		}
-		else if (strcmp(ent->classname, "emitter") == 0 &&
-			ent->owner && ent->owner->inuse) {
-			fmt::format_to(std::back_inserter(info), " DMG: {}", ent->owner->health);
-			gtime_t const time_active = level.time - ent->owner->timestamp;
-			gtime_t const time_remaining = ent->timestamp - time_active;
-			fmt::format_to(std::back_inserter(info), " T: {}s",
-				GetRemainingTime<float>(gtime_t{}, time_remaining));
-		}
-		break;
-	}
-	}
-
-	return info;
+    // 4. After the switch is done, return the final, populated string.
+    return info;
 }
 
 struct CTFIDViewConfig {

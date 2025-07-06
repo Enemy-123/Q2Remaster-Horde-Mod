@@ -29,7 +29,7 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 extern void SetHealthBarName(const edict_t* boss);
 
 // Mantén el mapa de nombres como una variable externa
-extern const std::unordered_map<std::string_view, std::string_view> name_replacements;
+extern const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_name_replacements;
 std::string GetTitleFromFlags(int bonus_flags);
 
 //DMG & POWERUP

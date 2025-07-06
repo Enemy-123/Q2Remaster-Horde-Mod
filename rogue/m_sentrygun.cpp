@@ -1754,6 +1754,7 @@ void SP_monster_sentrygun(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SENTRYGUN);
+	self->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::SENTRY_GUN);
 	// --- Unconditional Pre-caching Block ---
 	// By placing all asset loading at the top, we guarantee that every possible
 	// model and sound for every sentry variant is precached when this function

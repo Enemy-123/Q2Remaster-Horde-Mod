@@ -143,7 +143,7 @@ float M_DamageModifier(edict_t* monster) noexcept {
 		return 1.0f;
 
 	// Special case for sentry guns - use a reduced multiplier
-	if (monster->classname && strcmp(monster->classname, "monster_sentrygun") == 0) {
+	if (horde::IsMonsterType(monster, horde::MonsterTypeID::SENTRYGUN)) {
 		float modifier = 1.0f;
 
 		// Apply reduced power-up multipliers for sentries
@@ -191,61 +191,90 @@ std::string GetTitleFromFlags(int bonus_flags) {
     return title;
 }
 
-// Static array to cache display names by TypeID for fast lookup
-static std::array<std::string, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_displayNamesByID;
+// Caches for the final, formatted display names.
+static std::array<std::string, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterDisplayNames;
+static std::array<std::string, static_cast<size_t>(horde::SpecialEntityTypeID::COUNT)> g_specialDisplayNames;
 static bool g_displayNamesInitialized = false;
 
-// Initialize the display names array once
+
+std::string FormatClassname(const std::string& classname);
+
 void InitializeDisplayNames() {
-	if (g_displayNamesInitialized) return;
+    if (g_displayNamesInitialized) return;
 
-	// First, fill with classnames as fallback
-	for (size_t i = 0; i < static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES); i++) {
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(i));
-		g_displayNamesByID[i] = classname ? classname : "Unknown";
-	}
+    // --- Initialize Monster Names ---
+    for (size_t i = 0; i < static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES); ++i) {
+        auto typeId = static_cast<horde::MonsterTypeID>(i);
+        
+        auto it = monster_name_replacements.find(typeId);
+        if (it != monster_name_replacements.end()) {
+            g_monsterDisplayNames[i] = std::string(it->second);
+        } 
+        else {
+            if (horde::MonsterTypeRegistry::IsValidType(typeId)) {
+                const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+                g_monsterDisplayNames[i] = FormatClassname(classname);
+            } else {
+                g_monsterDisplayNames[i] = "Unknown Monster";
+            }
+        }
+    }
 
-	// Then override with display names from the replacements map
-	for (const auto& [classname_view, display_name] : name_replacements) {
-		horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(classname_view.data());
-		if (typeId != horde::MonsterTypeID::UNKNOWN) {
-			g_displayNamesByID[static_cast<size_t>(typeId)] = std::string(display_name);
-		}
-	}
+    // --- Initialize Special Entity Names ---
+    std::unordered_map<horde::SpecialEntityTypeID, const char*> special_id_to_name;
+    special_id_to_name[horde::SpecialEntityTypeID::TESLA_MINE] = "Tesla Mine";
+    special_id_to_name[horde::SpecialEntityTypeID::FOOD_CUBE_TRAP] = "Stroggonoff Maker";
+    special_id_to_name[horde::SpecialEntityTypeID::PROX_MINE] = "Prox Mine";
+	special_id_to_name[horde::SpecialEntityTypeID::TURRET] = "Turret";
+    special_id_to_name[horde::SpecialEntityTypeID::SENTRY_GUN] = "Sentry Gun";
+    special_id_to_name[horde::SpecialEntityTypeID::NUKE_MINE] = "NUKE";
+    special_id_to_name[horde::SpecialEntityTypeID::LASER_EMITTER] = "Laser Emitter";
+    special_id_to_name[horde::SpecialEntityTypeID::DOPPLEGANGER] = "Doppleganger";
+    for (size_t i = 0; i < static_cast<size_t>(horde::SpecialEntityTypeID::COUNT); ++i) {
+        auto typeId = static_cast<horde::SpecialEntityTypeID>(i);
+        auto it = special_id_to_name.find(typeId);
+        if (it != special_id_to_name.end()) {
+            g_specialDisplayNames[i] = it->second;
+        } else {
+            g_specialDisplayNames[i] = "Unknown Object";
+        }
+    }
 
-	g_displayNamesInitialized = true;
+    g_displayNamesInitialized = true;
 }
 
-// Keep the same signature but use the ID system internally
-std::string GetDisplayName(const char* classname) {
-	if (!classname) return "Unknown";
-
-	// Make sure names are initialized
-	if (!g_displayNamesInitialized) {
-		InitializeDisplayNames();
-	}
-
-	// Convert to TypeID and use fast array lookup
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(classname);
-	if (typeId != horde::MonsterTypeID::UNKNOWN) {
-		// Use the cached name from the array
-		return g_displayNamesByID[static_cast<size_t>(typeId)];
-	}
-
-	// Fallback for non-monster entities or unknown monsters
-	auto it = name_replacements.find(classname);
-	return it != name_replacements.end() ? std::string(it->second) : classname;
-}
-
-// Entity version remains simple but now uses the optimized classname version
 std::string GetDisplayName(const edict_t* ent) {
-	if (!ent) return "Unknown";
+    if (!ent) return "Unknown";
 
-	std::string base_name = GetDisplayName(ent->classname);
-	if (ent->monsterinfo.bonus_flags) {
-		return GetTitleFromFlags(ent->monsterinfo.bonus_flags) + base_name;
-	}
-	return base_name;
+    if (!g_displayNamesInitialized) {
+        InitializeDisplayNames();
+    }
+
+    std::string base_name;
+    auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+    auto monster_id = static_cast<horde::MonsterTypeID>(ent->monsterinfo.monster_type_id);
+
+    // --- REVISED LOGIC ---
+    // Prioritize the Special ID if it exists, as it defines a more specific role.
+    // This correctly handles hybrids like Sentry Guns.
+    if (special_id != horde::SpecialEntityTypeID::UNKNOWN) {
+        base_name = g_specialDisplayNames[static_cast<size_t>(special_id)];
+    }
+    // If it's not a special type, check if it's a monster.
+    else if (ent->svflags & SVF_MONSTER && monster_id != horde::MonsterTypeID::UNKNOWN) {
+        base_name = g_monsterDisplayNames[static_cast<size_t>(monster_id)];
+    }
+    // Final fallback for entities not in our ID systems.
+    else {
+        base_name = ent->classname ? ent->classname : "Unknown";
+    }
+
+    // Apply title flags if they exist (Sentry Guns can be friendly, etc.)
+    if (ent->monsterinfo.bonus_flags) {
+        return GetTitleFromFlags(ent->monsterinfo.bonus_flags) + base_name;
+    }
+
+    return base_name;
 }
 
 void ApplyMonsterBonusFlags(edict_t* monster)
@@ -956,91 +985,106 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 	return str1 && str2.length() == strlen(str1) && !Q_strncasecmp(str1, str2.data(), str2.length());
 }
 
-// Define el mapa de nombres aquí
-const std::unordered_map<std::string_view, std::string_view> name_replacements = {
-		{ "monster_soldier_light", "Blaster Guard" },
-		{ "monster_soldier_ss", "SS Guard" },
-		{ "monster_soldier", "SG Guard" },
-		{ "monster_soldier_hypergun", "Hyper Guard" },
-		{ "monster_soldier_lasergun", "Laser Guard" },
-		{ "monster_soldier_ripper", "Ripper Guard" },
-		{ "monster_infantry_vanilla", "Infantry" },
-		{ "monster_infantry", "Enforcer" },
-		{ "monster_flyer", "Flyer" },
-		{ "monster_kamikaze", "Kamikaze Flyer" },
-		{ "monster_hover_vanilla", "Blaster Icarus" },
-		{ "monster_fixbot", "Fixbot" },
-		{ "monster_fixbotkl", "Fixer" },
-		{ "monster_gekk", "Gekk" },
-		{ "monster_flipper", "Flipper" },
-		{ "monster_gunner_vanilla", "Gunner" },
-		{ "monster_gunner", "Heavy Gunner" },
-		{ "monster_medic", "Medic" },
-		{ "monster_brain", "Brain" },
-		{ "monster_stalker", "Stalker" },
-		{ "monster_parasite", "Parasite" },
-		{ "monster_tank", "Tank" },
-		{ "monster_tank_spawner", "Spawner Tank" },
-		{ "monster_runnertank", "BETA Runner Tank" },
-		{ "monster_guncmdr_vanilla", "Gunner Commander" },
-		{ "monster_mutant", "Mutant" },
-		{ "monster_redmutant", "Raged Mutant" },
-		{ "monster_chick", "Iron Maiden" },
-		{ "monster_chick_heat", "Iron Praetor" },
-		{ "monster_berserk", "Berserker" },
-		{ "monster_floater", "Technician" },
-		{ "monster_hover", "Rocket Icarus" },
-		{ "monster_daedalus", "Daedalus" },
-		{ "monster_daedalus_bomber", "Bombardier Hover" },
-		{ "monster_medic_commander", "Medic Commander" },
-		{ "monster_tank_commander", "Tank Commander" },
-		{ "monster_spider", "Plasma Spider" },
-		{ "monster_arachnid", "Arachnid" },
-		{ "monster_psxarachnid", "Arachnid" },
-		{ "monster_guncmdr", "Gunner Grenadier" },
-		{ "monster_gladc", "Plasma Gladiator" },
-		{ "monster_gladiator", "Gladiator" },
-		{ "monster_shambler", "Shambler" },
-		{ "monster_shambler_small", "Tiny Shambler!" },
-		{ "monster_floater_tracker", "DarkMatter Technician" },
-		{ "monster_carrier_mini", "Mini Carrier" },
-		{ "monster_carrier", "Carrier" },
-		{ "monster_tank_64", "N64 Tank" },
-		{ "monster_janitor", "Janitor" },
-		{ "monster_janitor2", "Mini Guardian" },
-		{ "monster_guardian", "Guardian" },
-		{ "monster_psxguardian", "Enhanced Guardian" },
-		{ "monster_makron", "Makron" },
-		{ "monster_jorg", "Jorg" },
-		{ "monster_jorg_small", "Mini Jorg" },
-		{ "monster_gladb", "DarkMatter Gladiator" },
-		{ "monster_boss2_64", "N64 Mini Hornet" },
-		{ "monster_boss2_mini", "Mini Hornet" },
-		{ "monster_boss2kl", "N64 Hornet" },
-		{ "monster_boss2", "Hornet" },
-		{ "monster_perrokl", "Infected Parasite" },
-		{ "monster_guncmdrkl", "Grenadier Commander" },
-		{ "monster_shambler", "Shambler" },
-		{ "monster_shamblerkl", "Shambler" },
-		{ "monster_makronkl", "Makron" },
-		{ "monster_widow1", "Widow Apprentice" },
-		{ "monster_widow", "Widow Matriarch" },
-		{ "monster_widow2", "Widow Creator" },
-		{ "monster_supertank", "Super-Tank" },
-		{ "monster_supertankkl", "Super-Tank" },
-		{ "monster_boss5", "Super-Tank" },
-		{ "monster_sentrygun", "Sentry-Gun" },
-		{ "monster_turret", "Turret" },
-		{ "monster_turretkl", "TurretGun" },
-		{ "monster_gnorta", "Gnorta" },
-		{ "monster_shocker", "Shocker" },
-		{ "monster_arachnid2", "Arachnid" },
-		{ "monster_gm_arachnid", "Guided-Missile Arachnid" },
-		{ "misc_insane", "Insane Grunt" },
-		{ "food_cube_trap", "Stroggonoff Maker" },
-		{ "tesla_mine", " Tesla Mine" },
-		{ "emitter", "Laser Emitter" },
-		{ "doppleganger", "Doppelganger" }
+// This map provides the specific "pretty" display names for each monster type.
+// It uses the fast and type-safe MonsterTypeID enum as the key.
+const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_name_replacements = {
+    // Guards
+    {horde::MonsterTypeID::SOLDIER_LIGHT, "Blaster Guard"},
+    {horde::MonsterTypeID::SOLDIER, "SG Guard"},
+    {horde::MonsterTypeID::SOLDIER_SS, "SS Guard"},
+    {horde::MonsterTypeID::SOLDIER_HYPERGUN, "Hyper Guard"},
+    {horde::MonsterTypeID::SOLDIER_LASERGUN, "Laser Guard"},
+    {horde::MonsterTypeID::SOLDIER_RIPPER, "Ripper Guard"},
+
+    // Infantry
+    {horde::MonsterTypeID::INFANTRY_VANILLA, "Infantry"},
+    {horde::MonsterTypeID::INFANTRY, "Enforcer"},
+
+    // Gunners
+    {horde::MonsterTypeID::GUNNER_VANILLA, "Gunner"},
+    {horde::MonsterTypeID::GUNNER, "Heavy Gunner"},
+    {horde::MonsterTypeID::GUNCMDR_VANILLA, "Gunner Commander"},
+    {horde::MonsterTypeID::GUNCMDR, "Gunner Grenadier"},
+    {horde::MonsterTypeID::GUNCMDR_KL, "Gunner Commander"},
+
+    // Flyers
+    {horde::MonsterTypeID::FLYER, "Flyer"},
+    {horde::MonsterTypeID::KAMIKAZE, "Kamikaze Flyer"},
+    {horde::MonsterTypeID::HOVER_VANILLA, "Blaster Icarus"},
+    {horde::MonsterTypeID::HOVER, "Rocket Icarus"},
+    {horde::MonsterTypeID::DAEDALUS, "Daedalus"},
+    {horde::MonsterTypeID::DAEDALUS_BOMBER, "Bomber Daedalus"},
+
+    // Technicians & Support
+    {horde::MonsterTypeID::FLOATER, "Technician"},
+    {horde::MonsterTypeID::FLOATER_TRACKER, "DarkMatter Technician"},
+    {horde::MonsterTypeID::MEDIC, "Medic"},
+    {horde::MonsterTypeID::MEDIC_COMMANDER, "Medic Commander"},
+    {horde::MonsterTypeID::FIXBOT, "Fixbot"},
+    {horde::MonsterTypeID::FIXBOT_KL, "Fixer"},
+
+    // Mutants & Beasts
+    {horde::MonsterTypeID::MUTANT, "Mutant"},
+    {horde::MonsterTypeID::REDMUTANT, "Raged Mutant"},
+    {horde::MonsterTypeID::BERSERK, "Berserker"},
+    {horde::MonsterTypeID::GEKK, "Gekk"},
+    {horde::MonsterTypeID::PARASITE, "Parasite"},
+    {horde::MonsterTypeID::PERRO_KL, "Infected Parasite"},
+    {horde::MonsterTypeID::STALKER, "Stalker"},
+    {horde::MonsterTypeID::BRAIN, "Brain"},
+    {horde::MonsterTypeID::CHICK, "Iron Maiden"},
+    {horde::MonsterTypeID::CHICK_HEAT, "Iron Praetor"},
+
+    // Tanks
+    {horde::MonsterTypeID::TANK, "Tank"},
+    {horde::MonsterTypeID::TANK_64, "N64 Tank"},
+    {horde::MonsterTypeID::TANK_COMMANDER, "Tank Commander"},
+    {horde::MonsterTypeID::TANK_SPAWNER, "Spawner Tank"},
+    {horde::MonsterTypeID::RUNNERTANK, "BETA Runner Tank"},
+
+    // Gladiators
+    {horde::MonsterTypeID::GLADIATOR, "Gladiator"},
+    {horde::MonsterTypeID::GLADIATOR_B, "DarkMatter Gladiator"},
+    {horde::MonsterTypeID::GLADIATOR_C, "Plasma Gladiator"},
+
+    // Spiders
+    {horde::MonsterTypeID::SPIDER, "Plasma Spider"},
+    {horde::MonsterTypeID::ARACHNID, "Arachnid"},
+    {horde::MonsterTypeID::ARACHNID2, "Arachnid"},
+    {horde::MonsterTypeID::PSX_ARACHNID, "Arachnid"},
+    {horde::MonsterTypeID::GM_ARACHNID, "Guided-Missile Arachnid"},
+
+    // Shamblers
+    {horde::MonsterTypeID::SHAMBLER, "Shambler"},
+    {horde::MonsterTypeID::SHAMBLER_SMALL, "Tiny Shambler!"},
+    {horde::MonsterTypeID::SHAMBLER_KL, "Shambler"},
+
+    // Bosses
+    {horde::MonsterTypeID::BOSS2, "Hornet"},
+    {horde::MonsterTypeID::BOSS2_64, "N64 Mini Hornet"},
+    {horde::MonsterTypeID::BOSS2_MINI, "Mini Hornet"},
+    {horde::MonsterTypeID::BOSS2_KL, "N64 Hornet"},
+    {horde::MonsterTypeID::CARRIER, "Carrier"},
+    {horde::MonsterTypeID::CARRIER_MINI, "Mini Carrier"},
+    {horde::MonsterTypeID::MAKRON, "Makron"},
+    {horde::MonsterTypeID::MAKRON_KL, "Makron"},
+    {horde::MonsterTypeID::JORG, "Jorg"},
+    {horde::MonsterTypeID::JORG_SMALL, "Mini Jorg"},
+    {horde::MonsterTypeID::WIDOW, "Widow Battle-Maiden"},
+    {horde::MonsterTypeID::WIDOW1, "Black Widow"},
+    {horde::MonsterTypeID::WIDOW2, "Widow Creator"},
+    {horde::MonsterTypeID::GUARDIAN, "Guardian"},
+    {horde::MonsterTypeID::PSX_GUARDIAN, "The Guardian"},
+    {horde::MonsterTypeID::JANITOR, "Janitor"},
+    {horde::MonsterTypeID::JANITOR2, "Mini Guardian"},
+    {horde::MonsterTypeID::SUPERTANK, "Super-Tank"},
+    {horde::MonsterTypeID::SUPERTANKKL, "Super-Tank"},
+    {horde::MonsterTypeID::BOSS5, "Super-Tank"},
+
+    // Misc Monsters & Turrets
+    {horde::MonsterTypeID::SENTRYGUN, "Sentry-Gun"},
+    {horde::MonsterTypeID::TURRET, "Turret"},
+    {horde::MonsterTypeID::MISC_INSANE, "Insane Grunt"}
 };
 
 bool SpawnPointClear(edict_t* spot);

@@ -1611,12 +1611,15 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->die = tesla_die;
 	tesla->dmg = TESLA_DAMAGE * tesla_damage_multiplier;
 	tesla->classname = "tesla_mine";
+	tesla->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(tesla->classname));
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
 	if (self && self->client && !G_ShouldPlayersCollide(true))
 		tesla->clipmask &= ~CONTENTS_PLAYER;
 
 	tesla->flags |= FL_MECHANICAL;
+
+	//horde::IsSpecialType(tesla, horde::SpecialEntityTypeID::TESLA_MINE);
 
 	// Initialize effect tracking fields
 	tesla->monsterinfo.attack_finished = level.time;
