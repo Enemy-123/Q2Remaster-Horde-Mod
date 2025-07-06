@@ -48,7 +48,7 @@ namespace horde {
         {"monster_sentrygun", SpecialEntityTypeID::SENTRY_GUN},
         {"monster_turret",    SpecialEntityTypeID::TURRET},
         {"emitter",           SpecialEntityTypeID::LASER_EMITTER},
-        {"laser",             SpecialEntityTypeID::LASER_EMITTER} // Map "laser" to the same ID
+        {"doppleganger",      SpecialEntityTypeID::DOPPLEGANGER}
     };
 }
 

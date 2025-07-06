@@ -1379,7 +1379,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 
 	if (range <= 125)
 	{
-		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_machinegun = !horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.5f)
 			M_SetAnimation(self, &tank_move_attack_chain);
@@ -1400,7 +1400,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	}
 	else if (range <= 250)
 	{
-		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_machinegun = !horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.25f)
 			M_SetAnimation(self, &tank_move_attack_chain);
@@ -2387,8 +2387,7 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 
 	// Normal attack selection based on range
 	const float r = frandom();
-	const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) &&
-		M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+	const bool can_machinegun = !horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 	if (range <= CLOSE_RANGE) {
 		if (can_machinegun && r < 0.5f)

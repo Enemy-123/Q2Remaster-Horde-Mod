@@ -340,25 +340,32 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	// logic for tesla - if you are hit by a tesla, and can't see who you should be mad at (attacker)
 	// attack the tesla
 	// also, target the tesla if it's a "new" tesla
-	if ((inflictor) && (!strcmp(inflictor->classname, "tesla_mine") || !strcmp(inflictor->classname, "monster_sentrygun") || !strcmp(inflictor->classname, "emitter")))
+	if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
+		horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+		horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER)))
 	{
 		new_tesla = MarkTeslaArea(targ, inflictor);
-		if (!strcmp(inflictor->classname, "monster_sentrygun") || !strcmp(inflictor->classname, "emitter"))
+
+		// Sentry Gun or Laser Emitter logic
+		if (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER))
 		{
 			// Check if enough time has passed since last sentrygun/emitter targeting
 			if (level.time - targ->monsterinfo.last_sentrygun_target_time > sentrygun_target_cooldown)
 			{
-				if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname ||
-					(strcmp(targ->enemy->classname, "monster_sentrygun") && strcmp(targ->enemy->classname, "emitter"))))
+				// Target the new threat if it's new, random, or we aren't already targeting a similar threat.
+				if ((new_tesla || brandom()) && (!targ->enemy ||
+					!(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
 				{
 					TargetTesla(targ, inflictor);
 					targ->monsterinfo.last_sentrygun_target_time = level.time;
 				}
 			}
 		}
-		else if (!strcmp(inflictor->classname, "tesla_mine"))
+		// Tesla Mine logic
+		else if (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE))
 		{
-			if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "tesla_mine")))
+			// Target the new threat if it's new, random, or we aren't already targeting a tesla.
+			if ((new_tesla || brandom()) && (!targ->enemy || !horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::TESLA_MINE)))
 				TargetTesla(targ, inflictor);
 		}
 		return;
@@ -459,16 +466,16 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		return;
 	}
 
-	if (attacker->enemy == targ // if they *meant* to shoot us, then shoot back
-		// it's the same base (walk/swim/fly) type and both don't ignore shots,
-		// get mad at them
-		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
-			(strcmp(targ->classname, attacker->classname) != 0) &&
-			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
-				!strcmp(attacker->classname, "monster_sentrygun") ||
-				!strcmp(attacker->classname, "emitter")) &&
-			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
-	{
+if (attacker->enemy == targ // if they *meant* to shoot us, then shoot back
+    // it's the same base (walk/swim/fly) type and both don't ignore shots,
+    // get mad at them
+    || (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
+        (targ->monsterinfo.monster_type_id != attacker->monsterinfo.monster_type_id) &&
+        (!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
+            horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+            horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::LASER_EMITTER)) &&
+        !(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
+{
 		if (targ->enemy != attacker)
 		{
 			// [Paril-KEX]
@@ -913,7 +920,7 @@ static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // const an
 	}
 
 	// Check for sentrygun first (most common special case)
-	if (attacker->classname && strcmp(attacker->classname, "monster_sentrygun") == 0) {
+	if (horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN)) {
 		return false; // Sentry guns should not benefit from vampire effect when attacking
 	}
 
@@ -982,7 +989,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 		for (auto& ent : entities_view) {
 			// Combined all conditions in a single if statement for better branch prediction
 			if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
-				!ent.classname || strcmp(ent.classname, "monster_sentrygun") != 0) {
+				!ent.classname || horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN)) {
 				continue;
 			}
 

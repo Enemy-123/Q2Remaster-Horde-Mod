@@ -1353,7 +1353,7 @@ FIELD_AUTO(monsterinfo.effects_applied), // Added missing Horde field
 FIELD_AUTO(monsterinfo.BOSS_DEATH_HANDLED),
 FIELD_AUTO(monsterinfo.damage_modifier_applied),
 FIELD_AUTO(monsterinfo.death_processed),
-FIELD_AUTO(monsterinfo.spawn_complete_time), // Added missing Horde field
+//FIELD_AUTO(monsterinfo.spawn_complete_time), // Added missing Horde field
 FIELD_AUTO(monsterinfo.bonus_flags),
 FIELD_AUTO(monsterinfo.team),
 FIELD_AUTO(monsterinfo.next_regen_time), // Added missing Horde field

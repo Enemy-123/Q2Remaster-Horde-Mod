@@ -911,7 +911,7 @@ void medic_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	if (!strcmp(self->enemy->classname, "tesla_mine"))
+	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
 		damage = 4;
 
 	// medic commander shoots blaster2

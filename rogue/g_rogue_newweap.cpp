@@ -7,8 +7,8 @@
 fire_flechette
 ========================
 */
-//explosive flechettes!
-//THINK(delayed_flechette_explode)(edict_t* self) -> void {
+// explosive flechettes!
+// THINK(delayed_flechette_explode)(edict_t* self) -> void {
 //	T_RadiusDamage(self, self->owner, 40, nullptr, 100, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
 //
 //	gi.WriteByte(svc_temp_entity);
@@ -17,17 +17,17 @@ fire_flechette
 //	gi.multicast(self->s.origin, MULTICAST_PHS, false);
 //
 //	G_FreeEdict(self);
-//}
+// }
 //
 //// En flechette_touch:
-//if (!other->takedamage) {
+// if (!other->takedamage) {
 //	self->movetype = MOVETYPE_NONE;
 //	self->think = delayed_flechette_explode;
 //	self->nextthink = level.time + 1_sec;
 //	return;
-//}
+// }
 ///
-TOUCH(flechette_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(flechette_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	if (other == self->owner)
 		return;
@@ -44,8 +44,8 @@ TOUCH(flechette_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	if (other->takedamage)
 	{
 		// Determine the attacker
-		edict_t* attacker;
-		if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
+		edict_t *attacker;
+		if (self->owner && horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 		{
 			attacker = self->owner->owner; // If the owner is a turret, the attacker is the turret's owner (the player)
 		}
@@ -55,7 +55,7 @@ TOUCH(flechette_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		}
 
 		T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal,
-			self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
+				 self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
 	}
 	else
 	{
@@ -69,9 +69,9 @@ TOUCH(flechette_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	G_FreeEdict(self);
 }
 
-void fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, int kick)
+void fire_flechette(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, int kick)
 {
-	edict_t* flechette;
+	edict_t *flechette;
 
 	flechette = G_Spawn();
 	flechette->s.origin = start;
@@ -114,48 +114,51 @@ void fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 
 // --- Tuned Constants for Increased Lethality ---
 constexpr gtime_t PROX_TIME_TO_LIVE = 45_sec;
-constexpr gtime_t PROX_TIME_DELAY = 350_ms;      // Reduced delay for faster detonation
-constexpr float	  PROX_BOUND_SIZE = 96;
-constexpr float	  PROX_DAMAGE_RADIUS = 220;      // Increased radius
-constexpr int32_t PROX_HEALTH = 30;              // Increased health
-constexpr int32_t PROX_DAMAGE = 95;              // Increased base damage
+constexpr gtime_t PROX_TIME_DELAY = 350_ms; // Reduced delay for faster detonation
+constexpr float PROX_BOUND_SIZE = 96;
+constexpr float PROX_DAMAGE_RADIUS = 220; // Increased radius
+constexpr int32_t PROX_HEALTH = 30;		  // Increased health
+constexpr int32_t PROX_DAMAGE = 95;		  // Increased base damage
 constexpr float PROX_DAMAGE_OPEN_MULTIPLIER = 1.5f;
 
 // --- Configuration for a much deadlier cluster explosion ---
-struct ClusterConfig {
-	int num_grenades;          // Total number of fragments
-	int direct_grenades;       // Fragments fired directly down for immediate area denial
-	float spread_angle;        // Base spread angle for fragments
-	float min_velocity;        // Minimum fragment speed
-	float max_velocity;        // Maximum fragment speed
-	float min_fuse_time;       // Minimum fragment fuse time
-	float max_fuse_time;       // Maximum fragment fuse time
-	float damage_multiplier;   // Damage of each fragment relative to the main explosion
-	float homing_bias;         // Aggressiveness of homing towards enemies (0-1)
-	float search_radius;       // How far the mine looks for targets to home towards
+struct ClusterConfig
+{
+	int num_grenades;		 // Total number of fragments
+	int direct_grenades;	 // Fragments fired directly down for immediate area denial
+	float spread_angle;		 // Base spread angle for fragments
+	float min_velocity;		 // Minimum fragment speed
+	float max_velocity;		 // Maximum fragment speed
+	float min_fuse_time;	 // Minimum fragment fuse time
+	float max_fuse_time;	 // Maximum fragment fuse time
+	float damage_multiplier; // Damage of each fragment relative to the main explosion
+	float homing_bias;		 // Aggressiveness of homing towards enemies (0-1)
+	float search_radius;	 // How far the mine looks for targets to home towards
 };
 
 // --- New, more aggressive cluster configuration ---
 static const ClusterConfig UPGRADED_CLUSTER_CONFIG = {
-	15,     // num_grenades (was 15)
-	5,      // direct_grenades (was 3)
-	50.0f,  // spread_angle (was 45.0f)
+	15,		// num_grenades (was 15)
+	5,		// direct_grenades (was 3)
+	50.0f,	// spread_angle (was 45.0f)
 	500.0f, // min_velocity (was 400.0f)
 	750.0f, // max_velocity (was 600.0f)
-	0.4f,   // min_fuse_time (was 0.5f)
-	1.8f,   // max_fuse_time (was 2.0f)
-	0.6f,   // damage_multiplier (was 0.5f)
-	0.55f,  // homing_bias (was 0.3f, now much more aggressive)
-	512.0f  // search_radius (was 384.0f)
+	0.4f,	// min_fuse_time (was 0.5f)
+	1.8f,	// max_fuse_time (was 2.0f)
+	0.6f,	// damage_multiplier (was 0.5f)
+	0.55f,	// homing_bias (was 0.3f, now much more aggressive)
+	512.0f	// search_radius (was 384.0f)
 };
 
 // --- Smarter Enemy Finding: Now checks for line-of-sight ---
-edict_t* FindNearestVisibleEnemy(edict_t* from, const vec3_t& origin, float search_radius) {
-	edict_t* nearest = nullptr;
+edict_t *FindNearestVisibleEnemy(edict_t *from, const vec3_t &origin, float search_radius)
+{
+	edict_t *nearest = nullptr;
 	float nearest_dist_squared = search_radius * search_radius;
-	edict_t* current = nullptr;
+	edict_t *current = nullptr;
 
-	while ((current = findradius(current, origin, search_radius)) != nullptr) {
+	while ((current = findradius(current, origin, search_radius)) != nullptr)
+	{
 		if (!current->inuse || current->health <= 0)
 			continue;
 
@@ -172,7 +175,8 @@ edict_t* FindNearestVisibleEnemy(edict_t* from, const vec3_t& origin, float sear
 		vec3_t const diff = current->s.origin - origin;
 		float const dist_squared = diff.lengthSquared();
 
-		if (dist_squared < nearest_dist_squared) {
+		if (dist_squared < nearest_dist_squared)
+		{
 			nearest = current;
 			nearest_dist_squared = dist_squared;
 		}
@@ -181,38 +185,45 @@ edict_t* FindNearestVisibleEnemy(edict_t* from, const vec3_t& origin, float sear
 }
 
 // --- More Lethal Clustering Logic ---
-void SpawnClusterGrenades(edict_t* owner_mine, const vec3_t& origin, int base_damage) {
-	const ClusterConfig& config = UPGRADED_CLUSTER_CONFIG;
+void SpawnClusterGrenades(edict_t *owner_mine, const vec3_t &origin, int base_damage)
+{
+	const ClusterConfig &config = UPGRADED_CLUSTER_CONFIG;
 
 	// Find the best visible enemy to target
-	const edict_t* nearest_enemy = FindNearestVisibleEnemy(owner_mine, origin, config.search_radius);
+	const edict_t *nearest_enemy = FindNearestVisibleEnemy(owner_mine, origin, config.search_radius);
 
 	vec3_t enemy_dir{};
-	if (nearest_enemy) {
+	if (nearest_enemy)
+	{
 		enemy_dir = nearest_enemy->s.origin - origin;
 		enemy_dir.normalize();
 	}
 
 	int const fragment_damage = static_cast<int>(base_damage * config.damage_multiplier);
-	vec3_t gravity_influence{ 0, 0, -0.1f }; // Softer gravity for wider spread
+	vec3_t gravity_influence{0, 0, -0.1f}; // Softer gravity for wider spread
 
-	for (int n = 0; n < config.num_grenades; n++) {
+	for (int n = 0; n < config.num_grenades; n++)
+	{
 		vec3_t forward;
 
-		if (n < config.direct_grenades) {
+		if (n < config.direct_grenades)
+		{
 			// Direct downward burst for anyone standing on the mine
-			forward = { (frandom() - 0.5f) * 0.2f, (frandom() - 0.5f) * 0.2f, -1.0f };
-		} else {
+			forward = {(frandom() - 0.5f) * 0.2f, (frandom() - 0.5f) * 0.2f, -1.0f};
+		}
+		else
+		{
 			// Create a lethal cone of shrapnel
-			float yaw = crandom() * 180.0f; // 360 degree horizontal spread
+			float yaw = crandom() * 180.0f;							  // 360 degree horizontal spread
 			float pitch = -config.spread_angle - (frandom() * 30.0f); // Varying upward angle
-			vec3_t angles{ pitch, yaw, 0 };
+			vec3_t angles{pitch, yaw, 0};
 			auto [fwd, right, up] = AngleVectors(angles);
 			forward = fwd;
 		}
 
 		// --- SMARTER HOMING: Aggressively steer fragments towards the target ---
-		if (nearest_enemy) {
+		if (nearest_enemy)
+		{
 			// Interpolate between random spread and direct-to-target vector
 			forward = safe_normalized(forward * (1.0f - config.homing_bias) + enemy_dir * config.homing_bias);
 		}
@@ -222,36 +233,41 @@ void SpawnClusterGrenades(edict_t* owner_mine, const vec3_t& origin, int base_da
 
 		float const velocity = config.min_velocity + (config.max_velocity - config.min_velocity) * frandom();
 		float const explode_time = config.min_fuse_time + (config.max_fuse_time - config.min_fuse_time) * frandom();
-		
+
 		// Vary damage slightly to make it less predictable
 		int adjusted_damage = static_cast<int>(fragment_damage * (0.9f + frandom() * 0.2f));
 
 		// Use the player who threw the mine as the owner for proper kill credit
 		fire_grenade2(owner_mine->teammaster, origin, forward, adjusted_damage, velocity,
-			gtime_t::from_sec(explode_time),
-			static_cast<float>(adjusted_damage), false, true);
+					  gtime_t::from_sec(explode_time),
+					  static_cast<float>(adjusted_damage), false, true);
 	}
 }
 
 // --- Main Explosion Logic ---
-static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
-	if (ent->teamchain && ent->teamchain->owner == ent) {
+static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
+{
+	if (ent->teamchain && ent->teamchain->owner == ent)
+	{
 		G_FreeEdict(ent->teamchain);
 	}
 
-	edict_t* owner = ent->teammaster ? ent->teammaster : ent;
+	edict_t *owner = ent->teammaster ? ent->teammaster : ent;
 
-	if (ent->teammaster) {
+	if (ent->teammaster)
+	{
 		PlayerNoise(owner, ent->s.origin, PNOISE_IMPACT);
 	}
 
-	if (other && other->takedamage) {
+	if (other && other->takedamage)
+	{
 		vec3_t const dir = other->s.origin - ent->s.origin;
 		T_Damage(other, ent, owner, dir, ent->s.origin, normal,
-			ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
+				 ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
 	}
 
-	if (ent->dmg > PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER) {
+	if (ent->dmg > PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER)
+	{
 		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 	}
 
@@ -261,28 +277,29 @@ static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
 	// --- RADIUS CHANGE ---
 	// Use the mine's specific, calculated radius instead of the global constant.
 	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other,
-		ent->dmg_radius, DAMAGE_NONE, MOD_PROX);
+				   ent->dmg_radius, DAMAGE_NONE, MOD_PROX);
 
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION);
 	gi.WritePosition(explosion_origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
-	if (g_upgradeproxs->integer) {
+	if (g_upgradeproxs->integer)
+	{
 		SpawnClusterGrenades(ent, explosion_origin, ent->dmg);
 	}
 
 	G_FreeEdict(ent);
 }
 
-THINK(Prox_Explode) (edict_t* ent) -> void
+THINK(Prox_Explode)(edict_t *ent)->void
 {
 	Prox_ExplodeReal(ent, nullptr, (ent->velocity * -0.02f));
 }
 
 //===============
 //===============
-DIE(prox_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(prox_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
 	// Check if inflictor is not nullptr and if set off by another prox, delay a little (chained explosions)
 	if (inflictor && strcmp(inflictor->classname, "prox_mine") == 0)
@@ -298,51 +315,61 @@ DIE(prox_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	}
 }
 
-TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(Prox_Field_Touch)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
-	if (!ent || !other) {
+	if (!ent || !other)
+	{
 		// Log error or handle null ent or other
 		return;
 	}
 
-	edict_t* prox = nullptr;
+	edict_t *prox = nullptr;
 
-	if (!(other->svflags & SVF_MONSTER)) {
+	if (!(other->svflags & SVF_MONSTER))
+	{
 		// explode only if it's a monster
 		return;
 	}
 
 	// trigger the prox mine if it's still there, and still mine.
-	if (ent->owner) {
+	if (ent->owner)
+	{
 		prox = ent->owner;
 	}
-	else {
+	else
+	{
 		// Log error or handle null owner
 		return;
 	}
 
 	// teammate avoidance
-	if (prox->teammaster && CheckTeamDamage(prox->teammaster, other)) {
+	if (prox->teammaster && CheckTeamDamage(prox->teammaster, other))
+	{
 		return;
 	}
 
-	if (G_IsDeathmatch() && g_horde && g_horde->integer && other->client) {
+	if (G_IsDeathmatch() && g_horde && g_horde->integer && other->client)
+	{
 		// no self damage using traps on DM/Horde
 		return;
 	}
 
-	if (other == prox) {
+	if (other == prox)
+	{
 		// don't set self off
 		return;
 	}
 
-	if (prox->think == Prox_Explode) {
+	if (prox->think == Prox_Explode)
+	{
 		// we're set to blow!
 		return;
 	}
 
-	if (prox->teamchain == ent) {
-		if (gi.soundindex && gi.sound) {
+	if (prox->teamchain == ent)
+	{
+		if (gi.soundindex && gi.sound)
+		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
 		}
 		prox->think = Prox_Explode;
@@ -350,7 +377,8 @@ TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool o
 		return;
 	}
 
-	if (ent) {
+	if (ent)
+	{
 		ent->solid = SOLID_NOT;
 		G_FreeEdict(ent);
 	}
@@ -358,7 +386,7 @@ TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool o
 
 //===============
 //===============
-THINK(prox_seek) (edict_t* ent) -> void
+THINK(prox_seek)(edict_t *ent)->void
 {
 	if (level.time > gtime_t::from_sec(ent->wait))
 	{
@@ -377,7 +405,7 @@ THINK(prox_seek) (edict_t* ent) -> void
 //===============
 //===============
 // --- More Aggressive Ambush Logic ---
-THINK(prox_open) (edict_t* ent) -> void
+THINK(prox_open)(edict_t *ent)->void
 {
 	if (ent->s.frame == 9) // End of opening animation
 	{
@@ -390,7 +418,7 @@ THINK(prox_open) (edict_t* ent) -> void
 			ent->teamchain->touch = Prox_Field_Touch;
 
 		// --- SMARTER AMBUSH: Scan a larger radius for enemies upon arming ---
-		edict_t* search = nullptr;
+		edict_t *search = nullptr;
 		const float ambush_radius = PROX_DAMAGE_RADIUS * 1.2f; // Increased scan radius
 
 		while ((search = findradius(search, ent->s.origin, ambush_radius)) != nullptr)
@@ -399,7 +427,7 @@ THINK(prox_open) (edict_t* ent) -> void
 				continue;
 
 			// If a visible monster or enemy player is nearby, detonate immediately
-			if (search->takedamage && (search->svflags & SVF_MONSTER))//| search->client))
+			if (search->takedamage && (search->svflags & SVF_MONSTER)) //| search->client))
 			{
 				if (visible(ent, search))
 				{
@@ -430,14 +458,14 @@ THINK(prox_open) (edict_t* ent) -> void
 
 //===============
 //===============
-TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(prox_land)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
-	edict_t* field;
-	vec3_t	   dir;
-	vec3_t	   forward, right, up;
+	edict_t *field;
+	vec3_t dir;
+	vec3_t forward, right, up;
 	movetype_t movetype = MOVETYPE_NONE;
-	int		   stick_ok = 0;
-	vec3_t	   land_point;
+	int stick_ok = 0;
+	vec3_t land_point;
 
 	// must turn off owner so owner can shoot it and set it off
 	// moved to prox_open so owner can get away from it if fired at pointblank range into
@@ -474,8 +502,8 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 
 		// PMM - code stolen from g_phys (ClipVelocity)
 		vec3_t out{};
-		float  backoff, change;
-		int	   i;
+		float backoff, change;
+		int i;
 
 		if ((other->movetype == MOVETYPE_PUSH) && (tr.plane.normal[2] > 0.7f))
 			stick_ok = 1;
@@ -529,8 +557,8 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 	field = G_Spawn();
 
 	field->s.origin = ent->s.origin;
-	field->mins = { -PROX_BOUND_SIZE, -PROX_BOUND_SIZE, -PROX_BOUND_SIZE };
-	field->maxs = { PROX_BOUND_SIZE, PROX_BOUND_SIZE, PROX_BOUND_SIZE };
+	field->mins = {-PROX_BOUND_SIZE, -PROX_BOUND_SIZE, -PROX_BOUND_SIZE};
+	field->maxs = {PROX_BOUND_SIZE, PROX_BOUND_SIZE, PROX_BOUND_SIZE};
 	field->movetype = MOVETYPE_NONE;
 	field->solid = SOLID_TRIGGER;
 	field->owner = ent;
@@ -556,7 +584,7 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 	gi.linkentity(ent);
 }
 
-THINK(Prox_Think) (edict_t* self) -> void
+THINK(Prox_Think)(edict_t *self)->void
 {
 	if (self->timestamp <= level.time)
 	{
@@ -571,11 +599,11 @@ THINK(Prox_Think) (edict_t* self) -> void
 
 //===============
 //===============
-void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int prox_damage_multiplier, int speed)
+void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int prox_damage_multiplier, int speed)
 {
-	edict_t* prox;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
+	edict_t *prox;
+	vec3_t dir;
+	vec3_t forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -602,8 +630,8 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int pro
 		prox->clipmask &= ~CONTENTS_PLAYER;
 
 	prox->s.renderfx |= RF_IR_VISIBLE;
-	prox->mins = { -6, -6, -6 };
-	prox->maxs = { 6, 6, 6 };
+	prox->mins = {-6, -6, -6};
+	prox->maxs = {6, 6, 6};
 	prox->s.modelindex = gi.modelindex("models/weapons/g_prox/tris.md2");
 	prox->owner = self;
 	prox->teammaster = self;
@@ -642,15 +670,15 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int pro
 
 struct player_melee_data_t
 {
-	edict_t* self;
-	const vec3_t& start;
-	const vec3_t& aim;
+	edict_t *self;
+	const vec3_t &start;
+	const vec3_t &aim;
 	int reach;
 };
 
-static BoxEdictsResult_t fire_player_melee_BoxFilter(edict_t* check, void* data_v)
+static BoxEdictsResult_t fire_player_melee_BoxFilter(edict_t *check, void *data_v)
 {
-	const player_melee_data_t* data = (const player_melee_data_t*)data_v;
+	const player_melee_data_t *data = (const player_melee_data_t *)data_v;
 
 	if (!check->inuse || !check->takedamage || check == data->self)
 		return BoxEdictsResult_t::Skip;
@@ -666,7 +694,7 @@ static BoxEdictsResult_t fire_player_melee_BoxFilter(edict_t* check, void* data_
 		return BoxEdictsResult_t::Skip;
 
 	// check angle if we aren't intersecting
-	vec3_t const shrink{ 2, 2, 2 };
+	vec3_t const shrink{2, 2, 2};
 	if (!boxes_intersect(check->absmin + shrink, check->absmax - shrink, data->self->absmin + shrink, data->self->absmax - shrink))
 	{
 		dir = (((check->absmin + check->absmax) / 2) - data->start).normalized();
@@ -678,19 +706,18 @@ static BoxEdictsResult_t fire_player_melee_BoxFilter(edict_t* check, void* data_
 	return BoxEdictsResult_t::Keep;
 }
 
-bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, int reach, int damage, int kick, mod_t mod)
+bool fire_player_melee(edict_t *self, const vec3_t &start, const vec3_t &aim, int reach, int damage, int kick, mod_t mod)
 {
 	constexpr size_t MAX_HIT = 4;
 
-	vec3_t const reach_vec{ float(reach - 1), float(reach - 1), float(reach - 1) };
-	edict_t* targets[MAX_HIT];
+	vec3_t const reach_vec{float(reach - 1), float(reach - 1), float(reach - 1)};
+	edict_t *targets[MAX_HIT];
 
 	player_melee_data_t data{
 		self,
 		start,
 		aim,
-		reach
-	};
+		reach};
 
 	// find all the things we could maybe hit
 	size_t const num = gi.BoxEdicts(self->absmin - reach_vec, self->absmax + reach_vec, targets, q_countof(targets), AREA_SOLID, fire_player_melee_BoxFilter, &data);
@@ -702,7 +729,7 @@ bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, in
 
 	for (size_t i = 0; i < num; i++)
 	{
-		edict_t* hit = targets[i];
+		edict_t *hit = targets[i];
 
 		if (!hit->inuse || !hit->takedamage)
 			continue;
@@ -717,7 +744,7 @@ bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, in
 
 		if (mod.id == MOD_CHAINFIST)
 			T_Damage(hit, self, self, aim, closest_point_to_check, -aim, damage, kick / 2,
-				DAMAGE_DESTROY_ARMOR | DAMAGE_NO_KNOCKBACK, mod);
+					 DAMAGE_DESTROY_ARMOR | DAMAGE_NO_KNOCKBACK, mod);
 		else
 			T_Damage(hit, self, self, aim, closest_point_to_check, -aim, damage, kick / 2, DAMAGE_NO_KNOCKBACK, mod);
 
@@ -733,15 +760,15 @@ bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, in
 
 constexpr gtime_t NUKE_DELAY = 4_sec;
 constexpr gtime_t NUKE_TIME_TO_LIVE = 6_sec;
-constexpr float	  NUKE_RADIUS = 1024;
+constexpr float NUKE_RADIUS = 1024;
 constexpr int32_t NUKE_DAMAGE = 800;
 constexpr gtime_t NUKE_QUAKE_TIME = 3_sec;
-constexpr float	  NUKE_QUAKE_STRENGTH = 100;
+constexpr float NUKE_QUAKE_STRENGTH = 100;
 
-THINK(Nuke_Quake) (edict_t* self) -> void
+THINK(Nuke_Quake)(edict_t *self)->void
 {
 	uint32_t i;
-	edict_t* e;
+	edict_t *e;
 
 	if (self->last_move_time < level.time)
 	{
@@ -749,17 +776,19 @@ THINK(Nuke_Quake) (edict_t* self) -> void
 		self->last_move_time = level.time + 500_ms;
 	}
 
-    for (int i = 0; i < game.maxclients; ++i) {
-        edict_t* player = &g_edicts[1 + i];
-        if (!player->inuse || !player->client || !player->groundentity) {
-            continue;
-        }
+	for (int i = 0; i < game.maxclients; ++i)
+	{
+		edict_t *player = &g_edicts[1 + i];
+		if (!player->inuse || !player->client || !player->groundentity)
+		{
+			continue;
+		}
 
-        player->groundentity = nullptr;
-        player->velocity[0] += crandom() * 150;
-        player->velocity[1] += crandom() * 150;
-        player->velocity[2] = self->speed * (100.0f / player->mass);
-    }
+		player->groundentity = nullptr;
+		player->velocity[0] += crandom() * 150;
+		player->velocity[1] += crandom() * 150;
+		player->velocity[2] = self->speed * (100.0f / player->mass);
+	}
 
 	if (level.time < self->timestamp)
 		self->nextthink = level.time + FRAME_TIME_S;
@@ -767,7 +796,7 @@ THINK(Nuke_Quake) (edict_t* self) -> void
 		G_FreeEdict(self);
 }
 
-static void Nuke_Explode(edict_t* ent)
+static void Nuke_Explode(edict_t *ent)
 {
 
 	if (ent->teammaster->client)
@@ -775,7 +804,7 @@ static void Nuke_Explode(edict_t* ent)
 
 	T_RadiusNukeDamage(ent, ent->teammaster, (float)ent->dmg, ent, ent->dmg_radius, MOD_NUKE);
 
-	edict_t* check = nullptr;
+	edict_t *check = nullptr;
 	float radius = ent->dmg_radius * 1.5f; // Un poco más de radio que el daño para estar seguros
 
 	while ((check = findradius(check, ent->s.origin, radius)) != nullptr)
@@ -812,7 +841,7 @@ static void Nuke_Explode(edict_t* ent)
 	ent->last_move_time = 0_ms;
 }
 
-DIE(nuke_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(nuke_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
 	self->takedamage = false;
 	if ((attacker) && !(strcmp(attacker->classname, "nuke")))
@@ -823,11 +852,11 @@ DIE(nuke_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	Nuke_Explode(self);
 }
 
-THINK(Nuke_Think) (edict_t* ent) -> void
+THINK(Nuke_Think)(edict_t *ent)->void
 {
-	float			attenuation;
+	float attenuation;
 	float constexpr default_atten = 1.8f;
-	int				nuke_damage_multiplier;
+	int nuke_damage_multiplier;
 	player_muzzle_t muzzleflash;
 
 	nuke_damage_multiplier = ent->dmg / NUKE_DAMAGE;
@@ -905,7 +934,7 @@ THINK(Nuke_Think) (edict_t* ent) -> void
 	}
 }
 
-TOUCH(nuke_bounce) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(nuke_bounce)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	if (tr.surface && tr.surface->id)
 	{
@@ -916,12 +945,12 @@ TOUCH(nuke_bounce) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
 	}
 }
 
-void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
+void fire_nuke(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int speed)
 {
-	edict_t* nuke;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
-	int		 const damage_modifier = P_DamageModifier(self);
+	edict_t *nuke;
+	vec3_t dir;
+	vec3_t forward, right, up;
+	int const damage_modifier = P_DamageModifier(self);
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -936,8 +965,8 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	nuke->solid = SOLID_BBOX;
 	nuke->s.effects |= EF_GRENADE;
 	nuke->s.renderfx |= RF_IR_VISIBLE;
-	nuke->mins = { -8, -8, 0 };
-	nuke->maxs = { 8, 8, 16 };
+	nuke->mins = {-8, -8, 0};
+	nuke->maxs = {8, 8, 16};
 	nuke->s.modelindex = gi.modelindex("models/weapons/g_nuke/tris.md2");
 	nuke->owner = self;
 	nuke->teammaster = self;
@@ -966,36 +995,36 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 // *************************
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = 60_sec;
-constexpr float	  TESLA_DAMAGE_RADIUS = 200;
+constexpr float TESLA_DAMAGE_RADIUS = 200;
 constexpr int32_t TESLA_DAMAGE = 4;
 constexpr int32_t TESLA_KNOCKBACK = 8;
 
 constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
-constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
+constexpr float TESLA_EXPLOSION_RADIUS = 200;
 
 // Constantes para ajustar el comportamiento del rebote
-constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f;    // Multiplicador base del rebote
-constexpr float TESLA_MIN_BOUNCE_SPEED = 120.0f;    // Velocidad mínima después de un rebote
-constexpr float TESLA_BOUNCE_RANDOM = 70.0f;        // Factor de aleatoriedad en el rebote
-constexpr float TESLA_VERTICAL_BOOST = 180.0f;      // Impulso vertical adicional
+constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f; // Multiplicador base del rebote
+constexpr float TESLA_MIN_BOUNCE_SPEED = 120.0f; // Velocidad mínima después de un rebote
+constexpr float TESLA_BOUNCE_RANDOM = 70.0f;	 // Factor de aleatoriedad en el rebote
+constexpr float TESLA_VERTICAL_BOOST = 180.0f;	 // Impulso vertical adicional
 
 // Offsets for Tesla positioning
-constexpr float TESLA_WALL_OFFSET = 3.0f;      // Offset para paredes
-constexpr float TESLA_CEILING_OFFSET = -20.4f;   // Offset optimizado para techos
-constexpr float TESLA_FLOOR_OFFSET = -12.0f;     // Offset para suelo
-constexpr float TESLA_ORB_OFFSET = 12.0f;      // Altura de la esfera normal
-constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f;  // Altura de la esfera cuando está en techo
+constexpr float TESLA_WALL_OFFSET = 3.0f;		// Offset para paredes
+constexpr float TESLA_CEILING_OFFSET = -20.4f;	// Offset optimizado para techos
+constexpr float TESLA_FLOOR_OFFSET = -12.0f;	// Offset para suelo
+constexpr float TESLA_ORB_OFFSET = 12.0f;		// Altura de la esfera normal
+constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f; // Altura de la esfera cuando está en techo
 
 // Network message limiting
 constexpr int MAX_TESLA_MESSAGES_PER_FRAME = 12; // Limit messages per frame to prevent overflow
 static int tesla_messages_this_frame = 0;
 static gtime_t tesla_message_frame_time = 0_sec;
 
-void tesla_remove(edict_t* self)
+void tesla_remove(edict_t *self)
 {
-	edict_t* cur, * next;
+	edict_t *cur, *next;
 
 	self->takedamage = false;
 	if (self->teamchain)
@@ -1029,23 +1058,24 @@ void tesla_remove(edict_t* self)
 
 	Grenade_Explode(self);
 }
-DIE(tesla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(tesla_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
-	//OnEntityDeath(self);
+	// OnEntityDeath(self);
 	tesla_remove(self);
 }
 
-void tesla_blow(edict_t* self)
+void tesla_blow(edict_t *self)
 {
 	self->dmg *= TESLA_EXPLOSION_DAMAGE_MULT;
 	self->dmg_radius = TESLA_EXPLOSION_RADIUS;
 	tesla_remove(self);
 }
 
-TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(tesla_zap)(edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	// Ignorar el contacto si el otro es un jugador
-	if (other->client) {
+	if (other->client)
+	{
 		return;
 	}
 
@@ -1053,13 +1083,15 @@ TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 }
 
 // Function to cache the ray origin calculation
-static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
+static vec3_t calculate_tesla_ray_origin(const edict_t *self)
+{
 	vec3_t ray_origin = self->s.origin;
 	vec3_t forward, right, up;
 	AngleVectors(self->s.angles, forward, right, up);
 
 	// En pared
-	if (fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135) {
+	if (fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135)
+	{
 		// Primero, mover hacia afuera de la pared
 		ray_origin = ray_origin + (forward * TESLA_WALL_OFFSET);
 
@@ -1067,12 +1099,14 @@ static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 		ray_origin = ray_origin + (up * 16.0f);
 	}
 	// En techo
-	else if (fabs(self->s.angles[PITCH]) > 150 || fabs(self->s.angles[PITCH]) < -150) {
+	else if (fabs(self->s.angles[PITCH]) > 150 || fabs(self->s.angles[PITCH]) < -150)
+	{
 		ray_origin = ray_origin - (up * TESLA_ORB_OFFSET_CEIL);
 		ray_origin = ray_origin - (up * 4.0f);
 	}
 	// En suelo
-	else {
+	else
+	{
 		ray_origin = ray_origin + (up * TESLA_ORB_OFFSET);
 	}
 
@@ -1080,12 +1114,14 @@ static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 }
 
 // Optimized calculation of ray target
-vec3_t calculate_tesla_ray_target(const edict_t* self, const edict_t* target) {
+vec3_t calculate_tesla_ray_target(const edict_t *self, const edict_t *target)
+{
 	// Calcular el centro del objetivo
 	vec3_t target_center = target->s.origin;
 
 	// Use midpoint of bounding box for better targeting
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 3; i++)
+	{
 		target_center[i] += (target->mins[i] + target->maxs[i]) * 0.5f;
 	}
 
@@ -1093,7 +1129,8 @@ vec3_t calculate_tesla_ray_target(const edict_t* self, const edict_t* target) {
 }
 
 // Fast trace function with caching
-bool tesla_ray_trace(const edict_t* self, const edict_t* target, trace_t& tr) {
+bool tesla_ray_trace(const edict_t *self, const edict_t *target, trace_t &tr)
+{
 	vec3_t const ray_start = calculate_tesla_ray_origin(self);
 	vec3_t const ray_end = calculate_tesla_ray_target(self, target);
 
@@ -1105,14 +1142,16 @@ bool tesla_ray_trace(const edict_t* self, const edict_t* target, trace_t& tr) {
 }
 
 // Target priority struct
-struct TeslaTarget {
-	edict_t* ent;
+struct TeslaTarget
+{
+	edict_t *ent;
 	float priority;
 	float dist_squared;
 };
 
 // Optimized target validation
-bool IsValidTeslaTarget(edict_t* self, edict_t* ent) {
+bool IsValidTeslaTarget(edict_t *self, edict_t *ent)
+{
 	if (!ent || !ent->inuse || ent == self ||
 		ent->health <= 0 || ent->deadflag ||
 		ent->solid == SOLID_NOT)
@@ -1123,13 +1162,19 @@ bool IsValidTeslaTarget(edict_t* self, edict_t* ent) {
 		return false;
 
 	// Skip sentries, emitters, nukes
-	if (!strcmp(ent->classname, "monster_sentrygun") ||
-		!strcmp(ent->classname, "emitter") ||
-		!strcmp(ent->classname, "nuke"))
+	switch (static_cast<horde::SpecialEntityTypeID>(ent->special_type_id))
+	{
+	case horde::SpecialEntityTypeID::SENTRY_GUN:
+	case horde::SpecialEntityTypeID::LASER_EMITTER:
+	case horde::SpecialEntityTypeID::NUKE_MINE:
 		return false;
+	default:
+		break; // Not one of the types, so continue
+	}
 
 	// Owner team check for monsters
-	if (self->owner && (self->owner->svflags & SVF_MONSTER)) {
+	if (self->owner && (self->owner->svflags & SVF_MONSTER))
+	{
 		if (ent == self->owner ||
 			(ent->svflags & SVF_MONSTER && OnSameTeam(ent, self->owner)))
 			return false;
@@ -1139,7 +1184,8 @@ bool IsValidTeslaTarget(edict_t* self, edict_t* ent) {
 }
 
 // Target priority calculation
-float CalculateTeslaPriority(edict_t* self, edict_t* target, float dist_squared) {
+float CalculateTeslaPriority(edict_t *self, edict_t *target, float dist_squared)
+{
 	float priority = 1.0f / (dist_squared + 1.0f);
 
 	// Prioritize monsters slightly higher
@@ -1150,20 +1196,24 @@ float CalculateTeslaPriority(edict_t* self, edict_t* target, float dist_squared)
 }
 
 // Helper for sending tesla effect
-bool TrySendTeslaEffect(edict_t* self, edict_t* target, const vec3_t& ray_start, const vec3_t& ray_end) {
+bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start, const vec3_t &ray_end)
+{
 	// Reset counter if we're in a new frame
-	if (tesla_message_frame_time != level.time) {
+	if (tesla_message_frame_time != level.time)
+	{
 		tesla_messages_this_frame = 0;
 		tesla_message_frame_time = level.time;
 	}
 
 	// Check if we've hit the message limit for this frame
-	if (tesla_messages_this_frame >= MAX_TESLA_MESSAGES_PER_FRAME) {
+	if (tesla_messages_this_frame >= MAX_TESLA_MESSAGES_PER_FRAME)
+	{
 		return false;
 	}
 
 	// Rate limit effects per tesla
-	if (level.time < self->monsterinfo.attack_finished) {
+	if (level.time < self->monsterinfo.attack_finished)
+	{
 		return false;
 	}
 
@@ -1183,13 +1233,16 @@ bool TrySendTeslaEffect(edict_t* self, edict_t* target, const vec3_t& ray_start,
 	self->monsterinfo.medicTries++;
 
 	// Dynamic rate limiting based on how many effects we've sent
-	if (self->monsterinfo.medicTries <= 5) {
+	if (self->monsterinfo.medicTries <= 5)
+	{
 		self->monsterinfo.attack_finished = level.time + 0_hz; // No limit for first few effects
 	}
-	else if (self->monsterinfo.medicTries <= 10) {
+	else if (self->monsterinfo.medicTries <= 10)
+	{
 		self->monsterinfo.attack_finished = level.time + 5_hz; // Start limiting after a few
 	}
-	else {
+	else
+	{
 		self->monsterinfo.attack_finished = level.time + 10_hz; // More aggressive limiting
 	}
 
@@ -1197,11 +1250,13 @@ bool TrySendTeslaEffect(edict_t* self, edict_t* target, const vec3_t& ray_start,
 }
 
 // Optimized targeting and attack function
-THINK(tesla_think_active)(edict_t* self) -> void {
+THINK(tesla_think_active)(edict_t *self)->void
+{
 	if (!self)
 		return;
 
-	if (level.time > self->air_finished) {
+	if (level.time > self->air_finished)
+	{
 		tesla_remove(self);
 		return;
 	}
@@ -1213,38 +1268,47 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 	vec3_t forward, right, up;
 	AngleVectors(self->s.angles, forward, right, up);
 
-	if (is_on_wall) {
+	if (is_on_wall)
+	{
 		start = start + (forward * 16);
 	}
-	else {
-		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
+	else
+	{
+		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150)
+		{
 			start = start + (up * -16);
 		}
-		else {
+		else
+		{
 			start = start + (up * 16);
 		}
 	}
 
-	if (!self->teamchain) {
+	if (!self->teamchain)
+	{
 		gi.Com_Print("Warning: tesla_think_active called with null teamchain\n");
 		return;
 	}
 
 	// Setup teamchain bounds
-	if (is_on_wall) {
+	if (is_on_wall)
+	{
 		float constexpr radius = TESLA_DAMAGE_RADIUS * 1.5f;
-		self->teamchain->mins = { -radius / 2, -radius, -radius };
-		self->teamchain->maxs = { radius, radius, radius };
+		self->teamchain->mins = {-radius / 2, -radius, -radius};
+		self->teamchain->maxs = {radius, radius, radius};
 		self->teamchain->s.origin = self->s.origin + (forward * (radius / 2));
 	}
-	else {
-		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
-			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS };
-			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, 0 };
+	else
+	{
+		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150)
+		{
+			self->teamchain->mins = {-TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS};
+			self->teamchain->maxs = {TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, 0};
 		}
-		else {
-			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, 0 };
-			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS };
+		else
+		{
+			self->teamchain->mins = {-TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, 0};
+			self->teamchain->maxs = {TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS};
 		}
 	}
 	gi.linkentity(self->teamchain);
@@ -1262,7 +1326,8 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 	vec3_t ray_origin = calculate_tesla_ray_origin(self);
 
 	// Find potential targets using active_monsters() (more efficient)
-	for (auto ent : active_monsters()) {
+	for (auto ent : active_monsters())
+	{
 		if (num_targets >= MAX_POTENTIAL_TARGETS)
 			break;
 
@@ -1284,15 +1349,16 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 		potential_targets[num_targets++] = {
 			ent,
 			CalculateTeslaPriority(self, ent, dist_squared),
-			dist_squared
-		};
+			dist_squared};
 	}
 
 	// Simple insertion sort (more efficient for small arrays)
-	for (int i = 1; i < num_targets; i++) {
+	for (int i = 1; i < num_targets; i++)
+	{
 		TeslaTarget key = potential_targets[i];
 		int j = i - 1;
-		while (j >= 0 && potential_targets[j].priority < key.priority) {
+		while (j >= 0 && potential_targets[j].priority < key.priority)
+		{
 			potential_targets[j + 1] = potential_targets[j];
 			j--;
 		}
@@ -1301,36 +1367,40 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 
 	// Attack phase
 	int targets_attacked = 0;
-	for (int i = 0; i < num_targets && targets_attacked < max_targets; i++) {
-		const auto& target = potential_targets[i];
+	for (int i = 0; i < num_targets && targets_attacked < max_targets; i++)
+	{
+		const auto &target = potential_targets[i];
 
 		trace_t tr;
-		if (tesla_ray_trace(self, target.ent, tr)) {
+		if (tesla_ray_trace(self, target.ent, tr))
+		{
 			vec3_t ray_end = tr.endpos;
 			vec3_t dir = ray_end - ray_origin;
 			dir.normalize();
 
 			T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
+					 self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
 			// Try to send the visual effect, respecting rate limits
-			if (TrySendTeslaEffect(self, target.ent, ray_origin, ray_end)) {
+			if (TrySendTeslaEffect(self, target.ent, ray_origin, ray_end))
+			{
 				targets_attacked++;
 			}
 		}
 	}
 
 	// Stagger think times to distribute processing load
-	if (self->inuse) {
+	if (self->inuse)
+	{
 		self->think = tesla_think_active;
 		self->nextthink = level.time + 10_hz + gtime_t::from_hz(8 + irandom(5)); // Random value between 8hz and 12hz
 	}
 }
 
-THINK(tesla_activate) (edict_t* self) -> void
+THINK(tesla_activate)(edict_t *self)->void
 {
-	edict_t* trigger;
-	edict_t* search;
+	edict_t *trigger;
+	edict_t *search;
 
 	if (gi.pointcontents(self->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WATER))
 	{
@@ -1349,10 +1419,7 @@ THINK(tesla_activate) (edict_t* self) -> void
 			// or it's a player start point
 			// and we can see it
 			// blow up
-			if (search->classname && ((G_IsDeathmatch() && !g_horde->integer &&
-				((!strncmp(search->classname, "info_player_", 12)) ||
-					(!strcmp(search->classname, "misc_teleporter_dest")) ||
-					(!strncmp(search->classname, "item_flag_", 10))))) &&
+			if (search->classname && ((G_IsDeathmatch() && !g_horde->integer && ((!strncmp(search->classname, "info_player_", 12)) || (!strcmp(search->classname, "misc_teleporter_dest")) || (!strncmp(search->classname, "item_flag_", 10))))) &&
 				(visible(search, self)))
 			{
 				BecomeExplosion1(self);
@@ -1363,12 +1430,13 @@ THINK(tesla_activate) (edict_t* self) -> void
 
 	trigger = G_Spawn();
 	trigger->s.origin = self->s.origin;
-	trigger->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, self->mins[2] };
-	trigger->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS };
+	trigger->mins = {-TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, self->mins[2]};
+	trigger->maxs = {TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS};
 	trigger->movetype = MOVETYPE_NONE;
 	trigger->solid = SOLID_TRIGGER;
 	trigger->owner = self;
-	trigger->touch = tesla_zap; trigger->classname = "tesla trigger";
+	trigger->touch = tesla_zap;
+	trigger->classname = "tesla trigger";
 	// doesn't need to be marked as a teamslave since the move code for bounce looks for teamchains
 	gi.linkentity(trigger);
 
@@ -1383,10 +1451,10 @@ THINK(tesla_activate) (edict_t* self) -> void
 	self->air_finished = level.time + TESLA_TIME_TO_LIVE;
 
 	// Initialize effect tracking fields
-	self->monsterinfo.attack_finished = level.time;  // Initialize next_effect_time
-	self->monsterinfo.medicTries = 0;                // Initialize effect_count using medicTries instead of lefty
+	self->monsterinfo.attack_finished = level.time; // Initialize next_effect_time
+	self->monsterinfo.medicTries = 0;				// Initialize effect_count using medicTries instead of lefty
 }
-THINK(tesla_think) (edict_t* ent) -> void
+THINK(tesla_think)(edict_t *ent)->void
 {
 	if (gi.pointcontents(ent->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA))
 	{
@@ -1426,27 +1494,34 @@ THINK(tesla_think) (edict_t* ent) -> void
 	}
 }
 
-TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void {
+TOUCH(tesla_lava)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self)->void
+{
 	if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH))
 		return;
 
 	// Bounce logic for non-world entities
-	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client || strcmp(other->classname, "func_train") == 0)) {
-		if (tr.plane.normal) {
+	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client || strcmp(other->classname, "func_train") == 0))
+	{
+		if (tr.plane.normal)
+		{
 			vec3_t out{};
 			float const backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
-			for (int i = 0; i < 3; i++) {
+			for (int i = 0; i < 3; i++)
+			{
 				float change = tr.plane.normal[i] * backoff;
 				out[i] = ent->velocity[i] - change;
 				out[i] += (frandom() * 2.0f - 1.0f) * TESLA_BOUNCE_RANDOM; // Equivalent to crandom()
-				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0) {
+				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0)
+				{
 					out[i] = (out[i] < 0 ? -TESLA_MIN_BOUNCE_SPEED : TESLA_MIN_BOUNCE_SPEED);
 				}
 			}
-			if (tr.plane.normal[2] > 0) {
+			if (tr.plane.normal[2] > 0)
+			{
 				out[2] += TESLA_VERTICAL_BOOST;
 			}
-			if (out.length() < TESLA_MIN_BOUNCE_SPEED) {
+			if (out.length() < TESLA_MIN_BOUNCE_SPEED)
+			{
 				out.normalize();
 				out = out * TESLA_MIN_BOUNCE_SPEED;
 			}
@@ -1454,37 +1529,41 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			ent->avelocity = {
 				(frandom() * 2.0f - 1.0f) * 240,
 				(frandom() * 2.0f - 1.0f) * 240,
-				(frandom() * 2.0f - 1.0f) * 240
-			};
-			if (ent->velocity.length() > 0 && strcmp(other->classname, "func_train")) {
-				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
-					"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
+				(frandom() * 2.0f - 1.0f) * 240};
+			if (ent->velocity.length() > 0 && strcmp(other->classname, "func_train"))
+			{
+				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ? "weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
 			}
 		}
 		return;
 	}
 
-	if (tr.plane.normal) {
+	if (tr.plane.normal)
+	{
 		const float slope = fabs(tr.plane.normal[2]);
-		if (slope > 0.85f) {
-			if (tr.plane.normal[2] > 0) {
+		if (slope > 0.85f)
+		{
+			if (tr.plane.normal[2] > 0)
+			{
 				// Suelo
 				ent->s.angles = {};
-				ent->mins = { -4, -4, 0 };
-				ent->maxs = { 4, 4, 8 };
+				ent->mins = {-4, -4, 0};
+				ent->maxs = {4, 4, 8};
 				ent->s.origin = ent->s.origin + (tr.plane.normal * TESLA_FLOOR_OFFSET);
 				ent->s.origin[2] += TESLA_ORB_OFFSET;
 			}
-			else {
+			else
+			{
 				// Techo
-				ent->s.angles = { 180, 0, 0 };
-				ent->mins = { -4, -4, -8 };
-				ent->maxs = { 4, 4, 0 };
+				ent->s.angles = {180, 0, 0};
+				ent->mins = {-4, -4, -8};
+				ent->maxs = {4, 4, 0};
 				ent->s.origin = ent->s.origin + (tr.plane.normal * TESLA_CEILING_OFFSET);
 				ent->s.origin[2] += TESLA_ORB_OFFSET_CEIL;
 			}
 		}
-		else {
+		else
+		{
 			vec3_t dir = vectoangles(tr.plane.normal);
 			vec3_t forward;
 			AngleVectors(dir, &forward, nullptr, nullptr);
@@ -1492,27 +1571,30 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			// Detectar si es una pared "plana" basándonos en los componentes X/Y de la normal
 			bool is_flat_wall = (fabs(tr.plane.normal[0]) > 0.95f || fabs(tr.plane.normal[1]) > 0.95f);
 
-			if (is_flat_wall) {
+			if (is_flat_wall)
+			{
 				// Usar el comportamiento original para paredes planas
 				ent->s.angles[PITCH] = dir[PITCH] + 90;
 				ent->s.angles[YAW] = dir[YAW];
 				ent->s.angles[ROLL] = 0;
-				ent->mins = { 0, -4, -4 };
-				ent->maxs = { 8, 4, 4 };
+				ent->mins = {0, -4, -4};
+				ent->maxs = {8, 4, 4};
 				ent->s.origin = ent->s.origin + (forward * -TESLA_WALL_OFFSET);
 			}
-			else {
+			else
+			{
 				// Usar el comportamiento nuevo para superficies curvas/inclinadas
 				ent->s.angles = dir;
 				ent->s.angles[PITCH] += 90;
-				ent->mins = { -4, -4, -4 };
-				ent->maxs = { 4, 4, 4 };
+				ent->mins = {-4, -4, -4};
+				ent->maxs = {4, 4, 4};
 				ent->s.origin = ent->s.origin + (forward * -TESLA_WALL_OFFSET);
 			}
 		}
 	}
 
-	if (gi.pointcontents(ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME)) {
+	if (gi.pointcontents(ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME))
+	{
 		tesla_blow(ent);
 		return;
 	}
@@ -1530,31 +1612,31 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 }
 
 // Función para contar y manejar el número de teslas de un jugador
-void check_player_tesla_limit(edict_t* self)
+void check_player_tesla_limit(edict_t *self)
 {
 }
 
-void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
+void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int tesla_damage_multiplier, int speed)
 {
 	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.
 	// This logic replaces the inefficient check_player_tesla_limit() function.
 	if (self && self->client && self->client->num_teslas >= MAX_TESLAS)
 	{
 		// Get the oldest tesla from our circular buffer.
-		edict_t* oldest = self->client->deployed_teslas[self->client->oldest_tesla_idx];
-		
+		edict_t *oldest = self->client->deployed_teslas[self->client->oldest_tesla_idx];
+
 		// Ensure it's a valid, in-use tesla before freeing. This handles cases
 		// where the tesla was destroyed by other means and the pointer is stale.
-		if (oldest && oldest->inuse && oldest->classname && strcmp(oldest->classname, "tesla_mine") == 0)
+		if (oldest && oldest->inuse && oldest->classname && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::TESLA_MINE))
 		{
 			// G_FreeEdict will call tesla_remove(), which correctly decrements num_teslas.
 			G_FreeEdict(oldest);
 		}
 	}
 
-	edict_t* tesla;
-	vec3_t   dir;
-	vec3_t   forward, right, up;
+	edict_t *tesla;
+	vec3_t dir;
+	vec3_t forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -1570,28 +1652,30 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->avelocity = {
 		(frandom() * 2.0f - 1.0f) * 90,
 		(frandom() * 2.0f - 1.0f) * 90,
-		(frandom() * 2.0f - 1.0f) * 120
-	};
+		(frandom() * 2.0f - 1.0f) * 120};
 
 	tesla->s.angles = {};
 	tesla->movetype = MOVETYPE_BOUNCE;
 	tesla->solid = SOLID_BBOX;
 	tesla->s.effects |= EF_GRENADE;
 	tesla->s.renderfx |= RF_IR_VISIBLE;
-	tesla->mins = { -4, -4, 0 };
-	tesla->maxs = { 4, 4, 8 };
+	tesla->mins = {-4, -4, 0};
+	tesla->maxs = {4, 4, 8};
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
 
 	tesla->owner = self;
 	tesla->teammaster = self;
 	// Asigna el equipo como una cadena de caracteres
-	if (self->client->resp.ctf_team == CTF_TEAM1) {
+	if (self->client->resp.ctf_team == CTF_TEAM1)
+	{
 		tesla->team = TEAM1;
 	}
-	else if (self->client->resp.ctf_team == CTF_TEAM2) {
+	else if (self->client->resp.ctf_team == CTF_TEAM2)
+	{
 		tesla->team = TEAM2;
 	}
-	else {
+	else
+	{
 		tesla->team = "neutral"; // O cualquier valor por defecto que quieras
 	}
 
@@ -1619,7 +1703,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 
 	tesla->flags |= FL_MECHANICAL;
 
-	//horde::IsSpecialType(tesla, horde::SpecialEntityTypeID::TESLA_MINE);
+	// horde::IsSpecialType(tesla, horde::SpecialEntityTypeID::TESLA_MINE);
 
 	// Initialize effect tracking fields
 	tesla->monsterinfo.attack_finished = level.time;
@@ -1634,7 +1718,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 		self->client->deployed_teslas[self->client->oldest_tesla_idx] = tesla;
 		// Advance the index for the next "oldest".
 		self->client->oldest_tesla_idx = (self->client->oldest_tesla_idx + 1) % MAX_TESLAS;
-		
+
 		self->client->num_teslas++; // Incrementar el contador de teslas del jugador
 	}
 }
@@ -1646,9 +1730,10 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 //  HEATBEAM
 // *************************
 
-struct heatbeam_pierce_t : pierce_args_t {
-	edict_t* self;
-	edict_t* attacker;  // Track the actual attacker (may be different from self->owner)
+struct heatbeam_pierce_t : pierce_args_t
+{
+	edict_t *self;
+	edict_t *attacker; // Track the actual attacker (may be different from self->owner)
 	vec3_t aimdir;
 	int damage;
 	int kick;
@@ -1656,13 +1741,12 @@ struct heatbeam_pierce_t : pierce_args_t {
 	bool water_hit;
 	static constexpr gtime_t HIT_DELAY = 100_ms;
 
-	heatbeam_pierce_t(edict_t* self, const vec3_t& aimdir, int damage, int kick, mod_t mod) :
-		self(self), aimdir(aimdir), damage(damage), kick(kick), mod(mod), water_hit(false)
+	heatbeam_pierce_t(edict_t *self, const vec3_t &aimdir, int damage, int kick, mod_t mod) : self(self), aimdir(aimdir), damage(damage), kick(kick), mod(mod), water_hit(false)
 	{
 		// Determine the actual attacker
 		if (self && self->owner)
 		{
-			if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
+			if (self->owner && horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 			{
 				// If the owner is a turret, the attacker is the turret's owner (the player)
 				attacker = self->owner->owner ? self->owner->owner : self->owner;
@@ -1680,8 +1764,10 @@ struct heatbeam_pierce_t : pierce_args_t {
 		}
 	}
 
-	bool hit(contents_t& mask, vec3_t& end) override {
-		if (tr.contents & MASK_WATER) {
+	bool hit(contents_t &mask, vec3_t &end) override
+	{
+		if (tr.contents & MASK_WATER)
+		{
 			water_hit = true;
 			mask &= ~MASK_WATER;
 
@@ -1694,13 +1780,15 @@ struct heatbeam_pierce_t : pierce_args_t {
 			return true;
 		}
 
-		if (tr.ent && tr.ent->takedamage) {
-			if (!tr.ent->beam_hit_time || level.time >= tr.ent->beam_hit_time + HIT_DELAY) {
+		if (tr.ent && tr.ent->takedamage)
+		{
+			if (!tr.ent->beam_hit_time || level.time >= tr.ent->beam_hit_time + HIT_DELAY)
+			{
 				int current_damage = water_hit ? damage / 2 : damage;
 
 				// Use attacker instead of self->owner for damage credit
 				T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, vec3_origin,
-					current_damage, kick, DAMAGE_ENERGY, mod);
+						 current_damage, kick, DAMAGE_ENERGY, mod);
 
 				tr.ent->beam_hit_time = level.time;
 				damage *= 0.98f;
@@ -1725,10 +1813,11 @@ struct heatbeam_pierce_t : pierce_args_t {
 	}
 };
 
-static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset,
-	int damage, int kick, int te_beam, int te_impact, mod_t mod)
+static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir, const vec3_t &offset,
+					   int damage, int kick, int te_beam, int te_impact, mod_t mod)
 {
-	if (g_piercingbeam->integer) {
+	if (g_piercingbeam->integer)
+	{
 		vec3_t end = start + (aimdir * 8192);
 		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
 
@@ -1746,7 +1835,8 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 		gi.WritePosition(pierce.tr.endpos);
 		gi.multicast(self->s.origin, MULTICAST_ALL, false);
 
-		if (pierce.water_hit) {
+		if (pierce.water_hit)
+		{
 			vec3_t pos = pierce.tr.endpos + (aimdir * -2);
 
 			gi.WriteByte(svc_temp_entity);
@@ -1756,19 +1846,21 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 			gi.multicast(pos, MULTICAST_PVS, false);
 		}
 	}
-	else {
-		trace_t    tr;
-		vec3_t     dir;
-		vec3_t     forward, right, up;
-		vec3_t     end;
-		vec3_t     water_start, endpoint;
-		bool       water = false, underwater = false;
+	else
+	{
+		trace_t tr;
+		vec3_t dir;
+		vec3_t forward, right, up;
+		vec3_t end;
+		vec3_t water_start, endpoint;
+		bool water = false, underwater = false;
 		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
 
 		// Determine the real attacker
-		edict_t* attacker = self->owner;
-		if (self->owner && self->owner->classname &&
-			Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0) {
+		edict_t *attacker = self->owner;
+		if (self->owner && self->owner &&
+			horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
+		{
 			// If the owner is a turret, the attacker is the turret's owner (the player)
 			attacker = self->owner->owner ? self->owner->owner : self->owner;
 		}
@@ -1782,7 +1874,8 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 		AngleVectors(dir, forward, right, up);
 		end = start + (forward * 8192);
 
-		if (gi.pointcontents(start) & MASK_WATER) {
+		if (gi.pointcontents(start) & MASK_WATER)
+		{
 			underwater = true;
 			water_start = start;
 			content_mask &= ~MASK_WATER;
@@ -1790,11 +1883,13 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 
 		tr = gi.traceline(start, end, self, content_mask);
 
-		if (tr.contents & MASK_WATER) {
+		if (tr.contents & MASK_WATER)
+		{
 			water = true;
 			water_start = tr.endpos;
 
-			if (start != tr.endpos) {
+			if (start != tr.endpos)
+			{
 				gi.WriteByte(svc_temp_entity);
 				gi.WriteByte(TE_HEATBEAM_SPARKS);
 				gi.WritePosition(water_start);
@@ -1810,15 +1905,20 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 		if (water)
 			damage = damage / 2;
 
-		if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
-			if (tr.fraction < 1.0f) {
-				if (tr.ent->takedamage) {
+		if (!((tr.surface) && (tr.surface->flags & SURF_SKY)))
+		{
+			if (tr.fraction < 1.0f)
+			{
+				if (tr.ent->takedamage)
+				{
 					// Use attacker instead of self for damage credit
 					T_Damage(tr.ent, self, attacker, aimdir, tr.endpos, tr.plane.normal,
-						damage, kick, DAMAGE_ENERGY, mod);
+							 damage, kick, DAMAGE_ENERGY, mod);
 				}
-				else {
-					if ((!water) && !(tr.surface && (tr.surface->flags & SURF_SKY))) {
+				else
+				{
+					if ((!water) && !(tr.surface && (tr.surface->flags & SURF_SKY)))
+					{
 						gi.WriteByte(svc_temp_entity);
 						gi.WriteByte(TE_HEATBEAM_STEAM);
 						gi.WritePosition(tr.endpos);
@@ -1832,7 +1932,8 @@ static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 			}
 		}
 
-		if ((water) || (underwater)) {
+		if ((water) || (underwater))
+		{
 			vec3_t pos;
 			dir = tr.endpos - water_start;
 			dir.normalize();
@@ -1871,7 +1972,7 @@ fire_heat
 Fires a single heat beam.  Zap.
 =================
 */
-void fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset, int damage, int kick, bool monster)
+void fire_heatbeam(edict_t *self, const vec3_t &start, const vec3_t &aimdir, const vec3_t &offset, int damage, int kick, bool monster)
 {
 	if (monster)
 		fire_beams(self, start, aimdir, offset, damage, kick, TE_MONSTER_HEATBEAM, TE_HEATBEAM_SPARKS, MOD_HEATBEAM);
@@ -1886,10 +1987,10 @@ fire_blaster2
 Fires a single green blaster bolt.  Used by monsters, generally.
 =================
 */
-TOUCH(blaster2_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	mod_t mod;
-	int	  damagestat;
+	int damagestat;
 
 	if (other == self->owner)
 		return;
@@ -1944,10 +2045,10 @@ TOUCH(blaster2_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool ot
 	G_FreeEdict(self);
 }
 
-void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, bool hyper)
+void fire_blaster2(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, effects_t effect, bool hyper)
 {
-	edict_t* bolt;
-	trace_t	 tr;
+	edict_t *bolt;
+	trace_t tr;
 
 	bolt = G_Spawn();
 	bolt->s.origin = start;
@@ -1960,7 +2061,7 @@ void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int da
 	bolt->flags |= FL_DODGE;
 
 	// [Paril-KEX]
-if (self && self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		bolt->clipmask &= ~CONTENTS_PLAYER;
 
 	bolt->solid = SOLID_BBOX;
@@ -2001,10 +2102,10 @@ constexpr damageflags_t TRACKER_IMPACT_FLAGS = (DAMAGE_NO_POWER_ARMOR | DAMAGE_E
 
 constexpr gtime_t TRACKER_DAMAGE_TIME = 500_ms;
 
-THINK(tracker_pain_daemon_think) (edict_t* self) -> void
+THINK(tracker_pain_daemon_think)(edict_t *self)->void
 {
-	constexpr vec3_t pain_normal = { 0, 0, 1 };
-	int				 hurt;
+	constexpr vec3_t pain_normal = {0, 0, 1};
+	int hurt;
 
 	if (!self->inuse)
 		return;
@@ -2019,10 +2120,10 @@ THINK(tracker_pain_daemon_think) (edict_t* self) -> void
 	{
 		if (self->enemy->health > 0)
 		{
-			vec3_t  const center = (self->enemy->absmax + self->enemy->absmin) * 0.5f;
+			vec3_t const center = (self->enemy->absmax + self->enemy->absmin) * 0.5f;
 
 			T_Damage(self->enemy, self, self->owner, vec3_origin, center, pain_normal,
-				self->dmg, 0, TRACKER_DAMAGE_FLAGS, MOD_TRACKER);
+					 self->dmg, 0, TRACKER_DAMAGE_FLAGS, MOD_TRACKER);
 
 			// if we kill the player, we'll be removed.
 			if (self->inuse)
@@ -2036,7 +2137,7 @@ THINK(tracker_pain_daemon_think) (edict_t* self) -> void
 						hurt = 500;
 
 					T_Damage(self->enemy, self, self->owner, vec3_origin, center,
-						pain_normal, hurt, 0, TRACKER_DAMAGE_FLAGS, MOD_TRACKER);
+							 pain_normal, hurt, 0, TRACKER_DAMAGE_FLAGS, MOD_TRACKER);
 				}
 
 				self->nextthink = level.time + 10_hz;
@@ -2056,9 +2157,9 @@ THINK(tracker_pain_daemon_think) (edict_t* self) -> void
 	}
 }
 
-void tracker_pain_daemon_spawn(edict_t* owner, edict_t* enemy, int damage)
+void tracker_pain_daemon_spawn(edict_t *owner, edict_t *enemy, int damage)
 {
-	edict_t* daemon;
+	edict_t *daemon;
 
 	if (enemy == nullptr)
 		return;
@@ -2073,7 +2174,7 @@ void tracker_pain_daemon_spawn(edict_t* owner, edict_t* enemy, int damage)
 	daemon->dmg = damage;
 }
 
-void tracker_explode(edict_t* self)
+void tracker_explode(edict_t *self)
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_TRACKER_EXPLOSION);
@@ -2083,7 +2184,7 @@ void tracker_explode(edict_t* self)
 	G_FreeEdict(self);
 }
 
-TOUCH(tracker_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(tracker_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	float damagetime;
 
@@ -2108,7 +2209,7 @@ TOUCH(tracker_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 				// PMM - kickback was times 4 .. reduced to 3
 				// now this does no damage, just knockback
 				T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal,
-					/* self->dmg */ 0, (self->dmg * 3), TRACKER_IMPACT_FLAGS, MOD_TRACKER);
+						 /* self->dmg */ 0, (self->dmg * 3), TRACKER_IMPACT_FLAGS, MOD_TRACKER);
 
 				if (!(other->flags & (FL_FLY | FL_SWIM)))
 					other->velocity[2] += 140;
@@ -2121,13 +2222,13 @@ TOUCH(tracker_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 			else // lots of damage (almost autogib) for dead bodies
 			{
 				T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal,
-					self->dmg * 4, (self->dmg * 3), TRACKER_IMPACT_FLAGS, MOD_TRACKER);
+						 self->dmg * 4, (self->dmg * 3), TRACKER_IMPACT_FLAGS, MOD_TRACKER);
 			}
 		}
 		else // full damage in one shot for inanimate objects
 		{
 			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal,
-				self->dmg, (self->dmg * 3), TRACKER_IMPACT_FLAGS, MOD_TRACKER);
+					 self->dmg, (self->dmg * 3), TRACKER_IMPACT_FLAGS, MOD_TRACKER);
 		}
 	}
 
@@ -2135,7 +2236,7 @@ TOUCH(tracker_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	return;
 }
 
-THINK(tracker_fly) (edict_t* self) -> void
+THINK(tracker_fly)(edict_t *self)->void
 {
 	vec3_t dest;
 	vec3_t dir;
@@ -2173,10 +2274,10 @@ THINK(tracker_fly) (edict_t* self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, edict_t* enemy)
+void fire_tracker(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, edict_t *enemy)
 {
-	edict_t* bolt;
-	trace_t	 tr;
+	edict_t *bolt;
+	trace_t tr;
 
 	bolt = G_Spawn();
 	bolt->s.origin = start;
@@ -2188,7 +2289,7 @@ void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 	bolt->clipmask = MASK_PROJECTILE;
 
 	// [Paril-KEX]
-if (self && self->client && !G_ShouldPlayersCollide(true))
+	if (self && self->client && !G_ShouldPlayersCollide(true))
 		bolt->clipmask &= ~CONTENTS_PLAYER;
 
 	bolt->solid = SOLID_BBOX;
@@ -2210,7 +2311,7 @@ if (self && self->client && !G_ShouldPlayersCollide(true))
 	}
 	else
 	{
-		bolt->nextthink = level.time + 7_sec; //reduce?
+		bolt->nextthink = level.time + 7_sec; // reduce?
 		bolt->think = G_FreeEdict;
 	}
 

@@ -173,7 +173,7 @@ Used for implementing energy shells that work like bullets but with energy effec
 			// Determine the actual attacker inside the constructor
 			if (self && self->owner)
 			{
-				if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
+				if (horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 				{
 					// If the owner is a turret, the attacker is the turret's owner (the player)
 					attacker = self->owner->owner ? self->owner->owner : self->owner;
@@ -434,7 +434,7 @@ struct fire_lead_pierce_t : pierce_args_t
 		// Determine the actual attacker inside the constructor
 		if (self && self->owner)
 		{
-			if (self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0)
+			if (horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 			{
 				// If the owner is a turret, the attacker is the turret's owner (the player)
 				attacker = self->owner->owner ? self->owner->owner : self->owner;
@@ -899,7 +899,7 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal, edi
 THINK(Grenade_Explode) (edict_t* ent) -> void
 {
 	edict_t* attacker = ent->owner;
-	if (ent->owner && ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0)
+	if (ent->owner &&  horde::IsSpecialType(ent->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 	{
 		attacker = ent->owner->owner;
 	}
@@ -935,7 +935,7 @@ TOUCH(Grenade_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool othe
 
 	ent->enemy = other;
 	edict_t* attacker = ent->owner;
-	if (ent->owner && ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0)
+	if (ent->owner && horde::IsSpecialType(ent->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 	{
 		attacker = ent->owner->owner;
 	}
@@ -1020,7 +1020,7 @@ TOUCH(BouncyGrenade_Touch)(edict_t* ent, edict_t* other, const trace_t& tr, bool
     if (tr.surface && (tr.surface->flags & SURF_SKY)) { G_FreeEdict(ent); return; }
 
     edict_t* attacker = ent->owner;
-    if (ent->owner && ent->owner->classname && Q_strcasecmp(ent->owner->classname, "monster_sentrygun") == 0) {
+    if (ent->owner && horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN)) {
         attacker = ent->owner->owner;
     }
 

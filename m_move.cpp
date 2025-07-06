@@ -593,7 +593,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		{
 			ent->bad_area = current_bad;
 
-			if (ent->enemy && !strcmp(ent->enemy->classname, "tesla_mine"))
+			if (ent->enemy && horde::IsSpecialType(ent->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
 			{
 				// if the tesla is in front of us, back up...
 				if (IsBadAhead(ent, current_bad, move))
@@ -761,14 +761,14 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 		{
 			if (new_bad->owner)
 			{
-				if (!strcmp(new_bad->owner->classname, "tesla_mine") || !strcmp(new_bad->owner->classname, "monster_sentrygun"))
+				if (horde::IsSpecialType(new_bad->owner, horde::SpecialEntityTypeID::TESLA_MINE) || horde::IsSpecialType(new_bad->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
 				{
 					if ((!(ent->enemy)) || (!(ent->enemy->inuse)))
 					{
 						TargetTesla(ent, new_bad->owner);
 						ent->monsterinfo.aiflags |= AI_BLOCKED;
 					}
-					else if (!strcmp(ent->enemy->classname, "tesla_mine") || if (horde::IsMonsterType(monster, horde::MonsterTypeID::SENTRYGUN))
+					else if (horde::IsSpecialType(ent->enemy, horde::SpecialEntityTypeID::TESLA_MINE) || horde::IsMonsterType(ent->enemy, horde::MonsterTypeID::SENTRYGUN))
 					{
 						// already targeting a tesla or sentrygun, do nothing
 					}

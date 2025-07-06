@@ -1826,7 +1826,7 @@ struct monsterinfo_t
 	bool BOSS_DEATH_HANDLED = false; // is dead?
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
-	gtime_t spawn_complete_time; // Time when monster_start_go finished
+	//gtime_t spawn_complete_time; // useful?
 	uint8_t monster_type_id;
 
 
@@ -3513,9 +3513,6 @@ struct edict_t
 	// in g_save.cpp too!
 
 	//Horde stuff
-
-	 uint8_t special_type_id;;
-
 	bool was_spawned_by_horde;
 	bool spawned_in_spawn_state;
 
@@ -3530,8 +3527,8 @@ struct edict_t
 	gtime_t hook_time;
 
 	gtime_t beam_hit_time; // heatbeam piercing balance
-		int bounce_count; // max blaster/hb bounces to avoid sound overflow
-	// Kyper
+	int bounce_count; // max blaster/hb bounces to avoid sound overflow
+	uint8_t special_type_id;;
 };
 
 static constexpr const char* TEAM1 = "team1";

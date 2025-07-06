@@ -2365,7 +2365,7 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 		}
 	}
 
-	monster->monsterinfo.spawn_complete_time = level.time;
+	//monster->monsterinfo.spawn_complete_time = level.time;
 
     // =======================================================================
     // THE FIX: Initialize the damage timer on spawn to prevent immediate timeouts.

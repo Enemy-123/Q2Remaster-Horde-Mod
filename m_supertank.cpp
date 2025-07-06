@@ -290,7 +290,7 @@ static void supertankGrenade(edict_t* self)
 	for (int i = 0; i < 5; i++) // 5 iteraciones para cubrir el rango 500-900
 	{
 		// Ajustar la velocidad y trayectoria para teslas
-		if (!strcmp(self->enemy->classname, "tesla_mine")) {
+		if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE)) {
 			float const speed = 400.0f;
 			vec3_t target = self->enemy->s.origin;
 
@@ -563,7 +563,7 @@ MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 	const bool chaingun_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_MACHINEGUN_1]);
 	const bool rocket_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_ROCKET_1]);
 	const bool grenade_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_GRENADE_1]);
-	const bool isTesla = (!strcmp(self->enemy->classname, "tesla_mine"));
+	const bool isTesla = (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE));
 
 	if (isTesla) {
 		// Si la tesla está en una pared o techo (normal no apunta hacia arriba)

@@ -1293,7 +1293,7 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
 	monster_done_dodge(self);
 
 	// Casos especiales independientes del estilo
-	if (!strcmp(self->enemy->classname, "tesla_mine"))
+	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
 	{
 		M_SetAnimation(self, range_to(self, self->enemy) >= RANGE_MELEE * 2 ?
 			&guncmdr_move_attack_chain : &guncmdr_move_attack_kick);

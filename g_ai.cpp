@@ -378,7 +378,7 @@ void ai_charge(edict_t* self, float dist)
         {
             // if we're fighting a tesla, NEVER circle strafe
             // --- Check added before accessing enemy classname ---
-            if ((self->enemy && self->enemy->inuse && self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))
+            if (self->enemy && self->enemy->inuse && horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
                 ofs = 0;
             // --- End Check ---
             else if (self->monsterinfo.lefty)
@@ -1530,13 +1530,14 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 			// originally, just 0.3
 			float strafe_chance;
 
-			if (!(strcmp(self->classname, "monster_daedalus")) || !(strcmp(self->classname, "monster_daedalus_bomber")))
+			if (horde::IsMonsterType(self, horde::MonsterTypeID::DAEDALUS) || 
+			horde::IsMonsterType(self, horde::MonsterTypeID::DAEDALUS_BOMBER))
 				strafe_chance = 0.8f;
 			else
 				strafe_chance = 0.6f;
 
 			// if enemy is tesla, never strafe
-			if ((self->enemy) && (self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))
+			if ((self->enemy) && horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
 			{ // Added braces
 				strafe_chance = 0;
 			} // End of if block
