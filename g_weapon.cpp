@@ -370,10 +370,6 @@ Used for energy shells bonus.
 */
 void fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
 {
-    // REMOVED: Redundant attacker logic. It's handled in the pierce_t struct.
-    // edict_t *attacker;
-    // if(self->owner->classname && Q_strcasecmp(self->owner->classname, "monster_sentrygun") == 0) ...
-
     // Apply damage modifier, if applicable.
     if (self->svflags & SVF_MONSTER) {
         damage *= M_DamageModifier(self);

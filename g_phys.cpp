@@ -32,7 +32,6 @@ void SV_Physics_NewToss(edict_t* ent); // PGM
 contents_t G_GetClipMask(edict_t* ent)
 {
     // --- 1. Base Mask Determination ---
-    // This part is standard and correct.
     contents_t mask = ent->clipmask;
     if (!mask) {
         if (ent->svflags & SVF_MONSTER)     mask = MASK_MONSTERSOLID;
@@ -41,20 +40,17 @@ contents_t G_GetClipMask(edict_t* ent)
     }
 
     // --- 2. Standard Clipping Adjustments ---
-    // This part is also standard and correct.
     bool const is_nonsolid = (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER);
     bool const is_dead = (ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER);
-
     if (is_nonsolid || is_dead) {
         mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
     }
-
     mask &= ~CONTENTS_AREAPORTAL;
 
     // --- 3. Horde-Specific Monster-on-Monster Collision ---
     if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
     {
-        // --- Exclusion list (this part is fine and very efficient) ---
+        // --- Exclusion list (efficient and correct) ---
         static const auto excluded_types = [] {
             std::array<bool, 256> arr{};
             arr.fill(false);
@@ -71,48 +67,36 @@ contents_t G_GetClipMask(edict_t* ent)
             return arr;
         }();
 
-        // =======================================================================
-        // --- LAZY INITIALIZATION REMOVED ---
-        // This function no longer needs to initialize the ID. It assumes
-        // monster_think() has already done it. This makes the code cleaner
-        // and gives this function a single responsibility.
-        // =======================================================================
-
-        // We can now directly and safely use the monster_type_id.
-        // The check for UNKNOWN is a good safety measure in case this function
-        // is ever called on an entity that doesn't have its ID set.
+        if (ent->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
+            ent->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeRegistry::GetTypeID(ent->classname));
+        }
         if (ent->monsterinfo.monster_type_id != MONSTER_TYPE_UNKNOWN && excluded_types[ent->monsterinfo.monster_type_id]) {
-            return mask; // Early exit for excluded types is fine
+            return mask;
         }
 
-        // --- THE CORE FIX (This logic is preserved exactly) ---
-        // First, check if there's a potential collision with a TEAMMATE, just like the old code.
-        // This restores the original logic while still benefiting from the grid's speed.
-        bool potential_teammate_collision = false;
+        // --- THE CORE OPTIMIZATION ---
         const auto& potential_colliders = HordePhys::g_monster_grid.GetPotentialColliders(ent);
+        bool potential_teammate_collision = false;
 
         for (auto* other : potential_colliders)
         {
-            // The old code checked this before tracing. We must do the same.
-            // We don't need to check for `other != ent` because the grid should not return `ent` itself.
             if (OnSameTeam(ent, other))
             {
-                potential_teammate_collision = true;
-                break; // Found one, no need to check further
+                // YOU MUST DO THIS CHECK. It is fast.
+                if (boxes_intersect(ent->absmin, ent->absmax, other->absmin, other->absmax))
+                {
+                    potential_teammate_collision = true;
+                    break; 
+                }
             }
         }
 
-        // Only do the expensive trace if there's a potential collision with a teammate.
+        // Only do the expensive trace if a potential collision was found.
         if (potential_teammate_collision)
         {
-            // Perform a single trace at the entity's current position.
-            // This is exactly what your original working code did.
             trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask);
-
-            // Check if the trace hit another monster on the same team.
             if (tr.ent && (tr.ent->svflags & SVF_MONSTER) && OnSameTeam(ent, tr.ent))
             {
-                // If so, disable monster-on-monster collision for this physics step.
                 mask &= ~CONTENTS_MONSTER;
             }
         }

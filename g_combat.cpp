@@ -952,10 +952,6 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 		return;
 	}
 
-	// Cache this result to avoid repeated string comparison
-	//const bool isSentrygun = attacker->classname &&
-	//	strcmp(attacker->classname, "monster_sentrygun") == 0;
-
 	// Pre-calculate health stolen once
 	float health_stolen = damage / 4.0f;
 	//if (isSentrygun) {

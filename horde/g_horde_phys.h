@@ -27,35 +27,48 @@ namespace HordePhys {
     // The main grid class that manages monster proximity checks.
     class ProximityGrid {
     public:
-        // Call this once per frame before running physics.
-        // It calculates the grid dimensions based on the world size.
+        // --- MOVED TO PUBLIC ---
+        // This constant is now needed by the emergency spawn logic.
+        static constexpr int GRID_DIMENSION = 16;
+
+        // --- PUBLIC API ---
         void Build(const vec3_t& world_mins, const vec3_t& world_maxs);
-
-        // Call this for each active monster to place it in the grid.
         void Add(edict_t* ent);
-
-        // The core query function. Given an entity, it returns a list of
-        // other monsters that are in the same or adjacent grid cells.
-        // This is the list of potential colliders.
         std::span<edict_t* const> GetPotentialColliders(edict_t* ent);
 
+        // --- MOVED TO PUBLIC ---
+        // Helper to convert a world coordinate to a grid index.
+        // Needed by the emergency spawn logic.
+        int GetCellIndex(const vec3_t& pos) const;
+
+        // --- NEW PUBLIC ACCESSORS ---
+        // These are required by the new FindEmergencySpawnPositionViaGridSearch function.
+        [[nodiscard]] bool IsBuilt() const noexcept { return m_is_built; }
+        [[nodiscard]] float GetCellSize() const noexcept { return m_cell_size; }
+        [[nodiscard]] const vec3_t& GetWorldMins() const noexcept { return m_world_mins; }
+        
+        // +++ NEW +++
+        // This accessor lets the spawn logic check if a grid cell is in the playable area.
+        [[nodiscard]] bool IsCellWalkable(int cell_index) const {
+            if (cell_index < 0 || cell_index >= CELL_COUNT) return false;
+            return m_is_cell_walkable[cell_index];
+        }
+
     private:
-        // Using a fixed-size grid. 16x16 = 256 cells is a good starting point.
-        static constexpr int GRID_DIMENSION = 16;
+        // --- PRIVATE DATA ---
         static constexpr int CELL_COUNT = GRID_DIMENSION * GRID_DIMENSION;
         std::array<ProximityGridCell, CELL_COUNT> m_cells;
+        
+        // +++ NEW +++
+        // This array stores whether a cell is over solid ground or over a void.
+        std::array<bool, CELL_COUNT> m_is_cell_walkable;
 
-        // A single, reusable buffer for query results to avoid allocations.
         std::array<edict_t*, MAX_EDICTS> m_query_buffer;
 
-        // Cached grid properties for fast calculations.
         vec3_t m_world_mins;
         float m_cell_size = 0.0f;
         float m_inv_cell_size = 0.0f;
         bool m_is_built = false;
-
-        // Helper to convert a world coordinate to a grid index.
-        int GetCellIndex(const vec3_t& pos) const;
     };
 
     // The single global instance of our grid.

@@ -184,10 +184,11 @@ namespace HordeConstants
 } // namespace HordeConstants
 
 // --- Forward Declarations ---
+bool FindEmergencySpawnPositionViaGridSearch(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t* specific_target = nullptr);
 static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
-[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying, bool is_predefined_location = false);
+[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying, bool is_predefined_location);
 bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t* specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
@@ -5150,7 +5151,8 @@ void InitializeWaveSystem() noexcept
 static void SetMonsterArmor(edict_t *monster);
 static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 
-// REPLACEMENT: FindEmergencySpawnPosition (with robust checks)
+// In g_horde.cpp
+
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t* specific_target)
 {
 	PROFILE_SCOPE("FindEmergencySpawnPosition");
@@ -5180,8 +5182,8 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 
 	constexpr int MAX_ATTEMPTS_PER_PLAYER = 16;
 	constexpr float MIN_RADIUS = HordeConstants::MIN_PLAYER_DIST_GENERATE;
-	constexpr float MAX_RADIUS = 800.0f; // Reduced radius slightly
-    static const vec3_t trace_box = {-4, -4, -4}; // Box for fat trace
+	constexpr float MAX_RADIUS = 800.0f;
+    static const vec3_t trace_box = {-4, -4, -4};
 
 	for (edict_t* player : target_candidates)
 	{
@@ -5193,19 +5195,17 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 			vec3_t candidate_pos = {
 				player_origin.x + cosf(angle_rad) * radius,
 				player_origin.y + sinf(angle_rad) * radius,
-				player_origin.z + frandom(8.0f, 48.0f) // Adjusted Z offset
+				player_origin.z + frandom(8.0f, 48.0f)
 			};
 
-            // TWO-STEP VALIDATION FOR EMERGENCY SPAWNS
-            
-            // Step A: "Fat" trace from PLAYER to candidate position to ensure reachability.
             trace_t los_trace = gi.trace(player_origin, trace_box, trace_box, candidate_pos, player, MASK_SOLID);
             if (los_trace.fraction < 1.0f) {
-                continue; // Path from player is blocked by world geometry.
+                continue;
             }
 
-			// Step B: Check if the spot itself is physically valid.
-			if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying) &&
+			// --- THE FIX IS HERE ---
+			// Add 'false' as the 5th argument, since this is not a predefined location.
+			if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying, false) &&
 				!IsPositionTooCloseToRecentSpawn(candidate_pos) &&
 				!IsPositionTooCloseToRecentTeleport(candidate_pos))
 			{
@@ -5213,7 +5213,6 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 				vec3_t dir_to_player = player_origin - candidate_pos;
 				angles = (dir_to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) ? vectoangles(dir_to_player) : player->s.angles;
 				angles[PITCH] = 0;
-
 				used_human_player = !(player->svflags & SVF_BOT);
 				return true;
 			}
@@ -5272,36 +5271,39 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	return BoxEdictsResult_t::Skip;
 }
 
-// REPLACEMENT for IsPositionPhysicallyValid
-// This is a low-level validator. Its only job is to answer:
-// "Can a monster physically exist at this specific coordinate?"
-// It checks for solid world geometry, finds a valid floor, and checks for entity occupation.
 [[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying, bool is_predefined_location)
 {
-    // For flying monsters OR any monster at a predefined spot, we only care if the space is clear.
-    // We don't need to find a floor.
-    if (is_flying || is_predefined_location) {
-        trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
-        if (trace.startsolid || trace.allsolid) {
-            return false; // The space is occupied by something.
+    vec3_t check_pos = io_position;
+
+    // --- 1. Quick Fail: Check if the starting point is inside a solid wall ---
+    if (gi.pointcontents(check_pos) & MASK_SOLID) {
+        return false;
+    }
+
+    // --- 2. Floor Snapping for Ground Units ---
+    // For non-flying monsters, we must find a valid floor, unless it's a special, hand-placed location.
+    // This function will adjust check_pos to be correctly on the ground.
+    if (!is_flying && !is_predefined_location) {
+        if (!M_droptofloor_generic(check_pos, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false)) {
+            // Failed to find a floor. This can happen if the candidate position is too high
+            // above any surface, even within a valid grid cell.
+            return false;
         }
-        return true; // The space is clear, it's a valid spawn.
     }
 
-    // --- This block now ONLY runs for NON-FLYING monsters at NON-PREDEFINED locations (e.g., random spawns) ---
-    // Stage A: We MUST find a floor for these.
-    vec3_t original_pos = io_position;
-    if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false)) {
-        io_position = original_pos;
+    // --- 3. Final Volume Check ---
+    // After positioning, do one final, definitive trace to check the entire volume
+    // the monster will occupy against ALL solid objects and other monsters.
+    trace_t final_check = gi.trace(check_pos, monster_mins, monster_maxs, check_pos, nullptr, MASK_MONSTERSOLID);
+
+    if (final_check.startsolid || final_check.allsolid) {
+        // The volume is occupied by world geometry or another solid entity.
         return false;
     }
 
-    // Stage B: Check for other entities at the new, floor-dropped position.
-    trace_t entity_trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
-    if (entity_trace.startsolid) {
-        return false;
-    }
-
+    // --- 4. Success ---
+    // The position is valid. Update the output parameter with the potentially adjusted position.
+    io_position = check_pos;
     return true;
 }
 
@@ -5342,42 +5344,80 @@ static edict_t* FindBestPlayerTargetForTeleport()
     return target_player;
 }
 
-static edict_t* FindTeleportDestination(edict_t* self)
+// In g_horde.cpp
+
+// Finds a safe, fair, and tactically reasonable spawn point for a monster being rescued via teleport.
+// It prioritizes spots that are near a player but not directly visible to them.
+static edict_t* FindSafeTeleportDestination(edict_t* self)
 {
-    horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-    const bool can_monster_fly = IsFlying(monsterTypeId);
+    // 1. Determine the target player.
+    edict_t* target_player = self->enemy;
+    if (!target_player || !target_player->client) {
+        target_player = FindBestPlayerTargetForTeleport();
+        if (!target_player) {
+            return nullptr; // No players on the map, cannot find a destination.
+        }
+    }
 
-    std::vector<edict_t*> candidates;
-    candidates.reserve(MAX_SPAWN_POINTS);
+    // 2. Get monster properties.
+    const bool can_monster_fly = IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname));
 
+    // 3. Score all available spawn points.
+    edict_t* best_spot = nullptr;
+    float best_score = -1.0f;
+
+    // Use the modern iterator for spawn points.
     for (edict_t* spawn_point : monster_spawn_points())
     {
+        // --- Basic Validation ---
         if (!spawn_point || !spawn_point->inuse) continue;
 
         const int index = spawn_point - g_edicts;
-
-        // Access SoA data
         if (level.time < g_spawnPointsData.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point)) {
             continue;
         }
-
-        const bool is_flying_point = (spawn_point->style == 1);
-        if (!can_monster_fly && is_flying_point) {
+        if (!can_monster_fly && (spawn_point->style == 1)) {
             continue;
         }
-        
-        candidates.push_back(spawn_point);
+
+        // --- Scoring Logic ---
+        float score = 100.0f; // Start with a base score.
+        float dist_sq = (spawn_point->s.origin - target_player->s.origin).lengthSquared();
+
+        // A. Ideal Distance Bonus: Give a bonus for being in a sweet spot (not too close, not too far).
+        constexpr float MIN_DIST_SQ = 400.0f * 400.0f; // 400 units
+        constexpr float MAX_DIST_SQ = 1200.0f * 1200.0f; // 1200 units
+        if (dist_sq > MIN_DIST_SQ && dist_sq < MAX_DIST_SQ) {
+            score += 100.0f;
+        }
+
+        // B. Surprise Bonus: Is the spot currently hidden from the player's view?
+        // =======================================================================
+        // --- THIS IS THE FIX ---
+        // =======================================================================
+        vec3_t player_eye_pos = target_player->s.origin + vec3_t{0, 0, static_cast<float>(target_player->viewheight)};
+        trace_t los = gi.trace(player_eye_pos, vec3_origin, vec3_origin, spawn_point->s.origin, target_player, MASK_SOLID);
+        if (los.fraction < 1.0f) {
+            score += 150.0f; // High value for being out of sight.
+        }
+
+        // C. Proximity Penalty: Penalize spots that are very close to avoid cheap teleports.
+        if (dist_sq < (350.0f * 350.0f)) {
+            score -= 200.0f;
+        }
+
+        // D. Randomness: Add a small random factor to prevent always picking the same spot.
+        score += frandom() * 25.0f;
+
+        if (score > best_score) {
+            best_score = score;
+            best_spot = spawn_point;
+        }
     }
 
-    if (candidates.empty()) {
-        return nullptr;
-    }
-
-    return random_element(candidates);
+    return best_spot;
 }
 
-
-// REPLACEMENT: CheckAndTeleportStuckMonster (with tiered, prioritized timeouts)
 bool CheckAndTeleportStuckMonster(edict_t *self)
 {
     PROFILE_SCOPE("CheckAndTeleportStuckMonster");
@@ -5408,11 +5448,10 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         return false;
     }
 
-    // --- 3. Determine if Teleport is Needed (Refactored Logic) ---
+    // --- 3. Determine if Teleport is Needed (Tiered Timeout Logic) ---
     bool needs_teleport = false;
     const char* reason_str = "Unknown";
 
-    // Primary, immediate reasons for teleport
     if (gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid) {
         needs_teleport = true;
         reason_str = "Stuck in Geometry";
@@ -5421,14 +5460,9 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         reason_str = "Drowning";
     }
 
-    // Secondary, time-based reasons for teleport.
     if (!needs_teleport) {
-        if (self->teleport_time > level.time) {
-            return false; // On personal teleport cooldown.
-        }
-        if (self->enemy && self->monsterinfo.attack_finished > level.time) {
-            return false; // Don't teleport mid-attack.
-        }
+        if (self->teleport_time > level.time) return false;
+        if (self->enemy && self->monsterinfo.attack_finished > level.time) return false;
 
         if (!self->enemy || !self->enemy->inuse) {
             if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec) self->monsterinfo.no_enemy_timeout_start_time = level.time;
@@ -5440,82 +5474,57 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
             self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
         }
 
-        // =======================================================================
-        // --- NEW TIERED TIMEOUT LOGIC ---
-        // =======================================================================
-        if (!needs_teleport && self->max_health > 0)
-        {
-            // Define a shorter timeout for monsters that have already been in a fight.
+        if (!needs_teleport && self->max_health > 0) {
             constexpr gtime_t DAMAGED_MONSTER_INACTIVITY_TIMEOUT = 15.0_sec;
-
-            // Determine which timeout duration to use.
-            gtime_t timeout_duration;
-            const char* timeout_reason;
-
-            if (self->health < self->max_health) {
-                // This monster has been damaged. Use the shorter, high-priority timeout.
-                timeout_duration = DAMAGED_MONSTER_INACTIVITY_TIMEOUT;
-                timeout_reason = "Damaged Monster Inactivity";
-            } else {
-                // This monster is at full health. Use the standard, long failsafe timeout.
-                timeout_duration = HordeConstants::NO_DAMAGE_TIMEOUT;
-                timeout_reason = "No Damage Timeout (Failsafe)";
-            }
-
-            // Perform the check using the selected duration.
+            gtime_t timeout_duration = (self->health < self->max_health) ? DAMAGED_MONSTER_INACTIVITY_TIMEOUT : HordeConstants::NO_DAMAGE_TIMEOUT;
+            const char* timeout_reason = (self->health < self->max_health) ? "Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
             if (level.time > self->monsterinfo.react_to_damage_time + timeout_duration) {
                 needs_teleport = true;
                 reason_str = timeout_reason;
             }
         }
-        // =======================================================================
-        // --- END OF NEW LOGIC ---
-        // =======================================================================
     }
 
     if (!needs_teleport) return false;
 
     if (developer->integer) gi.Com_PrintFmt("[CATS] Trigger for {}: {}.\n", self->classname, reason_str);
 
-    // --- 4. Find Teleport Destination & Execute (Same as before) ---
+    // --- 4. Find Teleport Destination & Execute ---
     vec3_t dest_origin = vec3_origin;
     vec3_t dest_angles = self->s.angles;
     edict_t* used_spawn_point = nullptr;
 
-    used_spawn_point = FindTeleportDestination(self);
+    // *** THIS IS THE CHANGE: Use the new "safe" teleport finder ***
+    used_spawn_point = FindSafeTeleportDestination(self);
+
     if (used_spawn_point) {
         dest_origin = used_spawn_point->s.origin;
         dest_angles = used_spawn_point->s.angles;
-    }
-
-    if (dest_origin == vec3_origin || frandom() < 0.40f) {
-        bool used_human_player = false;
-        horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-        if (FindEmergencySpawnPosition(dest_origin, dest_angles, used_human_player, monsterTypeId, FindBestPlayerTargetForTeleport())) {
-            used_spawn_point = nullptr;
-        } else if (dest_origin == vec3_origin) {
-            self->teleport_time = level.time + 5.0_sec;
+    } else {
+        // If the tactical search fails, fall back to the emergency grid search as a last resort.
+        if (!FindEmergencySpawnPositionViaGridSearch(dest_origin, dest_angles, horde::MonsterTypeRegistry::GetTypeID(self->classname))) {
+            self->teleport_time = level.time + 5.0_sec; // Cooldown before trying again
             return false;
         }
     }
     
     dest_angles[PITCH] = 0;
 
-	if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
-			MarkPositionAsRecentlyTeleported(self->s.origin);
-			if (used_spawn_point) {
-				const int index = used_spawn_point - g_edicts;
-				g_spawnPointsData.teleport_cooldown[index] = level.time + 3.5_sec;
-			}
-			HordeConstants::g_teleport_rate_count++;
-			self->monsterinfo.was_stuck = false;
-			self->monsterinfo.stuck_check_time = 0_sec;
-			self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
-			return true;
-		}
+    if (Horde_TeleportMonster(self, dest_origin, dest_angles, true, false)) {
+        MarkPositionAsRecentlyTeleported(self->s.origin);
+        if (used_spawn_point) {
+            const int index = used_spawn_point - g_edicts;
+            g_spawnPointsData.teleport_cooldown[index] = level.time + 3.5_sec;
+        }
+        HordeConstants::g_teleport_rate_count++;
+        self->monsterinfo.was_stuck = false;
+        self->monsterinfo.stuck_check_time = 0_sec;
+        self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+        return true;
+    }
 
-		return false;
-	}
+    return false;
+}
 
 // Helper function to select a retaliation-themed monster
 horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel)
@@ -5753,9 +5762,7 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 {
 	PROFILE_SCOPE("TryAlternativeSpawnPosition");
 
-	// --- 1. Input Validation and Prerequisites ---
 	if (!spawn_point || !spawn_point->inuse || !is_valid_vector(spawn_point->s.origin)) {
-		if (developer->integer) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Invalid spawn_point parameter.\n");
 		return false;
 	}
 
@@ -5764,62 +5771,45 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 	const bool is_flying = IsFlying(typeId);
 
 	vec3_t predicted_mins, predicted_maxs;
-	if (!GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs)) {
-		if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Using fallback bounds for TypeID {}.\n", (int)typeId);
-	}
+	GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 
-	// --- 2. Helper Lambda for Core Validation Logic ---
-	// This lambda encapsulates the repeated checks to keep our code DRY (Don't Repeat Yourself).
 	auto check_and_set_position = 
 		[&](const vec3_t& candidate_pos, const vec3_t& offset_dir) -> bool 
 	{
-		// 2a. Line-of-Sight Check (THE "TANK" LOGIC)
-		// Trace from the original spawn point to the candidate position.
-		// If it's blocked by the world (MASK_SOLID), this spot is invalid.
 		trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-		if (los_trace.fraction < 1.0f) { // Use 1.0f for a strict check
-			return false; // Path is blocked by the world, this is a bad spot.
+		if (los_trace.fraction < 1.0f) {
+			return false;
 		}
 
-		// 2b. Full Location Validation (using our refined function)
 		vec3_t validated_pos = candidate_pos;
-		if (IsPositionPhysicallyValid(validated_pos, predicted_mins, predicted_maxs, is_flying)) {
+        // --- THE FIX IS HERE ---
+        // Add 'false' as the 5th argument.
+		if (IsPositionPhysicallyValid(validated_pos, predicted_mins, predicted_maxs, is_flying, false)) {
 			
-			// 2c. Final Proximity Check (to avoid clustering)
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos)) {
-				// SUCCESS! We found a valid, visible, and non-clustered spot.
 				final_origin = validated_pos;
-				
-				// Calculate angle to face away from the original blocked point.
 				if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) {
 					final_angles = vectoangles(offset_dir);
-					// Always zero out the pitch to prevent monsters from looking up/down on spawn.
 					final_angles[PITCH] = 0; 
 				} else {
-					final_angles = base_angles; // Fallback to original angle if offset is zero.
+					final_angles = base_angles;
 				}
-
 				MarkPositionAsRecentlyUsed(final_origin);
 				return true;
 			}
 		}
-		return false; // One of the checks failed.
+		return false;
 	};
 
-	// --- 3. Phase 1: Try Shuffled Predefined Offsets ---
-	// This is a fast way to check common, nearby valid spots.
 	auto alternative_offsets = HordeConstants::horde_alternative_positions;
 	std::shuffle(alternative_offsets.begin(), alternative_offsets.end(), mt_rand);
 
 	for (const auto& offset : alternative_offsets) {
 		if (check_and_set_position(base_origin + offset, offset)) {
-			if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with predefined offset {}.\n", offset);
 			return true;
 		}
 	}
 
-	// --- 4. Phase 2: Fallback to Radial Offsets ---
-	// If predefined offsets fail, we search in a wider, random radius.
 	constexpr int RADIAL_ATTEMPTS = 35;
 	constexpr float MIN_RADIUS = 40.0f;
 	constexpr float MAX_RADIUS = 225.0f;
@@ -5830,17 +5820,14 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 		vec3_t offset = { cosf(angle_rad) * radius, sinf(angle_rad) * radius, frandom(-8.0f, 24.0f) };
 		
 		if (check_and_set_position(base_origin + offset, offset)) {
-			if (developer->integer > 1) gi.Com_PrintFmt("TryAlternativeSpawnPosition: Success with radial offset {}.\n", offset);
 			return true;
 		}
 	}
 
-	// --- 5. Failure ---
-	if (developer->integer) {
-		gi.Com_PrintFmt("TryAlternativeSpawnPosition: Failed to find any valid alternative for spawn point at {}.\n", base_origin);
-	}
 	return false;
 }
+#include "g_horde_phys.h" 
+
 
 bool EmergencySpawnMonster(const int32_t levelNum,
                            horde::MonsterTypeID typeId,
@@ -5849,18 +5836,18 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 {
     PROFILE_SCOPE("EmergencySpawnMonster");
 
-    // --- Phase 1: Find a valid spot ---
+    // --- Phase 1: Find a valid spot using the new grid-based search ---
     vec3_t emergency_origin, emergency_angles;
-    bool used_human_player = false; // This isn't used after, but FindEmergency needs it.
 
-    if (!FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human_player, typeId)) {
+    // Use our new, more reliable function to find a spawn location.
+    if (!FindEmergencySpawnPositionViaGridSearch(emergency_origin, emergency_angles, typeId)) {
         if (developer->integer) {
             gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}.\n", static_cast<int>(typeId));
         }
         return false;
     }
 
-    // --- Phase 2: Spawn the monster ---
+    // --- Phase 2: Spawn the monster at the found location ---
     edict_t* monster = SpawnMonsterByTypeID(typeId, emergency_origin, emergency_angles, true);
     if (!monster) {
         if (developer->integer) {
@@ -5869,7 +5856,8 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         return false;
     }
 
-    // --- Phase 3: Apply bonuses using the new helper ---
+    // --- Phase 3: Apply horde bonuses (champion status, item drops, armor) ---
+    // This function can potentially free the monster, so we must check its return value.
     if (!ApplyHordeBonuses(monster, levelNum, champion_chance_for_this_spawn)) {
         // The monster was freed or became invalid during bonus application.
         if (developer->integer) {
@@ -5881,8 +5869,8 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         return false;
     }
 
-    // --- Phase 4: Finalize and add effects ---
-	// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
+    // --- Phase 4: Finalize with effects and update wave counts ---
+    // SAFETY CHECK: Ensure the monster is still valid and alive before playing effects.
     if (monster->inuse && !monster->deadflag && monster->health > 0) {
         SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
         if (sound_spawn1) {
@@ -5892,6 +5880,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 
     // If this was an "additional" monster (like from an ambush), update the total count for the wave.
     if (is_additional_monster) {
+        // Prevent potential overflow on the wave counter.
         if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
             g_totalMonstersInWave++;
         }
@@ -5903,6 +5892,110 @@ bool EmergencySpawnMonster(const int32_t levelNum,
     }
 
     return true;
+}
+
+// =======================================================================
+// REPLACEMENT: FindEmergencySpawnPositionViaGridSearch (Aggressive Version)
+//
+// This version is optimized for proximity and action over stealth.
+//
+// 1. Takes the FIRST valid spot it finds, guaranteeing the closest possible spawn.
+// 2. Reduces the maximum search radius to keep spawns closer to the player.
+// 3. Simplifies the cell check for faster performance.
+// =======================================================================
+bool FindEmergencySpawnPositionViaGridSearch(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t* specific_target)
+{
+    // --- 1. Build a prioritized list of potential targets (unchanged) ---
+    std::vector<edict_t*> target_candidates;
+    target_candidates.reserve(MAX_CLIENTS);
+    if (specific_target && specific_target->inuse && specific_target->health > 0) {
+        target_candidates.push_back(specific_target);
+    }
+    std::vector<edict_t*> other_players;
+    for (auto* p : active_players_no_spect()) {
+        if (p != specific_target) {
+            other_players.push_back(p);
+        }
+    }
+    std::shuffle(other_players.begin(), other_players.end(), mt_rand);
+    target_candidates.insert(target_candidates.end(), other_players.begin(), other_players.end());
+    if (target_candidates.empty()) {
+        return false;
+    }
+
+    // --- 2. Get prerequisites for the search (unchanged) ---
+    vec3_t monster_mins, monster_maxs;
+    GetPredictedScaledBounds(typeId, monster_mins, monster_maxs);
+    const bool is_flying = IsFlying(typeId);
+    const auto& grid = HordePhys::g_monster_grid;
+    if (!grid.IsBuilt()) {
+        bool used_human;
+        return FindEmergencySpawnPosition(out_position, out_angles, used_human, typeId, specific_target);
+    }
+
+    // --- 3. Perform the simplified, aggressive grid search ---
+    for (edict_t* target_player : target_candidates)
+    {
+        const int start_cell_idx = grid.GetCellIndex(target_player->s.origin);
+        if (start_cell_idx < 0) {
+            continue;
+        }
+
+        const int start_x = start_cell_idx % HordePhys::ProximityGrid::GRID_DIMENSION;
+        const int start_y = start_cell_idx / HordePhys::ProximityGrid::GRID_DIMENSION;
+
+        // --- CHANGE 1: Reduced search radius for closer spawns ---
+        constexpr int MAX_SEARCH_RADIUS = 5;
+
+        for (int r = 1; r <= MAX_SEARCH_RADIUS; ++r) {
+            for (int y = -r; y <= r; ++y) {
+                for (int x = -r; x <= r; ++x) {
+                    if (abs(x) < r && abs(y) < r) {
+                        continue;
+                    }
+
+                    const int check_x = start_x + x;
+                    const int check_y = start_y + y;
+
+                    if (check_x < 0 || check_x >= HordePhys::ProximityGrid::GRID_DIMENSION ||
+                        check_y < 0 || check_y >= HordePhys::ProximityGrid::GRID_DIMENSION) {
+                        continue;
+                    }
+
+                    const int cell_idx = check_y * HordePhys::ProximityGrid::GRID_DIMENSION + check_x;
+                    if (!grid.IsCellWalkable(cell_idx)) {
+                        continue;
+                    }
+
+                    // --- CHANGE 2: Simplified cell check (center point) ---
+                    vec3_t candidate_pos = {
+                        grid.GetWorldMins().x + (check_x + 0.5f) * grid.GetCellSize(),
+                        grid.GetWorldMins().y + (check_y + 0.5f) * grid.GetCellSize(),
+                        target_player->s.origin.z + 16.0f // Start check slightly above player's feet
+                    };
+
+                    // --- THE CORE CHANGE: Take the FIRST valid spot ---
+                    if (IsPositionPhysicallyValid(candidate_pos, monster_mins, monster_maxs, is_flying, false) &&
+                        !IsPositionTooCloseToRecentSpawn(candidate_pos))
+                    {
+                        // We found a valid spot. Finalize and return immediately.
+                        out_position = candidate_pos;
+                        vec3_t dir_to_player = target_player->s.origin - out_position;
+                        out_angles = vectoangles(dir_to_player);
+                        out_angles[PITCH] = 0;
+                        return true; // SUCCESS!
+                    }
+                }
+            }
+        }
+    }
+
+    // --- 4. Failsafe Fallback (unchanged) ---
+    if (developer->integer) {
+        gi.Com_PrintFmt("Aggressive grid search failed. Attempting legacy fallback...\n");
+    }
+    bool used_human_player;
+    return FindEmergencySpawnPosition(out_position, out_angles, used_human_player, typeId, specific_target);
 }
 
 // Modified ShouldTriggerAmbushSpawn function for more frequent ambushes
@@ -5974,7 +6067,6 @@ bool ShouldTriggerAmbushSpawn()
 	}
 }
 
-// NEW HELPER: Spawns one monster from an active ambush/retaliation batch.
 static void SpawnSingleAmbushMonsterFromBatch()
 {
 	// Early exit if no ambush batch is active or it's not time yet.
@@ -5988,25 +6080,10 @@ static void SpawnSingleAmbushMonsterFromBatch()
 	if (info.typeId != horde::MonsterTypeID::UNKNOWN)
 	{
 		vec3_t spawn_pos, spawn_angles;
-		bool used_human_player = false;
-		bool position_found = false;
 
-		// <<< FIX: Implement a two-pass spawn attempt for reliability >>>
-		// --- Attempt 1: Try to spawn near the specific retaliation target ---
-		if (info.is_retaliation && info.target_player) {
-			position_found = FindEmergencySpawnPosition(spawn_pos, spawn_angles, used_human_player, info.typeId, info.target_player);
-			if (!position_found && developer->integer) {
-				gi.Com_PrintFmt("Retaliation Spawn: Failed to find spot near primary target. Trying fallback...\n");
-			}
-		}
-
-		// --- Attempt 2: If the first attempt failed or it's a general ambush, try spawning near ANY player ---
-		if (!position_found) {
-			position_found = FindEmergencySpawnPosition(spawn_pos, spawn_angles, used_human_player, info.typeId, nullptr);
-		}
-		// <<< END FIX >>>
-
-		if (position_found)
+		// Make a single, intelligent call. The function itself handles the fallback logic.
+		// We pass info.target_player, which will be the primary target if it exists.
+		if (FindEmergencySpawnPositionViaGridSearch(spawn_pos, spawn_angles, info.typeId, info.target_player))
 		{
 			// Spawn the monster at the found position
 			edict_t* monster = SpawnMonsterByTypeID(info.typeId, spawn_pos, spawn_angles, true);
@@ -6014,14 +6091,12 @@ static void SpawnSingleAmbushMonsterFromBatch()
 			{
 				// Apply bonuses and effects
 				if (ApplyHordeBonuses(monster, g_horde_local.level, info.champion_chance) && monster->inuse) {
-					// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
 					if (monster->inuse && !monster->deadflag && monster->health > 0) {
 						SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 						if (sound_spawn1) {
 							gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 						}
 					}
-					// This is an "additional" monster, so we must increment the total wave count
 					if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
 						g_totalMonstersInWave++;
 					}
@@ -6029,7 +6104,7 @@ static void SpawnSingleAmbushMonsterFromBatch()
 			}
 		}
 		else if (developer->integer) {
-			// This log will now only appear if both passes failed.
+			// This log will now only appear if the search failed for ALL players.
 			gi.Com_PrintFmt("Ambush Spawn FAILED: Could not find any valid emergency spawn position on the map.\n");
 		}
 	}
@@ -6529,8 +6604,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
     return true;
 }
 
-// NEW HELPER FUNCTION - This is the high-level orchestrator for finding a valid spawn spot.
-// It implements the "tank logic" with robust checks.
+// This is the high-level orchestrator for finding a valid spawn spot for normal spawns.
 static bool FindValidSpawnSpot(
     edict_t* spawn_point,
     horde::MonsterTypeID monster_type,
@@ -6547,7 +6621,8 @@ static bool FindValidSpawnSpot(
 
     // --- 2. Attempt Direct Spawn ---
     vec3_t direct_pos = base_origin;
-    if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying)) {
+    // FIX #1: Add 'true' because this is a predefined spawn point.
+    if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying, true)) {
         out_origin = direct_pos;
         out_angles = base_angles;
         out_used_alternative = false;
@@ -6558,21 +6633,20 @@ static bool FindValidSpawnSpot(
     auto alternative_offsets = HordeConstants::horde_alternative_positions;
     std::shuffle(alternative_offsets.begin(), alternative_offsets.end(), mt_rand);
 
-    static const vec3_t trace_box = {-4, -4, -4}; // A small box for our "fat" trace
+    static const vec3_t trace_box = {-4, -4, -4};
 
     for (const auto& offset : alternative_offsets) {
         vec3_t candidate_pos = base_origin + offset;
 
-        // Step A: "Fat" Line-of-Sight Check from the original point to the candidate.
         trace_t los_trace = gi.trace(base_origin, trace_box, trace_box, candidate_pos, spawn_point, MASK_SOLID);
         if (los_trace.fraction < 1.0f) {
-            continue; // Path is blocked by world geometry.
+            continue;
         }
 
-        // Step B: Physical Validity Check of the candidate position itself.
-        if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying)) {
+        // FIX #2: Add 'false' because this is a dynamically generated alternative spot.
+        if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying, false)) {
             out_origin = candidate_pos;
-            out_angles = vectoangles(offset); // Face away from the original blocked point
+            out_angles = vectoangles(offset);
             out_angles[PITCH] = 0;
             out_used_alternative = true;
             return true;
@@ -7317,40 +7391,19 @@ bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &out_mins, vec
     return true;
 }
 
-bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, const vec3_t &destination_angles, bool play_effects, bool force_despite_visibility = false)
+bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, const vec3_t &destination_angles, bool play_effects, bool force_despite_visibility)
 {
 	PROFILE_SCOPE("Horde_TeleportMonster");
-	if (level.intermissiontime)
-	{
-		return false;
-	}
+	if (level.intermissiontime) return false;
 
-	if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles))
-	{
-		if (developer->integer > 1 && self)
-		{
-			gi.Com_PrintFmt("Horde_TeleportMonster: Basic validation failed for {}. InUse:{} Dead:{} DestOrigin:({:.1f},{:.1f},{:.1f}) DestAngles:({:.1f},{:.1f},{:.1f})\n",
-							self->classname ? self->classname : "NO_CLASSNAME",
-							self ? self->inuse : 0, self ? self->deadflag : 0,
-							destination_origin.x, destination_origin.y, destination_origin.z,
-							destination_angles.x, destination_angles.y, destination_angles.z);
-		}
+	if (!self || !self->inuse || self->deadflag || !is_valid_vector(destination_origin) || !is_valid_vector(destination_angles)) {
 		return false;
 	}
 
 	if (self->monsterinfo.issummoned ||
-		(!force_despite_visibility &&
-		 (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))))
+		(!force_despite_visibility && (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))))
 	{
-		constexpr gtime_t VISIBLE_ENEMY_CANCEL_COOLDOWN = 1.5_sec;
-		self->teleport_time = level.time + VISIBLE_ENEMY_CANCEL_COOLDOWN;
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("Horde_TeleportMonster: Teleport cancelled for {} - summoned or enemy visible (force_vis: {}). Applying short cooldown ({:.1f}s).\n",
-							self->classname ? self->classname : "UNKNOWN",
-							force_despite_visibility,
-							VISIBLE_ENEMY_CANCEL_COOLDOWN.seconds());
-		}
+		self->teleport_time = level.time + 1.5_sec;
 		return false;
 	}
 
@@ -7375,12 +7428,11 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 	bool is_flying_monster = IsFlying(monsterTypeId);
 	vec3_t predicted_mins, predicted_maxs;
-	if (!GetPredictedScaledBounds(monsterTypeId, predicted_mins, predicted_maxs))
-	{
-		// Warning logged by GetPredictedScaledBounds
-	}
+	GetPredictedScaledBounds(monsterTypeId, predicted_mins, predicted_maxs);
 
-	if (!IsPositionPhysicallyValid(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
+    // --- THE FIX IS HERE ---
+    // Add 'false' as the 5th argument.
+	if (!IsPositionPhysicallyValid(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster, false))
 	{
 		self->s.origin = old_origin;
 		self->s.old_origin = old_origin;
@@ -7391,13 +7443,6 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
 		self->teleport_time = level.time + 0.5_sec;
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("Horde_TeleportMonster: IsPositionPhysicallyValid failed for {} at intended ({:.1f},{:.1f},{:.1f}). Restored to ({:.1f},{:.1f},{:.1f}).\n",
-							self->classname ? self->classname : "UNKNOWN",
-							destination_origin.x, destination_origin.y, destination_origin.z,
-							old_origin.x, old_origin.y, old_origin.z);
-		}
 		return false;
 	}
 	self->s.origin = final_pos_after_validation;
@@ -7408,24 +7453,12 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	self->svflags &= ~SVF_NOCLIENT;
 	gi.linkentity(self);
 
-	if (play_effects)
-	{
-		// MODIFIED GUARD: Only play effect if monster is valid, alive, and not dead.
-		if (self->inuse && !self->deadflag && self->health > 0)
-		{
+	if (play_effects) {
+		if (self->inuse && !self->deadflag && self->health > 0) {
 			SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-			if (sound_spawn1)
-			{
+			if (sound_spawn1) {
 				gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 			}
-		}
-		else if (self->inuse && developer->integer > 1)
-		{
-			gi.Com_PrintFmt("SpawnGrow_Spawn (teleport effect) skipped: Monster {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
-							(self->classname ? self->classname : "Unknown"),
-							(int)(self - g_edicts),
-							self->deadflag,
-							self->health);
 		}
 	}
 
@@ -7434,14 +7467,6 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	self->monsterinfo.react_to_damage_time = level.time;
 	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
-	if (developer->integer > 1)
-	{
-		gtime_t time_until_next_teleport = self->teleport_time - level.time;
-		gi.Com_PrintFmt("Horde_TeleportMonster: Successfully teleported {} to ({:.1f},{:.1f},{:.1f}). Next teleport possible in {:.1f}s.\n",
-						self->classname ? self->classname : "UNKNOWN",
-						self->s.origin.x, self->s.origin.y, self->s.origin.z,
-						time_until_next_teleport.seconds());
-	}
 	return true;
 }
 
