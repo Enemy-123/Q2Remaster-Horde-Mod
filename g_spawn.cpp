@@ -1578,7 +1578,7 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 		return false;
 	}
 }
-
+//#include "horde/g_horde_phys.h"
 //#include <map>
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
@@ -1788,7 +1788,21 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	//}
 
 	level.is_spawning = false;
+
+	//     // Calculate the world bounds based on the entities that were just spawned.
+    // // (Your existing logic for this is good)
+    // vec3_t world_mins{}, world_maxs{};
+    // ClearBounds(world_mins, world_maxs);
+    // for (auto* sp : monster_spawn_points()) { // Or iterate all items/players
+    //     AddPointToBounds(sp->s.origin, world_mins, world_maxs);
+    // }
+    // world_mins -= vec3_t{512, 512, 512};
+    // world_maxs += vec3_t{512, 512, 512};
+
+    // // Now, call the build function.
+    // HordePhys::g_monster_grid.Build(world_mins, world_maxs);
 }
+
 
 //===================================================================
 
