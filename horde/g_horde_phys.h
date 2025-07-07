@@ -38,16 +38,16 @@ namespace HordePhys {
         [[nodiscard]] float GetCellSize() const noexcept { return m_cell_size; }
         [[nodiscard]] const vec3_t& GetWorldMins() const noexcept { return m_world_mins; }
         
-        [[nodiscard]] bool IsCellWalkable(int cell_index) const {
-            if (cell_index < 0 || cell_index >= CELL_COUNT) return false;
-            return m_is_cell_walkable[cell_index];
-        }
+        // [[nodiscard]] bool IsCellWalkable(int cell_index) const {
+        //     if (cell_index < 0 || cell_index >= CELL_COUNT) return false;
+        //     return m_is_cell_walkable[cell_index];
+        // }
 
     private:
         std::array<ProximityGridCell, CELL_COUNT> m_cells;
-        std::array<bool, CELL_COUNT> m_is_cell_walkable;
-        std::array<float, CELL_COUNT> m_cell_ground_z;
-        std::array<bool, CELL_COUNT> m_is_cell_verified; // Internal helper for Build()
+        //std::array<bool, CELL_COUNT> m_is_cell_walkable;
+        //std::array<float, CELL_COUNT> m_cell_ground_z;
+        //std::array<bool, CELL_COUNT> m_is_cell_verified; // Internal helper for Build()
 
         std::array<edict_t*, MAX_EDICTS> m_query_buffer;
 
