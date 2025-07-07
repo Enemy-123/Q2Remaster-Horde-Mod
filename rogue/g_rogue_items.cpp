@@ -116,6 +116,11 @@ void Use_TeleportSelf(edict_t* ent, gitem_t* item)
 	}
 }
 
+// ***************************
+//  SPAWN TURRET LOGIC
+// ***************************
+
+
 // Variable estática para rastrear el último uso de sentry por bots
 static gtime_t last_bot_sentry_time = 0_sec;
 constexpr gtime_t BOT_SENTRY_COOLDOWN = 5_sec;
@@ -129,23 +134,45 @@ static bool TryBotSentry(const edict_t* ent)
 		// Verificar si ha pasado suficiente tiempo desde el último uso
 		if ((level.time - last_bot_sentry_time) < BOT_SENTRY_COOLDOWN)
 		{
-			// No ha pasado suficiente tiempo - mostrar tiempo restante
-			float const remaining = (BOT_SENTRY_COOLDOWN - (level.time - last_bot_sentry_time)).seconds();
-//			gi.Client_Print(ent, PRINT_HIGH, "Bot sentry on cooldown. Please wait %.1f seconds.\n", remaining);
 			return false;
 		}
-
 		// Actualizar el tiempo del último uso
 		last_bot_sentry_time = level.time;
 	}
-
 	return true;
 }
 
+// This helper function remains the same. It's clean and does one job well.
+static bool SpawnSentryAtPoint(edict_t* owner, const vec3_t& spawn_origin, const vec3_t& spawn_angles)
+{
+    edict_t* turret = G_Spawn();
+    if (!turret)
+        return false;
+
+    turret->monsterinfo.issummoned = true;
+    turret->classname = "monster_sentrygun";
+    turret->s.origin = spawn_origin;
+    turret->s.angles = spawn_angles;
+    turret->owner = owner;
+    turret->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
+    ApplyMonsterBonusFlags(turret);
+    ED_CallSpawn(turret);
+
+    if (turret->inuse) {
+        SpawnGrow_Spawn(spawn_origin, 24.f, 48.f);
+        return true;
+    }
+
+    G_FreeEdict(turret);
+    return false;
+}
+
+// The new, all-in-one function to use the Sentry Gun item.
 void Use_SentryGun(edict_t* ent, gitem_t* item)
 {
-	if (!g_horde->integer)
-	{
+	// --- 1. Initial validation checks ---
+	if (!g_horde->integer) {
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a Sentry-Gun\n");
 		return;
 	}
@@ -153,67 +180,116 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to spawn a Sentry-Gun\n");
 		return;
 	}
-
-	// Verificar el cooldown para bots antes de cualquier otra comprobación
-	if (!TryBotSentry(ent))
-	{
+	if (!TryBotSentry(ent)) {
 		return;
 	}
-
-	// Comprueba si el jugador puede colocar una nueva torreta
 	if (ent->svflags & SVF_BOT) {
 		if (ent->client->num_sentries >= 1) {
 			return;
 		}
-	}
-	else {
+	} else {
 		if (ent->client->num_sentries >= MAX_SENTRIES) {
 			gi.Client_Print(ent, PRINT_HIGH, "You have reached the sentry gun limit.\n");
 			return;
 		}
 	}
 
-	vec3_t forward, right;
-	vec3_t createPt, spawnPt;
-	vec3_t ang;
-	// Establecer el ángulo de spawn basado en la dirección del jugador
-	ang[PITCH] = ent->client->v_angle[PITCH];
-	ang[YAW] = ent->client->v_angle[YAW];
-	ang[ROLL] = 0;
-	AngleVectors(ang, forward, right, nullptr);
+	// --- 2. Define placement constants (from old fire_sentrygun) ---
+	constexpr vec3_t SENTRY_MINS = { -12, -12, -12 };
+	constexpr vec3_t SENTRY_MAXS = { 12, 12, 12 };
+	constexpr int MAX_ATTEMPTS = 16;
+	constexpr float MIN_DEPLOY_HEIGHT = 20.0f; // Min height above player's feet
 
-	// Generar la altura con irandom y ajustar si es menor que 50
-	float forwardturret = irandom(22.f, 125.f);
-	if (forwardturret < 22.f) {
-		forwardturret = 22.f;
+	// --- 3. Create a lambda to check if a spawn position is valid ---
+	// This lambda encapsulates all the checks from the old `trySpawnPosition`.
+	auto is_valid_spawn_location = [&](const vec3_t& pos) -> bool {
+		vec3_t test_pos = pos;
+
+		// Ensure it's not spawning below the player's feet
+		if (test_pos.z - ent->s.origin.z < MIN_DEPLOY_HEIGHT) {
+			return false;
+		}
+
+		// Check line of sight from player to the spawn point
+		trace_t const trace = gi.traceline(ent->s.origin, test_pos, ent, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+		if (trace.fraction < 1.0f) {
+			return false;
+		}
+
+		// Check if the final spot has enough room
+		if (!CheckSpawnPoint(test_pos, SENTRY_MINS, SENTRY_MAXS)) {
+			return false;
+		}
+
+		// All checks passed
+		return true;
+	};
+
+	// --- 4. Placement Logic ---
+	vec3_t forward;
+	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+	vec3_t const base_spawn_angles = { 0, ent->client->v_angle[YAW], 0 };
+
+	// Generate random distance and height for placement
+	float const distance = irandom(40.f, 125.f);
+	float const height = irandom(50.f, 125.f);
+
+	// Calculate the initial desired point
+	vec3_t desired_point = ent->s.origin + (forward * distance);
+	desired_point.z += height;
+
+	vec3_t final_spawn_point;
+	vec3_t final_spawn_angles = base_spawn_angles;
+	bool found_spot = false;
+
+	// ** Primary Attempt **
+	if (is_valid_spawn_location(desired_point)) {
+		final_spawn_point = desired_point;
+		found_spot = true;
 	}
 
-	// Calcular el punto inicial de creación
-	createPt = ent->s.origin + (forward * forwardturret);
+	// ** Fallback Attempts (if primary failed) **
+	if (!found_spot) {
+		constexpr float RADIUS_MIN = 40.0f;
+		constexpr float RADIUS_MAX = 100.0f;
 
-	// Encontrar un punto de spawn válido
-	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, true)) {
-		gi.Client_Print(ent, PRINT_HIGH, "No suitable spawn point found.\n");
-		return;
+		for (int i = 0; i < MAX_ATTEMPTS; i++) {
+			float const random_angle_rad = frandom(2.0f * PIf);
+			float const radius = frandom(RADIUS_MIN, RADIUS_MAX);
+			
+			vec3_t const offset = {
+				cosf(random_angle_rad) * radius,
+				sinf(random_angle_rad) * radius,
+				0 // Height is already part of desired_point
+			};
+
+			vec3_t const test_point = desired_point + offset;
+
+			if (is_valid_spawn_location(test_point)) {
+				final_spawn_point = test_point;
+				// Optional: Adjust the sentry's angle to face away from the center
+				// final_spawn_angles[YAW] = vectoangles(offset)[YAW];
+				found_spot = true;
+				break; // Exit the loop once a spot is found
+			}
+		}
 	}
 
-	// Generar la altura con irandom y ajustar si es menor que 50
-	float height = irandom(50.f, 125.f);
-	if (height < 50.f) {
-		height = 50.f;
-	}
-
-	// Intentar spawnear la torreta y verificar si tuvo éxito
-	if (fire_sentrygun(ent, spawnPt, forward, forwardturret, height)) {
-		// Reducir la cantidad de ítems en el inventario solo si se pudo spawnear la torreta
-		ent->client->pers.inventory[item->id]--;
-		// Incrementa el número de torretas del jugador
-		ent->client->num_sentries++;
-		// Nuevo mensaje después de construir la torreta
-		gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun spawned. You have {}/{} sentry guns.\n",
-			ent->client->num_sentries, MAX_SENTRIES);
+	// --- 5. Final Action: Spawn or Fail ---
+	if (found_spot) {
+		if (SpawnSentryAtPoint(ent, final_spawn_point, final_spawn_angles)) {
+			ent->client->pers.inventory[item->id]--;
+			ent->client->num_sentries++;
+			gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun deployed. You have {}/{} sentry guns.\n",
+				ent->client->num_sentries, MAX_SENTRIES);
+		} else {
+			gi.Client_Print(ent, PRINT_HIGH, "Sentry deployment failed.\n");
+		}
+	} else {
+		gi.Client_Print(ent, PRINT_HIGH, "Cannot find a suitable location to deploy sentry gun.\n");
 	}
 }
+
 bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 {
 	int quantity;
@@ -231,7 +307,6 @@ bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 
 	return true;
 }
-
 
 bool Pickup_Teleport(edict_t* ent, edict_t* other)
 {

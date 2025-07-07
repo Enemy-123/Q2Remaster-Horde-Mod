@@ -2767,7 +2767,6 @@ void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* mons
 // g_rogue_items
 
 void Use_SentryGun(edict_t* ent, gitem_t* item);
-bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 bool Pickup_SentryGun(edict_t* ent, edict_t* other);
 void Use_TeleportSelf(edict_t* ent, gitem_t* item);
 bool Pickup_Teleport(edict_t* ent, edict_t* other);
@@ -3339,7 +3338,7 @@ struct edict_t
 	//
 	// only used locally in game, not by server
 	//
-	const char* message;
+	const char* message;monsterinfo
 	const char* classname;
 	spawnflags_t	spawnflags;
 
