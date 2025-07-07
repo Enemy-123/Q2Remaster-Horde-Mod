@@ -1,15 +1,14 @@
-// In: g_horde_phys.h
-
 #pragma once
 
 #include "../g_local.h" // For edict_t, vec3_t
 #include <span>        // For std::span
-#include <array>
 
 namespace HordePhys {
 
     // A simple grid cell that holds pointers to monsters.
     struct ProximityGridCell {
+        // We use a small, fixed-size array to avoid heap allocations,
+        // which is crucial for performance in a per-frame system.
         static constexpr size_t MAX_MONSTERS_PER_CELL = 16;
         std::array<edict_t*, MAX_MONSTERS_PER_CELL> monsters;
         size_t count = 0;
@@ -27,40 +26,45 @@ namespace HordePhys {
 
     // The main grid class that manages monster proximity checks.
     class ProximityGrid {
-    public: // <-- Make sure this is public
-        static constexpr int GRID_DIMENSION = 16;
+    public:
         // --- MOVED TO PUBLIC ---
-        static constexpr int CELL_COUNT = GRID_DIMENSION * GRID_DIMENSION;
+        // This constant is now needed by the emergency spawn logic.
+        static constexpr int GRID_DIMENSION = 16;
 
         // --- PUBLIC API ---
+        void DebugDraw();
         void Build(const vec3_t& world_mins, const vec3_t& world_maxs);
         void Add(edict_t* ent);
         std::span<edict_t* const> GetPotentialColliders(edict_t* ent);
 
+        // --- MOVED TO PUBLIC ---
+        // Helper to convert a world coordinate to a grid index.
+        // Needed by the emergency spawn logic.
         int GetCellIndex(const vec3_t& pos) const;
 
-        // --- PUBLIC ACCESSORS ---
+        // --- NEW PUBLIC ACCESSORS ---
+        // These are required by the new FindEmergencySpawnPositionViaGridSearch function.
         [[nodiscard]] bool IsBuilt() const noexcept { return m_is_built; }
         [[nodiscard]] float GetCellSize() const noexcept { return m_cell_size; }
         [[nodiscard]] const vec3_t& GetWorldMins() const noexcept { return m_world_mins; }
-        [[nodiscard]] bool IsCellWalkable(int cell_index) const;
+        
+        // +++ NEW +++
+        // This accessor lets the spawn logic check if a grid cell is in the playable area.
+        [[nodiscard]] bool IsCellWalkable(int cell_index) const {
+            if (cell_index < 0 || cell_index >= CELL_COUNT) return false;
+            return m_is_cell_walkable[cell_index];
+        }
 
     private:
         // --- PRIVATE DATA ---
-        // CELL_COUNT was moved to public
+        static constexpr int CELL_COUNT = GRID_DIMENSION * GRID_DIMENSION;
         std::array<ProximityGridCell, CELL_COUNT> m_cells;
-        std::array<bool, CELL_COUNT> m_is_cell_walkable;
         
-        // This buffer holds the results of a query.
-        std::array<edict_t*, MAX_EDICTS> m_query_buffer;
+        // +++ NEW +++
+        // This array stores whether a cell is over solid ground or over a void.
+        std::array<bool, CELL_COUNT> m_is_cell_walkable;
 
-        // +++ NEW: EFFICIENT QUERY TRACKING +++
-        // This array stores the last query ID an entity was a part of.
-        // This avoids clearing a large boolean array on every call.
-        std::array<unsigned int, MAX_EDICTS> m_entity_query_stamps;
-        // This ID is incremented for each call to GetPotentialColliders.
-        unsigned int m_current_query_id = 0;
-        // +++ END NEW +++
+        std::array<edict_t*, MAX_EDICTS> m_query_buffer;
 
         vec3_t m_world_mins;
         float m_cell_size = 0.0f;

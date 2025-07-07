@@ -1074,7 +1074,7 @@ const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_name_re
     {horde::MonsterTypeID::WIDOW1, "Black Widow"},
     {horde::MonsterTypeID::WIDOW2, "Widow Creator"},
     {horde::MonsterTypeID::GUARDIAN, "Guardian"},
-    {horde::MonsterTypeID::PSX_GUARDIAN, "The Guardian"},
+    {horde::MonsterTypeID::PSX_GUARDIAN, "Guardian"},
     {horde::MonsterTypeID::JANITOR, "Janitor"},
     {horde::MonsterTypeID::JANITOR2, "Mini Guardian"},
     {horde::MonsterTypeID::SUPERTANK, "Super-Tank"},
