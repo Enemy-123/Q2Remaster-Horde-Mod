@@ -29,17 +29,18 @@ void ProximityGrid::DebugDraw() {
     }
 
     int drawn_count = 0;
+    
     for (int y = 0; y < GRID_DIMENSION; ++y) {
         for (int x = 0; x < GRID_DIMENSION; ++x) {
             const int cell_idx = y * GRID_DIMENSION + x;
             if (m_is_cell_walkable[cell_idx]) {
-                vec3_t cell_min = { m_world_mins.x + x * m_cell_size, m_world_mins.y + y * m_cell_size, 0 };
-                vec3_t cell_max = cell_min + vec3_t{m_cell_size, m_cell_size, 1.0f};
+                // Get the stored ground height for this specific cell
+                const float ground_z = m_cell_ground_z[cell_idx];
+
+                // Draw the box right on the ground
+                vec3_t cell_min = { m_world_mins.x + x * m_cell_size, m_world_mins.y + y * m_cell_size, ground_z };
+                vec3_t cell_max = cell_min + vec3_t{m_cell_size, m_cell_size, 1.0f}; // Make it 1 unit tall
                 
-                cell_min.z = m_world_mins.z;
-                cell_max.z = m_world_mins.z + 1.0f;
-                
-                // Use your engine's FRAME_TIME_S for the lifetime.
                 gi.Draw_Bounds(cell_min, cell_max, rgba_green, FRAME_TIME_S.seconds<float>() + 0.01f, false);
                 drawn_count++;
             }
@@ -65,6 +66,7 @@ void ProximityGrid::DebugDraw() {
             cell.clear();
         }
         m_is_cell_walkable.fill(false); // Default all cells to not walkable.
+        m_cell_ground_z.fill(0.0f);
 
         m_world_mins = world_mins;
         const vec3_t world_size = world_maxs - world_mins;
@@ -103,11 +105,12 @@ void ProximityGrid::DebugDraw() {
                         trace_t trace = gi.trace(sample_point, vec3_origin, vec3_origin, trace_end, nullptr, MASK_SOLID);
 
                         // If this sample point hits valid, non-steep ground, the cell is usable.
-                        if (trace.fraction < 1.0f && trace.plane.normal.z > 0.7f) {
-                            m_is_cell_walkable[cell_idx] = true;
-                            found_walkable_spot = true;
-                            break; // Found a valid spot, no need to check other samples in this cell.
-                        }
+                    if (trace.fraction < 1.0f && trace.plane.normal.z > 0.7f) {
+                        m_is_cell_walkable[cell_idx] = true;
+                        m_cell_ground_z[cell_idx] = trace.endpos.z; // STORE THE HEIGHT
+                        found_walkable_spot = true;
+                        break;
+                    }
                     }
                     if (found_walkable_spot) {
                         break;

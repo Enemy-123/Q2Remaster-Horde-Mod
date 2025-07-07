@@ -64,6 +64,7 @@ namespace HordePhys {
         // +++ NEW +++
         // This array stores whether a cell is over solid ground or over a void.
         std::array<bool, CELL_COUNT> m_is_cell_walkable;
+         std::array<float, CELL_COUNT> m_cell_ground_z;
 
         std::array<edict_t*, MAX_EDICTS> m_query_buffer;
 

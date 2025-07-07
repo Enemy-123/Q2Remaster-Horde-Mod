@@ -1061,9 +1061,9 @@ inline void G_RunFrame_(bool main_loop)
 
             // Third, draw the debug visualization if the cvar is on.
             // This is the correct place for the debug draw call.
-            //if (developer->integer >= 2) { // Or use your g_debug_horde_grid cvar
-           //     HordePhys::g_monster_grid.DebugDraw();
-            }
+            if (developer->integer >= 2) { // Or use your g_debug_horde_grid cvar
+               HordePhys::g_monster_grid.DebugDraw();
+           }
         }
 
 
