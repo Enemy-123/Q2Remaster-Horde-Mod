@@ -835,7 +835,7 @@ void runnertank_consider_strafe(edict_t* self)
 
 	// Aumentar probabilidad en situaciones críticas
 	// Ensure enemy is a client before accessing client buttons
-	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+if ((self->enemy->client->buttons & BUTTON_ATTACK) != 0)
 		strafe_chance += 0.4f;
 	if (self->health < self->max_health * 0.5f)
 		strafe_chance += 0.35f;
