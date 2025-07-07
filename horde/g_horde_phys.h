@@ -32,6 +32,7 @@ namespace HordePhys {
         static constexpr int GRID_DIMENSION = 16;
 
         // --- PUBLIC API ---
+        void Reset();
         void DebugDraw();
         void Build(const vec3_t& world_mins, const vec3_t& world_maxs);
         void Add(edict_t* ent);

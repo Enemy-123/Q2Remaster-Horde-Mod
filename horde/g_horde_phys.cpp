@@ -127,6 +127,8 @@ void ProximityGrid::DebugDraw() {
             gi.Com_PrintFmt("ProximityGrid Geometry Check: Found {} walkable cells out of {}.\n",
                 walkable_cell_count, CELL_COUNT);
         }
+
+        DebugDraw();
     }
 
 
@@ -180,6 +182,14 @@ void ProximityGrid::DebugDraw() {
         }
         return {m_query_buffer.data(), buffer_count};
     }
+
+    void ProximityGrid::Reset() {
+    // This just clears the dynamic monster data from each cell,
+    // leaving the m_is_cell_walkable data intact.
+    for (auto& cell : m_cells) {
+        cell.clear();
+    }
+}
 
         // // NEW: Debug drawing function
     // void ProximityGrid::DebugDraw(float duration) {

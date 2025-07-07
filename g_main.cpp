@@ -1029,31 +1029,41 @@ inline void G_RunFrame_(bool main_loop)
             static vec3_t world_mins{}, world_maxs{};
             
             // Use a static variable to track the map name and reset bounds on change.
-            static std::string last_map_for_bounds;
-            if (last_map_for_bounds != level.mapname) {
+                     static std::string last_map_for_grid;
+            if (last_map_for_grid != level.mapname) 
+            {
+                // Calculate world bounds based on spawn points
+                vec3_t world_mins{}, world_maxs{};
                 ClearBounds(world_mins, world_maxs);
-                
-                // THIS IS THE FIX: Use your existing monster_spawn_points() function.
-                // It correctly iterates through all the spawn points.
                 for (auto* sp : monster_spawn_points()) {
                     AddPointToBounds(sp->s.origin, world_mins, world_maxs);
                 }
-
-                // Add some padding to ensure the grid covers the entire playable area.
                 world_mins -= vec3_t{512, 512, 512};
                 world_maxs += vec3_t{512, 512, 512};
+
+                // BUILD THE STATIC GEOMETRY GRID. This is the expensive part.
+                // It now only runs when the map changes.
+                HordePhys::g_monster_grid.Build(world_mins, world_maxs);
                 
-                last_map_for_bounds = level.mapname;
+                last_map_for_grid = level.mapname;
             }
 
-            HordePhys::g_monster_grid.Build(world_mins, world_maxs);
-            for (auto* monster : monsters) {
+            // --- 2. PER-FRAME UPDATE ---
+            // These operations are fast and run every frame.
+
+            // First, clear monsters from the previous frame.
+            HordePhys::g_monster_grid.Reset();
+
+            // Second, add all active monsters to the grid at their current positions.
+            for (auto* monster : active_monsters()) {
                 HordePhys::g_monster_grid.Add(monster);
             }
 
-           // if (g_debug_horde_grid->integer) {
-           //     HordePhys::g_monster_grid.DebugDraw(gi.frame_time_s);
-           // }
+            // Third, draw the debug visualization if the cvar is on.
+            // This is the correct place for the debug draw call.
+            //if (developer->integer >= 2) { // Or use your g_debug_horde_grid cvar
+           //     HordePhys::g_monster_grid.DebugDraw();
+            }
         }
 
 
