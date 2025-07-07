@@ -3,6 +3,44 @@
 #include <algorithm> // For std::min/max
 #include <set>
 
+// // NEW HELPER FUNCTION
+// // Gets the water level for a raw position, simulating a standard monster's bounding box.
+// // This is essential for checking potential spawn points before a monster exists there.
+water_level_t GetWaterLevelForPosition(const vec3_t& in_point)
+{
+    // Use a standard medium-sized monster bounding box for the check.
+    static const vec3_t monster_mins = {-16, -16, -24};
+    static const vec3_t monster_maxs = {16, 16, 32};
+
+    vec3_t point;
+    contents_t cont;
+
+    // Check at the monster's "feet"
+    point = in_point;
+    point[2] += monster_mins[2] + 1;
+    cont = gi.pointcontents(point);
+
+    if (!(cont & MASK_WATER)) {
+        return WATER_NONE;
+    }
+
+    // Check at "waist" height
+    point[2] += 26;
+    cont = gi.pointcontents(point);
+    if (!(cont & MASK_WATER)) {
+        return WATER_FEET;
+    }
+
+    // Check at "head" height
+    point[2] += 22;
+    cont = gi.pointcontents(point);
+    if (!(cont & MASK_WATER)) {
+        return WATER_WAIST;
+    }
+
+    return WATER_UNDER;
+}
+
 // to fix, add a debug void
 namespace HordePhys
 {
@@ -111,7 +149,14 @@ void ProximityGrid::Build(const vec3_t& world_mins, const vec3_t& world_maxs) {
                         vec3_t trace_end = sample_xy; trace_end.z = world_mins.z;
                         trace_t trace = gi.trace(trace_start, vec3_origin, vec3_origin, trace_end, nullptr, MASK_SOLID);
                         if (trace.fraction >= 1.0f) break;
-                        if (trace.plane.normal.z > 0.7f) floor_z_values.insert(trace.endpos.z);
+
+                                                if (trace.plane.normal.z > 0.7f) {
+                            // Usamos nuestra nueva función para comprobar el punto de impacto.
+                            if (GetWaterLevelForPosition(trace.endpos) < WATER_WAIST) {
+                                floor_z_values.insert(trace.endpos.z);
+                            }
+                        }
+
                         current_z = trace.endpos.z - 1.0f;
                     }
                 }

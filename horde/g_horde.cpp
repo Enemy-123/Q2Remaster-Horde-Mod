@@ -5280,19 +5280,8 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
         return false;
     }
 
-    // --- 2. Floor Snapping for Ground Units ---
-    // For non-flying monsters, we must find a valid floor, unless it's a special, hand-placed location.
-    // This function will adjust check_pos to be correctly on the ground.
-    if (!is_flying && !is_predefined_location) {
-        if (!M_droptofloor_generic(check_pos, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false)) {
-            // Failed to find a floor. This can happen if the candidate position is too high
-            // above any surface, even within a valid grid cell.
-            return false;
-        }
-    }
-
-    // --- 3. Final Volume Check ---
-    // After positioning, do one final, definitive trace to check the entire volume
+    // --- 2.  Volume Check ---
+    // definitive trace to check the entire volume
     // the monster will occupy against ALL solid objects and other monsters.
     trace_t final_check = gi.trace(check_pos, monster_mins, monster_maxs, check_pos, nullptr, MASK_MONSTERSOLID);
 
@@ -5899,161 +5888,11 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 // =======================================================================
 // COMPLETE FUNCTION: FindEmergencySpawnPositionViaGridSearch
 //
-// This function provides a highly reliable, multi-tiered method for finding
-// a spawn location for ambushes, retaliations, and other emergency situations.
-//
-// TIER 1: Geometry-Aware Grid Search
-//   - Uses the pre-computed walkability data from the ProximityGrid to
-//     instantly reject any spawn attempts over a void.
-//   - Performs an expanding search around players, starting with the primary target.
-//   - Uses a scoring system to find the most tactical position, giving a
-//     large bonus to spots that are hidden from the player's line of sight.
-//
-// TIER 2: Legacy Fallback
-//   - If the sophisticated grid search fails for any reason, it falls back to
-//     the simpler `FindEmergencySpawnPosition` function as a final guarantee.
+//grid didnt work for this, but keeping the same grid for future uses hopefully
 // =======================================================================
 bool FindEmergencySpawnPositionViaGridSearch(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t* specific_target)
 {
-    // --- 1. Build a prioritized list of potential targets ---
-    std::vector<edict_t*> target_candidates;
-    target_candidates.reserve(MAX_CLIENTS);
-
-    // Add the specific target first, if one is provided and valid.
-    if (specific_target && specific_target->inuse && specific_target->health > 0) {
-        target_candidates.push_back(specific_target);
-    }
-
-    // Add all other active players, shuffled, to the list.
-    std::vector<edict_t*> other_players;
-    for (auto* p : active_players_no_spect()) {
-        if (p != specific_target) {
-            other_players.push_back(p);
-        }
-    }
-    std::shuffle(other_players.begin(), other_players.end(), mt_rand);
-    target_candidates.insert(target_candidates.end(), other_players.begin(), other_players.end());
-
-    // If there are no players at all, we cannot find a spot.
-    if (target_candidates.empty()) {
-        return false;
-    }
-
-    // --- 2. Get prerequisites for the search ---
-    vec3_t monster_mins, monster_maxs;
-    GetPredictedScaledBounds(typeId, monster_mins, monster_maxs);
-    const bool is_flying = IsFlying(typeId);
-    const auto& grid = HordePhys::g_monster_grid;
-
-    // If the grid isn't built, we must use the fallback immediately.
-    if (!grid.IsBuilt()) {
-        bool used_human;
-        return FindEmergencySpawnPosition(out_position, out_angles, used_human, typeId, specific_target);
-    }
-
-    // --- 3. Perform the grid search ---
-    edict_t* best_target = nullptr;
-    vec3_t best_spot_pos{};
-    float best_score = -1.0f;
-
-    // Iterate through each potential player target.
-    for (edict_t* target_player : target_candidates)
-    {
-        const int start_cell_idx = grid.GetCellIndex(target_player->s.origin);
-        if (start_cell_idx < 0) {
-            continue;
-        }
-
-        const int start_x = start_cell_idx % HordePhys::ProximityGrid::GRID_DIMENSION;
-        const int start_y = start_cell_idx / HordePhys::ProximityGrid::GRID_DIMENSION;
-
-        constexpr int MAX_SEARCH_RADIUS = 8;
-        constexpr int ATTEMPTS_PER_CELL = 5;
-
-        // Perform an expanding square search around the player's grid cell.
-        for (int r = 1; r <= MAX_SEARCH_RADIUS; ++r) {
-            for (int y = -r; y <= r; ++y) {
-                for (int x = -r; x <= r; ++x) {
-                    // Only check the outer ring of the current search radius.
-                    if (abs(x) < r && abs(y) < r) {
-                        continue;
-                    }
-
-                    const int check_x = start_x + x;
-                    const int check_y = start_y + y;
-
-                    // Bounds check to ensure we're within the grid.
-                    if (check_x < 0 || check_x >= HordePhys::ProximityGrid::GRID_DIMENSION ||
-                        check_y < 0 || check_y >= HordePhys::ProximityGrid::GRID_DIMENSION) {
-                        continue;
-                    }
-
-                    // *** THE CORE FIX ***
-                    // Use the pre-computed geometry data to instantly reject void cells.
-                    const int cell_idx = check_y * HordePhys::ProximityGrid::GRID_DIMENSION + check_x;
-                    if (!grid.IsCellWalkable(cell_idx)) {
-                        continue;
-                    }
-
-                    // If the cell is valid, generate random test points within it.
-                    const vec3_t cell_min_corner = grid.GetWorldMins() + vec3_t{ check_x * grid.GetCellSize(), check_y * grid.GetCellSize(), target_player->s.origin.z - 64.0f };
-
-                    for (int attempt = 0; attempt < ATTEMPTS_PER_CELL; ++attempt) {
-                        vec3_t candidate_pos = {
-                            frandom(cell_min_corner.x, cell_min_corner.x + grid.GetCellSize()),
-                            frandom(cell_min_corner.y, cell_min_corner.y + grid.GetCellSize()),
-                            frandom(cell_min_corner.z, cell_min_corner.z + 128.0f)
-                        };
-
-                        // Check for physical validity (floor snapping, collisions) and recent spawn proximity.
-                        if (!IsPositionPhysicallyValid(candidate_pos, monster_mins, monster_maxs, is_flying, false) ||
-                            IsPositionTooCloseToRecentSpawn(candidate_pos)) {
-                            continue;
-                        }
-
-                        // --- SCORING LOGIC ---
-                        float current_score = 100.0f; // Base score for being a valid spot.
-                        vec3_t player_eye_pos = target_player->s.origin + vec3_t{0, 0, static_cast<float>(target_player->viewheight)};
-                        trace_t visibility_trace = gi.trace(player_eye_pos, vec3_origin, vec3_origin, candidate_pos, target_player, MASK_SOLID);
-                        
-                        // Give a huge bonus for being hidden from the player's view. This is the essence of an ambush.
-                        if (visibility_trace.fraction < 1.0f) {
-                            current_score += 200.0f;
-                        }
-
-                        // If this is the best spot found so far, save it.
-                        if (current_score > best_score) {
-                            best_score = current_score;
-                            best_spot_pos = candidate_pos;
-                            best_target = target_player;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Optimization: If we found a good spot for the primary target, we can stop searching.
-        if (target_player == specific_target && best_target == specific_target) {
-            break;
-        }
-    }
-
-    // --- 4. Finalize the result ---
-    if (best_target) {
-        // We found a good spot. Set the output parameters and return success.
-        out_position = best_spot_pos;
-        vec3_t dir_to_player = best_target->s.origin - out_position;
-        out_angles = vectoangles(dir_to_player);
-        out_angles[PITCH] = 0;
-        return true;
-    }
-
-    // --- 5. Failsafe Fallback ---
-    // If the entire grid search failed to find any spot for any player, use the old, simpler method.
-    if (developer->integer) {
-        gi.Com_PrintFmt("Grid search failed for emergency spawn. Attempting legacy fallback...\n");
-    }
-    bool used_human_player;
+	bool used_human_player;
     return FindEmergencySpawnPosition(out_position, out_angles, used_human_player, typeId, specific_target);
 }
 
