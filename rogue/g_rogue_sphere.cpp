@@ -63,11 +63,18 @@ void sphere_fly(edict_t *self)
 	vec3_t dest;
 	vec3_t dir;
 
-	if (level.time >= gtime_t::from_sec(self->wait))
+	if (!self)
+	{
+		return;
+	}
+
+	if (!self->owner || level.time >= gtime_t::from_sec(self->wait))
 	{
 		sphere_think_explode(self);
 		return;
 	}
+
+	// If we've reached this point, we know self and self->owner are both valid.
 
 	dest = self->owner->s.origin;
 	dest[2] = self->owner->absmax[2] + 4;

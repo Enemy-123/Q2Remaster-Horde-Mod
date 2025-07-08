@@ -1680,6 +1680,18 @@ enum bonus_flags_t : uint32_t {
 };
 MAKE_ENUM_BITFLAGS(bonus_flags_t);
 
+typedef struct sentry_state_s {
+    gtime_t         last_target_time;
+    gtime_t         last_enemy_change_time;
+    struct edict_t* previous_enemy;
+    bool            was_attacking;
+    int             transition_state; // 0=idle, 1=readying, 2=active, 3=cooling down
+    gtime_t         next_target_search_time;
+    gtime_t         last_animation_change_time;
+    int             grenade_burst_count;
+    gtime_t         last_grenade_burst_time;
+} sentry_state_t;
+
 struct monsterinfo_t
 {
 	// [Paril-KEX] allow some moves to be done instantaneously, but
@@ -1834,7 +1846,7 @@ struct monsterinfo_t
 	int team; // Setting a team, test
 
 	gtime_t next_regen_time; // Timer for Stygian/other regen effects
-
+ 	sentry_state_t* sentry_state; 
 };
 
 // non-monsterinfo save stuff
@@ -3338,7 +3350,7 @@ struct edict_t
 	//
 	// only used locally in game, not by server
 	//
-	const char* message;monsterinfo
+	const char* message;
 	const char* classname;
 	spawnflags_t	spawnflags;
 

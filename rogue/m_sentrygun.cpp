@@ -20,13 +20,6 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; /
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
 
-// State tracking for smoother animation transitions
-static gtime_t last_target_time[MAX_EDICTS] = { 0_sec };
-static gtime_t last_enemy_change_time[MAX_EDICTS] = { 0_sec };
-static edict_t* previous_enemy[MAX_EDICTS] = { nullptr };
-static bool was_attacking[MAX_EDICTS] = { false };
-static int transition_state[MAX_EDICTS] = { 0 }; // 0=idle, 1=readying, 2=active, 3=cooling down
-
 
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
@@ -79,53 +72,48 @@ static void UpdateSmokePosition(edict_t* self) {
 
 void turret2Aim(edict_t* self)
 {
-	// Get entity index 
-	const int entity_index = self->s.number;
+    // Get a pointer to our custom state for this entity
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    if (!state) {
+        return; // Safety check
+    }
 
-	// Check for enemy changes - happens before FindTarget is called
+	// Check for enemy changes
 	if (!self->enemy || !self->enemy->inuse) {
 		// Lost target but didn't transition yet
-		if (previous_enemy[entity_index] &&
-			transition_state[entity_index] != 3 && // Not already cooling down
-			was_attacking[entity_index]) {         // Was in combat
-
+		if (state->previous_enemy && state->transition_state != 3 && state->was_attacking) {
 			// Enter cooldown state
-			transition_state[entity_index] = 3;
-			last_target_time[entity_index] = level.time;
+			state->transition_state = 3;
+			state->last_target_time = level.time;
 
-			// Set animation if needed
 			if (self->monsterinfo.active_move != &turret2_move_cool_down)
 				M_SetAnimation(self, &turret2_move_cool_down);
 		}
 	}
 
- 	if (self->enemy && self->enemy != previous_enemy[entity_index]) {
-		// Target changed - use a variable speed based on time since change
-		float time_since_change = (level.time - last_enemy_change_time[entity_index]).seconds();
+ 	if (self->enemy && self->enemy != state->previous_enemy) {
+		// Target changed
+        state->last_enemy_change_time = level.time;
 	}
 
 	if (!self->enemy || self->enemy == world)
 	{
-		// Add minimum time between target searches to reduce CPU usage
-		// and allow animations to play
-		static gtime_t next_target_search[MAX_EDICTS] = { 0_sec };
-
-		if (level.time >= next_target_search[self->s.number]) {
+		// Use the state's next_target_search_time
+		if (level.time >= state->next_target_search_time) {
 			if (!FindMTarget(self)) {
-				next_target_search[self->s.number] = level.time + 300_ms;
+				state->next_target_search_time = level.time + 300_ms;
 				return;
 			}
-			// Successful target found, set shorter cooldown
-			next_target_search[self->s.number] = level.time + 100_ms;
+			state->next_target_search_time = level.time + 100_ms;
 			self->monsterinfo.search_time = level.time + 300_ms;
 		}
 		else {
-			return; // Skip this frame if we're not ready to search
+			return;
 		}
 	}
 
-	// Update previous enemy before exiting the function
-	previous_enemy[entity_index] = self->enemy;
+	// Update previous enemy
+	state->previous_enemy = self->enemy;
 
 	// Actualizar la posición del efecto visual
 	UpdateSmokePosition(self);
@@ -611,17 +599,17 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 {
 	CreateTurretGlowEffect(self);
 
-	// Get entity index for state arrays
-	const int entity_index = self->s.number;
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    if (!state) return;
 
 	// Check if we have an enemy
 	bool has_valid_enemy = (self->enemy && self->enemy->inuse &&
 		self->enemy->health > 0 && !self->enemy->deadflag);
 
 	// Detect enemy changes
-	if (has_valid_enemy && self->enemy != previous_enemy[entity_index]) {
-		last_enemy_change_time[entity_index] = level.time;
-		previous_enemy[entity_index] = self->enemy;
+	if (has_valid_enemy && self->enemy != state->previous_enemy) {
+		state->last_enemy_change_time = level.time;
+		state->previous_enemy = self->enemy;
 	}
 
 	// Track attacking state changes
@@ -630,28 +618,23 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 
 	// Handle transitions between states
 	if (currently_attacking) {
-		// We're attacking - update timestamp and state
-		last_target_time[entity_index] = level.time;
-		was_attacking[entity_index] = true;
-		transition_state[entity_index] = 2; // active state
+		state->last_target_time = level.time;
+		state->was_attacking = true;
+		state->transition_state = 2; // active state
 	}
-	else if (was_attacking[entity_index]) {
-		// We just stopped attacking - enter cooldown
-		if (transition_state[entity_index] != 3) { // Not already cooling down
-			transition_state[entity_index] = 3; // cooling down state
-
-			// Only change animation if we're not in cooldown yet
+	else if (state->was_attacking) {
+		if (state->transition_state != 3) {
+			state->transition_state = 3; // cooling down state
 			if (self->monsterinfo.active_move != &turret2_move_cool_down) {
 				M_SetAnimation(self, &turret2_move_cool_down);
-				return; // Animation change handled
+				return;
 			}
 		}
 
-		// Check if cooldown period has elapsed - longer if we don't have a new target
 		gtime_t cooldown_time = has_valid_enemy ? 800_ms : 1_sec;
-		if (level.time > last_target_time[entity_index] + cooldown_time) {
-			was_attacking[entity_index] = false;
-			transition_state[entity_index] = 2; // back to active state
+		if (level.time > state->last_target_time + cooldown_time) {
+			state->was_attacking = false;
+			state->transition_state = 2; // back to active state
 		}
 	}
 
@@ -662,8 +645,7 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 	else {
 		self->monsterinfo.aiflags |= AI_HIGH_TICK_RATE;
 
-		// Only change animation if we're not cooling down
-		if (transition_state[entity_index] != 3) {
+		if (state->transition_state != 3) {
 			M_SetAnimation(self, &turret2_move_run);
 		}
 
@@ -940,22 +922,20 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 	self->monsterinfo.melee_debounce_time = level.time +
 		(self->monsterinfo.quadfire_time > level.time ? 7_hz : 12_hz);
 }
+// Grenade fire function needs to use the state
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
-	// Keep burst fire logic
-	static int grenade_burst_state[MAX_EDICTS] = { 0 };
-	static gtime_t last_burst_time[MAX_EDICTS] = { 0_sec };
-	int& burst_state = grenade_burst_state[self->s.number];
-	gtime_t& burst_time = last_burst_time[self->s.number];
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    if (!state) return;
 
 	// Burst timing logic
-	if (burst_state == 0) {
+	if (state->grenade_burst_count == 0) {
 		if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
 			(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 1.2_sec)) {
 			return;
 		}
-		burst_time = level.time;
+		state->last_grenade_burst_time = level.time;
 	}
-	else if (level.time < burst_time + 0.5_sec) {
+	else if (level.time < state->last_grenade_burst_time + 0.5_sec) {
 		return;
 	}
 
@@ -1011,10 +991,10 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 		crandom_open() * 5.0f, // Add slight spin
 		200.f, false);
 
-	// Manage burst state
-	burst_state++;
-	if (burst_state >= 2) {
-		burst_state = 0;
+// Manage burst state
+	state->grenade_burst_count++;
+	if (state->grenade_burst_count >= 2) {
+		state->grenade_burst_count = 0;
 		self->monsterinfo.last_sentry_missile_fire_time = level.time + 1_sec;
 	}
 
@@ -1257,9 +1237,10 @@ static gtime_t last_animation_change[MAX_EDICTS] = { 0_sec };
 // attack function
 MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 {
-	// Add animation cooldown check
-	const gtime_t animation_cooldown = 250_ms; // Adjust this value as needed
-	const int entity_index = self->s.number;
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    if (!state) return;
+
+	const gtime_t animation_cooldown = 250_ms;
 
 	if (self->s.frame < FRAME_run01)
 	{
@@ -1267,22 +1248,19 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 	}
 	else if (self->monsterinfo.attack_state != AS_BLIND)
 	{
-		// Only change animation if enough time has passed
-		if (level.time >= last_animation_change[entity_index] + animation_cooldown) {
+		if (level.time >= state->last_animation_change_time + animation_cooldown) {
 			M_SetAnimation(self, &turret2_move_fire);
-			last_animation_change[entity_index] = level.time;
+			state->last_animation_change_time = level.time;
 		}
 	}
 	else
 	{
-		// No delays or probabilities, directly set the blind fire animation
 		if (!self->monsterinfo.blind_fire_target)
 			return;
 
-		// Only change animation if enough time has passed
-		if (level.time >= last_animation_change[entity_index] + animation_cooldown) {
+		if (level.time >= state->last_animation_change_time + animation_cooldown) {
 			M_SetAnimation(self, &turret2_move_fire_blind);
-			last_animation_change[entity_index] = level.time;
+			state->last_animation_change_time = level.time;
 		}
 	}
 }
@@ -1755,6 +1733,28 @@ void SP_monster_sentrygun(edict_t* self)
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SENTRYGUN);
 	self->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::SENTRY_GUN);
+
+	  // Allocate memory for the custom state
+    self->monsterinfo.sentry_state = (sentry_state_t*)gi.TagMalloc(sizeof(sentry_state_t), TAG_LEVEL);
+    if (!self->monsterinfo.sentry_state) {
+        gi.Com_PrintFmt("ERROR: Failed to allocate sentry_state for monster_sentrygun\n");
+        G_FreeEdict(self);
+        return;
+    }
+
+    // IMPORTANT: Initialize all the fields to their default values.
+    // This is the answer to your question: "is it really needed?" -> YES!
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    state->last_target_time = 0_sec;
+    state->last_enemy_change_time = 0_sec;
+    state->previous_enemy = nullptr;
+    state->was_attacking = false;
+    state->transition_state = 0;
+    state->next_target_search_time = 0_sec;
+    state->last_animation_change_time = 0_sec;
+    state->grenade_burst_count = 0;
+    state->last_grenade_burst_time = 0_sec;
+
 	// --- Unconditional Pre-caching Block ---
 	// By placing all asset loading at the top, we guarantee that every possible
 	// model and sound for every sentry variant is precached when this function
