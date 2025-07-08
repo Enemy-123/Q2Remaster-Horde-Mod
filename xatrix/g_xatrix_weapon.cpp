@@ -722,26 +722,33 @@ bool HandleTrapAnimation(edict_t* ent) {
     return false; // Continue with normal processing
 }
 
-// Find potential targets for the trap
+#include "horde/g_horde_phys.h"
+// Find potential targets for the trap using the Proximity Grid
 void FindTrapTargets(edict_t* ent, trap_data_t* trap_data) {
     // Reset target count for this frame
     trap_data->num_targets = 0;
 
-    // Find potential targets within range
-    for (auto target : active_monsters()) {
+    // --- THE OPTIMIZATION: Use the Grid instead of a linear scan ---
+    // Get a pre-filtered list of nearby entities from the grid.
+    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(ent->s.origin, TRAP_RADIUS);
+
+    for (auto* target : nearby_entities)
+    {
+        // The trap only targets monsters, so filter out players and projectiles.
+        if (!(target->svflags & SVF_MONSTER))
+            continue;
+
         if (target == ent)
             continue;
 
         if (target != ent->teammaster && CheckTeamDamage(target, ent->teammaster))
             continue;
 
-        // <<< ADDED CHECK HERE >>>
         // Skip stationary turrets as they cannot be pulled
-        if (strcmp(target->classname, "monster_turret") == 0 || strcmp(target->classname, "misc_insane") == 0 )
+        if (strcmp(target->classname, "monster_turret") == 0 || strcmp(target->classname, "misc_insane") == 0)
             continue;
-        // <<< END ADDED CHECK >>>
 
-        // Quick distance check before more expensive operations
+        // The grid gives a square area, so we still need a precise distance check.
         const float len_squared = DistanceSquared(ent->s.origin, target->s.origin);
         if (len_squared > TRAP_RADIUS_SQUARED)
             continue;
@@ -777,6 +784,8 @@ void FindTrapTargets(edict_t* ent, trap_data_t* trap_data) {
             }
         }
     }
+    // --- END OF OPTIMIZATION ---
+
 
     // Sort targets by distance (optimized for small array)
     if (trap_data->num_targets > 1) {
@@ -946,7 +955,6 @@ bool ProcessTrapTargets(edict_t* ent, trap_data_t* trap_data) {
     return consumed_target;
 }
 
-// Main trap thinking function
 // Main trap thinking function
 THINK(Trap_Think) (edict_t* ent) -> void
 {

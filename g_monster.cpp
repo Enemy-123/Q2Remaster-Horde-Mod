@@ -1158,18 +1158,65 @@ static BoxEdictsResult_t M_CheckDodge_BoxEdictsFilter(edict_t* ent, void* data)
 	return BoxEdictsResult_t::Skip;
 }
 
-// [Paril-KEX] active checking for projectiles to dodge
+#include "horde/g_horde_phys.h"
+// The new, optimized M_CheckDodge function
 static void M_CheckDodge(edict_t* self)
 {
-	if (!self || !self->inuse || !self->monsterinfo.dodge) { // Also check if dodge function exists
-		return;
-	}
+    if (!self || !self->inuse || !self->monsterinfo.dodge) {
+        return;
+    }
 
-	// we recently made a valid dodge, don't try again for a bit
-	if (self->monsterinfo.dodge_time > level.time)
-		return;
+    // we recently made a valid dodge, don't try again for a bit
+    if (self->monsterinfo.dodge_time > level.time) {
+        return;
+    }
 
-	gi.BoxEdicts(self->absmin - vec3_t{ 512, 512, 512 }, self->absmax + vec3_t{ 512, 512, 512 }, nullptr, 0, AREA_SOLID, M_CheckDodge_BoxEdictsFilter, self);
+    // --- THE OPTIMIZATION ---
+    // Query the grid for entities in a 512-unit radius.
+    // This list will contain monsters, players, and our target projectiles.
+    const auto potential_threats = HordePhys::g_monster_grid.QueryRadius(self->s.origin, 512.0f);
+
+    for (auto* ent : potential_threats)
+    {
+        // --- This is the logic from the old filter, now applied to a much smaller list ---
+
+        // 1. Is it a dodgeable projectile? (This also filters out monsters/players)
+        if (!(ent->svflags & SVF_PROJECTILE) || !(ent->flags & FL_DODGE)) {
+            continue;
+        }
+
+        // 2. Is it moving?
+        if (ent->velocity.lengthSquared() < VECTOR_LENGTH_SQ_EPSILON) {
+            continue;
+        }
+
+        // 3. Is it in front of us?
+        if (!projectile_infront(self, ent)) {
+            continue;
+        }
+
+        // 4. Trace its path to see if it will hit us
+        vec3_t trace_start = ent->s.origin;
+        vec3_t trace_end = ent->s.origin + ent->velocity;
+        trace_t tr = gi.trace(trace_start, ent->mins, ent->maxs, trace_end, ent, ent->clipmask);
+
+        if (tr.ent == self)
+        {
+            // It's going to hit! Calculate ETA and call the dodge function.
+            vec3_t v = tr.endpos - trace_start;
+            float vel_len = ent->velocity.length();
+            gtime_t eta = 0_sec;
+
+            if (vel_len > 0.0f) {
+                eta = gtime_t::from_sec(v.length() / vel_len);
+            }
+
+            self->monsterinfo.dodge(self, ent->owner, eta, &tr, (ent->movetype == MOVETYPE_BOUNCE || ent->movetype == MOVETYPE_TOSS));
+            
+            // We've initiated a dodge, no need to check other projectiles this frame.
+            return;
+        }
+    }
 }
 
 static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)

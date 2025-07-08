@@ -1068,6 +1068,11 @@ inline void G_RunFrame_(bool main_loop)
 				}
 			}
 
+			for (auto* proj : active_projectiles())
+			{
+				HordePhys::g_monster_grid.Add(proj);
+			}
+
 			// Third, draw the debug visualization if the cvar is on.
             // This is the correct place for the debug draw call.
             if (developer->integer >= 2) { // Or use your g_debug_horde_grid cvar

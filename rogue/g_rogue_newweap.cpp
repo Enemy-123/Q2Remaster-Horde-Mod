@@ -1249,7 +1249,8 @@ bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start,
 	return true;
 }
 
-// Optimized targeting and attack function
+#include "horde/g_horde_phys.h"
+// Optimized targeting and attack function using the Proximity Grid
 THINK(tesla_think_active)(edict_t *self)->void
 {
 	if (!self)
@@ -1315,7 +1316,8 @@ THINK(tesla_think_active)(edict_t *self)->void
 
 	// Target acquisition with priority
 	constexpr int max_targets = 3;
-	const float max_range_squared = TESLA_DAMAGE_RADIUS * TESLA_DAMAGE_RADIUS;
+	constexpr float TESLA_SEARCH_RADIUS = TESLA_DAMAGE_RADIUS;
+	const float max_range_squared = TESLA_SEARCH_RADIUS * TESLA_SEARCH_RADIUS;
 
 	// Fixed-size array for potential targets (no dynamic allocation)
 	constexpr int MAX_POTENTIAL_TARGETS = 10;
@@ -1325,32 +1327,42 @@ THINK(tesla_think_active)(edict_t *self)->void
 	// Cache the ray origin for this frame
 	vec3_t ray_origin = calculate_tesla_ray_origin(self);
 
-	// Find potential targets using active_monsters() (more efficient)
-	for (auto ent : active_monsters())
-	{
-		if (num_targets >= MAX_POTENTIAL_TARGETS)
-			break;
+    // --- THE OPTIMIZATION: Use the Grid instead of a linear scan ---
+    // Get a pre-filtered list of nearby entities (monsters, players, projectiles) from the grid.
+    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, TESLA_SEARCH_RADIUS);
 
-		if (!IsValidTeslaTarget(self, ent))
-			continue;
+    for (auto* ent : nearby_entities)
+    {
+        if (num_targets >= MAX_POTENTIAL_TARGETS)
+            break;
 
-		float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
-		if (dist_squared > max_range_squared)
-			continue;
+        // The Tesla only targets monsters, so we filter out players and projectiles here.
+        if (!(ent->svflags & SVF_MONSTER))
+            continue;
 
-		// Quick visibility check before expensive ray trace
-		if (!visible(self, ent))
-			continue;
+        if (!IsValidTeslaTarget(self, ent))
+            continue;
 
-		trace_t tr;
-		if (!tesla_ray_trace(self, ent, tr))
-			continue;
+        // The grid gives a square area, so we still need a precise distance check.
+        float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
+        if (dist_squared > max_range_squared)
+            continue;
 
-		potential_targets[num_targets++] = {
-			ent,
-			CalculateTeslaPriority(self, ent, dist_squared),
-			dist_squared};
-	}
+        // Quick visibility check before expensive ray trace
+        if (!visible(self, ent))
+            continue;
+
+        trace_t tr;
+        if (!tesla_ray_trace(self, ent, tr))
+            continue;
+
+        // This is a valid target, add it to our list for sorting.
+        potential_targets[num_targets++] = {
+            ent,
+            CalculateTeslaPriority(self, ent, dist_squared),
+            dist_squared};
+    }
+    // --- END OF OPTIMIZATION ---
 
 	// Simple insertion sort (more efficient for small arrays)
 	for (int i = 1; i < num_targets; i++)

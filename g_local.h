@@ -3816,6 +3816,27 @@ inline entity_iterable_t<active_monsters_filter_t> active_monsters()
 	return entity_iterable_t<active_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
 }
 
+// Filter for active, dodgeable projectiles
+struct active_projectiles_filter_t
+{
+    inline bool operator()(edict_t* ent) const
+    {
+        // A projectile is "active" for dodging if it's in use,
+        // has the projectile flag, and is marked as dodgeable.
+        return (ent->inuse && 
+                (ent->svflags & SVF_PROJECTILE) && 
+                (ent->flags & FL_DODGE));
+    }
+};
+
+// Helper function to create the iterable range
+inline entity_iterable_t<active_projectiles_filter_t> active_projectiles()
+{
+    // Projectiles can be anywhere in the edict list after players/monsters,
+    // so we search the whole range.
+    return entity_iterable_t<active_projectiles_filter_t> { game.maxclients + 1U };
+}
+
 struct gib_def_t
 {
 	size_t count;
