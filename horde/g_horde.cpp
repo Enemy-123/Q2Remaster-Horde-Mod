@@ -1,5 +1,6 @@
 // Includes y definiciones relevantes
 #include "../shared.h"
+#include "g_horde_phys.h"
 #include "../g_local.h"
 #include "g_horde.h"
 #include <set>
@@ -5333,79 +5334,97 @@ static edict_t* FindBestPlayerTargetForTeleport()
     return target_player;
 }
 
-// In g_horde.cpp
 
 // Finds a safe, fair, and tactically reasonable spawn point for a monster being rescued via teleport.
 // It prioritizes spots that are near a player but not directly visible to them.
+// This version is optimized to use the Proximity Grid to avoid searching all spawn points on the map.
 static edict_t* FindSafeTeleportDestination(edict_t* self)
 {
-    // 1. Determine the target player.
+    // --- 1. Determine the Target Player ---
+    // Prioritize the monster's current enemy. If none, find the best player candidate.
     edict_t* target_player = self->enemy;
-    if (!target_player || !target_player->client) {
+    if (!target_player || !target_player->client || !target_player->inuse || target_player->health <= 0) {
         target_player = FindBestPlayerTargetForTeleport();
         if (!target_player) {
+            if (developer->integer) gi.Com_PrintFmt("FindSafeTeleportDestination: No valid player target found.\n");
             return nullptr; // No players on the map, cannot find a destination.
         }
     }
 
-    // 2. Get monster properties.
+    // --- 2. Get Monster Properties ---
     const bool can_monster_fly = IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname));
 
-    // 3. Score all available spawn points.
+    // --- 3. Grid-Based Search for Nearby Spawn Points ---
     edict_t* best_spot = nullptr;
     float best_score = -1.0f;
 
-    // Use the modern iterator for spawn points.
-    for (edict_t* spawn_point : monster_spawn_points())
-    {
-        // --- Basic Validation ---
-        if (!spawn_point || !spawn_point->inuse) continue;
+    // Query the grid for all entities in a large radius around the target player.
+    // This list will contain monsters, players, projectiles, and our desired spawn points.
+    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(target_player->s.origin, 1500.0f);
 
+    for (edict_t* ent : nearby_entities)
+    {
+        // --- A. Filter for Valid Spawn Points ---
+        // Quickly discard any entity that isn't a spawn point.
+        if (!ent || !ent->inuse || strcmp(ent->classname, "info_player_deathmatch") != 0) {
+            continue;
+        }
+        
+        edict_t* spawn_point = ent; // Use a clearer name
+
+        // Check if the spawn point is on cooldown or occupied by a player/monster.
         const int index = spawn_point - g_edicts;
         if (level.time < g_spawnPointsData.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point)) {
             continue;
         }
-        if (!can_monster_fly && (spawn_point->style == 1)) {
+
+        // Ensure the spawn point's movement type matches the monster's.
+        if (can_monster_fly != (spawn_point->style == 1)) {
             continue;
         }
 
-        // --- Scoring Logic ---
+        // --- B. Score the Validated Spawn Point ---
         float score = 100.0f; // Start with a base score.
         float dist_sq = (spawn_point->s.origin - target_player->s.origin).lengthSquared();
 
-        // A. Ideal Distance Bonus: Give a bonus for being in a sweet spot (not too close, not too far).
-        constexpr float MIN_DIST_SQ = 400.0f * 400.0f; // 400 units
-        constexpr float MAX_DIST_SQ = 1200.0f * 1200.0f; // 1200 units
+        // Bonus for being in the ideal distance range (not too close, not too far).
+        constexpr float MIN_DIST_SQ = 400.0f * 400.0f;
+        constexpr float MAX_DIST_SQ = 1200.0f * 1200.0f;
         if (dist_sq > MIN_DIST_SQ && dist_sq < MAX_DIST_SQ) {
             score += 100.0f;
         }
 
-        // B. Surprise Bonus: Is the spot currently hidden from the player's view?
-        // =======================================================================
-        // --- THIS IS THE FIX ---
-        // =======================================================================
+        // High value bonus for being out of the player's line of sight.
         vec3_t player_eye_pos = target_player->s.origin + vec3_t{0, 0, static_cast<float>(target_player->viewheight)};
         trace_t los = gi.trace(player_eye_pos, vec3_origin, vec3_origin, spawn_point->s.origin, target_player, MASK_SOLID);
         if (los.fraction < 1.0f) {
-            score += 150.0f; // High value for being out of sight.
+            score += 150.0f; 
         }
 
-        // C. Proximity Penalty: Penalize spots that are very close to avoid cheap teleports.
+        // Penalty for being too close to avoid cheap teleports.
         if (dist_sq < (350.0f * 350.0f)) {
             score -= 200.0f;
         }
 
-        // D. Randomness: Add a small random factor to prevent always picking the same spot.
+        // Add a small random factor to prevent always picking the exact same spot in similar situations.
         score += frandom() * 25.0f;
 
+        // --- C. Update Best Candidate ---
         if (score > best_score) {
             best_score = score;
             best_spot = spawn_point;
         }
     }
 
+    if (developer->integer > 1 && best_spot) {
+        gi.Com_PrintFmt("FindSafeTeleportDestination: Selected spot at {} with score {:.1f}\n", best_spot->s.origin, best_score);
+    } else if (developer->integer > 1 && !best_spot) {
+        gi.Com_PrintFmt("FindSafeTeleportDestination: No suitable teleport spot found in grid query.\n");
+    }
+
     return best_spot;
 }
+
 
 bool CheckAndTeleportStuckMonster(edict_t *self)
 {
