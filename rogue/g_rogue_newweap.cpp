@@ -1249,7 +1249,7 @@ bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start,
 	return true;
 }
 
-#include "horde/g_horde_phys.h"
+#include "../horde/g_horde_phys.h"
 // Optimized targeting and attack function using the Proximity Grid
 THINK(tesla_think_active)(edict_t *self)->void
 {

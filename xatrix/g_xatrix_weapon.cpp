@@ -722,7 +722,7 @@ bool HandleTrapAnimation(edict_t* ent) {
     return false; // Continue with normal processing
 }
 
-#include "horde/g_horde_phys.h"
+#include "../horde/g_horde_phys.h"
 // Find potential targets for the trap using the Proximity Grid
 void FindTrapTargets(edict_t* ent, trap_data_t* trap_data) {
     // Reset target count for this frame
