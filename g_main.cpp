@@ -1059,7 +1059,16 @@ inline void G_RunFrame_(bool main_loop)
                 HordePhys::g_monster_grid.Add(monster);
             }
 
-            // Third, draw the debug visualization if the cvar is on.
+			for (auto *player : active_players_no_spect())
+			{
+				// We only care about players who are valid targets.
+				if (player && player->inuse && player->health > 0 && !EntIsSpectating(player))
+				{
+					HordePhys::g_monster_grid.Add(player);
+				}
+			}
+
+			// Third, draw the debug visualization if the cvar is on.
             // This is the correct place for the debug draw call.
             if (developer->integer >= 2) { // Or use your g_debug_horde_grid cvar
                HordePhys::g_monster_grid.DebugDraw();

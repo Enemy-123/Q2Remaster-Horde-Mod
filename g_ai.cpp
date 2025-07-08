@@ -49,7 +49,7 @@ edict_t* AI_GetSightClient(edict_t* self)
 	const vec3_t& self_absmin = self->absmin;
 	const vec3_t& self_absmax = self->absmax;
 
-	for (auto player : active_players())
+	for (auto player : active_players_no_spect())
 	{
 		// Early out conditions agrupados
 		if (player->health <= 0 ||
@@ -541,14 +541,14 @@ static float CalculateTargetPriority(edict_t* self, edict_t* target, float dist_
     return priority;
 }
 
-// Refactored FindMTarget
+#include "horde/g_horde_phys.h" 
+
 bool FindMTarget(edict_t* self) {
     if (!self || !self->inuse || !self->monsterinfo.issummoned || level.intermissiontime) {
         return false;
     }
 
     // --- Clear Invalid Current Target ---
-    // If current enemy is a player, another summon, or invalid, clear it.
     if (self->enemy && !IsValidMonsterTargetForSummon(self, self->enemy, level.time)) {
         self->enemy = nullptr;
     }
@@ -573,14 +573,19 @@ bool FindMTarget(edict_t* self) {
         }
     }
 
-    // --- Iterate Through Active Monsters to Find a Better Target ---
-    for (auto ent : active_monsters()) {
+    // --- THE OPTIMIZATION ---
+    // Get potential targets from the grid instead of iterating all active monsters.
+    const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self_origin, MAX_RANGE);
+
+    // --- Iterate Through POTENTIAL Monsters to Find a Better Target ---
+    for (auto ent : potential_targets) { // <<<< KEY CHANGE HERE
         // --- Fast Rejection Checks ---
         if (!IsValidMonsterTargetForSummon(self, ent, current_time)) {
             continue;
         }
 
         // --- Distance Check ---
+        // The grid gives us a square search area, so we still need a precise distance check.
         float dist_squared = DistanceSquared(self_origin, ent->s.origin);
         if (dist_squared > MAX_RANGE_SQUARED) {
             continue;
@@ -605,13 +610,12 @@ bool FindMTarget(edict_t* self) {
     if (best_target) {
         if (self->enemy != best_target) {
             self->enemy = best_target;
-            // Set a short "stickiness" timer to prevent rapid target switching.
             self->monsterinfo.react_to_damage_time = current_time + 0.5_sec;
         }
-        return true; // Target found (or confirmed)
+        return true;
     }
 
-    self->enemy = nullptr; // No suitable target found
+    self->enemy = nullptr;
     return false;
 }
 /*
@@ -899,7 +903,7 @@ void FoundTarget(edict_t* self)
 // check them & get mad at them even around corners
 static edict_t* AI_GetMonsterAlertedByPlayers(edict_t* self)
 {
-	for (auto player : active_players())
+	for (auto player : active_players_no_spect())
 	{
 		// dead
 		if (player->health <= 0 || player->deadflag || !player->solid)
@@ -926,7 +930,7 @@ static edict_t* AI_GetSoundClient(edict_t* self, bool direct)
 	edict_t* best_sound = nullptr;
 	float best_distance = std::numeric_limits<float>::max();
 
-	for (auto player : active_players())
+	for (auto player : active_players_no_spect())
 	{
 		// dead
 		if (player->health <= 0 || player->deadflag || !player->solid)
@@ -987,82 +991,67 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 	return is_visible;
 }
 
-bool FindEnhancedTarget(edict_t* self) {
-	if (level.intermissiontime)
-		return false;
-	// Si es una unidad invocada, usar la lógica específica de FindMTarget
-	if (self->monsterinfo.issummoned) {
-		return FindMTarget(self);
-	}
-
-	// Para monstruos normales, buscar el mejor objetivo
-	edict_t* best_target = nullptr;
-	float best_dist = MAX_RANGE_SQUARED;
-
-	// Iterar una sola vez, manteniendo el mejor objetivo
-	for (uint32_t i = 1; i < game.maxclients; i++) {
-		edict_t* ent = &g_edicts[i];
-
-		// Verificaciones rápidas primero para early-out
-		if (!ent->inuse || ent == self ||
-			ent->health <= 0 || ent->deadflag) {
-			continue;
-		}
-
-		// Verificar si es un objetivo válido - incluir doppleganger aquí
-		if (!(!OnSameTeam(self, ent) &&
-			(ent->client || (ent->svflags & SVF_MONSTER) ||
-				(ent->classname && strcmp(ent->classname, "doppleganger") == 0)))) {
-			continue;
-		}
-
-		// Si el objetivo es un doppleganger, verificar que no sea del mismo equipo
-		if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) {
-			if (ent->teammaster == self->teammaster) {
-				continue;
-			}
-		}
-
-		// Verificaciones específicas para clientes
-		if (ent->client) {
-			// Si el buscador es una unidad invocada, ignorar players
-			if (self->monsterinfo.issummoned) {
-				continue;
-			}
-			if (ent->client->invisible_time > level.time &&
-				ent->client->invisibility_fade_time <= level.time) {
-				continue;
-			}
-			if (EntIsSpectating(ent)) {
-				continue;
-			}
-		}
-
-		// Check de distancia
-		float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
-		if (dist_squared > MAX_RANGE_SQUARED) {
-			continue;
-		}
-
-		// Solo hacer el check de visibilidad si este objetivo está más cerca que el mejor actual
-		if (dist_squared < best_dist && visible(self, ent, false)) {
-			best_dist = dist_squared;
-			best_target = ent;
-		}
-	}
-
-	if (best_target) {
-		// Si somos una unidad invocada y el mejor objetivo es un player, ignorarlo
-		if (self->monsterinfo.issummoned && best_target->client) {
-			return false;
-		}
-		self->enemy = best_target;
-		return true;
-	}
-
-	return false;
+// Helper function for clarity
+static inline bool IsValidTargetType(edict_t* ent) {
+    if (ent->client) return true;
+    if (ent->svflags & SVF_MONSTER) return true;
+    if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) return true;
+    return false;
 }
 
+bool FindEnhancedTarget(edict_t* self) {
+    if (level.intermissiontime)
+        return false;
+
+    if (self->monsterinfo.issummoned) {
+        return FindMTarget(self);
+    }
+
+    edict_t* best_target = nullptr;
+    float best_dist_sq = MAX_RANGE_SQUARED;
+
+    // --- THE OPTIMIZATION ---
+    // Use the correct grid name: g_monster_grid
+    const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self->s.origin, MAX_RANGE);
+
+    // Loop through the much smaller list of potential targets
+    for (auto ent : potential_targets)
+    {
+        // --- All the filtering logic below is copied directly from your original function ---
+        if (!ent->inuse || ent == self || ent->health <= 0 || ent->deadflag) {
+            continue;
+        }
+        if (OnSameTeam(self, ent) || !IsValidTargetType(ent)) {
+            continue;
+        }
+        if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) {
+            if (ent->teammaster == self->teammaster) {
+                continue;
+            }
+        }
+        if (ent->client) {
+            if (IsInvisible(ent)) { continue; }
+            if (EntIsSpectating(ent)) { continue; }
+        }
+
+        float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
+        if (dist_squared > best_dist_sq) {
+            continue;
+        }
+
+        if (visible(self, ent, false)) {
+            best_dist_sq = dist_squared;
+            best_target = ent;
+        }
+    }
+
+    if (best_target) {
+        self->enemy = best_target;
+        return true;
+    }
+
+    return false;
+}
 /*
 ===========
 FindTarget
@@ -2015,7 +2004,7 @@ void ai_run(edict_t* self, float dist)
 	// Si no hay enemigo y no es una unidad invocada, buscar players
 	if (!self->enemy && !self->monsterinfo.issummoned) {
 		edict_t* player = nullptr;
-		for (auto client : active_players()) {
+		for (auto client : active_players_no_spect()) {
 			if (!client->inuse || !client->client) {
 				continue;
 			}
@@ -2150,7 +2139,7 @@ void ai_run(edict_t* self, float dist)
 
 	if (!self->enemy && !self->monsterinfo.issummoned) {
 		edict_t* player = nullptr;
-		for (auto client : active_players())
+		for (auto client : active_players_no_spect())
 		{
 			if (!client->inuse || !client->client) {
 				continue;

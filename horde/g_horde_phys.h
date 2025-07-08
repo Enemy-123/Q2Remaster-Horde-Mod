@@ -34,6 +34,8 @@ namespace HordePhys {
         std::span<edict_t* const> GetPotentialColliders(edict_t* ent);
         int GetCellIndex(const vec3_t& pos) const;
 
+        std::span<edict_t* const> QueryRadius(const vec3_t& origin, float radius); //findmtarget uses it!
+
         [[nodiscard]] bool IsBuilt() const noexcept { return m_is_built; }
         [[nodiscard]] float GetCellSize() const noexcept { return m_cell_size; }
         [[nodiscard]] const vec3_t& GetWorldMins() const noexcept { return m_world_mins; }
