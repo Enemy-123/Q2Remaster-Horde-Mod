@@ -33,8 +33,9 @@ const entity_properties_source_t ENTITY_PROPERTIES_SRC[] = {
     {horde::SpecialEntityTypeID::PROX_MINE,      true,  true,  prox_die},
     {horde::SpecialEntityTypeID::SENTRY_GUN,     true,  true,  Turret2DieWrapper},
     {horde::SpecialEntityTypeID::TURRET,         true,  true,  TurretDieWrapper},
-    {horde::SpecialEntityTypeID::LASER_EMITTER,  false, true,  laser_die},
-    {horde::SpecialEntityTypeID::DOPPLEGANGER,  false, true,  doppleganger_die}
+    {horde::SpecialEntityTypeID::LASER_EMITTER,  true, true,  laser_die},
+    {horde::SpecialEntityTypeID::LASER_BEAM,     true, true,  laser_die},
+    {horde::SpecialEntityTypeID::DOPPLEGANGER,   false, true,  doppleganger_die}
 };
 
 // --- Compile-Time Transformation ---

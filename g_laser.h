@@ -19,7 +19,7 @@ namespace LaserConstants {
     constexpr int32_t LASER_ADDON_HEALTH = 120;
     constexpr int32_t MAX_LASER_HEALTH = 2500;
     constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
-    constexpr gtime_t LASER_TIMEOUT_DELAY = 180_sec;
+    constexpr gtime_t LASER_TIMEOUT_DELAY = 12_sec;
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;
