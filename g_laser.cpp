@@ -138,25 +138,46 @@ namespace LaserHelpers {
 struct laser_pierce_t : pierce_args_t {
     edict_t* self;
     inline laser_pierce_t(edict_t* self_ptr) : pierce_args_t(), self(self_ptr) {}
-    virtual bool hit(contents_t& mask, vec3_t& end) override {
-        if (!self || self->health <= 0) return false;
-        if (!tr.ent) return mark(nullptr);
-        if (tr.ent->client && OnSameTeam(self->teammaster, tr.ent)) return false;
-        if (self->dmg > 0 && tr.ent->takedamage && tr.ent != self->teammaster) {
-            if ((tr.ent->svflags & SVF_MONSTER) && tr.ent->health <= 100) tr.ent->gib_health = 10;
-            vec3_t forward;
-            AngleVectors(self->s.angles, &forward, nullptr, nullptr);
-            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, self->dmg, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
-            float const damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
-            if (damageMult >= 0.0f) self->health -= static_cast<int>(self->dmg * damageMult);
-            if (self->health <= 0) {
-                laser_die(self, self, self->teammaster, self->dmg, tr.endpos, MOD_PLAYER_LASER);
-                return false;
-            }
+    // Inside the laser_pierce_t struct
+virtual bool hit(contents_t& mask, vec3_t& end) override {
+    if (!self || self->health <= 0) return false;
+    if (!tr.ent) return mark(nullptr);
+    if (tr.ent->client && OnSameTeam(self->teammaster, tr.ent)) return false;
+    if (self->dmg > 0 && tr.ent->takedamage && tr.ent != self->teammaster) {
+        if ((tr.ent->svflags & SVF_MONSTER) && tr.ent->health <= 100) tr.ent->gib_health = 10;
+        vec3_t forward;
+        AngleVectors(self->s.angles, &forward, nullptr, nullptr);
+
+        // --- START OF MODIFICATION ---
+        int damage_to_apply = self->dmg;
+        edict_t* attacker = self->teammaster;
+
+        // If the attacker has Strength Tech, we need to pre-adjust the damage
+        // to "cap" it at its base value after the multiplier is applied.
+        if (attacker && attacker->client && attacker->client->pers.inventory[IT_TECH_STRENGTH])
+        {
+            // Determine the multiplier that CTFApplyStrength will use later.
+            float multiplier = (attacker->client->resp.spree >= 10 || current_wave_level >= 20) ? 2.0f : 1.5f;
+
+            // Divide the damage by the multiplier. This ensures that when T_Damage
+            // multiplies it later, the result is capped at the original self->dmg.
+            damage_to_apply = static_cast<int>(static_cast<float>(damage_to_apply) / multiplier);
         }
-        if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client && (tr.ent->solid != SOLID_NOT && tr.ent->solid != SOLID_TRIGGER)) return false;
-        return mark(tr.ent);
+
+        // Pass the adjusted (or original) damage value to T_Damage.
+        T_Damage(tr.ent, self, attacker, forward, tr.endpos, vec3_origin, damage_to_apply, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+        // --- END OF MODIFICATION ---
+
+        float const damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
+        if (damageMult >= 0.0f) self->health -= static_cast<int>(self->dmg * damageMult);
+        if (self->health <= 0) {
+            laser_die(self, self, self->teammaster, self->dmg, tr.endpos, MOD_PLAYER_LASER);
+            return false;
+        }
     }
+    if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client && (tr.ent->solid != SOLID_NOT && tr.ent->solid != SOLID_TRIGGER)) return false;
+    return mark(tr.ent);
+}
 };
 
 // A single, robust function to handle the death of any laser component.
