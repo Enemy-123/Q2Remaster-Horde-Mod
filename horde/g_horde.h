@@ -5,7 +5,7 @@
 // This ensures that any file including g_horde.h gets what it needs.
 #include <vector>
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0098";
+constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0098b";
 // --- Forward Declarations ---
 // These tell the compiler that these types exist, without needing their full definition.
 // This is crucial for preventing circular include dependencies.
