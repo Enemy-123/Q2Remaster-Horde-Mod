@@ -463,7 +463,7 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             MapID::Q64_DM9, MapID::Q64_DM7, MapID::Q64_DM2, MapID::TEST_SPBOX,
             MapID::Q64_DM1, MapID::FACT3, MapID::Q2CTF4, MapID::RDM4, MapID::Q64_COMMAND, MapID::MGU3M4,
             MapID::MGU4TRIAL, MapID::MGU6TRIAL, MapID::EC_BASE_EC, MapID::MGDM1, MapID::NDCTF0, MapID::Q64_DM6,
-            MapID::Q64_DM8, MapID::Q64_DM4, MapID::Q64_DM3, MapID::INDUSTRY, MapID::E3_JAIL_E3
+            MapID::Q64_DM8, MapID::Q64_DM4, MapID::Q64_DM3, MapID::INDUSTRY, MapID::E3_JAIL_E3, MapID::Q2DM5
         };
         for (MapID id : smallMapIDs) {
             size_t index = static_cast<size_t>(id);

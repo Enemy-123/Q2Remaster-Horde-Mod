@@ -325,6 +325,7 @@ static int CheckArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, i
 
 	return save;
 }
+// In g_monster.c or wherever M_ReactToDamage is located
 
 void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 {
@@ -336,18 +337,25 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		return;
 
 	//=======
-	// ROGUE
-	// logic for tesla - if you are hit by a tesla, and can't see who you should be mad at (attacker)
-	// attack the tesla
-	// also, target the tesla if it's a "new" tesla
-	if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
-		horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) ||
-		horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER)))
+	// ROGUE / HORDE MODIFICATION
+	// First, determine the actual source of the threat.
+	// If we're hit by a laser beam, the real threat is the emitter that owns it.
+	edict_t* threat = inflictor;
+	if (inflictor && horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_BEAM))
 	{
-		new_tesla = MarkTeslaArea(targ, inflictor);
+		// The beam is the inflictor, but the emitter is the targetable threat.
+		threat = inflictor->owner;
+	}
+
+	// Now, check if the determined threat is a deployable we should target directly.
+	if (threat && (horde::IsSpecialType(threat, horde::SpecialEntityTypeID::TESLA_MINE) ||
+		horde::IsSpecialType(threat, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+		horde::IsSpecialType(threat, horde::SpecialEntityTypeID::LASER_EMITTER)))
+	{
+		new_tesla = MarkTeslaArea(targ, threat);
 
 		// Sentry Gun or Laser Emitter logic
-		if (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER))
+		if (horde::IsSpecialType(threat, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(threat, horde::SpecialEntityTypeID::LASER_EMITTER))
 		{
 			// Check if enough time has passed since last sentrygun/emitter targeting
 			if (level.time - targ->monsterinfo.last_sentrygun_target_time > sentrygun_target_cooldown)
@@ -356,21 +364,21 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 				if ((new_tesla || brandom()) && (!targ->enemy ||
 					!(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
 				{
-					TargetTesla(targ, inflictor);
+					TargetTesla(targ, threat);
 					targ->monsterinfo.last_sentrygun_target_time = level.time;
 				}
 			}
 		}
 		// Tesla Mine logic
-		else if (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE))
+		else if (horde::IsSpecialType(threat, horde::SpecialEntityTypeID::TESLA_MINE))
 		{
 			// Target the new threat if it's new, random, or we aren't already targeting a tesla.
 			if ((new_tesla || brandom()) && (!targ->enemy || !horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::TESLA_MINE)))
-				TargetTesla(targ, inflictor);
+				TargetTesla(targ, threat);
 		}
 		return;
 	}
-	// ROGUE
+	// ROGUE / HORDE MODIFICATION END
 	//=======
 
 	if (attacker == targ || attacker == targ->enemy)
@@ -466,16 +474,16 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		return;
 	}
 
-if (attacker->enemy == targ // if they *meant* to shoot us, then shoot back
-    // it's the same base (walk/swim/fly) type and both don't ignore shots,
-    // get mad at them
-    || (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
-        (targ->monsterinfo.monster_type_id != attacker->monsterinfo.monster_type_id) &&
-        (!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
-            horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN) ||
-            horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::LASER_EMITTER)) &&
-        !(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
-{
+	if (attacker->enemy == targ // if they *meant* to shoot us, then shoot back
+		// it's the same base (walk/swim/fly) type and both don't ignore shots,
+		// get mad at them
+		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
+			(targ->monsterinfo.monster_type_id != attacker->monsterinfo.monster_type_id) &&
+			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
+				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::LASER_EMITTER)) &&
+			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
+	{
 		if (targ->enemy != attacker)
 		{
 			// [Paril-KEX]
@@ -522,6 +530,7 @@ if (attacker->enemy == targ // if they *meant* to shoot us, then shoot back
 		}
 	}
 }
+
 void AssignMonsterTeam(edict_t* ent) {
 	if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.team != CTF_TEAM1) {
 		ent->monsterinfo.team = CTF_TEAM2;

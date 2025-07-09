@@ -167,72 +167,64 @@ DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 
     edict_t* emitter = nullptr;
     edict_t* beam = nullptr;
-    edict_t* teammaster = self->teammaster; // Cache before we start freeing things
 
-    // Step 1: Identify the core components (emitter and beam)
-     if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::LASER_EMITTER)) {
+    // Step 1: Reliably identify the emitter, which is the root of the assembly.
+    if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::LASER_EMITTER)) {
         emitter = self;
-        beam = self->owner; // Emitter owns the beam
-    } else  if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::LASER_BEAM)) {
-        beam = self;
-        emitter = self->owner; // Beam is owned by the emitter
+    } else if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::LASER_BEAM)) {
+        emitter = self->owner; // The beam is always owned by the emitter.
     } else {
-        // Not a known laser part, just free it to be safe.
+        // This isn't a known laser part. To be safe, just free it and stop.
         G_FreeEdict(self);
         return;
     }
 
-    // Step 2: Update the player's manager FIRST. This is critical.
-    // This prevents logic errors if we try to find the manager after freeing the player.
+    // If we couldn't find a valid, in-use emitter, something is wrong.
+    // Clean up what we can and exit to prevent crashes.
+    if (!emitter || !emitter->inuse) {
+        g_emitter_states.erase(self); // Clean up map entry for the original entity
+        if (self->inuse) G_FreeEdict(self);
+        return;
+    }
+
+    // Now that we have the definitive emitter, find the beam it owns.
+    beam = emitter->owner;
+    edict_t* teammaster = emitter->teammaster; // Cache before we start freeing things
+
+    // Step 2: Update the player's manager FIRST.
     if (teammaster && teammaster->inuse && teammaster->client) {
         if (auto* manager = LaserHelpers::get_laser_manager(teammaster)) {
-            // Remove based on the emitter, which is the primary entity.
-            // If emitter is null, use the beam. This covers all cases.
-            manager->remove_laser(emitter ? emitter : beam);
-            
-            // Optional: You can print the "Laser destroyed" message here if you want.
-            // gi.LocClient_Print(teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
-            //    manager->get_active_count(), LaserConstants::MAX_LASERS);
+            manager->remove_laser(emitter); // Always remove based on the root emitter.
         }
     }
 
-    // Step 3: Clean up all associated edicts. Check for `inuse` at each step.
-    if (emitter && emitter->inuse) {
-        // Clean up the state map for the emitter
-        g_emitter_states.erase(emitter);
+    // Step 3: Clean up all associated edicts, checking for `inuse` at each step.
+    
+    // Clean up the state map for the emitter.
+    g_emitter_states.erase(emitter);
 
-        // Find and free the flare owned by the emitter
-        for (uint32_t i = 1; i <= globals.num_edicts; i++) {
-            edict_t* potential_flare = &g_edicts[i];
-            if (potential_flare->inuse && potential_flare->classname &&
-                strcmp(potential_flare->classname, "misc_flare") == 0 &&
-                potential_flare->owner == emitter) {
-                G_FreeEdict(potential_flare);
-                break; // Assume only one
-            }
+    // Find and free the flare owned by the emitter.
+    for (uint32_t i = 1; i <= globals.num_edicts; i++) {
+        edict_t* potential_flare = &g_edicts[i];
+        if (potential_flare->inuse && potential_flare->classname &&
+            strcmp(potential_flare->classname, "misc_flare") == 0 &&
+            potential_flare->owner == emitter) {
+            G_FreeEdict(potential_flare);
+            break; // Assume only one flare per emitter.
         }
     }
 
-    // Free the beam if it exists and isn't the entity we're about to explode
+    // Free the beam if it exists and is a separate entity.
     if (beam && beam->inuse && beam != emitter) {
         G_FreeEdict(beam);
     }
 
-    // Finally, handle the emitter's death.
-    // If the emitter is the entity that died, start its explosion sequence.
-    // This will handle freeing the emitter edict itself.
-    if (emitter && emitter->inuse) {
-        // If self is the emitter, it will be handled by BecomeExplosion1.
-        // If self was the beam, we are now explicitly killing the emitter.
-        emitter->health = 0; // Ensure it's dead
-        emitter->takedamage = false;
-        BecomeExplosion1(emitter);
-    }
-    
-    // If self was the entity that initiated the die call, and it wasn't the emitter
-    // (which is handled by BecomeExplosion1), it needs to be freed if it hasn't been already.
-    // The check `if (beam && beam->inuse && beam != emitter)` handles this.
+    // Finally, kill the emitter itself. This will handle freeing the emitter edict.
+    emitter->health = 0;
+    emitter->takedamage = false;
+    BecomeExplosion1(emitter);
 }
+
 THINK(laser_beam_think)(edict_t* self) -> void {
     if (!self || !self->owner || !self->owner->inuse) {
         if (self && self->inuse) G_FreeEdict(self);
