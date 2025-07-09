@@ -747,7 +747,7 @@ static float CalculateCooldownScale(int32_t lvl, const horde::MapSize &mapSize)
 
 	// Compute player reduction factor once
 	float playerReduction = 0.0f;
-	if (numHumanPlayers > 1)
+	if (numHumanPlayers >= 3)
 	{
 		constexpr float PLAYER_REDUCTION = 0.1f;
 		constexpr float MAX_REDUCTION = 0.45f;
@@ -891,7 +891,7 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t wave
 	int32_t finalAdjustedCap = baseCap; // Start with the potentially reduced base cap
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	if (numHumanPlayers > 1)
+	if (numHumanPlayers => 3)
 	{
 		constexpr int32_t MAX_BONUS_PLAYERS = 3; // Cap bonus contribution at 3 extra players (i.e., players 2, 3, 4)
 		constexpr int32_t BONUS_PER_PLAYER = 2;	 // +2 monsters per extra contributing player
@@ -1301,7 +1301,7 @@ static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t
 		// From HordeConstants::BASE_COUNTS, for big maps, level <= 5, it's 15.
 		// Let's use a slightly higher base to be safe.
 		int32_t estimatedInitialSpawn = HordeConstants::BASE_COUNTS[2][0]; // 15 for Big Map, Level <= 5
-		if (numHumanPlayers > 1)
+		if (numHumanPlayers >= 2)
 		{ // Rough approximation of player scaling in UnifiedAdjustSpawnRate
 			estimatedInitialSpawn = static_cast<int32_t>(estimatedInitialSpawn * (HordeConstants::BASE_DIFFICULTY_MULTIPLIER + ((std::min(numHumanPlayers, 4) - 1) * HordeConstants::PLAYER_COUNT_SCALE)));
 		}
