@@ -2210,12 +2210,202 @@ inline void PutClientOnSpawnPoint(edict_t* ent, const vec3_t& spawn_origin, cons
 	AngleVectors(client->v_angle, client->v_forward, nullptr, nullptr);
 }
 
+
+// Implementation of the gclient_t::reset method.
+// By placing it in the .cpp file, we ensure that g_laser.h has been included
+// and the compiler has the full definition of PlayerLaserManager.
+void gclient_t::reset()
+{
+    // Note: pers and resp structs are saved and restored in PutClientInServer.
+    // This function resets everything else.
+
+    // Safely destroy the managed object and null the pointer.
+    // This is now the critical cleanup step for lasers.
+    // It must be called BEFORE we reset the rest of the client struct,
+    // as it relies on the deployed_lasers array.
+
+    // Now, reset the laser tracking members themselves.
+    num_lasers = 0;
+
+    // Reset all other members to their default state.
+    ps = {};
+    ping = 0;
+    old_pmove = {};
+    showscores = false;
+    showeou = false;
+    showinventory = false;
+    showhelp = false;
+    buttons = {};
+    oldbuttons = {};
+    latched_buttons = {};
+    cmd = {};
+    weapon_fire_finished = {};
+    weapon_think_time = {};
+    weapon_fire_buffered = false;
+    weapon_thunk = false;
+    newweapon = nullptr;
+    damage_armor = 0;
+    damage_parmor = 0;
+    damage_blood = 0;
+    damage_knockback = 0;
+    damage_from = {};
+    
+    // Correctly zero-out C-style arrays using memset
+    memset(damage_indicators, 0, sizeof(damage_indicators));
+    
+    num_damage_indicators = 0;
+    killer_yaw = 0.0f;
+    weaponstate = WEAPON_READY;
+    kick = {};
+    quake_time = {};
+    kick_origin = {};
+    v_dmg_roll = 0.0f;
+    v_dmg_pitch = 0.0f;
+    v_dmg_time = {};
+    fall_time = {};
+    fall_value = 0.0f;
+    damage_alpha = 0.0f;
+    bonus_alpha = 0.0f;
+    damage_blend = {};
+    v_angle = {};
+    v_forward = {};
+    bobtime = 0.0f;
+    oldviewangles = {};
+    oldvelocity = {};
+    oldgroundentity = nullptr;
+    flash_time = {};
+    next_drown_time = {};
+    old_waterlevel = WATER_NONE;
+    breather_sound = 0;
+    machinegun_shots = 0;
+    anim_end = 0;
+    anim_priority = ANIM_BASIC;
+    anim_duck = false;
+    anim_run = false;
+    anim_time = {};
+    quad_time = {};
+    invincible_time = {};
+    breather_time = {};
+    enviro_time = {};
+    invisible_time = {};
+    grenade_blew_up = false;
+    grenade_time = {};
+    grenade_finished_time = {};
+    quadfire_time = {};
+    silencer_shots = 0;
+    weapon_sound = 0;
+    pickup_msg_time = {};
+    flood_locktill = {};
+
+    // Correctly zero-out C-style arrays using memset
+    memset(flood_when, 0, sizeof(flood_when));
+
+    flood_whenhead = 0;
+    respawn_time = {};
+    chase_target = nullptr;
+    update_chase = false;
+    use_eyecam = false;
+    double_time = {};
+    ir_time = {};
+    nuke_time = {};
+    tracker_pain_time = {};
+    owned_sphere = nullptr;
+    empty_click_sound = {};
+    inmenu = false;
+    menu = nullptr;
+    menutime = {};
+    menudirty = false;
+    ctf_grapple = nullptr;
+    ctf_grapplestate = 0;
+    ctf_grapplereleasetime = {};
+    ctf_regentime = {};
+    ctf_techsndtime = {};
+    trail_head = nullptr;
+    trail_tail = nullptr;
+    no_weapon_chains = false;
+    landmark_free_fall = false;
+    landmark_name = nullptr;
+    landmark_rel_pos = {};
+    landmark_noise_time = {};
+    invisibility_fade_time = {};
+    chase_msg_time = {};
+    menu_sign = 0;
+    last_ladder_pos = {};
+    last_ladder_sound = {};
+    coop_respawn_state = COOP_RESPAWN_NONE;
+    last_damage_time = {};
+    sight_entity = nullptr;
+    sight_entity_time = {};
+    sound_entity = nullptr;
+    sound_entity_time = {};
+    sound2_entity = nullptr;
+    sound2_entity_time = {};
+    num_lag_origins = 0;
+    next_lag_origin = 0;
+    is_lag_compensated = false;
+    lag_restore_origin = {};
+    slow_view_angles = {};
+    slow_view_angle_time = {};
+    help_draw_points = false;
+    help_draw_index = 0;
+    help_draw_count = 0;
+    help_draw_time = {};
+    step_frame = 0;
+    help_poi_image = 0;
+    help_poi_location = {};
+    awaiting_respawn = false;
+    respawn_timeout = {};
+    fog = {};
+    heightfog = {};
+    last_attacker_time = {};
+    last_firing_time = {};
+    cached_squad_spot = {};
+    squad_spot_cache_time = {};
+    squad_spot_cached_at_pos = {};
+    lastdmg = {};
+    hook_release_time = 0.0f;
+    hook_out = false;
+    hook_on = false;
+    hook_toggle = false;
+    hook = nullptr;
+    last_hook_time = 0.0f;
+    hook_damage = 0;
+    old_origin = {};
+    old_angles = {};
+    time_in_bad_area = {};
+    idtarget = nullptr;
+    dmg_counter = 0;
+    total_damage = 0;
+    num_lasers = 0;
+    num_teslas = 0;
+
+    // Correctly zero-out C-style arrays using memset
+    memset(deployed_teslas, 0, sizeof(deployed_teslas));
+
+    oldest_tesla_idx = 0;
+    num_sentries = 0;
+    last_wave_timer_horde_update = 0;
+    voted_map[0] = '\0';
+    teleport_cooldown = 3_sec;
+    emergency_teleport = false;
+    ctf_lasttechmsg_count = 0;
+    ammoregentime = {};
+    ir_tracking_active = false;
+    ir_frame_count = 0;
+    lasthbshot = {};
+}
+
+// ========================================================================
+// END NEW SECTION
+// ========================================================================
+
 /*
 ===========
 PutClientInServer
 
-Called when a player connects to a server or respawns in
-a deathmatch.
+Called when a player connects to a server or respawns.
+This function is now safe and uses the gclient_t::reset() method
+instead of the fragile memset/copy pattern.
 ===========
 */
 void PutClientInServer(edict_t* ent)
@@ -2223,12 +2413,7 @@ void PutClientInServer(edict_t* ent)
 	int index;
 	vec3_t spawn_origin, spawn_angles;
 	gclient_t* client;
-
-	// REVERTED: Use stack allocation for these temporary structures
-	client_persistant_t saved;
-	client_respawn_t	resp;
-
-	// NOTE: char arrays are declared closer to use below
+	bool is_landmark = false;
 
 	index = ent - g_edicts - 1;
 	client = ent->client;
@@ -2246,7 +2431,6 @@ void PutClientInServer(edict_t* ent)
 	// ranging doesn't count this client
 	bool valid_spawn = false;
 	const bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
-	bool is_landmark = false;
 
 	if (use_squad_respawn)
 	{
@@ -2270,10 +2454,9 @@ void PutClientInServer(edict_t* ent)
 		// Only do this once per spawn
 		if (!client->awaiting_respawn)
 		{
-			// REVERTED: Use stack allocation for temporary userinfo buffer
 			char userinfo[MAX_INFO_STRING];
 			memcpy(userinfo, client->pers.userinfo, MAX_INFO_STRING);
-			ClientUserinfoChanged(ent, userinfo); // Pass the stack array directly
+			ClientUserinfoChanged(ent, userinfo);
 
 			client->respawn_timeout = level.time + 3_sec;
 		}
@@ -2307,14 +2490,11 @@ void PutClientInServer(edict_t* ent)
 			}
 			else
 			{
-				// If pt is nullptr, no valid intermission point found
-				// Log a warning and prevent the player from spawning
 				vec3_t default_origin = vec3_origin;
 				vec3_t default_angles = vec3_origin;
 				level.intermission_origin = default_origin;
 				level.intermission_angle = default_angles;
 				level.respawn_intermission = true;
-
 				gi.Com_PrintFmt("PRINT: Advertencia: No se encontró un punto de intermission. Usando origen y ángulos por defecto.\n");
 			}
 		}
@@ -2347,9 +2527,23 @@ void PutClientInServer(edict_t* ent)
 	client->awaiting_respawn = false;
 	client->respawn_timeout = 0_ms;
 
-	// REVERTED: Use stack allocation for temporary social_id buffer
-	char social_id[MAX_INFO_VALUE];
-	Q_strlcpy(social_id, ent->client->pers.social_id, MAX_INFO_VALUE);
+    // ========================================================================
+    // BEGIN MODIFIED SECTION
+    // ========================================================================
+
+	// It is critical to save a copy of the data that must survive the reset.
+	client_persistant_t saved_pers = client->pers;
+	client_respawn_t    saved_resp = client->resp;
+    char                social_id[MAX_INFO_VALUE];
+    Q_strlcpy(social_id, client->pers.social_id, MAX_INFO_VALUE);
+
+	// Call our new, safe reset method. This replaces `memset`.
+	client->reset();
+
+	// Restore the persistent data.
+	client->pers = saved_pers;
+	client->resp = saved_resp;
+    Q_strlcpy(client->pers.social_id, social_id, MAX_INFO_VALUE);
 
 	// Deathmatch wipes most client data every spawn
 	if (deathmatch->integer)
@@ -2358,65 +2552,36 @@ void PutClientInServer(edict_t* ent)
 		client->resp.inactivity_warning = false;
 		client->resp.inactive = false;
 		client->pers.health = 0;
-		// REVERTED: Direct assignment to stack variable
-		resp = client->resp;
 	}
 	else
 	{
-		// [Kex] Maintain user info in singleplayer to keep the player skin.
-		// REVERTED: Use stack allocation for temporary userinfo buffer
-		char userinfo[MAX_INFO_STRING];
-		memcpy(userinfo, client->pers.userinfo, MAX_INFO_STRING);
-
 		if (G_IsCooperative() || (deathmatch->integer && g_horde->integer))
 		{
-			// REVERTED: Direct assignment to stack variable
-			resp = client->resp;
-
 			if (!P_UseCoopInstancedItems())
 			{
-				resp.coop_respawn.game_help1changed = client->pers.game_help1changed;
-				resp.coop_respawn.game_help2changed = client->pers.game_help2changed;
-				resp.coop_respawn.helpchanged = client->pers.helpchanged;
-				client->pers = resp.coop_respawn;
+				// Restore coop-specific persistent data that was wiped by the reset
+				client->pers.game_help1changed = saved_pers.game_help1changed;
+				client->pers.game_help2changed = saved_pers.game_help2changed;
+				client->pers.helpchanged = saved_pers.helpchanged;
 			}
 			else
 			{
 				if (!client->pers.weapon)
 					client->pers.weapon = client->pers.lastweapon;
 			}
-		}
 
-		ClientUserinfoChanged(ent, userinfo); // Pass stack array directly
-
-		if (G_IsCooperative())
-		{
-			if (resp.score > client->pers.score)
-				client->pers.score = resp.score;
+			if (saved_resp.score > client->pers.score)
+				client->pers.score = saved_resp.score;
 		}
-		else
-			// REVERTED: Use address of stack variable for memset
-			memset(&resp, 0, sizeof(client_respawn_t));
 	}
 
-	// Clear everything but the persistent data
-	// REVERTED: Direct assignment to stack variable
-	saved = client->pers;
-	memset(client, 0, sizeof(*client));
-	// REVERTED: Direct assignment from stack variable
-	client->pers = saved;
-	// REVERTED: Direct assignment from stack variable
-	client->resp = resp;
-
-	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
-	// On a new, fresh spawn (always in DM, clear inventory
-	// or new spawns in SP/coop)
+	// On a new, fresh spawn (always in DM, or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
 
-	// Restore social ID
-	// REVERTED: Pass stack array directly
-	Q_strlcpy(ent->client->pers.social_id, social_id, MAX_INFO_VALUE);
+    // ========================================================================
+    // END MODIFIED SECTION
+    // ========================================================================
 
 	// Fix level switch issue
 	ent->client->pers.connected = true;
@@ -2453,13 +2618,10 @@ void PutClientInServer(edict_t* ent)
 	ent->mins = PLAYER_MINS;
 	ent->maxs = PLAYER_MAXS;
 
-	// Clear playerstate values
-	memset(&ent->client->ps, 0, sizeof(client->ps));
-
-	// REVERTED: Use stack allocation for temporary val buffer
+	// Clear playerstate values (already done by client->reset())
 	char val[MAX_INFO_VALUE];
-	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val, MAX_INFO_VALUE); // Pass stack array
-	ent->client->ps.fov = clamp((float)atoi(val), 1.f, 160.f); // Use stack array
+	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val, MAX_INFO_VALUE);
+	ent->client->ps.fov = clamp((float)atoi(val), 1.f, 160.f);
 
 	ent->client->ps.pmove.viewheight = ent->viewheight;
 	ent->client->ps.team_id = ent->client->resp.ctf_team;
@@ -2475,10 +2637,8 @@ void PutClientInServer(edict_t* ent)
 
 	// Clear entity state values
 	ent->s.effects = EF_NONE;
-	ent->s.modelindex = MODELINDEX_PLAYER; // Will use the skin specified model
-	ent->s.modelindex2 = MODELINDEX_PLAYER; // Custom gun model
-	// sknum is player num and weapon number
-	// weapon number will be added in changeweapon
+	ent->s.modelindex = MODELINDEX_PLAYER;
+	ent->s.modelindex2 = MODELINDEX_PLAYER;
 
 	P_AssignClientSkinnum(ent);
 
@@ -2565,7 +2725,6 @@ void PutClientInServer(edict_t* ent)
 	if (was_waiting_for_respawn)
 		G_PostRespawn(ent);
 }
-
 /*
 =====================
 ClientBeginDeathmatch
@@ -3229,14 +3388,13 @@ void ClientDisconnect(edict_t* ent)
 	//============
 
 
-	// --- MODIFIED: LaserManager Cleanup (Using unique_ptr::reset) ---
-	if (ent->client && ent->client->laser_manager) {
-		// reset() deletes the managed object and sets the unique_ptr to null
-		ent->client->laser_manager.reset();
-		if (developer && developer->integer > 1) {
-			gi.Com_PrintFmt("Reset PlayerLaserManager for disconnecting client {}\n", (int)(ent - g_edicts));
-		}
-	}
+	// // --- MODIFIED: LaserManager Cleanup (Using unique_ptr::reset) ---
+    if (ent->client->laser_manager) {
+        ent->client->laser_manager.reset();
+        if (developer && developer->integer > 1) {
+            gi.Com_PrintFmt("Reset PlayerLaserManager for disconnecting client {}\n", (int)(ent - g_edicts));
+        }
+    }
 	// --- END MODIFIED ---
 
 
@@ -3473,12 +3631,12 @@ static void HandleInactivePlayer(edict_t* ent) {
 	ent->client->resp.inactive = true; // Mark as inactive
 
 	// --- MODIFIED: LaserManager Cleanup (Using unique_ptr::reset) ---
-	if (ent->client && ent->client->laser_manager) {
-		ent->client->laser_manager.reset(); // Reset the unique_ptr
-		if (developer && developer->integer > 1) {
-			gi.Com_PrintFmt("Reset PlayerLaserManager for inactive client {}\n", (int)(ent - g_edicts));
-		}
-	}
+    if (ent->client->laser_manager) {
+        ent->client->laser_manager.reset(); 
+        if (developer && developer->integer > 1) {
+            gi.Com_PrintFmt("Reset PlayerLaserManager for inactive client {}\n", (int)(ent - g_edicts));
+        }
+    }
 	// --- END MODIFIED ---
 
 	// Additional cleanup that might happen when going spectator:

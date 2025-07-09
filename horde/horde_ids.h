@@ -113,7 +113,8 @@ enum class SpecialEntityTypeID : uint8_t {
     TURRET,
     SENTRY_GUN,
     NUKE_MINE,
-    LASER_EMITTER, // Used for both "emitter" and "laser"
+    LASER_EMITTER, // EMITTER
+    LASER_BEAM, // LASER 
     DOPPLEGANGER,
     COUNT, // The total number of special entity types
     UNKNOWN = 255

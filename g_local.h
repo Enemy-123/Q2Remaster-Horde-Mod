@@ -5,7 +5,7 @@
 #pragma once
 
 #include "bg_local.h"
-#include <memory>
+#include <memory.h>
 // the "gameversion" client command will print this plus compile date
 constexpr const char* GAMEVERSION = "baseq2";
 
@@ -3285,7 +3285,19 @@ struct gclient_t
 	int ir_frame_count;
 
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
-	std::unique_ptr<PlayerLaserManager> laser_manager;  // In gclient_t
+	std::unique_ptr<PlayerLaserManager> laser_manager;
+
+	 // ========================================================================
+    // BEGIN MODIFIED SECTION
+    // ========================================================================
+
+    // Declaration of the reset method. The implementation is now in g_client.cpp
+    // to resolve the incomplete type error for PlayerLaserManager.
+    void reset();
+
+    // ========================================================================
+    // END MODIFIED SECTION
+    // ========================================================================
 };
 
 // ==========================================
