@@ -1298,6 +1298,23 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
+	// --- NEW LOGIC: Determine target type once at the top ---
+	// First, resolve the true target (in case it's a laser beam)
+	edict_t* target = self->enemy;
+	if (horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_BEAM))
+	{
+		target = target->owner;
+	}
+
+	// Now, check if the resolved target is a deployable we shouldn't use the machine gun on.
+	bool is_restricted_target = false;
+	if (target) {
+		is_restricted_target = horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
+							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER);
+	}
+	// --- END NEW LOGIC ---
+
 	if (self->enemy->client && self->monsterinfo.IS_BOSS && self->s.skinnum == 2 && frandom() < 0.6f) {
 		// Verificar cooldown de teleport
 		if (level.time < self->monsterinfo.spawn_cooldown)
@@ -1317,6 +1334,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
+		// ... (blind fire logic remains the same)
 		// setup shot probabilities
 		if (self->monsterinfo.blind_fire_delay < 1_sec)
 			chance = 1.0f;
@@ -1379,7 +1397,8 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 
 	if (range <= 125)
 	{
-		const bool can_machinegun = !horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		// Use our pre-calculated boolean to decide if machine gun is allowed
+		const bool can_machinegun = !is_restricted_target && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.5f)
 			M_SetAnimation(self, &tank_move_attack_chain);
@@ -1400,7 +1419,8 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	}
 	else if (range <= 250)
 	{
-		const bool can_machinegun = !horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		// Use our pre-calculated boolean again
+		const bool can_machinegun = !is_restricted_target && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.25f)
 			M_SetAnimation(self, &tank_move_attack_chain);
@@ -1421,7 +1441,8 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	}
 	else
 	{
-		const bool can_machinegun = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		// And use it a final time for long range
+		const bool can_machinegun = !is_restricted_target && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 		const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 
 		if (can_machinegun && r < 0.33f)

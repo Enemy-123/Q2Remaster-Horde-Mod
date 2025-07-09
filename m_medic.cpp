@@ -911,9 +911,22 @@ void medic_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
-		damage = 4;
+	        // Determine the actual target. If the enemy is a laser beam,
+        // the real target for this animation check is its owner (the emitter).
+        edict_t* target = self->enemy;
+        if (horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_BEAM))
+        {
+            target = target->owner;
+        }
 
+        // Check if the resolved target is a deployable that warrants a special attack animation.
+        // This also fixes a bug where it was checking 'self' instead of 'self->enemy' for the sentry gun.
+        if (target && (horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
+                       horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+                       horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER)))
+        {
+		damage *= 1.5f;
+		}
 	// medic commander shoots blaster2
 	if (self->mass > 400)
 		monster_fire_blaster2(self, start, dir, damage, 1000, mz, effect);

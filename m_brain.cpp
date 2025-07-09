@@ -1027,18 +1027,32 @@ void brain_jump_wait_land_attack(edict_t* self)
     // Check if self->enemy is not null before accessing it
     if (self->enemy)
     {
-        if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE) ||
-		 horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN))
+        // Determine the actual target. If the enemy is a laser beam,
+        // the real target for this animation check is its owner (the emitter).
+        edict_t* target = self->enemy;
+        if (horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_BEAM))
+        {
+            target = target->owner;
+        }
+
+        // Check if the resolved target is a deployable that warrants a special attack animation.
+        // This also fixes a bug where it was checking 'self' instead of 'self->enemy' for the sentry gun.
+        if (target && (horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
+                       horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+                       horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER)))
+        {
             M_SetAnimation(self, &brain_move_attack4);
+        }
         else if (visible(self, self->enemy))
+        {
             M_SetAnimation(self, &brain_move_attack3);
+        }
     }
     else
     {
         M_SetAnimation(self, &brain_move_run);
     }
 }
-
 void brain_jump_wait_land(edict_t* self)
 {
 	if (self->groundentity == nullptr)
