@@ -2224,6 +2224,9 @@ void gclient_t::reset()
     // It must be called BEFORE we reset the rest of the client struct,
     // as it relies on the deployed_lasers array.
 
+	    if (laser_manager) {
+        laser_manager.reset();
+    }
     // Now, reset the laser tracking members themselves.
     num_lasers = 0;
 
