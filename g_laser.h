@@ -5,7 +5,7 @@
 #include "g_local.h" // Include necessary base headers (for edict_t, vec3_t, gtime_t, etc.)
 #include <array>     // For std::array
 #include <cstdint>   // For int32_t
-
+#include <memory>
 // Forward declaration
 void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game);
 
