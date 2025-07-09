@@ -891,7 +891,7 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t wave
 	int32_t finalAdjustedCap = baseCap; // Start with the potentially reduced base cap
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	if (numHumanPlayers => 3)
+	if (numHumanPlayers >= 3)
 	{
 		constexpr int32_t MAX_BONUS_PLAYERS = 3; // Cap bonus contribution at 3 extra players (i.e., players 2, 3, 4)
 		constexpr int32_t BONUS_PER_PLAYER = 2;	 // +2 monsters per extra contributing player
