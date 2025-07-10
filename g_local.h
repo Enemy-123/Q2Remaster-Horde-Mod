@@ -5,7 +5,6 @@
 #pragma once
 
 #include "bg_local.h"
-#include <memory.h>
 // the "gameversion" client command will print this plus compile date
 constexpr const char* GAMEVERSION = "baseq2";
 
@@ -1825,7 +1824,7 @@ struct monsterinfo_t
 	gtime_t quadfire_time; // Horde
 
 	gtime_t last_sentry_missile_fire_time;
-	gtime_t last_sentrygun_target_time;
+	gtime_t last_reacttodamage_target_time;
 	gtime_t lastnoisecooldown;
 	gtime_t spawn_cooldown; // Tiempo de espera entre spawns
 	gtime_t stuck_check_time;
@@ -3285,19 +3284,7 @@ struct gclient_t
 	int ir_frame_count;
 
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
-	std::unique_ptr<PlayerLaserManager> laser_manager;
-
-	 // ========================================================================
-    // BEGIN MODIFIED SECTION
-    // ========================================================================
-
-    // Declaration of the reset method. The implementation is now in g_client.cpp
-    // to resolve the incomplete type error for PlayerLaserManager.
-    void reset();
-
-    // ========================================================================
-    // END MODIFIED SECTION
-    // ========================================================================
+	PlayerLaserManager* laser_manager;
 };
 
 // ==========================================

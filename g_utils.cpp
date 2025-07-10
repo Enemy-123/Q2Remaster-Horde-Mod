@@ -396,37 +396,6 @@ edict_t* G_Spawn()
 	return e;
 }
 
-#include "g_laser.h"
-// =======================================================================
-// NEW FUNCTION: CleanupEdictCppResources
-// This function is the key to fixing memory leaks. It manually "destroys"
-// any C++ objects with non-trivial destructors that are part of an edict.
-// =======================================================================
-void CleanupEdictCppResources(edict_t* ent)
-{
-    // --- 1. Basic Validation ---
-    if (!ent) {
-        return;
-    }
-
-    // --- 2. Clean up savable_allocated_memory_t ---
-    // This is the most critical part. It manually calls the release() method
-    // which is what the destructor would have done.
-    ent->moveinfo.curve_positions.release();
-
-    // --- 3. Clean up unique_ptr for PlayerLaserManager ---
-    // If the edict is a player, we must manually reset their laser manager.
-    // This calls the destructor for PlayerLaserManager.
-    if (ent->client && ent->client->laser_manager) {
-        ent->client->laser_manager.reset();
-    }
-
-    // --- 4. Future-Proofing ---
-    // If you ever add another C++ object with a destructor (like another
-    // unique_ptr, a std::vector, or a std::string) to edict_t or its
-    // sub-structs, you MUST add its manual cleanup logic here.
-}
-
 /*
 =================
 G_FreeEdict
@@ -434,45 +403,42 @@ G_FreeEdict
 Marks the edict as free
 =================
 */
-THINK(G_FreeEdict) (edict_t* ed) -> void
-{
-    // --- 1. Pre-computation and Validation ---
-    // Get the edict number before we start clearing memory.
-    const int edict_num = ed - g_edicts;
+THINK(G_FreeEdict) (edict_t* ed) -> void {
+	// Already freed check
+	if (!ed->inuse)
+		return;
 
-    // Check if the edict is already freed or is a protected entity.
-    if (!ed->inuse || edict_num <= (game.maxclients + BODY_QUEUE_SIZE)) {
-        return;
-    }
+	// Handle cleanup through OnEntityRemoved
+	OnEntityRemoved(ed);
 
-    // --- 2. C++ Resource Cleanup (THE CRITICAL FIX) ---
-    // This call ensures that memory allocated by C++ objects like
-    // savable_allocated_memory_t and unique_ptr is properly released.
-    CleanupEdictCppResources(ed);
+	// Unlink from world
+	gi.unlinkentity(ed);
 
-    // --- 3. Engine-Level Cleanup ---
-    // Unlink from the world so it no longer collides or renders.
-    gi.unlinkentity(ed);
+	// Protected entity check
+	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE)) {
+#ifdef _DEBUG
+		gi.Com_Print("tried to free special edict\n");
+#endif
+		return;
+	}
 
-    // Unregister from the bot system if it was a bot-controlled entity.
-    gi.Bot_UnRegisterEdict(ed);
+	// Unregister from bot system
+	gi.Bot_UnRegisterEdict(ed);
 
-    // --- 4. Memory Reset and Re-initialization ---
-    // Preserve the spawn_count to help prevent client-side prediction errors.
-    const int32_t spawn_id = ed->spawn_count + 1;
+	// Preserve and increment spawn count
+	int32_t id = ed->spawn_count + 1;
 
-    // Clear the entire edict structure to a clean state.
-    memset(ed, 0, sizeof(*ed));
+	// Clear entity data
+	memset(ed, 0, sizeof(*ed));
 
-    // Restore the essential fields needed by the engine's edict pool manager.
-    ed->s.number = edict_num;
-    ed->classname = "freed";
-    ed->freetime = level.time;
-    ed->inuse = false;
-    ed->spawn_count = spawn_id;
-    ed->sv.init = false; // Ensure it's marked as uninitialized for the server.
+	// Restore essential fields
+	ed->s.number = ed - g_edicts;
+	ed->classname = "freed";
+	ed->freetime = level.time;
+	ed->inuse = false;
+	ed->spawn_count = id;
+	ed->sv.init = false;
 }
-
 BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)
 {
 	if (!hit->touch)
@@ -639,57 +605,6 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 	return true; // all clear
 }
 
-
-void OnEntityDeath(edict_t* self) noexcept
-{
-	if (!self || !self->inuse || self->monsterinfo.death_processed || !g_horde->integer) {
-		return;
-	}
-
-	self->monsterinfo.death_processed = true;
-
-	// --- MANDATORY RESOURCE CLEANUP ---
-	self->moveinfo.curve_positions.release();
-	// --- Add .release() calls for ANY OTHER savable_allocated_memory_t members HERE ---
-	// --- Add gi.TagFree for relevant dynamically allocated char* members HERE ---
-
-	// --- Entity Type Specific State Cleanup ---
-	if (self->svflags & SVF_MONSTER) {
-		self->monsterinfo.bonus_flags = BF_NONE;
-		self->monsterinfo.effects_applied = false;
-		self->monsterinfo.IS_BOSS = false;
-	}
-	// else if (self->client) { /* Client cleanup if needed */ }
-	// else { /* Other type cleanup */ }
-
-
-	// --- Setup Post-Death Behavior (Timing/Flags for G_FreeEdict) ---
-	bool apply_horde_fade = (self->svflags & SVF_MONSTER) && g_horde && g_horde->integer;
-
-	if (apply_horde_fade) {
-		constexpr gtime_t FADE_START_DELAY = 4_sec;
-		constexpr gtime_t FADE_DURATION = 3_sec;
-
-		self->teleport_time = level.time + FADE_START_DELAY;
-		self->timestamp = self->teleport_time + FADE_DURATION;
-		self->wait = FADE_DURATION.seconds();
-
-		self->monsterinfo.aiflags |= AI_CLEANUP_FADE;
-		self->monsterinfo.aiflags &= ~AI_CLEANUP_NORMAL;
-
-		self->s.renderfx &= ~RF_DOT_SHADOW;
-		// Ensure StartFadeOut or similar sets think/nextthink for fading
-	}
-	else {
-		self->timestamp = level.time + 2_sec;
-
-		if (self->svflags & SVF_MONSTER) {
-			self->monsterinfo.aiflags |= AI_CLEANUP_NORMAL;
-			self->monsterinfo.aiflags &= ~AI_CLEANUP_FADE;
-		}
-	}
-}
-
 // Modify the CheckAndRestoreMonsterAlpha function to batch updates
 void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
 	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
@@ -769,9 +684,60 @@ void StartFadeOut(edict_t* ent) {
 	gi.linkentity(ent);
 }
 
+// This function is for when an entity's health reaches zero.
+// It sets up the "dead" state.
+void OnEntityDeath(edict_t* self) noexcept
+{
+	if (!self || !self->inuse || self->monsterinfo.death_processed || !g_horde->integer) {
+		return;
+	}
 
+	self->monsterinfo.death_processed = true;
+
+	// --- State Cleanup on Death ---
+	if (self->svflags & SVF_MONSTER) {
+		self->monsterinfo.bonus_flags = BF_NONE;
+		self->monsterinfo.effects_applied = false;
+		self->monsterinfo.IS_BOSS = false;
+	}
+
+	// --- Setup Post-Death Behavior (Fading, etc.) ---
+	// This logic is correct for setting up how the dead body behaves.
+	bool apply_horde_fade = (self->svflags & SVF_MONSTER) && g_horde && g_horde->integer;
+
+	if (apply_horde_fade) {
+		constexpr gtime_t FADE_START_DELAY = 4_sec;
+		constexpr gtime_t FADE_DURATION = 3_sec;
+
+		self->teleport_time = level.time + FADE_START_DELAY;
+		self->timestamp = self->teleport_time + FADE_DURATION;
+		self->wait = FADE_DURATION.seconds();
+
+		self->monsterinfo.aiflags |= AI_CLEANUP_FADE;
+		self->monsterinfo.aiflags &= ~AI_CLEANUP_NORMAL;
+		self->s.renderfx &= ~RF_DOT_SHADOW;
+	} else {
+		self->timestamp = level.time + 2_sec;
+		if (self->svflags & SVF_MONSTER) {
+			self->monsterinfo.aiflags |= AI_CLEANUP_NORMAL;
+			self->monsterinfo.aiflags &= ~AI_CLEANUP_FADE;
+		}
+	}
+}
+
+#include "g_laser.h"
+// This function is for the FINAL cleanup before an entity is removed from the game.
+// This is where you free all associated memory.
 void OnEntityRemoved(edict_t* self) noexcept {
-	OnEntityDeath(self);
+	if (!self) {
+		return;
+	}
+
+	// --- Free Savable Memory ---
+	self->moveinfo.curve_positions.release();
+
+	// --- CRITICAL: Free Player-Specific Heap Memory ---
+	CleanupPlayerLaserManager(self); // <-- USE THE NEW FUNCTION
 }
 
 void CleanupInvalidEntities() {

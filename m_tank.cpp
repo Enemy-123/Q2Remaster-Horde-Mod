@@ -2247,7 +2247,6 @@ void Monster_MoveSpawn(edict_t* self) {
 			monster->s.angles = spawn_angles;
 			monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags = AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
-			monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 			monster->monsterinfo.commander = self;
 			monster->monsterinfo.slots_from_commander = reinf.strength;
 			monster->enemy = self->enemy;

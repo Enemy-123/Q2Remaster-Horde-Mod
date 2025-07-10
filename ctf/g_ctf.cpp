@@ -3410,6 +3410,8 @@ void RemoveAllTechItems(edict_t* ent)
 		}
 	}
 }
+
+#include "../g_laser.h"
 void CTFObserver(edict_t* ent)
 {
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
@@ -3436,7 +3438,7 @@ void CTFObserver(edict_t* ent)
 
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(ent);
-
+ 	CleanupPlayerLaserManager(ent);
 	// Cerrar el menú si está abierto
 	if (ent->client->menu) {
 		PMenu_Close(ent);

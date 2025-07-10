@@ -1342,7 +1342,7 @@ FIELD_AUTO(monsterinfo.physics_change), // Added missing function pointer
 //Horde Stuff monsterinfo
 FIELD_AUTO(monsterinfo.quadfire_time),
 FIELD_AUTO(monsterinfo.last_sentry_missile_fire_time),
-FIELD_AUTO(monsterinfo.last_sentrygun_target_time),
+FIELD_AUTO(monsterinfo.last_reacttodamage_target_time),
 FIELD_AUTO(monsterinfo.lastnoisecooldown),
 FIELD_AUTO(monsterinfo.spawn_cooldown),
 FIELD_AUTO(monsterinfo.stuck_check_time),

@@ -2287,7 +2287,7 @@ static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 	// Apply common Horde flags automatically
 	monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 	monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-	monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+	monster->monsterinfo.last_reacttodamage_target_time = 0_ms;
 	monster->was_spawned_by_horde = true; // Mark as horde spawned
 
 	// Mark specifically if in spawning state
@@ -2327,7 +2327,7 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 	{
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+		monster->monsterinfo.last_reacttodamage_target_time = 0_ms;
 		monster->was_spawned_by_horde = true;
 
 		if (g_horde_local.state == horde_state_t::spawning)
@@ -4404,7 +4404,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	self->monsterinfo.IS_BOSS = true;
 	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-	self->monsterinfo.last_sentrygun_target_time = 0_ms;
+	self->monsterinfo.last_reacttodamage_target_time = 0_ms;
 
 	self->solid = SOLID_NOT;
 	ED_CallSpawn(self);
@@ -4626,18 +4626,17 @@ void ResetGame()
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
-	for (size_t i = 0; i < game.maxclients; ++i)
+		for (size_t i = 0; i < game.maxclients; ++i)
 	{
-		if (game.clients[i].laser_manager)
-		{
-			if (developer && developer->integer > 1)
-			{
-				gi.Com_PrintFmt("Resetting PlayerLaserManager for client slot {} during ResetGame\n", i);
-			}
-			game.clients[i].laser_manager.reset();
-		}
-	}
+		// Get the entity that corresponds to this client slot.
+		// Player edicts start at index 1, so client 'i' is edict 'i + 1'.
+		edict_t* player_ent = &g_edicts[i + 1];
 
+		// Use our safe, centralized cleanup function.
+		// This function already handles all the necessary checks (is the pointer null? etc.)
+		// and will correctly do nothing for clients that don't have a manager.
+		CleanupPlayerLaserManager(player_ent);
+	}
 	//recent spawns
 	g_recent_spawns.positions.fill(vec3_origin); // Or vec3_t{}
 	g_recent_spawns.cooldowns_until.fill(0_sec);

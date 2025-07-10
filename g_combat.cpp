@@ -331,7 +331,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 {
 	// pmm
 	bool new_tesla;
-	static constexpr gtime_t sentrygun_target_cooldown = 1.5_sec;
+	static constexpr gtime_t target_cooldown_react = 1.5_sec;
 
 	if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
 		return;
@@ -364,14 +364,14 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		if (horde::IsSpecialType(threat, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(threat, horde::SpecialEntityTypeID::LASER_EMITTER))
 		{
 			// Check if enough time has passed since last sentrygun/emitter targeting
-			if (level.time - targ->monsterinfo.last_sentrygun_target_time > sentrygun_target_cooldown)
+			if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
 			{
 				// Target the new threat if it's new, random, or we aren't already targeting a similar threat.
 				if ((new_tesla || brandom()) && (!targ->enemy ||
 					!(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
 				{
 					TargetTesla(targ, threat);
-					targ->monsterinfo.last_sentrygun_target_time = level.time;
+					targ->monsterinfo.last_reacttodamage_target_time = level.time;
 				}
 			}
 		}

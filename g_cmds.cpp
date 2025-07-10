@@ -519,18 +519,14 @@ void Cmd_RemoveLaser_f(edict_t* ent)
         return;
     }
 
-    // Use an if-statement with initializer to get the manager.
-    // Then, check if the manager exists AND has lasers to remove.
+    // This code is excellent. It safely gets the manager and checks if there's anything to do.
     if (auto* manager = LaserHelpers::get_laser_manager(ent); manager && manager->get_active_count() > 0) 
     {
-        // If we are here, the player had at least one laser.
         manager->remove_all_lasers();
         gi.LocClient_Print(ent, PRINT_HIGH, "All your lasers have been removed.\n");
     } 
     else 
     {
-        // If we are here, the player either never built a laser (no manager)
-        // or all their lasers were already destroyed.
         gi.LocClient_Print(ent, PRINT_HIGH, "You have no active lasers to remove.\n");
     }
 }
