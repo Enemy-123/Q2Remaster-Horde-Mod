@@ -3600,7 +3600,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 }
 
 // Constantes
-constexpr gtime_t BOT_INACTIVITY_DURATION = 20_sec;  // Duración específica para bots
+constexpr gtime_t BOT_INACTIVITY_DURATION = 17_sec;  // Duración específica para bots
 constexpr gtime_t MIN_INACTIVITY_DURATION = 15_sec;
 constexpr gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
 constexpr gtime_t WARNING_TIME = 5_sec;

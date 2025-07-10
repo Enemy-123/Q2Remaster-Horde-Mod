@@ -3217,8 +3217,9 @@ void Horde_PreInit()
 	}
 }
 
-static bool AreBotsAlreadyPresent()
+static int CountPresentBots()
 {
+	int count = 0;
 	// Iterate through all possible client slots
 	for (int i = 0; i < game.maxclients; ++i)
 	{
@@ -3226,13 +3227,16 @@ static bool AreBotsAlreadyPresent()
 		// Check if the entity is an active, in-use bot
 		if (ent && ent->inuse && (ent->svflags & SVF_BOT))
 		{
-			return true; // Found at least one bot
+			count++;
 		}
 	}
-	return false;
+	return count;
 }
 
-
+// REPLACEMENT: VerifyAndAdjustBots (Hybrid Approach)
+// This function now uses a two-part strategy:
+// 1. A one-time-ever 'addbot' command sequence for the initial, fast bot load.
+// 2. An ongoing 'bot_minClients' adjustment for all subsequent changes.
 void VerifyAndAdjustBots()
 {
 	if (developer->integer == 2)
@@ -3241,81 +3245,60 @@ void VerifyAndAdjustBots()
 		return;
 	}
 
-	// --- PART 1: Initial, one-time bot spawn for the map ---
-	// This block now also performs an immediate, correct calculation for minclients.
+	// --- PART 1: One-time initial bot spawn for the server session ---
+	// This block only runs if the initial bots have never been spawned.
 	if (!g_initial_bots_spawned_for_map)
 	{
-		if (AreBotsAlreadyPresent())
+		// Only run the 'addbot' commands if no bots have been manually added.
+		if (CountPresentBots() == 0)
 		{
-			// If bots were added by other means, just flag as done.
-			g_initial_bots_spawned_for_map = true;
-		}
-		else
-		{
-			// Spawn the initial set of bots.
+			// Use 'addbot' for the initial, non-stuttery spawn.
 			const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
 			const int32_t bots_to_add_now = mapSize.isBigMap ? 6 : 4;
 			for (int32_t i = 0; i < bots_to_add_now; ++i)
 			{
 				gi.AddCommandString("addbot\n");
 			}
-			g_initial_bots_spawned_for_map = true;
-
-			// --- THE FIX (Your Suggestion) ---
-			// Immediately calculate and set the correct minclients value right now,
-			// bypassing the cache for this one-time setup.
-			const int32_t initial_spect_count = GetNumSpectPlayers();
-			const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
-			const int32_t initialRequiredBots = std::max(baseBots + initial_spect_count, baseBots);
-
-			// Set the cvar and update the cache so the next check doesn't re-run.
-			gi.cvar_set("bot_minClients", std::to_string(initialRequiredBots).c_str());
-			g_bot_count_cache.last_required_bots = initialRequiredBots;
-			g_bot_count_cache.last_spect_count = initial_spect_count;
-			g_bot_count_cache.last_wave_level = current_wave_level; // Use current wave level
-
-			if (developer->integer > 1) {
-				gi.Com_PrintFmt("Initial Bot Spawn: Set minclients to %d (Spects: %d)\n",
-								initialRequiredBots, initial_spect_count);
-			}
-			// We've done all the work for this frame, so we can exit.
-			return;
 		}
+
+		// CRITICAL: Mark the initial spawn as complete. This flag will now persist
+		// across map changes because we no longer reset it in ResetGame().
+		g_initial_bots_spawned_for_map = true;
 	}
 
-	// --- PART 2: Cached, periodic adjustment logic ---
-	// This part runs on subsequent calls from Horde_RunFrame or Horde_InitLevel.
+	// --- PART 2: Ongoing adjustment using bot_minClients (runs every time) ---
+	// This part is now responsible for ALL adjustments after the initial spawn,
+	// including on subsequent maps.
 
-	// 1. Get the current game state relevant to bot count.
+	// 1. Get current game state.
 	const int32_t current_spect_count = GetNumSpectPlayers();
 	const int32_t current_level_for_bots = current_wave_level;
 
-	// 2. Check if the state has changed since the last call.
+	// 2. Check cache to avoid redundant work.
 	if (g_bot_count_cache.last_spect_count == current_spect_count &&
 		g_bot_count_cache.last_wave_level == current_level_for_bots)
 	{
-		// CACHE HIT: Nothing has changed. Do nothing. This is the performance gain.
+		// CACHE HIT: State is unchanged, do nothing.
 		return;
 	}
 
-	// --- CACHE MISS: The state has changed, so we must recalculate. ---
+	// --- CACHE MISS: State has changed, recalculate. ---
 
-	// 3. Perform the calculation.
+	// 3. Calculate the required number of bots.
 	const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
 	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 	const int32_t extraBot = (current_level_for_bots >= 20) ? 1 : 0;
 	const int32_t totalRequiredBots = std::max(baseBots + current_spect_count + extraBot, baseBots);
 
-	// 4. Update the cache with the new values.
-	g_bot_count_cache.last_required_bots = totalRequiredBots;
+	// 4. Update the cache with the new state.
 	g_bot_count_cache.last_spect_count = current_spect_count;
 	g_bot_count_cache.last_wave_level = current_level_for_bots;
 
-	// 5. Set the cvar with the new value.
+	// 5. Set the cvar. The engine will now handle adding/removing bots to match this number.
 	gi.cvar_set("bot_minClients", std::to_string(totalRequiredBots).c_str());
 
 	if (developer->integer > 1) {
-		gi.Com_PrintFmt("Bot Count Adjusted: Required bots set to %d (Spects: %d, Wave: %d)\n",
+		gi.Com_PrintFmt("Bot Count Adjusted: Required bots set to {} (Spects: {}, Wave: {})\n",
 						totalRequiredBots, current_spect_count, current_level_for_bots);
 	}
 }
@@ -4663,7 +4646,7 @@ void ResetGame()
 		gi.Com_PrintFmt("INFO: Performing full game state reset...\n");
 	}
 
-	g_initial_bots_spawned_for_map = false;
+	//g_initial_bots_spawned_for_map = false;
 	g_bot_count_cache = {}; 
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
