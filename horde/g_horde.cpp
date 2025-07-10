@@ -2013,7 +2013,7 @@ inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept
 {
     const size_t index = static_cast<size_t>(typeId);
     if (index >= g_monsterData.MONSTER_ARRAY_SIZE) {
-        return MonsterWaveType::None;
+        return MonsterWaveType::None; // Safety check
     }
 	return g_monsterData.waveTypes[index];
 }
@@ -2540,123 +2540,127 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::st
 	return BossPickResult(chosen_typeId, chosen_sizeCategory);
 }
 
+// --- Step 1: Define the SoA structure for item data ---
+struct HordeItemDataSoA {
+    static constexpr size_t NUM_ITEMS = std::size(hordeItemData);
 
-// Adapted Caching Structure (using std::array for fixed size based on input)
+    std::array<item_id_t, NUM_ITEMS> ids;
+    std::array<float, NUM_ITEMS> weights;
+    std::array<int, NUM_ITEMS> minWaves;
+};
+
+// --- Step 2: Define the compile-time transformation function ---
+constexpr HordeItemDataSoA create_horde_item_data_soa() {
+    HordeItemDataSoA soa_data{};
+    // FIX: Use std::size() for C-style arrays, not .size()
+    for (size_t i = 0; i < std::size(hordeItemData); ++i) {
+        soa_data.ids[i]      = hordeItemData[i].id;
+        soa_data.weights[i]  = hordeItemData[i].weight;
+        soa_data.minWaves[i] = hordeItemData[i].minWave;
+    }
+    return soa_data;
+}
+
+// --- Step 3: Create the global, constant, SoA data instance ---
+static const HordeItemDataSoA g_hordeItemDataSoA = create_horde_item_data_soa();
+
+
+// --- Step 4: Correct the Caching Structure ---
 struct HordeItemSelectionCache
 {
-	// Automatically size based on the actual data array
-	static constexpr size_t MAX_ENTRIES = std::size(hordeItemData);
+    // FIX: Define MAX_ENTRIES inside the struct to scope it correctly.
+    static constexpr size_t MAX_ENTRIES = std::size(hordeItemData);
+
 	struct Entry
 	{
-		const HordeItemInfo *itemInfo; // Pointer to the HordeItemInfo entry
+        // We store the index into the SoA data, not a pointer to the old AoS data.
+        size_t item_index;
 		float weight;
 		float cumulative_weight;
 	};
 
 	size_t count = 0;
 	float total_weight = 0.0f;
-	// Use std::array for compile-time sized array based on hordeItemData
-	std::array<Entry, MAX_ENTRIES> entries{}; // Value-initialize
+    // FIX: This now compiles because MAX_ENTRIES is in scope.
+	std::array<Entry, MAX_ENTRIES> entries{};
 
 	void clear() noexcept
 	{
 		count = 0;
 		total_weight = 0.0f;
-		// No need to clear array elements explicitly when count = 0
 	}
 };
 // Static cache instance specifically for Horde item selection
 static HordeItemSelectionCache horde_item_cache;
 
-// Modified Function using HordeItemInfo and item_id_t
+
+// --- Step 5: Correct the G_HordePickItem function ---
 gitem_t *G_HordePickItem()
 {
 	// Reset cache for this selection attempt
 	horde_item_cache.clear();
 
-	// Use std::span for safe iteration over the hordeItemData array
-	std::span<const HordeItemInfo> items_view{hordeItemData};
-
-	// --- Collect Eligible Items ---
-	for (const auto &hordeItemInfo : items_view)
+	// --- Collect Eligible Items (Cache-Friendly Loop) ---
+    // This loop primarily accesses g_hordeItemDataSoA.minWaves, which is a tight, contiguous array.
+	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)
 	{
-		// Check if cache is full (safety check, should not happen with std::array)
 		if (horde_item_cache.count >= HordeItemSelectionCache::MAX_ENTRIES)
 		{
-			if (developer->integer)
-			{ // Log error if this happens unexpectedly
-				gi.Com_PrintFmt("Warning: HordeItemSelectionCache full! Increase MAX_ENTRIES if not using std::array.\n");
-			}
-			break;
+			break; // Safety break
 		}
 
 		// Filter based on minimum wave level required for the item
-		if (g_horde_local.level >= hordeItemInfo.minWave)
+		if (g_horde_local.level >= g_hordeItemDataSoA.minWaves[i])
 		{
+            // Only now do we access the weights array.
+			float adjusted_weight = g_hordeItemDataSoA.weights[i];
 
-			// Use the weight directly from HordeItemInfo
-			// Future Enhancements: Add more complex weight adjustments here
-			// (e.g., based on player count, current inventory, game state)
-			float adjusted_weight = hordeItemInfo.weight;
-
-			// Ensure weight is positive before adding to the cache
 			if (adjusted_weight > 0.0f)
 			{
 				horde_item_cache.total_weight += adjusted_weight;
-				// Get reference to the next entry in the cache array
+                
+                // FIX: Access the 'entries' member which is now correctly declared.
 				auto &entry = horde_item_cache.entries[horde_item_cache.count];
-				entry.itemInfo = &hordeItemInfo; // Store pointer to the HordeItemInfo struct
+                
+                // FIX: Store the index, not a pointer.
+                entry.item_index = i;
 				entry.weight = adjusted_weight;
 				entry.cumulative_weight = horde_item_cache.total_weight;
-				horde_item_cache.count++; // Increment the count of eligible items
+				horde_item_cache.count++;
 			}
 		}
-	} // End of item collection loop
+	}
 
 	// Check if any eligible items were found
 	if (horde_item_cache.count == 0 || horde_item_cache.total_weight <= 0.0f)
 	{
-		// Log if no items found (useful for debugging balance/data issues)
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("Warning: G_HordePickItem found no eligible items for wave {}.\n", g_horde_local.level);
-		}
-		return nullptr; // No items eligible or they all have zero/negative weight
+		return nullptr;
 	}
 
-	// --- MODIFIED: Weighted Random Selection using std::lower_bound ---
+	// --- Weighted Random Selection ---
 	const float random_value = frandom() * horde_item_cache.total_weight;
 
-	// Use std::lower_bound to find the first entry whose cumulative_weight is not less than random_value.
+    // FIX: Access the 'entries' member which is now correctly declared.
 	auto it = std::lower_bound(
 		horde_item_cache.entries.begin(),
-		horde_item_cache.entries.begin() + horde_item_cache.count, // Search only the valid range
+		horde_item_cache.entries.begin() + horde_item_cache.count,
 		random_value,
 		[](const HordeItemSelectionCache::Entry& entry, float value) {
 			return entry.cumulative_weight < value;
 		}
 	);
 
-    // Robustness check: if lower_bound returns the end iterator, fall back to the last valid element.
+    // FIX: Access the 'entries' member which is now correctly declared.
     if (it == horde_item_cache.entries.begin() + horde_item_cache.count) {
         it = std::prev(it);
     }
-	// --- END MODIFICATION ---
 
-	// --- Retrieve and Return the Item ---
-	const HordeItemInfo *chosen_info = it->itemInfo;
+	// --- Retrieve and Return the Item using the stored index ---
+    // FIX: Get the index from the iterator and use it to look up the ID in the SoA data.
+	const size_t chosen_index = it->item_index;
+    const item_id_t chosen_id = g_hordeItemDataSoA.ids[chosen_index];
 
-	if (!chosen_info)
-	{
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("Error: G_HordePickItem - chosen_info is null after selection.\n");
-		}
-		return nullptr;
-	}
-
-	// Use the item_id_t from the chosen info to get the actual gitem_t pointer
-	return GetItemByIndex(chosen_info->id);
+	return GetItemByIndex(chosen_id);
 }
 
 static int32_t countFlyingSpawns() noexcept
@@ -7377,7 +7381,6 @@ bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &out_mins, vec
 {
     const size_t index = static_cast<size_t>(typeId);
     if (typeId == horde::MonsterTypeID::UNKNOWN || index >= g_monsterData.MONSTER_ARRAY_SIZE) {
-        // Fallback for invalid ID
         out_mins = HordeConstants::VALIDATE_CHECK_MINS;
         out_maxs = HordeConstants::VALIDATE_CHECK_MAXS;
         return false;
@@ -7386,7 +7389,6 @@ bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &out_mins, vec
     const float scale = g_monsterData.s_scales[index];
     
     if (scale <= 0.0f) {
-        // Use unscaled bounds if scale is invalid
         out_mins = g_monsterData.default_mins[index];
         out_maxs = g_monsterData.default_maxs[index];
     } else {
