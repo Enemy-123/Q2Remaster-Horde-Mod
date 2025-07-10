@@ -331,7 +331,8 @@ edict_t* Hook_Start(edict_t* ent)
 	//self->s.skinnum = 0xa0a1a2a3; // purple
 	// self->s.skinnum = 0xb0b1b2b3;  // gray-white-?
 	//self->s.skinnum = 0xD0D0D0D0;  // laser bfg 
-	self->s.skinnum = 0x30303030;  // cream spawngro
+	//self->s.skinnum = 0x30303030;  // cream spawngro
+	self->s.skinnum = 0xd0d1d2d3; // shiny green
 
 	self->think = Hook_Think;
 

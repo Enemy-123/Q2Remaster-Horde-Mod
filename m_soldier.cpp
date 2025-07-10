@@ -2352,7 +2352,7 @@ void SP_monster_soldier(edict_t* self)
 	gi.soundindex("soldier/solatck1.wav");
 
 	if (!st.was_key_specified("armor_power"))
-	self->monsterinfo.armor_power = 50;
+	self->monsterinfo.armor_power = 30;
 	if (!st.was_key_specified("armor_type"))
 	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
 	: self->monsterinfo.power_armor_type = IT_NULL;
@@ -2387,7 +2387,7 @@ void SP_monster_soldier_ss(edict_t* self)
 	gi.soundindex("soldier/solatck3.wav");
 
 		if (!st.was_key_specified("armor_power"))
-	self->monsterinfo.armor_power = 80;
+	self->monsterinfo.armor_power = 50;
 	if (!st.was_key_specified("armor_type"))
 	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
 	: self->monsterinfo.power_armor_type = IT_NULL;

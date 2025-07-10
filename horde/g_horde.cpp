@@ -13,7 +13,8 @@
 static std::unordered_set<horde::MonsterTypeID> g_precached_monster_types;
 static bool g_full_precache_done = false;
 
-static bool monsters_precached = false; 
+static bool g_initial_bots_spawned_for_map = false;
+
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave;
 
@@ -3203,24 +3204,70 @@ void Horde_PreInit()
 	}
 }
 
+static bool AreBotsAlreadyPresent()
+{
+	// Iterate through all possible client slots
+	for (int i = 0; i < game.maxclients; ++i)
+	{
+		edict_t* ent = g_edicts + 1 + i;
+		// Check if the entity is an active, in-use bot
+		if (ent && ent->inuse && (ent->svflags & SVF_BOT))
+		{
+			return true; // Found at least one bot
+		}
+	}
+	return false;
+}
+
 void VerifyAndAdjustBots()
 {
 	if (developer->integer == 2)
 	{
 		gi.cvar_set("bot_minClients", "-1");
+		return;
 	}
-	else
+
+	// This block handles the one-time, rapid bot spawning at the start of a map.
+	if (!g_initial_bots_spawned_for_map)
 	{
-		const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
-		const int32_t spectPlayers = GetNumSpectPlayers();
-		const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+		// NEW: Check if bots are already here from a 'restart' command.
+		if (AreBotsAlreadyPresent())
+		{
+			if (developer->integer) {
+				gi.Com_PrintFmt("VerifyAndAdjustBots: Bots already present. Skipping rapid spawn.\n");
+			}
+			// Mark as done and proceed to the maintenance logic below.
+			g_initial_bots_spawned_for_map = true;
+		}
+		else
+		{
+			// No bots are present, so perform the initial rapid spawn.
+			const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
+			const int32_t bots_to_add_now = mapSize.isBigMap ? 6 : 4;
 
-		// Agregar bot extra si current_wave_level >= 20
-		const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
-		const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
+			if (developer->integer) {
+				gi.Com_PrintFmt("VerifyAndAdjustBots: Performing initial rapid bot spawn of {}.\n", bots_to_add_now);
+			}
 
-		gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+			for (int32_t i = 0; i < bots_to_add_now; ++i)
+			{
+				gi.AddCommandString("addbot\n");
+			}
+
+			// Set the flag to true so this block never runs again for this map.
+			g_initial_bots_spawned_for_map = true;
+		}
 	}
+
+	// This part now acts as the primary maintenance logic for all subsequent calls.
+	// It ensures the bot count stays correct as players join/leave.
+	const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
+	const int32_t spectPlayers = GetNumSpectPlayers();
+	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+	const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
+	const int32_t totalRequiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
+
+	gi.cvar_set("bot_minClients", std::to_string(totalRequiredBots).c_str());
 }
 
 void InitializeWaveSystem() noexcept;
@@ -3392,53 +3439,77 @@ void ResetBosses()
 	}
 }
 
-// --- MODIFIED ---
-// This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
-// Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
-void PrecacheAllMonsters() noexcept
+
+// =======================================================================
+// REPLACEMENT: PrecacheAllMonsters_Full
+// This function implements the "full precache" strategy from Code A,
+// but uses the efficient TypeID system from Code B. It runs once per map load.
+// =======================================================================
+void PrecacheAllMonsters_Full() noexcept
 {
-    // Only run this initial precache once per map load.
-    if (monsters_precached) {
+    // --- 1. Guard Clause ---
+    // Ensure this heavy operation only runs once per map load.
+    if (g_full_precache_done) {
         return;
     }
-    g_precached_monster_types.clear(); // Ensure our tracking set is empty.
 
     if (developer->integer) {
-        gi.Com_Print("INITIAL PRECACHE: Loading all monsters for Wave 1...\n");
+        gi.Com_Print("HORDE PRECACHE: Starting full monster asset load...\n");
     }
 
-    // The monsterTypes array is sorted by minWave, so we can iterate efficiently.
-    for (const auto& monster_info : monsterTypes)
+    // --- 2. Clear Tracking Set ---
+    // Ensure our set for tracking what's loaded is empty before we start.
+    g_precached_monster_types.clear();
+
+    // --- 3. Iterate Through All Known Monster Types ---
+    // We iterate from the first valid ID up to the maximum defined type.
+    // This is more robust than iterating over a specific array.
+    for (uint8_t i = 0; i < static_cast<uint8_t>(horde::MonsterTypeID::MAX_TYPES); ++i)
     {
-        // Since the array is sorted, we can stop as soon as we're past wave 1.
-        if (monster_info.minWave > 1) {
-            break; 
+        horde::MonsterTypeID current_id = static_cast<horde::MonsterTypeID>(i);
+
+        // --- 4. Validate and Get Classname ---
+        // Use the registry to check if this ID is a valid, defined monster.
+        const char* classname = horde::MonsterTypeRegistry::GetClassname(current_id);
+
+        // Skip if the ID is invalid or has no associated classname.
+        if (!classname || !classname[0]) {
+            continue;
         }
 
-        // This monster is for Wave 1, so precache it.
-        const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
-        if (classname && *classname)
+        // --- 5. Perform the Precache ---
+        // This is the core logic from Code A, adapted for our system.
+        edict_t* temp_monster = G_Spawn();
+        if (temp_monster)
         {
-            edict_t* temp_monster = G_Spawn();
-            if (temp_monster)
-            {
-                temp_monster->classname = classname;
-                // *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
-                temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-                
-                ED_CallSpawn(temp_monster);
+            temp_monster->classname = classname;
 
-                if (temp_monster->inuse) {
-                    G_FreeEdict(temp_monster);
-                }
-                // Mark this monster type as loaded.
-                g_precached_monster_types.insert(monster_info.typeId);
+            // CRITICAL: This flag prevents the temporary monster from being
+            // counted in the game's total monster count.
+            temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+            
+            // This engine call triggers the monster's SP_... spawn function,
+            // which contains the actual asset loading calls (sound.assign, etc.).
+            ED_CallSpawn(temp_monster);
+
+            // Clean up the temporary entity if it wasn't already freed by a failed spawn.
+            if (temp_monster->inuse) {
+                G_FreeEdict(temp_monster);
             }
+
+            // --- 6. Track the Loaded Type ---
+            // Add the ID to our set so we know its assets are in memory.
+            g_precached_monster_types.insert(current_id);
         }
     }
     
-    // Mark the initial precache as done for this map.
-    monsters_precached = true;
+    // --- 7. Mark as Complete ---
+    // Set the flag to true to prevent this function from running again on this map.
+    g_full_precache_done = true;
+
+    if (developer->integer) {
+        gi.Com_PrintFmt("HORDE PRECACHE: Full precache complete. {} monster types loaded.\n", g_precached_monster_types.size());
+    }
 }
 
 void Horde_Init()
@@ -3449,13 +3520,19 @@ void Horde_Init()
 
 	PrecacheAllGameItems();
 	PrecacheWaveSounds();
-	monsters_precached = false; // Reset the precache flag for the new map.
-	PrecacheAllMonsters();
+
+		    // Reset the full precache flag for the new map.
+    g_full_precache_done = false; 
+	
+
+	PrecacheAllMonsters_Full();
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
 	AllowReset();
-	ResetGame(); // This will call RebuildSpawnPointCacheIfNeeded indirectly or directly
+	ResetGame();
+
+	VerifyAndAdjustBots();
 
 	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
 }
@@ -4536,6 +4613,7 @@ void ResetGame()
 		gi.Com_PrintFmt("INFO: Performing full game state reset...\n");
 	}
 
+	g_initial_bots_spawned_for_map = false;
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
@@ -7436,41 +7514,41 @@ static void Horde_InitLevel(const int32_t lvl)
 						g_eligible_monsters_for_wave.size(), current_wave_level);
 	}
 
-	// --- 4. JIT PRECACHE LOGIC ---
-    // Iterate through the monsters for THIS wave and precache any that are new.
-    if (developer->integer) {
-        gi.Com_PrintFmt("Horde_InitLevel (Wave {}): Checking for monsters to precache...\n", lvl);
-    }
-	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
-	{
-        // Check if this monster type has already been loaded.
-		if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
-		{
-			const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
-			if (classname && *classname)
-			{
-				if (developer->integer) {
-					gi.Com_PrintFmt("JIT Precache: Loading assets for '{}' for wave {}.\n", classname, lvl);
-				}
-				edict_t* temp_monster = G_Spawn();
-				if (temp_monster) {
-					temp_monster->classname = classname;
-					// *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
-					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	// // --- 4. JIT PRECACHE LOGIC ---
+    // // Iterate through the monsters for THIS wave and precache any that are new.
+    // if (developer->integer) {
+    //     gi.Com_PrintFmt("Horde_InitLevel (Wave {}): Checking for monsters to precache...\n", lvl);
+    // }
+	// for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+	// {
+    //     // Check if this monster type has already been loaded.
+	// 	if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
+	// 	{
+	// 		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
+	// 		if (classname && *classname)
+	// 		{
+	// 			if (developer->integer) {
+	// 				gi.Com_PrintFmt("JIT Precache: Loading assets for '{}' for wave {}.\n", classname, lvl);
+	// 			}
+	// 			edict_t* temp_monster = G_Spawn();
+	// 			if (temp_monster) {
+	// 				temp_monster->classname = classname;
+	// 				// *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
+	// 				temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
-					ED_CallSpawn(temp_monster);
-					if (temp_monster->inuse) {
-						G_FreeEdict(temp_monster);
-					}
-                    // Add to the set so we don't load it again.
-					g_precached_monster_types.insert(monster_info->typeId);
-				}
-			}
-		}
-	}
-    if (developer->integer) {
-        gi.Com_PrintFmt("JIT Precache: All necessary monsters for wave {} are now in memory.\n", lvl);
-    }
+	// 				ED_CallSpawn(temp_monster);
+	// 				if (temp_monster->inuse) {
+	// 					G_FreeEdict(temp_monster);
+	// 				}
+    //                 // Add to the set so we don't load it again.
+	// 				g_precached_monster_types.insert(monster_info->typeId);
+	// 			}
+	// 		}
+	// 	}
+	// }
+    // if (developer->integer) {
+    //     gi.Com_PrintFmt("JIT Precache: All necessary monsters for wave {} are now in memory.\n", lvl);
+    // }
 
 	// --- 5. Continue with the rest of the wave setup ---
 	g_horde_local.update_map_size(GetCurrentMapName());
