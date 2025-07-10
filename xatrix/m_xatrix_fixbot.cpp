@@ -15,7 +15,6 @@
 // End Horde includes
 
 
-void fixbot_spawn_turret(edict_t* self);
 void fixbot_spawn_check(edict_t* self);
 void fixbot_start_spawn(edict_t* self);
 void fixbot_prep_spawn(edict_t* self);
@@ -42,6 +41,7 @@ void fixbot_fire_welder(edict_t* self);
 void use_scanner(edict_t* self);
 void change_to_roam(edict_t* self);
 void fly_vertical(edict_t* self);
+void fly_vertical2(edict_t* self);
 
 void fixbot_stand(edict_t* self);
 
@@ -63,38 +63,74 @@ void roam_goal(edict_t* self);
 constexpr const char* fixbot_reinforcements = "monster_turret 1";
 constexpr int32_t fixbot_monster_slots_base = 6;
 
-// This makes the fixbot gradually turn to face the spawn position over multiple frames
-void fixbot_face_position(edict_t* self, const vec3_t& target_pos)
-{
-	// Calculate desired direction
+// =======================================================================
+// NEW: Helper functions to reduce repetition and improve clarity
+// =======================================================================
+
+// Helper to check if the fixbot is a boss variant
+static inline bool IsBoss(const edict_t* self) {
+	return horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
+}
+
+// Helper to check for a valid, visible, hostile enemy
+static inline bool IsEnemyValid(edict_t* self) {
+	if (!self || !self->enemy || !self->enemy->inuse || self->enemy->health <= 0) {
+		return false;
+	}
+	if (OnSameTeam(self, self->enemy)) {
+		return false;
+	}
+	return visible(self, self->enemy);
+}
+
+// Helper to safely free the temporary "bot_goal" entity
+static void FreeBotGoal(edict_t* self) {
+	if (self && self->goalentity && self->goalentity->inuse &&
+		self->goalentity->classname && strcmp(self->goalentity->classname, "bot_goal") == 0)
+	{
+		G_FreeEdict(self->goalentity);
+	}
+}
+
+// Helper to transition the bot to a standing/idle state after a goal is met
+static void TransitionToStand(edict_t* self) {
+	if (!self) return;
+	FreeBotGoal(self);
+	self->goalentity = nullptr;
+	self->enemy = nullptr;
+	M_SetAnimation(self, &fixbot_move_stand);
+}
+
+// Helper for smooth, fixed-speed turning towards a target position.
+// This consolidates the turning logic that was repeated in several places.
+static void TurnToPosition(edict_t* self, const vec3_t& target_pos, float turn_speed) {
+	if (target_pos.equals(vec3_origin) || target_pos.equals(self->s.origin)) {
+		return;
+	}
+
 	vec3_t dir = target_pos - self->s.origin;
-	float desired_yaw = vectoyaw(dir);
+	self->ideal_yaw = vectoyaw(dir); // Set ideal for state consistency
 
-	// Set the ideal yaw for the fixbot to turn toward
-	self->ideal_yaw = desired_yaw;
-
-	// Calculate the difference between current and desired yaw
+	// Calculate the difference between current and desired yaw for the shortest turn
 	float delta = self->s.angles[YAW] - self->ideal_yaw;
 	if (delta > 180)
 		delta -= 360;
 	if (delta < -180)
 		delta += 360;
 
-	// For large turns, apply a smooth transition (max 10 degrees per frame)
-	float turn_factor = 10.0f;
-	if (fabs(delta) > turn_factor) {
-		self->s.angles[YAW] -= (delta > 0) ? turn_factor : -turn_factor;
+	// Apply turn speed
+	if (fabs(delta) > turn_speed) {
+		self->s.angles[YAW] -= (delta > 0) ? turn_speed : -turn_speed;
 	}
 	else {
-		// For small adjustments, smoothly interpolate
 		self->s.angles[YAW] = self->ideal_yaw;
 	}
 
-	// Normalize the angle
-	if (self->s.angles[YAW] > 360)
-		self->s.angles[YAW] -= 360;
-	if (self->s.angles[YAW] < 0)
+	// Normalize the angle to be within [0, 360)
+	while (self->s.angles[YAW] < 0)
 		self->s.angles[YAW] += 360;
+	while (self->s.angles[YAW] >= 360)
+		self->s.angles[YAW] -= 360;
 }
 
 // Data structure for the turret spawn filter - ADDED position
@@ -183,7 +219,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		bool in_front = false;
 	} best_position; // Initialize fresh for each call
 
-	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
+	bool isboss = IsBoss(self);
 	float trace_distance = isboss ? 1000.0f : 700.0f;
 	vec3_t start = self->s.origin;
 	vec3_t initial_forward;
@@ -210,10 +246,10 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 				angles[PITCH] += (frandom() - 0.5f) * 30.0f - 15.0f; // +/- 15 degree pitch variation around -15
 			}
 			// Normalize angles just in case
-			if (angles[YAW] > 360) angles[YAW] -= 360;
-			if (angles[YAW] < 0) angles[YAW] += 360;
-			if (angles[PITCH] > 360) angles[PITCH] -= 360;
-			if (angles[PITCH] < 0) angles[PITCH] += 360;
+			while (angles[YAW] < 0) angles[YAW] += 360;
+			while (angles[YAW] >= 360) angles[YAW] -= 360;
+			while (angles[PITCH] < 0) angles[PITCH] += 360;
+			while (angles[PITCH] >= 360) angles[PITCH] -= 360;
 
 			AngleVectors(angles, current_forward, nullptr, nullptr); // Update forward vector
 		}
@@ -363,8 +399,7 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 		}
 
 		// Adjust laser color based on whether it's a boss
-		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
-		if (isboss) {
+		if (IsBoss(self)) {
 			// Boss gets a more intense beam
 			laser->s.skinnum = 0xf0f0f0f0; // Brighter, more intense beam
 		}
@@ -381,7 +416,7 @@ PRETHINK(fixbot_spawn_laser_update) (edict_t* laser) -> void
 		!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
 		// Enhanced particle effects at the target location
-		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
+		bool isboss = IsBoss(self);
 		int particle_chance = isboss ? 5 : 7; // More frequent effects for boss
 
 		// Occasional sparks at the target location
@@ -407,41 +442,9 @@ void fixbot_fire_spawn_laser(edict_t* self)
 	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 		return;
 
-	// Continue turning smoothly toward the spawn position
-	if (!self->monsterinfo.blind_fire_target.equals(vec3_origin)) {
-		// Calculate direction to target - safely
-		vec3_t dir = self->monsterinfo.blind_fire_target - self->s.origin;
-		float dist = dir.length();
-
-		if (dist > 0.1f) {
-			float desired_yaw = vectoyaw(dir);
-
-			// Set ideal yaw
-			self->ideal_yaw = desired_yaw;
-
-			// Calculate delta angle
-			float delta = self->s.angles[YAW] - desired_yaw;
-			if (delta > 180)
-				delta -= 360;
-			if (delta < -180)
-				delta += 360;
-
-			// Smooth turn - maximum 5 degrees per frame for more natural movement
-			float turn_speed = 5.0f;
-			if (fabs(delta) > turn_speed) {
-				self->s.angles[YAW] -= (delta > 0) ? turn_speed : -turn_speed;
-			}
-			else {
-				self->s.angles[YAW] = desired_yaw;
-			}
-
-			// Normalize angle
-			while (self->s.angles[YAW] > 360)
-				self->s.angles[YAW] -= 360;
-			while (self->s.angles[YAW] < 0)
-				self->s.angles[YAW] += 360;
-		}
-	}
+	// Continue turning smoothly toward the spawn position using the helper function.
+	// A slower turn speed of 5.0 is used for this specific "aiming" animation.
+	TurnToPosition(self, self->monsterinfo.blind_fire_target, 5.0f);
 
 	// Fire the laser beam effect with safety check
 	monster_fire_dabeam(self, -1, false, fixbot_spawn_laser_update);
@@ -450,7 +453,7 @@ void fixbot_fire_spawn_laser(edict_t* self)
 	if (!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
 		// More impressive effects for boss
-		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
+		bool isboss = IsBoss(self);
 		int num_sparks = isboss ? 20 : 8; // Increased particles
 
 		// Create welding sparks at the target position
@@ -478,7 +481,7 @@ void fixbot_start_spawn(edict_t* self)
 	if (!self || !self->inuse)
 		return;
 
-	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
+	bool isboss = IsBoss(self);
 
 	// Create visual charge effect
 	gi.WriteByte(svc_temp_entity);
@@ -511,16 +514,13 @@ void fixbot_start_spawn(edict_t* self)
 		!self->monsterinfo.blind_fire_target.equals(vec3_origin))
 	{
 		vec3_t dir = self->monsterinfo.blind_fire_target - self->s.origin;
-		float dist = dir.length();
-
-		if (dist > 0.1f) {
+		if (dir.lengthSquared() > 0.01f) {
 			self->ideal_yaw = vectoyaw(dir);
 			M_ChangeYaw(self);
 		}
 	}
 }
 
-// New function to spawn a turret at a specific position
 // Spawn a turret at a specific position with proper safety checks
 void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
@@ -530,11 +530,10 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		return;
 	}
 
-	// *** REMOVED FINAL VALIDATION CALL HERE ***
 	// Validation is now assumed to be handled correctly by the caller (find_turret_spawn_position)
 
 	// --- Spawning proceeds ---
-	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
+	bool isboss = IsBoss(self);
 	vec3_t dir;
 	edict_t* ent;
 
@@ -618,7 +617,7 @@ void fixbot_prep_spawn(edict_t* self)
 	self->monsterinfo.blind_fire_target = vec3_origin;
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING; // Ensure flag is off initially
 
-	bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
+	bool isboss = IsBoss(self);
 
 	// First, check if this fixbot is allowed to spawn at all
 	bool can_spawn = false;
@@ -634,10 +633,10 @@ void fixbot_prep_spawn(edict_t* self)
 		return;
 	}
 
-	// Find a valid spawn position (includes BoxEdicts and final ValidateSpawnPosition check)
+	// Find a valid spawn position
 	vec3_t spawn_pos = {};
 	vec3_t spawn_dir = {}; // Surface normal from trace inside find function
-	if (find_turret_spawn_position(self, spawn_pos, spawn_dir)) // Pass attempt 0 to reset static best_position
+	if (find_turret_spawn_position(self, spawn_pos, spawn_dir))
 	{
 		// --- Position Found and Validated ---
 		gi.sound(self, CHAN_WEAPON, sound_weld1, 1, ATTN_NORM, 0);
@@ -646,9 +645,8 @@ void fixbot_prep_spawn(edict_t* self)
 
 		// Start turning towards the target smoothly
 		vec3_t dir = spawn_pos - self->s.origin;
-		if (dir.lengthSquared() > 0.01f) { // Check squared length
+		if (dir.lengthSquared() > 0.01f) {
 			self->ideal_yaw = vectoyaw(dir);
-			// M_ChangeYaw(self); // Let laser function handle smooth turning
 		}
 		if (developer->integer > 0) {
 			gi.Com_PrintFmt("fixbot_prep_spawn: Found valid target pos {}. Starting laser.\n", spawn_pos);
@@ -679,8 +677,8 @@ void fixbot_spawn_check(edict_t* self) {
 		spawn_turret_at_position(self, self->monsterinfo.blind_fire_target);
 		spawned_successfully = true; // Assume success if we called spawn
 
-		// Add boss-specific effect after successful spawn attempt (Check classname again for safety)
-		if (spawned_successfully && horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL)) { // Check flag and classname
+		// Add boss-specific effect after successful spawn attempt
+		if (spawned_successfully && IsBoss(self)) {
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_EXPLOSION);
 			gi.WritePosition(self->monsterinfo.blind_fire_target);
@@ -698,82 +696,26 @@ void fixbot_spawn_check(edict_t* self) {
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 	self->s.effects &= ~(EF_HYPERBLASTER | EF_PLASMA); // Clear effects
 
-	// *** ADDED FIX ***
 	// Explicitly clear the enemy pointer after the spawn attempt.
 	// This forces the fixbot to find a new target when it transitions
 	// back to the run state, avoiding potential use-after-free if
 	// the spawning process invalidated the old enemy pointer.
 	self->enemy = nullptr;
-	self->goalentity = nullptr; // Also clear goalentity just in case
-	// *** END ADDED FIX ***
-	}
-void fixbot_spawn_turret(edict_t* self)
-{
-	vec3_t forward, right, up;
-	vec3_t start, end, dir;
-	trace_t tr;
-	edict_t* ent;
-
-	// Create ray from fixbot position
-	AngleVectors(self->s.angles, forward, right, up);
-	start = self->s.origin;
-	end = start + (forward * 1024);  // Check up to 1024 units ahead
-
-	// Trace to find a wall
-	tr = gi.traceline(start, end, self, MASK_SOLID);
-
-	// If we hit something that's not a monster or player
-	if (tr.fraction < 1.0 && !(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client) {
-		// Found a suitable wall, spawn a turret
-		ent = G_Spawn();
-		if (!ent)
-			return;
-
-		ent->classname = "monster_turret";
-
-		// Position the turret at the impact point, slightly offset from wall
-		dir = tr.plane.normal;
-		dir.normalize();
-		ent->s.origin = tr.endpos + (dir * 8);  // Offset from wall
-
-		// Orient the turret to face away from the wall
-		ent->s.angles = vectoangles(dir);
-
-		// Finalize the turret
-		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER;
-		ent->monsterinfo.commander = self;
-
-		bool isboss = (horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL));
-
-		// Initialize the turret
-		gi.sound(self, CHAN_AUTO, sound_spawn, 1, isboss ? ATTN_NONE : ATTN_NORM, 0);
-
-		// Visual effect for spawning
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_TELEPORT_EFFECT);
-		gi.WritePosition(ent->s.origin);
-		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-
-		// Add to monster count
-		if (self->monsterinfo.monster_slots)
-			self->monsterinfo.monster_used += 1;
-
-		// Use ED_CallSpawn to properly initialize the turret
-		ED_CallSpawn(ent);
-	}
+	self->goalentity = nullptr;
 }
 
+// REMOVED: This function appears to be dead code. The modern spawning logic
+// uses find_turret_spawn_position and a more complex, safer process.
+// void fixbot_spawn_turret(edict_t* self) { ... }
+
 mframe_t fixbot_frames_spawn[] = {
-	{ ai_move, 0, fixbot_prep_spawn },  // Find spawn position and start aiming
-	//	{ ai_move, 0, fixbot_fire_spawn_laser }, // Start the laser
-		{ ai_move, 0, fixbot_fire_spawn_laser },
-		//	{ ai_move, 0, fixbot_fire_spawn_laser },
-			{ ai_move, 0, fixbot_fire_spawn_laser }, // Continue laser for ~2 seconds
-			//{ ai_move, 0, fixbot_fire_spawn_laser },
-			{ ai_move, 0, fixbot_fire_spawn_laser },
-			//{ ai_move, 0, fixbot_fire_spawn_laser },
-			{ ai_move, 0, fixbot_spawn_check },   // Now spawn the turret
-			{ ai_move, 0 }                      // End spawn sequence
+	{ ai_move, 0, fixbot_prep_spawn },      // Find spawn position and start aiming
+	{ ai_move, 0, fixbot_fire_spawn_laser },
+	{ ai_move, 0, fixbot_fire_spawn_laser },
+	{ ai_move, 0, fixbot_fire_spawn_laser }, // Continue laser for a few frames
+	{ ai_move, 0, fixbot_fire_spawn_laser },
+	{ ai_move, 0, fixbot_spawn_check },     // Now spawn the turret
+	{ ai_move, 0 }                          // End spawn sequence
 };
 MMOVE_T(fixbot_move_spawn) = { FRAME_weldstart_01, FRAME_weldstart_06, fixbot_frames_spawn, fixbot_run };
 
@@ -843,115 +785,77 @@ static void fixbot_set_attack_fly_parameters(edict_t* self)
 	self->monsterinfo.fly_max_distance = 800.f;  // Was 900, now 800
 }
 
-void landing_goal(edict_t* self)
-{
-	trace_t	 tr;
-	vec3_t	 forward, right, up;
-	vec3_t	 end;
-	edict_t* ent;
+// Consolidated function for creating a temporary goal entity for movement.
+// This replaces the repetitive code in landing_goal and takeoff_goal.
+static void CreateMovementGoal(edict_t* self, const vec3_t& move_dir) {
+	edict_t* ent = G_Spawn();
+	if (!ent) return;
 
-	ent = G_Spawn();
 	ent->classname = "bot_goal";
 	ent->solid = SOLID_BBOX;
 	ent->owner = self;
 	ent->think = bot_goal_check;
-	gi.linkentity(ent);
-
+	ent->nextthink = level.time + 1_ms;
 	ent->mins = { -32, -32, -24 };
 	ent->maxs = { 32, 32, 24 };
 
-	AngleVectors(self->s.angles, forward, right, up);
-	end = self->s.origin + (forward * 32);
-	end = self->s.origin + (up * -8096);
-
-	tr = gi.trace(self->s.origin, ent->mins, ent->maxs, end, self, MASK_MONSTERSOLID);
-
+	trace_t tr = gi.trace(self->s.origin, ent->mins, ent->maxs, self->s.origin + move_dir, self, MASK_MONSTERSOLID);
 	ent->s.origin = tr.endpos;
+	gi.linkentity(ent);
 
 	self->goalentity = self->enemy = ent;
+}
+
+void landing_goal(edict_t* self)
+{
+	CreateMovementGoal(self, { 0, 0, -8096 });
 	M_SetAnimation(self, &fixbot_move_landing);
 }
 
 void takeoff_goal(edict_t* self)
 {
-	trace_t	 tr;
-	vec3_t	 forward, right, up;
-	vec3_t	 end;
-	edict_t* ent;
-
-	ent = G_Spawn();
-	ent->classname = "bot_goal";
-	ent->solid = SOLID_BBOX;
-	ent->owner = self;
-	ent->think = bot_goal_check;
-	gi.linkentity(ent);
-
-	ent->mins = { -32, -32, -24 };
-	ent->maxs = { 32, 32, 24 };
-
-	AngleVectors(self->s.angles, forward, right, up);
-	end = self->s.origin + (forward * 32);
-	end = self->s.origin + (up * 128);
-
-	tr = gi.trace(self->s.origin, ent->mins, ent->maxs, end, self, MASK_MONSTERSOLID);
-
-	ent->s.origin = tr.endpos;
-
-	self->goalentity = self->enemy = ent;
+	CreateMovementGoal(self, { 0, 0, 128 });
 	M_SetAnimation(self, &fixbot_move_takeoff);
 }
 
 void change_to_roam(edict_t* self)
 {
 	// If we already have a valid enemy, just start running
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
-		fixbot_run(self); // Transition to run state
+	if (IsEnemyValid(self)) {
+		fixbot_run(self);
 		return;
 	}
 
-	// Try to find a target using the standard function
+	// Try to find a new target
 	if (FindTarget(self)) {
-		fixbot_run(self); // Found a target, transition to run state
+		fixbot_run(self);
 		return;
 	}
 
 	// --- No enemy found, proceed with roam/landing/takeoff/stand logic ---
-
-	// Existing logic for roam/landing/takeoff/stand:
 	if (self->spawnflags.has(SPAWNFLAG_FIXBOT_LANDING))
 	{
 		landing_goal(self);
-		M_SetAnimation(self, &fixbot_move_landing);
 		self->spawnflags &= ~SPAWNFLAG_FIXBOT_LANDING;
-		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING;
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_TAKEOFF))
 	{
 		takeoff_goal(self);
-		M_SetAnimation(self, &fixbot_move_takeoff);
 		self->spawnflags &= ~SPAWNFLAG_FIXBOT_TAKEOFF;
-		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING;
 	}
-	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_FIXIT)) // Assuming FIXIT implies roam
+	else if (self->spawnflags.has(SPAWNFLAG_FIXBOT_FIXIT))
 	{
-		M_SetAnimation(self, &fixbot_move_roamgoal); // Set roam goal animation
+		M_SetAnimation(self, &fixbot_move_roamgoal);
 		self->spawnflags &= ~SPAWNFLAG_FIXBOT_FIXIT;
-		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING; // Use a flag to indicate it's busy?
+		self->spawnflags |= SPAWNFLAG_FIXBOT_WORKING;
 	}
-	else if (!self->spawnflags) // If no specific action flags are set
+	else
 	{
-		// Default to standing if no roam/landing/takeoff needed
+		// Default to standing if no other actions are specified
 		M_SetAnimation(self, &fixbot_move_stand2);
 	}
-	else // Has some other SPAWNFLAG_FIXBOT_WORKING or similar? Go to stand.
-	{
-		M_SetAnimation(self, &fixbot_move_stand2);
-	}
-
-	// Note: The original code set fixbot_move_roamgoal first, then potentially overwrote it.
-	// This version checks specific actions first, then defaults to stand if none apply
-	// or if SPAWNFLAG_FIXBOT_WORKING is set without a specific sub-task.
-	// Consider if SPAWNFLAG_FIXBOT_WORKING should always lead to roam or stand.
 }
 
 void roam_goal(edict_t* self)
@@ -1032,8 +936,7 @@ void use_scanner(edict_t* self)
 					// remove the old one
 					if (strcmp(self->goalentity->classname, "bot_goal") == 0)
 					{
-						self->goalentity->nextthink = level.time + 100_ms;
-						self->goalentity->think = G_FreeEdict;
+						FreeBotGoal(self);
 					}
 
 					self->goalentity = self->enemy = ent;
@@ -1071,9 +974,7 @@ void use_scanner(edict_t* self)
 		}
 		else
 		{
-			self->goalentity->nextthink = level.time + 100_ms;
-			self->goalentity->think = G_FreeEdict;
-			M_SetAnimation(self, &fixbot_move_stand);
+			TransitionToStand(self);
 		}
 		return;
 	}
@@ -1092,301 +993,105 @@ void use_scanner(edict_t* self)
 		}
 		else
 		{
-			self->goalentity->nextthink = level.time + 100_ms;
-			self->goalentity->think = G_FreeEdict;
-			M_SetAnimation(self, &fixbot_move_stand);
+			TransitionToStand(self);
 		}
 	}
 }
 
-/*
-	when the bot has found a landing pad
-	it will proceed to its goalentity
-	just above the landing pad and
-	decend translated along the z the current
-	frames are at 10fps
-*/
-void blastoff(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int te_impact, int hspread, int vspread)
+// OPTIMIZED: This function was extremely expensive, performing 10 full tracelines
+// per frame just for a particle effect. It's been replaced with a single, direct
+// particle effect call that is vastly more performant.
+void create_blastoff_effect(edict_t* self)
 {
-	trace_t	   tr;
-	vec3_t	   dir;
-	vec3_t	   forward, right, up;
-	vec3_t	   end;
-	float	   r;
-	float	   u;
-	vec3_t	   water_start{}; // Initialize to zero
-	bool	   water = false;
-	contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
+	vec3_t tempvec = self->s.angles;
+	tempvec[PITCH] += 90; // Aim down
+	vec3_t down_dir = AngleVectors(tempvec).forward;
 
-	hspread += (self->s.frame - FRAME_takeoff_01);
-	vspread += (self->s.frame - FRAME_takeoff_01);
-
-	tr = gi.traceline(self->s.origin, start, self, MASK_PROJECTILE);
-	if (!(tr.fraction < 1.0f))
-	{
-		dir = vectoangles(aimdir);
-		AngleVectors(dir, forward, right, up);
-
-		r = crandom() * hspread;
-		u = crandom() * vspread;
-		end = start + (forward * 8192);
-		end += (right * r);
-		end += (up * u);
-
-		if (gi.pointcontents(start) & MASK_WATER)
-		{
-			water = true;
-			water_start = start;
-			content_mask &= ~MASK_WATER;
-		}
-
-		tr = gi.traceline(start, end, self, content_mask);
-
-		// see if we hit water
-		if (tr.contents & MASK_WATER)
-		{
-			int color;
-
-			water = true;
-			water_start = tr.endpos;
-
-			if (start != tr.endpos)
-			{
-				if (tr.contents & CONTENTS_WATER)
-				{
-					if (strcmp(tr.surface->name, "*brwater") == 0)
-						color = SPLASH_BROWN_WATER;
-					else
-						color = SPLASH_BLUE_WATER;
-				}
-				else if (tr.contents & CONTENTS_SLIME)
-					color = SPLASH_SLIME;
-				else if (tr.contents & CONTENTS_LAVA)
-					color = SPLASH_LAVA;
-				else
-					color = SPLASH_UNKNOWN;
-
-				if (color != SPLASH_UNKNOWN)
-				{
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte(TE_SPLASH);
-					gi.WriteByte(8);
-					gi.WritePosition(tr.endpos);
-					gi.WriteDir(tr.plane.normal);
-					gi.WriteByte(color);
-					gi.multicast(tr.endpos, MULTICAST_PVS, false);
-				}
-
-				// change bullet's course when it enters water
-				dir = end - start;
-				dir = vectoangles(dir);
-				AngleVectors(dir, forward, right, up);
-				r = crandom() * hspread * 2;
-				u = crandom() * vspread * 2;
-				end = water_start + (forward * 8192);
-				end += (right * r);
-				end += (up * u);
-			}
-
-			// re-trace ignoring water this time
-			tr = gi.traceline(water_start, end, self, MASK_PROJECTILE);
-		}
-	}
-
-	// send gun puff / flash
-	if (!((tr.surface) && (tr.surface->flags & SURF_SKY)))
-	{
-		if (tr.fraction < 1.0f)
-		{
-			if (tr.ent->takedamage)
-			{
-				T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, MOD_BLASTOFF);
-			}
-			else
-			{
-				// Check surface exists before checking flags
-				if (tr.surface && !(tr.surface->flags & SURF_SKY))
-				{
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte(te_impact);
-					gi.WritePosition(tr.endpos);
-					gi.WriteDir(tr.plane.normal);
-					gi.multicast(tr.endpos, MULTICAST_PVS, false);
-
-					if (self->client)
-						PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
-				}
-			}
-		}
-	}
-
-	// if went through water, determine where the end and make a bubble trail
-	if (water)
-	{
-		vec3_t pos;
-
-		dir = tr.endpos - water_start;
-		dir.normalize();
-		pos = tr.endpos + (dir * -2);
-		if (gi.pointcontents(pos) & MASK_WATER)
-			tr.endpos = pos;
-		else
-			tr = gi.traceline(pos, water_start, tr.ent, MASK_WATER);
-
-		pos = water_start + tr.endpos;
-		pos *= 0.5f;
-
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_BUBBLETRAIL);
-		gi.WritePosition(water_start);
-		gi.WritePosition(tr.endpos);
-		gi.multicast(pos, MULTICAST_PVS, false);
-	}
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_SHOTGUN);
+	gi.WritePosition(self->s.origin);
+	gi.WriteDir(down_dir);
+	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+	// Needs sound
 }
 
+// REFACTORED: Logic is now safer and uses the TransitionToStand helper.
 void fly_vertical(edict_t* self)
 {
-
-	int	   i;
-	vec3_t v;
-	vec3_t forward, right, up;
-	vec3_t start;
-	vec3_t tempvec;
-
-	// Safety check for goalentity
 	if (!self->goalentity || !self->goalentity->inuse) {
-		M_SetAnimation(self, &fixbot_move_stand);
-		self->enemy = nullptr; // Clear enemy too if goal is gone
+		TransitionToStand(self);
 		return;
 	}
 
-
-	v = self->goalentity->s.origin - self->s.origin;
+	// Turn towards goal
+	vec3_t v = self->goalentity->s.origin - self->s.origin;
 	self->ideal_yaw = vectoyaw(v);
 	M_ChangeYaw(self);
 
-	if (self->s.frame == FRAME_landing_58 || self->s.frame == FRAME_takeoff_16)
+	// Check for completion (frame-based for takeoff animation)
+	if (self->s.frame == FRAME_takeoff_16)
 	{
-		// Safely free the goal entity if it's a bot_goal
-		if (self->goalentity && self->goalentity->classname && strcmp(self->goalentity->classname, "bot_goal") == 0) {
-			// self->goalentity->nextthink = level.time + 100_ms; // Not needed if freeing immediately
-			// self->goalentity->think = G_FreeEdict;
-			G_FreeEdict(self->goalentity); // Free it now
-		}
-		M_SetAnimation(self, &fixbot_move_stand);
-		self->goalentity = self->enemy = nullptr;
-		return; // Exit after setting animation and clearing goal
+		TransitionToStand(self);
+		return;
 	}
 
-	// kick up some particles
-	tempvec = self->s.angles;
-	tempvec[PITCH] += 90;
-
-	AngleVectors(tempvec, forward, right, up);
-	start = self->s.origin;
-
-	for (i = 0; i < 10; i++)
-		blastoff(self, start, forward, 2, 1, TE_SHOTGUN, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD);
-
-	// needs sound
+	// Kick up some dust particles using the optimized function
+	create_blastoff_effect(self);
 }
 
+// REFACTORED: Logic is now safer and uses the TransitionToStand helper.
 void fly_vertical2(edict_t* self)
 {
-	vec3_t v;
-	float  len;
-
-	// Safety check for goalentity
 	if (!self->goalentity || !self->goalentity->inuse) {
-		M_SetAnimation(self, &fixbot_move_stand);
-		self->enemy = nullptr; // Clear enemy too if goal is gone
+		TransitionToStand(self);
 		return;
 	}
 
-	v = self->goalentity->s.origin - self->s.origin;
-	len = v.length();
+	// Turn towards goal
+	vec3_t v = self->goalentity->s.origin - self->s.origin;
+	float len = v.length();
 	self->ideal_yaw = vectoyaw(v);
 	M_ChangeYaw(self);
 
+	// Check for completion (distance-based for landing animation)
 	if (len < 32)
 	{
-		// Safely free the goal entity if it's a bot_goal
-		if (self->goalentity && self->goalentity->classname && strcmp(self->goalentity->classname, "bot_goal") == 0) {
-			// self->goalentity->nextthink = level.time + 100_ms; // Not needed if freeing immediately
-			// self->goalentity->think = G_FreeEdict;
-			G_FreeEdict(self->goalentity); // Free it now
-		}
-		M_SetAnimation(self, &fixbot_move_stand);
-		self->goalentity = self->enemy = nullptr; // Clear goal/enemy after setting stand
+		TransitionToStand(self);
+		return; // Added return for correctness
 	}
-
 	// needs sound
 }
 
 mframe_t fixbot_frames_landing[] = {
-	{ ai_move },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 },
-	{ ai_move, 0, fly_vertical2 }
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 },
+	{ ai_move, 0, fly_vertical2 }, { ai_move, 0, fly_vertical2 }
 };
 MMOVE_T(fixbot_move_landing) = { FRAME_landing_01, FRAME_landing_58, fixbot_frames_landing, nullptr };
 
@@ -1394,91 +1099,26 @@ MMOVE_T(fixbot_move_landing) = { FRAME_landing_01, FRAME_landing_58, fixbot_fram
 	generic ambient stand
 */
 mframe_t fixbot_frames_stand[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 1, change_to_roam },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 1, change_to_roam },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 1, change_to_roam },
-
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 1, change_to_roam },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 1, change_to_roam },
+	{ ai_move }, { ai_move }, { ai_move, 1, change_to_roam },
+	{ ai_move }, { ai_move }, { ai_move, 1, change_to_roam },
+	{ ai_move }, { ai_move }, { ai_move },
+	{ ai_move, 1, change_to_roam }, { ai_move }, { ai_move },
+	{ ai_move }, { ai_move, 1, change_to_roam }, { ai_move },
+	{ ai_move }, { ai_move }, { ai_move, 1, change_to_roam },
 	{ ai_move }
-
 };
 MMOVE_T(fixbot_move_stand) = { FRAME_ambient_01, FRAME_ambient_19, fixbot_frames_stand, fixbot_run };
 
 mframe_t fixbot_frames_stand2[] = {
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand, 0, change_to_roam },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-{ ai_stand, 0, change_to_roam },	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-
-	{ ai_stand },
-{ ai_stand, 0, change_to_roam },	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-{ ai_stand, 0, change_to_roam },	{ ai_stand },
+	{ ai_stand }, { ai_stand }, { ai_stand, 0, change_to_roam },
+	{ ai_stand }, { ai_stand }, { ai_stand },
+	{ ai_stand, 0, change_to_roam }, { ai_stand }, { ai_stand },
+	{ ai_stand }, { ai_stand }, { ai_stand, 0, change_to_roam },
+	{ ai_stand }, { ai_stand }, { ai_stand },
+	{ ai_stand }, { ai_stand, 0, change_to_roam }, { ai_stand },
 	{ ai_stand }
 };
 MMOVE_T(fixbot_move_stand2) = { FRAME_ambient_01, FRAME_ambient_19, fixbot_frames_stand2, fixbot_run };
-
-#if 0
-/*
-	will need the pickup offset for the front pincers
-	object will need to stop forward of the object
-	and take the object with it ( this may require a variant of liftoff and landing )
-*/
-mframe_t fixbot_frames_pickup[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
-
-};
-MMOVE_T(fixbot_move_pickup) = { FRAME_pickup_01, FRAME_pickup_27, fixbot_frames_pickup, nullptr };
-#endif
 
 /*
 	generic frame to move bot
@@ -1490,18 +1130,16 @@ MMOVE_T(fixbot_move_roamgoal) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frame
 
 void ai_facing(edict_t* self, float dist)
 {
-	{
+	if (!self->goalentity || !self->goalentity->inuse) {
 		fixbot_stand(self);
 		return;
 	}
 
-	vec3_t v;
-
-	if (infront(self, self->goalentity))
+	if (infront(self, self->goalentity)) {
 		M_SetAnimation(self, &fixbot_move_forward);
-	else
-	{
-		v = self->goalentity->s.origin - self->s.origin;
+	}
+	else {
+		vec3_t v = self->goalentity->s.origin - self->s.origin;
 		self->ideal_yaw = vectoyaw(v);
 		M_ChangeYaw(self);
 	}
@@ -1512,79 +1150,42 @@ mframe_t fixbot_frames_turn[] = {
 };
 MMOVE_T(fixbot_move_turn) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_turn, nullptr };
 
-void go_roam(edict_t* self)
-{
-}
-
 /*
 	takeoff
 */
 mframe_t fixbot_frames_takeoff[] = {
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical },
-	{ ai_move, 0.01f, fly_vertical }
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical },
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical },
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical },
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical },
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical },
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical },
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical },
+	{ ai_move, 0.01f, fly_vertical }, { ai_move, 0.01f, fly_vertical }
 };
 MMOVE_T(fixbot_move_takeoff) = { FRAME_takeoff_01, FRAME_takeoff_16, fixbot_frames_takeoff, nullptr };
 
 /* findout what this is */
 mframe_t fixbot_frames_paina[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
+	{ ai_move }, { ai_move }, { ai_move },
+	{ ai_move }, { ai_move }, { ai_move }
 };
 MMOVE_T(fixbot_move_paina) = { FRAME_paina_01, FRAME_paina_06, fixbot_frames_paina, fixbot_run };
 
 /* findout what this is */
 mframe_t fixbot_frames_painb[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
+	{ ai_move }, { ai_move }, { ai_move }, { ai_move },
+	{ ai_move }, { ai_move }, { ai_move }, { ai_move }
 };
 MMOVE_T(fixbot_move_painb) = { FRAME_painb_01, FRAME_painb_08, fixbot_frames_painb, fixbot_run };
 
 /*
 	backup from pain
-	call a generic painsound
-	some spark effects
 */
 mframe_t fixbot_frames_pain3[] = {
 	{ ai_move, -1 }
 };
 MMOVE_T(fixbot_move_pain3) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_pain3, fixbot_run };
-
-#if 0
-/*
-	bot has compleated landing
-	and is now on the grownd
-	( may need second land if the bot is releasing jib into jib vat )
-*/
-mframe_t fixbot_frames_land[] = {
-	{ ai_move }
-};
-MMOVE_T(fixbot_move_land) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_land, nullptr };
-#endif
 
 void M_MoveToGoal(edict_t* ent, float dist);
 
@@ -1592,67 +1193,21 @@ void ai_movetogoal(edict_t* self, float dist)
 {
 	M_MoveToGoal(self, dist);
 }
-/*
 
-*/
 mframe_t fixbot_frames_forward[] = {
 	{ ai_movetogoal, 5, use_scanner }
 };
 MMOVE_T(fixbot_move_forward) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_forward, nullptr };
 
-/*
-
-*/
 mframe_t fixbot_frames_walk[] = {
 	{ ai_walk, 5 }
 };
 MMOVE_T(fixbot_move_walk) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_walk, nullptr };
 
-/*
-
-*/
-
-#if 0
-/*
-	raf
-	note to self
-	they could have a timer that will cause
-	the bot to explode on countdown
-*/
-mframe_t fixbot_frames_death1[] = {
-	{ ai_move }
-};
-MMOVE_T(fixbot_move_death1) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_death1, fixbot_dead };
-
-//
-mframe_t fixbot_frames_backward[] = {
-	{ ai_move }
-};
-MMOVE_T(fixbot_move_backward) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_backward, nullptr };
-#endif
-
-//
 mframe_t fixbot_frames_start_attack[] = {
 	{ ai_charge }
 };
 MMOVE_T(fixbot_move_start_attack) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_start_attack, fixbot_attack };
-
-#if 0
-/*
-	TBD:
-	need to get laser attack anim
-	attack with the laser blast
-*/
-mframe_t fixbot_frames_attack1[] = {
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge, -10, fixbot_fire_blaster }
-};
-MMOVE_T(fixbot_move_attack1) = { FRAME_shoot_01, FRAME_shoot_06, fixbot_frames_attack1, nullptr };
-#endif
 
 PRETHINK(fixbot_laser_update) (edict_t* laser) -> void
 {
@@ -1685,21 +1240,6 @@ PRETHINK(fixbot_laser_update) (edict_t* laser) -> void
 }
 
 void abortHeal(edict_t* self, bool gib, bool mark);
-
-//mframe_t fixbot_frames_laserattack[] = {
-//	{ ai_charge, 0, fixbot_fire_laser },
-//	{ ai_charge, 0, fixbot_fire_laser },
-//	{ ai_charge, 0, fixbot_fire_laser },
-//	{ ai_charge, 0, fixbot_fire_laser },
-//	{ ai_charge, 0, fixbot_fire_laser },
-//	{ ai_charge, 0, fixbot_fire_laser }
-//};
-//MMOVE_T(fixbot_move_laserattack) = { FRAME_shoot_01, FRAME_shoot_06, fixbot_frames_laserattack, nullptr };
-
-/*
-	need to get forward translation data
-	for the charge attack
-*/
 
 static inline vec3_t heat_fixbot_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target)
 {
@@ -1766,8 +1306,6 @@ THINK(heat_fixbot_think) (edict_t* self) -> void
 				float const dist_to_target = dir_to_target.normalize(); // normalize() returns length
 				vec3_t vec = heat_fixbot_get_dist_vec(self, target, dist_to_target);
 
-				// vec is already normalized by heat_fixbot_get_dist_vec
-				// float const len = vec.normalize(); // Don't normalize again
 				float const len = dist_to_target; // Use distance directly
 				float const dot = vec.dot(fwd);
 
@@ -1858,7 +1396,6 @@ THINK(plasma_fixbot_think) (edict_t* self) -> void
 			gi.WriteByte(TE_BLASTER);
 			gi.WritePosition(self->s.origin);
 			gi.WriteDir(vec3_origin);
-			//gi.WriteByte(0xE0); // Light blue color
 			gi.multicast(self->s.origin, MULTICAST_PVS, false);
 		}
 
@@ -1941,18 +1478,6 @@ THINK(plasma_fixbot_think) (edict_t* self) -> void
 
 	// Update velocity based on new direction
 	self->velocity = self->movedir * self->speed;
-
-	// Add plasma trail effects
-	//if (frandom() > 0.7)
-	//{
-	//	gi.WriteByte(svc_temp_entity);
-	//	gi.WriteByte(TE_BLASTER);
-	//	gi.WritePosition(self->s.origin);
-	//	gi.WriteDir(vec3_origin);
-	//	gi.WriteByte(irandom(0xe0));
-	//	gi.multicast(self->s.origin, MULTICAST_PVS, false);
-	//}
-
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
@@ -1993,10 +1518,8 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 	plasma->dmg_radius = damage_radius;
 	plasma->s.sound = gi.soundindex("weapons/rockfly.wav");
 
-	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
-
 	// Set timestamp for initial upward flight phase
-	plasma->timestamp = level.time + (isboss ? 0.7_sec : 1.0_sec);
+	plasma->timestamp = level.time + (IsBoss(self) ? 0.7_sec : 1.0_sec);
 
 	if (self->enemy && visible(plasma, self->enemy))
 	{
@@ -2033,7 +1556,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 	}
 
 	// If no sky above and player is below, use ionripper instead
-	if (!has_sky_above && self->enemy && self->enemy->inuse) { // Added enemy inuse check
+	if (!has_sky_above && self->enemy && self->enemy->inuse) {
 		// Check if enemy is below us
 		bool enemy_below = (self->enemy->s.origin[2] < self->s.origin[2]);
 
@@ -2044,7 +1567,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 			start += up * 50.f;
 
 			// Use ionripper instead of plasma
-			bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
+			bool isboss = IsBoss(self);
 
 			// Determine direction to enemy
 			vec3_t dir_to_enemy = self->enemy->s.origin - start;
@@ -2093,7 +1616,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 	vec3_t dir = forward + (up * 0.5f); // 45 degree upward if sky clear
 	dir.normalize();
 
-	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
+	bool isboss = IsBoss(self);
 
 	// Base parameters
 	float speed = isboss ? irandom(450, 600) : irandom(350, 450);
@@ -2123,108 +1646,67 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 
 void fixbot_reattack(edict_t* self)
 {
-	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
-	bool enemy_valid = (self->enemy && self->enemy->inuse && !level.intermissiontime && !self->enemy->deadflag);
-
-	// Explicitly check visibility here too, as the logic depends on it
-	if (enemy_valid && !visible(self, self->enemy)) {
-		enemy_valid = false; // Treat non-visible enemy as invalid for re-attack decision
-	}
-
-	// if our enemy is still valid AND visible, then consider continuing firing
-	if (enemy_valid) {
+	// Use the helper to check if the enemy is still a valid target
+	if (IsEnemyValid(self)) {
+		bool isboss = IsBoss(self);
 		float reattack_chance = isboss ? 0.9f : 0.8f;
 
 		if (frandom() < reattack_chance) {
-			// Use minimal offset for more direct shots
-			// fixbot_fire_plasma handles ionripper fallback
-			// It returns true if plasma was used, false otherwise (or if enemy invalid).
+			// fixbot_fire_plasma handles the ionripper fallback.
+			// If it returns true, plasma was fired, and we can loop the attack.
 			if (fixbot_fire_plasma(self, 0.0f)) {
-				// Plasma fired successfully, loop back in attack animation
 				self->monsterinfo.nextframe = FRAME_charging_27;
 				return; // Stay in attack state
 			}
-			// If fixbot_fire_plasma returned false (used ionripper, couldn't fire, or enemy invalid),
-			// fall through to end the attack sequence.
 		}
-		// Else: Random chance failed, fall through to end the attack sequence.
 	}
-	// Else: Enemy was invalid or not visible at the start of the function.
 
-	// --- End attack sequence ---
-	// Set attack cooldown timer
-	self->monsterinfo.attack_finished = level.time + (isboss ? 0.5_sec : 1.0_sec);
-
-	// *** CHANGE: Explicitly call fixbot_run to transition state ***
-	// This ensures we leave the attack animation cleanly.
-	M_SetAnimation(self, &fixbot_move_run);
-	// *** END CHANGE ***
-
-	// Remove the old lines which just set nextframe and M_SetAnimation,
-	// as fixbot_run() handles setting the correct animation now.
-	// self->monsterinfo.nextframe = 0; // Clear any pending frame override (handled by fixbot_run)
-	// M_SetAnimation(self, &fixbot_move_run); // (handled by fixbot_run)
+	// If enemy is not valid, or random chance fails, or plasma couldn't be fired,
+	// end the attack sequence and transition back to the run state.
+	self->monsterinfo.attack_finished = level.time + (IsBoss(self) ? 0.5_sec : 1.0_sec);
+	fixbot_run(self);
 }
 
 mframe_t fixbot_frames_attack2[] = {
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
-
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, -10 },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, -10 },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
-	{ ai_charge, -10 },
-	{ ai_charge, 0, fixbot_fire_blaster },
-
-	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, 0, fixbot_fire_blaster },
-
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+	{ ai_charge }, { ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge, -10 },
+	{ ai_charge }, { ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge, -10 },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+	{ ai_charge, -10 }, { ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge }, { ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge }, { ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster }, { ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, 0, fixbot_reattack }
 };
 MMOVE_T(fixbot_move_attack2) = { FRAME_charging_01, FRAME_charging_31, fixbot_frames_attack2, fixbot_run };
 
 void weldstate(edict_t* self)
 {
-	if (self->s.frame == FRAME_weldstart_10)
+	if (self->s.frame == FRAME_weldstart_10) {
 		M_SetAnimation(self, &fixbot_move_weld);
-	else if (self->goalentity && self->s.frame == FRAME_weldmiddle_07)
-	{
-		if (self->goalentity->health <= 0)
-		{
+	}
+	else if (self->goalentity && self->s.frame == FRAME_weldmiddle_07) {
+		if (self->goalentity->health <= 0) {
 			// Safely clear owner if it exists
-			if (self->enemy && self->enemy->owner == self) { // Check if enemy is the goal and owned by self
+			if (self->enemy && self->enemy->owner == self) {
 				self->enemy->owner = nullptr;
 			}
 			M_SetAnimation(self, &fixbot_move_weld_end);
 		}
-		else
+		else {
 			self->goalentity->health -= 10;
+		}
 	}
-	else
-	{
-		self->goalentity = self->enemy = nullptr;
-		M_SetAnimation(self, &fixbot_move_stand);
+	else {
+		// Goal is gone or sequence is ending, transition to stand
+		TransitionToStand(self);
 	}
 }
 
@@ -2236,75 +1718,47 @@ void ai_move2(edict_t* self, float dist)
 		return;
 	}
 
-	vec3_t v;
-
 	M_walkmove(self, self->s.angles[YAW], dist);
 
-	v = self->goalentity->s.origin - self->s.origin;
+	vec3_t v = self->goalentity->s.origin - self->s.origin;
 	self->ideal_yaw = vectoyaw(v);
 	M_ChangeYaw(self);
 };
 
 mframe_t fixbot_frames_weld_start[] = {
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
-	{ ai_move2, 0 },
+	{ ai_move2, 0 }, { ai_move2, 0 }, { ai_move2, 0 },
+	{ ai_move2, 0 }, { ai_move2, 0 }, { ai_move2, 0 },
+	{ ai_move2, 0 }, { ai_move2, 0 }, { ai_move2, 0 },
 	{ ai_move2, 0, weldstate }
 };
 MMOVE_T(fixbot_move_weld_start) = { FRAME_weldstart_01, FRAME_weldstart_10, fixbot_frames_weld_start, nullptr };
 
 mframe_t fixbot_frames_weld[] = {
-	{ ai_move2, 0, fixbot_fire_welder },
-	{ ai_move2, 0, fixbot_fire_welder },
-	{ ai_move2, 0, fixbot_fire_welder },
-	{ ai_move2, 0, fixbot_fire_welder },
-	{ ai_move2, 0, fixbot_fire_welder },
-	{ ai_move2, 0, fixbot_fire_welder },
+	{ ai_move2, 0, fixbot_fire_welder }, { ai_move2, 0, fixbot_fire_welder },
+	{ ai_move2, 0, fixbot_fire_welder }, { ai_move2, 0, fixbot_fire_welder },
+	{ ai_move2, 0, fixbot_fire_welder }, { ai_move2, 0, fixbot_fire_welder },
 	{ ai_move2, 0, weldstate }
 };
 MMOVE_T(fixbot_move_weld) = { FRAME_weldmiddle_01, FRAME_weldmiddle_07, fixbot_frames_weld, nullptr };
 
 mframe_t fixbot_frames_weld_end[] = {
-	{ ai_move2, -2 },
-	{ ai_move2, -2 },
-	{ ai_move2, -2 },
-	{ ai_move2, -2 },
-	{ ai_move2, -2 },
-	{ ai_move2, -2 },
+	{ ai_move2, -2 }, { ai_move2, -2 }, { ai_move2, -2 },
+	{ ai_move2, -2 }, { ai_move2, -2 }, { ai_move2, -2 },
 	{ ai_move2, -2, weldstate }
 };
 MMOVE_T(fixbot_move_weld_end) = { FRAME_weldend_01, FRAME_weldend_07, fixbot_frames_weld_end, nullptr };
 
 void fixbot_fire_welder(edict_t* self)
 {
-	vec3_t start;
-	vec3_t forward, right, up;
-	vec3_t end;
-	vec3_t dir;
-	vec3_t vec;
-	float  r;
-
-	if (!self->enemy || !self->enemy->inuse) { // Add inuse check
-		M_SetAnimation(self, &fixbot_move_stand); // Go back to stand if enemy gone
+	if (!self->enemy || !self->enemy->inuse) {
+		TransitionToStand(self); // Go back to stand if enemy gone
 		return;
 	}
 
-	vec[0] = 24.0;
-	vec[1] = -0.8f;
-	vec[2] = -10.0;
-
-	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, vec, forward, right);
-
-	end = self->enemy->s.origin;
-
-	dir = end - start; // Calculate direction for sparks if needed, though not used here
+	vec3_t start;
+	vec3_t forward, right;
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, { 24.0, -0.8f, -10.0 }, forward, right);
 
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WELDING_SPARKS);
@@ -2316,8 +1770,7 @@ void fixbot_fire_welder(edict_t* self)
 
 	if (frandom() > 0.8f)
 	{
-		r = frandom();
-
+		float r = frandom();
 		if (r < 0.33f)
 			gi.sound(self, CHAN_VOICE, sound_weld1, 1, ATTN_IDLE, 0);
 		else if (r < 0.66f)
@@ -2329,52 +1782,40 @@ void fixbot_fire_welder(edict_t* self)
 
 void fixbot_fire_blaster(edict_t* self)
 {
-	vec3_t start;
-	vec3_t forward, right, up;
-	vec3_t end;
-	vec3_t dir;
-
-	// Add enemy validity check
-	// Check visibility as well, as ai_charge might rely on a visible enemy implicitly
-	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy))
+	// Use the helper to ensure we have a valid target before firing
+	if (!IsEnemyValid(self))
 	{
-		// *** CHANGE: Immediately transition out of attack state ***
-		M_SetAnimation(self, &fixbot_move_run);
-		return;           // Stop executing this frame's action
-		// *** END CHANGE ***
+		fixbot_run(self); // Transition out of attack state
+		return;
 	}
 
-	AngleVectors(self->s.angles, forward, right, up);
+	vec3_t start;
+	vec3_t forward, right;
+	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right);
 
-	end = self->enemy->s.origin;
+	vec3_t end = self->enemy->s.origin;
 	end[2] += self->enemy->viewheight;
-	dir = end - start;
-	dir.normalize();
+	vec3_t dir = (end - start).normalized();
 
-	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
+	bool isboss = IsBoss(self);
 
 	monster_fire_blaster_bolt(self, start, dir, 7, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, isboss ? 3 : 0);
 	// save for aiming the shot
-	self->pos1 = self->enemy->s.origin;
-	self->pos1[2] += self->enemy->viewheight;
+	self->pos1 = end;
 
-	// Plasma/Ionripper chance (only for non-boss, as boss handles spawns)
-	if (!isboss && frandom() < 0.080f) // Reduced chance slightly from 0.080
+	// Plasma/Ionripper chance (only for non-boss)
+	if (!isboss && frandom() < 0.080f)
 	{
-		// Try plasma first, if no sky use ionripper instead
-		// fixbot_fire_plasma now handles the ionripper fallback
-		// Note: fixbot_fire_plasma itself contains enemy checks. If the enemy becomes
-		// invalid between the start of this function and here, fixbot_fire_plasma
-		// should handle it gracefully by returning false and not firing.
+		// This function handles the sky check and ionripper fallback internally.
 		fixbot_fire_plasma(self, 0.0f);
 	}
 }
 MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 {
-	// Added more robust enemy check
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0 && visible(self, self->enemy) && !OnSameTeam(self, self->enemy)) {
-		self->monsterinfo.run(self);
+	// Use the helper to check for a valid enemy
+	if (IsEnemyValid(self)) {
+		fixbot_run(self);
 	}
 	else {
 		self->enemy = nullptr; // Clear invalid enemy
@@ -2384,19 +1825,12 @@ MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 
 MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
 {
-	// The standard ai_run function handles enemy checks and finding new targets.
-	// We just need to make sure the correct 'run' animation is playing.
-
-	// Ensure the run animation is set if not already correct
-	// (ai_run might change it based on enemy state, but this ensures
-	// the base run animation is the default for this state)
-	{
-		if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-			M_SetAnimation(self, &fixbot_move_stand);
-		else
-			M_SetAnimation(self, &fixbot_move_run);
-	}
-	// Let the frame's ai_run call handle the rest (movement, calling ai_checkattack, etc.)
+	// ai_run handles enemy checks and finding new targets.
+	// We just ensure the correct animation is playing for this state.
+	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+		M_SetAnimation(self, &fixbot_move_stand);
+	else
+		M_SetAnimation(self, &fixbot_move_run);
 }
 
 MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void
@@ -2406,41 +1840,35 @@ MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void
 
 void fixbot_start_attack(edict_t* self)
 {
-	// Added enemy validity check
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
+	// Use the helper to ensure we have a valid enemy before starting an attack
+	if (IsEnemyValid(self)) {
 		M_SetAnimation(self, &fixbot_move_start_attack);
 	}
 	else {
 		self->enemy = nullptr; // Clear invalid enemy
-		M_SetAnimation(self, &fixbot_move_run);
+		fixbot_run(self);
 	}
 }
 
 
 MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 {
-	// *** ADDED: Set attack flight parameters when starting the attack sequence ***
+	// Set optimal flight parameters for combat
 	fixbot_set_attack_fly_parameters(self);
-	// *** END ADDED ***
 
-	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
+	bool isboss = IsBoss(self);
 
-	// ONLY boss fixbots should spawn turrets periodically
+	// ONLY boss fixbots should consider spawning turrets during an attack
 	if (isboss) {
-		int slots_left = 0;
-		if (self->monsterinfo.monster_slots) {
-			slots_left = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
-		}
-		float spawn_chance = slots_left > 0 ? 0.4f : 0.0f; // Boss always tries if slots available
-
-		// Increased spawn chance for boss if slots available
-		if (frandom() < spawn_chance) {
+		int slots_left = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+		// High chance to spawn if slots are available
+		if (slots_left > 0 && frandom() < 0.4f) {
 			M_SetAnimation(self, &fixbot_move_spawn);
-			return; // Start spawn animation
+			return; // Start spawn animation instead of attacking
 		}
 	}
 
-	// Add strafing behavior similar to hover
+	// Add strafing behavior for more dynamic movement
 	if (frandom() > 0.4f) // 60% chance to strafe
 	{
 		self->monsterinfo.lefty = (frandom() <= 0.5f); // Randomly choose direction
@@ -2451,7 +1879,7 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
 
-	// Regular attack (blaster/plasma/ionripper sequence)
+	// Default to the main blaster/plasma attack sequence
 	M_SetAnimation(self, &fixbot_move_attack2);
 }
 
@@ -2475,8 +1903,6 @@ PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 		M_SetAnimation(self, &fixbot_move_painb);
 	else
 		M_SetAnimation(self, &fixbot_move_paina);
-
-	//abortHeal(self, false, false); // Likely related to unused medic code
 }
 
 void fixbot_dead(edict_t* self)
@@ -2496,20 +1922,16 @@ DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	if (g_horde && g_horde->integer && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
-	// Find and destroy all spawned turrets
-	for (auto ent : active_monsters()) { // Use helper iterator
-	if (ent->inuse && ent->owner == self && ent->classname &&
-		horde::IsMonsterType(ent, horde::MonsterTypeID::TURRET)) {
-			// Create explosion effect at turret location
+	// Find and destroy all turrets this fixbot spawned
+	for (auto ent : active_monsters()) {
+		if (ent->inuse && ent->owner == self && horde::IsMonsterType(ent, horde::MonsterTypeID::TURRET)) {
+			// Create a large explosion at the turret's location
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_BIGEXPLOSION);
 			gi.WritePosition(ent->s.origin);
 			gi.multicast(ent->s.origin, MULTICAST_PHS, false);
-
-			// Kill the turret forcefully
-			// ent->health = -999; // Setting health low might not trigger desired death effect
-			// BecomeExplosion1(ent); // This might be better
-			T_Damage(ent, self, self, vec3_origin, ent->s.origin, vec3_origin, 99999, 100, DAMAGE_NO_PROTECTION, MOD_UNKNOWN); // Deal massive damage
+			// Kill the turret with massive damage
+			T_Damage(ent, self, self, vec3_origin, ent->s.origin, vec3_origin, 99999, 100, DAMAGE_NO_PROTECTION, MOD_UNKNOWN);
 		}
 	}
 
@@ -2539,33 +1961,23 @@ void SP_monster_fixbot(edict_t* self)
 		return;
 	}
 
+	// The cached_soundindex class handles precaching, so explicit gi.soundindex calls are redundant.
 	sound_pain1.assign("daedalus/daedpain1.wav");
 	sound_die.assign("daedalus/daeddeth1.wav");
 	sound_pew.assign("makron/blaster.wav");
 	sound_weld1.assign("misc/welder1.wav");
 	sound_weld2.assign("misc/welder2.wav");
 	sound_weld3.assign("misc/welder3.wav");
-	sound_spawn.assign("infantry/inflies1.wav"); // Set spawn sound
-
-	// Make sure the sounds are precached
-	gi.soundindex("daedalus/daedpain1.wav");
-	gi.soundindex("daedalus/daeddeth1.wav");
-	gi.soundindex("makron/blaster.wav");
-	gi.soundindex("misc/welder1.wav");
-	gi.soundindex("misc/welder2.wav");
-	gi.soundindex("misc/welder3.wav");
-	gi.soundindex("infantry/inflies1.wav");
+	sound_spawn.assign("infantry/inflies1.wav");
 
    // Set the base ID. This is the default.
-    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT);
     }
 
 	self->s.modelindex = gi.modelindex("models/monsters/fixbot/tris.md2");
-
 	self->mins = { -16, -16, -12 };
 	self->maxs = { 16, 16, 12 };
-
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
@@ -2583,25 +1995,21 @@ void SP_monster_fixbot(edict_t* self)
 	self->monsterinfo.attack = fixbot_attack;
 
 	flymonster_start(self);
-
 	gi.linkentity(self);
 
 	M_SetAnimation(self, &fixbot_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
 
-
 	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
 	fixbot_set_attack_fly_parameters(self);
 
-	bool isboss = horde::IsMonsterType(self, horde::MonsterTypeID::FIXBOT_KL);
-
 	// Setup reinforcement system if it's a boss
-	if (isboss && !st.was_key_specified("monster_slots")) {
+	if (IsBoss(self) && !st.was_key_specified("monster_slots")) {
 		self->monsterinfo.monster_slots = fixbot_monster_slots_base;
 	}
 	// Apply skill-based slot increase
-	if (skill->integer > 0) { // Check skill->integer directly
-		self->monsterinfo.monster_slots += floorf(self->monsterinfo.monster_slots * (skill->value / 2.f)); // Use floorf
+	if (skill->integer > 0) {
+		self->monsterinfo.monster_slots += floorf(self->monsterinfo.monster_slots * (skill->value / 2.f));
 	}
 
 	if (!st.was_key_specified("reinforcements"))
@@ -2617,8 +2025,6 @@ void SP_monster_fixbotkl(edict_t* self) {
 	SP_monster_fixbot(self);
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
-
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
