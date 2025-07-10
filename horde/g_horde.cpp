@@ -31,6 +31,14 @@ static float g_champion_chance_for_current_batch = 0.2f; // Store champion chanc
 static int32_t g_monsters_to_spawn_in_current_ambush = 0;
 static gtime_t g_next_single_ambush_monster_spawn_time = 0_sec;    
 
+// Cache to avoid redundant calculations for bot counts
+struct BotCountCache {
+	int32_t last_required_bots = -1;
+	int32_t last_spect_count = -1;
+	int32_t last_wave_level = -1;
+};
+static BotCountCache g_bot_count_cache;
+
 // Store the context for the current ambush
 struct AmbushSpawnInfo {
     horde::MonsterTypeID typeId = horde::MonsterTypeID::UNKNOWN;
@@ -3227,47 +3235,59 @@ void VerifyAndAdjustBots()
 		return;
 	}
 
-	// This block handles the one-time, rapid bot spawning at the start of a map.
+	// This block for initial, rapid spawning remains unchanged. It only runs once.
 	if (!g_initial_bots_spawned_for_map)
 	{
-		// NEW: Check if bots are already here from a 'restart' command.
 		if (AreBotsAlreadyPresent())
 		{
-			if (developer->integer) {
-				gi.Com_PrintFmt("VerifyAndAdjustBots: Bots already present. Skipping rapid spawn.\n");
-			}
-			// Mark as done and proceed to the maintenance logic below.
 			g_initial_bots_spawned_for_map = true;
 		}
 		else
 		{
-			// No bots are present, so perform the initial rapid spawn.
 			const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
 			const int32_t bots_to_add_now = mapSize.isBigMap ? 6 : 4;
-
-			if (developer->integer) {
-				gi.Com_PrintFmt("VerifyAndAdjustBots: Performing initial rapid bot spawn of {}.\n", bots_to_add_now);
-			}
-
 			for (int32_t i = 0; i < bots_to_add_now; ++i)
 			{
 				gi.AddCommandString("addbot\n");
 			}
-
-			// Set the flag to true so this block never runs again for this map.
 			g_initial_bots_spawned_for_map = true;
 		}
 	}
 
-	// This part now acts as the primary maintenance logic for all subsequent calls.
-	// It ensures the bot count stays correct as players join/leave.
-	const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
-	const int32_t spectPlayers = GetNumSpectPlayers();
-	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
-	const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
-	const int32_t totalRequiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
+	// --- CACHING LOGIC STARTS HERE ---
 
+	// 1. Get the current game state relevant to bot count.
+	const int32_t current_spect_count = GetNumSpectPlayers();
+	const int32_t current_level_for_bots = current_wave_level;
+
+	// 2. Check if the state has changed since the last call.
+	if (g_bot_count_cache.last_spect_count == current_spect_count &&
+		g_bot_count_cache.last_wave_level == current_level_for_bots)
+	{
+		// CACHE HIT: Nothing has changed. Do nothing. This is the performance gain.
+		return;
+	}
+
+	// --- CACHE MISS: The state has changed, so we must recalculate. ---
+
+	// 3. Perform the calculation.
+	const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
+	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+	const int32_t extraBot = (current_level_for_bots >= 20) ? 1 : 0;
+	const int32_t totalRequiredBots = std::max(baseBots + current_spect_count + extraBot, baseBots);
+
+	// 4. Update the cache with the new values.
+	g_bot_count_cache.last_required_bots = totalRequiredBots;
+	g_bot_count_cache.last_spect_count = current_spect_count;
+	g_bot_count_cache.last_wave_level = current_level_for_bots;
+
+	// 5. Set the cvar with the new value.
 	gi.cvar_set("bot_minClients", std::to_string(totalRequiredBots).c_str());
+
+	if (developer->integer > 1) {
+		gi.Com_PrintFmt("Bot Count Cache Updated: Required bots set to %d (Spects: %d, Wave: %d)\n",
+						totalRequiredBots, current_spect_count, current_level_for_bots);
+	}
 }
 
 void InitializeWaveSystem() noexcept;
@@ -3441,7 +3461,7 @@ void ResetBosses()
 
 
 // =======================================================================
-// REPLACEMENT: PrecacheAllMonsters_Full 
+// REPLACEMENT: PrecacheAllMonsters_Full
 // This function implements the "full precache" strategy from Code A,
 // but uses the efficient TypeID system from Code B. It runs once per map load.
 // =======================================================================
@@ -4614,6 +4634,7 @@ void ResetGame()
 	}
 
 	g_initial_bots_spawned_for_map = false;
+	g_bot_count_cache = {}; 
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
@@ -4676,7 +4697,7 @@ void ResetGame()
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 	allowWaveAdvance = false;
-	// SPAWN_POINT_COOLDOWN is set in ResetAllSpawnPointDataAndTrackers
+
 
 	ResetBenefits();
 	ResetWaveAdvanceState();
