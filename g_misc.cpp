@@ -2003,40 +2003,78 @@ void SP_func_clock(edict_t* self)
 }
 
 //=================================================================================
+edict_t* FindRandomHordeSpawnPoint(bool for_flying_monster);
+bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, const vec3_t &destination_angles, bool play_effects, bool force_despite_visibility);
+ bool IsFlying(horde::MonsterTypeID typeId);
 
 constexpr spawnflags_t SPAWNFLAG_TELEPORTER_NO_SOUND = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TELEPORTER_NO_TELEPORT_EFFECT = 2_spawnflag;
 
 TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	edict_t* dest;
+	// --- HORDE MONSTER TELEPORT LOGIC ---
+	if (g_horde->integer && (other->svflags & SVF_MONSTER))
+	{
+		if (other->monsterinfo.IS_BOSS)
+		{
+			return; // Bosses ignore this teleporter.
+		}
 
+		if (horde::IsMonsterType(other, horde::MonsterTypeID::MISC_INSANE) || 
+			horde::IsMonsterType(other, horde::MonsterTypeID::SENTRYGUN) ||
+			horde::IsMonsterType(other, horde::MonsterTypeID::TURRET))
+		{
+			return;
+		}
+
+		if (other->teleport_time > level.time) {
+			return;
+		}
+
+		horde::MonsterTypeID monster_type_id = horde::MonsterTypeRegistry::GetTypeID(other->classname);
+		bool monster_is_flying = IsFlying(monster_type_id);
+
+		edict_t* dest_point = FindRandomHordeSpawnPoint(monster_is_flying);
+
+		if (dest_point)
+		{
+			// THE FIX: Change the last argument from 'false' to 'true'.
+			// This forces the teleport to happen even if the monster can see its enemy,
+			// which is the correct behavior for a teleporter pad.
+			if (Horde_TeleportMonster(other, dest_point->s.origin, dest_point->s.angles, true, true))
+			{
+				other->teleport_time = level.time + 2.5_sec;
+			}
+		}
+		else if (developer->integer)
+		{
+			gi.Com_PrintFmt("Teleporter touch: Could not find a suitable random spawn point for {}.\n", other->classname);
+		}
+		return;
+	}
+	// --- END OF HORDE MONSTER LOGIC ---
+
+
+	// --- ORIGINAL PLAYER TELEPORT LOGIC ---
 	if (!other->client)
 		return;
-	dest = G_FindByString<&edict_t::targetname>(nullptr, self->target);
+
+	edict_t* dest = G_FindByString<&edict_t::targetname>(nullptr, self->target);
 	if (!dest)
 	{
 		gi.Com_Print("Couldn't find destination\n");
 		return;
 	}
 
-	// ZOID
+	// ... (rest of the original player logic is unchanged)
 	CTFPlayerResetGrapple(other);
-	// ZOID
-
-	// unlink to make sure it can't possibly interfere with KillBox
 	gi.unlinkentity(other);
-
 	other->s.origin = dest->s.origin;
 	other->s.old_origin = dest->s.origin;
 	other->s.origin[2] += 10;
-
-	// clear the velocity and hold them in place briefly
 	other->velocity = {};
-	other->client->ps.pmove.pm_time = 160; // hold time
+	other->client->ps.pmove.pm_time = 160;
 	other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-
-	// draw the teleport splash at source and on the player
 	if (!self->spawnflags.has(SPAWNFLAG_TELEPORTER_NO_TELEPORT_EFFECT))
 	{
 		self->owner->s.event = EV_PLAYER_TELEPORT;
@@ -2047,21 +2085,13 @@ TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool 
 		self->owner->s.event = EV_OTHER_TELEPORT;
 		other->s.event = EV_OTHER_TELEPORT;
 	}
-
-	// set angles
 	other->client->ps.pmove.delta_angles = dest->s.angles - other->client->resp.cmd_angles;
-
 	other->s.angles = {};
 	other->client->ps.viewangles = {};
 	other->client->v_angle = {};
 	AngleVectors(other->client->v_angle, other->client->v_forward, nullptr, nullptr);
-
 	gi.linkentity(other);
-
-	// kill anything at the destination
 	KillBox(other, !!other->client);
-
-	// [Paril-KEX] move sphere, if we own it
 	if (other->client->owned_sphere)
 	{
 		edict_t* sphere = other->client->owned_sphere;
@@ -2071,7 +2101,6 @@ TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool 
 		gi.linkentity(sphere);
 	}
 }
-
 /*QUAKED misc_teleporter (1 0 0) (-32 -32 -24) (32 32 -16) NO_SOUND NO_TELEPORT_EFFECT N64_EFFECT
 Stepping onto this disc will teleport players to the targeted misc_teleporter_dest object.
 */
@@ -2089,7 +2118,17 @@ void SP_misc_teleporter(edict_t* ent)
 		ent->s.effects = EF_TELEPORTER;
 	if (!(ent->spawnflags & SPAWNFLAG_TELEPORTER_NO_SOUND))
 		ent->s.sound = gi.soundindex("world/amb10.wav");
-	ent->solid = SOLID_BBOX;
+
+	// --- HORDE MODE SOLIDITY CHANGE ---
+	// In horde mode, make the visual model non-solid so monsters can pass through
+	// it and activate the trigger. Otherwise, use the original solid box.
+	if (g_horde->integer) {
+		ent->solid = SOLID_NOT;
+	}
+	else {
+		ent->solid = SOLID_BBOX;
+	}
+	// --- END CHANGE ---
 
 	ent->mins = { -32, -32, -24 };
 	ent->maxs = { 32, 32, -16 };

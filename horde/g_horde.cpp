@@ -611,6 +611,14 @@ edict_t *SelectRandomSpawnPoint(TFilter filter)
     return nullptr;
 }
 
+edict_t* FindRandomHordeSpawnPoint(bool for_flying_monster)
+{
+    // Use the internal template with a lambda to filter for the correct spawn type
+    return SelectRandomSpawnPoint([&](const edict_t* spawnPoint) {
+        return (for_flying_monster == (spawnPoint->style == 1));
+    });
+}
+
 static void CleanupSpawnPointCache() noexcept { spawn_point_cache.clear(); }
 
 //  Definir tamaños máximos para arrays estáticos
@@ -2683,7 +2691,7 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept
 }
 
 // Category check functions using TypeIDs
-inline bool IsFlying(horde::MonsterTypeID typeId)
+bool IsFlying(horde::MonsterTypeID typeId)
 {
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Flying);
 }
