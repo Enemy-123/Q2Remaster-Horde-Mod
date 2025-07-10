@@ -341,10 +341,16 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	// First, determine the actual source of the threat.
 	// If we're hit by a laser beam, the real threat is the emitter that owns it.
 	edict_t* threat = inflictor;
-	if (inflictor && horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_BEAM))
+
+	// If we're hit by a laser beam, the real threat is the emitter that owns it.
+	if (threat && horde::IsSpecialType(threat, horde::SpecialEntityTypeID::LASER_BEAM))
 	{
-		// The beam is the inflictor, but the emitter is the targetable threat.
-		threat = inflictor->owner;
+		threat = threat->owner;
+	}
+	// If the inflictor is a projectile from a sentry gun, the sentry is the real threat.
+	else if (threat && threat->owner && horde::IsSpecialType(threat->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
+	{
+		threat = threat->owner;
 	}
 
 	// Now, check if the determined threat is a deployable we should target directly.
