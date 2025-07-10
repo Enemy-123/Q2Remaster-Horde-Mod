@@ -1198,9 +1198,6 @@ void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t 
 	}
 }
 
-void VerifyAndAdjustBots();
-
-
 struct ConditionParams
 {
 	int32_t maxMonsters;
@@ -3235,6 +3232,7 @@ static bool AreBotsAlreadyPresent()
 	return false;
 }
 
+
 void VerifyAndAdjustBots()
 {
 	if (developer->integer == 2)
@@ -3243,15 +3241,18 @@ void VerifyAndAdjustBots()
 		return;
 	}
 
-	// This block for initial, rapid spawning remains unchanged. It only runs once.
+	// --- PART 1: Initial, one-time bot spawn for the map ---
+	// This block now also performs an immediate, correct calculation for minclients.
 	if (!g_initial_bots_spawned_for_map)
 	{
 		if (AreBotsAlreadyPresent())
 		{
+			// If bots were added by other means, just flag as done.
 			g_initial_bots_spawned_for_map = true;
 		}
 		else
 		{
+			// Spawn the initial set of bots.
 			const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
 			const int32_t bots_to_add_now = mapSize.isBigMap ? 6 : 4;
 			for (int32_t i = 0; i < bots_to_add_now; ++i)
@@ -3259,10 +3260,31 @@ void VerifyAndAdjustBots()
 				gi.AddCommandString("addbot\n");
 			}
 			g_initial_bots_spawned_for_map = true;
+
+			// --- THE FIX (Your Suggestion) ---
+			// Immediately calculate and set the correct minclients value right now,
+			// bypassing the cache for this one-time setup.
+			const int32_t initial_spect_count = GetNumSpectPlayers();
+			const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+			const int32_t initialRequiredBots = std::max(baseBots + initial_spect_count, baseBots);
+
+			// Set the cvar and update the cache so the next check doesn't re-run.
+			gi.cvar_set("bot_minClients", std::to_string(initialRequiredBots).c_str());
+			g_bot_count_cache.last_required_bots = initialRequiredBots;
+			g_bot_count_cache.last_spect_count = initial_spect_count;
+			g_bot_count_cache.last_wave_level = current_wave_level; // Use current wave level
+
+			if (developer->integer > 1) {
+				gi.Com_PrintFmt("Initial Bot Spawn: Set minclients to %d (Spects: %d)\n",
+								initialRequiredBots, initial_spect_count);
+			}
+			// We've done all the work for this frame, so we can exit.
+			return;
 		}
 	}
 
-	// --- CACHING LOGIC STARTS HERE ---
+	// --- PART 2: Cached, periodic adjustment logic ---
+	// This part runs on subsequent calls from Horde_RunFrame or Horde_InitLevel.
 
 	// 1. Get the current game state relevant to bot count.
 	const int32_t current_spect_count = GetNumSpectPlayers();
@@ -3293,7 +3315,7 @@ void VerifyAndAdjustBots()
 	gi.cvar_set("bot_minClients", std::to_string(totalRequiredBots).c_str());
 
 	if (developer->integer > 1) {
-		gi.Com_PrintFmt("Bot Count Cache Updated: Required bots set to %d (Spects: %d, Wave: %d)\n",
+		gi.Com_PrintFmt("Bot Count Adjusted: Required bots set to %d (Spects: %d, Wave: %d)\n",
 						totalRequiredBots, current_spect_count, current_level_for_bots);
 	}
 }
@@ -6236,7 +6258,6 @@ void SpawnMonsters()
 	{
 		if (g_horde_local.queued_monsters <= 0 && g_horde_local.state == horde_state_t::spawning && !next_wave_message_sent)
 		{
-			VerifyAndAdjustBots();
 			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 			next_wave_message_sent = true;
 			g_horde_local.state = horde_state_t::active_wave;
@@ -6392,7 +6413,6 @@ static bool CheckHardCapAndLog(int32_t activeMonsters, int32_t hardCap, int32_t 
 			gi.Com_PrintFmt("SpawnMonsters: Hard cap ({}/{}), SoftCap={}, AdjustedCap={}\n", activeMonsters, hardCap, softCap, g_adjusted_monster_cap);
 		if (currentState == horde_state_t::spawning && !next_wave_message_sent)
 		{
-			VerifyAndAdjustBots();
 			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Deployed (Hard Cap).\nWave: {}\n", currentLevel);
 			next_wave_message_sent = true;
 			g_horde_local.state = horde_state_t::active_wave;
@@ -7198,6 +7218,14 @@ void Horde_RunFrame() {
 		return;
 	}
 
+	static gtime_t g_next_bot_check_time = 0_sec;
+    if (level.time >= g_next_bot_check_time)
+    {
+        VerifyAndAdjustBots();
+        // Check again in 2.5 seconds. This is a good balance of responsiveness and performance.
+        g_next_bot_check_time = level.time + 2.5_sec;
+    }
+
 	// --- Time-slice regular spawns ---
 	SpawnSingleMonsterFromBatch();
     // --- Time-slice ambush/retaliation spawns ---
@@ -7288,7 +7316,6 @@ void Horde_RunFrame() {
 				if (g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0) {
 					if (!IsBossWave() || boss_spawned_for_wave) {
 						if (!next_wave_message_sent) {
-							VerifyAndAdjustBots();
 							gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 							next_wave_message_sent = true;
 						}
@@ -7589,7 +7616,6 @@ static void Horde_InitLevel(const int32_t lvl)
 	next_wave_message_sent = false;
 
 	CleanupSpawnPointCache();
-	VerifyAndAdjustBots();
 	G_UpdateActiveLasersForWaveProgression(current_wave_level);
 
 	g_horde_local.conditionStartTime = 0_sec;
