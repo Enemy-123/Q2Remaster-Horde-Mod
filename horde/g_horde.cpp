@@ -3441,11 +3441,11 @@ void ResetBosses()
 
 
 // =======================================================================
-// REPLACEMENT: PrecacheAllMonsters_Full
+// REPLACEMENT: PrecacheAllMonsters_Full 
 // This function implements the "full precache" strategy from Code A,
 // but uses the efficient TypeID system from Code B. It runs once per map load.
 // =======================================================================
-void PrecacheAllMonsters_Full() noexcept
+void PrecacheAllMonsters_Full() noexcept 
 {
     // --- 1. Guard Clause ---
     // Ensure this heavy operation only runs once per map load.
