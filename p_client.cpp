@@ -2564,6 +2564,9 @@ void PutClientInServer(edict_t* ent)
 
 	if (was_waiting_for_respawn)
 		G_PostRespawn(ent);
+
+	if (g_horde && g_horde->integer)
+	VerifyAndAdjustBots();
 }
 
 /*
@@ -3268,6 +3271,9 @@ void ClientDisconnect(edict_t* ent)
 			}
 		}
 	}
+
+	if (g_horde && g_horde->integer)
+	VerifyAndAdjustBots();
 }
 
 /*

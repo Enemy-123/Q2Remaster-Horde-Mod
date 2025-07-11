@@ -91,3 +91,4 @@ extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origi
 extern std::string GetPlayerName(const edict_t* player);
 extern std::string GetDisplayName(const edict_t* ent);
 extern std::string GetTitleFromFlags(int bonus_flags);
+extern void VerifyAndAdjustBots();

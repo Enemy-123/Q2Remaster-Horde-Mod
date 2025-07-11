@@ -3515,8 +3515,6 @@ void Horde_Init()
 	AllowReset();
 	ResetGame();
 
-	VerifyAndAdjustBots();
-
 	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
 }
 
@@ -7147,13 +7145,6 @@ void Horde_RunFrame() {
 		return;
 	}
 
-	static gtime_t g_next_bot_check_time = 0_sec;
-    if (level.time >= g_next_bot_check_time)
-    {
-        VerifyAndAdjustBots();
-        // Check again in 2.5 seconds. This is a good balance of responsiveness and performance.
-        g_next_bot_check_time = level.time + 2.5_sec;
-    }
 
 	// --- Time-slice regular spawns ---
 	SpawnSingleMonsterFromBatch();
