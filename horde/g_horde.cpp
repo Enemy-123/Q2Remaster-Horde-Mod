@@ -3229,10 +3229,7 @@ static int CountPresentBots()
 	return count;
 }
 
-// REPLACEMENT: VerifyAndAdjustBots (Hybrid Approach)
-// This function now uses a two-part strategy:
-// 1. A one-time-ever 'addbot' command sequence for the initial, fast bot load.
-// 2. An ongoing 'bot_minClients' adjustment for all subsequent changes.
+// VerifyAndAdjustBots 
 void VerifyAndAdjustBots()
 {
 	if (developer->integer == 2)
@@ -3263,14 +3260,22 @@ void VerifyAndAdjustBots()
 	}
 
 	// --- PART 2: 
-		const int32_t spectPlayers = GetNumSpectPlayers();
-		const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+    const int32_t spectPlayers = GetNumSpectPlayers();
+    const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+    const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
+    const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
 
-		// Agregar bot extra si current_wave_level >= 20
-		const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
-		const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
+    // // ================== DEBUG LINE ==================
+    // gi.Com_PrintFmt("DEBUG BOTS: Map='{}', isBig={}, baseBots={}, spectPlayers={}, extraBot={}, requiredBots={}\n",
+    //     level.mapname,
+    //     mapSize.isBigMap,
+    //     baseBots,
+    //     spectPlayers,
+    //     extraBot,
+    //     requiredBots);
+    // // =========================================================
 
-		gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+    gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
 
 
@@ -5017,8 +5022,8 @@ inline int8_t GetNumSpectPlayers()
 	return std::count_if(players.begin(), players.end(),
 						 [](const edict_t *const player) noexcept
 						 {
-							 // A spectator must have the spectator flag AND must NOT be a bot.
-							 return ClientIsSpectating(player->client) && !(player->svflags & SVF_BOT);
+							 // A spectator must have the spectator flag, only clients since bots are not able to spect.
+							 return ClientIsSpectating(player->client);
 						 });
 }
 
