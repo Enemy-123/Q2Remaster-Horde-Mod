@@ -31,14 +31,6 @@ static float g_champion_chance_for_current_batch = 0.2f; // Store champion chanc
 static int32_t g_monsters_to_spawn_in_current_ambush = 0;
 static gtime_t g_next_single_ambush_monster_spawn_time = 0_sec;    
 
-// Cache to avoid redundant calculations for bot counts
-struct BotCountCache {
-	int32_t last_required_bots = -1;
-	int32_t last_spect_count = -1;
-	int32_t last_wave_level = -1;
-};
-static BotCountCache g_bot_count_cache;
-
 // Store the context for the current ambush
 struct AmbushSpawnInfo {
     horde::MonsterTypeID typeId = horde::MonsterTypeID::UNKNOWN;
@@ -3237,63 +3229,40 @@ static int CountPresentBots()
 	return count;
 }
 
+// REPLACEMENT: VerifyAndAdjustBots (Unified, Cacheless, and Correct)
+// This version uses a single, robust logic path that runs on every check,
+// eliminating dual-path and cache-related bugs.
 void VerifyAndAdjustBots()
 {
+	// If dev mode is on, disable bot management to allow manual control.
 	if (developer->integer == 2)
 	{
 		gi.cvar_set("bot_minClients", "-1");
 		return;
 	}
 
-	// --- PART 1: One-time initial bot spawn for the server session ---
-	if (!g_initial_bots_spawned_for_map)
-	{
-		if (CountPresentBots() == 0)
-		{
-			const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
-			const int32_t bots_to_add_now = mapSize.isBigMap ? 6 : 4;
-			for (int32_t i = 0; i < bots_to_add_now; ++i)
-			{
-				gi.AddCommandString("addbot\n");
-			}
-		}
-		g_initial_bots_spawned_for_map = true;
-	}
-
-	// --- PART 2: Ongoing adjustment using bot_minClients (runs every time) ---
-	const int32_t num_human_players = GetNumHumanPlayers(); // Humans actively playing
+	// --- 1. Get Current Game State ---
+	const int32_t num_human_players = GetNumHumanPlayers();    // Humans actively playing
 	const int32_t num_human_spectators = GetNumSpectPlayers(); // Humans spectating
 	const int32_t current_level_for_bots = current_wave_level;
 
-	// Cache now includes playing humans to react when they join/spectate
-	if (g_bot_count_cache.last_required_bots == num_human_players &&
-		g_bot_count_cache.last_spect_count == num_human_spectators &&
-		g_bot_count_cache.last_wave_level == current_level_for_bots)
-	{
-		return; // CACHE HIT: State is unchanged, do nothing.
-	}
-
-	// --- CACHE MISS: State has changed, recalculate. ---
-
-	// 3. Calculate the number of BOTS we want on the server.
+	// --- 2. Calculate the number of BOTS we want on the server ---
 	const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
 	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 	const int32_t extraBot = (current_level_for_bots >= 20) ? 1 : 0;
 	const int32_t bots_we_want = baseBots + num_human_spectators + extraBot;
 
-	// 4. Calculate the TARGET for bot_minclients.
+	// --- 3. Calculate the TARGET for bot_minclients ---
 	// This is the number of playing humans PLUS the number of bots we want.
+	// This correctly tells the engine to maintain a total client count.
 	const int32_t total_clients_target = num_human_players + bots_we_want;
 
-	// 5. CRITICAL: Ensure the target does not exceed the server's max client limit.
+	// --- 4. Final Sanity Check ---
+	// Ensure the target does not exceed the server's max client limit.
 	const int32_t final_target = std::min(total_clients_target, (int32_t)game.maxclients);
 
-	// 6. Update the cache with the new state.
-	g_bot_count_cache.last_required_bots = num_human_players;
-	g_bot_count_cache.last_spect_count = num_human_spectators;
-	g_bot_count_cache.last_wave_level = current_level_for_bots;
-
-	// 7. Set the cvar with the final, correct target number.
+	// --- 5. Set the CVar ---
+	// The engine will now handle adding or removing bots to match this target.
 	gi.cvar_set("bot_minClients", std::to_string(final_target).c_str());
 
 	if (developer->integer > 1) {
@@ -4619,8 +4588,6 @@ void ResetGame()
 		gi.Com_PrintFmt("INFO: Performing full game state reset...\n");
 	}
 
-	//g_initial_bots_spawned_for_map = false;
-	g_bot_count_cache = {}; 
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
