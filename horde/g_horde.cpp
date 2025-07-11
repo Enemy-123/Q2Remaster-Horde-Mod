@@ -3237,10 +3237,6 @@ static int CountPresentBots()
 	return count;
 }
 
-// REPLACEMENT: VerifyAndAdjustBots (Hybrid Approach)
-// This function now uses a two-part strategy:
-// 1. A one-time-ever 'addbot' command sequence for the initial, fast bot load.
-// 2. An ongoing 'bot_minClients' adjustment for all subsequent changes.
 void VerifyAndAdjustBots()
 {
 	if (developer->integer == 2)
@@ -3250,13 +3246,10 @@ void VerifyAndAdjustBots()
 	}
 
 	// --- PART 1: One-time initial bot spawn for the server session ---
-	// This block only runs if the initial bots have never been spawned.
 	if (!g_initial_bots_spawned_for_map)
 	{
-		// Only run the 'addbot' commands if no bots have been manually added.
 		if (CountPresentBots() == 0)
 		{
-			// Use 'addbot' for the initial, non-stuttery spawn.
 			const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
 			const int32_t bots_to_add_now = mapSize.isBigMap ? 6 : 4;
 			for (int32_t i = 0; i < bots_to_add_now; ++i)
@@ -3264,49 +3257,51 @@ void VerifyAndAdjustBots()
 				gi.AddCommandString("addbot\n");
 			}
 		}
-
-		// CRITICAL: Mark the initial spawn as complete. This flag will now persist
-		// across map changes because we no longer reset it in ResetGame().
 		g_initial_bots_spawned_for_map = true;
 	}
 
 	// --- PART 2: Ongoing adjustment using bot_minClients (runs every time) ---
-	// This part is now responsible for ALL adjustments after the initial spawn,
-	// including on subsequent maps.
-
-	// 1. Get current game state.
-	const int32_t current_spect_count = GetNumSpectPlayers();
+	const int32_t num_human_players = GetNumHumanPlayers(); // Humans actively playing
+	const int32_t num_human_spectators = GetNumSpectPlayers(); // Humans spectating
 	const int32_t current_level_for_bots = current_wave_level;
 
-	// 2. Check cache to avoid redundant work.
-	if (g_bot_count_cache.last_spect_count == current_spect_count &&
+	// Cache now includes playing humans to react when they join/spectate
+	if (g_bot_count_cache.last_required_bots == num_human_players &&
+		g_bot_count_cache.last_spect_count == num_human_spectators &&
 		g_bot_count_cache.last_wave_level == current_level_for_bots)
 	{
-		// CACHE HIT: State is unchanged, do nothing.
-		return;
+		return; // CACHE HIT: State is unchanged, do nothing.
 	}
 
 	// --- CACHE MISS: State has changed, recalculate. ---
 
-	// 3. Calculate the required number of bots.
+	// 3. Calculate the number of BOTS we want on the server.
 	const horde::MapSize mapSize = GetMapSize(static_cast<const char *>(level.mapname));
 	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 	const int32_t extraBot = (current_level_for_bots >= 20) ? 1 : 0;
-	const int32_t totalRequiredBots = std::max(baseBots + current_spect_count + extraBot, baseBots);
+	const int32_t bots_we_want = baseBots + num_human_spectators + extraBot;
 
-	// 4. Update the cache with the new state.
-	g_bot_count_cache.last_spect_count = current_spect_count;
+	// 4. Calculate the TARGET for bot_minclients.
+	// This is the number of playing humans PLUS the number of bots we want.
+	const int32_t total_clients_target = num_human_players + bots_we_want;
+
+	// 5. CRITICAL: Ensure the target does not exceed the server's max client limit.
+	const int32_t final_target = std::min(total_clients_target, (int32_t)game.maxclients);
+
+	// 6. Update the cache with the new state.
+	g_bot_count_cache.last_required_bots = num_human_players;
+	g_bot_count_cache.last_spect_count = num_human_spectators;
 	g_bot_count_cache.last_wave_level = current_level_for_bots;
 
-	// 5. Set the cvar. The engine will now handle adding/removing bots to match this number.
-	gi.cvar_set("bot_minClients", std::to_string(totalRequiredBots).c_str());
+	// 7. Set the cvar with the final, correct target number.
+	gi.cvar_set("bot_minClients", std::to_string(final_target).c_str());
 
 	if (developer->integer > 1) {
-		gi.Com_PrintFmt("Bot Count Adjusted: Required bots set to {} (Spects: {}, Wave: {})\n",
-						totalRequiredBots, current_spect_count, current_level_for_bots);
+		gi.Com_PrintFmt("Bot Count Adjusted: Target Clients: {} (Final: {}) -> (PlayingHumans: {}, BotsWanted: {})\n",
+						total_clients_target, final_target,
+						num_human_players, bots_we_want);
 	}
 }
-
 void InitializeWaveSystem() noexcept;
 
 // Guard variable
@@ -5052,7 +5047,8 @@ inline int8_t GetNumSpectPlayers()
 	return std::count_if(players.begin(), players.end(),
 						 [](const edict_t *const player) noexcept
 						 {
-							 return ClientIsSpectating(player->client);
+							 // A spectator must have the spectator flag AND must NOT be a bot.
+							 return ClientIsSpectating(player->client) && !(player->svflags & SVF_BOT);
 						 });
 }
 
