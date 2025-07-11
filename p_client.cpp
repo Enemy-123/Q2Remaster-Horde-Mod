@@ -2224,7 +2224,9 @@ void PutClientInServer(edict_t* ent)
 	vec3_t spawn_origin, spawn_angles;
 	gclient_t* client;
 
-	// REVERTED: Use stack allocation for these temporary structures
+	if (g_horde && g_horde->integer)
+	VerifyAndAdjustBots();
+
 	client_persistant_t saved;
 	client_respawn_t	resp;
 
@@ -2564,9 +2566,6 @@ void PutClientInServer(edict_t* ent)
 
 	if (was_waiting_for_respawn)
 		G_PostRespawn(ent);
-
-	if (g_horde && g_horde->integer)
-	VerifyAndAdjustBots();
 }
 
 /*
@@ -3200,6 +3199,9 @@ void ClientDisconnect(edict_t* ent)
 	if (!ent || !ent->client) // Added null check for ent
 		return;
 
+	if (g_horde && g_horde->integer)
+	VerifyAndAdjustBots();
+
 	// --- Existing Cleanup Logic ---
 	CleanupPlayerLaserManager(ent);
 	RemovePlayerOwnedEntities(ent); // This handles the laser edicts via laser_die
@@ -3271,9 +3273,6 @@ void ClientDisconnect(edict_t* ent)
 			}
 		}
 	}
-
-	if (g_horde && g_horde->integer)
-	VerifyAndAdjustBots();
 }
 
 /*
