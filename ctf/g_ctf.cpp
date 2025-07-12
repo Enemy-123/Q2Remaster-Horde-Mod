@@ -3434,7 +3434,7 @@ void CTFObserver(edict_t* ent)
 
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(ent);
- 	CleanupPlayerLaserManager(ent);
+ 	//CleanupPlayerLaserManager(ent);
 	// Cerrar el menú si está abierto
 	if (ent->client->menu) {
 		PMenu_Close(ent);

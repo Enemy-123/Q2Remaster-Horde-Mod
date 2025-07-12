@@ -4598,17 +4598,17 @@ void ResetGame()
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
-		for (size_t i = 0; i < game.maxclients; ++i)
-	{
-		// Get the entity that corresponds to this client slot.
-		// Player edicts start at index 1, so client 'i' is edict 'i + 1'.
-		edict_t* player_ent = &g_edicts[i + 1];
+	// 	for (size_t i = 0; i < game.maxclients; ++i)
+	// {
+	// 	// Get the entity that corresponds to this client slot.
+	// 	// Player edicts start at index 1, so client 'i' is edict 'i + 1'.
+	// 	edict_t* player_ent = &g_edicts[i + 1];
 
-		// Use our safe, centralized cleanup function.
-		// This function already handles all the necessary checks (is the pointer null? etc.)
-		// and will correctly do nothing for clients that don't have a manager.
-		CleanupPlayerLaserManager(player_ent);
-	}
+	// 	// Use our safe, centralized cleanup function.
+	// 	// This function already handles all the necessary checks (is the pointer null? etc.)
+	// 	// and will correctly do nothing for clients that don't have a manager.
+	// 	CleanupPlayerLaserManager(player_ent);
+	// }
 	//recent spawns
 	g_recent_spawns.positions.fill(vec3_origin); // Or vec3_t{}
 	g_recent_spawns.cooldowns_until.fill(0_sec);
@@ -7238,6 +7238,7 @@ void Horde_RunFrame() {
 						if (!next_wave_message_sent) {
 							gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 							next_wave_message_sent = true;
+							VerifyAndAdjustBots();
 						}
 						g_horde_local.state = horde_state_t::active_wave;
 					}

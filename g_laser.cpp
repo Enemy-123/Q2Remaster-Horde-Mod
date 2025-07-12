@@ -1,6 +1,6 @@
 // g_laser.cpp
+
 #include "g_local.h"
-#include "g_laser.h"
 #include "shared.h"
 #include <unordered_map>
 #include <new>
@@ -70,77 +70,7 @@ void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game)
     }
 }
 
-// --- PlayerLaserManager Implementation ---
-
-PlayerLaserManager::PlayerLaserManager(edict_t *player) : owner(player), active_count(0)
-{
-    for (auto &entry : lasers)
-    {
-        entry.emitter = nullptr;
-        entry.active = false;
-    }
-}
-
-PlayerLaserManager::~PlayerLaserManager()
-{
-    remove_all_lasers();
-}
-
-bool PlayerLaserManager::can_add_laser() const
-{
-    return active_count < LaserConstants::MAX_LASERS_PER_PLAYER;
-}
-
-void PlayerLaserManager::add_laser(edict_t *emitter)
-{
-    if (!can_add_laser())
-        return;
-    for (auto &entry : lasers)
-    {
-        if (!entry.active)
-        {
-            entry.emitter = emitter;
-            entry.active = true;
-            active_count++;
-            return;
-        }
-    }
-}
-
-void PlayerLaserManager::remove_laser(const edict_t *emitter_to_remove)
-{
-    for (auto &entry : lasers)
-    {
-        if (entry.active && entry.emitter == emitter_to_remove)
-        {
-            entry.active = false;
-            entry.emitter = nullptr;
-            if (active_count > 0)
-                active_count--;
-            return;
-        }
-    }
-}
-
-void PlayerLaserManager::remove_all_lasers()
-{
-    // Iterate backwards because laser_die will modify the lasers array via remove_laser
-    for (int i = LaserConstants::MAX_LASERS_PER_PLAYER - 1; i >= 0; --i)
-    {
-        auto &entry = lasers[i];
-        if (entry.active && entry.emitter && entry.emitter->inuse)
-        {
-            // laser_die will handle the full cleanup and call back to remove_laser
-            laser_die(entry.emitter, nullptr, owner, 9999, vec3_origin, MOD_UNKNOWN);
-        }
-    }
-    active_count = 0;
-}
-
-int PlayerLaserManager::get_active_count() const
-{
-    return active_count;
-}
+// --- PlayerLaserManager and its implementation are now DELETED ---
 
 // --- Helper Namespace ---
 namespace LaserHelpers
@@ -160,15 +90,10 @@ namespace LaserHelpers
         return {healthy, healthy ? 0xf2f2f0f0 : 0xd0d1d2d3, healthy ? 0xFF0000FF : 0x00FF00FF};
     }
 
-    PlayerLaserManager *get_laser_manager(edict_t *ent)
-    {
-        if (!ent || !ent->client)
-            return nullptr;
-        return ent->client->laser_manager;
-    }
+    // get_laser_manager is now DELETED
 }
 
-// --- Pierce Logic ---
+// --- Pierce Logic (Unchanged) ---
 struct laser_pierce_t : pierce_args_t
 {
     edict_t *self; // The beam entity
@@ -206,296 +131,304 @@ struct laser_pierce_t : pierce_args_t
 
 // --- Entity Functions ---
 
+// ** MODIFIED **
 DIE(laser_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
+    if (!self || !self->inuse)
     {
-        if (!self || !self->inuse)
-        {
-            return;
-        }
-
-        // Step 1: Reliably identify the root emitter entity.
-        edict_t *emitter = nullptr;
-        if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::LASER_EMITTER))
-        {
-            emitter = self;
-        }
-        else if (self->owner && horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::LASER_EMITTER))
-        {
-            // This handles cases where the beam or flare is the entity that died.
-            emitter = self->owner;
-        }
-
-        // If we can't find a valid emitter, something is very wrong. Just clean up 'self' and exit.
-        if (!emitter || !emitter->inuse)
-        {
-            if (self->inuse)
-                G_FreeEdict(self);
-            return;
-        }
-
-        // Step 2: Update the player's manager.
-        edict_t *teammaster = emitter->teammaster;
-        if (teammaster && teammaster->inuse && teammaster->client)
-        {
-            if (auto *manager = LaserHelpers::get_laser_manager(teammaster))
-            {
-                manager->remove_laser(emitter);
-            }
-        }
-
-        // Step 3: Clean up all associated resources and entities.
-        g_emitter_states.erase(emitter);
-
-        // Free the beam (stored in chain) and any other owned entities (like the flare).
-        for (uint32_t i = 1; i <= globals.num_edicts; i++)
-        {
-            edict_t *child = &g_edicts[i];
-            if (child->inuse && (child == emitter->chain || child->owner == emitter))
-            {
-                G_FreeEdict(child);
-            }
-        }
-
-        // Step 4: Finally, kill the emitter itself.
-        // This will free the emitter edict after the explosion effect.
-        emitter->health = 0;
-        emitter->takedamage = false;
-        BecomeExplosion1(emitter);
+        return;
     }
+
+    // Step 1: Reliably identify the root emitter entity.
+    edict_t *emitter = nullptr;
+    if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::LASER_EMITTER))
+    {
+        emitter = self;
+    }
+    else if (self->owner && horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::LASER_EMITTER))
+    {
+        emitter = self->owner;
+    }
+
+    if (!emitter || !emitter->inuse)
+    {
+        if (self->inuse)
+            G_FreeEdict(self);
+        return;
+    }
+
+    // Step 2: Update the player's tracking data.
+    edict_t *teammaster = emitter->teammaster;
+    if (teammaster && teammaster->inuse && teammaster->client)
+    {
+        // Decrement the count
+        if (teammaster->client->resp.num_lasers > 0)
+        {
+            teammaster->client->resp.num_lasers--;
+        }
+
+        // Find and remove this laser from the tracking array
+        for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
+        {
+            if (teammaster->client->resp.deployed_lasers[i] == emitter)
+            {
+                teammaster->client->resp.deployed_lasers[i] = nullptr;
+                break; // Found and removed, no need to search further
+            }
+        }
+    }
+
+    // Step 3: Clean up all associated resources and entities.
+    g_emitter_states.erase(emitter);
+
+    // Free the beam (stored in chain) and any other owned entities (like the flare).
+    for (uint32_t i = 1; i <= globals.num_edicts; i++)
+    {
+        edict_t *child = &g_edicts[i];
+        if (child->inuse && (child == emitter->chain || child->owner == emitter))
+        {
+            G_FreeEdict(child);
+        }
+    }
+
+    // Step 4: Finally, kill the emitter itself.
+    emitter->health = 0;
+    emitter->takedamage = false;
+    BecomeExplosion1(emitter);
 }
 
-    THINK(laser_beam_think)(edict_t * self)->void
+// (laser_beam_think and emitter_think are unchanged)
+THINK(laser_beam_think)(edict_t * self)->void
+{
+    if (!self || !self->owner || !self->owner->inuse)
     {
-        if (!self || !self->owner || !self->owner->inuse)
-        {
-            laser_die(self, self, nullptr, 0, vec3_origin, MOD_UNKNOWN);
-            return;
-        }
-
-        edict_t *emitter = self->owner;
-
-        // Visuals are now handled by emitter_think to ensure sync
-
-        vec3_t forward;
-        AngleVectors(emitter->s.angles, &forward, nullptr, nullptr);
-        const vec3_t start = emitter->s.origin;
-        const vec3_t end = start + (forward * 8192.0f);
-
-        laser_pierce_t args(self);
-        pierce_trace(start, end, emitter, args, MASK_SHOT);
-
-        self->s.origin = args.tr.endpos;
-        self->s.old_origin = start;
-        self->nextthink = level.time + FRAME_TIME_MS;
-        gi.linkentity(self);
+        laser_die(self, self, nullptr, 0, vec3_origin, MOD_UNKNOWN);
+        return;
     }
 
-    THINK(emitter_think)(edict_t * self)->void
+    edict_t *emitter = self->owner;
+    vec3_t forward;
+    AngleVectors(emitter->s.angles, &forward, nullptr, nullptr);
+    const vec3_t start = emitter->s.origin;
+    const vec3_t end = start + (forward * 8192.0f);
+
+    laser_pierce_t args(self);
+    pierce_trace(start, end, emitter, args, MASK_SHOT);
+
+    self->s.origin = args.tr.endpos;
+    self->s.old_origin = start;
+    self->nextthink = level.time + FRAME_TIME_MS;
+    gi.linkentity(self);
+}
+
+THINK(emitter_think)(edict_t * self)->void
+{
+    if (!self || !self->chain || !self->chain->inuse)
     {
-        if (!self || !self->chain || !self->chain->inuse)
-        {
-            laser_die(self, self, self->teammaster, 0, self->s.origin, MOD_UNKNOWN);
-            return;
-        }
-
-        edict_t *beam = self->chain;
-
-        if (level.time >= self->timestamp)
-        {
-            if (self->teammaster && self->teammaster->client)
-            {
-                gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
-            }
-            laser_die(self, self, self->teammaster, 0, self->s.origin, MOD_UNKNOWN);
-            return;
-        }
-
-        auto &state = g_emitter_states[self];
-        bool const should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
-
-        if (should_warn != state.is_warning_phase)
-        {
-            state.is_warning_phase = should_warn;
-            state.last_blink_time = 0_ms;
-            state.is_blink_on = false;
-        }
-
-        if (state.is_warning_phase && level.time >= state.last_blink_time + LaserConstants::BLINK_INTERVAL)
-        {
-            state.is_blink_on = !state.is_blink_on;
-            state.last_blink_time = level.time;
-        }
-
-        // Update emitter shell
-        if (state.is_warning_phase && state.is_blink_on)
-            self->s.renderfx |= RF_SHELL_GREEN;
-        else
-            self->s.renderfx &= ~RF_SHELL_GREEN;
-
-        // Update beam and flare color
-        const auto health_state = LaserHelpers::get_laser_health_state(beam);
-        beam->s.skinnum = (state.is_warning_phase && state.is_blink_on) ? 0xd0d1d2d3 : health_state.laser_color;
-        beam->s.frame = (beam->health < 1) ? 0 : (beam->health >= 1000) ? 4
-                                                                        : 2;
-
-        for (uint32_t i = 1; i <= globals.num_edicts; i++)
-        {
-            edict_t *flare = &g_edicts[i];
-            if (flare->inuse && flare->owner == self && strcmp(flare->classname, "misc_flare") == 0)
-            {
-                flare->s.skinnum = (state.is_warning_phase && state.is_blink_on) ? 0x00FF00FF : health_state.flare_color;
-                break;
-            }
-        }
-
-        self->nextthink = level.time + FRAME_TIME_MS;
+        laser_die(self, self, self->teammaster, 0, self->s.origin, MOD_UNKNOWN);
+        return;
     }
 
-    void create_laser(edict_t * ent)
+    edict_t *beam = self->chain;
+
+    if (level.time >= self->timestamp)
     {
-        if (!ent || !ent->client)
-            return;
-        if (!g_horde || !g_horde->integer)
+        if (self->teammaster && self->teammaster->client)
         {
-            gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a laser\n");
-            return;
+            gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
         }
-        if (ent->movetype != MOVETYPE_WALK)
-        {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect to create laser.\n");
-            return;
-        }
-
-        // --- Manual Memory Management for PlayerLaserManager ---
-        if (!ent->client->laser_manager)
-        {
-            try
-            {
-                ent->client->laser_manager = new PlayerLaserManager(ent);
-            }
-            catch (const std::bad_alloc &)
-            {
-                ent->client->laser_manager = nullptr;
-                gi.Com_Print("Error: Failed to allocate memory for PlayerLaserManager.\n");
-                return;
-            }
-        }
-
-        PlayerLaserManager *manager = ent->client->laser_manager;
-        if (!manager || !manager->can_add_laser())
-        {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
-            return;
-        }
-        if (ent->client->pers.inventory[IT_AMMO_CELLS] < LaserConstants::LASER_COST)
-        {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Not enough cells to create a laser.\n");
-            return;
-        }
-
-        vec3_t forward, right;
-        AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
-        vec3_t const offset{0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f};
-        vec3_t const start = G_ProjectSource(ent->s.origin, offset, forward, right);
-        vec3_t const end = start + forward * 64;
-        trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
-        if (tr.fraction == 1.0f)
-        {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Too far from wall.\n");
-            return;
-        }
-
-        edict_t *emitter = G_Spawn();
-        edict_t *beam = G_Spawn();
-        edict_t *flare = G_Spawn();
-        if (!emitter || !beam || !flare)
-        {
-            if (emitter)
-                G_FreeEdict(emitter);
-            if (beam)
-                G_FreeEdict(beam);
-            if (flare)
-                G_FreeEdict(flare);
-            gi.Com_Print("Error: Failed to spawn all laser components.\n");
-            return;
-        }
-
-        // --- Configure Emitter ---
-        emitter->classname = "emitter";
-        emitter->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(emitter->classname));
-        emitter->s.origin = tr.endpos;
-        emitter->s.angles = vectoangles(tr.plane.normal);
-        emitter->movetype = MOVETYPE_NONE;
-        emitter->solid = SOLID_BBOX;
-        emitter->mins = vec3_t{-3, -3, 0};
-        emitter->maxs = vec3_t{3, 3, 6};
-        emitter->takedamage = false; // Emitter itself is not damageable, beam health is used
-        emitter->s.modelindex = gi.modelindex("models/objects/grenade2/tris.md2");
-        emitter->teammaster = ent;
-        emitter->chain = beam; // Emitter holds reference to beam
-        emitter->think = emitter_think;
-        emitter->nextthink = level.time + FRAME_TIME_MS;
-        emitter->die = laser_die;
-        emitter->svflags = SVF_BOT;
-        emitter->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
-        emitter->flags |= FL_NO_KNOCKBACK;
-        if (ent->client->resp.ctf_team == CTF_TEAM1)
-            emitter->team = TEAM1;
-        else if (ent->client->resp.ctf_team == CTF_TEAM2)
-            emitter->team = TEAM2;
-
-        // --- Configure Beam ---
-        beam->classname = "laser";
-        beam->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(beam->classname));
-        beam->movetype = MOVETYPE_NONE;
-        beam->solid = SOLID_NOT;
-        beam->s.renderfx = RF_BEAM | RF_TRANSLUCENT;
-        beam->s.modelindex = 1;
-        beam->s.sound = gi.soundindex("world/laser.wav");
-        beam->teammaster = ent;
-        beam->owner = emitter; // Beam is owned by emitter
-        beam->s.angles = emitter->s.angles;
-        beam->dmg = CalculateWaveBasedLaserDamage(current_wave_level);
-        beam->max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
-        beam->health = beam->max_health;
-        beam->die = laser_die;
-        beam->think = laser_beam_think;
-        beam->nextthink = level.time + LaserConstants::LASER_SPAWN_DELAY;
-        beam->flags |= FL_NO_KNOCKBACK;
-        beam->team = emitter->team;
-
-        // --- Configure Flare ---
-        flare->classname = "misc_flare";
-        flare->s.origin = tr.endpos;
-        flare->owner = emitter; // Flare owned by emitter
-        flare->spawnflags = 9_spawnflag;
-        spawn_temp_t st{};
-        st.radius = 0.5f;
-        ED_CallSpawn(flare, st);
-
-        gi.linkentity(emitter);
-        gi.linkentity(beam);
-        if (flare->inuse)
-            gi.linkentity(flare);
-
-        ent->client->pers.inventory[IT_AMMO_CELLS] -= LaserConstants::LASER_COST;
-        manager->add_laser(emitter);
-        gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", manager->get_active_count(), LaserConstants::MAX_LASERS_PER_PLAYER);
+        laser_die(self, self, self->teammaster, 0, self->s.origin, MOD_UNKNOWN);
+        return;
     }
 
+    auto &state = g_emitter_states[self];
+    bool const should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
+
+    if (should_warn != state.is_warning_phase)
+    {
+        state.is_warning_phase = should_warn;
+        state.last_blink_time = 0_ms;
+        state.is_blink_on = false;
+    }
+
+    if (state.is_warning_phase && level.time >= state.last_blink_time + LaserConstants::BLINK_INTERVAL)
+    {
+        state.is_blink_on = !state.is_blink_on;
+        state.last_blink_time = level.time;
+    }
+
+    if (state.is_warning_phase && state.is_blink_on)
+        self->s.renderfx |= RF_SHELL_GREEN;
+    else
+        self->s.renderfx &= ~RF_SHELL_GREEN;
+
+    const auto health_state = LaserHelpers::get_laser_health_state(beam);
+    beam->s.skinnum = (state.is_warning_phase && state.is_blink_on) ? 0xd0d1d2d3 : health_state.laser_color;
+    beam->s.frame = (beam->health < 1) ? 0 : (beam->health >= 1000) ? 4 : 2;
+
+    for (uint32_t i = 1; i <= globals.num_edicts; i++)
+    {
+        edict_t *flare = &g_edicts[i];
+        if (flare->inuse && flare->owner == self && strcmp(flare->classname, "misc_flare") == 0)
+        {
+            flare->s.skinnum = (state.is_warning_phase && state.is_blink_on) ? 0x00FF00FF : health_state.flare_color;
+            break;
+        }
+    }
+
+    self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+// ** MODIFIED **
+void create_laser(edict_t * ent)
+{
+    if (!ent || !ent->client)
+        return;
+    if (!g_horde || !g_horde->integer)
+    {
+        gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a laser\n");
+        return;
+    }
+    if (ent->movetype != MOVETYPE_WALK)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect to create laser.\n");
+        return;
+    }
+
+    // --- Refactored Laser Limit Check (Hard Limit) ---
+    if (ent->client->resp.num_lasers >= LaserConstants::MAX_LASERS_PER_PLAYER)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
+        return;
+    }
+
+    if (ent->client->pers.inventory[IT_AMMO_CELLS] < LaserConstants::LASER_COST)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough cells to create a laser.\n");
+        return;
+    }
+
+    vec3_t forward, right;
+    AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
+    vec3_t const offset{0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f};
+    vec3_t const start = G_ProjectSource(ent->s.origin, offset, forward, right);
+    vec3_t const end = start + forward * 64;
+    trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
+    if (tr.fraction == 1.0f)
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Too far from wall.\n");
+        return;
+    }
+
+    edict_t *emitter = G_Spawn();
+    edict_t *beam = G_Spawn();
+    edict_t *flare = G_Spawn();
+    if (!emitter || !beam || !flare)
+    {
+        if (emitter) G_FreeEdict(emitter);
+        if (beam) G_FreeEdict(beam);
+        if (flare) G_FreeEdict(flare);
+        gi.Com_Print("Error: Failed to spawn all laser components.\n");
+        return;
+    }
+
+    // --- Configure Emitter, Beam, Flare (Unchanged) ---
+    emitter->classname = "emitter";
+    emitter->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(emitter->classname));
+    emitter->s.origin = tr.endpos;
+    emitter->s.angles = vectoangles(tr.plane.normal);
+    emitter->movetype = MOVETYPE_NONE;
+    emitter->solid = SOLID_BBOX;
+    emitter->mins = vec3_t{-3, -3, 0};
+    emitter->maxs = vec3_t{3, 3, 6};
+    emitter->takedamage = false;
+    emitter->s.modelindex = gi.modelindex("models/objects/grenade2/tris.md2");
+    emitter->teammaster = ent;
+    emitter->chain = beam;
+    emitter->think = emitter_think;
+    emitter->nextthink = level.time + FRAME_TIME_MS;
+    emitter->die = laser_die;
+    emitter->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
+    emitter->flags |= FL_NO_KNOCKBACK;
+    if (ent->client->resp.ctf_team == CTF_TEAM1)
+        emitter->team = TEAM1;
+    else if (ent->client->resp.ctf_team == CTF_TEAM2)
+        emitter->team = TEAM2;
+
+    beam->classname = "laser";
+    beam->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(beam->classname));
+    beam->movetype = MOVETYPE_NONE;
+    beam->solid = SOLID_NOT;
+    beam->s.renderfx = RF_BEAM | RF_TRANSLUCENT;
+    beam->s.modelindex = 1;
+    beam->s.sound = gi.soundindex("world/laser.wav");
+    beam->teammaster = ent;
+    beam->owner = emitter;
+    beam->s.angles = emitter->s.angles;
+    beam->dmg = CalculateWaveBasedLaserDamage(current_wave_level);
+    beam->max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+    beam->health = beam->max_health;
+    beam->die = laser_die;
+    beam->think = laser_beam_think;
+    beam->nextthink = level.time + LaserConstants::LASER_SPAWN_DELAY;
+    beam->flags |= FL_NO_KNOCKBACK;
+    beam->team = emitter->team;
+
+    flare->classname = "misc_flare";
+    flare->s.origin = tr.endpos;
+    flare->owner = emitter;
+    flare->spawnflags = 9_spawnflag;
+    spawn_temp_t st{};
+    st.radius = 0.5f;
+    ED_CallSpawn(flare, st);
+
+    gi.linkentity(emitter);
+    gi.linkentity(beam);
+    if (flare->inuse)
+        gi.linkentity(flare);
+
+    ent->client->pers.inventory[IT_AMMO_CELLS] -= LaserConstants::LASER_COST;
+
+    // --- Refactored Tracking Logic ---
+    // Find an empty slot in the tracking array and store the new laser
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
+        if (ent->client->resp.deployed_lasers[i] == nullptr) {
+            ent->client->resp.deployed_lasers[i] = emitter;
+            break;
+        }
+    }
+    ent->client->resp.num_lasers++;
+
+    gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->resp.num_lasers, LaserConstants::MAX_LASERS_PER_PLAYER);
+}
+
+// ** MODIFIED **
 void remove_lasers(edict_t* ent) noexcept {
-    // This function is now obsolete, as remove_all_lasers is called by the destructor.
-    // We can keep it for the `removelaser` command, but the new cleanup function is better.
-    if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
-        manager->remove_all_lasers();
+    if (!ent || !ent->client) {
+        return;
+    }
+
+    // Iterate through the player's deployed lasers and remove them.
+    // We iterate backwards to be safe, as laser_die will modify the array we are reading from.
+    for (int i = LaserConstants::MAX_LASERS_PER_PLAYER - 1; i >= 0; --i) {
+        edict_t* laser_emitter = ent->client->resp.deployed_lasers[i];
+        
+        // Check if the pointer is valid and the entity is still an in-use laser
+        if (laser_emitter && laser_emitter->inuse && horde::IsSpecialType(laser_emitter, horde::SpecialEntityTypeID::LASER_EMITTER)) {
+            // Directly call the die function. This is more explicit and ensures
+            // the full cleanup logic is run, including decrementing the player's laser count.
+            // We pass the owner as the attacker and a high damage value to ensure it dies.
+            laser_die(laser_emitter, ent, ent, 9999, laser_emitter->s.origin, MOD_UNKNOWN);
+        }
+    }
+
+    // After calling laser_die on all active lasers, the count and array should already be clean.
+    // However, as a robust final step, we can explicitly reset the state to prevent any
+    // potential inconsistencies if laser_die's logic were to change in the future.
+    ent->client->resp.num_lasers = 0;
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
+        ent->client->resp.deployed_lasers[i] = nullptr;
     }
 }
 
-// The single, safe place to handle deleting the laser manager.
-void CleanupPlayerLaserManager(edict_t* ent) {
-    if (ent && ent->client && ent->client->laser_manager) {
-        delete ent->client->laser_manager;
-        ent->client->laser_manager = nullptr;
-    }
-}
+// CleanupPlayerLaserManager is now DELETED.

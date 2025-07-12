@@ -502,6 +502,7 @@ void Cmd_Spawn_f(edict_t* ent)
 	ent->solid = backup;
 	gi.linkentity(ent);
 }
+
 #include "g_laser.h"
 #include "shared.h"
 
@@ -519,10 +520,12 @@ void Cmd_RemoveLaser_f(edict_t* ent)
         return;
     }
 
-    // This code is excellent. It safely gets the manager and checks if there's anything to do.
-    if (auto* manager = LaserHelpers::get_laser_manager(ent); manager && manager->get_active_count() > 0) 
+    // The old logic checked for a manager and its active count.
+    // The new, simpler logic directly checks the number of lasers tracked on the client.
+    if (ent->client->resp.num_lasers > 0) 
     {
-        manager->remove_all_lasers();
+        // Call the new global function that iterates through the client's deployed_lasers array.
+        remove_lasers(ent);
         gi.LocClient_Print(ent, PRINT_HIGH, "All your lasers have been removed.\n");
     } 
     else 

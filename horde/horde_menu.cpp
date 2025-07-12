@@ -834,23 +834,21 @@ void OpenMiscMenu(edict_t* ent) {
 	add_entry("*Misc Options*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
 
-	// --- ALWAYS Add Sentry Gun Choice FIRST ---
-	// Use G_Fmt for the sentry choice text
+	// --- Sentry Gun Choice (Unchanged) ---
 	add_entry(G_Fmt("Sentry Type: [{}]", GetSentryTypeName(ent->client->pers.sentry_gun_choice)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 
-	// --- Conditional Remove Options ---
-	int laser_count = 0;
-	if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
-		laser_count = manager->get_active_count();
-	}
+	// --- Conditional Remove Options (MODIFIED) ---
+
+    // Get the laser count directly from the client's respawn data.
+    int laser_count = ent->client->resp.num_lasers;
 	if (laser_count > 0) {
-		// Use G_Fmt for remove laser text
+		// Use G_Fmt to format the menu entry with the current count.
 		add_entry(G_Fmt("Remove Lasers ({})", laser_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
+	// --- Sentry Gun Removal (Unchanged) ---
 	int sentry_count = ent->client->num_sentries;
 	if (sentry_count > 0) {
-		// Use G_Fmt for remove sentry text
 		add_entry(G_Fmt("Remove Sentry Gun ({})", sentry_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 

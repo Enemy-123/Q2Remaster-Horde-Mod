@@ -1009,7 +1009,7 @@ FIELD_AUTO(time_in_bad_area),
 FIELD_AUTO(idtarget), // edict_t*
 FIELD_AUTO(dmg_counter),
 FIELD_AUTO(total_damage),
-FIELD_AUTO(num_lasers),
+//FIELD_AUTO(num_lasers),
 FIELD_AUTO(num_teslas),
 FIELD_AUTO(num_sentries),
 FIELD_AUTO(last_wave_timer_horde_update),

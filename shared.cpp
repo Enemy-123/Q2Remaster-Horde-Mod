@@ -73,7 +73,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 
     // Reset player-specific counts if any
     if (player->client) { // Ensure client exists
-        player->client->num_lasers = 0;
+        player->client->resp.num_lasers = 0;
         // Potentially reset other counts here if needed
     }
 }

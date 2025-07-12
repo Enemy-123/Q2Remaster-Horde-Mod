@@ -2855,6 +2855,21 @@ struct regeneration_info_t {
 	}
 };
 
+namespace LaserConstants {
+    constexpr int32_t MAX_LASERS_PER_PLAYER = 6;
+    constexpr int32_t LASER_COST = 25;
+    constexpr int32_t LASER_INITIAL_DAMAGE = 1;
+    constexpr int32_t LASER_ADDON_DAMAGE = 4;
+    constexpr int32_t LASER_INITIAL_HEALTH = 150;
+    constexpr int32_t LASER_ADDON_HEALTH = 120;
+    constexpr int32_t MAX_LASER_HEALTH = 2500;
+    constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
+    constexpr gtime_t LASER_TIMEOUT_DELAY = 180_sec;
+    constexpr gtime_t BLINK_INTERVAL = 500_ms;
+    constexpr gtime_t WARNING_TIME = 10_sec;
+    constexpr float LASER_NONCLIENT_MOD = 1.0f;
+}
+
 
 // Define esta enumeración antes de la estructura edict_t
 enum class BossSizeCategory {
@@ -2984,6 +2999,7 @@ struct client_persistant_t
 	bool	 id_state;
 	bool	 iddmg_state;
 	sentrytype_t sentry_gun_choice; // Player's preferred sentry type (default SENTRY_RANDOM)
+
 };
 
 // client data that stays across deathmatch respawns
@@ -3023,6 +3039,8 @@ struct client_respawn_t
 	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 	int adrenaline_count = 0;
 	sentrytype_t sentry_gun_choice; //save preference after death
+	edict_t* deployed_lasers[LaserConstants::MAX_LASERS_PER_PLAYER];
+	int num_lasers = 0; // tracks max lasers per client
 };
 
 // [Paril-KEX] seconds until we are fully invisible after
@@ -3051,6 +3069,8 @@ class PlayerLaserManager;
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
 constexpr int MAX_TESLAS = 9;
+
+
 struct gclient_t
 {
 	// shared with server; do not touch members until the "private" section
@@ -3266,7 +3286,7 @@ struct gclient_t
 	edict_t* idtarget;
 	uint64_t dmg_counter;     // ID DMG
 	uint64_t total_damage;    // Total damage dealt
-	int num_lasers = 0; // tracks max lasers per client
+
 	int num_teslas = 0; // tracks max teslas per client
 	edict_t* deployed_teslas[MAX_TESLAS];
 	int      oldest_tesla_idx;
@@ -3284,7 +3304,6 @@ struct gclient_t
 	int ir_frame_count;
 
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
-	PlayerLaserManager* laser_manager;
 };
 
 // ==========================================

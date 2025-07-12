@@ -3203,7 +3203,7 @@ void ClientDisconnect(edict_t* ent)
 	VerifyAndAdjustBots();
 
 	// --- Existing Cleanup Logic ---
-	CleanupPlayerLaserManager(ent);
+	//CleanupPlayerLaserManager(ent);
 	RemovePlayerOwnedEntities(ent); // This handles the laser edicts via laser_die
 
 	// ZOID
