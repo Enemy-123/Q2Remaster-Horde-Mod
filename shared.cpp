@@ -71,6 +71,13 @@ void RemovePlayerOwnedEntities(edict_t* player) {
             RemoveEntity(trap);
         }
     }
+	    // --- 6. Remove Proxs (O(K) operation) ---
+    for (int i = 0; i < ProxConstants::MAX_PROXS_PER_PLAYER; ++i) {
+        edict_t* prox = player->client->resp.deployed_proxs[i];
+        if (prox && prox->inuse) {
+            RemoveEntity(prox);
+        }
+    }
 }
 
 // --- Refactored Functions ---

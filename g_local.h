@@ -2867,6 +2867,10 @@ namespace TrapConstants {
     constexpr int32_t MAX_TRAPS_PER_PLAYER = 8;
 }
 
+namespace ProxConstants {
+    constexpr int MAX_PROXS_PER_PLAYER = 8;
+}
+
 namespace LaserConstants {
     constexpr int32_t MAX_LASERS_PER_PLAYER = 6;
     constexpr int32_t LASER_COST = 25;
@@ -3065,6 +3069,11 @@ struct client_respawn_t
     int      num_traps;
     edict_t* deployed_traps[TrapConstants::MAX_TRAPS_PER_PLAYER];
     int      oldest_trap_idx;
+
+	// --- Prox Mine Tracking ---
+	int         num_proxs;
+	edict_t*    deployed_proxs[ProxConstants::MAX_PROXS_PER_PLAYER];
+	int         oldest_prox_idx;
 
 	// Sentries
 	int      num_sentries;

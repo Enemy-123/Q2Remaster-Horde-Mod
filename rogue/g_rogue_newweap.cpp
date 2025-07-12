@@ -244,7 +244,22 @@ void SpawnClusterGrenades(edict_t *owner_mine, const vec3_t &origin, int base_da
 	}
 }
 
-// --- Main Explosion Logic ---
+// --- NEW HELPER FUNCTION ---
+// This function is called just before a prox is removed to update its owner's count.
+void CleanupProxFromOwner(edict_t* prox) {
+    if (!prox || !prox->owner || !prox->owner->client) {
+        return;
+    }
+
+    // Simply decrement the number of active proxs. The array slot will be
+    // overwritten by fire_prox when the time comes.
+    gclient_t* client = prox->owner->client;
+    if (client->resp.num_proxs > 0) {
+        client->resp.num_proxs--;
+    }
+}
+
+// --- Main Explosion Logic (MODIFIED) ---
 static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
 {
 	if (ent->teamchain && ent->teamchain->owner == ent)
@@ -274,8 +289,6 @@ static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
 	ent->takedamage = false;
 	vec3_t const explosion_origin = ent->s.origin + normal;
 
-	// --- RADIUS CHANGE ---
-	// Use the mine's specific, calculated radius instead of the global constant.
 	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other,
 				   ent->dmg_radius, DAMAGE_NONE, MOD_PROX);
 
@@ -289,8 +302,12 @@ static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
 		SpawnClusterGrenades(ent, explosion_origin, ent->dmg);
 	}
 
+    // --- NEW: Update owner's tracking before freeing the edict ---
+    CleanupProxFromOwner(ent);
+
 	G_FreeEdict(ent);
 }
+
 
 THINK(Prox_Explode)(edict_t *ent)->void
 {
@@ -314,7 +331,6 @@ DIE(prox_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
 		self->nextthink = level.time + FRAME_TIME_S;
 	}
 }
-
 TOUCH(Prox_Field_Touch)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	if (!ent || !other)
@@ -601,6 +617,28 @@ THINK(Prox_Think)(edict_t *self)->void
 //===============
 void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int prox_damage_multiplier, int speed)
 {
+	// --- NEW: Player and Limit Check ---
+	if (!self || !self->client) {
+		return; // Cannot fire if not owned by a player
+	}
+
+	// O(1) PERFORMANCE: If the player is at their prox limit, remove the oldest one.
+	if (self->client->resp.num_proxs >= ProxConstants::MAX_PROXS_PER_PLAYER)
+	{
+		// Get the oldest prox from our circular buffer.
+		edict_t* oldest = self->client->resp.deployed_proxs[self->client->resp.oldest_prox_idx];
+
+		// Ensure it's a valid, in-use prox before freeing. This handles cases
+		// where the prox was destroyed by other means and the pointer is stale.
+		if (oldest && oldest->inuse && oldest->classname && strcmp(oldest->classname, "prox_mine") == 0)
+		{
+			// G_FreeEdict will trigger the death sequence (prox_die -> Prox_ExplodeReal),
+			// which correctly decrements num_proxs.
+			G_FreeEdict(oldest);
+		}
+	}
+	// --- END NEW LOGIC ---
+
 	edict_t *prox;
 	vec3_t dir;
 	vec3_t forward, right, up;
@@ -643,25 +681,26 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 	prox->flags |= FL_MECHANICAL;
 
 	// --- DAMAGE & RADIUS CLAMPING ---
-	// 1. Clamp the multiplier to a maximum of 3x.
 	int const effective_multiplier = std::min(prox_damage_multiplier, 3);
-
-	// 2. Set the final damage using the clamped multiplier.
 	prox->dmg = PROX_DAMAGE * effective_multiplier;
-
-	// 3. Set the final radius using a balanced scaling formula.
-	// This makes the radius larger, but not excessively so.
-	// 1x = 1.0 * base_radius
-	// 2x = 1.5 * base_radius
-	// 3x = 2.0 * base_radius
 	prox->dmg_radius = PROX_DAMAGE_RADIUS * (1.0f + 0.5f * (effective_multiplier - 1));
 	// --- END CLAMPING LOGIC ---
 
-	// This lifetime logic is now redundant since we calculate lifetime in prox_open/prox_seek
-	// but we'll leave it as a fallback.
 	prox->timestamp = level.time + PROX_TIME_TO_LIVE;
 
 	gi.linkentity(prox);
+
+	// --- NEW: Add to Player's Tracking Array ---
+	// This block should be inside an `if (self->client)` but we already checked above.
+	// Track the newly deployed prox by overwriting the oldest slot.
+	self->client->resp.deployed_proxs[self->client->resp.oldest_prox_idx] = prox;
+	
+	// Advance the index for the next "oldest".
+	self->client->resp.oldest_prox_idx = (self->client->resp.oldest_prox_idx + 1) % ProxConstants::MAX_PROXS_PER_PLAYER;
+
+	// Increment the counter of active proxs.
+	self->client->resp.num_proxs++;
+	// --- END NEW LOGIC ---
 }
 
 // *************************
@@ -1735,9 +1774,6 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 		self->client->resp.num_teslas++;
 	}
 }
-// *************************
-//  HEATBEAM
-// *************************
 
 // *************************
 //  HEATBEAM
