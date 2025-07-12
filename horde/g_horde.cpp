@@ -3213,22 +3213,6 @@ void Horde_PreInit()
 	}
 }
 
-static int CountPresentBots()
-{
-	int count = 0;
-	// Iterate through all possible client slots
-	for (int i = 0; i < game.maxclients; ++i)
-	{
-		edict_t* ent = g_edicts + 1 + i;
-		// Check if the entity is an active, in-use bot
-		if (ent && ent->inuse && (ent->svflags & SVF_BOT))
-		{
-			count++;
-		}
-	}
-	return count;
-}
-
 // VerifyAndAdjustBots 
 void VerifyAndAdjustBots()
 {
@@ -3242,17 +3226,12 @@ void VerifyAndAdjustBots()
 	// This block only runs if the initial bots have never been spawned.
 	if (!g_initial_bots_spawned_for_map)
 	{
-		// Only run the 'addbot' commands if no bots have been manually added.
-		if (CountPresentBots() == 0)
-		{
 			// Use 'addbot' for the initial, non-stuttery spawn.
-
 			const int32_t bots_to_add_now = mapSize.isBigMap ? 6 : 4;
 			for (int32_t i = 0; i < bots_to_add_now; ++i)
 			{
 				gi.AddCommandString("addbot\n");
 			}
-		}
 
 		// CRITICAL: Mark the initial spawn as complete. This flag will now persist
 		// across map changes because we no longer reset it in ResetGame().
@@ -7238,7 +7217,6 @@ void Horde_RunFrame() {
 						if (!next_wave_message_sent) {
 							gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 							next_wave_message_sent = true;
-							VerifyAndAdjustBots();
 						}
 						g_horde_local.state = horde_state_t::active_wave;
 					}
@@ -7445,6 +7423,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 // It runs before each wave to load only the assets needed for that specific wave.
 static void Horde_InitLevel(const int32_t lvl)
 {
+	VerifyAndAdjustBots();
 	// --- 1. Reset All Wave-Specific State ---
 	ResetSpawnBatchState();
 	g_special_high_level_monster_spawned_this_wave = false;
