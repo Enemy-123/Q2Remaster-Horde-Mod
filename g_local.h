@@ -2855,6 +2855,14 @@ struct regeneration_info_t {
 	}
 };
 
+namespace TeslaConstants {
+    constexpr int32_t MAX_TESLAS_PER_PLAYER = 9; 
+}
+
+namespace SentryConstants {
+    constexpr int32_t MAX_SENTRIES_PER_PLAYER = 3;
+}
+
 namespace LaserConstants {
     constexpr int32_t MAX_LASERS_PER_PLAYER = 6;
     constexpr int32_t LASER_COST = 25;
@@ -3039,8 +3047,19 @@ struct client_respawn_t
 	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 	int adrenaline_count = 0;
 	sentrytype_t sentry_gun_choice; //save preference after death
+
+	// Lasers
+	int      num_lasers;
 	edict_t* deployed_lasers[LaserConstants::MAX_LASERS_PER_PLAYER];
-	int num_lasers = 0; // tracks max lasers per client
+
+	// Teslas
+	int      num_teslas;
+	edict_t* deployed_teslas[TeslaConstants::MAX_TESLAS_PER_PLAYER];
+	int      oldest_tesla_idx;
+
+	// Sentries
+	int      num_sentries;
+	edict_t* deployed_sentries[SentryConstants::MAX_SENTRIES_PER_PLAYER];
 };
 
 // [Paril-KEX] seconds until we are fully invisible after
@@ -3068,8 +3087,6 @@ constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;
 class PlayerLaserManager;
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
-constexpr int MAX_TESLAS = 9;
-
 
 struct gclient_t
 {
@@ -3287,11 +3304,7 @@ struct gclient_t
 	uint64_t dmg_counter;     // ID DMG
 	uint64_t total_damage;    // Total damage dealt
 
-	int num_teslas = 0; // tracks max teslas per client
-	edict_t* deployed_teslas[MAX_TESLAS];
-	int      oldest_tesla_idx;
 	//int num_traps; //foodcube trap per client
-	int num_sentries = 0; //Sentry Guns per client
 
 	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];

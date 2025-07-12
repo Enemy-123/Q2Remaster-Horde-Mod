@@ -847,7 +847,7 @@ void OpenMiscMenu(edict_t* ent) {
 	}
 
 	// --- Sentry Gun Removal (Unchanged) ---
-	int sentry_count = ent->client->num_sentries;
+	int sentry_count = ent->client->resp.num_sentries;
 	if (sentry_count > 0) {
 		add_entry(G_Fmt("Remove Sentry Gun ({})", sentry_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}

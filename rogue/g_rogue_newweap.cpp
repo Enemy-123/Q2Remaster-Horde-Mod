@@ -1042,7 +1042,7 @@ void tesla_remove(edict_t *self)
 
 	if (self->owner && self->owner->client)
 	{
-		self->owner->client->num_teslas--; // Decrementar el contador de teslas del jugador
+		self->owner->client->resp.num_teslas--; // Decrementar el contador de teslas del jugador
 	}
 
 	self->owner = self->teammaster; // Going away, set the owner correctly.
@@ -1632,10 +1632,10 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 {
 	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.
 	// This logic replaces the inefficient check_player_tesla_limit() function.
-	if (self && self->client && self->client->num_teslas >= MAX_TESLAS)
+	if (self && self->client && self->client->resp.num_teslas >= TeslaConstants::MAX_TESLAS_PER_PLAYER)
 	{
 		// Get the oldest tesla from our circular buffer.
-		edict_t *oldest = self->client->deployed_teslas[self->client->oldest_tesla_idx];
+		edict_t *oldest = self->client->resp.deployed_teslas[self->client->resp.oldest_tesla_idx];
 
 		// Ensure it's a valid, in-use tesla before freeing. This handles cases
 		// where the tesla was destroyed by other means and the pointer is stale.
@@ -1725,13 +1725,14 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 
 	if (self->client)
 	{
-		// O(1) PERFORMANCE: Track the newly deployed tesla.
-		// Add the new tesla to our tracking array.
-		self->client->deployed_teslas[self->client->oldest_tesla_idx] = tesla;
-		// Advance the index for the next "oldest".
-		self->client->oldest_tesla_idx = (self->client->oldest_tesla_idx + 1) % MAX_TESLAS;
+		// Track the newly deployed tesla.
+		self->client->resp.deployed_teslas[self->client->resp.oldest_tesla_idx] = tesla;
+		
+        // Advance the index for the next "oldest".
+		self->client->resp.oldest_tesla_idx = (self->client->resp.oldest_tesla_idx + 1) % TeslaConstants::MAX_TESLAS_PER_PLAYER;
 
-		self->client->num_teslas++; // Incrementar el contador de teslas del jugador
+		// Increment the counter.
+		self->client->resp.num_teslas++;
 	}
 }
 // *************************

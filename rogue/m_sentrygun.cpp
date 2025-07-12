@@ -1343,18 +1343,30 @@ PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 
-	// Handle summoned entity notifications
-	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
-		if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
-			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
-			self->owner->client->num_sentries--;
-		}
+    // Handle summoned entity notifications
+    if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
+        if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+            gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
+            
 		//else if (strstr(self->classname, "monster_") &&
 		//	strcmp(self->classname, "monster_sentrygun") != 0) {
 		//	gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!\n");
 		//	self->owner->client->num_sentries--;
 		//}
-	}
+
+            self->owner->client->resp.num_sentries--;
+
+            // --- NEW LOGIC ---
+            // Find this sentry in the owner's tracking array and null it out.
+            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+                if (self->owner->client->resp.deployed_sentries[i] == self) {
+                    self->owner->client->resp.deployed_sentries[i] = nullptr;
+                    break; // Found it, we're done.
+                }
+            }
+
+        }
+    }
 	//OnEntityDeath(self);
 	vec3_t forward;
 	edict_t* base;

@@ -124,7 +124,6 @@ void Use_TeleportSelf(edict_t* ent, gitem_t* item)
 // Variable estática para rastrear el último uso de sentry por bots
 static gtime_t last_bot_sentry_time = 0_sec;
 constexpr gtime_t BOT_SENTRY_COOLDOWN = 5_sec;
-constexpr int MAX_SENTRIES = 3;
 
 static bool TryBotSentry(const edict_t* ent)
 {
@@ -143,11 +142,11 @@ static bool TryBotSentry(const edict_t* ent)
 }
 
 // This helper function remains the same. It's clean and does one job well.
-static bool SpawnSentryAtPoint(edict_t* owner, const vec3_t& spawn_origin, const vec3_t& spawn_angles)
+static edict_t* SpawnSentryAtPoint(edict_t* owner, const vec3_t& spawn_origin, const vec3_t& spawn_angles)
 {
     edict_t* turret = G_Spawn();
     if (!turret)
-        return false;
+        return nullptr; // Return null on failure
 
     turret->monsterinfo.issummoned = true;
     turret->classname = "monster_sentrygun";
@@ -161,11 +160,12 @@ static bool SpawnSentryAtPoint(edict_t* owner, const vec3_t& spawn_origin, const
 
     if (turret->inuse) {
         SpawnGrow_Spawn(spawn_origin, 24.f, 48.f);
-        return true;
+        return turret; // Return the new turret on success!
     }
 
+    // If ED_CallSpawn failed, turret is not inuse
     G_FreeEdict(turret);
-    return false;
+    return nullptr; // Return null on failure
 }
 
 // The new, all-in-one function to use the Sentry Gun item.
@@ -184,11 +184,11 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 		return;
 	}
 	if (ent->svflags & SVF_BOT) {
-		if (ent->client->num_sentries >= 1) {
+		if (ent->client->resp.num_sentries >= 1) {
 			return;
 		}
 	} else {
-		if (ent->client->num_sentries >= MAX_SENTRIES) {
+		if (ent->client->resp.num_sentries >= SentryConstants::MAX_SENTRIES_PER_PLAYER) {
 			gi.Client_Print(ent, PRINT_HIGH, "You have reached the sentry gun limit.\n");
 			return;
 		}
@@ -275,19 +275,30 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 		}
 	}
 
-	// --- 5. Final Action: Spawn or Fail ---
-	if (found_spot) {
-		if (SpawnSentryAtPoint(ent, final_spawn_point, final_spawn_angles)) {
-			ent->client->pers.inventory[item->id]--;
-			ent->client->num_sentries++;
-			gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun deployed. You have {}/{} sentry guns.\n",
-				ent->client->num_sentries, MAX_SENTRIES);
-		} else {
-			gi.Client_Print(ent, PRINT_HIGH, "Sentry deployment failed.\n");
-		}
-	} else {
-		gi.Client_Print(ent, PRINT_HIGH, "Cannot find a suitable location to deploy sentry gun.\n");
-	}
+   // --- 5. Final Action: Spawn or Fail ---
+    if (found_spot) {
+        // Call our improved helper function
+        edict_t* turret = SpawnSentryAtPoint(ent, final_spawn_point, final_spawn_angles);
+
+        if (turret) { // Check if the spawn was successful
+            // The sentry was spawned successfully, now track it.
+            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+                if (ent->client->resp.deployed_sentries[i] == nullptr) {
+                    ent->client->resp.deployed_sentries[i] = turret;
+                    break;
+                }
+            }
+
+            ent->client->pers.inventory[item->id]--;
+            ent->client->resp.num_sentries++;
+            gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun deployed. You have {}/{} sentry guns.\n",
+                ent->client->resp.num_sentries, SentryConstants::MAX_SENTRIES_PER_PLAYER);
+        } else {
+            gi.Client_Print(ent, PRINT_HIGH, "Sentry deployment failed.\n");
+        }
+    } else {
+        gi.Client_Print(ent, PRINT_HIGH, "Cannot find a suitable location to deploy sentry gun.\n");
+    }
 }
 
 bool Pickup_SentryGun(edict_t* ent, edict_t* other)
