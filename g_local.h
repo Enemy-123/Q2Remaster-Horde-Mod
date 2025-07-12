@@ -2864,7 +2864,7 @@ namespace SentryConstants {
 }
 
 namespace TrapConstants {
-    constexpr int32_t MAX_TRAPS_PER_PLAYER = 4;
+    constexpr int32_t MAX_TRAPS_PER_PLAYER = 8;
 }
 
 namespace LaserConstants {

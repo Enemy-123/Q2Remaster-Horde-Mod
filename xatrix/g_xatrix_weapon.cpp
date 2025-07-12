@@ -735,7 +735,7 @@ void FindTrapTargets(edict_t* ent, trap_state_t* trap_state) {
             continue;
         if (target != ent->teammaster && CheckTeamDamage(target, ent->teammaster))
             continue;
-        if (horde::IsMonsterType(target, horde::MonsterTypeID::SENTRYGUN) || (horde::IsMonsterType(target, horde::MonsterTypeID::MISC_INSANE)))
+        if (horde::IsMonsterType(target, horde::MonsterTypeID::TURRET) || (horde::IsMonsterType(target, horde::MonsterTypeID::MISC_INSANE)))
             continue;
 
         const float len_squared = DistanceSquared(ent->s.origin, target->s.origin);
