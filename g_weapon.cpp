@@ -85,6 +85,17 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 	// do the damage
 	T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
 
+	// --- FIX ---
+	// After dealing damage, the enemy might have been killed and freed.
+	// Check if the entity is still valid (`inuse`) before proceeding.
+	if (!tr.ent || !tr.ent->inuse)
+	{
+		// The enemy is gone, so we can't apply knockback.
+		// The hit was successful, so we return true.
+		return true;
+	}
+	// --- END FIX ---
+
 	if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
 		return false;
 
