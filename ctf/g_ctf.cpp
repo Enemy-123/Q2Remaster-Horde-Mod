@@ -1977,17 +1977,17 @@ void CTFTeam_f(edict_t* ent)
 /* TECH																	  */
 /*------------------------------------------------------------------------*/
 
-void CTFHasTech(edict_t* who)
-{
-	// Check if the message has been shown less than twice and the current wave number is less or equal to 5
-	if (who->client->ctf_lasttechmsg_count < 2)
-	{
-		gi.LocCenter_Print(who, "\n\nTechs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Swap them on Horde Menu! Open Horde Menu (TURTLE) on POWERUP WHEEL\n");
+// void CTFHasTech(edict_t* who)
+// {
+// 	// Check if the message has been shown less than twice and the current wave number is less or equal to 5
+// 	if (who->client->ctf_lasttechmsg_count < 2)
+// 	{
+// 		gi.LocCenter_Print(who, "\n\nTechs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Swap them on Horde Menu! Open Horde Menu (TURTLE) on POWERUP WHEEL\n");
 
-		// Increment the message count
-		who->client->ctf_lasttechmsg_count++;
-	}
-}
+// 		// Increment the message count
+// 		who->client->ctf_lasttechmsg_count++;
+// 	}
+// }
 
 gitem_t* CTFWhat_Tech(edict_t* ent)
 {
@@ -2013,7 +2013,7 @@ bool CTFPickup_Tech(edict_t* ent, edict_t* other)
 	{
 		if (other->client->pers.inventory[tech_ids[i]])
 		{
-			CTFHasTech(other);
+		//	CTFHasTech(other);
 			return false; // has this one
 		}
 	}
@@ -2206,9 +2206,9 @@ void CTFSetupTechSpawn()
 
 	// [Paril-KEX]
 	if (!strcmp(g_allow_techs->string, "auto"))
-		techs_allowed = !!ctf->integer || !!g_horde->integer;
+		techs_allowed = !!ctf->integer ;
 	else
-		techs_allowed = !!g_allow_techs->integer || !!g_horde->integer;
+		techs_allowed = !!g_allow_techs->integer;
 
 	if (!techs_allowed)
 		return;

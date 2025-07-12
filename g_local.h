@@ -3069,6 +3069,9 @@ struct client_respawn_t
 	// Sentries
 	int      num_sentries;
 	edict_t* deployed_sentries[SentryConstants::MAX_SENTRIES_PER_PLAYER];
+
+	gtime_t teleport_cooldown = 3_sec;
+	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 };
 
 // [Paril-KEX] seconds until we are fully invisible after
@@ -3317,15 +3320,12 @@ struct gclient_t
 
 	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];
-	gtime_t teleport_cooldown = 3_sec;
 	bool emergency_teleport = false;
 
-	int ctf_lasttechmsg_count;
+	//int ctf_lasttechmsg_count;
 	gtime_t		ammoregentime;
 	bool ir_tracking_active; //horde tracking
 	int ir_frame_count;
-
-	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 };
 
 // ==========================================

@@ -1091,15 +1091,15 @@ bool TeleportSelf(edict_t* ent) {
     }
 
     // Use direct client members
-    if (ent->client->teleport_cooldown > level.time) {
+    if (ent->client->resp.teleport_cooldown > level.time) {
         // Assuming teleport_cooldown and level.time are gtime_t or compatible
-        float remaining_seconds = (ent->client->teleport_cooldown - level.time).seconds();
+        float remaining_seconds = (ent->client->resp.teleport_cooldown - level.time).seconds();
         float remaining_display = std::floor(remaining_seconds * 10.0f) / 10.0f;
         gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining_display);
         return false;
     }
 
-    ent->client->teleport_cooldown = level.time + 3_sec; // Apply cooldown
+    ent->client->resp.teleport_cooldown = level.time + 3_sec; // Apply cooldown
     std::string playerName = GetPlayerName(ent);
 
     struct spawn_point_info_t {
@@ -1184,7 +1184,7 @@ bool TeleportSelf(edict_t* ent) {
     edict_t* random_destination = spawn_points[random_idx].point;
 
     if (developer->integer) {
-        gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index %i, potentially blocked).\n", random_idx);
+        gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index {}, potentially blocked).\n", random_idx);
     }
     
     perform_teleport_actions(random_destination);

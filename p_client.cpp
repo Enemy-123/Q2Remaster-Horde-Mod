@@ -3523,7 +3523,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		}
 
 		if (BotIsOnLava(ent)) {
-		ent->client->teleport_cooldown = level.time;
+		ent->client->resp.teleport_cooldown = level.time;
 		ent->client->emergency_teleport = true;
 		TeleportSelf(ent);
 	}

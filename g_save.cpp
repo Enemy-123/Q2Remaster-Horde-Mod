@@ -1014,13 +1014,12 @@ FIELD_AUTO(total_damage),
 //FIELD_AUTO(num_sentries),
 FIELD_AUTO(last_wave_timer_horde_update),
 FIELD_AUTO(voted_map),
-FIELD_AUTO(teleport_cooldown),
+//FIELD_AUTO(teleport_cooldown),
 FIELD_AUTO(emergency_teleport),
-FIELD_AUTO(ctf_lasttechmsg_count),
+//FIELD_AUTO(ctf_lasttechmsg_count),
 FIELD_AUTO(ammoregentime),
 FIELD_AUTO(ir_tracking_active),
 FIELD_AUTO(ir_frame_count),
-// FIELD_AUTO(laser_manager), // Needs custom handling
 
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT

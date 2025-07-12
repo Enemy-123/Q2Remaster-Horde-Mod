@@ -1537,7 +1537,7 @@ constexpr vec3_t TRACER_OFFSET_DUCKED = { 0.0f, 8.0f, -6.0f };
 
 void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
 {
-    if (!g_tracedbullets->integer || !ent || !ent->client || ent->client->lasthbshot > level.time)
+    if (!g_tracedbullets->integer || !ent || !ent->client || ent->client->resp.lasthbshot > level.time)
         return;
 
     const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1550,7 +1550,7 @@ void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
 
     fire_blaster2(ent, tracer_start, dir, damage, 3150, EF_NONE, false);
 
-    ent->client->lasthbshot = level.time + cooldown_duration;
+    ent->client->resp.lasthbshot = level.time + cooldown_duration;
 }
 
 
