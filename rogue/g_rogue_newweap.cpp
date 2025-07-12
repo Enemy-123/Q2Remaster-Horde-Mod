@@ -319,7 +319,7 @@ THINK(Prox_Explode)(edict_t *ent)->void
 DIE(prox_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
 	// Check if inflictor is not nullptr and if set off by another prox, delay a little (chained explosions)
-	if (inflictor && strcmp(inflictor->classname, "prox_mine") == 0)
+	if (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::PROX_MINE))
 	{
 		self->takedamage = false;
 		Prox_Explode(self);
@@ -630,7 +630,7 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 
 		// Ensure it's a valid, in-use prox before freeing. This handles cases
 		// where the prox was destroyed by other means and the pointer is stale.
-		if (oldest && oldest->inuse && oldest->classname && strcmp(oldest->classname, "prox_mine") == 0)
+		if (horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::PROX_MINE))
 		{
 			// G_FreeEdict will trigger the death sequence (prox_die -> Prox_ExplodeReal),
 			// which correctly decrements num_proxs.
@@ -677,6 +677,7 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 	prox->think = Prox_Think;
 	prox->nextthink = level.time;
 	prox->classname = "prox_mine";
+	prox->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::PROX_MINE);
 	prox->flags |= FL_DAMAGEABLE;
 	prox->flags |= FL_MECHANICAL;
 
