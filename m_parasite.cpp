@@ -600,6 +600,12 @@ THINK(proboscis_think) (edict_t* self) -> void
 
 PRETHINK(proboscis_segment_draw) (edict_t* self) -> void
 {
+
+		if (!self)
+	{
+		return;
+	}
+	
 	// Check if owner is valid
 	if (!self->owner || !self->owner->owner)
 	{
