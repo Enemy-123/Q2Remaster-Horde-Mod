@@ -876,6 +876,15 @@ void flyer_laser_warn(edict_t* self)
 PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
+
+    // --- FIX: Add safety check for the owner ---
+    if (!self || !self->inuse || self->health <= 0)
+    {
+        G_FreeEdict(laser);
+        return;
+    }
+    // --- END FIX ---
+
 	vec3_t start, forward, right, up, dir;
 
 	// Obtener los vectores de dirección
@@ -906,9 +915,19 @@ PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
 	dabeam_update(laser, false);
 }
 
+// CORRECTED flyer_right_laser_update
 PRETHINK(flyer_right_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
+
+    // --- FIX: Add safety check for the owner ---
+    if (!self || !self->inuse || self->health <= 0)
+    {
+        G_FreeEdict(laser);
+        return;
+    }
+    // --- END FIX ---
+
 	vec3_t start, forward, right, up, dir;
 
 	// Obtener los vectores de dirección
