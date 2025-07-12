@@ -2863,6 +2863,10 @@ namespace SentryConstants {
     constexpr int32_t MAX_SENTRIES_PER_PLAYER = 3;
 }
 
+namespace TrapConstants {
+    constexpr int32_t MAX_TRAPS_PER_PLAYER = 4;
+}
+
 namespace LaserConstants {
     constexpr int32_t MAX_LASERS_PER_PLAYER = 6;
     constexpr int32_t LASER_COST = 25;
@@ -3056,6 +3060,11 @@ struct client_respawn_t
 	int      num_teslas;
 	edict_t* deployed_teslas[TeslaConstants::MAX_TESLAS_PER_PLAYER];
 	int      oldest_tesla_idx;
+
+	// Food Cubes - TRAPS
+    int      num_traps;
+    edict_t* deployed_traps[TrapConstants::MAX_TRAPS_PER_PLAYER];
+    int      oldest_trap_idx;
 
 	// Sentries
 	int      num_sentries;

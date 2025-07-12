@@ -35,46 +35,41 @@ void RemoveEntity(edict_t* ent);
 
 
 void RemovePlayerOwnedEntities(edict_t* player) {
-    if (!player || !player->client) { // Added player->client check for safety before accessing num_lasers
+    // --- 1. Safety Check ---
+    if (!player || !player->client) {
         return;
     }
 
-    // Iterate through entities (starting from 1, as g_edicts[0] is world)
-    size_t num_edicts = static_cast<size_t>(globals.num_edicts);
-    for (size_t i = 1; i < num_edicts; ++i) {
-        edict_t* ent = &g_edicts[i];
-
-        if (!ent->inuse) {
-            continue;
-        }
-
-        // Check ownership (direct owner or teammaster, and their owners/teammasters for two levels)
-        bool is_owned_by_player = (ent->owner == player) ||
-                                  (ent->owner && ent->owner->owner == player) ||
-                                  (ent->teammaster == player) ||
-                                  (ent->teammaster && ent->teammaster->teammaster == player);
-
-        if (is_owned_by_player) {
-            // Step 1: Perform generic "death" processing (scoring, events, etc.)
-            // This function is assumed NOT to free the entity or run its specific die sequence.
-            OnEntityDeath(ent);
-
-            // Step 2: If the entity is of a type that has a specific removal sequence
-            // (like turrets dying, mines exploding), then trigger that.
-            if (IsRemovableEntity(ent)) { // Use the refactored IsRemovableEntity
-                RemoveEntity(ent); // Use the refactored RemoveEntity
-            }
-            // If an entity is owned and OnEntityDeath is called, but it's not "IsRemovableEntity",
-            // it implies its removal is handled elsewhere or it's not supposed to be removed
-            // in this specific "player owned entity removal" pass beyond OnEntityDeath.
-            // This matches the original logic flow.
+    // --- 2. Remove Lasers (O(K) operation) ---
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
+        edict_t* laser = player->client->resp.deployed_lasers[i];
+        if (laser && laser->inuse) {
+            RemoveEntity(laser);
         }
     }
 
-    // Reset player-specific counts if any
-    if (player->client) { // Ensure client exists
-        player->client->resp.num_lasers = 0;
-        // Potentially reset other counts here if needed
+    // --- 3. Remove Sentries (O(K) operation) ---
+    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+        edict_t* sentry = player->client->resp.deployed_sentries[i];
+        if (sentry && sentry->inuse) {
+            RemoveEntity(sentry);
+        }
+    }
+
+    // --- 4. Remove Teslas (O(K) operation) ---
+    for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i) {
+        edict_t* tesla = player->client->resp.deployed_teslas[i];
+        if (tesla && tesla->inuse) {
+            RemoveEntity(tesla);
+        }
+    }
+
+    // --- 5. Remove Traps (O(K) operation) ---
+    for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i) {
+        edict_t* trap = player->client->resp.deployed_traps[i];
+        if (trap && trap->inuse) {
+            RemoveEntity(trap);
+        }
     }
 }
 
