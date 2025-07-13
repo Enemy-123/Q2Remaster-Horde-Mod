@@ -4252,7 +4252,7 @@ static void SpawnBossAutomatically()
 		boss->s.angles = spawn_angles;
 		boss->bossSizeCategory = selected_boss_size;
 		boss->owner = orb;
-
+		boss->was_spawned_by_horde = true;
 		constexpr float push_radius = 500.0f;
 		constexpr float push_force = 1000.0f;
 		PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f);
