@@ -3428,9 +3428,6 @@ void ResetBosses()
 }
 
 
-// --- MODIFIED ---
-// This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
-// Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
 void PrecacheAllMonsters() noexcept
 {
     // Only run this initial precache once per map load.
@@ -3459,6 +3456,7 @@ void PrecacheAllMonsters() noexcept
             if (temp_monster)
             {
                 temp_monster->classname = classname;
+                
                 // *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
                 temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
                 
@@ -5872,6 +5870,7 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 #include "g_horde_phys.h" 
 
 
+// REVISED AND CORRECTED EmergencySpawnMonster
 bool EmergencySpawnMonster(const int32_t levelNum,
                            horde::MonsterTypeID typeId,
                            bool is_additional_monster,
@@ -5879,10 +5878,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 {
     PROFILE_SCOPE("EmergencySpawnMonster");
 
-    // --- Phase 1: Find a valid spot using the new grid-based search ---
     vec3_t emergency_origin, emergency_angles;
-
-    // Use our new, more reliable function to find a spawn location.
     if (!FindEmergencySpawnPositionViaGridSearch(emergency_origin, emergency_angles, typeId)) {
         if (developer->integer) {
             gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}.\n", static_cast<int>(typeId));
@@ -5890,7 +5886,6 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         return false;
     }
 
-    // --- Phase 2: Spawn the monster at the found location ---
     edict_t* monster = SpawnMonsterByTypeID(typeId, emergency_origin, emergency_angles, true);
     if (!monster) {
         if (developer->integer) {
@@ -5899,21 +5894,23 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         return false;
     }
 
-    // --- Phase 3: Apply horde bonuses (champion status, item drops, armor) ---
-    // This function can potentially free the monster, so we must check its return value.
+    // At this point, a monster has been spawned and level.total_monsters is +1.
+    
     if (!ApplyHordeBonuses(monster, levelNum, champion_chance_for_this_spawn)) {
-        // The monster was freed or became invalid during bonus application.
+        // ApplyHordeBonuses failed and freed the monster.
+        // The monster is gone, but the spawn "slot" was used.
         if (developer->integer) {
             const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-            gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Monster '{}' became invalid after applying bonuses.\n",
+            gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Monster '{}' was freed by ApplyHordeBonuses.\n",
                             classname ? classname : "Unknown");
         }
-        // The monster is already !inuse, so we just return failure.
-        return false;
+        // Even though it failed, a monster was technically consumed from the spawn pool.
+        // The caller, ExecuteEmergencySpawnProcedure, will see the 'true' return and
+        // correctly decrement the logical counters.
+        return true; 
     }
 
-    // --- Phase 4: Finalize with effects and update wave counts ---
-    // SAFETY CHECK: Ensure the monster is still valid and alive before playing effects.
+    // Full success path
     if (monster->inuse && !monster->deadflag && monster->health > 0) {
         SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
         if (sound_spawn1) {
@@ -5921,9 +5918,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         }
     }
 
-    // If this was an "additional" monster (like from an ambush), update the total count for the wave.
     if (is_additional_monster) {
-        // Prevent potential overflow on the wave counter.
         if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max()) {
             g_totalMonstersInWave++;
         }
@@ -6391,6 +6386,23 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 	}
 }
 
+// =======================================================================
+// COMPLETE FUNCTION: AttemptSpawnSingleMonster
+//
+// This is the primary worker function for the time-sliced spawning system.
+// It attempts to spawn exactly ONE monster by iterating through the cached,
+// shuffled list of potential spawn points. It handles multiple failure
+// conditions and communicates success back to the batch processor.
+//
+// Returns:
+//   - `true`: If a spawn "slot" was successfully consumed. This happens
+//             either when a monster is fully spawned and valid, OR when a
+//             monster was spawned but immediately freed (the "ghost"
+//             monster case). In both scenarios, a monster has been
+//             removed from the logical spawn pool.
+//   - `false`: If no monster could be spawned after trying all available
+//              points. This indicates a broader spawning problem.
+// =======================================================================
 static bool AttemptSpawnSingleMonster(
 	int32_t currentLevel_param,
 	float champion_chance_param,
@@ -6399,28 +6411,35 @@ static bool AttemptSpawnSingleMonster(
 	MonsterWaveType current_actual_wave_type_param,
 	MonsterWaveType original_wave_type_before_recovery_param)
 {
+	PROFILE_SCOPE("AttemptSpawnSingleMonster");
+
 	const size_t total_potential_points = g_potential_spawn_points.size();
-	if (total_potential_points == 0)
-	{
+	if (total_potential_points == 0) {
+		// If there are no spawn points cached at all, we can't do anything.
 		return false;
 	}
-	size_t points_checked_for_this_monster = 0;
 
+	// We will iterate through every available spawn point once, if necessary.
+	size_t points_checked_for_this_monster = 0;
 	while (points_checked_for_this_monster < total_potential_points)
 	{
-		if (g_spawn_point_shuffle_index >= total_potential_points)
-		{
+		// Wrap the shuffle index if we reach the end of the list.
+		if (g_spawn_point_shuffle_index >= total_potential_points) {
 			g_spawn_point_shuffle_index = 0;
 		}
+
+		// Get the next spawn point from our shuffled cache and advance the index.
 		edict_t *spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
 		points_checked_for_this_monster++;
 
-        // Call the updated validation function
-		if (!ValidateSpawnPointForMonster(spawn_point, level.time, is_recovery_mode_active_param))
-		{
-			continue;
+		// --- Step 1: Validate the Spawn Point ---
+		// This checks for cooldowns, player proximity, and occupation.
+		if (!ValidateSpawnPointForMonster(spawn_point, level.time, is_recovery_mode_active_param)) {
+			continue; // This point is invalid, try the next one.
 		}
 
+		// --- Step 2: Pick a Monster for this Specific Point ---
+		// This considers the wave type and whether the point is for flying/ground units.
 		horde::MonsterTypeID monster_type_id = G_HordePickMonsterType(
 			spawn_point,
 			currentLevel_param,
@@ -6429,52 +6448,71 @@ static bool AttemptSpawnSingleMonster(
 			is_recovery_mode_active_param,
 			original_wave_type_before_recovery_param);
 
-		if (monster_type_id == horde::MonsterTypeID::UNKNOWN)
-		{
+		if (monster_type_id == horde::MonsterTypeID::UNKNOWN) {
+			// No suitable monster could be picked for this point's constraints.
 			IncreaseSpawnAttempts(spawn_point);
 			g_consecutive_spawn_failures++;
-			continue;
+			continue; // Try the next spawn point.
 		}
 
+		// --- Step 3: Final Sanity Check for Movement Type ---
+		// Ensure the picked monster's movement type matches the spawn point's style.
 		const bool monster_is_flying = IsFlying(monster_type_id);
 		const bool is_flying_spawn_point = (spawn_point->style == 1);
 
-		if (is_flying_spawn_point && !monster_is_flying)
-		{
+		if (is_flying_spawn_point && !monster_is_flying) {
+			// Mismatch: a ground monster was picked for a flying spawn point.
 			IncreaseSpawnAttempts(spawn_point);
 			g_consecutive_spawn_failures++;
-			continue;
+			continue; // Try the next spawn point.
 		}
 
+		// --- Step 4: Attempt the Spawn ---
+		// This function handles direct and alternative positions.
+		// It returns:
+		// - A valid edict_t* on full success.
+		// - `world` on partial success (monster spawned but then freed).
+		// - `nullptr` on complete failure to find a spot.
 		edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
-		if (spawned_monster_entity)
+		
+		if (spawned_monster_entity) // This is TRUE for a real monster OR our `world` sentinel.
 		{
-			if (spawned_monster_entity->inuse && !spawned_monster_entity->deadflag && spawned_monster_entity->health > 0)
+			// A spawn slot was successfully consumed.
+			
+			// If it's a real, living monster, play the spawn effects.
+			if (spawned_monster_entity != world && spawned_monster_entity->inuse && !spawned_monster_entity->deadflag && spawned_monster_entity->health > 0)
 			{
 				SpawnGrow_Spawn(spawned_monster_entity->s.origin, 80.0f, 10.0f);
-				if (sound_spawn1)
-				{
+				if (sound_spawn1) {
 					gi.sound(spawned_monster_entity, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 				}
 			}
 
+			// On any form of success (real or sentinel), reset failure counters and report success.
 			horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type_id, level.time);
 			g_consecutive_spawn_failures = 0;
+			
+			// If we were in recovery mode, this success is our ticket out.
+			if (is_recovery_mode_active_param) {
+				if (developer->integer)
+					gi.Com_PrintFmt("AttemptSpawnSingleMonster: Exiting recovery mode due to successful spawn.\n");
+				g_recovery_mode_active = false;
+				current_wave_type = g_original_wave_type_before_recovery;
+				g_original_wave_type_before_recovery = MonsterWaveType::None;
+			}
 
-			// if (is_recovery_mode_active_param)
-			// {
-			// 	if (developer->integer)
-			// 		gi.Com_PrintFmt("AttemptSpawnSingleMonster: Successful spawn during recovery mode. Recovery may now end.\n");
-			// }
-			return true;
+			return true; // Signal to the batch processor that this attempt is done.
 		}
+		// If spawned_monster_entity is nullptr, FindValidSpotAndSpawn already handled
+		// failure counting, so we just let the loop continue to the next point.
 	}
 
-	if (developer->integer > 1 && total_potential_points > 0)
-	{
-		gi.Com_PrintFmt("AttemptSpawnSingleMonster: Failed to spawn a monster after checking {} points.\n", total_potential_points);
+	// If the loop completes, it means we tried every single spawn point and failed.
+	if (developer->integer > 1) {
+		gi.Com_PrintFmt("AttemptSpawnSingleMonster: CRITICAL - Failed to spawn a monster after checking all {} potential points.\n", total_potential_points);
 	}
-	return false;
+	
+	return false; // Signal total failure for this attempt.
 }
 
 static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_time, bool recovery_mode_active_param)
@@ -6632,13 +6670,10 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
     bool used_alternative = false;
 
     if (!FindValidSpawnSpot(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
-        if (used_alternative) {
-            ApplyAlternativePositionCooldown(spawn_point);
-        } else {
-            IncreaseSpawnAttempts(spawn_point);
-        }
+        if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
+        else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
-        return nullptr;
+        return nullptr; // No spot found, definitely a failure.
     }
 
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
@@ -6646,25 +6681,36 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
         else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
-        return nullptr;
+        return nullptr; // G_Spawn or ED_CallSpawn failed, definitely a failure.
     }
 
-    if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
-        if (used_alternative) {
-            ApplySuccessfulAlternativeCooldown(spawn_point);
-        } else {
-            OnSuccessfulSpawn(spawn_point);
-        }
-        return monster;
-    } else {
+    // At this point, a monster has been spawned and level.total_monsters is +1.
+    // This spawn attempt is now "committed".
+
+    if (!ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
+        // ApplyHordeBonuses failed and freed the monster.
+        // The monster is gone, but the spawn "slot" was used.
         if (developer->integer > 1) {
-            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: {}\n",
+            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster freed by ApplyHordeBonuses. Class: {}\n",
                             horde::MonsterTypeRegistry::GetClassname(monster_type));
         }
-        g_consecutive_spawn_failures++;
-        return nullptr;
+        // We still count this as a "successful" spawn from the spawn point's perspective
+        // because a monster *did* physically spawn there before being removed.
+        if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
+        else OnSuccessfulSpawn(spawn_point);
+        
+        // Return a special value to indicate a slot was used but no valid entity remains.
+        // The caller must handle this. Let's use `world` as a sentinel.
+        return world; 
     }
+
+    // Full success.
+    if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
+    else OnSuccessfulSpawn(spawn_point);
+    
+    return monster; // Return the valid, living monster.
 }
+
 
 static void SetMonsterArmor(edict_t *monster)
 {
