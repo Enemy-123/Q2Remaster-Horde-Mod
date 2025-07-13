@@ -620,12 +620,10 @@ MMOVE_T(gekk_move_run_start) = { FRAME_stand_01, FRAME_stand_02, gekk_frames_run
 
 void gekk_hit_left(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
-	if (!self->enemy)
+	// ROBUST FIX: Check if the enemy pointer is valid AND the entity is in use and alive.
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
-		// char buffer[256];
-		// std::snprintf(buffer, sizeof(buffer), "gekk_hit_left: Error: enemy not properly initialized\n");
-		// gi.Com_Print(buffer);
+		// The enemy is invalid, so we can't attack.
 		return;
 	}
 
@@ -642,12 +640,10 @@ void gekk_hit_left(edict_t* self)
 
 void gekk_hit_right(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
-	if (!self->enemy)
+	// ROBUST FIX: Apply the same check here for consistency and safety.
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
-		// char buffer[256];
-		// std::snprintf(buffer, sizeof(buffer), "gekk_hit_right: Error: enemy not properly initialized\n");
-		// gi.Com_Print(buffer);
+		// The enemy is invalid, so we can't attack.
 		return;
 	}
 
@@ -905,12 +901,10 @@ MMOVE_T(gekk_move_leapatk2) = { FRAME_leapatk_01, FRAME_leapatk_19, gekk_frames_
 
 void gekk_bite(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
-	if (!self->enemy)
+	// ROBUST FIX: Apply the same check here as well.
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
-		// char buffer[256];
-		// std::snprintf(buffer, sizeof(buffer), "gekk_bite: Error: enemy not properly initialized\n");
-		// gi.Com_Print(buffer);
+		// The enemy is invalid, so we can't attack.
 		return;
 	}
 
