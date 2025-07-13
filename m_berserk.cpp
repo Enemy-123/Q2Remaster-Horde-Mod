@@ -196,19 +196,17 @@ void berserk_attack_spike(edict_t* self)
 {
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, -24 };
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		// Llamar a fire_hit solo si self->enemy está inicializado
-		if (!fire_hit(self, aim, irandom(17, 26) * M_DamageModifier(self), 400)) //	Faster attack -- upwards and backwards
+	// ROBUST FIX: Check if the enemy pointer is valid AND the entity is in use and alive.
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) 
+    {
+		// Now it's safe to call fire_hit
+		if (!fire_hit(self, aim, irandom(17, 26) * M_DamageModifier(self), 400))
 			self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
 	}
-	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "berserk_attack_spike: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec; // Puedes ajustar esto según sea necesario
+	else 
+    {
+		// The enemy is invalid, so we can't attack. Put the attack on cooldown.
+		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
 	}
 }
 
@@ -234,19 +232,17 @@ void berserk_attack_club(edict_t* self)
 {
 	vec3_t  const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		// Llamar a fire_hit solo si self->enemy está inicializado
-		if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250)) // Slower attack
+	// ROBUST FIX: Apply the same check here for consistency and safety.
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) 
+    {
+		// Now it's safe to call fire_hit
+		if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250))
 			self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
 	}
-	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "berserk_attack_club: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec; // Puedes ajustar esto según sea necesario
+	else 
+    {
+		// The enemy is invalid, so we can't attack. Put the attack on cooldown.
+		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
 	}
 }
 
