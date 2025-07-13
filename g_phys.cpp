@@ -139,26 +139,54 @@ void SV_CheckVelocity(edict_t* ent)
 }
 
 /*
-=============
+================
 SV_RunThink
 
-Runs thinking code for this frame if necessary
-=============
+Runs a think function for a single entity
+================
 */
 bool SV_RunThink(edict_t* ent)
 {
-	gtime_t thinktime = ent->nextthink;
-	if (thinktime <= 0_ms)
-		return true;
-	if (thinktime > level.time)
-		return true;
+    gtime_t thinktime = ent->nextthink;
 
-	ent->nextthink = 0_ms;
-	if (!ent->think)
-		gi.Com_Error("nullptr ent->think");
-	ent->think(ent);
+    if (thinktime <= 0_ms) {
+        return true;
+    }
+    if (thinktime > level.time) {
+        return true;
+    }
 
-	return false;
+    ent->nextthink = 0_ms;
+
+    if (!ent->think)
+    {
+        // --- REVISED ERROR MESSAGE with {} formatting ---
+        const char* classname = ent->classname ? ent->classname : "NULL_CLASSNAME";
+        const int edict_index = ent - g_edicts;
+
+        // Use your project's formatting function (assuming G_Fmt or similar)
+        // to create the detailed error string.
+        auto error_message = G_Fmt(
+            "SV_RunThink: ent->think is nullptr!\n\n"
+            "Entity Classname: '{}'\n"
+            "Edict Index: {}\n"
+            "Origin: ({:.1f}, {:.1f}, {:.1f})\n\n"
+            "This usually means ent->nextthink was set, but ent->think was not, or was cleared later.",
+            classname,
+            edict_index,
+            ent->s.origin.x,
+            ent->s.origin.y,
+            ent->s.origin.z
+        );
+
+        // Halt the game with the much more useful, formatted error message.
+        gi.Com_Error(error_message.data());
+        // --- END OF REVISION ---
+    }
+
+    ent->think(ent);
+
+    return false;
 }
 
 /*
