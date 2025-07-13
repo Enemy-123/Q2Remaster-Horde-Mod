@@ -533,6 +533,15 @@ PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
 
+    // --- FIX: Add safety check for the owner ---
+    // If the owner (the soldier) is dead or gone, the laser should remove itself.
+    if (!self || !self->inuse || self->health <= 0)
+    {
+        G_FreeEdict(laser);
+        return;
+    }
+    // --- END FIX ---
+
 	vec3_t forward, right, up;
 	vec3_t start;
 	vec3_t tempvec;
