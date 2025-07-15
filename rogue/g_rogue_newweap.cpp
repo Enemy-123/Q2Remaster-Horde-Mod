@@ -1069,18 +1069,6 @@ void tesla_remove(edict_t *self)
 	edict_t *cur, *next;
 
 	self->takedamage = false;
-	if (self->teamchain)
-	{
-		cur = self->teamchain;
-		while (cur)
-		{
-			next = cur->teamchain;
-			G_FreeEdict(cur);
-			cur = next;
-		}
-	}
-	else if (self->air_finished)
-		gi.Com_Print("tesla_mine without a field!\n");
 
 	if (self->owner && self->owner->client)
 	{
@@ -1326,35 +1314,6 @@ THINK(tesla_think_active)(edict_t *self)->void
 			start = start + (up * 16);
 		}
 	}
-
-	if (!self->teamchain)
-	{
-		gi.Com_Print("Warning: tesla_think_active called with null teamchain\n");
-		return;
-	}
-
-	// Setup teamchain bounds
-	if (is_on_wall)
-	{
-		float constexpr radius = TESLA_DAMAGE_RADIUS * 1.5f;
-		self->teamchain->mins = {-radius / 2, -radius, -radius};
-		self->teamchain->maxs = {radius, radius, radius};
-		self->teamchain->s.origin = self->s.origin + (forward * (radius / 2));
-	}
-	else
-	{
-		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150)
-		{
-			self->teamchain->mins = {-TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS};
-			self->teamchain->maxs = {TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, 0};
-		}
-		else
-		{
-			self->teamchain->mins = {-TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, 0};
-			self->teamchain->maxs = {TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS};
-		}
-	}
-	gi.linkentity(self->teamchain);
 
 	// Target acquisition with priority
 	constexpr int max_targets = 3;
