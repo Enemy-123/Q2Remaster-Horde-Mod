@@ -617,7 +617,7 @@ THINK(Prox_Think)(edict_t *self)->void
 //===============
 void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int prox_damage_multiplier, int speed)
 {
-	// --- NEW: Player and Limit Check ---
+	// --- Player and Limit Check ---
 	if (!self || !self->client) {
 		return; // Cannot fire if not owned by a player
 	}
@@ -628,16 +628,18 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 		// Get the oldest prox from our circular buffer.
 		edict_t* oldest = self->client->resp.deployed_proxs[self->client->resp.oldest_prox_idx];
 
-		// Ensure it's a valid, in-use prox before freeing. This handles cases
+		// Ensure it's a valid, in-use prox before touching it. This handles cases
 		// where the prox was destroyed by other means and the pointer is stale.
-    if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::PROX_MINE))
-    {
-			// G_FreeEdict will trigger the death sequence (prox_die -> Prox_ExplodeReal),
-			// which correctly decrements num_proxs.
-			G_FreeEdict(oldest);
+		if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::PROX_MINE))
+		{
+			// --- FIX ---
+			// Don't use G_FreeEdict(oldest) as it orphans the trigger field.
+			// Instead, trigger its explosion sequence, which handles all cleanup.
+			oldest->think = Prox_Explode;
+			oldest->nextthink = level.time;
 		}
 	}
-	// --- END NEW LOGIC ---
+	// --- END FIX ---
 
 	edict_t *prox;
 	vec3_t dir;
@@ -692,7 +694,6 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 	gi.linkentity(prox);
 
 	// --- NEW: Add to Player's Tracking Array ---
-	// This block should be inside an `if (self->client)` but we already checked above.
 	// Track the newly deployed prox by overwriting the oldest slot.
 	self->client->resp.deployed_proxs[self->client->resp.oldest_prox_idx] = prox;
 	
