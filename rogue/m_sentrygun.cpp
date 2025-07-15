@@ -20,7 +20,7 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = SPAWNFLAG_TURRET2_BLASTER; /
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_FLECHETTE;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = spawnflags_t(1 << 18);
 
-
+void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
 void turret2_run(edict_t* self);
@@ -603,7 +603,7 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 		turret2_die(self, self, self, 100, self->s.origin, MOD_UNKNOWN);
 		return;
 	}
-	
+
 	CreateTurretGlowEffect(self);
 
     sentry_state_t* state = self->monsterinfo.sentry_state;
