@@ -597,6 +597,13 @@ void CreateTurretGlowEffect(edict_t* turret);
 
 MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 {
+
+	if (!self->owner || !self->owner->inuse)
+	{
+		turret2_die(self, self, self, 100, self->s.origin, MOD_UNKNOWN);
+		return;
+	}
+	
 	CreateTurretGlowEffect(self);
 
     sentry_state_t* state = self->monsterinfo.sentry_state;
@@ -1342,6 +1349,13 @@ PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 
 DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	// --- FIX: Free the allocated sentry state to prevent a memory leak ---
+	if (self->monsterinfo.sentry_state)
+	{
+		gi.TagFree(self->monsterinfo.sentry_state);
+		self->monsterinfo.sentry_state = nullptr;
+	}
+	// --- END FIX ---
 
     // Handle summoned entity notifications
     if (self->monsterinfo.issummoned && self->owner && self->owner->client) {

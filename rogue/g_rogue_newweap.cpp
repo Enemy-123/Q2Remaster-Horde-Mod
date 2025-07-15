@@ -43,16 +43,31 @@ TOUCH(flechette_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool ot
 
 	if (other->takedamage)
 	{
-		// Determine the attacker
-		edict_t *attacker;
-		if (self->owner && horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
+		// --- FIX: Safely determine the attacker to prevent crashes ---
+		edict_t *attacker = nullptr;
+		edict_t *sentry = self->owner; // The flechette's owner is the sentry
+
+		if (sentry && sentry->inuse && horde::IsSpecialType(sentry, horde::SpecialEntityTypeID::SENTRY_GUN))
 		{
-			attacker = self->owner->owner; // If the owner is a turret, the attacker is the turret's owner (the player)
+			// The sentry's owner is the player. Check if they are still valid.
+			if (sentry->owner && sentry->owner->inuse)
+			{
+				attacker = sentry->owner;
+			}
 		}
-		else
+		else if (sentry && sentry->inuse)
 		{
-			attacker = self->owner; // Otherwise, the attacker is the owner
+			// Not a sentry, so the owner is the direct attacker
+			attacker = sentry;
 		}
+
+		// If we couldn't find a valid attacker (e.g., owner disconnected),
+		// default to the projectile itself to avoid a null pointer in T_Damage.
+		if (!attacker)
+		{
+			attacker = self;
+		}
+		// --- END FIX ---
 
 		T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal,
 				 self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
@@ -1285,6 +1300,12 @@ THINK(tesla_think_active)(edict_t *self)->void
 {
 	if (!self)
 		return;
+
+	if (!self->teammaster || !self->teammaster->inuse)
+	{
+		tesla_remove(self);
+		return;
+	}
 
 	if (level.time > self->air_finished)
 	{

@@ -915,6 +915,12 @@ bool ProcessTrapTargets(edict_t* ent, trap_state_t* trap_state) {
 // Main trap thinking function
 THINK(Trap_Think) (edict_t* ent) -> void
 {
+
+    if (!ent->teammaster || !ent->teammaster->inuse)
+    {
+        BecomeExplosion1(ent);
+        return;
+    }
     if (ent->timestamp < level.time) {
         // The state will be freed inside trap_die, which is called by BecomeExplosion1
         BecomeExplosion1(ent);
