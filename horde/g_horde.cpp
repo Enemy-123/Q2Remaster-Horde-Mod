@@ -5723,8 +5723,6 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 	}
 }
 
-// REPLACEMENT: SpawnAmbushMonsters (initiates a time-sliced batch)
-// REPLACEMENT: SpawnAmbushMonsters (with fix for potential crash)
 int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 {
 	// If an ambush is already being spawned, don't start a new one.
@@ -5736,21 +5734,21 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 	
 	// Try up to 5 times to pick a suitable monster for the ambush.
 	for (int i = 0; i < 5; ++i) {
-        // =======================================================================
-        // --- THE FIX ---
-        // Before trying to access an element, we MUST check if the vector is empty.
-        // This prevents a crash when g_potential_spawn_points.size() is 0, which
-        // would cause `0 - 1` to underflow to a massive number.
+        // This guard is still essential.
         if (g_potential_spawn_points.empty()) {
             if (developer->integer) {
                 gi.Com_PrintFmt("SpawnAmbushMonsters: No potential spawn points available to pick from.\n");
             }
-            break; // Exit the loop immediately if there's nothing to pick from.
+            break;
         }
-        // =======================================================================
 
-		// Now that we know the vector is not empty, this line is safe.
-		edict_t* point = g_potential_spawn_points[irandom(g_potential_spawn_points.size() - 1)];
+		// =======================================================================
+		// --- FINAL, IDIOMATIC FIX ---
+		// Use your own excellent `random_element` helper function.
+		// It's more expressive and handles the indexing logic safely internally.
+		// This is the cleanest and most robust way to write this.
+		edict_t* point = random_element(g_potential_spawn_points);
+		// =======================================================================
 		
 		if (point && point->inuse) {
 			// Try to pick a monster type based on this spawn point.
@@ -5767,11 +5765,11 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 		if (waveLevel >= 15) {
 			// Fallback for later waves
 			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::GUNNER, horde::MonsterTypeID::GLADIATOR, horde::MonsterTypeID::TANK, horde::MonsterTypeID::SOLDIER_HYPERGUN, horde::MonsterTypeID::SOLDIER_LASERGUN};
-			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
+			monster_typeId_for_ambush = random_element(types); // Also use it here for consistency!
 		} else {
 			// Fallback for earlier waves
 			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::SOLDIER_LIGHT, horde::MonsterTypeID::SOLDIER, horde::MonsterTypeID::INFANTRY, horde::MonsterTypeID::SOLDIER_SS, horde::MonsterTypeID::FLYER};
-			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
+			monster_typeId_for_ambush = random_element(types); // And here!
 		}
 	}
 
