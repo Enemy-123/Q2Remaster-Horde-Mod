@@ -5,7 +5,7 @@
 // This ensures that any file including g_horde.h gets what it needs.
 #include <vector>
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "Horde MOD BETA v0.0098";
+constexpr const char* HORDE_MOD_VERSION_STRING = "Horde BETA MOD v0.0099b";
 // --- Forward Declarations ---
 // These tell the compiler that these types exist, without needing their full definition.
 // This is crucial for preventing circular include dependencies.
@@ -21,7 +21,6 @@ void ResetGame();
 void HandleResetEvent();
 
 void ResetSpawnMonsterVars();
-void ResetFrameTimers();
 void ResetQueueMonitorVars();
 
 [[nodiscard]] bool IsSpawnPointOccupied(const edict_t *spawn_point, const edict_t *ignore_ent = nullptr);
@@ -39,8 +38,6 @@ extern void CleanupStuckEntities();
 
 extern uint16_t g_totalMonstersInWave;
 extern int32_t CalculateRemainingMonsters() noexcept; // Changed from inline to extern
-void ValidateMonsterCount();
-
 
 // Forzar limpieza de cuerpos
 extern void Horde_CleanBodies();

@@ -262,7 +262,6 @@ bool IsPositionTooCloseToRecentTeleport(const vec3_t &position)
 	return false;
 }
 
-// (Keep ResetSpawnMonsterVars, ResetFrameTimers, ResetQueueMonitorVars as they were)
 void ResetSpawnMonsterVars()
 {
 	need_spawn_cache_reset = true;
@@ -2883,32 +2882,23 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
     int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
-    // --- CRITICAL FIX ---
-    // We must check the MASTER list of all monsters (`monsterTypes`) to see if any
-    // are unlocked by the new effective level. Checking `g_eligible_monsters_for_wave`
-    // will never work because it's already filtered for the current level.
-    bool any_new_monsters_unlocked = false;
-    for (const auto& monster : monsterTypes) // Iterate the full list
-    {
-        // Is there a monster that is eligible at the new level but was NOT at the old one?
-        if (monster.minWave > currentActualLevel && 
-            monster.minWave <= potentialEffectiveLevel &&
-            IsValidMonsterForWave(monster.typeId, waveTypeForFiltering))
-        {
-            any_new_monsters_unlocked = true;
-            break; // Found one, no need to check further.
-        }
-    }
+	bool any_new_monsters_unlocked = false;
+	for (const auto& monster : monsterTypes) // Iterate the full list
+	{
+		// Is there a monster that is eligible at the new level but was NOT at the old one?
+		if (monster.minWave > currentActualLevel && 
+			monster.minWave <= potentialEffectiveLevel &&
+			IsValidMonsterForWave(monster.typeId, waveTypeForFiltering))
+		{
+			any_new_monsters_unlocked = true;
+			break; // Found one, no need to check further.
+		}
+	}
 
-    if (!any_new_monsters_unlocked)
-    {
-        //if (developer->integer > 1)
-        // {
-        //     gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new monsters unlocked at level {}. Reverting to {}.\n",
-        //                     potentialEffectiveLevel, currentActualLevel);
-        // }
-        return currentActualLevel; // Revert if the boost is meaningless.
-    }
+if (!any_new_monsters_unlocked)
+{
+    return currentActualLevel; // Revert if the boost is meaningless.
+}
 
 	// if (developer->integer)
 	// {
@@ -5307,26 +5297,30 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 
 [[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying, bool is_predefined_location)
 {
-    vec3_t check_pos = io_position;
+    // For flying monsters OR any monster at a predefined spot, we only care if the space is clear.
+    // We don't need to find a floor.
+    if (is_flying || is_predefined_location) {
+        trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
+        if (trace.startsolid || trace.allsolid) {
+            return false; // The space is occupied by something.
+        }
+        return true; // The space is clear, it's a valid spawn.
+    }
 
-    // --- 1. Quick Fail: Check if the starting point is inside a solid wall ---
-    if (gi.pointcontents(check_pos) & MASK_SOLID) {
+    // --- This block now ONLY runs for NON-FLYING monsters at NON-PREDEFINED locations ---
+    // Stage A: We MUST find a floor for these.
+    vec3_t original_pos = io_position;
+    if (!M_droptofloor_generic(io_position, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false)) {
+        io_position = original_pos; // Restore original position on failure
         return false;
     }
 
-    // --- 2.  Volume Check ---
-    // definitive trace to check the entire volume
-    // the monster will occupy against ALL solid objects and other monsters.
-    trace_t final_check = gi.trace(check_pos, monster_mins, monster_maxs, check_pos, nullptr, MASK_MONSTERSOLID);
-
-    if (final_check.startsolid || final_check.allsolid) {
-        // The volume is occupied by world geometry or another solid entity.
+    // Stage B: Check for other entities at the new, floor-dropped position.
+    trace_t entity_trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
+    if (entity_trace.startsolid) {
         return false;
     }
 
-    // --- 4. Success ---
-    // The position is valid. Update the output parameter with the potentially adjusted position.
-    io_position = check_pos;
     return true;
 }
 
@@ -5883,7 +5877,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         if (developer->integer) {
             gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}.\n", static_cast<int>(typeId));
         }
-        return false;
+        return false; // Hard failure, no slot consumed.
     }
 
     edict_t* monster = SpawnMonsterByTypeID(typeId, emergency_origin, emergency_angles, true);
@@ -5891,23 +5885,23 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         if (developer->integer) {
             gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: SpawnMonsterByTypeID failed for TypeID {}.\n", static_cast<int>(typeId));
         }
-        return false;
+        return false; // Hard failure, no slot consumed.
     }
 
     // At this point, a monster has been spawned and level.total_monsters is +1.
     
     if (!ApplyHordeBonuses(monster, levelNum, champion_chance_for_this_spawn)) {
-        // ApplyHordeBonuses failed and freed the monster.
-        // The monster is gone, but the spawn "slot" was used.
+        // ApplyHordeBonuses failed and freed the monster. This created a "ghost".
+        // We must return FALSE here to signal that no valid monster was created,
+        // even though a spawn slot was technically used and `level.total_monsters` is now off.
+        // The calling function will see this failure and not decrement the logical counter,
+        // which is better than having a permanent ghost monster.
         if (developer->integer) {
             const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
             gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Monster '{}' was freed by ApplyHordeBonuses.\n",
                             classname ? classname : "Unknown");
         }
-        // Even though it failed, a monster was technically consumed from the spawn pool.
-        // The caller, ExecuteEmergencySpawnProcedure, will see the 'true' return and
-        // correctly decrement the logical counters.
-        return true; 
+        return false; // Return failure to prevent logical counter decrement.
     }
 
     // Full success path
@@ -5929,7 +5923,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
                         monster->classname, is_additional_monster ? "Yes" : "No");
     }
 
-    return true;
+    return true; // Return success only if a valid monster remains.
 }
 
 // In g_horde.cpp
@@ -6386,23 +6380,7 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 	}
 }
 
-// =======================================================================
-// COMPLETE FUNCTION: AttemptSpawnSingleMonster
-//
-// This is the primary worker function for the time-sliced spawning system.
-// It attempts to spawn exactly ONE monster by iterating through the cached,
-// shuffled list of potential spawn points. It handles multiple failure
-// conditions and communicates success back to the batch processor.
-//
-// Returns:
-//   - `true`: If a spawn "slot" was successfully consumed. This happens
-//             either when a monster is fully spawned and valid, OR when a
-//             monster was spawned but immediately freed (the "ghost"
-//             monster case). In both scenarios, a monster has been
-//             removed from the logical spawn pool.
-//   - `false`: If no monster could be spawned after trying all available
-//              points. This indicates a broader spawning problem.
-// =======================================================================
+// This version correctly handles the 'world' sentinel value.
 static bool AttemptSpawnSingleMonster(
 	int32_t currentLevel_param,
 	float champion_chance_param,
@@ -6415,71 +6393,52 @@ static bool AttemptSpawnSingleMonster(
 
 	const size_t total_potential_points = g_potential_spawn_points.size();
 	if (total_potential_points == 0) {
-		// If there are no spawn points cached at all, we can't do anything.
 		return false;
 	}
 
-	// We will iterate through every available spawn point once, if necessary.
 	size_t points_checked_for_this_monster = 0;
 	while (points_checked_for_this_monster < total_potential_points)
 	{
-		// Wrap the shuffle index if we reach the end of the list.
 		if (g_spawn_point_shuffle_index >= total_potential_points) {
 			g_spawn_point_shuffle_index = 0;
 		}
 
-		// Get the next spawn point from our shuffled cache and advance the index.
 		edict_t *spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
 		points_checked_for_this_monster++;
 
-		// --- Step 1: Validate the Spawn Point ---
-		// This checks for cooldowns, player proximity, and occupation.
 		if (!ValidateSpawnPointForMonster(spawn_point, level.time, is_recovery_mode_active_param)) {
-			continue; // This point is invalid, try the next one.
+			continue;
 		}
 
-		// --- Step 2: Pick a Monster for this Specific Point ---
-		// This considers the wave type and whether the point is for flying/ground units.
 		horde::MonsterTypeID monster_type_id = G_HordePickMonsterType(
-			spawn_point,
-			currentLevel_param,
-			current_actual_wave_type_param,
-			is_retaliation_active_param,
-			is_recovery_mode_active_param,
+			spawn_point, currentLevel_param, current_actual_wave_type_param,
+			is_retaliation_active_param, is_recovery_mode_active_param,
 			original_wave_type_before_recovery_param);
 
 		if (monster_type_id == horde::MonsterTypeID::UNKNOWN) {
-			// No suitable monster could be picked for this point's constraints.
 			IncreaseSpawnAttempts(spawn_point);
 			g_consecutive_spawn_failures++;
-			continue; // Try the next spawn point.
+			continue;
 		}
 
-		// --- Step 3: Final Sanity Check for Movement Type ---
-		// Ensure the picked monster's movement type matches the spawn point's style.
-		const bool monster_is_flying = IsFlying(monster_type_id);
-		const bool is_flying_spawn_point = (spawn_point->style == 1);
-
-		if (is_flying_spawn_point && !monster_is_flying) {
-			// Mismatch: a ground monster was picked for a flying spawn point.
+		if ((spawn_point->style == 1) && !IsFlying(monster_type_id)) {
 			IncreaseSpawnAttempts(spawn_point);
 			g_consecutive_spawn_failures++;
-			continue; // Try the next spawn point.
+			continue;
 		}
 
-		// --- Step 4: Attempt the Spawn ---
-		// This function handles direct and alternative positions.
-		// It returns:
-		// - A valid edict_t* on full success.
-		// - `world` on partial success (monster spawned but then freed).
-		// - `nullptr` on complete failure to find a spot.
+		// Attempt the spawn. This can return a real monster, `world`, or `nullptr`.
 		edict_t *spawned_monster_entity = FindValidSpotAndSpawn(spawn_point, monster_type_id, currentLevel_param, champion_chance_param);
 		
-		if (spawned_monster_entity) // This is TRUE for a real monster OR our `world` sentinel.
+		// =======================================================================
+		// --- THIS IS THE CORE FIX ---
+		// =======================================================================
+		if (spawned_monster_entity) // This is TRUE for a real monster OR the 'world' sentinel.
 		{
-			// A spawn slot was successfully consumed.
+			// A spawn slot was successfully consumed, either by a real monster or a ghost.
 			
-			// If it's a real, living monster, play the spawn effects.
+			// If it's a REAL, living monster, play the spawn effects.
+			// We must check that it's not our 'world' sentinel before accessing its members.
 			if (spawned_monster_entity != world && spawned_monster_entity->inuse && !spawned_monster_entity->deadflag && spawned_monster_entity->health > 0)
 			{
 				SpawnGrow_Spawn(spawned_monster_entity->s.origin, 80.0f, 10.0f);
@@ -6488,7 +6447,7 @@ static bool AttemptSpawnSingleMonster(
 				}
 			}
 
-			// On any form of success (real or sentinel), reset failure counters and report success.
+			// On any form of success (real or ghost), reset failure counters.
 			horde::g_monsterSpawnTracker.SetLastSpawnTime(monster_type_id, level.time);
 			g_consecutive_spawn_failures = 0;
 			
@@ -6501,13 +6460,13 @@ static bool AttemptSpawnSingleMonster(
 				g_original_wave_type_before_recovery = MonsterWaveType::None;
 			}
 
-			return true; // Signal to the batch processor that this attempt is done.
+			// Signal to the batch processor that this attempt is done and a slot was used.
+			return true; 
 		}
 		// If spawned_monster_entity is nullptr, FindValidSpotAndSpawn already handled
 		// failure counting, so we just let the loop continue to the next point.
 	}
 
-	// If the loop completes, it means we tried every single spawn point and failed.
 	if (developer->integer > 1) {
 		gi.Com_PrintFmt("AttemptSpawnSingleMonster: CRITICAL - Failed to spawn a monster after checking all {} potential points.\n", total_potential_points);
 	}
@@ -6600,16 +6559,15 @@ static bool FindValidSpawnSpot(
     vec3_t& out_angles,
     bool& out_used_alternative)
 {
-    // --- 1. Get Prerequisites ---
     const vec3_t base_origin = spawn_point->s.origin;
     const vec3_t base_angles = spawn_point->s.angles;
     const bool is_flying = IsFlying(monster_type);
     vec3_t predicted_mins, predicted_maxs;
     GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
 
-    // --- 2. Attempt Direct Spawn ---
+    // --- Attempt Direct Spawn ---
     vec3_t direct_pos = base_origin;
-    // FIX #1: Add 'true' because this is a predefined spawn point.
+    // Pass 'true' because this is a predefined spawn point location.
     if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying, true)) {
         out_origin = direct_pos;
         out_angles = base_angles;
@@ -6617,21 +6575,18 @@ static bool FindValidSpawnSpot(
         return true;
     }
 
-    // --- 3. Attempt Alternative Spawn (if direct spawn failed) ---
+    // --- Attempt Alternative Spawn ---
     auto alternative_offsets = HordeConstants::horde_alternative_positions;
     std::shuffle(alternative_offsets.begin(), alternative_offsets.end(), mt_rand);
-
     static const vec3_t trace_box = {-4, -4, -4};
 
     for (const auto& offset : alternative_offsets) {
         vec3_t candidate_pos = base_origin + offset;
-
         trace_t los_trace = gi.trace(base_origin, trace_box, trace_box, candidate_pos, spawn_point, MASK_SOLID);
         if (los_trace.fraction < 1.0f) {
             continue;
         }
-
-        // FIX #2: Add 'false' because this is a dynamically generated alternative spot.
+        // Pass 'false' because this is a dynamically generated alternative spot.
         if (IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying, false)) {
             out_origin = candidate_pos;
             out_angles = vectoangles(offset);
@@ -6640,15 +6595,9 @@ static bool FindValidSpawnSpot(
             return true;
         }
     }
-
-    return false; // All attempts failed.
+    return false;
 }
 
-// =======================================================================
-// REPLACEMENT: FindValidSpotAndSpawn and its missing dependency
-// =======================================================================
-
-// This function was missing from the previous replacement block. Add it back.
 void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
@@ -6664,53 +6613,64 @@ void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
 }
 
+// REPLACEMENT for FindValidSpotAndSpawn
+// This version correctly returns 'world' when a monster is spawned and then freed.
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
     vec3_t final_origin, final_angles;
     bool used_alternative = false;
 
     if (!FindValidSpawnSpot(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
-        if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
-        else IncreaseSpawnAttempts(spawn_point);
+        // Finding a spot failed completely. Penalize the spawn point.
+        if (used_alternative) {
+            ApplyAlternativePositionCooldown(spawn_point);
+        } else {
+            IncreaseSpawnAttempts(spawn_point);
+        }
         g_consecutive_spawn_failures++;
         return nullptr; // No spot found, definitely a failure.
     }
 
+    // Spawn the monster. This is where level.total_monsters is incremented.
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
     if (!monster) {
+        // G_Spawn or ED_CallSpawn failed. This is a hard failure.
         if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
         else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
-        return nullptr; // G_Spawn or ED_CallSpawn failed, definitely a failure.
+        return nullptr;
     }
 
-    // At this point, a monster has been spawned and level.total_monsters is +1.
-    // This spawn attempt is now "committed".
-
+    // At this point, a monster entity exists and level.total_monsters is +1.
+    
+    // Now, apply bonuses. This is where the monster might get freed.
     if (!ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
-        // ApplyHordeBonuses failed and freed the monster.
-        // The monster is gone, but the spawn "slot" was used.
+        // ApplyHordeBonuses failed and the monster is now !inuse.
+        // This is the "ghost monster" scenario.
         if (developer->integer > 1) {
-            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster freed by ApplyHordeBonuses. Class: {}\n",
+            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster was freed by ApplyHordeBonuses. Class: {}\n",
                             horde::MonsterTypeRegistry::GetClassname(monster_type));
         }
-        // We still count this as a "successful" spawn from the spawn point's perspective
-        // because a monster *did* physically spawn there before being removed.
-        if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
-        else OnSuccessfulSpawn(spawn_point);
+        // The spawn was "successful" in that it used a slot, so we apply the success cooldown.
+        if (used_alternative) {
+            ApplySuccessfulAlternativeCooldown(spawn_point);
+        } else {
+            OnSuccessfulSpawn(spawn_point);
+        }
         
-        // Return a special value to indicate a slot was used but no valid entity remains.
-        // The caller must handle this. Let's use `world` as a sentinel.
-        return world; 
+        // Return the special 'world' sentinel to indicate a slot was used but no valid entity remains.
+        return world; // <-- THE CRITICAL FIX
     }
 
-    // Full success.
-    if (used_alternative) ApplySuccessfulAlternativeCooldown(spawn_point);
-    else OnSuccessfulSpawn(spawn_point);
+    // Full success. The monster is alive and valid.
+    if (used_alternative) {
+        ApplySuccessfulAlternativeCooldown(spawn_point);
+    } else {
+        OnSuccessfulSpawn(spawn_point);
+    }
     
     return monster; // Return the valid, living monster.
 }
-
 
 static void SetMonsterArmor(edict_t *monster)
 {
