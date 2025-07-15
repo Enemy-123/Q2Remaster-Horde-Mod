@@ -630,8 +630,8 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 
 		// Ensure it's a valid, in-use prox before freeing. This handles cases
 		// where the prox was destroyed by other means and the pointer is stale.
-		if (horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::PROX_MINE))
-		{
+    if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::PROX_MINE))
+    {
 			// G_FreeEdict will trigger the death sequence (prox_die -> Prox_ExplodeReal),
 			// which correctly decrements num_proxs.
 			G_FreeEdict(oldest);

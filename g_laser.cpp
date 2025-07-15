@@ -2,20 +2,34 @@
 
 #include "g_local.h"
 #include "shared.h"
-#include <unordered_map>
 #include <new>
 #include <cmath>
 
 // Private state for emitters, like blinking status.
+// FIXED: Only one definition of EmitterState, with the clear() method.
 struct EmitterState
 {
     bool is_warning_phase = false;
     bool is_blink_on = false;
     gtime_t last_blink_time = 0_ms;
+
+    // Add a clear() method for convenience
+    void clear() {
+        is_warning_phase = false;
+        is_blink_on = false;
+        last_blink_time = 0_ms;
+    }
 };
 
-// Maps an emitter edict to its private state.
-static std::unordered_map<const edict_t *, EmitterState> g_emitter_states;
+static EmitterState g_emitter_states[MAX_EDICTS];
+
+static EmitterState* GetEmitterState(const edict_t* ent) {
+    if (!ent || !ent->inuse) {
+        return nullptr;
+    }
+    // The entity's number is its index into the global state array.
+    return &g_emitter_states[ent->s.number];
+}
 
 // Forward declarations for internal functions
 void laser_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
@@ -179,17 +193,28 @@ DIE(laser_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     }
 
     // Step 3: Clean up all associated resources and entities.
-    g_emitter_states.erase(emitter);
+    EmitterState* state = GetEmitterState(emitter);
+    if (state) {
+        state->clear();
+    }
 
     // Free the beam (stored in chain) and any other owned entities (like the flare).
+    // This loop is inefficient and potentially dangerous if G_FreeEdict modifies the list.
+    // A safer way is to free only known children.
+    if (emitter->chain && emitter->chain->inuse) {
+        G_FreeEdict(emitter->chain);
+    }
+    // Assuming the flare is the only other owned entity. If more, this needs to be more robust.
     for (uint32_t i = 1; i <= globals.num_edicts; i++)
     {
         edict_t *child = &g_edicts[i];
-        if (child->inuse && (child == emitter->chain || child->owner == emitter))
+        if (child->inuse && child->owner == emitter && strcmp(child->classname, "misc_flare") == 0)
         {
             G_FreeEdict(child);
+            break; // Assuming only one flare
         }
     }
+
 
     // Step 4: Finally, kill the emitter itself.
     emitter->health = 0;
@@ -197,7 +222,6 @@ DIE(laser_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     BecomeExplosion1(emitter);
 }
 
-// (laser_beam_think and emitter_think are unchanged)
 THINK(laser_beam_think)(edict_t * self)->void
 {
     if (!self || !self->owner || !self->owner->inuse)
@@ -241,29 +265,37 @@ THINK(emitter_think)(edict_t * self)->void
         return;
     }
 
-    auto &state = g_emitter_states[self];
+    // Safely get the state using the helper
+    EmitterState* state = GetEmitterState(self);
+    if (!state) {
+        // This should not happen if the entity is valid, but it's a good safety check.
+        laser_die(self, self, self->teammaster, 0, self->s.origin, MOD_UNKNOWN);
+        return;
+    }
+
     bool const should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
 
-    if (should_warn != state.is_warning_phase)
+    // FIXED: Use -> for pointers
+    if (should_warn != state->is_warning_phase)
     {
-        state.is_warning_phase = should_warn;
-        state.last_blink_time = 0_ms;
-        state.is_blink_on = false;
+        state->is_warning_phase = should_warn;
+        state->last_blink_time = 0_ms;
+        state->is_blink_on = false;
     }
 
-    if (state.is_warning_phase && level.time >= state.last_blink_time + LaserConstants::BLINK_INTERVAL)
+    if (state->is_warning_phase && level.time >= state->last_blink_time + LaserConstants::BLINK_INTERVAL)
     {
-        state.is_blink_on = !state.is_blink_on;
-        state.last_blink_time = level.time;
+        state->is_blink_on = !state->is_blink_on;
+        state->last_blink_time = level.time;
     }
 
-    if (state.is_warning_phase && state.is_blink_on)
+    if (state->is_warning_phase && state->is_blink_on)
         self->s.renderfx |= RF_SHELL_GREEN;
     else
         self->s.renderfx &= ~RF_SHELL_GREEN;
 
     const auto health_state = LaserHelpers::get_laser_health_state(beam);
-    beam->s.skinnum = (state.is_warning_phase && state.is_blink_on) ? 0xd0d1d2d3 : health_state.laser_color;
+    beam->s.skinnum = (state->is_warning_phase && state->is_blink_on) ? 0xd0d1d2d3 : health_state.laser_color;
     beam->s.frame = (beam->health < 1) ? 0 : (beam->health >= 1000) ? 4 : 2;
 
     for (uint32_t i = 1; i <= globals.num_edicts; i++)
@@ -271,7 +303,7 @@ THINK(emitter_think)(edict_t * self)->void
         edict_t *flare = &g_edicts[i];
         if (flare->inuse && flare->owner == self && strcmp(flare->classname, "misc_flare") == 0)
         {
-            flare->s.skinnum = (state.is_warning_phase && state.is_blink_on) ? 0x00FF00FF : health_state.flare_color;
+            flare->s.skinnum = (state->is_warning_phase && state->is_blink_on) ? 0x00FF00FF : health_state.flare_color;
             break;
         }
     }
@@ -279,7 +311,6 @@ THINK(emitter_think)(edict_t * self)->void
     self->nextthink = level.time + FRAME_TIME_MS;
 }
 
-// ** MODIFIED **
 void create_laser(edict_t * ent)
 {
     if (!ent || !ent->client)
@@ -295,7 +326,6 @@ void create_laser(edict_t * ent)
         return;
     }
 
-    // --- Refactored Laser Limit Check (Hard Limit) ---
     if (ent->client->resp.num_lasers >= LaserConstants::MAX_LASERS_PER_PLAYER)
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
@@ -332,7 +362,6 @@ void create_laser(edict_t * ent)
         return;
     }
 
-    // --- Configure Emitter, Beam, Flare (Unchanged) ---
     emitter->classname = "emitter";
     emitter->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(emitter->classname));
     emitter->s.origin = tr.endpos;
@@ -382,6 +411,11 @@ void create_laser(edict_t * ent)
     st.radius = 0.5f;
     ED_CallSpawn(flare, st);
 
+    EmitterState* state = GetEmitterState(emitter);
+    if (state) {
+        state->clear(); // Reset to default values
+    }
+
     gi.linkentity(emitter);
     gi.linkentity(beam);
     if (flare->inuse)
@@ -389,8 +423,6 @@ void create_laser(edict_t * ent)
 
     ent->client->pers.inventory[IT_AMMO_CELLS] -= LaserConstants::LASER_COST;
 
-    // --- Refactored Tracking Logic ---
-    // Find an empty slot in the tracking array and store the new laser
     for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
         if (ent->client->resp.deployed_lasers[i] == nullptr) {
             ent->client->resp.deployed_lasers[i] = emitter;
@@ -402,33 +434,21 @@ void create_laser(edict_t * ent)
     gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->resp.num_lasers, LaserConstants::MAX_LASERS_PER_PLAYER);
 }
 
-// ** MODIFIED **
 void remove_lasers(edict_t* ent) noexcept {
     if (!ent || !ent->client) {
         return;
     }
 
-    // Iterate through the player's deployed lasers and remove them.
-    // We iterate backwards to be safe, as laser_die will modify the array we are reading from.
     for (int i = LaserConstants::MAX_LASERS_PER_PLAYER - 1; i >= 0; --i) {
         edict_t* laser_emitter = ent->client->resp.deployed_lasers[i];
         
-        // Check if the pointer is valid and the entity is still an in-use laser
         if (laser_emitter && laser_emitter->inuse && horde::IsSpecialType(laser_emitter, horde::SpecialEntityTypeID::LASER_EMITTER)) {
-            // Directly call the die function. This is more explicit and ensures
-            // the full cleanup logic is run, including decrementing the player's laser count.
-            // We pass the owner as the attacker and a high damage value to ensure it dies.
             laser_die(laser_emitter, ent, ent, 9999, laser_emitter->s.origin, MOD_UNKNOWN);
         }
     }
 
-    // After calling laser_die on all active lasers, the count and array should already be clean.
-    // However, as a robust final step, we can explicitly reset the state to prevent any
-    // potential inconsistencies if laser_die's logic were to change in the future.
     ent->client->resp.num_lasers = 0;
     for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
         ent->client->resp.deployed_lasers[i] = nullptr;
     }
 }
-
-// CleanupPlayerLaserManager is now DELETED.
