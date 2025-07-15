@@ -1031,6 +1031,7 @@ void fire_nuke(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int spe
 
 	gi.linkentity(nuke);
 }
+
 // *************************
 // TESLA - OPTIMIZED
 // *************************
@@ -1452,7 +1453,6 @@ THINK(tesla_think_active)(edict_t *self)->void
 
 THINK(tesla_activate)(edict_t *self)->void
 {
-	edict_t *trigger;
 	edict_t *search;
 
 	if (gi.pointcontents(self->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WATER))
@@ -1461,17 +1461,11 @@ THINK(tesla_activate)(edict_t *self)->void
 		return;
 	}
 
-	// only check for spawn points in deathmatch
 	if (G_IsDeathmatch())
 	{
 		search = nullptr;
 		while ((search = findradius(search, self->s.origin, 1.5f * TESLA_DAMAGE_RADIUS)) != nullptr)
 		{
-			// [Paril-KEX] don't allow traps to be placed near flags or teleporters
-			// if it's a monster or player with health > 0
-			// or it's a player start point
-			// and we can see it
-			// blow up
 			if (search->classname && ((G_IsDeathmatch() && !g_horde->integer && ((!strncmp(search->classname, "info_player_", 12)) || (!strcmp(search->classname, "misc_teleporter_dest")) || (!strncmp(search->classname, "item_flag_", 10))))) &&
 				(visible(search, self)))
 			{
@@ -1481,32 +1475,17 @@ THINK(tesla_activate)(edict_t *self)->void
 		}
 	}
 
-	trigger = G_Spawn();
-	trigger->s.origin = self->s.origin;
-	trigger->mins = {-TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, self->mins[2]};
-	trigger->maxs = {TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS};
-	trigger->movetype = MOVETYPE_NONE;
-	trigger->solid = SOLID_TRIGGER;
-	trigger->owner = self;
-	trigger->touch = tesla_zap;
-	trigger->classname = "tesla trigger";
-	// doesn't need to be marked as a teamslave since the move code for bounce looks for teamchains
-	gi.linkentity(trigger);
-
-	// clear the owner if in deathmatch and not horde
 	if (G_IsDeathmatch() && !g_horde->integer)
 		self->owner = nullptr;
-	self->teamchain = trigger;
-	self->think = tesla_think_active;
 
-	// Stagger initial think times to distribute processing load
+	self->think = tesla_think_active;
 	self->nextthink = level.time + FRAME_TIME_S + gtime_t::from_sec(frandom() * 0.1f);
 	self->air_finished = level.time + TESLA_TIME_TO_LIVE;
 
-	// Initialize effect tracking fields
-	self->monsterinfo.attack_finished = level.time; // Initialize next_effect_time
-	self->monsterinfo.medicTries = 0;				// Initialize effect_count using medicTries instead of lefty
+	self->monsterinfo.attack_finished = level.time;
+	self->monsterinfo.medicTries = 0;
 }
+
 THINK(tesla_think)(edict_t *ent)->void
 {
 	if (gi.pointcontents(ent->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA))
