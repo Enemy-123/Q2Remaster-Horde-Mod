@@ -384,17 +384,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
 
-	//// *** FIX: Adjust NO_DROP flag based on item presence AFTER potential item assignment ***
-	//// This logic should ideally be called *after* the item drop chance is determined
-	//// in the calling function (e.g., SpawnMonsters, EmergencySpawnMonster).
-	//// Assuming monster->item has been potentially set by the caller:
-	//if (monster->item) {
-	//	monster->spawnflags &= ~SPAWNFLAG_MONSTER_NO_DROP; // Clear flag if item exists
-	//}
-	//else {
-	//	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP; // Ensure flag is set if no item
-	//}
-
 	// Link the entity *after* all changes to ensure visuals are sent
 	gi.linkentity(monster);
 }

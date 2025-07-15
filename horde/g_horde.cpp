@@ -610,7 +610,7 @@ edict_t* FindRandomHordeSpawnPoint(bool for_flying_monster)
     });
 }
 
-static void CleanupSpawnPointCache() noexcept { spawn_point_cache.clear(); }
+static void CleanupSpawnPointCache()  { spawn_point_cache.clear(); }
 
 //  Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
@@ -655,7 +655,7 @@ static constexpr const char *START_SOUND_PATHS[NUM_START_SOUNDS] = {
 	"makron/voice2.wav",
 	"makron/voice.wav"};
 
-static const char *GetCurrentMapName() noexcept
+static const char *GetCurrentMapName() 
 {
 	return static_cast<const char *>(level.mapname);
 }
@@ -848,7 +848,7 @@ bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t *>{};
 
 // Función para calcular el bono de locura y caos
-static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept
+static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) 
 {
 	if (g_chaotic->integer)
 		return (lvl <= 3) ? 6 : 3;
@@ -960,7 +960,7 @@ inline static void ClampNumToSpawn(const horde::MapSize &mapSize)
 	}
 }
 
-static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lvl, bool isHardMode) noexcept {
+static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lvl, bool isHardMode)  {
     if (lvl <= 3) // No queue for first 3 waves still seems fine
         return 0;
 
@@ -1078,7 +1078,7 @@ struct WaveScalingCache
 	}
 } g_waveScalingCache;
 
-void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t humanPlayers) noexcept
+void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t humanPlayers) 
 {
 	using namespace HordeConstants;
 
@@ -1201,7 +1201,7 @@ struct ConditionParams
 	float lowPercentageThreshold;
 	float aggressiveTimeReductionThreshold;
 
-	ConditionParams() noexcept : maxMonsters(0),
+	ConditionParams()  : maxMonsters(0),
 								 timeThreshold(0_sec),
 								 lowPercentageTimeThreshold(0_sec),
 								 independentTimeThreshold(0_sec),
@@ -1495,7 +1495,7 @@ static std::array<MonsterWaveType, WAVE_MEMORY_SIZE> previous_wave_types = {};
 static size_t wave_memory_index = 0;
 
 // Helper function to check if a wave type was recently used
-static bool WasRecentlyUsed(MonsterWaveType wave_type) noexcept
+static bool WasRecentlyUsed(MonsterWaveType wave_type) 
 {
 	for (const auto &prev_type : previous_wave_types)
 	{
@@ -1508,7 +1508,7 @@ static bool WasRecentlyUsed(MonsterWaveType wave_type) noexcept
 }
 
 // Helper function to store wave type in memory
-static void StoreWaveType(MonsterWaveType wave_type) noexcept
+static void StoreWaveType(MonsterWaveType wave_type) 
 {
 	previous_wave_types[wave_memory_index] = wave_type;
 	wave_memory_index = (wave_memory_index + 1) % WAVE_MEMORY_SIZE;
@@ -1581,7 +1581,7 @@ static bool TrySetWaveType(MonsterWaveType new_type)
 }
 
 // Helper function to check if a wave type is a special wave
-static bool IsSpecialWaveType(MonsterWaveType type) noexcept
+static bool IsSpecialWaveType(MonsterWaveType type) 
 {
 	return HasWaveType(type, MonsterWaveType::Gekk) ||
 		   HasWaveType(type, MonsterWaveType::Berserk) ||
@@ -1594,7 +1594,7 @@ static bool IsSpecialWaveType(MonsterWaveType type) noexcept
 }
 
 // check if the previous wave was a special wave
-static bool WasLastWaveSpecial() noexcept
+static bool WasLastWaveSpecial() 
 {
 	if (previous_wave_types.empty())
 	{
@@ -2003,7 +2003,7 @@ constexpr MonsterDataSoA create_monster_data_soa() {
 // The compiler runs create_monster_data_soa() and bakes the result directly into the executable.
 static const MonsterDataSoA g_monsterData = create_monster_data_soa();
 
-inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept
+inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) 
 {
     const size_t index = static_cast<size_t>(typeId);
     if (index >= g_monsterData.MONSTER_ARRAY_SIZE) {
@@ -2138,11 +2138,11 @@ struct RecentBosses
 	std::array<horde::MonsterTypeID, MAX_RECENT_BOSSES> items;
 	size_t count;
 
-	RecentBosses() noexcept : count(0) {
+	RecentBosses()  : count(0) {
 		items.fill(horde::MonsterTypeID::UNKNOWN);
 	}
 
-	void add(horde::MonsterTypeID boss_id) noexcept {
+	void add(horde::MonsterTypeID boss_id)  {
 		if (boss_id == horde::MonsterTypeID::UNKNOWN) return;
 		if (count < MAX_RECENT_BOSSES) {
 			items[count++] = boss_id;
@@ -2154,12 +2154,12 @@ struct RecentBosses
 		}
 	}
 
-	void add(const char *boss_classname) noexcept {
+	void add(const char *boss_classname)  {
 		if (!boss_classname) return;
 		add(horde::MonsterTypeRegistry::GetTypeID(boss_classname));
 	}
 
-	bool contains(horde::MonsterTypeID boss_id) const noexcept {
+	bool contains(horde::MonsterTypeID boss_id) const  {
 		if (boss_id == horde::MonsterTypeID::UNKNOWN) return false;
 		for (size_t i = 0; i < count; ++i) {
 			if (items[i] == boss_id) return true;
@@ -2167,18 +2167,18 @@ struct RecentBosses
 		return false;
 	}
 
-	bool contains(const char *boss_classname) const noexcept {
+	bool contains(const char *boss_classname) const  {
 		if (!boss_classname) return false;
 		return contains(horde::MonsterTypeRegistry::GetTypeID(boss_classname));
 	}
 
-	void clear() noexcept {
+	void clear()  {
 		items.fill(horde::MonsterTypeID::UNKNOWN);
 		count = 0;
 	}
 
-	size_t size() const noexcept { return count; }
-	bool empty() const noexcept { return count == 0; }
+	size_t size() const  { return count; }
+	bool empty() const  { return count == 0; }
 };
 static RecentBosses recent_bosses;
 
@@ -2579,7 +2579,7 @@ struct HordeItemSelectionCache
     // FIX: This now compiles because MAX_ENTRIES is in scope.
 	std::array<Entry, MAX_ENTRIES> entries{};
 
-	void clear() noexcept
+	void clear() 
 	{
 		count = 0;
 		total_weight = 0.0f;
@@ -2658,7 +2658,7 @@ gitem_t *G_HordePickItem()
 	return GetItemByIndex(chosen_id);
 }
 
-static int32_t countFlyingSpawns() noexcept
+static int32_t countFlyingSpawns() 
 {
 	return std::count_if(g_edicts + 1, g_edicts + globals.num_edicts,
 						 [](const edict_t &ent)
@@ -2669,7 +2669,7 @@ static int32_t countFlyingSpawns() noexcept
 						 });
 }
 
-static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept
+static float adjustFlyingSpawnProbability(int32_t flyingSpawns) 
 {
 	switch (flyingSpawns)
 	{
@@ -2815,7 +2815,7 @@ struct MonsterCache
 	size_t count = 0;
 	float total_weight = 0.0f;
 
-	void clear() noexcept
+	void clear() 
 	{
 		count = 0;
 		total_weight = 0.0f;
@@ -3236,13 +3236,13 @@ void VerifyAndAdjustBots()
 	}
 }
 
-void InitializeWaveSystem() noexcept;
+void InitializeWaveSystem() ;
 
 // Guard variable
 static bool items_precached = false;
 
 // Renamed function for clarity
-static void PrecacheAllGameItems() noexcept
+static void PrecacheAllGameItems() 
 {
 	// Only precache once
 	if (items_precached)
@@ -3283,7 +3283,7 @@ static void PrecacheAllGameItems() noexcept
 // Función para precarga de sonidos
 static bool sounds_precached = false;
 
-static void PrecacheWaveSounds() noexcept
+static void PrecacheWaveSounds() 
 {
 	if (sounds_precached)
 		return;
@@ -3374,7 +3374,7 @@ static void PlayWaveStartSound()
 // Capping resets on map end
 
 static bool hasBeenReset = false;
-void AllowReset() noexcept
+void AllowReset()  noexcept
 {
 	hasBeenReset = false;
 }
@@ -3408,7 +3408,7 @@ void ResetBosses()
 // --- MODIFIED ---
 // This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
 // Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
-void PrecacheAllMonsters() noexcept
+void PrecacheAllMonsters() 
 {
     // Only run this initial precache once per map load.
     if (monsters_precached) {
@@ -4440,12 +4440,12 @@ void ResetWaveMemory()
 	wave_memory_index = 0;
 }
 
-static void ResetRecentBosses() noexcept
+static void ResetRecentBosses() 
 {
 	recent_bosses.clear();
 }
 
-static void ResetTeleportTracking() noexcept
+static void ResetTeleportTracking() 
 {
 	// Reset recent teleport position history
 	g_recent_teleports.positions.fill(vec3_origin);
@@ -4964,7 +4964,7 @@ inline int8_t GetNumSpectPlayers()
 {
 	const auto &players = active_players();
 	return std::count_if(players.begin(), players.end(),
-						 [](const edict_t *const player) noexcept
+						 [](const edict_t *const player) 
 						 {
 							 return ClientIsSpectating(player->client);
 						 });
@@ -4985,7 +4985,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec)
 	UpdateHordeMessage(messages[choice], duration);
 }
 
-void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason) noexcept
+void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason) 
 {
 	// Obtener el número de jugadores humanos
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
@@ -5145,7 +5145,7 @@ static void AnnounceIncomingWave(gtime_t duration)
 	gi.sound(world, CHAN_VOICE, GetRandomWaveSound(), 1, ATTN_NONE, 0);
 }
 
-void InitializeWaveSystem() noexcept
+void InitializeWaveSystem() 
 {
 	PrecacheWaveSounds();
 }

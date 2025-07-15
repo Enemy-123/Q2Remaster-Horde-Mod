@@ -1259,7 +1259,7 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 
     // OPTIMIZATION: Gather all potential spawn points in a single pass over the edict list.
     edict_t* spot = nullptr;
-    for (int i = 1; i < globals.num_edicts; i++)
+    for (uint32_t i = 1; i < globals.num_edicts; i++)
     {
         spot = &g_edicts[i];
         if (!spot->inuse || !spot->classname)
