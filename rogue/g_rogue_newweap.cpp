@@ -1406,7 +1406,20 @@ THINK(tesla_think_active)(edict_t *self)->void
 	if (self->inuse)
 	{
 		self->think = tesla_think_active;
-		self->nextthink = level.time + 10_hz + gtime_t::from_hz(8 + irandom(5)); // Random value between 8hz and 12hz
+
+        // =======================================================================
+        // --- CORRECTED AND OPTIMIZED THINK TIME ---
+        //
+        // We want the tesla to think at a random frequency between 8 and 12 times
+        // per second. This prevents all teslas from thinking on the exact same
+        // frame, which smooths out performance.
+        
+        // 1. Calculate a random frequency (Hz). irandom(5) gives 0-4.
+        int random_frequency_hz = 8 + irandom(5); // Result is 8, 9, 10, 11, or 12.
+
+        // 2. Convert that frequency into a time duration and set the next think time.
+		self->nextthink = level.time + gtime_t::from_hz(random_frequency_hz);
+        // =======================================================================
 	}
 }
 

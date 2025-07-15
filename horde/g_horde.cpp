@@ -5724,41 +5724,69 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 }
 
 // REPLACEMENT: SpawnAmbushMonsters (initiates a time-sliced batch)
+// REPLACEMENT: SpawnAmbushMonsters (with fix for potential crash)
 int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 {
+	// If an ambush is already being spawned, don't start a new one.
 	if (g_monsters_to_spawn_in_current_ambush > 0) return 0;
 
 	horde::MonsterTypeID monster_typeId_for_ambush = horde::MonsterTypeID::UNKNOWN;
 	const int32_t currentLevel_ctx = g_horde_local.level;
 	const MonsterWaveType actualWaveType_ctx = current_wave_type;
 	
+	// Try up to 5 times to pick a suitable monster for the ambush.
 	for (int i = 0; i < 5; ++i) {
-        if (g_potential_spawn_points.empty()) break;
+        // =======================================================================
+        // --- THE FIX ---
+        // Before trying to access an element, we MUST check if the vector is empty.
+        // This prevents a crash when g_potential_spawn_points.size() is 0, which
+        // would cause `0 - 1` to underflow to a massive number.
+        if (g_potential_spawn_points.empty()) {
+            if (developer->integer) {
+                gi.Com_PrintFmt("SpawnAmbushMonsters: No potential spawn points available to pick from.\n");
+            }
+            break; // Exit the loop immediately if there's nothing to pick from.
+        }
+        // =======================================================================
+
+		// Now that we know the vector is not empty, this line is safe.
 		edict_t* point = g_potential_spawn_points[irandom(g_potential_spawn_points.size() - 1)];
+		
 		if (point && point->inuse) {
+			// Try to pick a monster type based on this spawn point.
 			monster_typeId_for_ambush = G_HordePickMonsterType(point, currentLevel_ctx, actualWaveType_ctx, false, false, MonsterWaveType::None);
-			if (monster_typeId_for_ambush != horde::MonsterTypeID::UNKNOWN) break;
+			// If we successfully found a monster, we're done with this loop.
+			if (monster_typeId_for_ambush != horde::MonsterTypeID::UNKNOWN) {
+				break;
+			}
 		}
 	}
 
+	// If, after all attempts, we still couldn't pick a monster, use a hardcoded fallback.
 	if (monster_typeId_for_ambush == horde::MonsterTypeID::UNKNOWN) {
 		if (waveLevel >= 15) {
+			// Fallback for later waves
 			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::GUNNER, horde::MonsterTypeID::GLADIATOR, horde::MonsterTypeID::TANK, horde::MonsterTypeID::SOLDIER_HYPERGUN, horde::MonsterTypeID::SOLDIER_LASERGUN};
 			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
 		} else {
+			// Fallback for earlier waves
 			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::SOLDIER_LIGHT, horde::MonsterTypeID::SOLDIER, horde::MonsterTypeID::INFANTRY, horde::MonsterTypeID::SOLDIER_SS, horde::MonsterTypeID::FLYER};
 			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
 		}
 	}
 
+	// Determine the size of the ambush based on map size and wave level.
 	const int baseCount = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
 	const int ambushSize = baseCount + (waveLevel >= 15 ? 2 : 1);
 
-	if (developer->integer) gi.Com_PrintFmt("HORDE: INITIATING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
+	if (developer->integer) {
+		gi.Com_PrintFmt("HORDE: INITIATING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
+	}
 
+	// Set up the global state for the time-sliced ambush spawner.
 	g_current_ambush_info = {monster_typeId_for_ambush, 0.20f, false, nullptr};
 	g_monsters_to_spawn_in_current_ambush = ambushSize;
-	g_next_single_ambush_monster_spawn_time = level.time;
+	g_next_single_ambush_monster_spawn_time = level.time; // Start spawning on the next frame.
 
 	return ambushSize;
 }
