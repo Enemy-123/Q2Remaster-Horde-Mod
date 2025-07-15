@@ -40,42 +40,62 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         return;
     }
 
-    // --- 2. Remove Lasers (O(K) operation) ---
+    // --- PASS 1: COLLECT all entities to be removed ---
+    std::vector<edict_t*> entities_to_remove;
+    entities_to_remove.reserve(32); // Reserve some space to avoid reallocations
+
+    // Collect Lasers
     for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
         edict_t* laser = player->client->resp.deployed_lasers[i];
         if (laser && laser->inuse) {
-            RemoveEntity(laser);
+            entities_to_remove.push_back(laser);
         }
     }
 
-    // --- 3. Remove Sentries (O(K) operation) ---
+    // Collect Sentries
     for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
         edict_t* sentry = player->client->resp.deployed_sentries[i];
         if (sentry && sentry->inuse) {
-            RemoveEntity(sentry);
+            entities_to_remove.push_back(sentry);
         }
     }
 
-    // --- 4. Remove Teslas (O(K) operation) ---
+    // Collect Teslas
     for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i) {
         edict_t* tesla = player->client->resp.deployed_teslas[i];
         if (tesla && tesla->inuse) {
-            RemoveEntity(tesla);
+            entities_to_remove.push_back(tesla);
         }
     }
 
-    // --- 5. Remove Traps (O(K) operation) ---
+    // Collect Traps
     for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i) {
         edict_t* trap = player->client->resp.deployed_traps[i];
         if (trap && trap->inuse) {
-            RemoveEntity(trap);
+            entities_to_remove.push_back(trap);
         }
     }
-	    // --- 6. Remove Proxs (O(K) operation) ---
+
+    // Collect Proxs
     for (int i = 0; i < ProxConstants::MAX_PROXS_PER_PLAYER; ++i) {
         edict_t* prox = player->client->resp.deployed_proxs[i];
         if (prox && prox->inuse) {
-            RemoveEntity(prox);
+            entities_to_remove.push_back(prox);
+        }
+    }
+    
+    // // You can also add other owned entities here, like dopplegangers, if needed.
+    // if (player->client->owned_sphere && player->client->owned_sphere->inuse) {
+    //     entities_to_remove.push_back(player->client->owned_sphere);
+    // }
+
+
+    // --- PASS 2: REMOVE all collected entities ---
+    for (edict_t* ent_to_remove : entities_to_remove) {
+        // The check 'ent_to_remove->inuse' is still a good practice here,
+        // in case one die function somehow affects another entity in the list.
+        if (ent_to_remove && ent_to_remove->inuse) {
+            RemoveEntity(ent_to_remove);
         }
     }
 }
