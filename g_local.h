@@ -3057,26 +3057,26 @@ struct client_respawn_t
 	sentrytype_t sentry_gun_choice; //save preference after death
 
 	// Lasers
-	int      num_lasers;
+	int      num_lasers = 0;
 	edict_t* deployed_lasers[LaserConstants::MAX_LASERS_PER_PLAYER];
 
 	// Teslas
-	int      num_teslas;
+	int      num_teslas = 0;
 	edict_t* deployed_teslas[TeslaConstants::MAX_TESLAS_PER_PLAYER];
 	int      oldest_tesla_idx;
 
 	// Food Cubes - TRAPS
-    int      num_traps;
+    int      num_traps = 0;
     edict_t* deployed_traps[TrapConstants::MAX_TRAPS_PER_PLAYER];
     int      oldest_trap_idx;
 
 	// --- Prox Mine Tracking ---
-	int         num_proxs;
+	int         num_proxs = 0;
 	edict_t*    deployed_proxs[ProxConstants::MAX_PROXS_PER_PLAYER];
 	int         oldest_prox_idx;
 
 	// Sentries
-	int      num_sentries;
+	int      num_sentries = 0;
 	edict_t* deployed_sentries[SentryConstants::MAX_SENTRIES_PER_PLAYER];
 
 	gtime_t teleport_cooldown = 3_sec;
