@@ -5489,7 +5489,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         return false;
     self->monsterinfo.stuck_check_time = level.time + random_time(7.0_sec, 9.0_sec);
 
-    if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)))
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) ||  (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET)))
         return false;
     
     if (IsMonsterJumping(self)) {

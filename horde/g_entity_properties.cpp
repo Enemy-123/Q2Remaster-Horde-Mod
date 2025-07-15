@@ -9,7 +9,8 @@ extern void trap_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod
 extern void laser_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 extern void BecomeExplosion1(edict_t* ent); // Generic explosion
 extern void doppleganger_die (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-// --- Wrappers from your original code ---
+
+// --- Wrappers to ensure health is negative before calling die function ---
 void Turret2DieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
     if (self && self->health > 0) self->health = -1;
     turret2_die(self, inflictor, attacker, damage, point, mod);
@@ -36,6 +37,7 @@ const entity_properties_source_t ENTITY_PROPERTIES_SRC[] = {
     {horde::SpecialEntityTypeID::LASER_EMITTER,  true, true,  laser_die},
     {horde::SpecialEntityTypeID::LASER_BEAM,     true, true,  laser_die},
     {horde::SpecialEntityTypeID::DOPPLEGANGER,   false, true,  doppleganger_die}
+    // Add other special entities here if they need custom cleanup
 };
 
 // --- Compile-Time Transformation ---

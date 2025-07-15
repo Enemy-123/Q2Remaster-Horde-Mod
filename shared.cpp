@@ -33,7 +33,6 @@ horde::MapSize GetMapSize(const char* mapname) {
 bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
 
-
 void RemovePlayerOwnedEntities(edict_t* player) {
     // --- 1. Safety Check ---
     if (!player || !player->client) {
@@ -41,6 +40,8 @@ void RemovePlayerOwnedEntities(edict_t* player) {
     }
 
     // --- PASS 1: COLLECT all entities to be removed ---
+    // We collect pointers first to avoid issues where one entity's die() function
+    // might affect another entity in the tracking arrays.
     std::vector<edict_t*> entities_to_remove;
     entities_to_remove.reserve(32); // Reserve some space to avoid reallocations
 
@@ -95,6 +96,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         // The check 'ent_to_remove->inuse' is still a good practice here,
         // in case one die function somehow affects another entity in the list.
         if (ent_to_remove && ent_to_remove->inuse) {
+            // Use the generic RemoveEntity function which calls the correct die() handler.
             RemoveEntity(ent_to_remove);
         }
     }
@@ -893,6 +895,7 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 }
 
 
+// Replace the existing PushEntitiesAway function with this one.
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength)
 {
 	push_radius = std::max(push_radius, 1.0f);
@@ -912,6 +915,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		if (gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f)
 			continue;
 
+        // Use our new helper function to decide what to do
 		if (IsRemovableEntity(ent)) {
 			entities_to_remove.push_back(ent);
 		}
@@ -924,10 +928,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 	for (edict_t* ent_to_remove : entities_to_remove) {
 		// Check inuse again in case it was removed by another process
 		if (ent_to_remove && ent_to_remove->inuse)
-			RemoveEntity(ent_to_remove);
+			RemoveEntity(ent_to_remove); // Use the new safe removal function
 	}
 
-	// Process waves
+	// Process waves (pushing logic remains the same)
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float wave_progress = static_cast<float>(wave) / num_waves;
 		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
