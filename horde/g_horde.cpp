@@ -1497,14 +1497,53 @@ static size_t wave_memory_index = 0;
 // Helper function to check if a wave type was recently used
 static bool WasRecentlyUsed(MonsterWaveType wave_type) 
 {
-	for (const auto &prev_type : previous_wave_types)
-	{
-		if (prev_type == wave_type)
-		{
-			return true;
-		}
-	}
-	return false;
+    // Define the major "themes" that should not repeat in consecutive waves.
+    // This is the core of the fix.
+    static constexpr std::array<MonsterWaveType, 7> MAJOR_THEMES = {{
+        MonsterWaveType::Flying,
+        MonsterWaveType::Gekk,
+        MonsterWaveType::Mutant,
+        MonsterWaveType::Berserk,
+        MonsterWaveType::Spawner,
+        MonsterWaveType::Shambler,
+        MonsterWaveType::Arachnophobic
+    }};
+
+    // Iterate through the history of the last few waves.
+    for (const auto& prev_type : previous_wave_types)
+    {
+        // If the historical slot is empty, skip it.
+        if (prev_type == MonsterWaveType::None) {
+            continue;
+        }
+
+        // --- 1. Theme Repetition Check ---
+        // Check if the new wave and a previous wave share a major theme.
+        for (const auto& theme : MAJOR_THEMES)
+        {
+            // First, check if the new wave even has this theme. If not, no need to check history for it.
+            if (HasWaveType(wave_type, theme))
+            {
+                // The new wave has the theme. Now, did a previous wave ALSO have it?
+                if (HasWaveType(prev_type, theme))
+                {
+                    // Yes, this is a theme repeat (e.g., a flying wave following a flying wave).
+                    return true; 
+                }
+            }
+        }
+
+        // --- 2. Exact Match Fallback Check ---
+        // If no theme was repeated, we still check if the entire wave composition is identical.
+        // This prevents, for example, two identical "Light | Medium | Ground" waves in a row.
+        if (wave_type == prev_type)
+        {
+            return true;
+        }
+    }
+
+    // If we've checked all recent waves and found no theme repeats or exact matches, it's not a repeat.
+    return false;
 }
 
 // Helper function to store wave type in memory
@@ -1777,6 +1816,17 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 
 	// Apply the base type
 	selected_type = g_waveDefinitions.base_types[def_index];
+
+	if (HasWaveType(selected_type, MonsterWaveType::Flying) && WasRecentlyUsed(MonsterWaveType::Flying))
+{
+    // The '~' operator is a bitwise NOT, which flips all the bits.
+    // '&' with the flipped bits effectively removes the flag.
+    selected_type &= ~MonsterWaveType::Flying;
+
+    if (developer->integer) {
+        gi.Com_PrintFmt("GetWaveComposition: Detected repeating Flying wave. Forcing ground-only.\n");
+    }
+}
 
 	// Process optional components for this definition
 	const size_t start_optional_index = def_index * WaveDefinitionsSoA::OPTIONALS_PER_DEF;
