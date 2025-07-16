@@ -259,19 +259,26 @@ void SpawnClusterGrenades(edict_t *owner_mine, const vec3_t &origin, int base_da
 	}
 }
 
-// --- NEW HELPER FUNCTION ---
-// This function is called just before a prox is removed to update its owner's count.
+// --- HELPER FUNCTION ---
 void CleanupProxFromOwner(edict_t* prox) {
     if (!prox || !prox->owner || !prox->owner->client) {
         return;
     }
 
-    // Simply decrement the number of active proxs. The array slot will be
-    // overwritten by fire_prox when the time comes.
     gclient_t* client = prox->owner->client;
     if (client->resp.num_proxs > 0) {
         client->resp.num_proxs--;
     }
+
+    // --- FIX: ADD THIS LOOP ---
+    // Find this prox in the owner's tracking array and null it out.
+    for (int i = 0; i < ProxConstants::MAX_PROXS_PER_PLAYER; ++i) {
+        if (client->resp.deployed_proxs[i] == prox) {
+            client->resp.deployed_proxs[i] = nullptr;
+            break; // Found and removed.
+        }
+    }
+    // --- END FIX ---
 }
 
 // --- Main Explosion Logic (MODIFIED) ---

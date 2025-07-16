@@ -495,13 +495,23 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 {
     // --- UPDATE PLAYER TRACKING ---
     if (self->owner && self->owner->client) {
-        // Decrement the count. We don't need to null out the array entry
-        // because the "replace oldest" logic will overwrite it.
-        self->owner->client->resp.num_traps--;
+        gclient_t* client = self->owner->client;
+        if (client->resp.num_traps > 0) {
+            client->resp.num_traps--;
+        }
+
+        // --- FIX: ADD THIS LOOP ---
+        // Find this trap in the owner's tracking array and null it out.
+        for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i) {
+            if (client->resp.deployed_traps[i] == self) {
+                client->resp.deployed_traps[i] = nullptr;
+                break; // Found and removed, no need to search further.
+            }
+        }
+        // --- END FIX ---
     }
 
     // --- CLEAN UP GLOBAL STATE ---
-    // Get the state for this trap and clear it for the next entity that might use this slot.
     trap_state_t* state = GetTrapState(self);
     if (state) {
         state->clear();

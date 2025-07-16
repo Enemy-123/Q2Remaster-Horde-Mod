@@ -108,6 +108,8 @@ namespace LaserHelpers
 }
 
 // --- Pierce Logic (Unchanged) ---
+// In g_laser.cpp
+
 struct laser_pierce_t : pierce_args_t
 {
     edict_t *self; // The beam entity
@@ -117,24 +119,51 @@ struct laser_pierce_t : pierce_args_t
     {
         if (!self || self->health <= 0 || !tr.ent)
             return false;
+
+        // The beam's owner is the emitter. Ignore it.
+        if (tr.ent == self->owner) {
+            return true; 
+        }
+
         if (tr.ent->client && OnSameTeam(self->teammaster, tr.ent))
             return false;
 
+        // --- START OF NEW DAMAGE LOGIC ---
         if (self->dmg > 0 && tr.ent->takedamage && tr.ent != self->teammaster)
         {
+            // 1. Check for target immunity BEFORE doing anything else.
+            // This applies to both monsters and players with invulnerability.
+            if (tr.ent->client && tr.ent->client->invincible_time > level.time) {
+                return mark(tr.ent); // Pierce through invincible players without effect.
+            }
+            if (tr.ent->svflags & SVF_MONSTER && tr.ent->monsterinfo.invincible_time > level.time) {
+                return mark(tr.ent); // Pierce through invincible monsters without effect.
+            }
+
+            // 2. The damage to be dealt is ALWAYS the beam's base damage.
+            // We do not apply any modifiers from the player (teammaster).
+            int damage_to_deal = self->dmg;
+
+            // 3. Apply the damage directly.
+            // We still use T_Damage to handle armor, pain functions, etc., but we pass our fixed damage value.
             vec3_t forward;
             AngleVectors(self->s.angles, &forward, nullptr, nullptr);
-            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, self->dmg, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage_to_deal, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
-            float damage_mult = (tr.ent->svflags & SVF_MONSTER) ? 1.0f : LaserConstants::LASER_NONCLIENT_MOD;
-            self->health -= static_cast<int>(self->dmg * damage_mult);
+            // 4. Drain the laser's health based on the damage dealt.
+            // This ensures that if the target was immune, no health is drained.
+            float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? 1.0f : LaserConstants::LASER_NONCLIENT_MOD;
+            self->health -= static_cast<int>(damage_to_deal * health_drain_multiplier);
 
+            // 5. Check if the laser is depleted.
             if (self->health <= 0)
             {
-                laser_die(self, self, self->teammaster, self->dmg, tr.endpos, MOD_PLAYER_LASER);
+                laser_die(self, self, self->teammaster, damage_to_deal, tr.endpos, MOD_PLAYER_LASER);
                 return false; // Stop piercing
             }
         }
+        // --- END OF NEW DAMAGE LOGIC ---
+
         if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client && (tr.ent->solid != SOLID_NOT && tr.ent->solid != SOLID_TRIGGER))
         {
             return false; // Stop at solid world geometry
@@ -144,8 +173,6 @@ struct laser_pierce_t : pierce_args_t
 };
 
 // --- Entity Functions ---
-
-// ** MODIFIED **
 DIE(laser_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
     if (!self || !self->inuse)
@@ -171,50 +198,44 @@ DIE(laser_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
         return;
     }
 
-    // Step 2: Update the player's tracking data.
+    // Step 2: Update the player's tracking data. (This is already perfect)
     edict_t *teammaster = emitter->teammaster;
     if (teammaster && teammaster->inuse && teammaster->client)
     {
-        // Decrement the count
         if (teammaster->client->resp.num_lasers > 0)
         {
             teammaster->client->resp.num_lasers--;
         }
-
-        // Find and remove this laser from the tracking array
         for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
         {
             if (teammaster->client->resp.deployed_lasers[i] == emitter)
             {
                 teammaster->client->resp.deployed_lasers[i] = nullptr;
-                break; // Found and removed, no need to search further
+                break;
             }
         }
     }
 
-    // Step 3: Clean up all associated resources and entities.
+    // --- REVISED AND EFFICIENT Step 3 ---
+    // Clean up all associated resources and entities.
     EmitterState* state = GetEmitterState(emitter);
     if (state) {
         state->clear();
     }
 
-    // Free the beam (stored in chain) and any other owned entities (like the flare).
-    // This loop is inefficient and potentially dangerous if G_FreeEdict modifies the list.
-    // A safer way is to free only known children.
+    // Free known children directly using the stored pointers.
+    // This is highly efficient and robust.
     if (emitter->chain && emitter->chain->inuse) {
-        G_FreeEdict(emitter->chain);
+        G_FreeEdict(emitter->chain); // Free the beam
     }
-    // Assuming the flare is the only other owned entity. If more, this needs to be more robust.
-    for (uint32_t i = 1; i <= globals.num_edicts; i++)
-    {
-        edict_t *child = &g_edicts[i];
-        if (child->inuse && child->owner == emitter && strcmp(child->classname, "misc_flare") == 0)
-        {
-            G_FreeEdict(child);
-            break; // Assuming only one flare
+    if (emitter->goalentity && emitter->goalentity->inuse) {
+        // We must check the classname to be 100% sure it's the flare,
+        // in case goalentity was used for something else by another system.
+        if (strcmp(emitter->goalentity->classname, "misc_flare") == 0) {
+             G_FreeEdict(emitter->goalentity); // Free the flare
         }
     }
-
+    // --- END REVISED Step 3 ---
 
     // Step 4: Finally, kill the emitter itself.
     emitter->health = 0;
@@ -311,6 +332,26 @@ THINK(emitter_think)(edict_t * self)->void
     self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+PAIN(laser_emitter_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+{
+    // This is the emitter. Its 'chain' is the beam.
+    edict_t* beam = self->chain;
+
+    // If the beam doesn't exist or is already dead, do nothing.
+    if (!beam || !beam->inuse || beam->health <= 0) {
+        return;
+    }
+
+    // Redirect the damage to the beam.
+    beam->health -= damage;
+
+    // If the beam's health drops to 0 or below, kill the entire laser assembly.
+    if (beam->health <= 0) {
+        // Use the beam's die function, which will correctly clean up the emitter.
+        laser_die(beam, other, other, damage, self->s.origin, mod);
+    }
+}
+
 void create_laser(edict_t * ent)
 {
     if (!ent || !ent->client)
@@ -370,10 +411,15 @@ void create_laser(edict_t * ent)
     emitter->solid = SOLID_BBOX;
     emitter->mins = vec3_t{-3, -3, 0};
     emitter->maxs = vec3_t{3, 3, 6};
-    emitter->takedamage = false;
+  // --- FIX: Make it targetable but resilient ---
+    emitter->takedamage = true;
+    emitter->health = 10000; // Give it a huge health pool so it can't be killed directly.
+    emitter->pain = laser_emitter_pain; // Damage is redirected to the beam.
+    // --- END FIX ---
     emitter->s.modelindex = gi.modelindex("models/objects/grenade2/tris.md2");
     emitter->teammaster = ent;
     emitter->chain = beam;
+    emitter->goalentity = flare; //test
     emitter->think = emitter_think;
     emitter->nextthink = level.time + FRAME_TIME_MS;
     emitter->die = laser_die;

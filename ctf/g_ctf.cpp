@@ -1062,7 +1062,6 @@ EntityType GetEntityType(const edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) return EntityType::Monster;
 	return EntityType::Other;
 }
-
 // This function now uses the fully refactored ID-based display name system.
 std::string FormatEntityInfo(edict_t* ent) {
     if (!ent || !ent->inuse) {
@@ -1127,13 +1126,12 @@ std::string FormatEntityInfo(edict_t* ent) {
         break;
     }
 
- case EntityType::Other: {
+    case EntityType::Other: {
         auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
         if (special_id == horde::SpecialEntityTypeID::UNKNOWN) {
             return {}; // Don't display info for unknown "other" entities.
         }
 
-        // --- Doppleganger Fix: The "Stats Source" Pointer ---
         // By default, the entity we are looking at is the source of its own stats.
         edict_t* stats_source = ent;
 
@@ -1141,54 +1139,69 @@ std::string FormatEntityInfo(edict_t* ent) {
         // are on the invisible "base" entity, which is linked via teammaster.
         if (special_id == horde::SpecialEntityTypeID::DOPPLEGANGER && ent->teammaster && ent->teammaster->inuse)
         {
-            // We are looking at the body, so redirect our stats source to the base.
             stats_source = ent->teammaster;
         }
-        // --- End of Doppleganger Fix ---
 
         // Get the display name from the entity we are targeting.
         std::string name = GetDisplayName(ent);
-        // Get the health from our corrected stats_source.
-        fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
-
-        // Use a fast switch on the ID to add extra info like timers.
+        
+        // --- START OF LASER FIX ---
+        // The logic for displaying health and other stats needs to be handled
+        // inside the switch for special cases like the laser.
+        
+        // Use a fast switch on the ID to add all info.
         switch (special_id) {
             case horde::SpecialEntityTypeID::TESLA_MINE: {
+                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
                 gtime_t const time_active = level.time - stats_source->timestamp;
                 gtime_t const time_remaining = TESLA_TIME_TO_LIVE - time_active;
                 fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
                 break;
             }
             case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: {
-                gtime_t const time_active = level.time - stats_source->timestamp;
-                gtime_t const time_remaining = -time_active; // Preserving your original logic
+                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
+                // Use the correct timestamp from the entity itself for time remaining.
+                gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
                 fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
                 break;
             }
             case horde::SpecialEntityTypeID::LASER_EMITTER: {
-                if (stats_source->owner && stats_source->owner->inuse) {
-                    fmt::format_to(std::back_inserter(info), " DMG: {}", stats_source->owner->health);
-                    gtime_t const time_active = level.time - stats_source->owner->timestamp;
-                    gtime_t const time_remaining = stats_source->timestamp - time_active;
+                // We are looking at the emitter. The beam is its 'chain'.
+                edict_t* emitter = stats_source;
+                edict_t* beam = emitter->chain;
+
+                // Get health from the beam if it exists, otherwise show 0.
+                int health_to_display = (beam && beam->inuse) ? beam->health : 0;
+                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, health_to_display);
+
+                // Get other stats from the beam and emitter.
+                if (beam && beam->inuse) {
+                    fmt::format_to(std::back_inserter(info), " DMG: {}", beam->dmg);
+                    gtime_t time_remaining = (emitter->timestamp > level.time) ? (emitter->timestamp - level.time) : 0_sec;
                     fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
                 }
                 break;
             }
+            // --- END OF LASER FIX ---
+            
             case horde::SpecialEntityTypeID::DOPPLEGANGER: {
+                // Display health from the base (stats_source)
+                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
                 // The self-destruct timer is on the base entity's think function.
                 gtime_t const time_remaining = stats_source->nextthink - level.time;
                 fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
                 break;
             }
             default:
-                // No special info for other types like Sentry Gun, Prox Mine, etc.
+                // For all other entities (Sentry, Prox, etc.), just show name and health.
+                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
                 break;
         }
-        break; // Exit the switch
+        break; // Exit the EntityType::Other case
     }
     }
 
-    // 4. After the switch is done, return the final, populated string.
+    // After the switch is done, return the final, populated string.
     return info;
 }
 
