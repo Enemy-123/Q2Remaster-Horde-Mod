@@ -1154,7 +1154,10 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 	// ZOID
 	// strength tech
-	damage = CTFApplyStrength(attacker, damage);
+	if (mod.id != MOD_PLAYER_LASER)
+	{
+		damage = CTFApplyStrength(attacker, damage);
+	}
 	// ZOID
 
 	if ((targ->flags & FL_NO_KNOCKBACK) ||
