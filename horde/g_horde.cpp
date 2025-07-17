@@ -610,7 +610,7 @@ edict_t* FindRandomHordeSpawnPoint(bool for_flying_monster)
     });
 }
 
-static void CleanupSpawnPointCache()  { spawn_point_cache.clear(); }
+static void CleanupSpawnPointCache() noexcept { spawn_point_cache.clear(); }
 
 //  Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
@@ -655,7 +655,7 @@ static constexpr const char *START_SOUND_PATHS[NUM_START_SOUNDS] = {
 	"makron/voice2.wav",
 	"makron/voice.wav"};
 
-static const char *GetCurrentMapName() 
+static const char *GetCurrentMapName() noexcept
 {
 	return static_cast<const char *>(level.mapname);
 }
@@ -848,7 +848,7 @@ bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t *>{};
 
 // Función para calcular el bono de locura y caos
-static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) 
+static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept
 {
 	if (g_chaotic->integer)
 		return (lvl <= 3) ? 6 : 3;
@@ -960,7 +960,7 @@ inline static void ClampNumToSpawn(const horde::MapSize &mapSize)
 	}
 }
 
-static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lvl, bool isHardMode)  {
+static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lvl, bool isHardMode) noexcept {
     if (lvl <= 3) // No queue for first 3 waves still seems fine
         return 0;
 
@@ -1078,7 +1078,7 @@ struct WaveScalingCache
 	}
 } g_waveScalingCache;
 
-void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t humanPlayers) 
+void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t humanPlayers) noexcept
 {
 	using namespace HordeConstants;
 
@@ -1201,7 +1201,7 @@ struct ConditionParams
 	float lowPercentageThreshold;
 	float aggressiveTimeReductionThreshold;
 
-	ConditionParams()  : maxMonsters(0),
+	ConditionParams() noexcept : maxMonsters(0),
 								 timeThreshold(0_sec),
 								 lowPercentageTimeThreshold(0_sec),
 								 independentTimeThreshold(0_sec),
@@ -1495,59 +1495,20 @@ static std::array<MonsterWaveType, WAVE_MEMORY_SIZE> previous_wave_types = {};
 static size_t wave_memory_index = 0;
 
 // Helper function to check if a wave type was recently used
-static bool WasRecentlyUsed(MonsterWaveType wave_type) 
+static bool WasRecentlyUsed(MonsterWaveType wave_type) noexcept
 {
-    // Define the major "themes" that should not repeat in consecutive waves.
-    // This is the core of the fix.
-    static constexpr std::array<MonsterWaveType, 7> MAJOR_THEMES = {{
-        MonsterWaveType::Flying,
-        MonsterWaveType::Gekk,
-        MonsterWaveType::Mutant,
-        MonsterWaveType::Berserk,
-        MonsterWaveType::Spawner,
-        MonsterWaveType::Shambler,
-        MonsterWaveType::Arachnophobic
-    }};
-
-    // Iterate through the history of the last few waves.
-    for (const auto& prev_type : previous_wave_types)
-    {
-        // If the historical slot is empty, skip it.
-        if (prev_type == MonsterWaveType::None) {
-            continue;
-        }
-
-        // --- 1. Theme Repetition Check ---
-        // Check if the new wave and a previous wave share a major theme.
-        for (const auto& theme : MAJOR_THEMES)
-        {
-            // First, check if the new wave even has this theme. If not, no need to check history for it.
-            if (HasWaveType(wave_type, theme))
-            {
-                // The new wave has the theme. Now, did a previous wave ALSO have it?
-                if (HasWaveType(prev_type, theme))
-                {
-                    // Yes, this is a theme repeat (e.g., a flying wave following a flying wave).
-                    return true; 
-                }
-            }
-        }
-
-        // --- 2. Exact Match Fallback Check ---
-        // If no theme was repeated, we still check if the entire wave composition is identical.
-        // This prevents, for example, two identical "Light | Medium | Ground" waves in a row.
-        if (wave_type == prev_type)
-        {
-            return true;
-        }
-    }
-
-    // If we've checked all recent waves and found no theme repeats or exact matches, it's not a repeat.
-    return false;
+	for (const auto &prev_type : previous_wave_types)
+	{
+		if (prev_type == wave_type)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 // Helper function to store wave type in memory
-static void StoreWaveType(MonsterWaveType wave_type) 
+static void StoreWaveType(MonsterWaveType wave_type) noexcept
 {
 	previous_wave_types[wave_memory_index] = wave_type;
 	wave_memory_index = (wave_memory_index + 1) % WAVE_MEMORY_SIZE;
@@ -1620,7 +1581,7 @@ static bool TrySetWaveType(MonsterWaveType new_type)
 }
 
 // Helper function to check if a wave type is a special wave
-static bool IsSpecialWaveType(MonsterWaveType type) 
+static bool IsSpecialWaveType(MonsterWaveType type) noexcept
 {
 	return HasWaveType(type, MonsterWaveType::Gekk) ||
 		   HasWaveType(type, MonsterWaveType::Berserk) ||
@@ -1633,7 +1594,7 @@ static bool IsSpecialWaveType(MonsterWaveType type)
 }
 
 // check if the previous wave was a special wave
-static bool WasLastWaveSpecial() 
+static bool WasLastWaveSpecial() noexcept
 {
 	if (previous_wave_types.empty())
 	{
@@ -1816,17 +1777,6 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 
 	// Apply the base type
 	selected_type = g_waveDefinitions.base_types[def_index];
-
-	if (HasWaveType(selected_type, MonsterWaveType::Flying) && WasRecentlyUsed(MonsterWaveType::Flying))
-{
-    // The '~' operator is a bitwise NOT, which flips all the bits.
-    // '&' with the flipped bits effectively removes the flag.
-    selected_type &= ~MonsterWaveType::Flying;
-
-    if (developer->integer) {
-        gi.Com_PrintFmt("GetWaveComposition: Detected repeating Flying wave. Forcing ground-only.\n");
-    }
-}
 
 	// Process optional components for this definition
 	const size_t start_optional_index = def_index * WaveDefinitionsSoA::OPTIONALS_PER_DEF;
@@ -2053,7 +2003,7 @@ constexpr MonsterDataSoA create_monster_data_soa() {
 // The compiler runs create_monster_data_soa() and bakes the result directly into the executable.
 static const MonsterDataSoA g_monsterData = create_monster_data_soa();
 
-inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) 
+inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId) noexcept
 {
     const size_t index = static_cast<size_t>(typeId);
     if (index >= g_monsterData.MONSTER_ARRAY_SIZE) {
@@ -2188,11 +2138,11 @@ struct RecentBosses
 	std::array<horde::MonsterTypeID, MAX_RECENT_BOSSES> items;
 	size_t count;
 
-	RecentBosses()  : count(0) {
+	RecentBosses() noexcept : count(0) {
 		items.fill(horde::MonsterTypeID::UNKNOWN);
 	}
 
-	void add(horde::MonsterTypeID boss_id)  {
+	void add(horde::MonsterTypeID boss_id) noexcept {
 		if (boss_id == horde::MonsterTypeID::UNKNOWN) return;
 		if (count < MAX_RECENT_BOSSES) {
 			items[count++] = boss_id;
@@ -2204,12 +2154,12 @@ struct RecentBosses
 		}
 	}
 
-	void add(const char *boss_classname)  {
+	void add(const char *boss_classname) noexcept {
 		if (!boss_classname) return;
 		add(horde::MonsterTypeRegistry::GetTypeID(boss_classname));
 	}
 
-	bool contains(horde::MonsterTypeID boss_id) const  {
+	bool contains(horde::MonsterTypeID boss_id) const noexcept {
 		if (boss_id == horde::MonsterTypeID::UNKNOWN) return false;
 		for (size_t i = 0; i < count; ++i) {
 			if (items[i] == boss_id) return true;
@@ -2217,18 +2167,18 @@ struct RecentBosses
 		return false;
 	}
 
-	bool contains(const char *boss_classname) const  {
+	bool contains(const char *boss_classname) const noexcept {
 		if (!boss_classname) return false;
 		return contains(horde::MonsterTypeRegistry::GetTypeID(boss_classname));
 	}
 
-	void clear()  {
+	void clear() noexcept {
 		items.fill(horde::MonsterTypeID::UNKNOWN);
 		count = 0;
 	}
 
-	size_t size() const  { return count; }
-	bool empty() const  { return count == 0; }
+	size_t size() const noexcept { return count; }
+	bool empty() const noexcept { return count == 0; }
 };
 static RecentBosses recent_bosses;
 
@@ -2585,130 +2535,125 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::st
 }
 
 
-// --- Step 1: Define the SoA structure for item data ---
-struct HordeItemDataSoA {
-    static constexpr size_t NUM_ITEMS = std::size(hordeItemData);
-
-    std::array<item_id_t, NUM_ITEMS> ids;
-    std::array<float, NUM_ITEMS> weights;
-    std::array<int, NUM_ITEMS> minWaves;
-};
-
-// --- Step 2: Define the compile-time transformation function ---
-constexpr HordeItemDataSoA create_horde_item_data_soa() {
-    HordeItemDataSoA soa_data{};
-    // FIX: Use std::size() for C-style arrays, not .size()
-    for (size_t i = 0; i < std::size(hordeItemData); ++i) {
-        soa_data.ids[i]      = hordeItemData[i].id;
-        soa_data.weights[i]  = hordeItemData[i].weight;
-        soa_data.minWaves[i] = hordeItemData[i].minWave;
-    }
-    return soa_data;
-}
-
-// --- Step 3: Create the global, constant, SoA data instance ---
-static const HordeItemDataSoA g_hordeItemDataSoA = create_horde_item_data_soa();
-
-
-// --- Step 4: Correct the Caching Structure ---
+// Adapted Caching Structure (using std::array for fixed size based on input)
 struct HordeItemSelectionCache
 {
-    // FIX: Define MAX_ENTRIES inside the struct to scope it correctly.
-    static constexpr size_t MAX_ENTRIES = std::size(hordeItemData);
-
+	// Automatically size based on the actual data array
+	static constexpr size_t MAX_ENTRIES = std::size(hordeItemData);
 	struct Entry
 	{
-        // We store the index into the SoA data, not a pointer to the old AoS data.
-        size_t item_index;
+		const HordeItemInfo *itemInfo; // Pointer to the HordeItemInfo entry
 		float weight;
 		float cumulative_weight;
 	};
 
 	size_t count = 0;
 	float total_weight = 0.0f;
-    // FIX: This now compiles because MAX_ENTRIES is in scope.
-	std::array<Entry, MAX_ENTRIES> entries{};
+	// Use std::array for compile-time sized array based on hordeItemData
+	std::array<Entry, MAX_ENTRIES> entries{}; // Value-initialize
 
-	void clear() 
+	void clear() noexcept
 	{
 		count = 0;
 		total_weight = 0.0f;
+		// No need to clear array elements explicitly when count = 0
 	}
 };
 // Static cache instance specifically for Horde item selection
 static HordeItemSelectionCache horde_item_cache;
 
-
-// --- Step 5: Correct the G_HordePickItem function ---
+// Modified Function using HordeItemInfo and item_id_t
 gitem_t *G_HordePickItem()
 {
 	// Reset cache for this selection attempt
 	horde_item_cache.clear();
 
-	// --- Collect Eligible Items (Cache-Friendly Loop) ---
-    // This loop primarily accesses g_hordeItemDataSoA.minWaves, which is a tight, contiguous array.
-	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)
+	// Use std::span for safe iteration over the hordeItemData array
+	std::span<const HordeItemInfo> items_view{hordeItemData};
+
+	// --- Collect Eligible Items ---
+	for (const auto &hordeItemInfo : items_view)
 	{
+		// Check if cache is full (safety check, should not happen with std::array)
 		if (horde_item_cache.count >= HordeItemSelectionCache::MAX_ENTRIES)
 		{
-			break; // Safety break
+			if (developer->integer)
+			{ // Log error if this happens unexpectedly
+				gi.Com_PrintFmt("Warning: HordeItemSelectionCache full! Increase MAX_ENTRIES if not using std::array.\n");
+			}
+			break;
 		}
 
 		// Filter based on minimum wave level required for the item
-		if (g_horde_local.level >= g_hordeItemDataSoA.minWaves[i])
+		if (g_horde_local.level >= hordeItemInfo.minWave)
 		{
-            // Only now do we access the weights array.
-			float adjusted_weight = g_hordeItemDataSoA.weights[i];
 
+			// Use the weight directly from HordeItemInfo
+			// Future Enhancements: Add more complex weight adjustments here
+			// (e.g., based on player count, current inventory, game state)
+			float adjusted_weight = hordeItemInfo.weight;
+
+			// Ensure weight is positive before adding to the cache
 			if (adjusted_weight > 0.0f)
 			{
 				horde_item_cache.total_weight += adjusted_weight;
-                
-                // FIX: Access the 'entries' member which is now correctly declared.
+				// Get reference to the next entry in the cache array
 				auto &entry = horde_item_cache.entries[horde_item_cache.count];
-                
-                // FIX: Store the index, not a pointer.
-                entry.item_index = i;
+				entry.itemInfo = &hordeItemInfo; // Store pointer to the HordeItemInfo struct
 				entry.weight = adjusted_weight;
 				entry.cumulative_weight = horde_item_cache.total_weight;
-				horde_item_cache.count++;
+				horde_item_cache.count++; // Increment the count of eligible items
 			}
 		}
-	}
+	} // End of item collection loop
 
 	// Check if any eligible items were found
 	if (horde_item_cache.count == 0 || horde_item_cache.total_weight <= 0.0f)
 	{
-		return nullptr;
+		// Log if no items found (useful for debugging balance/data issues)
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("Warning: G_HordePickItem found no eligible items for wave {}.\n", g_horde_local.level);
+		}
+		return nullptr; // No items eligible or they all have zero/negative weight
 	}
 
-	// --- Weighted Random Selection ---
+	// --- MODIFIED: Weighted Random Selection using std::lower_bound ---
 	const float random_value = frandom() * horde_item_cache.total_weight;
 
-    // FIX: Access the 'entries' member which is now correctly declared.
+	// Use std::lower_bound to find the first entry whose cumulative_weight is not less than random_value.
 	auto it = std::lower_bound(
 		horde_item_cache.entries.begin(),
-		horde_item_cache.entries.begin() + horde_item_cache.count,
+		horde_item_cache.entries.begin() + horde_item_cache.count, // Search only the valid range
 		random_value,
 		[](const HordeItemSelectionCache::Entry& entry, float value) {
 			return entry.cumulative_weight < value;
 		}
 	);
 
-    // FIX: Access the 'entries' member which is now correctly declared.
+    // Robustness check: if lower_bound returns the end iterator, fall back to the last valid element.
     if (it == horde_item_cache.entries.begin() + horde_item_cache.count) {
         it = std::prev(it);
     }
+	// --- END MODIFICATION ---
 
-	// --- Retrieve and Return the Item using the stored index ---
-    // FIX: Get the index from the iterator and use it to look up the ID in the SoA data.
-	const size_t chosen_index = it->item_index;
-    const item_id_t chosen_id = g_hordeItemDataSoA.ids[chosen_index];
+	// --- Retrieve and Return the Item ---
+	const HordeItemInfo *chosen_info = it->itemInfo;
 
-	return GetItemByIndex(chosen_id);
+	if (!chosen_info)
+	{
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("Error: G_HordePickItem - chosen_info is null after selection.\n");
+		}
+		return nullptr;
+	}
+
+	// Use the item_id_t from the chosen info to get the actual gitem_t pointer
+	return GetItemByIndex(chosen_info->id);
 }
 
-static int32_t countFlyingSpawns() 
+static int32_t countFlyingSpawns() noexcept
 {
 	return std::count_if(g_edicts + 1, g_edicts + globals.num_edicts,
 						 [](const edict_t &ent)
@@ -2719,7 +2664,7 @@ static int32_t countFlyingSpawns()
 						 });
 }
 
-static float adjustFlyingSpawnProbability(int32_t flyingSpawns) 
+static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept
 {
 	switch (flyingSpawns)
 	{
@@ -2865,7 +2810,7 @@ struct MonsterCache
 	size_t count = 0;
 	float total_weight = 0.0f;
 
-	void clear() 
+	void clear() noexcept
 	{
 		count = 0;
 		total_weight = 0.0f;
@@ -3286,13 +3231,13 @@ void VerifyAndAdjustBots()
 	}
 }
 
-void InitializeWaveSystem() ;
+void InitializeWaveSystem() noexcept;
 
 // Guard variable
 static bool items_precached = false;
 
 // Renamed function for clarity
-static void PrecacheAllGameItems() 
+static void PrecacheAllGameItems() noexcept
 {
 	// Only precache once
 	if (items_precached)
@@ -3333,7 +3278,7 @@ static void PrecacheAllGameItems()
 // Función para precarga de sonidos
 static bool sounds_precached = false;
 
-static void PrecacheWaveSounds() 
+static void PrecacheWaveSounds() noexcept
 {
 	if (sounds_precached)
 		return;
@@ -3424,7 +3369,7 @@ static void PlayWaveStartSound()
 // Capping resets on map end
 
 static bool hasBeenReset = false;
-void AllowReset()  noexcept
+void AllowReset() noexcept
 {
 	hasBeenReset = false;
 }
@@ -3458,7 +3403,7 @@ void ResetBosses()
 // --- MODIFIED ---
 // This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
 // Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
-void PrecacheAllMonsters() 
+void PrecacheAllMonsters() noexcept
 {
     // Only run this initial precache once per map load.
     if (monsters_precached) {
@@ -4490,12 +4435,12 @@ void ResetWaveMemory()
 	wave_memory_index = 0;
 }
 
-static void ResetRecentBosses() 
+static void ResetRecentBosses() noexcept
 {
 	recent_bosses.clear();
 }
 
-static void ResetTeleportTracking() 
+static void ResetTeleportTracking() noexcept
 {
 	// Reset recent teleport position history
 	g_recent_teleports.positions.fill(vec3_origin);
@@ -5014,7 +4959,7 @@ inline int8_t GetNumSpectPlayers()
 {
 	const auto &players = active_players();
 	return std::count_if(players.begin(), players.end(),
-						 [](const edict_t *const player) 
+						 [](const edict_t *const player) noexcept
 						 {
 							 return ClientIsSpectating(player->client);
 						 });
@@ -5035,7 +4980,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec)
 	UpdateHordeMessage(messages[choice], duration);
 }
 
-void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason) 
+void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason) noexcept
 {
 	// Obtener el número de jugadores humanos
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
@@ -5195,7 +5140,7 @@ static void AnnounceIncomingWave(gtime_t duration)
 	gi.sound(world, CHAN_VOICE, GetRandomWaveSound(), 1, ATTN_NONE, 0);
 }
 
-void InitializeWaveSystem() 
+void InitializeWaveSystem() noexcept
 {
 	PrecacheWaveSounds();
 }
@@ -5489,7 +5434,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
         return false;
     self->monsterinfo.stuck_check_time = level.time + random_time(7.0_sec, 9.0_sec);
 
-    if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) ||  (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET)))
+    if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)))
         return false;
     
     if (IsMonsterJumping(self)) {
@@ -5773,68 +5718,42 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 	}
 }
 
+// REPLACEMENT: SpawnAmbushMonsters (initiates a time-sliced batch)
 int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 {
-	// If an ambush is already being spawned, don't start a new one.
 	if (g_monsters_to_spawn_in_current_ambush > 0) return 0;
 
 	horde::MonsterTypeID monster_typeId_for_ambush = horde::MonsterTypeID::UNKNOWN;
 	const int32_t currentLevel_ctx = g_horde_local.level;
 	const MonsterWaveType actualWaveType_ctx = current_wave_type;
 	
-	// Try up to 5 times to pick a suitable monster for the ambush.
 	for (int i = 0; i < 5; ++i) {
-        // This guard is still essential.
-        if (g_potential_spawn_points.empty()) {
-            if (developer->integer) {
-                gi.Com_PrintFmt("SpawnAmbushMonsters: No potential spawn points available to pick from.\n");
-            }
-            break;
-        }
-
-		// =======================================================================
-		// --- FINAL, IDIOMATIC FIX ---
-		// Use your own excellent `random_element` helper function.
-		// It's more expressive and handles the indexing logic safely internally.
-		// This is the cleanest and most robust way to write this.
-		edict_t* point = random_element(g_potential_spawn_points);
-		// =======================================================================
-		
+        if (g_potential_spawn_points.empty()) break;
+		edict_t* point = g_potential_spawn_points[irandom(g_potential_spawn_points.size() - 1)];
 		if (point && point->inuse) {
-			// Try to pick a monster type based on this spawn point.
 			monster_typeId_for_ambush = G_HordePickMonsterType(point, currentLevel_ctx, actualWaveType_ctx, false, false, MonsterWaveType::None);
-			// If we successfully found a monster, we're done with this loop.
-			if (monster_typeId_for_ambush != horde::MonsterTypeID::UNKNOWN) {
-				break;
-			}
+			if (monster_typeId_for_ambush != horde::MonsterTypeID::UNKNOWN) break;
 		}
 	}
 
-	// If, after all attempts, we still couldn't pick a monster, use a hardcoded fallback.
 	if (monster_typeId_for_ambush == horde::MonsterTypeID::UNKNOWN) {
 		if (waveLevel >= 15) {
-			// Fallback for later waves
 			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::GUNNER, horde::MonsterTypeID::GLADIATOR, horde::MonsterTypeID::TANK, horde::MonsterTypeID::SOLDIER_HYPERGUN, horde::MonsterTypeID::SOLDIER_LASERGUN};
-			monster_typeId_for_ambush = random_element(types); // Also use it here for consistency!
+			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
 		} else {
-			// Fallback for earlier waves
 			static const std::array<horde::MonsterTypeID, 5> types = {horde::MonsterTypeID::SOLDIER_LIGHT, horde::MonsterTypeID::SOLDIER, horde::MonsterTypeID::INFANTRY, horde::MonsterTypeID::SOLDIER_SS, horde::MonsterTypeID::FLYER};
-			monster_typeId_for_ambush = random_element(types); // And here!
+			monster_typeId_for_ambush = types[irandom(types.size() - 1)];
 		}
 	}
 
-	// Determine the size of the ambush based on map size and wave level.
 	const int baseCount = mapSize.isSmallMap ? 3 : (mapSize.isBigMap ? 5 : 4);
 	const int ambushSize = baseCount + (waveLevel >= 15 ? 2 : 1);
 
-	if (developer->integer) {
-		gi.Com_PrintFmt("HORDE: INITIATING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
-	}
+	if (developer->integer) gi.Com_PrintFmt("HORDE: INITIATING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
 
-	// Set up the global state for the time-sliced ambush spawner.
 	g_current_ambush_info = {monster_typeId_for_ambush, 0.20f, false, nullptr};
 	g_monsters_to_spawn_in_current_ambush = ambushSize;
-	g_next_single_ambush_monster_spawn_time = level.time; // Start spawning on the next frame.
+	g_next_single_ambush_monster_spawn_time = level.time;
 
 	return ambushSize;
 }
