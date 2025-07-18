@@ -10,6 +10,12 @@
 #include "../g_laser.h"
 #include "../profiler.h"
 
+struct SpawnPlanEntry {
+	horde::MonsterTypeID typeId;
+	edict_t*             spawn_point;
+};
+static std::vector<SpawnPlanEntry> g_spawn_plan;
+
 static std::unordered_set<horde::MonsterTypeID> g_precached_monster_types;
 static bool g_full_precache_done = false;
 
@@ -6065,17 +6071,81 @@ static int ExecuteNormalSpawnProcedure(
 	MonsterWaveType current_actual_wave_type_param,
 	MonsterWaveType original_wave_type_before_recovery_param);
 
+
+	// ADD THIS NEW FUNCTION
+// This function does the heavy lifting of planning the entire spawn batch at once.
+static void PlanMonsterSpawnBatch(
+	int32_t num_to_plan,
+	int32_t currentLevel_param,
+	float champion_chance_param,
+	bool is_recovery_mode_active_param,
+	bool is_retaliation_active_param,
+	MonsterWaveType current_actual_wave_type_param,
+	MonsterWaveType original_wave_type_before_recovery_param)
+{
+	g_spawn_plan.clear();
+	g_spawn_plan.reserve(num_to_plan);
+
+	const size_t total_potential_points = g_potential_spawn_points.size();
+	if (total_potential_points == 0) {
+		return;
+	}
+
+	size_t points_checked = 0;
+	int planned_count = 0;
+
+	// Keep trying to find spots until we have planned enough monsters or checked all points twice
+	while (planned_count < num_to_plan && points_checked < total_potential_points * 2)
+	{
+		if (g_spawn_point_shuffle_index >= total_potential_points) {
+			g_spawn_point_shuffle_index = 0; // Loop back to the start of the shuffled list
+		}
+		edict_t* spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
+		points_checked++;
+
+		if (!ValidateSpawnPointForMonster(spawn_point, level.time, is_recovery_mode_active_param)) {
+			continue;
+		}
+
+		horde::MonsterTypeID monster_type_id = G_HordePickMonsterType(
+			spawn_point,
+			currentLevel_param,
+			current_actual_wave_type_param,
+			is_retaliation_active_param,
+			is_recovery_mode_active_param,
+			original_wave_type_before_recovery_param);
+
+		if (monster_type_id == horde::MonsterTypeID::UNKNOWN) {
+			continue; // Couldn't pick a monster for this spot, try the next one
+		}
+
+		// We found a valid monster and spot. Add it to our plan.
+		g_spawn_plan.push_back({ monster_type_id, spawn_point });
+		planned_count++;
+	}
+
+	if (developer->integer && planned_count < num_to_plan) {
+		gi.Com_PrintFmt("Spawn Plan: Only able to plan {} out of {} requested monsters.\n", planned_count, num_to_plan);
+	}
+}
+
 //======================================================================
 // MODIFIED: SpawnMonsters
 // This function no longer spawns monsters directly. Instead, it INITIATES
 // a time-sliced batch by setting the new global state variables.
 //======================================================================
+// REPLACE the existing SpawnMonsters function
 void SpawnMonsters()
 {
 	if (level.intermissiontime)
 		return;
 	if (developer->integer == 2 && g_horde->integer)
 		return;
+
+	// --- If a plan is already being executed, do nothing here ---
+	if (!g_spawn_plan.empty()) {
+		return;
+	}
 
 	// --- Cache Globals ---
 	const horde::MapSize& mapSize = g_horde_local.current_map_size;
@@ -6095,17 +6165,15 @@ void SpawnMonsters()
 		return;
 	}
 
-	// <<< FIX: Ambush System is now checked BEFORE the hard cap. >>>
 	// --- 2. Ambush System (Priority Check) ---
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : (mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP));
 	if (TrySpawnAmbush(mapSize, currentLevel, activeMonsters, softCap))
 	{
 		SetNextMonsterSpawnTime(mapSize);
-		return; // Ambush was triggered, end this frame's spawn logic.
+		return;
 	}
 
-	// <<< FIX: Hard cap check now happens AFTER the ambush check. >>>
 	// --- 3. Hard Cap Check ---
 	const int32_t hardCap = static_cast<int32_t>(softCap * 1.4f);
 	if (CheckHardCapAndLog(activeMonsters, hardCap, softCap, g_horde_local.state, currentLevel))
@@ -6139,20 +6207,10 @@ void SpawnMonsters()
 	float champion_chance_for_batch;
 	DetermineSpawnStrategy(mapSize, spawnable_this_call, use_emergency_spawn_flag, g_recovery_mode_active, champion_chance_for_batch, availableSpace, currentLevel);
 
-	// ==================================================================
-	// --- 6. NEW BATCH SPAWNING LOGIC ---
-	// ==================================================================
-
-	// If we are already in the middle of spawning a batch, do nothing here.
-	// The SpawnSingleMonsterFromBatch() call in Horde_RunFrame will handle it.
-	if (g_monsters_to_spawn_in_current_batch > 0)
-	{
-		return;
-	}
-
-	// Emergency spawns are still immediate, single-frame actions.
+	// --- 6. INITIATE SPAWNING ---
 	if (use_emergency_spawn_flag)
 	{
+		// Emergency spawns are still immediate, as they are a recovery mechanism.
 		int num_spawned = ExecuteEmergencySpawnProcedure(spawnable_this_call, currentLevel, champion_chance_for_batch);
 		if (num_spawned > 0 && g_recovery_mode_active)
 		{
@@ -6162,21 +6220,22 @@ void SpawnMonsters()
 			g_original_wave_type_before_recovery = MonsterWaveType::None;
 		}
 	}
-	else // This is the normal spawn path.
+	else if (spawnable_this_call > 0)
 	{
-		// Instead of calling a loop, we just set up the batch counter.
-		if (spawnable_this_call > 0)
-		{
-			g_monsters_to_spawn_in_current_batch = spawnable_this_call;
-			g_champion_chance_for_current_batch = champion_chance_for_batch; // Store the chance
-			
-			// Set the timer to immediately trigger the first spawn of the batch on the next frame.
-			g_next_single_monster_spawn_time = level.time;
-		}
+		// This is the key change: Call the planner to create the spawn plan.
+		PlanMonsterSpawnBatch(
+			spawnable_this_call,
+			currentLevel,
+			champion_chance_for_batch,
+			g_recovery_mode_active,
+			g_horde_retaliation_active,
+			current_wave_type,
+			g_original_wave_type_before_recovery
+		);
+		// The execution will be handled by Horde_RunFrame.
 	}
 
 	// --- 7. Final Actions ---
-	// This now sets the timer for the NEXT BATCH, not the next monster.
 	SetNextMonsterSpawnTime(mapSize);
 }
 
@@ -7033,52 +7092,44 @@ void CheckAndResetDisabledSpawnPoints()
         }
     }
 }
-//======================================================================
-// NEW HELPER FUNCTION: SpawnSingleMonsterFromBatch
-// This function attempts to spawn exactly ONE monster from an active batch
-// and is the core of the time-slicing solution.
-//======================================================================
-static void SpawnSingleMonsterFromBatch()
+static void ExecuteSpawnPlan()
 {
-	// Early exit if we are not currently processing a batch or it's not time yet.
-	if (g_monsters_to_spawn_in_current_batch <= 0 || level.time < g_next_single_monster_spawn_time)
-	{
+	// If there's no plan, or it's not time for the next spawn, do nothing.
+	if (g_spawn_plan.empty() || level.time < g_next_single_monster_spawn_time) {
 		return;
 	}
 
-	// Attempt to spawn one monster. We reuse your existing robust function for this.
-	// The context parameters are passed in from the main game state.
-	bool success = AttemptSpawnSingleMonster(
+	// Get the next monster from the plan
+	SpawnPlanEntry plan_entry = g_spawn_plan.back();
+	g_spawn_plan.pop_back();
+
+	// Spawn the monster using the info from the plan
+	edict_t* spawned_monster = FindValidSpotAndSpawn(
+		plan_entry.spawn_point,
+		plan_entry.typeId,
 		g_horde_local.level,
-		g_champion_chance_for_current_batch, // Use the stored chance for this batch
-		g_recovery_mode_active,
-		g_horde_retaliation_active,
-		current_wave_type,
-		g_original_wave_type_before_recovery
+		g_champion_chance_for_current_batch // This global is still set by SpawnMonsters
 	);
 
-	if (success)
+	if (spawned_monster)
 	{
-		// A monster was successfully spawned and processed.
-		// Decrement the main spawn pool that the game state logic uses.
-		if (g_horde_local.num_to_spawn > 0)
-		{
+		// Success! Decrement the main spawn counter.
+		if (g_horde_local.num_to_spawn > 0) {
 			g_horde_local.num_to_spawn--;
 		}
 		monsters_spawned_in_current_phase++;
-	}
-	// If it failed, AttemptSpawnSingleMonster already handled incrementing g_consecutive_spawn_failures.
 
-	// Decrement the batch counter regardless of success or failure. This is crucial
-	// to prevent infinite loops if spawning fails repeatedly.
-	g_monsters_to_spawn_in_current_batch--;
-
-	// If there are more monsters left to spawn in this batch, set the timer for the next frame.
-	if (g_monsters_to_spawn_in_current_batch > 0)
-	{
-		// Use a constant frame time to ensure one spawn attempt per frame.
-		g_next_single_monster_spawn_time = level.time + FRAME_TIME_MS;
+		// Play effects
+		if (spawned_monster->inuse && !spawned_monster->deadflag && spawned_monster->health > 0) {
+			SpawnGrow_Spawn(spawned_monster->s.origin, 80.0f, 10.0f);
+			if (sound_spawn1) {
+				gi.sound(spawned_monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+			}
+		}
 	}
+
+	// Set the timer for the next monster in the plan.
+	g_next_single_monster_spawn_time = level.time + FRAME_TIME_MS;
 }
 
 // REPLACEMENT: Horde_RunFrame (with both time-slicing workers)
@@ -7088,7 +7139,7 @@ void Horde_RunFrame() {
 	}
 
 	// --- Time-slice regular spawns ---
-	SpawnSingleMonsterFromBatch();
+	ExecuteSpawnPlan();
     // --- Time-slice ambush/retaliation spawns ---
 	SpawnSingleAmbushMonsterFromBatch();
 
