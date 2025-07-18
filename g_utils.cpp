@@ -776,7 +776,7 @@ void CleanupStuckEntities() {
 		if ((ent->solid == SOLID_BSP || ent->solid == SOLID_BBOX) && ent->health <= 0) {
 			bool stopped_thinking = (!ent->think || ent->nextthink <= level.time - 5_sec); // Corrected check
 			bool not_fading = !ent->is_fading_out;
-			bool likely_monster = (ent->svflags & (SVF_MONSTER | SVF_DEADMONSTER)) || ent->was_spawned_by_horde;
+			bool likely_monster = (ent->svflags & (SVF_MONSTER | SVF_DEADMONSTER)) || ent->monsterinfo.was_spawned_by_horde;
 
 			if (stopped_thinking && not_fading && likely_monster) {
 				if (developer->integer) {

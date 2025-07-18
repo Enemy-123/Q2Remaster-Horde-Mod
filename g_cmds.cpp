@@ -1661,17 +1661,34 @@ Cmd_ListMonsters_f
 Lists all alive monsters on the map to the server console.
 =================
 */
+/*
+=================
+Cmd_ListMonsters_f
+
+Generates a detailed status report for every monster spawned on the level.
+This is used to debug discrepancies in the monster count.
+=================
+*/
+/*
+=================
+Cmd_ListMonsters_f
+
+Performs a live scan of all entities to find active monsters and compares
+the result to the official level counters to diagnose discrepancies.
+=================
+*/
 static void Cmd_ListMonsters_f(edict_t* ent)
 {
 	if (!G_CheatCheck(ent))
 		return;
 
-	int count = 0;
-	gi.Com_PrintFmt("--- Listing all alive monsters on the map ---\n");
+	gi.Com_PrintFmt("\n--- Live Monster Analysis ---\n");
 
-	// Iterate through all possible entities. Start at 1 to skip worldspawn.
-	// g_edicts[0] is world, g_edicts[1] through g_edicts[maxclients] are players.
-	// Monsters and other entities come after the player slots.
+	int live_monster_count = 0;
+	int32_t official_remaining_count = GetStroggsNum();
+
+	// --- Part 1: Perform a live scan for active monsters ---
+	gi.Com_PrintFmt("Scanning all entities for active monsters...\n");
 	for (int i = 1; i < globals.num_edicts; i++)
 	{
 		edict_t* e = &g_edicts[i];
@@ -1690,17 +1707,42 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 				continue;
 
 			// Print the monster's classname, health, and location.
-			gi.Com_PrintFmt(" - {}: health {}, origin ({:.0f}, {:.0f}, {:.0f})\n",
+			gi.Com_PrintFmt(" - [ALIVE] {}: health {}, origin ({:.0f}, {:.0f}, {:.0f})\n",
 				e->classname,
 				e->health,
 				e->s.origin[0], e->s.origin[1], e->s.origin[2]);
-			count++;
+			live_monster_count++;
 		}
 	}
 
-	gi.Com_PrintFmt("--- Found {} alive monsters. (GetStroggsNum() reports: {}) ---\n", count, GetStroggsNum());
-}
+	// --- Part 2: Analyze the results and report ---
+	gi.Com_PrintFmt("\n--- Analysis Summary ---\n");
+	gi.Com_PrintFmt("Live Scan Found: {} monsters\n", live_monster_count);
+	gi.Com_PrintFmt("Official Counter (GetStroggsNum): {} monsters\n", official_remaining_count);
+	gi.Com_PrintFmt(" (level.total_monsters: {}, level.killed_monsters: {})\n", level.total_monsters, level.killed_monsters);
 
+	if (live_monster_count == official_remaining_count)
+	{
+		gi.Com_PrintFmt("\n[OK] Counters are in sync.\n");
+	}
+	else
+	{
+		gi.Com_PrintFmt("\n[!!BUG DETECTED!!] Monster counters are out of sync!\n");
+		int32_t discrepancy = official_remaining_count - live_monster_count;
+		if (discrepancy > 0)
+		{
+			gi.Com_PrintFmt(" -> There are {} 'ghost' monsters. They were counted at spawn but their death was not registered.\n", discrepancy);
+			gi.Com_PrintFmt(" -> INVESTIGATE: Look for code that removes monsters (e.g., G_FreeEdict) without calling the proper death function that increments level.killed_monsters.\n");
+			gi.Com_PrintFmt(" -> Prime suspects are often special map triggers, admin commands (like your Cmd_Kill_AI_f), or monster-specific cleanup logic.\n");
+		}
+		else
+		{
+			gi.Com_PrintFmt(" -> There are {} extra live monsters that were not counted at spawn.\n", -discrepancy);
+			gi.Com_PrintFmt(" -> INVESTIGATE: Look for monster spawn code that does not increment level.total_monsters.\n");
+		}
+	}
+	gi.Com_PrintFmt("---------------------------\n\n");
+}
 /*
 =================
 ClientCommand

@@ -2282,12 +2282,12 @@ static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 	monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 	monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	monster->monsterinfo.last_reacttodamage_target_time = 0_ms;
-	monster->was_spawned_by_horde = true; // Mark as horde spawned
+	monster->monsterinfo.was_spawned_by_horde = true; // Mark as horde spawned
 
 	// Mark specifically if in spawning state
 	if (g_horde_local.state == horde_state_t::spawning)
 	{
-		monster->spawned_in_spawn_state = true;
+		monster->monsterinfo.spawned_in_spawn_state = true;
 	}
 
 	// Return the initialized (but not yet fully spawned/linked) entity
@@ -2322,11 +2322,11 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_reacttodamage_target_time = 0_ms;
-		monster->was_spawned_by_horde = true;
+		monster->monsterinfo.was_spawned_by_horde = true;
 
 		if (g_horde_local.state == horde_state_t::spawning)
 		{
-			monster->spawned_in_spawn_state = true;
+			monster->monsterinfo.spawned_in_spawn_state = true;
 		}
 	}
 
@@ -5612,7 +5612,7 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 	if (!monster || !monster->inuse)
 		return;
 
-	if (monster->spawned_in_spawn_state && g_horde_local.state == horde_state_t::spawning) {
+	if (monster->monsterinfo.spawned_in_spawn_state && g_horde_local.state == horde_state_t::spawning) {
 		static int32_t spawn_state_deaths = 0;
 		static gtime_t last_death_time = 0_sec;
 
@@ -5713,8 +5713,8 @@ void HandleSpawnPhaseAggression(edict_t* monster) {
 				spawn_state_deaths = 0;
 			}
 		}
-		monster->was_spawned_by_horde = false;
-		monster->spawned_in_spawn_state = false;
+		monster->monsterinfo.was_spawned_by_horde = false;
+		monster->monsterinfo.spawned_in_spawn_state = false;
 	}
 }
 

@@ -1846,6 +1846,9 @@ struct monsterinfo_t
 
 	gtime_t next_regen_time; // Timer for Stygian/other regen effects
  	sentry_state_t* sentry_state; 
+
+	bool was_spawned_by_horde;
+	bool spawned_in_spawn_state;
 };
 
 // non-monsterinfo save stuff
@@ -3573,8 +3576,7 @@ struct edict_t
 	// in g_save.cpp too!
 
 	//Horde stuff
-	bool was_spawned_by_horde;
-	bool spawned_in_spawn_state;
+
 
 	edict_t* laser;
 
@@ -3588,7 +3590,7 @@ struct edict_t
 
 	gtime_t beam_hit_time; // heatbeam piercing balance
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
-	uint8_t special_type_id;;
+	uint8_t special_type_id;
 };
 
 static constexpr const char* TEAM1 = "team1";
