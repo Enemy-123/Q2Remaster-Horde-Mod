@@ -36,7 +36,7 @@
             "id": "deployPathInput",
             "type": "promptString",
             "description": "Enter the absolute path for deployment (e.g., /path/to/Quake2/baseq2)",
-            "default": "/home/perrobjorn/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Quake 2/rerelease/baseq2/"
+            "default": "/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/"
         }
     ]
 }

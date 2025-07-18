@@ -2257,7 +2257,7 @@ static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("CreateBaseHordeMonster: Invalid TypeID provided.\n");
+			gi.Com_PrintFmt("CreateBaseHordeMonster: Invalid TypeID provided.\n"); 	
 		}
 		return nullptr;
 	}
