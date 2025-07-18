@@ -1654,26 +1654,51 @@ void Cmd_Switchteam_f(edict_t* ent)
 }
 
 
+/*
+=================
+Cmd_ListMonsters_f
+
+Lists all alive monsters on the map to the server console.
+=================
+*/
 static void Cmd_ListMonsters_f(edict_t* ent)
 {
 	if (!G_CheatCheck(ent))
 		return;
-	//else if (!g_debug_monster_kills->integer)
-	//	return;
 
-	for (size_t i = 0; i < level.total_monsters; i++)
+	int count = 0;
+	gi.Com_PrintFmt("--- Listing all alive monsters on the map ---\n");
+
+	// Iterate through all possible entities. Start at 1 to skip worldspawn.
+	// g_edicts[0] is world, g_edicts[1] through g_edicts[maxclients] are players.
+	// Monsters and other entities come after the player slots.
+	for (int i = 1; i < globals.num_edicts; i++)
 	{
-		edict_t* e = level.monsters_registered[i];
+		edict_t* e = &g_edicts[i];
 
-		if (!e || !e->inuse)
-			continue;
-		else if (!(e->svflags & SVF_MONSTER) || (e->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-			continue;
-		else if (e->deadflag)
-			continue;
+		// To be an alive monster, an entity must:
+		// 1. Be in use (not a free slot).
+		// 2. Be flagged as a monster.
+		// 3. Not be dead.
+		// 4. Have health above 0.
+		if (e->inuse && (e->svflags & SVF_MONSTER) && !e->deadflag && e->health > 0)
+		{
+			// This is an optional but good check. Some "monsters" might be friendly
+			// or otherwise shouldn't be part of the main count (e.g., a friendly marine).
+			// The AI_DO_NOT_COUNT flag is often used for this.
+			if (e->monsterinfo.aiflags & AI_DO_NOT_COUNT)
+				continue;
 
-		gi.Com_PrintFmt("PRINT: {}\n", *e);
+			// Print the monster's classname, health, and location.
+			gi.Com_PrintFmt(" - {}: health {}, origin ({:.0f}, {:.0f}, {:.0f})\n",
+				e->classname,
+				e->health,
+				e->s.origin[0], e->s.origin[1], e->s.origin[2]);
+			count++;
+		}
 	}
+
+	gi.Com_PrintFmt("--- Found {} alive monsters. (GetStroggsNum() reports: {}) ---\n", count, GetStroggsNum());
 }
 
 /*

@@ -3153,7 +3153,7 @@ void Horde_PreInit()
 		gi.cvar_forceset("g_dm_instant_items", "1");
 		gi.cvar_forceset("g_disable_player_collision", "1");
 		gi.cvar_forceset("g_dm_no_self_damage", "1");
-		gi.cvar_forceset("g_allow_techs", "1");
+		//gi.cvar_forceset("g_allow_techs", "1");
 
 		// Configuración de physics
 		gi.cvar_forceset("g_override_physics_flags", "-1");
