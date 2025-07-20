@@ -3928,12 +3928,6 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 		return false;
 	}
 
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-	if (typeId == horde::MonsterTypeID::MISC_INSANE || typeId == horde::MonsterTypeID::TURRET)
-	{
-		return false;
-	}
-
 	static std::string last_map_name_boss_teleport;
 	static horde::MapID cached_map_id_boss_teleport = horde::MapID::UNKNOWN;
 	const char *current_map = GetCurrentMapName();
