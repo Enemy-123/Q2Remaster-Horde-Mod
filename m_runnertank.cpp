@@ -265,7 +265,7 @@ bool runnertank_enemy_visible(edict_t* self)
 }
 
 void runnertank_attack(edict_t* self);
-void runnertank_consider_strafe(edict_t* self);
+bool runnertank_consider_strafe(edict_t* self);
 
 
 mframe_t tank_frames_punch_attack[] =
@@ -818,75 +818,108 @@ void runnertank_stop_run_to_attack(edict_t* self)
 	}
 }
 
-#include <algorithm> // Required for std::min
+// Make sure you have this include at the top of your file for std::min
+#include <algorithm>
 
-// Assuming necessary structs and functions are defined elsewhere
-// struct edict_t;
-// void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
-// ...
-
-void runnertank_consider_strafe(edict_t* self)
+/**
+ * @brief A tactical strafe function for the RunnerTank.
+ *
+ * This function decides IF and HOW the RunnerTank should strafe based on the
+ * current combat situation. It is a self-contained action that directly
+ * modifies the monster's velocity.
+ *
+ * @param self The monster entity.
+ * @return true if a strafe was successfully executed, false otherwise.
+ */
+bool runnertank_consider_strafe(edict_t* self)
 {
-	// Don't strafe if we're in the middle of an attack animation
+	// --- Pre-condition Checks: Decide if strafing is even possible right now ---
+
+	// 1. Don't strafe if we're in the middle of an attack animation.
+	//    This prevents interrupting attacks and causing animation glitches.
 	if (self->monsterinfo.active_move == &runnertank_move_attack_blast ||
 		self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket ||
 		self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket ||
 		self->monsterinfo.active_move == &tank_move_punch_attack)
-		return;
+	{
+		return false;
+	}
 
-	// Cannot determine strafe conditions without a valid enemy
+	// 2. Cannot determine strafe conditions without a valid enemy.
 	if (!self->enemy || !self->enemy->inuse)
-		return;
+	{
+		return false;
+	}
 
-	float strafe_chance = 0.3f; // Lower base chance to avoid erratic movement
+	// 3. Don't make a new decision if we're still in a "pause" state from a previous action.
+	if (level.time < self->monsterinfo.pausetime)
+	{
+		return false;
+	}
 
-	// Increase chance in critical situations
-	// ============================================================================
-	// CRITICAL FIX: Always check if the enemy is a client before accessing client data
-	// ============================================================================
+	// --- Tactical Decision: Calculate the *chance* of strafing ---
+
+	float strafe_chance = 0.3f; // Base 30% chance to be less predictable.
+
+	// Increase chance if the player is actively shooting at us (evasive maneuver).
+	// CRITICAL: Always check if the enemy is a client before accessing client data.
 	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-		strafe_chance += 0.4f;
+	{
+		strafe_chance += 0.4f; // Becomes much more likely to dodge.
+	}
 
+	// Increase chance if we are wounded (self-preservation).
 	if (self->health < self->max_health * 0.5f)
-		strafe_chance += 0.35f;
+	{
+		strafe_chance += 0.35f; // Becomes more desperate to survive.
+	}
 
-	// Clamp the chance to a maximum of 1.0 (100%)
+	// Clamp the chance to a maximum of 1.0 (100%).
 	strafe_chance = std::min(strafe_chance, 1.0f);
 
-	// Only strafe if we have a good reason
+	// --- Execution: Perform the strafe if the "dice roll" succeeds ---
+
 	if (frandom() < strafe_chance)
 	{
-		// Calculate the side vector (to the entity's right)
+		// Calculate the side vector (to the entity's right).
 		vec3_t right;
 		AngleVectors(self->s.angles, nullptr, right, nullptr);
 
-		// Calculate strafe speed
-		float strafe_speed = 180.0f; // A more controlled base speed
+		// Calculate strafe speed.
+		float strafe_speed = 180.0f; // A more controlled base speed.
 		if (self->health < self->max_health * 0.5f)
-			strafe_speed *= 1.6f; // Move faster when wounded
+		{
+			strafe_speed *= 1.6f; // Move faster and more erratically when wounded.
+		}
 
-		// ============================================================================
-		// LOGIC FIX: Decide direction and apply velocity directly
-		// This avoids the 'int to bool' truncation error entirely.
-		// ============================================================================
+		// Decide direction and apply velocity directly.
 		if (frandom() < 0.5f)
 		{
-			// Strafe LEFT (apply velocity in the *opposite* direction of the 'right' vector)
+			// Strafe LEFT (apply velocity in the *opposite* direction of the 'right' vector).
 			self->velocity = self->velocity - (right * strafe_speed);
 		}
 		else
 		{
-			// Strafe RIGHT (apply velocity in the direction of the 'right' vector)
+			// Strafe RIGHT (apply velocity in the direction of the 'right' vector).
 			self->velocity = self->velocity + (right * strafe_speed);
 		}
-		// We no longer need to use 'self->monsterinfo.lefty' here.
 
-		// Set a shorter pause time for more responsive behavior
+		// Set a short pause time to prevent the AI from spamming actions.
 		self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.2_sec);
 
-		// Optional: Consider setting a dedicated strafe state for the AI
-		// self->monsterinfo.next_move_state = &runnertank_move_strafe;
+		// The strafe was successful, report it.
+		return true;
 	}
+
+	// If we reach this point, the random chance failed. We did not strafe.
+	return false;
+}
+
+#include <algorithm> // Required for std::min
+MONSTERINFO_SIDESTEP(runnertank_sidestep_wrapper) (edict_t* self) -> bool
+{
+	// Call our real, "smart" function and simply discard the return value.
+	runnertank_consider_strafe(self);
 }
 
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
@@ -1199,31 +1232,31 @@ MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 // monster_runnertank
 //
 
-MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
-{
-	// No hacer sidestep si estamos en medio de un ataque
-	if ((self->monsterinfo.active_move == &runnertank_move_attack_blast) ||
-		(self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket) ||
-		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket))
-	{
-		return false;
-	}
-	// Si no estamos corriendo, cambiar a la animación de carrera
-	if (self->monsterinfo.active_move != &runnertank_move_run)
-		M_SetAnimation(self, &runnertank_move_run);
+// MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
+// {
+// 	// No hacer sidestep si estamos en medio de un ataque
+// 	if ((self->monsterinfo.active_move == &runnertank_move_attack_blast) ||
+// 		(self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket) ||
+// 		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket))
+// 	{
+// 		return false;
+// 	}
+// 	// Si no estamos corriendo, cambiar a la animación de carrera
+// 	if (self->monsterinfo.active_move != &runnertank_move_run)
+// 		M_SetAnimation(self, &runnertank_move_run);
 
-	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
+// 	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
 
-	// Calcular strafe usando vec3_t
-	auto [forward, right, up] = AngleVectors(self->s.angles);
-	float const strafe_speed = 200.0f + (frandom() * 150.0f);
+// 	// Calcular strafe usando vec3_t
+// 	auto [forward, right, up] = AngleVectors(self->s.angles);
+// 	float const strafe_speed = 200.0f + (frandom() * 150.0f);
 
-	// Usar operadores vec3_t para el movimiento
-	self->velocity += right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed);
+// 	// Usar operadores vec3_t para el movimiento
+// 	self->velocity += right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed);
 
-	self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
-	return true;
-}
+// 	self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
+// 	return true;
+// }
 
 /*QUAKED monster_runnertank (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
 model="models/monsters/runnertank/tris.md2"
@@ -1306,7 +1339,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.stand = runnertank_stand;
 	self->monsterinfo.walk = runnertank_walk;
 	self->monsterinfo.run = runnertank_run;
-	self->monsterinfo.sidestep = runnertank_sidestep;
+	self->monsterinfo.sidestep = runnertank_sidestep_wrapper;
 	self->monsterinfo.dodge = nullptr;
 	self->monsterinfo.attack = runnertank_attack;
 	self->monsterinfo.melee = runnertank_melee;
