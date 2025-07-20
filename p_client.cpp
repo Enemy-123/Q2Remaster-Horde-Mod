@@ -2405,9 +2405,7 @@ void PutClientInServer(edict_t* ent)
 	// REVERTED: Direct assignment to stack variable
 	saved = client->pers;
 	memset(client, 0, sizeof(*client));
-	// REVERTED: Direct assignment from stack variable
 	client->pers = saved;
-	// REVERTED: Direct assignment from stack variable
 	client->resp = resp;
 
 	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
@@ -2417,7 +2415,6 @@ void PutClientInServer(edict_t* ent)
 		InitClientPersistant(ent, client);
 
 	// Restore social ID
-	// REVERTED: Pass stack array directly
 	Q_strlcpy(ent->client->pers.social_id, social_id, MAX_INFO_VALUE);
 
 	// Fix level switch issue

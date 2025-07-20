@@ -818,63 +818,74 @@ void runnertank_stop_run_to_attack(edict_t* self)
 	}
 }
 
+#include <algorithm> // Required for std::min
+
+// Assuming necessary structs and functions are defined elsewhere
+// struct edict_t;
+// void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
+// ...
+
 void runnertank_consider_strafe(edict_t* self)
 {
-	// No strafear si estamos en medio de un ataque
+	// Don't strafe if we're in the middle of an attack animation
 	if (self->monsterinfo.active_move == &runnertank_move_attack_blast ||
 		self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket ||
 		self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket ||
-		self->monsterinfo.active_move == &tank_move_punch_attack) // Assuming tank_move_punch_attack is relevant here
+		self->monsterinfo.active_move == &tank_move_punch_attack)
 		return;
 
-	// Check if enemy exists and is valid before trying to access its properties
+	// Cannot determine strafe conditions without a valid enemy
 	if (!self->enemy || !self->enemy->inuse)
-		return; // Cannot determine strafe conditions without a valid enemy
+		return;
 
-	float strafe_chance = 0.3f; // Base chance más baja para no ser tan errático
+	float strafe_chance = 0.3f; // Lower base chance to avoid erratic movement
 
-	// Aumentar probabilidad en situaciones críticas
-	// Ensure enemy is a client before accessing client buttons
-if ((self->enemy->client->buttons & BUTTON_ATTACK) != 0)
+	// Increase chance in critical situations
+	// ============================================================================
+	// CRITICAL FIX: Always check if the enemy is a client before accessing client data
+	// ============================================================================
+	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
 		strafe_chance += 0.4f;
+
 	if (self->health < self->max_health * 0.5f)
 		strafe_chance += 0.35f;
 
-	// Clamp the chance just in case it exceeds 1.0f
+	// Clamp the chance to a maximum of 1.0 (100%)
 	strafe_chance = std::min(strafe_chance, 1.0f);
 
-	// Solo strafear si tenemos una buena razón
+	// Only strafe if we have a good reason
 	if (frandom() < strafe_chance)
 	{
-		// Decidir dirección (Replaced ternary with if/else)
-		if (frandom() < 0.5f) {
-			self->monsterinfo.lefty = 1;
-		} else {
-			self->monsterinfo.lefty = -1;
-		}
-
-		// Calcular velocidad de strafe
+		// Calculate the side vector (to the entity's right)
 		vec3_t right;
-		AngleVectors(self->s.angles, nullptr, right, nullptr); // Calculate side vector
-		float strafe_speed = 180.0f; // Velocidad base más controlada
+		AngleVectors(self->s.angles, nullptr, right, nullptr);
 
-		// Ajustar velocidad según la situación
+		// Calculate strafe speed
+		float strafe_speed = 180.0f; // A more controlled base speed
 		if (self->health < self->max_health * 0.5f)
-			strafe_speed *= 1.6f; // Más rápido si está herido
+			strafe_speed *= 1.6f; // Move faster when wounded
 
-		// Aplicar el strafe directamente usando los operadores de vec3_t
-		// Ensure 'right' vector is valid before using it
-		if (is_valid_vector(right)) {
-			self->velocity = self->velocity + (right * (strafe_speed * self->monsterinfo.lefty));
-		} else {
-			// Fallback or error handling if 'right' vector is invalid
-			// For now, just skip applying strafe velocity
+		// ============================================================================
+		// LOGIC FIX: Decide direction and apply velocity directly
+		// This avoids the 'int to bool' truncation error entirely.
+		// ============================================================================
+		if (frandom() < 0.5f)
+		{
+			// Strafe LEFT (apply velocity in the *opposite* direction of the 'right' vector)
+			self->velocity = self->velocity - (right * strafe_speed);
 		}
+		else
+		{
+			// Strafe RIGHT (apply velocity in the direction of the 'right' vector)
+			self->velocity = self->velocity + (right * strafe_speed);
+		}
+		// We no longer need to use 'self->monsterinfo.lefty' here.
 
-		// Tiempo más corto de strafe para mayor control
+		// Set a shorter pause time for more responsive behavior
 		self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.2_sec);
-		// Consider setting an active_move state for strafing if needed for AI logic
-		// For example: self->monsterinfo.next_move_state = &runnertank_move_strafe;
+
+		// Optional: Consider setting a dedicated strafe state for the AI
+		// self->monsterinfo.next_move_state = &runnertank_move_strafe;
 	}
 }
 

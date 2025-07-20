@@ -1475,7 +1475,6 @@ void medic_finish_spawn(edict_t* self)
 {
     edict_t* ent;
     vec3_t   f, r, offset, startpoint, spawnpoint;
-    int      count;
     size_t   num_summoned = 0; // Use size_t for counts/indices
     edict_t* designated_enemy;
 

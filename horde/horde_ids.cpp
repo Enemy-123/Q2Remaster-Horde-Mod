@@ -397,7 +397,7 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
         // XDM4
         s_origins[static_cast<size_t>(MapID::XDM4)] = { {vec3_t{-160, -368, 360}}, true };
         // XDM5 
-         s_origins[static_cast<size_t>(MapID::XDM5)] = { {vec3_t{8.2, -635, 367}}, true };
+         s_origins[static_cast<size_t>(MapID::XDM5)] = { {vec3_t{8, -635, 367}}, true };
         // XDM6
         s_origins[static_cast<size_t>(MapID::XDM6)] = { {vec3_t{-1088, -128, 528}}, true };
         // INDUSTRY

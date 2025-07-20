@@ -1689,7 +1689,7 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 
 	// --- Part 1: Perform a live scan for active monsters ---
 	gi.Com_PrintFmt("Scanning all entities for active monsters...\n");
-	for (int i = 1; i < globals.num_edicts; i++)
+	for (uint32_t i = 1; i < globals.num_edicts; i++)
 	{
 		edict_t* e = &g_edicts[i];
 
