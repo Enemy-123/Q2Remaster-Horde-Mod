@@ -976,18 +976,6 @@ void DMGID_f(edict_t* ent)
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 
-// Lista de prefijos válidos para IsValidClassname
-static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
-	"monster_",
-	"misc_insane",
-	"tesla_mine",
-	"food_cube_trap",
-	"emitter",
-	"doppleganger"
-} };
-
-
-
 std::string FormatClassname(const std::string& classname) {
 	std::string result;
 	result.reserve(classname.length());
@@ -1008,15 +996,6 @@ std::string FormatClassname(const std::string& classname) {
 	return result;
 }
 
-bool IsValidClassname(const char* classname) noexcept {
-	if (!classname) return false;
-	for (const auto& prefix : ALLOWED_PREFIXES) { 
-		if (strncmp(classname, prefix.data(), prefix.length()) == 0) {
-			return true;
-		}
-	}
-	return false;
-}
 
 bool IsValidTarget(edict_t* ent, edict_t* other, bool check_visibility) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT) {
@@ -1028,7 +1007,11 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool check_visibility) {
 	if (check_visibility && ent && !visible(ent, other)) {
 		return false;
 	}
-	return other->client || IsValidClassname(other->classname);
+
+    // A valid target is a player, a known monster, or a known special entity.
+    return (other->client ||
+            other->monsterinfo.monster_type_id != static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN) ||
+            other->special_type_id != static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN));
 }
 
 int GetArmorInfo(edict_t* ent) {
