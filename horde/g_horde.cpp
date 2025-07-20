@@ -6648,6 +6648,8 @@ void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
 }
 
+// In g_horde.cpp
+
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
     vec3_t final_origin, final_angles;
@@ -6671,23 +6673,45 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
         return nullptr;
     }
 
-    if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) {
+    // --- BEGIN THE FIX ---
+    // At this point, level.total_monsters has been incremented.
+    // We now apply bonuses. If the monster is freed during this process,
+    // we must manually decrement the counter.
+
+    if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) 
+    {
+        // Success! The monster is still valid and inuse.
         if (used_alternative) {
             ApplySuccessfulAlternativeCooldown(spawn_point);
         } else {
             OnSuccessfulSpawn(spawn_point);
         }
         return monster;
-    } else {
-        if (developer->integer > 1) {
-            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after applying bonuses. Class: {}\n",
-                            horde::MonsterTypeRegistry::GetClassname(monster_type));
+    } 
+    else 
+    {
+        // Failure! ApplyHordeBonuses returned false, meaning the monster is now !inuse.
+        // We must correct the monster count.
+        if (level.total_monsters > 0) {
+            level.total_monsters--;
         }
-        g_consecutive_spawn_failures++;
-        return nullptr;
-    }
-}
 
+        if (developer->integer > 1) {
+            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after bonuses. Corrected total_monsters count.\n");
+        }
+        
+        // The spawn ultimately failed, so we still count it as a failure for the spawn point.
+        g_consecutive_spawn_failures++;
+        if (used_alternative) {
+            ApplyAlternativePositionCooldown(spawn_point);
+        } else {
+            IncreaseSpawnAttempts(spawn_point);
+        }
+        
+        return nullptr; // Return nullptr to indicate failure.
+    }
+    // --- END THE FIX ---
+}
 static void SetMonsterArmor(edict_t *monster)
 {
 	// Input validation and exception for specific monster types ---
