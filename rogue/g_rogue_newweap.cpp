@@ -830,16 +830,13 @@ constexpr float NUKE_QUAKE_STRENGTH = 100;
 
 THINK(Nuke_Quake)(edict_t *self)->void
 {
-	uint32_t i;
-	edict_t *e;
-
 	if (self->last_move_time < level.time)
 	{
 		gi.positioned_sound(self->s.origin, self, CHAN_AUTO, self->noise_index, 0.75, ATTN_NONE, 0);
 		self->last_move_time = level.time + 500_ms;
 	}
 
-	for (int i = 0; i < game.maxclients; ++i)
+	for (int32_t i = 0; i < game.maxclients; ++i)
 	{
 		edict_t *player = &g_edicts[1 + i];
 		if (!player->inuse || !player->client || !player->groundentity)
@@ -1088,8 +1085,6 @@ static gtime_t tesla_message_frame_time = 0_sec;
 
 void tesla_remove(edict_t *self)
 {
-	edict_t *cur, *next;
-
 	self->takedamage = false;
 
 	if (self->owner && self->owner->client)
@@ -1110,6 +1105,7 @@ void tesla_remove(edict_t *self)
 
 	Grenade_Explode(self);
 }
+
 DIE(tesla_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
 	// OnEntityDeath(self);
