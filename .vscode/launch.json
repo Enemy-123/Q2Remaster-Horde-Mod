@@ -1,0 +1,31 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+
+        {
+            "name": "(gdb) Attach to Quake 2 (Debug)",
+            "type": "cppdbg",
+            "request": "attach",
+            // CRITICAL CHANGE: Point to the DLL in the GAME's directory.
+            // This is the actual file the debugger needs to read symbols from.
+           "program": "/home/perrobjorn/q2rerelease/baseq2/game_x64.dll", 
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/x86_64-w64-mingw32-gdb",
+            "sourceFileMap": {
+                // CRITICAL CHANGE: Update this to match your renamed project folder.
+                "/home/perrobjorn/repos/Q2Remaster-Horde-Mod/": "${workspaceFolder}"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "logging": { "engineLogging": false }
+        }
+        // You can update the ASan one later in the same way if you revisit it.
+    ]
+}

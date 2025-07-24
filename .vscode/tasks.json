@@ -2,28 +2,74 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Cross-Compile and Install Horde Mod",
+            "label": "Build: Debug (for GDB)",
             "type": "shell",
-            "command": "rm -rf build && mkdir build && cd build && echo '--- Running CMake Configure ---' && cmake .. -DCMAKE_TOOLCHAIN_FILE=../mingw-w64-x86_64.cmake -DCMAKE_BUILD_TYPE=Release -G \"Unix Makefiles\" -DDEPLOY_DIRECTORY=\"${input:deployPathInput}\" && echo '--- Running Make ---' && make -j$(nproc) && echo '--- Installing Mod DLL ---' && cmake --install .",
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "shell": {
-                    "executable": "/bin/bash",
-                    "args": [
-                        "-c"
-                    ]
-                }
+            "command": "${workspaceFolder}/build_mingw.sh",
+            "args": [
+                "${input:deployPathInput}",
+                "Debug"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
             },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build: Release (for distribution)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build_mingw.sh",
+            "args": [
+                "${input:deployPathInput}",
+                "Release"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
             "presentation": {
-                "echo": true,
                 "reveal": "always",
-                "focus": true,
-                "panel": "shared",
-                "showReuseMessage": false,
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build: RelWithDebInfo (optimized with symbols)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build_mingw.sh",
+            "args": [
+                "${input:deployPathInput}",
+                "RelWithDebInfo"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build: DebugASan (with AddressSanitizer)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build_mingw.sh",
+            "args": [
+                "${input:deployPathInput}",
+                "DebugASan"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
                 "clear": true
             },
             "problemMatcher": [
@@ -35,8 +81,8 @@
         {
             "id": "deployPathInput",
             "type": "promptString",
-            "description": "Enter the absolute path for deployment (e.g., /path/to/Quake2/baseq2)",
-            "default": "/home/perrobjorn/.steam/debian-installation/steamapps/common/Quake 2/rerelease/"
+            "description": "Enter the absolute path for mod deployment",
+            "default": "/home/perrobjorn/q2rerelease/baseq2"
         }
     ]
 }
