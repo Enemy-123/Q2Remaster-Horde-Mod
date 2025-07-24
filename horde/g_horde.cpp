@@ -4573,7 +4573,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 			"teleported in!",
 			"is here to end this!",
 			"makes its presence known!"};
-		const char *random_phrase = arrival_phrases[irandom(arrival_phrases.size() - 1)];
+		const char *random_phrase = arrival_phrases[irandom(arrival_phrases.size())];
 
 		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name.c_str(), random_phrase);
 		AppendHordeMessage(announce_message.data(), 4_sec);
@@ -5315,8 +5315,6 @@ void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason
 	g_horde_local.state = horde_state_t::rest;
 }
 
-// ... (rest of your includes and global variables) ...
-
 // MODIFIED FUNCTION: AnnounceIncomingWave
 static void AnnounceIncomingWave(gtime_t duration)
 {
@@ -5350,7 +5348,7 @@ static void AnnounceIncomingWave(gtime_t duration)
 	// Expanded and refined insane2_messages
 	static constexpr std::array<const char *, 5> insane2_messages = {
 		// Increased size to 5
-		"This is it, marines! Make it count!",			  // Keep this classic
+		"This is hell! Make it count!",			  // Keep this classic
 		"No retreat! Fight until your last breath!",	  // Desperate, but determined
 		"Overwhelmed! Make them pay for every inch!",	  // Focus on making them suffer
 		"They're everywhere! Don't give an inch!",		  // Sense of being surrounded
@@ -5362,27 +5360,27 @@ static void AnnounceIncomingWave(gtime_t duration)
 	{
 		if (g_chaotic->integer == 2)
 		{
-			message = chaotic2_messages[irandom(chaotic2_messages.size() - 1)];
+			message = chaotic2_messages[irandom(chaotic2_messages.size())];
 		}
 		else // g_chaotic->integer == 1
 		{
-			message = chaotic1_messages[irandom(chaotic1_messages.size() - 1)];
+			message = chaotic1_messages[irandom(chaotic1_messages.size())];
 		}
 	}
 	else if (g_insane->integer > 0)
 	{
 		if (g_insane->integer == 2)
 		{
-			message = insane2_messages[irandom(insane2_messages.size() - 1)];
+			message = insane2_messages[irandom(insane2_messages.size())];
 		}
 		else // g_insane->integer == 1
 		{
-			message = insane1_messages[irandom(insane1_messages.size() - 1)];
+			message = insane1_messages[irandom(insane1_messages.size())];
 		}
 	}
 	else // Normal difficulty
 	{
-		message = normal_messages[irandom(normal_messages.size() - 1)];
+		message = normal_messages[irandom(normal_messages.size())];
 	}
 
 	for (auto player : active_players())
