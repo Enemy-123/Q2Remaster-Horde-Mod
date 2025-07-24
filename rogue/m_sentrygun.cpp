@@ -33,7 +33,7 @@ mframe_t turret2_frames_cool_down[] = {
 	{ ai_stand, 0, turret2Aim },
 	{ ai_stand, 0, turret2Aim }
 };
-// FIXED: Corrected the start and end frames to define a valid 4-frame sequence.
+//  Corrected the start and end frames to define a valid 4-frame sequence.
 MMOVE_T(turret2_move_cool_down) = { FRAME_pow01, FRAME_pow04, turret2_frames_cool_down, turret2_run };
 
 extern const mmove_t turret2_move_fire;
@@ -121,7 +121,7 @@ void turret2Aim(edict_t* self)
 
 	TurretSparks(self);
 
-	// CRITICAL FIX: Check if we have an enemy but haven't been able to attack
+	//  Check if we have an enemy but haven't been able to attack
 	if (self->enemy && self->enemy->inuse) {
 		// If we haven't attacked for more than 1 second, consider changing targets
 		// Use attack_finished to check when we last attempted to fire
@@ -1031,7 +1031,7 @@ void turret2Fire(edict_t* self) {
 		return; // Return if we don't have a valid enemy and couldn't find one
 	}
 
-	// CRITICAL FIX: PREVENT STALLING ANIMATION
+	//  PREVENT STALLING ANIMATION
 	// Reset hold frame flag to prevent animation from getting stuck
 	if (self->monsterinfo.aiflags & AI_HOLD_FRAME &&
 		self->monsterinfo.duck_wait_time < level.time) {
@@ -1624,7 +1624,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	trace_t const tr = gi.traceline(spot1, spot2, self,
 		MASK_SHOT);
 
-	// CRITICAL FIX: More permissive trace validation
+	//  More permissive trace validation
 	// If we can't directly see the enemy but we've been trying for a while, 
 	// find a new target instead of just returning false
 	if (tr.fraction < 1.0f && tr.ent != self->enemy) {
@@ -1643,7 +1643,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	dir.normalize();
 	float const dot = dir.dot(forward);
 
-	// CRITICAL FIX: More permissive angle check
+	//  More permissive angle check
 	// Use 0.9 (about 26 degrees) instead of 0.95 (18 degrees)
 	if (dot < 0.9) {
 		// Not directly in front - check if we're already turning
@@ -1666,7 +1666,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	float chance = range <= RANGE_NEAR ? 0.9f :
 		(range <= RANGE_MID ? 0.7f : 0.4f);
 
-	// CRITICAL FIX: Gradually increase chance based on time since last attack
+	//  Gradually increase chance based on time since last attack
 	// This ensures that even if RNG is bad, we'll eventually fire
 	float time_since_attack = (level.time - self->monsterinfo.attack_finished).seconds();
 	if (time_since_attack > 0.5f)

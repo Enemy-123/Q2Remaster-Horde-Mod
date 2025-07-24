@@ -717,7 +717,7 @@ mframe_t fixbot_frames_spawn[] = {
 	{ ai_move, 0, fixbot_spawn_check },     // Now spawn the turret
 	{ ai_move, 0 }                          // End spawn sequence
 };
-// FIXED: Changed end frame from FRAME_weldstart_06 to FRAME_weldstart_07 to match the 7-element array.
+//  Changed end frame from FRAME_weldstart_06 to FRAME_weldstart_07 to match the 7-element array.
 MMOVE_T(fixbot_move_spawn) = { FRAME_weldstart_01, FRAME_weldstart_07, fixbot_frames_spawn, fixbot_run };
 
 // [Paril-KEX] clean up bot goals if we get interrupted

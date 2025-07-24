@@ -1318,7 +1318,7 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
 
 	switch (self->style) {
 	case GUNCMDR_STYLE_NORMAL:
-		// FIXED: Normal style should primarily use chaingun with minimal grenade usage
+		//  Normal style should primarily use chaingun with minimal grenade usage
 		// Match the original guncmdr2_attack behavior more closely
 		if (self->bad_area || ((d <= RANGE_GRENADE_MORTAR || brandom()) &&
 			M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_CHAINGUN_1]))) {

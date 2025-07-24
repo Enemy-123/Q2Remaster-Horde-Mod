@@ -1042,7 +1042,7 @@ mframe_t flyer_frames_laser_left[] = {
 	//	{ ai_charge, 0, flyer_laser_off },   // Fin del láser
 		{ ai_charge, 0, nullptr }            // Recuperación
 };
-// FIXED: Changed end frame from FRAME_bankl07 to FRAME_bankl06 to match the 6-element array.
+//  Changed end frame from FRAME_bankl07 to FRAME_bankl06 to match the 6-element array.
 MMOVE_T(flyer_move_laser_left) = { FRAME_bankl01, FRAME_bankl06, flyer_frames_laser_left, flyer_recharge };
 
 mframe_t flyer_frames_laser_recharge[] = {

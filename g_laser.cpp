@@ -6,7 +6,7 @@
 #include <cmath>
 
 // Private state for emitters, like blinking status.
-// FIXED: Only one definition of EmitterState, with the clear() method.
+// Only one definition of EmitterState, with the clear() method.
 struct EmitterState
 {
     bool is_warning_phase = false;
@@ -296,7 +296,7 @@ THINK(emitter_think)(edict_t * self)->void
 
     bool const should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
 
-    // FIXED: Use -> for pointers
+    //  Use -> for pointers
     if (should_warn != state->is_warning_phase)
     {
         state->is_warning_phase = should_warn;

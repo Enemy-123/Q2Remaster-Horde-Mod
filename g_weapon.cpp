@@ -116,7 +116,7 @@ void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierc
 
 	while (--loop_count)
 	{
-		// FIXED: Use 'own_start' which is updated each loop, not the original 'start'.
+		//  Use 'own_start' which is updated each loop, not the original 'start'.
 		pierce.tr = gi.traceline(own_start, own_end, ignore, mask);
 
 		// didn't hit anything, so we're done
@@ -1205,7 +1205,7 @@ TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool oth
 	// calculate position for the explosion entity
 	origin = ent->s.origin + tr.plane.normal;
 
-	// FIXED: Limit push force for players to prevent being knocked through walls
+	//  Limit push force for players to prevent being knocked through walls
 	if (other->client)
 	{
 		// Limit push force for players
@@ -1239,7 +1239,7 @@ TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool oth
 		}
 	}
 
-	// FIXED: Reduced radius damage for players
+	//  Reduced radius damage for players
 	if (other->client)
 	{
 		//Reduced radius damage amount for players to prevent excessive knockback

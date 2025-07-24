@@ -2942,7 +2942,6 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
     int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
-    // --- CRITICAL FIX ---
     // We must check the MASTER list of all monsters (`monsterTypes`) to see if any
     // are unlocked by the new effective level. Checking `g_eligible_monsters_for_wave`
     // will never work because it's already filtered for the current level.
@@ -3440,8 +3439,6 @@ void ResetBosses()
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment here */)
 	{
 		edict_t *boss = *it;
-		// CRITICAL CHECK: Ensure the pointer is not null AND the entity is still in use
-		// before attempting to access or free it.
 		if (boss && boss->inuse)
 		{
 			// Ensure boss death logic is finalized if needed, then free
@@ -3492,7 +3489,7 @@ void PrecacheAllMonsters()
             if (temp_monster)
             {
                 temp_monster->classname = classname;
-                // *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
+                // Add this flag to prevent precaching from affecting monster counts. ***
                 temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
                 
                 ED_CallSpawn(temp_monster);
@@ -4365,7 +4362,6 @@ THINK(BossSpawnThink)(edict_t *self)->void
 				edict_t* temp_monster = G_Spawn();
 				if (temp_monster) {
 					temp_monster->classname = classname;
-					// *** CRITICAL FIX APPLIED HERE ***
 					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 					ED_CallSpawn(temp_monster);
@@ -7674,7 +7670,7 @@ static void Horde_InitLevel(const int32_t lvl)
 				edict_t* temp_monster = G_Spawn();
 				if (temp_monster) {
 					temp_monster->classname = classname;
-					// *** CRITICAL FIX: Add this flag to prevent precaching from affecting monster counts. ***
+					// Add this flag to prevent precaching from affecting monster counts. ***
 					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 					ED_CallSpawn(temp_monster);

@@ -735,9 +735,6 @@ void OnEntityRemoved(edict_t* self) noexcept {
 
 	// --- Free Savable Memory ---
 	self->moveinfo.curve_positions.release();
-
-	// --- CRITICAL: Free Player-Specific Heap Memory ---
-	//CleanupPlayerLaserManager(self); // <-- USE THE NEW FUNCTION
 }
 
 void CleanupInvalidEntities() {

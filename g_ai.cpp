@@ -745,7 +745,7 @@ void HuntTarget(edict_t* self, bool animate_state)
 	if (!self || !self->inuse) {
 		return; // Self check first
 	}
-	if (!self->enemy || !self->enemy->inuse) // Critical check before use
+	if (!self->enemy || !self->enemy->inuse)
 	{
 		// Log if needed:
 		// if (developer->integer > 0) gi.Com_PrintFmt("HuntTarget: {} ({}) found invalid enemy pointer.\n", self->classname ? self->classname : "unknown", self->s.number);
