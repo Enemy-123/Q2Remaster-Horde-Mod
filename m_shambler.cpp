@@ -594,15 +594,12 @@ mframe_t shambler_frames_fireball[] = {
 	{ ai_move, 0, ShamblerSaveLoc},
 	{ ai_move },
 	{ ai_charge },
-	{ ai_charge },
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
 };
-
 MMOVE_T(shambler_attack_fireball) = { FRAME_smash01, FRAME_smash12, shambler_frames_fireball, shambler_run };
-
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {

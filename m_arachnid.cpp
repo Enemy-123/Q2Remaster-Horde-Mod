@@ -223,7 +223,7 @@ mframe_t spider_frames_jump[] = {
 };
 MMOVE_T(spider_move_jump_up) = { FRAME_walk1, FRAME_walk7, spider_frames_jump, spider_run }; // Placeholder frames
 MMOVE_T(spider_move_jump_down) = { FRAME_walk1, FRAME_walk7, spider_frames_jump, spider_run }; // Placeholder frames
-MMOVE_T(spider_move_jump_transition) = { FRAME_walk1, FRAME_walk4, spider_frames_jump, spider_run }; // Placeholder frames
+MMOVE_T(spider_move_jump_transition) = { FRAME_walk1, FRAME_walk7, spider_frames_jump, spider_run }; // Placeholder frames
 
 // --- spider_ok_to_transition ---
 bool spider_ok_to_transition(edict_t* self)

@@ -33,7 +33,8 @@ mframe_t turret2_frames_cool_down[] = {
 	{ ai_stand, 0, turret2Aim },
 	{ ai_stand, 0, turret2Aim }
 };
-MMOVE_T(turret2_move_cool_down) = { FRAME_pow04, FRAME_run01, turret2_frames_cool_down, turret2_run };
+// FIXED: Corrected the start and end frames to define a valid 4-frame sequence.
+MMOVE_T(turret2_move_cool_down) = { FRAME_pow01, FRAME_pow04, turret2_frames_cool_down, turret2_run };
 
 extern const mmove_t turret2_move_fire;
 extern const mmove_t turret2_move_fire_blind;

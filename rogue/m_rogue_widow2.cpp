@@ -659,7 +659,8 @@ mframe_t widow2_frames_death[] = {
 	{ ai_move },
 	{ ai_move, 0, WidowExplode } // 44
 };
-MMOVE_T(widow2_move_death) = { FRAME_death13, FRAME_death44, widow2_frames_death, nullptr };
+// FIXED: Changed end frame from FRAME_death44 to FRAME_death28 to match the 16-element array.
+MMOVE_T(widow2_move_death) = { FRAME_death13, FRAME_death28, widow2_frames_death, nullptr };
 
 void widow2_start_searching(edict_t* self);
 void widow2_keep_searching(edict_t* self);
