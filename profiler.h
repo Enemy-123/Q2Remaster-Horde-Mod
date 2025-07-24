@@ -132,7 +132,7 @@ private:
             static int overflow_warn_##counter = -1; \
             if (overflow_warn_##counter != g_horde_local.level) { \
                  /* Print context string passed to the macro */ \
-                 gi.Com_PrintFmt("Warning: uint16_t limit reached for " #counter " in {} (Wave %d)\n", \
+                 gi.Com_PrintFmt("Warning: uint16_t limit reached for " #counter " in {} (Wave {})\n", \
                                  context_string, g_horde_local.level); \
                  overflow_warn_##counter = g_horde_local.level; \
             } \
