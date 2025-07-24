@@ -2967,73 +2967,72 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 	return frandom() < 0.07f;	  // 7% chance in late waves
 }
 
+// In g_horde.cpp
+
 // REPLACEMENT for CalculateEffectiveMonsterLevel (with bug fix)
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
 {
-	if (!attemptHigherLevel || g_horde_local.level <= 3)
-	{
-		return currentActualLevel; // No change needed.
-	}
+    if (!attemptHigherLevel)
+    {
+        return currentActualLevel; // No change needed.
+    }
 
-	int32_t levelBoost;
-	int32_t maxLevelCap;
-	const bool isFlyingWave = HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying);
+    int32_t levelBoost;
+    int32_t maxLevelCap;
 
-	// Use a more aggressive boost for flying waves to introduce elite flyers.
-	if (isFlyingWave)
-	{
-		levelBoost = irandom(6, 17);
-		maxLevelCap = currentActualLevel + 11;
-	}
-	else
-	{
-		// Use the original, more conservative boost for ground waves.
-		if (currentActualLevel < 7)
-			levelBoost = irandom(2, 4);
-		else if (currentActualLevel <= 15)
-			levelBoost = irandom(4, 8);
-		else
-			levelBoost = irandom(3, 6);
-		maxLevelCap = currentActualLevel + 8;
-	}
+    // Use a more aggressive boost for flying waves to introduce elite flyers.
+    if (HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying))
+    {
+        levelBoost = irandom(6, 17);
+        maxLevelCap = currentActualLevel + 11;
+    }
+    else
+    {
+        // Use the original, more conservative boost for ground waves.
+        if (currentActualLevel < 7)
+            levelBoost = irandom(2, 4);
+        else if (currentActualLevel <= 15)
+            levelBoost = irandom(4, 8);
+        else
+            levelBoost = irandom(3, 6);
+        maxLevelCap = currentActualLevel + 8;
+    }
 
-	maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap.
+    maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap.
 
-	int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
+    int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
-	// We must check the MASTER list of all monsters (`monsterTypes`) to see if any
-	// are unlocked by the new effective level. Checking `g_eligible_monsters_for_wave`
-	// will never work because it's already filtered for the current level.
-	bool any_new_monsters_unlocked = false;
-	for (const auto &monster : monsterTypes) // Iterate the full list
-	{
-		// Is there a monster that is eligible at the new level but was NOT at the old one?
-		if (monster.minWave > currentActualLevel &&
-			monster.minWave <= potentialEffectiveLevel &&
-			IsValidMonsterForWave(monster.typeId, waveTypeForFiltering))
-		{
-			any_new_monsters_unlocked = true;
-			break; // Found one, no need to check further.
-		}
-	}
+    // =======================================================================
+    // --- THIS IS THE CRITICAL FIX ---
+    // We must check the MASTER list of all monsters (`monsterTypes`) to see if any
+    // are unlocked by the new effective level.
+    // =======================================================================
+    bool any_new_monsters_unlocked = false;
+    for (const auto &monster : monsterTypes) // Iterate the full list
+    {
+        // Is there a monster that is eligible at the new level but was NOT at the old one?
+        if (monster.minWave > currentActualLevel &&
+            monster.minWave <= potentialEffectiveLevel &&
+            IsValidMonsterForWave(monster.typeId, waveTypeForFiltering))
+        {
+            any_new_monsters_unlocked = true;
+            break; // Found one, no need to check further.
+        }
+    }
 
-	if (!any_new_monsters_unlocked)
-	{
-		// if (developer->integer > 1)
-		//  {
-		//      gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: No new monsters unlocked at level {}. Reverting to {}.\n",
-		//                      potentialEffectiveLevel, currentActualLevel);
-		//  }
-		return currentActualLevel; // Revert if the boost is meaningless.
-	}
+    if (!any_new_monsters_unlocked)
+    {
+        // This is not an error, it's a normal outcome. The random boost just didn't
+        // cross a threshold to unlock a new monster type.
+        return currentActualLevel; // Revert if the boost is meaningless.
+    }
 
-	// if (developer->integer)
-	// {
-	// 	gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
-	// }
-	return potentialEffectiveLevel;
+    if (developer->integer)
+    {
+        gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
+    }
+    return potentialEffectiveLevel;
 }
-
 //-----------------------------------------------------
 // (The following helper functions are unchanged but required)
 //-----------------------------------------------------
@@ -3207,33 +3206,35 @@ static horde::MonsterTypeID G_HordePickMonsterType(
 	ctx.effectiveLevel = CalculateEffectiveMonsterLevel(ctx.currentActualLevel, attemptHigherLevel, ctx.waveTypeForFiltering);
 
 	// --- 3. Build Cache and Select Monster (no changes) ---
-	BuildMonsterCache(g_monster_picker_internal_cache, ctx);
-	horde::MonsterTypeID chosen_monster_id = SelectFromCache(g_monster_picker_internal_cache);
+    BuildMonsterCache(g_monster_picker_internal_cache, ctx);
+    horde::MonsterTypeID chosen_monster_id = SelectFromCache(g_monster_picker_internal_cache);
 
-	if (chosen_monster_id == horde::MonsterTypeID::UNKNOWN)
-	{
-		chosen_monster_id = EmergencyFallbackSelection(ctx);
-	}
+    if (chosen_monster_id == horde::MonsterTypeID::UNKNOWN)
+    {
+        chosen_monster_id = EmergencyFallbackSelection(ctx);
+    }
 
-	// --- 4. Final Check for Elite Spawn (THE MAIN CHANGE) ---
-	if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
-	{
-		// Instead of using a LUT, we directly access the `minWaves` array from our SoA struct.
-		const size_t index = static_cast<size_t>(chosen_monster_id);
-		if (index < g_monsterData.MONSTER_ARRAY_SIZE && g_monsterData.minWaves[index] > ctx.currentActualLevel)
-		{
-			g_special_high_level_monster_spawned_this_wave = true;
-			if (developer->integer)
-			{
-				gi.Com_PrintFmt("ELITE SPAWN: '{}' (minWave {}) spawned in wave {}. Flag set.\n",
-								horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
-								g_monsterData.minWaves[index], // Use the value from the SoA array
-								ctx.currentActualLevel);
-			}
-		}
-	}
+    // =======================================================================
+    // --- FINAL CHECK AND FLAG SET ---
+    // If we successfully picked a monster AND it was an elite spawn, set the flag.
+    // =======================================================================
+    if (chosen_monster_id != horde::MonsterTypeID::UNKNOWN && ctx.effectiveLevel > ctx.currentActualLevel)
+    {
+        const size_t index = static_cast<size_t>(chosen_monster_id);
+        if (index < g_monsterData.MONSTER_ARRAY_SIZE && g_monsterData.minWaves[index] > ctx.currentActualLevel)
+        {
+            g_special_high_level_monster_spawned_this_wave = true;
+            if (developer->integer)
+            {
+                gi.Com_PrintFmt("ELITE SPAWN: '{}' (minWave {}) spawned in wave {}. Flag set.\n",
+                                horde::MonsterTypeRegistry::GetClassname(chosen_monster_id),
+                                g_monsterData.minWaves[index],
+                                ctx.currentActualLevel);
+            }
+        }
+    }
 
-	return chosen_monster_id;
+    return chosen_monster_id;
 }
 // =======================================================================
 // END: COMPLETE MONSTER PICKING SYSTEM
