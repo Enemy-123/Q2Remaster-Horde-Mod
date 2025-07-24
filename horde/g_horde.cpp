@@ -197,7 +197,7 @@ void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
 bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t *specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
-edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool applyHordeFlags);
+edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool applyHordeFlags, bool link_immediately = true);
 static void AnnounceIncomingWave(gtime_t duration = 3_sec);
 bool EmergencySpawnMonster(const int32_t levelNum,
 						   horde::MonsterTypeID typeId,
@@ -2399,9 +2399,8 @@ static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 	return monster;
 }
 
-// In g_horde.cpp
-
-edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool applyHordeFlags)
+// Add a new 'link_immediately' parameter with a default value of true
+edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool applyHordeFlags, bool link_immediately)
 {
 	const char *classname = horde::MonsterTypeRegistry::GetClassname(typeId);
 	if (!classname)
@@ -2425,11 +2424,6 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_reacttodamage_target_time = 0_ms;
 		monster->monsterinfo.was_spawned_by_horde = true;
-
-		// ===================================================
-		// CRITICAL FIX PART 1: Apply the protective flag here.
-		// This stops monster_start from incrementing the counter.
-		// ===================================================
 		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 		if (g_horde_local.state == horde_state_t::spawning)
@@ -2446,24 +2440,29 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 		return nullptr;
 	}
 
-	monster->solid = SOLID_BBOX;
-	gi.linkentity(monster);
-
-	trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
-	if (post_link_trace.startsolid)
+	// Only link if requested
+	if (link_immediately)
 	{
-		monster->monsterinfo.was_stuck = true;
-		monster->monsterinfo.stuck_check_time = level.time;
+		monster->solid = SOLID_BBOX;
+		gi.linkentity(monster);
+
+		trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
+		if (post_link_trace.startsolid)
+		{
+			monster->monsterinfo.was_stuck = true;
+			monster->monsterinfo.stuck_check_time = level.time;
+		}
 	}
+	
 	monster->monsterinfo.react_to_damage_time = level.time;
 
 	return monster;
 }
 
-// Optional overload with fewer parameters for common cases
+// Update the simpler overload to pass the new parameter
 edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin)
 {
-	return SpawnMonsterByTypeID(typeId, origin, vec3_origin, true);
+	return SpawnMonsterByTypeID(typeId, origin, vec3_origin, true, true);
 }
 
 // Add this struct definition in your header file or at the top
@@ -6217,10 +6216,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 {
 	PROFILE_SCOPE("EmergencySpawnMonster");
 
-	// --- Phase 1: Find a valid spot using the new grid-based search ---
 	vec3_t emergency_origin, emergency_angles;
-
-	// Use our new, more reliable function to find a spawn location.
 	if (!FindEmergencySpawnPositionViaGridSearch(emergency_origin, emergency_angles, typeId))
 	{
 		if (developer->integer)
@@ -6230,34 +6226,27 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 		return false;
 	}
 
-	// --- Phase 2: Spawn the monster at the found location ---
-	edict_t *monster = SpawnMonsterByTypeID(typeId, emergency_origin, emergency_angles, true);
+    // Create a temporary "spawn point" edict for the Horde_SpawnMonster function
+    edict_t temp_spawn_point;
+    memset(&temp_spawn_point, 0, sizeof(temp_spawn_point));
+    temp_spawn_point.s.origin = emergency_origin;
+    temp_spawn_point.s.angles = emergency_angles;
+
+    // Call the unified, safe spawner. We pass 'false' for used_alternative since this is a direct placement.
+    edict_t* monster = Horde_SpawnMonster(&temp_spawn_point, typeId, levelNum, champion_chance_for_this_spawn, false);
+
 	if (!monster)
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: SpawnMonsterByTypeID failed for TypeID {}.\n", static_cast<int>(typeId));
-		}
-		return false;
-	}
-
-	// --- Phase 3: Apply horde bonuses (champion status, item drops, armor) ---
-	// This function can potentially free the monster, so we must check its return value.
-	if (!ApplyHordeBonuses(monster, levelNum, champion_chance_for_this_spawn))
-	{
-		// The monster was freed or became invalid during bonus application.
-		if (developer->integer)
-		{
 			const char *classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Monster '{}' became invalid after applying bonuses.\n",
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Horde_SpawnMonster failed for '{}'.\n",
 							classname ? classname : "Unknown");
 		}
-		// The monster is already !inuse, so we just return failure.
 		return false;
 	}
 
-	// --- Phase 4: Finalize with effects and update wave counts ---
-	// SAFETY CHECK: Ensure the monster is still valid and alive before playing effects.
+	// Success, finalize with effects and update wave counts
 	if (monster->inuse && !monster->deadflag && monster->health > 0)
 	{
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
@@ -6267,10 +6256,8 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 		}
 	}
 
-	// If this was an "additional" monster (like from an ambush), update the total count for the wave.
 	if (is_additional_monster)
 	{
-		// Prevent potential overflow on the wave counter.
 		if (g_totalMonstersInWave < std::numeric_limits<uint16_t>::max())
 		{
 			g_totalMonstersInWave++;
@@ -6559,6 +6546,59 @@ void SpawnMonsters()
 	SetNextMonsterSpawnTime(mapSize);
 }
 
+static edict_t* Horde_SpawnMonster(
+    edict_t* spawn_point,
+    horde::MonsterTypeID monster_type,
+    int32_t currentLevel,
+    float champion_chance,
+    bool used_alternative_pos)
+{
+    vec3_t final_origin, final_angles;
+
+    // Phase 1: Determine spawn location (this part is from the old logic).
+    if (used_alternative_pos) {
+        if (!TryAlternativeSpawnPosition(spawn_point, monster_type, final_origin, final_angles)) {
+            return nullptr; // Alternative position failed.
+        }
+    } else {
+        final_origin = spawn_point->s.origin;
+        final_angles = spawn_point->s.angles;
+    }
+
+    // Phase 2: Create and initialize the monster. It gets counted here by monster_start().
+    edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true, false); // false = don't link yet
+    if (!monster) {
+        // G_Spawn or ED_CallSpawn failed. The counter was not incremented.
+        return nullptr;
+    }
+
+    // Phase 3: Safely apply all bonuses while the monster is unlinked.
+    ApplyHordeBonuses(monster, currentLevel, champion_chance);
+
+    // Phase 4: Link the fully configured monster into the world and validate.
+    monster->solid = SOLID_BBOX;
+    gi.linkentity(monster);
+
+    trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
+    if (post_link_trace.startsolid)
+    {
+        // FAILURE: The monster is stuck after linking. We must roll back the spawn.
+        if (developer->integer) {
+            gi.Com_PrintFmt("SPAWN ROLLBACK: Monster '{}' at ({}) became stuck after bonuses. Freeing and decrementing counter.\n",
+                monster->classname, monster->s.origin);
+        }
+        
+        // Decrement the counter that was incremented by monster_start().
+        level.total_monsters--;
+        
+        G_FreeEdict(monster);
+        return nullptr;
+    }
+
+    // SUCCESS: The monster is valid and in the world.
+    return monster;
+}
+
 // --- Helper Function Implementations ---
 
 static int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
@@ -6766,25 +6806,18 @@ static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_t
 	return true;
 }
 
-//======================================================================
-// REPLACEMENT: ApplyHordeBonuses
-// More robust version with safety checks to prevent crashes if the
-// monster is freed during bonus application.
-//======================================================================
-// REPLACEMENT: ApplyHordeBonuses (more robust)
-static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance)
+// REPLACEMENT: ApplyHordeBonuses (now a void function, guaranteed not to free the edict)
+static void ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance)
 {
-	if (!monster || !monster->inuse)
-		return false;
+	// No need for initial validation, as this is now called in a controlled context.
 
 	bool became_champion = false;
 	if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance)
 	{
 		monster->monsterinfo.bonus_flags |= frandom() < 0.09f ? BF_BERSERKING : brandom() ? BF_CHAMPION
 																						  : BF_POSSESSED;
+		// This function must also be made safe (i.e., not call gi.linkentity)
 		ApplyMonsterBonusFlags(monster);
-		if (!monster->inuse)
-			return false; // FIX: Safety check
 
 		monster->item = G_HordePickItem();
 		monster->spawnflags = monster->item ? (monster->spawnflags & ~SPAWNFLAG_MONSTER_NO_DROP) : (monster->spawnflags | SPAWNFLAG_MONSTER_NO_DROP);
@@ -6811,14 +6844,10 @@ static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float cham
 
 	if (currentLevel >= 6 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL)
 	{
+		// This function must also be made safe
 		SetMonsterArmor(monster);
-		if (!monster->inuse)
-			return false; // FIX: Safety check
 	}
-
-	return true;
 }
-
 // This is the high-level orchestrator for finding a valid spawn spot for normal spawns.
 static bool FindValidSpawnLocation(
 	edict_t *spawn_point,
@@ -7355,15 +7384,36 @@ static void ExecuteSpawnPlan()
 	SpawnPlanEntry plan_entry = g_spawn_plan.back();
 	g_spawn_plan.pop_back();
 
-	edict_t *spawned_monster = FindValidSpotAndSpawn(
+    // FindValidSpawnLocation is still useful to decide *if* and *where* to spawn.
+    vec3_t final_origin, final_angles;
+    bool used_alternative = false;
+    if (!FindValidSpawnLocation(plan_entry.spawn_point, plan_entry.typeId, final_origin, final_angles, used_alternative))
+    {
+        // Could not find a valid position at all.
+        g_consecutive_spawn_failures++;
+        IncreaseSpawnAttempts(plan_entry.spawn_point);
+        return;
+    }
+
+    // Now, call the new unified spawner. It handles everything else.
+	edict_t *spawned_monster = Horde_SpawnMonster(
 		plan_entry.spawn_point,
 		plan_entry.typeId,
 		g_horde_local.level,
-		g_champion_chance_for_current_batch
+		g_champion_chance_for_current_batch,
+        used_alternative
 	);
 
 	if (spawned_monster)
 	{
+        // Success! Update counters and effects.
+        g_consecutive_spawn_failures = 0;
+        if (used_alternative) {
+            ApplySuccessfulAlternativeCooldown(plan_entry.spawn_point);
+        } else {
+            OnSuccessfulSpawn(plan_entry.spawn_point);
+        }
+
 		if (g_horde_local.num_to_spawn > 0)
 		{
 			g_horde_local.num_to_spawn--;
@@ -7379,6 +7429,17 @@ static void ExecuteSpawnPlan()
 			}
 		}
 	}
+    else
+    {
+        // Horde_SpawnMonster failed and handled its own cleanup and failure stats.
+        // We just need to increment the global failure counter.
+        g_consecutive_spawn_failures++;
+        if (used_alternative) {
+            ApplyAlternativePositionCooldown(plan_entry.spawn_point);
+        } else {
+            IncreaseSpawnAttempts(plan_entry.spawn_point);
+        }
+    }
 }
 
 void Horde_RunFrame()
