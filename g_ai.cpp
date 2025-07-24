@@ -49,7 +49,7 @@ edict_t* AI_GetSightClient(edict_t* self)
 	const vec3_t& self_absmin = self->absmin;
 	const vec3_t& self_absmax = self->absmax;
 
-	for (auto player : active_players_no_spect())
+	for (auto player : active_players())
 	{
 		// Early out conditions agrupados
 		if (player->health <= 0 ||
@@ -903,7 +903,7 @@ void FoundTarget(edict_t* self)
 // check them & get mad at them even around corners
 static edict_t* AI_GetMonsterAlertedByPlayers(edict_t* self)
 {
-	for (auto player : active_players_no_spect())
+	for (auto player : active_players())
 	{
 		// dead
 		if (player->health <= 0 || player->deadflag || !player->solid)
@@ -930,7 +930,7 @@ static edict_t* AI_GetSoundClient(edict_t* self, bool direct)
 	edict_t* best_sound = nullptr;
 	float best_distance = std::numeric_limits<float>::max();
 
-	for (auto player : active_players_no_spect())
+	for (auto player : active_players())
 	{
 		// dead
 		if (player->health <= 0 || player->deadflag || !player->solid)
@@ -2004,7 +2004,7 @@ void ai_run(edict_t* self, float dist)
 	// Si no hay enemigo y no es una unidad invocada, buscar players
 	if (!self->enemy && !self->monsterinfo.issummoned) {
 		edict_t* player = nullptr;
-		for (auto client : active_players_no_spect()) {
+		for (auto client : active_players()) {
 			if (!client->inuse || !client->client) {
 				continue;
 			}
@@ -2139,7 +2139,7 @@ void ai_run(edict_t* self, float dist)
 
 	if (!self->enemy && !self->monsterinfo.issummoned) {
 		edict_t* player = nullptr;
-		for (auto client : active_players_no_spect())
+		for (auto client : active_players())
 		{
 			if (!client->inuse || !client->client) {
 				continue;
