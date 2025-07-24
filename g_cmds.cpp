@@ -1653,22 +1653,6 @@ void Cmd_Switchteam_f(edict_t* ent)
 	}
 }
 
-
-/*
-=================
-Cmd_ListMonsters_f
-
-Lists all alive monsters on the map to the server console.
-=================
-*/
-/*
-=================
-Cmd_ListMonsters_f
-
-Generates a detailed status report for every monster spawned on the level.
-This is used to debug discrepancies in the monster count.
-=================
-*/
 /*
 =================
 Cmd_ListMonsters_f
