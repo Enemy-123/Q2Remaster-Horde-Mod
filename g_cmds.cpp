@@ -1661,6 +1661,17 @@ Performs a live scan of all entities to find active monsters and compares
 the result to the official level counters to diagnose discrepancies.
 =================
 */
+// In g_cmds.cpp
+
+/*
+=================
+Cmd_ListMonsters_f
+
+Performs a live scan of all entities to find active monsters, compares the
+result to the official level counters, and identifies any unmanaged monsters
+(those without a valid Horde TypeID) that could be causing discrepancies.
+=================
+*/
 static void Cmd_ListMonsters_f(edict_t* ent)
 {
 	if (!G_CheatCheck(ent))
@@ -1670,6 +1681,7 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 
 	int live_monster_count = 0;
 	int32_t official_remaining_count = GetStroggsNum();
+	std::vector<std::string> unmanaged_monsters; // To store classnames of "ghosts"
 
 	// --- Part 1: Perform a live scan for active monsters ---
 	gi.Com_PrintFmt("Scanning all entities for active monsters...\n");
@@ -1677,24 +1689,37 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 	{
 		edict_t* e = &g_edicts[i];
 
-		// To be an alive monster, an entity must:
-		// 1. Be in use (not a free slot).
-		// 2. Be flagged as a monster.
-		// 3. Not be dead.
-		// 4. Have health above 0.
+		// Filter for entities that are currently alive monsters
 		if (e->inuse && (e->svflags & SVF_MONSTER) && !e->deadflag && e->health > 0)
 		{
-			// This is an optional but good check. Some "monsters" might be friendly
-			// or otherwise shouldn't be part of the main count (e.g., a friendly marine).
-			// The AI_DO_NOT_COUNT flag is often used for this.
+			// Skip monsters that are explicitly marked not to be counted
 			if (e->monsterinfo.aiflags & AI_DO_NOT_COUNT)
 				continue;
 
-			// Print the monster's classname, health, and location.
-			gi.Com_PrintFmt(" - [ALIVE] {}: health {}, origin ({:.0f}, {:.0f}, {:.0f})\n",
-				e->classname,
-				e->health,
-				e->s.origin[0], e->s.origin[1], e->s.origin[2]);
+			// Get the TypeID for this monster
+			horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(e->classname);
+
+			// Check if the monster is managed by the Horde system
+			if (typeId == horde::MonsterTypeID::UNKNOWN)
+			{
+				// This is a potential "ghost" monster, spawned outside the Horde system.
+				gi.Com_PrintFmt(" - [!!UNMANAGED!!] {}: health {}, TypeID: UNKNOWN, origin ({:.0f}, {:.0f}, {:.0f})\n",
+					e->classname,
+					e->health,
+					e->s.origin[0], e->s.origin[1], e->s.origin[2]);
+				
+				// Save its classname for the final report
+				unmanaged_monsters.push_back(e->classname);
+			}
+			else
+			{
+				// This is a normal, managed monster.
+				gi.Com_PrintFmt(" - [ALIVE] {}: health {}, TypeID: {}, origin ({:.0f}, {:.0f}, {:.0f})\n",
+					e->classname,
+					e->health,
+					static_cast<int>(typeId), // Print the integer value of the TypeID
+					e->s.origin[0], e->s.origin[1], e->s.origin[2]);
+			}
 			live_monster_count++;
 		}
 	}
@@ -1715,16 +1740,26 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 		int32_t discrepancy = official_remaining_count - live_monster_count;
 		if (discrepancy > 0)
 		{
-			gi.Com_PrintFmt(" -> There are {} 'ghost' monsters. They were counted at spawn but their death was not registered.\n", discrepancy);
-			gi.Com_PrintFmt(" -> INVESTIGATE: Look for code that removes monsters (e.g., G_FreeEdict) without calling the proper death function that increments level.killed_monsters.\n");
-			gi.Com_PrintFmt(" -> Prime suspects are often special map triggers, admin commands (like your Cmd_Kill_AI_f), or monster-specific cleanup logic.\n");
+			gi.Com_PrintFmt(" -> There are {} 'ghost' monsters. They were counted but are no longer alive.\n", discrepancy);
+			gi.Com_PrintFmt(" -> This can happen if a monster is removed with G_FreeEdict without its death being registered.\n");
 		}
 		else
 		{
 			gi.Com_PrintFmt(" -> There are {} extra live monsters that were not counted at spawn.\n", -discrepancy);
-			gi.Com_PrintFmt(" -> INVESTIGATE: Look for monster spawn code that does not increment level.total_monsters.\n");
 		}
 	}
+
+    // --- Part 3: Report any unmanaged monsters found ---
+    if (!unmanaged_monsters.empty())
+    {
+        gi.Com_PrintFmt("\n[INVESTIGATE] The following UNMANAGED monster types were found alive:\n");
+        for (const auto& classname : unmanaged_monsters)
+        {
+            gi.Com_PrintFmt(" -> {}\n", classname.c_str());
+        }
+        gi.Com_PrintFmt("These monsters were likely spawned by a map trigger or a non-horde command and are causing counter desyncs.\n");
+    }
+
 	gi.Com_PrintFmt("---------------------------\n\n");
 }
 /*
