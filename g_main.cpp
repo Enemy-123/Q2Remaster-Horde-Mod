@@ -960,13 +960,55 @@ static bool G_AnyDeadPlayersWithoutLives()
 	return false;
 }
 
-/*
-================
-G_RunFrame
 
-Advances the world by 0.1 seconds
-================
-*/
+void G_CheckBotOverlap(void)
+{
+    edict_t *bot1, *bot2;
+    int i, j;
+
+    // Iterate through all possible client slots for the first bot
+    for (i = 1; i <= game.maxclients; i++)
+    {
+        bot1 = &g_edicts[i];
+
+        // --- Validate bot1 ---
+        // Is it an active, living, solid bot?
+        if (!bot1->inuse || !(bot1->svflags & SVF_BOT) || !bot1->client || bot1->deadflag || bot1->solid == SOLID_NOT)
+            continue;
+
+        // Iterate through the remaining client slots for the second bot
+        // Start from 'i + 1' to avoid checking pairs twice (e.g., 1->2 and 2->1) and self-checks.
+        for (j = i + 1; j <= game.maxclients; j++)
+        {
+            bot2 = &g_edicts[j];
+
+            // --- Validate bot2 ---
+            if (!bot2->inuse || !(bot2->svflags & SVF_BOT) || !bot2->client || bot2->deadflag || bot2->solid == SOLID_NOT)
+                continue;
+
+            // --- The Overlap Check ---
+            // Use the engine's native function to check if their absolute bounding boxes are intersecting.
+            // This works regardless of collision settings.
+            if (boxes_intersect(bot1->absmin, bot1->absmax, bot2->absmin, bot2->absmax))
+            {
+                // =================================================================
+                // Set the flag to true so TeleportSelf knows this is an automatic,
+                // silent teleport and shouldn't print the global message.
+                bot1->client->emergency_teleport = true;
+                // =================================================================
+
+                // OVERLAP DETECTED!
+                // Teleport the first bot in the pair. The TeleportSelf function has a cooldown,
+                // which prevents it from being teleported again immediately.
+                TeleportSelf(bot1);
+
+                // Since bot1 has been moved, we can stop checking it against other bots for this frame.
+                // Break the inner loop and continue with the next bot1.
+                break;
+            }
+        }
+    }
+}
 /*
 ================
 G_RunFrame
@@ -1000,6 +1042,9 @@ inline void G_RunFrame_(bool main_loop)
         {
             PROFILE_SCOPE("BuildProximityGrid");
             
+			    // Check for and resolve any bot-on-bot overlaps.
+    	G_CheckBotOverlap();
+
             // Calculate world bounds once per map load for stability.
             static vec3_t world_mins{}, world_maxs{};
             
