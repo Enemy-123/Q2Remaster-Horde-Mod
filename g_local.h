@@ -4142,7 +4142,7 @@ void Weapon_Hook(edict_t* ent);
 
 
 extern void OnEntityDeath(edict_t* self) noexcept;
-extern void OnEntityRemoved(edict_t* self) noexcept;
+extern void OnEntityRemoved(edict_t* self);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
