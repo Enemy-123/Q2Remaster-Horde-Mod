@@ -605,54 +605,33 @@ The timelimit or fraglimit has been exceeded
 =================
 */
 
-// --- HELPER FUNCTIONS START ---
-// These helpers perform the string operations efficiently without extra memory allocations.
-
-// Helper function to split a string_view into a vector of string_views
-// without allocating new strings for each part.
+// --- HELPER FUNCTIONS (add these to the top of the file or a utility header) ---
 inline std::vector<std::string_view> split_string_view(std::string_view str, char delimiter = ' ')
 {
     std::vector<std::string_view> result;
     size_t start = 0;
     size_t end = 0;
-
-    while ((start = str.find_first_not_of(delimiter, end)) != std::string_view::npos)
-    {
+    while ((start = str.find_first_not_of(delimiter, end)) != std::string_view::npos) {
         end = str.find(delimiter, start);
         result.push_back(str.substr(start, end - start));
     }
-
     return result;
 }
 
-// Helper to join a vector of string_views back into a single string.
-// This makes one allocation for the final result string, which is optimal.
 inline std::string join_string_views(const std::vector<std::string_view>& views, const char* separator = " ")
 {
-    if (views.empty()) {
-        return "";
-    }
-
-    // Pre-calculate the final string size to avoid reallocations during append
+    if (views.empty()) return "";
     size_t total_size = (views.size() - 1) * strlen(separator);
-    for (const auto& v : views) {
-        total_size += v.length();
-    }
-
+    for (const auto& v : views) total_size += v.length();
     std::string result;
     result.reserve(total_size);
-
-    // Append the views
     result.append(views[0]);
     for (size_t i = 1; i < views.size(); ++i) {
         result.append(separator);
         result.append(views[i]);
     }
-
     return result;
 }
-// --- HELPER FUNCTIONS END ---
-
 
 void EndDMLevel()
 {
@@ -700,34 +679,30 @@ void EndDMLevel()
                     else
                     {
                         // [Paril-KEX] re-shuffle if necessary
-                        if (g_map_list_shuffle->integer)
-                        {
-                            // Use the allocation-free split_string_view helper.
-                            auto values = split_string_view(g_map_list->string);
+                    if (g_map_list_shuffle->integer)
+					{
+						// Use the allocation-free split_string_view helper.
+						auto values = split_string_view(g_map_list->string);
 
-                            if (values.size() <= 1)
-                            {
-                                BeginIntermission(CreateTargetChangeLevel(level.mapname));
-                                return;
-                            }
+						if (values.size() <= 1) {
+							BeginIntermission(CreateTargetChangeLevel(level.mapname));
+							return;
+						}
 
-                            std::shuffle(values.begin(), values.end(), mt_rand);
+						std::shuffle(values.begin(), values.end(), mt_rand);
 
-                            // if the current map is the map at the front, push it to the end
-                            if (values[0] == level.mapname)
-                                std::swap(values[0], values.back());
+						if (values[0] == level.mapname)
+							std::swap(values[0], values.back());
 
-                            // Join the views back into a single string with one allocation.
-                            std::string new_map_list = join_string_views(values);
-                            gi.cvar_forceset("g_map_list", new_map_list.c_str());
+						// Join the views back into a single string with one allocation.
+						std::string new_map_list = join_string_views(values);
+						gi.cvar_forceset("g_map_list", new_map_list.c_str());
 
-                            // A string_view is not guaranteed to be null-terminated, so we create a
-                            // temporary std::string to safely pass a C-string to the next function.
-                            std::string next_map(values[0]);
-                            BeginIntermission(CreateTargetChangeLevel(next_map.c_str()));
-                            return;
-                        }
-
+						// Create a temporary std::string to safely pass a C-string.
+						std::string next_map(values[0]);
+						BeginIntermission(CreateTargetChangeLevel(next_map.c_str()));
+						return;
+					}
                         BeginIntermission(CreateTargetChangeLevel(first_map));
                         return;
                     }

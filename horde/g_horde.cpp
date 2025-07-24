@@ -4582,6 +4582,48 @@ static void ResetSpawnBatchState()
     g_current_ambush_info = AmbushSpawnInfo{}; // Reset to default
 }
 
+void ResetPlayerDeployedItems() {
+    for (uint32_t i = 0; i < game.maxclients; ++i) {
+        edict_t* player_ent = g_edicts + 1 + i;
+        if (!player_ent || !player_ent->inuse || !player_ent->client) continue;
+
+        gclient_t* client = player_ent->client;
+
+        // Lasers
+        client->resp.num_lasers = 0;
+        std::fill(client->resp.deployed_lasers, client->resp.deployed_lasers + LaserConstants::MAX_LASERS_PER_PLAYER, nullptr);
+        client->resp.oldest_tesla_idx = 0; // Assuming this is for tesla index
+
+        // Teslas
+        client->resp.num_teslas = 0;
+        std::fill(client->resp.deployed_teslas, client->resp.deployed_teslas + TeslaConstants::MAX_TESLAS_PER_PLAYER, nullptr);
+        client->resp.oldest_tesla_idx = 0;
+
+        // Traps
+        client->resp.num_traps = 0;
+        std::fill(client->resp.deployed_traps, client->resp.deployed_traps + TrapConstants::MAX_TRAPS_PER_PLAYER, nullptr);
+        client->resp.oldest_trap_idx = 0;
+
+        // Prox Mines
+        client->resp.num_proxs = 0;
+        std::fill(client->resp.deployed_proxs, client->resp.deployed_proxs + ProxConstants::MAX_PROXS_PER_PLAYER, nullptr);
+        client->resp.oldest_prox_idx = 0;
+
+        // Sentries
+        client->resp.num_sentries = 0;
+        std::fill(client->resp.deployed_sentries, client->resp.deployed_sentries + SentryConstants::MAX_SENTRIES_PER_PLAYER, nullptr);
+
+        // Timers
+        client->resp.teleport_cooldown = 3_sec; // Reset to default or 0_sec if appropriate
+        client->resp.lasthbshot = 0_sec;
+
+        // Horde specific state
+        client->last_wave_timer_horde_update = 0;
+        Q_strlcpy(client->voted_map, "", sizeof(client->voted_map));
+        client->emergency_teleport = false;
+    }
+}
+
 void ResetGame()
 {
 	if (hasBeenReset)
@@ -4599,6 +4641,7 @@ void ResetGame()
 		gi.Com_PrintFmt("INFO: Performing full game state reset...\n");
 	}
 
+	
 	g_horde_retaliation_active = false;
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
@@ -4610,7 +4653,7 @@ void ResetGame()
 
 	// recent teleport
 	ResetTeleportTracking();
-
+	ResetPlayerDeployedItems();
 	// HordeConstants::recent_teleport_count = 0;
 	HordeConstants::g_teleport_rate_count = 0;
 	HordeConstants::g_teleport_rate_reset_time = level.time;
@@ -4622,6 +4665,7 @@ void ResetGame()
 	ResetChampionMonsterState();
 	ResetBosses();
 	ResetSpawnBatchState();
+	g_spawn_plan.clear();
 
 	g_adjusted_monster_cap = 0;
 	// spawn_point_cache.clear(); // This is handled by CleanupSpawnPointCache
@@ -6712,6 +6756,9 @@ void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 
 // In g_horde.cpp
 
+// In g_horde.cpp
+
+// The CORRECTED function
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
     vec3_t final_origin, final_angles;
@@ -6736,13 +6783,10 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
     }
 
     // --- BEGIN THE FIX ---
-    // At this point, level.total_monsters has been incremented.
-    // We now apply bonuses. If the monster is freed during this process,
-    // we must manually decrement the counter.
-
+    // Check the return value. If it's false, the monster is now invalid.
     if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) 
     {
-        // Success! The monster is still valid and inuse.
+        // Success: The monster is still valid.
         if (used_alternative) {
             ApplySuccessfulAlternativeCooldown(spawn_point);
         } else {
@@ -6752,14 +6796,9 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
     } 
     else 
     {
-        // Failure! ApplyHordeBonuses returned false, meaning the monster is now !inuse.
-        // We must correct the monster count.
+        // Failure: The monster was freed. We must correct the monster count.
         if (level.total_monsters > 0) {
             level.total_monsters--;
-        }
-
-        if (developer->integer > 1) {
-            gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster became invalid after bonuses. Corrected total_monsters count.\n");
         }
         
         // The spawn ultimately failed, so we still count it as a failure for the spawn point.

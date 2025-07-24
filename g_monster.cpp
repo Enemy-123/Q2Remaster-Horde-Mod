@@ -1664,10 +1664,10 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		return false;
 	}
 
-	    if (g_horde && g_horde->integer && !self->monsterinfo.was_spawned_by_horde)
-    {
-        self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-    }
+	//     if (g_horde && g_horde->integer && !self->monsterinfo.was_spawned_by_horde)
+    // {
+    //     self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+    // }
 
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_SCENIC))
 		self->monsterinfo.aiflags |= AI_GOOD_GUY;
