@@ -6508,15 +6508,17 @@ static edict_t* Horde_SpawnMonster(
     if (post_link_trace.startsolid)
     {
         if (developer->integer) {
-            gi.Com_PrintFmt("SPAWN FAILURE: Monster '{}' at ({}) became stuck after linking. Freeing.\n",
+            gi.Com_PrintFmt("SPAWN FAILURE: Monster '{}' at ({}) became stuck immediately after linking. Freeing.\n",
                 monster->classname, monster->s.origin);
         }
+        // IMPORTANT: G_FreeEdict will now trigger our OnEntityRemoved hook, but since the
+        // monster still has AI_DO_NOT_COUNT, the hook will correctly do nothing.
         G_FreeEdict(monster);
         return nullptr;
     }
 
     // =======================================================================
-    // SUCCESS: The monster is valid. Now we make it officially count.
+    // SUCCESS: The monster is valid and not stuck. Now we make it officially count.
     // =======================================================================
     monster->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
     level.total_monsters++;

@@ -18,87 +18,84 @@ Used for all impact(hit / punch / slash) attacks
 */
 bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 {
-    trace_t tr;
-    vec3_t	forward, right, up;
-    vec3_t	v;
-    vec3_t	point;
-    float	range;
-    vec3_t	dir;
+	trace_t tr;
+	vec3_t	forward, right, up;
+	vec3_t	v;
+	vec3_t	point;
+	float	range;
+	vec3_t	dir;
 
-    // Initial null check for the enemy
-    if (!self->enemy || !self->enemy->inuse) {
-        return false;
-    }
+	// Verificación inicial de null para enemy
+	if (!self->enemy) {
+		return false;
+	}
 
-    // See if enemy is in range
-    range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
-    if (range > aim[0])
-        return false;
+	// see if enemy is in range
+	range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
+	if (range > aim[0])
+		return false;
 
-    if (!(aim[1] > self->mins[0] && aim[1] < self->maxs[0]))
-    {
-        // This is a side hit, so adjust the "right" value out to the edge of their bbox
-        if (aim[1] < 0)
-            aim[1] = self->enemy->mins[0];
-        else
-            aim[1] = self->enemy->maxs[0];
-    }
+	if (!(aim[1] > self->mins[0] && aim[1] < self->maxs[0]))
+	{
+		// this is a side hit so adjust the "right" value out to the edge of their bbox
+		if (aim[1] < 0)
+			aim[1] = self->enemy->mins[0];
+		else
+			aim[1] = self->enemy->maxs[0];
+	}
 
-    point = closest_point_to_box(self->s.origin, self->enemy->absmin, self->enemy->absmax);
+	point = closest_point_to_box(self->s.origin, self->enemy->absmin, self->enemy->absmax);
 
-    // Check that we can hit the point on the bbox
-    tr = gi.traceline(self->s.origin, point, self, MASK_PROJECTILE);
-    if (tr.fraction < 1.0f && tr.ent != self->enemy)
-    {
-        // The trace hit something else before the enemy.
-        // If that "something" is damageable (like another monster or a trap),
-        // we could potentially damage it here, but for now, we'll just say the primary attack is blocked.
-        return false;
-    }
+	// --- MODIFICATION START ---
+	// The original code would forcefully change the hit entity to self->enemy,
+	// causing it to "hit through" obstacles. This version respects what the trace hits.
 
-    // Check that we can hit the player's origin from the point on their bbox
-    tr = gi.traceline(point, self->enemy->s.origin, self, MASK_PROJECTILE);
-    if (tr.fraction < 1.0f && tr.ent != self->enemy)
-    {
-        return false;
-    }
+	// check that we can hit the point on the bbox
+	tr = gi.traceline(self->s.origin, point, self, MASK_PROJECTILE);
 
-    // If we've reached here, we have a clear line of sight.
-    // We can now be certain this is the correct entity to hit.
-    tr.ent = self->enemy;
+	// if the trace hit something before reaching the target point...
+	if (tr.fraction < 1.0f)
+	{
+		// ...and it wasn't our intended enemy, then the attack is blocked.
+		if (tr.ent != self->enemy)
+			return false;
+	}
 
-    AngleVectors(self->s.angles, forward, right, up);
-    point = self->s.origin + (forward * range);
-    point += (right * aim[1]);
-    point += (up * aim[2]);
-    dir = point - self->enemy->s.origin;
+	// check that we can hit the player's origin from the point on their bbox
+	tr = gi.traceline(point, self->enemy->s.origin, self, MASK_PROJECTILE);
 
-    // Do the damage
-    T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
+	// if the trace hit something before reaching the enemy's origin...
+	if (tr.fraction < 1.0f)
+	{
+		// ...and it wasn't our intended enemy, then the attack is blocked.
+		if (tr.ent != self->enemy)
+			return false;
+	}
+	// --- MODIFICATION END ---
 
-    // After dealing damage, the entity might have been killed and freed.
-    // Check if the entity is still valid (`inuse`) before proceeding.
-    if (!tr.ent || !tr.ent->inuse)
-    {
-        // The enemy is gone. The hit was successful.
-        return true;
-    }
+	// If we've reached here, we have a clear line of sight.
+	tr.ent = self->enemy; // We can now be certain this is the correct entity to hit.
 
-    // --- CORRECTED LOGIC ---
-    // Only apply knockback if the target is a monster or a player.
-    if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
-    {
-        // Do our special form of knockback here
-        v = (tr.ent->absmin + tr.ent->absmax) * 0.5f; // Use tr.ent for safety
-        v -= point;
-        v.normalize();
-        tr.ent->velocity += v * kick;
-        if (tr.ent->velocity[2] > 0)
-            tr.ent->groundentity = nullptr;
-    }
+	AngleVectors(self->s.angles, forward, right, up);
+	point = self->s.origin + (forward * range);
+	point += (right * aim[1]);
+	point += (up * aim[2]);
+	dir = point - self->enemy->s.origin;
 
-    // The hit was successful, regardless of whether knockback was applied.
-    return true;
+	// do the damage
+	T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
+
+	if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
+		return false;
+
+	// do our special form of knockback here
+	v = (self->enemy->absmin + self->enemy->absmax) * 0.5f;
+	v -= point;
+	v.normalize();
+	self->enemy->velocity += v * kick;
+	if (self->enemy->velocity[2] > 0)
+		self->enemy->groundentity = nullptr;
+	return true;
 }
 
 // helper routine for piercing traces;

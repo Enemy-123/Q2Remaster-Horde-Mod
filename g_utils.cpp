@@ -408,30 +408,27 @@ THINK(G_FreeEdict) (edict_t* ed) -> void {
 	if (!ed->inuse)
 		return;
 
-	// Handle cleanup through OnEntityRemoved
+	// Call our failsafe hook BEFORE doing anything else.
 	OnEntityRemoved(ed);
 
 	// Unlink from world
 	gi.unlinkentity(ed);
 
-	// Protected entity check
+	// Protected entity check (players, body queue)
 	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE)) {
-#ifdef _DEBUG
-		gi.Com_Print("tried to free special edict\n");
-#endif
 		return;
 	}
 
 	// Unregister from bot system
 	gi.Bot_UnRegisterEdict(ed);
 
-	// Preserve and increment spawn count
+	// Preserve and increment spawn count for entity recycling
 	int32_t id = ed->spawn_count + 1;
 
-	// Clear entity data
+	// Clear the entire entity structure
 	memset(ed, 0, sizeof(*ed));
 
-	// Restore essential fields
+	// Restore essential fields for the freed slot
 	ed->s.number = ed - g_edicts;
 	ed->classname = "freed";
 	ed->freetime = level.time;
@@ -439,6 +436,7 @@ THINK(G_FreeEdict) (edict_t* ed) -> void {
 	ed->spawn_count = id;
 	ed->sv.init = false;
 }
+
 BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)
 {
 	if (!hit->touch)
@@ -728,13 +726,33 @@ void OnEntityDeath(edict_t* self) noexcept
 #include "g_laser.h"
 // This function is for the FINAL cleanup before an entity is removed from the game.
 // This is where you free all associated memory.
-void OnEntityRemoved(edict_t* self) noexcept {
-	if (!self) {
-		return;
-	}
+void OnEntityRemoved(edict_t* ent)
+{
+    if (!ent || !ent->inuse)
+        return;
 
-	// --- Free Savable Memory ---
-	self->moveinfo.curve_positions.release();
+    // Check if it's a monster that was part of the official count.
+    // The AI_DO_NOT_COUNT flag is our shield; if it's not present, the monster was counted.
+    if ((ent->svflags & SVF_MONSTER) && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+    {
+        // Check if it's being removed BEFORE its death was officially registered.
+        // A dead monster will have the `deadflag` set. If it's not set, this is an
+        // improper removal.
+        if (!ent->deadflag)
+        {
+            if (developer->integer)
+            {
+                gi.Com_PrintFmt("FAILSAFE TRIGGERED: Monster '{}' at ({:.0f}, {:.0f}, {:.0f}) was freed while alive. Correcting monster count.\n",
+                    ent->classname ? ent->classname : "unknown",
+                    ent->s.origin[0], ent->s.origin[1], ent->s.origin[2]);
+            }
+            // This is the critical correction for the ghost monster bug.
+            level.killed_monsters++;
+        }
+    }
+
+	// --- Free any other associated memory ---
+	ent->moveinfo.curve_positions.release();
 }
 
 void CleanupInvalidEntities() {

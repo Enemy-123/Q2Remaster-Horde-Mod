@@ -1677,90 +1677,91 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 	if (!G_CheatCheck(ent))
 		return;
 
-	gi.Com_PrintFmt("\n--- Live Monster Analysis ---\n");
+	gi.Com_PrintFmt("\n--- Horde Monster Counter Diagnostics ---\n");
 
-	int live_monster_count = 0;
-	int32_t official_remaining_count = GetStroggsNum();
-	std::vector<std::string> unmanaged_monsters; // To store classnames of "ghosts"
+	int32_t live_and_counted = 0;
+	int32_t live_but_uncounted = 0;
+	int32_t dead_and_was_counted = 0;
 
-	// --- Part 1: Perform a live scan for active monsters ---
-	gi.Com_PrintFmt("Scanning all entities for active monsters...\n");
+	// --- Step 1: Scan and categorize every monster entity ---
 	for (uint32_t i = 1; i < globals.num_edicts; i++)
 	{
 		edict_t* e = &g_edicts[i];
 
-		// Filter for entities that are currently alive monsters
-		if (e->inuse && (e->svflags & SVF_MONSTER) && !e->deadflag && e->health > 0)
+		if (!e->inuse || !(e->svflags & SVF_MONSTER))
+			continue;
+
+		bool is_counted = !(e->monsterinfo.aiflags & AI_DO_NOT_COUNT);
+		bool is_alive = !e->deadflag && e->health > 0;
+
+		if (is_alive)
 		{
-			// Skip monsters that are explicitly marked not to be counted
-			if (e->monsterinfo.aiflags & AI_DO_NOT_COUNT)
-				continue;
-
-			// Get the TypeID for this monster
-			horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(e->classname);
-
-			// Check if the monster is managed by the Horde system
-			if (typeId == horde::MonsterTypeID::UNKNOWN)
+			if (is_counted)
 			{
-				// This is a potential "ghost" monster, spawned outside the Horde system.
-				gi.Com_PrintFmt(" - [!!UNMANAGED!!] {}: health {}, TypeID: UNKNOWN, origin ({:.0f}, {:.0f}, {:.0f})\n",
-					e->classname,
-					e->health,
-					e->s.origin[0], e->s.origin[1], e->s.origin[2]);
-				
-				// Save its classname for the final report
-				unmanaged_monsters.push_back(e->classname);
+				live_and_counted++;
 			}
 			else
 			{
-				// This is a normal, managed monster.
-				gi.Com_PrintFmt(" - [ALIVE] {}: health {}, TypeID: {}, origin ({:.0f}, {:.0f}, {:.0f})\n",
-					e->classname,
-					e->health,
-					static_cast<int>(typeId), // Print the integer value of the TypeID
-					e->s.origin[0], e->s.origin[1], e->s.origin[2]);
+				live_but_uncounted++;
+				gi.Com_PrintFmt("  -> [!!BUG!!] Live but UNCOUNTED: {} at ({:.0f}, {:.0f}, {:.0f})\n",
+					e->classname, e->s.origin[0], e->s.origin[1], e->s.origin[2]);
 			}
-			live_monster_count++;
+		}
+		else // Is dead
+		{
+			if (is_counted)
+			{
+				dead_and_was_counted++;
+			}
+			// We don't care about dead monsters that were never counted (e.g., precache entities).
 		}
 	}
 
-	// --- Part 2: Analyze the results and report ---
-	gi.Com_PrintFmt("\n--- Analysis Summary ---\n");
-	gi.Com_PrintFmt("Live Scan Found: {} monsters\n", live_monster_count);
-	gi.Com_PrintFmt("Official Counter (GetStroggsNum): {} monsters\n", official_remaining_count);
-	gi.Com_PrintFmt(" (level.total_monsters: {}, level.killed_monsters: {})\n", level.total_monsters, level.killed_monsters);
+	// --- Step 2: Analyze and Report ---
+	gi.Com_PrintFmt("\n--- Analysis ---\n");
 
-	if (live_monster_count == official_remaining_count)
+	// Live Scan Results
+	gi.Com_PrintFmt("Live Scan Results:\n");
+	gi.Com_PrintFmt(" - Live & Counted Monsters:         {}\n", live_and_counted);
+	gi.Com_PrintFmt(" - Dead Monsters (that were counted): {}\n", dead_and_was_counted);
+	if (live_but_uncounted > 0) {
+		gi.Com_PrintFmt(" - Live but UNCOUNTED (BUG):      {}\n", live_but_uncounted);
+	}
+
+	// Engine Counter State
+	gi.Com_PrintFmt("\nEngine Counter State:\n");
+	gi.Com_PrintFmt(" - level.total_monsters:            {}\n", level.total_monsters);
+	gi.Com_PrintFmt(" - level.killed_monsters:           {}\n", level.killed_monsters);
+	gi.Com_PrintFmt(" - GetStroggsNum() reports:         {} monsters remaining\n", GetStroggsNum());
+
+	// --- Step 3: Diagnosis ---
+	gi.Com_PrintFmt("\n--- Diagnosis ---\n");
+
+	int32_t total_from_scan = live_and_counted + dead_and_was_counted;
+	bool total_mismatch = (level.total_monsters != total_from_scan);
+	bool killed_mismatch = (level.killed_monsters != dead_and_was_counted);
+
+	if (!total_mismatch && !killed_mismatch)
 	{
-		gi.Com_PrintFmt("\n[OK] Counters are in sync.\n");
+		gi.Com_PrintFmt("[OK] All counters are perfectly in sync with the live entity scan.\n");
 	}
 	else
 	{
-		gi.Com_PrintFmt("\n[!!BUG DETECTED!!] Monster counters are out of sync!\n");
-		int32_t discrepancy = official_remaining_count - live_monster_count;
-		if (discrepancy > 0)
+		gi.Com_PrintFmt("[!!DESYNC DETECTED!!]\n");
+		if (total_mismatch)
 		{
-			gi.Com_PrintFmt(" -> There are {} 'ghost' monsters. They were counted but are no longer alive.\n", discrepancy);
-			gi.Com_PrintFmt(" -> This can happen if a monster is removed with G_FreeEdict without its death being registered.\n");
+			gi.Com_PrintFmt(" -> Total Mismatch: Engine thinks there are {} total monsters, but scan found {}.\n",
+				level.total_monsters, total_from_scan);
+            gi.Com_PrintFmt("    This means a monster was added/removed from the count incorrectly at spawn time.\n");
 		}
-		else
+		if (killed_mismatch)
 		{
-			gi.Com_PrintFmt(" -> There are {} extra live monsters that were not counted at spawn.\n", -discrepancy);
+			gi.Com_PrintFmt(" -> Killed Mismatch: Engine thinks {} monsters were killed, but scan found {} dead monsters.\n",
+				level.killed_monsters, dead_and_was_counted);
+			gi.Com_PrintFmt("    This is the likely cause of the 'ghost monster'. A monster was freed without its death being registered.\n");
 		}
 	}
-
-    // --- Part 3: Report any unmanaged monsters found ---
-    if (!unmanaged_monsters.empty())
-    {
-        gi.Com_PrintFmt("\n[INVESTIGATE] The following UNMANAGED monster types were found alive:\n");
-        for (const auto& classname : unmanaged_monsters)
-        {
-            gi.Com_PrintFmt(" -> {}\n", classname.c_str());
-        }
-        gi.Com_PrintFmt("These monsters were likely spawned by a map trigger or a non-horde command and are causing counter desyncs.\n");
-    }
-
-	gi.Com_PrintFmt("---------------------------\n\n");
+	gi.Com_PrintFmt("---------------------------------------\n\n");
 }
 /*
 =================
