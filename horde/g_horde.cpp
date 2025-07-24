@@ -5363,28 +5363,65 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t *ent, void *data)
 	return BoxEdictsResult_t::Skip;
 }
 
+// In g_horde.cpp
+
+// =======================================================================
+// REPLACEMENT: IsPositionPhysicallyValid (with robust ground checking)
+// =======================================================================
 [[nodiscard]] bool IsPositionPhysicallyValid(vec3_t& io_position, const vec3_t& monster_mins, const vec3_t& monster_maxs, bool is_flying, bool is_predefined_location)
 {
-    vec3_t check_pos = io_position;
+    // --- 1. Initial Checks ---
+    if (!is_valid_vector(io_position)) return false;
 
-    // --- 1. Quick Fail: Check if the starting point is inside a solid wall ---
-    if (gi.pointcontents(check_pos) & MASK_SOLID) {
+    // Quick check: Is the starting point itself inside a solid wall?
+    if (gi.pointcontents(io_position) & MASK_SOLID) {
         return false;
     }
 
-    // --- 2.  Volume Check ---
-    // definitive trace to check the entire volume
-    // the monster will occupy against ALL solid objects and other monsters.
-    trace_t final_check = gi.trace(check_pos, monster_mins, monster_maxs, check_pos, nullptr, MASK_MONSTERSOLID);
-
-    if (final_check.startsolid || final_check.allsolid) {
-        // The volume is occupied by world geometry or another solid entity.
+    // Check the entire volume against world geometry first.
+    trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_SOLID);
+    if (trace.startsolid) {
         return false;
+    }
+
+    vec3_t final_pos = io_position;
+
+    // --- 2. Ground Monster Logic (The "CheckBottoms" part) ---
+    if (!is_flying)
+    {
+        // Check for void below. If there's no ground within 1024 units, it's a death drop.
+        vec3_t end = final_pos;
+        end.z -= 1024;
+        trace_t ground_trace = gi.trace(final_pos, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
+
+        if (ground_trace.fraction == 1.0f) {
+            // No ground found below, this is an invalid spot.
+            return false;
+        }
+
+        // Drop the entity to the floor. This function finds the ground and places the entity's bbox just above it.
+        if (!M_droptofloor_generic(final_pos, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false)) {
+            // Could not find a valid place to stand even after dropping.
+            return false;
+        }
+    }
+
+    // --- 3. Final Volume Check Against All Solid Entities ---
+    // This check runs for both flying and ground monsters at their final calculated position.
+    // It ensures the spot isn't blocked by another monster, a player, or a sentry gun.
+    trace_t entity_trace = gi.trace(final_pos, monster_mins, monster_maxs, final_pos, nullptr, MASK_MONSTERSOLID);
+    if (entity_trace.startsolid) {
+        // If it's a special, hand-placed location (like a boss spawn), we allow it even if
+        // a minor entity is in the way. The spawn logic will push them away.
+        // For random spawns, we are strict and fail the check.
+        if (!is_predefined_location) {
+            return false;
+        }
     }
 
     // --- 4. Success ---
-    // The position is valid. Update the output parameter with the potentially adjusted position.
-    io_position = check_pos;
+    // The position is valid. Update the output parameter with the potentially adjusted (dropped) position.
+    io_position = final_pos;
     return true;
 }
 
@@ -6729,12 +6766,7 @@ static bool FindValidSpawnSpot(
 
     return false; // All attempts failed.
 }
-
-// =======================================================================
-// REPLACEMENT: FindValidSpotAndSpawn and its missing dependency
-// =======================================================================
-
-// This function was missing from the previous replacement block. Add it back.
+// Dependency for the main function below
 void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
@@ -6750,39 +6782,34 @@ void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
 }
 
-// In g_horde.cpp
 
-// In g_horde.cpp
-
-// The CORRECTED function
+// =======================================================================
+// REPLACEMENT: FindValidSpotAndSpawn (with Monster Counting Bug Fix)
+// =======================================================================
 static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID monster_type, int32_t currentLevel, float champion_chance)
 {
     vec3_t final_origin, final_angles;
     bool used_alternative = false;
 
-    if (!FindValidSpawnSpot(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
-        if (used_alternative) {
-            ApplyAlternativePositionCooldown(spawn_point);
-        } else {
-            IncreaseSpawnAttempts(spawn_point);
-        }
-        g_consecutive_spawn_failures++;
+    // Phase 1: Find a valid spot using the helper function.
+    if (!FindValidSpotAndSpawn(spawn_point, monster_type, final_origin, final_angles, used_alternative)) {
+        // Finding a spot failed. The helper function already handled cooldowns and failure counts.
         return nullptr;
     }
 
+    // Phase 2: Spawn the monster.
     edict_t* monster = SpawnMonsterByTypeID(monster_type, final_origin, final_angles, true);
-    if (!monster) {
+    if (!monster) { // This can fail if G_Spawn returns null.
         if (used_alternative) ApplyAlternativePositionCooldown(spawn_point);
         else IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
         return nullptr;
     }
 
-    // --- BEGIN THE FIX ---
-    // Check the return value. If it's false, the monster is now invalid.
+    // Phase 3: Apply bonuses and finalize. This is the critical section.
     if (ApplyHordeBonuses(monster, currentLevel, champion_chance)) 
     {
-        // Success: The monster is still valid.
+        // SUCCESS: The monster is still valid after bonuses were applied.
         if (used_alternative) {
             ApplySuccessfulAlternativeCooldown(spawn_point);
         } else {
@@ -6792,7 +6819,15 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
     } 
     else 
     {
-        // Failure: The monster was freed. We must correct the monster count.
+        // FAILURE: The monster was freed inside ApplyHordeBonuses.
+        // This is where the bug was in your old code.
+        if (developer->integer) {
+             gi.Com_PrintFmt("FindValidSpotAndSpawn: Monster freed during bonus application. Correcting total_monsters count.\n");
+        }
+
+        // ===================================================
+        // THE CRITICAL FIX: Manually decrement the counter.
+        // ===================================================
         if (level.total_monsters > 0) {
             level.total_monsters--;
         }
@@ -6805,9 +6840,8 @@ static edict_t* FindValidSpotAndSpawn(edict_t* spawn_point, horde::MonsterTypeID
             IncreaseSpawnAttempts(spawn_point);
         }
         
-        return nullptr; // Return nullptr to indicate failure.
+        return nullptr; // Return nullptr to indicate the spawn ultimately failed.
     }
-    // --- END THE FIX ---
 }
 
 static void SetMonsterArmor(edict_t *monster)
