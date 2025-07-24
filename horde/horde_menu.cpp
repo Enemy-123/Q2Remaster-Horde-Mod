@@ -1261,7 +1261,7 @@ public:
 		if (g_horde->integer) {
 			layout_builder.append(fmt::format(
 				"if 0 xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
-				last_wave_number, level.total_monsters - level.killed_monsters));
+				last_wave_number, GetStroggsNum()));
 		}
 
 		// Time limit

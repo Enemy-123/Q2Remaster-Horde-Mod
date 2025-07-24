@@ -2392,12 +2392,6 @@ static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 	monster->monsterinfo.last_reacttodamage_target_time = 0_ms;
 	monster->monsterinfo.was_spawned_by_horde = true;
 
-	// ===================================================
-	// THE PROACTIVE FIX: Add the "shield" flag BEFORE ED_CallSpawn.
-	// ===================================================
-	monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	// ===================================================
-
 	if (g_horde_local.state == horde_state_t::spawning)
 	{
 		monster->monsterinfo.spawned_in_spawn_state = true;
@@ -3766,41 +3760,37 @@ void boss_die(edict_t *boss)
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 }
 
+// IDEAL REPLACEMENT for Horde_AllMonstersDead
+// This version uses the reliable GetStroggsNum() for a fast check,
+// and only performs a full loop for final cleanup if necessary.
 static bool Horde_AllMonstersDead()
 {
-	// Fast path using level counters
-	if (level.total_monsters == level.killed_monsters)
-	{
-		return true;
-	}
+    // Step 1: Use the new, reliable counter as the primary check. This is our new "fast path".
+    if (GetStroggsNum() > 0)
+    {
+        // If there are any live monsters, we can exit immediately.
+        return false;
+    }
 
-	// Secondary verification by direct entity check
-	// Using active_or_dead_monsters() for more complete coverage
-	for (auto ent : active_or_dead_monsters())
-	{
-		// Skip invalid entities and non-counting monsters
-		if (!ent || !ent->inuse || (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-			continue;
+    // Step 2: If GetStroggsNum() is 0, we know no *live* monsters remain.
+    // Now, we must perform a final cleanup pass to handle any entities
+    // that are dead but haven't been fully processed (like a boss).
+    // This is a rare but important edge case.
+    for (auto ent : active_or_dead_monsters())
+    {
+        // We only care about bosses that are dead but not yet handled.
+        if (ent && ent->inuse && ent->monsterinfo.IS_BOSS && ent->health <= 0)
+        {
+            if (auto_spawned_bosses.count(ent) && !ent->monsterinfo.BOSS_DEATH_HANDLED)
+            {
+                // This ensures the boss drops its loot and its health bar is cleared.
+                boss_die(ent);
+            }
+        }
+    }
 
-		// If any live monster found, return false immediately
-		if (!ent->deadflag && ent->health > 0)
-		{
-			return false;
-		}
-
-		// Handle dying bosses
-		if (ent->monsterinfo.IS_BOSS && ent->health <= 0)
-		{
-			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() &&
-				!ent->monsterinfo.BOSS_DEATH_HANDLED)
-			{
-				boss_die(ent);
-			}
-		}
-	}
-
-	// If we get here, no live monsters found
-	return true;
+    // Step 3: After the check and potential cleanup, we can confidently say the wave is over.
+    return true;
 }
 
 // Asegúrate de limpiar entidades muertas
@@ -4870,7 +4860,7 @@ void ResetGame()
 int32_t CalculateRemainingMonsters() noexcept
 {
 	// Simple counter approach - more reliable from old version
-	const int32_t remaining = level.total_monsters - level.killed_monsters;
+	const int32_t remaining = GetStroggsNum();
 	return std::max(0, remaining); // Ensure non-negative
 }
 
@@ -4919,8 +4909,8 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 		else if (developer->integer)
 		{
 			// This warning is useful for debugging desyncs between counters and reality.
-			gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but Horde_AllMonstersDead is false. Live: {}, NumSpawn: {}, Queued: {}. TotalLevel: {}. KilledLevel: {}\n",
-							ctx.liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, level.total_monsters, level.killed_monsters);
+			gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but Horde_AllMonstersDead is false. Live: {}, NumSpawn: {}, Queued: {}. Totalalives: {}.\n",
+							ctx.liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, GetStroggsNum());
 		}
 	}
 
@@ -6517,13 +6507,6 @@ static edict_t* Horde_SpawnMonster(
         return nullptr;
     }
 
-    // =======================================================================
-    // SUCCESS: The monster is valid and not stuck. Now we make it officially count.
-    // =======================================================================
-    monster->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
-    level.total_monsters++;
-    // =======================================================================
-
     return monster;
 }
 // --- Helper Function Implementations ---
@@ -6845,13 +6828,6 @@ static edict_t* Horde_SpawnMonster(
         return nullptr;
     }
 
-    // =======================================================================
-    // SUCCESS: The monster is valid. Now we make it officially count.
-    // =======================================================================
-    monster->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
-    level.total_monsters++;
-    // =======================================================================
-
     return monster;
 }
 
@@ -6901,16 +6877,6 @@ static edict_t *FindValidSpotAndSpawn(edict_t *spawn_point, horde::MonsterTypeID
 	// Phase 3: Apply bonuses. This function might free the monster.
 	if (ApplyHordeBonuses(monster, currentLevel, champion_chance))
 	{
-		// SUCCESS: The monster is valid and in the game. Now we make it count.
-
-		// =======================================================================
-		// CRITICAL FIX PART 2: The monster survived. Remove the shield
-		// and MANUALLY increment the counter.
-		// =======================================================================
-		monster->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
-		level.total_monsters++;
-		// =======================================================================
-
 		if (used_alternative)
 		{
 			ApplySuccessfulAlternativeCooldown(spawn_point);
@@ -6923,9 +6889,6 @@ static edict_t *FindValidSpotAndSpawn(edict_t *spawn_point, horde::MonsterTypeID
 	}
 	else
 	{
-		// FAILURE: The monster was freed during bonus application.
-		// Because it still had AI_DO_NOT_COUNT, level.total_monsters was never incremented.
-		// The counters remain perfectly in sync. We just log the spawn failure.
 		g_consecutive_spawn_failures++;
 		if (used_alternative)
 		{
@@ -7630,7 +7593,24 @@ gtime_t GetWaveTimer()
 // Helper functionget stroggs alive on the map
 int32_t GetStroggsNum() noexcept
 {
-	return level.total_monsters - level.killed_monsters;
+    int32_t live_monster_count = 0;
+
+    // Use the efficient 'active_monsters' iterator.
+    for (edict_t* ent : active_monsters())
+    {
+        // This is the crucial check you suggested.
+        // If a monster has this flag, it's a temporary entity (like for precaching)
+        // or a special case that shouldn't be counted towards the wave total.
+        if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
+        {
+            continue; // Skip this monster.
+        }
+
+        // The monster is inuse, alive, and meant to be counted.
+        live_monster_count++;
+    }
+
+    return live_monster_count;
 }
 
 // Helper function to check if it's a boss wave

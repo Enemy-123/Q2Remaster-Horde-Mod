@@ -455,7 +455,7 @@ void SP_turret_driver(edict_t* self)
 
 	if (g_debug_monster_kills->integer)
 		level.monsters_registered[level.total_monsters] = self;
-	level.total_monsters++;
+	if (!g_horde->integer) level.total_monsters++;
 
 	self->svflags |= SVF_MONSTER;
 	self->takedamage = true;

@@ -1035,7 +1035,7 @@ if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
 		{
 			if (g_debug_monster_kills->integer)
 				level.monsters_registered[level.total_monsters] = self;
-			level.total_monsters++;
+		if (!g_horde->integer)	level.total_monsters++;
 		}
 	}
 	else
