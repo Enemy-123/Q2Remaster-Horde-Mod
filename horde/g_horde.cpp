@@ -4220,7 +4220,7 @@ static void HandleForcedBossRemoval(edict_t *boss)
 
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("Forced Boss Removal: Attributed %d remaining HP from '%s' to '%s'.\n",
+			gi.Com_PrintFmt("Forced Boss Removal: Attributed {} remaining HP from '%s' to '{}'.\n",
 							boss->health, GetDisplayName(boss).c_str(), GetPlayerName(attacker).c_str());
 		}
 	}
