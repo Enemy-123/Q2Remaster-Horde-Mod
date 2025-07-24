@@ -16,7 +16,7 @@ fire_hit
 Used for all impact(hit / punch / slash) attacks
 ================ =
 */
-bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
+bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 {
 	trace_t tr;
 	vec3_t	forward, right, up;
@@ -24,11 +24,6 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 	vec3_t	point;
 	float	range;
 	vec3_t	dir;
-
-	// Verificación inicial de null para enemy
-	if (!self->enemy) {
-		return false;
-	}
 
 	// see if enemy is in range
 	range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
@@ -46,35 +41,29 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 
 	point = closest_point_to_box(self->s.origin, self->enemy->absmin, self->enemy->absmax);
 
-	// --- MODIFICATION START ---
-	// The original code would forcefully change the hit entity to self->enemy,
-	// causing it to "hit through" obstacles. This version respects what the trace hits.
-
 	// check that we can hit the point on the bbox
 	tr = gi.traceline(self->s.origin, point, self, MASK_PROJECTILE);
 
-	// if the trace hit something before reaching the target point...
-	if (tr.fraction < 1.0f)
+	if (tr.fraction < 1)
 	{
-		// ...and it wasn't our intended enemy, then the attack is blocked.
-		if (tr.ent != self->enemy)
+		if (!tr.ent->takedamage)
 			return false;
+		// if it will hit any client/monster then hit the one we wanted to hit
+		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
+			tr.ent = self->enemy;
 	}
 
-	// check that we can hit the player's origin from the point on their bbox
+	// check that we can hit the player from the point
 	tr = gi.traceline(point, self->enemy->s.origin, self, MASK_PROJECTILE);
 
-	// if the trace hit something before reaching the enemy's origin...
-	if (tr.fraction < 1.0f)
+	if (tr.fraction < 1)
 	{
-		// ...and it wasn't our intended enemy, then the attack is blocked.
-		if (tr.ent != self->enemy)
+		if (!tr.ent->takedamage)
 			return false;
+		// if it will hit any client/monster then hit the one we wanted to hit
+		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
+			tr.ent = self->enemy;
 	}
-	// --- MODIFICATION END ---
-
-	// If we've reached here, we have a clear line of sight.
-	tr.ent = self->enemy; // We can now be certain this is the correct entity to hit.
 
 	AngleVectors(self->s.angles, forward, right, up);
 	point = self->s.origin + (forward * range);
@@ -98,39 +87,6 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 	return true;
 }
 
-// helper routine for piercing traces;
-// mask = the input mask for finding what to hit
-// you can adjust the mask for the re-trace (for water, etc).
-// note that you must take care in your pierce callback to mark
-// the entities that are being pierced.
-// CORRECTED pierce_trace FUNCTION
-void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierce_args_t& pierce, contents_t mask)
-{
-	int	   loop_count = MAX_EDICTS;
-	vec3_t own_start, own_end;
-	own_start = start;
-	own_end = end;
-
-	while (--loop_count)
-	{
-		//  Use 'own_start' which is updated each loop, not the original 'start'.
-		pierce.tr = gi.traceline(own_start, own_end, ignore, mask);
-
-		// didn't hit anything, so we're done
-		if (!pierce.tr.ent || pierce.tr.fraction == 1.0f)
-			return;
-
-		// hit callback said we're done
-		if (!pierce.hit(mask, own_end))
-			return;
-
-		// Update the start position for the next segment of the trace
-		own_start = pierce.tr.endpos;
-	}
-
-	// This message will now only appear in legitimate edge cases, not every time you pierce something.
-	gi.Com_Print("runaway pierce_trace\n");
-}
 
 /*
 =================
