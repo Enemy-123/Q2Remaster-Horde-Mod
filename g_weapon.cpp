@@ -1154,13 +1154,16 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 		grenade->spawnflags |= SPAWNFLAG_GRENADE_HELD;
 	grenade->s.sound = gi.soundindex("weapons/hgrenc1b.wav");
 
-	    if (from_upgraded_prox)
-        grenade->count = 1; // Use 'count' as our special tag
-    else
-        grenade->count = 0;
+	// FIX: This block is now at the correct indentation level.
+	if (from_upgraded_prox)
+		grenade->count = 1; // Use 'count' as our special tag
+	else
+		grenade->count = 0;
 
 	if (timer <= 0_ms)
+	{
 		Grenade_Explode(grenade);
+	}
 	else
 	{
 		gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);

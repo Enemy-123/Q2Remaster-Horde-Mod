@@ -429,10 +429,8 @@ R_ConcatRotations
 		len_squared += d * d;
 	} // else: overlap on Z, contribution is 0
 
-	// std::sqrt(0.0f) is valid and returns 0.0f
-	return std::sqrt(len_squared);
+	return sqrtf(len_squared);
 }
-
 [[nodiscard]] constexpr bool boxes_intersect(const vec3_t& amins, const vec3_t& amaxs, const vec3_t& bmins, const vec3_t& bmaxs)
 {
 	return amins.x <= bmaxs.x &&
@@ -489,7 +487,7 @@ constexpr float STOP_EPSILON = 0.1f;
 			return 270.f;
 	}
 
-	float yaw = (atan2(vec[YAW], vec[PITCH]) * (180.f / PIf));
+	float yaw = (atan2f(vec[YAW], vec[PITCH]) * (180.f / PIf));
 
 	if (yaw < 0)
 		yaw += 360;
@@ -512,7 +510,7 @@ constexpr float STOP_EPSILON = 0.1f;
 
 	// PMM - fixed to correct for pitch of 0
 	if (vec[0])
-		yaw = (atan2(vec[1], vec[0]) * (180.f / PIf));
+		yaw = (atan2f(vec[1], vec[0]) * (180.f / PIf));
 	else if (vec[1] > 0)
 		yaw = 90;
 	else
@@ -521,8 +519,8 @@ constexpr float STOP_EPSILON = 0.1f;
 	if (yaw < 0)
 		yaw += 360;
 
-	forward = sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
-	pitch = (atan2(vec[2], forward) * (180.f / PIf));
+	forward = sqrtf(vec[0] * vec[0] + vec[1] * vec[1]);
+	pitch = (atan2f(vec[2], forward) * (180.f / PIf));
 
 	if (pitch < 0)
 		pitch += 360;
@@ -566,10 +564,10 @@ constexpr float STOP_EPSILON = 0.1f;
 	}
 	else
 	{
-		float const ang = acos(dot);
-		float const sinOmega = sin(ang);
-		float const sinAOmega = sin((1.0f - t) * ang);
-		float const sinBOmega = sin(t * ang);
+		float const ang = acosf(dot);
+		float const sinOmega = sinf(ang);
+		float const sinAOmega = sinf((1.0f - t) * ang);
+		float const sinBOmega = sinf(t * ang);
 		aFactor = sinAOmega / sinOmega;
 		bFactor = sinBOmega / sinOmega;
 	}

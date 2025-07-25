@@ -85,7 +85,7 @@ static void shambler_fireball_update(edict_t* self)
 	}
 
     // Corrected frame check for fireball (smash animation) and using lightning_left_hand count
-	if (self->s.frame >= FRAME_smash01 + q_countof(lightning_left_hand))
+if (self->s.frame >= FRAME_smash01 + static_cast<int>(q_countof(lightning_left_hand)))
 	{
 		G_FreeEdict(fireball_effect);
 		self->beam2 = nullptr; // Clear beam2
@@ -98,7 +98,7 @@ static void shambler_fireball_update(edict_t* self)
 	// Calculate positions for both hands, deriving from lightning positions + Z offset
     // Indexing based on FRAME_smash01
     int frame_index = self->s.frame - FRAME_smash01;
-    if (frame_index < 0 || frame_index >= q_countof(lightning_left_hand)) {
+    if (frame_index < 0 || frame_index >= static_cast<int>(q_countof(lightning_left_hand))) {
         // Safety break, should not happen if animation frames are correct
         G_FreeEdict(fireball_effect);
 		self->beam2 = nullptr;
@@ -165,7 +165,7 @@ static void shambler_lightning_update(edict_t* self)
 		return;
 	}
 
-	if (self->s.frame >= FRAME_magic01 + q_countof(lightning_left_hand))
+	if (self->s.frame >= FRAME_magic01 + static_cast<int>(q_countof(lightning_left_hand)))
 	{
 		G_FreeEdict(lightning);
 		self->beam = nullptr;

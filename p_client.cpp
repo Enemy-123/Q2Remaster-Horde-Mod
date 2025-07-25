@@ -789,8 +789,9 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	}
 
 	// Clear inventory except blaster and tech items
-	for (int i = 0; i < MAX_ITEMS; i++) {
-		if (i != IT_WEAPON_BLASTER && !IsTechItem(i)) {
+	for (size_t i = 0; i < MAX_ITEMS; i++) {
+		// Note: You might need to cast IT_WEAPON_BLASTER if it's also an int
+		if (i != static_cast<size_t>(IT_WEAPON_BLASTER) && !IsTechItem(i)) {
 			client->pers.inventory[i] = 0;
 		}
 	}
@@ -808,8 +809,8 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 // Función auxiliar para verificar si un ítem es un TECH
 bool IsTechItem(int item_id) noexcept
 {
-	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
-		if (item_id == tech_ids[i]) {
+	for (const auto& tech_id : tech_ids) {
+		if (item_id == tech_id) {
 			return true;
 		}
 	}
@@ -923,7 +924,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	{
 		bool bot_has_any_tech = false;
 		// Check if the bot already holds *any* tech item
-		for (int i = 0; i < MAX_ITEMS; i++) {
+		for (size_t i = 0; i < MAX_ITEMS; i++) { // Changed int to size_t
 			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0) {
 				bot_has_any_tech = true;
 				break;

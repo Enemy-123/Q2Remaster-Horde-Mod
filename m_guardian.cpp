@@ -525,14 +525,28 @@ MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 	const float r = range_to(self, self->enemy);
 
 	if (r > RANGE_NEAR)
+	{
 		M_SetAnimation(self, &guardian_move_atk2_in);
-	else if (
-		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f) && !(horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN))) ||
-		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2) && r <= RANGE_MELEE))
-		)
-		M_SetAnimation(self, &guardian_move_kick);
+	}
+	// Refactored logic for clarity and correctness
+	else if (self->monsterinfo.melee_debounce_time < level.time && r < 120.f)
+	{
+		// This block is only entered if the bot is close and its melee attack is ready.
+		// Now, decide if we should do the kick animation.
+		if (!(horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ||
+		    (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2) && r <= RANGE_MELEE))
+		{
+			M_SetAnimation(self, &guardian_move_kick);
+		}
+		else
+		{
+			M_SetAnimation(self, &guardian_move_atk1_in);
+		}
+	}
 	else
+	{
 		M_SetAnimation(self, &guardian_move_atk1_in);
+	}
 }
 
 //

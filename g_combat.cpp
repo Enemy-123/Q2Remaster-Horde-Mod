@@ -1038,7 +1038,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
         (inflictor && inflictor->count == 1))
     {
         // It's a cluster grenade from an upgraded prox hitting a boss. Reduce damage by half.
-        damage *= 0.2f; // You can adjust this multiplier, e.g., 0.3 for 70% reduction.
+        damage = lroundf(damage * 0.2f);  // You can adjust this multiplier, e.g., 0.3 for 70% reduction.
     }
 
 	if (!targ->takedamage)

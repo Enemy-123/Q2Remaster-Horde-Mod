@@ -521,8 +521,9 @@ void TankGrenades(edict_t* self)
 		PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
 		aim += right * (crandom() * 0.02f);  // Pequeño ajuste aleatorio
 		aim.normalize();
-		monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0,
-			crandom_open() * 10.0f, 200.f + (crandom_open() * 10.0f));
+		// FIX: Round all float arguments to integers
+		monster_fire_grenade(self, start, aim, 50, lroundf(speed), MZ2_UNUSED_0,
+			lroundf(crandom_open() * 10.0f), lroundf(200.f + (crandom_open() * 10.0f)));
 	}
 	// Para distancias largas o mortero, mantener la lógica original
 	else
@@ -532,11 +533,13 @@ void TankGrenades(edict_t* self)
 		aim.normalize();
 
 		if (M_CalculatePitchToFire(self, aimpoint, start, aim, speed, 2.5f, is_mortar))
-			monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0,
-				crandom_open() * 10.0f, frandom() * 10.f);
+			// FIX: Round all float arguments to integers
+			monster_fire_grenade(self, start, aim, 50, lroundf(speed), MZ2_UNUSED_0,
+				lroundf(crandom_open() * 10.0f), lroundf(frandom() * 10.f));
 		else
-			monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0,
-				crandom_open() * 10.0f, 200.f + (crandom_open() * 10.0f));
+			// FIX: Round all float arguments to integers
+			monster_fire_grenade(self, start, aim, 50, lroundf(speed), MZ2_UNUSED_0,
+				lroundf(crandom_open() * 10.0f), lroundf(200.f + (crandom_open() * 10.0f)));
 	}
 
 	gi.sound(self, CHAN_WEAPON, sound_grenade, 1, ATTN_NORM, 0);
@@ -663,7 +666,7 @@ void TankRocket(edict_t* self)
 
     // Determine rocketSpeed
     if (self->speed)
-        rocketSpeed = self->speed;
+        rocketSpeed = lroundf(self->speed); // FIX: Explicitly round the float to the nearest int
     else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN)) // Ensure SPAWNFLAG is defined correctly
         rocketSpeed = 600;
     else
@@ -720,9 +723,9 @@ void TankRocket(edict_t* self)
         {
              // --- self->enemy is guaranteed valid here for spawnflags check ---
              if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
             else
-                monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+                monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
         }
     }
     else
@@ -733,9 +736,9 @@ void TankRocket(edict_t* self)
         {
             // --- self->enemy is guaranteed valid here for spawnflags check ---
             if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
             else
-                 monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+                 monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
         }
     }
 }

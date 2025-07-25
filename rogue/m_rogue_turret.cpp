@@ -923,8 +923,10 @@ When activated, wall units move 32 units in the direction they're facing.
 void SP_monster_turret(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) 
+	{
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TURRET);
+	}
 
 	int angle;
 
