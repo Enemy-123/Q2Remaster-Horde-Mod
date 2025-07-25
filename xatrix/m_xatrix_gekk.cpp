@@ -693,7 +693,7 @@ TOUCH(loogie_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool othe
 	gi.sound(self, CHAN_AUTO, loogie_hit, 1.0f, ATTN_NORM, 0);
 
 	G_FreeEdict(self);
-};
+}
 
 void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed)
 {

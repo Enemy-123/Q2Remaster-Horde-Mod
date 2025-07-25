@@ -1581,26 +1581,6 @@ mframe_t soldier_frames_trip[] = {
 };
 MMOVE_T(soldier_move_trip) = { FRAME_runt01, FRAME_runt19, soldier_frames_trip, soldier_run };
 
-static void soldier_high_gravity(edict_t* self)
-{
-	float const gravity_scale = (800.f / level.gravity);
-
-	if (self->velocity[2] < 0)
-		self->gravity = 2.0f;  // Aumentado de 1.75f para una caída más notable
-	else
-		self->gravity = 4.75f; // Aumentado de 4.0f para un control más preciso del salto
-
-	self->gravity *= gravity_scale;
-
-	// Asegurarse de que la gravedad se aplique correctamente
-	self->gravity = -self->gravity;
-	SV_AddGravity(self);
-	self->gravity = -self->gravity;
-
-	gi.linkentity(self);
-}
-
-
 // This function is already great. Let's just make sure the values are good.
 // Higher gravity on the way down makes for a snappier landing.
 static void soldier_apply_jump_gravity(edict_t* self)

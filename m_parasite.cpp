@@ -699,25 +699,6 @@ static void parasite_proboscis_wait(edict_t* self)
 		self->monsterinfo.nextframe = FRAME_drain04;
 }
 
-static void parasite_proboscis_pull_wait(edict_t* self)
-{
-	// prob exploded?
-	if (!self->proboscus || self->proboscus->style == 3)
-	{
-		self->monsterinfo.nextframe = FRAME_drain14;
-		return;
-	}
-
-	// being pulled in, so wait until we get destroyed
-	if (self->s.frame == FRAME_drain12)
-		self->monsterinfo.nextframe = FRAME_drain13;
-	else
-		self->monsterinfo.nextframe = FRAME_drain12;
-
-	if (self->proboscus->style != 2)
-		proboscis_retract(self->proboscus);
-}
-
 mframe_t parasite_frames_fire_proboscis[] = {
 	{ parasite_charge_proboscis, 0, parasite_launch },
 	{ parasite_charge_proboscis, 15, parasite_fire_proboscis }, // Target hits

@@ -1239,9 +1239,6 @@ mframe_t turret2_frames_fire_blind[] = {
 MMOVE_T(turret2_move_fire_blind) = { FRAME_pow01, FRAME_pow04, turret2_frames_fire_blind, turret2_run };
 // pmm
 
-// Add this near the top of the file with other state variables
-static gtime_t last_animation_change[MAX_EDICTS] = { 0_sec };
-
 // attack function
 MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 {

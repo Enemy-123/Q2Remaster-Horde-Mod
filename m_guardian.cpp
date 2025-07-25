@@ -527,7 +527,7 @@ MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 	if (r > RANGE_NEAR)
 		M_SetAnimation(self, &guardian_move_atk2_in);
 	else if (
-		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && ! (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ||
+		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f) && !(horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN))) ||
 		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2) && r <= RANGE_MELEE))
 		)
 		M_SetAnimation(self, &guardian_move_kick);

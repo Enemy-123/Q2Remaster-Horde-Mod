@@ -758,7 +758,7 @@ static BoxEdictsResult_t hurt_filter(edict_t* other, void* self_ptr)
 
 THINK(hurt_think) (edict_t* self) -> void
 {
-	hurt_filter_data_t data{ self };
+	hurt_filter_data_t data{ self, {} };
 	gi.BoxEdicts(self->absmin, self->absmax, nullptr, 0, AREA_SOLID, hurt_filter, &data);
 
 	damageflags_t dflags;

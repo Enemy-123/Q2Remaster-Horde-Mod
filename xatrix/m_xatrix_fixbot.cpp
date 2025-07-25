@@ -1144,7 +1144,7 @@ void ai_facing(edict_t* self, float dist)
 		self->ideal_yaw = vectoyaw(v);
 		M_ChangeYaw(self);
 	}
-};
+}
 
 mframe_t fixbot_frames_turn[] = {
 	{ ai_facing }
@@ -1724,7 +1724,7 @@ void ai_move2(edict_t* self, float dist)
 	vec3_t v = self->goalentity->s.origin - self->s.origin;
 	self->ideal_yaw = vectoyaw(v);
 	M_ChangeYaw(self);
-};
+}
 
 mframe_t fixbot_frames_weld_start[] = {
 	{ ai_move2, 0 }, { ai_move2, 0 }, { ai_move2, 0 },

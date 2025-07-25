@@ -90,11 +90,6 @@ constexpr const char* tank_vanilla_insane_reinforcements =
 //                        SHARED UTILITY FUNCTIONS                          //
 //////////////////////////////////////////////////////////////////////////////
 
-// Check distance between two entities
-static float entdist(const edict_t* ent1, const edict_t* ent2)
-{
-	return (ent1->s.origin - ent2->s.origin).length();
-}
 
 // Teleport near target function for commander
 [[nodiscard]] bool TeleportNearTarget(edict_t* self, edict_t* target, float dist, bool effect)

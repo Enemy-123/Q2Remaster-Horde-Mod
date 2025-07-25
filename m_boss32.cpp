@@ -571,7 +571,7 @@ void MakronSaveloc(edict_t* self)
 {
 	self->pos1 = self->enemy->s.origin; // save for aiming the shot
 	self->pos1[2] += self->enemy->viewheight;
-};
+}
 
 mframe_t makron_frames_attack_rail[] = {
 	{ ai_charge, 0, makron_prerailgun },

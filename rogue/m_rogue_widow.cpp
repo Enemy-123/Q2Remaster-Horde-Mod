@@ -526,7 +526,7 @@ void WidowSaveLoc(edict_t* self)
 		self->pos1 = self->enemy->s.origin;
 		self->pos1[2] += self->enemy->viewheight;
 	}
-};
+}
 
 void widow_start_rail(edict_t* self)
 {

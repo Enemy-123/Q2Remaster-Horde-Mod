@@ -81,7 +81,7 @@ void Hook_Reset(edict_t* rhook)
 
 	// delete ourself
 	G_FreeEdict(rhook);
-};
+}
 
 // resets the hook if it needs to be
 bool Hook_Check(edict_t* self)

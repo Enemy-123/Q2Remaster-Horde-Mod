@@ -654,7 +654,7 @@ void sham_smash10(edict_t* self)
 
 	// SpawnMeatSpray(self.origin + v_forward * 16, crandom() * 100 * v_right);
 	// SpawnMeatSpray(self.origin + v_forward * 16, crandom() * 100 * v_right);
-};
+}
 
 void ShamClaw(edict_t* self)
 {
@@ -685,7 +685,7 @@ void ShamClaw(edict_t* self)
 		SpawnMeatSpray(self.origin + v_forward * 16, side * v_right);
 	}
 	*/
-};
+}
 
 mframe_t shambler_frames_smash[] = {
 	{ ai_charge, 2, shambler_melee1 },

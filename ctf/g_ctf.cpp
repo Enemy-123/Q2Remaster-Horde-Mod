@@ -2247,17 +2247,21 @@ int CTFApplyResistance(edict_t* ent, int dmg)
 
 int CTFApplyStrength(edict_t* ent, int dmg) {
 	if (ent == nullptr) {
-		// Este error sí debería ser raro y vale la pena registrarlo
 		gi.Com_PrintFmt("PRINT: CTFApplyStrength: Error - ent is null\n");
 		return dmg;
 	}
 
 	if (ent->client && dmg && ent->client->pers.inventory[IT_TECH_STRENGTH]) {
-		return (ent->client->resp.spree >= 10 || current_wave_level >= 20) ? dmg * 2.0f : dmg * 1.5f;
+        // Perform the calculation as a float
+		float boosted_dmg = (ent->client->resp.spree >= 10 || current_wave_level >= 20) ? dmg * 2.0f : dmg * 1.5f;
+        
+        // Explicitly round the float result to the nearest integer before returning
+		return static_cast<int>(std::round(boosted_dmg));
 	}
 
 	return dmg;
 }
+
 bool CTFApplyStrengthSound(edict_t* ent)
 {
 	float volume = 1.0;

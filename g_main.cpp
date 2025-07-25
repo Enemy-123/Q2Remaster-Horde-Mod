@@ -965,7 +965,7 @@ static gtime_t g_bot_overlap_cooldown = 0_ms;
 void G_CheckBotOverlap(void)
 {
     edict_t *bot1, *bot2;
-    int i, j;
+	uint32_t i, j;
 
     // =================================================================
     // === NEW CODE: GLOBAL COOLDOWN CHECK =============================

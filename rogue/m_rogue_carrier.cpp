@@ -642,7 +642,7 @@ void CarrierSaveLoc(edict_t *self)
 	CarrierCoopCheck(self);
 	self->pos1 = self->enemy->s.origin; // save for aiming the shot
 	self->pos1[2] += self->enemy->viewheight;
-};
+}
 
 mframe_t carrier_frames_attack_rail[] = {
 	{ ai_charge, 2, CarrierCoopCheck },

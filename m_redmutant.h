@@ -151,6 +151,6 @@ enum
     FRAME_walk21,
     FRAME_walk22,
     FRAME_walk23,
-}redmutant;
+};
 
 constexpr float MODEL_SCALE = 1.000000f;
