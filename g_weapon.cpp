@@ -361,7 +361,7 @@ void fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir
 {
     // Apply damage modifier, if applicable.
     if (self->svflags & SVF_MONSTER) {
-        damage *= M_DamageModifier(self);
+        damage = static_cast<int>(round(damage * M_DamageModifier(self)));
     }
 
     // Use TE_BLASTER for energy impact effect
@@ -378,7 +378,7 @@ Used for energy shells bonus for shotguns.
 void fire_energy_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
 {
 	if (self->svflags & SVF_MONSTER) {
-		damage *= M_DamageModifier(self);
+		damage = static_cast<int>(round(damage * M_DamageModifier(self)));
 	}
 
 	for (int i = 0; i < count; i++)
@@ -622,7 +622,7 @@ void fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int d
 {
 	// Apply damage modifier if monster
 	if (self->svflags & SVF_MONSTER) {
-		damage *= M_DamageModifier(self);
+		damage = static_cast<int>(round(damage * M_DamageModifier(self)));
 	}
 
 	// Use the standard fire_lead function - attacker is determined inside the pierce_t constructor
@@ -649,7 +649,7 @@ void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 
 	// Original implementation for regular shotgun
 	if (self->svflags & SVF_MONSTER) {
-		damage *= M_DamageModifier(self);
+		damage = static_cast<int>(round(damage * M_DamageModifier(self)));
 	}
 
 	for (int i = 0; i < count; i++)

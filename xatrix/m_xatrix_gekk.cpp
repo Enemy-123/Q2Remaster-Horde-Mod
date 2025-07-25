@@ -717,7 +717,7 @@ void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	loogie->touch = loogie_touch;
 	loogie->nextthink = level.time + 2_sec;
 	loogie->think = G_FreeEdict;
-	loogie->dmg = damage *= M_DamageModifier(self);
+	loogie->dmg = damage = static_cast<int>(round(damage * M_DamageModifier(self)));
 	loogie->svflags |= SVF_PROJECTILE;
 	gi.linkentity(loogie);
 

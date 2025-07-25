@@ -1055,7 +1055,7 @@ inline void G_RunFrame_(bool main_loop)
     	G_CheckBotOverlap();
 
             // Calculate world bounds once per map load for stability.
-            static vec3_t world_mins{}, world_maxs{};
+   //         static vec3_t world_mins{}, world_maxs{};
             
             // Use a static variable to track the map name and reset bounds on change.
                      static std::string last_map_for_grid;
@@ -1126,7 +1126,7 @@ inline void G_RunFrame_(bool main_loop)
         G_Monster_CheckCoopHealthScaling();
 
         // Batch process limited monsters per frame
-        static uint32_t start_index = 0;
+    //    static uint32_t start_index = 0;
         constexpr uint32_t BATCH_SIZE = 32;
         uint32_t processed = 0;
 

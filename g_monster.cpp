@@ -27,7 +27,7 @@ void monster_muzzleflash(edict_t* self, const vec3_t& start, monster_muzzleflash
 void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int kick, int hspread,
 	int vspread, monster_muzzleflash_id_t flashtype)
 {
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_CHAINGUN);
 	monster_muzzleflash(self, start, flashtype);
@@ -35,7 +35,7 @@ void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 void monster_fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int kick, int hspread,
 	int vspread, monster_muzzleflash_id_t flashtype)
 {
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_energy_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_CHAINGUN);
 	monster_muzzleflash(self, start, flashtype);
@@ -44,7 +44,7 @@ void monster_fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t
 void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, int count, monster_muzzleflash_id_t flashtype)
 {
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 	fire_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, MOD_SSHOTGUN);
 	monster_muzzleflash(self, start, flashtype);
 }
@@ -73,7 +73,7 @@ edict_t* monster_fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec
 void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype)
 {
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_flechette(self, start, dir, damage, speed, damage / 2);
 	monster_muzzleflash(self, start, flashtype);
@@ -82,7 +82,7 @@ void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& di
 void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype, float right_adjust, float up_adjust)
 {
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_grenade(self, start, aimdir, damage, speed, 2.5_sec, damage + 40.f, right_adjust, up_adjust, true);
 	monster_muzzleflash(self, start, flashtype);
@@ -91,7 +91,7 @@ void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimd
 void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype)
 {
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_rocket(self, start, dir, damage, speed, (float)damage + 20, damage);
 	monster_muzzleflash(self, start, flashtype);
@@ -103,7 +103,7 @@ bool monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimd
 	if (gi.pointcontents(start) & MASK_SOLID)
 		return false;
 
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	bool hit = fire_rail(self, start, aimdir, damage, kick);
 
@@ -116,7 +116,7 @@ bool monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimd
 void monster_fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, int kick,
 	float damage_radius, monster_muzzleflash_id_t flashtype)
 {
-	//damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
+	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_bfg(self, start, aimdir, damage, speed, damage_radius);
 	monster_muzzleflash(self, start, flashtype);

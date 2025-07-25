@@ -10,7 +10,7 @@ water_level_t GetWaterLevelForPosition(const vec3_t& in_point)
 {
     // Use a standard medium-sized monster bounding box for the check.
     static const vec3_t monster_mins = {-16, -16, -24};
-    static const vec3_t monster_maxs = {16, 16, 32};
+   // static const vec3_t monster_maxs = {16, 16, 32};
 
     vec3_t point;
     contents_t cont;

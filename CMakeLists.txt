@@ -1,23 +1,11 @@
-# CMakeLists.txt (Final version with multiple build configurations)
 cmake_minimum_required(VERSION 3.15)
 project(Q2HordeMod LANGUAGES CXX)
 
-# --- Define custom build type flags ---
-# These must be defined before the project() command is fully processed.
-# DebugASan: Compiles with AddressSanitizer instrumentation for memory checking.
-set(CMAKE_CXX_FLAGS_DEBUGASAN "-fsanitize=address -g -O1 -fno-omit-frame-pointer" CACHE STRING "Flags for DebugASan build" FORCE)
-set(CMAKE_SHARED_LINKER_FLAGS_DEBUGASAN "-fsanitize=address" CACHE STRING "Linker flags for DebugASan build" FORCE)
-
-# RelWithDebInfo: Optimized build like Release, but includes debug symbols and is not stripped.
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g" CACHE STRING "Flags for RelWithDebInfo build" FORCE)
+# --- Best Practice: Generate compile_commands.json for static analysis tools ---
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-
-# --- Release Build Optimizations ---
-# This single linker flag tells the linker to strip all symbols,
-# producing the smallest possible binary. This is only for Release builds.
-set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -s")
 
 # --- Deployment directory option ---
 set(DEPLOY_DIRECTORY "" CACHE PATH "Directory where game_x64.dll should be copied")
@@ -54,29 +42,50 @@ target_include_directories(Q2HordeModDLL PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/vendor/jsoncpp/jsoncpp-1.9.6/include"
 )
 
+# --- Define Common Warning Flags to be used by all debug-style builds ---
+set(COMMON_WARNING_FLAGS
+    -Wall                   # Enable all standard warnings
+    -Wextra                 # Enable extra, useful warnings
+    #-Wshadow                # Warn about shadowed variables
+    -Wuninitialized         # Warn about using uninitialized variables
+    -Wconversion            # Warn about potentially lossy type conversions
+    -pedantic               # Enforce strict C++ standard compliance
+)
+
+# --- Add Compile Options (Modern Approach) ---
+target_compile_options(Q2HordeModDLL PRIVATE
+    # Add common warnings to all builds except Release
+    $<$<NOT:$<CONFIG:Release>>:${COMMON_WARNING_FLAGS}>
+
+    # Build-type specific flags
+    $<$<CONFIG:Debug>:-g -O0>                                 # Debug: Add symbols, no optimization
+    $<$<CONFIG:RelWithDebInfo>:-g -O2>                        # RelWithDebInfo: Add symbols, optimized
+    $<$<CONFIG:Release>:-O3>                                  # Release: Max optimization
+    $<$<CONFIG:DebugASan>:-g -O1 -fsanitize=address -fno-omit-frame-pointer> # ASan: Add symbols, basic optimization, and sanitizer
+)
+
+# --- Add Linker Options (Modern Approach) ---
+target_link_options(Q2HordeModDLL PRIVATE
+    # Linker flags for AddressSanitizer
+    $<$<CONFIG:DebugASan>:-fsanitize=address>
+
+    # Strip symbols only on Release builds for the smallest file
+    $<$<CONFIG:Release>:-s>
+
+    # Statically link the C++ runtime for portability on all builds
+    -static-libgcc
+    -static-libstdc++
+)
+
 # --- Add preprocessor definitions for WINDOWS ---
-# Common definitions for all builds
 target_compile_definitions(Q2HordeModDLL PRIVATE
     FMT_HEADER_ONLY
     KEX_Q2_GAME KEX_Q2GAME_EXPORTS KEX_Q2GAME_DYNAMIC
     _CRT_SECURE_NO_WARNINGS
     _WINDOWS WIN32 _CONSOLE
-)
-
-# Build-type specific definitions
-# NO SEMICOLONS INSIDE THE EXPRESSIONS
-target_compile_definitions(Q2HordeModDLL PRIVATE
     $<$<CONFIG:Release>:NDEBUG>
     $<$<CONFIG:RelWithDebInfo>:NDEBUG>
-    $<$<CONFIG:Debug>:_DEBUG>
-    $<$<CONFIG:DebugASan>:_DEBUG>
-)
-
-# --- Add compile options for debugging ---
-# -g adds debugging symbols, which are essential for the debugger.
-# It is automatically added for Debug, and we added it for RelWithDebInfo and DebugASan.
-target_compile_options(Q2HordeModDLL PRIVATE
-    $<$<CONFIG:Debug>:-g>
+    $<$<NOT:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:_DEBUG> # _DEBUG for Debug and DebugASan
 )
 
 # --- Add link libraries for WINDOWS ---
@@ -88,10 +97,6 @@ target_link_libraries(Q2HordeModDLL PRIVATE
 # --- Set output name and properties ---
 set_target_properties(Q2HordeModDLL PROPERTIES OUTPUT_NAME "game_x64")
 set_target_properties(Q2HordeModDLL PROPERTIES PREFIX "")
-
-# --- Statically link the C++ runtime for portability ---
-# This ensures we don't need to ship MinGW's libgcc/libstdc++ DLLs.
-string(APPEND CMAKE_SHARED_LINKER_FLAGS " -static-libgcc -static-libstdc++")
 
 # --- Installation Step ---
 if(DEPLOY_DIRECTORY AND IS_DIRECTORY "${DEPLOY_DIRECTORY}")

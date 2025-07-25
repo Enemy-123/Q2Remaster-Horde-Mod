@@ -301,6 +301,7 @@ std::string GetDisplayName(const edict_t* ent) {
     return base_name;
 }
 
+
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
 	if (!monster || !monster->inuse)
@@ -312,9 +313,10 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	
-		if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
-			if (!st.was_key_specified("power_armor_power"))
-				monster->monsterinfo.power_armor_power = monster->max_health * 0.4f;
+	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
+		if (!st.was_key_specified("power_armor_power"))
+			// Note: This line also has a float conversion, let's fix it too.
+			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->max_health * 0.4f));
 		if (!st.was_key_specified("power_armor_type"))
 			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	}
@@ -350,7 +352,8 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	// This ensures the flag is set regardless of whether a bonus is applied later
 	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
 
-	monster->gib_health *= 2.8f;
+    // FIX: Explicitly round the result of the float multiplication
+	monster->gib_health = static_cast<int>(round(monster->gib_health * 2.8f));
 	if (monster->gib_health <= -200)
 		monster->gib_health = -200;
 
@@ -358,48 +361,46 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
 		monster->s.effects |= EF_ROCKET | EF_FIREBALL;
 		monster->s.renderfx |= RF_SHELL_RED;
-		monster->health *= 2.0f;
-		monster->monsterinfo.power_armor_power *= 1.25f;
-		monster->monsterinfo.armor_power *= 1.25f;
+		monster->health = static_cast<int>(round(monster->health * 2.0f));
+		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.25f));
+		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.25f));
 		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 475_sec;
-		// *** FIX: Ensure NO_DROP flag is cleared if champion gets an item ***
-		// (This logic is now handled later after item assignment)
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
 		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-		monster->health *= 2.2f;
-		monster->monsterinfo.power_armor_power *= 1.4f;
-		monster->monsterinfo.armor_power *= 1.4f;
+		monster->health = static_cast<int>(round(monster->health * 2.2f));
+		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.4f));
+		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.4f));
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
 		monster->s.alpha = 0.6f;
-		monster->health *= 1.4f;
-		monster->monsterinfo.power_armor_power *= 4.0f;
-		monster->monsterinfo.armor_power *= 4.0f;
+		monster->health = static_cast<int>(round(monster->health * 1.4f));
+		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 4.0f));
+		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 4.0f));
 		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
 		monster->s.effects |= EF_GIB | EF_FLAG2;
-		monster->health *= 1.6f;
-		monster->monsterinfo.power_armor_power *= 1.3f;
-		monster->monsterinfo.armor_power *= 1.3f;
+		monster->health = static_cast<int>(round(monster->health * 1.6f));
+		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.3f));
+		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.3f));
 		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 475_sec;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
 		monster->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
 		monster->s.alpha = 0.5f;
-		monster->health *= 2.4f;
-		monster->monsterinfo.power_armor_power *= 1.7f;
-		monster->monsterinfo.armor_power *= 1.7f;
+		monster->health = static_cast<int>(round(monster->health * 2.4f));
+		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.7f));
+		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.7f));
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	else if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
 		monster->s.effects |= EF_TRACKER | EF_FLAG1;
-		monster->health *= 2.5f;
-		monster->monsterinfo.power_armor_power *= 1.1f;
-		monster->monsterinfo.armor_power *= 1.1f;
+		monster->health = static_cast<int>(round(monster->health * 2.5f));
+		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.1f));
+		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.1f));
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 
@@ -409,6 +410,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	// Link the entity *after* all changes to ensure visuals are sent
 	gi.linkentity(monster);
 }
+
 // Función auxiliar para calcular los valores mínimos de salud y armadura
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {

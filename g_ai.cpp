@@ -45,7 +45,7 @@ edict_t* AI_GetSightClient(edict_t* self)
 	}
 
 	// Cache de valores usados en el loop
-	const vec3_t& self_origin = self->s.origin;
+	//const vec3_t& self_origin = self->s.origin;
 	const vec3_t& self_absmin = self->absmin;
 	const vec3_t& self_absmax = self->absmax;
 
@@ -1631,7 +1631,7 @@ void ai_run_missile(edict_t* self)
 			// ROGUE
 			self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
-};
+}
 
 /*
 =============
