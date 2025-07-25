@@ -7536,6 +7536,12 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 // It runs before each wave to load only the assets needed for that specific wave.
 static void Horde_InitLevel(const int32_t lvl)
 {
+
+	    g_spawn_plan.clear();
+    g_ambush_monsters_remaining = 0;
+    g_current_ambush_info = {}; // Reset ambush info to default
+
+	
 	// --- 1. Reset All Wave-Specific State ---
 	g_special_high_level_monster_spawned_this_wave = false;
 	g_horde_retaliation_active = false;
