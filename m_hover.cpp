@@ -358,7 +358,7 @@ void hover_fire_rocket(edict_t* self)
 
 void hover_fire_grenades(edict_t* self)
 {
-    constexpr float MORTAR_SPEED = 1050.f;
+   // constexpr float MORTAR_SPEED = 1050.f;
     constexpr float GRENADE_SPEED = 760.f;
     vec3_t forward, right, up, aim, target, offset{};
     monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;

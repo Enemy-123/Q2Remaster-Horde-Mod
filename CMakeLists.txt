@@ -45,11 +45,11 @@ target_include_directories(Q2HordeModDLL PRIVATE
 # --- Define Common Warning Flags to be used by all debug-style builds ---
 set(COMMON_WARNING_FLAGS
     -Wall                   # Enable all standard warnings
-    -Wextra                 # Enable extra, useful warnings
-    #-Wshadow                # Warn about shadowed variables
+   # -Wextra                 # Enable extra, useful warnings
+# -Wshadow                # Warn about shadowed variables
     -Wuninitialized         # Warn about using uninitialized variables
-    -Wconversion            # Warn about potentially lossy type conversions
-    -pedantic               # Enforce strict C++ standard compliance
+    # -Wconversion            # Warn about potentially lossy type conversions
+    #-pedantic               # Enforce strict C++ standard compliance
 )
 
 # --- Add Compile Options (Modern Approach) ---

@@ -751,6 +751,7 @@ MONSTERINFO_WALK(widow2_walk) (edict_t* self) -> void
 void widow2_attack(edict_t* self);
 
 MONSTERINFO_MELEE(widow2_melee) (edict_t* self) -> void
+
 {
 	if (self->timestamp >= level.time)
 		widow2_attack(self);
@@ -760,7 +761,7 @@ MONSTERINFO_MELEE(widow2_melee) (edict_t* self) -> void
 
 MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
 	float luck;
-	bool blocked = false;
+	//bool blocked = false;
 
 	// Agregar verificación de línea de visión
 	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
@@ -776,7 +777,7 @@ MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
 
 	// Verificar si la entidad está bloqueada
 	if (self->monsterinfo.aiflags & AI_BLOCKED) {
-		blocked = true;
+	//	blocked = true;
 		self->monsterinfo.aiflags &= ~AI_BLOCKED;
 	}
 

@@ -115,7 +115,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	}
 
 	const char* base = nullptr;
-	bool handled = false; // Flag to track if a message was processed
+	//bool handled = false; // Flag to track if a message was processed
 
 	// Determine friendly fire status early (only affects the mod struct, not message logic directly)
 	if ((G_IsCooperative() && attacker && attacker->client) || (deathmatch->integer)) {
@@ -1755,11 +1755,11 @@ bool SelectSpawnPoint(edict_t* ent, vec3_t& origin, vec3_t& angles, bool force_s
 
 void InitBodyQue()
 {
-	int		 i;
 	edict_t* ent;
 
 	level.body_que = 0;
-	for (i = 0; i < BODY_QUEUE_SIZE; i++)
+	// FIX: Use size_t for the loop counter to match BODY_QUEUE_SIZE.
+	for (size_t i = 0; i < BODY_QUEUE_SIZE; i++)
 	{
 		ent = G_Spawn();
 		ent->classname = "bodyque";

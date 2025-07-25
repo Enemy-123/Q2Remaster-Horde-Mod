@@ -1157,7 +1157,6 @@ static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 
 THINK(monster_think) (edict_t* self) -> void
 {
-
     // Check if the monster's ID is uninitialized (using UNKNOWN as the sentinel value).
     // This catches monsters spawned without an explicit ID set in their SP_... function.
     if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) 
@@ -1182,17 +1181,15 @@ THINK(monster_think) (edict_t* self) -> void
         {
             // FAILURE: The classname is not in the registry. This is a critical warning.
             // We log this regardless of the 'developer' cvar because it's an error.
-            gi.Com_PrintFmt(
-                "WARNING: UNKNOWN MONSTER - Classname '{}' (#{}) has no registered MonsterTypeID.\n",
-                self->classname,
-                (int)(self - g_edicts)
-            );
+            gi.Com_PrintFmt("WARNING: UNKNOWN MONSTER - Classname '{}' (#{}) has no registered MonsterTypeID.\n", self->classname, (int)(self - g_edicts)); // FIX: self.classname -> self->classname
         }
     }
 
 	// Check horde stuck monster
 	if (g_horde->integer)
+	{
 		CheckAndTeleportStuckMonster(self);
+	}
 
 	// [Paril-KEX] monster sniff testing; if we can make an unobstructed path to the player, murder ourselves.
 	if (g_debug_monster_kills->integer)
@@ -1202,7 +1199,9 @@ THINK(monster_think) (edict_t* self) -> void
 			trace_t enemy_trace = gi.traceline(self->s.origin, g_edicts[1].s.origin, self, MASK_SHOT);
 
 			if (enemy_trace.fraction < 1.0f && enemy_trace.ent == &g_edicts[1])
+			{
 				T_Damage(self, &g_edicts[1], &g_edicts[1], { 0, 0, -1 }, self->s.origin, { 0, 0, -1 }, 9999, 9999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
+			}
 			else
 			{
 				static vec3_t points[64];
@@ -1229,39 +1228,48 @@ THINK(monster_think) (edict_t* self) -> void
 							info.returnCode != PathReturnCode::NoGoalNode &&
 							info.returnCode != PathReturnCode::NoPathFound &&
 							info.returnCode != PathReturnCode::NoNavAvailable &&
-							info.numPathPoints < q_countof(points))
+							info.numPathPoints >= 0 &&
+							static_cast<size_t>(info.numPathPoints) < q_countof(points))
 						{
-							if (CheckPathVisibility(g_edicts[1].s.origin + vec3_t{ 0.f, 0.f, g_edicts[1].mins.z }, points[info.numPathPoints - 1]) &&
+							const size_t num_points = info.numPathPoints;
+
+							if (CheckPathVisibility(g_edicts[1].s.origin + vec3_t{ 0.f, 0.f, g_edicts[1].mins.z }, points[num_points - 1]) &&
 								CheckPathVisibility(self->s.origin + vec3_t{ 0.f, 0.f, self->mins.z }, points[0]))
 							{
 								size_t i = 0;
 
-								for (; i < info.numPathPoints - 1; i++)
+								for (; i < num_points - 1; i++)
+								{
 									if (!CheckPathVisibility(points[i], points[i + 1]))
 										break;
+								}
 
-								if (i == info.numPathPoints - 1)
+								if (i == num_points - 1)
+								{
 									T_Damage(self, &g_edicts[1], &g_edicts[1], { 0, 0, 1 }, self->s.origin, { 0, 0, 1 }, 9999, 9999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
+								}
 								else
+								{
 									self->disintegrator_time = level.time + 500_ms;
+								}
 							}
 							else
+							{
 								self->disintegrator_time = level.time + 500_ms;
+							}
 						}
 						else
 						{
 							self->disintegrator_time = level.time + 1_sec;
 						}
 					}
-					else
-					{
-						self->disintegrator_time = level.time + 1_sec;
-					}
 				}
 			}
 
 			if (!self->deadflag && !(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+			{
 				gi.Draw_Bounds(self->absmin, self->absmax, rgba_red, gi.frame_time_s, false);
+			}
 		}
 	}
 
@@ -1271,7 +1279,9 @@ THINK(monster_think) (edict_t* self) -> void
 
 	// pain/die above may have freed the entity
 	if (!self->inuse || self->think != monster_think)
+	{
 		return;
+	}
 
 	// Stygian/Friendly Health Regeneration
 	// Optimized check order for fast early-out. The timer check is first as it fails most often.
@@ -1291,7 +1301,7 @@ THINK(monster_think) (edict_t* self) -> void
 
 	if (self->hackflags & HACKFLAG_ATTACK_PLAYER)
 	{
-		if (!self->enemy && g_edicts[1].inuse)
+		if (!self->enemy && g_edicts[1].inuse) // FIX: self.enemy -> self->enemy
 		{
 			self->enemy = &g_edicts[1];
 			FoundTarget(self);
@@ -1299,7 +1309,9 @@ THINK(monster_think) (edict_t* self) -> void
 	}
 
 	if (self->health > 0 && self->monsterinfo.dodge && !(globals.server_flags & SERVER_FLAG_LOADING))
+	{
 		M_CheckDodge(self);
+	}
 
 	M_MoveFrame(self);
 	if (self->linkcount != self->monsterinfo.linkcount)
@@ -1861,7 +1873,7 @@ void monster_start_go(edict_t *self)
 
 		auto move = self->monsterinfo.active_move.pointer();
 
-		for (size_t i = move->firstframe; i < move->lastframe; i++)
+		for (int i = move->firstframe; i < move->lastframe; i++)
 		{
 			self->s.frame = i;
 

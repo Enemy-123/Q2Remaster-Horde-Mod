@@ -1586,7 +1586,7 @@ MMOVE_T(soldier_move_trip) = { FRAME_runt01, FRAME_runt19, soldier_frames_trip, 
 static void soldier_apply_jump_gravity(edict_t* self)
 {
     // Use a single gravity scale for consistency
-    float const gravity_scale = (800.f / level.gravity);
+   // float const gravity_scale = (800.f / level.gravity);
 
     if (self->velocity[2] < 0)
         self->gravity = 2.0f;  // Faster fall

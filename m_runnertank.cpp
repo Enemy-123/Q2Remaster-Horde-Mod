@@ -892,7 +892,7 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	if (!visible(self, self->enemy))
 		return;
 
-	const float range = range_to(self, self->enemy);
+	//const float range = range_to(self, self->enemy);
 	const float r = frandom();
 
 	// Verificar líneas de visión para cada tipo de ataque

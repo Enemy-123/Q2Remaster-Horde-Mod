@@ -845,7 +845,7 @@ void InitHintPaths()
 				}
 				else
 				{
-					if (num_hint_paths >= MAX_HINT_CHAINS)
+					if (num_hint_paths >= static_cast<int>(MAX_HINT_CHAINS))
 						break;
 
 					hint_path_start[num_hint_paths++] = e;
@@ -1163,7 +1163,7 @@ bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& s
 	const float sim_time = std::min(0.1f, 5.0f / speed); // Smaller timestep for faster projectiles
 
 	vec3_t pitched_aim = vectoangles(aim);
-	const float target_dist_sq = (target - start).lengthSquared();
+	//const float target_dist_sq = (target - start).lengthSquared();
 
 	for (auto& pitch : pitches)
 	{
@@ -1331,7 +1331,9 @@ void drawbbox(edict_t *self)
 // [Paril-KEX] returns true if the skill check passes
 inline bool G_SkillCheck(const std::initializer_list<float> &skills)
 {
-	if (skills.size() < skill->integer)
+	// FIX: First, check if skill->integer is negative. If it is, the condition is met.
+	// If not, we can safely cast it to an unsigned type for the comparison.
+	if (skill->integer < 0 || skills.size() < static_cast<size_t>(skill->integer))
 		return true;
 
 	const float &skill_switch = *(skills.begin() + skill->integer);

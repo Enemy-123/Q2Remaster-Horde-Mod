@@ -477,12 +477,33 @@ vec3_t parasite_get_proboscis_start(edict_t* self)
 	vec3_t f, r, start;
 	AngleVectors(self->s.angles, f, r, nullptr);
 	vec3_t offset;
-	if (self->s.frame >= FRAME_break01 && self->s.frame < FRAME_break01 + q_countof(parasite_break_offsets))
-		offset = parasite_break_offsets[self->s.frame - FRAME_break01];
-	else if (self->s.frame >= FRAME_drain01 && self->s.frame < FRAME_drain01 + q_countof(parasite_drain_offsets))
-		offset = parasite_drain_offsets[self->s.frame - FRAME_drain01];
-	else
-		offset = { 8, 0, 6 };
+
+	// FIX: Calculate the frame offset first, then do a safe unsigned comparison.
+	if (self->s.frame >= FRAME_break01)
+	{
+		size_t const frame_offset = self->s.frame - FRAME_break01;
+		if (frame_offset < q_countof(parasite_break_offsets))
+		{
+			offset = parasite_break_offsets[frame_offset];
+			start = M_ProjectFlashSource(self, offset, f, r);
+			return start;
+		}
+	}
+	
+	// FIX: Do the same for the drain animation.
+	if (self->s.frame >= FRAME_drain01)
+	{
+		size_t const frame_offset = self->s.frame - FRAME_drain01;
+		if (frame_offset < q_countof(parasite_drain_offsets))
+		{
+			offset = parasite_drain_offsets[frame_offset];
+			start = M_ProjectFlashSource(self, offset, f, r);
+			return start;
+		}
+	}
+
+	// Default case if not in a special animation frame
+	offset = { 8, 0, 6 };
 	start = M_ProjectFlashSource(self, offset, f, r);
 	return start;
 }

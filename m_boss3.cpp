@@ -38,7 +38,7 @@ Just stands and cycles in one place until targeted, then teleports away.
 */
 void SP_monster_boss3_stand(edict_t* self)
 {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
+	//const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);

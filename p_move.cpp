@@ -390,7 +390,7 @@ void PM_StepSlideMove_Generic(vec3_t& origin, vec3_t& velocity, float frametime,
 		time_left -= time_left * trace.fraction;
 
 		// slide along this plane
-		if (numplanes >= MAX_CLIP_PLANES)
+	if (numplanes >= static_cast<int>(MAX_CLIP_PLANES))
 		{ // this shouldn't really happen
 			velocity = vec3_origin;
 			break;
@@ -1207,7 +1207,7 @@ void PM_CheckSpecialMovement()
 	float time = 0.1f;
 	bool has_time = true;
 
-	for (size_t i = 0; i < min(50, (int32_t)(10 * (800.f / pm->s.gravity))); i++)
+	for (int i = 0; i < min(50, (int32_t)(10 * (800.f / pm->s.gravity))); i++)
 	{
 		waterjump_vel[2] -= pm->s.gravity * time;
 
