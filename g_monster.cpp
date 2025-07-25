@@ -1700,6 +1700,8 @@ stuck_result_t G_FixStuckObject(edict_t *self, vec3_t check)
 	return result;
 }
 
+bool Horde_AttemptToUnstickMonster(edict_t* self);
+
 void monster_start_go(edict_t *self)
 {
 	// Paril: moved here so this applies to swim/fly monsters too
@@ -1763,7 +1765,24 @@ void monster_start_go(edict_t *self)
 		}
 
 		if (is_stuck)
-			gi.Com_PrintFmt("WARNING: {} stuck in solid\n", *self);
+        {
+            // MODIFICATION: If in Horde mode, attempt a more robust fix.
+            if (g_horde && g_horde->integer)
+            {
+                if (Horde_AttemptToUnstickMonster(self))
+                {
+                    // The monster was successfully relocated.
+                    is_stuck = false;
+                }
+            }
+            // END MODIFICATION
+
+            // If still stuck (not horde, or horde fix failed), print the warning.
+            if (is_stuck)
+            {
+			    gi.Com_PrintFmt("WARNING: {} stuck in solid (calling emergencyspawn)\n", *self);
+            }
+        }
 	}
 
 	vec3_t v;
