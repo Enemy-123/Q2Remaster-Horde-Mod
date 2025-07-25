@@ -43,15 +43,21 @@ target_include_directories(Q2HordeModDLL PRIVATE
 )
 
 # --- Define Common Warning Flags to be used by all debug-style builds ---
-set(COMMON_WARNING_FLAGS
-    -Wall                   # Enable all standard warnings
-   # -Wextra                 # Enable extra, useful warnings
-# -Wshadow                # Warn about shadowed variables
-    -Wuninitialized         # Warn about using uninitialized variables
-    # -Wconversion            # Warn about potentially lossy type conversions
-    #-pedantic               # Enforce strict C++ standard compliance
-)
+# set(COMMON_WARNING_FLAGS
+#     # --- General Best Practices ---
+     -Wall                   # This is the most important, it enables -Wnull-dereference by default.
+#     -Wextra                 # More good warnings.
 
+#     # --- Flags Specifically for Nulls and Pointer Issues ---
+#     -Wuninitialized         # CRITICAL: Warns if you use a pointer before it's initialized (to null or a value).
+#     -Wuninitialized         # This is so important it's worth seeing twice. It's a top cause of null-like bugs.
+#     -Winit-self             # Warns if you initialize a variable with itself (e.g., int* p = p;).
+    
+#     # --- Flags that Indirectly Help Prevent Null Bugs ---
+#     -Wreturn-type           # Warns if a function that should return a pointer doesn't (e.g., from one code path).
+#     -Wnon-virtual-dtor      # Prevents memory corruption when deleting polymorphic objects, which can lead to dangling pointers that behave like null pointers.
+#     -Wold-style-cast        # Encourages using modern C++ casts, making it harder to accidentally cast an integer '0' to a pointer where you didn't mean to.
+# )
 # --- Add Compile Options (Modern Approach) ---
 target_compile_options(Q2HordeModDLL PRIVATE
     # Add common warnings to all builds except Release
