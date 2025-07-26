@@ -9,14 +9,24 @@ namespace HordePhys {
 
     // A simple grid cell that holds pointers to monsters.
     struct ProximityGridCell {
-        static constexpr size_t MAX_MONSTERS_PER_CELL = 16;
+        static constexpr size_t MAX_MONSTERS_PER_CELL = 64; // This is a good, safe value.
         std::array<edict_t*, MAX_MONSTERS_PER_CELL> monsters;
         size_t count = 0;
 
         void clear() { count = 0; }
+
+        // --- MODIFIED FUNCTION ---
         void add(edict_t* ent) {
             if (count < MAX_MONSTERS_PER_CELL) {
                 monsters[count++] = ent;
+            }
+            // ADD THIS ELSE BLOCK FOR DIAGNOSTICS
+            else {
+                if (developer->integer) {
+                    gi.Com_PrintFmt("ProximityGrid WARNING: Cell is full! (Max {}). Cannot add entity '{}'.\n", 
+                                    MAX_MONSTERS_PER_CELL, 
+                                    ent->classname ? ent->classname : "unknown");
+                }
             }
         }
     };
