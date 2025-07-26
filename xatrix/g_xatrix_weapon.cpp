@@ -933,7 +933,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
     }
     if (ent->timestamp < level.time) {
         // The state will be freed inside trap_die, which is called by BecomeExplosion1
-        BecomeExplosion1(ent);
+        trap_die(ent, ent, ent, 0, ent->s.origin, MOD_UNKNOWN);
         return;
     }
 
