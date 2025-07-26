@@ -189,6 +189,7 @@ namespace HordeConstants
 } // namespace HordeConstants
 
 // --- Forward Declarations ---
+bool Horde_AttemptToUnstickMonster(edict_t* self); 
 bool FindEmergencySpawnPositionViaGridSearch(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t *specific_target = nullptr);
 static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance); // monster bonuses
@@ -6042,7 +6043,53 @@ int SpawnAmbushMonsters(const horde::MapSize &mapSize, int32_t waveLevel)
 }
 #include "g_horde_phys.h"
 
-// RESTORED and CORRECTED: This function was removed but is required by other parts of the code.
+bool Horde_AttemptToUnstickMonster(edict_t* self)
+{
+	if (!self || !self->inuse)
+	{
+		return false;
+	}
+
+	// Try to find a safe, tactical teleport spot first.
+	edict_t* dest_spot = FindSafeTeleportDestination(self);
+	if (dest_spot)
+	{
+		// Use Horde_TeleportMonster. Force it despite visibility since the monster is just spawning.
+		if (Horde_TeleportMonster(self, dest_spot->s.origin, dest_spot->s.angles, true, true))
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("FIXED STUCK (Safe): Relocated '{}' to spawn point at {}.\n", self->classname, dest_spot->s.origin);
+			}
+			return true;
+		}
+	}
+
+	// If that fails, fall back to the emergency grid search.
+	vec3_t emergency_origin, emergency_angles;
+	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+
+	// The target for the emergency spawn is the monster's current enemy, if it has one.
+	if (FindEmergencySpawnPositionViaGridSearch(emergency_origin, emergency_angles, typeId, self->enemy))
+	{
+		if (Horde_TeleportMonster(self, emergency_origin, emergency_angles, true, true))
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("FIXED STUCK (Emergency): Relocated '{}' to {}.\n", self->classname, emergency_origin);
+			}
+			return true;
+		}
+	}
+
+	// All attempts failed.
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("FIX STUCK FAILED: Could not find any valid location for '{}'.\n", self->classname);
+	}
+	return false;
+}
+
 static edict_t* Horde_SpawnMonster(
     const vec3_t& origin,
     const vec3_t& angles,
@@ -6069,6 +6116,20 @@ static edict_t* Horde_SpawnMonster(
     trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
     if (post_link_trace.startsolid)
     {
+        // MODIFICATION: Instead of freeing, try to relocate the stuck monster.
+        if (Horde_AttemptToUnstickMonster(monster))
+        {
+            // Success! The monster was moved to a valid spot.
+            // Re-run the trace to be 100% sure the new spot is clear.
+            trace_t recheck_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
+            if (!recheck_trace.startsolid) {
+                return monster;
+            }
+            // If it's still stuck after the fix, something is very wrong. Fall through to free it.
+        }
+        // END MODIFICATION
+
+        // If relocation failed or the re-check failed, then we free it.
         if (developer->integer) {
             gi.Com_PrintFmt("SPAWN FAILURE: Monster '{}' at ({}) became stuck immediately after linking. Freeing.\n",
                 monster->classname, monster->s.origin);
@@ -7541,7 +7602,7 @@ static void Horde_InitLevel(const int32_t lvl)
     g_ambush_monsters_remaining = 0;
     g_current_ambush_info = {}; // Reset ambush info to default
 
-	
+
 	// --- 1. Reset All Wave-Specific State ---
 	g_special_high_level_monster_spawned_this_wave = false;
 	g_horde_retaliation_active = false;
