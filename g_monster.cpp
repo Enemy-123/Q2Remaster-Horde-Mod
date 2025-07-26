@@ -343,7 +343,7 @@ void M_WorldEffects(edict_t* ent)
 		if (take_drown_damage && ent->pain_debounce_time < level.time)
 		{
 	// Drowning damage increases over time.
-	dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
+	dmg = 2 + static_cast<int>(2 * floorf((level.time - ent->air_finished).seconds()));
 	if (dmg > 15) {
 		// After a certain point, drowning becomes rapidly fatal.
 		dmg = 120; 
@@ -1171,7 +1171,7 @@ THINK(monster_think) (edict_t* self) -> void
             if (developer->integer) {
                 gi.Com_PrintFmt(
                     "LAZY-INIT: Assigned monster ID for #{} (classname '{}') to {}\n",
-                    (int)(self - g_edicts), 
+                    static_cast<int>(self - g_edicts), 
                     self->classname, 
                     self->monsterinfo.monster_type_id
                 );
@@ -1181,7 +1181,7 @@ THINK(monster_think) (edict_t* self) -> void
         {
             // FAILURE: The classname is not in the registry. This is a critical warning.
             // We log this regardless of the 'developer' cvar because it's an error.
-            gi.Com_PrintFmt("WARNING: UNKNOWN MONSTER - Classname '{}' (#{}) has no registered MonsterTypeID.\n", self->classname, (int)(self - g_edicts)); // FIX: self.classname -> self->classname
+            gi.Com_PrintFmt("WARNING: UNKNOWN MONSTER - Classname '{}' (#{}) has no registered MonsterTypeID.\n", self->classname, static_cast<int>(self - g_edicts)); // FIX: self.classname -> self->classname
         }
     }
 
@@ -1659,7 +1659,7 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	// is all messed up for certain monsters. Calculate
 	// from maxs to make a bit more sense.
 	if (!self->viewheight)
-		self->viewheight = (int)(self->maxs[2] - 8.f);
+		self->viewheight = static_cast<int>(self->maxs[2] - 8.f);
 
 	// PMM - clear these
 	self->monsterinfo.quad_time = 0_ms;
@@ -1995,7 +1995,7 @@ void swimmonster_start(edict_t* self)
 
 USE(trigger_health_relay_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	const float percent_health = clamp((float)(other->health) / (float)(other->max_health), 0.f, 1.f);
+	const float percent_health = clamp(static_cast<float>(other->health) / static_cast<float>(other->max_health), 0.f, 1.f);
 
 	// not ready to trigger yet
 	if (percent_health > self->speed)

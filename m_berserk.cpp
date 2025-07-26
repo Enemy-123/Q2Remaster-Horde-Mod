@@ -304,7 +304,7 @@ void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, flo
 
 		// keep the point at their feet so they always get knocked up
 		point[2] = ent->absmin[2];
-		T_Damage(ent, inflictor, attacker, dir, point, dir, (int)points, (int)(kick * amount),
+		T_Damage(ent, inflictor, attacker, dir, point, dir, (int)points, static_cast<int>(kick * amount),
 			DAMAGE_RADIUS, mod);
 
 		if (ent->client)
@@ -539,7 +539,7 @@ static void berserk_fire_bolt(edict_t* self, edict_t* target, const vec3_t& zap_
 		return; // Blocked by something
 
 	// --- Attack Phase ---
-	int damage = (int)(BERSERK_ZAP_DAMAGE * M_DamageModifier(self));
+	int damage = static_cast<int>(BERSERK_ZAP_DAMAGE * M_DamageModifier(self));
 	T_Damage(target, self, self, vec3_origin, tr.endpos, tr.plane.normal,
 		damage, BERSERK_ZAP_KNOCKBACK, DAMAGE_ENERGY, MOD_TESLA);
 

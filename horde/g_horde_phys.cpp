@@ -63,7 +63,8 @@ namespace HordePhys
         for (int x = 0; x < GRID_DIMENSION; ++x)
         {
             const int cell_idx = y * GRID_DIMENSION + x;
-            const auto& cell = m_cells[cell_idx];
+            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+            const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
 
             vec3_t cell_min = {m_world_mins.x + x * m_cell_size, m_world_mins.y + y * m_cell_size, draw_z};
             vec3_t cell_max = cell_min + vec3_t{m_cell_size, m_cell_size, 1.0f};
@@ -125,10 +126,12 @@ void ProximityGrid::Add(edict_t *ent)
         return;
     int min_idx = GetCellIndex(ent->absmin);
     int max_idx = GetCellIndex(ent->absmax);
+    // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
     if (min_idx != -1)
-        m_cells[min_idx].add(ent);
+        m_cells[static_cast<size_t>(min_idx)].add(ent);
+    // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
     if (max_idx != -1 && max_idx != min_idx)
-        m_cells[max_idx].add(ent);
+        m_cells[static_cast<size_t>(max_idx)].add(ent);
 }
 
 std::span<edict_t *const> ProximityGrid::GetPotentialColliders(edict_t *ent)
@@ -150,19 +153,22 @@ std::span<edict_t *const> ProximityGrid::GetPotentialColliders(edict_t *ent)
         for (int x = min_x; x <= max_x; ++x)
         {
             int cell_idx = y * GRID_DIMENSION + x;
-            const auto &cell = m_cells[cell_idx];
+            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+            const auto &cell = m_cells[static_cast<size_t>(cell_idx)];
             for (size_t i = 0; i < cell.count; ++i)
             {
                 edict_t *other = cell.monsters[i];
                 if (other != ent)
                 {
                     const int other_idx = other - g_edicts;
-                    if (!already_added[other_idx])
+                    // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+                    if (!already_added[static_cast<size_t>(other_idx)])
                     {
                         if (buffer_count < m_query_buffer.size())
                         {
                             m_query_buffer[buffer_count++] = other;
-                            already_added[other_idx] = true;
+                            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+                            already_added[static_cast<size_t>(other_idx)] = true;
                         }
                     }
                 }
@@ -208,7 +214,8 @@ void ProximityGrid::Reset()
             for (int x = min_x; x <= max_x; ++x)
             {
                 const int cell_idx = y * GRID_DIMENSION + x;
-                const auto& cell = m_cells[cell_idx];
+                // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+                const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
 
                 for (size_t i = 0; i < cell.count; ++i)
                 {
@@ -216,12 +223,14 @@ void ProximityGrid::Reset()
                     const int other_idx = other - g_edicts;
 
                     // Add to buffer if not already present
-                    if (!already_added[other_idx])
+                    // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+                    if (!already_added[static_cast<size_t>(other_idx)])
                     {
                         if (buffer_count < m_query_buffer.size())
                         {
                             m_query_buffer[buffer_count++] = other;
-                            already_added[other_idx] = true;
+                            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+                            already_added[static_cast<size_t>(other_idx)] = true;
                         }
                         // Optional: else log a warning that the query buffer is full
                     }

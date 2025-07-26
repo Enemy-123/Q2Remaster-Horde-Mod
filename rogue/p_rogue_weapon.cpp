@@ -45,7 +45,7 @@ void weapon_tesla_fire(edict_t* ent, bool held)
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 0, 0, -22 }, start, dir);
 
 	gtime_t const timer = ent->client->grenade_time - level.time;
-	int	  const speed = (int)(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
+	int	  const speed = static_cast<int>(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
 
 	ent->client->grenade_time = 0_ms;
 
@@ -337,12 +337,12 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 	{
-		ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
+		ent->s.frame = FRAME_crattak1 - static_cast<int>(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_crattak9;
 	}
 	else
 	{
-		ent->s.frame = FRAME_attack1 - (int)(frandom() + 0.25f);
+		ent->s.frame = FRAME_attack1 - static_cast<int>(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_attack8;
 	}
 	ent->client->anim_time = 0_ms;
@@ -433,12 +433,12 @@ void Heatbeam_Fire(edict_t* ent)
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 	{
-		ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
+		ent->s.frame = FRAME_crattak1 - static_cast<int>(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_crattak9;
 	}
 	else
 	{
-		ent->s.frame = FRAME_attack1 - (int)(frandom() + 0.25f);
+		ent->s.frame = FRAME_attack1 - static_cast<int>(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_attack8;
 	}
 	ent->client->anim_time = 0_ms;

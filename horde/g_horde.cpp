@@ -92,7 +92,7 @@ struct RecentTeleportsSoA
 };
 
 static RecentTeleportsSoA g_recent_teleports;
-static int g_recent_teleport_index = 0;
+static size_t g_recent_teleport_index = 0;
 
 namespace HordeConstants
 {
@@ -257,7 +257,7 @@ bool IsPositionTooCloseToRecentTeleport(const vec3_t &position)
 {
 	const gtime_t current_time = level.time;
 	// Iterate with a standard index-based for loop.
-	for (int i = 0; i < MAX_RECENT_TELEPORT_LOCATIONS; ++i)
+	for (size_t i = 0; i < MAX_RECENT_TELEPORT_LOCATIONS; ++i)
 	{
 		// Fast, cache-friendly check on the times array first.
 		if (g_recent_teleports.teleport_times[i] > current_time)
@@ -340,9 +340,9 @@ void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 	const int index = spawn_point - g_edicts;
 
 	// Access data from the parallel arrays
-	g_spawnPointsData.alternative_attempts[index]++;
+	g_spawnPointsData.alternative_attempts[static_cast<size_t>(index)]++;
 	gtime_t cooldown_duration;
-	const uint16_t alt_attempts = g_spawnPointsData.alternative_attempts[index];
+	const uint16_t alt_attempts = g_spawnPointsData.alternative_attempts[static_cast<size_t>(index)];
 
 	if (alt_attempts <= 2)
 		cooldown_duration = HordeConstants::ALT_SPAWN_COOLDOWN_SHORT;
@@ -353,16 +353,16 @@ void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 		cooldown_duration = 5.0_sec + gtime_t::from_sec(0.5f * (alt_attempts - 5));
 		cooldown_duration = std::min(cooldown_duration, 10.0_sec);
 		if (alt_attempts >= 8)
-			g_spawnPointsData.needs_long_alternative_cooldown[index] = true;
+			g_spawnPointsData.needs_long_alternative_cooldown[static_cast<size_t>(index)] = true;
 	}
 
 	const gtime_t final_alt_duration = std::max(cooldown_duration, HordeConstants::MIN_ALT_FAILURE_COOLDOWN);
-	g_spawnPointsData.alternative_cooldown[index] = level.time + final_alt_duration;
+	g_spawnPointsData.alternative_cooldown[static_cast<size_t>(index)] = level.time + final_alt_duration;
 
-	g_spawnPointsData.isTemporarilyDisabled[index] = true;
+	g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] = true;
 	const gtime_t final_normal_duration = std::max(final_alt_duration * 0.5f, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
-	g_spawnPointsData.cooldownEndsAt[index] = level.time + final_normal_duration;
-	g_spawnPointsData.lastSpawnTime[index] = level.time;
+	g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)] = level.time + final_normal_duration;
+	g_spawnPointsData.lastSpawnTime[static_cast<size_t>(index)] = level.time;
 
 	if (developer->integer)
 		gi.Com_PrintFmt("Alternative position cooldown applied to spawn at {}: {:.1f}s (attempts: {})\n", spawn_point->s.origin, final_alt_duration.seconds(), alt_attempts);
@@ -375,20 +375,20 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 
 	const int index = spawn_point - g_edicts;
 
-	if (level.time - g_spawnPointsData.lastSpawnTime[index] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
+	if (level.time - g_spawnPointsData.lastSpawnTime[static_cast<size_t>(index)] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
 	{
-		g_spawnPointsData.attempts[index] = 0;
-		g_spawnPointsData.isTemporarilyDisabled[index] = false;
-		g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
-		g_spawnPointsData.lastSpawnTime[index] = level.time;
+		g_spawnPointsData.attempts[static_cast<size_t>(index)] = 0;
+		g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] = false;
+		g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)] = 0_sec;
+		g_spawnPointsData.lastSpawnTime[static_cast<size_t>(index)] = level.time;
 		return;
 	}
 
-	g_spawnPointsData.attempts[index]++;
+	g_spawnPointsData.attempts[static_cast<size_t>(index)]++;
 
 	// Inlined logic from the old getSuccessRate method
-	const uint16_t current_attempts = g_spawnPointsData.attempts[index];
-	const int32_t current_successes = g_spawnPointsData.successfulSpawns[index];
+	const uint16_t current_attempts = g_spawnPointsData.attempts[static_cast<size_t>(index)];
+	const int32_t current_successes = g_spawnPointsData.successfulSpawns[static_cast<size_t>(index)];
 	const float success_rate = (current_attempts > 0) ? (static_cast<float>(current_successes) / current_attempts) : 1.0f;
 
 	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
@@ -397,7 +397,7 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 
 	if (current_attempts >= max_attempts)
 	{
-		g_spawnPointsData.isTemporarilyDisabled[index] = true;
+		g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] = true;
 		const float cooldown_factor = success_rate < 0.3f ? 1.5f : 0.75f;
 		const float attempt_multiplier = current_attempts <= 8 ? current_attempts * 0.25f : 2.0f;
 		calculated_duration = gtime_t::from_sec(cooldown_factor * attempt_multiplier);
@@ -412,9 +412,9 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 	if (calculated_duration > 0_sec)
 	{
 		const gtime_t final_duration = std::max(calculated_duration, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
-		g_spawnPointsData.cooldownEndsAt[index] = level.time + final_duration;
+		g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)] = level.time + final_duration;
 	}
-	g_spawnPointsData.lastSpawnTime[index] = level.time;
+	g_spawnPointsData.lastSpawnTime[static_cast<size_t>(index)] = level.time;
 }
 
 void OnSuccessfulSpawn(edict_t *spawn_point)
@@ -424,10 +424,10 @@ void OnSuccessfulSpawn(edict_t *spawn_point)
 
 	const int index = spawn_point - g_edicts;
 
-	g_spawnPointsData.successfulSpawns[index]++;
-	g_spawnPointsData.attempts[index] = 0;
-	g_spawnPointsData.isTemporarilyDisabled[index] = false;
-	g_spawnPointsData.cooldownEndsAt[index] = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
+	g_spawnPointsData.successfulSpawns[static_cast<size_t>(index)]++;
+	g_spawnPointsData.attempts[static_cast<size_t>(index)] = 0;
+	g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] = false;
+	g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)] = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
 
 	horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
@@ -566,8 +566,8 @@ edict_t *SelectRandomSpawnPoint(TFilter filter)
 		// Consolidated initial validation and cooldown checks for clarity
 		// THIS IS THE HOT PATH: Accessing contiguous arrays is much faster.
 		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin) ||
-			(g_spawnPointsData.isTemporarilyDisabled[index] && level.time < g_spawnPointsData.cooldownEndsAt[index]) ||
-			(level.time < g_spawnPointsData.alternative_cooldown[index]))
+			(g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] && level.time < g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)]) ||
+			(level.time < g_spawnPointsData.alternative_cooldown[static_cast<size_t>(index)]))
 		{
 			continue;
 		}
@@ -719,16 +719,16 @@ void CheckAndReduceSpawnCooldowns()
 		const int index = spawn_point - g_edicts;
 
 		// Access the SoA data using the entity's index
-		if (g_spawnPointsData.isTemporarilyDisabled[index] && current_time < g_spawnPointsData.cooldownEndsAt[index])
+		if (g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] && current_time < g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)])
 		{
 			found_cooldowns_to_reset = true;
 
-			const gtime_t remaining_time = g_spawnPointsData.cooldownEndsAt[index] - current_time;
+			const gtime_t remaining_time = g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)] - current_time;
 			const gtime_t reduced_duration = remaining_time * REDUCTION_FACTOR;
 			const gtime_t final_duration = std::max(reduced_duration, HordeConstants::MIN_REDUCED_INDIVIDUAL_COOLDOWN);
 
-			g_spawnPointsData.cooldownEndsAt[index] = current_time + final_duration;
-			g_spawnPointsData.attempts[index] = 0;
+			g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)] = current_time + final_duration;
+			g_spawnPointsData.attempts[static_cast<size_t>(index)] = 0;
 		}
 	}
 
@@ -1060,7 +1060,7 @@ struct WaveScalingCache
 	// Player multipliers (precomputed)
 	float playerMultipliers[MAX_HUMAN_PLAYERS + 1] = {};
 
-	// Initialize all cache tables
+		// Initialize all cache tables
 	void initialize()
 	{
 		using namespace HordeConstants;
@@ -1068,27 +1068,29 @@ struct WaveScalingCache
 		// Initialize player multipliers
 		for (int32_t players = 0; players <= MAX_HUMAN_PLAYERS; ++players)
 		{
-			playerMultipliers[players] = (players <= 1) ? 1.0f : BASE_DIFFICULTY_MULTIPLIER + ((players - 1) * PLAYER_COUNT_SCALE);
+			playerMultipliers[static_cast<size_t>(players)] = (players <= 1) ? 1.0f : BASE_DIFFICULTY_MULTIPLIER + ((players - 1) * PLAYER_COUNT_SCALE);
 		}
 
 		// Initialize base counts by map type and level
 		for (int mapType = 0; mapType < 3; ++mapType)
 		{
-			for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level)
+			// FIX: Renamed 'level' to 'waveLevel' to avoid shadowing the global 'level' struct.
+			for (int32_t waveLevel = 0; waveLevel <= MAX_WAVE_LEVEL; ++waveLevel)
 			{
 				// Select the appropriate base count based on level ranges
 				int32_t countIndex;
-				if (level <= 5)
+				if (waveLevel <= 5)
 					countIndex = 0;
-				else if (level <= 10)
+				else if (waveLevel <= 10)
 					countIndex = 1;
-				else if (level <= 15)
+				else if (waveLevel <= 15)
 					countIndex = 2;
 				else
 					countIndex = 3; // Levels > 15
 
 				// Store pre-computed base count
-				baseCountsByLevel[mapType][level] = BASE_COUNTS[mapType][countIndex];
+				// FIX: Used static_cast to safely convert signed indexes to unsigned size_t.
+				baseCountsByLevel[static_cast<size_t>(mapType)][static_cast<size_t>(waveLevel)] = BASE_COUNTS[static_cast<size_t>(mapType)][static_cast<size_t>(countIndex)];
 			}
 		}
 
@@ -1100,15 +1102,15 @@ struct WaveScalingCache
 		horde::MapSize mediumMap = {false, false, true}; // Corrected: Medium map should have isMediumMap true
 		horde::MapSize bigMap = {false, true, false};
 
-		for (int32_t level = 0; level <= MAX_WAVE_LEVEL; ++level)
+		// FIX: Renamed 'level' to 'waveLevel' to avoid shadowing.
+		for (int32_t waveLevel = 0; waveLevel <= MAX_WAVE_LEVEL; ++waveLevel)
 		{
-			cooldownScales[0][level] = CalculateCooldownScale(level, smallMap);	 // Index 0 = Small
-			cooldownScales[1][level] = CalculateCooldownScale(level, mediumMap); // Index 1 = Medium
-			cooldownScales[2][level] = CalculateCooldownScale(level, bigMap);	 // Index 2 = Big
+			cooldownScales[0][static_cast<size_t>(waveLevel)] = CalculateCooldownScale(waveLevel, smallMap);	 // Index 0 = Small
+			cooldownScales[1][static_cast<size_t>(waveLevel)] = CalculateCooldownScale(waveLevel, mediumMap); // Index 1 = Medium
+			cooldownScales[2][static_cast<size_t>(waveLevel)] = CalculateCooldownScale(waveLevel, bigMap);	 // Index 2 = Big
 		}
 	}
 } g_waveScalingCache;
-
 void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t humanPlayers)
 {
 	using namespace HordeConstants;
@@ -1268,7 +1270,6 @@ static int32_t g_lastWaveNumber = -1;
 
 // Forward declaration for calculate_max_wave_time if it's not already visible
 // static constexpr gtime_t calculate_max_wave_time(int32_t wave_level); // (already provided in previous context)
-
 static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t numHumanPlayers, int32_t lvl)
 {
 	ConditionParams params; // Default constructor initializes members
@@ -2410,7 +2411,7 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
 	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
 
-	const auto &eligibilityData = g_bossEligibilityCache.eligibility[mapTypeIndex][safeWaveNumber];
+	const auto &eligibilityData = g_bossEligibilityCache.eligibility[static_cast<size_t>(mapTypeIndex)][static_cast<size_t>(safeWaveNumber)];
 	if (eligibilityData.count == 0)
 	{
 		if (developer->integer)
@@ -2436,25 +2437,27 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 			continue;
 		}
         
-        // FIX: Changed type from size_t to intptr_t to safely handle -1.
 		intptr_t boss_index_in_soa = -1;
 		for (size_t j = 0; j < boss_list_soa->count; ++j)
 		{
 			if (boss_list_soa->typeIds[j] == bossTypeId)
 			{
-				boss_index_in_soa = j;
+				// FIX: Explicitly cast from size_t to intptr_t.
+				boss_index_in_soa = static_cast<intptr_t>(j);
 				break;
 			}
 		}
 		if (boss_index_in_soa == -1)
 			continue;
 
-		float weight = boss_list_soa->weights[boss_index_in_soa];
+		// FIX: Explicitly cast from intptr_t to size_t for array indexing.
+		float weight = boss_list_soa->weights[static_cast<size_t>(boss_index_in_soa)];
 
 		if (weightedCount < MAX_ELIGIBLE_BOSSES)
 		{
 			totalWeight += weight;
-			weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
+			// FIX: Explicitly cast from intptr_t to size_t for assignment.
+			weightedBosses[weightedCount].index_in_soa = static_cast<size_t>(boss_index_in_soa);
 			weightedBosses[weightedCount].weight = weight;
 			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 			weightedCount++;
@@ -2474,24 +2477,26 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 			if (bossTypeId == horde::MonsterTypeID::UNKNOWN)
 				continue;
 
-            // FIX: Changed type from size_t to intptr_t to safely handle -1.
 			intptr_t boss_index_in_soa = -1;
 			for (size_t j = 0; j < boss_list_soa->count; ++j)
 			{
 				if (boss_list_soa->typeIds[j] == bossTypeId)
 				{
-					boss_index_in_soa = j;
+					// FIX: Explicitly cast from size_t to intptr_t.
+					boss_index_in_soa = static_cast<intptr_t>(j);
 					break;
 				}
 			}
 			if (boss_index_in_soa == -1)
 				continue;
 
-			float weight = boss_list_soa->weights[boss_index_in_soa];
+			// FIX: Explicitly cast from intptr_t to size_t for array indexing.
+			float weight = boss_list_soa->weights[static_cast<size_t>(boss_index_in_soa)];
 			if (weightedCount < MAX_ELIGIBLE_BOSSES)
 			{
 				totalWeight += weight;
-				weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
+				// FIX: Explicitly cast from intptr_t to size_t for assignment.
+				weightedBosses[weightedCount].index_in_soa = static_cast<size_t>(boss_index_in_soa);
 				weightedBosses[weightedCount].weight = weight;
 				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 				weightedCount++;
@@ -3347,7 +3352,8 @@ static int GetRandomWaveSound()
 	// Seleccionar un sonido no usado
 	while (true)
 	{
-		size_t const index = irandom(NUM_WAVE_SOUNDS);
+		// FIX: Cast the signed result of irandom to the unsigned size_t.
+		size_t const index = static_cast<size_t>(irandom(NUM_WAVE_SOUNDS));
 		if (!used_wave_sounds[index])
 		{
 			used_wave_sounds[index] = true;
@@ -3356,7 +3362,6 @@ static int GetRandomWaveSound()
 		}
 	}
 }
-
 static std::array<bool, NUM_START_SOUNDS> used_start_sounds = {};
 static size_t remaining_start_sounds = NUM_START_SOUNDS;
 
@@ -3372,7 +3377,8 @@ static void PlayWaveStartSound()
 	// Seleccionar un sonido no usado
 	while (true)
 	{
-		size_t const index = irandom(NUM_START_SOUNDS);
+		// FIX: Cast the signed result of irandom to the unsigned size_t.
+		size_t const index = static_cast<size_t>(irandom(NUM_START_SOUNDS));
 		if (!used_start_sounds[index])
 		{
 			used_start_sounds[index] = true;
@@ -3497,8 +3503,8 @@ static item_id_t SelectBossWeaponDrop(int32_t wave_level)
 		{IT_WEAPON_IONRIPPER, 9},  // Xatrix (originally boomer)
 		{IT_WEAPON_PLASMABEAM, 9}, // Rogue
 		{IT_WEAPON_RAILGUN, 9},	   // Moved slightly later
-		{IT_WEAPON_DISRUPTOR, 19}, // Rogue (originally disintegrator)
-		{IT_WEAPON_BFG, 19}		   // Moved slightly later
+		{IT_WEAPON_DISRUPTOR, 9}, // Rogue (originally disintegrator)
+		{IT_WEAPON_BFG, 9}		   // Moved slightly later
 	}};
 
 	// Collect weapons eligible for the current wave level
@@ -3520,10 +3526,10 @@ static item_id_t SelectBossWeaponDrop(int32_t wave_level)
 	}
 
 	// Select a random weapon from the eligible list
-	// Use a more robust random number generator if possible, otherwise fallback
-	// std::uniform_int_distribution<size_t> dist(0, eligible_weapons.size() - 1);
-	// size_t random_index = dist(mt_rand); // Requires <random> and mt_rand setup
-	size_t random_index = irandom(eligible_weapons.size());
+	// FIX: Cast the signed result of irandom to the unsigned size_t.
+	// Also cast the size() result to int32_t for the irandom parameter for full correctness.
+	size_t random_index = static_cast<size_t>(irandom(static_cast<int32_t>(eligible_weapons.size())));
+	
 	// Safety check (shouldn't be needed with correct random range)
 	if (random_index >= eligible_weapons.size())
 	{
@@ -3532,7 +3538,6 @@ static item_id_t SelectBossWeaponDrop(int32_t wave_level)
 
 	return eligible_weapons[random_index];
 }
-
 // --- Modified BossDeathHandler using item_id_t ---
 
 // Constants for item dropping physics (if not defined globally)
@@ -3988,7 +3993,7 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 	{
 		gi.Com_PrintFmt("SpawnGrow_Spawn (boss teleport effect) skipped: Boss {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
 						(self->classname ? self->classname : "Unknown"),
-						(int)(self - g_edicts),
+						static_cast<int>(self - g_edicts),
 						self->deadflag,
 						self->health);
 	}
@@ -4202,7 +4207,8 @@ static void SpawnBossAutomatically()
 	if (!boss_classname)
 	{
 		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to get classname for boss type ID {}.\n", (int)boss_type);
+			// FIX: Replaced C-style cast with static_cast for type safety and clarity.
+			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to get classname for boss type ID {}.\n", static_cast<int>(boss_type));
 		return;
 	}
 
@@ -4370,6 +4376,7 @@ void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
 }
 
 // --- MODIFIED ---
+// --- MODIFIED ---
 THINK(BossSpawnThink)(edict_t *self)->void
 {
 	if (self->owner)
@@ -4463,7 +4470,8 @@ THINK(BossSpawnThink)(edict_t *self)->void
 			"teleported in!",
 			"is here to end this!",
 			"makes its presence known!"};
-		const char *random_phrase = arrival_phrases[irandom(arrival_phrases.size())];
+		// FIX: Cast the result of irandom to size_t for array indexing.
+		const char *random_phrase = arrival_phrases[static_cast<size_t>(irandom(static_cast<int32_t>(arrival_phrases.size())))];
 
 		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name.c_str(), random_phrase);
 		AppendHordeMessage(announce_message.data(), 4_sec);
@@ -4491,9 +4499,10 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	}
 	else if (self->inuse && developer->integer)
 	{
+		// FIX: Replaced C-style cast with static_cast.
 		gi.Com_PrintFmt("SpawnGrow_Spawn/ImprovedSpawnGrow skipped in BossSpawnThink: Boss {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
 						(self->classname ? self->classname : "Unknown"),
-						(int)(self - g_edicts),
+						static_cast<int>(self - g_edicts),
 						self->deadflag,
 						self->health);
 	}
@@ -5250,27 +5259,32 @@ static void AnnounceIncomingWave(gtime_t duration)
 	{
 		if (g_chaotic->integer == 2)
 		{
-			message = chaotic2_messages[irandom(chaotic2_messages.size())];
+			// FIX: Cast the result of irandom to size_t for array indexing.
+			message = chaotic2_messages[static_cast<size_t>(irandom(static_cast<int32_t>(chaotic2_messages.size())))];
 		}
 		else // g_chaotic->integer == 1
 		{
-			message = chaotic1_messages[irandom(chaotic1_messages.size())];
+			// FIX: Cast the result of irandom to size_t for array indexing.
+			message = chaotic1_messages[static_cast<size_t>(irandom(static_cast<int32_t>(chaotic1_messages.size())))];
 		}
 	}
 	else if (g_insane->integer > 0)
 	{
 		if (g_insane->integer == 2)
 		{
-			message = insane2_messages[irandom(insane2_messages.size())];
+			// FIX: Cast the result of irandom to size_t for array indexing.
+			message = insane2_messages[static_cast<size_t>(irandom(static_cast<int32_t>(insane2_messages.size())))];
 		}
 		else // g_insane->integer == 1
 		{
-			message = insane1_messages[irandom(insane1_messages.size())];
+			// FIX: Cast the result of irandom to size_t for array indexing.
+			message = insane1_messages[static_cast<size_t>(irandom(static_cast<int32_t>(insane1_messages.size())))];
 		}
 	}
 	else // Normal difficulty
 	{
-		message = normal_messages[irandom(normal_messages.size())];
+		// FIX: Cast the result of irandom to size_t for array indexing.
+		message = normal_messages[static_cast<size_t>(irandom(static_cast<int32_t>(normal_messages.size())))];
 	}
 
 	for (auto player : active_players())
@@ -5447,7 +5461,6 @@ static edict_t *FindBestPlayerTargetForTeleport()
 {
 	edict_t *target_player = nullptr;
 	int max_spree = -1;
-    // FIX: Change max_damage to a signed 64-bit integer to match total_damage's width.
 	int64_t max_damage = -1;
 
 	// First pass: Find the player with the highest spree or damage
@@ -5461,10 +5474,10 @@ static edict_t *FindBestPlayerTargetForTeleport()
 				target_player = player;
 			}
             
-            // FIX: Cast the unsigned total_damage to a signed type for a safe comparison.
 			if (static_cast<int64_t>(player->client->total_damage) > max_damage)
 			{
-				max_damage = player->client->total_damage;
+				// FIX: Explicitly cast the unsigned total_damage to a signed type for the assignment.
+				max_damage = static_cast<int64_t>(player->client->total_damage);
 				if (max_spree < 5)
 				{ // Damage only takes precedence if spree is low
 					target_player = player;
@@ -5533,7 +5546,8 @@ static edict_t *FindSafeTeleportDestination(edict_t *self)
 
 		// Check if the spawn point is on cooldown or occupied by a player/monster.
 		const int index = spawn_point - g_edicts;
-		if (level.time < g_spawnPointsData.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
+		// FIX: Cast the signed 'index' to the unsigned 'size_t' for array access.
+		if (level.time < g_spawnPointsData.teleport_cooldown[static_cast<size_t>(index)] || IsSpawnPointOccupied(spawn_point))
 		{
 			continue;
 		}
@@ -5713,7 +5727,8 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		if (used_spawn_point)
 		{
 			const int index = used_spawn_point - g_edicts;
-			g_spawnPointsData.teleport_cooldown[index] = level.time + 3.5_sec;
+			// FIX: Cast the signed 'index' to the unsigned 'size_t' for array access.
+			g_spawnPointsData.teleport_cooldown[static_cast<size_t>(index)] = level.time + 3.5_sec;
 		}
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.was_stuck = false;
@@ -6322,7 +6337,9 @@ static void PlanMonsterSpawnBatch(
 	g_spawn_plan.clear();
 	if (num_to_plan <= 0)
 		return;
-	g_spawn_plan.reserve(num_to_plan);
+	
+	// FIX: Cast the signed 'num_to_plan' to the unsigned 'size_t' expected by reserve().
+	g_spawn_plan.reserve(static_cast<size_t>(num_to_plan));
 
 	g_champion_chance_for_current_batch = champion_chance_param;
 
@@ -6344,7 +6361,6 @@ static void PlanMonsterSpawnBatch(
 		edict_t *spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
 		points_checked++;
 
-        // FIX: Call the updated function signature without the boolean parameter.
 		if (!ValidateSpawnPointForMonster(spawn_point, level.time))
 		{
 			continue;
@@ -6487,7 +6503,8 @@ static int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
 		else
 		{
 			if (developer->integer)
-				gi.Com_PrintFmt("EMERGENCY SPAWN FAILED for type {}. (From ExecuteEmergencySpawnProcedure)\n", (int)emergency_type);
+				// FIX: Replaced C-style cast with static_cast for type safety and clarity.
+				gi.Com_PrintFmt("EMERGENCY SPAWN FAILED for type {}. (From ExecuteEmergencySpawnProcedure)\n", static_cast<int>(emergency_type));
 			break; // Stop trying if one fails in this batch
 		}
 	}
@@ -6534,7 +6551,8 @@ static void RebuildSpawnPointCacheIfNeeded()
 			// Shuffle the collected points
 			for (size_t i = g_potential_spawn_points.size() - 1; i > 0; --i)
 			{
-				size_t j = irandom(0, i); // irandom should be inclusive [0, i]
+				// FIX: Explicitly cast the result of irandom to size_t, and the argument 'i' to int32_t.
+				size_t j = static_cast<size_t>(irandom(0, static_cast<int32_t>(i)));
 				if (i != j)
 				{
 					std::swap(g_potential_spawn_points[i], g_potential_spawn_points[j]);
@@ -6639,9 +6657,10 @@ static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_t
 	const int index = spawn_point - g_edicts;
 
 	// Check various cooldowns from the SoA struct
-	if ((g_spawnPointsData.isTemporarilyDisabled[index] && current_time < g_spawnPointsData.cooldownEndsAt[index]) ||
-		(current_time < g_spawnPointsData.teleport_cooldown[index]) ||
-		(current_time < g_spawnPointsData.alternative_cooldown[index]))
+	// FIX: Cast the signed 'index' to the unsigned 'size_t' for each array access.
+	if ((g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] && current_time < g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)]) ||
+		(current_time < g_spawnPointsData.teleport_cooldown[static_cast<size_t>(index)]) ||
+		(current_time < g_spawnPointsData.alternative_cooldown[static_cast<size_t>(index)]))
 	{
 		return false;
 	}
@@ -6752,14 +6771,14 @@ void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 
 	const int index = spawn_point - g_edicts;
 
-	g_spawnPointsData.alternative_attempts[index] = 0;
-	g_spawnPointsData.needs_long_alternative_cooldown[index] = false;
-	g_spawnPointsData.alternative_cooldown[index] = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
+	// FIX: Cast the signed 'index' to the unsigned 'size_t' for each array access.
+	g_spawnPointsData.alternative_attempts[static_cast<size_t>(index)] = 0;
+	g_spawnPointsData.needs_long_alternative_cooldown[static_cast<size_t>(index)] = false;
+	g_spawnPointsData.alternative_cooldown[static_cast<size_t>(index)] = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
 
 	if (developer->integer > 1)
 		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
 }
-
 
 static void SetMonsterArmor(edict_t *monster)
 {
@@ -7156,11 +7175,14 @@ void CheckAndResetDisabledSpawnPoints()
 	for (edict_t *spawn_point : monster_spawn_points())
 	{
 		const int index = spawn_point - g_edicts;
-		if (g_spawnPointsData.isTemporarilyDisabled[index])
+		
+		// FIX: Cast the signed 'index' to the unsigned 'size_t' required by std::array.
+		if (g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)])
 		{
-			g_spawnPointsData.isTemporarilyDisabled[index] = false;
-			g_spawnPointsData.attempts[index] = 0;
-			g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
+			// FIX: Apply the same cast to all subsequent array accesses.
+			g_spawnPointsData.isTemporarilyDisabled[static_cast<size_t>(index)] = false;
+			g_spawnPointsData.attempts[static_cast<size_t>(index)] = 0;
+			g_spawnPointsData.cooldownEndsAt[static_cast<size_t>(index)] = 0_sec;
 		}
 	}
 }

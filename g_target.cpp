@@ -1035,8 +1035,8 @@ void SP_target_lightramp(edict_t* self)
 	self->use = target_lightramp_use;
 	self->think = target_lightramp_think;
 
-	self->movedir[0] = (float)(self->message[0] - 'a');
-	self->movedir[1] = (float)(self->message[1] - 'a');
+	self->movedir[0] = static_cast<float>(self->message[0] - 'a');
+	self->movedir[1] = static_cast<float>(self->message[1] - 'a');
 	self->movedir[2] = (self->movedir[1] - self->movedir[0]) / (self->speed / gi.frame_time_s);
 }
 
@@ -1514,7 +1514,7 @@ THINK(target_light_think) (edict_t* self) -> void
 
 	int32_t index = ((int32_t)self->delay) % strlen(style);
 	char style_value = style[index];
-	float current_lerp = (float)(style_value - 'a') / (float)('z' - 'a');
+	float current_lerp = static_cast<float>(style_value - 'a') / static_cast<float>('z' - 'a');
 	float lerp;
 
 	if (!(self->spawnflags & SPAWNFLAG_TARGET_LIGHT_NO_LERP))
@@ -1522,7 +1522,7 @@ THINK(target_light_think) (edict_t* self) -> void
 		int32_t next_index = (index + 1) % strlen(style);
 		char next_style_value = style[next_index];
 
-		float next_lerp = (float)(next_style_value - 'a') / (float)('z' - 'a');
+		float next_lerp = static_cast<float>(next_style_value - 'a') / static_cast<float>('z' - 'a');
 
 		float mod_lerp = fmod(self->delay, 1.0f);
 		lerp = (next_lerp * mod_lerp) + (current_lerp * (1.f - mod_lerp));

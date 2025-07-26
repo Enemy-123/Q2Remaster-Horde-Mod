@@ -278,7 +278,7 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 				{
 					// Usar frandom para obtener un valor entre 0.7 y 1.8
 					float const multiplier = frandom(0.7f, 1.8f);
-					given_quantity = (int)(given_quantity * multiplier);
+					given_quantity = static_cast<int>(given_quantity * multiplier);
 				}
 
 				given_quantity = std::max(1, given_quantity);
@@ -1052,7 +1052,7 @@ void weapon_grenade_fire(edict_t* ent, bool held)
 	int	  speed;
 	float radius;
 
-	radius = (float)(damage + 40);
+	radius = static_cast<float>(damage + 40);
 	if (is_quad)
 		damage *= damage_multiplier;
 
@@ -1062,7 +1062,7 @@ void weapon_grenade_fire(edict_t* ent, bool held)
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 2, 0, -14 }, start, dir);
 
 	gtime_t const timer = ent->client->grenade_time - level.time;
-	speed = (int)(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
+	speed = static_cast<int>(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
 
 	ent->client->grenade_time = 0_ms;
 
@@ -1297,7 +1297,7 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 	int	  damage = g_bouncygl->integer ? 95 : 115;
 	float radius;
 
-	radius = (float)(damage + 40);
+	radius = static_cast<float>(damage + 40);
 	if (is_quad)
 		damage *= damage_multiplier;
 
@@ -1493,12 +1493,12 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 			ent->client->anim_priority = ANIM_ATTACK;
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
+				ent->s.frame = FRAME_crattak1 - static_cast<int>(frandom() + 0.25f);
 				ent->client->anim_end = FRAME_crattak9;
 			}
 			else
 			{
-				ent->s.frame = FRAME_attack1 - (int)(frandom() + 0.25f);
+				ent->s.frame = FRAME_attack1 - static_cast<int>(frandom() + 0.25f);
 				ent->client->anim_end = FRAME_attack8;
 			}
 			ent->client->anim_time = 0_ms;
@@ -1633,11 +1633,11 @@ void Machinegun_Fire(edict_t* ent)
 	// Configure player animation based on stance
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
-		ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
+		ent->s.frame = FRAME_crattak1 - static_cast<int>(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_crattak9;
 	}
 	else {
-		ent->s.frame = FRAME_attack1 - (int)(frandom() + 0.25f);
+		ent->s.frame = FRAME_attack1 - static_cast<int>(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_attack8;
 	}
 	ent->client->anim_time = 0_ms;

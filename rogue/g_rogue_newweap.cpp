@@ -2044,14 +2044,14 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 			damagestat = self->owner->takedamage;
 			self->owner->takedamage = false;
 			if (self->dmg >= 5)
-				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+				T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 			self->owner->takedamage = damagestat;
 		}
 		else
 		{
 			if (self->dmg >= 5)
-				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+				T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 		}
 	}
@@ -2059,7 +2059,7 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 	{
 		// PMM - yeowch this will get expensive
 		if (self->dmg >= 5)
-			T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), self->owner, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+			T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg * 2), self->owner, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BLASTER2);

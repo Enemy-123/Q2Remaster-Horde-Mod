@@ -978,7 +978,7 @@ inline void PM_GetWaterLevel(const vec3_t& position, water_level_t& level, conte
 	level = WATER_NONE;
 	type = CONTENTS_NONE;
 
-	int32_t sample2 = (int)(pm->s.viewheight - pm->mins[2]);
+	int32_t sample2 = static_cast<int>(pm->s.viewheight - pm->mins[2]);
 	int32_t sample1 = sample2 / 2;
 
 	vec3_t point = position;

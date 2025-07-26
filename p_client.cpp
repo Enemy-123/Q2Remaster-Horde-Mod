@@ -1690,7 +1690,7 @@ bool SelectSpawnPoint(edict_t* ent, vec3_t& origin, vec3_t& angles, bool force_s
 
 		if (spot)
 		{
-			origin = spot->s.origin + vec3_t{ 0, 0, (float)(g_dm_spawns->integer ? 9 : 1) };
+			origin = spot->s.origin + vec3_t{ 0, 0, static_cast<float>(g_dm_spawns->integer ? 9 : 1) };
 			angles = spot->s.angles;
 
 			return true;
@@ -3413,7 +3413,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 			ent->s.event = EV_FALL;
 
 		ent->pain_debounce_time = level.time + FRAME_TIME_S; // no normal pain sound
-		damage = std::max((int)((delta - 30) / 2), 1);
+		damage = std::max(static_cast<int>((delta - 30) / 2), 1);
 
 		if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
 			damage = std::min(4, damage);
@@ -3610,11 +3610,13 @@ void UpdateClientHealth(edict_t* ent, gclient_t* client)
 
 	if (new_max_health != client->pers.max_health)
 	{
-		const float health_ratio = (float)ent->health / (float)client->pers.max_health;
+		// FIX: Replaced C-style casts with static_cast for type safety and clarity.
+		const float health_ratio = static_cast<float>(ent->health) / static_cast<float>(client->pers.max_health);
 		client->pers.max_health = new_max_health;
 		client->resp.max_health = new_max_health;
 		ent->max_health = new_max_health;
-		int new_health = (int)(health_ratio * new_max_health);
+		// FIX: Replaced C-style cast with static_cast.
+		int new_health = static_cast<int>(health_ratio * new_max_health);
 		new_health = min(new_health, new_max_health);
 		ent->health = new_health;
 		gi.linkentity(ent);

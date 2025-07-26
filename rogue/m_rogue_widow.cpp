@@ -229,7 +229,7 @@ void WidowBlaster(edict_t* self)
 
 		// clamp it to within 10 degrees of the aiming angle (where she's facing)
 		angles = vectoangles(forward);
-		aim_angle = (float)(100 - (10 * (flashnum - MZ2_WIDOW_BLASTER_100)));
+		aim_angle = static_cast<float>(100 - (10 * (flashnum - MZ2_WIDOW_BLASTER_100)));
 		if (aim_angle <= 0)
 			aim_angle += 360;
 		target_angle = self->s.angles[YAW] - angles[YAW];

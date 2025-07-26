@@ -932,7 +932,7 @@ DIE(func_explosive_explode) (edict_t* self, edict_t* inflictor, edict_t* attacke
 	self->takedamage = false;
 
 	if (self->dmg)
-		T_RadiusDamage(self, attacker, (float)self->dmg, nullptr, (float)(self->dmg + 40), DAMAGE_NONE, MOD_EXPLOSIVE);
+		T_RadiusDamage(self, attacker, (float)self->dmg, nullptr, static_cast<float>(self->dmg + 40), DAMAGE_NONE, MOD_EXPLOSIVE);
 
 	self->velocity = inflictor->s.origin - self->s.origin;
 	self->velocity.normalize();
@@ -1127,7 +1127,7 @@ THINK(barrel_explode) (edict_t* self) -> void
 {
 	self->takedamage = false;
 
-	T_RadiusDamage(self, self->activator, (float)self->dmg, nullptr, (float)(self->dmg + 40), DAMAGE_NONE, MOD_BARREL);
+	T_RadiusDamage(self, self->activator, (float)self->dmg, nullptr, static_cast<float>(self->dmg + 40), DAMAGE_NONE, MOD_BARREL);
 
 	ThrowGibs(self, (1.5f * self->dmg / 200.f), {
 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS },
@@ -1582,7 +1582,7 @@ TOUCH(misc_viper_bomb_touch) (edict_t* self, edict_t* other, const trace_t& tr, 
 	G_UseTargets(self, self->activator);
 
 	self->s.origin[2] = self->absmin[2] + 1;
-	T_RadiusDamage(self, self, (float)self->dmg, nullptr, (float)(self->dmg + 40), DAMAGE_NONE, MOD_BOMB);
+	T_RadiusDamage(self, self, (float)self->dmg, nullptr, static_cast<float>(self->dmg + 40), DAMAGE_NONE, MOD_BOMB);
 	BecomeExplosion2(self);
 }
 

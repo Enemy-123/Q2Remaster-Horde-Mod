@@ -196,7 +196,8 @@ float M_DamageModifier(edict_t* monster) noexcept {
 	return modifier;
 }
 
-std::string GetTitleFromFlags(int bonus_flags) {
+// FIX: Changed the parameter type from 'int' to 'unsigned int' to match the BF_* flags.
+std::string GetTitleFromFlags(unsigned int bonus_flags) {
     if (bonus_flags == 0)
         return "";
         
@@ -204,6 +205,7 @@ std::string GetTitleFromFlags(int bonus_flags) {
     title.reserve(64); // More reasonable reservation size
     
     // Direct flag checks for a small set of flags is likely faster than iterating
+    // No warnings will be generated now because both operands are 'unsigned int'.
     if (bonus_flags & BF_CHAMPION)   title += "Champion ";
     if (bonus_flags & BF_CORRUPTED)  title += "Corrupted ";
     if (bonus_flags & BF_RAGEQUITTER) title += "Ragequitter ";

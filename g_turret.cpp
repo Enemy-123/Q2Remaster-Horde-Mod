@@ -166,7 +166,7 @@ THINK(turret_breach_think) (edict_t* self) -> void
 
 		// x & y
 		angle = self->s.angles[1] + self->owner->move_origin[1];
-		angle *= (float)(PI * 2 / 360);
+		angle *= static_cast<float>(PI * 2 / 360);
 		target[0] = self->s.origin[0] + cosf(angle) * self->owner->move_origin[0];
 		target[1] = self->s.origin[1] + sinf(angle) * self->owner->move_origin[0];
 		target[2] = self->owner->s.origin[2];
@@ -176,7 +176,7 @@ THINK(turret_breach_think) (edict_t* self) -> void
 		self->owner->velocity[1] = dir[1] * 1.0f / gi.frame_time_s;
 
 		// z
-		angle = self->s.angles[PITCH] * (float)(PI * 2 / 360);
+		angle = self->s.angles[PITCH] * static_cast<float>(PI * 2 / 360);
 		target_z = self->s.origin[2] + self->owner->move_origin[0] * tan(angle) + self->owner->move_origin[2];
 
 		diff = target_z - self->owner->s.origin[2];

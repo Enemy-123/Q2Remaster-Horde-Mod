@@ -419,7 +419,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		// make sure whatever we were pissed at is still around.
 		if (targ->enemy->inuse)
 		{
-			percentHealth = (float)(targ->health) / (float)(targ->max_health);
+			percentHealth = static_cast<float>(targ->health) / static_cast<float>(targ->max_health);
 			if (targ->enemy->inuse && percentHealth > 0.33f)
 				return;
 		}
@@ -439,7 +439,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	{
 		float percentHealth;
 
-		percentHealth = (float)(targ->health) / (float)(targ->max_health);
+		percentHealth = static_cast<float>(targ->health) / static_cast<float>(targ->max_health);
 		// ignore it some of the time
 		if (targ->enemy->inuse && percentHealth > 0.25f)
 			return;

@@ -270,9 +270,9 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             return;
         }
 
-        // Calculate index safely relative to g_edicts
-        // Ensure g_edicts is accessible here (might need adjustment based on your project structure)
-        size_t index = point - g_edicts;
+        // FIX: Explicitly cast the result of pointer subtraction (a signed ptrdiff_t)
+        // to the unsigned size_t required for an array index. This is safe here.
+        size_t index = static_cast<size_t>(point - g_edicts);
         if (index < m_lastSpawnTimes.size()) {
             m_lastSpawnTimes[index] = time;
         }
@@ -283,7 +283,9 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             return 0_sec;
         }
 
-        size_t index = point - g_edicts;
+        // FIX: Explicitly cast the result of pointer subtraction (a signed ptrdiff_t)
+        // to the unsigned size_t required for an array index. This is safe here.
+        size_t index = static_cast<size_t>(point - g_edicts);
         return (index < m_lastSpawnTimes.size()) ? m_lastSpawnTimes[index] : 0_sec;
     }
 

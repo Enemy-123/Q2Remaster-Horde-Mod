@@ -876,7 +876,7 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 		{
 			// calc new armor values
 			salvage = oldinfo->normal_protection / newinfo->normal_protection;
-			salvagecount = (int)(salvage * other->client->pers.inventory[old_armor_index]);
+			salvagecount = static_cast<int>(salvage * other->client->pers.inventory[old_armor_index]);
 			newcount = base_count + salvagecount;
 			if (newcount > newinfo->max_count)
 				newcount = newinfo->max_count;
@@ -891,7 +891,7 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 		{
 			// calc new armor values
 			salvage = newinfo->normal_protection / oldinfo->normal_protection;
-			salvagecount = (int)(salvage * base_count);
+			salvagecount = static_cast<int>(salvage * base_count);
 			newcount = other->client->pers.inventory[old_armor_index] + salvagecount;
 			if (newcount > oldinfo->max_count)
 				newcount = oldinfo->max_count;

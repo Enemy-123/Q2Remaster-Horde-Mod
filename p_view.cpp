@@ -92,7 +92,7 @@ static void P_DamageFeedback(edict_t* player, const vec3_t& forward, const vec3_
 		client->ps.stats[STAT_FLASHES] = 0;
 
 	// total points of damage shot at the player this frame
-	count = (float)(client->damage_blood + client->damage_armor + client->damage_parmor);
+	count = static_cast<float>(client->damage_blood + client->damage_armor + client->damage_parmor);
 	if (count == 0)
 		return; // didn't take any damage
 
@@ -815,7 +815,7 @@ static void P_WorldEffects(edict_t* ent, const step_parameters_t& step)
 		{
 			if (level.is_psx || g_horde->integer)
 			{
-				if ((int)(client->bobtime + step.bobmove) != step.bobcycle_run)
+				if (static_cast<int>(client->bobtime + step.bobmove) != step.bobcycle_run)
 					gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("player/wade{}.wav", irandom(1, 4)).data()), 1, ATTN_NORM, 0);
 			}
 		}
@@ -1149,7 +1149,7 @@ static void G_SetClientEvent(edict_t* ent, const step_parameters_t& step)
 	}
 	else if (ent->groundentity && step.xyspeed > 225)
 	{
-		if ((int)(client->bobtime + step.bobmove) != step.bobcycle_run)
+		if (static_cast<int>(client->bobtime + step.bobmove) != step.bobcycle_run)
 			ent->s.event = EV_FOOTSTEP;
 	}
 }

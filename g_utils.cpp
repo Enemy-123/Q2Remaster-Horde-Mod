@@ -817,7 +817,7 @@ void CleanupStuckEntities() {
 			if (stopped_thinking && not_fading && likely_monster) {
 				if (developer->integer) {
 					gi.Com_PrintFmt("CleanupStuckEntities: Removing stuck entity #{} (Class: {}, Solid: {}, Health: {}, Think: {}, NextThink: {:.2f}, Fading: {})\n",
-						(int)(ent - g_edicts),
+						static_cast<int>(ent - g_edicts),
 						ent->classname ? ent->classname : "null",
 						static_cast<int>(ent->solid), // Corrected cast
 						ent->health,
