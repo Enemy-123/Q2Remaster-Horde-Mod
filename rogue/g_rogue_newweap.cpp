@@ -1439,10 +1439,10 @@ THINK(tesla_think_active)(edict_t *self)->void
         // frame, which smooths out performance.
         
         // 1. Calculate a random frequency (Hz). irandom(5) gives 0-4.
-        int random_frequency_hz = 8 + irandom(5); // Result is 8, 9, 10, 11, or 12.
+       // int random_frequency_hz = 8 + irandom(5); // Result is 8, 9, 10, 11, or 12.
 
         // 2. Convert that frequency into a time duration and set the next think time.
-		self->nextthink = level.time + gtime_t::from_hz(random_frequency_hz);
+		self->nextthink = level.time + gtime_t::from_hz(9);
         // =======================================================================
 	}
 }
