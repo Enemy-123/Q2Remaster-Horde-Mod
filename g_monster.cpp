@@ -93,7 +93,7 @@ void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 {
 	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
-	fire_rocket(self, start, dir, damage, speed, (float)damage + 20, damage);
+	fire_rocket(self, start, dir, damage, speed, static_cast<float>(damage) + 20, damage);
 	monster_muzzleflash(self, start, flashtype);
 }
 

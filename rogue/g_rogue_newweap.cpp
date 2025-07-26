@@ -1042,12 +1042,12 @@ void fire_nuke(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int spe
 	if (damage_modifier == 1)
 		nuke->dmg_radius = NUKE_RADIUS;
 	else
-		nuke->dmg_radius = NUKE_RADIUS + NUKE_RADIUS * (0.25f * (float)damage_modifier);
+		nuke->dmg_radius = NUKE_RADIUS + NUKE_RADIUS * (0.25f * damage_modifier);
 	// this yields 1.0, 1.5, 2.0, 3.0 times radius
 
 	nuke->classname = "nuke";
 	nuke->die = nuke_die;
-
+ 
 	gi.linkentity(nuke);
 }
 

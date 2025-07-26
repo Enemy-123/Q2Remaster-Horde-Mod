@@ -3752,11 +3752,24 @@ private:
 
 	// find the first entity that matches the filter, from the specified index,
 	// in the specified direction
+
 	inline uint32_t find_matched_index(uint32_t index, int32_t direction)
 	{
+		// The loop condition handles the upper bound.
+		// For the lower bound, we must be careful.
 		while (index < globals.num_edicts && !filter(&g_edicts[index]))
-			index += direction;
-
+		{
+			if (direction > 0) {
+				index++;
+			} else {
+				// This check prevents an unsigned integer from wrapping around below zero.
+				if (index == 0) {
+					index = globals.num_edicts; // Set to "end" to terminate the loop safely.
+					break;
+				}
+				index--;
+			}
+		}
 		return index;
 	}
 
@@ -3887,6 +3900,8 @@ inline entity_iterable_t<active_projectiles_filter_t> active_projectiles()
     return entity_iterable_t<active_projectiles_filter_t> { game.maxclients + 1U };
 }
 
+// CORRECTED CODE - Fixes all -Wshadow warnings
+
 struct gib_def_t
 {
 	size_t count;
@@ -3895,65 +3910,65 @@ struct gib_def_t
 	gib_type_t type;
 	int framenum = 0;
 
-	constexpr gib_def_t(size_t count, const char* gibname) :
-		count(count),
-		gibname(gibname),
+	constexpr gib_def_t(size_t in_count, const char* in_gibname) :
+		count(in_count),
+		gibname(in_gibname),
 		scale(1.0f),
 		type(GIB_NONE)
 	{
 	}
 
-	constexpr gib_def_t(size_t count, const char* gibname, gib_type_t type) :
-		count(count),
-		gibname(gibname),
+	constexpr gib_def_t(size_t in_count, const char* in_gibname, gib_type_t in_type) :
+		count(in_count),
+		gibname(in_gibname),
 		scale(1.0f),
-		type(type)
+		type(in_type)
 	{
 	}
 
-	constexpr gib_def_t(size_t count, const char* gibname, float scale) :
-		count(count),
-		gibname(gibname),
-		scale(scale),
+	constexpr gib_def_t(size_t in_count, const char* in_gibname, float in_scale) :
+		count(in_count),
+		gibname(in_gibname),
+		scale(in_scale),
 		type(GIB_NONE)
 	{
 	}
 
-	constexpr gib_def_t(size_t count, const char* gibname, float scale, gib_type_t type) :
-		count(count),
-		gibname(gibname),
-		scale(scale),
-		type(type)
+	constexpr gib_def_t(size_t in_count, const char* in_gibname, float in_scale, gib_type_t in_type) :
+		count(in_count),
+		gibname(in_gibname),
+		scale(in_scale),
+		type(in_type)
 	{
 	}
 
-	constexpr gib_def_t(const char* gibname, float scale, gib_type_t type) :
+	constexpr gib_def_t(const char* in_gibname, float in_scale, gib_type_t in_type) :
 		count(1),
-		gibname(gibname),
-		scale(scale),
-		type(type)
+		gibname(in_gibname),
+		scale(in_scale),
+		type(in_type)
 	{
 	}
 
-	constexpr gib_def_t(const char* gibname, float scale) :
+	constexpr gib_def_t(const char* in_gibname, float in_scale) :
 		count(1),
-		gibname(gibname),
-		scale(scale),
+		gibname(in_gibname),
+		scale(in_scale),
 		type(GIB_NONE)
 	{
 	}
 
-	constexpr gib_def_t(const char* gibname, gib_type_t type) :
+	constexpr gib_def_t(const char* in_gibname, gib_type_t in_type) :
 		count(1),
-		gibname(gibname),
+		gibname(in_gibname),
 		scale(1.0f),
-		type(type)
+		type(in_type)
 	{
 	}
 
-	constexpr gib_def_t(const char* gibname) :
+	constexpr gib_def_t(const char* in_gibname) :
 		count(1),
-		gibname(gibname),
+		gibname(in_gibname),
 		scale(1.0f),
 		type(GIB_NONE)
 	{

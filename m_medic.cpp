@@ -825,7 +825,7 @@ PAIN(medic_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 
-		if (r < (min(((float)damage * 0.005f), 0.5f))) // no more than 50% chance of big pain
+		if (r < (min((static_cast<float>(damage) * 0.005f), 0.5f))) // no more than 50% chance of big pain
 			M_SetAnimation(self, &medic_move_pain2);
 		else
 			M_SetAnimation(self, &medic_move_pain1);

@@ -259,7 +259,7 @@ inline void ClearBounds(vec3_t& mins, vec3_t& maxs)
 
 inline void AddPointToBounds(const vec3_t& v, vec3_t& mins, vec3_t& maxs)
 {
-	for (int i = 0; i < 3; i++)
+for (size_t i = 0; i < 3; ++i)
 	{
 		float val = v[i];
 		if (val < mins[i])

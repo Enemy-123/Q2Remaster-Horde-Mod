@@ -24,7 +24,7 @@ void monster_fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& di
 void monster_fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, float turn_fraction)
 {
 	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
-	fire_heat(self, start, dir, damage, speed, (float)damage, damage, turn_fraction);
+	fire_heat(self, start, dir, damage, speed, static_cast<float>(damage), damage, turn_fraction);
 	monster_muzzleflash(self, start, flashtype);
 }
 

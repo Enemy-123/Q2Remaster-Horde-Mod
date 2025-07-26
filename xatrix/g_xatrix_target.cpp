@@ -43,7 +43,6 @@ THINK(mal_laser_think) (edict_t *self) -> void
 	self->think = mal_laser_think2;
 	self->nextthink = level.time + 100_ms;
 }
-
 void SP_target_mal_laser(edict_t *self)
 {
 	self->movetype = MOVETYPE_NONE;
@@ -58,17 +57,22 @@ void SP_target_mal_laser(edict_t *self)
 	else
 		self->s.frame = 4;
 
+	// Helper lambda to safely place the unsigned color bits into the signed skinnum
+	auto set_skin_color = [](uint32_t color_bits) -> int32_t {
+		return *reinterpret_cast<int32_t*>(&color_bits);
+	};
+
 	// set the color
 	if (self->spawnflags.has(SPAWNFLAG_LASER_RED))
-		self->s.skinnum = 0xf2f2f0f0;
+		self->s.skinnum = set_skin_color(0xf2f2f0f0);
 	else if (self->spawnflags.has(SPAWNFLAG_LASER_GREEN))
-		self->s.skinnum = 0xd0d1d2d3;
+		self->s.skinnum = set_skin_color(0xd0d1d2d3);
 	else if (self->spawnflags.has(SPAWNFLAG_LASER_BLUE))
-		self->s.skinnum = 0xf3f3f1f1;
+		self->s.skinnum = set_skin_color(0xf3f3f1f1);
 	else if (self->spawnflags.has(SPAWNFLAG_LASER_YELLOW))
-		self->s.skinnum = 0xdcdddedf;
+		self->s.skinnum = set_skin_color(0xdcdddedf);
 	else if (self->spawnflags.has(SPAWNFLAG_LASER_ORANGE))
-		self->s.skinnum = 0xe0e1e2e3;
+		self->s.skinnum = set_skin_color(0xe0e1e2e3);
 
 	G_SetMovedir(self->s.angles, self->movedir);
 

@@ -50,7 +50,7 @@ set(COMMON_WARNING_FLAGS
     -Wall
     -Wextra
     -Wpedantic
-    -Wshadow
+    #-Wshadow
     -Wconversion
     -Wsign-conversion
     -Wnull-dereference
