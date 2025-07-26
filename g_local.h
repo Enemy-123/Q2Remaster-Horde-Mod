@@ -3689,8 +3689,8 @@ private:
 
 public:
 	// note: index is not affected by filter. it is up to
-	// the caller to ensure this index is filtered.
-	constexpr entity_iterator_t(uint32_t i, uint32_t end_index = -1) : index(i), end_index((end_index >= globals.num_edicts) ? globals.num_edicts : end_index) {}
+	// the caller to ensure this index is filtered.	
+	constexpr entity_iterator_t(uint32_t i, uint32_t end_index = UINT32_MAX) : index(i), end_index((end_index >= globals.num_edicts) ? globals.num_edicts : end_index) {}
 
 	inline reference operator*() { throw_if_out_of_range(); return &g_edicts[index]; }
 	inline pointer operator->() { throw_if_out_of_range(); return &g_edicts[index]; }
@@ -3719,7 +3719,11 @@ public:
 		// move in the specified direction, only stopping if we
 		// run out of range or find a filtered entity
 		while (!is_out_of_range(it.index) && !filter(*it))
-			it.index += offset > 0 ? 1 : -1;
+	if (offset > 0) {
+		it.index++;
+	} else {
+		it.index--;
+	}
 
 		return it;
 	}
