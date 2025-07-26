@@ -459,7 +459,6 @@ bool finishHeal(edict_t* self)
 	// Update final state
 	healee->monsterinfo.react_to_damage_time = level.time;
 	healee->monsterinfo.was_stuck = false;
-	healee->monsterinfo.stuck_check_time = 0_sec;
 
 	cleanupHeal(self);
 	return true;

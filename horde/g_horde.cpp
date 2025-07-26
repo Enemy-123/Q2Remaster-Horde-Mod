@@ -2362,7 +2362,7 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 		if (post_link_trace.startsolid)
 		{
 			monster->monsterinfo.was_stuck = true;
-			monster->monsterinfo.stuck_check_time = level.time;
+			monster->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 		}
 	}
 	
@@ -5603,7 +5603,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 
 	if (level.time < self->monsterinfo.stuck_check_time)
 		return false;
-	self->monsterinfo.stuck_check_time = level.time + random_time(7.0_sec, 9.0_sec);
+	self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) || (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET)))
 		return false;
@@ -5717,7 +5717,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		}
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = 0_sec;
+		self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
 		return true;
 	}
@@ -7585,7 +7585,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	}
 
 	self->monsterinfo.was_stuck = false;
-	self->monsterinfo.stuck_check_time = 0_sec;
+	self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 	self->monsterinfo.react_to_damage_time = level.time;
 	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 

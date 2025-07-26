@@ -1827,7 +1827,7 @@ struct monsterinfo_t
 	gtime_t last_reacttodamage_target_time;
 	gtime_t lastnoisecooldown;
 	gtime_t spawn_cooldown; // Tiempo de espera entre spawns
-	gtime_t stuck_check_time;
+	gtime_t stuck_check_time = 2_sec;
 	gtime_t no_enemy_timeout_start_time;
 
 	bool was_stuck = false;
@@ -1837,7 +1837,6 @@ struct monsterinfo_t
 	bool BOSS_DEATH_HANDLED = false; // is dead?
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
-	//gtime_t spawn_complete_time; // useful?
 	uint8_t monster_type_id;
 
 
