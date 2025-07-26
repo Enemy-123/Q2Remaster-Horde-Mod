@@ -966,10 +966,12 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
         // Get the oldest trap from our circular buffer.
         edict_t* oldest = self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx];
 
-        // Ensure it's a valid, in-use trap before freeing.
-        if (oldest && oldest->inuse && oldest->classname && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
-            // G_FreeEdict will call trap_die, which correctly handles all cleanup.
-            G_FreeEdict(oldest);
+        // Ensure it's a valid, in-use trap before removing it.
+        if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
+            // --- ROBUST METHOD: Directly call the die function ---
+            // This explicitly triggers the trap's full cleanup sequence, including the explosion
+            // and decrementing the player's trap count.
+            trap_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
         }
     }
 

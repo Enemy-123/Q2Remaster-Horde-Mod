@@ -327,65 +327,76 @@ static int CheckArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, i
 }
 // In g_monster.c or wherever M_ReactToDamage is located
 
+
 void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 {
-	// pmm
-	bool new_tesla;
-	static constexpr gtime_t target_cooldown_react = 1.5_sec;
+    // pmm
+    bool new_tesla;
+    static constexpr gtime_t target_cooldown_react = 1.5_sec;
 
-	if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
-		return;
+    if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
+        return;
 
-	//=======
-	// ROGUE / HORDE MODIFICATION
-	// First, determine the actual source of the threat.
-	// If we're hit by a laser beam, the real threat is the emitter that owns it.
-	edict_t* threat = inflictor;
+    //=======
+    // ROGUE / HORDE MODIFICATION (REVISED AND CORRECTED)
+    //
+    // First, determine the tangible "threat source" on the map that the monster should target.
+    // This might be different from the 'inflictor' (e.g., a bullet) or the 'attacker' (e.g., a player).
+    edict_t* threat_source = nullptr;
 
-	// If we're hit by a laser beam, the real threat is the emitter that owns it.
-	if (threat && horde::IsSpecialType(threat, horde::SpecialEntityTypeID::LASER_BEAM))
-	{
-		threat = threat->owner;
-	}
-	// If the inflictor is a projectile from a sentry gun, the sentry is the real threat.
-	else if (threat && threat->owner && horde::IsSpecialType(threat->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
-	{
-		threat = threat->owner;
-	}
+    // Case 1: The inflictor is a deployable itself (like a Tesla mine).
+    if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
+                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER)))
+    {
+        threat_source = inflictor;
+    }
+    // Case 2: The inflictor is a part of a deployable (like a laser beam).
+    else if (inflictor && horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_BEAM))
+    {
+        threat_source = inflictor->owner; // The threat is the emitter.
+    }
+    // Case 3: The inflictor is a projectile whose owner is a deployable (e.g., a bullet from a sentry).
+    else if (inflictor && inflictor->owner && horde::IsSpecialType(inflictor->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
+    {
+        threat_source = inflictor->owner; // The threat is the sentry gun.
+    }
 
-	// Now, check if the determined threat is a deployable we should target directly.
-	if (threat && (horde::IsSpecialType(threat, horde::SpecialEntityTypeID::TESLA_MINE) ||
-		horde::IsSpecialType(threat, horde::SpecialEntityTypeID::SENTRY_GUN) ||
-		horde::IsSpecialType(threat, horde::SpecialEntityTypeID::LASER_EMITTER)))
-	{
-		new_tesla = MarkTeslaArea(targ, threat);
 
-		// Sentry Gun or Laser Emitter logic
-		if (horde::IsSpecialType(threat, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(threat, horde::SpecialEntityTypeID::LASER_EMITTER))
-		{
-			// Check if enough time has passed since last sentrygun/emitter targeting
-			if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
-			{
-				// Target the new threat if it's new, random, or we aren't already targeting a similar threat.
-				if ((new_tesla || brandom()) && (!targ->enemy ||
-					!(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
-				{
-					TargetTesla(targ, threat);
-					targ->monsterinfo.last_reacttodamage_target_time = level.time;
-				}
-			}
-		}
-		// Tesla Mine logic
-		else if (horde::IsSpecialType(threat, horde::SpecialEntityTypeID::TESLA_MINE))
-		{
-			// Target the new threat if it's new, random, or we aren't already targeting a tesla.
-			if ((new_tesla || brandom()) && (!targ->enemy || !horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::TESLA_MINE)))
-				TargetTesla(targ, threat);
-		}
-		return;
-	}
-	// ROGUE / HORDE MODIFICATION END
-	//=======
+    // If we identified a deployable as the threat source, react to it.
+    if (threat_source && threat_source->inuse)
+    {
+        // Check if the monster should target this type of deployable.
+        if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) ||
+            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
+        {
+            new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
+
+            // Sentry Gun or Laser Emitter logic
+            if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
+            {
+                if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
+                {
+                    if ((new_tesla || brandom()) && (!targ->enemy ||
+                        !(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
+                    {
+                        TargetTesla(targ, threat_source); // Assuming this function sets the enemy to any deployable.
+                        targ->monsterinfo.last_reacttodamage_target_time = level.time;
+                    }
+                }
+            }
+            // Tesla Mine logic
+            else if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE))
+            {
+                if ((new_tesla || brandom()) && (!targ->enemy || !horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::TESLA_MINE)))
+                    TargetTesla(targ, threat_source);
+            }
+            return; // We've reacted to the deployable, so we are done.
+        }
+    }
+    // ROGUE / HORDE MODIFICATION END
+    //=======
 
 	if (attacker == targ || attacker == targ->enemy)
 		return;

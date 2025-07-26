@@ -1647,18 +1647,18 @@ void check_player_tesla_limit(edict_t *self)
 void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int tesla_damage_multiplier, int speed)
 {
 	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.
-	// This logic replaces the inefficient check_player_tesla_limit() function.
 	if (self && self->client && self->client->resp.num_teslas >= TeslaConstants::MAX_TESLAS_PER_PLAYER)
 	{
 		// Get the oldest tesla from our circular buffer.
 		edict_t *oldest = self->client->resp.deployed_teslas[self->client->resp.oldest_tesla_idx];
 
-		// Ensure it's a valid, in-use tesla before freeing. This handles cases
-		// where the tesla was destroyed by other means and the pointer is stale.
-		if (oldest && oldest->inuse && oldest->classname && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::TESLA_MINE))
+		// Ensure it's a valid, in-use tesla before removing it.
+		if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::TESLA_MINE))
 		{
-			// G_FreeEdict will call tesla_remove(), which correctly decrements num_teslas.
-			G_FreeEdict(oldest);
+            // --- ROBUST METHOD: Directly call the die function ---
+            // This explicitly triggers the tesla's full cleanup sequence, which calls
+            // tesla_remove() to handle the explosion and player count.
+			tesla_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
 		}
 	}
 
