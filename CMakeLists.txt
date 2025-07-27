@@ -24,7 +24,14 @@ set(JSONCPP_WITH_TESTS OFF CACHE BOOL "" FORCE)
 set(JSONCPP_WITH_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+# This line is the fix for the CheckTypeSize error.
+set(JSONCPP_ENCODING_LOCALE_DEPENDENT OFF CACHE BOOL "" FORCE)
+
 add_subdirectory(vendor/jsoncpp/jsoncpp-1.9.6 EXCLUDE_FROM_ALL)
+
+# This line ensures jsoncpp builds with a compatible C++ standard.
+set_property(TARGET jsoncpp_static PROPERTY CXX_STANDARD 17)
 
 # --- Define the source files for YOUR mod ---
 file(GLOB MOD_SOURCES
@@ -89,12 +96,15 @@ target_compile_options(
 target_link_options(
     Q2HordeModDLL
     PRIVATE
+    # --- ADD THIS LINE ---
+    # Statically link the C++ runtime to create a self-contained DLL
+    -static
+
     # Linker flags for AddressSanitizer
     $<$<CONFIG:DebugASan>:-fsanitize=address>
 
     # Strip symbols only on Release builds for the smallest file
     $<$<CONFIG:Release>:-s>)
-
 # --- Modern way to handle static/dynamic runtime linking on Windows ---
 include(GNUInstallDirs)
 if(WIN32)

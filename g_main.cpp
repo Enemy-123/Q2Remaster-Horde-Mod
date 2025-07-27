@@ -494,6 +494,7 @@ Returns a pointer to the structure with all entry points
 and global variables
 =================
 */
+extern "C" {
 Q2GAME_API game_export_t* GetGameAPI(game_import_t* import)
 {
 	gi = *import;
@@ -542,7 +543,7 @@ Q2GAME_API game_export_t* GetGameAPI(game_import_t* import)
 
 	return &globals;
 }
-
+}
 //======================================================================
 
 /*

@@ -1,4 +1,6 @@
 {
+    "cmake.toolchainFile": "${workspaceFolder}/mingw-w64-x86_64.cmake",
+
     "files.associations": {
         "algorithm": "cpp",
         "any": "cpp",

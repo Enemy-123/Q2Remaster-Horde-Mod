@@ -11,7 +11,8 @@ set -o pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR="$SCRIPT_DIR/build"
 TOOLCHAIN_FILE="$SCRIPT_DIR/mingw-w64-x86_64.cmake"
-
+# Define the path to the toolchain root directory so the script can find the DLLs
+TOOLCHAIN_ROOT="/home/perrobjorn/tools/llvm-mingw-20250709-ucrt-ubuntu-22.04-x86_64"
 # --- Check for Arguments ---
 if [ -z "${1:-}" ]; then
   echo "Usage: $0 /path/to/deployment/directory [BuildType]"
@@ -72,17 +73,40 @@ fi
 # --- Post-Build Action for AddressSanitizer ---
 if [ "$BUILD_TYPE" == "DebugASan" ]; then
     echo ""
-    echo "!!! ACTION REQUIRED FOR AddressSanitizer !!!"
-    ASAN_DLL_PATH=$(find /usr/lib/gcc/x86_64-w64-mingw32 -name "libasan*.dll" | head -n 1)
-    if [ -n "$ASAN_DLL_PATH" ]; then
-        echo "Your mod was built with ASan. You MUST copy the ASan runtime to the game directory."
-        echo "Run this command:"
-        echo "cp \"$ASAN_DLL_PATH\" \"$DEPLOY_PATH/\""
-        # Optional: uncomment the line below to copy it automatically
-        # cp "$ASAN_DLL_PATH" "$DEPLOY_PATH/" && echo "ASan runtime copied automatically."
+    echo "--- Handling ASan and LLVM Runtime Dependencies ---"
+
+    # The specific directory within the toolchain where our target's DLLs are
+    LLVM_TARGET_BIN_DIR="$TOOLCHAIN_ROOT/x86_64-w64-mingw32/bin"
+
+    # List of required runtime DLLs for this toolchain and build type
+    REQUIRED_DLLS=(
+        "libclang_rt.asan_dynamic-x86_64.dll"
+        "libc++.dll"
+        "libunwind.dll"
+    )
+
+    ALL_FOUND=true
+    for DLL_NAME in "${REQUIRED_DLLS[@]}"; do
+        DLL_PATH="$LLVM_TARGET_BIN_DIR/$DLL_NAME"
+
+        if [ -f "$DLL_PATH" ]; then
+            echo "Found $DLL_NAME, copying to deployment directory..."
+            cp "$DLL_PATH" "$DEPLOY_PATH/"
+        else
+            echo "  !!! CRITICAL WARNING: Could not find required runtime DLL: $DLL_NAME"
+            echo "  Expected at: $DLL_PATH"
+            ALL_FOUND=false
+        fi
+    done
+
+    if [ "$ALL_FOUND" = true ]; then
+        echo "All required runtime DLLs copied successfully."
     else
-        echo "Warning: Could not automatically find the ASan runtime (libasan*.dll)."
-        echo "You must find it in your MinGW installation and copy it to the game directory manually."
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo "One or more required runtime DLLs were NOT found."
+        echo "The mod will FAIL to load in-game without these files."
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        exit 1
     fi
 fi
 
