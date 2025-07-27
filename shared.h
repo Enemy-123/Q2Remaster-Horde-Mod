@@ -53,7 +53,7 @@ extern int32_t GetStroggsNum() noexcept;
 extern inline bool IsBossWave() noexcept;
 
 bool TeleportSelf(edict_t* ent);
-int8_t GetNumHumanPlayers();
+//extern int8_t GetNumHumanPlayers();
 
 // Estructura para almacenar las estad√≠sticas de los jugadores
 struct PlayerStats {

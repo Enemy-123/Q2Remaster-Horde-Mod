@@ -684,7 +684,6 @@ enum class WaveEndReason
 
 inline int8_t GetNumActivePlayers();
 inline int8_t GetNumSpectPlayers();
-int8_t GetNumHumanPlayers();
 
 int32_t g_adjusted_monster_cap = 0;
 
@@ -5119,16 +5118,6 @@ inline int8_t GetNumActivePlayers()
 						 [](const edict_t *const player)
 						 {
 							 return player->client && player->client->resp.ctf_team == CTF_TEAM1;
-						 });
-}
-
-inline int8_t GetNumHumanPlayers()
-{
-	const auto &players = active_players_no_spect();
-	return std::count_if(players.begin(), players.end(),
-						 [](const edict_t *const player)
-						 {
-							 return !(player->svflags & SVF_BOT);
 						 });
 }
 

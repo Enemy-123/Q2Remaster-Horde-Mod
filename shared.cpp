@@ -6,7 +6,6 @@
 #include "horde/horde_ids.h"
 #include "horde/g_entity_properties.h"
 
-
 horde::MapSize GetMapSize(const char* mapname) {
 	// Use the namespace qualifier for the cache type
 	static std::unordered_map<std::string, horde::MapSize> cache;

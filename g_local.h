@@ -4175,6 +4175,16 @@ extern void fastNextWave() noexcept;
 extern void OpenHordeMenu(edict_t* ent);
 extern void UpdateVoteHUD();
 
+inline int8_t GetNumHumanPlayers()
+{
+	const auto &players = active_players_no_spect();
+	return std::count_if(players.begin(), players.end(),
+						 [](const edict_t *const player)
+						 {
+							 return !(player->svflags & SVF_BOT);
+						 });
+}
+
 
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
 std::string GetDisplayName(const edict_t* ent);
