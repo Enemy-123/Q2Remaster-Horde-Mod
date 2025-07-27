@@ -11,8 +11,7 @@ set -o pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR="$SCRIPT_DIR/build"
 TOOLCHAIN_FILE="$SCRIPT_DIR/mingw-w64-x86_64.cmake"
-# Define the path to the toolchain root directory so the script can find the DLLs
-TOOLCHAIN_ROOT="/home/perrobjorn/tools/llvm-mingw-20250709-ucrt-ubuntu-22.04-x86_64"
+
 # --- Check for Arguments ---
 if [ -z "${1:-}" ]; then
   echo "Usage: $0 /path/to/deployment/directory [BuildType]"
@@ -53,10 +52,11 @@ cmake .. \
     -G "Unix Makefiles"
 
 echo "[3/4] Building target (make)..."
-# Use cmake --build for portability, but falls back to make here.
+# Use cmake --build for portability.
 cmake --build . -- -j$(nproc)
 
 echo "[4/4] Installing target..."
+# This command reads DEPLOY_DIRECTORY from CMake cache and copies the DLL.
 cmake --build . --target install
 
 cd "$SCRIPT_DIR"
@@ -68,46 +68,6 @@ if [ -f "$FINAL_DLL_PATH" ]; then
 else
     echo "Error: Expected DLL not found at $FINAL_DLL_PATH after installation."
     exit 1
-fi
-
-# --- Post-Build Action for AddressSanitizer ---
-if [ "$BUILD_TYPE" == "DebugASan" ]; then
-    echo ""
-    echo "--- Handling ASan and LLVM Runtime Dependencies ---"
-
-    # The specific directory within the toolchain where our target's DLLs are
-    LLVM_TARGET_BIN_DIR="$TOOLCHAIN_ROOT/x86_64-w64-mingw32/bin"
-
-    # List of required runtime DLLs for this toolchain and build type
-    REQUIRED_DLLS=(
-        "libclang_rt.asan_dynamic-x86_64.dll"
-        "libc++.dll"
-        "libunwind.dll"
-    )
-
-    ALL_FOUND=true
-    for DLL_NAME in "${REQUIRED_DLLS[@]}"; do
-        DLL_PATH="$LLVM_TARGET_BIN_DIR/$DLL_NAME"
-
-        if [ -f "$DLL_PATH" ]; then
-            echo "Found $DLL_NAME, copying to deployment directory..."
-            cp "$DLL_PATH" "$DEPLOY_PATH/"
-        else
-            echo "  !!! CRITICAL WARNING: Could not find required runtime DLL: $DLL_NAME"
-            echo "  Expected at: $DLL_PATH"
-            ALL_FOUND=false
-        fi
-    done
-
-    if [ "$ALL_FOUND" = true ]; then
-        echo "All required runtime DLLs copied successfully."
-    else
-        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        echo "One or more required runtime DLLs were NOT found."
-        echo "The mod will FAIL to load in-game without these files."
-        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        exit 1
-    fi
 fi
 
 exit 0

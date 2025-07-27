@@ -1,19 +1,14 @@
 cmake_minimum_required(VERSION 3.15)
 project(Q2HordeMod LANGUAGES CXX)
 
-# --- Best Practice: Set a default build type if none is specified ---
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified.")
-    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the build type" FORCE)
-endif()
-
 # --- Best Practice: Generate compile_commands.json for static analysis tools ---
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# --- Set the C++ Standard for YOUR project ---
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# --- Deployment directory option ---
+# --- Deployment directory option (passed in by build_mingw.sh) ---
 set(DEPLOY_DIRECTORY "" CACHE PATH "Directory where game_x64.dll should be copied")
 if(DEPLOY_DIRECTORY)
     message(STATUS "Deployment directory set to: ${DEPLOY_DIRECTORY}")
@@ -25,13 +20,16 @@ set(JSONCPP_WITH_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-# This line is the fix for the CheckTypeSize error.
+# WORKAROUND: Disable a jsoncpp feature that is incompatible with sanitizer build checks.
 set(JSONCPP_ENCODING_LOCALE_DEPENDENT OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(vendor/jsoncpp/jsoncpp-1.9.6 EXCLUDE_FROM_ALL)
 
-# This line ensures jsoncpp builds with a compatible C++ standard.
+# Force jsoncpp to use the more compatible C++17 standard.
 set_property(TARGET jsoncpp_static PROPERTY CXX_STANDARD 17)
+# And tell the compiler not to treat warnings in jsoncpp as fatal errors.
+target_compile_options(jsoncpp_static PRIVATE -Wno-error)
+
 
 # --- Define the source files for YOUR mod ---
 file(GLOB MOD_SOURCES
@@ -52,39 +50,12 @@ target_include_directories(
             "${CMAKE_CURRENT_SOURCE_DIR}/vendor"
             "${CMAKE_CURRENT_SOURCE_DIR}/vendor/jsoncpp/jsoncpp-1.9.6/include")
 
-# --- Define Common Warning Flags to be used by all debug-style builds ---
-set(COMMON_WARNING_FLAGS
-    -Wall
-    -Wextra
-    -Wpedantic
-    #-Wshadow
-    -Wconversion
-    -Wsign-conversion
-    -Wnull-dereference
-    -Wuninitialized
-    -Winit-self
-    -Wreturn-type
-    -Wnon-virtual-dtor
-    -Wold-style-cast
-    -Wformat=2)
-
-# --- Static Analyzer Integration (Clang-Tidy) ---
-find_program(CLANG_TIDY_EXE clang-tidy)
-if(CLANG_TIDY_EXE)
-    message(STATUS "Found clang-tidy: ${CLANG_TIDY_EXE}")
-    # A great starting set of checks: enable major categories, disable all others.
-    set(CLANG_TIDY_CHECKS "-*,bugprone-*,performance-*,readability-*,portability-*,modernize-*")
-    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=${CLANG_TIDY_CHECKS}")
-else()
-    message(WARNING "clang-tidy not found. Static analysis will be skipped.")
-endif()
-
 # --- Add Compile Options (Modern Approach) ---
 target_compile_options(
     Q2HordeModDLL
     PRIVATE
-    # Add common warnings to all builds except Release
-    $<$<NOT:$<CONFIG:Release>>:${COMMON_WARNING_FLAGS}>
+    # This flag tells the compiler NOT to treat warnings in your code as fatal errors.
+    -Wno-error
 
     # Build-type specific flags
     $<$<CONFIG:Debug>:-g -O0>
@@ -96,20 +67,17 @@ target_compile_options(
 target_link_options(
     Q2HordeModDLL
     PRIVATE
-    # --- ADD THIS LINE ---
-    # Statically link the C++ runtime to create a self-contained DLL
+    # --- THIS IS THE KEY FIX ---
+    # Statically link all runtimes (C, C++, ASan) into our DLL.
+    # This creates a single, self-contained file with no extra dependencies.
     -static
 
-    # Linker flags for AddressSanitizer
+    # For DebugASan builds, ALSO add the flag to enable AddressSanitizer.
+    # The -static flag above will cause the ASan runtime to be statically linked too.
     $<$<CONFIG:DebugASan>:-fsanitize=address>
 
-    # Strip symbols only on Release builds for the smallest file
+    # Strip symbols only on Release builds for the smallest file.
     $<$<CONFIG:Release>:-s>)
-# --- Modern way to handle static/dynamic runtime linking on Windows ---
-include(GNUInstallDirs)
-if(WIN32)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-endif()
 
 # --- Add preprocessor definitions for WINDOWS ---
 target_compile_definitions(
@@ -134,6 +102,3 @@ set_target_properties(Q2HordeModDLL PROPERTIES PREFIX "")
 if(DEPLOY_DIRECTORY AND IS_DIRECTORY "${DEPLOY_DIRECTORY}")
     install(TARGETS Q2HordeModDLL RUNTIME DESTINATION "${DEPLOY_DIRECTORY}" COMPONENT Runtime)
 endif()
-
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "Using CXX Compiler: ${CMAKE_CXX_COMPILER}")

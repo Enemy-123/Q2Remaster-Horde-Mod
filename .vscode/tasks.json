@@ -27,10 +27,7 @@
                 "${input:deployPathInput}",
                 "Release"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "presentation": {
                 "reveal": "always",
                 "panel": "new",
@@ -66,7 +63,10 @@
                 "${input:deployPathInput}",
                 "DebugASan"
             ],
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "presentation": {
                 "reveal": "always",
                 "panel": "new",
