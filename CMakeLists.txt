@@ -67,18 +67,13 @@ target_compile_options(
 target_link_options(
     Q2HordeModDLL
     PRIVATE
-    # --- THIS IS THE KEY FIX ---
-    # Statically link all runtimes (C, C++, ASan) into our DLL.
-    # This creates a single, self-contained file with no extra dependencies.
-    -static
+    # -static flag removed as it was not working for the ASan runtime.
 
-    # For DebugASan builds, ALSO add the flag to enable AddressSanitizer.
-    # The -static flag above will cause the ASan runtime to be statically linked too.
+    # For DebugASan builds, enable AddressSanitizer.
     $<$<CONFIG:DebugASan>:-fsanitize=address>
 
     # Strip symbols only on Release builds for the smallest file.
     $<$<CONFIG:Release>:-s>)
-
 # --- Add preprocessor definitions for WINDOWS ---
 target_compile_definitions(
     Q2HordeModDLL
