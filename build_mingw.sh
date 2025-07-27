@@ -11,7 +11,7 @@ set -o pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR="$SCRIPT_DIR/build"
 TOOLCHAIN_FILE="$SCRIPT_DIR/mingw-w64-x86_64.cmake"
-TOOLCHAIN_ROOT="/home/perrobjorn/tools/llvm-mingw-20250709-ucrt-ubuntu-22.04-x86_64"
+TOOLCHAIN_ROOT="/home/perrobjorn/tools/llvm-mingw-20231128-ucrt-ubuntu-20.04-x86_64"
 
 # --- Check for Arguments ---
 if [ -z "${1:-}" ]; then

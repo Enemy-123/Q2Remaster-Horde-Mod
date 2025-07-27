@@ -5,7 +5,7 @@ set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
 # Define the path to the root of the toolchain directory.
-set(TOOLCHAIN_ROOT "/home/perrobjorn/tools/llvm-mingw-20250709-ucrt-ubuntu-22.04-x86_64")
+set(TOOLCHAIN_ROOT "/home/perrobjorn/tools/llvm-mingw-20231128-ucrt-ubuntu-20.04-x86_64")
 
 # Specify the cross-compilers using their absolute paths.
 set(CMAKE_C_COMPILER   "${TOOLCHAIN_ROOT}/bin/x86_64-w64-mingw32-clang")
