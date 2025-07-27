@@ -1657,16 +1657,6 @@ void Cmd_Switchteam_f(edict_t* ent)
 =================
 Cmd_ListMonsters_f
 
-Performs a live scan of all entities to find active monsters and compares
-the result to the official level counters to diagnose discrepancies.
-=================
-*/
-// In g_cmds.cpp
-
-/*
-=================
-Cmd_ListMonsters_f
-
 Performs a live scan of all entities to find active monsters, compares the
 result to the official level counters, and identifies any unmanaged monsters
 (those without a valid Horde TypeID) that could be causing discrepancies.
@@ -1677,92 +1667,68 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 	if (!G_CheatCheck(ent))
 		return;
 
-	gi.Com_PrintFmt("\n--- Horde Monster Counter Diagnostics ---\n");
+	gi.Com_PrintFmt("\n--- Live Monster Analysis ---\n");
 
-	int32_t live_and_counted = 0;
-	int32_t live_but_uncounted = 0;
-	int32_t dead_and_was_counted = 0;
+	int live_monster_count = 0;
+	int32_t official_remaining_count = GetStroggsNum();
 
-	// --- Step 1: Scan and categorize every monster entity ---
+	// --- Part 1: Perform a live scan for active monsters ---
+	gi.Com_PrintFmt("Scanning all entities for active monsters...\n");
 	for (uint32_t i = 1; i < globals.num_edicts; i++)
 	{
 		edict_t* e = &g_edicts[i];
 
-		if (!e->inuse || !(e->svflags & SVF_MONSTER))
-			continue;
-
-		bool is_counted = !(e->monsterinfo.aiflags & AI_DO_NOT_COUNT);
-		bool is_alive = !e->deadflag && e->health > 0;
-
-		if (is_alive)
+		// To be an alive monster, an entity must:
+		// 1. Be in use (not a free slot).
+		// 2. Be flagged as a monster.
+		// 3. Not be dead.
+		// 4. Have health above 0.
+		if (e->inuse && (e->svflags & SVF_MONSTER) && !e->deadflag && e->health > 0)
 		{
-			if (is_counted)
-			{
-				live_and_counted++;
-			}
-			else
-			{
-				live_but_uncounted++;
-				gi.Com_PrintFmt("  -> [!!BUG!!] Live but UNCOUNTED: {} at ({:.0f}, {:.0f}, {:.0f})\n",
-					e->classname, e->s.origin[0], e->s.origin[1], e->s.origin[2]);
-			}
-		}
-		else // Is dead
-		{
-			if (is_counted)
-			{
-				dead_and_was_counted++;
-			}
-			// We don't care about dead monsters that were never counted (e.g., precache entities).
+			// This is an optional but good check. Some "monsters" might be friendly
+			// or otherwise shouldn't be part of the main count (e.g., a friendly marine).
+			// The AI_DO_NOT_COUNT flag is often used for this.
+			if (e->monsterinfo.aiflags & AI_DO_NOT_COUNT)
+				continue;
+
+			// Print the monster's classname, health, and location.
+			gi.Com_PrintFmt(" - [ALIVE] {}: health {}, origin ({:.0f}, {:.0f}, {:.0f})\n",
+				e->classname,
+				e->health,
+				e->s.origin[0], e->s.origin[1], e->s.origin[2]);
+			live_monster_count++;
 		}
 	}
 
-	// --- Step 2: Analyze and Report ---
-	gi.Com_PrintFmt("\n--- Analysis ---\n");
+	// --- Part 2: Analyze the results and report ---
+	gi.Com_PrintFmt("\n--- Analysis Summary ---\n");
+	gi.Com_PrintFmt("Live Scan Found: {} monsters\n", live_monster_count);
+	gi.Com_PrintFmt("Official Counter (GetStroggsNum): {} monsters\n", official_remaining_count);
+	gi.Com_PrintFmt(" (level.total_monsters: {}, level.killed_monsters: {})\n", level.total_monsters, level.killed_monsters);
 
-	// Live Scan Results
-	gi.Com_PrintFmt("Live Scan Results:\n");
-	gi.Com_PrintFmt(" - Live & Counted Monsters:         {}\n", live_and_counted);
-	gi.Com_PrintFmt(" - Dead Monsters (that were counted): {}\n", dead_and_was_counted);
-	if (live_but_uncounted > 0) {
-		gi.Com_PrintFmt(" - Live but UNCOUNTED (BUG):      {}\n", live_but_uncounted);
-	}
-
-	// Engine Counter State
-	gi.Com_PrintFmt("\nEngine Counter State:\n");
-	gi.Com_PrintFmt(" - level.total_monsters:            {}\n", level.total_monsters);
-	gi.Com_PrintFmt(" - level.killed_monsters:           {}\n", level.killed_monsters);
-	gi.Com_PrintFmt(" - GetStroggsNum() reports:         {} monsters remaining\n", GetStroggsNum());
-
-	// --- Step 3: Diagnosis ---
-	gi.Com_PrintFmt("\n--- Diagnosis ---\n");
-
-	int32_t total_from_scan = live_and_counted + dead_and_was_counted;
-	bool total_mismatch = (level.total_monsters != total_from_scan);
-	bool killed_mismatch = (level.killed_monsters != dead_and_was_counted);
-
-	if (!total_mismatch && !killed_mismatch)
+	if (live_monster_count == official_remaining_count)
 	{
-		gi.Com_PrintFmt("[OK] All counters are perfectly in sync with the live entity scan.\n");
+		gi.Com_PrintFmt("\n[OK] Counters are in sync.\n");
 	}
 	else
 	{
-		gi.Com_PrintFmt("[!!DESYNC DETECTED!!]\n");
-		if (total_mismatch)
+		gi.Com_PrintFmt("\n[!!BUG DETECTED!!] Monster counters are out of sync!\n");
+		int32_t discrepancy = official_remaining_count - live_monster_count;
+		if (discrepancy > 0)
 		{
-			gi.Com_PrintFmt(" -> Total Mismatch: Engine thinks there are {} total monsters, but scan found {}.\n",
-				level.total_monsters, total_from_scan);
-            gi.Com_PrintFmt("    This means a monster was added/removed from the count incorrectly at spawn time.\n");
+			gi.Com_PrintFmt(" -> There are {} 'ghost' monsters. They were counted at spawn but their death was not registered.\n", discrepancy);
+			gi.Com_PrintFmt(" -> INVESTIGATE: Look for code that removes monsters (e.g., G_FreeEdict) without calling the proper death function that increments level.killed_monsters.\n");
+			gi.Com_PrintFmt(" -> Prime suspects are often special map triggers, admin commands (like your Cmd_Kill_AI_f), or monster-specific cleanup logic.\n");
 		}
-		if (killed_mismatch)
+		else
 		{
-			gi.Com_PrintFmt(" -> Killed Mismatch: Engine thinks {} monsters were killed, but scan found {} dead monsters.\n",
-				level.killed_monsters, dead_and_was_counted);
-			gi.Com_PrintFmt("    This is the likely cause of the 'ghost monster'. A monster was freed without its death being registered.\n");
+			gi.Com_PrintFmt(" -> There are {} extra live monsters that were not counted at spawn.\n", -discrepancy);
+			gi.Com_PrintFmt(" -> INVESTIGATE: Look for monster spawn code that does not increment level.total_monsters.\n");
 		}
 	}
-	gi.Com_PrintFmt("---------------------------------------\n\n");
+	gi.Com_PrintFmt("---------------------------\n\n");
 }
+
 /*
 =================
 ClientCommand
