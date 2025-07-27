@@ -153,7 +153,7 @@ namespace HordeConstants
 	constexpr gtime_t MIN_MONSTER_SPAWN_INTERVAL = 0.8_sec;
 
 	// --- Stuck Monster / Teleport Logic ---
-	constexpr gtime_t STUCK_CHECK_TIME = 18_sec;
+	//constexpr gtime_t STUCK_CHECK_TIME = 18_sec;
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 32_sec;
 	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
 	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
@@ -167,7 +167,7 @@ namespace HordeConstants
 	constexpr vec3_t VALIDATE_CHECK_MAXS = {16, 16, 32};
 	constexpr float MIN_PLAYER_DIST_GENERATE = 200.0f;
 	constexpr float MIN_PLAYER_DIST_CHECK = 360.0f;
-	constexpr float MIN_PLAYER_DIST_SQ_CHECK = MIN_PLAYER_DIST_CHECK * MIN_PLAYER_DIST_CHECK;
+	//constexpr float MIN_PLAYER_DIST_SQ_CHECK = MIN_PLAYER_DIST_CHECK * MIN_PLAYER_DIST_CHECK;
 	constexpr float MIN_PLAYER_DIST_SPAWNPOINT = 150.0f;
 	constexpr float MIN_PLAYER_DIST_SQ_SPAWNPOINT = MIN_PLAYER_DIST_SPAWNPOINT * MIN_PLAYER_DIST_SPAWNPOINT;
 	constexpr float MIN_RECENT_SPAWN_DIST = 120.0f;
@@ -182,8 +182,8 @@ namespace HordeConstants
 	constexpr int MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY = 10;
 
 	// --- Wave Timing ---
-	constexpr gtime_t BASE_MAX_WAVE_TIME = 125_sec;
-	constexpr gtime_t TIME_INCREASE_PER_LEVEL = 3.0_sec;
+	//constexpr gtime_t BASE_MAX_WAVE_TIME = 125_sec;
+	//constexpr gtime_t TIME_INCREASE_PER_LEVEL = 3.0_sec;
 	constexpr gtime_t BOSS_TIME_BONUS = 100_sec;
 	constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
 } // namespace HordeConstants
@@ -2014,8 +2014,11 @@ constexpr MonsterDataSoA create_monster_data_soa()
 	MonsterDataSoA soa_data{}; // Initialize with default values (zeros)
 
 	// The compiler will iterate through the AoS array...
-	for (const auto &monster_info : monsterTypes)
+	// By using a traditional for-loop, we ensure compatibility with older constexpr rules.
+	for (size_t i = 0; i < std::size(monsterTypes); ++i)
 	{
+		const auto &monster_info = monsterTypes[i];
+
 		// ...and place each piece of data into the correct parallel array
 		// using the MonsterTypeID as the index.
 		const size_t index = static_cast<size_t>(monster_info.typeId);
