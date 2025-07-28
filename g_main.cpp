@@ -965,32 +965,25 @@ static gtime_t g_bot_overlap_cooldown = 0_ms;
 
 void G_CheckBotOverlap(void)
 {
-    edict_t *bot1, *bot2;
-	uint32_t i, j;
-
-    // =================================================================
-    // === NEW CODE: GLOBAL COOLDOWN CHECK =============================
-    // =================================================================
-    // If the global cooldown is still active, do nothing this frame.
+    // If the global cooldown is active, do nothing this frame.
+    // This correctly enforces the 5-second pause between unsticking events.
     if (level.time < g_bot_overlap_cooldown)
     {
         return;
     }
-    // =================================================================
 
-    // Iterate through all possible client slots for the first bot
-    for (i = 1; i <= game.maxclients; i++)
+    // If the cooldown is not active, search for the FIRST overlapping pair to resolve.
+    for (uint32_t i = 1; i <= game.maxclients; i++)
     {
-        bot1 = &g_edicts[i];
+        edict_t* bot1 = &g_edicts[i];
 
         // --- Validate bot1 ---
         if (!bot1->inuse || !(bot1->svflags & SVF_BOT) || !bot1->client || bot1->deadflag || bot1->solid == SOLID_NOT)
             continue;
 
-        // Iterate through the remaining client slots for the second bot
-        for (j = i + 1; j <= game.maxclients; j++)
+        for (uint32_t j = i + 1; j <= game.maxclients; j++)
         {
-            bot2 = &g_edicts[j];
+            edict_t* bot2 = &g_edicts[j];
 
             // --- Validate bot2 ---
             if (!bot2->inuse || !(bot2->svflags & SVF_BOT) || !bot2->client || bot2->deadflag || bot2->solid == SOLID_NOT)
@@ -1002,19 +995,21 @@ void G_CheckBotOverlap(void)
                 // Set the emergency flag for a silent teleport
                 bot1->client->emergency_teleport = true;
 
-                // Teleport the bot
-                TeleportSelf(bot1);
+                // *** THE FIX IS HERE ***
+                // Attempt to teleport the bot AND check if it was successful.
+                if (TeleportSelf(bot1))
+                {
+                    // SUCCESS: A bot was actually teleported.
+                    // Now, activate the global cooldown.
+                    g_bot_overlap_cooldown = level.time + 5_sec;
 
-                // =================================================================
-                // === NEW CODE: RESET GLOBAL COOLDOWN =============================
-                // =================================================================
-                // A teleport has occurred. Set the global cooldown for 5 seconds.
-                g_bot_overlap_cooldown = level.time + 5_sec;
-                // =================================================================
-
-                // Since a teleport happened, we are done for this frame.
-                // Return immediately to stop any further checks.
-                return;
+                    // Return immediately to ensure only ONE unsticking event
+                    // happens per 5-second cycle. This prevents teleport storms.
+                    return;
+                }
+                // If TeleportSelf(bot1) returned false, we do nothing. The loop will
+                // continue, trying to find another pair of stuck bots to resolve
+                // in this same frame.
             }
         }
     }
