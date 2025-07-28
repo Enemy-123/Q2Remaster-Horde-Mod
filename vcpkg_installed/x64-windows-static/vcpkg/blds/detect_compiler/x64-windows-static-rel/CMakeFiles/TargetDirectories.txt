@@ -1,2 +1,0 @@
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/detect_compiler/x64-windows-static-rel/CMakeFiles/edit_cache.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/detect_compiler/x64-windows-static-rel/CMakeFiles/rebuild_cache.dir

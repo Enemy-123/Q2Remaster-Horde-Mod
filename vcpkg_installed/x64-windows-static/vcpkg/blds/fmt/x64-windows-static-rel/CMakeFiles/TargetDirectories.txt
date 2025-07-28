@@ -1,8 +1,0 @@
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/fmt.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/package.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/package_source.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/edit_cache.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/rebuild_cache.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/list_install_components.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/install.dir
-C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows-static/vcpkg/blds/fmt/x64-windows-static-rel/CMakeFiles/install/local.dir
