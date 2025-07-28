@@ -249,8 +249,11 @@ THINK(proboscis_reset) (edict_t* self) -> void
 
 DIE(proboscis_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	if (mod.id == MOD_CRUSH)
-		proboscis_reset(self);
+	// If the proboscis is "killed" for any reason (shot, crushed, etc.),
+	// it must be fully cleaned up. The proboscis_reset function is the
+	// designated cleanup routine which also clears the owner's pointer,
+	// preventing a dangling pointer scenario.
+	proboscis_reset(self);
 }
 
 extern const mmove_t parasite_move_fire_proboscis;
@@ -270,6 +273,14 @@ static void parasite_break_wait(edict_t* self)
 
 static void proboscis_retract(edict_t* self)
 {
+	// Defensive check: If the owner is no longer valid (dead, removed, etc.),
+	// we cannot access its data. The proboscis is an orphan and should be removed.
+	if (!self->owner || !self->owner->inuse)
+	{
+		proboscis_reset(self);
+		return;
+	}
+
 	// start retract animation
 	if (self->owner->monsterinfo.active_move == &parasite_move_fire_proboscis)
 		self->owner->monsterinfo.nextframe = FRAME_drain12;
