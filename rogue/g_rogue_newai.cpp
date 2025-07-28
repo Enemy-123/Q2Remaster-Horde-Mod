@@ -1368,7 +1368,7 @@ MONSTERINFO_DODGE(M_MonsterDodge) (edict_t *self, edict_t *attacker, gtime_t eta
 	}
 
 	if (g_horde->integer) {
-		if (self->enemy->svflags & SVF_MONSTER) {  //added to avoid monsters fighting even if they're on team, HORDE
+		if (self->enemy && (self->enemy->svflags & SVF_MONSTER)) {  //added to avoid monsters fighting even if they're on team, HORDE
 			self->enemy = nullptr;
 		}
 	}
