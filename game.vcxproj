@@ -42,7 +42,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>../</OutDir>
+    <!-- For Debug, we'll output to a local 'build' folder and copy from there -->
+    <OutDir>$(SolutionDir)build\debug\baseq2\</OutDir>
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -75,6 +76,12 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>
+echo Copying debug dependency DLLs...
+copy /Y "$(VcpkgInstalledDir)bin\jsoncppd.dll" "C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\"
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -98,7 +105,10 @@
       <AdditionalDependencies>ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>echo Copying $(TargetFileName) to Quake II Enhanced directory...</Command>
+      <Command>
+echo Copying release dependency DLLs...
+copy /Y "$(VcpkgInstalledDir)bin\jsoncpp.dll" "$(OutDir)..\"
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
