@@ -334,8 +334,6 @@ char* G_CopyString(const char* in, int32_t tag)
 	return out;
 }
 
-// --- REVERT THIS FUNCTION to its original state ---
-// We will handle the clearing inside G_Spawn instead.
 void G_InitEdict(edict_t* e)
 {
 	// ROGUE
@@ -371,68 +369,30 @@ Either finds a free edict, or allocates a new one.
 This is the CORRECT place to clear the entity data to prevent stale data bugs.
 =================
 */
+
 edict_t* G_Spawn()
 {
-	static uint32_t last_spawn_idx = game.maxclients + 1;
+	uint32_t i;
+	edict_t* e;
 
-	// Search from the last known free spot to the end of the list
-	for (uint32_t i = last_spawn_idx; i < globals.num_edicts; i++)
+	e = &g_edicts[game.maxclients + 1];
+	for (i = game.maxclients + 1; i < globals.num_edicts; i++, e++)
 	{
-		edict_t* e = &g_edicts[i];
+		// the first couple seconds of server time can involve a lot of
+		// freeing and allocating, so relax the replacement policy
 		if (!e->inuse && (e->freetime < 2_sec || level.time - e->freetime > 500_ms))
 		{
-			last_spawn_idx = i;
-			
-			// *** THE FIX IS HERE ***
-			// Preserve the spawn_count, then clear the struct, then restore it.
-			int32_t spawn_count = e->spawn_count;
-			memset(e, 0, sizeof(*e));
-			e->spawn_count = spawn_count;
-			// *** END FIX ***
-
 			G_InitEdict(e);
 			return e;
 		}
 	}
 
-	// Wrap around and search from the beginning (after clients)
-	for (uint32_t i = game.maxclients + 1; i < last_spawn_idx; i++)
-	{
-		edict_t* e = &g_edicts[i];
-		if (!e->inuse && (e->freetime < 2_sec || level.time - e->freetime > 500_ms))
-		{
-			last_spawn_idx = i;
+	if (i == game.maxentities)
+		gi.Com_Error("ED_Alloc: no free edicts");
 
-			// *** THE FIX IS HERE ***
-			int32_t spawn_count = e->spawn_count;
-			memset(e, 0, sizeof(*e));
-			e->spawn_count = spawn_count;
-			// *** END FIX ***
-
-			G_InitEdict(e);
-			return e;
-		}
-	}
-
-	// If we're here, no free slots were found. Expand the list if possible.
-	if (globals.num_edicts < game.maxentities)
-	{
-		edict_t* e = &g_edicts[globals.num_edicts];
-		last_spawn_idx = globals.num_edicts;
-		globals.num_edicts++;
-
-		// *** THE FIX IS HERE ***
-		// This is a brand new slot, so we just need to clear it.
-		memset(e, 0, sizeof(*e));
-		// *** END FIX ***
-
-		G_InitEdict(e);
-		return e;
-	}
-
-	// This should never happen unless the map has too many entities.
-	gi.Com_Error("G_Spawn: no free edicts");
-	return nullptr;
+	globals.num_edicts++;
+	G_InitEdict(e);
+	return e;
 }
 
 /*
@@ -478,6 +438,7 @@ THINK(G_FreeEdict) (edict_t* ed) -> void {
 	ed->spawn_count = id;
 	ed->sv.init = false;
 }
+
 BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)
 {
 	if (!hit->touch)
