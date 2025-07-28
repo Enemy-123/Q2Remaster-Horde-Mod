@@ -961,72 +961,101 @@ static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // const an
 		!attacker->monsterinfo.IS_BOSS;
 }
 
-void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
-	// Fast path early exits with direct boolean checks for optimal branching
-	if (!g_vampire || !g_vampire->integer || !attacker || !targ || damage <= 0) {
-		return;
-	}
+// =======================================================================
+// HandleVampireEffect
+//
+// Applies the "vampire" effect, where an attacker gains health by
+// dealing damage. This improved version optimizes sentry healing by
+// using player-specific tracking arrays instead of a global entity scan.
+//
+// Parameters:
+//  attacker - The entity dealing damage and receiving the healing.
+//  targ     - The entity being damaged.
+//  damage   - The amount of damage dealt before armor/reductions.
+// =======================================================================
+void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
+{
+    // --- 1. Guard Clauses & Early Exits ---
+    // These fast checks prevent unnecessary processing and are crucial for performance.
 
-	// Additional early return checks to avoid deeper nesting
-	if (attacker == targ || OnSameTeam(targ, attacker) ||
-		(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
-		return;
-	}
+    // Vampire effect is disabled or damage is zero.
+    if (!g_vampire || !g_vampire->integer || damage <= 0) {
+        return;
+    }
 
-	// Check if attacker can use vampire effect before proceeding
-	if (!CanUseVampireEffect(attacker)) {
-		return;
-	}
+    // Invalid entities.
+    if (!attacker || !targ) {
+        return;
+    }
 
-	// Pre-calculate health stolen once
-	float health_stolen = damage / 4.0f;
-	//if (isSentrygun) {
-	//	health_stolen *= VampireConfig::SENTRY_HEALING_FACTOR;
-	//}
+    // Attacker cannot heal from damaging itself or teammates.
+    if (attacker == targ || OnSameTeam(targ, attacker)) {
+        return;
+    }
 
-	// Only process healing if needed (attacker isn't at max health)
-	if (attacker->health < attacker->max_health) {
-		// Apply weapon-specific modifiers only if needed
-		//if (!isSentrygun) {
-		//	health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
-		//}
+    // Do not grant health for damaging an invincible target.
+    if (targ->monsterinfo.invincible_time > level.time) {
+        return;
+    }
 
-		// Use direct clamping with std::min to simplify logic
-		const float max_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
-		attacker->regen_info.stored_healing = std::min(
-			attacker->regen_info.stored_healing + health_stolen,
-			max_healing
-		);
-	}
+    // Check if the attacker is eligible to use the vampire effect.
+    if (!CanUseVampireEffect(attacker)) {
+        return;
+    }
 
-	// Process sentry healing only in applicable game states
-	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
-		// Cache constants to avoid repeated access
-		const float sentry_factor = VampireConfig::SENTRY_HEALING_FACTOR;
-		const float max_stored = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
-		const float sentry_heal = health_stolen * sentry_factor;
+    // --- 2. Attacker Self-Healing ---
+    // Calculate the base amount of health to be stolen and stored for regeneration.
+    float health_stolen = damage / 4.0f;
 
-		// Use traditional loop (replaces std::span)
-		std::span entities_view{ g_edicts, globals.num_edicts };
-		for (auto& ent : entities_view) {
-			// Combined all conditions in a single if statement for better branch prediction
-			if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
-				!ent.classname || horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN)) {
-				continue;
-			}
+    // Only store healing if the attacker is not already at max health.
+    if (attacker->health < attacker->max_health) {
+        // Apply weapon-specific multipliers to adjust the healing amount.
+        // This is only done for players, as monsters don't have weapons in the same way.
+        if (attacker->client) {
+            health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
+        }
 
-			// Single operation to update stored healing with clamping
-			ent.regen_info.stored_healing = std::min(
-				ent.regen_info.stored_healing + sentry_heal,
-				max_stored
-			);
-		}
-	}
+        // Add the stolen health to the attacker's stored regeneration pool,
+        // clamping it to the maximum allowed value.
+        const float max_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
+        attacker->regen_info.stored_healing = std::min(
+            attacker->regen_info.stored_healing + health_stolen,
+            max_healing
+        );
+    }
 
-	// Only apply armor vampire at level 2 - direct check
-	if (g_vampire->integer == 2) {
-		apply_armor_vampire(attacker, damage);
-	}
+    // --- 3. Sentry Healing (Optimized) ---
+    // If the attacker is a player, heal their deployed sentries as well.
+    // This is a critical optimization: we iterate ONLY over the player's sentries,
+    // not the entire global entity list.
+    if (attacker->client && current_wave_level >= 10)
+    {
+        // Pre-calculate the healing amount for sentries.
+        const float sentry_heal_amount = health_stolen * VampireConfig::SENTRY_HEALING_FACTOR;
+        const float max_stored_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
+
+        // Iterate through the player's specific array of deployed sentries.
+        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
+        {
+            edict_t* sentry = attacker->client->resp.deployed_sentries[i];
+
+            // Safety check: ensure the sentry exists, is in use, and is not dead.
+            if (sentry && sentry->inuse && sentry->health > 0)
+            {
+                // Add healing to the sentry's regeneration pool, clamping to the max.
+                sentry->regen_info.stored_healing = std::min(
+                    sentry->regen_info.stored_healing + sentry_heal_amount,
+                    max_stored_healing
+                );
+            }
+        }
+    }
+
+    // --- 4. Armor Vampire Effect ---
+    // At higher vampire levels, the attacker can also steal armor.
+    if (g_vampire->integer == 2) {
+        apply_armor_vampire(attacker, damage);
+    }
 }
 
 //t_damage
