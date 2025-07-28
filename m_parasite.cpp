@@ -583,10 +583,18 @@ THINK(proboscis_think) (edict_t* self) -> void
 					}
 					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
 
-					self->owner->health = min(self->owner->max_health, self->owner->health + 4);
-					if (self->owner->monsterinfo.setskin) {
-						self->owner->monsterinfo.setskin(self->owner);
+                    // =================================================================
+                    // FIX: Re-validate the owner AFTER T_Damage, as it could have died
+                    // from reflected damage.
+                    // =================================================================
+					if (self->owner && self->owner->inuse)
+					{
+						self->owner->health = min(self->owner->max_health, self->owner->health + 4);
+						if (self->owner->monsterinfo.setskin) {
+							self->owner->monsterinfo.setskin(self->owner);
+						}
 					}
+					
 					self->timestamp = level.time + 10_hz;
 				}
 			}
