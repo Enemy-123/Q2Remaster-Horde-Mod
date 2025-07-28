@@ -2016,7 +2016,7 @@ Fires a single green blaster bolt.  Used by monsters, generally.
 TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	mod_t mod;
-	int damagestat;
+	// int damagestat; // Moved inside the corrected logic
 
 	if (other == self->owner)
 		return;
@@ -2039,27 +2039,52 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 		else
 			mod = MOD_BLASTER2;
 
-		if (self->owner)
-		{
-			damagestat = self->owner->takedamage;
-			self->owner->takedamage = false;
-			if (self->dmg >= 5)
-				T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
-			self->owner->takedamage = damagestat;
-		}
-		else
-		{
-			if (self->dmg >= 5)
-				T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
-		}
+        // =======================================================================
+        // --- FIX: Validate the owner before use to prevent the crash ---
+        // =======================================================================
+
+        // 1. Determine a safe attacker. Default to the projectile itself if the owner is invalid.
+        edict_t *attacker = (self->owner && self->owner->inuse) ? self->owner : self;
+
+        // 2. Temporarily disable takedamage on the valid owner to prevent self-damage
+        //    from the radius effect. Only do this if the owner is valid.
+        int damagestat = 0;
+        bool owner_takedamage_modified = false;
+        if (attacker != self) // This is a safe way to check if self->owner was valid and inuse.
+        {
+            damagestat = attacker->takedamage;
+            attacker->takedamage = false;
+            owner_takedamage_modified = true;
+        }
+
+        // 3. Apply damage using the safe attacker.
+        // The inflictor is the projectile (self), the attacker is who gets credit.
+        if (self->dmg >= 5)
+        {
+            // The 4th argument to T_RadiusDamage is `ignore`, which is the entity that should not take radius damage.
+            // This is usually the entity that was directly hit.
+            T_RadiusDamage(self, attacker, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+        }
+        T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
+
+        // 4. Restore the owner's takedamage state if we changed it.
+        if (owner_takedamage_modified)
+        {
+            attacker->takedamage = damagestat;
+        }
+        // =======================================================================
+        // --- END FIX ---
+        // =======================================================================
 	}
 	else
 	{
 		// PMM - yeowch this will get expensive
 		if (self->dmg >= 5)
-			T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg * 2), self->owner, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+        {
+            // --- FIX: Also use a safe attacker here for radius damage on non-damageable surfaces ---
+            edict_t *attacker = (self->owner && self->owner->inuse) ? self->owner : self;
+			T_RadiusDamage(self, attacker, static_cast<float>(self->dmg * 2), nullptr, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+        }
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BLASTER2);
