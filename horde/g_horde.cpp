@@ -7612,7 +7612,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 static void Horde_InitLevel(const int32_t lvl)
 {
 
-	    g_spawn_plan.clear();
+	g_spawn_plan.clear();
     g_ambush_monsters_remaining = 0;
     g_current_ambush_info = {}; // Reset ambush info to default
 

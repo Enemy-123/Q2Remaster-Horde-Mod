@@ -45,7 +45,10 @@
                 "${input:deployPathInput}",
                 "RelWithDebInfo"
             ],
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "presentation": {
                 "reveal": "always",
                 "panel": "new",
@@ -63,10 +66,7 @@
                 "${input:deployPathInput}",
                 "DebugASan"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "presentation": {
                 "reveal": "always",
                 "panel": "new",
@@ -82,7 +82,7 @@
             "id": "deployPathInput",
             "type": "promptString",
             "description": "Enter the absolute path for mod deployment",
-            "default": "/home/perrobjorn/q2rerelease/baseq2"
+            "default": "/home/perrobjorn/Games/gog/quake-ii/drive_c/GOG Games/Quake II Enhanced/baseq2"
         }
     ]
 }
