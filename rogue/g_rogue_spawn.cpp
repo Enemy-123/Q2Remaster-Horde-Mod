@@ -176,31 +176,41 @@ THINK(spawngrow_think) (edict_t *self) -> void
 
 vec3_t SpawnGro_laser_pos(edict_t* ent)
 {
+    // This is the FIX. It's called a "guard clause" or "null check".
 	if (!ent || !ent->owner) {
-		// Handle error case, maybe return a default position or log an error
-        if (developer->integer) { // Optional: Log the error
+		// This part handles the error gracefully instead of crashing.
+        if (developer->integer) { // Optional: Log the error for debugging
              gi.Com_PrintFmt("SpawnGro_laser_pos: Error - ent or ent->owner is null.\n");
         }
-		return vec3_origin; // Use vec3_origin constant if available, else {0,0,0}
+		return vec3_origin; // Return a safe default value ({0,0,0})
 	}
 
-	// pick random direction
+	// The rest of the function only runs if 'ent' and 'ent->owner' are valid.
 	float theta = frandom(2 * PIf);
-	float phi = acosf(crandom()); // Use acosf
+	float phi = acosf(crandom());
 	vec3_t d{
-		sinf(phi) * cosf(theta), // Use sinf, cosf
-		sinf(phi) * sinf(theta), // Use sinf, sinf
-		cosf(phi)                // Use cosf
+		sinf(phi) * cosf(theta),
+		sinf(phi) * sinf(theta),
+		cosf(phi)
 	};
 
-	// Ensure scale is positive to avoid issues with direction reversal if scale was negative
-    // Using std::max is good. Clamping might also be an option depending on desired behavior.
 	float scale = std::max(ent->owner->s.scale, 0.001f);
 	return ent->s.origin + (d * scale * 9.f);
 }
 
 THINK(SpawnGro_laser_think) (edict_t *self) -> void
 {
+    // NEW FIX: Check if the owner is gone.
+    if (!self->owner)
+    {
+        // If the owner is null, the laser has no purpose.
+        // Free the laser entity and stop thinking.
+        G_FreeEdict(self);
+        return; 
+    }
+
+    // If we get here, the owner is still valid.
+    // Continue with the original logic.
 	self->s.old_origin = SpawnGro_laser_pos(self);
 	gi.linkentity(self);
 	self->nextthink = level.time + 1_ms;
