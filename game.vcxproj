@@ -106,7 +106,7 @@ copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncppd.dll" "C:\Program
     <PostBuildEvent>
       <Command>
 echo Copying release dependency DLLs...
-copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncppd.dll\jsoncpp.dll" "C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\"
+copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\"
       </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
