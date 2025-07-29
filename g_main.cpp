@@ -638,104 +638,118 @@ void EndDMLevel()
 {
     edict_t* ent;
 
-    // stay on same level flag
+    // Priority 1: Stay on the same level if the cvar is set.
     if (g_dm_same_level->integer)
     {
         BeginIntermission(CreateTargetChangeLevel(level.mapname));
         return;
     }
 
+    // Priority 2: Use a forced map if one is set.
     if (*level.forcemap)
     {
         BeginIntermission(CreateTargetChangeLevel(level.forcemap));
         return;
     }
 
-    // see if it's in the map list
+    // Priority 3: Process the map list.
     if (*g_map_list->string)
     {
-        const char* str = g_map_list->string;
-        char first_map[MAX_QPATH]{ 0 };
-        char* map;
-
-        while (true)
+        // --- OPTIMIZED SHUFFLE LOGIC ---
+        if (g_map_list_shuffle->integer)
         {
-            map = COM_ParseEx(&str, " ");
+            // Use the allocation-free split to get views of the map names.
+            std::vector<std::string_view> values = split_string_view(g_map_list->string);
 
-            if (!*map)
-                break;
+            // If there's only one map, just restart it.
+            if (values.size() <= 1) {
+                BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                return;
+            }
 
-            if (Q_strcasecmp(map, level.mapname) == 0)
+            // Shuffle the list.
+            std::shuffle(values.begin(), values.end(), mt_rand);
+
+            // Ensure the new first map isn't the same as the current one.
+            if (values[0] == level.mapname) {
+                std::swap(values[0], values.back());
+            }
+
+            // Re-join the list into a new string to update the cvar.
+            // This one allocation is acceptable to rebuild the list.
+            std::string new_map_list = join_string_views(values);
+            gi.cvar_forceset("g_map_list", new_map_list.c_str());
+
+            // --- FIX: AVOID ALLOCATION FOR THE NEXT MAP ---
+            // Create a temporary buffer on the stack.
+            char next_map_buffer[MAX_QPATH];
+            std::string_view next_map_sv = values[0];
+
+            // Safely copy the string_view's content into our buffer.
+            size_t len = std::min(next_map_sv.length(), sizeof(next_map_buffer) - 1);
+            memcpy(next_map_buffer, next_map_sv.data(), len);
+            next_map_buffer[len] = '\0'; // Manually null-terminate.
+
+            // Start the intermission with the map name from our stack buffer.
+            BeginIntermission(CreateTargetChangeLevel(next_map_buffer));
+            return; // We are done.
+        }
+        // --- ORIGINAL NON-SHUFFLE LOGIC (FALLBACK) ---
+        else
+        {
+            const char* str = g_map_list->string;
+            char first_map[MAX_QPATH]{ 0 };
+            char* map;
+
+            while (true)
             {
-                // it's in the list, go to the next one
                 map = COM_ParseEx(&str, " ");
                 if (!*map)
+                    break; // End of list
+
+                if (Q_strcasecmp(map, level.mapname) == 0)
                 {
-                    // end of list, go to first one
-                    if (!first_map[0]) // there isn't a first one, same level
+                    // Found current map, go to the next one.
+                    map = COM_ParseEx(&str, " ");
+                    if (*map) // If there is a next map
                     {
-                        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                        BeginIntermission(CreateTargetChangeLevel(map));
                         return;
                     }
-                    else
-                    {
-                        // [Paril-KEX] re-shuffle if necessary
-                    if (g_map_list_shuffle->integer)
-					{
-						// Use the allocation-free split_string_view helper.
-						auto values = split_string_view(g_map_list->string);
-
-						if (values.size() <= 1) {
-							BeginIntermission(CreateTargetChangeLevel(level.mapname));
-							return;
-						}
-
-						std::shuffle(values.begin(), values.end(), mt_rand);
-
-						if (values[0] == level.mapname)
-							std::swap(values[0], values.back());
-
-						// Join the views back into a single string with one allocation.
-						std::string new_map_list = join_string_views(values);
-						gi.cvar_forceset("g_map_list", new_map_list.c_str());
-
-						// Create a temporary std::string to safely pass a C-string.
-						std::string next_map(values[0]);
-						BeginIntermission(CreateTargetChangeLevel(next_map.c_str()));
-						return;
-					}
-                        BeginIntermission(CreateTargetChangeLevel(first_map));
-                        return;
-                    }
+                    // If no next map, we'll break and loop to the first_map.
+                    break;
                 }
-                else
-                {
-                    BeginIntermission(CreateTargetChangeLevel(map));
-                    return;
-                }
+                // Store the first map in the list in case we need to loop.
+                if (!first_map[0])
+                    Q_strlcpy(first_map, map, sizeof(first_map));
             }
-            if (!first_map[0])
-                Q_strlcpy(first_map, map, sizeof(first_map));
+
+            // If we reached the end of the list, loop back to the first map.
+            if (first_map[0])
+            {
+                BeginIntermission(CreateTargetChangeLevel(first_map));
+                return;
+            }
         }
     }
 
-    if (level.nextmap[0]) // go to a specific map
+    // Priority 4: Use a nextmap set by a trigger.
+    if (level.nextmap[0])
     {
         BeginIntermission(CreateTargetChangeLevel(level.nextmap));
         return;
     }
 
-    // search for a changelevel
+    // Priority 5: Find a target_changelevel entity in the map.
     ent = G_FindByString<&edict_t::classname>(nullptr, "target_changelevel");
-
-    if (!ent)
-    { // the map designer didn't include a changelevel,
-        // so create a fake ent that goes back to the same level
-        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+    if (ent)
+    {
+        BeginIntermission(ent);
         return;
     }
 
-    BeginIntermission(ent);
+    // Final Fallback: If all else fails, just restart the current level.
+    BeginIntermission(CreateTargetChangeLevel(level.mapname));
 }
 
 /*

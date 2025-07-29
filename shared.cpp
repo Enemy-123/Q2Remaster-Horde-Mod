@@ -7,27 +7,39 @@
 #include "horde/horde_ids.h"
 #include "horde/g_entity_properties.h"
 
+#include <optional> // Required for the new cache
+
 horde::MapSize GetMapSize(const char* mapname) {
-	// Use the namespace qualifier for the cache type
-	static std::unordered_map<std::string, horde::MapSize> cache;
+    // --- THE FIX ---
+    // Cache is now a simple array, indexed by MapID. This is extremely fast.
+    // We use std::optional to know if a value has been cached yet.
+    static std::array<std::optional<horde::MapSize>, static_cast<size_t>(horde::MapID::MAX_MAPS)> cache;
+    
+    // On the very first run for a new map, clear the cache.
+    static char last_map_for_cache[MAX_QPATH] = "";
+    if (strcmp(last_map_for_cache, level.mapname) != 0) {
+        cache.fill(std::nullopt);
+        Q_strlcpy(last_map_for_cache, level.mapname, sizeof(last_map_for_cache));
+    }
 
-	// Check cache first
-	const auto it = cache.find(mapname);
-	if (it != cache.end()) {
-		return it->second;
-	}
+    // Get the fast, integer-based ID for the map. This is efficient.
+    horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
+    if (mapId == horde::MapID::UNKNOWN) {
+        return horde::MapOriginRegistry::GetMapSize(mapId); // Return default
+    }
 
-	// Cache miss: Determine size using MapID
-	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
+    // Check the array cache using the ID as an index. No string operations needed.
+    size_t index = static_cast<size_t>(mapId);
+    if (cache[index].has_value()) {
+        return cache[index].value();
+    }
 
-	// Get size from the registry based on MapID
-	// Use the namespace qualifier for the local variable type
-	horde::MapSize size = horde::MapOriginRegistry::GetMapSize(mapId);
-	// Note: GetMapSize(MapID) handles UNKNOWN and defaults to Medium
+    // Cache miss: Get the size from the registry.
+    horde::MapSize size = horde::MapOriginRegistry::GetMapSize(mapId);
 
-	// Store in cache and return
-	cache[mapname] = size;
-	return size;
+    // Store in our array cache and return.
+    cache[index] = size;
+    return size;
 }
 
 bool IsRemovableEntity(const edict_t* ent);

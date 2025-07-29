@@ -607,35 +607,40 @@ struct MonsterReplacement {
 //	{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64", "monster_boss2_mini"}},
 //	{"monster_boss2_mini", {"monster_boss2_64", "monster_boss2_mini"}}
 //};
+// --- ADD THIS NEW FUNCTION ---
+// This function will be our single access point for the hardcoop replacement data.
+std::span<const MonsterReplacement> GetHardCoopReplacements()
+{
+    // By declaring the array as 'static const' inside the function,
+    // it will only be initialized the first time this function is called.
+    // If the game is never run in coop mode, this large array is never
+    // constructed in memory.
+    static const MonsterReplacement hardcoop_replacements[] = {
+        {"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}},
+        {"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}},
+        {"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}},
+        {"monster_infantry", {"monster_infantry", "monster_infantry_vanilla"}},
+        {"monster_mutant", {"monster_mutant", "monster_redmutant"}},
+        {"monster_gunner", {"monster_gunner", "monster_gunner_vanilla"}},
+        {"monster_fixbot", {"monster_fixbot", "monster_flyer"}},
+        {"monster_hover", {"monster_hover", "monster_hover_vanilla"}},
+        {"monster_daedalus", {"monster_daedalus_bomber", "monster_daedalus"}},
+        {"monster_parasite", {"monster_parasite", "monster_stalker"}},
+        {"monster_tank", {"monster_shambler", "monster_tank_64", "monster_runnertank", "monster_tank", "monster_tank_spawner"}},
+        {"monster_tank_commander", {"monster_runnertank", "monster_tank_spawner", "monster_tank_commander"}},
+        {"monster_supertank", {"monster_boss5", "monster_supertank"}},
+        {"monster_chick", {"monster_chick", "monster_chick_heat"}},
+        {"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}},
+        {"monster_flipper", {"monster_gekk", "monster_flipper"}},
+        {"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner", "monster_gunner_vanilla"}},
+        {"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant"}},
+        {"monster_commander_body", {"monster_tank_64", "monster_tank_commander"}},
+        {"monster_guardian", {"monster_psxguardian"}},
+        {"monster_arachnid", {"monster_psxarachnid"}}
+    };
 
-static constexpr MonsterReplacement hardcoop_replacements[] = {
-	{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}},
-	{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}},
-	{"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}},
-	{"monster_infantry", {"monster_infantry", "monster_infantry_vanilla"}},
-	{"monster_mutant", {"monster_mutant", "monster_redmutant"}},
-	{"monster_gunner", {"monster_gunner", "monster_gunner_vanilla"}},
-	{"monster_fixbot", {"monster_fixbot", "monster_flyer"}},
-	{"monster_hover", {"monster_hover", "monster_hover_vanilla"}},
-	{"monster_daedalus", {"monster_daedalus_bomber", "monster_daedalus"}},
-	{"monster_parasite", {"monster_parasite", "monster_stalker"}},
-	{"monster_tank", {"monster_shambler", "monster_tank_64", "monster_runnertank", "monster_tank", "monster_tank_spawner"}},
-	{"monster_tank_commander", {"monster_runnertank", "monster_tank_spawner", "monster_tank_commander"}},
-	{"monster_supertank", {"monster_boss5", "monster_supertank"}},
-	{"monster_chick", {"monster_chick", "monster_chick_heat"}},
-	{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}},
-	{"monster_flipper", {"monster_gekk", "monster_flipper"}},
-	{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner", "monster_gunner_vanilla"}},
-	{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant"}},
-	{"monster_commander_body", {"monster_tank_64", "monster_tank_commander"}},
-	{"monster_guardian", {"monster_psxguardian"}},
-	{"monster_arachnid", {"monster_psxarachnid"}}
-};
-
-// Tamaños constexpr
-//static constexpr size_t CHAOTIC_COUNT = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
-//static constexpr size_t INSANE_COUNT = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
-
+    return hardcoop_replacements;
+}
 // Función modernizada para aplicar reemplazos
 static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement> replacements, float prob) {
 	// Use a static random engine for better randomness per spawn
@@ -1295,8 +1300,8 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 	if (!init)
 		memset(ent, 0, sizeof(*ent));
 
-	if (!g_horde->integer && g_hardcoop->integer && ent->classname) {
-		perform_replacement(ent, std::span(hardcoop_replacements),
+	if (coop->integer && g_hardcoop->integer && ent->classname) {
+		perform_replacement(ent, GetHardCoopReplacements(),
 			g_hardcoop->integer == 3 ? 0.50f : 0.0f);
 	}
 	return data;
