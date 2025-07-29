@@ -72,7 +72,7 @@ TOUCH(ionripper_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		return;
 	}
 
-	if (self->owner->client)
+	if (self->owner && self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage)
@@ -81,6 +81,9 @@ TOUCH(ionripper_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	}
 	else
 	{
+        // This 'return' was causing the projectile to persist after hitting a non-damageable surface.
+        // It should be freed instead.
+		G_FreeEdict(self);
 		return;
 	}
 
