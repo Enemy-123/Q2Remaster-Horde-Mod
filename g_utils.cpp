@@ -399,44 +399,83 @@ edict_t* G_Spawn()
 =================
 G_FreeEdict
 
-Marks the edict as free
+Marks the edict as free and cleans up dangling pointers to it.
 =================
 */
 THINK(G_FreeEdict) (edict_t* ed) -> void {
-	// Already freed check
-	if (!ed->inuse)
-		return;
+    // Already freed check
+    if (!ed || !ed->inuse) // Added null check for safety
+        return;
 
-	// Handle cleanup through OnEntityRemoved
-	OnEntityRemoved(ed);
+    // --- NEW: Dangling Pointer Cleanup Loop ---
+    // Iterate through all other entities and nullify any common pointers
+    // that point to the entity we are about to free.
+    for (edict_t* other = g_edicts; other < &g_edicts[globals.num_edicts]; other++)
+    {
+        if (!other->inuse || other == ed)
+            continue;
 
-	// Unlink from world
-	gi.unlinkentity(ed);
+        if (other->owner == ed) other->owner = nullptr;
+        if (other->enemy == ed) other->enemy = nullptr;
+        if (other->oldenemy == ed) other->oldenemy = nullptr;
+        if (other->goalentity == ed) other->goalentity = nullptr;
+        if (other->movetarget == ed) other->movetarget = nullptr;
+        if (other->target_ent == ed) other->target_ent = nullptr;
+        if (other->teammaster == ed) other->teammaster = nullptr;
+        if (other->teamchain == ed) other->teamchain = nullptr;
+        if (other->chain == ed) other->chain = nullptr; // Used by player_trail
 
-	// Protected entity check
-	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE)) {
+        // Check client-specific pointers
+        if (other->client) {
+            if (other->client->chase_target == ed) other->client->chase_target = nullptr;
+            if (other->client->sight_entity == ed) other->client->sight_entity = nullptr;
+            if (other->client->sound_entity == ed) other->client->sound_entity = nullptr;
+            if (other->client->sound2_entity == ed) other->client->sound2_entity = nullptr;
+            // The player_trail head/tail pointers are handled in PlayerTrail_Destroy,
+            // but adding them here provides an extra layer of safety.
+            if (other->client->trail_head == ed) other->client->trail_head = nullptr;
+            if (other->client->trail_tail == ed) other->client->trail_tail = nullptr;
+        }
+
+        // Check monster-specific pointers
+        if (other->monsterinfo.commander == ed) other->monsterinfo.commander = nullptr;
+        if (other->monsterinfo.healer == ed) other->monsterinfo.healer = nullptr;
+        if (other->monsterinfo.badMedic1 == ed) other->monsterinfo.badMedic1 = nullptr;
+        if (other->monsterinfo.badMedic2 == ed) other->monsterinfo.badMedic2 = nullptr;
+        if (other->monsterinfo.last_player_enemy == ed) other->monsterinfo.last_player_enemy = nullptr;
+    }
+    // --- END NEW ---
+
+    // Handle cleanup through OnEntityRemoved
+    OnEntityRemoved(ed);
+
+    // Unlink from world
+    gi.unlinkentity(ed);
+
+    // Protected entity check
+    if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE)) {
 #ifdef _DEBUG
-		gi.Com_Print("tried to free special edict\n");
+        gi.Com_Print("tried to free special edict\n");
 #endif
-		return;
-	}
+        return;
+    }
 
-	// Unregister from bot system
-	gi.Bot_UnRegisterEdict(ed);
+    // Unregister from bot system
+    gi.Bot_UnRegisterEdict(ed);
 
-	// Preserve and increment spawn count
-	int32_t id = ed->spawn_count + 1;
+    // Preserve and increment spawn count
+    int32_t id = ed->spawn_count + 1;
 
-	// Clear entity data
-	memset(ed, 0, sizeof(*ed));
+    // Clear entity data
+    memset(ed, 0, sizeof(*ed));
 
-	// Restore essential fields
-	ed->s.number = ed - g_edicts;
-	ed->classname = "freed";
-	ed->freetime = level.time;
-	ed->inuse = false;
-	ed->spawn_count = id;
-	ed->sv.init = false;
+    // Restore essential fields
+    ed->s.number = ed - g_edicts;
+    ed->classname = "freed";
+    ed->freetime = level.time;
+    ed->inuse = false;
+    ed->spawn_count = id;
+    ed->sv.init = false;
 }
 
 BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)

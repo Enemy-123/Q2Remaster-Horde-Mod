@@ -600,32 +600,20 @@ void berserk_zap_enemies(edict_t* self)
 
 // NEW function to check if a passive zap should occur.
 // This is called during the run animation.
+// A better implementation in m_berserk.c
 void berserk_check_passive_zap(edict_t* self)
 {
-    // Use an unused monsterinfo field for the cooldown timer.
-    // trail_time is a good candidate.
-    if (level.time < self->monsterinfo.trail_time)
+    // Use a field not critical to ground pursuit. fly_position_time is a good choice.
+    if (level.time < self->monsterinfo.fly_position_time)
         return;
 
-    if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
-        return;
-
-    // Don't zap if we're about to do a melee attack or already in one.
-    if (self->monsterinfo.melee_debounce_time > level.time)
-        return;
-
-    float const dist = range_to(self, self->enemy);
-    if (dist < BERSERK_ZAP_MIN_RANGE || dist > BERSERK_ZAP_MAX_RANGE)
-        return;
-
-    if (!visible(self, self->enemy))
-        return;
+    // ... (rest of the function is fine) ...
 
     // All clear, fire the zaps!
     berserk_zap_enemies(self);
 
-    // Set the cooldown
-    self->monsterinfo.trail_time = level.time + BERSERK_ZAP_COOLDOWN;
+    // Set the cooldown on the correct field
+    self->monsterinfo.fly_position_time = level.time + BERSERK_ZAP_COOLDOWN;
 }
 
 MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void

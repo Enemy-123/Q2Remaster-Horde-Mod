@@ -95,6 +95,7 @@ void PlayerTrail_Destroy(edict_t* player)
 	}
 	else
 	{
+		// If called globally (e.g., on level change), clear for all clients.
 		for (size_t i = 0; i < game.maxclients; i++)
 			game.clients[i].trail_head = game.clients[i].trail_tail = nullptr;
 	}
