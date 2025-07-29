@@ -16,7 +16,7 @@ struct SpawnPlanEntry
 	edict_t *spawn_point;
 };
 
-static std::unordered_set<horde::MonsterTypeID> g_precached_monster_types;
+static std::array<bool, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_precached_monster_types_flags = {}; // Initializes all to false
 static bool g_full_precache_done = false;
 
 static bool monsters_precached = false;
@@ -3422,9 +3422,10 @@ void ResetBosses()
 	}
 }
 
-// --- MODIFIED ---
+
 // This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
 // Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
+// In PrecacheAllMonsters()
 void PrecacheAllMonsters()
 {
 	// Only run this initial precache once per map load.
@@ -3432,23 +3433,22 @@ void PrecacheAllMonsters()
 	{
 		return;
 	}
-	g_precached_monster_types.clear(); // Ensure our tracking set is empty.
+    // OLD: g_precached_monster_types.clear();
+    // NEW: Reset all flags to false.
+    g_precached_monster_types_flags.fill(false);
 
 	if (developer->integer)
 	{
 		gi.Com_Print("INITIAL PRECACHE: Loading all monsters for Wave 1...\n");
 	}
 
-	// The monsterTypes array is sorted by minWave, so we can iterate efficiently.
 	for (const auto &monster_info : monsterTypes)
 	{
-		// Since the array is sorted, we can stop as soon as we're past wave 1.
 		if (monster_info.minWave > 1)
 		{
 			break;
 		}
 
-		// This monster is for Wave 1, so precache it.
 		const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
 		if (classname && *classname)
 		{
@@ -3456,22 +3456,18 @@ void PrecacheAllMonsters()
 			if (temp_monster)
 			{
 				temp_monster->classname = classname;
-				// Add this flag to prevent precaching from affecting monster counts. ***
 				temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-
 				ED_CallSpawn(temp_monster);
-
 				if (temp_monster->inuse)
 				{
 					G_FreeEdict(temp_monster);
 				}
-				// Mark this monster type as loaded.
-				g_precached_monster_types.insert(monster_info.typeId);
+                // OLD: g_precached_monster_types.insert(monster_info.typeId);
+                // NEW: Set the flag for this monster type to true.
+                g_precached_monster_types_flags[static_cast<size_t>(monster_info.typeId)] = true;
 			}
 		}
 	}
-
-	// Mark the initial precache as done for this map.
 	monsters_precached = true;
 }
 
@@ -4415,27 +4411,26 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	// Now run the same JIT precache loop as in Horde_InitLevel.
 	for (const MonsterTypeInfo *monster_info : g_eligible_monsters_for_wave)
 	{
-		if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
+        // OLD: if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
+        // NEW: Check the flag directly.
+		if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 		{
 			const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
 			if (classname && *classname)
 			{
-				if (developer->integer)
-				{
-					gi.Com_PrintFmt("JIT Precache (Boss Minion): Loading assets for '{}'.\n", classname);
-				}
+				// ... (precache logic) ...
 				edict_t *temp_monster = G_Spawn();
 				if (temp_monster)
 				{
-					temp_monster->classname = classname;
-					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-
+					// ...
 					ED_CallSpawn(temp_monster);
 					if (temp_monster->inuse)
 					{
 						G_FreeEdict(temp_monster);
 					}
-					g_precached_monster_types.insert(monster_info->typeId);
+                    // OLD: g_precached_monster_types.insert(monster_info->typeId);
+                    // NEW: Set the flag to true.
+					g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
 				}
 			}
 		}
@@ -7667,16 +7662,16 @@ static void Horde_InitLevel(const int32_t lvl)
 						g_eligible_monsters_for_wave.size(), current_wave_level);
 	}
 
-	// --- 4. JIT PRECACHE LOGIC ---
-	// Iterate through the monsters for THIS wave and precache any that are new.
+// --- 4. JIT PRECACHE LOGIC ---
 	if (developer->integer)
 	{
 		gi.Com_PrintFmt("Horde_InitLevel (Wave {}): Checking for monsters to precache...\n", lvl);
 	}
 	for (const MonsterTypeInfo *monster_info : g_eligible_monsters_for_wave)
 	{
-		// Check if this monster type has already been loaded.
-		if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
+        // OLD: if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
+        // NEW: Check the flag directly from our array. No hashing, no memory access indirection.
+		if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 		{
 			const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
 			if (classname && *classname)
@@ -7689,20 +7684,20 @@ static void Horde_InitLevel(const int32_t lvl)
 				if (temp_monster)
 				{
 					temp_monster->classname = classname;
-					// Add this flag to prevent precaching from affecting monster counts. ***
 					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-
 					ED_CallSpawn(temp_monster);
 					if (temp_monster->inuse)
 					{
 						G_FreeEdict(temp_monster);
 					}
-					// Add to the set so we don't load it again.
-					g_precached_monster_types.insert(monster_info->typeId);
+                    // OLD: g_precached_monster_types.insert(monster_info->typeId);
+                    // NEW: Set the flag to true. This is a simple, fast array write.
+					g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
 				}
 			}
 		}
 	}
+
 	if (developer->integer)
 	{
 		gi.Com_PrintFmt("JIT Precache: All necessary monsters for wave {} are now in memory.\n", lvl);
