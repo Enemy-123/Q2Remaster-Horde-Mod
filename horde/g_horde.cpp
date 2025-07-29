@@ -3565,7 +3565,6 @@ void BossDeathHandler(edict_t *boss)
 	// Clean up entity tracking (no change needed)
 	OnEntityDeath(boss);
 	OnEntityRemoved(boss);
-	auto_spawned_bosses.erase(boss); // Ensure this set is accessible
 
 	// --- Use item_id_t for static drop tables ---
 	static const std::array<item_id_t, 8> standardItemIDs = {
@@ -4144,50 +4143,25 @@ static void HandleForcedBossRemoval(edict_t *boss)
 	OnEntityRemoved(boss);
 }
 
+// In g_horde.cpp
+
 static void SpawnBossAutomatically()
 {
-	// --- 1. Cleanup Existing Bosses (No Change) ---
-	// --- 1. Cleanup Existing Bosses (REVISED LOGIC) ---
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment */)
-	{
-		edict_t *existing_boss = *it;
-		if (existing_boss && existing_boss->inuse)
-		{
-			// Check if the boss is still alive.
-			if (existing_boss->health > 0 && !existing_boss->deadflag)
-			{
-				// The boss is being removed while alive. Use our special handler
-				// to credit damage without dropping items.
-				HandleForcedBossRemoval(existing_boss);
-			}
-			else
-			{
-				// The boss is already dead or dying. Use the normal handler
-				// which will drop items if it hasn't already.
-				if (!existing_boss->monsterinfo.BOSS_DEATH_HANDLED)
-				{
-					BossDeathHandler(existing_boss);
-				}
-			}
-			// In both cases, the entity is now ready to be freed.
-			OnEntityRemoved(existing_boss);
-			G_FreeEdict(existing_boss);
-			it = auto_spawned_bosses.erase(it);
-		}
-		else
-		{
-			// The pointer in the set is invalid, just remove it.
-			it = auto_spawned_bosses.erase(it);
-		}
-	}
+	// The initial cleanup loop has been removed from this function.
+	// The call to ResetBosses() at the beginning of Horde_InitLevel() now serves as the
+	// single, authoritative point for cleaning up bosses from the previous wave.
+	// This ensures the auto_spawned_bosses set is always empty before this function
+	// is called to spawn a new boss, preventing redundancy and potential bugs.
 	boss_spawned_for_wave = false;
 
-	// --- 2. Basic Wave Check (No Change) ---
+	// --- 1. Basic Wave Check ---
+	// Ensure this is a boss wave (every 5th wave, starting at 10).
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0)
 	{
 		return;
 	}
-	// --- 3. Select Boss Type (No Change) ---
+
+	// --- 2. Select Boss Type ---
 	const char *map_name = GetCurrentMapName();
 	BossPickResult boss_pick_result = G_HordePickBOSSType(
 		g_horde_local.current_map_size, map_name, g_horde_local.level);
@@ -4205,12 +4179,11 @@ static void SpawnBossAutomatically()
 	if (!boss_classname)
 	{
 		if (developer->integer)
-			// FIX: Replaced C-style cast with static_cast for type safety and clarity.
 			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to get classname for boss type ID {}.\n", static_cast<int>(boss_type));
 		return;
 	}
 
-	// --- 4. Determine Spawn Location (REVISED LOGIC) ---
+	// --- 3. Determine Spawn Location (Tiered Fallback Logic) ---
 	vec3_t spawn_origin = vec3_origin;
 	vec3_t spawn_angles = vec3_origin;
 	bool location_found = false;
@@ -4226,7 +4199,7 @@ static void SpawnBossAutomatically()
 		if (is_valid_vector(fixed_origin) && fixed_origin != vec3_origin)
 		{
 			vec3_t validated_fixed_origin = fixed_origin;
-			// We check this special spot for physical validity ONLY. We IGNORE all cooldowns.
+			// Check this special spot for physical validity ONLY. We IGNORE all cooldowns.
 			if (IsPositionPhysicallyValid(validated_fixed_origin, predicted_mins, predicted_maxs, boss_is_flying, true))
 			{
 				spawn_origin = validated_fixed_origin;
@@ -4275,7 +4248,7 @@ static void SpawnBossAutomatically()
 			return true;
 		};
 
-		// Here we use the general-purpose, cooldown-aware function.
+		// Use the general-purpose, cooldown-aware function to find a suitable spawn point.
 		edict_t *selected_point = SelectRandomSpawnPoint(BossSpawnFilter);
 		if (selected_point)
 		{
@@ -4309,9 +4282,10 @@ static void SpawnBossAutomatically()
 		}
 	}
 
-	// --- 5. Setup Delayed Spawn (No Change) ---
+	// --- 4. Setup Delayed Spawn ---
 	if (location_found)
 	{
+		// Spawn a visual effect (orb) at the location first.
 		edict_t *orb = G_Spawn();
 		if (orb)
 		{
@@ -4320,6 +4294,7 @@ static void SpawnBossAutomatically()
 			SP_target_orb(orb);
 		}
 
+		// Create the boss entity but don't fully spawn it yet.
 		edict_t *boss = G_Spawn();
 		if (!boss)
 		{
@@ -4330,12 +4305,14 @@ static void SpawnBossAutomatically()
 		boss->s.origin = spawn_origin;
 		boss->s.angles = spawn_angles;
 		boss->bossSizeCategory = selected_boss_size;
-		boss->owner = orb;
+		boss->owner = orb; // Link the boss to the orb effect.
 
+		// Push other entities away from the spawn point.
 		constexpr float push_radius = 500.0f;
 		constexpr float push_force = 1000.0f;
 		PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f);
 
+		// Set its "think" function to run shortly, which will complete the spawn.
 		boss->nextthink = level.time + 750_ms;
 		boss->think = BossSpawnThink;
 		gi.linkentity(boss);
