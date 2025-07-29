@@ -74,13 +74,13 @@
     <Link>
       <SubSystem>NotSet</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>jsoncppd.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>jsoncpp.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)vcpkg_installed\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>
 echo Copying debug dependency DLLs...
-copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\debug\bin\jsoncppd.dll" "C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\"
+copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\"
       </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
