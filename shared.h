@@ -38,7 +38,6 @@ void ApplyBossEffects(edict_t* boss);
 //extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
 void UpdatePowerUpTimes(edict_t* monster);
 
-std::string GetPlayerName(const edict_t* player);
 // healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
@@ -88,7 +87,7 @@ extern bool IsMonsterJumping(const edict_t* self);
 
 extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects, bool force_despite_visibility);
 
-extern std::string GetPlayerName(const edict_t* player);
-extern std::string GetDisplayName(const edict_t* ent);
-extern std::string GetTitleFromFlags(unsigned int bonus_flags);
+const char* GetPlayerName_Fast(const edict_t* player);
+extern const char* GetDisplayName_Fast(const edict_t* ent);
+extern const char* GetTitleFromFlags_Fast(unsigned int bonus_flags);
 extern void VerifyAndAdjustBots();

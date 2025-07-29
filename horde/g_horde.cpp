@@ -3751,8 +3751,8 @@ static void AttachHealthBar(edict_t *boss)
 	healthbar->target = boss->targetname;
 
 	// Copiar el nombre del jefe correctamente
-	std::string boss_name = GetDisplayName(boss);
-	healthbar->message = G_CopyString(boss_name.c_str(), TAG_LEVEL);
+	const char* boss_name = GetDisplayName_Fast(boss);
+	healthbar->message = G_CopyString(boss_name, TAG_LEVEL);
 
 	SP_target_healthbar(healthbar);
 	healthbar->enemy = boss;
@@ -3882,13 +3882,13 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 		return false;
 	}
 
-	static std::string last_map_name_boss_teleport;
+	static char last_map_name_boss_teleport[MAX_QPATH] = ""; // Assuming MAX_QPATH is available for map names
 	static horde::MapID cached_map_id_boss_teleport = horde::MapID::UNKNOWN;
 	const char *current_map = GetCurrentMapName();
 
-	if (last_map_name_boss_teleport != current_map)
+	if (strcmp(last_map_name_boss_teleport, current_map) != 0)
 	{
-		last_map_name_boss_teleport = current_map;
+		Q_strlcpy(last_map_name_boss_teleport, current_map, sizeof(last_map_name_boss_teleport));
 		cached_map_id_boss_teleport = horde::MapOriginRegistry::GetMapID(current_map);
 	}
 	if (cached_map_id_boss_teleport == horde::MapID::UNKNOWN)
@@ -3963,19 +3963,18 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 		return false;
 	}
 
-	std::string boss_display_name = GetDisplayName(self);
-
+	const char* boss_display_name = GetDisplayName_Fast(self);
 	switch (reason)
 	{
 	case BossTeleportReason::DROWNING:
 		if (sound_tele3)
 			gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", boss_display_name.c_str());
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", boss_display_name);
 		break;
 	case BossTeleportReason::TRIGGER_HURT:
 		if (sound_tele_up)
 			gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", boss_display_name.c_str());
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", boss_display_name);
 		break;
 	}
 
@@ -4016,34 +4015,28 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 
 void SetHealthBarName(const edict_t *boss)
 {
-	// Use a static buffer to avoid allocation
-	static char buffer[MAX_STRING_CHARS];
-
 	// Early validation
 	if (!boss || !boss->inuse)
 	{
-		gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, "");
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
-	// Get name once
-	const std::string display_name = GetDisplayName(boss);
-	if (display_name.empty())
+	// --- THE FIX ---
+	// 1. Call the _Fast version to get a non-allocating const char*.
+	const char* display_name = GetDisplayName_Fast(boss);
+
+	// 2. Check if the C-string is null or empty.
+	if (!display_name || display_name[0] == '\0')
 	{
-		gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, "");
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
-	// Calculate safe buffer size once
-	const size_t name_len = std::min(display_name.length(),
-									 MAX_STRING_CHARS - 1); // -1 for null terminator
-
-	// Copy directly to buffer
-	memcpy(buffer, display_name.c_str(), name_len);
-	buffer[name_len] = '\0'; // Ensure null termination
-
-	// Set the configstring once
-	gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, buffer);
+	// 3. Set the configstring directly. The engine will handle copying the string.
+	//    There is no need for an intermediate static buffer in this specific case,
+	//    as configstring makes its own copy.
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, display_name);
 }
 
 // Implementación de UpdateHordeMessage
@@ -4109,8 +4102,8 @@ static void HandleForcedBossRemoval(edict_t *boss)
 
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("Forced Boss Removal: Attributed {} remaining HP from '%s' to '{}'.\n",
-							boss->health, GetDisplayName(boss).c_str(), GetPlayerName(attacker).c_str());
+				gi.Com_PrintFmt("Forced Boss Removal: Attributed {} remaining HP from '{}' to '{}'.\n",
+                boss->health, GetDisplayName_Fast(boss), GetPlayerName_Fast(attacker));
 		}
 	}
 
@@ -4417,8 +4410,8 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	boss_spawned_for_wave = true;
 
 	// --- IMPROVEMENT: Use AppendHordeMessage for a more dynamic announcement ---
-	std::string boss_display_name = GetDisplayName(self);
-	if (!boss_display_name.empty())
+	const char* boss_display_name = GetDisplayName_Fast(self);
+	if (boss_display_name && boss_display_name[0] != '\0')
 	{
 		static constexpr std::array<const char *, 6> arrival_phrases = {
 			"enters the arena!",
@@ -4427,10 +4420,9 @@ THINK(BossSpawnThink)(edict_t *self)->void
 			"teleported in!",
 			"is here to end this!",
 			"makes its presence known!"};
-		// FIX: Cast the result of irandom to size_t for array indexing.
 		const char *random_phrase = arrival_phrases[static_cast<size_t>(irandom(static_cast<int32_t>(arrival_phrases.size())))];
 
-		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name.c_str(), random_phrase);
+		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name, random_phrase);
 		AppendHordeMessage(announce_message.data(), 4_sec);
 	}
 
@@ -5736,8 +5728,8 @@ int SpawnRetaliationAmbush(const horde::MapSize &mapSize, int32_t waveLevel, edi
 
 	if (developer->integer)
 	{
-		gi.Com_PrintFmt("HORDE: INITIATING Retaliation Ambush (Size: {}). Target: {}\n",
-						ambushSize, GetPlayerName(target_player).c_str());
+    gi.Com_PrintFmt("HORDE: INITIATING Retaliation Ambush (Size: {}). Target: {}\n",
+                    ambushSize, GetPlayerName_Fast(target_player));
 	}
 
 	horde::MonsterTypeID typeId = PickRetaliationMonsterTypeID(waveLevel);
@@ -5841,9 +5833,11 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 
 				if (developer->integer)
 				{
-					std::string target_player_name = GetPlayerName(g_horde_retaliation_target_player);
-					gi.Com_PrintFmt("HORDE: Retaliation Mode Activated for ({:.1f}s (Target: {}). Triggered by rapid kills during spawning.\n",
-									(g_horde_retaliation_end_time - level.time).seconds(), target_player_name.c_str());
+					// Call the new, zero-allocation function
+					const char* target_player_name = GetPlayerName_Fast(g_horde_retaliation_target_player);
+
+					// Pass the raw pointer to your already-perfect Com_PrintFmt
+					gi.Com_PrintFmt("HORDE: Retaliation ... Target: {}\n", target_player_name);
 				}
 
 				SpawnRetaliationAmbush(g_horde_local.current_map_size, g_horde_local.level, g_horde_retaliation_target_player);
@@ -6648,7 +6642,7 @@ static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float cham
 
 		champion_spawned_this_wave = true;
 		champion_spawn_cooldown_ends_at = level.time + random_time(10_sec, 20_sec);
-		gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster).c_str());
+		gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName_Fast(monster));
 		became_champion = true;
 	}
 
@@ -7086,35 +7080,29 @@ static void SendCleanupMessage(WaveEndReason reason)
 	if (topDamager.player && topDamager.player->inuse && topDamager.player->client)
 	{
 		// Get player name once
-		const std::string playerName = GetPlayerName(topDamager.player);
+	  const char* playerName = GetPlayerName_Fast(topDamager.player);
 
-		// Send damage announcement
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
-							  playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
+    gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
+                          playerName, topDamager.total_damage, static_cast<int>(percentage));
 
-		// Give reward and reset stats if successful
-		if (GiveTopDamagerReward(topDamager, playerName))
-		{
-			// Reset all player stats in one pass using iterator
-			for (auto *player : active_players())
-			{
-				if (player && player->client)
-				{
-					// Group related resets together for better cache coherence
-					// Damage counters
-					player->client->total_damage = 0;
-					player->client->lastdmg = level.time;
-					player->client->dmg_counter = 0;
-					player->client->ps.stats[STAT_ID_DAMAGE] = 0;
-
-					// Respawn states
-					player->client->respawn_time = 0_sec;
-					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-					player->client->last_damage_time = level.time;
-				}
-			}
-		}
-	}
+    if (GiveTopDamagerReward(topDamager, playerName))
+    {
+        // (rest of the function is unchanged)
+        for (auto *player : active_players())
+        {
+            if (player && player->client)
+            {
+                player->client->total_damage = 0;
+                player->client->lastdmg = level.time;
+                player->client->dmg_counter = 0;
+                player->client->ps.stats[STAT_ID_DAMAGE] = 0;
+                player->client->respawn_time = 0_sec;
+                player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+                player->client->last_damage_time = level.time;
+            }
+        }
+    }
+}
 }
 
 void CheckAndResetDisabledSpawnPoints()

@@ -1045,44 +1045,38 @@ EntityType GetEntityType(const edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) return EntityType::Monster;
 	return EntityType::Other;
 }
-// This function now uses the fully refactored ID-based display name system.
-std::string FormatEntityInfo(edict_t* ent) {
+// // This function now uses the fully refactored ID-based display name system.
+// Corrected version of the function
+const char* FormatEntityInfo_Fast(edict_t* ent) {
+    static char info_buffer[256];
+
     if (!ent || !ent->inuse) {
-        return {};
+        info_buffer[0] = '\0';
+        return info_buffer;
     }
 
-    std::string info;
-    info.reserve(256);
+    // Use a pointer to the start of the buffer as our output iterator
+    char* out = info_buffer;
+    char* const end = info_buffer + sizeof(info_buffer);
 
     const EntityType type = GetEntityType(ent);
 
     switch (type) {
     case EntityType::Monster: {
-        std::string full_name;
+        const char* full_name = GetDisplayName_Fast(ent);
+        
+        // --- FIX APPLIED HERE ---
+        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", full_name, ent->health).out;
 
-        // *** DEBUGGING FEATURE ***
-        // If a monster has an unknown ID, flag it in the display.
-        if (ent->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::UNKNOWN)) {
-            // Manually construct the debug name with its title.
-            std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
-            full_name = fmt::format("{}[!!BAD_ID!!] {}", title, ent->classname ? ent->classname : "Unknown");
-        } else {
-            // Use the fast, unified GetDisplayName function. It already includes the title.
-            full_name = GetDisplayName(ent);
-        }
-
-        // Format the main info line.
-        fmt::format_to(std::back_inserter(info), "{}\nH: {}", full_name, ent->health);
-
-        // Append armor info if present.
         if (ent->monsterinfo.armor_power >= 1) {
-            fmt::format_to(std::back_inserter(info), " A: {}", ent->monsterinfo.armor_power);
+            // --- FIX APPLIED HERE ---
+            out = fmt::format_to_n(out, static_cast<size_t>(end - out), " A: {}", ent->monsterinfo.armor_power).out;
         }
         if (ent->monsterinfo.power_armor_power >= 1) {
-            fmt::format_to(std::back_inserter(info), " PA: {}", ent->monsterinfo.power_armor_power);
+            // --- FIX APPLIED HERE ---
+            out = fmt::format_to_n(out, static_cast<size_t>(end - out), " PA: {}", ent->monsterinfo.power_armor_power).out;
         }
 
-        // Append powerup timers.
         struct PowerupInfo { gtime_t time; const char* label; };
         std::array<PowerupInfo, 4> powerups{{
             {ent->monsterinfo.quad_time, "Quad"},
@@ -1092,19 +1086,22 @@ std::string FormatEntityInfo(edict_t* ent) {
         }};
         for (const auto& powerup : powerups) {
             if (powerup.time > level.time) {
-                fmt::format_to(std::back_inserter(info), "\n{}: {}s", powerup.label, GetRemainingTime<float>(level.time, powerup.time));
+                // --- FIX APPLIED HERE ---
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\n{}: {}s", powerup.label, GetRemainingTime<float>(level.time, powerup.time)).out;
             }
         }
         break;
     }
 
     case EntityType::Player: {
-        const std::string playerName = GetPlayerName(ent);
-        info = fmt::format("{}\nH: {}", playerName, ent->health);
+        const char* playerName = GetPlayerName_Fast(ent);
+        // --- FIX APPLIED HERE ---
+        out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", playerName, ent->health).out;
 
         int armor_value = GetArmorInfo(ent);
         if (armor_value > 0) {
-            info += fmt::format(" A: {}", armor_value);
+            // --- FIX APPLIED HERE ---
+            out = fmt::format_to_n(out, static_cast<size_t>(end - out), " A: {}", armor_value).out;
         }
         break;
     }
@@ -1112,80 +1109,68 @@ std::string FormatEntityInfo(edict_t* ent) {
     case EntityType::Other: {
         auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
         if (special_id == horde::SpecialEntityTypeID::UNKNOWN) {
-            return {}; // Don't display info for unknown "other" entities.
+            info_buffer[0] = '\0';
+            return info_buffer;
         }
 
-        // By default, the entity we are looking at is the source of its own stats.
         edict_t* stats_source = ent;
-
-        // If it's a doppleganger, the visible "body" has no health. The real stats
-        // are on the invisible "base" entity, which is linked via teammaster.
-        if (special_id == horde::SpecialEntityTypeID::DOPPLEGANGER && ent->teammaster && ent->teammaster->inuse)
-        {
+        if (special_id == horde::SpecialEntityTypeID::DOPPLEGANGER && ent->teammaster && ent->teammaster->inuse) {
             stats_source = ent->teammaster;
         }
 
-        // Get the display name from the entity we are targeting.
-        std::string name = GetDisplayName(ent);
+        const char* name = GetDisplayName_Fast(ent);
         
-        // --- START OF LASER FIX ---
-        // The logic for displaying health and other stats needs to be handled
-        // inside the switch for special cases like the laser.
-        
-        // Use a fast switch on the ID to add all info.
         switch (special_id) {
             case horde::SpecialEntityTypeID::TESLA_MINE: {
-                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
                 gtime_t const time_active = level.time - stats_source->timestamp;
                 gtime_t const time_remaining = TESLA_TIME_TO_LIVE - time_active;
-                fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                // --- FIX APPLIED HERE ---
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: {
-                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
-                // Use the correct timestamp from the entity itself for time remaining.
                 gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
-                fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                // --- FIX APPLIED HERE ---
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::LASER_EMITTER: {
-                // We are looking at the emitter. The beam is its 'chain'.
-                edict_t* emitter = stats_source;
-                edict_t* beam = emitter->chain;
-
-                // Get health from the beam if it exists, otherwise show 0.
+                edict_t* beam = stats_source->chain;
                 int health_to_display = (beam && beam->inuse) ? beam->health : 0;
-                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, health_to_display);
-
-                // Get other stats from the beam and emitter.
+                // --- FIX APPLIED HERE ---
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, health_to_display).out;
                 if (beam && beam->inuse) {
-                    fmt::format_to(std::back_inserter(info), " DMG: {}", beam->dmg);
-                    gtime_t time_remaining = (emitter->timestamp > level.time) ? (emitter->timestamp - level.time) : 0_sec;
-                    fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                    // --- FIX APPLIED HERE ---
+                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), " DMG: {}", beam->dmg).out;
+                    gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
+                    // --- FIX APPLIED HERE ---
+                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 }
                 break;
             }
-            // --- END OF LASER FIX ---
-            
             case horde::SpecialEntityTypeID::DOPPLEGANGER: {
-                // Display health from the base (stats_source)
-                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
-                // The self-destruct timer is on the base entity's think function.
                 gtime_t const time_remaining = stats_source->nextthink - level.time;
-                fmt::format_to(std::back_inserter(info), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining));
+                // --- FIX APPLIED HERE ---
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }
             default:
-                // For all other entities (Sentry, Prox, etc.), just show name and health.
-                fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, stats_source->health);
+                // --- FIX APPLIED HERE ---
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, stats_source->health).out;
                 break;
         }
-        break; // Exit the EntityType::Other case
+        break;
     }
     }
 
-    // After the switch is done, return the final, populated string.
-    return info;
+    // Null-terminate the buffer safely.
+    if (out < end) {
+        *out = '\0';
+    } else {
+        *(end - 1) = '\0'; // Ensure termination even if buffer was completely filled
+    }
+
+    return info_buffer;
 }
 
 struct CTFIDViewConfig {
@@ -1329,15 +1314,14 @@ void CTFSetIDView(edict_t* ent) {
 	// This block is now executed every throttled frame for a selected target, ensuring
 	// that dynamic data like health and armor is kept up-to-date.
 	if (current_target) {
-		std::string info = FormatEntityInfo(current_target);
-		if (!info.empty()) {
+		 const char* info = FormatEntityInfo_Fast(current_target);
+		if (info && info[0] != '\0') {
 			// The game engine is smart enough not to send a network update
 			// if the configstring content hasn't changed.
-			gi.configstring(client_cs, info.c_str());
+			gi.configstring(client_cs, info);
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = client_cs;
 		}
 		else {
-			// If formatting fails or returns an empty string, treat it as no target.
 			ent->client->idtarget = nullptr;
 			gi.configstring(client_cs, "");
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;

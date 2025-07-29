@@ -226,7 +226,10 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	// Check attacker validity *before* checking flags
 	if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
-		const std::string monster_display_name = GetDisplayName(attacker); // Get name once
+		// --- THE FIX ---
+		// BEFORE: const std::string monster_display_name = GetDisplayName(attacker);
+		const char* monster_display_name = GetDisplayName_Fast(attacker);
+
 		switch (mod.id)
 		{
 			// Using brandom() directly in ternary operators
@@ -260,12 +263,14 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 
 		// Print message with player name and monster name
-		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name.c_str());
+		// --- THE FIX ---
+		// BEFORE: gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name.c_str());
+		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name);
+		
 		// Score for monster kills (if any) would typically be handled elsewhere
 		self->enemy = attacker; // Set enemy
 		return; // Handled monster kill
 	}
-
 
 	// --- 4. Handle Generic / World Kills (if not handled above) ---
 	// This section is reached if attacker is null, world, or not self/player/monster,

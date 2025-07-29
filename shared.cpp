@@ -1,5 +1,6 @@
 #include "shared.h"
 #include "horde/g_horde.h"
+#include "horde/g_horde.h"
 #include <unordered_map>
 #include <algorithm>  // For std::max
 #include <span>
@@ -195,25 +196,42 @@ float M_DamageModifier(edict_t* monster) noexcept {
 	return modifier;
 }
 
-// FIX: Changed the parameter type from 'int' to 'unsigned int' to match the BF_* flags.
-std::string GetTitleFromFlags(unsigned int bonus_flags) {
-    if (bonus_flags == 0)
-        return "";
-        
-    std::string title;
-    title.reserve(64); // More reasonable reservation size
+// // FIX: Changed the parameter type from 'int' to 'unsigned int' to match the BF_* flags.
+const char* GetTitleFromFlags_Fast(unsigned int bonus_flags) {
+    // Use a static buffer. Its content is valid until the next call to this function.
+    static char title_buffer[64];
+
+    if (bonus_flags == 0) {
+        return ""; // Return a pointer to an empty literal string
+    }
+
+    // Use a pointer to build the string efficiently
+    char* ptr = title_buffer;
+    const char* end = title_buffer + sizeof(title_buffer);
+
+    // Helper to safely append strings, preventing buffer overflow
+    auto append_title = [&](const char* text) {
+        // Note: strlen is not ideal, but for a few fixed strings it's acceptable.
+        // A more advanced version could use std::string_view and memcpy.
+        size_t len = strlen(text);
+        if (ptr + len < end) {
+            strcpy(ptr, text);
+            ptr += len;
+        }
+    };
+
+    if (bonus_flags & BF_CHAMPION)   append_title("Champion ");
+    if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted ");
+    if (bonus_flags & BF_RAGEQUITTER) append_title("Ragequitter ");
+    if (bonus_flags & BF_BERSERKING) append_title("Berserking ");
+    if (bonus_flags & BF_POSSESSED)  append_title("Possessed ");
+    if (bonus_flags & BF_STYGIAN)    append_title("Stygian ");
+    if (bonus_flags & BF_FRIENDLY)   append_title("Friendly ");
     
-    // Direct flag checks for a small set of flags is likely faster than iterating
-    // No warnings will be generated now because both operands are 'unsigned int'.
-    if (bonus_flags & BF_CHAMPION)   title += "Champion ";
-    if (bonus_flags & BF_CORRUPTED)  title += "Corrupted ";
-    if (bonus_flags & BF_RAGEQUITTER) title += "Ragequitter ";
-    if (bonus_flags & BF_BERSERKING) title += "Berserking ";
-    if (bonus_flags & BF_POSSESSED)  title += "Possessed ";
-    if (bonus_flags & BF_STYGIAN)    title += "Stygian ";
-    if (bonus_flags & BF_FRIENDLY)   title += "Friendly ";
-    
-    return title;
+    // Null-terminate the final string
+    *ptr = '\0';
+
+    return title_buffer;
 }
 
 // Caches for the final, formatted display names.
@@ -268,38 +286,37 @@ void InitializeDisplayNames() {
     g_displayNamesInitialized = true;
 }
 
-std::string GetDisplayName(const edict_t* ent) {
-    if (!ent) return "Unknown";
+const char* GetDisplayName_Fast(const edict_t* ent) {
+    // Static buffer for the final combined name.
+    static char display_name_buffer[128];
+
+    if (!ent) {
+        return "Unknown";
+    }
 
     if (!g_displayNamesInitialized) {
         InitializeDisplayNames();
     }
 
-    std::string base_name;
+    const char* base_name_ptr = nullptr;
     auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     auto monster_id = static_cast<horde::MonsterTypeID>(ent->monsterinfo.monster_type_id);
 
-    // --- REVISED LOGIC ---
-    // Prioritize the Special ID if it exists, as it defines a more specific role.
-    // This correctly handles hybrids like Sentry Guns.
     if (special_id != horde::SpecialEntityTypeID::UNKNOWN) {
-        base_name = g_specialDisplayNames[static_cast<size_t>(special_id)];
-    }
-    // If it's not a special type, check if it's a monster.
-    else if (ent->svflags & SVF_MONSTER && monster_id != horde::MonsterTypeID::UNKNOWN) {
-        base_name = g_monsterDisplayNames[static_cast<size_t>(monster_id)];
-    }
-    // Final fallback for entities not in our ID systems.
-    else {
-        base_name = ent->classname ? ent->classname : "Unknown";
+        base_name_ptr = g_specialDisplayNames[static_cast<size_t>(special_id)].c_str();
+    } else if (ent->svflags & SVF_MONSTER && monster_id != horde::MonsterTypeID::UNKNOWN) {
+        base_name_ptr = g_monsterDisplayNames[static_cast<size_t>(monster_id)].c_str();
+    } else {
+        base_name_ptr = ent->classname ? ent->classname : "Unknown";
     }
 
-    // Apply title flags if they exist (Sentry Guns can be friendly, etc.)
-    if (ent->monsterinfo.bonus_flags) {
-        return GetTitleFromFlags(ent->monsterinfo.bonus_flags) + base_name;
-    }
+    // Get the title prefix (e.g., "Champion ") from our new fast function.
+    const char* title_ptr = GetTitleFromFlags_Fast(ent->monsterinfo.bonus_flags);
 
-    return base_name;
+    // Combine title and base name into our static buffer using your non-allocating G_FmtTo.
+    G_FmtTo(display_name_buffer, "{}{}", title_ptr, base_name_ptr);
+
+    return display_name_buffer;
 }
 
 
@@ -674,21 +691,22 @@ void ApplyBossEffects(edict_t* boss)
 }
 
 //getting real name
-std::string GetPlayerName(const edict_t* player) {
-	if (!player || !player->client) {
-		return "N/A";
-	}
+const char* GetPlayerName_Fast(const edict_t* player) {
+    static char name_buffer[MAX_INFO_VALUE];
 
-	char buffer[MAX_INFO_VALUE] = { 0 };
-	size_t written = gi.Info_ValueForKey(player->client->pers.userinfo, "name",
-		buffer, sizeof(buffer) - 1);
+    if (!player || !player->client) {
+        return "N/A";
+    }
 
-	if (written == 0 || written >= sizeof(buffer)) {
-		return "N/A";
-	}
+    size_t written = gi.Info_ValueForKey(player->client->pers.userinfo, "name",
+        name_buffer, sizeof(name_buffer) - 1);
 
-	buffer[written] = '\0'; // Ensure null termination
-	return std::string(buffer);
+    if (written == 0 || written >= sizeof(name_buffer)) {
+        return "N/A";
+    }
+
+    name_buffer[written] = '\0';
+    return name_buffer;
 }
 
 extern void SP_target_earthquake(edict_t* self);
@@ -1123,7 +1141,7 @@ bool TeleportSelf(edict_t* ent) {
     }
 
     ent->client->resp.teleport_cooldown = level.time + 3_sec; // Apply cooldown
-    std::string playerName = GetPlayerName(ent);
+	const char* playerName = GetPlayerName_Fast(ent);
 
     struct spawn_point_info_t {
         edict_t* point;
@@ -1161,7 +1179,7 @@ bool TeleportSelf(edict_t* ent) {
         }
 
         if (!ent->client->emergency_teleport) {
-            gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+   	gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName);
         }
         
         // Use std::max for gtime_t or ensure types are compatible
