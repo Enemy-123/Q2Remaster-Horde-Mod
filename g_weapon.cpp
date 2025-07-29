@@ -1668,15 +1668,28 @@ THINK(bfg_explode) (edict_t* self) -> void
 	// Only process damage on the first frame of explosion
 	if (self->s.frame == 0)
 	{
-		// Use unordered_set to track processed entities
-		std::unordered_set<edict_t*> processed_entities;
+		// --- OPTIMIZATION ---
+		// Replaced std::unordered_set with a fixed-size std::array to avoid heap allocations.
+		// 64 is a generous upper bound for entities within the BFG's radius.
+		std::array<edict_t*, 64> processed_entities;
+		size_t processed_count = 0;
 
 		// Find all entities in the damage radius
 		edict_t* ent = nullptr;
 		while ((ent = findradius(ent, self->s.origin, self->dmg_radius)) != nullptr)
 		{
+			// --- OPTIMIZATION ---
+			// Replaced std::unordered_set::find with a fast linear search on the small array.
+			bool already_processed = false;
+			for (size_t i = 0; i < processed_count; ++i) {
+				if (processed_entities[i] == ent) {
+					already_processed = true;
+					break;
+				}
+			}
+
 			// Skip invalid entities or those already processed
-			if (!ent->takedamage || processed_entities.find(ent) != processed_entities.end())
+			if (!ent->takedamage || already_processed)
 				continue;
 
 			if (ent == self->owner)
@@ -1691,16 +1704,18 @@ THINK(bfg_explode) (edict_t* self) -> void
 			if (CheckTeamDamage(ent, self->owner))
 				continue;
 
-			// Mark entity as processed
-			processed_entities.insert(ent);
+			// --- OPTIMIZATION ---
+			// Replaced std::unordered_set::insert with a simple array assignment.
+			if (processed_count < processed_entities.size()) {
+				processed_entities[processed_count++] = ent;
+			}
 
 			// Calculate entity center once for efficiency
 			const vec3_t centroid = calculate_entity_center(ent);
 
 			// Calculate direction and distance
 			const vec3_t diff = self->s.origin - centroid;
-			const float dist_squared = diff.lengthSquared();
-			const float dist = sqrtf(dist_squared);
+			const float dist = sqrtf(diff.lengthSquared()); // Recalculate dist since we need it for damage formula
 
 			// Calculate damage
 			const float points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
@@ -1870,8 +1885,10 @@ THINK(bfg_think) (edict_t* self) -> void
 	// Cache origin for performance
 	const vec3_t self_origin = self->s.origin;
 
-	// Use unordered_set for efficient entity tracking
-	std::unordered_set<edict_t*> processed_entities;
+	// --- OPTIMIZATION ---
+	// Replaced std::unordered_set with a fixed-size std::array to avoid per-frame heap allocations.
+	std::array<edict_t*, 64> processed_entities;
+	size_t processed_count = 0;
 
 	// Find all entities in range
 	edict_t* ent = nullptr;
@@ -1900,6 +1917,29 @@ THINK(bfg_think) (edict_t* self) -> void
 		if (dist_squared > bfgrange_squared)
 			continue;
 
+		// --- OPTIMIZATION ---
+		// Replaced std::unordered_set::find with a fast linear search on the small array.
+		bool already_processed = false;
+		for (size_t i = 0; i < processed_count; ++i) {
+			if (processed_entities[i] == ent) {
+				already_processed = true;
+				break;
+			}
+		}
+		if (already_processed)
+			continue;
+
+		// Check visibility
+		trace_t tr = gi.traceline(self_origin, point, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
+		if (tr.fraction < 1.0f)
+			continue; // Not visible
+
+		// --- OPTIMIZATION ---
+		// Replaced std::unordered_set::insert with a simple array assignment.
+		if (processed_count < processed_entities.size()) {
+			processed_entities[processed_count++] = ent;
+		}
+
 		// Calculate actual distance and normalize direction
 		const float dist = sqrtf(dist_squared);
 		if (dist > BFG_VELOCITY_EPSILON) {
@@ -1909,18 +1949,6 @@ THINK(bfg_think) (edict_t* self) -> void
 			// Handle zero distance case
 			dir = vec3_t{ 0, 0, 1 }; // Default up direction
 		}
-
-		// Skip entities we've already processed
-		if (processed_entities.find(ent) != processed_entities.end())
-			continue;
-
-		// Check visibility
-		trace_t tr = gi.traceline(self_origin, point, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
-		if (tr.fraction < 1.0f)
-			continue; // Not visible
-
-		// Mark entity as processed
-		processed_entities.insert(ent);
 
 		// Apply damage
 		T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
