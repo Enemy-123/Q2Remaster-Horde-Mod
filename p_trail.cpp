@@ -3,7 +3,6 @@
 #include "g_local.h"
 
 /*
-==============================================================================
 
 PLAYER TRAIL
 
@@ -49,7 +48,7 @@ static edict_t* PlayerTrail_Spawn(edict_t* owner)
 		owner->client->trail_tail = trail->chain;
 		if (owner->client->trail_tail)
 			owner->client->trail_tail->enemy = nullptr; // The new tail has no previous node.
-		
+
 		// Clear the old links of the recycled node.
 		trail->chain = nullptr;
 		trail->enemy = nullptr;
@@ -67,7 +66,7 @@ static edict_t* PlayerTrail_Spawn(edict_t* owner)
 	trail->enemy = owner->client->trail_head; // New head's 'prev' is the old head.
 	if (owner->client->trail_head)
 		owner->client->trail_head->chain = trail; // Old head's 'next' is the new head.
-	
+
 	owner->client->trail_head = trail; // The player now points to the new head.
 
 	// If there was no tail, this new node is also the tail.
@@ -86,10 +85,19 @@ void PlayerTrail_Destroy(edict_t* player)
 			if (!player || g_edicts[i].owner == player)
 				G_FreeEdict(&g_edicts[i]);
 
+	// This is the critical fix. After freeing the edicts, the pointers
+	// in the client struct must be cleared to prevent them from becoming
+	// dangling pointers that point to freed memory.
 	if (player)
-		player->client->trail_head = player->client->trail_tail = nullptr;
-	else for (size_t i = 0; i < game.maxclients; i++)
-		game.clients[i].trail_head = game.clients[i].trail_tail = nullptr;
+	{
+		if (player->client)
+			player->client->trail_head = player->client->trail_tail = nullptr;
+	}
+	else
+	{
+		for (size_t i = 0; i < game.maxclients; i++)
+			game.clients[i].trail_head = game.clients[i].trail_tail = nullptr;
+	}
 }
 
 // check to see if we can add a new player trail spot
@@ -104,7 +112,7 @@ void PlayerTrail_Add(edict_t* player)
 	// This prevents spamming markers when standing still or moving slowly.
 	if (player->client->trail_head && visible(player, player->client->trail_head))
 		return;
-		
+
 	// Don't spawn trails under certain conditions.
 	if (level.intermissiontime || player->health <= 0 || player->movetype == MOVETYPE_NOCLIP || !player->groundentity)
 		return;
@@ -117,7 +125,6 @@ void PlayerTrail_Add(edict_t* player)
 	trail->timestamp = level.time;
 	trail->owner = player;
 }
-
 
 edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 {
