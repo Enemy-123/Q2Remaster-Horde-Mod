@@ -1154,9 +1154,10 @@ void G_SetStats(edict_t* ent)
 		}
 		else
 		{
-			if (!level.health_bar_entities[i]->enemy->inuse || level.health_bar_entities[i]->enemy->health <= 0)
+            // --- FIX: Add a null check for the 'enemy' pointer ---
+			if (!level.health_bar_entities[i]->enemy || !level.health_bar_entities[i]->enemy->inuse || level.health_bar_entities[i]->enemy->health <= 0)
 			{
-				if (level.health_bar_entities[i]->enemy->monsterinfo.aiflags & AI_DOUBLE_TROUBLE)
+				if (level.health_bar_entities[i]->enemy && level.health_bar_entities[i]->enemy->monsterinfo.aiflags & AI_DOUBLE_TROUBLE)
 				{
 					*health_byte = 0b10000000;
 					continue;
