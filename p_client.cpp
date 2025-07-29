@@ -3702,10 +3702,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	client = ent->client;
 
-
-	edict_t *my_crash_pointer = NULL; // Create a pointer that points to nothing.
-    my_crash_pointer->health = 100;   // CRASH! Try to use the pointer.
-
 	level.current_entity = ent;
 
 	// [Paril-KEX] pass buttons through even if we are in intermission or chasing.
