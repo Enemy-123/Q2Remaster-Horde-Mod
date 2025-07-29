@@ -5,14 +5,34 @@ set -o pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR="$SCRIPT_DIR/build"
-TOOLCHAIN_FILE="$SCRIPT_DIR/mingw-w64-x86_64.cmake"
+
+# --- TOOLCHAIN SETUP ---
+MINGW_TOOLCHAIN_FILE="$SCRIPT_DIR/mingw-w64-x86_64.cmake"
+VCPKG_TOOLCHAIN_FILE="$SCRIPT_DIR/vcpkg/scripts/buildsystems/vcpkg.cmake"
+
+# --- FAKE POWERSHELL WORKAROUND ---
+# Create a fake bin directory to hold our fake powershell
+mkdir -p "$SCRIPT_DIR/fake_bin"
+# Create a fake powershell.exe that does nothing and exits successfully
+echo '#!/bin/bash' > "$SCRIPT_DIR/fake_bin/powershell.exe"
+echo 'exit 0' >> "$SCRIPT_DIR/fake_bin/powershell.exe"
+# Make it executable
+chmod +x "$SCRIPT_DIR/fake_bin/powershell.exe"
+# Add our fake bin directory to the front of the PATH
+# This makes the build system find our fake one first.
+export PATH="$SCRIPT_DIR/fake_bin:$PATH"
+# --- END WORKAROUND ---
 
 DEPLOY_PATH="$1"
 BUILD_TYPE="${2:-Release}"
 echo "--- Build Type set to: $BUILD_TYPE ---"
 
-if [ ! -f "$TOOLCHAIN_FILE" ]; then
-    echo "Error: Toolchain file not found at $TOOLCHAIN_FILE"
+if [ ! -f "$MINGW_TOOLCHAIN_FILE" ]; then
+    echo "Error: MinGW Toolchain file not found at $MINGW_TOOLCHAIN_FILE"
+    exit 1
+fi
+if [ ! -f "$VCPKG_TOOLCHAIN_FILE" ]; then
+    echo "Error: vcpkg Toolchain file not found at $VCPKG_TOOLCHAIN_FILE"
     exit 1
 fi
 if [ ! -d "$DEPLOY_PATH" ]; then
@@ -27,10 +47,12 @@ mkdir -p "$BUILD_DIR"
 
 cd "$BUILD_DIR"
 cmake .. \
-    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" \
+    -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DDEPLOY_DIRECTORY="$DEPLOY_PATH" \
-    -G "Unix Makefiles"
+    -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN_FILE" \
+    -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$MINGW_TOOLCHAIN_FILE" \
+    -DVCPKG_TARGET_TRIPLET=x64-mingw-static
 
 cmake --build . -- -j$(nproc)
 cmake --build . --target install
@@ -45,7 +67,7 @@ else
     exit 1
 fi
 
-# --- THE FINAL FIX ---
+# --- GCC RUNTIME DEPENDENCIES ---
 echo ""
 echo "--- Handling GCC Runtime Dependencies ---"
 GAME_ROOT_DIR=$(dirname "$DEPLOY_PATH")
@@ -54,7 +76,6 @@ REQUIRED_DLLS=(
     "libstdc++-6.dll"
 )
 
-# Find the location of the 64-bit GCC MinGW runtime libraries on the system
 GCC_LIB_DIR=$(dirname $(find /usr/lib/gcc/x86_64-w64-mingw32 -name "libgcc_s_seh-1.dll" | head -n 1))
 
 if [ -z "$GCC_LIB_DIR" ] || [ ! -d "$GCC_LIB_DIR" ]; then
