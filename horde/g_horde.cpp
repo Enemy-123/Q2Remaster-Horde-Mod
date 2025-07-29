@@ -4391,57 +4391,6 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	StoreWaveType(current_wave_type);
 	gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
 
-	// =======================================================================
-	// --- NEW JIT PRECACHE BLOCK FOR BOSS MINIONS ---
-	// =======================================================================
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("BossSpawnThink: Precaching minions for boss wave...\n");
-	}
-	// Re-build the eligible list specifically for the minions.
-	g_eligible_monsters_for_wave.clear();
-
-	//Reserve memory here as well.
-    g_eligible_monsters_for_wave.reserve(MONSTER_DATA_COUNT);
-	for (const auto &monster : monsterTypes)
-	{
-		if (monster.minWave <= current_wave_level && IsValidMonsterForWave(monster.typeId, current_wave_type))
-		{
-			g_eligible_monsters_for_wave.push_back(&monster);
-		}
-	}
-
-	// Now run the same JIT precache loop as in Horde_InitLevel.
-	for (const MonsterTypeInfo *monster_info : g_eligible_monsters_for_wave)
-	{
-        // OLD: if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
-        // NEW: Check the flag directly.
-		if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
-		{
-			const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
-			if (classname && *classname)
-			{
-				// ... (precache logic) ...
-				edict_t *temp_monster = G_Spawn();
-				if (temp_monster)
-				{
-					// ...
-					ED_CallSpawn(temp_monster);
-					if (temp_monster->inuse)
-					{
-						G_FreeEdict(temp_monster);
-					}
-                    // OLD: g_precached_monster_types.insert(monster_info->typeId);
-                    // NEW: Set the flag to true.
-					g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
-				}
-			}
-		}
-	}
-	// =======================================================================
-	// --- END OF NEW BLOCK ---
-	// =======================================================================
-
 	self->monsterinfo.IS_BOSS = true;
 	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_reacttodamage_target_time = 0_ms;
