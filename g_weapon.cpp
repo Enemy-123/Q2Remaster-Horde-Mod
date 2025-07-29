@@ -16,7 +16,7 @@ fire_hit
 Used for all impact(hit / punch / slash) attacks
 ================ =
 */
-bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
+bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 {
 	trace_t tr;
 	vec3_t	forward, right, up;
@@ -24,6 +24,11 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 	vec3_t	point;
 	float	range;
 	vec3_t	dir;
+
+	// 1. Initial check for a valid enemy (Good practice from your version)
+	if (!self->enemy || !self->enemy->inuse) {
+		return false;
+	}
 
 	// see if enemy is in range
 	range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
@@ -41,29 +46,19 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 
 	point = closest_point_to_box(self->s.origin, self->enemy->absmin, self->enemy->absmax);
 
+	// 2. Your improved line-of-sight check (Gameplay Fix)
 	// check that we can hit the point on the bbox
 	tr = gi.traceline(self->s.origin, point, self, MASK_PROJECTILE);
+	if (tr.fraction < 1.0f && tr.ent != self->enemy)
+		return false; // Blocked by something else
 
-	if (tr.fraction < 1)
-	{
-		if (!tr.ent->takedamage)
-			return false;
-		// if it will hit any client/monster then hit the one we wanted to hit
-		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
-			tr.ent = self->enemy;
-	}
-
-	// check that we can hit the player from the point
+	// check that we can hit the player's origin from the point on their bbox
 	tr = gi.traceline(point, self->enemy->s.origin, self, MASK_PROJECTILE);
+	if (tr.fraction < 1.0f && tr.ent != self->enemy)
+		return false; // Blocked by something else
 
-	if (tr.fraction < 1)
-	{
-		if (!tr.ent->takedamage)
-			return false;
-		// if it will hit any client/monster then hit the one we wanted to hit
-		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
-			tr.ent = self->enemy;
-	}
+	// If we get here, the hit is clear.
+	tr.ent = self->enemy;
 
 	AngleVectors(self->s.angles, forward, right, up);
 	point = self->s.origin + (forward * range);
@@ -74,16 +69,21 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 	// do the damage
 	T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
 
-	if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
-		return false;
+	// 3. My check to prevent the crash (Crash Fix)
+	// The T_Damage call may have killed the enemy. We MUST check if it's still valid.
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	{
+		return true; // Hit was successful, but the enemy is dead.
+	}
 
-	// do our special form of knockback here
+	// Now it's safe to apply knockback to the living enemy
 	v = (self->enemy->absmin + self->enemy->absmax) * 0.5f;
 	v -= point;
 	v.normalize();
 	self->enemy->velocity += v * kick;
 	if (self->enemy->velocity[2] > 0)
 		self->enemy->groundentity = nullptr;
+		
 	return true;
 }
 
