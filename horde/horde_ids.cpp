@@ -4,6 +4,9 @@
 
 namespace horde {
 
+    static bool s_specialTypeRegistryInitialized = false;
+    static bool s_monsterTypeRegistryInitialized = false;
+
     // Global instances
     MonsterSpawnTimeTracker g_monsterSpawnTracker;
     SpawnPointTimeTracker g_spawnPointTimeTracker;
@@ -40,6 +43,10 @@ namespace horde {
     // Special types ( traps, teslas, sentry turret )
 
     void SpecialTypeRegistry::Initialize() {
+    if (s_specialTypeRegistryInitialized) {
+    return; // Already initialized, do nothing.
+    }
+
     s_specialTypeMap.clear();
     s_specialTypeMap = {
         {"tesla_mine",        SpecialEntityTypeID::TESLA_MINE},
@@ -51,6 +58,8 @@ namespace horde {
         {"laser",             SpecialEntityTypeID::LASER_BEAM}, 
         {"doppleganger",      SpecialEntityTypeID::DOPPLEGANGER}
     };
+
+     s_specialTypeRegistryInitialized = true;
 }
 
     bool IsMonsterType(const edict_t* ent, horde::MonsterTypeID type_to_check)
@@ -83,6 +92,10 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
     //
 
    void MonsterTypeRegistry::Initialize() {
+
+        if (s_monsterTypeRegistryInitialized) {
+        return;}
+
         // Clear the maps
         s_monsterTypeMap.clear();
 
@@ -208,6 +221,7 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
                 s_typeToClassname[index] = classname.data();
             }
         }
+          s_monsterTypeRegistryInitialized = true;
     }
 
     MonsterTypeID MonsterTypeRegistry::GetTypeID(const char* classname) {
