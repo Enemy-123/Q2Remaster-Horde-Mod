@@ -4234,15 +4234,10 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	static constexpr auto ZERO_TIME = 0_ms;
 	static constexpr auto MAX_INT64_VAL = std::numeric_limits<int64_t>::max();
 
-	// --- Data Structures ---
-	static std::vector<std::pair<edict_t*, vec3_t>> candidates_vec;
-	candidates_vec.clear();
-
-	static bool reserved_once = false;
-	if (!reserved_once && game.maxclients > 0) {
-		candidates_vec.reserve(game.maxclients);
-		reserved_once = true;
-	}
+	// --- Data Structures (OPTIMIZED) ---
+    // Use a static C-style array to avoid vector overhead entirely.
+	static std::array<std::pair<edict_t*, vec3_t>, MAX_CLIENTS> candidates_arr;
+	size_t num_candidates = 0; // Reset count each frame.
 
 	const bool is_horde_mode = g_horde->integer != 0;
 	gtime_t min_combat_time_left = gtime_t::from_ms(MAX_INT64_VAL);
@@ -4277,11 +4272,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 			return;
 		}
 
-		// =======================================================================
-		// === THE CORE OPTIMIZATION: CACHING G_FindRespawnSpot ===
-		// This provides the vast majority of the performance gain without the
-		// complexity and bugs associated with throttling.
-		// =======================================================================
+		// --- Caching Logic for G_FindRespawnSpot ---
 		vec3_t spot;
 		bool is_valid_spot = false;
 		static constexpr auto CACHE_DURATION = 250_ms;
@@ -4320,7 +4311,10 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		} else {
 			player->client->coop_respawn_state = COOP_RESPAWN_NONE;
 			player->client->time_in_bad_area = ZERO_TIME;
-			candidates_vec.emplace_back(player, spot);
+            if (num_candidates < candidates_arr.size()) {
+                candidates_arr[num_candidates] = {player, spot};
+                num_candidates++;
+            }
 		}
 	};
 
@@ -4374,9 +4368,9 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	last_frame_in_bad_area = player_in_bad_area;
 
 	// --- Select Respawn Target ---
-	if (!candidates_vec.empty()) {
-		size_t index = static_cast<size_t>(irandom(static_cast<int32_t>(candidates_vec.size())));
-		return { candidates_vec[index].first, candidates_vec[index].second };
+	if (num_candidates > 0) {
+		size_t index = static_cast<size_t>(irandom(static_cast<int32_t>(num_candidates)));
+		return { candidates_arr[index].first, candidates_arr[index].second };
 	}
 
 	// --- Handle Forced Respawn ---

@@ -4400,6 +4400,9 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	}
 	// Re-build the eligible list specifically for the minions.
 	g_eligible_monsters_for_wave.clear();
+
+	//Reserve memory here as well.
+    g_eligible_monsters_for_wave.reserve(MONSTER_DATA_COUNT);
 	for (const auto &monster : monsterTypes)
 	{
 		if (monster.minWave <= current_wave_level && IsValidMonsterForWave(monster.typeId, current_wave_type))
@@ -7638,6 +7641,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	// NOTE: We still build g_eligible_monsters_for_wave because it's a *filtered subset*
 	// of all monsters, which is useful for the JIT precacher loop that follows.
 	// The iteration to build it is now more cache-friendly.
+	 g_eligible_monsters_for_wave.reserve(MONSTER_DATA_COUNT);
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
 		// Use the original monsterTypes array here, as it's sorted by minWave,
