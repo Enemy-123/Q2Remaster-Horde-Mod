@@ -4256,8 +4256,8 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	static bool last_frame_in_bad_area = false;
 	static gtime_t last_displayed_combat_time = ZERO_TIME;
 	static gtime_t last_displayed_bad_area_time = ZERO_TIME;
-	static std::string cached_combat_message;
-	static std::string cached_bad_area_message;
+	static char cached_combat_message[128] = "";
+	static char cached_bad_area_message[128] = "";
 
 	// --- Single Processing Loop (Runs Every Frame) ---
 	auto process_single_player = [&](edict_t* player) {
@@ -4348,29 +4348,28 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	// Inside G_FindSquadRespawnTarget...
 
 if (update_combat_msg) {
-    // G_Fmt returns a string_view into a static buffer. No heap allocation!
-    std::string_view new_msg_sv = player_in_combat
-        ? G_Fmt("In Combat! Reviving in: {:.1f}s", min_combat_time_left.seconds<float>())
-        : ""; // Or G_Fmt("")
+    // G_Fmt returns a view into a static buffer. Get a direct pointer to it.
+    const char* new_msg_ptr = player_in_combat
+        ? G_Fmt("In Combat! Reviving in: {:.1f}s", min_combat_time_left.seconds<float>()).data()
+        : "";
 
-    if (new_msg_sv != cached_combat_message) {
-        cached_combat_message = new_msg_sv; // Assign from string_view
-        // .data() is safe because G_Fmt guarantees null termination.
-        gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, new_msg_sv.data());
+    // Compare C-strings directly. This is faster than std::string comparison.
+    if (strcmp(new_msg_ptr, cached_combat_message) != 0) {
+        // Copy the new message into our static char[] cache. No heap allocation.
+        Q_strlcpy(cached_combat_message, new_msg_ptr, sizeof(cached_combat_message));
+        gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, new_msg_ptr);
     }
 }
 
 if (update_bad_area_msg) {
-    // The double-buffer in G_Fmt allows this second call to not interfere
-    // with the first one within the same scope (as long as they aren't
-    // arguments to the same function call).
-    std::string_view new_msg_sv = (player_in_bad_area && min_bad_area_time_left > ZERO_TIME)
-        ? G_Fmt("Bad/Blocked Area! Forcing Respawn in: {:.1f}s", min_bad_area_time_left.seconds<float>())
+    // The double-buffer in G_Fmt allows this second call to be safe.
+    const char* new_msg_ptr = (player_in_bad_area && min_bad_area_time_left > ZERO_TIME)
+        ? G_Fmt("Bad/Blocked Area! Forcing Respawn in: {:.1f}s", min_bad_area_time_left.seconds<float>()).data()
         : "";
 
-    if (new_msg_sv != cached_bad_area_message) {
-        cached_bad_area_message = new_msg_sv;
-        gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, new_msg_sv.data());
+    if (strcmp(new_msg_ptr, cached_bad_area_message) != 0) {
+        Q_strlcpy(cached_bad_area_message, new_msg_ptr, sizeof(cached_bad_area_message));
+        gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, new_msg_ptr);
     }
 }
 
