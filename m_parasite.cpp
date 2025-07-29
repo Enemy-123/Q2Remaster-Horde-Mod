@@ -242,8 +242,20 @@ void parasite_walk(edict_t* self)
 // hard reset on proboscis; like we never existed
 THINK(proboscis_reset) (edict_t* self) -> void
 {
-	self->owner->proboscus = nullptr;
-	G_FreeEdict(self->proboscus);
+	// If the owner (the parasite monster) is still valid, clear its pointer to us
+	// to prevent a dangling pointer.
+	if (self->owner && self->owner->inuse)
+	{
+		self->owner->proboscus = nullptr;
+	}
+
+	// Free the proboscis segment if it exists.
+	if (self->proboscus)
+	{
+		G_FreeEdict(self->proboscus);
+	}
+
+	// Finally, free the proboscis tip itself.
 	G_FreeEdict(self);
 }
 
