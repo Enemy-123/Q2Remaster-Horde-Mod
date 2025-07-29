@@ -4147,21 +4147,52 @@ static void HandleForcedBossRemoval(edict_t *boss)
 
 static void SpawnBossAutomatically()
 {
-	// The initial cleanup loop has been removed from this function.
-	// The call to ResetBosses() at the beginning of Horde_InitLevel() now serves as the
-	// single, authoritative point for cleaning up bosses from the previous wave.
-	// This ensures the auto_spawned_bosses set is always empty before this function
-	// is called to spawn a new boss, preventing redundancy and potential bugs.
+	// --- 1. Cleanup Existing Bosses ---
+	// This loop is now restored. It is the correct place to clean up the boss from the
+	// previous boss wave. It is now SAFE to run because we fixed the iterator
+	// invalidation crash by removing the .erase() call from inside BossDeathHandler.
+	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment */)
+	{
+		edict_t *existing_boss = *it;
+		if (existing_boss && existing_boss->inuse)
+		{
+			// Check if the boss is still alive.
+			if (existing_boss->health > 0 && !existing_boss->deadflag)
+			{
+				// The boss is being removed while alive. Use our special handler
+				// to credit damage without dropping items.
+				HandleForcedBossRemoval(existing_boss);
+			}
+			else
+			{
+				// The boss is already dead or dying. Use the normal handler
+				// which will drop items if it hasn't already.
+				if (!existing_boss->monsterinfo.BOSS_DEATH_HANDLED)
+				{
+					BossDeathHandler(existing_boss);
+				}
+			}
+			// In both cases, the entity is now ready to be freed.
+			OnEntityRemoved(existing_boss);
+			G_FreeEdict(existing_boss);
+			it = auto_spawned_bosses.erase(it);
+		}
+		else
+		{
+			// The pointer in the set is invalid, just remove it.
+			it = auto_spawned_bosses.erase(it);
+		}
+	}
 	boss_spawned_for_wave = false;
 
-	// --- 1. Basic Wave Check ---
+	// --- 2. Basic Wave Check ---
 	// Ensure this is a boss wave (every 5th wave, starting at 10).
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0)
 	{
 		return;
 	}
 
-	// --- 2. Select Boss Type ---
+	// --- 3. Select Boss Type ---
 	const char *map_name = GetCurrentMapName();
 	BossPickResult boss_pick_result = G_HordePickBOSSType(
 		g_horde_local.current_map_size, map_name, g_horde_local.level);
@@ -4183,7 +4214,7 @@ static void SpawnBossAutomatically()
 		return;
 	}
 
-	// --- 3. Determine Spawn Location (Tiered Fallback Logic) ---
+	// --- 4. Determine Spawn Location (Tiered Fallback Logic) ---
 	vec3_t spawn_origin = vec3_origin;
 	vec3_t spawn_angles = vec3_origin;
 	bool location_found = false;
@@ -4282,7 +4313,7 @@ static void SpawnBossAutomatically()
 		}
 	}
 
-	// --- 4. Setup Delayed Spawn ---
+	// --- 5. Setup Delayed Spawn ---
 	if (location_found)
 	{
 		// Spawn a visual effect (orb) at the location first.
@@ -7535,7 +7566,6 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 // It runs before each wave to load only the assets needed for that specific wave.
 static void Horde_InitLevel(const int32_t lvl)
 {
-	ResetBosses();
 	g_spawn_plan.clear();
     g_ambush_monsters_remaining = 0;
     g_current_ambush_info = {}; // Reset ambush info to default
