@@ -4340,29 +4340,34 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		last_displayed_bad_area_time = min_bad_area_time_left;
 	}
 
-	if (update_combat_msg) {
-		std::string new_msg;
-		if (player_in_combat) {
-			float seconds = (min_combat_time_left.milliseconds() == MAX_INT64_VAL) ? 0.0f : min_combat_time_left.seconds<float>();
-			new_msg = fmt::format("In Combat! Reviving in: {:.1f}s", seconds);
-		}
-		if (new_msg != cached_combat_message) {
-			cached_combat_message = new_msg;
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, new_msg.c_str());
-		}
-	}
+	// Inside G_FindSquadRespawnTarget...
 
-	if (update_bad_area_msg) {
-		std::string new_msg;
-		if (player_in_bad_area && min_bad_area_time_left > ZERO_TIME) {
-			float seconds = min_bad_area_time_left.seconds<float>();
-			new_msg = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}s", seconds);
-		}
-		if (new_msg != cached_bad_area_message) {
-			cached_bad_area_message = new_msg;
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, new_msg.c_str());
-		}
-	}
+if (update_combat_msg) {
+    // G_Fmt returns a string_view into a static buffer. No heap allocation!
+    std::string_view new_msg_sv = player_in_combat
+        ? G_Fmt("In Combat! Reviving in: {:.1f}s", min_combat_time_left.seconds<float>())
+        : ""; // Or G_Fmt("")
+
+    if (new_msg_sv != cached_combat_message) {
+        cached_combat_message = new_msg_sv; // Assign from string_view
+        // .data() is safe because G_Fmt guarantees null termination.
+        gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, new_msg_sv.data());
+    }
+}
+
+if (update_bad_area_msg) {
+    // The double-buffer in G_Fmt allows this second call to not interfere
+    // with the first one within the same scope (as long as they aren't
+    // arguments to the same function call).
+    std::string_view new_msg_sv = (player_in_bad_area && min_bad_area_time_left > ZERO_TIME)
+        ? G_Fmt("Bad/Blocked Area! Forcing Respawn in: {:.1f}s", min_bad_area_time_left.seconds<float>())
+        : "";
+
+    if (new_msg_sv != cached_bad_area_message) {
+        cached_bad_area_message = new_msg_sv;
+        gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, new_msg_sv.data());
+    }
+}
 
 	last_frame_in_combat = player_in_combat;
 	last_frame_in_bad_area = player_in_bad_area;
