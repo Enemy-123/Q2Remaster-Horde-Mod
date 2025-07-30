@@ -164,7 +164,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 			// Make sure classname exists before comparing
 			if (!ent->classname || strstr(ent->classname, "func_") != nullptr) {
 				filter_data->blocked = true;
-				if (developer->integer > 1) gi.Com_PrintFmt("TurretSpawnBoxFilter: Blocked by solid entity {}\n", ent->classname ? ent->classname : "?");
+				//if (developer->integer > 1) gi.com_printFmt("TurretSpawnBoxFilter: Blocked by solid entity {}\n", ent->classname ? ent->classname : "?");
 				return BoxEdictsResult_t::End;
 			}
 		}
@@ -176,7 +176,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 		// Use filter_data->check_pos (center of the box being checked)
 		if ((filter_data->check_pos - check_center).lengthSquared() < filter_data->min_distance_sq) {
 			filter_data->blocked = true;
-			if (developer->integer > 1) gi.Com_PrintFmt("TurretSpawnBoxFilter: Blocked by proximity to {}\n", ent->classname ? ent->classname : "?");
+			//if (developer->integer > 1) //gi.com_printFmt("TurretSpawnBoxFilter: Blocked by proximity to {}\n", ent->classname ? ent->classname : "?");
 			return BoxEdictsResult_t::End;
 		}
 	}
@@ -185,7 +185,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 	// Make sure classname exists before comparing
 	if (ent->inuse && ent->classname && (strstr(ent->classname, "monster_") == nullptr || IsPlayerDefense(ent))) {
 		filter_data->blocked = true;
-		if (developer->integer > 1) gi.Com_PrintFmt("TurretSpawnBoxFilter: Blocked by existing turret/defense\n");
+		//if (developer->integer > 1) //gi.com_printFmt("TurretSpawnBoxFilter: Blocked by existing turret/defense\n");
 		return BoxEdictsResult_t::End;
 	}
 
@@ -193,7 +193,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 	// Check the content at the center of the box
 	if (gi.pointcontents(filter_data->check_pos) & MASK_WATER) {
 		filter_data->blocked = true;
-		if (developer->integer > 1) gi.Com_PrintFmt("TurretSpawnBoxFilter: Blocked by liquid\n");
+	//	if (developer->integer > 1) //gi.com_printFmt("TurretSpawnBoxFilter: Blocked by liquid\n");
 		return BoxEdictsResult_t::End;
 	}
 
@@ -291,14 +291,14 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		gi.BoxEdicts(box_mins, box_maxs, nullptr, 0, AREA_SOLID, TurretSpawnBoxFilter, &filter_data);
 
 		if (filter_data.blocked) { // Blocked by proximity, other defense, liquid, etc.
-			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt {}): Candidate {} blocked by BoxEdicts.\n", attempt, candidate_pos);
+	//		if (developer->integer > 1) //gi.com_printFmt("find_turret_spawn_position (Attempt {}): Candidate {} blocked by BoxEdicts.\n", attempt, candidate_pos);
 			continue;
 		}
 
 		// --- BoxEdicts check passed ---
 		// Check path from fixbot to candidate position
 		if (!G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, candidate_pos)) {
-			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt {}): Path to candidate {} blocked.\n", attempt, candidate_pos);
+	//		if (developer->integer > 1) //gi.com_printFmt("find_turret_spawn_position (Attempt {}): Path to candidate {} blocked.\n", attempt, candidate_pos);
 			continue;
 		}
 
@@ -340,7 +340,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 			best_position.distance = dist;
 			best_position.valid = true;
 			best_position.in_front = pos_in_front;
-			if (developer->integer > 1) gi.Com_PrintFmt("find_turret_spawn_position (Attempt {}): Found new best candidate pos {} (dist {:.1f}, front {})\n", attempt, candidate_pos, dist, pos_in_front);
+			//if (developer->integer > 1) //gi.com_printFmt("find_turret_spawn_position (Attempt {}): Found new best candidate pos {} (dist {:.1f}, front {})\n", attempt, candidate_pos, dist, pos_in_front);
 		}
 	} // --- End attempt loop ---
 
@@ -352,7 +352,7 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 		// Directly use the best position found by the loop, assuming in-loop checks were sufficient.
 		position = best_position.pos;
 		direction = best_position.dir;
-		if (developer->integer > 0) gi.Com_PrintFmt("find_turret_spawn_position: SUCCESS using best pos {} after all attempts (simplified validation).\n", position);
+		//if (developer->integer > 0) //gi.com_printFmt("find_turret_spawn_position: SUCCESS using best pos {} after all attempts (simplified validation).\n", position);
 		return true;
 
 	}
@@ -360,9 +360,9 @@ bool find_turret_spawn_position(edict_t* self, vec3_t& position, vec3_t& directi
 	// Fallback: No suitable position found
 	position = vec3_origin;
 	direction = vec3_origin;
-	if (developer->integer > 0) {
-		gi.Com_PrintFmt("find_turret_spawn_position: Failed to find ANY valid position after all attempts.\n");
-	}
+	//if (developer->integer > 0) {
+		//gi.com_printFmt("find_turret_spawn_position: Failed to find ANY valid position after all attempts.\n");
+	//}
 	return false;
 }
 
@@ -526,7 +526,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
 	// Validate inputs
 	if (!self || !self->inuse || position.equals(vec3_origin)) {
-		if (developer->integer > 0) gi.Com_PrintFmt("spawn_turret_at_position: Invalid input (self/pos invalid).\n");
+	//	if (developer->integer > 0) //gi.com_printFmt("spawn_turret_at_position: Invalid input (self/pos invalid).\n");
 		return;
 	}
 
@@ -554,7 +554,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// Create entity
 	ent = G_Spawn();
 	if (!ent) {
-		if (developer->integer > 0) gi.Com_PrintFmt("spawn_turret_at_position: G_Spawn failed.\n");
+	//	if (developer->integer > 0) //gi.com_printFmt("spawn_turret_at_position: G_Spawn failed.\n");
 		return;
 	}
 
@@ -585,7 +585,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// Finalize spawn (same as before)
 	ED_CallSpawn(ent);
 	if (!ent->inuse) {
-		if (developer->integer > 0) gi.Com_PrintFmt("spawn_turret_at_position: ED_CallSpawn failed for turret.\n");
+	//	if (developer->integer > 0) //gi.com_printFmt("spawn_turret_at_position: ED_CallSpawn failed for turret.\n");
 		if (self->monsterinfo.monster_slots) {
 			self->monsterinfo.monster_used = std::max(0, self->monsterinfo.monster_used - 1);
 		}
@@ -600,9 +600,9 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->monsterinfo.search_time = level.time + (isboss ? 4.5_sec : 3.5_sec);
 	ent->pain_debounce_time = level.time + (isboss ? 2.5_sec : 1.5_sec);
 
-	if (developer->integer > 0) {
-		gi.Com_PrintFmt("spawn_turret_at_position: Successfully spawned turret at {}.\n", position);
-	}
+	//if (developer->integer > 0) {
+		//gi.com_printFmt("spawn_turret_at_position: Successfully spawned turret at {}.\n", position);
+	//}
 }
 
 mframe_t fixbot_frames_run[] = {
@@ -648,16 +648,16 @@ void fixbot_prep_spawn(edict_t* self)
 		if (dir.lengthSquared() > 0.01f) {
 			self->ideal_yaw = vectoyaw(dir);
 		}
-		if (developer->integer > 0) {
-			gi.Com_PrintFmt("fixbot_prep_spawn: Found valid target pos {}. Starting laser.\n", spawn_pos);
-		}
+	//	if (developer->integer > 0) {
+			//gi.com_printFmt("fixbot_prep_spawn: Found valid target pos {}. Starting laser.\n", spawn_pos);
+	//	}
 		// Animation proceeds to call fixbot_fire_spawn_laser
 	}
 	else {
 		// --- No valid position found ---
-		if (developer->integer > 0) {
-			gi.Com_PrintFmt("fixbot_prep_spawn: Failed to find valid turret spawn position. Aborting spawn.\n");
-		}
+	//	if (developer->integer > 0) {
+			//gi.com_printFmt("fixbot_prep_spawn: Failed to find valid turret spawn position. Aborting spawn.\n");
+	//	}
 		M_SetAnimation(self, &fixbot_move_run);
 	}
 }
@@ -686,9 +686,9 @@ void fixbot_spawn_check(edict_t* self) {
 		}
 	}
 	else {
-		if (developer->integer > 0) {
-			gi.Com_PrintFmt("fixbot_spawn_check: Not in spawn state or no target position. Spawn aborted.\n");
-		}
+	//	if (developer->integer > 0) {
+			//gi.com_printFmt("fixbot_spawn_check: Not in spawn state or no target position. Spawn aborted.\n");
+	//	}
 	}
 
 	// Reset spawning state regardless of success/failure
