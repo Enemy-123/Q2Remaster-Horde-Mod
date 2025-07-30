@@ -1637,7 +1637,7 @@ int CountPlayers()
 THINK(BossExplode_think) (edict_t* self) -> void
 {
 	// owner gone or changed
-	if (!self->owner->inuse || self->owner->s.modelindex != self->style || self->count != self->owner->spawn_count)
+if (!self->owner || !self->owner->inuse || self->owner->s.modelindex != self->style || self->count != self->owner->spawn_count)
 	{
 		G_FreeEdict(self);
 		return;
