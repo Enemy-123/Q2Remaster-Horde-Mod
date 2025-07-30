@@ -2339,6 +2339,8 @@ static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t
 
 	return monster;
 }
+
+void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
 // FIX: Removed unused 'applyHordeFlags' parameter.
 edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool link_immediately)
 {
@@ -2349,7 +2351,7 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 	}
 
 	monster->solid = SOLID_NOT;
-	ED_CallSpawn(monster);
+	ED_CallSpawnMonsterByID(monster, typeId);
 
 	if (!monster->inuse)
 	{
@@ -4397,7 +4399,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	self->monsterinfo.last_reacttodamage_target_time = 0_ms;
 
 	self->solid = SOLID_NOT;
-	ED_CallSpawn(self);
+	ED_CallSpawnMonsterByID(self, typeId);
 
 	if (!self->inuse)
 	{
@@ -7633,7 +7635,7 @@ static void Horde_InitLevel(const int32_t lvl)
 				{
 					temp_monster->classname = classname;
 					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-					ED_CallSpawn(temp_monster);
+					ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
 					if (temp_monster->inuse)
 					{
 						G_FreeEdict(temp_monster);

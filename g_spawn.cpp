@@ -2,6 +2,14 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "g_local.h"
+#include "horde/horde_ids.h"
+
+// Define a type for our spawn function pointers for clarity
+using MonsterSpawnFunc = void(*)(edict_t*);
+
+// The dispatch table, indexed by MonsterTypeID
+static std::array<MonsterSpawnFunc, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monster_spawn_table;
+static bool g_monster_spawn_table_initialized = false;
 
 struct spawn_t
 {
@@ -698,6 +706,27 @@ static bool perform_replacement(edict_t* ent, std::span<const MonsterReplacement
 	}
 
 	return false; // No matching original classname found
+}
+
+void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId)
+{
+    if (!ent) return;
+
+    size_t index = static_cast<size_t>(typeId);
+
+    // Direct lookup from our table
+    if (index < g_monster_spawn_table.size() && g_monster_spawn_table[index] != nullptr)
+    {
+        // Call the spawn function directly
+        g_monster_spawn_table[index](ent);
+    }
+    else
+    {
+        // Fallback or error for safety
+        gi.Com_PrintFmt("Warning: No spawn function in dispatch table for MonsterTypeID {} ({})\n",
+            static_cast<int>(typeId), ent->classname ? ent->classname : "null");
+        G_FreeEdict(ent);
+    }
 }
 
 /*
@@ -1487,14 +1516,6 @@ static void G_PrecacheStartItems()
 
 //#include <map>
 
-/*
-==============
-SpawnEntities
-
-Creates a server's entity / program execution context by
-parsing textual entity definitions out of an ent file.
-==============
-*/
 constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
 //#define NOMINMAX
@@ -1581,8 +1602,16 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 		return false;
 	}
 }
-//#include "horde/g_horde_phys.h"
-//#include <map>
+
+/*
+==============
+SpawnEntities
+
+Creates a server's entity / program execution context by
+parsing textual entity definitions out of an ent file.
+==============
+*/
+
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
 	level.is_spawning = true;
@@ -1950,6 +1979,39 @@ static void G_InitStatusbar()
 
 	gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 }
+
+void InitMonsterSpawnTable()
+{
+    if (g_monster_spawn_table_initialized) {
+        return;
+    }
+
+    g_monster_spawn_table.fill(nullptr); // Initialize all pointers to null
+
+    // Iterate through the original, slow `spawns` list ONCE
+    for (const auto& spawn_entry : spawns)
+    {
+        // A simple way to identify monsters is by their classname prefix
+        if (strncmp(spawn_entry.name, "monster_", 8) == 0 || strncmp(spawn_entry.name, "misc_insane", 11) == 0)
+        {
+            // Get the corresponding ID for this monster's classname
+            horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(spawn_entry.name);
+
+            if (typeId != horde::MonsterTypeID::UNKNOWN)
+            {
+                // Store the function pointer in our table at the correct index
+                size_t index = static_cast<size_t>(typeId);
+                if (index < g_monster_spawn_table.size()) {
+                    g_monster_spawn_table[index] = spawn_entry.spawn;
+                }
+            }
+        }
+    }
+
+    g_monster_spawn_table_initialized = true;
+    gi.Com_Print("Monster spawn dispatch table initialized.\n");
+}
+
 
 /*QUAKED worldspawn (0 0 0) ?
 
@@ -2334,6 +2396,8 @@ void SP_worldspawn(edict_t* ent)
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 3, "$g_coop_respawn_waiting");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 4, "$g_coop_respawn_no_lives");
 	}
+
+	 InitMonsterSpawnTable();
 
 	if (g_horde->integer) {
 		// Paril: horde
