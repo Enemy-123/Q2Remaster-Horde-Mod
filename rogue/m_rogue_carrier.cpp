@@ -382,7 +382,7 @@ void CarrierSpawn(edict_t *self)
 			ent->enemy = self->enemy;
 			FoundTarget(ent);
 
-			if (!strcmp(ent->classname, "monster_kamikaze"))
+			if (horde::IsMonsterType(ent, horde::MonsterTypeID::KAMIKAZE))
 			{
 				ent->monsterinfo.lefty = false;
 				ent->monsterinfo.attack_state = AS_STRAIGHT;
@@ -390,7 +390,7 @@ void CarrierSpawn(edict_t *self)
 				ent->monsterinfo.aiflags |= AI_CHARGING;
 				ent->owner = self;
 			}
-			else if (!strcmp(ent->classname, "monster_flyer"))
+			else if (horde::IsMonsterType(ent, horde::MonsterTypeID::FLYER))
 			{
 				if (brandom())
 				{

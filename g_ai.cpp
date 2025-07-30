@@ -995,7 +995,7 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 static inline bool IsValidTargetType(edict_t* ent) {
     if (ent->client) return true;
     if (ent->svflags & SVF_MONSTER) return true;
-    if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) return true;
+    if (horde::IsSpecialType(ent, horde::SpecialEntityTypeID::DOPPLEGANGER)) return true;
     return false;
 }
 
@@ -1024,11 +1024,7 @@ bool FindEnhancedTarget(edict_t* self) {
         if (OnSameTeam(self, ent) || !IsValidTargetType(ent)) {
             continue;
         }
-        if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) {
-            if (ent->teammaster == self->teammaster) {
-                continue;
-            }
-        }
+
         if (ent->client) {
             if (IsInvisible(ent)) { continue; }
             if (EntIsSpectating(ent)) { continue; }

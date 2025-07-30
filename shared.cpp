@@ -117,48 +117,68 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 // --- Refactored Functions ---
 
 bool IsPlayerDefense(const edict_t* ent) {
-    if (!ent || !ent->classname) {
-        return false;
-    }
-    // Get the ID from the classname
-    horde::SpecialEntityTypeID id = horde::SpecialTypeRegistry::GetTypeID(ent->classname);
-    if (id == horde::SpecialEntityTypeID::UNKNOWN) {
-        return false;
-    }
-    // Use the ID for a fast array lookup
+    if (!ent) return false;
+    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+    if (id == horde::SpecialEntityTypeID::UNKNOWN) return false;
     return g_entityProperties.is_defense[static_cast<size_t>(id)];
 }
 
+#include <unordered_set> // Add this include at the top of your file
+
 bool IsRemovableEntity(const edict_t* ent) {
-    if (!ent || !ent->classname) {
+    // 1. Fast-path null check
+    if (!ent) {
         return false;
     }
-    horde::SpecialEntityTypeID id = horde::SpecialTypeRegistry::GetTypeID(ent->classname);
+
+    // 2. The FAST PATH: Use the cached ID from the entity struct.
+    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+
+    // 3. The SLOW/DEBUG PATH: If the cached ID is UNKNOWN, investigate further.
     if (id == horde::SpecialEntityTypeID::UNKNOWN) {
+        // --- Validation Logic ---
+        // Only run these expensive checks if the 'developer' cvar is enabled.
+        if (developer->integer) {
+            // Check if this entity's classname *should* have a valid ID, but it wasn't set at spawn.
+            // This is the key check: we do the slow lookup ONLY to validate.
+            if (ent->classname && horde::SpecialTypeRegistry::GetTypeID(ent->classname) != horde::SpecialEntityTypeID::UNKNOWN) {
+                
+                // To prevent spamming the console every frame, we track which classnames we've already reported.
+                static std::unordered_set<std::string_view> reported_classnames;
+                
+                // On map change, clear the list of reported names.
+                static char last_map_for_reporting[MAX_QPATH] = "";
+                if (strcmp(last_map_for_reporting, level.mapname) != 0) {
+                    reported_classnames.clear();
+                    Q_strlcpy(last_map_for_reporting, level.mapname, sizeof(last_map_for_reporting));
+                }
+
+                if (reported_classnames.find(ent->classname) == reported_classnames.end()) {
+                    // This is the message you wanted!
+                    gi.Com_PrintFmt("VALIDATION WARNING: Entity with classname '{}' is missing its special_type_id. Please set it in its spawn function.\n", ent->classname);
+                    reported_classnames.insert(ent->classname);
+                }
+            }
+        }
+        
+        // If the ID is unknown, it's not removable according to our system.
         return false;
     }
+
+    // 4. The FAST PATH RESULT: Direct, lightning-fast array lookup.
     return g_entityProperties.is_removable[static_cast<size_t>(id)];
 }
 
 void RemoveEntity(edict_t* ent) {
-    if (!ent || !ent->inuse || !ent->classname) {
-        return;
-    }
-
-    horde::SpecialEntityTypeID id = horde::SpecialTypeRegistry::GetTypeID(ent->classname);
+    if (!ent || !ent->inuse) return;
+    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id != horde::SpecialEntityTypeID::UNKNOWN) {
-        // Use the ID to look up the specific die handler
         EntityDieHandler handler = g_entityProperties.die_handler[static_cast<size_t>(id)];
         if (handler) {
-            // Call the specific handler if it exists
             handler(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
             return;
         }
     }
-
-    // If no specific handler was found, use the generic explosion.
-    // This also correctly handles any entity that is "removable" but doesn't
-    // have a specific die function assigned in our source data.
     BecomeExplosion1(ent);
 }
 

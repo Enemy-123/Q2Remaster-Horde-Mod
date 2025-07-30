@@ -554,14 +554,9 @@ void AssignMonsterTeam(edict_t* ent) {
 	}
 }
 
-// Funciones auxiliares
-bool CheckEntityClass(edict_t* ent, const char* className) {
-	return ent->classname && !strcmp(ent->classname, className);
-}
-
 bool IsLaserEntity(edict_t* ent) {
-	return ent->classname &&
-		(!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"));
+	return
+		(horde::IsSpecialType(ent, horde::SpecialEntityTypeID::LASER_BEAM)) || (horde::IsSpecialType(ent, horde::SpecialEntityTypeID::LASER_EMITTER));
 }
 
 bool CheckTeslaMineTeam(edict_t* mine, edict_t* other) {
@@ -659,17 +654,17 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
 
 		// Verificar minas tesla
-		if (CheckEntityClass(ent1, "tesla_mine"))
+		if (horde::IsSpecialType(ent1, horde::SpecialEntityTypeID::TESLA_MINE))
 			return CheckTeslaMineTeam(ent1, ent2);
 
-		if (CheckEntityClass(ent2, "tesla_mine"))
+		if (horde::IsSpecialType(ent2, horde::SpecialEntityTypeID::TESLA_MINE))
 			return CheckTeslaMineTeam(ent2, ent1);
 
 		// Verificar trampas
-		if (CheckEntityClass(ent1, "food_cube_trap"))
+		if (horde::IsSpecialType(ent1, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
 			return CheckTrapTeam(ent1, ent2);
 
-		if (CheckEntityClass(ent2, "food_cube_trap"))
+		if (horde::IsSpecialType(ent2, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
 			return CheckTrapTeam(ent2, ent1);
 
 		// Verificar láseres y emisores
@@ -1341,7 +1336,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			else if ((targ->svflags & SVF_MONSTER) || (client))
 			{
 				// XATRIX
-				if (strcmp(targ->classname, "monster_gekk") == 0)
+				if (horde::IsMonsterType(targ, horde::MonsterTypeID::GEKK))
 					SpawnDamage(TE_GREENBLOOD, point, normal, take);
 				// XATRIX
 				// ROGUE

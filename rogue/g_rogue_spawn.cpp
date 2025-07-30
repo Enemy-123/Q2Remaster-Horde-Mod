@@ -379,7 +379,7 @@ void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* mons
 	ent->think = widowlegs_think;
 	ent->nextthink = level.time + 10_hz;
 
-	if (strcmp(monster->classname, "monster_widow1") == 0) {
+	if (horde::IsMonsterType(monster, horde::MonsterTypeID::WIDOW1)) {
 		ent->s.scale = 0.6f;
 	}
 	else {

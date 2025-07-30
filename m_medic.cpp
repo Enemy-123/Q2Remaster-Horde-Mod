@@ -209,14 +209,17 @@ void abortHeal(edict_t* self, bool gib, bool mark)
 	{
 		cleanupHealTarget(self->enemy);
 
-		// gib em!
-		if (mark)
+	// gib em!
+	if (mark)
+	{
+		edict_t* medic = self->enemy->monsterinfo.badMedic1;
+
+		if (medic && medic->inuse &&
+			(horde::IsMonsterType(medic, horde::MonsterTypeID::MEDIC) ||
+			horde::IsMonsterType(medic, horde::MonsterTypeID::MEDIC_COMMANDER)))
 		{
-			// if the first badMedic slot is filled by a medic, skip it and use the second one
-			if ((self->enemy->monsterinfo.badMedic1) && (self->enemy->monsterinfo.badMedic1->inuse) && (!strncmp(self->enemy->monsterinfo.badMedic1->classname, "monster_medic", 13)))
-			{
-				self->enemy->monsterinfo.badMedic2 = self;
-			}
+			self->enemy->monsterinfo.badMedic2 = self;
+		}
 			else
 			{
 				self->enemy->monsterinfo.badMedic1 = self;
@@ -264,7 +267,7 @@ bool finishHeal(edict_t* self)
 	healee->monsterinfo.healer = self;
 
 	const bool isBodyque = healee->classname && !strcmp(healee->classname, "bodyque");
-	const bool insaneDead = healee->classname && !strcmp(healee->classname, "misc_insane");
+	const bool insaneDead = healee && horde::IsMonsterType(healee, horde::MonsterTypeID::MISC_INSANE);
 
 	// Handle bodyque resurrection
 	if (isBodyque) {

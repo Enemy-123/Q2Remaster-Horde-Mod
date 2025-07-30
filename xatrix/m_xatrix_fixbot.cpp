@@ -183,7 +183,7 @@ static BoxEdictsResult_t TurretSpawnBoxFilter(edict_t* ent, void* data) {
 
 	// Check 3: Is it another turret or player defense? (Prevent stacking)
 	// Make sure classname exists before comparing
-	if (ent->inuse && ent->classname && (strstr(ent->classname, "monster_") == nullptr || IsPlayerDefense(ent))) {
+	if ((ent->inuse && ent->classname) || IsPlayerDefense(ent)) {
 		filter_data->blocked = true;
 		//if (developer->integer > 1) //gi.com_printFmt("TurretSpawnBoxFilter: Blocked by existing turret/defense\n");
 		return BoxEdictsResult_t::End;

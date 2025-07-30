@@ -272,8 +272,11 @@ void hover_reattack(edict_t* self)
     else if (style.has_grenade())
         reattack_chance = 0.4f;
 
-    if (self->enemy->health > 0)
+    // FIX: Add a check to ensure the enemy is valid before accessing its members.
+    if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
+    {
         if (visible(self, self->enemy))
+        {
             if (frandom() <= reattack_chance)
             {
                 if (self->monsterinfo.attack_state == AS_STRAIGHT)
@@ -287,6 +290,8 @@ void hover_reattack(edict_t* self)
                     return;
                 }
             }
+        }
+    }
     M_SetAnimation(self, &hover_move_end_attack);
 }
 

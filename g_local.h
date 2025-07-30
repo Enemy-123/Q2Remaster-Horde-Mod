@@ -3904,8 +3904,6 @@ inline entity_iterable_t<active_projectiles_filter_t> active_projectiles()
     return entity_iterable_t<active_projectiles_filter_t> { game.maxclients + 1U };
 }
 
-// CORRECTED CODE - Fixes all -Wshadow warnings
-
 struct gib_def_t
 {
 	size_t count;

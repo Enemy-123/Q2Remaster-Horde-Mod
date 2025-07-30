@@ -273,8 +273,8 @@ TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
     if (tr.surface && (tr.surface->flags & SURF_SKY))
     {
         // Check if owner is a fixbot
-        if (ent->owner && (strcmp(ent->owner->classname, "monster_fixbot") == 0 ||
-            strcmp(ent->owner->classname, "monster_fixbotkl") == 0))
+        if (ent->owner && horde::IsMonsterType(ent->owner, horde::MonsterTypeID::FIXBOT) ||
+            (horde::IsMonsterType(ent->owner, horde::MonsterTypeID::FIXBOT_KL)))
         {
             // Don't destroy the plasma - just let it continue through the sky
             // Optionally adjust direction slightly for more variety

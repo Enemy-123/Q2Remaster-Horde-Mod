@@ -95,6 +95,7 @@
         "codecvt": "cpp",
         "string_view": "cpp",
         "cwctype": "cpp",
-        "memory_resource": "cpp"
+        "memory_resource": "cpp",
+        "cfloat": "cpp"
     }
 }
