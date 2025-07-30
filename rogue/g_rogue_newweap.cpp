@@ -1046,6 +1046,7 @@ void fire_nuke(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int spe
 	// this yields 1.0, 1.5, 2.0, 3.0 times radius
 
 	nuke->classname = "nuke";
+	nuke->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(nuke->classname));
 	nuke->die = nuke_die;
  
 	gi.linkentity(nuke);
