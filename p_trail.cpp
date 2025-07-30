@@ -105,6 +105,10 @@ void PlayerTrail_Destroy(edict_t* player)
 // for this player.
 void PlayerTrail_Add(edict_t* player)
 {
+	// Player trails are not needed or used in Horde mode.
+	if (g_horde->integer)
+		return;
+
 	// Safety check: Ensure player is valid and has a client structure.
 	if (!player || !player->client)
 		return;
@@ -129,6 +133,10 @@ void PlayerTrail_Add(edict_t* player)
 
 edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 {
+	// Player trails are not used in Horde mode.
+	if (g_horde->integer)
+		return nullptr;
+
 	// This is your safety check. It's excellent.
 	// With the G_FreeEdict fix, this should only be triggered by actual monsters,
 	// but keeping this check is good practice to prevent crashes from other potential bugs.
