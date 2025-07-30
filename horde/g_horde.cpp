@@ -5363,40 +5363,53 @@ bool AreHumanPlayersPresent()
 }
 
 // =======================================================================
-// REPLACEMENT: IsPositionPhysicallyValid (with robust ground checking)
+// REPLACEMENT: IsPositionPhysicallyValid (Corrected Logic)
+// This version fixes the bug preventing alternative spawns while keeping
+// the beneficial "droptofloor" logic from your new code.
 // =======================================================================
 [[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying, bool is_predefined_location)
 {
-	if (!is_valid_vector(io_position)) return false;
-	if (gi.pointcontents(io_position) & MASK_SOLID) return false;
+    // 1. Basic checks from your new version (these are good).
+    if (!is_valid_vector(io_position)) return false;
+    if (gi.pointcontents(io_position) & MASK_SOLID) return false;
 
-	trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_SOLID);
-	if (trace.startsolid) return false;
+    // 2. The robust single trace from your OLD version's logic. This is the key fix.
+    // It checks against both world geometry AND other solid monsters in one go.
+    trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
+    if (trace.startsolid)
+    {
+        // If the entire volume is occupied by anything solid (world or monster), it's invalid.
+        return false;
+    }
 
-	vec3_t final_pos = io_position;
+    // 3. Keep the beneficial droptofloor logic from your NEW version for ground units.
+    vec3_t final_pos = io_position;
+    if (!is_flying)
+    {
+        vec3_t end = final_pos;
+        end.z -= 1024; // Search a long way down for ground.
+        trace_t ground_trace = gi.trace(final_pos, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
 
-	if (!is_flying)
-	{
-		vec3_t end = final_pos;
-		end.z -= 1024;
-		trace_t ground_trace = gi.trace(final_pos, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
-		if (ground_trace.fraction == 1.0f) return false;
+        // If there's no ground below, it's an invalid spot for a ground unit.
+        if (ground_trace.fraction == 1.0f) {
+            return false;
+        }
 
-		if (!M_droptofloor_generic(final_pos, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false))
-		{
-			return false;
-		}
-	}
+        // Use the engine's droptofloor to place the monster snugly on the ground.
+        // This is a good feature to retain.
+        if (!M_droptofloor_generic(final_pos, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false))
+        {
+            return false; // Failed to find a floor.
+        }
+    }
 
-	trace_t entity_trace = gi.trace(final_pos, monster_mins, monster_maxs, final_pos, nullptr, MASK_MONSTERSOLID);
-	if (entity_trace.startsolid)
-	{
-		if (!is_predefined_location) return false;
-	}
+    // 4. The flawed logic (the separate entity_trace and the is_predefined_location check) is now removed.
 
-	io_position = final_pos;
-	return true;
+    // 5. Success. Update the position with the potentially adjusted (dropped to floor) coordinates and return true.
+    io_position = final_pos;
+    return true;
 }
+
 // helper function
 static edict_t *FindBestPlayerTargetForTeleport()
 {
