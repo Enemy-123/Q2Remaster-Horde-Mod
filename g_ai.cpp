@@ -1974,52 +1974,73 @@ The monster has an enemy it is trying to kill
 */
 void ai_run(edict_t* self, float dist)
 {
+	// =======================================================================
+	// --- FIXED AND RESTRUCTURED STATE CHECKS ---
+	// =======================================================================
+
+	// 1. Handle terminal state: Intermission
 	if (level.intermissiontime)
+	{
 		self->monsterinfo.walk(self);
-
-	// Si es una unidad invocada y el enemigo es un player, olvidarlo
-	if (self->monsterinfo.issummoned && self->enemy && self->enemy->client) {
-		self->enemy = nullptr;
-		// Buscar inmediatamente un nuevo objetivo válido (monster)
-		if (!FindMTarget(self)) {
-			// Si no encontramos un objetivo válido, volver a estado de espera
-			self->monsterinfo.stand(self);
-			return;
-		}
+		return; // Exit immediately.
 	}
 
-	// Si no hay enemigo y es una unidad invocada, buscar monsters
-	if (!self->enemy && self->monsterinfo.issummoned) {
-		if (!FindMTarget(self)) {
-			// Si no encontramos un objetivo válido, volver a estado de espera
-			self->monsterinfo.stand(self);
-			return;
-		}
-	}
-
-	// Si no hay enemigo y no es una unidad invocada, buscar players
-	if (!self->enemy && !self->monsterinfo.issummoned) {
-		edict_t* player = nullptr;
-		for (auto client : active_players()) {
-			if (!client->inuse || !client->client) {
-				continue;
-			}
-			// Verificar si el jugador es válido
-			if (client->health <= 0 ||
-				client->client->invisible_time > level.time ||
-				EntIsSpectating(client))
+	// 2. Handle special case: Summoned monster targeting logic
+	if (self->monsterinfo.issummoned)
+	{
+		// A summoned monster should never target a player.
+		// If it has no enemy, or its enemy is a player, it must find a new (monster) target.
+		if (!self->enemy || !self->enemy->inuse || self->enemy->client)
+		{
+			self->enemy = nullptr; // Clear invalid/player enemy.
+			if (FindMTarget(self))
 			{
-				continue;
+				// Found a new valid monster target. Restart run logic next frame.
+				self->monsterinfo.run(self);
+				return;
 			}
-			player = client;
-			break;
-		}
-		if (player) {
-			self->enemy = player;
-			self->monsterinfo.run(self);
-			return;
+			else
+			{
+				// No valid monster targets found, go idle.
+				self->monsterinfo.stand(self);
+				return;
+			}
 		}
 	}
+	// 3. Handle general case: Regular monster targeting logic
+	else
+	{
+		// If a regular monster has no enemy, it must find one.
+		if (!self->enemy || !self->enemy->inuse)
+		{
+			// FindTarget will attempt to assign a new player enemy.
+			if (FindTarget(self))
+			{
+				// Found a new player target. Restart run logic next frame.
+				self->monsterinfo.run(self);
+				return;
+			}
+			else
+			{
+				// No valid player targets found, go idle.
+				self->monsterinfo.stand(self);
+				return;
+			}
+		}
+	}
+
+	// 4. Final safety net: At this point, we should have a valid enemy.
+	// This is a crucial guard against any other logic that might nullify the enemy.
+	if (!self->enemy || !self->enemy->inuse)
+	{
+		// If something went wrong, the safest action is to go idle.
+		self->monsterinfo.stand(self);
+		return;
+	}
+
+	// =======================================================================
+	// --- ORIGINAL AI LOGIC CONTINUES (NOW GUARANTEED TO HAVE A VALID ENEMY) ---
+	// =======================================================================
 
 	vec3_t   v;
 	edict_t* tempgoal;
@@ -2130,31 +2151,6 @@ void ai_run(edict_t* self, float dist)
 			hintpath_stop(self);
 
 		return;
-	}
-	// Si no hay enemigo, buscar un nuevo jugador válido
-
-	if (!self->enemy && !self->monsterinfo.issummoned) {
-		edict_t* player = nullptr;
-		for (auto client : active_players())
-		{
-			if (!client->inuse || !client->client) {
-				continue;
-			}
-			// Verificar si el jugador es válido
-			if (client->health <= 0 ||
-				client->client->invisible_time > level.time ||
-				EntIsSpectating(client))
-			{
-				continue;
-			}
-			player = client;
-			break;
-		}
-		if (player) {
-			self->enemy = player;
-			self->monsterinfo.run(self); // Pone al monstruo en modo de persecución
-			return;
-		}
 	}
 	// PGM
 	//==========
