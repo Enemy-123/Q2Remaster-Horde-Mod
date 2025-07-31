@@ -101,15 +101,16 @@ void dabeam_update(edict_t* self, bool damage)
 	gi.linkentity(self);
 }
 
-THINK(beam_think) (edict_t* self) -> void
-{
-	if (self->spawnflags.has(SPAWNFLAG_DABEAM_SECONDARY))
-		self->owner->beam2 = nullptr;
-	else
-		self->owner->beam = nullptr;
+THINK(beam_think) (edict_t* self) -> void {
+	if (self->owner && self->owner->inuse)
+	{
+		if (self->spawnflags.has(SPAWNFLAG_DABEAM_SECONDARY))
+			self->owner->beam2 = nullptr;
+		else
+			self->owner->beam = nullptr;
+	}
 	G_FreeEdict(self);
 }
-
 // RAFAEL
 void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update_func)(edict_t* self))
 {

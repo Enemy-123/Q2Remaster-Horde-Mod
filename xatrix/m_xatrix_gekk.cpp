@@ -72,6 +72,12 @@ bool gekk_check_melee(edict_t* self)
 
 bool gekk_check_jump(edict_t* self)
 {
+
+		if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	{
+		return false; // Can't jump at a non-existent or dead target.
+	}
+	
 	vec3_t v{};
 	float  distance;
 
