@@ -101,6 +101,8 @@ namespace horde {
         SUPERTANK = 79,
         SUPERTANKKL = 80,
 
+        FLIPPER = 81,
+
         MAX_TYPES = 128,  // Set this to a value higher than the largest ID
         UNKNOWN = 255
     };

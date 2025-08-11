@@ -355,6 +355,9 @@ void SP_monster_flipper(edict_t *self)
 		G_FreeEdict( self );
 		return;
 	}
+
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLIPPER);
+
 	(!self->s.scale);
 		self->s.scale = 1.5f;
 

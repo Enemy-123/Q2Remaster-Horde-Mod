@@ -1152,7 +1152,8 @@ const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_name_re
     // Misc Monsters & Turrets
     {horde::MonsterTypeID::SENTRYGUN, "Sentry-Gun"},
     {horde::MonsterTypeID::TURRET, "Turret"},
-    {horde::MonsterTypeID::MISC_INSANE, "Insane Grunt"}
+    {horde::MonsterTypeID::MISC_INSANE, "Insane Grunt"},
+	{horde::MonsterTypeID::FLIPPER, "Flipper"}
 };
 
 bool SpawnPointClear(edict_t* spot);

@@ -211,6 +211,7 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             {"monster_arachnid", MonsterTypeID::ARACHNID}, // 78
             {"monster_supertank", MonsterTypeID::SUPERTANK}, // 79
             {"monster_supertankkl", MonsterTypeID::SUPERTANKKL}, // 80
+            {"monster_flipper", MonsterTypeID::FLIPPER}, // 80
         };
     
         // Initialize the reverse mapping

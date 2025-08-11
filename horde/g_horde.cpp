@@ -102,16 +102,16 @@ namespace HordeConstants
 	constexpr float PLAYER_COUNT_SCALE = 0.2f;
 
 	// --- Monster Counts & Caps ---
-	constexpr int8_t MAX_MONSTERS_BIG_MAP = 32;
-	constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;
-	constexpr int8_t MAX_MONSTERS_SMALL_MAP = 14;
+	constexpr int8_t MAX_MONSTERS_BIG_MAP = 26;
+	constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 14;
+	constexpr int8_t MAX_MONSTERS_SMALL_MAP = 12;
 
 	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = {{
-		{{6, 8, 10, 12}},  // Small maps
-		{{8, 12, 14, 16}}, // Medium maps
-		{{15, 18, 23, 26}} // Large maps
+		{{4, 6, 8, 9}},    // Small maps (Reduced ~25-30%)
+		{{6, 9, 11, 12}},  // Medium maps (Reduced ~25%)
+		{{11, 14, 18, 20}} // Large maps (Reduced ~25%)
 	}};
-	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = {8, 7, 12};
+	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = {6, 5, 9}; // Reduced ~25%
 
 	// --- Spawn Point Cooldowns ---
 	constexpr gtime_t MIN_GLOBAL_SPAWN_COOLDOWN = 1.5_sec;
@@ -916,7 +916,7 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t wave
 	if (numHumanPlayers > 1)
 	{
 		constexpr int32_t MAX_BONUS_PLAYERS = 3; // Cap bonus contribution at 3 extra players (i.e., players 2, 3, 4)
-		constexpr int32_t BONUS_PER_PLAYER = 2;	 // +2 monsters per extra contributing player
+		constexpr int32_t BONUS_PER_PLAYER = 1;	 // +1 monsters per extra contributing player
 		const int32_t extraPlayers = std::min(numHumanPlayers - 1, MAX_BONUS_PLAYERS);
 		const int32_t playerBonus = extraPlayers * BONUS_PER_PLAYER;
 		finalAdjustedCap += playerBonus;
@@ -979,8 +979,8 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize &mapSize, int32_t lv
 	if (lvl <= 3) // No queue for first 3 waves still seems fine
 		return 0;
 
-	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
-	baseQueued *= (1.0f + (lvl) * 0.18f); // Base scaling with level
+	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 2.5f; // Reduced base from 3.0f
+	baseQueued *= (1.0f + (lvl) * 0.13f); // Reduced scaling from 0.18f
 
 	float mapSizeMultiplier = 1.0f;
 	if (mapSize.isSmallMap)
@@ -1008,7 +1008,7 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize &mapSize, int32_t lv
 	}
 	baseQueued *= mapSizeMultiplier;
 
-	const int32_t maxQueuedBase = mapSize.isSmallMap ? 25 : (mapSize.isBigMap ? 40 : 30); // Slightly reduced maxes
+	const int32_t maxQueuedBase = mapSize.isSmallMap ? 20 : (mapSize.isBigMap ? 32 : 25); // Reduced maxes
 	// Further reduce max queue for very early waves
 	int32_t maxQueued = maxQueuedBase;
 	if (lvl <= 7)
@@ -5573,12 +5573,12 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		return false;
 	self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 
-	if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) || (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET)))
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) || (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET) || (horde::IsMonsterType(self, horde::MonsterTypeID::FLIPPER))))
 		return false;
 
 	if (IsMonsterJumping(self))
 	{
-		self->teleport_time = level.time + 0.5_sec; // Don't teleport mid-jump
+		self->teleport_time = level.time + 1.5_sec; // Don't teleport mid-jump
 		return false;
 	}
 
