@@ -4152,8 +4152,6 @@ static void HandleForcedBossRemoval(edict_t *boss)
 	OnEntityRemoved(boss);
 }
 
-// In g_horde.cpp
-
 static void SpawnBossAutomatically()
 {
 	// --- IMMEDIATE GUARD ---
@@ -4187,7 +4185,6 @@ static void SpawnBossAutomatically()
 			it = auto_spawned_bosses.erase(it);
 		}
 	}
-	// Note: We do NOT reset boss_spawned_for_wave here anymore.
 
 	// --- 2. Basic Wave Check ---
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
@@ -4216,39 +4213,57 @@ static void SpawnBossAutomatically()
 	}
 
 	// --- 4. Determine Spawn Location ---
-	// ... (The rest of your location finding logic is perfect and does not need to change) ...
 	vec3_t spawn_origin = vec3_origin;
 	vec3_t spawn_angles = vec3_origin;
 	bool location_found = false;
-	// ... (Pass 1, Pass 2, Pass 3 logic) ...
+
+	// --- Pass 1 & 2: Find a valid designated spawn point ---
+	vec3_t predicted_mins, predicted_maxs;
+	GetPredictedScaledBounds(boss_type, predicted_mins, predicted_maxs);
+
+	std::vector<edict_t*> valid_spawn_points;
+	valid_spawn_points.reserve(32);
+	for (auto* spawn_point : monster_spawn_points()) {
+		if (spawn_point && spawn_point->inuse) {
+			valid_spawn_points.push_back(spawn_point);
+		}
+	}
+	if (!valid_spawn_points.empty()) {
+		std::shuffle(valid_spawn_points.begin(), valid_spawn_points.end(), mt_rand);
+	}
+
+	for (edict_t* spawn_point : valid_spawn_points) {
+		vec3_t check_pos = spawn_point->s.origin;
+		// Check if the boss can physically fit at the spawn point, ignoring other entities for now.
+		if (IsPositionPhysicallyValid(check_pos, predicted_mins, predicted_maxs, IsFlying(boss_type), true)) {
+			// Now check if it's occupied by a player or monster.
+			if (!IsSpawnPointOccupied(spawn_point)) {
+				spawn_origin = check_pos;
+				spawn_angles = spawn_point->s.angles;
+				location_found = true;
+				break; // Found a perfect spot, no need to search further.
+			}
+		}
+	}
 	
-	// --- Pass 3: Emergency Fallback (Only if Pass 1 & 2 failed) ---
+	// =======================================================================
+	// --- FIX: REMOVED THE EMERGENCY FALLBACK ---
+	// If no location was found after checking all designated points, we now
+	// fail gracefully and allow the system to try again on the next frame.
+	// =======================================================================
 	if (!location_found)
 	{
 		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: All spawn point attempts failed. Trying emergency spawn.\n");
-
-		vec3_t emergency_origin, emergency_angles;
-		bool used_human = false;
-		if (FindEmergencySpawnPosition(emergency_origin, emergency_angles, used_human, boss_type))
-		{
-			spawn_origin = emergency_origin;
-			spawn_angles = emergency_angles;
-			location_found = true;
-		}
-		else
-		{
-			if (developer->integer)
-				gi.Com_PrintFmt("SpawnBossAutomatically: CRITICAL - All spawn attempts failed for boss.\n");
-			boss_spawned_for_wave = false; // Reset flag on critical failure
-			return;
-		}
+			gi.Com_PrintFmt("SpawnBossAutomatically: All designated spawn points are currently blocked. Retrying next frame.\n");
+		
+		// CRITICAL: Reset the flag so this function can run again.
+		boss_spawned_for_wave = false; 
+		return; // Exit the function. Do NOT proceed to spawn.
 	}
 
-	// --- 5. Setup Delayed Spawn ---
+	// --- 5. Setup Delayed Spawn (Only runs if a valid location was found) ---
 	if (location_found)
 	{
-		// ... (Your logic to spawn the orb and the temporary boss entity is perfect) ...
 		edict_t *orb = G_Spawn();
 		if (orb)
 		{
@@ -4270,6 +4285,7 @@ static void SpawnBossAutomatically()
 		boss->bossSizeCategory = boss_pick_result.sizeCategory;
 		boss->owner = orb;
 
+		// This is now just for effect, as we've already confirmed the spot is clear.
 		PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
 
 		boss->nextthink = level.time + 750_ms;
