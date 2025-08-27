@@ -7,28 +7,24 @@
 
 // Private state for emitters, like blinking status.
 // Only one definition of EmitterState, with the clear() method.
-struct EmitterState
-{
-    bool is_warning_phase = false;
-    bool is_blink_on = false;
-    gtime_t last_blink_time = 0_ms;
 
-    // Add a clear() method for convenience
-    void clear() {
-        is_warning_phase = false;
-        is_blink_on = false;
-        last_blink_time = 0_ms;
-    }
-};
-
-static EmitterState g_emitter_states[MAX_EDICTS];
 
 static EmitterState* GetEmitterState(const edict_t* ent) {
-    if (!ent || !ent->inuse) {
-        return nullptr;
-    }
-    // The entity's number is its index into the global state array.
-    return &g_emitter_states[ent->s.number];
+    if (!ent) return nullptr;
+    auto it = g_emitter_states.find(ent);
+    return (it != g_emitter_states.end()) ? &it->second : nullptr;
+}
+
+static EmitterState* CreateEmitterState(edict_t* ent) {
+    if (!ent) return nullptr;
+    auto& state = g_emitter_states[ent];
+    state.clear();
+    return &state;
+}
+
+static void RemoveEmitterState(const edict_t* ent) {
+    if (!ent) return;
+    g_emitter_states.erase(ent);
 }
 
 // Forward declarations for internal functions
@@ -218,10 +214,7 @@ DIE(laser_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 
     // --- REVISED AND EFFICIENT Step 3 ---
     // Clean up all associated resources and entities.
-    EmitterState* state = GetEmitterState(emitter);
-    if (state) {
-        state->clear();
-    }
+    RemoveEmitterState(emitter);
 
     // Free known children directly using the stored pointers.
     // This is highly efficient and robust.
@@ -457,10 +450,7 @@ void create_laser(edict_t * ent)
     st.radius = 0.5f;
     ED_CallSpawn(flare, st);
 
-    EmitterState* state = GetEmitterState(emitter);
-    if (state) {
-        state->clear(); // Reset to default values
-    }
+    CreateEmitterState(emitter);
 
     gi.linkentity(emitter);
     gi.linkentity(beam);

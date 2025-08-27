@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../g_local.h" // Include necessary game definitions (like vec3_t, gtime_t, edict_t, MAX_EDICTS)
+#include "../g_local.h" 
 #include <array>
 #include <string_view>
 #include <unordered_map>

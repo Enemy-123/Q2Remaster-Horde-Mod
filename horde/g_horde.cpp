@@ -4599,6 +4599,8 @@ void ResetGame()
 	ResetWaveMemory();
 	ResetChampionMonsterState();
 	ResetBosses();
+
+	g_emitter_states.clear();
 	
     // =======================================================================
 	// --- UNIFIED RESET (THIS IS THE FIX) ---

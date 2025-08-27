@@ -5,6 +5,22 @@
 #include "horde/horde_ids.h"
 #include "horde/horde_ids.h"
 
+// LASERs
+struct EmitterState
+{
+    bool is_warning_phase = false;
+    bool is_blink_on = false;
+    gtime_t last_blink_time = 0_ms;
+
+    // Add a clear() method for convenience
+    void clear() {
+        is_warning_phase = false;
+        is_blink_on = false;
+        last_blink_time = 0_ms;
+    }
+};
+static std::unordered_map<const edict_t*, EmitterState> g_emitter_states;
+
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
 
