@@ -1,3 +1,4 @@
+//shared.h 
 #pragma once
 
 #include "g_local.h"
@@ -5,7 +6,16 @@
 #include "horde/horde_ids.h"
 #include "horde/horde_ids.h"
 
-// LASERs
+//TRAP
+
+// State for a single trap target
+struct trap_target_state_t {
+    int      entity_num; // Use entity number for safety
+    float    distance;
+};
+static std::unordered_map<const edict_t*, trap_state_t> g_trap_states;
+
+// LASERS
 struct EmitterState
 {
     bool is_warning_phase = false;

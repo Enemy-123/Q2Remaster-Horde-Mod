@@ -372,12 +372,6 @@ constexpr int TRAP_FRAME_ACTIVE = 4;           // Frame for active trap
 constexpr gtime_t TRAP_DURATION = 80_sec;         // Total trap lifetime in seconds
 
 
-// State for a single trap target
-struct trap_target_state_t {
-    int      entity_num; // Use entity number for safety
-    float    distance;
-};
-
 // The main state for a trap entity. Only Plain Old Data.
 struct trap_state_t {
     trap_target_state_t targets[TRAP_MAX_TARGETS];
@@ -396,11 +390,6 @@ struct trap_state_t {
         cooldown_end = 0_sec;
     }
 };
-
-// --- GLOBAL STATE ARRAY ---
-// This is the safe, engine-native replacement for `new`/`delete`.
-// It holds the state for every possible entity.
-static std::unordered_map<const edict_t*, trap_state_t> g_trap_states;
 
 // Helper to get a pointer to a trap's state.
 // Returns nullptr if the entity is invalid.

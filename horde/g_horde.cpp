@@ -4565,7 +4565,9 @@ void ResetGame()
 	ResetChampionMonsterState();
 	ResetBosses();
 
+    // --- FIX: Clear all global entity state maps ---
 	g_emitter_states.clear();
+	g_trap_states.clear();
 	
     // =======================================================================
 	// --- UNIFIED RESET (THIS IS THE FIX) ---
