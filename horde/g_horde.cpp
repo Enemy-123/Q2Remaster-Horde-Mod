@@ -6361,7 +6361,7 @@ static void RebuildSpawnPointCacheIfNeeded()
 		g_consecutive_spawn_failures = 0;
 
 		if (developer->integer)
-			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: %zu points shuffled (%d flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
+			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
 	}
 }
 
