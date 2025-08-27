@@ -139,10 +139,10 @@ std::span<edict_t *const> ProximityGrid::GetPotentialColliders(edict_t *ent)
     if (!m_is_built || !ent)
         return {};
 
-    static std::array<bool, MAX_EDICTS> already_added;
-    already_added.fill(false);
-
+    // Use a local set for deduplication. It's created and destroyed on each call.
+    std::unordered_set<edict_t*> already_added;
     size_t buffer_count = 0;
+
     int min_x = std::clamp(static_cast<int>((ent->absmin.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
     int max_x = std::clamp(static_cast<int>((ent->absmax.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
     int min_y = std::clamp(static_cast<int>((ent->absmin.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
@@ -153,28 +153,36 @@ std::span<edict_t *const> ProximityGrid::GetPotentialColliders(edict_t *ent)
         for (int x = min_x; x <= max_x; ++x)
         {
             int cell_idx = y * GRID_DIMENSION + x;
-            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
             const auto &cell = m_cells[static_cast<size_t>(cell_idx)];
             for (size_t i = 0; i < cell.count; ++i)
             {
                 edict_t *other = cell.monsters[i];
                 if (other != ent)
                 {
-                    const int other_idx = other - g_edicts;
-                    // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
-                    if (!already_added[static_cast<size_t>(other_idx)])
+                    // Use the set's insert method. It returns a pair,
+                    // where .second is true if the insertion was new.
+                    if (already_added.insert(other).second)
                     {
                         if (buffer_count < m_query_buffer.size())
                         {
                             m_query_buffer[buffer_count++] = other;
-                            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
-                            already_added[static_cast<size_t>(other_idx)] = true;
+                        }
+                        else 
+                        {
+                            // Optional: Log a warning if the buffer ever gets full
+                            if (developer->integer) {
+                                gi.Com_PrintFmt("ProximityGrid WARNING: GetPotentialColliders query buffer is full! (Max {})\n", m_query_buffer.size());
+                            }
+                            // Using goto to break out of nested loops cleanly
+                            goto end_loops;
                         }
                     }
                 }
             }
         }
     }
+
+end_loops:
     return {m_query_buffer.data(), buffer_count};
 }
 
@@ -188,18 +196,16 @@ void ProximityGrid::Reset()
     }
 }
 
- std::span<edict_t* const> ProximityGrid::QueryRadius(const vec3_t& origin, float radius) //distanced squared maybe?
+        std::span<edict_t* const> ProximityGrid::QueryRadius(const vec3_t& origin, float radius)
     {
         if (!m_is_built) {
             return {};
         }
 
-        // Use the same static buffer and deduplication logic as GetPotentialColliders
-        static std::array<bool, MAX_EDICTS> already_added;
-        already_added.fill(false);
+        // Use a local set here as well.
+        std::unordered_set<edict_t*> already_added;
         size_t buffer_count = 0;
 
-        // Determine the search area in grid coordinates
         const float inv_cs = m_inv_cell_size;
         const vec3_t& mins = m_world_mins;
 
@@ -208,35 +214,37 @@ void ProximityGrid::Reset()
         int min_y = std::clamp(static_cast<int>((origin.y - radius - mins.y) * inv_cs), 0, GRID_DIMENSION - 1);
         int max_y = std::clamp(static_cast<int>((origin.y + radius - mins.y) * inv_cs), 0, GRID_DIMENSION - 1);
 
-        // Iterate over the cells in the search area
         for (int y = min_y; y <= max_y; ++y)
         {
             for (int x = min_x; x <= max_x; ++x)
             {
                 const int cell_idx = y * GRID_DIMENSION + x;
-                // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
                 const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
 
                 for (size_t i = 0; i < cell.count; ++i)
                 {
                     edict_t* other = cell.monsters[i];
-                    const int other_idx = other - g_edicts;
-
-                    // Add to buffer if not already present
-                    // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
-                    if (!already_added[static_cast<size_t>(other_idx)])
+                    
+                    // Use the set's insert method.
+                    if (already_added.insert(other).second)
                     {
                         if (buffer_count < m_query_buffer.size())
                         {
                             m_query_buffer[buffer_count++] = other;
-                            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
-                            already_added[static_cast<size_t>(other_idx)] = true;
                         }
-                        // Optional: else log a warning that the query buffer is full
+                        else 
+                        {
+                            if (developer->integer) {
+                                gi.Com_PrintFmt("ProximityGrid WARNING: QueryRadius query buffer is full! (Max {})\n", m_query_buffer.size());
+                            }
+                            goto end_loops;
+                        }
                     }
                 }
             }
         }
+
+    end_loops:
         return { m_query_buffer.data(), buffer_count };
     }
 

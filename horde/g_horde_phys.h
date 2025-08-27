@@ -61,7 +61,8 @@ namespace HordePhys {
         //std::array<float, CELL_COUNT> m_cell_ground_z;
         //std::array<bool, CELL_COUNT> m_is_cell_verified; // Internal helper for Build()
 
-        std::array<edict_t*, MAX_EDICTS> m_query_buffer;
+    static constexpr size_t MAX_QUERY_RESULTS = 512; 
+    std::array<edict_t*, MAX_QUERY_RESULTS> m_query_buffer;
 
         vec3_t m_world_mins;
         float m_cell_size = 0.0f;
