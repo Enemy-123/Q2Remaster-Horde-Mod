@@ -13,6 +13,28 @@ struct trap_target_state_t {
     int      entity_num; // Use entity number for safety
     float    distance;
 };
+
+constexpr int TRAP_MAX_TARGETS = 3;            // Maximum number of targets
+
+// The main state for a trap entity. Only Plain Old Data.
+struct trap_state_t {
+    trap_target_state_t targets[TRAP_MAX_TARGETS];
+    int                 num_targets;
+    bool                in_cooldown;
+    gtime_t             cooldown_end;
+
+    // Helper to reset the state to its default values
+    void clear() {
+        for (auto& target : targets) {
+            target.entity_num = 0;
+            target.distance = 0.0f;
+        }
+        num_targets = 0;
+        in_cooldown = false;
+        cooldown_end = 0_sec;
+    }
+};
+
 static std::unordered_map<const edict_t*, trap_state_t> g_trap_states;
 
 // LASERS

@@ -355,13 +355,14 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	gi.linkentity(plasma);
 }
 
+#include "../shared.h"
+
 // Constants for trap positioning and behavior
 constexpr float TRAP_WALL_OFFSET = 3.0f;       // Offset for walls
 constexpr float TRAP_CEILING_OFFSET = -20.4f;  // Offset for ceilings
 constexpr float TRAP_FLOOR_OFFSET = -12.0f;    // Offset for floor
 constexpr float TRAP_ORB_OFFSET = 12.0f;       // Normal sphere height
 constexpr float TRAP_ORB_OFFSET_CEIL = -18.0f; // Ceiling sphere height
-constexpr int TRAP_MAX_TARGETS = 3;            // Maximum number of targets
 constexpr float TRAP_RADIUS = 400.0f;          // Trap pull radius
 constexpr float TRAP_RADIUS_SQUARED = TRAP_RADIUS * TRAP_RADIUS; // Pre-computed squared radius
 constexpr float TRAP_CONSUME_DISTANCE = 48.0f; // Distance at which trap consumes target
@@ -370,26 +371,6 @@ constexpr int TRAP_WAIT_START = 64;            // Initial wait value for consumi
 constexpr int TRAP_FRAME_CONSUME = 5;          // Frame for consumption animation
 constexpr int TRAP_FRAME_ACTIVE = 4;           // Frame for active trap
 constexpr gtime_t TRAP_DURATION = 80_sec;         // Total trap lifetime in seconds
-
-
-// The main state for a trap entity. Only Plain Old Data.
-struct trap_state_t {
-    trap_target_state_t targets[TRAP_MAX_TARGETS];
-    int                 num_targets;
-    bool                in_cooldown;
-    gtime_t             cooldown_end;
-
-    // Helper to reset the state to its default values
-    void clear() {
-        for (auto& target : targets) {
-            target.entity_num = 0;
-            target.distance = 0.0f;
-        }
-        num_targets = 0;
-        in_cooldown = false;
-        cooldown_end = 0_sec;
-    }
-};
 
 // Helper to get a pointer to a trap's state.
 // Returns nullptr if the entity is invalid.
