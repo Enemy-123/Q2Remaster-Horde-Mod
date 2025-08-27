@@ -228,10 +228,8 @@ bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_hum
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
 edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool link_immediately = true);
 static void AnnounceIncomingWave(gtime_t duration = 3_sec);
-bool EmergencySpawnMonster(const int32_t levelNum,
-						   horde::MonsterTypeID typeId,
-						   bool is_additional_monster,
-						   float champion_chance_for_this_spawn);
+bool EmergencySpawnMonster(const int32_t levelNum,horde::MonsterTypeID typeId,bool is_additional_monster,float champion_chance_for_this_spawn);
+static edict_t *FindBestPlayerTargetForTeleport();
 
 static edict_t* Horde_SpawnMonster(
     const vec3_t& origin,
@@ -4140,16 +4138,16 @@ static void HandleForcedBossRemoval(edict_t *boss)
 	OnEntityRemoved(boss);
 }
 
+// =======================================================================
+// REPLACEMENT: SpawnBossAutomatically (Uses designated map origin)
+// =======================================================================
 static void SpawnBossAutomatically()
 {
 	// --- IMMEDIATE GUARD ---
-	// If a boss has already been spawned OR IS IN THE PROCESS of spawning, do nothing.
 	if (boss_spawned_for_wave) {
 		return;
 	}
-	// Set the flag immediately to prevent this function from being called again this wave.
-	boss_spawned_for_wave = true;
-	// --- END GUARD ---
+	boss_spawned_for_wave = true; // Set flag immediately to prevent re-entry
 
 	// --- 1. Cleanup Existing Bosses ---
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment */)
@@ -4159,127 +4157,92 @@ static void SpawnBossAutomatically()
 		{
 			if (existing_boss->health > 0 && !existing_boss->deadflag) {
 				HandleForcedBossRemoval(existing_boss);
-			} else {
-				if (!existing_boss->monsterinfo.BOSS_DEATH_HANDLED) {
-					BossDeathHandler(existing_boss);
-				}
+			} else if (!existing_boss->monsterinfo.BOSS_DEATH_HANDLED) {
+				BossDeathHandler(existing_boss);
 			}
 			OnEntityRemoved(existing_boss);
 			G_FreeEdict(existing_boss);
-			it = auto_spawned_bosses.erase(it);
 		}
-		else
-		{
-			it = auto_spawned_bosses.erase(it);
-		}
+		it = auto_spawned_bosses.erase(it);
 	}
 
 	// --- 2. Basic Wave Check ---
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
-		boss_spawned_for_wave = false; // It's not a boss wave, so reset the flag and exit.
+		boss_spawned_for_wave = false; // Not a boss wave, reset flag and exit.
 		return;
 	}
 
 	// --- 3. Select Boss Type ---
 	const char *map_name = GetCurrentMapName();
-	BossPickResult boss_pick_result = G_HordePickBOSSType(
-		g_horde_local.current_map_size, map_name, g_horde_local.level);
+	BossPickResult boss_pick_result = G_HordePickBOSSType(g_horde_local.current_map_size, map_name, g_horde_local.level);
 
-	horde::MonsterTypeID boss_type = boss_pick_result.typeId;
-	if (boss_type == horde::MonsterTypeID::UNKNOWN) {
+	if (boss_pick_result.typeId == horde::MonsterTypeID::UNKNOWN) {
 		if (developer->integer)
 			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to pick a boss type for wave {}.\n", g_horde_local.level);
 		boss_spawned_for_wave = false; // Reset flag on failure
 		return;
 	}
-	const char *boss_classname = horde::MonsterTypeRegistry::GetClassname(boss_type);
-	if (!boss_classname) {
+
+	// --- 4. Determine Spawn Location from MapOriginRegistry ---
+	vec3_t spawn_origin;
+	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
+	if (!horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin))
+	{
 		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to get classname for boss type ID {}.\n", static_cast<int>(boss_type));
+			gi.Com_PrintFmt("SpawnBossAutomatically: No designated boss spawn origin found for map '{}'. Retrying next frame.\n", map_name);
+		boss_spawned_for_wave = false; // Reset flag and try again later
+		return;
+	}
+
+	// --- 5. Validate the Designated Spawn Location ---
+	vec3_t predicted_mins, predicted_maxs;
+	GetPredictedScaledBounds(boss_pick_result.typeId, predicted_mins, predicted_maxs);
+	
+	// We must clear the area before checking validity, as other monsters/players might be there.
+	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
+
+	if (!IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId), true))
+	{
+		if (developer->integer)
+			gi.Com_PrintFmt("SpawnBossAutomatically: Designated boss spawn at {} is blocked by world geometry. Retrying next frame.\n", spawn_origin);
+		boss_spawned_for_wave = false; // Reset flag and try again later
+		return;
+	}
+
+	// --- 6. Setup Delayed Spawn ---
+	edict_t *orb = G_Spawn();
+	if (orb)
+	{
+		orb->classname = "target_orb";
+		orb->s.origin = spawn_origin;
+		SP_target_orb(orb);
+	}
+
+	edict_t *boss = G_Spawn();
+	if (!boss)
+	{
 		boss_spawned_for_wave = false; // Reset flag on failure
 		return;
 	}
 
-	// --- 4. Determine Spawn Location ---
-	vec3_t spawn_origin = vec3_origin;
-	vec3_t spawn_angles = vec3_origin;
-	bool location_found = false;
-
-	// --- Pass 1 & 2: Find a valid designated spawn point ---
-	vec3_t predicted_mins, predicted_maxs;
-	GetPredictedScaledBounds(boss_type, predicted_mins, predicted_maxs);
-
-	std::vector<edict_t*> valid_spawn_points;
-	valid_spawn_points.reserve(32);
-	for (auto* spawn_point : monster_spawn_points()) {
-		if (spawn_point && spawn_point->inuse) {
-			valid_spawn_points.push_back(spawn_point);
-		}
-	}
-	if (!valid_spawn_points.empty()) {
-		std::shuffle(valid_spawn_points.begin(), valid_spawn_points.end(), mt_rand);
+	boss->classname = horde::MonsterTypeRegistry::GetClassname(boss_pick_result.typeId);
+	boss->s.origin = spawn_origin;
+	// Bosses should generally face the center of the map or a key area.
+	// For simplicity, we'll have them face a player.
+	edict_t* target_player = FindBestPlayerTargetForTeleport();
+	if (target_player) {
+		vec3_t dir = target_player->s.origin - spawn_origin;
+		boss->s.angles = vectoangles(dir);
+	} else {
+		boss->s.angles = vec3_origin;
 	}
 
-	for (edict_t* spawn_point : valid_spawn_points) {
-		vec3_t check_pos = spawn_point->s.origin;
-		// Check if the boss can physically fit at the spawn point, ignoring other entities for now.
-		if (IsPositionPhysicallyValid(check_pos, predicted_mins, predicted_maxs, IsFlying(boss_type), true)) {
-			// Now check if it's occupied by a player or monster.
-			if (!IsSpawnPointOccupied(spawn_point)) {
-				spawn_origin = check_pos;
-				spawn_angles = spawn_point->s.angles;
-				location_found = true;
-				break; // Found a perfect spot, no need to search further.
-			}
-		}
-	}
-	
-	// =======================================================================
-	// --- FIX: REMOVED THE EMERGENCY FALLBACK ---
-	// If no location was found after checking all designated points, we now
-	// fail gracefully and allow the system to try again on the next frame.
-	// =======================================================================
-	if (!location_found)
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: All designated spawn points are currently blocked. Retrying next frame.\n");
-		
-		// CRITICAL: Reset the flag so this function can run again.
-		boss_spawned_for_wave = false; 
-		return; // Exit the function. Do NOT proceed to spawn.
-	}
+	boss->bossSizeCategory = boss_pick_result.sizeCategory;
+	boss->owner = orb;
 
-	// --- 5. Setup Delayed Spawn (Only runs if a valid location was found) ---
-	if (location_found)
-	{
-		edict_t *orb = G_Spawn();
-		if (orb)
-		{
-			orb->classname = "target_orb";
-			orb->s.origin = spawn_origin;
-			SP_target_orb(orb);
-		}
-
-		edict_t *boss = G_Spawn();
-		if (!boss)
-		{
-			boss_spawned_for_wave = false; // Reset flag on failure
-			return;
-		}
-
-		boss->classname = boss_classname;
-		boss->s.origin = spawn_origin;
-		boss->s.angles = spawn_angles;
-		boss->bossSizeCategory = boss_pick_result.sizeCategory;
-		boss->owner = orb;
-
-		// This is now just for effect, as we've already confirmed the spot is clear.
-		PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
-
-		boss->nextthink = level.time + 750_ms;
-		boss->think = BossSpawnThink;
-		gi.linkentity(boss);
-	}
+	boss->nextthink = level.time + 750_ms;
+	boss->think = BossSpawnThink;
+	gi.linkentity(boss);
 }
 
 void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
