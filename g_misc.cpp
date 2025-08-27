@@ -2003,7 +2003,7 @@ void SP_func_clock(edict_t* self)
 }
 
 //=================================================================================
-edict_t* FindRandomHordeSpawnPoint(bool for_flying_monster);
+std::optional<edict_t*> FindRandomHordeSpawnPoint(bool for_flying_monster);
 bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, const vec3_t &destination_angles, bool play_effects, bool force_despite_visibility);
  bool IsFlying(horde::MonsterTypeID typeId);
 
@@ -2020,7 +2020,7 @@ TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool 
 			return; // Bosses ignore this teleporter.
 		}
 
-		if (horde::IsMonsterType(other, horde::MonsterTypeID::MISC_INSANE) || 
+		if (horde::IsMonsterType(other, horde::MonsterTypeID::MISC_INSANE) ||
 			horde::IsMonsterType(other, horde::MonsterTypeID::SENTRYGUN) ||
 			horde::IsMonsterType(other, horde::MonsterTypeID::TURRET))
 		{
@@ -2034,12 +2034,15 @@ TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool 
 		horde::MonsterTypeID monster_type_id = horde::MonsterTypeRegistry::GetTypeID(other->classname);
 		bool monster_is_flying = IsFlying(monster_type_id);
 
-		edict_t* dest_point = FindRandomHordeSpawnPoint(monster_is_flying);
-
-		if (dest_point)
+		// *** THIS IS THE FIX ***
+		// 1. Call the new function that returns std::optional.
+		// 2. Check if the optional has a value.
+		if (auto dest_point_opt = FindRandomHordeSpawnPoint(monster_is_flying))
 		{
-			// THE FIX: Change the last argument from 'false' to 'true'.
-			// This forces the teleport to happen even if the monster can see its enemy,
+			// 3. Dereference the optional to get the actual edict_t* pointer.
+			edict_t* dest_point = *dest_point_opt;
+
+			// Force the teleport to happen even if the monster can see its enemy,
 			// which is the correct behavior for a teleporter pad.
 			if (Horde_TeleportMonster(other, dest_point->s.origin, dest_point->s.angles, true, true))
 			{
