@@ -17,6 +17,8 @@ static std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
 static size_t g_num_spawn_points = 0;
 
+static bool g_spawn_map_needs_build = true;
+
 // *** NEW: Use std::unordered_map instead of a giant static array ***
 static std::unordered_map<const edict_t*, gtime_t> last_boss_teleport_attempt_time;
 
@@ -3488,7 +3490,7 @@ void Horde_Init()
 	last_wave_number = 0;
 
 	AllowReset();
-	BuildSpawnPointMap();
+	g_spawn_map_needs_build = true; // SET THE FLAG INSTEAD
 	ResetGame(); // This will call RebuildSpawnPointCacheIfNeeded indirectly or directly
 
 	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
@@ -6338,50 +6340,28 @@ static void RebuildSpawnPointCacheIfNeeded()
 {
 	if (!g_spawn_points_cached || need_spawn_cache_reset)
 	{
-		g_potential_spawn_points.clear();
-		g_potential_spawn_points.reserve(MAX_SPAWN_POINTS);
-		g_cached_flying_spawn_count = 0; // This line should now work correctly
+		g_potential_spawn_points = g_spawn_point_list;
 
-		for (auto *point : monster_spawn_points())
-		{
-			if (point && point->inuse && point->classname && strcmp(point->classname, "info_player_deathmatch") == 0 && is_valid_vector(point->s.origin))
-			{
-				if (g_potential_spawn_points.size() < MAX_SPAWN_POINTS)
-				{
-					g_potential_spawn_points.push_back(point);
-					if (point->style == 1)
-					{
-						g_cached_flying_spawn_count++; // This should now work
-					}
-				}
-				else if (developer->integer)
-				{
-					gi.Com_PrintFmt("RebuildSpawnPointCacheIfNeeded: Warning - Exceeded MAX_SPAWN_POINTS ({}) while caching.\n", MAX_SPAWN_POINTS);
-					break;
-				}
+		g_cached_flying_spawn_count = 0;
+		for (const auto* point : g_potential_spawn_points) {
+			if (point->style == 1) {
+				g_cached_flying_spawn_count++;
 			}
 		}
+
 		if (!g_potential_spawn_points.empty())
 		{
-			// Shuffle the collected points
-			for (size_t i = g_potential_spawn_points.size() - 1; i > 0; --i)
-			{
-				// FIX: Explicitly cast the result of irandom to size_t, and the argument 'i' to int32_t.
-				size_t j = static_cast<size_t>(irandom(0, static_cast<int32_t>(i)));
-				if (i != j)
-				{
-					std::swap(g_potential_spawn_points[i], g_potential_spawn_points[j]);
-				}
-			}
+			// *** THIS IS THE FIX: Use the global mt_rand instance ***
+			std::shuffle(g_potential_spawn_points.begin(), g_potential_spawn_points.end(), mt_rand);
 		}
+
 		g_spawn_point_shuffle_index = 0;
 		g_spawn_points_cached = true;
 		need_spawn_cache_reset = false;
-		// Reset g_consecutive_spawn_failures if cache was rebuilt, as point validity might have changed.
-		// This was already present and is good.
 		g_consecutive_spawn_failures = 0;
+
 		if (developer->integer)
-			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
+			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: %zu points shuffled (%d flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
 	}
 }
 
@@ -7372,6 +7352,14 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 // It runs before each wave to load only the assets needed for that specific wave.
 static void Horde_InitLevel(const int32_t lvl)
 {
+
+	// Build the map of spawn points once, right before the first wave,
+    // ensuring all map entities have been loaded.
+    if (g_spawn_map_needs_build) {
+        BuildSpawnPointMap();
+        g_spawn_map_needs_build = false;
+    }
+
     g_spawn_plan.clear();
     g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
     g_horde_retaliation_active = false; // Keep this for now
