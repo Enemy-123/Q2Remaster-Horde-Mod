@@ -17,6 +17,9 @@ static std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
 static size_t g_num_spawn_points = 0;
 
+// *** NEW: Use std::unordered_map instead of a giant static array ***
+static std::unordered_map<const edict_t*, gtime_t> last_boss_teleport_attempt_time;
+
 // Forward declaration for the new map-building function
 static void BuildSpawnPointMap();
 
@@ -3867,11 +3870,7 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 		return false;
 	}
 
-	if (!self)
-	{
-		return false;
-	}
-	if (!self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS || !g_horde || !g_horde->integer)
+	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS || !g_horde || !g_horde->integer)
 	{
 		if (developer->integer > 1)
 		{
@@ -3883,7 +3882,7 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 		return false;
 	}
 
-	static char last_map_name_boss_teleport[MAX_QPATH] = ""; // Assuming MAX_QPATH is available for map names
+	static char last_map_name_boss_teleport[MAX_QPATH] = "";
 	static horde::MapID cached_map_id_boss_teleport = horde::MapID::UNKNOWN;
 	const char *current_map = GetCurrentMapName();
 
@@ -3919,20 +3918,22 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 	constexpr gtime_t DROWNING_COOLDOWN_BOSS = 1_sec;
 	const gtime_t selected_trigger_cooldown = (reason == BossTeleportReason::DROWNING) ? DROWNING_COOLDOWN_BOSS : TRIGGER_HURT_RETRIGGER_COOLDOWN;
 
-	static gtime_t last_boss_teleport_attempt_time[MAX_EDICTS] = {};
-	const int boss_edict_num = self - g_edicts;
 
-	if (level.time < last_boss_teleport_attempt_time[boss_edict_num] + selected_trigger_cooldown)
+
+	auto it = last_boss_teleport_attempt_time.find(self);
+	if (it != last_boss_teleport_attempt_time.end() && level.time < it->second + selected_trigger_cooldown)
 	{
 		if (developer->integer > 1)
 		{
-			gtime_t cooldown_remaining = (last_boss_teleport_attempt_time[boss_edict_num] + selected_trigger_cooldown) - level.time;
+			// *** FIX: Use it->second to get the timestamp from the map ***
+			gtime_t cooldown_remaining = (it->second + selected_trigger_cooldown) - level.time;
 			gi.Com_PrintFmt("CTB: Boss {} on REASON-specific cooldown. Remaining: {:.2f}s\n",
 							self->classname ? self->classname : "UNKNOWN",
 							cooldown_remaining.seconds());
 		}
 		return false;
 	}
+
 	if (self->teleport_time > level.time)
 	{
 		if (developer->integer > 1)
@@ -3945,7 +3946,8 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 		return false;
 	}
 
-	last_boss_teleport_attempt_time[boss_edict_num] = level.time;
+	// *** NEW: Update the map with the current time ***
+	last_boss_teleport_attempt_time[self] = level.time;
 
 	bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING);
 
@@ -3981,7 +3983,6 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 
 	PushEntitiesAway(self->s.origin, 3, 600.0f, 1200.0f, 4000.0f, 1800.0f);
 
-	// MODIFIED GUARD for SpawnGrow_Spawn
 	if (self->inuse && !self->deadflag && self->health > 0)
 	{
 		SpawnGrow_Spawn(self->s.origin, 100.0f, 15.0f);
@@ -4587,6 +4588,7 @@ void ResetGame()
 	g_recent_spawn_index = 0;
 
 	// recent teleport
+	last_boss_teleport_attempt_time.clear();
 	ResetTeleportTracking();
 	ResetPlayerDeployedItems();
 	HordeConstants::g_teleport_rate_count = 0;

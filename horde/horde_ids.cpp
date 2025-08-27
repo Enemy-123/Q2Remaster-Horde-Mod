@@ -277,31 +277,18 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
     //
 
     void SpawnPointTimeTracker::Reset() {
-        m_lastSpawnTimes.fill(0_sec);
+        m_lastSpawnTimes.clear();
     }
 
     void SpawnPointTimeTracker::SetLastSpawnTime(const edict_t* point, gtime_t time) {
-        if (!point) {
-            return;
-        }
-
-        // FIX: Explicitly cast the result of pointer subtraction (a signed ptrdiff_t)
-        // to the unsigned size_t required for an array index. This is safe here.
-        size_t index = static_cast<size_t>(point - g_edicts);
-        if (index < m_lastSpawnTimes.size()) {
-            m_lastSpawnTimes[index] = time;
-        }
+        if (!point) return;
+        m_lastSpawnTimes[point] = time;
     }
 
     gtime_t SpawnPointTimeTracker::GetLastSpawnTime(const edict_t* point) const {
-        if (!point) {
-            return 0_sec;
-        }
-
-        // FIX: Explicitly cast the result of pointer subtraction (a signed ptrdiff_t)
-        // to the unsigned size_t required for an array index. This is safe here.
-        size_t index = static_cast<size_t>(point - g_edicts);
-        return (index < m_lastSpawnTimes.size()) ? m_lastSpawnTimes[index] : 0_sec;
+        if (!point) return 0_sec;
+        auto it = m_lastSpawnTimes.find(point);
+        return (it != m_lastSpawnTimes.end()) ? it->second : 0_sec;
     }
 
     //

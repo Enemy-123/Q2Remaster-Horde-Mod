@@ -301,7 +301,7 @@ public:
         gtime_t GetLastSpawnTime(const edict_t* point) const;
 
     private:
-        std::array<gtime_t, MAX_EDICTS> m_lastSpawnTimes{};
+         std::unordered_map<const edict_t*, gtime_t> m_lastSpawnTimes;
     };
 
     // Create global instances

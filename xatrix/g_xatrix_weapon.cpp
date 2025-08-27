@@ -400,18 +400,34 @@ struct trap_state_t {
 // --- GLOBAL STATE ARRAY ---
 // This is the safe, engine-native replacement for `new`/`delete`.
 // It holds the state for every possible entity.
-static trap_state_t g_trap_states[MAX_EDICTS];
+static std::unordered_map<const edict_t*, trap_state_t> g_trap_states;
 
 // Helper to get a pointer to a trap's state.
 // Returns nullptr if the entity is invalid.
 static trap_state_t* GetTrapState(const edict_t* ent) {
-    if (!ent || !ent->inuse) {
-        return nullptr;
+    if (!ent) return nullptr;
+    auto it = g_trap_states.find(ent);
+    if (it != g_trap_states.end()) {
+        return &it->second;
     }
-    // The entity's number is its index into the global state array.
-    return &g_trap_states[ent->s.number];
+    return nullptr;
 }
 
+// NEW function to create state for a new trap
+static trap_state_t* CreateTrapState(edict_t* ent) {
+    if (!ent) return nullptr;
+    // This creates a new entry if it doesn't exist, or returns the existing one.
+    // .first is an iterator to the element, .second is a bool indicating if it was newly inserted.
+    auto& state = g_trap_states[ent];
+    state.clear(); // Ensure it's in a clean state
+    return &state;
+}
+
+// NEW function to remove state when a trap is destroyed
+static void RemoveTrapState(const edict_t* ent) {
+    if (!ent) return;
+    g_trap_states.erase(ent);
+}
 // Modified to throw sparks at a specific target
 // Modified to throw sparks at a specific target with improved validation
 void trap_throwsparks(edict_t* self, edict_t* target)
@@ -515,10 +531,7 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     }
 
     // --- CLEAN UP GLOBAL STATE ---
-    trap_state_t* state = GetTrapState(self);
-    if (state) {
-        state->clear();
-    }
+    RemoveTrapState(self); 
 
     BecomeExplosion1(self);
 }
@@ -1038,10 +1051,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
     // --- INITIALIZE STATE ---
     // Get the state for this new trap and clear it.
-    trap_state_t* state = GetTrapState(trap);
-    if (state) {
-        state->clear();
-    }
+    CreateTrapState(trap); 
 
     gi.linkentity(trap);
     trap->timestamp = level.time + TRAP_DURATION;
