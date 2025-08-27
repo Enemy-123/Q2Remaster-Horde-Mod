@@ -103,9 +103,6 @@ namespace LaserHelpers
     // get_laser_manager is now DELETED
 }
 
-// --- Pierce Logic (Unchanged) ---
-// In g_laser.cpp
-
 struct laser_pierce_t : pierce_args_t
 {
     edict_t *self; // The beam entity
@@ -121,8 +118,16 @@ struct laser_pierce_t : pierce_args_t
             return true; 
         }
 
-        if (tr.ent->client && OnSameTeam(self->teammaster, tr.ent))
-            return false;
+        // --- START OF FIX ---
+        // Replace the player-only check with a generic friendly fire check.
+        // CheckTeamDamage returns true if damage is ALLOWED. We want to stop if it's NOT allowed.
+        // This correctly identifies friendly players, traps, sentries, and other defenses.
+        // We assume a CheckTeamDamage function exists, as it's used elsewhere in the provided code.
+        if (tr.ent->takedamage && !CheckTeamDamage(tr.ent, self->teammaster)) {
+            return false; // It's a friendly target, stop the beam and do no damage.
+        }
+        // --- END OF FIX ---
+
 
         // --- START OF NEW DAMAGE LOGIC ---
         if (self->dmg > 0 && tr.ent->takedamage && tr.ent != self->teammaster)

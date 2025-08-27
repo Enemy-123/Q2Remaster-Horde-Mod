@@ -2291,7 +2291,7 @@ MAKE_ENUM_BITFLAGS(damageflags_t);
 //
 // g_combat.c
 //
-bool OnSameTeam(edict_t* ent1, edict_t* ent2);
+bool OnSameTeam(const edict_t* ent1, const edict_t* ent2);
 bool CanDamage(edict_t* targ, edict_t* inflictor);
 bool CheckTeamDamage(edict_t* targ, edict_t* attacker);
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
