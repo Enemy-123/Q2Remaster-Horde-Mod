@@ -2002,6 +2002,7 @@ void SP_func_clock(edict_t* self)
 		self->nextthink = level.time + 1_sec;
 }
 
+#include <optional>
 //=================================================================================
 std::optional<edict_t*> FindRandomHordeSpawnPoint(bool for_flying_monster);
 bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, const vec3_t &destination_angles, bool play_effects, bool force_despite_visibility);
