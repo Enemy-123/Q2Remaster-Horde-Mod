@@ -998,7 +998,7 @@ static void G_SetClientEffects(edict_t* ent)
  * This function handles the periodic regeneration of ammunition for different
  * weapon types. The regeneration rate increases when the player is on a kill streak.
  *
- * @param ent Pointer to the player entity
+ * MOD: Increased ammo amounts and regeneration speed based on player feedback.
  */
 static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	// Safety checks
@@ -1026,9 +1026,10 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 
 	// Set next regeneration time based on player's spree count
 	// Faster regeneration when on a high kill streak
-	constexpr gtime_t REGEN_TIME_FAST = 3.5_sec;    // 5 seconds
-	constexpr gtime_t REGEN_TIME_NORMAL = 7_sec; // 10 seconds
-	constexpr int SPREE_THRESHOLD = 20;           // Spree threshold for faster regen
+	// MOD: Reduced regen times to make ammo gain more frequent.
+	constexpr gtime_t REGEN_TIME_FAST = 2.5_sec;    // Was 3.5 seconds
+	constexpr gtime_t REGEN_TIME_NORMAL = 5_sec;    // Was 7 seconds
+	constexpr int SPREE_THRESHOLD = 15;             // Spree threshold for faster regen
 
 	client->ammoregentime = level.time +
 		(client->resp.spree >= SPREE_THRESHOLD ? REGEN_TIME_FAST : REGEN_TIME_NORMAL);
@@ -1044,27 +1045,29 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	} AmmoRegenRule;
 
 	// Calculate dynamic amounts based on game settings
-	const int bulletAmount = g_energyshells->integer ? 120 :
-		(g_tracedbullets->integer ? 45 : 30);
-	const int grenadeAmount = g_bouncygl->integer ? 10 : 6;
-	const int cellAmount = g_bfgpull->integer ? 75 : 25;
-	const int proxAmount = g_upgradeproxs->integer ? 15 : 6;
+	// MOD: Increased base amounts for dynamic calculations.
+	const int bulletAmount = g_energyshells->integer ? 150 :
+		(g_tracedbullets->integer ? 60 : 45);       // Was 120 / 45 / 30
+	const int grenadeAmount = g_bouncygl->integer ? 15 : 10;    // Was 10 / 6
+	const int cellAmount = g_bfgpull->integer ? 100 : 40;       // Was 75 / 25
+	const int proxAmount = g_upgradeproxs->integer ? 20 : 10;   // Was 15 / 6
 
 	// Define the regeneration rules
+	// MOD: Increased the 'Amount' field for all ammo types.
 	const AmmoRegenRule regenRules[] = {
 		// Weapon check, Weapon ID,           Alt Weapon ID,        Ammo ID,           Max Ammo ID,      Amount
-		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,    AMMO_SHELLS,      8},
+		{1,             IT_WEAPON_SHOTGUN,    IT_WEAPON_SSHOTGUN,   IT_AMMO_SHELLS,    AMMO_SHELLS,      12},            // Was 8
 		{1,             IT_WEAPON_MACHINEGUN, IT_WEAPON_CHAINGUN,   IT_AMMO_BULLETS,   AMMO_BULLETS,     bulletAmount},
 		{0,             0,                    0,                    IT_AMMO_GRENADES,  AMMO_GRENADES,    grenadeAmount},
-		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,   AMMO_ROCKETS,     6},
-		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,     AMMO_CELLS,       cellAmount}, // Energy weapons handled specially
-		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,     AMMO_SLUGS,       6},
-		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,   AMMO_MAGSLUG,     9},
-		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES,AMMO_FLECHETTES,  25},
-		{1,             IT_WEAPON_PROXLAUNCHER, 0,                  IT_AMMO_PROX,      AMMO_PROX,        proxAmount},
-		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,    AMMO_DISRUPTOR,   4},
-		{0,             0,                    0,                    IT_AMMO_TESLA,     AMMO_TESLA,       2},
-		{0,             0,                    0,                    IT_AMMO_TRAP,      AMMO_TRAP,        1}
+		{1,             IT_WEAPON_RLAUNCHER,  0,                    IT_AMMO_ROCKETS,   AMMO_ROCKETS,     9},             // Was 6
+		{1,             IT_WEAPON_HYPERBLASTER, 0,                  IT_AMMO_CELLS,     AMMO_CELLS,       cellAmount},
+		{1,             IT_WEAPON_RAILGUN,    0,                    IT_AMMO_SLUGS,     AMMO_SLUGS,       10},            // Was 6
+		{1,             IT_WEAPON_PHALANX,    0,                    IT_AMMO_MAGSLUG,   AMMO_MAGSLUG,     15},            // Was 9
+		{1,             IT_WEAPON_ETF_RIFLE,  0,                    IT_AMMO_FLECHETTES,AMMO_FLECHETTES,  40},            // Was 25
+		{1,             IT_WEAPON_PROXLAUNCHER,    0,                    IT_AMMO_PROX,      AMMO_PROX,        proxAmount},
+		{1,             IT_WEAPON_DISRUPTOR,  0,                    IT_AMMO_ROUNDS,    AMMO_DISRUPTOR,   6},             // Was 4
+		{0,             0,                    0,                    IT_AMMO_TESLA,     AMMO_TESLA,       3},             // Was 2
+		{0,             0,                    0,                    IT_AMMO_TRAP,      AMMO_TRAP,        2}              // Was 1
 	};
 
 	// Apply all regeneration rules
@@ -1123,7 +1126,6 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		}
 	}
 }
-
 /*
 ===============
 G_SetClientEvent
