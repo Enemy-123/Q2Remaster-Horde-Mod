@@ -187,9 +187,9 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// Check for NaN direction (shouldn't happen but good for safety)
 	if (std::isnan(dir[0]) || std::isnan(dir[1]) || std::isnan(dir[2]))
 	{
-// #if defined(_DEBUG) && defined(_WIN32)
-// 		__debugbreak(); // Break in debug builds if NaN occurs
-// #endif
+ #if defined(_DEBUG) && defined(_WIN32)
+		__debugbreak(); // Break in debug builds if NaN occurs
+ #endif
 		return false;
 	}
 

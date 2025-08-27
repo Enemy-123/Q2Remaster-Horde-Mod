@@ -820,9 +820,9 @@ void G_MonsterKilled(edict_t* self)
 		// If the monster wasn't found in the registered list, it might indicate an issue
 		if (!found)
 		{
-// #if defined(_DEBUG) && defined(KEX_PLATFORM_WINPC)
-// 			__debugbreak(); // Trigger debugger breakpoint in debug builds on Windows
-// #endif
+#if defined(_DEBUG) && defined(KEX_PLATFORM_WINPC)
+			__debugbreak(); // Trigger debugger breakpoint in debug builds on Windows
+#endif
 			// Print a message to the center of the screen for the first player
 			gi.Center_Print(&g_edicts[1], "found missing monster?");
 		}
