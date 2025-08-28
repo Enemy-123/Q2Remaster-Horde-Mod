@@ -9,22 +9,22 @@
 // Only one definition of EmitterState, with the clear() method.
 
 
-static EmitterState* GetEmitterState(const edict_t* ent) {
+EmitterState* GetEmitterState(const edict_t* ent) {
     if (!ent) return nullptr;
-    auto it = g_emitter_states.find(ent);
+    auto it = g_emitter_states.find(ent->s.number);
     return (it != g_emitter_states.end()) ? &it->second : nullptr;
 }
 
-static EmitterState* CreateEmitterState(edict_t* ent) {
+EmitterState* CreateEmitterState(edict_t* ent) {
     if (!ent) return nullptr;
-    auto& state = g_emitter_states[ent];
+    auto& state = g_emitter_states[ent->s.number];
     state.clear();
     return &state;
 }
 
-static void RemoveEmitterState(const edict_t* ent) {
+void RemoveEmitterState(const edict_t* ent) {
     if (!ent) return;
-    g_emitter_states.erase(ent);
+    g_emitter_states.erase(ent->s.number);
 }
 
 // Forward declarations for internal functions

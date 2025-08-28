@@ -20,7 +20,7 @@ static size_t g_num_spawn_points = 0;
 static bool g_spawn_map_needs_build = true;
 
 // *** NEW: Use std::unordered_map instead of a giant static array ***
-static std::unordered_map<const edict_t*, gtime_t> last_boss_teleport_attempt_time;
+static std::unordered_map<int, gtime_t> last_boss_teleport_attempt_time; 
 
 // Forward declaration for the new map-building function
 static void BuildSpawnPointMap();
@@ -3862,7 +3862,7 @@ inline std::pair<MonsterWaveType, const char *> GetBossWaveType(horde::MonsterTy
 }
 
 // --- REVISED CheckAndTeleportBoss ---
-bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTeleportReason::DROWNING)
+bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason) // Removed default value to match your likely definition
 {
 	PROFILE_SCOPE("CheckAndTeleportBoss");
 	if (level.intermissiontime)
@@ -3918,14 +3918,12 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 	constexpr gtime_t DROWNING_COOLDOWN_BOSS = 1_sec;
 	const gtime_t selected_trigger_cooldown = (reason == BossTeleportReason::DROWNING) ? DROWNING_COOLDOWN_BOSS : TRIGGER_HURT_RETRIGGER_COOLDOWN;
 
-
-
-	auto it = last_boss_teleport_attempt_time.find(self);
+    // <<< FIX #1: Use self->s.number as the key for the map lookup.
+	auto it = last_boss_teleport_attempt_time.find(self->s.number);
 	if (it != last_boss_teleport_attempt_time.end() && level.time < it->second + selected_trigger_cooldown)
 	{
 		if (developer->integer > 1)
 		{
-			// *** FIX: Use it->second to get the timestamp from the map ***
 			gtime_t cooldown_remaining = (it->second + selected_trigger_cooldown) - level.time;
 			gi.Com_PrintFmt("CTB: Boss {} on REASON-specific cooldown. Remaining: {:.2f}s\n",
 							self->classname ? self->classname : "UNKNOWN",
@@ -3946,8 +3944,8 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason = BossTelepor
 		return false;
 	}
 
-	// *** NEW: Update the map with the current time ***
-	last_boss_teleport_attempt_time[self] = level.time;
+	// <<< FIX #2: Use self->s.number as the key to update the map.
+	last_boss_teleport_attempt_time[self->s.number] = level.time;
 
 	bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING);
 

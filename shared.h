@@ -3,7 +3,7 @@
 
 #include "g_local.h"
 #include <string>
-#include "horde/horde_ids.h"
+#include <unordered_map> // Make sure this is included
 #include "horde/horde_ids.h"
 
 //TRAP
@@ -35,7 +35,15 @@ struct trap_state_t {
     }
 };
 
-static std::unordered_map<const edict_t*, trap_state_t> g_trap_states;
+// --- CHANGE #1: Use 'int' (entity number) as the key, not 'const edict_t*'.
+// --- CHANGE #2: Declare as 'extern' to ensure there is only ONE global instance.
+extern std::unordered_map<int, trap_state_t> g_trap_states;
+
+// --- CHANGE #3: Add helper functions to safely manage the state map.
+trap_state_t* GetTrapState(const edict_t* ent);
+trap_state_t* CreateTrapState(edict_t* ent);
+void RemoveTrapState(const edict_t* ent);
+
 
 // LASERS
 struct EmitterState
@@ -51,8 +59,17 @@ struct EmitterState
         last_blink_time = 0_ms;
     }
 };
-static std::unordered_map<const edict_t*, EmitterState> g_emitter_states;
 
+// --- CHANGE #1 & #2: Same changes as above for safety and correctness.
+extern std::unordered_map<int, EmitterState> g_emitter_states;
+
+// --- CHANGE #3: Add helper functions for laser state management.
+EmitterState* GetEmitterState(const edict_t* ent);
+EmitterState* CreateEmitterState(edict_t* ent);
+void RemoveEmitterState(const edict_t* ent);
+
+
+// (The rest of your header file remains the same)
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
 

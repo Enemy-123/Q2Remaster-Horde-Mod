@@ -373,31 +373,25 @@ constexpr int TRAP_FRAME_ACTIVE = 4;           // Frame for active trap
 constexpr gtime_t TRAP_DURATION = 80_sec;         // Total trap lifetime in seconds
 
 // Helper to get a pointer to a trap's state.
-// Returns nullptr if the entity is invalid.
-static trap_state_t* GetTrapState(const edict_t* ent) {
+trap_state_t* GetTrapState(const edict_t* ent) {
     if (!ent) return nullptr;
-    auto it = g_trap_states.find(ent);
-    if (it != g_trap_states.end()) {
-        return &it->second;
-    }
-    return nullptr;
+    auto it = g_trap_states.find(ent->s.number);
+    return (it != g_trap_states.end()) ? &it->second : nullptr;
 }
 
-// NEW function to create state for a new trap
-static trap_state_t* CreateTrapState(edict_t* ent) {
+trap_state_t* CreateTrapState(edict_t* ent) {
     if (!ent) return nullptr;
-    // This creates a new entry if it doesn't exist, or returns the existing one.
-    // .first is an iterator to the element, .second is a bool indicating if it was newly inserted.
-    auto& state = g_trap_states[ent];
-    state.clear(); // Ensure it's in a clean state
+    // This creates a new entry if it doesn't exist and returns a reference to it.
+    auto& state = g_trap_states[ent->s.number];
+    state.clear(); // Ensure it's in a clean, default state
     return &state;
 }
 
-// NEW function to remove state when a trap is destroyed
-static void RemoveTrapState(const edict_t* ent) {
+void RemoveTrapState(const edict_t* ent) {
     if (!ent) return;
-    g_trap_states.erase(ent);
+    g_trap_states.erase(ent->s.number);
 }
+
 // Modified to throw sparks at a specific target
 // Modified to throw sparks at a specific target with improved validation
 void trap_throwsparks(edict_t* self, edict_t* target)
