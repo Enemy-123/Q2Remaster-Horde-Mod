@@ -11,7 +11,7 @@
 #include "../profiler.h"
 
 // Maps an edict_t* to a compact index [0...N-1]
-static std::unordered_map<const edict_t*, uint16_t> g_spawn_point_map;
+static std::unordered_map<int, uint16_t> g_spawn_point_map;
 
 
 std::unordered_map<int, trap_state_t> g_trap_states;
@@ -370,7 +370,7 @@ void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_point_map.at(spawn_point);
+	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 
 	g_spawnPointsData.alternative_attempts[index]++;
 	gtime_t cooldown_duration;
@@ -405,7 +405,7 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_point_map.at(spawn_point);
+	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 
 	if (level.time - g_spawnPointsData.lastSpawnTime[index] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
 	{
@@ -453,7 +453,7 @@ void OnSuccessfulSpawn(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_point_map.at(spawn_point);
+	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 
 	g_spawnPointsData.successfulSpawns[index]++;
 	g_spawnPointsData.attempts[index] = 0;
@@ -479,10 +479,10 @@ struct SpawnPointCacheArray
 
 	// Access operator now uses the compact index map
 	SpawnPointCache& operator[](const edict_t* ent) {
-		return data[g_spawn_point_map.at(ent)];
+		return data[g_spawn_point_map.at(ent->s.number)];
 	}
 	const SpawnPointCache& operator[](const edict_t* ent) const {
-		return data[g_spawn_point_map.at(ent)];
+		return data[g_spawn_point_map.at(ent->s.number)];
 	}
 
 	void resize(size_t new_size) {
@@ -512,7 +512,7 @@ static void BuildSpawnPointMap()
 
 	// Second pass: build the map from edict* to compact index
 	for (size_t i = 0; i < g_num_spawn_points; ++i) {
-		g_spawn_point_map[g_spawn_point_list[i]] = static_cast<uint16_t>(i);
+		g_spawn_point_map[g_spawn_point_list[i]->s.number] = static_cast<uint16_t>(i);
 	}
 
 	// Finally, resize all data structures to the exact size needed
@@ -597,7 +597,7 @@ edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 		}
 		edict_t* spawnPoint = g_potential_spawn_points[g_spawn_point_shuffle_index++];
 
-		const uint16_t index = g_spawn_point_map.at(spawnPoint);
+		const uint16_t index = g_spawn_point_map.at(spawnPoint->s.number);
 
 		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin) ||
 			(g_spawnPointsData.isTemporarilyDisabled[index] && level.time < g_spawnPointsData.cooldownEndsAt[index]) ||
@@ -5400,7 +5400,7 @@ static edict_t *FindSafeTeleportDestination(edict_t *self)
 		}
 
 		// *** THIS IS THE FIX: Use the compact index map ***
-		const uint16_t index = g_spawn_point_map.at(spawn_point);
+		const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 		if (level.time < g_spawnPointsData.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
 		{
 			continue;
@@ -5569,9 +5569,9 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		if (used_spawn_point)
 		{
 			// *** THIS IS THE FIX: Use the compact index map ***
-			const uint16_t index = g_spawn_point_map.at(used_spawn_point);
-			g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
-		}
+		const uint16_t index = g_spawn_point_map.at(used_spawn_point->s.number);
+		g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
+	}
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
@@ -6405,7 +6405,7 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_time)
 {
 	// *** THIS IS THE FIX: Use the compact index map ***
-	const uint16_t index = g_spawn_point_map.at(spawn_point);
+	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 
 	if ((g_spawnPointsData.isTemporarilyDisabled[index] && current_time < g_spawnPointsData.cooldownEndsAt[index]) ||
 		(current_time < g_spawnPointsData.teleport_cooldown[index]) ||
@@ -6516,7 +6516,7 @@ void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const int index = spawn_point - g_edicts;
+	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 
 	// FIX: Cast the signed 'index' to the unsigned 'size_t' for each array access.
 	g_spawnPointsData.alternative_attempts[static_cast<size_t>(index)] = 0;

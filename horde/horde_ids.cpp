@@ -282,12 +282,12 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
 
     void SpawnPointTimeTracker::SetLastSpawnTime(const edict_t* point, gtime_t time) {
         if (!point) return;
-        m_lastSpawnTimes[point] = time;
+         m_lastSpawnTimes[point->s.number] = time;
     }
 
     gtime_t SpawnPointTimeTracker::GetLastSpawnTime(const edict_t* point) const {
         if (!point) return 0_sec;
-        auto it = m_lastSpawnTimes.find(point);
+        auto it = m_lastSpawnTimes.find(point->s.number);
         return (it != m_lastSpawnTimes.end()) ? it->second : 0_sec;
     }
 
