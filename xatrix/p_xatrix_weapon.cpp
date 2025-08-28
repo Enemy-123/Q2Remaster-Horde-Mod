@@ -157,8 +157,8 @@ TRAP
 */
 
 constexpr gtime_t TRAP_TIMER = 5_sec;
-constexpr float TRAP_MINSPEED = 300.f;
-constexpr float TRAP_MAXSPEED = 700.f;
+constexpr float TRAP_MINSPEED = 500.f;
+constexpr float TRAP_MAXSPEED = 900.f;
 
 void weapon_trap_fire(edict_t* ent, bool held)
 {

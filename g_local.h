@@ -2652,8 +2652,8 @@ bool G_CheckInfiniteAmmo(gitem_t* item);
 void Weapon_PowerupSound(edict_t* ent);
 
 constexpr gtime_t GRENADE_TIMER = 3_sec;
-constexpr float GRENADE_MINSPEED = 400.f;
-constexpr float GRENADE_MAXSPEED = 800.f;
+constexpr float GRENADE_MINSPEED = 600.f;
+constexpr float GRENADE_MAXSPEED = 900.f;
 
 extern bool is_quad;
 // RAFAEL
