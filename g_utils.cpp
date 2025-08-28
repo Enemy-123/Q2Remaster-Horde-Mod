@@ -764,7 +764,7 @@ void OnEntityDeath(edict_t* self) noexcept
 	}
 }
 
-#include "g_laser.h"
+#include "horde/g_laser.h"
 // This function is for the FINAL cleanup before an entity is removed from the game.
 // This is where you free all associated memory.
 void OnEntityRemoved(edict_t* self){

@@ -4,7 +4,7 @@
 #include "m_player.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
-#include "g_laser.h"
+#include "horde/g_laser.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 

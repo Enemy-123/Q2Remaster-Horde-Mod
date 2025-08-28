@@ -6,7 +6,7 @@
 #include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
 #include "g_horde.h"    // For GetMapSize
 #include "g_horde_benefits.h"
-#include "../g_laser.h"
+#include "g_laser.h"
 
 // Forward Declarations from this file
 void OpenVoteMenu(edict_t* ent);

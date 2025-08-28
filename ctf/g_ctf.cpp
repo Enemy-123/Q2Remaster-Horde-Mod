@@ -3391,7 +3391,7 @@ void RemoveAllTechItems(edict_t* ent)
 	}
 }
 
-#include "../g_laser.h"
+#include "../horde/g_laser.h"
 void CTFObserver(edict_t* ent)
 {
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)

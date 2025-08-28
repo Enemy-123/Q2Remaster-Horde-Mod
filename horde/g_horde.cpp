@@ -7,7 +7,7 @@
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
 #include <span>
-#include "../g_laser.h"
+#include "g_laser.h"
 #include "../profiler.h"
 
 // Maps an edict_t* to a compact index [0...N-1]
