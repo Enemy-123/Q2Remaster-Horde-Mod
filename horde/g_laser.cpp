@@ -1,7 +1,7 @@
 // g_laser.cpp
 
-#include "g_local.h"
-#include "shared.h"
+#include "../g_local.h"
+#include "../shared.h"
 #include <new>
 #include <cmath>
 
