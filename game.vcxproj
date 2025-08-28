@@ -136,10 +136,10 @@ copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program 
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
     <ClInclude Include="horde\g_horde_phys.h" />
+    <ClInclude Include="horde\g_laser.h" />
     <ClInclude Include="horde\horde_boss.h" />
     <ClInclude Include="horde\horde_ids.h" />
     <ClInclude Include="horde\horde_spawning.h" />
-    <ClInclude Include="laser.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
     <ClInclude Include="m_berserk.h" />
@@ -190,10 +190,11 @@ copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program 
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
-    <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="horde\g_entity_properties.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="horde\g_horde_phys.cpp" />
+    <ClCompile Include="horde\g_laser.cpp" />
+    <ClCompile Include="horde\g_traps.cpp" />
     <ClCompile Include="horde\horde_boss.cpp" />
     <ClCompile Include="horde\horde_ids.cpp" />
     <ClCompile Include="horde\horde_menu.cpp" />
