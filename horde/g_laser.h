@@ -1,6 +1,6 @@
 #pragma once
 
-#include "g_local.h" // Includes edict_t, mod_t, and now LaserConstants
+#include "../g_local.h" // Includes edict_t, mod_t, and now LaserConstants
 
 //
 // g_laser.c
