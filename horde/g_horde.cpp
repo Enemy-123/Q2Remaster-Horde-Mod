@@ -12,6 +12,12 @@
 
 // Maps an edict_t* to a compact index [0...N-1]
 static std::unordered_map<const edict_t*, uint16_t> g_spawn_point_map;
+
+
+std::unordered_map<int, trap_state_t> g_trap_states;
+std::unordered_map<int, EmitterState> g_emitter_states;
+
+
 // Provides a direct list of spawn point edicts for easy iteration
 static std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
