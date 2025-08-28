@@ -120,6 +120,11 @@ void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update
 	if (!beam_ptr)
 	{
 		beam_ptr = G_Spawn();
+        // If G_Spawn fails, it can return null. Handle this case to prevent a crash.
+        if (!beam_ptr)
+        {
+            return;
+        }
 
 		beam_ptr->movetype = MOVETYPE_NONE;
 		beam_ptr->solid = SOLID_NOT;
@@ -143,6 +148,15 @@ void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update
 	beam_ptr->nextthink = level.time + 200_ms;
 	beam_ptr->spawnflags &= ~SPAWNFLAG_DABEAM_SPAWNED;
 	update_func(beam_ptr);
+
+    // ========================================================================
+    // Check if the entity is still in use before proceeding.
+    if (!beam_ptr->inuse)
+    {
+        return;
+    }
+    // ========================================================================
+
 	dabeam_update(beam_ptr, true);
 	beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
 }
