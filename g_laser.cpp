@@ -113,46 +113,38 @@ struct laser_pierce_t : pierce_args_t
         if (!self || self->health <= 0 || !tr.ent)
             return false;
 
-        // The beam's owner is the emitter. Ignore it.
+        // The beam's owner is the emitter. Ignore it so the beam can fire correctly.
         if (tr.ent == self->owner) {
             return true; 
         }
 
         // --- START OF FIX ---
-        // Replace the player-only check with a generic friendly fire check.
-        // CheckTeamDamage returns true if damage is ALLOWED. We want to stop if it's NOT allowed.
-        // This correctly identifies friendly players, traps, sentries, and other defenses.
-        // We assume a CheckTeamDamage function exists, as it's used elsewhere in the provided code.
-        if (tr.ent->takedamage && !CheckTeamDamage(tr.ent, self->teammaster)) {
-            return false; // It's a friendly target, stop the beam and do no damage.
+        // Perform a generic friendly fire check.
+        // CheckTeamDamage returns 'true' if damage should be BLOCKED (i.e., friendly target and FF is off).
+        // If it returns true, we stop the beam without dealing damage.
+        if (tr.ent->takedamage && CheckTeamDamage(tr.ent, self->teammaster)) {
+            return false; // It's a friendly target (like a trap or another player), stop the beam.
         }
         // --- END OF FIX ---
 
-
-        // --- START OF NEW DAMAGE LOGIC ---
+        // --- DAMAGE LOGIC ---
         if (self->dmg > 0 && tr.ent->takedamage && tr.ent != self->teammaster)
         {
             // 1. Check for target immunity BEFORE doing anything else.
-            // This applies to both monsters and players with invulnerability.
-            if (tr.ent->client && tr.ent->client->invincible_time > level.time) {
-                return mark(tr.ent); // Pierce through invincible players without effect.
-            }
-            if (tr.ent->svflags & SVF_MONSTER && tr.ent->monsterinfo.invincible_time > level.time) {
-                return mark(tr.ent); // Pierce through invincible monsters without effect.
+            if ((tr.ent->client && tr.ent->client->invincible_time > level.time) ||
+                (tr.ent->svflags & SVF_MONSTER && tr.ent->monsterinfo.invincible_time > level.time)) {
+                return mark(tr.ent); // Pierce through invincible targets without effect.
             }
 
             // 2. The damage to be dealt is ALWAYS the beam's base damage.
-            // We do not apply any modifiers from the player (teammaster).
             int damage_to_deal = self->dmg;
 
             // 3. Apply the damage directly.
-            // We still use T_Damage to handle armor, pain functions, etc., but we pass our fixed damage value.
             vec3_t forward;
             AngleVectors(self->s.angles, &forward, nullptr, nullptr);
             T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage_to_deal, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
             // 4. Drain the laser's health based on the damage dealt.
-            // This ensures that if the target was immune, no health is drained.
             float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? 1.0f : LaserConstants::LASER_NONCLIENT_MOD;
             self->health -= static_cast<int>(damage_to_deal * health_drain_multiplier);
 
@@ -163,13 +155,14 @@ struct laser_pierce_t : pierce_args_t
                 return false; // Stop piercing
             }
         }
-        // --- END OF NEW DAMAGE LOGIC ---
-
+        
+        // Stop at solid world geometry, but pierce monsters and players.
         if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client && (tr.ent->solid != SOLID_NOT && tr.ent->solid != SOLID_TRIGGER))
         {
-            return false; // Stop at solid world geometry
+            return false; 
         }
-        return mark(tr.ent); // Pierce through
+        
+        return mark(tr.ent); // Pierce through the current target (monsters, etc.).
     }
 };
 
