@@ -548,40 +548,6 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	}
 }
 
-int GetTeam(const edict_t* ent) {
-    if (!ent) {
-        return 0; // No team
-    }
-
-    // Player
-    if (ent->client) {
-        return ent->client->resp.ctf_team;
-    }
-
-    // Monster
-    if (ent->svflags & SVF_MONSTER) {
-        // Horde monsters are enemies by default unless explicitly on the player team.
-        if (g_horde->integer && ent->monsterinfo.team != CTF_TEAM1) {
-             return CTF_TEAM2; // Monster team
-        }
-        return ent->monsterinfo.team;
-    }
-
-    // Deployable (Trap, Laser, Tesla, etc.)
-    // These should have their team set on spawn.
-    // We check the `team` c-string and convert it to an ID.
-    if (ent->team) {
-        if (strcmp(ent->team, TEAM1) == 0) {
-            return CTF_TEAM1;
-        }
-        if (strcmp(ent->team, TEAM2) == 0) {
-            return CTF_TEAM2;
-        }
-    }
-
-    return 0; // No team / Neutral
-}
-
 void AssignMonsterTeam(edict_t* ent) {
 	if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.team != CTF_TEAM1) {
 		ent->monsterinfo.team = CTF_TEAM2;
@@ -625,45 +591,95 @@ bool CheckLaserTeam(edict_t* laser, edict_t* other) {
 }
 
 bool CheckTeamDamage(edict_t* targ, edict_t* attacker) {
-    // If friendly fire is disabled AND they are on the same team, block the damage.
-    if (!g_friendly_fire->integer && OnSameTeam(targ, attacker)) {
-        return false; // Damage is NOT allowed.
-    }
-
-    // In all other cases (enemies, or friendly fire is enabled), allow the damage.
-    return true; // Damage is ALLOWED.
+	return !g_friendly_fire->integer && OnSameTeam(targ, attacker);
 }
 
-bool OnSameTeam(const edict_t* ent1, const edict_t* ent2) {
-    // Initial validations
-    if (!ent1 || !ent2 || ent1 == ent2) {
-        return false;
-    }
+bool OnSameTeam(edict_t* ent1, edict_t* ent2)
+{
+	// Validaciones iniciales
+	if (!ent1 || !ent2 || ent1 == ent2)
+		return false;
 
-    // In coop, all players are on the same team.
-    if (G_IsCooperative() && ent1->client && ent2->client) {
-        return true;
-    }
+	// Determinar el modo de juego
+	enum GameMode {
+		MODE_COOPERATIVE,
+		MODE_TEAMPLAY,
+		MODE_HORDE,
+		MODE_OTHER
+	};
 
-    // For all other team-based modes (Horde, CTF, etc.)
-    if (G_TeamplayEnabled() || g_horde->integer) {
-        int team1 = GetTeam(ent1);
-        int team2 = GetTeam(ent2);
+	GameMode currentMode;
 
-        // If either entity has no team, they can't be on the SAME team.
-        // A team ID of 0 means neutral or unassigned.
-        if (team1 == 0 || team2 == 0) {
-            return false;
-        }
+	if (G_IsCooperative())
+		currentMode = MODE_COOPERATIVE;
+	else if (G_TeamplayEnabled() && !g_horde->integer)
+		currentMode = MODE_TEAMPLAY;
+	else if (g_horde->integer)
+		currentMode = MODE_HORDE;
+	else
+		currentMode = MODE_OTHER;
 
-        return team1 == team2;
-    }
+	switch (currentMode) {
+	case MODE_COOPERATIVE:
+		return (ent1->client && ent2->client);
 
-    // Default for non-team modes like FFA
-    return false;
+	case MODE_TEAMPLAY:
+		if (ent1->client && ent2->client)
+			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+
+		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
+		}
+		return false;
+
+	case MODE_HORDE:
+		// Verificar jugadores
+		if (ent1->client && ent2->client)
+			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+
+		// Verificar monstruos
+		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
+		}
+
+		// Verificar jugador vs monstruo
+		if (ent1->client && (ent2->svflags & SVF_MONSTER))
+			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
+
+		if (ent2->client && (ent1->svflags & SVF_MONSTER))
+			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
+
+		// Verificar minas tesla
+		if (horde::IsSpecialType(ent1, horde::SpecialEntityTypeID::TESLA_MINE))
+			return CheckTeslaMineTeam(ent1, ent2);
+
+		if (horde::IsSpecialType(ent2, horde::SpecialEntityTypeID::TESLA_MINE))
+			return CheckTeslaMineTeam(ent2, ent1);
+
+		// Verificar trampas
+		if (horde::IsSpecialType(ent1, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
+			return CheckTrapTeam(ent1, ent2);
+
+		if (horde::IsSpecialType(ent2, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
+			return CheckTrapTeam(ent2, ent1);
+
+		// Verificar láseres y emisores
+		if (IsLaserEntity(ent1))
+			return CheckLaserTeam(ent1, ent2);
+
+		if (IsLaserEntity(ent2))
+			return CheckLaserTeam(ent2, ent1);
+
+		return false;
+
+	default:
+		return false;
+	}
 }
-
-  
 
 #include <span>
 
