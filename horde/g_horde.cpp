@@ -3667,6 +3667,26 @@ void BossDeathHandler(edict_t *boss)
 	gi.linkentity(boss); // Re-link just in case state needs update
 }
 
+static void ClearBossHealthBar(const edict_t* boss)
+{
+    if (!boss) return;
+
+    for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
+        if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == boss) {
+            G_FreeEdict(level.health_bar_entities[i]);
+            level.health_bar_entities[i] = nullptr;
+            break; // Found and removed, no need to search further
+        }
+    }
+    // If this boss was the one on the HUD, clear the name.
+    // This check is safe even if another boss's bar is now active.
+    if (strcmp(gi.get_configstring(CONFIG_HEALTH_BAR_NAME), GetDisplayName_Fast(boss)) == 0) {
+        gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+    }
+}
+
+
+
 void boss_die(edict_t *boss)
 {
 	if (!boss || !boss->inuse || !g_horde->integer ||
@@ -3679,19 +3699,7 @@ void boss_die(edict_t *boss)
 
 	BossDeathHandler(boss);
 
-	// Limpiar la barra de salud
-	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i)
-	{
-		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == boss)
-		{
-			G_FreeEdict(level.health_bar_entities[i]);
-			level.health_bar_entities[i] = nullptr;
-			break;
-		}
-	}
-
-	// Limpiar el configstring del nombre de la barra de salud
-	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+	ClearBossHealthBar(boss);
 }
 
 // IDEAL REPLACEMENT for Horde_AllMonstersDead
@@ -4125,17 +4133,8 @@ static void HandleForcedBossRemoval(edict_t *boss)
 	boss->svflags |= SVF_NOCLIENT; // Hide it from clients.
 
 	// 5. Clean up the boss's health bar from the HUD.
-	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i)
-	{
-		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == boss)
-		{
-			G_FreeEdict(level.health_bar_entities[i]);
-			level.health_bar_entities[i] = nullptr;
-			break;
-		}
-	}
-	// If this boss was the one on the HUD, clear the name.
-	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+	ClearBossHealthBar(boss);
+
 
 	// 6. Notify other systems that the entity is dying and being removed.
 	OnEntityDeath(boss);
@@ -4556,8 +4555,10 @@ void ResetGame()
 	g_recent_spawns.cooldowns_until.fill(0_sec);
 	g_recent_spawn_index = 0;
 
-	// recent teleport
+	// FIX: Clear the boss teleport map on map change ---
 	last_boss_teleport_attempt_time.clear();
+
+	// recent teleport
 	ResetTeleportTracking();
 	ResetPlayerDeployedItems();
 	HordeConstants::g_teleport_rate_count = 0;
@@ -5367,7 +5368,6 @@ static edict_t *FindBestPlayerTargetForTeleport()
 
 // Finds a safe, fair, and tactically reasonable spawn point for a monster being rescued via teleport.
 // It prioritizes spots that are near a player but not directly visible to them.
-// This version is optimized to use the Proximity Grid to avoid searching all spawn points on the map.
 static edict_t *FindSafeTeleportDestination(edict_t *self)
 {
 	// --- 1. Determine the Target Player ---
@@ -5390,16 +5390,18 @@ static edict_t *FindSafeTeleportDestination(edict_t *self)
 	edict_t *best_spot = nullptr;
 	float best_score = -1.0f;
 
-	// NOTE: The grid query is helpful but not strictly necessary. Iterating through
-	// the compact g_spawn_point_list is already very fast.
-	for (edict_t* spawn_point : g_spawn_point_list)
+	// --- PERFORMANCE FIX: Use findradius instead of iterating all spawn points ---
+	constexpr float SEARCH_RADIUS = 1500.0f;
+	edict_t* spawn_point = nullptr;
+	while ((spawn_point = findradius(spawn_point, target_player->s.origin, SEARCH_RADIUS)) != nullptr)
 	{
-		// --- A. Filter for Valid Spawn Points ---
-		if (!spawn_point || !spawn_point->inuse) {
+		// Filter out entities that are not valid spawn points
+		if (!spawn_point->inuse || !spawn_point->classname || strcmp(spawn_point->classname, "info_player_deathmatch") != 0) {
 			continue;
 		}
+		// --- END PERFORMANCE FIX ---
 
-		// *** THIS IS THE FIX: Use the compact index map ***
+		// --- A. Filter for Valid Spawn Points ---
 		const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 		if (level.time < g_spawnPointsData.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
 		{

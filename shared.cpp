@@ -1160,13 +1160,12 @@ bool SpawnPointClear(edict_t* spot);
 float PlayersRangeFromSpot(edict_t* spot);
 
 bool TeleportSelf(edict_t* ent) {
+    // --- BOILERPLATE: Initial checks and setup from the original function ---
     if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag) {
         return false;
     }
 
-    // Use direct client members
     if (ent->client->resp.teleport_cooldown > level.time) {
-        // Assuming teleport_cooldown and level.time are gtime_t or compatible
         float remaining_seconds = (ent->client->resp.teleport_cooldown - level.time).seconds();
         float remaining_display = std::floor(remaining_seconds * 10.0f) / 10.0f;
         gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining_display);
@@ -1174,21 +1173,22 @@ bool TeleportSelf(edict_t* ent) {
     }
 
     ent->client->resp.teleport_cooldown = level.time + 3_sec; // Apply cooldown
-	const char* playerName = GetPlayerName_Fast(ent);
+    const char* playerName = GetPlayerName_Fast(ent);
 
+    // --- BOILERPLATE: Collect and validate spawn points ---
     struct spawn_point_info_t {
         edict_t* point;
-        float dist; // Distance from players or some other metric
+        float dist; // Distance from players
     };
 
     std::vector<spawn_point_info_t> spawn_points;
     spawn_points.reserve(16);
 
-	for (edict_t* spot : monster_spawn_points()) {
-		if (spot->style == 0) {
-			spawn_points.push_back({spot, PlayersRangeFromSpot(spot)});
-		}
-	}
+    for (edict_t* spot : monster_spawn_points()) {
+        if (spot->style == 0) { // Assuming style 0 is for ground/player spawns
+            spawn_points.push_back({spot, PlayersRangeFromSpot(spot)});
+        }
+    }
 
     if (spawn_points.empty()) {
         if (developer->integer) {
@@ -1197,77 +1197,65 @@ bool TeleportSelf(edict_t* ent) {
         return false;
     }
 
-    // Helper lambda to perform the teleport and associated actions
+    // --- BOILERPLATE: Helper lambda for teleport actions ---
     auto perform_teleport_actions = [&](edict_t* destination_spot) {
         TeleportEntity(ent, destination_spot);
 
         if (ent->client->owned_sphere) {
             edict_t* sphere = ent->client->owned_sphere;
             sphere->s.origin = ent->s.origin;
-            // Assuming vec3_t has .z or you use [2]
-            // Using absmax.z (or absmax[2]) to place it on top of the player's new bounding box
-            sphere->s.origin.z = ent->absmax.z; 
+            sphere->s.origin.z = ent->absmax.z;
             sphere->s.angles[YAW] = ent->s.angles[YAW];
             gi.linkentity(sphere);
         }
 
         if (!ent->client->emergency_teleport) {
-   	gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName);
+            gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName);
         }
-        
-        // Use std::max for gtime_t or ensure types are compatible
+
         ent->client->invincible_time = std::max(level.time, ent->client->invincible_time) + 2_sec;
     };
 
-    if (spawn_points.size() == 1) {
-        if (SpawnPointClear(spawn_points[0].point)) {
-            perform_teleport_actions(spawn_points[0].point);
-            // If this was an emergency teleport, and it succeeded, reset the flag.
-            // This depends on desired logic: reset on any success, or only on fallback?
-            // Original reset only on fallback. Let's assume reset on any successful emergency TP.
-            if (ent->client->emergency_teleport) {
-                ent->client->emergency_teleport = false;
-            }
-            return true;
-        }
-        if (developer->integer) {
-            gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
-        }
-        return false; 
-    }
-
-    // Sort spawn points by distance (farthest first for iteration)
+    // Sort spawn points to try the farthest (often safest) ones first
     std::sort(spawn_points.begin(), spawn_points.end(),
               [](const spawn_point_info_t& a, const spawn_point_info_t& b) {
-                  return a.dist > b.dist; // Sort descending by distance (farthest first)
+                  return a.dist > b.dist; // Sort descending by distance
               });
 
+    // --- NEW SIMPLIFIED LOGIC ---
+    bool was_emergency = ent->client->emergency_teleport; // Remember if this was an emergency
+    bool success = false;
+
+    // Try to find a clear spot from the sorted list
     for (const auto& sp_info : spawn_points) {
         if (SpawnPointClear(sp_info.point)) {
             perform_teleport_actions(sp_info.point);
-            if (ent->client->emergency_teleport) { // Reset if it was an emergency TP
-                ent->client->emergency_teleport = false;
-            }
-            return true;
+            success = true;
+            break;
         }
     }
 
-    // Fallback: No clear spot found, teleport to a random one from the available (but likely blocked) spots.
-    // Use your provided random_index template function.
-    const int32_t random_idx = random_index(spawn_points); 
-    edict_t* random_destination = spawn_points[random_idx].point;
+    // If no clear spot was found, use the fallback to a random (but likely blocked) spot
+    if (!success) {
+        const int32_t random_idx = random_index(spawn_points);
+        edict_t* random_destination = spawn_points[random_idx].point;
 
-    if (developer->integer) {
-        gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index {}, potentially blocked).\n", random_idx);
+        if (developer->integer) {
+            gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index {}, potentially blocked).\n", random_idx);
+        }
+        
+        perform_teleport_actions(random_destination);
+        success = true; // The teleport was performed, even if to a blocked spot
     }
-    
-    perform_teleport_actions(random_destination);
-    
-    // Unconditionally reset emergency_teleport if we hit this fallback path,
-    // consistent with original code's structure where it was reset here.
-    ent->client->emergency_teleport = false; 
-    
-    return true;
+
+    // If a teleport happened AND it was an emergency, reset the flag.
+    // This is the core of the fix: a single, clear condition.
+    if (success && was_emergency) {
+        ent->client->emergency_teleport = false;
+    }
+
+    return success;
+    // --- END SIMPLIFIED LOGIC ---
 }
 
 // --- Extern Declarations for Monster Jump Moves ---
