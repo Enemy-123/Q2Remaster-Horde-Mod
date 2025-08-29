@@ -887,66 +887,79 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 	return boxes_intersect(ent_mins, ent_maxs, area_mins, area_maxs);
 }
 
+// In shared.cpp
+
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
-	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
-		return;
+    // Initial validation to prevent crashes with bad data.
+    if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
+        return;
 
-	const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
-	const vec3_t area_mins = origin + mins - safe_offset;
-	const vec3_t area_maxs = origin + maxs + safe_offset;
+    // Define a slightly larger bounding box to ensure a safe clearing area.
+    const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
+    const vec3_t area_mins = origin + mins - safe_offset;
+    const vec3_t area_maxs = origin + maxs + safe_offset;
 
-	const float max_dim = std::max({
-		maxs[0] - mins[0],
-		maxs[1] - mins[1],
-		maxs[2] - mins[2]
-		});
-	const float safe_radius = std::min(max_dim + 42.0f, 2048.0f);
+    // --- START OF THE CORRECTED FIX ---
 
-	std::vector<edict_t*> entities_in_area;
-	// Optional: Reserve some space if you expect a certain number of entities often
-	// entities_in_area.reserve(32);
+    // 1. Calculate the radius required to encompass the entire clearing box from the origin.
+    // This is the distance to the farthest corner of the box.
+    vec3_t farthest_corner_dist;
+    farthest_corner_dist.x = std::max(fabs(area_mins.x - origin.x), fabs(area_maxs.x - origin.x));
+    farthest_corner_dist.y = std::max(fabs(area_mins.y - origin.y), fabs(area_maxs.y - origin.y));
+    farthest_corner_dist.z = std::max(fabs(area_mins.z - origin.z), fabs(area_maxs.z - origin.z));
+    const float radius_to_contain_box = farthest_corner_dist.length();
 
-	edict_t* ent = nullptr;
-	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
-		if (!ent || !ent->inuse)
-			continue;
+    // 2. Add a generous "slop factor". This expands the radius to catch large entities
+    // whose bounding boxes might intersect the area even if their center points are outside.
+    // A value like 128 is safe for most items, players, and defenses.
+    constexpr float MAX_ENTITY_REACH = 128.0f;
+    const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
 
-		// Skip monsters and non-solid/trigger entities
-		if ((ent->svflags & SVF_MONSTER) ||
-			ent->solid == SOLID_NOT ||
-			ent->solid == SOLID_TRIGGER)
-			continue;
+    // --- END OF THE CORRECTED FIX ---
 
-		// Additional validation
-		if (!is_valid_vector(ent->s.origin) ||
-			!is_valid_vector(ent->mins) ||
-			!is_valid_vector(ent->maxs))
-			continue;
+    std::vector<edict_t*> entities_in_area;
+    edict_t* ent = nullptr;
+    while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
+        if (!ent || !ent->inuse)
+            continue;
 
-		if (!EntitiesOverlap(ent, area_mins, area_maxs))
-			continue;
+        // Skip monsters and non-solid entities, as they don't block spawns.
+        if ((ent->svflags & SVF_MONSTER) ||
+            ent->solid == SOLID_NOT ||
+            ent->solid == SOLID_TRIGGER)
+            continue;
 
-		entities_in_area.push_back(ent);
-	}
+        // Basic validation for the entity's own bounds.
+        if (!is_valid_vector(ent->s.origin) ||
+            !is_valid_vector(ent->mins) ||
+            !is_valid_vector(ent->maxs))
+            continue;
 
-	// Process collected entities
-	for (edict_t* current_ent : entities_in_area) {
-		// Re-check inuse as processing might invalidate entities (though unlikely here)
-		if (!current_ent || !current_ent->inuse)
-			continue;
+        // "Narrow phase": Check if the entity's precise bounding box actually intersects.
+        if (!EntitiesOverlap(ent, area_mins, area_maxs))
+            continue;
 
-		if (current_ent->client) {
-			edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
-			if (spawn_point && spawn_point->inuse) {
-				TeleportEntity(current_ent, spawn_point);
-			}
-		}
-		else {
-			RemoveEntity(current_ent);
-		}
-	}
+        entities_in_area.push_back(ent);
+    }
+
+    // Process all the entities we found that are blocking the area.
+    for (edict_t* current_ent : entities_in_area) {
+        if (!current_ent || !current_ent->inuse)
+            continue;
+
+        if (current_ent->client) {
+            // Players are teleported to a safe spawn point.
+            edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
+            if (spawn_point && spawn_point->inuse) {
+                TeleportEntity(current_ent, spawn_point);
+            }
+        }
+        else {
+            // Other blocking entities (items, defenses) are removed.
+            RemoveEntity(current_ent);
+        }
+    }
 }
-
 
 // Replace the existing PushEntitiesAway function with this one.
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength)

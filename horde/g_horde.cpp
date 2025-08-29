@@ -4140,19 +4140,23 @@ static void HandleForcedBossRemoval(edict_t *boss)
 	OnEntityDeath(boss);
 	OnEntityRemoved(boss);
 }
-
 // =======================================================================
-// REPLACEMENT: SpawnBossAutomatically (Uses designated map origin)
+// REPLACEMENT: SpawnBossAutomatically (With Pre-Spawn Area Clearing)
+// This version ensures the area is cleared and entities are pushed away
+// BEFORE the boss spawn is finalized, preventing crashes and adding effect.
 // =======================================================================
 static void SpawnBossAutomatically()
 {
 	// --- IMMEDIATE GUARD ---
+	// This flag prevents multiple bosses from spawning in the same wave due to re-entry.
 	if (boss_spawned_for_wave) {
 		return;
 	}
 	boss_spawned_for_wave = true; // Set flag immediately to prevent re-entry
 
 	// --- 1. Cleanup Existing Bosses ---
+	// If a previous boss is somehow still alive, we handle its removal gracefully
+	// to prevent conflicts and ensure player damage is credited.
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment */)
 	{
 		edict_t *existing_boss = *it;
@@ -4197,13 +4201,21 @@ static void SpawnBossAutomatically()
 		return;
 	}
 
-	// --- 5. Validate the Designated Spawn Location ---
+	// --- 5. PREPARE THE SPAWN AREA (THIS IS THE FIX) ---
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(boss_pick_result.typeId, predicted_mins, predicted_maxs);
 	
-	// We must clear the area before checking validity, as other monsters/players might be there.
+	// STEP 5A: Remove any items, defenses, or other blocking entities.
+	// This prevents the boss from spawning inside a sentry gun, for example.
 	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
 
+	// STEP 5B: Forcefully push players and monsters away from the spawn point.
+	// This creates a dramatic "shockwave" effect and prevents telefrag crashes.
+	PushEntitiesAway(spawn_origin, 3, 768.0f, 1500.0f, 4500.0f, 2000.0f);
+
+
+	// --- 6. Validate the Designated Spawn Location ---
+	// After clearing the area, we do a final check to ensure the spot isn't blocked by world geometry.
 	if (!IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId), true))
 	{
 		if (developer->integer)
@@ -4212,7 +4224,9 @@ static void SpawnBossAutomatically()
 		return;
 	}
 
-	// --- 6. Setup Delayed Spawn ---
+	// --- 7. Setup Delayed Spawn ---
+	// We spawn a temporary orb to mark the spot and then create the "pre-boss" entity.
+	// This entity is not solid and has no logic yet; it's just a placeholder.
 	edict_t *orb = G_Spawn();
 	if (orb)
 	{
@@ -4230,19 +4244,14 @@ static void SpawnBossAutomatically()
 
 	boss->classname = horde::MonsterTypeRegistry::GetClassname(boss_pick_result.typeId);
 	boss->s.origin = spawn_origin;
-	// Bosses should generally face the center of the map or a key area.
-	// For simplicity, we'll have them face a player.
-	edict_t* target_player = FindBestPlayerTargetForTeleport();
-	if (target_player) {
-		vec3_t dir = target_player->s.origin - spawn_origin;
-		boss->s.angles = vectoangles(dir);
-	} else {
+	
 		boss->s.angles = vec3_origin;
-	}
+
 
 	boss->bossSizeCategory = boss_pick_result.sizeCategory;
 	boss->owner = orb;
 
+	// Set the think function to run in 750ms. This is when the boss will actually "materialize".
 	boss->nextthink = level.time + 750_ms;
 	boss->think = BossSpawnThink;
 	gi.linkentity(boss);
