@@ -1111,7 +1111,7 @@ void G_SetStats(edict_t* ent)
 			if (keys_held.size() > 3)
 				key_offset = (int32_t)(level.time.seconds() / 5);
 
-			for (int32_t i = 0; i < std::min(keys_held.size(), (size_t)3); i++, stat = (player_stat_t)(stat + 1))
+			for (size_t i = 0; i < std::min(keys_held.size(), (size_t)3); i++, stat = (player_stat_t)(stat + 1))
 			{
 				size_t key_index_to_display = (i + key_offset) % keys_held.size();
 				ent->client->ps.stats[stat] = gi.imageindex(GetItemByIndex(keys_held[key_index_to_display])->icon);

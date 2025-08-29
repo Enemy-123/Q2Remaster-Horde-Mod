@@ -597,23 +597,24 @@ void ShowInventory(edict_t* ent) {
 		return;
 
 	gclient_t* cl = ent->client;
-	cl->showinventory = true; // Should this be set before sending? Maybe not needed if client handles it.
+	cl->showinventory = true;
 
 	gi.WriteByte(svc_inventory);
 
+	// --- FIX 1: Use size_t for the loop to match container size type ---
 	// Write current inventory counts up to IT_TOTAL
-	for (int i = 0; i < IT_TOTAL; i++) {
-		// Ensure index is valid for pers.inventory
-		if (i < 0 || i >= std::size(cl->pers.inventory)) {
-			gi.WriteShort(0); // Write 0 for invalid indices
+	for (size_t i = 0; i < IT_TOTAL; i++) {
+		// Ensure index is valid for pers.inventory. The i < 0 check is no longer needed with size_t.
+		if (i >= std::size(cl->pers.inventory)) {
+			gi.WriteShort(0); // Write 0 for out-of-bounds indices
 			continue;
 		}
 		gi.WriteShort(cl->pers.inventory[i]);
 	}
 
+	// --- FIX 2: Use size_t for the loop to match MAX_ITEMS type ---
 	// Pad the rest up to MAX_ITEMS with zeros
-	// Use a safer loop condition based on IT_TOTAL and MAX_ITEMS
-	for (int i = IT_TOTAL; i < MAX_ITEMS; i++) {
+	for (size_t i = IT_TOTAL; i < MAX_ITEMS; i++) {
 		gi.WriteShort(0);
 	}
 

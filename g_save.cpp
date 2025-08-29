@@ -622,18 +622,19 @@ struct save_type_deducer<std::bitset<N>>
 						return true;
 					}
 
-					int32_t num_needed;
+                    // FIX: Use size_t for num_needed and a safe reverse loop for unsigned types.
+					size_t num_needed = 0;
+                    for (size_t i = N; i-- > 0; ) {
+                        if (as_bitset[i]) {
+                            num_needed = i + 1;
+                            break;
+                        }
+                    }
 
-					for (num_needed = N - 1; num_needed >= 0; num_needed--)
-						if (as_bitset[num_needed])
-							break;
-
-					// 00100000, num_needed = 2
-					// num_needed always >= 0 since none() check done above
-					num_needed++;
-
+					// The as_bitset.none() check above ensures num_needed will be > 0 here.
 					std::string result(num_needed, '0');
 
+                    // This comparison is now safe (size_t vs size_t).
 					for (size_t n = 0; n < num_needed; n++)
 						if (as_bitset[n])
 							result[n] = '1';

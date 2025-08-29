@@ -1415,7 +1415,6 @@ void medic_determine_spawn(edict_t* self)
 	if (num_success == 0)
 		self->monsterinfo.nextframe = FRAME_attack53;
 }
-
 void medic_spawngrows(edict_t* self)
 {
 	vec3_t f, r, offset, startpoint, spawnpoint;
@@ -1443,7 +1442,8 @@ void medic_spawngrows(edict_t* self)
 
 	num_summoned = 0;
 
-	for (int32_t i = 0; i < MAX_REINFORCEMENTS; i++, num_summoned++)
+    // FIX: Changed loop variable 'i' from int32_t to size_t to match the type of MAX_REINFORCEMENTS.
+	for (size_t i = 0; i < MAX_REINFORCEMENTS; i++, num_summoned++)
 		if (self->monsterinfo.chosen_reinforcements[i] == 255)
 			break;
 
@@ -1472,7 +1472,6 @@ void medic_spawngrows(edict_t* self)
 	if (num_success == 0)
 		self->monsterinfo.nextframe = FRAME_attack53;
 }
-
 void medic_finish_spawn(edict_t* self)
 {
     edict_t* ent;

@@ -613,6 +613,15 @@ public:
 	{
 	}
 
+	inline save_data_t<T, Tag>& operator=(const save_data_t<T, Tag>& other)
+    {
+        if (this != &other) { // Self-assignment check
+            value = other.value;
+            list = other.list;
+        }
+        return *this;
+    }
+
 	inline save_data_t& operator=(value_type ptr_in)
 	{
 		if (value != ptr_in)

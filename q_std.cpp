@@ -39,7 +39,7 @@ char* COM_ParseEx(const char** data_p, const char* seps, char* buffer, size_t bu
 	}
 
 	int			c;
-	int			len;
+	size_t		len; // FIX: Changed from 'int' to 'size_t' to match buffer_size type.
 	const char* data;
 
 	data = *data_p;
@@ -86,7 +86,7 @@ skipwhite:
 				*data_p = data;
 				return buffer;
 			}
-			if (len < buffer_size)
+			if (len < buffer_size) // This comparison is now safe (size_t vs size_t)
 			{
 				buffer[len] = c;
 				len++;
@@ -97,7 +97,7 @@ skipwhite:
 	// parse a regular word
 	do
 	{
-		if (len < buffer_size)
+		if (len < buffer_size) // This comparison is now safe (size_t vs size_t)
 		{
 			buffer[len] = c;
 			len++;
@@ -106,7 +106,7 @@ skipwhite:
 		c = *data;
 	} while (!COM_IsSeparator(c, seps));
 
-	if (len == buffer_size)
+	if (len == buffer_size) // This comparison is now safe (size_t vs size_t)
 	{
 		gi.Com_PrintFmt("PRINT: Token exceeded {} chars, discarded.\n", buffer_size);
 		len = 0;

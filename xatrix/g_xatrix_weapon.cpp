@@ -262,7 +262,6 @@ void fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage
 fire_plasma
 */
 
-
 TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	vec3_t origin;
@@ -272,9 +271,9 @@ TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 
     if (tr.surface && (tr.surface->flags & SURF_SKY))
     {
-        // Check if owner is a fixbot
-        if (ent->owner && horde::IsMonsterType(ent->owner, horde::MonsterTypeID::FIXBOT) ||
-            (horde::IsMonsterType(ent->owner, horde::MonsterTypeID::FIXBOT_KL)))
+        // FIX: Parentheses added to group the OR conditions and fix a null-dereference bug.
+        if (ent->owner && (horde::IsMonsterType(ent->owner, horde::MonsterTypeID::FIXBOT) ||
+                           horde::IsMonsterType(ent->owner, horde::MonsterTypeID::FIXBOT_KL)))
         {
             // Don't destroy the plasma - just let it continue through the sky
             // Optionally adjust direction slightly for more variety

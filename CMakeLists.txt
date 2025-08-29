@@ -23,11 +23,27 @@ target_include_directories(Q2HordeModDLL PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     "${CMAKE_CURRENT_SOURCE_DIR}/vendor")
 
+# --- THIS BLOCK HAS BEEN UPDATED ---
 target_compile_options(Q2HordeModDLL PRIVATE
-    -Wall -Wextra -Wno-error
+    # Enable a comprehensive set of base warnings
+    -Wall
+    -Wextra
+
+    # Enable static analysis for potential null pointer dereferencing
+    -Wnull-dereference
+
+    # Disable warnings for unused function parameters, which are common in callbacks,
+    # while keeping warnings for unused local variables and static functions.
+    -Wno-unused-parameter
+
+    # Do not treat warnings as errors, allowing the project to compile
+    -Wno-error
+
+    # Configuration-specific flags for debugging and optimization
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:RelWithDebInfo>:-g -O2>
-    $<$<CONFIG:Release>:-O3>)
+    $<$<CONFIG:Release>:-O3>
+)
 
 target_link_options(Q2HordeModDLL PRIVATE $<$<CONFIG:Release>:-s>)
 

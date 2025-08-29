@@ -840,7 +840,7 @@ void  ED_CallSpawn(edict_t* ent)
 {
 	ED_CallSpawn(ent, spawn_temp_t::empty);
 }
-
+ 
 /*
 =============
 ED_NewString
@@ -849,7 +849,7 @@ ED_NewString
 char* ED_NewString(const char* string)
 {
 	char* newb, * new_p;
-	int		i;
+	size_t	i; // FIX: Changed from 'int' to 'size_t' to match the type of 'l'.
 	size_t	l;
 
 	l = strlen(string) + 1;
@@ -858,9 +858,9 @@ char* ED_NewString(const char* string)
 
 	new_p = newb;
 
-	for (i = 0; i < l; i++)
+	for (i = 0; i < l; i++) // This comparison is now safe.
 	{
-		if (string[i] == '\\' && i < l - 1)
+		if (string[i] == '\\' && i < l - 1) // This comparison is now safe.
 		{
 			i++;
 			if (string[i] == 'n')
@@ -874,6 +874,8 @@ char* ED_NewString(const char* string)
 
 	return newb;
 }
+
+  
 
 //
 // fields are used for spawning from the entity string
