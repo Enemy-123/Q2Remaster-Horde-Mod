@@ -85,7 +85,6 @@
     <ClInclude Include="m_shocker.h" />
     <ClInclude Include="m_gnorta.h" />
     <ClInclude Include="m_runnertank.h" />
-    <ClInclude Include="laser.h" />
     <ClInclude Include="horde\horde_ids.h">
       <Filter>horde</Filter>
     </ClInclude>
@@ -103,6 +102,9 @@
       <Filter>horde</Filter>
     </ClInclude>
     <ClInclude Include="horde\g_horde_phys.h">
+      <Filter>horde</Filter>
+    </ClInclude>
+    <ClInclude Include="horde\g_laser.h">
       <Filter>horde</Filter>
     </ClInclude>
   </ItemGroup>
@@ -287,7 +289,6 @@
     <ClCompile Include="m_shocker.cpp" />
     <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_runnertank.cpp" />
-    <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
     <ClCompile Include="horde\horde_ids.cpp">
       <Filter>horde</Filter>
@@ -309,6 +310,12 @@
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\g_horde_phys.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_laser.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_traps.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>
