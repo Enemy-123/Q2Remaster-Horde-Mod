@@ -110,8 +110,8 @@ void GladiatorMelee(edict_t* self)
 {
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
+	// FIX: Use a more robust check for the enemy's validity.
+	if (self->enemy && self->enemy->inuse) {
 		if (fire_hit(self, aim, irandom(30, 35), 300))
 			gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);
 		else
@@ -121,13 +121,9 @@ void GladiatorMelee(edict_t* self)
 		}
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "GladiatorMelee: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
+		// Enemy is gone, so this is a miss.
 		gi.sound(self, CHAN_AUTO, sound_cleaver_miss, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
 	}
 }
 
@@ -187,6 +183,12 @@ MMOVE_T(gladiator_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladiator_f
 // RAFAEL
 void gladbGun(edict_t* self)
 {
+	// FIX: Add a guard clause. We MUST have a valid enemy to fire this weapon.
+	if (!self->enemy || !self->enemy->inuse)
+	{
+		return;
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -212,6 +214,7 @@ void gladbGun(edict_t* self)
 		monster_fire_tracker(self, start, dir, 16, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
+
 void gladbGun_check(edict_t* self)
 {
 	if (skill->integer == 3)
@@ -260,10 +263,14 @@ void gladcGun(edict_t* self)
 		fire_plasma(self, start, dir, damage, 1225, radius_damage, radius_damage);
 	}
 
-
-	// save for aiming the shot
-	self->pos1 = self->enemy->s.origin;
-	self->pos1[2] += self->enemy->viewheight;
+	// FIX: Check if the enemy is still valid before updating the aim position.
+	// The plasma shot we just fired might have killed it.
+	if (self->enemy && self->enemy->inuse)
+	{
+		// save for aiming the shot
+		self->pos1 = self->enemy->s.origin;
+		self->pos1[2] += self->enemy->viewheight;
+	}
 }
 
 void gladcGun_check(edict_t* self)
@@ -289,6 +296,10 @@ MMOVE_T(gladc_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladc_frames_at
 
 MONSTERINFO_ATTACK(gladiator_attack) (edict_t* self) -> void
 {
+	// FIX: Add a guard clause to ensure the enemy is valid before proceeding.
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
 	float  range;
 	vec3_t v;
 
