@@ -2162,6 +2162,17 @@ THINK(tracker_pain_daemon_think)(edict_t *self)->void
 	if (!self->inuse)
 		return;
 
+	// --- FIX: Add this check ---
+	// The enemy entity might have been freed since this daemon was spawned.
+	// If so, the self->enemy pointer is "dangling" and unsafe to use.
+	// We must check if the enemy is still valid before accessing its members.
+	if (!self->enemy || !self->enemy->inuse)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+	// --- END FIX ---
+
 	if ((level.time - self->timestamp) > TRACKER_DAMAGE_TIME)
 	{
 		if (!self->enemy->client)
