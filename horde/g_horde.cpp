@@ -5579,10 +5579,14 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		MarkPositionAsRecentlyTeleported(self->s.origin);
 		if (used_spawn_point)
 		{
-			// *** THIS IS THE FIX: Use the compact index map ***
-		const uint16_t index = g_spawn_point_map.at(used_spawn_point->s.number);
-		g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
-	}
+            // --- THIS IS THE FIX ---
+            // Check if the key exists before trying to access the map.
+            if (g_spawn_point_map.count(used_spawn_point->s.number)) {
+			    const uint16_t index = g_spawn_point_map.at(used_spawn_point->s.number);
+			    g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
+            }
+            // --- END OF FIX ---
+		}
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
