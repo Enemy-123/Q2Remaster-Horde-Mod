@@ -1190,6 +1190,13 @@ void gm_arachnid_rockets(edict_t* self)
     vec3_t                      target;
     bool                        const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
+    // FIX: Add a guard clause. If we are not blind-firing, we MUST have a valid enemy.
+    // If the enemy is gone, abort the rocket launch for this frame.
+    if (!blindfire && (!self->enemy || !self->enemy->inuse))
+    {
+        return;
+    }
+
     switch (self->s.frame)
     {
     case FRAME_rails4:
