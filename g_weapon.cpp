@@ -1655,13 +1655,19 @@ static void bfg_spawn_laser(edict_t* self)
 	// Link the entity into the world
 	gi.linkentity(laser);
 }
-
 /**
  * Handles the BFG explosion animation and damage effects.
  * Creates visual lasers and damages entities in radius.
  */
 THINK(bfg_explode) (edict_t* self) -> void
 {
+	// --- FIX: Added safety check for self ---
+	// Although unlikely, it's good practice to ensure the entity itself is valid.
+	if (!self)
+	{
+		return;
+	}
+
 	// Spawn visual laser effect
 	bfg_spawn_laser(self);
 
@@ -1692,16 +1698,26 @@ THINK(bfg_explode) (edict_t* self) -> void
 			if (!ent->takedamage || already_processed)
 				continue;
 
-			if (ent == self->owner)
-				continue;
+			// --- FIX START ---
+			// If the BFG's owner is valid, perform owner-specific checks.
+			// This prevents a crash if the owner entity was removed from the game.
+			if (self->owner)
+			{
+				// Don't let the explosion damage the entity that fired it.
+				if (ent == self->owner)
+					continue;
 
-			if (!CanDamage(ent, self) || !CanDamage(ent, self->owner))
-				continue;
+				// Check if the owner is allowed to damage the target entity.
+				if (!CanDamage(ent, self) || !CanDamage(ent, self->owner))
+					continue;
+
+				// Check for friendly fire / team damage.
+				if (CheckTeamDamage(ent, self->owner))
+					continue;
+			}
+			// --- FIX END ---
 
 			if (!can_be_affected_by_bfg(ent))
-				continue;
-
-			if (CheckTeamDamage(ent, self->owner))
 				continue;
 
 			// --- OPTIMIZATION ---
@@ -1720,7 +1736,7 @@ THINK(bfg_explode) (edict_t* self) -> void
 			// Calculate damage
 			const float points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
 
-			// Apply damage
+			// Apply damage (T_Damage can safely handle a NULL owner/attacker)
 			T_Damage(ent, self, self->owner, self->velocity, centroid, vec3_origin,
 				(int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
 

@@ -373,6 +373,12 @@ void() sham_magic3     =[      $magic3,       sham_magic4    ] {
 
 void ShamblerSaveLoc(edict_t* self)
 {
+
+	if (!self || !self->enemy)
+	{
+		return;
+	}
+
 	self->pos1 = self->enemy->s.origin; // save for aiming the shot
 	self->pos1[2] += self->enemy->viewheight;
 	self->monsterinfo.nextframe = FRAME_magic09;
