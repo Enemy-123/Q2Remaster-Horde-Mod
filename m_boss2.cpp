@@ -16,7 +16,7 @@ boss2
 // [Paril-KEX]
 constexpr spawnflags_t SPAWNFLAG_BOSS2_N64 = 8_spawnflag;
 
-bool infront(edict_t* self, edict_t* other);
+bool infront(edict_t *self, edict_t *other);
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -25,7 +25,7 @@ static cached_soundindex sound_death;
 static cached_soundindex sound_search1;
 
 // he fly
-static void boss2_set_fly_parameters(edict_t* self, bool firing)
+static void boss2_set_fly_parameters(edict_t *self, bool firing)
 {
 	self->monsterinfo.fly_thrusters = false;
 	self->monsterinfo.fly_acceleration = firing ? 1.5f : 3.f;
@@ -35,20 +35,20 @@ static void boss2_set_fly_parameters(edict_t* self, bool firing)
 	self->monsterinfo.fly_max_distance = 600.f;
 }
 
-MONSTERINFO_SEARCH(boss2_search) (edict_t* self) -> void
+MONSTERINFO_SEARCH(boss2_search)(edict_t *self)->void
 {
 	if (frandom() < 0.5f)
 		gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 }
 
-void boss2_run(edict_t* self);
-void boss2_dead(edict_t* self);
-void boss2_attack_mg(edict_t* self);
-void boss2_reattack_mg(edict_t* self);
+void boss2_run(edict_t *self);
+void boss2_dead(edict_t *self);
+void boss2_attack_mg(edict_t *self);
+void boss2_reattack_mg(edict_t *self);
 
 constexpr int32_t BOSS2_ROCKET_SPEED = 1150;
 
-void Boss2PredictiveRocket(edict_t* self)
+void Boss2PredictiveRocket(edict_t *self)
 {
 	vec3_t forward, right;
 	vec3_t start;
@@ -77,8 +77,11 @@ void Boss2PredictiveRocket(edict_t* self)
 	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
 }
 
-void Boss2Rocket(edict_t* self)
+void Boss2Rocket(edict_t *self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+		return;
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
@@ -131,16 +134,19 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 :28, 620, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 620, MZ2_BOSS2_ROCKET_4);
 }
 
-void Boss2Rocket64(edict_t* self)
+void Boss2Rocket64(edict_t *self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+		return;
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
 	vec3_t vec;
-	float  time, dist;
+	float time, dist;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right);
@@ -172,8 +178,12 @@ void Boss2Rocket64(edict_t* self)
 	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 35 : 25, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
 }
 
-void boss2_firebullet_right(edict_t* self)
+void boss2_firebullet_right(edict_t *self)
 {
+
+	if (!self || !self->enemy || !self->enemy->inuse)
+		return;
+
 	vec3_t forward, right, start;
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_R1], forward, right);
@@ -181,8 +191,12 @@ void boss2_firebullet_right(edict_t* self)
 	monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
 }
 
-void boss2_firebullet_left(edict_t* self)
+void boss2_firebullet_left(edict_t *self)
 {
+
+	if (!self || !self->enemy || !self->enemy->inuse)
+		return;
+
 	vec3_t forward, right, start;
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_L1], forward, right);
@@ -190,112 +204,114 @@ void boss2_firebullet_left(edict_t* self)
 	monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
 }
 
-void Boss2MachineGun(edict_t* self)
+void Boss2MachineGun(edict_t *self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+		return;
+
 	boss2_firebullet_left(self);
 	boss2_firebullet_right(self);
 }
 
 mframe_t boss2_frames_stand[] = {
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand }
-};
-MMOVE_T(boss2_move_stand) = { FRAME_stand30, FRAME_stand50, boss2_frames_stand, nullptr };
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand},
+	{ai_stand}};
+MMOVE_T(boss2_move_stand) = {FRAME_stand30, FRAME_stand50, boss2_frames_stand, nullptr};
 
 mframe_t boss2_frames_walk[] = {
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 },
-	{ ai_walk, 10 }
-};
-MMOVE_T(boss2_move_walk) = { FRAME_walk1, FRAME_walk20, boss2_frames_walk, nullptr };
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10},
+	{ai_walk, 10}};
+MMOVE_T(boss2_move_walk) = {FRAME_walk1, FRAME_walk20, boss2_frames_walk, nullptr};
 
 mframe_t boss2_frames_run[] = {
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 },
-	{ ai_run, 10 }
-};
-MMOVE_T(boss2_move_run) = { FRAME_walk1, FRAME_walk20, boss2_frames_run, nullptr };
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10},
+	{ai_run, 10}};
+MMOVE_T(boss2_move_run) = {FRAME_walk1, FRAME_walk20, boss2_frames_run, nullptr};
 
 mframe_t boss2_frames_attack_pre_mg[] = {
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2, boss2_attack_mg }
-};
-MMOVE_T(boss2_move_attack_pre_mg) = { FRAME_attack1, FRAME_attack9, boss2_frames_attack_pre_mg, nullptr };
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2, boss2_attack_mg}};
+MMOVE_T(boss2_move_attack_pre_mg) = {FRAME_attack1, FRAME_attack9, boss2_frames_attack_pre_mg, nullptr};
 
 // Loop this
 mframe_t boss2_frames_attack_mg[] = {
-	{ ai_charge, 2, Boss2MachineGun },
-	{ ai_charge, 2, Boss2MachineGun },
-	{ ai_charge, 2, Boss2MachineGun },
-	{ ai_charge, 2, Boss2MachineGun },
-	{ ai_charge, 2, Boss2MachineGun },
-	{ ai_charge, 2, boss2_reattack_mg }
-};
-MMOVE_T(boss2_move_attack_mg) = { FRAME_attack10, FRAME_attack15, boss2_frames_attack_mg, nullptr };
+	{ai_charge, 2, Boss2MachineGun},
+	{ai_charge, 2, Boss2MachineGun},
+	{ai_charge, 2, Boss2MachineGun},
+	{ai_charge, 2, Boss2MachineGun},
+	{ai_charge, 2, Boss2MachineGun},
+	{ai_charge, 2, boss2_reattack_mg}};
+MMOVE_T(boss2_move_attack_mg) = {FRAME_attack10, FRAME_attack15, boss2_frames_attack_mg, nullptr};
 
 // [Paril-KEX]
-void Boss2HyperBlaster(edict_t* self)
+void Boss2HyperBlaster(edict_t *self)
 {
+
+	if (!self || !self->enemy || !self->enemy->inuse)
+		return;
+
 	vec3_t forward, right, target;
 	vec3_t start;
 	const monster_muzzleflash_id_t id = (self->s.frame & 1) ? MZ2_BOSS2_MACHINEGUN_L2 : MZ2_BOSS2_MACHINEGUN_R2;
@@ -307,193 +323,190 @@ void Boss2HyperBlaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
-	if (!self->monsterinfo.IS_BOSS) {
+	if (!self->monsterinfo.IS_BOSS)
+	{
 		monster_fire_blaster(self, start, forward, 5, 1350, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
-	else {
+	else
+	{
 		monster_fire_blaster_bolt(self, start, forward, 8, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
 }
 
 mframe_t boss2_frames_attack_hb[] = {
-	{ ai_charge, 2, Boss2HyperBlaster },
-	{ ai_charge, 2, Boss2HyperBlaster },
-	{ ai_charge, 2, Boss2HyperBlaster },
-	{ ai_charge, 2, Boss2HyperBlaster },
-	{ ai_charge, 2, Boss2HyperBlaster },
-	{ ai_charge, 2, [](edict_t* self) -> void { Boss2HyperBlaster(self); boss2_reattack_mg(self); } }
-};
-MMOVE_T(boss2_move_attack_hb) = { FRAME_attack10, FRAME_attack15, boss2_frames_attack_hb, nullptr };
+	{ai_charge, 2, Boss2HyperBlaster},
+	{ai_charge, 2, Boss2HyperBlaster},
+	{ai_charge, 2, Boss2HyperBlaster},
+	{ai_charge, 2, Boss2HyperBlaster},
+	{ai_charge, 2, Boss2HyperBlaster},
+	{ai_charge, 2, [](edict_t *self) -> void
+	 { Boss2HyperBlaster(self); boss2_reattack_mg(self); }}};
+MMOVE_T(boss2_move_attack_hb) = {FRAME_attack10, FRAME_attack15, boss2_frames_attack_hb, nullptr};
 
 mframe_t boss2_frames_attack_post_mg[] = {
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 }
-};
-MMOVE_T(boss2_move_attack_post_mg) = { FRAME_attack16, FRAME_attack19, boss2_frames_attack_post_mg, boss2_run };
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2}};
+MMOVE_T(boss2_move_attack_post_mg) = {FRAME_attack16, FRAME_attack19, boss2_frames_attack_post_mg, boss2_run};
 
 mframe_t boss2_frames_attack_rocket[] = {
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_move, -5, Boss2Rocket },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 }
-};
-MMOVE_T(boss2_move_attack_rocket) = { FRAME_attack20, FRAME_attack40, boss2_frames_attack_rocket, boss2_run };
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_move, -5, Boss2Rocket},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2}};
+MMOVE_T(boss2_move_attack_rocket) = {FRAME_attack20, FRAME_attack40, boss2_frames_attack_rocket, boss2_run};
 
 // [Paril-KEX] n64 rocket behavior
 mframe_t boss2_frames_attack_rocket2[] = {
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2, Boss2Rocket64 },
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2, Boss2Rocket64},
+	{ai_charge, 2, Boss2Rocket64},
 };
-MMOVE_T(boss2_move_attack_rocket2) = { FRAME_attack20, FRAME_attack39, boss2_frames_attack_rocket2, boss2_run };
+MMOVE_T(boss2_move_attack_rocket2) = {FRAME_attack20, FRAME_attack39, boss2_frames_attack_rocket2, boss2_run};
 
 mframe_t boss2_frames_pain_heavy[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
-};
-MMOVE_T(boss2_move_pain_heavy) = { FRAME_pain2, FRAME_pain19, boss2_frames_pain_heavy, boss2_run };
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move}};
+MMOVE_T(boss2_move_pain_heavy) = {FRAME_pain2, FRAME_pain19, boss2_frames_pain_heavy, boss2_run};
 
 mframe_t boss2_frames_pain_light[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
-};
-MMOVE_T(boss2_move_pain_light) = { FRAME_pain20, FRAME_pain23, boss2_frames_pain_light, boss2_run };
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move}};
+MMOVE_T(boss2_move_pain_light) = {FRAME_pain20, FRAME_pain23, boss2_frames_pain_light, boss2_run};
 
-static void boss2_shrink(edict_t* self)
+static void boss2_shrink(edict_t *self)
 {
 	self->maxs.z = 50.f;
 	gi.linkentity(self);
 }
 
 mframe_t boss2_frames_death[] = {
-	{ ai_move, 0, BossExplode },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 0, boss2_shrink },
-	{ ai_move },
+	{ai_move, 0, BossExplode},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move, 0, boss2_shrink},
+	{ai_move},
 };
-MMOVE_T(boss2_move_death) = { FRAME_death2, FRAME_death10, boss2_frames_death, boss2_dead };
+MMOVE_T(boss2_move_death) = {FRAME_death2, FRAME_death10, boss2_frames_death, boss2_dead};
 
 mframe_t boss2_frames_deathboss[] = {
-	{ ai_move, 0, BossExplode },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 0, boss2_shrink },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
-};
-MMOVE_T(boss2_move_deathboss) = { FRAME_death2, FRAME_death50, boss2_frames_deathboss, boss2_dead };
+	{ai_move, 0, BossExplode},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move, 0, boss2_shrink},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move},
+	{ai_move}};
+MMOVE_T(boss2_move_deathboss) = {FRAME_death2, FRAME_death50, boss2_frames_deathboss, boss2_dead};
 
-MONSTERINFO_STAND(boss2_stand) (edict_t* self) -> void
+MONSTERINFO_STAND(boss2_stand)(edict_t *self)->void
 {
 	M_SetAnimation(self, &boss2_move_stand);
 }
 
-MONSTERINFO_RUN(boss2_run) (edict_t* self) -> void
+MONSTERINFO_RUN(boss2_run)(edict_t *self)->void
 {
 	if (self->monsterinfo.IS_BOSS)
-	boss2_set_fly_parameters(self, false);
+		boss2_set_fly_parameters(self, false);
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &boss2_move_stand);
@@ -501,15 +514,19 @@ MONSTERINFO_RUN(boss2_run) (edict_t* self) -> void
 		M_SetAnimation(self, &boss2_move_run);
 }
 
-MONSTERINFO_WALK(boss2_walk) (edict_t* self) -> void
+MONSTERINFO_WALK(boss2_walk)(edict_t *self)->void
 {
 	M_SetAnimation(self, &boss2_move_walk);
 }
 
-MONSTERINFO_ATTACK(boss2_attack) (edict_t* self) -> void
+MONSTERINFO_ATTACK(boss2_attack)(edict_t *self)->void
 {
+
+	if (!self || !self->enemy || !self->enemy->inuse)
+		return;
+
 	vec3_t vec;
-	float  range;
+	float range;
 
 	vec = self->enemy->s.origin - self->s.origin;
 	range = vec.length();
@@ -520,23 +537,30 @@ MONSTERINFO_ATTACK(boss2_attack) (edict_t* self) -> void
 		M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_BOSS2_N64) ? &boss2_move_attack_rocket2 : &boss2_move_attack_rocket);
 
 	if (self->monsterinfo.IS_BOSS)
-	boss2_set_fly_parameters(self, true);
+		boss2_set_fly_parameters(self, true);
 }
 
-void boss2_attack_mg(edict_t* self)
+void boss2_attack_mg(edict_t *self)
 {
 	M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_BOSS2_N64) ? &boss2_move_attack_hb : &boss2_move_attack_mg);
 }
 
-void boss2_reattack_mg(edict_t* self)
+void boss2_reattack_mg(edict_t *self)
 {
+
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &boss2_move_attack_post_mg);
+		return;
+	}
+
 	if (infront(self, self->enemy) && frandom() <= 0.7f)
 		boss2_attack_mg(self);
 	else
 		M_SetAnimation(self, &boss2_move_attack_post_mg);
 }
 
-PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+PAIN(boss2_pain)(edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod)->void
 {
 	if (level.time < self->pain_debounce_time)
 		return;
@@ -547,10 +571,12 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	// Determine attenuation based on the monster type and spawnflags
 	float attenuation;
-	if (self->monsterinfo.IS_BOSS) {
+	if (self->monsterinfo.IS_BOSS)
+	{
 		attenuation = ATTN_NONE;
 	}
-	else {
+	else
+	{
 		attenuation = ATTN_NORM;
 	}
 
@@ -569,9 +595,9 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 		M_SetAnimation(self, &boss2_move_pain_light);
 	else
 		M_SetAnimation(self, &boss2_move_pain_heavy);
-	}
+}
 
-MONSTERINFO_SETSKIN(boss2_setskin) (edict_t* self) -> void
+MONSTERINFO_SETSKIN(boss2_setskin)(edict_t *self)->void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -579,7 +605,7 @@ MONSTERINFO_SETSKIN(boss2_setskin) (edict_t* self) -> void
 		self->s.skinnum = 0;
 }
 
-static void boss2_gib(edict_t* self)
+static void boss2_gib(edict_t *self)
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_EXPLOSION1_BIG);
@@ -591,40 +617,23 @@ static void boss2_gib(edict_t* self)
 
 	self->gravityVector.z = -1.0f;
 
-	ThrowGibs(self, 500, {
-		{ 2, "models/objects/gibs/sm_meat/tris.md2" },
-		{ 2, "models/objects/gibs/sm_metal/tris.md2", GIB_METALLIC },
-		{ "models/monsters/boss2/gibs/chest.md2", GIB_SKINNED },
-		{ 2, "models/monsters/boss2/gibs/chaingun.md2", GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/cpu.md2", GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/engine.md2", GIB_SKINNED },
-		{ "models/monsters/boss2/gibs/rocket.md2", GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/spine.md2", GIB_SKINNED },
-		{ 2, "models/monsters/boss2/gibs/wing.md2", GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/larm.md2", GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/rarm.md2", GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/larm.md2", 2.0f, GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/rarm.md2", 2.0f, GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/larm.md2", 1.35f, GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/rarm.md2", 1.35f, GIB_SKINNED | GIB_UPRIGHT },
-		{ "models/monsters/boss2/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
-		});
+	ThrowGibs(self, 500, {{2, "models/objects/gibs/sm_meat/tris.md2"}, {2, "models/objects/gibs/sm_metal/tris.md2", GIB_METALLIC}, {"models/monsters/boss2/gibs/chest.md2", GIB_SKINNED}, {2, "models/monsters/boss2/gibs/chaingun.md2", GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/cpu.md2", GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/engine.md2", GIB_SKINNED}, {"models/monsters/boss2/gibs/rocket.md2", GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/spine.md2", GIB_SKINNED}, {2, "models/monsters/boss2/gibs/wing.md2", GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/larm.md2", GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/rarm.md2", GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/larm.md2", 2.0f, GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/rarm.md2", 2.0f, GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/larm.md2", 1.35f, GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/rarm.md2", 1.35f, GIB_SKINNED | GIB_UPRIGHT}, {"models/monsters/boss2/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD}});
 }
 
-void boss2_dead(edict_t* self)
+void boss2_dead(edict_t *self)
 {
 	// no blowy on deady
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
 	{
 		self->deadflag = false;
 		self->takedamage = true;
-	//	return;
+		//	return;
 	}
 
 	boss2_gib(self);
 }
 
-DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(boss2_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
 {
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
 	{
@@ -642,10 +651,12 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	else
 	{
 		float attenuation;
-		if (self->monsterinfo.IS_BOSS) {
+		if (self->monsterinfo.IS_BOSS)
+		{
 			attenuation = ATTN_NONE;
 		}
-		else {
+		else
+		{
 			attenuation = ATTN_NORM;
 		}
 
@@ -656,39 +667,38 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 		self->velocity = {};
 		self->gravityVector.z *= 0.30f;
 	}
-	//OnEntityDeath(self);
-	self->monsterinfo.IS_BOSS ?
-		M_SetAnimation(self, &boss2_move_deathboss) :
-		M_SetAnimation(self, &boss2_move_death);
+	// OnEntityDeath(self);
+	self->monsterinfo.IS_BOSS ? M_SetAnimation(self, &boss2_move_deathboss) : M_SetAnimation(self, &boss2_move_death);
 }
 
 // [Paril-KEX] use generic function
-MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
+MONSTERINFO_CHECKATTACK(Boss2_CheckAttack)(edict_t *self)->bool
 {
 	return M_CheckAttack_Base(self, 0.4f, 0.8f, 0.8f, 0.8f, 0.f, 0.f);
 }
 
 /*QUAKED monster_boss2 (1 .5 0) (-56 -56 0) (56 56 80) Ambush Trigger_Spawn Sight Hyperblaster
  */
-void SP_monster_boss2(edict_t* self)
+void SP_monster_boss2(edict_t *self)
 {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
+	const spawn_temp_t &st = ED_GetSpawnTemp();
 
-	    // --- EAGER INITIALIZATION ---
-    // Set the base ID. This will be overridden by more specific spawners.
-    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2);
-    }
+	// --- EAGER INITIALIZATION ---
+	// Set the base ID. This will be overridden by more specific spawners.
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
+	{ // Check if it hasn't been set yet
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2);
+	}
 
-
-	if (self->monsterinfo.IS_BOSS) {
+	if (self->monsterinfo.IS_BOSS)
+	{
 		{
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
 	}
 
-
-	if (!M_AllowSpawn(self)) {
+	if (!M_AllowSpawn(self))
+	{
 		G_FreeEdict(self);
 		return;
 	}
@@ -723,10 +733,11 @@ void SP_monster_boss2(edict_t* self)
 	gi.modelindex("models/monsters/boss2/gibs/spine.md2");
 	gi.modelindex("models/monsters/boss2/gibs/wing.md2");
 
-	self->mins = { -60, -60, 0 };
-	self->maxs = { 60, 60, 90 };
+	self->mins = {-60, -60, 0};
+	self->maxs = {60, 60, 90};
 
-	if (self->monsterinfo.IS_BOSS) {
+	if (self->monsterinfo.IS_BOSS)
+	{
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
@@ -734,10 +745,10 @@ void SP_monster_boss2(edict_t* self)
 	}
 
 	if (g_horde->integer)
-	self->health = 6500 + (1.08 * current_wave_level);
+		self->health = 6500 + (1.08 * current_wave_level);
 
 	if (!g_horde->integer)
-	self->health = 2000 * st.health_multiplier;
+		self->health = 2000 * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 2000;
 
@@ -763,7 +774,8 @@ void SP_monster_boss2(edict_t* self)
 	// [Paril-KEX]
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 
-	if (self->monsterinfo.IS_BOSS) {
+	if (self->monsterinfo.IS_BOSS)
+	{
 		self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
 		boss2_set_fly_parameters(self, false);
 	}
@@ -772,20 +784,20 @@ void SP_monster_boss2(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-void SP_monster_boss2_64(edict_t* self)
+void SP_monster_boss2_64(edict_t *self)
 {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
+	const spawn_temp_t &st = ED_GetSpawnTemp();
 
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_64);
 
-
 	SP_monster_boss2(self);
 
-	if (g_horde->integer) {
+	if (g_horde->integer)
+	{
 		self->s.scale = 0.6f;
 
-   // Scale the collision box to match the model scale
+		// Scale the collision box to match the model scale
 		self->mins *= (self->s.scale);
 		self->maxs *= (self->s.scale);
 	}
@@ -798,16 +810,17 @@ void SP_monster_boss2_64(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-void SP_monster_boss2_mini(edict_t* self)
+void SP_monster_boss2_mini(edict_t *self)
 {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
+	const spawn_temp_t &st = ED_GetSpawnTemp();
 	self->spawnflags &= ~SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_MINI);
 	SP_monster_boss2(self);
-	if (g_horde->integer) {
+	if (g_horde->integer)
+	{
 		self->s.scale = 0.6f;
 
-   // Scale the collision box to match the model scale
+		// Scale the collision box to match the model scale
 		self->mins *= self->s.scale;
 		self->maxs *= self->s.scale;
 	}
@@ -820,18 +833,19 @@ void SP_monster_boss2_mini(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-//HORDE BOSS
-void SP_monster_boss2kl(edict_t* self)
+// HORDE BOSS
+void SP_monster_boss2kl(edict_t *self)
 {
-//	if (brandom())
+	//	if (brandom())
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_KL);
 	SP_monster_boss2(self);
 
-	if (g_horde->integer) {
+	if (g_horde->integer)
+	{
 		self->s.scale = 0.6f;
 
-   // Scale the collision box to match the model scale
+		// Scale the collision box to match the model scale
 		self->mins *= (self->s.scale);
 		self->mins *= (self->s.scale);
 	}
