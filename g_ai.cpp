@@ -332,13 +332,12 @@ Use this call with a distance of 0 to replace ai_face
 */
 void ai_charge(edict_t* self, float dist)
 {
-    vec3_t v;
-    float ofs;
 
-    // --- Robust check for self and enemy ---
     if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
         return;
-    // --- End Check ---
+
+    vec3_t v;
+    float ofs;
 
     // PMM - made AI_MANUAL_STEERING affect things differently here .. they turn, but
     // don't set the ideal_yaw
@@ -702,6 +701,10 @@ returns 1 if the entity is in front (in sight) of self
 */
 bool infront_cone(edict_t* self, edict_t* other, float cone)
 {
+	
+		if (!self || !other)
+		return false;
+
 	vec3_t forward;
 
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
@@ -1693,16 +1696,28 @@ used by ai_run and ai_stand
 */
 bool ai_checkattack(edict_t* self, float dist)
 {
+
+		if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+	{
+		// If the enemy is invalid, we cannot and should not attack.
+		// Try to find a new target or go back to standing.
+		if (FindTarget(self))
+		{
+			// Found a new target, but don't attack this frame.
+			return false;
+		}
+		if (self->monsterinfo.stand)
+		{
+			self->monsterinfo.stand(self);
+		}
+		return false;
+	}
+
 	if (level.intermissiontime)
 		return false;
 	vec3_t temp;
 	bool   hesDeadJim;
 	bool   retval; // Stores the result of the monster-specific checkattack
-
-	// Safety check for self
-	if (!self || !self->inuse) {
-		return false;
-	}
 
 	if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
 		self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
@@ -1981,28 +1996,19 @@ void ai_run(edict_t* self, float dist)
 	// 1. Handle terminal state: Intermission
 	if (level.intermissiontime)
 	{
-		self->monsterinfo.walk(self);
+		if (self->monsterinfo.walk) self->monsterinfo.walk(self);
 		return; // Exit immediately.
 	}
 
 	// 2. Handle special case: Summoned monster targeting logic
 	if (self->monsterinfo.issummoned)
 	{
-		// A summoned monster should never target a player.
-		// If it has no enemy, or its enemy is a player, it must find a new (monster) target.
 		if (!self->enemy || !self->enemy->inuse || self->enemy->client)
 		{
-			self->enemy = nullptr; // Clear invalid/player enemy.
-			if (FindMTarget(self))
+			self->enemy = nullptr;
+			if (!FindMTarget(self))
 			{
-				// Found a new valid monster target. Restart run logic next frame.
-				self->monsterinfo.run(self);
-				return;
-			}
-			else
-			{
-				// No valid monster targets found, go idle.
-				self->monsterinfo.stand(self);
+				if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 				return;
 			}
 		}
@@ -2010,34 +2016,23 @@ void ai_run(edict_t* self, float dist)
 	// 3. Handle general case: Regular monster targeting logic
 	else
 	{
-		// If a regular monster has no enemy, it must find one.
 		if (!self->enemy || !self->enemy->inuse)
 		{
-			// FindTarget will attempt to assign a new player enemy.
-			if (FindTarget(self))
+			if (!FindTarget(self))
 			{
-				// Found a new player target. Restart run logic next frame.
-				self->monsterinfo.run(self);
-				return;
-			}
-			else
-			{
-				// No valid player targets found, go idle.
-				self->monsterinfo.stand(self);
+				if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 				return;
 			}
 		}
 	}
 
 	// 4. Final safety net: At this point, we should have a valid enemy.
-	// This is a crucial guard against any other logic that might nullify the enemy.
 	if (!self->enemy || !self->enemy->inuse)
 	{
-		// If something went wrong, the safest action is to go idle.
-		self->monsterinfo.stand(self);
+		if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 		return;
 	}
-
+	
 	// =======================================================================
 	// --- ORIGINAL AI LOGIC CONTINUES (NOW GUARANTEED TO HAVE A VALID ENEMY) ---
 	// =======================================================================
