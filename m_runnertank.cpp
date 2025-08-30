@@ -688,6 +688,12 @@ MMOVE_T(runnertank_move_attack_post_blast) = { FRAME_attak117, FRAME_attak122, r
 
 void runnertank_reattack_blaster(edict_t* self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &runnertank_move_attack_post_blast);
+		return;
+	}
+
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
@@ -704,6 +710,7 @@ void runnertank_reattack_blaster(edict_t* self)
 			}
 	M_SetAnimation(self, &runnertank_move_attack_post_blast);
 }
+
 void runnertank_doattack_rocket(edict_t* self);
 
 void runnertank_poststrike(edict_t* self)
@@ -764,6 +771,15 @@ MMOVE_T(runnertank_move_attack_post_rocket) = { FRAME_attak326, FRAME_attak335, 
 
 void runnertank_refire_rocket(edict_t* self)
 {
+	// Add a guard clause to ensure the enemy is valid before checking its state.
+	// If the enemy is gone, the tank should finish its attack animation.
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &runnertank_move_attack_post_rocket);
+		return;
+	}
+
+
 	// PMM - blindfire cleanup
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
@@ -834,8 +850,9 @@ void runnertank_consider_strafe(edict_t* self)
 	float strafe_chance = 0.3f; // Base chance más baja para no ser tan errático
 
 	// Aumentar probabilidad en situaciones críticas
-	// Ensure enemy is a client before accessing client buttons
-if ((self->enemy->client->buttons & BUTTON_ATTACK) != 0)
+	// Ensure enemy is a client before accessing client->buttons to prevent a crash
+	// when fighting other monsters.
+	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
 		strafe_chance += 0.4f;
 	if (self->health < self->max_health * 0.5f)
 		strafe_chance += 0.35f;

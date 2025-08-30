@@ -1047,6 +1047,12 @@ MMOVE_T(tank_move_attack_chain) = { FRAME_attak401, FRAME_attak429, tank_frames_
 
 void tank_reattack_blaster(edict_t* self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &tank_move_attack_post_blast);
+		return;
+	}
+
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
@@ -1066,6 +1072,12 @@ void tank_reattack_blaster(edict_t* self)
 
 void tank_reattack_grenades(edict_t* self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &tank_move_attack_post_blast);
+		return;
+	}
+
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
@@ -1135,6 +1147,13 @@ MMOVE_T(tank_move_attack_strike) = { FRAME_attak201, FRAME_attak238, tank_frames
 
 void tank_refire_rocket(edict_t* self)
 {
+	// Add a guard clause to ensure the enemy is valid before checking its state.
+	// If the enemy is gone, the tank should finish its attack animation.
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &tank_move_attack_post_rocket);
+		return;
+	}
 	// PMM - blindfire cleanup
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
@@ -1987,6 +2006,12 @@ MMOVE_T(tank_vanilla_move_attack_post_blast) = { FRAME_attak117, FRAME_attak122,
 
 void tank_vanilla_reattack_blaster(edict_t* self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &tank_vanilla_move_attack_post_blast);
+		return;
+	}
+
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
@@ -2175,6 +2200,12 @@ MMOVE_T(tank_vanilla_move_punch) = { FRAME_attak224, FRAME_attak235, tank_vanill
 
 void tank_vanilla_refire_rocket(edict_t* self)
 {
+	if (!self || !self->enemy || !self->enemy->inuse)
+	{
+		M_SetAnimation(self, &tank_vanilla_move_attack_post_rocket);
+		return;
+	}
+
 	// PMM - blindfire cleanup
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
