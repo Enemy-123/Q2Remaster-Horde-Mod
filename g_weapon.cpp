@@ -2016,8 +2016,9 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 		return;
 	}
 
-	// Play noise if owner is a player
-	if (self->owner->client)
+	// Play noise if owner is a valid player entity
+	// Added a null check for self->owner to prevent a crash.
+	if (self->owner && self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	// Handle sliding mode
