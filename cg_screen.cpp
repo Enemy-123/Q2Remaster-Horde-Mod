@@ -788,7 +788,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
     int     width;
     int     index;
 
-    if (!s[0])
+    if (!s || !s[0])
         return;
 
     x = hud_vrect.x;
@@ -808,9 +808,13 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
     while (s)
     {
         token = COM_Parse(&s);
+        if (!token || !*token) {
+            break;
+        }
         if (!strcmp(token, "xl"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 x = ((hud_vrect.x + atoi(token)) * scale) + hud_safe.x;
             continue;
@@ -818,6 +822,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "xr"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 x = ((hud_vrect.x + hud_vrect.width + atoi(token)) * scale) - hud_safe.x;
             continue;
@@ -825,6 +830,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "xv"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 x = (hud_vrect.x + hud_vrect.width / 2 + (atoi(token) - hx)) * scale;
             continue;
@@ -833,6 +839,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "yt"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 y = ((hud_vrect.y + atoi(token)) * scale) + hud_safe.y;
             continue;
@@ -840,6 +847,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "yb"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 y = ((hud_vrect.y + hud_vrect.height + atoi(token)) * scale) - hud_safe.y;
             continue;
@@ -847,6 +855,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "yv"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 y = (hud_vrect.y + hud_vrect.height / 2 + (atoi(token) - hy)) * scale;
             continue;
@@ -855,6 +864,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "pic"))
         {   // draw a pic from a stat number
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 value = ps->stats[atoi(token)];
@@ -876,12 +886,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "client"))
         {   // draw a deathmatch client block
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 x = (hud_vrect.x + hud_vrect.width / 2 + (atoi(token) - hx)) * scale;
                 x += 8 * scale;
             }
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 y = (hud_vrect.y + hud_vrect.height / 2 + (atoi(token) - hy)) * scale;
@@ -889,6 +901,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             }
 
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -900,18 +913,22 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             int score, ping;
 
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 score = atoi(token);
 
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 ping = atoi(token);
-
-                if (!scr_usekfont->integer)
-                    CG_DrawString(x + 32 * scale, y, scale, cgi.CL_GetClientName(value));
-                else
-                    cgi.SCR_DrawFontString(cgi.CL_GetClientName(value), x + 32 * scale, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+                const char* clientName = cgi.CL_GetClientName(value);
+                if (clientName) {
+                    if (!scr_usekfont->integer)
+                        CG_DrawString(x + 32 * scale, y, scale, clientName);
+                    else
+                        cgi.SCR_DrawFontString(clientName, x + 32 * scale, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+                }
 
                 if (!scr_usekfont->integer)
                     CG_DrawString(x + 32 * scale, y + 10 * scale, scale, G_Fmt("{}", score).data(), true);
@@ -933,13 +950,16 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             int     score, ping;
 
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 x = (hud_vrect.x + hud_vrect.width / 2 - hx + atoi(token)) * scale;
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 y = (hud_vrect.y + hud_vrect.height / 2 - hy + atoi(token)) * scale;
 
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 value = atoi(token);
@@ -948,10 +968,12 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             }
 
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 score = atoi(token);
 
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 ping = atoi(token);
@@ -960,15 +982,20 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             }
 
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
-
                 cgi.SCR_DrawFontString(G_Fmt("{}", score).data(), x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
                 x += 3 * 9 * scale;
                 cgi.SCR_DrawFontString(G_Fmt("{}", ping).data(), x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
                 x += 3 * 9 * scale;
-                cgi.SCR_DrawFontString(cgi.CL_GetClientName(value), x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
+
+                // CRASH FIX: Check if the client name is valid before drawing it.
+                const char* clientName = cgi.CL_GetClientName(value);
+                if (clientName) {
+                    cgi.SCR_DrawFontString(clientName, x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
+                }
 
                 if (*token)
                 {
@@ -982,6 +1009,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "picn"))
         {   // draw a pic from a name
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 cgi.Draw_GetPicSize(&w, &h, token);
@@ -993,9 +1021,11 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "num"))
         {   // draw a number
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 width = atoi(token);
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 value = ps->stats[atoi(token)];
@@ -1007,6 +1037,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         else if (!strcmp(token, "lives_num"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 value = ps->stats[atoi(token)];
@@ -1099,6 +1130,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "stat_string"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1112,10 +1144,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
-                if (!scr_usekfont->integer)
-                    CG_DrawString(x, y, scale, cgi.get_configstring(index));
-                else
-                    cgi.SCR_DrawFontString(cgi.get_configstring(index), x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+
+                const char* configstring = cgi.get_configstring(index);
+                if (configstring) {
+                    if (!scr_usekfont->integer)
+                        CG_DrawString(x, y, scale, configstring);
+                    else
+                        cgi.SCR_DrawFontString(configstring, x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+                }
             }
             continue;
         }
@@ -1123,6 +1159,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "cstring"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 CG_DrawHUDString(token, x, y, hx * 2 * scale, 0, scale);
             continue;
@@ -1131,6 +1168,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "string"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 if (!scr_usekfont->integer)
@@ -1144,6 +1182,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "cstring2"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
                 CG_DrawHUDString(token, x, y, hx * 2 * scale, 0x80, scale);
             continue;
@@ -1152,6 +1191,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "string2"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             if (!skip_depth)
             {
                 if (!scr_usekfont->integer)
@@ -1166,6 +1206,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         {
             // if stmt
             token = COM_Parse(&s);
+            if (!token) break;
 
             if_depth++;
 
@@ -1183,6 +1224,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         {
             // if stmt
             token = COM_Parse(&s);
+            if (!token) break;
 
             if_depth++;
 
@@ -1213,6 +1255,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "loc_stat_string"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1226,10 +1269,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
-                if (!scr_usekfont->integer)
-                    CG_DrawString(x, y, scale, cgi.Localize(cgi.get_configstring(index), nullptr, 0));
-                else
-                    cgi.SCR_DrawFontString(cgi.Localize(cgi.get_configstring(index), nullptr, 0), x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+
+                const char* configstring = cgi.get_configstring(index);
+                if (configstring) {
+                    if (!scr_usekfont->integer)
+                        CG_DrawString(x, y, scale, cgi.Localize(configstring, nullptr, 0));
+                    else
+                        cgi.SCR_DrawFontString(cgi.Localize(configstring, nullptr, 0), x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+                }
             }
             continue;
         }
@@ -1237,6 +1284,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "loc_stat_rstring"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1250,13 +1298,17 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
-                const char* s = cgi.Localize(cgi.get_configstring(index), nullptr, 0);
-                if (!scr_usekfont->integer)
-                    CG_DrawString(x - (strlen(s) * CONCHAR_WIDTH * scale), y, scale, s);
-                else
-                {
-                    vec2_t size = cgi.SCR_MeasureFontString(s, scale);
-                    cgi.SCR_DrawFontString(s, x - size.x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+
+                const char* configstring = cgi.get_configstring(index);
+                if (configstring) {
+                    const char* s = cgi.Localize(configstring, nullptr, 0);
+                    if (!scr_usekfont->integer)
+                        CG_DrawString(x - (strlen(s) * CONCHAR_WIDTH * scale), y, scale, s);
+                    else
+                    {
+                        vec2_t size = cgi.SCR_MeasureFontString(s, scale);
+                        cgi.SCR_DrawFontString(s, x - size.x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+                    }
                 }
             }
             continue;
@@ -1265,6 +1317,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "loc_stat_cstring"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1278,7 +1331,11 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
-                CG_DrawHUDString(cgi.Localize(cgi.get_configstring(index), nullptr, 0), x, y, hx * 2 * scale, 0, scale);
+
+                const char* configstring = cgi.get_configstring(index);
+                if (configstring) {
+                    CG_DrawHUDString(cgi.Localize(configstring, nullptr, 0), x, y, hx * 2 * scale, 0, scale);
+                }
             }
             continue;
         }
@@ -1286,6 +1343,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "loc_stat_cstring2"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1299,7 +1357,11 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
                     cgi.Com_Error("Bad stat_string index");
-                CG_DrawHUDString(cgi.Localize(cgi.get_configstring(index), nullptr, 0), x, y, hx * 2 * scale, 0x80, scale);
+
+                const char* configstring = cgi.get_configstring(index);
+                if (configstring) {
+                    CG_DrawHUDString(cgi.Localize(configstring, nullptr, 0), x, y, hx * 2 * scale, 0x80, scale);
+                }
             }
             continue;
         }
@@ -1309,22 +1371,27 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
         if (!strcmp(token, "loc_cstring"))
         {
-            int32_t num_args = atoi(COM_Parse(&s));
+            token = COM_Parse(&s);
+            if (!token) break;
+            int32_t num_args = atoi(token);
 
             if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
             token = COM_Parse(&s);
+            if (!token) break;
             Q_strlcpy(arg_tokens[0], token, sizeof(arg_tokens[0]));
 
             // parse args
             for (int32_t i = 0; i < num_args; i++)
             {
                 token = COM_Parse(&s);
+                if (!token) break;
                 Q_strlcpy(arg_tokens[1 + i], token, sizeof(arg_tokens[0]));
                 arg_buffers[i] = arg_tokens[1 + i];
             }
+            if (!token) break;
 
             if (!skip_depth)
                 CG_DrawHUDString(cgi.Localize(arg_tokens[0], arg_buffers, num_args), x, y, hx * 2 * scale, 0, scale);
@@ -1333,22 +1400,27 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
         if (!strcmp(token, "loc_string"))
         {
-            int32_t num_args = atoi(COM_Parse(&s));
+            token = COM_Parse(&s);
+            if (!token) break;
+            int32_t num_args = atoi(token);
 
             if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
             token = COM_Parse(&s);
+            if (!token) break;
             Q_strlcpy(arg_tokens[0], token, sizeof(arg_tokens[0]));
 
             // parse args
             for (int32_t i = 0; i < num_args; i++)
             {
                 token = COM_Parse(&s);
+                if (!token) break;
                 Q_strlcpy(arg_tokens[1 + i], token, sizeof(arg_tokens[0]));
                 arg_buffers[i] = arg_tokens[1 + i];
             }
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1362,22 +1434,27 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
 
         if (!strcmp(token, "loc_cstring2"))
         {
-            int32_t num_args = atoi(COM_Parse(&s));
+            token = COM_Parse(&s);
+            if (!token) break;
+            int32_t num_args = atoi(token);
 
             if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
             token = COM_Parse(&s);
+            if (!token) break;
             Q_strlcpy(arg_tokens[0], token, sizeof(arg_tokens[0]));
 
             // parse args
             for (int32_t i = 0; i < num_args; i++)
             {
                 token = COM_Parse(&s);
+                if (!token) break;
                 Q_strlcpy(arg_tokens[1 + i], token, sizeof(arg_tokens[0]));
                 arg_buffers[i] = arg_tokens[1 + i];
             }
+            if (!token) break;
 
             if (!skip_depth)
                 CG_DrawHUDString(cgi.Localize(arg_tokens[0], arg_buffers, num_args), x, y, hx * 2 * scale, 0x80, scale);
@@ -1389,22 +1466,27 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         {
             bool green = token[strlen(token) - 1] == '2';
             bool rightAlign = !Q_strncasecmp(token, "loc_rstring", strlen("loc_rstring"));
-            int32_t num_args = atoi(COM_Parse(&s));
+            token = COM_Parse(&s);
+            if (!token) break;
+            int32_t num_args = atoi(token);
 
             if (num_args < 0 || num_args >= MAX_LOCALIZATION_ARGS)
                 cgi.Com_Error("Bad loc string");
 
             // parse base
             token = COM_Parse(&s);
+            if (!token) break;
             Q_strlcpy(arg_tokens[0], token, sizeof(arg_tokens[0]));
 
             // parse args
             for (int32_t i = 0; i < num_args; i++)
             {
                 token = COM_Parse(&s);
+                if (!token) break;
                 Q_strlcpy(arg_tokens[1 + i], token, sizeof(arg_tokens[0]));
                 arg_buffers[i] = arg_tokens[1 + i];
             }
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1428,6 +1510,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         {
             // end frame
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1454,6 +1537,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "dogtag"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1469,6 +1553,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "start_table"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             value = atoi(token);
 
             if (!skip_depth)
@@ -1486,6 +1571,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             for (int i = 0; i < value; i++)
             {
                 token = COM_Parse(&s);
+                if (!token) break;
                 if (!skip_depth)
                 {
                     token = cgi.Localize(token, nullptr, 0);
@@ -1493,11 +1579,13 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
                     hud_temp.column_widths[i] = max(hud_temp.column_widths[i], (size_t)cgi.SCR_MeasureFontString(hud_temp.table_rows[0].table_cells[i].text, scale).x);
                 }
             }
+            if (!token) break;
         }
 
         if (!strcmp(token, "table_row"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
             value = atoi(token);
 
             if (!skip_depth)
@@ -1514,12 +1602,14 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
             for (int i = 0; i < value; i++)
             {
                 token = COM_Parse(&s);
+                if (!token) break;
                 if (!skip_depth)
                 {
                     Q_strlcpy(row.table_cells[i].text, token, sizeof(row.table_cells[i].text));
                     hud_temp.column_widths[i] = max(hud_temp.column_widths[i], (size_t)cgi.SCR_MeasureFontString(row.table_cells[i].text, scale).x);
                 }
             }
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1555,6 +1645,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         if (!strcmp(token, "stat_pname"))
         {
             token = COM_Parse(&s);
+            if (!token) break;
 
             if (!skip_depth)
             {
@@ -1563,10 +1654,13 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
                     cgi.Com_Error("Bad stat_string index");
                 index = ps->stats[index] - 1;
 
-                if (!scr_usekfont->integer)
-                    CG_DrawString(x, y, scale, cgi.CL_GetClientName(index));
-                else
-                    cgi.SCR_DrawFontString(cgi.CL_GetClientName(index), x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+                const char* clientName = cgi.CL_GetClientName(index);
+                if (clientName) {
+                    if (!scr_usekfont->integer)
+                        CG_DrawString(x, y, scale, clientName);
+                    else
+                        cgi.SCR_DrawFontString(clientName, x, y - (font_y_offset * scale), scale, rgba_white, true, text_align_t::LEFT);
+                }
             }
             continue;
         }
@@ -1611,7 +1705,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
         {
             const char* story_str = cgi.get_configstring(CONFIG_STORY);
 
-            if (!*story_str)
+            if (!story_str || !*story_str)
                 continue;
 
             const char* localized = cgi.Localize(story_str, nullptr, 0);
@@ -1686,6 +1780,13 @@ static void CG_DrawInventory(const player_state_t* ps, const std::array<int16_t,
     for (i = top; i < num && i < top + DISPLAY_ITEMS; i++)
     {
         item = index[i];
+
+        // CRASH FIX: Ensure the item's configstring exists before trying to draw it.
+        const char* itemNameCS = cgi.get_configstring(CS_ITEMS + item);
+        if (!itemNameCS) {
+            continue; // Skip drawing this item if its name isn't found.
+        }
+
         if (item == selected) // draw a blinky cursor by the selected item
         {
             if ((cgi.CL_ClientRealTime() * 10) & 1)
@@ -1696,7 +1797,7 @@ static void CG_DrawInventory(const player_state_t* ps, const std::array<int16_t,
         {
             CG_DrawString(x, y, scale,
                 G_Fmt("{:3} {}", inventory[item],
-                    cgi.Localize(cgi.get_configstring(CS_ITEMS + item), nullptr, 0)).data(),
+                    cgi.Localize(itemNameCS, nullptr, 0)).data(),
                 item == selected, false);
         }
         else
@@ -1704,7 +1805,7 @@ static void CG_DrawInventory(const player_state_t* ps, const std::array<int16_t,
             const char* string = G_Fmt("{}", inventory[item]).data();
             cgi.SCR_DrawFontString(string, x + (216 * scale) - (16 * scale), y - (font_y_offset * scale), scale, (item == selected) ? alt_color : rgba_white, true, text_align_t::RIGHT);
 
-            string = cgi.Localize(cgi.get_configstring(CS_ITEMS + item), nullptr, 0);
+            string = cgi.Localize(itemNameCS, nullptr, 0);
             cgi.SCR_DrawFontString(string, x + (16 * scale), y - (font_y_offset * scale), scale, (item == selected) ? alt_color : rgba_white, true, text_align_t::LEFT);
         }
 
@@ -1716,6 +1817,11 @@ extern uint64_t cgame_init_time;
 
 void CG_DrawHUD(int32_t isplit, const cg_server_data_t* data, vrect_t hud_vrect, vrect_t hud_safe, int32_t scale, int32_t playernum, const player_state_t* ps)
 {
+    // CRASH FIX: Add null checks for critical data pointers.
+    if (!ps) {
+        return;
+    }
+
     if (cgi.CL_InAutoDemoLoop())
     {
         if (cl_paused->integer) return; // demo is paused, menu is open
@@ -1737,13 +1843,16 @@ void CG_DrawHUD(int32_t isplit, const cg_server_data_t* data, vrect_t hud_vrect,
     // draw notify
     CG_DrawNotify(isplit, hud_vrect, hud_safe, scale);
 
-    // svc_layout still drawn with hud off
-    if (ps->stats[STAT_LAYOUTS] & LAYOUTS_LAYOUT)
-        CG_ExecuteLayoutString(data->layout, hud_vrect, hud_safe, scale, playernum, ps);
+    // CRASH FIX: Ensure server data is valid before using it for layout and inventory.
+    if (data) {
+        // svc_layout still drawn with hud off
+        if (ps->stats[STAT_LAYOUTS] & LAYOUTS_LAYOUT)
+            CG_ExecuteLayoutString(data->layout, hud_vrect, hud_safe, scale, playernum, ps);
 
-    // inventory too
-    if (ps->stats[STAT_LAYOUTS] & LAYOUTS_INVENTORY)
-        CG_DrawInventory(ps, data->inventory, hud_vrect, scale);
+        // inventory too
+        if (ps->stats[STAT_LAYOUTS] & LAYOUTS_INVENTORY)
+            CG_DrawInventory(ps, data->inventory, hud_vrect, scale);
+    }
 }
 
 /*
