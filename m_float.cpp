@@ -39,6 +39,24 @@ void floater_tracker_zap(edict_t* self);
 
 void floater_tracker_fire_blaster(edict_t* self)
 {
+	// It's good practice to check if 'self' is valid at the beginning of a function.
+	if (!self)
+	{
+		return;
+	}
+
+	// This is the most critical check. If there is no enemy, the function should not proceed.
+	if (!self->enemy)
+	{
+		// Optionally, you can have the entity go back to a different state, like searching.
+		// For now, we will just exit the function.
+		if (self->monsterinfo.search)
+		{
+			self->monsterinfo.search(self);
+		}
+		return;
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	float len;
@@ -52,6 +70,7 @@ void floater_tracker_fire_blaster(edict_t* self)
 	// Usamos G_ProjectSourceWithOffset con vec3_origin
 	start = G_ProjectSourceWithOffset(self->s.origin, custom_offset, vectors.forward, vectors.right, vectors.up, vec3_origin);
 
+	// Now that we've confirmed self->enemy is not null, this line is safe.
 	dir = self->pos1 - self->enemy->s.origin;
 	len = dir.length();
 
@@ -68,6 +87,7 @@ void floater_tracker_fire_blaster(edict_t* self)
 		monster_fire_tracker(self, start, dir, 9, 860, nullptr, MZ2_UNUSED_0);
 	}
 }
+
 mframe_t floater_tracker_frames_stand1[] = {
 	{ ai_stand },
 	{ ai_stand },
@@ -524,23 +544,36 @@ void floater_tracker_wham(edict_t* self)
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 
 	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
+	if (self && self->enemy) {
 		if (!fire_hit(self, aim, irandom(5, 11), -50))
 			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "floater_wham: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+		// If there is no enemy, set a debounce time to prevent this from being called repeatedly.
+		if (self)
+		{
+			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+		}
 	}
 }
 
 
 void floater_tracker_zap(edict_t* self)
 {
+	if (!self)
+	{
+		return;
+	}
+
+	if (!self->enemy)
+	{
+		if (self->monsterinfo.search)
+		{
+			self->monsterinfo.search(self);
+		}
+		return;
+	}
+
 	vec3_t forward, right;
 	vec3_t origin;
 	vec3_t dir;

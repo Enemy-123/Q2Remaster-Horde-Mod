@@ -349,28 +349,38 @@ MMOVE_T(widow2_move_attack_post_beam) = { FRAME_fireb06, FRAME_fireb07, widow2_f
 
 void WidowDisrupt(edict_t* self)
 {
+	if (!self)
+	{
+		return;
+	}
+
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	{
+		return;
+	}
+
+	if (level.time < self->monsterinfo.attack_finished)
+	{
+		return;
+	}
+
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
+	{
+		return;
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right, up;
 	float len;
 
-	// Validación básica
-	if (!self->enemy || !self->enemy->inuse)
-		return;
-
-	if (level.time < self->monsterinfo.attack_finished)
-		return;
-
-	// Agregar verificación de línea de visión
-	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
-	if (!has_clear_path && !visible(self, self->enemy))
-		return;
-
-
 	AngleVectors(self->s.angles, forward, right, up);
 	vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[MZ2_WIDOW_DISRUPTOR]);
 	start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 
+	// This part is safe because we have already validated self->enemy above.
 	dir = self->pos1 - self->enemy->s.origin;
 	len = dir.length();
 
