@@ -228,6 +228,11 @@ void guardian_atk1_charge(edict_t* self)
 
 void guardian_fire_blaster(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right, target;
 	vec3_t start;
 	monster_muzzleflash_id_t id;
@@ -354,14 +359,16 @@ constexpr float GRENADE_SPEED = 1200;
 // Función para lanzar granadas alternando entre dos posiciones
 static void guardian_grenade(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
 	//const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
 	constexpr float speed = GRENADE_SPEED;
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	AngleVectors(self->s.angles, forward, right, up);
 
@@ -485,6 +492,11 @@ MMOVE_T(guardian_move_atk2_in) = { FRAME_atk2_in1, FRAME_atk2_in12, guardian_fra
 
 void guardian_kick(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ? 85 : 30, 700))

@@ -38,6 +38,11 @@ void floater_zap(edict_t* self);
 
 void floater_fire_blaster(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	  start;
 	vec3_t	  forward, right;
 	vec3_t	  end;
@@ -509,6 +514,11 @@ MONSTERINFO_WALK(floater_walk) (edict_t* self) -> void
 
 void floater_wham(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 

@@ -395,11 +395,12 @@ void gunner_vanillaFire(edict_t* self)
 
 bool gunner_vanilla_grenade_check(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	dir;
-
-	if (!self->enemy)
-		return false;
-
 	vec3_t start;
 
 	if (!M_CheckClearShot(self, monster_flash_offset[MZ2_GUNNER_GRENADE_1], start))
@@ -427,6 +428,11 @@ bool gunner_vanilla_grenade_check(edict_t* self)
 
 void gunner_vanillaGrenade(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
 	vec3_t					 aim;

@@ -297,9 +297,13 @@ void hover_reattack(edict_t* self)
 
 void hover_fire_blaster(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     vec3_t start, forward, right, end, dir;
     int blasterSpeed = 1230;
-    if (!self->enemy || !self->enemy->inuse) return;
     AngleVectors(self->s.angles, forward, right, nullptr);
     vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
     start = M_ProjectFlashSource(self, o, forward, right);
@@ -315,9 +319,13 @@ void hover_fire_blaster(edict_t* self)
 
 void hover_fire_blaster2(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     vec3_t start, forward, right, end, dir;
     int blasterSpeed = 1230;
-    if (!self->enemy || !self->enemy->inuse) return;
     AngleVectors(self->s.angles, forward, right, nullptr);
     vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
     start = M_ProjectFlashSource(self, o, forward, right);
@@ -333,11 +341,15 @@ void hover_fire_blaster2(edict_t* self)
 
 void hover_fire_rocket(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     vec3_t forward, right, start, dir, vec, target;
     trace_t trace;
     int rocketSpeed = 850;
     bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
-    if (!self->enemy || !self->enemy->inuse) return;
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
     target = blindfire ? self->monsterinfo.blind_fire_target : self->enemy->s.origin;
@@ -363,13 +375,17 @@ void hover_fire_rocket(edict_t* self)
 
 void hover_fire_grenades(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
    // constexpr float MORTAR_SPEED = 1050.f;
     constexpr float GRENADE_SPEED = 760.f;
     vec3_t forward, right, up, aim, target, offset{};
     monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
     if (self->s.frame == FRAME_attak104) offset = { 1.7f, 7.0f, 11.3f };
     else if (self->s.frame == FRAME_attak105) offset = { 1.7f, -7.0f, 11.3f };
-    if (!self->enemy || !self->enemy->inuse) return;
     target = self->enemy->s.origin;
     AngleVectors(self->s.angles, forward, right, up);
     const vec3_t start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
@@ -381,6 +397,11 @@ void hover_fire_grenades(edict_t* self)
 
 void hover_fire_weapon(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     hover_style_t style(self);
     if (style.has_blaster()) hover_fire_blaster(self);
     else if (style.has_rocket()) hover_fire_rocket(self);

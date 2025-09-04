@@ -361,14 +361,17 @@ static void flyer_checkstrafe(edict_t* self)
 
 void flyer_rocket(edict_t* self)
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	forward;
 	vec3_t	start, end, dir;
 	float	dist, chance;
 	trace_t trace;
 	constexpr int rocketSpeed = 850;
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
 		end = self->monsterinfo.blind_fire_target;
@@ -525,13 +528,15 @@ MMOVE_T(flyer_move_bankleft) = { FRAME_bankl01, FRAME_bankl07, flyer_frames_bank
 
 void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	  start;
 	vec3_t	  forward, right;
 	vec3_t	  end;
 	vec3_t	  dir;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
@@ -659,6 +664,11 @@ MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_att
 
 void flyer_slash_left(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	const vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
 
 	// Verificar si self->enemy está correctamente inicializado
@@ -680,6 +690,11 @@ void flyer_slash_left(edict_t* self)
 
 void flyer_slash_right(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	const	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
 
 	// Verificar si self->enemy está correctamente inicializado
@@ -960,8 +975,10 @@ PRETHINK(flyer_right_laser_update) (edict_t* laser) -> void
 
 void flyer_laser_on(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	// Sonido de láser
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1, ATTN_NORM, 0);

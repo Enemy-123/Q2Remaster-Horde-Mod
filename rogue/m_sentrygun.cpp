@@ -710,13 +710,22 @@ static float CalculateDamage(edict_t* self, int baseDamage) {
 }
 // Fire heatbeam
 static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, trace_t& tr) {
-	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
+	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
 	monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
 }
 
 // Fire machinegun
 static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_t& dir) {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (self->monsterinfo.melee_debounce_time > level.time) {
 		return;
 	}
@@ -733,7 +742,10 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 
 //Fire rocket
 static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
-	// Check fire rate - REMOVED
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	// Check rate limit for rockets
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
@@ -850,8 +862,10 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 }
 
 static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t& dir) {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	// Rate limit check
 	if (self->monsterinfo.melee_debounce_time > level.time) {
@@ -932,6 +946,11 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 }
 // Grenade fire function needs to use the state
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
 
@@ -1176,6 +1195,11 @@ void turret2Fire(edict_t* self) {
 // PMM
 void turret2FireBlind(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward;
 	vec3_t start, end, dir;
 	float  chance;

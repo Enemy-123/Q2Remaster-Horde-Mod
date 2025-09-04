@@ -279,6 +279,11 @@ void brain_swing_right(edict_t* self)
 
 void brain_hit_right(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
@@ -304,6 +309,11 @@ void brain_swing_left(edict_t* self)
 
 void brain_hit_left(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
@@ -353,6 +363,11 @@ void brain_chest_open(edict_t* self)
 
 void brain_tentacle_attack(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (self->enemy) {
 		vec3_t  const aim = { MELEE_DISTANCE, 0, 8 };
 		if (fire_hit(self, aim, irandom(10, 15), -600))
@@ -665,6 +680,10 @@ PRETHINK(brain_left_eye_laser_update) (edict_t* laser) -> void
 
 void brain_laserbeam(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 	// dis is my right eye
 	monster_fire_dabeam(self, 1, false, brain_right_eye_laser_update);
 
@@ -684,9 +703,10 @@ bool IsValidFrame(const edict_t* self, int frame)
 
 void brain_laserbeam_reattack(edict_t* self)
 {
-	// Validaciones básicas
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if (frandom() < 0.5f && visible(self, self->enemy) && self->enemy->health > 0) {
 		// Verificar si FRAME_walk101 es válido para el movimiento actual

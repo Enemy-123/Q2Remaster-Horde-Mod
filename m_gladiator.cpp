@@ -108,6 +108,11 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 
 void GladiatorMelee(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
 	// FIX: Use a more robust check for the enemy's validity.
@@ -153,6 +158,11 @@ MONSTERINFO_MELEE(gladiator_melee) (edict_t* self) -> void
 
 void GladiatorGun(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -183,10 +193,9 @@ MMOVE_T(gladiator_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladiator_f
 // RAFAEL
 void gladbGun(edict_t* self)
 {
-	// FIX: Add a guard clause. We MUST have a valid enemy to fire this weapon.
-	if (!self->enemy || !self->enemy->inuse)
+	if (!M_HasValidTarget(self))
 	{
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	vec3_t start;
@@ -238,6 +247,11 @@ MMOVE_T(gladb_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladb_frames_at
 // RAFAEL
 void gladcGun(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;

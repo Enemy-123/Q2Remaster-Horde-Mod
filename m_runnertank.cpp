@@ -422,13 +422,18 @@ const RailOffset RAIL_OFFSETS[] = {
 
 void runnertankRail(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
 	monster_muzzleflash_id_t flash_number;
 	const RailOffset* current_offset;
 
-	if (!self->enemy || !self->enemy->inuse || !infront(self, self->enemy) || !visible(self, self->enemy))
+	if (!infront(self, self->enemy) || !visible(self, self->enemy))
 		return;
 
 	bool const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
@@ -501,8 +506,10 @@ void runnertankStrike(edict_t* self)
 
 
 void runnertankRocket(edict_t* self) {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	// Determinar flash number basado en el frame actual
 	monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>(
@@ -573,9 +580,11 @@ void runnertankRocket(edict_t* self) {
 }
 
 void runnertankPlasmaGun(edict_t* self) {
-	// Validaciones iniciales
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	// Verificar ángulo de disparo
 	vec3_t initial_forward;

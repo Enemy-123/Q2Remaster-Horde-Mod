@@ -855,6 +855,11 @@ MONSTERINFO_SETSKIN(medic_setskin) (edict_t* self) -> void
 
 void medic_fire_blaster_bolt(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t forward, right;
 	vec3_t end;
@@ -863,9 +868,6 @@ void medic_fire_blaster_bolt(edict_t* self)
 	monster_muzzleflash_id_t mz;
 
 	mz = static_cast<monster_muzzleflash_id_t>(((self->mass > 400) ? MZ2_MEDIC_HYPERBLASTER2_1 : MZ2_MEDIC_HYPERBLASTER1_1));
-
-	if (!(self->enemy && self->enemy->inuse))
-		return;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	const vec3_t& offset = monster_flash_offset[mz];
@@ -880,6 +882,11 @@ void medic_fire_blaster_bolt(edict_t* self)
 
 void medic_fire_blaster(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	  start;
 	vec3_t	  forward, right;
 	vec3_t	  end;
@@ -887,10 +894,6 @@ void medic_fire_blaster(edict_t* self)
 	effects_t effect;
 	int		  damage = 2;
 	monster_muzzleflash_id_t mz;
-
-	// paranoia checking
-	if (!(self->enemy && self->enemy->inuse))
-		return;
 
 	if ((self->s.frame == FRAME_attack9) || (self->s.frame == FRAME_attack12))
 	{

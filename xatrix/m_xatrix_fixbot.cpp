@@ -1537,8 +1537,10 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 	vec3_t forward, right, up;
 	vec3_t start;
 
-	// Safety check for self
-	if (!self || !self->inuse) return false;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	AngleVectors(self->s.angles, forward, right, up);
 

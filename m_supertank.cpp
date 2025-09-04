@@ -268,12 +268,14 @@ static void BossLoop(edict_t* self)
 
 static void supertankGrenade(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	vec3_t start;
 	monster_muzzleflash_id_t flash_number;
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	if (self->s.frame == FRAME_attak4_1)
 		flash_number = MZ2_SUPERTANK_GRENADE_1;
@@ -493,14 +495,16 @@ MONSTERINFO_SETSKIN(supertank_setskin) (edict_t* self) -> void
 
 void supertankRocket(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 forward, right;
 	vec3_t					 start;
 	vec3_t					 dir;
 	vec3_t					 vec;
 	monster_muzzleflash_id_t flash_number;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
 
 	if (self->s.frame == FRAME_attak2_8)
 		flash_number = MZ2_SUPERTANK_ROCKET_1;
@@ -529,13 +533,15 @@ void supertankRocket(edict_t* self)
 
 void supertankMachineGun(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 dir;
 	vec3_t					 start;
 	vec3_t					 forward, right;
 	monster_muzzleflash_id_t flash_number;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_SUPERTANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak1_1));
 

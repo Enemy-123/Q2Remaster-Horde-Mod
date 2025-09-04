@@ -39,22 +39,9 @@ void floater_tracker_zap(edict_t* self);
 
 void floater_tracker_fire_blaster(edict_t* self)
 {
-	// It's good practice to check if 'self' is valid at the beginning of a function.
-	if (!self)
+	if (!M_HasValidTarget(self))
 	{
-		return;
-	}
-
-	// This is the most critical check. If there is no enemy, the function should not proceed.
-	if (!self->enemy)
-	{
-		// Optionally, you can have the entity go back to a different state, like searching.
-		// For now, we will just exit the function.
-		if (self->monsterinfo.search)
-		{
-			self->monsterinfo.search(self);
-		}
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	vec3_t start;
@@ -540,6 +527,11 @@ MONSTERINFO_WALK(floater_tracker_walk) (edict_t* self) -> void
 
 void floater_tracker_wham(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 

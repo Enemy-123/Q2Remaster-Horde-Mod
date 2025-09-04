@@ -565,6 +565,11 @@ PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 // RAFAEL
 void soldierh_laserbeam(edict_t* self, int flash_index)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	self->radius_dmg = flash_index;
 	monster_fire_dabeam(self, IsFirstThreeWaves(current_wave_level) ? 1 : 2, false, soldierh_laser_update);
 }
@@ -576,6 +581,8 @@ bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& t
 
 void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 {
+
+
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
 	vec3_t					 aim;
@@ -613,10 +620,10 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	else
 	{
 		// [Paril-KEX] no enemy = no fire
-		if ((!self->enemy) || (!self->enemy->inuse))
+		if (!M_HasValidTarget(self))
 		{
 			self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
-			return;
+			return; // Stop immediately if the target is invalid.
 		}
 
 		// PMM

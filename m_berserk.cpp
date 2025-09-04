@@ -367,8 +367,10 @@ void berserk_jump_takeoff(edict_t* self)
 {
 	vec3_t forward;
 
-	if (!self->enemy)
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	{
 		return;
+	}
 
 	// immediately turn to where we need to go
 	float  const length = (self->s.origin - self->enemy->s.origin).length();
@@ -559,6 +561,11 @@ static void berserk_fire_bolt(edict_t* self, edict_t* target, const vec3_t& zap_
 // This function contains the multi-target lightning logic.
 void berserk_zap_enemies(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	
@@ -568,14 +575,11 @@ void berserk_zap_enemies(edict_t* self)
 	int targets_hit = 0;
 
 	// --- 1. Prioritize the main enemy ---
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
-	{
 		if (DistanceSquared(self->s.origin, self->enemy->s.origin) <= BERSERK_ZAP_RADIUS_SQUARED)
 		{
 			berserk_fire_bolt(self, self->enemy, zap_origin);
 			targets_hit++;
 		}
-	}
 
 	// --- 2. Find other nearby targets ---
 	edict_t* target = nullptr;

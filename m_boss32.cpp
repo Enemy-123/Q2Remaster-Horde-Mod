@@ -496,6 +496,11 @@ MMOVE_T(makron_move_sight) = { FRAME_active01, FRAME_active13, makron_frames_sig
 
 void makronBFG(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
@@ -634,6 +639,11 @@ void makron_reattack_railgun(edict_t* self)
 
 void MakronRailgun(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -651,6 +661,11 @@ void MakronRailgun(edict_t *self)
 
 void MakronHyperblaster(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t dir;
 	vec3_t vec;
 	vec3_t start;

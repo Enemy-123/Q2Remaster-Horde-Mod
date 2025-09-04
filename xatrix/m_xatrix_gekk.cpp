@@ -627,10 +627,9 @@ MMOVE_T(gekk_move_run_start) = { FRAME_stand_01, FRAME_stand_02, gekk_frames_run
 void gekk_hit_left(edict_t* self)
 {
 	// ROBUST FIX: Check if the enemy pointer is valid AND the entity is in use and alive.
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	if (!M_HasValidTarget(self))
 	{
-		// The enemy is invalid, so we can't attack.
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
@@ -647,10 +646,9 @@ void gekk_hit_left(edict_t* self)
 void gekk_hit_right(edict_t* self)
 {
 	// ROBUST FIX: Apply the same check here for consistency and safety.
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	if (!M_HasValidTarget(self))
 	{
-		// The enemy is invalid, so we can't attack.
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
@@ -737,6 +735,11 @@ void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 
 void loogie(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t forward, right, up;
 	vec3_t dir;
@@ -908,10 +911,9 @@ MMOVE_T(gekk_move_leapatk2) = { FRAME_leapatk_01, FRAME_leapatk_19, gekk_frames_
 void gekk_bite(edict_t* self)
 {
 	// ROBUST FIX: Apply the same check here as well.
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	if (!M_HasValidTarget(self))
 	{
-		// The enemy is invalid, so we can't attack.
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };

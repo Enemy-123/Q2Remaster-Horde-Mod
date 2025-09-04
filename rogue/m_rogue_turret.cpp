@@ -380,6 +380,11 @@ constexpr int32_t TURRET_BULLET_DAMAGE = 2;
 
 void TurretFire(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	forward;
 	vec3_t	start, end, dir;
 	float	dist, chance;
@@ -387,9 +392,6 @@ void TurretFire(edict_t* self)
 	int		rocketSpeed;
 
 	TurretAim(self);
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
 		end = self->monsterinfo.blind_fire_target;
@@ -479,15 +481,17 @@ void TurretFire(edict_t* self)
 // PMM
 void TurretFireBlind(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward;
 	vec3_t start, end, dir;
 	float  chance;
 	int	   rocketSpeed = 550;
 
 	TurretAim(self);
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	dir = self->monsterinfo.blind_fire_target - self->s.origin;
 	dir.normalize();

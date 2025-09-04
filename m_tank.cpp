@@ -493,8 +493,10 @@ MONSTERINFO_SETSKIN(tank_setskin) (edict_t* self) -> void
 
 void TankGrenades(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
@@ -547,12 +549,14 @@ void TankGrenades(edict_t* self)
 
 void TankBlaster(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	vec3_t dir;
 	monster_muzzleflash_id_t flash_number;
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
@@ -637,6 +641,11 @@ void TankStrike(edict_t* self)
 
 void TankRocket(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
     vec3_t                   forward, right;
     vec3_t                   start;
     vec3_t                   dir;
@@ -645,11 +654,6 @@ void TankRocket(edict_t* self)
     int                      rocketSpeed;
     vec3_t target;
     trace_t trace; // PMM - needed for trace check
-
-    // --- Primary Check for self and enemy ---
-    if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
-        return;
-    // --- End Check ---
 
     const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
@@ -745,8 +749,10 @@ void TankRocket(edict_t* self)
 
 void TankMachineGun(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	// Aumenta velocidad de giro
 	vec3_t dir = self->enemy->s.origin - self->s.origin;
@@ -1814,6 +1820,11 @@ void tank_vanillaStrike(edict_t* self)
 
 void tank_vanillaRocket(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 forward, right;
 	vec3_t					 start;
 	vec3_t					 dir;
@@ -1822,9 +1833,6 @@ void tank_vanillaRocket(edict_t* self)
 	int						 rocketSpeed; // PGM
 	// pmm - blindfire support
 	vec3_t target;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
 
 	bool   const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
@@ -1916,6 +1924,11 @@ void tank_vanillaRocket(edict_t* self)
 
 void tank_vanillaMachineGun(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 dir;
 	vec3_t					 vec;
 	vec3_t					 start;

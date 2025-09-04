@@ -92,6 +92,11 @@ MONSTERINFO_SEARCH(widow2_search) (edict_t* self) -> void
 }
 void Widow2Beam(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right, up, target;
 	vec3_t start, targ_angles, vec;
 	monster_muzzleflash_id_t flashnum;
@@ -349,14 +354,9 @@ MMOVE_T(widow2_move_attack_post_beam) = { FRAME_fireb06, FRAME_fireb07, widow2_f
 
 void WidowDisrupt(edict_t* self)
 {
-	if (!self)
+	if (!M_HasValidTarget(self))
 	{
-		return;
-	}
-
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
-	{
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	if (level.time < self->monsterinfo.attack_finished)
@@ -593,16 +593,16 @@ void Widow2TonguePull(edict_t* self)
 
 void Widow2Crunch(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		self->monsterinfo.run(self);
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (self->enemy && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
 		return;
 	}
 	vec3_t aim;
-
-	if ((!self->enemy) || (!self->enemy->inuse))
-	{
-		self->monsterinfo.run(self);
-		return;
-	}
 
 	Widow2TonguePull(self);
 

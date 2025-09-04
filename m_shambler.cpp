@@ -406,8 +406,10 @@ vec3_t FindShamblerOffset(edict_t* self)
 
 void ShamblerCastLightning(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t start;
 	vec3_t dir;
@@ -639,12 +641,9 @@ void sham_swingr9(edict_t* self);
 
 void sham_smash10(edict_t* self)
 {
-	if (!self->enemy)
+	if (!M_HasValidTarget(self))
 	{
-		// char buffer[256];
-		// std::snprintf(buffer, sizeof(buffer), "sham_smash10: Error: enemy not properly initialized\n");
-		// gi.Com_Print(buffer);
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	ai_charge(self, 0);
@@ -664,12 +663,9 @@ void sham_smash10(edict_t* self)
 
 void ShamClaw(edict_t* self)
 {
-	if (!self->enemy)
+	if (!M_HasValidTarget(self))
 	{
-		// char buffer[256];
-		// std::snprintf(buffer, sizeof(buffer), "ShamClaw: Error: enemy not properly initialized\n");
-		// gi.Com_Print(buffer);
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	ai_charge(self, 10);

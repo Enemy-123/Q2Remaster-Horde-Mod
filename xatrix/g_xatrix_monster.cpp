@@ -114,6 +114,11 @@ THINK(beam_think) (edict_t* self) -> void {
 // RAFAEL
 void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update_func)(edict_t* self))
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 	edict_t*& beam_ptr = secondary ? self->beam2 : self->beam;
 

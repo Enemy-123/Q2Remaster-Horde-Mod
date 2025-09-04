@@ -226,6 +226,10 @@ MONSTERINFO_RUN(mutant_run) (edict_t* self) -> void
 
 void mutant_hit_left(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
 
 	// Verificar si self->enemy está correctamente inicializado

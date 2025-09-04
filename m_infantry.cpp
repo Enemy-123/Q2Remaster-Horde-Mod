@@ -734,6 +734,11 @@ void infantry_swing(edict_t* self)
 
 void infantry_smack(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t const aim = { MELEE_DISTANCE, 0, 0 };
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {

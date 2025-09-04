@@ -40,6 +40,11 @@ void SP_misc_crashviper(edict_t* ent)
 
 USE(misc_viper_missile_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right, up;
 	vec3_t start, dir;
 	vec3_t vec;

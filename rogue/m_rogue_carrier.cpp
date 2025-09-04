@@ -135,6 +135,11 @@ void CarrierCoopCheck(edict_t *self)
 
 void CarrierGrenade(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
 	vec3_t					 aim;
@@ -144,9 +149,6 @@ void CarrierGrenade(edict_t *self)
 	int						 mytime;
 
 	CarrierCoopCheck(self);
-
-	if (!self->enemy)
-		return;
 
 	if (frandom() < 0.5f)
 		direction = -1.0f;
@@ -203,6 +205,11 @@ void CarrierGrenade(edict_t *self)
 
 void CarrierPredictiveRocket(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
@@ -297,6 +304,11 @@ void CarrierRocket(edict_t *self)
 
 void carrier_firebullet_right(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 forward, right, start;
 	monster_muzzleflash_id_t flashnum;
 
@@ -314,6 +326,11 @@ void carrier_firebullet_right(edict_t *self)
 
 void carrier_firebullet_left(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 forward, right, start;
 	monster_muzzleflash_id_t flashnum;
 
@@ -621,6 +638,11 @@ MMOVE_T(carrier_move_attack_rocket) = { FRAME_fireb01, FRAME_fireb01, carrier_fr
 
 void CarrierRail(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;

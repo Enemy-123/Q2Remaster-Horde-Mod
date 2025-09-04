@@ -377,14 +377,16 @@ void gunner_opengun(edict_t* self)
 
 void GunnerFire(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t forward, right;
 	vec3_t aim;
 	vec3_t offset = { 30.1f * 1.15f, 3.9f * 1.15f, 19.6f * 1.15f + 4.0f };
 	monster_muzzleflash_id_t flash_number;
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	// Check if we can get a clear shot first
 	if (!M_CheckClearShot(self, offset))
@@ -474,6 +476,11 @@ bool gunner_grenade_check(edict_t* self)
 
 void GunnerGrenade(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
 	vec3_t					 aim;
@@ -483,9 +490,6 @@ void GunnerGrenade(edict_t* self)
 	// PMM
 	vec3_t target;
 	bool   blindfire = false;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
 
 	// pmm
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)

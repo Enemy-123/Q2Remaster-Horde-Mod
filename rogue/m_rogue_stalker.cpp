@@ -475,6 +475,7 @@ void stalker_shoot_attack(edict_t *self)
 
 void stalker_shoot_attack(edict_t* self)
 {
+
 	vec3_t	offset, start, f, r, dir;
 	vec3_t	end;
 	float	dist;
@@ -550,6 +551,11 @@ MONSTERINFO_ATTACK(stalker_attack_ranged) (edict_t* self) -> void
 // ******************
 void stalker_swing_attack(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {

@@ -720,6 +720,11 @@ static void fire_proboscis(edict_t* self, vec3_t start, vec3_t dir, float speed)
 
 static void parasite_fire_proboscis(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// if (self->proboscus && self->proboscus->style != 2)
 	// 	proboscis_reset(self->proboscus);
 

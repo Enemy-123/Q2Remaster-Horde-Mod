@@ -404,6 +404,11 @@ MMOVE_T(chick_move_duck) = { FRAME_duck01, FRAME_duck07, chick_frames_duck, chic
 
 void ChickSlash(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 10 };
 
 	// Verificar si self->enemy está correctamente inicializado
@@ -422,6 +427,11 @@ void ChickSlash(edict_t* self)
 
 void ChickRocket(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	forward, right;
 	vec3_t	start;
 	vec3_t	dir;
@@ -557,11 +567,13 @@ void ChickRocket(edict_t* self)
 
 void ChickLocRail(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	target;
 	float	r;
-
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	target = self->enemy->s.origin;
 	target[2] += self->enemy->viewheight; // Aim at enemy's viewheight
@@ -583,6 +595,11 @@ void ChickLocRail(edict_t* self)
 
 void ChickRailgun(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t	start;
 	vec3_t	dir;
 	vec3_t	forward, right;

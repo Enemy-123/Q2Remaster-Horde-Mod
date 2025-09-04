@@ -133,9 +133,10 @@ vec3_t M_ProjectFlashSource(edict_t* self, const vec3_t& offset, const vec3_t& f
 // might be blocked by something
 bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 {
-	// no enemy, just do whatever
-	if (!self->enemy)
-		return false;
+	if (!M_HasValidTarget(self))
+	{
+		return false; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t f, r;
 
@@ -468,6 +469,16 @@ bool M_droptofloor(edict_t* ent)
 	gi.linkentity(ent);
 	M_CheckGround(ent, mask);
 	M_CatagorizePosition(ent, ent->s.origin, ent->waterlevel, ent->watertype);
+
+	return true;
+}
+
+bool M_HasValidTarget(edict_t* self)
+{
+	if (!self || !self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	{
+		return false;
+	}
 
 	return true;
 }

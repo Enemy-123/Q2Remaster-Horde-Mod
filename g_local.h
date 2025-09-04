@@ -4196,3 +4196,4 @@ inline int8_t GetNumHumanPlayers()
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
 extern float M_DamageModifier(edict_t* monster) noexcept;
 extern inline bool G_CheatCheck(edict_t* ent);
+bool M_HasValidTarget(edict_t* self);

@@ -289,15 +289,16 @@ void guardianpsx_atk1_charge(edict_t* self)
 
 void guardianpsx_fire_blaster(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		self->monsterinfo.nextframe = FRAME_atk1_spin13;
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right, up;
 	vec3_t start;
 	monster_muzzleflash_id_t const id = MZ2_GUARDIAN_BLASTER;
 
-	if (!self->enemy || !self->enemy->inuse)
-	{
-		self->monsterinfo.nextframe = FRAME_atk1_spin13;
-		return;
-	}
 
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
@@ -395,6 +396,11 @@ PRETHINK(guardianpsx_fire_update) (edict_t* laser) -> void
 
 void guardianpsx_laser_fire(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1.f, ATTN_NORM, 0.f);
 	monster_fire_dabeam(self, 15, self->s.frame & 1, guardianpsx_fire_update);
 }
@@ -430,6 +436,11 @@ MMOVE_T(guardianpsx_move_atk2_in) = { FRAME_atk2_in1, FRAME_atk2_in12, guardianp
 
 void guardianpsx_kick(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (!fire_hit(self, { 160.f, 0, -80.f }, 85, 700))
 		self->monsterinfo.melee_debounce_time = level.time + 3500_ms;
 }
@@ -619,6 +630,11 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 
 static void guardianpsx_fire_rocket(edict_t* self, float offset)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right, up;
 	vec3_t start;
 

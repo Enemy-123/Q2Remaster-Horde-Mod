@@ -50,6 +50,11 @@ constexpr int32_t BOSS2_ROCKET_SPEED = 1150;
 
 void Boss2PredictiveRocket(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
@@ -79,8 +84,10 @@ void Boss2PredictiveRocket(edict_t *self)
 
 void Boss2Rocket(edict_t *self)
 {
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t forward, right;
 	vec3_t start;
@@ -180,9 +187,10 @@ void Boss2Rocket64(edict_t *self)
 
 void boss2_firebullet_right(edict_t *self)
 {
-
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t forward, right, start;
 	AngleVectors(self->s.angles, forward, right, nullptr);
@@ -193,9 +201,10 @@ void boss2_firebullet_right(edict_t *self)
 
 void boss2_firebullet_left(edict_t *self)
 {
-
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t forward, right, start;
 	AngleVectors(self->s.angles, forward, right, nullptr);
@@ -206,8 +215,10 @@ void boss2_firebullet_left(edict_t *self)
 
 void Boss2MachineGun(edict_t *self)
 {
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	boss2_firebullet_left(self);
 	boss2_firebullet_right(self);
@@ -308,9 +319,10 @@ MMOVE_T(boss2_move_attack_mg) = {FRAME_attack10, FRAME_attack15, boss2_frames_at
 // [Paril-KEX]
 void Boss2HyperBlaster(edict_t *self)
 {
-
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t forward, right, target;
 	vec3_t start;

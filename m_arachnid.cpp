@@ -146,8 +146,10 @@ void arachnid_melee_charge(edict_t* self)
 
 void arachnid_charge_rail(edict_t* self)
 {
-    if (!self->enemy || !self->enemy->inuse)
-        return;
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
 
     gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
     self->pos1 = self->enemy->s.origin;
@@ -727,6 +729,12 @@ PAIN(arachnid_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 // Rail gun firing
 void arachnid_rail(edict_t* self)
 {
+
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     vec3_t start;
     vec3_t dir;
     vec3_t forward, right;
@@ -838,6 +846,12 @@ void spider_charge_plasma(edict_t* self)
 // Improved plasma firing with better leading
 void spider_plasma(edict_t* self)
 {
+
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     vec3_t start;
     vec3_t dir;
     vec3_t forward, right, up; // Added 'up' vector
@@ -1072,6 +1086,12 @@ PAIN(arachnid2_pain) (edict_t* self, edict_t* other, float kick, int damage, con
 // Rail gun for arachnid2
 void arachnid2_rail(edict_t* self)
 {
+
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     vec3_t start;
     vec3_t dir;
     vec3_t forward, right;
@@ -1141,6 +1161,11 @@ MMOVE_T(arachnid2_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, arachnid2_f
 // Melee attack for arachnid2
 void arachnid2_melee_hit(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     if (self->style == 1)
     {
         if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 30, 50))
@@ -1192,7 +1217,7 @@ void gm_arachnid_rockets(edict_t* self)
 
     // FIX: Add a guard clause. If we are not blind-firing, we MUST have a valid enemy.
     // If the enemy is gone, abort the rocket launch for this frame.
-    if (!blindfire && (!self->enemy || !self->enemy->inuse))
+    if (!blindfire && (!!M_HasValidTarget(self)))
     {
         return;
     }
@@ -1636,6 +1661,11 @@ MMOVE_T(arachnid_psx_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, arachnid
 // PSX arachnid melee attack
 void arachnid_psx_melee_hit(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
     {
         self->monsterinfo.melee_debounce_time = level.time + 1000_ms;

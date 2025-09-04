@@ -170,7 +170,7 @@ constexpr float VARIANCE = 15.0f;
 
 void WidowBlaster(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy))
+	if (!M_HasValidTarget(self) || !visible(self, self->enemy))
 		return;
 
 	vec3_t forward, right, up, target, vec, targ_angles;
@@ -487,7 +487,7 @@ extern const mmove_t widow_move_attack_rail_r;
 
 void WidowRail(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy))
+	if (M_HasValidTarget(self) || !visible(self, self->enemy))
 		return;
 
 	vec3_t start, dir, forward, right;
@@ -694,9 +694,11 @@ MMOVE_T(widow1_move_death) = { FRAME_death25, FRAME_death31, widow1_frames_death
 // --- IMPROVED: Added safety check for enemy ---
 void widow_attack_kick(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse) {
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
 	}
+
 	vec3_t aim = { 100, 0, 4 };
 	if (self->enemy->groundentity)
 		fire_hit(self, aim, irandom(50, 56), 500);

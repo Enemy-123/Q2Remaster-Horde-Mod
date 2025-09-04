@@ -485,6 +485,11 @@ MONSTERINFO_SETSKIN(jorg_setskin) (edict_t* self) -> void
 
 void jorgBFG(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
@@ -531,6 +536,11 @@ void jorg_firebullet_right(edict_t* self)
 	//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
 	//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
 
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -559,6 +569,12 @@ void jorg_firebullet_right(edict_t* self)
 
 void jorg_firebullet_left(edict_t* self)
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -600,12 +616,22 @@ void jorg_firebullet_left(edict_t* self)
 }
 void jorg_firebullet(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	jorg_firebullet_left(self);
 	jorg_firebullet_right(self);
 }
 
 MONSTERINFO_ATTACK(jorg_attack) (edict_t* self) -> void
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (frandom() <= 0.75f)
 	{
 		gi.sound(self, CHAN_WEAPON, sound_attack1, 1, ATTN_NORM, 0);

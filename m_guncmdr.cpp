@@ -811,9 +811,10 @@ void guncmdr_opengun(edict_t* self)
 // Función unificada para disparar con la cadena
 void GunnerCmdrFire(edict_t* self)
 {
-	// Verificar entidad enemiga
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t start;
 	vec3_t forward, right;
@@ -840,8 +841,10 @@ void GunnerCmdrFire(edict_t* self)
 // Función unificada para lanzar granadas
 void GunnerCmdrGrenade(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t start;
 	vec3_t forward, right, up;
@@ -1248,6 +1251,11 @@ static void guncmdr_kick_finished(edict_t* self)
 
 static void guncmdr_kick(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// Verificar si self->enemy está correctamente inicializado
 	if (self && self->enemy) {
 		if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f)) {
