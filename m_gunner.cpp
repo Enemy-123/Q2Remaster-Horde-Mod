@@ -446,8 +446,10 @@ bool gunner_grenade_check(edict_t* self)
 {
 	vec3_t	dir;
 
-	if (!self->enemy)
-		return false;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	vec3_t start;
 

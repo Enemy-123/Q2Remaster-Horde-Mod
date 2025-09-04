@@ -374,9 +374,9 @@ void() sham_magic3     =[      $magic3,       sham_magic4    ] {
 void ShamblerSaveLoc(edict_t* self)
 {
 
-	if (!self || !self->enemy)
+	if (!M_HasValidTarget(self))
 	{
-		return;
+		return; // Can't at a non-existent or dead target.
 	}
 
 	self->pos1 = self->enemy->s.origin; // save for aiming the shot
@@ -462,8 +462,10 @@ MMOVE_T(shambler_attack_magic) = { FRAME_magic01, FRAME_magic12, shambler_frames
 
 void ShamblerCastFireballs(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	vec3_t f, r;
 	AngleVectors(self->s.angles, f, r, nullptr);

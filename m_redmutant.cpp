@@ -391,6 +391,11 @@ bool redmutant_check_melee(edict_t* self)
 
 bool redmutant_check_jump(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
+
 	vec3_t v;
 	float  distance;
 

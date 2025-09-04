@@ -144,10 +144,12 @@ void Boss2Rocket(edict_t *self)
 	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 620, MZ2_BOSS2_ROCKET_4);
 }
 
-void Boss2Rocket64(edict_t *self)
+void Boss2Rocket64(edict_t* self)
 {
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t forward, right;
 	vec3_t start;
@@ -531,11 +533,12 @@ MONSTERINFO_WALK(boss2_walk)(edict_t *self)->void
 	M_SetAnimation(self, &boss2_move_walk);
 }
 
-MONSTERINFO_ATTACK(boss2_attack)(edict_t *self)->void
+MONSTERINFO_ATTACK(boss2_attack)(edict_t* self)->void
 {
-
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	vec3_t vec;
 	float range;
@@ -557,13 +560,12 @@ void boss2_attack_mg(edict_t *self)
 	M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_BOSS2_N64) ? &boss2_move_attack_hb : &boss2_move_attack_mg);
 }
 
-void boss2_reattack_mg(edict_t *self)
+void boss2_reattack_mg(edict_t* self)
 {
-
-	if (!self || !self->enemy || !self->enemy->inuse)
+	if (!M_HasValidTarget(self))
 	{
 		M_SetAnimation(self, &boss2_move_attack_post_mg);
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
 
 	if (infront(self, self->enemy) && frandom() <= 0.7f)

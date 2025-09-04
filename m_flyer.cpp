@@ -232,6 +232,12 @@ MONSTERINFO_STAND(flyer_stand) (edict_t* self) -> void
 
 void flyer_kamikaze_explode(edict_t* self)
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
+
 	vec3_t dir;
 
 edict_t* commander = self->monsterinfo.commander;
@@ -263,9 +269,7 @@ void flyer_kamikaze_check(edict_t* self)
 	if (!self->inuse)
 		return;
 
-	edict_t* ent2 = self->enemy; // Inicializar ent2
-
-	if ((!self->enemy) || (!self->enemy->inuse) || !visible(self, ent2))
+	if (!M_HasValidTarget(self) || !visible(self, self->enemy))
 	{
 		flyer_kamikaze_explode(self);
 		return;
@@ -935,13 +939,10 @@ PRETHINK(flyer_right_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
 
-    // --- FIX: Add safety check for the owner ---
-    if (!self || !self->inuse || self->health <= 0)
-    {
-        G_FreeEdict(laser);
-        return;
-    }
-    // --- END FIX ---
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	vec3_t start, forward, right, up, dir;
 
@@ -1079,9 +1080,10 @@ void flyer_recharge(edict_t* self)
 
 MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 {
-    // --- Initial Safety Checks ---
-    if (!self)
-        return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
     // Kamikaze flyers have their own run/attack logic
     if (self->mass > 50)

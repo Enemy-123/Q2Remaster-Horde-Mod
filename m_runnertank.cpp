@@ -906,9 +906,10 @@ void runnertank_consider_strafe(edict_t* self)
 
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
-	// Validación básica
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	if (level.time < self->monsterinfo.attack_finished)
 		return;

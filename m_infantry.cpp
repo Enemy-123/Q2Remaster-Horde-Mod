@@ -818,7 +818,7 @@ static void infantry_grenade(edict_t* self)
     else
     {
         // Normal combat case: Use PredictAim for high accuracy.
-        if (!self->enemy || !self->enemy->inuse) {
+		if (!M_HasValidTarget(self)) {
             infantry_grenade_cleanup(self);
             return;
         }
@@ -934,14 +934,13 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 		return;
 	}
 
-    // ... (the rest of the function is correct, no changes needed there) ...
 	float  const r = range_to(self, self->enemy);
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
 	{
 		M_SetAnimation(self, &infantry_move_attack2);
 	}
-	else if (r > RANGE_MELEE && frandom() <= 0.35f)
+	else if (r > RANGE_MELEE && frandom() <= 0.25f)
 	{
 		// 35% chance to throw a grenade when enemy is beyond melee range
 		M_SetAnimation(self, &infantry_move_grenade_prep);

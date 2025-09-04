@@ -377,13 +377,15 @@ void gunner_vanilla_opengun(edict_t* self)
 
 void gunner_vanillaFire(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t					 start;
 	vec3_t					 forward, right;
 	vec3_t					 aim;
 	monster_muzzleflash_id_t flash_number;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_GUNNER_MACHINEGUN_1 + (self->s.frame - FRAME_attak216));
 

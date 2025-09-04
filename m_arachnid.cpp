@@ -448,55 +448,57 @@ bool spider_check_lz(edict_t* self, edict_t* target, const vec3_t& dest)
 
 bool spider_do_pounce(edict_t* self, const vec3_t& dest)
 {
-	vec3_t	dist;
-	float	length;
-	vec3_t	jumpAngles;
-	vec3_t	jumpLZ;
-	float	velocity = 400.1f;
+    if (!M_HasValidTarget(self))
+    {
+        return false; // Stop immediately if the target is invalid.
+    }
 
-	if (SPIDER_ON_CEILING(self))
-		return false; // No pouncing from ceiling
+    vec3_t	dist;
+    float	length;
+    vec3_t	jumpAngles;
+    vec3_t	jumpLZ;
+    float	velocity = 400.1f;
 
-	if (!self->enemy || !self->enemy->inuse)
-		return false;
+    if (SPIDER_ON_CEILING(self))
+        return false; // No pouncing from ceiling
 
-	if (!spider_check_lz(self, self->enemy, dest))
-		return false;
+    if (!spider_check_lz(self, self->enemy, dest))
+        return false;
 
-	dist = dest - self->s.origin;
+    dist = dest - self->s.origin;
 
-	jumpAngles = vectoangles(dist);
-	if (fabsf(jumpAngles[YAW] - self->s.angles[YAW]) > 45)
-		return false; // Not facing target enough
+    jumpAngles = vectoangles(dist);
+    if (fabsf(jumpAngles[YAW] - self->s.angles[YAW]) > 45)
+        return false; // Not facing target enough
 
-	if (std::isnan(jumpAngles[YAW]))
-		return false;
+    if (std::isnan(jumpAngles[YAW]))
+        return false;
 
-	self->ideal_yaw = jumpAngles[YAW];
-	M_ChangeYaw(self);
+    self->ideal_yaw = jumpAngles[YAW];
+    M_ChangeYaw(self);
 
-	length = dist.length();
-	if (length > 450)
-		return false; // Too far
+    length = dist.length();
+    if (length > 450)
+        return false; // Too far
 
-	jumpLZ = dest;
-	vec3_t dir = dist.normalized();
+    jumpLZ = dest;
+    vec3_t dir = dist.normalized();
 
-	// Find valid trajectory
-	while (velocity <= 800)
-	{
-		if (M_CalculatePitchToFire(self, jumpLZ, self->s.origin, dir, velocity, 3, false, true))
-			break;
-		velocity += 200;
-	}
+    // Find valid trajectory
+    while (velocity <= 800)
+    {
+        if (M_CalculatePitchToFire(self, jumpLZ, self->s.origin, dir, velocity, 3, false, true))
+            break;
+        velocity += 200;
+    }
 
-	if (velocity > 800)
-		return false; // No valid trajectory found
+    if (velocity > 800)
+        return false; // No valid trajectory found
 
-	self->velocity = dir * velocity;
-	// Set a jump animation (placeholder)
-	M_SetAnimation(self, &spider_move_jump_up);
-	return true;
+    self->velocity = dir * velocity;
+    // Set a jump animation (placeholder)
+    M_SetAnimation(self, &spider_move_jump_up);
+    return true;
 }
 
 // --- spider_jump_straightup (for ceiling transition / dodge) ---

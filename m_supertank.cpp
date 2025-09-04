@@ -557,6 +557,11 @@ void supertankMachineGun(edict_t* self)
 
 MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t vec;
 	float  range;
 

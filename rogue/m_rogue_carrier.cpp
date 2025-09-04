@@ -255,7 +255,7 @@ void CarrierRocket(edict_t *self)
 	vec3_t dir;
 	vec3_t vec;
 
-	if (self->enemy)
+	if (!M_HasValidTarget(self))
 	{
 		if (self->enemy->client && frandom() < 0.5f)
 		{
@@ -520,6 +520,11 @@ void carrier_ready_spawn(edict_t* self)
 
 void carrier_start_spawn(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't jump at a non-existent or dead target.
+	}
+
 	int	   mytime;
 	float  enemy_yaw;
 	vec3_t temp;

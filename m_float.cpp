@@ -552,19 +552,12 @@ void floater_tracker_wham(edict_t* self)
 
 void floater_tracker_zap(edict_t* self)
 {
-	if (!self)
+	if (!M_HasValidTarget(self))
 	{
-		return;
+		self->monsterinfo.search(self);
+		return; // Can't at a non-existent or dead target.
 	}
 
-	if (!self->enemy)
-	{
-		if (self->monsterinfo.search)
-		{
-			self->monsterinfo.search(self);
-		}
-		return;
-	}
 
 	vec3_t forward, right;
 	vec3_t origin;

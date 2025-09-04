@@ -93,6 +93,13 @@ extern const mmove_t widow_move_run_attack;
 
 float target_angle(edict_t* self)
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
+
 	vec3_t target;
 	float  enemy_yaw;
 

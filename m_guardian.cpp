@@ -329,9 +329,16 @@ constexpr vec3_t laser_positions[] = {
 
 PRETHINK(guardian_fire_update) (edict_t* laser) -> void
 {
+
+
 	edict_t* self = laser->owner;
 	vec3_t forward, right, target;
 	vec3_t start;
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, laser_positions[1 - (self->s.frame & 1)], forward, right);
@@ -424,6 +431,12 @@ static void guardian_grenade(edict_t* self)
 
 void guardian_laser_fire(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
+
+
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1.f, ATTN_NORM, 0.f);
 
     // --- REFACTORED LOGIC ---
@@ -446,8 +459,10 @@ void guardian_laser_fire(edict_t* self)
 // Nueva función para manejar ataques basados en el tipo de entidad
 void guardian_fire_attack(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2)) {
 		// Ataque con granadas para janitor2
@@ -503,10 +518,6 @@ void guardian_kick(edict_t* self)
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "guardian_kick: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
 		// Manejar el caso donde self->enemy no está inicializado
 		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Ajustar según sea necesario
 	}
@@ -531,8 +542,10 @@ MMOVE_T(guardian_move_kick) = { FRAME_kick_in1, FRAME_kick_in13, guardian_frames
 
 MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	const float r = range_to(self, self->enemy);
 
@@ -648,9 +661,6 @@ MMOVE_T(guardian_move_death) = { FRAME_death1, FRAME_death11, guardian_frames_de
 
 DIE(guardian_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	//OnEntityDeath(self);
-	// regular death
-	//gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	self->monsterinfo.weapon_sound = 0;
 	self->deadflag = true;
 	self->takedamage = false;

@@ -97,10 +97,9 @@ void sphere_fly(edict_t *self)
 // =================
 void sphere_chase(edict_t* self, int stupidChase)
 {
-	if (!self)
+	if (!M_HasValidTarget(self))
 	{
-		gi.Com_PrintFmt("PRINT: Error: self es nulo en sphere_chase\n");
-		return;
+		return; // Can't at a non-existent or dead target.
 	}
 
 	vec3_t dest;

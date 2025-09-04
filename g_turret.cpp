@@ -333,6 +333,12 @@ bool FindTarget(edict_t* self);
 
 THINK(turret_driver_think) (edict_t* self) -> void
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
+
 	vec3_t target;
 	vec3_t dir;
 

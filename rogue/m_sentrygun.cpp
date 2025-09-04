@@ -1028,8 +1028,11 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 	gi.sound(self, CHAN_VOICE, sound_grenade_launcher, 1, ATTN_NORM, 0);
 }
 void turret2Fire(edict_t* self) {
-	if (!self || !self->inuse)
-		return;
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	// Check powerups and inherit from owner
 	if (self->owner && self->owner->client) {
@@ -1627,8 +1630,10 @@ USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 {
 	// Basic validity checks
-	if (!self->enemy || self->enemy->health <= 0)
-		return false;
+	if (!M_HasValidTarget(self))
+	{
+		return false; // Can't at a non-existent or dead target.
+	}
 
 	// Ignore monsters that should never be attacked
 	if (OnSameTeam(self, self->enemy) || self->enemy->deadflag)

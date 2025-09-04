@@ -72,12 +72,11 @@ bool gekk_check_melee(edict_t* self)
 
 bool gekk_check_jump(edict_t* self)
 {
-
-		if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	if (!M_HasValidTarget(self))
 	{
 		return false; // Can't jump at a non-existent or dead target.
 	}
-	
+
 	vec3_t v{};
 	float  distance;
 
@@ -105,6 +104,11 @@ bool gekk_check_jump(edict_t* self)
 
 bool gekk_check_jump_close(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
+
 	vec3_t v{};
 	float  distance;
 
@@ -791,8 +795,10 @@ void gekk_continue_spit(edict_t* self)
 
 void gekk_save_enemy_pos(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	// Save the enemy's current position for the loogie to aim at.
 	self->pos1 = self->enemy->s.origin;
@@ -1042,6 +1048,11 @@ void gekk_jump_takeoff(edict_t* self)
 
 void gekk_jump_takeoff2(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
+
 	vec3_t forward;
 
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);

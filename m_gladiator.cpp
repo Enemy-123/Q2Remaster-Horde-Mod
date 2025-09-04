@@ -310,9 +310,10 @@ MMOVE_T(gladc_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladc_frames_at
 
 MONSTERINFO_ATTACK(gladiator_attack) (edict_t* self) -> void
 {
-	// FIX: Add a guard clause to ensure the enemy is valid before proceeding.
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	float  range;
 	vec3_t v;

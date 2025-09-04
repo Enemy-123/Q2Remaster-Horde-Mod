@@ -475,7 +475,7 @@ bool M_droptofloor(edict_t* ent)
 
 bool M_HasValidTarget(edict_t* self)
 {
-	if (!self || !self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
 		return false;
 	}

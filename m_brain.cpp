@@ -446,8 +446,10 @@ inline void G_EntMidPoint(const edict_t* ent, vec3_t& point)
 
 void brain_tounge_attack(edict_t* self)
 {
-	if (!self || !self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	// Calculate enemy position and direction
 	vec3_t start;
@@ -778,8 +780,10 @@ MMOVE_T(brain_move_jumpattack) = { FRAME_duck01, FRAME_duck08, brain_frames_jump
 // RAFAEL
 MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 {
-	if (!self || !self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	const float r = range_to(self, self->enemy);
 	constexpr float closeEnought = 80.0f;
@@ -1001,8 +1005,10 @@ void brain_jump2_now(edict_t* self)
 
 void brain_jump_attack(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	// Calculate direction and distance to enemy using vec3_t operators
 	const vec3_t dir = self->enemy->s.origin - self->s.origin;
