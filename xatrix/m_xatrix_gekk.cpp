@@ -106,7 +106,7 @@ bool gekk_check_jump_close(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Can't at a non-existent or dead target.
+		return false; // Can't at a non-existent or dead target.
 	}
 
 	vec3_t v{};

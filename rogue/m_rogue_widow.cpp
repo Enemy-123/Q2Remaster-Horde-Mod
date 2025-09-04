@@ -96,7 +96,7 @@ float target_angle(edict_t* self)
 
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return 0.0f; // Stop immediately if the target is invalid.
 	}
 
 
