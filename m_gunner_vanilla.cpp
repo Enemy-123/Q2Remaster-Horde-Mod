@@ -397,7 +397,7 @@ bool gunner_vanilla_grenade_check(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return false; // Stop immediately if the target is invalid.
 	}
 
 	vec3_t	dir;
