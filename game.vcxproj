@@ -153,7 +153,6 @@ copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program 
     <ClInclude Include="m_float.h" />
     <ClInclude Include="m_flyer.h" />
     <ClInclude Include="m_gladiator.h" />
-    <ClInclude Include="m_gnorta.h" />
     <ClInclude Include="m_guardian.h" />
     <ClInclude Include="m_gunner.h" />
     <ClInclude Include="m_hover.h" />
@@ -166,7 +165,6 @@ copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program 
     <ClInclude Include="m_rider.h" />
     <ClInclude Include="m_runnertank.h" />
     <ClInclude Include="m_shambler.h" />
-    <ClInclude Include="m_shocker.h" />
     <ClInclude Include="m_soldier.h" />
     <ClInclude Include="m_supertank.h" />
     <ClInclude Include="m_tank.h" />
@@ -199,7 +197,6 @@ copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program 
     <ClCompile Include="horde\horde_ids.cpp" />
     <ClCompile Include="horde\horde_menu.cpp" />
     <ClCompile Include="horde\horde_spawning.cpp" />
-    <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="g_ai.cpp" />
     <ClCompile Include="g_chase.cpp" />
@@ -246,7 +243,6 @@ copy /Y "$(SolutionDir)vcpkg_installed\x64-windows\bin\jsoncpp.dll" "C:\Program 
     <ClCompile Include="m_mutant.cpp" />
     <ClCompile Include="m_parasite.cpp" />
     <ClCompile Include="m_redmutant.cpp" />
-    <ClCompile Include="m_shocker.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
     <ClCompile Include="profiler.cpp" />
     <ClCompile Include="rogue/m_rogue_turret.cpp" />

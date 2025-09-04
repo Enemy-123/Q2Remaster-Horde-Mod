@@ -540,6 +540,11 @@ void floater_wham(edict_t* self)
 
 void floater_zap(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return;
+	}
+
 	vec3_t forward, right;
 	vec3_t origin;
 	vec3_t dir;
