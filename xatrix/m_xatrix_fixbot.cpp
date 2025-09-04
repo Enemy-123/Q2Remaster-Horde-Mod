@@ -1539,7 +1539,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return false; // Stop immediately if the target is invalid.
 	}
 
 	AngleVectors(self->s.angles, forward, right, up);
