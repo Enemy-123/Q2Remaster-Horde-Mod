@@ -847,6 +847,17 @@ FIELD_AUTO(density)
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT
 
+//Adding regeneration info to client_persistant_t for horde mode
+#define DECLARE_SAVE_STRUCT regeneration_info_t
+SAVE_STRUCT_START
+FIELD_AUTO(stored_healing),
+FIELD_AUTO(stored_armor),
+FIELD_AUTO(next_regen_time)
+SAVE_STRUCT_END
+#undef DECLARE_SAVE_STRUCT
+
+MAKE_STRUCT_SAVE_DEDUCER(regeneration_info_t);
+
 #define DECLARE_SAVE_STRUCT client_persistant_t
 SAVE_STRUCT_START
 FIELD_AUTO(userinfo),
@@ -886,9 +897,54 @@ FIELD_STRUCT(wanted_heightfog, height_fog_t),
 FIELD_AUTO(megahealth_time),
 FIELD_AUTO(lives),
 FIELD_AUTO(n64_crouch_warn_times),
-FIELD_AUTO(n64_crouch_warning)
+FIELD_AUTO(n64_crouch_warning),
+FIELD_AUTO(adrenaline_count)
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT
+
+#define DECLARE_SAVE_STRUCT client_respawn_t
+SAVE_STRUCT_START
+FIELD_STRUCT(coop_respawn, client_persistant_t),
+FIELD_AUTO(entertime),
+FIELD_AUTO(score),
+FIELD_AUTO(cmd_angles),
+FIELD_AUTO(spectator),
+FIELD_AUTO(ctf_team),
+FIELD_AUTO(ctf_state),
+FIELD_AUTO(ctf_lasthurtcarrier),
+FIELD_AUTO(ctf_lastreturnedflag),
+FIELD_AUTO(ctf_flagsince),
+FIELD_AUTO(ctf_lastfraggedcarrier),
+FIELD_AUTO(lastidtime),
+FIELD_AUTO(voted),
+FIELD_AUTO(ready),
+FIELD_AUTO(admin),
+
+// Horde Per-Life Fields
+FIELD_AUTO(inactivity_warning),
+FIELD_AUTO(inactivity_time),
+FIELD_AUTO(inactive),
+FIELD_AUTO(spree),
+FIELD_AUTO(sentry_gun_choice),
+FIELD_AUTO(num_lasers),
+FIELD_AUTO(deployed_lasers),
+FIELD_AUTO(num_teslas),
+FIELD_AUTO(deployed_teslas),
+FIELD_AUTO(oldest_tesla_idx),
+FIELD_AUTO(num_traps),
+FIELD_AUTO(deployed_traps),
+FIELD_AUTO(oldest_trap_idx),
+FIELD_AUTO(num_proxs),
+FIELD_AUTO(deployed_proxs),
+FIELD_AUTO(oldest_prox_idx),
+FIELD_AUTO(num_sentries),
+FIELD_AUTO(deployed_sentries),
+FIELD_AUTO(teleport_cooldown),
+FIELD_AUTO(lasthbshot)
+SAVE_STRUCT_END
+#undef DECLARE_SAVE_STRUCT
+
+MAKE_STRUCT_SAVE_DEDUCER(client_respawn_t);
 
 #define DECLARE_SAVE_STRUCT gclient_t
 SAVE_STRUCT_START
@@ -897,11 +953,8 @@ FIELD_STRUCT(ps, player_state_t),
 
 FIELD_STRUCT(pers, client_persistant_t),
 
-FIELD_STRUCT(resp.coop_respawn, client_persistant_t),
-FIELD_AUTO(resp.entertime),
-FIELD_AUTO(resp.score),
-FIELD_AUTO(resp.cmd_angles),
-FIELD_AUTO(resp.spectator),
+FIELD_AUTO(resp),
+
 // old_pmove is not necessary to persist
 
 // showscores, showinventory, showhelp not necessary
@@ -1335,7 +1388,7 @@ FIELD_AUTO(monsterinfo.move_block_change_time),
 FIELD_AUTO(monsterinfo.react_to_damage_time),
 FIELD_AUTO(monsterinfo.jump_time),
 
-FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),
+//FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),
 FIELD_AUTO(monsterinfo.chosen_reinforcements),
 FIELD_AUTO(monsterinfo.physics_change), // Added missing function pointer
 // FIELD_AUTO(monsterinfo.nav_path), // Needs custom handling for PathInfo struct
@@ -1350,14 +1403,16 @@ FIELD_AUTO(monsterinfo.stuck_check_time),
 FIELD_AUTO(monsterinfo.was_stuck),
 FIELD_AUTO(monsterinfo.issummoned),
 FIELD_AUTO(monsterinfo.IS_BOSS),
-FIELD_AUTO(monsterinfo.effects_applied), // Added missing Horde field
+FIELD_AUTO(monsterinfo.effects_applied),
 FIELD_AUTO(monsterinfo.BOSS_DEATH_HANDLED),
 FIELD_AUTO(monsterinfo.damage_modifier_applied),
 FIELD_AUTO(monsterinfo.death_processed),
-//FIELD_AUTO(monsterinfo.spawn_complete_time), // Added missing Horde field
 FIELD_AUTO(monsterinfo.bonus_flags),
 FIELD_AUTO(monsterinfo.team),
-FIELD_AUTO(monsterinfo.next_regen_time), // Added missing Horde field
+FIELD_AUTO(monsterinfo.next_regen_time), 
+FIELD_AUTO(monsterinfo.monster_type_id),     
+FIELD_AUTO(monsterinfo.was_spawned_by_horde),
+FIELD_AUTO(monsterinfo.spawned_in_spawn_state),
 
 // back to edict_t
 FIELD_AUTO(plat2flags),
@@ -1423,6 +1478,15 @@ FIELD_AUTO(lastMOD.id),
 FIELD_AUTO(lastMOD.friendly_fire),
 
 FIELD_AUTO(vision_cone),
+
+FIELD_AUTO(special_type_id),                  // CRITICAL: Must be saved for non-monsters.
+FIELD_AUTO(is_fading_out),
+FIELD_AUTO(bossSizeCategory),
+FIELD_AUTO(regen_info),
+FIELD_AUTO(safety_time),
+FIELD_AUTO(hook_time),
+FIELD_AUTO(beam_hit_time),
+FIELD_AUTO(bounce_count),
 
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT

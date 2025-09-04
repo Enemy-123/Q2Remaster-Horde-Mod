@@ -327,7 +327,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 	if (!ent->client)
 		return;
 
-	ent->client->resp.adrenaline_count++;
+	ent->client->pers.adrenaline_count++;
 
 	int new_max;
 	if (g_horde->integer) {

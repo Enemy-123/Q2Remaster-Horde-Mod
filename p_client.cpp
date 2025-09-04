@@ -859,7 +859,7 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 
 	// Si se proporciona el cliente, incluir el bonus de adrenalina
 	if (client) {
-		calculated_max_health += (client->resp.adrenaline_count * ADRENALINE_HEALTH_BONUS);
+		calculated_max_health += (client->pers.adrenaline_count * ADRENALINE_HEALTH_BONUS);
 	}
 
 	return calculated_max_health;
@@ -871,11 +871,11 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	//
 	// HEALTH INITIALIZATION (Horde Override)
 	//
-	const int saved_adrenaline = client->resp.adrenaline_count; // Preserve adrenaline count
+	const int saved_adrenaline = client->pers.adrenaline_count; // Preserve adrenaline count
 	const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
 	client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
 	client->pers.health = new_max_health; // Start with full health
-	client->resp.adrenaline_count = saved_adrenaline; // Restore adrenaline count
+	client->pers.adrenaline_count = saved_adrenaline; // Restore adrenaline count
 
 	//
 	// AMMO INITIALIZATION (Horde Override)

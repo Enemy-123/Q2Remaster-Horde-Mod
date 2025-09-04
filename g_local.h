@@ -3033,7 +3033,7 @@ struct client_persistant_t
 	bool	 id_state;
 	bool	 iddmg_state;
 	sentrytype_t sentry_gun_choice; // Player's preferred sentry type (default SENTRY_RANDOM)
-
+	int adrenaline_count = 0;
 };
 
 // client data that stays across deathmatch respawns
@@ -3071,7 +3071,6 @@ struct client_respawn_t
 	gtime_t inactivity_time;
 	bool inactive;
 	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
-	int adrenaline_count = 0;
 	sentrytype_t sentry_gun_choice; //save preference after death
 
 	// Lasers
