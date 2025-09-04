@@ -1921,73 +1921,8 @@ void read_save_type_json(const Json::Value& json, void* data, const save_type_t*
 		}
 		return;
 	case ST_REINFORCEMENTS:
-		if (!json.isArray())
-			json_print_error(field, "expected array", false);
-		else
-		{
-			reinforcement_list_t* list_ptr = (reinforcement_list_t*)data;
-
-			list_ptr->num_reinforcements = json.size();
-			list_ptr->reinforcements = (reinforcement_t*)gi.TagMalloc(sizeof(reinforcement_t) * list_ptr->num_reinforcements, TAG_LEVEL);
-
-			reinforcement_t* p = list_ptr->reinforcements;
-
-			for (Json::Value::ArrayIndex i = 0; i < json.size(); i++, p++)
-			{
-				const Json::Value& value = json[i];
-
-				if (!value.isObject())
-				{
-					json_push_stack(fmt::format("{}", i));
-					json_print_error(field, "expected object", false);
-					json_pop_stack();
-					continue;
-				}
-
-				// quick type checks
-
-				if (!value["classname"].isString())
-				{
-					json_push_stack(fmt::format("{}.classname", i));
-					json_print_error(field, "expected string", false);
-					json_pop_stack();
-					continue;
-				}
-
-				if (!value["mins"].isArray() || value["mins"].size() != 3)
-				{
-					json_push_stack(fmt::format("{}.mins", i));
-					json_print_error(field, "expected array[3]", false);
-					json_pop_stack();
-					continue;
-				}
-
-				if (!value["maxs"].isArray() || value["maxs"].size() != 3)
-				{
-					json_push_stack(fmt::format("{}.maxs", i));
-					json_print_error(field, "expected array[3]", false);
-					json_pop_stack();
-					continue;
-				}
-
-				if (!value["strength"].isInt())
-				{
-					json_push_stack(fmt::format("{}.strength", i));
-					json_print_error(field, "expected int", false);
-					json_pop_stack();
-					continue;
-				}
-
-				p->classname = G_CopyString(value["classname"].asCString(), TAG_LEVEL);
-				p->strength = value["strength"].asInt();
-
-				for (int32_t x = 0; x < 3; x++)
-				{
-					p->mins[x] = value["mins"][x].asInt();
-					p->maxs[x] = value["maxs"][x].asInt();
-				}
-			}
-		}
+		// This data is now static and initialized at spawn time.
+		// It is no longer saved or loaded. We just ignore it from old saves.
 		return;
 	default:
 		gi.Com_ErrorFmt("Can't read type ID {}", (int32_t)type->id);
@@ -2377,41 +2312,11 @@ bool write_save_type_json(const void* data, const save_type_t* type, bool null_f
 		output = std::move(inventory);
 		return true;
 	}
-	case ST_REINFORCEMENTS: {
-		const reinforcement_list_t* reinforcement_ptr = (const reinforcement_list_t*)data;
-
-		if (null_for_empty && !reinforcement_ptr->num_reinforcements)
-			return false;
-
-		Json::Value	   reinforcements = Json::Value(Json::arrayValue);
-		reinforcements.resize(reinforcement_ptr->num_reinforcements);
-
-		for (uint32_t i = 0; i < reinforcement_ptr->num_reinforcements; i++)
-		{
-			const reinforcement_t* reinforcement = &reinforcement_ptr->reinforcements[i];
-
-			Json::Value obj = Json::Value(Json::objectValue);
-
-			obj["classname"] = Json::StaticString(reinforcement->classname);
-			obj["mins"] = Json::Value(Json::arrayValue);
-			obj["maxs"] = Json::Value(Json::arrayValue);
-			for (int32_t x = 0; x < 3; x++)
-			{
-				obj["mins"][x] = reinforcement->mins[x];
-				obj["maxs"][x] = reinforcement->maxs[x];
-			}
-			obj["strength"] = reinforcement->strength;
-
-			reinforcements[i] = obj;
-		}
-
-		output = std::move(reinforcements);
-		return true;
+	case ST_REINFORCEMENTS:
+		// This data is now static and initialized at spawn time.
+		// It is no longer saved or loaded.
+		return false; // Don't write anything.```
 	}
-	default:
-		gi.Com_ErrorFmt("Can't persist type ID {}", (int32_t)type->id);
-	}
-
 	return false;
 }
 

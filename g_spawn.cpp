@@ -182,8 +182,6 @@ void SP_monster_psxarachnid(edict_t* self);
 void SP_monster_guncmdr(edict_t* self);
 void SP_monster_guncmdr_vanilla(edict_t* self);
 void SP_monster_guncmdrkl(edict_t* self);
-void SP_monster_shocker(edict_t* self);
-void SP_monster_gnorta(edict_t* self);
 void SP_monster_arachnid2(edict_t* self);
 void SP_monster_gm_arachnid(edict_t* self);
 
@@ -431,8 +429,6 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_guncmdr", SP_monster_guncmdr },
 	{ "monster_guncmdr_vanilla", SP_monster_guncmdr_vanilla },
 	{ "monster_guncmdrkl", SP_monster_guncmdrkl },
-	{ "monster_shocker", SP_monster_shocker },
-	{ "monster_gnorta", SP_monster_gnorta },
 	{ "monster_arachnid2", SP_monster_arachnid2 },
 	{ "monster_gm_arachnid", SP_monster_gm_arachnid },
 

@@ -1,4 +1,5 @@
 #include "horde_ids.h"
+//#include "../g_local.h"
 #include "g_horde.h" // Include g_horde.h for g_edicts if needed, or adjust include path
 #include <algorithm>
 

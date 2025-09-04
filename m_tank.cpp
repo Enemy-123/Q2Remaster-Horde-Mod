@@ -57,34 +57,27 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 	vec3_t { 0, -80, 0 }
 };
 
-// Reinforcement configuration strings
-constexpr const char* tank_vanilla_special_reinforcements =
-"monster_chick_heat 1;"
-"monster_chick_heat 1;"
-"monster_guncmdr 1;"
-"monster_spider 1;"
-"monster_spider 1;"
-"monster_brain 1;"
-"monster_janitor 1;";
+// Reinforcement configuration
+constexpr std::array<reinforcement_def_t, 7> tank_vanilla_special_reinforcements_defs = { {
+	{horde::MonsterTypeID::CHICK_HEAT, 1}, {horde::MonsterTypeID::CHICK_HEAT, 1},
+	{horde::MonsterTypeID::GUNCMDR, 1},    {horde::MonsterTypeID::SPIDER, 1},
+	{horde::MonsterTypeID::SPIDER, 1},     {horde::MonsterTypeID::BRAIN, 1},
+	{horde::MonsterTypeID::JANITOR, 1}
+} };
 
+constexpr std::array<reinforcement_def_t, 7> tank_vanilla_hard_reinforcements_defs = { {
+	{horde::MonsterTypeID::SOLDIER, 1},       {horde::MonsterTypeID::SOLDIER_SS, 1},
+	{horde::MonsterTypeID::SOLDIER, 1},       {horde::MonsterTypeID::SOLDIER_SS, 1},
+	{horde::MonsterTypeID::SOLDIER_LIGHT, 1}, {horde::MonsterTypeID::SOLDIER_SS, 1},
+	{horde::MonsterTypeID::SOLDIER_SS, 1}
+} };
 
-constexpr const char* tank_vanilla_hard_reinforcements =
-"monster_soldier 1;"
-"monster_soldier_ss 1;"
-"monster_soldier 1;"
-"monster_soldier_ss 1;"
-"monster_soldier_light 1;"
-"monster_soldier_ss 1;"
-"monster_soldier_ss 1;";
-
-constexpr const char* tank_vanilla_insane_reinforcements =
-"monster_chick 1;"
-"monster_chick 1;"
-"monster_berserk 1;"
-"monster_berserk 1;"
-"monster_gunner 1;"
-"monster_gunner_vanilla 1;"
-"monster_gunner_vanilla 1;";
+constexpr std::array<reinforcement_def_t, 7> tank_vanilla_insane_reinforcements_defs = { {
+	{horde::MonsterTypeID::CHICK, 1},          {horde::MonsterTypeID::CHICK, 1},
+	{horde::MonsterTypeID::BERSERK, 1},        {horde::MonsterTypeID::BERSERK, 1},
+	{horde::MonsterTypeID::GUNNER, 1},         {horde::MonsterTypeID::GUNNER_VANILLA, 1},
+	{horde::MonsterTypeID::GUNNER_VANILLA, 1}
+} };
 
 //////////////////////////////////////////////////////////////////////////////
 //                        SHARED UTILITY FUNCTIONS                          //
@@ -2258,39 +2251,55 @@ void Monster_MoveSpawn(edict_t* self) {
 	constexpr float RADIUS_MIN = 100.0f;
 	constexpr float RADIUS_MAX = 175.0f;
 	constexpr float HEIGHT_OFFSET = 8.0f;
-	constexpr vec3_t MINS = { -16.0f, -16.0f, -24.0f };
-	constexpr vec3_t MAXS = { 16.0f, 16.0f, 32.0f };
-	constexpr int MAX_ATTEMPTS = 8;  // Número máximo de intentos para encontrar posición
+	constexpr int MAX_ATTEMPTS = 8;
 
 	// Función auxiliar para verificar si una posición es válida
 	auto trySpawnPosition = [&](const vec3_t& spawn_origin, const vec3_t& spawn_angles) -> bool {
-		// Verificar espacio libre en diferentes alturas
 		for (float const height_test : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
 			vec3_t test_origin = spawn_origin;
 			test_origin.z += height_test;
 
-			// Trazar línea desde el spawner hasta la posición de spawn
 			trace_t const trace = gi.traceline(self->s.origin, test_origin, self, MASK_SOLID);
 			if (trace.fraction < 1.0f)
 				continue;
 
-			// Verificar espacio suficiente
-			if (!CheckSpawnPoint(test_origin, MINS, MAXS))
+			// --- MODIFIED ID-BASED LOGIC ---
+			// 1. Find all possible reinforcements that fit in the available slots.
+			std::vector<uint8_t> available_indices;
+			available_indices.reserve(self->monsterinfo.reinforcements.defs.size());
+			for (uint8_t i = 0; i < self->monsterinfo.reinforcements.defs.size(); ++i) {
+				if (self->monsterinfo.reinforcements.defs[i].strength <= available_slots) {
+					available_indices.push_back(i);
+				}
+			}
+			if (available_indices.empty()) return false; // Can't spawn anything
+
+			// 2. Pick one randomly from the valid options.
+			uint8_t chosen_index = random_element(available_indices);
+			const auto& reinf_def = self->monsterinfo.reinforcements.defs[chosen_index];
+			horde::MonsterTypeID typeId = reinf_def.typeId;
+			const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+			if (!classname) continue;
+
+			// 3. Get its properties instantly from the global data array.
+			vec3_t mins, maxs;
+			GetPredictedScaledBounds(typeId, mins, maxs);
+			// --- END MODIFIED LOGIC ---
+
+			if (!CheckSpawnPoint(test_origin, mins, maxs))
 				continue;
 
-			// Si llegamos aquí, encontramos una posición válida
-			reinforcement_t& reinf = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.monster_used];
 			edict_t* monster = G_Spawn();
 			if (!monster)
 				return false;
 
-			monster->classname = reinf.classname;
+			monster->classname = classname;
 			monster->s.origin = test_origin;
 			monster->s.angles = spawn_angles;
 			monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags = AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
 			monster->monsterinfo.commander = self;
-			monster->monsterinfo.slots_from_commander = reinf.strength;
+			monster->monsterinfo.slots_from_commander = reinf_def.strength;
 			monster->enemy = self->enemy;
 			monster->owner = self;
 
@@ -2301,16 +2310,16 @@ void Monster_MoveSpawn(edict_t* self) {
 				ApplyMonsterBonusFlags(monster);
 				float const size = (monster->maxs - monster->mins).length() * 0.5f;
 				SpawnGrow_Spawn(test_origin, size * 2.0f, size * 0.5f);
-				self->monsterinfo.monster_used += reinf.strength;
+				self->monsterinfo.monster_used += reinf_def.strength;
 				return true;
 			}
 			G_FreeEdict(monster);
 			return false;
 		}
 		return false;
-	};
+		};
 
-	// Primero intentar las posiciones predefinidas
+	// First attempt the predefined positions
 	for (const auto& pos : tank_vanilla_reinforcement_position) {
 		vec3_t const spawn_origin = self->s.origin + pos;
 		vec3_t spawn_angles = self->s.angles;
@@ -2320,7 +2329,7 @@ void Monster_MoveSpawn(edict_t* self) {
 			return;
 	}
 
-	// Si las posiciones predefinidas fallan, intentar posiciones aleatorias
+	// If predefined positions fail, try random positions
 	for (int i = 0; i < MAX_ATTEMPTS; i++) {
 		float spawn_angle = frandom(2.0f * PIf);
 		float const radius = frandom(RADIUS_MIN, RADIUS_MAX);
@@ -2780,8 +2789,6 @@ void SP_monster_tank(edict_t* self)
 void SP_monster_tank_spawner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
-    // --- EAGER INITIALIZATION ---
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_SPAWNER);
 
 	if (!M_AllowSpawn(self)) {
@@ -2793,18 +2800,18 @@ void SP_monster_tank_spawner(edict_t* self)
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
 	self->monsterinfo.monster_used = 0;
 
-	const char* reinforcements = nullptr;
+	// --- MODIFIED REINFORCEMENT SETUP ---
 	bool is_special_case = (current_wave_level >= 10 &&
-							self->monsterinfo.bonus_flags != BF_NONE &&
-							!(self->monsterinfo.bonus_flags & BF_FRIENDLY));
+		self->monsterinfo.bonus_flags != BF_NONE &&
+		!(self->monsterinfo.bonus_flags & BF_FRIENDLY));
 
 	if (is_special_case)
-		reinforcements = tank_vanilla_special_reinforcements;
+		M_SetupReinforcements(tank_vanilla_special_reinforcements_defs, self->monsterinfo.reinforcements);
+	else if (current_wave_level >= 25)
+		M_SetupReinforcements(tank_vanilla_insane_reinforcements_defs, self->monsterinfo.reinforcements);
 	else
-		reinforcements = current_wave_level >= 25 ? tank_vanilla_insane_reinforcements : tank_vanilla_hard_reinforcements;
+		M_SetupReinforcements(tank_vanilla_hard_reinforcements_defs, self->monsterinfo.reinforcements);
 
-	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
-	
 	self->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
 	self->mins = { -32, -32, -16 };
 	self->maxs = { 32, 32, 64 };

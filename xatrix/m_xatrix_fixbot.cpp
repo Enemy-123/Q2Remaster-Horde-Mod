@@ -59,8 +59,11 @@ extern const mmove_t fixbot_move_turn;
 extern const mmove_t fixbot_move_spawn;
 void roam_goal(edict_t* self);
 
+// fixbots spawns turrets as reinforcements
+constexpr std::array<reinforcement_def_t, 1> fixbot_reinforcements_defs = { {
+	{horde::MonsterTypeID::TURRET, 1}
+} };
 
-constexpr const char* fixbot_reinforcements = "monster_turret 1";
 constexpr int32_t fixbot_monster_slots_base = 6;
 
 // =======================================================================
@@ -2006,17 +2009,15 @@ void SP_monster_fixbot(edict_t* self)
 	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
 	fixbot_set_attack_fly_parameters(self);
 
-	// Setup reinforcement system if it's a boss
 	if (IsBoss(self) && !st.was_key_specified("monster_slots")) {
 		self->monsterinfo.monster_slots = fixbot_monster_slots_base;
 	}
-	// Apply skill-based slot increase
 	if (skill->integer > 0) {
 		self->monsterinfo.monster_slots += floorf(self->monsterinfo.monster_slots * (skill->value / 2.f));
 	}
 
-	if (!st.was_key_specified("reinforcements"))
-		M_SetupReinforcements(fixbot_reinforcements, self->monsterinfo.reinforcements);
+	// The reinforcement list is now set from the constexpr array.
+	M_SetupReinforcements(fixbot_reinforcements_defs, self->monsterinfo.reinforcements);
 
 	ApplyMonsterBonusFlags(self); // Apply bonuses like Champion, etc.
 }

@@ -1766,11 +1766,15 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 				if (!WasRecentlyUsed(type))
 				{
 					float chance = g_specialWaves.base_chances[i];
-					// Handle dynamic chance for Gekk wave
-					if (type == MonsterWaveType::Gekk)
+
+					// --- THIS IS THE FIX ---
+					// Use the HasWaveType helper to correctly check for the Gekk flag,
+					// even if it's combined with other flags like Ground or Small.
+					if (HasWaveType(type, MonsterWaveType::Gekk))
 					{
 						chance = (numHumanPlayers <= 2 ? 0.35f : 0.20f);
 					}
+					// --- END OF FIX ---
 
 					if (frandom() < chance)
 					{
@@ -1802,8 +1806,6 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 
 	if (HasWaveType(selected_type, MonsterWaveType::Flying) && WasRecentlyUsed(MonsterWaveType::Flying))
 	{
-		// The '~' operator is a bitwise NOT, which flips all the bits.
-		// '&' with the flipped bits effectively removes the flag.
 		selected_type &= ~MonsterWaveType::Flying;
 
 		if (developer->integer)

@@ -14,6 +14,7 @@ constexpr vec3_t PLAYER_MINS = { -16, -16, -24 };
 constexpr vec3_t PLAYER_MAXS = { 16, 16, 32 };
 
 #include <charconv>
+#include <span>
 
 template<typename T>
 constexpr bool is_char_ptr_v = std::is_convertible_v<T, const char*>;
@@ -459,13 +460,14 @@ public:
 	}
 	constexpr bool operator<=(const gtime_t& time) const
 	{
-		return _ms <= time._ms;
+		return _ms <= time._ms; 
 	}
 	constexpr bool operator>=(const gtime_t& time) const
 	{
 		return _ms >= time._ms;
 	}
 };
+
 
 // user literals, allowing you to specify times
 // as 128_sec and 128_ms
@@ -1654,22 +1656,27 @@ enum combat_style_t
 	COMBAT_RANGED // don't bother pathing if we can see the player
 };
 
-struct reinforcement_t
+namespace horde {
+	enum class MonsterTypeID : uint8_t;
+}
+
+struct reinforcement_def_t
 {
-	const char* classname;
-	int32_t strength;
-	vec3_t mins, maxs;
+    horde::MonsterTypeID typeId;
+    int32_t strength;
 };
 
+// MODIFIED: The list now holds a non-owning view of a constexpr array of definitions.
 struct reinforcement_list_t
 {
-	reinforcement_t* reinforcements;
-	uint32_t		num_reinforcements;
+    std::span<const reinforcement_def_t> defs;
 };
 
 constexpr size_t MAX_REINFORCEMENTS = 5; // max number of spawns we can do at once.
 
-void M_SetupReinforcements(const char* reinforcements, reinforcement_list_t& list);
+// MODIFIED: The function signature is changed to accept the new data structure.
+// The old string-parsing version will be removed.
+void M_SetupReinforcements(std::span<const reinforcement_def_t> defs, reinforcement_list_t& list);
 std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t* self, int32_t& num_chosen, int32_t max_slots = 0);
 
 constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms(std::numeric_limits<int64_t>::max());

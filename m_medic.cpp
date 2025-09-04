@@ -58,8 +58,19 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* commander_reinforcements = "monster_gunner_vanilla 1;monster_gunner_vanilla 2;monster_janitor2 3;monster_infantry 3;monster_gunner 4;monster_gladiator 6";
-constexpr const char* default_reinforcements = "monster_gunner_vanilla 1;monster_gladiator 1;monster_gladb 1";
+constexpr std::array<reinforcement_def_t, 6> commander_reinforcements_defs = { {
+	{horde::MonsterTypeID::GUNNER_VANILLA, 1}, {horde::MonsterTypeID::GUNNER_VANILLA, 2},
+	{horde::MonsterTypeID::JANITOR2, 3},       {horde::MonsterTypeID::INFANTRY, 3},
+	{horde::MonsterTypeID::GUNNER, 4},         {horde::MonsterTypeID::GLADIATOR, 6}
+} };
+
+// NEW: Compile-time reinforcement definitions for the standard (bonus) Medic.
+constexpr std::array<reinforcement_def_t, 3> default_reinforcements_defs = { {
+	{horde::MonsterTypeID::GUNNER_VANILLA, 1}, {horde::MonsterTypeID::GLADIATOR, 1},
+	{horde::MonsterTypeID::GLADIATOR_B, 1}
+} };
+
+
 constexpr int32_t commander_monster_slots_base = 3;
 constexpr int32_t default_monster_slots_base = 2;
 
@@ -78,8 +89,9 @@ static void M_PickValidReinforcements(edict_t* self, int32_t space, std::vector<
 {
 	output.clear();
 
-	for (uint8_t i = 0; i < self->monsterinfo.reinforcements.num_reinforcements; i++)
-		if (self->monsterinfo.reinforcements.reinforcements[i].strength <= space)
+	// Use the new std::span from the reinforcement_list_t
+	for (uint8_t i = 0; i < self->monsterinfo.reinforcements.defs.size(); i++)
+		if (self->monsterinfo.reinforcements.defs[i].strength <= space)
 			output.push_back(i);
 }
 
@@ -90,85 +102,30 @@ std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t* self, int3
 	std::array<uint8_t, MAX_REINFORCEMENTS> chosen;
 	chosen.fill(255);
 
-	// decide how many things we want to spawn;
-	// this is on a logarithmic scale
-	// so we don't spawn too much too often.
 	int32_t const num_slots = max(1, (int32_t)log2(frandom(inverse_log_slots)));
-
-	// we only have this many slots left to use
 	int32_t remaining = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 
 	for (num_chosen = 0; num_chosen < num_slots; num_chosen++)
 	{
-		// ran out of slots!
 		if ((max_slots && num_chosen == max_slots) || !remaining)
 			break;
 
-		// get everything we could choose
 		M_PickValidReinforcements(self, remaining, available);
 
-		// can't pick any
 		if (!available.size())
 			break;
 
-		// select monster, TODO fairly
 		chosen[num_chosen] = random_element(available);
-
-		remaining -= self->monsterinfo.reinforcements.reinforcements[chosen[num_chosen]].strength;
+		// Use the new defs span to get the strength
+		remaining -= self->monsterinfo.reinforcements.defs[chosen[num_chosen]].strength;
 	}
 
 	return chosen;
 }
 
-void M_SetupReinforcements(const char* reinforcements, reinforcement_list_t& list)
+void M_SetupReinforcements(std::span<const reinforcement_def_t> defs, reinforcement_list_t& list)
 {
-	// count up the semicolons
-	list.num_reinforcements = 0;
-
-	if (!*reinforcements)
-		return;
-
-	list.num_reinforcements++;
-
-	for (size_t i = 0; i < strlen(reinforcements); i++)
-		if (reinforcements[i] == ';')
-			list.num_reinforcements++;
-
-	// allocate
-	list.reinforcements = (reinforcement_t*)gi.TagMalloc(sizeof(reinforcement_t) * list.num_reinforcements, TAG_LEVEL);
-
-	// parse
-	const char* p = reinforcements;
-	reinforcement_t* r = list.reinforcements;
-
-	while (true)
-	{
-		const char* token = COM_ParseEx(&p, "; ");
-
-		if (!*token || r == list.reinforcements + list.num_reinforcements)
-			break;
-
-		r->classname = G_CopyString(token, TAG_LEVEL);
-
-		token = COM_ParseEx(&p, "; ");
-
-		r->strength = atoi(token);
-
-		edict_t* newEnt = G_Spawn();
-
-		newEnt->classname = r->classname;
-
-		newEnt->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-
-		ED_CallSpawn(newEnt);
-
-		r->mins = newEnt->mins;
-		r->maxs = newEnt->maxs;
-
-		G_FreeEdict(newEnt);
-
-		r++;
-	}
+	list.defs = defs;
 }
 
 void fixHealerEnemy(edict_t* self)
@@ -1344,8 +1301,8 @@ void medic_start_spawn(edict_t* self)
 void medic_determine_spawn(edict_t* self)
 {
 	vec3_t f, r, offset, startpoint, spawnpoint;
-	int	   count;
-	int	   num_success = 0;
+	int    count;
+	int    num_success = 0;
 
 	AngleVectors(self->s.angles, f, r, nullptr);
 
@@ -1360,48 +1317,55 @@ void medic_determine_spawn(edict_t* self)
 			offset *= self->s.scale;
 
 		startpoint = M_ProjectFlashSource(self, offset, f, r);
-		// a little off the ground
 		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+		// --- START OF FIX ---
+		uint8_t def_index = self->monsterinfo.chosen_reinforcements[count];
+		if (def_index >= self->monsterinfo.reinforcements.defs.size()) continue;
 
-		if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
+		const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
+		horde::MonsterTypeID typeId = reinforcement_def.typeId;
+		vec3_t mins, maxs;
+		GetPredictedScaledBounds(typeId, mins, maxs);
+		// --- END OF FIX ---
+
+		if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
 		{
-			if (CheckGroundSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs, 256, -1))
+			if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
 			{
 				num_success++;
-				// we found a spot, we're done here
-				count = num_summoned;
+				count = num_summoned; // Found a spot, we're done here
 			}
 		}
 	}
 
-	// see if we have any success by spinning around
 	if (num_success == 0)
 	{
 		for (count = 0; count < num_summoned; count++)
 		{
 			offset = reinforcement_position[count];
-
-			if (self->s.scale)
-				offset *= self->s.scale;
-
-			// check behind
+			if (self->s.scale) offset *= self->s.scale;
 			offset[0] *= -1.0f;
 			offset[1] *= -1.0f;
 			startpoint = M_ProjectFlashSource(self, offset, f, r);
-			// a little off the ground
 			startpoint[2] += 10;
 
-			auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+			// --- START OF FIX (Second Loop) ---
+			uint8_t def_index = self->monsterinfo.chosen_reinforcements[count];
+			if (def_index >= self->monsterinfo.reinforcements.defs.size()) continue;
 
-			if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
+			const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
+			horde::MonsterTypeID typeId = reinforcement_def.typeId;
+			vec3_t mins, maxs;
+			GetPredictedScaledBounds(typeId, mins, maxs);
+			// --- END OF FIX ---
+
+			if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
 			{
-				if (CheckGroundSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs, 256, -1))
+				if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
 				{
 					num_success++;
-					// we found a spot, we're done here
-					count = num_summoned;
+					count = num_summoned; // Found a spot, we're done here
 				}
 			}
 		}
@@ -1418,15 +1382,15 @@ void medic_determine_spawn(edict_t* self)
 	if (num_success == 0)
 		self->monsterinfo.nextframe = FRAME_attack53;
 }
+
 void medic_spawngrows(edict_t* self)
 {
 	vec3_t f, r, offset, startpoint, spawnpoint;
-	int	   count;
-	int	   num_summoned; // should be 1, 3, or 5
-	int	   num_success = 0;
+	int    count;
+	int    num_summoned = 0;
+	int    num_success = 0;
 	float  current_yaw;
 
-	// if we've been directed to turn around
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
 		current_yaw = anglemod(self->s.angles[YAW]);
@@ -1435,39 +1399,41 @@ void medic_spawngrows(edict_t* self)
 			self->monsterinfo.aiflags |= AI_HOLD_FRAME;
 			return;
 		}
-
-		// done turning around
 		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 	}
 
 	AngleVectors(self->s.angles, f, r, nullptr);
 
-	num_summoned = 0;
-
-    // FIX: Changed loop variable 'i' from int32_t to size_t to match the type of MAX_REINFORCEMENTS.
-	for (size_t i = 0; i < MAX_REINFORCEMENTS; i++, num_summoned++)
+	for (size_t i = 0; i < MAX_REINFORCEMENTS; i++) {
 		if (self->monsterinfo.chosen_reinforcements[i] == 255)
 			break;
+		num_summoned++;
+	}
 
 	for (count = 0; count < num_summoned; count++)
 	{
 		offset = reinforcement_position[count];
-
 		startpoint = M_ProjectFlashSource(self, offset, f, r);
-
-		// a little off the ground
 		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+		// --- START OF FIX ---
+		uint8_t def_index = self->monsterinfo.chosen_reinforcements[count];
+		if (def_index >= self->monsterinfo.reinforcements.defs.size()) continue;
 
-		if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
+		const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
+		horde::MonsterTypeID typeId = reinforcement_def.typeId;
+		vec3_t mins, maxs;
+		GetPredictedScaledBounds(typeId, mins, maxs);
+		// --- END OF FIX ---
+
+		if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
 		{
-			if (CheckGroundSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs, 256, -1))
+			if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
 			{
 				num_success++;
-				float const radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
-				SpawnGrow_Spawn(spawnpoint + (reinforcement.mins + reinforcement.maxs), radius, radius * 2.f);
+				float const radius = (maxs - mins).length() * 0.5f;
+				SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);
 			}
 		}
 	}
@@ -1475,121 +1441,117 @@ void medic_spawngrows(edict_t* self)
 	if (num_success == 0)
 		self->monsterinfo.nextframe = FRAME_attack53;
 }
+
 void medic_finish_spawn(edict_t* self)
 {
-    edict_t* ent;
-    vec3_t   f, r, offset, startpoint, spawnpoint;
-    size_t   num_summoned = 0; // Use size_t for counts/indices
-    edict_t* designated_enemy;
+	edict_t* ent;
+	vec3_t   f, r, offset, startpoint, spawnpoint;
+	size_t   num_summoned = 0;
+	edict_t* designated_enemy;
 
-    AngleVectors(self->s.angles, f, r, nullptr);
+	AngleVectors(self->s.angles, f, r, nullptr);
 
-    // --- FIX: Use size_t for the loop index ---
-    for (size_t i = 0; i < MAX_REINFORCEMENTS; i++) // Now comparing size_t with const size_t
-    {
-        // Check if we should stop counting early
-        if (self->monsterinfo.chosen_reinforcements[i] == 255) {
-            break; // Stop counting reinforcements
-        }
-        num_summoned++; // Increment count only if we didn't break
-    }
-    // --- End FIX ---
+	for (size_t i = 0; i < MAX_REINFORCEMENTS; i++)
+	{
+		if (self->monsterinfo.chosen_reinforcements[i] == 255) {
+			break;
+		}
+		num_summoned++;
+	}
 
-    // Use size_t for this loop index too for consistency
-    for (size_t count_idx = 0; count_idx < num_summoned; count_idx++)
-    {
-        // Get the index from the chosen list
-        uint8_t reinforcement_index = self->monsterinfo.chosen_reinforcements[count_idx];
+	for (size_t count_idx = 0; count_idx < num_summoned; count_idx++)
+	{
+		uint8_t def_index = self->monsterinfo.chosen_reinforcements[count_idx];
+		if (def_index >= self->monsterinfo.reinforcements.defs.size()) {
+			continue;
+		}
 
-        // Basic validation (though 255 should have been caught by the break above)
-        if (reinforcement_index >= MAX_REINFORCEMENTS) {
-             gi.Com_Print("Warning: Invalid reinforcement index in medic_finish_spawn.\n");
-             continue;
-        }
+		// --- NEW ID-BASED LOGIC ---
+		const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
+		horde::MonsterTypeID typeId = reinforcement_def.typeId;
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+		if (!classname) {
+			continue;
+		}
 
-        auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[reinforcement_index];
+		vec3_t mins, maxs;
+		// Get bounds instantly from the global SoA, no temporary spawning needed.
+		GetPredictedScaledBounds(typeId, mins, maxs);
+		// --- END NEW LOGIC ---
 
-        // Use count_idx to get position offset
-        // Ensure count_idx is within bounds of reinforcement_position array
-        if (count_idx >= std::size(reinforcement_position)) { // Assuming reinforcement_position is a C-style array
-             gi.Com_Print("Warning: Ran out of reinforcement positions in medic_finish_spawn.\n");
-             continue;
-        }
-        offset = reinforcement_position[count_idx];
+		offset = reinforcement_position[count_idx];
+		startpoint = M_ProjectFlashSource(self, offset, f, r);
+		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-        startpoint = M_ProjectFlashSource(self, offset, f, r);
+		ent = nullptr;
+		if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
+		{
+			if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
+			{
+				ent = CreateGroundMonster(spawnpoint, self->s.angles, mins, maxs, classname, 256);
+			}
+		}
 
-        // a little off the ground
-        startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
+		if (!ent)
+			continue;
 
-        ent = nullptr;
-        if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
-        {
-            if (CheckSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs))
-                ent = CreateGroundMonster(spawnpoint, self->s.angles, reinforcement.mins, reinforcement.maxs, reinforcement.classname, 256);
-        }
+		if (ent->think)
+		{
+			ent->nextthink = level.time;
+			ent->think(ent);
+		}
 
-        if (!ent)
-            continue;
+		ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_SPAWNED_NEEDS_GIB;
+		ent->monsterinfo.commander = self;
+		ent->monsterinfo.slots_from_commander = reinforcement_def.strength;
+		self->monsterinfo.monster_used += reinforcement_def.strength;
 
-        if (ent->think)
-        {
-            ent->nextthink = level.time;
-            ent->think(ent);
-        }
+		if (g_horde && g_horde->integer) {
+			if (brandom()) {
+				ent->item = G_HordePickItem();
+			}
+			else {
+				ent->item = nullptr;
+			}
+		}
+		else {
+			ent->item = nullptr;
+		}
 
-        ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_SPAWNED_NEEDS_GIB;
-        ent->monsterinfo.commander = self;
-        ent->monsterinfo.slots_from_commander = reinforcement.strength;
+		ApplyMonsterBonusFlags(ent);
 
-        // Optional: Apply Horde item logic
-        if (g_horde && g_horde->integer) { // Check g_horde pointer too
-             if (brandom()) { // Use brandom() for boolean random chance
-                 ent->item = G_HordePickItem();
-             } else {
-                 ent->item = nullptr;
-             }
-        } else {
-            ent->item = nullptr; // Ensure item is null if not horde mode
-        }
+		if (self->monsterinfo.aiflags & AI_MEDIC)
+			designated_enemy = self->oldenemy;
+		else
+			designated_enemy = self->enemy;
 
+		if (coop && coop->integer)
+		{
+			designated_enemy = PickCoopTarget(ent);
+			if (designated_enemy)
+			{
+				if (designated_enemy == self->enemy)
+				{
+					designated_enemy = PickCoopTarget(ent);
+					if (!designated_enemy)
+						designated_enemy = self->enemy;
+				}
+			}
+			else
+				designated_enemy = self->enemy;
+		}
 
-        ApplyMonsterBonusFlags(ent);
-        self->monsterinfo.monster_used += reinforcement.strength;
-
-        if (self->monsterinfo.aiflags & AI_MEDIC)
-            designated_enemy = self->oldenemy;
-        else
-            designated_enemy = self->enemy;
-
-        if (coop && coop->integer) // Check coop pointer too
-        {
-            designated_enemy = PickCoopTarget(ent);
-            if (designated_enemy)
-            {
-                // try to avoid using my enemy
-                if (designated_enemy == self->enemy)
-                {
-                    designated_enemy = PickCoopTarget(ent);
-                    if (!designated_enemy)
-                        designated_enemy = self->enemy;
-                }
-            }
-            else
-                designated_enemy = self->enemy;
-        }
-
-        if ((designated_enemy) && (designated_enemy->inuse) && (designated_enemy->health > 0))
-        {
-            ent->enemy = designated_enemy;
-            FoundTarget(ent);
-        }
-        else
-        {
-            ent->enemy = nullptr;
-            ent->monsterinfo.stand(ent);
-        }
-    }
+		if ((designated_enemy) && (designated_enemy->inuse) && (designated_enemy->health > 0))
+		{
+			ent->enemy = designated_enemy;
+			FoundTarget(ent);
+		}
+		else
+		{
+			ent->enemy = nullptr;
+			ent->monsterinfo.stand(ent);
+		}
+	}
 }
 
 mframe_t medic_frames_callReinforcements[] = {
@@ -1954,20 +1916,19 @@ void SP_monster_medic(edict_t* self)
 		commander_sound_spawn.assign("medic_commander/monsterspawn1.wav");
 		gi.soundindex("tank/tnkatck3.wav");
 
-		const char* reinforcements = commander_reinforcements;
-
+		// --- MODIFIED REINFORCEMENT SETUP ---
 		if (!st.was_key_specified("monster_slots"))
 			self->monsterinfo.monster_slots = commander_monster_slots_base;
-		if (st.was_key_specified("reinforcements"))
-			reinforcements = st.reinforcements;
 
-		if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
+		if (self->monsterinfo.monster_slots)
 		{
 			if (skill->integer)
 				self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
 
-			M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+			// Pass the constexpr array directly to the setup function
+			M_SetupReinforcements(commander_reinforcements_defs, self->monsterinfo.reinforcements);
 		}
+		// --- END MODIFICATION ---
 	}
 	else
 	{
@@ -1986,21 +1947,18 @@ void SP_monster_medic(edict_t* self)
 
 		self->s.skinnum = 0;
 
+		// --- MODIFIED REINFORCEMENT SETUP for bonus medics ---
 		if (self->monsterinfo.bonus_flags != BF_NONE) {
-			const char* reinforcements = default_reinforcements;
-
 			if (!st.was_key_specified("monster_slots"))
 				self->monsterinfo.monster_slots = default_monster_slots_base;
-			if (st.was_key_specified("reinforcements"))
-				reinforcements = st.reinforcements;
 
-
-			if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
+			if (self->monsterinfo.monster_slots)
 			{
 				if (skill->integer)
 					self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
 
-				M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+				// Pass the constexpr array directly to the setup function
+				M_SetupReinforcements(default_reinforcements_defs, self->monsterinfo.reinforcements);
 			}
 		}
 	}

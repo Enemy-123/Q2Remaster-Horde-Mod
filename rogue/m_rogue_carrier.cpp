@@ -17,9 +17,21 @@ carrier
 #include "../m_flash.h"
 #include "../shared.h"
 
-// nb: specifying flyer multiple times so it has a higher chance
-constexpr const char* default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2;monster_fixbot 3";
-constexpr const char *mini_reinforcements = "monster_flyer 1;monster_flyer 2;monster_flyer 3;monster_daedalus_bomber 2;monster_daedalus";
+// Reinforcements
+constexpr std::array<reinforcement_def_t, 7> default_reinforcements_defs_carrier = { {
+	{horde::MonsterTypeID::DAEDALUS_BOMBER, 2}, {horde::MonsterTypeID::FLOATER, 2},
+	{horde::MonsterTypeID::FLOATER_TRACKER, 3}, {horde::MonsterTypeID::KAMIKAZE, 1},
+	{horde::MonsterTypeID::HOVER_VANILLA, 4},   {horde::MonsterTypeID::DAEDALUS, 2},
+	{horde::MonsterTypeID::FIXBOT, 3}
+} };
+
+// NEW: Compile-time reinforcement definitions for the Mini Carrier.
+constexpr std::array<reinforcement_def_t, 5> mini_reinforcements_defs = { {
+	{horde::MonsterTypeID::FLYER, 1}, {horde::MonsterTypeID::FLYER, 2},
+	{horde::MonsterTypeID::FLYER, 3}, {horde::MonsterTypeID::DAEDALUS_BOMBER, 2},
+	{horde::MonsterTypeID::DAEDALUS, 2}
+} };
+
 constexpr int32_t default_monster_slots_base = 3;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 3_sec; // number of seconds between rocket shots
@@ -42,9 +54,6 @@ static cached_soundindex sound_spawn;
 static cached_soundindex sound_cg_down, sound_cg_loop, sound_cg_up;
 
 float orig_yaw_speed;
-
-void M_SetupReinforcements(const char *reinforcements, reinforcement_list_t &list);
-std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t *self, int32_t &num_chosen, int32_t max_slots);
 
 extern const mmove_t flyer_move_attack2, flyer_move_attack3, flyer_move_attack3normal, flyer_move_kamikaze;
 
@@ -355,39 +364,46 @@ void CarrierMachineGun(edict_t *self)
 		carrier_firebullet_right(self);
 }
 
-void CarrierSpawn(edict_t *self)
+void CarrierSpawn(edict_t* self)
 {
-	vec3_t	 f, r, offset, startpoint, spawnpoint;
-	edict_t *ent;
+	vec3_t   f, r, offset, startpoint, spawnpoint;
+	edict_t* ent;
 
-	//	offset = { 105, 0, -30 }; // real distance needed is (sqrt (56*56*2) + sqrt(16*16*2)) or 101.8
-	offset = { 105, 0, -58 }; // real distance needed is (sqrt (56*56*2) + sqrt(16*16*2)) or 101.8
+	offset = { 105, 0, -58 };
 	AngleVectors(self->s.angles, f, r, nullptr);
-
 	startpoint = M_ProjectFlashSource(self, offset, f, r);
 
 	if (self->monsterinfo.chosen_reinforcements[0] == 255)
 		return;
 
-	auto &reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[0]];
+	// --- MODIFIED ID-BASED LOGIC ---
+	uint8_t def_index = self->monsterinfo.chosen_reinforcements[0];
+	if (def_index >= self->monsterinfo.reinforcements.defs.size()) return;
 
-	if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32, false))
+	// 1. Access the correct member: .defs instead of .reinforcements
+	const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
+	horde::MonsterTypeID typeId = reinforcement_def.typeId;
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	if (!classname) return;
+
+	// 2. Get bounds instantly from the global data array.
+	vec3_t mins, maxs;
+	GetPredictedScaledBounds(typeId, mins, maxs);
+	// --- END MODIFIED LOGIC ---
+
+	if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32, false))
 	{
-		ent = CreateFlyMonster(spawnpoint, self->s.angles, reinforcement.mins, reinforcement.maxs, reinforcement.classname);
-
-		if (!ent)
-			return;
+		ent = CreateFlyMonster(spawnpoint, self->s.angles, mins, maxs, classname);
+		if (!ent) return;
 
 		gi.sound(self, CHAN_BODY, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
-
 		ent->nextthink = level.time;
 		ent->think(ent);
 
 		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
 		ent->monsterinfo.commander = self;
-		// FIX: Use 'slots_from_commander' instead of 'monster_slots'
-		ent->monsterinfo.slots_from_commander = reinforcement.strength;
-		self->monsterinfo.monster_used += reinforcement.strength;
+		ent->monsterinfo.slots_from_commander = reinforcement_def.strength;
+		self->monsterinfo.monster_used += reinforcement_def.strength;
 
 		if (g_horde->integer)
 			ent->item = brandom() ? G_HordePickItem() : nullptr;
@@ -413,9 +429,9 @@ void CarrierSpawn(edict_t *self)
 				{
 					ent->monsterinfo.lefty = false;
 					ent->monsterinfo.attack_state = AS_SLIDING;
-					IsFirstThreeWaves(current_wave_level) ? 
-					M_SetAnimation(ent, &flyer_move_attack3normal) :
-					M_SetAnimation(ent, &flyer_move_attack3);
+					IsFirstThreeWaves(current_wave_level) ?
+						M_SetAnimation(ent, &flyer_move_attack3normal) :
+						M_SetAnimation(ent, &flyer_move_attack3);
 				}
 				else
 				{
@@ -452,7 +468,7 @@ void carrier_spawn_check(edict_t *self)
 		self->monsterinfo.nextframe = FRAME_spawn08;
 }
 
-void carrier_ready_spawn(edict_t *self)
+void carrier_ready_spawn(edict_t* self)
 {
 	float  current_yaw;
 	vec3_t offset, f, r, startpoint, spawnpoint;
@@ -476,16 +492,29 @@ void carrier_ready_spawn(edict_t *self)
 	if (!num_summoned)
 		return;
 
-	auto &reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[0]];
+	// --- START OF FIX ---
+	uint8_t def_index = self->monsterinfo.chosen_reinforcements[0];
+	if (def_index >= self->monsterinfo.reinforcements.defs.size())
+		return;
+
+	// 1. Get the definition using the index.
+	const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
+	horde::MonsterTypeID typeId = reinforcement_def.typeId;
+
+	// 2. Get bounds instantly from the global SoA data. No temporary spawning needed.
+	vec3_t mins, maxs;
+	GetPredictedScaledBounds(typeId, mins, maxs);
+	// --- END OF FIX ---
 
 	offset = { 105, 0, -58 };
 	AngleVectors(self->s.angles, f, r, nullptr);
 	startpoint = M_ProjectFlashSource(self, offset, f, r);
-	if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32, false))
-	{
-		float radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
 
-		SpawnGrow_Spawn(spawnpoint + (reinforcement.mins + reinforcement.maxs), radius, radius * 2.f);
+	// 3. Use the retrieved bounds for checks and effects.
+	if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32, false))
+	{
+		float radius = (maxs - mins).length() * 0.5f;
+		SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);
 	}
 }
 
@@ -1225,19 +1254,20 @@ void SP_monster_carrier(edict_t* self)
 
 	self->monsterinfo.attack_finished = 0_ms;
 
-	const char* reinforcements = (horde::IsMonsterType(self, horde::MonsterTypeID::CARRIER)) ? default_reinforcements : mini_reinforcements;
+	const bool is_mini_carrier = horde::IsMonsterType(self, horde::MonsterTypeID::CARRIER_MINI);
 
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = default_monster_slots_base;
-	if (st.was_key_specified("reinforcements"))
-		reinforcements = st.reinforcements;
 
-	if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
+	if (self->monsterinfo.monster_slots)
 	{
 		if (skill->integer)
 			self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
 
-		M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+		if (is_mini_carrier)
+			M_SetupReinforcements(mini_reinforcements_defs, self->monsterinfo.reinforcements);
+		else
+			M_SetupReinforcements(default_reinforcements_defs_carrier, self->monsterinfo.reinforcements);
 	}
 
 	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;

@@ -5,7 +5,6 @@
 #include <string_view>
 #include <unordered_map>
 
-// Forward declarations
 struct edict_t;
 
 namespace horde {

@@ -40,8 +40,14 @@ static cached_soundindex sound_plasma;
 static cached_soundindex sound_plasma_hit;
 
 // PSX reinforcement constants
-constexpr const char* default_boss_reinforcements = "monster_tank_spawner 2";
-constexpr const char* coop_reinforcements = "monster_stalker 2";
+constexpr std::array<reinforcement_def_t, 1> psx_boss_reinforcements_defs = { {
+    {horde::MonsterTypeID::TANK_SPAWNER, 2}
+} };
+
+// NEW: Compile-time reinforcement definitions for the PSX Arachnid in coop.
+constexpr std::array<reinforcement_def_t, 1> psx_coop_reinforcements_defs = { {
+    {horde::MonsterTypeID::STALKER, 2}
+} };
 constexpr int32_t default_monster_slots_base = 5;
 
 // Forward declarations for spider jump/ceiling logic
@@ -1770,27 +1776,35 @@ static void arachnid_psx_spawn(edict_t* self)
             offset *= self->s.scale;
 
         startpoint = M_ProjectFlashSource(self, offset, f, r);
-        // a little off the ground
         startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-        auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+        // --- NEW ID-BASED LOGIC ---
+        uint8_t def_index = self->monsterinfo.chosen_reinforcements[count];
+        if (def_index >= self->monsterinfo.reinforcements.defs.size()) continue;
 
-        if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
+        const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
+        horde::MonsterTypeID typeId = reinforcement_def.typeId;
+        const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+        if (!classname) continue;
+
+        vec3_t mins, maxs;
+        GetPredictedScaledBounds(typeId, mins, maxs);
+        // --- END NEW LOGIC ---
+
+        if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
         {
-            if (CheckGroundSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs, 256, -1))
+            if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
             {
-                edict_t* ent = CreateGroundMonster(spawnpoint, self->s.angles, reinforcement.mins, reinforcement.maxs, reinforcement.classname, 256);
-
-                if (!ent)
-                    return;
+                edict_t* ent = CreateGroundMonster(spawnpoint, self->s.angles, mins, maxs, classname, 256);
+                if (!ent) return;
 
                 ent->nextthink = level.time;
                 ent->think(ent);
 
                 ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
                 ent->monsterinfo.commander = self;
-                ent->monsterinfo.slots_from_commander = reinforcement.strength;
-                self->monsterinfo.monster_used += reinforcement.strength;
+                ent->monsterinfo.slots_from_commander = reinforcement_def.strength;
+                self->monsterinfo.monster_used += reinforcement_def.strength;
 
                 gi.sound(ent, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
 
@@ -1800,8 +1814,8 @@ static void arachnid_psx_spawn(edict_t* self)
                     FoundTarget(ent);
                 }
 
-                float const radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
-                SpawnGrow_Spawn(spawnpoint + (reinforcement.mins + reinforcement.maxs), radius, radius * 2.f);
+                float const radius = (maxs - mins).length() * 0.5f;
+                SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);
             }
         }
     }
@@ -2089,24 +2103,21 @@ void SP_monster_psxarachnid(edict_t* self)
 
     initialize_arachnid_sounds();
     sound_pissed.assign("guncmdr/gcdrsrch1.wav");
-
-    // --- EAGER INITIALIZATION ---
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PSX_ARACHNID);
-
-    const char* reinforcements = nullptr;
-
     sound_spawn.assign("medic_commander/monsterspawn1.wav");
-    if (self->monsterinfo.IS_BOSS)
-        reinforcements = default_boss_reinforcements;
-    else
-        reinforcements = coop_reinforcements;
 
+    // --- MODIFIED REINFORCEMENT SETUP ---
     if (!st.was_key_specified("monster_slots"))
         self->monsterinfo.monster_slots = default_monster_slots_base;
-    if (st.was_key_specified("reinforcements"))
-        reinforcements = st.reinforcements;
-    if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
-        M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+
+    if (self->monsterinfo.monster_slots)
+    {
+        if (self->monsterinfo.IS_BOSS)
+            M_SetupReinforcements(psx_boss_reinforcements_defs, self->monsterinfo.reinforcements);
+        else
+            M_SetupReinforcements(psx_coop_reinforcements_defs, self->monsterinfo.reinforcements);
+    }
+    // --- END MODIFICATION ---
 
     self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
     self->mins = { -48, -48, -20 };
