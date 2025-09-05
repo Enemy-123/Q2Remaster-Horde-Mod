@@ -667,8 +667,11 @@ void gekk_hit_right(edict_t* self)
 
 void gekk_check_refire(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
-		return;
+	// ROBUST FIX: Apply the same check here for consistency and safety.
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if (range_to(self, self->enemy) <= RANGE_MELEE &&
 		self->monsterinfo.melee_debounce_time <= level.time)

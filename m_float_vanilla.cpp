@@ -513,27 +513,16 @@ void floater_wham(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 		return; // Stop immediately if the target is invalid.
 	}
 
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		if (!fire_hit(self, aim, irandom(5, 11), -50))
-			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-	}
-	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "floater_wham: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
-	}
+	if (!fire_hit(self, aim, irandom(5, 11), -50))
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 }
-
 
 void floater_zap(edict_t* self)
 {

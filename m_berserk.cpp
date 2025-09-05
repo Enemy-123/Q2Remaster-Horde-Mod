@@ -196,18 +196,14 @@ void berserk_attack_spike(edict_t* self)
 {
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, -24 };
 
-	// ROBUST FIX: Check if the enemy pointer is valid AND the entity is in use and alive.
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) 
-    {
-		// Now it's safe to call fire_hit
-		if (!fire_hit(self, aim, irandom(17, 26) * M_DamageModifier(self), 400))
-			self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
-	}
-	else 
-    {
-		// The enemy is invalid, so we can't attack. Put the attack on cooldown.
+	if (!M_HasValidTarget(self))
+	{
 		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
+		return;
 	}
+
+	if (!fire_hit(self, aim, irandom(17, 26) * M_DamageModifier(self), 400))
+		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
 }
 
 void berserk_swing(edict_t* self)
@@ -232,18 +228,14 @@ void berserk_attack_club(edict_t* self)
 {
 	vec3_t  const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	// ROBUST FIX: Apply the same check here for consistency and safety.
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) 
-    {
-		// Now it's safe to call fire_hit
-		if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250))
-			self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
-	}
-	else 
-    {
-		// The enemy is invalid, so we can't attack. Put the attack on cooldown.
+	if (!M_HasValidTarget(self))
+	{
 		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
+		return;
 	}
+
+	if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250))
+		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
 }
 
 mframe_t berserk_frames_attack_club[] = {
@@ -367,7 +359,7 @@ void berserk_jump_takeoff(edict_t* self)
 {
 	vec3_t forward;
 
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	if (!M_HasValidTarget(self))
 	{
 		return;
 	}

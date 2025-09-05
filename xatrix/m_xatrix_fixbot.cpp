@@ -1535,14 +1535,14 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 }
 
 // Fixed version of fixbot_fire_plasma function
-bool fixbot_fire_plasma(edict_t* self, float offset)
+void fixbot_fire_plasma(edict_t* self, float offset)
 {
 	vec3_t forward, right, up;
 	vec3_t start;
 
 	if (!M_HasValidTarget(self))
 	{
-		return false; // Stop immediately if the target is invalid.
+		return; // Stop immediately if the target is invalid.
 	}
 
 	AngleVectors(self->s.angles, forward, right, up);
@@ -1603,13 +1603,13 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 				monster_fire_ionripper(self, start, dir3, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
 			}
 			gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0); // Play sound for ionripper
-			return false; // Didn't use plasma
+			return; // Didn't use plasma
 		}
 	}
 
 	// If we got here, use plasma if sky is visible, otherwise don't fire
 	if (!has_sky_above) {
-		return false; // Don't fire plasma when no sky
+		return; // Don't fire plasma when no sky
 	}
 
 	// Move the starting position further away from the fixbot
@@ -1646,9 +1646,7 @@ bool fixbot_fire_plasma(edict_t* self, float offset)
 	}
 
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
-	return true; // Successfully fired plasma
 }
-
 
 void fixbot_reattack(edict_t* self)
 {
@@ -1658,12 +1656,24 @@ void fixbot_reattack(edict_t* self)
 		float reattack_chance = isboss ? 0.9f : 0.8f;
 
 		if (frandom() < reattack_chance) {
-			// fixbot_fire_plasma handles the ionripper fallback.
-			// If it returns true, plasma was fired, and we can loop the attack.
-			if (fixbot_fire_plasma(self, 0.0f)) {
+			// --- NEW LOGIC: Re-check the condition for firing plasma ---
+			// The primary condition is having a clear sky above.
+			bool has_sky_above = false;
+			vec3_t sky_start = self->s.origin;
+			sky_start.z += 20.0f;
+			vec3_t sky_end = sky_start;
+			sky_end.z += 2000.0f;
+			trace_t sky_tr = gi.traceline(sky_start, sky_end, self, MASK_SOLID);
+			has_sky_above = (sky_tr.surface && (sky_tr.surface->flags & SURF_SKY));
+			// --- END NEW LOGIC ---
+
+			// If conditions are right for plasma, fire it and loop the animation.
+			if (has_sky_above) {
+				fixbot_fire_plasma(self, 0.0f); // Fire the shot (now returns void)
 				self->monsterinfo.nextframe = FRAME_charging_27;
 				return; // Stay in attack state
 			}
+			// If there's no sky, the logic will fall through and end the attack, which is correct.
 		}
 	}
 

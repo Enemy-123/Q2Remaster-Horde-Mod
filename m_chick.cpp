@@ -410,13 +410,8 @@ void ChickSlash(edict_t* self)
 	}
 
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 10 };
-
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		gi.sound(self, CHAN_WEAPON, sound_melee_swing, 1, ATTN_NORM, 0);
-		fire_hit(self, aim, irandom(10, 16), 100);
-	}
-	else {}
+	gi.sound(self, CHAN_WEAPON, sound_melee_swing, 1, ATTN_NORM, 0);
+	fire_hit(self, aim, irandom(10, 16), 100);
 }
 
 void ChickRocket(edict_t* self)
@@ -762,23 +757,30 @@ MMOVE_T(chick_move_end_slash) = { FRAME_attak213, FRAME_attak216, chick_frames_e
 
 void chick_reslash(edict_t* self)
 {
-	if (self->enemy && self->enemy->health > 0)
+	if (!M_HasValidTarget(self))
 	{
-		if (range_to(self, self->enemy) <= RANGE_MELEE)
+		// If the target is gone, always end the slash combo.
+		M_SetAnimation(self, &chick_move_end_slash);
+		return;
+	}
+
+	if (range_to(self, self->enemy) <= RANGE_MELEE)
+	{
+		if (frandom() <= 0.9f)
 		{
-			if (frandom() <= 0.9f)
-			{
-				M_SetAnimation(self, &chick_move_slash);
-				return;
-			}
-			else
-			{
-				M_SetAnimation(self, &chick_move_end_slash);
-				return;
-			}
+			// Continue the combo
+			M_SetAnimation(self, &chick_move_slash);
+		}
+		else
+		{
+			// End the combo
+			M_SetAnimation(self, &chick_move_end_slash);
 		}
 	}
-	M_SetAnimation(self, &chick_move_end_slash);
+	else // Not in melee range anymore
+	{
+		M_SetAnimation(self, &chick_move_end_slash);
+	}
 }
 
 void chick_slash(edict_t* self)

@@ -615,14 +615,13 @@ void Widow2Crunch(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	if (self->enemy && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+	if (horde::IsMonsterType(self->enemy, horde::MonsterTypeID::SENTRYGUN)) {
 		return;
 	}
-	vec3_t aim;
 
 	Widow2TonguePull(self);
 
-	aim = { 150, 0, 4 };
+	vec3_t aim = { 150, 0, 4 };
 	if (self->s.frame != FRAME_tongs07)
 	{
 		fire_hit(self, aim, irandom(20, 26), 0);
@@ -636,7 +635,6 @@ void Widow2Crunch(edict_t* self)
 		fire_hit(self, aim, irandom(20, 26), 250);
 	}
 }
-
 
 void Widow2Toss(edict_t* self)
 {

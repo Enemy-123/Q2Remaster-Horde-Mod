@@ -751,29 +751,21 @@ void gunner_refire_chain(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		M_SetAnimation(self, &gunner_move_endfire_chain, false);
+		return;
 	}
 
-	// Comprueba si self->enemy no es nullptr y tiene salud mayor a 0
-	if (self->enemy && self->enemy->health > 0)
+	if (visible(self, self->enemy))
 	{
-		// Comprueba si el enemigo es visible
-		if (visible(self, self->enemy))
+		if (frandom() <= 0.5f)
 		{
-			// Probabilidad de continuar disparando
-			if (frandom() <= 0.5f)
-			{
-				M_SetAnimation(self, &gunner_move_fire_chain, false);
-				return;
-			}
+			M_SetAnimation(self, &gunner_move_fire_chain, false);
+			return;
 		}
 	}
 
-	// Si no se cumplen las condiciones, termina el disparo
 	M_SetAnimation(self, &gunner_move_endfire_chain, false);
 }
-
-
 
 //===========
 // PGM

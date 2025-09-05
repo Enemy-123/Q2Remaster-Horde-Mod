@@ -228,52 +228,35 @@ void mutant_hit_left(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+		return;
 	}
-	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		if (fire_hit(self, aim, irandom(5, 15) * M_DamageModifier(self), 100))
-			gi.sound(self, CHAN_WEAPON, sound_hit, 1, ATTN_NORM, 0);
-		else
-		{
-			gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
-		}
-	}
-	else {
-		// Manejar el caso donde self->enemy no está inicializado
+	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
+	if (fire_hit(self, aim, irandom(5, 15) * M_DamageModifier(self), 100))
+		gi.sound(self, CHAN_WEAPON, sound_hit, 1, ATTN_NORM, 0);
+	else
+	{
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
 	}
 }
 
-
 void mutant_hit_right(edict_t* self)
 {
-
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+		return;
 	}
 
 	vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
-
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		if (fire_hit(self, aim, irandom(5, 15) * M_DamageModifier(self), 100))
-			gi.sound(self, CHAN_WEAPON, sound_hit2, 1, ATTN_NORM, 0);
-		else
-		{
-			gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
-		}
-	}
-	else {
-		// Manejar el caso donde self->enemy no está inicializado
+	if (fire_hit(self, aim, irandom(5, 15) * M_DamageModifier(self), 100))
+		gi.sound(self, CHAN_WEAPON, sound_hit2, 1, ATTN_NORM, 0);
+	else
+	{
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
 	}
 }
 

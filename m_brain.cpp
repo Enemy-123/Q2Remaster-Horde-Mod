@@ -277,59 +277,39 @@ void brain_swing_right(edict_t* self)
 	gi.sound(self, CHAN_BODY, sound_melee1, 1, ATTN_NORM, 0);
 }
 
+void brain_swing_left(edict_t* self)
+{
+	gi.sound(self, CHAN_BODY, sound_melee2, 1, ATTN_NORM, 0);
+}
+
 void brain_hit_right(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+		return;
 	}
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
-		if (fire_hit(self, aim, irandom(15, 20), 40))
-			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
-		else
-			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-	}
-	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "brain_hit_right: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
-	}
-}
-
-void brain_swing_left(edict_t* self)
-{
-	gi.sound(self, CHAN_BODY, sound_melee2, 1, ATTN_NORM, 0);
+	vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
+	if (fire_hit(self, aim, irandom(15, 20), 40))
+		gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
+	else
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 }
 
 void brain_hit_left(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec;
+		return;
 	}
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
-		if (fire_hit(self, aim, irandom(15, 20), 40))
-			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
-		else
-			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-	}
-	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "brain_hit_left: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec; // Ajustar según sea necesario
-	}
+	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
+	if (fire_hit(self, aim, irandom(15, 20), 40))
+		gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
+	else
+		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec;
 }
 
 mframe_t brain_frames_attack1[] = {
@@ -365,27 +345,17 @@ void brain_tentacle_attack(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		self->monsterinfo.melee_debounce_time = level.time + 0.3_sec;
+		return;
 	}
 
-	if (self->enemy) {
-		vec3_t  const aim = { MELEE_DISTANCE, 0, 8 };
-		if (fire_hit(self, aim, irandom(10, 15), -600))
-			self->count = 1;
-		else
-			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
-	}
-	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "brain_tentacle_attack: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 0.3_sec; // Ajustar según sea necesario
-	}
+	vec3_t  const aim = { MELEE_DISTANCE, 0, 8 };
+	if (fire_hit(self, aim, irandom(10, 15), -600))
+		self->count = 1;
+	else
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+	gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
 }
-
 
 void brain_chest_closed(edict_t* self)
 {
@@ -1043,47 +1013,46 @@ void brain_jump_wait_land_attack(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		M_SetAnimation(self, &brain_move_run); // Fallback if target is lost
+		return;
 	}
 
-    if (self->groundentity == nullptr)
-    {
-        self->monsterinfo.nextframe = self->s.frame;
-        if (monster_jump_finished(self))
-            self->monsterinfo.nextframe = self->s.frame + 1;
-    }
-    else
-        self->monsterinfo.nextframe = self->s.frame + 1;
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+	{
+		self->monsterinfo.nextframe = self->s.frame + 1;
+	}
 
-    // Check if self->enemy is not null before accessing it
-    if (self->enemy)
-    {
-        // Determine the actual target. If the enemy is a laser beam,
-        // the real target for this animation check is its owner (the emitter).
-        edict_t* target = self->enemy;
-        if (horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_BEAM))
-        {
-            target = target->owner;
-        }
+	// Determine the actual target. If the enemy is a laser beam,
+	// the real target for this animation check is its owner (the emitter).
+	edict_t* target = self->enemy;
+	if (horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_BEAM))
+	{
+		target = target->owner;
+	}
 
-        // Check if the resolved target is a deployable that warrants a special attack animation.
-        // This also fixes a bug where it was checking 'self' instead of 'self->enemy' for the sentry gun.
-        if (target && (horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
-                       horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
-                       horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER)))
-        {
-            M_SetAnimation(self, &brain_move_attack4);
-        }
-        else if (visible(self, self->enemy))
-        {
-            M_SetAnimation(self, &brain_move_attack3);
-        }
-    }
-    else
-    {
-        M_SetAnimation(self, &brain_move_run);
-    }
+	// Check if the resolved target is a deployable that warrants a special attack animation.
+	if (target && (horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
+		horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+		horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER)))
+	{
+		M_SetAnimation(self, &brain_move_attack4);
+	}
+	else if (visible(self, self->enemy))
+	{
+		M_SetAnimation(self, &brain_move_attack3);
+	}
+	else // Target is valid but not visible, just run
+	{
+		M_SetAnimation(self, &brain_move_run);
+	}
 }
+
 void brain_jump_wait_land(edict_t* self)
 {
 	if (self->groundentity == nullptr)

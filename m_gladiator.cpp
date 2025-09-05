@@ -108,15 +108,14 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 
 void GladiatorMelee(edict_t* self)
 {
-	// This is the only check needed. It's comprehensive and safe.
 	if (!M_HasValidTarget(self))
 	{
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
 		return;
 	}
 
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	// The logic for a hit or miss is handled by the return value of fire_hit.
 	if (fire_hit(self, aim, irandom(30, 35), 300))
 	{
 		gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);

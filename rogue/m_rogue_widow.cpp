@@ -494,7 +494,7 @@ extern const mmove_t widow_move_attack_rail_r;
 
 void WidowRail(edict_t* self)
 {
-	if (M_HasValidTarget(self) || !visible(self, self->enemy))
+	if (!M_HasValidTarget(self) || !visible(self, self->enemy))
 		return;
 
 	vec3_t start, dir, forward, right;

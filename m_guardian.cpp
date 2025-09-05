@@ -509,18 +509,12 @@ void guardian_kick(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
+		self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 		return; // Stop immediately if the target is invalid.
 	}
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
-		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ? 85 : 30, 700))
-			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
-	}
-	else {
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Ajustar según sea necesario
-	}
+	if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ? 85 : 30, 700))
+		self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 }
 
 mframe_t guardian_frames_kick[] = {

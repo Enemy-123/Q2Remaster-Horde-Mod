@@ -529,26 +529,16 @@ void floater_tracker_wham(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 		return; // Stop immediately if the target is invalid.
 	}
 
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 
-	// Verificar si self->enemy está correctamente inicializado
-	if (self && self->enemy) {
-		if (!fire_hit(self, aim, irandom(5, 11), -50))
-			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-	}
-	else {
-		// If there is no enemy, set a debounce time to prevent this from being called repeatedly.
-		if (self)
-		{
-			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-		}
-	}
+	if (!fire_hit(self, aim, irandom(5, 11), -50))
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 }
-
 
 void floater_tracker_zap(edict_t* self)
 {
