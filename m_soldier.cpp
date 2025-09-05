@@ -757,9 +757,6 @@ void soldier_attack1_refire1(edict_t* self)
 	if (!style.is_light())
 		return;
 
-	if (self->enemy->health <= 0)
-		return;
-
 	if (((frandom() < 0.5f) && visible(self, self->enemy)) || (range_to(self, self->enemy) <= RANGE_MELEE))
 		self->monsterinfo.nextframe = FRAME_attak102;
 	else
@@ -774,9 +771,6 @@ void soldier_attack1_refire2(edict_t* self)
 	}
 
 	if (soldier_style_t(self).is_light())
-		return;
-
-	if (self->enemy->health <= 0)
 		return;
 
 	if (((self->radius_dmg || frandom() < 0.5f) && visible(self, self->enemy)) || (range_to(self, self->enemy) <= RANGE_MELEE))
@@ -866,12 +860,11 @@ void soldierh_hyper_reattack(edict_t* self)
 		return;
 	}
 
-	// Check if the enemy is still valid, visible, and we should reattack based on chance
-	if (self->enemy && self->enemy->inuse && visible(self, self->enemy) && frandom() < 0.75f) // Adjust reattack chance as needed
+	// CORRECTED: Check for a valid target first, then check visibility and chance.
+	if (M_HasValidTarget(self) && visible(self, self->enemy) && frandom() < 0.75f)
 	{
 		// Go back to a frame within the attack sequence to fire again
-		// Let's loop back to the frame where the first shot happens in the hard attack sequence
-		self->monsterinfo.nextframe = FRAME_attak103; // Frame index within soldierh_frames_attack1hard where soldier_fire1 is called
+		self->monsterinfo.nextframe = FRAME_attak103;
 	}
 	else
 	{

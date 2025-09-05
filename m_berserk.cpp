@@ -609,8 +609,6 @@ void berserk_check_passive_zap(edict_t* self)
     if (level.time < self->monsterinfo.fly_position_time)
         return;
 
-    // ... (rest of the function is fine) ...
-
     // All clear, fire the zaps!
     berserk_zap_enemies(self);
 

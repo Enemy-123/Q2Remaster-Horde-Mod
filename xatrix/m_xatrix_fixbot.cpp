@@ -524,29 +524,25 @@ void fixbot_start_spawn(edict_t* self)
 	}
 }
 
-// Spawn a turret at a specific position with proper safety checks
 void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 {
 	// Validate inputs
 	if (!self || !self->inuse || position.equals(vec3_origin)) {
-	//	if (developer->integer > 0) //gi.com_printFmt("spawn_turret_at_position: Invalid input (self/pos invalid).\n");
 		return;
 	}
 
-	// Validation is now assumed to be handled correctly by the caller (find_turret_spawn_position)
-
-	// --- Spawning proceeds ---
 	bool isboss = IsBoss(self);
 	vec3_t dir;
 	edict_t* ent;
 
-	// Determine direction (same logic as before)
-	if (self->enemy && self->enemy->inuse) {
+	// Determine direction for the new turret to face
+	if (M_HasValidTarget(self)) {
 		dir = self->enemy->s.origin - position;
 	}
 	else {
 		dir = position - self->s.origin;
 	}
+
 	if (dir.lengthSquared() <= 0.01f) {
 		dir = { 1.0f, 0.0f, 0.0f };
 	}
@@ -557,11 +553,10 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	// Create entity
 	ent = G_Spawn();
 	if (!ent) {
-	//	if (developer->integer > 0) //gi.com_printFmt("spawn_turret_at_position: G_Spawn failed.\n");
 		return;
 	}
 
-	// Setup properties (same as before)
+	// Setup properties
 	ent->classname = "monster_turret";
 	ent->s.origin = position;
 	ent->s.angles = vectoangles(dir);
@@ -570,7 +565,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->monsterinfo.team = self->monsterinfo.team;
 	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_IGNORE_SHOTS;
 
-	// Sound & Visuals (same as before)
+	// Sound & Visuals
 	if (sound_spawn)
 		gi.sound(self, CHAN_AUTO, sound_spawn, 1, isboss ? ATTN_NONE : ATTN_NORM, 0);
 	float size = 38.0f;
@@ -580,32 +575,27 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	gi.WritePosition(position);
 	gi.multicast(position, MULTICAST_PVS, false);
 
-	// Update count (same as before)
+	// Update spawner's used slots
 	if (self->monsterinfo.monster_slots) {
 		self->monsterinfo.monster_used += 1;
 	}
 
-	// Finalize spawn (same as before)
+	// Finalize spawn
 	ED_CallSpawn(ent);
 	if (!ent->inuse) {
-	//	if (developer->integer > 0) //gi.com_printFmt("spawn_turret_at_position: ED_CallSpawn failed for turret.\n");
 		if (self->monsterinfo.monster_slots) {
 			self->monsterinfo.monster_used = std::max(0, self->monsterinfo.monster_used - 1);
 		}
 		return;
 	}
 
-	// Post-spawn setup (same as before)
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
+	// Post-spawn setup: Assign a valid enemy
+	if (M_HasValidTarget(self)) {
 		ent->enemy = self->enemy;
 		FoundTarget(ent);
 	}
 	ent->monsterinfo.search_time = level.time + (isboss ? 4.5_sec : 3.5_sec);
 	ent->pain_debounce_time = level.time + (isboss ? 2.5_sec : 1.5_sec);
-
-	//if (developer->integer > 0) {
-		//gi.com_printFmt("spawn_turret_at_position: Successfully spawned turret at {}.\n", position);
-	//}
 }
 
 mframe_t fixbot_frames_run[] = {
@@ -1227,7 +1217,8 @@ PRETHINK(fixbot_laser_update) (edict_t* laser) -> void
 	AngleVectors(self->s.angles, dir, nullptr, nullptr);
 	start = self->s.origin + (dir * 16);
 
-	if (self->enemy && self->health > 0)
+	// Use the robust check to see if the owner has a valid target
+	if (M_HasValidTarget(self))
 	{
 		vec3_t point;
 		point = (self->enemy->absmin + self->enemy->absmax) * 0.5f;

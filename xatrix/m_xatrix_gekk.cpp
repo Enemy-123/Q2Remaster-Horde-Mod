@@ -130,7 +130,7 @@ bool gekk_check_jump_close(edict_t* self)
 
 MONSTERINFO_CHECKATTACK(gekk_checkattack) (edict_t* self) -> bool
 {
-	if (!self->enemy || self->enemy->health <= 0)
+	if (!M_HasValidTarget(self))
 		return false;
 
 	if (gekk_check_melee(self))

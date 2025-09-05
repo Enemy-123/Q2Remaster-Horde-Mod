@@ -246,7 +246,12 @@ MMOVE_T(runnertank_move_stop_run) = { FRAME_walk21, FRAME_walk25, runnertank_fra
 // Función para manejar la transición de caminata a carrera
 void runnertank_walk_to_run(edict_t* self)
 {
-	if (self->enemy && range_to(self, self->enemy) > RANGE_NEAR)
+	if (!M_HasValidTarget(self))
+	{
+		return;
+	}
+
+	if (range_to(self, self->enemy) > RANGE_NEAR)
 	{
 		M_SetAnimation(self, &runnertank_move_run);
 		self->monsterinfo.aiflags |= AI_CHARGING;
@@ -287,23 +292,20 @@ mframe_t tank_frames_punch_attack[] =
 };
 MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak235, tank_frames_punch_attack, runnertank_run };
 
-
-
 MONSTERINFO_MELEE(runnertank_melee) (edict_t* self) -> void
 {
-	// Verificación prioritaria de distancia
-	if (self->enemy)
+	if (!M_HasValidTarget(self))
 	{
-		float const range = range_to(self, self->enemy);
-		if (range <= MELEE_DISTANCE * 2.4f && visible(self, self->enemy))
-		{
-			M_SetAnimation(self, &tank_move_punch_attack);
-			self->monsterinfo.attack_finished = level.time + 0.5_sec;
-			return;
-		}
+		return;
+	}
+
+	float const range = range_to(self, self->enemy);
+	if (range <= MELEE_DISTANCE * 2.4f && visible(self, self->enemy))
+	{
+		M_SetAnimation(self, &tank_move_punch_attack);
+		self->monsterinfo.attack_finished = level.time + 0.5_sec;
 	}
 }
-
 
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
@@ -315,7 +317,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 
 	M_SetAnimation(self, &runnertank_move_run);
 
-	if (self->enemy && level.time >= self->monsterinfo.pausetime)
+	if (M_HasValidTarget(self) && level.time >= self->monsterinfo.pausetime)
 	{
 		runnertank_attack(self);
 	}
@@ -697,7 +699,7 @@ MMOVE_T(runnertank_move_attack_post_blast) = { FRAME_attak117, FRAME_attak122, r
 
 void runnertank_reattack_blaster(edict_t* self)
 {
-	if (!self || !self->enemy || !self->enemy->inuse)
+	if (!M_HasValidTarget(self))
 	{
 		M_SetAnimation(self, &runnertank_move_attack_post_blast);
 		return;
@@ -711,12 +713,11 @@ void runnertank_reattack_blaster(edict_t* self)
 	}
 
 	if (visible(self, self->enemy))
-		if (self->enemy->health > 0)
-			if (frandom() <= 0.6f)
-			{
-				M_SetAnimation(self, &runnertank_move_reattack_blast);
-				return;
-			}
+		if (frandom() <= 0.6f)
+		{
+			M_SetAnimation(self, &runnertank_move_reattack_blast);
+			return;
+		}
 	M_SetAnimation(self, &runnertank_move_attack_post_blast);
 }
 
@@ -780,14 +781,12 @@ MMOVE_T(runnertank_move_attack_post_rocket) = { FRAME_attak326, FRAME_attak335, 
 
 void runnertank_refire_rocket(edict_t* self)
 {
-	// Add a guard clause to ensure the enemy is valid before checking its state.
 	// If the enemy is gone, the tank should finish its attack animation.
-	if (!self || !self->enemy || !self->enemy->inuse)
+	if (!M_HasValidTarget(self))
 	{
 		M_SetAnimation(self, &runnertank_move_attack_post_rocket);
 		return;
 	}
-
 
 	// PMM - blindfire cleanup
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
@@ -798,13 +797,12 @@ void runnertank_refire_rocket(edict_t* self)
 	}
 	// pmm
 
-	if (self->enemy->health > 0)
-		if (visible(self, self->enemy))
-			if (frandom() <= 0.4f)
-			{
-				M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
-				return;
-			}
+	if (visible(self, self->enemy))
+		if (frandom() <= 0.4f)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
+			return;
+		}
 	M_SetAnimation(self, &runnertank_move_attack_post_rocket);
 }
 
@@ -832,7 +830,12 @@ MMOVE_T(runnertank_move_attack_chain) = { FRAME_attak404, FRAME_attak415, runner
 
 void runnertank_stop_run_to_attack(edict_t* self)
 {
-	if (self->enemy && range_to(self, self->enemy) <= RANGE_NEAR)
+	if (!M_HasValidTarget(self))
+	{
+		return;
+	}
+
+	if (range_to(self, self->enemy) <= RANGE_NEAR)
 	{
 		M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
 		self->monsterinfo.attack_finished = level.time + 2_sec;
@@ -852,9 +855,9 @@ void runnertank_consider_strafe(edict_t* self)
 		self->monsterinfo.active_move == &tank_move_punch_attack) // Assuming tank_move_punch_attack is relevant here
 		return;
 
-	// Check if enemy exists and is valid before trying to access its properties
-	if (!self->enemy || !self->enemy->inuse)
-		return; // Cannot determine strafe conditions without a valid enemy
+	// CORRECTED: Use the comprehensive check.
+	if (!M_HasValidTarget(self))
+		return;
 
 	float strafe_chance = 0.3f; // Base chance más baja para no ser tan errático
 
@@ -875,7 +878,8 @@ void runnertank_consider_strafe(edict_t* self)
 		// Decidir dirección (Replaced ternary with if/else)
 		if (frandom() < 0.5f) {
 			self->monsterinfo.lefty = 1;
-		} else {
+		}
+		else {
 			self->monsterinfo.lefty = -1;
 		}
 
@@ -892,7 +896,8 @@ void runnertank_consider_strafe(edict_t* self)
 		// Ensure 'right' vector is valid before using it
 		if (is_valid_vector(right)) {
 			self->velocity = self->velocity + (right * (strafe_speed * self->monsterinfo.lefty));
-		} else {
+		}
+		else {
 			// Fallback or error handling if 'right' vector is invalid
 			// For now, just skip applying strafe velocity
 		}
