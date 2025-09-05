@@ -499,6 +499,11 @@ static bool widow2_tongue_attack_ok(const vec3_t& start, const vec3_t& end, floa
 
 void Widow2Tongue(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t f, r, u;
 	vec3_t start, end, dir;
 	trace_t tr;

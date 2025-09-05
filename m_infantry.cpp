@@ -773,6 +773,12 @@ MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_fram
 
 static void infantry_grenade(edict_t* self)
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
     // Constants for easy tweaking of grenade behavior
     constexpr float LOB_GRENADE_SPEED = 700.f;   // A good speed for arcing throws.
     constexpr float FAST_GRENADE_SPEED = 950.f;  // For aggressive, direct throws.
