@@ -214,10 +214,6 @@ void redmutant_hit_left(edict_t* self)
 		}
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "redmutant_hit_left: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
 		// Manejar el caso donde self->enemy no está inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
@@ -245,10 +241,6 @@ void redmutant_hit_right(edict_t* self)
 		}
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "redmutant_hit_right: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
 		// Manejar el caso donde self->enemy no está inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario

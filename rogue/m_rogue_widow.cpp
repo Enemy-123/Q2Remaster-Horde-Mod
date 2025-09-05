@@ -528,7 +528,7 @@ void WidowRail(edict_t* self)
 
 void WidowSaveLoc(edict_t* self)
 {
-	if (self->enemy)
+	if (!M_HasValidTarget(self))
 	{
 		self->pos1 = self->enemy->s.origin;
 		self->pos1[2] += self->enemy->viewheight;

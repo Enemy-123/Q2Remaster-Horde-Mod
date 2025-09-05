@@ -629,7 +629,7 @@ PRETHINK(brain_right_eye_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
 
-		if (!self || !self->inuse || self->health <= 0)
+	if (!M_HasValidTarget(self))
 	{
 		G_FreeEdict(laser);
 		return;
@@ -656,7 +656,7 @@ PRETHINK(brain_left_eye_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
 
-		if (!self || !self->inuse || self->health <= 0)
+	if (!M_HasValidTarget(self))
 	{
 		G_FreeEdict(laser);
 		return;
@@ -1041,6 +1041,11 @@ void brain_jump_attack(edict_t* self)
 
 void brain_jump_wait_land_attack(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
     if (self->groundentity == nullptr)
     {
         self->monsterinfo.nextframe = self->s.frame;

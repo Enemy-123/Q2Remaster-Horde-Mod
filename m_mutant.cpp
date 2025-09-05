@@ -243,10 +243,6 @@ void mutant_hit_left(edict_t* self)
 		}
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "mutant_hit_left: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
 		// Manejar el caso donde self->enemy no está inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
@@ -256,6 +252,12 @@ void mutant_hit_left(edict_t* self)
 
 void mutant_hit_right(edict_t* self)
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 
 	// Verificar si self->enemy está correctamente inicializado
@@ -269,10 +271,6 @@ void mutant_hit_right(edict_t* self)
 		}
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "mutant_hit_right: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
 		// Manejar el caso donde self->enemy no está inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
@@ -281,8 +279,10 @@ void mutant_hit_right(edict_t* self)
 
 void mutant_check_refire(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if ((self->monsterinfo.melee_debounce_time <= level.time) && ((frandom() < 0.5f) || (range_to(self, self->enemy) <= RANGE_MELEE)))
 		self->monsterinfo.nextframe = FRAME_attack09;

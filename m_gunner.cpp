@@ -749,6 +749,11 @@ void gunner_fire_chain(edict_t* self)
 
 void gunner_refire_chain(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// Comprueba si self->enemy no es nullptr y tiene salud mayor a 0
 	if (self->enemy && self->enemy->health > 0)
 	{

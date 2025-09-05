@@ -749,8 +749,10 @@ void soldier_attack1_refire1(edict_t* self)
 	}
 	// pmm
 
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if (!style.is_light())
 		return;
@@ -766,8 +768,10 @@ void soldier_attack1_refire1(edict_t* self)
 
 void soldier_attack1_refire2(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if (soldier_style_t(self).is_light())
 		return;
@@ -837,8 +841,10 @@ MMOVE_T(soldier_move_attack1hard) = { FRAME_attak101, FRAME_attak112, soldier_fr
 // ATTACK1 (blaster/shotgun)
 void soldierh_hyper_refire1(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	soldier_style_t style(self);
 
@@ -928,8 +934,10 @@ void soldier_attack2_refire1(edict_t* self)
 	if (style.is_light())
 		self->monsterinfo.nextframe = FRAME_attak216;
 
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if (!style.is_light())
 		return;
@@ -943,8 +951,10 @@ void soldier_attack2_refire1(edict_t* self)
 
 void soldier_attack2_refire2(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	soldier_style_t style(self);
 
@@ -1001,8 +1011,10 @@ MMOVE_T(soldier_move_attack2) = { FRAME_attak201, FRAME_attak218, soldier_frames
 // RAFAEL
 void soldierh_hyper_refire2(edict_t* self)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if (soldier_style_t(self).is_blitz())
 	{
@@ -1107,8 +1119,10 @@ void soldier_attack6_refire1(edict_t* self)
 	monster_done_dodge(self);
 	soldier_stop_charge(self);
 
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	soldier_style_t style(self);
 
@@ -1137,7 +1151,12 @@ void soldier_attack6_refire2(edict_t* self)
 
 	soldier_style_t style(self);
 
-	if (!self->enemy || style.is_light())
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
+	if (style.is_light())
 		return;
 
 	if (self->enemy->health <= 0 ||
@@ -1158,6 +1177,11 @@ void soldier_attack6_refire2(edict_t* self)
 static void soldier_attack6_shotgun_check(edict_t* self)
 {
 	soldier_style_t style(self);
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
 
 	if (self->dmg)
 	{

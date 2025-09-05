@@ -816,6 +816,11 @@ MMOVE_T(arachnid_attack_up1) = { FRAME_rails_up1, FRAME_rails_up13, arachnid_fra
 // Melee attack
 void arachnid_melee_hit(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     if (self->enemy) {
         if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
             self->monsterinfo.melee_debounce_time = level.time + 1000_ms;

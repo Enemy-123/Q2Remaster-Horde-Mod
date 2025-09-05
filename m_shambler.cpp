@@ -738,6 +738,11 @@ MMOVE_T(shambler_attack_swingr) = { FRAME_swingr01, FRAME_swingr09, shambler_fra
 
 void sham_swingl9(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	ai_charge(self, 8);
 
 	if (brandom() && self->enemy && range_to(self, self->enemy) < MELEE_DISTANCE)
@@ -746,6 +751,11 @@ void sham_swingl9(edict_t* self)
 
 void sham_swingr9(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	ai_charge(self, 1);
 	ai_charge(self, 10);
 

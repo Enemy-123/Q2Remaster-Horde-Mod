@@ -582,9 +582,19 @@ DIE(guardianpsx_heat_die) (edict_t* self, edict_t* inflictor, edict_t* attacker,
 // RAFAEL
 void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& rest_dir, int damage, int speed, float damage_radius, int radius_damage, float turn_fraction)
 {
+
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	edict_t* heat;
 
 	heat = G_Spawn();
+
+	if (!heat)
+		return;
+
 	heat->s.origin = start;
 	heat->movedir = dir;
 	heat->s.angles = vectoangles(dir);

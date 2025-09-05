@@ -574,6 +574,11 @@ MMOVE_T(makron_move_attack4) = { FRAME_attak401, FRAME_attak426, makron_frames_a
 
 void MakronSaveloc(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	self->pos1 = self->enemy->s.origin; // save for aiming the shot
 	self->pos1[2] += self->enemy->viewheight;
 }
@@ -622,6 +627,11 @@ MMOVE_T(makron_move_attack5) = { FRAME_attak501, FRAME_attak516, makron_frames_a
 
 void makron_reattack_railgun(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// if our enemy is still valid, then continue firing
 	if (self->enemy && frandom() < 0.8f && !level.intermissiontime && !self->enemy->deadflag)
 	{
@@ -1067,8 +1077,12 @@ Jorg is just about dead, so set up to launch Makron out
 =================
 */
 void MakronToss(edict_t* self)
-
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	edict_t* ent = G_Spawn();
 
 	if (self->monsterinfo.IS_BOSS) {

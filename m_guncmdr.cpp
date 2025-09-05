@@ -1243,6 +1243,11 @@ MMOVE_T(guncmdr_move_attack_grenade_back_dodge_left) = { FRAME_c_attack701, FRAM
 
 static void guncmdr_kick_finished(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (self && self->enemy && self->monsterinfo.attack) {
 		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 		self->monsterinfo.run(self);

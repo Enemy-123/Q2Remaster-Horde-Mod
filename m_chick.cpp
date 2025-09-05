@@ -416,13 +416,7 @@ void ChickSlash(edict_t* self)
 		gi.sound(self, CHAN_WEAPON, sound_melee_swing, 1, ATTN_NORM, 0);
 		fire_hit(self, aim, irandom(10, 16), 100);
 	}
-	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "ChickSlash: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
-
-		// Puedes manejar la situación aquí si es necesario
-	}
+	else {}
 }
 
 void ChickRocket(edict_t* self)

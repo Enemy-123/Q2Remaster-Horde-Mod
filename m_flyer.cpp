@@ -708,9 +708,6 @@ void flyer_slash_right(edict_t* self)
 		gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "flyer_slash_right: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
 
 		// Manejar el caso donde self->enemy no está inicializado
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
@@ -1174,6 +1171,11 @@ MONSTERINFO_MELEE(flyer_melee) (edict_t* self) -> void
 
 void flyer_check_melee(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (range_to(self, self->enemy) <= RANGE_MELEE)
 	{
 		if (self->monsterinfo.melee_debounce_time <= level.time)
