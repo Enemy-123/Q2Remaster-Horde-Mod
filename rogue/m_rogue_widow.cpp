@@ -745,68 +745,68 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	if (!M_HasValidTarget(self) || !visible(self, self->enemy)) {
 		return; // Stop immediately if the target is invalid or not visible.
 
-	self->movetarget = nullptr;
-	const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
-	const float range = realrange(self, self->enemy);
+		self->movetarget = nullptr;
+		const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
+		const float range = realrange(self, self->enemy);
 
-	// --- 1. Spawning Logic (Inspired by Tank Spawner) ---
-	bool can_spawn = false;
-	// Check cooldown and if there are enough slots for a pair of stalkers
-	if (level.time >= self->monsterinfo.spawn_cooldown && M_SlotsLeft(self) >= 2)
-	{
-		if (is_widow1) {
-			// widow1 is a skirmisher, not a dedicated spawner.
-			// Limit it to a max of 2 active stalkers to encourage other attacks.
-			if (self->monsterinfo.monster_used <= 2) {
+		// --- 1. Spawning Logic (Inspired by Tank Spawner) ---
+		bool can_spawn = false;
+		// Check cooldown and if there are enough slots for a pair of stalkers
+		if (level.time >= self->monsterinfo.spawn_cooldown && M_SlotsLeft(self) >= 2)
+		{
+			if (is_widow1) {
+				// widow1 is a skirmisher, not a dedicated spawner.
+				// Limit it to a max of 2 active stalkers to encourage other attacks.
+				if (self->monsterinfo.monster_used <= 2) {
+					can_spawn = true;
+				}
+			}
+			else {
+				// The main widow boss can spawn as long as it has slots.
 				can_spawn = true;
 			}
 		}
-		else {
-			// The main widow boss can spawn as long as it has slots.
-			can_spawn = true;
+
+		// If all conditions are met, there's a high chance to spawn.
+		if (can_spawn && range > 150 && frandom() < 0.75f) {
+			M_SetAnimation(self, &widow_move_spawn);
+			// The cooldown is set within the WidowSpawn function itself.
+			return;
 		}
-	}
 
-	// If all conditions are met, there's a high chance to spawn.
-	if (can_spawn && range > 150 && frandom() < 0.75f) {
-		M_SetAnimation(self, &widow_move_spawn);
-		// The cooldown is set within the WidowSpawn function itself.
-		return;
-	}
+		// --- 2. Charging Attack ---
+		// More likely at long range. widow1 is faster and more likely to charge.
+		const float charge_chance = is_widow1 ? 0.6f : 0.3f;
+		if (range > 400 && frandom() < charge_chance) {
+			M_SetAnimation(self, &widow_move_run_attack);
+			return;
+		}
 
-	// --- 2. Charging Attack ---
-	// More likely at long range. widow1 is faster and more likely to charge.
-	const float charge_chance = is_widow1 ? 0.6f : 0.3f;
-	if (range > 400 && frandom() < charge_chance) {
-		M_SetAnimation(self, &widow_move_run_attack);
-		return;
-	}
+		// --- 3. Ranged Attack Selection (Less Blaster Spam) ---
+		const bool rail_is_ready = level.time >= self->timestamp;
+		const bool blaster_is_ready = level.time >= self->monsterinfo.fire_wait;
 
-	// --- 3. Ranged Attack Selection (Less Blaster Spam) ---
-	const bool rail_is_ready = level.time >= self->timestamp;
-	const bool blaster_is_ready = level.time >= self->monsterinfo.fire_wait;
-
-	// If both attacks are ready, choose one probabilistically.
-	if (rail_is_ready && blaster_is_ready) {
-		if (frandom() < 0.6f) { // 60% chance to prefer the powerful railgun
+		// If both attacks are ready, choose one probabilistically.
+		if (rail_is_ready && blaster_is_ready) {
+			if (frandom() < 0.6f) { // 60% chance to prefer the powerful railgun
+				gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
+				M_SetAnimation(self, &widow_move_attack_pre_rail);
+			}
+			else {
+				M_SetAnimation(self, &widow_move_attack_pre_blaster);
+			}
+		}
+		// Otherwise, fire whichever is ready.
+		else if (rail_is_ready) {
 			gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
 			M_SetAnimation(self, &widow_move_attack_pre_rail);
 		}
-		else {
+		else if (blaster_is_ready) {
 			M_SetAnimation(self, &widow_move_attack_pre_blaster);
 		}
+		// If no attacks are ready, the widow will continue its run/walk cycle.
 	}
-	// Otherwise, fire whichever is ready.
-	else if (rail_is_ready) {
-		gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
-		M_SetAnimation(self, &widow_move_attack_pre_rail);
-	}
-	else if (blaster_is_ready) {
-		M_SetAnimation(self, &widow_move_attack_pre_blaster);
-	}
-	// If no attacks are ready, the widow will continue its run/walk cycle.
 }
-
 void widow_attack_blaster(edict_t* self)
 {
 	self->monsterinfo.fire_wait = level.time + random_time(1_sec, 3_sec);
