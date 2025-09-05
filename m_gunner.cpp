@@ -674,6 +674,14 @@ MMOVE_T(gunner_move_attack_grenade2) = { FRAME_attak305, FRAME_attak322, gunner_
 
 MONSTERINFO_ATTACK(gunner_attack) (edict_t* self) -> void
 {
+	if (!M_HasValidTarget(self))
+	{
+		// If the target is invalid, we can't perform any attack.
+		// It's often a good idea to have the monster return to a run/stand state.
+		self->monsterinfo.run(self);
+		return;
+	}
+
 	float chance, r;
 
 	monster_done_dodge(self);
