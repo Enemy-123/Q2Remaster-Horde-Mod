@@ -108,30 +108,25 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 
 void GladiatorMelee(edict_t* self)
 {
+	// This is the only check needed. It's comprehensive and safe.
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	// FIX: Use a more robust check for the enemy's validity.
-	if (self->enemy && self->enemy->inuse) {
-		if (fire_hit(self, aim, irandom(30, 35), 300))
-			gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);
-		else
-		{
-			gi.sound(self, CHAN_AUTO, sound_cleaver_miss, 1, ATTN_NORM, 0);
-			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
-		}
+	// The logic for a hit or miss is handled by the return value of fire_hit.
+	if (fire_hit(self, aim, irandom(30, 35), 300))
+	{
+		gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);
 	}
-	else {
-		// Enemy is gone, so this is a miss.
+	else
+	{
 		gi.sound(self, CHAN_AUTO, sound_cleaver_miss, 1, ATTN_NORM, 0);
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
 	}
 }
-
 
 mframe_t gladiator_frames_attack_melee[] = {
 	{ ai_charge, 0, gladiator_cleaver_swing },

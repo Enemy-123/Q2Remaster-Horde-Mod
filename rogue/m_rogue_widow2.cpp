@@ -403,6 +403,11 @@ void WidowDisrupt(edict_t* self)
 
 void Widow2SaveDisruptLoc(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (self->enemy && self->enemy->inuse)
 	{
 		self->pos1 = self->enemy->s.origin; // save for aiming the shot
@@ -433,6 +438,11 @@ MMOVE_T(widow2_move_attack_disrupt) = { FRAME_firea01, FRAME_firea07, widow2_fra
 
 void Widow2SaveBeamTarget(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	if (self->enemy && self->enemy->inuse)
 	{
 		self->pos2 = self->pos1;
@@ -544,13 +554,14 @@ void Widow2Tongue(edict_t* self)
 
 void Widow2TonguePull(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t vec;
 	vec3_t f, r, u;
 	vec3_t start, end;
-
-	// Validación básica
-	if (!self->enemy || !self->enemy->inuse)
-		return;
 
 	if (level.time < self->monsterinfo.attack_finished)
 		return;

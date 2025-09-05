@@ -848,6 +848,11 @@ MMOVE_T(arachnid_melee) = { FRAME_melee_atk1, FRAME_melee_atk12, arachnid_frames
 
 void spider_charge_plasma(edict_t* self)
 {
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     if (!self->enemy || !self->enemy->inuse)
         return;
 
@@ -954,8 +959,10 @@ MMOVE_T(spider_attack_up1) = { FRAME_rails_up1, FRAME_rails_up13, spider_frames_
 
 MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
 {
-    if (!self->enemy || !self->enemy->inuse)
-        return;
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
 
     float dist = range_to(self, self->enemy);
 
@@ -994,8 +1001,10 @@ MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
 
 MONSTERINFO_ATTACK(arachnid_attack) (edict_t* self) -> void
 {
-    if (!self->enemy || !self->enemy->inuse)
-        return;
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
 
     if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < MELEE_DISTANCE)
         M_SetAnimation(self, &arachnid_melee);
@@ -1372,8 +1381,11 @@ MMOVE_T(gm_arachnid_attack_up1) = { FRAME_rails_up3, FRAME_rails_up16, gm_arachn
 // Attack decision for arachnid2
 MONSTERINFO_ATTACK(arachnid2_attack) (edict_t* self) -> void
 {
-    if (!self->enemy || !self->enemy->inuse)
-        return;
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < MELEE_DISTANCE)
         M_SetAnimation(self, &arachnid2_melee);
     else
@@ -1509,8 +1521,10 @@ PAIN(arachnid_psx_pain) (edict_t* self, edict_t* other, float kick, int damage, 
 // PSX arachnid rail gun
 static void arachnid_psx_charge_rail(edict_t* self, monster_muzzleflash_id_t mz)
 {
-    if (!self->enemy || !self->enemy->inuse)
-        return;
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
 
     gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
 
@@ -1852,8 +1866,10 @@ MMOVE_T(arachnid_psx_taunt) = { FRAME_melee_pain1, FRAME_melee_pain16, arachnid_
 // PSX arachnid attack decision
 MONSTERINFO_ATTACK(arachnid_psx_attack) (edict_t* self) -> void
 {
-    if (!self->enemy || !self->enemy->inuse)
-        return;
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
 
     if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < MELEE_DISTANCE)
         M_SetAnimation(self, &arachnid_psx_melee_in);
