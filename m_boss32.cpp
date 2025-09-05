@@ -633,7 +633,7 @@ void makron_reattack_railgun(edict_t* self)
 	}
 
 	// if our enemy is still valid, then continue firing
-	if (self->enemy && frandom() < 0.8f && !level.intermissiontime && !self->enemy->deadflag)
+	if (frandom() < 0.8f && !level.intermissiontime && !self->enemy->deadflag)
 	{
 		if (frandom() < 0.7f)
 		MakronSaveloc(self);
@@ -668,8 +668,7 @@ void MakronRailgun(edict_t *self)
 	monster_fire_railgun(self, start, dir, 50, 100, MZ2_MAKRON_RAILGUN_1);
 }
 
-
-void MakronHyperblaster(edict_t *self)
+void MakronHyperblaster(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
@@ -681,23 +680,17 @@ void MakronHyperblaster(edict_t *self)
 	vec3_t start;
 	vec3_t forward, right;
 
-	const monster_muzzleflash_id_t flash_number = (monster_muzzleflash_id_t) (MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405));
+	const monster_muzzleflash_id_t flash_number = (monster_muzzleflash_id_t)(MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405));
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	if (self->enemy)
-	{
-		vec = self->enemy->s.origin;
-		vec[2] += self->enemy->viewheight;
-		vec -= start;
-		vec = vectoangles(vec);
-		dir[0] = vec[0];
-	}
-	else
-	{
-		dir[0] = 0;
-	}
+	vec = self->enemy->s.origin;
+	vec[2] += self->enemy->viewheight;
+	vec -= start;
+	vec = vectoangles(vec);
+	dir[0] = vec[0];
+
 	if (self->s.frame <= FRAME_attak413)
 		dir[1] = self->s.angles[1] - 10 * (self->s.frame - FRAME_attak413);
 	else
@@ -1033,7 +1026,6 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	vec3_t	 vec;
 	edict_t* player;
 
-
 	if (g_horde->integer && current_wave_level >= 21) {
 		// Spawn Makronkl when in horde mode and wave level is 21 or higher
 		SP_monster_makronkl(self);
@@ -1046,7 +1038,7 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	self->think(self);
 
 	// jump at player
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
+	if (M_HasValidTarget(self))
 		player = self->enemy;
 	else
 		player = AI_GetSightClient(self);

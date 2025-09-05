@@ -568,68 +568,61 @@ THINK(proboscis_think) (edict_t* self) -> void
 	// and check if target goes away
 	else if (self->style == 1)
 	{
+		// First, ensure the owner is valid. If not, we're an orphan.
 		if (!self->owner || !self->owner->inuse)
 		{
 			proboscis_retract(self);
 			return;
 		}
 
-		// --- CORRECTED LOGIC ---
-		// First, check if we are attached to an enemy.
-		if (self->enemy)
+		// Second, ensure our latched target is valid.
+		// M_HasValidTarget(self) works here because it checks self->enemy.
+		if (!M_HasValidTarget(self))
 		{
-			// If we are, check if that enemy is now dead or invalid.
-			if (!self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
-			{
-				proboscis_retract(self);
-				return;
-			}
-
-			// The enemy is valid, so update position and drain health.
-			self->s.origin = self->enemy->s.origin + self->move_origin;
-			vec3_t const start = parasite_get_proboscis_start(self->owner);
-			self->s.angles = vectoangles((self->s.origin - start).normalized());
-
-			trace_t const tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
-			if (tr.fraction != 1.0f)
-			{
-				proboscis_retract(self);
-				self->s.origin = self->s.old_origin;
-			}
-			else
-			{
-				if (self->timestamp <= level.time)
-				{
-					int damage = irandom(2, 4);
-					if (M_DamageModifier(self)) {
-						damage *= M_DamageModifier(self->owner->owner);
-					}
-					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
-
-                    // =================================================================
-                    // FIX: Re-validate the owner AFTER T_Damage, as it could have died
-                    // from reflected damage.
-                    // =================================================================
-					if (self->owner && self->owner->inuse)
-					{
-						self->owner->health = min(self->owner->max_health, self->owner->health + 4);
-						if (self->owner->monsterinfo.setskin) {
-							self->owner->monsterinfo.setskin(self->owner);
-						}
-					}
-					
-					self->timestamp = level.time + 10_hz;
-				}
-			}
-			gi.linkentity(self);
+			proboscis_retract(self);
+			return;
 		}
-		// If self->enemy is null, we are stuck in a wall. Do nothing.
-		// The parasite's 'parasite_move_break' animation will handle retraction.
+
+		// The enemy is valid, so update position and drain health.
+		self->s.origin = self->enemy->s.origin + self->move_origin;
+		vec3_t const start = parasite_get_proboscis_start(self->owner);
+		self->s.angles = vectoangles((self->s.origin - start).normalized());
+
+		trace_t const tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
+		if (tr.fraction != 1.0f)
+		{
+			proboscis_retract(self);
+			self->s.origin = self->s.old_origin;
+		}
+		else
+		{
+			if (self->timestamp <= level.time)
+			{
+				int damage = irandom(2, 4);
+				if (M_DamageModifier(self)) {
+					damage *= M_DamageModifier(self->owner->owner);
+				}
+				T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
+
+				// Re-validate the owner AFTER T_Damage, as it could have died from reflected damage.
+				if (self->owner && self->owner->inuse)
+				{
+					self->owner->health = min(self->owner->max_health, self->owner->health + 4);
+					if (self->owner->monsterinfo.setskin) {
+						self->owner->monsterinfo.setskin(self->owner);
+					}
+				}
+
+				self->timestamp = level.time + 10_hz;
+			}
+		}
+		gi.linkentity(self);
 	}
 	// flying
 	else if (self->style == 0)
 	{
-		if (!self->owner || !self->owner->inuse || !self->owner->enemy || !self->owner->enemy->inuse || self->owner->enemy->health <= 0)
+		// Check if the OWNER (the parasite monster) still has a valid target.
+		if (!M_HasValidTarget(self->owner))
 		{
 			proboscis_retract(self);
 			return;

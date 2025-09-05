@@ -1870,7 +1870,7 @@ MONSTERINFO_ATTACK(arachnid_psx_attack) (edict_t* self) -> void
     if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < MELEE_DISTANCE)
         M_SetAnimation(self, &arachnid_psx_melee_in);
     // annoyed rapid fire attack
-    else if (self->enemy->client &&
+    else if (
         self->last_move_time <= level.time &&
         self->count >= 4 &&
         frandom() < (max(self->count / 2.0f, 4.0f) + 1.0f) * 0.2f &&

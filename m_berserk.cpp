@@ -463,7 +463,13 @@ MONSTERINFO_MELEE(berserk_melee) (edict_t* self) -> void
 
 static void berserk_run_attack_speed(edict_t* self)
 {
-	if (self->enemy && range_to(self, self->enemy) < MELEE_DISTANCE)
+	if (!M_HasValidTarget(self))
+	{
+		self->monsterinfo.run(self);
+		return; // Stop immediately if the target is invalid.
+	}
+
+	if (range_to(self, self->enemy) < MELEE_DISTANCE)
 	{
 		self->monsterinfo.nextframe = self->s.frame + 6;
 		monster_done_dodge(self);

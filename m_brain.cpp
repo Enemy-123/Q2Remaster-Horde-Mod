@@ -501,8 +501,7 @@ MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_co
 
 void brain_tounge_attack_continue(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse ||
-		self->enemy->health <= 0 || !self->enemy->takedamage)
+	if (!M_HasValidTarget(self))
 	{
 		M_SetAnimation(self, &brain_move_run);
 		return;
@@ -565,6 +564,7 @@ void brain_tounge_attack_continue(edict_t* self)
 	self->monsterinfo.attack_finished = level.time + 1_hz;
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
+
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {
 	{ 0.746700f, 0.238370f, 34.167690f },

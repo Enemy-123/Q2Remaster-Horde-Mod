@@ -310,8 +310,7 @@ void guardianpsx_fire_blaster(edict_t* self)
 	edict_t* bolt = monster_fire_blaster(self, start, forward, 5, 1100, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 	bolt->s.scale = 2.0f;
 
-	if (self->enemy && self->enemy->health > 0 &&
-		self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
+	if (self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
 		self->monsterinfo.nextframe = FRAME_atk1_spin5;
 }
 
@@ -476,9 +475,10 @@ static inline vec3_t heat_guardianpsx_get_dist_vec(const edict_t* heat, const ed
 THINK(heat_guardianpsx_think) (edict_t* self) -> void
 {
 	edict_t* acquire = nullptr;
-	float	 oldlen = 0;
+	float	 oldlen = FLT_MAX; // Use max float value for correct comparison
 	float	 olddot = 1;
 
+	// Only re-evaluate target periodically
 	if (self->timestamp < level.time)
 	{
 		vec3_t const fwd = AngleVectors(self->s.angles).forward;
@@ -489,80 +489,73 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 			self->oldenemy = nullptr;
 		}
 
-		if (self->enemy)
+		// First, check if our current target is still valid and visible
+		if (M_HasValidTarget(self) && visible(self, self->enemy))
 		{
 			acquire = self->enemy;
-
-			if (acquire->health <= 0 ||
-				!visible(self, acquire))
-			{
-				self->enemy = acquire = nullptr;
-			}
-			else
-			{
-				float const dist_to_target = (self->s.origin - acquire->s.origin).normalize();
-				self->pos1 = heat_guardianpsx_get_dist_vec(self, acquire, dist_to_target);
-			}
+		}
+		else
+		{
+			self->enemy = nullptr; // Current target is invalid, clear it
 		}
 
+		// If we don't have a valid target, search for a new one
 		if (!acquire)
 		{
-			// acquire new target
 			edict_t* target = nullptr;
-
 			while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 			{
-				if (self->owner == target)
-					continue;
-				if (!target->client)
-					continue;
-				if (target->health <= 0)
-					continue;
-				if (!visible(self, target))
+				if (self->owner == target || !target->client || !target->inuse || target->health <= 0 || !visible(self, target))
 					continue;
 
-				float const dist_to_target = (self->s.origin - target->s.origin).normalize();
+				float const dist_to_target = (self->s.origin - target->s.origin).length();
 				vec3_t vec = heat_guardianpsx_get_dist_vec(self, target, dist_to_target);
-
-				float const len = vec.normalize();
 				float const dot = vec.dot(fwd);
 
-				// targets that require us to turn less are preferred
+				// Targets that require us to turn less are preferred
 				if (dot >= olddot)
 					continue;
 
-				if (acquire == nullptr || dot < olddot || len < oldlen)
+				// If we have no target yet, or this one is better (less turn angle or closer)
+				if (acquire == nullptr || dot < olddot || dist_to_target < oldlen)
 				{
 					acquire = target;
-					oldlen = len;
+					oldlen = dist_to_target;
 					olddot = dot;
-					self->pos1 = vec;
 				}
 			}
 		}
-	}
 
-	vec3_t const preferred_dir = self->pos1;
-
-	if (acquire != nullptr)
-	{
-		if (self->enemy != acquire)
+		// If we found a target (either the old one was valid or we found a new one)
+		if (acquire)
 		{
-			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
-			self->enemy = acquire;
+			float const dist_to_target = (self->s.origin - acquire->s.origin).length();
+			self->pos1 = heat_guardianpsx_get_dist_vec(self, acquire, dist_to_target);
+
+			if (self->enemy != acquire)
+			{
+				gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+				self->enemy = acquire;
+			}
+		}
+		else
+		{
+			self->enemy = nullptr;
 		}
 	}
-	else
-		self->enemy = nullptr;
 
+	// This part is the movement logic, it runs every frame
+	vec3_t const preferred_dir = self->pos1;
 	float t = self->accel;
 
 	if (self->enemy)
 		t *= 0.85f;
 
-	//float d = self->movedir.dot(preferred_dir);
+	if (self->movedir.lengthSquared() > 0) // Avoid slerp with zero vector
+		self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
+	else
+		self->movedir = preferred_dir;
 
-	self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
 	self->s.angles = vectoangles(self->movedir);
 
 	if (self->speed < self->yaw_speed)
