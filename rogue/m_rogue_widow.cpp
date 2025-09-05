@@ -528,7 +528,7 @@ void WidowRail(edict_t* self)
 
 void WidowSaveLoc(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (M_HasValidTarget(self))
 	{
 		self->pos1 = self->enemy->s.origin;
 		self->pos1[2] += self->enemy->viewheight;
@@ -742,9 +742,8 @@ MONSTERINFO_WALK(widow_walk) (edict_t* self) -> void
 }
 
 MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
-	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy)) {
-		return;
-	}
+	if (!M_HasValidTarget(self) || !visible(self, self->enemy)) {
+		return; // Stop immediately if the target is invalid or not visible.
 
 	self->movetarget = nullptr;
 	const bool is_widow1 = horde::IsMonsterType(self, horde::MonsterTypeID::WIDOW1);
@@ -1096,8 +1095,8 @@ MMOVE_T(widow_move_jump_down) = { FRAME_pain01, FRAME_pain08, widow_frames_jump_
 // --- FIX: Simplified the jump function to select the correct pre-defined animation ---
 void widow_jump(edict_t* self, blocked_jump_result_t result)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+		return; // Can't jump at a non-existent or dead target.
 
 	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
 	{

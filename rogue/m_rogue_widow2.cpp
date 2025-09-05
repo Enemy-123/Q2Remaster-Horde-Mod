@@ -784,6 +784,11 @@ MONSTERINFO_MELEE(widow2_melee) (edict_t* self) -> void
 }
 
 MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
+
+	if (!M_HasValidTarget(self)) {
+		return; // Stop immediately if the target is invalid.
+	}
+
 	float luck;
 	//bool blocked = false;
 

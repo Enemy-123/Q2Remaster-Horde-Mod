@@ -255,7 +255,7 @@ void CarrierRocket(edict_t *self)
 	vec3_t dir;
 	vec3_t vec;
 
-	if (!M_HasValidTarget(self))
+	if (M_HasValidTarget(self))
 	{
 		if (self->enemy->client && frandom() < 0.5f)
 		{
@@ -825,8 +825,8 @@ MONSTERINFO_ATTACK(carrier_attack) (edict_t *self) -> void
 
 	self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 
-	if ((!self->enemy) || (!self->enemy->inuse))
-		return;
+	if (!M_HasValidTarget(self))
+		return; // Stop immediately if the target is invalid.
 
 	enemy_inback = inback(self, self->enemy);
 	enemy_infront = infront(self, self->enemy);

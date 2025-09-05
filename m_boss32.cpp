@@ -574,13 +574,11 @@ MMOVE_T(makron_move_attack4) = { FRAME_attak401, FRAME_attak426, makron_frames_a
 
 void MakronSaveloc(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (M_HasValidTarget(self)) 
 	{
-		return; // Stop immediately if the target is invalid.
+		self->pos1 = self->enemy->s.origin; // save for aiming the shot
+		self->pos1[2] += self->enemy->viewheight;
 	}
-
-	self->pos1 = self->enemy->s.origin; // save for aiming the shot
-	self->pos1[2] += self->enemy->viewheight;
 }
 
 mframe_t makron_frames_attack_rail[] = {

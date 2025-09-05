@@ -1142,8 +1142,8 @@ MMOVE_T(runnertank_move_jump2) = { FRAME_run01, FRAME_run07, runnertank_frames_j
 
 void runnertank_jump(edict_t* self, blocked_jump_result_t result)
 {
-	if (!self->enemy)
-		return;
+	if (!M_HasValidTarget(self))
+		return; // Can't jump at a non-existent or dead target.
 
 	monster_done_dodge(self);
 

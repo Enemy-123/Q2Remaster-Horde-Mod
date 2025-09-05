@@ -709,8 +709,8 @@ MMOVE_T(guardianpsx_move_rocket) = { FRAME_turnl_1, FRAME_turnr_11, guardianpsx_
 
 MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+	if (!M_HasValidTarget(self))
+		return; // Can't at a non-existent or dead target.
 
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
