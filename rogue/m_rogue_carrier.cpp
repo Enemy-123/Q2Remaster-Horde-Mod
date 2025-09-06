@@ -366,6 +366,11 @@ void CarrierMachineGun(edict_t *self)
 
 void CarrierSpawn(edict_t* self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	vec3_t   f, r, offset, startpoint, spawnpoint;
 	edict_t* ent;
 

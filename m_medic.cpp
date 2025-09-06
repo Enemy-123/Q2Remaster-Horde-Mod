@@ -1449,6 +1449,22 @@ void medic_finish_spawn(edict_t* self)
 	size_t   num_summoned = 0;
 	edict_t* designated_enemy;
 
+	// FIX: Determine the initial target safely. If the medic is healing, the target is
+	// the 'oldenemy'. Otherwise, it's the current 'enemy'. We must validate this pointer
+	// before proceeding, as it could have become invalid during the spawn animation.
+	if (self->monsterinfo.aiflags & AI_MEDIC)
+		designated_enemy = self->oldenemy;
+	else
+		designated_enemy = self->enemy;
+
+	// If the designated enemy is no longer valid, we can't assign it to the minions.
+	// Set it to nullptr so they acquire targets on their own.
+	if (!designated_enemy || !designated_enemy->inuse || designated_enemy->health <= 0)
+	{
+		designated_enemy = nullptr;
+	}
+	// END FIX
+
 	AngleVectors(self->s.angles, f, r, nullptr);
 
 	for (size_t i = 0; i < MAX_REINFORCEMENTS; i++)
@@ -1466,7 +1482,6 @@ void medic_finish_spawn(edict_t* self)
 			continue;
 		}
 
-		// --- NEW ID-BASED LOGIC ---
 		const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
 		horde::MonsterTypeID typeId = reinforcement_def.typeId;
 		const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
@@ -1475,9 +1490,7 @@ void medic_finish_spawn(edict_t* self)
 		}
 
 		vec3_t mins, maxs;
-		// Get bounds instantly from the global SoA, no temporary spawning needed.
 		GetPredictedScaledBounds(typeId, mins, maxs);
-		// --- END NEW LOGIC ---
 
 		offset = reinforcement_position[count_idx];
 		startpoint = M_ProjectFlashSource(self, offset, f, r);
@@ -1520,36 +1533,29 @@ void medic_finish_spawn(edict_t* self)
 
 		ApplyMonsterBonusFlags(ent);
 
-		if (self->monsterinfo.aiflags & AI_MEDIC)
-			designated_enemy = self->oldenemy;
-		else
-			designated_enemy = self->enemy;
-
+		// FIX: Use a temporary variable for coop target selection to avoid overwriting
+		// the validated 'designated_enemy' unless a valid coop target is found.
+		edict_t* final_target = designated_enemy;
 		if (coop && coop->integer)
 		{
-			designated_enemy = PickCoopTarget(ent);
-			if (designated_enemy)
+			edict_t* coop_target = PickCoopTarget(ent);
+			if (coop_target && coop_target != self->enemy)
 			{
-				if (designated_enemy == self->enemy)
-				{
-					designated_enemy = PickCoopTarget(ent);
-					if (!designated_enemy)
-						designated_enemy = self->enemy;
-				}
+				final_target = coop_target;
 			}
-			else
-				designated_enemy = self->enemy;
 		}
+		// END FIX
 
-		if ((designated_enemy) && (designated_enemy->inuse) && (designated_enemy->health > 0))
+		if (final_target) // This check is now sufficient as the pointer has been validated
 		{
-			ent->enemy = designated_enemy;
+			ent->enemy = final_target;
 			FoundTarget(ent);
 		}
 		else
 		{
 			ent->enemy = nullptr;
-			ent->monsterinfo.stand(ent);
+			if (ent->monsterinfo.stand)
+				ent->monsterinfo.stand(ent);
 		}
 	}
 }

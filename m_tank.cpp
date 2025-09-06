@@ -2238,6 +2238,12 @@ void tank_vanilla_doattack_rocket(edict_t* self)
 
 // Monster spawning functionality for spawner tank
 void Monster_MoveSpawn(edict_t* self) {
+	// FIX: Add a guard clause to ensure the target is still valid before spawning.
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	// Basic validation
 	if (!self || self->health <= 0 || self->deadflag ||
 		self->monsterinfo.monster_slots <= 0)
@@ -2300,7 +2306,7 @@ void Monster_MoveSpawn(edict_t* self) {
 			monster->monsterinfo.aiflags = AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
 			monster->monsterinfo.commander = self;
 			monster->monsterinfo.slots_from_commander = reinf_def.strength;
-			monster->enemy = self->enemy;
+			monster->enemy = self->enemy; // This is now safe due to the guard clause
 			monster->owner = self;
 
 			ED_CallSpawn(monster, spawn_temp_t::empty);

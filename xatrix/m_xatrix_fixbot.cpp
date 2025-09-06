@@ -535,13 +535,16 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	vec3_t dir;
 	edict_t* ent;
 
-	// Determine direction for the new turret to face
+	// FIX: Determine direction for the new turret to face safely.
+	// Use M_HasValidTarget to check self->enemy before accessing it.
 	if (M_HasValidTarget(self)) {
 		dir = self->enemy->s.origin - position;
 	}
 	else {
+		// If no valid enemy, have the turret face away from the fixbot.
 		dir = position - self->s.origin;
 	}
+	// END FIX
 
 	if (dir.lengthSquared() <= 0.01f) {
 		dir = { 1.0f, 0.0f, 0.0f };
@@ -590,6 +593,7 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	}
 
 	// Post-spawn setup: Assign a valid enemy
+	// FIX: Use the same safe check before assigning the enemy.
 	if (M_HasValidTarget(self)) {
 		ent->enemy = self->enemy;
 		FoundTarget(ent);
@@ -597,7 +601,6 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->monsterinfo.search_time = level.time + (isboss ? 4.5_sec : 3.5_sec);
 	ent->pain_debounce_time = level.time + (isboss ? 2.5_sec : 1.5_sec);
 }
-
 mframe_t fixbot_frames_run[] = {
 	{ ai_run, 10 }
 };

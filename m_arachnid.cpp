@@ -1831,12 +1831,9 @@ static void arachnid_psx_spawn(edict_t* self)
 
                 gi.sound(ent, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
 
-                // This check is now safe because of the guard clause at the top of the function.
-                if ((self->enemy->inuse) && (self->enemy->health > 0))
-                {
-                    ent->enemy = self->enemy;
-                    FoundTarget(ent);
-                }
+                // The inner check is no longer needed, as M_HasValidTarget already confirmed it.
+                ent->enemy = self->enemy;
+                FoundTarget(ent);
 
                 float const radius = (maxs - mins).length() * 0.5f;
                 SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);
