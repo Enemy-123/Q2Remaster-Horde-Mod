@@ -299,7 +299,7 @@ void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, flo
 		T_Damage(ent, inflictor, attacker, dir, point, dir, (int)points, static_cast<int>(kick * amount),
 			DAMAGE_RADIUS, mod);
 
-		if (ent->client)
+		if (ent->inuse && ent->client)
 			ent->velocity.z = max(270.f, ent->velocity.z);
 	}
 }

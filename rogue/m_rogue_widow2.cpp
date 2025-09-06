@@ -626,13 +626,15 @@ void Widow2Crunch(edict_t* self)
 	{
 		fire_hit(self, aim, irandom(20, 26), 0);
 	}
-	// ADDED SAFETY CHECK HERE
-	else if (M_HasValidTarget(self)) 
+	else
 	{
-		if (self->enemy->groundentity)
-			fire_hit(self, aim, irandom(20, 26), 500);
-		else
-			fire_hit(self, aim, irandom(20, 26), 250);
+		if (fire_hit(self, aim, irandom(20, 26), 250))
+		{
+			if (M_HasValidTarget(self) && self->enemy->groundentity)
+			{
+				fire_hit(self, aim, 0, 250);
+			}
+		}
 	}
 }
 

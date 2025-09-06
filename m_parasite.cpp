@@ -379,15 +379,22 @@ MMOVE_T(parasite_move_break) = { FRAME_break01, FRAME_break32, parasite_frames_b
 
 TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	// Safety checks: owner must be valid and in the attack animation.
 	if (!self->owner || !self->owner->inuse || self->owner->monsterinfo.active_move != &parasite_move_fire_proboscis)
 		return;
 
 	vec3_t p;
 
-	// --- SUCCESS CASE: HIT INTENDED TARGET ---
 	if ((other->svflags & SVF_PLAYER) || other == self->owner->enemy)
 	{
+		if (other->takedamage)
+			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
+
+		if (!other->inuse || other->health <= 0)
+		{
+			proboscis_retract(self);
+			return;
+		}
+
 		if (tr.startsolid)
 			p = tr.endpos;
 		else
@@ -402,33 +409,26 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		self->s.alpha = 0.35f;
 		gi.sound(self, CHAN_WEAPON, sound_suck, 1, ATTN_NORM, 0);
 	}
-	// --- FAILURE CASE: HIT ANYTHING ELSE ---
 	else
 	{
-		// Play impact sound at the point of collision.
 		gi.positioned_sound(tr.endpos, self->owner, CHAN_AUTO, sound_impact, 1, ATTN_NORM, 0);
 
-		// Deal minor impact damage.
 		if (other->takedamage)
 			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
 
-		// Decide how the parasite reacts to the miss.
 		if (IsBonusMonster(self->owner))
 		{
-			// Bonus monsters retract immediately.
 			proboscis_retract(self);
 			parasite_start_run(self->owner);
 		}
 		else
 		{
-			// Standard monsters play the fail animation if they hit a wall.
 			if (other->svflags & (SVF_MONSTER | SVF_DEADMONSTER))
 			{
 				proboscis_retract(self);
 			}
 			else
 			{
-				// Hit a wall; get stuck and play the break animation.
 				self->owner->monsterinfo.active_move = &parasite_move_break;
 				self->movetype = MOVETYPE_NONE;
 				self->solid = SOLID_NOT;
@@ -439,13 +439,8 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 				gi.linkentity(self);
 			}
 		}
-		// Since we've handled the miss, we are done with this function.
 		return;
 	}
-
-	// This part only runs on a successful hit.
-	if (other->takedamage)
-		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
 
 	gi.positioned_sound(tr.endpos, self->owner, CHAN_AUTO, sound_impact, 1, ATTN_NORM, 0);
 
@@ -604,7 +599,7 @@ THINK(proboscis_think) (edict_t* self) -> void
 				}
 				T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
 
-				// Re-validate the owner AFTER T_Damage, as it could have died from reflected damage.
+				// NEW: Re-validate the owner AFTER T_Damage, as it could have died from reflected damage.
 				if (self->owner && self->owner->inuse)
 				{
 					self->owner->health = min(self->owner->max_health, self->owner->health + 4);
