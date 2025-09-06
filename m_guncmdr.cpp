@@ -1256,14 +1256,22 @@ static void guncmdr_kick_finished(edict_t* self)
 
 static void guncmdr_kick(edict_t* self)
 {
+	// 1. First, check if we have a valid target to even attempt a kick.
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
-	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f)) {
-		if (self->enemy->client && self->enemy->velocity.z < 270.f)
-			self->enemy->velocity.z = 270.f;
+	// 2. Attempt the kick. If it connects, fire_hit returns true.
+	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f))
+	{
+		// 3. The hit connected. NOW, we must check if the target SURVIVED the hit.
+		if (M_HasValidTarget(self))
+		{
+			// 4. It's safe! The enemy was hit and is still alive. Apply the effect.
+			if (self->enemy->client && self->enemy->velocity.z < 270.f)
+				self->enemy->velocity.z = 270.f;
+		}
 	}
 }
 

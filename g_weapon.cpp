@@ -1,14 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
-/*
-================ =
-fire_hit
 
-Used for all impact(hit / punch / slash) attacks
-================ =
-*/
-// MODIFIED FUNCTION
 /*
 ================ =
 fire_hit
