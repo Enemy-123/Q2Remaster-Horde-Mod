@@ -337,15 +337,20 @@ char* G_CopyString(const char* in, int32_t tag)
 void G_InitEdict(edict_t* e)
 {
 	// --- START OF FIX ---
-	// This is the safe way to clear an edict. We must preserve the client
-	// pointer because player edicts have a permanent link to a gclient_t struct.
+	// This is the safe way to clear an edict. We must preserve critical pointers
+	// and flags that are set *before* this function is called.
 	gclient_t* const saved_client = e->client; // Save the client pointer
 	const int32_t saved_spawn_count = e->spawn_count; // Preserve spawn count across clears
+	const svflags_t saved_svflags = e->svflags; // Save the original flags before they are cleared
 
 	memset(e, 0, sizeof(*e)); // Zero out the entire structure
 
 	e->client = saved_client; // Restore the client pointer
 	e->spawn_count = saved_spawn_count; // Restore the spawn count
+
+	// Restore ONLY the flags that identify the entity as a player or bot.
+	// This prevents inheriting dangerous state like SVF_MONSTER or SVF_NOCLIENT from a reused slot.
+	e->svflags = saved_svflags & (SVF_PLAYER | SVF_BOT);
 	// --- END OF FIX ---
 
 	// ROGUE
@@ -371,7 +376,6 @@ void G_InitEdict(edict_t* e)
 	e->monsterinfo.monster_type_id = MONSTER_TYPE_UNKNOWN;
 	e->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
 }
-
 /*
 =================
 G_Spawn
