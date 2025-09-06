@@ -336,6 +336,18 @@ char* G_CopyString(const char* in, int32_t tag)
 
 void G_InitEdict(edict_t* e)
 {
+	// --- START OF FIX ---
+	// This is the safe way to clear an edict. We must preserve the client
+	// pointer because player edicts have a permanent link to a gclient_t struct.
+	gclient_t* const saved_client = e->client; // Save the client pointer
+	const int32_t saved_spawn_count = e->spawn_count; // Preserve spawn count across clears
+
+	memset(e, 0, sizeof(*e)); // Zero out the entire structure
+
+	e->client = saved_client; // Restore the client pointer
+	e->spawn_count = saved_spawn_count; // Restore the spawn count
+	// --- END OF FIX ---
+
 	// ROGUE
 	// FIXME -
 	//   this fixes a bug somewhere that is setting "nextthink" for an entity that has
@@ -356,10 +368,9 @@ void G_InitEdict(edict_t* e)
 	e->gravityVector[1] = 0.0;
 	e->gravityVector[2] = -1.0;
 	// PGM
-    e->monsterinfo.monster_type_id = MONSTER_TYPE_UNKNOWN; // Access it via monsterinfo
-    e->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN); // Access it directly
+	e->monsterinfo.monster_type_id = MONSTER_TYPE_UNKNOWN;
+	e->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
 }
-
 
 /*
 =================

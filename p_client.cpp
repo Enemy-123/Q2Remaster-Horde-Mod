@@ -1147,7 +1147,7 @@ void InitClientResp(gclient_t* client)
 	const bool id_state = client->pers.id_state;      // just save current state
 	const bool iddmg_state = client->pers.iddmg_state; // just save current state
 
-	memset(&client->resp, 0, sizeof(client->resp));
+	client->resp = {};
 
 	client->resp.ctf_team = ctf_team;
 	client->pers.id_state = id_state;
