@@ -232,30 +232,30 @@ MONSTERINFO_STAND(flyer_stand) (edict_t* self) -> void
 
 void flyer_kamikaze_explode(edict_t* self)
 {
-
+	// FIX: Use the more robust M_HasValidTarget check.
 	if (!M_HasValidTarget(self))
 	{
-		return; // Can't at a non-existent or dead target.
+		// If there's no valid target, we should still explode but without a direction.
+		flyer_die(self, nullptr, nullptr, 0, vec3_origin, MOD_EXPLOSIVE);
+		return;
 	}
 
 	vec3_t dir;
 
-edict_t* commander = self->monsterinfo.commander;
+	edict_t* commander = self->monsterinfo.commander;
 
-// Check if the commander is valid and is a Carrier type.
-if (commander && commander->inuse && horde::IsMonsterType(commander, horde::MonsterTypeID::CARRIER))
-{
-    commander->monsterinfo.monster_slots++;
-}
-	if (self->enemy)
+	// Check if the commander is valid and is a Carrier type.
+	if (commander && commander->inuse && horde::IsMonsterType(commander, horde::MonsterTypeID::CARRIER))
 	{
-		dir = self->enemy->s.origin - self->s.origin;
-		T_Damage(self->enemy, self, self, dir, self->s.origin, vec3_origin, 50, 50, DAMAGE_RADIUS, MOD_UNKNOWN);
+		commander->monsterinfo.monster_slots++;
 	}
+
+	// This block is now safe.
+	dir = self->enemy->s.origin - self->s.origin;
+	T_Damage(self->enemy, self, self, dir, self->s.origin, vec3_origin, 50, 50, DAMAGE_RADIUS, MOD_UNKNOWN);
 
 	flyer_die(self, nullptr, nullptr, 0, dir, MOD_EXPLOSIVE);
 }
-
 void flyer_kamikaze(edict_t* self)
 {
 	M_SetAnimation(self, &flyer_move_kamikaze);
