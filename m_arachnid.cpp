@@ -1773,6 +1773,12 @@ static void arachnid_psx_rapid_fire(edict_t* self)
 // Spawning function for PSX arachnid (skill 3 only)
 static void arachnid_psx_spawn(edict_t* self)
 {
+    // FIX: Add a guard clause to ensure the target is still valid before spawning.
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+
     if (skill->integer != 3)
         return;
 
@@ -1825,6 +1831,7 @@ static void arachnid_psx_spawn(edict_t* self)
 
                 gi.sound(ent, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
 
+                // This check is now safe because of the guard clause at the top of the function.
                 if ((self->enemy->inuse) && (self->enemy->health > 0))
                 {
                     ent->enemy = self->enemy;
