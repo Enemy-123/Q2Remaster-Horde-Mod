@@ -700,6 +700,11 @@ void CarrierRail(edict_t *self)
 
 void CarrierSaveLoc(edict_t *self)
 {
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
 	CarrierCoopCheck(self);
 	self->pos1 = self->enemy->s.origin; // save for aiming the shot
 	self->pos1[2] += self->enemy->viewheight;
