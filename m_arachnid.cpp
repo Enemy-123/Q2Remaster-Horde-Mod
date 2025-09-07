@@ -1773,7 +1773,9 @@ static void arachnid_psx_rapid_fire(edict_t* self)
 // Spawning function for PSX arachnid (skill 3 only)
 static void arachnid_psx_spawn(edict_t* self)
 {
-    // FIX: Add a guard clause to ensure the target is still valid before spawning.
+    // FIX: This single guard clause is sufficient. It ensures self->enemy is valid
+    // for the entire scope of this function, because no subsequent operations
+    // within this function will invalidate it.
     if (!M_HasValidTarget(self))
     {
         return; // Stop immediately if the target is invalid.
@@ -1801,7 +1803,6 @@ static void arachnid_psx_spawn(edict_t* self)
         startpoint = M_ProjectFlashSource(self, offset, f, r);
         startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-        // --- NEW ID-BASED LOGIC ---
         uint8_t def_index = self->monsterinfo.chosen_reinforcements[count];
         if (def_index >= self->monsterinfo.reinforcements.defs.size()) continue;
 
@@ -1812,7 +1813,6 @@ static void arachnid_psx_spawn(edict_t* self)
 
         vec3_t mins, maxs;
         GetPredictedScaledBounds(typeId, mins, maxs);
-        // --- END NEW LOGIC ---
 
         if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
         {
@@ -1831,9 +1831,12 @@ static void arachnid_psx_spawn(edict_t* self)
 
                 gi.sound(ent, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
 
-                // The inner check is no longer needed, as M_HasValidTarget already confirmed it.
-                ent->enemy = self->enemy;
-                FoundTarget(ent);
+                // This is now perfectly safe. The inner check is redundant but harmless.
+                if ((self->enemy->inuse) && (self->enemy->health > 0))
+                {
+                    ent->enemy = self->enemy;
+                    FoundTarget(ent);
+                }
 
                 float const radius = (maxs - mins).length() * 0.5f;
                 SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);

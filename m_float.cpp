@@ -544,8 +544,7 @@ void floater_tracker_zap(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		self->monsterinfo.search(self);
-		return; // Can't at a non-existent or dead target.
+		return; // Simply return if the target is invalid.
 	}
 
 
