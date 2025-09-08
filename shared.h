@@ -153,7 +153,7 @@ extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origi
 
 const char* GetPlayerName_Fast(const edict_t* player);
 extern const char* GetDisplayName_Fast(const edict_t* ent);
-extern const char* GetTitleFromFlags_Fast(unsigned int bonus_flags);
+extern const char* GetTitleFromFlags_Fast(bonus_flags_t bonus_flags);
 extern bool IsPlayerDefense(const edict_t* ent);
 extern void VerifyAndAdjustBots();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs);

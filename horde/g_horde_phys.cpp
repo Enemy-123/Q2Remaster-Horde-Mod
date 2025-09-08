@@ -48,41 +48,41 @@ namespace HordePhys
     ProximityGrid g_monster_grid;
 
     void ProximityGrid::DebugDraw()
-{
-    if (developer->integer < 2 || !m_is_built)
     {
-        return;
-    }
-
-    // Draw the grid structure in the air so it's easy to see.
-    // You can find a good Z height or just use the middle of the map.
-    float draw_z = (m_world_mins.z + 4096) / 2.0f; // Example Z
-
-    for (int y = 0; y < GRID_DIMENSION; ++y)
-    {
-        for (int x = 0; x < GRID_DIMENSION; ++x)
+        if (developer->integer < 2 || !m_is_built)
         {
-            const int cell_idx = y * GRID_DIMENSION + x;
-            // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
-            const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
+            return;
+        }
 
-            vec3_t cell_min = {m_world_mins.x + x * m_cell_size, m_world_mins.y + y * m_cell_size, draw_z};
-            vec3_t cell_max = cell_min + vec3_t{m_cell_size, m_cell_size, 1.0f};
+        // Draw the grid structure in the air so it's easy to see.
+        // You can find a good Z height or just use the middle of the map.
+        float draw_z = (m_world_mins.z + 4096) / 2.0f; // Example Z
 
-            // Color the cell based on how full it is.
-            // Green = empty, Yellow = some, Red = full.
-            rgba_t color = rgba_green;
-            if (cell.count > 0) {
-                color = rgba_yellow;
+        for (int y = 0; y < GRID_DIMENSION; ++y)
+        {
+            for (int x = 0; x < GRID_DIMENSION; ++x)
+            {
+                const int cell_idx = y * GRID_DIMENSION + x;
+                // FIX: Cast the signed 'int' to an unsigned 'size_t' for array indexing.
+                const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
+
+                vec3_t cell_min = { m_world_mins.x + x * m_cell_size, m_world_mins.y + y * m_cell_size, draw_z };
+                vec3_t cell_max = cell_min + vec3_t{ m_cell_size, m_cell_size, 1.0f };
+
+                // Color the cell based on how full it is.
+                // Green = empty, Yellow = some, Red = full.
+                rgba_t color = rgba_green;
+                if (cell.count > 0) {
+                    color = rgba_yellow;
+                }
+                if (cell.count >= ProximityGridCell::MAX_MONSTERS_PER_CELL) {
+                    color = rgba_red;
+                }
+
+                gi.Draw_Bounds(cell_min, cell_max, color, FRAME_TIME_S.seconds<float>() + 0.01f, false);
             }
-            if (cell.count >= ProximityGridCell::MAX_MONSTERS_PER_CELL) {
-                color = rgba_red;
-            }
-
-            gi.Draw_Bounds(cell_min, cell_max, color, FRAME_TIME_S.seconds<float>() + 0.01f, false);
         }
     }
-}
 
 void ProximityGrid::Build(const vec3_t& world_mins, const vec3_t& world_maxs) {
     // Clear any old data.

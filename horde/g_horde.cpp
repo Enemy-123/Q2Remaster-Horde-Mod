@@ -980,7 +980,7 @@ inline static void ClampNumToSpawn(const horde::MapSize &mapSize)
 	}
 }
 
-static int32_t CalculateQueuedMonsters(const horde::MapSize &mapSize, int32_t lvl, bool isHardMode)
+static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lvl, bool isHardMode)
 {
 	if (lvl <= 3) // No queue for first 3 waves still seems fine
 		return 0;
@@ -1028,7 +1028,7 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize &mapSize, int32_t lv
 
 	if (lvl > 20)
 	{ // Bonus for high levels
-        // FIX: Explicitly cast the result of std::pow (a double) to a float.
+		// FIX: Explicitly cast the result of std::pow (a double) to a float.
 		baseQueued *= static_cast<float>(std::pow(1.15f, std::min(lvl - 20, 18)));
 	}
 
@@ -1103,9 +1103,9 @@ struct WaveScalingCache
 		// in UnifiedAdjustSpawnRate now, eliminating the unused variables.
 
 		// Initialize cooldown scales (can be accessed by mapType and level)
-		horde::MapSize smallMap = {true, false, false};
-		horde::MapSize mediumMap = {false, false, true}; // Corrected: Medium map should have isMediumMap true
-		horde::MapSize bigMap = {false, true, false};
+		horde::MapSize smallMap = { true, false, false };
+		horde::MapSize mediumMap = { false, false, true }; // Corrected: Medium map should have isMediumMap true
+		horde::MapSize bigMap = { false, true, false };
 
 		// FIX: Renamed 'level' to 'waveLevel' to avoid shadowing.
 		for (int32_t waveLevel = 0; waveLevel <= MAX_WAVE_LEVEL; ++waveLevel)
@@ -5078,35 +5078,35 @@ void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason
 // MODIFIED FUNCTION: AnnounceIncomingWave
 static void AnnounceIncomingWave(gtime_t duration)
 {
-	const char *message;
+	const char* message;
 
 	// Define message pools for each difficulty level
-	static constexpr std::array<const char *, 4> normal_messages = {
+	static constexpr std::array<const char*, 4> normal_messages = {
 		"Strogg forces are pushing! Stay alert!",
 		"Incoming wave detected! Hold position!",
 		"Prepare for the next assault!",
-		"The horde advances! Brace yourselves!"};
+		"The horde advances! Brace yourselves!" };
 
-	static constexpr std::array<const char *, 4> chaotic1_messages = {
+	static constexpr std::array<const char*, 4> chaotic1_messages = {
 		"Chaotic wave incoming! Steel yourself!",
 		"Chaos approaches! Ready for battle!",
 		"The horde is restless! Expect the unexpected!",
-		"Unpredictable forces approaching! Adapt or die!"};
+		"Unpredictable forces approaching! Adapt or die!" };
 
-	static constexpr std::array<const char *, 4> chaotic2_messages = {
+	static constexpr std::array<const char*, 4> chaotic2_messages = {
 		"Relentless wave incoming! Stand your ground!",
 		"Overwhelming forces approaching! Hold the line!",
 		"The horde shows no mercy! Fight with all you have!",
-		"An unstoppable tide approaches! This is it!"};
+		"An unstoppable tide approaches! This is it!" };
 
-	static constexpr std::array<const char *, 4> insane1_messages = {
+	static constexpr std::array<const char*, 4> insane1_messages = {
 		"Intense wave incoming! Show no mercy!",
 		"Fierce battle ahead! Stand ready!",
 		"The Strogg are enraged! Push them back!",
-		"Survival is not guaranteed! Fight for every inch!"};
+		"Survival is not guaranteed! Fight for every inch!" };
 
 	// Expanded and refined insane2_messages
-	static constexpr std::array<const char *, 5> insane2_messages = {
+	static constexpr std::array<const char*, 5> insane2_messages = {
 		// Increased size to 5
 		"This is hell! Make it count!",			  // Keep this classic
 		"No retreat! Fight until your last breath!",	  // Desperate, but determined
@@ -6419,7 +6419,7 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 }
 
 // FIX: Removed unused 'recovery_mode_active_param' parameter.
-static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_time)
+static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 {
 	// *** THIS IS THE FIX: Use the compact index map ***
 	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
@@ -6431,7 +6431,7 @@ static bool ValidateSpawnPointForMonster(edict_t *spawn_point, gtime_t current_t
 		return false;
 	}
 
-	for (const auto *const player : active_players_no_spect())
+	for (const auto* const player : active_players_no_spect())
 	{
 		if ((spawn_point->s.origin - player->s.origin).lengthSquared() < HordeConstants::MIN_PLAYER_DIST_SQ_SPAWNPOINT)
 		{

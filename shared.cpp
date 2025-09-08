@@ -229,11 +229,11 @@ float M_DamageModifier(edict_t* monster) noexcept {
 }
 
 // // FIX: Changed the parameter type from 'int' to 'unsigned int' to match the BF_* flags.
-const char* GetTitleFromFlags_Fast(unsigned int bonus_flags) {
+const char* GetTitleFromFlags_Fast(bonus_flags_t bonus_flags) {
     // Use a static buffer. Its content is valid until the next call to this function.
     static char title_buffer[64];
 
-    if (bonus_flags == 0) {
+    if (bonus_flags == BF_NONE) {
         return ""; // Return a pointer to an empty literal string
     }
 
@@ -250,7 +250,7 @@ const char* GetTitleFromFlags_Fast(unsigned int bonus_flags) {
             strcpy(ptr, text);
             ptr += len;
         }
-    };
+        };
 
     if (bonus_flags & BF_CHAMPION)   append_title("Champion ");
     if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted ");
@@ -259,7 +259,7 @@ const char* GetTitleFromFlags_Fast(unsigned int bonus_flags) {
     if (bonus_flags & BF_POSSESSED)  append_title("Possessed ");
     if (bonus_flags & BF_STYGIAN)    append_title("Stygian ");
     if (bonus_flags & BF_FRIENDLY)   append_title("Friendly ");
-    
+
     // Null-terminate the final string
     *ptr = '\0';
 
