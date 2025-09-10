@@ -84,126 +84,115 @@ namespace HordePhys
         }
     }
 
-void ProximityGrid::Build(const vec3_t& world_mins, const vec3_t& world_maxs) {
-    // Clear any old data.
-    Reset(); 
-    m_is_built = false;
+    void ProximityGrid::Build(const vec3_t& world_mins, const vec3_t& world_maxs) {
+        // Clear any old data.
+        Reset();
+        m_is_built = false;
 
-    m_world_mins = world_mins;
-    const vec3_t world_size = world_maxs - world_mins;
-    constexpr float epsilon = 1.0f;
+        m_world_mins = world_mins;
+        const vec3_t world_size = world_maxs - world_mins;
+        constexpr float epsilon = 1.0f;
 
-    // Calculate cell size based on the largest world dimension.
-    m_cell_size = std::max(std::max(world_size.x, world_size.y), epsilon) / static_cast<float>(GRID_DIMENSION);
+        // Calculate cell size based on the largest world dimension.
+        m_cell_size = std::max(std::max(world_size.x, world_size.y), epsilon) / static_cast<float>(GRID_DIMENSION);
 
-    if (m_cell_size <= 0.0f) {
-        if (developer->integer) gi.Com_PrintFmt("ProximityGrid Build FAILED: Invalid cell size.\n");
-        return;
+        if (m_cell_size <= 0.0f) {
+            if (developer->integer) gi.Com_PrintFmt("ProximityGrid Build FAILED: Invalid cell size.\n");
+            return;
+        }
+
+        m_inv_cell_size = 1.0f / m_cell_size;
+        m_is_built = true;
+
+        if (developer->integer >= 2) {
+            gi.Com_PrintFmt("ProximityGrid built successfully. Cell size: %.2f\n", m_cell_size);
+        }
     }
-
-    m_inv_cell_size = 1.0f / m_cell_size;
-    m_is_built = true;
-
-    if (developer->integer >= 2) {
-        gi.Com_PrintFmt("ProximityGrid built successfully. Cell size: %.2f\n", m_cell_size);
-    }
-}
-// ... (rest of g_horde_phys.cpp remains the same) ...
-int ProximityGrid::GetCellIndex(const vec3_t &pos) const
-{
-    if (!m_is_built)
-        return -1;
-    int grid_x = static_cast<int>((pos.x - m_world_mins.x) * m_inv_cell_size);
-    int grid_y = static_cast<int>((pos.y - m_world_mins.y) * m_inv_cell_size);
-    grid_x = std::clamp(grid_x, 0, GRID_DIMENSION - 1);
-    grid_y = std::clamp(grid_y, 0, GRID_DIMENSION - 1);
-    return grid_y * GRID_DIMENSION + grid_x;
-}
-
-void ProximityGrid::Add(edict_t *ent)
-{
-    if (!m_is_built || !ent)
-        return;
-    int min_idx = GetCellIndex(ent->absmin);
-    int max_idx = GetCellIndex(ent->absmax);
-    // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
-    if (min_idx != -1)
-        m_cells[static_cast<size_t>(min_idx)].add(ent);
-    // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
-    if (max_idx != -1 && max_idx != min_idx)
-        m_cells[static_cast<size_t>(max_idx)].add(ent);
-}
-
-std::span<edict_t *const> ProximityGrid::GetPotentialColliders(edict_t *ent)
-{
-    if (!m_is_built || !ent)
-        return {};
-
-    // Use a local set for deduplication. It's created and destroyed on each call.
-    std::unordered_set<edict_t*> already_added;
-    size_t buffer_count = 0;
-
-    int min_x = std::clamp(static_cast<int>((ent->absmin.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-    int max_x = std::clamp(static_cast<int>((ent->absmax.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-    int min_y = std::clamp(static_cast<int>((ent->absmin.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-    int max_y = std::clamp(static_cast<int>((ent->absmax.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-
-    for (int y = min_y; y <= max_y; ++y)
+    // ... (rest of g_horde_phys.cpp remains the same) ...
+    int ProximityGrid::GetCellIndex(const vec3_t& pos) const
     {
-        for (int x = min_x; x <= max_x; ++x)
+        if (!m_is_built)
+            return -1;
+        int grid_x = static_cast<int>((pos.x - m_world_mins.x) * m_inv_cell_size);
+        int grid_y = static_cast<int>((pos.y - m_world_mins.y) * m_inv_cell_size);
+        grid_x = std::clamp(grid_x, 0, GRID_DIMENSION - 1);
+        grid_y = std::clamp(grid_y, 0, GRID_DIMENSION - 1);
+        return grid_y * GRID_DIMENSION + grid_x;
+    }
+
+    void ProximityGrid::Add(edict_t* ent)
+    {
+        if (!m_is_built || !ent)
+            return;
+        int min_idx = GetCellIndex(ent->absmin);
+        int max_idx = GetCellIndex(ent->absmax);
+        // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
+        if (min_idx != -1)
+            m_cells[static_cast<size_t>(min_idx)].add(ent);
+        // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
+        if (max_idx != -1 && max_idx != min_idx)
+            m_cells[static_cast<size_t>(max_idx)].add(ent);
+    }
+
+    std::span<edict_t* const> ProximityGrid::GetPotentialColliders(edict_t* ent)
+    {
+        if (!m_is_built || !ent)
+            return {};
+
+        // Use the member buffer for tracking, avoiding heap allocation.
+        std::fill(m_visited_entities.begin(), m_visited_entities.end(), false);
+        size_t buffer_count = 0;
+
+        int min_x = std::clamp(static_cast<int>((ent->absmin.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+        int max_x = std::clamp(static_cast<int>((ent->absmax.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+        int min_y = std::clamp(static_cast<int>((ent->absmin.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+        int max_y = std::clamp(static_cast<int>((ent->absmax.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+
+        for (int y = min_y; y <= max_y; ++y)
         {
-            int cell_idx = y * GRID_DIMENSION + x;
-            const auto &cell = m_cells[static_cast<size_t>(cell_idx)];
-            for (size_t i = 0; i < cell.count; ++i)
+            for (int x = min_x; x <= max_x; ++x)
             {
-                edict_t *other = cell.monsters[i];
-                if (other != ent)
+                int cell_idx = y * GRID_DIMENSION + x;
+                const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
+                for (size_t i = 0; i < cell.count; ++i)
                 {
-                    // Use the set's insert method. It returns a pair,
-                    // where .second is true if the insertion was new.
-                    if (already_added.insert(other).second)
+                    edict_t* other = cell.monsters[i];
+                    if (other != ent)
                     {
-                        if (buffer_count < m_query_buffer.size())
+                        const int entity_num = other->s.number;
+                        // Check the boolean array instead of inserting into a set
+                        if (!m_visited_entities[entity_num])
                         {
-                            m_query_buffer[buffer_count++] = other;
-                        }
-                        else 
-                        {
-                            // Optional: Log a warning if the buffer ever gets full
-                            if (developer->integer) {
-                                gi.Com_PrintFmt("ProximityGrid WARNING: GetPotentialColliders query buffer is full! (Max {})\n", m_query_buffer.size());
+                            m_visited_entities[entity_num] = true; // Mark as visited
+                            if (buffer_count < m_query_buffer.size())
+                            {
+                                m_query_buffer[buffer_count++] = other;
                             }
-                            // Using goto to break out of nested loops cleanly
-                            goto end_loops;
+                            else
+                            {
+                                if (developer->integer) {
+                                    gi.Com_PrintFmt("ProximityGrid WARNING: GetPotentialColliders query buffer is full! (Max {})\n", m_query_buffer.size());
+                                }
+                                goto end_loops;
+                            }
                         }
                     }
                 }
             }
         }
+
+    end_loops:
+        return { m_query_buffer.data(), buffer_count };
     }
 
-end_loops:
-    return {m_query_buffer.data(), buffer_count};
-}
-
-void ProximityGrid::Reset()
-{
-    // This just clears the dynamic monster data from each cell,
-    // leaving the m_is_cell_walkable data intact.
-    for (auto &cell : m_cells)
-    {
-        cell.clear();
-    }
-}
-
-        std::span<edict_t* const> ProximityGrid::QueryRadius(const vec3_t& origin, float radius)
+    std::span<edict_t* const> ProximityGrid::QueryRadius(const vec3_t& origin, float radius)
     {
         if (!m_is_built) {
             return {};
         }
 
-        // Use a local set here as well.
-        std::unordered_set<edict_t*> already_added;
+        // Use the member buffer for tracking, avoiding heap allocation.
+        std::fill(m_visited_entities.begin(), m_visited_entities.end(), false);
         size_t buffer_count = 0;
 
         const float inv_cs = m_inv_cell_size;
@@ -224,15 +213,17 @@ void ProximityGrid::Reset()
                 for (size_t i = 0; i < cell.count; ++i)
                 {
                     edict_t* other = cell.monsters[i];
-                    
-                    // Use the set's insert method.
-                    if (already_added.insert(other).second)
+
+                    const int entity_num = other->s.number;
+                    // Check the boolean array instead of inserting into a set
+                    if (!m_visited_entities[entity_num])
                     {
+                        m_visited_entities[entity_num] = true; // Mark as visited
                         if (buffer_count < m_query_buffer.size())
                         {
                             m_query_buffer[buffer_count++] = other;
                         }
-                        else 
+                        else
                         {
                             if (developer->integer) {
                                 gi.Com_PrintFmt("ProximityGrid WARNING: QueryRadius query buffer is full! (Max {})\n", m_query_buffer.size());
@@ -247,6 +238,18 @@ void ProximityGrid::Reset()
     end_loops:
         return { m_query_buffer.data(), buffer_count };
     }
+
+
+void ProximityGrid::Reset()
+{
+    // This just clears the dynamic monster data from each cell,
+    // leaving the m_is_cell_walkable data intact.
+    for (auto& cell : m_cells)
+    {
+        cell.clear();
+    }
+}
+
 
 // // NEW: Debug drawing function
 // void ProximityGrid::DebugDraw(float duration) {

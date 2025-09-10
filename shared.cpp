@@ -10,25 +10,22 @@
 #include <optional> // Required for the new cache
 
 horde::MapSize GetMapSize(const char* mapname) {
-    // --- THE FIX ---
-    // Cache is now a simple array, indexed by MapID. This is extremely fast.
-    // We use std::optional to know if a value has been cached yet.
+    // Cache is a static array, indexed by MapID. This is extremely fast.
     static std::array<std::optional<horde::MapSize>, static_cast<size_t>(horde::MapID::MAX_MAPS)> cache;
     
-    // On the very first run for a new map, clear the cache.
+    // On map change, clear the cache.
     static char last_map_for_cache[MAX_QPATH] = "";
     if (strcmp(last_map_for_cache, level.mapname) != 0) {
         cache.fill(std::nullopt);
         Q_strlcpy(last_map_for_cache, level.mapname, sizeof(last_map_for_cache));
     }
 
-    // Get the fast, integer-based ID for the map. This is efficient.
     horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
     if (mapId == horde::MapID::UNKNOWN) {
         return horde::MapOriginRegistry::GetMapSize(mapId); // Return default
     }
 
-    // Check the array cache using the ID as an index. No string operations needed.
+    // Check the array cache using the ID as an index.
     size_t index = static_cast<size_t>(mapId);
     if (cache[index].has_value()) {
         return cache[index].value();
@@ -126,27 +123,20 @@ bool IsPlayerDefense(const edict_t* ent) {
 #include <unordered_set> // Add this include at the top of your file
 
 bool IsRemovableEntity(const edict_t* ent) {
-    // 1. Fast-path null check
     if (!ent) {
         return false;
     }
 
-    // 2. The FAST PATH: Use the cached ID from the entity struct.
+    // FAST PATH: Use the cached ID from the entity struct.
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
 
-    // 3. The SLOW/DEBUG PATH: If the cached ID is UNKNOWN, investigate further.
+    // SLOW/DEBUG PATH: If the cached ID is UNKNOWN, investigate.
     if (id == horde::SpecialEntityTypeID::UNKNOWN) {
-        // --- Validation Logic ---
-        // Only run these expensive checks if the 'developer' cvar is enabled.
         if (developer->integer) {
-            // Check if this entity's classname *should* have a valid ID, but it wasn't set at spawn.
-            // This is the key check: we do the slow lookup ONLY to validate.
+            // Check if this entity's classname *should* have a valid ID.
             if (ent->classname && horde::SpecialTypeRegistry::GetTypeID(ent->classname) != horde::SpecialEntityTypeID::UNKNOWN) {
                 
-                // To prevent spamming the console every frame, we track which classnames we've already reported.
                 static std::unordered_set<std::string_view> reported_classnames;
-                
-                // On map change, clear the list of reported names.
                 static char last_map_for_reporting[MAX_QPATH] = "";
                 if (strcmp(last_map_for_reporting, level.mapname) != 0) {
                     reported_classnames.clear();
@@ -154,18 +144,15 @@ bool IsRemovableEntity(const edict_t* ent) {
                 }
 
                 if (reported_classnames.find(ent->classname) == reported_classnames.end()) {
-                    // This is the message you wanted!
                     gi.Com_PrintFmt("VALIDATION WARNING: Entity with classname '{}' is missing its special_type_id. Please set it in its spawn function.\n", ent->classname);
                     reported_classnames.insert(ent->classname);
                 }
             }
         }
-        
-        // If the ID is unknown, it's not removable according to our system.
         return false;
     }
 
-    // 4. The FAST PATH RESULT: Direct, lightning-fast array lookup.
+    // FAST PATH RESULT: Direct, lightning-fast array lookup.
     return g_entityProperties.is_removable[static_cast<size_t>(id)];
 }
 
@@ -890,78 +877,59 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 // In shared.cpp
 
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
-    // Initial validation to prevent crashes with bad data.
-    if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
-        return;
+	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
+		return;
 
-    // Define a slightly larger bounding box to ensure a safe clearing area.
-    const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
-    const vec3_t area_mins = origin + mins - safe_offset;
-    const vec3_t area_maxs = origin + maxs + safe_offset;
+	const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
+	const vec3_t area_mins = origin + mins - safe_offset;
+	const vec3_t area_maxs = origin + maxs + safe_offset;
 
-    // --- START OF THE CORRECTED FIX ---
+	// --- CORRECTED RADIUS CALCULATION ---
+	// 1. Calculate the radius required to encompass the entire clearing box.
+	vec3_t farthest_corner_dist;
+	farthest_corner_dist.x = std::max(fabs(area_mins.x - origin.x), fabs(area_maxs.x - origin.x));
+	farthest_corner_dist.y = std::max(fabs(area_mins.y - origin.y), fabs(area_maxs.y - origin.y));
+	farthest_corner_dist.z = std::max(fabs(area_mins.z - origin.z), fabs(area_maxs.z - origin.z));
+	const float radius_to_contain_box = farthest_corner_dist.length();
 
-    // 1. Calculate the radius required to encompass the entire clearing box from the origin.
-    // This is the distance to the farthest corner of the box.
-    vec3_t farthest_corner_dist;
-    farthest_corner_dist.x = std::max(fabs(area_mins.x - origin.x), fabs(area_maxs.x - origin.x));
-    farthest_corner_dist.y = std::max(fabs(area_mins.y - origin.y), fabs(area_maxs.y - origin.y));
-    farthest_corner_dist.z = std::max(fabs(area_mins.z - origin.z), fabs(area_maxs.z - origin.z));
-    const float radius_to_contain_box = farthest_corner_dist.length();
+	// 2. Add a generous "slop factor" to catch large entities whose centers are outside the box.
+	constexpr float MAX_ENTITY_REACH = 128.0f;
+	const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
+	// --- END CORRECTION ---
 
-    // 2. Add a generous "slop factor". This expands the radius to catch large entities
-    // whose bounding boxes might intersect the area even if their center points are outside.
-    // A value like 128 is safe for most items, players, and defenses.
-    constexpr float MAX_ENTITY_REACH = 128.0f;
-    const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
+	std::vector<edict_t*> entities_in_area;
+	edict_t* ent = nullptr;
+	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
+		if (!ent || !ent->inuse || (ent->svflags & SVF_MONSTER) ||
+			ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
+			continue;
 
-    // --- END OF THE CORRECTED FIX ---
+		if (!is_valid_vector(ent->s.origin) || !is_valid_vector(ent->mins) || !is_valid_vector(ent->maxs))
+			continue;
 
-    std::vector<edict_t*> entities_in_area;
-    edict_t* ent = nullptr;
-    while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
-        if (!ent || !ent->inuse)
-            continue;
+		// "Narrow phase": Check for precise bounding box intersection.
+		if (!EntitiesOverlap(ent, area_mins, area_maxs))
+			continue;
 
-        // Skip monsters and non-solid entities, as they don't block spawns.
-        if ((ent->svflags & SVF_MONSTER) ||
-            ent->solid == SOLID_NOT ||
-            ent->solid == SOLID_TRIGGER)
-            continue;
+		entities_in_area.push_back(ent);
+	}
 
-        // Basic validation for the entity's own bounds.
-        if (!is_valid_vector(ent->s.origin) ||
-            !is_valid_vector(ent->mins) ||
-            !is_valid_vector(ent->maxs))
-            continue;
+	for (edict_t* current_ent : entities_in_area) {
+		if (!current_ent || !current_ent->inuse)
+			continue;
 
-        // "Narrow phase": Check if the entity's precise bounding box actually intersects.
-        if (!EntitiesOverlap(ent, area_mins, area_maxs))
-            continue;
-
-        entities_in_area.push_back(ent);
-    }
-
-    // Process all the entities we found that are blocking the area.
-    for (edict_t* current_ent : entities_in_area) {
-        if (!current_ent || !current_ent->inuse)
-            continue;
-
-        if (current_ent->client) {
-            // Players are teleported to a safe spawn point.
-            edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
-            if (spawn_point && spawn_point->inuse) {
-                TeleportEntity(current_ent, spawn_point);
-            }
-        }
-        else {
-            // Other blocking entities (items, defenses) are removed.
-            RemoveEntity(current_ent);
-        }
-    }
+		if (current_ent->client) {
+			edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
+			if (spawn_point && spawn_point->inuse) {
+				TeleportEntity(current_ent, spawn_point);
+			}
+		}
+		else {
+			RemoveEntity(current_ent);
+		}
+	}
 }
 
-// Replace the existing PushEntitiesAway function with this one.
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength)
 {
 	push_radius = std::max(push_radius, 1.0f);
@@ -969,9 +937,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 
 	std::vector<edict_t*> entities_to_process;
 	std::vector<edict_t*> entities_to_remove;
-	// Optional: Reserve some space
-	// entities_to_process.reserve(64);
-	// entities_to_remove.reserve(16);
 
 	// Collect entities
 	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
@@ -981,7 +946,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		if (gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f)
 			continue;
 
-        // Use our new helper function to decide what to do
+		// Use the safe, fast helper function to decide what to do
 		if (IsRemovableEntity(ent)) {
 			entities_to_remove.push_back(ent);
 		}
@@ -992,9 +957,8 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 
 	// Remove designated entities first
 	for (edict_t* ent_to_remove : entities_to_remove) {
-		// Check inuse again in case it was removed by another process
 		if (ent_to_remove && ent_to_remove->inuse)
-			RemoveEntity(ent_to_remove); // Use the new safe removal function
+			RemoveEntity(ent_to_remove);
 	}
 
 	// Process waves (pushing logic remains the same)
@@ -1014,9 +978,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 			}
 		}
 
-		// Process entities to push/affect
 		for (edict_t* ent : entities_to_process) {
-			// Check inuse status as entities might be removed/killed between waves or by removals
 			if (!ent || !ent->inuse)
 				continue;
 
@@ -1030,16 +992,13 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 				push_dir = vec3_t{ crandom(), crandom(), 0.1f };
 			}
 			else {
-				push_dir.normalize(); // Normalize only if dist is not near zeroF
+				push_dir.normalize();
 			}
 
-
 			const float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
-
 			int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
 			if (ent->groundentity)
 				base_push *= 2;
-
 			base_push = static_cast<int>(base_push * dist_factor);
 
 			if (ent->client) {
@@ -1173,102 +1132,97 @@ bool SpawnPointClear(edict_t* spot);
 float PlayersRangeFromSpot(edict_t* spot);
 
 bool TeleportSelf(edict_t* ent) {
-    // --- BOILERPLATE: Initial checks and setup from the original function ---
-    if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag) {
-        return false;
-    }
+	if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag) {
+		return false;
+	}
 
-    if (ent->client->resp.teleport_cooldown > level.time) {
-        float remaining_seconds = (ent->client->resp.teleport_cooldown - level.time).seconds();
-        float remaining_display = std::floor(remaining_seconds * 10.0f) / 10.0f;
-        gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining_display);
-        return false;
-    }
+	if (ent->client->resp.teleport_cooldown > level.time) {
+		float remaining_seconds = (ent->client->resp.teleport_cooldown - level.time).seconds();
+		float remaining_display = std::floor(remaining_seconds * 10.0f) / 10.0f;
+		gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining_display);
+		return false;
+	}
 
-    ent->client->resp.teleport_cooldown = level.time + 3_sec; // Apply cooldown
-    const char* playerName = GetPlayerName_Fast(ent);
+	ent->client->resp.teleport_cooldown = level.time + 3_sec;
+	const char* playerName = GetPlayerName_Fast(ent);
 
-    // --- BOILERPLATE: Collect and validate spawn points ---
-    struct spawn_point_info_t {
-        edict_t* point;
-        float dist; // Distance from players
-    };
+	struct spawn_point_info_t {
+		edict_t* point;
+		float dist;
+	};
 
-    std::vector<spawn_point_info_t> spawn_points;
-    spawn_points.reserve(16);
+	std::vector<spawn_point_info_t> spawn_points;
+	spawn_points.reserve(32); // Reserve a reasonable amount
 
-    for (edict_t* spot : monster_spawn_points()) {
-        if (spot->style == 0) { // Assuming style 0 is for ground/player spawns
-            spawn_points.push_back({spot, PlayersRangeFromSpot(spot)});
-        }
-    }
+	for (edict_t* spot : monster_spawn_points()) {
+		if (spot->style == 0) {
+			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+		}
+	}
 
-    if (spawn_points.empty()) {
-        if (developer->integer) {
-            gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
-        }
-        return false;
-    }
+	if (spawn_points.empty()) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+		}
+		return false;
+	}
 
-    // --- BOILERPLATE: Helper lambda for teleport actions ---
-    auto perform_teleport_actions = [&](edict_t* destination_spot) {
-        TeleportEntity(ent, destination_spot);
+	auto perform_teleport_actions = [&](edict_t* destination_spot) {
+		TeleportEntity(ent, destination_spot);
 
-        if (ent->client->owned_sphere) {
-            edict_t* sphere = ent->client->owned_sphere;
-            sphere->s.origin = ent->s.origin;
-            sphere->s.origin.z = ent->absmax.z;
-            sphere->s.angles[YAW] = ent->s.angles[YAW];
-            gi.linkentity(sphere);
-        }
+		if (ent->client->owned_sphere) {
+			edict_t* sphere = ent->client->owned_sphere;
+			sphere->s.origin = ent->s.origin;
+			sphere->s.origin.z = ent->absmax.z;
+			sphere->s.angles[YAW] = ent->s.angles[YAW];
+			gi.linkentity(sphere);
+		}
 
-        if (!ent->client->emergency_teleport) {
-            gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName);
-        }
+		if (!ent->client->emergency_teleport) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName);
+		}
 
-        ent->client->invincible_time = std::max(level.time, ent->client->invincible_time) + 2_sec;
-    };
+		ent->client->invincible_time = std::max(level.time, ent->client->invincible_time) + 2_sec;
+		};
 
-    // Sort spawn points to try the farthest (often safest) ones first
-    std::sort(spawn_points.begin(), spawn_points.end(),
-              [](const spawn_point_info_t& a, const spawn_point_info_t& b) {
-                  return a.dist > b.dist; // Sort descending by distance
-              });
+	// Sort spawn points to try the farthest (often safest) ones first
+	std::sort(spawn_points.begin(), spawn_points.end(),
+		[](const spawn_point_info_t& a, const spawn_point_info_t& b) {
+			return a.dist > b.dist; // Sort descending by distance
+		});
 
-    // --- NEW SIMPLIFIED LOGIC ---
-    bool was_emergency = ent->client->emergency_teleport; // Remember if this was an emergency
-    bool success = false;
+	// --- SIMPLIFIED LOGIC ---
+	bool was_emergency = ent->client->emergency_teleport;
+	bool success = false;
 
-    // Try to find a clear spot from the sorted list
-    for (const auto& sp_info : spawn_points) {
-        if (SpawnPointClear(sp_info.point)) {
-            perform_teleport_actions(sp_info.point);
-            success = true;
-            break;
-        }
-    }
+	// Try to find a clear spot from the sorted list
+	for (const auto& sp_info : spawn_points) {
+		if (SpawnPointClear(sp_info.point)) {
+			perform_teleport_actions(sp_info.point);
+			success = true;
+			break;
+		}
+	}
 
-    // If no clear spot was found, use the fallback to a random (but likely blocked) spot
-    if (!success) {
-        const int32_t random_idx = random_index(spawn_points);
-        edict_t* random_destination = spawn_points[random_idx].point;
+	// If no clear spot was found, fallback to a random (but likely blocked) spot
+	if (!success) {
+		const int32_t random_idx = random_index(spawn_points);
+		edict_t* random_destination = spawn_points[static_cast<size_t>(random_idx)].point;
 
-        if (developer->integer) {
-            gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index {}, potentially blocked).\n", random_idx);
-        }
-        
-        perform_teleport_actions(random_destination);
-        success = true; // The teleport was performed, even if to a blocked spot
-    }
+		if (developer->integer) {
+			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index {}, potentially blocked).\n", random_idx);
+		}
 
-    // If a teleport happened AND it was an emergency, reset the flag.
-    // This is the core of the fix: a single, clear condition.
-    if (success && was_emergency) {
-        ent->client->emergency_teleport = false;
-    }
+		perform_teleport_actions(random_destination);
+		success = true;
+	}
 
-    return success;
-    // --- END SIMPLIFIED LOGIC ---
+	// If a teleport happened AND it was an emergency, reset the flag.
+	if (success && was_emergency) {
+		ent->client->emergency_teleport = false;
+	}
+
+	return success;
 }
 
 // --- Extern Declarations for Monster Jump Moves ---

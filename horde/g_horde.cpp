@@ -225,7 +225,7 @@ namespace HordeConstants
 
 // --- Forward Declarations ---
 bool Horde_AttemptToUnstickMonster(edict_t* self); 
-bool FindEmergencySpawnPositionViaGridSearch(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t *specific_target = nullptr);
+bool FindEmergencySpawnPositionNearPlayer(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t *specific_target = nullptr);
 static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
@@ -500,21 +500,18 @@ static void BuildSpawnPointMap()
 {
 	g_spawn_point_map.clear();
 	g_spawn_point_list.clear();
-	g_num_spawn_points = 0;
 
-	// First pass: collect all valid spawn points
+	// Single pass to build both the list and the map
 	for (edict_t* sp : monster_spawn_points()) {
 		if (sp && sp->inuse && sp->classname && strcmp(sp->classname, "info_player_deathmatch") == 0) {
+			// Add to map first, using the current size of the list as the compact index
+			g_spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
+			// Then add the pointer to the list
 			g_spawn_point_list.push_back(sp);
 		}
 	}
 
 	g_num_spawn_points = g_spawn_point_list.size();
-
-	// Second pass: build the map from edict* to compact index
-	for (size_t i = 0; i < g_num_spawn_points; ++i) {
-		g_spawn_point_map[g_spawn_point_list[i]->s.number] = static_cast<uint16_t>(i);
-	}
 
 	// Finally, resize all data structures to the exact size needed
 	g_spawnPointsData.resize(g_num_spawn_points);
@@ -2865,72 +2862,67 @@ static bool ShouldAttemptHigherLevelSpawn(int32_t currentLevel, bool isRetaliati
 	return frandom() < 0.07f;	  // 7% chance in late waves
 }
 
-// In g_horde.cpp
-
-// REPLACEMENT for CalculateEffectiveMonsterLevel (with bug fix)
 static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool attemptHigherLevel, MonsterWaveType waveTypeForFiltering)
 {
-    if (!attemptHigherLevel)
-    {
-        return currentActualLevel; // No change needed.
-    }
+	if (!attemptHigherLevel)
+	{
+		return currentActualLevel; // No change needed.
+	}
 
-    int32_t levelBoost;
-    int32_t maxLevelCap;
+	int32_t levelBoost;
+	int32_t maxLevelCap;
 
-    // Use a more aggressive boost for flying waves to introduce elite flyers.
-    if (HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying))
-    {
-        levelBoost = irandom(6, 17);
-        maxLevelCap = currentActualLevel + 11;
-    }
-    else
-    {
-        // Use the original, more conservative boost for ground waves.
-        if (currentActualLevel < 7)
-            levelBoost = irandom(2, 4);
-        else if (currentActualLevel <= 15)
-            levelBoost = irandom(4, 8);
-        else
-            levelBoost = irandom(3, 6);
-        maxLevelCap = currentActualLevel + 8;
-    }
+	if (HasWaveType(waveTypeForFiltering, MonsterWaveType::Flying))
+	{
+		levelBoost = irandom(6, 17);
+		maxLevelCap = currentActualLevel + 11;
+	}
+	else
+	{
+		if (currentActualLevel < 7)
+			levelBoost = irandom(2, 4);
+		else if (currentActualLevel <= 15)
+			levelBoost = irandom(4, 8);
+		else
+			levelBoost = irandom(3, 6);
+		maxLevelCap = currentActualLevel + 8;
+	}
 
-    maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap.
+	maxLevelCap = std::min(maxLevelCap, 45); // Absolute cap.
 
-    int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
+	int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
-    // =======================================================================
-    // --- THIS IS THE CRITICAL FIX ---
-    // We must check the MASTER list of all monsters (`monsterTypes`) to see if any
-    // are unlocked by the new effective level.
-    // =======================================================================
-    bool any_new_monsters_unlocked = false;
-    for (const auto &monster : monsterTypes) // Iterate the full list
-    {
-        // Is there a monster that is eligible at the new level but was NOT at the old one?
-        if (monster.minWave > currentActualLevel &&
-            monster.minWave <= potentialEffectiveLevel &&
-            IsValidMonsterForWave(monster.typeId, waveTypeForFiltering))
-        {
-            any_new_monsters_unlocked = true;
-            break; // Found one, no need to check further.
-        }
-    }
+	// --- OPTIMIZED SEARCH ---
+	// Use std::lower_bound to efficiently find the start of the relevant monster range.
+	auto it = std::lower_bound(std::begin(monsterTypes), std::end(monsterTypes), currentActualLevel,
+		[](const MonsterTypeInfo& monster, int32_t level) {
+			return monster.minWave <= level;
+		});
 
-    if (!any_new_monsters_unlocked)
-    {
-        // This is not an error, it's a normal outcome. The random boost just didn't
-        // cross a threshold to unlock a new monster type.
-        return currentActualLevel; // Revert if the boost is meaningless.
-    }
+	bool any_new_monsters_unlocked = false;
+	// Iterate only over the small, relevant subset of monsters.
+	for (; it != std::end(monsterTypes) && it->minWave <= potentialEffectiveLevel; ++it)
+	{
+		if (IsValidMonsterForWave(it->typeId, waveTypeForFiltering))
+		{
+			any_new_monsters_unlocked = true;
+			break; // Found one, no need to check further.
+		}
+	}
+	// --- END OPTIMIZED SEARCH ---
 
-    if (developer->integer)
-    {
-        gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
-    }
-    return potentialEffectiveLevel;
+	if (!any_new_monsters_unlocked)
+	{
+		return currentActualLevel; // Revert if the boost is meaningless.
+	}
+
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("CalculateEffectiveMonsterLevel: Attempting ELITE spawn. Using effective level {} (Current is {}).\n", potentialEffectiveLevel, currentActualLevel);
+	}
+	return potentialEffectiveLevel;
 }
+
 //-----------------------------------------------------
 // (The following helper functions are unchanged but required)
 //-----------------------------------------------------
@@ -5565,7 +5557,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 	}
 	else
 	{
-		if (!FindEmergencySpawnPositionViaGridSearch(dest_origin, dest_angles, horde::MonsterTypeRegistry::GetTypeID(self->classname)))
+		if (!FindEmergencySpawnPositionNearPlayer(dest_origin, dest_angles, horde::MonsterTypeRegistry::GetTypeID(self->classname)))
 		{
 			self->teleport_time = level.time + 5.0_sec;
 			return false;
@@ -5839,7 +5831,7 @@ bool Horde_AttemptToUnstickMonster(edict_t* self)
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
 	// The target for the emergency spawn is the monster's current enemy, if it has one.
-	if (FindEmergencySpawnPositionViaGridSearch(emergency_origin, emergency_angles, typeId, self->enemy))
+	if (FindEmergencySpawnPositionNearPlayer(emergency_origin, emergency_angles, typeId, self->enemy))
 	{
 		if (Horde_TeleportMonster(self, emergency_origin, emergency_angles, true, true))
 		{
@@ -5918,7 +5910,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 	PROFILE_SCOPE("EmergencySpawnMonster");
 
 	vec3_t emergency_origin, emergency_angles;
-	if (!FindEmergencySpawnPositionViaGridSearch(emergency_origin, emergency_angles, typeId))
+	if (!FindEmergencySpawnPositionNearPlayer(emergency_origin, emergency_angles, typeId))
 	{
 		if (developer->integer)
 		{
@@ -5962,11 +5954,11 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 }
 
 // =======================================================================
-// COMPLETE FUNCTION: FindEmergencySpawnPositionViaGridSearch
+// COMPLETE FUNCTION: FindEmergencySpawnPositionNearPlayer
 //
 // grid didnt work for this, but keeping the same grid for future uses hopefully
 // =======================================================================
-bool FindEmergencySpawnPositionViaGridSearch(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t *specific_target)
+bool FindEmergencySpawnPositionNearPlayer(vec3_t &out_position, vec3_t &out_angles, horde::MonsterTypeID typeId, edict_t *specific_target)
 {
 	bool used_human_player;
 	return FindEmergencySpawnPosition(out_position, out_angles, used_human_player, typeId, specific_target);
@@ -6146,8 +6138,7 @@ static void PlanMonsterSpawnBatch(
 	g_spawn_plan.clear();
 	if (num_to_plan <= 0)
 		return;
-	
-	// FIX: Cast the signed 'num_to_plan' to the unsigned 'size_t' expected by reserve().
+
 	g_spawn_plan.reserve(static_cast<size_t>(num_to_plan));
 
 	g_champion_chance_for_current_batch = champion_chance_param;
@@ -6165,9 +6156,9 @@ static void PlanMonsterSpawnBatch(
 	{
 		if (g_spawn_point_shuffle_index >= total_potential_points)
 		{
-			g_spawn_point_shuffle_index = 0; 
+			g_spawn_point_shuffle_index = 0;
 		}
-		edict_t *spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
+		edict_t* spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
 		points_checked++;
 
 		if (!ValidateSpawnPointForMonster(spawn_point, level.time))
@@ -6182,7 +6173,8 @@ static void PlanMonsterSpawnBatch(
 
 		if (monster_type_id != horde::MonsterTypeID::UNKNOWN)
 		{
-			g_spawn_plan.push_back({monster_type_id, spawn_point});
+			// Use emplace_back to construct in-place, avoiding a temporary copy
+			g_spawn_plan.emplace_back(monster_type_id, spawn_point);
 			planned_count++;
 		}
 	}
@@ -6493,11 +6485,11 @@ static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float cham
 
 // This is the high-level orchestrator for finding a valid spawn spot for normal spawns.
 static bool FindValidSpawnLocation(
-	edict_t *spawn_point,
+	edict_t* spawn_point,
 	horde::MonsterTypeID monster_type,
-	vec3_t &out_origin,
-	vec3_t &out_angles,
-	bool &out_used_alternative)
+	vec3_t& out_origin,
+	vec3_t& out_angles,
+	bool& out_used_alternative)
 {
 	const vec3_t base_origin = spawn_point->s.origin;
 	const vec3_t base_angles = spawn_point->s.angles;
@@ -6507,6 +6499,7 @@ static bool FindValidSpawnLocation(
 
 	// Attempt Direct Spawn
 	vec3_t direct_pos = base_origin;
+	// The 'true' here indicates this is a predefined, trusted location.
 	if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying, true))
 	{
 		out_origin = direct_pos;

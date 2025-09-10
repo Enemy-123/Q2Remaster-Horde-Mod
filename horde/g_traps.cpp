@@ -127,15 +127,13 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
             client->resp.num_traps--;
         }
 
-        // --- FIX: ADD THIS LOOP ---
-        // Find this trap in the owner's tracking array and null it out.
+        // --- CORRECTNESS FIX: Find and null out this trap in the owner's tracking array. ---
         for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i) {
             if (client->resp.deployed_traps[i] == self) {
                 client->resp.deployed_traps[i] = nullptr;
                 break; // Found and removed, no need to search further.
             }
         }
-        // --- END FIX ---
     }
 
     // --- CLEAN UP GLOBAL STATE ---
@@ -584,20 +582,16 @@ THINK(Trap_Think) (edict_t* ent) -> void
 
 // RAFAEL
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
-{
-    // --- "REPLACE OLDEST" LOGIC ---
-    if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS_PER_PLAYER) {
-        // Get the oldest trap from our circular buffer.
-        edict_t* oldest = self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx];
+    {
+        // --- "REPLACE OLDEST" LOGIC ---
+        if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS_PER_PLAYER) {
+            edict_t* oldest = self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx];
 
-        // Ensure it's a valid, in-use trap before removing it.
-        if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
-            // --- ROBUST METHOD: Directly call the die function ---
-            // This explicitly triggers the trap's full cleanup sequence, including the explosion
-            // and decrementing the player's trap count.
-            trap_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
+            if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
+                // Call the die function to ensure full cleanup, including decrementing the count.
+                trap_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
+            }
         }
-    }
 
     edict_t* trap;
     vec3_t dir;

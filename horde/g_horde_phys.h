@@ -15,17 +15,15 @@ namespace HordePhys {
 
         void clear() { count = 0; }
 
-        // --- MODIFIED FUNCTION ---
         void add(edict_t* ent) {
             if (count < MAX_MONSTERS_PER_CELL) {
                 monsters[count++] = ent;
             }
-            // ADD THIS ELSE BLOCK FOR DIAGNOSTICS
             else {
                 if (developer->integer) {
-                    gi.Com_PrintFmt("ProximityGrid WARNING: Cell is full! (Max {}). Cannot add entity '{}'.\n", 
-                                    MAX_MONSTERS_PER_CELL, 
-                                    ent->classname ? ent->classname : "unknown");
+                    gi.Com_PrintFmt("ProximityGrid WARNING: Cell is full! (Max {}). Cannot add entity '{}'.\n",
+                        MAX_MONSTERS_PER_CELL,
+                        ent->classname ? ent->classname : "unknown");
                 }
             }
         }
@@ -44,25 +42,21 @@ namespace HordePhys {
         std::span<edict_t* const> GetPotentialColliders(edict_t* ent);
         int GetCellIndex(const vec3_t& pos) const;
 
-        std::span<edict_t* const> QueryRadius(const vec3_t& origin, float radius); //findmtarget uses it!
+        std::span<edict_t* const> QueryRadius(const vec3_t& origin, float radius);
 
         [[nodiscard]] bool IsBuilt() const noexcept { return m_is_built; }
         [[nodiscard]] float GetCellSize() const noexcept { return m_cell_size; }
         [[nodiscard]] const vec3_t& GetWorldMins() const noexcept { return m_world_mins; }
-        
-        // [[nodiscard]] bool IsCellWalkable(int cell_index) const {
-        //     if (cell_index < 0 || cell_index >= CELL_COUNT) return false;
-        //     return m_is_cell_walkable[cell_index];
-        // }
 
     private:
         std::array<ProximityGridCell, CELL_COUNT> m_cells;
-        //std::array<bool, CELL_COUNT> m_is_cell_walkable;
-        //std::array<float, CELL_COUNT> m_cell_ground_z;
-        //std::array<bool, CELL_COUNT> m_is_cell_verified; // Internal helper for Build()
 
-    static constexpr size_t MAX_QUERY_RESULTS = 512; 
-    std::array<edict_t*, MAX_QUERY_RESULTS> m_query_buffer;
+        static constexpr size_t MAX_QUERY_RESULTS = 512;
+        std::array<edict_t*, MAX_QUERY_RESULTS> m_query_buffer;
+
+        // --- MODIFICATION: Reusable buffer to avoid heap allocations in queries ---
+        std::array<bool, MAX_EDICTS> m_visited_entities;
+        // --- END MODIFICATION ---
 
         vec3_t m_world_mins;
         float m_cell_size = 0.0f;
