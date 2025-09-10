@@ -1300,7 +1300,7 @@ bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start,
 
 #include "../horde/g_horde_phys.h"
 // Optimized targeting and attack function using the Proximity Grid
-THINK(tesla_think_active)(edict_t *self)->void
+THINK(tesla_think_active)(edict_t* self)->void
 {
 	if (!self)
 		return;
@@ -1353,42 +1353,42 @@ THINK(tesla_think_active)(edict_t *self)->void
 	// Cache the ray origin for this frame
 	vec3_t ray_origin = calculate_tesla_ray_origin(self);
 
-    // --- THE OPTIMIZATION: Use the Grid instead of a linear scan ---
-    // Get a pre-filtered list of nearby entities (monsters, players, projectiles) from the grid.
-    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, TESLA_SEARCH_RADIUS);
+	// --- THE OPTIMIZATION: Use the Grid instead of a linear scan ---
+	// Get a pre-filtered list of nearby entities (monsters, players, projectiles) from the grid.
+	const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, TESLA_SEARCH_RADIUS);
 
-    for (auto* ent : nearby_entities)
-    {
-        if (num_targets >= MAX_POTENTIAL_TARGETS)
-            break;
+	for (auto* ent : nearby_entities)
+	{
+		if (num_targets >= MAX_POTENTIAL_TARGETS)
+			break;
 
-        // The Tesla only targets monsters, so we filter out players and projectiles here.
-        if (!(ent->svflags & SVF_MONSTER))
-            continue;
+		// The Tesla only targets monsters, so we filter out players and projectiles here.
+		if (!(ent->svflags & SVF_MONSTER))
+			continue;
 
-        if (!IsValidTeslaTarget(self, ent))
-            continue;
+		if (!IsValidTeslaTarget(self, ent))
+			continue;
 
-        // The grid gives a square area, so we still need a precise distance check.
-        float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
-        if (dist_squared > max_range_squared)
-            continue;
+		// The grid gives a square area, so we still need a precise distance check.
+		float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
+		if (dist_squared > max_range_squared)
+			continue;
 
-        // Quick visibility check before expensive ray trace
-        if (!visible(self, ent))
-            continue;
+		// Quick visibility check before expensive ray trace
+		if (!visible(self, ent))
+			continue;
 
-        trace_t tr;
-        if (!tesla_ray_trace(self, ent, tr))
-            continue;
+		trace_t tr;
+		if (!tesla_ray_trace(self, ent, tr))
+			continue;
 
-        // This is a valid target, add it to our list for sorting.
-        potential_targets[num_targets++] = {
-            ent,
-            CalculateTeslaPriority(self, ent, dist_squared),
-            dist_squared};
-    }
-    // --- END OF OPTIMIZATION ---
+		// This is a valid target, add it to our list for sorting.
+		potential_targets[num_targets++] = {
+			ent,
+			CalculateTeslaPriority(self, ent, dist_squared),
+			dist_squared };
+	}
+	// --- END OF OPTIMIZATION ---
 
 	// Simple insertion sort (more efficient for small arrays)
 	for (int i = 1; i < num_targets; i++)
@@ -1407,7 +1407,7 @@ THINK(tesla_think_active)(edict_t *self)->void
 	int targets_attacked = 0;
 	for (int i = 0; i < num_targets && targets_attacked < max_targets; i++)
 	{
-		const auto &target = potential_targets[i];
+		const auto& target = potential_targets[i];
 
 		trace_t tr;
 		if (tesla_ray_trace(self, target.ent, tr))
@@ -1417,7 +1417,7 @@ THINK(tesla_think_active)(edict_t *self)->void
 			dir.normalize();
 
 			T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-					 self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
+				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
 			// Try to send the visual effect, respecting rate limits
 			if (TrySendTeslaEffect(self, target.ent, ray_origin, ray_end))
@@ -1432,22 +1432,15 @@ THINK(tesla_think_active)(edict_t *self)->void
 	{
 		self->think = tesla_think_active;
 
-        // =======================================================================
-        // --- CORRECTED AND OPTIMIZED THINK TIME ---
-        //
-        // We want the tesla to think at a random frequency between 8 and 12 times
-        // per second. This prevents all teslas from thinking on the exact same
-        // frame, which smooths out performance.
-        
-        // 1. Calculate a random frequency (Hz). irandom(5) gives 0-4.
-       // int random_frequency_hz = 8 + irandom(5); // Result is 8, 9, 10, 11, or 12.
-
-        // 2. Convert that frequency into a time duration and set the next think time.
-		self->nextthink = level.time + gtime_t::from_hz(9);
-        // =======================================================================
+		// --- PERFORMANCE FIX: Use randomized think frequency ---
+		// This prevents all teslas from thinking on the exact same server frame,
+		// which smooths out performance spikes when many are deployed. The frequency
+		// will vary between 8 and 12 Hz.
+		int const random_frequency_hz = 8 + irandom(5); // Result is 8, 9, 10, 11, or 12.
+		self->nextthink = level.time + gtime_t::from_hz(random_frequency_hz);
+		// --- END FIX ---
 	}
 }
-
 THINK(tesla_activate)(edict_t *self)->void
 {
 	edict_t *search;
