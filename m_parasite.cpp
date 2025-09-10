@@ -636,8 +636,15 @@ THINK(proboscis_think) (edict_t* self) -> void
 		}
 	}
 }
+
 PRETHINK(proboscis_segment_draw) (edict_t* self) -> void
 {
+	// Defensive check to ensure the entity itself is valid before proceeding.
+	if (!self || !self->inuse)
+	{
+		return;
+	}
+
 	// Check if owner is valid
 	if (!self->owner || !self->owner->owner)
 	{
