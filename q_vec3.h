@@ -259,14 +259,12 @@ inline void ClearBounds(vec3_t& mins, vec3_t& maxs)
 
 inline void AddPointToBounds(const vec3_t& v, vec3_t& mins, vec3_t& maxs)
 {
-for (size_t i = 0; i < 3; ++i)
-	{
-		float val = v[i];
-		if (val < mins[i])
-			mins[i] = val;
-		if (val > maxs[i])
-			maxs[i] = val;
-	}
+	if (v.x < mins.x) mins.x = v.x;
+	if (v.x > maxs.x) maxs.x = v.x;
+	if (v.y < mins.y) mins.y = v.y;
+	if (v.y > maxs.y) maxs.y = v.y;
+	if (v.z < mins.z) mins.z = v.z;
+	if (v.z > maxs.z) maxs.z = v.z;
 }
 
 [[nodiscard]] constexpr vec3_t ProjectPointOnPlane(const vec3_t& p, const vec3_t& normal)

@@ -1833,12 +1833,9 @@ static void arachnid_psx_spawn(edict_t* self)
 
                 gi.sound(ent, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
 
-                // This is now perfectly safe. The inner check is redundant but harmless.
-                if ((self->enemy->inuse) && (self->enemy->health > 0))
-                {
-                    ent->enemy = self->enemy;
-                    FoundTarget(ent);
-                }
+                // This is now perfectly safe. The inner check was redundant.
+                ent->enemy = self->enemy;
+                FoundTarget(ent);
 
                 float const radius = (maxs - mins).length() * 0.5f;
                 SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);

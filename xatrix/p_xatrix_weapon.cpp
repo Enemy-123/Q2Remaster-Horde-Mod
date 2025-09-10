@@ -56,7 +56,8 @@ void weapon_phalanx_fire(edict_t* ent)
     int    damage;
     float  damage_radius;
     int    radius_damage;
-    damage = irandom(70, 100);
+
+    damage = irandom(80, 95);
     radius_damage = 120;
     damage_radius = 120;
     if (is_quad)
@@ -142,6 +143,7 @@ void weapon_phalanx_fire(edict_t* ent)
 
     P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });
 }
+
 void Weapon_Phalanx(edict_t* ent)
 {
     constexpr int pause_frames[] = { 29, 42, 55, 0 };

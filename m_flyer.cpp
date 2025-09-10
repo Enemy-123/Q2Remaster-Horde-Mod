@@ -885,13 +885,10 @@ PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
 
-    // --- FIX: Add safety check for the owner ---
-    if (!self || !self->inuse || self->health <= 0)
-    {
-        G_FreeEdict(laser);
-        return;
-    }
-    // --- END FIX ---
+	if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
 
 	vec3_t start, forward, right, up, dir;
 
@@ -923,7 +920,6 @@ PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
 	dabeam_update(laser, false);
 }
 
-// CORRECTED flyer_right_laser_update
 PRETHINK(flyer_right_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
