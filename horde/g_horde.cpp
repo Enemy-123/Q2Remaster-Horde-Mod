@@ -6774,7 +6774,7 @@ static const int TOTAL_REWARD_WEIGHT = []
 	return (total > 0) ? total : 1;
 }(); // Immediately invoke the lambda
 
-static bool GiveTopDamagerReward(const PlayerStats &topDamager, const std::string &playerName)
+static bool GiveTopDamagerReward(const PlayerStats& topDamager, std::string_view playerName)
 {
 	// Quick validation with early return
 	if (!topDamager.player || !topDamager.player->inuse || !topDamager.player->client)
@@ -6784,7 +6784,7 @@ static bool GiveTopDamagerReward(const PlayerStats &topDamager, const std::strin
 	item_id_t selectedItemId = TOP_DAMAGER_REWARDS[0].item_id; // Default fallback to the first item
 	int currentWeight = 0;
 
-	for (const auto &reward : TOP_DAMAGER_REWARDS)
+	for (const auto& reward : TOP_DAMAGER_REWARDS)
 	{
 		if (reward.weight <= 0)
 			continue; // Skip items with no weight
@@ -6798,7 +6798,7 @@ static bool GiveTopDamagerReward(const PlayerStats &topDamager, const std::strin
 	}
 
 	// Get item by ID
-	gitem_t *item = GetItemByIndex(selectedItemId);
+	gitem_t* item = GetItemByIndex(selectedItemId);
 	if (!item || !item->classname)
 	{
 		// Log error if item ID is invalid or item has no classname
@@ -6810,7 +6810,7 @@ static bool GiveTopDamagerReward(const PlayerStats &topDamager, const std::strin
 	}
 
 	// Spawn and give item directly to player
-	edict_t *entity = G_Spawn();
+	edict_t* entity = G_Spawn();
 	if (!entity)
 		return false;
 
@@ -6834,11 +6834,11 @@ static bool GiveTopDamagerReward(const PlayerStats &topDamager, const std::strin
 	}
 
 	// Announce reward
-	const char *itemName = item->use_name ? item->use_name : (item->classname ? item->classname : "reward");
+	const char* itemName = item->use_name ? item->use_name : (item->classname ? item->classname : "reward");
 
 	gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
-						  playerName.empty() ? "Unknown Player" : playerName.c_str(),
-						  itemName);
+		playerName.empty() ? "Unknown Player" : playerName.data(),
+		itemName);
 
 	return true;
 }
@@ -6851,15 +6851,15 @@ static void SendCleanupMessage(WaveEndReason reason)
 	{
 	case WaveEndReason::AllMonstersDead:
 		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Completely Cleared - Perfect Victory!\n",
-							  g_horde_local.level);
+			g_horde_local.level);
 		break;
 	case WaveEndReason::MonstersRemaining:
 		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Pushed Back - But Still Threatening!\n",
-							  g_horde_local.level);
+			g_horde_local.level);
 		break;
 	case WaveEndReason::TimeLimitReached:
 		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Contained - Time Limit Reached!\n",
-							  g_horde_local.level);
+			g_horde_local.level);
 		break;
 	}
 
@@ -6872,29 +6872,29 @@ static void SendCleanupMessage(WaveEndReason reason)
 	if (topDamager.player && topDamager.player->inuse && topDamager.player->client)
 	{
 		// Get player name once
-	  const char* playerName = GetPlayerName_Fast(topDamager.player);
+		const char* playerName = GetPlayerName_Fast(topDamager.player);
 
-    gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
-                          playerName, topDamager.total_damage, static_cast<int>(percentage));
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
+			playerName, topDamager.total_damage, static_cast<int>(percentage));
 
-    if (GiveTopDamagerReward(topDamager, playerName))
-    {
-        // (rest of the function is unchanged)
-        for (auto *player : active_players())
-        {
-            if (player && player->client)
-            {
-                player->client->total_damage = 0;
-                player->client->lastdmg = level.time;
-                player->client->dmg_counter = 0;
-                player->client->ps.stats[STAT_ID_DAMAGE] = 0;
-                player->client->respawn_time = 0_sec;
-                player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-                player->client->last_damage_time = level.time;
-            }
-        }
-    }
-}
+		if (GiveTopDamagerReward(topDamager, std::string_view(playerName)))
+		{
+			// (rest of the function is unchanged)
+			for (auto* player : active_players())
+			{
+				if (player && player->client)
+				{
+					player->client->total_damage = 0;
+					player->client->lastdmg = level.time;
+					player->client->dmg_counter = 0;
+					player->client->ps.stats[STAT_ID_DAMAGE] = 0;
+					player->client->respawn_time = 0_sec;
+					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+					player->client->last_damage_time = level.time;
+				}
+			}
+		}
+	}
 }
 
 void CheckAndResetDisabledSpawnPoints()
