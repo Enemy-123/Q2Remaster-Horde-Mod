@@ -2035,7 +2035,6 @@ TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool 
 		horde::MonsterTypeID monster_type_id = horde::MonsterTypeRegistry::GetTypeID(other->classname);
 		bool monster_is_flying = IsFlying(monster_type_id);
 
-		// *** THIS IS THE FIX ***
 		// 1. Call the new function that returns std::optional.
 		// 2. Check if the optional has a value.
 		if (auto dest_point_opt = FindRandomHordeSpawnPoint(monster_is_flying))

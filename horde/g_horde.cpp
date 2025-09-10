@@ -23,9 +23,9 @@ std::unordered_map<int, EmitterState> g_emitter_states;
 
 
 // Provides a direct list of spawn point edicts for easy iteration
-static std::vector<edict_t*> g_spawn_point_list;
+std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
-static size_t g_num_spawn_points = 0;
+size_t g_num_spawn_points = 0;
 
 static bool g_spawn_map_needs_build = true;
 
@@ -1776,7 +1776,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 					{
 						chance = (numHumanPlayers <= 2 ? 0.35f : 0.20f);
 					}
-					// --- END OF FIX ---
+					
 
 					if (frandom() < chance)
 					{
@@ -2262,7 +2262,6 @@ struct BossEligibilityCache
 	LevelEligibility eligibility[3][MAX_PRECOMPUTED_WAVE + 1];
 	inline static bool initialized = false;
 
-	// REPLACEMENT: BossEligibilityCache::initialize (SoA compatible)
 	void initialize()
 	{
 		if (initialized)
@@ -2686,7 +2685,6 @@ inline bool IsSpecialUnit(horde::MonsterTypeID typeId)
 	return HasWaveType(GetMonsterWaveTypes(typeId), MonsterWaveType::Special);
 }
 
-// REPLACEMENT: IsValidMonsterForWave
 
 inline bool IsValidMonsterForWave(horde::MonsterTypeID typeId, MonsterWaveType waveRequirements)
 {
@@ -3011,7 +3009,6 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	}
 }
 
-// REPLACEMENT for the helper function inside the monster picking system
 static horde::MonsterTypeID SelectFromCache(const MonsterCache &cache_ref)
 {
 	if (cache_ref.count == 0 || cache_ref.total_weight <= 0.0f)
@@ -4110,8 +4107,7 @@ static void HandleForcedBossRemoval(edict_t *boss)
 	OnEntityRemoved(boss);
 }
 // =======================================================================
-// REPLACEMENT: SpawnBossAutomatically (With Pre-Spawn Area Clearing)
-// This version ensures the area is cleared and entities are pushed away
+// This ensures the area is cleared and entities are pushed away
 // BEFORE the boss spawn is finalized, preventing crashes and adding effect.
 // =======================================================================
 static void SpawnBossAutomatically()
@@ -4406,7 +4402,6 @@ static void ResetTeleportTracking()
 }
 
 // =======================================================================
-// REPLACEMENT: ResetAllSpawnPointDataAndTrackers (Full SoA-compatible version)
 // This function centralizes the reset logic for all spawn point data and
 // re-initializes the global spawn cooldown to a baseline state.
 // =======================================================================
@@ -4625,7 +4620,6 @@ void ResetGame()
 	gi.Com_PrintFmt("INFO: Horde game state reset complete.\n");
 }
 
-// Replace the existing CalculateRemainingMonsters() function
 int32_t CalculateRemainingMonsters() noexcept
 {
 	// Simple counter approach - more reliable from old version
@@ -4650,7 +4644,6 @@ static void StartConditionalTimer(const WaveConditionContext &ctx);
 static void ApplyAggressiveTimeReduction(const WaveConditionContext &ctx);
 static void IssueTimeWarnings();
 
-// REPLACEMENT for CheckRemainingMonstersCondition
 // This is the new main function that orchestrates the wave end checks.
 static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveEndReason &reason)
 {
@@ -5250,9 +5243,7 @@ bool AreHumanPlayersPresent()
 }
 
 // =======================================================================
-// REPLACEMENT: IsPositionPhysicallyValid (Corrected Logic)
-// This version fixes the bug preventing alternative spawns while keeping
-// the beneficial "droptofloor" logic from your new code.
+// This version fixes the bug preventing alternative spawns
 // =======================================================================
 [[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying, bool is_predefined_location)
 {
@@ -5555,7 +5546,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 				const uint16_t index = g_spawn_point_map.at(used_spawn_point->s.number);
 				g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
 			}
-			// --- END OF FIX ---
+			
 		}
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.was_stuck = false;
@@ -5664,7 +5655,6 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 					}
 				}
 
-				// *** THIS IS THE FIX ***
 				// Call the new trigger function instead of the old one.
 				TriggerRetaliation(g_horde_local.current_map_size, g_horde_local.level, target_player);
 
@@ -5697,7 +5687,6 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 	}
 }
 
-// REPLACEMENT: TryAlternativeSpawnPosition
 // This function now incorporates the Line-of-Sight (LOS) check inspired by the tank's
 // spawning logic, preventing monsters from spawning behind walls relative to the
 // original spawn point.
@@ -6188,7 +6177,6 @@ void PlanNextSpawnBatch()
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : (mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP));
 
-	// *** THIS IS THE FIX ***
 	// Integrated logic from the old TrySpawnAmbush function directly here.
 	if (g_horde_local.state == horde_state_t::active_wave && activeMonsters < softCap && ShouldTriggerAmbushSpawn()) {
 		TriggerAmbush(mapSize, currentLevel);
@@ -6305,7 +6293,6 @@ static void RebuildSpawnPointCacheIfNeeded()
 
 		if (!g_potential_spawn_points.empty())
 		{
-			// *** THIS IS THE FIX: Use the global mt_rand instance ***
 			std::shuffle(g_potential_spawn_points.begin(), g_potential_spawn_points.end(), mt_rand);
 		}
 
@@ -6389,7 +6376,6 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 // FIX: Removed unused 'recovery_mode_active_param' parameter.
 static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 {
-	// *** THIS IS THE FIX: Use the compact index map ***
 	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
 
 	if ((g_spawnPointsData.isTemporarilyDisabled[index] && current_time < g_spawnPointsData.cooldownEndsAt[index]) ||
@@ -6418,7 +6404,6 @@ static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_t
 	return true;
 }
 
-// REPLACEMENT: ApplyHordeBonuses (now a void function, guaranteed not to free the edict)
 static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance)
 {
 	bool became_champion = false;
@@ -7361,7 +7346,7 @@ static void Horde_InitLevel(const int32_t lvl)
 			g_eligible_monsters_for_wave.push_back(&monster);
 		}
 	}
-	// --- END OF FIX ---
+	
 
 	g_eligible_item_indices_for_wave.reserve(g_hordeItemDataSoA.NUM_ITEMS); // Pre-allocate memory
 	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)

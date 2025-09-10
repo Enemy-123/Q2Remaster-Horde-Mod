@@ -1065,15 +1065,15 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
     case EntityType::Monster: {
         const char* full_name = GetDisplayName_Fast(ent);
         
-        // --- FIX APPLIED HERE ---
+        
         out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", full_name, ent->health).out;
 
         if (ent->monsterinfo.armor_power >= 1) {
-            // --- FIX APPLIED HERE ---
+            
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " A: {}", ent->monsterinfo.armor_power).out;
         }
         if (ent->monsterinfo.power_armor_power >= 1) {
-            // --- FIX APPLIED HERE ---
+            
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " PA: {}", ent->monsterinfo.power_armor_power).out;
         }
 
@@ -1086,7 +1086,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
         }};
         for (const auto& powerup : powerups) {
             if (powerup.time > level.time) {
-                // --- FIX APPLIED HERE ---
+                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\n{}: {}s", powerup.label, GetRemainingTime<float>(level.time, powerup.time)).out;
             }
         }
@@ -1095,12 +1095,12 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
 
     case EntityType::Player: {
         const char* playerName = GetPlayerName_Fast(ent);
-        // --- FIX APPLIED HERE ---
+        
         out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", playerName, ent->health).out;
 
         int armor_value = GetArmorInfo(ent);
         if (armor_value > 0) {
-            // --- FIX APPLIED HERE ---
+            
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " A: {}", armor_value).out;
         }
         break;
@@ -1124,38 +1124,38 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
             case horde::SpecialEntityTypeID::TESLA_MINE: {
                 gtime_t const time_active = level.time - stats_source->timestamp;
                 gtime_t const time_remaining = TESLA_TIME_TO_LIVE - time_active;
-                // --- FIX APPLIED HERE ---
+                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: {
                 gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
-                // --- FIX APPLIED HERE ---
+                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::LASER_EMITTER: {
                 edict_t* beam = stats_source->chain;
                 int health_to_display = (beam && beam->inuse) ? beam->health : 0;
-                // --- FIX APPLIED HERE ---
+                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, health_to_display).out;
                 if (beam && beam->inuse) {
-                    // --- FIX APPLIED HERE ---
+                    
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " DMG: {}", beam->dmg).out;
                     gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
-                    // --- FIX APPLIED HERE ---
+                    
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 }
                 break;
             }
             case horde::SpecialEntityTypeID::DOPPLEGANGER: {
                 gtime_t const time_remaining = stats_source->nextthink - level.time;
-                // --- FIX APPLIED HERE ---
+                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }
             default:
-                // --- FIX APPLIED HERE ---
+                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, stats_source->health).out;
                 break;
         }
@@ -1199,7 +1199,7 @@ struct TargetSearchResult {
 	float distance{ CTFIDViewConfig::MAX_DISTANCE };
 };
 
-// REPLACEMENT for FindBestTarget - Optimized Linear Scan
+// Optimized Linear Scan
 [[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) noexcept {
     TargetSearchResult result;
     vec3_t const& viewer_pos = ent->s.origin;

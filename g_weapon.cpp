@@ -1667,8 +1667,6 @@ THINK(bfg_explode) (edict_t* self) -> void
 	// Only process damage on the first frame of explosion
 	if (self->s.frame == 0)
 	{
-		// --- OPTIMIZATION ---
-		// Replaced std::unordered_set with a fixed-size std::array to avoid heap allocations.
 		// 64 is a generous upper bound for entities within the BFG's radius.
 		std::array<edict_t*, 64> processed_entities;
 		size_t processed_count = 0;
@@ -1677,8 +1675,7 @@ THINK(bfg_explode) (edict_t* self) -> void
 		edict_t* ent = nullptr;
 		while ((ent = findradius(ent, self->s.origin, self->dmg_radius)) != nullptr)
 		{
-			// --- OPTIMIZATION ---
-			// Replaced std::unordered_set::find with a fast linear search on the small array.
+
 			bool already_processed = false;
 			for (size_t i = 0; i < processed_count; ++i) {
 				if (processed_entities[i] == ent) {
@@ -1713,8 +1710,6 @@ THINK(bfg_explode) (edict_t* self) -> void
 			if (!can_be_affected_by_bfg(ent))
 				continue;
 
-			// --- OPTIMIZATION ---
-			// Replaced std::unordered_set::insert with a simple array assignment.
 			if (processed_count < processed_entities.size()) {
 				processed_entities[processed_count++] = ent;
 			}
@@ -1894,8 +1889,6 @@ THINK(bfg_think) (edict_t* self) -> void
 	// Cache origin for performance
 	const vec3_t self_origin = self->s.origin;
 
-	// --- OPTIMIZATION ---
-	// Replaced std::unordered_set with a fixed-size std::array to avoid per-frame heap allocations.
 	std::array<edict_t*, 64> processed_entities;
 	size_t processed_count = 0;
 
@@ -1926,8 +1919,6 @@ THINK(bfg_think) (edict_t* self) -> void
 		if (dist_squared > bfgrange_squared)
 			continue;
 
-		// --- OPTIMIZATION ---
-		// Replaced std::unordered_set::find with a fast linear search on the small array.
 		bool already_processed = false;
 		for (size_t i = 0; i < processed_count; ++i) {
 			if (processed_entities[i] == ent) {
@@ -1943,8 +1934,6 @@ THINK(bfg_think) (edict_t* self) -> void
 		if (tr.fraction < 1.0f)
 			continue; // Not visible
 
-		// --- OPTIMIZATION ---
-		// Replaced std::unordered_set::insert with a simple array assignment.
 		if (processed_count < processed_entities.size()) {
 			processed_entities[processed_count++] = ent;
 		}

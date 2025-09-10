@@ -79,7 +79,7 @@ void InitSave()
 	{
 		const void* link_ptr = link;
 
-		// --- FIX 1: Check list_hash safely ---
+		// Check list_hash safely ---
 		auto it_ptr = list_hash.find(link_ptr); // Call find ONCE and store the iterator
 		if (it_ptr != list_hash.end()) // Check if the iterator is valid (not end())
 		{
@@ -95,9 +95,8 @@ void InitSave()
 			else
 				gi.Com_PrintFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing_link_info->name);
 		}
-		// --- End FIX 1 ---
 
-		// --- FIX 2: Check list_str_hash safely ---
+		// --- Check list_str_hash safely ---
         // Ensure link->name is valid before using it as a key
         if (link->name) {
             auto it_str = list_str_hash.find(link->name); // Call find ONCE
@@ -120,7 +119,6 @@ void InitSave()
             // Handle case where link->name is null if necessary
              assert(!"Save link found with null name"); // Or other error handling
         }
-		// --- End FIX 2 ---
 
 		// Only emplace if no duplicates were found (implicitly handled by reaching here)
 		// Add null check for link->name before emplacing in string hash map

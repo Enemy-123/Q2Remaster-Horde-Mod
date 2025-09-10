@@ -73,7 +73,6 @@ void RemoveEmitterState(const edict_t* ent);
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
 
-// Replace the macro with a constexpr function for better type safety and debugging
 [[nodiscard]] constexpr bool IsFirstThreeWaves(int32_t wave_level) noexcept {
     return wave_level <= 3;
 }

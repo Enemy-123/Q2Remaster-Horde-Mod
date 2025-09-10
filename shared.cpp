@@ -7,6 +7,32 @@
 #include "horde/g_entity_properties.h"
 #include <optional> // Required for the new cache
 
+// It quickly finds a random, unoccupied spawn point.
+[[nodiscard]] static edict_t* SelectRandomClearSpawnPoint() {
+	if (g_num_spawn_points == 0) {
+		return nullptr;
+	}
+
+	// Try a limited number of random spots to find a clear one quickly.
+	// This avoids iterating the entire list and is much faster.
+	const size_t max_attempts = std::min((size_t)16, g_num_spawn_points);
+
+	for (size_t i = 0; i < max_attempts; ++i) {
+		size_t random_index = static_cast<size_t>(irandom(g_num_spawn_points));
+		edict_t* spot = g_spawn_point_list[random_index];
+
+		// Use the efficient IsSpawnPointOccupied check
+		if (spot && spot->inuse && !IsSpawnPointOccupied(spot)) {
+			return spot;
+		}
+	}
+
+	// Fallback if no clear point is found after several attempts.
+	// Return a random point, which is better than returning nothing.
+	return g_spawn_point_list[static_cast<size_t>(irandom(g_num_spawn_points))];
+}
+
+
 
 // --- Data structure for bonus flag properties ---
 struct BonusEffectData {
@@ -857,8 +883,6 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 	return boxes_intersect(ent_mins, ent_maxs, area_mins, area_maxs);
 }
 
-// In shared.cpp
-
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
 	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
 		return;
@@ -1129,23 +1153,11 @@ bool TeleportSelf(edict_t* ent) {
 	ent->client->resp.teleport_cooldown = level.time + 3_sec;
 	const char* playerName = GetPlayerName_Fast(ent);
 
-	struct spawn_point_info_t {
-		edict_t* point;
-		float dist;
-	};
-
-	std::vector<spawn_point_info_t> spawn_points;
-	spawn_points.reserve(32); // Reserve a reasonable amount
-
-	for (edict_t* spot : monster_spawn_points()) {
-		if (spot->style == 0) {
-			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-		}
-	}
-
-	if (spawn_points.empty()) {
+	// PERFORMANCE FIX: Use the global pre-shuffled list of spawn points.
+	// This avoids iterating all entities on the map to find and sort spawn points.
+	if (g_num_spawn_points == 0) {
 		if (developer->integer) {
-			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+			gi.Com_PrintFmt("TeleportSelf WARNING: No valid spawn points found for teleport.\n");
 		}
 		return false;
 	}
@@ -1168,44 +1180,35 @@ bool TeleportSelf(edict_t* ent) {
 		ent->client->invincible_time = std::max(level.time, ent->client->invincible_time) + 2_sec;
 		};
 
-	// Sort spawn points to try the farthest (often safest) ones first
-	std::sort(spawn_points.begin(), spawn_points.end(),
-		[](const spawn_point_info_t& a, const spawn_point_info_t& b) {
-			return a.dist > b.dist; // Sort descending by distance
-		});
-
-	// --- SIMPLIFIED LOGIC ---
 	bool was_emergency = ent->client->emergency_teleport;
-	bool success = false;
 
-	// Try to find a clear spot from the sorted list
-	for (const auto& sp_info : spawn_points) {
-		if (SpawnPointClear(sp_info.point)) {
-			perform_teleport_actions(sp_info.point);
-			success = true;
-			break;
+	// Try several times to find a clear spawn point from the global list.
+	constexpr int MAX_TELEPORT_ATTEMPTS = 16;
+	for (int i = 0; i < MAX_TELEPORT_ATTEMPTS; ++i) {
+		size_t random_index = static_cast<size_t>(irandom(g_num_spawn_points));
+		edict_t* spot = g_spawn_point_list[random_index];
+
+		// Check if the spot is for ground players and is not occupied.
+		if (spot && spot->inuse && spot->style == 0 && !IsSpawnPointOccupied(spot)) {
+			perform_teleport_actions(spot);
+			if (was_emergency) {
+				ent->client->emergency_teleport = false;
+			}
+			return true;
 		}
 	}
 
-	// If no clear spot was found, fallback to a random (but likely blocked) spot
-	if (!success) {
-		const int32_t random_idx = random_index(spawn_points);
-		edict_t* random_destination = spawn_points[static_cast<size_t>(random_idx)].point;
-
-		if (developer->integer) {
-			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No clear spawn points. Using random point (index {}, potentially blocked).\n", random_idx);
-		}
-
-		perform_teleport_actions(random_destination);
-		success = true;
+	// Fallback: If no clear spot was found after several tries, teleport to a random one anyway.
+	if (developer->integer) {
+		gi.Com_PrintFmt("TeleportSelf WARNING: No clear spawn points. Using random point (potentially blocked).\n");
 	}
-
-	// If a teleport happened AND it was an emergency, reset the flag.
-	if (success && was_emergency) {
+	size_t random_index = static_cast<size_t>(irandom(g_num_spawn_points));
+	perform_teleport_actions(g_spawn_point_list[random_index]);
+	if (was_emergency) {
 		ent->client->emergency_teleport = false;
 	}
 
-	return success;
+	return true;
 }
 
 // --- Extern Declarations for Monster Jump Moves ---

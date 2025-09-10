@@ -336,7 +336,7 @@ char* G_CopyString(const char* in, int32_t tag)
 
 void G_InitEdict(edict_t* e)
 {
-	// --- START OF FIX ---
+	
 	// This is the safe way to clear an edict. We must preserve critical pointers
 	// and flags that are set *before* this function is called.
 	gclient_t* const saved_client = e->client; // Save the client pointer
@@ -351,7 +351,7 @@ void G_InitEdict(edict_t* e)
 	// Restore ONLY the flags that identify the entity as a player or bot.
 	// This prevents inheriting dangerous state like SVF_MONSTER or SVF_NOCLIENT from a reused slot.
 	e->svflags = saved_svflags & (SVF_PLAYER | SVF_BOT);
-	// --- END OF FIX ---
+	
 
 	// ROGUE
 	// FIXME -

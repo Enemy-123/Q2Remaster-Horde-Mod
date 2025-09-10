@@ -991,7 +991,7 @@ static void CG_ExecuteLayoutString(const char* s, vrect_t hud_vrect, vrect_t hud
                 cgi.SCR_DrawFontString(G_Fmt("{}", ping).data(), x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
                 x += 3 * 9 * scale;
 
-                // CRASH FIX: Check if the client name is valid before drawing it.
+                //  Check if the client name is valid before drawing it.
                 const char* clientName = cgi.CL_GetClientName(value);
                 if (clientName) {
                     cgi.SCR_DrawFontString(clientName, x, y - (font_y_offset * scale), scale, value == playernum ? alt_color : rgba_white, true, text_align_t::LEFT);
@@ -1781,7 +1781,7 @@ static void CG_DrawInventory(const player_state_t* ps, const std::array<int16_t,
     {
         item = index[i];
 
-        // CRASH FIX: Ensure the item's configstring exists before trying to draw it.
+        //  Ensure the item's configstring exists before trying to draw it.
         const char* itemNameCS = cgi.get_configstring(CS_ITEMS + item);
         if (!itemNameCS) {
             continue; // Skip drawing this item if its name isn't found.
@@ -1817,7 +1817,6 @@ extern uint64_t cgame_init_time;
 
 void CG_DrawHUD(int32_t isplit, const cg_server_data_t* data, vrect_t hud_vrect, vrect_t hud_safe, int32_t scale, int32_t playernum, const player_state_t* ps)
 {
-    // CRASH FIX: Add null checks for critical data pointers.
     if (!ps) {
         return;
     }
@@ -1843,7 +1842,6 @@ void CG_DrawHUD(int32_t isplit, const cg_server_data_t* data, vrect_t hud_vrect,
     // draw notify
     CG_DrawNotify(isplit, hud_vrect, hud_safe, scale);
 
-    // CRASH FIX: Ensure server data is valid before using it for layout and inventory.
     if (data) {
         // svc_layout still drawn with hud off
         if (ps->stats[STAT_LAYOUTS] & LAYOUTS_LAYOUT)

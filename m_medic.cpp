@@ -1319,7 +1319,7 @@ void medic_determine_spawn(edict_t* self)
 		startpoint = M_ProjectFlashSource(self, offset, f, r);
 		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-		// --- START OF FIX ---
+		
 		uint8_t def_index = self->monsterinfo.chosen_reinforcements[count];
 		if (def_index >= self->monsterinfo.reinforcements.defs.size()) continue;
 
@@ -1327,7 +1327,7 @@ void medic_determine_spawn(edict_t* self)
 		horde::MonsterTypeID typeId = reinforcement_def.typeId;
 		vec3_t mins, maxs;
 		GetPredictedScaledBounds(typeId, mins, maxs);
-		// --- END OF FIX ---
+		
 
 		if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
 		{
@@ -1358,7 +1358,7 @@ void medic_determine_spawn(edict_t* self)
 			horde::MonsterTypeID typeId = reinforcement_def.typeId;
 			vec3_t mins, maxs;
 			GetPredictedScaledBounds(typeId, mins, maxs);
-			// --- END OF FIX ---
+			
 
 			if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
 			{
@@ -1417,7 +1417,7 @@ void medic_spawngrows(edict_t* self)
 		startpoint = M_ProjectFlashSource(self, offset, f, r);
 		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-		// --- START OF FIX ---
+		
 		uint8_t def_index = self->monsterinfo.chosen_reinforcements[count];
 		if (def_index >= self->monsterinfo.reinforcements.defs.size()) continue;
 
@@ -1425,7 +1425,7 @@ void medic_spawngrows(edict_t* self)
 		horde::MonsterTypeID typeId = reinforcement_def.typeId;
 		vec3_t mins, maxs;
 		GetPredictedScaledBounds(typeId, mins, maxs);
-		// --- END OF FIX ---
+		
 
 		if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32))
 		{

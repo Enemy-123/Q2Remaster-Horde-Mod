@@ -497,7 +497,7 @@ void carrier_ready_spawn(edict_t* self)
 	if (!num_summoned)
 		return;
 
-	// --- START OF FIX ---
+	
 	uint8_t def_index = self->monsterinfo.chosen_reinforcements[0];
 	if (def_index >= self->monsterinfo.reinforcements.defs.size())
 		return;
@@ -509,7 +509,7 @@ void carrier_ready_spawn(edict_t* self)
 	// 2. Get bounds instantly from the global SoA data. No temporary spawning needed.
 	vec3_t mins, maxs;
 	GetPredictedScaledBounds(typeId, mins, maxs);
-	// --- END OF FIX ---
+	
 
 	offset = { 105, 0, -58 };
 	AngleVectors(self->s.angles, f, r, nullptr);
