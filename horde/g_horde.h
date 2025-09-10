@@ -71,7 +71,8 @@ enum class MonsterWaveType : uint32_t {
 // --- Global Variable DECLARATIONS ---
 // 'extern' tells other .cpp files that these variables exist and are defined elsewhere.
 extern MonsterWaveType current_wave_type;
-extern std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave; // <<< THIS IS THE KEY ADDITION
+extern std::vector<const MonsterTypeInfo*> g_eligible_monsters_for_wave;
+extern std::vector<size_t> g_eligible_item_indices_for_wave;
 
 
 // Boss types

@@ -43,6 +43,7 @@ static bool g_full_precache_done = false;
 static bool monsters_precached = false;
 MonsterWaveType current_wave_type = MonsterWaveType::None;
 std::vector<const MonsterTypeInfo *> g_eligible_monsters_for_wave;
+std::vector<size_t> g_eligible_item_indices_for_wave;
 
 int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
@@ -2608,41 +2609,35 @@ struct HordeItemSelectionCache
 static HordeItemSelectionCache horde_item_cache;
 
 // --- Step 5: Correct the G_HordePickItem function ---
-gitem_t *G_HordePickItem()
+gitem_t* G_HordePickItem()
 {
-	// Reset cache for this selection attempt
 	horde_item_cache.clear();
 
-	// --- Collect Eligible Items (Cache-Friendly Loop) ---
-	// This loop primarily accesses g_hordeItemDataSoA.minWaves, which is a tight, contiguous array.
-	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)
+	// --- REPLACEMENT: EFFICIENT LOOP ---
+	// Iterate only over the pre-filtered list of eligible item indices.
+	for (size_t item_index : g_eligible_item_indices_for_wave)
 	{
 		if (horde_item_cache.count >= HordeItemSelectionCache::MAX_ENTRIES)
 		{
 			break; // Safety break
 		}
 
-		// Filter based on minimum wave level required for the item
-		if (g_horde_local.level >= g_hordeItemDataSoA.minWaves[i])
+		// The filtering 'if (level >= minWave)' is NO LONGER NEEDED here.
+
+		// We access the SoA data using the pre-filtered index.
+		float adjusted_weight = g_hordeItemDataSoA.weights[item_index];
+
+		if (adjusted_weight > 0.0f)
 		{
-			// Only now do we access the weights array.
-			float adjusted_weight = g_hordeItemDataSoA.weights[i];
-
-			if (adjusted_weight > 0.0f)
-			{
-				horde_item_cache.total_weight += adjusted_weight;
-
-				// FIX: Access the 'entries' member which is now correctly declared.
-				auto &entry = horde_item_cache.entries[horde_item_cache.count];
-
-				// FIX: Store the index, not a pointer.
-				entry.item_index = i;
-				entry.weight = adjusted_weight;
-				entry.cumulative_weight = horde_item_cache.total_weight;
-				horde_item_cache.count++;
-			}
+			horde_item_cache.total_weight += adjusted_weight;
+			auto& entry = horde_item_cache.entries[horde_item_cache.count];
+			entry.item_index = item_index; // Store the index
+			entry.weight = adjusted_weight;
+			entry.cumulative_weight = horde_item_cache.total_weight;
+			horde_item_cache.count++;
 		}
 	}
+	// --- END REPLACEMENT ---
 
 	// Check if any eligible items were found
 	if (horde_item_cache.count == 0 || horde_item_cache.total_weight <= 0.0f)
@@ -2653,24 +2648,20 @@ gitem_t *G_HordePickItem()
 	// --- Weighted Random Selection ---
 	const float random_value = frandom() * horde_item_cache.total_weight;
 
-	// FIX: Access the 'entries' member which is now correctly declared.
 	auto it = std::lower_bound(
 		horde_item_cache.entries.begin(),
 		horde_item_cache.entries.begin() + horde_item_cache.count,
 		random_value,
-		[](const HordeItemSelectionCache::Entry &entry, float value)
+		[](const HordeItemSelectionCache::Entry& entry, float value)
 		{
 			return entry.cumulative_weight < value;
 		});
 
-	// FIX: Access the 'entries' member which is now correctly declared.
 	if (it == horde_item_cache.entries.begin() + horde_item_cache.count)
 	{
 		it = std::prev(it);
 	}
 
-	// --- Retrieve and Return the Item using the stored index ---
-	// FIX: Get the index from the iterator and use it to look up the ID in the SoA data.
 	const size_t chosen_index = it->item_index;
 	const item_id_t chosen_id = g_hordeItemDataSoA.ids[chosen_index];
 
@@ -3028,16 +3019,23 @@ static void BuildMonsterCache(MonsterCache &cache_ref, const MonsterSelectionCon
 {
 	cache_ref.clear();
 
-	// Iterate from 0 to the max number of defined monster types.
-	for (size_t i = 0; i < g_monsterData.MONSTER_ARRAY_SIZE; ++i)
+	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 	{
-		// Perform all compatibility checks using the index `i`.
-		if (IsMonsterCompatible(i, ctx))
-		{
-			float weight = CalculateBaseWeight(i, ctx);
-			weight = ApplySpecialModifiers(weight, i, ctx);
-			cache_ref.addMonster(static_cast<horde::MonsterTypeID>(i), weight);
-		}
+		const size_t i = static_cast<size_t>(monster_info->typeId);
+
+		// Most compatibility checks are already done. We only need to check
+		// for spawn point type (flying/ground).
+		if (g_monsterData.minWaves[i] > ctx.effectiveLevel)
+			continue;
+
+		const bool monster_is_flying = IsFlying(monster_info->typeId);
+		if (ctx.isSpawnPointFlying && !monster_is_flying)
+			continue;
+
+		// The monster is compatible, calculate its weight.
+		float weight = CalculateBaseWeight(i, ctx);
+		weight = ApplySpecialModifiers(weight, i, ctx);
+		cache_ref.addMonster(monster_info->typeId, weight);
 	}
 }
 
@@ -7369,6 +7367,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	}
 
 	g_eligible_monsters_for_wave.clear();
+	g_eligible_item_indices_for_wave.clear();
 	// NOTE: We still build g_eligible_monsters_for_wave because it's a *filtered subset*
 	// of all monsters, which is useful for the JIT precacher loop that follows.
 	// The iteration to build it is now more cache-friendly.
@@ -7388,6 +7387,17 @@ static void Horde_InitLevel(const int32_t lvl)
 		if (IsValidMonsterForWave(monster.typeId, current_wave_type))
 		{
 			g_eligible_monsters_for_wave.push_back(&monster);
+		}
+	}
+	// g_eligible_item_indices_for_wave
+	g_eligible_item_indices_for_wave.reserve(g_hordeItemDataSoA.NUM_ITEMS); // Pre-allocate memory
+	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)
+	{
+		// The filter condition is simple: is the current wave level
+		// greater than or equal to the item's minimum required wave?
+		if (lvl >= g_hordeItemDataSoA.minWaves[i])
+		{
+			g_eligible_item_indices_for_wave.push_back(i);
 		}
 	}
 

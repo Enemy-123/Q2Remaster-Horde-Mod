@@ -50,32 +50,37 @@ void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game)
     if (developer && developer->integer)
         gi.Com_PrintFmt("Updating active lasers for wave: {}\n", current_wave_level_from_game);
 
-    for (uint32_t i = 1; i <= globals.num_edicts; i++)
+    // Iterate through players instead of all entities
+    for (const auto* player : active_players())
     {
-        edict_t *ent = &g_edicts[i];
-        if (!ent->inuse || !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::LASER_EMITTER))
+        if (!player->client) continue;
+
+        // Iterate through this player's deployed lasers
+        for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
         {
-            continue;
-        }
+            edict_t* emitter = player->client->resp.deployed_lasers[i];
 
-        edict_t *emitter = ent;
-        edict_t *laser_beam = emitter->chain; // The beam is stored in the emitter's chain
-
-        if (!laser_beam || !laser_beam->inuse)
-            continue;
-
-        int new_damage = CalculateWaveBasedLaserDamage(current_wave_level_from_game);
-        int new_max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level_from_game);
-
-        laser_beam->dmg = new_damage;
-        if (new_max_health != laser_beam->max_health)
-        {
-            if (laser_beam->health > 0)
+            // Check if the emitter and its beam are valid
+            if (!emitter || !emitter->inuse || !emitter->chain || !emitter->chain->inuse)
             {
-                float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
-                laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
+                continue;
             }
-            laser_beam->max_health = new_max_health;
+
+            edict_t* laser_beam = emitter->chain;
+
+            int new_damage = CalculateWaveBasedLaserDamage(current_wave_level_from_game);
+            int new_max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level_from_game);
+
+            laser_beam->dmg = new_damage;
+            if (new_max_health != laser_beam->max_health)
+            {
+                if (laser_beam->health > 0)
+                {
+                    float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
+                    laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
+                }
+                laser_beam->max_health = new_max_health;
+            }
         }
     }
 }
@@ -310,14 +315,10 @@ THINK(emitter_think)(edict_t * self)->void
     beam->s.skinnum = (state->is_warning_phase && state->is_blink_on) ? 0xd0d1d2d3 : health_state.laser_color;
     beam->s.frame = (beam->health < 1) ? 0 : (beam->health >= 1000) ? 4 : 2;
 
-    for (uint32_t i = 1; i <= globals.num_edicts; i++)
+    edict_t* flare = self->goalentity;
+    if (flare && flare->inuse && strcmp(flare->classname, "misc_flare") == 0)
     {
-        edict_t *flare = &g_edicts[i];
-        if (flare->inuse && flare->owner == self && strcmp(flare->classname, "misc_flare") == 0)
-        {
-            flare->s.skinnum = (state->is_warning_phase && state->is_blink_on) ? 0x00FF00FF : health_state.flare_color;
-            break;
-        }
+        flare->s.skinnum = (state->is_warning_phase && state->is_blink_on) ? 0x00FF00FF : health_state.flare_color;
     }
 
     self->nextthink = level.time + FRAME_TIME_MS;
