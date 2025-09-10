@@ -474,84 +474,67 @@ static inline vec3_t heat_guardianpsx_get_dist_vec(const edict_t* heat, const ed
 
 THINK(heat_guardianpsx_think) (edict_t* self) -> void
 {
-	edict_t* acquire = nullptr;
-	float	 oldlen = FLT_MAX; // Use max float value for correct comparison
-	float	 olddot = 1;
+	edict_t* acquire = self->enemy; // Start with our current target
+	float	 oldlen = FLT_MAX;
+	float	 olddot = 1.0f;
 
-	// Only re-evaluate target periodically
-	if (self->timestamp < level.time)
+	// --- PERFORMANCE MODIFICATION ---
+	// Only search for a new target if the current one is invalid OR the search timer has expired.
+	// self->timestamp is now used as next_search_time.
+	bool search_for_new_target = (!M_HasValidTarget(self) || (level.time > self->timestamp));
+
+	if (search_for_new_target)
 	{
+		// Set the next search time. This throttles the expensive findradius loop.
+		self->timestamp = level.time + 200_ms; // Search every 0.2 seconds
+		acquire = nullptr; // Clear current target to force a new search
 		vec3_t const fwd = AngleVectors(self->s.angles).forward;
 
-		if (self->oldenemy)
+		// The findradius loop now runs much less frequently.
+		edict_t* target = nullptr;
+		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 		{
-			self->enemy = self->oldenemy;
-			self->oldenemy = nullptr;
-		}
+			if (self->owner == target || !target->client || !target->inuse || target->health <= 0 || !visible(self, target))
+				continue;
 
-		// First, check if our current target is still valid and visible
-		if (M_HasValidTarget(self) && visible(self, self->enemy))
-		{
-			acquire = self->enemy;
-		}
-		else
-		{
-			self->enemy = nullptr; // Current target is invalid, clear it
-		}
+			float const dist_to_target = (self->s.origin - target->s.origin).length();
+			vec3_t vec = heat_guardianpsx_get_dist_vec(self, target, dist_to_target);
+			float const dot = vec.dot(fwd);
 
-		// If we don't have a valid target, search for a new one
-		if (!acquire)
-		{
-			edict_t* target = nullptr;
-			while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
+			if (dot >= olddot)
+				continue;
+
+			if (acquire == nullptr || dot < olddot || dist_to_target < oldlen)
 			{
-				if (self->owner == target || !target->client || !target->inuse || target->health <= 0 || !visible(self, target))
-					continue;
-
-				float const dist_to_target = (self->s.origin - target->s.origin).length();
-				vec3_t vec = heat_guardianpsx_get_dist_vec(self, target, dist_to_target);
-				float const dot = vec.dot(fwd);
-
-				// Targets that require us to turn less are preferred
-				if (dot >= olddot)
-					continue;
-
-				// If we have no target yet, or this one is better (less turn angle or closer)
-				if (acquire == nullptr || dot < olddot || dist_to_target < oldlen)
-				{
-					acquire = target;
-					oldlen = dist_to_target;
-					olddot = dot;
-				}
+				acquire = target;
+				oldlen = dist_to_target;
+				olddot = dot;
 			}
 		}
 
-		// If we found a target (either the old one was valid or we found a new one)
-		if (acquire)
+		// If we found a new target that's different from the old one, play a sound.
+		if (acquire && acquire != self->enemy)
 		{
-			float const dist_to_target = (self->s.origin - acquire->s.origin).length();
-			self->pos1 = heat_guardianpsx_get_dist_vec(self, acquire, dist_to_target);
+			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+		}
+		self->enemy = acquire; // Assign the best target found (could be nullptr)
+	}
+	// --- END MODIFICATION ---
 
-			if (self->enemy != acquire)
-			{
-				gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
-				self->enemy = acquire;
-			}
-		}
-		else
-		{
-			self->enemy = nullptr;
-		}
+	// This part runs every frame, but the expensive target acquisition is now throttled.
+	if (M_HasValidTarget(self)) // Only update aim direction if we have a valid target
+	{
+		float const dist_to_target = (self->s.origin - self->enemy->s.origin).length();
+		self->pos1 = heat_guardianpsx_get_dist_vec(self, self->enemy, dist_to_target);
 	}
 
-	// This part is the movement logic, it runs every frame
 	vec3_t const preferred_dir = self->pos1;
 	float t = self->accel;
 
 	if (self->enemy)
 		t *= 0.85f;
 
-	if (self->movedir.lengthSquared() > 0) // Avoid slerp with zero vector
+	if (self->movedir.lengthSquared() > 0)
 		self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
 	else
 		self->movedir = preferred_dir;

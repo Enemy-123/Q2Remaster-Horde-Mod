@@ -811,62 +811,73 @@ THINK(flyer_flare_think) (edict_t* controller) -> void
 // Spawns a controller that manages two temporary warning flares.
 void flyer_laser_warn(edict_t* self)
 {
-    constexpr uint32_t WARNING_FLARE_COLOR = 0xFF0000FF;
-    constexpr gtime_t FLARE_LIFETIME = 0.6_sec;
+	constexpr uint32_t WARNING_FLARE_COLOR = 0xFF0000FF;
+	constexpr gtime_t FLARE_LIFETIME = 0.6_sec;
 
-    if (!self || !self->inuse)
-        return;
+	if (!self || !self->inuse)
+		return;
 
-    // --- Spawn the Controller Entity ---
-    edict_t* controller = G_Spawn();
-    if (!controller)
-        return;
+	// --- NEW: Clean up any previous controller before creating a new one ---
+	// This prevents orphaned entities if the function is called unexpectedly again.
+	if (self->teamchain && self->teamchain->inuse)
+	{
+		// The controller's think function handles freeing its flares.
+		// We just need to free the controller itself.
+		G_FreeEdict(self->teamchain);
+	}
+	// --- END NEW ---
 
-    controller->classname = "flyer_flare_controller";
-    controller->owner = self;
-    controller->movetype = MOVETYPE_NONE;
-    controller->solid = SOLID_NOT;
-    controller->enemy = self->enemy;
+	// --- Spawn the Controller Entity ---
+	edict_t* controller = G_Spawn();
+	if (!controller)
+		return;
 
-    // --- Timer Setup ---
-    controller->timestamp = level.time + FLARE_LIFETIME;
-    controller->think = flyer_flare_think;
-    controller->nextthink = level.time + FRAME_TIME_MS;
+	// --- MODIFICATION: Store the controller pointer on the flyer ---
+	self->teamchain = controller;
+	// --- END MODIFICATION ---
 
-    // --- Spawn the Flares and Attach to Controller ---
-    edict_t* left_flare = G_Spawn();
-    if (left_flare)
-    {
-        left_flare->classname = "misc_flare";
-        left_flare->owner = controller;
-        left_flare->s.skinnum = WARNING_FLARE_COLOR;
+	controller->classname = "flyer_flare_controller";
+	controller->owner = self;
+	controller->movetype = MOVETYPE_NONE;
+	controller->solid = SOLID_NOT;
+	controller->enemy = self->enemy;
+
+	// --- Timer Setup ---
+	controller->timestamp = level.time + FLARE_LIFETIME;
+	controller->think = flyer_flare_think;
+	controller->nextthink = level.time + FRAME_TIME_MS;
+
+	// --- Spawn the Flares and Attach to Controller ---
+	edict_t* left_flare = G_Spawn();
+	if (left_flare)
+	{
+		left_flare->classname = "misc_flare";
+		left_flare->owner = controller;
+		left_flare->s.skinnum = WARNING_FLARE_COLOR;
 		left_flare->spawnflags = 9_spawnflag;
-        spawn_temp_t st{};
-        st.radius = 0.5f;
-        ED_CallSpawn(left_flare, st);
-        gi.linkentity(left_flare);
-        controller->mynoise = left_flare; // Store left flare reference in mynoise
-    }
+		spawn_temp_t st{};
+		st.radius = 0.5f;
+		ED_CallSpawn(left_flare, st);
+		gi.linkentity(left_flare);
+		controller->mynoise = left_flare; // Store left flare reference in mynoise
+	}
 
-    edict_t* right_flare = G_Spawn();
-    if (right_flare)
-    {
-        right_flare->classname = "misc_flare";
-        right_flare->owner = controller;
-        right_flare->s.skinnum = WARNING_FLARE_COLOR;
+	edict_t* right_flare = G_Spawn();
+	if (right_flare)
+	{
+		right_flare->classname = "misc_flare";
+		right_flare->owner = controller;
+		right_flare->s.skinnum = WARNING_FLARE_COLOR;
 		right_flare->spawnflags = 9_spawnflag;
-        spawn_temp_t st{};
-        st.radius = 0.5f;
-        ED_CallSpawn(right_flare, st);
-        gi.linkentity(right_flare);
-        controller->mynoise2 = right_flare; // Store right flare reference in mynoise2
-    }
+		spawn_temp_t st{};
+		st.radius = 0.5f;
+		ED_CallSpawn(right_flare, st);
+		gi.linkentity(right_flare);
+		controller->mynoise2 = right_flare; // Store right flare reference in mynoise2
+	}
 
-    // The first call to flyer_flare_think will position the flares correctly.
-    flyer_flare_think(controller);
-
-    // Play a charge-up sound if you have one
-    // gi.sound(self, CHAN_WEAPON, sound_laser_charge, 1, ATTN_NORM, 0);
+	// The first call to flyer_flare_think will position the flares correctly.
+	flyer_flare_think(controller);
 }
 
 PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
@@ -968,36 +979,32 @@ void flyer_laser_on(edict_t* self)
 
 void flyer_laser_off(edict_t* self)
 {
-    // --- Original beam cleanup ---
-    if (self->beam) {
-        G_FreeEdict(self->beam);
-        self->beam = nullptr;
-    }
-    if (self->beam2) {
-        G_FreeEdict(self->beam2);
-        self->beam2 = nullptr;
-    }
+	// --- Original beam cleanup ---
+	if (self->beam) {
+		G_FreeEdict(self->beam);
+		self->beam = nullptr;
+	}
+	if (self->beam2) {
+		G_FreeEdict(self->beam2);
+		self->beam2 = nullptr;
+	}
 
-    // --- New flare controller cleanup ---
-    // Find and remove any flare controllers this flyer owns.
-    for (uint32_t i = 1; i <= globals.num_edicts; i++)
-    {
-        edict_t* ent = &g_edicts[i];
-        if (ent->inuse && ent->owner == self && ent->classname &&
-            strcmp(ent->classname, "flyer_flare_controller") == 0)
-        {
-            // Explicitly free the flares first to prevent orphaning them.
-            if (ent->mynoise && ent->mynoise->inuse)
-                G_FreeEdict(ent->mynoise);
-            if (ent->mynoise2 && ent->mynoise2->inuse)
-                G_FreeEdict(ent->mynoise2);
+	// --- NEW: Direct cleanup using the stored pointer ---
+	// This is much more efficient than looping through all entities.
+	if (self->teamchain && self->teamchain->inuse)
+	{
+		edict_t* controller = self->teamchain;
 
-            // Now free the controller itself.
-            G_FreeEdict(ent);
-            // We assume a flyer only has one controller at a time, so we can stop.
-            break;
-        }
-    }
+		// The controller's think function frees the flares when it expires,
+		// but if we're turning off the laser early, we need to clean them up ourselves.
+		if (controller->mynoise && controller->mynoise->inuse)
+			G_FreeEdict(controller->mynoise);
+		if (controller->mynoise2 && controller->mynoise2->inuse)
+			G_FreeEdict(controller->mynoise2);
+
+		G_FreeEdict(controller);
+		self->teamchain = nullptr; // Clear the pointer to prevent reuse
+	}
 }
 
 void flyer_recharge(edict_t* self);

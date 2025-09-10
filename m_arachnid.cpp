@@ -477,12 +477,14 @@ bool spider_do_pounce(edict_t* self, const vec3_t& dest)
     self->ideal_yaw = jumpAngles[YAW];
     M_ChangeYaw(self);
 
+    // Calculate length once and use it to normalize the direction vector,
+    // avoiding a second square root calculation inside normalized().
     length = dist.length();
-    if (length > 450)
-        return false; // Too far
+    if (length > 450 || length < 1.0f) // Check for max distance and near-zero distance to prevent division by zero
+        return false;
+    vec3_t dir = dist * (1.0f / length);
 
     jumpLZ = dest;
-    vec3_t dir = dist.normalized();
 
     // Find valid trajectory
     while (velocity <= 800)
@@ -978,12 +980,12 @@ MONSTERINFO_ATTACK(spider_attack) (edict_t* self) -> void
         }
         else // Otherwise, try a transition jump
         {
-             if (spider_ok_to_transition(self)) {
-                 // MODIFICATION: Fixed a bug. It was calling spider_dodge_jump, which is for strafing.
-                 // The correct function to flip to/from the ceiling is spider_jump_transition.
-                 spider_jump_transition(self);
-                 return; // Jump initiated
-             }
+            if (spider_ok_to_transition(self)) {
+                // MODIFICATION: Fixed a bug. It was calling spider_dodge_jump, which is for strafing.
+                // The correct function to flip to/from the ceiling is spider_jump_transition.
+                spider_jump_transition(self);
+                return; // Jump initiated
+            }
         }
     }
 
