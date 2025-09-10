@@ -495,9 +495,9 @@ void SP_monster_gladiator(edict_t* self)
 		return;
 	}
 
-	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR);
-    }
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR);
+	}
 
 	if (g_horde->integer && current_wave_level <= 18)
 	{
@@ -592,8 +592,8 @@ void SP_monster_gladiator(edict_t* self)
 
 		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
 		{
-		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		self->monsterinfo.armor_power = 300;
+			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+			self->monsterinfo.armor_power = 300;
 		}
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");
@@ -628,7 +628,6 @@ void SP_monster_gladiator(edict_t* self)
 	walkmonster_start(self);
 	ApplyMonsterBonusFlags(self);
 }
-
 
 /*QUAKED monster_gladb (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
 */

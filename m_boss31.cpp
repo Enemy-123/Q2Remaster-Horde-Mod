@@ -503,21 +503,19 @@ void jorgBFG(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-	
-    // --- REFACTORED LOGIC ---
-    // Use a clear if/else block to choose which function to call.
-    // This is the standard and most readable way to handle this.
-    if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
-    {
-        // This is the standard Jorg, fire the BFG.
-        monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
-    }
-    else
-    {
-        // This is another variant (e.g., jorg_small), fire the tracker.
-        monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
-    }
+
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
+	{
+		// This is the standard Jorg, fire the BFG.
+		monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
+	}
+	else
+	{
+		// This is another variant (e.g., jorg_small), fire the tracker.
+		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
+	}
 }
+
 void jorg_firebullet_right(edict_t* self)
 {
 	//	vec3_t forward, right;
@@ -668,17 +666,12 @@ void jorg_dead(edict_t* self)
 		{ "models/monsters/boss3/jorg/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
 		});
 
-	// THE REAL FIX: Check the monster's scale.
-	// The small jorg has a scale of 0.35, the regular one has a scale of 1.0.
-	// This is a reliable property that won't be changed during the monster's life.
-	if (self->s.scale < 1.0f)
+	// If this is the regular Jorg, spawn the Makron.
+	// The small variant does not.
+	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
 	{
-		// This is the small jorg, do not spawn a Makron.
-		return;
+		MakronToss(self);
 	}
-
-	// If we get here, it's the regular jorg, so spawn the Makron.
-	MakronToss(self);
 }
 
 DIE(jorg_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void

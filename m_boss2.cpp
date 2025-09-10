@@ -574,25 +574,15 @@ void boss2_reattack_mg(edict_t* self)
 		M_SetAnimation(self, &boss2_move_attack_post_mg);
 }
 
-PAIN(boss2_pain)(edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod)->void
+PAIN(boss2_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod)->void
 {
 	if (level.time < self->pain_debounce_time)
 		return;
 
 	self->pain_debounce_time = level.time + 3_sec;
 
-	// American wanted these at no attenuation
-
 	// Determine attenuation based on the monster type and spawnflags
-	float attenuation;
-	if (self->monsterinfo.IS_BOSS)
-	{
-		attenuation = ATTN_NONE;
-	}
-	else
-	{
-		attenuation = ATTN_NORM;
-	}
+	float attenuation = self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM;
 
 	if (damage < 10)
 		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);

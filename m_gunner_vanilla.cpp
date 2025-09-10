@@ -728,8 +728,6 @@ void gunner_vanilla_refire_chain(edict_t* self)
 	M_SetAnimation(self, &gunner_vanilla_move_endfire_chain, false);
 }
 
-
-
 //===========
 // PGM
 void gunner_vanilla_jump_now(edict_t* self)

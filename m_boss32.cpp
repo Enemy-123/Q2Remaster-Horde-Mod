@@ -301,7 +301,6 @@ void makron_torso(edict_t* ent)
 	gi.linkentity(ent);
 }
 
-
 void makron_spawn_torso(edict_t* self)
 {
 	// Ensure self is valid
@@ -352,6 +351,7 @@ void makron_spawn_torso(edict_t* self)
 		BossDeathHandler(self);
 	}
 }
+
 mframe_t makron_frames_death2[] = {
 	{ ai_move, -15 },
 	{ ai_move, 3 },
@@ -900,16 +900,13 @@ void SP_monster_makron(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MAKRON);
-    }
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MAKRON);
+	}
 
 	if (g_horde->integer) {
-        // --- REFACTORED ---
-        // Use the fast helper function. Note that at this point in the code,
-        // if SP_monster_makronkl was called, the ID has NOT been overridden yet.
-        // This check is based on the classname, which is fine for a one-off sound.
-        // Alternatively, move this sound logic to SP_monster_makronkl.
+		// --- REFACTORED ---
+		// Use the fast helper function.
 		if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL))
 		{
 			const float randomsearch = frandom();
@@ -937,9 +934,9 @@ void SP_monster_makron(edict_t* self)
 	self->maxs = { 30, 30, 90 };
 	self->health = 2300 * st.health_multiplier;
 
-    // --- REFACTORED ---
-    // This logic will be run *after* the ID has been potentially overridden by the KL spawner.
-    // So we check the ID here.
+	// --- REFACTORED ---
+	// This logic will be run *after* the ID has been potentially overridden by the KL spawner.
+	// So we check the ID here.
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) {
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;

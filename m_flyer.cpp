@@ -1069,80 +1069,80 @@ MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 		return; // Can't at a non-existent or dead target.
 	}
 
-    // Kamikaze flyers have their own run/attack logic
-    if (self->mass > 50)
-    {
-        flyer_run(self);
-        return;
-    }
+	// Kamikaze flyers have their own run/attack logic
+	if (self->mass > 50)
+	{
+		flyer_run(self);
+		return;
+	}
 
-    if (!self->enemy)
-        return;
+	if (!self->enemy)
+		return;
 
-    const float range = range_to(self, self->enemy);
+	const float range = range_to(self, self->enemy);
 
-    // --- Attack Priority 1: Melee Attack ---
-    // If we are very close, perform a fly-by slicing attack.
-    if (!IsBonusMonster(self) &&  visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
-    {
-        self->monsterinfo.attack_state = AS_STRAIGHT;
-        M_SetAnimation(self, &flyer_move_start_melee);
-        flyer_set_fly_parameters(self, true);
-        return; // Attack chosen, exit function
-    }
+	// --- Attack Priority 1: Melee Attack ---
+	// If we are very close, perform a fly-by slicing attack.
+	if (!IsBonusMonster(self) && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		M_SetAnimation(self, &flyer_move_start_melee);
+		flyer_set_fly_parameters(self, true);
+		return; // Attack chosen, exit function
+	}
 
-    // --- Attack Priority 2: Special Laser Attack ---
-    // If not doing melee, consider the special laser attack under specific conditions.
-    // We check if the enemy is wounded and at a good medium range.
-    if (range > 150 && range < 400 && frandom() < 0.65f)
-    {
-        self->monsterinfo.attack_state = AS_STRAIGHT;
-        M_SetAnimation(self, &flyer_move_laser_right);
-        return; // Attack chosen, exit function
-    }
+	// --- Attack Priority 2: Special Laser Attack ---
+	// If not doing melee, consider the special laser attack under specific conditions.
+	// We check if the enemy is wounded and at a good medium range.
+	if (range > 150 && range < 400 && frandom() < 0.65f)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		M_SetAnimation(self, &flyer_move_laser_right);
+		return; // Attack chosen, exit function
+	}
 
-    // --- Attack Priority 3: Default Ranged Attack (Blaster or Rocket) ---
-    // If no other special attacks were chosen, decide between blasters and rockets.
-    self->monsterinfo.attack_state = AS_STRAIGHT;
+	// --- Attack Priority 3: Default Ranged Attack (Blaster or Rocket) ---
+	// If no other special attacks were chosen, decide between blasters and rockets.
+	self->monsterinfo.attack_state = AS_STRAIGHT;
 
-    bool use_rocket_attack;
+	bool use_rocket_attack;
 
-    if (self->monsterinfo.bonus_flags != BF_NONE)
-    {
-        // BONUSSED FLYER: Prefers rockets.
-        // 80% chance for rockets, 20% chance for blasters.
-        use_rocket_attack = (frandom() < 0.80f);
-    }
-    else
-    {
-        // NORMAL FLYER: Prefers blasters.
-        // 40% chance for rockets, 60% chance for blasters.
-        use_rocket_attack = (frandom() < 0.40f);
-    }
+	if (self->monsterinfo.bonus_flags != BF_NONE)
+	{
+		// BONUSSED FLYER: Prefers rockets.
+		// 80% chance for rockets, 20% chance for blasters.
+		use_rocket_attack = (frandom() < 0.80f);
+	}
+	else
+	{
+		// NORMAL FLYER: Prefers blasters.
+		// 40% chance for rockets, 60% chance for blasters.
+		use_rocket_attack = (frandom() < 0.40f);
+	}
 
-    // Set the animation based on the decision
-    if (use_rocket_attack)
-    {
-        M_SetAnimation(self, &flyer_move_rollright);
-    }
-    else
-    {
-        // Use the blaster attack with re-attack logic.
-        M_SetAnimation(self, &flyer_move_attack2normal);
-    }
+	// Set the animation based on the decision
+	if (use_rocket_attack)
+	{
+		M_SetAnimation(self, &flyer_move_rollright);
+	}
+	else
+	{
+		// Use the blaster attack with re-attack logic.
+		M_SetAnimation(self, &flyer_move_attack2normal);
+	}
 
-    // --- General Flight Behavior (runs after an attack is chosen) ---
-    // Pin down behavior to hover in place occasionally.
-    if (!self->monsterinfo.fly_pinned && brandom() && visible(self, self->enemy))
-    {
-        self->monsterinfo.fly_pinned = true;
-        self->monsterinfo.fly_position_time = max(self->monsterinfo.fly_position_time,
-            self->monsterinfo.fly_position_time + 1.7_sec);
-        if (brandom())
-            self->monsterinfo.fly_ideal_position = self->s.origin + (self->velocity * frandom());
-        else
-            self->monsterinfo.fly_ideal_position += self->enemy->s.origin;
-    }
+	// --- General Flight Behavior (runs after an attack is chosen) ---
+	// Pin down behavior to hover in place occasionally.
+	if (!self->monsterinfo.fly_pinned && brandom() && visible(self, self->enemy))
+	{
+		self->monsterinfo.fly_pinned = true;
+		self->monsterinfo.fly_position_time = max(self->monsterinfo.fly_position_time,
+			self->monsterinfo.fly_position_time + 1.7_sec);
+		if (brandom())
+			self->monsterinfo.fly_ideal_position = self->s.origin + (self->velocity * frandom());
+		else
+			self->monsterinfo.fly_ideal_position += self->enemy->s.origin;
+	}
 }
 
 MONSTERINFO_MELEE(flyer_melee) (edict_t* self) -> void
