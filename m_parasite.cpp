@@ -379,15 +379,28 @@ MMOVE_T(parasite_move_break) = { FRAME_break01, FRAME_break32, parasite_frames_b
 
 TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
+	// 1. Initial validation: Check if the owner and its attack state are valid.
 	if (!self->owner || !self->owner->inuse || self->owner->monsterinfo.active_move != &parasite_move_fire_proboscis)
+	{
+		// If the owner is gone or not in the attack animation, the proboscis is an orphan.
+		proboscis_reset(self);
 		return;
+	}
 
-	vec3_t p;
-
+	// 2. Handle hitting a valid target (player or the parasite's current enemy).
 	if ((other->svflags & SVF_PLAYER) || other == self->owner->enemy)
 	{
 		if (other->takedamage)
+		{
 			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
+		}
+
+		// Re-validate owner, as it could have died from reflected damage.
+		if (!self->owner || !self->owner->inuse)
+		{
+			proboscis_reset(self);
+			return;
+		}
 
 		if (!other->inuse || other->health <= 0)
 		{
@@ -395,6 +408,8 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 			return;
 		}
 
+		// Latch onto the target.
+		vec3_t p;
 		if (tr.startsolid)
 			p = tr.endpos;
 		else
@@ -403,52 +418,50 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		self->owner->monsterinfo.nextframe = FRAME_drain06;
 		self->movetype = MOVETYPE_NONE;
 		self->solid = SOLID_NOT;
-		self->style = 1;
+		self->style = 1; // Style 1: Latched to something.
 		self->move_origin = p - other->s.origin;
-		self->enemy = other;
+		self->enemy = other; // Mark the entity we are latched to.
 		self->s.alpha = 0.35f;
 		gi.sound(self, CHAN_WEAPON, sound_suck, 1, ATTN_NORM, 0);
-	}
-	else
-	{
 		gi.positioned_sound(tr.endpos, self->owner, CHAN_AUTO, sound_impact, 1, ATTN_NORM, 0);
 
-		if (other->takedamage)
-			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
-
-		if (IsBonusMonster(self->owner))
-		{
-			proboscis_retract(self);
-			parasite_start_run(self->owner);
-		}
-		else
-		{
-			if (other->svflags & (SVF_MONSTER | SVF_DEADMONSTER))
-			{
-				proboscis_retract(self);
-			}
-			else
-			{
-				self->owner->monsterinfo.active_move = &parasite_move_break;
-				self->movetype = MOVETYPE_NONE;
-				self->solid = SOLID_NOT;
-				self->style = 1;
-				self->owner->s.angles[YAW] = self->s.angles[YAW];
-				self->s.origin = tr.endpos + tr.plane.normal;
-				self->nextthink = level.time + FRAME_TIME_S;
-				gi.linkentity(self);
-			}
-		}
+		self->s.origin = p;
+		self->nextthink = level.time + FRAME_TIME_S;
+		gi.linkentity(self);
 		return;
 	}
 
+	// 3. Handle hitting something else (a wall, another monster, etc.).
 	gi.positioned_sound(tr.endpos, self->owner, CHAN_AUTO, sound_impact, 1, ATTN_NORM, 0);
 
-	self->s.origin = p;
-	self->nextthink = level.time + FRAME_TIME_S;
-	gi.linkentity(self);
-}
+	if (other->takedamage)
+	{
+		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
+		if (!self->owner || !self->owner->inuse)
+		{
+			proboscis_reset(self);
+			return;
+		}
+	}
 
+	if (other->svflags & (SVF_MONSTER | SVF_DEADMONSTER))
+	{
+		proboscis_retract(self);
+	}
+	else // Otherwise, we hit a wall or other non-monster entity.
+	{
+		// Stick to the wall and trigger the parasite's "break" animation.
+		self->owner->monsterinfo.active_move = &parasite_move_break;
+		self->movetype = MOVETYPE_NONE;
+		self->solid = SOLID_NOT;
+		self->style = 1; // Style 1: Latched to something.
+		self->enemy = nullptr; // No enemy, just latched to a point.
+		self->owner->s.angles[YAW] = self->s.angles[YAW];
+		self->s.origin = tr.endpos + tr.plane.normal;
+		self->nextthink = level.time + FRAME_TIME_S;
+		gi.linkentity(self);
+	}
+}
 // from break01
 constexpr vec3_t parasite_break_offsets[] = {
 	{ 7.0f, 0, 7.0f },
@@ -528,10 +541,6 @@ vec3_t parasite_get_proboscis_start(edict_t* self)
 
 THINK(proboscis_think) (edict_t* self) -> void
 {
-	if (!self) {
-		return;
-	}
-
 	self->nextthink = level.time + FRAME_TIME_S;
 
 	// retracting; keep pulling until we hit the parasite
@@ -539,9 +548,7 @@ THINK(proboscis_think) (edict_t* self) -> void
 	{
 		if (!self->owner || !self->owner->inuse)
 		{
-			if (self->proboscus)
-				G_FreeEdict(self->proboscus);
-			G_FreeEdict(self);
+			proboscis_reset(self);
 			return;
 		}
 
@@ -559,64 +566,56 @@ THINK(proboscis_think) (edict_t* self) -> void
 		self->s.origin -= dir * (self->speed * gi.frame_time_s);
 		gi.linkentity(self);
 	}
-	// stuck on target; do damage, suck health
-	// and check if target goes away
+	// stuck on target (or wall); do damage, suck health, and check if target goes away
 	else if (self->style == 1)
 	{
-		// First, ensure the owner is valid. If not, we're an orphan.
 		if (!self->owner || !self->owner->inuse)
 		{
-			proboscis_retract(self);
+			proboscis_reset(self);
 			return;
 		}
 
-		// Second, ensure our latched target is valid.
-		// M_HasValidTarget(self) works here because it checks self->enemy.
-		if (!M_HasValidTarget(self))
+		if (self->enemy) // We are latched to an entity
 		{
-			proboscis_retract(self);
-			return;
-		}
-
-		// The enemy is valid, so update position and drain health.
-		self->s.origin = self->enemy->s.origin + self->move_origin;
-		vec3_t const start = parasite_get_proboscis_start(self->owner);
-		self->s.angles = vectoangles((self->s.origin - start).normalized());
-
-		trace_t const tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
-		if (tr.fraction != 1.0f)
-		{
-			proboscis_retract(self);
-			self->s.origin = self->s.old_origin;
-		}
-		else
-		{
-			if (self->timestamp <= level.time)
+			if (!self->enemy->inuse || self->enemy->health <= 0)
 			{
-				int damage = irandom(2, 4);
-				if (M_DamageModifier(self)) {
-					damage *= M_DamageModifier(self->owner->owner);
-				}
-				T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
+				proboscis_retract(self);
+				return;
+			}
 
-				// NEW: Re-validate the owner AFTER T_Damage, as it could have died from reflected damage.
-				if (self->owner && self->owner->inuse)
+			self->s.origin = self->enemy->s.origin + self->move_origin;
+			vec3_t const start = parasite_get_proboscis_start(self->owner);
+			self->s.angles = vectoangles((self->s.origin - start).normalized());
+
+			trace_t const tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
+			if (tr.fraction != 1.0f)
+			{
+				proboscis_retract(self);
+				self->s.origin = self->s.old_origin;
+			}
+			else
+			{
+				if (self->timestamp <= level.time)
 				{
-					self->owner->health = min(self->owner->max_health, self->owner->health + 4);
-					if (self->owner->monsterinfo.setskin) {
-						self->owner->monsterinfo.setskin(self->owner);
-					}
-				}
+					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 2, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
 
-				self->timestamp = level.time + 10_hz;
+					if (self->owner && self->owner->inuse)
+					{
+						self->owner->health = min(self->owner->max_health, self->owner->health + 2);
+						if (self->owner->monsterinfo.setskin) {
+							self->owner->monsterinfo.setskin(self->owner);
+						}
+					}
+					self->timestamp = level.time + 10_hz;
+				}
 			}
 		}
+		// If no enemy, we are stuck in a wall. Just stay put.
 		gi.linkentity(self);
 	}
 	// flying
 	else if (self->style == 0)
 	{
-		// Check if the OWNER (the parasite monster) still has a valid target.
 		if (!M_HasValidTarget(self->owner))
 		{
 			proboscis_retract(self);
@@ -637,15 +636,8 @@ THINK(proboscis_think) (edict_t* self) -> void
 		}
 	}
 }
-
 PRETHINK(proboscis_segment_draw) (edict_t* self) -> void
 {
-
-		if (!self)
-	{
-		return;
-	}
-	
 	// Check if owner is valid
 	if (!self->owner || !self->owner->owner)
 	{
