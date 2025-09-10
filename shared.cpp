@@ -1,13 +1,71 @@
 #include "shared.h"
 #include "horde/g_horde.h"
-#include "horde/g_horde.h"
 #include <unordered_map>
 #include <algorithm>  // For std::max
 #include <span>
 #include "horde/horde_ids.h"
 #include "horde/g_entity_properties.h"
-
 #include <optional> // Required for the new cache
+
+
+// --- Data structure for bonus flag properties ---
+struct BonusEffectData {
+	effects_t effects = EF_NONE;
+	renderfx_t renderfx = RF_NONE;
+	float alpha = 1.0f;
+	float health_mult = 1.0f;
+	float power_armor_mult = 1.0f;
+	gtime_t double_time_add = 0_sec;
+	gtime_t quad_time_add = 0_sec;
+	gtime_t invincible_time_add = 0_sec;
+	monster_attack_state_t attack_state = AS_NONE; // CORRECTED TYPE AND DEFAULT
+
+	// Scaling multipliers per boss size
+	float scale_small = 1.0f;
+	float scale_medium = 1.0f;
+	float scale_large = 1.0f;
+	float health_mult_small = 1.0f;
+	float health_mult_medium = 1.0f;
+	float health_mult_large = 1.0f;
+	float pa_mult_small = 1.0f;
+	float pa_mult_medium = 1.0f;
+	float pa_mult_large = 1.0f;
+};
+
+// --- Lookup table for bonus effects ---
+static const std::unordered_map<bonus_flags_t, BonusEffectData> g_bonus_effects = {
+	{BF_CHAMPION, {
+		.effects = EF_ROCKET | EF_FIREBALL, .renderfx = RF_SHELL_RED,
+		.double_time_add = 475_sec,
+		.scale_small = 1.1f, .scale_medium = 1.25f, .scale_large = 1.5f,
+		.health_mult_small = 1.13f, .health_mult_medium = 1.1f, .health_mult_large = 1.35f,
+		.pa_mult_small = 1.1f, .pa_mult_medium = 1.08f, .pa_mult_large = 1.05f
+	}},
+	{BF_CORRUPTED, {
+		.effects = EF_PLASMA | EF_TAGTRAIL,
+		.scale_small = 1.1f, .scale_medium = 1.2f, .scale_large = 1.2f,
+		.health_mult_small = 1.24f, .health_mult_medium = 1.02f, .health_mult_large = 1.4f,
+		.pa_mult_small = 1.04f, .pa_mult_medium = 1.15f, .pa_mult_large = 1.2f
+	}},
+	{BF_RAGEQUITTER, {
+		.effects = EF_BLUEHYPERBLASTER, .alpha = 0.6f,
+		.power_armor_mult = 1.2f, .invincible_time_add = 12_sec
+	}},
+	{BF_BERSERKING, {
+		.effects = EF_GIB | EF_FLAG2, .health_mult = 0.92f, .power_armor_mult = 1.32f,
+		.quad_time_add = 475_sec, .attack_state = AS_BLIND // CORRECTED VALUE
+	}},
+	{BF_POSSESSED, {
+		.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE, .alpha = 0.6f,
+		.health_mult = 1.2f, .power_armor_mult = 1.35f, .attack_state = AS_BLIND // CORRECTED VALUE
+	}},
+	{BF_STYGIAN, {
+		.effects = EF_TRACKER | EF_FLAG1, .attack_state = AS_BLIND, // CORRECTED VALUE
+		.scale_small = 1.1f, .scale_medium = 1.3f, .scale_large = 1.2f,
+		.health_mult_small = 1.2f, .health_mult_medium = 1.5f, .health_mult_large = 1.5f,
+		.pa_mult_small = 1.1f, .pa_mult_medium = 1.1f, .pa_mult_large = 1.1f
+	}}
+};
 
 horde::MapSize GetMapSize(const char* mapname) {
     // Cache is a static array, indexed by MapID. This is extremely fast.
@@ -445,39 +503,51 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 }
 
 // Función auxiliar para calcular los valores mínimos de salud y armadura
-static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
+static void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {
-	// Definimos los límites absolutos
-	constexpr int HEALTH_MAX_LIMIT = 21500;
-	constexpr int POWER_ARMOR_MAX_LIMIT = 18000;
+	// Base values have been reduced by ~25-30% to serve as the new average target.
+	constexpr int HEALTH_MAX_LIMIT = 16500;      // Reduced from 21500
+	constexpr int POWER_ARMOR_MAX_LIMIT = 9500; // Reduced from 18000
+
+	int base_health;
+	int base_power_armor;
 
 	if (wave_number >= 25) {
-		health_min = HEALTH_MAX_LIMIT;  // Ya estamos al límite máximo
-		power_armor_min = std::min(19550, POWER_ARMOR_MAX_LIMIT);
+		base_health = HEALTH_MAX_LIMIT;
+		base_power_armor = POWER_ARMOR_MAX_LIMIT;
 	}
 	else if (wave_number >= 20) {
-		health_min = std::min(15000, HEALTH_MAX_LIMIT);
-		power_armor_min = std::min(9000, 12000);
+		base_health = 11250; // was 15000
+		base_power_armor = 6750;  // was 9000
 	}
 	else if (wave_number >= 15) {
-		health_min = std::min(12400, 15500);
-		power_armor_min = std::min(4500, 10000);
+		base_health = 9300;  // was 12400
+		base_power_armor = 3400;  // was 4500
 	}
 	else if (wave_number >= 10) {
-		health_min = std::min(8000, 13500);
-		power_armor_min = std::min(5475, 8000);
+		base_health = 6000;  // was 8000
+		base_power_armor = 4100;  // was 5475
 	}
 	else if (wave_number >= 5) {
-		health_min = std::min(7500, 12000);  // Invertidos los números para que tenga más sentido
-		power_armor_min = std::min(5475, 8000);
+		base_health = 5600;  // was 7500
+		base_power_armor = 4100;  // was 5475
 	}
 	else {
-		// Valores base para las primeras oleadas
-		health_min = 5000;
-		power_armor_min = 1500;
+		// Base values for the first few waves
+		base_health = 3750;  // was 5000
+		base_power_armor = 1125;  // was 1500
 	}
 
-	// Aseguramos que los valores nunca excedan los límites absolutos
+	// --- Introduce Unpredictability ---
+	// Apply a random multiplier from 85% to 115% of the base value.
+	// This creates variance while maintaining the overall reduction.
+	const float random_multiplier = frandom(0.85f, 1.15f); // CORRECTED: Use frandom() for a float in range [0.85, 1.15)
+
+	health_min = static_cast<int>(base_health * random_multiplier);
+	power_armor_min = static_cast<int>(base_power_armor * random_multiplier);
+
+	// Ensure the final values do not exceed the absolute maximums,
+	// which acts as a safeguard against unusually high random rolls.
 	health_min = std::min(health_min, HEALTH_MAX_LIMIT);
 	power_armor_min = std::min(power_armor_min, POWER_ARMOR_MAX_LIMIT);
 }
@@ -513,162 +583,84 @@ void ConfigureBossArmor(edict_t* self) {
 }
 void ApplyBossEffects(edict_t* boss)
 {
-	// Verificar si es un jefe y si ya se han aplicado los efectos
 	if (!boss->monsterinfo.IS_BOSS || boss->monsterinfo.effects_applied)
 		return;
 
-	// Obtener la categoría de tamaño del jefe
 	const BossSizeCategory sizeCategory = boss->bossSizeCategory;
-
-	// Generar un flag aleatorio
-	// Generar un flag aleatorio
 	const int32_t random_flag_int = 1 << irandom(6);
 	boss->monsterinfo.bonus_flags = static_cast<bonus_flags_t>(random_flag_int);
 
 	float health_multiplier = 1.0f;
 	float power_armor_multiplier = 1.0f;
+	float scale_factor = 1.0f;
 
-	// Función de utilidad para escalar el jefe
-	auto ScaleEntity = [&](float scale_factor) {
+	auto it = g_bonus_effects.find(boss->monsterinfo.bonus_flags);
+	if (it != g_bonus_effects.end()) {
+		const BonusEffectData& data = it->second;
+
+		boss->s.effects |= data.effects;
+		boss->s.renderfx |= data.renderfx;
+		boss->s.alpha = data.alpha;
+		boss->monsterinfo.attack_state = data.attack_state;
+
+		if (data.double_time_add > 0_sec)
+			boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + data.double_time_add;
+		if (data.quad_time_add > 0_sec)
+			boss->monsterinfo.quad_time = std::max(level.time, boss->monsterinfo.quad_time) + data.quad_time_add;
+		if (data.invincible_time_add > 0_sec)
+			boss->monsterinfo.invincible_time = std::max(level.time, boss->monsterinfo.invincible_time) + data.invincible_time_add;
+
+		health_multiplier *= data.health_mult;
+		power_armor_multiplier *= data.power_armor_mult;
+
+		switch (sizeCategory) {
+		case BossSizeCategory::Small:
+			scale_factor = data.scale_small;
+			health_multiplier *= data.health_mult_small;
+			power_armor_multiplier *= data.pa_mult_small;
+			break;
+		case BossSizeCategory::Medium:
+			scale_factor = data.scale_medium;
+			health_multiplier *= data.health_mult_medium;
+			power_armor_multiplier *= data.pa_mult_medium;
+			break;
+		case BossSizeCategory::Large:
+			scale_factor = data.scale_large;
+			health_multiplier *= data.health_mult_large;
+			power_armor_multiplier *= data.pa_mult_large;
+			break;
+		}
+	}
+
+	if (scale_factor != 1.0f) {
 		boss->s.scale *= scale_factor;
-		//boss->mins *= scale_factor;
-		//boss->maxs *= scale_factor;
 		boss->mass *= scale_factor;
-
-		// Ajustar la posición para alinear con el suelo
 		float height_offset = -(boss->mins[2]);
 		boss->s.origin[2] += height_offset;
 		gi.linkentity(boss);
-		};
-
-	// Aplicar efectos de bonus flags
-	if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
-		// Aplicar escalado basado en la categoría de tamaño
-		switch (sizeCategory) {
-		case BossSizeCategory::Small:
-			ScaleEntity(1.1f);
-			health_multiplier *= 1.13f;
-			power_armor_multiplier *= 1.1f;
-			break;
-		case BossSizeCategory::Medium:
-			ScaleEntity(1.25f);
-			health_multiplier *= 1.24f;
-			power_armor_multiplier *= 1.08f;
-			break;
-		case BossSizeCategory::Large:
-			ScaleEntity(1.5f);
-			health_multiplier *= 1.35f;
-			power_armor_multiplier *= 1.05f;
-			break;
-		}
-
-		// Aplicar efectos visuales adicionales
-		boss->s.effects |= EF_ROCKET | EF_FIREBALL;
-		boss->s.renderfx |= RF_SHELL_RED;
-		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 475_sec;
 	}
 
-	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		// Aplicar escalado basado en la categoría de tamaño
-		switch (sizeCategory) {
-		case BossSizeCategory::Small:
-			ScaleEntity(1.1f);
-			health_multiplier *= 1.24f;
-			power_armor_multiplier *= 1.04f;
-			break;
-		case BossSizeCategory::Medium:
-			ScaleEntity(1.2f);
-			health_multiplier *= 1.12f;
-			power_armor_multiplier *= 1.15f;
-			break;
-		case BossSizeCategory::Large:
-			ScaleEntity(1.2f);
-			health_multiplier *= 1.4f;
-			power_armor_multiplier *= 1.2f;
-			break;
-		}
-
-		// Aplicar efectos visuales adicionales
-		boss->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-	}
-
-	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
-		boss->s.effects |= EF_BLUEHYPERBLASTER;
-		boss->s.alpha = 0.6f;
-		power_armor_multiplier *= 1.2f;
-		boss->monsterinfo.invincible_time = std::max(level.time, boss->monsterinfo.invincible_time) + 12_sec;
-	}
-
-	if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
-		boss->s.effects |= EF_GIB | EF_FLAG2;
-		health_multiplier *= 1.22f;
-		power_armor_multiplier *= 1.32f;
-		boss->monsterinfo.quad_time = std::max(level.time, boss->monsterinfo.quad_time) + 475_sec;
-		boss->monsterinfo.attack_state = AS_BLIND;
-	}
-
-	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
-		boss->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-		boss->s.alpha = 0.6f;
-		health_multiplier *= 1.2f;
-		power_armor_multiplier *= 1.25f;
-		boss->monsterinfo.attack_state = AS_BLIND;
-	}
-
-	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
-		// Aplicar escalado basado en la categoría de tamaño
-		switch (sizeCategory) {
-		case BossSizeCategory::Small:
-			ScaleEntity(1.1f);
-			health_multiplier *= 1.2f;
-			power_armor_multiplier *= 1.1f;
-			break;
-		case BossSizeCategory::Medium:
-			ScaleEntity(1.2f);
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.1f;
-			break;
-		case BossSizeCategory::Large:
-			ScaleEntity(1.2f);
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.1f;
-			break;
-		}
-
-		// Aplicar efectos visuales adicionales
-		boss->s.effects |= EF_TRACKER | EF_FLAG1;
-		boss->monsterinfo.attack_state = AS_BLIND;
-	}
-
-	// Calcular valores mínimos basados en el número de ola
 	int health_min, power_armor_min;
 	CalculateBossMinimums(current_wave_level, health_min, power_armor_min);
 
-	// Aplicar multiplicadores de salud y armadura
 	boss->health = std::max(static_cast<int>(boss->health * health_multiplier), health_min);
 	boss->max_health = boss->health;
 
-	// Manejar Power Armor
-	if (boss->monsterinfo.power_armor_power > 0)
-	{
+	if (boss->monsterinfo.power_armor_power > 0) {
 		boss->monsterinfo.power_armor_power = std::max(
 			static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier),
 			power_armor_min
 		);
 	}
 
-	// Manejar Armor regular
-	if (boss->monsterinfo.armor_power > 0)
-	{
+	if (boss->monsterinfo.armor_power > 0) {
 		const int min_regular_armor = static_cast<int>(power_armor_min * REGULAR_ARMOR_FACTOR);
-
 		boss->monsterinfo.armor_power = std::max(
 			static_cast<int>(boss->monsterinfo.armor_power * power_armor_multiplier),
 			min_regular_armor
 		);
 	}
 
-	// En la parte del escalado por tamaño:
 	switch (sizeCategory) {
 	case BossSizeCategory::Small:
 		boss->health = static_cast<int>(boss->health * 0.8f);
@@ -688,7 +680,6 @@ void ApplyBossEffects(edict_t* boss)
 		break;
 	}
 
-	// Asegurar mínimos después de ajustes
 	boss->health = std::max(boss->health, health_min);
 	if (boss->monsterinfo.power_armor_power > 0)
 		boss->monsterinfo.power_armor_power = std::max(boss->monsterinfo.power_armor_power, power_armor_min);
@@ -698,11 +689,7 @@ void ApplyBossEffects(edict_t* boss)
 	}
 
 	boss->max_health = boss->health;
-
-	// Marcar que los efectos ya fueron aplicados para evitar escalados acumulativos
 	boss->monsterinfo.effects_applied = true;
-
-	//	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
 
 //getting real name
