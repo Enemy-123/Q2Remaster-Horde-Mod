@@ -1118,7 +1118,8 @@ struct WaveScalingCache
 		}
 	}
 } g_waveScalingCache;
-void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t humanPlayers)
+
+void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, int32_t humanPlayers)
 {
 	using namespace HordeConstants;
 
@@ -1158,7 +1159,7 @@ void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t 
 	{
 		// Apply map-specific base value from constants
 		additionalSpawn = mapSize.isSmallMap ? ADDITIONAL_SPAWNS[0] : mapSize.isBigMap ? ADDITIONAL_SPAWNS[2]
-																					   : ADDITIONAL_SPAWNS[1];
+			: ADDITIONAL_SPAWNS[1];
 
 		// Level-based adjustment for high levels
 		if (safeLevel > 25)
@@ -1205,8 +1206,8 @@ void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t 
 
 	// Final cooldown clamping
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
-									  HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN, // Use the constant
-									  3.5_sec);									 // Keep upper bound or define a MAX constant
+		HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN, // Use the constant
+		3.5_sec);									 // Keep upper bound or define a MAX constant
 	// Calculate final spawn count
 	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
 	ClampNumToSpawn(mapSize); // Handle clamping
@@ -1220,15 +1221,14 @@ void UnifiedAdjustSpawnRate(const horde::MapSize &mapSize, int32_t lvl, int32_t 
 	{
 		gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", safeLevel);
 		gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
-						SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
+			SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
 		gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
 		gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
 		gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
 		gi.Com_PrintFmt("  - Map type: {}\n",
-						mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
+			mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
 	}
 }
-
 void VerifyAndAdjustBots();
 static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel, edict_t* target_player);
 
@@ -2253,7 +2253,8 @@ struct BossEligibilityCache
 
 	struct LevelEligibility
 	{
-		horde::MonsterTypeID typeIds[MAX_ELIGIBLE_BOSSES] = {horde::MonsterTypeID::UNKNOWN};
+		// MODIFICATION: Store the index into the SoA array, not the TypeID.
+		uint8_t soa_indices[MAX_ELIGIBLE_BOSSES] = { 0 };
 		uint8_t count = 0;
 	};
 
@@ -2271,21 +2272,21 @@ struct BossEligibilityCache
 		for (int mapType = 0; mapType < 3; ++mapType)
 		{
 			horde::MapSize mapSize;
-			const BossDataSoA *boss_list_soa = nullptr;
+			const BossDataSoA* boss_list_soa = nullptr;
 
 			if (mapType == 0)
 			{
-				mapSize = {true, false, false}; // Small
+				mapSize = { true, false, false }; // Small
 				boss_list_soa = &g_smallBossData;
 			}
 			else if (mapType == 1)
 			{
-				mapSize = {false, false, true}; // Medium
+				mapSize = { false, false, true }; // Medium
 				boss_list_soa = &g_mediumBossData;
 			}
 			else
 			{
-				mapSize = {false, true, false}; // Large
+				mapSize = { false, true, false }; // Large
 				boss_list_soa = &g_largeBossData;
 			}
 
@@ -2295,7 +2296,7 @@ struct BossEligibilityCache
 			// For each wave level we want to pre-compute
 			for (int32_t wave = 0; wave <= MAX_PRECOMPUTED_WAVE; ++wave)
 			{
-				auto &levelData = eligibility[mapType][wave];
+				auto& levelData = eligibility[mapType][wave];
 				levelData.count = 0;
 
 				// Filter bosses by iterating through the SoA data, which is very fast.
@@ -2309,7 +2310,8 @@ struct BossEligibilityCache
 					{
 						if (levelData.count < MAX_ELIGIBLE_BOSSES)
 						{
-							levelData.typeIds[levelData.count++] = boss_list_soa->typeIds[i];
+							// MODIFICATION: Store the index 'i' directly.
+							levelData.soa_indices[levelData.count++] = static_cast<uint8_t>(i);
 						}
 					}
 				}
@@ -2406,7 +2408,7 @@ struct BossPickResult
 };
 
 // This function is completely refactored to use the new SoA data for high performance.
-static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::string_view mapname, int32_t waveNumber)
+static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber)
 {
 	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
 
@@ -2415,18 +2417,18 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 		g_bossEligibilityCache.initialize();
 	}
 
-	const BossDataSoA *boss_list_soa = GetBossListSoA(mapSize, mapId);
+	const BossDataSoA* boss_list_soa = GetBossListSoA(mapSize, mapId);
 	if (!boss_list_soa)
 	{
 		if (developer->integer)
 			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n", mapname.data(), waveNumber);
-		return BossPickResult(); 
+		return BossPickResult();
 	}
 
 	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
 	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
 
-	const auto &eligibilityData = g_bossEligibilityCache.eligibility[static_cast<size_t>(mapTypeIndex)][static_cast<size_t>(safeWaveNumber)];
+	const auto& eligibilityData = g_bossEligibilityCache.eligibility[static_cast<size_t>(mapTypeIndex)][static_cast<size_t>(safeWaveNumber)];
 	if (eligibilityData.count == 0)
 	{
 		if (developer->integer)
@@ -2446,33 +2448,22 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 
 	for (size_t i = 0; i < eligibilityData.count; ++i)
 	{
-		horde::MonsterTypeID bossTypeId = eligibilityData.typeIds[i];
-		if (bossTypeId == horde::MonsterTypeID::UNKNOWN || recent_bosses.contains(bossTypeId))
-		{
-			continue;
-		}
-        
-		intptr_t boss_index_in_soa = -1;
-		for (size_t j = 0; j < boss_list_soa->count; ++j)
-		{
-			if (boss_list_soa->typeIds[j] == bossTypeId)
-			{
-				// FIX: Explicitly cast from size_t to intptr_t.
-				boss_index_in_soa = static_cast<intptr_t>(j);
-				break;
-			}
-		}
-		if (boss_index_in_soa == -1)
-			continue;
+		// MODIFICATION: Get the index directly from the cache.
+		const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
+		const horde::MonsterTypeID bossTypeId = boss_list_soa->typeIds[boss_index_in_soa];
 
-		// FIX: Explicitly cast from intptr_t to size_t for array indexing.
-		float weight = boss_list_soa->weights[static_cast<size_t>(boss_index_in_soa)];
+		if (recent_bosses.contains(bossTypeId))
+		{
+			continue;
+		}
+
+		// MODIFICATION: No more linear search needed. We already have the index.
+		float weight = boss_list_soa->weights[boss_index_in_soa];
 
 		if (weightedCount < MAX_ELIGIBLE_BOSSES)
 		{
 			totalWeight += weight;
-			// FIX: Explicitly cast from intptr_t to size_t for assignment.
-			weightedBosses[weightedCount].index_in_soa = static_cast<size_t>(boss_index_in_soa);
+			weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
 			weightedBosses[weightedCount].weight = weight;
 			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 			weightedCount++;
@@ -2488,30 +2479,14 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 
 		for (size_t i = 0; i < eligibilityData.count; ++i)
 		{
-			horde::MonsterTypeID bossTypeId = eligibilityData.typeIds[i];
-			if (bossTypeId == horde::MonsterTypeID::UNKNOWN)
-				continue;
+			// MODIFICATION: Get the index directly from the cache.
+			const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
 
-			intptr_t boss_index_in_soa = -1;
-			for (size_t j = 0; j < boss_list_soa->count; ++j)
-			{
-				if (boss_list_soa->typeIds[j] == bossTypeId)
-				{
-					// FIX: Explicitly cast from size_t to intptr_t.
-					boss_index_in_soa = static_cast<intptr_t>(j);
-					break;
-				}
-			}
-			if (boss_index_in_soa == -1)
-				continue;
-
-			// FIX: Explicitly cast from intptr_t to size_t for array indexing.
-			float weight = boss_list_soa->weights[static_cast<size_t>(boss_index_in_soa)];
+			float weight = boss_list_soa->weights[boss_index_in_soa];
 			if (weightedCount < MAX_ELIGIBLE_BOSSES)
 			{
 				totalWeight += weight;
-				// FIX: Explicitly cast from intptr_t to size_t for assignment.
-				weightedBosses[weightedCount].index_in_soa = static_cast<size_t>(boss_index_in_soa);
+				weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
 				weightedBosses[weightedCount].weight = weight;
 				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
 				weightedCount++;
@@ -2531,7 +2506,7 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 		weightedBosses.begin(),
 		weightedBosses.begin() + weightedCount,
 		randomValue,
-		[](const WeightedBoss &boss, float value)
+		[](const WeightedBoss& boss, float value)
 		{
 			return boss.cumulativeWeight < value;
 		});
@@ -2548,12 +2523,11 @@ static BossPickResult G_HordePickBOSSType(const horde::MapSize &mapSize, std::st
 	recent_bosses.add(chosen_typeId);
 	if (developer->integer > 1)
 	{
-		const char *chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_typeId);
+		const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_typeId);
 		gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n", chosen_name ? chosen_name : "Unknown", it->weight);
 	}
 	return BossPickResult(chosen_typeId, chosen_sizeCategory);
 }
-
 // --- Step 1: Define the SoA structure for item data ---
 struct HordeItemDataSoA
 {
@@ -5372,10 +5346,11 @@ static edict_t *FindBestPlayerTargetForTeleport()
 
 // Finds a safe, fair, and tactically reasonable spawn point for a monster being rescued via teleport.
 // It prioritizes spots that are near a player but not directly visible to them.
-static edict_t *FindSafeTeleportDestination(edict_t *self)
+// MODIFIED: g_horde.cpp
+static edict_t* FindSafeTeleportDestination(edict_t* self)
 {
 	// --- 1. Determine the Target Player ---
-	edict_t *target_player = self->enemy;
+	edict_t* target_player = self->enemy;
 	if (!target_player || !target_player->client || !target_player->inuse || target_player->health <= 0)
 	{
 		target_player = FindBestPlayerTargetForTeleport();
@@ -5391,7 +5366,7 @@ static edict_t *FindSafeTeleportDestination(edict_t *self)
 	const bool can_monster_fly = IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname));
 
 	// --- 3. Search for a Suitable Spawn Point ---
-	edict_t *best_spot = nullptr;
+	edict_t* best_spot = nullptr;
 	float best_score = -1.0f;
 
 	// --- PERFORMANCE FIX: Use findradius instead of iterating all spawn points ---
@@ -5428,7 +5403,7 @@ static edict_t *FindSafeTeleportDestination(edict_t *self)
 			score += 100.0f;
 		}
 
-		vec3_t player_eye_pos = target_player->s.origin + vec3_t{0, 0, static_cast<float>(target_player->viewheight)};
+		vec3_t player_eye_pos = target_player->s.origin + vec3_t{ 0, 0, static_cast<float>(target_player->viewheight) };
 		trace_t los = gi.trace(player_eye_pos, vec3_origin, vec3_origin, spawn_point->s.origin, target_player, MASK_SOLID);
 		if (los.fraction < 1.0f)
 		{
@@ -6444,7 +6419,7 @@ static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_t
 }
 
 // REPLACEMENT: ApplyHordeBonuses (now a void function, guaranteed not to free the edict)
-static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance)
+static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance)
 {
 	bool became_champion = false;
 	if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance)

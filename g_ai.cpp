@@ -322,87 +322,80 @@ Turns towards target and advances
 Use this call with a distance of 0 to replace ai_face
 ==============
 */
-/*
-=============
-ai_charge
 
-Turns towards target and advances
-Use this call with a distance of 0 to replace ai_face
-==============
-*/
 void ai_charge(edict_t* self, float dist)
 {
 
-    if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
-        return;
+	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
+		return;
 
-    vec3_t v;
-    float ofs;
+	vec3_t v;
+	float ofs;
 
-    // PMM - made AI_MANUAL_STEERING affect things differently here .. they turn, but
-    // don't set the ideal_yaw
+	// PMM - made AI_MANUAL_STEERING affect things differently here .. they turn, but
+	// don't set the ideal_yaw
 
-    // This is put in there so monsters won't move towards the origin after killing
-    // a tesla. This could be problematic, so keep an eye on it.
-    // (Initial check already present and confirmed)
+	// This is put in there so monsters won't move towards the origin after killing
+	// a tesla. This could be problematic, so keep an eye on it.
+	// (Initial check already present and confirmed)
 
-    // PMM - save blindfire target
-    // --- Check added before accessing enemy members ---
-    if (self->enemy && self->enemy->inuse && visible(self, self->enemy))
-        self->monsterinfo.blind_fire_target = self->enemy->s.origin + (self->enemy->velocity * -0.1f);
-    // --- End Check ---
+	// PMM - save blindfire target
+	// --- Check added before accessing enemy members ---
+	if (self->enemy && self->enemy->inuse && visible(self, self->enemy))
+		self->monsterinfo.blind_fire_target = self->enemy->s.origin + (self->enemy->velocity * -0.1f);
+	// --- End Check ---
 
-    if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
-    {
-        // --- Check added before accessing enemy origin ---
-        if (self->enemy && self->enemy->inuse)
-        {
-            v = self->enemy->s.origin - self->s.origin;
-            self->ideal_yaw = vectoyaw(v);
-        }
-        // --- End Check ---
-    }
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		// --- Check added before accessing enemy origin ---
+		if (self->enemy && self->enemy->inuse)
+		{
+			v = self->enemy->s.origin - self->s.origin;
+			self->ideal_yaw = vectoyaw(v);
+		}
+		// --- End Check ---
+	}
 
-    M_ChangeYaw(self);
+	M_ChangeYaw(self);
 
-    if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
-    {
-        if (self->monsterinfo.aiflags & AI_CHARGING)
-        {
-            M_MoveToGoal(self, dist);
-            return;
-        }
-        // circle strafe support
-        if (self->monsterinfo.attack_state == AS_SLIDING)
-        {
-            // if we're fighting a tesla, NEVER circle strafe
-            // --- Check added before accessing enemy classname ---
-            if (self->enemy && self->enemy->inuse && horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
-                ofs = 0;
-            // --- End Check ---
-            else if (self->monsterinfo.lefty)
-                ofs = 90;
-            else
-                ofs = -90;
+	if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
+	{
+		if (self->monsterinfo.aiflags & AI_CHARGING)
+		{
+			M_MoveToGoal(self, dist);
+			return;
+		}
+		// circle strafe support
+		if (self->monsterinfo.attack_state == AS_SLIDING)
+		{
+			// if we're fighting a tesla, NEVER circle strafe
+			// --- Check added before accessing enemy classname ---
+			if (self->enemy && self->enemy->inuse && horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))
+				ofs = 0;
+			// --- End Check ---
+			else if (self->monsterinfo.lefty)
+				ofs = 90;
+			else
+				ofs = -90;
 
-            dist *= self->monsterinfo.active_move->sidestep_scale;
+			dist *= self->monsterinfo.active_move->sidestep_scale;
 
-            if (M_walkmove(self, self->ideal_yaw + ofs, dist))
-                return;
+			if (M_walkmove(self, self->ideal_yaw + ofs, dist))
+				return;
 
-            self->monsterinfo.lefty = !self->monsterinfo.lefty;
-            M_walkmove(self, self->ideal_yaw - ofs, dist);
-        }
-        else
-            M_walkmove(self, self->s.angles[YAW], dist);
-    }
+			self->monsterinfo.lefty = !self->monsterinfo.lefty;
+			M_walkmove(self, self->ideal_yaw - ofs, dist);
+		}
+		else
+			M_walkmove(self, self->s.angles[YAW], dist);
+	}
 
-    // [Paril-KEX] if our enemy is literally right next to us, give
-    // us more rotational speed so we don't get circled
-    // --- Check added before accessing self->enemy for range_to ---
-    if (self->enemy && self->enemy->inuse && range_to(self, self->enemy) <= RANGE_MELEE * 2.5f)
-        M_ChangeYaw(self);
-    // --- End Check ---
+	// [Paril-KEX] if our enemy is literally right next to us, give
+	// us more rotational speed so we don't get circled
+	// --- Check added before accessing self->enemy for range_to ---
+	if (self->enemy && self->enemy->inuse && range_to(self, self->enemy) <= RANGE_MELEE * 2.5f)
+		M_ChangeYaw(self);
+	// --- End Check ---
 }
 /*
 =============
@@ -543,79 +536,79 @@ static float CalculateTargetPriority(edict_t* self, edict_t* target, float dist_
 #include "horde/g_horde_phys.h" 
 
 bool FindMTarget(edict_t* self) {
-    if (!self || !self->inuse || !self->monsterinfo.issummoned || level.intermissiontime) {
-        return false;
-    }
+	if (!self || !self->inuse || !self->monsterinfo.issummoned || level.intermissiontime) {
+		return false;
+	}
 
-    // --- Clear Invalid Current Target ---
-    if (self->enemy && !IsValidMonsterTargetForSummon(self, self->enemy, level.time)) {
-        self->enemy = nullptr;
-    }
+	// --- Clear Invalid Current Target ---
+	if (self->enemy && !IsValidMonsterTargetForSummon(self, self->enemy, level.time)) {
+		self->enemy = nullptr;
+	}
 
-    // If we have a valid, visible enemy, and it's not time to re-evaluate, stick with it.
-    if (self->enemy && self->monsterinfo.react_to_damage_time > level.time && visible(self, self->enemy, false)) {
-        return true;
-    }
+	// If we have a valid, visible enemy, and it's not time to re-evaluate, stick with it.
+	if (self->enemy && self->monsterinfo.react_to_damage_time > level.time && visible(self, self->enemy, false)) {
+		return true;
+	}
 
-    // --- Find the Best Target ---
-    edict_t* best_target = nullptr;
-    float highest_priority = -1.0f;
-    const vec3_t& self_origin = self->s.origin;
-    const gtime_t current_time = level.time;
+	// --- Find the Best Target ---
+	edict_t* best_target = nullptr;
+	float highest_priority = -1.0f;
+	const vec3_t& self_origin = self->s.origin;
+	const gtime_t current_time = level.time;
 
-    // Consider the current enemy as a baseline candidate
-    if (self->enemy) {
-        if (visible(self, self->enemy, false)) {
-            float dist_sq = DistanceSquared(self_origin, self->enemy->s.origin);
-            highest_priority = CalculateTargetPriority(self, self->enemy, dist_sq);
-            best_target = self->enemy;
-        }
-    }
+	// Consider the current enemy as a baseline candidate
+	if (self->enemy) {
+		if (visible(self, self->enemy, false)) {
+			float dist_sq = DistanceSquared(self_origin, self->enemy->s.origin);
+			highest_priority = CalculateTargetPriority(self, self->enemy, dist_sq);
+			best_target = self->enemy;
+		}
+	}
 
-    // --- THE OPTIMIZATION ---
-    // Get potential targets from the grid instead of iterating all active monsters.
-    const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self_origin, MAX_RANGE);
+	// --- THE OPTIMIZATION ---
+	// Get potential targets from the grid instead of iterating all active monsters.
+	const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self_origin, MAX_RANGE);
 
-    // --- Iterate Through POTENTIAL Monsters to Find a Better Target ---
-    for (auto ent : potential_targets) { // <<<< KEY CHANGE HERE
-        // --- Fast Rejection Checks ---
-        if (!IsValidMonsterTargetForSummon(self, ent, current_time)) {
-            continue;
-        }
+	// --- Iterate Through POTENTIAL Monsters to Find a Better Target ---
+	for (auto ent : potential_targets) { // <<<< KEY CHANGE HERE
+		// --- Fast Rejection Checks ---
+		if (!IsValidMonsterTargetForSummon(self, ent, current_time)) {
+			continue;
+		}
 
-        // --- Distance Check ---
-        // The grid gives us a square search area, so we still need a precise distance check.
-        float dist_squared = DistanceSquared(self_origin, ent->s.origin);
-        if (dist_squared > MAX_RANGE_SQUARED) {
-            continue;
-        }
+		// --- Distance Check ---
+		// The grid gives us a square search area, so we still need a precise distance check.
+		float dist_squared = DistanceSquared(self_origin, ent->s.origin);
+		if (dist_squared > MAX_RANGE_SQUARED) {
+			continue;
+		}
 
-        // --- Visibility Check (most expensive) ---
-        if (!visible(self, ent, false)) {
-            continue;
-        }
+		// --- Visibility Check (most expensive) ---
+		if (!visible(self, ent, false)) {
+			continue;
+		}
 
-        // --- Priority Calculation ---
-        float current_priority = CalculateTargetPriority(self, ent, dist_squared);
+		// --- Priority Calculation ---
+		float current_priority = CalculateTargetPriority(self, ent, dist_squared);
 
-        // --- Update Best Target ---
-        if (current_priority > highest_priority) {
-            highest_priority = current_priority;
-            best_target = ent;
-        }
-    }
+		// --- Update Best Target ---
+		if (current_priority > highest_priority) {
+			highest_priority = current_priority;
+			best_target = ent;
+		}
+	}
 
-    // --- Finalize Target ---
-    if (best_target) {
-        if (self->enemy != best_target) {
-            self->enemy = best_target;
-            self->monsterinfo.react_to_damage_time = current_time + 0.5_sec;
-        }
-        return true;
-    }
+	// --- Finalize Target ---
+	if (best_target) {
+		if (self->enemy != best_target) {
+			self->enemy = best_target;
+			self->monsterinfo.react_to_damage_time = current_time + 0.5_sec;
+		}
+		return true;
+	}
 
-    self->enemy = nullptr;
-    return false;
+	self->enemy = nullptr;
+	return false;
 }
 /*
 =============
