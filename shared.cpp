@@ -217,40 +217,36 @@ float M_DamageModifier(edict_t* monster) noexcept {
 
 // // FIX: Changed the parameter type from 'int' to 'unsigned int' to match the BF_* flags.
 const char* GetTitleFromFlags_Fast(bonus_flags_t bonus_flags) {
-    // Use a static buffer. Its content is valid until the next call to this function.
-    static char title_buffer[64];
+	// Use a static buffer. Its content is valid until the next call to this function.
+	static char title_buffer[64];
 
-    if (bonus_flags == BF_NONE) {
-        return ""; // Return a pointer to an empty literal string
-    }
+	if (bonus_flags == BF_NONE) {
+		return ""; // Return a pointer to an empty literal string
+	}
 
-    // Use a pointer to build the string efficiently
-    char* ptr = title_buffer;
-    const char* end = title_buffer + sizeof(title_buffer);
+	char* ptr = title_buffer;
+	const char* const end = title_buffer + sizeof(title_buffer);
 
-    // Helper to safely append strings, preventing buffer overflow
-    auto append_title = [&](const char* text) {
-        // Note: strlen is not ideal, but for a few fixed strings it's acceptable.
-        // A more advanced version could use std::string_view and memcpy.
-        size_t len = strlen(text);
-        if (ptr + len < end) {
-            strcpy(ptr, text);
-            ptr += len;
-        }
-        };
+	// Helper to safely append string literals using memcpy with compile-time lengths.
+	auto append_title = [&](const char* text, size_t len_without_null) {
+		if (ptr + len_without_null < end) { // Ensure space for text
+			memcpy(ptr, text, len_without_null);
+			ptr += len_without_null;
+		}
+		};
 
-    if (bonus_flags & BF_CHAMPION)   append_title("Champion ");
-    if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted ");
-    if (bonus_flags & BF_RAGEQUITTER) append_title("Ragequitter ");
-    if (bonus_flags & BF_BERSERKING) append_title("Berserking ");
-    if (bonus_flags & BF_POSSESSED)  append_title("Possessed ");
-    if (bonus_flags & BF_STYGIAN)    append_title("Stygian ");
-    if (bonus_flags & BF_FRIENDLY)   append_title("Friendly ");
+	if (bonus_flags & BF_CHAMPION)   append_title("Champion ", sizeof("Champion ") - 1);
+	if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted ", sizeof("Corrupted ") - 1);
+	if (bonus_flags & BF_RAGEQUITTER) append_title("Ragequitter ", sizeof("Ragequitter ") - 1);
+	if (bonus_flags & BF_BERSERKING) append_title("Berserking ", sizeof("Berserking ") - 1);
+	if (bonus_flags & BF_POSSESSED)  append_title("Possessed ", sizeof("Possessed ") - 1);
+	if (bonus_flags & BF_STYGIAN)    append_title("Stygian ", sizeof("Stygian ") - 1);
+	if (bonus_flags & BF_FRIENDLY)   append_title("Friendly ", sizeof("Friendly ") - 1);
 
-    // Null-terminate the final string
-    *ptr = '\0';
+	// Null-terminate the final string
+	*ptr = '\0';
 
-    return title_buffer;
+	return title_buffer;
 }
 
 // Caches for the final, formatted display names.

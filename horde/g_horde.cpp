@@ -10,6 +10,10 @@
 #include "g_laser.h"
 #include "../profiler.h"
 
+// This represents the maximum possible level boost for the "elite spawn" mechanic.
+// It ensures we precache and consider all potential elite monsters for a given wave.
+constexpr int32_t MAX_EFFECTIVE_LEVEL_BOOST = 20;
+
 // Maps an edict_t* to a compact index [0...N-1]
 static std::unordered_map<int, uint16_t> g_spawn_point_map;
 
@@ -3007,24 +3011,26 @@ static bool IsMonsterCompatible(size_t i, const MonsterSelectionContext &ctx)
 
 	return true;
 }
-static void BuildMonsterCache(MonsterCache &cache_ref, const MonsterSelectionContext &ctx)
+
+static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionContext& ctx)
 {
 	cache_ref.clear();
 
+	// By iterating this smaller, pre-filtered list, we avoid redundant checks
+	// and make the function much faster.
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 	{
 		const size_t i = static_cast<size_t>(monster_info->typeId);
 
-		// Most compatibility checks are already done. We only need to check
-		// for spawn point type (flying/ground).
-		if (g_monsterData.minWaves[i] > ctx.effectiveLevel)
+		if (g_monsterData.minWaves[i] > ctx.effectiveLevel) {
 			continue;
+		}
 
 		const bool monster_is_flying = IsFlying(monster_info->typeId);
-		if (ctx.isSpawnPointFlying && !monster_is_flying)
+		if (ctx.isSpawnPointFlying && !monster_is_flying) {
 			continue;
+		}
 
-		// The monster is compatible, calculate its weight.
 		float weight = CalculateBaseWeight(i, ctx);
 		weight = ApplySpecialModifiers(weight, i, ctx);
 		cache_ref.addMonster(monster_info->typeId, weight);
@@ -3496,7 +3502,7 @@ void Horde_Init()
 static item_id_t SelectBossWeaponDrop(int32_t wave_level)
 {
 	// Define potential weapon drops with their minimum required wave level
-	static const std::array<std::pair<item_id_t, int32_t>, 8> boss_weapon_drops = {{
+	static const std::array<std::pair<item_id_t, int32_t>, 8> boss_weapon_drops = { {
 		{IT_WEAPON_HYPERBLASTER, 9},
 		{IT_WEAPON_RLAUNCHER, 9},
 		{IT_WEAPON_PHALANX, 9},	   // Xatrix
@@ -3505,40 +3511,37 @@ static item_id_t SelectBossWeaponDrop(int32_t wave_level)
 		{IT_WEAPON_RAILGUN, 9},	   // Moved slightly later
 		{IT_WEAPON_DISRUPTOR, 9}, // Rogue (originally disintegrator)
 		{IT_WEAPON_BFG, 9}		   // Moved slightly later
-	}};
+	} };
 
-	// Collect weapons eligible for the current wave level
-	std::vector<item_id_t> eligible_weapons;
-	eligible_weapons.reserve(boss_weapon_drops.size()); // Pre-allocate memory
+	// Use a stack-allocated array to store indices of eligible weapons, avoiding heap allocation.
+	std::array<size_t, boss_weapon_drops.size()> eligible_indices;
+	size_t eligible_count = 0;
 
-	for (const auto &[weapon_id, min_level] : boss_weapon_drops)
+	for (size_t i = 0; i < boss_weapon_drops.size(); ++i)
 	{
-		if (wave_level >= min_level)
+		if (wave_level >= boss_weapon_drops[i].second)
 		{
-			eligible_weapons.push_back(weapon_id);
+			// Store the index 'i' if the weapon is eligible.
+			eligible_indices[eligible_count++] = i;
 		}
 	}
 
 	// If no weapons are eligible, return IT_NULL
-	if (eligible_weapons.empty())
+	if (eligible_count == 0)
 	{
 		return IT_NULL;
 	}
 
-	// Select a random weapon from the eligible list
-	// FIX: Cast the signed result of irandom to the unsigned size_t.
-	// Also cast the size() result to int32_t for the irandom parameter for full correctness.
-	size_t random_index = static_cast<size_t>(irandom(static_cast<int32_t>(eligible_weapons.size())));
-	
-	// Safety check (shouldn't be needed with correct random range)
-	if (random_index >= eligible_weapons.size())
-	{
-		return IT_NULL;
-	}
+	// Select a random index from our list of eligible indices.
+	const size_t random_eligible_index = static_cast<size_t>(irandom(static_cast<int32_t>(eligible_count)));
 
-	return eligible_weapons[random_index];
+	// Get the actual index into the main weapon drop array.
+	const size_t chosen_weapon_array_index = eligible_indices[random_eligible_index];
+
+	// Return the ID of the chosen weapon.
+	return boss_weapon_drops[chosen_weapon_array_index].first;
 }
-// --- Modified BossDeathHandler using item_id_t ---
+
 
 // Constants for item dropping physics (if not defined globally)
 constexpr int MIN_VELOCITY = -800;
@@ -5459,7 +5462,7 @@ static edict_t *FindSafeTeleportDestination(edict_t *self)
 	return best_spot;
 }
 
-bool CheckAndTeleportStuckMonster(edict_t *self)
+bool CheckAndTeleportStuckMonster(edict_t* self)
 {
 	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 
@@ -5494,7 +5497,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 
 	// --- 3. Determine if Teleport is Needed ---
 	bool needs_teleport = false;
-	const char *reason_str = "Unknown";
+	const char* reason_str = "Unknown";
 
 	if (gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid)
 	{
@@ -5530,7 +5533,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		if (!needs_teleport && self->max_health > 0)
 		{
 			gtime_t timeout_duration = (self->health < self->max_health) ? HordeConstants::DAMAGED_MONSTER_INACTIVITY_TIMEOUT : HordeConstants::NO_DAMAGE_TIMEOUT;
-			const char *timeout_reason = (self->health < self->max_health) ? "Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
+			const char* timeout_reason = (self->health < self->max_health) ? "Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
 			if (level.time > self->monsterinfo.react_to_damage_time + timeout_duration)
 			{
 				needs_teleport = true;
@@ -5548,7 +5551,7 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 	// --- 4. Find Teleport Destination & Execute ---
 	vec3_t dest_origin = vec3_origin;
 	vec3_t dest_angles = self->s.angles;
-	edict_t *used_spawn_point = FindSafeTeleportDestination(self);
+	edict_t* used_spawn_point = FindSafeTeleportDestination(self);
 
 	if (used_spawn_point)
 	{
@@ -5571,13 +5574,13 @@ bool CheckAndTeleportStuckMonster(edict_t *self)
 		MarkPositionAsRecentlyTeleported(self->s.origin);
 		if (used_spawn_point)
 		{
-            // --- THIS IS THE FIX ---
-            // Check if the key exists before trying to access the map.
-            if (g_spawn_point_map.count(used_spawn_point->s.number)) {
-			    const uint16_t index = g_spawn_point_map.at(used_spawn_point->s.number);
-			    g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
-            }
-            // --- END OF FIX ---
+			// --- THIS IS THE FIX ---
+			// Check if the key exists before trying to access the map.
+			if (g_spawn_point_map.count(used_spawn_point->s.number)) {
+				const uint16_t index = g_spawn_point_map.at(used_spawn_point->s.number);
+				g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
+			}
+			// --- END OF FIX ---
 		}
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.was_stuck = false;
@@ -7324,24 +7327,21 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	return true;
 }
 
-// --- MODIFIED ---
-// This function now contains the main JIT (Just-In-Time) precaching logic.
-// It runs before each wave to load only the assets needed for that specific wave.
 static void Horde_InitLevel(const int32_t lvl)
 {
 
 	// Build the map of spawn points once, right before the first wave,
-    // ensuring all map entities have been loaded.
-    if (g_spawn_map_needs_build) {
-        BuildSpawnPointMap();
-        g_spawn_map_needs_build = false;
-    }
+	// ensuring all map entities have been loaded.
+	if (g_spawn_map_needs_build) {
+		BuildSpawnPointMap();
+		g_spawn_map_needs_build = false;
+	}
 
-    g_spawn_plan.clear();
-    g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
-    g_horde_retaliation_active = false; // Keep this for now
-    g_horde_retaliation_end_time = 0_sec;
-    g_horde_retaliation_target_player = nullptr;
+	g_spawn_plan.clear();
+	g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
+	g_horde_retaliation_active = false; // Keep this for now
+	g_horde_retaliation_end_time = 0_sec;
+	g_horde_retaliation_target_player = nullptr;
 	ResetChampionMonsterState();
 	waves_since_ambush++;
 
@@ -7361,20 +7361,24 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	g_eligible_monsters_for_wave.clear();
 	g_eligible_item_indices_for_wave.clear();
-	// NOTE: We still build g_eligible_monsters_for_wave because it's a *filtered subset*
-	// of all monsters, which is useful for the JIT precacher loop that follows.
-	// The iteration to build it is now more cache-friendly.
-	 g_eligible_monsters_for_wave.reserve(MONSTER_DATA_COUNT);
+
+	g_eligible_monsters_for_wave.reserve(MONSTER_DATA_COUNT);
+
+	// --- THIS IS THE LOGIC FIX ---
+	// We now build the eligible list by considering monsters up to the current level
+	// PLUS the maximum possible boost from the elite spawn mechanic. This ensures
+	// that potential elite monsters are included in the list for the JIT precacher
+	// and the monster picker.
+	const int32_t max_level_for_eligibility = current_wave_level + MAX_EFFECTIVE_LEVEL_BOOST;
+
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
-		// Use the original monsterTypes array here, as it's sorted by minWave,
-		// which allows for the efficient 'break' statement. This is a hybrid approach
-		// that gets the best of both worlds for this specific function.
-		const auto &monster = monsterTypes[i];
+		const auto& monster = monsterTypes[i];
 
-		if (monster.minWave > current_wave_level)
+		// The loop now correctly includes monsters that might be chosen as elites.
+		if (monster.minWave > max_level_for_eligibility)
 		{
-			break; // This optimization is why we still use monsterTypes here
+			break;
 		}
 
 		if (IsValidMonsterForWave(monster.typeId, current_wave_type))
@@ -7382,12 +7386,11 @@ static void Horde_InitLevel(const int32_t lvl)
 			g_eligible_monsters_for_wave.push_back(&monster);
 		}
 	}
-	// g_eligible_item_indices_for_wave
+	// --- END OF FIX ---
+
 	g_eligible_item_indices_for_wave.reserve(g_hordeItemDataSoA.NUM_ITEMS); // Pre-allocate memory
 	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)
 	{
-		// The filter condition is simple: is the current wave level
-		// greater than or equal to the item's minimum required wave?
 		if (lvl >= g_hordeItemDataSoA.minWaves[i])
 		{
 			g_eligible_item_indices_for_wave.push_back(i);
@@ -7397,28 +7400,26 @@ static void Horde_InitLevel(const int32_t lvl)
 	if (developer->integer)
 	{
 		gi.Com_PrintFmt("Horde_InitLevel: Built cache with {} eligible monsters for wave {}.\n",
-						g_eligible_monsters_for_wave.size(), current_wave_level);
+			g_eligible_monsters_for_wave.size(), current_wave_level);
 	}
 
-// --- 4. JIT PRECACHE LOGIC ---
+	// --- 4. JIT PRECACHE LOGIC ---
 	if (developer->integer)
 	{
 		gi.Com_PrintFmt("Horde_InitLevel (Wave {}): Checking for monsters to precache...\n", lvl);
 	}
-	for (const MonsterTypeInfo *monster_info : g_eligible_monsters_for_wave)
+	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 	{
-        // OLD: if (g_precached_monster_types.find(monster_info->typeId) == g_precached_monster_types.end())
-        // NEW: Check the flag directly from our array. No hashing, no memory access indirection.
 		if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 		{
-			const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
+			const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
 			if (classname && *classname)
 			{
 				if (developer->integer)
 				{
 					gi.Com_PrintFmt("JIT Precache: Loading assets for '{}' for wave {}.\n", classname, lvl);
 				}
-				edict_t *temp_monster = G_Spawn();
+				edict_t* temp_monster = G_Spawn();
 				if (temp_monster)
 				{
 					temp_monster->classname = classname;
@@ -7428,8 +7429,6 @@ static void Horde_InitLevel(const int32_t lvl)
 					{
 						G_FreeEdict(temp_monster);
 					}
-                    // OLD: g_precached_monster_types.insert(monster_info->typeId);
-                    // NEW: Set the flag to true. This is a simple, fast array write.
 					g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
 				}
 			}
@@ -7489,7 +7488,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	if (developer->integer)
 	{
 		gi.Com_PrintFmt("Horde_InitLevel: Wave {}. num_to_spawn: {}, queued: {}. Total for wave: {}\n",
-						lvl, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, g_totalMonstersInWave);
+			lvl, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, g_totalMonstersInWave);
 	}
 
 	CheckAndApplyBenefit(lvl);
