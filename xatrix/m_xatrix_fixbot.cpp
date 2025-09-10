@@ -1401,77 +1401,90 @@ THINK(plasma_fixbot_think) (edict_t* self) -> void
 		return;
 	}
 
-	// If we've passed the initial flight phase or have a target already
-	vec3_t const fwd = AngleVectors(self->s.angles).forward;
+	// --- PERFORMANCE MODIFICATION ---
+	// Only search for a new target if the current one is invalid OR the search timer has expired.
+	// self->monsterinfo.search_time is now used as next_search_time.
+	bool search_for_new_target = (!M_HasValidTarget(self) || (level.time > self->monsterinfo.search_time));
 
-	if (self->oldenemy)
+	if (search_for_new_target)
 	{
-		self->enemy = self->oldenemy;
-		self->oldenemy = nullptr;
-	}
+		// Set the next search time. This throttles the expensive findradius loop.
+		self->monsterinfo.search_time = level.time + 200_ms; // Search every 0.2 seconds
+		acquire = nullptr; // Clear current target to force a new search
+		vec3_t const fwd = AngleVectors(self->s.angles).forward;
 
-	// Check if current enemy is still valid
-	if (self->enemy)
-	{
-		acquire = self->enemy;
-
-		if (acquire->health <= 0 || !visible(self, acquire))
+		if (self->oldenemy)
 		{
-			self->enemy = acquire = nullptr;
+			self->enemy = self->oldenemy;
+			self->oldenemy = nullptr;
 		}
-	}
 
-	if (!acquire)
-	{
-		// Acquire new target
-		edict_t* target = nullptr;
-
-		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
+		// Check if current enemy is still valid
+		if (self->enemy)
 		{
-			// Skip owner
-			if (self->owner == target)
-				continue;
-			if (!target->client)
-				continue;
-			if (target->health <= 0)
-				continue;
-			if (!visible(self, target))
-				continue;
-			// Skip teammates
-			if (OnSameTeam(self->owner, target))
-				continue;
+			acquire = self->enemy;
 
-			vec3_t vec = self->s.origin - target->s.origin;
-			float len = vec.length();
-			if (len > 0.1f) vec.normalize(); // Safety normalize
-			float dot = vec.dot(fwd);
-
-			// Targets that require less turning are preferred
-			if (dot >= olddot)
-				continue;
-
-			if (acquire == nullptr || dot < olddot || len < oldlen)
+			if (acquire->health <= 0 || !visible(self, acquire))
 			{
-				acquire = target;
-				oldlen = len;
-				olddot = dot;
+				self->enemy = acquire = nullptr;
 			}
 		}
-	}
 
-	if (acquire != nullptr)
+		if (!acquire)
+		{
+			// Acquire new target
+			edict_t* target = nullptr;
+
+			while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
+			{
+				// Skip owner
+				if (self->owner == target)
+					continue;
+				if (!target->client)
+					continue;
+				if (target->health <= 0)
+					continue;
+				if (!visible(self, target))
+					continue;
+				// Skip teammates
+				if (OnSameTeam(self->owner, target))
+					continue;
+
+				vec3_t vec = self->s.origin - target->s.origin;
+				float len = vec.length();
+				if (len > 0.1f) vec.normalize(); // Safety normalize
+				float dot = vec.dot(fwd);
+
+				// Targets that require less turning are preferred
+				if (dot >= olddot)
+					continue;
+
+				if (acquire == nullptr || dot < olddot || len < oldlen)
+				{
+					acquire = target;
+					oldlen = len;
+					olddot = dot;
+				}
+			}
+		}
+
+		// If we found a new target that's different from the old one, play a sound.
+		if (acquire && acquire != self->enemy)
+		{
+			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+		}
+		self->enemy = acquire; // Assign the best target found (could be nullptr)
+	}
+	// --- END MODIFICATION ---
+
+	// This part runs every frame, but the expensive target acquisition is now throttled.
+	if (M_HasValidTarget(self)) // Only update aim direction if we have a valid target
 	{
-		vec3_t vec = (acquire->s.origin - self->s.origin).normalized();
+		vec3_t vec = (self->enemy->s.origin - self->s.origin).normalized();
 		float t = self->accel;
 
 		self->movedir = slerp(self->movedir, vec, t).normalized();
 		self->s.angles = vectoangles(self->movedir);
-
-		if (self->enemy != acquire)
-		{
-			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
-			self->enemy = acquire;
-		}
 	}
 
 	// Update velocity based on new direction

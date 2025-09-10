@@ -287,80 +287,81 @@ void flyer_kamikaze_check(edict_t* self)
 
 static void flyer_checkstrafe(edict_t* self)
 {
-    // --- Tunable Parameters ---
-    // The forward speed of the flyer during its attack run.
-    constexpr float FORWARD_ATTACK_SPEED = 350.0f;
-    // How far to the side the flyer checks for walls before strafing.
-    constexpr float STRAFE_CHECK_DISTANCE = 192.0f;
-    // The base speed for the strafe.
-    constexpr float BASE_STRAFE_SPEED = 300.0f;
-    // The random additional speed for the strafe.
-    constexpr float RANDOM_STRAFE_SPEED = 200.0f;
+	// --- Tunable Parameters ---
+	// The forward speed of the flyer during its attack run.
+	constexpr float FORWARD_ATTACK_SPEED = 350.0f;
+	// How far to the side the flyer checks for walls before strafing.
+	constexpr float STRAFE_CHECK_DISTANCE = 192.0f;
+	// The base speed for the strafe.
+	constexpr float BASE_STRAFE_SPEED = 300.0f;
+	// The random additional speed for the strafe.
+	constexpr float RANDOM_STRAFE_SPEED = 200.0f;
 
-    // Validate enemy exists and is visible
-    if (!self->enemy || !visible(self, self->enemy))
-        return;
+	// Validate enemy exists and is visible
+	if (!self->enemy || !visible(self, self->enemy))
+		return;
 
-    const float range = range_to(self, self->enemy);
-    if (range > RANGE_MID) // Only perform this maneuver at mid-range or closer
-        return;
+	const float range = range_to(self, self->enemy);
+	if (range > RANGE_MID) // Only perform this maneuver at mid-range or closer
+		return;
 
-    // --- Strafe Decision Logic ---
-    float strafe_chance = 0.5f; // Base chance to try strafing
-    if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-        strafe_chance += 0.25f; // More likely to dodge if player is firing
-    if (self->health < self->max_health * 0.65f)
-        strafe_chance += 0.4f; // More likely to dodge if wounded
+	// --- Strafe Decision Logic ---
+	float strafe_chance = 0.5f; // Base chance to try strafing
+	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+		strafe_chance += 0.25f; // More likely to dodge if player is firing
+	if (self->health < self->max_health * 0.65f)
+		strafe_chance += 0.4f; // More likely to dodge if wounded
 
-    if (frandom() < strafe_chance)
-    {
-        vec3_t forward, right;
-        AngleVectors(self->s.angles, forward, right, nullptr);
+	if (frandom() < strafe_chance)
+	{
+		vec3_t forward, right;
+		AngleVectors(self->s.angles, forward, right, nullptr);
 
-        // Ensure vectors are valid before proceeding
-        if (!is_valid_vector(right) || !is_valid_vector(forward)) {
-            return;
-        }
-        right.normalize();
-        forward.normalize();
+		// Ensure vectors are valid before proceeding
+		if (!is_valid_vector(right) || !is_valid_vector(forward)) {
+			return;
+		}
+		// PERFORMANCE: AngleVectors already returns normalized vectors.
+		// right.normalize();
+		// forward.normalize();
 
-        // --- Intelligent Strafe Direction Check ---
-        // 1. Randomly pick a preferred direction (-1 for left, 1 for right)
-        float strafe_direction = (frandom() < 0.5f) ? -1.0f : 1.0f;
+		// --- Intelligent Strafe Direction Check ---
+		// 1. Randomly pick a preferred direction (-1 for left, 1 for right)
+		float strafe_direction = (frandom() < 0.5f) ? -1.0f : 1.0f;
 
-        // 2. Check if the preferred direction is clear
-        vec3_t check_end = self->s.origin + (right * strafe_direction * STRAFE_CHECK_DISTANCE);
-        trace_t tr = gi.traceline(self->s.origin, check_end, self, MASK_MONSTERSOLID);
+		// 2. Check if the preferred direction is clear
+		vec3_t check_end = self->s.origin + (right * strafe_direction * STRAFE_CHECK_DISTANCE);
+		trace_t tr = gi.traceline(self->s.origin, check_end, self, MASK_MONSTERSOLID);
 
-        if (tr.fraction < 1.0f) // The path is blocked
-        {
-            // 3. Try the other direction
-            strafe_direction *= -1.0f; // Flip direction
-            check_end = self->s.origin + (right * strafe_direction * STRAFE_CHECK_DISTANCE);
-            tr = gi.traceline(self->s.origin, check_end, self, MASK_MONSTERSOLID);
+		if (tr.fraction < 1.0f) // The path is blocked
+		{
+			// 3. Try the other direction
+			strafe_direction *= -1.0f; // Flip direction
+			check_end = self->s.origin + (right * strafe_direction * STRAFE_CHECK_DISTANCE);
+			tr = gi.traceline(self->s.origin, check_end, self, MASK_MONSTERSOLID);
 
-            if (tr.fraction < 1.0f) // Both directions are blocked
-            {
-                return; // Abort the strafe entirely
-            }
-        }
+			if (tr.fraction < 1.0f) // Both directions are blocked
+			{
+				return; // Abort the strafe entirely
+			}
+		}
 
-        // --- Apply Strafe ---
-        // At this point, 'strafe_direction' is guaranteed to be a clear path.
-        const float strafe_speed = BASE_STRAFE_SPEED + (frandom() * RANDOM_STRAFE_SPEED);
-        const float vertical_velocity = self->velocity.z; // Preserve existing vertical speed
+		// --- Apply Strafe ---
+		// At this point, 'strafe_direction' is guaranteed to be a clear path.
+		const float strafe_speed = BASE_STRAFE_SPEED + (frandom() * RANDOM_STRAFE_SPEED);
+		const float vertical_velocity = self->velocity.z; // Preserve existing vertical speed
 
-        // Construct a new velocity instead of adding to the old one.
-        // This prevents runaway speed buildup from ai_charge and this function.
-        self->velocity = (forward * FORWARD_ATTACK_SPEED) + (right * strafe_direction * strafe_speed);
-        self->velocity.z = vertical_velocity; // Restore vertical speed
+		// Construct a new velocity instead of adding to the old one.
+		// This prevents runaway speed buildup from ai_charge and this function.
+		self->velocity = (forward * FORWARD_ATTACK_SPEED) + (right * strafe_direction * strafe_speed);
+		self->velocity.z = vertical_velocity; // Restore vertical speed
 
-        // Set lefty for compatibility with any other code that might check it
-        self->monsterinfo.lefty = (strafe_direction < 0);
-        
-        // Prevent the AI from making another move too quickly
-        self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 1.3_sec);
-    }
+		// Set lefty for compatibility with any other code that might check it
+		self->monsterinfo.lefty = (strafe_direction < 0);
+
+		// Prevent the AI from making another move too quickly
+		self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 1.3_sec);
+	}
 }
 
 void flyer_rocket(edict_t* self)

@@ -566,18 +566,18 @@ void berserk_zap_enemies(edict_t* self)
 
 	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	
+
 	// Coordinates for the Berserker's raised LEFT hand.
-	vec3_t const zap_origin = G_ProjectSource(self->s.origin, {25.f, -20.f, 40.f}, forward, right);
+	vec3_t const zap_origin = G_ProjectSource(self->s.origin, { 25.f, -20.f, 40.f }, forward, right);
 
 	int targets_hit = 0;
 
 	// --- 1. Prioritize the main enemy ---
-		if (DistanceSquared(self->s.origin, self->enemy->s.origin) <= BERSERK_ZAP_RADIUS_SQUARED)
-		{
-			berserk_fire_bolt(self, self->enemy, zap_origin);
-			targets_hit++;
-		}
+	if (DistanceSquared(self->s.origin, self->enemy->s.origin) <= BERSERK_ZAP_RADIUS_SQUARED)
+	{
+		berserk_fire_bolt(self, self->enemy, zap_origin);
+		targets_hit++;
+	}
 
 	// --- 2. Find other nearby targets ---
 	edict_t* target = nullptr;
@@ -588,7 +588,8 @@ void berserk_zap_enemies(edict_t* self)
 
 		if (!target->inuse || target->health <= 0 || !target->takedamage)
 			continue;
-		
+
+		// PERFORMANCE: Skip the main enemy, as it was already processed.
 		if (target == self || target == self->enemy || OnSameTeam(self, target))
 			continue;
 

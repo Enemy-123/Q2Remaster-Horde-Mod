@@ -478,7 +478,7 @@ bool spider_do_pounce(edict_t* self, const vec3_t& dest)
     M_ChangeYaw(self);
 
     // Calculate length once and use it to normalize the direction vector,
-    // avoiding a second square root calculation inside normalized().
+    // avoiding a second square root calculation.
     length = dist.length();
     if (length > 450 || length < 1.0f) // Check for max distance and near-zero distance to prevent division by zero
         return false;
