@@ -535,11 +535,11 @@ PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 
     // --- FIX: Add safety check for the owner ---
     // If the owner (the soldier) is dead or gone, the laser should remove itself.
-    if (!self || !self->inuse || self->health <= 0)
-    {
-        G_FreeEdict(laser);
-        return;
-    }
+	if (!self || !self->inuse || self->health <= 0)
+	{
+		//beam_think(laser); // Use the safe removal function //just a return would be ok maybe?
+		return;
+	}
     // --- END FIX ---
 
 	vec3_t forward, right, up;
