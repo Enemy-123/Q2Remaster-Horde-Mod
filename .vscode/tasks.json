@@ -4,8 +4,9 @@
         {
             "label": "Build: Debug (for GDB)",
             "type": "shell",
-            "command": "${workspaceFolder}/build_mingw.sh",
+            "command": "python3",
             "args": [
+                "${workspaceFolder}/build.py",
                 "${input:deployPathInput}",
                 "Debug"
             ],
@@ -22,8 +23,9 @@
         {
             "label": "Build: Release (for distribution)",
             "type": "shell",
-            "command": "${workspaceFolder}/build_mingw.sh",
+            "command": "python3",
             "args": [
+                "${workspaceFolder}/build.py",
                 "${input:deployPathInput}",
                 "Release"
             ],
@@ -43,8 +45,9 @@
         {
             "label": "Build: RelWithDebInfo (optimized with symbols)",
             "type": "shell",
-            "command": "${workspaceFolder}/build_mingw.sh",
+            "command": "python3",
             "args": [
+                "${workspaceFolder}/build.py",
                 "${input:deployPathInput}",
                 "RelWithDebInfo"
             ],
@@ -61,8 +64,9 @@
         {
             "label": "Build: DebugASan (with AddressSanitizer)",
             "type": "shell",
-            "command": "${workspaceFolder}/build_mingw.sh",
+            "command": "python3",
             "args": [
+                "${workspaceFolder}/build.py",
                 "${input:deployPathInput}",
                 "DebugASan"
             ],
