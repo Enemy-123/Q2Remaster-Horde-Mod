@@ -420,7 +420,7 @@ THINK(tesla_activate)(edict_t *self)->void
 
 	self->think = tesla_think_active;
 	self->nextthink = level.time + FRAME_TIME_S + gtime_t::from_sec(frandom() * 0.1f);
-	self->air_finished = level.time + TESLA_TIME_TO_LIVE;
+	self->air_finished = level.time + TeslaConstants::TIME_TO_LIVE;
 
 	self->monsterinfo.attack_finished = level.time;
 	self->monsterinfo.medicTries = 0;
@@ -651,7 +651,7 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 		tesla->team = "neutral"; // O cualquier valor por defecto que quieras
 	}
 
-	tesla->wait = (level.time + TESLA_TIME_TO_LIVE).seconds();
+	tesla->wait = (level.time + TeslaConstants::TIME_TO_LIVE).seconds();
 	tesla->think = tesla_think;
 	tesla->nextthink = level.time + TESLA_ACTIVATE_TIME;
 	tesla->timestamp = level.time;

@@ -148,7 +148,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
         switch (special_id) {
             case horde::SpecialEntityTypeID::TESLA_MINE: {
                 gtime_t const time_active = level.time - stats_source->timestamp;
-                gtime_t const time_remaining = TESLA_TIME_TO_LIVE - time_active;
+                gtime_t const time_remaining = TeslaConstants::TIME_TO_LIVE - time_active;
                 
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
