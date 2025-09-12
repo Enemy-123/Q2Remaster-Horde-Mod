@@ -124,6 +124,9 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 
 	base->monsterinfo.issummoned = true;
 
+    base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));
+    g_targetable_special_entities.push_back(base);
+
 	gi.linkentity(base);
 
 	body = G_Spawn();
@@ -140,7 +143,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	body->think = body_think;
 	body->nextthink = level.time + FRAME_TIME_MS;
 	body->monsterinfo.issummoned = true;
-    body->classname = "doppleganger"; 
+    body->classname = "doppleganger";  //this is the visual, shouldn't get stats from id view here
 	
 	gi.linkentity(body);
 
@@ -150,8 +153,6 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	// [Paril-KEX]
 	body->owner = ent;
 	//base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));
-	body->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(body->classname));
-    g_targetable_special_entities.push_back(body);
 
 	gi.sound(body, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 }
