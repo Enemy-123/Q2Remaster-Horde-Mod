@@ -140,6 +140,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	body->think = body_think;
 	body->nextthink = level.time + FRAME_TIME_MS;
 	body->monsterinfo.issummoned = true;
+    body->classname = "doppleganger"; 
 	
 	gi.linkentity(body);
 
