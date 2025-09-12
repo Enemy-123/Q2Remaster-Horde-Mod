@@ -142,7 +142,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
 
         edict_t* stats_source = ent;
         if (special_id == horde::SpecialEntityTypeID::DOPPLEGANGER && ent->teammaster && ent->teammaster->inuse) {
-            stats_source = ent;
+            stats_source = ent->teammaster;
         }
 
         const char* name = GetDisplayName_Fast(ent);
