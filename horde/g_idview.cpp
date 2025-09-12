@@ -272,15 +272,18 @@ struct TargetSearchResult {
         checkEntity(who);
     }
 
+    // --- final visibility check ---
     if (best_candidate) {
-        result.target = best_candidate;
-        vec3_t dir = best_candidate->s.origin - viewer_pos;
-        result.distance = dir.length();
+        trace_t const tr = gi.traceline(viewer_pos, best_candidate->s.origin, ent, MASK_SOLID);
+        if (tr.fraction == 1.0f || tr.ent == best_candidate) {
+            // It's visible! This is our target.
+            result.target = best_candidate;
+            result.distance = (best_candidate->s.origin - viewer_pos).length();
+        }
     }
     
-    // 
     return result;
-} //
+}
 
 
 void SetIDView(edict_t* ent) {
