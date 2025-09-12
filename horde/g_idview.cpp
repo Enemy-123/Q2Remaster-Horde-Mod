@@ -2,6 +2,11 @@
 #include <queue>
 #include <sstream>
 #include <span>
+#include <array> // Included for std::array
+#include <cmath> // Included for sqrtf
+
+// Assuming gtime_t and other game-specific types are defined in "shared.h"
+// Also assuming fmt library is available and configured.
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 
@@ -74,8 +79,7 @@ EntityType GetEntityType(const edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) return EntityType::Monster;
 	return EntityType::Other;
 }
-// // This function now uses the fully refactored ID-based display name system.
-// Corrected version of the function
+
 const char* FormatEntityInfo_Fast(edict_t* ent) {
     static char info_buffer[256];
 
@@ -84,7 +88,6 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
         return info_buffer;
     }
 
-    // Use a pointer to the start of the buffer as our output iterator
     char* out = info_buffer;
     char* const end = info_buffer + sizeof(info_buffer);
 
@@ -94,15 +97,12 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
     case EntityType::Monster: {
         const char* full_name = GetDisplayName_Fast(ent);
         
-        
         out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", full_name, ent->health).out;
 
         if (ent->monsterinfo.armor_power >= 1) {
-            
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " A: {}", ent->monsterinfo.armor_power).out;
         }
         if (ent->monsterinfo.power_armor_power >= 1) {
-            
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " PA: {}", ent->monsterinfo.power_armor_power).out;
         }
 
@@ -115,7 +115,6 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
         }};
         for (const auto& powerup : powerups) {
             if (powerup.time > level.time) {
-                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\n{}: {}s", powerup.label, GetRemainingTime<float>(level.time, powerup.time)).out;
             }
         }
@@ -129,7 +128,6 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
 
         int armor_value = GetArmorInfo(ent);
         if (armor_value > 0) {
-            
             out = fmt::format_to_n(out, static_cast<size_t>(end - out), " A: {}", armor_value).out;
         }
         break;
@@ -169,10 +167,8 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
                 
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, health_to_display).out;
                 if (beam && beam->inuse) {
-                    
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " DMG: {}", beam->dmg).out;
                     gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
-                    
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 }
                 break;
@@ -184,7 +180,6 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
                 break;
             }
             default:
-                
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, stats_source->health).out;
                 break;
         }
@@ -192,22 +187,21 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
     }
     }
 
-    // Null-terminate the buffer safely.
     if (out < end) {
         *out = '\0';
     } else {
-        *(end - 1) = '\0'; // Ensure termination even if buffer was completely filled
+        *(end - 1) = '\0';
     }
 
     return info_buffer;
 }
 
 struct IDViewConfig {
-	static constexpr gtime_t UPDATE_INTERVAL = 108_ms; // How often to run the check (about 9 times/sec)
-	static constexpr float MAX_DISTANCE = 2048.0f;     // Max distance to identify a target
-	static constexpr float MIN_DOT = 0.98f;            // How close to the crosshair a target must be (higher is stricter)
-	static constexpr float CLOSE_DISTANCE = 100.0f;    // A closer distance for a wider check angle
-	static constexpr float CLOSE_MIN_DOT = 0.5f;       // A wider angle for very close targets
+	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
+	static constexpr float MAX_DISTANCE = 2048.0f;
+	static constexpr float MIN_DOT = 0.98f;
+	static constexpr float CLOSE_DISTANCE = 100.0f;
+	static constexpr float CLOSE_MIN_DOT = 0.5f;
 };
 
 [[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
@@ -225,54 +219,52 @@ struct IDViewConfig {
 
 struct TargetSearchResult {
 	edict_t* target{ nullptr };
-	float distance::MAX_DISTANCE };
+	// CORRECTED: Proper C++11 member initialization syntax.
+	float distance{ IDViewConfig::MAX_DISTANCE };
 };
 
-// Optimized Linear Scan
 [[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) noexcept {
     TargetSearchResult result;
     vec3_t const& viewer_pos = ent->s.origin;
     
     edict_t* best_candidate = nullptr;
-    float best_score = -1.0f; // Use a score instead of just distance
+    float best_score = -1.0f;
 
     auto checkEntity = [&](edict_t* who) {
-        if (!IsValidTarget(ent, who, false)) { // The 'false' skips the visibility check in IsValidTarget
+        if (!IsValidTarget(ent, who, false)) {
             return;
         }
 
         vec3_t dir = who->s.origin - viewer_pos;
-        float const dist_sq = dir.lengthSquared(); // Use squared distance to avoid sqrt
+        float const dist_sq = dir.lengthSquared();
 
-        // Use a generous max distance check to quickly discard far away entities
-        static constexpr float MAX_DISTANCE_SQ ::MAX_DISTANCE ::MAX_DISTANCE;
+        // CORRECTED: Used multiplication (*) instead of scope operator (::) and added scope.
+        static constexpr float MAX_DISTANCE_SQ = IDViewConfig::MAX_DISTANCE * IDViewConfig::MAX_DISTANCE;
         if (dist_sq > MAX_DISTANCE_SQ) {
             return;
         }
 
-        dir.normalize(); // Normalize only after distance check
+        dir.normalize();
         float const dot = forward.dot(dir);
 
-        // Determine the minimum required dot product based on distance
-        static constexpr float CLOSE_DISTANCE_SQ ::CLOSE_DISTANCE ::CLOSE_DISTANCE;
+        // CORRECTED: Used multiplication (*) instead of scope operator (::) and added scope.
+        static constexpr float CLOSE_DISTANCE_SQ = IDViewConfig::CLOSE_DISTANCE * IDViewConfig::CLOSE_DISTANCE;
+        // CORRECTED: Used proper ternary operator syntax (? :) and added scope.
         float const min_dot = (dist_sq < CLOSE_DISTANCE_SQ)
-            ::CLOSE_MIN_DOT
-            ::MIN_DOT;
+            ? IDViewConfig::CLOSE_MIN_DOT
+            : IDViewConfig::MIN_DOT;
 
         if (dot < min_dot) {
             return;
         }
 
-        // Calculate a score. Higher dot product is better, lower distance is better.
-        // We prioritize dot product heavily.
-        float score = (dot * 1000.0f) - sqrtf(dist_sq); // sqrt is slow, but we only do it for valid candidates
+        float score = (dot * 1000.0f) - sqrtf(dist_sq);
         if (score > best_score) {
             best_score = score;
             best_candidate = who;
         }
     };
 
-    // --- The same iteration logic as before ---
     for (edict_t* who : active_players()) {
         checkEntity(who);
     }
@@ -284,4 +276,13 @@ struct TargetSearchResult {
         checkEntity(who);
     }
 
- 
+    // ADDED: Populate the result object before returning.
+    if (best_candidate) {
+        result.target = best_candidate;
+        vec3_t dir = best_candidate->s.origin - viewer_pos;
+        result.distance = dir.length();
+    }
+    
+    // ADDED: Missing return statement.
+    return result;
+} // ADDED: Missing closing brace for the function.
