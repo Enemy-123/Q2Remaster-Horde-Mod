@@ -452,7 +452,7 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 	}
 	g_spawnPointsData.lastSpawnTime[index] = level.time;
 }
-
+//s
 void OnSuccessfulSpawn(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
