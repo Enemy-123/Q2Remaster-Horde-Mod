@@ -16,9 +16,7 @@
                 "panel": "new",
                 "clear": true
             },
-            "problemMatcher": [
-                "$gcc"
-            ]
+            "problemMatcher": []
         },
         {
             "label": "Build: Release (for distribution)",
@@ -38,9 +36,7 @@
                 "panel": "new",
                 "clear": true
             },
-            "problemMatcher": [
-                "$gcc"
-            ]
+            "problemMatcher": []
         },
         {
             "label": "Build: RelWithDebInfo (optimized with symbols)",
@@ -86,7 +82,7 @@
             "id": "deployPathInput",
             "type": "promptString",
             "description": "Enter the absolute path for mod deployment",
-            "default": "/home/perrobjorn/Games/gog/quake-ii/drive_c/GOG Games/Quake II Enhanced/baseq2"
+           "default": "/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/"
         }
     ]
 }
