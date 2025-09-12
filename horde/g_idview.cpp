@@ -8,8 +8,6 @@
 // Assuming gtime_t and other game-specific types are defined in "shared.h"
 // Also assuming fmt library is available and configured.
 
-constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
-
 std::string FormatClassname(const std::string& classname) {
 	std::string result;
 	result.reserve(classname.length());

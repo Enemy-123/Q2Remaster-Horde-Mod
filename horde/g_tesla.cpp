@@ -5,7 +5,6 @@
 // TESLA - OPTIMIZED
 // *************************
 
-constexpr gtime_t TESLA_TIME_TO_LIVE = 60_sec;
 constexpr float TESLA_DAMAGE_RADIUS = 200;
 constexpr int32_t TESLA_DAMAGE = 4;
 constexpr int32_t TESLA_KNOCKBACK = 8;
