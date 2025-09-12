@@ -287,7 +287,7 @@ void SetIDView(edict_t* ent) {
 	// Throttling: Exit early if the function was called recently for this client,
 	// or if the game is in intermission. This is the primary performance control.
 	if (level.intermissiontime ||
-		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
+		level.time - ent->client->resp.lastidtime < IDViewConfig::UPDATE_INTERVAL) {
 		return;
 	}
 
@@ -295,7 +295,7 @@ void SetIDView(edict_t* ent) {
 	ent->client->resp.lastidtime = level.time;
 
 	// Determine the unique configstring index for this client's HUD.
-	int const client_cs = CONFIG_CTF_PLAYER_NAME + (ent - g_edicts - 1);
+	int const client_cs = CONFIG_ID_PLAYER_NAME + (ent - g_edicts - 1);
 
 	// Get the player's view direction.
 	vec3_t forward;
