@@ -366,10 +366,10 @@ void InitializeDisplayNames() {
     std::unordered_map<horde::SpecialEntityTypeID, const char*> special_id_to_name;
     special_id_to_name[horde::SpecialEntityTypeID::TESLA_MINE] = "Tesla Mine";
     special_id_to_name[horde::SpecialEntityTypeID::FOOD_CUBE_TRAP] = "Stroggonoff Maker";
-    special_id_to_name[horde::SpecialEntityTypeID::PROX_MINE] = "Prox Mine";
+    //special_id_to_name[horde::SpecialEntityTypeID::PROX_MINE] = "Prox Mine";
 	special_id_to_name[horde::SpecialEntityTypeID::TURRET] = "Turret";
     special_id_to_name[horde::SpecialEntityTypeID::SENTRY_GUN] = "Sentry Gun";
-    special_id_to_name[horde::SpecialEntityTypeID::NUKE_MINE] = "NUKE";
+    //special_id_to_name[horde::SpecialEntityTypeID::NUKE_MINE] = "NUKE";
     special_id_to_name[horde::SpecialEntityTypeID::LASER_EMITTER] = "Laser Emitter";
     special_id_to_name[horde::SpecialEntityTypeID::DOPPLEGANGER] = "Doppleganger";
     for (size_t i = 0; i < static_cast<size_t>(horde::SpecialEntityTypeID::COUNT); ++i) {

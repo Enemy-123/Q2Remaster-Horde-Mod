@@ -6,6 +6,7 @@
 #include <unordered_map> // Make sure this is included
 #include "horde/horde_ids.h"
 
+extern std::vector<edict_t*> g_targetable_special_entities;
 //TRAP
 
 // State for a single trap target

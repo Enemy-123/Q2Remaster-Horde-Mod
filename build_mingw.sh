@@ -10,7 +10,7 @@ BUILD_DIR="$SCRIPT_DIR/build"
 MINGW_TOOLCHAIN_FILE="$SCRIPT_DIR/mingw-w64-x86_64.cmake"
 VCPKG_TOOLCHAIN_FILE="$SCRIPT_DIR/vcpkg/scripts/buildsystems/vcpkg.cmake"
 
-# --- FAKE POWERSHELL WORKAROUND ---
+# --- FAKE POWERSHELL WORKAROUND --- ( is this needed ? )
 # Create a fake bin directory to hold our fake powershell
 mkdir -p "$SCRIPT_DIR/fake_bin"
 # Create a fake powershell.exe that does nothing and exits successfully

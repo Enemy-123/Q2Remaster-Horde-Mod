@@ -21,7 +21,8 @@ static std::unordered_map<int, uint16_t> g_spawn_point_map;
 std::unordered_map<int, trap_state_t> g_trap_states;
 std::unordered_map<int, EmitterState> g_emitter_states;
 
-
+//aiming for special entities for idview.cpp
+std::vector<edict_t*> g_targetable_special_entities;
 // Provides a direct list of spawn point edicts for easy iteration
 std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
@@ -4523,6 +4524,8 @@ void ResetGame()
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
+	//resetting idview special entities
+	g_targetable_special_entities.clear();
 	// recent spawns
 	g_recent_spawns.positions.fill(vec3_origin);
 	g_recent_spawns.cooldowns_until.fill(0_sec);

@@ -120,6 +120,8 @@ THINK(Trap_Gib_Think) (edict_t* ent) -> void
 
 DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+    auto& vec = g_targetable_special_entities;
+    vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
     // --- UPDATE PLAYER TRACKING ---
     if (self->owner && self->owner->client) {
         gclient_t* client = self->owner->client;
@@ -657,6 +659,8 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
     gi.linkentity(trap);
     trap->timestamp = level.time + TRAP_DURATION;
+
+    g_targetable_special_entities.push_back(trap);
 
     // --- TRACK ENTITY ---
     if (self->client) {

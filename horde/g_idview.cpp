@@ -31,7 +31,7 @@ std::string FormatClassname(const std::string& classname) {
 }
 
 
-bool IsValidTarget(edict_t* ent, edict_t* other, bool check_visibility) {
+static bool IsValidTarget(edict_t* ent, edict_t* other, bool check_visibility) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT) {
 		return false;
 	}
@@ -254,6 +254,7 @@ struct TargetSearchResult {
             return;
         }
 
+        // Scoring remains the same
         float score = (dot * 1000.0f) - sqrtf(dist_sq);
         if (score > best_score) {
             best_score = score;
@@ -261,18 +262,22 @@ struct TargetSearchResult {
         }
     };
 
+    // 1. Iterate through active players (fast).
     for (edict_t* who : active_players()) {
         checkEntity(who);
     }
+    
+    // 2. Iterate through active monsters (fast).
     for (edict_t* who : active_monsters()) {
         checkEntity(who);
     }
-    for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
-        if (who->client || (who->svflags & SVF_MONSTER)) continue;
+
+    //    Iterate through our new, small list of special entities instead of all edicts.
+    for (edict_t* who : g_targetable_special_entities) {
         checkEntity(who);
     }
 
-    // --- final visibility check ---
+    // --- Final visibility check remains the same ---
     if (best_candidate) {
         trace_t const tr = gi.traceline(viewer_pos, best_candidate->s.origin, ent, MASK_SOLID);
         if (tr.fraction == 1.0f || tr.ent == best_candidate) {
@@ -284,7 +289,6 @@ struct TargetSearchResult {
     
     return result;
 }
-
 
 void SetIDView(edict_t* ent) {
 	// Throttling: Exit early if the function was called recently for this client,
