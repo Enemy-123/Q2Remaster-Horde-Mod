@@ -1185,10 +1185,10 @@ void G_SetStats(edict_t* ent)
 			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}
 	}
-     void CTFSetIDView(edict_t * ent); // Declaration moved up for clarity
+     void SetIDView(edict_t * ent); // Declaration moved up for clarity
 	
 	if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER)) // Removed !(ent->svflags & SVF_BOT) as per original
-			CTFSetIDView(ent);
+			SetIDView(ent);
 	else
 	{
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
@@ -1197,10 +1197,10 @@ void G_SetStats(edict_t* ent)
 	if (level.time > ent->client->lastdmg  + 1.75_sec || !g_iddmg->integer) {
 		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
 	}
-	// Original code had an `else if` here, but the condition was identical to the one for CTFSetIDView.
+	// Original code had an `else if` here, but the condition was identical to the one for SetIDView.
 	// Assuming the intent was that if id_state is true, dmg_counter is set.
 	// If id_state is false, or time expired, or g_iddmg is false, it's cleared.
-	// The CTFSetIDView call seems independent of this specific damage counter logic.
+	// The SetIDView call seems independent of this specific damage counter logic.
 	else if (ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) { // This condition was in original
 		ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
 	}

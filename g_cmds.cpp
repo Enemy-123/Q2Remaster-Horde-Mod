@@ -1908,7 +1908,7 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "team") == 0)
 		CTFTeam_f(ent);
 	else if (Q_strcasecmp(cmd, "id") == 0)
-		CTFID_f(ent);
+		ID_f(ent);
 	else if (Q_strcasecmp(cmd, "iddmg") == 0)
 		DMGID_f(ent);
 	else if (Q_strcasecmp(cmd, "yes") == 0)
