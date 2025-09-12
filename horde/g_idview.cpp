@@ -219,7 +219,6 @@ struct IDViewConfig {
 
 struct TargetSearchResult {
 	edict_t* target{ nullptr };
-	// CORRECTED: Proper C++11 member initialization syntax.
 	float distance{ IDViewConfig::MAX_DISTANCE };
 };
 
@@ -238,7 +237,6 @@ struct TargetSearchResult {
         vec3_t dir = who->s.origin - viewer_pos;
         float const dist_sq = dir.lengthSquared();
 
-        // CORRECTED: Used multiplication (*) instead of scope operator (::) and added scope.
         static constexpr float MAX_DISTANCE_SQ = IDViewConfig::MAX_DISTANCE * IDViewConfig::MAX_DISTANCE;
         if (dist_sq > MAX_DISTANCE_SQ) {
             return;
@@ -247,9 +245,7 @@ struct TargetSearchResult {
         dir.normalize();
         float const dot = forward.dot(dir);
 
-        // CORRECTED: Used multiplication (*) instead of scope operator (::) and added scope.
         static constexpr float CLOSE_DISTANCE_SQ = IDViewConfig::CLOSE_DISTANCE * IDViewConfig::CLOSE_DISTANCE;
-        // CORRECTED: Used proper ternary operator syntax (? :) and added scope.
         float const min_dot = (dist_sq < CLOSE_DISTANCE_SQ)
             ? IDViewConfig::CLOSE_MIN_DOT
             : IDViewConfig::MIN_DOT;
@@ -276,13 +272,72 @@ struct TargetSearchResult {
         checkEntity(who);
     }
 
-    // ADDED: Populate the result object before returning.
     if (best_candidate) {
         result.target = best_candidate;
         vec3_t dir = best_candidate->s.origin - viewer_pos;
         result.distance = dir.length();
     }
     
-    // ADDED: Missing return statement.
+    // 
     return result;
-} // ADDED: Missing closing brace for the function.
+} //
+
+
+void SetIDView(edict_t* ent) {
+	// Throttling: Exit early if the function was called recently for this client,
+	// or if the game is in intermission. This is the primary performance control.
+	if (level.intermissiontime ||
+		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
+		return;
+	}
+
+	// Update the timestamp for the next throttled call.
+	ent->client->resp.lastidtime = level.time;
+
+	// Determine the unique configstring index for this client's HUD.
+	int const client_cs = CONFIG_CTF_PLAYER_NAME + (ent - g_edicts - 1);
+
+	// Get the player's view direction.
+	vec3_t forward;
+	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+
+	// Find the best new target in the player's field of view.
+	TargetSearchResult result = FindBestTarget(ent, forward);
+	edict_t* current_target = result.target;
+
+	// "Sticky Target" logic: If no new target is found, but the previous target is still
+	// valid and visible, keep it selected. This improves user experience by reducing flicker.
+	if (!current_target && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
+		current_target = ent->client->idtarget;
+	}
+
+	// If the final target is different from the one we have cached, update the cache.
+	if (ent->client->idtarget != current_target) {
+		ent->client->idtarget = current_target;
+
+		// If there's no longer a target, clear the HUD display and we are done.
+		if (!current_target) {
+			gi.configstring(client_cs, "");
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+			return;
+		}
+	}
+
+	// If we have a valid target (either new or sticky), format its info and update the HUD.
+	// This block is now executed every throttled frame for a selected target, ensuring
+	// that dynamic data like health and armor is kept up-to-date.
+	if (current_target) {
+		 const char* info = FormatEntityInfo_Fast(current_target);
+		if (info && info[0] != '\0') {
+			// The game engine is smart enough not to send a network update
+			// if the configstring content hasn't changed.
+			gi.configstring(client_cs, info);
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = client_cs;
+		}
+		else {
+			ent->client->idtarget = nullptr;
+			gi.configstring(client_cs, "");
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+		}
+	}
+}
