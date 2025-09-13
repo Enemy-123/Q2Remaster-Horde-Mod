@@ -92,8 +92,6 @@ extern void SetHealthBarName(const edict_t* boss);
 
 // Mantén el mapa de nombres como una variable externa
 extern const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_name_replacements;
-std::string GetTitleFromFlags(unsigned int bonus_flags);
-
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);
 void ApplyBossEffects(edict_t* boss);
