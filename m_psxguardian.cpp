@@ -12,6 +12,7 @@ GUARDIAN
 #include "m_guardian.h"
 #include "m_flash.h"
 #include "shared.h"
+#include <cfloat>
 static cached_soundindex sound_sight;
 //static cached_soundindex sound_pain1;
 //static cached_soundindex sound_pain2;

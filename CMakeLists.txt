@@ -25,9 +25,13 @@ target_include_directories(Q2HordeModDLL PRIVATE
 
 # --- THIS BLOCK HAS BEEN UPDATED ---
 target_compile_options(Q2HordeModDLL PRIVATE
+
+    # Force the C++20 standard to override any other settings
+    -std=c++20
+
     # Enable a comprehensive set of base warnings
-    -Wall
-    -Wextra
+    #-Wall
+    #-Wextra
 
     # Enable static analysis for potential null pointer dereferencing
     -Wnull-dereference

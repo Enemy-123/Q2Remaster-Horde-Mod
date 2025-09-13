@@ -5,6 +5,7 @@
 #pragma once
 
 #include "bg_local.h"
+
 // the "gameversion" client command will print this plus compile date
 constexpr const char* GAMEVERSION = "baseq2";
 
@@ -15,6 +16,7 @@ constexpr vec3_t PLAYER_MAXS = { 16, 16, 32 };
 
 #include <charconv>
 #include <span>
+#include <utility>
 
 template<typename T>
 constexpr bool is_char_ptr_v = std::is_convertible_v<T, const char*>;

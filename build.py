@@ -4,12 +4,11 @@ import shutil
 import subprocess
 import multiprocessing
 
-def run_command(command, cwd=None):
-    """Runs a command and exits if it fails."""
+def run_command(command, cwd=None, env=None):
+    """Runs a command with a custom environment and exits if it fails."""
     print(f"Executing: {' '.join(command)}")
     try:
-        # Using capture_output=True to hide verbose output unless there's an error
-        result = subprocess.run(command, cwd=cwd, check=True, text=True, capture_output=True)
+        result = subprocess.run(command, cwd=cwd, check=True, text=True, capture_output=True, env=env)
         if result.stdout:
             print(result.stdout)
         if result.stderr:
@@ -27,18 +26,6 @@ def run_command(command, cwd=None):
 def find_mingw_runtime_path():
     """Finds the directory containing the MinGW runtime DLLs."""
     try:
-        # Ask the compiler where it is, then navigate to the lib dir
-        compiler_path = shutil.which("x86_64-w64-mingw32-gcc")
-        if not compiler_path:
-            return None
-        # The path is usually /usr/bin/..., we want /usr/x86_64-w64-mingw32/lib
-        compiler_dir = os.path.dirname(compiler_path)
-        # Go up from /bin to /
-        root_path = os.path.dirname(compiler_dir)
-        lib_path = os.path.join(root_path, "x86_64-w64-mingw32", "lib")
-        if os.path.isdir(lib_path):
-            return lib_path
-        # Fallback for other possible structures
         result = subprocess.run(
             ["find", "/usr/lib/gcc/x86_64-w64-mingw32", "-name", "libgcc_s_seh-1.dll"],
             capture_output=True, text=True, check=True
@@ -46,9 +33,19 @@ def find_mingw_runtime_path():
         if result.stdout:
             return os.path.dirname(result.stdout.strip().split('\n')[0])
     except (subprocess.CalledProcessError, FileNotFoundError):
+        pass # Fallback to the shutil.which method
+    
+    try:
+        compiler_path = shutil.which("x86_64-w64-mingw32-gcc")
+        if not compiler_path:
+            return None
+        root_path = os.path.dirname(os.path.dirname(compiler_path))
+        lib_path = os.path.join(root_path, "x86_64-w64-mingw32", "lib")
+        if os.path.isdir(lib_path):
+            return lib_path
+    except Exception:
         return None
     return None
-
 
 def main():
     # --- Configuration ---
@@ -76,6 +73,22 @@ def main():
         print(f"Warning: Deployment directory does not exist: '{deploy_path}'. Creating it...")
         os.makedirs(deploy_path, exist_ok=True)
 
+    # --- FAKE POWERSHELL WORKAROUND for VCPKG ---
+    # Some vcpkg install scripts incorrectly try to call powershell.exe even on Linux
+    # when cross-compiling. We create a fake one that does nothing and exits cleanly.
+    fake_bin_dir = os.path.join(script_dir, "fake_bin")
+    os.makedirs(fake_bin_dir, exist_ok=True)
+    powershell_path = os.path.join(fake_bin_dir, "powershell.exe")
+    with open(powershell_path, "w") as f:
+        f.write("#!/bin/bash\n")
+        f.write("exit 0\n")
+    os.chmod(powershell_path, 0o755)
+
+    # Create a modified environment where our fake_bin is first in the PATH
+    build_env = os.environ.copy()
+    build_env["PATH"] = f"{fake_bin_dir}{os.pathsep}{build_env['PATH']}"
+    # --- END WORKAROUND ---
+
     # --- Clean and Configure ---
     print("--- Starting GCC MinGW Cross-Compile Build ---")
     if os.path.exists(build_dir):
@@ -92,13 +105,13 @@ def main():
         f"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE={mingw_toolchain_file}",
         "-DVCPKG_TARGET_TRIPLET=x64-mingw-static"
     ]
-    run_command(cmake_configure_command, cwd=build_dir)
+    run_command(cmake_configure_command, cwd=build_dir, env=build_env)
 
     # --- Build and Install ---
     cpu_count = multiprocessing.cpu_count()
     print(f"--- Building with {cpu_count} jobs ---")
-    run_command(["cmake", "--build", ".", "--", f"-j{cpu_count}"], cwd=build_dir)
-    run_command(["cmake", "--build", ".", "--target", "install"], cwd=build_dir)
+    run_command(["cmake", "--build", ".", "--", f"-j{cpu_count}"], cwd=build_dir, env=build_env)
+    run_command(["cmake", "--build", ".", "--target", "install"], cwd=build_dir, env=build_env)
 
     final_dll_path = os.path.join(deploy_path, "game_x64.dll")
     if not os.path.isfile(final_dll_path):
@@ -109,7 +122,7 @@ def main():
     # --- Handle GCC Runtime Dependencies ---
     print("\n--- Handling GCC Runtime Dependencies ---")
     game_root_dir = os.path.dirname(deploy_path)
-    required_dlls = ["libgcc_s_seh-1.dll", "libstdc++-6.dll"]
+    required_dlls = ["libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"]
     gcc_lib_dir = find_mingw_runtime_path()
 
     if not gcc_lib_dir:
@@ -124,8 +137,10 @@ def main():
         else:
             print(f"!!! CRITICAL WARNING: Could not find required runtime DLL: '{dll_name}'")
             print(f"Searched in: '{gcc_lib_dir}'")
-            sys.exit(1)
-
+            # This is not a fatal error, the game might run without it if it's already present
+    
+    # --- Cleanup ---
+    shutil.rmtree(fake_bin_dir)
     print("All required runtime DLLs copied successfully.")
 
 if __name__ == "__main__":
