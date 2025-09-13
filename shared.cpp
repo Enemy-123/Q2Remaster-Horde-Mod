@@ -432,7 +432,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	
 	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
 		if (!st.was_key_specified("power_armor_power"))
-			// Note: This line also has a float conversion, let's fix it too.
 			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->max_health * 0.4f));
 		if (!st.was_key_specified("power_armor_type"))
 			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
@@ -443,25 +442,25 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
 		FindMTarget(monster);
 		monster->svflags |= SVF_PLAYER;
-		monster->monsterinfo.team = CTF_TEAM1;
+		// The line below is now handled by the refactored block
+		// monster->monsterinfo.team = CTF_TEAM1; 
 		monster->s.renderfx &= ~RF_DOT_SHADOW;
 
-		// Configurar equipo
-		if (monster->owner->client->resp.ctf_team == CTF_TEAM1)
-			monster->monsterinfo.team = CTF_TEAM1;
-		else if (monster->owner->client->resp.ctf_team == CTF_TEAM2)
-			monster->monsterinfo.team = CTF_TEAM2;
+		// --- START OF MODIFICATION ---
+		// A summoned monster's team is determined by its owner.
+		// We only need to set the single, unified 'monsterinfo.team' field.
+		if (monster->owner && monster->owner->client)
+		{
+			// Directly assign the owner's team ID to the monster.
+			monster->monsterinfo.team = monster->owner->client->resp.ctf_team;
+		}
+		else
+		{
+			// If there's no valid owner, it shouldn't have a team.
+			monster->monsterinfo.team = CTF_NOTEAM;
+		}
+		// --- END OF MODIFICATION ---
 
-		// Establecer equipo basado en CTF
-		if (monster->owner->client->resp.ctf_team == CTF_TEAM1) {
-			monster->team = TEAM1;
-		}
-		else if (monster->owner->client->resp.ctf_team == CTF_TEAM2) {
-			monster->team = TEAM2;
-		}
-		else {
-			monster->team = "neutral";
-		}
 		gi.linkentity(monster);
 	}
 

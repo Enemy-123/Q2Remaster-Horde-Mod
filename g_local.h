@@ -3524,6 +3524,8 @@ struct edict_t
 	moveinfo_t	  moveinfo;
 	monsterinfo_t monsterinfo;
 
+	ctfteam_t ctf_team; // adding team
+
 	//=========
 	// ROGUE
 	plat2flags_t plat2flags;
@@ -3609,9 +3611,6 @@ struct edict_t
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	uint8_t special_type_id;
 };
-
-static constexpr const char* TEAM1 = "team1";
-static constexpr const char* TEAM2 = "team2";
 
 //=============
 // ROGUE

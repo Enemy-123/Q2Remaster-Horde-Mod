@@ -122,6 +122,12 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 
 	base->classname = "doppleganger";
 
+	    // Team assignment (Newly Added)
+    if (ent->client) {
+        base->ctf_team = ent->client->resp.ctf_team;
+        body->ctf_team = ent->client->resp.ctf_team;
+    }
+
 	base->monsterinfo.issummoned = true;
 
     base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));

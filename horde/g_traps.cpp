@@ -626,18 +626,11 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     trap->owner = trap->teammaster = self;
 
     // Team assignment
-    const char* trap_team;
-    if (self->client && self->client->resp.ctf_team == CTF_TEAM1) {
-        trap_team = TEAM1;
+     if (self->client) {
+        trap->ctf_team = self->client->resp.ctf_team;
+    } else {
+        trap->ctf_team = CTF_NOTEAM; // Or determine from owner if owner is not a client
     }
-    else if (self->client && self->client->resp.ctf_team == CTF_TEAM2) {
-        trap_team = TEAM2;
-    }
-    else {
-        trap_team = "neutral";
-    }
-    trap->team = trap_team;
-    trap->teammaster->team = trap_team;
 
     trap->nextthink = level.time + 1_sec;
     trap->think = Trap_Think;

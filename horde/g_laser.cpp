@@ -405,11 +405,15 @@ void create_laser(edict_t * ent)
     emitter->die = laser_die;
     emitter->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
     emitter->flags |= FL_NO_KNOCKBACK;
-    if (ent->client->resp.ctf_team == CTF_TEAM1)
-        emitter->team = TEAM1;
-    else if (ent->client->resp.ctf_team == CTF_TEAM2)
-        emitter->team = TEAM2;
-
+    
+// Team assignment (Refactored)
+    if (ent->client) {
+        emitter->ctf_team = ent->client->resp.ctf_team;
+        beam->ctf_team = ent->client->resp.ctf_team;
+    } else {
+        emitter->ctf_team = CTF_NOTEAM;
+        beam->ctf_team = CTF_NOTEAM;
+    }
     beam->classname = "laser";
     beam->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(beam->classname));
     beam->movetype = MOVETYPE_NONE;

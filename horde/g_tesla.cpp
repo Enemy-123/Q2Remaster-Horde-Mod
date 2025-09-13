@@ -637,19 +637,13 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 
 	tesla->owner = self;
 	tesla->teammaster = self;
-	// Asigna el equipo como una cadena de caracteres
-	if (self->client->resp.ctf_team == CTF_TEAM1)
-	{
-		tesla->team = TEAM1;
-	}
-	else if (self->client->resp.ctf_team == CTF_TEAM2)
-	{
-		tesla->team = TEAM2;
-	}
-	else
-	{
-		tesla->team = "neutral"; // O cualquier valor por defecto que quieras
-	}
+	
+// Team assignment (Refactored)
+    if (self->client) {
+        tesla->ctf_team = self->client->resp.ctf_team;
+    } else {
+        tesla->ctf_team = CTF_NOTEAM;
+    }
 
 	tesla->wait = (level.time + TeslaConstants::TIME_TO_LIVE).seconds();
 	tesla->think = tesla_think;

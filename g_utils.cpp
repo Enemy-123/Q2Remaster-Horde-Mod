@@ -336,7 +336,6 @@ char* G_CopyString(const char* in, int32_t tag)
 
 void G_InitEdict(edict_t* e)
 {
-	
 	// This is the safe way to clear an edict. We must preserve critical pointers
 	// and flags that are set *before* this function is called.
 	gclient_t* const saved_client = e->client; // Save the client pointer
@@ -352,7 +351,6 @@ void G_InitEdict(edict_t* e)
 	// This prevents inheriting dangerous state like SVF_MONSTER or SVF_NOCLIENT from a reused slot.
 	e->svflags = saved_svflags & (SVF_PLAYER | SVF_BOT);
 	
-
 	// ROGUE
 	// FIXME -
 	//   this fixes a bug somewhere that is setting "nextthink" for an entity that has
@@ -375,6 +373,21 @@ void G_InitEdict(edict_t* e)
 	// PGM
 	e->monsterinfo.monster_type_id = MONSTER_TYPE_UNKNOWN;
 	e->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
+
+	//testing new teams feature
+    // Set the default team based on whether the entity is a player.
+    if (e->svflags & SVF_PLAYER)
+    {
+        // If the entity is a player, it should start with no team.
+        // The game logic will later assign it to CTF_TEAM1 when they join the game.
+        e->ctf_team = CTF_NOTEAM;
+    }
+    else
+    {
+        // If it's NOT a player (e.g., a monster, an item, a door, a future deployable),
+        // default it to the enemy team.
+        e->ctf_team = CTF_TEAM2;
+    }
 }
 /*
 =================
