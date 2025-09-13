@@ -5,7 +5,7 @@
 // This ensures that any file including g_horde.h gets what it needs.
 #include <vector>
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "Horde BETA MOD v0.00992";
+constexpr const char* HORDE_MOD_VERSION_STRING = "Horde BETA MOD v0.00993";
 
 extern std::vector<edict_t*> g_spawn_point_list;
 extern size_t g_num_spawn_points;
