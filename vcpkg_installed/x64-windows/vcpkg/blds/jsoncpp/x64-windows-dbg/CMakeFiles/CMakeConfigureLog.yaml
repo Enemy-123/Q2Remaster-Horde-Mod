@@ -55,8 +55,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-zwjkew"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-zwjkew"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-nsevbx"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-nsevbx"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -87,11 +87,11 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-zwjkew'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-nsevbx'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_2b34d
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_2b34d.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_2b34d.dir\\ /FS -c C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\share\\cmake-3.30\\Modules\\CMakeCXXCompilerABI.cpp
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_2b34d.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_2b34d.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_2b34d.exe /implib:cmTC_2b34d.lib /pdb:cmTC_2b34d.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_392f1
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_392f1.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_392f1.dir\\ /FS -c C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\share\\cmake-3.30\\Modules\\CMakeCXXCompilerABI.cpp
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_392f1.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_392f1.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_392f1.exe /implib:cmTC_392f1.lib /pdb:cmTC_392f1.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -120,7 +120,7 @@ events:
       - "CMakeLists.txt:57 (project)"
     message: |
       Running the CXX compiler's linker: "C:/PROGRA~1/MICROS~4/2022/COMMUN~1/VC/Tools/MSVC/1444~1.352/bin/Hostx64/x64/link.exe" "-v"
-      Microsoft (R) Incremental Linker Version 14.44.35213.0
+      Microsoft (R) Incremental Linker Version 14.44.35216.0
       Copyright (C) Microsoft Corporation.  All rights reserved.
   -
     kind: "try_compile-v1"
@@ -130,8 +130,8 @@ events:
     checks:
       - "Looking for C++ include clocale"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-rlbvnu"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-rlbvnu"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-ct0n2z"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-ct0n2z"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -161,11 +161,11 @@ events:
       variable: "HAVE_CLOCALE"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-rlbvnu'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-ct0n2z'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_d37fa
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_d37fa.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_d37fa.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-rlbvnu\\CheckIncludeFile.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_d37fa.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_d37fa.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_d37fa.exe /implib:cmTC_d37fa.lib /pdb:cmTC_d37fa.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_8c8b3
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_8c8b3.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_8c8b3.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-ct0n2z\\CheckIncludeFile.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_8c8b3.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_8c8b3.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_8c8b3.exe /implib:cmTC_8c8b3.lib /pdb:cmTC_8c8b3.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -177,8 +177,8 @@ events:
     checks:
       - "Looking for localeconv"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-r5arx1"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-r5arx1"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-vlymfg"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-vlymfg"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -208,11 +208,11 @@ events:
       variable: "HAVE_LOCALECONV"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-r5arx1'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-vlymfg'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_8260a
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_8260a.dir\\CheckSymbolExists.cxx.obj /FdCMakeFiles\\cmTC_8260a.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-r5arx1\\CheckSymbolExists.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_8260a.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_8260a.dir\\CheckSymbolExists.cxx.obj  /out:cmTC_8260a.exe /implib:cmTC_8260a.lib /pdb:cmTC_8260a.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_064b4
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_064b4.dir\\CheckSymbolExists.cxx.obj /FdCMakeFiles\\cmTC_064b4.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-vlymfg\\CheckSymbolExists.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_064b4.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_064b4.dir\\CheckSymbolExists.cxx.obj  /out:cmTC_064b4.exe /implib:cmTC_064b4.lib /pdb:cmTC_064b4.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -224,8 +224,8 @@ events:
     checks:
       - "Looking for C++ include sys/types.h"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-voanse"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-voanse"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-chkui5"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-chkui5"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -255,11 +255,11 @@ events:
       variable: "HAVE_SYS_TYPES_H"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-voanse'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-chkui5'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_91cb5
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_91cb5.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_91cb5.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-voanse\\CheckIncludeFile.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_91cb5.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_91cb5.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_91cb5.exe /implib:cmTC_91cb5.lib /pdb:cmTC_91cb5.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_57ef6
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_57ef6.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_57ef6.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-chkui5\\CheckIncludeFile.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_57ef6.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_57ef6.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_57ef6.exe /implib:cmTC_57ef6.lib /pdb:cmTC_57ef6.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -271,8 +271,8 @@ events:
     checks:
       - "Looking for C++ include stdint.h"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-y55jbe"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-y55jbe"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-p44lph"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-p44lph"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -302,11 +302,11 @@ events:
       variable: "HAVE_STDINT_H"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-y55jbe'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-p44lph'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_fb886
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_fb886.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_fb886.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-y55jbe\\CheckIncludeFile.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_fb886.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_fb886.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_fb886.exe /implib:cmTC_fb886.lib /pdb:cmTC_fb886.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_2bbba
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_2bbba.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_2bbba.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-p44lph\\CheckIncludeFile.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_2bbba.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_2bbba.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_2bbba.exe /implib:cmTC_2bbba.lib /pdb:cmTC_2bbba.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -318,8 +318,8 @@ events:
     checks:
       - "Looking for C++ include stddef.h"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-i4uvc0"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-i4uvc0"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-gto9d0"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-gto9d0"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -349,11 +349,11 @@ events:
       variable: "HAVE_STDDEF_H"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-i4uvc0'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-gto9d0'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_20b9e
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_20b9e.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_20b9e.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-i4uvc0\\CheckIncludeFile.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_20b9e.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_20b9e.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_20b9e.exe /implib:cmTC_20b9e.lib /pdb:cmTC_20b9e.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_90d77
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_90d77.dir\\CheckIncludeFile.cxx.obj /FdCMakeFiles\\cmTC_90d77.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-gto9d0\\CheckIncludeFile.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_90d77.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_90d77.dir\\CheckIncludeFile.cxx.obj  /out:cmTC_90d77.exe /implib:cmTC_90d77.lib /pdb:cmTC_90d77.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -365,8 +365,8 @@ events:
     checks:
       - "Check size of lconv"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-v3bdgu"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-v3bdgu"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-pqcltb"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-pqcltb"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -396,11 +396,11 @@ events:
       variable: "HAVE_LCONV_SIZE"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-v3bdgu'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-pqcltb'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_da3e6
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_da3e6.dir\\LCONV_SIZE.cpp.obj /FdCMakeFiles\\cmTC_da3e6.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-v3bdgu\\LCONV_SIZE.cpp
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_da3e6.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_da3e6.dir\\LCONV_SIZE.cpp.obj  /out:cmTC_da3e6.exe /implib:cmTC_da3e6.lib /pdb:cmTC_da3e6.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_bae0e
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_bae0e.dir\\LCONV_SIZE.cpp.obj /FdCMakeFiles\\cmTC_bae0e.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-pqcltb\\LCONV_SIZE.cpp
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_bae0e.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_bae0e.dir\\LCONV_SIZE.cpp.obj  /out:cmTC_bae0e.exe /implib:cmTC_bae0e.lib /pdb:cmTC_bae0e.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -413,8 +413,8 @@ events:
     checks:
       - "Performing Test HAVE_DECIMAL_POINT"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-qrvl1n"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-qrvl1n"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-zaxvpu"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-zaxvpu"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -444,11 +444,11 @@ events:
       variable: "HAVE_DECIMAL_POINT"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-qrvl1n'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/jsoncpp/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-zaxvpu'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_eb85a
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DHAVE_DECIMAL_POINT  /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_eb85a.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_eb85a.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-qrvl1n\\src.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_eb85a.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_eb85a.dir\\src.cxx.obj  /out:cmTC_eb85a.exe /implib:cmTC_eb85a.lib /pdb:cmTC_eb85a.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_11f43
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DHAVE_DECIMAL_POINT  /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_11f43.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_11f43.dir\\ /FS -c C:\\Users\\pipev\\source\\repos\\Q2Remaster-Horde-Mod\\vcpkg_installed\\x64-windows\\vcpkg\\blds\\jsoncpp\\x64-windows-dbg\\CMakeFiles\\CMakeScratch\\TryCompile-zaxvpu\\src.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_11f43.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_11f43.dir\\src.cxx.obj  /out:cmTC_11f43.exe /implib:cmTC_11f43.lib /pdb:cmTC_11f43.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
 ...

@@ -55,8 +55,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/fmt/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-nfuj3s"
-      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/fmt/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-nfuj3s"
+      source: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/fmt/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-hu6bo6"
+      binary: "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/fmt/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-hu6bo6"
     cmakeVariables:
       CMAKE_CXX_FLAGS: " /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP "
       CMAKE_CXX_FLAGS_DEBUG: "/MDd /Z7 /Ob0 /Od /RTC1 "
@@ -86,11 +86,11 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/fmt/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-nfuj3s'
+        Change Dir: 'C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/x64-windows/vcpkg/blds/fmt/x64-windows-dbg/CMakeFiles/CMakeScratch/TryCompile-hu6bo6'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_c6ac3
-        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_c6ac3.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_c6ac3.dir\\ /FS -c C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\share\\cmake-3.30\\Modules\\CMakeCXXCompilerABI.cpp
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_c6ac3.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_c6ac3.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_c6ac3.exe /implib:cmTC_c6ac3.lib /pdb:cmTC_c6ac3.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_13e43
+        [1/2] C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /nologo /DWIN32 /D_WINDOWS /utf-8 /GR /EHsc /MP   /MDd /Z7 /Ob0 /Od /RTC1  -MDd /showIncludes /FoCMakeFiles\\cmTC_13e43.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_13e43.dir\\ /FS -c C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\share\\cmake-3.30\\Modules\\CMakeCXXCompilerABI.cpp
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && C:\\Users\\pipev\\AppData\\Local\\vcpkg\\downloads\\tools\\cmake-3.30.1-windows\\cmake-3.30.1-windows-i386\\bin\\cmake.exe -E vs_link_exe --intdir=CMakeFiles\\cmTC_13e43.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~4\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1444~1.352\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_13e43.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_13e43.exe /implib:cmTC_13e43.lib /pdb:cmTC_13e43.pdb /version:0.0 /machine:x64  /nologo    /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -119,6 +119,6 @@ events:
       - "CMakeLists.txt:151 (project)"
     message: |
       Running the CXX compiler's linker: "C:/PROGRA~1/MICROS~4/2022/COMMUN~1/VC/Tools/MSVC/1444~1.352/bin/Hostx64/x64/link.exe" "-v"
-      Microsoft (R) Incremental Linker Version 14.44.35213.0
+      Microsoft (R) Incremental Linker Version 14.44.35216.0
       Copyright (C) Microsoft Corporation.  All rights reserved.
 ...
