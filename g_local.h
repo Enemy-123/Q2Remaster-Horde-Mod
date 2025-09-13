@@ -2252,7 +2252,7 @@ char* G_CopyString(const char* in, int32_t tag);
 char* G_CopyString(const char* in, size_t len, int32_t tag);
 
 // ROGUE
-edict_t* findradius2(edict_t* from, const vec3_t& org, float rad);
+//edict_t* findradius2(edict_t* from, const vec3_t& org, float rad);
 // ROGUE
 
 void G_PlayerNotifyGoal(edict_t* player);

@@ -93,7 +93,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
 
     switch (type) {
     case EntityType::Monster: {
-        const char* full_name = GetDisplayName_Fast(ent);
+        const char* full_name = GetDisplayName(ent);
         
         out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", full_name, ent->health).out;
 
@@ -120,7 +120,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
     }
 
     case EntityType::Player: {
-        const char* playerName = GetPlayerName_Fast(ent);
+        const char* playerName = GetPlayerName(ent);
         
         out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", playerName, ent->health).out;
 
@@ -143,7 +143,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
             stats_source = ent;
         }
 
-        const char* name = GetDisplayName_Fast(ent);
+        const char* name = GetDisplayName(ent);
         
         switch (special_id) {
             case horde::SpecialEntityTypeID::TESLA_MINE: {

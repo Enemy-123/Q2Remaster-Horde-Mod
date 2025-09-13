@@ -228,7 +228,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	{
 		// --- THE FIX ---
 		// BEFORE: const std::string monster_display_name = GetDisplayName(attacker);
-		const char* monster_display_name = GetDisplayName_Fast(attacker);
+		const char* monster_display_name = GetDisplayName(attacker);
 
 		switch (mod.id)
 		{

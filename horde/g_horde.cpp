@@ -3647,7 +3647,7 @@ static void ClearBossHealthBar(const edict_t* boss)
     }
     // If this boss was the one on the HUD, clear the name.
     // This check is safe even if another boss's bar is now active.
-    if (strcmp(gi.get_configstring(CONFIG_HEALTH_BAR_NAME), GetDisplayName_Fast(boss)) == 0) {
+    if (strcmp(gi.get_configstring(CONFIG_HEALTH_BAR_NAME), GetDisplayName(boss)) == 0) {
         gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
     }
 }
@@ -3736,7 +3736,7 @@ static void AttachHealthBar(edict_t *boss)
 	healthbar->target = boss->targetname;
 
 	// Copiar el nombre del jefe correctamente
-	const char* boss_name = GetDisplayName_Fast(boss);
+	const char* boss_name = GetDisplayName(boss);
 	healthbar->message = G_CopyString(boss_name, TAG_LEVEL);
 
 	SP_target_healthbar(healthbar);
@@ -3945,7 +3945,7 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason) // Removed d
 		return false;
 	}
 
-	const char* boss_display_name = GetDisplayName_Fast(self);
+	const char* boss_display_name = GetDisplayName(self);
 	switch (reason)
 	{
 	case BossTeleportReason::DROWNING:
@@ -4005,7 +4005,7 @@ void SetHealthBarName(const edict_t *boss)
 
 	// --- THE FIX ---
 	// 1. Call the _Fast version to get a non-allocating const char*.
-	const char* display_name = GetDisplayName_Fast(boss);
+	const char* display_name = GetDisplayName(boss);
 
 	// 2. Check if the C-string is null or empty.
 	if (!display_name || display_name[0] == '\0')
@@ -4084,7 +4084,7 @@ static void HandleForcedBossRemoval(edict_t *boss)
 		if (developer->integer)
 		{
 				gi.Com_PrintFmt("Forced Boss Removal: Attributed {} remaining HP from '{}' to '{}'.\n",
-                boss->health, GetDisplayName_Fast(boss), GetPlayerName_Fast(attacker));
+                boss->health, GetDisplayName(boss), GetPlayerName(attacker));
 		}
 	}
 
@@ -4288,7 +4288,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	boss_spawned_for_wave = true;
 
 	// --- IMPROVEMENT: Use AppendHordeMessage for a more dynamic announcement ---
-	const char* boss_display_name = GetDisplayName_Fast(self);
+	const char* boss_display_name = GetDisplayName(self);
 	if (boss_display_name && boss_display_name[0] != '\0')
 	{
 		static constexpr std::array<const char *, 6> arrival_phrases = {
@@ -6017,7 +6017,7 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 
 	if (developer->integer) {
 		gi.Com_PrintFmt("HORDE: PLANNING Retaliation (Size: {}). Target: {}\n",
-						ambushSize, GetPlayerName_Fast(target_player));
+						ambushSize, GetPlayerName(target_player));
 	}
 
 	g_special_spawn_state.type = SpecialSpawnType::Retaliation;
@@ -6421,7 +6421,7 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
 
 		champion_spawned_this_wave = true;
 		champion_spawn_cooldown_ends_at = level.time + random_time(10_sec, 20_sec);
-		gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName_Fast(monster));
+		gi.LocBroadcast_Print(PRINT_HIGH, "*** A {} has appeared! ***\n", GetDisplayName(monster));
 		became_champion = true;
 	}
 
@@ -6860,7 +6860,7 @@ static void SendCleanupMessage(WaveEndReason reason)
 	if (topDamager.player && topDamager.player->inuse && topDamager.player->client)
 	{
 		// Get player name once
-		const char* playerName = GetPlayerName_Fast(topDamager.player);
+		const char* playerName = GetPlayerName(topDamager.player);
 
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
 			playerName, topDamager.total_damage, static_cast<int>(percentage));

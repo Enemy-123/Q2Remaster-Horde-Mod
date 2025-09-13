@@ -1036,89 +1036,73 @@ Advances the world by 0.1 seconds
 
 #include "profiler.h"
 #include "horde/g_horde_phys.h"
+// This is the main game frame function. It is called every server frame.
+// The structure of this function is highly optimized for performance.
 inline void G_RunFrame_(bool main_loop)
 {
-    // Cache iterators at the start of the frame
     auto monsters = active_monsters();
     auto players = active_players();
 
-    // OPTIMIZATION: The loop for ApplyGradualHealing has been removed from here
-    // and merged into the main entity loop below for better cache coherency.
-
+    // Profiler and Horde-specific setup.
     if (g_horde_profiler) {
         g_profiler_enabled = g_horde_profiler->integer != 0;
     } else {
-        g_profiler_enabled = false; // Default to off if cvar is missing
+        g_profiler_enabled = false;
     }
-
     Profiler_ResetFrame();
 
+    // --- HORDE-SPECIFIC PER-FRAME LOGIC ---
+    // This block contains logic that only runs in Horde mode.
     if (g_horde->integer) {
-
-		        
+        
+        // --- OPTIMIZATION: Proximity Grid Update ---
+        // The proximity grid is a spatial partitioning system that massively speeds up
+        // radius-based searches (e.g., "find all monsters near this explosion").
         {
             PROFILE_SCOPE("BuildProximityGrid");
             
-			    // Check for and resolve any bot-on-bot overlaps.
-    	G_CheckBotOverlap();
+            // Check for and resolve any bot-on-bot overlaps.
+    	    G_CheckBotOverlap();
 
-            // Calculate world bounds once per map load for stability.
-   //         static vec3_t world_mins{}, world_maxs{};
-            
-            // Use a static variable to track the map name and reset bounds on change.
-                     static std::string last_map_for_grid;
+            // OPTIMIZATION: The grid's world bounds are calculated only ONCE per map load.
+            // This is a heavy operation that should not be done every frame.
+            static std::string last_map_for_grid;
             if (last_map_for_grid != level.mapname) 
             {
-                // Calculate world bounds based on spawn points
                 vec3_t world_mins{}, world_maxs{};
                 ClearBounds(world_mins, world_maxs);
+                // We use the efficient 'monster_spawn_points' iterator here.
                 for (auto* sp : monster_spawn_points()) {
                     AddPointToBounds(sp->s.origin, world_mins, world_maxs);
                 }
                 world_mins -= vec3_t{512, 512, 512};
                 world_maxs += vec3_t{512, 512, 512};
 
-                // BUILD THE STATIC GEOMETRY GRID. This is the expensive part.
-                // It now only runs when the map changes.
                 HordePhys::g_monster_grid.Build(world_mins, world_maxs);
-                
                 last_map_for_grid = level.mapname;
             }
 
-            // --- 2. PER-FRAME UPDATE ---
-            // These operations are fast and run every frame.
-
-            // First, clear monsters from the previous frame.
+            // OPTIMIZATION: The per-frame update is very fast. It clears the previous
+            // frame's data and then uses the efficient iterators to add only the
+            // relevant entities (monsters, players, projectiles) to the grid.
             HordePhys::g_monster_grid.Reset();
-
-            // Second, add all active monsters to the grid at their current positions.
             for (auto* monster : active_monsters()) {
                 HordePhys::g_monster_grid.Add(monster);
             }
-
-			for (auto *player : active_players_no_spect())
-			{
-				// We only care about players who are valid targets.
-				if (player && player->inuse && player->health > 0 && !EntIsSpectating(player))
-				{
+			for (auto *player : active_players_no_spect()) {
+				if (player && player->inuse && player->health > 0 && !EntIsSpectating(player)) {
 					HordePhys::g_monster_grid.Add(player);
 				}
 			}
-
-			for (auto* proj : active_projectiles())
-			{
+			for (auto* proj : active_projectiles()) {
 				HordePhys::g_monster_grid.Add(proj);
 			}
 
-			// Third, draw the debug visualization if the cvar is on.
-            // This is the correct place for the debug draw call.
-            if (developer->integer >= 2) { // Or use your g_debug_horde_grid cvar
+            if (developer->integer >= 2) {
                HordePhys::g_monster_grid.DebugDraw();
-           }
+            }
         }
 
-
-        //CleanupStaleCS();
         CheckAndUpdateMenus();
 
         // Cache map size - only update if map changes
@@ -1129,46 +1113,39 @@ inline void G_RunFrame_(bool main_loop)
             last_mapname = level.mapname;
         }
 
-        // Player scale configuration - do once per frame
+        // Player scale configuration
         level.coop_scale_players = 2 + GetNumHumanPlayers();
         G_Monster_CheckCoopHealthScaling();
 
-        // Batch process limited monsters per frame
-    //    static uint32_t start_index = 0;
+        // OPTIMIZATION: Time-slicing monster checks.
+        // Instead of checking every monster for being stuck every frame, we process
+        // a small batch. This spreads the CPU load over multiple frames.
         constexpr uint32_t BATCH_SIZE = 32;
         uint32_t processed = 0;
-
-        // Process monsters in batches
         for (auto ent : monsters) {
-            if (processed >= BATCH_SIZE)
-                break;
-
+            if (processed >= BATCH_SIZE) break;
             CheckAndRestoreMonsterAlpha(ent);
             if (!ent->monsterinfo.IS_BOSS)
                 CheckAndTeleportStuckMonster(ent);
-
             processed++;
         }
 
-        // Cleanup operations
+        // Other cleanup and state management functions.
         CleanupInvalidEntities();
         CleanupStuckEntities();
         CheckAndResetDisabledSpawnPoints();
-        // HUD message handling
-        if (horde_message_end_time > 0_sec) {
-            if (level.time >= horde_message_end_time) {
-                ClearHordeMessage();
-            }
+        if (horde_message_end_time > 0_sec && level.time >= horde_message_end_time) {
+            ClearHordeMessage();
         }
     }
 
+    // --- GENERAL FRAME LOGIC ---
     level.in_frame = true;
-
     G_CheckCvars();
     Bot_UpdateDebug();
     level.time += FRAME_TIME_MS;
 
-    // Handle intermission timing
+  // Handle intermission timing
     if (level.intermissiontime && g_horde->integer) {
         level.intermission_fade = true;
         constexpr gtime_t INTERMISSION_DURATION = 30_sec;
@@ -1239,14 +1216,13 @@ inline void G_RunFrame_(bool main_loop)
         }
     }
 
-    // --- CONSOLIDATED MAIN ENTITY LOOP ---
-    // This single loop now handles healing, entity logic, and monster pain processing.
-    // This avoids iterating over all entities multiple times per frame, which is much
-    // more efficient for the CPU cache.
+    // This is the most efficient way to process every active entity in the game.
+    // It iterates through the g_edicts array only ONCE per frame.
     edict_t* ent = &g_edicts[0];
     for (uint32_t i = 0; i < globals.num_edicts; i++, ent++) {
+        // The most basic optimization: skip empty entity slots.
         if (!ent->inuse) {
-            // Handle disconnected client cleanup
+            // housekeeping for disconnected player slots.
             if (i > 0 && i <= game.maxclients) {
                 if (ent->timestamp && level.time < ent->timestamp) {
                     const int32_t playernum = ent - g_edicts - 1;
@@ -1257,16 +1233,13 @@ inline void G_RunFrame_(bool main_loop)
             continue;
         }
 
+        // Set the global pointer to the current entity.
         level.current_entity = ent;
 
-        // OPTIMIZATION: Merged from a separate loop at the start of the function.
         ApplyGradualHealing(ent);
-
-        // Update old_origin for non-beam entities
         if (!(ent->s.renderfx & RF_BEAM))
             ent->s.old_origin = ent->s.origin;
 
-        // Check ground entity movement
         if ((ent->groundentity) && (ent->groundentity->linkcount != ent->groundentity_linkcount)) {
             contents_t mask = G_GetClipMask(ent);
 
@@ -1283,20 +1256,17 @@ inline void G_RunFrame_(bool main_loop)
                 else
                     ent->groundentity_linkcount = ent->groundentity->linkcount;
             }
-        }
+		}
 
         Entity_UpdateState(ent);
 
-        // Process clients separately
+        // Branch to either client-specific logic or general entity logic.
         if (i > 0 && i <= game.maxclients) {
             ClientBeginServerFrame(ent);
-        }
-        else // Process all other entities
-        {
+        } else {
             G_RunEntity(ent);
         }
 
-        // OPTIMIZATION: Merged from a separate loop at the end of the function.
         // Process monster pain immediately after its main logic has run.
         if (ent->svflags & SVF_MONSTER) {
             M_ProcessPain(ent);
@@ -1307,7 +1277,6 @@ inline void G_RunFrame_(bool main_loop)
     CheckDMRules();
     CheckNeedPass();
 
-    // Handle coop respawn reset if needed
     if (check_coop_respawn) {
         // Check if all players are now alive
         bool reset_coop_respawn = true;
@@ -1325,18 +1294,13 @@ inline void G_RunFrame_(bool main_loop)
         }
     }
 
-    // Build playerstate structures
+
     ClientEndServerFrames();
 
-    // Update level entry time
     if (level.entry && !level.intermissiontime && g_edicts[1].inuse && g_edicts[1].client->pers.connected)
         level.entry->time += FRAME_TIME_S;
 
-    // OPTIMIZATION: The separate monster pain processing loop has been removed from here
-    // and merged into the main entity loop above.
-
     level.in_frame = false;
-
     Profiler_RunFrame_End();
 }
 

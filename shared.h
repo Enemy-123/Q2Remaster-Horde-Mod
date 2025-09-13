@@ -7,6 +7,8 @@
 #include "horde/horde_ids.h"
 
 extern std::vector<edict_t*> g_targetable_special_entities;
+extern std::unordered_map<int, trap_state_t> g_trap_states;
+
 //TRAP
 
 // State for a single trap target
@@ -36,9 +38,6 @@ struct trap_state_t {
     }
 };
 
-// --- CHANGE #1: Use 'int' (entity number) as the key, not 'const edict_t*'.
-// --- CHANGE #2: Declare as 'extern' to ensure there is only ONE global instance.
-extern std::unordered_map<int, trap_state_t> g_trap_states;
 
 // --- CHANGE #3: Add helper functions to safely manage the state map.
 trap_state_t* GetTrapState(const edict_t* ent);
@@ -69,8 +68,6 @@ EmitterState* GetEmitterState(const edict_t* ent);
 EmitterState* CreateEmitterState(edict_t* ent);
 void RemoveEmitterState(const edict_t* ent);
 
-
-// (The rest of your header file remains the same)
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 constexpr float VECTOR_LENGTH_SQ_EPSILON = 0.0001f * 0.0001f;
 
@@ -145,15 +142,17 @@ void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage)
 
 extern bool CTFCheckTimeExtensionVote();
 extern void ClearHordeMessage();
-bool IsPlayerDefense(const edict_t* ent);
 extern void StartFadeOut(edict_t* ent);
 extern bool IsMonsterJumping(const edict_t* self);
 
 extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origin, const vec3_t& destination_angles, bool play_effects, bool force_despite_visibility);
 
-const char* GetPlayerName_Fast(const edict_t* player);
-extern const char* GetDisplayName_Fast(const edict_t* ent);
-extern const char* GetTitleFromFlags_Fast(bonus_flags_t bonus_flags);
+const char* GetPlayerName(const edict_t* player);
+extern const char* GetDisplayName(const edict_t* ent);
+extern const char* GetTitleFromFlags(bonus_flags_t bonus_flags);
 extern bool IsPlayerDefense(const edict_t* ent);
 extern void VerifyAndAdjustBots();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs);
+
+
+extern void remove_sentries(edict_t* ent) noexcept;

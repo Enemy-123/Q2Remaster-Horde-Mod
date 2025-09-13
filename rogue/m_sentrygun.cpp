@@ -1385,30 +1385,26 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	}
 	// --- END FIX ---
 
-	// Handle summoned entity notifications
-	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
-		if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
-			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
+	 // Handle summoned entity notifications
+    if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
+        if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+            gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
 
-			//else if (strstr(self->classname, "monster_") &&
-			//	strcmp(self->classname, "monster_sentrygun") != 0) {
-			//	gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!\n");
-			//	self->owner->client->num_sentries--;
-			//}
+            // This line already correctly decrements the count.
+            self->owner->client->resp.num_sentries--;
 
-			self->owner->client->resp.num_sentries--;
-
-			// --- NEW LOGIC ---
-			// Find this sentry in the owner's tracking array and null it out.
-			for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
-				if (self->owner->client->resp.deployed_sentries[i] == self) {
-					self->owner->client->resp.deployed_sentries[i] = nullptr;
-					break; // Found it, we're done.
-				}
-			}
-
-		}
-	}
+            // --- MODIFIED LOGIC ---
+            // Find this sentry in the owner's tracking array and null it out.
+            // This is the crucial step to prevent dangling pointers and keep the array clean.
+            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+                if (self->owner->client->resp.deployed_sentries[i] == self) {
+                    self->owner->client->resp.deployed_sentries[i] = nullptr;
+                    break; // Found it, we're done.
+                }
+            }
+        }
+    }
+	
 	//OnEntityDeath(self);
 	vec3_t forward;
 	edict_t* base;
@@ -1470,6 +1466,30 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		self->think = G_FreeEdict;
 		self->nextthink = level.time + 0_sec;
 	}
+}
+
+
+void remove_sentries(edict_t* ent) noexcept {
+    if (!ent || !ent->client) {
+        return;
+    }
+
+    // Iterate backwards through the player's specific sentry list.
+    for (int i = SentryConstants::MAX_SENTRIES_PER_PLAYER - 1; i >= 0; --i) {
+        edict_t* sentry = ent->client->resp.deployed_sentries[i];
+        
+        // If a valid sentry is found, call its die function.
+        if (sentry && sentry->inuse && horde::IsMonsterType(sentry, horde::MonsterTypeID::SENTRYGUN)) {
+            // turret2_die will handle decrementing the count and clearing this array slot.
+            turret2_die(sentry, ent, ent, 99999, sentry->s.origin, MOD_UNKNOWN);
+        }
+    }
+
+    // As a safeguard, ensure the count and array are fully cleared.
+    ent->client->resp.num_sentries = 0;
+    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+        ent->client->resp.deployed_sentries[i] = nullptr;
+    }
 }
 // **********************
 //  WALL SPAWN
@@ -1794,6 +1814,25 @@ void SP_monster_sentrygun(edict_t* self)
         gi.Com_PrintFmt("ERROR: Failed to allocate sentry_state for monster_sentrygun\n");
         G_FreeEdict(self);
         return;
+    }
+
+
+	    // After the sentry is successfully created and linked, track it.
+    if (self->owner && self->owner->client)
+    {
+        gclient_t* client = self->owner->client;
+
+        // Find the first empty slot in the tracking array.
+        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
+        {
+            if (client->resp.deployed_sentries[i] == nullptr)
+            {
+                client->resp.deployed_sentries[i] = self;
+                break; // Found a slot, we're done.
+            }
+        }
+        // The num_sentries count is incremented when the item is used,
+        // so we don't need to increment it here.
     }
 
     // IMPORTANT: Initialize all the fields to their default values.

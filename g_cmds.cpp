@@ -536,35 +536,21 @@ void Cmd_RemoveLaser_f(edict_t* ent)
 
 void Cmd_RemoveSentry_f(edict_t* ent)
 {
-	if (!ent || !ent->client)
-		return;
+    if (!ent || !ent->client) {
+        return;
+    }
 
-	int removed_count = 0;
-	edict_t* current_ent = nullptr;
-
-	for (uint32_t i = game.maxclients + 1; i < globals.num_edicts; i++) {
-		current_ent = &g_edicts[i];
-
-		// We only care about entities that are in use and owned by the player.
-		if (!current_ent->inuse || current_ent->owner != ent) {
-			continue;
-		}
-
-
-        // 2. Use the fast, clean helper function to check the ID.
-if (horde::IsMonsterType(current_ent, horde::MonsterTypeID::SENTRYGUN))
-		{
-			turret2_die(current_ent, ent, ent, 99999, current_ent->s.origin, MOD_UNKNOWN);
-			removed_count++;
-		}
-	}
-
-	if (removed_count > 0) {
-		gi.LocClient_Print(ent, PRINT_HIGH, "Removed {} sentry gun(s).\n", removed_count);
-	}
-	else {
-		gi.LocClient_Print(ent, PRINT_HIGH, "No active sentry guns found to remove.\n");
-	}
+    // Check the tracked count instead of scanning the world.
+    if (ent->client->resp.num_sentries > 0) 
+    {
+        // Call the new helper function that uses the tracking array.
+        remove_sentries(ent);
+        gi.LocClient_Print(ent, PRINT_HIGH, "All your sentry guns have been removed.\n");
+    } 
+    else 
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You have no active sentry guns to remove.\n");
+    }
 }
 
 /*

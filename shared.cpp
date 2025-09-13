@@ -300,7 +300,7 @@ float M_DamageModifier(edict_t* monster) noexcept {
 }
 
 // // FIX: Changed the parameter type from 'int' to 'unsigned int' to match the BF_* flags.
-const char* GetTitleFromFlags_Fast(bonus_flags_t bonus_flags) {
+const char* GetTitleFromFlags(bonus_flags_t bonus_flags) {
 	// Use a static buffer. Its content is valid until the next call to this function.
 	static char title_buffer[64];
 
@@ -385,7 +385,7 @@ void InitializeDisplayNames() {
     g_displayNamesInitialized = true;
 }
 
-const char* GetDisplayName_Fast(const edict_t* ent) {
+const char* GetDisplayName(const edict_t* ent) {
     // Static buffer for the final combined name.
     static char display_name_buffer[128];
 
@@ -410,7 +410,7 @@ const char* GetDisplayName_Fast(const edict_t* ent) {
     }
 
     // Get the title prefix (e.g., "Champion ") from our new fast function.
-    const char* title_ptr = GetTitleFromFlags_Fast(ent->monsterinfo.bonus_flags);
+    const char* title_ptr = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
 
     // Combine title and base name into our static buffer using your non-allocating G_FmtTo.
     G_FmtTo(display_name_buffer, "{}{}", title_ptr, base_name_ptr);
@@ -719,7 +719,7 @@ void ApplyBossEffects(edict_t* boss)
 }
 
 //getting real name
-const char* GetPlayerName_Fast(const edict_t* player) {
+const char* GetPlayerName(const edict_t* player) {
     static char name_buffer[MAX_INFO_VALUE];
 
     if (!player || !player->client) {
@@ -1151,7 +1151,7 @@ bool TeleportSelf(edict_t* ent) {
 	}
 
 	ent->client->resp.teleport_cooldown = level.time + 3_sec;
-	const char* playerName = GetPlayerName_Fast(ent);
+	const char* playerName = GetPlayerName(ent);
 
 	// PERFORMANCE FIX: Use the global pre-shuffled list of spawn points.
 	// This avoids iterating all entities on the map to find and sort spawn points.
