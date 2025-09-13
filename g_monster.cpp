@@ -1571,7 +1571,7 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		return false;
 	}
 
-	if (g_horde && g_horde->integer && !issummoned(self)) {
+	if (g_horde && g_horde->integer && (!(self->monsterinfo.issummoned))) {
 	    if (self->monsterinfo.team == CTF_NOTEAM)
     {
         // If no team is set, assign it to the default enemy team.
