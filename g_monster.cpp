@@ -1571,6 +1571,14 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		return false;
 	}
 
+	if (g_horde && g_horde->integer && !issummoned(self)) {
+	    if (self->monsterinfo.team == CTF_NOTEAM)
+    {
+        // If no team is set, assign it to the default enemy team.
+        self->monsterinfo.team = CTF_TEAM2;
+    }
+}
+
 	//     if (g_horde && g_horde->integer && !self->monsterinfo.was_spawned_by_horde)
     // {
     //     self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
