@@ -14,8 +14,8 @@ DIE(doppleganger_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 	float	 dist;
 	vec3_t	 dir;
 
-    auto& vec = g_targetable_special_entities;
-    vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+	auto& vec = g_targetable_special_entities;
+	vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
 
 	if ((self->enemy) && (self->enemy != self->teammaster))
 	{
@@ -122,16 +122,10 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 
 	base->classname = "doppleganger";
 
-	    // Team assignment (Newly Added)
-    if (ent->client) {
-        base->ctf_team = ent->client->resp.ctf_team;
-        body->ctf_team = ent->client->resp.ctf_team;
-    }
-
 	base->monsterinfo.issummoned = true;
 
-    base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));
-    g_targetable_special_entities.push_back(base);
+	base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));
+	g_targetable_special_entities.push_back(base);
 
 	gi.linkentity(base);
 
@@ -149,8 +143,14 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	body->think = body_think;
 	body->nextthink = level.time + FRAME_TIME_MS;
 	body->monsterinfo.issummoned = true;
-    body->classname = "doppleganger";  //this is the visual, shouldn't get stats from id view here
-	
+	body->classname = "doppleganger";  //this is the visual, shouldn't get stats from id view here
+
+	// Team assignment (Newly Added)
+	if (ent->client) {
+		base->ctf_team = ent->client->resp.ctf_team;
+		body->ctf_team = ent->client->resp.ctf_team;
+	}
+
 	gi.linkentity(body);
 
 	base->teamchain = body;
