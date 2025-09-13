@@ -7,7 +7,7 @@
 #include "horde/horde_ids.h"
 
 extern std::vector<edict_t*> g_targetable_special_entities;
-extern std::unordered_map<int, trap_state_t> g_trap_states;
+
 
 //TRAP
 
@@ -44,6 +44,7 @@ trap_state_t* GetTrapState(const edict_t* ent);
 trap_state_t* CreateTrapState(edict_t* ent);
 void RemoveTrapState(const edict_t* ent);
 
+extern std::unordered_map<int, trap_state_t> g_trap_states;
 
 // LASERS
 struct EmitterState
