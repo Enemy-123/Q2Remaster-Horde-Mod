@@ -25,26 +25,26 @@ def run_command(command, cwd=None, env=None):
 
 def find_mingw_runtime_path():
     """Finds the directory containing the MinGW runtime DLLs."""
-    try:
-        result = subprocess.run(
-            ["find", "/usr/lib/gcc/x86_64-w64-mingw32", "-name", "libgcc_s_seh-1.dll"],
-            capture_output=True, text=True, check=True
-        )
-        if result.stdout:
-            return os.path.dirname(result.stdout.strip().split('\n')[0])
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass # Fallback to the shutil.which method
+    # This is the correct path discovered with the 'find' command.
+    mingw_bin_path = "/usr/x86_64-w64-mingw32/bin"
     
+    if os.path.isdir(mingw_bin_path):
+        print(f"Found MinGW runtime directory at: '{mingw_bin_path}'")
+        return mingw_bin_path
+    
+    # Fallback in case the path changes, though unlikely.
+    print("Warning: Hardcoded MinGW path not found. Trying to find compiler...")
     try:
         compiler_path = shutil.which("x86_64-w64-mingw32-gcc")
-        if not compiler_path:
-            return None
-        root_path = os.path.dirname(os.path.dirname(compiler_path))
-        lib_path = os.path.join(root_path, "x86_64-w64-mingw32", "lib")
-        if os.path.isdir(lib_path):
-            return lib_path
+        if compiler_path:
+            # This is the original logic that might work on other systems
+            root_path = os.path.dirname(os.path.dirname(compiler_path))
+            lib_path = os.path.join(root_path, "x86_64-w64-mingw32", "lib")
+            if os.path.isdir(lib_path):
+                return lib_path
     except Exception:
         return None
+        
     return None
 
 def main():
