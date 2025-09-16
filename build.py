@@ -25,26 +25,9 @@ def run_command(command, cwd=None, env=None):
 
 def find_mingw_runtime_path():
     """Finds the directory containing the MinGW runtime DLLs."""
-    # This is the correct path discovered with the 'find' command.
     mingw_bin_path = "/usr/x86_64-w64-mingw32/bin"
-    
     if os.path.isdir(mingw_bin_path):
-        print(f"Found MinGW runtime directory at: '{mingw_bin_path}'")
         return mingw_bin_path
-    
-    # Fallback in case the path changes, though unlikely.
-    print("Warning: Hardcoded MinGW path not found. Trying to find compiler...")
-    try:
-        compiler_path = shutil.which("x86_64-w64-mingw32-gcc")
-        if compiler_path:
-            # This is the original logic that might work on other systems
-            root_path = os.path.dirname(os.path.dirname(compiler_path))
-            lib_path = os.path.join(root_path, "x86_64-w64-mingw32", "lib")
-            if os.path.isdir(lib_path):
-                return lib_path
-    except Exception:
-        return None
-        
     return None
 
 def main():
@@ -93,6 +76,10 @@ def main():
         shutil.rmtree(build_dir)
     os.makedirs(build_dir)
 
+    # --- HYBRID LINKER FLAGS ---
+    # Statically link libgcc and libstdc++, but dynamically link pthreads
+    hybrid_linker_flags = "-static-libgcc -static-libstdc++ -lpthread"
+
     cmake_configure_command = [
         "cmake",
         "..",
@@ -102,7 +89,8 @@ def main():
         f"-DCMAKE_TOOLCHAIN_FILE={vcpkg_toolchain_file}",
         f"-DVCPKG_INSTALLED_DIR={vcpkg_installed_dir}",
         f"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE={mingw_toolchain_file}",
-        "-DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic"
+        "-DVCPKG_TARGET_TRIPLET=x64-mingw-static",
+        f"-DCMAKE_SHARED_LINKER_FLAGS={hybrid_linker_flags}"
     ]
     run_command(cmake_configure_command, cwd=build_dir, env=build_env)
 
@@ -116,43 +104,29 @@ def main():
     if not os.path.isfile(final_dll_path):
         print(f"Error: Expected DLL not found at '{final_dll_path}' after installation.")
         sys.exit(1)
-    print(f"Output DLL successfully installed to: '{final_dll_path}'")
-
+    
+    # --- Copy the one remaining required DLL ---
+    print("\n--- Handling Final Runtime Dependency ---")
     game_root_dir = os.path.dirname(deploy_path)
-
-    # --- NEW: Handle VCPKG Runtime Dependencies (like jsoncpp.dll) ---
-    print("\n--- Handling VCPKG Runtime Dependencies ---")
-    vcpkg_bin_dir = os.path.join(vcpkg_installed_dir, "x64-mingw-dynamic", "bin")
-    if os.path.isdir(vcpkg_bin_dir):
-        for dll_file in os.listdir(vcpkg_bin_dir):
-            if dll_file.endswith(".dll"):
-                source_path = os.path.join(vcpkg_bin_dir, dll_file)
-                print(f"Found '{dll_file}', copying to game root directory...")
-                shutil.copy(source_path, game_root_dir)
-    else:
-        print(f"Warning: Could not find vcpkg bin directory to copy dependency DLLs: '{vcpkg_bin_dir}'")
-
-    # --- Handle GCC Runtime Dependencies ---
-    print("\n--- Handling GCC Runtime Dependencies ---")
-    required_dlls = ["libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"]
+    pthread_dll = "libwinpthread-1.dll"
     gcc_lib_dir = find_mingw_runtime_path()
 
-    if not gcc_lib_dir:
-        print("!!! CRITICAL ERROR: Could not find the GCC MinGW runtime library directory.")
-        sys.exit(1)
-
-    for dll_name in required_dlls:
-        source_path = os.path.join(gcc_lib_dir, dll_name)
+    if gcc_lib_dir:
+        source_path = os.path.join(gcc_lib_dir, pthread_dll)
         if os.path.isfile(source_path):
-            print(f"Found '{dll_name}', copying to game root directory...")
+            print(f"Found '{pthread_dll}', copying to game root directory...")
             shutil.copy(source_path, game_root_dir)
         else:
-            print(f"!!! CRITICAL WARNING: Could not find required runtime DLL: '{dll_name}'")
-            print(f"Searched in: '{gcc_lib_dir}'")
+            print(f"!!! CRITICAL WARNING: Could not find required runtime DLL: '{pthread_dll}'")
+    else:
+        print("!!! CRITICAL ERROR: Could not find the GCC MinGW runtime library directory.")
+
+    print("\n--- BUILD SUCCESSFUL ---")
+    print(f"Mostly static DLL successfully installed to: '{final_dll_path}'")
+    print(f"Requires one additional DLL: '{pthread_dll}'")
     
     # --- Cleanup ---
     shutil.rmtree(fake_bin_dir)
-    print("All required runtime DLLs copied successfully.")
 
 if __name__ == "__main__":
     main()

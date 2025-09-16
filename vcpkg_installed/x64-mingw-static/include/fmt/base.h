@@ -277,10 +277,10 @@
 #if !defined(FMT_HEADER_ONLY) && defined(_WIN32)
 #  if defined(FMT_LIB_EXPORT)
 #    define FMT_API __declspec(dllexport)
-#  elif 1
+#  elif defined(FMT_SHARED)
 #    define FMT_API __declspec(dllimport)
 #  endif
-#elif defined(FMT_LIB_EXPORT) || 1
+#elif defined(FMT_LIB_EXPORT) || defined(FMT_SHARED)
 #  define FMT_API FMT_VISIBILITY("default")
 #endif
 #ifndef FMT_API

@@ -3,13 +3,13 @@
   "spdxVersion": "SPDX-2.2",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-mingw-dynamic-1.9.6-2352b931-eae1-47b2-879f-2a97ecbc877a",
-  "name": "jsoncpp:x64-mingw-dynamic@1.9.6 7bf43dd6ae510120d5a7f48b7708955ed3e26ea653adc5f5cae79692c001ea96",
+  "documentNamespace": "https://spdx.org/spdxdocs/fmt-x64-mingw-static-11.0.2#1-3c7d04a6-6244-4b31-a69f-5f8ea4c48b6c",
+  "name": "fmt:x64-mingw-static@11.0.2#1 1d727e4a1f39c63c46177390aee1b96f1c4c44c2b66d90fa5b5671029308ffd2",
   "creationInfo": {
     "creators": [
       "Tool: vcpkg-2025-09-03-4580816534ed8fd9634ac83d46471440edd82dfe"
     ],
-    "created": "2025-09-15T22:40:17Z"
+    "created": "2025-09-13T00:16:58Z"
   },
   "relationships": [
     {
@@ -28,7 +28,22 @@
       "relatedSpdxElement": "SPDXRef-port-file-1"
     },
     {
-      "spdxElementId": "SPDXRef-port-file-1",
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-port-file-2"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-port-file-3"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-port-file-4"
+    },
+    {
+      "spdxElementId": "SPDXRef-port-file-4",
       "relationshipType": "DEPENDENCY_MANIFEST_OF",
       "relatedSpdxElement": "SPDXRef-port"
     },
@@ -151,25 +166,35 @@
       "spdxElementId": "SPDXRef-binary",
       "relationshipType": "CONTAINS",
       "relatedSpdxElement": "SPDXRef-binary-file-23"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-binary-file-24"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-binary-file-25"
     }
   ],
   "packages": [
     {
-      "name": "jsoncpp",
+      "name": "fmt",
       "SPDXID": "SPDXRef-port",
-      "versionInfo": "1.9.6",
-      "downloadLocation": "git+https://github.com/Microsoft/vcpkg@dde49ad9d554fd5f062c0c1deea6e54b6fdb35b2",
-      "homepage": "https://github.com/open-source-parsers/jsoncpp",
+      "versionInfo": "11.0.2#1",
+      "downloadLocation": "git+https://github.com/Microsoft/vcpkg@07a73a7565e5de9eb42e90c16c133bdfdfebbcda",
+      "homepage": "https://github.com/fmtlib/fmt",
       "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
       "copyrightText": "NOASSERTION",
-      "description": "JsonCpp is a C++ library that allows manipulating JSON values, including serialization and deserialization to and from strings. It can also preserve existing comment in unserialization/serialization steps, making it a convenient format to store user input files.",
+      "description": "{fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.",
       "comment": "This is the port (recipe) consumed by vcpkg."
     },
     {
-      "name": "jsoncpp:x64-mingw-dynamic",
+      "name": "fmt:x64-mingw-static",
       "SPDXID": "SPDXRef-binary",
-      "versionInfo": "7bf43dd6ae510120d5a7f48b7708955ed3e26ea653adc5f5cae79692c001ea96",
+      "versionInfo": "1d727e4a1f39c63c46177390aee1b96f1c4c44c2b66d90fa5b5671029308ffd2",
       "downloadLocation": "NONE",
       "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
@@ -178,27 +203,63 @@
     },
     {
       "SPDXID": "SPDXRef-resource-0",
-      "name": "open-source-parsers/jsoncpp",
-      "downloadLocation": "git+https://github.com/open-source-parsers/jsoncpp@1.9.6",
+      "name": "fmtlib/fmt",
+      "downloadLocation": "git+https://github.com/fmtlib/fmt@11.0.2",
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "NOASSERTION",
       "copyrightText": "NOASSERTION",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "006d81f9f723dcfe875ebc2147449c07c5246bf97dd7b9eee1909decc914b051d6f3f06feb5c3dfa143d28773fb310aabb04a81dc447cc61513309df8eba8b08"
+          "checksumValue": "47ff6d289dcc22681eea6da465b0348172921e7cafff8fd57a1540d3232cc6b53250a4625c954ee0944c87963b17680ecbc3ea123e43c2c822efe0dc6fa6cef3"
         }
       ]
     }
   ],
   "files": [
     {
-      "fileName": "./portfile.cmake",
+      "fileName": "./fix-pass-utf-8-only-if-the-compiler-is-MSVC-at-build.patch",
       "SPDXID": "SPDXRef-port-file-0",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "3179577246ad40d0bc2187a916a21ca0451431c0f745ffbd4c7a5ad77ddcfb58"
+          "checksumValue": "d74f4f0f8d1e4fe92276c3c95b00b6a3add53afbb3e862741da425d968aca674"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./fix-write-batch.patch",
+      "SPDXID": "SPDXRef-port-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "5658d7b2362cddca318c21de795877c17cffbe62603860507291dccc40d537f3"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./portfile.cmake",
+      "SPDXID": "SPDXRef-port-file-2",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "d0adfee327b3609a41a474dcd75b2dd78090857f4335af029a43bc857929934e"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./usage",
+      "SPDXID": "SPDXRef-port-file-3",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ece096518c58df58cfc60f5ad8120d248a86383482455f539d91b8ca6eac14a7"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -206,287 +267,311 @@
     },
     {
       "fileName": "./vcpkg.json",
-      "SPDXID": "SPDXRef-port-file-1",
+      "SPDXID": "SPDXRef-port-file-4",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "c6172fba1d57280b910b63f1cee01a9fd54745e4c494705b63f78324cd52db0f"
+          "checksumValue": "8d8fdba284a4cb69f8c42a8c211d724af7a8d8522d0f098d2dd35f7bf1c5caa6"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./debug/lib/pkgconfig/jsoncpp.pc",
+      "fileName": "./debug/lib/libfmtd.a",
       "SPDXID": "SPDXRef-binary-file-0",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "0223a0cbec1883e387a5202245b2f47664990b350f24c4084254ffe1cc984626"
+          "checksumValue": "713a1d1eb0a47a9f6ef4a61883bbf6be241da9ad527340070289ff68af4ed7a7"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./debug/lib/libjsoncpp.dll.a",
+      "fileName": "./debug/lib/pkgconfig/fmt.pc",
       "SPDXID": "SPDXRef-binary-file-1",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "5daf0de32f5078fd14f309626996147f06e5a4e7a4c1d99d95d54b0fc0e0a86a"
+          "checksumValue": "208c3998c06f0134460b9829f9c763e6d7fa6214be25be8432aab7d40f27c771"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./debug/bin/libjsoncpp.dll",
+      "fileName": "./lib/libfmt.a",
       "SPDXID": "SPDXRef-binary-file-2",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "a5cb8ae9ab1614cbe4a347800481c4327485963523a95769cd7c849425217d6f"
+          "checksumValue": "2a01d1de8878a3d68854241e1003d246787641585d3c70696bc3a2d0e512f56f"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./lib/pkgconfig/jsoncpp.pc",
+      "fileName": "./lib/pkgconfig/fmt.pc",
       "SPDXID": "SPDXRef-binary-file-3",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "c9126b3876d0f08ae42c32a621901b71f80fd169386aa2a46272cb07d0576162"
+          "checksumValue": "22500f30ab377003592d13b111e13ac1f16a3851e3e250e4bd66dec4f522b958"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./lib/libjsoncpp.dll.a",
+      "fileName": "./include/fmt/args.h",
       "SPDXID": "SPDXRef-binary-file-4",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "2c211e063b51d0f5326cf5f39aa8fbb89f801ac3b41f1dc0b286ea1e5b4bb209"
+          "checksumValue": "45ed7137c9170e7efeae7c78bd69a05c2b25feb79e9db0ea8c9eedbca283dddb"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./bin/libjsoncpp.dll",
+      "fileName": "./include/fmt/base.h",
       "SPDXID": "SPDXRef-binary-file-5",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "b6c357e0a6984f8bb862a137aa1fb69dc445b24e038065522656e78d00ea1cd5"
+          "checksumValue": "895fd797b2c203e3661cdbeb7ee4f60a637c927be1b4a4728b9aa6400e238d90"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/allocator.h",
+      "fileName": "./include/fmt/chrono.h",
       "SPDXID": "SPDXRef-binary-file-6",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "12cfdee59e575f09703eb619d2cc14a18e638db77fb33e50c1cc4fe38066b09b"
+          "checksumValue": "3f5ac1cc711652b6f19c6c765a95e82b79b7d5bdcc2f96697c2b5bfe366ac91c"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/assertions.h",
+      "fileName": "./include/fmt/color.h",
       "SPDXID": "SPDXRef-binary-file-7",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "ea30b8fb30ef70a52a6435f6e6efbc37de03555fa192b33832e65cbd159b68bb"
+          "checksumValue": "949ab64c24d0bca26e936c7939477dba0906652b6386691b4c2f7a7054150213"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/config.h",
+      "fileName": "./include/fmt/compile.h",
       "SPDXID": "SPDXRef-binary-file-8",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "a607e32e34497e2c51df1c61e6627760618d7d6964d9f47dfa8165ad305063b9"
+          "checksumValue": "b377419913ea34296fedca99ebd65835908925c36df5373432755e3ebc4395de"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/forwards.h",
+      "fileName": "./include/fmt/core.h",
       "SPDXID": "SPDXRef-binary-file-9",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "4e5144062f296c821107af272c39df31b7ac6fcfefbeb66637958738fc09a117"
+          "checksumValue": "b2b6692145b11c7c2774db106078c97575a47d18e80c7783c68566475325ebb4"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/json.h",
+      "fileName": "./include/fmt/format.h",
       "SPDXID": "SPDXRef-binary-file-10",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "05ccb35afa55a068f8cc2a195db46d89a7f6a458d1943ae009465834c6404a67"
+          "checksumValue": "b2119dab01c5f640651f92f5e37cc0e8bb7ddcca50b2f6a7a67b662ffbebee00"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/json_features.h",
+      "fileName": "./include/fmt/format-inl.h",
       "SPDXID": "SPDXRef-binary-file-11",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "9a3a209af311356da182e0b768c7c1f5993863df9d2d0f9dfa8f96d492282494"
+          "checksumValue": "cb9ddc93e2daa1fecddd43b43a924dac8fa7300672285f36671d9457f0ffc3a8"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/reader.h",
+      "fileName": "./include/fmt/os.h",
       "SPDXID": "SPDXRef-binary-file-12",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "c8e50d2d3a6fd84e6b069ef4706871faec682f9bb247acc72e3ea4a281088ecb"
+          "checksumValue": "d78fbed2326220b5d33f5a20040b4802a90815583a568cf26e406f3689d744ab"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/value.h",
+      "fileName": "./include/fmt/ostream.h",
       "SPDXID": "SPDXRef-binary-file-13",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "55a69f64308bb9dba10fe783733ad4d8da5f7178d4cac6c6ce4c7dfaf9cde307"
+          "checksumValue": "b4f5e56ba47df860a28f3ca6948fc24d1c396db55239264442428757e957d875"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/version.h",
+      "fileName": "./include/fmt/printf.h",
       "SPDXID": "SPDXRef-binary-file-14",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "bfab32f44b28a60656b24835303a1bc96e8cc533300af37b776c2e090c3ba677"
+          "checksumValue": "76aa2c5c59d34d9f9985e0bf30f3c86dc416ddfc5fbaff252ec346d13fbd30b6"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./include/json/writer.h",
+      "fileName": "./include/fmt/ranges.h",
       "SPDXID": "SPDXRef-binary-file-15",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "1828e708ae2f28207b0b0c618aa14038c3e223af9d25de2efab0fcf4fbd25591"
+          "checksumValue": "c66af3fee29e25c953fdbde449a88fbd50028203186ba990cce1f18134a40d27"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./share/jsoncpp/jsoncpp-namespaced-targets.cmake",
+      "fileName": "./include/fmt/std.h",
       "SPDXID": "SPDXRef-binary-file-16",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "3ca99e17de275ce3c52e0d1591ecdfc20ec521f5a20e96776ee39a2f679fe739"
+          "checksumValue": "ac3f3726e2d326b358095f3900ec6145f8639fe334df92bf3c53ee6fdc416dbb"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./share/jsoncpp/jsoncpp-targets-release.cmake",
+      "fileName": "./include/fmt/xchar.h",
       "SPDXID": "SPDXRef-binary-file-17",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "9af25c80ecefe248c9fc21a1e074403a667550b924c708faeed0441b780481c6"
+          "checksumValue": "93ef925a6fa09731860c4277db303f13ac5aec3c18bac7df921b52b15fae53e2"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./share/jsoncpp/jsoncpp-targets.cmake",
+      "fileName": "./share/fmt/fmt-config.cmake",
       "SPDXID": "SPDXRef-binary-file-18",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "33998fb035bed5f2562e3713f291643e6bd7534ea2264a925239042f55f8858d"
+          "checksumValue": "7c496838f67962bb34e0d6340d3e108dcedddebdb483857c808053d9a4c3c8f3"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./share/jsoncpp/jsoncppConfig.cmake",
+      "fileName": "./share/fmt/fmt-config-version.cmake",
       "SPDXID": "SPDXRef-binary-file-19",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "3d365e67f5b55ca52ec5402fed42913d967397f66a94f70f7e014b1342fe6d79"
+          "checksumValue": "7359d496c0976b70a701de801afc76ad4a364ce2887ae26d454f409c54216e9c"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./share/jsoncpp/jsoncppConfigVersion.cmake",
+      "fileName": "./share/fmt/fmt-targets.cmake",
       "SPDXID": "SPDXRef-binary-file-20",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "31feae12a7a26d2d84d964cf0706c469f88cf96824ea56a1ae1a434641dd4acb"
+          "checksumValue": "e48e9f9f03e94c0e8d75a0ed04bffa1daeae7a6c7252ce133177c3e7c230a85d"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./share/jsoncpp/jsoncpp-targets-debug.cmake",
+      "fileName": "./share/fmt/fmt-targets-release.cmake",
       "SPDXID": "SPDXRef-binary-file-21",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "f638b557c741bfe18cde273d6a2a7926554d992bf87c2679b116123118aa7c5f"
+          "checksumValue": "d21bab9e7018b5573cafccaf6b1917012e4ea74d513e7c0a13a48534e2f59d80"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./share/jsoncpp/copyright",
+      "fileName": "./share/fmt/fmt-targets-debug.cmake",
       "SPDXID": "SPDXRef-binary-file-22",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "cec0db5f6d7ed6b3a72647bd50aed02e13c3377fd44382b96dc2915534c042ad"
+          "checksumValue": "e8072b20e2af68c3ae32919961d6ee9f2d2a6dd4cd7a2af8d3a336795c1e1882"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./share/fmt/usage",
+      "SPDXID": "SPDXRef-binary-file-23",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ece096518c58df58cfc60f5ad8120d248a86383482455f539d91b8ca6eac14a7"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./share/fmt/copyright",
+      "SPDXID": "SPDXRef-binary-file-24",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "07580f2a3b35709ce703d523f447b242f6dfec7582a8c0df102c7fa2849375f8"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -494,11 +579,11 @@
     },
     {
       "fileName": "./BUILD_INFO",
-      "SPDXID": "SPDXRef-binary-file-23",
+      "SPDXID": "SPDXRef-binary-file-25",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "4d338fb0aa7a7926319cb0febebc8319b96631ff00a24b63661bdfe36b36ff52"
+          "checksumValue": "b17d8abcb0fd6454b3c1ec6556988d624863978121b87c51af8b1b6d937db69a"
         }
       ],
       "licenseConcluded": "NOASSERTION",
