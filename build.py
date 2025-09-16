@@ -51,6 +51,7 @@ def main():
     # --- Configuration ---
     script_dir = os.path.dirname(os.path.abspath(__file__))
     build_dir = os.path.join(script_dir, "build")
+    vcpkg_installed_dir = os.path.join(script_dir, "vcpkg_installed")
     mingw_toolchain_file = os.path.join(script_dir, "mingw-w64-x86_64.cmake")
     vcpkg_toolchain_file = os.path.join(script_dir, "vcpkg", "scripts", "buildsystems", "vcpkg.cmake")
 
@@ -74,8 +75,6 @@ def main():
         os.makedirs(deploy_path, exist_ok=True)
 
     # --- FAKE POWERSHELL WORKAROUND for VCPKG ---
-    # Some vcpkg install scripts incorrectly try to call powershell.exe even on Linux
-    # when cross-compiling. We create a fake one that does nothing and exits cleanly.
     fake_bin_dir = os.path.join(script_dir, "fake_bin")
     os.makedirs(fake_bin_dir, exist_ok=True)
     powershell_path = os.path.join(fake_bin_dir, "powershell.exe")
@@ -84,7 +83,6 @@ def main():
         f.write("exit 0\n")
     os.chmod(powershell_path, 0o755)
 
-    # Create a modified environment where our fake_bin is first in the PATH
     build_env = os.environ.copy()
     build_env["PATH"] = f"{fake_bin_dir}{os.pathsep}{build_env['PATH']}"
     # --- END WORKAROUND ---
@@ -102,8 +100,9 @@ def main():
         f"-DCMAKE_BUILD_TYPE={build_type}",
         f"-DDEPLOY_DIRECTORY={deploy_path}",
         f"-DCMAKE_TOOLCHAIN_FILE={vcpkg_toolchain_file}",
+        f"-DVCPKG_INSTALLED_DIR={vcpkg_installed_dir}",
         f"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE={mingw_toolchain_file}",
-        "-DVCPKG_TARGET_TRIPLET=x64-mingw-static"
+        "-DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic"
     ]
     run_command(cmake_configure_command, cwd=build_dir, env=build_env)
 
@@ -119,9 +118,22 @@ def main():
         sys.exit(1)
     print(f"Output DLL successfully installed to: '{final_dll_path}'")
 
+    game_root_dir = os.path.dirname(deploy_path)
+
+    # --- NEW: Handle VCPKG Runtime Dependencies (like jsoncpp.dll) ---
+    print("\n--- Handling VCPKG Runtime Dependencies ---")
+    vcpkg_bin_dir = os.path.join(vcpkg_installed_dir, "x64-mingw-dynamic", "bin")
+    if os.path.isdir(vcpkg_bin_dir):
+        for dll_file in os.listdir(vcpkg_bin_dir):
+            if dll_file.endswith(".dll"):
+                source_path = os.path.join(vcpkg_bin_dir, dll_file)
+                print(f"Found '{dll_file}', copying to game root directory...")
+                shutil.copy(source_path, game_root_dir)
+    else:
+        print(f"Warning: Could not find vcpkg bin directory to copy dependency DLLs: '{vcpkg_bin_dir}'")
+
     # --- Handle GCC Runtime Dependencies ---
     print("\n--- Handling GCC Runtime Dependencies ---")
-    game_root_dir = os.path.dirname(deploy_path)
     required_dlls = ["libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"]
     gcc_lib_dir = find_mingw_runtime_path()
 
@@ -137,7 +149,6 @@ def main():
         else:
             print(f"!!! CRITICAL WARNING: Could not find required runtime DLL: '{dll_name}'")
             print(f"Searched in: '{gcc_lib_dir}'")
-            # This is not a fatal error, the game might run without it if it's already present
     
     # --- Cleanup ---
     shutil.rmtree(fake_bin_dir)
