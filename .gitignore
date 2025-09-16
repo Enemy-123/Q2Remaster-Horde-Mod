@@ -368,4 +368,6 @@ FodyWeavers.xsd
 
 # CMake build output directory
 /build/
-vcpkg
+/vcpkg/
+/vcpkg_installed/
+/fake_bin/
