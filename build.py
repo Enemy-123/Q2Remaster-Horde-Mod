@@ -76,8 +76,6 @@ def main():
         shutil.rmtree(build_dir)
     os.makedirs(build_dir)
 
-    # --- HYBRID LINKER FLAGS ---
-    # Statically link libgcc and libstdc++, but dynamically link pthreads
     hybrid_linker_flags = "-static-libgcc -static-libstdc++ -lpthread"
 
     cmake_configure_command = [
@@ -107,15 +105,19 @@ def main():
     
     # --- Copy the one remaining required DLL ---
     print("\n--- Handling Final Runtime Dependency ---")
-    game_root_dir = os.path.dirname(deploy_path)
+    
+    # --- THIS IS THE FIX ---
+    # Get the parent directory of deploy_path (e.g., 'rerelease' instead of 'rerelease/baseq2')
+    game_executable_dir = os.path.dirname(os.path.normpath(deploy_path))
+
     pthread_dll = "libwinpthread-1.dll"
     gcc_lib_dir = find_mingw_runtime_path()
 
     if gcc_lib_dir:
         source_path = os.path.join(gcc_lib_dir, pthread_dll)
         if os.path.isfile(source_path):
-            print(f"Found '{pthread_dll}', copying to game root directory...")
-            shutil.copy(source_path, game_root_dir)
+            print(f"Found '{pthread_dll}', copying to game executable directory: '{game_executable_dir}'")
+            shutil.copy(source_path, game_executable_dir)
         else:
             print(f"!!! CRITICAL WARNING: Could not find required runtime DLL: '{pthread_dll}'")
     else:
@@ -123,7 +125,7 @@ def main():
 
     print("\n--- BUILD SUCCESSFUL ---")
     print(f"Mostly static DLL successfully installed to: '{final_dll_path}'")
-    print(f"Requires one additional DLL: '{pthread_dll}'")
+    print(f"Requires one additional DLL: '{pthread_dll}' in the game's root folder.")
     
     # --- Cleanup ---
     shutil.rmtree(fake_bin_dir)
