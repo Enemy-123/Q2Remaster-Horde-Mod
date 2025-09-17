@@ -12,12 +12,18 @@
                 "/usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include-fixed",
                 "/usr/x86_64-w64-mingw32/include"
             ],
-            "defines": [
-                "_DEBUG",
-                "UNICODE",
-                "_UNICODE",
-                "RERELEASE_DLL"
-            ],
+        "defines": [
+            "_DEBUG",
+            "UNICODE",
+            "_UNICODE",
+            "RERELEASE_DLL",
+            "USE_CPP20_FORMAT",
+            "GAME_INCLUDE",
+            "KEX_Q2GAME_EXPORTS",
+            "KEX_Q2GAME_DYNAMIC",
+            "NO_FMT_SOURCE"
+        ]
+        ,
             "browse": {
                 "path": [
                     "${workspaceFolder}/**",
