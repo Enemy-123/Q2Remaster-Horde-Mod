@@ -1,19 +1,32 @@
 {
     "configurations": [
         {
-            "name": "Win32",
+            "name": "MinGW x64",
+            "compilerPath": "/usr/bin/x86_64-w64-mingw32-g++",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "gcc-x64",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "/usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include",
+                "/usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include-fixed",
+                "/usr/x86_64-w64-mingw32/include"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
-                "_UNICODE"
+                "_UNICODE",
+                "RERELEASE_DLL"
             ],
-            "cStandard": "c17",
-            "cppStandard": "c++20",
-            "intelliSenseMode": "gcc-x64",
-            "compilerPath": "/usr/bin/x86_64-w64-mingw32-g++",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/**",
+                    "/usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include",
+                    "/usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include-fixed",
+                    "/usr/x86_64-w64-mingw32/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            },
             "configurationProvider": "ms-vscode.cmake-tools"
         }
     ],
