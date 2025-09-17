@@ -157,13 +157,15 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	base->teamchain = body;
 	body->teammaster = base;
 
-	// Spawn the defender sphere and set its owner to the doppelganger's base.
-	// The Sphere_Spawn function already handles this assignment correctly.
-	Sphere_Spawn(base, SPHERE_DEFENDER);
+	// Spawn the defender sphere. Sphere_Spawn correctly sets sphere->owner = base.
+	sphere = Sphere_Spawn(base, SPHERE_DEFENDER);
+
+	// *** ADD THIS LINE ***
+	// Make the doppelganger base officially own the sphere.
+	Own_Sphere(base->teammaster, sphere);
 
 	// [Paril-KEX]
 	body->owner = ent;
-	//base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));
 
 	gi.sound(body, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 }

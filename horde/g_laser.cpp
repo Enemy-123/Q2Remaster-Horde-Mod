@@ -406,14 +406,9 @@ void create_laser(edict_t * ent)
     emitter->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
     emitter->flags |= FL_NO_KNOCKBACK;
     
-// Team assignment (Refactored)
-    if (ent->client) {
-        emitter->ctf_team = ent->client->resp.ctf_team;
-        beam->ctf_team = ent->client->resp.ctf_team;
-    } else {
-        emitter->ctf_team = CTF_NOTEAM;
-        beam->ctf_team = CTF_NOTEAM;
-    }
+        emitter->ctf_team = GetEntityTeam(ent);
+        beam->ctf_team = GetEntityTeam(ent);
+
     beam->classname = "laser";
     beam->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(beam->classname));
     beam->movetype = MOVETYPE_NONE;

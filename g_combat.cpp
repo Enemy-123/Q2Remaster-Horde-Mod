@@ -347,7 +347,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     // Case 1: The inflictor is a deployable itself (like a Tesla mine).
     if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) ||
-	//				  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER)))
     {
         threat_source = inflictor;
@@ -362,7 +362,12 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     {
         threat_source = inflictor->owner; // The threat is the sentry gun.
     }
-
+    // Case 4 (CORRECTED): The inflictor is a projectile/sphere whose owner is a doppelganger.
+    else if (inflictor && inflictor->owner && horde::IsSpecialType(inflictor->owner, horde::SpecialEntityTypeID::DOPPLEGANGER))
+    {
+        // The real threat is the player who owns the doppelganger.
+        threat_source = inflictor->owner; 
+    }
 
     // If we identified a deployable as the threat source, react to it.
     if (threat_source && threat_source->inuse)
@@ -370,17 +375,22 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
         // Check if the monster should target this type of deployable.
         if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) ||
             horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
             horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
         {
             new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
 
             // Sentry Gun or Laser Emitter logic
-            if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
+            if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
             {
                 if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
                 {
                     if ((new_tesla || brandom()) && (!targ->enemy ||
-                        !(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) || horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
+                        !(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+					  	 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
                     {
                         TargetTesla(targ, threat_source); // Assuming this function sets the enemy to any deployable.
                         targ->monsterinfo.last_reacttodamage_target_time = level.time;
@@ -499,6 +509,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 			(targ->monsterinfo.monster_type_id != attacker->monsterinfo.monster_type_id) &&
 			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
 				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::LASER_EMITTER)) &&
 			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
 	{
@@ -735,7 +746,6 @@ static int64_t CalculateRealDamage(const edict_t* targ, int64_t take, int64_t in
 	}
 	return real_damage;
 }
-
 
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
 	mod_t    mod;

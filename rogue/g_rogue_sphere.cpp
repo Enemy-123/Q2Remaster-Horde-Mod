@@ -28,9 +28,18 @@ void hunter_touch(edict_t *self, edict_t *other, const trace_t &tr, bool other_t
 // =================
 THINK(sphere_think_explode) (edict_t *self) -> void
 {
-	if (self->owner && self->owner->client && !(self->spawnflags & SPHERE_DOPPLEGANGER))
+	if (self->owner && self->owner->inuse)
 	{
-		self->owner->client->owned_sphere = nullptr;
+		// If owner is a player and this is their sphere, clear the pointer.
+		if (self->owner->client && self->owner->client->owned_sphere == self)
+		{
+			self->owner->client->owned_sphere = nullptr;
+		}
+		// If owner is a non-player (like a doppelganger) and this is its sphere, clear the pointer.
+		else if (self->owner->owned_sphere == self)
+		{
+			self->owner->owned_sphere = nullptr;
+		}
 	}
 	BecomeExplosion1(self);
 }
@@ -369,7 +378,11 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 
 	start = self->s.origin;
 	start[2] += 2;
+	if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::DOPPLEGANGER))
+	fire_blaster2(self->owner->teammaster, start, dir, 5, 1900, EF_HYPERBLASTER, 1);
+	else {
 	fire_blaster2(self->owner, start, dir, 5, 1900, EF_HYPERBLASTER, 1);
+	}
 
 	self->monsterinfo.attack_finished = level.time + 245_ms;
 }
@@ -769,31 +782,30 @@ edict_t* Sphere_Spawn(edict_t* owner, spawnflags_t spawnflags)
 // =================
 void Own_Sphere(edict_t *self, edict_t *sphere)
 {
-	if (!sphere)
+	if (!self || !sphere)
 		return;
 
-	// ownership only for players
+	// --- Player-specific logic ---
+	// Use the gclient_t struct for players to maintain existing behavior.
 	if (self->client)
 	{
-		// if they don't have one
-		if (!(self->client->owned_sphere))
+		// if they already have one, take care of the old one
+		if (self->client->owned_sphere && self->client->owned_sphere->inuse)
 		{
-
-			self->client->owned_sphere = sphere;
+			G_FreeEdict(self->client->owned_sphere);
 		}
-		// they already have one, take care of the old one
-		else
+		self->client->owned_sphere = sphere;
+	}
+	// --- Generic entity logic (for Doppelgangers, etc.) ---
+	// Use the new edict_t field for non-players.
+	else
+	{
+		// if it already has one, take care of the old one
+		if (self->owned_sphere && self->owned_sphere->inuse)
 		{
-			if (self->client->owned_sphere->inuse)
-			{
-				G_FreeEdict(self->client->owned_sphere);
-				self->client->owned_sphere = sphere;
-			}
-			else
-			{
-				self->client->owned_sphere = sphere;
-			}
+			G_FreeEdict(self->owned_sphere);
 		}
+		self->owned_sphere = sphere;
 	}
 }
 

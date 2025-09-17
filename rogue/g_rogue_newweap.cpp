@@ -1316,7 +1316,6 @@ Fires a single green blaster bolt.  Used by monsters, generally.
 TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
 	mod_t mod;
-	// int damagestat; // Moved inside the corrected logic
 
 	if (other == self->owner)
 		return;
@@ -1332,59 +1331,61 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 
 	if (other->takedamage)
 	{
-		// the only time players will be firing blaster2 bolts will be from the
-		// defender sphere.
-		if (self->owner && self->owner->client)
+		// =======================================================================
+		// --- START OF DOPPELGANGER FIX ---
+		// =======================================================================
+
+		// 1. Establish the default attacker, which is the projectile's direct owner.
+		edict_t* real_attacker = self->owner;
+
+		// 2. Check if the owner is a doppelganger. If so, the REAL attacker is the
+		//    doppelganger's teammaster (the player).
+		if (real_attacker && horde::IsSpecialType(real_attacker, horde::SpecialEntityTypeID::DOPPLEGANGER))
+		{
+			real_attacker = real_attacker->teammaster;
+		}
+
+		// 3. If after all that we don't have a valid attacker, default to the projectile itself
+		//    to prevent crashes.
+		if (!real_attacker || !real_attacker->inuse)
+		{
+			real_attacker = self;
+		}
+
+		// Determine the means of death based on the original owner (the sphere)
+		if (self->owner && self->owner->classname && strcmp(self->owner->classname, "sphere") == 0)
 			mod = MOD_DEFENDER_SPHERE;
 		else
 			mod = MOD_BLASTER2;
 
-        // =======================================================================
-        // --- FIX: Validate the owner before use to prevent the crash ---
-        // =======================================================================
+		// Apply damage using the 'real_attacker' so the player gets the credit.
+		if (self->dmg >= 5)
+		{
+			T_RadiusDamage(self, real_attacker, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+		}
+		T_Damage(other, self, real_attacker, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 
-        // 1. Determine a safe attacker. Default to the projectile itself if the owner is invalid.
-        edict_t *attacker = (self->owner && self->owner->inuse) ? self->owner : self;
-
-        // 2. Temporarily disable takedamage on the valid owner to prevent self-damage
-        //    from the radius effect. Only do this if the owner is valid.
-        int damagestat = 0;
-        bool owner_takedamage_modified = false;
-        if (attacker != self) // This is a safe way to check if self->owner was valid and inuse.
-        {
-            damagestat = attacker->takedamage;
-            attacker->takedamage = false;
-            owner_takedamage_modified = true;
-        }
-
-        // 3. Apply damage using the safe attacker.
-        // The inflictor is the projectile (self), the attacker is who gets credit.
-        if (self->dmg >= 5)
-        {
-            // The 4th argument to T_RadiusDamage is `ignore`, which is the entity that should not take radius damage.
-            // This is usually the entity that was directly hit.
-            T_RadiusDamage(self, attacker, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-        }
-        T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
-
-        // 4. Restore the owner's takedamage state if we changed it.
-        if (owner_takedamage_modified)
-        {
-            attacker->takedamage = damagestat;
-        }
-        // =======================================================================
-        // --- END FIX ---
-        // =======================================================================
+		// =======================================================================
+		// --- END OF FIX ---
+		// =======================================================================
 	}
 	else
 	{
-		// PMM - yeowch this will get expensive
+		// Also apply the fix here for radius damage against non-takedamage surfaces
+		edict_t* real_attacker = self->owner;
+		if (real_attacker && horde::IsSpecialType(real_attacker, horde::SpecialEntityTypeID::DOPPLEGANGER))
+		{
+			real_attacker = real_attacker->teammaster;
+		}
+		if (!real_attacker || !real_attacker->inuse)
+		{
+			real_attacker = self;
+		}
+
 		if (self->dmg >= 5)
-        {
-            // --- FIX: Also use a safe attacker here for radius damage on non-damageable surfaces ---
-            edict_t *attacker = (self->owner && self->owner->inuse) ? self->owner : self;
-			T_RadiusDamage(self, attacker, static_cast<float>(self->dmg * 2), nullptr, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-        }
+		{
+			T_RadiusDamage(self, real_attacker, static_cast<float>(self->dmg * 2), nullptr, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+		}
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BLASTER2);

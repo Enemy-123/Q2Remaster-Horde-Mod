@@ -797,20 +797,20 @@ static void AwardKillToPlayer(edict_t* player)
 
 void G_MonsterKilled(edict_t* self)
 {
-	if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-	{
-		level.killed_monsters++;
-	}
+    if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+    {
+        level.killed_monsters++;
+    }
 
 	// Award kill to the player or the owner of the entity that got the kill
-	if (self->enemy && self->enemy->client)
-	{
-		AwardKillToPlayer(self->enemy);
-	}
-	else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
-	{
-		AwardKillToPlayer(self->enemy->owner);
-	}
+    if (self->enemy && self->enemy->client)
+    {
+        AwardKillToPlayer(self->enemy);
+    }
+    else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
+    {
+        AwardKillToPlayer(self->enemy->owner);
+    }
 	
 	// Debugging: Track monster kills if enabled
 	if (g_debug_monster_kills->integer)

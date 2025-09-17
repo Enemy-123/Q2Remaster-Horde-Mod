@@ -3596,7 +3596,7 @@ struct edict_t
 
 	//Horde stuff
 
-
+	edict_t* owned_sphere; //dopplegangers one
 	edict_t* laser;
 
 	bool is_fading_out = false; // corpse cleaning management
@@ -4208,3 +4208,4 @@ extern float M_DamageModifier(edict_t* monster) noexcept;
 extern inline bool G_CheatCheck(edict_t* ent);
 bool M_HasValidTarget(edict_t* self);
 extern ctfteam_t GetEntityTeam(const edict_t* ent);
+extern void Own_Sphere(edict_t *self, edict_t *sphere);
