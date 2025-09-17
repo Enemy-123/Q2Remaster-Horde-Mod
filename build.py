@@ -35,7 +35,8 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     build_dir = os.path.join(script_dir, "build")
     vcpkg_installed_dir = os.path.join(script_dir, "vcpkg_installed")
-    mingw_toolchain_file = os.path.join(script_dir, "mingw-w64-x86_64.cmake")
+    # This file is now configured to use Clang
+    clang_toolchain_file = os.path.join(script_dir, "mingw-w64-x86_64.cmake")
     vcpkg_toolchain_file = os.path.join(script_dir, "vcpkg", "scripts", "buildsystems", "vcpkg.cmake")
 
     # --- Get Arguments ---
@@ -48,7 +49,7 @@ def main():
     print(f"--- Build Type set to: {build_type} ---")
 
     # --- Validate Paths ---
-    for f in [mingw_toolchain_file, vcpkg_toolchain_file]:
+    for f in [clang_toolchain_file, vcpkg_toolchain_file]:
         if not os.path.isfile(f):
             print(f"Error: Toolchain file not found at '{f}'")
             sys.exit(1)
@@ -71,12 +72,14 @@ def main():
     # --- END WORKAROUND ---
 
     # --- Clean and Configure ---
-    print("--- Starting GCC MinGW Cross-Compile Build ---")
+    print("--- Starting Clang MinGW Cross-Compile Build ---")
     if os.path.exists(build_dir):
         shutil.rmtree(build_dir)
     os.makedirs(build_dir)
 
-    hybrid_linker_flags = "-static-libgcc -static-libstdc++ -lpthread"
+    # Clang does not use -static-libgcc or -static-libstdc++.
+    # The vcpkg static triplet handles this correctly. We still need to link pthreads.
+    hybrid_linker_flags = "-lpthread"
 
     cmake_configure_command = [
         "cmake",
@@ -86,9 +89,9 @@ def main():
         f"-DDEPLOY_DIRECTORY={deploy_path}",
         f"-DCMAKE_TOOLCHAIN_FILE={vcpkg_toolchain_file}",
         f"-DVCPKG_INSTALLED_DIR={vcpkg_installed_dir}",
-        f"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE={mingw_toolchain_file}",
+        f"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE={clang_toolchain_file}",
         "-DVCPKG_TARGET_TRIPLET=x64-mingw-static",
-        f"-DCMAKE_SHARED_LINKER_FLAGS={hybrid_linker_flags}"
+        f"-DCMAKE_SHARED_LINKER_FLAGS={hybrid_linker_flags}",
     ]
     run_command(cmake_configure_command, cwd=build_dir, env=build_env)
 
@@ -106,22 +109,21 @@ def main():
     # --- Copy the one remaining required DLL ---
     print("\n--- Handling Final Runtime Dependency ---")
     
-    # --- THIS IS THE FIX ---
     # Get the parent directory of deploy_path (e.g., 'rerelease' instead of 'rerelease/baseq2')
     game_executable_dir = os.path.dirname(os.path.normpath(deploy_path))
 
     pthread_dll = "libwinpthread-1.dll"
-    gcc_lib_dir = find_mingw_runtime_path()
+    toolchain_lib_dir = find_mingw_runtime_path()
 
-    if gcc_lib_dir:
-        source_path = os.path.join(gcc_lib_dir, pthread_dll)
+    if toolchain_lib_dir:
+        source_path = os.path.join(toolchain_lib_dir, pthread_dll)
         if os.path.isfile(source_path):
             print(f"Found '{pthread_dll}', copying to game executable directory: '{game_executable_dir}'")
             shutil.copy(source_path, game_executable_dir)
         else:
             print(f"!!! CRITICAL WARNING: Could not find required runtime DLL: '{pthread_dll}'")
     else:
-        print("!!! CRITICAL ERROR: Could not find the GCC MinGW runtime library directory.")
+        print("!!! CRITICAL ERROR: Could not find the toolchain runtime library directory.")
 
     print("\n--- BUILD SUCCESSFUL ---")
     print(f"Mostly static DLL successfully installed to: '{final_dll_path}'")
