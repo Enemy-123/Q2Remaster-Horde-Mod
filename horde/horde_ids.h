@@ -108,16 +108,16 @@ namespace horde {
 
     // IDs for special, non-monster entities
 enum class SpecialEntityTypeID : uint8_t {
-    TESLA_MINE,
-    FOOD_CUBE_TRAP,
-    PROX_MINE,
-    TURRET,
-    SENTRY_GUN,
-    NUKE_MINE,
-    LASER_EMITTER, 
-    LASER_BEAM, 
-    DOPPLEGANGER,
-    COUNT, // The total number of special entity types
+    TESLA_MINE,      // 0
+    FOOD_CUBE_TRAP,  // 1
+    PROX_MINE,       // 2
+    TURRET,          // 3
+    SENTRY_GUN,      // 4
+    NUKE_MINE,       // 5
+    LASER_EMITTER,   // 6
+    LASER_BEAM,      // 7
+    DOPPLEGANGER,    // 8
+    COUNT,           // 9 - The total number of special entity types
     UNKNOWN = 255
 };
 

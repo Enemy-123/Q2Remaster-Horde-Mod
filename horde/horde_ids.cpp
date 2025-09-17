@@ -55,6 +55,7 @@ namespace horde {
         {"prox_mine",         SpecialEntityTypeID::PROX_MINE},
         {"monster_sentrygun", SpecialEntityTypeID::SENTRY_GUN},
         {"monster_turret",    SpecialEntityTypeID::TURRET},
+        {"nuke",             SpecialEntityTypeID::NUKE_MINE},
         {"emitter",           SpecialEntityTypeID::LASER_EMITTER},
         {"laser",             SpecialEntityTypeID::LASER_BEAM}, 
         {"doppleganger",      SpecialEntityTypeID::DOPPLEGANGER}

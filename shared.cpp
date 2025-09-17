@@ -201,7 +201,7 @@ bool IsPlayerDefense(const edict_t* ent) {
     if (!ent) return false;
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id == horde::SpecialEntityTypeID::UNKNOWN) return false;
-    return g_entityProperties.is_defense[static_cast<size_t>(id)];
+    return IsDefense(id);
 }
 
 #include <unordered_set> // Add this include at the top of your file
@@ -237,14 +237,14 @@ bool IsRemovableEntity(const edict_t* ent) {
     }
 
     // FAST PATH RESULT: Direct, lightning-fast array lookup.
-    return g_entityProperties.is_removable[static_cast<size_t>(id)];
+   return IsRemovable(id);
 }
 
 void RemoveEntity(edict_t* ent) {
     if (!ent || !ent->inuse) return;
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id != horde::SpecialEntityTypeID::UNKNOWN) {
-        EntityDieHandler handler = g_entityProperties.die_handler[static_cast<size_t>(id)];
+        EntityDieHandler handler = GetDieHandler(id);
         if (handler) {
             handler(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
             return;

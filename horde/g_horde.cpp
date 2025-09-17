@@ -7296,8 +7296,12 @@ static edict_t* Horde_SpawnMonster(
     int32_t currentLevel,
     float champion_chance); // Already shown above
 
+	void VerifyEntityProperties();
 void Horde_RunFrame()
 {
+
+//	VerifyEntityProperties();
+
 	if (level.intermissiontime) {
 		return;
 	}

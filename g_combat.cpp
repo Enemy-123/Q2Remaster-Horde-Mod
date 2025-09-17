@@ -347,6 +347,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     // Case 1: The inflictor is a deployable itself (like a Tesla mine).
     if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+	//				  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER)))
     {
         threat_source = inflictor;
@@ -571,13 +572,6 @@ ctfteam_t GetEntityTeam(const edict_t* ent)
         return ent->ctf_team;
     }
 
-    // 4. Fallback for any legacy entity that might still use the old string field.
-    //    This can be removed once your refactor is complete and verified.
-    // if (ent->team) {
-    //     if (strcmp(ent->team, TEAM1) == 0) return CTF_TEAM1;
-    //     if (strcmp(ent->team, TEAM2) == 0) return CTF_TEAM2;
-    // }
-
     // 5. If none of the above, it has no team.
     return CTF_NOTEAM;
 }
@@ -744,10 +738,12 @@ static int64_t CalculateRealDamage(const edict_t* targ, int64_t take, int64_t in
 
 
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
+	mod_t    mod;
+
 	// Fast path early returns for improved performance
 	if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
 		!attacker->client->pers.iddmg_state || !targ ||
-		targ->monsterinfo.invincible_time > level.time) {
+		targ->monsterinfo.invincible_time > level.time || mod.id == MOD_TRAP) {
 		return;
 	}
 

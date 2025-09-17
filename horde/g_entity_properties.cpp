@@ -7,56 +7,58 @@ extern void prox_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod
 extern void tesla_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 extern void trap_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 extern void laser_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
-extern void BecomeExplosion1(edict_t* ent); // Generic explosion
-extern void doppleganger_die (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+extern void doppleganger_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
+extern void nuke_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
 
-// --- Wrappers to ensure health is negative before calling die function ---
-void Turret2DieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
-    if (self && self->health > 0) self->health = -1;
-    turret2_die(self, inflictor, attacker, damage, point, mod);
+// --- Recommendation 3: Templated Die Function Wrapper ---
+// This generic wrapper removes the need to write a separate wrapper for each die function.
+// It ensures the entity's health is negative before calling the original die function.
+template<auto OriginalDieFunc>
+void DieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
+    if (self && self->health > 0) {
+        self->health = -1;
+    }
+    // Call the original function passed as a template argument.
+    OriginalDieFunc(self, inflictor, attacker, damage, point, mod);
 }
-void TurretDieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) {
-    if (self && self->health > 0) self->health = -1;
-    turret_die(self, inflictor, attacker, damage, point, mod);
-}
 
-// --- Source Data (The Single Source of Truth) ---
-struct entity_properties_source_t {
-    horde::SpecialEntityTypeID id;
-    bool is_defense;
-    bool is_removable;
-    EntityDieHandler die_handler;
-};
-
-const entity_properties_source_t ENTITY_PROPERTIES_SRC[] = {
+// --- Global Definition (Single Source of Truth) ---
+// This directly initializes the final data structure at compile time.
+const std::array<EntityProperties, NUM_SPECIAL_ENTITY_TYPES> g_entityProperties = {{
+    // Index 0
     {horde::SpecialEntityTypeID::TESLA_MINE,     true,  true,  tesla_die},
+    // Index 1
     {horde::SpecialEntityTypeID::FOOD_CUBE_TRAP, true,  true,  trap_die},
+    // Index 2
     {horde::SpecialEntityTypeID::PROX_MINE,      true,  true,  prox_die},
-    {horde::SpecialEntityTypeID::SENTRY_GUN,     true,  true,  Turret2DieWrapper},
-    {horde::SpecialEntityTypeID::TURRET,         true,  true,  TurretDieWrapper},
-    {horde::SpecialEntityTypeID::LASER_EMITTER,  true, true,  laser_die},
-    {horde::SpecialEntityTypeID::LASER_BEAM,     true, true,  laser_die},
+    // Index 3 (Corrected Order)
+    {horde::SpecialEntityTypeID::TURRET,         true,  true,  DieWrapper<turret_die>},
+    // Index 4 (Corrected Order)
+    {horde::SpecialEntityTypeID::SENTRY_GUN,     true,  true,  DieWrapper<turret2_die>},
+    // Index 5 (NEW ENTRY)
+    {horde::SpecialEntityTypeID::NUKE_MINE,      true,  true,  nuke_die},
+    // Index 6
+    {horde::SpecialEntityTypeID::LASER_EMITTER,  true,  true,  laser_die},
+    // Index 7
+    {horde::SpecialEntityTypeID::LASER_BEAM,     true,  true,  laser_die},
+    // Index 8
     {horde::SpecialEntityTypeID::DOPPLEGANGER,   false, true,  doppleganger_die}
-    // Add other special entities here if they need custom cleanup
-};
+}};
 
-// --- Compile-Time Transformation ---
-constexpr EntityPropertiesSoA create_entity_properties_soa() {
-    EntityPropertiesSoA data{};
-    data.is_defense.fill(false);
-    data.is_removable.fill(false);
-    data.die_handler.fill(nullptr);
-
-    for (const auto& src : ENTITY_PROPERTIES_SRC) {
-        size_t index = static_cast<size_t>(src.id);
-        if (index < data.NUM_TYPES) {
-            data.is_defense[index] = src.is_defense;
-            data.is_removable[index] = src.is_removable;
-            data.die_handler[index] = src.die_handler;
+// --- Recommendation 5: Runtime Verification ---
+// This function runs only in debug builds to catch logical errors in the data,
+// such as an entity being marked as removable but not having a cleanup function.
+void VerifyEntityProperties() {
+    for (size_t i = 0; i < NUM_SPECIAL_ENTITY_TYPES; ++i) {
+        const auto& props = g_entityProperties[i];
+        size_t expected_index = GetEntityIndex(props.id);
+        
+        gi.Com_PrintFmt("DEBUG: Index {}: ID={}, GetEntityIndex({})={}\n", 
+            i, static_cast<int>(props.id), static_cast<int>(props.id), expected_index);
+        
+        if (expected_index != i) {
+            gi.Com_PrintFmt("EntityProperties ERROR: Mismatch at index {}. ID is {} but should correspond to this index.\n",
+                i, static_cast<int>(props.id));
         }
     }
-    return data;
 }
-
-// --- Global Definition ---
-const EntityPropertiesSoA g_entityProperties = create_entity_properties_soa();
