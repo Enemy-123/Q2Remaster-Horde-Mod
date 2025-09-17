@@ -3612,6 +3612,8 @@ struct edict_t
 	uint8_t special_type_id;
 };
 
+// static constexpr const char* TEAM1 = "team1";
+// static constexpr const char* TEAM2 = "team2";
 //=============
 // ROGUE
 constexpr spawnflags_t SPHERE_DEFENDER = 0x0001_spawnflag;
@@ -4205,3 +4207,4 @@ inline int8_t GetNumHumanPlayers()
 extern float M_DamageModifier(edict_t* monster) noexcept;
 extern inline bool G_CheatCheck(edict_t* ent);
 bool M_HasValidTarget(edict_t* self);
+extern ctfteam_t GetEntityTeam(const edict_t* ent);

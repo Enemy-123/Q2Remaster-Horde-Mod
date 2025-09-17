@@ -712,6 +712,8 @@ edict_t* Sphere_Spawn(edict_t* owner, spawnflags_t spawnflags)
 		sphere->teammaster = owner->teammaster;
 	else
 		sphere->owner = owner;
+
+		 sphere->ctf_team = GetEntityTeam(owner);
 	sphere->classname = "sphere";
 	sphere->yaw_speed = 40;
 	sphere->monsterinfo.attack_finished = 0_ms;

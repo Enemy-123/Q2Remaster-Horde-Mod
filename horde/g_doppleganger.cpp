@@ -92,6 +92,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 {
 	edict_t* base;
 	edict_t* body;
+	edict_t* sphere; // Add a pointer for the sphere
 	vec3_t	 dir;
 	vec3_t	 forward, right, up;
 	int		 number;
@@ -155,6 +156,10 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 
 	base->teamchain = body;
 	body->teammaster = base;
+
+	// Spawn the defender sphere and set its owner to the doppelganger's base.
+	// The Sphere_Spawn function already handles this assignment correctly.
+	Sphere_Spawn(base, SPHERE_DEFENDER);
 
 	// [Paril-KEX]
 	body->owner = ent;
