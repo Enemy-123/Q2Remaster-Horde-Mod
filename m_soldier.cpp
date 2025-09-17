@@ -710,7 +710,7 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 			self->monsterinfo.fire_wait = level.time + random_time(300_ms, 1.1_sec);
 
 		if (style.has_laser())
-			soldierh_laserbeam(self, flash_index);
+			soldierh_laserbeam(self, flash_index); //crashes here
 		else
 			monster_fire_bullet(self, start, aim, 2, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
 

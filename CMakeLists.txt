@@ -52,6 +52,11 @@ target_compile_options(Q2HordeModDLL PRIVATE
 target_link_options(Q2HordeModDLL PRIVATE $<$<CONFIG:Release>:-s>)
 
 target_compile_definitions(Q2HordeModDLL PRIVATE
+    # Force the use of C++20 <format> and other required flags
+    USE_CPP20_FORMAT
+    NO_FMT_SOURCE
+
+    # Original definitions
     FMT_HEADER_ONLY KEX_Q2_GAME KEX_Q2GAME_EXPORTS KEX_Q2GAME_DYNAMIC
     _CRT_SECURE_NO_WARNINGS _WINDOWS WIN32 _CONSOLE)
 
