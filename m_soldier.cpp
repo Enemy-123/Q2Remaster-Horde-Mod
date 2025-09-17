@@ -535,10 +535,10 @@ PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
     
     // --- FIX: Add safety check for the owner ---
     // If the owner (the soldier) is dead or gone, the laser should remove itself.
-   if (!M_HasValidTarget(self)))
+   if (!M_HasValidTarget(self))
     {
         // Clear the reference before removing
-        if ((laser->spawnflags & SPAWNFLAG_DABEAM_SECONDARY) != 0)
+        if (laser->spawnflags.has(SPAWNFLAG_DABEAM_SECONDARY))
         {
             // It's possible 'self' is non-null but not inuse, so check again.
             if (self && self->inuse) 
