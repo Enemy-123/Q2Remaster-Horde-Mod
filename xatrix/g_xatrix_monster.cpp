@@ -114,54 +114,62 @@ THINK(beam_think) (edict_t* self) -> void {
 // RAFAEL
 void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update_func)(edict_t* self))
 {
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
-
-	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
-	edict_t*& beam_ptr = secondary ? self->beam2 : self->beam;
-
-	if (!beam_ptr)
-	{
-		beam_ptr = G_Spawn();
+    if (!M_HasValidTarget(self))
+    {
+        return; // Stop immediately if the target is invalid.
+    }
+    
+    edict_t*& beam_ptr = secondary ? self->beam2 : self->beam;
+    
+    if (!beam_ptr)
+    {
+        beam_ptr = G_Spawn();
         // If G_Spawn fails, it can return null. Handle this case to prevent a crash.
         if (!beam_ptr)
         {
             return;
         }
-
-		beam_ptr->movetype = MOVETYPE_NONE;
-		beam_ptr->solid = SOLID_NOT;
-		beam_ptr->s.renderfx |= RF_BEAM;
-		beam_ptr->s.modelindex = MODELINDEX_WORLD;
-		beam_ptr->owner = self;
-		beam_ptr->dmg = damage;
-		beam_ptr->s.frame = 2;
-		beam_ptr->spawnflags = secondary ? SPAWNFLAG_DABEAM_SECONDARY : SPAWNFLAG_NONE;
-
-		if (self->monsterinfo.aiflags & AI_MEDIC)
-			beam_ptr->s.skinnum = 0xf3f3f1f1;
-		else
-			beam_ptr->s.skinnum = 0xf2f2f0f0;
-
-		beam_ptr->think = beam_think;
-		beam_ptr->s.sound = gi.soundindex("misc/lasfly.wav");
-		beam_ptr->postthink = update_func;
-	}
-
-	beam_ptr->nextthink = level.time + 200_ms;
-	beam_ptr->spawnflags &= ~SPAWNFLAG_DABEAM_SPAWNED;
-	update_func(beam_ptr);
-
-    // ========================================================================
-    // Check if the entity is still in use before proceeding.
-    if (!beam_ptr->inuse)
+        beam_ptr->movetype = MOVETYPE_NONE;
+        beam_ptr->solid = SOLID_NOT;
+        beam_ptr->s.renderfx |= RF_BEAM;
+        beam_ptr->s.modelindex = MODELINDEX_WORLD;
+        beam_ptr->owner = self;
+        beam_ptr->dmg = damage;
+        beam_ptr->s.frame = 2;
+        beam_ptr->spawnflags = secondary ? SPAWNFLAG_DABEAM_SECONDARY : SPAWNFLAG_NONE;
+        
+        if (self->monsterinfo.aiflags & AI_MEDIC)
+            beam_ptr->s.skinnum = 0xf3f3f1f1;
+        else
+            beam_ptr->s.skinnum = 0xf2f2f0f0;
+            
+        beam_ptr->think = beam_think;
+        beam_ptr->s.sound = gi.soundindex("misc/lasfly.wav");
+        beam_ptr->postthink = update_func;
+    }
+    
+    beam_ptr->nextthink = level.time + 200_ms;
+    beam_ptr->spawnflags &= ~SPAWNFLAG_DABEAM_SPAWNED;
+    
+    // Call update_func which handles positioning and calls dabeam_update
+    update_func(beam_ptr);
+    
+    // Check if the entity is still valid after update_func
+    if (!beam_ptr || !beam_ptr->inuse)
     {
+        // Clear the reference if the entity was freed
+        if (secondary)
+            self->beam2 = nullptr;
+        else
+            self->beam = nullptr;
         return;
     }
-    // ========================================================================
 
-	dabeam_update(beam_ptr, true);
-	beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
+    // Check if dabeam_update was called.  If not, call it.
+    if (!(beam_ptr->spawnflags & SPAWNFLAG_DABEAM_SPAWNED)) {
+        dabeam_update(beam_ptr, true);
+    }
+    
+    // Only set the flag if the entity is still valid
+    beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
 }

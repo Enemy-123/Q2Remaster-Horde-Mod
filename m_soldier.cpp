@@ -531,37 +531,51 @@ constexpr monster_muzzleflash_id_t machinegun_flash[] = { MZ2_SOLDIER_MACHINEGUN
 
 PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 {
-	edict_t* self = laser->owner;
-
+    edict_t* self = laser->owner;
+    
     // --- FIX: Add safety check for the owner ---
     // If the owner (the soldier) is dead or gone, the laser should remove itself.
-	if (!self || !self->inuse || self->health <= 0)
-	{
-		//beam_think(laser); // Use the safe removal function //just a return would be ok maybe?
-		return;
-	}
+   if (!M_HasValidTarget(self)))
+    {
+        // Clear the reference before removing
+        if ((laser->spawnflags & SPAWNFLAG_DABEAM_SECONDARY) != 0)
+        {
+            // It's possible 'self' is non-null but not inuse, so check again.
+            if (self && self->inuse) 
+                self->beam2 = nullptr;
+        }
+        else if (self && self->inuse)
+        {
+            self->beam = nullptr;
+        }
+            
+        G_FreeEdict(laser);
+        return;
+    }
     // --- END FIX ---
-
-	vec3_t forward, right, up;
-	vec3_t start;
-	vec3_t tempvec;
-
-	AngleVectors(self->s.angles, forward, right, up);
-	start = self->s.origin;
-	tempvec = monster_flash_offset[self->radius_dmg];
-	start += (forward * tempvec[0]);
-	start += (right * tempvec[1]);
-	start += (up * (tempvec[2] + 6));
-
-	if (!self->deadflag)
-		PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &forward, nullptr);
-
-	laser->s.origin = start;
-	laser->movedir = forward;
-	gi.linkentity(laser);
-	dabeam_update(laser, false);
+    
+    vec3_t forward, right, up;
+    vec3_t start;
+    vec3_t tempvec;
+    
+    AngleVectors(self->s.angles, forward, right, up);
+    start = self->s.origin;
+    tempvec = monster_flash_offset[self->radius_dmg];
+    start += (forward * tempvec[0]);
+    start += (right * tempvec[1]);
+    start += (up * (tempvec[2] + 6));
+    
+    if (!self->deadflag)
+        PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &forward, nullptr);
+        
+    laser->s.origin = start;
+    laser->movedir = forward;
+    gi.linkentity(laser);
+    
+    // Check if this is the first update (SPAWNED flag not set yet)
+    bool do_damage = !(laser->spawnflags & SPAWNFLAG_DABEAM_SPAWNED);
+    dabeam_update(laser, do_damage);
 }
-
 // RAFAEL
 void soldierh_laserbeam(edict_t* self, int flash_index)
 {
