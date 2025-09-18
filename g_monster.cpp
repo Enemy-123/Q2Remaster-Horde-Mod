@@ -483,7 +483,7 @@ bool M_HasValidTarget(edict_t* self)
 	return true;
 }
 
-// --- Optimized M_SetEffects ---
+// ---  M_SetEffects ---
 // This function is called every frame for visible monsters to set visual effects
 // based on their state (powerups, damage, special flags, etc.).
 void M_SetEffects(edict_t* ent)
@@ -1054,7 +1054,7 @@ static bool projectile_infront(edict_t* self, edict_t* other)
 }
 
 #include "horde/g_horde_phys.h"
-// The new, optimized M_CheckDodge function
+// The new,  M_CheckDodge function
 static void M_CheckDodge(edict_t* self)
 {
     if (!self || !self->inuse || !self->monsterinfo.dodge) {
@@ -1295,7 +1295,7 @@ THINK(monster_think) (edict_t* self) -> void
 	}
 
 	// Stygian/Friendly Health Regeneration
-	// Optimized check order for fast early-out. The timer check is first as it fails most often.
+	//  check order for fast early-out. The timer check is first as it fails most often.
 	if (level.time >= self->monsterinfo.next_regen_time &&
 		self->health > 0 &&
 		(self->monsterinfo.bonus_flags & (BF_STYGIAN | BF_FRIENDLY)) &&

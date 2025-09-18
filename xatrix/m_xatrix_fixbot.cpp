@@ -995,7 +995,7 @@ void use_scanner(edict_t* self)
 	}
 }
 
-// OPTIMIZED: This function was extremely expensive, performing 10 full tracelines
+//  This function was extremely expensive, performing 10 full tracelines
 // per frame just for a particle effect. It's been replaced with a single, direct
 // particle effect call that is vastly more performant.
 void create_blastoff_effect(edict_t* self)
@@ -1032,7 +1032,7 @@ void fly_vertical(edict_t* self)
 		return;
 	}
 
-	// Kick up some dust particles using the optimized function
+	// Kick up some dust particles using the  function
 	create_blastoff_effect(self);
 }
 

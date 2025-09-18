@@ -260,13 +260,13 @@ static edict_t* Horde_SpawnMonster(
 
 
 // High-performance position tracking with SIMD-friendly layout and reduced checks
-struct alignas(32) RecentPositionsOptimized {
+struct alignas(32) RecentPositions {
     // Pack data for better cache usage - process 4 positions at once
     static constexpr size_t BATCH_SIZE = 4;
     static constexpr size_t MAX_POSITIONS = 32;
     static constexpr size_t NUM_BATCHES = MAX_POSITIONS / BATCH_SIZE;
     
-    // SoA layout optimized for SIMD operations
+    // SoA layout  for SIMD operations
     alignas(32) std::array<float, MAX_POSITIONS> x_coords;
     alignas(32) std::array<float, MAX_POSITIONS> y_coords; 
     alignas(32) std::array<float, MAX_POSITIONS> z_coords;
@@ -337,10 +337,10 @@ private:
 };
 
 // Global instances with better memory layout
-static RecentPositionsOptimized g_recent_spawns_opt;
-static RecentPositionsOptimized g_recent_teleports_opt;
+static RecentPositions g_recent_spawns_opt;
+static RecentPositions g_recent_teleports_opt;
 
-// Optimized interface functions
+//  interface functions
 inline void MarkPositionAsRecentlyUsed(const vec3_t& position) {
     g_recent_spawns_opt.AddPosition(position, HordeConstants::RECENT_SPAWN_COOLDOWN);
 }
@@ -1740,7 +1740,7 @@ static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = {{{MonsterWaveTy
 																  {MonsterWaveType::Heavy, 0.2f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
 																  {MonsterWaveType::Spawner, 0.75f, 25, -1, "*** Spawners Deployed! ***\n"}}};
 
-// --- Step 3: Define Optimized Data Structures (SoA) ---
+// --- Step 3: Define  Data Structures (SoA) ---
 
 struct WaveDefinitionsSoA
 {
@@ -1924,7 +1924,7 @@ struct MonsterTypeInfo
 };
 
 // 2. The complete monsterTypes array with s_scale added
-// This array is sorted by `minWave` to allow for optimized iteration.
+// This array is sorted by `minWave` to allow for  iteration.
 static const MonsterTypeInfo monsterTypes[] = {
 	// --- WAVE 1 ---
 	{horde::MonsterTypeID::SOLDIER_LIGHT, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
@@ -2173,7 +2173,7 @@ static constexpr std::array<boss_t, 17> BOSS_LARGE_SRC = {{{horde::MonsterTypeID
 														   {horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT},
 														   {horde::MonsterTypeID::WIDOW2, -1, 24, 0.19f, BossSizeCategory::Small, BossType::WIDOW2}}};
 
-// --- Step 2: Optimized Data Structure (Structure of Arrays) ---
+// --- Step 2:  Data Structure (Structure of Arrays) ---
 // This is the cache-friendly structure the game will actually use.
 struct BossDataSoA
 {
@@ -2922,7 +2922,7 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 
 	int32_t potentialEffectiveLevel = std::min(currentActualLevel + levelBoost, maxLevelCap);
 
-	// --- OPTIMIZED SEARCH ---
+	// ---  SEARCH ---
 	// Use std::lower_bound to efficiently find the start of the relevant monster range.
 	auto it = std::lower_bound(std::begin(monsterTypes), std::end(monsterTypes), currentActualLevel,
 		[](const MonsterTypeInfo& monster, int32_t level) {
@@ -2939,7 +2939,7 @@ static int32_t CalculateEffectiveMonsterLevel(int32_t currentActualLevel, bool a
 			break; // Found one, no need to check further.
 		}
 	}
-	// --- END OPTIMIZED SEARCH ---
+	// --- END  SEARCH ---
 
 	if (!any_new_monsters_unlocked)
 	{
@@ -6345,7 +6345,7 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 	}
 }
 
-// Optimized spawn point validation with reduced lookups and better caching
+//  spawn point validation with reduced lookups and better caching
 struct CachedSpawnPointData {
     uint16_t index;
     gtime_t last_validation_time;

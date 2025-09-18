@@ -39,7 +39,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Build: RelWithDebInfo (optimized with symbols)",
+            "label": "Build: RelWithDebInfo ( with symbols)",
             "type": "shell",
             "command": "python3",
             "args": [

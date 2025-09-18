@@ -2875,7 +2875,7 @@ void CTFShowScores(edict_t* ent, pmenu_t* p)
 //		// No action needed if it's static in the array definition. Ensure it's not cleared below.
 //
 //
-//		// --- Update Player Count (Optimized) ---
+//		// --- Update Player Count () ---
 //		uint32_t horde_player_count = 0;
 //		for (const auto* player_ent : active_players()) {
 //			if (player_ent->client->resp.ctf_team == CTF_TEAM1) {

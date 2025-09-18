@@ -2,7 +2,7 @@
 #include "../g_local.h"
 
 // *************************
-// TESLA - OPTIMIZED
+// TESLA - 
 // *************************
 
 constexpr float TESLA_DAMAGE_RADIUS = 200;
@@ -112,7 +112,7 @@ static vec3_t calculate_tesla_ray_origin(const edict_t *self)
 	return ray_origin;
 }
 
-// Optimized calculation of ray target
+//  calculation of ray target
 vec3_t calculate_tesla_ray_target(const edict_t *self, const edict_t *target)
 {
 	// Calcular el centro del objetivo
@@ -148,7 +148,7 @@ struct TeslaTarget
 	float dist_squared;
 };
 
-// Optimized target validation
+//  target validation
 bool IsValidTeslaTarget(edict_t *self, edict_t *ent)
 {
 	if (!ent || !ent->inuse || ent == self ||
@@ -249,7 +249,7 @@ bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start,
 }
 
 #include "../horde/g_horde_phys.h"
-// Optimized targeting and attack function using the Proximity Grid
+//  targeting and attack function using the Proximity Grid
 THINK(tesla_think_active)(edict_t* self)->void
 {
 	if (!self)

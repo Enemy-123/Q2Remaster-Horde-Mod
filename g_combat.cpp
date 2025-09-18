@@ -643,7 +643,7 @@ void ApplyGradualHealing(edict_t* ent) {
 	if (!ent || ent->health <= 0 || level.time < ent->regen_info.next_regen_time)
 		return;
 
-	// Apply health regeneration with optimized checks and calculations
+	// Apply health regeneration with  checks and calculations
 	if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
 		// Use direct min operation to simplify logic
 		const float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
@@ -953,7 +953,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
         );
     }
 
-    // --- 3. Sentry Healing (Optimized) ---
+    // --- 3. Sentry Healing () ---
     // If the attacker is a player, heal their deployed sentries as well.
     // This is a critical optimization: we iterate ONLY over the player's sentries,
     // not the entire global entity list.

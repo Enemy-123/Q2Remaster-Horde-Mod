@@ -51,7 +51,7 @@ constexpr BenefitsDataSoA create_benefits_soa() {
     return soa_data;
 }
 
-// --- The single global instance of our optimized data ---
+// --- The single global instance of our  data ---
 // This is the DEFINITION.
 const BenefitsDataSoA g_benefitsData = create_benefits_soa();
 

@@ -241,7 +241,7 @@ public:
         static const char* GetClassname(MonsterTypeID id);
     };
 
-    // Optimized replacement for lastMonsterSpawnTime
+    //  replacement for lastMonsterSpawnTime
     class MonsterSpawnTimeTracker {
     public:
         // Reset all spawn times
@@ -286,7 +286,7 @@ public:
         static bool s_initialized;
     };
 
-    // Optimized replacement for spawn point time tracking
+    //  replacement for spawn point time tracking
     // This is intended to integrate with existing SpawnPointDataArray
     class SpawnPointTimeTracker {
     public:

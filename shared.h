@@ -152,6 +152,72 @@ extern const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept;
 extern bool IsPlayerDefense(const edict_t* ent);
 extern void VerifyAndAdjustBots();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs);
-
+extern void RemoveEntity(edict_t* ent);
 
 extern void remove_sentries(edict_t* ent) noexcept;
+
+// --- Extern Declarations for Monster Jump Moves ---
+
+// Berserk
+extern const mmove_t berserk_move_jump;
+extern const mmove_t berserk_move_jump2;
+
+// Brain
+extern const mmove_t brain_move_jumpattack;
+extern const mmove_t brain_move_jump;
+extern const mmove_t brain_move_jump2;
+
+// Chick
+extern const mmove_t chick_move_jump;
+extern const mmove_t chick_move_jump2;
+
+// Gun Commander
+extern const mmove_t guncmdr_move_jump;
+extern const mmove_t guncmdr_move_jump2;
+
+// Gunner
+extern const mmove_t gunner_move_jump;
+extern const mmove_t gunner_move_jump2;
+
+// Gunner Vanilla
+extern const mmove_t gunner_vanilla_move_jump;
+extern const mmove_t gunner_vanilla_move_jump2;
+
+// Infantry
+extern const mmove_t infantry_move_jump;
+extern const mmove_t infantry_move_jump2;
+
+// Mutant
+extern const mmove_t mutant_move_jump;
+extern const mmove_t mutant_move_jump_up;
+extern const mmove_t mutant_move_jump_down;
+
+// Parasite
+extern const mmove_t parasite_move_jump_up;
+extern const mmove_t parasite_move_jump_down;
+
+// Red Mutant
+extern const mmove_t redmutant_move_jump;
+extern const mmove_t redmutant_move_jump_up;
+extern const mmove_t redmutant_move_jump_down;
+
+// Runner Tank
+extern const mmove_t runnertank_move_jump;
+extern const mmove_t runnertank_move_jump2;
+
+// Shocker
+extern const mmove_t shocker_move_jump;
+extern const mmove_t shocker_move_jump2;
+
+// Soldier
+extern const mmove_t soldier_move_jump;
+extern const mmove_t soldier_move_jump2;
+
+// Stalker
+extern const mmove_t stalker_move_jump_straightup;
+extern const mmove_t stalker_move_jump_up;
+extern const mmove_t stalker_move_jump_down;
+
+// Gekk
+extern const mmove_t gekk_move_jump_up;
+extern const mmove_t gekk_move_jump_down;

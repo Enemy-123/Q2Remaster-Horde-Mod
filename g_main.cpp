@@ -653,7 +653,7 @@ void EndDMLevel()
     // Priority 3: Process the map list.
     if (*g_map_list->string)
     {
-        // --- OPTIMIZED SHUFFLE LOGIC ---
+        // ---  SHUFFLE LOGIC ---
         if (g_map_list_shuffle->integer)
         {
             // Use the allocation-free split to get views of the map names.
@@ -1037,7 +1037,7 @@ Advances the world by 0.1 seconds
 #include "profiler.h"
 #include "horde/g_horde_phys.h"
 // This is the main game frame function. It is called every server frame.
-// The structure of this function is highly optimized for performance.
+// The structure of this function is highly  for performance.
 inline void G_RunFrame_(bool main_loop)
 {
     auto monsters = active_monsters();
@@ -1064,7 +1064,7 @@ inline void G_RunFrame_(bool main_loop)
             // Check for and resolve any bot-on-bot overlaps.
     	    G_CheckBotOverlap();
 
-            // OPTIMIZATION: The grid's world bounds are calculated only ONCE per map load.
+     //        The grid's world bounds are calculated only ONCE per map load.
             // This is a heavy operation that should not be done every frame.
             static std::string last_map_for_grid;
             if (last_map_for_grid != level.mapname) 
@@ -1082,7 +1082,7 @@ inline void G_RunFrame_(bool main_loop)
                 last_map_for_grid = level.mapname;
             }
 
-            // OPTIMIZATION: The per-frame update is very fast. It clears the previous
+          //   The per-frame update is very fast. It clears the previous
             // frame's data and then uses the efficient iterators to add only the
             // relevant entities (monsters, players, projectiles) to the grid.
             HordePhys::g_monster_grid.Reset();
@@ -1117,7 +1117,7 @@ inline void G_RunFrame_(bool main_loop)
         level.coop_scale_players = 2 + GetNumHumanPlayers();
         G_Monster_CheckCoopHealthScaling();
 
-        // OPTIMIZATION: Time-slicing monster checks.
+     //    Time-slicing monster checks.
         // Instead of checking every monster for being stuck every frame, we process
         // a small batch. This spreads the CPU load over multiple frames.
         constexpr uint32_t BATCH_SIZE = 32;

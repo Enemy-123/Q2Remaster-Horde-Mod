@@ -403,7 +403,7 @@ void FindTrapTargets(edict_t* ent, trap_state_t* trap_state) {
         }
     }
 
-    // Sort targets by distance (optimized for small array)
+    // Sort targets by distance ( for small array)
     if (trap_state->num_targets > 1) {
         if (trap_state->num_targets == 2) {
             if (trap_state->targets[0].distance > trap_state->targets[1].distance) {

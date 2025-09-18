@@ -1263,7 +1263,7 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
     static std::vector<spawn_point_t> spawn_points;
     spawn_points.clear();
 
-    // OPTIMIZATION: Gather all potential spawn points in a single pass over the edict list.
+    // Gather all potential spawn points in a single pass over the edict list.
     edict_t* spot = nullptr;
     for (uint32_t i = 1; i < globals.num_edicts; i++)
     {
@@ -4239,7 +4239,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	static constexpr auto ZERO_TIME = 0_ms;
 	static constexpr auto MAX_INT64_VAL = std::numeric_limits<int64_t>::max();
 
-	// --- Data Structures (OPTIMIZED) ---
+	// --- Data Structures () ---
     // Use a static C-style array to avoid vector overhead entirely.
 	static std::array<std::pair<edict_t*, vec3_t>, MAX_CLIENTS> candidates_arr;
 	size_t num_candidates = 0; // Reset count each frame.

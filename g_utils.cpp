@@ -41,7 +41,7 @@ findradius (origin, radius)
 Notes:
 - The 'from' parameter allows for iterative searching
 - Returns the next entity found within radius or nullptr when done
-- Optimized to use squared distance for performance
+-  to use squared distance for performance
 =================
 */
 edict_t* findradius(edict_t* from, const vec3_t& org, float rad)

@@ -151,7 +151,7 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		Q_strlcpy(entries[JOINMENU_DISCORD_IDX].text, "Discord: Enemy0416", sizeof(entries[JOINMENU_DISCORD_IDX].text));
 		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
 
-		// --- Update Player Count (Optimized) ---
+		// --- Update Player Count () ---
 		uint32_t horde_player_count = 0;
 		for (const auto* player_ent : active_players()) {
 			if (player_ent->client->resp.ctf_team == CTF_TEAM1) {
