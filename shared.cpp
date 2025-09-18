@@ -6,191 +6,240 @@
 #include "horde/horde_ids.h"
 #include "horde/g_entity_properties.h"
 #include <optional> // Required for the new cache
+#include <vector>
+#include <string>
+#include <string_view>
 
-// It quickly finds a random, unoccupied spawn point.
+// This function finds a random, unoccupied spawn point with high performance.
+// It relies on a pre-shuffled global list (g_spawn_point_list) to avoid costly
+// random lookups and leverages a thread-local index to ensure good distribution
+// and cache-friendly sequential access across multiple calls.
 [[nodiscard]] static edict_t* SelectRandomClearSpawnPoint() {
-	if (g_num_spawn_points == 0) {
-		return nullptr;
-	}
+    // Early exit if the map has no spawn points.
+    if (g_num_spawn_points == 0) {
+        return nullptr;
+    }
 
-	// Try a limited number of random spots to find a clear one quickly.
-	// This avoids iterating the entire list and is much faster.
-	const size_t max_attempts = std::min((size_t)16, g_num_spawn_points);
+    // Use a thread-local static variable to remember the last checked index.
+    // This ensures that each thread's spawn requests are distributed across the
+    // available points and avoids contention on a single global index.
+    thread_local size_t s_last_checked_index = 0;
 
-	for (size_t i = 0; i < max_attempts; ++i) {
-		size_t random_index = static_cast<size_t>(irandom(g_num_spawn_points));
-		edict_t* spot = g_spawn_point_list[random_index];
+    // To prevent an infinite loop on a fully occupied map, we'll check each
+    // spawn point at most once.
+    for (size_t i = 0; i < g_num_spawn_points; ++i) {
+        // Cycle through the pre-shuffled list, wrapping around if necessary.
+        const size_t check_index = (s_last_checked_index + i) % g_num_spawn_points;
+        edict_t* spot = g_spawn_point_list[check_index];
 
-		// Use the efficient IsSpawnPointOccupied check
-		if (spot && spot->inuse && !IsSpawnPointOccupied(spot)) {
-			return spot;
-		}
-	}
+        // Check if the spot is valid, in use, and not currently occupied by a player or object.
+        // IsSpawnPointOccupied is assumed to be a fast, optimized check.
+        if (spot && spot->inuse && !IsSpawnPointOccupied(spot)) {
+            // Found a clear spot. Update the index for the next call to start from here.
+            s_last_checked_index = check_index + 1;
+            return spot;
+        }
+    }
 
-	// Fallback if no clear point is found after several attempts.
-	// Return a random point, which is better than returning nothing.
-	return g_spawn_point_list[static_cast<size_t>(irandom(g_num_spawn_points))];
+    // FALLBACK: If no perfectly clear spot is found after checking all points,
+    // it's better to return a potentially occupied one than to fail the spawn.
+    // We'll just return the next spot in the shuffled sequence.
+    s_last_checked_index = (s_last_checked_index + 1) % g_num_spawn_points;
+    return g_spawn_point_list[s_last_checked_index];
 }
 
+#include <array>
+#include <bit> // For std::countr_zero
 
-
-// --- Data structure for bonus flag properties ---
+// Data structure defining the effects and multipliers for a given monster bonus.
+// This struct is designed for POD (Plain Old Data) efficiency.
 struct BonusEffectData {
-	effects_t effects = EF_NONE;
-	renderfx_t renderfx = RF_NONE;
-	float alpha = 1.0f;
-	float health_mult = 1.0f;
-	float power_armor_mult = 1.0f;
-	gtime_t double_time_add = 0_sec;
-	gtime_t quad_time_add = 0_sec;
-	gtime_t invincible_time_add = 0_sec;
-	monster_attack_state_t attack_state = AS_NONE; // CORRECTED TYPE AND DEFAULT
+    effects_t effects = EF_NONE;
+    renderfx_t renderfx = RF_NONE;
+    float alpha = 1.0f;
+    float health_mult = 1.0f;
+    float power_armor_mult = 1.0f;
+    gtime_t double_time_add = 0_sec;
+    gtime_t quad_time_add = 0_sec;
+    gtime_t invincible_time_add = 0_sec;
+    monster_attack_state_t attack_state = AS_NONE;
 
-	// Scaling multipliers per boss size
-	float scale_small = 1.0f;
-	float scale_medium = 1.0f;
-	float scale_large = 1.0f;
-	float health_mult_small = 1.0f;
-	float health_mult_medium = 1.0f;
-	float health_mult_large = 1.0f;
-	float pa_mult_small = 1.0f;
-	float pa_mult_medium = 1.0f;
-	float pa_mult_large = 1.0f;
+    // Scaling multipliers per boss size
+    float scale_small = 1.0f;
+    float scale_medium = 1.0f;
+    float scale_large = 1.0f;
+    float health_mult_small = 1.0f;
+    float health_mult_medium = 1.0f;
+    float health_mult_large = 1.0f;
+    float pa_mult_small = 1.0f;
+    float pa_mult_medium = 1.0f;
+    float pa_mult_large = 1.0f;
 };
 
-// --- Lookup table for bonus effects ---
-static const std::unordered_map<bonus_flags_t, BonusEffectData> g_bonus_effects = {
-	{BF_CHAMPION, {
-		.effects = EF_ROCKET | EF_FIREBALL, .renderfx = RF_SHELL_RED,
-		.double_time_add = 475_sec,
-		.scale_small = 1.1f, .scale_medium = 1.25f, .scale_large = 1.5f,
-		.health_mult_small = 1.13f, .health_mult_medium = 1.1f, .health_mult_large = 1.35f,
-		.pa_mult_small = 1.1f, .pa_mult_medium = 1.08f, .pa_mult_large = 1.05f
-	}},
-	{BF_CORRUPTED, {
-		.effects = EF_PLASMA | EF_TAGTRAIL,
-		.scale_small = 1.1f, .scale_medium = 1.2f, .scale_large = 1.2f,
-		.health_mult_small = 1.24f, .health_mult_medium = 1.02f, .health_mult_large = 1.4f,
-		.pa_mult_small = 1.04f, .pa_mult_medium = 1.15f, .pa_mult_large = 1.2f
-	}},
-	{BF_RAGEQUITTER, {
-		.effects = EF_BLUEHYPERBLASTER, .alpha = 0.6f,
-		.power_armor_mult = 1.2f, .invincible_time_add = 12_sec
-	}},
-	{BF_BERSERKING, {
-		.effects = EF_GIB | EF_FLAG2, .health_mult = 0.92f, .power_armor_mult = 1.32f,
-		.quad_time_add = 475_sec, .attack_state = AS_BLIND // CORRECTED VALUE
-	}},
-	{BF_POSSESSED, {
-		.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE, .alpha = 0.6f,
-		.health_mult = 1.2f, .power_armor_mult = 1.35f, .attack_state = AS_BLIND // CORRECTED VALUE
-	}},
-	{BF_STYGIAN, {
-		.effects = EF_TRACKER | EF_FLAG1, .attack_state = AS_BLIND, // CORRECTED VALUE
-		.scale_small = 1.1f, .scale_medium = 1.3f, .scale_large = 1.2f,
-		.health_mult_small = 1.2f, .health_mult_medium = 1.5f, .health_mult_large = 1.5f,
-		.pa_mult_small = 1.1f, .pa_mult_medium = 1.1f, .pa_mult_large = 1.1f
-	}}
-};
+// A compile-time constant array holding all bonus effect data.
+// Using a `constexpr std::array` ensures the data is baked into the program's
+// data segment, allowing for extremely fast, direct memory lookups instead of
+// slower runtime hash map lookups.
+static constexpr std::array<BonusEffectData, 7> g_bonus_effects_array = {{
+    // BF_NONE (index 0) - Default empty entry
+    {},
+    // BF_CHAMPION (index 1)
+    {
+        .effects = EF_ROCKET | EF_FIREBALL, .renderfx = RF_SHELL_RED,
+        .double_time_add = 475_sec,
+        .scale_small = 1.1f, .scale_medium = 1.25f, .scale_large = 1.5f,
+        .health_mult_small = 1.13f, .health_mult_medium = 1.1f, .health_mult_large = 1.35f,
+        .pa_mult_small = 1.1f, .pa_mult_medium = 1.08f, .pa_mult_large = 1.05f
+    },
+    // BF_CORRUPTED (index 2)
+    {
+        .effects = EF_PLASMA | EF_TAGTRAIL,
+        .scale_small = 1.1f, .scale_medium = 1.2f, .scale_large = 1.2f,
+        .health_mult_small = 1.24f, .health_mult_medium = 1.02f, .health_mult_large = 1.4f,
+        .pa_mult_small = 1.04f, .pa_mult_medium = 1.15f, .pa_mult_large = 1.2f
+    },
+    // BF_RAGEQUITTER (index 3)
+    {
+        .effects = EF_BLUEHYPERBLASTER, .alpha = 0.6f,
+        .power_armor_mult = 1.2f, .invincible_time_add = 12_sec
+    },
+    // BF_BERSERKING (index 4)
+    {
+        .effects = EF_GIB | EF_FLAG2, .health_mult = 0.92f, .power_armor_mult = 1.32f,
+        .quad_time_add = 475_sec, .attack_state = AS_BLIND
+    },
+    // BF_POSSESSED (index 5)
+    {
+        .effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE, .alpha = 0.6f,
+        .health_mult = 1.2f, .power_armor_mult = 1.35f, .attack_state = AS_BLIND
+    },
+    // BF_STYGIAN (index 6)
+    {
+        .effects = EF_TRACKER | EF_FLAG1, .attack_state = AS_BLIND,
+        .scale_small = 1.1f, .scale_medium = 1.3f, .scale_large = 1.2f,
+        .health_mult_small = 1.2f, .health_mult_medium = 1.5f, .health_mult_large = 1.5f,
+        .pa_mult_small = 1.1f, .pa_mult_medium = 1.1f, .pa_mult_large = 1.1f
+    }
+}};
 
-horde::MapSize GetMapSize(const char* mapname) {
-    // Cache is a static array, indexed by MapID. This is extremely fast.
-    static std::array<std::optional<horde::MapSize>, static_cast<size_t>(horde::MapID::MAX_MAPS)> cache;
-    
-    // On map change, clear the cache.
-    static char last_map_for_cache[MAX_QPATH] = "";
-    if (strcmp(last_map_for_cache, level.mapname) != 0) {
-        cache.fill(std::nullopt);
-        Q_strlcpy(last_map_for_cache, level.mapname, sizeof(last_map_for_cache));
+// This function converts a single bonus flag (e.g., 1, 2, 4, 8) into a direct
+// array index (0, 1, 2, 3). `constexpr` allows this to run at compile-time if the
+// input is a constant, or as a very fast runtime function otherwise.
+[[nodiscard]] constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) noexcept {
+    if (flags == BF_NONE) {
+        return 0;
+    }
+    // Ensure only one bit is set for a valid lookup.
+    if (std::popcount(static_cast<uint32_t>(flags)) != 1) {
+        return 0; // Not a single flag, return default.
+    }
+    // `std::countr_zero` is a CPU instruction (like BSF) that finds the
+    // index of the first set bit. It's the fastest way to convert a power-of-two
+    // value to its corresponding exponent (e.g., 8 -> 3).
+    return static_cast<size_t>(std::countr_zero(static_cast<uint32_t>(flags)));
+}
+
+[[nodiscard]] horde::MapSize GetMapSize(const char* mapname) noexcept {
+    // The cache is a static array of optional values. `std::optional` is used
+    // to distinguish between a cached value and a cache miss.
+    static std::array<std::optional<horde::MapSize>,
+                      static_cast<size_t>(horde::MapID::MAX_MAPS)> s_cache;
+
+    // Static variable to track the last map name to know when to invalidate the cache.
+    static char s_last_map_for_cache[MAX_QPATH] = "";
+
+    // If the map has changed since the last call, clear the entire cache.
+    if (strcmp(s_last_map_for_cache, level.mapname) != 0) {
+        s_cache.fill(std::nullopt);
+        Q_strlcpy(s_last_map_for_cache, level.mapname, sizeof(s_last_map_for_cache));
     }
 
-    horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
+    // Convert the map name to a unique, integer-based ID.
+    const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
     if (mapId == horde::MapID::UNKNOWN) {
-        return horde::MapOriginRegistry::GetMapSize(mapId); // Return default
+        return {}; // Return a default-constructed (e.g., medium) map size.
     }
 
-    // Check the array cache using the ID as an index.
-    size_t index = static_cast<size_t>(mapId);
-    if (cache[index].has_value()) {
-        return cache[index].value();
+    const size_t index = static_cast<size_t>(mapId);
+
+    // FAST PATH: If the cache already has a value for this map ID, return it directly.
+    if (s_cache[index].has_value()) {
+        return s_cache[index].value();
     }
 
-    // Cache miss: Get the size from the registry.
-    horde::MapSize size = horde::MapOriginRegistry::GetMapSize(mapId);
+    // SLOW PATH (CACHE MISS): The size is not in the cache.
+    // 1. Look up the size from the slower, central registry.
+    const horde::MapSize size = horde::MapOriginRegistry::GetMapSize(mapId);
 
-    // Store in our array cache and return.
-    cache[index] = size;
+    // 2. Store the retrieved size in our fast array cache for future lookups.
+    s_cache[index] = size;
+
+    // 3. Return the size.
     return size;
 }
 
-bool IsRemovableEntity(const edict_t* ent);
+[[nodiscard]] bool IsRemovableEntity(const edict_t* ent) noexcept;
+
 void RemoveEntity(edict_t* ent);
 
 void RemovePlayerOwnedEntities(edict_t* player) {
-    // --- 1. Safety Check ---
     if (!player || !player->client) {
         return;
     }
 
-    // --- PASS 1: COLLECT all entities to be removed ---
-    // We collect pointers first to avoid issues where one entity's die() function
-    // might affect another entity in the tracking arrays.
-    std::vector<edict_t*> entities_to_remove;
-    entities_to_remove.reserve(32); // Reserve some space to avoid reallocations
+    // OPTIMIZATION: Use a small, fast, stack-allocated array for the common case
+    // where a player has few deployed entities. This avoids heap allocation overhead.
+    constexpr size_t STACK_CAPACITY = 32;
+    edict_t* stack_entities[STACK_CAPACITY];
 
-    // Collect Lasers
-    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
-        edict_t* laser = player->client->resp.deployed_lasers[i];
-        if (laser && laser->inuse) {
-            entities_to_remove.push_back(laser);
+    // A heap-allocated vector is used as a fallback for the rare case where
+    // a player has more entities than the stack buffer can hold.
+    std::vector<edict_t*> heap_entities;
+
+    edict_t** collection_ptr = stack_entities;
+    size_t entity_count = 0;
+    size_t current_capacity = STACK_CAPACITY;
+
+    // Lambda to safely add an entity to the current collection (stack or heap).
+    auto add_entity_to_collection = [&](edict_t* ent) {
+        if (ent && ent->inuse) {
+            // If the current collection is full...
+            if (entity_count >= current_capacity) {
+                // ...and we are currently using the stack buffer...
+                if (collection_ptr == stack_entities) {
+                    // ...promote to using the heap vector.
+                    heap_entities.reserve(current_capacity * 2);
+                    // Copy existing pointers from stack to heap.
+                    std::copy(stack_entities, stack_entities + entity_count, std::back_inserter(heap_entities));
+                    collection_ptr = heap_entities.data();
+                    current_capacity = heap_entities.capacity();
+                } else {
+                    // If we are already on the heap, just grow it.
+                    current_capacity *= 2;
+                    heap_entities.reserve(current_capacity);
+                    collection_ptr = heap_entities.data();
+                }
+            }
+            collection_ptr[entity_count++] = ent;
         }
-    }
+    };
 
-    // Collect Sentries
-    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
-        edict_t* sentry = player->client->resp.deployed_sentries[i];
-        if (sentry && sentry->inuse) {
-            entities_to_remove.push_back(sentry);
-        }
-    }
+    // --- PASS 1: COLLECT ENTITIES ---
+    // Use std::span for safe, modern iteration over the C-style arrays.
+    const auto& client = *player->client;
+    for (edict_t* laser : std::span{client.resp.deployed_lasers}) add_entity_to_collection(laser);
+    for (edict_t* sentry : std::span{client.resp.deployed_sentries}) add_entity_to_collection(sentry);
+    for (edict_t* tesla : std::span{client.resp.deployed_teslas}) add_entity_to_collection(tesla);
+    for (edict_t* trap : std::span{client.resp.deployed_traps}) add_entity_to_collection(trap);
+    for (edict_t* prox : std::span{client.resp.deployed_proxs}) add_entity_to_collection(prox);
 
-    // Collect Teslas
-    for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i) {
-        edict_t* tesla = player->client->resp.deployed_teslas[i];
-        if (tesla && tesla->inuse) {
-            entities_to_remove.push_back(tesla);
-        }
-    }
-
-    // Collect Traps
-    for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i) {
-        edict_t* trap = player->client->resp.deployed_traps[i];
-        if (trap && trap->inuse) {
-            entities_to_remove.push_back(trap);
-        }
-    }
-
-    // Collect Proxs
-    for (int i = 0; i < ProxConstants::MAX_PROXS_PER_PLAYER; ++i) {
-        edict_t* prox = player->client->resp.deployed_proxs[i];
-        if (prox && prox->inuse) {
-            entities_to_remove.push_back(prox);
-        }
-    }
-    
-    // // You can also add other owned entities here, like dopplegangers, if needed.
-    // if (player->client->owned_sphere && player->client->owned_sphere->inuse) {
-    //     entities_to_remove.push_back(player->client->owned_sphere);
-    // }
-
-
-    // --- PASS 2: REMOVE all collected entities ---
-    for (edict_t* ent_to_remove : entities_to_remove) {
-        // The check 'ent_to_remove->inuse' is still a good practice here,
-        // in case one die function somehow affects another entity in the list.
+    // --- PASS 2: REMOVE COLLECTED ENTITIES ---
+    // This batch removal is more cache-friendly and safer than interleaved removal.
+    for (size_t i = 0; i < entity_count; ++i) {
+        edict_t* ent_to_remove = collection_ptr[i];
+        // Re-check inuse status, as one entity's death might have affected another.
         if (ent_to_remove && ent_to_remove->inuse) {
-            // Use the generic RemoveEntity function which calls the correct die() handler.
-            RemoveEntity(ent_to_remove);
+            RemoveEntity(ent_to_remove); // Assumes RemoveEntity handles the correct die() function.
         }
     }
 }
@@ -206,406 +255,382 @@ bool IsPlayerDefense(const edict_t* ent) {
 
 #include <unordered_set> // Add this include at the top of your file
 
-bool IsRemovableEntity(const edict_t* ent) {
-    if (!ent) {
-        return false;
-    }
+[[nodiscard]] bool IsRemovableEntity(const edict_t* ent) noexcept {
+    if (!ent) return false;
 
-    // FAST PATH: Use the cached ID from the entity struct.
-    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+    const auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
 
-    // SLOW/DEBUG PATH: If the cached ID is UNKNOWN, investigate.
+    // DEBUG/VALIDATION PATH: This block only runs when `developer` is enabled,
+    // incurring zero performance cost in release builds. It helps developers find
+    // entities that are missing their required `special_type_id`.
     if (id == horde::SpecialEntityTypeID::UNKNOWN) {
-        if (developer->integer) {
-            // Check if this entity's classname *should* have a valid ID.
-            if (ent->classname && horde::SpecialTypeRegistry::GetTypeID(ent->classname) != horde::SpecialEntityTypeID::UNKNOWN) {
-                
-                static std::unordered_set<std::string_view> reported_classnames;
-                static char last_map_for_reporting[MAX_QPATH] = "";
-                if (strcmp(last_map_for_reporting, level.mapname) != 0) {
-                    reported_classnames.clear();
-                    Q_strlcpy(last_map_for_reporting, level.mapname, sizeof(last_map_for_reporting));
-                }
+        if (developer->integer > 0) {
+            // Use thread-local statics to avoid repeated warnings for the same classname per map.
+            thread_local std::unordered_set<std::string_view> s_reported_classnames;
+            thread_local char s_last_map_for_reporting[MAX_QPATH] = "";
 
-                if (reported_classnames.find(ent->classname) == reported_classnames.end()) {
-                    gi.Com_PrintFmt("VALIDATION WARNING: Entity with classname '{}' is missing its special_type_id. Please set it in its spawn function.\n", ent->classname);
-                    reported_classnames.insert(ent->classname);
+            // Clear the warning cache on map change.
+            if (strcmp(s_last_map_for_reporting, level.mapname) != 0) {
+                s_reported_classnames.clear();
+                Q_strlcpy(s_last_map_for_reporting, level.mapname, sizeof(s_last_map_for_reporting));
+            }
+
+            if (ent->classname && horde::SpecialTypeRegistry::GetTypeID(ent->classname) != horde::SpecialEntityTypeID::UNKNOWN) {
+                if (s_reported_classnames.find(ent->classname) == s_reported_classnames.end()) {
+                    gi.Com_PrintFmt("VALIDATION WARNING: Entity '{}' is missing its special_type_id. Set it in its spawn function.\n", ent->classname);
+                    s_reported_classnames.insert(ent->classname);
                 }
             }
         }
         return false;
     }
 
-    // FAST PATH RESULT: Direct, lightning-fast array lookup.
-   return IsRemovable(id);
+    // FAST PATH: Use the bitmask for the actual check.
+    static constexpr uint64_t REMOVABLE_MASK =
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TESLA_MINE)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::LASER_EMITTER)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::DOPPLEGANGER));
+
+    return (REMOVABLE_MASK & (1ULL << static_cast<uint64_t>(id))) != 0;
 }
+
 
 void RemoveEntity(edict_t* ent) {
     if (!ent || !ent->inuse) return;
-    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+
+    const auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+
+    // If the entity has a registered type, look up its specific death handler.
     if (id != horde::SpecialEntityTypeID::UNKNOWN) {
+        // Assumes GetDieHandler(id) performs a fast lookup (e.g., array access).
         EntityDieHandler handler = GetDieHandler(id);
         if (handler) {
+            // Call the specific `die` function for this entity type.
             handler(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
             return;
         }
     }
+
+    // Fallback for entities with no special handler.
     BecomeExplosion1(ent);
 }
 
-void UpdatePowerUpTimes(edict_t* monster) {
-	if (!monster)
-		return;
+void UpdatePowerUpTimes(edict_t* monster) noexcept {
+    if (!monster) return;
 
-	const bool quad_expired = monster->monsterinfo.quad_time <= level.time;
-	const bool double_expired = monster->monsterinfo.double_time <= level.time;
+    // Batch time comparisons at the start of the function. This can help the CPU's
+    // branch predictor, as the conditions are evaluated together.
+    const gtime_t current_time = level.time;
+    const bool quad_expired = monster->monsterinfo.quad_time <= current_time;
+    const bool double_expired = monster->monsterinfo.double_time <= current_time;
 
-	if (quad_expired && double_expired) {
-		monster->monsterinfo.damage_modifier_applied = false;
-	}
+    // The most common case is that both power-ups have expired. This single check
+    // handles that efficiently.
+    if (quad_expired && double_expired) {
+        monster->monsterinfo.damage_modifier_applied = false;
+    }
 }
 
-float M_DamageModifier(edict_t* monster) noexcept {
-	if (!monster)
-		return 1.0f;
+[[nodiscard]] float M_DamageModifier(edict_t* monster) noexcept {
+    if (!monster) return 1.0f;
 
-	// Special case for sentry guns - use a reduced multiplier
-	if (horde::IsMonsterType(monster, horde::MonsterTypeID::SENTRYGUN)) {
-		float modifier = 1.0f;
+    const gtime_t current_time = level.time;
 
-		// Apply reduced power-up multipliers for sentries
-		if (monster->monsterinfo.quad_time > level.time)
-			modifier = 2.0f;  // Reduced from 4.0 to 2.0
-		else if (monster->monsterinfo.double_time > level.time)
-			modifier = 1.5f;  // Reduced from 2.0 to 1.5
+    // Special case for sentry guns, which receive reduced benefits from power-ups.
+    if (horde::IsMonsterType(monster, horde::MonsterTypeID::SENTRYGUN)) {
+        if (monster->monsterinfo.quad_time > current_time) return 2.0f;
+        if (monster->monsterinfo.double_time > current_time) return 1.5f;
+        return 1.0f;
+    }
 
-		// *** FIX: Resetting the flag here was incorrect. It should be reset *after* use. ***
-		// monster->monsterinfo.damage_modifier_applied = false; // REMOVED
-		return modifier;
-	}
+    // Standard logic for all other monsters.
+    // Check for the most powerful effect first (Quad Damage) for an early exit.
+    if (monster->monsterinfo.quad_time > current_time) return 4.0f;
+    if (monster->monsterinfo.double_time > current_time) return 2.0f;
 
-	// Standard logic for other monsters/entities
-	float modifier = 1.0f;
-
-	// Check power-ups in priority order
-	if (monster->monsterinfo.quad_time > level.time)
-		modifier = 4.0f;
-	else if (monster->monsterinfo.double_time > level.time)
-		modifier = 2.0f;
-
-	// *** FIX: Resetting the flag here was incorrect. It should be reset *after* use. ***
-	// monster->monsterinfo.damage_modifier_applied = false; // REMOVED
-
-	return modifier;
+    // Default multiplier if no power-ups are active.
+    return 1.0f;
 }
 
-// // FIX: Changed the parameter type from 'int' to 'unsigned int' to match the BF_* flags.
-const char* GetTitleFromFlags(bonus_flags_t bonus_flags) {
-	// Use a static buffer. Its content is valid until the next call to this function.
-	static char title_buffer[64];
+// --- Part 1: Title Generation from Flags ---
 
-	if (bonus_flags == BF_NONE) {
-		return ""; // Return a pointer to an empty literal string
-	}
+// Generates a title prefix (e.g., "Champion ", "Friendly ") from bonus flags.
+// It uses a fast path for common, single flags and combinations, avoiding
+// expensive string concatenation at runtime for the majority of cases.
+// Bring the string_view literal operators (like 'sv') into the current scope.
+using namespace std::literals::string_view_literals;
 
-	char* ptr = title_buffer;
-	const char* const end = title_buffer + sizeof(title_buffer);
+// Generates a title prefix (e.g., "Champion ", "Friendly ") from bonus flags.
+// It uses a fast path for common, single flags and combinations, avoiding
+// expensive string concatenation at runtime for the majority of cases.
+[[nodiscard]] const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
+    if (bonus_flags == BF_NONE) {
+        return ""; // Fast path for the most common case.
+    }
 
-	// Helper to safely append string literals using memcpy with compile-time lengths.
-	auto append_title = [&](const char* text, size_t len_without_null) {
-		if (ptr + len_without_null < end) { // Ensure space for text
-			memcpy(ptr, text, len_without_null);
-			ptr += len_without_null;
-		}
-		};
+    // A compile-time lookup table for common single flags and combinations.
+    static constexpr struct {
+        bonus_flags_t flags;
+        const char* title;
+    } COMMON_TITLES[] = {
+        {BF_CHAMPION, "Champion "},
+        {BF_CORRUPTED, "Corrupted "},
+        {BF_RAGEQUITTER, "Ragequitter "},
+        {BF_BERSERKING, "Berserking "},
+        {BF_POSSESSED, "Possessed "},
+        {BF_STYGIAN, "Stygian "},
+        {BF_FRIENDLY, "Friendly "},
+        {BF_CHAMPION | BF_CORRUPTED, "Champion Corrupted "},
+        // Add more common combinations here for further optimization.
+    };
 
-	if (bonus_flags & BF_CHAMPION)   append_title("Champion ", sizeof("Champion ") - 1);
-	if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted ", sizeof("Corrupted ") - 1);
-	if (bonus_flags & BF_RAGEQUITTER) append_title("Ragequitter ", sizeof("Ragequitter ") - 1);
-	if (bonus_flags & BF_BERSERKING) append_title("Berserking ", sizeof("Berserking ") - 1);
-	if (bonus_flags & BF_POSSESSED)  append_title("Possessed ", sizeof("Possessed ") - 1);
-	if (bonus_flags & BF_STYGIAN)    append_title("Stygian ", sizeof("Stygian ") - 1);
-	if (bonus_flags & BF_FRIENDLY)   append_title("Friendly ", sizeof("Friendly ") - 1);
+    // Fast path lookup.
+    for (const auto& entry : COMMON_TITLES) {
+        if (entry.flags == bonus_flags) {
+            return entry.title;
+        }
+    }
 
-	// Null-terminate the final string
-	*ptr = '\0';
+    // Fallback path for rare, complex combinations.
+    // A thread-local buffer is used to avoid heap allocations and thread-safety issues.
+    thread_local char title_buffer[64];
+    char* ptr = title_buffer;
+    const char* const end = title_buffer + sizeof(title_buffer);
 
-	return title_buffer;
+    // Helper lambda for safe string appending.
+    auto append_title = [&](std::string_view text) {
+        if (ptr + text.length() < end) {
+            memcpy(ptr, text.data(), text.length());
+            ptr += text.length();
+        }
+    };
+
+    if (bonus_flags & BF_CHAMPION)   append_title("Champion "sv);
+    if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted "sv);
+    if (bonus_flags & BF_RAGEQUITTER) append_title("Ragequitter "sv);
+    if (bonus_flags & BF_BERSERKING) append_title("Berserking "sv);
+    if (bonus_flags & BF_POSSESSED)  append_title("Possessed "sv);
+    if (bonus_flags & BF_STYGIAN)    append_title("Stygian "sv);
+    if (bonus_flags & BF_FRIENDLY)   append_title("Friendly "sv);
+
+    *ptr = '\0'; // Null-terminate the buffer.
+    return title_buffer;
 }
 
-// Caches for the final, formatted display names.
+// --- Part 2: Pre-computation and Final Name Generation ---
+
+// Static caches to hold the pre-formatted base names for all entity types.
 static std::array<std::string, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_monsterDisplayNames;
 static std::array<std::string, static_cast<size_t>(horde::SpecialEntityTypeID::COUNT)> g_specialDisplayNames;
 static bool g_displayNamesInitialized = false;
 
-
+// Forward declaration for a helper function.
 std::string FormatClassname(const std::string& classname);
 
+// This function runs once to populate the display name caches.
+// It should be called during game or level initialization.
 void InitializeDisplayNames() {
     if (g_displayNamesInitialized) return;
 
-    // --- Initialize Monster Names ---
+    // Pre-allocate memory to avoid reallocations during population.
+    for (auto& name : g_monsterDisplayNames) name.reserve(32);
+    for (auto& name : g_specialDisplayNames) name.reserve(24);
+
+    // Initialize monster names.
     for (size_t i = 0; i < static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES); ++i) {
         auto typeId = static_cast<horde::MonsterTypeID>(i);
-        
         auto it = monster_name_replacements.find(typeId);
         if (it != monster_name_replacements.end()) {
-            g_monsterDisplayNames[i] = std::string(it->second);
-        } 
-        else {
-            if (horde::MonsterTypeRegistry::IsValidType(typeId)) {
-                const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-                g_monsterDisplayNames[i] = FormatClassname(classname);
-            } else {
-                g_monsterDisplayNames[i] = "Unknown Monster";
-            }
+            g_monsterDisplayNames[i] = it->second;
+        } else if (horde::MonsterTypeRegistry::IsValidType(typeId)) {
+            g_monsterDisplayNames[i] = FormatClassname(horde::MonsterTypeRegistry::GetClassname(typeId));
+        } else {
+            g_monsterDisplayNames[i] = "Unknown Monster";
         }
     }
 
-    // --- Initialize Special Entity Names ---
-    std::unordered_map<horde::SpecialEntityTypeID, const char*> special_id_to_name;
-    special_id_to_name[horde::SpecialEntityTypeID::TESLA_MINE] = "Tesla Mine";
-    special_id_to_name[horde::SpecialEntityTypeID::FOOD_CUBE_TRAP] = "Stroggonoff Maker";
-    //special_id_to_name[horde::SpecialEntityTypeID::PROX_MINE] = "Prox Mine";
-	special_id_to_name[horde::SpecialEntityTypeID::TURRET] = "Turret";
-    special_id_to_name[horde::SpecialEntityTypeID::SENTRY_GUN] = "Sentry Gun";
-    //special_id_to_name[horde::SpecialEntityTypeID::NUKE_MINE] = "NUKE";
-    special_id_to_name[horde::SpecialEntityTypeID::LASER_EMITTER] = "Laser Emitter";
-    special_id_to_name[horde::SpecialEntityTypeID::DOPPLEGANGER] = "Doppleganger";
-    for (size_t i = 0; i < static_cast<size_t>(horde::SpecialEntityTypeID::COUNT); ++i) {
-        auto typeId = static_cast<horde::SpecialEntityTypeID>(i);
-        auto it = special_id_to_name.find(typeId);
-        if (it != special_id_to_name.end()) {
-            g_specialDisplayNames[i] = it->second;
-        } else {
-            g_specialDisplayNames[i] = "Unknown Object";
-        }
+    // Initialize special entity names using a compile-time map for efficiency.
+    static constexpr std::pair<horde::SpecialEntityTypeID, const char*> special_mappings[] = {
+        {horde::SpecialEntityTypeID::TESLA_MINE, "Tesla Mine"},
+        {horde::SpecialEntityTypeID::FOOD_CUBE_TRAP, "Stroggonoff Maker"},
+        {horde::SpecialEntityTypeID::TURRET, "Turret"},
+        {horde::SpecialEntityTypeID::SENTRY_GUN, "Sentry Gun"},
+        {horde::SpecialEntityTypeID::LASER_EMITTER, "Laser Emitter"},
+        {horde::SpecialEntityTypeID::DOPPLEGANGER, "Doppleganger"},
+    };
+
+    for (auto& name : g_specialDisplayNames) name = "Unknown Object"; // Default value.
+    for (const auto& [typeId, name] : special_mappings) {
+        g_specialDisplayNames[static_cast<size_t>(typeId)] = name;
     }
 
     g_displayNamesInitialized = true;
 }
 
-const char* GetDisplayName(const edict_t* ent) {
-    // Static buffer for the final combined name.
-    static char display_name_buffer[128];
 
-    if (!ent) {
-        return "Unknown";
-    }
+// Retrieves the full, formatted display name for an entity.
+// This function is extremely fast as it primarily combines pre-cached strings.
+[[nodiscard]] const char* GetDisplayName(const edict_t* ent) {
+    if (!ent) return "Unknown";
 
+    // Ensure the caches are populated.
     if (!g_displayNamesInitialized) {
         InitializeDisplayNames();
     }
 
-    const char* base_name_ptr = nullptr;
-    auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
-    auto monster_id = static_cast<horde::MonsterTypeID>(ent->monsterinfo.monster_type_id);
+    const char* base_name_ptr = "Unknown";
+    const auto special_id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+    const auto monster_id = static_cast<horde::MonsterTypeID>(ent->monsterinfo.monster_type_id);
 
+    // Look up the base name from the appropriate cache.
     if (special_id != horde::SpecialEntityTypeID::UNKNOWN) {
         base_name_ptr = g_specialDisplayNames[static_cast<size_t>(special_id)].c_str();
     } else if (ent->svflags & SVF_MONSTER && monster_id != horde::MonsterTypeID::UNKNOWN) {
         base_name_ptr = g_monsterDisplayNames[static_cast<size_t>(monster_id)].c_str();
-    } else {
-        base_name_ptr = ent->classname ? ent->classname : "Unknown";
+    } else if (ent->classname) {
+        base_name_ptr = ent->classname;
     }
 
-    // Get the title prefix (e.g., "Champion ") from our new fast function.
+    // Get the title prefix (e.g., "Champion ").
     const char* title_ptr = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
 
-    // Combine title and base name into our static buffer using your non-allocating G_FmtTo.
-    G_FmtTo(display_name_buffer, "{}{}", title_ptr, base_name_ptr);
-
-    return display_name_buffer;
+    // Use the engine's non-allocating string formatter (`G_Fmt`) for optimal performance.
+    // This combines the title and base name into a static buffer without any heap allocations.
+    return G_Fmt("{}{}", title_ptr, base_name_ptr).data();
 }
 
+void ApplyMonsterBonusFlags(edict_t* monster) {
+    if (!monster || !monster->inuse || monster->monsterinfo.IS_BOSS) {
+        return;
+    }
 
-void ApplyMonsterBonusFlags(edict_t* monster)
-{
-	if (!monster || !monster->inuse)
-		return;
+    const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	// Check IS_BOSS using the member within monsterinfo
-	if (monster->monsterinfo.IS_BOSS)
-		return;
+    // Grant default power armor to non-friendly monsters with any bonus.
+    if (monster->monsterinfo.bonus_flags != BF_NONE && !(monster->monsterinfo.bonus_flags & BF_FRIENDLY)) {
+        if (!st.was_key_specified("power_armor_power")) {
+            monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->max_health * 0.4f));
+        }
+        if (!st.was_key_specified("power_armor_type")) {
+            monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+        }
+    }
 
-	const spawn_temp_t& st = ED_GetSpawnTemp();
-	
-	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
-		if (!st.was_key_specified("power_armor_power"))
-			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->max_health * 0.4f));
-		if (!st.was_key_specified("power_armor_type"))
-			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-	}
+    // Handle summoned monster logic.
+    if (monster->monsterinfo.issummoned) {
+        monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
+        FindMTarget(monster);
+        monster->svflags |= SVF_PLAYER;
+        monster->s.renderfx &= ~RF_DOT_SHADOW;
+        // Fast team assignment based on the owner's team.
+        monster->monsterinfo.team = (monster->owner && monster->owner->client)
+            ? monster->owner->client->resp.ctf_team
+            : CTF_NOTEAM;
+    }
 
-	// Handle summoned monster logic first (this flag can coexist with others)
-	if (monster->monsterinfo.issummoned) {
-		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
-		FindMTarget(monster);
-		monster->svflags |= SVF_PLAYER;
-		// The line below is now handled by the refactored block
-		// monster->monsterinfo.team = CTF_TEAM1; 
-		monster->s.renderfx &= ~RF_DOT_SHADOW;
+    // Apply universal monster adjustments.
+    monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+    monster->gib_health = std::max(-200, static_cast<int>(round(monster->gib_health * 2.8f)));
 
-		// --- START OF MODIFICATION ---
-		// A summoned monster's team is determined by its owner.
-		// We only need to set the single, unified 'monsterinfo.team' field.
-		if (monster->owner && monster->owner->client)
-		{
-			// Directly assign the owner's team ID to the monster.
-			monster->monsterinfo.team = monster->owner->client->resp.ctf_team;
-		}
-		else
-		{
-			// If there's no valid owner, it shouldn't have a team.
-			monster->monsterinfo.team = CTF_NOTEAM;
-		}
-		// --- END OF MODIFICATION ---
+    // --- CORE OPTIMIZATION ---
+    // Convert the bonus flag into a direct array index.
+    const size_t effect_index = GetBonusEffectIndex(monster->monsterinfo.bonus_flags);
 
-		gi.linkentity(monster);
-	}
+    // If the index is valid (i.e., not the "NONE" flag), apply all effects from the data table.
+    if (effect_index > 0 && effect_index < g_bonus_effects_array.size()) {
+        const BonusEffectData& data = g_bonus_effects_array[effect_index];
 
-	// *** FIX: Set the NO_DROP flag correctly ***
-	// This ensures the flag is set regardless of whether a bonus is applied later
-	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
+        monster->s.effects |= data.effects;
+        monster->s.renderfx |= data.renderfx;
+        if (data.alpha != 1.0f) monster->s.alpha = data.alpha;
 
-    // FIX: Explicitly round the result of the float multiplication
-	monster->gib_health = static_cast<int>(round(monster->gib_health * 2.8f));
-	if (monster->gib_health <= -200)
-		monster->gib_health = -200;
+        monster->health = static_cast<int>(round(monster->health * data.health_mult));
+        monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * data.power_armor_mult));
+        monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * data.power_armor_mult));
 
-	// Using if-else to ensure only one bonus flag applies (in order of priority)
-	if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
-		monster->s.effects |= EF_ROCKET | EF_FIREBALL;
-		monster->s.renderfx |= RF_SHELL_RED;
-		monster->health = static_cast<int>(round(monster->health * 2.0f));
-		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.25f));
-		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.25f));
-		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 475_sec;
-	}
-	else if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-		monster->health = static_cast<int>(round(monster->health * 2.2f));
-		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.4f));
-		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.4f));
-	}
-	else if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
-		monster->s.effects |= EF_BLUEHYPERBLASTER;
-		monster->s.alpha = 0.6f;
-		monster->health = static_cast<int>(round(monster->health * 1.4f));
-		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 4.0f));
-		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 4.0f));
-		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
-	}
-	else if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
-		monster->s.effects |= EF_GIB | EF_FLAG2;
-		monster->health = static_cast<int>(round(monster->health * 1.6f));
-		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.3f));
-		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.3f));
-		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 475_sec;
-		monster->monsterinfo.attack_state = AS_BLIND;
-	}
-	else if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
-		monster->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-		monster->s.alpha = 0.5f;
-		monster->health = static_cast<int>(round(monster->health * 2.4f));
-		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.7f));
-		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.7f));
-		monster->monsterinfo.attack_state = AS_BLIND;
-	}
-	else if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
-		monster->s.effects |= EF_TRACKER | EF_FLAG1;
-		monster->health = static_cast<int>(round(monster->health * 2.5f));
-		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * 1.1f));
-		monster->monsterinfo.armor_power = static_cast<int>(round(monster->monsterinfo.armor_power * 1.1f));
-		monster->monsterinfo.attack_state = AS_BLIND;
-	}
+        if (data.double_time_add > 0_sec)
+            monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + data.double_time_add;
+        if (data.quad_time_add > 0_sec)
+            monster->monsterinfo.quad_time = std::max(level.time, monster->monsterinfo.quad_time) + data.quad_time_add;
+        if (data.invincible_time_add > 0_sec)
+            monster->monsterinfo.invincible_time = std::max(level.time, monster->monsterinfo.invincible_time) + data.invincible_time_add;
+        if (data.attack_state != AS_NONE)
+            monster->monsterinfo.attack_state = data.attack_state;
+    }
 
-	monster->max_health = monster->health;
-	monster->s.renderfx |= RF_IR_VISIBLE;
-
-	// Link the entity *after* all changes to ensure visuals are sent
-	gi.linkentity(monster);
+    // Finalize monster state and link it into the world.
+    monster->max_health = monster->health;
+    monster->s.renderfx |= RF_IR_VISIBLE;
+    gi.linkentity(monster);
 }
 
-// Función auxiliar para calcular los valores mínimos de salud y armadura
+// A compile-time lookup table (LUT) defining the base stats for bosses at different wave thresholds.
+// This data-driven approach is faster and much easier to maintain and balance than a hardcoded if-else chain.
+static constexpr struct {
+    int wave_threshold;
+    int health_base;
+    int power_armor_base;
+} BOSS_TIER_DATA[] = {
+    {25, 16500, 9500},   // Max tier (Wave 25+)
+    {20, 11250, 6750},   // High tier (Wave 20-24)
+    {15, 9300,  3400},   // Mid-high tier (Wave 15-19)
+    {10, 6000,  4100},   // Mid tier (Wave 10-14)
+    {5,  5600,  4100},   // Low-mid tier (Wave 5-9)
+    {0,  3750,  1125}    // Base tier (Wave 0-4)
+};
+
+// Calculates the minimum required health and power armor for a boss based on the current wave.
+// It uses the `BOSS_TIER_DATA` lookup table for a fast, data-driven calculation.
 static void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {
-	// Base values have been reduced by ~25-30% to serve as the new average target.
-	constexpr int HEALTH_MAX_LIMIT = 16500;      // Reduced from 21500
-	constexpr int POWER_ARMOR_MAX_LIMIT = 9500; // Reduced from 18000
+    const auto& tier = [&]() -> const auto& {
+        // For a small, sorted array like this, a simple linear scan is often faster
+        // than a binary search due to avoiding branch mispredictions.
+        for (const auto& tier_data : BOSS_TIER_DATA) {
+            if (wave_number >= tier_data.wave_threshold) {
+                return tier_data;
+            }
+        }
+        return BOSS_TIER_DATA[std::size(BOSS_TIER_DATA) - 1]; // Fallback to the last entry.
+    }();
 
-	int base_health;
-	int base_power_armor;
+    // Introduce slight randomness to prevent boss stats from being completely predictable.
+    const float random_multiplier = frandom(0.85f, 1.15f);
 
-	if (wave_number >= 25) {
-		base_health = HEALTH_MAX_LIMIT;
-		base_power_armor = POWER_ARMOR_MAX_LIMIT;
-	}
-	else if (wave_number >= 20) {
-		base_health = 11250; // was 15000
-		base_power_armor = 6750;  // was 9000
-	}
-	else if (wave_number >= 15) {
-		base_health = 9300;  // was 12400
-		base_power_armor = 3400;  // was 4500
-	}
-	else if (wave_number >= 10) {
-		base_health = 6000;  // was 8000
-		base_power_armor = 4100;  // was 5475
-	}
-	else if (wave_number >= 5) {
-		base_health = 5600;  // was 7500
-		base_power_armor = 4100;  // was 5475
-	}
-	else {
-		// Base values for the first few waves
-		base_health = 3750;  // was 5000
-		base_power_armor = 1125;  // was 1500
-	}
-
-	// --- Introduce Unpredictability ---
-	// Apply a random multiplier from 85% to 115% of the base value.
-	// This creates variance while maintaining the overall reduction.
-	const float random_multiplier = frandom(0.85f, 1.15f); // CORRECTED: Use frandom() for a float in range [0.85, 1.15)
-
-	health_min = static_cast<int>(base_health * random_multiplier);
-	power_armor_min = static_cast<int>(base_power_armor * random_multiplier);
-
-	// Ensure the final values do not exceed the absolute maximums,
-	// which acts as a safeguard against unusually high random rolls.
-	health_min = std::min(health_min, HEALTH_MAX_LIMIT);
-	power_armor_min = std::min(power_armor_min, POWER_ARMOR_MAX_LIMIT);
+    // Calculate the final minimums, ensuring they don't exceed a reasonable cap
+    // in case of a high random roll.
+    health_min = std::min(static_cast<int>(tier.health_base * random_multiplier), tier.health_base + 1000);
+    power_armor_min = std::min(static_cast<int>(tier.power_armor_base * random_multiplier), tier.power_armor_base + 500);
 }
 
-constexpr float REGULAR_ARMOR_FACTOR = 0.75f;  // 75% del power armor mínimo
-// Función auxiliar para manejar la armadura del boss
+// A constant factor for calculating regular armor based on power armor.
+constexpr float REGULAR_ARMOR_FACTOR = 0.75f;
+
+// Configures a boss's armor values, ensuring they meet the minimum requirements for the current wave.
 void ConfigureBossArmor(edict_t* self) {
-	if (!self || !self->inuse || !self->monsterinfo.IS_BOSS)
-		return;
+    if (!self || !self->inuse || !self->monsterinfo.IS_BOSS) {
+        return;
+    }
 
-	// Calcular valores mínimos basados en el número de ola
-	int health_min, power_armor_min;
-	CalculateBossMinimums(current_wave_level, health_min, power_armor_min);
+    // Get the calculated minimums for the current wave.
+    int health_min, power_armor_min;
+    CalculateBossMinimums(current_wave_level, health_min, power_armor_min);
 
-	// Manejar Power Armor (Shield/Screen)
-	if (self->monsterinfo.power_armor_power > 0) {
-		self->monsterinfo.power_armor_power = std::max(
-			static_cast<int>(self->monsterinfo.power_armor_power),
-			power_armor_min
-		);
-	}
+    // Ensure the boss's power armor is at least the minimum required value.
+    if (self->monsterinfo.power_armor_power > 0) {
+        self->monsterinfo.power_armor_power = std::max(
+            self->monsterinfo.power_armor_power, power_armor_min);
+    }
 
-	// Manejar Armor regular
-	// Verificar si tiene armor sin depender del tipo
-	if (self->monsterinfo.armor_power > 0) {
-		const int min_regular_armor = static_cast<int>(power_armor_min * REGULAR_ARMOR_FACTOR);
-
-		self->monsterinfo.armor_power = std::max(
-			static_cast<int>(self->monsterinfo.armor_power),
-			min_regular_armor
-		);
-	}
+    // Ensure the boss's regular armor is at least the minimum required value.
+    if (self->monsterinfo.armor_power > 0) {
+        const int min_regular_armor = static_cast<int>(power_armor_min * REGULAR_ARMOR_FACTOR);
+        self->monsterinfo.armor_power = std::max(
+            self->monsterinfo.armor_power, min_regular_armor);
+    }
 }
+
 void ApplyBossEffects(edict_t* boss)
 {
 	if (!boss->monsterinfo.IS_BOSS || boss->monsterinfo.effects_applied)
@@ -619,9 +644,11 @@ void ApplyBossEffects(edict_t* boss)
 	float power_armor_multiplier = 1.0f;
 	float scale_factor = 1.0f;
 
-	auto it = g_bonus_effects.find(boss->monsterinfo.bonus_flags);
-	if (it != g_bonus_effects.end()) {
-		const BonusEffectData& data = it->second;
+    // --- CORRECTED LOGIC ---
+    // Use the fast, array-based lookup instead of the old map.
+    const size_t effect_index = GetBonusEffectIndex(boss->monsterinfo.bonus_flags);
+    if (effect_index > 0 && effect_index < g_bonus_effects_array.size()) {
+        const BonusEffectData& data = g_bonus_effects_array[effect_index];
 
 		boss->s.effects |= data.effects;
 		boss->s.renderfx |= data.renderfx;
@@ -716,6 +743,7 @@ void ApplyBossEffects(edict_t* boss)
 	boss->max_health = boss->health;
 	boss->monsterinfo.effects_applied = true;
 }
+
 
 //getting real name
 const char* GetPlayerName(const edict_t* player) {

@@ -96,7 +96,7 @@ extern const std::unordered_map<horde::MonsterTypeID, std::string_view> monster_
 void ApplyMonsterBonusFlags(edict_t* monster);
 void ApplyBossEffects(edict_t* boss);
 //extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
-void UpdatePowerUpTimes(edict_t* monster);
+void UpdatePowerUpTimes(edict_t* monster) noexcept;
 
 // healthbar
 extern void SP_target_healthbar(edict_t* self);
@@ -106,7 +106,7 @@ extern void HandleSpawnPhaseAggression(edict_t* monster);
 extern void Monster_MoveSpawn(edict_t* self); 
 extern void ConfigureBossArmor(edict_t* self);
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
-extern horde::MapSize GetMapSize(const char* mapname);
+extern horde::MapSize GetMapSize(const char* mapname) noexcept;
 extern gtime_t GetWaveTimer();
 extern int32_t GetStroggsNum() noexcept;
 extern inline bool IsBossWave() noexcept;
@@ -148,7 +148,7 @@ extern bool Horde_TeleportMonster(edict_t* self, const vec3_t& destination_origi
 
 const char* GetPlayerName(const edict_t* player);
 extern const char* GetDisplayName(const edict_t* ent);
-extern const char* GetTitleFromFlags(bonus_flags_t bonus_flags);
+extern const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept;
 extern bool IsPlayerDefense(const edict_t* ent);
 extern void VerifyAndAdjustBots();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs);
