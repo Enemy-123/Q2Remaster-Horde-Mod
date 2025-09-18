@@ -265,7 +265,7 @@ void RemoveEntity(edict_t* ent) {
 }
 
 // 7:  power-up time updates
-void UpdatePowerUpTimes(edict_t* monster) {
+void UpdatePowerUpTimes(edict_t* monster) noexcept {
 	if (!monster) return;
 
 	const gtime_t current_time = level.time;
@@ -295,7 +295,7 @@ float M_DamageModifier(edict_t* monster) noexcept {
 }
 
 // 9:  title generation with compile-time strings
-const char* GetTitleFromFlags(bonus_flags_t bonus_flags) {
+const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
 	static constexpr struct {
 		bonus_flags_t flags;
 		const char* title;
