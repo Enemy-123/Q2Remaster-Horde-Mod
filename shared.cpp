@@ -782,146 +782,149 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 }
 
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
-// 20:  area clearing with spatial partitioning
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
-    if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
-        return;
+	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
+		return;
 
-    const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
-    const vec3_t area_mins = origin + mins - safe_offset;
-    const vec3_t area_maxs = origin + maxs + safe_offset;
+	const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
+	const vec3_t area_mins = origin + mins - safe_offset;
+	const vec3_t area_maxs = origin + maxs + safe_offset;
 
-    vec3_t farthest_corner_dist;
-    farthest_corner_dist.x = std::max(fabs(area_mins.x - origin.x), fabs(area_maxs.x - origin.x));
-    farthest_corner_dist.y = std::max(fabs(area_mins.y - origin.y), fabs(area_maxs.y - origin.y));
-    farthest_corner_dist.z = std::max(fabs(area_mins.z - origin.z), fabs(area_maxs.z - origin.z));
-    const float radius_to_contain_box = farthest_corner_dist.length();
+	// --- CORRECTED RADIUS CALCULATION ---
+	// 1. Calculate the radius required to encompass the entire clearing box.
+	vec3_t farthest_corner_dist;
+	farthest_corner_dist.x = std::max(fabs(area_mins.x - origin.x), fabs(area_maxs.x - origin.x));
+	farthest_corner_dist.y = std::max(fabs(area_mins.y - origin.y), fabs(area_maxs.y - origin.y));
+	farthest_corner_dist.z = std::max(fabs(area_mins.z - origin.z), fabs(area_maxs.z - origin.z));
+	const float radius_to_contain_box = farthest_corner_dist.length();
 
-    constexpr float MAX_ENTITY_REACH = 128.0f;
-    const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
+	// 2. Add a generous "slop factor" to catch large entities whose centers are outside the box.
+	constexpr float MAX_ENTITY_REACH = 128.0f;
+	const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
+	// --- END CORRECTION ---
 
-    std::vector<edict_t*> entities_in_area;
-    entities_in_area.reserve(32); // small initial guess to avoid reallocs in most cases
+	std::vector<edict_t*> entities_in_area;
+	edict_t* ent = nullptr;
+	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
+		if (!ent || !ent->inuse || (ent->svflags & SVF_MONSTER) ||
+			ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
+			continue;
 
-    edict_t* ent = nullptr;
-    while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
-        if (!ent || !ent->inuse || (ent->svflags & SVF_MONSTER) ||
-            ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
-            continue;
+		if (!is_valid_vector(ent->s.origin) || !is_valid_vector(ent->mins) || !is_valid_vector(ent->maxs))
+			continue;
 
-        if (!is_valid_vector(ent->s.origin) || !is_valid_vector(ent->mins) || !is_valid_vector(ent->maxs))
-            continue;
+		// "Narrow phase": Check for precise bounding box intersection.
+		if (!EntitiesOverlap(ent, area_mins, area_maxs))
+			continue;
 
-        if (!EntitiesOverlap(ent, area_mins, area_maxs))
-            continue;
+		entities_in_area.push_back(ent);
+	}
 
-        entities_in_area.push_back(ent);
-    }
+	for (edict_t* current_ent : entities_in_area) {
+		if (!current_ent || !current_ent->inuse)
+			continue;
 
-    for (edict_t* current_ent : entities_in_area) {
-        if (!current_ent || !current_ent->inuse)
-            continue;
-
-        if (current_ent->client) {
-            edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
-            if (spawn_point && spawn_point->inuse) {
-                TeleportEntity(current_ent, spawn_point);
-            }
-        }
-        else {
-            RemoveEntity(current_ent);
-        }
-    }
+		if (current_ent->client) {
+			edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
+			if (spawn_point && spawn_point->inuse) {
+				TeleportEntity(current_ent, spawn_point);
+			}
+		}
+		else {
+			RemoveEntity(current_ent);
+		}
+	}
 }
 
-// --- Recommended: PushEntitiesAway using std::vector ---
-void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength,
-                      float horizontal_push_strength, float vertical_push_strength)
+void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength)
 {
-    push_radius = std::max(push_radius, 1.0f);
-    const float search_radius = push_radius * 1.5f;
+	push_radius = std::max(push_radius, 1.0f);
+	const float search_radius = push_radius * 1.5f;
 
-    std::vector<edict_t*> processable_entities;
-    std::vector<edict_t*> removable_entities;
-    processable_entities.reserve(64); // heuristic
-    removable_entities.reserve(64);
+	std::vector<edict_t*> entities_to_process;
+	std::vector<edict_t*> entities_to_remove;
 
-    for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
-        if (!ent || !ent->inuse)
-            continue;
+	// Collect entities
+	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
+		if (!ent || !ent->inuse)
+			continue;
 
-        // if traceline is blocked, skip entity (same behavior as original)
-        if (gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f)
-            continue;
+		if (gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f)
+			continue;
 
-        if (IsRemovableEntity(ent)) {
-            removable_entities.push_back(ent);
-        }
-        else if (ent->takedamage) {
-            processable_entities.push_back(ent);
-        }
-    }
+		// Use the safe, fast helper function to decide what to do
+		if (IsRemovableEntity(ent)) {
+			entities_to_remove.push_back(ent);
+		}
+		else if (ent->takedamage) {
+			entities_to_process.push_back(ent);
+		}
+	}
 
-    // Remove designated entities first
-    for (edict_t* ent_to_remove : removable_entities) {
-        if (ent_to_remove && ent_to_remove->inuse)
-            RemoveEntity(ent_to_remove);
-    }
+	// Remove designated entities first
+	for (edict_t* ent_to_remove : entities_to_remove) {
+		if (ent_to_remove && ent_to_remove->inuse)
+			RemoveEntity(ent_to_remove);
+	}
 
-    // Process waves
-    for (int wave = 0; wave < num_waves; ++wave) {
-        const float wave_progress = static_cast<float>(wave) / num_waves;
-        const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
+	// Process waves (pushing logic remains the same)
+	for (int wave = 0; wave < num_waves; wave++) {
+		const float wave_progress = static_cast<float>(wave) / num_waves;
+		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
 
-        SpawnGrow_Spawn(center, size, size * 0.3f);
+		SpawnGrow_Spawn(center, size, size * 0.3f);
 
-        if (wave > 0) {
-            for (int i = 0; i < 4; ++i) {
-                vec3_t effect_pos;
-                effect_pos.x = center.x + crandom() * size * 0.5f;
-                effect_pos.y = center.y + crandom() * size * 0.5f;
-                effect_pos.z = center.z + crandom() * size * 0.25f;
-                SpawnGrow_Spawn(effect_pos, size * 0.5f, size * 0.15f);
-            }
-        }
+		if (wave > 0) {
+			vec3_t effect_pos = center;
+			for (int i = 0; i < 4; i++) {
+				effect_pos[0] = center[0] + crandom() * size * 0.5f;
+				effect_pos[1] = center[1] + crandom() * size * 0.5f;
+				effect_pos[2] = center[2] + crandom() * size * 0.25f;
+				SpawnGrow_Spawn(effect_pos, size * 0.5f, size * 0.15f);
+			}
+		}
 
-        for (edict_t* ent : processable_entities) {
-            if (!ent || !ent->inuse || !gi.inPVS(center, ent->s.origin, false))
-                continue;
+		for (edict_t* ent : entities_to_process) {
+			if (!ent || !ent->inuse)
+				continue;
 
-            vec3_t push_dir = ent->s.origin - center;
-            const float dist = push_dir.length();
+			if (!gi.inPVS(center, ent->s.origin, false))
+				continue;
 
-            if (dist < 0.01f) {
-                push_dir = vec3_t{ crandom(), crandom(), 0.1f };
-            }
-            else {
-                push_dir *= (1.0f / dist);
-            }
+			vec3_t push_dir = ent->s.origin - center;
+			const float dist = push_dir.length();
 
-            const float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
-            int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
-            if (ent->groundentity)
-                base_push *= 2;
-            base_push = static_cast<int>(base_push * dist_factor);
+			if (dist < 0.01f) {
+				push_dir = vec3_t{ crandom(), crandom(), 0.1f };
+			}
+			else {
+				push_dir.normalize();
+			}
 
-            if (ent->client) {
-                ent->client->landmark_free_fall = true;
-                if (wave == 0) {
-                    ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-                    ent->client->ps.pmove.pm_time = 100;
-                }
-            }
+			const float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
+			int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
+			if (ent->groundentity)
+				base_push *= 2;
+			base_push = static_cast<int>(base_push * dist_factor);
 
-            T_Damage(ent, ent, ent, push_dir, ent->s.origin, vec3_origin,
-                0, base_push, DAMAGE_RADIUS, MOD_UNKNOWN);
+			if (ent->client) {
+				ent->client->landmark_free_fall = true;
+			}
 
-            if (vertical_push_strength > 0 && wave <= 1) {
-                const float boost = (wave == 0) ? 100.0f : 75.0f;
-                ent->velocity.z += boost;
-            }
-        }
-    }
+			T_Damage(ent, ent, ent, push_dir, ent->s.origin, vec3_origin,
+				0, base_push, DAMAGE_RADIUS, MOD_UNKNOWN);
+
+			if (vertical_push_strength > 0 && wave <= 1) {
+				const float boost = (wave == 0) ? 100.0f : 75.0f;
+				ent->velocity.z += boost;
+			}
+
+			if (ent->client && wave == 0) {
+				ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+				ent->client->ps.pmove.pm_time = 100;
+			}
+		}
+	}
 }
 
 // 22:  string comparison
