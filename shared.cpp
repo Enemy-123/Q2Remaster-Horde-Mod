@@ -784,18 +784,23 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 // 20:  area clearing with spatial partitioning
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
-	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs)) {
-		return;
-	}
+    if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs)) {
+        return;
+    }
 
-	constexpr vec3_t safe_offset{26.0f, 26.0f, 26.0f};
-	const vec3_t area_mins = origin + mins - safe_offset;
-	const vec3_t area_maxs = origin + maxs + safe_offset;
+    constexpr vec3_t safe_offset{26.0f, 26.0f, 26.0f};
+    const vec3_t area_mins = origin + mins - safe_offset;
+    const vec3_t area_maxs = origin + maxs + safe_offset;
 
-	const vec3_t half_size = (area_maxs - area_mins) * 0.5f;
-	const float radius_to_contain_box = half_size.length();
-	constexpr float MAX_ENTITY_REACH = 128.0f;
-	const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
+    // CORRECT CALCULATION - measure from origin to furthest corner
+    vec3_t farthest_corner_dist;
+    farthest_corner_dist.x = std::max(fabs(area_mins.x - origin.x), fabs(area_maxs.x - origin.x));
+    farthest_corner_dist.y = std::max(fabs(area_mins.y - origin.y), fabs(area_maxs.y - origin.y));
+    farthest_corner_dist.z = std::max(fabs(area_mins.z - origin.z), fabs(area_maxs.z - origin.z));
+    const float radius_to_contain_box = farthest_corner_dist.length();
+    
+    constexpr float MAX_ENTITY_REACH = 128.0f;
+    const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
 
 	constexpr size_t MAX_STACK_ENTITIES = 32;
 	edict_t* stack_entities[MAX_STACK_ENTITIES];
