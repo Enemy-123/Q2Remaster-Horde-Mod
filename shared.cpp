@@ -13,6 +13,8 @@
 #include <bit>
 #include <unordered_set>
 
+void RemoveEntity(edict_t* ent);
+
 // 1:  spawn point selection using pre-shuffled global list
 [[nodiscard]] static edict_t* SelectRandomClearSpawnPoint() {
 	if (g_num_spawn_points == 0) {
@@ -246,7 +248,11 @@ bool IsRemovableEntity(const edict_t* ent) {
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TESLA_MINE)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::LASER_EMITTER)) |
-        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::DOPPLEGANGER));
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::DOPPLEGANGER)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::PROX_MINE)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::SENTRY_GUN)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TURRET)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::NUKE_MINE));
     
     return (REMOVABLE_MASK & (1ULL << static_cast<uint64_t>(id))) != 0;
 }

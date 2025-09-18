@@ -152,7 +152,6 @@ extern const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept;
 extern bool IsPlayerDefense(const edict_t* ent);
 extern void VerifyAndAdjustBots();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mins, vec3_t& out_maxs);
-extern void RemoveEntity(edict_t* ent);
 
 extern void remove_sentries(edict_t* ent) noexcept;
 
