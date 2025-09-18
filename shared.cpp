@@ -784,159 +784,144 @@ bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& 
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 // 20:  area clearing with spatial partitioning
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
-    if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs)) {
+    if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
         return;
-    }
 
-    constexpr vec3_t safe_offset{26.0f, 26.0f, 26.0f};
+    const vec3_t safe_offset{ 26.0f, 26.0f, 26.0f };
     const vec3_t area_mins = origin + mins - safe_offset;
     const vec3_t area_maxs = origin + maxs + safe_offset;
 
-    // CORRECT CALCULATION - measure from origin to furthest corner
     vec3_t farthest_corner_dist;
     farthest_corner_dist.x = std::max(fabs(area_mins.x - origin.x), fabs(area_maxs.x - origin.x));
     farthest_corner_dist.y = std::max(fabs(area_mins.y - origin.y), fabs(area_maxs.y - origin.y));
     farthest_corner_dist.z = std::max(fabs(area_mins.z - origin.z), fabs(area_maxs.z - origin.z));
     const float radius_to_contain_box = farthest_corner_dist.length();
-    
+
     constexpr float MAX_ENTITY_REACH = 128.0f;
     const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
 
-	constexpr size_t MAX_STACK_ENTITIES = 32;
-	edict_t* stack_entities[MAX_STACK_ENTITIES];
-	std::vector<edict_t*> heap_entities;
-	
-	edict_t** entities_array = stack_entities;
-	size_t entity_count = 0;
-	size_t capacity = MAX_STACK_ENTITIES;
+    std::vector<edict_t*> entities_in_area;
+    entities_in_area.reserve(32); // small initial guess to avoid reallocs in most cases
 
-	edict_t* ent = nullptr;
-	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
-		if (!ent || !ent->inuse || 
-			(ent->svflags & SVF_MONSTER) ||
-			ent->solid == SOLID_NOT || 
-			ent->solid == SOLID_TRIGGER ||
-			!is_valid_vector(ent->s.origin) || 
-			!is_valid_vector(ent->mins) || 
-			!is_valid_vector(ent->maxs) ||
-			!EntitiesOverlap(ent, area_mins, area_maxs)) {
-			continue;
-		}
+    edict_t* ent = nullptr;
+    while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
+        if (!ent || !ent->inuse || (ent->svflags & SVF_MONSTER) ||
+            ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
+            continue;
 
-		if (entity_count >= capacity) {
-			if (entities_array == stack_entities) {
-				heap_entities.reserve(capacity * 2);
-				heap_entities.assign(stack_entities, stack_entities + entity_count);
-				entities_array = heap_entities.data();
-				capacity *= 2;
-				heap_entities.resize(capacity);
-			}
-		}
-		entities_array[entity_count++] = ent;
-	}
+        if (!is_valid_vector(ent->s.origin) || !is_valid_vector(ent->mins) || !is_valid_vector(ent->maxs))
+            continue;
 
-	for (size_t i = 0; i < entity_count; ++i) {
-		edict_t* current_ent = entities_array[i];
-		if (!current_ent || !current_ent->inuse) continue;
+        if (!EntitiesOverlap(ent, area_mins, area_maxs))
+            continue;
 
-		if (current_ent->client) {
-			edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
-			if (spawn_point && spawn_point->inuse) {
-				TeleportEntity(current_ent, spawn_point);
-			}
-		} else {
-			RemoveEntity(current_ent);
-		}
-	}
+        entities_in_area.push_back(ent);
+    }
+
+    for (edict_t* current_ent : entities_in_area) {
+        if (!current_ent || !current_ent->inuse)
+            continue;
+
+        if (current_ent->client) {
+            edict_t* spawn_point = SelectSingleSpawnPoint(current_ent);
+            if (spawn_point && spawn_point->inuse) {
+                TeleportEntity(current_ent, spawn_point);
+            }
+        }
+        else {
+            RemoveEntity(current_ent);
+        }
+    }
 }
 
-// 21:  entity pushing with spatial coherence
-void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, 
-					  float horizontal_push_strength, float vertical_push_strength)
+// --- Recommended: PushEntitiesAway using std::vector ---
+void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength,
+                      float horizontal_push_strength, float vertical_push_strength)
 {
-	push_radius = std::max(push_radius, 1.0f);
-	const float search_radius = push_radius * 1.5f;
+    push_radius = std::max(push_radius, 1.0f);
+    const float search_radius = push_radius * 1.5f;
 
-	constexpr size_t MAX_ENTITIES = 64;
-	edict_t* processable_entities[MAX_ENTITIES];
-	edict_t* removable_entities[MAX_ENTITIES];
-	size_t processable_count = 0;
-	size_t removable_count = 0;
+    std::vector<edict_t*> processable_entities;
+    std::vector<edict_t*> removable_entities;
+    processable_entities.reserve(64); // heuristic
+    removable_entities.reserve(64);
 
-	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
-		if (!ent || !ent->inuse || 
-			gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f) {
-			continue;
-		}
+    for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
+        if (!ent || !ent->inuse)
+            continue;
 
-		if (IsRemovableEntity(ent)) {
-			if (removable_count < MAX_ENTITIES) {
-				removable_entities[removable_count++] = ent;
-			}
-		} else if (ent->takedamage && processable_count < MAX_ENTITIES) {
-			processable_entities[processable_count++] = ent;
-		}
-	}
+        // if traceline is blocked, skip entity (same behavior as original)
+        if (gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f)
+            continue;
 
-	for (size_t i = 0; i < removable_count; ++i) {
-		if (removable_entities[i] && removable_entities[i]->inuse) {
-			RemoveEntity(removable_entities[i]);
-		}
-	}
+        if (IsRemovableEntity(ent)) {
+            removable_entities.push_back(ent);
+        }
+        else if (ent->takedamage) {
+            processable_entities.push_back(ent);
+        }
+    }
 
-	for (int wave = 0; wave < num_waves; wave++) {
-		const float wave_progress = static_cast<float>(wave) / num_waves;
-		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
+    // Remove designated entities first
+    for (edict_t* ent_to_remove : removable_entities) {
+        if (ent_to_remove && ent_to_remove->inuse)
+            RemoveEntity(ent_to_remove);
+    }
 
-		SpawnGrow_Spawn(center, size, size * 0.3f);
+    // Process waves
+    for (int wave = 0; wave < num_waves; ++wave) {
+        const float wave_progress = static_cast<float>(wave) / num_waves;
+        const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
 
-		if (wave > 0) {
-			for (int i = 0; i < 4; i++) {
-				vec3_t effect_pos;
-				effect_pos.x = center.x + crandom() * size * 0.5f;
-				effect_pos.y = center.y + crandom() * size * 0.5f;
-				effect_pos.z = center.z + crandom() * size * 0.25f;
-				SpawnGrow_Spawn(effect_pos, size * 0.5f, size * 0.15f);
-			}
-		}
+        SpawnGrow_Spawn(center, size, size * 0.3f);
 
-		for (size_t i = 0; i < processable_count; ++i) {
-			edict_t* ent = processable_entities[i];
-			if (!ent || !ent->inuse || !gi.inPVS(center, ent->s.origin, false)) {
-				continue;
-			}
+        if (wave > 0) {
+            for (int i = 0; i < 4; ++i) {
+                vec3_t effect_pos;
+                effect_pos.x = center.x + crandom() * size * 0.5f;
+                effect_pos.y = center.y + crandom() * size * 0.5f;
+                effect_pos.z = center.z + crandom() * size * 0.25f;
+                SpawnGrow_Spawn(effect_pos, size * 0.5f, size * 0.15f);
+            }
+        }
 
-			vec3_t push_dir = ent->s.origin - center;
-			const float dist = push_dir.length();
+        for (edict_t* ent : processable_entities) {
+            if (!ent || !ent->inuse || !gi.inPVS(center, ent->s.origin, false))
+                continue;
 
-			if (dist < 0.01f) {
-				push_dir = vec3_t{crandom(), crandom(), 0.1f};
-			} else {
-				push_dir *= (1.0f / dist);
-			}
+            vec3_t push_dir = ent->s.origin - center;
+            const float dist = push_dir.length();
 
-			const float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
-			int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
-			if (ent->groundentity) base_push *= 2;
-			base_push = static_cast<int>(base_push * dist_factor);
+            if (dist < 0.01f) {
+                push_dir = vec3_t{ crandom(), crandom(), 0.1f };
+            }
+            else {
+                push_dir *= (1.0f / dist);
+            }
 
-			if (ent->client) {
-				ent->client->landmark_free_fall = true;
-				if (wave == 0) {
-					ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-					ent->client->ps.pmove.pm_time = 100;
-				}
-			}
+            const float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
+            int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
+            if (ent->groundentity)
+                base_push *= 2;
+            base_push = static_cast<int>(base_push * dist_factor);
 
-			T_Damage(ent, ent, ent, push_dir, ent->s.origin, vec3_origin,
-				0, base_push, DAMAGE_RADIUS, MOD_UNKNOWN);
+            if (ent->client) {
+                ent->client->landmark_free_fall = true;
+                if (wave == 0) {
+                    ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+                    ent->client->ps.pmove.pm_time = 100;
+                }
+            }
 
-			if (vertical_push_strength > 0 && wave <= 1) {
-				const float boost = (wave == 0) ? 100.0f : 75.0f;
-				ent->velocity.z += boost;
-			}
-		}
-	}
+            T_Damage(ent, ent, ent, push_dir, ent->s.origin, vec3_origin,
+                0, base_push, DAMAGE_RADIUS, MOD_UNKNOWN);
+
+            if (vertical_push_strength > 0 && wave <= 1) {
+                const float boost = (wave == 0) ? 100.0f : 75.0f;
+                ent->velocity.z += boost;
+            }
+        }
+    }
 }
 
 // 22:  string comparison
