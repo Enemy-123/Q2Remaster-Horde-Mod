@@ -2876,7 +2876,7 @@ struct regeneration_info_t {
 };
 
 namespace TeslaConstants {
-    constexpr int32_t MAX_TESLAS_PER_PLAYER = 9; 
+    constexpr int32_t MAX_TESLAS_PER_PLAYER = 12; 
 	constexpr gtime_t TIME_TO_LIVE = 60_sec;
 }
 
@@ -2885,7 +2885,7 @@ namespace SentryConstants {
 }
 
 namespace TrapConstants {
-    constexpr int32_t MAX_TRAPS_PER_PLAYER = 8;
+    constexpr int32_t MAX_TRAPS_PER_PLAYER = 12;
 }
 
 namespace ProxConstants {

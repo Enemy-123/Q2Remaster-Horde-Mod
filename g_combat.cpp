@@ -616,7 +616,7 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 
 #include <span>
 
-static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage);
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage, const mod_t& mod);
 void ApplyGradualArmor(edict_t* ent);
 // Nueva estructura para manejar la regeneración gradual
 
@@ -747,19 +747,17 @@ static int64_t CalculateRealDamage(const edict_t* targ, int64_t take, int64_t in
 	return real_damage;
 }
 
-static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
-	mod_t    mod;
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage, const mod_t& mod) {
+    // Fast path early returns for improved performance
+    if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
+        !attacker->client->pers.iddmg_state || !targ ||
+        targ->monsterinfo.invincible_time > level.time || mod.id == MOD_TRAP) { // Now this check works correctly
+        return;
+    }
 
-	// Fast path early returns for improved performance
-	if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
-		!attacker->client->pers.iddmg_state || !targ ||
-		targ->monsterinfo.invincible_time > level.time || mod.id == MOD_TRAP) {
-		return;
-	}
-
-	auto& client = *attacker->client;
-	const bool should_reset = level.time - attacker->client->lastdmg > 1.65_sec ||
-		client.dmg_counter > 99999;
+    auto& client = *attacker->client;
+    const bool should_reset = level.time - attacker->client->lastdmg > 1.65_sec ||
+        client.dmg_counter > 99999;
 
 	// Cast to uint64_t to prevent overflow during addition
 	client.dmg_counter = should_reset ?
@@ -1201,7 +1199,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// Use the actual damage dealt ('take') for these calculations.
 		HandleAutoHaste(attacker, targ, take);
 		HandleVampireEffect(attacker, targ, take);
-		HandleIDDamage(attacker, targ, take);
+		HandleIDDamage(attacker, targ, take, mod);
 	}
 	// --- END FIX ---
 
