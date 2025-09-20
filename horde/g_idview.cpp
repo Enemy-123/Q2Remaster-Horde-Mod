@@ -62,7 +62,8 @@ int GetArmorInfo(edict_t* ent) {
 
 template<typename Duration>
 int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
-	return std::max(0, static_cast<int>((end_time - current_time).template seconds<float>()));
+    if (end_time <= current_time) return 0;
+    return static_cast<int>((end_time - current_time).template seconds<int>());
 }
 
 enum class EntityType {

@@ -110,41 +110,33 @@ constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) {
 
 // 3: Enhanced map size cache with perfect hash
 [[nodiscard]] horde::MapSize GetMapSize(const char* mapname) noexcept {
-    // The cache is a static array of optional values. `std::optional` is used
-    // to distinguish between a cached value and a cache miss.
     static std::array<std::optional<horde::MapSize>,
                       static_cast<size_t>(horde::MapID::MAX_MAPS)> s_cache;
-
-    // Static variable to track the last map name to know when to invalidate the cache.
     static char s_last_map_for_cache[MAX_QPATH] = "";
 
-    // If the map has changed since the last call, clear the entire cache.
+    // If the map has changed, clear cache and reset spawn point tracking
     if (strcmp(s_last_map_for_cache, level.mapname) != 0) {
         s_cache.fill(std::nullopt);
         Q_strlcpy(s_last_map_for_cache, level.mapname, sizeof(s_last_map_for_cache));
+        
+        // Reset spawn point selection state for new map
+        // This would need to be implemented as a separate function
+        // ResetSpawnPointSelection(); 
     }
 
-    // Convert the map name to a unique, integer-based ID.
     const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
     if (mapId == horde::MapID::UNKNOWN) {
-        return {}; // Return a default-constructed (e.g., medium) map size.
+        return {}; 
     }
 
     const size_t index = static_cast<size_t>(mapId);
 
-    // FAST PATH: If the cache already has a value for this map ID, return it directly.
     if (s_cache[index].has_value()) {
         return s_cache[index].value();
     }
 
-    // SLOW PATH (CACHE MISS): The size is not in the cache.
-    // 1. Look up the size from the slower, central registry.
     const horde::MapSize size = horde::MapOriginRegistry::GetMapSize(mapId);
-
-    // 2. Store the retrieved size in our fast array cache for future lookups.
     s_cache[index] = size;
-
-    // 3. Return the size.
     return size;
 }
 
@@ -166,11 +158,16 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         if (ent && ent->inuse) {
             if (entity_count >= capacity) {
                 if (entities_array == stack_entities) {
-                    heap_entities.reserve(capacity * 2);
+                    // Resize first, then get pointer
+                    heap_entities.resize(capacity * 2);
                     heap_entities.assign(stack_entities, stack_entities + entity_count);
                     entities_array = heap_entities.data();
-                    capacity *= 2;
-                    heap_entities.resize(capacity);
+                    capacity = heap_entities.size();
+                } else {
+                    // Already using heap, just resize
+                    heap_entities.resize(capacity * 2);
+                    entities_array = heap_entities.data();
+                    capacity = heap_entities.size();
                 }
             }
             entities_array[entity_count++] = ent;
@@ -654,7 +651,7 @@ const char* GetPlayerName(const edict_t* player) {
     
     static constexpr gtime_t CACHE_DURATION = 1_sec;
     
-    if (!player || !player->client) {
+    if (!player || !player->client || !player->inuse) { 
         return "N/A";
     }
     
