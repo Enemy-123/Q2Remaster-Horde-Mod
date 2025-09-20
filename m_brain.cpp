@@ -610,10 +610,17 @@ PRETHINK(brain_right_eye_laser_update) (edict_t* laser) -> void
 	// check for max distance
 	AngleVectors(self->s.angles, forward, right, up);
 
+	// FIXED: Ensure frame index is within valid bounds
+	int frame_index = self->s.frame - FRAME_walk101;
+	if (frame_index < 0 || frame_index >= 11) // brain_reye has 11 elements (0-10)
+	{
+		frame_index = 0; // Use default position if frame is out of range
+	}
+
 	// dis is my right eye
-	start = self->s.origin + (right * brain_reye[self->s.frame - FRAME_walk101].x);
-	start += forward * brain_reye[self->s.frame - FRAME_walk101].y;
-	start += up * brain_reye[self->s.frame - FRAME_walk101].z;
+	start = self->s.origin + (right * brain_reye[frame_index].x);
+	start += forward * brain_reye[frame_index].y;
+	start += up * brain_reye[frame_index].z;
 
 	PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
 
@@ -637,10 +644,17 @@ PRETHINK(brain_left_eye_laser_update) (edict_t* laser) -> void
 	// check for max distance
 	AngleVectors(self->s.angles, forward, right, up);
 
-	// dis is my right eye
-	start = self->s.origin + (right * brain_leye[self->s.frame - FRAME_walk101].x);
-	start += forward * brain_leye[self->s.frame - FRAME_walk101].y;
-	start += up * brain_leye[self->s.frame - FRAME_walk101].z;
+	// FIXED: Ensure frame index is within valid bounds
+	int frame_index = self->s.frame - FRAME_walk101;
+	if (frame_index < 0 || frame_index >= 11) // brain_leye has 11 elements (0-10)
+	{
+		frame_index = 0; // Use default position if frame is out of range
+	}
+
+	// dis is my left eye
+	start = self->s.origin + (right * brain_leye[frame_index].x);
+	start += forward * brain_leye[frame_index].y;
+	start += up * brain_leye[frame_index].z;
 
 	PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
 

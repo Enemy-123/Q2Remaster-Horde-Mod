@@ -533,21 +533,22 @@ PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 {
     edict_t* self = laser->owner;
     
-    // --- FIX: Add safety check for the owner ---
-    // If the owner (the soldier) is dead or gone, the laser should remove itself.
-   if (!M_HasValidTarget(self))
+    // --- FIXED: Proper owner validation ---
+    // First check if owner exists and is valid
+    if (!self || !self->inuse)
     {
-        // Clear the reference before removing
+        G_FreeEdict(laser);
+        return;
+    }
+    
+    // Now check if the owner has a valid target
+    if (!M_HasValidTarget(self))
+    {
+        // Clear the appropriate beam reference before freeing
         if (laser->spawnflags.has(SPAWNFLAG_DABEAM_SECONDARY))
-        {
-            // It's possible 'self' is non-null but not inuse, so check again.
-            if (self && self->inuse) 
-                self->beam2 = nullptr;
-        }
-        else if (self && self->inuse)
-        {
+            self->beam2 = nullptr;
+        else
             self->beam = nullptr;
-        }
             
         G_FreeEdict(laser);
         return;
