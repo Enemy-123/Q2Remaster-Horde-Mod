@@ -87,6 +87,12 @@ struct dabeam_pierce_t : pierce_args_t
 
 void dabeam_update(edict_t* self, bool damage)
 {
+
+		if (!M_HasValidTarget(self))
+	{
+		return; // Can't at a non-existent or dead target.
+	}
+
 	vec3_t start = self->s.origin;
 	vec3_t end = start + (self->movedir * 2048);
 
