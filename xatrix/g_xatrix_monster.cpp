@@ -87,22 +87,22 @@ struct dabeam_pierce_t : pierce_args_t
 
 void dabeam_update(edict_t* self, bool damage)
 {
-
-		if (!M_HasValidTarget(self))
+	// self is the beam entity, self->owner is the monster
+	if (!self->owner || !M_HasValidTarget(self->owner))
 	{
-		return; // Can't at a non-existent or dead target.
+		return; // Can't aim at a non-existent or dead target.
 	}
 
 	vec3_t start = self->s.origin;
 	vec3_t end = start + (self->movedir * 2048);
-
+	
 	dabeam_pierce_t args{
 		self,
 		damage
 	};
-
+	
 	pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
-
+	
 	self->s.old_origin = args.tr.endpos + (args.tr.plane.normal * 1.f);
 	gi.linkentity(self);
 }
