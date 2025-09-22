@@ -148,15 +148,19 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
         
         switch (special_id) {
             case horde::SpecialEntityTypeID::TESLA_MINE: {
+                // Use the actual tesla lifetime (which includes adrenaline bonus) instead of the base constant
+                gtime_t const tesla_total_lifetime = gtime_t::from_sec(stats_source->wait) - stats_source->timestamp;
                 gtime_t const time_active = level.time - stats_source->timestamp;
-                gtime_t const time_remaining = TeslaConstants::TIME_TO_LIVE - time_active;
+                gtime_t const time_remaining = tesla_total_lifetime - time_active;
                 
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: {
                 gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
-                
+                gi.Com_PrintFmt("TRAP DISPLAY DEBUG: timestamp={}s, level.time={}s, time_remaining={}s\n",
+                    stats_source->timestamp.seconds(), level.time.seconds(), time_remaining.seconds());
+
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;
             }

@@ -624,6 +624,38 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 	bool currently_attacking = has_valid_enemy &&
 		(self->monsterinfo.attack_finished > level.time - 500_ms);
 
+	// Sentry regeneration when out of combat
+	if (self->owner && self->owner->client && !currently_attacking) {
+		// Only regenerate if health is above 30% of max health
+		int health_threshold = (int)(self->max_health * 0.3f);
+		if (self->health > health_threshold) {
+			// Regenerate +5% health and power armor every 2 seconds
+			if (level.time >= state->last_regeneration_time + 2_sec) {
+				// Regenerate 5% health
+				int health_regen = (int)(self->max_health * 0.05f);
+				if (health_regen > 0) {
+					self->health += health_regen;
+					if (self->health > self->max_health) {
+						self->health = self->max_health;
+					}
+				}
+
+				// Regenerate 5% power armor
+				if (self->monsterinfo.power_armor_type != IT_NULL) {
+					int armor_regen = (int)(100 * 0.05f); // 5% of base 100 power armor
+					if (armor_regen > 0) {
+						self->monsterinfo.power_armor_power += armor_regen;
+						if (self->monsterinfo.power_armor_power > 100) {
+							self->monsterinfo.power_armor_power = 100;
+						}
+					}
+				}
+
+				state->last_regeneration_time = level.time;
+			}
+		}
+	}
+
 	// Handle transitions between states
 	if (currently_attacking) {
 		state->last_target_time = level.time;
@@ -1847,6 +1879,7 @@ void SP_monster_sentrygun(edict_t* self)
     state->last_animation_change_time = 0_sec;
     state->grenade_burst_count = 0;
     state->last_grenade_burst_time = 0_sec;
+    state->last_regeneration_time = 0_sec;
 
 	// --- Unconditional Pre-caching Block ---
 	// By placing all asset loading at the top, we guarantee that every possible
@@ -1916,7 +1949,11 @@ void SP_monster_sentrygun(edict_t* self)
 
 	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	self->monsterinfo.power_armor_power = 100;
-	self->health = 80 * st.health_multiplier;
+
+	// Calculate health with adrenaline bonus
+	int base_health = 80 * st.health_multiplier;
+	self->health = CalculateSentryHealth(base_health, self->owner ? self->owner->client : nullptr);
+	self->max_health = self->health;
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 16;

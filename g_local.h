@@ -6,6 +6,13 @@
 
 #include "bg_local.h"
 
+// BFG Mode enum for tri-state BFG behavior
+enum class BFGMode : uint8_t {
+    NORMAL = 0,    // Standard BFG
+    SLIDE = 1,     // Bouncing/sliding BFG (current default)
+    GRAV_PULL = 2  // Slide + gravity pull effect
+};
+
 // the "gameversion" client command will print this plus compile date
 constexpr const char* GAMEVERSION = "baseq2";
 
@@ -1707,6 +1714,7 @@ typedef struct sentry_state_s {
     gtime_t         last_animation_change_time;
     int             grenade_burst_count;
     gtime_t         last_grenade_burst_time;
+    gtime_t         last_regeneration_time;
 } sentry_state_t;
 
 struct monsterinfo_t
@@ -3037,6 +3045,18 @@ struct client_persistant_t
 	bool	 iddmg_state;
 	sentrytype_t sentry_gun_choice; // Player's preferred sentry type (default SENTRY_RANDOM)
 	int adrenaline_count = 0;
+
+	// Per-player benefits system
+	int32_t ability_points = 0;           // Points for abilities (vampire, ammo regen, etc.)
+	int32_t weapon_points = 0;            // Points for weapon upgrades
+	bool auto_buy_abilities = true;       // Auto-purchase abilities toggle (default: enabled)
+	bool auto_buy_weapons = true;         // Auto-purchase weapons toggle (default: enabled)
+	bool has_manually_disabled_auto_buy = false; // Track if player manually disabled auto-buy for refund
+	uint32_t active_abilities_mask = 0;   // Bitmask of active abilities
+	uint32_t active_weapons_mask = 0;     // Bitmask of active weapon upgrades
+	uint32_t purchased_benefits_mask = 0; // All benefits ever purchased (for prerequisites)
+	gtime_t last_auto_buy_check = 0_ms;   // Last time auto-buy was checked
+	BFGMode bfg_mode = BFGMode::NORMAL;   // Default to normal mode (players must upgrade)
 };
 
 // client data that stays across deathmatch respawns

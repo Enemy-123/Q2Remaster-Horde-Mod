@@ -878,6 +878,16 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.adrenaline_count = saved_adrenaline; // Restore adrenaline count
 
 	//
+	// BENEFITS INITIALIZATION (Horde Mode)
+	//
+	// Initialize auto-buy to enabled by default for new players
+	if (!client->pers.spawned) { // Only for first spawn
+		client->pers.auto_buy_abilities = true;
+		client->pers.auto_buy_weapons = true;
+		client->pers.has_manually_disabled_auto_buy = false;
+	}
+
+	//
 	// AMMO INITIALIZATION (Horde Override)
 	//
 	// Note: Base defaults are set in the main InitClientPersistant.

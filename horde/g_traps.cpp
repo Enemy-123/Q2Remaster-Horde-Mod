@@ -325,7 +325,9 @@ bool HandleTrapAnimation(edict_t* ent) {
             best->s.angles[YAW] = frandom() * 360;
             best->velocity[2] = 400;
             best->think(best);
-            best->nextthink = level.time + 30_sec;  // Use literal directly
+            // Calculate trap cleanup time with adrenaline bonus
+            gtime_t cleanup_time = CalculateDeployableLifetime(30_sec, best->teammaster ? best->teammaster->client : nullptr);
+            best->nextthink = level.time + cleanup_time;
             best->think = G_FreeEdict;
             best->svflags &= ~SVF_INSTANCED;
             best->s.old_origin = best->s.origin;
@@ -450,7 +452,9 @@ void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
     ent->enemy = target;
     ent->wait = TRAP_WAIT_START;
     ent->s.old_origin = ent->s.origin;
-    ent->timestamp = level.time + 30_sec;
+    // Calculate trap lifetime with adrenaline bonus
+    gtime_t trap_lifetime = CalculateDeployableLifetime(30_sec, ent->teammaster ? ent->teammaster->client : nullptr);
+    ent->timestamp = level.time + trap_lifetime;
     ent->accel = target->mass;
 
     if (G_IsDeathmatch())

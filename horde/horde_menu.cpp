@@ -29,6 +29,19 @@ pmenuhnd_t* CreateHUDMenu(edict_t* ent);
 void OpenMiscMenu(edict_t* ent); // Forward declare Misc menu functions
 void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
+// Upgrade menu functions
+void OpenUpgradeMenu(edict_t* ent);
+void UpgradeMenuHandler(edict_t* ent, pmenuhnd_t* p);
+pmenuhnd_t* CreateUpgradeMenu(edict_t* ent);
+
+// Benefits menu functions
+void OpenAbilitiesMenu(edict_t* ent);
+void AbilitiesMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void OpenWeaponsMenu(edict_t* ent);
+void WeaponsMenuHandler(edict_t* ent, pmenuhnd_t* p);
+pmenuhnd_t* CreateAbilitiesMenu(edict_t* ent);
+pmenuhnd_t* CreateWeaponsMenu(edict_t* ent);
+
 // Helper to get sentry type name
 static const char* GetSentryTypeName(sentrytype_t type) {
 	switch (type) {
@@ -47,38 +60,32 @@ static void SetLevelName(pmenu_t* p);
 void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p); // Handler for Join Horde
 void GoChaseCam(edict_t* ent, pmenuhnd_t* p);  // Handler for Chase Cam/Spectator
 
-// Updated joinmenu with more spacing before Join/Spectate options
+// Simplified joinmenu with reduced spacing
 const pmenu_t joinmenu[] = {
     { "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, "" },        // 0: Title (Set by SetGameName)
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 1: Blank Separator
     { "*PLACEHOLDER*", PMENU_ALIGN_CENTER, nullptr, "" },        // 2: Level Name (Set by SetLevelName)
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 3: Blank Separator
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 4: Blank
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 5: Blank
-    { "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, HordeJoinTeam, "" }, // 6: Join Horde
-    { "", PMENU_ALIGN_LEFT, nullptr, "" },                      // 7: Player Count
+    { "Join and Fight the HORDE!", PMENU_ALIGN_LEFT, HordeJoinTeam, "" }, // 4: Join Horde
+    { "", PMENU_ALIGN_LEFT, nullptr, "" },                      // 5: Player Count
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 6: Blank Separator
+    { "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, "" },     // 7: Go Spectator
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 8: Blank Separator
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 9: Blank
-    { "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, "" },     // 10: Go Spectator
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 11: Blank Separator
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 12: Blank (Spacing)
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 13: Blank (Spacing)
-    { "Discord: Enemy0416", PMENU_ALIGN_CENTER, nullptr, "" },    // 14: Discord Info
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 15: Blank Separator
-    { "", PMENU_ALIGN_LEFT, nullptr, "" }                       // 16: Credits
+    { "Discord: Enemy0416", PMENU_ALIGN_CENTER, nullptr, "" },    // 9: Discord Info
+    { "", PMENU_ALIGN_LEFT, nullptr, "" }                       // 10: Credits
 };
 
 // Recalculate size
-constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 17 now
+constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 11 now
 
-// Update indices based on the NEW joinmenu structure
+// Update indices based on the simplified joinmenu structure
 constexpr size_t JOINMENU_TITLE_IDX = 0;
 constexpr size_t JOINMENU_LEVELNAME_IDX = 2;
-constexpr size_t JOINMENU_JOIN_HORDE_IDX = 6; // New index
-constexpr size_t JOINMENU_JOIN_HORDE_COUNT_IDX = 7; // New index
-constexpr size_t JOINMENU_CHASECAM_IDX = 10; // New index
-constexpr size_t JOINMENU_DISCORD_IDX = 14; // New index
-constexpr size_t JOINMENU_CREDITS_IDX = 16; // New index
+constexpr size_t JOINMENU_JOIN_HORDE_IDX = 4; // Updated index
+constexpr size_t JOINMENU_JOIN_HORDE_COUNT_IDX = 5; // Updated index
+constexpr size_t JOINMENU_CHASECAM_IDX = 7; // Updated index
+constexpr size_t JOINMENU_DISCORD_IDX = 9; // Updated index
+constexpr size_t JOINMENU_CREDITS_IDX = 10; // Updated index
 
 // Re-verify assertions
 static_assert(JOINMENU_CREDITS_IDX < JOINMENU_SIZE, "JOINMENU_CREDITS_IDX is out of bounds for joinmenu");
@@ -1034,6 +1041,11 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		CTFObserver(ent);
 		shouldCloseMenu = false; // CTFObserver might handle closing
 	}
+	// Check for "Upgrade Menu"
+	else if (strncmp(selected_text, "Upgrade Menu", 12) == 0) {
+		OpenUpgradeMenu(ent);
+		shouldCloseMenu = false;
+	}
 	// Check for "Misc Options"
 	else if (strcmp(selected_text, "Misc Options") == 0) {
 		OpenMiscMenu(ent);
@@ -1119,7 +1131,6 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	add_entry("", PMENU_ALIGN_CENTER);
 
 	if (ctfgame.election == ELECT_NONE) {
 		add_entry("Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler);
@@ -1131,12 +1142,16 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 	}
 	add_entry("", PMENU_ALIGN_CENTER);
 
+	// Add Upgrade Menu with total points display
+	int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
+	std::string upgrade_text = std::string(G_Fmt("Upgrade Menu (Points: {})", total_points));
+	add_entry(upgrade_text.c_str(), PMENU_ALIGN_LEFT, HordeMenuHandler);
+
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
-	add_entry("", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	add_entry("Close", PMENU_ALIGN_LEFT, HordeMenuHandler);
@@ -1392,6 +1407,413 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 	// Send to client
 	gi.WriteByte(svc_layout);
 	gi.WriteString(final_layout.c_str());
+}
+
+// --- BENEFITS MENU SYSTEM ---
+
+// Open Abilities Menu
+void OpenAbilitiesMenu(edict_t* ent) {
+    CreateAbilitiesMenu(ent);
+}
+
+// Abilities Menu Handler
+void AbilitiesMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+    if (!ent || !ent->client || !p) return;
+
+    pmenu_t* item = &p->entries[p->cur];
+    if (!item->SelectFunc) return;
+
+    // Handle benefit purchase
+    if (strncmp(item->text_arg1, "ability_", 8) == 0) {
+        const char* benefit_name = item->text_arg1 + 8; // Skip "ability_" prefix
+
+        // Find benefit by name
+        for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+            if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+
+            if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
+                BenefitID benefit_id = static_cast<BenefitID>(i);
+                int32_t cost = 1; // Default cost
+
+                if (PlayerPurchaseBenefit(ent, benefit_id, cost)) {
+                    // Refresh menu to show updated state
+                    PMenu_Close(ent);
+                    OpenAbilitiesMenu(ent);
+                }
+                return;
+            }
+        }
+    }
+
+    // Handle special menu actions
+    if (strcmp(item->text_arg1, "back_to_main") == 0) {
+        PMenu_Close(ent);
+        OpenUpgradeMenu(ent);
+    }
+}
+
+// Create Abilities Menu
+pmenuhnd_t* CreateAbilitiesMenu(edict_t* ent) {
+    if (!ent || !ent->client) return nullptr;
+
+    static pmenu_t abilities_menu[32];
+    memset(abilities_menu, 0, sizeof(abilities_menu));
+    int menu_index = 0;
+
+    // Header
+    Q_strlcpy(abilities_menu[menu_index].text, "**** ABILITIES SHOP ****", sizeof(abilities_menu[menu_index].text));
+    abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+    abilities_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // Points display
+    G_FmtTo(abilities_menu[menu_index].text, "Ability Points: {}", ent->client->pers.ability_points);
+    abilities_menu[menu_index].align = PMENU_ALIGN_CENTER;
+    abilities_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // Show owned abilities first
+    bool has_owned_abilities = false;
+    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+        if (g_benefitsData.categories[i] == BenefitCategory::ABILITY && PlayerHasBenefit(ent, static_cast<BenefitID>(i))) {
+            if (!has_owned_abilities) {
+                Q_strlcpy(abilities_menu[menu_index].text, "[OWNED ABILITIES]", sizeof(abilities_menu[menu_index].text));
+                abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+                abilities_menu[menu_index].SelectFunc = nullptr;
+                menu_index++;
+                has_owned_abilities = true;
+            }
+            G_FmtTo(abilities_menu[menu_index].text, "  ✓ {}", g_benefitsData.names[i]);
+            abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+            abilities_menu[menu_index].SelectFunc = nullptr;
+            menu_index++;
+        }
+    }
+
+    // Available abilities
+    Q_strlcpy(abilities_menu[menu_index].text, "[AVAILABLE ABILITIES]", sizeof(abilities_menu[menu_index].text));
+    abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    abilities_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // List ability benefits (limit to prevent menu overflow)
+    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 20; ++i) {
+        if (g_benefitsData.categories[i] != BenefitCategory::ABILITY) continue;
+
+        BenefitID benefit_id = static_cast<BenefitID>(i);
+        bool owned = PlayerHasBenefit(ent, benefit_id);
+        bool can_afford = ent->client->pers.ability_points >= 1; // Default cost
+
+        // Check prerequisites
+        auto prereq = g_benefitsData.prerequisites[i];
+        bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
+
+        int32_t min_wave = g_benefitsData.min_levels[i];
+        bool wave_met = (current_wave_level >= min_wave);
+
+        // Skip if already owned - don't show in menu
+        if (owned) {
+            continue;
+        }
+
+        // Don't show upgrades if prerequisite isn't met or wave requirement not met
+        if (!prereq_met || !wave_met) {
+            continue;
+        }
+
+        // Available to purchase
+        G_FmtTo(abilities_menu[menu_index].text,
+                 "  {}{} (1 pt)", can_afford ? "> " : "  ", g_benefitsData.names[i]);
+        abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+        if (can_afford) {
+            abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
+            snprintf(abilities_menu[menu_index].text_arg1, sizeof(abilities_menu[menu_index].text_arg1),
+                     "ability_%s", g_benefitsData.names[i]);
+        } else {
+            abilities_menu[menu_index].SelectFunc = nullptr;
+        }
+        menu_index++;
+    }
+
+    // Back to main menu
+    Q_strlcpy(abilities_menu[menu_index].text, "> Back to Upgrade Menu", sizeof(abilities_menu[menu_index].text));
+    abilities_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    abilities_menu[menu_index].SelectFunc = AbilitiesMenuHandler;
+    Q_strlcpy(abilities_menu[menu_index].text_arg1, "back_to_main", sizeof(abilities_menu[menu_index].text_arg1));
+    menu_index++;
+
+    return PMenu_Open(ent, abilities_menu, 0, menu_index, nullptr, nullptr);
+}
+
+// Open Weapons Menu
+void OpenWeaponsMenu(edict_t* ent) {
+    CreateWeaponsMenu(ent);
+}
+
+// Weapons Menu Handler
+void WeaponsMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+    if (!ent || !ent->client || !p) return;
+
+    pmenu_t* item = &p->entries[p->cur];
+    if (!item->SelectFunc) return;
+
+    // Handle benefit purchase
+    if (strncmp(item->text_arg1, "weapon_", 7) == 0) {
+        const char* benefit_name = item->text_arg1 + 7; // Skip "weapon_" prefix
+
+        // Find benefit by name
+        for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+            if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+
+            if (strcmp(g_benefitsData.names[i], benefit_name) == 0) {
+                BenefitID benefit_id = static_cast<BenefitID>(i);
+
+                // Set costs based on benefit type
+                int32_t cost = 1; // Default cost
+                if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
+                    cost = 3;
+                }
+
+                if (PlayerPurchaseBenefit(ent, benefit_id, cost)) {
+                    // Refresh menu to show updated state
+                    PMenu_Close(ent);
+                    OpenWeaponsMenu(ent);
+                }
+                return;
+            }
+        }
+    }
+
+    // Handle special menu actions
+    if (strcmp(item->text_arg1, "back_to_main") == 0) {
+        PMenu_Close(ent);
+        OpenUpgradeMenu(ent);
+    }
+}
+
+// Create Weapons Menu
+pmenuhnd_t* CreateWeaponsMenu(edict_t* ent) {
+    if (!ent || !ent->client) return nullptr;
+
+    static pmenu_t weapons_menu[32];
+    memset(weapons_menu, 0, sizeof(weapons_menu));
+    int menu_index = 0;
+
+    // Header
+    Q_strlcpy(weapons_menu[menu_index].text, "**** WEAPON UPGRADES ****", sizeof(weapons_menu[menu_index].text));
+    weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
+    weapons_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // Points display
+    G_FmtTo(weapons_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
+    weapons_menu[menu_index].align = PMENU_ALIGN_CENTER;
+    weapons_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // Show owned weapons first
+    bool has_owned_weapons = false;
+    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+        if (g_benefitsData.categories[i] == BenefitCategory::WEAPON && PlayerHasBenefit(ent, static_cast<BenefitID>(i))) {
+            if (!has_owned_weapons) {
+                Q_strlcpy(weapons_menu[menu_index].text, "[OWNED UPGRADES]", sizeof(weapons_menu[menu_index].text));
+                weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
+                weapons_menu[menu_index].SelectFunc = nullptr;
+                menu_index++;
+                has_owned_weapons = true;
+            }
+            G_FmtTo(weapons_menu[menu_index].text, "  ✓ {}", g_benefitsData.names[i]);
+            weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
+            weapons_menu[menu_index].SelectFunc = nullptr;
+            menu_index++;
+        }
+    }
+
+    // Available weapons
+    Q_strlcpy(weapons_menu[menu_index].text, "[AVAILABLE UPGRADES]", sizeof(weapons_menu[menu_index].text));
+    weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    weapons_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // List weapon benefits (limit to prevent menu overflow)
+    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && menu_index < 20; ++i) {
+        if (g_benefitsData.categories[i] != BenefitCategory::WEAPON) continue;
+
+        BenefitID benefit_id = static_cast<BenefitID>(i);
+        bool owned = PlayerHasBenefit(ent, benefit_id);
+
+        // Set costs based on benefit type
+        int32_t cost = 1; // Default cost
+        if (benefit_id == BenefitID::BFG_GRAV_PULL || benefit_id == BenefitID::CLUSTER_PROX) {
+            cost = 3;
+        }
+
+        bool can_afford = ent->client->pers.weapon_points >= cost;
+
+        // Check prerequisites
+        auto prereq = g_benefitsData.prerequisites[i];
+        bool prereq_met = (prereq == BenefitID::NONE) || PlayerHasBenefit(ent, prereq);
+
+        int32_t min_wave = g_benefitsData.min_levels[i];
+        bool wave_met = (current_wave_level >= min_wave);
+
+        // Skip if already owned - don't show in menu
+        if (owned) {
+            continue;
+        }
+
+        // Don't show upgrades if prerequisite isn't met or wave requirement not met
+        if (!prereq_met || !wave_met) {
+            continue;
+        }
+
+        // Available to purchase
+        G_FmtTo(weapons_menu[menu_index].text,
+                 "  {}{} ({} pt{})", can_afford ? "> " : "  ", g_benefitsData.names[i], cost, cost > 1 ? "s" : "");
+        weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
+        if (can_afford) {
+            weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
+            snprintf(weapons_menu[menu_index].text_arg1, sizeof(weapons_menu[menu_index].text_arg1),
+                     "weapon_%s", g_benefitsData.names[i]);
+        } else {
+            weapons_menu[menu_index].SelectFunc = nullptr;
+        }
+        menu_index++;
+    }
+
+    // Back to main menu
+    Q_strlcpy(weapons_menu[menu_index].text, "> Back to Upgrade Menu", sizeof(weapons_menu[menu_index].text));
+    weapons_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    weapons_menu[menu_index].SelectFunc = WeaponsMenuHandler;
+    Q_strlcpy(weapons_menu[menu_index].text_arg1, "back_to_main", sizeof(weapons_menu[menu_index].text_arg1));
+    menu_index++;
+
+    return PMenu_Open(ent, weapons_menu, 0, menu_index, nullptr, nullptr);
+}
+
+// =================
+// Upgrade Menu System
+// =================
+
+void OpenUpgradeMenu(edict_t* ent) {
+    CreateUpgradeMenu(ent);
+}
+
+void UpgradeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+    if (!ent || !ent->client || !p) return;
+
+    pmenu_t* item = &p->entries[p->cur];
+    if (!item->SelectFunc) return;
+
+    // Handle menu navigation
+    if (strcmp(item->text_arg1, "abilities_shop") == 0) {
+        PMenu_Close(ent);
+        OpenAbilitiesMenu(ent);
+    } else if (strcmp(item->text_arg1, "weapon_upgrades") == 0) {
+        PMenu_Close(ent);
+        OpenWeaponsMenu(ent);
+    } else if (strcmp(item->text_arg1, "restore_points") == 0) {
+        PlayerRestoreAllPoints(ent);
+        PMenu_Close(ent);
+        OpenUpgradeMenu(ent);
+    } else if (strcmp(item->text_arg1, "toggle_auto_buy_abilities") == 0) {
+        bool was_enabled = ent->client->pers.auto_buy_abilities;
+        ent->client->pers.auto_buy_abilities = !ent->client->pers.auto_buy_abilities;
+
+        // If disabling auto-buy for the first time, offer refund
+        if (was_enabled && !ent->client->pers.auto_buy_abilities &&
+            !ent->client->pers.has_manually_disabled_auto_buy) {
+            PlayerRefundAutoPurchasedBenefits(ent);
+        } else {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy abilities: {}\n",
+                      ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
+        }
+        PMenu_Close(ent);
+        OpenUpgradeMenu(ent);
+    } else if (strcmp(item->text_arg1, "toggle_auto_buy_weapons") == 0) {
+        bool was_enabled = ent->client->pers.auto_buy_weapons;
+        ent->client->pers.auto_buy_weapons = !ent->client->pers.auto_buy_weapons;
+
+        // If disabling auto-buy for the first time, offer refund
+        if (was_enabled && !ent->client->pers.auto_buy_weapons &&
+            !ent->client->pers.has_manually_disabled_auto_buy) {
+            PlayerRefundAutoPurchasedBenefits(ent);
+        } else {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Auto-buy weapons: {}\n",
+                      ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
+        }
+        PMenu_Close(ent);
+        OpenUpgradeMenu(ent);
+    } else if (strcmp(item->text_arg1, "back_to_main") == 0) {
+        PMenu_Close(ent);
+        OpenHordeMenu(ent);
+    }
+}
+
+pmenuhnd_t* CreateUpgradeMenu(edict_t* ent) {
+    if (!ent || !ent->client) return nullptr;
+
+    static pmenu_t upgrade_menu[64];
+    memset(upgrade_menu, 0, sizeof(upgrade_menu));
+    int menu_index = 0;
+
+    // Title
+    Q_strlcpy(upgrade_menu[menu_index].text, "=== UPGRADE MENU ===", sizeof(upgrade_menu[menu_index].text));
+    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+    upgrade_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // Points display
+    G_FmtTo(upgrade_menu[menu_index].text, "Ability Points: {}", ent->client->pers.ability_points);
+    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+    upgrade_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    G_FmtTo(upgrade_menu[menu_index].text, "Weapon Points: {}", ent->client->pers.weapon_points);
+    upgrade_menu[menu_index].align = PMENU_ALIGN_CENTER;
+    upgrade_menu[menu_index].SelectFunc = nullptr;
+    menu_index++;
+
+    // Menu options
+    Q_strlcpy(upgrade_menu[menu_index].text, "> Abilities Shop", sizeof(upgrade_menu[menu_index].text));
+    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "abilities_shop", sizeof(upgrade_menu[menu_index].text_arg1));
+    menu_index++;
+
+    Q_strlcpy(upgrade_menu[menu_index].text, "> Weapon Upgrades", sizeof(upgrade_menu[menu_index].text));
+    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapon_upgrades", sizeof(upgrade_menu[menu_index].text_arg1));
+    menu_index++;
+
+    Q_strlcpy(upgrade_menu[menu_index].text, "> Restore All Points", sizeof(upgrade_menu[menu_index].text));
+    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "restore_points", sizeof(upgrade_menu[menu_index].text_arg1));
+    menu_index++;
+
+    // Auto-buy toggles
+    G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Abilities: {}", ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
+    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_abilities", sizeof(upgrade_menu[menu_index].text_arg1));
+    menu_index++;
+
+    G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Weapons: {}", ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
+    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "toggle_auto_buy_weapons", sizeof(upgrade_menu[menu_index].text_arg1));
+    menu_index++;
+
+    // Back to main menu
+    Q_strlcpy(upgrade_menu[menu_index].text, "> Back to Main Menu", sizeof(upgrade_menu[menu_index].text));
+    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "back_to_main", sizeof(upgrade_menu[menu_index].text_arg1));
+    menu_index++;
+
+    return PMenu_Open(ent, upgrade_menu, 0, menu_index, nullptr, nullptr);
 }
 
 // --- END OF FILE horde_menu.cpp ---

@@ -420,7 +420,9 @@ THINK(tesla_activate)(edict_t *self)->void
 
 	self->think = tesla_think_active;
 	self->nextthink = level.time + FRAME_TIME_S + gtime_t::from_sec(frandom() * 0.1f);
-	self->air_finished = level.time + TeslaConstants::TIME_TO_LIVE;
+	// Calculate tesla lifetime with adrenaline bonus
+	gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, self->teammaster ? self->teammaster->client : nullptr);
+	self->air_finished = level.time + tesla_lifetime;
 
 	self->monsterinfo.attack_finished = level.time;
 	self->monsterinfo.medicTries = 0;
@@ -645,7 +647,9 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
         tesla->ctf_team = CTF_NOTEAM;
     }
 
-	tesla->wait = (level.time + TeslaConstants::TIME_TO_LIVE).seconds();
+	// Calculate tesla lifetime with adrenaline bonus
+	gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, self ? self->client : nullptr);
+	tesla->wait = (level.time + tesla_lifetime).seconds();
 	tesla->think = tesla_think;
 	tesla->nextthink = level.time + TESLA_ACTIVATE_TIME;
 	tesla->timestamp = level.time;

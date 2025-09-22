@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "g_local.h"
+#include "horde/g_horde_benefits.h"
 #include "bots/bot_includes.h"
 
 CHECK_GCLIENT_INTEGRITY;
@@ -908,7 +909,8 @@ void ExitLevel()
 			char userinfo[MAX_INFO_STRING];
 			memcpy(userinfo, game.clients[i].pers.userinfo, sizeof(userinfo));
 
-			game.clients[i].pers = game.clients[i].resp.coop_respawn = {};
+			game.clients[i].pers = client_persistant_t{};
+			game.clients[i].resp.coop_respawn = client_persistant_t{};
 			g_edicts[i + 1].health = 0; // this should trip the power armor, etc to reset as well
 
 			memcpy(game.clients[i].pers.userinfo, userinfo, sizeof(userinfo));

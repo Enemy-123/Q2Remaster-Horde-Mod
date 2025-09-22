@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "g_local.h"
+#include "horde/g_horde_benefits.h"
 #include "m_player.h"
 #include "bots/bot_includes.h"
 
@@ -1002,7 +1003,7 @@ static void G_SetClientEffects(edict_t* ent)
  */
 static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	// Safety checks
-	if (!g_ammoregen->integer || !ent || !ent->client) {
+	if (!PlayerHasAmmoRegen(ent) || !ent || !ent->client) {
 		return;
 	}
 
@@ -1044,13 +1045,13 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		int amount;             // Amount to regenerate
 	} AmmoRegenRule;
 
-	// Calculate dynamic amounts based on game settings
+	// Calculate dynamic amounts based on player upgrades
 	// MOD: Increased base amounts for dynamic calculations.
-	const int bulletAmount = g_energyshells->integer ? 150 :
-		(g_tracedbullets->integer ? 60 : 45);       // Was 120 / 45 / 30
-	const int grenadeAmount = g_bouncygl->integer ? 15 : 10;    // Was 10 / 6
-	const int cellAmount = g_bfgpull->integer ? 100 : 40;       // Was 75 / 25
-	const int proxAmount = g_upgradeproxs->integer ? 20 : 10;   // Was 15 / 6
+	const int bulletAmount = PlayerHasEnergyShells(ent) ? 150 :
+		(PlayerHasTracedBullets(ent) ? 60 : 45);       // Was 120 / 45 / 30
+	const int grenadeAmount = PlayerHasNapalmGL(ent) ? 15 : 10;    // Was 10 / 6
+	const int cellAmount = PlayerHasBFGPull(ent) ? 100 : 40;       // Was 75 / 25
+	const int proxAmount = PlayerHasClusterProx(ent) ? 20 : 10;   // Was 15 / 6
 
 	// Define the regeneration rules
 	// MOD: Increased the 'Amount' field for all ammo types.

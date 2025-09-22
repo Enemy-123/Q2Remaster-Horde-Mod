@@ -5037,11 +5037,13 @@ inline int8_t GetNumSpectPlayers()
 // Implementación de DisplayWaveMessage
 static void DisplayWaveMessage(gtime_t duration = 5_sec)
 {
-	static const std::array<const char *, 4> messages = {
+	static const std::array<const char *, 6> messages = {
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
-		"New Tactics!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!",
-		"Improved Traps!\n\nTraps are reutilizable after 5sec of eating a strogg!"};
+		"New Tactics!\n\nTeslas/Traps can now be placed on walls and ceilings!\n\nUse them wisely!",
+		"Adrenaline will improve sentry guns and traps/teslas",
+		"Improved Traps!\n\nTraps are ready again after 5sec of eating a strogg!",
+		"You can choose your own path on bonuses, check Horde Menu!"};
 
 	// Usar distribución uniforme con mt_rand
 	std::uniform_int_distribution<size_t> dist(0, messages.size() - 1);
@@ -7803,6 +7805,6 @@ static void Horde_InitLevel(const int32_t lvl)
 			lvl, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, g_totalMonstersInWave);
 	}
 
-	CheckAndApplyBenefit(lvl);
+	ProcessWaveRewards(lvl);
 	Horde_CleanBodies();
 }

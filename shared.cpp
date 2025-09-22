@@ -429,6 +429,24 @@ const char* GetDisplayName(const edict_t* ent) {
     return G_Fmt("{}{}", title_ptr, base_name_ptr).data();
 }
 
+// Calculate sentry gun health with adrenaline bonus
+int CalculateSentryHealth(int base_health, gclient_t* owner_client)
+{
+	if (!owner_client) return base_health;
+	return base_health + (owner_client->pers.adrenaline_count * 10);
+}
+
+// Calculate tesla/trap lifetime with adrenaline bonus
+gtime_t CalculateDeployableLifetime(gtime_t base_lifetime, gclient_t* owner_client)
+{
+	if (!owner_client) return base_lifetime;
+	int adrenaline_bonus_seconds = owner_client->pers.adrenaline_count * 3;
+	gi.Com_PrintFmt("DEPLOYABLE DEBUG: Base {}s + {}s adrenaline bonus = {}s total\n",
+		base_lifetime.seconds(), adrenaline_bonus_seconds,
+		(base_lifetime + gtime_t::from_sec(adrenaline_bonus_seconds)).seconds());
+	return base_lifetime + gtime_t::from_sec(adrenaline_bonus_seconds);
+}
+
 // 12:  bonus flag application
 void ApplyMonsterBonusFlags(edict_t* monster)
 {

@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
+#include "horde/g_horde_benefits.h"
 
 /*
 ================ =
@@ -632,8 +633,8 @@ Now checks for g_energyshells and redirects to fire_energy_shotgun if enabled.
 */
 void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
 {
-	// Check if energy shells are enabled
-	if (g_energyshells->integer)
+	// Check if player has energy shells upgrade
+	if (PlayerHasEnergyShells(self))
 	{
 		// Call the energy version instead
 		fire_energy_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, mod);
@@ -1760,7 +1761,7 @@ int calculate_bfg_range(const edict_t* self)
 		// Monster-owned BFG has shorter range
 		range = BFG_MONSTER_RANGE;
 	}
-	else if (g_bfgpull->integer && self->owner->client) {
+	else if (PlayerHasBFGPull(self->owner)) {
 		// Player-owned BFG with pull enabled has longer range
 		range = BFG_PLAYER_RANGE;
 	}
@@ -1884,7 +1885,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	const int bfgrange_squared = bfgrange * bfgrange;
 
 	// Determine if pulling should be applied
-	const bool should_pull = g_bfgpull->integer && self->owner->client;
+	const bool should_pull = PlayerHasBFGPull(self->owner);
 
 	// Cache origin for performance
 	const vec3_t self_origin = self->s.origin;
@@ -1989,7 +1990,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	}
 
 	// Calculate next think time based on game mode
-	const gtime_t next_think_time = g_bfgslide->integer ?
+	const gtime_t next_think_time = PlayerHasBFGSlide(self->owner) ?
 		FRAME_TIME_MS * 1.6 :  // Slightly faster for slide mode
 		FRAME_TIME_MS * 2.5;   // Slightly slower for normal mode
 
@@ -2020,7 +2021,7 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	// Handle sliding mode
-	if (g_bfgslide->integer) {
+	if (PlayerHasBFGSlide(self->owner)) {
 		// Set expiry timestamp if not already set
 		if (self->timestamp == 0_ms) {
 			self->timestamp = level.time + BFG_WALL_EXPIRE_TIME;
@@ -2104,7 +2105,7 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->s.origin = start;
 	bfg->s.angles = vectoangles(dir);
 	bfg->velocity = dir * speed;
-	bfg->movetype = g_bfgslide->integer ? MOVETYPE_SLIDE : MOVETYPE_FLYMISSILE;
+	bfg->movetype = PlayerHasBFGSlide(self) ? MOVETYPE_SLIDE : MOVETYPE_FLYMISSILE;
 	bfg->clipmask = MASK_PROJECTILE;
 	bfg->svflags = SVF_PROJECTILE;
 

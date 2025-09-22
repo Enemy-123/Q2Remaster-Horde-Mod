@@ -3,6 +3,7 @@
 // g_combat.c
 
 #include "g_local.h"
+#include "horde/g_horde_benefits.h"
 #include "shared.h"
 
 
@@ -775,7 +776,7 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 }
 
 static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
-	if (!g_autohaste->integer || !attacker || !attacker->client ||
+	if (!PlayerHasAutoHaste(attacker) || !attacker || !attacker->client ||
 		attacker->client->quadfire_time >= level.time ||
 		damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
 		return;
@@ -906,7 +907,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
     // These fast checks prevent unnecessary processing and are crucial for performance.
 
     // Vampire effect is disabled or damage is zero.
-    if (!g_vampire || !g_vampire->integer || damage <= 0) {
+    if (!PlayerHasVampire(attacker) || damage <= 0) {
         return;
     }
 
@@ -980,7 +981,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
 
     // --- 4. Armor Vampire Effect ---
     // At higher vampire levels, the attacker can also steal armor.
-    if (g_vampire->integer == 2) {
+    if (PlayerHasBenefit(attacker, BenefitID::VAMPIRE_UPGRADED)) {
         apply_armor_vampire(attacker, damage);
     }
 }
@@ -1004,8 +1005,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// It's a cluster grenade from an upgraded prox hitting a boss. Reduce damage.
 		damage = lroundf(damage * 0.3f); // 30% reduction.
 	}
-	
-		// Boss protection against one-shot attacks from nukes, doppelgangers, and spheres
+
+	// Boss protection against one-shot attacks from nukes, doppelgangers, and spheres
 	if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.IS_BOSS &&
 		(mod.id == MOD_NUKE || mod.id == MOD_DOPPLE_EXPLODE || mod.id == MOD_DOPPLE_VENGEANCE ||
 		 mod.id == MOD_DOPPLE_HUNTER || mod.id == MOD_VENGEANCE_SPHERE || mod.id == MOD_HUNTER_SPHERE ||
@@ -1017,8 +1018,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			damage = max_damage;
 		}
 	}
-	
-	
+
 	if (!targ->takedamage)
 		return;
 
@@ -1141,7 +1141,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			vec3_t kvel;
 
 			// Skip mass calculation for BFG pull
-			if (g_bfgpull->integer && mod.id == MOD_BFG_LASER) {
+			if (PlayerHasBFGPull(attacker) && mod.id == MOD_BFG_LASER) {
 				kvel = normalized_dir * (500.0f * knockback / 50);
 			}
 			else {

@@ -3,6 +3,7 @@
 // g_weapon.c
 
 #include "g_local.h"
+#include "horde/g_horde_benefits.h"
 #include "m_player.h"
 
 bool is_quad;
@@ -2006,7 +2007,7 @@ void weapon_bfg_fire(edict_t* ent)
 		damage = 700;
 
 	// Handle muzzle flash for standard BFG charge-up
-	if (!g_bfgslide->integer && ent->client->ps.gunframe == 9)
+	if (!PlayerHasBFGSlide(ent) && ent->client->ps.gunframe == 9)
 	{
 		gi.WriteByte(svc_muzzleflash);
 		gi.WriteEntity(ent);
@@ -2017,7 +2018,7 @@ void weapon_bfg_fire(edict_t* ent)
 	}
 
 	// Check for required ammo
-	int const required_ammo = g_bfgslide->integer ? 25 : 50;
+	int const required_ammo = PlayerHasBFGSlide(ent) ? 25 : 50;
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < required_ammo)
 		return;
 
@@ -2047,7 +2048,7 @@ void weapon_bfg_fire(edict_t* ent)
 	G_RemoveAmmo(ent, required_ammo);
 
 	// Advance gunframe
-	if (g_bfgslide->integer)
+	if (PlayerHasBFGSlide(ent))
 		ent->client->ps.gunframe = 17;
 	else
 		ent->client->ps.gunframe++;
