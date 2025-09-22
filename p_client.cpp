@@ -3900,11 +3900,16 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			client->ps.viewangles[PITCH] = -15;
 			client->ps.viewangles[YAW] = client->killer_yaw;
 		}
-		else if (!ent->client->menu)
+		else
 		{
+			// Always update view angles and forward vector for proper attack origin calculation
 			client->v_angle = pm.viewangles;
-			client->ps.viewangles = pm.viewangles;
 			AngleVectors(client->v_angle, client->v_forward, nullptr, nullptr);
+
+			// Only update ps.viewangles when menu is not open to keep view stable during menu
+			if (!ent->client->menu) {
+				client->ps.viewangles = pm.viewangles;
+			}
 		}
 
 		// ZOID
