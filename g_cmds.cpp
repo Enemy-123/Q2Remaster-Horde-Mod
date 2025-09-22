@@ -1884,6 +1884,11 @@ void ClientCommand(edict_t* ent)
 		Cmd_Where_f(ent);
 	else if (Q_strcasecmp(cmd, "clear_ai_enemy") == 0)
 		Cmd_Clear_AI_Enemy_f(ent);
+	else if (Q_strcasecmp(cmd, "coopp") == 0) {
+		// Execute the coopp alias commands for cooperative mode
+		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0; maxclients 7; kexmultiplayer maxplayers 7\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Cooperative mode activated!\n");
+	}
 	else if (Q_strcasecmp(cmd, "putaway") == 0)
 		Cmd_PutAway_f(ent);
 	else if (Q_strcasecmp(cmd, "wave") == 0)

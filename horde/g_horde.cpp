@@ -5126,7 +5126,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec)
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
 		"New Tactics!\n\nTeslas/Traps can now be placed on walls and ceilings!\n\nUse them wisely!",
-		"Adrenaline will improve sentry guns and traps/teslas",
+		"Adrenalines will improve sentry guns and traps/teslas",
 		"Improved Traps!\n\nTraps are ready again after 5sec of eating a strogg!",
 		"You can choose your own path on bonuses, check Horde Menu!"};
 

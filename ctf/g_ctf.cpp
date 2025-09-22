@@ -2160,13 +2160,16 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 	// Count players and clear votes
 	int count = 0;
+	int total_human_players = 0;
 	ctfgame.evotes = 0;
 	for (auto player : active_players()) {
 		if (player->client) {
 			player->client->resp.voted = false;
-			if (!(player->svflags & SVF_BOT) &&
-				(player->client->resp.ctf_team == CTF_TEAM1)) {
-				count++;
+			if (!(player->svflags & SVF_BOT)) {
+				total_human_players++;
+				if (player->client->resp.ctf_team == CTF_TEAM1 || G_IsCooperative() || coop->integer) {
+					count++;
+				}
 			}
 		}
 	}
@@ -2209,10 +2212,10 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	gi.LocBroadcast_Print(PRINT_HIGH,
 		fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
 
-	// Auto-aprobación para un solo jugador
-	if (count == 1) {
+	// Auto-aprobación para un solo jugador (including coop/single player)
+	if (count == 1 || (total_human_players == 1 && (G_IsCooperative() || coop->integer || !deathmatch->integer))) {
 		ctfgame.evotes = ctfgame.needvotes;
-		gi.LocBroadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other (human) players logged.\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "Vote approved automatically (single player/coop mode).\n");
 		CTFWinElection();
 	}
 
@@ -2423,12 +2426,14 @@ void CTFWinElection() {
 	case ELECT_MAP:
 		gi.LocBroadcast_Print(PRINT_HIGH, "vote succeeded! Changing level to {}.\n",
 			ctfgame.elevel);
-		if (g_horde->integer) {
-			HandleResetEvent();
-			for (uint32_t i = 0; i < game.maxclients; i++) {
-				edict_t* ent = g_edicts + 1 + i;
-				if (ent->inuse && ent->client) {
-					InitClientPt(ent, ent->client);
+		if (g_horde->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) {
+			if (g_horde->integer) {
+				HandleResetEvent();
+				for (uint32_t i = 0; i < game.maxclients; i++) {
+					edict_t* ent = g_edicts + 1 + i;
+					if (ent->inuse && ent->client) {
+						InitClientPt(ent, ent->client);
+					}
 				}
 			}
 			BeginIntermission(CreateTargetChangeLevel(ctfgame.elevel));
@@ -2764,9 +2769,13 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 
 void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p)
 {
-	//CTFJoinTeam(ent, CTF_TEAM1);
-	OpenTechMenu(ent);
-
+	// For cooperative/single player modes, directly join team 1 if techs are disabled
+	if ((G_IsCooperative() || coop->integer || !deathmatch->integer) && !g_allow_techs->integer) {
+		CTFJoinTeam(ent, CTF_TEAM1);
+	} else {
+		// Otherwise open tech menu for selection
+		OpenTechMenu(ent);
+	}
 }
 
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p)

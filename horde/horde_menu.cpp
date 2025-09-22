@@ -8,6 +8,9 @@
 #include "g_horde_benefits.h"
 #include "g_laser.h"
 
+// Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
+extern unsigned int P_GetLobbyUserNum(const edict_t* player);
+
 // Forward Declarations from this file
 void OpenVoteMenu(edict_t* ent);
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
@@ -28,6 +31,8 @@ void CategorizeMapList();
 pmenuhnd_t* CreateHUDMenu(edict_t* ent);
 void OpenMiscMenu(edict_t* ent); // Forward declare Misc menu functions
 void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void OpenAdminMenu(edict_t* ent); // Forward declare Admin menu functions
+void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
 // Upgrade menu functions
 void OpenUpgradeMenu(edict_t* ent);
@@ -162,11 +167,12 @@ void HordeUpdateJoinMenu(edict_t* ent)
 	SetGameName(&entries[JOINMENU_TITLE_IDX]);       // Update Game Title
 	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]);  // Update Level Name
 
-	// --- Horde Specific Logic ---
-	if (g_horde->integer) // Check if Horde mode is active
+	// --- Horde/Coop Specific Logic ---
+	if (g_horde->integer || G_IsCooperative()) // Check if Horde mode or Coop is active
 	{
-		// Set "Join Horde" option text and handler
-		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "Join and Fight the HORDE!", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
+		// Set appropriate join text based on mode
+		const char* join_text = g_horde->integer ? "Join and Fight the HORDE!" : "Join Cooperative Game";
+		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, join_text, sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
 		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = HordeJoinTeam;
 
 		// Set Discord Text (ensure it's visible)
@@ -194,10 +200,10 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		// G_FmtTo is correctly used for the argument here.
 		G_FmtTo(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1, "{}", horde_player_count);
 	}
-	else // Not Horde mode
+	else // Not Horde or Coop mode
 	{
 		// Disable/Clear Horde-specific entries
-		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "(Horde Mode Disabled)", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
+		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "(Horde/Coop Mode Disabled)", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
 		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = nullptr;
 		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text[0] = '\0';
 		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1[0] = '\0';
@@ -285,8 +291,10 @@ struct map_lists_t {
 	std::vector<std::string> big_maps;
 	std::vector<std::string> medium_maps;
 	std::vector<std::string> small_maps;
+	std::vector<std::string> cooperative_maps;
 	size_t current_page = 0;
 	horde::MapSize current_category = { false, true, false }; // Default to medium
+	bool is_cooperative_category = false;
 };
 
 static map_lists_t categorized_maps;
@@ -296,6 +304,7 @@ void CategorizeMapList() {
 	categorized_maps.big_maps.clear();
 	categorized_maps.medium_maps.clear();
 	categorized_maps.small_maps.clear();
+	categorized_maps.cooperative_maps.clear();
 
 	const char* mlist = g_map_list->string;
 	if (!mlist) return; // Safety check
@@ -311,16 +320,27 @@ void CategorizeMapList() {
 		if (token[0] == '\0') continue;
 
 		const char* map_name = token;
-		horde::MapSize const mapSize = GetMapSize(map_name); // Assuming GetMapSize is safe
 
-		if (mapSize.isBigMap) {
-			categorized_maps.big_maps.push_back(map_name);
+		// Check if it's a cooperative map (contains "coop" in name or is a single player map)
+		if (strstr(map_name, "coop") || strstr(map_name, "base") || strstr(map_name, "unit") ||
+		    strstr(map_name, "mine") || strstr(map_name, "fact") || strstr(map_name, "ware") ||
+		    strstr(map_name, "jail") || strstr(map_name, "power") || strstr(map_name, "cool") ||
+		    strstr(map_name, "waste") || strstr(map_name, "hangar") || strstr(map_name, "command") ||
+		    strstr(map_name, "strike") || strstr(map_name, "city") || strstr(map_name, "boss")) {
+			categorized_maps.cooperative_maps.push_back(map_name);
 		}
-		else if (mapSize.isSmallMap) {
-			categorized_maps.small_maps.push_back(map_name);
-		}
-		else { // isMediumMap or unknown defaults to medium
-			categorized_maps.medium_maps.push_back(map_name);
+		else {
+			horde::MapSize const mapSize = GetMapSize(map_name); // Assuming GetMapSize is safe
+
+			if (mapSize.isBigMap) {
+				categorized_maps.big_maps.push_back(map_name);
+			}
+			else if (mapSize.isSmallMap) {
+				categorized_maps.small_maps.push_back(map_name);
+			}
+			else { // isMediumMap or unknown defaults to medium
+				categorized_maps.medium_maps.push_back(map_name);
+			}
 		}
 	}
 }
@@ -334,24 +354,26 @@ static pmenu_t map_category_menu[] = {
     { "", PMENU_ALIGN_CENTER, nullptr, "" },
     { "*PLACEHOLDER_MAP*", PMENU_ALIGN_CENTER, nullptr, "" },
     { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Big Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
-    { "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
     { "Small Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
+    { "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
+    { "Hard Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
+    { "Cooperative Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
     { "", PMENU_ALIGN_CENTER, nullptr, "" },
     { "Back to Horde Menu", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
     { "Close", PMENU_ALIGN_LEFT, MapCategoryHandler, "" }
 };
 // Update size
-constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t); // Now 10
+constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t); // Now 11
 
 // Define indices for clarity (optional but helpful)
 //constexpr size_t MAP_CAT_MENU_TITLE_IDX = 0;
 constexpr size_t MAP_CAT_MENU_CURRENT_MAP_IDX = 2;
-constexpr size_t MAP_CAT_MENU_BIG_IDX = 4;
+constexpr size_t MAP_CAT_MENU_SMALL_IDX = 4;
 constexpr size_t MAP_CAT_MENU_MEDIUM_IDX = 5;
-constexpr size_t MAP_CAT_MENU_SMALL_IDX = 6;
-constexpr size_t MAP_CAT_MENU_BACK_IDX = 8;
-constexpr size_t MAP_CAT_MENU_CLOSE_IDX = 9;
+constexpr size_t MAP_CAT_MENU_BIG_IDX = 6;
+constexpr size_t MAP_CAT_MENU_COOP_IDX = 7;
+constexpr size_t MAP_CAT_MENU_BACK_IDX = 9;
+constexpr size_t MAP_CAT_MENU_CLOSE_IDX = 10;
 
 // Handler for the map category selection menu
 void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
@@ -365,35 +387,42 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	// Use the new indices defined above (or hardcode the updated numbers)
 	switch (option) {
-	case MAP_CAT_MENU_BIG_IDX: // Big Maps (Now 4)
-		// *** FIX: Set category correctly for Big Maps ***
-		categorized_maps.current_category = horde::MapSize{ false, true, false }; // {isSmall=false, isBig=true, isMedium=false}
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu(); // Update vote menu data based on new category
-		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Open the map list
-		break;
-
-	case MAP_CAT_MENU_MEDIUM_IDX: // Medium Maps (Now 5)
-		// *** FIX: Set category correctly for Medium Maps ***
-		categorized_maps.current_category = horde::MapSize{ false, false, true }; // {isSmall=false, isBig=false, isMedium=true}
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu();
-		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
-		break;
-
-	case MAP_CAT_MENU_SMALL_IDX: // Small Maps (Now 6)
-		// This one was already correct
+	case MAP_CAT_MENU_SMALL_IDX: // Small Maps
 		categorized_maps.current_category = horde::MapSize{ true, false, false }; // {isSmall=true, isBig=false, isMedium=false}
+		categorized_maps.is_cooperative_category = false;
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 		break;
 
-	case MAP_CAT_MENU_BACK_IDX: // Back to Horde Menu (Now 8)
+	case MAP_CAT_MENU_MEDIUM_IDX: // Medium Maps
+		categorized_maps.current_category = horde::MapSize{ false, false, true }; // {isSmall=false, isBig=false, isMedium=true}
+		categorized_maps.is_cooperative_category = false;
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu();
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		break;
+
+	case MAP_CAT_MENU_BIG_IDX: // Big/Hard Maps
+		categorized_maps.current_category = horde::MapSize{ false, true, false }; // {isSmall=false, isBig=true, isMedium=false}
+		categorized_maps.is_cooperative_category = false;
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu();
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		break;
+
+	case MAP_CAT_MENU_COOP_IDX: // Cooperative Maps
+		categorized_maps.is_cooperative_category = true;
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu();
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		break;
+
+	case MAP_CAT_MENU_BACK_IDX: // Back to Horde Menu
 		OpenHordeMenu(ent); // Open the main menu
 		break;
 
-	case MAP_CAT_MENU_CLOSE_IDX: // Close (Now 9)
+	case MAP_CAT_MENU_CLOSE_IDX: // Close
 		// Menu already closed at the start
 		break;
 
@@ -454,7 +483,10 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	std::vector<std::string>* current_map_list = nullptr;
 
 	// Get current map list based on category
-	if (categorized_maps.current_category.isBigMap) {
+	if (categorized_maps.is_cooperative_category) {
+		current_map_list = &categorized_maps.cooperative_maps;
+	}
+	else if (categorized_maps.current_category.isBigMap) {
 		current_map_list = &categorized_maps.big_maps;
 	}
 	else if (categorized_maps.current_category.isSmallMap) {
@@ -547,9 +579,13 @@ void UpdateVoteMenu() {
 
 	// Determine current map list and category name
 	const char* category_name;
-	if (categorized_maps.current_category.isBigMap) {
+	if (categorized_maps.is_cooperative_category) {
+		current_map_list = &categorized_maps.cooperative_maps;
+		category_name = "Cooperative Maps";
+	}
+	else if (categorized_maps.current_category.isBigMap) {
 		current_map_list = &categorized_maps.big_maps;
-		category_name = "Big Maps";
+		category_name = "Hard Maps";
 	}
 	else if (categorized_maps.current_category.isSmallMap) {
 		current_map_list = &categorized_maps.small_maps;
@@ -1099,6 +1135,174 @@ void CheckAndUpdateMenus() {
 }
 
 
+// === Admin Menu ===
+
+void OpenAdminMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Check if player is the host (player 0)
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+	if (playerNum != 0) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "Only the host can access the admin menu.\n");
+		return;
+	}
+
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	static pmenu_t admin_menu[15];
+	memset(admin_menu, 0, sizeof(admin_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
+		if (count < static_cast<int>(std::size(admin_menu))) {
+			Q_strlcpy(admin_menu[count].text, text, sizeof(admin_menu[count].text));
+			admin_menu[count].align = align;
+			admin_menu[count].SelectFunc = func;
+			count++;
+		}
+	};
+
+	add_entry("*Admin Menu*", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Add 5 Ability Points (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("Add 5 Weapon Points (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("Add 10 Points (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Give All Weapons", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	// God mode commented out - can break game balance
+	//add_entry("Give God Mode (All)", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("Heal All Players", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Skip to Next Wave", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Back", PMENU_ALIGN_LEFT, AdminMenuHandler);
+	add_entry("Close", PMENU_ALIGN_LEFT, AdminMenuHandler);
+
+	PMenu_Open(ent, admin_menu, -1, count, nullptr, nullptr);
+}
+
+void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p || p->cur < 0) {
+		if (ent && ent->client && ent->client->menu) PMenu_Close(ent);
+		return;
+	}
+
+	// Verify still the host
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+	if (playerNum != 0) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "Admin privileges lost.\n");
+		PMenu_Close(ent);
+		return;
+	}
+
+	const pmenu_t* selected = &p->entries[p->cur];
+	const char* text = selected->text;
+	bool shouldClose = true;
+
+	if (strcmp(text, "Add 5 Ability Points (All)") == 0) {
+		const char* adminName = GetPlayerName(ent);
+		for (auto player : active_players()) {
+			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+				player->client->pers.ability_points += 5;
+				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 ability points!\n", adminName);
+			}
+		}
+		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 ability points to all players.\n");
+	}
+	else if (strcmp(text, "Add 5 Weapon Points (All)") == 0) {
+		const char* adminName = GetPlayerName(ent);
+		for (auto player : active_players()) {
+			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+				player->client->pers.weapon_points += 5;
+				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 weapon points!\n", adminName);
+			}
+		}
+		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 5 weapon points to all players.\n");
+	}
+	else if (strcmp(text, "Add 10 Points (All)") == 0) {
+		const char* adminName = GetPlayerName(ent);
+		for (auto player : active_players()) {
+			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+				player->client->pers.ability_points += 10;
+				player->client->pers.weapon_points += 10;
+				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 10 ability and weapon points!\n", adminName);
+			}
+		}
+		gi.LocClient_Print(ent, PRINT_HIGH, "Gave 10 points of each type to all players.\n");
+	}
+	else if (strcmp(text, "Give All Weapons") == 0) {
+		const char* adminName = GetPlayerName(ent);
+		for (auto player : active_players()) {
+			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+				// Give all weapons
+				for (size_t i = IT_WEAPON_SHOTGUN; i <= IT_WEAPON_BFG; i++) {
+					player->client->pers.inventory[i] = 1;
+				}
+				// Give ammo
+				player->client->pers.inventory[IT_AMMO_SHELLS] = 200;
+				player->client->pers.inventory[IT_AMMO_BULLETS] = 300;
+				player->client->pers.inventory[IT_AMMO_GRENADES] = 100;
+				player->client->pers.inventory[IT_AMMO_ROCKETS] = 100;
+				player->client->pers.inventory[IT_AMMO_CELLS] = 300;
+				player->client->pers.inventory[IT_AMMO_SLUGS] = 100;
+				gi.LocClient_Print(player, PRINT_HIGH, "{} gave you all weapons!\n", adminName);
+			}
+		}
+		gi.LocClient_Print(ent, PRINT_HIGH, "Gave all weapons to all players.\n");
+	}
+	// God mode option removed - can break game balance
+	/*else if (strcmp(text, "Give God Mode (All)") == 0) {
+		const char* adminName = GetPlayerName(ent);
+		for (auto player : active_players()) {
+			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+				player->flags |= FL_GODMODE;
+				gi.LocClient_Print(player, PRINT_HIGH, "{} enabled god mode for you!\n", adminName);
+			}
+		}
+		gi.LocClient_Print(ent, PRINT_HIGH, "Enabled god mode for all players.\n");
+	}*/
+	else if (strcmp(text, "Heal All Players") == 0) {
+		const char* adminName = GetPlayerName(ent);
+		for (auto player : active_players()) {
+			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+				player->health = player->max_health;
+				player->client->pers.inventory[IT_ARMOR_BODY] = 200;
+				gi.LocClient_Print(player, PRINT_HIGH, "{} healed you!\n", adminName);
+			}
+		}
+		gi.LocClient_Print(ent, PRINT_HIGH, "Healed all players.\n");
+	}
+	else if (strcmp(text, "Skip to Next Wave") == 0) {
+		if (g_horde->integer) {
+			// Kill all AI to trigger next wave
+			extern void Cmd_Kill_AI_f(edict_t* ent);
+			Cmd_Kill_AI_f(ent);
+			gi.LocClient_Print(ent, PRINT_HIGH, "Killed all AI - advancing to next wave.\n");
+		} else {
+			gi.LocClient_Print(ent, PRINT_HIGH, "This only works in Horde mode.\n");
+		}
+	}
+	else if (strcmp(text, "Back") == 0) {
+		PMenu_Close(ent);
+		OpenHordeMenu(ent);
+		shouldClose = false;
+	}
+	else if (strcmp(text, "Close") == 0) {
+		// Just close
+	}
+	else {
+		shouldClose = false;
+	}
+
+	if (shouldClose && ent->client && ent->client->menu) {
+		PMenu_Close(ent);
+	}
+}
+
 // === Main Horde Menu ===
 
 // Handles selections in the main Horde menu
@@ -1114,6 +1318,11 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	// --- Action Handling based on Text ---
 
+	// Check for Admin Menu (host only)
+	if (strcmp(selected_text, "[HOST] Admin Menu") == 0) {
+		OpenAdminMenu(ent);
+		shouldCloseMenu = false;
+	}
 	// Check for "Go Spectator/AFK"
 	if (strcmp(selected_text, "Go Spectator/AFK") == 0) {
 		CTFObserver(ent);
@@ -1207,6 +1416,12 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 
 	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Add Admin Menu option if player is host
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+	if (playerNum == 0) {
+		add_entry("[HOST] Admin Menu", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
 
 	add_entry("Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
