@@ -1850,23 +1850,8 @@ void SP_monster_sentrygun(edict_t* self)
     }
 
 
-	    // After the sentry is successfully created and linked, track it.
-    if (self->owner && self->owner->client)
-    {
-        gclient_t* client = self->owner->client;
-
-        // Find the first empty slot in the tracking array.
-        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
-        {
-            if (client->resp.deployed_sentries[i] == nullptr)
-            {
-                client->resp.deployed_sentries[i] = self;
-                break; // Found a slot, we're done.
-            }
-        }
-        // The num_sentries count is incremented when the item is used,
-        // so we don't need to increment it here.
-    }
+	    // NOTE: Sentry tracking is handled by the deployment function (Use_SentryGun)
+    // to avoid duplicate tracking. This spawn function only creates the entity.
 
     // IMPORTANT: Initialize all the fields to their default values.
     // This is the answer to your question: "is it really needed?" -> YES!
