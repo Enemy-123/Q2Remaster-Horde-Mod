@@ -533,10 +533,20 @@ struct SpawnPointCacheArray
 
 	// Access operator now uses the compact index map
 	SpawnPointCache& operator[](const edict_t* ent) {
-		return data[g_spawn_point_map.at(ent->s.number)];
+		auto it = g_spawn_point_map.find(ent->s.number);
+		if (it == g_spawn_point_map.end()) {
+			gi.Com_PrintFmt("WARNING: Spawn point {} not found in map, using index 0\n", ent->s.number);
+			return data[0];
+		}
+		return data[it->second];
 	}
 	const SpawnPointCache& operator[](const edict_t* ent) const {
-		return data[g_spawn_point_map.at(ent->s.number)];
+		auto it = g_spawn_point_map.find(ent->s.number);
+		if (it == g_spawn_point_map.end()) {
+			gi.Com_PrintFmt("WARNING: Spawn point {} not found in map, using index 0\n", ent->s.number);
+			return data[0];
+		}
+		return data[it->second];
 	}
 
 	void resize(size_t new_size) {
@@ -3384,7 +3394,8 @@ static int GetRandomWaveSound()
 	}
 
 	// Seleccionar un sonido no usado
-	while (true)
+	constexpr int MAX_ATTEMPTS = 100; // Safety guard against infinite loop
+	for (int attempts = 0; attempts < MAX_ATTEMPTS; ++attempts)
 	{
 		// FIX: Cast the signed result of irandom to the unsigned size_t.
 		size_t const index = static_cast<size_t>(irandom(NUM_WAVE_SOUNDS));
@@ -3395,6 +3406,9 @@ static int GetRandomWaveSound()
 			return wave_sounds[index];
 		}
 	}
+	// Fallback if we somehow fail to find an unused sound
+	gi.Com_Print("WARNING: Failed to find unused wave sound, using first available\n");
+	return wave_sounds[0];
 }
 static std::array<bool, NUM_START_SOUNDS> used_start_sounds = {};
 static size_t remaining_start_sounds = NUM_START_SOUNDS;
@@ -3409,7 +3423,8 @@ static void PlayWaveStartSound()
 	}
 
 	// Seleccionar un sonido no usado
-	while (true)
+	constexpr int MAX_ATTEMPTS = 100; // Safety guard against infinite loop
+	for (int attempts = 0; attempts < MAX_ATTEMPTS; ++attempts)
 	{
 		// FIX: Cast the signed result of irandom to the unsigned size_t.
 		size_t const index = static_cast<size_t>(irandom(NUM_START_SOUNDS));
@@ -3418,9 +3433,12 @@ static void PlayWaveStartSound()
 			used_start_sounds[index] = true;
 			remaining_start_sounds--;
 			gi.sound(world, CHAN_VOICE, start_sounds[index], 1, ATTN_NONE, 0);
-			break;
+			return;
 		}
 	}
+	// Fallback if we somehow fail to find an unused sound
+	gi.Com_Print("WARNING: Failed to find unused start sound, using first available\n");
+	gi.sound(world, CHAN_VOICE, start_sounds[0], 1, ATTN_NONE, 0);
 }
 // Capping resets on map end
 
@@ -5908,14 +5926,14 @@ bool ShouldTriggerAmbushSpawn()
 {
 	// Static variables for tracking time-based cooldowns
 
-	// Only consider ambush spawning after wave 3
-	if (current_wave_level < 3)
+	// Only consider ambush spawning after wave 5 (increased from 3)
+	if (current_wave_level < 5)
 	{
 		return false;
 	}
 
-	// Check global cooldown (25 seconds between ambushes)
-	if (level.time - last_ambush_time < 25_sec)
+	// Check global cooldown (60 seconds between ambushes - reduced frequency)
+	if (level.time - last_ambush_time < 60_sec)
 	{
 		return false;
 	}
@@ -5926,13 +5944,13 @@ bool ShouldTriggerAmbushSpawn()
 		return false;
 	}
 
-	// Calculate base chance
-	float baseChance = 0.08f + (waves_since_ambush * 0.03f);
+	// Calculate base chance (reduced from 8% to 4%)
+	float baseChance = 0.04f + (waves_since_ambush * 0.02f);
 
-	// Wave level modifier (capped at 45%)
+	// Wave level modifier (capped at 25%, reduced from 45%)
 	const int cappedLevel = (current_wave_level > 25) ? 25 : current_wave_level;
-	baseChance += (cappedLevel - 3) * 0.015f;
-	baseChance = std::min(baseChance, 0.45f);
+	baseChance += (cappedLevel - 5) * 0.008f; // Updated to use new minimum wave level
+	baseChance = std::min(baseChance, 0.25f);
 
 	// Player performance bonus
 	float playerBonus = 0.0f;
@@ -5941,18 +5959,19 @@ bool ShouldTriggerAmbushSpawn()
 	{
 		if (player && player->inuse && player->health > 0)
 		{
-			if (player->health >= 125 || player->client->resp.spree >= 50)
+			// Reduced performance bonus requirements and amount
+			if (player->health >= 150 || player->client->resp.spree >= 75)
 			{
-				playerBonus += 0.04f;
+				playerBonus += 0.02f; // Reduced from 0.04f
 			}
 			playerCount++;
 		}
 	}
 
-	// Apply player bonus with cap
+	// Apply player bonus with reduced cap
 	if (playerCount > 0)
 	{
-		baseChance += std::min(playerBonus, 0.15f);
+		baseChance += std::min(playerBonus, 0.08f); // Reduced from 0.15f
 	}
 
 	// Final chance roll
@@ -6717,8 +6736,8 @@ private:
 
     // Updates the list of candidate spawn points around a specific player.
     void UpdatePlayerCandidates(edict_t* player, PlayerSpawnCandidates& candidates) {
-    constexpr float MIN_RADIUS = HordeConstants::MIN_PLAYER_DIST_GENERATE; // e.g., 200.0f
-    constexpr float MAX_RADIUS = 800.0f;
+    constexpr float MIN_RADIUS = 350.0f; // Increased from 200.0f for better ambush distance
+    constexpr float MAX_RADIUS = 1200.0f; // Increased from 800.0f for more variety
     constexpr size_t NUM_CANDIDATES = 16;
 
     candidates.player = player;

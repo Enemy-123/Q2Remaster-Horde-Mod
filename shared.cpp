@@ -158,9 +158,9 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         if (ent && ent->inuse) {
             if (entity_count >= capacity) {
                 if (entities_array == stack_entities) {
-                    // Resize first, then get pointer
-                    heap_entities.resize(capacity * 2);
+                    // Copy stack data to heap first, then resize
                     heap_entities.assign(stack_entities, stack_entities + entity_count);
+                    heap_entities.resize(capacity * 2);
                     entities_array = heap_entities.data();
                     capacity = heap_entities.size();
                 } else {
