@@ -123,6 +123,11 @@ struct laser_pierce_t : pierce_args_t
         }
 
         // --- FRIENDLY FIRE FIX ---
+        // Additional safety: Check if hitting the beam's owner directly
+        if (tr.ent == self->teammaster) {
+            return true; // Skip owner, continue beam
+        }
+
         // CheckTeamDamage returns 'true' if damage should be BLOCKED.
         // If it returns true, we stop the beam without dealing damage.
         if (tr.ent->takedamage && CheckTeamDamage(tr.ent, self->teammaster)) {
@@ -405,9 +410,14 @@ void create_laser(edict_t * ent)
     emitter->die = laser_die;
     emitter->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
     emitter->flags |= FL_NO_KNOCKBACK;
-    
-        emitter->ctf_team = GetEntityTeam(ent);
-        beam->ctf_team = GetEntityTeam(ent);
+
+    // CRITICAL FIX: Ensure proper team assignment for MinGW compatibility
+    ctfteam_t owner_team = GetEntityTeam(ent);
+    emitter->ctf_team = owner_team;
+    beam->ctf_team = owner_team;
+
+    // Additional safety: ensure beam teammaster is correctly set
+    beam->teammaster = ent;
 
     beam->classname = "laser";
     beam->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(beam->classname));
@@ -427,6 +437,9 @@ void create_laser(edict_t * ent)
     beam->nextthink = level.time + LaserConstants::LASER_SPAWN_DELAY;
     beam->flags |= FL_NO_KNOCKBACK;
     beam->team = emitter->team;
+
+    // ADDITIONAL MINGW FIX: Ensure all team-related fields are consistent
+    beam->ctf_team = owner_team; // Redundant but ensures consistency
 
     flare->classname = "misc_flare";
     flare->s.origin = tr.endpos;
