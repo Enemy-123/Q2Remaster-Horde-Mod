@@ -81,12 +81,19 @@ const pmenu_t joinmenu[] = {
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 6: Blank Separator
     { "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, "" },     // 7: Go Spectator
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 8: Blank Separator
-    { "Discord: Enemy0416", PMENU_ALIGN_LEFT, nullptr, "" },    // 9: Discord Info
-    { "", PMENU_ALIGN_LEFT, nullptr, "" }                       // 10: Credits
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 9: More spacing
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 10: More spacing
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 11: More spacing
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 12: More spacing
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 13: More spacing
+    { "Discord: Enemy0416", PMENU_ALIGN_LEFT, nullptr, "" },    // 14: Discord Info
+    { "Original Mod by Paril", PMENU_ALIGN_LEFT, nullptr, "" }, // 15: Original Mod Credit
+    { "Modified by Enemy", PMENU_ALIGN_LEFT, nullptr, "" }     // 16: Modified Credit
+
 };
 
 // Recalculate size
-constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 11 now
+constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 17 now
 
 // Update indices based on the simplified joinmenu structure
 constexpr size_t JOINMENU_TITLE_IDX = 0;
@@ -94,11 +101,13 @@ constexpr size_t JOINMENU_LEVELNAME_IDX = 2;
 constexpr size_t JOINMENU_JOIN_HORDE_IDX = 4; // Updated index
 constexpr size_t JOINMENU_JOIN_HORDE_COUNT_IDX = 5; // Updated index
 constexpr size_t JOINMENU_CHASECAM_IDX = 7; // Updated index
-constexpr size_t JOINMENU_DISCORD_IDX = 9; // Updated index
-constexpr size_t JOINMENU_CREDITS_IDX = 10; // Updated index
+constexpr size_t JOINMENU_DISCORD_IDX = 14; // Discord at bottom
+constexpr size_t JOINMENU_ORIGINAL_CREDIT_IDX = 15; // Original Mod Credit
+constexpr size_t JOINMENU_MODIFIED_CREDIT_IDX = 16; // Modified Credit
 
 // Re-verify assertions
-static_assert(JOINMENU_CREDITS_IDX < JOINMENU_SIZE, "JOINMENU_CREDITS_IDX is out of bounds for joinmenu");
+static_assert(JOINMENU_ORIGINAL_CREDIT_IDX < JOINMENU_SIZE, "JOINMENU_ORIGINAL_CREDIT_IDX is out of bounds for joinmenu");
+static_assert(JOINMENU_MODIFIED_CREDIT_IDX < JOINMENU_SIZE, "JOINMENU_MODIFIED_CREDIT_IDX is out of bounds for joinmenu");
 static_assert(JOINMENU_DISCORD_IDX < JOINMENU_SIZE, "JOINMENU_DISCORD_IDX is out of bounds for joinmenu");
 static_assert(JOINMENU_CHASECAM_IDX < JOINMENU_SIZE, "JOINMENU_CHASECAM_IDX is out of bounds for joinmenu");
 static_assert(JOINMENU_JOIN_HORDE_COUNT_IDX < JOINMENU_SIZE, "JOINMENU_JOIN_HORDE_COUNT_IDX is out of bounds for joinmenu");
@@ -160,13 +169,17 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, "Join and Fight the HORDE!", sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
 		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = HordeJoinTeam;
 
-		// Set Credits text
-		Q_strlcpy(entries[JOINMENU_CREDITS_IDX].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[JOINMENU_CREDITS_IDX].text));
-		entries[JOINMENU_CREDITS_IDX].SelectFunc = nullptr;
-
 		// Set Discord Text (ensure it's visible)
 		Q_strlcpy(entries[JOINMENU_DISCORD_IDX].text, "Discord: Enemy0416", sizeof(entries[JOINMENU_DISCORD_IDX].text));
 		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
+
+		// Set Original Credit text
+		Q_strlcpy(entries[JOINMENU_ORIGINAL_CREDIT_IDX].text, "Original Mod by Paril", sizeof(entries[JOINMENU_ORIGINAL_CREDIT_IDX].text));
+		entries[JOINMENU_ORIGINAL_CREDIT_IDX].SelectFunc = nullptr;
+
+		// Set Modified Credit text
+		Q_strlcpy(entries[JOINMENU_MODIFIED_CREDIT_IDX].text, "Modified by Enemy", sizeof(entries[JOINMENU_MODIFIED_CREDIT_IDX].text));
+		entries[JOINMENU_MODIFIED_CREDIT_IDX].SelectFunc = nullptr;
 
 		// --- Update Player Count () ---
 		uint32_t horde_player_count = 0;
@@ -188,11 +201,14 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = nullptr;
 		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text[0] = '\0';
 		entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1[0] = '\0';
-		entries[JOINMENU_CREDITS_IDX].text[0] = '\0';
-		entries[JOINMENU_CREDITS_IDX].SelectFunc = nullptr;
 		// Clear Discord info if not in Horde mode
 		entries[JOINMENU_DISCORD_IDX].text[0] = '\0';
 		entries[JOINMENU_DISCORD_IDX].SelectFunc = nullptr;
+		// Clear credit entries if not in Horde mode
+		entries[JOINMENU_ORIGINAL_CREDIT_IDX].text[0] = '\0';
+		entries[JOINMENU_ORIGINAL_CREDIT_IDX].SelectFunc = nullptr;
+		entries[JOINMENU_MODIFIED_CREDIT_IDX].text[0] = '\0';
+		entries[JOINMENU_MODIFIED_CREDIT_IDX].SelectFunc = nullptr;
 	}
 
 	// --- Update Chase Cam / Spectator Option ---
