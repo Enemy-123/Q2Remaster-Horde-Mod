@@ -450,10 +450,10 @@ void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 	g_spawnPointsData.cooldownEndsAt[index] = level.time + final_normal_duration;
 	g_spawnPointsData.lastSpawnTime[index] = level.time;
 
-	if (developer->integer)
-		gi.Com_PrintFmt("Alternative position cooldown applied to spawn at ({:.1f}, {:.1f}, {:.1f}): {:.1f}s (attempts: {})\n",
-						spawn_point->s.origin.x, spawn_point->s.origin.y, spawn_point->s.origin.z,
-						final_alt_duration.seconds(), alt_attempts);
+// 	if (developer->integer)
+// 		gi.Com_PrintFmt("Alternative position cooldown applied to spawn at ({:.1f}, {:.1f}, {:.1f}): {:.1f}s (attempts: {})\n",
+// 						spawn_point->s.origin.x, spawn_point->s.origin.y, spawn_point->s.origin.z,
+// 						final_alt_duration.seconds(), alt_attempts);
 }
 
 void IncreaseSpawnAttempts(edict_t *spawn_point)
@@ -807,12 +807,12 @@ void CheckAndReduceSpawnCooldowns()
 		SPAWN_POINT_COOLDOWN *= REDUCTION_FACTOR;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, HordeConstants::MIN_GLOBAL_SPAWN_COOLDOWN);
 
-		if (developer->integer > 1)
-		{
-			// FIX: Explicitly cast the result to a standard float to satisfy the
-			// compile-time (consteval) format string validation.
-			gi.Com_PrintFmt("Global spawn cooldown reduced and clamped to {:.2f}s\n", static_cast<float>(SPAWN_POINT_COOLDOWN.seconds()));
-		}
+		// if (developer->integer > 1)
+		// {
+		// 	// FIX: Explicitly cast the result to a standard float to satisfy the
+		// 	// compile-time (consteval) format string validation.
+		// 	gi.Com_PrintFmt("Global spawn cooldown reduced and clamped to {:.2f}s\n", static_cast<float>(SPAWN_POINT_COOLDOWN.seconds()));
+		// }
 	}
 }
 
@@ -3988,13 +3988,13 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason) // Removed d
 	auto it = last_boss_teleport_attempt_time.find(self->s.number);
 	if (it != last_boss_teleport_attempt_time.end() && level.time < it->second + selected_trigger_cooldown)
 	{
-		if (developer->integer > 1)
-		{
-			gtime_t cooldown_remaining = (it->second + selected_trigger_cooldown) - level.time;
-			gi.Com_PrintFmt("CTB: Boss {} on REASON-specific cooldown. Remaining: {:.2f}s\n",
-							self->classname ? self->classname : "UNKNOWN",
-							cooldown_remaining.seconds());
-		}
+		// if (developer->integer > 1)
+		// {
+		// 	gtime_t cooldown_remaining = (it->second + selected_trigger_cooldown) - level.time;
+		// 	gi.Com_PrintFmt("CTB: Boss {} on REASON-specific cooldown. Remaining: {:.2f}s\n",
+		// 					self->classname ? self->classname : "UNKNOWN",
+		// 					cooldown_remaining.seconds());
+		// }
 		return false;
 	}
 
@@ -5911,7 +5911,18 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 	{
 		if (developer->integer)
 		{
-			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {}.\n", static_cast<int>(typeId));
+			// Count active players for debugging
+			int active_player_count = 0;
+			for (uint32_t p = 0; p < game.maxclients; p++) {
+				edict_t* player = g_edicts + 1 + p;
+				if (player->inuse && player->client && player->health > 0) {
+					active_player_count++;
+				}
+			}
+
+			const char* monster_name = horde::MonsterTypeRegistry::GetClassname(typeId);
+			gi.Com_PrintFmt("EMERGENCY SPAWN FAILED: Could not find valid position for TypeID {} ({}) with {} active players. Consider adjusting emergency spawn distances or map constraints.\n",
+							static_cast<int>(typeId), monster_name ? monster_name : "Unknown", active_player_count);
 		}
 		return false;
 	}
@@ -6776,8 +6787,8 @@ private:
 
     // Updates the list of candidate spawn points around a specific player.
     void UpdatePlayerCandidates(edict_t* player, PlayerSpawnCandidates& candidates) {
-    constexpr float MIN_RADIUS = 500.0f; // Increased from 350.0f to spawn further from players
-    constexpr float MAX_RADIUS = 1200.0f; // Increased from 800.0f for more variety
+    constexpr float MIN_RADIUS = 300.0f; // Reduced from 500.0f to improve emergency spawn success rate
+    constexpr float MAX_RADIUS = 800.0f; // Reduced from 1200.0f to improve emergency spawn success rate
     constexpr size_t NUM_CANDIDATES = 16;
 
     candidates.player = player;
@@ -6814,12 +6825,11 @@ private:
         indices[i] = i;
     }
 
-    // --- THIS IS THE FIX ---
-    // The lambda now explicitly captures 'candidates' by reference, which resolves the compiler error.
-    std::sort(
+    // Use stable_sort with explicit return type to avoid consteval issues
+    std::stable_sort(
         indices.begin(),
         indices.begin() + candidates.valid_count,
-        [&candidates](uint8_t a, uint8_t b) {
+        [&](uint8_t a, uint8_t b) -> bool {
             return candidates.scores[a] > candidates.scores[b];
         }
     );
@@ -6913,6 +6923,37 @@ private:
         return false;
     }
 
+    // Updates candidates with custom distance range (for fallback logic)
+    void UpdatePlayerCandidatesWithRange(edict_t* player, PlayerSpawnCandidates& candidates,
+                                        float min_radius, float max_radius) {
+        constexpr size_t NUM_CANDIDATES = 16;
+
+        candidates.player = player;
+        candidates.valid_count = 0;
+        candidates.last_update_time = level.time;
+
+        const vec3_t player_origin = player->s.origin;
+
+        // Generate candidate positions in a distributed radial pattern
+        for (size_t i = 0; i < NUM_CANDIDATES; ++i) {
+            const float radius = frandom(min_radius, max_radius);
+            const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f); // Add jitter
+
+            vec3_t candidate_pos = {
+                player_origin.x + cosf(angle_rad) * radius,
+                player_origin.y + sinf(angle_rad) * radius,
+                player_origin.z + frandom(-32.0f, 48.0f) // Z variation for different floor levels
+            };
+
+            // Basic validation and scoring
+            float base_score = 1.0f / (1.0f + radius * 0.001f); // Closer is slightly better
+
+            candidates.positions[candidates.valid_count] = candidate_pos;
+            candidates.scores[candidates.valid_count] = base_score;
+            candidates.valid_count++;
+        }
+    }
+
 public:
     // The main public function to find an optimal emergency spawn position.
     bool FindOptimalPosition(vec3_t& out_position, vec3_t& out_angles,
@@ -6922,20 +6963,59 @@ public:
         GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
         const bool is_flying = IsFlying(typeId);
 
+        // Try with normal distances first
+        if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
+                                       predicted_mins, predicted_maxs, is_flying, 300.0f, 800.0f)) {
+            return true;
+        }
+
+        // Fallback 1: Reduce minimum distance
+        if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
+                                       predicted_mins, predicted_maxs, is_flying, 200.0f, 600.0f)) {
+            if (developer->integer) {
+                gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback distances (200-600) for TypeID {}.\n", static_cast<int>(typeId));
+            }
+            return true;
+        }
+
+        // Fallback 2: Further reduce distances
+        if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
+                                       predicted_mins, predicted_maxs, is_flying, 150.0f, 400.0f)) {
+            if (developer->integer) {
+                gi.Com_PrintFmt("EMERGENCY SPAWN: Used emergency fallback distances (150-400) for TypeID {}.\n", static_cast<int>(typeId));
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+private:
+    // Helper function to try finding position with specific distance ranges
+    bool TryFindPositionWithDistances(vec3_t& out_position, vec3_t& out_angles,
+                                    horde::MonsterTypeID typeId, edict_t* specific_target,
+                                    const vec3_t& predicted_mins, const vec3_t& predicted_maxs,
+                                    bool is_flying, float min_radius, float max_radius) {
+
         // If a specific player is targeted, generate and check candidates for them first.
         if (specific_target && specific_target->inuse && specific_target->health > 0) {
             PlayerSpawnCandidates temp_candidates;
-            UpdatePlayerCandidates(specific_target, temp_candidates);
+            UpdatePlayerCandidatesWithRange(specific_target, temp_candidates, min_radius, max_radius);
             if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
                 return true;
             }
         }
 
-        // Refresh the general player cache and try all active players.
-        RefreshPlayerCache();
-        for (size_t i = 0; i < cached_player_count; ++i) {
-            if (player_cache[i].player == specific_target) continue; // Skip if already checked
-            if (TryPlayerCandidatesFromCache(player_cache[i], predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
+        // Try all active players with custom distance range
+        for (uint32_t p = 0; p < game.maxclients; p++) {
+            edict_t* player = g_edicts + 1 + p;
+            if (!player->inuse || !player->client || player->health <= 0)
+                continue;
+            if (player == specific_target) continue; // Skip if already checked
+
+            PlayerSpawnCandidates temp_candidates;
+            UpdatePlayerCandidatesWithRange(player, temp_candidates, min_radius, max_radius);
+            if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
                 return true;
             }
         }
