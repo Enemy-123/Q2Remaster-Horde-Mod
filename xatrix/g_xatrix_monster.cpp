@@ -87,22 +87,22 @@ struct dabeam_pierce_t : pierce_args_t
 
 void dabeam_update(edict_t* self, bool damage)
 {
-	// self is the beam entity, self->owner is the monster
-	if (!self->owner || !M_HasValidTarget(self->owner))
+	// self is the beam entity, check if owner has valid target
+	if (!self->owner || !self->owner->inuse || !M_HasValidTarget(self->owner))
 	{
 		return; // Can't aim at a non-existent or dead target.
 	}
 
 	vec3_t start = self->s.origin;
 	vec3_t end = start + (self->movedir * 2048);
-	
+
 	dabeam_pierce_t args{
 		self,
 		damage
 	};
-	
+
 	pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
-	
+
 	self->s.old_origin = args.tr.endpos + (args.tr.plane.normal * 1.f);
 	gi.linkentity(self);
 }
@@ -159,7 +159,10 @@ void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update
     
     // Call update_func which handles positioning and calls dabeam_update
     update_func(beam_ptr);
-    
+
+    // Re-fetch the pointer as update_func might have changed it
+    beam_ptr = secondary ? self->beam2 : self->beam;
+
     // Check if the entity is still valid after update_func
     if (!beam_ptr || !beam_ptr->inuse)
     {
@@ -172,10 +175,9 @@ void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update
     }
 
     // Check if dabeam_update was called.  If not, call it.
-    if (!(beam_ptr->spawnflags & SPAWNFLAG_DABEAM_SPAWNED)) {
+    if (!beam_ptr->spawnflags.has(SPAWNFLAG_DABEAM_SPAWNED)) {
         dabeam_update(beam_ptr, true);
+        // Set the flag after calling dabeam_update
+        beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
     }
-    
-    // Only set the flag if the entity is still valid
-    beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
 }

@@ -57,7 +57,7 @@ namespace horde {
         {"monster_turret",    SpecialEntityTypeID::TURRET},
         {"nuke",             SpecialEntityTypeID::NUKE_MINE},
         {"emitter",           SpecialEntityTypeID::LASER_EMITTER},
-        {"laser",             SpecialEntityTypeID::LASER_BEAM}, 
+        {"laser",             SpecialEntityTypeID::LASER_BEAM},
         {"doppleganger",      SpecialEntityTypeID::DOPPLEGANGER}
     };
 
