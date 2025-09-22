@@ -108,13 +108,14 @@ namespace LaserHelpers
     // get_laser_manager is now DELETED
 }
 
-struct laser_pierce_t : pierce_args_t
+struct player_laser_pierce_t : pierce_args_t
 {
     edict_t* self; // The beam entity
-    inline laser_pierce_t(edict_t* self_ptr) : pierce_args_t(), self(self_ptr) {}
+    inline player_laser_pierce_t(edict_t* self_ptr) : pierce_args_t(), self(self_ptr) {}
 
     virtual bool hit(contents_t& mask, vec3_t& end) override
     {
+
         if (!self || self->health <= 0 || !tr.ent)
             return false;
 
@@ -122,29 +123,27 @@ struct laser_pierce_t : pierce_args_t
             return true;
         }
 
-        // --- FRIENDLY FIRE FIX ---
-        // Additional safety: Check if hitting the beam's owner directly
-        if (tr.ent == self->teammaster) {
-            return true; // Skip owner, continue beam
-        }
-
-        // CheckTeamDamage returns 'true' if damage should be BLOCKED.
-        // If it returns true, we stop the beam without dealing damage.
-        if (tr.ent->takedamage && CheckTeamDamage(tr.ent, self->teammaster)) {
-            return false; // It's a friendly target, stop the beam.
+        // --- PLAYER PASSTHROUGH FIX ---
+        // Make lasers pass through ALL players without damage to prevent griefing
+        if (tr.ent->client) {
+            return mark(tr.ent); // Mark as pierced and continue through player
         }
         // --- END FIX ---
 
-        if (self->dmg > 0 && tr.ent->takedamage && tr.ent != self->teammaster)
+        // Only damage non-player entities
+        if (self->dmg > 0 && tr.ent->takedamage)
         {
-            if ((tr.ent->client && tr.ent->client->invincible_time > level.time) ||
-                (tr.ent->svflags & SVF_MONSTER && tr.ent->monsterinfo.invincible_time > level.time)) {
+            if (tr.ent->svflags & SVF_MONSTER && tr.ent->monsterinfo.invincible_time > level.time) {
                 return mark(tr.ent); // Pierce through invincible targets.
             }
+
+            // Let g_no_self_damage system handle self-damage prevention
 
             int damage_to_deal = self->dmg;
             vec3_t forward;
             AngleVectors(self->s.angles, &forward, nullptr, nullptr);
+
+
             T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage_to_deal, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
             float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? 1.0f : LaserConstants::LASER_NONCLIENT_MOD;
@@ -246,7 +245,7 @@ THINK(laser_beam_think)(edict_t * self)->void
     const vec3_t start = emitter->s.origin;
     const vec3_t end = start + (forward * 8192.0f);
 
-    laser_pierce_t args(self);
+    player_laser_pierce_t args(self);
     pierce_trace(start, end, emitter, args, MASK_SHOT);
 
     self->s.origin = args.tr.endpos;
@@ -416,8 +415,9 @@ void create_laser(edict_t * ent)
     emitter->ctf_team = owner_team;
     beam->ctf_team = owner_team;
 
-    // Additional safety: ensure beam teammaster is correctly set
+    // Additional safety: ensure beam teammaster is correctly set (redundant but explicit)
     beam->teammaster = ent;
+
 
     beam->classname = "laser";
     beam->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(beam->classname));
