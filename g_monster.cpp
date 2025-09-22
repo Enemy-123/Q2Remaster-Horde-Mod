@@ -1066,17 +1066,11 @@ static void M_CheckDodge(edict_t* self)
         return;
     }
 
-    // --- THE OPTIMIZATION ---
-    // Query the grid for entities in a 512-unit radius.
-    // This list will contain monsters, players, and our target projectiles.
-    const auto potential_threats = HordePhys::g_monster_grid.QueryRadius(self->s.origin, 512.0f);
-
-    for (auto* ent : potential_threats)
+    for (auto* ent : active_projectiles())
     {
-        // --- This is the logic from the old filter, now applied to a much smaller list ---
-
-        // 1. Is it a dodgeable projectile? (This also filters out monsters/players)
-        if (!(ent->svflags & SVF_PROJECTILE) || !(ent->flags & FL_DODGE)) {
+        // 1. Check distance first (fast elimination)
+        static constexpr float MAX_DODGE_DIST_SQ = 512.0f * 512.0f;
+        if (DistanceSquared(self->s.origin, ent->s.origin) > MAX_DODGE_DIST_SQ) {
             continue;
         }
 
