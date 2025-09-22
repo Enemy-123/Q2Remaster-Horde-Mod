@@ -793,10 +793,9 @@ static void infantry_grenade(edict_t* self)
         }
         vec3_t target_pos = self->monsterinfo.blind_fire_target;
 
-        // Turn to face the target location
+        // Set ideal yaw (ai_charge will handle the turning)
         vec3_t dir_to_target = target_pos - self->s.origin;
         self->ideal_yaw = vectoyaw(dir_to_target);
-        M_ChangeYaw(self);
 
         // Calculate start position
         vec3_t forward, right, up;
@@ -818,9 +817,8 @@ static void infantry_grenade(edict_t* self)
             return;
         }
 
-        // Turn to face the enemy
+        // Set ideal yaw (ai_charge will handle the turning)
         self->ideal_yaw = vectoyaw(self->enemy->s.origin - self->s.origin);
-        M_ChangeYaw(self);
 
         // Calculate start position
         vec3_t forward, right, up;

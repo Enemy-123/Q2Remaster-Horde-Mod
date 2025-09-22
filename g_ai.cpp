@@ -393,7 +393,8 @@ void ai_charge(edict_t* self, float dist)
 	// [Paril-KEX] if our enemy is literally right next to us, give
 	// us more rotational speed so we don't get circled
 	// --- Check added before accessing self->enemy for range_to ---
-	if (self->enemy && self->enemy->inuse && range_to(self, self->enemy) <= RANGE_MELEE * 2.5f)
+	static constexpr float RANGE_MELEE_EXTENDED = RANGE_MELEE * 2.5f;
+	if (self->enemy && self->enemy->inuse && range_to(self, self->enemy) <= RANGE_MELEE_EXTENDED)
 		M_ChangeYaw(self);
 	// --- End Check ---
 }
@@ -944,11 +945,11 @@ static edict_t* AI_GetSoundClient(edict_t* self, bool direct)
 			continue;
 
 		// prefer the closest one we heard
-		float dist = (self->s.origin - sound->s.origin).length();
+		float dist_sq = (self->s.origin - sound->s.origin).lengthSquared();
 
-		if (!best_sound || dist < best_distance)
+		if (!best_sound || dist_sq < best_distance)
 		{
-			best_distance = dist;
+			best_distance = dist_sq;
 			best_sound = sound;
 		}
 	}
@@ -1295,7 +1296,7 @@ bool FindTarget(edict_t* self)
 
 		temp = client->s.origin - self->s.origin;
 
-		if (temp.length() > 1000) // too far to hear
+		if (temp.lengthSquared() > 1000000) // too far to hear (1000^2)
 			return false;
 
 		// check area portals - if they are different and not connected then we can't hear it
@@ -1651,8 +1652,10 @@ void ai_run_slide(edict_t* self, float distance)
 		M_ChangeYaw(self);
 
 	// PMM - clamp maximum sideways move for non flyers to make them look less jerky
-	if (!(self->flags & FL_FLY))
-		distance = min(distance, MAX_SIDESTEP / (gi.frame_time_ms / 10));
+	if (!(self->flags & FL_FLY)) {
+		static const float max_sidestep_per_frame = MAX_SIDESTEP * 10.0f / (float)gi.frame_time_ms;
+		distance = min(distance, max_sidestep_per_frame);
+	}
 	if (M_walkmove(self, self->ideal_yaw + ofs, distance))
 		return;
 	// PMM - if we're dodging, give up on it and go straight
@@ -2061,7 +2064,7 @@ void ai_run(edict_t* self, float dist)
 			// [Paril-KEX] special case: if we're stand ground & knocked way too far away
 			// from our path_corner, or we can't see it any more, assume all
 			// is lost.
-			if ((self->monsterinfo.aiflags & AI_REACHED_HOLD_COMBAT) && (((closest_point_to_box(self->movetarget->s.origin, self->absmin, self->absmax) - self->movetarget->s.origin).length() > 160.f)
+			if ((self->monsterinfo.aiflags & AI_REACHED_HOLD_COMBAT) && (((closest_point_to_box(self->movetarget->s.origin, self->absmin, self->absmax) - self->movetarget->s.origin).lengthSquared() > 25600.f) // 160^2
 				|| (tr.fraction < 1.0f && tr.plane.normal.z <= 0.7f))) // if we hit a climbable, ignore this result
 			{
 				self->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
@@ -2269,7 +2272,8 @@ void ai_run(edict_t* self, float dist)
 
 		// [Paril-KEX] if our enemy is literally right next to us, give
 		// us more rotational speed so we don't get circled
-		if (range_to(self, self->enemy) <= RANGE_MELEE * 2.5f)
+		static constexpr float RANGE_MELEE_EXTENDED = RANGE_MELEE * 2.5f;
+		if (range_to(self, self->enemy) <= RANGE_MELEE_EXTENDED)
 			M_ChangeYaw(self);
 
 		return;

@@ -106,6 +106,7 @@ struct SpecialSpawnState {
 static SpecialSpawnState g_special_spawn_state;
 
 static gtime_t g_horde_retaliation_end_time = 0_sec;
+static gtime_t g_horde_retaliation_last_trigger_time = 0_sec;  // Cooldown tracking
 // Optional: Store the targeted player edict for focus (can be nullptr)
 static edict_t *g_horde_retaliation_target_player = nullptr;
 
@@ -217,9 +218,10 @@ namespace HordeConstants
 
 	// --- Ambush & Retaliation System ---
 	constexpr gtime_t RETALIATION_DURATION = 12_sec;
-	constexpr int32_t MIN_DEATHS_FOR_RETALIATION = 8;
-	constexpr float   MIN_SPAWN_PROGRESS_FOR_RETALIATION = 0.05f;
-	constexpr uint16_t MIN_SPAWNED_FOR_RETALIATION = 8;
+	constexpr gtime_t RETALIATION_COOLDOWN = 30_sec;  // Prevent retaliation from triggering too frequently
+	constexpr int32_t MIN_DEATHS_FOR_RETALIATION = 12;
+	constexpr float   MIN_SPAWN_PROGRESS_FOR_RETALIATION = 0.25f;  // Increased from 0.05f (5%) to 0.25f (25%)
+	constexpr uint16_t MIN_SPAWNED_FOR_RETALIATION = 15;
 	constexpr gtime_t AMBUSH_GLOBAL_COOLDOWN = 25_sec;
 	constexpr gtime_t AMBUSH_MIN_ATTEMPT_INTERVAL = 1_sec;
 	constexpr gtime_t AMBUSH_MAX_ATTEMPT_INTERVAL = 3_sec;
@@ -1050,7 +1052,19 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lv
 	if (lvl <= 3) // No queue for first 3 waves still seems fine
 		return 0;
 
-	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 2.5f; // Reduced base from 3.0f
+	// Cache sqrt result for performance (called frequently during wave spawning)
+	static constexpr int32_t MAX_WAVE_LEVEL = 250;
+	static float sqrt_cache[MAX_WAVE_LEVEL + 1] = {0};
+	static bool cache_initialized = false;
+
+	if (!cache_initialized) {
+		for (int i = 0; i <= MAX_WAVE_LEVEL; ++i) {
+			sqrt_cache[i] = std::sqrt(static_cast<float>(i));
+		}
+		cache_initialized = true;
+	}
+
+	float baseQueued = sqrt_cache[lvl] * 2.5f; // Reduced base from 3.0f
 	baseQueued *= (1.0f + (lvl) * 0.13f); // Reduced scaling from 0.18f
 
 	float mapSizeMultiplier = 1.0f;
@@ -4593,6 +4607,7 @@ void ResetGame()
 	}
 
 	g_horde_retaliation_end_time = 0_sec;
+	g_horde_retaliation_last_trigger_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 
 	//resetting idview special entities
@@ -5241,7 +5256,25 @@ static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 {
     // 1. Basic checks from your new version (these are good).
     if (!is_valid_vector(io_position)) return false;
-    if (gi.pointcontents(io_position) & MASK_SOLID) return false;
+
+    // Check for dangerous liquids (water/lava/slime) - monsters shouldn't spawn in them
+    contents_t point_contents = gi.pointcontents(io_position);
+    if (point_contents & MASK_SOLID) return false;
+
+    // Prevent spawning in hazardous liquids unless flying
+    if (!is_flying && (point_contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
+        return false;
+    }
+
+    // Water is ok for some monsters but should be avoided for most ground units
+    if (!is_flying && (point_contents & CONTENTS_WATER)) {
+        // Allow water spawning only if it's shallow (check if head would be above water)
+        vec3_t head_pos = io_position;
+        head_pos.z += monster_maxs.z - monster_mins.z; // Approximate height
+        if (gi.pointcontents(head_pos) & CONTENTS_WATER) {
+            return false; // Would be fully submerged
+        }
+    }
 
     // 2. The robust single trace from your OLD version's logic. This is the key fix.
     // It checks against both world geometry AND other solid monsters in one go.
@@ -5612,7 +5645,9 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 		if (spawn_state_deaths >= HordeConstants::MIN_DEATHS_FOR_RETALIATION &&
 			(spawn_progress >= HordeConstants::MIN_SPAWN_PROGRESS_FOR_RETALIATION || monsters_spawned_in_current_phase >= HordeConstants::MIN_SPAWNED_FOR_RETALIATION))
 		{
-			if (!g_horde_retaliation_active)
+			// Check cooldown to prevent retaliation from triggering too frequently
+			if (!g_horde_retaliation_active &&
+				(level.time - g_horde_retaliation_last_trigger_time) >= HordeConstants::RETALIATION_COOLDOWN)
 			{
 				// Find the best player to target for the retaliation
 				edict_t* target_player = nullptr;
@@ -5649,6 +5684,9 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 
 				// Call the new trigger function instead of the old one.
 				TriggerRetaliation(g_horde_local.current_map_size, g_horde_local.level, target_player);
+
+				// Update cooldown tracking
+				g_horde_retaliation_last_trigger_time = level.time;
 
 				// Add bonus monsters to the queue
 				int32_t base_retaliation_add = (g_horde_local.level <= 7) ? 4 : 7;
@@ -6738,7 +6776,7 @@ private:
 
     // Updates the list of candidate spawn points around a specific player.
     void UpdatePlayerCandidates(edict_t* player, PlayerSpawnCandidates& candidates) {
-    constexpr float MIN_RADIUS = 350.0f; // Increased from 200.0f for better ambush distance
+    constexpr float MIN_RADIUS = 500.0f; // Increased from 350.0f to spawn further from players
     constexpr float MAX_RADIUS = 1200.0f; // Increased from 800.0f for more variety
     constexpr size_t NUM_CANDIDATES = 16;
 
@@ -6844,10 +6882,26 @@ private:
     bool TryPlayerCandidatesFromCache(const PlayerSpawnCandidates& candidates,
                                     const vec3_t& mins, const vec3_t& maxs, bool is_flying,
                                     vec3_t& out_pos, vec3_t& out_angles) {
+        static constexpr float MIN_PLAYER_DISTANCE_SQ = 120.0f * 120.0f; // 120 units minimum
+
         for (size_t i = 0; i < candidates.valid_count; ++i) {
             vec3_t test_pos = candidates.positions[i];
 
-            if (IsPositionPhysicallyValid(test_pos, mins, maxs, is_flying, false)) {
+            // Check distance to all players to avoid spawning too close
+            bool too_close_to_player = false;
+            for (uint32_t p = 0; p < game.maxclients; p++) {
+                edict_t* player = g_edicts + 1 + p;
+                if (!player->inuse || !player->client || player->health <= 0)
+                    continue;
+
+                float dist_sq = (test_pos - player->s.origin).lengthSquared();
+                if (dist_sq < MIN_PLAYER_DISTANCE_SQ) {
+                    too_close_to_player = true;
+                    break;
+                }
+            }
+
+            if (!too_close_to_player && IsPositionPhysicallyValid(test_pos, mins, maxs, is_flying, false)) {
                 out_pos = test_pos;
                 const vec3_t to_player = candidates.player->s.origin - test_pos;
                 out_angles = (to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) ?
@@ -7655,6 +7709,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
 	g_horde_retaliation_active = false; // Keep this for now
 	g_horde_retaliation_end_time = 0_sec;
+	g_horde_retaliation_last_trigger_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
 	ResetChampionMonsterState();
 	waves_since_ambush++;

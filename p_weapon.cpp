@@ -1295,7 +1295,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t* ent)
 {
-	int	  damage = g_bouncygl->integer ? 95 : 115;
+	int	  damage = PlayerHasNapalmGL(ent) ? 95 : 115;
 	float radius;
 
 	radius = static_cast<float>(damage + 40);
@@ -1320,7 +1320,7 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 
 	G_RemoveAmmo(ent);
 
-	if (g_bouncygl->integer)
+	if (PlayerHasNapalmGL(ent))
 		G_RemoveAmmo(ent);
 }
 
@@ -1538,7 +1538,11 @@ constexpr vec3_t TRACER_OFFSET_DUCKED = { 0.0f, 8.0f, -6.0f };
 
 void Fire_TracerBullet(edict_t* ent, int damage, gtime_t cooldown_duration)
 {
-    if (!g_tracedbullets->integer || !ent || !ent->client || ent->client->resp.lasthbshot > level.time)
+    if (!ent || !ent->client)
+        return;
+
+    bool has_traced = PlayerHasTracedBullets(ent);
+    if (!has_traced || ent->client->resp.lasthbshot > level.time)
         return;
 
     const vec3_t& tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1822,7 +1826,7 @@ void weapon_shotgun_fire(edict_t* ent)
 	int damage;
 	int kick = 8;
 
-	damage = !g_energyshells->integer ? irandom(3, 5) : irandom(7, 11);
+	damage = !PlayerHasEnergyShells(ent) ? irandom(3, 5) : irandom(7, 11);
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir, true);
@@ -1866,7 +1870,7 @@ void weapon_supershotgun_fire(edict_t* ent)
 	int damage;
 	int kick = 17;
 
-damage = !g_energyshells->integer ? irandom(7, 10) : irandom(14, 16);
+damage = !PlayerHasEnergyShells(ent) ? irandom(7, 10) : irandom(14, 16);
 	//	damage = irandom(8, 13); (vanilla 6)
 
 	if (is_quad)

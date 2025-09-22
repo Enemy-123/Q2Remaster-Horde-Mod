@@ -3,6 +3,7 @@
 
 #include "../g_local.h"
 #include "../m_player.h"
+#include "../horde/g_horde_benefits.h"
 
 void weapon_prox_fire(edict_t* ent)
 {
@@ -23,7 +24,7 @@ void weapon_prox_fire(edict_t* ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	G_RemoveAmmo(ent);
-	if (g_upgradeproxs->integer)
+	if (PlayerHasClusterProx(ent))
 	{
 		G_RemoveAmmo(ent, 3);
 	}

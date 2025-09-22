@@ -252,9 +252,13 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		ent->ideal_yaw = vectoyaw((towards_origin - ent->s.origin).normalized());
 
 	// --- Obstacle Avoidance ---
-	// Check for immediate obstacles in the direction of wanted_dir
-	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+	// Cache trace mask to avoid repeated bitwise operations
+	static constexpr contents_t obstacle_mask = MASK_SOLID | CONTENTS_MONSTERCLIP;
 
+	// Check for immediate obstacles in the direction of wanted_dir
+	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, obstacle_mask);
+
+	// Cache angle vectors to avoid recalculation
 	vec3_t aim_fwd, aim_rgt, aim_up;
 	vec3_t const yaw_angles = { 0, ent->s.angles.y, 0 };
 	AngleVectors(yaw_angles, aim_fwd, aim_rgt, aim_up);
@@ -262,15 +266,24 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// If blocked closely, try to navigate around
 	if (tr.fraction < 0.25f)
 	{
-		bool const bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
-			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->mins.z - ent->monsterinfo.fly_acceleration }, ent);
-		bool const top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
-			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->maxs.z + ent->monsterinfo.fly_acceleration }, ent);
+		// Pre-calculate common positions to reduce vector operations
+		const vec3_t bottom_pos = ent->s.origin + vec3_t{ 0, 0, ent->mins.z };
+		const vec3_t top_pos = ent->s.origin + vec3_t{ 0, 0, ent->maxs.z };
+		const vec3_t accel_offset = vec3_t{ 0, 0, ent->monsterinfo.fly_acceleration };
+
+		bool const bottom_visible = SV_flystep_testvisposition(bottom_pos, wanted_pos,
+			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->mins.z } - accel_offset, ent);
+		bool const top_visible = SV_flystep_testvisposition(top_pos, wanted_pos,
+			ent->s.origin, top_pos + accel_offset, ent);
 
 		if (bottom_visible == top_visible) // Blocked horizontally
 		{
-			bool const left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
-			bool const right_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) + aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+			// Pre-calculate side positions
+			const vec3_t side_offset = aim_fwd.scaled(ent->maxs);
+			const vec3_t lateral_offset = aim_rgt.scaled(ent->maxs);
+
+			bool const left_visible = gi.traceline(ent->s.origin + side_offset - lateral_offset, wanted_pos, ent, obstacle_mask).fraction == 1.0f;
+			bool const right_visible = gi.traceline(ent->s.origin + side_offset + lateral_offset, wanted_pos, ent, obstacle_mask).fraction == 1.0f;
 
 			if (left_visible != right_visible) // Clear path to one side
 			{
@@ -874,10 +887,10 @@ bool ai_check_move(edict_t* self, float dist)
 		return false;
 	}
 
-	float const yaw = self->s.angles[YAW] * PIf * 2 / 360;
+	float const yaw_rad = DEG2RAD(self->s.angles[YAW]);
 	vec3_t const move = {
-		cosf(yaw) * dist,
-		sinf(yaw) * dist,
+		cosf(yaw_rad) * dist,
+		sinf(yaw_rad) * dist,
 		0
 	};
 
@@ -949,8 +962,6 @@ Returns true if the movement was successful.
 */
 bool SV_StepDirection(edict_t* ent, float yaw, float dist, bool allow_no_turns)
 {
-	if (!ent || !ent->inuse || dist <= 0)
-		return false;
 
 	// Store original values for potential rollback
 	const vec3_t oldorigin = ent->s.origin;
@@ -1047,17 +1058,18 @@ movement options and intelligence.
 */
 bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 {
-	if (!actor || !actor->inuse || dist <= 0)
+	// Calculate delta to target first (most common failure case)
+	const vec3_t delta = pos - actor->s.origin;
+	const float dx = delta.x;
+	const float dy = delta.y;
+
+	// Early exit for zero movement
+	if (dist <= 0 || (fabsf(dx) < 1.0f && fabsf(dy) < 1.0f))
 		return false;
 
 	// Calculate current direction and turnaround
 	const float olddir = anglemod(truncf(actor->ideal_yaw / 45) * 45);
 	const float turnaround = anglemod(olddir - 180);
-
-	// Calculate delta to target
-	const vec3_t delta = pos - actor->s.origin;
-	const float dx = delta.x;
-	const float dy = delta.y;
 
 	// Determine primary movement directions with 8-way movement
 	const float tdir_x = (dx > 10.0f) ? 0.0f : (dx < -10.0f) ? 180.0f : DI_NODIR;
@@ -1152,9 +1164,6 @@ SV_CloseEnough
 */
 bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 {
-	// Verifica si ent o goal son nulos
-	if (!ent || !goal)
-		return false;
 	int i;
 
 	for (i = 0; i < 3; i++)
@@ -1169,8 +1178,6 @@ bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 
 static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 {
-	if (!self || dist <= 0)
-		return false;
 
 	// mark us as *trying* now (nav_pos is valid)
 	self->monsterinfo.aiflags |= AI_PATHING;
@@ -1553,7 +1560,7 @@ bool M_walkmove(edict_t* ent, float yaw, float dist)
 	if (!ent->groundentity && !(ent->flags & (FL_FLY | FL_SWIM)))
 		return false;
 
-	yaw = yaw * PIf * 2 / 360;
+	yaw = DEG2RAD(yaw);
 
 	move[0] = cosf(yaw) * dist;
 	move[1] = sinf(yaw) * dist;

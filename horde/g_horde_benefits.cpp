@@ -243,7 +243,14 @@ bool PlayerHasBenefit(edict_t* player, BenefitID benefit_id) {
                     player->client->pers.active_abilities_mask :
                     player->client->pers.active_weapons_mask;
 
-    return (mask & (1u << static_cast<uint8_t>(benefit_id))) != 0;
+    // Adjust bit position for weapons (start from 0 in weapons mask)
+    uint8_t bit_pos = static_cast<uint8_t>(benefit_id);
+    if (category == BenefitCategory::WEAPON) {
+        // First weapon benefit is TRACED_BULLETS (value 5)
+        bit_pos = static_cast<uint8_t>(benefit_id) - static_cast<uint8_t>(BenefitID::TRACED_BULLETS);
+    }
+
+    return (mask & (1u << bit_pos)) != 0;
 }
 
 // Check if player has ability (category check)
@@ -271,16 +278,25 @@ void PlayerActivateBenefit(edict_t* player, BenefitID benefit_id) {
                      &player->client->pers.active_abilities_mask :
                      &player->client->pers.active_weapons_mask;
 
-    *mask |= (1u << static_cast<uint8_t>(benefit_id));
+    // Adjust bit position for weapons (start from 0 in weapons mask)
+    uint8_t bit_pos = static_cast<uint8_t>(benefit_id);
+    if (category == BenefitCategory::WEAPON) {
+        // First weapon benefit is TRACED_BULLETS (value 5)
+        bit_pos = static_cast<uint8_t>(benefit_id) - static_cast<uint8_t>(BenefitID::TRACED_BULLETS);
+    }
+
+    *mask |= (1u << bit_pos);
     player->client->pers.purchased_benefits_mask |= (1u << static_cast<uint8_t>(benefit_id));
+
+    // Benefit activated successfully
 
     // Handle special cases
     if (benefit_id == BenefitID::BFG_SLIDE) {
         player->client->pers.bfg_mode = BFGMode::SLIDE;
-        gi.LocClient_Print(player, PRINT_HIGH, "^2BFG Slide Mode enabled!\n");
+        gi.LocClient_Print(player, PRINT_HIGH, "BFG Slide Mode enabled!\n");
     } else if (benefit_id == BenefitID::BFG_GRAV_PULL) {
         player->client->pers.bfg_mode = BFGMode::GRAV_PULL;
-        gi.LocClient_Print(player, PRINT_HIGH, "^2BFG Gravity Pull enabled!\n");
+        gi.LocClient_Print(player, PRINT_HIGH, "BFG Gravity Pull enabled!\n");
     }
 }
 
@@ -293,7 +309,14 @@ void PlayerDeactivateBenefit(edict_t* player, BenefitID benefit_id) {
                      &player->client->pers.active_abilities_mask :
                      &player->client->pers.active_weapons_mask;
 
-    *mask &= ~(1u << static_cast<uint8_t>(benefit_id));
+    // Adjust bit position for weapons (start from 0 in weapons mask)
+    uint8_t bit_pos = static_cast<uint8_t>(benefit_id);
+    if (category == BenefitCategory::WEAPON) {
+        // First weapon benefit is TRACED_BULLETS (value 5)
+        bit_pos = static_cast<uint8_t>(benefit_id) - static_cast<uint8_t>(BenefitID::TRACED_BULLETS);
+    }
+
+    *mask &= ~(1u << bit_pos);
 }
 
 // Specific benefit helpers (replace global cvar checks)
@@ -388,7 +411,26 @@ void PlayerSpendPoints(edict_t* player, BenefitID benefit_id, int32_t cost) {
     *points -= cost;
 }
 
-// Helper function to auto-buy from a specific category
+// Define the default auto-upgrade priority order
+static const BenefitID AUTO_UPGRADE_PRIORITY_ABILITIES[] = {
+    BenefitID::VAMPIRE,
+    BenefitID::AMMO_REGEN,
+    BenefitID::VAMPIRE_UPGRADED,
+    BenefitID::AUTO_HASTE,
+    BenefitID::START_ARMOR
+};
+
+static const BenefitID AUTO_UPGRADE_PRIORITY_WEAPONS[] = {
+    BenefitID::TRACED_BULLETS,
+    BenefitID::ENERGY_SHELLS,
+    BenefitID::BFG_SLIDE,
+    BenefitID::BFG_GRAV_PULL,
+    BenefitID::PIERCING_PLASMA,
+    BenefitID::NAPALM_GRENADES,
+    BenefitID::CLUSTER_PROX
+};
+
+// Helper function to auto-buy from a specific category using priority order
 static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
     if (!player || !player->client) return;
 
@@ -396,11 +438,22 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
                       &player->client->pers.ability_points :
                       &player->client->pers.weapon_points;
 
-    // Try to buy affordable benefits with prerequisites met
-    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS && *points > 0; ++i) {
-        if (g_benefitsData.categories[i] != category) continue;
+    // Use the appropriate priority list
+    const BenefitID* priority_list;
+    size_t list_size;
 
-        BenefitID benefit_id = static_cast<BenefitID>(i);
+    if (category == BenefitCategory::ABILITY) {
+        priority_list = AUTO_UPGRADE_PRIORITY_ABILITIES;
+        list_size = sizeof(AUTO_UPGRADE_PRIORITY_ABILITIES) / sizeof(BenefitID);
+    } else {
+        priority_list = AUTO_UPGRADE_PRIORITY_WEAPONS;
+        list_size = sizeof(AUTO_UPGRADE_PRIORITY_WEAPONS) / sizeof(BenefitID);
+    }
+
+    // Try to buy benefits in priority order
+    for (size_t idx = 0; idx < list_size && *points > 0; ++idx) {
+        BenefitID benefit_id = priority_list[idx];
+        size_t i = static_cast<size_t>(benefit_id);
 
         // Skip if already owned
         if (PlayerHasBenefit(player, benefit_id)) continue;
@@ -415,7 +468,7 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
         // Check if can afford
         if (*points < cost) continue;
 
-        // Check wave requirements
+        // Check wave requirements (for auto-buy only)
         int32_t min_wave = g_benefitsData.min_levels[i];
         if (current_wave_level < min_wave) continue;
 
@@ -427,8 +480,8 @@ static void AutoBuyCategory(edict_t* player, BenefitCategory category) {
 
         // Purchase the benefit
         if (PlayerPurchaseBenefit(player, benefit_id, cost)) {
-            // TODO: Track auto-purchased benefits for potential refund if needed
-            gi.LocClient_Print(player, PRINT_HIGH, "^6{} auto-bought: {}\n", GetPlayerName(player), g_benefitsData.names[i]);
+            player->client->pers.auto_purchased_benefits_mask |= (1u << static_cast<uint8_t>(benefit_id));
+            gi.LocClient_Print(player, PRINT_HIGH, "Auto-upgrade: {}\n", g_benefitsData.names[i]);
         }
     }
 }
@@ -461,27 +514,24 @@ bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) 
 
     // Check if player can afford it
     if (!PlayerCanAffordBenefit(player, benefit_id, cost)) {
-        gi.LocClient_Print(player, PRINT_HIGH, "^1Not enough points!\n");
+        gi.LocClient_Print(player, PRINT_HIGH, "Not enough points!\n");
         return false;
     }
 
     // Check if already owned
     if (PlayerHasBenefit(player, benefit_id)) {
-        gi.LocClient_Print(player, PRINT_HIGH, "^3Already owned!\n");
+        gi.LocClient_Print(player, PRINT_HIGH, "Already owned!\n");
         return false;
     }
 
-    // Check wave requirements
-    int32_t min_wave = g_benefitsData.min_levels[static_cast<size_t>(benefit_id)];
-    if (current_wave_level < min_wave) {
-        gi.LocClient_Print(player, PRINT_HIGH, "^1Available at wave {}!\n", min_wave);
-        return false;
-    }
+    // No wave requirements for manual purchases - players can buy anything they can afford
+    // Wave requirements are only enforced for auto-buy
 
     // Check prerequisites
     auto prereq = g_benefitsData.prerequisites[static_cast<size_t>(benefit_id)];
     if (prereq != BenefitID::NONE && !PlayerHasBenefit(player, prereq)) {
-        gi.LocClient_Print(player, PRINT_HIGH, "^1Prerequisite not met!\n");
+        const char* prereq_name = g_benefitsData.names[static_cast<size_t>(prereq)];
+        gi.LocClient_Print(player, PRINT_HIGH, "Requires {} first!\n", prereq_name);
         return false;
     }
 
@@ -489,6 +539,13 @@ bool PlayerPurchaseBenefit(edict_t* player, BenefitID benefit_id, int32_t cost) 
     PlayerSpendPoints(player, benefit_id, cost);
     PlayerActivateBenefit(player, benefit_id);
     PlayerShowBenefitMessage(player, benefit_id);
+
+    // Special handling for BFG upgrades - set default mode
+    if (benefit_id == BenefitID::BFG_GRAV_PULL) {
+        // When getting grav pull, default to using it
+        player->client->pers.bfg_mode = BFGMode::GRAV_PULL;
+        gi.LocClient_Print(player, PRINT_HIGH, "BFG mode set to Slide+Pull (configurable in Misc menu)\n");
+    }
 
     return true;
 }
@@ -503,7 +560,7 @@ void PlayerShowBenefitMessage(edict_t* player, BenefitID benefit_id) {
     gi.LocCenter_Print(player, "{}", g_benefitsData.center_msgs[index]);
 
     // Send chat message
-    gi.LocClient_Print(player, PRINT_HIGH, "^2{}\n", g_benefitsData.chat_msgs[index]);
+    gi.LocClient_Print(player, PRINT_HIGH, "{}\n", g_benefitsData.chat_msgs[index]);
 }
 
 // Process wave rewards - replaces the old CheckAndApplyBenefit for point distribution
@@ -515,14 +572,14 @@ void ProcessWaveRewards(int32_t wave) {
         // Ability points every 4 waves starting from wave 4
         if (wave >= 4 && (wave % 4) == 0) {
             PlayerEarnAbilityPoints(player, 1);
-            gi.LocClient_Print(player, PRINT_HIGH, "^2+1 Ability Point! ^7(Total: {})\n",
+            gi.LocClient_Print(player, PRINT_HIGH, "+1 Ability Point! (Total: {})\n",
                       player->client->pers.ability_points);
         }
 
         // Weapon points every 8 waves starting from wave 8
         if (wave >= 8 && (wave % 8) == 0) {
             PlayerEarnWeaponPoints(player, 1);
-            gi.LocClient_Print(player, PRINT_HIGH, "^3+1 Weapon Point! ^7(Total: {})\n",
+            gi.LocClient_Print(player, PRINT_HIGH, "+1 Weapon Point! (Total: {})\n",
                       player->client->pers.weapon_points);
         }
 
@@ -562,8 +619,11 @@ void PlayerRestoreAllPoints(edict_t* player) {
     // Reset BFG mode to default
     player->client->pers.bfg_mode = BFGMode::NORMAL;
 
+    // Reset auto-purchased tracking
+    player->client->pers.auto_purchased_benefits_mask = 0;
+
     gi.LocClient_Print(player, PRINT_HIGH,
-        "^2All benefits cleared! ^7Restored: ^3{} ability points, {} weapon points\n",
+        "All benefits cleared! Restored: {} ability points, {} weapon points\n",
         expected_ability_points, expected_weapon_points);
     gi.LocCenter_Print(player, "All upgrades restored!\nChoose your path again!");
 }
@@ -623,10 +683,10 @@ void PlayerRefundAutoPurchasedBenefits(edict_t* player) {
     // Show refund message
     if (refunded_ability_points > 0 || refunded_weapon_points > 0) {
         gi.LocClient_Print(player, PRINT_HIGH,
-            "^2Auto-buy disabled! Refunded: ^3{} ability points, {} weapon points^7. Choose your own path!\n",
+            "Auto-buy disabled! Refunded: {} ability points, {} weapon points. Choose your own path!\n",
             refunded_ability_points, refunded_weapon_points);
         gi.LocCenter_Print(player, "Auto-buy disabled!\nAll auto-spent points refunded!");
     } else {
-        gi.LocClient_Print(player, PRINT_HIGH, "^3Auto-buy disabled. No auto-purchases to refund.\n");
+        gi.LocClient_Print(player, PRINT_HIGH, "Auto-buy disabled. No auto-purchases to refund.\n");
     }
 }

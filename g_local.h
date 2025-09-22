@@ -3055,6 +3055,7 @@ struct client_persistant_t
 	uint32_t active_abilities_mask = 0;   // Bitmask of active abilities
 	uint32_t active_weapons_mask = 0;     // Bitmask of active weapon upgrades
 	uint32_t purchased_benefits_mask = 0; // All benefits ever purchased (for prerequisites)
+	uint32_t auto_purchased_benefits_mask = 0; // Benefits purchased via auto-buy (for refunds)
 	gtime_t last_auto_buy_check = 0_ms;   // Last time auto-buy was checked
 	BFGMode bfg_mode = BFGMode::NORMAL;   // Default to normal mode (players must upgrade)
 };

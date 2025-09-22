@@ -1960,7 +1960,7 @@ static void G_InitStatusbar()
 		// HORDE WAVE
 		sb.xl(2).yb(-23).string2("Horde MODE");
 		sb.ifstat(STAT_WAVE_NUMBER)
-			.xl(82).yb(-23).num(2, STAT_WAVE_NUMBER)
+			.xl(82).yb(-23).num(3, STAT_WAVE_NUMBER)
 			.xl(2).yb(-23).string(" \nWave Level:")
 			.endifstat();
 

@@ -798,18 +798,20 @@ void CheckDMRules()
 		if (timelimit->value && level.time >= gtime_t::from_min(timelimit->value))
 		{
 			gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
+			// Reset game state once (avoid redundant calls)
+			gi.cvar_set("timelimit", "60");
+			HandleResetEvent();
+			EndDMLevel();
+
+			// Notify and reinitialize each client
 			for (int i = 0; i < maxclients->integer; i++)
 			{
 				edict_t* ent = g_edicts + 1 + i;
 				if (ent->inuse && ent->client)
 				{
 					gi.LocCenter_Print(ent, "Horde Mode is being reset.");
-					gi.cvar_set("timelimit", "60");
-					HandleResetEvent();
-
+					InitClientPt(ent, ent->client);
 				}
-				EndDMLevel();
-				InitClientPt(ent, ent->client);
 			}
 			return;
 		}

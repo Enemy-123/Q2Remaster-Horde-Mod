@@ -803,10 +803,10 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	if (it != WEAPON_MULTIPLIERS.end()) {
 		multiplier = it->multiplier;
 
-		if (weapon_id == IT_WEAPON_MACHINEGUN && g_tracedbullets->integer) {
+		if (weapon_id == IT_WEAPON_MACHINEGUN && PlayerHasTracedBullets(attacker)) {
 			multiplier = 0.5f;
 		}
-		else if (weapon_id == IT_WEAPON_GLAUNCHER && g_bouncygl->integer) {
+		else if (weapon_id == IT_WEAPON_GLAUNCHER && PlayerHasNapalmGL(attacker)) {
 			multiplier *= 0.5f;
 		}
 	}

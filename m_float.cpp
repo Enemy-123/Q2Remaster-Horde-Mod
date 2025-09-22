@@ -59,9 +59,9 @@ void floater_tracker_fire_blaster(edict_t* self)
 
 	// Now that we've confirmed self->enemy is not null, this line is safe.
 	dir = self->pos1 - self->enemy->s.origin;
-	len = dir.length();
+	len = dir.lengthSquared();
 
-	if (len < 30)
+	if (len < 900.0f) // 30^2 = 900, avoid sqrt
 	{
 		// calc direction to where we targeted
 		dir = self->pos1 - start;
@@ -75,59 +75,12 @@ void floater_tracker_fire_blaster(edict_t* self)
 	}
 }
 
-mframe_t floater_tracker_frames_stand1[] = {
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand }
+static constexpr mframe_t stand_frame_template = { ai_stand };
+alignas(32) static mframe_t floater_tracker_frames_stand1[52] = {
+	stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template,
+	stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template,
+	stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template,
+	stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template, stand_frame_template
 };
 MMOVE_T(floater_tracker_move_stand1) = { FRAME_stand101, FRAME_stand152, floater_tracker_frames_stand1, nullptr };
 

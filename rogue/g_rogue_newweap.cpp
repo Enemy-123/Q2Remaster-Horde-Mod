@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
+#include "../horde/g_horde_benefits.h"
 
 /*
 ========================
@@ -319,7 +320,8 @@ static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
 	gi.WritePosition(explosion_origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
-	if (g_upgradeproxs->integer)
+	// Check if the owner (player who fired) has the cluster prox upgrade
+	if (ent->owner && ent->owner->client && PlayerHasClusterProx(ent->owner))
 	{
 		SpawnClusterGrenades(ent, explosion_origin, ent->dmg);
 	}
@@ -1142,7 +1144,7 @@ struct heatbeam_pierce_t : pierce_args_t
 static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir, const vec3_t &offset,
 					   int damage, int kick, int te_beam, int te_impact, mod_t mod)
 {
-	if (g_piercingbeam->integer)
+	if (self && self->client && PlayerHasPiercingPlasma(self))
 	{
 		vec3_t end = start + (aimdir * 8192);
 		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;

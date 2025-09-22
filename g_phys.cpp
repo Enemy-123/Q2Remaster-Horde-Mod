@@ -132,10 +132,13 @@ void SV_CheckVelocity(edict_t* ent)
 	//
 	// bound velocity
 	//
-	float speed = ent->velocity.length();
+	float speed_sq = ent->velocity.lengthSquared();
+	float max_vel = sv_maxvelocity->value;
 
-	if (speed > sv_maxvelocity->value)
-		ent->velocity = (ent->velocity / speed) * sv_maxvelocity->value;
+	if (speed_sq > max_vel * max_vel) {
+		float speed = sqrtf(speed_sq);
+		ent->velocity = (ent->velocity / speed) * max_vel;
+	}
 }
 
 /*
@@ -370,14 +373,14 @@ bool SV_Push(edict_t* pusher, vec3_t& move, vec3_t& amove)
 	check = g_edicts + 1;
 	for (uint32_t e = 1; e < globals.num_edicts; e++, check++)
 	{
-		if (!check->inuse)
-			continue;
-		if (check->movetype == MOVETYPE_PUSH || check->movetype == MOVETYPE_STOP ||
-			check->movetype == MOVETYPE_NONE || check->movetype == MOVETYPE_NOCLIP)
+		// Early exits for most common cases
+		if (!check->inuse || !check->linked)
 			continue;
 
-		if (!check->linked)
-			continue; // not linked in anywhere
+		// Combined movetype check for better branch prediction
+		movetype_t mt = check->movetype;
+		if (mt == MOVETYPE_PUSH || mt == MOVETYPE_STOP || mt == MOVETYPE_NONE || mt == MOVETYPE_NOCLIP)
+			continue;
 
 		// if the entity is standing on the pusher, it will definitely be moved
 		if (check->groundentity != pusher)
@@ -706,8 +709,9 @@ void SV_Physics_Toss(edict_t* ent)
 		{
 			if (trace.plane.normal[2] > 0.7f)
 			{
-				if ((ent->movetype == MOVETYPE_TOSS && ent->velocity.length() < 60.f) ||
-					(ent->movetype != MOVETYPE_TOSS && ent->velocity.scaled(trace.plane.normal).length() < 60.f))
+				static constexpr float STOP_VELOCITY_SQ = 60.f * 60.f; // 3600
+				if ((ent->movetype == MOVETYPE_TOSS && ent->velocity.lengthSquared() < STOP_VELOCITY_SQ) ||
+					(ent->movetype != MOVETYPE_TOSS && ent->velocity.scaled(trace.plane.normal).lengthSquared() < STOP_VELOCITY_SQ))
 				{
 					if (!(ent->flags & FL_NO_STANDING) || trace.ent->solid == SOLID_BSP)
 					{
@@ -890,9 +894,10 @@ void SV_Physics_Step(edict_t* ent)
 		if ((wasonground || (ent->flags & (FL_SWIM | FL_FLY))) && !(ent->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 		{
 			vel = &ent->velocity.x;
-			speed = sqrtf(vel[0] * vel[0] + vel[1] * vel[1]);
-			if (speed)
+			float speed_sq = vel[0] * vel[0] + vel[1] * vel[1];
+			if (speed_sq > 0.001f) // Small epsilon to avoid near-zero calculations
 			{
+				speed = sqrtf(speed_sq);
 				friction = sv_friction;
 
 				// Paril: lower friction for dead monsters
