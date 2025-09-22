@@ -655,7 +655,9 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     CreateTrapState(trap); 
 
     gi.linkentity(trap);
-    trap->timestamp = level.time + TRAP_DURATION;
+    // Calculate trap lifetime with adrenaline bonus
+    gtime_t trap_lifetime = CalculateDeployableLifetime(TRAP_DURATION, self ? self->client : nullptr);
+    trap->timestamp = level.time + trap_lifetime;
 
     g_targetable_special_entities.push_back(trap);
 

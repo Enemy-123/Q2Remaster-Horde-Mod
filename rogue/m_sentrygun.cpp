@@ -642,11 +642,12 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 
 				// Regenerate 5% power armor
 				if (self->monsterinfo.power_armor_type != IT_NULL) {
-					int armor_regen = (int)(100 * 0.05f); // 5% of base 100 power armor
+					int max_power_armor = static_cast<int>(round(self->max_health * 0.4f));
+					int armor_regen = (int)(max_power_armor * 0.05f); // 5% of max power armor
 					if (armor_regen > 0) {
 						self->monsterinfo.power_armor_power += armor_regen;
-						if (self->monsterinfo.power_armor_power > 100) {
-							self->monsterinfo.power_armor_power = 100;
+						if (self->monsterinfo.power_armor_power > max_power_armor) {
+							self->monsterinfo.power_armor_power = max_power_armor;
 						}
 					}
 				}
@@ -1947,13 +1948,13 @@ void SP_monster_sentrygun(edict_t* self)
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
 
-	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	self->monsterinfo.power_armor_power = 100;
-
-	// Calculate health with adrenaline bonus
+	// Calculate health with adrenaline bonus first
 	int base_health = 80 * st.health_multiplier;
 	self->health = CalculateSentryHealth(base_health, self->owner ? self->owner->client : nullptr);
 	self->max_health = self->health;
+
+	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	self->monsterinfo.power_armor_power = static_cast<int>(round(self->max_health * 0.4f));
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 16;

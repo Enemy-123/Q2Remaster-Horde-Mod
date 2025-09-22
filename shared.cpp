@@ -441,9 +441,6 @@ gtime_t CalculateDeployableLifetime(gtime_t base_lifetime, gclient_t* owner_clie
 {
 	if (!owner_client) return base_lifetime;
 	int adrenaline_bonus_seconds = owner_client->pers.adrenaline_count * 3;
-	gi.Com_PrintFmt("DEPLOYABLE DEBUG: Base {}s + {}s adrenaline bonus = {}s total\n",
-		base_lifetime.seconds(), adrenaline_bonus_seconds,
-		(base_lifetime + gtime_t::from_sec(adrenaline_bonus_seconds)).seconds());
 	return base_lifetime + gtime_t::from_sec(adrenaline_bonus_seconds);
 }
 

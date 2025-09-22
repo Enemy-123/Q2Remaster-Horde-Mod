@@ -5,6 +5,7 @@
 #include "bots/bot_includes.h"
 #include "shared.h"
 #include "horde/g_laser.h"
+#include "horde/g_horde_benefits.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -1139,8 +1140,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
 		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
 
-	// Grant starting body armor if cvar is set (remains the same)
-	if (g_startarmor && g_startarmor->integer) // Added null check
+	// Grant starting body armor if player has start armor benefit
+	if (PlayerHasStartArmor(ent))
 		client->pers.inventory[IT_ARMOR_BODY] = 100;
 
 	// Set connected/spawned flags (remains the same)

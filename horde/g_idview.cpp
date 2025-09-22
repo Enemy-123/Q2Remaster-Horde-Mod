@@ -158,8 +158,6 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
             }
             case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: {
                 gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
-                gi.Com_PrintFmt("TRAP DISPLAY DEBUG: timestamp={}s, level.time={}s, time_remaining={}s\n",
-                    stats_source->timestamp.seconds(), level.time.seconds(), time_remaining.seconds());
 
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
                 break;

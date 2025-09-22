@@ -184,10 +184,10 @@ std::string GetActiveBonusesString() {
 		{"ammo regen", "Ammo Regen"},
 		{"start armor", "Starting Armor"},
 		{"auto haste", "Auto-Haste"},
-		{"Cluster Prox Grenades", "Upgraded Prox Launcher"},
-		{"Traced-Piercing Bullets", "Traced-Energy Bullets"},
-		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
-		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"},
+		{"Cluster Prox", "Upgraded Prox Launcher"},
+		{"Traced Bullets", "Traced-Energy Bullets"},
+		{"Napalm GL", "Napalm-Grenade Launcher"},
+		{"BFG Gravity Pull", "BFG Grav-Pull Lasers"},
 		{"Piercing Plasma", "Piercing Plasma-Beam"},
 		{"Energy Shells", "Energy Shells"}
 	} };
@@ -245,10 +245,10 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
         {"ammo regen", "Ammo Regen"},
         {"start armor", "Starting Armor"},
         {"auto haste", "Auto-Haste"},
-        {"Cluster Prox Grenades", "Upgraded Prox Launcher"},
-        {"Traced-Piercing Bullets", "Traced-Energy Bullets"},
-        {"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
-        {"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"},
+        {"Cluster Prox", "Upgraded Prox Launcher"},
+        {"Traced Bullets", "Traced-Energy Bullets"},
+        {"Napalm GL", "Napalm-Grenade Launcher"},
+        {"BFG Gravity Pull", "BFG Grav-Pull Lasers"},
         {"Piercing Plasma", "Piercing Plasma-Beam"},
         {"Energy Shells", "Energy Shells"}
     } };
