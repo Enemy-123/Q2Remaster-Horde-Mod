@@ -1004,7 +1004,21 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// It's a cluster grenade from an upgraded prox hitting a boss. Reduce damage.
 		damage = lroundf(damage * 0.3f); // 30% reduction.
 	}
-
+	
+		// Boss protection against one-shot attacks from nukes, doppelgangers, and spheres
+	if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.IS_BOSS &&
+		(mod.id == MOD_NUKE || mod.id == MOD_DOPPLE_EXPLODE || mod.id == MOD_DOPPLE_VENGEANCE ||
+		 mod.id == MOD_DOPPLE_HUNTER || mod.id == MOD_VENGEANCE_SPHERE || mod.id == MOD_HUNTER_SPHERE ||
+		 mod.id == MOD_DEFENDER_SPHERE))
+	{
+		// Cap damage at 33% of boss max health to prevent one-shots
+		int max_damage = static_cast<int>(targ->max_health * 0.33f);
+		if (damage > max_damage) {
+			damage = max_damage;
+		}
+	}
+	
+	
 	if (!targ->takedamage)
 		return;
 

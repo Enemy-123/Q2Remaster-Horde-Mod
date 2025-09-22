@@ -13,6 +13,8 @@ All tank variants unified in a single file
 #include "m_tank.h"
 #include "m_flash.h"
 #include "shared.h"
+#include <algorithm>
+#include <numeric>
 
 // Forward declarations for all variants
 // Standard tank functions
@@ -44,6 +46,98 @@ constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING = 16_spawnflag;
 constexpr int32_t MONSTER_MAX_SLOTS = 6;
 constexpr float MORTAR_SPEED = 1850.f;
 constexpr float GRENADE_SPEED = 1600.f;
+
+// Teleportation and spawn cache constants
+constexpr int32_t NUM_TELEPORT_DIRECTIONS = 8;
+constexpr int32_t NUM_SPAWN_DIRECTIONS = 16; // More directions for spawning
+constexpr gtime_t TELEPORT_CACHE_DURATION = 150_ms;
+constexpr std::array<vec3_t, NUM_TELEPORT_DIRECTIONS> teleport_directions = {{
+	{1.0f, 0.0f, 0.0f},         // 0°
+	{0.707f, 0.707f, 0.0f},     // 45°
+	{0.0f, 1.0f, 0.0f},         // 90°
+	{-0.707f, 0.707f, 0.0f},    // 135°
+	{-1.0f, 0.0f, 0.0f},        // 180°
+	{-0.707f, -0.707f, 0.0f},   // 225°
+	{0.0f, -1.0f, 0.0f},        // 270°
+	{0.707f, -0.707f, 0.0f}     // 315°
+}};
+
+// Pre-calculated spawn directions (16 directions for better coverage)
+constexpr std::array<vec3_t, NUM_SPAWN_DIRECTIONS> spawn_directions = {{
+	{1.0f, 0.0f, 0.0f},         // 0°
+	{0.924f, 0.383f, 0.0f},     // 22.5°
+	{0.707f, 0.707f, 0.0f},     // 45°
+	{0.383f, 0.924f, 0.0f},     // 67.5°
+	{0.0f, 1.0f, 0.0f},         // 90°
+	{-0.383f, 0.924f, 0.0f},    // 112.5°
+	{-0.707f, 0.707f, 0.0f},    // 135°
+	{-0.924f, 0.383f, 0.0f},    // 157.5°
+	{-1.0f, 0.0f, 0.0f},        // 180°
+	{-0.924f, -0.383f, 0.0f},   // 202.5°
+	{-0.707f, -0.707f, 0.0f},   // 225°
+	{-0.383f, -0.924f, 0.0f},   // 247.5°
+	{0.0f, -1.0f, 0.0f},        // 270°
+	{0.383f, -0.924f, 0.0f},    // 292.5°
+	{0.707f, -0.707f, 0.0f},    // 315°
+	{0.924f, -0.383f, 0.0f}     // 337.5°
+}};
+
+// Teleportation cache structures
+struct TeleportPositionCache {
+	vec3_t position;
+	gtime_t validation_time;
+	bool is_valid;
+
+	TeleportPositionCache() : position{0, 0, 0}, validation_time(0_sec), is_valid(false) {}
+};
+
+struct TeleportTargetCache {
+	edict_t* target;
+	vec3_t last_target_origin;
+	gtime_t last_update_time;
+	std::array<TeleportPositionCache, NUM_TELEPORT_DIRECTIONS> positions;
+
+	TeleportTargetCache() : target(nullptr), last_target_origin{0, 0, 0}, last_update_time(0_sec) {}
+
+	bool IsStale(edict_t* current_target) const {
+		return target != current_target ||
+		       level.time - last_update_time > TELEPORT_CACHE_DURATION ||
+		       last_target_origin != current_target->s.origin;
+	}
+
+	void Update(edict_t* new_target) {
+		target = new_target;
+		last_target_origin = new_target->s.origin;
+		last_update_time = level.time;
+		// Reset all position validations
+		for (auto& pos : positions) {
+			pos.is_valid = false;
+			pos.validation_time = 0_sec;
+		}
+	}
+};
+
+// Static cache for tank teleportation
+static std::unordered_map<int, TeleportTargetCache> g_teleport_cache;
+
+// Cache management functions
+static void CleanupTeleportCache() {
+	g_teleport_cache.clear();
+}
+
+static TeleportTargetCache& GetOrCreateTargetCache(edict_t* target) {
+	auto& cache = g_teleport_cache[target->s.number];
+	if (cache.IsStale(target)) {
+		cache.Update(target);
+	}
+	return cache;
+}
+
+static bool ValidateTeleportPosition(edict_t* self, const vec3_t& position, edict_t* target) {
+	// Check if position is valid using the same logic as original function
+	trace_t tr = gi.trace(position, self->mins, self->maxs, position, nullptr, MASK_MONSTERSOLID);
+	return !(tr.contents & MASK_MONSTERSOLID);
+}
 
 // Tank spawner constants
 constexpr spawnflags_t SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN = 8_spawnflag;
@@ -84,25 +178,52 @@ constexpr std::array<reinforcement_def_t, 7> tank_vanilla_insane_reinforcements_
 //////////////////////////////////////////////////////////////////////////////
 
 
-// Teleport near target function for commander
+// Teleport near target function for commander - optimized with cache
 [[nodiscard]] bool TeleportNearTarget(edict_t* self, edict_t* target, float dist, bool effect)
 {
-	// Utilizamos DEG2RAD para el incremento de 45 grados
-	constexpr float ANGLE_INCREMENT = 45.0f;
+	// Get or create cache for this target
+	TeleportTargetCache& cache = GetOrCreateTargetCache(target);
 
-	// check 8 angles at 45 degree intervals
-	for (int i = 0; i < 8; i++)
+	// Try cached positions first, then validate new ones
+	for (int i = 0; i < NUM_TELEPORT_DIRECTIONS; i++)
 	{
-		float const yaw = anglemod(i * ANGLE_INCREMENT);
-		float const rad_yaw = DEG2RAD(yaw);
+		TeleportPositionCache& pos_cache = cache.positions[i];
 
-		vec3_t const forward = {
-			cosf(rad_yaw),
-			sinf(rad_yaw),
-			0.0f
-		};
+		// Check if we have a recent valid cached result
+		if (pos_cache.is_valid &&
+		    level.time - pos_cache.validation_time < TELEPORT_CACHE_DURATION)
+		{
+			if (ValidateTeleportPosition(self, pos_cache.position, target))
+			{
+				if (effect)
+				{
+					// Teleport effect at both positions
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_BFG_BIGEXPLOSION);
+					gi.WritePosition(self->s.origin);
+					gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
-		// trace from target - using vector math instead of VectorMA
+					gi.unlinkentity(self);
+
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_BOSSTPORT);
+					gi.WritePosition(pos_cache.position);
+					gi.multicast(pos_cache.position, MULTICAST_PVS, false);
+				}
+
+				self->s.origin = pos_cache.position;
+				gi.linkentity(self);
+				return true;
+			}
+			else
+			{
+				// Position is no longer valid, mark as invalid
+				pos_cache.is_valid = false;
+			}
+		}
+
+		// Calculate new position using pre-computed direction vectors
+		const vec3_t& forward = teleport_directions[i];
 		vec3_t end = target->s.origin + (forward * (target->maxs[0] + self->maxs[0] + dist));
 
 		// First trace to check path
@@ -118,7 +239,11 @@ constexpr std::array<reinforcement_def_t, 7> tank_vanilla_insane_reinforcements_
 
 		// Don't teleport off ledges unless we can fly
 		if (tr.fraction == 1.0f && !(self->flags & FL_FLY))
+		{
+			pos_cache.is_valid = false;
+			pos_cache.validation_time = level.time;
 			continue;
+		}
 
 		// Set up final position
 		start = tr.endpos;
@@ -128,6 +253,11 @@ constexpr std::array<reinforcement_def_t, 7> tank_vanilla_insane_reinforcements_
 		tr = gi.trace(start, self->mins, self->maxs, start, nullptr, MASK_MONSTERSOLID);
 		if (!(tr.contents & MASK_MONSTERSOLID))
 		{
+			// Cache the successful position
+			pos_cache.position = start;
+			pos_cache.is_valid = true;
+			pos_cache.validation_time = level.time;
+
 			if (effect)
 			{
 				// Teleport effect at both positions
@@ -147,6 +277,13 @@ constexpr std::array<reinforcement_def_t, 7> tank_vanilla_insane_reinforcements_
 			self->s.origin = start;
 			gi.linkentity(self);
 			return true;
+		}
+		else
+		{
+			// Cache the failed position to avoid recalculating it soon
+			pos_cache.position = start;
+			pos_cache.is_valid = false;
+			pos_cache.validation_time = level.time;
 		}
 	}
 	return false;
@@ -1289,6 +1426,9 @@ DIE(tank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	self->deadflag = true;
 	self->takedamage = true;
 
+	// Clean up teleportation cache for this entity
+	g_teleport_cache.erase(self->s.number);
+
 	M_SetAnimation(self, &tank_move_death);
 
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
@@ -2335,19 +2475,34 @@ void Monster_MoveSpawn(edict_t* self) {
 			return;
 	}
 
-	// If predefined positions fail, try random positions
-	for (int i = 0; i < MAX_ATTEMPTS; i++) {
-		float spawn_angle = frandom(2.0f * PIf);
+	// If predefined positions fail, try alternative positions using pre-calculated directions
+	static std::array<int, NUM_SPAWN_DIRECTIONS> direction_indices;
+	static bool indices_initialized = false;
+
+	// Initialize shuffled indices once
+	if (!indices_initialized) {
+		std::iota(direction_indices.begin(), direction_indices.end(), 0);
+		indices_initialized = true;
+	}
+
+	// Shuffle direction order for variety
+	std::shuffle(direction_indices.begin(), direction_indices.end(), mt_rand);
+
+	for (int attempt = 0; attempt < MAX_ATTEMPTS && attempt < NUM_SPAWN_DIRECTIONS; attempt++) {
+		const int direction_idx = direction_indices[attempt];
+		const vec3_t& direction = spawn_directions[direction_idx];
+
 		float const radius = frandom(RADIUS_MIN, RADIUS_MAX);
 		vec3_t const offset{
-			cosf(spawn_angle) * radius,
-			sinf(spawn_angle) * radius,
+			direction.x * radius,
+			direction.y * radius,
 			HEIGHT_OFFSET
 		};
 
 		vec3_t const spawn_origin = self->s.origin + offset;
 		vec3_t spawn_angles = self->s.angles;
-		spawn_angles[YAW] = spawn_angle * (180.0f / PIf);
+		// Convert direction back to angle for spawn orientation
+		spawn_angles[YAW] = atan2f(direction.y, direction.x) * (180.0f / PIf);
 
 		if (trySpawnPosition(spawn_origin, spawn_angles))
 			return;
@@ -2655,6 +2810,9 @@ DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 	gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	self->deadflag = true;
 	self->takedamage = true;
+
+	// Clean up teleportation cache for this entity
+	g_teleport_cache.erase(self->s.number);
 
 	M_SetAnimation(self, &tank_vanilla_move_death);
 }
