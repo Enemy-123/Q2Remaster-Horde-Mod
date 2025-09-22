@@ -1676,7 +1676,8 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	if (ent_file_loaded) {
 		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
-		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
+		// Only allow entity override in horde mode
+		if (g_loadent->integer && g_horde->integer && VerifyEntityString(entity_buffer.data())) {
 			entities = entity_buffer.data();
 			gi.Com_PrintFmt("PRINT: Entity override file verified and loaded: \"{}\"\n", ent_filename);
 		}

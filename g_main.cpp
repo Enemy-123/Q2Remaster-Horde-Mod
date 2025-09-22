@@ -944,7 +944,23 @@ void ExitLevel()
 	// end game
 	size_t start_offset = (level.changemap[0] == '*' ? 1 : 0);
 
-	if (strlen(level.changemap) > (6 + start_offset) &&
+	// Check for cooperative mode switch
+	if (start_offset && !Q_strncasecmp(level.changemap + start_offset, "coop:", 5)) {
+		// Extract the actual map name after "coop:"
+		const char* map = level.changemap + start_offset + 5;
+
+		// Apply cooperative settings first
+		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0; maxclients 7; kexmultiplayer maxplayers 7\n");
+
+		// Clear the election level after successful cooperative switch
+		extern ctfgame_t ctfgame;
+		ctfgame.elevel[0] = '\0';
+
+		// Then change to the map
+		gi.AddCommandString(G_Fmt("map \"{}\"\n", map).data());
+	}
+	// Check for victory screen
+	else if (strlen(level.changemap) > (6 + start_offset) &&
 		!Q_strncasecmp(level.changemap + start_offset, "victor", 6) &&
 		!Q_strncasecmp(level.changemap + strlen(level.changemap) - 4, ".pcx", 4))
 		gi.AddCommandString(G_Fmt("endgame \"{}\"\n", level.changemap + start_offset).data());

@@ -168,10 +168,17 @@ void HordeUpdateJoinMenu(edict_t* ent)
 	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]);  // Update Level Name
 
 	// --- Horde/Coop Specific Logic ---
-	if (g_horde->integer || G_IsCooperative()) // Check if Horde mode or Coop is active
+	if (g_horde->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) // Check if Horde mode, Coop, or single player is active
 	{
 		// Set appropriate join text based on mode
-		const char* join_text = g_horde->integer ? "Join and Fight the HORDE!" : "Join Cooperative Game";
+		const char* join_text;
+		if (g_horde->integer)
+			join_text = "Join and Fight the HORDE!";
+		else if (G_IsCooperative() || coop->integer)
+			join_text = "Join Cooperative Game";
+		else
+			join_text = "Start Single Player";
+
 		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_IDX].text, join_text, sizeof(entries[JOINMENU_JOIN_HORDE_IDX].text));
 		entries[JOINMENU_JOIN_HORDE_IDX].SelectFunc = HordeJoinTeam;
 
@@ -322,11 +329,13 @@ void CategorizeMapList() {
 		const char* map_name = token;
 
 		// Check if it's a cooperative map (contains "coop" in name or is a single player map)
+		// Including base1 and other single-player campaign maps
 		if (strstr(map_name, "coop") || strstr(map_name, "base") || strstr(map_name, "unit") ||
 		    strstr(map_name, "mine") || strstr(map_name, "fact") || strstr(map_name, "ware") ||
 		    strstr(map_name, "jail") || strstr(map_name, "power") || strstr(map_name, "cool") ||
 		    strstr(map_name, "waste") || strstr(map_name, "hangar") || strstr(map_name, "command") ||
-		    strstr(map_name, "strike") || strstr(map_name, "city") || strstr(map_name, "boss")) {
+		    strstr(map_name, "strike") || strstr(map_name, "city") || strstr(map_name, "boss") ||
+		    strcmp(map_name, "base1") == 0 || strcmp(map_name, "base2") == 0 || strcmp(map_name, "base3") == 0) {
 			categorized_maps.cooperative_maps.push_back(map_name);
 		}
 		else {
@@ -349,31 +358,115 @@ void CategorizeMapList() {
 // --- Map Category Selection Menu ---
 
 // Add a placeholder for the current map name
-static pmenu_t map_category_menu[] = {
-    { "Map Category Selection", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "*PLACEHOLDER_MAP*", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Small Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
-    { "Medium Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
-    { "Hard Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
-    { "Cooperative Maps", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },
-    { "Back to Horde Menu", PMENU_ALIGN_LEFT, MapCategoryHandler, "" },
-    { "Close", PMENU_ALIGN_LEFT, MapCategoryHandler, "" }
-};
-// Update size
-constexpr size_t MAP_CATEGORY_MENU_SIZE = sizeof(map_category_menu) / sizeof(pmenu_t); // Now 11
+static pmenu_t map_category_menu[12]; // Dynamic menu, will be filled in OpenMapCategoryMenu
+// Menu indices are now dynamic, determined by the text content in MapCategoryHandler
 
-// Define indices for clarity (optional but helpful)
-//constexpr size_t MAP_CAT_MENU_TITLE_IDX = 0;
-constexpr size_t MAP_CAT_MENU_CURRENT_MAP_IDX = 2;
-constexpr size_t MAP_CAT_MENU_SMALL_IDX = 4;
-constexpr size_t MAP_CAT_MENU_MEDIUM_IDX = 5;
-constexpr size_t MAP_CAT_MENU_BIG_IDX = 6;
-constexpr size_t MAP_CAT_MENU_COOP_IDX = 7;
-constexpr size_t MAP_CAT_MENU_BACK_IDX = 9;
-constexpr size_t MAP_CAT_MENU_CLOSE_IDX = 10;
+// Forward declaration for cooperative campaign menu
+void OpenCooperativeCampaignMenu(edict_t* ent);
+void CooperativeCampaignHandler(edict_t* ent, pmenuhnd_t* p);
+
+// Cooperative campaign selection menu
+static pmenu_t coop_campaign_menu[10];
+
+void OpenCooperativeCampaignMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Build the campaign menu
+	memset(coop_campaign_menu, 0, sizeof(coop_campaign_menu));
+	int idx = 0;
+
+	// Title
+	Q_strlcpy(coop_campaign_menu[idx].text, "Select Cooperative Campaign", sizeof(coop_campaign_menu[idx].text));
+	coop_campaign_menu[idx].align = PMENU_ALIGN_CENTER;
+	coop_campaign_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Blank line
+	coop_campaign_menu[idx].text[0] = '\0';
+	coop_campaign_menu[idx].align = PMENU_ALIGN_CENTER;
+	coop_campaign_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Campaign options
+	Q_strlcpy(coop_campaign_menu[idx].text, "Quake 2", sizeof(coop_campaign_menu[idx].text));
+	coop_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	coop_campaign_menu[idx].SelectFunc = CooperativeCampaignHandler;
+	idx++;
+
+	Q_strlcpy(coop_campaign_menu[idx].text, "Call of the Machine", sizeof(coop_campaign_menu[idx].text));
+	coop_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	coop_campaign_menu[idx].SelectFunc = CooperativeCampaignHandler;
+	idx++;
+
+	Q_strlcpy(coop_campaign_menu[idx].text, "The Reckoning", sizeof(coop_campaign_menu[idx].text));
+	coop_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	coop_campaign_menu[idx].SelectFunc = CooperativeCampaignHandler;
+	idx++;
+
+	Q_strlcpy(coop_campaign_menu[idx].text, "Ground Zero", sizeof(coop_campaign_menu[idx].text));
+	coop_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	coop_campaign_menu[idx].SelectFunc = CooperativeCampaignHandler;
+	idx++;
+
+	Q_strlcpy(coop_campaign_menu[idx].text, "Quake 2 N64", sizeof(coop_campaign_menu[idx].text));
+	coop_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	coop_campaign_menu[idx].SelectFunc = CooperativeCampaignHandler;
+	idx++;
+
+	// Blank line
+	coop_campaign_menu[idx].text[0] = '\0';
+	coop_campaign_menu[idx].align = PMENU_ALIGN_CENTER;
+	coop_campaign_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Back option
+	Q_strlcpy(coop_campaign_menu[idx].text, "Back", sizeof(coop_campaign_menu[idx].text));
+	coop_campaign_menu[idx].align = PMENU_ALIGN_LEFT;
+	coop_campaign_menu[idx].SelectFunc = CooperativeCampaignHandler;
+	idx++;
+
+	PMenu_Open(ent, coop_campaign_menu, -1, idx, nullptr, nullptr);
+}
+
+void CooperativeCampaignHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p) {
+		return;
+	}
+
+	const char* selected_text = p->entries[p->cur].text;
+
+	PMenu_Close(ent);
+
+	if (strcmp(selected_text, "Quake 2") == 0) {
+		Q_strlcpy(ctfgame.elevel, "coop_quake2", sizeof(ctfgame.elevel));
+		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Quake 2?");
+	}
+	else if (strcmp(selected_text, "Call of the Machine") == 0) {
+		Q_strlcpy(ctfgame.elevel, "coop_mg2", sizeof(ctfgame.elevel));
+		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Call of the Machine?");
+	}
+	else if (strcmp(selected_text, "The Reckoning") == 0) {
+		Q_strlcpy(ctfgame.elevel, "coop_xatrix", sizeof(ctfgame.elevel));
+		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: The Reckoning?");
+	}
+	else if (strcmp(selected_text, "Ground Zero") == 0) {
+		Q_strlcpy(ctfgame.elevel, "coop_rogue", sizeof(ctfgame.elevel));
+		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Ground Zero?");
+	}
+	else if (strcmp(selected_text, "Quake 2 N64") == 0) {
+		Q_strlcpy(ctfgame.elevel, "coop_n64", sizeof(ctfgame.elevel));
+		CTFBeginElection(ent, ELECT_COOP, "Switch to Cooperative: Quake 2 N64?");
+	}
+	else if (strcmp(selected_text, "Back") == 0) {
+		OpenMapCategoryMenu(ent);
+	}
+}
 
 // Handler for the map category selection menu
 void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
@@ -381,56 +474,44 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		return;
 	}
 
-	const int option = p->cur;
+	const char* selected_text = p->entries[p->cur].text;
 
 	PMenu_Close(ent); // Close the category menu first
 
-	// Use the new indices defined above (or hardcode the updated numbers)
-	switch (option) {
-	case MAP_CAT_MENU_SMALL_IDX: // Small Maps
-		categorized_maps.current_category = horde::MapSize{ true, false, false }; // {isSmall=true, isBig=false, isMedium=false}
+	if (strcmp(selected_text, "Small Maps") == 0) {
+		categorized_maps.current_category = horde::MapSize{ true, false, false };
 		categorized_maps.is_cooperative_category = false;
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
-		break;
-
-	case MAP_CAT_MENU_MEDIUM_IDX: // Medium Maps
-		categorized_maps.current_category = horde::MapSize{ false, false, true }; // {isSmall=false, isBig=false, isMedium=true}
-		categorized_maps.is_cooperative_category = false;
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu();
-		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
-		break;
-
-	case MAP_CAT_MENU_BIG_IDX: // Big/Hard Maps
-		categorized_maps.current_category = horde::MapSize{ false, true, false }; // {isSmall=false, isBig=true, isMedium=false}
-		categorized_maps.is_cooperative_category = false;
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu();
-		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
-		break;
-
-	case MAP_CAT_MENU_COOP_IDX: // Cooperative Maps
-		categorized_maps.is_cooperative_category = true;
-		categorized_maps.current_page = 0;
-		UpdateVoteMenu();
-		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
-		break;
-
-	case MAP_CAT_MENU_BACK_IDX: // Back to Horde Menu
-		OpenHordeMenu(ent); // Open the main menu
-		break;
-
-	case MAP_CAT_MENU_CLOSE_IDX: // Close
-		// Menu already closed at the start
-		break;
-
-	default:
-		// Ignore selections on title, separators, or current map display
-		// Menu already closed
-		break;
 	}
+	else if (strcmp(selected_text, "Medium Maps") == 0) {
+		categorized_maps.current_category = horde::MapSize{ false, false, true };
+		categorized_maps.is_cooperative_category = false;
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu();
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+	}
+	else if (strcmp(selected_text, "Hard Maps") == 0) {
+		categorized_maps.current_category = horde::MapSize{ false, true, false };
+		categorized_maps.is_cooperative_category = false;
+		categorized_maps.current_page = 0;
+		UpdateVoteMenu();
+		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+	}
+	else if (strcmp(selected_text, "Vote Cooperative Mode") == 0) {
+		// Open the cooperative campaign selection menu
+		OpenCooperativeCampaignMenu(ent);
+	}
+	else if (strcmp(selected_text, "Vote Horde Mode") == 0) {
+		// Start vote to switch to horde mode
+		Q_strlcpy(ctfgame.elevel, "horde_mode", sizeof(ctfgame.elevel));
+		CTFBeginElection(ent, ELECT_COOP, "Switch to Horde Mode?");
+	}
+	else if (strcmp(selected_text, "Back to Horde Menu") == 0) {
+		OpenHordeMenu(ent);
+	}
+	// else Close or unrecognized - just close (already done)
 }// Opens the map category selection menu
 void OpenMapCategoryMenu(edict_t* ent) {
 	if (!ent || !ent->client) {
@@ -442,22 +523,87 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
-	// --- Dynamically set the current map name ---
-	if (level.mapname && *level.mapname) {
-		// Use G_FmtTo for formatting when there's an argument
-		G_FmtTo(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text, "Current: {}", level.mapname);
-	}
-	else {
-		// For a plain string copy without formatting, Q_strlcpy is more direct and avoids macro issues.
-		Q_strlcpy(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text, "Current: Unknown*", sizeof(map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].text));
-	}
-	// Ensure this entry is not selectable
-	map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].SelectFunc = nullptr;
-	map_category_menu[MAP_CAT_MENU_CURRENT_MAP_IDX].align = PMENU_ALIGN_CENTER;
-	// --- End dynamic map name setting ---
+	// Build the menu dynamically
+	memset(map_category_menu, 0, sizeof(map_category_menu));
+	int idx = 0;
 
-	// Open the category menu (using the updated static array)
-	PMenu_Open(ent, map_category_menu, -1, MAP_CATEGORY_MENU_SIZE, nullptr, nullptr);
+	// Title
+	Q_strlcpy(map_category_menu[idx].text, "Map Category Selection", sizeof(map_category_menu[idx].text));
+	map_category_menu[idx].align = PMENU_ALIGN_CENTER;
+	map_category_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Blank line
+	map_category_menu[idx].text[0] = '\0';
+	map_category_menu[idx].align = PMENU_ALIGN_CENTER;
+	map_category_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Current map
+	if (level.mapname && *level.mapname) {
+		G_FmtTo(map_category_menu[idx].text, "Current: {}", level.mapname);
+	} else {
+		Q_strlcpy(map_category_menu[idx].text, "Current: Unknown", sizeof(map_category_menu[idx].text));
+	}
+	map_category_menu[idx].align = PMENU_ALIGN_CENTER;
+	map_category_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Blank line
+	map_category_menu[idx].text[0] = '\0';
+	map_category_menu[idx].align = PMENU_ALIGN_CENTER;
+	map_category_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Map categories or mode vote options
+	if (g_horde->integer) {
+		// In horde mode - show map categories and cooperative vote
+		Q_strlcpy(map_category_menu[idx].text, "Small Maps", sizeof(map_category_menu[idx].text));
+		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+		map_category_menu[idx].SelectFunc = MapCategoryHandler;
+		idx++;
+
+		Q_strlcpy(map_category_menu[idx].text, "Medium Maps", sizeof(map_category_menu[idx].text));
+		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+		map_category_menu[idx].SelectFunc = MapCategoryHandler;
+		idx++;
+
+		Q_strlcpy(map_category_menu[idx].text, "Hard Maps", sizeof(map_category_menu[idx].text));
+		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+		map_category_menu[idx].SelectFunc = MapCategoryHandler;
+		idx++;
+
+		Q_strlcpy(map_category_menu[idx].text, "Vote Cooperative Mode", sizeof(map_category_menu[idx].text));
+		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+		map_category_menu[idx].SelectFunc = MapCategoryHandler;
+		idx++;
+	} else if (G_IsCooperative() || coop->integer) {
+		// In cooperative mode - show option to vote for horde mode
+		Q_strlcpy(map_category_menu[idx].text, "Vote Horde Mode", sizeof(map_category_menu[idx].text));
+		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+		map_category_menu[idx].SelectFunc = MapCategoryHandler;
+		idx++;
+	}
+
+	// Blank line
+	map_category_menu[idx].text[0] = '\0';
+	map_category_menu[idx].align = PMENU_ALIGN_CENTER;
+	map_category_menu[idx].SelectFunc = nullptr;
+	idx++;
+
+	// Back and Close
+	Q_strlcpy(map_category_menu[idx].text, "Back to Horde Menu", sizeof(map_category_menu[idx].text));
+	map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+	map_category_menu[idx].SelectFunc = MapCategoryHandler;
+	idx++;
+
+	Q_strlcpy(map_category_menu[idx].text, "Close", sizeof(map_category_menu[idx].text));
+	map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+	map_category_menu[idx].SelectFunc = MapCategoryHandler;
+	idx++;
+
+	// Open the menu
+	PMenu_Open(ent, map_category_menu, -1, idx, nullptr, nullptr);
 }
 
 // --- Map Voting Logic ---
@@ -1206,7 +1352,8 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (strcmp(text, "Add 5 Ability Points (All)") == 0) {
 		const char* adminName = GetPlayerName(ent);
 		for (auto player : active_players()) {
-			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
+			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				player->client->pers.ability_points += 5;
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 ability points!\n", adminName);
 			}
@@ -1216,7 +1363,8 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	else if (strcmp(text, "Add 5 Weapon Points (All)") == 0) {
 		const char* adminName = GetPlayerName(ent);
 		for (auto player : active_players()) {
-			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
+			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				player->client->pers.weapon_points += 5;
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 weapon points!\n", adminName);
 			}
@@ -1226,7 +1374,8 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	else if (strcmp(text, "Add 10 Points (All)") == 0) {
 		const char* adminName = GetPlayerName(ent);
 		for (auto player : active_players()) {
-			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
+			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				player->client->pers.ability_points += 10;
 				player->client->pers.weapon_points += 10;
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 10 ability and weapon points!\n", adminName);
@@ -1237,7 +1386,8 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	else if (strcmp(text, "Give All Weapons") == 0) {
 		const char* adminName = GetPlayerName(ent);
 		for (auto player : active_players()) {
-			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
+			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				// Give all weapons
 				for (size_t i = IT_WEAPON_SHOTGUN; i <= IT_WEAPON_BFG; i++) {
 					player->client->pers.inventory[i] = 1;
@@ -1268,7 +1418,8 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	else if (strcmp(text, "Heal All Players") == 0) {
 		const char* adminName = GetPlayerName(ent);
 		for (auto player : active_players()) {
-			if (player->client && player->client->resp.ctf_team == CTF_TEAM1) {
+			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
+			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				player->health = player->max_health;
 				player->client->pers.inventory[IT_ARMOR_BODY] = 200;
 				gi.LocClient_Print(player, PRINT_HIGH, "{} healed you!\n", adminName);

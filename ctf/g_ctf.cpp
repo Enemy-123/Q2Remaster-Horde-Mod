@@ -2212,10 +2212,10 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	gi.LocBroadcast_Print(PRINT_HIGH,
 		fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
 
-	// Auto-aprobación para un solo jugador (including coop/single player)
-	if (count == 1 || (total_human_players == 1 && (G_IsCooperative() || coop->integer || !deathmatch->integer))) {
+	// Auto-aprobación para un solo jugador (including coop/single player/horde with bots)
+	if (count == 1 || (total_human_players == 1 && (G_IsCooperative() || coop->integer || !deathmatch->integer || g_horde->integer))) {
 		ctfgame.evotes = ctfgame.needvotes;
-		gi.LocBroadcast_Print(PRINT_CHAT, "Vote approved automatically (single player/coop mode).\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "Vote approved automatically (single player/coop/horde mode).\n");
 		CTFWinElection();
 	}
 
@@ -2437,8 +2437,7 @@ void CTFWinElection() {
 				}
 			}
 			BeginIntermission(CreateTargetChangeLevel(ctfgame.elevel));
-			// Limpiar el nivel después de usarlo
-			ctfgame.elevel[0] = '\0';
+			// Don't clear elevel here - it's still needed by CreateTargetChangeLevel
 		}
 		break;
 	case ELECT_TIME:
@@ -2446,12 +2445,63 @@ void CTFWinElection() {
 		gi.cvar_set("timelimit", G_Fmt("{}", timelimit->value + 30).data());
 		gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Time extended by 30 minutes.\n");
 		break;
+	case ELECT_COOP:
+		// Handle cooperative mode switch
+		if (strcmp(ctfgame.elevel, "horde_mode") == 0) {
+			// Switch to horde mode
+			gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Switching to Horde Mode...\n");
+			// Set horde cvars
+			gi.AddCommandString("horde 1; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0; maxclients 7\n");
+			// Use intermission to restart current map
+			BeginIntermission(CreateTargetChangeLevel(level.mapname));
+		} else {
+			// Switch to cooperative mode with selected campaign
+			const char* campaign_name = "";
+			const char* start_map = "";
+
+			// Debug: Show what campaign was selected
+			gi.LocBroadcast_Print(PRINT_HIGH, "DEBUG: Selected campaign: '{}'\n", ctfgame.elevel);
+
+			if (strcmp(ctfgame.elevel, "coop_quake2") == 0) {
+				campaign_name = "Quake 2";
+				start_map = "base1";
+			} else if (strcmp(ctfgame.elevel, "coop_mg2") == 0) {
+				campaign_name = "Call of the Machine";
+				start_map = "mguhub";
+			} else if (strcmp(ctfgame.elevel, "coop_xatrix") == 0) {
+				campaign_name = "The Reckoning";
+				start_map = "xswamp";
+			} else if (strcmp(ctfgame.elevel, "coop_rogue") == 0) {
+				campaign_name = "Ground Zero";
+				start_map = "rmine1";
+			} else if (strcmp(ctfgame.elevel, "coop_n64") == 0) {
+				campaign_name = "Quake 2 N64";
+				start_map = "q64/base1";
+			}
+
+			gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Starting Cooperative: {}...\n", campaign_name);
+
+			// Make sure we have a valid map
+			if (!start_map || !*start_map) {
+				gi.LocBroadcast_Print(PRINT_HIGH, "ERROR: Invalid campaign selected!\n");
+				return;
+			}
+
+			// Store the map name in a special marker with coop prefix
+			// This will be handled by ExitLevel
+			char coop_map[64];
+			snprintf(coop_map, sizeof(coop_map), "*coop:%s", start_map);
+			BeginIntermission(CreateTargetChangeLevel(coop_map));
+		}
+		// elevel will be cleared at the end of the function
+		break;
 	default:
 		break;
 	}
 	// Resetear el estado de la elección
 	ctfgame.election = ELECT_NONE;
 	ctfgame.electtime = 0_sec;
+	// Note: ctfgame.elevel will be cleared by ExitLevel() after the map change
 	// Llamar a UpdateVoteHUD para limpiar el configstring y el voted_map de los jugadores
 	UpdateVoteHUD();
 }
@@ -2468,7 +2518,8 @@ void CTFVoteYes(edict_t* ent)
 		gi.LocClient_Print(ent, PRINT_HIGH, "You already voted.\n");
 		return;
 	}
-	if (ctfgame.etarget == ent)
+	// Allow self-voting for mode changes (map, time extension, cooperative mode)
+	if (ctfgame.etarget == ent && ctfgame.election != ELECT_MAP && ctfgame.election != ELECT_TIME && ctfgame.election != ELECT_COOP)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "You can't vote for yourself.\n");
 		return;

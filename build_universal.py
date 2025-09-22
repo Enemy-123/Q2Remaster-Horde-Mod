@@ -117,6 +117,8 @@ def build_with_mingw(script_dir, deploy_path, build_type):
     fake_bin_dir = setup_fake_powershell(script_dir)
     build_env = os.environ.copy()
     build_env["PATH"] = f"{fake_bin_dir}{os.pathsep}{build_env['PATH']}"
+    # Set jsoncpp_DIR to help cmake find the package
+    build_env["jsoncpp_DIR"] = os.path.join(vcpkg_installed_dir, "x64-mingw-static", "share", "jsoncpp")
 
     if os.path.exists(build_dir):
         shutil.rmtree(build_dir)

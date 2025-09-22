@@ -836,7 +836,10 @@ void Cmd_Inven_f(edict_t* ent)
 	}
 
 	// ZOID
-	if ((G_TeamplayEnabled() && cl->resp.ctf_team == CTF_TEAM1) || (deathmatch->integer && !g_horde->integer))
+	// Allow menu in horde, coop, single player modes
+	if ((G_TeamplayEnabled() && cl->resp.ctf_team == CTF_TEAM1) ||
+	    (deathmatch->integer && !g_horde->integer) ||
+	    G_IsCooperative() || coop->integer || !deathmatch->integer)
 	{
 		if (ent->svflags & SVF_BOT || ent->deadflag)
 			return;
@@ -847,6 +850,10 @@ void Cmd_Inven_f(edict_t* ent)
 			return;
 		}
 
+		// In coop/single player, auto-join team 1 if not in a team
+		if ((G_IsCooperative() || coop->integer || !deathmatch->integer) && cl->resp.ctf_team == CTF_NOTEAM) {
+			CTFJoinTeam(ent, CTF_TEAM1);
+		}
 
 		OpenHordeMenu(ent);
 		return;
