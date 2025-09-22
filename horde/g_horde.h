@@ -1,9 +1,13 @@
 #pragma once
 
+#include "horde_ids.h"  // For horde::MonsterTypeID
+
 // --- C++ Standard Library Includes ---
 // It's good practice to include necessary headers here.
 // This ensures that any file including g_horde.h gets what it needs.
 #include <vector>
+#include <array>
+#include <unordered_set>
 
 constexpr const char* HORDE_MOD_VERSION_STRING = "Horde BETA MOD v0.00994";
 
@@ -85,6 +89,70 @@ enum class BossType {
 	SHAMBLERKL, GUNCMDRKL, GUARDIAN, PSX_GUARDIAN, BOSS5,
 	WIDOW, WIDOW2, JORG, MAKRONKL, PSX_ARACHNID, REDMUTANT, OTHER
 };
+
+// --- Asset Family System for Efficient Precaching ---
+// Groups monsters that share the same models/sounds to avoid duplicate precaching
+enum class AssetFamilyID : uint8_t {
+	SOLDIER_FAMILY,      // All soldier variants
+	TANK_FAMILY,         // Tank, Tank Commander, Tank 64, etc.
+	GLADIATOR_FAMILY,    // Gladiator A, B, C
+	GUNNER_FAMILY,       // Gunner, Gunner Commander variants
+	INFANTRY_FAMILY,     // Infantry, Infantry Vanilla
+	ARACHNID_FAMILY,     // Spider, Arachnid, PSX Arachnid, GM Arachnid
+	GUARDIAN_FAMILY,     // Guardian, PSX Guardian, Janitor2
+	SUPERTANK_FAMILY,    // Janitor, Supertank (Boss5)
+	FIXBOT_FAMILY,       // Fixbot, Fixbot KL
+	TURRET_FAMILY,       // Sentrygun, Turret
+	DAEDALUS_FAMILY,     // Daedalus, Daedalus Bomber
+	PARASITE_FAMILY,     // Parasite, Perro KL
+	BOSS2_FAMILY,        // Boss2, Boss2_64, Boss2_Mini, Boss2_KL
+	CARRIER_FAMILY,      // Carrier, Carrier Mini
+	WIDOW_FAMILY,        // Widow, Widow1, Widow2
+	SHAMBLER_FAMILY,     // Shambler, Shambler Small, Shambler KL
+	MAKRON_FAMILY,       // Makron, Makron KL, Jorg, Jorg Small
+	// Individual families for unique monsters
+	BERSERK_FAMILY,
+	BRAIN_FAMILY,
+	CHICK_FAMILY,
+	FLYER_FAMILY,
+	HOVER_FAMILY,
+	MEDIC_FAMILY,
+	MUTANT_FAMILY,
+	FLOATER_FAMILY,
+	STALKER_FAMILY,
+	GEKK_FAMILY,
+	INSANE_FAMILY,
+	MISC_FAMILY,         // Misc entities like easter variants
+
+	MAX_FAMILIES,
+	UNKNOWN_FAMILY = 255
+};
+
+// Structure to manage asset precaching by family
+struct MonsterAssetFamily {
+	AssetFamilyID family_id;
+	bool is_precached;
+	const char* family_name;
+	std::vector<const char*> models;
+	std::vector<const char*> sounds;
+	std::vector<horde::MonsterTypeID> members; // All monsters in this family
+};
+
+// Global asset tracking (defined in g_horde.cpp)
+extern std::array<MonsterAssetFamily, static_cast<size_t>(AssetFamilyID::MAX_FAMILIES)> g_asset_families;
+extern std::array<AssetFamilyID, 128> g_monster_to_family; // 128 = MAX_TYPES from horde_ids.h
+extern std::unordered_set<std::string> g_precached_models;
+extern std::unordered_set<std::string> g_precached_sounds;
+extern int32_t g_total_precached_models;
+extern int32_t g_total_precached_sounds;
+
+// Asset family functions
+void InitializeAssetFamilies();
+void PrecacheAssetFamily(AssetFamilyID family_id);
+bool CanPrecacheFamily(AssetFamilyID family_id);
+void PrecacheMonsterByFamily(horde::MonsterTypeID monster_id);
+void ResetPrecacheTracking();
+AssetFamilyID GetMonsterAssetFamily(horde::MonsterTypeID monster_id);
 
 // --- Operator Overloads for MonsterWaveType ---
 // These are fine to keep in the header as they are small, inline, and constexpr.
