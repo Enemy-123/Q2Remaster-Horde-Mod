@@ -81,7 +81,7 @@ const pmenu_t joinmenu[] = {
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 6: Blank Separator
     { "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, "" },     // 7: Go Spectator
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 8: Blank Separator
-    { "Discord: Enemy0416", PMENU_ALIGN_CENTER, nullptr, "" },    // 9: Discord Info
+    { "Discord: Enemy0416", PMENU_ALIGN_LEFT, nullptr, "" },    // 9: Discord Info
     { "", PMENU_ALIGN_LEFT, nullptr, "" }                       // 10: Credits
 };
 
@@ -1355,8 +1355,8 @@ public:
 			// Normal game display
 			layout_builder.append("if 25 xv -90 yv 10 dogtag endif \n");
 
-			// Active bonuses
-			std::string activeBonuses = GetActiveBonusesString();
+			// Active bonuses (per-player)
+			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
 			if (!activeBonuses.empty()) {
 				layout_builder.append(fmt::format(
 					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));

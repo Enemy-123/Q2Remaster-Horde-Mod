@@ -1,4 +1,4 @@
-#include "g_horde_benefits.h"}
+#include "g_horde_benefits.h"
 #include "../g_local.h" // Include g_local.h for gi, etc.
 
 const char* GetPlayerName(const edict_t* player);
@@ -230,6 +230,67 @@ std::string GetActiveBonusesString() {
 	}
 
 	return result;
+}
+
+// Get active bonuses string for a specific player (per-player version)
+std::string GetPlayerActiveBonusesString(edict_t* player) {
+    if (!player || !player->client) {
+        return "";
+    }
+
+    // Define mappings from internal names to display names
+    static const std::array<BonusMapping, 11> bonus_mappings = { {
+        {"vampire upgraded", "Health & Armor Vampirism"},
+        {"vampire", "Health Vampirism"},
+        {"ammo regen", "Ammo Regen"},
+        {"start armor", "Starting Armor"},
+        {"auto haste", "Auto-Haste"},
+        {"Cluster Prox Grenades", "Upgraded Prox Launcher"},
+        {"Traced-Piercing Bullets", "Traced-Energy Bullets"},
+        {"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
+        {"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"},
+        {"Piercing Plasma", "Piercing Plasma-Beam"},
+        {"Energy Shells", "Energy Shells"}
+    } };
+
+    std::vector<std::string_view> active_bonuses;
+    active_bonuses.reserve(bonus_mappings.size());
+
+    bool has_vampire_upgraded = PlayerHasBenefit(player, BenefitID::VAMPIRE_UPGRADED);
+
+    for (size_t i = 0; i < BenefitsDataSoA::NUM_BENEFITS; ++i) {
+        BenefitID id = static_cast<BenefitID>(i);
+        if (id == BenefitID::VAMPIRE && has_vampire_upgraded) {
+            continue; // Skip base vampire if upgraded is active
+        }
+        if (PlayerHasBenefit(player, id)) {
+            // Find the corresponding display text
+            for(const auto& mapping : bonus_mappings) {
+                if (strcmp(g_benefitsData.names[i], mapping.benefit_name.data()) == 0) {
+                    active_bonuses.push_back(mapping.display_text);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (active_bonuses.empty()) {
+        return "";
+    }
+
+    // Use std::string to format the result
+    std::string result;
+    result.reserve(active_bonuses.size() * 30);
+
+    for (size_t i = 0; i < active_bonuses.size(); ++i) {
+        result += "* ";
+        result += active_bonuses[i];
+        if (i < active_bonuses.size() - 1) {
+            result += "\n";
+        }
+    }
+
+    return result;
 }
 
 // --- Per-Player Benefit System Implementation ---
