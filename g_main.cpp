@@ -1086,87 +1086,89 @@ inline void G_RunFrame_(bool main_loop)
     }
     Profiler_ResetFrame();
 
+    // --- PROXIMITY GRID SYSTEM (UNIVERSAL) ---
+    // The proximity grid system is essential for Tesla coils, traps, and other proximity-based
+    // mechanics. It should work in ALL game modes, not just Horde mode.
+    {
+        PROFILE_SCOPE("BuildProximityGrid");
+        
+        // The grid's world bounds are calculated only ONCE per map load.
+        // This is a heavy operation that should not be done every frame.
+        static std::string last_map_for_grid;
+        if (last_map_for_grid != level.mapname) 
+        {
+            vec3_t world_mins{}, world_maxs{};
+            ClearBounds(world_mins, world_maxs);
+            // We use the efficient 'monster_spawn_points' iterator here.
+            for (auto* sp : monster_spawn_points()) {
+                AddPointToBounds(sp->s.origin, world_mins, world_maxs);
+            }
+            world_mins -= vec3_t{512, 512, 512};
+            world_maxs += vec3_t{512, 512, 512};
+
+            HordePhys::g_monster_grid.Build(world_mins, world_maxs);
+            HordePhys::g_entity_grid.Build(world_mins, world_maxs);
+            last_map_for_grid = level.mapname;
+        }
+
+        // The per-frame update is very fast. It clears the previous
+        // frame's data and then uses the efficient iterators to add only the
+        // relevant entities (monsters, players, projectiles) to the grid.
+        HordePhys::g_monster_grid.Reset();
+        HordePhys::g_entity_grid.Reset();
+
+        for (auto* monster : active_monsters()) {
+            HordePhys::g_monster_grid.Add(monster);
+            HordePhys::g_entity_grid.AddEntity(monster);
+        }
+        for (auto *player : active_players_no_spect()) {
+            if (player && player->inuse && player->health > 0 && !EntIsSpectating(player)) {
+                HordePhys::g_monster_grid.Add(player);
+                HordePhys::g_entity_grid.AddEntity(player);
+            }
+        }
+        for (auto* proj : active_projectiles()) {
+            HordePhys::g_monster_grid.Add(proj);
+            HordePhys::g_entity_grid.AddEntity(proj);
+        }
+
+        // Add other damageable entities more efficiently
+        // Start after maxclients + BODY_QUEUE_SIZE to skip body queue
+        const uint32_t start_idx = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1;
+
+        // Only scan entities that are likely to be damageable and relevant
+        for (uint32_t i = start_idx; i < globals.num_edicts; i++) {
+            edict_t* ent = &g_edicts[i];
+            if (!ent->inuse || !ent->takedamage)
+                continue;
+
+            // Skip entities already added (monsters, players, projectiles)
+            if (ent->svflags & SVF_MONSTER)
+                continue;
+            if (ent->client)
+                continue;
+            if (ent->flags & SVF_PROJECTILE)
+                continue;
+
+            // Add other damageable entities (barrels, breakables, etc.)
+            HordePhys::g_entity_grid.AddEntity(ent);
+        }
+
+        if (developer->integer >= 2) {
+           HordePhys::g_monster_grid.DebugDraw();
+        }
+    }
+
+    // --- UNIVERSAL MENU SYSTEM ---
+    // Menu updates should work in all game modes for better user experience
+    CheckAndUpdateMenus();
+
     // --- HORDE-SPECIFIC PER-FRAME LOGIC ---
     // This block contains logic that only runs in Horde mode.
     if (g_horde->integer) {
         
-        // --- OPTIMIZATION: Proximity Grid Update ---
-        // The proximity grid is a spatial partitioning system that massively speeds up
-        // radius-based searches (e.g., "find all monsters near this explosion").
-        {
-            PROFILE_SCOPE("BuildProximityGrid");
-            
-            // Check for and resolve any bot-on-bot overlaps.
-    	    G_CheckBotOverlap();
-
-     //        The grid's world bounds are calculated only ONCE per map load.
-            // This is a heavy operation that should not be done every frame.
-            static std::string last_map_for_grid;
-            if (last_map_for_grid != level.mapname) 
-            {
-                vec3_t world_mins{}, world_maxs{};
-                ClearBounds(world_mins, world_maxs);
-                // We use the efficient 'monster_spawn_points' iterator here.
-                for (auto* sp : monster_spawn_points()) {
-                    AddPointToBounds(sp->s.origin, world_mins, world_maxs);
-                }
-                world_mins -= vec3_t{512, 512, 512};
-                world_maxs += vec3_t{512, 512, 512};
-
-                HordePhys::g_monster_grid.Build(world_mins, world_maxs);
-                HordePhys::g_entity_grid.Build(world_mins, world_maxs);
-                last_map_for_grid = level.mapname;
-            }
-
-          //   The per-frame update is very fast. It clears the previous
-            // frame's data and then uses the efficient iterators to add only the
-            // relevant entities (monsters, players, projectiles) to the grid.
-            HordePhys::g_monster_grid.Reset();
-            HordePhys::g_entity_grid.Reset();
-
-            for (auto* monster : active_monsters()) {
-                HordePhys::g_monster_grid.Add(monster);
-                HordePhys::g_entity_grid.AddEntity(monster);
-            }
-			for (auto *player : active_players_no_spect()) {
-				if (player && player->inuse && player->health > 0 && !EntIsSpectating(player)) {
-					HordePhys::g_monster_grid.Add(player);
-					HordePhys::g_entity_grid.AddEntity(player);
-				}
-			}
-			for (auto* proj : active_projectiles()) {
-				HordePhys::g_monster_grid.Add(proj);
-				HordePhys::g_entity_grid.AddEntity(proj);
-			}
-
-			// Add other damageable entities more efficiently
-			// Start after maxclients + BODY_QUEUE_SIZE to skip body queue
-			const uint32_t start_idx = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1;
-
-			// Only scan entities that are likely to be damageable and relevant
-			for (uint32_t i = start_idx; i < globals.num_edicts; i++) {
-				edict_t* ent = &g_edicts[i];
-				if (!ent->inuse || !ent->takedamage)
-					continue;
-
-				// Skip entities already added (monsters, players, projectiles)
-				if (ent->svflags & SVF_MONSTER)
-					continue;
-				if (ent->client)
-					continue;
-				if (ent->flags & SVF_PROJECTILE)
-					continue;
-
-				// Add other damageable entities (barrels, breakables, etc.)
-				HordePhys::g_entity_grid.AddEntity(ent);
-			}
-
-            if (developer->integer >= 2) {
-               HordePhys::g_monster_grid.DebugDraw();
-            }
-        }
-
-        CheckAndUpdateMenus();
+        // Check for and resolve any bot-on-bot overlaps.
+        G_CheckBotOverlap();
 
         // Cache map size - only update if map changes
         static std::string last_mapname;
@@ -1319,7 +1321,7 @@ inline void G_RunFrame_(bool main_loop)
                 else
                     ent->groundentity_linkcount = ent->groundentity->linkcount;
             }
-		}
+	}
 
         Entity_UpdateState(ent);
 

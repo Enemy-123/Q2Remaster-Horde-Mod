@@ -1276,6 +1276,11 @@ void CheckAndUpdateMenus() {
 			UpdateHUDMenu(const_cast<edict_t*>(player), player->client->menu); // Pass non-const edict_t
 			// gi.unicast(const_cast<edict_t*>(player), true); // Update might already handle this
 		}
+		// Check for Upgrade Menu - it needs dynamic updates for point counts
+		else if (strcmp(player->client->menu->entries[0].text, "=== UPGRADE MENU ===") == 0) {
+			// Force refresh the upgrade menu to update point counts and available options
+			OpenUpgradeMenu(const_cast<edict_t*>(player));
+		}
 		// Add checks for other dynamic menus if needed
 	}
 }

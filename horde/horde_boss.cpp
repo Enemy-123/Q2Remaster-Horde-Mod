@@ -44,10 +44,10 @@ extern void AppendHordeMessage(const char *message, gtime_t duration);
 extern void ImprovedSpawnGrow(const vec3_t &position, float start_size, float end_size, edict_t *owner);
 extern void SpawnGrow_Spawn(const vec3_t &position, float start_size, float end_size);
 extern bool Horde_TeleportMonster(edict_t *ent, vec3_t *dest, bool force);
-extern void OnEntityDeath(edict_t *ent);
+extern void OnEntityDeath(edict_t *ent) noexcept;
 extern void OnEntityRemoved(edict_t *ent);
 extern MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId);
-extern bool HasWaveType(MonsterWaveType types, MonsterWaveType check);
+extern bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck) noexcept;
 
 // Boss data arrays
 static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
