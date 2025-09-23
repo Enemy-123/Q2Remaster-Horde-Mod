@@ -492,7 +492,7 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 	}
-	else if (strcmp(selected_text, "Hard Maps") == 0) {
+	else if (strcmp(selected_text, "Big Maps") == 0) {
 		categorized_maps.current_category = horde::MapSize{ false, true, false };
 		categorized_maps.is_cooperative_category = false;
 		categorized_maps.current_page = 0;
@@ -568,7 +568,7 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
 		idx++;
 
-		Q_strlcpy(map_category_menu[idx].text, "Hard Maps", sizeof(map_category_menu[idx].text));
+		Q_strlcpy(map_category_menu[idx].text, "Big Maps", sizeof(map_category_menu[idx].text));
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
 		idx++;
@@ -731,7 +731,7 @@ void UpdateVoteMenu() {
 	}
 	else if (categorized_maps.current_category.isBigMap) {
 		current_map_list = &categorized_maps.big_maps;
-		category_name = "Hard Maps";
+		category_name = "Big Maps";
 	}
 	else if (categorized_maps.current_category.isSmallMap) {
 		current_map_list = &categorized_maps.small_maps;

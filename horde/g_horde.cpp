@@ -7155,6 +7155,21 @@ private:
     std::array<PlayerSpawnCandidates, MAX_CACHED_PLAYERS> player_cache;
     size_t cached_player_count = 0;
 
+    // Helper method to check if a position has line-of-sight to at least one spawn point
+    bool HasLineOfSightToSpawnPoint(const vec3_t& candidate_pos) {
+        // Check against all spawn points for line-of-sight
+        for (edict_t* spawn_point : g_spawn_point_list) {
+            if (!spawn_point || !spawn_point->inuse) continue;
+            
+            // Use the same line-of-sight check as TryAlternativeSpawnPosition
+            trace_t los_trace = gi.traceline(spawn_point->s.origin, candidate_pos, spawn_point, MASK_SOLID);
+            if (los_trace.fraction >= 0.95f) { // Allow small tolerance for minor obstacles
+                return true; // Found at least one spawn point with clear line-of-sight
+            }
+        }
+        return false; // No spawn point has clear line-of-sight
+    }
+
     // Updates the list of candidate spawn points around a specific player.
     void UpdatePlayerCandidates(edict_t* player, PlayerSpawnCandidates& candidates) {
     constexpr float MIN_RADIUS = 300.0f; // Reduced from 500.0f to improve emergency spawn success rate
@@ -7181,6 +7196,11 @@ private:
         // A quick, cheap check to see if the point is inside a solid.
         // This filters out many bad spots before the more expensive IsPositionPhysicallyValid call.
         if (gi.pointcontents(candidate_pos) & MASK_SOLID) {
+            continue;
+        }
+
+        // NEW: Check line-of-sight to spawn points to prevent spawning outside map boundaries
+        if (!HasLineOfSightToSpawnPoint(candidate_pos)) {
             continue;
         }
 
@@ -7315,6 +7335,11 @@ private:
                 player_origin.z + frandom(-32.0f, 48.0f) // Z variation for different floor levels
             };
 
+            // NEW: Check line-of-sight to spawn points for fallback logic too
+            if (!HasLineOfSightToSpawnPoint(candidate_pos)) {
+                continue;
+            }
+
             // Basic validation and scoring
             float base_score = 1.0f / (1.0f + radius * 0.001f); // Closer is slightly better
 
@@ -7392,7 +7417,7 @@ private:
 
         return false;
     }
-};
+};;
 
 // Global optimizer instance (defined AFTER the class)
 static EmergencySpawnOptimizer g_emergency_spawn_optimizer;
