@@ -2830,6 +2830,11 @@ void ClientBegin(edict_t* ent)
 	// that the level entry timer only starts when a player is actually
 	// *in* the level
 	G_SetLevelEntry();
+
+	// Auto-open horde menu when entering coop mode
+	if (!g_horde || !g_horde->integer) {
+		OpenHordeMenu(ent);
+	}
 }
 
 /*

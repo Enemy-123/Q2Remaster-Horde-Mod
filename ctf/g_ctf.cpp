@@ -2222,7 +2222,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	// Auto-aprobación para un solo jugador (including coop/single player/horde with bots)
 	if (count == 1 || (total_human_players == 1 && (G_IsCooperative() || coop->integer || !deathmatch->integer || g_horde->integer))) {
 		ctfgame.evotes = ctfgame.needvotes;
-		gi.LocBroadcast_Print(PRINT_CHAT, "Vote approved automatically (single player/coop/horde mode).\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "Vote approved automatically due to not other humans playing at this moment.\n");
 		CTFWinElection();
 	}
 

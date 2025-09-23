@@ -9,7 +9,7 @@ namespace HordePhys {
 
     // A simple grid cell that holds pointers to monsters.
     struct ProximityGridCell {
-        static constexpr size_t MAX_MONSTERS_PER_CELL = 64; // This is a good, safe value.
+        static constexpr size_t MAX_MONSTERS_PER_CELL = 128; // Increased for coop/sp modes with more entities
         std::array<edict_t*, MAX_MONSTERS_PER_CELL> monsters;
         size_t count = 0;
 
