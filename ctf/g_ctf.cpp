@@ -299,6 +299,13 @@ void CTFAssignTeam(gclient_t* who)
 
 	who->resp.ctf_state = 0;
 
+	// In cooperative mode, always start as spectator
+	if (G_IsCooperative() || coop->integer) {
+		who->resp.ctf_team = CTF_NOTEAM;
+		who->resp.spectator = true;
+		return;
+	}
+
 	if (!g_teamplay_force_join->integer && !(g_edicts[1 + (who - game.clients)].svflags & SVF_BOT))
 	{
 		who->resp.ctf_team = CTF_NOTEAM;
@@ -2450,10 +2457,12 @@ void CTFWinElection() {
 		if (strcmp(ctfgame.elevel, "horde_mode") == 0) {
 			// Switch to horde mode
 			gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Switching to Horde Mode...\n");
-			// Set horde cvars
-			gi.AddCommandString("horde 1; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0; maxclients 7\n");
-			// Use intermission to restart current map
-			BeginIntermission(CreateTargetChangeLevel(level.mapname));
+
+			// Create the horde mode marker with current map name
+			// This will be handled by ExitLevel to use "map" command instead of "gamemap"
+			char horde_map[64];
+			snprintf(horde_map, sizeof(horde_map), "*horde:%s", level.mapname);
+			BeginIntermission(CreateTargetChangeLevel(horde_map));
 		} else {
 			// Switch to cooperative mode with selected campaign
 			const char* campaign_name = "";
@@ -2476,7 +2485,7 @@ void CTFWinElection() {
 				start_map = "rmine1";
 			} else if (strcmp(ctfgame.elevel, "coop_n64") == 0) {
 				campaign_name = "Quake 2 N64";
-				start_map = "q64/base1";
+				start_map = "q64/outpost";
 			}
 
 			gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Starting Cooperative: {}...\n", campaign_name);
@@ -3094,7 +3103,8 @@ void RemoveAllTechItems(edict_t* ent)
 #include "../horde/g_laser.h"
 void CTFObserver(edict_t* ent)
 {
-	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
+	// Allow spectator mode in cooperative mode even if teamplay is not enabled
+	if ((!G_TeamplayEnabled() && !G_IsCooperative() && !coop->integer) || g_teamplay_force_join->integer)
 		return;
 
 	// start as 'observer'

@@ -850,9 +850,11 @@ void Cmd_Inven_f(edict_t* ent)
 			return;
 		}
 
-		// In coop/single player, auto-join team 1 if not in a team
+		// In coop/single player, give players choice to join or spectate
 		if ((G_IsCooperative() || coop->integer || !deathmatch->integer) && cl->resp.ctf_team == CTF_NOTEAM) {
-			CTFJoinTeam(ent, CTF_TEAM1);
+			// Open join menu instead of auto-joining to give spectator option
+			HordeOpenJoinMenu(ent);
+			return;
 		}
 
 		OpenHordeMenu(ent);

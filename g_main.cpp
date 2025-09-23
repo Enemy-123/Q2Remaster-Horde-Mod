@@ -959,6 +959,21 @@ void ExitLevel()
 		// Then change to the map
 		gi.AddCommandString(G_Fmt("map \"{}\"\n", map).data());
 	}
+	// Check for horde mode switch
+	else if (start_offset && !Q_strncasecmp(level.changemap + start_offset, "horde:", 6)) {
+		// Extract the actual map name after "horde:"
+		const char* map = level.changemap + start_offset + 6;
+
+		// Apply horde mode settings first
+		gi.AddCommandString("horde 1; coop 0; deathmatch 1; g_allow_techs 1; timelimit 0; g_dm_spawn_farthest 0; maxclients 32; kexmultiplayer maxplayers 32\n");
+
+		// Clear the election level after successful horde switch
+		extern ctfgame_t ctfgame;
+		ctfgame.elevel[0] = '\0';
+
+		// Then change to the map
+		gi.AddCommandString(G_Fmt("map \"{}\"\n", map).data());
+	}
 	// Check for victory screen
 	else if (strlen(level.changemap) > (6 + start_offset) &&
 		!Q_strncasecmp(level.changemap + start_offset, "victor", 6) &&
