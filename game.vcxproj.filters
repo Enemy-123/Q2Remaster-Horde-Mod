@@ -105,6 +105,9 @@
     <ClInclude Include="horde\g_laser.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="horde\horde_performance.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />

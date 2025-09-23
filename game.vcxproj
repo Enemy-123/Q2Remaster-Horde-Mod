@@ -132,6 +132,7 @@
     <ClInclude Include="horde\g_laser.h" />
     <ClInclude Include="horde\horde_boss.h" />
     <ClInclude Include="horde\horde_ids.h" />
+    <ClInclude Include="horde\horde_performance.h" />
     <ClInclude Include="horde\horde_spawning.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
