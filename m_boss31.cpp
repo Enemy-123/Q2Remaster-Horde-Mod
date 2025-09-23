@@ -277,12 +277,12 @@ mframe_t jorg_frames_deathsmall[] = { //reduced numbers by scale 0.35
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move, -0.7 },
-	{ ai_move, -1.75 },
-	{ ai_move, -2.8 },
-	{ ai_move, -5.25, jorg_step_left },
+	{ ai_move, -0.7f },
+	{ ai_move, -1.75f },
+	{ ai_move, -2.8f },
+	{ ai_move, -5.25f, jorg_step_left },
 	{ ai_move } // 10
-};
+};;
 MMOVE_T(jorg_move_deathsmall) = { FRAME_death01, FRAME_death10, jorg_frames_deathsmall, jorg_dead };
 
 
