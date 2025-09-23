@@ -6895,7 +6895,6 @@ static void RebuildSpawnPointCacheIfNeeded()
 			BuildSpawnPointMap();
 			g_spawn_map_needs_build = false;
 		}
-
 		// Reserve capacity before copying to avoid reallocation
 		g_potential_spawn_points.clear();
 		g_potential_spawn_points.reserve(g_spawn_point_list.size());
@@ -6918,7 +6917,8 @@ static void RebuildSpawnPointCacheIfNeeded()
 		need_spawn_cache_reset = false;
 		g_consecutive_spawn_failures = 0;
 
-		gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
+		if (developer->integer)
+			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
 	}
 }
 
@@ -6990,8 +6990,6 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 }
 
 //  spawn point validation with reduced lookups and better caching
-
-
 static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 {
     if (!spawn_point || !spawn_point->inuse) return false;
@@ -7695,7 +7693,7 @@ private:
             if (count < MAX_BATCH_SIZE) {
                 entries[count] = entry;
                 // Initialize to a known state
-                spawned_monsters[count] = nullptr; // Use nullptr for safety
+                spawned_monsters[count] = reinterpret_cast<edict_t*>(1); // Use a non-null placeholder
                 count++;
             }
         }
@@ -8310,7 +8308,7 @@ int32_t GetStroggsNum() noexcept
         live_monster_count++;
     }
 
-    // Update cache
+	    // Update cache
     cached_count = live_monster_count;
     last_cache_time = level.time;
 
