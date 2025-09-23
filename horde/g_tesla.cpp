@@ -1,5 +1,6 @@
 #include "../shared.h"
 #include "../g_local.h"
+#include "horde_performance.h"
 
 // *************************
 // TESLA - 
@@ -382,12 +383,10 @@ THINK(tesla_think_active)(edict_t* self)->void
 	{
 		self->think = tesla_think_active;
 
-		// --- PERFORMANCE FIX: Use randomized think frequency ---
+		// --- PERFORMANCE FIX: Use jittered think time ---
 		// This prevents all teslas from thinking on the exact same server frame,
-		// which smooths out performance spikes when many are deployed. The frequency
-		// will vary between 8 and 12 Hz.
-		int const random_frequency_hz = 8 + irandom(5); // Result is 8, 9, 10, 11, or 12.
-		self->nextthink = level.time + gtime_t::from_hz(random_frequency_hz);
+		// which smooths out performance spikes when many are deployed.
+		self->nextthink = HordePerf::GetTeslaThinkTimeWithJitter();
 		// --- END FIX ---
 	}
 }
@@ -419,7 +418,7 @@ THINK(tesla_activate)(edict_t *self)->void
 		self->owner = nullptr;
 
 	self->think = tesla_think_active;
-	self->nextthink = level.time + FRAME_TIME_S + gtime_t::from_sec(frandom() * 0.1f);
+	self->nextthink = HordePerf::GetTeslaThinkTimeWithJitter();
 	// Calculate tesla lifetime with adrenaline bonus
 	gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, self->teammaster ? self->teammaster->client : nullptr);
 	self->air_finished = level.time + tesla_lifetime;

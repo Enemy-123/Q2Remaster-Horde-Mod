@@ -11,6 +11,7 @@
 #include "g_laser.h"
 #include "../profiler.h"
 #include <cassert>
+#include "horde_performance.h"
 
 // This represents the maximum possible level boost for the "elite spawn" mechanic.
 // It ensures we precache and consider all potential elite monsters for a given wave.
@@ -648,21 +649,21 @@ struct SpawnPointCacheArray
 		if (it == g_spawn_point_map.end()) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
-			// Debug assertion to catch this during development
-			assert(false && "spawn point not found in map!");
-
-			// Robust fallback: return reference to static default cache
-			static SpawnPointCache default_cache{};
-			return default_cache;
+			// Create a new entry for this spawn point dynamically
+			size_t new_index = data.size();
+			data.emplace_back(); // Add new cache entry
+			g_spawn_point_map[ent->s.number] = new_index;
+			return data[new_index];
 		}
 
 		// Additional safety check
 		if (it->second >= data.size()) {
 			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
 			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
-			assert(false && "invalid spawn point index!");
-			static SpawnPointCache default_cache{};
-			return default_cache;
+
+			// Resize data to accommodate the index
+			data.resize(it->second + 1);
+			return data[it->second];
 		}
 
 		return data[it->second];
@@ -678,21 +679,24 @@ struct SpawnPointCacheArray
 		if (it == g_spawn_point_map.end()) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
-			// Debug assertion to catch this during development
-			assert(false && "spawn point not found in map!");
-
-			// Robust fallback: return reference to static default cache
-			static const SpawnPointCache default_cache{};
-			return default_cache;
+			// For const version, we need to const_cast to add the entry
+			// This is safer than returning a static cache that could be shared
+			auto* mutable_this = const_cast<SpawnPointCacheArray*>(this);
+			size_t new_index = mutable_this->data.size();
+			mutable_this->data.emplace_back();
+			g_spawn_point_map[ent->s.number] = new_index;
+			return mutable_this->data[new_index];
 		}
 
 		// Additional safety check
 		if (it->second >= data.size()) {
 			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
 			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
-			assert(false && "invalid spawn point index!");
-			static const SpawnPointCache default_cache{};
-			return default_cache;
+
+			// Resize data to accommodate the index
+			auto* mutable_this = const_cast<SpawnPointCacheArray*>(this);
+			mutable_this->data.resize(it->second + 1);
+			return mutable_this->data[it->second];
 		}
 
 		return data[it->second];
@@ -730,6 +734,9 @@ static void BuildSpawnPointMap()
 	g_spawn_point_map.clear();
 	g_spawn_point_list.clear();
 
+	// Clear and rebuild spatial index
+	HordePerf::g_spawn_spatial_index.Clear();
+
 	// Reserve capacity to avoid repeated allocations
 	g_spawn_point_list.reserve(64); // Most maps have fewer than 64 spawn points
 
@@ -740,6 +747,8 @@ static void BuildSpawnPointMap()
 			g_spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
 			// Then add the pointer to the list
 			g_spawn_point_list.push_back(sp);
+			// Add to spatial index for fast spatial queries
+			HordePerf::g_spawn_spatial_index.AddSpawnPoint(sp);
 		}
 	}
 
@@ -754,7 +763,7 @@ static void BuildSpawnPointMap()
 	g_spawn_validation_cache.resize(g_num_spawn_points);
 
 	if (developer->integer) {
-		gi.Com_PrintFmt("Spawn Point Map Built: Found {} spawn points.\n", g_num_spawn_points);
+		gi.Com_PrintFmt("Spawn Point Map Built: Found {} spawn points with spatial index.\n", g_num_spawn_points);
 	}
 }
 
@@ -1228,19 +1237,14 @@ static int32_t CalculateQueuedMonsters(const horde::MapSize& mapSize, int32_t lv
 	if (lvl <= 3) // No queue for first 3 waves still seems fine
 		return 0;
 
-	// Cache sqrt result for performance (called frequently during wave spawning)
-	static constexpr int32_t MAX_WAVE_LEVEL = 250;
-	static float sqrt_cache[MAX_WAVE_LEVEL + 1] = {0};
+	// Use global fast math cache for performance
 	static bool cache_initialized = false;
-
 	if (!cache_initialized) {
-		for (int i = 0; i <= MAX_WAVE_LEVEL; ++i) {
-			sqrt_cache[i] = std::sqrt(static_cast<float>(i));
-		}
+		HordePerf::g_fast_math.Initialize();
 		cache_initialized = true;
 	}
 
-	float baseQueued = sqrt_cache[lvl] * 2.5f; // Reduced base from 3.0f
+	float baseQueued = HordePerf::g_fast_math.GetSqrt(lvl) * 2.5f; // Reduced base from 3.0f
 	baseQueued *= (1.0f + (lvl) * 0.13f); // Reduced scaling from 0.18f
 
 	float mapSizeMultiplier = 1.0f;
@@ -5918,13 +5922,14 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	edict_t* best_spot = nullptr;
 	float best_score = -1.0f;
 
-	// --- PERFORMANCE FIX: Use findradius instead of iterating all spawn points ---
+	// --- PERFORMANCE FIX: Use spatial index for O(1) nearby spawn point lookup ---
 	constexpr float SEARCH_RADIUS = 1500.0f;
-	edict_t* spawn_point = nullptr;
-	while ((spawn_point = findradius(spawn_point, target_player->s.origin, SEARCH_RADIUS)) != nullptr)
+	auto nearby_spawn_points = HordePerf::g_spawn_spatial_index.GetNearbySpawnPoints(target_player->s.origin, SEARCH_RADIUS);
+
+	for (edict_t* spawn_point : nearby_spawn_points)
 	{
-		// Filter out entities that are not valid spawn points
-		if (!spawn_point->inuse || !spawn_point->classname || strcmp(spawn_point->classname, "info_player_deathmatch") != 0) {
+		// Spawn points from spatial index are already validated as info_player_deathmatch
+		if (!spawn_point->inuse) {
 			continue;
 		}
 		// --- END PERFORMANCE FIX ---
@@ -7650,7 +7655,7 @@ private:
             if (count < MAX_BATCH_SIZE) {
                 entries[count] = entry;
                 // Initialize to a known state
-                spawned_monsters[count] = reinterpret_cast<edict_t*>(1); // Use a non-null placeholder
+                spawned_monsters[count] = nullptr; // Use nullptr for safety
                 count++;
             }
         }
