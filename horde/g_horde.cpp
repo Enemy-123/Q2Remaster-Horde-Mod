@@ -729,8 +729,6 @@ static SpawnPointCacheArray spawn_point_cache;
 
 static void BuildSpawnPointMap()
 {
-	gi.Com_PrintFmt("=== BuildSpawnPointMap: Starting ===\n");
-
 	g_spawn_point_map.clear();
 	g_spawn_point_list.clear();
 
@@ -740,32 +738,19 @@ static void BuildSpawnPointMap()
 	// Reserve capacity to avoid repeated allocations
 	g_spawn_point_list.reserve(64); // Most maps have fewer than 64 spawn points
 
-	int total_spawn_points_checked = 0;
-	int valid_spawn_points = 0;
-
 	// Single pass to build both the list and the map
 	for (edict_t* sp : monster_spawn_points()) {
-		total_spawn_points_checked++;
 		if (sp && sp->inuse && sp->classname && strcmp(sp->classname, "info_player_deathmatch") == 0) {
-			valid_spawn_points++;
 			// Add to map first, using the current size of the list as the compact index
 			g_spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
 			// Then add the pointer to the list
 			g_spawn_point_list.push_back(sp);
 			// Add to spatial index for fast spatial queries
 			HordePerf::g_spawn_spatial_index.AddSpawnPoint(sp);
-
-			gi.Com_PrintFmt("  Added spawn point #{} at ({:.0f}, {:.0f}, {:.0f})\n",
-				valid_spawn_points, sp->s.origin.x, sp->s.origin.y, sp->s.origin.z);
 		}
 	}
 
 	g_num_spawn_points = g_spawn_point_list.size();
-
-	gi.Com_PrintFmt("=== BuildSpawnPointMap: Complete ===\n");
-	gi.Com_PrintFmt("  Total entities checked: {}\n", total_spawn_points_checked);
-	gi.Com_PrintFmt("  Valid spawn points found: {}\n", valid_spawn_points);
-	gi.Com_PrintFmt("  Final spawn point count: {}\n", g_num_spawn_points);
 
 	// Shrink to fit to release any excess capacity
 	g_spawn_point_list.shrink_to_fit();
@@ -5939,9 +5924,6 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	constexpr float SEARCH_RADIUS = 1500.0f;
 	auto nearby_spawn_points = HordePerf::g_spawn_spatial_index.GetNearbySpawnPoints(target_player->s.origin, SEARCH_RADIUS);
 
-	gi.Com_PrintFmt("FindSafeTeleportDestination: Found {} nearby spawn points for player at ({:.0f}, {:.0f}, {:.0f})\n",
-		nearby_spawn_points.size(), target_player->s.origin.x, target_player->s.origin.y, target_player->s.origin.z);
-
 	for (edict_t* spawn_point : nearby_spawn_points)
 	{
 		// Spawn points from spatial index are already validated as info_player_deathmatch
@@ -6887,11 +6869,8 @@ static void RebuildSpawnPointCacheIfNeeded()
 {
 	if (!g_spawn_points_cached || need_spawn_cache_reset)
 	{
-		gi.Com_PrintFmt("RebuildSpawnPointCacheIfNeeded: Starting rebuild. g_spawn_point_list.size() = {}\n", g_spawn_point_list.size());
-
 		// Ensure spawn map is built first
 		if (g_spawn_map_needs_build) {
-			gi.Com_PrintFmt("RebuildSpawnPointCacheIfNeeded: Spawn map not built yet, building now...\n");
 			BuildSpawnPointMap();
 			g_spawn_map_needs_build = false;
 		}
