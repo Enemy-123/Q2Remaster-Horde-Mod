@@ -195,10 +195,10 @@ namespace HordeConstants
 		{0.4_sec, 0.6_sec}	// Big maps
 	}};
 
-	// --- Stuck Monster / Teleport Logic ---
-	constexpr gtime_t NO_DAMAGE_TIMEOUT = 32_sec;
-	constexpr gtime_t DAMAGED_MONSTER_INACTIVITY_TIMEOUT = 15.0_sec;
-	constexpr gtime_t NO_ENEMY_TIMEOUT = 12.0_sec;
+	// --- Base Stuck Monster / Teleport Logic ---
+	constexpr gtime_t NO_DAMAGE_TIMEOUT_BASE = 32_sec;
+	constexpr gtime_t DAMAGED_MONSTER_INACTIVITY_TIMEOUT_BASE = 15.0_sec;
+	constexpr gtime_t NO_ENEMY_TIMEOUT_BASE = 12.0_sec;
 	constexpr gtime_t MIN_TELEPORT_COOLDOWN_MONSTER = 12_sec;
 	constexpr gtime_t MAX_TELEPORT_COOLDOWN_MONSTER = 20_sec;
 	constexpr gtime_t GLOBAL_TELEPORT_RESET_INTERVAL = 12_sec;
@@ -206,17 +206,102 @@ namespace HordeConstants
 	inline int g_teleport_rate_count = 0;
 	inline gtime_t g_teleport_rate_reset_time = level.time;
 
-	// --- Proximity / Distance Checks ---
+	// --- Map-Size-Aware Timeout Functions ---
+	inline gtime_t GetNoDamageTimeout(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 45_sec; // Increased from 32_sec for small maps
+		} else if (mapSize.isMediumMap) {
+			return 38_sec; // Slightly increased for medium maps
+		} else {
+			return NO_DAMAGE_TIMEOUT_BASE; // Keep original for big maps
+		}
+	}
+
+	inline gtime_t GetDamagedMonsterTimeout(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 20_sec; // Increased from 15_sec for small maps
+		} else if (mapSize.isMediumMap) {
+			return 17_sec; // Slightly increased for medium maps
+		} else {
+			return DAMAGED_MONSTER_INACTIVITY_TIMEOUT_BASE; // Keep original for big maps
+		}
+	}
+
+	inline gtime_t GetNoEnemyTimeout(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 15_sec; // Increased from 12_sec for small maps
+		} else if (mapSize.isMediumMap) {
+			return 13_sec; // Slightly increased for medium maps
+		} else {
+			return NO_ENEMY_TIMEOUT_BASE; // Keep original for big maps
+		}
+	}
+
+	// --- Base Proximity / Distance Checks ---
 	constexpr vec3_t VALIDATE_CHECK_MINS = {-16, -16, -24};
 	constexpr vec3_t VALIDATE_CHECK_MAXS = {16, 16, 32};
-	constexpr float MIN_PLAYER_DIST_GENERATE = 200.0f;
-	constexpr float MIN_PLAYER_DIST_CHECK = 360.0f;
-	constexpr float MIN_PLAYER_DIST_SPAWNPOINT = 150.0f;
-	constexpr float MIN_PLAYER_DIST_SQ_SPAWNPOINT = MIN_PLAYER_DIST_SPAWNPOINT * MIN_PLAYER_DIST_SPAWNPOINT;
-	constexpr float MIN_RECENT_SPAWN_DIST = 120.0f;
-	constexpr float MIN_RECENT_SPAWN_DIST_SQ = MIN_RECENT_SPAWN_DIST * MIN_RECENT_SPAWN_DIST;
-	constexpr float MIN_RECENT_TELEPORT_DIST = 300.0f;
-	constexpr float MIN_RECENT_TELEPORT_DIST_SQ = MIN_RECENT_TELEPORT_DIST * MIN_RECENT_TELEPORT_DIST;
+	constexpr float MIN_PLAYER_DIST_GENERATE_BASE = 200.0f;
+	constexpr float MIN_PLAYER_DIST_CHECK_BASE = 360.0f;
+	constexpr float MIN_PLAYER_DIST_SPAWNPOINT_BASE = 150.0f;
+	constexpr float MIN_RECENT_SPAWN_DIST_BASE = 120.0f;
+	constexpr float MIN_RECENT_TELEPORT_DIST_BASE = 300.0f;
+
+	// --- Map-Size-Aware Distance Functions ---
+	inline float GetMinPlayerDistGenerate(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 120.0f; // Reduced from 200.0f for small maps
+		} else if (mapSize.isMediumMap) {
+			return 160.0f; // Slightly reduced for medium maps
+		} else {
+			return MIN_PLAYER_DIST_GENERATE_BASE; // Keep original for big maps
+		}
+	}
+
+	inline float GetMinPlayerDistCheck(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 220.0f; // Reduced from 360.0f for small maps
+		} else if (mapSize.isMediumMap) {
+			return 290.0f; // Slightly reduced for medium maps
+		} else {
+			return MIN_PLAYER_DIST_CHECK_BASE; // Keep original for big maps
+		}
+	}
+
+	inline float GetMinPlayerDistSpawnpoint(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 100.0f; // Reduced from 150.0f for small maps
+		} else if (mapSize.isMediumMap) {
+			return 125.0f; // Slightly reduced for medium maps
+		} else {
+			return MIN_PLAYER_DIST_SPAWNPOINT_BASE; // Keep original for big maps
+		}
+	}
+
+	inline float GetMinRecentSpawnDist(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 80.0f; // Reduced from 120.0f for small maps
+		} else if (mapSize.isMediumMap) {
+			return 100.0f; // Slightly reduced for medium maps
+		} else {
+			return MIN_RECENT_SPAWN_DIST_BASE; // Keep original for big maps
+		}
+	}
+
+	inline float GetMinRecentTeleportDist(const horde::MapSize& mapSize) {
+		if (mapSize.isSmallMap) {
+			return 200.0f; // Reduced from 300.0f for small maps
+		} else if (mapSize.isMediumMap) {
+			return 250.0f; // Slightly reduced for medium maps
+		} else {
+			return MIN_RECENT_TELEPORT_DIST_BASE; // Keep original for big maps
+		}
+	}
+
+	// Legacy constants kept for backward compatibility - use getter functions for map-size-aware values
+	constexpr float MIN_PLAYER_DIST_SQ_SPAWNPOINT = MIN_PLAYER_DIST_SPAWNPOINT_BASE * MIN_PLAYER_DIST_SPAWNPOINT_BASE;
+	constexpr float MIN_RECENT_SPAWN_DIST_SQ = MIN_RECENT_SPAWN_DIST_BASE * MIN_RECENT_SPAWN_DIST_BASE;
+	constexpr float MIN_RECENT_TELEPORT_DIST_SQ = MIN_RECENT_TELEPORT_DIST_BASE * MIN_RECENT_TELEPORT_DIST_BASE;
+
 	constexpr gtime_t RECENT_SPAWN_COOLDOWN = 5.0_sec;
 	constexpr gtime_t RECENT_TELEPORT_COOLDOWN = 20.0_sec;
 
@@ -242,7 +327,7 @@ namespace HordeConstants
 	constexpr float   AMBUSH_BASE_CHANCE = 0.08f;
 	constexpr float   AMBUSH_CHANCE_PER_WAVE = 0.03f;
 
-} // namespace HordeConstants
+} // namespace HordeConstants // namespace HordeConstants
 
 // --- Forward Declarations ---
 bool Horde_AttemptToUnstickMonster(edict_t* self); 
@@ -361,16 +446,18 @@ inline void MarkPositionAsRecentlyUsed(const vec3_t& position) {
     g_recent_spawns_opt.AddPosition(position, HordeConstants::RECENT_SPAWN_COOLDOWN);
 }
 
-inline bool IsPositionTooCloseToRecentSpawn(const vec3_t& position) {
-    return g_recent_spawns_opt.IsPositionTooClose(position, HordeConstants::MIN_RECENT_SPAWN_DIST_SQ);
+inline bool IsPositionTooCloseToRecentSpawn(const vec3_t& position, const horde::MapSize& mapSize) {
+    const float min_dist = HordeConstants::GetMinRecentSpawnDist(mapSize);
+    return g_recent_spawns_opt.IsPositionTooClose(position, min_dist * min_dist);
 }
 
 inline void MarkPositionAsRecentlyTeleported(const vec3_t& position) {
     g_recent_teleports_opt.AddPosition(position, HordeConstants::RECENT_TELEPORT_COOLDOWN);
 }
 
-inline bool IsPositionTooCloseToRecentTeleport(const vec3_t& position) {
-    return g_recent_teleports_opt.IsPositionTooClose(position, HordeConstants::MIN_RECENT_TELEPORT_DIST_SQ);
+inline bool IsPositionTooCloseToRecentTeleport(const vec3_t& position, const horde::MapSize& mapSize) {
+    const float min_dist = HordeConstants::GetMinRecentTeleportDist(mapSize);
+    return g_recent_teleports_opt.IsPositionTooClose(position, min_dist * min_dist);
 }
 
 // (Keep ResetSpawnMonsterVars, ResetFrameTimers, ResetQueueMonitorVars as they were)
@@ -5876,11 +5963,15 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		if (self->teleport_time > level.time) return false;
 		if (self->enemy && self->monsterinfo.attack_finished > level.time) return false;
 
+		// Get map-size-aware timeout for no enemy situations
+		const horde::MapSize& mapSize = g_horde_local.current_map_size;
+		const gtime_t no_enemy_timeout = HordeConstants::GetNoEnemyTimeout(mapSize);
+
 		if (!self->enemy || !self->enemy->inuse)
 		{
 			if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec)
 				self->monsterinfo.no_enemy_timeout_start_time = level.time;
-			if (level.time > self->monsterinfo.no_enemy_timeout_start_time + 12_sec)
+			if (level.time > self->monsterinfo.no_enemy_timeout_start_time + no_enemy_timeout)
 			{
 				needs_teleport = true;
 				reason_str = "No Enemy Timeout";
@@ -5893,8 +5984,13 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 
 		if (!needs_teleport && self->max_health > 0)
 		{
-			gtime_t timeout_duration = (self->health < self->max_health) ? HordeConstants::DAMAGED_MONSTER_INACTIVITY_TIMEOUT : HordeConstants::NO_DAMAGE_TIMEOUT;
-			const char* timeout_reason = (self->health < self->max_health) ? "Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
+			// Use map-size-aware timeouts for damage-based teleportation
+			const gtime_t timeout_duration = (self->health < self->max_health) ?
+				HordeConstants::GetDamagedMonsterTimeout(mapSize) :
+				HordeConstants::GetNoDamageTimeout(mapSize);
+			const char* timeout_reason = (self->health < self->max_health) ?
+				"Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
+
 			if (level.time > self->monsterinfo.react_to_damage_time + timeout_duration)
 			{
 				needs_teleport = true;
@@ -6121,7 +6217,7 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 		if (IsPositionPhysicallyValid(validated_pos, predicted_mins, predicted_maxs, is_flying, false))
 		{
 
-			if (!IsPositionTooCloseToRecentSpawn(validated_pos))
+			if (!IsPositionTooCloseToRecentSpawn(validated_pos, g_horde_local.current_map_size))
 			{
 				final_origin = validated_pos;
 				if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON)
@@ -6841,7 +6937,8 @@ static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_t
     
     // Only check player proximity if cooldowns passed
     if (is_valid) {
-        constexpr float MIN_DIST_SQ = HordeConstants::MIN_PLAYER_DIST_SQ_SPAWNPOINT;
+        const float min_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
+        const float MIN_DIST_SQ = min_dist * min_dist;
         const vec3_t spawn_pos = spawn_point->s.origin;
         
         for (const auto* player : active_players_no_spect()) {
@@ -7155,15 +7252,54 @@ private:
     std::array<PlayerSpawnCandidates, MAX_CACHED_PLAYERS> player_cache;
     size_t cached_player_count = 0;
 
+    // Map-size-aware distance scaling
+    struct ScaledDistances {
+        float min_radius;
+        float max_radius;
+        float line_of_sight_tolerance;
+    };
+
+    ScaledDistances GetScaledDistances(const horde::MapSize& mapSize, int fallback_level = 0) const {
+        ScaledDistances distances;
+        
+        if (mapSize.isSmallMap) {
+            // Small maps: much tighter distances
+            switch (fallback_level) {
+                case 0: distances = {120.0f, 280.0f, 0.85f}; break;  // Was 300-800
+                case 1: distances = {100.0f, 200.0f, 0.80f}; break;  // Was 200-600  
+                case 2: distances = {80.0f, 150.0f, 0.75f}; break;   // Was 150-400
+                default: distances = {60.0f, 120.0f, 0.70f}; break;  // New ultra-tight fallback
+            }
+        } else if (mapSize.isMediumMap) {
+            // Medium maps: moderately scaled
+            switch (fallback_level) {
+                case 0: distances = {200.0f, 500.0f, 0.90f}; break;
+                case 1: distances = {150.0f, 400.0f, 0.85f}; break;
+                case 2: distances = {120.0f, 300.0f, 0.80f}; break;
+                default: distances = {100.0f, 200.0f, 0.75f}; break;
+            }
+        } else {
+            // Big maps: use original or even larger distances
+            switch (fallback_level) {
+                case 0: distances = {350.0f, 900.0f, 0.95f}; break;  // Slightly larger than original
+                case 1: distances = {250.0f, 700.0f, 0.90f}; break;
+                case 2: distances = {180.0f, 500.0f, 0.85f}; break;
+                default: distances = {150.0f, 400.0f, 0.80f}; break;
+            }
+        }
+        
+        return distances;
+    }
+
     // Helper method to check if a position has line-of-sight to at least one spawn point
-    bool HasLineOfSightToSpawnPoint(const vec3_t& candidate_pos) {
+    bool HasLineOfSightToSpawnPoint(const vec3_t& candidate_pos, float tolerance = 0.95f) const {
         // Check against all spawn points for line-of-sight
         for (edict_t* spawn_point : g_spawn_point_list) {
             if (!spawn_point || !spawn_point->inuse) continue;
             
             // Use the same line-of-sight check as TryAlternativeSpawnPosition
             trace_t los_trace = gi.traceline(spawn_point->s.origin, candidate_pos, spawn_point, MASK_SOLID);
-            if (los_trace.fraction >= 0.95f) { // Allow small tolerance for minor obstacles
+            if (los_trace.fraction >= tolerance) { // Use adjustable tolerance
                 return true; // Found at least one spawn point with clear line-of-sight
             }
         }
@@ -7171,70 +7307,70 @@ private:
     }
 
     // Updates the list of candidate spawn points around a specific player.
-    void UpdatePlayerCandidates(edict_t* player, PlayerSpawnCandidates& candidates) {
-    constexpr float MIN_RADIUS = 300.0f; // Reduced from 500.0f to improve emergency spawn success rate
-    constexpr float MAX_RADIUS = 800.0f; // Reduced from 1200.0f to improve emergency spawn success rate
-    constexpr size_t NUM_CANDIDATES = 16;
+    void UpdatePlayerCandidates(edict_t* player, PlayerSpawnCandidates& candidates, const horde::MapSize& mapSize) {
+        constexpr size_t NUM_CANDIDATES = 16;
+        
+        ScaledDistances distances = GetScaledDistances(mapSize);
 
-    candidates.player = player;
-    candidates.valid_count = 0;
-    candidates.last_update_time = level.time;
+        candidates.player = player;
+        candidates.valid_count = 0;
+        candidates.last_update_time = level.time;
 
-    const vec3_t player_origin = player->s.origin;
+        const vec3_t player_origin = player->s.origin;
 
-    // Generate candidate positions in a distributed radial pattern
-    for (size_t i = 0; i < NUM_CANDIDATES; ++i) {
-        const float radius = frandom(MIN_RADIUS, MAX_RADIUS);
-        const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f); // Add jitter
+        // Generate candidate positions in a distributed radial pattern
+        for (size_t i = 0; i < NUM_CANDIDATES; ++i) {
+            const float radius = frandom(distances.min_radius, distances.max_radius);
+            const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f); // Add jitter
 
-        vec3_t candidate_pos = {
-            player_origin.x + cosf(angle_rad) * radius,
-            player_origin.y + sinf(angle_rad) * radius,
-            player_origin.z + frandom(8.0f, 48.0f) // Vary height
-        };
+            vec3_t candidate_pos = {
+                player_origin.x + cosf(angle_rad) * radius,
+                player_origin.y + sinf(angle_rad) * radius,
+                player_origin.z + frandom(8.0f, 48.0f) // Vary height
+            };
 
-        // A quick, cheap check to see if the point is inside a solid.
-        // This filters out many bad spots before the more expensive IsPositionPhysicallyValid call.
-        if (gi.pointcontents(candidate_pos) & MASK_SOLID) {
-            continue;
+            // A quick, cheap check to see if the point is inside a solid.
+            // This filters out many bad spots before the more expensive IsPositionPhysicallyValid call.
+            if (gi.pointcontents(candidate_pos) & MASK_SOLID) {
+                continue;
+            }
+
+            // Map-size-aware line-of-sight validation
+            if (!HasLineOfSightToSpawnPoint(candidate_pos, distances.line_of_sight_tolerance)) {
+                continue;
+            }
+
+            candidates.positions[candidates.valid_count] = candidate_pos;
+            candidates.scores[candidates.valid_count] = CalculatePositionScore(candidate_pos, player_origin, mapSize);
+            candidates.valid_count++;
         }
 
-        // NEW: Check line-of-sight to spawn points to prevent spawning outside map boundaries
-        if (!HasLineOfSightToSpawnPoint(candidate_pos)) {
-            continue;
+        // Sort candidates by score (best first) for faster searching later
+        std::array<uint8_t, 16> indices;
+        for(uint8_t i = 0; i < candidates.valid_count; ++i) {
+            indices[i] = i;
         }
 
-        candidates.positions[candidates.valid_count] = candidate_pos;
-        candidates.scores[candidates.valid_count] = CalculatePositionScore(candidate_pos, player_origin);
-        candidates.valid_count++;
-    }
+        // Use stable_sort with explicit return type to avoid consteval issues
+        std::stable_sort(
+            indices.begin(),
+            indices.begin() + candidates.valid_count,
+            [&](uint8_t a, uint8_t b) -> bool {
+                return candidates.scores[a] > candidates.scores[b];
+            }
+        );
 
-    // Sort candidates by score (best first) for faster searching later
-    std::array<uint8_t, 16> indices;
-    for(uint8_t i = 0; i < candidates.valid_count; ++i) {
-        indices[i] = i;
-    }
-
-    // Use stable_sort with explicit return type to avoid consteval issues
-    std::stable_sort(
-        indices.begin(),
-        indices.begin() + candidates.valid_count,
-        [&](uint8_t a, uint8_t b) -> bool {
-            return candidates.scores[a] > candidates.scores[b];
+        // Reorder the positions and scores based on the sorted indices
+        auto original_positions = candidates.positions;
+        auto original_scores = candidates.scores;
+        for (uint8_t i = 0; i < candidates.valid_count; ++i) {
+            candidates.positions[i] = original_positions[indices[i]];
+            candidates.scores[i] = original_scores[indices[i]];
         }
-    );
-
-    // Reorder the positions and scores based on the sorted indices
-    auto original_positions = candidates.positions;
-    auto original_scores = candidates.scores;
-    for (uint8_t i = 0; i < candidates.valid_count; ++i) {
-        candidates.positions[i] = original_positions[indices[i]];
-        candidates.scores[i] = original_scores[indices[i]];
     }
-}
 
     // Scores a potential position based on distance and proximity to recent events.
-    float CalculatePositionScore(const vec3_t& pos, const vec3_t& player_pos) const {
+    float CalculatePositionScore(const vec3_t& pos, const vec3_t& player_pos, const horde::MapSize& mapSize) const {
         const float dist_sq = (pos - player_pos).lengthSquared();
         constexpr float OPTIMAL_DIST_SQ = 450.0f * 450.0f;
 
@@ -7242,14 +7378,14 @@ private:
         float score = 100.0f - std::abs(dist_sq - OPTIMAL_DIST_SQ) * 0.0001f;
 
         // Bonus for positions that are not in recently used areas
-        if (!IsPositionTooCloseToRecentSpawn(pos)) score += 50.0f;
-        if (!IsPositionTooCloseToRecentTeleport(pos)) score += 30.0f;
+        if (!IsPositionTooCloseToRecentSpawn(pos, mapSize)) score += 50.0f;
+        if (!IsPositionTooCloseToRecentTeleport(pos, mapSize)) score += 30.0f;
 
         return score;
     }
 
     // Refreshes the cache of player candidates, adding new players or updating stale entries.
-    void RefreshPlayerCache() {
+    void RefreshPlayerCache(const horde::MapSize& mapSize) {
         cached_player_count = 0;
         for (auto* player : active_players_no_spect()) {
             if (cached_player_count >= MAX_CACHED_PLAYERS) break;
@@ -7269,7 +7405,7 @@ private:
 
             // Only update if cache is stale (older than 1 second) or for a new player
             if (level.time - candidates->last_update_time > 1_sec || candidates->player != player) {
-                UpdatePlayerCandidates(player, *candidates);
+                UpdatePlayerCandidates(player, *candidates, mapSize);
             }
 
             if (candidates->player == player) {
@@ -7315,7 +7451,7 @@ private:
 
     // Updates candidates with custom distance range (for fallback logic)
     void UpdatePlayerCandidatesWithRange(edict_t* player, PlayerSpawnCandidates& candidates,
-                                        float min_radius, float max_radius) {
+                                        const ScaledDistances& distances) {
         constexpr size_t NUM_CANDIDATES = 16;
 
         candidates.player = player;
@@ -7326,7 +7462,7 @@ private:
 
         // Generate candidate positions in a distributed radial pattern
         for (size_t i = 0; i < NUM_CANDIDATES; ++i) {
-            const float radius = frandom(min_radius, max_radius);
+            const float radius = frandom(distances.min_radius, distances.max_radius);
             const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f); // Add jitter
 
             vec3_t candidate_pos = {
@@ -7335,8 +7471,8 @@ private:
                 player_origin.z + frandom(-32.0f, 48.0f) // Z variation for different floor levels
             };
 
-            // NEW: Check line-of-sight to spawn points for fallback logic too
-            if (!HasLineOfSightToSpawnPoint(candidate_pos)) {
+            // Map-size-aware line-of-sight validation
+            if (!HasLineOfSightToSpawnPoint(candidate_pos, distances.line_of_sight_tolerance)) {
                 continue;
             }
 
@@ -7354,32 +7490,24 @@ public:
     bool FindOptimalPosition(vec3_t& out_position, vec3_t& out_angles,
                            horde::MonsterTypeID typeId, edict_t* specific_target = nullptr) {
 
+        const horde::MapSize& mapSize = g_horde_local.current_map_size;
+        
         vec3_t predicted_mins, predicted_maxs;
         GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
         const bool is_flying = IsFlying(typeId);
 
-        // Try with normal distances first
-        if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
-                                       predicted_mins, predicted_maxs, is_flying, 300.0f, 800.0f)) {
-            return true;
-        }
-
-        // Fallback 1: Reduce minimum distance
-        if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
-                                       predicted_mins, predicted_maxs, is_flying, 200.0f, 600.0f)) {
-            if (developer->integer) {
-                gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback distances (200-600) for TypeID {}.\n", static_cast<int>(typeId));
+        // Try with map-size-scaled distances
+        for (int fallback_level = 0; fallback_level < 4; ++fallback_level) {
+            ScaledDistances distances = GetScaledDistances(mapSize, fallback_level);
+            
+            if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
+                                           predicted_mins, predicted_maxs, is_flying, distances)) {
+                if (developer->integer && fallback_level > 0) {
+                    gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback level {} ({:.0f}-{:.0f}) for TypeID {}.\n", 
+                                  fallback_level, distances.min_radius, distances.max_radius, static_cast<int>(typeId));
+                }
+                return true;
             }
-            return true;
-        }
-
-        // Fallback 2: Further reduce distances
-        if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
-                                       predicted_mins, predicted_maxs, is_flying, 150.0f, 400.0f)) {
-            if (developer->integer) {
-                gi.Com_PrintFmt("EMERGENCY SPAWN: Used emergency fallback distances (150-400) for TypeID {}.\n", static_cast<int>(typeId));
-            }
-            return true;
         }
 
         return false;
@@ -7390,12 +7518,12 @@ private:
     bool TryFindPositionWithDistances(vec3_t& out_position, vec3_t& out_angles,
                                     horde::MonsterTypeID typeId, edict_t* specific_target,
                                     const vec3_t& predicted_mins, const vec3_t& predicted_maxs,
-                                    bool is_flying, float min_radius, float max_radius) {
+                                    bool is_flying, const ScaledDistances& distances) {
 
         // If a specific player is targeted, generate and check candidates for them first.
         if (specific_target && specific_target->inuse && specific_target->health > 0) {
             PlayerSpawnCandidates temp_candidates;
-            UpdatePlayerCandidatesWithRange(specific_target, temp_candidates, min_radius, max_radius);
+            UpdatePlayerCandidatesWithRange(specific_target, temp_candidates, distances);
             if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
                 return true;
             }
@@ -7409,7 +7537,7 @@ private:
             if (player == specific_target) continue; // Skip if already checked
 
             PlayerSpawnCandidates temp_candidates;
-            UpdatePlayerCandidatesWithRange(player, temp_candidates, min_radius, max_radius);
+            UpdatePlayerCandidatesWithRange(player, temp_candidates, distances);
             if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
                 return true;
             }
@@ -7417,7 +7545,7 @@ private:
 
         return false;
     }
-};;
+};;;
 
 // Global optimizer instance (defined AFTER the class)
 static EmergencySpawnOptimizer g_emergency_spawn_optimizer;
