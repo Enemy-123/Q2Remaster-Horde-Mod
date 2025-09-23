@@ -730,6 +730,9 @@ static void BuildSpawnPointMap()
 	g_spawn_point_map.clear();
 	g_spawn_point_list.clear();
 
+	// Reserve capacity to avoid repeated allocations
+	g_spawn_point_list.reserve(64); // Most maps have fewer than 64 spawn points
+
 	// Single pass to build both the list and the map
 	for (edict_t* sp : monster_spawn_points()) {
 		if (sp && sp->inuse && sp->classname && strcmp(sp->classname, "info_player_deathmatch") == 0) {
@@ -741,6 +744,9 @@ static void BuildSpawnPointMap()
 	}
 
 	g_num_spawn_points = g_spawn_point_list.size();
+
+	// Shrink to fit to release any excess capacity
+	g_spawn_point_list.shrink_to_fit();
 
 	// Finally, resize all data structures to the exact size needed
 	g_spawnPointsData.resize(g_num_spawn_points);
@@ -6860,6 +6866,9 @@ static void RebuildSpawnPointCacheIfNeeded()
 {
 	if (!g_spawn_points_cached || need_spawn_cache_reset)
 	{
+		// Reserve capacity before copying to avoid reallocation
+		g_potential_spawn_points.clear();
+		g_potential_spawn_points.reserve(g_spawn_point_list.size());
 		g_potential_spawn_points = g_spawn_point_list;
 
 		g_cached_flying_spawn_count = 0;

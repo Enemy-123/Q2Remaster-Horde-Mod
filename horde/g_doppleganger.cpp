@@ -160,9 +160,9 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	// Spawn the defender sphere. Sphere_Spawn correctly sets sphere->owner = base.
 	sphere = Sphere_Spawn(base, SPHERE_DEFENDER);
 
-	// *** ADD THIS LINE ***
-	// Make the doppelganger base officially own the sphere.
-	Own_Sphere(base->teammaster, sphere);
+	// FIX: Make the doppelganger base own the sphere, not the player who created it
+	// This prevents crashes when the player disconnects
+	Own_Sphere(base, sphere);
 
 	// [Paril-KEX]
 	body->owner = ent;
