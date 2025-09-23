@@ -649,21 +649,21 @@ struct SpawnPointCacheArray
 		if (it == g_spawn_point_map.end()) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
-			// Create a new entry for this spawn point dynamically
-			size_t new_index = data.size();
-			data.emplace_back(); // Add new cache entry
-			g_spawn_point_map[ent->s.number] = new_index;
-			return data[new_index];
+			// Debug assertion to catch this during development
+			assert(false && "spawn point not found in map!");
+
+			// Robust fallback: return reference to static default cache
+			static SpawnPointCache default_cache{};
+			return default_cache;
 		}
 
 		// Additional safety check
 		if (it->second >= data.size()) {
 			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
 			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
-
-			// Resize data to accommodate the index
-			data.resize(it->second + 1);
-			return data[it->second];
+			assert(false && "invalid spawn point index!");
+			static SpawnPointCache default_cache{};
+			return default_cache;
 		}
 
 		return data[it->second];
@@ -679,24 +679,21 @@ struct SpawnPointCacheArray
 		if (it == g_spawn_point_map.end()) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
-			// For const version, we need to const_cast to add the entry
-			// This is safer than returning a static cache that could be shared
-			auto* mutable_this = const_cast<SpawnPointCacheArray*>(this);
-			size_t new_index = mutable_this->data.size();
-			mutable_this->data.emplace_back();
-			g_spawn_point_map[ent->s.number] = new_index;
-			return mutable_this->data[new_index];
+			// Debug assertion to catch this during development
+			assert(false && "spawn point not found in map!");
+
+			// Robust fallback: return reference to static default cache
+			static const SpawnPointCache default_cache{};
+			return default_cache;
 		}
 
 		// Additional safety check
 		if (it->second >= data.size()) {
 			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
 			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
-
-			// Resize data to accommodate the index
-			auto* mutable_this = const_cast<SpawnPointCacheArray*>(this);
-			mutable_this->data.resize(it->second + 1);
-			return mutable_this->data[it->second];
+			assert(false && "invalid spawn point index!");
+			static const SpawnPointCache default_cache{};
+			return default_cache;
 		}
 
 		return data[it->second];
@@ -710,6 +707,7 @@ struct SpawnPointCacheArray
 		data.clear();
 	}
 };;
+
 
 struct CachedSpawnPointData {
     uint16_t index;
@@ -731,6 +729,8 @@ static SpawnPointCacheArray spawn_point_cache;
 
 static void BuildSpawnPointMap()
 {
+	gi.Com_PrintFmt("=== BuildSpawnPointMap: Starting ===\n");
+
 	g_spawn_point_map.clear();
 	g_spawn_point_list.clear();
 
@@ -740,19 +740,32 @@ static void BuildSpawnPointMap()
 	// Reserve capacity to avoid repeated allocations
 	g_spawn_point_list.reserve(64); // Most maps have fewer than 64 spawn points
 
+	int total_spawn_points_checked = 0;
+	int valid_spawn_points = 0;
+
 	// Single pass to build both the list and the map
 	for (edict_t* sp : monster_spawn_points()) {
+		total_spawn_points_checked++;
 		if (sp && sp->inuse && sp->classname && strcmp(sp->classname, "info_player_deathmatch") == 0) {
+			valid_spawn_points++;
 			// Add to map first, using the current size of the list as the compact index
 			g_spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
 			// Then add the pointer to the list
 			g_spawn_point_list.push_back(sp);
 			// Add to spatial index for fast spatial queries
 			HordePerf::g_spawn_spatial_index.AddSpawnPoint(sp);
+
+			gi.Com_PrintFmt("  Added spawn point #{} at ({:.0f}, {:.0f}, {:.0f})\n",
+				valid_spawn_points, sp->s.origin.x, sp->s.origin.y, sp->s.origin.z);
 		}
 	}
 
 	g_num_spawn_points = g_spawn_point_list.size();
+
+	gi.Com_PrintFmt("=== BuildSpawnPointMap: Complete ===\n");
+	gi.Com_PrintFmt("  Total entities checked: {}\n", total_spawn_points_checked);
+	gi.Com_PrintFmt("  Valid spawn points found: {}\n", valid_spawn_points);
+	gi.Com_PrintFmt("  Final spawn point count: {}\n", g_num_spawn_points);
 
 	// Shrink to fit to release any excess capacity
 	g_spawn_point_list.shrink_to_fit();
@@ -5926,6 +5939,9 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	constexpr float SEARCH_RADIUS = 1500.0f;
 	auto nearby_spawn_points = HordePerf::g_spawn_spatial_index.GetNearbySpawnPoints(target_player->s.origin, SEARCH_RADIUS);
 
+	gi.Com_PrintFmt("FindSafeTeleportDestination: Found {} nearby spawn points for player at ({:.0f}, {:.0f}, {:.0f})\n",
+		nearby_spawn_points.size(), target_player->s.origin.x, target_player->s.origin.y, target_player->s.origin.z);
+
 	for (edict_t* spawn_point : nearby_spawn_points)
 	{
 		// Spawn points from spatial index are already validated as info_player_deathmatch
@@ -6871,6 +6887,15 @@ static void RebuildSpawnPointCacheIfNeeded()
 {
 	if (!g_spawn_points_cached || need_spawn_cache_reset)
 	{
+		gi.Com_PrintFmt("RebuildSpawnPointCacheIfNeeded: Starting rebuild. g_spawn_point_list.size() = {}\n", g_spawn_point_list.size());
+
+		// Ensure spawn map is built first
+		if (g_spawn_map_needs_build) {
+			gi.Com_PrintFmt("RebuildSpawnPointCacheIfNeeded: Spawn map not built yet, building now...\n");
+			BuildSpawnPointMap();
+			g_spawn_map_needs_build = false;
+		}
+
 		// Reserve capacity before copying to avoid reallocation
 		g_potential_spawn_points.clear();
 		g_potential_spawn_points.reserve(g_spawn_point_list.size());
@@ -6893,8 +6918,7 @@ static void RebuildSpawnPointCacheIfNeeded()
 		need_spawn_cache_reset = false;
 		g_consecutive_spawn_failures = 0;
 
-		if (developer->integer)
-			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
+		gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
 	}
 }
 

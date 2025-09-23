@@ -100,26 +100,55 @@ public:
         int center_y = static_cast<int>(pos.y) >> CELL_SHIFT;
         float radius_sq = radius * radius;
 
+        gi.Com_PrintFmt("GetNearbySpawnPoints: Searching at ({:.0f}, {:.0f}, {:.0f}) with radius {:.0f}\n",
+            pos.x, pos.y, pos.z, radius);
+        gi.Com_PrintFmt("  Grid cells to check: center=({},{}), cell_radius={}\n",
+            center_x, center_y, cell_radius);
+        gi.Com_PrintFmt("  Total spawn points in index: {}\n", all_spawn_points.size());
+        gi.Com_PrintFmt("  Grid cells in map: {}\n", grid_cells.size());
+
+        int cells_checked = 0;
+        int cells_with_points = 0;
+
         for (int dx = -cell_radius; dx <= cell_radius; ++dx) {
             for (int dy = -cell_radius; dy <= cell_radius; ++dy) {
                 uint32_t key = (static_cast<uint32_t>(center_x + dx) << 16) |
                               (static_cast<uint32_t>(center_y + dy) & 0xFFFF);
 
+                cells_checked++;
                 auto it = grid_cells.find(key);
                 if (it != grid_cells.end()) {
+                    cells_with_points++;
                     const Cell& cell = it->second;
+                    gi.Com_PrintFmt("    Cell ({},{}) has {} spawn points\n", center_x + dx, center_y + dy, cell.count);
                     for (size_t i = 0; i < cell.count; ++i) {
                         edict_t* spawn = cell.spawn_points[i];
-                        if (!spawn || !spawn->inuse) continue;
+                        if (!spawn) {
+                            gi.Com_PrintFmt("      Point {} is NULL\n", i);
+                            continue;
+                        }
+                        if (!spawn->inuse) {
+                            gi.Com_PrintFmt("      Point {} not inuse\n", i);
+                            continue;
+                        }
 
                         vec3_t diff = spawn->s.origin - pos;
-                        if (diff.lengthSquared() <= radius_sq) {
+                        float dist_sq = diff.lengthSquared();
+                        if (dist_sq <= radius_sq) {
                             result.push_back(spawn);
+                            gi.Com_PrintFmt("      Added spawn point at ({:.0f}, {:.0f}, {:.0f}), distance: {:.0f}\n",
+                                spawn->s.origin.x, spawn->s.origin.y, spawn->s.origin.z, sqrt(dist_sq));
+                        } else {
+                            gi.Com_PrintFmt("      Spawn point at ({:.0f}, {:.0f}, {:.0f}) too far: {:.0f} > {:.0f}\n",
+                                spawn->s.origin.x, spawn->s.origin.y, spawn->s.origin.z, sqrt(dist_sq), radius);
                         }
                     }
                 }
             }
         }
+
+        gi.Com_PrintFmt("  Cells checked: {}, cells with points: {}\n", cells_checked, cells_with_points);
+        gi.Com_PrintFmt("  Nearby spawn points found: {}\n", result.size());
 
         return result;
     }
