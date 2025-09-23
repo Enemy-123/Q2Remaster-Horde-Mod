@@ -900,8 +900,18 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		return; // Stop immediately if the target is invalid.
 	}
 
-	// Rate limit check
-	if (self->monsterinfo.melee_debounce_time > level.time) {
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    if (!state) return;
+
+	// Flechette burst timing logic
+	if (state->flechette_burst_count == 0) {
+		// Starting new burst - set target count and reset timing
+		state->flechette_burst_target = 5 + (rand() % 4); // Random 5-8 flechettes
+		state->last_flechette_burst_time = level.time;
+		state->flechette_to_grenade_pause_time = 0_sec; // Reset grenade pause
+	}
+	else if (level.time < state->last_flechette_burst_time + gtime_t::from_sec(0.1f + (frandom() * 0.2f))) {
+		// 0.1-0.3 second intervals between flechettes
 		return;
 	}
 
@@ -949,11 +959,11 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 	monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
 	monster_fire_energy_bullet(self, start, dir, 1, 8, DEFAULT_BULLET_HSPREAD * spread_energymult, DEFAULT_BULLET_VSPREAD * spread_energymult, MZ2_TURRET_MACHINEGUN);
 
-
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(self);
 	gi.WriteByte(frandom() < 0.2f ? MZ_ETF_RIFLE_2 : MZ_ETF_RIFLE);
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+	
 	// Secondary spread shots
 	if (self->monsterinfo.quadfire_time > level.time || frandom() < 0.4f) {
 		// Calculate perpendicular vectors for spread
@@ -973,9 +983,16 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		}
 	}
 
-	// Set cooldown
-	self->monsterinfo.melee_debounce_time = level.time +
-		(self->monsterinfo.quadfire_time > level.time ? 7_hz : 12_hz);
+	// Update burst state
+	state->flechette_burst_count++;
+	state->last_flechette_burst_time = level.time;
+
+	// Check if burst is complete
+	if (state->flechette_burst_count >= state->flechette_burst_target) {
+		state->flechette_burst_count = 0;
+		// Set pause time before grenades can fire (0.4-0.5 seconds)
+		state->flechette_to_grenade_pause_time = level.time + gtime_t::from_sec(0.4f + (frandom() * 0.1f));
+	}
 }
 // Grenade fire function needs to use the state
 static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
@@ -986,6 +1003,11 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
+
+	// Check if we need to wait for flechette-to-grenade pause
+	if (level.time < state->flechette_to_grenade_pause_time) {
+		return;
+	}
 
 	// Burst timing logic
 	if (state->grenade_burst_count == 0) {
