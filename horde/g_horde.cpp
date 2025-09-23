@@ -12,6 +12,11 @@
 #include "../profiler.h"
 #include <cassert>
 #include "horde_performance.h"
+#include "horde_boss.h"
+
+// External function declarations
+extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
+extern void SP_target_orb(edict_t *ent);
 
 // This represents the maximum possible level boost for the "elite spawn" mechanic.
 // It ensures we precache and consider all potential elite monsters for a given wave.
@@ -341,7 +346,32 @@ void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
 bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t *specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
-edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool link_immediately = true);
+// Implementation of SpawnMonsterByTypeID
+edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool link_immediately)
+{
+	if (typeId == horde::MonsterTypeID::UNKNOWN)
+		return nullptr;
+
+	edict_t *monster = G_Spawn();
+	if (!monster)
+		return nullptr;
+
+	monster->classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	monster->s.origin = origin;
+	monster->s.angles = angles;
+
+	ED_CallSpawnMonsterByID(monster, typeId);
+
+	if (!monster->inuse) {
+		G_FreeEdict(monster);
+		return nullptr;
+	}
+
+	if (link_immediately)
+		gi.linkentity(monster);
+
+	return monster;
+}
 static void AnnounceIncomingWave(gtime_t duration = 3_sec);
 bool EmergencySpawnMonster(const int32_t levelNum,horde::MonsterTypeID typeId,bool is_additional_monster,float champion_chance_for_this_spawn);
 static edict_t *FindBestPlayerTargetForTeleport();
@@ -902,7 +932,7 @@ static cached_soundindex wave_sounds[NUM_WAVE_SOUNDS];
 static cached_soundindex start_sounds[NUM_START_SOUNDS];
 static cached_soundindex sound_tele3;
 static cached_soundindex sound_tele_up;
-static cached_soundindex sound_spawn1;
+cached_soundindex sound_spawn1;  // Made non-static for horde_boss.cpp
 static cached_soundindex incoming;
 static cached_soundindex sound_quake;
 static cached_soundindex talk;
@@ -933,7 +963,7 @@ static constexpr const char *START_SOUND_PATHS[NUM_START_SOUNDS] = {
 	"makron/voice2.wav",
 	"makron/voice.wav"};
 
-static const char *GetCurrentMapName()
+const char *GetCurrentMapName()  // Made non-static for horde_boss.cpp
 {
 	return static_cast<const char *>(level.mapname);
 }
@@ -951,7 +981,7 @@ inline int8_t GetNumSpectPlayers();
 int32_t g_adjusted_monster_cap = 0;
 
 bool allowWaveAdvance = false;		// Global variable to control wave advancement
-bool boss_spawned_for_wave = false; // to avoid boss spamming
+// Moved to horde_boss.cpp; // to avoid boss spamming
 
 int16_t last_wave_number = 0;		// Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0; // Reducido de uint32_t
@@ -1116,6 +1146,12 @@ struct HordeState
 int16_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t *>{};
+
+// Function to get the current map size (for use by horde_boss.cpp)
+horde::MapSize GetCurrentMapSize()
+{
+	return g_horde_local.current_map_size;
+}
 
 // Función para calcular el bono de locura y caos
 static inline int32_t CalculateChaosInsanityBonus(int32_t lvl)
@@ -1841,7 +1877,7 @@ static bool WasRecentlyUsed(MonsterWaveType wave_type)
 }
 
 // Helper function to store wave type in memory
-static void StoreWaveType(MonsterWaveType wave_type)
+void StoreWaveType(MonsterWaveType wave_type)  // Made non-static for horde_boss.cpp
 {
 	previous_wave_types[wave_memory_index] = wave_type;
 	wave_memory_index = (wave_memory_index + 1) % WAVE_MEMORY_SIZE;
@@ -2305,7 +2341,7 @@ constexpr MonsterDataSoA create_monster_data_soa()
 // The compiler runs create_monster_data_soa() and bakes the result directly into the executable.
 static const MonsterDataSoA g_monsterData = create_monster_data_soa();
 
-inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId)
+MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId)  // Made non-inline for horde_boss.cpp
 {
 	const size_t index = static_cast<size_t>(typeId);
 	if (index >= g_monsterData.MONSTER_ARRAY_SIZE)
@@ -2321,468 +2357,8 @@ inline MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId)
 //======================================================================
 // SECTION: Boss Definitions and Selection
 //======================================================================
-struct boss_t
-{
-	horde::MonsterTypeID typeId;
-	int32_t min_level;
-	int32_t max_level;
-	float weight;
-	BossSizeCategory sizeCategory;
-	BossType type;
-};
+// Boss-related structs and data moved to horde_boss.cpp/h
 
-static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
-														   {horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
-														   {horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-														   {horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Small, BossType::WIDOW2},
-														   {horde::MonsterTypeID::TANK_64, -1, -1, 0.25f, BossSizeCategory::Small, BossType::TANK_64},
-														   {horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Small, BossType::SHAMBLERKL},
-														   {horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Small, BossType::GUNCMDRKL},
-														   {horde::MonsterTypeID::MAKRON_KL, 36, -1, 0.2f, BossSizeCategory::Small, BossType::MAKRONKL},
-														   {horde::MonsterTypeID::MAKRON, 16, 26, 0.1f, BossSizeCategory::Small, BossType::OTHER},
-														   {horde::MonsterTypeID::PSX_ARACHNID, 15, -1, 0.1f, BossSizeCategory::Small, BossType::PSX_ARACHNID},
-														   {horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}}};
-
-static constexpr std::array<boss_t, 13> BOSS_MEDIUM_SRC = {{{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
-															{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
-															{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-															{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
-															{horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::TANK_64},
-															{horde::MonsterTypeID::SHAMBLER_KL, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
-															{horde::MonsterTypeID::GUNCMDR_KL, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
-															{horde::MonsterTypeID::PSX_GUARDIAN, -1, 24, 0.1f, BossSizeCategory::Medium, BossType::PSX_GUARDIAN},
-															{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Medium, BossType::WIDOW2},
-															{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Medium, BossType::PSX_ARACHNID},
-															{horde::MonsterTypeID::MAKRON_KL, 26, -1, 0.2f, BossSizeCategory::Medium, BossType::MAKRONKL},
-															{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium, BossType::OTHER},
-															{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}}};
-
-static constexpr std::array<boss_t, 17> BOSS_LARGE_SRC = {{{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
-														   {horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
-														   {horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-														   {horde::MonsterTypeID::BOSS5, -1, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
-														   {horde::MonsterTypeID::TANK_64, -1, 20, 0.45f, BossSizeCategory::Large, BossType::TANK_64},
-														   {horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Large, BossType::SHAMBLERKL},
-														   {horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Large, BossType::GUNCMDRKL},
-														   {horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Large, BossType::TANK_64},
-														   {horde::MonsterTypeID::SHAMBLER_KL, 21, -1, 0.1f, BossSizeCategory::Large, BossType::SHAMBLERKL},
-														   {horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_ARACHNID},
-														   {horde::MonsterTypeID::WIDOW, -1, -1, 0.1f, BossSizeCategory::Large, BossType::WIDOW},
-														   {horde::MonsterTypeID::PSX_GUARDIAN, -1, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_GUARDIAN},
-														   {horde::MonsterTypeID::BOSS5, -1, 24, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
-														   {horde::MonsterTypeID::JORG, 30, -1, 0.15f, BossSizeCategory::Large, BossType::JORG},
-														   {horde::MonsterTypeID::MAKRON_KL, 30, -1, 0.2f, BossSizeCategory::Large, BossType::MAKRONKL},
-														   {horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT},
-														   {horde::MonsterTypeID::WIDOW2, -1, 24, 0.19f, BossSizeCategory::Small, BossType::WIDOW2}}};
-
-// --- Step 2:  Data Structure (Structure of Arrays) ---
-// This is the cache-friendly structure the game will actually use.
-struct BossDataSoA
-{
-	static constexpr size_t MAX_BOSSES = 17; // Size of the largest list
-
-	std::array<horde::MonsterTypeID, MAX_BOSSES> typeIds;
-	std::array<int32_t, MAX_BOSSES> min_levels;
-	std::array<int32_t, MAX_BOSSES> max_levels;
-	std::array<float, MAX_BOSSES> weights;
-	std::array<BossSizeCategory, MAX_BOSSES> sizeCategories;
-	size_t count; // Number of actual bosses in this list
-};
-
-// --- Step 3: Compile-Time Transformation Function ---
-// This function is executed by the compiler to convert the AoS data to SoA.
-template <size_t N>
-constexpr BossDataSoA create_boss_soa(const std::array<boss_t, N> &boss_list)
-{
-	BossDataSoA soa_data{};
-	soa_data.count = N;
-	for (size_t i = 0; i < N; ++i)
-	{
-		soa_data.typeIds[i] = boss_list[i].typeId;
-		soa_data.min_levels[i] = boss_list[i].min_level;
-		soa_data.max_levels[i] = boss_list[i].max_level;
-		soa_data.weights[i] = boss_list[i].weight;
-		soa_data.sizeCategories[i] = boss_list[i].sizeCategory;
-	}
-	return soa_data;
-}
-
-// --- Step 4: Create the Global, Constant, SoA Data Instances ---
-// The compiler runs create_boss_soa() and bakes the results directly into the executable.
-static const BossDataSoA g_smallBossData = create_boss_soa(BOSS_SMALL_SRC);
-static const BossDataSoA g_mediumBossData = create_boss_soa(BOSS_MEDIUM_SRC);
-static const BossDataSoA g_largeBossData = create_boss_soa(BOSS_LARGE_SRC);
-
-// --- Step 5: REPLACEMENT for GetBossList ---
-// This function now returns a pointer to the appropriate pre-built SoA data.
-static const BossDataSoA *GetBossListSoA(const horde::MapSize &mapSize, horde::MapID mapId)
-{
-	// NOTE: The special map filtering logic from the old code is not included here
-	// for simplicity. If needed, you would create additional `_SRC` arrays and
-	// `g_...Data` SoA instances for those filtered lists and return them here.
-	if (mapSize.isSmallMap || mapId == horde::MapID::Q2DM4 || mapId == horde::MapID::Q64_COMM || mapId == horde::MapID::TEST_TEST_KAISER)
-	{
-		return &g_smallBossData;
-	}
-	if (mapSize.isMediumMap || mapId == horde::MapID::RDM8 || mapId == horde::MapID::XDM1)
-	{
-		return &g_mediumBossData;
-	}
-	if (mapSize.isBigMap || mapId == horde::MapID::TEST_SPBOX || mapId == horde::MapID::Q2CTF4)
-	{
-		return &g_largeBossData;
-	}
-	return nullptr; // Return null if no list is appropriate
-}
-
-// This struct tracks the history of spawned bosses to prevent repetition.
-struct RecentBosses
-{
-	std::array<horde::MonsterTypeID, MAX_RECENT_BOSSES> items;
-	size_t count;
-
-	RecentBosses() : count(0)
-	{
-		items.fill(horde::MonsterTypeID::UNKNOWN);
-	}
-
-	void add(horde::MonsterTypeID boss_id)
-	{
-		if (boss_id == horde::MonsterTypeID::UNKNOWN)
-			return;
-		if (count < MAX_RECENT_BOSSES)
-		{
-			items[count++] = boss_id;
-		}
-		else
-		{
-			for (size_t i = 0; i < MAX_RECENT_BOSSES - 1; ++i)
-			{
-				items[i] = items[i + 1];
-			}
-			items[MAX_RECENT_BOSSES - 1] = boss_id;
-		}
-	}
-
-	void add(const char *boss_classname)
-	{
-		if (!boss_classname)
-			return;
-		add(horde::MonsterTypeRegistry::GetTypeID(boss_classname));
-	}
-
-	bool contains(horde::MonsterTypeID boss_id) const
-	{
-		if (boss_id == horde::MonsterTypeID::UNKNOWN)
-			return false;
-		for (size_t i = 0; i < count; ++i)
-		{
-			if (items[i] == boss_id)
-				return true;
-		}
-		return false;
-	}
-
-	bool contains(const char *boss_classname) const
-	{
-		if (!boss_classname)
-			return false;
-		return contains(horde::MonsterTypeRegistry::GetTypeID(boss_classname));
-	}
-
-	void clear()
-	{
-		items.fill(horde::MonsterTypeID::UNKNOWN);
-		count = 0;
-	}
-
-	size_t size() const { return count; }
-	bool empty() const { return count == 0; }
-};
-static RecentBosses recent_bosses;
-
-// This struct pre-calculates which bosses are eligible for each wave and map type.
-// Its initialize method is now updated to work with the new SoA data structures.
-struct BossEligibilityCache
-{
-	static constexpr int32_t MAX_PRECOMPUTED_WAVE = 50;
-
-	struct LevelEligibility
-	{
-		// MODIFICATION: Store the index into the SoA array, not the TypeID.
-		uint8_t soa_indices[MAX_ELIGIBLE_BOSSES] = { 0 };
-		uint8_t count = 0;
-	};
-
-	// Cache by map type (0=small, 1=medium, 2=large) and wave level
-	LevelEligibility eligibility[3][MAX_PRECOMPUTED_WAVE + 1];
-	inline static bool initialized = false;
-
-	void initialize()
-	{
-		if (initialized)
-			return;
-
-		// For each map type (0=small, 1=medium, 2=large)
-		for (int mapType = 0; mapType < 3; ++mapType)
-		{
-			horde::MapSize mapSize;
-			const BossDataSoA* boss_list_soa = nullptr;
-
-			if (mapType == 0)
-			{
-				mapSize = { true, false, false }; // Small
-				boss_list_soa = &g_smallBossData;
-			}
-			else if (mapType == 1)
-			{
-				mapSize = { false, false, true }; // Medium
-				boss_list_soa = &g_mediumBossData;
-			}
-			else
-			{
-				mapSize = { false, true, false }; // Large
-				boss_list_soa = &g_largeBossData;
-			}
-
-			if (!boss_list_soa)
-				continue;
-
-			// For each wave level we want to pre-compute
-			for (int32_t wave = 0; wave <= MAX_PRECOMPUTED_WAVE; ++wave)
-			{
-				auto& levelData = eligibility[mapType][wave];
-				levelData.count = 0;
-
-				// Filter bosses by iterating through the SoA data, which is very fast.
-				for (size_t i = 0; i < boss_list_soa->count; ++i)
-				{
-					const int32_t min_level = boss_list_soa->min_levels[i];
-					const int32_t max_level = boss_list_soa->max_levels[i];
-
-					if ((wave >= min_level || min_level == -1) &&
-						(wave <= max_level || max_level == -1))
-					{
-						if (levelData.count < MAX_ELIGIBLE_BOSSES)
-						{
-							// MODIFICATION: Store the index 'i' directly.
-							levelData.soa_indices[levelData.count++] = static_cast<uint8_t>(i);
-						}
-					}
-				}
-			}
-		}
-		initialized = true;
-	}
-};
-static BossEligibilityCache g_bossEligibilityCache;
-
-static edict_t *CreateBaseHordeMonster(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles)
-{
-	const char *classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-	if (!classname)
-	{
-		return nullptr;
-	}
-
-	edict_t *monster = G_Spawn();
-	if (!monster)
-	{
-		return nullptr;
-	}
-
-	monster->classname = classname;
-	monster->s.origin = origin;
-	monster->s.angles = angles;
-
-	monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-	monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-	monster->monsterinfo.last_reacttodamage_target_time = 0_ms;
-	monster->monsterinfo.was_spawned_by_horde = true;
-
-	if (g_horde_local.state == horde_state_t::spawning)
-	{
-		monster->monsterinfo.spawned_in_spawn_state = true;
-	}
-
-	return monster;
-}
-
-void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
-// FIX: Removed unused 'applyHordeFlags' parameter.
-edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin, const vec3_t &angles, bool link_immediately)
-{
-	edict_t *monster = CreateBaseHordeMonster(typeId, origin, angles);
-	if (!monster)
-	{
-		return nullptr;
-	}
-
-	monster->solid = SOLID_NOT;
-	ED_CallSpawnMonsterByID(monster, typeId);
-
-	if (!monster->inuse)
-	{
-		return nullptr;
-	}
-
-	if (link_immediately)
-	{
-		monster->solid = SOLID_BBOX;
-		gi.linkentity(monster);
-
-		trace_t post_link_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
-		if (post_link_trace.startsolid)
-		{
-			monster->monsterinfo.was_stuck = true;
-			monster->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
-		}
-	}
-	
-	monster->monsterinfo.react_to_damage_time = level.time;
-	return monster;
-}
-
-// Update the simpler overload to pass the new parameter
-edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin)
-{
-    // FIX: Call the updated function signature.
-	return SpawnMonsterByTypeID(typeId, origin, vec3_origin, true);
-}
-
-// Add this struct definition in your header file or at the top
-struct BossPickResult
-{
-	horde::MonsterTypeID typeId;
-	BossSizeCategory sizeCategory;
-
-	// Constructor for convenience
-	BossPickResult(horde::MonsterTypeID id = horde::MonsterTypeID::UNKNOWN,
-				   BossSizeCategory size = BossSizeCategory::Medium)
-		: typeId(id), sizeCategory(size) {}
-};
-
-// This function is completely refactored to use the new SoA data for high performance.
-static BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_view mapname, int32_t waveNumber)
-{
-	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname.data());
-
-	if (!g_bossEligibilityCache.initialized)
-	{
-		g_bossEligibilityCache.initialize();
-	}
-
-	const BossDataSoA* boss_list_soa = GetBossListSoA(mapSize, mapId);
-	if (!boss_list_soa)
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("WARNING: Empty boss list for map {} at wave {}\n", mapname.data(), waveNumber);
-		return BossPickResult();
-	}
-
-	const int mapTypeIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-	const int32_t safeWaveNumber = std::min(waveNumber, BossEligibilityCache::MAX_PRECOMPUTED_WAVE);
-
-	const auto& eligibilityData = g_bossEligibilityCache.eligibility[static_cast<size_t>(mapTypeIndex)][static_cast<size_t>(safeWaveNumber)];
-	if (eligibilityData.count == 0)
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("WARNING: No bosses eligible for wave {} on this map type.\n", waveNumber);
-		return BossPickResult();
-	}
-
-	struct WeightedBoss
-	{
-		size_t index_in_soa;
-		float weight;
-		float cumulativeWeight;
-	};
-	std::array<WeightedBoss, MAX_ELIGIBLE_BOSSES> weightedBosses{};
-	size_t weightedCount = 0;
-	float totalWeight = 0.0f;
-
-	for (size_t i = 0; i < eligibilityData.count; ++i)
-	{
-		// MODIFICATION: Get the index directly from the cache.
-		const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
-		const horde::MonsterTypeID bossTypeId = boss_list_soa->typeIds[boss_index_in_soa];
-
-		if (recent_bosses.contains(bossTypeId))
-		{
-			continue;
-		}
-
-		// MODIFICATION: No more linear search needed. We already have the index.
-		float weight = boss_list_soa->weights[boss_index_in_soa];
-
-		if (weightedCount < MAX_ELIGIBLE_BOSSES)
-		{
-			totalWeight += weight;
-			weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
-			weightedBosses[weightedCount].weight = weight;
-			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-			weightedCount++;
-		}
-	}
-
-	if (weightedCount == 0 && recent_bosses.size() > 0)
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("INFO: No non-recent bosses eligible, ignoring history for this pick.\n");
-		totalWeight = 0.0f;
-		weightedCount = 0;
-
-		for (size_t i = 0; i < eligibilityData.count; ++i)
-		{
-			// MODIFICATION: Get the index directly from the cache.
-			const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
-
-			float weight = boss_list_soa->weights[boss_index_in_soa];
-			if (weightedCount < MAX_ELIGIBLE_BOSSES)
-			{
-				totalWeight += weight;
-				weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
-				weightedBosses[weightedCount].weight = weight;
-				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-				weightedCount++;
-			}
-		}
-	}
-
-	if (weightedCount == 0 || totalWeight <= 0.0f)
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("WARNING: No eligible bosses found after all filtering.\n");
-		return BossPickResult();
-	}
-
-	const float randomValue = frandom() * totalWeight;
-	auto it = std::lower_bound(
-		weightedBosses.begin(),
-		weightedBosses.begin() + weightedCount,
-		randomValue,
-		[](const WeightedBoss& boss, float value)
-		{
-			return boss.cumulativeWeight < value;
-		});
-
-	if (it == weightedBosses.begin() + weightedCount)
-	{
-		it = std::prev(it);
-	}
-
-	const size_t chosen_index = it->index_in_soa;
-	const horde::MonsterTypeID chosen_typeId = boss_list_soa->typeIds[chosen_index];
-	const BossSizeCategory chosen_sizeCategory = boss_list_soa->sizeCategories[chosen_index];
-
-	recent_bosses.add(chosen_typeId);
-	if (developer->integer > 1)
-	{
-		const char* chosen_name = horde::MonsterTypeRegistry::GetClassname(chosen_typeId);
-		gi.Com_PrintFmt("Selected Boss: {} (Weight: {:.2f})\n", chosen_name ? chosen_name : "Unknown", it->weight);
-	}
-	return BossPickResult(chosen_typeId, chosen_sizeCategory);
-}
 // --- Step 1: Define the SoA structure for item data ---
 struct HordeItemDataSoA
 {
@@ -3640,29 +3216,6 @@ void AllowReset() noexcept
 	hasBeenReset = false;
 }
 
-void ResetBosses()
-{
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment here */)
-	{
-		edict_t *boss = *it;
-		if (boss && boss->inuse)
-		{
-			// Ensure boss death logic is finalized if needed, then free
-			if (!boss->monsterinfo.BOSS_DEATH_HANDLED)
-			{
-				// Optional: Add a check here if boss->die is valid before calling
-				// if (boss->die.pointer()) { boss->die(boss, boss, boss, 0, boss->s.origin, mod_t{}); }
-				// Or just call the handler which should be safe
-				BossDeathHandler(boss); // Attempt final cleanup if not done
-			}
-			OnEntityRemoved(boss); // Call removal hook
-			G_FreeEdict(boss);	   // Free the entity
-		}
-		// Erase the pointer from the set regardless of whether it was valid/freed,
-		// then advance the iterator safely.
-		it = auto_spawned_bosses.erase(it);
-	}
-}
 
 
 // This function now uses the family system to efficiently precache monsters for Wave 1
@@ -3788,236 +3341,12 @@ void Horde_Init()
 }
 
 // Helper function to select a suitable boss weapon drop based on wave level
-static item_id_t SelectBossWeaponDrop(int32_t wave_level)
-{
-	// Define potential weapon drops with their minimum required wave level
-	static const std::array<std::pair<item_id_t, int32_t>, 8> boss_weapon_drops = { {
-		{IT_WEAPON_HYPERBLASTER, 9},
-		{IT_WEAPON_RLAUNCHER, 9},
-		{IT_WEAPON_PHALANX, 9},	   // Xatrix
-		{IT_WEAPON_IONRIPPER, 9},  // Xatrix (originally boomer)
-		{IT_WEAPON_PLASMABEAM, 9}, // Rogue
-		{IT_WEAPON_RAILGUN, 9},	   // Moved slightly later
-		{IT_WEAPON_DISRUPTOR, 9}, // Rogue (originally disintegrator)
-		{IT_WEAPON_BFG, 9}		   // Moved slightly later
-	} };
-
-	// Use a stack-allocated array to store indices of eligible weapons, avoiding heap allocation.
-	std::array<size_t, boss_weapon_drops.size()> eligible_indices;
-	size_t eligible_count = 0;
-
-	for (size_t i = 0; i < boss_weapon_drops.size(); ++i)
-	{
-		if (wave_level >= boss_weapon_drops[i].second)
-		{
-			// Store the index 'i' if the weapon is eligible.
-			eligible_indices[eligible_count++] = i;
-		}
-	}
-
-	// If no weapons are eligible, return IT_NULL
-	if (eligible_count == 0)
-	{
-		return IT_NULL;
-	}
-
-	// Select a random index from our list of eligible indices.
-	const size_t random_eligible_index = static_cast<size_t>(irandom(static_cast<int32_t>(eligible_count)));
-
-	// Get the actual index into the main weapon drop array.
-	const size_t chosen_weapon_array_index = eligible_indices[random_eligible_index];
-
-	// Return the ID of the chosen weapon.
-	return boss_weapon_drops[chosen_weapon_array_index].first;
-}
 
 
 // Constants for item dropping physics (if not defined globally)
 constexpr int MIN_VELOCITY = -800;
 constexpr int MAX_VELOCITY = 800;
 constexpr int MIN_VERTICAL_VELOCITY = 400;
-constexpr int MAX_VERTICAL_VELOCITY = 950;
-
-void BossDeathHandler(edict_t *boss)
-{
-	// Fast early-out with combined validation (no change needed)
-	if (!g_horde || !g_horde->integer || !boss || !boss->inuse || !boss->monsterinfo.IS_BOSS ||
-		boss->monsterinfo.BOSS_DEATH_HANDLED || boss->health > 0)
-	{
-		return;
-	}
-
-	// Mark as handled immediately (no change needed)
-	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
-
-	boss_spawned_for_wave = false;
-	if (developer->integer)
-	{ // Optional debug print
-		gi.Com_PrintFmt("BossDeathHandler: Reset boss_spawned_for_wave flag for wave {}.\n", current_wave_level);
-	}
-
-	// Clean up entity tracking (no change needed)
-	OnEntityDeath(boss);
-	OnEntityRemoved(boss);
-
-	// --- Use item_id_t for static drop tables ---
-	static const std::array<item_id_t, 8> standardItemIDs = {
-		IT_ITEM_ADRENALINE, IT_ITEM_PACK, IT_ITEM_SENTRYGUN,
-		IT_ITEM_SPHERE_DEFENDER, IT_ARMOR_COMBAT, IT_ITEM_BANDOLIER,
-		IT_ITEM_INVULNERABILITY, IT_AMMO_NUKE};
-	// Note: Ensure the size `8` matches the number of items listed.
-
-	// --- Drop primary weapon using item_id_t ---
-	item_id_t weapon_id = SelectBossWeaponDrop(current_wave_level);
-	if (weapon_id != IT_NULL)
-	{ // Check against IT_NULL
-		if (gitem_t *weapon_item = GetItemByIndex(weapon_id))
-		{ // Use GetItemByIndex
-			if (edict_t *weapon = Drop_Item(boss, weapon_item))
-			{
-				// Set up weapon visuals/physics (logic remains the same)
-				weapon->s.origin = boss->s.origin;
-				weapon->velocity = {
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY))};
-				weapon->movetype = MOVETYPE_BOUNCE;
-				weapon->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
-				weapon->s.renderfx = RF_GLOW;
-				weapon->s.alpha = 0.85f;
-				weapon->s.scale = 1.25f;
-				weapon->spawnflags = SPAWNFLAG_ITEM_DROPPED_PLAYER;
-				weapon->flags &= ~FL_RESPAWN;
-				gi.linkentity(weapon);
-			}
-		}
-	}
-
-	// --- Drop special power-up using item_id_t ---
-	item_id_t special_id = brandom() ? IT_ITEM_QUADFIRE : IT_ITEM_QUAD; // Select ID
-	if (gitem_t *special_item = GetItemByIndex(special_id))
-	{ // Use GetItemByIndex
-		if (edict_t *powerup = Drop_Item(boss, special_item))
-		{
-			// Set up powerup visuals/physics (logic remains the same)
-			powerup->s.origin = boss->s.origin;
-			powerup->velocity = {
-				static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-				static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-				static_cast<float>(irandom(300, 400))};
-			powerup->movetype = MOVETYPE_BOUNCE;
-			powerup->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
-			powerup->s.alpha = 0.8f;
-			powerup->s.scale = 1.5f;
-			powerup->flags &= ~FL_RESPAWN;
-			powerup->spawnflags = SPAWNFLAG_ITEM_DROPPED_PLAYER;
-			gi.linkentity(powerup);
-		}
-	}
-
-	// --- Randomize and drop standard items using item_id_t ---
-	std::array<item_id_t, standardItemIDs.size()> shuffledIDs = standardItemIDs; // Create a mutable copy
-
-	// Shuffle using std::shuffle and your mt_rand engine
-	std::shuffle(shuffledIDs.begin(), shuffledIDs.end(), mt_rand);
-
-	// Now proceed to drop items from the shuffledIDs
-	for (item_id_t item_id : shuffledIDs)
-	{
-		if (item_id == IT_NULL)
-			continue; // Safety check
-
-		if (gitem_t *item = GetItemByIndex(item_id))
-		{ // Use GetItemByIndex
-			if (edict_t *drop = Drop_Item(boss, item))
-			{
-				// Set up standard drop visuals/physics (logic remains the same)
-				drop->s.origin = boss->s.origin;
-				drop->velocity = {
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY))};
-				drop->movetype = MOVETYPE_BOUNCE;
-				drop->flags &= ~FL_RESPAWN;
-				drop->s.effects |= EF_GIB;
-				drop->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
-				gi.linkentity(drop);
-			}
-		}
-	}
-
-	// Clean up boss entity (no change needed)
-	// Setting solid/takedamage might interfere with death animations
-	gi.linkentity(boss); // Re-link just in case state needs update
-}
-
-static void ClearBossHealthBar(const edict_t* boss)
-{
-    if (!boss) return;
-
-    for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
-        if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == boss) {
-            G_FreeEdict(level.health_bar_entities[i]);
-            level.health_bar_entities[i] = nullptr;
-            break; // Found and removed, no need to search further
-        }
-    }
-    // If this boss was the one on the HUD, clear the name.
-    // This check is safe even if another boss's bar is now active.
-    if (strcmp(gi.get_configstring(CONFIG_HEALTH_BAR_NAME), GetDisplayName(boss)) == 0) {
-        gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
-    }
-}
-
-
-
-void boss_die(edict_t *boss)
-{
-	if (!boss || !boss->inuse || !g_horde->integer ||
-		!boss->monsterinfo.IS_BOSS || boss->health > 0 ||
-		boss->monsterinfo.BOSS_DEATH_HANDLED ||
-		auto_spawned_bosses.find(boss) == auto_spawned_bosses.end())
-	{
-		return;
-	}
-
-	BossDeathHandler(boss);
-
-	ClearBossHealthBar(boss);
-}
-
-// IDEAL REPLACEMENT for Horde_AllMonstersDead
-// This version uses the reliable GetStroggsNum() for a fast check,
-// and only performs a full loop for final cleanup if necessary.
-static bool Horde_AllMonstersDead()
-{
-    // Step 1: Use the new, reliable counter as the primary check. This is our new "fast path".
-    if (GetStroggsNum() > 0)
-    {
-        // If there are any live monsters, we can exit immediately.
-        return false;
-    }
-
-    // Step 2: If GetStroggsNum() is 0, we know no *live* monsters remain.
-    // Now, we must perform a final cleanup pass to handle any entities
-    // that are dead but haven't been fully processed (like a boss).
-    // This is a rare but important edge case.
-    for (auto ent : active_or_dead_monsters())
-    {
-        // We only care about bosses that are dead but not yet handled.
-        if (ent && ent->inuse && ent->monsterinfo.IS_BOSS && ent->health <= 0)
-        {
-            if (auto_spawned_bosses.count(ent) && !ent->monsterinfo.BOSS_DEATH_HANDLED)
-            {
-                // This ensures the boss drops its loot and its health bar is cleared.
-                boss_die(ent);
-            }
-        }
-    }
-
-    // Step 3: After the check and potential cleanup, we can confidently say the wave is over.
-    return true;
-}
 
 // Asegúrate de limpiar entidades muertas
 void Horde_CleanBodies()
@@ -4038,509 +3367,26 @@ void Horde_CleanBodies()
 	}
 }
 
-// attaching healthbar
-static void AttachHealthBar(edict_t *boss)
+// CheckAndTeleportBoss function removed - now in horde_boss.cpp
+
+// SetHealthBarName function removed - now in horde_boss.cpp
+
+// Forward declaration for string_view version
+void AppendHordeMessage_impl(std::string_view message, gtime_t duration);
+
+// Overload for const char* (needed by horde_boss.cpp)
+void AppendHordeMessage(const char* message, gtime_t duration)
 {
-	auto healthbar = G_Spawn();
-	if (!healthbar)
-		return;
-
-	healthbar->classname = "target_healthbar";
-	// Usar asignación directa y operador de suma de vec3_t
-	healthbar->s.origin = boss->s.origin + vec3_t{0, 0, 20};
-
-	healthbar->delay = 2.0f;
-	healthbar->target = boss->targetname;
-
-	// Copiar el nombre del jefe correctamente
-	const char* boss_name = GetDisplayName(boss);
-	healthbar->message = G_CopyString(boss_name, TAG_LEVEL);
-
-	SP_target_healthbar(healthbar);
-	healthbar->enemy = boss;
-
-	// Llamar a SetHealthBarName después de configurar el mensaje
-	SetHealthBarName(boss);
-
-	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i)
-	{
-		if (!level.health_bar_entities[i])
-		{
-			level.health_bar_entities[i] = healthbar;
-			break;
-		}
-	}
-
-	healthbar->think = check_target_healthbar;
-	healthbar->nextthink = level.time + 20_sec;
-}
-
-void BossSpawnThink(edict_t *self); // Forward declaration of the think function
-void SP_target_orb(edict_t *ent);
-
-// Define a struct for boss wave info
-struct BossWaveInfo
-{
-	MonsterWaveType waveType;
-	const char *message;
-};
-
-// Create an array for boss wave types
-static std::array<BossWaveInfo, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_bossWaveTypeArray;
-static bool g_bossWaveTypesInitialized = false;
-
-// Initialize function
-void InitializeBossWaveTypes()
-{
-	if (g_bossWaveTypesInitialized)
-		return;
-
-	// Fill with default values first
-	// Removed leading newlines, AppendHordeMessage will add one.
-	for (auto &entry : g_bossWaveTypeArray)
-	{
-		entry = {MonsterWaveType::Medium, "A new wave of Strogg approaches!"};
-	}
-
-	// Set specific entries with more descriptive and varied messages
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] =
-		{MonsterWaveType::Mutant, "The Bloody Mutant hungers for flesh!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_KL)] =
-		{MonsterWaveType::Shambler, "The Shambler's thunderous steps approach!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW)] =
-		{MonsterWaveType::Small, "Widow's disruptor beams seek new targets!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW2)] =
-		{MonsterWaveType::Small, "The Widow weaves a web of destruction!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] =
-		{MonsterWaveType::Arachnophobic, "Arachnid's venomous brood swarms!"};
-
-	// Flying Bosses - more varied messages
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Hornet's deadly sting descends from above!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Carrier unleashes its aerial swarm!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER_MINI)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Carrier Mini is delivering pain right to your face!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2_KL)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Hornet buzzes with destructive intent!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::FIXBOT_KL)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Fixer arrives to repair your demise!"};
-
-	// Heavy/Medium Armored Bosses - more varied messages
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::TANK_64)] =
-		{MonsterWaveType::Medium, "Tank Commander rolls in, prepare for impact!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] =
-		{MonsterWaveType::Medium, "The Guardian unleashes a barrage of rockets!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] =
-		{MonsterWaveType::Medium, "Supertank: The ultimate Strogg war machine!"};
-
-	// Close Combat / Ranged Heavy Bosses - more varied messages
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_KL)] =
-		{MonsterWaveType::Medium, "Gunner Commander has you in his sights!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON)] =
-		{MonsterWaveType::Medium, "Makron demands your surrender!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] =
-		{MonsterWaveType::Medium, "Makron: The Strogg's true leader has arrived!"};
-	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::JORG)] =
-		{MonsterWaveType::Medium, "Jorg's upgraded mech is a force of destruction!"};
-
-	g_bossWaveTypesInitialized = true;
-}
-
-// Helper function
-inline std::pair<MonsterWaveType, const char *> GetBossWaveType(horde::MonsterTypeID typeId)
-{
-	if (!g_bossWaveTypesInitialized)
-		InitializeBossWaveTypes();
-
-	size_t index = static_cast<size_t>(typeId);
-	if (index < g_bossWaveTypeArray.size())
-		return {g_bossWaveTypeArray[index].waveType, g_bossWaveTypeArray[index].message};
-	return {MonsterWaveType::Medium, "\n\n\nDefault wave incoming!\n"};
-}
-
-// --- REVISED CheckAndTeleportBoss ---
-bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason) // Removed default value to match your likely definition
-{
-	PROFILE_SCOPE("CheckAndTeleportBoss");
-	if (level.intermissiontime)
-	{
-		return false;
-	}
-
-	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS || !g_horde || !g_horde->integer)
-	{
-		if (developer->integer > 1)
-		{
-			gi.Com_PrintFmt("CTB: Early exit for {}. InUse:{} Dead:{} IsBoss:{} HordeInt:{}\n",
-							self->classname ? self->classname : "NO_CLASSNAME",
-							self->inuse, self->deadflag, self->monsterinfo.IS_BOSS,
-							g_horde ? g_horde->integer : -1);
-		}
-		return false;
-	}
-
-	static char last_map_name_boss_teleport[MAX_QPATH] = "";
-	static horde::MapID cached_map_id_boss_teleport = horde::MapID::UNKNOWN;
-	const char *current_map = GetCurrentMapName();
-
-	if (strcmp(last_map_name_boss_teleport, current_map) != 0)
-	{
-		Q_strlcpy(last_map_name_boss_teleport, current_map, sizeof(last_map_name_boss_teleport));
-		cached_map_id_boss_teleport = horde::MapOriginRegistry::GetMapID(current_map);
-	}
-	if (cached_map_id_boss_teleport == horde::MapID::UNKNOWN)
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("CTB: MapID unknown for {}, cannot get teleport origin.\n", current_map);
-		return false;
-	}
-
-	vec3_t destination_origin;
-	if (!horde::MapOriginRegistry::GetOrigin(cached_map_id_boss_teleport, destination_origin))
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("CTB: Failed to get MapOriginRegistry origin for map_id {}.\n", (int)cached_map_id_boss_teleport);
-		return false;
-	}
-	if (!is_valid_vector(destination_origin) || destination_origin == vec3_origin)
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("CTB: Invalid destination_origin ({},{},{}) from MapOriginRegistry.\n", destination_origin.x, destination_origin.y, destination_origin.z);
-		return false;
-	}
-	vec3_t destination_angles = self->s.angles;
-	destination_angles.x = 0;
-	destination_angles.z = 0;
-	constexpr gtime_t TRIGGER_HURT_RETRIGGER_COOLDOWN = 0.1_sec;
-	constexpr gtime_t DROWNING_COOLDOWN_BOSS = 1_sec;
-	const gtime_t selected_trigger_cooldown = (reason == BossTeleportReason::DROWNING) ? DROWNING_COOLDOWN_BOSS : TRIGGER_HURT_RETRIGGER_COOLDOWN;
-
-    // <<< FIX #1: Use self->s.number as the key for the map lookup.
-	auto it = last_boss_teleport_attempt_time.find(self->s.number);
-	if (it != last_boss_teleport_attempt_time.end() && level.time < it->second + selected_trigger_cooldown)
-	{
-		// if (developer->integer > 1)
-		// {
-		// 	gtime_t cooldown_remaining = (it->second + selected_trigger_cooldown) - level.time;
-		// 	gi.Com_PrintFmt("CTB: Boss {} on REASON-specific cooldown. Remaining: {:.2f}s\n",
-		// 					self->classname ? self->classname : "UNKNOWN",
-		// 					cooldown_remaining.seconds());
-		// }
-		return false;
-	}
-
-	if (self->teleport_time > level.time)
-	{
-		if (developer->integer > 1)
-		{
-			gtime_t cooldown_remaining = self->teleport_time - level.time;
-			gi.Com_PrintFmt("CTB: Boss {} on general monster teleport cooldown. Remaining: {:.2f}s\n",
-							self->classname ? self->classname : "UNKNOWN",
-							cooldown_remaining.seconds());
-		}
-		return false;
-	}
-
-	// <<< FIX #2: Use self->s.number as the key to update the map.
-	last_boss_teleport_attempt_time[self->s.number] = level.time;
-
-	bool force_teleport = (reason == BossTeleportReason::TRIGGER_HURT || reason == BossTeleportReason::DROWNING);
-
-	if (developer->integer > 1)
-	{
-		gi.Com_PrintFmt("CTB: Attempting Horde_TeleportMonster for boss {} to ({},{},{}) (ForceVisible: {})\n",
-						self->classname ? self->classname : "UNKNOWN",
-						destination_origin.x, destination_origin.y, destination_origin.z,
-						force_teleport);
-	}
-
-	if (!Horde_TeleportMonster(self, destination_origin, destination_angles, false, force_teleport))
-	{
-		if (developer->integer > 1)
-			gi.Com_PrintFmt("CTB: Horde_TeleportMonster returned false for boss {}.\n", self->classname ? self->classname : "UNKNOWN");
-		return false;
-	}
-
-	const char* boss_display_name = GetDisplayName(self);
-	switch (reason)
-	{
-	case BossTeleportReason::DROWNING:
-		if (sound_tele3)
-			gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n", boss_display_name);
-		break;
-	case BossTeleportReason::TRIGGER_HURT:
-		if (sound_tele_up)
-			gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n", boss_display_name);
-		break;
-	}
-
-	PushEntitiesAway(self->s.origin, 3, 600.0f, 1200.0f, 4000.0f, 1800.0f);
-
-	if (self->inuse && !self->deadflag && self->health > 0)
-	{
-		SpawnGrow_Spawn(self->s.origin, 100.0f, 15.0f);
-	}
-	else if (self->inuse && developer->integer > 1)
-	{
-		gi.Com_PrintFmt("SpawnGrow_Spawn (boss teleport effect) skipped: Boss {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
-						(self->classname ? self->classname : "Unknown"),
-						static_cast<int>(self - g_edicts),
-						self->deadflag,
-						self->health);
-	}
-
-	if (self->health < (self->max_health >> 2))
-	{
-		self->health = (self->max_health >> 2);
-	}
-
-	MarkPositionAsRecentlyTeleported(destination_origin);
-
-	if (developer->integer)
-	{
-		const char *reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
-		gi.Com_PrintFmt("CTB: Boss {} successfully teleported due to {} to ({},{},{}).\n",
-						self->classname ? self->classname : "UNKNOWN",
-						reason_str,
-						self->s.origin.x, self->s.origin.y, self->s.origin.z);
-	}
-
-	return true;
-}
-
-void SetHealthBarName(const edict_t *boss)
-{
-	// Early validation
-	if (!boss || !boss->inuse)
-	{
-		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
-		return;
-	}
-
-	// --- THE FIX ---
-	// 1. Call the _Fast version to get a non-allocating const char*.
-	const char* display_name = GetDisplayName(boss);
-
-	// 2. Check if the C-string is null or empty.
-	if (!display_name || display_name[0] == '\0')
-	{
-		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
-		return;
-	}
-
-	// 3. Set the configstring directly. The engine will handle copying the string.
-	//    There is no need for an intermediate static buffer in this specific case,
-	//    as configstring makes its own copy.
-	gi.configstring(CONFIG_HEALTH_BAR_NAME, display_name);
-}
-
-// Implementación de UpdateHordeMessage
-void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec)
-{
-	// Early validation for empty messages
-	if (message.empty() || duration <= 0_ms)
-	{
-		ClearHordeMessage();
-		return;
-	}
-
-	// Get current message once
-	const char *current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-
-	// Only update if changed
-	if (!current_msg || strcmp(current_msg, message.data()) != 0)
-	{
-		gi.configstring(CONFIG_HORDEMSG, message.data());
-	}
-
-	// Set duration
-	horde_message_end_time = level.time + duration;
-}
-
-// NEW FUNCTION: HandleForcedBossRemoval
-// Purpose: To handle the removal of a boss that is still alive,
-// typically when a new boss is spawning. This function ensures that
-// players are credited for the damage dealt to the boss (by attributing
-// its remaining health as damage) but prevents the boss from dropping
-// items, as it was not legitimately killed.
-static void HandleForcedBossRemoval(edict_t *boss)
-{
-	// 1. Safety checks: Ensure we have a valid, living boss that hasn't been handled yet.
-	if (!boss || !boss->inuse || !boss->monsterinfo.IS_BOSS || boss->monsterinfo.BOSS_DEATH_HANDLED || boss->health <= 0)
-	{
-		return;
-	}
-
-	// 2. Mark as handled to prevent this logic from running again.
-	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
-
-	// 3. Attribute remaining health as damage to the most appropriate player.
-	edict_t *attacker = boss->enemy;
-
-	// Find a valid player attacker. If the boss's last enemy isn't a valid player,
-	// fall back to the player who has dealt the most damage during the current wave.
-	if (!attacker || !attacker->client || !attacker->inuse || attacker->health <= 0)
-	{
-		PlayerStats top_damager_stats;
-		float percentage;
-		CalculateTopDamager(top_damager_stats, percentage);
-		if (top_damager_stats.player)
-		{
-			attacker = top_damager_stats.player;
-		}
-	}
-
-	if (attacker && attacker->client)
-	{
-		// Add the boss's remaining health to the attacker's total_damage for the wave.
-		attacker->client->total_damage += boss->health;
-
-		if (developer->integer)
-		{
-				gi.Com_PrintFmt("Forced Boss Removal: Attributed {} remaining HP from '{}' to '{}'.\n",
-                boss->health, GetDisplayName(boss), GetPlayerName(attacker));
-		}
-	}
-
-	// 4. Simulate the boss's death state without triggering normal death effects or drops.
-	if (!boss->deadflag)
-	{
-		level.killed_monsters++; // Ensure the monster count is updated correctly.
-	}
-	boss->health = 0;
-	boss->deadflag = true;
-	boss->takedamage = false;
-	boss->solid = SOLID_NOT;	   // Make it non-solid.
-	boss->svflags |= SVF_NOCLIENT; // Hide it from clients.
-
-	// 5. Clean up the boss's health bar from the HUD.
-	ClearBossHealthBar(boss);
-
-
-	// 6. Notify other systems that the entity is dying and being removed.
-	OnEntityDeath(boss);
-	OnEntityRemoved(boss);
-}
-// =======================================================================
-// This ensures the area is cleared and entities are pushed away
-// BEFORE the boss spawn is finalized, preventing crashes and adding effect.
-// =======================================================================
-static void SpawnBossAutomatically()
-{
-	// --- IMMEDIATE GUARD ---
-	// This flag prevents multiple bosses from spawning in the same wave due to re-entry.
-	if (boss_spawned_for_wave) {
-		return;
-	}
-	boss_spawned_for_wave = true; // Set flag immediately to prevent re-entry
-
-	// --- 1. Cleanup Existing Bosses ---
-	// If a previous boss is somehow still alive, we handle its removal gracefully
-	// to prevent conflicts and ensure player damage is credited.
-	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); /* no increment */)
-	{
-		edict_t *existing_boss = *it;
-		if (existing_boss && existing_boss->inuse)
-		{
-			if (existing_boss->health > 0 && !existing_boss->deadflag) {
-				HandleForcedBossRemoval(existing_boss);
-			} else if (!existing_boss->monsterinfo.BOSS_DEATH_HANDLED) {
-				BossDeathHandler(existing_boss);
-			}
-			OnEntityRemoved(existing_boss);
-			G_FreeEdict(existing_boss);
-		}
-		it = auto_spawned_bosses.erase(it);
-	}
-
-	// --- 2. Basic Wave Check ---
-	if (current_wave_level < 10 || current_wave_level % 5 != 0) {
-		boss_spawned_for_wave = false; // Not a boss wave, reset flag and exit.
-		return;
-	}
-
-	// --- 3. Select Boss Type ---
-	const char *map_name = GetCurrentMapName();
-	BossPickResult boss_pick_result = G_HordePickBOSSType(g_horde_local.current_map_size, map_name, current_wave_level);
-
-	if (boss_pick_result.typeId == horde::MonsterTypeID::UNKNOWN) {
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to pick a boss type for wave {}.\n", current_wave_level);
-		boss_spawned_for_wave = false; // Reset flag on failure
-		return;
-	}
-
-	// --- 4. Determine Spawn Location from MapOriginRegistry ---
-	vec3_t spawn_origin;
-	horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name);
-	if (!horde::MapOriginRegistry::GetOrigin(mapId, spawn_origin))
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: No designated boss spawn origin found for map '{}'. Retrying next frame.\n", map_name);
-		boss_spawned_for_wave = false; // Reset flag and try again later
-		return;
-	}
-
-	// --- 5. PREPARE THE SPAWN AREA (THIS IS THE FIX) ---
-	vec3_t predicted_mins, predicted_maxs;
-	GetPredictedScaledBounds(boss_pick_result.typeId, predicted_mins, predicted_maxs);
-	
-	// STEP 5A: Remove any items, defenses, or other blocking entities.
-	// This prevents the boss from spawning inside a sentry gun, for example.
-	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
-
-	// STEP 5B: Forcefully push players and monsters away from the spawn point.
-	// This creates a dramatic "shockwave" effect and prevents telefrag crashes.
-	PushEntitiesAway(spawn_origin, 3, 768.0f, 1500.0f, 4500.0f, 2000.0f);
-
-
-	// --- 6. Validate the Designated Spawn Location ---
-	// After clearing the area, we do a final check to ensure the spot isn't blocked by world geometry.
-	if (!IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId)))
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Designated boss spawn at {} is blocked by world geometry. Retrying next frame.\n", spawn_origin);
-		boss_spawned_for_wave = false; // Reset flag and try again later
-		return;
-	}
-
-	// --- 7. Setup Delayed Spawn ---
-	// We spawn a temporary orb to mark the spot and then create the "pre-boss" entity.
-	// This entity is not solid and has no logic yet; it's just a placeholder.
-	edict_t *orb = G_Spawn();
-	if (orb)
-	{
-		orb->classname = "target_orb";
-		orb->s.origin = spawn_origin;
-		SP_target_orb(orb);
-	}
-
-	edict_t *boss = G_Spawn();
-	if (!boss)
-	{
-		boss_spawned_for_wave = false; // Reset flag on failure
-		return;
-	}
-
-	boss->classname = horde::MonsterTypeRegistry::GetClassname(boss_pick_result.typeId);
-	boss->s.origin = spawn_origin;
-	
-		boss->s.angles = vec3_origin;
-
-
-	boss->bossSizeCategory = boss_pick_result.sizeCategory;
-	boss->owner = orb;
-
-	// Set the think function to run in 750ms. This is when the boss will actually "materialize".
-	boss->nextthink = level.time + 750_ms;
-	boss->think = BossSpawnThink;
-	gi.linkentity(boss);
+	if (message)
+		AppendHordeMessage_impl(std::string_view(message), duration);
 }
 
 void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
+{
+	AppendHordeMessage_impl(message, duration);
+}
+
+void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 {
 	// Early validation for empty messages or zero duration
 	if (message.empty() || duration <= 0_ms)
@@ -4571,107 +3417,12 @@ void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
 	horde_message_end_time = level.time + duration;
 }
 
-THINK(BossSpawnThink)(edict_t *self)->void
-{
-	if (self->owner)
-	{
-		G_FreeEdict(self->owner);
-		self->owner = nullptr;
-	}
-
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
-
-	// This part sets the wave type and prints a wave theme message.
-	auto bossWaveInfo = GetBossWaveType(typeId);
-	current_wave_type = bossWaveInfo.first;
-	StoreWaveType(current_wave_type);
-	gi.LocBroadcast_Print(PRINT_CHAT, "{}", bossWaveInfo.second);
-
-	self->monsterinfo.IS_BOSS = true;
-	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-	self->monsterinfo.last_reacttodamage_target_time = 0_ms;
-
-	self->solid = SOLID_NOT;
-	ED_CallSpawnMonsterByID(self, typeId);
-
-	if (!self->inuse)
-	{
-		if (developer->integer)
-			gi.Com_PrintFmt("BossSpawnThink: ED_CallSpawn failed for boss {}.\n", self->classname ? self->classname : "Unknown");
-		boss_spawned_for_wave = false;
-		return;
-	}
-
-	boss_spawned_for_wave = true;
-
-	// --- IMPROVEMENT: Use AppendHordeMessage for a more dynamic announcement ---
-	const char* boss_display_name = GetDisplayName(self);
-	if (boss_display_name && boss_display_name[0] != '\0')
-	{
-		static constexpr std::array<const char *, 6> arrival_phrases = {
-			"enters the arena!",
-			"has joined the fight!",
-			"has spawned!",
-			"teleported in!",
-			"is here to end this!",
-			"makes its presence known!"};
-		const char *random_phrase = arrival_phrases[static_cast<size_t>(irandom(static_cast<int32_t>(arrival_phrases.size())))];
-
-		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name, random_phrase);
-		AppendHordeMessage(announce_message.data(), 4_sec);
-	}
-
-	self->solid = SOLID_BBOX;
-	gi.linkentity(self);
-
-	ConfigureBossArmor(self);
-	ApplyBossEffects(self);
-	self->monsterinfo.attack_state = AS_BLIND;
-
-	if (self->inuse && !self->deadflag && self->health > 0)
-	{
-		const vec3_t spawn_pos = self->s.origin;
-		const float magnitude = spawn_pos.length();
-		const float base_size = std::max(100.0f, magnitude * 0.15f);
-		const float end_size = base_size * 0.01f;
-		ImprovedSpawnGrow(spawn_pos, base_size, end_size, self);
-		SpawnGrow_Spawn(spawn_pos, base_size, end_size);
-		if (sound_spawn1)
-		{
-			gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-		}
-	}
-	else if (self->inuse && developer->integer)
-	{
-		// FIX: Replaced C-style cast with static_cast.
-		gi.Com_PrintFmt("SpawnGrow_Spawn/ImprovedSpawnGrow skipped in BossSpawnThink: Boss {} (idx {}) not fully alive. DeadFlag:{}, Health:%.0f\n",
-						(self->classname ? self->classname : "Unknown"),
-						static_cast<int>(self - g_edicts),
-						self->deadflag,
-						self->health);
-	}
-
-	AttachHealthBar(self);
-	SetHealthBarName(self);
-	auto_spawned_bosses.insert(self);
-
-	if (developer->integer > 1)
-	{
-		gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {}.\n", self->classname, self->s.origin);
-	}
-}
-
 void ClearHordeMessage()
 {
 	std::string_view const current_msg = gi.get_configstring(CONFIG_HORDEMSG);
 	if (!current_msg.empty())
 	{
 		gi.configstring(CONFIG_HORDEMSG, "");
-		// Usar active_players() para resetear stats
-		for (auto *player : active_players())
-		{
-			player->client->ps.stats[STAT_HORDEMSG] = 0;
-		}
 	}
 	horde_message_end_time = 0_sec;
 }
@@ -4697,10 +3448,7 @@ void ResetWaveMemory()
 	wave_memory_index = 0;
 }
 
-static void ResetRecentBosses()
-{
-	recent_bosses.clear();
-}
+// ResetRecentBosses moved to horde_boss.cpp
 
 static void ResetTeleportTracking()
 {
@@ -4986,7 +3734,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 	// Check if the wave is over because all monsters are gone or an admin forced it.
 	if (allowWaveAdvance || (ctx.liveMonsters == 0 && g_horde_local.num_to_spawn <= 0 && g_horde_local.queued_monsters <= 0))
 	{
-		if (Horde_AllMonstersDead())
+		if (GetStroggsNum() == 0)
 		{
 			reason = WaveEndReason::AllMonstersDead;
 			ResetWaveAdvanceState();
@@ -4995,7 +3743,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 		else if (developer->integer)
 		{
 			// This warning is useful for debugging desyncs between counters and reality.
-			gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but Horde_AllMonstersDead is false. Live: {}, NumSpawn: {}, Queued: {}. Totalalives: {}.\n",
+			gi.Com_PrintFmt("WARN: CheckRemaining: Pools empty, live count 0, but GetStroggsNum() != 0. Live: {}, NumSpawn: {}, Queued: {}. Totalalives: {}.\n",
 							ctx.liveMonsters, g_horde_local.num_to_spawn, g_horde_local.queued_monsters, GetStroggsNum());
 		}
 	}
@@ -5298,7 +4046,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec)
 	// Usar distribución uniforme con mt_rand
 	std::uniform_int_distribution<size_t> dist(0, messages.size() - 1);
 	const size_t choice = dist(mt_rand);
-	UpdateHordeMessage(messages[choice], duration);
+	AppendHordeMessage(messages[choice], duration);
 }
 
 void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason)
