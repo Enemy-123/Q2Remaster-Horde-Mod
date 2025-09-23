@@ -745,44 +745,11 @@ static float CalculateDamage(edict_t* self, int baseDamage) {
 static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, trace_t& tr) {
 	if (!M_HasValidTarget(self))
 	{
-		// If target is lost during beam, gradually end the beam
-		sentry_state_t* state = self->monsterinfo.sentry_state;
-		if (state && state->heatbeam_active) {
-			state->heatbeam_active = false;
-		}
-		return;
+		return; // Stop immediately if the target is invalid.
 	}
-
-    sentry_state_t* state = self->monsterinfo.sentry_state;
-    if (!state) return;
-
-	// Extended continuous heatbeam with refire logic
-	if (state->heatbeam_active && level.time < state->heatbeam_start_time + state->heatbeam_duration) {
-		// Beam is still active, continue firing with refire chance for animation loop
-		const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
-		monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
-		
-		// High chance to continue beam for smooth animation loop
-		if (frandom() > 0.9f) {
-			// 90% chance to extend beam duration slightly for smoother continuous effect
-			state->heatbeam_duration += gtime_t::from_sec(0.1f);
-		}
-		return;
-	}
-
-	// Start new continuous beam if cooldown has passed
-	const gtime_t beam_cooldown = self->monsterinfo.quadfire_time > level.time ? 0.3_sec : 0.6_sec;
-	if (state->heatbeam_active && level.time < state->heatbeam_start_time + state->heatbeam_duration + beam_cooldown) {
-		return; // Still in cooldown
-	}
-
-	// Start new extended continuous heatbeam
-	state->heatbeam_active = true;
-	state->heatbeam_start_time = level.time;
-	// Much longer duration for truly continuous beam
-	state->heatbeam_duration = self->monsterinfo.quadfire_time > level.time ? 5.0_sec : 4.0_sec;
 
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
+	// Fire heatbeam with continuous flag - let the heatbeam entity handle persistence
 	monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
 }
 
@@ -1207,14 +1174,6 @@ void turret2Fire(edict_t* self) {
 		}
 	}
 
-	//// Grenade Cooldown Check - ADDED HERE
-	//if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
-	//	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time) { // Use same timer for simplicity, or create a new one if needed
-	//		return; // Cooldown not elapsed, don't fire grenade
-	//	}
-	//}
-
-
 	// Fire appropriate weapon with reduced constraints
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN)) {
 		// Handle machinegun state
@@ -1235,44 +1194,54 @@ void turret2Fire(edict_t* self) {
 		}
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) {
-		// Simplified blaster/heatbeam logic
-		vec3_t offset = { 20.f, 0.f, 0.f };
-		const vec3_t hbstart = start + (forward * offset[0]);
+		// HEATBEAM - Use AI_HOLD_FRAME like machinegun for continuous beam
+		sentry_state_t* state = self->monsterinfo.sentry_state;
+		if (!state) return;
+		
+		// Handle heatbeam continuous firing state
+		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+			// Start continuous heatbeam mode
+			self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+			self->monsterinfo.duck_wait_time = level.time +
+				(self->monsterinfo.quadfire_time > level.time ? 4_sec : 3_sec);
+			self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Fast update for smooth beam
+			state->heatbeam_active = true;
+			state->heatbeam_start_time = level.time;
+		}
 
-		// Simpler prediction calculation
-		vec3_t predictedDir;
-		PredictAim(self, self->enemy, hbstart, 9999, false,
-			self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
-			&predictedDir, nullptr);
+		// Fire heatbeam continuously while holding frame
+		if (self->monsterinfo.next_duck_time <= level.time) {
+			self->monsterinfo.next_duck_time = level.time + 0.05_sec; // Keep updating rapidly
+			
+			// Simplified blaster/heatbeam logic
+			vec3_t offset = { 20.f, 0.f, 0.f };
+			const vec3_t hbstart = start + (forward * offset[0]);
 
-		// Check if the predicted direction is valid
-		if (is_valid_vector(predictedDir)) {
-			trace_t hbtr = gi.traceline(hbstart, hbstart + predictedDir * 8192,
-				self, MASK_SHOT);
+			// Simpler prediction calculation
+			vec3_t predictedDir;
+			PredictAim(self, self->enemy, hbstart, 9999, false,
+				self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
+				&predictedDir, nullptr);
 
-			// Consider the shot valid even if we don't hit the enemy directly
-			TurretFireHeatbeam(self, hbstart, predictedDir, hbtr);
+			// Check if the predicted direction is valid
+			if (is_valid_vector(predictedDir)) {
+				trace_t hbtr = gi.traceline(hbstart, hbstart + predictedDir * 8192,
+					self, MASK_SHOT);
 
-			// Only try plasma at medium to long range
-			if (dist > 300.0f) {
-				TurretFirePlasma(self, hbstart, predictedDir);
+				// Fire continuous heatbeam
+				TurretFireHeatbeam(self, hbstart, predictedDir, hbtr);
+
+				// Only try plasma at medium to long range
+				if (dist > 300.0f && frandom() < 0.1f) { // Lower chance for plasma
+					TurretFirePlasma(self, hbstart, predictedDir);
+				}
+			}
+			else {
+				// Fallback to direct fire if prediction fails
+				TurretFireHeatbeam(self, hbstart, dir, tr);
 			}
 		}
-		else {
-			// Fallback to direct fire if prediction fails
-			TurretFireHeatbeam(self, hbstart, dir, tr);
-		}
 	}
-	//// NEW: Grenade launcher option
-	//else if (self->spawnflags.has(SPAWNFLAG_TURRET2_GRENADE)) {
-	//	// Fire grenades as primary weapon
-	//	TurretFireGrenade(self, start, dir, dist);
-
-	//	// Mix in some machinegun fire for short ranges
-	//	if (dist < 400.0f && frandom() < 0.3f) {
-	//		TurretFireMachinegun(self, start, dir);
-	//	}
-	//}
 	// NEW: Flechette launcher option
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_FLECHETTE)) {
 		// Fire flechettes as primary attack
@@ -1334,6 +1303,7 @@ void turret2FireBlind(edict_t* self)
 }
 
 // Reattack function for continuous heatbeam firing
+// Reattack function for continuous heatbeam firing
 void turret2_reattack_heatbeam(edict_t* self) {
 	if (!M_HasValidTarget(self))
 	{
@@ -1358,9 +1328,11 @@ void turret2_reattack_heatbeam(edict_t* self) {
 	// Check if beam should continue
 	if (state->heatbeam_active && level.time < state->heatbeam_start_time + state->heatbeam_duration) {
 		// Continue firing - loop back to frame 1 (second frame) to keep firing
-		// This creates a continuous loop of firing frames
-		if (frandom() > 0.1f) { // 90% chance to continue beam
+		// 95% chance to continue for smooth continuous beam
+		if (frandom() > 0.05f) { 
+			// Loop animation from frame 1 to maintain continuous beam
 			self->s.frame = self->monsterinfo.active_move->firstframe + 1;
+			self->monsterinfo.nextframe = self->s.frame;
 			return;
 		}
 	}
