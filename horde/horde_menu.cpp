@@ -1276,11 +1276,6 @@ void CheckAndUpdateMenus() {
 			UpdateHUDMenu(const_cast<edict_t*>(player), player->client->menu); // Pass non-const edict_t
 			// gi.unicast(const_cast<edict_t*>(player), true); // Update might already handle this
 		}
-		// Check for Admin Menu - it needs dynamic updates to prevent menu closure
-		else if (strcmp(player->client->menu->entries[0].text, "*Admin Menu*") == 0) {
-			// Force refresh the admin menu to keep it open after selections
-			OpenAdminMenu(const_cast<edict_t*>(player));
-		}
 		// Add checks for other dynamic menus if needed
 	}
 }
