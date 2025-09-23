@@ -2535,6 +2535,20 @@ void PutClientInServer(edict_t* ent)
 		return;
 	}
 
+	// Handle cooperative mode players with no team assignment (spectator-like state)
+	if (G_IsCooperative() && client->resp.ctf_team == CTF_NOTEAM)
+	{
+		client->chase_target = nullptr;
+		client->resp.spectator = true;
+		ent->movetype = MOVETYPE_NOCLIP;
+		ent->solid = SOLID_NOT;
+		ent->svflags |= SVF_NOCLIENT;
+		ent->client->ps.gunindex = 0;
+		ent->client->ps.gunskin = 0;
+		gi.linkentity(ent);
+		return;
+	}
+
 	client->resp.spectator = false;
 
 	// [Paril-KEX] Sanity check for landmark spawns to prevent intersecting spawns
