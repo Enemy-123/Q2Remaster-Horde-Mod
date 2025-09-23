@@ -1720,6 +1720,10 @@ typedef struct sentry_state_s {
     int             flechette_burst_target;  // Random 5-8 flechettes per burst
     gtime_t         last_flechette_burst_time;
     gtime_t         flechette_to_grenade_pause_time;
+    // Heatbeam continuous tracking
+    bool            heatbeam_active;
+    gtime_t         heatbeam_start_time;
+    gtime_t         heatbeam_duration;
 } sentry_state_t;
 
 struct monsterinfo_t

@@ -172,10 +172,10 @@ static edict_t* SpawnSentryAtPoint(edict_t* owner, const vec3_t& spawn_origin, c
 void Use_SentryGun(edict_t* ent, gitem_t* item)
 {
 	// --- 1. Initial validation checks ---
-	if (!g_horde->integer) {
-		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a Sentry-Gun\n");
-		return;
-	}
+	// if (!g_horde->integer) {
+	// 	gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a Sentry-Gun\n");
+	// 	return;
+	// }
 	if (ClientIsSpectating(ent->client)) {
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to spawn a Sentry-Gun\n");
 		return;
@@ -305,8 +305,8 @@ bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
-	if (!G_IsDeathmatch()) // item is DM only
-		return false;
+	// if (!G_IsDeathmatch()) // item is DM only
+	// 	return false;
 	quantity = other->client->pers.inventory[ent->item->id];
 	if (quantity >= 3) // FIXME - apply max to sentryguns
 		return false;

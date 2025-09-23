@@ -745,8 +745,42 @@ static float CalculateDamage(edict_t* self, int baseDamage) {
 static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, trace_t& tr) {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		// If target is lost during beam, gradually end the beam
+		sentry_state_t* state = self->monsterinfo.sentry_state;
+		if (state && state->heatbeam_active) {
+			state->heatbeam_active = false;
+		}
+		return;
 	}
+
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    if (!state) return;
+
+	// Extended continuous heatbeam with refire logic
+	if (state->heatbeam_active && level.time < state->heatbeam_start_time + state->heatbeam_duration) {
+		// Beam is still active, continue firing with refire chance for animation loop
+		const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
+		monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
+		
+		// High chance to continue beam for smooth animation loop
+		if (frandom() > 0.9f) {
+			// 90% chance to extend beam duration slightly for smoother continuous effect
+			state->heatbeam_duration += gtime_t::from_sec(0.1f);
+		}
+		return;
+	}
+
+	// Start new continuous beam if cooldown has passed
+	const gtime_t beam_cooldown = self->monsterinfo.quadfire_time > level.time ? 0.3_sec : 0.6_sec;
+	if (state->heatbeam_active && level.time < state->heatbeam_start_time + state->heatbeam_duration + beam_cooldown) {
+		return; // Still in cooldown
+	}
+
+	// Start new extended continuous heatbeam
+	state->heatbeam_active = true;
+	state->heatbeam_start_time = level.time;
+	// Much longer duration for truly continuous beam
+	state->heatbeam_duration = self->monsterinfo.quadfire_time > level.time ? 5.0_sec : 4.0_sec;
 
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BLASTER_DAMAGE));
 	monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
@@ -903,15 +937,15 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
 
-	// Flechette burst timing logic
+	// Flechette burst timing logic - REFINED RAPID like ETF rifle
 	if (state->flechette_burst_count == 0) {
 		// Starting new burst - set target count and reset timing
 		state->flechette_burst_target = 5 + (rand() % 4); // Random 5-8 flechettes
 		state->last_flechette_burst_time = level.time;
 		state->flechette_to_grenade_pause_time = 0_sec; // Reset grenade pause
 	}
-	else if (level.time < state->last_flechette_burst_time + gtime_t::from_sec(0.1f + (frandom() * 0.2f))) {
-		// 0.1-0.3 second intervals between flechettes
+	else if (level.time < state->last_flechette_burst_time + gtime_t::from_sec(0.04f + (frandom() * 0.06f))) {
+		// REFINED RAPID: 0.02-0.05 second intervals between flechettes (slightly slower than before)
 		return;
 	}
 
@@ -1298,6 +1332,43 @@ void turret2FireBlind(edict_t* self)
 		monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
 	}
 }
+
+// Reattack function for continuous heatbeam firing
+void turret2_reattack_heatbeam(edict_t* self) {
+	if (!M_HasValidTarget(self))
+	{
+		// Lost target, return to normal state
+		self->monsterinfo.run(self);
+		return;
+	}
+
+	sentry_state_t* state = self->monsterinfo.sentry_state;
+	if (!state) {
+		self->monsterinfo.run(self);
+		return;
+	}
+
+	// Check if using heatbeam (blaster spawnflag)
+	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) {
+		// Not using heatbeam, return to normal
+		self->monsterinfo.run(self);
+		return;
+	}
+
+	// Check if beam should continue
+	if (state->heatbeam_active && level.time < state->heatbeam_start_time + state->heatbeam_duration) {
+		// Continue firing - loop back to frame 1 (second frame) to keep firing
+		// This creates a continuous loop of firing frames
+		if (frandom() > 0.1f) { // 90% chance to continue beam
+			self->s.frame = self->monsterinfo.active_move->firstframe + 1;
+			return;
+		}
+	}
+
+	// Beam complete or interrupted, return to normal state
+	state->heatbeam_active = false;
+	self->monsterinfo.run(self);
+}
 // pmm
 
 mframe_t turret2_frames_fire[] = {
@@ -1305,7 +1376,8 @@ mframe_t turret2_frames_fire[] = {
 	{ ai_run, 0, turret2Fire },
 	{ ai_run, 0, turret2Fire },
 	{ ai_run, 0, turret2Fire },
-};
+	{ ai_run, 0, turret2_reattack_heatbeam }, // Check for heatbeam continuation
+};;
 MMOVE_T(turret2_move_fire) = { FRAME_pow01, FRAME_pow04, turret2_frames_fire, turret2_run };
 
 // PMM
