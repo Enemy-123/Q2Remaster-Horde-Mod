@@ -10,6 +10,7 @@
 #include <span>
 #include "g_laser.h"
 #include "../profiler.h"
+#include <cassert>
 
 // This represents the maximum possible level boost for the "elite spawn" mechanic.
 // It ensures we precache and consider all potential elite monsters for a given wave.
@@ -335,7 +336,7 @@ bool FindEmergencySpawnPositionNearPlayer(vec3_t &out_position, vec3_t &out_angl
 static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
-[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying, bool is_predefined_location);
+[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
 bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t *specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
@@ -636,19 +637,64 @@ struct SpawnPointCacheArray
 
 	// Access operator now uses the compact index map
 	SpawnPointCache& operator[](const edict_t* ent) {
+		// First check if map needs building
+		if (g_spawn_map_needs_build) {
+			gi.Com_PrintFmt("WARNING: Accessing spawn point cache before BuildSpawnPointMap() - building now\n");
+			BuildSpawnPointMap();
+			g_spawn_map_needs_build = false;
+		}
+
 		auto it = g_spawn_point_map.find(ent->s.number);
 		if (it == g_spawn_point_map.end()) {
-			gi.Com_PrintFmt("WARNING: Spawn point {} not found in map, using index 0\n", ent->s.number);
-			return data[0];
+			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
+
+			// Debug assertion to catch this during development
+			assert(false && "spawn point not found in map!");
+
+			// Robust fallback: return reference to static default cache
+			static SpawnPointCache default_cache{};
+			return default_cache;
 		}
+
+		// Additional safety check
+		if (it->second >= data.size()) {
+			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
+			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
+			assert(false && "invalid spawn point index!");
+			static SpawnPointCache default_cache{};
+			return default_cache;
+		}
+
 		return data[it->second];
 	}
+	
 	const SpawnPointCache& operator[](const edict_t* ent) const {
+		// Note: const version can't modify g_spawn_map_needs_build, so this is a warning only
+		if (g_spawn_map_needs_build) {
+			gi.Com_PrintFmt("ERROR: Const access to spawn point cache before BuildSpawnPointMap()\n");
+		}
+
 		auto it = g_spawn_point_map.find(ent->s.number);
 		if (it == g_spawn_point_map.end()) {
-			gi.Com_PrintFmt("WARNING: Spawn point {} not found in map, using index 0\n", ent->s.number);
-			return data[0];
+			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
+
+			// Debug assertion to catch this during development
+			assert(false && "spawn point not found in map!");
+
+			// Robust fallback: return reference to static default cache
+			static const SpawnPointCache default_cache{};
+			return default_cache;
 		}
+
+		// Additional safety check
+		if (it->second >= data.size()) {
+			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
+			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
+			assert(false && "invalid spawn point index!");
+			static const SpawnPointCache default_cache{};
+			return default_cache;
+		}
+
 		return data[it->second];
 	}
 
@@ -659,7 +705,24 @@ struct SpawnPointCacheArray
 	void clear() {
 		data.clear();
 	}
+};;
+
+struct CachedSpawnPointData {
+    uint16_t index;
+    gtime_t last_validation_time;
+    bool last_validation_result;
+    vec3_t last_validation_origin;
+
+    // Reset cache when position changes
+    void InvalidateIfMoved(const vec3_t& current_origin) {
+        if ((current_origin - last_validation_origin).lengthSquared() > 1.0f) {
+            last_validation_time = 0_sec;
+        }
+    }
 };
+
+// Static vector cache using compact indices - faster than unordered_map
+static std::vector<CachedSpawnPointData> g_spawn_validation_cache;
 static SpawnPointCacheArray spawn_point_cache;
 
 static void BuildSpawnPointMap()
@@ -682,6 +745,7 @@ static void BuildSpawnPointMap()
 	// Finally, resize all data structures to the exact size needed
 	g_spawnPointsData.resize(g_num_spawn_points);
 	spawn_point_cache.resize(g_num_spawn_points);
+	g_spawn_validation_cache.resize(g_num_spawn_points);
 
 	if (developer->integer) {
 		gi.Com_PrintFmt("Spawn Point Map Built: Found {} spawn points.\n", g_num_spawn_points);
@@ -806,7 +870,12 @@ edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 
 	return std::nullopt;
 }
-static void CleanupSpawnPointCache() { spawn_point_cache.clear(); }
+static void CleanupSpawnPointCache() {
+	// Reset cache entries but preserve allocated size
+	for (auto& cache : spawn_point_cache.data) {
+		cache = {};  // Reset to default state
+	}
+}
 
 //  Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
@@ -3773,11 +3842,11 @@ void BossDeathHandler(edict_t *boss)
 	// Mark as handled immediately (no change needed)
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
-	// boss_spawned_for_wave = false;
-	//  if (developer->integer)
-	//  { // Optional debug print
-	//  	gi.Com_PrintFmt("BossDeathHandler: Reset boss_spawned_for_wave flag for wave {}.\n", g_horde_local.level);
-	//  }
+	boss_spawned_for_wave = false;
+	if (developer->integer)
+	{ // Optional debug print
+		gi.Com_PrintFmt("BossDeathHandler: Reset boss_spawned_for_wave flag for wave {}.\n", current_wave_level);
+	}
 
 	// Clean up entity tracking (no change needed)
 	OnEntityDeath(boss);
@@ -4380,18 +4449,18 @@ static void SpawnBossAutomatically()
 	}
 
 	// --- 2. Basic Wave Check ---
-	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
+	if (current_wave_level < 10 || current_wave_level % 5 != 0) {
 		boss_spawned_for_wave = false; // Not a boss wave, reset flag and exit.
 		return;
 	}
 
 	// --- 3. Select Boss Type ---
 	const char *map_name = GetCurrentMapName();
-	BossPickResult boss_pick_result = G_HordePickBOSSType(g_horde_local.current_map_size, map_name, g_horde_local.level);
+	BossPickResult boss_pick_result = G_HordePickBOSSType(g_horde_local.current_map_size, map_name, current_wave_level);
 
 	if (boss_pick_result.typeId == horde::MonsterTypeID::UNKNOWN) {
 		if (developer->integer)
-			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to pick a boss type for wave {}.\n", g_horde_local.level);
+			gi.Com_PrintFmt("SpawnBossAutomatically: Failed to pick a boss type for wave {}.\n", current_wave_level);
 		boss_spawned_for_wave = false; // Reset flag on failure
 		return;
 	}
@@ -4422,7 +4491,7 @@ static void SpawnBossAutomatically()
 
 	// --- 6. Validate the Designated Spawn Location ---
 	// After clearing the area, we do a final check to ensure the spot isn't blocked by world geometry.
-	if (!IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId), true))
+	if (!IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId)))
 	{
 		if (developer->integer)
 			gi.Com_PrintFmt("SpawnBossAutomatically: Designated boss spawn at {} is blocked by world geometry. Retrying next frame.\n", spawn_origin);
@@ -4818,6 +4887,7 @@ void ResetGame()
 	g_original_wave_type_before_recovery = MonsterWaveType::None;
 
 	g_horde_local = HordeState();
+	g_horde_local.level = 0;
 	current_wave_level = 0;
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
@@ -4898,7 +4968,7 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 	const WaveConditionContext ctx = {
 		.currentTime = level.time,
 		.liveMonsters = CalculateRemainingMonsters(),
-		.currentLevel = g_horde_local.level,
+		.currentLevel = current_wave_level,
 		.remainingPercentage = static_cast<float>(CalculateRemainingMonsters()) / ((g_totalMonstersInWave > 0) ? g_totalMonstersInWave : 1),
 		.isBossWaveActive = IsBossWave(),
 		.mapSize = mapSize,
@@ -5173,7 +5243,7 @@ void fastNextWave() noexcept
 
 	// 2. Initialize all game variables for the *next* wave.
 	// Horde_InitLevel already handles setting the level, calculating monster counts, etc.
-	Horde_InitLevel(g_horde_local.level + 1);
+	Horde_InitLevel(current_wave_level + 1);
 
 	// 3. Force the state machine directly into the spawning state for the new wave.
 	g_horde_local.state = horde_state_t::spawning;
@@ -5324,7 +5394,7 @@ static void AnnounceIncomingWave(gtime_t duration)
 	};
 
 	// Select message based on difficulty and level
-	if (g_chaotic->integer > 0 && g_horde_local.level >= 5)
+	if (g_chaotic->integer > 0 && current_wave_level >= 5)
 	{
 		if (g_chaotic->integer == 2)
 		{
@@ -5709,7 +5779,7 @@ static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 // =======================================================================
 // This version fixes the bug preventing alternative spawns
 // =======================================================================
-[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying, bool is_predefined_location)
+[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying)
 {
     // 1. Basic checks from your new version (these are good).
     if (!is_valid_vector(io_position)) return false;
@@ -6149,20 +6219,20 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 				}
 
 				// Call the new trigger function instead of the old one.
-				TriggerRetaliation(g_horde_local.current_map_size, g_horde_local.level, target_player);
+				TriggerRetaliation(g_horde_local.current_map_size, current_wave_level, target_player);
 
 				// Update cooldown tracking
 				g_horde_retaliation_last_trigger_time = level.time;
 
 				// Add bonus monsters to the queue
-				int32_t base_retaliation_add = (g_horde_local.level <= 7) ? 4 : 7;
-				if (g_horde_local.level > 12)
+				int32_t base_retaliation_add = (current_wave_level <= 7) ? 4 : 7;
+				if (current_wave_level > 12)
 					base_retaliation_add = 10;
-				int32_t monsters_to_add_to_queue = base_retaliation_add + (g_horde_local.level / 4);
+				int32_t monsters_to_add_to_queue = base_retaliation_add + (current_wave_level / 4);
 				if (g_horde_local.current_map_size.isBigMap)
-					monsters_to_add_to_queue += (g_horde_local.level > 7 ? 5 : 2);
+					monsters_to_add_to_queue += (current_wave_level > 7 ? 5 : 2);
 				else if (g_horde_local.current_map_size.isMediumMap)
-					monsters_to_add_to_queue += (g_horde_local.level > 7 ? 3 : 1);
+					monsters_to_add_to_queue += (current_wave_level > 7 ? 3 : 1);
 				monsters_to_add_to_queue = std::min(monsters_to_add_to_queue, 15);
 
 				if (monsters_to_add_to_queue > 0) {
@@ -6214,7 +6284,7 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 		vec3_t validated_pos = candidate_pos;
 		// --- THE FIX IS HERE ---
 		// Add 'false' as the 5th argument.
-		if (IsPositionPhysicallyValid(validated_pos, predicted_mins, predicted_maxs, is_flying, false))
+		if (IsPositionPhysicallyValid(validated_pos, predicted_mins, predicted_maxs, is_flying))
 		{
 
 			if (!IsPositionTooCloseToRecentSpawn(validated_pos, g_horde_local.current_map_size))
@@ -6573,7 +6643,7 @@ static void ExecuteNextSpecialSpawn()
 
 	// EmergencySpawnMonster is correct here as it finds a spot near a player.
 	// It will use the specific target if one is set (for retaliation), or find a random one (for ambush).
-	if (EmergencySpawnMonster(g_horde_local.level, g_special_spawn_state.monster_type_id, true, g_special_spawn_state.champion_chance))
+	if (EmergencySpawnMonster(current_wave_level, g_special_spawn_state.monster_type_id, true, g_special_spawn_state.champion_chance))
 	{
 		// Success
 	}
@@ -6882,38 +6952,26 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 }
 
 //  spawn point validation with reduced lookups and better caching
-struct CachedSpawnPointData {
-    uint16_t index;
-    gtime_t last_validation_time;
-    bool last_validation_result;
-    vec3_t last_validation_origin;
-    
-    // Reset cache when position changes
-    void InvalidateIfMoved(const vec3_t& current_origin) {
-        if ((current_origin - last_validation_origin).lengthSquared() > 1.0f) {
-            last_validation_time = 0_sec;
-        }
-    }
-};
 
-// Thread-local cache to avoid map lookups
-thread_local std::unordered_map<int, CachedSpawnPointData> g_spawn_validation_cache;
 
 static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 {
     if (!spawn_point || !spawn_point->inuse) return false;
-    
-    // Get or create cached data - single map lookup
-    auto& cached = g_spawn_validation_cache[spawn_point->s.number];
-    
+
+    // Get compact index for direct vector access
+    auto it = g_spawn_point_map.find(spawn_point->s.number);
+    if (it == g_spawn_point_map.end()) return false;
+
+    const uint16_t index = it->second;
+    if (index >= g_spawn_validation_cache.size()) return false;
+
+    // Direct vector access - much faster than hash map
+    auto& cached = g_spawn_validation_cache[index];
+
     // Initialize index if first time
     if (cached.index == 0) {
-        auto it = g_spawn_point_map.find(spawn_point->s.number);
-        if (it == g_spawn_point_map.end()) return false;
-        cached.index = it->second;
+        cached.index = index;
     }
-    
-    const uint16_t index = cached.index;
     
     // Check if we can use cached result (within 100ms and same position)
     constexpr gtime_t CACHE_DURATION = 100_ms;
@@ -7026,7 +7084,7 @@ static bool FindValidSpawnLocation(
 	// Attempt Direct Spawn
 	vec3_t direct_pos = base_origin;
 	// The 'true' here indicates this is a predefined, trusted location.
-	if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying, true))
+	if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying))
 	{
 		out_origin = direct_pos;
 		out_angles = base_angles;
@@ -7196,11 +7254,11 @@ static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize)
 	// Apply early wave modifier (waves 1-10) - slows down spawn rate initially
 	float earlyWaveMultiplier = 1.0f;
 	// Check level is valid before calculation
-	if (g_horde_local.level >= 1 && g_horde_local.level <= 10)
+	if (current_wave_level >= 1 && current_wave_level <= 10)
 	{
 		// Linearly decreases interval multiplier from 2.0x at wave 1 down to 1.1x at wave 10.
 		// After wave 10, the multiplier is 1.0x (no modification).
-		earlyWaveMultiplier = 2.0f - ((static_cast<float>(g_horde_local.level) - 1.0f) * 0.1f);
+		earlyWaveMultiplier = 2.0f - ((static_cast<float>(current_wave_level) - 1.0f) * 0.1f);
 		// Clamp just in case level somehow goes outside 1-10 despite the check
 		earlyWaveMultiplier = std::clamp(earlyWaveMultiplier, 1.1f, 2.0f);
 	}
@@ -7227,7 +7285,7 @@ static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize)
 	//// Optional Debugging
 	// if (developer->integer > 2) {
 	//	gi.Com_PrintFmt("SetNextMonsterSpawnTime: Level={}, MapIdx={}, EarlyMult={:.2f}, Base=[{:.2f}-{:.2f}], Adjusted=[{:.2f}-{:.2f}], Calculated={:.2f}, Final={:.2f}\n",
-	//		g_horde_local.level,
+	//		current_wave_level,
 	//		mapIndex,
 	//		earlyWaveMultiplier,
 	//		base_min_time.seconds(), base_max_time.seconds(),
@@ -7437,7 +7495,7 @@ private:
                 }
             }
 
-            if (!too_close_to_player && IsPositionPhysicallyValid(test_pos, mins, maxs, is_flying, false)) {
+            if (!too_close_to_player && IsPositionPhysicallyValid(test_pos, mins, maxs, is_flying)) {
                 out_pos = test_pos;
                 const vec3_t to_player = candidates.player->s.origin - test_pos;
                 out_angles = (to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) ?
@@ -7487,8 +7545,9 @@ private:
 
 public:
     // The main public function to find an optimal emergency spawn position.
+    // The main public function to find an optimal emergency spawn position.
     bool FindOptimalPosition(vec3_t& out_position, vec3_t& out_angles,
-                           horde::MonsterTypeID typeId, edict_t* specific_target = nullptr) {
+                           horde::MonsterTypeID typeId, edict_t* specific_target = nullptr, edict_t** out_used_player = nullptr) {
 
         const horde::MapSize& mapSize = g_horde_local.current_map_size;
         
@@ -7500,11 +7559,15 @@ public:
         for (int fallback_level = 0; fallback_level < 4; ++fallback_level) {
             ScaledDistances distances = GetScaledDistances(mapSize, fallback_level);
             
+            edict_t* used_player = nullptr;
             if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
-                                           predicted_mins, predicted_maxs, is_flying, distances)) {
+                                           predicted_mins, predicted_maxs, is_flying, distances, &used_player)) {
                 if (developer->integer && fallback_level > 0) {
-                    gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback level {} ({:.0f}-{:.0f}) for TypeID {}.\n", 
+                    gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback level {} ({:.0f}-{:.0f}) for TypeID {}.\\n", 
                                   fallback_level, distances.min_radius, distances.max_radius, static_cast<int>(typeId));
+                }
+                if (out_used_player) {
+                    *out_used_player = used_player;
                 }
                 return true;
             }
@@ -7515,16 +7578,20 @@ public:
 
 private:
     // Helper function to try finding position with specific distance ranges
+    // Helper function to try finding position with specific distance ranges
     bool TryFindPositionWithDistances(vec3_t& out_position, vec3_t& out_angles,
                                     horde::MonsterTypeID typeId, edict_t* specific_target,
                                     const vec3_t& predicted_mins, const vec3_t& predicted_maxs,
-                                    bool is_flying, const ScaledDistances& distances) {
+                                    bool is_flying, const ScaledDistances& distances, edict_t** out_used_player = nullptr) {
 
         // If a specific player is targeted, generate and check candidates for them first.
         if (specific_target && specific_target->inuse && specific_target->health > 0) {
             PlayerSpawnCandidates temp_candidates;
             UpdatePlayerCandidatesWithRange(specific_target, temp_candidates, distances);
             if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
+                if (out_used_player) {
+                    *out_used_player = specific_target;
+                }
                 return true;
             }
         }
@@ -7539,6 +7606,9 @@ private:
             PlayerSpawnCandidates temp_candidates;
             UpdatePlayerCandidatesWithRange(player, temp_candidates, distances);
             if (TryPlayerCandidatesFromCache(temp_candidates, predicted_mins, predicted_maxs, is_flying, out_position, out_angles)) {
+                if (out_used_player) {
+                    *out_used_player = player;
+                }
                 return true;
             }
         }
@@ -7677,7 +7747,7 @@ private:
                 current_batch.final_origins[i],
                 current_batch.final_angles[i],
                 entry.typeId,
-                g_horde_local.level,
+                current_wave_level,
                 g_champion_chance_for_current_batch
             );
         }
@@ -7723,15 +7793,14 @@ static MonsterSpawnPipeline g_monster_spawn_pipeline;
 
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t *specific_target)
 {
-    if (g_emergency_spawn_optimizer.FindOptimalPosition(position, angles, typeId, specific_target)) {
-        // Determine if the target was a human player
-        edict_t* final_target = specific_target;
-        if (!final_target) {
-            // If no specific target, we need to find which player's cache was used.
-            // For simplicity, we'll just check if any humans are present.
-            used_human_player = AreHumanPlayersPresent();
+    edict_t* actual_used_player = nullptr;
+    if (g_emergency_spawn_optimizer.FindOptimalPosition(position, angles, typeId, specific_target, &actual_used_player)) {
+        // Determine if the actually used player was human
+        if (actual_used_player) {
+            used_human_player = !(actual_used_player->svflags & SVF_BOT);
         } else {
-            used_human_player = !(final_target->svflags & SVF_BOT);
+            // Fallback to the old heuristic if no specific player was returned
+            used_human_player = AreHumanPlayersPresent();
         }
         return true;
     }
@@ -7907,15 +7976,15 @@ static void SendCleanupMessage(WaveEndReason reason)
 	{
 	case WaveEndReason::AllMonstersDead:
 		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Completely Cleared - Perfect Victory!\n",
-			g_horde_local.level);
+			current_wave_level);
 		break;
 	case WaveEndReason::MonstersRemaining:
 		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Pushed Back - But Still Threatening!\n",
-			g_horde_local.level);
+			current_wave_level);
 		break;
 	case WaveEndReason::TimeLimitReached:
 		gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Contained - Time Limit Reached!\n",
-			g_horde_local.level);
+			current_wave_level);
 		break;
 	}
 
@@ -8070,8 +8139,7 @@ static gtime_t spawning_phase_timeout_start_time = 0_sec;
 			if (IsBossWave() && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
-
-			if (!IsBossWave() || boss_spawned_for_wave) {
+			else if (!IsBossWave() || boss_spawned_for_wave) {
 				// This now just PLANS the next batch, it doesn't spawn directly.
 				PlanNextSpawnBatch();
 			}
@@ -8257,7 +8325,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 
 	// --- THE FIX IS HERE ---
 	// Add 'false' as the 5th argument.
-	if (!IsPositionPhysicallyValid(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster, false))
+	if (!IsPositionPhysicallyValid(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
 	{
 		self->s.origin = old_origin;
 		self->s.old_origin = old_origin;
