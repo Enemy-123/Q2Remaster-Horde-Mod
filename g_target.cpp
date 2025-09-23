@@ -957,7 +957,8 @@ THINK(target_lightramp_think) (edict_t* self) -> void
 	style[0] = (char)('a' + self->movedir[0] + ((level.time - self->timestamp) / gi.frame_time_s).seconds() * self->movedir[2]);
 	style[1] = 0;
 
-	gi.configstring(CS_LIGHTS + self->enemy->style, style);
+	if (self->enemy->style < MAX_LIGHTSTYLES)
+		gi.configstring(CS_LIGHTS + self->enemy->style, style);
 
 	if ((level.time - self->timestamp).seconds() < self->speed)
 	{
