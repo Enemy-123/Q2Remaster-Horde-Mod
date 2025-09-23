@@ -46,6 +46,7 @@ namespace HordePhys
 {
 
     ProximityGrid g_monster_grid;
+    EntityGrid g_entity_grid;
 
     void ProximityGrid::DebugDraw()
     {
@@ -264,5 +265,91 @@ void ProximityGrid::Reset()
 //         }
 //     }
 // }
+
+    // ============================================================================
+    // EntityGrid Implementation
+    // ============================================================================
+
+    uint32_t EntityGrid::GetEntityType(edict_t* ent) const {
+        if (!ent || !ent->classname) return 0;
+
+        uint32_t type = 0;
+        const char* classname = ent->classname;
+
+        // Cache common entity types
+        if (ent->client) {
+            type |= TYPE_PLAYERS;
+        }
+        else if (ent->svflags & SVF_MONSTER) {
+            type |= TYPE_MONSTERS;
+        }
+        else if (strstr(classname, "item_") || strstr(classname, "weapon_")) {
+            type |= TYPE_ITEMS;
+        }
+        else if (strstr(classname, "rocket") || strstr(classname, "grenade") ||
+                 strstr(classname, "bullet") || strstr(classname, "plasma")) {
+            type |= TYPE_PROJECTILES;
+        }
+        else if (strstr(classname, "trigger_") || strstr(classname, "func_")) {
+            type |= TYPE_TRIGGERS;
+        }
+
+        return type;
+    }
+
+    void EntityGrid::AddEntity(edict_t* ent) {
+        if (!ent || !ent->inuse) return;
+
+        // Cache entity type
+        m_entity_types[ent->s.number] = GetEntityType(ent);
+
+        // Use parent class Add method
+        Add(ent);
+    }
+
+    void EntityGrid::UpdateEntity(edict_t* ent) {
+        if (!ent || !ent->inuse) return;
+
+        // For now, rebuild the grid (could be optimized with delta updates)
+        // This is still much faster than findradius for most cases
+        Reset();
+
+        // Re-add all entities (in a real implementation, you'd track moving entities)
+        for (int i = 1; i < globals.num_edicts; i++) {
+            edict_t* e = &g_edicts[i];
+            if (e->inuse) {
+                AddEntity(e);
+            }
+        }
+    }
+
+    std::span<edict_t* const> EntityGrid::QueryRadiusFiltered(const vec3_t& origin, float radius, uint32_t type_mask) {
+        if (!IsBuilt()) {
+            return {};
+        }
+
+        // Get all entities in radius using parent method
+        auto all_entities = QueryRadius(origin, radius);
+
+        // Filter by type if mask is specified
+        if (type_mask == TYPE_ALL) {
+            return all_entities;
+        }
+
+        // Use a static buffer for filtered results to avoid allocations
+        static std::array<edict_t*, 512> filtered_buffer;
+        size_t filtered_count = 0;
+
+        for (edict_t* ent : all_entities) {
+            if (filtered_count >= filtered_buffer.size()) break;
+
+            uint32_t ent_type = m_entity_types[ent->s.number];
+            if (ent_type & type_mask) {
+                filtered_buffer[filtered_count++] = ent;
+            }
+        }
+
+        return { filtered_buffer.data(), filtered_count };
+    }
 
 } // namespace HordePhys

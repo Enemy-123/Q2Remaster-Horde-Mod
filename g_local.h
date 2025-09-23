@@ -3848,7 +3848,11 @@ inline bool IsBonusMonster(const edict_t* ent)
 }
 
 inline constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
-    return (v1 - v2).lengthSquared(); // Implement it using the class's own methods
+    // Direct calculation without temporary object creation
+    const float dx = v1.x - v2.x;
+    const float dy = v1.y - v2.y;
+    const float dz = v1.z - v2.z;
+    return dx * dx + dy * dy + dz * dz;
 }
 
 // 1. First, define the spawn point filter template

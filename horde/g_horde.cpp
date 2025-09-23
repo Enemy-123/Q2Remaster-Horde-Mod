@@ -6986,7 +6986,7 @@ static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_t
     if (cached.index == 0) {
         cached.index = index;
     }
-    
+
     // Check if we can use cached result (within 100ms and same position)
     constexpr gtime_t CACHE_DURATION = 100_ms;
     if (current_time - cached.last_validation_time < CACHE_DURATION) {
@@ -6995,47 +6995,63 @@ static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_t
             return cached.last_validation_result;
         }
     }
-    
-    // Perform validation with single array access pattern
+
+    // Progressive validation - become more lenient as failures increase
     bool is_valid = true;
-    
-    // Check cooldowns in order of likelihood to fail
-    if (current_time < g_spawnPointsData.teleport_cooldown[index] ||
-        current_time < g_spawnPointsData.alternative_cooldown[index] ||
-        (g_spawnPointsData.isTemporarilyDisabled[index] && 
-         current_time < g_spawnPointsData.cooldownEndsAt[index])) {
-        is_valid = false;
+    const bool emergency_mode = g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY;
+    const bool recovery_mode = g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY;
+
+    // Check cooldowns (skip in emergency mode for faster spawning)
+    if (!emergency_mode) {
+        if (current_time < g_spawnPointsData.teleport_cooldown[index] ||
+            current_time < g_spawnPointsData.alternative_cooldown[index] ||
+            (g_spawnPointsData.isTemporarilyDisabled[index] &&
+             current_time < g_spawnPointsData.cooldownEndsAt[index])) {
+            is_valid = false;
+        }
     }
-    
-    // Only check player proximity if cooldowns passed
+
+    // Check player proximity (relax distance progressively)
     if (is_valid) {
-        const float min_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
+        float min_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
+        if (recovery_mode) {
+            min_dist *= 0.7f; // 30% reduction in recovery mode
+        }
+        if (emergency_mode) {
+            min_dist *= 0.5f; // 50% reduction in emergency mode
+        }
+
         const float MIN_DIST_SQ = min_dist * min_dist;
         const vec3_t spawn_pos = spawn_point->s.origin;
-        
+
         for (const auto* player : active_players_no_spect()) {
-            if ((spawn_pos - player->s.origin).lengthSquared() < MIN_DIST_SQ) {
+            if (DistanceSquared(spawn_pos, player->s.origin) < MIN_DIST_SQ) {
                 is_valid = false;
                 break;
             }
         }
     }
-    
-    // Only check occupation if everything else passed (most expensive check)
-    if (is_valid) {
+
+    // Check occupation (skip in emergency mode)
+    if (is_valid && !emergency_mode) {
         is_valid = !IsSpawnPointOccupied(spawn_point);
     }
-    
+
     // Cache result
     cached.last_validation_time = current_time;
     cached.last_validation_result = is_valid;
     cached.last_validation_origin = spawn_point->s.origin;
-    
+
     if (!is_valid) {
         IncreaseSpawnAttempts(spawn_point);
         g_consecutive_spawn_failures++;
+    } else {
+        // Gradually reduce failure count on successful validation
+        if (g_consecutive_spawn_failures > 0) {
+            g_consecutive_spawn_failures = std::max(0, g_consecutive_spawn_failures - 2);
+        }
     }
-    
+
     return is_valid;
 }
 
@@ -8243,6 +8259,16 @@ gtime_t GetWaveTimer()
 // Helper functionget stroggs alive on the map
 int32_t GetStroggsNum() noexcept
 {
+    // Simple cache to avoid redundant iterations
+    static int32_t cached_count = 0;
+    static gtime_t last_cache_time = 0_ms;
+
+    // Cache valid for 100ms - monsters don't spawn/die that frequently
+    constexpr gtime_t CACHE_DURATION = 100_ms;
+    if (level.time - last_cache_time < CACHE_DURATION) {
+        return cached_count;
+    }
+
     int32_t live_monster_count = 0;
 
     // Use the efficient 'active_monsters' iterator.
@@ -8259,6 +8285,10 @@ int32_t GetStroggsNum() noexcept
         // The monster is inuse, alive, and meant to be counted.
         live_monster_count++;
     }
+
+    // Update cache
+    cached_count = live_monster_count;
+    last_cache_time = level.time;
 
     return live_monster_count;
 }

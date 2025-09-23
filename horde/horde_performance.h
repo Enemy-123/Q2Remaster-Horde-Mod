@@ -48,15 +48,24 @@ public:
 };
 
 // ============================================================================
-// Spawn Point Spatial Index
+// Spawn Point Spatial Index (Optimized Hash-Grid Implementation)
 // ============================================================================
 class SpawnPointSpatialIndex {
     static constexpr int CELL_SIZE = 512;
     static constexpr int CELL_SHIFT = 9; // log2(512)
 
     struct Cell {
-        std::vector<edict_t*> spawn_points;
-        gtime_t last_update = 0_ms;
+        static constexpr size_t MAX_SPAWNS_PER_CELL = 16;
+        std::array<edict_t*, MAX_SPAWNS_PER_CELL> spawn_points;
+        size_t count = 0;
+
+        void clear() { count = 0; }
+
+        void add(edict_t* spawn) {
+            if (count < MAX_SPAWNS_PER_CELL) {
+                spawn_points[count++] = spawn;
+            }
+        }
     };
 
     std::unordered_map<uint32_t, Cell> grid_cells;
@@ -74,8 +83,7 @@ public:
 
         all_spawn_points.push_back(spawn_point);
         uint32_t key = GetCellKey(spawn_point->s.origin);
-        grid_cells[key].spawn_points.push_back(spawn_point);
-        grid_cells[key].last_update = level.time;
+        grid_cells[key].add(spawn_point);
     }
 
     void Clear() {
@@ -85,11 +93,11 @@ public:
 
     std::vector<edict_t*> GetNearbySpawnPoints(const vec3_t& pos, float radius) {
         std::vector<edict_t*> result;
-        int cell_radius = static_cast<int>(radius / CELL_SIZE) + 1;
+        result.reserve(32); // Reserve space for typical nearby spawn count
 
+        int cell_radius = static_cast<int>(radius / CELL_SIZE) + 1;
         int center_x = static_cast<int>(pos.x) >> CELL_SHIFT;
         int center_y = static_cast<int>(pos.y) >> CELL_SHIFT;
-
         float radius_sq = radius * radius;
 
         for (int dx = -cell_radius; dx <= cell_radius; ++dx) {
@@ -99,7 +107,11 @@ public:
 
                 auto it = grid_cells.find(key);
                 if (it != grid_cells.end()) {
-                    for (edict_t* spawn : it->second.spawn_points) {
+                    const Cell& cell = it->second;
+                    for (size_t i = 0; i < cell.count; ++i) {
+                        edict_t* spawn = cell.spawn_points[i];
+                        if (!spawn || !spawn->inuse) continue;
+
                         vec3_t diff = spawn->s.origin - pos;
                         if (diff.lengthSquared() <= radius_sq) {
                             result.push_back(spawn);

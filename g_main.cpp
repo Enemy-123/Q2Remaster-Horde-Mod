@@ -1114,6 +1114,7 @@ inline void G_RunFrame_(bool main_loop)
                 world_maxs += vec3_t{512, 512, 512};
 
                 HordePhys::g_monster_grid.Build(world_mins, world_maxs);
+                HordePhys::g_entity_grid.Build(world_mins, world_maxs);
                 last_map_for_grid = level.mapname;
             }
 
@@ -1121,16 +1122,43 @@ inline void G_RunFrame_(bool main_loop)
             // frame's data and then uses the efficient iterators to add only the
             // relevant entities (monsters, players, projectiles) to the grid.
             HordePhys::g_monster_grid.Reset();
+            HordePhys::g_entity_grid.Reset();
+
             for (auto* monster : active_monsters()) {
                 HordePhys::g_monster_grid.Add(monster);
+                HordePhys::g_entity_grid.AddEntity(monster);
             }
 			for (auto *player : active_players_no_spect()) {
 				if (player && player->inuse && player->health > 0 && !EntIsSpectating(player)) {
 					HordePhys::g_monster_grid.Add(player);
+					HordePhys::g_entity_grid.AddEntity(player);
 				}
 			}
 			for (auto* proj : active_projectiles()) {
 				HordePhys::g_monster_grid.Add(proj);
+				HordePhys::g_entity_grid.AddEntity(proj);
+			}
+
+			// Add other damageable entities more efficiently
+			// Start after maxclients + BODY_QUEUE_SIZE to skip body queue
+			const uint32_t start_idx = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1;
+
+			// Only scan entities that are likely to be damageable and relevant
+			for (uint32_t i = start_idx; i < globals.num_edicts; i++) {
+				edict_t* ent = &g_edicts[i];
+				if (!ent->inuse || !ent->takedamage)
+					continue;
+
+				// Skip entities already added (monsters, players, projectiles)
+				if (ent->svflags & SVF_MONSTER)
+					continue;
+				if (ent->client)
+					continue;
+				if (ent->flags & SVF_PROJECTILE)
+					continue;
+
+				// Add other damageable entities (barrels, breakables, etc.)
+				HordePhys::g_entity_grid.AddEntity(ent);
 			}
 
             if (developer->integer >= 2) {

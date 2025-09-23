@@ -66,4 +66,35 @@ namespace HordePhys {
 
     extern ProximityGrid g_monster_grid;
 
+    // General entity grid for all entity types (not just monsters)
+    class EntityGrid : public ProximityGrid {
+    public:
+        // Add entity with type filtering
+        void AddEntity(edict_t* ent);
+
+        // Query entities by type flags
+        std::span<edict_t* const> QueryRadiusFiltered(const vec3_t& origin, float radius, uint32_t type_mask = 0xFFFFFFFF);
+
+        // Update entity position (for moving entities)
+        void UpdateEntity(edict_t* ent);
+
+        // Entity type masks for filtering
+        enum EntityTypeMask : uint32_t {
+            TYPE_PLAYERS    = 1 << 0,
+            TYPE_MONSTERS   = 1 << 1,
+            TYPE_ITEMS      = 1 << 2,
+            TYPE_PROJECTILES = 1 << 3,
+            TYPE_TRIGGERS   = 1 << 4,
+            TYPE_ALL        = 0xFFFFFFFF
+        };
+
+    private:
+        // Cache for entity types to avoid repeated classname checks
+        std::array<uint32_t, MAX_EDICTS> m_entity_types;
+
+        uint32_t GetEntityType(edict_t* ent) const;
+    };
+
+    extern EntityGrid g_entity_grid;
+
 } // namespace HordePhys

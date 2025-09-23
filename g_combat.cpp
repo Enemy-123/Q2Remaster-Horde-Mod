@@ -4,6 +4,8 @@
 
 #include "g_local.h"
 #include "horde/g_horde_benefits.h"
+#include "horde/g_horde_phys.h"
+#include "horde/horde_performance.h"
 #include "shared.h"
 
 
@@ -1350,7 +1352,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			size_t i;
 			for (i = 0; i < client->num_damage_indicators; i++)
 			{
-				if ((point - client->damage_indicators[i].from).length() < 32.f)
+				if (sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(point, client->damage_indicators[i].from)) < 32.f)
 				{
 					indicator = &client->damage_indicators[i];
 					break;
@@ -1397,8 +1399,10 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 		damage_modifier = M_DamageModifier(attacker);
 	}
 
-	edict_t* ent = nullptr;
-	while ((ent = findradius(ent, inflictor_center, radius)) != nullptr)
+	// PERFORMANCE OPTIMIZATION: Use spatial grid for massive speedup over findradius
+	auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(inflictor_center, radius, HordePhys::EntityGrid::TYPE_ALL);
+
+	for (edict_t* ent : nearby_entities)
 	{
 		if (ent == ignore || !ent->takedamage)
 			continue;
@@ -1419,7 +1423,7 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 
 		// Vector from explosion center to the entity's impact point
 		vec3_t force_vec = damage_point - inflictor_center;
-		float dist = force_vec.length();
+		float dist = sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(damage_point, inflictor_center));
 
 		float points = damage - 0.5f * dist;
 
