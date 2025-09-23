@@ -94,7 +94,7 @@ static bool need_frame_timer_reset = false;
 static bool need_queue_monitor_reset = false;
 
 // retaliation horde ( for when players are killing way too ez new/current wave in spawning state)
-static bool g_horde_retaliation_active = false;
+// REMOVED: Using g_special_spawn_state.type == SpecialSpawnType::Retaliation instead
 
 // --- NEW: UNIFIED SPECIAL SPAWN SYSTEM ---
 enum class SpecialSpawnType {
@@ -4865,7 +4865,7 @@ void ResetGame()
     // =======================================================================
     g_spawn_plan.clear();
     g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
-    g_horde_retaliation_active = false; // Keep this for now
+    // REMOVED: g_horde_retaliation_active - using g_special_spawn_state.type instead
     g_horde_retaliation_end_time = 0_sec;
     g_horde_retaliation_target_player = nullptr;
     // =======================================================================
@@ -6182,7 +6182,7 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 			(spawn_progress >= HordeConstants::MIN_SPAWN_PROGRESS_FOR_RETALIATION || monsters_spawned_in_current_phase >= HordeConstants::MIN_SPAWNED_FOR_RETALIATION))
 		{
 			// Check cooldown to prevent retaliation from triggering too frequently
-			if (!g_horde_retaliation_active &&
+			if (g_special_spawn_state.type != SpecialSpawnType::Retaliation &&
 				(level.time - g_horde_retaliation_last_trigger_time) >= HordeConstants::RETALIATION_COOLDOWN)
 			{
 				// Find the best player to target for the retaliation
@@ -6601,8 +6601,8 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 	g_special_spawn_state.champion_chance = 0.6f + (frandom() * 0.25f);
 	g_special_spawn_state.target_player = target_player;
 
-	// Also set the global retaliation flag for other systems (like champion chance)
-	g_horde_retaliation_active = true;
+	// Retaliation state is now managed through g_special_spawn_state
+	// The type was already set above in g_special_spawn_state.type = SpecialSpawnType::Retaliation
 	g_horde_retaliation_end_time = level.time + HordeConstants::RETALIATION_DURATION;
 	g_horde_retaliation_target_player = target_player;
 }
@@ -6804,7 +6804,7 @@ void PlanNextSpawnBatch()
 			currentLevel,
 			champion_chance_for_batch,
 			g_recovery_mode_active,
-			g_horde_retaliation_active,
+			(g_special_spawn_state.type == SpecialSpawnType::Retaliation),
 			current_wave_type,
 			g_original_wave_type_before_recovery);
 	}
@@ -6943,7 +6943,7 @@ static void DetermineSpawnStrategy(const horde::MapSize &mapSize, int32_t &out_s
 	}
 
 	out_champion_chance = 0.2f;
-	if (g_horde_retaliation_active)
+	if (g_special_spawn_state.type == SpecialSpawnType::Retaliation)
 	{
 		out_champion_chance = 0.40f;
 		if (developer->integer > 1)
@@ -8067,8 +8067,8 @@ void Horde_RunFrame()
 	CheckAndReduceSpawnCooldowns();
 
 	// Check if retaliation mode has timed out
-	if (g_horde_retaliation_active && currentTime >= g_horde_retaliation_end_time) {
-		g_horde_retaliation_active = false;
+	if (g_special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
+		g_special_spawn_state.clear();  // Clear the entire special spawn state
 		g_horde_retaliation_end_time = 0_sec;
 		g_horde_retaliation_target_player = nullptr;
 		if (developer->integer) {
@@ -8378,7 +8378,7 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	g_spawn_plan.clear();
 	g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
-	g_horde_retaliation_active = false; // Keep this for now
+	// REMOVED: g_horde_retaliation_active - using g_special_spawn_state.type instead
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;
