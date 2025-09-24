@@ -349,7 +349,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 
     // Case 1: The inflictor is a deployable itself (like a Tesla mine).
     if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
-                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+                      inflictor->monsterinfo.issummoned ||
 					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER)))
     {
@@ -361,9 +361,9 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
         threat_source = inflictor->owner; // The threat is the emitter.
     }
     // Case 3: The inflictor is a projectile whose owner is a deployable (e.g., a bullet from a sentry).
-    else if (inflictor && inflictor->owner && horde::IsSpecialType(inflictor->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
+    else if (inflictor && inflictor->owner && inflictor->owner->monsterinfo.issummoned)
     {
-        threat_source = inflictor->owner; // The threat is the sentry gun.
+        threat_source = inflictor->owner; // The threat is the summoned entity.
     }
     // Case 4 (CORRECTED): The inflictor is a projectile/sphere whose owner is a doppelganger.
     else if (inflictor && inflictor->owner && horde::IsSpecialType(inflictor->owner, horde::SpecialEntityTypeID::DOPPLEGANGER))
@@ -377,21 +377,21 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     {
         // Check if the monster should target this type of deployable.
         if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) ||
-            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+            threat_source->monsterinfo.issummoned ||
 			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
             horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
         {
             new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
 
-            // Sentry Gun or Laser Emitter logic
-            if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+            // Summoned entities or Laser Emitter logic
+            if (threat_source->monsterinfo.issummoned ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
             {
                 if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
                 {
                     if ((new_tesla || brandom()) && (!targ->enemy ||
-                        !(horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+                        !(targ->enemy->monsterinfo.issummoned ||
 					  	 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
                     {
@@ -511,7 +511,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
 			(targ->monsterinfo.monster_type_id != attacker->monsterinfo.monster_type_id) &&
 			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
-				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+				attacker->monsterinfo.issummoned ||
 				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::LASER_EMITTER)) &&
 			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
@@ -875,9 +875,9 @@ static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // const an
 		return false;
 	}
 
-	// Check for sentrygun first (most common special case)
-	if (horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN)) {
-		return false; // Sentry guns should not benefit from vampire effect when attacking
+	// Check for summoned entities first (most common special case)
+	if (attacker->monsterinfo.issummoned) {
+		return false; // Summoned entities should not benefit from vampire effect when attacking
 	}
 
 	// Check if it's a player (not a monster)
