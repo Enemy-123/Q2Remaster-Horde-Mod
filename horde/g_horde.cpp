@@ -1805,7 +1805,7 @@ static const HordeItemInfo hordeItemData[] = {
 	{IT_ITEM_DOPPELGANGER, 0.15f, 6},	// Utility/Distraction (Rogue)
 	{IT_ITEM_TELEPORT, 0.2f, 3},		// Utility Escape
 	{IT_ITEM_SENTRYGUN, 0.3f, 5},		// Deployable Defense
-	{IT_ITEM_STROGGSUMM, 0.12f, 18},		// Strogg Summoner (Debug High Chance)
+	{IT_ITEM_STROGGSUMM, 0.12f, 5},		// Strogg Summoner (Debug High Chance)
 
 	// --- Health ---
 	{IT_HEALTH_SMALL, 1.8f, 1},	 // Very common
@@ -7010,18 +7010,7 @@ gtime_t GetWaveTimer()
 // Helper functionget stroggs alive on the map
 int32_t GetStroggsNum() noexcept
 {
-    // Simple cache to avoid redundant iterations
-    static int32_t cached_count = 0;
-    static gtime_t last_cache_time = 0_ms;
-
-    // Cache valid for 100ms - monsters don't spawn/die that frequently
-    constexpr gtime_t CACHE_DURATION = 100_ms;
-    if (level.time - last_cache_time < CACHE_DURATION) {
-        return cached_count;
-    }
-
     int32_t live_monster_count = 0;
-
     // Use the efficient 'active_monsters' iterator.
     for (edict_t* ent : active_monsters())
     {
@@ -7036,11 +7025,6 @@ int32_t GetStroggsNum() noexcept
         // The monster is inuse, alive, and meant to be counted.
         live_monster_count++;
     }
-
-	    // Update cache
-    cached_count = live_monster_count;
-    last_cache_time = level.time;
-
     return live_monster_count;
 }
 
