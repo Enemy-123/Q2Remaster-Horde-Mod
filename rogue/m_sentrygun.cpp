@@ -1042,18 +1042,11 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 	vec3_t angles = vectoangles(fire_dir);
 	AngleVectors(angles, nullptr, &right, &up);
 	
-	// Fire two rockets with horizontal spread
+	// Fire two rockets with horizontal spread using fire_rocket
 	for (int i = 0; i < 2; i++)
 	{
-		edict_t* heat = G_Spawn();
-		
-		if (!heat)
-			continue;
-
 		const int damage = static_cast<int>(CalculateDamage(self, 100));
 		const float damage_radius = 120;
-		const int radius_damage = damage;
-		const float turn_fraction = 0.08f; // Increased turning rate for better homing
 
 		// Apply spread to initial fire direction
 		vec3_t spread_dir = fire_dir;
@@ -1064,52 +1057,38 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 		else
 			spread_dir = (fire_dir - right * spread_amount).normalized(); // Left rocket
 
-		heat->s.origin = start;
-		heat->movedir = spread_dir;
-		heat->s.angles = vectoangles(spread_dir);
-		heat->velocity = spread_dir * speed;
-		heat->movetype = MOVETYPE_FLYMISSILE;
-		heat->svflags |= SVF_PROJECTILE;
-		heat->flags |= FL_DODGE;
-		heat->clipmask = MASK_PROJECTILE;
-		// Prevent collision with players if friendly fire is off
-		if (self->owner && self->owner->client && !G_ShouldPlayersCollide(true))
-			heat->clipmask &= ~CONTENTS_PLAYER;
-		heat->solid = SOLID_BBOX;
-		heat->s.effects |= EF_ROCKET;
-		heat->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
-		heat->s.scale = 1.5f;
-		heat->owner = self; // Set owner to the sentry itself to avoid collision with it
-		heat->touch = turret_heat_touch;
+		// Use fire_rocket to create the rocket with proper collision handling
+		edict_t* heat = fire_rocket(self->owner, start, spread_dir, damage, speed, damage_radius, damage);
+		
+		if (!heat)
+			continue;
+
+		// Modify the rocket to be heat-seeking
+		const float turn_fraction = 0.08f; // Turning rate for better homing
+		
+		heat->s.scale = 1.5f; // Larger rocket model
 		heat->speed = speed / 1.45;
 		heat->yaw_speed = speed * 2.4;
 		heat->accel = turn_fraction;
 		heat->pos1 = rest_dir; // Both rockets converge to same target
-		heat->mins = { -5, -5, -5 };
-		heat->maxs = { 5, 5, 5 };
-
-		// Auto-destruct timer like normal rockets
-	//	heat->delay = level.time + gtime_t::from_sec(8000.f / speed);
-
-		// Delay think for spread effect
-		heat->nextthink = level.time + (0.15_sec + gtime_t::from_sec(i * 0.05f));
-		heat->think = heat_turret_think;
-
-		heat->dmg = damage;
-		heat->radius_dmg = radius_damage;
-		heat->dmg_radius = damage_radius;
-		heat->s.sound = gi.soundindex("weapons/rockfly.wav");
-
+		heat->movedir = spread_dir; // Initial direction
+		
+		// Store the initial enemy target if visible
 		if (visible(heat, self->enemy))
 		{
-			heat->oldenemy = self->enemy;
 			heat->enemy = self->enemy;
 			heat->timestamp = level.time + 0.6_sec;
 			if (i == 0) // Only play sound once
 				gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
 		}
 
-		gi.linkentity(heat);
+		// Replace the think function with heat-seeking logic
+		// Delay think for spread effect
+		heat->nextthink = level.time + (0.15_sec + gtime_t::from_sec(i * 0.05f));
+		heat->think = heat_turret_think;
+
+		// Keep the auto-destruct timer from fire_rocket
+		//heat->delay = level.time + gtime_t::from_sec(8000.f / speed);
 	}
 	
 	self->monsterinfo.last_sentry_missile_fire_time = level.time; // Reset timer to current time so we can fire again in 1.5/0.75 seconds
