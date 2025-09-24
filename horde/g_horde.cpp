@@ -1972,12 +1972,12 @@ constexpr std::array<WaveDefinition, 8> WAVE_DEFINITIONS_SRC = {{
 
 // Source data for special waves (chance is calculated at runtime based on player count)
 static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = {{{MonsterWaveType::Gekk, 0.0f, 5, 7, "*** Gekk invasion incoming! ***\n"},
-																  {MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 25, "*** Enraged Horde approaching! ***\n"},
+																  {MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, -1, "*** Enraged Horde approaching! ***\n"},
 																  {MonsterWaveType::Flying | MonsterWaveType::Fast, 0.2f, 9, -1, "*** Aerial assault incoming! ***\n"},
 																  {MonsterWaveType::Berserk, 0.2f, 8, 12, "*** Berserkers incoming! ***\n"},
 																  {MonsterWaveType::Bomber, 0.35f, 10, -1, "*** Strogg Bomber Units Arrived! ***\n"},
 																  {MonsterWaveType::Heavy, 0.2f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
-																  {MonsterWaveType::Spawner, 0.75f, 25, -1, "*** Spawners Deployed! ***\n"}}};
+																  {MonsterWaveType::Spawner | MonsterWaveType::Bomber, 0.3f, 25, -1, "*** Spawners & Bombers Deployed! ***\n"}}};;
 
 // --- Step 3: Define  Data Structures (SoA) ---
 
