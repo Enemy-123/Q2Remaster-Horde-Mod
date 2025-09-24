@@ -4171,7 +4171,7 @@ model="models/items/keys/pass/tris.md2"
 	//QUAKED item_stroggsumm (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
 		{
 			/* id */ IT_ITEM_STROGGSUMM,
-			/* classname */ "a",
+			/* classname */ "item_stroggsumm",
 			/* pickup */ Pickup_General,
 			/* use */ Use_StroggSummon,
 			/* drop */ Drop_General,
