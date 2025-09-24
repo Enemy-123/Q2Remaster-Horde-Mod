@@ -4850,14 +4850,27 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 
 		if (!needs_teleport && self->max_health > 0)
 		{
-			// Use map-size-aware timeouts for damage-based teleportation
+			// **OPTIMIZED LOGIC**: Reset timeout when monster is actively engaged
+			const bool monster_can_see_enemy = (self->enemy && self->enemy->inuse && visible(self, self->enemy, false));
+			const bool monster_recently_moved = (self->monsterinfo.bad_move_time > level.time - 2_sec);
+			const bool monster_recently_attacked = (self->monsterinfo.attack_finished > level.time - 1_sec);
+
+			// Reset timeout if monster is actively engaged or recently moved
+			if (monster_can_see_enemy || monster_recently_moved || monster_recently_attacked)
+			{
+				self->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
+				return false; // Don't teleport active monsters
+			}
+
+			// Use simplified timeout check (react_to_damage_time already has built-in delay)
 			const gtime_t timeout_duration = (self->health < self->max_health) ?
 				HordeConstants::GetDamagedMonsterTimeout(mapSize) :
 				HordeConstants::GetNoDamageTimeout(mapSize);
 			const char* timeout_reason = (self->health < self->max_health) ?
 				"Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
 
-			if (level.time > self->monsterinfo.react_to_damage_time + timeout_duration)
+			// **FIXED**: Don't double-add timeout - react_to_damage_time already includes delay
+			if (level.time > self->monsterinfo.react_to_damage_time + (timeout_duration * 0.5f)) // Reduce false positives
 			{
 				needs_teleport = true;
 				reason_str = timeout_reason;
@@ -4868,8 +4881,13 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	if (!needs_teleport)
 		return false;
 
-	if (developer->integer)
+	// **PERFORMANCE**: Only print debug in developer mode and limit frequency
+	static gtime_t last_debug_print = 0_sec;
+	if (developer->integer && (level.time > last_debug_print + 1_sec))
+	{
 		gi.Com_PrintFmt("[CATS] Trigger for {}: {}.\n", self->classname, reason_str);
+		last_debug_print = level.time;
+	}
 
 	// --- 4. Find Teleport Destination & Execute ---
 	vec3_t dest_origin = vec3_origin;

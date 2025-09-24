@@ -877,6 +877,13 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	if (trace.fraction < 1.f)
 		G_Impact(ent, trace);
 
+	// **HORDE OPTIMIZATION**: Reset damage timeout only if monster can see enemy or took damage
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
+		((ent->enemy && ent->enemy->inuse && visible(ent, ent->enemy, false)) || ent->health < ent->max_health))
+	{
+		ent->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
+	}
+
 	return true;
 }
 
@@ -1083,7 +1090,13 @@ bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 			(tdir_y == 90.0f ? 135.0f : 225.0f);
 
 		if (diagonal_dir != turnaround && SV_StepDirection(actor, diagonal_dir, dist, false))
+		{
+			// **HORDE OPTIMIZATION**: Reset damage timeout only if monster has enemy or recently took damage
+			if (g_horde->integer && (actor->svflags & SVF_MONSTER) &&
+				(actor->enemy || actor->health < actor->max_health))
+				actor->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
 			return true;
+		}
 	}
 
 	// Determine movement priority based on situation
@@ -1094,12 +1107,24 @@ bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 	// Try primary direction
 	if (primary_dir != DI_NODIR && primary_dir != turnaround)
 		if (SV_StepDirection(actor, primary_dir, dist, false))
+		{
+			// **HORDE OPTIMIZATION**: Reset damage timeout only if monster has enemy or recently took damage
+			if (g_horde->integer && (actor->svflags & SVF_MONSTER) &&
+				(actor->enemy || actor->health < actor->max_health))
+				actor->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
 			return true;
+		}
 
 	// Try secondary direction
 	if (secondary_dir != DI_NODIR && secondary_dir != turnaround)
 		if (SV_StepDirection(actor, secondary_dir, dist, false))
+		{
+			// **HORDE OPTIMIZATION**: Reset damage timeout only if monster has enemy or recently took damage
+			if (g_horde->integer && (actor->svflags & SVF_MONSTER) &&
+				(actor->enemy || actor->health < actor->max_health))
+				actor->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
 			return true;
+		}
 
 	// Handle specific monster blocked behavior
 	if (actor->monsterinfo.blocked && actor->health > 0 &&
