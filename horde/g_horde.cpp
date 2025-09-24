@@ -3395,24 +3395,62 @@ void AppendHordeMessage_impl(std::string_view message, gtime_t duration)
 		return;
 	}
 
-	// Get current message from the configstring
-	std::string current_msg_str = gi.get_configstring(CONFIG_HORDEMSG);
+	// Get current message from the configstring as string_view to avoid allocation
+	const char* current_msg_ptr = gi.get_configstring(CONFIG_HORDEMSG);
+	size_t current_len = current_msg_ptr ? strlen(current_msg_ptr) : 0;
 
-	// Append the new message with a newline for readability
-	if (!current_msg_str.empty())
-	{
-		current_msg_str += "\n"; // Add a newline before appending
+	// Calculate required size
+	size_t new_len = current_len;
+	if (current_len > 0) {
+		new_len++; // For newline
 	}
-	current_msg_str += message;
+	new_len += message.length();
 
-	// Ensure the combined message does not exceed configstring limits
-	if (current_msg_str.length() >= MAX_STRING_CHARS)
-	{
-		current_msg_str.resize(MAX_STRING_CHARS - 1); // Truncate to fit
+	// Check if we exceed the limit
+	if (new_len >= MAX_STRING_CHARS) {
+		// If the new message alone would overflow, truncate it
+		if (message.length() >= MAX_STRING_CHARS) {
+			// Use a static buffer to avoid allocation
+			static char truncated_msg[MAX_STRING_CHARS];
+			size_t copy_len = std::min(message.length(), MAX_STRING_CHARS - 1);
+			memcpy(truncated_msg, message.data(), copy_len);
+			truncated_msg[copy_len] = '\0';
+			gi.configstring(CONFIG_HORDEMSG, truncated_msg);
+		} else {
+			// Need to combine messages - only allocate when necessary
+			std::string combined_msg;
+			combined_msg.reserve(MAX_STRING_CHARS);
+
+			if (current_len > 0) {
+				combined_msg.append(current_msg_ptr, current_len);
+				combined_msg += '\n';
+			}
+			combined_msg.append(message);
+
+			// Truncate if needed
+			if (combined_msg.length() >= MAX_STRING_CHARS) {
+				combined_msg.resize(MAX_STRING_CHARS - 1);
+			}
+
+			gi.configstring(CONFIG_HORDEMSG, combined_msg.c_str());
+		}
+	} else {
+		// Optimized path: build message in static buffer to avoid allocation
+		static char msg_buffer[MAX_STRING_CHARS];
+		char* write_ptr = msg_buffer;
+
+		if (current_len > 0) {
+			memcpy(write_ptr, current_msg_ptr, current_len);
+			write_ptr += current_len;
+			*write_ptr++ = '\n';
+		}
+
+		memcpy(write_ptr, message.data(), message.length());
+		write_ptr += message.length();
+		*write_ptr = '\0';
+
+		gi.configstring(CONFIG_HORDEMSG, msg_buffer);
 	}
-
-	// Set the combined message back to the configstring
-	gi.configstring(CONFIG_HORDEMSG, current_msg_str.c_str());
 
 	// Extend or set the duration for the new combined message
 	horde_message_end_time = level.time + duration;

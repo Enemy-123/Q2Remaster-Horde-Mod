@@ -73,61 +73,74 @@ public:
 	}
 
 private:
-	// localized print functions
+	// localized print functions - improved type safety and buffer overflow protection
 	template<typename T>
-	inline void loc_embed(T input, char* buffer, const char*& output) // buffer is the static array element, output is the ptr to store result
+	inline void loc_embed(T input, char* buffer, const char*& output) // buffer is MAX_INFO_STRING sized
 	{
-		// Ensure includes are available: <fmt/format.h>, <cstring>, <type_traits>
-	
+		static_assert(MAX_INFO_STRING > 0, "Buffer size must be positive");
+
 		// Check for potential null pointer if T could be a pointer type other than const char*
 		if constexpr (std::is_pointer_v<T> && !is_char_ptr_v<T>) {
-			 if (!input) {
-				  Com_Error("null pointer passed to loc_embed");
-				  output = ""; // Assign empty string on error
-				  return;
-			 }
+			if (!input) {
+				// Don't crash, just use empty string for null pointers
+				output = "";
+				return;
+			}
 		}
-	
-	
+
 		if constexpr (std::is_floating_point_v<std::remove_cvref_t<T>> || std::is_integral_v<std::remove_cvref_t<T>>)
 		{
-			// Use fmt::format_to to write directly into the provided buffer
-			try {
-				auto result = fmt::format_to_n(buffer, MAX_INFO_STRING - 1, "{}", input);
-				*result.out = '\0'; // Null-terminate the resulting string in the buffer
-				output = buffer;    // Store the pointer TO THE START of the buffer (where the string now resides)
-			} catch (const std::exception& e) {
-				 Com_PrintFmt("Formatting error in loc_embed: {}\n", e.what());
-				 *buffer = '\0'; // Ensure buffer is empty on error
-				 output = buffer; // Point to the empty string
+			// Format numbers safely into the buffer
+			auto result = fmt::format_to_n(buffer, MAX_INFO_STRING - 1, "{}", input);
+			*result.out = '\0'; // Null-terminate
+			output = buffer;
+
+			// Debug check for truncation
+#ifdef _DEBUG
+			if (result.size > MAX_INFO_STRING - 1) {
+				Com_PrintFmt("Warning: Number truncated in loc_embed (needed {} bytes)\n", result.size);
 			}
-	
+#endif
 		}
 		else if constexpr (is_char_ptr_v<T>) // Handle const char*, char*, char[], etc.
 		{
 			if (!input) {
-				// Com_Error("null const char ptr passed to loc"); // Maybe too strict, allow null?
-				output = ""; // Assign pointer to an empty string if input is null
+				output = ""; // Use empty string for null
 			} else {
-				 // Simply store the pointer to the existing C-string
-				 output = input;
+				// Check string length to avoid reading beyond bounds
+				size_t len = strnlen(input, MAX_INFO_STRING);
+				if (len >= MAX_INFO_STRING) {
+					// String is too long, need to copy and truncate
+					memcpy(buffer, input, MAX_INFO_STRING - 1);
+					buffer[MAX_INFO_STRING - 1] = '\0';
+					output = buffer;
+#ifdef _DEBUG
+					Com_Print("Warning: String truncated in loc_embed\n");
+#endif
+				} else {
+					// String is safe to use directly
+					output = input;
+				}
 			}
 		}
-		// Add handling for std::string, std::string_view if needed
 		else if constexpr (std::is_convertible_v<T, std::string_view>) {
-			 std::string_view sv(input);
-			 // Cannot directly store pointer to potentially temporary string_view data.
-			 // Copy it into the buffer.
-			 size_t len_to_copy = std::min(sv.length(), MAX_INFO_STRING - 1);
-			 memcpy(buffer, sv.data(), len_to_copy);
-			 buffer[len_to_copy] = '\0';
-			 output = buffer; // Point to the copied string in the buffer
+			std::string_view sv(input);
+			// Copy string_view data to buffer (it might be temporary)
+			size_t len_to_copy = std::min(sv.length(), static_cast<size_t>(MAX_INFO_STRING - 1));
+			memcpy(buffer, sv.data(), len_to_copy);
+			buffer[len_to_copy] = '\0';
+			output = buffer;
+
+#ifdef _DEBUG
+			if (sv.length() >= MAX_INFO_STRING) {
+				Com_PrintFmt("Warning: string_view truncated in loc_embed (had {} bytes)\n", sv.length());
+			}
+#endif
 		}
 		else {
-			// Use static_assert to give a compile-time error for unsupported types
+			// Compile-time error for unsupported types
 			static_assert(!std::is_same_v<T,T>, "Unsupported type passed to loc_embed");
-			// Com_Error("invalid loc argument type"); // Runtime error if static_assert fails somehow
-			output = "[INVALID_TYPE]";
+			output = "[INVALID_TYPE]"; // Fallback (should never reach here)
 		}
 	}
 

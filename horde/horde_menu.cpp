@@ -204,7 +204,8 @@ void HordeUpdateJoinMenu(edict_t* ent)
 
 		// Update the player count display entry
 		Q_strlcpy(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text, "$g_pc_playercount", sizeof(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text));
-		// G_FmtTo is correctly used for the argument here.
+		// Safely format player count into the 64-byte text_arg1 buffer
+		// text_arg1 is 64 bytes, sufficient for any reasonable player count
 		G_FmtTo(entries[JOINMENU_JOIN_HORDE_COUNT_IDX].text_arg1, "{}", horde_player_count);
 	}
 	else // Not Horde or Coop mode
@@ -1588,8 +1589,9 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 
 	// Add Upgrade Menu with total points display
 	int total_points = ent->client->pers.ability_points + ent->client->pers.weapon_points;
-	std::string upgrade_text = std::string(G_Fmt("Upgrade Menu (Points: {})", total_points));
-	add_entry(upgrade_text.c_str(), PMENU_ALIGN_LEFT, HordeMenuHandler);
+	// Use string_view directly, no need for std::string allocation
+	auto upgrade_text = G_Fmt("Upgrade Menu (Points: {})", total_points);
+	add_entry(upgrade_text.data(), PMENU_ALIGN_LEFT, HordeMenuHandler);
 
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
