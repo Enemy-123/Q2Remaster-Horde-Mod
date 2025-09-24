@@ -1028,6 +1028,7 @@ enum item_id_t : int32_t {
 	IT_ITEM_MENU,
 	IT_ITEM_TELEPORT,
 	IT_ITEM_SENTRYGUN,
+	IT_ITEM_STROGGSUMM,
 
 	IT_TOTAL
 };
@@ -2814,6 +2815,7 @@ void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* mons
 // g_rogue_items
 
 void Use_SentryGun(edict_t* ent, gitem_t* item);
+void Use_StroggSummon(edict_t* ent, gitem_t* item);
 bool Pickup_SentryGun(edict_t* ent, edict_t* other);
 void Use_TeleportSelf(edict_t* ent, gitem_t* item);
 bool Pickup_Teleport(edict_t* ent, edict_t* other);

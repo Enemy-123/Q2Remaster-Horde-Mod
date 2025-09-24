@@ -4168,6 +4168,32 @@ model="models/items/keys/pass/tris.md2"
 			/* precaches */ "models/monsters/turret/tris.md2 gunner/gunidle1.wav turret/moving.wav",
 		},
 
+	//QUAKED item_stroggsumm (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
+		{
+			/* id */ IT_ITEM_STROGGSUMM,
+			/* classname */ "a",
+			/* pickup */ Pickup_General,
+			/* use */ Use_StroggSummon,
+			/* drop */ Drop_General,
+			/* weaponthink */ nullptr,
+			/* pickup_sound */ "items/pkup.wav",
+			/* world_model */ "models/items/keys/red_key/tris.md2",
+			/* world_model_flags */ EF_ROTATE | EF_BOB,
+			/* view_model */ nullptr,
+			/* icon */ "k_redkey",
+			/* use_name */  "Strogg Summoner",
+			/* pickup_name */  "Strogg Summoner\n",
+			/* pickup_name_definite */ "Strogg Summoner\n",
+			/* quantity */ 1,
+			/* ammo */ IT_NULL,
+			/* chain */ IT_NULL,
+			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
+			/* vwep_model */ nullptr,
+			/* armor_info */ nullptr,
+			/* tag */ POWERUP_SENTRYGUN + 1,
+			/* precaches */ "items/pkup.wav",
+		},
+
 };
 // clang-format on
 

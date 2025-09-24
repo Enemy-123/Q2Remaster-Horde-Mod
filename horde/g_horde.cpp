@@ -1805,6 +1805,7 @@ static const HordeItemInfo hordeItemData[] = {
 	{IT_ITEM_DOPPELGANGER, 0.15f, 6},	// Utility/Distraction (Rogue)
 	{IT_ITEM_TELEPORT, 0.2f, 3},		// Utility Escape
 	{IT_ITEM_SENTRYGUN, 0.3f, 5},		// Deployable Defense
+	{IT_ITEM_STROGGSUMM, 0.12f, 18},		// Strogg Summoner (Debug High Chance)
 
 	// --- Health ---
 	{IT_HEALTH_SMALL, 1.8f, 1},	 // Very common
@@ -6655,9 +6656,10 @@ struct RewardInfo
 };
 
 // Define the rewards ONLY ONCE in this array
-static const std::array<RewardInfo, 3> TOP_DAMAGER_REWARDS = {{
+static const std::array<RewardInfo, 4> TOP_DAMAGER_REWARDS = {{
 	{IT_ITEM_BANDOLIER, 60}, // More common
 	{IT_ITEM_SENTRYGUN, 30}, // Less common
+	{IT_ITEM_STROGGSUMM, 80}, // Strogg Summoner (Debug High Chance)
 	{IT_AMMO_NUKE, 2}		 // More common
 }};
 
