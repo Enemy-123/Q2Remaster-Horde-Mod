@@ -32,7 +32,7 @@ static cached_soundindex sound_chantmid;
 static cached_soundindex sound_chanthigh;
 
 void gekk_swim(edict_t* self);
-
+void gekk_save_enemy_pos(edict_t* self);
 void gekk_jump_takeoff(edict_t* self);
 void gekk_jump_takeoff2(edict_t* self);
 void gekk_check_landing(edict_t* self);
@@ -770,6 +770,47 @@ void loogie(edict_t* self)
 	gi.sound(self, CHAN_BODY, sound_speet, 1.0f, ATTN_NORM, 0);
 }
 
+void reloogie(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+	{
+		return;
+	}
+
+	float idle_chance = IsBonusMonster(self) ? 0.95f : 0.8f;
+	
+	if (frandom() > idle_chance && self->health < self->max_health)
+	{
+		M_SetAnimation(self, &gekk_move_idle2);
+		return;
+	}
+
+	if (self->enemy->health > 0)
+		if ((range_to(self, self->enemy) <= RANGE_NEAR))
+		{
+			gekk_save_enemy_pos(self);
+			// Bonus monsters use spitharder more often in reloogie chains
+			if (IsBonusMonster(self) && frandom() > 0.4f) {
+				M_SetAnimation(self, &gekk_move_spitharder);
+			} else {
+				M_SetAnimation(self, &gekk_move_spit);
+			}
+		}
+}
+
+//readded spitharder, frandom chance to spit again in a burst
+mframe_t gekk_frames_spitharder[] = {
+	{ ai_charge, 0, gekk_save_enemy_pos },
+	{ ai_charge, 0, loogie },
+	{ ai_charge },
+	{ ai_charge, 0, gekk_save_enemy_pos },
+	{ ai_charge, 0, loogie },
+	{ ai_charge, 0, gekk_save_enemy_pos },
+	{ ai_charge, 0, reloogie }
+};;
+MMOVE_T(gekk_move_spitharder) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spitharder, gekk_run_start };
+
+
 // This new function checks if the Gekk should spit again, looping the animation.
 // It replaces the old `reloogie` and the need for a separate `spitharder` move.
 void gekk_continue_spit(edict_t* self)
@@ -782,7 +823,7 @@ void gekk_continue_spit(edict_t* self)
 	}
 
 	// In later waves, the Gekk has a higher chance to spit multiple times
-	float chance_to_refire = IsFirstThreeWaves(current_wave_level) ? 0.4f : 0.75f;
+	float chance_to_refire = IsFirstThreeWaves(current_wave_level) ? 0.2f : 0.45f;
 
 	if (frandom() < chance_to_refire)
 	{
@@ -1136,7 +1177,23 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 	{
 		if (r >= RANGE_MID) {
 			if (frandom() > 0.4f) {
-				M_SetAnimation(self, &gekk_move_spit);
+				if (IsBonusMonster(self)) {
+					// Bonus monsters prefer spitharder more often
+					self->count++;
+					if (self->count % 2 == 0) {
+						M_SetAnimation(self, &gekk_move_spitharder);
+					} else {
+						M_SetAnimation(self, &gekk_move_spit);
+					}
+				} else {
+					// Use counter-based alternation for more predictable pattern
+					self->count++;
+					if (self->count % 3 == 0) {
+						M_SetAnimation(self, &gekk_move_spitharder);
+					} else {
+						M_SetAnimation(self, &gekk_move_spit);
+					}
+				}
 			}
 			else {
 				M_SetAnimation(self, &gekk_move_run_start);
@@ -1144,7 +1201,23 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 			}
 		}
 		else if (frandom() > 0.7f) {
-			M_SetAnimation(self, &gekk_move_spit);
+				if (IsBonusMonster(self)) {
+					// Bonus monsters prefer spitharder more often
+					self->count++;
+					if (self->count % 2 == 0) {
+						M_SetAnimation(self, &gekk_move_spitharder);
+					} else {
+						M_SetAnimation(self, &gekk_move_spit);
+					}
+				} else {
+					// Use counter-based alternation for more predictable pattern
+					self->count++;
+					if (self->count % 3 == 0) {
+						M_SetAnimation(self, &gekk_move_spitharder);
+					} else {
+						M_SetAnimation(self, &gekk_move_spit);
+					}
+				}
 		}
 		else {
 			if (self->spawnflags.has(SPAWNFLAG_GEKK_NOJUMPING) || frandom() > 0.7f) {
