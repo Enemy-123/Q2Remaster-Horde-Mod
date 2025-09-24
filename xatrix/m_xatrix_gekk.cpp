@@ -770,6 +770,20 @@ void loogie(edict_t* self)
 	gi.sound(self, CHAN_BODY, sound_speet, 1.0f, ATTN_NORM, 0);
 }
 
+void reloogie(edict_t* self);
+
+//readded spitharder, frandom chance to spit again in a burst
+mframe_t gekk_frames_spitharder[] = {
+	{ ai_charge, 0, gekk_save_enemy_pos },
+	{ ai_charge, 0, loogie },
+	{ ai_charge },
+	{ ai_charge, 0, gekk_save_enemy_pos },
+	{ ai_charge, 0, loogie },
+	{ ai_charge, 0, gekk_save_enemy_pos },
+	{ ai_charge, 0, reloogie }
+};;
+MMOVE_T(gekk_move_spitharder) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spitharder, gekk_run_start };
+
 void reloogie(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
@@ -797,18 +811,6 @@ void reloogie(edict_t* self)
 			}
 		}
 }
-
-//readded spitharder, frandom chance to spit again in a burst
-mframe_t gekk_frames_spitharder[] = {
-	{ ai_charge, 0, gekk_save_enemy_pos },
-	{ ai_charge, 0, loogie },
-	{ ai_charge },
-	{ ai_charge, 0, gekk_save_enemy_pos },
-	{ ai_charge, 0, loogie },
-	{ ai_charge, 0, gekk_save_enemy_pos },
-	{ ai_charge, 0, reloogie }
-};;
-MMOVE_T(gekk_move_spitharder) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spitharder, gekk_run_start };
 
 
 // This new function checks if the Gekk should spit again, looping the animation.
