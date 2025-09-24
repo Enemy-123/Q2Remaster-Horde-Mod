@@ -19,6 +19,7 @@ byte damage_multiplier;
 void weapon_grenade_fire(edict_t* ent, bool held);
 // RAFAEL
 void weapon_trap_fire(edict_t* ent, bool held);
+void weapon_tesla_fire(edict_t* ent, bool held);
 // RAFAEL
 
 //========
@@ -514,12 +515,15 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher) {
 			final_multiplier *= 1.4f;
 		}
-		if (using_shotgun || using_tesla) {
+		if (using_shotgun) {
 			final_multiplier *= 1.5f;
+		}
+		if (using_tesla) {
+			final_multiplier *= 4.0f; // Much faster Tesla deployment
 		}
 
 		if (using_trap) {
-			final_multiplier *= 2.0f;
+			final_multiplier *= 4.0f; // Much faster Trap deployment
 		}
 
 		//// Special handling for chaingun (improved)
@@ -1170,6 +1174,10 @@ void Throw_Generic(edict_t* ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int F
 
 			// [Paril-KEX] dualfire/time accel
 			gtime_t grenade_wait_time = 0.1_sec;
+
+			// Faster deployment for Tesla and Trap weapons
+			if (fire == weapon_tesla_fire || fire == weapon_trap_fire)
+				grenade_wait_time = 0.01_sec; // Very fast for deployables (10ms)
 
 			if (CTFApplyHaste(ent))
 				grenade_wait_time *= 0.1f;
