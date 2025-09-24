@@ -315,7 +315,7 @@ void ProximityGrid::Reset()
         Reset();
 
         // Re-add all entities (in a real implementation, you'd track moving entities)
-        for (int i = 1; i < globals.num_edicts; i++) {
+        for (uint32_t i = 1; i < globals.num_edicts; i++) {
             edict_t* e = &g_edicts[i];
             if (e->inuse) {
                 AddEntity(e);

@@ -877,10 +877,10 @@ void runnertank_consider_strafe(edict_t* self)
 	{
 		// Decidir dirección (Replaced ternary with if/else)
 		if (frandom() < 0.5f) {
-			self->monsterinfo.lefty = 1;
+			self->monsterinfo.lefty = true;
 		}
 		else {
-			self->monsterinfo.lefty = -1;
+			self->monsterinfo.lefty = false;
 		}
 
 		// Calcular velocidad de strafe
@@ -895,7 +895,7 @@ void runnertank_consider_strafe(edict_t* self)
 		// Aplicar el strafe directamente usando los operadores de vec3_t
 		// Ensure 'right' vector is valid before using it
 		if (is_valid_vector(right)) {
-			self->velocity = self->velocity + (right * (strafe_speed * self->monsterinfo.lefty));
+			self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
 		}
 		else {
 			// Fallback or error handling if 'right' vector is invalid

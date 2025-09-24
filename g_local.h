@@ -519,7 +519,7 @@ constexpr gtime_t operator"" _ms(unsigned long long int s)
 }
 constexpr gtime_t operator"" _hz(unsigned long long int s)
 {
-	return gtime_t::from_ms(static_cast<int64_t>((1.0 / s) * 1000));
+	return s == 0 ? gtime_t::from_ms(0) : gtime_t::from_ms(static_cast<int64_t>((1.0 / s) * 1000));
 }
 
 extern gtime_t FRAME_TIME_S;
@@ -4156,7 +4156,7 @@ struct cached_assetindex
 	int32_t					index = 0;
 	cached_assetindex* next = nullptr;
 
-	inline cached_assetindex()
+	inline cached_assetindex() : name(nullptr)
 	{
 		next = head;
 		cached_assetindex<T>::head = this;
