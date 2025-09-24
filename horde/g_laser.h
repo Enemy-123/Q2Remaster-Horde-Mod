@@ -18,9 +18,6 @@ void remove_lasers(edict_t* ent) noexcept;
 // Called from the main game logic (e.g., when a new wave starts).
 void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game);
 
-void G_UpdateAdrenalineBasedDeployables();
-
-
 // --- Engine-level Function Declarations ---
 // These functions are assigned to edict_t members (like think, die, etc.)
 // and need to be visible to the compiler when those assignments happen.

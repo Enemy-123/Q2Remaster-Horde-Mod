@@ -90,79 +90,92 @@ void G_UpdateAdrenalineBasedDeployables()
     if (!g_horde || !g_horde->integer)
         return;
 
-    // if (developer && developer->integer)
-    //     gi.Com_PrintFmt("Updating deployables for adrenaline changes\n");
-
-    // Iterate through players instead of all entities
+    // Cache tracking for performance optimization
+    static int last_adrenaline_count[MAX_CLIENTS] = {-1}; // Initialize to -1 to force first update
+    static int frame_counter = 0;
+    
+    // Periodic refresh every 30 frames (~0.5s) as failsafe
+    bool force_refresh = (++frame_counter % 30 == 0);
+    
     for (const auto* player : active_players())
     {
         if (!player->client) continue;
-
-        // Update sentry guns with adrenaline-based health
-        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
-        {
-            edict_t* sentry = player->client->resp.deployed_sentries[i];
-
-            if (!sentry || !sentry->inuse)
-                continue;
-
-            // Calculate new max health with current adrenaline count
-            int base_health = 125; // Base sentry health from SP_monster_sentrygun
-            int new_max_health = CalculateSentryHealth(base_health, player->client);
-
-            // Only update max_health, leave current health untouched
-            if (new_max_health != sentry->max_health)
-            {
-                sentry->max_health = new_max_health;
-
-                // Update power armor accordingly (40% of max health)
-                sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
-            }
-        }
-
-        // Update tesla mines with adrenaline-based lifetime
-        for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i)
-        {
-            edict_t* tesla = player->client->resp.deployed_teslas[i];
-
-            if (!tesla || !tesla->inuse)
-                continue;
-
-            // Calculate new lifetime with current adrenaline count
-            gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, player->client);
-            gtime_t new_end_time = tesla->timestamp + tesla_lifetime;
-
-            // Update the wait field which stores the end time in seconds
-            tesla->wait = new_end_time.seconds();
+        
+        const int player_num = player - g_edicts - 1;
+        if (player_num < 0 || player_num >= MAX_CLIENTS) continue;
+        
+        const int current_adrenaline = player->client->pers.adrenaline_count;
+        
+        // Only process if adrenaline changed or periodic refresh
+        if (current_adrenaline != last_adrenaline_count[player_num] || force_refresh) {
+            last_adrenaline_count[player_num] = current_adrenaline;
             
-            // Also update air_finished if it's being used for lifetime tracking
-            if (tesla->air_finished > 0_sec)
+            // Update sentry guns with adrenaline-based health
+            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
             {
-                tesla->air_finished = new_end_time;
+                edict_t* sentry = player->client->resp.deployed_sentries[i];
+
+                if (!sentry || !sentry->inuse)
+                    continue;
+
+                // Calculate new max health with current adrenaline count
+                int base_health = 125; // Base sentry health from SP_monster_sentrygun
+                int new_max_health = CalculateSentryHealth(base_health, player->client);
+
+                // Only update max_health, leave current health untouched
+                if (new_max_health != sentry->max_health)
+                {
+                    sentry->max_health = new_max_health;
+
+                    // Update power armor accordingly (40% of max health)
+                    sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
+                }
             }
-        }
 
-        // Update trap mines with adrenaline-based lifetime
-        for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i)
-        {
-            edict_t* trap = player->client->resp.deployed_traps[i];
-
-            if (!trap || !trap->inuse)
-                continue;
-
-            // Calculate new lifetime with current adrenaline count
-            gtime_t base_lifetime = 30_sec; // Base trap lifetime from fire_trap
-            gtime_t trap_lifetime = CalculateDeployableLifetime(base_lifetime, player->client);
-            
-            // Calculate original creation time by subtracting from current timestamp
-            gtime_t creation_time = level.time;
-            if (trap->timestamp > level.time)
+            // Update tesla mines with adrenaline-based lifetime
+            for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i)
             {
-                creation_time = trap->timestamp - base_lifetime;
+                edict_t* tesla = player->client->resp.deployed_teslas[i];
+
+                if (!tesla || !tesla->inuse)
+                    continue;
+
+                // Calculate new lifetime with current adrenaline count
+                gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, player->client);
+                gtime_t new_end_time = tesla->timestamp + tesla_lifetime;
+
+                // Update the wait field which stores the end time in seconds
+                tesla->wait = new_end_time.seconds();
+                
+                // Also update air_finished if it's being used for lifetime tracking
+                if (tesla->air_finished > 0_sec)
+                {
+                    tesla->air_finished = new_end_time;
+                }
             }
-            
-            // Update timestamp with new end time
-            trap->timestamp = creation_time + trap_lifetime;
+
+            // Update trap mines with adrenaline-based lifetime
+            for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i)
+            {
+                edict_t* trap = player->client->resp.deployed_traps[i];
+
+                if (!trap || !trap->inuse)
+                    continue;
+
+                // Calculate new lifetime with current adrenaline count
+                gtime_t base_lifetime = 30_sec; // Base trap lifetime from fire_trap
+                gtime_t trap_lifetime = CalculateDeployableLifetime(base_lifetime, player->client);
+                
+                // Calculate original creation time by subtracting from current timestamp
+                gtime_t creation_time = level.time;
+                if (trap->timestamp > level.time)
+                {
+                    creation_time = trap->timestamp - base_lifetime;
+                }
+                
+                // Update timestamp with new end time
+                trap->timestamp = creation_time + trap_lifetime;
+            }
         }
     }
 }

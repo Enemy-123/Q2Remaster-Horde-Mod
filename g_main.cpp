@@ -1182,6 +1182,9 @@ inline void G_RunFrame_(bool main_loop)
         level.coop_scale_players = 2 + GetNumHumanPlayers();
         G_Monster_CheckCoopHealthScaling();
 
+        // Update deployables based on adrenaline changes (cached for performance)
+        G_UpdateAdrenalineBasedDeployables();
+
      //    Time-slicing monster checks.
         // Instead of checking every monster for being stuck every frame, we process
         // a small batch. This spreads the CPU load over multiple frames.
