@@ -13,6 +13,8 @@ TURRET
 #include "../shared.h"
 #include <cfloat>
 
+bool turret2_CanShootThroughObstacles(edict_t* self, const vec3_t& start, const vec3_t& target);
+
 constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = spawnflags_t(0x0008);
 constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = spawnflags_t(0x0010);
 constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = spawnflags_t(0x0020); // Keep original rocket flag
@@ -637,6 +639,14 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 			const vec3_t offset = { 20.f, 0.f, 0.f };
 			vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 			bool can_attack_current = M_CheckClearShot(self, offset, muzzle_pos);
+
+			// If standard check failed, try pierce-capable check for sneaky positions
+			if (!can_attack_current) {
+				vec3_t target_pos = self->enemy->s.origin;
+				target_pos[2] += self->enemy->client ? self->enemy->viewheight :
+					(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
+				can_attack_current = turret2_CanShootThroughObstacles(self, muzzle_pos, target_pos);
+			}
 
 			if (!can_attack_current) {
 				// Current target is not attackable, force immediate target search
@@ -1676,6 +1686,14 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 		vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 		bool can_shoot_current = M_CheckClearShot(self, offset, muzzle_pos);
 
+		// If standard check failed, try pierce-capable check for sneaky enemy positions
+		if (!can_shoot_current) {
+			vec3_t target_pos = self->enemy->s.origin;
+			target_pos[2] += self->enemy->client ? self->enemy->viewheight :
+				(self->enemy->maxs[2] - self->enemy->mins[2]) * 0.5f;
+			can_shoot_current = turret2_CanShootThroughObstacles(self, muzzle_pos, target_pos);
+		}
+
 		if (!can_shoot_current) {
 			// Current enemy is blocked, store as backup if it's closer than existing oldenemy
 			if (!self->oldenemy || !self->oldenemy->inuse || self->oldenemy->deadflag ||
@@ -1694,6 +1712,15 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 				self->enemy = self->oldenemy;
 				vec3_t old_muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 				bool can_shoot_old = M_CheckClearShot(self, offset, old_muzzle_pos);
+
+				// If standard check failed for oldenemy, try pierce check
+				if (!can_shoot_old) {
+					vec3_t old_target_pos = self->oldenemy->s.origin;
+					old_target_pos[2] += self->oldenemy->client ? self->oldenemy->viewheight :
+						(self->oldenemy->maxs[2] - self->oldenemy->mins[2]) * 0.5f;
+					can_shoot_old = turret2_CanShootThroughObstacles(self, old_muzzle_pos, old_target_pos);
+				}
+
 				self->enemy = temp_enemy; // restore original enemy
 
 				float current_range = self->enemy ? range_to(self, self->enemy) : 99999.0f;
@@ -2235,6 +2262,49 @@ void CreateTurretGlowEffect(edict_t* turret) {
 
 	gi.linkentity(smoke);
 	turret->target_hint_chain = smoke;
+}
+
+// Sentry-specific clear shot function with pierce-like capability
+// This addresses the asymmetry where enemies with dabeam can hit sentries 
+// from sneaky spots but sentries can't hit back
+bool turret2_CanShootThroughObstacles(edict_t* self, const vec3_t& start, const vec3_t& target)
+{
+	if (!M_HasValidTarget(self))
+		return false;
+
+	vec3_t trace_start = start;
+	vec3_t trace_end = target;
+	const int max_attempts = 5; // Prevent infinite loops
+	
+	for (int i = 0; i < max_attempts; i++) {
+		trace_t tr = gi.traceline(trace_start, trace_end, self, MASK_SHOT);
+		
+		// Direct hit or clear path
+		if (tr.fraction == 1.0f || tr.ent == self->enemy) {
+			return true;
+		}
+		
+		// Hit something solid (wall, door, etc) - can't proceed
+		if (!tr.ent || !tr.ent->inuse) {
+			return false;
+		}
+		
+		// Hit another entity - check if we can "pierce" through it
+		if (tr.ent->svflags & SVF_MONSTER || tr.ent->client) {
+			// Hit another monster/player, can potentially pierce through
+			// like dabeam does, but only if it's not our target
+			if (tr.ent != self->enemy) {
+				// Continue tracing from the hit point
+				trace_start = tr.endpos;
+				continue;
+			}
+		}
+		
+		// Hit something we can't pierce through
+		return false;
+	}
+	
+	return false; // Exceeded max attempts
 }
 
 void SP_monster_sentrygun(edict_t* self)
