@@ -6,7 +6,6 @@
 // ROGUE
 void monster_fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
 {
-	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_blaster2(self, start, dir, damage, speed, effect, false);
 	if (self && self->svflags & SVF_MONSTER)
@@ -15,7 +14,6 @@ void monster_fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir
 
 void monster_fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, edict_t* enemy, monster_muzzleflash_id_t flashtype)
 {
-	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_tracker(self, start, dir, damage, speed, enemy);
 	monster_muzzleflash(self, start, flashtype);
@@ -23,7 +21,6 @@ void monster_fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir,
 
 void monster_fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& offset, int damage, int kick, monster_muzzleflash_id_t flashtype)
 {
-	//damage = static_cast<int>(round(damage * M_DamageModifier(self))); // multiplying if powerup, check shared.cpp
 
 	fire_heatbeam(self, start, dir, offset, damage, kick, true);
 	monster_muzzleflash(self, start, flashtype);
