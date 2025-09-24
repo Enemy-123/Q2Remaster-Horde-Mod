@@ -626,6 +626,42 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 		state->previous_enemy = self->enemy;
 	}
 
+	// Periodic target validation and search for better targets
+	if (level.time >= state->next_target_search_time) {
+		state->next_target_search_time = level.time + (has_valid_enemy ? 1500_ms : 1000_ms);
+
+		if (has_valid_enemy) {
+			// Check if current target is still attackable
+			vec3_t forward, right, up;
+			AngleVectors(self->s.angles, forward, right, up);
+			const vec3_t offset = { 20.f, 0.f, 0.f };
+			vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+			bool can_attack_current = M_CheckClearShot(self, offset, muzzle_pos);
+
+			if (!can_attack_current) {
+				// Current target is not attackable, force immediate target search
+				FindMTarget(self);
+			} else {
+				// Current target is attackable, but check for closer/better targets
+				edict_t* original_enemy = self->enemy;
+				if (FindMTarget(self)) {
+					// FindMTarget found a different target, check if it's significantly better
+					float original_range = range_to(self, original_enemy);
+					float new_range = self->enemy ? range_to(self, self->enemy) : 99999.0f;
+
+					// Only switch if new target is significantly closer (150+ units difference)
+					if (new_range > original_range - 150.0f) {
+						// New target isn't significantly better, stick with original
+						self->enemy = original_enemy;
+					}
+				}
+			}
+		} else {
+			// No current enemy, search for one
+			FindMTarget(self);
+		}
+	}
+
 	// Track attacking state changes
 	bool currently_attacking = has_valid_enemy &&
 		(self->monsterinfo.attack_finished > level.time - 500_ms);
@@ -1064,7 +1100,7 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 			continue;
 
 		// Modify the rocket to be heat-seeking
-		const float turn_fraction = 0.08f; // Turning rate for better homing
+		const float turn_fraction = 0.15f; // Turning rate for better homing
 		
 		heat->s.scale = 1.5f; // Larger rocket model
 		heat->speed = speed / 1.45;
@@ -1631,6 +1667,47 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
 
+	// Smart target switching logic using oldenemy
+	if (self->enemy && self->enemy->inuse && !self->enemy->deadflag) {
+		// Check if current enemy is blocked (can't get clear shot)
+		vec3_t forward, right, up;
+		AngleVectors(self->s.angles, forward, right, up);
+		const vec3_t offset = { 20.f, 0.f, 0.f };
+		vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+		bool can_shoot_current = M_CheckClearShot(self, offset, muzzle_pos);
+
+		if (!can_shoot_current) {
+			// Current enemy is blocked, store as backup if it's closer than existing oldenemy
+			if (!self->oldenemy || !self->oldenemy->inuse || self->oldenemy->deadflag ||
+				range_to(self, self->enemy) < range_to(self, self->oldenemy)) {
+				self->oldenemy = self->enemy;
+			}
+
+			// Try to find a better target
+			if (FindMTarget(self)) {
+				// Found a new target, switch to it
+				return;
+			} else if (self->oldenemy && self->oldenemy->inuse && !self->oldenemy->deadflag) {
+				// No new target found, try oldenemy if it's now shootable and closer
+				// Temporarily switch enemy to check if we can shoot oldenemy
+				edict_t* temp_enemy = self->enemy;
+				self->enemy = self->oldenemy;
+				vec3_t old_muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+				bool can_shoot_old = M_CheckClearShot(self, offset, old_muzzle_pos);
+				self->enemy = temp_enemy; // restore original enemy
+
+				float current_range = self->enemy ? range_to(self, self->enemy) : 99999.0f;
+				float old_range = range_to(self, self->oldenemy);
+
+				if (can_shoot_old && old_range < current_range) {
+					// Switch back to oldenemy as it's closer and shootable
+					self->enemy = self->oldenemy;
+					self->oldenemy = nullptr;
+				}
+			}
+		}
+	}
+
 	const gtime_t animation_cooldown = 250_ms;
 
 	if (self->s.frame < FRAME_run01)
@@ -2034,8 +2111,8 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	// If we can't directly see the enemy but we've been trying for a while, 
 	// find a new target instead of just returning false
 	if (tr.fraction < 1.0f && tr.ent != self->enemy) {
-		if (self->monsterinfo.attack_finished + 1_sec < level.time) {
-			// We've been trying to attack for over a second but couldn't trace to enemy
+		if (self->monsterinfo.attack_finished + 500_ms < level.time) {
+			// We've been trying to attack for over half a second but couldn't trace to enemy
 			// Try to find a new target instead
 			FindMTarget(self);
 		}
@@ -2050,11 +2127,11 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	float const dot = dir.dot(forward);
 
 	//  More permissive angle check
-	// Use 0.9 (about 26 degrees) instead of 0.95 (18 degrees)
-	if (dot < 0.9) {
+	// Use 0.85 (about 32 degrees) instead of 0.9 (26 degrees)
+	if (dot < 0.85) {
 		// Not directly in front - check if we're already turning
-		// If we've been trying for more than 1 second, find a new target
-		if (self->monsterinfo.attack_finished + 1_sec < level.time) {
+		// If we've been trying for more than half a second, find a new target
+		if (self->monsterinfo.attack_finished + 500_ms < level.time) {
 			FindMTarget(self);
 		}
 		return false;
