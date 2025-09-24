@@ -29,7 +29,6 @@ void TurretSparks(edict_t* self);
 
 // Heat-seeking rocket functions
 void heat_turret_think (edict_t* self);
-void turret_heat_die (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void turret_heat_touch (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 static inline vec3_t heat_turret_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target);
 
@@ -791,6 +790,13 @@ static inline vec3_t heat_turret_get_dist_vec(const edict_t* heat, const edict_t
 // Heat-seeking rocket think function
 THINK(heat_turret_think) (edict_t* self) -> void
 {
+	// // Check auto-destruct timer
+	// if (level.time >= self->delay)
+	// {
+	// 	G_FreeEdict(self);
+	// 	return;
+	// }
+
 	edict_t* acquire = self->enemy; // Start with our current target
 	float	 oldlen = FLT_MAX;
 	float	 olddot = 1.0f;
@@ -917,11 +923,6 @@ THINK(heat_turret_think) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
-// Die function for heat-seeking rockets
-DIE(turret_heat_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
-{
-	BecomeExplosion1(self);
-}
 
 // Custom touch function for heat-seeking rockets with sentry owner credit
 TOUCH(turret_heat_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -1069,7 +1070,7 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 		heat->velocity = spread_dir * speed;
 		heat->movetype = MOVETYPE_FLYMISSILE;
 		heat->svflags |= SVF_PROJECTILE;
-		heat->flags |= FL_DODGE | FL_DAMAGEABLE;
+		heat->flags |= FL_DODGE;
 		heat->clipmask = MASK_PROJECTILE;
 		// Prevent collision with players if friendly fire is off
 		if (self->owner && self->owner->client && !G_ShouldPlayersCollide(true))
@@ -1086,9 +1087,9 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 		heat->pos1 = rest_dir; // Both rockets converge to same target
 		heat->mins = { -5, -5, -5 };
 		heat->maxs = { 5, 5, 5 };
-		heat->health = 50;
-		heat->takedamage = true;
-		heat->die = turret_heat_die;
+
+		// Auto-destruct timer like normal rockets
+	//	heat->delay = level.time + gtime_t::from_sec(8000.f / speed);
 
 		// Delay think for spread effect
 		heat->nextthink = level.time + (0.15_sec + gtime_t::from_sec(i * 0.05f));
