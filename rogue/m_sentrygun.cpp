@@ -11,6 +11,7 @@ TURRET
 #include "../g_local.h"
 #include "m_rogue_turret.h"
 #include "../shared.h"
+#include <cfloat>
 
 constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = spawnflags_t(0x0008);
 constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = spawnflags_t(0x0010);
@@ -25,6 +26,12 @@ void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
 void turret2_run(edict_t* self);
 void TurretSparks(edict_t* self);
+
+// Heat-seeking rocket functions
+void heat_turret_think (edict_t* self);
+void turret_heat_die (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void turret_heat_touch (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
+static inline vec3_t heat_turret_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target);
 
 // animation frames for cooling down after combat
 mframe_t turret2_frames_cool_down[] = {
@@ -775,6 +782,203 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 }
 
 //Fire rocket
+// Helper function to calculate distance vector for heat-seeking
+static inline vec3_t heat_turret_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target)
+{
+	return (((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) + (target->velocity * (clamp(dist_to_target / 500.f, 0.f, 1.f)) * 0.5f)) - heat->s.origin).normalized();
+}
+
+// Heat-seeking rocket think function
+THINK(heat_turret_think) (edict_t* self) -> void
+{
+	edict_t* acquire = self->enemy; // Start with our current target
+	float	 oldlen = FLT_MAX;
+	float	 olddot = 1.0f;
+
+	// --- PERFORMANCE MODIFICATION ---
+	// Only search for a new target if the current one is invalid OR the search timer has expired.
+	// self->timestamp is now used as next_search_time.
+	bool search_for_new_target = (!M_HasValidTarget(self) || (level.time > self->timestamp));
+
+	if (search_for_new_target)
+	{
+		// Set the next search time. This throttles the expensive findradius loop.
+		self->timestamp = level.time + 200_ms; // Search every 0.2 seconds
+		acquire = nullptr; // Clear current target to force a new search
+		vec3_t const fwd = AngleVectors(self->s.angles).forward;
+
+		// The findradius loop now runs much less frequently.
+		edict_t* target = nullptr;
+		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
+		{
+			if (self->owner == target || !target->client || !target->inuse || target->health <= 0 || !visible(self, target))
+				continue;
+
+			float const dist_to_target = (self->s.origin - target->s.origin).length();
+			vec3_t vec = heat_turret_get_dist_vec(self, target, dist_to_target);
+			float const dot = vec.dot(fwd);
+
+			if (dot >= olddot)
+				continue;
+
+			if (acquire == nullptr || dot < olddot || dist_to_target < oldlen)
+			{
+				acquire = target;
+				oldlen = dist_to_target;
+				olddot = dot;
+			}
+		}
+
+		// If we found a new target that's different from the old one, play a sound.
+		if (acquire && acquire != self->enemy)
+		{
+			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+		}
+		self->enemy = acquire; // Assign the best target found (could be nullptr)
+	}
+	// --- END MODIFICATION ---
+
+	// Wall avoidance logic (ultrathink)
+	vec3_t wall_avoid = vec3_origin;
+	float wall_avoid_strength = 0.0f;
+
+	// Check for walls in multiple directions
+	vec3_t check_dirs[] = {
+		self->movedir,                          // Forward
+		AngleVectors(self->s.angles).right,     // Right
+		-AngleVectors(self->s.angles).right,    // Left
+		AngleVectors(self->s.angles).up,        // Up
+		-AngleVectors(self->s.angles).up        // Down
+	};
+
+	for (int i = 0; i < 5; i++)
+	{
+		vec3_t end = self->s.origin + check_dirs[i] * 100.0f;
+		trace_t tr = gi.traceline(self->s.origin, end, self, MASK_PROJECTILE);
+
+		if (tr.fraction < 1.0f)
+		{
+			// Wall detected, calculate avoidance vector
+			float distance = tr.fraction * 100.0f;
+			float avoid_force = 1.0f - (distance / 100.0f); // Stronger avoidance for closer walls
+
+			// Add to wall avoidance vector (push away from wall)
+			wall_avoid = wall_avoid - check_dirs[i] * avoid_force;
+			wall_avoid_strength = max(wall_avoid_strength, avoid_force);
+		}
+	}
+
+	// Normalize wall avoidance vector
+	if (wall_avoid.lengthSquared() > 0)
+		wall_avoid = wall_avoid.normalized();
+
+	// This part runs every frame, but the expensive target acquisition is now throttled.
+	vec3_t preferred_dir = self->pos1;
+
+	if (M_HasValidTarget(self)) // Only update aim direction if we have a valid target
+	{
+		float const dist_to_target = (self->s.origin - self->enemy->s.origin).length();
+		preferred_dir = heat_turret_get_dist_vec(self, self->enemy, dist_to_target);
+
+		// Blend in wall avoidance
+		if (wall_avoid_strength > 0.1f)
+		{
+			// Stronger wall avoidance when closer to walls
+			float blend = wall_avoid_strength * 0.3f; // Up to 30% wall avoidance
+			preferred_dir = (preferred_dir * (1.0f - blend) + wall_avoid * blend).normalized();
+		}
+	}
+	else if (wall_avoid_strength > 0.1f)
+	{
+		// No target, just avoid walls
+		preferred_dir = (preferred_dir * 0.7f + wall_avoid * 0.3f).normalized();
+	}
+
+	self->pos1 = preferred_dir;
+
+	float t = self->accel;
+
+	if (self->enemy)
+		t *= 0.85f;
+
+	if (self->movedir.lengthSquared() > 0)
+		self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
+	else
+		self->movedir = preferred_dir;
+
+	self->s.angles = vectoangles(self->movedir);
+
+	if (self->speed < self->yaw_speed)
+	{
+		self->speed += self->yaw_speed * gi.frame_time_s;
+	}
+
+	self->velocity = self->movedir * self->speed;
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+// Die function for heat-seeking rockets
+DIE(turret_heat_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+{
+	BecomeExplosion1(self);
+}
+
+// Custom touch function for heat-seeking rockets with sentry owner credit
+TOUCH(turret_heat_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	vec3_t origin;
+
+	if (other == ent->owner)
+		return;
+
+	if (tr.surface && (tr.surface->flags & SURF_SKY))
+	{
+		G_FreeEdict(ent);
+		return;
+	}
+
+	// Determine the real attacker (player for sentry, otherwise owner)
+	edict_t* attacker = ent->owner;
+	if (ent->owner && horde::IsSpecialType(ent->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
+	{
+		attacker = ent->owner->owner; // Credit damage to the player who owns the sentry
+	}
+
+	if (attacker && attacker->client)
+		PlayerNoise(attacker, ent->s.origin, PNOISE_IMPACT);
+
+	// calculate position for the explosion entity
+	origin = ent->s.origin + tr.plane.normal;
+
+	if (other->takedamage)
+	{
+		T_Damage(other, ent, attacker, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_ROCKET);
+	}
+	else
+	{
+		// don't throw any debris in net games
+		if (!G_IsDeathmatch() || !g_horde->integer || !G_IsCooperative())
+		{
+			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
+			{
+				// Debris can be added here if needed
+			}
+		}
+	}
+
+	T_RadiusDamage(ent, attacker, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+
+	gi.WriteByte(svc_temp_entity);
+	if (ent->waterlevel)
+		gi.WriteByte(TE_ROCKET_EXPLOSION_WATER);
+	else
+		gi.WriteByte(TE_ROCKET_EXPLOSION);
+	gi.WritePosition(origin);
+	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+	G_FreeEdict(ent);
+}
+
 static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
 	if (!M_HasValidTarget(self))
 	{
@@ -790,6 +994,7 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 1600 : 1420;
 	vec3_t fire_dir = dir;
 	vec3_t target_pos;
+	vec3_t rest_dir = dir; // Default rest direction
 
 	// Enhanced targeting system
 	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
@@ -819,6 +1024,7 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 			target_pos[2] += self->enemy->viewheight * 0.5f;
 			fire_dir = (target_pos - start).normalized();
 		}
+		rest_dir = fire_dir; // Use the calculated direction as rest direction
 	}
 	else {
 		// Refined blindfire spread
@@ -827,10 +1033,84 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 		fire_dir[1] += crandom() * spread;
 		fire_dir[2] += crandom() * spread;
 		fire_dir = safe_normalized(fire_dir);
+		rest_dir = fire_dir;
 	}
 
-	const int damage = static_cast<int>(CalculateDamage(self, 100));
-	fire_rocket(self->owner, start, fire_dir, damage, speed, 120, damage);
+	// Calculate perpendicular vector for spread
+	vec3_t right, up;
+	vec3_t angles = vectoangles(fire_dir);
+	AngleVectors(angles, nullptr, &right, &up);
+	
+	// Fire two rockets with horizontal spread
+	for (int i = 0; i < 2; i++)
+	{
+		edict_t* heat = G_Spawn();
+		
+		if (!heat)
+			continue;
+
+		const int damage = static_cast<int>(CalculateDamage(self, 100));
+		const float damage_radius = 120;
+		const int radius_damage = damage;
+		const float turn_fraction = 0.08f; // Increased turning rate for better homing
+
+		// Apply spread to initial fire direction
+		vec3_t spread_dir = fire_dir;
+		float spread_amount = 0.15f; // Spread amount
+		
+		if (i == 0)
+			spread_dir = (fire_dir + right * spread_amount).normalized(); // Right rocket
+		else
+			spread_dir = (fire_dir - right * spread_amount).normalized(); // Left rocket
+
+		heat->s.origin = start;
+		heat->movedir = spread_dir;
+		heat->s.angles = vectoangles(spread_dir);
+		heat->velocity = spread_dir * speed;
+		heat->movetype = MOVETYPE_FLYMISSILE;
+		heat->svflags |= SVF_PROJECTILE;
+		heat->flags |= FL_DODGE | FL_DAMAGEABLE;
+		heat->clipmask = MASK_PROJECTILE;
+		// Prevent collision with players if friendly fire is off
+		if (self->owner && self->owner->client && !G_ShouldPlayersCollide(true))
+			heat->clipmask &= ~CONTENTS_PLAYER;
+		heat->solid = SOLID_BBOX;
+		heat->s.effects |= EF_ROCKET;
+		heat->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
+		heat->s.scale = 1.5f;
+		heat->owner = self; // Set owner to the sentry itself to avoid collision with it
+		heat->touch = turret_heat_touch;
+		heat->speed = speed / 1.45;
+		heat->yaw_speed = speed * 2.4;
+		heat->accel = turn_fraction;
+		heat->pos1 = rest_dir; // Both rockets converge to same target
+		heat->mins = { -5, -5, -5 };
+		heat->maxs = { 5, 5, 5 };
+		heat->health = 50;
+		heat->takedamage = true;
+		heat->die = turret_heat_die;
+
+		// Delay think for spread effect
+		heat->nextthink = level.time + (0.15_sec + gtime_t::from_sec(i * 0.05f));
+		heat->think = heat_turret_think;
+
+		heat->dmg = damage;
+		heat->radius_dmg = radius_damage;
+		heat->dmg_radius = damage_radius;
+		heat->s.sound = gi.soundindex("weapons/rockfly.wav");
+
+		if (visible(heat, self->enemy))
+		{
+			heat->oldenemy = self->enemy;
+			heat->enemy = self->enemy;
+			heat->timestamp = level.time + 0.6_sec;
+			if (i == 0) // Only play sound once
+				gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+		}
+
+		gi.linkentity(heat);
+	}
+	
 	self->monsterinfo.last_sentry_missile_fire_time = level.time; // Reset timer to current time so we can fire again in 1.5/0.75 seconds
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
