@@ -47,8 +47,8 @@ void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game)
 {
     if (!g_horde || !g_horde->integer)
         return;
-    if (developer && developer->integer)
-        gi.Com_PrintFmt("Updating active lasers for wave: {}\n", current_wave_level_from_game);
+    // if (developer && developer->integer)
+    //     gi.Com_PrintFmt("Updating active lasers for wave: {}\n", current_wave_level_from_game);
 
     // Iterate through players instead of all entities
     for (const auto* player : active_players())
@@ -81,6 +81,94 @@ void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game)
                 }
                 laser_beam->max_health = new_max_health;
             }
+        }
+    }
+}
+
+void G_UpdateAdrenalineBasedDeployables()
+{
+
+    if (!g_horde || !g_horde->integer)
+        return;
+
+    // if (developer && developer->integer)
+    //     gi.Com_PrintFmt("Updating deployables for adrenaline changes\n");
+
+    // Iterate through players instead of all entities
+    for (const auto* player : active_players())
+    {
+        if (!player->client) continue;
+
+        // Update sentry guns with adrenaline-based health
+        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
+        {
+            edict_t* sentry = player->client->resp.deployed_sentries[i];
+
+            if (!sentry || !sentry->inuse)
+                continue;
+
+            // Calculate new max health with current adrenaline count
+            int base_health = 125; // Base sentry health from SP_monster_sentrygun
+            int new_max_health = CalculateSentryHealth(base_health, player->client);
+
+            if (new_max_health != sentry->max_health)
+            {
+                if (sentry->health > 0)
+                {
+                    // Maintain health ratio when updating max health
+                    float health_ratio = (sentry->max_health > 0) ? (float)sentry->health / (float)sentry->max_health : 1.0f;
+                    sentry->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
+                }
+                sentry->max_health = new_max_health;
+
+                // Update power armor accordingly (40% of max health)
+                sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
+            }
+        }
+
+        // Update tesla mines with adrenaline-based lifetime
+        for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i)
+        {
+            edict_t* tesla = player->client->resp.deployed_teslas[i];
+
+            if (!tesla || !tesla->inuse)
+                continue;
+
+            // Calculate new lifetime with current adrenaline count
+            gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, player->client);
+            gtime_t new_end_time = tesla->timestamp + tesla_lifetime;
+
+            // Update the wait field which stores the end time in seconds
+            tesla->wait = new_end_time.seconds();
+            
+            // Also update air_finished if it's being used for lifetime tracking
+            if (tesla->air_finished > 0_sec)
+            {
+                tesla->air_finished = new_end_time;
+            }
+        }
+
+        // Update trap mines with adrenaline-based lifetime
+        for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i)
+        {
+            edict_t* trap = player->client->resp.deployed_traps[i];
+
+            if (!trap || !trap->inuse)
+                continue;
+
+            // Calculate new lifetime with current adrenaline count
+            gtime_t base_lifetime = 30_sec; // Base trap lifetime from fire_trap
+            gtime_t trap_lifetime = CalculateDeployableLifetime(base_lifetime, player->client);
+            
+            // Calculate original creation time by subtracting from current timestamp
+            gtime_t creation_time = level.time;
+            if (trap->timestamp > level.time)
+            {
+                creation_time = trap->timestamp - base_lifetime;
+            }
+            
+            // Update timestamp with new end time
+            trap->timestamp = creation_time + trap_lifetime;
         }
     }
 }

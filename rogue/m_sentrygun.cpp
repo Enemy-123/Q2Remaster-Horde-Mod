@@ -2000,7 +2000,7 @@ void SP_monster_sentrygun(edict_t* self)
 	self->movetype = MOVETYPE_NONE;
 
 	// Calculate health with adrenaline bonus first
-	int base_health = 80 * st.health_multiplier;
+	int base_health = 125;
 	self->health = CalculateSentryHealth(base_health, self->owner ? self->owner->client : nullptr);
 	self->max_health = self->health;
 
