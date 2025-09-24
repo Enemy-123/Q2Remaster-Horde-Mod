@@ -17,17 +17,18 @@ namespace horde {
     std::array<MapSize, static_cast<size_t>(MapID::MAX_MAPS)> MapOriginRegistry::s_mapSizes;
     bool MapOriginRegistry::s_initialized = false;
 
-    // Map for traps/teslas
-    static std::unordered_map<std::string_view, SpecialEntityTypeID> s_specialTypeMap;
+    // Map for traps/teslas - use std::string for safe key ownership
+    static std::unordered_map<std::string, SpecialEntityTypeID> s_specialTypeMap;
 
-    // Map of classnames to type IDs - used during initialization
-    static std::unordered_map<std::string_view, MonsterTypeID> s_monsterTypeMap;
+    // Map of classnames to type IDs - use std::string for safe key ownership
+    static std::unordered_map<std::string, MonsterTypeID> s_monsterTypeMap;
 
+    // Map of map names to MapIDs - use std::string for safe key ownership
+    static std::unordered_map<std::string, MapID> s_mapIDMap;
     // Reverse map of type IDs to classnames - used for debugging
     static std::array<const char*, static_cast<size_t>(MonsterTypeID::MAX_TYPES)> s_typeToClassname;
 
-    // Map of map names to MapIDs - used during initialization
-    static std::unordered_map<std::string_view, MapID> s_mapIDMap;
+
 
 
     // Initialize the entire system
