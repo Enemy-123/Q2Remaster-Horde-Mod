@@ -2228,16 +2228,12 @@ pmenuhnd_t* CreateUpgradeMenu(edict_t* ent) {
     Q_strlcpy(upgrade_menu[menu_index].text_arg1, "weapon_upgrades", sizeof(upgrade_menu[menu_index].text_arg1));
     menu_index++;
 
-    // Only show restore if player has purchased something
-    bool has_purchases = (ent->client->pers.active_abilities_mask != 0) ||
-                        (ent->client->pers.active_weapons_mask != 0);
-    if (has_purchases) {
-        Q_strlcpy(upgrade_menu[menu_index].text, "> Restore All Points", sizeof(upgrade_menu[menu_index].text));
-        upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
-        upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
-        Q_strlcpy(upgrade_menu[menu_index].text_arg1, "restore_points", sizeof(upgrade_menu[menu_index].text_arg1));
-        menu_index++;
-    }
+    // Always show restore option - helps late-joining players and those who need to reset
+    Q_strlcpy(upgrade_menu[menu_index].text, "> Restore All Points", sizeof(upgrade_menu[menu_index].text));
+    upgrade_menu[menu_index].align = PMENU_ALIGN_LEFT;
+    upgrade_menu[menu_index].SelectFunc = UpgradeMenuHandler;
+    Q_strlcpy(upgrade_menu[menu_index].text_arg1, "restore_points", sizeof(upgrade_menu[menu_index].text_arg1));
+    menu_index++;
 
     // Auto-buy toggles
     G_FmtTo(upgrade_menu[menu_index].text, "> Auto-buy Abilities: {}", ent->client->pers.auto_buy_abilities ? "ON" : "OFF");

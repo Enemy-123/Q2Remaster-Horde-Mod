@@ -574,3 +574,4 @@ build_mingw/CMakeFiles/Progress/32
 build_mingw/CMakeFiles/Progress/33
 build_mingw/CMakeFiles/Progress/34
 build_mingw/CMakeFiles/Progress/35
+test_spawning.o

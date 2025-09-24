@@ -886,6 +886,30 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.auto_buy_abilities = true;
 		client->pers.auto_buy_weapons = true;
 		client->pers.has_manually_disabled_auto_buy = false;
+
+		// Auto-grant points based on current wave for late-joining players
+		int32_t waves_completed = current_wave_level;
+		
+		// Ability points awarded every 4 waves starting from wave 4
+		if (waves_completed >= 4) {
+			client->pers.ability_points = (waves_completed / 4);
+		} else {
+			client->pers.ability_points = 0;
+		}
+
+		// Weapon points awarded every 8 waves starting from wave 8
+		if (waves_completed >= 8) {
+			client->pers.weapon_points = (waves_completed / 8);
+		} else {
+			client->pers.weapon_points = 0;
+		}
+
+		// Notify player if they received points for joining late
+		if (client->pers.ability_points > 0 || client->pers.weapon_points > 0) {
+			gi.LocClient_Print(ent, PRINT_HIGH,
+				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
+				client->pers.ability_points, client->pers.weapon_points);
+		}
 	}
 
 	//
