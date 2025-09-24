@@ -1516,6 +1516,10 @@ void G_Monster_ScaleCoopHealth(edict_t* self)
 	if (self->monsterinfo.IS_BOSS)
 		return;;
 
+	// No escalar si es una entidad amigable (como sentry guns)
+	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
+		return;;
+
 	// already scaled
 	if (self->monsterinfo.health_scaling >= level.coop_scale_players)
 		return;
@@ -1549,6 +1553,10 @@ void G_Monster_CheckCoopHealthScaling()
 	{
 		// No escalar si es un jefe
 		if (monster->monsterinfo.IS_BOSS)
+			continue;
+
+		// No escalar si es una entidad amigable (como sentry guns)
+		if (monster->monsterinfo.bonus_flags & BF_FRIENDLY)
 			continue;
 
 		// Aplicar el escalado

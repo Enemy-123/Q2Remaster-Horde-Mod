@@ -1999,10 +1999,11 @@ void SP_monster_sentrygun(edict_t* self)
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
 
-	// Calculate health with adrenaline bonus first
+	// Calculate health with adrenaline bonus - set both health and max_health to the same value at spawn
 	int base_health = 125;
-	self->health = CalculateSentryHealth(base_health, self->owner ? self->owner->client : nullptr);
-	self->max_health = self->health;
+	int calculated_health = CalculateSentryHealth(base_health, self->owner ? self->owner->client : nullptr);
+	self->health = calculated_health;
+	self->max_health = calculated_health;
 
 	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	self->monsterinfo.power_armor_power = static_cast<int>(round(self->max_health * 0.4f));

@@ -87,7 +87,6 @@ void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game)
 
 void G_UpdateAdrenalineBasedDeployables()
 {
-
     if (!g_horde || !g_horde->integer)
         return;
 
@@ -111,14 +110,9 @@ void G_UpdateAdrenalineBasedDeployables()
             int base_health = 125; // Base sentry health from SP_monster_sentrygun
             int new_max_health = CalculateSentryHealth(base_health, player->client);
 
+            // Only update max_health, leave current health untouched
             if (new_max_health != sentry->max_health)
             {
-                if (sentry->health > 0)
-                {
-                    // Maintain health ratio when updating max health
-                    float health_ratio = (sentry->max_health > 0) ? (float)sentry->health / (float)sentry->max_health : 1.0f;
-                    sentry->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
-                }
                 sentry->max_health = new_max_health;
 
                 // Update power armor accordingly (40% of max health)
