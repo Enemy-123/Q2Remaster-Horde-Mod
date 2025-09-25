@@ -1168,8 +1168,9 @@ enum mod_id_t : uint8_t
 	//Horde
 	MOD_TURRET,
 	MOD_PLAYER_LASER,
-	MOD_TANK_PUNCH
-};
+	MOD_TANK_PUNCH,
+	MOD_SUMMONED_MONSTER
+};;
 
 struct mod_t
 {

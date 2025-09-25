@@ -1037,6 +1037,23 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (!attacker)
 		attacker = world;
 
+	// Check if the attacker is a summoned monster and redirect damage attribution to owner
+	if (attacker && (attacker->svflags & SVF_MONSTER) && attacker->monsterinfo.issummoned && attacker->teammaster) {
+		// Store the original attacker for reference
+		edict_t* original_attacker = attacker;
+		
+		// Redirect attacker to the owner (player who summoned the monster)
+		attacker = attacker->teammaster;
+		
+		// Change the mod to indicate this was from a summoned monster
+		mod.id = MOD_SUMMONED_MONSTER;
+		
+		// If the inflictor was the same as the original attacker, update it too
+		if (inflictor == original_attacker) {
+			inflictor = attacker;
+		}
+	}
+
 	if (attacker && (attacker->svflags & SVF_MONSTER)) {
 		UpdatePowerUpTimes(attacker);
 		damage = static_cast<int>(round(damage * M_DamageModifier(attacker)));
