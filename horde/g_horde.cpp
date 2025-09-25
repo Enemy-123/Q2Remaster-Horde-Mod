@@ -6155,10 +6155,6 @@ private:
         gtime_t last_update_time = 0_sec;
     };
 
-    static constexpr size_t MAX_CACHED_PLAYERS = 16;
-    std::array<PlayerSpawnCandidates, MAX_CACHED_PLAYERS> player_cache;
-    size_t cached_player_count = 0;
-
     // Map-size-aware distance scaling
     struct ScaledDistances {
         float min_radius;
@@ -6213,68 +6209,6 @@ private:
         return false; // No spawn point has clear line-of-sight
     }
 
-    // Updates the list of candidate spawn points around a specific player.
-    void UpdatePlayerCandidates(edict_t* player, PlayerSpawnCandidates& candidates, const horde::MapSize& mapSize) {
-        constexpr size_t NUM_CANDIDATES = 16;
-        
-        ScaledDistances distances = GetScaledDistances(mapSize);
-
-        candidates.player = player;
-        candidates.valid_count = 0;
-        candidates.last_update_time = level.time;
-
-        const vec3_t player_origin = player->s.origin;
-
-        // Generate candidate positions in a distributed radial pattern
-        for (size_t i = 0; i < NUM_CANDIDATES; ++i) {
-            const float radius = frandom(distances.min_radius, distances.max_radius);
-            const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f); // Add jitter
-
-            vec3_t candidate_pos = {
-                player_origin.x + cosf(angle_rad) * radius,
-                player_origin.y + sinf(angle_rad) * radius,
-                player_origin.z + frandom(8.0f, 48.0f) // Vary height
-            };
-
-            // A quick, cheap check to see if the point is inside a solid.
-            // This filters out many bad spots before the more expensive IsPositionPhysicallyValid call.
-            if (gi.pointcontents(candidate_pos) & MASK_SOLID) {
-                continue;
-            }
-
-            // Map-size-aware line-of-sight validation
-            if (!HasLineOfSightToSpawnPoint(candidate_pos, distances.line_of_sight_tolerance)) {
-                continue;
-            }
-
-            candidates.positions[candidates.valid_count] = candidate_pos;
-            candidates.scores[candidates.valid_count] = CalculatePositionScore(candidate_pos, player_origin, mapSize);
-            candidates.valid_count++;
-        }
-
-        // Sort candidates by score (best first) for faster searching later
-        std::array<uint8_t, 16> indices;
-        for(uint8_t i = 0; i < candidates.valid_count; ++i) {
-            indices[i] = i;
-        }
-
-        // Use stable_sort with explicit return type to avoid consteval issues
-        std::stable_sort(
-            indices.begin(),
-            indices.begin() + candidates.valid_count,
-            [&](uint8_t a, uint8_t b) -> bool {
-                return candidates.scores[a] > candidates.scores[b];
-            }
-        );
-
-        // Reorder the positions and scores based on the sorted indices
-        auto original_positions = candidates.positions;
-        auto original_scores = candidates.scores;
-        for (uint8_t i = 0; i < candidates.valid_count; ++i) {
-            candidates.positions[i] = original_positions[indices[i]];
-            candidates.scores[i] = original_scores[indices[i]];
-        }
-    }
 
     // Scores a potential position based on distance and proximity to recent events.
     float CalculatePositionScore(const vec3_t& pos, const vec3_t& player_pos, const horde::MapSize& mapSize) const {
@@ -6291,35 +6225,6 @@ private:
         return score;
     }
 
-    // Refreshes the cache of player candidates, adding new players or updating stale entries.
-    void RefreshPlayerCache(const horde::MapSize& mapSize) {
-        cached_player_count = 0;
-        for (auto* player : active_players_no_spect()) {
-            if (cached_player_count >= MAX_CACHED_PLAYERS) break;
-
-            // Find if this player is already cached
-            PlayerSpawnCandidates* candidates = nullptr;
-            for (size_t i = 0; i < cached_player_count; ++i) {
-                if (player_cache[i].player == player) {
-                    candidates = &player_cache[i];
-                    break;
-                }
-            }
-
-            if (!candidates) {
-                 candidates = &player_cache[cached_player_count];
-            }
-
-            // Only update if cache is stale (older than 1 second) or for a new player
-            if (level.time - candidates->last_update_time > 1_sec || candidates->player != player) {
-                UpdatePlayerCandidates(player, *candidates, mapSize);
-            }
-
-            if (candidates->player == player) {
-                 cached_player_count++;
-            }
-        }
-    }
 
     // Iterates through a player's cached candidates to find a valid spawn location.
     bool TryPlayerCandidatesFromCache(const PlayerSpawnCandidates& candidates,
@@ -6394,7 +6299,6 @@ private:
 
 public:
     // The main public function to find an optimal emergency spawn position.
-    // The main public function to find an optimal emergency spawn position.
     bool FindOptimalPosition(vec3_t& out_position, vec3_t& out_angles,
                            horde::MonsterTypeID typeId, edict_t* specific_target = nullptr, edict_t** out_used_player = nullptr) {
 
@@ -6426,7 +6330,6 @@ public:
     }
 
 private:
-    // Helper function to try finding position with specific distance ranges
     // Helper function to try finding position with specific distance ranges
     bool TryFindPositionWithDistances(vec3_t& out_position, vec3_t& out_angles,
                                     horde::MonsterTypeID typeId, edict_t* specific_target,
