@@ -155,6 +155,13 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	// Important: Do NOT set monster->owner = base->teammaster
 	// We want the monster to remain independent with its own collision
 
+	// FIX: Remove SVF_PLAYER flag that was set by ApplyMonsterBonusFlags
+	// This flag makes monsters non-solid/passable, we need them solid
+	monster->svflags &= ~SVF_PLAYER;
+	monster->svflags |= SVF_MONSTER;
+	monster->solid = SOLID_BBOX;
+	monster->clipmask = MASK_MONSTERSOLID;
+
 	gi.linkentity(monster);
 
 	return monster;
