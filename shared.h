@@ -134,7 +134,7 @@ extern gtime_t horde_message_end_time;
 extern void CheckAndUpdateMenus();
 extern void CheckAndResetDisabledSpawnPoints();
 extern void CheckAndRestoreMonsterAlpha(edict_t* const ent);
-extern void G_UpdateAdrenalineBasedDeployables();
+extern void G_UpdateAdrenalineBasedDeployables(int current_wave_level);
 // Estructura para pasar datos adicionales a la función de filtro
 struct FilterData {
     const edict_t* ignore_ent;

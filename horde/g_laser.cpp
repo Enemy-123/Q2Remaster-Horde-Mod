@@ -43,49 +43,8 @@ static int CalculateWaveBasedLaserMaxHealth(int wave_level)
     return std::min(LaserConstants::LASER_INITIAL_HEALTH + (LaserConstants::LASER_ADDON_HEALTH * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
 }
 
-void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game)
-{
-    if (!g_horde || !g_horde->integer)
-        return;
-    // if (developer && developer->integer)
-    //     gi.Com_PrintFmt("Updating active lasers for wave: {}\n", current_wave_level_from_game);
 
-    // Iterate through players instead of all entities
-    for (const auto* player : active_players())
-    {
-        if (!player->client) continue;
-
-        // Iterate through this player's deployed lasers
-        for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
-        {
-            edict_t* emitter = player->client->resp.deployed_lasers[i];
-
-            // Check if the emitter and its beam are valid
-            if (!emitter || !emitter->inuse || !emitter->chain || !emitter->chain->inuse)
-            {
-                continue;
-            }
-
-            edict_t* laser_beam = emitter->chain;
-
-            int new_damage = CalculateWaveBasedLaserDamage(current_wave_level_from_game);
-            int new_max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level_from_game);
-
-            laser_beam->dmg = new_damage;
-            if (new_max_health != laser_beam->max_health)
-            {
-                if (laser_beam->health > 0)
-                {
-                    float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
-                    laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
-                }
-                laser_beam->max_health = new_max_health;
-            }
-        }
-    }
-}
-
-void G_UpdateAdrenalineBasedDeployables()
+void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
 {
     if (!g_horde || !g_horde->integer)
         return;
@@ -107,8 +66,68 @@ void G_UpdateAdrenalineBasedDeployables()
         const int current_adrenaline = player->client->pers.adrenaline_count;
         
         // Only process if adrenaline changed or periodic refresh
-        if (current_adrenaline != last_adrenaline_count[player_num] || force_refresh) {
+        bool should_update_adrenaline = (current_adrenaline != last_adrenaline_count[player_num] || force_refresh);
+        if (should_update_adrenaline) {
             last_adrenaline_count[player_num] = current_adrenaline;
+        }
+        
+        // Update lasers with wave-based damage/health and adrenaline bonuses
+        for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
+        {
+            edict_t* emitter = player->client->resp.deployed_lasers[i];
+
+            // Check if the emitter and its beam are valid
+            if (!emitter || !emitter->inuse || !emitter->chain || !emitter->chain->inuse)
+            {
+                continue;
+            }
+
+            edict_t* laser_beam = emitter->chain;
+
+            // Update damage based on wave level
+            int new_damage = CalculateWaveBasedLaserDamage(current_wave_level);
+            
+            // Calculate max health: wave-based + adrenaline bonus (+250 per adrenaline)
+            int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+            int new_max_health = wave_based_health + (current_adrenaline * 250);
+            new_max_health = std::min(new_max_health, LaserConstants::MAX_LASER_HEALTH);
+
+            laser_beam->dmg = new_damage;
+            if (new_max_health != laser_beam->max_health)
+            {
+                if (laser_beam->health > 0)
+                {
+                    float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
+                    laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
+                }
+                laser_beam->max_health = new_max_health;
+            }
+
+            // Update lifetime with adrenaline bonus (+5 seconds per adrenaline) - only when adrenaline changes
+            if (should_update_adrenaline && emitter->timestamp > level.time)
+            {
+                // Calculate the difference in adrenaline bonus
+                int previous_adrenaline = last_adrenaline_count[player_num] == -1 ? 0 : last_adrenaline_count[player_num];
+                int adrenaline_diff = current_adrenaline - previous_adrenaline;
+                gtime_t lifetime_adjustment = gtime_t::from_sec(adrenaline_diff * 5);
+
+                // Only adjust if there's actually a change
+                if (lifetime_adjustment != 0_sec)
+                {
+                    // Simply add/subtract the difference to the current timestamp
+                    emitter->timestamp += lifetime_adjustment;
+
+                    // Also update the beam's timestamp
+                    if (laser_beam)
+                    {
+                        laser_beam->timestamp = emitter->timestamp;
+                    }
+                }
+            }
+        }
+        
+        // Update other deployables only when adrenaline changes
+        if (should_update_adrenaline) {
             
             // Update sentry guns with adrenaline-based health
             for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)

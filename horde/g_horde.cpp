@@ -7314,7 +7314,7 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	CleanupSpawnPointCache();
 	VerifyAndAdjustBots();
-	G_UpdateActiveLasersForWaveProgression(current_wave_level);
+	G_UpdateAdrenalineBasedDeployables(current_wave_level);
 
 	g_horde_local.conditionStartTime = 0_sec;
 	g_horde_local.conditionTriggered = false;

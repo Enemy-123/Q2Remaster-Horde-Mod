@@ -1183,7 +1183,7 @@ inline void G_RunFrame_(bool main_loop)
         G_Monster_CheckCoopHealthScaling();
 
         // Update deployables based on adrenaline changes (cached for performance)
-        G_UpdateAdrenalineBasedDeployables();
+        G_UpdateAdrenalineBasedDeployables(current_wave_level);
 
      //    Time-slicing monster checks.
         // Instead of checking every monster for being stuck every frame, we process

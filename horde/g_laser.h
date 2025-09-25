@@ -15,8 +15,6 @@ void create_laser(edict_t* ent);
 void remove_lasers(edict_t* ent) noexcept;
 
 // Updates the damage and health of all active lasers based on game progression.
-// Called from the main game logic (e.g., when a new wave starts).
-void G_UpdateActiveLasersForWaveProgression(int current_wave_level_from_game);
 
 // --- Engine-level Function Declarations ---
 // These functions are assigned to edict_t members (like think, die, etc.)
