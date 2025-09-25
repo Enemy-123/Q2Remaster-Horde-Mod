@@ -5633,6 +5633,7 @@ static int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
 										  float champion_chance_param)
 { // Added champion_chance_param
 	int emergency_spawned_count = 0;
+	std::vector<vec3_t> batch_spawn_positions; // Track positions used in this batch
 
 	for (int i = 0; i < std::min(spawnable_this_call, 3); ++i)
 	{ // Limit emergency spawns per call
@@ -5642,14 +5643,65 @@ static int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
 		if (currentLevel >= 20)
 			emergency_type = horde::MonsterTypeID::GLADIATOR;
 
-		// Call EmergencySpawnMonster with the champion_chance_param
-		if (EmergencySpawnMonster(currentLevel, emergency_type, false, champion_chance_param))
-		{ // Pass champion_chance_param
-			emergency_spawned_count++;
-			if (g_horde_local.num_to_spawn > 0)
-				--g_horde_local.num_to_spawn;
-			else if (g_horde_local.queued_monsters > 0)
-				--g_horde_local.queued_monsters;
+		// Find spawn position with spacing from other monsters in this batch
+		vec3_t emergency_origin, emergency_angles;
+		bool found_position = false;
+
+		// Try to find a position that's spaced from previous spawns in this batch
+		constexpr float MIN_BATCH_SPACING = 150.0f; // Minimum distance between monsters in same batch
+		constexpr int MAX_POSITION_ATTEMPTS = 10;
+
+		for (int attempt = 0; attempt < MAX_POSITION_ATTEMPTS && !found_position; ++attempt)
+		{
+			if (FindEmergencySpawnPositionNearPlayer(emergency_origin, emergency_angles, emergency_type))
+			{
+				// Check if this position is too close to other monsters spawned in this batch
+				bool too_close_to_batch = false;
+				for (const vec3_t& batch_pos : batch_spawn_positions)
+				{
+					float dist_sq = (emergency_origin - batch_pos).lengthSquared();
+					if (dist_sq < (MIN_BATCH_SPACING * MIN_BATCH_SPACING))
+					{
+						too_close_to_batch = true;
+						break;
+					}
+				}
+
+				if (!too_close_to_batch)
+				{
+					found_position = true;
+				}
+				// If too close, the loop will try again with a new position
+			}
+			else
+			{
+				break; // No valid position found at all
+			}
+		}
+
+		if (found_position)
+		{
+			// Spawn the monster at the validated position
+			edict_t* monster = Horde_SpawnMonster(emergency_origin, emergency_angles, emergency_type, currentLevel, champion_chance_param);
+
+			if (monster && monster->inuse && !monster->deadflag && monster->health > 0)
+			{
+				// Add this position to our batch tracking
+				batch_spawn_positions.push_back(emergency_origin);
+
+				// Apply spawn effects
+				SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+				if (sound_spawn1)
+				{
+					gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+				}
+
+				emergency_spawned_count++;
+				if (g_horde_local.num_to_spawn > 0)
+					--g_horde_local.num_to_spawn;
+				else if (g_horde_local.queued_monsters > 0)
+					--g_horde_local.queued_monsters;
+			}
 		}
 		else
 		{
