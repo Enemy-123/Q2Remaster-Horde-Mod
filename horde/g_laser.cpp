@@ -222,6 +222,19 @@ struct player_laser_pierce_t : pierce_args_t
         }
         // --- END FIX ---
 
+        // --- IGNORE TESLAS, TRAPS, AND SUMMONED MONSTERS ---
+        // Check if target is a tesla, trap, or summoned monster and ignore them
+        if (horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::TESLA_MINE) ||
+            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP) ||
+            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::TURRET) ||
+            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::PROX_MINE) ||
+            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::NUKE_MINE) ||
+            ((tr.ent->svflags & SVF_MONSTER) && tr.ent->monsterinfo.issummoned)) {
+            return mark(tr.ent); // Pierce through without damage or health loss
+        }
+        // --- END IGNORE ---
+
         // Only damage non-player entities
         if (self->dmg > 0 && tr.ent->takedamage)
         {
@@ -340,7 +353,13 @@ THINK(laser_beam_think)(edict_t * self)->void
     player_laser_pierce_t args(self);
     pierce_trace(start, end, emitter, args, MASK_SHOT);
 
-    self->s.origin = args.tr.endpos;
+    // If the trace hit nothing or went the full distance, use the calculated end point
+    // Otherwise use the trace endpoint where we hit something solid
+    if (!args.tr.ent || args.tr.fraction == 1.0f) {
+        self->s.origin = end;
+    } else {
+        self->s.origin = args.tr.endpos;
+    }
     self->s.old_origin = start;
     self->nextthink = level.time + FRAME_TIME_MS;
     gi.linkentity(self);
