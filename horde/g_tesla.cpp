@@ -722,6 +722,10 @@ void check_player_tesla_limit(edict_t *self)
 {
 }
 
+// Network throttling for tesla effects to prevent overflow
+static gtime_t last_tesla_network_update[MAX_EDICTS];
+constexpr gtime_t TESLA_NETWORK_THROTTLE = 100_ms;  // Only send updates every 100ms
+
 void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int tesla_damage_multiplier, int speed)
 {
 	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.

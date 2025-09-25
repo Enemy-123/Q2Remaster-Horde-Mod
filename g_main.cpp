@@ -1071,12 +1071,17 @@ Advances the world by 0.1 seconds
 
 #include "profiler.h"
 #include "horde/g_horde_phys.h"
+#include "horde/network_overflow_fix.h"
 // This is the main game frame function. It is called every server frame.
 // The structure of this function is highly  for performance.
 inline void G_RunFrame_(bool main_loop)
 {
     auto monsters = active_monsters();
     auto players = active_players();
+
+    // Reset network throttling for this frame
+    extern void G_ResetNetworkThrottle();
+    G_ResetNetworkThrottle();
 
     // Profiler and Horde-specific setup.
     if (g_horde_profiler) {
