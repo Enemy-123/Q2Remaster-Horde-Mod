@@ -337,8 +337,8 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 			if (!visible(victim, potential_chain_target))
 				continue;
 
-			// Use the same ray origin as regular tesla for consistency
-			vec3_t chain_start = cached_ray_origin;
+			// Chain lightning should start from victim, not tesla
+			vec3_t chain_start = calculate_tesla_ray_target(self, victim);
 			vec3_t chain_end = calculate_tesla_ray_target(self, potential_chain_target);
 
 			// Apply chain lightning damage (reduced damage)
@@ -349,7 +349,7 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 			T_Damage(potential_chain_target, victim, self->teammaster, chain_dir, chain_end, vec3_origin,
 				chain_damage, TESLA_KNOCKBACK / 2, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-			// Send chain lightning visual effect from tesla to chain target
+			// Send chain lightning visual effect from victim to chain target
 			if (TrySendChainLightningEffect(self, potential_chain_target, chain_start, chain_end))
 			{
 				chains_from_this_victim++;
