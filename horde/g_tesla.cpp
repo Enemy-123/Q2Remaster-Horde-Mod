@@ -1,6 +1,7 @@
 #include "../shared.h"
 #include "../g_local.h"
 #include "horde_performance.h"
+#include "g_horde_phys.h"
 
 // *************************
 // TESLA - 
@@ -32,6 +33,13 @@ constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f; // Altura de la esfera cuando es
 constexpr int MAX_TESLA_MESSAGES_PER_FRAME = 12; // Limit messages per frame to prevent overflow
 static int tesla_messages_this_frame = 0;
 static gtime_t tesla_message_frame_time = 0_sec;
+// Chain Lightning constants
+constexpr float CHAIN_LIGHTNING_RANGE = 200.0f;        // Range to find chain targets
+constexpr float CHAIN_LIGHTNING_DAMAGE_MULT = 0.5f;    // 50% of tesla damage for chain targets
+constexpr int MAX_CHAIN_TARGETS_PER_VICTIM = 2;        // Max chain targets per tesla victim
+constexpr int CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME = 18; // Higher limit for chain effects per frame
+
+static int chain_lightning_effects_this_frame = 0;
 
 void tesla_remove(edict_t *self)
 {
@@ -195,6 +203,23 @@ float CalculateTeslaPriority(edict_t *self, edict_t *target, float dist_squared)
 	return priority;
 }
 
+// Chain target validation - excludes entities that are already being attacked by the tesla
+bool IsValidChainTarget(edict_t *self, edict_t *ent, const TeslaTarget *tesla_targets, int num_tesla_targets)
+{
+	// Basic validation first
+	if (!IsValidTeslaTarget(self, ent))
+		return false;
+
+	// Exclude entities that are already being targeted by the tesla
+	for (int i = 0; i < num_tesla_targets; i++)
+	{
+		if (tesla_targets[i].ent == ent)
+			return false;
+	}
+
+	return true;
+}
+
 // Helper for sending tesla effect
 bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start, const vec3_t &ray_end)
 {
@@ -249,7 +274,98 @@ bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start,
 	return true;
 }
 
-#include "../horde/g_horde_phys.h"
+// Helper for sending chain lightning effects
+bool TrySendChainLightningEffect(edict_t *victim_source, edict_t *chain_target, const vec3_t &chain_start, const vec3_t &chain_end)
+{
+	// Reset counter if we're in a new frame
+	if (tesla_message_frame_time != level.time)
+	{
+		chain_lightning_effects_this_frame = 0;
+	}
+
+	// Only check chain lightning specific limit (don't compete with tesla messages)
+	if (chain_lightning_effects_this_frame >= CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME)
+	{
+		return false;
+	}
+
+	// Send the chain lightning effect
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_LIGHTNING);
+	gi.WriteEntity(victim_source);  // source entity (the victim being attacked by tesla)
+	gi.WriteEntity(chain_target);   // destination entity (the chain target)
+	gi.WritePosition(chain_start);
+	gi.WritePosition(chain_end);
+	gi.multicast(chain_start, MULTICAST_PVS, false);
+
+	// Update only chain lightning counter (don't increment tesla counter)
+	chain_lightning_effects_this_frame++;
+
+	return true;
+}
+
+// Main chain lightning function - spreads lightning from tesla victims to nearby enemies
+void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int num_victims)
+{
+	if (!self || num_victims <= 0)
+		return;
+
+	// Process each victim that was attacked by the tesla
+	for (int victim_idx = 0; victim_idx < num_victims; victim_idx++)
+	{
+		edict_t *victim = tesla_victims[victim_idx].ent;
+		if (!victim || !victim->inuse || victim->health <= 0)
+			continue;
+
+		// Find chain targets around this victim
+		const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(victim->s.origin, CHAIN_LIGHTNING_RANGE);
+		
+		int chains_from_this_victim = 0;
+		const float max_range_squared = CHAIN_LIGHTNING_RANGE * CHAIN_LIGHTNING_RANGE;
+
+		for (auto* potential_chain_target : nearby_entities)
+		{
+			if (chains_from_this_victim >= MAX_CHAIN_TARGETS_PER_VICTIM)
+				break;
+
+			// Must be a monster to be a chain target
+			if (!(potential_chain_target->svflags & SVF_MONSTER))
+				continue;
+
+			// Validate the chain target (excludes original tesla targets)
+			if (!IsValidChainTarget(self, potential_chain_target, tesla_victims, num_victims))
+				continue;
+
+			// Distance check
+			float dist_squared = DistanceSquared(victim->s.origin, potential_chain_target->s.origin);
+			if (dist_squared > max_range_squared)
+				continue;
+
+			// Visibility check from victim to chain target
+			if (!visible(victim, potential_chain_target))
+				continue;
+
+			// Calculate chain lightning positions
+			vec3_t chain_start = calculate_tesla_ray_target(self, victim);
+			vec3_t chain_end = calculate_tesla_ray_target(self, potential_chain_target);
+
+			// Apply chain lightning damage (reduced damage)
+			int chain_damage = static_cast<int>(self->dmg * CHAIN_LIGHTNING_DAMAGE_MULT);
+			vec3_t chain_dir = chain_end - chain_start;
+			chain_dir.normalize();
+
+			T_Damage(potential_chain_target, victim, self->teammaster, chain_dir, chain_end, vec3_origin,
+				chain_damage, TESLA_KNOCKBACK / 2, DAMAGE_NO_ARMOR, MOD_TESLA);
+
+			// Send chain lightning visual effect
+			if (TrySendChainLightningEffect(victim, potential_chain_target, chain_start, chain_end))
+			{
+				chains_from_this_victim++;
+			}
+		}
+	}
+}
+
 //  targeting and attack function using the Proximity Grid
 THINK(tesla_think_active)(edict_t* self)->void
 {
@@ -354,9 +470,11 @@ THINK(tesla_think_active)(edict_t* self)->void
 		potential_targets[j + 1] = key;
 	}
 
-	// Attack phase
-	int targets_attacked = 0;
-	for (int i = 0; i < num_targets && targets_attacked < max_targets; i++)
+	// Attack phase - collect successfully attacked targets for chain lightning
+	TeslaTarget attacked_victims[max_targets];
+	int victims_count = 0;
+
+	for (int i = 0; i < num_targets && victims_count < max_targets; i++)
 	{
 		const auto& target = potential_targets[i];
 
@@ -373,9 +491,17 @@ THINK(tesla_think_active)(edict_t* self)->void
 			// Try to send the visual effect, respecting rate limits
 			if (TrySendTeslaEffect(self, target.ent, ray_origin, ray_end))
 			{
-				targets_attacked++;
+				// Successfully attacked this target, add to victims for chain lightning
+				attacked_victims[victims_count] = target;
+				victims_count++;
 			}
 		}
+	}
+
+	// Chain Lightning Phase - spread lightning from victims to nearby enemies
+	if (victims_count > 0)
+	{
+		tesla_chain_lightning(self, attacked_victims, victims_count);
 	}
 
 	// Stagger think times to distribute processing load
