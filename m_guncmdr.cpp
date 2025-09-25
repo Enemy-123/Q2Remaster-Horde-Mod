@@ -838,6 +838,18 @@ void GunnerCmdrFire(edict_t* self)
 	monster_fire_flechette(self, start, aim, GetFlechetteDamage(self->style), speed, flash_number);
 }
 
+mframe_t guncmdr_frames_endfire_chain[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
+};
+MMOVE_T(guncmdr_move_endfire_chain) = { FRAME_c_attack118, FRAME_c_attack124, guncmdr_frames_endfire_chain, guncmdr_run };
+
+
 // Función unificada para lanzar granadas
 void GunnerCmdrGrenade(edict_t* self)
 {
@@ -936,7 +948,11 @@ void GunnerCmdrGrenade(edict_t* self)
 	{
 		// and we have a valid blind_fire_target
 		if (!self->monsterinfo.blind_fire_target)
+		{
+			// No valid target for blind fire, stop the current attack animation
+			M_SetAnimation(self, &guncmdr_move_endfire_chain);
 			return;
+		}
 
 		target = self->monsterinfo.blind_fire_target;
 	}
@@ -1079,17 +1095,6 @@ mframe_t guncmdr_frames_fire_chain_dodge_left[] = {
 	{ ai_charge, -1.0f * 2.0f, GunnerCmdrFire }
 };
 MMOVE_T(guncmdr_move_fire_chain_dodge_left) = { FRAME_c_attack501, FRAME_c_attack505, guncmdr_frames_fire_chain_dodge_left, guncmdr_refire_chain };
-
-mframe_t guncmdr_frames_endfire_chain[] = {
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge }
-};
-MMOVE_T(guncmdr_move_endfire_chain) = { FRAME_c_attack118, FRAME_c_attack124, guncmdr_frames_endfire_chain, guncmdr_run };
 
 constexpr float MORTAR_SPEED = 1650.f;
 constexpr float GRENADE_SPEED = 1400.f;
@@ -1258,6 +1263,8 @@ static void guncmdr_kick(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
+		// No valid target, end the kick animation immediately
+		M_SetAnimation(self, &guncmdr_move_stand);
 		return;
 	}
 
