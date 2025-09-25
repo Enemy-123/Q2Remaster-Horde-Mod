@@ -17,6 +17,59 @@ void SP_monster_infantry(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_medic(edict_t* self);
 
+// Touch function for summoned Strogg - allows owner to push them
+TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	// Only the owner (summoner) can push the monster
+	if (!other->client || !self->chain || !self->chain->teammaster)
+		return;
+
+	if (other != self->chain->teammaster)
+		return;
+
+	// Don't push if owner is not on ground or not touching properly
+	if (!other->groundentity || !other_touching_self)
+		return;
+
+	// Calculate push direction and strength
+	vec3_t push_dir;
+	float push_speed = 400.0f; // Faster than barrel push (20 -> 400)
+
+	// Check if owner is looking up (towards sky/roof)
+	if (other->client->v_angle[PITCH] < -45.0f) // Looking up more than 45 degrees
+	{
+		// Vertical push - launch the monster upward
+		push_dir = { 0, 0, 1 }; // Straight up
+		self->velocity[2] = push_speed * 1.5f; // Strong vertical push
+
+		// Add some forward momentum based on view
+		vec3_t forward;
+		AngleVectors(other->client->v_angle, forward, nullptr, nullptr);
+		self->velocity[0] += forward[0] * push_speed * 0.3f;
+		self->velocity[1] += forward[1] * push_speed * 0.3f;
+
+		// Make sure monster is off ground for the jump
+		self->groundentity = nullptr;
+	}
+	else
+	{
+		// Horizontal push based on player's view direction
+		vec3_t forward;
+		AngleVectors(other->client->v_angle, forward, nullptr, nullptr);
+
+		// Apply velocity directly for immediate push
+		self->velocity[0] = forward[0] * push_speed;
+		self->velocity[1] = forward[1] * push_speed;
+		self->velocity[2] = 100; // Small upward component to help with obstacles
+
+		// Also use walkmove for ground-based movement
+		M_walkmove(self, other->client->v_angle[YAW], push_speed * gi.frame_time_s);
+	}
+
+	// Update physics
+	gi.linkentity(self);
+}
+
 DIE(strogg_summoner_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	// Remove from special entities list
@@ -161,6 +214,9 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	monster->svflags |= SVF_MONSTER;
 	monster->solid = SOLID_BBOX;
 	monster->clipmask = MASK_MONSTERSOLID;
+
+	// Set touch function to allow owner to push the monster
+	monster->touch = strogg_summoned_touch;
 
 	gi.linkentity(monster);
 
