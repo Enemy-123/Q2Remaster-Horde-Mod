@@ -188,6 +188,7 @@
     <ClCompile Include="horde\g_horde_phys.cpp" />
     <ClCompile Include="horde\g_idview.cpp" />
     <ClCompile Include="horde\g_laser.cpp" />
+    <ClCompile Include="horde\g_strogg_summoner.cpp" />
     <ClCompile Include="horde\g_tesla.cpp" />
     <ClCompile Include="horde\g_traps.cpp" />
     <ClCompile Include="horde\horde_boss.cpp" />
