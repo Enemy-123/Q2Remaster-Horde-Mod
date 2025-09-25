@@ -154,7 +154,7 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 
 	trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
-	if (tr.ent == self->enemy || tr.ent->client || (tr.fraction > 0.8f && !tr.startsolid))
+	if ((tr.ent && tr.ent == self->enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
 		return true;
 
 	if (!is_blind)
@@ -166,7 +166,7 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 
 		trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
-		if (tr.ent == self->enemy || tr.ent->client || (tr.fraction > 0.8f && !tr.startsolid))
+		if ((tr.ent && tr.ent == self->enemy) || (tr.ent && tr.ent->client) || (tr.fraction > 0.8f && !tr.startsolid))
 			return true;
 	}
 
