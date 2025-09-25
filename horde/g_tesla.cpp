@@ -276,37 +276,24 @@ bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start,
 }
 
 // Helper for sending chain lightning effects
-bool TrySendChainLightningEffect(edict_t *victim_source, edict_t *chain_target, const vec3_t &chain_start, const vec3_t &chain_end)
+bool TrySendChainLightningEffect(edict_t *tesla_source, edict_t *chain_target, const vec3_t &chain_start, const vec3_t &chain_end)
 {
-	// Reset counter if we're in a new frame
-	if (tesla_message_frame_time != level.time)
-	{
-		chain_lightning_effects_this_frame = 0;
-	}
-
-	// Much more lenient rate limiting - only prevent extreme spam
-	if (chain_lightning_effects_this_frame >= CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME * 2)
-	{
-		return false;
-	}
-
-	// Send the chain lightning effect with higher priority
+	// DEBUGGING: Remove ALL rate limiting to isolate the visibility issue
+	
+	// Send the chain lightning effect
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_LIGHTNING);
-	gi.WriteEntity(victim_source);  // source entity (the victim being attacked by tesla)
+	gi.WriteEntity(tesla_source);   // source entity (the tesla)
 	gi.WriteEntity(chain_target);   // destination entity (the chain target)
 	gi.WritePosition(chain_start);
 	gi.WritePosition(chain_end);
 	gi.multicast(chain_start, MULTICAST_PVS, false);
 
-	// Update only chain lightning counter (don't increment tesla counter)
-	chain_lightning_effects_this_frame++;
-
 	return true;
 }
 
 // Main chain lightning function - spreads lightning from tesla victims to nearby enemies
-void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int num_victims)
+void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int num_victims, const vec3_t &cached_ray_origin)
 {
 	if (!self || num_victims <= 0)
 		return;
@@ -350,8 +337,8 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 			if (!visible(victim, potential_chain_target))
 				continue;
 
-			// Calculate chain lightning positions - from tesla to chain target for better visibility
-			vec3_t chain_start = calculate_tesla_ray_origin(self);
+			// Use the same ray origin as regular tesla for consistency
+			vec3_t chain_start = cached_ray_origin;
 			vec3_t chain_end = calculate_tesla_ray_target(self, potential_chain_target);
 
 			// Apply chain lightning damage (reduced damage)
@@ -493,20 +480,19 @@ THINK(tesla_think_active)(edict_t* self)->void
 			T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-			// Try to send the visual effect, respecting rate limits
-			if (TrySendTeslaEffect(self, target.ent, ray_origin, ray_end))
-			{
-				// Successfully attacked this target, add to victims for chain lightning
-				attacked_victims[victims_count] = target;
-				victims_count++;
-			}
+			// Always add successfully damaged targets to chain lightning victims
+			attacked_victims[victims_count] = target;
+			victims_count++;
+
+			// Try to send the visual effect independently (best effort)
+			TrySendTeslaEffect(self, target.ent, ray_origin, ray_end);
 		}
 	}
 
 	// Chain Lightning Phase - spread lightning from victims to nearby enemies
 	if (victims_count > 0)
 	{
-		tesla_chain_lightning(self, attacked_victims, victims_count);
+		tesla_chain_lightning(self, attacked_victims, victims_count, ray_origin);
 	}
 
 	// Stagger think times to distribute processing load
