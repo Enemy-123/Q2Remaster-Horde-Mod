@@ -5866,7 +5866,20 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
 	bool became_champion = false;
 	if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance)
 	{
-		monster->monsterinfo.bonus_flags |= frandom() < 0.09f ? BF_BERSERKING : brandom() ? BF_CHAMPION : BF_POSSESSED;
+		// Extended selection with BF_STYGIAN and BF_CORRUPTED
+		float roll = frandom();
+		if (roll < 0.09f) {
+			monster->monsterinfo.bonus_flags |= BF_BERSERKING;
+		} else if (roll < 0.22f) {
+			monster->monsterinfo.bonus_flags |= BF_STYGIAN;
+		} else if (roll < 0.35f) {
+			monster->monsterinfo.bonus_flags |= BF_CORRUPTED;
+		} else if (roll < 0.67f) {
+			monster->monsterinfo.bonus_flags |= BF_CHAMPION;
+		} else {
+			monster->monsterinfo.bonus_flags |= BF_POSSESSED;
+		}
+
 		ApplyMonsterBonusFlags(monster);
 		if (!monster->inuse) return false; // Check if monster was freed
 

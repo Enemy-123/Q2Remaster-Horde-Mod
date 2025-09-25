@@ -253,11 +253,11 @@ void Widow2Spawn(edict_t* self)
 				ent->monsterinfo.attack(ent);
 			}
 			else {
-				gi.Com_PrintFmt("Widow2Spawn: Stalker missing attack function\n");
+			//	gi.Com_PrintFmt("Widow2Spawn: Stalker missing attack function\n");
 			}
 		}
 		else {
-			gi.Com_PrintFmt("Widow2Spawn: Invalid designated enemy\n");
+			//gi.Com_PrintFmt("Widow2Spawn: Invalid designated enemy\n");
 		}
 	}
 
