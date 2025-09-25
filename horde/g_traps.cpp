@@ -122,6 +122,20 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 {
     auto& vec = g_targetable_special_entities;
     vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+
+    // --- CLEAN UP ANY ROTATING GIBS ---
+    // Find and free any gibs that are linked to this trap
+    for (uint32_t i = 0; i < globals.num_edicts; i++) {
+        edict_t* e = &g_edicts[i];
+
+        if (!e->inuse)
+            continue;
+        if (e->owner == self && !strcmp(e->classname, "gib")) {
+            // This gib belongs to this trap, free it
+            G_FreeEdict(e);
+        }
+    }
+
     // --- UPDATE PLAYER TRACKING ---
     if (self->owner && self->owner->client) {
         gclient_t* client = self->owner->client;
@@ -139,7 +153,7 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     }
 
     // --- CLEAN UP GLOBAL STATE ---
-    RemoveTrapState(self); 
+    RemoveTrapState(self);
 
     BecomeExplosion1(self);
 }

@@ -49,7 +49,8 @@ bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time = 100_ms) {
 
 // Optimized monster network update
 void G_OptimizeMonsterNetworkUpdate(edict_t* monster) {
-    if (!monster || !monster->inuse || !monster->client) return;
+if (!monster || !monster->inuse) return;
+if (!(monster->svflags & SVF_MONSTER)) return;
 
     // Store old position in monsterinfo if not already used
     vec3_t& old_origin = monster->monsterinfo.last_sighting;
@@ -104,15 +105,16 @@ public:
     }
 
     void Flush() {
-        if (!needs_flush || !target_client) return;
-
-        gi.WriteByte(svc_layout);
-        gi.WriteString(batch_buffer.c_str());
-        gi.unicast(target_client, true);
-
-        batch_buffer.clear();
-        needs_flush = false;
-    }
+    if (!target_client || !needs_flush) return;
+    // ensure message size safe first (use MessageSizeTracker)
+    gi.WriteByte(svc_layout);
+    gi.WriteString(batch_buffer.c_str());
+    // use unreliable for HUD to reduce reliable-channel pressure
+    gi.unicast(target_client, false);
+    
+    batch_buffer.clear();
+    needs_flush = false;
+}
 };
 
 static HUDBatcher g_hud_batcher;

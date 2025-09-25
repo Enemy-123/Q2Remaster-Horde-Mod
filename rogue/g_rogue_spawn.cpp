@@ -153,13 +153,18 @@ bool CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const ve
 // SPAWNGROW stuff
 // ****************************
 
-constexpr gtime_t SPAWNGROW_LIFESPAN = 1000_ms;
+constexpr gtime_t SPAWNGROW_LIFESPAN = 2000_ms; // Increased from 1 second to 2 seconds for proper fade effect
 
 THINK(spawngrow_think) (edict_t *self) -> void
 {
 	if (level.time >= self->timestamp)
 	{
-		G_FreeEdict(self->target_ent);
+		// Safely free the beam entity first if it exists
+		if (self->target_ent)
+		{
+			G_FreeEdict(self->target_ent);
+			self->target_ent = nullptr;
+		}
 		G_FreeEdict(self);
 		return;
 	}
@@ -168,10 +173,14 @@ THINK(spawngrow_think) (edict_t *self) -> void
 
 	float t = 1.f - ((level.time - self->teleport_time).seconds() / self->wait);
 
+	// Clamp t to valid range to prevent issues
+	t = clamp(t, 0.0f, 1.0f);
+
 	self->s.scale = clamp(lerp(self->decel, self->accel, t) / 16.f, 0.001f, 16.f);
 	self->s.alpha = t * t;
 
-	self->nextthink += FRAME_TIME_MS;
+	// Fix: Use absolute time instead of relative time
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 vec3_t SpawnGro_laser_pos(edict_t* ent)
