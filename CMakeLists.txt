@@ -35,6 +35,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_NAME STREQUAL "Windows
         /wd4996  # Disable deprecated function warnings
         /wd4244  # Disable conversion warnings
         /wd4267  # Disable size_t conversion warnings
+        -Wno-template-id-cdtor  # Disable C++20 constructor template-id warnings
+        -Wno-deprecated-enum-enum-conversion  # Disable enum arithmetic warnings
 
         # MSVC-compatible optimizations
         $<$<CONFIG:Debug>:/Od /Zi>

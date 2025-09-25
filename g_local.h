@@ -108,10 +108,11 @@ private:
 				output = ""; // Use empty string for null
 			} else {
 				// Check string length to avoid reading beyond bounds
-				size_t len = strnlen(input, MAX_INFO_STRING);
-				if (len >= MAX_INFO_STRING) {
-					// String is too long, need to copy and truncate
-					memcpy(buffer, input, MAX_INFO_STRING - 1);
+				size_t len = strnlen(input, MAX_INFO_STRING - 1);
+				if (len >= MAX_INFO_STRING - 1) {
+					// String is at least MAX_INFO_STRING-1 long, need to copy and truncate
+					// Use strncpy to safely copy up to MAX_INFO_STRING-1 bytes
+					strncpy(buffer, input, MAX_INFO_STRING - 1);
 					buffer[MAX_INFO_STRING - 1] = '\0';
 					output = buffer;
 #ifdef _DEBUG
