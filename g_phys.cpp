@@ -675,6 +675,15 @@ void SV_Physics_Toss(edict_t* ent)
 		// just assume that the object we hit is our ground.
 		else if (trace.allsolid)
 		{
+			// Special handling for grenades that get stuck bugfix
+			if (ent->movetype == MOVETYPE_BOUNCE && ent->think && 
+			    (strcmp(ent->classname, "grenade") == 0 || strcmp(ent->classname, "hand_grenade") == 0))
+			{
+				// Force the grenade to explode immediately when stuck
+				ent->nextthink = level.time + 1_ms;
+				break;
+			}
+			
 			ent->groundentity = trace.ent;
 			ent->groundentity_linkcount = trace.ent->linkcount;
 			ent->velocity = {};
