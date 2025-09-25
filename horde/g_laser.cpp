@@ -102,28 +102,6 @@ void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
                 }
                 laser_beam->max_health = new_max_health;
             }
-
-            // Update lifetime with adrenaline bonus (+5 seconds per adrenaline) - only when adrenaline changes
-            if (should_update_adrenaline && emitter->timestamp > level.time)
-            {
-                // Calculate the difference in adrenaline bonus
-                int previous_adrenaline = last_adrenaline_count[player_num] == -1 ? 0 : last_adrenaline_count[player_num];
-                int adrenaline_diff = current_adrenaline - previous_adrenaline;
-                gtime_t lifetime_adjustment = gtime_t::from_sec(adrenaline_diff * 5);
-
-                // Only adjust if there's actually a change
-                if (lifetime_adjustment != 0_sec)
-                {
-                    // Simply add/subtract the difference to the current timestamp
-                    emitter->timestamp += lifetime_adjustment;
-
-                    // Also update the beam's timestamp
-                    if (laser_beam)
-                    {
-                        laser_beam->timestamp = emitter->timestamp;
-                    }
-                }
-            }
         }
         
         // Update other deployables only when adrenaline changes
@@ -521,7 +499,10 @@ void create_laser(edict_t * ent)
     emitter->think = emitter_think;
     emitter->nextthink = level.time + FRAME_TIME_MS;
     emitter->die = laser_die;
-    emitter->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
+    // Set laser lifetime with adrenaline bonus (+5 seconds per adrenaline)
+    gtime_t base_lifetime = LaserConstants::LASER_TIMEOUT_DELAY;
+    gtime_t adrenaline_bonus = gtime_t::from_sec(ent->client->pers.adrenaline_count * 5);
+    emitter->timestamp = level.time + base_lifetime + adrenaline_bonus;
     emitter->flags |= FL_NO_KNOCKBACK;
 
     // CRITICAL FIX: Ensure proper team assignment for MinGW compatibility
@@ -544,11 +525,15 @@ void create_laser(edict_t * ent)
     beam->owner = emitter;
     beam->s.angles = emitter->s.angles;
     beam->dmg = CalculateWaveBasedLaserDamage(current_wave_level);
-    beam->max_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+    // Set laser max health with wave-based + adrenaline bonus (+250 per adrenaline)
+    int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+    int adrenaline_health_bonus = ent->client->pers.adrenaline_count * 250;
+    beam->max_health = std::min(wave_based_health + adrenaline_health_bonus, LaserConstants::MAX_LASER_HEALTH);
     beam->health = beam->max_health;
     beam->die = laser_die;
     beam->think = laser_beam_think;
     beam->nextthink = level.time + LaserConstants::LASER_SPAWN_DELAY;
+    beam->timestamp = emitter->timestamp; // Match emitter's lifetime
     beam->flags |= FL_NO_KNOCKBACK;
     beam->team = emitter->team;
 
