@@ -145,7 +145,12 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 	if (is_blind)
 		target = self->monsterinfo.blind_fire_target;
 	else
+	{
+		// Additional safety check before accessing enemy
+		if (!self->enemy || !self->enemy->inuse)
+			return false;
 		target = self->enemy->s.origin + vec3_t{ 0, 0, (float)self->enemy->viewheight };
+	}
 
 	trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
@@ -154,6 +159,9 @@ bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 
 	if (!is_blind)
 	{
+		// Additional safety check before accessing enemy again
+		if (!self->enemy || !self->enemy->inuse)
+			return false;
 		target = self->enemy->s.origin;
 
 		trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
