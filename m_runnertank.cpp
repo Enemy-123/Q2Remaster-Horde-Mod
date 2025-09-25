@@ -852,60 +852,69 @@ void runnertank_consider_strafe(edict_t* self)
 	if (self->monsterinfo.active_move == &runnertank_move_attack_blast ||
 		self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket ||
 		self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket ||
-		self->monsterinfo.active_move == &tank_move_punch_attack) // Assuming tank_move_punch_attack is relevant here
+		self->monsterinfo.active_move == &tank_move_punch_attack)
 		return;
 
-	// CORRECTED: Use the comprehensive check.
+	// Use the comprehensive check
 	if (!M_HasValidTarget(self))
 		return;
 
-	float strafe_chance = 0.3f; // Base chance más baja para no ser tan errático
+	// Don't strafe if we're still in strafe pause
+	if (level.time < self->monsterinfo.pausetime)
+		return;
 
-	// Aumentar probabilidad en situaciones críticas
-	// Ensure enemy is a client before accessing client->buttons to prevent a crash
-	// when fighting other monsters.
-	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-		strafe_chance += 0.4f;
-	if (self->health < self->max_health * 0.5f)
-		strafe_chance += 0.35f;
+	float strafe_chance = 0.4f; // Increased base chance for more responsive movement
 
-	// Clamp the chance just in case it exceeds 1.0f
-	strafe_chance = std::min(strafe_chance, 1.0f);
+	// Increase probability in critical situations
+	if (self->enemy && self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+		strafe_chance += 0.3f;
+	if (self->health < self->max_health * 0.6f)
+		strafe_chance += 0.25f;
 
-	// Solo strafear si tenemos una buena razón
+	// Distance-based strafing: strafe more when close to enemy
+	if (self->enemy) {
+		float dist = (self->s.origin - self->enemy->s.origin).length();
+		if (dist < 512.0f) // Close range
+			strafe_chance += 0.2f;
+		else if (dist > 1024.0f) // Long range - less strafing
+			strafe_chance -= 0.1f;
+	}
+
+	// Clamp the chance
+	strafe_chance = std::clamp(strafe_chance, 0.1f, 0.85f);
+
 	if (frandom() < strafe_chance)
 	{
-		// Decidir dirección (Replaced ternary with if/else)
-		if (frandom() < 0.5f) {
-			self->monsterinfo.lefty = true;
-		}
-		else {
-			self->monsterinfo.lefty = false;
-		}
+		// Decide direction - consistent integer usage
+		self->monsterinfo.lefty = (frandom() < 0.5f) ? 1 : 0;
 
-		// Calcular velocidad de strafe
+		// Calculate strafe direction
 		vec3_t right;
-		AngleVectors(self->s.angles, nullptr, right, nullptr); // Calculate side vector
-		float strafe_speed = 180.0f; // Velocidad base más controlada
+		AngleVectors(self->s.angles, nullptr, right, nullptr);
 
-		// Ajustar velocidad según la situación
+		// Calculate strafe speed based on health and situation
+		float strafe_speed = 200.0f;
+
+		// Boost speed when in danger
 		if (self->health < self->max_health * 0.5f)
-			strafe_speed *= 1.6f; // Más rápido si está herido
+			strafe_speed *= 1.4f;
 
-		// Aplicar el strafe directamente usando los operadores de vec3_t
-		// Ensure 'right' vector is valid before using it
-		if (is_valid_vector(right)) {
-			self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
-		}
-		else {
-			// Fallback or error handling if 'right' vector is invalid
-			// For now, just skip applying strafe velocity
-		}
+		// Add some randomness to make movement less predictable
+		strafe_speed += frandom() * 100.0f;
 
-		// Tiempo más corto de strafe para mayor control
-		self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.2_sec);
-		// Consider setting an active_move state for strafing if needed for AI logic
-		// For example: self->monsterinfo.next_move_state = &runnertank_move_strafe;
+		// Apply strafe velocity - replace current lateral movement
+		vec3_t strafe_velocity = right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed);
+
+		// Preserve forward/backward movement but replace lateral movement
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		float forward_speed = self->velocity.dot(forward);
+
+		// Set new velocity: keep forward momentum, add strafe
+		self->velocity = forward * forward_speed + strafe_velocity;
+
+		// Shorter strafe duration for more agile movement
+		self->monsterinfo.pausetime = level.time + random_time(0.6_sec, 1.0_sec);
 	}
 }
 
@@ -1229,20 +1238,58 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 	{
 		return false;
 	}
+
+	// Don't sidestep if we just did one recently
+	if (level.time < self->monsterinfo.pausetime)
+		return false;
+
 	// Si no estamos corriendo, cambiar a la animación de carrera
 	if (self->monsterinfo.active_move != &runnertank_move_run)
 		M_SetAnimation(self, &runnertank_move_run);
 
-	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
+	// Consistent integer usage for lefty
+	self->monsterinfo.lefty = (frandom() < 0.5f) ? 1 : 0;
 
-	// Calcular strafe usando vec3_t
+	// Calculate strafe direction
 	auto [forward, right, up] = AngleVectors(self->s.angles);
-	float const strafe_speed = 200.0f + (frandom() * 150.0f);
 
-	// Usar operadores vec3_t para el movimiento
-	self->velocity += right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed);
+	// More dynamic speed calculation
+	float base_speed = 250.0f;
+	float speed_variation = frandom() * 150.0f;
+	float const strafe_speed = base_speed + speed_variation;
 
-	self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
+	// Enhanced evasion: check if enemy is aiming/attacking
+	float evasion_multiplier = 1.0f;
+	if (self->enemy && self->enemy->client) {
+		// Boost evasion if enemy is attacking
+		if (self->enemy->client->buttons & BUTTON_ATTACK)
+			evasion_multiplier = 1.6f;
+
+		// Also consider enemy's facing direction for better dodging
+		vec3_t enemy_forward;
+		AngleVectors(self->enemy->s.angles, enemy_forward, nullptr, nullptr);
+		vec3_t to_self = (self->s.origin - self->enemy->s.origin).normalized();
+
+		// If enemy is facing us, dodge more aggressively
+		if (enemy_forward.dot(to_self) > 0.7f)
+			evasion_multiplier *= 1.3f;
+	}
+
+	// Apply enhanced movement
+	vec3_t dodge_velocity = right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed) * evasion_multiplier;
+
+	// Add slight forward/backward component for more unpredictable movement
+	float fb_component = (frandom() - 0.5f) * 100.0f;
+	dodge_velocity += forward * fb_component;
+
+	// Replace lateral velocity but preserve some vertical momentum
+	vec3_t preserved_velocity = {0, 0, self->velocity.z};
+	self->velocity = dodge_velocity + preserved_velocity;
+
+	// Variable pause time based on evasion intensity
+	float pause_duration = (evasion_multiplier > 1.2f) ? 1.2f : 0.8f;
+	self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.5_sec);
+
 	return true;
 }
 
@@ -1251,6 +1298,75 @@ model="models/monsters/runnertank/tris.md2"
 */
 /*QUAKED monster_runnertank_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
  */
+MONSTERINFO_DODGE(runnertank_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
+{
+	// Don't dodge if we're attacking or recently dodged
+	if ((self->monsterinfo.active_move == &runnertank_move_attack_blast) ||
+		(self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket) ||
+		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket) ||
+		(level.time < self->monsterinfo.pausetime))
+		return;
+
+	// Only dodge if we have time and space
+	if (!attacker || eta < 300_ms)
+		return;
+
+	// Calculate dodge direction based on attacker position
+	vec3_t dodge_dir;
+
+	// Get our right vector for lateral dodge
+	vec3_t right;
+	AngleVectors(self->s.angles, nullptr, right, nullptr);
+
+	// Decide dodge direction - prefer moving away from attacker
+	vec3_t to_attacker = (attacker->s.origin - self->s.origin).normalized();
+	float side_dot = to_attacker.dot(right);
+
+	// Dodge perpendicular to attack direction, away from attacker
+	if (side_dot > 0)
+		dodge_dir = right * -1.0f; // Dodge left
+	else
+		dodge_dir = right; // Dodge right
+
+	// Add some forward/backward component based on distance
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	float dist = (self->s.origin - attacker->s.origin).length();
+
+	if (dist < 400.0f) {
+		// Close range - dodge backward
+		dodge_dir += forward * -0.3f;
+	} else if (dist > 800.0f) {
+		// Long range - dodge forward to close distance
+		dodge_dir += forward * 0.2f;
+	}
+
+	dodge_dir = dodge_dir.normalized();
+
+	// Calculate dodge speed based on urgency (eta)
+	float base_dodge_speed = 300.0f;
+	float eta_seconds = eta.seconds();
+	float urgency_multiplier = std::clamp(2.0f - eta_seconds, 1.0f, 2.5f);
+	float dodge_speed = base_dodge_speed * urgency_multiplier;
+
+	// Apply dodge velocity
+	vec3_t dodge_velocity = dodge_dir * dodge_speed;
+	
+	// Preserve some vertical momentum but replace horizontal
+	dodge_velocity.z = self->velocity.z * 0.5f;
+	self->velocity = dodge_velocity;
+
+	// Set animation to running for dodge
+	if (self->monsterinfo.active_move != &runnertank_move_run)
+		M_SetAnimation(self, &runnertank_move_run);
+
+	// Set pause time to prevent immediate re-dodging
+	self->monsterinfo.pausetime = level.time + random_time(0.5_sec, 1.0_sec);
+
+	// Update lefty for consistency with sidestep
+	self->monsterinfo.lefty = (side_dot > 0) ? 1 : 0;
+}
+
 void SP_monster_runnertank(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
@@ -1328,7 +1444,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.walk = runnertank_walk;
 	self->monsterinfo.run = runnertank_run;
 	self->monsterinfo.sidestep = runnertank_sidestep;
-	self->monsterinfo.dodge = nullptr;
+	self->monsterinfo.dodge = runnertank_dodge;
 	self->monsterinfo.attack = runnertank_attack;
 	self->monsterinfo.melee = runnertank_melee;
 	self->monsterinfo.sight = runnertank_sight;
