@@ -331,7 +331,7 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 {
 	// --- 1. Initial validation checks ---
 	if (ClientIsSpectating(ent->client)) {
-		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to summon a Strogg\\n");
+		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to summon a Strogg\n");
 		return;
 	}
 
@@ -345,7 +345,7 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 			summon_count++;
 			if (summon_count >= 2) // Limit to 2 summons per player
 			{
-				gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!");
+				gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!\n");
 				return;
 			}
 		}
@@ -490,10 +490,10 @@ void Cmd_RemoveStrogg_f(edict_t* ent)
 
 	if (found)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "{} summoned Strogg dismissed.", removed_count);
+		gi.LocClient_Print(ent, PRINT_HIGH, "{} summoned Strogg dismissed.\n", removed_count);
 	}
 	else
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "No summoned Strogg found.");
+		gi.LocClient_Print(ent, PRINT_HIGH, "No summoned Strogg found.\n");
 	}
 }
