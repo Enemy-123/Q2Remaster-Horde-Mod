@@ -1,9 +1,9 @@
 // Network Overflow Prevention System for Quake II Remaster Horde Mod
 // This file contains fixes for the 999 ping and server message overflow issues
 
-#include "g_local.h"
+#include "../g_local.h"
 #include "g_horde.h"
-#include "q_vec3.h"
+#include "../q_vec3.h"
 #include <algorithm>
 #include <vector>
 #include <string>

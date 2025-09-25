@@ -1,7 +1,7 @@
 // Network Overflow Prevention System - Header
 #pragma once
 
-#include "g_local.h"
+#include "../g_local.h"
 
 // Core throttling functions
 void G_ResetNetworkThrottle();
