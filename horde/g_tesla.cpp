@@ -2,6 +2,7 @@
 #include "../g_local.h"
 #include "horde_performance.h"
 #include "g_horde_phys.h"
+#include "g_horde_benefits.h"
 
 // *************************
 // TESLA - 
@@ -36,8 +37,8 @@ static gtime_t tesla_message_frame_time = 0_sec;
 // Chain Lightning constants
 constexpr float CHAIN_LIGHTNING_RANGE = 200.0f;        // Range to find chain targets
 constexpr float CHAIN_LIGHTNING_DAMAGE_MULT = 0.5f;    // 50% of tesla damage for chain targets
-constexpr int MAX_CHAIN_TARGETS_PER_VICTIM = 2;        // Max chain targets per tesla victim
-constexpr int CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME = 18; // Higher limit for chain effects per frame
+constexpr int MAX_CHAIN_TARGETS_PER_VICTIM = 3;        // Max chain targets per tesla victim (increased)
+constexpr int CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME = 30; // Much higher limit for chain effects per frame
 
 static int chain_lightning_effects_this_frame = 0;
 
@@ -283,13 +284,13 @@ bool TrySendChainLightningEffect(edict_t *victim_source, edict_t *chain_target, 
 		chain_lightning_effects_this_frame = 0;
 	}
 
-	// Only check chain lightning specific limit (don't compete with tesla messages)
-	if (chain_lightning_effects_this_frame >= CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME)
+	// Much more lenient rate limiting - only prevent extreme spam
+	if (chain_lightning_effects_this_frame >= CHAIN_LIGHTNING_MAX_EFFECTS_PER_FRAME * 2)
 	{
 		return false;
 	}
 
-	// Send the chain lightning effect
+	// Send the chain lightning effect with higher priority
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_LIGHTNING);
 	gi.WriteEntity(victim_source);  // source entity (the victim being attacked by tesla)
@@ -308,6 +309,10 @@ bool TrySendChainLightningEffect(edict_t *victim_source, edict_t *chain_target, 
 void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int num_victims)
 {
 	if (!self || num_victims <= 0)
+		return;
+
+	// Check if the tesla owner has the Tesla Chain Lightning benefit
+	if (!self->teammaster || !self->teammaster->client || !PlayerHasTeslaChainLightning(self->teammaster))
 		return;
 
 	// Process each victim that was attacked by the tesla
@@ -345,8 +350,8 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 			if (!visible(victim, potential_chain_target))
 				continue;
 
-			// Calculate chain lightning positions
-			vec3_t chain_start = calculate_tesla_ray_target(self, victim);
+			// Calculate chain lightning positions - from tesla to chain target for better visibility
+			vec3_t chain_start = calculate_tesla_ray_origin(self);
 			vec3_t chain_end = calculate_tesla_ray_target(self, potential_chain_target);
 
 			// Apply chain lightning damage (reduced damage)
@@ -357,8 +362,8 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 			T_Damage(potential_chain_target, victim, self->teammaster, chain_dir, chain_end, vec3_origin,
 				chain_damage, TESLA_KNOCKBACK / 2, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-			// Send chain lightning visual effect
-			if (TrySendChainLightningEffect(victim, potential_chain_target, chain_start, chain_end))
+			// Send chain lightning visual effect from tesla to chain target
+			if (TrySendChainLightningEffect(self, potential_chain_target, chain_start, chain_end))
 			{
 				chains_from_this_victim++;
 			}

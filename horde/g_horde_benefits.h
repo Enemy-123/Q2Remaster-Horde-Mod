@@ -17,6 +17,7 @@ enum class BenefitID : uint8_t {
     NAPALM_GRENADES,
     BFG_SLIDE,     // BFG Slide mode upgrade
     BFG_GRAV_PULL, // BFG Gravity Pull upgrade (requires slide)
+    TESLA_CHAIN_LIGHTNING, // Tesla Chain Lightning upgrade
     // ---
     COUNT, // The total number of benefits
     NONE = 255
@@ -86,6 +87,7 @@ bool PlayerHasEnergyShells(edict_t* player);
 bool PlayerHasClusterProx(edict_t* player);
 bool PlayerHasPiercingPlasma(edict_t* player);
 bool PlayerHasNapalmGL(edict_t* player);
+bool PlayerHasTeslaChainLightning(edict_t* player);
 
 // BFG mode helpers
 bool PlayerHasBFGSlide(edict_t* player);

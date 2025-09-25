@@ -29,7 +29,8 @@ const struct benefit_source_t {
     {BenefitID::PIERCING_PLASMA, "Piercing Plasma", "\n\n\n\nPlasma-Beam Piercing Mode Enabled\n", "IMPROVED Plasma-Beam!\n", "g_piercingbeam", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     {BenefitID::NAPALM_GRENADES, "Napalm GL", "\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled\n", "g_bouncygl", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     {BenefitID::BFG_SLIDE, "BFG Slide Mode", "\n\n\n\nBFG SLIDE MODE\nENABLED!\n", "BFG Slide Mode Active!\n", "g_bfgslide", "1", 12, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
-    {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", "g_bfgpull", "1", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON}
+    {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", "g_bfgpull", "1", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON},
+    {BenefitID::TESLA_CHAIN_LIGHTNING, "Tesla Chain Lightning", "\n\n\n\nTESLA CHAIN LIGHTNING\nENABLED!\n", "Tesla Chain Lightning Upgrade Active!\n", "g_tesla_chain_lightning", "1", 1, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON}
 };
 
 // --- Compile-time transformation function ---
@@ -418,6 +419,10 @@ bool PlayerHasNapalmGL(edict_t* player) {
     return PlayerHasBenefit(player, BenefitID::NAPALM_GRENADES);
 }
 
+bool PlayerHasTeslaChainLightning(edict_t* player) {
+    return PlayerHasBenefit(player, BenefitID::TESLA_CHAIN_LIGHTNING);
+}
+
 // BFG mode helpers
 bool PlayerHasBFGSlide(edict_t* player) {
     if (!player || !player->client) return false; // Default to normal mode
@@ -484,6 +489,7 @@ static const BenefitID AUTO_UPGRADE_PRIORITY_ABILITIES[] = {
 static const BenefitID AUTO_UPGRADE_PRIORITY_WEAPONS[] = {
     BenefitID::TRACED_BULLETS,
     BenefitID::ENERGY_SHELLS,
+    BenefitID::TESLA_CHAIN_LIGHTNING,
     BenefitID::BFG_SLIDE,
     BenefitID::BFG_GRAV_PULL,
     BenefitID::PIERCING_PLASMA,
