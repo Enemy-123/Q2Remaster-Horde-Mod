@@ -152,12 +152,20 @@ void SpawnDamage(int type, const vec3_t& origin, const vec3_t& normal, int damag
 // New touch function for trap sticking behavior
 TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-    if (!other || !other->inuse || other == ent->owner || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH || other->solid == SOLID_BBOX))
+    if (!other || !other->inuse || other == ent->owner)
         return;
 
-    // Handle non-world entities (similar to tesla)
-    if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER ||
-        other->client || strcmp(other->classname, "func_train") == 0))
+    // Only stick to BSP entities (world geometry) or PUSH movers (doors, platforms)
+    // Don't stick to monsters, players, or other entities
+    bool can_stick = (other->solid == SOLID_BSP) ||
+                     (other->movetype == MOVETYPE_PUSH && !(other->svflags & SVF_MONSTER) && !other->client);
+
+    if (!can_stick)
+        return;
+
+    // Handle non-world entities (bounce off them instead of sticking)
+    if (other != world && (other->svflags & SVF_MONSTER || other->client ||
+        (other->movetype != MOVETYPE_PUSH && other->solid == SOLID_BBOX)))
     {
         if (tr.plane.normal) {
             vec3_t out{};
