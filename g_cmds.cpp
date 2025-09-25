@@ -553,6 +553,9 @@ void Cmd_RemoveSentry_f(edict_t* ent)
     }
 }
 
+// Forward declaration from g_strogg_summoner.cpp
+void Cmd_RemoveStrogg_f(edict_t* ent);
+
 /*
 Teleport
 
@@ -1815,6 +1818,10 @@ void ClientCommand(edict_t* ent)
 	}
 	if (Q_strcasecmp(cmd, "removesentry") == 0) {
 		Cmd_RemoveSentry_f(ent);
+		return;
+	}
+	if (Q_strcasecmp(cmd, "remove") == 0 && Q_strcasecmp(gi.argv(1), "strogg") == 0) {
+		Cmd_RemoveStrogg_f(ent);
 		return;
 	}
 

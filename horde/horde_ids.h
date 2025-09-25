@@ -117,7 +117,8 @@ enum class SpecialEntityTypeID : uint8_t {
     LASER_EMITTER,   // 6
     LASER_BEAM,      // 7
     DOPPLEGANGER,    // 8
-    COUNT,           // 9 - The total number of special entity types
+    STROGG_SUMMONER, // 9
+    COUNT,           // 10 - The total number of special entity types
     UNKNOWN = 255
 };
 

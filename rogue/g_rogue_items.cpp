@@ -168,31 +168,7 @@ static edict_t* SpawnSentryAtPoint(edict_t* owner, const vec3_t& spawn_origin, c
     return nullptr; // Return null on failure
 }
 
-static edict_t* StroggSummonAtPoint(edict_t* owner, const vec3_t& spawn_origin, const vec3_t& spawn_angles)
-{
-    edict_t* janitor = G_Spawn();
-    if (!janitor)
-        return nullptr; // Return null on failure
-
-    janitor->monsterinfo.issummoned = true;
-    janitor->classname = "monster_brain";
-    janitor->s.origin = spawn_origin;
-    janitor->s.angles = spawn_angles;
-    janitor->owner = owner;
-    janitor->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-
-    ApplyMonsterBonusFlags(janitor);
-    ED_CallSpawn(janitor);
-
-    if (janitor->inuse) {
-        SpawnGrow_Spawn(spawn_origin, 24.f, 48.f);
-        return janitor; // Return the new janitor on success!
-    }
-
-    // If ED_CallSpawn failed, janitor is not inuse
-    G_FreeEdict(janitor);
-    return nullptr; // Return null on failure
-}
+// StroggSummonAtPoint removed - now using fire_strogg_summoner from g_strogg_summoner.cpp
 
 // The new, all-in-one function to use the Sentry Gun item.
 void Use_SentryGun(edict_t* ent, gitem_t* item)
@@ -329,105 +305,9 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 
 void Use_StroggSummon(edict_t* ent, gitem_t* item)
 {
-	// --- 1. Initial validation checks ---
-	if (ClientIsSpectating(ent->client)) {
-		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to summon a Strogg\\n");
-		return;
-	}
-
-	// --- 2. Define placement constants (from old fire_sentrygun) ---
-	constexpr vec3_t STROGG_MINS = { -12, -12, -12 };
-	constexpr vec3_t STROGG_MAXS = { 12, 12, 12 };
-	constexpr int MAX_ATTEMPTS = 16;
-	constexpr float MIN_DEPLOY_HEIGHT = 20.0f; // Min height above player's feet
-
-	// --- 3. Create a lambda to check if a spawn position is valid ---
-	// This lambda encapsulates all the checks from the old `trySpawnPosition`.
-	auto is_valid_spawn_location = [&](const vec3_t& pos) -> bool {
-		vec3_t test_pos = pos;
-
-		// Ensure it's not spawning below the player's feet
-		if (test_pos.z - ent->s.origin.z < MIN_DEPLOY_HEIGHT) {
-			return false;
-		}
-
-		// Check line of sight from player to the spawn point
-		trace_t const trace = gi.traceline(ent->s.origin, test_pos, ent, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
-		if (trace.fraction < 1.0f) {
-			return false;
-		}
-
-		// Check if the final spot has enough room
-		if (!CheckSpawnPoint(test_pos, STROGG_MINS, STROGG_MAXS)) {
-			return false;
-		}
-
-		// All checks passed
-		return true;
-	};
-
-	// --- 4. Placement Logic ---
-	vec3_t forward;
-	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	vec3_t const base_spawn_angles = { 0, ent->client->v_angle[YAW], 0 };
-
-	// Generate random distance and height for placement
-	float const distance = irandom(40.f, 125.f);
-	float const height = irandom(50.f, 125.f);
-
-	// Calculate the initial desired point
-	vec3_t desired_point = ent->s.origin + (forward * distance);
-	desired_point.z += height;
-
-	vec3_t final_spawn_point;
-	vec3_t final_spawn_angles = base_spawn_angles;
-	bool found_spot = false;
-
-	// ** Primary Attempt **
-	if (is_valid_spawn_location(desired_point)) {
-		final_spawn_point = desired_point;
-		found_spot = true;
-	}
-
-	// ** Fallback Attempts (if primary failed) **
-	if (!found_spot) {
-		constexpr float RADIUS_MIN = 40.0f;
-		constexpr float RADIUS_MAX = 100.0f;
-
-		for (int i = 0; i < MAX_ATTEMPTS; i++) {
-			float const random_angle_rad = frandom(2.0f * PIf);
-			float const radius = frandom(RADIUS_MIN, RADIUS_MAX);
-			
-			vec3_t const offset = {
-				cosf(random_angle_rad) * radius,
-				sinf(random_angle_rad) * radius,
-				0 // Height is already part of desired_point
-			};
-
-			vec3_t const test_point = desired_point + offset;
-
-			if (is_valid_spawn_location(test_point)) {
-				final_spawn_point = test_point;
-				found_spot = true;
-				break; // Exit the loop once a spot is found
-			}
-		}
-	}
-
-   // --- 5. Final Action: Spawn or Fail ---
-    if (found_spot) {
-        // Call our helper function
-        edict_t* strogg = StroggSummonAtPoint(ent, final_spawn_point, final_spawn_angles);
-
-        if (strogg) { // Check if the spawn was successful
-            ent->client->pers.inventory[item->id]--;
-            gi.Client_Print(ent, PRINT_HIGH, "Strogg summoned successfully.\\n");
-        } else {
-            gi.Client_Print(ent, PRINT_HIGH, "Strogg summoning failed.\\n");
-        }
-    } else {
-        gi.Client_Print(ent, PRINT_HIGH, "Cannot find a suitable location to summon Strogg.\\n");
-    }
+	// Forward to the new implementation in g_strogg_summoner.cpp
+	extern void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item);
+	Use_StroggSummon_Impl(ent, item);
 }
 
 bool Pickup_SentryGun(edict_t* ent, edict_t* other)

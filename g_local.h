@@ -2830,6 +2830,8 @@ void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* mons
 
 void Use_SentryGun(edict_t* ent, gitem_t* item);
 void Use_StroggSummon(edict_t* ent, gitem_t* item);
+void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdir);
+void Cmd_RemoveStrogg_f(edict_t* ent);
 bool Pickup_SentryGun(edict_t* ent, edict_t* other);
 void Use_TeleportSelf(edict_t* ent, gitem_t* item);
 bool Pickup_Teleport(edict_t* ent, edict_t* other);
