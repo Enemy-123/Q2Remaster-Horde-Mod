@@ -179,12 +179,13 @@ std::string GetActiveBonusesString() {
     // from horde_menu.cpp to here.
     
     // Define mappings from internal names to display names
-	static const std::array<BonusMapping, 11> bonus_mappings = { {
+	static const std::array<BonusMapping, 12> bonus_mappings = { {
 		{"vampire upgraded", "Health & Armor Vampirism"},
 		{"vampire", "Health Vampirism"},
 		{"ammo regen", "Ammo Regen"},
 		{"start armor", "Starting Armor"},
 		{"auto haste", "Auto-Haste"},
+		{"Tesla Chain Lightning", "Tesla Chain Lightning"},
 		{"Cluster Prox", "Upgraded Prox Launcher"},
 		{"Traced Bullets", "Traced-Energy Bullets"},
 		{"Napalm GL", "Napalm-Grenade Launcher"},
@@ -240,12 +241,13 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
     }
 
     // Define mappings from internal names to display names
-    static const std::array<BonusMapping, 11> bonus_mappings = { {
+    static const std::array<BonusMapping, 12> bonus_mappings = { {
         {"vampire upgraded", "Health & Armor Vampirism"},
         {"vampire", "Health Vampirism"},
         {"ammo regen", "Ammo Regen"},
         {"start armor", "Starting Armor"},
         {"auto haste", "Auto-Haste"},
+        {"Tesla Chain Lightning", "Tesla Chain Lightning"},
         {"Cluster Prox", "Upgraded Prox Launcher"},
         {"Traced Bullets", "Traced-Energy Bullets"},
         {"Napalm GL", "Napalm-Grenade Launcher"},
