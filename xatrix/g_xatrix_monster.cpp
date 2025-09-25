@@ -172,9 +172,12 @@ void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update
     }
 
     // Check if dabeam_update was called.  If not, call it.
-    if (!beam_ptr->spawnflags.has(SPAWNFLAG_DABEAM_SPAWNED)) {
+    // Added null check here to prevent crash
+    if (beam_ptr && !beam_ptr->spawnflags.has(SPAWNFLAG_DABEAM_SPAWNED)) {
         dabeam_update(beam_ptr, true);
         // Set the flag after calling dabeam_update
-        beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
+        if (beam_ptr) {  // Extra safety check after dabeam_update
+            beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
+        }
     }
 }
