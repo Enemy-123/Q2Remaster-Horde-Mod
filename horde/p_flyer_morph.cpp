@@ -5,6 +5,10 @@
 #include "g_horde_benefits.h"
 #include <unordered_map>
 
+[[nodiscard]] constexpr float SHORT2ANGLE(int16_t x) {
+    return static_cast<float>(x) * (360.0f / 65536.0f);
+}
+
 // Static storage for flyer data - using entity userdata would be cleaner but this works
 static std::unordered_map<edict_t*, flyer_data_t> s_flyer_data;
 
@@ -142,29 +146,37 @@ static void PlayerAutoThrust(edict_t* ent, const usercmd_t& ucmd) {
     // Calculate desired movement velocity
     vec3_t move_vel = { 0, 0, 0 };
 
-    // Forward/backward movement
+    // Forward/backward movement with vertical component based on view pitch
+    // This makes flying feel like spectator/noclip mode
     if (ucmd.forwardmove > 0) {
         move_vel = move_vel + (forward * speed);
     } else if (ucmd.forwardmove < 0) {
         move_vel = move_vel + (forward * -speed);
     }
 
-    // Strafe movement
+    // Strafe movement (stays horizontal)
     if (ucmd.sidemove > 0) {
-        move_vel = move_vel + (right * speed);
+        vec3_t right_horizontal = right;
+        right_horizontal[2] = 0;  // Remove vertical component
+        right_horizontal.normalize();
+        move_vel = move_vel + (right_horizontal * speed);
     } else if (ucmd.sidemove < 0) {
-        move_vel = move_vel + (right * -speed);
+        vec3_t right_horizontal = right;
+        right_horizontal[2] = 0;  // Remove vertical component
+        right_horizontal.normalize();
+        move_vel = move_vel + (right_horizontal * -speed);
     }
 
-    // Vertical movement using jump/crouch
+    // Optional: Add jump/crouch for direct vertical movement
+    // This gives additional control beyond pitch-based movement
     if (ucmd.buttons & BUTTON_JUMP) {
-        move_vel[2] += speed;
+        move_vel[2] += speed * 0.5f;  // Slower direct vertical
     } else if (ucmd.buttons & BUTTON_CROUCH) {
-        move_vel[2] -= speed;
+        move_vel[2] -= speed * 0.5f;
     }
 
     // Apply movement with momentum for smoother flight
-    float momentum = 0.8f;
+    float momentum = 0.85f;  // Slightly higher momentum for smoother flight
     ent->velocity = (ent->velocity * momentum) + (move_vel * (1.0f - momentum));
 
     // Cap maximum velocity
@@ -340,6 +352,18 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
     auto* data = GetFlyerData(ent);
     if (!data || data->morph_type != MORPH_FLYER || ent->deadflag == true)
         return;
+
+    // Update view angles from mouse input
+    for (int i = 0; i < 3; i++) {
+        ent->client->v_angle[i] = ent->client->ps.viewangles[i] =
+            SHORT2ANGLE(ucmd.angles[i]) + ent->client->ps.pmove.delta_angles[i];
+    }
+    AngleVectors(ent->client->v_angle, ent->client->v_forward, nullptr, nullptr);
+
+    // ADD THIS: Make the model pitch and roll with the camera
+    ent->s.angles[PITCH] = ent->client->v_angle[PITCH];
+    ent->s.angles[YAW] = ent->client->v_angle[YAW];
+    ent->s.angles[ROLL] = ent->client->v_angle[ROLL];
 
     // Clear weapon model
     ent->s.modelindex2 = 0;

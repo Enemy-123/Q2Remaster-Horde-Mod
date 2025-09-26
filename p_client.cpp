@@ -507,6 +507,11 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 	PlayerTrail_Destroy(self);
 
+	// Clear morph state if player was morphed
+	if (IsMorphed(self)) {
+		RestoreMorphed(self);
+	}
+
 	self->avelocity = {};
 
 	self->takedamage = true;
