@@ -152,7 +152,11 @@ void cleanupHeal(edict_t* self)
 {
 	// clean up target, if we have one and it's legit
 	if (self->enemy && self->enemy->inuse && !self->enemy->client && (self->monsterinfo.aiflags & AI_MEDIC))
+	{
 		cleanupHealTarget(self->enemy);
+		// Clear AI_STAND_GROUND flag if we set it during healing
+		self->enemy->monsterinfo.aiflags &= ~AI_STAND_GROUND;
+	}
 
 	fixHealerEnemy(self);
 }
@@ -165,6 +169,8 @@ void abortHeal(edict_t* self, bool gib, bool mark)
 	if (self->enemy && self->enemy->inuse && !self->enemy->client && (self->monsterinfo.aiflags & AI_MEDIC))
 	{
 		cleanupHealTarget(self->enemy);
+		// Clear AI_STAND_GROUND flag if we set it during healing
+		self->enemy->monsterinfo.aiflags &= ~AI_STAND_GROUND;
 
 	// gib em!
 	if (mark)
@@ -1391,11 +1397,18 @@ void medic_cable_attack(edict_t* self)
         
         // Hold monster in place while healing
         if (self->enemy->svflags & SVF_MONSTER)
-            self->enemy->monsterinfo.pausetime = level.time + 0.2_sec;
+        {
+            self->enemy->monsterinfo.pausetime = level.time + 0.5_sec;  // Pause longer
+            self->enemy->monsterinfo.aiflags |= AI_STAND_GROUND;  // Force them to stand still
+        }
         
         // Check if fully healed
         if (!M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
         {
+            // Clear stand ground flag when done healing
+            if (self->enemy && self->enemy->inuse)
+                self->enemy->monsterinfo.aiflags &= ~AI_STAND_GROUND;
+
             cleanupHeal(self);
             self->monsterinfo.nextframe = FRAME_attack52;
         }
@@ -1419,6 +1432,7 @@ void medic_cable_attack(edict_t* self)
             self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
             self->enemy->monsterinfo.attack_finished = level.time + 5_sec; // Set time for visual effects
             self->enemy->takedamage = false;
+            self->enemy->monsterinfo.pausetime = level.time + 3_sec;  // Keep corpse in place during resurrection
             M_SetEffects(self->enemy);
         }
         else if (self->s.frame == FRAME_attack50)
