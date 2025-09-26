@@ -20,7 +20,7 @@ MEDIC
 
 constexpr float MEDIC_MIN_DISTANCE = 32;
 constexpr float MEDIC_MAX_HEAL_DISTANCE = 400;
-constexpr gtime_t MEDIC_TRY_TIME = 10_sec;
+constexpr gtime_t MEDIC_TRY_TIME = 3_sec;  // Reduced from 10 seconds for more active healing in horde mode
 
 // FIXME -
 //
@@ -441,7 +441,9 @@ bool canReach(edict_t* self, edict_t* other)
 edict_t* healFindMonster(edict_t* self, float radius)
 {
 	edict_t* ent = nullptr;
-	edict_t* best = nullptr;
+	edict_t* best_dead = nullptr;
+	edict_t* best_injured_teammate = nullptr;
+	bool has_visible_enemy = (self->enemy && self->enemy->inuse && self->enemy->health > 0 && visible(self, self->enemy));
 
 	while ((ent = findradius(ent, self->s.origin, radius)) != nullptr)
 	{
@@ -462,34 +464,55 @@ edict_t* healFindMonster(edict_t* self, float radius)
 			if ((ent->monsterinfo.healer->inuse) && (ent->monsterinfo.healer->health > 0) &&
 				(ent->monsterinfo.healer->svflags & SVF_MONSTER) && (ent->monsterinfo.healer->monsterinfo.aiflags & AI_MEDIC))
 				continue;
-		if (ent->health > 0)
-			continue;
-		if ((ent->nextthink) && (ent->think != monster_dead_think))
+		
+		// FIXME - there's got to be a better way ..
+		// make sure we don't spawn people right on top of us
+		if (realrange(self, ent) <= MEDIC_MIN_DISTANCE)
 			continue;
 		if (!visible(self, ent))
 			continue;
 		if (!strncmp(ent->classname, "player", 6)) // stop it from trying to heal player_noise entities
 			continue;
-		// FIXME - there's got to be a better way ..
-		// make sure we don't spawn people right on top of us
-		if (realrange(self, ent) <= MEDIC_MIN_DISTANCE)
-			continue;
-		if (!best)
+		
+		// Check for injured teammates (alive but hurt) - only prioritize if no enemy visible
+		if (ent->health > 0 && ent->health < ent->max_health)
 		{
-			best = ent;
-			continue;
+			// Only heal teammates if no enemies are visible
+			if (!has_visible_enemy && OnSameTeam(self, ent))
+			{
+				if (!best_injured_teammate || ent->health < best_injured_teammate->health)
+				{
+					best_injured_teammate = ent;
+				}
+			}
+			continue; // Don't consider alive entities for revival
 		}
-		if (ent->max_health <= best->max_health)
+		
+		// Dead entity handling (for revival) - revive ANY dead monster, not just teammates
+		if (ent->health > 0)
 			continue;
-		best = ent;
+		if ((ent->nextthink) && (ent->think != monster_dead_think))
+			continue;
+		
+		// For dead monsters, pick the best one regardless of team
+		if (!best_dead || ent->max_health > best_dead->max_health)
+		{
+			best_dead = ent;
+		}
 	}
 
-	return best;
+	// Priority order:
+	// 1. Injured teammates (if no visible enemy)
+	// 2. Dead monsters (any team)
+	if (!has_visible_enemy && best_injured_teammate)
+		return best_injured_teammate;
+	
+	return best_dead;
 }
 
 edict_t* medic_FindDeadMonster(edict_t* self)
 {
-	float	 radius;
+	float	radius;
 
 	if (self->monsterinfo.react_to_damage_time > level.time)
 		return nullptr;
@@ -681,6 +704,26 @@ MMOVE_T(medic_move_walk) = { FRAME_walk1, FRAME_walk12, medic_frames_walk, nullp
 
 MONSTERINFO_WALK(medic_walk) (edict_t* self) -> void
 {
+	// Check for healing opportunities even while walking
+	if (!(self->monsterinfo.aiflags & AI_MEDIC))
+	{
+		edict_t* ent = medic_FindDeadMonster(self);
+		if (ent)
+		{
+			// Prioritize injured teammates
+			bool is_teammate = OnSameTeam(self, ent);
+			if ((ent->health > 0 && is_teammate) || ent->health <= 0)
+			{
+				self->oldenemy = self->enemy;
+				self->enemy = ent;
+				self->enemy->monsterinfo.healer = self;
+				self->monsterinfo.aiflags |= AI_MEDIC;
+				FoundTarget(self);
+				return;
+			}
+		}
+	}
+
 	M_SetAnimation(self, &medic_move_walk);
 }
 
@@ -698,19 +741,48 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
+	// Only look for healing targets if not already in medic mode
 	if (!(self->monsterinfo.aiflags & AI_MEDIC))
 	{
-		edict_t* ent;
+		edict_t* ent = nullptr;
+		edict_t* current_enemy = self->enemy;
 
+		// Always check for healing opportunities
 		ent = medic_FindDeadMonster(self);
 		if (ent)
 		{
-			self->oldenemy = self->enemy;
-			self->enemy = ent;
-			self->enemy->monsterinfo.healer = self;
-			self->monsterinfo.aiflags |= AI_MEDIC;
-			FoundTarget(self);
-			return;
+			// Check if this is a teammate needing healing (priority over combat)
+			bool is_teammate_injured = (ent->health > 0 && OnSameTeam(self, ent));
+
+			// Check distance to potential heal target
+			float heal_distance = realrange(self, ent);
+
+			// Prioritize healing teammates over fighting if they're close enough
+			// or if we have no enemy/enemy is far away
+			if (is_teammate_injured &&
+			    (heal_distance < MEDIC_MAX_HEAL_DISTANCE ||
+			     !current_enemy ||
+			     realrange(self, current_enemy) > MEDIC_MAX_HEAL_DISTANCE * 1.5f))
+			{
+				self->oldenemy = self->enemy;
+				self->enemy = ent;
+				self->enemy->monsterinfo.healer = self;
+				self->monsterinfo.aiflags |= AI_MEDIC;
+				FoundTarget(self);
+				return;
+			}
+			// Also prioritize reviving dead monsters if no immediate threat
+			else if (ent->health <= 0 &&
+			         (!current_enemy ||
+			          realrange(self, current_enemy) > MEDIC_MAX_HEAL_DISTANCE * 2.0f))
+			{
+				self->oldenemy = self->enemy;
+				self->enemy = ent;
+				self->enemy->monsterinfo.healer = self;
+				self->monsterinfo.aiflags |= AI_MEDIC;
+				FoundTarget(self);
+				return;
+			}
 		}
 	}
 
@@ -1120,138 +1192,203 @@ constexpr vec3_t medic_cable_offsets[] = {
 	{ 32.7f, -19.7f, 10.4f }
 };
 
+// Add this helper function to check if a target needs healing
+bool M_NeedRegen(edict_t* target)
+{
+    if (!target || !target->inuse)
+        return false;
+    
+    // Check if target is damaged
+    if (target->health > 0 && target->health < target->max_health)
+        return true;
+    
+    // Check if armor needs repair
+    if (target->monsterinfo.power_armor_power < target->monsterinfo.max_power_armor_power)
+        return true;
+    
+    return false;
+}
+
+// Modified cable attack function with healing loop
 void medic_cable_attack(edict_t* self)
 {
-	vec3_t	offset, start, end, f, r;
-	trace_t tr;
-	vec3_t	dir;
-	float	distance;
+    vec3_t offset, start, end, f, r;
+    trace_t tr;
+    vec3_t dir;
+    float distance;
+    
+    if (!self->enemy || !self->enemy->inuse || (self->enemy->s.effects & EF_GIB))
+    {
+        abortHeal(self, false, false);
+        return;
+    }
+    
+    // we switched back to a player; let the animation finish
+    if (self->enemy->client)
+        return;
+    
+    // see if our enemy has changed to a client, or our target has more than 0 health,
+    // abort it .. we got switched to someone else due to damage
+    if (self->enemy->health > 0 && !(self->monsterinfo.aiflags & AI_MEDIC))
+    {
+        abortHeal(self, false, false);
+        return;
+    }
+    
+    AngleVectors(self->s.angles, f, r, nullptr);
+    offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
+    start = M_ProjectFlashSource(self, offset, f, r);
+    
+    // check for min distance
+    dir = start - self->enemy->s.origin;
+    distance = dir.length();
+    if (distance < MEDIC_MIN_DISTANCE)
+    {
+        abortHeal(self, true, false);
+        self->monsterinfo.nextframe = FRAME_attack52;
+        return;
+    }
+    
+    tr = gi.traceline(start, self->enemy->s.origin, self, MASK_SOLID);
+    if (tr.fraction != 1.0f && tr.ent != self->enemy)
+    {
+        if (tr.ent == world)
+        {
+            // give up on second try
+            if (self->monsterinfo.medicTries > 1)
+            {
+                abortHeal(self, false, true);
+                self->monsterinfo.nextframe = FRAME_attack52;
+                return;
+            }
+            self->monsterinfo.medicTries++;
+            cleanupHeal(self);
+            self->monsterinfo.nextframe = FRAME_attack52;
+            return;
+        }
+        abortHeal(self, false, false);
+        self->monsterinfo.nextframe = FRAME_attack52;
+        return;
+    }
+    
+    // Handle living injured entities (healing mode)
+    if (self->enemy->health > 0 && M_NeedRegen(self->enemy))
+    {
+        // Heal incrementally
+        int heal_amount = 10 + (current_wave_level * 2);
+        
+        if (self->s.frame == FRAME_attack43)
+        {
+            gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
+        }
+        else if (self->s.frame == FRAME_attack44)
+        {
+            gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
+        }
+        
+        // Apply healing
+        self->enemy->health += heal_amount;
+        if (self->enemy->health > self->enemy->max_health)
+            self->enemy->health = self->enemy->max_health;
+        
+        // Repair armor
+        if (self->enemy->monsterinfo.power_armor_power < self->enemy->monsterinfo.max_power_armor_power)
+        {
+            self->enemy->monsterinfo.power_armor_power += heal_amount / 2;
+            if (self->enemy->monsterinfo.power_armor_power > self->enemy->monsterinfo.max_power_armor_power)
+                self->enemy->monsterinfo.power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
+        }
+        
+        // Hold monster in place while healing
+        if (self->enemy->svflags & SVF_MONSTER)
+            self->enemy->monsterinfo.pausetime = level.time + 0.2_sec;
+        
+        // Visual feedback
+        self->enemy->s.effects |= EF_DOUBLE;
+        
+        // Check if fully healed
+        if (!M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
+        {
+            cleanupHeal(self);
+            self->monsterinfo.nextframe = FRAME_attack52;
+        }
+        // Loop healing animation if still needs healing
+        else if (M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
+        {
+            self->monsterinfo.nextframe = FRAME_attack44; // Loop back to healing frames
+        }
+    }
+    // Handle dead entities (resurrection mode)
+    else if (self->enemy->health <= 0)
+    {
+        if (self->s.frame == FRAME_attack43)
+        {
+            // PMM - commander sounds
+            if (self->mass == 400)
+                gi.sound(self->enemy, CHAN_AUTO, commander_sound_hook_hit, 1, ATTN_NORM, 0);
+            else
+                gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
+            
+            self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
+            self->enemy->takedamage = false;
+            M_SetEffects(self->enemy);
+        }
+        else if (self->s.frame == FRAME_attack50)
+        {
+            if (!finishHeal(self))
+                self->monsterinfo.nextframe = FRAME_attack52;
+            return;
+        }
+        else
+        {
+            if (self->s.frame == FRAME_attack44)
+            {
+                // PMM - medic commander sounds
+                if (self->mass == 400)
+                    gi.sound(self, CHAN_WEAPON, commander_sound_hook_heal, 1, ATTN_NORM, 0);
+                else
+                    gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
+            }
+        }
+    }
+    
+    // adjust start for beam origin being in middle of a segment
+    start += (f * 8);
+    
+    // adjust end z for end spot since the monster is currently dead
+    end = self->enemy->s.origin;
+    end[2] = (self->enemy->absmin[2] + self->enemy->absmax[2]) / 2;
+    
+    gi.WriteByte(svc_temp_entity);
+    gi.WriteByte(TE_MEDIC_CABLE_ATTACK);
+    gi.WriteEntity(self);
+    gi.WritePosition(start);
+    gi.WritePosition(end);
+    gi.multicast(self->s.origin, MULTICAST_PVS, false);
+}
 
-	if ((!self->enemy) || (!self->enemy->inuse) || (self->enemy->s.effects & EF_GIB))
-	{
-		abortHeal(self, false, false);
-		return;
-	}
-
-	//// Check for existing enemy tesla conversion
-	//if (self->enemy && self->enemy->inuse && !strcmp(self->enemy->classname, "tesla_mine"))
-	//{
-	//	vec3_t offset, start, end{}, f, r;
-	//	AngleVectors(self->s.angles, f, r, nullptr);
-	//	offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
-	//	start = M_ProjectFlashSource(self, offset, f, r);
-
-	//	// Verify distance
-	//	float dist = (start - self->enemy->s.origin).length();
-	//	if (dist < MEDIC_MIN_DISTANCE)
-	//	{
-	//		abortHeal(self, true, false);
-	//		self->monsterinfo.nextframe = FRAME_attack52;
-	//		return;
-	//	}
-
-	//	// On hit frame, convert the tesla
-	//	if (self->s.frame == FRAME_attack43)
-	//	{
-	//		gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
-	//		tesla_convert(self->enemy, self);
-	//	}
-	//}
-
-	// we switched back to a player; let the animation finish
-	if (self->enemy->client)
-		return;
-
-	// see if our enemy has changed to a client, or our target has more than 0 health,
-	// abort it .. we got switched to someone else due to damage
-	if (self->enemy->health > 0)
-	{
-		abortHeal(self, false, false);
-		return;
-	}
-
-	AngleVectors(self->s.angles, f, r, nullptr);
-	offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
-	start = M_ProjectFlashSource(self, offset, f, r);
-
-	// check for max distance
-	// not needed, done in checkattack
-	// check for min distance
-	dir = start - self->enemy->s.origin;
-	distance = dir.length();
-	if (distance < MEDIC_MIN_DISTANCE)
-	{
-		abortHeal(self, true, false);
-		self->monsterinfo.nextframe = FRAME_attack52;
-		return;
-	}
-
-	tr = gi.traceline(start, self->enemy->s.origin, self, MASK_SOLID);
-	if (tr.fraction != 1.0f && tr.ent != self->enemy)
-	{
-		if (tr.ent == world)
-		{
-			// give up on second try
-			if (self->monsterinfo.medicTries > 1)
-			{
-				abortHeal(self, false, true);
-				self->monsterinfo.nextframe = FRAME_attack52;
-				return;
-			}
-			self->monsterinfo.medicTries++;
-			cleanupHeal(self);
-			self->monsterinfo.nextframe = FRAME_attack52;
-			return;
-		}
-		abortHeal(self, false, false);
-		self->monsterinfo.nextframe = FRAME_attack52;
-		return;
-	}
-
-	if (self->s.frame == FRAME_attack43)
-	{
-		// PMM - commander sounds
-		if (self->mass == 400)
-			gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
-		else
-			gi.sound(self->enemy, CHAN_AUTO, commander_sound_hook_hit, 1, ATTN_NORM, 0);
-
-		self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
-		self->enemy->takedamage = false;
-		M_SetEffects(self->enemy);
-	}
-	else if (self->s.frame == FRAME_attack50)
-	{
-		if (!finishHeal(self))
-			self->monsterinfo.nextframe = FRAME_attack52;
-
-		return;
-	}
-	else
-	{
-		if (self->s.frame == FRAME_attack44)
-		{
-			// PMM - medic commander sounds
-			if (self->mass == 400)
-				gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
-			else
-				gi.sound(self, CHAN_WEAPON, commander_sound_hook_heal, 1, ATTN_NORM, 0);
-		}
-	}
-
-	// adjust start for beam origin being in middle of a segment
-	start += (f * 8);
-
-	// adjust end z for end spot since the monster is currently dead
-	end = self->enemy->s.origin;
-	end[2] = (self->enemy->absmin[2] + self->enemy->absmax[2]) / 2;
-
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_MEDIC_CABLE_ATTACK);
-	gi.WriteEntity(self);
-	gi.WritePosition(start);
-	gi.WritePosition(end);
-	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+// Add continue function to check if healing should continue
+void medic_cable_continue(edict_t* self)
+{
+    if (!self->enemy || !self->enemy->inuse)
+    {
+        abortHeal(self, false, false);
+        return;
+    }
+    
+    float dist = (self->s.origin - self->enemy->s.origin).length();
+    
+    // Continue healing if target still needs it and is in range
+    if (M_NeedRegen(self->enemy) && dist <= MEDIC_MAX_HEAL_DISTANCE)
+    {
+        // Loop back to healing frames
+        self->monsterinfo.nextframe = FRAME_attack44;
+    }
+    else
+    {
+        // Done healing, retract cable
+        self->monsterinfo.nextframe = FRAME_attack52;
+    }
 }
 
 void medic_hook_retract(edict_t* self)
@@ -1265,32 +1402,56 @@ void medic_hook_retract(edict_t* self)
 	fixHealerEnemy(self);
 }
 
+// Modified animation frames to support healing loop
 mframe_t medic_frames_attackCable[] = {
-	// ROGUE - negated 36-40 so he scoots back from his target a little
-	// ROGUE - switched 33-36 to ai_charge
-	// ROGUE - changed frame 52 to 60 to compensate for changes in 36-40
-	// [Paril-KEX] started on 36 as they intended
-	{ ai_charge, -4.7f }, // 37
-	{ ai_charge, -5.f },
-	{ ai_charge, -6.f },
-	{ ai_charge, -4.f }, // 40
-	{ ai_charge, 0, monster_footstep },
-	{ ai_move, 0, medic_hook_launch },	// 42
-	{ ai_move, 0, medic_cable_attack }, // 43
-	{ ai_move, 0, medic_cable_attack },
-	{ ai_move, 0, medic_cable_attack },
-	{ ai_move, 0, medic_cable_attack },
-	{ ai_move, 0, medic_cable_attack },
-	{ ai_move, 0, medic_cable_attack },
-	{ ai_move, 0, medic_cable_attack },
-	{ ai_move, 0, medic_cable_attack },
-	{ ai_move, 0, medic_cable_attack }, // 51
-	{ ai_move, 0, medic_hook_retract }, // 52
-	{ ai_move, -1.5f },
-	{ ai_move, -1.2f, monster_footstep },
-	{ ai_move, -3.f }
+    { ai_charge, -4.7f }, // 37
+    { ai_charge, -5.f },
+    { ai_charge, -6.f },
+    { ai_charge, -4.f }, // 40
+    { ai_charge, 0, monster_footstep },
+    { ai_move, 0, medic_hook_launch }, // 42
+    { ai_move, 0, medic_cable_attack }, // 43
+    { ai_move, 0, medic_cable_attack }, // 44 - healing frame start
+    { ai_move, 0, medic_cable_attack },
+    { ai_move, 0, medic_cable_attack },
+    { ai_move, 0, medic_cable_attack },
+    { ai_move, 0, medic_cable_attack }, // 48 - healing frame end
+    { ai_move, 0, medic_cable_continue }, // 49 - check if should continue
+    { ai_move, 0, medic_cable_attack }, // 50
+    { ai_move, 0, medic_cable_attack }, // 51
+    { ai_move, 0, medic_hook_retract }, // 52
+    { ai_move, -1.5f },
+    { ai_move, -1.2f, monster_footstep },
+    { ai_move, -3.f }
 };
 MMOVE_T(medic_move_attackCable) = { FRAME_attack37, FRAME_attack55, medic_frames_attackCable, medic_run };
+
+// mframe_t medic_frames_attackCable[] = {
+// 	// ROGUE - negated 36-40 so he scoots back from his target a little
+// 	// ROGUE - switched 33-36 to ai_charge
+// 	// ROGUE - changed frame 52 to 60 to compensate for changes in 36-40
+// 	// [Paril-KEX] started on 36 as they intended
+// 	{ ai_charge, -4.7f }, // 37
+// 	{ ai_charge, -5.f },
+// 	{ ai_charge, -6.f },
+// 	{ ai_charge, -4.f }, // 40
+// 	{ ai_charge, 0, monster_footstep },
+// 	{ ai_move, 0, medic_hook_launch },	// 42
+// 	{ ai_move, 0, medic_cable_attack }, // 43
+// 	{ ai_move, 0, medic_cable_attack },
+// 	{ ai_move, 0, medic_cable_attack },
+// 	{ ai_move, 0, medic_cable_attack },
+// 	{ ai_move, 0, medic_cable_attack },
+// 	{ ai_move, 0, medic_cable_attack },
+// 	{ ai_move, 0, medic_cable_attack },
+// 	{ ai_move, 0, medic_cable_attack },
+// 	{ ai_move, 0, medic_cable_attack }, // 51
+// 	{ ai_move, 0, medic_hook_retract }, // 52
+// 	{ ai_move, -1.5f },
+// 	{ ai_move, -1.2f, monster_footstep },
+// 	{ ai_move, -3.f }
+// };
+//MMOVE_T(medic_move_attackCable) = { FRAME_attack37, FRAME_attack55, medic_frames_attackCable, medic_run };
 
 void medic_start_spawn(edict_t* self)
 {
