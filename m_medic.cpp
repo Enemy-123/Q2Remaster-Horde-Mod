@@ -1424,8 +1424,19 @@ void medic_cable_attack(edict_t* self)
     }
     else
     {
-        // No more enemy? Abort
+        // Out of range or can't see target - abort and add cooldown
         cleanupHeal(self);
+        // Add a small delay before trying again
+        if (self->enemy && self->enemy->health <= 0)
+        {
+            // For dead targets, mark them as bad so we don't immediately retry
+            if (!self->enemy->monsterinfo.badMedic1)
+                self->enemy->monsterinfo.badMedic1 = self;
+            else
+                self->enemy->monsterinfo.badMedic2 = self;
+            // Clear the bad medic flag after a delay
+            self->enemy->timestamp = level.time + 3_sec;
+        }
     }
 
     // Check for resurrecti on completion (horde mode)
@@ -1987,14 +1998,25 @@ MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 		edict_t* dead = medic_FindDeadMonster(self);
 		if (dead && dead->health <= 0)
 		{
-			// Found a dead monster - switch to resurrection immediately
-			self->oldenemy = self->enemy;
-			self->enemy = dead;
-			self->enemy->monsterinfo.healer = self;
-			self->monsterinfo.aiflags |= AI_MEDIC;
-			self->timestamp = level.time + MEDIC_TRY_TIME;
-			medic_attack(self);
-			return true;
+			// Check if we can actually reach this target
+			float dist = realrange(self, dead);
+			if (dist < MEDIC_MAX_HEAL_DISTANCE - 50) // Only attempt if close enough
+			{
+				// Found a dead monster - switch to resurrection immediately
+				self->oldenemy = self->enemy;
+				self->enemy = dead;
+				self->enemy->monsterinfo.healer = self;
+				self->monsterinfo.aiflags |= AI_MEDIC;
+				self->timestamp = level.time + MEDIC_TRY_TIME;
+				medic_attack(self);
+				return true;
+			}
+			else
+			{
+				// Target too far - pursue it instead
+				self->monsterinfo.attack_state = AS_STRAIGHT;
+				return false;
+			}
 		}
 	}
 
@@ -2029,14 +2051,17 @@ MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 			}
 		}
 
-		if (realrange(self, self->enemy) < MEDIC_MAX_HEAL_DISTANCE + 10)
+		float dist = realrange(self, self->enemy);
+		if (dist < MEDIC_MAX_HEAL_DISTANCE - 50) // Be more conservative with distance
 		{
 			medic_attack(self);
 			return true;
 		}
 		else
 		{
+			// Too far - move closer instead of trying to heal
 			self->monsterinfo.attack_state = AS_STRAIGHT;
+			self->monsterinfo.aiflags |= AI_PURSUE_TEMP; // Actively pursue the target
 			return false;
 		}
 	}
