@@ -1073,6 +1073,8 @@ FIELD_AUTO(emergency_teleport),
 FIELD_AUTO(ammoregentime),
 FIELD_AUTO(ir_tracking_active),
 FIELD_AUTO(ir_frame_count),
+FIELD_AUTO(blaster_ammo),
+FIELD_AUTO(blaster_regen_time),
 
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT

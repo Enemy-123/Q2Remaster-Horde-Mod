@@ -1429,6 +1429,23 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 
 void Weapon_Blaster_Fire(edict_t* ent)
 {
+	// Vortex-style blaster ammo system - check for ammo first
+	if (ent->client->blaster_ammo < 1)
+	{
+		// Play no ammo sound
+		if (level.time >= ent->pain_debounce_time)
+		{
+			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
+			ent->pain_debounce_time = level.time + 1_sec;
+		}
+		// Keep weapon ready but don't fire
+		ent->client->ps.gunframe = 10;
+		return;
+	}
+
+	// Consume blaster ammo
+	ent->client->blaster_ammo--;
+
 	// give the blaster 15 across the board instead of just in dm
 	int const damage = irandom(14, 18);
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);

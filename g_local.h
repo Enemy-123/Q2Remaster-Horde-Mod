@@ -3405,6 +3405,10 @@ struct gclient_t
 	gtime_t		ammoregentime;
 	bool ir_tracking_active; //horde tracking
 	int ir_frame_count;
+
+	// Vortex-style blaster ammo system
+	int blaster_ammo;           // Current blaster ammo (0-50)
+	gtime_t blaster_regen_time; // Next blaster ammo regeneration time
 };
 
 // ==========================================

@@ -1084,6 +1084,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.max_health = 100;
 	ent->max_health = 100; // Also set entity's max_health
 
+	//
+	// BLASTER AMMO INITIALIZATION (Vortex-style)
+	//
+	client->blaster_ammo = 25; // Start with full blaster ammo
+	client->blaster_regen_time = level.time; // Initialize regen timer
 
 	//
 	// ARMOR INITIALIZATION (Clear existing)
