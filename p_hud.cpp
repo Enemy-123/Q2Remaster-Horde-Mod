@@ -858,7 +858,8 @@ void G_SetStats(edict_t* ent)
 	if (ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER)
 	{
 		// Use cells icon for blaster ammo display (energy weapon)
-		ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex("a_blaster");
+		//ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex("a_blaster");
+		ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex("a_cells");
 		ent->client->ps.stats[STAT_AMMO] = ent->client->blaster_ammo;
 	}
 	else if (ent->client->pers.weapon && ent->client->pers.weapon->ammo)
