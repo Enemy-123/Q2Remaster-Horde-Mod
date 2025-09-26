@@ -3803,6 +3803,7 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 	return false;
 }
 
+// PASTE THIS ENTIRE FUNCTION INTO YOUR CODE
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
@@ -3838,7 +3839,8 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			n64_sp = !G_IsDeathmatch() && level.is_n64;
 
-			// Can exit intermission after five seconds, except in N64 or unit exits
+			// can exit intermission after five seconds
+			// with any key, but not if in the n64 single player mode
 			if (level.changemap && (!n64_sp || level.level_intermission_set) && level.time > level.intermissiontime + 5_sec && (ucmd->buttons & BUTTON_ANY))
 				level.exitintermission = true;
 		}
@@ -3853,7 +3855,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if (ent->client->menu) {
 			PMenu_Close(ent);
 		}
-
 		return;
 	}
 
@@ -3863,72 +3864,65 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		ent->movetype = MOVETYPE_NOCLIP;
 	}
 	else
-	{
-		// Handle menu movement if the menu is open
+	{		// Handle menu movement if the menu is open
 		if (ent->client->menu)
 		{
-			// Just pass the original ucmd directly
+		// Just pass the original ucmd directly
 			if (HandleMenuMovement(ent, ucmd))
 			{
 				return;
 			}
 		}
 
-		// Handle flyer morph movement if morphed
-		if (IsMorphed(ent)) {
-			RunFlyerFrames(ent, *ucmd);
-			// Skip normal pmove processing for morphed players
-			return;
-		}
+		// MODIFICATION #1: The old block that skipped pmove is REMOVED from here.
 
-		// Set up for pmove
 		memset(&pm, 0, sizeof(pm));
 
-		if (ent->movetype == MOVETYPE_NOCLIP)
+		// MODIFICATION #2: We now check if the player is morphed and tell the physics engine
+		// to use a flying mode (PM_SPECTATOR is perfect for this).
+		if (IsMorphed(ent))
 		{
-			if (ent->client->awaiting_respawn)
-				client->ps.pmove.pm_type = PM_FREEZE;
-			else if (ent->client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
-				client->ps.pmove.pm_type = PM_SPECTATOR;
-			else
-				client->ps.pmove.pm_type = PM_NOCLIP;
-		}
-		else if (ent->s.modelindex != MODELINDEX_PLAYER)
-			client->ps.pmove.pm_type = PM_GIB;
-		else if (ent->deadflag)
-			client->ps.pmove.pm_type = PM_DEAD;
-		else if (ent->client->ctf_grapplestate >= CTF_GRAPPLE_STATE_PULL)
-			client->ps.pmove.pm_type = PM_GRAPPLE;
-		else
-			client->ps.pmove.pm_type = PM_NORMAL;
-
-		// [Paril-KEX]
-		if (!G_ShouldPlayersCollide(false) ||
-			(deathmatch->integer && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER))) // if player collision is on and we're temporarily ghostly...
-			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
-		else
-			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
-
-		// PGM	trigger_gravity support
-		if (ent->no_gravity_time > level.time)
-		{
-			client->ps.pmove.gravity = 0;
-			client->ps.pmove.pm_flags |= PMF_NO_GROUND_SEEK;
-		}
-		else
-		{
-			client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
+			client->ps.pmove.pm_type = PM_SPECTATOR; // Use free-flight physics
+			client->ps.pmove.gravity = 0; // No gravity
 			client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
+		}
+		else // This is the original logic for a normal player
+		{
+			if (ent->movetype == MOVETYPE_NOCLIP)
+			{
+				if (ent->client->awaiting_respawn)
+					client->ps.pmove.pm_type = PM_FREEZE;
+				else if (ent->client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
+					client->ps.pmove.pm_type = PM_SPECTATOR;
+				else
+					client->ps.pmove.pm_type = PM_NOCLIP;
+			}
+			else if (ent->s.modelindex != MODELINDEX_PLAYER)
+				client->ps.pmove.pm_type = PM_GIB;
+			else if (ent->deadflag)
+				client->ps.pmove.pm_type = PM_DEAD;
+			else if (ent->client->ctf_grapplestate >= CTF_GRAPPLE_STATE_PULL)
+				client->ps.pmove.pm_type = PM_GRAPPLE;
+			else
+				client->ps.pmove.pm_type = PM_NORMAL;
+
+			if (ent->no_gravity_time > level.time)
+			{
+				client->ps.pmove.gravity = 0;
+				client->ps.pmove.pm_flags |= PMF_NO_GROUND_SEEK;
+			}
+			else
+			{
+				client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
+				client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
+			}
 		}
 
 		pm.s = client->ps.pmove;
-
 		pm.s.origin = ent->s.origin;
 		pm.s.velocity = ent->velocity;
-
 		if (memcmp(&client->old_pmove, &pm.s, sizeof(pm.s)))
 			pm.snapinitial = true;
-
 		pm.cmd = *ucmd;
 		pm.player = ent;
 		pm.trace = gi.game_import_t::trace;
@@ -3936,13 +3930,12 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		pm.pointcontents = gi.pointcontents;
 		pm.viewoffset = ent->client->ps.viewoffset;
 
-		// Perform a pmove
+		// Perform a pmove. THIS NOW RUNS FOR THE FLYER, FIXING THE VIEW ANGLES.
 		Pmove(&pm);
 
 		if (pm.groundentity && ent->groundentity)
 		{
 			float const stepsize = fabs(ent->s.origin[2] - pm.s.origin[2]);
-
 			if (stepsize > 4.f && stepsize < STEPSIZE)
 			{
 				ent->s.renderfx |= RF_STAIR_STEP;
@@ -3958,17 +3951,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			ent->client->landmark_noise_time = level.time + 100_ms;
 		}
 
-		// [Paril-KEX] save old position for G_TouchProjectiles
 		vec3_t const old_origin = ent->s.origin;
-
 		ent->s.origin = pm.s.origin;
 		ent->velocity = pm.s.velocity;
 
-		// [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
 		if ((pm.s.pm_flags & PMF_ON_LADDER) != (client->ps.pmove.pm_flags & PMF_ON_LADDER))
 		{
 			client->last_ladder_pos = ent->s.origin;
-
 			if (pm.s.pm_flags & PMF_ON_LADDER)
 			{
 				if (!G_IsDeathmatch() && client->last_ladder_sound < level.time)
@@ -3979,10 +3968,8 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			}
 		}
 
-		// Save results of pmove
 		client->ps.pmove = pm.s;
 		client->old_pmove = pm.s;
-
 		ent->mins = pm.mins;
 		ent->maxs = pm.maxs;
 
@@ -3994,7 +3981,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
 		}
 
-		// ROGUE sam raimi cam support
 		if (ent->flags & FL_SAM_RAIMI)
 			ent->viewheight = 8;
 		else
@@ -4014,29 +4000,33 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 		else
 		{
-			// Always update view angles and forward vector for proper attack origin calculation
+			// This block now correctly updates the flyer's view angles and forward vector
 			client->v_angle = pm.viewangles;
 			AngleVectors(client->v_angle, client->v_forward, nullptr, nullptr);
 
-			// Only update ps.viewangles when menu is not open to keep view stable during menu
 			if (!ent->client->menu) {
 				client->ps.viewangles = pm.viewangles;
 			}
+
+			// MODIFICATION #3: After angles are updated, we run our flyer-specific logic
+			// for attacks, model rotation, and animations.
+			if (IsMorphed(ent))
+			{
+				// Sync the visual model's horizontal rotation with the player's view
+				ent->s.angles[YAW] = client->v_angle[YAW];
+
+				// Call the simplified logic function
+				RunFlyerFrames(ent, *ucmd);
+			}
 		}
 
-		// ZOID
 		if (client->ctf_grapple)
 			CTFGrapplePull(client->ctf_grapple);
-		// ZOID
 
 		gi.linkentity(ent);
-
 		ent->gravity = 1.0;
-
-		//horde updating client health
 		UpdateClientHealth(ent, client);
 		UpdateIRTracking(ent, client);
-
 
 		if (ent->movetype != MOVETYPE_NOCLIP)
 		{
@@ -4044,39 +4034,31 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			G_TouchProjectiles(ent, old_origin);
 		}
 
-		// Touch other objects
 		for (i = 0; i < pm.touch.num; i++)
 		{
 			trace_t& tr = pm.touch.traces[i];
 			other = tr.ent;
-
 			if (other->touch)
 				other->touch(other, ent, tr, true);
 		}
 	}
 
-	// Fire weapon from final position if needed
 	if (client->latched_buttons & BUTTON_ATTACK)
 	{
 		if (client->resp.spectator)
 		{
 			client->latched_buttons = BUTTON_NONE;
-
 			if (client->chase_target)
 			{
-				// Q2Eaks add eyecam to freecam<->chasecam cycle
 				if (!client->use_eyecam)
 				{
-					// Q2Eaks chasecam -> eyecam
 					client->use_eyecam = true;
 				}
 				else
 				{
-					// Q2Eaks eyecam -> freecam
 					client->use_eyecam = false;
 					client->ps.gunindex = 0;
 					client->ps.gunskin = 0;
-
 					client->chase_target = nullptr;
 					client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
 				}
@@ -4089,7 +4071,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			if (ent->client->weaponstate == WEAPON_READY)
 			{
 				ent->client->weapon_fire_buffered = true;
-
 				if (ent->client->weapon_fire_finished <= level.time)
 				{
 					ent->client->weapon_thunk = true;
@@ -4101,9 +4082,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
 	{
-		// Crear una copia local de ucmd para el procesamiento del menú de espectadores
 		usercmd_t spec_menu_ucmd = *ucmd;
-
 		if (!HandleMenuMovement(ent, &spec_menu_ucmd))
 		{
 			if (spec_menu_ucmd.buttons & BUTTON_JUMP)
@@ -4120,11 +4099,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			else
 				client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 		}
-		// Actualizar ucmd con los cambios del menú de espectadores
 		*ucmd = spec_menu_ucmd;
 	}
 
-	// Update chase cam if being followed
 	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;

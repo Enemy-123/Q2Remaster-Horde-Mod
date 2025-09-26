@@ -348,79 +348,18 @@ void MorphRegenerate(edict_t* ent) {
 
 // ==================== Frame Management ====================
 
+// PASTE THIS ENTIRE FUNCTION INTO YOUR CODE
 void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
     auto* data = GetFlyerData(ent);
     if (!data || data->morph_type != MORPH_FLYER || ent->deadflag == true)
         return;
 
-    // Update view angles from mouse input
-    for (int i = 0; i < 3; i++) {
-        ent->client->v_angle[i] = ent->client->ps.viewangles[i] =
-            SHORT2ANGLE(ucmd.angles[i]) + ent->client->ps.pmove.delta_angles[i];
-    }
-    AngleVectors(ent->client->v_angle, ent->client->v_forward, nullptr, nullptr);
-
-    // ADD THIS: Make the model pitch and roll with the camera
-    ent->s.angles[PITCH] = ent->client->v_angle[PITCH];
-    ent->s.angles[YAW] = ent->client->v_angle[YAW];
-    ent->s.angles[ROLL] = ent->client->v_angle[ROLL];
-
     // Clear weapon model
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
-    // Store old position for collision rollback
-    vec3_t old_origin = ent->s.origin;
-
-    // Apply custom flying physics
-    PlayerAutoThrust(ent, ucmd);
-
-    // Manual position update with collision detection
-    // Since we're using MOVETYPE_NOCLIP, we need to handle movement ourselves
-    vec3_t move = ent->velocity * gi.frame_time_s;
-    vec3_t new_origin = ent->s.origin + move;
-    
-    // Trace from current position to new position
-    trace_t trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_origin, ent, MASK_SOLID);
-    
-    if (trace.fraction == 1.0f && !trace.startsolid) {
-        // No collision, move normally
-        ent->s.origin = new_origin;
-    } else if (!trace.allsolid) {
-        // Hit something, move as far as we can
-        ent->s.origin = trace.endpos;
-        
-        // Slide along the surface
-        if (trace.fraction > 0) {
-            vec3_t normal = trace.plane.normal;
-            float backoff = ent->velocity.dot(normal);
-            
-            if (backoff < 0) {
-                // Remove velocity component going into the wall
-                ent->velocity = ent->velocity - (normal * backoff * 1.01f);
-                
-                // Try to move along the wall with remaining velocity
-                vec3_t remaining_move = ent->velocity * gi.frame_time_s * (1.0f - trace.fraction);
-                vec3_t slide_end = ent->s.origin + remaining_move;
-                
-                // Second trace for sliding movement
-                trace_t slide_trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, slide_end, ent, MASK_SOLID);
-                if (slide_trace.fraction > 0 && !slide_trace.startsolid) {
-                    ent->s.origin = slide_trace.endpos;
-                }
-            }
-        }
-        
-        // Apply friction when hitting walls
-        ent->velocity *= 0.8f;
-    }
-    
-    // Update entity position in world
-    gi.linkentity(ent);
-
-    // CRITICAL: Zero out velocity after manual movement to prevent SV_Physics_Noclip
-    // from applying it again (which would bypass our collision detection)
-    ent->velocity = vec3_origin;
+    // NOTE: All movement, collision, and angle updates have been removed.
+    // Pmove in ClientThink is now handling this for smooth, correct flight.
 
     // Check for impact damage
     FlyerCheckForImpact(ent, data);
@@ -428,7 +367,7 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
     // Regeneration
     MorphRegenerate(ent);
 
-    // Handle attacks
+    // Handle attacks - This will now use the correct angles updated in ClientThink
     if (ent->client->buttons & BUTTON_ATTACK) {
         FlyerAttack(ent, data);
     } else {
