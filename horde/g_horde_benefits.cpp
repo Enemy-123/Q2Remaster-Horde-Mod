@@ -491,7 +491,8 @@ static const BenefitID AUTO_UPGRADE_PRIORITY_ABILITIES[] = {
     BenefitID::AMMO_REGEN,
     BenefitID::VAMPIRE_UPGRADED,
     BenefitID::AUTO_HASTE,
-    BenefitID::START_ARMOR
+    BenefitID::START_ARMOR,
+    BenefitID::HA_PICKUP
 };
 
 static const BenefitID AUTO_UPGRADE_PRIORITY_WEAPONS[] = {
