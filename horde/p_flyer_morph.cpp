@@ -429,7 +429,6 @@ void RestoreMorphed(edict_t* ent) {
     // Clear monster flags
     ent->monsterinfo.issummoned = false;
     ent->monsterinfo.team = Team_None;
-    ent->svflags &= ~SVF_MONSTER;
 
     // Restore weapon
     if (ent->client->pers.weapon)
@@ -507,10 +506,9 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
-    // Set monster flags for bot team recognition
+    // Set monster flags for bot team recognition (but don't set SVF_MONSTER to avoid AI confusion)
     ent->monsterinfo.issummoned = true;
     ent->monsterinfo.team = ent->client->resp.ctf_team;
-    ent->svflags |= SVF_MONSTER;
 
     // Use proper flyer bounds from monster definition
     ent->mins = { -16, -16, -24 };

@@ -118,7 +118,7 @@ void Player_UpdateState(edict_t* player) {
 	pl_skinnum.skinnum = player->s.skinnum;
 
 	// Special handling for morphed players - they should maintain their team
-	if ((player->svflags & SVF_MONSTER) && player->monsterinfo.issummoned) {
+	if (IsMorphed(player)) {
 		// Morphed player - use their stored team from monsterinfo
 		player->sv.team = player->monsterinfo.team;
 	} else {
