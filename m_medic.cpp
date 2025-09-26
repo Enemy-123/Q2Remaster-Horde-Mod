@@ -1379,7 +1379,7 @@ void medic_cable_attack(edict_t* self)
             {
                 // Start resurrection - mark as resurrecting but keep as dead for now
                 self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
-                self->enemy->monsterinfo.attack_finished = level.time + 2.5_sec; // resurrection duration (reduced for better gameplay)
+                self->enemy->monsterinfo.attack_finished = level.time + 1_sec; // Fast resurrection for better gameplay
                 // Keep health at 0 and dead flags until resurrection completes
                 // This prevents shadow flickering and other visual issues
             }
@@ -1445,7 +1445,7 @@ void medic_cable_attack(edict_t* self)
         // Continue resurrection animation
         if (self->s.frame == FRAME_attack44)
         {
-            self->enemy->monsterinfo.healing_pause_time = level.time + 2_sec;  // Keep corpse in place during resurrection
+            self->enemy->monsterinfo.healing_pause_time = level.time + 0.5_sec;  // Short pause during resurrection
             self->enemy->monsterinfo.healer = self;  // Maintain healer reference
         }
         
@@ -2335,4 +2335,14 @@ void SP_monster_medic(edict_t* self)
 	// pmm
 
 	ApplyMonsterBonusFlags(self);
+}
+
+/*QUAKED monster_medic_commander (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+*/
+void SP_monster_medic_commander(edict_t* self)
+{
+	// Set mass to indicate commander variant
+	self->mass = 600;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MEDIC_COMMANDER);
+	SP_monster_medic(self);
 }

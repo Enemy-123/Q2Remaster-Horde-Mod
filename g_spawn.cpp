@@ -147,6 +147,7 @@ void SP_monster_tank_spawner(edict_t* self);
 void SP_monster_runnertank(edict_t* self);
 void SP_monster_tank_64(edict_t* self);
 void SP_monster_medic(edict_t* self);
+void SP_monster_medic_commander(edict_t* self);
 void SP_monster_flipper(edict_t* self);
 void SP_monster_chick(edict_t* self);
 void SP_monster_parasite(edict_t* self);
@@ -489,7 +490,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_widow", SP_monster_widow },
 	{ "monster_widow1", SP_monster_widow1 },
 	{ "monster_widow2", SP_monster_widow2 },
-	{ "monster_medic_commander", SP_monster_medic },
+	{ "monster_medic_commander", SP_monster_medic_commander },
 	{ "dm_tag_token", SP_dm_tag_token },
 	{ "dm_dball_goal", SP_dm_dball_goal },
 	{ "dm_dball_ball", SP_dm_dball_ball },
