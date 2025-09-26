@@ -17,6 +17,7 @@ void SP_monster_berserk(edict_t* self);
 void SP_monster_infantry(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_spider(edict_t* self);
+void SP_monster_shambler_small(edict_t* self);
 
 // Touch function for summoned Strogg - allows owner to push them
 TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -156,39 +157,43 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 
 	// Randomly select a Strogg monster type (weighted for variety)
 	int monster_type = irandom(100);
+	horde::MonsterTypeID selected_type = horde::MonsterTypeID::UNKNOWN;
 
 	if (monster_type < 20) {
-		horde::MonsterTypeID::CHICK;
+		selected_type = horde::MonsterTypeID::CHICK;
 		SP_monster_chick(monster);
 	}
 	else if (monster_type < 35) {
-		horde::MonsterTypeID::GUNNER;
+		selected_type = horde::MonsterTypeID::GUNNER;
 		SP_monster_gunner(monster);
 	}
 	else if (monster_type < 45) {
-		horde::MonsterTypeID::TANK;
+		selected_type = horde::MonsterTypeID::TANK;
 		SP_monster_tank(monster);
 	}
 	else if (monster_type < 55) {
-		horde::MonsterTypeID::GLADIATOR;
+		selected_type = horde::MonsterTypeID::GLADIATOR;
 		SP_monster_gladiator(monster);
 	}
 	else if (monster_type < 70) {
-		horde::MonsterTypeID::SHAMBLER_SMALL;
-		SP_monster_berserk(monster);
+		selected_type = horde::MonsterTypeID::SHAMBLER_SMALL;
+		SP_monster_shambler_small(monster);
 	}
 	else if (monster_type < 85) {
-		horde::MonsterTypeID::INFANTRY;
+		selected_type = horde::MonsterTypeID::INFANTRY;
 		SP_monster_infantry(monster);
 	}
 	else if (monster_type < 95) {
-		horde::MonsterTypeID::SPIDER;
+		selected_type = horde::MonsterTypeID::SPIDER;
 		SP_monster_spider(monster);
 	}
 	else {
-		horde::MonsterTypeID::BRAIN;;
+		selected_type = horde::MonsterTypeID::BRAIN;
 		SP_monster_brain(monster);
 	}
+
+	// Store the monster type ID for later use
+	monster->monsterinfo.monster_type_id = static_cast<uint8_t>(selected_type);
 
 	// Verify spawn succeeded
 	if (!monster->inuse) {
@@ -302,8 +307,16 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 	// Sound effect
 	gi.sound(ent, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 
-	// Message to player
-	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! Type 'remove strogg' to dismiss.\n", monster->classname + 8); // Skip "monster_" prefix
+	// Message to player - use MonsterTypeRegistry to get proper name
+	const char* monster_name = "warrior";
+	auto monster_type = static_cast<horde::MonsterTypeID>(monster->monsterinfo.monster_type_id);
+	if (monster_type != horde::MonsterTypeID::UNKNOWN) {
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_type);
+		if (classname && strncmp(classname, "monster_", 8) == 0) {
+			monster_name = classname + 8;  // Skip "monster_" prefix
+		}
+	}
+	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! Type 'remove strogg' to dismiss.\n", monster_name);
 }
 
 // Replacement for StroggSummonAtPoint - now returns the base instead of the monster
@@ -315,24 +328,19 @@ edict_t* StroggSummonAtPoint(edict_t* owner, const vec3_t& spawn_origin, const v
 	// Create the summoner at the specified point
 	fire_strogg_summoner(owner, spawn_origin, forward);
 
-	// Find the base we just created
-	edict_t* base = nullptr;
-	edict_t* current = nullptr;
-
-	while ((current = G_FindByString<&edict_t::classname>(current, "strogg_summoner_base")) != nullptr)
-	{
-		if (current->teammaster == owner)
-		{
-			vec3_t diff = current->s.origin - spawn_origin;
-			if (diff.length() < 10.0f) // Recently created at this position
-			{
-				base = current;
-				break;
+	// Find the base we just created using the special entities list
+	for (edict_t* special_ent : g_targetable_special_entities) {
+		if (special_ent && special_ent->inuse &&
+			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+			special_ent->teammaster == owner) {
+			vec3_t diff = special_ent->s.origin - spawn_origin;
+			if (diff.length() < 10.0f) { // Recently created at this position
+				return special_ent;
 			}
 		}
 	}
 
-	return base; // Return the base (or nullptr if failed)
+	return nullptr; // Return nullptr if failed
 }
 
 // Updated Use function that works with the new system
@@ -344,16 +352,14 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 		return;
 	}
 
-	// Check if player already has a summoned Strogg
-	edict_t* existing = nullptr;
+	// Check if player already has a summoned Strogg using the special entities list
 	int summon_count = 0;
-	while ((existing = G_FindByString<&edict_t::classname>(existing, "strogg_summoner_base")) != nullptr)
-	{
-		if (existing->teammaster == ent)
-		{
+	for (edict_t* special_ent : g_targetable_special_entities) {
+		if (special_ent && special_ent->inuse &&
+			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+			special_ent->teammaster == ent) {
 			summon_count++;
-			if (summon_count >= 2) // Limit to 2 summons per player
-			{
+			if (summon_count >= 2) { // Limit to 2 summons per player
 				gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!\n");
 				return;
 			}
@@ -442,16 +448,14 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 		// Use our new summoner system
 		fire_strogg_summoner(ent, final_spawn_point, forward);
 
-		// Check if spawn succeeded by looking for the base
-		existing = nullptr;
+		// Check if spawn succeeded by looking for the base in special entities
 		bool spawn_success = false;
-		while ((existing = G_FindByString<&edict_t::classname>(existing, "strogg_summoner_base")) != nullptr)
-		{
-			if (existing->teammaster == ent)
-			{
-				vec3_t diff = existing->s.origin - final_spawn_point;
-				if (diff.length() < 10.0f)
-				{
+		for (edict_t* special_ent : g_targetable_special_entities) {
+			if (special_ent && special_ent->inuse &&
+				special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+				special_ent->teammaster == ent) {
+				vec3_t diff = special_ent->s.origin - final_spawn_point;
+				if (diff.length() < 10.0f) {
 					spawn_success = true;
 					break;
 				}
@@ -475,29 +479,29 @@ void Cmd_RemoveStrogg_f(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
-	edict_t* current = nullptr;
-	bool found = false;
 	int removed_count = 0;
-
+	
+	// Create a list of bases to remove (can't modify g_targetable_special_entities while iterating)
+	std::vector<edict_t*> bases_to_remove;
+	
 	// Find all strogg_summoner_base entities owned by this player
-	while ((current = G_FindByString<&edict_t::classname>(current, "strogg_summoner_base")) != nullptr)
-	{
-		if (current->teammaster == ent)
-		{
-			// Store next before removing
-			edict_t* next = G_FindByString<&edict_t::classname>(current, "strogg_summoner_base");
-
-			// Found a summoned Strogg belonging to this player
-			found = true;
-			removed_count++;
-			strogg_summoner_die(current, ent, ent, 0, current->s.origin, MOD_UNKNOWN);
-
-			current = next;
-			if (!current) break;
+	for (edict_t* special_ent : g_targetable_special_entities) {
+		if (special_ent && special_ent->inuse &&
+			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+			special_ent->teammaster == ent) {
+			bases_to_remove.push_back(special_ent);
 		}
 	}
 
-	if (found)
+	// Remove all found bases
+	for (edict_t* base : bases_to_remove) {
+		if (base && base->inuse) {
+			removed_count++;
+			strogg_summoner_die(base, ent, ent, 0, base->s.origin, MOD_UNKNOWN);
+		}
+	}
+
+	if (removed_count > 0)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "{} summoned Strogg dismissed.\n", removed_count);
 	}
