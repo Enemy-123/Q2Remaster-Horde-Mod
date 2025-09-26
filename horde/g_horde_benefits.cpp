@@ -23,6 +23,7 @@ const struct benefit_source_t {
     {BenefitID::AMMO_REGEN, "ammo regen", "\n\n\n\n\nAMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n", "g_ammoregen", "1", 8, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
     {BenefitID::AUTO_HASTE, "auto haste", "\n\n\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED!\n", "g_autohaste", "1", 9, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
     {BenefitID::START_ARMOR, "start armor", "\n\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 100 BODY-ARMOR!\n", "g_startarmor", "1", 9, -1, 0.1f, BenefitID::NONE, BenefitCategory::ABILITY},
+    {BenefitID::HA_PICKUP, "H/A Pickup", "\n\n\n\nENHANCED HEALTH & ARMOR PICKUPS\nENABLED!\n", "Health & Armor pickups increased by 60%!\n", "g_hapickup", "1", 1, -1, 0.15f, BenefitID::NONE, BenefitCategory::ABILITY},
     {BenefitID::TRACED_BULLETS, "Traced Bullets", "\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n", "g_tracedbullets", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     {BenefitID::ENERGY_SHELLS, "Energy Shells", "\n\n\n\nSHELLS\nUPGRADED!\n", "Piercing-PowerShield Shells!\n", "g_energyshells", "1", 9, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     {BenefitID::CLUSTER_PROX, "Cluster Prox", "\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n", "g_upgradeproxs", "1", 25, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
@@ -31,7 +32,7 @@ const struct benefit_source_t {
     {BenefitID::BFG_SLIDE, "BFG Slide Mode", "\n\n\n\nBFG SLIDE MODE\nENABLED!\n", "BFG Slide Mode Active!\n", "g_bfgslide", "1", 12, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON},
     {BenefitID::BFG_GRAV_PULL, "BFG Gravity Pull", "\n\n\n\nBFG GRAVITY PULL\nENABLED!\n", "BFG Gravity Pull Active!\n", "g_bfgpull", "1", 12, -1, 0.15f, BenefitID::BFG_SLIDE, BenefitCategory::WEAPON},
     {BenefitID::TESLA_CHAIN_LIGHTNING, "Tesla Chain Lightning", "\n\n\n\nTESLA CHAIN LIGHTNING\nENABLED!\n", "Tesla Chain Lightning Upgrade Active!\n", "g_tesla_chain_lightning", "1", 1, -1, 0.2f, BenefitID::NONE, BenefitCategory::WEAPON}
-};
+};;
 
 // --- Compile-time transformation function ---
 // This should also ONLY exist in the .cpp file.
@@ -241,11 +242,12 @@ std::string GetPlayerActiveBonusesString(edict_t* player) {
     }
 
     // Define mappings from internal names to display names
-    static const std::array<BonusMapping, 12> bonus_mappings = { {
+    static const std::array<BonusMapping, 13> bonus_mappings = { {
         {"vampire upgraded", "Health & Armor Vampirism"},
         {"vampire", "Health Vampirism"},
         {"ammo regen", "Ammo Regen"},
         {"start armor", "Starting Armor"},
+        {"H/A Pickup", "H/A Pickup"},
         {"auto haste", "Auto-Haste"},
         {"Tesla Chain Lightning", "Tesla Chain Lightning"},
         {"Cluster Prox", "Upgraded Prox Launcher"},
@@ -399,6 +401,10 @@ bool PlayerHasAutoHaste(edict_t* player) {
 
 bool PlayerHasStartArmor(edict_t* player) {
     return PlayerHasBenefit(player, BenefitID::START_ARMOR);
+}
+
+bool PlayerHasHAPickup(edict_t* player) {
+    return PlayerHasBenefit(player, BenefitID::HA_PICKUP);
 }
 
 bool PlayerHasTracedBullets(edict_t* player) {

@@ -3,6 +3,7 @@
 #include "g_local.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
+#include "horde/g_horde_benefits.h"
 
 bool Pickup_Weapon(edict_t* ent, edict_t* other);
 void Use_Weapon(edict_t* ent, gitem_t* inv);
@@ -761,6 +762,11 @@ bool Pickup_Health(edict_t* ent, edict_t* other)
 
 	int count = ent->count ? ent->count : ent->item->quantity;
 
+	// Apply H/A Pickup benefit multiplier
+	if (other->client && PlayerHasHAPickup(other)) {
+		count = (int)(count * 1.6f);
+	}
+
 	// ZOID
 	if (G_IsDeathmatch() && other->health >= 250 && count > 25)
 		return false;
@@ -847,13 +853,24 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 	// [Paril-KEX] for g_start_items
 	int32_t base_count = ent->count ? ent->count : newinfo ? newinfo->base_count : 0;
 
+	// Apply H/A Pickup benefit multiplier
+	if (other->client && PlayerHasHAPickup(other)) {
+		base_count = (int)(base_count * 1.6f);
+	}
+
 	// handle armor shards specially
 	if (ent->item->id == IT_ARMOR_SHARD)
 	{
+		int shard_amount = 2;
+		// Apply H/A Pickup benefit multiplier to shards
+		if (other->client && PlayerHasHAPickup(other)) {
+			shard_amount = (int)(shard_amount * 1.6f);
+		}
+		
 		if (!old_armor_index)
-			other->client->pers.inventory[IT_ARMOR_JACKET] = 2;
+			other->client->pers.inventory[IT_ARMOR_JACKET] = shard_amount;
 		else
-			other->client->pers.inventory[old_armor_index] += 2;
+			other->client->pers.inventory[old_armor_index] += shard_amount;
 	}
 	// if player has no armor, just use it
 	else if (!old_armor_index)

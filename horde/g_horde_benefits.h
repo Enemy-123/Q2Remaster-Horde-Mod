@@ -10,6 +10,7 @@ enum class BenefitID : uint8_t {
     AMMO_REGEN,
     AUTO_HASTE,
     START_ARMOR,
+    HA_PICKUP,     // H/A Pickup - multiplies health/armor pickups
     TRACED_BULLETS,
     ENERGY_SHELLS,
     CLUSTER_PROX,
@@ -21,7 +22,7 @@ enum class BenefitID : uint8_t {
     // ---
     COUNT, // The total number of benefits
     NONE = 255
-};
+};;
 
 // Benefit categories for menu separation
 enum class BenefitCategory : uint8_t {
@@ -82,6 +83,8 @@ bool PlayerHasVampire(edict_t* player);
 bool PlayerHasAmmoRegen(edict_t* player);
 bool PlayerHasAutoHaste(edict_t* player);
 bool PlayerHasStartArmor(edict_t* player);
+
+bool PlayerHasHAPickup(edict_t* player);
 bool PlayerHasTracedBullets(edict_t* player);
 bool PlayerHasEnergyShells(edict_t* player);
 bool PlayerHasClusterProx(edict_t* player);

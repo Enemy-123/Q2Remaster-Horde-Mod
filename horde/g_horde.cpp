@@ -2279,6 +2279,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// --- WAVE 41 ---
 	{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
+		{horde::MonsterTypeID::MAKRON_KL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 99, 0.8f, {-30, -30, 0}, {30, 30, 90}, 1.0f},
 
 	// --- SPECIAL / NOT NORMALLY SPAWNED (minWave 999) ---
 	{horde::MonsterTypeID::TURRET, MonsterWaveType::Ground | MonsterWaveType::Special, 999, 0.0f, {-16, -16, -16}, {16, 16, 16}, 1.0f},
