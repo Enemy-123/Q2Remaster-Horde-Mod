@@ -2027,7 +2027,23 @@ void ai_run(edict_t* self, float dist)
 	// 3. Handle general case: Regular monster targeting logic
 	else
 	{
-		if (!self->enemy || !self->enemy->inuse)
+		// Don't override medics that are healing/resurrecting
+		if (self->monsterinfo.aiflags & AI_MEDIC)
+		{
+			// Medic is busy healing/resurrecting, don't interrupt
+			if (!self->enemy || !self->enemy->inuse)
+			{
+				// Target lost, clear medic mode
+				self->monsterinfo.aiflags &= ~AI_MEDIC;
+				if (!FindTarget(self))
+				{
+					if (self->monsterinfo.stand) self->monsterinfo.stand(self);
+					return;
+				}
+			}
+			// Otherwise continue with current healing target
+		}
+		else if (!self->enemy || !self->enemy->inuse)
 		{
 			if (!FindTarget(self))
 			{

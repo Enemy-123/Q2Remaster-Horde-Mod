@@ -529,40 +529,51 @@ void medic_check_heal(edict_t* self)
 	// Don't check if already healing
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 		return;
-	
-	// Don't check too frequently
-	if (self->monsterinfo.react_to_damage_time > level.time - 0.5_sec)
-		return;
-	
-	// Look for healing opportunities with a smaller radius during combat
+
+	// Look for healing opportunities
 	float radius = MEDIC_MAX_HEAL_DISTANCE;
 	edict_t* ent = healFindMonster(self, radius);
-	
+
 	if (ent)
 	{
 		// Check if this is a high-priority target (injured teammate or dead monster)
 		bool is_teammate = OnSameTeam(self, ent);
 		bool is_injured = (ent->health > 0 && ent->health < ent->max_health);
 		bool is_dead = (ent->health <= 0);
-		
+
 		// Calculate distances
 		float heal_distance = realrange(self, ent);
-		float enemy_distance = self->enemy ? realrange(self, self->enemy) : 9999.0f;
-		
-		// Priority conditions for interrupting combat:
-		// 1. Injured teammate very close
-		// 2. Dead monster close and no immediate threat
+
+		// In horde mode, be more aggressive about healing/reviving
 		bool should_heal = false;
-		
-		if (is_injured && is_teammate && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.5f)
+
+		if (g_horde->integer)
 		{
-			should_heal = true;  // Always heal nearby injured teammates
+			// Horde mode: prioritize healing/resurrection more
+			if (is_dead)
+			{
+				should_heal = true;  // Always try to revive dead monsters
+			}
+			else if (is_injured && is_teammate && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
+			{
+				should_heal = true;  // Heal injured teammates in range
+			}
 		}
-		else if (is_dead && (enemy_distance > MEDIC_MAX_HEAL_DISTANCE * 1.5f || !self->enemy))
+		else
 		{
-			should_heal = true;  // Revive if safe
+			// Normal mode: consider enemy distance
+			float enemy_distance = self->enemy ? realrange(self, self->enemy) : 9999.0f;
+
+			if (is_injured && is_teammate && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.5f)
+			{
+				should_heal = true;  // Always heal nearby injured teammates
+			}
+			else if (is_dead && (enemy_distance > MEDIC_MAX_HEAL_DISTANCE * 1.5f || !self->enemy))
+			{
+				should_heal = true;  // Revive if safe
+			}
 		}
-		
+
 		if (should_heal)
 		{
 			// Switch to healing mode
@@ -570,8 +581,9 @@ void medic_check_heal(edict_t* self)
 			self->enemy = ent;
 			self->enemy->monsterinfo.healer = self;
 			self->monsterinfo.aiflags |= AI_MEDIC;
+			self->timestamp = level.time + MEDIC_TRY_TIME; // Set timer for attempt
 			FoundTarget(self);
-			
+
 			// Force immediate action
 			if (self->monsterinfo.run)
 				self->monsterinfo.run(self);
@@ -1243,6 +1255,13 @@ void medic_hook_launch(edict_t* self)
 		gi.sound(self, CHAN_WEAPON, sound_hook_launch, 1, ATTN_NORM, 0);
 	else
 		gi.sound(self, CHAN_WEAPON, commander_sound_hook_launch, 1, ATTN_NORM, 0);
+
+	// Ensure we're committed to the healing/resurrection
+	if (self->monsterinfo.aiflags & AI_MEDIC && self->enemy)
+	{
+		// Lock the medic into this action
+		self->monsterinfo.pausetime = level.time + 2_sec;
+	}
 }
 
 constexpr vec3_t medic_cable_offsets[] = {
@@ -1405,7 +1424,11 @@ void medic_cable_attack(edict_t* self)
         else if (self->s.frame == FRAME_attack50)
         {
             if (!finishHeal(self))
+            {
+                // Resurrection failed, exit gracefully
+                cleanupHeal(self);
                 self->monsterinfo.nextframe = FRAME_attack52;
+            }
             return;
         }
         else
@@ -1418,6 +1441,8 @@ void medic_cable_attack(edict_t* self)
                 else
                     gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
             }
+            // Keep the animation going for resurrection
+            // Don't abort mid-resurrection
         }
     }
     
@@ -1915,17 +1940,29 @@ MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 		if ((!self->enemy) || (!self->enemy->inuse))
 		{
 			abortHeal(self, false, false);
-			self->monsterinfo.nextframe = FRAME_attack52;
 			return false;
 		}
 
-		// if we ran out of time, give up
-		if (self->timestamp < level.time)
+		// For resurrection, be more patient
+		if (self->enemy->health <= 0)
 		{
-			abortHeal(self, false, true);
-			self->monsterinfo.nextframe = FRAME_attack52;
-			self->timestamp = 0_ms;
-			return false;
+			// Don't timeout resurrections as quickly
+			if (self->timestamp < level.time - 5_sec)  // Give more time for resurrection
+			{
+				abortHeal(self, false, true);
+				self->timestamp = 0_ms;
+				return false;
+			}
+		}
+		else
+		{
+			// Normal timeout for healing living targets
+			if (self->timestamp < level.time)
+			{
+				abortHeal(self, false, true);
+				self->timestamp = 0_ms;
+				return false;
+			}
 		}
 
 		if (realrange(self, self->enemy) < MEDIC_MAX_HEAL_DISTANCE + 10)
