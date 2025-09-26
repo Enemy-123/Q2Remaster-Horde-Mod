@@ -534,6 +534,11 @@ void M_SetEffects(edict_t* ent)
 		}
 	}
 
+	// Update skin based on health (for monsters that have hurt skins)
+	if (ent->monsterinfo.setskin) {
+		ent->monsterinfo.setskin(ent);
+	}
+
 	// Resurrecting visuals (takes precedence over other shell effects)
 	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) && (level.time < ent->monsterinfo.attack_finished)) {
 		ent->s.effects |= EF_COLOR_SHELL;

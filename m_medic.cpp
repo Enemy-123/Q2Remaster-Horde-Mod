@@ -536,8 +536,8 @@ void medic_check_heal(edict_t* self)
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 		return;
 
-	// Look for healing opportunities
-	float radius = MEDIC_MAX_HEAL_DISTANCE;
+	// In horde mode, check for corpses with wider radius
+	float radius = g_horde->integer ? MEDIC_MAX_HEAL_DISTANCE * 1.5f : MEDIC_MAX_HEAL_DISTANCE;
 	edict_t* ent = healFindMonster(self, radius);
 
 	if (ent)
@@ -558,11 +558,13 @@ void medic_check_heal(edict_t* self)
 			// Horde mode: prioritize healing/resurrection more
 			if (is_dead)
 			{
-				should_heal = true;  // Always try to revive dead monsters
+				// Only resurrect if no enemy or enemy is far away
+				if (!self->enemy || realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE * 2.0f)
+					should_heal = true;  // Resurrect when safe
 			}
 			else if (is_injured && is_teammate && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
 			{
-				should_heal = true;  // Heal injured teammates in range
+				should_heal = true;  // Heal injured teammates anytime
 			}
 		}
 		else
@@ -774,13 +776,13 @@ MONSTERINFO_STAND(medic_stand) (edict_t* self) -> void
 }
 
 mframe_t medic_frames_walk[] = {
-	{ ai_walk, 6.2f },
+	{ ai_walk, 6.2f, medic_check_heal },
 	{ ai_walk, 18.1f, monster_footstep },
 	{ ai_walk, 1 },
 	{ ai_walk, 9 },
 	{ ai_walk, 10 },
 	{ ai_walk, 9 },
-	{ ai_walk, 11 },
+	{ ai_walk, 11, medic_check_heal },
 	{ ai_walk, 11.6f, monster_footstep },
 	{ ai_walk, 2 },
 	{ ai_walk, 9.9f },
@@ -837,18 +839,23 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 		ent = medic_FindDeadMonster(self);
 		if (ent)
 		{
-			// Dead monster found - ALWAYS resurrect immediately (like old code)
+			// Dead monster found - only resurrect if no enemy or enemy far away
 			if (ent->health <= 0)
 			{
-				self->oldenemy = self->enemy;
-				self->enemy = ent;
-				self->enemy->monsterinfo.healer = self;
-				self->monsterinfo.aiflags |= AI_MEDIC;
-				self->timestamp = level.time + MEDIC_TRY_TIME; // Reset timer for resurrection attempt
-				FoundTarget(self);
-				return;
+				edict_t* current_enemy = self->enemy;
+				// Only resurrect if safe (no enemy or enemy is far)
+				if (!current_enemy ||  realrange(self, current_enemy) > MEDIC_MAX_HEAL_DISTANCE * 2.0f)
+				{
+					self->oldenemy = self->enemy;
+					self->enemy = ent;
+					self->enemy->monsterinfo.healer = self;
+					self->monsterinfo.aiflags |= AI_MEDIC;
+					self->timestamp = level.time + MEDIC_TRY_TIME; // Reset timer for resurrection attempt
+					FoundTarget(self);
+					return;
+				}
 			}
-			// Injured teammate - heal if conditions are right
+			// Injured teammate - heal if conditions are right (can heal anytime)
 			else if (OnSameTeam(self, ent))
 			{
 				float heal_distance = realrange(self, ent);
