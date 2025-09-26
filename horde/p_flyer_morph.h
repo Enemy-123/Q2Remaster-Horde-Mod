@@ -21,8 +21,8 @@ constexpr int32_t FLYER_IMPACT_DAMAGE = 50;
 // Hyperblaster constants
 constexpr int32_t FLYER_HB_INITIAL_DMG = 15;
 constexpr int32_t FLYER_HB_ADDON_DMG = 3;
-constexpr int32_t FLYER_HB_SPEED = 1000;
-constexpr int32_t FLYER_HB_AMMO = 1;
+constexpr int32_t FLYER_HB_SPEED = 1200;
+constexpr int32_t FLYER_HB_AMMO = 2;
 constexpr int32_t FLYER_HB_INITIAL_AMMO = 100;
 constexpr int32_t FLYER_HB_ADDON_AMMO = 20;
 constexpr int32_t FLYER_HB_START_AMMO = 50;
@@ -52,12 +52,11 @@ constexpr int32_t FLYER_INIT_COST = 50;
 enum morph_type_t : uint8_t {
     MORPH_NONE = 0,
     MORPH_FLYER = 1,
-    MORPH_CACODEMON = 2,
-    MORPH_MUTANT = 3,
-    MORPH_BRAIN = 4,
-    MORPH_MEDIC = 5,
-    MORPH_TANK = 6,
-    MORPH_BERSERK = 7,
+    MORPH_MUTANT = 2,
+    MORPH_BRAIN = 3,
+    MORPH_MEDIC = 4,
+    MORPH_TANK = 5,
+    MORPH_BERSERK = 6,
 };
 
 // Extended entity data for morphed players

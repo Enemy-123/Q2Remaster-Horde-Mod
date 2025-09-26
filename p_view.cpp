@@ -1538,15 +1538,15 @@ void ClientEndServerFrame(edict_t* ent)
 
 	// Vortex-style blaster ammo regeneration
 	// Regenerate blaster ammo when not firing
-	if (!(ent->client->buttons & BUTTON_ATTACK) && ent->client->blaster_ammo < 25)
+	if (!(ent->client->buttons & BUTTON_ATTACK) && ent->client->blaster_ammo < 50)
 	{
 		// Regenerate 1 ammo every 2 frames (100ms at 20fps)
 		if (level.time >= ent->client->blaster_regen_time)
 		{
 			ent->client->blaster_ammo++;
 			// Cap at 50
-			if (ent->client->blaster_ammo > 25)
-				ent->client->blaster_ammo = 25;
+			if (ent->client->blaster_ammo > 50)
+				ent->client->blaster_ammo = 50;
 
 			// Set next regen time - 2 frames worth (100ms)
 			ent->client->blaster_regen_time = level.time + (FRAME_TIME_MS * 8);

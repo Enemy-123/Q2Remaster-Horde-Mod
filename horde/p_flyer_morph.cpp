@@ -230,10 +230,11 @@ static void FlyerAttackHyperblaster(edict_t* ent, flyer_data_t* data) {
     if (level.time < data->attack_finished)
         return;
 
-    if (data->current_ammo < FLYER_HB_AMMO)
+    // Use the same blaster ammo system as the blaster weapon
+    if (ent->client->blaster_ammo < FLYER_HB_AMMO)
         return;
 
-    data->current_ammo -= FLYER_HB_AMMO;
+    ent->client->blaster_ammo -= FLYER_HB_AMMO;
 
     int damage = FLYER_HB_INITIAL_DMG + FLYER_HB_ADDON_DMG * data->ability_level;
 
@@ -325,15 +326,7 @@ void MorphRegenerate(edict_t* ent) {
     if (!data || data->morph_type != MORPH_FLYER)
         return;
 
-    // Regenerate ammo
-    if (level.time >= data->last_regen_time + FLYER_HB_REGEN_DELAY) {
-        if (data->current_ammo < data->max_ammo) {
-            data->current_ammo += FLYER_HB_REGEN_AMOUNT;
-            if (data->current_ammo > data->max_ammo)
-                data->current_ammo = data->max_ammo;
-        }
-        data->last_regen_time = level.time;
-    }
+    // Note: Ammo regeneration is now handled by the blaster ammo system in p_view.cpp
 
     // Regenerate health
     if (ent->health < ent->max_health) {
@@ -491,6 +484,8 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
+    //ent->ctf_team = CTF_TEAM1;
+
     // Use proper flyer bounds from monster definition
     ent->mins = { -16, -16, -24 };
     ent->maxs = { 16, 16, 32 }; // Fixed: was 8, should be 32
@@ -514,10 +509,10 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     // Update collision after position change
     gi.linkentity(ent);
 
-    // Set ammo
-    data->max_ammo = 25;
-    data->current_ammo = 10;
-    data->last_regen_time = level.time;
+    // Flyer morph now uses the blaster ammo system (capped at 50 cells)
+    // Initialize with some ammo if player has none
+    if (ent->client->blaster_ammo < 10)
+        ent->client->blaster_ammo = 10;
 
     // Clear weapon
     ent->client->ps.gunindex = 0;
