@@ -2486,6 +2486,7 @@ void ThrowClientHead(edict_t* self, int damage);
 void gib_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame = 0);
 void BecomeExplosion1(edict_t* self);
+void BecomeTE(edict_t *self);
 void misc_viper_use(edict_t* self, edict_t* other, edict_t* activator);
 void misc_strogg_ship_use(edict_t* self, edict_t* other, edict_t* activator);
 void VelocityForDamage(int damage, vec3_t& v);

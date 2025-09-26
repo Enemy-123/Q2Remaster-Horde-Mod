@@ -264,7 +264,7 @@ void RemoveEntity(edict_t* ent) {
             return;
         }
     }
-    BecomeExplosion1(ent);
+    BecomeTE(ent);
 }
 
 // 7:  power-up time updates

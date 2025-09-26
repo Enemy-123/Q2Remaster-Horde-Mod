@@ -94,7 +94,7 @@ DIE(strogg_summoner_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, 
 	}
 
 	// Clean up the base
-	G_FreeEdict(self);
+ BecomeTE(self);
 }
 
 PAIN(strogg_summoner_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void

@@ -287,6 +287,17 @@ void BecomeExplosion2(edict_t* self)
 	G_FreeEdict(self);
 }
 
+void BecomeTE(edict_t *self)
+{
+	// GHz: Make a cool effect!
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_BFG_EXPLOSION);
+	gi.WritePosition(self->s.origin);
+	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+
+	G_FreeEdict(self);
+}
+
 /*QUAKED path_corner (.5 .3 0) (-8 -8 -8) (8 8 8) TELEPORT
 Target: next path corner
 Pathtarget: gets used when an entity that has
