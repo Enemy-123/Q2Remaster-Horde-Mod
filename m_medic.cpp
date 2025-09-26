@@ -1432,8 +1432,9 @@ void medic_spawngrows(edict_t* self)
 			if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
 			{
 				num_success++;
-				float const radius = (maxs - mins).length() * 0.5f;
-				SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);
+				// Don't show SpawnGrow here - only show it when monster is actually created
+				// float const radius = (maxs - mins).length() * 0.5f;
+				// SpawnGrow_Spawn(spawnpoint + (mins + maxs), radius, radius * 2.f);
 			}
 		}
 	}
@@ -1507,6 +1508,10 @@ void medic_finish_spawn(edict_t* self)
 
 		if (!ent)
 			continue;
+
+		// Show SpawnGrow effect now that monster is actually created
+		float const radius = (maxs - mins).length() * 0.5f;
+		SpawnGrow_Spawn(ent->s.origin, radius, radius * 2.f);
 
 		if (ent->think)
 		{

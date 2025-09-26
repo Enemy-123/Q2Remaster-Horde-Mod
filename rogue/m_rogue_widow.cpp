@@ -311,6 +311,10 @@ void WidowSpawn(edict_t* self) {
 			continue;
 		}
 
+		// Show SpawnGrow effect now that stalker is actually created
+		float radius = (stalker_maxs - stalker_mins).length() * 0.5f;
+		SpawnGrow_Spawn(stalker->s.origin, radius, radius * 2.f);
+
 		self->monsterinfo.monster_used++;
 		stalker->monsterinfo.commander = self;
 		stalker->monsterinfo.slots_from_commander = 1;
@@ -367,8 +371,9 @@ void widow_ready_spawn(edict_t* self)
 		startpoint = G_ProjectSource2(self->s.origin, offset, f, r, u);
 		if (FindSpawnPoint(startpoint, stalker_mins, stalker_maxs, spawnpoint, 64))
 		{
-			float radius = (stalker_maxs - stalker_mins).length() * 0.5f;
-			SpawnGrow_Spawn(spawnpoint + (stalker_mins + stalker_maxs), radius, radius * 2.f);
+			// Don't show SpawnGrow here - only show it when stalker is actually created
+			// float radius = (stalker_maxs - stalker_mins).length() * 0.5f;
+			// SpawnGrow_Spawn(spawnpoint + (stalker_mins + stalker_maxs), radius, radius * 2.f);
 		}
 	}
 }
