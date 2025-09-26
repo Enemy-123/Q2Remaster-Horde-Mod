@@ -9,13 +9,14 @@
 
 // Forward declarations for monster spawning
 void SP_monster_soldier(edict_t* self);
+void SP_monster_chick(edict_t* self);
 void SP_monster_gunner(edict_t* self);
 void SP_monster_tank(edict_t* self);
 void SP_monster_gladiator(edict_t* self);
 void SP_monster_berserk(edict_t* self);
 void SP_monster_infantry(edict_t* self);
 void SP_monster_brain(edict_t* self);
-void SP_monster_medic(edict_t* self);
+void SP_monster_spider(edict_t* self);
 
 // Touch function for summoned Strogg - allows owner to push them
 TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -81,15 +82,15 @@ DIE(strogg_summoner_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, 
 	// Clean up the summoned monster if it still exists
 	if (self->teamchain && self->teamchain->inuse)
 	{
-		// Small explosion effect at monster location
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_EXPLOSION1);
-		gi.WritePosition(self->teamchain->s.origin);
-		gi.multicast(self->teamchain->s.origin, MULTICAST_PHS, false);
-
-		// Kill the summoned monster
-		T_Damage(self->teamchain, self, self, vec3_origin, self->teamchain->s.origin,
-				 vec3_origin, 10000, 0, DAMAGE_NONE, MOD_UNKNOWN);
+		// Check if the monster is already dead/dying - if so, let it die naturally
+		if (!self->teamchain->deadflag)
+		{
+			// Monster is still alive, kill it without explosion
+			// Just damage it normally instead of forcing an explosion
+			T_Damage(self->teamchain, self, self, vec3_origin, self->teamchain->s.origin,
+					 vec3_origin, 10000, 0, DAMAGE_NONE, MOD_UNKNOWN);
+		}
+		// If monster is already dead, just let it finish its death animation naturally
 	}
 
 	// Clean up the base
@@ -120,12 +121,18 @@ THINK(strogg_base_think) (edict_t* self) -> void
 	// Check if our monster is still alive
 	if (!self->teamchain || !self->teamchain->inuse || self->teamchain->deadflag)
 	{
-		// Monster is dead, remove the base
+		// Monster is dead, clean up the base silently
 		if (self->teammaster && self->teammaster->client)
 		{
 			gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Summoned Strogg has been destroyed.");
 		}
-		strogg_summoner_die(self, self, self, 0, self->s.origin, MOD_UNKNOWN);
+		// Remove from special entities list
+		auto& vec = g_targetable_special_entities;
+		vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+
+		// Clean up the base without triggering explosion
+		self->takedamage = DAMAGE_NONE;
+		G_FreeEdict(self);
 	}
 }
 
@@ -151,35 +158,35 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	int monster_type = irandom(100);
 
 	if (monster_type < 20) {
-		monster->classname = "monster_soldier";
-		SP_monster_soldier(monster);
+		horde::MonsterTypeID::CHICK;
+		SP_monster_chick(monster);
 	}
 	else if (monster_type < 35) {
-		monster->classname = "monster_gunner";
+		horde::MonsterTypeID::GUNNER;
 		SP_monster_gunner(monster);
 	}
 	else if (monster_type < 45) {
-		monster->classname = "monster_tank";
+		horde::MonsterTypeID::TANK;
 		SP_monster_tank(monster);
 	}
 	else if (monster_type < 55) {
-		monster->classname = "monster_gladiator";
+		horde::MonsterTypeID::GLADIATOR;
 		SP_monster_gladiator(monster);
 	}
 	else if (monster_type < 70) {
-		monster->classname = "monster_berserk";
+		horde::MonsterTypeID::SHAMBLER_SMALL;
 		SP_monster_berserk(monster);
 	}
 	else if (monster_type < 85) {
-		monster->classname = "monster_infantry";
+		horde::MonsterTypeID::INFANTRY;
 		SP_monster_infantry(monster);
 	}
 	else if (monster_type < 95) {
-		monster->classname = "monster_medic";
-		SP_monster_medic(monster);
+		horde::MonsterTypeID::SPIDER;
+		SP_monster_spider(monster);
 	}
 	else {
-		monster->classname = "monster_brain";
+		horde::MonsterTypeID::BRAIN;;
 		SP_monster_brain(monster);
 	}
 
@@ -204,6 +211,8 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	// Apply friendly flag but do NOT set owner
 	// This maintains monster's independence and solidity
 	monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
+	monster->ctf_team = CTF_TEAM1; // Default team if no owner
+
 
 	// Important: Do NOT set monster->owner = base->teammaster
 	// We want the monster to remain independent with its own collision
@@ -246,9 +255,9 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 	base->maxs = { 8, 8, 8 };
 	base->s.modelindex = 0;  // No model - completely invisible
 	base->teammaster = ent;  // Reference to the player who summoned
-	base->flags |= (FL_DAMAGEABLE | FL_TRAP);
-	base->takedamage = true;
-	base->health = 100;  // Base has some health
+	base->flags |= (FL_TRAP);
+	base->takedamage = DAMAGE_NONE;
+	//base->health = 100;  // Base has some health
 	base->pain = strogg_summoner_pain;
 	base->die = strogg_summoner_die;
 
