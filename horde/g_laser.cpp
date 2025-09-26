@@ -579,11 +579,12 @@ void create_laser(edict_t * ent)
 
     flare->classname = "misc_flare";
     flare->s.origin = tr.endpos;
-    flare->owner = emitter;
     flare->spawnflags = 9_spawnflag;
     spawn_temp_t st{};
     st.radius = 0.5f;
     ED_CallSpawn(flare, st);
+    // FIX: Set owner AFTER ED_CallSpawn to prevent it from being reset
+    flare->owner = emitter;
 
     CreateEmitterState(emitter);
 
