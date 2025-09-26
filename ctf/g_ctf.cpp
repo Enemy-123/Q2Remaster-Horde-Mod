@@ -7,6 +7,7 @@
 
 #include <assert.h>
 
+#include "../horde/p_flyer_morph.h"
 ctfgame_t ctfgame;
 
 cvar_t* ctf;
@@ -3001,6 +3002,13 @@ void CTFObserver(edict_t* ent)
 	// Allow spectator mode in cooperative mode even if teamplay is not enabled
 	if ((!G_TeamplayEnabled() && !G_IsCooperative() && !coop->integer) || g_teamplay_force_join->integer)
 		return;
+
+	// Clean up flyer morph state if morphed
+	if (IsMorphed(ent)) {
+		RestoreMorphed(ent);
+	}
+	// Clear any flyer data to prevent stale pointer issues
+	ClearFlyerData(ent);
 
 	// start as 'observer'
 	if (ent->movetype == MOVETYPE_NOCLIP)

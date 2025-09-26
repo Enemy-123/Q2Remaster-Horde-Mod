@@ -446,6 +446,7 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     // Check if already morphed - if so, unmorph
     if (IsMorphed(ent)) {
         RestoreMorphed(ent);
+        gi.LocClient_Print(ent, PRINT_HIGH, "Transformed back to human form.\n");
         return;
     }
 
@@ -544,7 +545,7 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
 
     ent->svflags = SVF_PLAYER;
 
-    gi.LocClient_Print(ent, PRINT_HIGH, "Transformed into Flyer! Use 'cmd morph' to change back.\n");
+    gi.LocClient_Print(ent, PRINT_HIGH, "Transformed into Flyer! Type 'flyer' again to transform back.\n");
 
     gi.linkentity(ent);
 }
