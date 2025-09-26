@@ -519,8 +519,8 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->gravity = 0; // No gravity while flying
     
     // Set clipmask so we can be shot and shoot others
-    ent->clipmask = MASK_SHOT; // This allows traces to work for shooting
-
+    ent->clipmask = MASK_PLAYERSOLID; // This allows traces to work for shooting
+    ent->svflags = SVF_PLAYER;
     // Mark that we need velocity-based movement
     ent->groundentity = nullptr; // Not on ground
 
@@ -561,10 +561,12 @@ void ApplyFlyerPhysics(edict_t* ent) {
     ent->groundentity = nullptr;
 
     // Maintain proper clipmask and solid for shooting/being shot
-    ent->clipmask = MASK_SHOT;
+    ent->clipmask = MASK_PLAYERSOLID;
+    ent->svflags = SVF_PLAYER;
+
     ent->solid = SOLID_BBOX;
 
-    ent->svflags = SVF_PLAYER;
+
     gi.linkentity(ent);
     // IMPORTANT: Clear velocity after each frame to prevent the engine
     // from moving us (since MOVETYPE_NOCLIP would apply velocity without collision)

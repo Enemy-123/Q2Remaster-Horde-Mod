@@ -264,7 +264,7 @@ static trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& m
 	if (mask == CONTENTS_NONE) {
 		if (pm->s.pm_type == PM_DEAD || pm->s.pm_type == PM_GIB)
 			mask = MASK_DEADSOLID;
-		else if (pm->s.pm_type == PM_SPECTATOR)
+		else if (pm->s.pm_type == PM_SPECTATOR && !IsMorphed(pm->player))
 			mask = MASK_SOLID;
 		else
 			mask = MASK_PLAYERSOLID;
@@ -1649,12 +1649,26 @@ void Pmove(pmove_t* pmove)
 
 		if (pm->s.pm_type == PM_SPECTATOR)
 		{
-			pm->mins[0] = -8;
-			pm->mins[1] = -8;
-			pm->maxs[0] = 8;
-			pm->maxs[1] = 8;
-			pm->mins[2] = -8;
-			pm->maxs[2] = 8;
+			if (IsMorphed(pm->player))
+			{
+				// Morphed flyer uses flyer's bounding box
+				pm->mins[0] = -16;
+				pm->mins[1] = -16;
+				pm->mins[2] = -24;
+				pm->maxs[0] = 16;
+				pm->maxs[1] = 16;
+				pm->maxs[2] = 16;
+			}
+			else
+			{
+				// Regular spectator uses small bounding box
+				pm->mins[0] = -8;
+				pm->mins[1] = -8;
+				pm->mins[2] = -8;
+				pm->maxs[0] = 8;
+				pm->maxs[1] = 8;
+				pm->maxs[2] = 8;
+			}
 		}
 
 		PM_FlyMove(pm->s.pm_type == PM_SPECTATOR);
