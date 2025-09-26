@@ -7,6 +7,7 @@
 #include "horde/g_laser.h"
 #include "horde/g_horde_benefits.h"
 #include "horde/horde_ids.h"
+#include "horde/p_flyer_morph.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -3866,6 +3867,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			{
 				return;
 			}
+		}
+
+		// Handle flyer morph movement if morphed
+		if (IsMorphed(ent)) {
+			RunFlyerFrames(ent, *ucmd);
+			// Skip normal pmove processing for morphed players
+			return;
 		}
 
 		// Set up for pmove

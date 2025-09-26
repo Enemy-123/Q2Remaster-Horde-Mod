@@ -139,7 +139,7 @@ static void PlayerAutoThrust(edict_t* ent, const usercmd_t& ucmd) {
         speed += (data->ability_level - 3) * 50;
     }
 
-    // Simple velocity-based movement for noclip
+    // Calculate desired movement velocity
     vec3_t move_vel = { 0, 0, 0 };
 
     // Forward/backward movement
@@ -163,7 +163,7 @@ static void PlayerAutoThrust(edict_t* ent, const usercmd_t& ucmd) {
         move_vel[2] -= speed;
     }
 
-    // Apply movement with some momentum
+    // Apply movement with momentum for smoother flight
     float momentum = 0.8f;
     ent->velocity = (ent->velocity * momentum) + (move_vel * (1.0f - momentum));
 
@@ -345,8 +345,58 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
+    // Store old position for collision rollback
+    vec3_t old_origin = ent->s.origin;
+
     // Apply custom flying physics
     PlayerAutoThrust(ent, ucmd);
+
+    // Manual position update with collision detection
+    // Since we're using MOVETYPE_NOCLIP, we need to handle movement ourselves
+    vec3_t move = ent->velocity * gi.frame_time_s;
+    vec3_t new_origin = ent->s.origin + move;
+    
+    // Trace from current position to new position
+    trace_t trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_origin, ent, MASK_SOLID);
+    
+    if (trace.fraction == 1.0f && !trace.startsolid) {
+        // No collision, move normally
+        ent->s.origin = new_origin;
+    } else if (!trace.allsolid) {
+        // Hit something, move as far as we can
+        ent->s.origin = trace.endpos;
+        
+        // Slide along the surface
+        if (trace.fraction > 0) {
+            vec3_t normal = trace.plane.normal;
+            float backoff = ent->velocity.dot(normal);
+            
+            if (backoff < 0) {
+                // Remove velocity component going into the wall
+                ent->velocity = ent->velocity - (normal * backoff * 1.01f);
+                
+                // Try to move along the wall with remaining velocity
+                vec3_t remaining_move = ent->velocity * gi.frame_time_s * (1.0f - trace.fraction);
+                vec3_t slide_end = ent->s.origin + remaining_move;
+                
+                // Second trace for sliding movement
+                trace_t slide_trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, slide_end, ent, MASK_SOLID);
+                if (slide_trace.fraction > 0 && !slide_trace.startsolid) {
+                    ent->s.origin = slide_trace.endpos;
+                }
+            }
+        }
+        
+        // Apply friction when hitting walls
+        ent->velocity *= 0.8f;
+    }
+    
+    // Update entity position in world
+    gi.linkentity(ent);
+
+    // CRITICAL: Zero out velocity after manual movement to prevent SV_Physics_Noclip
+    // from applying it again (which would bypass our collision detection)
+    ent->velocity = vec3_origin;
 
     // Check for impact damage
     FlyerCheckForImpact(ent, data);
@@ -415,6 +465,10 @@ void RestoreMorphed(edict_t* ent) {
     ent->movetype = MOVETYPE_WALK;
     ent->flags &= ~FL_FLY;
     ent->gravity = 1.0;
+    
+    // Restore normal player solid and clipmask
+    ent->solid = SOLID_BBOX;
+    ent->clipmask = MASK_PLAYERSOLID;
 
     // Restore weapon
     if (ent->client->pers.weapon)
@@ -479,10 +533,13 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->maxs = { 16, 16, 32 }; // Fixed: was 8, should be 32
     ent->viewheight = 12; // Give some view height for flying
 
-    // Set movement type and physics for flying
-    ent->movetype = MOVETYPE_NOCLIP; // Noclip for free movement
+    // Keep MOVETYPE_NOCLIP for player control but set clipmask for shooting
+    ent->movetype = MOVETYPE_NOCLIP; // Keeps player controls working
     ent->flags |= FL_FLY;
     ent->gravity = 0; // No gravity while flying
+    
+    // Set clipmask so we can be shot and shoot others
+    ent->clipmask = MASK_SHOT; // This allows traces to work for shooting
 
     // Mark that we need velocity-based movement
     ent->groundentity = nullptr; // Not on ground
@@ -509,14 +566,25 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
 }
 
 // This function should be called from ClientThink after pmove
+// This function should be called from ClientThink after pmove
+// This function should be called from ClientThink after pmove
+// This function should be called from ClientThink after pmove
 void ApplyFlyerPhysics(edict_t* ent) {
     auto* data = GetFlyerData(ent);
     if (!data || data->morph_type != MORPH_FLYER || ent->deadflag)
         return;
 
-    // Ensure we stay in noclip mode and maintain flying state
+    // Keep MOVETYPE_NOCLIP for player control
     ent->movetype = MOVETYPE_NOCLIP;
     ent->gravity = 0;
     ent->groundentity = nullptr;
-    ent->flags |= FL_FLY;
+    
+    // Maintain proper clipmask and solid for shooting/being shot
+    ent->clipmask = MASK_SHOT;
+    ent->solid = SOLID_BBOX;
+    
+    // IMPORTANT: Clear velocity after each frame to prevent the engine
+    // from moving us (since MOVETYPE_NOCLIP would apply velocity without collision)
+    // We handle movement manually in RunFlyerFrames
+    // Note: We store velocity for our calculations but clear it after physics
 }
