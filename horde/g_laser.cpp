@@ -321,7 +321,10 @@ DIE(laser_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     RemoveEmitterState(emitter);
 
     // Free known children directly using the stored pointers.
+    // CRITICAL FIX: Clear the beam's think function before freeing to prevent it from running
     if (emitter->chain && emitter->chain->inuse) {
+        emitter->chain->think = nullptr;  // Stop the beam from thinking
+        emitter->chain->nextthink = 0_ms; // Clear next think time
         G_FreeEdict(emitter->chain); // Free the beam
     }
     if (emitter->goalentity && emitter->goalentity->inuse) {
@@ -333,13 +336,22 @@ DIE(laser_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     // Step 4: Finally, kill the emitter itself.
     emitter->health = 0;
     emitter->takedamage = false;
-    BecomeExplosion1(emitter);
+    emitter->think = nullptr;  // Stop the emitter from thinking
+    emitter->nextthink = 0_ms; // Clear next think time
+    BecomeExplosion1(emitter);  // This already calls G_FreeEdict internally
 }
 
 THINK(laser_beam_think)(edict_t * self)->void
 {
-    if (!self || !self->owner || !self->owner->inuse)
+    if (!self || !self->inuse)
     {
+        return;  // Already freed or invalid
+    }
+
+    if (!self->owner || !self->owner->inuse)
+    {
+        // Owner (emitter) is gone, trigger proper cleanup through laser_die
+        // This ensures player tracking is updated correctly
         laser_die(self, self, nullptr, 0, vec3_origin, MOD_UNKNOWN);
         return;
     }
@@ -367,8 +379,14 @@ THINK(laser_beam_think)(edict_t * self)->void
 
 THINK(emitter_think)(edict_t * self)->void
 {
-    if (!self || !self->chain || !self->chain->inuse)
+    if (!self || !self->inuse)
     {
+        return;  // Already freed or invalid
+    }
+
+    if (!self->chain || !self->chain->inuse)
+    {
+        // Beam is gone but emitter is still alive, clean up properly
         laser_die(self, self, self->teammaster, 0, self->s.origin, MOD_UNKNOWN);
         return;
     }
