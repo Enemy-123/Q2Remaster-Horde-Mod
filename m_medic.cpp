@@ -1372,12 +1372,11 @@ void medic_cable_attack(edict_t* self)
             // Resurrect corpse in horde mode
             if (self->s.frame == FRAME_attack43)
             {
-                // Start resurrection
-                self->enemy->health = 1; // minimal health to mark as resurrecting
+                // Start resurrection - mark as resurrecting but keep as dead for now
                 self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
                 self->enemy->monsterinfo.attack_finished = level.time + 4_sec; // resurrection duration
-                self->enemy->deadflag = false; // no longer dead
-                self->enemy->svflags &= ~SVF_DEADMONSTER; // clear dead flag
+                // Keep health at 0 and dead flags until resurrection completes
+                // This prevents shadow flickering and other visual issues
             }
         }
         else if (M_NeedRegen(self->enemy))

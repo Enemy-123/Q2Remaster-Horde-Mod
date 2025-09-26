@@ -519,8 +519,22 @@ void M_SetEffects(edict_t* ent)
 		return;
 	}
 
+	// Check for resurrection first (before checking health)
+	// Resurrecting visuals (takes precedence over other shell effects)
+	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) && (level.time < ent->monsterinfo.attack_finished)) {
+		ent->s.effects |= EF_COLOR_SHELL;
+		ent->s.renderfx |= RF_SHELL_RED;
+		ent->s.renderfx &= ~RF_DOT_SHADOW; // No shadow during resurrection
+		// Fade in effect as resurrection progresses
+		float time_left = (ent->monsterinfo.attack_finished - level.time).seconds();
+		float progress = 1.0f - (time_left / 4.0f);
+		ent->s.alpha = progress * 0.8f; // Gradually fade in from 0 to 0.8
+		return; // Skip other effects during resurrection
+	}
+
+	// Check if dead (but not resurrecting)
 	if (ent->health <= 0) {
-		ent->s.renderfx &= ~RF_DOT_SHADOW; // No shadow when dead.
+		ent->s.renderfx &= ~RF_DOT_SHADOW; // No shadow when dead
 		return;
 	}
 
@@ -529,13 +543,6 @@ void M_SetEffects(edict_t* ent)
 	// Update skin based on health (for monsters that have hurt skins)
 	if (ent->monsterinfo.setskin) {
 		ent->monsterinfo.setskin(ent);
-	}
-
-	// Resurrecting visuals (takes precedence over other shell effects)
-	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) && (level.time < ent->monsterinfo.attack_finished)) {
-		ent->s.effects |= EF_COLOR_SHELL;
-		ent->s.renderfx |= RF_SHELL_RED;
-		ent->s.alpha = 0.0f; // Corpse is invisible until resurrected
 	}
 
 	// Bonus Flag visuals (mutually exclusive effects)
