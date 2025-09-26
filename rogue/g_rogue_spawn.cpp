@@ -287,14 +287,14 @@ void SpawnGrow_Spawn(const vec3_t &startpos, float start_size, float end_size)
 	ent->timestamp = level.time + SPAWNGROW_LIFESPAN;
 
 	// Debug output to diagnose timing issue
-	if (developer && developer->integer) {
-		gi.Com_PrintFmt("SpawnGrow_Spawn: entity #{}, level.time = {:.3f}s, timestamp = {:.3f}s, wait = {:.3f}s, lifespan = {:.3f}s\n",
-			ent - g_edicts,
-			level.time.seconds(),
-			ent->timestamp.seconds(),
-			ent->wait,
-			SPAWNGROW_LIFESPAN.seconds());
-	}
+	// if (developer && developer->integer) {
+	// 	gi.Com_PrintFmt("SpawnGrow_Spawn: entity #{}, level.time = {:.3f}s, timestamp = {:.3f}s, wait = {:.3f}s, lifespan = {:.3f}s\n",
+	// 		ent - g_edicts,
+	// 		level.time.seconds(),
+	// 		ent->timestamp.seconds(),
+	// 		ent->wait,
+	// 		SPAWNGROW_LIFESPAN.seconds());
+	// }
 
 	ent->nextthink = level.time + FRAME_TIME_MS;
 
