@@ -5,6 +5,7 @@
 
 //#define GAME_INCLUDE
 #include "bg_local.h"
+#include "horde/p_flyer_morph.h"
 
 // In PSX SP, step-ups aren't allowed
 inline bool PM_AllowStepUp()
@@ -258,7 +259,7 @@ trace_t PM_Clip(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, con
 
 static trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, contents_t mask = CONTENTS_NONE) {
 //	extern cvar_t* g_horde;
-	if (pm->s.pm_type == PM_SPECTATOR)
+	if (pm->s.pm_type == PM_SPECTATOR && !IsMorphed(pm->player))
 		return PM_Clip(start, mins, maxs, end, MASK_SOLID);
 	if (mask == CONTENTS_NONE) {
 		if (pm->s.pm_type == PM_DEAD || pm->s.pm_type == PM_GIB)

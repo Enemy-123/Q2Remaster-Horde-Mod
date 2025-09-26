@@ -514,7 +514,7 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->viewheight = 12; // Give some view height for flying
 
     // Keep MOVETYPE_NOCLIP for player control but set clipmask for shooting
-    ent->movetype = MOVETYPE_NOCLIP; // Keeps player controls working
+    ent->movetype = MOVETYPE_WALK ; // Keeps player controls working
     ent->flags |= FL_FLY;
     ent->gravity = 0; // No gravity while flying
     
@@ -542,12 +542,13 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     // Play transformation sound
     gi.sound(ent, CHAN_WEAPON, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NORM, 0);
 
+    ent->svflags = SVF_PLAYER;
+
     gi.LocClient_Print(ent, PRINT_HIGH, "Transformed into Flyer! Use 'cmd morph' to change back.\n");
+
+    gi.linkentity(ent);
 }
 
-// This function should be called from ClientThink after pmove
-// This function should be called from ClientThink after pmove
-// This function should be called from ClientThink after pmove
 // This function should be called from ClientThink after pmove
 void ApplyFlyerPhysics(edict_t* ent) {
     auto* data = GetFlyerData(ent);
@@ -555,14 +556,16 @@ void ApplyFlyerPhysics(edict_t* ent) {
         return;
 
     // Keep MOVETYPE_NOCLIP for player control
-    ent->movetype = MOVETYPE_NOCLIP;
+    ent->movetype = MOVETYPE_WALK ;
     ent->gravity = 0;
     ent->groundentity = nullptr;
-    
+
     // Maintain proper clipmask and solid for shooting/being shot
     ent->clipmask = MASK_SHOT;
     ent->solid = SOLID_BBOX;
-    
+
+    ent->svflags = SVF_PLAYER;
+    gi.linkentity(ent);
     // IMPORTANT: Clear velocity after each frame to prevent the engine
     // from moving us (since MOVETYPE_NOCLIP would apply velocity without collision)
     // We handle movement manually in RunFlyerFrames
