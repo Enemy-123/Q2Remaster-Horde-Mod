@@ -517,6 +517,10 @@ static inline bool IsValidMonsterTargetForSummon(edict_t* self, edict_t* ent, gt
     if (OnSameTeam(self, ent) || ent->monsterinfo.invincible_time > current_time)
         return false;
 
+    // Don't target prox mines
+    if (horde::IsSpecialType(ent, horde::SpecialEntityTypeID::PROX_MINE))
+        return false;
+
     return true;
 }
 
