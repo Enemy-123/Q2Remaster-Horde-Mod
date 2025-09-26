@@ -4,6 +4,7 @@
 
 #include "g_local.h"
 #include "horde/horde_ids.h"
+#include "horde/p_flyer_morph.h"
 // this is used for communications out of sv_movestep to say what entity
 // is blocking us
 edict_t* new_bad; // pmm
@@ -652,10 +653,13 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	// Paril: horde
 // would be better it as special or monster? on special side it manages it removal, but its a monster. 
 // The logic is: if horde is on AND the entity is NOT a sentry gun...
-if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::SENTRY_GUN)) || 
+if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::SENTRY_GUN)) ||
     (ent->svflags & SVF_PLAYER && EntIsSpectating(ent)))
 {
-    mask &= ~CONTENTS_MONSTER;
+    // Don't remove CONTENTS_MONSTER for morphed players - they need proper collision
+    if (!IsMorphed(ent)) {
+        mask &= ~CONTENTS_MONSTER;
+    }
 }
 
 	vec3_t start_up = oldorg + ent->gravityVector * (-1 * stepsize);
@@ -727,7 +731,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 			if (relink)
 			{
 				gi.linkentity(ent);
-				if (!g_horde->integer) // Paril
+				if (!g_horde->integer || IsMorphed(ent)) // Enable triggers for morphed players
 					G_TouchTriggers(ent);
 			}
 			ent->groundentity = nullptr;
@@ -816,7 +820,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 			if (relink)
 			{
 				gi.linkentity(ent);
-				if (!g_horde->integer) // Paril
+				if (!g_horde->integer || IsMorphed(ent)) // Enable triggers for morphed players
 					G_TouchTriggers(ent);
 			}
 			return true;
@@ -866,7 +870,7 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 
 		// [Paril-KEX] this is something N64 does to avoid doors opening
 		// at the start of a level, which triggers some monsters to spawn.
-		if (!g_horde->integer) // Paril
+		if (!g_horde->integer || IsMorphed(ent)) // Enable triggers for morphed players
 			if (!level.is_n64 || level.time > FRAME_TIME_S)
 				G_TouchTriggers(ent);
 	}
@@ -1013,7 +1017,7 @@ const bool is_widow = (horde::IsMonsterType(ent, horde::MonsterTypeID::WIDOW) ||
 		// Update entity state and check triggers
 		gi.linkentity(ent);
 
-		if (!g_horde->integer)
+		if (!g_horde->integer || IsMorphed(ent))
 		{
 			G_TouchTriggers(ent);
 		}
@@ -1029,7 +1033,7 @@ const bool is_widow = (horde::IsMonsterType(ent, horde::MonsterTypeID::WIDOW) ||
 	// Update entity state and check triggers even on failure
 	gi.linkentity(ent);
 
-	if (!g_horde->integer)
+	if (!g_horde->integer || IsMorphed(ent))
 	{
 		G_TouchTriggers(ent);
 	}

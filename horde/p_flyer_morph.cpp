@@ -426,8 +426,7 @@ void RestoreMorphed(edict_t* ent) {
     ent->solid = SOLID_BBOX;
     ent->clipmask = MASK_PLAYERSOLID;
 
-    // Clear monster flags
-    ent->monsterinfo.issummoned = false;
+    // Clear monster team
     ent->monsterinfo.team = Team_None;
 
     // Restore weapon
@@ -506,8 +505,7 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
-    // Set monster flags for bot team recognition (but don't set SVF_MONSTER to avoid AI confusion)
-    ent->monsterinfo.issummoned = true;
+    // Set team for bot recognition (don't set issummoned to avoid AI treating as friendly summon)
     ent->monsterinfo.team = ent->client->resp.ctf_team;
 
     // Use proper flyer bounds from monster definition

@@ -3,6 +3,7 @@
 // g_phys.c
 
 #include "g_local.h"
+#include "horde/p_flyer_morph.h"
 
 /*
 
@@ -34,7 +35,11 @@ contents_t G_GetClipMask(edict_t* ent)
     // --- 1. Base Mask Determination ---
     contents_t mask = ent->clipmask;
     if (!mask) {
-        if (ent->svflags & SVF_MONSTER)     mask = MASK_MONSTERSOLID;
+        // Special handling for morphed players - they should use player-like collision
+        if (IsMorphed(ent)) {
+            mask = MASK_PLAYERSOLID;  // Use player collision mask for morphed players
+        }
+        else if (ent->svflags & SVF_MONSTER)     mask = MASK_MONSTERSOLID;
         else if (ent->svflags & SVF_PROJECTILE) mask = MASK_PROJECTILE;
         else                                mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
     }
@@ -97,7 +102,10 @@ contents_t G_GetClipMask(edict_t* ent)
             trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask);
             if (tr.ent && (tr.ent->svflags & SVF_MONSTER) && OnSameTeam(ent, tr.ent))
             {
-                mask &= ~CONTENTS_MONSTER;
+                // Don't filter collision for morphed players - they need proper collision
+                if (!IsMorphed(ent)) {
+                    mask &= ~CONTENTS_MONSTER;
+                }
             }
         }
     }
@@ -943,7 +951,7 @@ void SV_Physics_Step(edict_t* ent)
 
 		// [Paril-KEX] this is something N64 does to avoid doors opening
 		// at the start of a level, which triggers some monsters to spawn.
-		if (!g_horde->integer) // Paril
+		if (!g_horde->integer || IsMorphed(ent)) // Enable triggers for morphed players
 			if (!level.is_n64 || level.time > FRAME_TIME_S)
 				G_TouchTriggers(ent);
 
