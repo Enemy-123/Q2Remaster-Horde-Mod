@@ -333,6 +333,53 @@ void ai_walk(edict_t* self, float dist)
 			self->monsterinfo.idle_time = level.time + random_time(15_sec);
 		}
 	}
+
+	// HORDEWALK: Add horde mode logic similar to ai_stand
+	if (g_horde->integer && !level.intermissiontime)
+	{
+		// Only summoned monsters use FindMTarget for targeting
+		if (self->monsterinfo.issummoned) {
+			if (!self->enemy ||
+				(self->enemy->client && !self->enemy->monsterinfo.issummoned)) { // If current enemy is a player, forget it
+				self->enemy = nullptr;
+			}
+			FindMTarget(self);
+		}
+		else
+		{
+			edict_t* nearest_player = nullptr;
+			float nearest_distance_sq = FLT_MAX;
+
+			// Find the nearest player that's alive and not a spectator
+			for (auto client : active_players_no_spect())
+			{
+				if (client->client) {
+					if (client->client->invisible_time > level.time &&
+						client->client->invisibility_fade_time <= level.time) {
+						continue; // Skip fully invisible players
+					}
+					if (EntIsSpectating(client)) {
+						continue; // Skip spectators
+					}
+				}
+				if (client->inuse && client->health > 0)
+				{
+					const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
+					if (dist_squared < nearest_distance_sq)
+					{
+						nearest_player = client;
+						nearest_distance_sq = dist_squared;
+					}
+				}
+			}
+			if (nearest_player)
+			{
+				self->enemy = nearest_player;
+				FoundTarget(self);
+				return;
+			}
+		}
+	}
 }
 
 /*

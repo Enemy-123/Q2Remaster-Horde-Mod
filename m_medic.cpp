@@ -144,7 +144,7 @@ void fixHealerEnemy(edict_t* self)
 		{
 			// No enemy found, return to patrol/walk mode
 			if (self->monsterinfo.walk)
-				self->monsterinfo.stand(self);
+				self->monsterinfo.walk(self);  // Fixed: was incorrectly calling stand
 			else if (self->monsterinfo.stand)
 				self->monsterinfo.stand(self);
 		}
