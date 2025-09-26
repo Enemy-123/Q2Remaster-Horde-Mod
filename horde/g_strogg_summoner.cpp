@@ -284,7 +284,7 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 	if (!monster)
 	{
 		// Failed to spawn monster, clean up base
-		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to summon Strogg warrior!");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to summon Strogg warrior!\n");
 		G_FreeEdict(base);
 		return;
 	}
@@ -303,7 +303,7 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 	gi.sound(ent, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 
 	// Message to player
-	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! Type 'remove strogg' to dismiss.", monster->classname + 8); // Skip "monster_" prefix
+	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! Type 'remove strogg' to dismiss.\n", monster->classname + 8); // Skip "monster_" prefix
 }
 
 // Replacement for StroggSummonAtPoint - now returns the base instead of the monster

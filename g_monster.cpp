@@ -1012,7 +1012,16 @@ THINK(monster_dead_think) (edict_t* self) -> void
 	// Check for cleanup time
 	if (self->timestamp && level.time >= self->timestamp)
 	{
-		G_FreeEdict(self);
+		// For summoned monsters, use BecomeTE for cleaner removal
+		if (self->monsterinfo.issummoned) {
+			// Clean up reference from the base entity if it exists
+			if (self->chain && self->chain->inuse && self->chain->teamchain == self) {
+				self->chain->teamchain = nullptr;
+			}
+			BecomeTE(self);
+		} else {
+			G_FreeEdict(self);
+		}
 		return;
 	}
 

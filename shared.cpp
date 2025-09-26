@@ -5,6 +5,7 @@
 #include <span>
 #include "horde/horde_ids.h"
 #include "horde/g_entity_properties.h"
+#include "horde/g_horde_phys.h"
 #include <optional>
 #include <vector>
 #include <string>
@@ -175,21 +176,30 @@ void RemovePlayerOwnedEntities(edict_t* player) {
     };
 
     const auto& client = *player->client;
-    
+
     std::span lasers{client.resp.deployed_lasers};
     for (edict_t* laser : lasers) add_entity(laser);
-    
+
     std::span sentries{client.resp.deployed_sentries};
     for (edict_t* sentry : sentries) add_entity(sentry);
-    
+
     std::span teslas{client.resp.deployed_teslas};
     for (edict_t* tesla : teslas) add_entity(tesla);
-    
+
     std::span traps{client.resp.deployed_traps};
     for (edict_t* trap : traps) add_entity(trap);
-    
+
     std::span proxs{client.resp.deployed_proxs};
     for (edict_t* prox : proxs) add_entity(prox);
+
+    // Find and add all summoned Strogg bases owned by this player from the special entities list
+    for (edict_t* special_ent : g_targetable_special_entities) {
+        if (special_ent && special_ent->inuse &&
+            special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+            special_ent->teammaster == player) {
+            add_entity(special_ent);
+        }
+    }
 
     for (size_t i = 0; i < entity_count; ++i) {
         edict_t* ent = entities_array[i];
@@ -202,17 +212,18 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 // 5:  defense check with compile-time lookup
 bool IsPlayerDefense(const edict_t* ent) {
     if (!ent) return false;
-    
+
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id == horde::SpecialEntityTypeID::UNKNOWN) return false;
-    
-    static constexpr uint64_t DEFENSE_MASK = 
+
+    static constexpr uint64_t DEFENSE_MASK =
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::SENTRY_GUN)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TURRET)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::LASER_EMITTER)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TESLA_MINE)) |
-        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::FOOD_CUBE_TRAP));
-    
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER));
+
     return (DEFENSE_MASK & (1ULL << static_cast<uint64_t>(id))) != 0;
 }
 
@@ -241,7 +252,7 @@ bool IsRemovableEntity(const edict_t* ent) {
         return false;
     }
 
-    static constexpr uint64_t REMOVABLE_MASK = 
+    static constexpr uint64_t REMOVABLE_MASK =
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TESLA_MINE)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::LASER_EMITTER)) |
@@ -249,13 +260,25 @@ bool IsRemovableEntity(const edict_t* ent) {
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::PROX_MINE)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::SENTRY_GUN)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TURRET)) |
-        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::NUKE_MINE));
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::NUKE_MINE)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER));
     
     return (REMOVABLE_MASK & (1ULL << static_cast<uint64_t>(id))) != 0;
 }
 
 void RemoveEntity(edict_t* ent) {
     if (!ent || !ent->inuse) return;
+
+    // Special handling for summoned monsters
+    if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.issummoned) {
+        // Clean up reference from the base entity if it exists
+        if (ent->chain && ent->chain->inuse && ent->chain->teamchain == ent) {
+            ent->chain->teamchain = nullptr;
+        }
+        BecomeTE(ent);
+        return;
+    }
+
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
     if (id != horde::SpecialEntityTypeID::UNKNOWN) {
         EntityDieHandler handler = GetDieHandler(id);
@@ -876,8 +899,9 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 	size_t processable_count = 0;
 	size_t removable_count = 0;
 
+	// First, check for removable special entities (traps, mines, bases, etc.)
 	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
-		if (!ent || !ent->inuse || 
+		if (!ent || !ent->inuse ||
 			gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f) {
 			continue;
 		}
@@ -886,8 +910,28 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 			if (removable_count < MAX_ENTITIES) {
 				removable_entities[removable_count++] = ent;
 			}
-		} else if (ent->takedamage && processable_count < MAX_ENTITIES) {
+		} else if (ent->takedamage && !(ent->svflags & SVF_MONSTER) && processable_count < MAX_ENTITIES) {
+			// Non-monster entities that can be damaged (players, etc.)
 			processable_entities[processable_count++] = ent;
+		}
+	}
+
+	// Then check for monsters using the monster grid (more efficient)
+	auto monsters = HordePhys::g_monster_grid.QueryRadius(center, search_radius);
+	for (edict_t* monster : monsters) {
+		if (!monster || !monster->inuse ||
+			gi.traceline(center, monster->s.origin, nullptr, MASK_SOLID).fraction < 1.0f) {
+			continue;
+		}
+
+		// Summoned monsters should be removed cleanly
+		if (monster->monsterinfo.issummoned) {
+			if (removable_count < MAX_ENTITIES) {
+				removable_entities[removable_count++] = monster;
+			}
+		} else if (processable_count < MAX_ENTITIES) {
+			// Regular monsters get pushed/damaged
+			processable_entities[processable_count++] = monster;
 		}
 	}
 
