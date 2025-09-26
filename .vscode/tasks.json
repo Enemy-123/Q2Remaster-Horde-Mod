@@ -2,15 +2,30 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "🚀 Build: Auto (MSVC-Compatible)",
+            "label": "Build: Debug (for GDB)",
             "type": "shell",
             "command": "python3",
             "args": [
                 "${workspaceFolder}/build_universal.py",
                 "${input:deployPathInput}",
-                "Release",
-                "--compiler",
-                "auto"
+                "Debug"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build: Release (for distribution)",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/build_universal.py",
+                "${input:deployPathInput}",
+                "Release"
             ],
             "group": {
                 "kind": "build",
@@ -21,19 +36,16 @@
                 "panel": "new",
                 "clear": true
             },
-            "problemMatcher": ["$gcc"],
-            "detail": "✨ Recommended: Auto-selects best compiler (Clang MSVC preferred)"
+            "problemMatcher": []
         },
         {
-            "label": "🔧 Build: MSVC Debug",
+            "label": "Build: RelWithDebInfo ( with symbols)",
             "type": "shell",
             "command": "python3",
             "args": [
                 "${workspaceFolder}/build_universal.py",
                 "${input:deployPathInput}",
-                "Debug",
-                "--compiler",
-                "clang-msvc"
+                "RelWithDebInfo"
             ],
             "group": "build",
             "presentation": {
@@ -41,19 +53,18 @@
                 "panel": "new",
                 "clear": true
             },
-            "problemMatcher": ["$gcc"],
-            "detail": "Debug build with MSVC ABI for better Windows compatibility"
+            "problemMatcher": [
+                "$gcc"
+            ]
         },
         {
-            "label": "📦 Build: MSVC Release",
+            "label": "Build: DebugASan (with AddressSanitizer)",
             "type": "shell",
             "command": "python3",
             "args": [
                 "${workspaceFolder}/build_universal.py",
                 "${input:deployPathInput}",
-                "Release",
-                "--compiler",
-                "clang-msvc"
+                "DebugASan"
             ],
             "group": "build",
             "presentation": {
@@ -61,118 +72,9 @@
                 "panel": "new",
                 "clear": true
             },
-            "problemMatcher": ["$gcc"],
-            "detail": "Optimized MSVC-compatible build for distribution"
-        },
-        {
-            "label": "🐛 Build: MSVC RelWithDebInfo",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "${workspaceFolder}/build_universal.py",
-                "${input:deployPathInput}",
-                "RelWithDebInfo",
-                "--compiler",
-                "clang-msvc"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "problemMatcher": ["$gcc"],
-            "detail": "Optimized MSVC build with debug symbols"
-        },
-        {
-            "label": "🧹 Clean Build Directories",
-            "type": "shell",
-            "command": "rm",
-            "args": [
-                "-rf",
-                "${workspaceFolder}/build",
-                "${workspaceFolder}/build_msvc",
-                "${workspaceFolder}/build_mingw"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "detail": "Clean all build directories"
-        },
-        {
-            "label": "🔍 Check Dependencies",
-            "type": "shell",
-            "command": "bash",
-            "args": [
-                "-c",
-                "echo '🔍 Checking build dependencies...' && echo '=== Clang MSVC Support ===' && clang++ -target x86_64-pc-windows-msvc --version 2>/dev/null && echo '✅ Clang MSVC: Available' || echo '❌ Clang MSVC: Not available (install: pacman -S clang lld)' && echo '=== MinGW Support ===' && /usr/bin/x86_64-w64-mingw32-g++ --version 2>/dev/null && echo '✅ MinGW: Available' || echo '❌ MinGW: Not available (install: pacman -S mingw-w64-gcc)'"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "detail": "Check which cross-compilers are available"
-        },
-        {
-            "label": "⚙️ Build: MinGW Fallback",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "${workspaceFolder}/build_universal.py",
-                "${input:deployPathInput}",
-                "Release",
-                "--compiler",
-                "mingw"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "problemMatcher": ["$gcc"],
-            "detail": "MinGW fallback (may have Windows compatibility issues)"
-        },
-        {
-            "label": "📜 Build: Legacy MinGW Debug",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "${workspaceFolder}/build.py",
-                "${input:deployPathInput}",
-                "Debug"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "problemMatcher": ["$gcc"],
-            "detail": "Legacy MinGW debug build (deprecated)"
-        },
-        {
-            "label": "📜 Build: Legacy MinGW Release",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "${workspaceFolder}/build.py",
-                "${input:deployPathInput}",
-                "Release"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "clear": true
-            },
-            "problemMatcher": ["$gcc"],
-            "detail": "Legacy MinGW release build (deprecated)"
+            "problemMatcher": [
+                "$gcc"
+            ]
         }
     ],
     "inputs": [

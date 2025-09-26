@@ -133,7 +133,8 @@ void fixHealerEnemy(edict_t* self)
 	if (self->oldenemy && self->oldenemy->inuse && self->oldenemy->health > 0)
 	{
 		self->enemy = self->oldenemy;
-		HuntTarget(self, false);
+		self->oldenemy = nullptr;
+		HuntTarget(self, true);  // Use animate_state=true to trigger run
 	}
 	else
 	{
@@ -141,10 +142,13 @@ void fixHealerEnemy(edict_t* self)
 		self->oldenemy = nullptr;
 		if (!FindTarget(self))
 		{
-			// no valid enemy, so stop acting
-			self->monsterinfo.pausetime = HOLD_FOREVER;
-			return;
+			// No enemy found, return to patrol/walk mode
+			if (self->monsterinfo.walk)
+				self->monsterinfo.stand(self);
+			else if (self->monsterinfo.stand)
+				self->monsterinfo.stand(self);
 		}
+		// else FindTarget already called FoundTarget which sets run mode
 	}
 }
 
