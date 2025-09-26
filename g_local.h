@@ -1793,6 +1793,7 @@ struct monsterinfo_t
 	int32_t	 medicTries;
 	edict_t* badMedic1, * badMedic2; // these medics have declared this monster "unhealable"
 	edict_t* healer;				// this is who is healing this monster
+	gtime_t  healing_pause_time;    // Time until monster can move again while being healed
 	save_monsterinfo_duck_t duck;
 	save_monsterinfo_unduck_t unduck;
 	save_monsterinfo_sidestep_t sidestep;

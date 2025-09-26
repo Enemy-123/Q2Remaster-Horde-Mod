@@ -1302,91 +1302,84 @@ bool M_NeedRegen(edict_t* target)
 // Modified cable attack function with healing loop
 void medic_cable_attack(edict_t* self)
 {
-    vec3_t offset, start, end, f, r;
-    trace_t tr;
-    vec3_t dir;
-    float distance;
+    vec3_t   offset, start, end, forward, right, dir;
+    trace_t  tr;
+    float    distance;
+    uint32_t damage;
 
-    if (!self->enemy || !self->enemy->inuse || (self->enemy->s.effects & EF_GIB))
-    {
-        abortHeal(self, false, false);
-        self->monsterinfo.nextframe = FRAME_attack52;  // Ensure we exit the animation
+    // Make sure we are in a good frame for our next decision
+    if (self->s.frame < FRAME_attack42 || self->s.frame > FRAME_attack50)
         return;
-    }
 
-    // we switched back to a player; let the animation finish
-    if (self->enemy->client)
+    // Reconsider target every few frames.
+    if (self->s.frame == FRAME_attack43)
     {
-        self->monsterinfo.nextframe = FRAME_attack52;  // Exit animation gracefully
-        return;
-    }
-
-    // see if our enemy has changed to a client, or our target has more than 0 health,
-    // abort it .. we got switched to someone else due to damage
-    if (self->enemy->health > 0 && !(self->monsterinfo.aiflags & AI_MEDIC))
-    {
-        abortHeal(self, false, false);
-        self->monsterinfo.nextframe = FRAME_attack52;  // Ensure we exit the animation
-        return;
-    }
-    
-    AngleVectors(self->s.angles, f, r, nullptr);
-    offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
-    start = M_ProjectFlashSource(self, offset, f, r);
-    
-    // check for min distance
-    dir = start - self->enemy->s.origin;
-    distance = dir.length();
-    if (distance < MEDIC_MIN_DISTANCE)
-    {
-        abortHeal(self, true, false);
-        self->monsterinfo.nextframe = FRAME_attack52;
-        return;
-    }
-    
-    tr = gi.traceline(start, self->enemy->s.origin, self, MASK_SOLID);
-    if (tr.fraction != 1.0f && tr.ent != self->enemy)
-    {
-        if (tr.ent == world)
-        {
-            // give up on second try
-            if (self->monsterinfo.medicTries > 1)
-            {
-                abortHeal(self, false, true);
-                self->monsterinfo.nextframe = FRAME_attack52;
-                return;
-            }
-            self->monsterinfo.medicTries++;
-            cleanupHeal(self);
-            self->monsterinfo.nextframe = FRAME_attack52;
+        // Re-evaluate healing target
+        if (!self->enemy || !self->enemy->inuse)
             return;
-        }
-        abortHeal(self, false, false);
-        self->monsterinfo.nextframe = FRAME_attack52;
-        return;
     }
-    
-    // Handle living injured entities (healing mode)
-    if (self->enemy->health > 0 && M_NeedRegen(self->enemy))
+
+    // We have an active cable attack - check if in range
+    distance = self->enemy ? realrange(self, self->enemy) : 9999.0f;
+    if (self->enemy && distance <= MEDIC_MAX_HEAL_DISTANCE && visible(self, self->enemy))
     {
-        // Heal incrementally
-        int heal_amount = 10 + (current_wave_level * 2);
-        
-        if (self->s.frame == FRAME_attack43)
+        // Play attack sound
+        if (self->s.frame == FRAME_attack43 || self->s.frame == FRAME_attack50)
+            gi.sound(self, CHAN_WEAPON, sound_hook_launch, 1, ATTN_NORM, 0);
+
+        // Calculate cable origin
+        AngleVectors(self->s.angles, forward, right, nullptr);
+        offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
+        start = M_ProjectFlashSource(self, offset, forward, right);
+
+        // Trace to the enemy
+        tr = gi.traceline(start, self->enemy->s.origin, self, MASK_SOLID);
+
+        // Draw cable (make wider and more visible for healing)
+        if (M_NeedRegen(self->enemy))
+            gi.WriteByte(svc_temp_entity);
+        else
+            gi.WriteByte(svc_temp_entity);
+
+        gi.WriteByte(TE_MEDIC_CABLE_ATTACK);
+        gi.WriteShort(self - g_edicts);
+        gi.WritePosition(start);
+        gi.WritePosition(tr.endpos);
+        gi.multicast(self->s.origin, MULTICAST_PVS, false);
+
+        // Apply healing effect
+        if (M_NeedRegen(self->enemy))
         {
-            gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
+            // Play healing sound effect
+            if (self->s.frame == FRAME_attack43)
+                gi.sound(self->enemy, CHAN_AUTO, sound_hook_heal, 1, ATTN_NORM, 0);
         }
-        else if (self->s.frame == FRAME_attack44)
+
+        // Damage or healing  logic
+        if (self->enemy->health <= 0 && g_horde->integer && self->enemy->svflags & SVF_DEADMONSTER)
         {
-            gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
+            // Resurrect corpse in horde mode
+            if (self->s.frame == FRAME_attack43)
+            {
+                // Start resurrection
+                self->enemy->health = 1; // minimal health to mark as resurrecting
+                self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
+                self->enemy->monsterinfo.attack_finished = level.time + 4_sec; // resurrection duration
+                self->enemy->deadflag = false; // no longer dead
+                self->enemy->svflags &= ~SVF_DEADMONSTER; // clear dead flag
+            }
         }
-        
-        // Apply healing
-        self->enemy->health += heal_amount;
-        if (self->enemy->health > self->enemy->max_health)
-            self->enemy->health = self->enemy->max_health;
-        
-        // Repair armor
+        else if (M_NeedRegen(self->enemy))
+        {
+            // Mark that this monster is being healed
+            // Regular healing logic
+            // apply healing instead of damage
+            bool    is_friendly = (self->monsterinfo.aiflags & AI_GOOD_GUY) != 0;
+            int     heal_amount = is_friendly ? 30 : 8; // boosted heal vs normal
+
+            self->enemy->health = min((int)self->enemy->health + heal_amount, (int)self->enemy->max_health);
+
+            // If monster has power armor, heal that too
         if (self->enemy->monsterinfo.power_armor_power < self->enemy->monsterinfo.max_power_armor_power)
         {
             self->enemy->monsterinfo.power_armor_power += heal_amount / 2;
@@ -1394,20 +1387,16 @@ void medic_cable_attack(edict_t* self)
                 self->enemy->monsterinfo.power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
         }
         
-        // Hold monster in place while healing
+        // Hold monster in place while healing using dedicated healing pause
         if (self->enemy->svflags & SVF_MONSTER)
         {
-            self->enemy->monsterinfo.pausetime = level.time + 0.5_sec;  // Pause longer
-            self->enemy->monsterinfo.aiflags |= AI_STAND_GROUND;  // Force them to stand still
+            self->enemy->monsterinfo.healing_pause_time = level.time + 0.5_sec;  // Pause while being healed
+            self->enemy->monsterinfo.healer = self;  // Set the healer reference
         }
         
         // Check if fully healed
         if (!M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
         {
-            // Clear stand ground flag when done healing
-            if (self->enemy && self->enemy->inuse)
-                self->enemy->monsterinfo.aiflags &= ~AI_STAND_GROUND;
-
             cleanupHeal(self);
             self->monsterinfo.nextframe = FRAME_attack52;
         }
@@ -1417,61 +1406,57 @@ void medic_cable_attack(edict_t* self)
             self->monsterinfo.nextframe = FRAME_attack44; // Loop back to healing frames
         }
     }
-    // Handle dead entities (resurrection mode)
-    else if (self->enemy->health <= 0)
+    }
+    else
     {
-        if (self->s.frame == FRAME_attack43)
-        {
-            // PMM - commander sounds
-            if (self->mass == 400)
-                gi.sound(self->enemy, CHAN_AUTO, commander_sound_hook_hit, 1, ATTN_NORM, 0);
-            else
-                gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
+        // No more enemy? Abort
+        cleanupHeal(self);
+    }
 
-            self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
-            self->enemy->monsterinfo.attack_finished = level.time + 5_sec; // Set time for visual effects
-            self->enemy->takedamage = false;
-            self->enemy->monsterinfo.pausetime = level.time + 3_sec;  // Keep corpse in place during resurrection
-            M_SetEffects(self->enemy);
-        }
-        else if (self->s.frame == FRAME_attack50)
+    // Check for resurrecti on completion (horde mode)
+    if (g_horde->integer && self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING))
+    {
+        // Continue resurrection animation
+        if (self->s.frame == FRAME_attack44)
         {
-            if (!finishHeal(self))
-            {
-                // Resurrection failed, exit gracefully
-                cleanupHeal(self);
-                self->monsterinfo.nextframe = FRAME_attack52;
-            }
-            return;
+            self->enemy->monsterinfo.healing_pause_time = level.time + 3_sec;  // Keep corpse in place during resurrection
+            self->enemy->monsterinfo.healer = self;  // Maintain healer reference
         }
-        else
+        
+        // Check if resurrection is complete
+        if (level.time >= self->enemy->monsterinfo.attack_finished)
         {
-            if (self->s.frame == FRAME_attack44)
-            {
-                // PMM - medic commander sounds
-                if (self->mass == 400)
-                    gi.sound(self, CHAN_WEAPON, commander_sound_hook_heal, 1, ATTN_NORM, 0);
-                else
-                    gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
-            }
-            // Keep the animation going for resurrection
-            // Don't abort mid-resurrection
+            // Resurrection complete
+            finishHeal(self);
+            self->monsterinfo.nextframe = FRAME_attack52;
+        }
+        // Keep looping resurrection animation
+        else if (self->s.frame >= FRAME_attack48)
+        {
+            self->monsterinfo.nextframe = FRAME_attack44; // Loop back
         }
     }
     
-    // adjust start for beam origin being in middle of a segment
-    start += (f * 8);
-    
-    // adjust end z for end spot since the monster is currently dead
-    end = self->enemy->s.origin;
-    end[2] = (self->enemy->absmin[2] + self->enemy->absmax[2]) / 2;
-    
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_MEDIC_CABLE_ATTACK);
-    gi.WriteEntity(self);
-    gi.WritePosition(start);
-    gi.WritePosition(end);
-    gi.multicast(self->s.origin, MULTICAST_PVS, false);
+    // End of attack?
+    if (self->s.frame == FRAME_attack50)
+    {
+        // If our enemy is no longer valid, or out of reach, abort.
+        if (!self->enemy || distance > MEDIC_MAX_HEAL_DISTANCE || !visible(self, self->enemy) || !M_NeedRegen(self->enemy))
+        {
+            cleanupHeal(self);
+            if (distance > 190.f && visible(self, self->enemy) && self->health > 0 && infront(self, self->enemy))
+                self->monsterinfo.nextframe = FRAME_attack41;
+        }
+        else // our enemy is still good to go, reset and keep going.
+        {
+            // continue!
+            if (self->enemy && self->enemy->health <= 0 && g_horde->integer && self->enemy->svflags & SVF_DEADMONSTER)
+                return; // Keep going for resurrection
+                
+            if (M_NeedRegen(self->enemy))
+                self->monsterinfo.nextframe = FRAME_attack42;
+        }
+    }
 }
 
 // Add continue function to check if healing should continue

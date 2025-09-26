@@ -116,6 +116,19 @@ void ai_stand(edict_t* self, float dist)
 	bool retval;
 	// ROGUE
 
+	// Check if monster is paused for healing
+	if (self->monsterinfo.healing_pause_time > level.time)
+	{
+		// Still being healed, just change yaw if needed but don't move
+		if (self->enemy)
+		{
+			v = self->enemy->s.origin - self->s.origin;
+			self->ideal_yaw = vectoyaw(v);
+			M_ChangeYaw(self);
+		}
+		return;
+	}
+
 	if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 		M_walkmove(self, self->s.angles[YAW], dist);
 
@@ -277,6 +290,13 @@ The monster is walking it's beat
 */
 void ai_walk(edict_t* self, float dist)
 {
+	// Check if monster is paused for healing
+	if (self->monsterinfo.healing_pause_time > level.time)
+	{
+		// Still being healed, don't move
+		return;
+	}
+
 	edict_t* temp_goal = nullptr;
 
 	if (!self->goalentity && (self->monsterinfo.aiflags & AI_GOOD_GUY))
@@ -2003,6 +2023,19 @@ void ai_run(edict_t* self, float dist)
 	// =======================================================================
 	// --- FIXED AND RESTRUCTURED STATE CHECKS ---
 	// =======================================================================
+
+	// Check if monster is paused for healing
+	if (self->monsterinfo.healing_pause_time > level.time)
+	{
+		// Still being healed, just face enemy if we have one
+		if (self->enemy && self->enemy->inuse)
+		{
+			vec3_t v = self->enemy->s.origin - self->s.origin;
+			self->ideal_yaw = vectoyaw(v);
+			M_ChangeYaw(self);
+		}
+		return;
+	}
 
 	// 1. Handle terminal state: Intermission
 	if (level.intermissiontime)

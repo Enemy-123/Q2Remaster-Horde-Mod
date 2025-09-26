@@ -13,6 +13,7 @@ clean up heal targets for medic
 void cleanupHealTarget(edict_t *ent)
 {
 	ent->monsterinfo.healer = nullptr;
+	ent->monsterinfo.healing_pause_time = 0_ms;  // Clear healing pause
 	ent->takedamage = true;
 	ent->monsterinfo.aiflags &= ~AI_RESURRECTING;
 	M_SetEffects(ent);
