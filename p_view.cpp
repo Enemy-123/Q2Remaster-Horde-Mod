@@ -1549,7 +1549,7 @@ void ClientEndServerFrame(edict_t* ent)
 				ent->client->blaster_ammo = 25;
 
 			// Set next regen time - 2 frames worth (100ms)
-			ent->client->blaster_regen_time = level.time + (FRAME_TIME_MS * 10);
+			ent->client->blaster_regen_time = level.time + (FRAME_TIME_MS * 8);
 		}
 	}
 

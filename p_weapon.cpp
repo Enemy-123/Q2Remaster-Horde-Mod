@@ -1438,8 +1438,7 @@ void Weapon_Blaster_Fire(edict_t* ent)
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
 			ent->pain_debounce_time = level.time + 1_sec;
 		}
-		// Keep weapon ready but don't fire
-		ent->client->ps.gunframe = 10;
+		// Don't fire but let the animation continue normally
 		return;
 	}
 
