@@ -157,6 +157,31 @@ constexpr gtime_t SPAWNGROW_LIFESPAN = 2000_ms; // Increased from 1 second to 2 
 
 THINK(spawngrow_think) (edict_t *self) -> void
 {
+	// Safety check: If timestamp is unreasonably far in the future (>5 seconds),
+	// it was likely inherited from a previous entity. Fix it.
+	if ((self->timestamp - level.time) > 5_sec) {
+		// if (developer && developer->integer) {
+		// 	gi.Com_PrintFmt("WARNING: spawngrow entity #{} had invalid timestamp {:.3f}s (level.time = {:.3f}s). Fixing to 2 second lifespan.\n",
+		// 		self - g_edicts,
+		// 		self->timestamp.seconds(),
+		// 		level.time.seconds());
+		// }
+		// Reset to proper 2-second lifespan
+		self->timestamp = level.time + SPAWNGROW_LIFESPAN;
+		self->teleport_time = level.time;
+		self->wait = SPAWNGROW_LIFESPAN.seconds();
+	}
+
+	// Debug output to diagnose timing issue
+	static int debug_counter = 0;
+	// if (developer && developer->integer && (debug_counter++ % 100 == 0)) {
+	// 	gi.Com_PrintFmt("spawngrow_think entity #{}: level.time = {:.3f}s, timestamp = {:.3f}s, remaining = {:.3f}s\n",
+	// 		self - g_edicts,
+	// 		level.time.seconds(),
+	// 		self->timestamp.seconds(),
+	// 		(self->timestamp - level.time).seconds());
+	// }
+
 	if (level.time >= self->timestamp)
 	{
 		// Safely free the beam entity first if it exists
@@ -254,9 +279,22 @@ void SpawnGrow_Spawn(const vec3_t &startpos, float start_size, float end_size)
 
 	ent->s.scale = clamp(start_size / 16.f, 0.001f, 8.f);
 
+	// Clear any previous timestamp first (in case of entity reuse issues)
+	ent->timestamp = 0_ms;
+
 	ent->teleport_time = level.time;
 	ent->wait = SPAWNGROW_LIFESPAN.seconds();
 	ent->timestamp = level.time + SPAWNGROW_LIFESPAN;
+
+	// Debug output to diagnose timing issue
+	if (developer && developer->integer) {
+		gi.Com_PrintFmt("SpawnGrow_Spawn: entity #{}, level.time = {:.3f}s, timestamp = {:.3f}s, wait = {:.3f}s, lifespan = {:.3f}s\n",
+			ent - g_edicts,
+			level.time.seconds(),
+			ent->timestamp.seconds(),
+			ent->wait,
+			SPAWNGROW_LIFESPAN.seconds());
+	}
 
 	ent->nextthink = level.time + FRAME_TIME_MS;
 
