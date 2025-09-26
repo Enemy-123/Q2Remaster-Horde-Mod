@@ -1454,17 +1454,10 @@ void medic_cable_attack(edict_t* self)
         {
             // Resurrection complete - bring them back to life
             finishHeal(self);
-            // Continue healing the newly resurrected monster if it needs health
-            if (self->enemy && M_NeedRegen(self->enemy))
-            {
-                // Keep healing the resurrected monster
-                self->monsterinfo.nextframe = FRAME_attack43;
-            }
-            else
-            {
-                // Fully healed, retract cable
-                self->monsterinfo.nextframe = FRAME_attack54;
-            }
+            // Continue immediately - the enemy is now alive and needs healing
+            // Don't retract, just continue the healing loop seamlessly
+            self->monsterinfo.nextframe = FRAME_attack44; // Continue in the middle of loop
+            return; // Let the next frame handle healing the now-alive monster
         }
         // Keep looping resurrection animation
         else if (self->s.frame >= FRAME_attack48)
@@ -1508,9 +1501,10 @@ void medic_cable_continue(edict_t* self)
         // Check if resurrection is complete
         if (level.time >= self->enemy->monsterinfo.attack_finished)
         {
-            // Resurrection complete
+            // Resurrection complete - now immediately heal them
             finishHeal(self);
-            self->monsterinfo.nextframe = FRAME_attack53; // Go to retract
+            // Continue healing without pause
+            self->monsterinfo.nextframe = FRAME_attack43;
         }
         else
         {
@@ -1553,6 +1547,15 @@ void medic_finish_and_hunt(edict_t* self)
 	// After finishing healing, actively look for new targets
 	self->monsterinfo.aiflags &= ~AI_MEDIC;
 
+	// Restore original enemy if we had one
+	if (self->oldenemy && self->oldenemy->inuse)
+	{
+		self->enemy = self->oldenemy;
+		self->oldenemy = nullptr;
+		HuntTarget(self, true);
+		return;
+	}
+
 	// Look for new healing opportunities
 	edict_t* newTarget = medic_FindDeadMonster(self);
 	if (newTarget)
@@ -1565,12 +1568,16 @@ void medic_finish_and_hunt(edict_t* self)
 		return;
 	}
 
-	// No healing targets - find combat enemies
-	if (!FindTarget(self))
+	// Try to find combat enemies
+	if (FindTarget(self))
 	{
-		// No enemies either - stand to search
-			self->monsterinfo.stand(self);
+		// Found an enemy - will be handled by FindTarget
+		return;
 	}
+
+	// No targets - use stand which will trigger constant FindTarget checks
+	if (self->monsterinfo.stand)
+		self->monsterinfo.stand(self);
 }
 
 void medic_hook_retract(edict_t* self)
