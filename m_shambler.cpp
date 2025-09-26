@@ -567,6 +567,17 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->s.renderfx = RF_MINLIGHT;
 			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
+
+		if (self) {
+						if (self->client) {
+							fireball->projectile_was_player_attacker = true;
+							fireball->projectile_attacker_type_id = 0;
+						} else if (self->svflags & SVF_MONSTER) {
+							fireball->projectile_was_player_attacker = false;
+							fireball->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+						}
+					}
+
 			fireball->touch = fireball_touch; // Ensure fireball_touch is defined elsewhere
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;

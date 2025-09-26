@@ -24,6 +24,18 @@ void fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->s.skinnum = 1;
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			bolt->projectile_was_player_attacker = true;
+			bolt->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			bolt->projectile_was_player_attacker = false;
+			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	bolt->touch = blaster_unified_touch;
 	bolt->nextthink = level.time + 2_sec;
 	bolt->think = G_FreeEdict;
@@ -116,6 +128,18 @@ if (self && self->client && !G_ShouldPlayersCollide(true))
 	ion->s.modelindex = gi.modelindex("models/objects/boomrang/tris.md2");
 	ion->s.sound = gi.soundindex("misc/lasfly.wav");
 	ion->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			ion->projectile_was_player_attacker = true;
+			ion->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			ion->projectile_was_player_attacker = false;
+			ion->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	ion->touch = ionripper_touch;
 	ion->nextthink = level.time + 3_sec;
 	ion->think = ionripper_sparks;
@@ -340,6 +364,18 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	plasma->svflags |= SVF_PROJECTILE;
 	plasma->flags |= FL_DODGE;
 	plasma->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			plasma->projectile_was_player_attacker = true;
+			plasma->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			plasma->projectile_was_player_attacker = false;
+			plasma->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	plasma->touch = plasma_touch;
 	plasma->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
 	plasma->think = G_FreeEdict;

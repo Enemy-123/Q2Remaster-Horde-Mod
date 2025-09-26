@@ -108,6 +108,18 @@ void fire_flechette(edict_t *self, const vec3_t &start, const vec3_t &dir, int d
 	flechette->s.modelindex = gi.modelindex("models/proj/flechette/tris.md2");
 
 	flechette->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			flechette->projectile_was_player_attacker = true;
+			flechette->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			flechette->projectile_was_player_attacker = false;
+			flechette->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	flechette->touch = flechette_touch;
 	flechette->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
 	flechette->think = G_FreeEdict;
@@ -1433,6 +1445,18 @@ void fire_blaster2(edict_t *self, const vec3_t &start, const vec3_t &dir, int da
 	bolt->touch = blaster2_touch;
 
 	bolt->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			bolt->projectile_was_player_attacker = true;
+			bolt->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			bolt->projectile_was_player_attacker = false;
+			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	bolt->nextthink = level.time + 2_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
@@ -1665,6 +1689,18 @@ void fire_tracker(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 	bolt->touch = tracker_touch;
 	bolt->enemy = enemy;
 	bolt->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			bolt->projectile_was_player_attacker = true;
+			bolt->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			bolt->projectile_was_player_attacker = false;
+			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	bolt->dmg = damage;
 	bolt->classname = "tracker";
 	gi.linkentity(bolt);

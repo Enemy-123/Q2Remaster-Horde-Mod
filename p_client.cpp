@@ -6,6 +6,7 @@
 #include "shared.h"
 #include "horde/g_laser.h"
 #include "horde/g_horde_benefits.h"
+#include "horde/horde_ids.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -223,9 +224,58 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 	}
 
-	// --- 3. Handle Monster Kills ---
-	// Check attacker validity *before* checking flags
-	if (attacker && (attacker->svflags & SVF_MONSTER))
+	// --- 3. Handle Monster Kills (including projectiles from dead monsters) ---
+	// Check if inflictor is a projectile with stored monster info
+	// This handles cases where the original attacker (monster) has died
+	if (inflictor && (inflictor->svflags & SVF_PROJECTILE) &&
+		!inflictor->projectile_was_player_attacker && inflictor->projectile_attacker_type_id &&
+		(!attacker || attacker == world || attacker == inflictor ||
+		 (attacker && !(attacker->svflags & SVF_MONSTER) && !(attacker->client))))
+	{
+		// Get the monster name from the stored type ID (use inflictor since attacker might be null)
+		const char* monster_classname = horde::MonsterTypeRegistry::GetClassname(
+			static_cast<horde::MonsterTypeID>(inflictor->projectile_attacker_type_id));
+
+		const char* monster_display_name = nullptr;
+		if (monster_classname) {
+			monster_display_name = monster_classname;
+			// Skip "monster_" prefix if present
+			if (strncmp(monster_display_name, "monster_", 8) == 0) {
+				monster_display_name += 8;
+			}
+		} else {
+			monster_display_name = "monster";
+		}
+
+		switch (mod.id)
+		{
+			// Using same messages as regular monster kills
+		case MOD_ROCKET:        base = "{0} ate the rocket of a {1}\n"; break;
+		case MOD_R_SPLASH:      base = "{0} was blown up by a {1}\n"; break;
+		case MOD_GRENADE:       base = "{0} was gibbed by a {1}'s grenade\n"; break;
+		case MOD_G_SPLASH:      base = "{0} was splattered all over by a {1}\n"; break;
+		case MOD_BLASTER:       base = brandom() ? "{0} was humiliated by a {1}\n" : "{0} was blasted by a {1}\n"; break;
+		case MOD_HYPERBLASTER:  base = "{0} was blasted by a {1}\n"; break;
+		case MOD_PHALANX:        base = "{0} was melted by a {1}'s phalanx\n"; break;
+		case MOD_HANDGRENADE:   base = "{0} was blown up by a {1}\n"; break;
+		case MOD_HG_SPLASH:     base = "{0} was splashed by a {1}\n"; break;
+		case MOD_BFG_BLAST:     base = "{0} was disintegrated by a {1}\n"; break;
+		case MOD_BFG_EFFECT:    base = "{0} couldn't escape the apocalyptic fury of a {1}'s BFG\n"; break;
+		case MOD_RIPPER:        base = "{0} got ionripped by a {1}\n"; break;
+		case MOD_TRACKER:       base = "{0} was tracked down by a {1}\n"; break;
+		case MOD_BLUEBLASTER:   base = "{0} was blasted by a {1}\n"; break;
+		default:                base = brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n"; break;
+		}
+
+		// Print message with player name and monster name
+		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name);
+
+		// No enemy to set since attacker is dead
+		self->enemy = nullptr;
+		return; // Handled projectile from dead monster
+	}
+	// First check if the attacker is a valid monster
+	else if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
 		// --- THE FIX ---
 		// BEFORE: const std::string monster_display_name = GetDisplayName(attacker);

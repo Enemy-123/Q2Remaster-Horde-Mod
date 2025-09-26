@@ -3659,6 +3659,10 @@ struct edict_t
 	gtime_t beam_hit_time; // heatbeam piercing balance
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	uint8_t special_type_id;
+
+	// Store original attacker info for projectiles (when owner dies before projectile hits)
+	uint8_t projectile_attacker_type_id; // monster type id if attacker was monster
+	bool projectile_was_player_attacker; // true if attacker was a player
 };
 
 // static constexpr const char* TEAM1 = "team1";

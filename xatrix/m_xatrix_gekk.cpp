@@ -725,6 +725,18 @@ void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	loogie->s.renderfx |= RF_FULLBRIGHT;
 	loogie->s.modelindex = gi.modelindex("models/objects/loogy/tris.md2");
 	loogie->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			loogie->projectile_was_player_attacker = true;
+			loogie->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			loogie->projectile_was_player_attacker = false;
+			loogie->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	loogie->touch = loogie_touch;
 	loogie->nextthink = level.time + 2_sec;
 	loogie->think = G_FreeEdict;

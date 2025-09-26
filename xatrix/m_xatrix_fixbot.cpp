@@ -1515,6 +1515,18 @@ void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, i
 	plasma->s.modelindex = gi.modelindex("sprites/s_photon.sp2");
 	plasma->s.scale = 0.75f;
 	plasma->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			plasma->projectile_was_player_attacker = true;
+			plasma->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			plasma->projectile_was_player_attacker = false;
+			plasma->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	plasma->touch = plasma_touch;
 	plasma->speed = speed;
 	plasma->accel = turn_fraction;

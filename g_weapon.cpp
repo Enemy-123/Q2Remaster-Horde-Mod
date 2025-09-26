@@ -787,6 +787,17 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
 
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			bolt->projectile_was_player_attacker = true;
+			bolt->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			bolt->projectile_was_player_attacker = false;
+			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	// --- MODIFICATION ---
 	// Assign the new unified touch function
 	bolt->touch = blaster_unified_touch;
@@ -1058,6 +1069,18 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
 	grenade->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			grenade->projectile_was_player_attacker = true;
+			grenade->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			grenade->projectile_was_player_attacker = false;
+			grenade->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	grenade->classname = "grenade";
 	grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 
@@ -1137,6 +1160,18 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 
 	grenade->s.modelindex = gi.modelindex("models/objects/grenade3/tris.md2");
 	grenade->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			grenade->projectile_was_player_attacker = true;
+			grenade->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			grenade->projectile_was_player_attacker = false;
+			grenade->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	grenade->touch = Grenade_Touch;
 	grenade->nextthink = level.time + timer;
 	grenade->think = Grenade_Explode;
@@ -1319,6 +1354,18 @@ edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int 
 	rocket->s.effects |= EF_ROCKET;
 	rocket->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
 	rocket->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			rocket->projectile_was_player_attacker = true;
+			rocket->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			rocket->projectile_was_player_attacker = false;
+			rocket->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	rocket->touch = rocket_touch;
 	rocket->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
 	rocket->think = G_FreeEdict;
@@ -2120,6 +2167,18 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 
 	// Set ownership and callbacks
 	bfg->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			bfg->projectile_was_player_attacker = true;
+			bfg->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			bfg->projectile_was_player_attacker = false;
+			bfg->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	bfg->touch = bfg_touch;
 	bfg->nextthink = level.time + FRAME_TIME_S;
 	bfg->think = bfg_think;
