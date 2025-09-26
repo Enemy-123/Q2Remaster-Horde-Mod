@@ -608,13 +608,15 @@ edict_t* medic_FindDeadMonster(edict_t* self)
 {
 	float	radius;
 
-	if (self->monsterinfo.react_to_damage_time > level.time)
+	// In horde mode, always look for dead monsters to revive
+	// regardless of recent damage
+	if (!g_horde->integer && self->monsterinfo.react_to_damage_time > level.time)
 		return nullptr;
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		radius = MEDIC_MAX_HEAL_DISTANCE;
 	else
-		radius = 1024;
+		radius = 1024;  // Large search radius for dead monsters
 
 	edict_t* best = healFindMonster(self, radius);
 
@@ -840,20 +842,25 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 	{
 		edict_t* ent;
 
-		// Check for dead monsters to resurrect (matching old behavior)
+		// Check for dead monsters to resurrect
 		ent = medic_FindDeadMonster(self);
 		if (ent)
 		{
-			// Dead monster found - ALWAYS resurrect immediately (like old code)
+			// Dead monster found - prioritize resurrection over everything in horde mode
 			if (ent->health <= 0)
 			{
-				self->oldenemy = self->enemy;
-				self->enemy = ent;
-				self->enemy->monsterinfo.healer = self;
-				self->monsterinfo.aiflags |= AI_MEDIC;
-				self->timestamp = level.time + MEDIC_TRY_TIME; // Reset timer for resurrection attempt
-				FoundTarget(self);
-				return;
+				// In horde mode, immediately drop everything to resurrect
+				if (g_horde->integer || !self->enemy ||
+				    realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE * 1.5f)
+				{
+					self->oldenemy = self->enemy;
+					self->enemy = ent;
+					self->enemy->monsterinfo.healer = self;
+					self->monsterinfo.aiflags |= AI_MEDIC;
+					self->timestamp = level.time + MEDIC_TRY_TIME;
+					FoundTarget(self);
+					return;
+				}
 			}
 			// Injured teammate - heal if conditions are right
 			else if (OnSameTeam(self, ent))
@@ -1936,6 +1943,23 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t *self) -> void
 
 MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 {
+	// In horde mode, check for dead monsters to resurrect even during combat
+	if (g_horde->integer && !(self->monsterinfo.aiflags & AI_MEDIC))
+	{
+		edict_t* dead = medic_FindDeadMonster(self);
+		if (dead && dead->health <= 0)
+		{
+			// Found a dead monster - switch to resurrection immediately
+			self->oldenemy = self->enemy;
+			self->enemy = dead;
+			self->enemy->monsterinfo.healer = self;
+			self->monsterinfo.aiflags |= AI_MEDIC;
+			self->timestamp = level.time + MEDIC_TRY_TIME;
+			medic_attack(self);
+			return true;
+		}
+	}
+
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
 		// if our target went away
