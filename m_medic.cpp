@@ -373,8 +373,10 @@ bool finishHeal(edict_t* self)
 	healee->monsterinfo.monster_slots = monster_slots;
 	healee->monsterinfo.monster_used = monster_used;
 	healee->gib_health = old_gib_health / 2;
-	healee->health = healee->max_health = old_max_health;
-	healee->monsterinfo.power_armor_power = healee->monsterinfo.max_power_armor_power = old_power_armor_power;
+	healee->max_health = old_max_health;
+	healee->health = old_max_health / 3;  // Resurrect with 1/3 health
+	healee->monsterinfo.power_armor_power = old_power_armor_power / 3;  // Also 1/3 armor
+	healee->monsterinfo.max_power_armor_power = old_power_armor_power;
 	healee->monsterinfo.power_armor_type = healee->monsterinfo.initial_power_armor_type = old_power_armor_type;
 	healee->monsterinfo.base_health = old_base_health;
 	healee->monsterinfo.health_scaling = old_health_scaling;
@@ -396,21 +398,33 @@ bool finishHeal(edict_t* self)
 	healee->s.effects &= ~EF_FLIES;
 	healee->monsterinfo.healer = nullptr;
 
-	// Handle targeting
-	edict_t* new_enemy = self->enemy;
-	healee->oldenemy = nullptr;
-	healee->enemy = new_enemy;
-
-	if (new_enemy && !g_horde->integer && healee->inuse) {
-		FoundTarget(healee);
+	// Handle targeting - for horde mode, just stand initially
+	if (g_horde->integer) {
+		// In horde mode, make resurrected monster stand briefly
+		healee->enemy = nullptr;
+		healee->oldenemy = nullptr;
+		healee->monsterinfo.pausetime = level.time + 1_sec; // Stand for 1 second before engaging
+		if (healee->monsterinfo.stand) {
+			healee->monsterinfo.stand(healee);
+		}
 	}
 	else {
-		healee->enemy = nullptr;
-		if (healee->inuse && !FindTarget(healee)) {
-			if (healee->inuse) {
-				healee->monsterinfo.pausetime = HOLD_FOREVER;
-				if (healee->monsterinfo.stand) {
-					healee->monsterinfo.stand(healee);
+		// Non-horde behavior
+		edict_t* new_enemy = self->enemy;
+		healee->oldenemy = nullptr;
+		healee->enemy = new_enemy;
+
+		if (new_enemy && healee->inuse) {
+			FoundTarget(healee);
+		}
+		else {
+			healee->enemy = nullptr;
+			if (healee->inuse && !FindTarget(healee)) {
+				if (healee->inuse) {
+					healee->monsterinfo.pausetime = HOLD_FOREVER;
+					if (healee->monsterinfo.stand) {
+						healee->monsterinfo.stand(healee);
+					}
 				}
 			}
 		}
@@ -812,6 +826,7 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 				self->enemy = ent;
 				self->enemy->monsterinfo.healer = self;
 				self->monsterinfo.aiflags |= AI_MEDIC;
+				self->timestamp = level.time + MEDIC_TRY_TIME; // Reset timer for resurrection attempt
 				FoundTarget(self);
 				return;
 			}
@@ -1267,22 +1282,27 @@ void medic_cable_attack(edict_t* self)
     trace_t tr;
     vec3_t dir;
     float distance;
-    
+
     if (!self->enemy || !self->enemy->inuse || (self->enemy->s.effects & EF_GIB))
     {
         abortHeal(self, false, false);
+        self->monsterinfo.nextframe = FRAME_attack52;  // Ensure we exit the animation
         return;
     }
-    
+
     // we switched back to a player; let the animation finish
     if (self->enemy->client)
+    {
+        self->monsterinfo.nextframe = FRAME_attack52;  // Exit animation gracefully
         return;
-    
+    }
+
     // see if our enemy has changed to a client, or our target has more than 0 health,
     // abort it .. we got switched to someone else due to damage
     if (self->enemy->health > 0 && !(self->monsterinfo.aiflags & AI_MEDIC))
     {
         abortHeal(self, false, false);
+        self->monsterinfo.nextframe = FRAME_attack52;  // Ensure we exit the animation
         return;
     }
     
@@ -1354,9 +1374,6 @@ void medic_cable_attack(edict_t* self)
         if (self->enemy->svflags & SVF_MONSTER)
             self->enemy->monsterinfo.pausetime = level.time + 0.2_sec;
         
-        // Visual feedback
-        self->enemy->s.effects |= EF_DOUBLE;
-        
         // Check if fully healed
         if (!M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
         {
@@ -1379,8 +1396,9 @@ void medic_cable_attack(edict_t* self)
                 gi.sound(self->enemy, CHAN_AUTO, commander_sound_hook_hit, 1, ATTN_NORM, 0);
             else
                 gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
-            
+
             self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
+            self->enemy->monsterinfo.attack_finished = level.time + 5_sec; // Set time for visual effects
             self->enemy->takedamage = false;
             M_SetEffects(self->enemy);
         }
@@ -1426,9 +1444,17 @@ void medic_cable_continue(edict_t* self)
         abortHeal(self, false, false);
         return;
     }
-    
+
+    // If resurrecting a corpse, continue to frame 50 for finishHeal
+    if (self->enemy->health <= 0)
+    {
+        // Continue resurrection to frame 50 where finishHeal is called
+        self->monsterinfo.nextframe = FRAME_attack50;
+        return;
+    }
+
     float dist = (self->s.origin - self->enemy->s.origin).length();
-    
+
     // Continue healing if target still needs it and is in range
     if (M_NeedRegen(self->enemy) && dist <= MEDIC_MAX_HEAL_DISTANCE)
     {

@@ -1072,6 +1072,10 @@ bool FindTarget(edict_t* self)
 	if (level.intermissiontime)
 		return false;
 
+	// Don't interrupt medics that are healing/resurrecting
+	if (self->monsterinfo.aiflags & AI_MEDIC)
+		return false;
+
 	// Primero verificamos si es una unidad invocada que tiene un player como enemigo
 	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
 		self->enemy = nullptr;
@@ -1773,8 +1777,14 @@ bool ai_checkattack(edict_t* self, float dist)
 	}
 	else if (self->monsterinfo.aiflags & AI_MEDIC) // Medic checking target validity
 	{
-		// Medic should stop if target is no longer inuse or is now alive
-		if (!self->enemy->inuse || (self->enemy->health > 0))
+		// Medic should stop if target is no longer valid
+		if (!self->enemy->inuse)
+			hesDeadJim = true;
+		// For resurrection: stop if corpse was resurrected (has monster_think)
+		else if (self->enemy->health <= 0)
+			hesDeadJim = true;
+		// For healing: stop if living target is fully healed or dead
+		else if (self->enemy->health > 0 && (self->enemy->health >= self->enemy->max_health || self->enemy->deadflag))
 			hesDeadJim = true;
 	}
 	else // Standard checks
