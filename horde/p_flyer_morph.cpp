@@ -407,35 +407,49 @@ void RestoreMorphed(edict_t* ent) {
     if (!data || data->morph_type == MORPH_NONE)
         return;
 
-    // Restore player model
-    ent->s.modelindex = gi.modelindex("players/male/tris.md2");
-    ent->s.modelindex2 = gi.modelindex("players/male/weapon.md2");
-    ent->s.skinnum = 0;
+    // Clear morph data first
+    ClearFlyerData(ent);
 
-    // Restore player bounds
-    ent->mins = PLAYER_MINS;
-    ent->maxs = PLAYER_MAXS;
-    ent->viewheight = 22;
-
-    // Clear movement type and restore gravity
-    ent->movetype = MOVETYPE_WALK;
-    ent->flags &= ~FL_FLY;
-    ent->gravity = 1.0;
-    
-    // Restore normal player solid and clipmask
-    ent->solid = SOLID_BBOX;
-    ent->clipmask = MASK_PLAYERSOLID;
+    // Store current position before respawn
+    vec3_t old_origin = ent->s.origin;
+    vec3_t old_angles = ent->s.angles;
+    vec3_t old_velocity = ent->velocity;
 
     // Clear monster team
     ent->monsterinfo.team = Team_None;
 
-    // Restore weapon
-    if (ent->client->pers.weapon)
-        ent->client->ps.gunindex = gi.modelindex(ent->client->pers.weapon->view_model);
+    // Reset movement and physics flags
+    ent->movetype = MOVETYPE_WALK;
+    ent->flags &= ~FL_FLY;
+    ent->gravity = 1.0;
+    ent->solid = SOLID_BBOX;
+    ent->clipmask = MASK_PLAYERSOLID;
+    ent->svflags = SVF_PLAYER;
+    ent->deadflag = false;
 
-    // Clear morph data
-    ClearFlyerData(ent);
+    // Call PutClientInServer to properly reinitialize the player
+    // This will reset models, bounds, viewheight, etc.
+    PutClientInServer(ent);
 
+    // Restore position after respawn
+    ent->s.origin = old_origin;
+    ent->s.old_origin = old_origin;
+    ent->s.angles = old_angles;
+    ent->velocity = old_velocity;
+
+    // Make sure player is slightly above ground to prevent getting stuck
+    ent->s.origin[2] += 10;
+
+    // Clear any remaining velocity from flying
+    ent->velocity[2] = 0;
+
+    // Force a ground check
+    ent->groundentity = nullptr;
+
+    // Update entity linkage
+    gi.linkentity(ent);
+
+    // Play transformation sound
     gi.sound(ent, CHAN_WEAPON, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NORM, 0);
 }
 
