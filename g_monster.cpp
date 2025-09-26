@@ -526,6 +526,14 @@ void M_SetEffects(edict_t* ent)
 
 	// --- Step 3: Monster is ALIVE - Apply all active effects ---
 
+	// Clean up stuck AI_STAND_GROUND flag in horde mode (from healing)
+	if (g_horde->integer && (ent->monsterinfo.aiflags & AI_STAND_GROUND)) {
+		// If not being healed and pausetime expired, clear the flag
+		if (!ent->monsterinfo.healer && ent->monsterinfo.pausetime < level.time) {
+			ent->monsterinfo.aiflags &= ~AI_STAND_GROUND;
+		}
+	}
+
 	// Resurrecting visuals (takes precedence over other shell effects)
 	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) && (level.time < ent->monsterinfo.attack_finished)) {
 		ent->s.effects |= EF_COLOR_SHELL;

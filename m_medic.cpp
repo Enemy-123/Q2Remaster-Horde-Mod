@@ -1210,30 +1210,26 @@ void medic_continue(edict_t* self)
 		return;
 	}
 
-	// Verificar visibilidad y probabilidad de ataque
+	// Check if we should continue attacking
 	if (visible(self, self->enemy))
 	{
-		// Validar que el movimiento actual es válido
-		const mmove_t* currentMove = self->monsterinfo.active_move.pointer();
-		if (!currentMove) {
-			return;
-		}
+		// In horde mode, be less aggressive with continuous attacks
+		float continue_chance = g_horde->integer ? 0.5f : 0.75f;
 
-		// Alta probabilidad de atacar (95%) si tenemos línea de visión
-		if (frandom() <= 0.95f)
+		if (frandom() <= continue_chance)
 		{
-			// Cambiar a la animación de ataque con HyperBlaster
+			// Continue attacking with HyperBlaster
 			M_SetAnimation(self, &medic_move_attackHyperBlaster, false);
 		}
 		else
 		{
-			// Si no ataca, volver al movimiento de run
+			// Stop attacking and return to run
 			M_SetAnimation(self, &medic_move_run);
 		}
 	}
 	else
 	{
-		// Si no hay visibilidad, intentar perseguir al enemigo
+		// No visibility, stop attacking and chase
 		M_SetAnimation(self, &medic_move_run);
 	}
 }
