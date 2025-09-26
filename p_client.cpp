@@ -2854,6 +2854,13 @@ void ClientBegin(edict_t* ent)
 	// [Paril-KEX] we're always connected by this point...
 	ent->client->pers.connected = true;
 
+	// Clean up any invalid morph state from previous sessions
+	if (IsMorphed(ent)) {
+		RestoreMorphed(ent);
+	}
+	// Clear any stale flyer data
+	ClearFlyerData(ent);
+
 	if (deathmatch->integer)
 	{
 		ClientBeginDeathmatch(ent);
@@ -3314,6 +3321,13 @@ void ClientDisconnect(edict_t* ent)
 
 	if (g_horde && g_horde->integer)
 	VerifyAndAdjustBots();
+
+	// Clean up flyer morph state if morphed
+	if (IsMorphed(ent)) {
+		RestoreMorphed(ent);
+	}
+	// Clear flyer data from static map to prevent stale pointer issues
+	ClearFlyerData(ent);
 
 	// --- Existing Cleanup Logic ---
 	//CleanupPlayerLaserManager(ent);
