@@ -443,14 +443,13 @@ edict_t* healFindMonster(edict_t* self, float radius)
 	edict_t* ent = nullptr;
 	edict_t* best_dead = nullptr;
 	edict_t* best_injured_teammate = nullptr;
-	bool has_visible_enemy = (self->enemy && self->enemy->inuse && self->enemy->health > 0 && visible(self, self->enemy));
 
 	while ((ent = findradius(ent, self->s.origin, radius)) != nullptr)
 	{
 		if (ent == self)
 			continue;
 		// Check for both monsters and bodyque entities
-		if (!(ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "bodyque") != 0)	
+		if (!(ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "bodyque") != 0)
 			continue;
 		if (ent->monsterinfo.aiflags & AI_GOOD_GUY)
 			continue;
@@ -464,7 +463,7 @@ edict_t* healFindMonster(edict_t* self, float radius)
 			if ((ent->monsterinfo.healer->inuse) && (ent->monsterinfo.healer->health > 0) &&
 				(ent->monsterinfo.healer->svflags & SVF_MONSTER) && (ent->monsterinfo.healer->monsterinfo.aiflags & AI_MEDIC))
 				continue;
-		
+
 		// FIXME - there's got to be a better way ..
 		// make sure we don't spawn people right on top of us
 		if (realrange(self, ent) <= MEDIC_MIN_DISTANCE)
@@ -473,12 +472,12 @@ edict_t* healFindMonster(edict_t* self, float radius)
 			continue;
 		if (!strncmp(ent->classname, "player", 6)) // stop it from trying to heal player_noise entities
 			continue;
-		
-		// Check for injured teammates (alive but hurt) - only prioritize if no enemy visible
+
+		// Check for injured teammates (alive but hurt)
 		if (ent->health > 0 && ent->health < ent->max_health)
 		{
-			// Only heal teammates if no enemies are visible
-			if (!has_visible_enemy && OnSameTeam(self, ent))
+			// Store injured teammates for later consideration
+			if (OnSameTeam(self, ent))
 			{
 				if (!best_injured_teammate || ent->health < best_injured_teammate->health)
 				{
@@ -487,13 +486,13 @@ edict_t* healFindMonster(edict_t* self, float radius)
 			}
 			continue; // Don't consider alive entities for revival
 		}
-		
+
 		// Dead entity handling (for revival) - revive ANY dead monster, not just teammates
 		if (ent->health > 0)
 			continue;
 		if ((ent->nextthink) && (ent->think != monster_dead_think))
 			continue;
-		
+
 		// For dead monsters, pick the best one regardless of team
 		if (!best_dead || ent->max_health > best_dead->max_health)
 		{
@@ -501,13 +500,69 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		}
 	}
 
-	// Priority order:
-	// 1. Injured teammates (if no visible enemy)
-	// 2. Dead monsters (any team)
-	if (!has_visible_enemy && best_injured_teammate)
-		return best_injured_teammate;
+	// Priority order for horde mode:
+	// 1. Dead monsters (always prioritize resurrection)
+	// 2. Injured teammates (for healing)
+	if (best_dead)
+		return best_dead;
+
+	return best_injured_teammate;
+}
+
+// Check for healing opportunities during movement
+void medic_check_heal(edict_t* self)
+{
+	// Don't check if already healing
+	if (self->monsterinfo.aiflags & AI_MEDIC)
+		return;
 	
-	return best_dead;
+	// Don't check too frequently
+	if (self->monsterinfo.react_to_damage_time > level.time - 0.5_sec)
+		return;
+	
+	// Look for healing opportunities with a smaller radius during combat
+	float radius = MEDIC_MAX_HEAL_DISTANCE;
+	edict_t* ent = healFindMonster(self, radius);
+	
+	if (ent)
+	{
+		// Check if this is a high-priority target (injured teammate or dead monster)
+		bool is_teammate = OnSameTeam(self, ent);
+		bool is_injured = (ent->health > 0 && ent->health < ent->max_health);
+		bool is_dead = (ent->health <= 0);
+		
+		// Calculate distances
+		float heal_distance = realrange(self, ent);
+		float enemy_distance = self->enemy ? realrange(self, self->enemy) : 9999.0f;
+		
+		// Priority conditions for interrupting combat:
+		// 1. Injured teammate very close
+		// 2. Dead monster close and no immediate threat
+		bool should_heal = false;
+		
+		if (is_injured && is_teammate && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.5f)
+		{
+			should_heal = true;  // Always heal nearby injured teammates
+		}
+		else if (is_dead && (enemy_distance > MEDIC_MAX_HEAL_DISTANCE * 1.5f || !self->enemy))
+		{
+			should_heal = true;  // Revive if safe
+		}
+		
+		if (should_heal)
+		{
+			// Switch to healing mode
+			self->oldenemy = self->enemy;
+			self->enemy = ent;
+			self->enemy->monsterinfo.healer = self;
+			self->monsterinfo.aiflags |= AI_MEDIC;
+			FoundTarget(self);
+			
+			// Force immediate action
+			if (self->monsterinfo.run)
+				self->monsterinfo.run(self);
+		}
+	}
 }
 
 edict_t* medic_FindDeadMonster(edict_t* self)
@@ -624,6 +679,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 2, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -676,8 +732,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
+	{ ai_stand, 2, medic_check_heal}, 
 };
 MMOVE_T(medic_move_stand) = { FRAME_wait1, FRAME_wait90, medic_frames_stand, nullptr };
 
@@ -728,11 +783,11 @@ MONSTERINFO_WALK(medic_walk) (edict_t* self) -> void
 }
 
 mframe_t medic_frames_run[] = {
-	{ ai_run, 18 },
+	{ ai_run, 18, medic_check_heal },
 	{ ai_run, 22.5f, monster_footstep },
 	{ ai_run, 25.4f, monster_done_dodge },
 	{ ai_run, 23.4f, monster_footstep },
-	{ ai_run, 24 },
+	{ ai_run, 24, medic_check_heal },
 	{ ai_run, 35.6f }
 };
 MMOVE_T(medic_move_run) = { FRAME_run1, FRAME_run6, medic_frames_run, nullptr };
@@ -744,25 +799,14 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 	// Only look for healing targets if not already in medic mode
 	if (!(self->monsterinfo.aiflags & AI_MEDIC))
 	{
-		edict_t* ent = nullptr;
-		edict_t* current_enemy = self->enemy;
+		edict_t* ent;
 
-		// Always check for healing opportunities
+		// Check for dead monsters to resurrect (matching old behavior)
 		ent = medic_FindDeadMonster(self);
 		if (ent)
 		{
-			// Check if this is a teammate needing healing (priority over combat)
-			bool is_teammate_injured = (ent->health > 0 && OnSameTeam(self, ent));
-
-			// Check distance to potential heal target
-			float heal_distance = realrange(self, ent);
-
-			// Prioritize healing teammates over fighting if they're close enough
-			// or if we have no enemy/enemy is far away
-			if (is_teammate_injured &&
-			    (heal_distance < MEDIC_MAX_HEAL_DISTANCE ||
-			     !current_enemy ||
-			     realrange(self, current_enemy) > MEDIC_MAX_HEAL_DISTANCE * 1.5f))
+			// Dead monster found - ALWAYS resurrect immediately (like old code)
+			if (ent->health <= 0)
 			{
 				self->oldenemy = self->enemy;
 				self->enemy = ent;
@@ -771,17 +815,24 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 				FoundTarget(self);
 				return;
 			}
-			// Also prioritize reviving dead monsters if no immediate threat
-			else if (ent->health <= 0 &&
-			         (!current_enemy ||
-			          realrange(self, current_enemy) > MEDIC_MAX_HEAL_DISTANCE * 2.0f))
+			// Injured teammate - heal if conditions are right
+			else if (OnSameTeam(self, ent))
 			{
-				self->oldenemy = self->enemy;
-				self->enemy = ent;
-				self->enemy->monsterinfo.healer = self;
-				self->monsterinfo.aiflags |= AI_MEDIC;
-				FoundTarget(self);
-				return;
+				float heal_distance = realrange(self, ent);
+				edict_t* current_enemy = self->enemy;
+
+				// Prioritize healing teammates if they're close or no immediate threat
+				if (heal_distance < MEDIC_MAX_HEAL_DISTANCE ||
+				    !current_enemy ||
+				    realrange(self, current_enemy) > MEDIC_MAX_HEAL_DISTANCE * 1.5f)
+				{
+					self->oldenemy = self->enemy;
+					self->enemy = ent;
+					self->enemy->monsterinfo.healer = self;
+					self->monsterinfo.aiflags |= AI_MEDIC;
+					FoundTarget(self);
+					return;
+				}
 			}
 		}
 	}
@@ -1794,84 +1845,40 @@ MMOVE_T(medic_move_callReinforcements) = { FRAME_attack33, FRAME_attack55, medic
 //	tesla->owner = converter;
 //}
 
-MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
+
+MONSTERINFO_ATTACK(medic_attack) (edict_t *self) -> void
 {
+	monster_done_dodge(self);
 
-		//// Check for tesla mines to convert
-	//edict_t* tesla = nullptr;
-	//while ((tesla = findradius(tesla, self->s.origin, MEDIC_MAX_HEAL_DISTANCE)) != nullptr)
-	//{
-	//	if (tesla_check_conversion(tesla, self))
-	//	{
-	//		self->oldenemy = self->enemy;
-	//		self->enemy = tesla;
-	//		M_SetAnimation(self, &medic_move_attackCable);
-	//		return;
-	//	}
-	//}
+	float enemy_range = range_to(self, self->enemy);
+
 	// signal from checkattack to spawn
-    monster_done_dodge(self);
+	if (self->monsterinfo.aiflags & AI_BLOCKED)
+	{
+		M_SetAnimation(self, &medic_move_callReinforcements);
+		self->monsterinfo.aiflags &= ~AI_BLOCKED;
+	}
 
-    float const enemy_range = range_to(self, self->enemy); // Calculate once
-
-    // AI_BLOCKED signal from checkattack to spawn.
-    // medic_checkattack ensures slots are available if AI_BLOCKED is set for spawning.
-    if (self->monsterinfo.aiflags & AI_BLOCKED)
-    {
-        M_SetAnimation(self, &medic_move_callReinforcements);
-        self->monsterinfo.aiflags &= ~AI_BLOCKED; // Clear the flag
-        return; // Spawning action decided
-    }
-
-    float const r = frandom(); // Random factor for decisions
-
-    if (self->monsterinfo.aiflags & AI_MEDIC) // Healing/reviving mode
-    {
-        // Commander medic might also spawn while in AI_MEDIC mode (healing someone)
-        // This part already checks M_SlotsLeft(self)
-        if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self) > 0)
-        {
-            M_SetAnimation(self, &medic_move_callReinforcements);
-        }
-        else // Default to cable attack for healing
-        {
-            M_SetAnimation(self, &medic_move_attackCable);
-        }
-    }
-    else // Not AI_MEDIC (Combat mode)
-    {
-        if (self->monsterinfo.attack_state == AS_BLIND)
-        {
-            // medic_checkattack already ensures M_SlotsLeft(self) > 0 for AS_BLIND state.
-            M_SetAnimation(self, &medic_move_callReinforcements);
-            return; // Spawning action decided
-        }
-
-        // --- MODIFICATION START ---
-        // Now, the main decision logic for combat: spawn or attack?
-        bool has_available_slots = (M_SlotsLeft(self) > 0); // True if monster_used < monster_slots
-
-        // Determine if conditions are met for spawning, *if slots were hypothetically available*
-        bool wants_to_spawn_as_bonus_medic = (self->monsterinfo.bonus_flags != BF_NONE && r < 0.7f);
-        // For commander, enemy_range is also a factor for spawning.
-        // The original commander condition also included M_SlotsLeft(self),
-        // but we've factored slot availability into 'has_available_slots'.
-        bool wants_to_spawn_as_commander = (self->mass > 400 && r > 0.2f && enemy_range > RANGE_MELEE);
-
-        if (has_available_slots && (wants_to_spawn_as_bonus_medic || wants_to_spawn_as_commander))
-        {
-            // Attempt to spawn if:
-            // 1. Slots are available AND
-            // 2. EITHER it's a bonus_flags medic wanting to spawn
-            // 3. OR it's a commander medic wanting to spawn.
-            M_SetAnimation(self, &medic_move_callReinforcements);
-        }
-        else // No slots available, or random chance/other conditions for spawning not met
-        {
-            M_SetAnimation(self, &medic_move_attackBlaster);
-        }
-        // --- MODIFICATION END ---
-    }
+	float r = frandom();
+	if (self->monsterinfo.aiflags & AI_MEDIC)
+	{
+		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
+			M_SetAnimation(self, &medic_move_callReinforcements);
+		else
+			M_SetAnimation(self, &medic_move_attackCable);
+	}
+	else
+	{
+		if (self->monsterinfo.attack_state == AS_BLIND)
+		{
+			M_SetAnimation(self, &medic_move_callReinforcements);
+			return;
+		}
+		if ((self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self))
+			M_SetAnimation(self, &medic_move_callReinforcements);
+		else
+			M_SetAnimation(self, &medic_move_attackBlaster);
+	}
 }
 
 MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
@@ -2070,7 +2077,7 @@ void SP_monster_medic(edict_t* self)
 
 	if (self->mass > 400)
 	{
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MEDIC_COMMANDER);
+		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MEDIC_COMMANDER);
     
 		self->s.skinnum = 2;
 
@@ -2115,25 +2122,24 @@ void SP_monster_medic(edict_t* self)
 		sound_hook_heal.assign("medic/medatck4.wav");
 		sound_hook_retract.assign("medic/medatck5.wav");
 		gi.soundindex("medic/medatck1.wav");
-		commander_sound_spawn.assign("medic_commander/monsterspawn1.wav");
 
 		self->s.skinnum = 0;
 
-		// --- MODIFIED REINFORCEMENT SETUP for bonus medics ---
-		if (self->monsterinfo.bonus_flags != BF_NONE) {
-			if (!st.was_key_specified("monster_slots"))
-				self->monsterinfo.monster_slots = default_monster_slots_base;
+		// // --- MODIFIED REINFORCEMENT SETUP for bonus medics ---
+		// if (self->monsterinfo.bonus_flags != BF_NONE) {
+		// 	if (!st.was_key_specified("monster_slots"))
+		// 		self->monsterinfo.monster_slots = default_monster_slots_base;
 
-			if (self->monsterinfo.monster_slots)
-			{
-				if (skill->integer)
-					self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
+		// 	if (self->monsterinfo.monster_slots)
+		// 	{
+		// 		if (skill->integer)
+		// 			self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2.f));
 
-				// Pass the constexpr array directly to the setup function
-				M_SetupReinforcements(default_reinforcements_defs, self->monsterinfo.reinforcements);
+		// 		// Pass the constexpr array directly to the setup function
+		// 		M_SetupReinforcements(default_reinforcements_defs, self->monsterinfo.reinforcements);
+		// 	}
+		// }
 			}
-		}
-	}
 	// pmm
 
 	ApplyMonsterBonusFlags(self);
