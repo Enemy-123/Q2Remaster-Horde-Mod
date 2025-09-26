@@ -1492,7 +1492,7 @@ void medic_cable_continue(edict_t* self)
     if (M_NeedRegen(self->enemy) && dist <= MEDIC_MAX_HEAL_DISTANCE)
     {
         // Loop back to healing frames
-        self->monsterinfo.nextframe = FRAME_attack44;
+        self->monsterinfo.nextframe = FRAME_attack42;
     }
     else
     {
@@ -1514,6 +1514,10 @@ void medic_hook_retract(edict_t* self)
 
 // Modified animation frames to support healing loop
 mframe_t medic_frames_attackCable[] = {
+	{ ai_charge, -5.f },
+    { ai_charge, -6.f },
+	{ ai_charge, -5.f },
+    { ai_charge, -6.f },
     { ai_charge, -4.7f }, // 37
     { ai_charge, -5.f },
     { ai_charge, -6.f },
@@ -1526,15 +1530,22 @@ mframe_t medic_frames_attackCable[] = {
     { ai_move, 0, medic_cable_attack },
     { ai_move, 0, medic_cable_attack },
     { ai_move, 0, medic_cable_attack }, // 48 - healing frame end
-    { ai_move, 0, medic_cable_continue }, // 49 - check if should continue
+
     { ai_move, 0, medic_cable_attack }, // 50
-    { ai_move, 0, medic_cable_attack }, // 51
-    { ai_move, 0, medic_hook_retract }, // 52
+	{ ai_move, 0, medic_cable_continue }, // 51 - check if should continue
+    { ai_move, 0, medic_cable_attack }, // 52
+
     { ai_move, -1.5f },
+	{ ai_move, 0, medic_hook_retract }, // 53
+	{ ai_move, -1.5f },
+	{ ai_move, -1.5f },
+	{ ai_move, -1.5f },
+	{ ai_move, -1.5f },
+	{ ai_move, -1.5f },
     { ai_move, -1.2f, monster_footstep },
     { ai_move, -3.f }
 };
-MMOVE_T(medic_move_attackCable) = { FRAME_attack37, FRAME_attack55, medic_frames_attackCable, medic_run };
+MMOVE_T(medic_move_attackCable) = { FRAME_attack33, FRAME_attack60, medic_frames_attackCable, medic_run };
 
 // mframe_t medic_frames_attackCable[] = {
 // 	// ROGUE - negated 36-40 so he scoots back from his target a little
