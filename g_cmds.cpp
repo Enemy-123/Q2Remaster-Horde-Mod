@@ -3,6 +3,7 @@
 #include "g_local.h"
 #include "m_player.h"
 #include "horde/horde_ids.h"
+#include "horde/p_flyer_morph.h"
 
 void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu = true)
 {
@@ -1864,6 +1865,9 @@ void ClientCommand(edict_t* ent)
 		Cmd_Immortal_f(ent);
 	}
 
+	else if (Q_strcasecmp(cmd, "flyer") == 0) {
+	Cmd_PlayerToFlyer_f(ent);
+	}
 	else if (Q_strcasecmp(cmd, "alertall") == 0)
 		Cmd_AlertAll_f(ent);
 	else if (Q_strcasecmp(cmd, "noclip") == 0)

@@ -1,0 +1,52 @@
+FLYER MORPH INTEGRATION INSTRUCTIONS
+=====================================
+
+To integrate the flyer morph system into Q2Remaster-Horde-Mod, add the following hooks:
+
+1. In p_client.cpp, ClientThink function (around line 3800):
+
+   After the pmove has been run (around line 3950), add:
+   ```cpp
+   // Apply flyer physics if morphed
+   #include "horde/p_flyer_morph.h"
+   ApplyFlyerPhysics(ent);
+   ```
+
+2. In p_client.cpp, ClientThink function:
+
+   Before handling weapon think (around line 3960), add:
+   ```cpp
+   // Run flyer frames if morphed
+   RunFlyerFrames(ent, ucmd);
+   ```
+
+3. In g_cmds.cpp (or wherever commands are registered):
+
+   Add to the command list:
+   ```cpp
+   else if (Q_stricmp(cmd, "flyer") == 0)
+       Cmd_PlayerToFlyer_f(ent);
+   ```
+
+4. In g_save.cpp (if saving/loading is needed):
+
+   Add flyer morph state to player save/load routines.
+
+5. Compile with:
+   - horde/p_flyer_morph.cpp
+   - horde/p_flyer_morph.h
+
+USAGE IN GAME:
+- Type "flyer" in console to transform into/from flyer
+- While flying:
+  - WASD for movement
+  - Jump/Crouch for up/down
+  - Mouse1 for hyperblaster
+  - USE key to switch to rockets
+- Costs 50 power cubes to transform
+
+NOTES:
+- The flyer uses MOVETYPE_WALK with custom velocity physics
+- Collision detection works properly with walls
+- Impact damage is applied when hitting walls at high speed
+- Ammo regenerates over time
