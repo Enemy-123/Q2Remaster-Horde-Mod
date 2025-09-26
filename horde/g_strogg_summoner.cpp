@@ -359,7 +359,7 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
 			special_ent->teammaster == ent) {
 			summon_count++;
-			if (summon_count >= 2) { // Limit to 2 summons per player
+			if (summon_count >= 4) { // Limit to 2 summons per player
 				gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!\n");
 				return;
 			}

@@ -426,6 +426,11 @@ void RestoreMorphed(edict_t* ent) {
     ent->solid = SOLID_BBOX;
     ent->clipmask = MASK_PLAYERSOLID;
 
+    // Clear monster flags
+    ent->monsterinfo.issummoned = false;
+    ent->monsterinfo.team = Team_None;
+    ent->svflags &= ~SVF_MONSTER;
+
     // Restore weapon
     if (ent->client->pers.weapon)
         ent->client->ps.gunindex = gi.modelindex(ent->client->pers.weapon->view_model);
@@ -443,6 +448,24 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     // Check if already morphed - if so, unmorph
     if (IsMorphed(ent)) {
         RestoreMorphed(ent);
+        return;
+    }
+
+    // Add cooldown to prevent spam morphing (2 second cooldown)
+    auto* existing_data = GetFlyerData(ent);
+    if (existing_data && (level.time - existing_data->morph_time) < 2_sec) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Must wait before morphing again.\n");
+        return;
+    }
+
+    // Prevent morphing if dead or spectating
+    if (ent->health <= 0 || ent->client->resp.spectator) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Cannot morph while dead or spectating.\n");
+        return;
+    }
+
+    // Prevent morphing if entity is not in proper state
+    if (!ent->inuse || ent->solid == SOLID_NOT) {
         return;
     }
 
@@ -484,7 +507,10 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
-    //ent->ctf_team = CTF_TEAM1;
+    // Set monster flags for bot team recognition
+    ent->monsterinfo.issummoned = true;
+    ent->monsterinfo.team = ent->client->resp.ctf_team;
+    ent->svflags |= SVF_MONSTER;
 
     // Use proper flyer bounds from monster definition
     ent->mins = { -16, -16, -24 };

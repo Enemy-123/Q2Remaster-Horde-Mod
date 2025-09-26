@@ -4,6 +4,7 @@
 #include "../g_local.h"
 #include "../m_player.h"
 #include "bot_utils.h"
+#include "../horde/p_flyer_morph.h"
 
 constexpr int Team_Coop_Monster = 0;
 
@@ -115,7 +116,15 @@ void Player_UpdateState(edict_t* player) {
 
 	player_skinnum_t pl_skinnum;
 	pl_skinnum.skinnum = player->s.skinnum;
-	player->sv.team = pl_skinnum.team_index;
+
+	// Special handling for morphed players - they should maintain their team
+	if ((player->svflags & SVF_MONSTER) && player->monsterinfo.issummoned) {
+		// Morphed player - use their stored team from monsterinfo
+		player->sv.team = player->monsterinfo.team;
+	} else {
+		// Normal player - use team from skinnum
+		player->sv.team = pl_skinnum.team_index;
+	}
 
 	player->sv.buttons = player->client->buttons;
 
