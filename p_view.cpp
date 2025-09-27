@@ -145,8 +145,9 @@ static void P_DamageFeedback(edict_t* player, const vec3_t& forward, const vec3_
 			count = 2; // don't go too deep
 	}
 
-	// play an appropriate pain sound
-	if ((level.time > player->pain_debounce_time) && !(player->flags & FL_GODMODE) && (client->invincible_time <= level.time))
+	// play an appropriate pain sound - but NOT if we're morphed into a monster
+	if ((level.time > player->pain_debounce_time) && !(player->flags & FL_GODMODE) && (client->invincible_time <= level.time) 
+	    && !horde::IsSpecialType(player, horde::SpecialEntityTypeID::MORPHED_PLAYER))
 	{
 		player->pain_debounce_time = level.time + 700_ms;
 
