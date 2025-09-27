@@ -239,8 +239,23 @@ void ai_stand(edict_t* self, float dist)
 	// HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
 	if (g_horde->integer)
 	{
-		// Solo la sentrygun utilizará FindMTarget para buscar un objetivo
+		// Only summoned monsters use FindMTarget for targeting
 		if (self->monsterinfo.issummoned) {
+			// Don't interfere with medics that are healing/resurrecting
+			if (self->monsterinfo.aiflags & AI_MEDIC)
+			{
+				// Medic is busy healing/resurrecting, don't look for new targets
+				// Just validate the current healing target is still valid
+				if (!self->enemy || !self->enemy->inuse)
+				{
+					// Healing target lost, clear medic mode
+					self->monsterinfo.aiflags &= ~AI_MEDIC;
+					self->enemy = nullptr;
+				}
+				// Don't call FindMTarget when medic is healing
+				return;
+			}
+			
 			if (!self->enemy ||
 				(self->enemy->client && !self->enemy->monsterinfo.issummoned)) { // Si el enemigo actual es un player, olvidarlo
 				self->enemy = nullptr;
@@ -2097,7 +2112,23 @@ void ai_run(edict_t* self, float dist)
 	// 2. Handle special case: Summoned monster targeting logic
 	if (self->monsterinfo.issummoned)
 	{
-		if (!self->enemy || !self->enemy->inuse || self->enemy->client)
+		// Don't interfere with medics that are healing/resurrecting
+		if (self->monsterinfo.aiflags & AI_MEDIC)
+		{
+			// Let the medic continue its healing/resurrection
+			if (!self->enemy || !self->enemy->inuse)
+			{
+				// Target lost, clear medic mode
+				self->monsterinfo.aiflags &= ~AI_MEDIC;
+				if (!FindMTarget(self))
+				{
+					if (self->monsterinfo.stand) self->monsterinfo.stand(self);
+					return;
+				}
+			}
+			// Otherwise continue with current healing target - don't call FindMTarget
+		}
+		else if (!self->enemy || !self->enemy->inuse || self->enemy->client)
 		{
 			self->enemy = nullptr;
 			if (!FindMTarget(self))
