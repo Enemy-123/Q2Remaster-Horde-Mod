@@ -13,6 +13,7 @@
 #include <cassert>
 #include "horde_performance.h"
 #include "horde_boss.h"
+#include "../memory_safety.h"
 
 // External function declarations
 extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
@@ -511,7 +512,7 @@ bool champion_spawned_this_wave = false;
 static gtime_t champion_spawn_cooldown_ends_at = 0_sec;
 int consistent_zero_counts = 0;
 int counter_mismatch_frames = 0;
-constexpr size_t MAX_SPAWN_POINTS = 32;
+// MAX_SPAWN_POINTS is now defined in memory_safety.h
 
 struct SpawnPointsSoA
 {
@@ -531,15 +532,27 @@ struct SpawnPointsSoA
 	// Helper to resize all vectors at once
 	void resize(size_t new_size)
 	{
-		isTemporarilyDisabled.assign(new_size, false);
-		cooldownEndsAt.assign(new_size, 0_sec);
-		alternative_cooldown.assign(new_size, 0_sec);
-		teleport_cooldown.assign(new_size, 0_sec);
-		lastSpawnTime.assign(new_size, 0_sec);
-		attempts.assign(new_size, 0);
-		successfulSpawns.assign(new_size, 0);
-		alternative_attempts.assign(new_size, 0);
-		needs_long_alternative_cooldown.assign(new_size, false);
+		// Clamp size to prevent overflow
+		if (new_size > MAX_SAFE_CONTAINER_SIZE) {
+			gi.Com_PrintFmt("WARNING: Spawn points data resize {} exceeds max {}, clamping\n",
+				new_size, MAX_SAFE_CONTAINER_SIZE);
+			new_size = MAX_SAFE_CONTAINER_SIZE;
+		}
+
+		try {
+			isTemporarilyDisabled.assign(new_size, false);
+			cooldownEndsAt.assign(new_size, 0_sec);
+			alternative_cooldown.assign(new_size, 0_sec);
+			teleport_cooldown.assign(new_size, 0_sec);
+			lastSpawnTime.assign(new_size, 0_sec);
+			attempts.assign(new_size, 0);
+			successfulSpawns.assign(new_size, 0);
+			alternative_attempts.assign(new_size, 0);
+			needs_long_alternative_cooldown.assign(new_size, false);
+		} catch (const std::bad_alloc&) {
+			gi.Com_Print("ERROR: Failed to allocate memory for spawn points data\n");
+			clear(); // Clear all on failure
+		}
 	}
 
 	// Helper to clear all data
@@ -730,7 +743,18 @@ struct SpawnPointCacheArray
 	}
 
 	void resize(size_t new_size) {
-		data.assign(new_size, {});
+		// Use safe resize to prevent bad_alloc
+		if (new_size > MAX_SAFE_CONTAINER_SIZE) {
+			gi.Com_PrintFmt("WARNING: Attempted to resize spawn cache to {}, clamping to {}\n",
+				new_size, MAX_SAFE_CONTAINER_SIZE);
+			new_size = MAX_SAFE_CONTAINER_SIZE;
+		}
+		try {
+			data.assign(new_size, {});
+		} catch (const std::bad_alloc&) {
+			gi.Com_Print("ERROR: Failed to allocate memory for spawn point cache\n");
+			data.clear();
+		}
 	}
 
 	void clear() {
@@ -765,16 +789,31 @@ static void BuildSpawnPointMap()
 	// Clear and rebuild spatial index
 	HordePerf::g_spawn_spatial_index.Clear();
 
-	// Reserve capacity to avoid repeated allocations
-	g_spawn_point_list.reserve(64); // Most maps have fewer than 64 spawn points
+	// Reserve capacity to avoid repeated allocations - use safe allocation
+	// Start with 32 as initial capacity, most maps have fewer spawn points
+	constexpr size_t INITIAL_SPAWN_CAPACITY = 32;
+	if (!safe_reserve(g_spawn_point_list, INITIAL_SPAWN_CAPACITY)) {
+		gi.Com_Print("ERROR: Failed to reserve memory for spawn points\n");
+		return;
+	}
 
 	// Single pass to build both the list and the map
 	for (edict_t* sp : monster_spawn_points()) {
 		if (sp && sp->inuse && sp->classname && strcmp(sp->classname, "info_player_deathmatch") == 0) {
+			// Check for overflow before adding
+			if (g_spawn_point_list.size() >= MAX_SPAWN_POINTS) {
+				gi.Com_PrintFmt("WARNING: Too many spawn points ({}), capping at {}\n",
+					g_spawn_point_list.size() + 1, MAX_SPAWN_POINTS);
+				break;
+			}
+
 			// Add to map first, using the current size of the list as the compact index
 			g_spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
 			// Then add the pointer to the list
-			g_spawn_point_list.push_back(sp);
+			if (!safe_push_back(g_spawn_point_list, sp, MAX_SPAWN_POINTS)) {
+				gi.Com_Print("WARNING: Failed to add spawn point\n");
+				break;
+			}
 			// Add to spatial index for fast spatial queries
 			HordePerf::g_spawn_spatial_index.AddSpawnPoint(sp);
 		}
@@ -785,10 +824,22 @@ static void BuildSpawnPointMap()
 	// Shrink to fit to release any excess capacity
 	g_spawn_point_list.shrink_to_fit();
 
-	// Finally, resize all data structures to the exact size needed
+	// Finally, resize all data structures to the exact size needed with safety checks
+	// g_spawnPointsData has its own resize method that handles all its vectors
+	if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE) {
+		gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
+			g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
+		g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
+	}
 	g_spawnPointsData.resize(g_num_spawn_points);
+
+	// spawn_point_cache also has its own resize method
 	spawn_point_cache.resize(g_num_spawn_points);
-	g_spawn_validation_cache.resize(g_num_spawn_points);
+
+	// g_spawn_validation_cache is a std::vector, use safe_resize
+	if (!safe_resize(g_spawn_validation_cache, g_num_spawn_points)) {
+		gi.Com_Print("ERROR: Failed to resize spawn validation cache\n");
+	}
 
 	if (developer->integer) {
 		gi.Com_PrintFmt("Spawn Point Map Built: Found {} spawn points with spatial index.\n", g_num_spawn_points);
@@ -5499,7 +5550,12 @@ static void PlanMonsterSpawnBatch(
 	if (num_to_plan <= 0)
 		return;
 
-	g_spawn_plan.reserve(static_cast<size_t>(num_to_plan));
+	// Safe reserve with overflow check
+	size_t reserve_size = std::min(static_cast<size_t>(num_to_plan), MAX_ENTITIES_PER_FRAME);
+	if (!safe_reserve(g_spawn_plan, reserve_size)) {
+		gi.Com_Print("ERROR: Failed to reserve memory for spawn plan\n");
+		return;
+	}
 
 	g_champion_chance_for_current_batch = champion_chance_param;
 
@@ -5533,8 +5589,11 @@ static void PlanMonsterSpawnBatch(
 
 		if (monster_type_id != horde::MonsterTypeID::UNKNOWN)
 		{
-			// Use emplace_back to construct in-place, avoiding a temporary copy
-			g_spawn_plan.emplace_back(monster_type_id, spawn_point);
+			// Use safe emplace_back with overflow protection
+			if (!safe_emplace_back(g_spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
+				gi.Com_Print("WARNING: Spawn plan full, stopping planning\n");
+				break;
+			}
 			planned_count++;
 		}
 	}
@@ -7206,7 +7265,11 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_eligible_monsters_for_wave.clear();
 	g_eligible_item_indices_for_wave.clear();
 
-	g_eligible_monsters_for_wave.reserve(MONSTER_DATA_COUNT);
+	// Use safe allocation to prevent bad_alloc
+	if (!safe_reserve(g_eligible_monsters_for_wave, std::min(size_t(MONSTER_DATA_COUNT), MAX_SAFE_RESERVE_SIZE))) {
+		gi.Com_Print("ERROR: Failed to reserve memory for eligible monsters\n");
+		return;
+	}
 
 	// --- THIS IS THE LOGIC FIX ---
 	// We now build the eligible list by considering monsters up to the current level
@@ -7227,17 +7290,29 @@ static void Horde_InitLevel(const int32_t lvl)
 
 		if (IsValidMonsterForWave(monster.typeId, current_wave_type))
 		{
-			g_eligible_monsters_for_wave.push_back(&monster);
+			// Use safe push_back to prevent overflow at 65535
+			if (!safe_push_back(g_eligible_monsters_for_wave, &monster, MAX_SAFE_CONTAINER_SIZE)) {
+				gi.Com_Print("WARNING: Eligible monsters list full\n");
+				break;
+			}
 		}
 	}
 	
 
-	g_eligible_item_indices_for_wave.reserve(g_hordeItemDataSoA.NUM_ITEMS); // Pre-allocate memory
+	// Safe reserve for item indices
+	if (!safe_reserve(g_eligible_item_indices_for_wave, std::min(g_hordeItemDataSoA.NUM_ITEMS, MAX_SAFE_RESERVE_SIZE))) {
+		gi.Com_Print("ERROR: Failed to reserve memory for eligible items\n");
+	}
+
 	for (size_t i = 0; i < g_hordeItemDataSoA.NUM_ITEMS; ++i)
 	{
 		if (lvl >= g_hordeItemDataSoA.minWaves[i])
 		{
-			g_eligible_item_indices_for_wave.push_back(i);
+			// Use safe push_back to prevent overflow
+			if (!safe_push_back(g_eligible_item_indices_for_wave, i, MAX_SAFE_CONTAINER_SIZE)) {
+				gi.Com_Print("WARNING: Eligible items list full\n");
+				break;
+			}
 		}
 	}
 

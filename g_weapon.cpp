@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
+#include "memory_safety.h"
 #include "horde/g_horde_benefits.h"
 
 /*
@@ -1578,7 +1579,11 @@ public:
 			laser->nextthink = 0_ms;
 			laser->timestamp = 0_ms;
 			laser->owner = nullptr;
-			pool.push_back(laser);
+			// Use safe push_back to prevent overflow
+			if (!safe_push_back(pool, laser, MAX_POOL_SIZE)) {
+				// If we can't add to pool, free it
+				G_FreeEdict(laser);
+			}
 		}
 		else {
 			G_FreeEdict(laser);
@@ -1592,10 +1597,22 @@ public:
 		}
 		pool.clear();
 	}
+
+	// Initialize pool with proper capacity
+	static void init() {
+		pool.clear();
+		// Reserve capacity to avoid repeated allocations
+		safe_reserve(pool, MAX_POOL_SIZE);
+	}
 };
 
 // Static member initialization
 std::vector<edict_t*> LaserPool::pool;
+
+// External C-style function to initialize LaserPool
+void LaserPool_Init() {
+	LaserPool::init();
+}
 
 // Helper function to determine if an entity can be affected by BFG
 inline bool can_be_affected_by_bfg(const edict_t* ent) {

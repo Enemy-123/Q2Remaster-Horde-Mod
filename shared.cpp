@@ -1,4 +1,5 @@
 #include "shared.h"
+#include "memory_safety.h"
 #include "horde/g_horde.h"
 #include <unordered_map>
 #include <algorithm>
@@ -161,12 +162,20 @@ void RemovePlayerOwnedEntities(edict_t* player) {
                 if (entities_array == stack_entities) {
                     // Copy stack data to heap first, then resize
                     heap_entities.assign(stack_entities, stack_entities + entity_count);
-                    heap_entities.resize(capacity * 2);
+                    size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
+                    if (!safe_resize(heap_entities, new_capacity)) {
+                        gi.Com_Print("ERROR: Failed to allocate memory for entity collection\n");
+                        return;
+                    }
                     entities_array = heap_entities.data();
                     capacity = heap_entities.size();
                 } else {
                     // Already using heap, just resize
-                    heap_entities.resize(capacity * 2);
+                    size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
+                    if (!safe_resize(heap_entities, new_capacity)) {
+                        gi.Com_Print("ERROR: Failed to grow entity collection\n");
+                        return;
+                    }
                     entities_array = heap_entities.data();
                     capacity = heap_entities.size();
                 }
@@ -861,11 +870,28 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 
 		if (entity_count >= capacity) {
 			if (entities_array == stack_entities) {
-				heap_entities.reserve(capacity * 2);
+				// Safe grow with overflow protection
+				size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
+				if (!safe_reserve(heap_entities, new_capacity)) {
+					gi.Com_Print("ERROR: Failed to reserve memory for entities\n");
+					continue;
+				}
 				heap_entities.assign(stack_entities, stack_entities + entity_count);
 				entities_array = heap_entities.data();
-				capacity *= 2;
-				heap_entities.resize(capacity);
+				if (!safe_resize(heap_entities, new_capacity)) {
+					gi.Com_Print("ERROR: Failed to resize heap entities\n");
+					continue;
+				}
+				capacity = new_capacity;
+			} else {
+				// Already using heap, grow safely
+				size_t new_capacity = safe_grow_capacity(capacity, entity_count + 1);
+				if (!safe_resize(heap_entities, new_capacity)) {
+					gi.Com_Print("ERROR: Failed to grow heap entities\n");
+					continue;
+				}
+				entities_array = heap_entities.data();
+				capacity = new_capacity;
 			}
 		}
 		entities_array[entity_count++] = ent;

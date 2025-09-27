@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "g_local.h"
+#include "memory_safety.h"
 #include "horde/horde_ids.h"
 
 // Define a type for our spawn function pointers for clarity
@@ -1586,7 +1587,12 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 			return false;
 		}
 
-		buffer.resize(length + 1);
+		// Safe resize with overflow check
+		size_t buffer_size = static_cast<size_t>(length) + 1;
+		if (buffer_size > MAX_SAFE_CONTAINER_SIZE || !safe_resize(buffer, buffer_size)) {
+			gi.Com_PrintFmt("ERROR: Failed to allocate buffer for entity file (size: {})\n", buffer_size);
+			return false;
+		}
 
 		if (fread(buffer.data(), 1, length, fp) != length) {
 			gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", outFilename);
@@ -1634,6 +1640,10 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	memset(&level, 0, sizeof(level));
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+
+	// Initialize LaserPool for new level
+	extern void LaserPool_Init();
+	LaserPool_Init();
 
 	// all other flags are not important atm
 	globals.server_flags &= SERVER_FLAG_LOADING;

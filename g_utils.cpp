@@ -3,6 +3,7 @@
 // g_utils.c -- misc utility functions for game module
 
 #include "g_local.h"
+#include "memory_safety.h"
 
 /*
 =============
@@ -559,6 +560,9 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 	// a bit ugly, but we'll store projectiles we are ignoring here.
 	static std::vector<skipped_projectile> skipped;
 
+	// Clear old entries to prevent accumulation over time
+	periodic_cleanup(skipped, MAX_SKIPPED_PROJECTILES, MAX_SKIPPED_PROJECTILES / 2);
+
 	if (!ent) 
 		return;
 	while (true)
@@ -575,7 +579,17 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 		// always skip this projectile since certain conditions may cause the projectile
 		// to not disappear immediately
 		tr.ent->svflags &= ~SVF_PROJECTILE;
-		skipped.push_back({ tr.ent, tr.ent->spawn_count });
+		// Use safe push_back to prevent overflow
+		if (!safe_push_back(skipped, skipped_projectile{ tr.ent, tr.ent->spawn_count }, MAX_SKIPPED_PROJECTILES)) {
+			if (developer && developer->integer) {
+				gi.Com_Print("WARNING: Too many skipped projectiles, dropping oldest\n");
+			}
+			// If we can't add more, remove oldest and try again
+			if (!skipped.empty()) {
+				skipped.erase(skipped.begin());
+				safe_push_back(skipped, skipped_projectile{ tr.ent, tr.ent->spawn_count }, MAX_SKIPPED_PROJECTILES);
+			}
+		}
 
 		// if we're both players and it's coop, allow the projectile to "pass" through
 		if (ent->client && tr.ent->owner && tr.ent->owner->client && !G_ShouldPlayersCollide(true))

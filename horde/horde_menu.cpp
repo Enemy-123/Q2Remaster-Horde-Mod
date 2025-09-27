@@ -2,6 +2,7 @@
 
 #include "../g_local.h"  // Includes edict_t, gclient_t, gi, level, etc.
 #include "../shared.h"  // For MAX_ITEMS, etc.
+#include "../memory_safety.h"  // For safe memory operations
 #include "../ctf/p_ctf_menu.h" // Menu system definitions and functions
 #include "../ctf/g_ctf.h"      // For CTF functions like CTFObserver, CTFJoinTeam, CTFBeginElection, etc.
 #include "g_horde.h"    // For GetMapSize
@@ -299,10 +300,8 @@ struct map_lists_t {
 	std::vector<std::string> big_maps;
 	std::vector<std::string> medium_maps;
 	std::vector<std::string> small_maps;
-	std::vector<std::string> cooperative_maps;
 	size_t current_page = 0;
 	horde::MapSize current_category = { false, true, false }; // Default to medium
-	bool is_cooperative_category = false;
 };
 
 static map_lists_t categorized_maps;
@@ -312,7 +311,6 @@ void CategorizeMapList() {
 	categorized_maps.big_maps.clear();
 	categorized_maps.medium_maps.clear();
 	categorized_maps.small_maps.clear();
-	categorized_maps.cooperative_maps.clear();
 
 	const char* mlist = g_map_list->string;
 	if (!mlist) return; // Safety check
@@ -322,34 +320,28 @@ void CategorizeMapList() {
 	std::string mlist_copy = mlist;
 	const char* mlist_ptr = mlist_copy.c_str();
 
-
 	while (*(token = COM_Parse(&mlist_ptr)) != '\0') {
 		// Check if token is empty, can happen with consecutive spaces
 		if (token[0] == '\0') continue;
 
 		const char* map_name = token;
 
-		// Check if it's a cooperative map (contains "coop" in name or is a single player map)
-		// Including base1 and other single-player campaign maps
-		if (strstr(map_name, "coop") || strstr(map_name, "base") || strstr(map_name, "unit") ||
-		    strstr(map_name, "mine") || strstr(map_name, "fact") || strstr(map_name, "ware") ||
-		    strstr(map_name, "jail") || strstr(map_name, "power") || strstr(map_name, "cool") ||
-		    strstr(map_name, "waste") || strstr(map_name, "hangar") || strstr(map_name, "command") ||
-		    strstr(map_name, "strike") || strstr(map_name, "city") || strstr(map_name, "boss") ||
-		    strcmp(map_name, "base1") == 0 || strcmp(map_name, "base2") == 0 || strcmp(map_name, "base3") == 0) {
-			categorized_maps.cooperative_maps.push_back(map_name);
-		}
-		else {
-			horde::MapSize const mapSize = GetMapSize(map_name); // Assuming GetMapSize is safe
+		// Categorize based on map size only
+		horde::MapSize const mapSize = GetMapSize(map_name);
 
-			if (mapSize.isBigMap) {
-				categorized_maps.big_maps.push_back(map_name);
+		if (mapSize.isBigMap) {
+			if (!safe_push_back(categorized_maps.big_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE)) {
+				gi.Com_Print("WARNING: Too many big maps\n");
 			}
-			else if (mapSize.isSmallMap) {
-				categorized_maps.small_maps.push_back(map_name);
+		}
+		else if (mapSize.isSmallMap) {
+			if (!safe_push_back(categorized_maps.small_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE)) {
+				gi.Com_Print("WARNING: Too many small maps\n");
 			}
-			else { // isMediumMap or unknown defaults to medium
-				categorized_maps.medium_maps.push_back(map_name);
+		}
+		else { // isMediumMap or unknown defaults to medium
+			if (!safe_push_back(categorized_maps.medium_maps, std::string(map_name), MAX_SAFE_CONTAINER_SIZE)) {
+				gi.Com_Print("WARNING: Too many medium maps\n");
 			}
 		}
 	}
@@ -481,21 +473,18 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	if (strcmp(selected_text, "Small Maps") == 0) {
 		categorized_maps.current_category = horde::MapSize{ true, false, false };
-		categorized_maps.is_cooperative_category = false;
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 	}
 	else if (strcmp(selected_text, "Medium Maps") == 0) {
 		categorized_maps.current_category = horde::MapSize{ false, false, true };
-		categorized_maps.is_cooperative_category = false;
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
 	}
 	else if (strcmp(selected_text, "Big Maps") == 0) {
 		categorized_maps.current_category = horde::MapSize{ false, true, false };
-		categorized_maps.is_cooperative_category = false;
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
@@ -630,10 +619,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	std::vector<std::string>* current_map_list = nullptr;
 
 	// Get current map list based on category
-	if (categorized_maps.is_cooperative_category) {
-		current_map_list = &categorized_maps.cooperative_maps;
-	}
-	else if (categorized_maps.current_category.isBigMap) {
+	if (categorized_maps.current_category.isBigMap) {
 		current_map_list = &categorized_maps.big_maps;
 	}
 	else if (categorized_maps.current_category.isSmallMap) {
@@ -726,11 +712,7 @@ void UpdateVoteMenu() {
 
 	// Determine current map list and category name
 	const char* category_name;
-	if (categorized_maps.is_cooperative_category) {
-		current_map_list = &categorized_maps.cooperative_maps;
-		category_name = "Cooperative Maps";
-	}
-	else if (categorized_maps.current_category.isBigMap) {
+	if (categorized_maps.current_category.isBigMap) {
 		current_map_list = &categorized_maps.big_maps;
 		category_name = "Big Maps";
 	}
@@ -1651,14 +1633,27 @@ constexpr int LAYOUT_SAFETY_MARGIN = 50;
 class StringBuilder {
 private:
 	std::string buffer;
+	size_t max_size;
 
 public:
 	explicit StringBuilder(size_t reserved_size = 256) {
-		buffer.reserve(reserved_size);
+		// Clamp reserved size to prevent overflow
+		reserved_size = std::min(reserved_size, MAX_STRING_BUILD_SIZE);
+		max_size = MAX_STRING_BUILD_SIZE;
+		try {
+			buffer.reserve(reserved_size);
+		} catch (const std::bad_alloc&) {
+			gi.Com_Print("WARNING: Failed to reserve string builder memory\n");
+		}
 	}
 
 	StringBuilder& append(std::string_view text) {
-		buffer.append(text);
+		// Use safe append with size checking
+		if (!safe_string_append(buffer, text, max_size)) {
+			if (developer && developer->integer) {
+				gi.Com_Print("WARNING: StringBuilder reached max size, truncating\n");
+			}
+		}
 		return *this;
 	}
 
@@ -1727,11 +1722,16 @@ public:
 
 			// Sort into appropriate team
 			if (cl->resp.ctf_team == CTF_TEAM1) {
-				team_players.push_back(player);
-				total_score += player.score;
+				if (!safe_push_back(team_players, player, MAX_SAFE_CONTAINER_SIZE)) {
+					gi.Com_Print("WARNING: Too many team players for scoreboard\n");
+				} else {
+					total_score += player.score;
+				}
 			}
 			else if (cl->resp.ctf_team == CTF_NOTEAM) {
-				spectators.push_back(player);
+				if (!safe_push_back(spectators, player, MAX_SAFE_CONTAINER_SIZE)) {
+					gi.Com_Print("WARNING: Too many spectators for scoreboard\n");
+				}
 			}
 		}
 
@@ -1765,8 +1765,14 @@ public:
 			if (!activeBonuses.empty()) {
 				// Truncate if too long to prevent overflow
 				if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH) {
-					activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
-					activeBonuses += "...";
+					// Safe resize with bounds check
+					try {
+						activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
+						activeBonuses += "...";
+					} catch (const std::bad_alloc&) {
+						gi.Com_Print("WARNING: Failed to resize bonus string\n");
+						activeBonuses = "Error";
+					}
 				}
 				layout_builder.append(fmt::format(
 					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
@@ -1890,7 +1896,13 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	// Ensure we don't exceed layout size limits
 	if (final_layout.size() >= MAX_CTF_STAT_LENGTH) {
-		final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
+		// Safe resize with exception handling
+		try {
+			final_layout.resize(MAX_CTF_STAT_LENGTH - 1);
+		} catch (const std::bad_alloc&) {
+			gi.Com_Print("ERROR: Failed to resize scoreboard layout\n");
+			final_layout = "ERROR: Memory allocation failed";
+		}
 	}
 
 	// Send to client

@@ -4,6 +4,7 @@
 
 // Include necessary engine/game headers
 #include "g_local.h"  // For gi, level, gtime_t, edict_t, cvar_t, etc.
+#include "memory_safety.h"  // For memory safety wrappers
 
 // Include necessary standard library headers for implementation
 #include <map>       // For the definition of std::map
@@ -42,12 +43,23 @@ void ProfileData::record_duration(std::chrono::nanoseconds duration) {
 
 // Moves the completed frame's total duration into the rolling history buffer
 void ProfileData::update_history() {
-	// If history buffer is full, remove the oldest entry
-	if (history.size() >= HISTORY_SIZE) {
+	// Enforce hard limit on history size
+	constexpr size_t MAX_HISTORY = std::min(HISTORY_SIZE, MAX_PROFILER_HISTORY);
+
+	// If history buffer is at or beyond max size, remove oldest entries
+	while (history.size() >= MAX_HISTORY) {
 		history.erase(history.begin()); // Removes the element at the beginning
 	}
+
 	// Add the total duration from the just-completed frame to the end
-	history.push_back(total_duration_this_frame);
+	// Use safe push_back to prevent overflow
+	if (!safe_push_back(history, total_duration_this_frame, MAX_HISTORY)) {
+		// If we can't add, remove oldest and try again
+		if (!history.empty()) {
+			history.erase(history.begin());
+			safe_push_back(history, total_duration_this_frame, MAX_HISTORY);
+		}
+	}
 }
 
 // Calculates the average duration (in milliseconds) over the history period
@@ -139,11 +151,20 @@ void Profiler_PrintResults() {
 	};
 
 	std::vector<SortableProfileData> sorted_data;
-	sorted_data.reserve(g_profiler_data.size());
+	// Safe reserve with bounds check
+	if (!safe_reserve(sorted_data, std::min(g_profiler_data.size(), MAX_SAFE_RESERVE_SIZE))) {
+		gi.Com_Print("WARNING: Failed to reserve memory for profiler data\n");
+		return;
+	}
 
 	for (const auto& pair : g_profiler_data) {
 		if (!pair.second.history.empty()) {
-			sorted_data.push_back({ pair.second.get_average_ms(), &pair.second });
+			// Use safe push_back to prevent overflow
+			if (!safe_push_back(sorted_data, SortableProfileData{ pair.second.get_average_ms(), &pair.second },
+				MAX_SAFE_CONTAINER_SIZE)) {
+				gi.Com_Print("WARNING: Too many profiler entries\n");
+				break;
+			}
 		}
 	}
 	std::sort(sorted_data.begin(), sorted_data.end());
