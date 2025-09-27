@@ -60,7 +60,7 @@ enum morph_type_t : uint8_t {
 };
 
 // Extended entity data for morphed players
-struct flyer_data_t {
+struct morph_data_t {
     morph_type_t morph_type;
     int32_t max_ammo;
     int32_t current_ammo;
@@ -72,8 +72,16 @@ struct flyer_data_t {
     int32_t lock_frames;
     float old_speed; // for impact detection
     gtime_t morph_time;
-    int32_t ability_level; // flyer ability level
+    int32_t ability_level; // ability level
+
+    // Brain-specific fields
+    edict_t* tongue_target;  // Current target being pulled
+    gtime_t last_steal_time; // Last time health was stolen
+    bool tongue_active;      // Is tongue attack active
 };
+
+// Keep typedef for backward compatibility
+using flyer_data_t = morph_data_t;
 
 // Function declarations
 void Cmd_PlayerToFlyer_f(edict_t* ent);
@@ -81,7 +89,10 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd);
 void MorphRegenerate(edict_t* ent);
 void RestoreMorphed(edict_t* ent);
 bool IsMorphed(edict_t* ent);
-flyer_data_t* GetFlyerData(edict_t* ent);
-void InitFlyerData(edict_t* ent);
-void ClearFlyerData(edict_t* ent);
+morph_data_t* GetMorphData(edict_t* ent);
+flyer_data_t* GetFlyerData(edict_t* ent); // Backward compatibility
+void InitMorphData(edict_t* ent, morph_type_t type);
+void InitFlyerData(edict_t* ent); // Backward compatibility
+void ClearMorphData(edict_t* ent);
+void ClearFlyerData(edict_t* ent); // Backward compatibility
 void ApplyFlyerPhysics(edict_t* ent); // Called after pmove to apply flyer physics

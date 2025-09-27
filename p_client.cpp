@@ -8,6 +8,7 @@
 #include "horde/g_horde_benefits.h"
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
+#include "horde/p_brain_morph.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -3897,13 +3898,20 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		memset(&pm, 0, sizeof(pm));
 
-		// MODIFICATION #2: We now check if the player is morphed and tell the physics engine
-		// to use a flying mode (PM_SPECTATOR is perfect for this).
+		// MODIFICATION #2: We now check if the player is morphed and set appropriate physics
 		if (IsMorphed(ent))
 		{
-			client->ps.pmove.pm_type = PM_SPECTATOR; // Use free-flight physics
-			client->ps.pmove.gravity = 0; // No gravity
-			client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
+			auto* data = GetMorphData(ent);
+			if (data && data->morph_type == MORPH_FLYER) {
+				// Flyer uses flying physics
+				client->ps.pmove.pm_type = PM_SPECTATOR; // Use free-flight physics
+				client->ps.pmove.gravity = 0; // No gravity
+				client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
+			} else {
+				// Brain and other morphs use normal ground movement
+				client->ps.pmove.pm_type = PM_NORMAL;
+				client->ps.pmove.gravity = 800; // Normal gravity
+			}
 		}
 		else // This is the original logic for a normal player
 		{
@@ -4027,15 +4035,29 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 				client->ps.viewangles = pm.viewangles;
 			}
 
-			// MODIFICATION #3: After angles are updated, we run our flyer-specific logic
+			// MODIFICATION #3: After angles are updated, we run our morph-specific logic
 			// for attacks, model rotation, and animations.
 			if (IsMorphed(ent))
 			{
 				// Sync the visual model's horizontal rotation with the player's view
 				ent->s.angles[YAW] = client->v_angle[YAW];
 
-				// Call the simplified logic function
-				RunFlyerFrames(ent, *ucmd);
+				// Call the appropriate morph logic function based on type
+				auto* data = GetMorphData(ent);
+				if (data) {
+					switch (data->morph_type) {
+						case MORPH_FLYER:
+							RunFlyerFrames(ent, *ucmd);
+							ApplyFlyerPhysics(ent);
+							break;
+						case MORPH_BRAIN:
+							RunBrainFrames(ent, *ucmd);
+							// Brain uses normal physics, no special physics needed
+							break;
+						default:
+							break;
+					}
+				}
 			}
 		}
 

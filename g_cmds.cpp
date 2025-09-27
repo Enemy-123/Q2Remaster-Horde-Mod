@@ -4,6 +4,7 @@
 #include "m_player.h"
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
+#include "horde/p_brain_morph.h"
 
 void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu = true)
 {
@@ -1867,6 +1868,9 @@ void ClientCommand(edict_t* ent)
 
 	else if (Q_strcasecmp(cmd, "flyer") == 0) {
 	Cmd_PlayerToFlyer_f(ent);
+	}
+	else if (Q_strcasecmp(cmd, "brain") == 0) {
+	Cmd_PlayerToBrain_f(ent);
 	}
 	else if (Q_strcasecmp(cmd, "alertall") == 0)
 		Cmd_AlertAll_f(ent);

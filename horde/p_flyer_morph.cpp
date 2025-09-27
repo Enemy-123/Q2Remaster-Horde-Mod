@@ -9,30 +9,45 @@
     return static_cast<float>(x) * (360.0f / 65536.0f);
 }
 
-// Static storage for flyer data - using entity userdata would be cleaner but this works
-static std::unordered_map<edict_t*, flyer_data_t> s_flyer_data;
+// Static storage for morph data - using entity userdata would be cleaner but this works
+std::unordered_map<edict_t*, morph_data_t> s_morph_data;
 
-flyer_data_t* GetFlyerData(edict_t* ent) {
-    auto it = s_flyer_data.find(ent);
-    if (it != s_flyer_data.end()) {
+morph_data_t* GetMorphData(edict_t* ent) {
+    auto it = s_morph_data.find(ent);
+    if (it != s_morph_data.end()) {
         return &it->second;
     }
     return nullptr;
 }
 
-void InitFlyerData(edict_t* ent) {
-    flyer_data_t& data = s_flyer_data[ent];
+// Backward compatibility
+flyer_data_t* GetFlyerData(edict_t* ent) {
+    return GetMorphData(ent);
+}
+
+void InitMorphData(edict_t* ent, morph_type_t type) {
+    morph_data_t& data = s_morph_data[ent];
     memset(&data, 0, sizeof(data));
-    data.morph_type = MORPH_FLYER;
+    data.morph_type = type;
     data.ability_level = 1; // Default ability level
 }
 
+// Backward compatibility
+void InitFlyerData(edict_t* ent) {
+    InitMorphData(ent, MORPH_FLYER);
+}
+
+void ClearMorphData(edict_t* ent) {
+    s_morph_data.erase(ent);
+}
+
+// Backward compatibility
 void ClearFlyerData(edict_t* ent) {
-    s_flyer_data.erase(ent);
+    ClearMorphData(ent);
 }
 
 bool IsMorphed(edict_t* ent) {
-    auto* data = GetFlyerData(ent);
+    auto* data = GetMorphData(ent);
     return data && data->morph_type != MORPH_NONE;
 }
 
@@ -403,12 +418,12 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
 // ==================== Transformation ====================
 
 void RestoreMorphed(edict_t* ent) {
-    auto* data = GetFlyerData(ent);
+    auto* data = GetMorphData(ent);
     if (!data || data->morph_type == MORPH_NONE)
         return;
 
     // Clear morph data first
-    ClearFlyerData(ent);
+    ClearMorphData(ent);
 
     // Store current position before respawn
     vec3_t old_origin = ent->s.origin;

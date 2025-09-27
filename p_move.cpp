@@ -1142,6 +1142,23 @@ void PM_CheckJump()
 
 	float jump_height = PM_ApplyPSXScalar(270.f, (PSX_PHYSICS_SCALAR * 1.15f));
 
+	// Check if we're a brain morph - add forward leap
+	if (IsMorphed(pm->player)) {
+		auto* data = GetMorphData(pm->player);
+		if (data && data->morph_type == MORPH_BRAIN) {
+			// Brain jump: normal height but big leap forward
+			vec3_t forward;
+			AngleVectors(pm->viewangles, forward, nullptr, nullptr);
+			forward[2] = 0; // Keep it horizontal
+			forward.normalize();
+
+			// Add significant forward velocity
+			float leap_force = 400.0f; // Big leap forward
+			pml.velocity[0] += forward[0] * leap_force;
+			pml.velocity[1] += forward[1] * leap_force;
+		}
+	}
+
 	pml.velocity[2] += jump_height;
 	if (pml.velocity[2] < jump_height)
 		pml.velocity[2] = jump_height;
