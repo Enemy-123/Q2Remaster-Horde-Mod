@@ -499,6 +499,11 @@ bool finishHeal(edict_t* self)
 	healee->monsterinfo.react_to_damage_time = level.time;
 	healee->monsterinfo.was_stuck = false;
 
+	// Mark that resurrection completed successfully
+	if (self && self->inuse && healee && healee->health > 0) {
+		self->monsterinfo.last_resurrection_time = level.time;
+	}
+
 	cleanupHeal(self);
 	return true;
 }
@@ -623,6 +628,11 @@ edict_t* healFindMonster(edict_t* self, float radius)
 // Check for healing opportunities during movement
 void medic_check_heal(edict_t* self)
 {
+	// **CORE FIX: Respect resurrection cooldown**
+	// This closes the loophole that allowed walking medics to re-trigger the loop.
+	if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
+		return;
+
 	// Don't check if already healing
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 		return;
@@ -698,17 +708,20 @@ void medic_check_heal(edict_t* self)
 
 edict_t* medic_FindDeadMonster(edict_t* self)
 {
+	// **CORE FIX: Respect resurrection cooldown**
+	// If we recently completed a resurrection, don't look for corpses yet.
+	if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
+		return nullptr;
+
 	float	radius;
 
-	// In horde mode, always look for dead monsters to revive
-	// regardless of recent damage
 	if (!g_horde->integer && self->monsterinfo.react_to_damage_time > level.time)
 		return nullptr;
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		radius = MEDIC_MAX_HEAL_DISTANCE;
 	else
-		radius = 1024;  // Large search radius for dead monsters
+		radius = 1024;
 
 	edict_t* best = healFindMonster(self, radius);
 
@@ -1751,44 +1764,30 @@ void medic_delay(edict_t* self)
 	self->monsterinfo.attack_finished = level.time + gtime_t::from_sec(frandom() + 1.0f);
 }
 
+// In m_medic.c
 void medic_finish_and_hunt(edict_t* self)
 {
-	// After finishing healing, actively look for new targets
+	// Clear medic-specific flags now that the action is complete.
 	self->monsterinfo.aiflags &= ~AI_MEDIC;
-	// Clear any stand ground flag that might have been set
 	self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 
-	// Restore original enemy if we had one
-	if (self->oldenemy && self->oldenemy->inuse)
+	// PRIORITY 1: RETURN TO COMBAT
+	// If we were fighting an enemy before we started healing, go back to fighting them.
+	if (self->oldenemy && self->oldenemy->inuse && self->oldenemy->health > 0)
 	{
 		self->enemy = self->oldenemy;
 		self->oldenemy = nullptr;
-		HuntTarget(self, true);
+		HuntTarget(self, true); // Re-engage the previous enemy.
 		return;
 	}
 
-	// Look for new healing opportunities
-	edict_t* newTarget = medic_FindDeadMonster(self);
-	if (newTarget)
-	{
-		// Found a new target to heal/resurrect
-		self->enemy = newTarget;
-		self->enemy->monsterinfo.healer = self;
-		self->monsterinfo.aiflags |= AI_MEDIC;
-		HuntTarget(self, true);
-		return;
-	}
-
-	// Try to find appropriate enemies based on type
+	// PRIORITY 2: FIND A NEW ENEMY
+	// If there was no old enemy, scan for any new hostile targets.
 	bool found_target = false;
-
 	if (g_horde->integer && (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY)))
 	{
-		// Summoned/friendly medics should look for monster enemies
 		found_target = FindMTarget(self);
 	}
-
-	// If no monster target found (or not summoned), look for regular enemies
 	if (!found_target)
 	{
 		found_target = FindTarget(self);
@@ -1796,20 +1795,20 @@ void medic_finish_and_hunt(edict_t* self)
 
 	if (found_target)
 	{
-		// Found an enemy - will be handled by FindTarget/FindMTarget
+		// FoundTarget() already set the AI state to run/attack. Our job is done.
 		return;
 	}
 
-	// No targets - clear enemy and let stand mode handle target acquisition
+	// PRIORITY 3: NO ENEMIES FOUND, GO IDLE
+	// If there are no enemies to fight, clear our target and enter a neutral state.
 	self->enemy = nullptr;
 	self->oldenemy = nullptr;
 
-	// Set a very short pause to break the loop, but short enough to quickly find targets
-	self->monsterinfo.pausetime = level.time + 0.1_sec;  // Very short pause just to break the state loop
+	// Force a short pause. This works with the cooldown to ensure a clean state break.
+	self->monsterinfo.pausetime = level.time + 2.0_sec;
 
-	// Force transition to stand mode where FindTarget and horde logic can work
+	// Transition to the stand animation.
 	M_SetAnimation(self, &medic_move_stand);
-	//self->monsterinfo.stand(self);
 }
 
 void medic_hook_retract(edict_t* self)
@@ -2264,98 +2263,83 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t *self) -> void
 
 MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 {
-	// Priority: Defend against active threats first!
-	// Only consider resurrection if the current enemy is far away or dead
-	if (g_horde->integer && !(self->monsterinfo.aiflags & AI_MEDIC))
+	// --- BLOCK 1: OPPORTUNISTIC HEALING (WHEN IN COMBAT MODE) ---
+	// If we are not currently in medic mode, check if we should switch.
+	if (!(self->monsterinfo.aiflags & AI_MEDIC))
 	{
-		// Check if we have an active threat nearby
+		// Only check for healing targets if there is no immediate combat threat.
 		bool has_active_threat = false;
 		if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
 		{
-			float enemy_dist = realrange(self, self->enemy);
-			if (enemy_dist < MEDIC_MAX_HEAL_DISTANCE * 1.5f)
+			if (realrange(self, self->enemy) < MEDIC_MAX_HEAL_DISTANCE * 1.5f)
 			{
-				has_active_threat = true;  // Enemy is close enough to be a threat
+				has_active_threat = true;
 			}
 		}
 
-		// Only look for resurrection targets if no immediate threat
 		if (!has_active_threat)
 		{
 			edict_t* dead = medic_FindDeadMonster(self);
-			if (dead && dead->health <= 0)
+			// We only care about corpses here. Living allies are handled by medic_check_heal.
+			if (dead && dead->health <= 0 && realrange(self, dead) < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
 			{
-				// Check if we can actually reach this target
-				float dist = realrange(self, dead);
-				if (dist < MEDIC_MAX_HEAL_DISTANCE * 0.5f) // Only if very close
-				{
-					// Found a dead monster - switch to resurrection
-					self->oldenemy = self->enemy;
-					self->enemy = dead;
-					self->enemy->monsterinfo.healer = self;
-					self->monsterinfo.aiflags |= AI_MEDIC;
-					self->timestamp = level.time + MEDIC_TRY_TIME;
-					medic_attack(self);
-					return true;
-				}
+				// Found a corpse and it's safe to revive. Switch to medic mode.
+				self->oldenemy = self->enemy;
+				self->enemy = dead;
+				self->enemy->monsterinfo.healer = self;
+				self->monsterinfo.aiflags |= AI_MEDIC;
+				self->timestamp = level.time + MEDIC_TRY_TIME;
+
+				// **REFINED LOGIC**: Instead of calling medic_attack() directly,
+				// we set the attack state and return true. This lets ai_run handle
+				// turning towards the target before firing the heal beam, which is cleaner.
+				self->monsterinfo.attack_state = AS_MISSILE;
+				return true;
 			}
 		}
 	}
 
+	// --- BLOCK 2: ACTIVE HEALING (WHEN IN MEDIC MODE) ---
+	// If we are already in medic mode, decide if we are in range to heal.
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		// if our target went away
-		if ((!self->enemy) || (!self->enemy->inuse))
+		// If our patient disappears, abort the healing process.
+		if (!self->enemy || !self->enemy->inuse)
 		{
 			abortHeal(self, false, false);
 			return false;
 		}
 
-		// For resurrection, be more patient
-		if (self->enemy->health <= 0)
+		// Timeout logic to prevent getting stuck on unreachable targets.
+		if (self->timestamp < level.time)
 		{
-			// Don't timeout resurrections as quickly
-			if (self->timestamp < level.time - 5_sec)  // Give more time for resurrection
-			{
-				abortHeal(self, false, true);
-				self->timestamp = 0_ms;
-				return false;
-			}
-		}
-		else
-		{
-			// Normal timeout for healing living targets
-			if (self->timestamp < level.time)
-			{
-				abortHeal(self, false, true);
-				self->timestamp = 0_ms;
-				return false;
-			}
+			abortHeal(self, false, true);
+			return false;
 		}
 
-		float dist = realrange(self, self->enemy);
-		if (dist < MEDIC_MAX_HEAL_DISTANCE - 50) // Be more conservative with distance
+		// Check if we are in range to use the healing cable.
+		if (realrange(self, self->enemy) < MEDIC_MAX_HEAL_DISTANCE)
 		{
-			medic_attack(self);
+			// We are in range. Signal to start the healing attack.
+			self->monsterinfo.attack_state = AS_MISSILE;
 			return true;
 		}
 		else
 		{
-			// Too far - move closer instead of trying to heal
+			// We are too far away. Signal to keep running towards the target.
 			self->monsterinfo.attack_state = AS_STRAIGHT;
-			self->monsterinfo.aiflags |= AI_PURSUE_TEMP; // Actively pursue the target
 			return false;
 		}
 	}
 
-	if (self->enemy->client && !visible(self, self->enemy) && M_SlotsLeft(self))
+	// --- BLOCK 3: STANDARD COMBAT LOGIC ---
+	// If we are not in medic mode and found no one to heal, use default combat checks.
+	if (self->enemy && self->enemy->client && !visible(self, self->enemy) && M_SlotsLeft(self))
 	{
 		self->monsterinfo.attack_state = AS_BLIND;
 		return true;
 	}
 
-	// give a LARGE bias to spawning things when we have room
-	// use AI_BLOCKED as a signal to attack to spawn
 	if (self->monsterinfo.monster_slots && (frandom() < 0.8f) && (M_SlotsLeft(self) > self->monsterinfo.monster_slots * 0.8f) && (realrange(self, self->enemy) > 150))
 	{
 		self->monsterinfo.aiflags |= AI_BLOCKED;
@@ -2363,15 +2347,13 @@ MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 		return true;
 	}
 
-	// ROGUE
-	// since his idle animation looks kinda bad in combat, always attack
-	// when he's on a combat point
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 	{
 		self->monsterinfo.attack_state = AS_MISSILE;
 		return true;
 	}
 
+	// Fall back to the generic monster attack checker.
 	return M_CheckAttack(self);
 }
 
@@ -2503,6 +2485,9 @@ void SP_monster_medic(edict_t* self)
 
 	M_SetAnimation(self, &medic_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
+
+	// Initialize resurrection tracking
+	self->monsterinfo.last_resurrection_time = 0_ms;
 
 	walkmonster_start(self);
 

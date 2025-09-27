@@ -1860,17 +1860,16 @@ bool ai_checkattack(edict_t* self, float dist)
 		self->monsterinfo.aiflags &= ~AI_FORGET_ENEMY;
 		hesDeadJim = true;
 	}
-	else if (self->monsterinfo.aiflags & AI_MEDIC) // Medic checking target validity
+	else if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		// Medic should stop if target is no longer valid
-		if (!self->enemy->inuse)
-			hesDeadJim = true;
-		// For resurrection: stop if corpse was resurrected (has monster_think)
-		else if (self->enemy->health <= 0)
-			hesDeadJim = true;
-		// For healing: stop if living target is fully healed or dead
-		else if (self->enemy->health > 0 && (self->enemy->health >= self->enemy->max_health || self->enemy->deadflag))
-			hesDeadJim = true;
+		// If we are in MEDIC mode, a target with health <= 0 is our OBJECTIVE,
+		// not an invalid/dead enemy. It only becomes invalid if it's gibbed
+		// or has been fully healed.
+		if (self->enemy->health > 0 && self->enemy->health >= self->enemy->max_health)
+			hesDeadJim = true; // Target is fully healed, we are done.
+		else if (self->enemy->gib_health && self->enemy->health < self->enemy->gib_health)
+			hesDeadJim = true; // Target is gibbed and cannot be revived.
+		// Otherwise, hesDeadJim remains false, and we proceed.
 	}
 	else // Standard checks
 	{
