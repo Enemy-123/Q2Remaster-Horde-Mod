@@ -241,6 +241,10 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
+    // Clear ammo display completely for brain morph (no weapons shown)
+    ent->client->ps.stats[STAT_AMMO_ICON] = 0;
+    ent->client->ps.stats[STAT_AMMO] = 0;
+
     // Clear effects
     ent->s.effects &= ~EF_TELEPORTER;
 
@@ -367,6 +371,10 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     data->tongue_active = false;
     data->tongue_target = nullptr;
     data->next_frame_time = level.time;
+
+    // Clear any looping sounds (like chainsaw idle)
+    ent->s.sound = 0;
+    ent->client->weapon_sound = 0;
 
     // Set model and bounds
     ent->s.modelindex = gi.modelindex("models/monsters/brain/tris.md2");

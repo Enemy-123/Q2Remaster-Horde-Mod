@@ -366,6 +366,22 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
     // Clear weapon model
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
+    ent->s.sound = 0;
+
+    // Set weapon stats to show actual blaster ammo when morphed as flyer
+    // Ensure blaster is selected and show its regenerating ammo
+    auto* blaster = FindItem("Blaster");
+    if (blaster) {
+        // Select blaster if not already selected
+        if (ent->client->pers.weapon != blaster) {
+            ent->client->pers.weapon = blaster;
+            ent->client->pers.selected_item = blaster->id;
+        }
+        
+        // Show blaster ammo icon and actual blaster ammo count
+        ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex("a_cells");
+        ent->client->ps.stats[STAT_AMMO] = ent->client->blaster_ammo;
+    }
 
     // NOTE: All movement, collision, and angle updates have been removed.
     // Pmove in ClientThink is now handling this for smooth, correct flight.
@@ -536,6 +552,10 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
 
     // Set special entity type for M_ReactToDamage
     ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::MORPHED_PLAYER);
+
+    // Clear any looping sounds (like chainsaw idle)
+    ent->s.sound = 0;
+    ent->client->weapon_sound = 0;
 
     // Set model and bounds
     ent->s.modelindex = gi.modelindex("models/monsters/flyer/tris.md2");

@@ -2419,8 +2419,6 @@ void PutClientInServer(edict_t* ent)
 				level.intermission_origin = default_origin;
 				level.intermission_angle = default_angles;
 				level.respawn_intermission = true;
-
-				gi.Com_PrintFmt("PRINT: Advertencia: No se encontró un punto de intermission. Usando origen y ángulos por defecto.\n");
 			}
 		}
 
@@ -2551,6 +2549,13 @@ void PutClientInServer(edict_t* ent)
 	ent->svflags |= SVF_PLAYER;
 
 	ent->flags &= ~FL_SAM_RAIMI;  // PGM - turn off sam raimi flag
+
+	// Clear the special_type_id when respawning (fix for morphed player state persisting)
+	ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
+
+	// Clear any looping sounds (fix for hurt noises and weapon sounds persisting)
+	ent->s.sound = 0;
+	ent->client->weapon_sound = 0;
 
 	ent->mins = PLAYER_MINS;
 	ent->maxs = PLAYER_MAXS;
