@@ -236,6 +236,24 @@ void BrainRegenerate(edict_t* ent) {
             ent->timestamp = level.time;
         }
     }
+
+
+    // // POWER ARMOR REGENERATION (using blaster ammo as cells)
+
+    // // Regenerate power screen cells (slower than flyer's blaster regeneration)
+    // // Brain regenerates cells slower - every 15 frames instead of flyer's 8
+    // if (!(ent->client->buttons & BUTTON_ATTACK) && ent->client->blaster_ammo < 100) {
+    //     // Regenerate 1 cell every 15 frames (750ms at 20fps) - slower than flyer
+    //     if (level.time >= ent->client->blaster_regen_time) {
+    //         ent->client->blaster_ammo++;
+    //         // Cap at 100 cells for brain (double the flyer's 50)
+    //         if (ent->client->blaster_ammo > 100)
+    //             ent->client->blaster_ammo = 100;
+
+    //         // Set next regen time - 15 frames worth (750ms) - slower than flyer's 8 frames
+    //         ent->client->blaster_regen_time = level.time + (FRAME_TIME_MS * 15);
+    //     }
+    // }
 }
 
 // ==================== Frame Management ====================
@@ -249,9 +267,16 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
 
-    // Clear ammo display completely for brain morph (no weapons shown)
-    ent->client->ps.stats[STAT_AMMO_ICON] = 0;
-    ent->client->ps.stats[STAT_AMMO] = 0;
+    // Display power screen cells using the blaster ammo system
+    ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex("a_cells");
+    ent->client->ps.stats[STAT_AMMO] = ent->client->blaster_ammo;
+
+    // // Keep power screen always active for brain
+    // ent->flags |= FL_POWER_ARMOR;
+    // ent->client->pers.inventory[IT_ITEM_POWER_SCREEN] = 1;
+
+    // // Make power screen use blaster ammo as cells
+    // ent->client->pers.inventory[IT_AMMO_CELLS] = ent->client->blaster_ammo;
 
     // Clear effects
     ent->s.effects &= ~EF_TELEPORTER;
@@ -419,10 +444,18 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     // Clear weapon
     ent->client->ps.gunindex = 0;
 
+    // // Initialize power screen using blaster ammo cells
+    // ent->client->blaster_ammo = 50; // Start with 50 cells for power screen
+    // ent->client->blaster_regen_time = level.time; // Initialize regen timer
+
+    // // Enable power screen (always on for brain)
+    // ent->flags |= FL_POWER_ARMOR;
+    // ent->client->pers.inventory[IT_ITEM_POWER_SCREEN] = 1;
+
     // Play transformation sound
     gi.sound(ent, CHAN_WEAPON, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NORM, 0);
 
-    gi.LocClient_Print(ent, PRINT_HIGH, "Transformed into Brain! Hold attack to use tongue pull. Type 'brain' again to transform back.\n");
+    gi.LocClient_Print(ent, PRINT_HIGH, "Transformed into Brain! Hold attack to use tongue pull. Power screen active using cells. Type 'brain' again to transform back.\n");
 
     gi.linkentity(ent);
 }
