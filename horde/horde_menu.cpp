@@ -1683,6 +1683,10 @@ private:
 	std::vector<PlayerScore> spectators;
 	int total_score;
 
+	// New constants for better overflow protection
+	static constexpr size_t MAX_SPECTATORS_TO_DISPLAY = 8;
+	static constexpr size_t MAX_BONUS_STRING_LENGTH = 100;
+
 public:
 	ScoreboardLayout(edict_t* player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
 		: layout_builder(reserve_size), ent(player_ent), total_score(0) {
@@ -1739,9 +1743,14 @@ public:
 			// Normal game display
 			layout_builder.append("if 25 xv -90 yv 10 dogtag endif \n");
 
-			// Active bonuses (per-player)
+			// Active bonuses (per-player) with length check
 			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
 			if (!activeBonuses.empty()) {
+				// Truncate if too long to prevent overflow
+				if (activeBonuses.length() > MAX_BONUS_STRING_LENGTH) {
+					activeBonuses.resize(MAX_BONUS_STRING_LENGTH);
+					activeBonuses += "...";
+				}
 				layout_builder.append(fmt::format(
 					"if 0 xv 208 yv 8 string \"{}\" endif \n", activeBonuses));
 			}
@@ -1767,15 +1776,17 @@ public:
 					"if 0 xv -135 yv {} string \"[Dead]\" endif ", y));
 			}
 
-			// Add player information
+			// Add player information with extra spacing after score for 4-digit scores
+			// Using a fixed width format for score to ensure consistent spacing
 			layout_builder.append(fmt::format(
-				"if 0 ctf -90 {} {} {} {} \"\" endif \n",
+				"if 0 ctf -90 {} {} {:5} {} \"\" endif \n",
 				y, player.index, player.score, player.ping));
 		}
 	}
 
 	void addSpectators() {
 		// Only add spectators if there's enough space and there are spectators
+		// Also limit the number of spectators displayed
 		if (layout_builder.size() < MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN && !spectators.empty()) {
 			// Calculate vertical position after team players
 			int y = PLAYER_Y_START + (std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY) + 2) * PLAYER_Y_SPACING;
@@ -1785,12 +1796,27 @@ public:
 				"if 0 xv -90 yv {} loc_string2 0 \"Spectators & AFK\" endif \n", y));
 			y += PLAYER_Y_SPACING;
 
-			// Add each spectator
-			for (const auto& spec : spectators) {
+			// Add each spectator (with limit)
+			size_t spectators_to_display = std::min(spectators.size(), MAX_SPECTATORS_TO_DISPLAY);
+			for (size_t i = 0; i < spectators_to_display; ++i) {
+				const auto& spec = spectators[i];
+
+				// Check if we still have space before adding each spectator
+				if (layout_builder.size() >= MAX_CTF_STAT_LENGTH - LAYOUT_SAFETY_MARGIN) {
+					break;
+				}
+
 				layout_builder.append(fmt::format(
-					"if 0 ctf -90 {} {} {} {} \"\" endif \n",
+					"if 0 ctf -90 {} {} {:5} {} \"\" endif \n",
 					y, spec.index, spec.score, spec.ping));
 				y += PLAYER_Y_SPACING;
+			}
+
+			// If there are more spectators than displayed, show a count
+			if (spectators.size() > spectators_to_display) {
+				layout_builder.append(fmt::format(
+					"if 0 xv -90 yv {} string \"... and {} more\" endif \n",
+					y, spectators.size() - spectators_to_display));
 			}
 		}
 	}
