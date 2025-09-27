@@ -872,15 +872,15 @@ MMOVE_T(medic_move_stand) = { FRAME_wait1, FRAME_wait90, medic_frames_stand, nul
 MONSTERINFO_STAND(medic_stand) (edict_t* self) -> void
 {
 	// Debug output for friendly medics
-	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
-	{
-		gi.Com_PrintFmt("MEDIC_STAND: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
-			(self->monsterinfo.pausetime - level.time).seconds(),
-			self->enemy ? self->enemy->classname : "null",
-			self->oldenemy ? self->oldenemy->classname : "null",
-			(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
-			(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
-	}
+	// if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
+	// {
+	// 	gi.Com_PrintFmt("MEDIC_STAND: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
+	// 		(self->monsterinfo.pausetime - level.time).seconds(),
+	// 		self->enemy ? self->enemy->classname : "null",
+	// 		self->oldenemy ? self->oldenemy->classname : "null",
+	// 		(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
+	// 		(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
+	// }
 	M_SetAnimation(self, &medic_move_stand);
 }
 
@@ -904,15 +904,15 @@ MONSTERINFO_WALK(medic_walk) (edict_t* self) -> void
 {
 
 		// Debug output for friendly medics
-	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
-	{
-		gi.Com_PrintFmt("MEDIC_walk: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
-			(self->monsterinfo.pausetime - level.time).seconds(),
-			self->enemy ? self->enemy->classname : "null",
-			self->oldenemy ? self->oldenemy->classname : "null",
-			(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
-			(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
-	}
+	// if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
+	// {
+	// 	gi.Com_PrintFmt("MEDIC_walk: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
+	// 		(self->monsterinfo.pausetime - level.time).seconds(),
+	// 		self->enemy ? self->enemy->classname : "null",
+	// 		self->oldenemy ? self->oldenemy->classname : "null",
+	// 		(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
+	// 		(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
+	// }
 
 	// Don't look for healing if we have an active enemy threat
 	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
@@ -1809,7 +1809,7 @@ void medic_finish_and_hunt(edict_t* self)
 
 	// Force transition to stand mode where FindTarget and horde logic can work
 	M_SetAnimation(self, &medic_move_stand);
-	self->monsterinfo.stand(self);
+	//self->monsterinfo.stand(self);
 }
 
 void medic_hook_retract(edict_t* self)
