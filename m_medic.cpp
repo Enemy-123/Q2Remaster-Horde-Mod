@@ -408,8 +408,11 @@ bool finishHeal(edict_t* self)
 	healee->s.effects &= ~EF_FLIES;
 	healee->monsterinfo.healer = nullptr;
 
-		// Set revived monster's team to match the medic's team
+		// Set revived entity's team to match the medic's team
 	healee->ctf_team = self->ctf_team;
+	if (healee->svflags & SVF_MONSTER) {
+		healee->monsterinfo.team = static_cast<uint8_t>(self->ctf_team);
+	}
 
 	// Handle targeting - for horde mode, just stand initially
 	if (g_horde->integer) {
@@ -475,8 +478,8 @@ edict_t* healFindMonster(edict_t* self, float radius)
 	{
 		if (ent == self)
 			continue;
-		// Check for both monsters and bodyque entities
-		if (!(ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "bodyque") != 0)
+		// Check for monsters, bodyque entities, and players
+		if (!(ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "bodyque") != 0 && !ent->client)
 			continue;
 		if (ent->monsterinfo.aiflags & AI_GOOD_GUY)
 			continue;
@@ -497,13 +500,14 @@ edict_t* healFindMonster(edict_t* self, float radius)
 			continue;
 		if (!visible(self, ent))
 			continue;
-		if (!strncmp(ent->classname, "player", 6)) // stop it from trying to heal player_noise entities
+		// Skip player_noise entities but allow actual players
+		if (!strcmp(ent->classname, "player_noise"))
 			continue;
 
-		// Check for injured teammates (alive but hurt)
+		// Check for injured entities (alive but hurt)
 		if (ent->health > 0 && ent->health < ent->max_health)
 		{
-			// Store injured teammates for later consideration
+			// Only heal teammates (both monsters and players)
 			if (OnSameTeam(self, ent))
 			{
 				if (!best_injured_teammate || ent->health < best_injured_teammate->health)
@@ -514,7 +518,7 @@ edict_t* healFindMonster(edict_t* self, float radius)
 			continue; // Don't consider alive entities for revival
 		}
 
-		// Dead entity handling (for revival) - revive ANY dead monster, not just teammates
+		// Dead entity handling (for revival) - revive ANY dead corpse
 		if (ent->health > 0)
 			continue;
 		if ((ent->nextthink) && (ent->think != monster_dead_think))
@@ -524,15 +528,15 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		if (ent->gib_health && ent->health < ent->gib_health)
 			continue;
 
-		// For dead monsters, pick the best one regardless of team
+		// For dead entities, pick the best one regardless of team (we'll assign them to our team)
 		if (!best_dead || ent->max_health > best_dead->max_health)
 		{
 			best_dead = ent;
 		}
 	}
 
-	// Priority order for horde mode:
-	// 1. Dead monsters (always prioritize resurrection)
+	// Priority order:
+	// 1. Dead corpses (always prioritize resurrection - they'll join our team)
 	// 2. Injured teammates (for healing)
 	if (best_dead)
 		return best_dead;
@@ -1377,6 +1381,13 @@ void medic_cable_attack(edict_t* self)
             // Resurrect corpse in horde mode
             if (self->s.frame == FRAME_attack43)
             {
+                // Force immediate team change for the corpse BEFORE resurrection
+                self->enemy->ctf_team = self->ctf_team;
+                if (self->enemy->svflags & SVF_MONSTER)
+                {
+                    self->enemy->monsterinfo.team = static_cast<uint8_t>(self->ctf_team);
+                }
+
                 // Start resurrection - mark as resurrecting but keep as dead for now
                 self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
                 self->enemy->monsterinfo.attack_finished = level.time + 1_sec; // Fast resurrection for better gameplay
@@ -1394,13 +1405,37 @@ void medic_cable_attack(edict_t* self)
 
             self->enemy->health = min((int)self->enemy->health + heal_amount, (int)self->enemy->max_health);
 
-            // If monster has power armor, heal that too
-        if (self->enemy->monsterinfo.power_armor_power < self->enemy->monsterinfo.max_power_armor_power)
-        {
-            self->enemy->monsterinfo.power_armor_power += heal_amount / 2;
-            if (self->enemy->monsterinfo.power_armor_power > self->enemy->monsterinfo.max_power_armor_power)
-                self->enemy->monsterinfo.power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
-        }
+            // Heal armor for both monsters and players
+            if (self->enemy->svflags & SVF_MONSTER)
+            {
+                // Heal monster's regular armor
+                if (self->enemy->monsterinfo.armor_power < 200) // Max armor cap
+                {
+                    self->enemy->monsterinfo.armor_power = min(self->enemy->monsterinfo.armor_power + heal_amount / 2, 200);
+                }
+
+                // Heal monster's power armor
+                if (self->enemy->monsterinfo.power_armor_power < self->enemy->monsterinfo.max_power_armor_power)
+                {
+                    self->enemy->monsterinfo.power_armor_power += heal_amount / 2;
+                    if (self->enemy->monsterinfo.power_armor_power > self->enemy->monsterinfo.max_power_armor_power)
+                        self->enemy->monsterinfo.power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
+                }
+            }
+            else if (self->enemy->client)
+            {
+                // Heal player's armor
+                int armor_index = ArmorIndex(self->enemy);
+                if (armor_index != IT_NULL)
+                {
+                    int max_armor = 200; // Default max armor
+                    int current_armor = self->enemy->client->pers.inventory[armor_index];
+                    if (current_armor < max_armor)
+                    {
+                        self->enemy->client->pers.inventory[armor_index] = min(current_armor + heal_amount / 2, max_armor);
+                    }
+                }
+            }
         
         // Hold monster in place while healing using dedicated healing pause
         if (self->enemy->svflags & SVF_MONSTER)
