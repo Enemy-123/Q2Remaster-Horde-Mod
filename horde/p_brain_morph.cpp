@@ -65,13 +65,34 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
     vec3_t const diff = start - self->s.origin;
     float const dist = diff.length();
 
-    // Release if out of range
+    // Release if out of range or no line of sight
     if (dist > BRAIN_TONGUE_RANGE) {
         data->tongue_active = false;
         data->tongue_target = nullptr;
         data->attack_finished = level.time + 1_sec;
         return;
     }
+
+    // Check line of sight
+    trace_t tr = gi.traceline(self->s.origin, data->tongue_target->s.origin, self, MASK_SHOT);
+    if (tr.fraction < 1.0f && tr.ent != data->tongue_target) {
+        // Lost line of sight
+        data->tongue_active = false;
+        data->tongue_target = nullptr;
+        return;
+    }
+
+    // Face the target
+    vec3_t ideal_angles = vectoangles(diff);
+
+    // Only update yaw (left-right rotation)
+    if (self->client) {
+        float angle_diff = ideal_angles[YAW] - self->client->resp.cmd_angles[YAW];
+        self->client->ps.pmove.delta_angles[YAW] = angle_diff;
+        self->client->v_angle[YAW] = ideal_angles[YAW];
+        self->client->ps.viewangles[YAW] = ideal_angles[YAW];
+    }
+    self->s.angles[YAW] = ideal_angles[YAW];
 
     // Calculate pull and damage values (from m_brain.cpp)
     const vec3_t dir = diff.normalized();
@@ -149,9 +170,12 @@ static void BrainFindTarget(edict_t* self) {
 
         float dist = (target->s.origin - self->s.origin).length();
         if (dist < best_dist) {
-            // No line of sight needed for brain tongue
-            best = target;
-            best_dist = dist;
+            // Check line of sight for brain tongue
+            trace_t tr = gi.traceline(self->s.origin, target->s.origin, self, MASK_SHOT);
+            if (tr.fraction == 1.0f || tr.ent == target) {
+                best = target;
+                best_dist = dist;
+            }
         }
     }
 
@@ -171,8 +195,12 @@ static void BrainFindTarget(edict_t* self) {
 
         float dist = (ent->s.origin - self->s.origin).length();
         if (dist < best_dist) {
-            best = ent;
-            best_dist = dist;
+            // Check line of sight
+            trace_t tr = gi.traceline(self->s.origin, ent->s.origin, self, MASK_SHOT);
+            if (tr.fraction == 1.0f || tr.ent == ent) {
+                best = ent;
+                best_dist = dist;
+            }
         }
     }
 
@@ -220,8 +248,11 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     // Track if we're jumping for animation
     bool is_jumping = !ent->groundentity && (ent->waterlevel < 2);
 
-    // Handle attacks - only allow when on ground
-    if ((ucmd.buttons & BUTTON_ATTACK) && ent->groundentity) {
+    // Check if we're moving
+    bool is_moving = (ucmd.forwardmove != 0) || (ucmd.sidemove != 0);
+
+    // Handle attacks - only allow when on ground and not moving
+    if ((ucmd.buttons & BUTTON_ATTACK) && ent->groundentity && !is_moving) {
         // Start attack if not already attacking
         if (!data->tongue_active) {
             BrainTongueAttack(ent, data);
@@ -253,7 +284,7 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
         // Jump animation - hold frame while in air
         ent->s.frame = BRAIN_FRAMES_JUMP_HOLD;
     } else if (!data->tongue_active) {
-        if (ucmd.forwardmove || ucmd.sidemove) {
+        if (is_moving) {
             // Walking animation - using proper brain walk frames
             if (ent->s.frame < BRAIN_FRAMES_WALK_START || ent->s.frame > BRAIN_FRAMES_WALK_END)
                 ent->s.frame = BRAIN_FRAMES_WALK_START;
@@ -263,17 +294,17 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
                     ent->s.frame = BRAIN_FRAMES_WALK_START;
             }
         } else {
-            // Standing animation - cycle through all 60 stand frames slowly
+            // Standing animation - cycle through all 30 stand frames slowly
             if (ent->s.frame < BRAIN_FRAMES_STAND_START || ent->s.frame > BRAIN_FRAMES_STAND_END)
                 ent->s.frame = BRAIN_FRAMES_STAND_START;
             else {
-                // Slow down standing animation (advance every 3 game frames)
+                // Slow down standing animation (advance every 2 game frames)
                 if (level.time >= data->next_frame_time) {
                     ent->s.frame++;
                     if (ent->s.frame > BRAIN_FRAMES_STAND_END)
                         ent->s.frame = BRAIN_FRAMES_STAND_START;
-                    // Set next frame time
-                    data->next_frame_time = level.time + (FRAME_TIME_MS * 3);
+                    // Set next frame time (slower for smooth idle animation)
+                    data->next_frame_time = level.time + (FRAME_TIME_MS * 2);
                 }
             }
         }
