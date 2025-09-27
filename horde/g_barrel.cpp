@@ -12,7 +12,7 @@ constexpr float BARREL_BOUNCE_MULTIPLIER = 1.2f;
 constexpr float BARREL_MIN_BOUNCE_SPEED = 100.0f;
 constexpr float BARREL_BOUNCE_RANDOM = 50.0f;
 constexpr float BARREL_VERTICAL_BOOST = 150.0f;
-constexpr gtime_t BARREL_BURN_TIME = 750_ms;
+constexpr gtime_t BARREL_BURN_TIME = 800_sec;  // Increased for longer burn effect
 constexpr float BARREL_CHAIN_EXPLOSION_RADIUS = 250.0f;
 constexpr gtime_t BARREL_CHAIN_DELAY = 100_ms;
 
@@ -32,20 +32,20 @@ void barrel_remove(edict_t* self)
     self->takedamage = false;
 
     // Decrement player's barrel count
-    if (self->owner && self->owner->client)
+    if (self->chain && self->chain->client)
     {
-        self->owner->client->resp.num_barrels--;
+        self->chain->client->resp.num_barrels--;
 
         // If this was a held barrel, clear it
-        if (self->owner->client->resp.held_barrel == self)
-            self->owner->client->resp.held_barrel = nullptr;
+        if (self->chain->client->resp.held_barrel == self)
+            self->chain->client->resp.held_barrel = nullptr;
 
         // Clear this barrel from the tracking array
         for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
         {
-            if (self->owner->client->resp.deployed_barrels[i] == self)
+            if (self->chain->client->resp.deployed_barrels[i] == self)
             {
-                self->owner->client->resp.deployed_barrels[i] = nullptr;
+                self->chain->client->resp.deployed_barrels[i] = nullptr;
                 break;
             }
         }
@@ -74,23 +74,23 @@ DIE(barrel_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
         return;
 
     self->deadflag = true;
-    self->activator = attacker;
+    // Don't set activator - always use chain (owner) for damage attribution
 
         // Clean up barrel tracking
-    if (self->owner && self->owner->client)
+    if (self->chain && self->chain->client)
     {
-        self->owner->client->resp.num_barrels--;
+        self->chain->client->resp.num_barrels--;
 
         // If this was a held barrel, clear it
-        if (self->owner->client->resp.held_barrel == self)
-            self->owner->client->resp.held_barrel = nullptr;
+        if (self->chain->client->resp.held_barrel == self)
+            self->chain->client->resp.held_barrel = nullptr;
 
         // Clear this barrel from the tracking array
         for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
         {
-            if (self->owner->client->resp.deployed_barrels[i] == self)
+            if (self->chain->client->resp.deployed_barrels[i] == self)
             {
-                self->owner->client->resp.deployed_barrels[i] = nullptr;
+                self->chain->client->resp.deployed_barrels[i] = nullptr;
                 break;
             }
         }
@@ -142,8 +142,8 @@ void barrel_burn_damage(edict_t* self)
             if (dist <= BURN_DAMAGE_RADIUS)
             {
                 // Deal small damage to attract attention
-                // Use owner if no activator is set
-                edict_t* damage_attacker = self->activator ? self->activator : (self->owner ? self->owner : self);
+                // Use chain (owner) if no activator is set
+                edict_t* damage_attacker = self->activator ? self->activator : (self->chain ? self->chain : self);
                 T_Damage(ent, self, damage_attacker,
                         vec3_origin, ent->s.origin, vec3_origin,
                         damage_this_frame, 0, DAMAGE_NONE, MOD_UNKNOWN);
@@ -156,9 +156,9 @@ void barrel_burn_damage(edict_t* self)
     static gtime_t last_debug_time = 0_sec;
     if (monsters_damaged > 0 && level.time - last_debug_time > 1_sec)
     {
-        if (self->owner && self->owner->client)
+        if (self->chain && self->chain->client)
         {
-            gi.LocClient_Print(self->owner, PRINT_HIGH, "Barrel burning: {} monsters in range\n", monsters_damaged);
+            gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {} monsters in range\n", monsters_damaged);
         }
         last_debug_time = level.time;
     }
@@ -226,8 +226,8 @@ THINK(barrel_explode)(edict_t* self) -> void
         damage = damage * (1.0f + (current_wave_level * 0.1f));
     }
 
-    // Radius damage
-    T_RadiusDamage(self, self->activator, (float)damage, nullptr,
+    // Radius damage - always use chain (owner) for damage attribution
+    T_RadiusDamage(self, self->chain, (float)damage, nullptr,
                    BarrelConstants::BARREL_EXPLOSION_RADIUS, DAMAGE_NONE, MOD_G_SPLASH);
 
     // Throw gibs
@@ -247,24 +247,110 @@ THINK(barrel_explode)(edict_t* self) -> void
         BecomeExplosion1(self);
 
     // Clean up barrel tracking
-    if (self->owner && self->owner->client)
+    if (self->chain && self->chain->client)
     {
-        self->owner->client->resp.num_barrels--;
+        self->chain->client->resp.num_barrels--;
 
         // If this was a held barrel, clear it
-        if (self->owner->client->resp.held_barrel == self)
-            self->owner->client->resp.held_barrel = nullptr;
+        if (self->chain->client->resp.held_barrel == self)
+            self->chain->client->resp.held_barrel = nullptr;
 
         // Clear this barrel from the tracking array
         for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
         {
-            if (self->owner->client->resp.deployed_barrels[i] == self)
+            if (self->chain->client->resp.deployed_barrels[i] == self)
             {
-                self->owner->client->resp.deployed_barrels[i] = nullptr;
+                self->chain->client->resp.deployed_barrels[i] = nullptr;
                 break;
             }
         }
     }
+}
+
+// Touch function for barrels with summoned-style behavior
+// Allows owner to push them like summoned strogg
+TOUCH(barrel_summoned_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+    // Only the owner (chain) can push the barrel with special mechanics
+    if (!other->client || !self->chain)
+        return;
+
+    // Check if this is the owner
+    if (other != self->chain)
+    {
+        // Non-owners get normal collision
+        return;
+    }
+
+    // Don't push if owner is not on ground or not touching properly
+    if (!other->groundentity || !other_touching_self)
+        return;
+
+    // Check if player wants to pickup (looking down at barrel)
+    if (other->client->v_angle[PITCH] > 45.0f) // Looking down more than 45 degrees
+    {
+        // Try to pick up the barrel
+        if (!other->client->resp.held_barrel && !self->deadflag)
+        {
+            // Pick it up
+            other->client->resp.held_barrel = self;
+            self->solid = SOLID_NOT;
+            self->svflags |= SVF_NOCLIENT; // Hide the barrel
+            gi.linkentity(self);
+
+            gi.sound(other, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
+            gi.LocClient_Print(other, PRINT_HIGH, "Picked up barrel\n");
+        }
+        return;
+    }
+
+    // Calculate push direction and strength
+    vec3_t push_dir;
+    float push_speed = 400.0f; // Same as summoned strogg
+
+    // Check if owner is looking up (towards sky/roof)
+    if (other->client->v_angle[PITCH] < -45.0f) // Looking up more than 45 degrees
+    {
+        // Vertical push - launch the barrel upward
+        self->velocity[2] = push_speed * 1.5f; // Strong vertical push
+
+        // Add some forward momentum based on view
+        vec3_t forward;
+        AngleVectors(other->client->v_angle, forward, nullptr, nullptr);
+        self->velocity[0] += forward[0] * push_speed * 0.3f;
+        self->velocity[1] += forward[1] * push_speed * 0.3f;
+
+        // Make sure barrel is off ground for the jump
+        self->groundentity = nullptr;
+
+        // Add rotation for effect
+        self->avelocity = {
+            (frandom() * 2.0f - 1.0f) * 180,
+            (frandom() * 2.0f - 1.0f) * 180,
+            (frandom() * 2.0f - 1.0f) * 180
+        };
+    }
+    else
+    {
+        // Horizontal push based on player's view direction
+        vec3_t forward;
+        AngleVectors(other->client->v_angle, forward, nullptr, nullptr);
+
+        // Apply velocity directly for immediate push
+        self->velocity[0] = forward[0] * push_speed;
+        self->velocity[1] = forward[1] * push_speed;
+        self->velocity[2] = 100; // Small upward component to help with obstacles
+
+        // Add some rotation for visual effect
+        self->avelocity = {
+            (frandom() * 2.0f - 1.0f) * 90,
+            (frandom() * 2.0f - 1.0f) * 90,
+            (frandom() * 2.0f - 1.0f) * 90
+        };
+    }
+
+    // Update physics
+    gi.linkentity(self);
 }
 
 void barrel_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
@@ -316,7 +402,7 @@ TOUCH(barrel_land)(edict_t* self, edict_t* other, const trace_t& tr, bool other_
         self->velocity = {};
         self->avelocity = {};
         self->movetype = MOVETYPE_STEP;
-        self->touch = barrel_touch;
+        self->touch = barrel_summoned_touch;  // Use summoned touch behavior
         self->think = barrel_think;
         self->nextthink = level.time + FRAME_TIME_S;
 
@@ -464,6 +550,9 @@ THINK(barrel_think)(edict_t* self) -> void
 THINK(barrel_start)(edict_t* self) -> void
 {
     M_droptofloor(self);
+
+    if (self->health <= 0)
+     self->s.effects |= EF_BARREL_EXPLODING;
     self->think = barrel_think;
     self->nextthink = level.time + FRAME_TIME_S;
 }
@@ -587,13 +676,12 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     // Set up barrel properties
     barrel->movetype = MOVETYPE_BOUNCE;
     barrel->solid = SOLID_BBOX;
-    barrel->s.effects |= EF_GRENADE;
     barrel->mins = { -16, -16, 0 };
     barrel->maxs = { 16, 16, 40 };
     barrel->s.modelindex = gi.modelindex("models/objects/barrels/tris.md2");
 
-    barrel->owner = self;
     barrel->teammaster = self;
+    barrel->chain = self;  // Set chain for summoned-style chain->teammastership
 
     // Set to NOTEAM so barrels can be damaged by anyone
     barrel->ctf_team = CTF_NOTEAM;
@@ -849,11 +937,12 @@ void Cmd_Barrel_f(edict_t* ent)
         barrel->classname = "horde_barrel";
         barrel->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::BARREL);
         barrel->flags |= FL_TRAP;
-        barrel->touch = barrel_touch;
+        barrel->touch = barrel_summoned_touch;  // Use summoned touch behavior
         barrel->think = barrel_start;
         barrel->nextthink = level.time + 20_hz;
-        barrel->owner = ent;
+        //barrel->chain->teammaster = ent;
         barrel->teammaster = ent;
+        barrel->chain = ent;  // Set chain for summoned-style chain->teammastership
 
         gi.linkentity(barrel);
         gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned at your location.\n");

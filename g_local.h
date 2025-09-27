@@ -2956,7 +2956,7 @@ namespace BarrelConstants {
     constexpr gtime_t BARREL_LIFETIME = 120_sec;
     constexpr int32_t BARREL_BASE_HEALTH = 30;
     constexpr int32_t BARREL_BASE_DAMAGE = 150;
-    constexpr float BARREL_EXPLOSION_RADIUS = 200.0f;
+    constexpr float BARREL_EXPLOSION_RADIUS = 400.0f;  // Increased for better area effect
     constexpr float BARREL_PICKUP_RANGE = 128.0f;
     constexpr float BARREL_THROW_SPEED = 700.0f;
 }
