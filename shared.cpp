@@ -499,11 +499,42 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->svflags |= SVF_PLAYER;
 		monster->s.renderfx &= ~RF_DOT_SHADOW;
 
-		monster->monsterinfo.team = (monster->owner && monster->owner->client) 
-			? monster->owner->client->resp.ctf_team 
+		monster->monsterinfo.team = (monster->owner && monster->owner->client)
+			? monster->owner->client->resp.ctf_team
 			: CTF_NOTEAM;
 
 		gi.linkentity(monster);
+	}
+
+	// Check if this monster is spawned by a summoned commander // would be better making it a helper function?
+	// This handles reinforcements from medic_commander, tank_spawner, carrier, widow, etc.
+	if (monster->monsterinfo.commander && monster->monsterinfo.commander->inuse) {
+		edict_t* commander = monster->monsterinfo.commander;
+
+		// If the commander has a chain (meaning it's summoned), inherit its properties
+		if (commander->chain && commander->teammaster) {
+			// Inherit summoned properties
+			monster->chain = commander->chain;  // Point to same base
+			monster->teammaster = commander->teammaster;  // Point to same player owner
+			monster->touch = strogg_summoned_touch;  // Allow owner to push
+			monster->monsterinfo.issummoned = true;
+			monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+			monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
+
+			// Set team properly based on the player owner
+			if (monster->teammaster->client) {
+				monster->ctf_team = monster->teammaster->client->resp.ctf_team;
+				monster->monsterinfo.team = monster->teammaster->client->resp.ctf_team;
+			}
+
+			// Ensure proper collision for summoned monsters
+			monster->svflags &= ~SVF_PLAYER;
+			monster->svflags |= SVF_MONSTER;
+			monster->solid = SOLID_BBOX;
+			monster->clipmask = MASK_MONSTERSOLID;
+
+			gi.linkentity(monster);
+		}
 	}
 
 	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;

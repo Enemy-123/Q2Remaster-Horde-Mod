@@ -217,7 +217,10 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	// Apply friendly flag but do NOT set owner
 	// This maintains monster's independence and solidity
 	monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
-	monster->ctf_team = CTF_TEAM1; // Default team if no owner
+	// Only set default team if no owner was found
+	if (!base->teammaster || !base->teammaster->client) {
+		monster->ctf_team = CTF_TEAM1; // Default team only if no owner
+	}
 
 
 	// Important: Do NOT set monster->owner = base->teammaster
@@ -509,5 +512,52 @@ void Cmd_RemoveStrogg_f(edict_t* ent)
 	else
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "No summoned Strogg found.\n");
+	}
+}
+
+void Cmd_RemoveAllSummons_f(edict_t* ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	int removed_count = 0;
+	
+	// Create a list of entities to remove (can't modify while iterating)
+	std::vector<edict_t*> ents_to_remove;
+	
+	// Find all entities that have this player as their teammaster
+	for (int i = 1; i < globals.num_edicts; i++) {
+		edict_t* check = &g_edicts[i];
+		if (check && check->inuse && check->teammaster == ent && check->chain) {
+			// This is a summoned entity (has both teammaster pointing to player and chain)
+			ents_to_remove.push_back(check);
+		}
+	}
+
+	// Remove all found summons
+	for (edict_t* summon : ents_to_remove) {
+		if (summon && summon->inuse) {
+			removed_count++;
+			
+			// Check if it's a strogg base
+			if (summon->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER)) {
+				strogg_summoner_die(summon, ent, ent, 0, summon->s.origin, MOD_UNKNOWN);
+			}
+			// Otherwise just remove it normally
+			else if (summon->die) {
+				summon->die(summon, ent, ent, 0, summon->s.origin, MOD_UNKNOWN);
+			} else {
+				G_FreeEdict(summon);
+			}
+		}
+	}
+
+	if (removed_count > 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "{} summoned entities dismissed.\n", removed_count);
+	}
+	else
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "No summoned entities found.\n");
 	}
 }

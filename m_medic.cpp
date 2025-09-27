@@ -576,8 +576,8 @@ edict_t* healFindMonster(edict_t* self, float radius)
 				// In horde mode, friendly medics heal players and friendly monsters
 				if (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY))
 				{
-					// Heal players on CTF_TEAM1
-					if (ent->client && (ent->svflags & SVF_PLAYER) && ent->ctf_team == CTF_TEAM1)
+					// Heal players on the same team as the medic
+					if (ent->client && (ent->svflags & SVF_PLAYER) && GetEntityTeam(ent) == GetEntityTeam(self))
 						can_heal = true;
 					// Heal friendly monsters
 					else if ((ent->svflags & SVF_MONSTER) && OnSameTeam(self, ent))
@@ -717,7 +717,7 @@ edict_t* medic_FindDeadMonster(edict_t* self)
 {
 	// **CORE FIX: Respect resurrection cooldown**
 	// If we recently completed a resurrection, don't look for corpses yet.
-	if (level.time - self->monsterinfo.last_resurrection_time < 1_sec)
+	if (level.time - self->monsterinfo.last_resurrection_time < 0.3_sec)
 		return nullptr;
 
 	float	radius;

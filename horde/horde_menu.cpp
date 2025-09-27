@@ -1013,7 +1013,11 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	bool shouldCloseMenu = true; // Default to closing the menu
 
 	// Use strncmp for options that might have counts appended or dynamic text
-	if (strncmp(selected_text, "Remove Strogg", strlen("Remove Strogg")) == 0) {
+	if (strncmp(selected_text, "Remove All Summons", strlen("Remove All Summons")) == 0) {
+		Cmd_RemoveAllSummons_f(ent);
+		// Message handled internally, menu should close.
+	}
+	else if (strncmp(selected_text, "Remove Strogg", strlen("Remove Strogg")) == 0) {
 		Cmd_RemoveStrogg_f(ent);
 		// Message handled internally, menu should close.
 	}
@@ -1097,6 +1101,18 @@ void OpenMiscMenu(edict_t* ent) {
 	}
 
 	// --- Conditional Remove Options (MODIFIED) ---
+
+	// Count ALL summoned entities for this player (including reinforcements)
+	int all_summons_count = 0;
+	for (int i = 1; i < globals.num_edicts; i++) {
+		edict_t* check = &g_edicts[i];
+		if (check && check->inuse && check->teammaster == ent && check->chain) {
+			all_summons_count++;
+		}
+	}
+	if (all_summons_count > 0) {
+		add_entry(G_Fmt("Remove All Summons ({})", all_summons_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
 
 	// Count Strogg summons for this player
 	int strogg_count = 0;

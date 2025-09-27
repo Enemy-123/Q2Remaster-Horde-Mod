@@ -1106,6 +1106,14 @@ void MakronToss(edict_t* self)
 		ent->enemy = self->enemy;
 	}
 
+	// If the dying Jorg was summoned, make the spawned Makron inherit its properties // would be better making it a helper function?
+	if (self->chain && self->teammaster) {
+		ent->chain = self->chain;  // Inherit chain to strogg base
+		ent->teammaster = self->teammaster;  // Inherit player owner
+		ent->monsterinfo.issummoned = true;
+		// Team will be set properly by ApplyMonsterBonusFlags
+	}
+
 	// Decide whether to spawn based on horde settings and boss status
 	if (!g_horde->integer || (g_horde->integer && !self->monsterinfo.IS_BOSS)) {
 		MakronSpawn(ent);

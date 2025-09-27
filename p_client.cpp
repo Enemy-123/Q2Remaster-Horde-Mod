@@ -4664,50 +4664,50 @@ static bool G_CoopRespawn(edict_t* ent)
 
 					squad_respawn_position = good_spot;
 
-					// If the respawning player is human (not a bot), add some offset
-					// to avoid spawning at exactly the same position
-					if (!(ent->svflags & SVF_BOT))
-					{
-						// Try to find a valid offset position for human players
-						vec3_t test_pos;
-						trace_t trace;
-						bool found_valid_offset = false;
+					// // If the respawning player is human (not a bot), add some offset
+					// // to avoid spawning at exactly the same position
+					// if (!(ent->svflags & SVF_BOT))
+					// {
+					// 	// Try to find a valid offset position for human players
+					// 	vec3_t test_pos;
+					// 	trace_t trace;
+					// 	bool found_valid_offset = false;
 
-						// Try up to 8 different angles to find a valid spawn position
-						for (int attempts = 0; attempts < 8; attempts++)
-						{
-							float angle = frandom() * PIf * 2.0f;
-							float distance = 32.0f + frandom() * 32.0f; // 32-64 units away
+					// 	// Try up to 8 different angles to find a valid spawn position
+					// 	for (int attempts = 0; attempts < 8; attempts++)
+					// 	{
+					// 		float angle = frandom() * PIf * 2.0f;
+					// 		float distance = 32.0f + frandom() * 32.0f; // 32-64 units away
 
-							test_pos = squad_respawn_position;
-							test_pos[0] += cos(angle) * distance;
-							test_pos[1] += sin(angle) * distance;
+					// 		test_pos = squad_respawn_position;
+					// 		test_pos[0] += cos(angle) * distance;
+					// 		test_pos[1] += sin(angle) * distance;
 
-							// Check if the new position is valid (not in solid)
-							trace = gi.trace(squad_respawn_position, PLAYER_MINS, PLAYER_MAXS,
-											test_pos, ent, MASK_PLAYERSOLID);
+					// 		// Check if the new position is valid (not in solid)
+					// 		trace = gi.trace(squad_respawn_position, PLAYER_MINS, PLAYER_MAXS,
+					// 						test_pos, ent, MASK_PLAYERSOLID);
 
-							// Check if path is clear and destination is not stuck
-							if (trace.fraction == 1.0f && !trace.allsolid && !trace.startsolid)
-							{
-								// Additional check: make sure the player won't be stuck at the new position
-								trace_t pos_check = gi.trace(test_pos, PLAYER_MINS, PLAYER_MAXS,
-															 test_pos, ent, MASK_PLAYERSOLID);
+					// 		// Check if path is clear and destination is not stuck
+					// 		if (trace.fraction == 1.0f && !trace.allsolid && !trace.startsolid)
+					// 		{
+					// 			// Additional check: make sure the player won't be stuck at the new position
+					// 			trace_t pos_check = gi.trace(test_pos, PLAYER_MINS, PLAYER_MAXS,
+					// 										 test_pos, ent, MASK_PLAYERSOLID);
 
-								if (!pos_check.startsolid && !pos_check.allsolid)
-								{
-									// Valid position found
-									squad_respawn_position = test_pos;
-									found_valid_offset = true;
-									break;
-								}
-							}
-						}
+					// 			if (!pos_check.startsolid && !pos_check.allsolid)
+					// 			{
+					// 				// Valid position found
+					// 				squad_respawn_position = test_pos;
+					// 				found_valid_offset = true;
+					// 				break;
+					// 			}
+					// 		}
+					// 	}
 
-						// If no valid offset found, use original position (better than spawning in a wall)
-						// The original position was already validated by G_FindRespawnSpot
-					}
-					// Bots spawn at the exact same position (no offset)
+					// 	// If no valid offset found, use original position (better than spawning in a wall)
+					// 	// The original position was already validated by G_FindRespawnSpot
+					// }
+					// // Bots spawn at the exact same position (no offset)
 					
 					squad_respawn_angles = good_player->s.angles;
 					squad_respawn_angles[2] = 0;
