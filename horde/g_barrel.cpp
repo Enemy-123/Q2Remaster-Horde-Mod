@@ -641,6 +641,14 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     // Check barrel limit BEFORE placing a new one
     if (self && self->client)
     {
+        if (ClientIsSpectating(self->client)){
+         gi.Com_PrintFmt(" Can't do this while spect!\n");
+            return;  
+               }
+               
+        if (self->client->pers.health <= 0)
+            return;
+
         // If at limit, remove oldest barrel first
         if (self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER)
         {

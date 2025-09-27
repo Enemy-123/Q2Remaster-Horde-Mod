@@ -660,7 +660,7 @@ void medic_check_heal(edict_t* self)
 		// Check if this is a high-priority target
 		bool is_dead = (ent->health <= 0);
 		bool is_critical = (ent->health > 0 && ent->health < ent->max_health * 0.3f); // Less than 30% health
-		bool is_hurt = (ent->health > 0 && ent->health < ent->max_health * 0.85f); // Less than 75% health
+		bool is_hurt = (ent->health > 0 && ent->health < ent->max_health * 0.75f); // Less than 75% health
 		
 		// Check if it's a player that needs healing
 		bool is_player = (ent->client != nullptr);
@@ -1529,7 +1529,7 @@ bool M_NeedRegen(edict_t* target)
             return true;
         
         // Check regular armor
-        if (target->monsterinfo.armor_power < 200) // Max armor cap
+        if (target->monsterinfo.armor_power < target->max_health / 2) // Max armor cap
             return true;
     }
     // Check if player armor needs repair
