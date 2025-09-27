@@ -8,6 +8,7 @@
 #include "horde/g_horde_benefits.h"
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
+#include "horde/p_brain_morph.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -1084,6 +1085,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.max_health = 100;
 	ent->max_health = 100; // Also set entity's max_health
 
+	//
+	// BLASTER AMMO INITIALIZATION (Vortex-style)
+	//
+	client->blaster_ammo = 25; // Start with full blaster ammo
+	client->blaster_regen_time = level.time; // Initialize regen timer
 
 	//
 	// ARMOR INITIALIZATION (Clear existing)
@@ -2413,8 +2419,6 @@ void PutClientInServer(edict_t* ent)
 				level.intermission_origin = default_origin;
 				level.intermission_angle = default_angles;
 				level.respawn_intermission = true;
-
-				gi.Com_PrintFmt("PRINT: Advertencia: No se encontró un punto de intermission. Usando origen y ángulos por defecto.\n");
 			}
 		}
 
@@ -2545,6 +2549,13 @@ void PutClientInServer(edict_t* ent)
 	ent->svflags |= SVF_PLAYER;
 
 	ent->flags &= ~FL_SAM_RAIMI;  // PGM - turn off sam raimi flag
+
+	// Clear the special_type_id when respawning (fix for morphed player state persisting)
+	ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
+
+	// Clear any looping sounds (fix for hurt noises and weapon sounds persisting)
+	ent->s.sound = 0;
+	ent->client->weapon_sound = 0;
 
 	ent->mins = PLAYER_MINS;
 	ent->maxs = PLAYER_MAXS;
@@ -2848,6 +2859,13 @@ void ClientBegin(edict_t* ent)
 
 	// [Paril-KEX] we're always connected by this point...
 	ent->client->pers.connected = true;
+
+	// Clean up any invalid morph state from previous sessions
+	if (IsMorphed(ent)) {
+		RestoreMorphed(ent);
+	}
+	// Clear any stale flyer data
+	ClearFlyerData(ent);
 
 	if (deathmatch->integer)
 	{
@@ -3309,6 +3327,13 @@ void ClientDisconnect(edict_t* ent)
 
 	if (g_horde && g_horde->integer)
 	VerifyAndAdjustBots();
+
+	// Clean up flyer morph state if morphed
+	if (IsMorphed(ent)) {
+		RestoreMorphed(ent);
+	}
+	// Clear flyer data from static map to prevent stale pointer issues
+	ClearFlyerData(ent);
 
 	// --- Existing Cleanup Logic ---
 	//CleanupPlayerLaserManager(ent);
@@ -3838,7 +3863,8 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			n64_sp = !G_IsDeathmatch() && level.is_n64;
 
-			// Can exit intermission after five seconds, except in N64 or unit exits
+			// can exit intermission after five seconds
+			// with any key, but not if in the n64 single player mode
 			if (level.changemap && (!n64_sp || level.level_intermission_set) && level.time > level.intermissiontime + 5_sec && (ucmd->buttons & BUTTON_ANY))
 				level.exitintermission = true;
 		}
@@ -3853,7 +3879,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if (ent->client->menu) {
 			PMenu_Close(ent);
 		}
-
 		return;
 	}
 
@@ -3874,34 +3899,59 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			}
 		}
 
-		// Handle flyer morph movement if morphed
-		if (IsMorphed(ent)) {
-			RunFlyerFrames(ent, *ucmd);
-			// Skip normal pmove processing for morphed players
-			return;
-		}
+		// NO EARLY RETURN FOR MORPHED PLAYERS - they need pmove!
 
-		// Set up for pmove
 		memset(&pm, 0, sizeof(pm));
 
-		if (ent->movetype == MOVETYPE_NOCLIP)
+		// Check if the player is morphed and set appropriate physics
+		if (IsMorphed(ent))
 		{
-			if (ent->client->awaiting_respawn)
-				client->ps.pmove.pm_type = PM_FREEZE;
-			else if (ent->client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
-				client->ps.pmove.pm_type = PM_SPECTATOR;
-			else
-				client->ps.pmove.pm_type = PM_NOCLIP;
+			auto* data = GetMorphData(ent);
+			if (data && data->morph_type == MORPH_FLYER) {
+				// Flyer uses flying physics
+				client->ps.pmove.pm_type = PM_SPECTATOR; // Use free-flight physics
+				client->ps.pmove.gravity = 0; // No gravity
+				client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
+			} else {
+				// Brain and other morphs use normal ground movement
+				client->ps.pmove.pm_type = PM_NORMAL;
+				client->ps.pmove.gravity = 800; // Normal gravity
+			}
 		}
-		else if (ent->s.modelindex != MODELINDEX_PLAYER)
-			client->ps.pmove.pm_type = PM_GIB;
-		else if (ent->deadflag)
-			client->ps.pmove.pm_type = PM_DEAD;
-		else if (ent->client->ctf_grapplestate >= CTF_GRAPPLE_STATE_PULL)
-			client->ps.pmove.pm_type = PM_GRAPPLE;
-		else
-			client->ps.pmove.pm_type = PM_NORMAL;
+		else // This is the original logic for a normal player
+		{
+			if (ent->movetype == MOVETYPE_NOCLIP)
+			{
+				if (ent->client->awaiting_respawn)
+					client->ps.pmove.pm_type = PM_FREEZE;
+				else if (ent->client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
+					client->ps.pmove.pm_type = PM_SPECTATOR;
+				else
+					client->ps.pmove.pm_type = PM_NOCLIP;
+			}
+			else if (ent->s.modelindex != MODELINDEX_PLAYER)
+				client->ps.pmove.pm_type = PM_GIB;
+			else if (ent->deadflag)
+				client->ps.pmove.pm_type = PM_DEAD;
+			else if (ent->client->ctf_grapplestate >= CTF_GRAPPLE_STATE_PULL)
+				client->ps.pmove.pm_type = PM_GRAPPLE;
+			else
+				client->ps.pmove.pm_type = PM_NORMAL;
 
+			// [Paril-KEX] trigger_gravity support
+			if (ent->no_gravity_time > level.time)
+			{
+				client->ps.pmove.gravity = 0;
+				client->ps.pmove.pm_flags |= PMF_NO_GROUND_SEEK;
+			}
+			else
+			{
+				client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
+				client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
+			}
+		}
+
+		// CRITICAL FIX: Add the player collision handling that was missing!
 		// [Paril-KEX]
 		if (!G_ShouldPlayersCollide(false) ||
 			(deathmatch->integer && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER))) // if player collision is on and we're temporarily ghostly...
@@ -3909,26 +3959,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		else
 			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
 
-		// PGM	trigger_gravity support
-		if (ent->no_gravity_time > level.time)
-		{
-			client->ps.pmove.gravity = 0;
-			client->ps.pmove.pm_flags |= PMF_NO_GROUND_SEEK;
-		}
-		else
-		{
-			client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
-			client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
-		}
-
 		pm.s = client->ps.pmove;
-
 		pm.s.origin = ent->s.origin;
 		pm.s.velocity = ent->velocity;
-
+		
 		if (memcmp(&client->old_pmove, &pm.s, sizeof(pm.s)))
 			pm.snapinitial = true;
-
+		
 		pm.cmd = *ucmd;
 		pm.player = ent;
 		pm.trace = gi.game_import_t::trace;
@@ -3936,13 +3973,12 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		pm.pointcontents = gi.pointcontents;
 		pm.viewoffset = ent->client->ps.viewoffset;
 
-		// Perform a pmove
+		// Perform a pmove. THIS NOW RUNS FOR ALL PLAYERS INCLUDING MORPHED ONES!
 		Pmove(&pm);
 
 		if (pm.groundentity && ent->groundentity)
 		{
 			float const stepsize = fabs(ent->s.origin[2] - pm.s.origin[2]);
-
 			if (stepsize > 4.f && stepsize < STEPSIZE)
 			{
 				ent->s.renderfx |= RF_STAIR_STEP;
@@ -3960,7 +3996,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// [Paril-KEX] save old position for G_TouchProjectiles
 		vec3_t const old_origin = ent->s.origin;
-
 		ent->s.origin = pm.s.origin;
 		ent->velocity = pm.s.velocity;
 
@@ -3968,7 +4003,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if ((pm.s.pm_flags & PMF_ON_LADDER) != (client->ps.pmove.pm_flags & PMF_ON_LADDER))
 		{
 			client->last_ladder_pos = ent->s.origin;
-
 			if (pm.s.pm_flags & PMF_ON_LADDER)
 			{
 				if (!G_IsDeathmatch() && client->last_ladder_sound < level.time)
@@ -3982,7 +4016,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// Save results of pmove
 		client->ps.pmove = pm.s;
 		client->old_pmove = pm.s;
-
 		ent->mins = pm.mins;
 		ent->maxs = pm.maxs;
 
@@ -3991,7 +4024,20 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		if (pm.jump_sound && !(pm.s.pm_flags & PMF_ON_LADDER))
 		{
-			gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
+			// Check if we're a brain morph and use brain jump sound
+			if (IsMorphed(ent)) {
+				auto* data = GetMorphData(ent);
+				if (data && data->morph_type == MORPH_BRAIN) {
+					// Use brain sight sound for jump (like the monster does)
+					gi.sound(ent, CHAN_VOICE, gi.soundindex("brain/brnsght1.wav"), 1, ATTN_NORM, 0);
+				} else {
+					// Other morphs use normal jump sound for now
+					gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
+				}
+			} else {
+				// Normal player jump sound
+				gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
+			}
 		}
 
 		// ROGUE sam raimi cam support
@@ -4022,6 +4068,31 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			if (!ent->client->menu) {
 				client->ps.viewangles = pm.viewangles;
 			}
+
+			// After angles are updated, run morph-specific logic
+			// for attacks, model rotation, and animations.
+			if (IsMorphed(ent))
+			{
+				// Sync the visual model's horizontal rotation with the player's view
+				ent->s.angles[YAW] = client->v_angle[YAW];
+
+				// Call the appropriate morph logic function based on type
+				auto* data = GetMorphData(ent);
+				if (data) {
+					switch (data->morph_type) {
+						case MORPH_FLYER:
+							RunFlyerFrames(ent, *ucmd);
+							ApplyFlyerPhysics(ent);
+							break;
+						case MORPH_BRAIN:
+							RunBrainFrames(ent, *ucmd);
+							// Brain uses normal physics, no special physics needed
+							break;
+						default:
+							break;
+					}
+				}
+			}
 		}
 
 		// ZOID
@@ -4030,13 +4101,11 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// ZOID
 
 		gi.linkentity(ent);
-
 		ent->gravity = 1.0;
 
-		//horde updating client health
+		// horde updating client health
 		UpdateClientHealth(ent, client);
 		UpdateIRTracking(ent, client);
-
 
 		if (ent->movetype != MOVETYPE_NOCLIP)
 		{
@@ -4049,7 +4118,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			trace_t& tr = pm.touch.traces[i];
 			other = tr.ent;
-
 			if (other->touch)
 				other->touch(other, ent, tr, true);
 		}
@@ -4061,22 +4129,18 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if (client->resp.spectator)
 		{
 			client->latched_buttons = BUTTON_NONE;
-
 			if (client->chase_target)
 			{
 				// Q2Eaks add eyecam to freecam<->chasecam cycle
 				if (!client->use_eyecam)
 				{
-					// Q2Eaks chasecam -> eyecam
 					client->use_eyecam = true;
 				}
 				else
 				{
-					// Q2Eaks eyecam -> freecam
 					client->use_eyecam = false;
 					client->ps.gunindex = 0;
 					client->ps.gunskin = 0;
-
 					client->chase_target = nullptr;
 					client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
 				}
@@ -4084,12 +4148,11 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			else
 				GetChaseTarget(ent);
 		}
-		else if (!ent->client->weapon_thunk)
+		else if (!ent->client->weapon_thunk && !IsMorphed(ent))  // Morphed players handle attacks differently
 		{
 			if (ent->client->weaponstate == WEAPON_READY)
 			{
 				ent->client->weapon_fire_buffered = true;
-
 				if (ent->client->weapon_fire_finished <= level.time)
 				{
 					ent->client->weapon_thunk = true;
@@ -4101,9 +4164,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
 	{
-		// Crear una copia local de ucmd para el procesamiento del menú de espectadores
 		usercmd_t spec_menu_ucmd = *ucmd;
-
 		if (!HandleMenuMovement(ent, &spec_menu_ucmd))
 		{
 			if (spec_menu_ucmd.buttons & BUTTON_JUMP)
@@ -4120,7 +4181,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			else
 				client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 		}
-		// Actualizar ucmd con los cambios del menú de espectadores
 		*ucmd = spec_menu_ucmd;
 	}
 
@@ -4603,6 +4663,52 @@ static bool G_CoopRespawn(edict_t* ent)
 					state = RESPAWN_SQUAD;
 
 					squad_respawn_position = good_spot;
+
+					// If the respawning player is human (not a bot), add some offset
+					// to avoid spawning at exactly the same position
+					if (!(ent->svflags & SVF_BOT))
+					{
+						// Try to find a valid offset position for human players
+						vec3_t test_pos;
+						trace_t trace;
+						bool found_valid_offset = false;
+
+						// Try up to 8 different angles to find a valid spawn position
+						for (int attempts = 0; attempts < 8; attempts++)
+						{
+							float angle = frandom() * PIf * 2.0f;
+							float distance = 32.0f + frandom() * 32.0f; // 32-64 units away
+
+							test_pos = squad_respawn_position;
+							test_pos[0] += cos(angle) * distance;
+							test_pos[1] += sin(angle) * distance;
+
+							// Check if the new position is valid (not in solid)
+							trace = gi.trace(squad_respawn_position, PLAYER_MINS, PLAYER_MAXS,
+											test_pos, ent, MASK_PLAYERSOLID);
+
+							// Check if path is clear and destination is not stuck
+							if (trace.fraction == 1.0f && !trace.allsolid && !trace.startsolid)
+							{
+								// Additional check: make sure the player won't be stuck at the new position
+								trace_t pos_check = gi.trace(test_pos, PLAYER_MINS, PLAYER_MAXS,
+															 test_pos, ent, MASK_PLAYERSOLID);
+
+								if (!pos_check.startsolid && !pos_check.allsolid)
+								{
+									// Valid position found
+									squad_respawn_position = test_pos;
+									found_valid_offset = true;
+									break;
+								}
+							}
+						}
+
+						// If no valid offset found, use original position (better than spawning in a wall)
+						// The original position was already validated by G_FindRespawnSpot
+					}
+					// Bots spawn at the exact same position (no offset)
+					
 					squad_respawn_angles = good_player->s.angles;
 					squad_respawn_angles[2] = 0;
 
@@ -4702,7 +4808,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// run weapon animations if it hasn't been done by a ucmd_t
-	if (!client->weapon_thunk && !client->resp.spectator)
+	if (!client->weapon_thunk && !client->resp.spectator && !IsMorphed(ent))
 		Think_Weapon(ent);
 	else
 		client->weapon_thunk = false;
