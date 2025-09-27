@@ -78,6 +78,7 @@ struct morph_data_t {
     edict_t* tongue_target;  // Current target being pulled
     gtime_t last_steal_time; // Last time health was stolen
     bool tongue_active;      // Is tongue attack active
+    gtime_t next_frame_time; // For animation timing
 };
 
 // Keep typedef for backward compatibility

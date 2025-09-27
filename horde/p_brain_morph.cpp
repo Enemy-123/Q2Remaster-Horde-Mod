@@ -22,23 +22,24 @@ static void BrainTongueAttack(edict_t* self, morph_data_t* data) {
     // Always find the nearest target - don't stick to one enemy
     BrainFindTarget(self);
 
+    // Allow attack animation even without target
+    data->tongue_active = true;
+    data->attack_finished = level.time + FRAME_TIME_MS; // Start attacking next frame
+
     if (!self->enemy) {
-        // No target found
-        data->tongue_active = false;
+        // No target found - just play animation
         data->tongue_target = nullptr;
-        return;
-    }
+        data->last_steal_time = 0_ms;
+    } else {
+        // Start attacking the nearest enemy
+        if (data->tongue_target != self->enemy) {
+            // New target
+            data->tongue_target = self->enemy;
+            data->last_steal_time = 0_ms; // Reset steal timer
 
-    // Start attacking the nearest enemy
-    if (!data->tongue_active || data->tongue_target != self->enemy) {
-        // New target or starting attack
-        data->tongue_active = true;
-        data->tongue_target = self->enemy;
-        data->attack_finished = level.time + FRAME_TIME_MS; // Start attacking next frame
-        data->last_steal_time = 0_ms; // Reset steal timer
-
-        // Play initial attack sound for new target
-        gi.sound(self, CHAN_WEAPON, gi.soundindex("brain/brnatck1.wav"), 1, ATTN_NORM, 0);
+            // Play initial attack sound for new target
+            gi.sound(self, CHAN_WEAPON, gi.soundindex("brain/brnatck1.wav"), 1, ATTN_NORM, 0);
+        }
     }
 }
 
@@ -216,6 +217,9 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     // Clear enemy pointer each frame - we'll find fresh target when attacking
     ent->enemy = nullptr;
 
+    // Track if we're jumping for animation
+    bool is_jumping = !ent->groundentity && (ent->waterlevel < 2);
+
     // Handle attacks - only allow when on ground
     if ((ucmd.buttons & BUTTON_ATTACK) && ent->groundentity) {
         // Start attack if not already attacking
@@ -245,9 +249,12 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     }
 
     // Animation frames
-    if (!data->tongue_active) {
+    if (is_jumping) {
+        // Jump animation - hold frame while in air
+        ent->s.frame = BRAIN_FRAMES_JUMP_HOLD;
+    } else if (!data->tongue_active) {
         if (ucmd.forwardmove || ucmd.sidemove) {
-            // Walking animation
+            // Walking animation - using proper brain walk frames
             if (ent->s.frame < BRAIN_FRAMES_WALK_START || ent->s.frame > BRAIN_FRAMES_WALK_END)
                 ent->s.frame = BRAIN_FRAMES_WALK_START;
             else {
@@ -256,13 +263,18 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
                     ent->s.frame = BRAIN_FRAMES_WALK_START;
             }
         } else {
-            // Standing animation
+            // Standing animation - cycle through all 60 stand frames slowly
             if (ent->s.frame < BRAIN_FRAMES_STAND_START || ent->s.frame > BRAIN_FRAMES_STAND_END)
                 ent->s.frame = BRAIN_FRAMES_STAND_START;
             else {
-                ent->s.frame++;
-                if (ent->s.frame > BRAIN_FRAMES_STAND_END)
-                    ent->s.frame = BRAIN_FRAMES_STAND_START;
+                // Slow down standing animation (advance every 3 game frames)
+                if (level.time >= data->next_frame_time) {
+                    ent->s.frame++;
+                    if (ent->s.frame > BRAIN_FRAMES_STAND_END)
+                        ent->s.frame = BRAIN_FRAMES_STAND_START;
+                    // Set next frame time
+                    data->next_frame_time = level.time + (FRAME_TIME_MS * 3);
+                }
             }
         }
     }
@@ -315,6 +327,7 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     data->last_steal_time = 0_ms;
     data->tongue_active = false;
     data->tongue_target = nullptr;
+    data->next_frame_time = level.time;
 
     // Set model and bounds
     ent->s.modelindex = gi.modelindex("models/monsters/brain/tris.md2");
