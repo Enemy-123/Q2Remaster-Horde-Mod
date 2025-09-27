@@ -6,21 +6,21 @@
 
 // Brain frame definitions from m_brain.h
 // Standing animation - brain uses stand01 to stand30 (frames 170-199)
-constexpr int32_t BRAIN_FRAMES_STAND_START = 170;  // FRAME_stand01
-constexpr int32_t BRAIN_FRAMES_STAND_END = 199;    // FRAME_stand30
+constexpr int32_t BRAIN_FRAMES_STAND_START = 162;  // FRAME_stand01;  // FRAME_stand01
+constexpr int32_t BRAIN_FRAMES_STAND_END = 191;    // FRAME_stand30;    // FRAME_stand30
 
 // Walking animation - walk101 to walk111 (frames 0-10)
-constexpr int32_t BRAIN_FRAMES_WALK_START = 0;     // FRAME_walk101
-constexpr int32_t BRAIN_FRAMES_WALK_END = 10;      // FRAME_walk111
+constexpr int32_t BRAIN_FRAMES_WALK_START = 0;     // FRAME_walk101;     // FRAME_walk101 (line 9 in enum, 0-indexed = 8);     // FRAME_walk101
+constexpr int32_t BRAIN_FRAMES_WALK_END = 10;      // FRAME_walk111;      // FRAME_walk111 (line 19 in enum, 0-indexed = 18);      // FRAME_walk111
 
 // Attack animation - attak201 to attak217 (frames 79-95) for tongue attack
-constexpr int32_t BRAIN_FRAMES_ATTACK_START = 79;  // FRAME_attak201
-constexpr int32_t BRAIN_FRAMES_ATTACK_END = 95;    // FRAME_attak217
+constexpr int32_t BRAIN_FRAMES_ATTACK_START = 71;  // FRAME_attak201;  // FRAME_attak201 (line 80 in enum, 0-indexed = 79);  // FRAME_attak201
+constexpr int32_t BRAIN_FRAMES_ATTACK_END = 87;    // FRAME_attak217;    // FRAME_attak217 (line 96 in enum, 0-indexed = 95);    // FRAME_attak217
 
 // Jump animation - duck01 to duck08 (frames 154-161) used for jumping
-constexpr int32_t BRAIN_FRAMES_JUMP_START = 154;   // FRAME_duck01
-constexpr int32_t BRAIN_FRAMES_JUMP_HOLD = 155;    // FRAME_duck02 - hold while in air
-constexpr int32_t BRAIN_FRAMES_JUMP_END = 161;     // FRAME_duck08
+constexpr int32_t BRAIN_FRAMES_JUMP_START = 146;   // FRAME_duck01;   // FRAME_duck01 (line 155 in enum, 0-indexed = 154);   // FRAME_duck01
+constexpr int32_t BRAIN_FRAMES_JUMP_HOLD = 147;    // FRAME_duck02 - hold while in air;    // FRAME_duck02 - hold while in air
+constexpr int32_t BRAIN_FRAMES_JUMP_END = 153;     // FRAME_duck08;     // FRAME_duck08 (line 162 in enum, 0-indexed = 161);     // FRAME_duck08
 
 // Tongue attack constants
 constexpr float BRAIN_TONGUE_RANGE = 512.0f;

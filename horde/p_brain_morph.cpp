@@ -290,8 +290,14 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
 
     // Animation frames
     if (is_jumping) {
-        // Jump animation - hold frame while in air
-        ent->s.frame = BRAIN_FRAMES_JUMP_HOLD;
+        // Jump animation - cycle through all 8 duck frames
+        if (ent->s.frame < BRAIN_FRAMES_JUMP_START || ent->s.frame > BRAIN_FRAMES_JUMP_END)
+            ent->s.frame = BRAIN_FRAMES_JUMP_START;
+        else {
+            ent->s.frame++;
+            if (ent->s.frame > BRAIN_FRAMES_JUMP_END)
+                ent->s.frame = BRAIN_FRAMES_JUMP_START;
+        }
     } else if (!data->tongue_active) {
         if (is_moving) {
             // Walking animation - using proper brain walk frames
