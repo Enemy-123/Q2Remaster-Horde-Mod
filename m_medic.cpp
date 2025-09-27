@@ -456,8 +456,8 @@ bool finishHeal(edict_t* self)
 		if (healee->monsterinfo.issummoned || (healee->monsterinfo.bonus_flags & BF_FRIENDLY)) {
 			// Use FindMTarget to find monster enemies
 			if (!FindMTarget(healee)) {
-				// No monster enemies found, just stand with a short pause
-				healee->monsterinfo.pausetime = level.time + 0.5_sec;
+				// **FIX: Don't set pausetime - let natural AI handle it**
+				// **OLD:** healee->monsterinfo.pausetime = level.time + 0.5_sec;
 				if (healee->monsterinfo.stand) {
 					healee->monsterinfo.stand(healee);
 				}
@@ -466,8 +466,8 @@ bool finishHeal(edict_t* self)
 		}
 		else {
 			// Regular horde monsters should target players
-			// Give them a short pause then let ai_stand handle finding players
-			healee->monsterinfo.pausetime = level.time + 0.5_sec;
+			// **FIX: Don't set pausetime - let natural AI handle it**
+			// **OLD:** healee->monsterinfo.pausetime = level.time + 0.5_sec;
 			if (healee->monsterinfo.stand) {
 				healee->monsterinfo.stand(healee);
 			}
@@ -488,13 +488,9 @@ bool finishHeal(edict_t* self)
 			{
 				if (healee->inuse)
 				{
-					// OLD BUGGY LINE:
-					// healee->monsterinfo.pausetime = HOLD_FOREVER;
-
-					// *** NEW CORRECTED LINE ***
-					// Give the revived monster a short 1-second pause to orient itself,
-					// after which it will begin its normal patrol/walk behavior.
-					healee->monsterinfo.pausetime = level.time + 1_sec;
+					// **FIX: Much shorter pausetime to prevent loops**
+					// **OLD:** healee->monsterinfo.pausetime = level.time + 1_sec;
+					healee->monsterinfo.pausetime = level.time + 0.1_sec;
 
 					if (healee->monsterinfo.stand)
 					{
@@ -744,16 +740,14 @@ edict_t* medic_FindDeadMonster(edict_t* self)
 
 MONSTERINFO_IDLE(medic_idle) (edict_t* self) -> void
 {
-	// *** START OF THE FIX ***
-	// If we are on cooldown from a recent resurrection, force the Medic to
-	// continue standing still. We do this by repeatedly resetting its pausetime.
-	// This prevents the generic ai_stand() from transitioning to walk().
-	if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
-	{
-		self->monsterinfo.pausetime = level.time + 1.0_sec; // Keep waiting
-		return; // Do nothing else until the cooldown is over.
-	}
-	// *** END OF THE FIX ***
+	// **FIX: Remove the pausetime forcing during cooldown**
+	// The cooldown is already handled in medic_FindDeadMonster
+	// **OLD BUGGY CODE REMOVED:**
+	// if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
+	// {
+	//     self->monsterinfo.pausetime = level.time + 1.0_sec;
+	//     return;
+	// }
 
 	// PMM - commander sounds
 	if (self->mass == 400)
@@ -1006,6 +1000,16 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 	}
 
 	monster_done_dodge(self);
+
+	// FIX: If we have no enemy at all, switch to walk instead of run
+	if (!self->enemy && !(self->monsterinfo.aiflags & AI_MEDIC))
+	{
+		if (self->monsterinfo.walk)
+		{
+			self->monsterinfo.walk(self);
+			return;
+		}
+	}
 
 	// Priority 1: Deal with active threats first
 	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
@@ -1789,48 +1793,44 @@ void medic_delay(edict_t* self)
 // In m_medic.c
 void medic_finish_and_hunt(edict_t* self)
 {
-	// Clear medic-specific flags now that the action is complete.
-	self->monsterinfo.aiflags &= ~AI_MEDIC;
-	self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
+    // Clear medic-specific flags now that the action is complete.
+    self->monsterinfo.aiflags &= ~AI_MEDIC;
+    self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 
-	// PRIORITY 1: RETURN TO COMBAT
-	// If we were fighting an enemy before we started healing, go back to fighting them.
-	if (self->oldenemy && self->oldenemy->inuse && self->oldenemy->health > 0)
-	{
-		self->enemy = self->oldenemy;
-		self->oldenemy = nullptr;
-		HuntTarget(self, true); // Re-engage the previous enemy.
-		return;
-	}
+    // PRIORITY 1: RETURN TO COMBAT
+    if (self->oldenemy && self->oldenemy->inuse && self->oldenemy->health > 0)
+    {
+        self->enemy = self->oldenemy;
+        self->oldenemy = nullptr;
+        HuntTarget(self, true);
+        return;
+    }
 
-	// PRIORITY 2: FIND A NEW ENEMY
-	// If there was no old enemy, scan for any new hostile targets.
-	bool found_target = false;
-	if (g_horde->integer && (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY)))
-	{
-		found_target = FindMTarget(self);
-	}
-	if (!found_target)
-	{
-		found_target = FindTarget(self);
-	}
+    // PRIORITY 2: FIND A NEW ENEMY
+    bool found_target = false;
+    if (g_horde->integer && (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY)))
+    {
+        found_target = FindMTarget(self);
+    }
+    if (!found_target)
+    {
+        found_target = FindTarget(self);
+    }
 
-	if (found_target)
-	{
-		// FoundTarget() already set the AI state to run/attack. Our job is done.
-		return;
-	}
+    if (found_target)
+    {
+        return; // FoundTarget already set proper state
+    }
 
-	// PRIORITY 3: NO ENEMIES FOUND, GO IDLE
-	// If there are no enemies to fight, clear our target and enter a neutral state.
-	self->enemy = nullptr;
-	self->oldenemy = nullptr;
+    // PRIORITY 3: NO ENEMIES FOUND, GO IDLE
+    self->enemy = nullptr;
+    self->oldenemy = nullptr;
 
-	// Force a short pause. This works with the cooldown to ensure a clean state break.
-	self->monsterinfo.pausetime = level.time + 2.0_sec;
-
-	// Transition to the stand animation.
-	M_SetAnimation(self, &medic_move_stand);
+    // **FIX: Don't set pausetime here - let natural AI handle it**
+    // **OLD BUGGY LINE:** self->monsterinfo.pausetime = level.time + 2.0_sec;
+    
+    // Just transition to stand - the cooldown in medic_FindDeadMonster will prevent loops
+    M_SetAnimation(self, &medic_move_stand);
 }
 
 void medic_hook_retract(edict_t* self)
