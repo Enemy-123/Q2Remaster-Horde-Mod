@@ -692,8 +692,8 @@ argv(1) classname (e.g., monster_medic, monster_gunner)
 */
 void Cmd_Summon_f(edict_t* ent)
 {
-	if (!G_CheatCheck(ent))
-		return;
+	// if (!G_CheatCheck(ent))
+	// 	return;
 
 	const char* classname = gi.argv(1);
 	if (!classname || !*classname)
