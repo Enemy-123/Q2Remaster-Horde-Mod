@@ -214,9 +214,11 @@ void ai_stand(edict_t* self, float dist)
 	if (FindTarget(self))
 		return;
 		
-	// We move the idle check BEFORE the pausetime check. This allows a monster's
-	// specific idle function (like medic_idle) to override the default
-	// stand->walk transition by resetting the pausetime.
+	// *** START OF THE FIX ***
+	// We move the idle function call to be BEFORE the pausetime check.
+	// This is the most important change. It allows a monster's specific idle
+	// function (like our corrected medic_idle) to take control and reset the
+	// pausetime, preventing the unwanted stand->walk transition.
 	if (!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) && (self->monsterinfo.idle) &&
 		(level.time > self->monsterinfo.idle_time))
 	{
@@ -230,6 +232,7 @@ void ai_stand(edict_t* self, float dist)
 			self->monsterinfo.idle_time = level.time + random_time(15_sec);
 		}
 	}
+	// *** END OF THE FIX ***
 
 	if (level.time > self->monsterinfo.pausetime)
 	{

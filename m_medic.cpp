@@ -484,14 +484,25 @@ bool finishHeal(edict_t* self)
 		}
 		else {
 			healee->enemy = nullptr;
-			if (healee->inuse && !FindTarget(healee)) {
-				if (healee->inuse) {
-					healee->monsterinfo.pausetime = HOLD_FOREVER;
-					if (healee->monsterinfo.stand) {
+			if (healee->inuse && !FindTarget(healee))
+			{
+				if (healee->inuse)
+				{
+					// OLD BUGGY LINE:
+					// healee->monsterinfo.pausetime = HOLD_FOREVER;
+
+					// *** NEW CORRECTED LINE ***
+					// Give the revived monster a short 1-second pause to orient itself,
+					// after which it will begin its normal patrol/walk behavior.
+					healee->monsterinfo.pausetime = level.time + 1_sec;
+
+					if (healee->monsterinfo.stand)
+					{
 						healee->monsterinfo.stand(healee);
 					}
 				}
 			}
+			
 		}
 	}
 
