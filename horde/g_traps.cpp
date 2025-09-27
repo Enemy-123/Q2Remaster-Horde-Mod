@@ -474,9 +474,11 @@ void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
     ent->enemy = target;
     ent->wait = TRAP_WAIT_START;
     ent->s.old_origin = ent->s.origin;
-    // Calculate trap lifetime with adrenaline bonus
-    gtime_t trap_lifetime = CalculateDeployableLifetime(30_sec, ent->teammaster ? ent->teammaster->client : nullptr);
-    ent->timestamp = level.time + trap_lifetime;
+    // BUG FIX: Don't recalculate lifetime - trap should keep its original lifetime
+    // The timestamp was already set when the trap was created in fire_trap
+    // Removing these lines that were causing cumulative lifetime increases:
+    // gtime_t trap_lifetime = CalculateDeployableLifetime(30_sec, ent->teammaster ? ent->teammaster->client : nullptr);
+    // ent->timestamp = level.time + trap_lifetime;
     ent->accel = target->mass;
 
     if (G_IsDeathmatch())

@@ -151,28 +151,9 @@ void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
                 }
             }
 
-            // Update trap mines with adrenaline-based lifetime
-            for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i)
-            {
-                edict_t* trap = player->client->resp.deployed_traps[i];
-
-                if (!trap || !trap->inuse)
-                    continue;
-
-                // Calculate new lifetime with current adrenaline count
-                gtime_t base_lifetime = 30_sec; // Base trap lifetime from fire_trap
-                gtime_t trap_lifetime = CalculateDeployableLifetime(base_lifetime, player->client);
-                
-                // Calculate original creation time by subtracting from current timestamp
-                gtime_t creation_time = level.time;
-                if (trap->timestamp > level.time)
-                {
-                    creation_time = trap->timestamp - base_lifetime;
-                }
-                
-                // Update timestamp with new end time
-                trap->timestamp = creation_time + trap_lifetime;
-            }
+            // NOTE: Traps should NOT have their lifetime updated after creation
+            // Their timestamp is set once when created with the adrenaline bonus at that time
+            // Updating it here was causing the bug where trap lifetime kept increasing
         }
     }
 }
