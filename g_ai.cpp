@@ -216,8 +216,7 @@ void ai_stand(edict_t* self, float dist)
 
 	if (level.time > self->monsterinfo.pausetime)
 	{
-		if (g_horde->integer && self->monsterinfo.issummoned
-			&& self->monsterinfo.walk) 
+		if (g_horde->integer && self->monsterinfo.issummoned) 
 		self->monsterinfo.run(self);
 		else 
 			self->monsterinfo.walk(self);

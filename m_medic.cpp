@@ -446,14 +446,31 @@ bool finishHeal(edict_t* self)
 		}
 	}
 
-	// Handle targeting - for horde mode, just stand initially
+	// Handle targeting - for horde mode, immediately find appropriate target
 	if (g_horde->integer) {
-		// In horde mode, make resurrected monster stand briefly
+		// Clear old enemies
 		healee->enemy = nullptr;
 		healee->oldenemy = nullptr;
-		healee->monsterinfo.pausetime = level.time + 1_sec; // Stand for 1 second before engaging
-		if (healee->monsterinfo.stand) {
-			healee->monsterinfo.stand(healee);
+
+		// For summoned/friendly monsters, immediately look for monster targets
+		if (healee->monsterinfo.issummoned || (healee->monsterinfo.bonus_flags & BF_FRIENDLY)) {
+			// Use FindMTarget to find monster enemies
+			if (!FindMTarget(healee)) {
+				// No monster enemies found, just stand with a short pause
+				healee->monsterinfo.pausetime = level.time + 0.5_sec;
+				if (healee->monsterinfo.stand) {
+					healee->monsterinfo.stand(healee);
+				}
+			}
+			// If FindMTarget found something, it will have called FoundTarget
+		}
+		else {
+			// Regular horde monsters should target players
+			// Give them a short pause then let ai_stand handle finding players
+			healee->monsterinfo.pausetime = level.time + 0.5_sec;
+			if (healee->monsterinfo.stand) {
+				healee->monsterinfo.stand(healee);
+			}
 		}
 	}
 	else {
@@ -539,8 +556,35 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		// Check for injured entities (alive but hurt)
 		if (ent->health > 0 && ent->health < ent->max_health)
 		{
-			// Only heal teammates (both monsters and players)
-			if (OnSameTeam(self, ent))
+			// Determine if this is a valid heal target
+			bool can_heal = false;
+
+			if (g_horde->integer)
+			{
+				// In horde mode, friendly medics heal players and friendly monsters
+				if (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY))
+				{
+					// Heal players on CTF_TEAM1
+					if (ent->client && (ent->svflags & SVF_PLAYER) && ent->ctf_team == CTF_TEAM1)
+						can_heal = true;
+					// Heal friendly monsters
+					else if ((ent->svflags & SVF_MONSTER) && OnSameTeam(self, ent))
+						can_heal = true;
+				}
+				else
+				{
+					// Enemy medics only heal enemy monsters
+					if ((ent->svflags & SVF_MONSTER) && OnSameTeam(self, ent))
+						can_heal = true;
+				}
+			}
+			else
+			{
+				// Non-horde mode - use OnSameTeam
+				can_heal = OnSameTeam(self, ent);
+			}
+
+			if (can_heal)
 			{
 				if (!best_injured_teammate || ent->health < best_injured_teammate->health)
 				{
@@ -583,47 +627,55 @@ void medic_check_heal(edict_t* self)
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 		return;
 
+	// Don't interrupt active combat with valid enemy
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
+	{
+		// Only consider healing if enemy is far away or we're not in active combat
+		float enemy_distance = realrange(self, self->enemy);
+
+		// If actively fighting nearby enemy, don't switch
+		if (enemy_distance < MEDIC_MAX_HEAL_DISTANCE * 1.5f)
+			return;
+	}
+
 	// Look for healing opportunities
 	float radius = MEDIC_MAX_HEAL_DISTANCE;
 	edict_t* ent = healFindMonster(self, radius);
 
 	if (ent)
 	{
-		// Check if this is a high-priority target (injured teammate or dead monster)
-		bool is_teammate = OnSameTeam(self, ent);
-		bool is_injured = (ent->health > 0 && ent->health < ent->max_health);
+		// Check if this is a high-priority target
 		bool is_dead = (ent->health <= 0);
+		bool is_critical = (ent->health > 0 && ent->health < ent->max_health * 0.3f); // Less than 30% health
 
 		// Calculate distances
 		float heal_distance = realrange(self, ent);
 
-		// In horde mode, be more aggressive about healing/reviving
+		// Be more selective about interrupting current activity
 		bool should_heal = false;
 
 		if (g_horde->integer)
 		{
-			// Horde mode: prioritize healing/resurrection more
-			if (is_dead)
+			// Only switch for very high priority cases
+			if (is_dead && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
 			{
-				should_heal = true;  // Always try to revive dead monsters
+				should_heal = true;  // Revive dead monsters if reasonably close
 			}
-			else if (is_injured && is_teammate && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
+			else if (is_critical && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.5f)
 			{
-				should_heal = true;  // Heal injured teammates in range
+				should_heal = true;  // Only heal if critically injured and very close
 			}
 		}
 		else
 		{
-			// Normal mode: consider enemy distance
-			float enemy_distance = self->enemy ? realrange(self, self->enemy) : 9999.0f;
-
-			if (is_injured && is_teammate && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.5f)
+			// Normal mode: only heal if no enemy or enemy is far
+			if (!self->enemy || !self->enemy->inuse)
 			{
-				should_heal = true;  // Always heal nearby injured teammates
+				should_heal = true;  // No enemy, go heal
 			}
-			else if (is_dead && (enemy_distance > MEDIC_MAX_HEAL_DISTANCE * 1.5f || !self->enemy))
+			else if (is_dead && realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE * 2.0f)
 			{
-				should_heal = true;  // Revive if safe
+				should_heal = true;  // Enemy is very far, safe to revive
 			}
 		}
 
@@ -668,19 +720,19 @@ edict_t* medic_FindDeadMonster(edict_t* self)
 
 MONSTERINFO_IDLE(medic_idle) (edict_t* self) -> void
 {
-	edict_t* ent;
-
 	// PMM - commander sounds
 	if (self->mass == 400)
 		gi.sound(self, CHAN_VOICE, sound_idle1, 1, ATTN_IDLE, 0);
 	else
 		gi.sound(self, CHAN_VOICE, commander_sound_idle1, 1, ATTN_IDLE, 0);
 
-	if (!self->oldenemy)
+	// Only look for healing targets if we don't have an active threat
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
-		ent = medic_FindDeadMonster(self);
-		if (ent)
+		edict_t* ent = medic_FindDeadMonster(self);
+		if (ent && realrange(self, ent) < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
 		{
+			// Only switch if corpse is close
 			self->oldenemy = self->enemy;
 			self->enemy = ent;
 			self->enemy->monsterinfo.healer = self;
@@ -692,19 +744,19 @@ MONSTERINFO_IDLE(medic_idle) (edict_t* self) -> void
 
 MONSTERINFO_SEARCH(medic_search) (edict_t* self) -> void
 {
-	edict_t* ent;
-
 	// PMM - commander sounds
 	if (self->mass == 400)
 		gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_IDLE, 0);
 	else
 		gi.sound(self, CHAN_VOICE, commander_sound_search, 1, ATTN_IDLE, 0);
 
-	if (!self->oldenemy)
+	// Only look for healing targets if we don't have an active threat
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
-		ent = medic_FindDeadMonster(self);
-		if (ent)
+		edict_t* ent = medic_FindDeadMonster(self);
+		if (ent && realrange(self, ent) < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
 		{
+			// Only switch if corpse is close
 			self->oldenemy = self->enemy;
 			self->enemy = ent;
 			self->enemy->monsterinfo.healer = self;
@@ -731,7 +783,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_run, 0, medic_check_heal}, 
+	{ ai_stand, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -760,7 +812,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_run, 0, medic_check_heal}, 
+	{ ai_stand, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -787,7 +839,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_run, 0, medic_check_heal}, 
+	{ ai_stand, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -819,6 +871,16 @@ MMOVE_T(medic_move_stand) = { FRAME_wait1, FRAME_wait90, medic_frames_stand, nul
 
 MONSTERINFO_STAND(medic_stand) (edict_t* self) -> void
 {
+	// Debug output for friendly medics
+	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
+	{
+		gi.Com_PrintFmt("MEDIC_STAND: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
+			(self->monsterinfo.pausetime - level.time).seconds(),
+			self->enemy ? self->enemy->classname : "null",
+			self->oldenemy ? self->oldenemy->classname : "null",
+			(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
+			(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
+	}
 	M_SetAnimation(self, &medic_move_stand);
 }
 
@@ -840,66 +902,118 @@ MMOVE_T(medic_move_walk) = { FRAME_walk1, FRAME_walk12, medic_frames_walk, nullp
 
 MONSTERINFO_WALK(medic_walk) (edict_t* self) -> void
 {
-	// Check for healing opportunities even while walking
-	if (!(self->monsterinfo.aiflags & AI_MEDIC))
+
+		// Debug output for friendly medics
+	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
 	{
-		edict_t* ent = medic_FindDeadMonster(self);
-		if (ent)
-		{
-			// Prioritize injured teammates
-			bool is_teammate = OnSameTeam(self, ent);
-			if ((ent->health > 0 && is_teammate) || ent->health <= 0)
-			{
-				self->oldenemy = self->enemy;
-				self->enemy = ent;
-				self->enemy->monsterinfo.healer = self;
-				self->monsterinfo.aiflags |= AI_MEDIC;
-				FoundTarget(self);
-				return;
-			}
-		}
+		gi.Com_PrintFmt("MEDIC_walk: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
+			(self->monsterinfo.pausetime - level.time).seconds(),
+			self->enemy ? self->enemy->classname : "null",
+			self->oldenemy ? self->oldenemy->classname : "null",
+			(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
+			(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
 	}
+
+	// Don't look for healing if we have an active enemy threat
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
+	{
+		// We have an active threat - focus on combat
+//		M_SetAnimation(self, &medic_move_walk);
+		return;
+	}
+
+	// // Only check for healing when not in combat
+	// if (!(self->monsterinfo.aiflags & AI_MEDIC))
+	// {
+	// 	edict_t* ent = medic_FindDeadMonster(self);
+	// 	if (ent)
+	// 	{
+	// 		// Only switch to healing if it's a good target
+	// 		bool is_teammate = OnSameTeam(self, ent);
+	// 		if ((ent->health > 0 && is_teammate && ent->health < ent->max_health * 0.5f) || // Only heal if < 50% health
+	// 		    (ent->health <= 0 && realrange(self, ent) < MEDIC_MAX_HEAL_DISTANCE * 0.75f)) // Only revive if close
+	// 		{
+	// 			self->oldenemy = self->enemy;
+	// 			self->enemy = ent;
+	// 			self->enemy->monsterinfo.healer = self;
+	// 			self->monsterinfo.aiflags |= AI_MEDIC;
+	// 			FoundTarget(self);
+	// 			return;
+	// 		}
+	// 	}
+	// }
 
 	M_SetAnimation(self, &medic_move_walk);
 }
 
 mframe_t medic_frames_run[] = {
-	{ ai_run, 18, medic_check_heal },
+	{ ai_run, 18 },
 	{ ai_run, 22.5f, monster_footstep },
 	{ ai_run, 25.4f, monster_done_dodge },
 	{ ai_run, 23.4f, monster_footstep },
-	{ ai_run, 24, medic_check_heal },
+	{ ai_run, 24 },
 	{ ai_run, 35.6f }
 };
 MMOVE_T(medic_move_run) = { FRAME_run1, FRAME_run6, medic_frames_run, nullptr };
 
 MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 {
+
+		// Debug output for friendly medics
+	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
+	{
+		gi.Com_PrintFmt("MEDIC_RUN: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
+			(self->monsterinfo.pausetime - level.time).seconds(),
+			self->enemy ? self->enemy->classname : "null",
+			self->oldenemy ? self->oldenemy->classname : "null",
+			(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
+			(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
+	}
+
 	monster_done_dodge(self);
 
-	// Only look for healing targets if not already in medic mode
+	// Priority 1: Deal with active threats first
+	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
+	{
+		// We have an active enemy - check if it's actually attacking us
+		float enemy_distance = realrange(self, self->enemy);
+
+		// If enemy is close and threatening, focus on combat
+		if (enemy_distance < MEDIC_MAX_HEAL_DISTANCE * 1.5f)
+		{
+			// Enemy is close - focus on combat, not healing
+			if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+				M_SetAnimation(self, &medic_move_stand);
+			else
+				M_SetAnimation(self, &medic_move_run);
+			return;
+		}
+	}
+
+	// Priority 2: Only look for healing when safe or no threats
 	if (!(self->monsterinfo.aiflags & AI_MEDIC))
 	{
-		edict_t* ent;
-
-		// Check for dead monsters to resurrect
-		ent = medic_FindDeadMonster(self);
+		edict_t* ent = medic_FindDeadMonster(self);
 		if (ent)
 		{
-			// Dead monster found - prioritize resurrection over everything in horde mode
+			// Dead monster found - only resurrect if safe
 			if (ent->health <= 0)
 			{
-				// In horde mode, immediately drop everything to resurrect
-				if (g_horde->integer || !self->enemy ||
-				    realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE * 1.5f)
+				// Only resurrect if we have no enemy or enemy is far away
+				if (!self->enemy || !self->enemy->inuse ||
+				    realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE * 2.0f)
 				{
-					self->oldenemy = self->enemy;
-					self->enemy = ent;
-					self->enemy->monsterinfo.healer = self;
-					self->monsterinfo.aiflags |= AI_MEDIC;
-					self->timestamp = level.time + MEDIC_TRY_TIME;
-					FoundTarget(self);
-					return;
+					// Also check distance to corpse
+					if (realrange(self, ent) < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
+					{
+						self->oldenemy = self->enemy;
+						self->enemy = ent;
+						self->enemy->monsterinfo.healer = self;
+						self->monsterinfo.aiflags |= AI_MEDIC;
+						self->timestamp = level.time + MEDIC_TRY_TIME;
+						FoundTarget(self);
+						return;
+					}
 				}
 			}
 			// Injured teammate - heal if conditions are right
@@ -1368,6 +1482,34 @@ void medic_cable_attack(edict_t* self)
         // Re-evaluate healing target
         if (!self->enemy || !self->enemy->inuse)
             return;
+
+        // Abort if trying to heal an enemy (team changed after we started)
+        if (self->enemy->health > 0)
+        {
+            bool should_abort = false;
+
+            if (g_horde->integer && (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY)))
+            {
+                // Friendly medic shouldn't heal enemy monsters
+                if ((self->enemy->svflags & SVF_MONSTER) && !OnSameTeam(self, self->enemy))
+                    should_abort = true;
+                // Shouldn't heal enemy players
+                else if (self->enemy->client && self->enemy->ctf_team != CTF_TEAM1)
+                    should_abort = true;
+            }
+            else
+            {
+                // Enemy medic shouldn't heal friendly monsters or players
+                if (!OnSameTeam(self, self->enemy))
+                    should_abort = true;
+            }
+
+            if (should_abort)
+            {
+                abortHeal(self, false, false);
+                return;
+            }
+        }
     }
 
     // We have an active cable attack - check if in range
@@ -1637,10 +1779,24 @@ void medic_finish_and_hunt(edict_t* self)
 		return;
 	}
 
-	// Try to find combat enemies
-	if (FindTarget(self))
+	// Try to find appropriate enemies based on type
+	bool found_target = false;
+
+	if (g_horde->integer && (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY)))
 	{
-		// Found an enemy - will be handled by FindTarget
+		// Summoned/friendly medics should look for monster enemies
+		found_target = FindMTarget(self);
+	}
+
+	// If no monster target found (or not summoned), look for regular enemies
+	if (!found_target)
+	{
+		found_target = FindTarget(self);
+	}
+
+	if (found_target)
+	{
+		// Found an enemy - will be handled by FindTarget/FindMTarget
 		return;
 	}
 
@@ -2108,30 +2264,40 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t *self) -> void
 
 MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 {
-	// In horde mode, check for dead monsters to resurrect even during combat
+	// Priority: Defend against active threats first!
+	// Only consider resurrection if the current enemy is far away or dead
 	if (g_horde->integer && !(self->monsterinfo.aiflags & AI_MEDIC))
 	{
-		edict_t* dead = medic_FindDeadMonster(self);
-		if (dead && dead->health <= 0)
+		// Check if we have an active threat nearby
+		bool has_active_threat = false;
+		if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
 		{
-			// Check if we can actually reach this target
-			float dist = realrange(self, dead);
-			if (dist < MEDIC_MAX_HEAL_DISTANCE - 50) // Only attempt if close enough
+			float enemy_dist = realrange(self, self->enemy);
+			if (enemy_dist < MEDIC_MAX_HEAL_DISTANCE * 1.5f)
 			{
-				// Found a dead monster - switch to resurrection immediately
-				self->oldenemy = self->enemy;
-				self->enemy = dead;
-				self->enemy->monsterinfo.healer = self;
-				self->monsterinfo.aiflags |= AI_MEDIC;
-				self->timestamp = level.time + MEDIC_TRY_TIME;
-				medic_attack(self);
-				return true;
+				has_active_threat = true;  // Enemy is close enough to be a threat
 			}
-			else
+		}
+
+		// Only look for resurrection targets if no immediate threat
+		if (!has_active_threat)
+		{
+			edict_t* dead = medic_FindDeadMonster(self);
+			if (dead && dead->health <= 0)
 			{
-				// Target too far - pursue it instead
-				self->monsterinfo.attack_state = AS_STRAIGHT;
-				return false;
+				// Check if we can actually reach this target
+				float dist = realrange(self, dead);
+				if (dist < MEDIC_MAX_HEAL_DISTANCE * 0.5f) // Only if very close
+				{
+					// Found a dead monster - switch to resurrection
+					self->oldenemy = self->enemy;
+					self->enemy = dead;
+					self->enemy->monsterinfo.healer = self;
+					self->monsterinfo.aiflags |= AI_MEDIC;
+					self->timestamp = level.time + MEDIC_TRY_TIME;
+					medic_attack(self);
+					return true;
+				}
 			}
 		}
 	}
