@@ -711,6 +711,18 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 	prox->s.modelindex = gi.modelindex("models/weapons/g_prox/tris.md2");
 	prox->owner = self;
 	prox->teammaster = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			prox->projectile_was_player_attacker = true;
+			prox->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			prox->projectile_was_player_attacker = false;
+			prox->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	prox->touch = prox_land;
 	prox->think = Prox_Think;
 	prox->nextthink = level.time;

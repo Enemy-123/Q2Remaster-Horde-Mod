@@ -258,6 +258,18 @@ void fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage
 	heat->s.effects |= EF_ROCKET;
 	heat->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
 	heat->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			heat->projectile_was_player_attacker = true;
+			heat->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			heat->projectile_was_player_attacker = false;
+			heat->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	heat->touch = rocket_touch;
 	heat->speed = speed;
 	heat->accel = turn_fraction;

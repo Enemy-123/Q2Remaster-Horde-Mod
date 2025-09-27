@@ -152,6 +152,10 @@ static void BrainFindTarget(edict_t* self) {
         if (!target->takedamage || target->health <= 0 || target->deadflag)
             continue;
 
+        // Skip stationary entities
+        if (target->flags & FL_STATIONARY)
+            continue;
+
         // Check if it's a valid enemy (monster or player)
         bool is_valid_target = false;
 
@@ -192,6 +196,10 @@ static void BrainFindTarget(edict_t* self) {
 
         // Skip spectators
         if (ent->client->resp.spectator)
+            continue;
+
+        // Skip stationary entities (though players shouldn't normally have this flag)
+        if (ent->flags & FL_STATIONARY)
             continue;
 
         // Check team

@@ -2254,6 +2254,18 @@ void fire_disintegrator(edict_t* self, const vec3_t& start, const vec3_t& forwar
 	bfg->flags |= FL_DODGE;
 	bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
 	bfg->owner = self;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			bfg->projectile_was_player_attacker = true;
+			bfg->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			bfg->projectile_was_player_attacker = false;
+			bfg->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	bfg->touch = disintegrator_touch;
 	bfg->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
 	bfg->think = G_FreeEdict;
