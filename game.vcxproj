@@ -137,6 +137,7 @@
     <ClInclude Include="horde\network_overflow_fix.h" />
     <ClInclude Include="horde\p_brain_morph.h" />
     <ClInclude Include="horde\p_flyer_morph.h" />
+    <ClInclude Include="memory_safety.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
     <ClInclude Include="m_berserk.h" />
