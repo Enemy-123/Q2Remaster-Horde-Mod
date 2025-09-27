@@ -39,9 +39,9 @@ constexpr gtime_t BRAIN_REGEN_DELAY = 2_sec;
 constexpr int32_t BRAIN_REGEN_AMOUNT = 3;
 
 // Jump constants from Vortex and m_brain.cpp
-constexpr float BRAIN_JUMP_FORWARD_VELOCITY = 800.0f;  // From mybrain_jumpattack_takeoff
-constexpr float BRAIN_JUMP_UP_VELOCITY = 400.0f;       // From brain_jump2_now
-constexpr float BRAIN_JUMP_HEIGHT = 68.0f;             // From m_brain.cpp
+constexpr float BRAIN_JUMP_FORWARD_VELOCITY = 800.0f;
+constexpr float BRAIN_JUMP_UP_VELOCITY = 300.0f;       // Reduced from 400 for lower forward jumps
+constexpr float BRAIN_JUMP_HEIGHT = 68.0f;            
 
 // Function declarations
 void Cmd_PlayerToBrain_f(edict_t* ent);

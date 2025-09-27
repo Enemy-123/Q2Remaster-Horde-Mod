@@ -6,6 +6,7 @@
 //#define GAME_INCLUDE
 #include "bg_local.h"
 #include "horde/p_flyer_morph.h"
+#include "horde/p_brain_morph.h"
 
 // In PSX SP, step-ups aren't allowed
 inline bool PM_AllowStepUp()
@@ -1150,24 +1151,13 @@ void PM_CheckJump()
 			vec3_t forward, up;
 			AngleVectors(pm->viewangles, forward, nullptr, up);
 
-			// Apply brain jump velocities from m_brain.cpp brain_jump_attack
-			// Forward velocity: 800 units (from mybrain_jumpattack_takeoff)
-			pml.velocity[0] += forward[0] * 800.0f;
-			pml.velocity[1] += forward[1] * 800.0f;
+			// Apply brain jump velocities - directional with base upward component
+			pml.velocity[0] += forward[0] * BRAIN_JUMP_FORWARD_VELOCITY;
+			pml.velocity[1] += forward[1] * BRAIN_JUMP_FORWARD_VELOCITY;
 
-			// Vertical velocity: 300 units base (from brain_jump2_now)
-			// Plus additional boost when looking up
-			float base_up_velocity = 300.0f;
-
-			float pitch = pm->viewangles[PITCH];
-			if (pitch < 0) { // Negative pitch means looking up
-				// Add up to 50% more when looking straight up
-				float pitch_factor = (-pitch / 90.0f) * 0.5f;
-				base_up_velocity *= (1.0f + pitch_factor);
-			}
-
-			// Set vertical velocity directly like m_brain.cpp does
-			pml.velocity[2] = base_up_velocity;
+			// Add vertical component: base upward velocity plus directional
+			// This ensures forward jumps go forward, not down
+			pml.velocity[2] = BRAIN_JUMP_UP_VELOCITY + (forward[2] * BRAIN_JUMP_FORWARD_VELOCITY);
 
 			// Skip normal jump height calculation for brain
 			return;
