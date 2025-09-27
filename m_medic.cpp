@@ -637,7 +637,7 @@ void medic_check_heal(edict_t* self)
 {
 	// **CORE FIX: Respect resurrection cooldown**
 	// This closes the loophole that allowed walking medics to re-trigger the loop.
-	if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
+	if (level.time - self->monsterinfo.last_resurrection_time < 1_sec)
 		return;
 
 	// Don't check if already healing
@@ -717,7 +717,7 @@ edict_t* medic_FindDeadMonster(edict_t* self)
 {
 	// **CORE FIX: Respect resurrection cooldown**
 	// If we recently completed a resurrection, don't look for corpses yet.
-	if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
+	if (level.time - self->monsterinfo.last_resurrection_time < 1_sec)
 		return nullptr;
 
 	float	radius;
@@ -743,7 +743,7 @@ MONSTERINFO_IDLE(medic_idle) (edict_t* self) -> void
 	// **FIX: Remove the pausetime forcing during cooldown**
 	// The cooldown is already handled in medic_FindDeadMonster
 	// **OLD BUGGY CODE REMOVED:**
-	// if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
+	// if (level.time - self->monsterinfo.last_resurrection_time < 1_sec)
 	// {
 	//     self->monsterinfo.pausetime = level.time + 1.0_sec;
 	//     return;
@@ -989,26 +989,26 @@ MONSTERINFO_RUN(medic_run) (edict_t* self) -> void
 {
 
 		// Debug output for friendly medics
-	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
-	{
-		gi.Com_PrintFmt("MEDIC_RUN: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
-			(self->monsterinfo.pausetime - level.time).seconds(),
-			self->enemy ? self->enemy->classname : "null",
-			self->oldenemy ? self->oldenemy->classname : "null",
-			(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
-			(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
-	}
+	// if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
+	// {
+	// 	gi.Com_PrintFmt("MEDIC_RUN: pausetime={:.1f} enemy={} oldenemy={} AI_MEDIC={} AI_RESURRECTING={}\n",
+	// 		(self->monsterinfo.pausetime - level.time).seconds(),
+	// 		self->enemy ? self->enemy->classname : "null",
+	// 		self->oldenemy ? self->oldenemy->classname : "null",
+	// 		(self->monsterinfo.aiflags & AI_MEDIC) ? "yes" : "no",
+	// 		(self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING)) ? "yes" : "no");
+	// }
 
 	monster_done_dodge(self);
 
-	// FIX: If we have no enemy at all, switch to walk instead of run
+	// FIX: If we have no enemy and we're not healing, go back to stand
+	// This prevents the stand->run->stand cycling when medic has no target
 	if (!self->enemy && !(self->monsterinfo.aiflags & AI_MEDIC))
 	{
-		if (self->monsterinfo.walk)
-		{
-			self->monsterinfo.walk(self);
-			return;
-		}
+		// Set a pausetime to prevent immediate cycling back to run
+		self->monsterinfo.pausetime = level.time + 1.0_sec;
+		M_SetAnimation(self, &medic_move_stand);
+		return;
 	}
 
 	// Priority 1: Deal with active threats first
@@ -1826,10 +1826,11 @@ void medic_finish_and_hunt(edict_t* self)
     self->enemy = nullptr;
     self->oldenemy = nullptr;
 
-    // **FIX: Don't set pausetime here - let natural AI handle it**
-    // **OLD BUGGY LINE:** self->monsterinfo.pausetime = level.time + 2.0_sec;
-    
-    // Just transition to stand - the cooldown in medic_FindDeadMonster will prevent loops
+    // **FIX: Set a SHORT pausetime to prevent immediate stand->run cycling**
+    // This gives the medic a moment to stabilize before ai_stand kicks in
+    self->monsterinfo.pausetime = level.time + 0.5_sec;
+
+    // Transition to stand - the cooldown in medic_FindDeadMonster will prevent loops
     M_SetAnimation(self, &medic_move_stand);
 }
 
