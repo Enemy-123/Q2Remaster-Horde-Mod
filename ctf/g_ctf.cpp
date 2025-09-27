@@ -1972,7 +1972,14 @@ void CTFApplyRegeneration(edict_t* ent)
 				noise = true;
 			}
 			index = ArmorIndex(ent);
-			if (index && client->pers.inventory[index] < 100)
+			if (index == IT_NULL)
+			{
+				// Player has no armor - give them jacket armor
+				client->pers.inventory[IT_ARMOR_JACKET] = 5;
+				client->ctf_regentime += 500_ms;
+				noise = true;
+			}
+			else if (client->pers.inventory[index] < 100)
 			{
 				client->pers.inventory[index] += 5;
 				if (client->pers.inventory[index] > 100)
