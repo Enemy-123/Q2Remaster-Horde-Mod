@@ -3,6 +3,7 @@
 #include "../m_flash.h"
 #include "../bots/bot_includes.h"
 #include "g_horde_benefits.h"
+#include "g_horde_phys.h"
 
 // Helper function from m_brain.cpp
 inline void G_EntMidPoint(const edict_t* ent, vec3_t& point)
@@ -18,77 +19,146 @@ inline void G_EntMidPoint(const edict_t* ent, vec3_t& point)
 static void BrainFindTarget(edict_t* self);
 
 static void BrainTongueAttack(edict_t* self, morph_data_t* data) {
-    if (level.time < data->attack_finished)
-        return;
+    // Always find the nearest target - don't stick to one enemy
+    BrainFindTarget(self);
 
-    // Find target if we don't have one
-    if (!self->enemy || !self->enemy->inuse || !self->enemy->takedamage || self->enemy->health <= 0) {
-        BrainFindTarget(self);
+    if (!self->enemy) {
+        // No target found
+        data->tongue_active = false;
+        data->tongue_target = nullptr;
+        return;
     }
 
-    if (!self->enemy)
-        return;
-
-    // Calculate enemy position and direction
-    vec3_t start;
-    G_EntMidPoint(self->enemy, start);
-    vec3_t const dir = start - self->s.origin;
-    float const range = dir.length();
-
-    // Check if enemy is in range
-    if (range > BRAIN_TONGUE_RANGE)
-        return;
-
-    vec3_t const normalized_dir = dir.normalized();
-
-    // Trace to enemy
-    const vec3_t end = self->s.origin + (normalized_dir * BRAIN_TONGUE_RANGE);
-    const trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
-
-    if (tr.ent && tr.ent == self->enemy) {
-        int damage = BRAIN_TONGUE_DAMAGE;
-        int pull = BRAIN_TONGUE_PULL_BASE;
-
-        // Double pull force if on ground
-        if (self->enemy->groundentity)
-            pull = BRAIN_TONGUE_PULL_GROUNDED;
-
-        // Apply damage and pull
-        T_Damage(self->enemy, self, self, normalized_dir, self->enemy->s.origin,
-            vec3_origin, damage, -pull, DAMAGE_RADIUS, MOD_UNKNOWN);
-
-        // Apply health steal if close enough
-        if (range <= 64) {
-            if (level.time >= data->last_steal_time) {
-                int steal_amount = irandom(BRAIN_STEAL_MIN, BRAIN_STEAL_MAX);
-
-                // Apply health steal
-                self->health = min(self->max_health, self->health + steal_amount);
-
-                // Visual feedback
-                self->s.effects |= EF_TELEPORTER;
-                gi.sound(self, CHAN_VOICE, gi.soundindex("brain/brnatck1.wav"), 1, ATTN_NORM, 0);
-
-                data->last_steal_time = level.time + BRAIN_STEAL_INTERVAL;
-            }
-        }
-
-        // Set tongue active
+    // Start attacking the nearest enemy
+    if (!data->tongue_active || data->tongue_target != self->enemy) {
+        // New target or starting attack
         data->tongue_active = true;
         data->tongue_target = self->enemy;
-        data->attack_finished = level.time + BRAIN_TONGUE_COOLDOWN;
+        data->attack_finished = level.time + FRAME_TIME_MS; // Start attacking next frame
+        data->last_steal_time = 0_ms; // Reset steal timer
+
+        // Play initial attack sound for new target
+        gi.sound(self, CHAN_WEAPON, gi.soundindex("brain/brnatck1.wav"), 1, ATTN_NORM, 0);
     }
 }
 
+static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
+    // Continue damaging while holding attack - but not every frame!
+    if (!data->tongue_active || !data->tongue_target)
+        return;
+
+    // Only continue attack at proper intervals (not every frame)
+    if (level.time < data->attack_finished)
+        return;
+
+    // Check if target is still valid
+    if (!data->tongue_target->inuse || data->tongue_target->health <= 0) {
+        data->tongue_active = false;
+        data->tongue_target = nullptr;
+        return;
+    }
+
+    // Calculate distance
+    vec3_t start;
+    G_EntMidPoint(data->tongue_target, start);
+    vec3_t const diff = start - self->s.origin;
+    float const dist = diff.length();
+
+    // Release if out of range
+    if (dist > BRAIN_TONGUE_RANGE) {
+        data->tongue_active = false;
+        data->tongue_target = nullptr;
+        data->attack_finished = level.time + 1_sec;
+        return;
+    }
+
+    // Calculate pull and damage values (from m_brain.cpp)
+    const vec3_t dir = diff.normalized();
+    int pull = 70;  // Same as m_brain.cpp
+    int damage = 3; // Same as m_brain.cpp
+
+    // Increase pull if on ground
+    if (data->tongue_target->groundentity)
+        pull *= 2;
+
+    // Apply effects if in close range (64 units like m_brain.cpp)
+    if (dist <= 64) {
+        // Apply damage and pull
+        T_Damage(data->tongue_target, self, self, dir, data->tongue_target->s.origin,
+            vec3_origin, damage, -pull, DAMAGE_RADIUS, MOD_UNKNOWN);
+
+        // Steal health 4 times per second (like m_brain.cpp)
+        if (level.time >= data->last_steal_time) {
+            int steal_amount = irandom(3, 6);
+
+            // Apply health steal
+            self->health = min(self->max_health, self->health + steal_amount);
+
+            // Visual feedback
+            self->s.effects |= EF_TELEPORTER;
+            gi.sound(self, CHAN_AUTO, gi.soundindex("brain/brnatck2.wav"), 0.5f, ATTN_NORM, 0);
+
+            // Set next steal time (4 times per second)
+            data->last_steal_time = level.time + 250_ms;
+        }
+    } else {
+        // If not close enough, just pull without damage
+        T_Damage(data->tongue_target, self, self, dir, data->tongue_target->s.origin,
+            vec3_origin, 0, -pull, DAMAGE_RADIUS, MOD_UNKNOWN);
+    }
+
+    // Set next attack time - attack continues at regular intervals
+    data->attack_finished = level.time + FRAME_TIME_MS * 2; // Every 2 frames like monster AI
+
+    // Update enemy pointer for targeting
+    self->enemy = data->tongue_target;
+}
+
 static void BrainFindTarget(edict_t* self) {
-    // Find nearest enemy within range
+    // Find nearest enemy within range using the proper grid system
     edict_t* best = nullptr;
     float best_dist = BRAIN_TONGUE_RANGE;
 
+    // Use the monster grid to find nearby entities efficiently
+    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, BRAIN_TONGUE_RANGE);
+
+    for (auto* target : nearby_entities) {
+        if (!target || target == self)
+            continue;
+
+        if (!target->takedamage || target->health <= 0 || target->deadflag)
+            continue;
+
+        // Check if it's a valid enemy (monster or player)
+        bool is_valid_target = false;
+
+        // Check if it's a monster
+        if (target->svflags & SVF_MONSTER) {
+            if (!OnSameTeam(self, target))
+                is_valid_target = true;
+        }
+        // Check if it's a player
+        else if (target->client) {
+            if (!OnSameTeam(self, target))
+                is_valid_target = true;
+        }
+
+        if (!is_valid_target)
+            continue;
+
+        float dist = (target->s.origin - self->s.origin).length();
+        if (dist < best_dist) {
+            // No line of sight needed for brain tongue
+            best = target;
+            best_dist = dist;
+        }
+    }
+
+    // Also check players specifically (in case they're not in the monster grid)
     for (int i = 1; i <= game.maxclients; i++) {
         edict_t* ent = &g_edicts[i];
 
-        if (!ent->inuse || !ent->client || ent == self)
+        if (!ent || !ent->inuse || !ent->client || ent == self)
             continue;
 
         if (ent->health <= 0 || ent->deadflag)
@@ -100,12 +170,8 @@ static void BrainFindTarget(edict_t* self) {
 
         float dist = (ent->s.origin - self->s.origin).length();
         if (dist < best_dist) {
-            // Check line of sight
-            trace_t tr = gi.traceline(self->s.origin, ent->s.origin, self, MASK_SHOT);
-            if (tr.fraction == 1.0 || tr.ent == ent) {
-                best = ent;
-                best_dist = dist;
-            }
+            best = ent;
+            best_dist = dist;
         }
     }
 
@@ -147,28 +213,35 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     // Regeneration
     BrainRegenerate(ent);
 
-    // Find target if we don't have one
-    if (!ent->enemy || !ent->enemy->inuse || ent->enemy->health <= 0) {
-        BrainFindTarget(ent);
-        data->tongue_active = false;
-        data->tongue_target = nullptr;
-    }
+    // Clear enemy pointer each frame - we'll find fresh target when attacking
+    ent->enemy = nullptr;
 
-    // Handle attacks
-    if (ucmd.buttons & BUTTON_ATTACK) {
-        // Always try to attack when button is pressed
-        BrainTongueAttack(ent, data);
+    // Handle attacks - only allow when on ground
+    if ((ucmd.buttons & BUTTON_ATTACK) && ent->groundentity) {
+        // Start attack if not already attacking
+        if (!data->tongue_active) {
+            BrainTongueAttack(ent, data);
+        }
 
-        // Animation for attack
+        // Continue damaging while button is held
         if (data->tongue_active) {
+            BrainTongueAttackContinue(ent, data);
+
+            // Animation for attack
             if (ent->s.frame < BRAIN_FRAMES_ATTACK_START || ent->s.frame > BRAIN_FRAMES_ATTACK_END)
                 ent->s.frame = BRAIN_FRAMES_ATTACK_START;
             else if (ent->s.frame < BRAIN_FRAMES_ATTACK_END)
                 ent->s.frame++;
+            else
+                ent->s.frame = BRAIN_FRAMES_ATTACK_START + 4; // Loop middle frames during continuous attack
         }
     } else {
-        data->tongue_active = false;
-        data->tongue_target = nullptr;
+        // Release attack when button is released or not on ground
+        if (data->tongue_active) {
+            data->tongue_active = false;
+            data->tongue_target = nullptr;
+            data->attack_finished = level.time + BRAIN_TONGUE_COOLDOWN;
+        }
     }
 
     // Animation frames

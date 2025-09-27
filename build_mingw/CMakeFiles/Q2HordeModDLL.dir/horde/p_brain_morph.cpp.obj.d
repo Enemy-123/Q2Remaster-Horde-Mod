@@ -244,4 +244,5 @@ CMakeFiles/Q2HordeModDLL.dir/horde/p_brain_morph.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../bots/bot_think.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../bots/bot_debug.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../bots/bot_exports.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_benefits.h
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_benefits.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_phys.h

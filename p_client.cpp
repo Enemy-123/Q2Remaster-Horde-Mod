@@ -4005,7 +4005,20 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		if (pm.jump_sound && !(pm.s.pm_flags & PMF_ON_LADDER))
 		{
-			gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
+			// Check if we're a brain morph and use brain jump sound
+			if (IsMorphed(ent)) {
+				auto* data = GetMorphData(ent);
+				if (data && data->morph_type == MORPH_BRAIN) {
+					// Use brain sight sound for jump (like the monster does)
+					gi.sound(ent, CHAN_VOICE, gi.soundindex("brain/brnsght1.wav"), 1, ATTN_NORM, 0);
+				} else {
+					// Other morphs use normal jump sound for now
+					gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
+				}
+			} else {
+				// Normal player jump sound
+				gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
+			}
 		}
 
 		if (ent->flags & FL_SAM_RAIMI)
