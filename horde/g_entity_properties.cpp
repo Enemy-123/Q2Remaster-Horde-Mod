@@ -33,8 +33,10 @@ const std::array<EntityProperties, NUM_SPECIAL_ENTITY_TYPES> g_entityProperties 
     // Index 8
     {horde::SpecialEntityTypeID::DOPPLEGANGER,   false, true,  doppleganger_die},
     // Index 9
-    {horde::SpecialEntityTypeID::STROGG_SUMMONER, true, true,  strogg_summoner_die}
-}};
+    {horde::SpecialEntityTypeID::STROGG_SUMMONER, true, true,  strogg_summoner_die},
+    // Index 10 - Morphed players
+    {horde::SpecialEntityTypeID::MORPHED_PLAYER,  false, false, nullptr}
+}};;
 
 // --- Recommendation 5: Runtime Verification ---
 // This function runs only in debug builds to catch logical errors in the data,

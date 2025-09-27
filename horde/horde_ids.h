@@ -118,9 +118,10 @@ enum class SpecialEntityTypeID : uint8_t {
     LASER_BEAM,      // 7
     DOPPLEGANGER,    // 8
     STROGG_SUMMONER, // 9
-    COUNT,           // 10 - The total number of special entity types
+    MORPHED_PLAYER,  // 10 - For players morphed into monsters
+    COUNT,           // 11 - The total number of special entity types
     UNKNOWN = 255
-};
+};;
 
 // Class for efficient special entity type lookups
 class SpecialTypeRegistry {

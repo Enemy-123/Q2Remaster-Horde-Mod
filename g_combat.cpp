@@ -347,10 +347,11 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     // This might be different from the 'inflictor' (e.g., a bullet) or the 'attacker' (e.g., a player).
     edict_t* threat_source = nullptr;
 
-    // Case 1: The inflictor is a deployable itself (like a Tesla mine).
+    // Case 1: The inflictor is a deployable itself (like a Tesla mine) or a morphed player.
     if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
                       inflictor->monsterinfo.issummoned ||
 					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER)))
     {
         threat_source = inflictor;
@@ -369,23 +370,30 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     else if (inflictor && inflictor->owner && horde::IsSpecialType(inflictor->owner, horde::SpecialEntityTypeID::DOPPLEGANGER))
     {
         // The real threat is the player who owns the doppelganger.
-        threat_source = inflictor->owner; 
+        threat_source = inflictor->owner;
+    }
+    // Case 5: The inflictor is a projectile whose owner is a morphed player.
+    else if (inflictor && inflictor->owner && horde::IsSpecialType(inflictor->owner, horde::SpecialEntityTypeID::MORPHED_PLAYER))
+    {
+        threat_source = inflictor->owner; // The threat is the morphed player.
     }
 
     // If we identified a deployable as the threat source, react to it.
     if (threat_source && threat_source->inuse)
     {
-        // Check if the monster should target this type of deployable.
+        // Check if the monster should target this type of deployable or morphed player.
         if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) ||
             threat_source->monsterinfo.issummoned ||
 			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
             horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
         {
             new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
 
-            // Summoned entities or Laser Emitter logic
+            // Summoned entities, morphed players or Laser Emitter logic
             if (threat_source->monsterinfo.issummoned ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
             {
                 if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
@@ -393,6 +401,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
                     if ((new_tesla || brandom()) && (!targ->enemy ||
                         !(targ->enemy->monsterinfo.issummoned ||
 					  	 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
+						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER))))
                     {
                         TargetTesla(targ, threat_source); // Assuming this function sets the enemy to any deployable.

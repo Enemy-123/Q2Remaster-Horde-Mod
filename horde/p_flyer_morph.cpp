@@ -3,6 +3,7 @@
 #include "../m_flash.h"
 #include "../bots/bot_includes.h"
 #include "g_horde_benefits.h"
+#include "horde_ids.h"
 #include <unordered_map>
 
 [[nodiscard]] constexpr float SHORT2ANGLE(int16_t x) {
@@ -425,6 +426,9 @@ void RestoreMorphed(edict_t* ent) {
     // Clear morph data first
     ClearMorphData(ent);
 
+    // Clear special entity type
+    ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
+
     // Store current position before respawn
     vec3_t old_origin = ent->s.origin;
     vec3_t old_angles = ent->s.angles;
@@ -529,6 +533,9 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     data->morph_type = MORPH_FLYER;
     data->morph_time = level.time;
     data->attack_finished = level.time + 500_ms;
+
+    // Set special entity type for M_ReactToDamage
+    ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::MORPHED_PLAYER);
 
     // Set model and bounds
     ent->s.modelindex = gi.modelindex("models/monsters/flyer/tris.md2");

@@ -4,6 +4,7 @@
 #include "../bots/bot_includes.h"
 #include "g_horde_benefits.h"
 #include "g_horde_phys.h"
+#include "horde_ids.h"
 
 // Helper function from m_brain.cpp
 inline void G_EntMidPoint(const edict_t* ent, vec3_t& point)
@@ -359,6 +360,9 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     data->morph_type = MORPH_BRAIN;
     data->morph_time = level.time;
     data->attack_finished = level.time + 500_ms;
+
+    // Set special entity type for M_ReactToDamage
+    ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::MORPHED_PLAYER);
     data->last_steal_time = 0_ms;
     data->tongue_active = false;
     data->tongue_target = nullptr;
