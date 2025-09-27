@@ -128,6 +128,9 @@ void M_SetupReinforcements(std::span<const reinforcement_def_t> defs, reinforcem
 	list.defs = defs;
 }
 
+extern const mmove_t medic_move_stand;
+extern const mmove_t medic_move_walk;
+
 void fixHealerEnemy(edict_t* self)
 {
 	if (self->oldenemy && self->oldenemy->inuse && self->oldenemy->health > 0)
@@ -143,10 +146,15 @@ void fixHealerEnemy(edict_t* self)
 		if (!FindTarget(self))
 		{
 			// No enemy found, return to patrol/walk mode
-			if (self->monsterinfo.walk)
-				self->monsterinfo.walk(self);  // Fixed: was incorrectly calling stand
-			else if (self->monsterinfo.stand)
-				self->monsterinfo.stand(self);
+			// Force proper animation transition to prevent stuck state
+			// if (self->monsterinfo.walk)
+			// {
+			// 	M_SetAnimation(self, &medic_move_walk); // Fixed: was incorrectly calling stand
+			// }
+			// else if (self->monsterinfo.stand)
+			{
+				M_SetAnimation(self, &medic_move_stand);
+			}
 		}
 		// else FindTarget already called FoundTarget which sets run mode
 	}
@@ -723,6 +731,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_run, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -751,9 +760,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand, 2, medic_check_heal}, 
-	{ ai_stand },
+	{ ai_run, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -780,6 +787,7 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_run, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -1605,6 +1613,8 @@ void medic_finish_and_hunt(edict_t* self)
 {
 	// After finishing healing, actively look for new targets
 	self->monsterinfo.aiflags &= ~AI_MEDIC;
+	// Clear any stand ground flag that might have been set
+	self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 
 	// Restore original enemy if we had one
 	if (self->oldenemy && self->oldenemy->inuse)
@@ -1634,9 +1644,16 @@ void medic_finish_and_hunt(edict_t* self)
 		return;
 	}
 
-	// No targets - use stand which will trigger constant FindTarget checks
-	if (self->monsterinfo.stand)
-		self->monsterinfo.stand(self);
+	// No targets - clear enemy and let stand mode handle target acquisition
+	self->enemy = nullptr;
+	self->oldenemy = nullptr;
+
+	// Set a very short pause to break the loop, but short enough to quickly find targets
+	self->monsterinfo.pausetime = level.time + 0.1_sec;  // Very short pause just to break the state loop
+
+	// Force transition to stand mode where FindTarget and horde logic can work
+	M_SetAnimation(self, &medic_move_stand);
+	self->monsterinfo.stand(self);
 }
 
 void medic_hook_retract(edict_t* self)
