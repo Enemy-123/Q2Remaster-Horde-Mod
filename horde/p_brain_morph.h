@@ -24,14 +24,14 @@ constexpr int32_t BRAIN_FRAMES_JUMP_END = 161;     // FRAME_duck08
 
 // Tongue attack constants
 constexpr float BRAIN_TONGUE_RANGE = 512.0f;
-constexpr int32_t BRAIN_TONGUE_DAMAGE = 3;
+constexpr int32_t BRAIN_TONGUE_DAMAGE = 6;  // Increased from 3
 constexpr int32_t BRAIN_TONGUE_PULL_BASE = 175;
 constexpr int32_t BRAIN_TONGUE_PULL_GROUNDED = 350; // Double when target on ground
 constexpr gtime_t BRAIN_TONGUE_COOLDOWN = 500_ms;
 
 // Health steal constants
-constexpr int32_t BRAIN_STEAL_MIN = 3;
-constexpr int32_t BRAIN_STEAL_MAX = 6;
+constexpr int32_t BRAIN_STEAL_MIN = 5;  // Increased from 3
+constexpr int32_t BRAIN_STEAL_MAX = 10; // Increased from 6
 constexpr gtime_t BRAIN_STEAL_INTERVAL = 250_ms; // Steal health 4 times per second
 
 // Regeneration constants

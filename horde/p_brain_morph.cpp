@@ -94,10 +94,10 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
     }
     self->s.angles[YAW] = ideal_angles[YAW];
 
-    // Calculate pull and damage values (from m_brain.cpp)
+    // Calculate pull and damage values
     const vec3_t dir = diff.normalized();
     int pull = 70;  // Same as m_brain.cpp
-    int damage = 3; // Same as m_brain.cpp
+    int damage = BRAIN_TONGUE_DAMAGE; // Use constant from header
 
     // Increase pull if on ground
     if (data->tongue_target->groundentity)
@@ -111,7 +111,7 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
 
         // Steal health 4 times per second (like m_brain.cpp)
         if (level.time >= data->last_steal_time) {
-            int steal_amount = irandom(3, 6);
+            int steal_amount = irandom(BRAIN_STEAL_MIN, BRAIN_STEAL_MAX);
 
             // Apply health steal
             self->health = min(self->max_health, self->health + steal_amount);
