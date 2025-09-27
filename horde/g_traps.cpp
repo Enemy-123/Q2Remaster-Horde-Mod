@@ -85,7 +85,8 @@ THINK(Trap_Gib_Think) (edict_t* ent) -> void
         return;
     }
 
-    if (ent->owner->s.frame != TRAP_FRAME_CONSUME)
+    // Free the gib if the trap is no longer consuming (frames 5-7 are consuming states)
+    if (ent->owner->s.frame < TRAP_FRAME_CONSUME || ent->owner->s.frame > 7)
     {
         G_FreeEdict(ent);
         return;
