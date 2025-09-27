@@ -478,32 +478,100 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 }
 
 // Command to remove summoned Strogg
+// Helper function to inherit summoned properties from parent/commander to child entity
+void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup = true)
+{
+	if (!child || !parent || !parent->chain || !parent->teammaster)
+		return;
+
+	// Inherit core summoned properties
+	child->chain = parent->chain;  // Inherit chain to strogg base
+	child->teammaster = parent->teammaster;  // Inherit player owner
+	child->monsterinfo.issummoned = true;
+
+	// Full setup for spawned reinforcements (not needed for boss transformations)
+	if (full_setup) {
+		child->touch = strogg_summoned_touch;  // Allow owner to push
+		child->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+		child->monsterinfo.bonus_flags |= BF_FRIENDLY;
+
+		// Set team properly based on the player owner
+		if (child->teammaster->client) {
+			child->ctf_team = child->teammaster->client->resp.ctf_team;
+			child->monsterinfo.team = child->teammaster->client->resp.ctf_team;
+		}
+
+		// Ensure proper collision for summoned monsters
+		child->svflags &= ~SVF_PLAYER;
+		child->svflags |= SVF_MONSTER;
+		child->solid = SOLID_BBOX;
+		child->clipmask = MASK_MONSTERSOLID;
+
+		gi.linkentity(child);
+	}
+}
+
+// Helper function to remove summoned entities with optional filtering
+enum class RemovalFilter {
+	ALL_SUMMONS,     // Remove all summoned entities
+	STROGG_ONLY      // Remove only strogg bases
+};
+
+static int RemoveSummonedEntities(edict_t* owner, RemovalFilter filter)
+{
+	if (!owner || !owner->client)
+		return 0;
+
+	int removed_count = 0;
+	std::vector<edict_t*> ents_to_remove;
+
+	if (filter == RemovalFilter::STROGG_ONLY) {
+		// Find all strogg_summoner_base entities owned by this player
+		for (edict_t* special_ent : g_targetable_special_entities) {
+			if (special_ent && special_ent->inuse &&
+				special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+				special_ent->teammaster == owner) {
+				ents_to_remove.push_back(special_ent);
+			}
+		}
+	}
+	else { // ALL_SUMMONS
+		// Find all entities that have this player as their teammaster
+		for (int i = 1; i < globals.num_edicts; i++) {
+			edict_t* check = &g_edicts[i];
+			if (check && check->inuse && check->teammaster == owner && check->chain) {
+				ents_to_remove.push_back(check);
+			}
+		}
+	}
+
+	// Remove all found entities
+	for (edict_t* ent : ents_to_remove) {
+		if (ent && ent->inuse) {
+			removed_count++;
+			
+			// Check if it's a strogg base
+			if (ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER)) {
+				strogg_summoner_die(ent, owner, owner, 0, ent->s.origin, MOD_UNKNOWN);
+			}
+			// Otherwise just remove it normally
+			else if (ent->die) {
+				ent->die(ent, owner, owner, 0, ent->s.origin, MOD_UNKNOWN);
+			} else {
+				G_FreeEdict(ent);
+			}
+		}
+	}
+
+	return removed_count;
+}
+
 void Cmd_RemoveStrogg_f(edict_t* ent)
 {
 	if (!ent || !ent->client)
 		return;
 
-	int removed_count = 0;
-	
-	// Create a list of bases to remove (can't modify g_targetable_special_entities while iterating)
-	std::vector<edict_t*> bases_to_remove;
-	
-	// Find all strogg_summoner_base entities owned by this player
-	for (edict_t* special_ent : g_targetable_special_entities) {
-		if (special_ent && special_ent->inuse &&
-			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-			special_ent->teammaster == ent) {
-			bases_to_remove.push_back(special_ent);
-		}
-	}
-
-	// Remove all found bases
-	for (edict_t* base : bases_to_remove) {
-		if (base && base->inuse) {
-			removed_count++;
-			strogg_summoner_die(base, ent, ent, 0, base->s.origin, MOD_UNKNOWN);
-		}
-	}
+	int removed_count = RemoveSummonedEntities(ent, RemovalFilter::STROGG_ONLY);
 
 	if (removed_count > 0)
 	{
@@ -520,37 +588,7 @@ void Cmd_RemoveAllSummons_f(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
-	int removed_count = 0;
-	
-	// Create a list of entities to remove (can't modify while iterating)
-	std::vector<edict_t*> ents_to_remove;
-	
-	// Find all entities that have this player as their teammaster
-	for (int i = 1; i < globals.num_edicts; i++) {
-		edict_t* check = &g_edicts[i];
-		if (check && check->inuse && check->teammaster == ent && check->chain) {
-			// This is a summoned entity (has both teammaster pointing to player and chain)
-			ents_to_remove.push_back(check);
-		}
-	}
-
-	// Remove all found summons
-	for (edict_t* summon : ents_to_remove) {
-		if (summon && summon->inuse) {
-			removed_count++;
-			
-			// Check if it's a strogg base
-			if (summon->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER)) {
-				strogg_summoner_die(summon, ent, ent, 0, summon->s.origin, MOD_UNKNOWN);
-			}
-			// Otherwise just remove it normally
-			else if (summon->die) {
-				summon->die(summon, ent, ent, 0, summon->s.origin, MOD_UNKNOWN);
-			} else {
-				G_FreeEdict(summon);
-			}
-		}
-	}
+	int removed_count = RemoveSummonedEntities(ent, RemovalFilter::ALL_SUMMONS);
 
 	if (removed_count > 0)
 	{

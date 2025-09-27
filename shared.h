@@ -165,7 +165,7 @@ extern void strogg_summoner_die(edict_t* self, edict_t* inflictor, edict_t* atta
 extern void strogg_base_think(edict_t* self);
 // Forward declaration for strogg summoner touch function
 extern void strogg_summoned_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
-
+extern void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup);
 // --- Extern Declarations for Monster Jump Moves ---
 
 // Berserk

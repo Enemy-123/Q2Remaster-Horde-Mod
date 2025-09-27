@@ -1070,6 +1070,18 @@ void MakronToss(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	// // Store summoned properties early before any returns ////maybe for makron_spawn?
+	// bool was_summoned = (self->chain && self->teammaster);
+	// edict_t* stored_chain = self->chain;
+	// edict_t* stored_teammaster = self->teammaster;
+	// bonus_flags_t stored_bonus_flags = self->monsterinfo.bonus_flags;
+
+	// // Debug output
+	// if (was_summoned) {
+	// 	gi.Com_PrintFmt("MakronToss: Jorg was summoned! chain={}, teammaster={}, bonus_flags={}\n",
+	// 		(void*)stored_chain, (void*)stored_teammaster, (int)stored_bonus_flags);
+	// }
+
 	edict_t* ent = G_Spawn();
 
 	if (self->monsterinfo.IS_BOSS) {
@@ -1106,18 +1118,27 @@ void MakronToss(edict_t* self)
 		ent->enemy = self->enemy;
 	}
 
-	// If the dying Jorg was summoned, make the spawned Makron inherit its properties // would be better making it a helper function?
-	if (self->chain && self->teammaster) {
-		ent->chain = self->chain;  // Inherit chain to strogg base
-		ent->teammaster = self->teammaster;  // Inherit player owner
-		ent->monsterinfo.issummoned = true;
-		// Team will be set properly by ApplyMonsterBonusFlags
-	}
-
 	// Decide whether to spawn based on horde settings and boss status
 	if (!g_horde->integer || (g_horde->integer && !self->monsterinfo.IS_BOSS)) {
 		MakronSpawn(ent);
 	}
+
+	// // Restore summoned properties if Jorg was summoned //maybe for makron_spawn?
+	// if (was_summoned && stored_chain && stored_teammaster) {
+	// 	gi.Com_PrintFmt("MakronToss: Restoring summoned properties to Makron\n");
+	// 	ent->chain = stored_chain;
+	// 	ent->teammaster = stored_teammaster;
+	// 	ent->monsterinfo.issummoned = true;
+	// 	ent->monsterinfo.bonus_flags |= (stored_bonus_flags & BF_FRIENDLY);  // Preserve friendly flag
+
+	// 	// Reapply touch function for summoned monsters
+	// 	if (ent->teammaster && ent->teammaster->client) {
+	// 		ent->touch = strogg_summoned_touch;
+	// 	}
+
+	// 	gi.Com_PrintFmt("MakronToss: After restore - chain={}, teammaster={}, issummoned={}, bonus_flags={}\n",
+	// 		(void*)ent->chain, (void*)ent->teammaster, ent->monsterinfo.issummoned, (int)ent->monsterinfo.bonus_flags);
+	// }
 
 	// [Paril-KEX] set health bar over to Makron when we throw him out
 	for (size_t i = 0; i < 2; i++)
