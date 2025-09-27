@@ -1665,8 +1665,14 @@ void medic_cable_attack(edict_t* self)
             {
                 // Heal player's armor
                 int armor_index = ArmorIndex(self->enemy);
-                if (armor_index != IT_NULL)
+                if (armor_index == IT_NULL)
                 {
+                    // Player has no armor at all - give them jacket armor
+                    self->enemy->client->pers.inventory[IT_ARMOR_JACKET] = heal_amount / 2;
+                }
+                else
+                {
+                    // Player has armor - heal it normally
                     int max_armor = 200; // Default max armor
                     int current_armor = self->enemy->client->pers.inventory[armor_index];
                     if (current_armor < max_armor)
