@@ -1031,7 +1031,11 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	bool shouldCloseMenu = true; // Default to closing the menu
 
 	// Use strncmp for options that might have counts appended or dynamic text
-	if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
+	if (strncmp(selected_text, "Remove Strogg", strlen("Remove Strogg")) == 0) {
+		Cmd_RemoveStrogg_f(ent);
+		// Message handled internally, menu should close.
+	}
+	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
 		Cmd_RemoveLaser_f(ent);
 		// Message handled internally, menu should close.
 	}
@@ -1107,6 +1111,19 @@ void OpenMiscMenu(edict_t* ent) {
 	}
 
 	// --- Conditional Remove Options (MODIFIED) ---
+
+	// Count Strogg summons for this player
+	int strogg_count = 0;
+	for (edict_t* special_ent : g_targetable_special_entities) {
+		if (special_ent && special_ent->inuse &&
+			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+			special_ent->teammaster == ent) {
+			strogg_count++;
+		}
+	}
+	if (strogg_count > 0) {
+		add_entry(G_Fmt("Remove Strogg ({})", strogg_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
 
     // Get the laser count directly from the client's respawn data.
     int laser_count = ent->client->resp.num_lasers;
@@ -1685,7 +1702,7 @@ private:
 
 	// New constants for better overflow protection
 	static constexpr size_t MAX_SPECTATORS_TO_DISPLAY = 8;
-	static constexpr size_t MAX_BONUS_STRING_LENGTH = 100;
+	static constexpr size_t MAX_BONUS_STRING_LENGTH = 400; // Increased to accommodate all 13 bonuses with names up to ~25 chars each
 
 public:
 	ScoreboardLayout(edict_t* player_ent, size_t reserve_size = MAX_CTF_STAT_LENGTH)
