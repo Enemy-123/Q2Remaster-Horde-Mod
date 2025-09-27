@@ -213,16 +213,10 @@ void ai_stand(edict_t* self, float dist)
 
 	if (FindTarget(self))
 		return;
-
-	if (level.time > self->monsterinfo.pausetime)
-	{
-		if (g_horde->integer && self->monsterinfo.issummoned) 
-		self->monsterinfo.run(self);
-		else 
-			self->monsterinfo.walk(self);
-		return;
-	}
-
+		
+	// We move the idle check BEFORE the pausetime check. This allows a monster's
+	// specific idle function (like medic_idle) to override the default
+	// stand->walk transition by resetting the pausetime.
 	if (!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) && (self->monsterinfo.idle) &&
 		(level.time > self->monsterinfo.idle_time))
 	{
@@ -236,6 +230,17 @@ void ai_stand(edict_t* self, float dist)
 			self->monsterinfo.idle_time = level.time + random_time(15_sec);
 		}
 	}
+
+	if (level.time > self->monsterinfo.pausetime)
+	{
+		if (g_horde->integer && self->monsterinfo.issummoned) 
+		self->monsterinfo.run(self);
+		else 
+			self->monsterinfo.walk(self);
+		return;
+	}
+
+
 	// HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
 	if (g_horde->integer)
 	{

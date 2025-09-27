@@ -733,6 +733,17 @@ edict_t* medic_FindDeadMonster(edict_t* self)
 
 MONSTERINFO_IDLE(medic_idle) (edict_t* self) -> void
 {
+	// *** START OF THE FIX ***
+	// If we are on cooldown from a recent resurrection, force the Medic to
+	// continue standing still. We do this by repeatedly resetting its pausetime.
+	// This prevents the generic ai_stand() from transitioning to walk().
+	if (level.time - self->monsterinfo.last_resurrection_time < 5_sec)
+	{
+		self->monsterinfo.pausetime = level.time + 1.0_sec; // Keep waiting
+		return; // Do nothing else until the cooldown is over.
+	}
+	// *** END OF THE FIX ***
+
 	// PMM - commander sounds
 	if (self->mass == 400)
 		gi.sound(self, CHAN_VOICE, sound_idle1, 1, ATTN_IDLE, 0);
