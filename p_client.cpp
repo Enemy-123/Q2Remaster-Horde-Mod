@@ -4120,7 +4120,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			else
 				GetChaseTarget(ent);
 		}
-		else if (!ent->client->weapon_thunk)
+		else if (!ent->client->weapon_thunk && !IsMorphed(ent))
 		{
 			if (ent->client->weaponstate == WEAPON_READY)
 			{
@@ -4733,7 +4733,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// run weapon animations if it hasn't been done by a ucmd_t
-	if (!client->weapon_thunk && !client->resp.spectator)
+	if (!client->weapon_thunk && !client->resp.spectator && !IsMorphed(ent))
 		Think_Weapon(ent);
 	else
 		client->weapon_thunk = false;

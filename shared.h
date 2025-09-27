@@ -159,6 +159,13 @@ extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t& out_mi
 
 extern void remove_sentries(edict_t* ent) noexcept;
 
+
+// Forward declarations for strogg summoner functions
+extern void strogg_summoner_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+extern void strogg_base_think(edict_t* self);
+// Forward declaration for strogg summoner touch function
+extern void strogg_summoned_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+
 // --- Extern Declarations for Monster Jump Moves ---
 
 // Berserk

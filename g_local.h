@@ -1794,12 +1794,13 @@ struct monsterinfo_t
 	edict_t* badMedic1, * badMedic2; // these medics have declared this monster "unhealable"
 	edict_t* healer;				// this is who is healing this monster
 	gtime_t  healing_pause_time;    // Time until monster can move again while being healed
+	gtime_t  last_resurrection_time;  // Track when medic last completed resurrection
 	save_monsterinfo_duck_t duck;
 	save_monsterinfo_unduck_t unduck;
 	save_monsterinfo_sidestep_t sidestep;
-	float	 base_height;
-	gtime_t	 next_duck_time;
-	gtime_t	 duck_wait_time;
+	float	base_height;
+	gtime_t	next_duck_time;
+	gtime_t	duck_wait_time;
 	edict_t* last_player_enemy;
 	// blindfire stuff .. the boolean says whether the monster will do it, and blind_fire_time is the timing
 	// (set in the monster) of the next shot
@@ -1864,7 +1865,7 @@ struct monsterinfo_t
 	gtime_t move_block_change_time;
 	gtime_t react_to_damage_time;
 
-	reinforcement_list_t					reinforcements;
+	reinforcement_list_t				reinforcements;
 	std::array<uint8_t, MAX_REINFORCEMENTS>	chosen_reinforcements; // readied for spawn; 255 is value for none
 
 	gtime_t jump_time;
@@ -1900,7 +1901,7 @@ struct monsterinfo_t
 
 	bool was_spawned_by_horde;
 	bool spawned_in_spawn_state;
-};
+};;
 
 // non-monsterinfo save stuff
 using save_prethink_t = save_data_t<void(*)(edict_t* self), SAVE_FUNC_PRETHINK>;

@@ -18,6 +18,7 @@ void SP_monster_infantry(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_spider(edict_t* self);
 void SP_monster_shambler_small(edict_t* self);
+void SP_monster_medic(edict_t* self);
 
 // Touch function for summoned Strogg - allows owner to push them
 TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -172,8 +173,8 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 		SP_monster_tank(monster);
 	}
 	else if (monster_type < 55) {
-		selected_type = horde::MonsterTypeID::GLADIATOR;
-		SP_monster_gladiator(monster);
+		selected_type = horde::MonsterTypeID::MEDIC;
+		SP_monster_medic(monster);
 	}
 	else if (monster_type < 70) {
 		selected_type = horde::MonsterTypeID::SHAMBLER_SMALL;

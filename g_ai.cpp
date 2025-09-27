@@ -213,13 +213,12 @@ void ai_stand(edict_t* self, float dist)
 
 	if (FindTarget(self))
 		return;
-
-	if (level.time > self->monsterinfo.pausetime)
-	{
-		self->monsterinfo.walk(self);
-		return;
-	}
-
+		
+	// *** START OF THE FIX ***
+	// We move the idle function call to be BEFORE the pausetime check.
+	// This is the most important change. It allows a monster's specific idle
+	// function (like our corrected medic_idle) to take control and reset the
+	// pausetime, preventing the unwanted stand->walk transition.
 	if (!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) && (self->monsterinfo.idle) &&
 		(level.time > self->monsterinfo.idle_time))
 	{
@@ -233,11 +232,38 @@ void ai_stand(edict_t* self, float dist)
 			self->monsterinfo.idle_time = level.time + random_time(15_sec);
 		}
 	}
+	// *** END OF THE FIX ***
+
+	if (level.time > self->monsterinfo.pausetime)
+	{
+		if (g_horde->integer && self->monsterinfo.issummoned) 
+		self->monsterinfo.run(self);
+		else 
+			self->monsterinfo.walk(self);
+		return;
+	}
+
+
 	// HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
 	if (g_horde->integer)
 	{
-		// Solo la sentrygun utilizará FindMTarget para buscar un objetivo
+		// Only summoned monsters use FindMTarget for targeting
 		if (self->monsterinfo.issummoned) {
+			// Don't interfere with medics that are healing/resurrecting
+			if (self->monsterinfo.aiflags & AI_MEDIC)
+			{
+				// Medic is busy healing/resurrecting, don't look for new targets
+				// Just validate the current healing target is still valid
+				if (!self->enemy || !self->enemy->inuse)
+				{
+					// Healing target lost, clear medic mode
+					self->monsterinfo.aiflags &= ~AI_MEDIC;
+					self->enemy = nullptr;
+				}
+				// Don't call FindMTarget when medic is healing
+				return;
+			}
+			
 			if (!self->enemy ||
 				(self->enemy->client && !self->enemy->monsterinfo.issummoned)) { // Si el enemigo actual es un player, olvidarlo
 				self->enemy = nullptr;
@@ -1842,17 +1868,16 @@ bool ai_checkattack(edict_t* self, float dist)
 		self->monsterinfo.aiflags &= ~AI_FORGET_ENEMY;
 		hesDeadJim = true;
 	}
-	else if (self->monsterinfo.aiflags & AI_MEDIC) // Medic checking target validity
+	else if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		// Medic should stop if target is no longer valid
-		if (!self->enemy->inuse)
-			hesDeadJim = true;
-		// For resurrection: stop if corpse was resurrected (has monster_think)
-		else if (self->enemy->health <= 0)
-			hesDeadJim = true;
-		// For healing: stop if living target is fully healed or dead
-		else if (self->enemy->health > 0 && (self->enemy->health >= self->enemy->max_health || self->enemy->deadflag))
-			hesDeadJim = true;
+		// If we are in MEDIC mode, a target with health <= 0 is our OBJECTIVE,
+		// not an invalid/dead enemy. It only becomes invalid if it's gibbed
+		// or has been fully healed.
+		if (self->enemy->health > 0 && self->enemy->health >= self->enemy->max_health)
+			hesDeadJim = true; // Target is fully healed, we are done.
+		else if (self->enemy->gib_health && self->enemy->health < self->enemy->gib_health)
+			hesDeadJim = true; // Target is gibbed and cannot be revived.
+		// Otherwise, hesDeadJim remains false, and we proceed.
 	}
 	else // Standard checks
 	{
@@ -2094,7 +2119,23 @@ void ai_run(edict_t* self, float dist)
 	// 2. Handle special case: Summoned monster targeting logic
 	if (self->monsterinfo.issummoned)
 	{
-		if (!self->enemy || !self->enemy->inuse || self->enemy->client)
+		// Don't interfere with medics that are healing/resurrecting
+		if (self->monsterinfo.aiflags & AI_MEDIC)
+		{
+			// Let the medic continue its healing/resurrection
+			if (!self->enemy || !self->enemy->inuse)
+			{
+				// Target lost, clear medic mode
+				self->monsterinfo.aiflags &= ~AI_MEDIC;
+				if (!FindMTarget(self))
+				{
+					if (self->monsterinfo.stand) self->monsterinfo.stand(self);
+					return;
+				}
+			}
+			// Otherwise continue with current healing target - don't call FindMTarget
+		}
+		else if (!self->enemy || !self->enemy->inuse || self->enemy->client)
 		{
 			self->enemy = nullptr;
 			if (!FindMTarget(self))

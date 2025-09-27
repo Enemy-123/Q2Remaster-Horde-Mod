@@ -189,6 +189,10 @@ static void BrainFindTarget(edict_t* self) {
         if (ent->health <= 0 || ent->deadflag)
             continue;
 
+        // Skip spectators
+        if (ent->client->resp.spectator)
+            continue;
+
         // Check team
         if (OnSameTeam(self, ent))
             continue;

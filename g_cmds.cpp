@@ -5,6 +5,7 @@
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
 #include "horde/p_brain_morph.h"
+#include "shared.h"
 
 void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu = true)
 {
@@ -645,6 +646,164 @@ void Cmd_Novisible_f(edict_t* ent)
 		msg = "novisible ON\n";
 
 	gi.LocClient_Print(ent, PRINT_HIGH, msg);
+}
+
+/*
+==================
+Cmd_Summon_f
+
+Summons a monster at crosshair location for testing
+
+argv(0) summon
+argv(1) classname (e.g., monster_medic, monster_gunner)
+==================
+*/
+void Cmd_Summon_f(edict_t* ent)
+{
+	if (!G_CheatCheck(ent))
+		return;
+
+	const char* classname = gi.argv(1);
+	if (!classname || !*classname)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Usage: summon <classname>\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Example: summon monster_medic\n");
+		return;
+	}
+
+	// Ensure it's a monster classname
+	if (strncmp(classname, "monster_", 8) != 0 && strncmp(classname, "misc_", 5) != 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Invalid classname. Must start with 'monster_' or 'misc_'\n");
+		return;
+	}
+
+	// Trace forward to find spawn location
+	vec3_t forward, start, end;
+	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+
+	start = ent->s.origin;
+	start[2] += ent->viewheight;
+
+	end = start + (forward * 512);  // 512 units forward
+
+	trace_t tr = gi.traceline(start, end, ent, MASK_SHOT);
+
+	// Back off a bit from the wall
+	vec3_t spawn_point = tr.endpos;
+	if (tr.fraction < 1.0f)
+	{
+		spawn_point = spawn_point - (forward * 64);
+	}
+
+	// Create the invisible base entity (like strogg summoner)
+	edict_t* base = G_Spawn();
+	if (!base)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to create base entity\n");
+		return;
+	}
+
+	base->s.origin = spawn_point;
+	base->s.angles = vectoangles(forward);
+	base->s.angles[PITCH] = 0;
+	base->movetype = MOVETYPE_NONE;
+	base->solid = SOLID_NOT;
+	base->s.renderfx |= RF_IR_VISIBLE;
+	base->mins = { -8, -8, -8 };
+	base->maxs = { 8, 8, 8 };
+	base->s.modelindex = 0;  // No model - invisible
+	base->teammaster = ent;  // Reference to the player who summoned
+	base->flags |= FL_TRAP;
+	base->takedamage = DAMAGE_NONE;
+	base->die = strogg_summoner_die;
+	base->classname = "strogg_summoner_base";
+	base->monsterinfo.issummoned = true;
+
+	// Register with special entities
+	base->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER);
+	g_targetable_special_entities.push_back(base);
+
+	gi.linkentity(base);
+
+	// Spawn the monster
+	edict_t* monster = G_Spawn();
+	if (!monster)
+	{
+		// Clean up base if monster spawn fails
+		auto& vec = g_targetable_special_entities;
+		vec.erase(std::remove(vec.begin(), vec.end(), base), vec.end());
+		G_FreeEdict(base);
+		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to spawn monster\n");
+		return;
+	}
+
+	// Set up the monster
+	monster->classname = classname;
+	monster->s.origin = spawn_point;
+
+	// Make it face the player
+	vec3_t dir = ent->s.origin - spawn_point;
+	monster->s.angles = vectoangles(dir);
+	monster->s.angles[PITCH] = 0;
+
+	// Mark as summoned BEFORE calling spawn
+	monster->monsterinfo.issummoned = true;
+
+	// Call spawn function
+	spawn_temp_t st{};
+	ED_CallSpawn(monster, st);
+
+	if (!monster->inuse)
+	{
+		// Clean up on failure
+		auto& vec = g_targetable_special_entities;
+		vec.erase(std::remove(vec.begin(), vec.end(), base), vec.end());
+		G_FreeEdict(base);
+		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to spawn {}\n", classname);
+		G_FreeEdict(monster);
+		return;
+	}
+
+	// Set up all the references and flags (like strogg summoner)
+	monster->teammaster = ent;  // Reference to the player
+	monster->chain = base;       // Reference to the base for cleanup
+
+	// Team assignment
+	monster->ctf_team = ent->client->resp.ctf_team;
+	if (monster->svflags & SVF_MONSTER)
+	{
+		monster->monsterinfo.team = static_cast<uint8_t>(ent->client->resp.ctf_team);
+		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
+	}
+
+	// Ensure proper collision
+	monster->svflags &= ~SVF_PLAYER;
+	monster->svflags |= SVF_MONSTER;
+	monster->solid = SOLID_BBOX;
+	monster->clipmask = MASK_MONSTERSOLID;
+
+	// Set touch function for pushing
+	monster->touch = strogg_summoned_touch;
+
+	gi.linkentity(monster);
+
+	// Link base and monster
+	base->teamchain = monster;
+
+	// Start base thinking to monitor monster
+	base->think = strogg_base_think;
+	base->nextthink = level.time + FRAME_TIME_MS;
+
+	// Make it aware of enemies
+	if (monster->monsterinfo.stand)
+	{
+		monster->monsterinfo.stand(monster);
+	}
+
+	gi.LocClient_Print(ent, PRINT_HIGH, "Spawned {} (team: {})\n",
+		classname, monster->ctf_team == CTF_TEAM1 ? "RED" : monster->ctf_team == CTF_TEAM2 ? "BLUE" : "NONE");
 }
 
 void Cmd_AlertAll_f(edict_t* ent)
@@ -1944,6 +2103,8 @@ void ClientCommand(edict_t* ent)
 		CTFAdmin(ent);
 	else if (Q_strcasecmp(cmd, "stats") == 0)
 		CTFStats(ent);
+	else if (Q_strcasecmp(cmd, "summon") == 0)
+		Cmd_Summon_f(ent);
 	else if (Q_strcasecmp(cmd, "warp") == 0)
 		CTFWarp(ent, gi.argv(1));
 	else if (Q_strcasecmp(cmd, "vote") == 0)
