@@ -905,12 +905,15 @@ void FoundTarget(edict_t* self)
 	// --- End Initial Checks ---
 
 	// Verificar si somos una unidad invocada y el enemigo es un player
-	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
-		self->enemy = nullptr;
-		if (FindMTarget(self))
+	// EXCEPTION: If AI_MEDIC flag is set, allow targeting players for healing
+	if (!(self->monsterinfo.aiflags & AI_MEDIC)) {
+		if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
+			self->enemy = nullptr;
+			if (FindMTarget(self))
+				return;
+			self->monsterinfo.stand(self);
 			return;
-		self->monsterinfo.stand(self);
-		return;
+		}
 	}
 
 	// --- Player Noise Check ---
@@ -1170,9 +1173,13 @@ bool FindTarget(edict_t* self)
 		return false;
 
 	// Primero verificamos si es una unidad invocada que tiene un player como enemigo
-	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
-		self->enemy = nullptr;
-		return FindMTarget(self);
+	// EXCEPTION: If AI_MEDIC flag is set, allow targeting players for healing
+	if (!(self->monsterinfo.aiflags & AI_MEDIC)) {
+		if ((self->monsterinfo.issummoned && !self->enemy) ||
+		    (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
+			self->enemy = nullptr;
+			return FindMTarget(self);
+		}
 	}
 
 	edict_t* client = nullptr;

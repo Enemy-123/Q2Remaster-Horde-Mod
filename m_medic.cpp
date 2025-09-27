@@ -577,7 +577,8 @@ edict_t* healFindMonster(edict_t* self, float radius)
 				if (self->monsterinfo.issummoned || (self->monsterinfo.bonus_flags & BF_FRIENDLY))
 				{
 					// Heal players on the same team as the medic
-					if (ent->client && (ent->svflags & SVF_PLAYER) && GetEntityTeam(ent) == GetEntityTeam(self))
+					// FIX: Removed incorrect SVF_PLAYER check - players are identified by ent->client
+					if (ent && ent->client && GetEntityTeam(ent) == GetEntityTeam(self))
 						can_heal = true;
 					// Heal friendly monsters
 					else if ((ent->svflags & SVF_MONSTER) && OnSameTeam(self, ent))
@@ -1496,9 +1497,34 @@ bool M_NeedRegen(edict_t* target)
     if (target->health > 0 && target->health < target->max_health)
         return true;
     
-    // Check if armor needs repair
-    if (target->monsterinfo.power_armor_power < target->monsterinfo.max_power_armor_power)
-        return true;
+    // Check if monster armor needs repair
+    if (target->svflags & SVF_MONSTER)
+    {
+        // Check power armor
+        if (target->monsterinfo.power_armor_power < target->monsterinfo.max_power_armor_power)
+            return true;
+        
+        // Check regular armor
+        if (target->monsterinfo.armor_power < 200) // Max armor cap
+            return true;
+    }
+    // Check if player armor needs repair
+    else if (target->client)
+    {
+        int armor_index = ArmorIndex(target);
+        if (armor_index != IT_NULL)
+        {
+            int current_armor = target->client->pers.inventory[armor_index];
+            // Consider healing if armor is below 200 (max armor)
+            if (current_armor < 200)
+                return true;
+        }
+        else
+        {
+            // No armor at all - definitely needs armor
+            return true;
+        }
+    }
     
     return false;
 }
