@@ -194,7 +194,7 @@ void Widow2Spawn(edict_t* self)
 			stalker_maxs, "monster_stalker", 256);
 
 		if (!ent) {
-			gi.Com_PrintFmt("Widow2Spawn: Failed to create stalker\n");
+			//gi.Com_PrintFmt("Widow2Spawn: Failed to create stalker\n");
 			continue;
 		}
 

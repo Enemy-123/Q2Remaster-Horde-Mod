@@ -575,6 +575,19 @@ void Cmd_RemoveBarrel_f(edict_t* ent)
     }
 }
 
+void Cmd_PickBarrel_f(edict_t* ent)
+{
+	edict_t* ent2{};
+    if (!ent || !ent->client || !ent2 || !ent2->inuse) {
+        return;
+    
+
+        // Call the helper function that removes all barrels
+        barrel_pickup(ent, ent2);
+        gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!.\n");
+	}
+}
+
 // Forward declaration from g_strogg_summoner.cpp
 void Cmd_RemoveStrogg_f(edict_t* ent);
 
@@ -2046,6 +2059,9 @@ void ClientCommand(edict_t* ent)
 		Cmd_Immortal_f(ent);
 	}
 
+	else if (Q_strcasecmp(cmd, "pickbarrel") == 0) {
+	Cmd_PickBarrel_f(ent);
+	}
 	else if (Q_strcasecmp(cmd, "flyer") == 0) {
 	Cmd_PlayerToFlyer_f(ent);
 	}

@@ -270,7 +270,8 @@ bool IsRemovableEntity(const edict_t* ent) {
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::SENTRY_GUN)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::TURRET)) |
         (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::NUKE_MINE)) |
-        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER));
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER)) |
+        (1ULL << static_cast<uint64_t>(horde::SpecialEntityTypeID::BARREL));
     
     return (REMOVABLE_MASK & (1ULL << static_cast<uint64_t>(id))) != 0;
 }
@@ -421,6 +422,7 @@ void InitializeDisplayNames() {
         {horde::SpecialEntityTypeID::SENTRY_GUN, "Sentry Gun"},
         {horde::SpecialEntityTypeID::LASER_EMITTER, "Laser Emitter"},
         {horde::SpecialEntityTypeID::DOPPLEGANGER, "Doppleganger"},
+        {horde::SpecialEntityTypeID::BARREL, "Explosive Barrel"},
     };
     
     for (size_t i = 0; i < special_count; ++i) {

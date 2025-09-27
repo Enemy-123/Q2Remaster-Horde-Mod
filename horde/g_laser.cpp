@@ -214,7 +214,7 @@ struct player_laser_pierce_t : pierce_args_t
             ((tr.ent->svflags & SVF_MONSTER) && tr.ent->monsterinfo.issummoned)) {
             return mark(tr.ent); // Pierce through without damage or health loss
         }
-        // --- END IGNORE ---
+        // --- END IGNORE --- // It will hurt barrels !
 
         // Only damage non-player entities
         if (self->dmg > 0 && tr.ent->takedamage)
@@ -232,8 +232,12 @@ struct player_laser_pierce_t : pierce_args_t
 
             T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage_to_deal, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
-            float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? 1.0f : LaserConstants::LASER_NONCLIENT_MOD;
-            self->health -= static_cast<int>(damage_to_deal * health_drain_multiplier);
+            // Don't consume laser health when damaging barrels
+            bool is_barrel = horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::BARREL);
+            if (!is_barrel) {
+                float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? 1.0f : LaserConstants::LASER_NONCLIENT_MOD;
+                self->health -= static_cast<int>(damage_to_deal * health_drain_multiplier);
+            }
 
             if (self->health <= 0)
             {

@@ -39,6 +39,16 @@ void barrel_remove(edict_t* self)
         // If this was a held barrel, clear it
         if (self->owner->client->resp.held_barrel == self)
             self->owner->client->resp.held_barrel = nullptr;
+
+        // Clear this barrel from the tracking array
+        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
+        {
+            if (self->owner->client->resp.deployed_barrels[i] == self)
+            {
+                self->owner->client->resp.deployed_barrels[i] = nullptr;
+                break;
+            }
+        }
     }
 
     // Remove from targetable entities if tracked
@@ -66,6 +76,26 @@ DIE(barrel_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
     self->deadflag = true;
     self->activator = attacker;
 
+        // Clean up barrel tracking
+    if (self->owner && self->owner->client)
+    {
+        self->owner->client->resp.num_barrels--;
+
+        // If this was a held barrel, clear it
+        if (self->owner->client->resp.held_barrel == self)
+            self->owner->client->resp.held_barrel = nullptr;
+
+        // Clear this barrel from the tracking array
+        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
+        {
+            if (self->owner->client->resp.deployed_barrels[i] == self)
+            {
+                self->owner->client->resp.deployed_barrels[i] = nullptr;
+                break;
+            }
+        }
+    }
+
     // Big damage = instant explosion, small damage = delayed burn
     if (damage >= 90)
     {
@@ -73,16 +103,20 @@ DIE(barrel_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
     }
     else
     {
+        // Start burning with visual effect
         self->timestamp = level.time + BARREL_BURN_TIME;
         self->think = barrel_burn;
         self->nextthink = level.time + FRAME_TIME_S;
+
+        // Stop absorbing damage when burning starts
+        self->takedamage = false;
     }
 }
 
 // Deal AOE damage while burning to attract monsters
 void barrel_burn_damage(edict_t* self)
 {
-    const float BURN_DAMAGE_RADIUS = 150.0f;
+    const float BURN_DAMAGE_RADIUS = 250.0f;
     const float BURN_DAMAGE_PER_SEC = 10.0f;
     const float damage_this_frame = BURN_DAMAGE_PER_SEC * gi.frame_time_s;
 
@@ -133,6 +167,11 @@ void barrel_burn_damage(edict_t* self)
 // Burning state before explosion
 THINK(barrel_burn)(edict_t* self) -> void
 {
+
+
+        // Apply burning effect immediately
+        self->s.effects |= EF_BARREL_EXPLODING;
+
     if (level.time >= self->timestamp)
     {
         barrel_explode(self);
@@ -215,6 +254,80 @@ THINK(barrel_explode)(edict_t* self) -> void
         // If this was a held barrel, clear it
         if (self->owner->client->resp.held_barrel == self)
             self->owner->client->resp.held_barrel = nullptr;
+
+        // Clear this barrel from the tracking array
+        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
+        {
+            if (self->owner->client->resp.deployed_barrels[i] == self)
+            {
+                self->owner->client->resp.deployed_barrels[i] = nullptr;
+                break;
+            }
+        }
+    }
+}
+
+void barrel_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+// // Touch function for physics interaction
+// TOUCH(barrel_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+// {
+//     // Don't interact with non-solid things
+//     if ((!other->groundentity) || (other->groundentity == self))
+//         return;
+
+//     if (!other_touching_self)
+//         return;
+
+//     // Simple push for players and entities
+//     if (other->client || (other->svflags & SVF_MONSTER))
+//     {
+//         // Simple directional push
+//         vec3_t push_dir = self->s.origin - other->s.origin;
+//         push_dir[2] = 0; // Keep it horizontal
+//         push_dir.normalize();
+
+//         // Simple fixed-distance push
+//         vec3_t new_pos = self->s.origin + (push_dir * 20);
+
+//         // Check if new position is valid
+//         trace_t trace = gi.trace(self->s.origin, self->mins, self->maxs, new_pos, self, MASK_SOLID);
+//         if (trace.fraction > 0)
+//         {
+//             self->s.origin = trace.endpos;
+//             gi.linkentity(self);
+//         }
+//     }
+// }
+
+// Simple landing function
+TOUCH(barrel_land)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+    if (!other->inuse)
+        return;
+
+    // Only react to world and solid entities
+    if (other != world && !(other->solid == SOLID_BSP))
+        return;
+
+    // If we hit ground, just settle
+    if (tr.plane.normal && tr.plane.normal[2] > 0.7)
+    {
+        // Stop all movement
+        self->velocity = {};
+        self->avelocity = {};
+        self->movetype = MOVETYPE_STEP;
+        self->touch = barrel_touch;
+        self->think = barrel_think;
+        self->nextthink = level.time + FRAME_TIME_S;
+
+        // Keep barrel upright
+        self->s.angles[0] = 0;
+        self->s.angles[2] = 0;
+
+        gi.linkentity(self);
+
+        // Landing sound
+         gi.sound(self, CHAN_AUTO, gi.soundindex("tank/thud.wav"), 1, ATTN_NORM, 0);
     }
 }
 
@@ -323,7 +436,8 @@ TOUCH(barrel_bounce)(edict_t* self, edict_t* other, const trace_t& tr, bool othe
         };
 
         // Bounce sound
-        gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
+      //  gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
+        gi.sound(self, CHAN_AUTO, gi.soundindex("tank/thud.wav"), 1, ATTN_NORM, 0);
     }
 }
 
@@ -435,14 +549,20 @@ void barrel_visualize(edict_t* player)
 // Fire/throw a barrel
 void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
 {
-    // Check barrel limit
-    if (self && self->client && self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER)
+    // Check barrel limit BEFORE placing a new one
+    if (self && self->client)
     {
-        // Remove oldest barrel
-        edict_t* oldest = self->client->resp.deployed_barrels[self->client->resp.oldest_barrel_idx];
-        if (oldest && oldest->inuse && oldest->die == barrel_die)
+        // If at limit, remove oldest barrel first
+        if (self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER)
         {
-            barrel_die(oldest, self, self, 1000, oldest->s.origin, MOD_UNKNOWN);
+            edict_t* oldest = self->client->resp.deployed_barrels[self->client->resp.oldest_barrel_idx];
+            if (oldest && oldest->inuse && oldest->die == barrel_die)
+            {
+                // Force instant explosion of oldest barrel
+               return;  //barrel_explode(oldest);
+               gi.Com_PrintFmt(" Can't throw any more Barrels!\n");
+            }
+            // Don't increment counter yet, barrel_explode will decrement it
         }
     }
 
@@ -457,17 +577,12 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     barrel->s.origin = start;
     barrel->velocity = aimdir * BarrelConstants::BARREL_THROW_SPEED;
 
-    // Add some arc to the throw
+    // Add simple arc to the throw
     const float gravityAdjustment = level.gravity / 800.f;
-    barrel->velocity += up * (200 + (frandom() * 2.0f - 1.0f) * 10.0f) * gravityAdjustment;
-    barrel->velocity += right * ((frandom() * 2.0f - 1.0f) * 10.0f);
+    barrel->velocity += up * (200 * gravityAdjustment);
 
-    // Random spin
-    barrel->avelocity = {
-        (frandom() * 2.0f - 1.0f) * 90,
-        (frandom() * 2.0f - 1.0f) * 90,
-        (frandom() * 2.0f - 1.0f) * 120
-    };
+    // No random spin - keep it upright
+    barrel->avelocity = {};
 
     // Set up barrel properties
     barrel->movetype = MOVETYPE_BOUNCE;
@@ -489,7 +604,7 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
         barrel->timestamp = level.time + BarrelConstants::BARREL_LIFETIME;
     }
 
-    barrel->touch = barrel_bounce;
+    barrel->touch = barrel_land;
     barrel->health = BarrelConstants::BARREL_BASE_HEALTH;
     barrel->takedamage = true;
     barrel->pain = barrel_pain;
@@ -508,9 +623,34 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     // Track the barrel
     if (self->client)
     {
-        self->client->resp.deployed_barrels[self->client->resp.oldest_barrel_idx] = barrel;
-        self->client->resp.oldest_barrel_idx = (self->client->resp.oldest_barrel_idx + 1) % BarrelConstants::MAX_BARRELS_PER_PLAYER;
-        self->client->resp.num_barrels++;
+        // Find an empty slot or use the oldest slot
+        int slot_to_use = -1;
+
+        // First, try to find an empty slot
+        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; i++)
+        {
+            if (!self->client->resp.deployed_barrels[i] || !self->client->resp.deployed_barrels[i]->inuse)
+            {
+                slot_to_use = i;
+                break;
+            }
+        }
+
+        // If no empty slot, use the oldest barrel index
+        if (slot_to_use == -1)
+        {
+            slot_to_use = self->client->resp.oldest_barrel_idx;
+            self->client->resp.oldest_barrel_idx = (self->client->resp.oldest_barrel_idx + 1) % BarrelConstants::MAX_BARRELS_PER_PLAYER;
+        }
+
+        // Store the barrel in the slot
+        self->client->resp.deployed_barrels[slot_to_use] = barrel;
+
+        // Only increment if we're not at the limit
+        if (self->client->resp.num_barrels < BarrelConstants::MAX_BARRELS_PER_PLAYER)
+        {
+            self->client->resp.num_barrels++;
+        }
 
         // Clear held barrel if throwing
         if (self->client->resp.held_barrel)

@@ -2222,6 +2222,7 @@ void Cmd_RemoveSentry_f(edict_t* ent); // Added forward declaration
 void Cmd_RemoveBarrel_f(edict_t* ent); // Remove all barrels
 void Cmd_Barrel_f(edict_t* ent); // Barrel testing command
 void remove_barrels(edict_t* ent);
+bool barrel_pickup(edict_t* player, edict_t* barrel);
 //
 // g_items.c
 //
@@ -2949,7 +2950,7 @@ namespace LaserConstants {
     constexpr float LASER_NONCLIENT_MOD = 1.0f;
 }
 namespace BarrelConstants {
-    constexpr int32_t MAX_BARRELS_PER_PLAYER = 8;
+    constexpr int32_t MAX_BARRELS_PER_PLAYER = 4;
     constexpr int32_t BARREL_COST = 10;
     constexpr gtime_t BARREL_LIFETIME = 120_sec;
     constexpr int32_t BARREL_BASE_HEALTH = 30;
