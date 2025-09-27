@@ -1025,6 +1025,10 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		Cmd_RemoveSentry_f(ent);
 		// Message handled internally, menu should close.
 	}
+	else if (strncmp(selected_text, "Remove Barrels", strlen("Remove Barrels")) == 0) {
+		Cmd_RemoveBarrel_f(ent);
+		// Message handled internally, menu should close.
+	}
 	// **** Check Sentry Type selection ****
 	else if (strncmp(selected_text, "Sentry Type:", strlen("Sentry Type:")) == 0) {
 		HordeMenu_SentryChoice(ent, p); // Call the dedicated handler
@@ -1118,6 +1122,12 @@ void OpenMiscMenu(edict_t* ent) {
 	int sentry_count = ent->client->resp.num_sentries;
 	if (sentry_count > 0) {
 		add_entry(G_Fmt("Remove Sentry Gun ({})", sentry_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
+
+	// --- Barrel Removal ---
+	int barrel_count = ent->client->resp.num_barrels;
+	if (barrel_count > 0) {
+		add_entry(G_Fmt("Remove Barrels ({}/{})", barrel_count, BarrelConstants::MAX_BARRELS_PER_PLAYER).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	add_entry("", PMENU_ALIGN_CENTER); // Separator

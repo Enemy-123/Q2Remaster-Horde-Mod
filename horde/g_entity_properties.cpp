@@ -10,6 +10,7 @@ extern void laser_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mo
 extern void doppleganger_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 extern void nuke_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
 extern void strogg_summoner_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
+extern void barrel_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 
 // --- Global Definition (Single Source of Truth) ---
 // This directly initializes the final data structure at compile time.
@@ -35,7 +36,9 @@ const std::array<EntityProperties, NUM_SPECIAL_ENTITY_TYPES> g_entityProperties 
     // Index 9
     {horde::SpecialEntityTypeID::STROGG_SUMMONER, true, true,  strogg_summoner_die},
     // Index 10 - Morphed players
-    {horde::SpecialEntityTypeID::MORPHED_PLAYER,  false, false, nullptr}
+    {horde::SpecialEntityTypeID::MORPHED_PLAYER,  false, false, nullptr},
+    // Index 11 - Explosive barrels
+    {horde::SpecialEntityTypeID::BARREL,          true,  true,  barrel_die}
 }};;
 
 // --- Recommendation 5: Runtime Verification ---

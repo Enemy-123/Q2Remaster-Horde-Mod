@@ -2219,7 +2219,9 @@ void Cmd_Help_f(edict_t* ent);
 void Cmd_Score_f(edict_t* ent);
 void Cmd_RemoveLaser_f(edict_t* ent); // Added forward declaration
 void Cmd_RemoveSentry_f(edict_t* ent); // Added forward declaration
-
+void Cmd_RemoveBarrel_f(edict_t* ent); // Remove all barrels
+void Cmd_Barrel_f(edict_t* ent); // Barrel testing command
+void remove_barrels(edict_t* ent);
 //
 // g_items.c
 //
@@ -2488,6 +2490,7 @@ void ThrowClientHead(edict_t* self, int damage);
 void gib_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame = 0);
 void BecomeExplosion1(edict_t* self);
+void BecomeExplosion2(edict_t* self);
 void BecomeTE(edict_t *self);
 void misc_viper_use(edict_t* self, edict_t* other, edict_t* activator);
 void misc_strogg_ship_use(edict_t* self, edict_t* other, edict_t* activator);
@@ -2769,6 +2772,7 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed);
 bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, int reach, int damage, int kick, mod_t mod);
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed);
+void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir);
 void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect,
 	bool hyper);
 void fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset, int damage, int kick,
@@ -2943,6 +2947,16 @@ namespace LaserConstants {
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;
+}
+namespace BarrelConstants {
+    constexpr int32_t MAX_BARRELS_PER_PLAYER = 8;
+    constexpr int32_t BARREL_COST = 10;
+    constexpr gtime_t BARREL_LIFETIME = 120_sec;
+    constexpr int32_t BARREL_BASE_HEALTH = 30;
+    constexpr int32_t BARREL_BASE_DAMAGE = 150;
+    constexpr float BARREL_EXPLOSION_RADIUS = 200.0f;
+    constexpr float BARREL_PICKUP_RANGE = 128.0f;
+    constexpr float BARREL_THROW_SPEED = 700.0f;
 }
 
 
@@ -3145,6 +3159,11 @@ struct client_respawn_t
 	int         num_proxs = 0;
 	edict_t*    deployed_proxs[ProxConstants::MAX_PROXS_PER_PLAYER];
 	int         oldest_prox_idx;
+	// --- Barrel Tracking ---
+	int      num_barrels = 0;
+	edict_t* deployed_barrels[BarrelConstants::MAX_BARRELS_PER_PLAYER];
+	int      oldest_barrel_idx;
+	edict_t* held_barrel = nullptr; // Currently held barrel for visualization
 
 	// Sentries
 	int      num_sentries = 0;

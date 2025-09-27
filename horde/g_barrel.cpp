@@ -1,0 +1,742 @@
+#include "../shared.h"
+#include "../g_local.h"
+#include "horde_performance.h"
+#include "g_horde_phys.h"
+#include "g_horde_benefits.h"
+
+// *************************
+// BARREL - Explosive barrels for Horde Mode
+// *************************
+
+constexpr float BARREL_BOUNCE_MULTIPLIER = 1.2f;
+constexpr float BARREL_MIN_BOUNCE_SPEED = 100.0f;
+constexpr float BARREL_BOUNCE_RANDOM = 50.0f;
+constexpr float BARREL_VERTICAL_BOOST = 150.0f;
+constexpr gtime_t BARREL_BURN_TIME = 750_ms;
+constexpr float BARREL_CHAIN_EXPLOSION_RADIUS = 250.0f;
+constexpr gtime_t BARREL_CHAIN_DELAY = 100_ms;
+
+// Forward declarations
+void barrel_explode(edict_t* self);
+void barrel_burn(edict_t* self);
+void barrel_remove(edict_t* self);
+void barrel_think(edict_t* self);
+void remove_barrels(edict_t* ent);
+
+// Remove barrel and clean up player tracking
+void barrel_remove(edict_t* self)
+{
+    if (!self || !self->inuse)
+        return;
+
+    self->takedamage = false;
+
+    // Decrement player's barrel count
+    if (self->owner && self->owner->client)
+    {
+        self->owner->client->resp.num_barrels--;
+
+        // If this was a held barrel, clear it
+        if (self->owner->client->resp.held_barrel == self)
+            self->owner->client->resp.held_barrel = nullptr;
+    }
+
+    // Remove from targetable entities if tracked
+    auto& vec = g_targetable_special_entities;
+    vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
+
+    G_FreeEdict(self);
+}
+
+// Pain handler - barrels react to damage
+PAIN(barrel_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+{
+    // Store who damaged us for attribution
+    if (other && other != self)
+        self->enemy = other;
+}
+
+// Death handler
+DIE(barrel_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+{
+    // Don't die multiple times
+    if (self->deadflag)
+        return;
+
+    self->deadflag = true;
+    self->activator = attacker;
+
+    // Big damage = instant explosion, small damage = delayed burn
+    if (damage >= 90)
+    {
+        barrel_explode(self);
+    }
+    else
+    {
+        self->timestamp = level.time + BARREL_BURN_TIME;
+        self->think = barrel_burn;
+        self->nextthink = level.time + FRAME_TIME_S;
+    }
+}
+
+// Deal AOE damage while burning to attract monsters
+void barrel_burn_damage(edict_t* self)
+{
+    const float BURN_DAMAGE_RADIUS = 150.0f;
+    const float BURN_DAMAGE_PER_SEC = 10.0f;
+    const float damage_this_frame = BURN_DAMAGE_PER_SEC * gi.frame_time_s;
+
+    // Find nearby entities
+    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, BURN_DAMAGE_RADIUS);
+
+    int monsters_damaged = 0;
+
+    for (auto* ent : nearby_entities)
+    {
+        // Skip self, other barrels, and team members
+        if (ent == self || ent->die == barrel_die || !ent->takedamage)
+            continue;
+
+        // Only damage monsters and players not on same team
+        if (!(ent->svflags & SVF_MONSTER) && !ent->client)
+            continue;
+
+        // Check if it's a monster or enemy player
+        if (ent->svflags & SVF_MONSTER)
+        {
+            float dist = range_to(self, ent);
+            if (dist <= BURN_DAMAGE_RADIUS)
+            {
+                // Deal small damage to attract attention
+                // Use owner if no activator is set
+                edict_t* damage_attacker = self->activator ? self->activator : (self->owner ? self->owner : self);
+                T_Damage(ent, self, damage_attacker,
+                        vec3_origin, ent->s.origin, vec3_origin,
+                        damage_this_frame, 0, DAMAGE_NONE, MOD_UNKNOWN);
+                monsters_damaged++;
+            }
+        }
+    }
+
+    // Debug: show damage count periodically
+    static gtime_t last_debug_time = 0_sec;
+    if (monsters_damaged > 0 && level.time - last_debug_time > 1_sec)
+    {
+        if (self->owner && self->owner->client)
+        {
+            gi.LocClient_Print(self->owner, PRINT_HIGH, "Barrel burning: {} monsters in range\n", monsters_damaged);
+        }
+        last_debug_time = level.time;
+    }
+}
+
+// Burning state before explosion
+THINK(barrel_burn)(edict_t* self) -> void
+{
+    if (level.time >= self->timestamp)
+    {
+        barrel_explode(self);
+        return;
+    }
+
+    // Visual/audio burning effect
+    self->s.effects |= EF_BARREL_EXPLODING;
+    self->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
+
+    // Deal AOE damage to attract monsters
+    barrel_burn_damage(self);
+
+    self->think = barrel_burn;
+    self->nextthink = level.time + FRAME_TIME_S;
+}
+
+// Find and trigger chain explosions
+void barrel_chain_explosions(edict_t* self)
+{
+    // Find nearby barrels for chain reaction
+    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, BARREL_CHAIN_EXPLOSION_RADIUS);
+
+    for (auto* ent : nearby_entities)
+    {
+        // Check if it's another barrel
+        if (ent != self && ent->die == barrel_die && ent->inuse && !ent->deadflag)
+        {
+            float dist = range_to(self, ent);
+            if (dist <= BARREL_CHAIN_EXPLOSION_RADIUS)
+            {
+                // Delay chain explosions slightly for dramatic effect
+                ent->timestamp = level.time + BARREL_CHAIN_DELAY;
+                ent->think = barrel_burn;
+                ent->nextthink = level.time + 10_hz;
+                ent->activator = self->activator;
+                ent->deadflag = true;
+            }
+        }
+    }
+}
+
+// Main explosion function
+THINK(barrel_explode)(edict_t* self) -> void
+{
+    self->takedamage = false;
+
+    // Scale damage based on horde difficulty
+    int damage = BarrelConstants::BARREL_BASE_DAMAGE;
+    if (g_horde->integer)
+    {
+        damage = damage * (1.0f + (current_wave_level * 0.1f));
+    }
+
+    // Radius damage
+    T_RadiusDamage(self, self->activator, (float)damage, nullptr,
+                   BarrelConstants::BARREL_EXPLOSION_RADIUS, DAMAGE_NONE, MOD_G_SPLASH);
+
+    // Throw gibs
+    ThrowGibs(self, (1.5f * damage / 200.f), {
+        { 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS },
+        { 4, "models/objects/debris3/tris.md2", GIB_METALLIC | GIB_DEBRIS },
+        { 8, "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
+    });
+
+    // Chain explosions
+    barrel_chain_explosions(self);
+
+    // Explosion effect
+    if (self->groundentity)
+        BecomeExplosion2(self);
+    else
+        BecomeExplosion1(self);
+
+    // Clean up barrel tracking
+    if (self->owner && self->owner->client)
+    {
+        self->owner->client->resp.num_barrels--;
+
+        // If this was a held barrel, clear it
+        if (self->owner->client->resp.held_barrel == self)
+            self->owner->client->resp.held_barrel = nullptr;
+    }
+}
+
+// Touch function for physics interaction
+TOUCH(barrel_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+    float ratio;
+    vec3_t v;
+
+    // Don't interact with non-solid things
+    if ((!other->groundentity) || (other->groundentity == self))
+        return;
+
+    if (!other_touching_self)
+        return;
+
+    // Special handling for players pushing barrels
+    if ((other->svflags & SVF_PLAYER) && !(other->svflags & SVF_BOT))
+    {
+        // Apply stronger push force based on player velocity
+        vec3_t push_dir = self->s.origin - other->s.origin;
+        push_dir.normalize();
+
+        // Use player's velocity magnitude to determine push strength
+        float player_speed = other->velocity.length();
+        float push_strength = std::max(50.0f, player_speed * 0.5f);
+
+        // Apply push with some upward component if player is moving fast
+        vec3_t push_velocity = push_dir * push_strength;
+        if (player_speed > 200)
+        {
+            push_velocity[2] += 50; // Add upward component for running pushes
+        }
+
+        self->velocity += push_velocity;
+
+        // Add some rotation for visual effect
+        self->avelocity = {
+            (frandom() * 2.0f - 1.0f) * 90,
+            (frandom() * 2.0f - 1.0f) * 90,
+            (frandom() * 2.0f - 1.0f) * 90
+        };
+
+        gi.linkentity(self);
+        return;
+    }
+
+    // Standard push for other entities
+    ratio = (float)other->mass / (float)self->mass;
+    v = self->s.origin - other->s.origin;
+    M_walkmove(self, vectoyaw(v), 20 * ratio * gi.frame_time_s);
+}
+
+// Bounce when thrown
+TOUCH(barrel_bounce)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+    if (!other->inuse)
+        return;
+
+    // Only bounce off world and solid entities
+    if (other != world && !(other->solid == SOLID_BSP))
+        return;
+
+    if (tr.plane.normal)
+    {
+        vec3_t out{};
+        float backoff = self->velocity.dot(tr.plane.normal) * BARREL_BOUNCE_MULTIPLIER;
+
+        for (int i = 0; i < 3; i++)
+        {
+            float change = tr.plane.normal[i] * backoff;
+            out[i] = self->velocity[i] - change;
+            out[i] += (frandom() * 2.0f - 1.0f) * BARREL_BOUNCE_RANDOM;
+
+            if (fabs(out[i]) < BARREL_MIN_BOUNCE_SPEED && out[i] != 0)
+            {
+                out[i] = (out[i] < 0 ? -BARREL_MIN_BOUNCE_SPEED : BARREL_MIN_BOUNCE_SPEED);
+            }
+        }
+
+        // Add vertical boost for ground bounces
+        if (tr.plane.normal[2] > 0.7)
+        {
+            out[2] += BARREL_VERTICAL_BOOST;
+        }
+
+        // Minimum velocity check
+        if (out.length() < BARREL_MIN_BOUNCE_SPEED)
+        {
+            // Settle the barrel
+            self->velocity = {};
+            self->avelocity = {};
+            self->movetype = MOVETYPE_STEP;
+            self->touch = barrel_touch;
+            self->think = barrel_think;
+            self->nextthink = level.time + FRAME_TIME_S;
+            gi.linkentity(self);
+            return;
+        }
+
+        self->velocity = out;
+        self->avelocity = {
+            (frandom() * 2.0f - 1.0f) * 180,
+            (frandom() * 2.0f - 1.0f) * 180,
+            (frandom() * 2.0f - 1.0f) * 180
+        };
+
+        // Bounce sound
+        gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
+    }
+}
+
+// Main think function
+THINK(barrel_think)(edict_t* self) -> void
+{
+    // Check lifetime
+    if (self->timestamp > 0_sec && level.time > self->timestamp)
+    {
+        barrel_remove(self);
+        return;
+    }
+
+    // World effects
+    M_CatagorizePosition(self, self->s.origin, self->waterlevel, self->watertype);
+    self->flags |= FL_IMMUNE_SLIME;
+    M_WorldEffects(self);
+
+    self->think = barrel_think;
+    self->nextthink = level.time + FRAME_TIME_S;
+}
+
+// Initial setup
+THINK(barrel_start)(edict_t* self) -> void
+{
+    M_droptofloor(self);
+    self->think = barrel_think;
+    self->nextthink = level.time + FRAME_TIME_S;
+}
+
+// Pick up a barrel
+bool barrel_pickup(edict_t* player, edict_t* barrel)
+{
+    if (!player || !player->client || !barrel || !barrel->inuse)
+        return false;
+
+    // Check if already holding a barrel
+    if (player->client->resp.held_barrel)
+        return false;
+
+    // Check distance
+    float dist = range_to(player, barrel);
+    if (dist > BarrelConstants::BARREL_PICKUP_RANGE)
+        return false;
+
+    // Can't pick up burning barrels
+    if (barrel->deadflag || barrel->think == barrel_burn)
+        return false;
+
+    // Pick it up
+    player->client->resp.held_barrel = barrel;
+    barrel->solid = SOLID_NOT;
+    barrel->svflags |= SVF_NOCLIENT; // Hide the barrel
+    gi.linkentity(barrel);
+
+    gi.sound(player, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
+    gi.LocClient_Print(player, PRINT_HIGH, "Picked up barrel\n");
+
+    return true;
+}
+
+// Drop a held barrel
+void barrel_drop(edict_t* player)
+{
+    if (!player || !player->client || !player->client->resp.held_barrel)
+        return;
+
+    edict_t* barrel = player->client->resp.held_barrel;
+
+    // Place barrel in front of player
+    vec3_t forward, start;
+    AngleVectors(player->s.angles, forward, nullptr, nullptr);
+    start = player->s.origin + (forward * 64);
+    start[2] += 16; // Lift it up a bit
+
+    barrel->s.origin = start;
+    barrel->solid = SOLID_BBOX;
+    barrel->svflags &= ~SVF_NOCLIENT; // Make visible again
+    barrel->velocity = {};
+    barrel->movetype = MOVETYPE_STEP;
+    gi.linkentity(barrel);
+
+    player->client->resp.held_barrel = nullptr;
+    gi.LocClient_Print(player, PRINT_HIGH, "Dropped barrel\n");
+}
+
+// Visualize held barrel
+void barrel_visualize(edict_t* player)
+{
+    if (!player || !player->client || !player->client->resp.held_barrel)
+        return;
+
+    edict_t* barrel = player->client->resp.held_barrel;
+
+    // Update barrel position to follow player
+    vec3_t forward, right, up, offset;
+    AngleVectors(player->client->v_angle, forward, right, up);
+
+    // Position barrel in front and slightly to the right
+    offset = player->s.origin + (forward * 48) + (right * 12) + (up * -8);
+    barrel->s.origin = offset;
+
+    // Make it visible but not solid
+    barrel->solid = SOLID_NOT;
+    barrel->svflags &= ~SVF_NOCLIENT;
+    gi.linkentity(barrel);
+}
+
+// Fire/throw a barrel
+void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
+{
+    // Check barrel limit
+    if (self && self->client && self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER)
+    {
+        // Remove oldest barrel
+        edict_t* oldest = self->client->resp.deployed_barrels[self->client->resp.oldest_barrel_idx];
+        if (oldest && oldest->inuse && oldest->die == barrel_die)
+        {
+            barrel_die(oldest, self, self, 1000, oldest->s.origin, MOD_UNKNOWN);
+        }
+    }
+
+    edict_t* barrel;
+    vec3_t dir;
+    vec3_t forward, right, up;
+
+    dir = vectoangles(aimdir);
+    AngleVectors(dir, forward, right, up);
+
+    barrel = G_Spawn();
+    barrel->s.origin = start;
+    barrel->velocity = aimdir * BarrelConstants::BARREL_THROW_SPEED;
+
+    // Add some arc to the throw
+    const float gravityAdjustment = level.gravity / 800.f;
+    barrel->velocity += up * (200 + (frandom() * 2.0f - 1.0f) * 10.0f) * gravityAdjustment;
+    barrel->velocity += right * ((frandom() * 2.0f - 1.0f) * 10.0f);
+
+    // Random spin
+    barrel->avelocity = {
+        (frandom() * 2.0f - 1.0f) * 90,
+        (frandom() * 2.0f - 1.0f) * 90,
+        (frandom() * 2.0f - 1.0f) * 120
+    };
+
+    // Set up barrel properties
+    barrel->movetype = MOVETYPE_BOUNCE;
+    barrel->solid = SOLID_BBOX;
+    barrel->s.effects |= EF_GRENADE;
+    barrel->mins = { -16, -16, 0 };
+    barrel->maxs = { 16, 16, 40 };
+    barrel->s.modelindex = gi.modelindex("models/objects/barrels/tris.md2");
+
+    barrel->owner = self;
+    barrel->teammaster = self;
+
+    // Set to NOTEAM so barrels can be damaged by anyone
+    barrel->ctf_team = CTF_NOTEAM;
+
+    // Set lifetime if deployed
+    if (self->client)
+    {
+        barrel->timestamp = level.time + BarrelConstants::BARREL_LIFETIME;
+    }
+
+    barrel->touch = barrel_bounce;
+    barrel->health = BarrelConstants::BARREL_BASE_HEALTH;
+    barrel->takedamage = true;
+    barrel->pain = barrel_pain;
+    barrel->die = barrel_die;
+    barrel->dmg = BarrelConstants::BARREL_BASE_DAMAGE;
+    barrel->classname = "horde_barrel";
+    barrel->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::BARREL);
+    barrel->flags |= (FL_DAMAGEABLE | FL_TRAP);
+    barrel->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
+
+    if (self && self->client && !G_ShouldPlayersCollide(true))
+        barrel->clipmask &= ~CONTENTS_PLAYER;
+
+    gi.linkentity(barrel);
+
+    // Track the barrel
+    if (self->client)
+    {
+        self->client->resp.deployed_barrels[self->client->resp.oldest_barrel_idx] = barrel;
+        self->client->resp.oldest_barrel_idx = (self->client->resp.oldest_barrel_idx + 1) % BarrelConstants::MAX_BARRELS_PER_PLAYER;
+        self->client->resp.num_barrels++;
+
+        // Clear held barrel if throwing
+        if (self->client->resp.held_barrel)
+            self->client->resp.held_barrel = nullptr;
+    }
+
+    // Add to targetable entities
+    g_targetable_special_entities.push_back(barrel);
+}
+
+// Spawn function override for horde mode
+void SP_misc_explobox(edict_t* self)
+{
+    // Only override in horde mode
+    if (!g_horde->integer)
+    {
+        // Call original function (would need to be implemented or linked)
+        return;
+    }
+
+    gi.modelindex("models/objects/debris1/tris.md2");
+    gi.modelindex("models/objects/debris2/tris.md2");
+    gi.modelindex("models/objects/debris3/tris.md2");
+    gi.soundindex("weapons/bfg__l1a.wav");
+
+    self->solid = SOLID_BBOX;
+    self->movetype = MOVETYPE_STEP;
+    self->model = "models/objects/barrels/tris.md2";
+    self->s.modelindex = gi.modelindex(self->model);
+    self->mins = { -16, -16, 0 };
+    self->maxs = { 16, 16, 40 };
+
+    if (!self->mass)
+        self->mass = 100;
+
+    // Scale health based on horde difficulty
+    if (!self->health)
+    {
+        self->health = BarrelConstants::BARREL_BASE_HEALTH;
+        if (g_horde->integer)
+        {
+            self->health = self->health * (1.0f + (current_wave_level * 0.05f));
+        }
+    }
+
+    // Scale damage
+    if (!self->dmg)
+    {
+        self->dmg = BarrelConstants::BARREL_BASE_DAMAGE;
+        if (g_horde->integer)
+        {
+            self->dmg = self->dmg * (1.0f + (current_wave_level * 0.1f));
+        }
+    }
+
+    self->die = barrel_die;
+    self->takedamage = true;
+    self->pain = barrel_pain;
+    self->classname = "horde_barrel";
+    self->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::BARREL);
+    self->flags |= FL_TRAP;
+    self->touch = barrel_touch;
+    self->think = barrel_start;
+    self->nextthink = level.time + 20_hz;
+
+    gi.linkentity(self);
+}
+
+// Remove all barrels owned by a player
+void remove_barrels(edict_t* ent)
+{
+    if (!ent || !ent->client)
+        return;
+
+    // Iterate through the player's deployed barrels array
+    for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; i++)
+    {
+        edict_t* barrel = ent->client->resp.deployed_barrels[i];
+        if (barrel && barrel->inuse)
+        {
+            barrel_remove(barrel);
+            ent->client->resp.deployed_barrels[i] = nullptr;
+        }
+    }
+
+    // Clear the held barrel if any
+    if (ent->client->resp.held_barrel)
+    {
+        barrel_remove(ent->client->resp.held_barrel);
+        ent->client->resp.held_barrel = nullptr;
+    }
+
+    // Reset barrel counters
+    ent->client->resp.num_barrels = 0;
+    ent->client->resp.oldest_barrel_idx = 0;
+}
+
+// Command function for testing barrels
+void Cmd_Barrel_f(edict_t* ent)
+{
+    if (!ent->client)
+        return;
+
+    const char* arg = gi.argv(1);
+
+    // "barrel" - throw a barrel
+    if (!arg || !*arg || Q_strcasecmp(arg, "throw") == 0)
+    {
+        // Get aim direction
+        vec3_t forward, right, start;
+        AngleVectors(ent->client->v_angle, forward, right, nullptr);
+
+        // Start position in front of player
+        start = ent->s.origin;
+        start[2] += ent->viewheight - 8;
+        start = start + (forward * 24);
+
+        // Fire the barrel
+        fire_barrel(ent, start, forward);
+
+        gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown! ({}/{})\n",
+                          ent->client->resp.num_barrels,
+                          BarrelConstants::MAX_BARRELS_PER_PLAYER);
+    }
+    // "barrel pickup" - pickup nearest barrel
+    else if (Q_strcasecmp(arg, "pickup") == 0)
+    {
+        // Find nearest barrel
+        edict_t* best = nullptr;
+        float best_dist = BarrelConstants::BARREL_PICKUP_RANGE;
+
+        for (int i = 1; i < globals.num_edicts; i++)
+        {
+            edict_t* check = &g_edicts[i];
+            if (!check->inuse)
+                continue;
+            if (check->die != barrel_die)
+                continue;
+            if (check->deadflag)
+                continue;
+
+            float dist = range_to(ent, check);
+            if (dist < best_dist)
+            {
+                best = check;
+                best_dist = dist;
+            }
+        }
+
+        if (best)
+        {
+            if (barrel_pickup(ent, best))
+            {
+                gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!\n");
+            }
+            else
+            {
+                gi.LocClient_Print(ent, PRINT_HIGH, "Cannot pick up barrel.\n");
+            }
+        }
+        else
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "No barrel in range.\n");
+        }
+    }
+    // "barrel drop" - drop held barrel
+    else if (Q_strcasecmp(arg, "drop") == 0)
+    {
+        if (ent->client->resp.held_barrel)
+        {
+            barrel_drop(ent);
+            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel dropped.\n");
+        }
+        else
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Not holding a barrel.\n");
+        }
+    }
+    // "barrel spawn" - spawn a barrel at player location
+    else if (Q_strcasecmp(arg, "spawn") == 0)
+    {
+        edict_t* barrel = G_Spawn();
+        barrel->s.origin = ent->s.origin + vec3_t{0, 0, 24};
+
+        barrel->solid = SOLID_BBOX;
+        barrel->movetype = MOVETYPE_STEP;
+        barrel->s.modelindex = gi.modelindex("models/objects/barrels/tris.md2");
+        barrel->mins = { -16, -16, 0 };
+        barrel->maxs = { 16, 16, 40 };
+        barrel->mass = 100;
+        barrel->health = BarrelConstants::BARREL_BASE_HEALTH;
+        barrel->dmg = BarrelConstants::BARREL_BASE_DAMAGE;
+        barrel->die = barrel_die;
+        barrel->takedamage = true;
+        barrel->pain = barrel_pain;
+        barrel->classname = "horde_barrel";
+        barrel->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::BARREL);
+        barrel->flags |= FL_TRAP;
+        barrel->touch = barrel_touch;
+        barrel->think = barrel_start;
+        barrel->nextthink = level.time + 20_hz;
+        barrel->owner = ent;
+        barrel->teammaster = ent;
+
+        gi.linkentity(barrel);
+        gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned at your location.\n");
+    }
+    // "barrel clear" - remove all barrels
+    else if (Q_strcasecmp(arg, "clear") == 0)
+    {
+        int count = 0;
+        for (int i = 1; i < globals.num_edicts; i++)
+        {
+            edict_t* check = &g_edicts[i];
+            if (!check->inuse)
+                continue;
+            if (check->die != barrel_die)
+                continue;
+
+            barrel_remove(check);
+            count++;
+        }
+        gi.LocClient_Print(ent, PRINT_HIGH, "Removed {} barrels.\n", count);
+    }
+    else
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Usage: barrel [throw|pickup|drop|spawn|clear]\n");
+    }
+}

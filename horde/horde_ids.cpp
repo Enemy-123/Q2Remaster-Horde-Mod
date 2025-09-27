@@ -59,7 +59,9 @@ namespace horde {
         {"nuke",             SpecialEntityTypeID::NUKE_MINE},
         {"emitter",           SpecialEntityTypeID::LASER_EMITTER},
         {"laser",             SpecialEntityTypeID::LASER_BEAM},
-        {"doppleganger",      SpecialEntityTypeID::DOPPLEGANGER}
+        {"doppleganger",      SpecialEntityTypeID::DOPPLEGANGER},
+        {"strogg_summoner_base", SpecialEntityTypeID::STROGG_SUMMONER},
+        {"horde_barrel",      SpecialEntityTypeID::BARREL}
     };
 
      s_specialTypeRegistryInitialized = true;

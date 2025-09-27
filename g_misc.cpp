@@ -1133,139 +1133,139 @@ Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
 */
 
-TOUCH(barrel_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
-{
-	float  ratio;
-	vec3_t v;
+// TOUCH(barrel_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+// {
+// 	float  ratio;
+// 	vec3_t v;
 
-	if ((!other->groundentity) || (other->groundentity == self))
-		return;
-	else if (!other_touching_self)
-		return;
+// 	if ((!other->groundentity) || (other->groundentity == self))
+// 		return;
+// 	else if (!other_touching_self)
+// 		return;
 
-	ratio = (float)other->mass / (float)self->mass;
-	v = self->s.origin - other->s.origin;
-	M_walkmove(self, vectoyaw(v), 20 * ratio * gi.frame_time_s);
-}
+// 	ratio = (float)other->mass / (float)self->mass;
+// 	v = self->s.origin - other->s.origin;
+// 	M_walkmove(self, vectoyaw(v), 20 * ratio * gi.frame_time_s);
+// }
 
-THINK(barrel_explode) (edict_t* self) -> void
-{
-	self->takedamage = false;
+// THINK(barrel_explode) (edict_t* self) -> void
+// {
+// 	self->takedamage = false;
 
-	T_RadiusDamage(self, self->activator, (float)self->dmg, nullptr, static_cast<float>(self->dmg + 40), DAMAGE_NONE, MOD_BARREL);
+// 	T_RadiusDamage(self, self->activator, (float)self->dmg, nullptr, static_cast<float>(self->dmg + 40), DAMAGE_NONE, MOD_BARREL);
 
-	ThrowGibs(self, (1.5f * self->dmg / 200.f), {
-		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS },
-		{ 4, "models/objects/debris3/tris.md2", GIB_METALLIC | GIB_DEBRIS },
-		{ 8, "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
-		});
+// 	ThrowGibs(self, (1.5f * self->dmg / 200.f), {
+// 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS },
+// 		{ 4, "models/objects/debris3/tris.md2", GIB_METALLIC | GIB_DEBRIS },
+// 		{ 8, "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
+// 		});
 
-	if (self->groundentity)
-		BecomeExplosion2(self);
-	else
-		BecomeExplosion1(self);
-}
+// 	if (self->groundentity)
+// 		BecomeExplosion2(self);
+// 	else
+// 		BecomeExplosion1(self);
+// }
 
-THINK(barrel_burn) (edict_t* self) -> void
-{
-	if (level.time >= self->timestamp)
-		self->think = barrel_explode;
+// THINK(barrel_burn) (edict_t* self) -> void
+// {
+// 	if (level.time >= self->timestamp)
+// 		self->think = barrel_explode;
 
-	self->s.effects |= EF_BARREL_EXPLODING;
-	self->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
-	self->nextthink = level.time + FRAME_TIME_S;
-}
+// 	self->s.effects |= EF_BARREL_EXPLODING;
+// 	self->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
+// 	self->nextthink = level.time + FRAME_TIME_S;
+// }
 
-DIE(barrel_delay) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
-{
-	// allow "dead" barrels waiting to explode to still receive knockback
-	if (self->think == barrel_burn || self->think == barrel_explode)
-		return;
+// DIE(barrel_delay) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+// {
+// 	// allow "dead" barrels waiting to explode to still receive knockback
+// 	if (self->think == barrel_burn || self->think == barrel_explode)
+// 		return;
 
-	// allow big booms to immediately blow up barrels (rockets, rail, other explosions) because it feels good and powerful
-	if (damage >= 90)
-	{
-		self->think = barrel_explode;
-		self->activator = attacker;
-	}
-	else
-	{
-		self->timestamp = level.time + 750_ms;
-		self->think = barrel_burn;
-		self->activator = attacker;
-	}
+// 	// allow big booms to immediately blow up barrels (rockets, rail, other explosions) because it feels good and powerful
+// 	if (damage >= 90)
+// 	{
+// 		self->think = barrel_explode;
+// 		self->activator = attacker;
+// 	}
+// 	else
+// 	{
+// 		self->timestamp = level.time + 750_ms;
+// 		self->think = barrel_burn;
+// 		self->activator = attacker;
+// 	}
 
-}
+// }
 
 //=========
 // PGM  - change so barrels will think and hence, blow up
-THINK(barrel_think) (edict_t* self) -> void
-{
-	// the think needs to be first since later stuff may override.
-	self->think = barrel_think;
-	self->nextthink = level.time + FRAME_TIME_S;
+// THINK(barrel_think) (edict_t* self) -> void
+// {
+// 	// the think needs to be first since later stuff may override.
+// 	self->think = barrel_think;
+// 	self->nextthink = level.time + FRAME_TIME_S;
 
-	M_CatagorizePosition(self, self->s.origin, self->waterlevel, self->watertype);
-	self->flags |= FL_IMMUNE_SLIME;
-	self->air_finished = level.time + 100_sec;
-	M_WorldEffects(self);
-}
+// 	M_CatagorizePosition(self, self->s.origin, self->waterlevel, self->watertype);
+// 	self->flags |= FL_IMMUNE_SLIME;
+// 	self->air_finished = level.time + 100_sec;
+// 	M_WorldEffects(self);
+// }
 
-THINK(barrel_start) (edict_t* self) -> void
-{
-	M_droptofloor(self);
-	self->think = barrel_think;
-	self->nextthink = level.time + FRAME_TIME_S;
-}
+// THINK(barrel_start) (edict_t* self) -> void
+// {
+// 	M_droptofloor(self);
+// 	self->think = barrel_think;
+// 	self->nextthink = level.time + FRAME_TIME_S;
+// }
 // PGM
 //=========
 
 constexpr spawnflags_t SPAWNFLAG_EXPLOBOX_NO_MOVE = 1_spawnflag;
 
-void SP_misc_explobox(edict_t* self)
-{
-	if (G_IsDeathmatch() && !g_horde->integer)
-	{ // auto-remove for deathmatch
-		G_FreeEdict(self);
-		return;
-	}
+// void SP_misc_explobox(edict_t* self)
+// {
+// 	if (G_IsDeathmatch() && !g_horde->integer)
+// 	{ // auto-remove for deathmatch
+// 		G_FreeEdict(self);
+// 		return;
+// 	}
 
-	gi.modelindex("models/objects/debris1/tris.md2");
-	gi.modelindex("models/objects/debris2/tris.md2");
-	gi.modelindex("models/objects/debris3/tris.md2");
-	gi.soundindex("weapons/bfg__l1a.wav");
+// 	gi.modelindex("models/objects/debris1/tris.md2");
+// 	gi.modelindex("models/objects/debris2/tris.md2");
+// 	gi.modelindex("models/objects/debris3/tris.md2");
+// 	gi.soundindex("weapons/bfg__l1a.wav");
 
-	self->solid = SOLID_BBOX;
-	self->movetype = MOVETYPE_STEP;
+// 	self->solid = SOLID_BBOX;
+// 	self->movetype = MOVETYPE_STEP;
 
-	self->model = "models/objects/barrels/tris.md2";
-	self->s.modelindex = gi.modelindex(self->model);
-	self->mins = { -16, -16, 0 };
-	self->maxs = { 16, 16, 40 };
+// 	self->model = "models/objects/barrels/tris.md2";
+// 	self->s.modelindex = gi.modelindex(self->model);
+// 	self->mins = { -16, -16, 0 };
+// 	self->maxs = { 16, 16, 40 };
 
-	if (!self->mass)
-		self->mass = 50;
-	if (!self->health)
-		self->health = 10;
-	if (!self->dmg)
-		self->dmg = 150;
+// 	if (!self->mass)
+// 		self->mass = 50;
+// 	if (!self->health)
+// 		self->health = 10;
+// 	if (!self->dmg)
+// 		self->dmg = 150;
 
-	self->die = barrel_delay;
-	self->takedamage = true;
-	self->flags |= FL_TRAP;
+// 	self->die = barrel_delay;
+// 	self->takedamage = true;
+// 	self->flags |= FL_TRAP;
 
-	if (!self->spawnflags.has(SPAWNFLAG_EXPLOBOX_NO_MOVE))
-		self->touch = barrel_touch;
-	else
-		self->flags |= FL_NO_KNOCKBACK;
+// 	if (!self->spawnflags.has(SPAWNFLAG_EXPLOBOX_NO_MOVE))
+// 		self->touch = barrel_touch;
+// 	else
+// 		self->flags |= FL_NO_KNOCKBACK;
 
-	// PGM - change so barrels will think and hence, blow up
-	self->think = barrel_start;
-	self->nextthink = level.time + 20_hz;
-	// PGM
+// 	// PGM - change so barrels will think and hence, blow up
+// 	self->think = barrel_start;
+// 	self->nextthink = level.time + 20_hz;
+// 	// PGM
 
-	gi.linkentity(self);
-}
+// 	gi.linkentity(self);
+// }
 
 //
 // miscellaneous specialty items

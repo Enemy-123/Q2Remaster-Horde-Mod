@@ -119,7 +119,8 @@ enum class SpecialEntityTypeID : uint8_t {
     DOPPLEGANGER,    // 8
     STROGG_SUMMONER, // 9
     MORPHED_PLAYER,  // 10 - For players morphed into monsters
-    COUNT,           // 11 - The total number of special entity types
+    BARREL,          // 11 - Explosive barrels
+    COUNT,           // 12 - The total number of special entity types
     UNKNOWN = 255
 };;
 

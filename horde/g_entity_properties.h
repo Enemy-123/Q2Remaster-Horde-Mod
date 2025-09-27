@@ -37,6 +37,7 @@ constexpr size_t GetEntityIndex(horde::SpecialEntityTypeID id) {
         case horde::SpecialEntityTypeID::DOPPLEGANGER: return 8;
         case horde::SpecialEntityTypeID::STROGG_SUMMONER: return 9;
         case horde::SpecialEntityTypeID::MORPHED_PLAYER: return 10;
+        case horde::SpecialEntityTypeID::BARREL: return 11;
         default: return NUM_SPECIAL_ENTITY_TYPES;
     }
 }

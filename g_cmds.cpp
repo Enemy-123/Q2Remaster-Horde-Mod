@@ -556,6 +556,25 @@ void Cmd_RemoveSentry_f(edict_t* ent)
     }
 }
 
+void Cmd_RemoveBarrel_f(edict_t* ent)
+{
+    if (!ent || !ent->client) {
+        return;
+    }
+
+    // Check the tracked count
+    if (ent->client->resp.num_barrels > 0)
+    {
+        // Call the helper function that removes all barrels
+        remove_barrels(ent);
+        gi.LocClient_Print(ent, PRINT_HIGH, "All your barrels have been removed.\n");
+    }
+    else
+    {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You have no active barrels to remove.\n");
+    }
+}
+
 // Forward declaration from g_strogg_summoner.cpp
 void Cmd_RemoveStrogg_f(edict_t* ent);
 
@@ -2012,6 +2031,8 @@ void ClientCommand(edict_t* ent)
 	// Paril: cheats to help with dev
 	else if (Q_strcasecmp(cmd, "spawn") == 0)
 		Cmd_Spawn_f(ent);
+	else if (Q_strcasecmp(cmd, "barrel") == 0)
+		Cmd_Barrel_f(ent);
 	else if (Q_strcasecmp(cmd, "teleport") == 0)
 		Cmd_Teleport_f(ent);
 	else if (Q_strcasecmp(cmd, "notarget") == 0)

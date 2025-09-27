@@ -176,8 +176,23 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
             }
             case horde::SpecialEntityTypeID::DOPPLEGANGER: {
                 gtime_t const time_remaining = stats_source->nextthink - level.time;
-                
+
                 out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
+                break;
+            }
+            case horde::SpecialEntityTypeID::BARREL: {
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {}", name, stats_source->health).out;
+
+                // Show owner if it exists
+                if (stats_source->owner && stats_source->owner->client) {
+                    const char* owner_name = GetPlayerName(stats_source->owner);
+                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\nOwner: {}", owner_name).out;
+                }
+
+                // Show if it's burning
+                if (stats_source->s.effects & EF_BARREL_EXPLODING) {
+                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\n[BURNING]").out;
+                }
                 break;
             }
             default:
