@@ -114,6 +114,9 @@
     <ClInclude Include="horde\p_flyer_morph.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="horde\p_brain_morph.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -339,6 +342,9 @@
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\p_flyer_morph.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\p_brain_morph.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>

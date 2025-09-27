@@ -135,6 +135,7 @@
     <ClInclude Include="horde\horde_performance.h" />
     <ClInclude Include="horde\horde_spawning.h" />
     <ClInclude Include="horde\network_overflow_fix.h" />
+    <ClInclude Include="horde\p_brain_morph.h" />
     <ClInclude Include="horde\p_flyer_morph.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
@@ -198,6 +199,7 @@
     <ClCompile Include="horde\horde_menu.cpp" />
     <ClCompile Include="horde\horde_spawning.cpp" />
     <ClCompile Include="horde\network_overflow_fix.cpp" />
+    <ClCompile Include="horde\p_brain_morph.cpp" />
     <ClCompile Include="horde\p_flyer_morph.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="g_ai.cpp" />
