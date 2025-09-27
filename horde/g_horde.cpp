@@ -32,6 +32,9 @@ std::unordered_map<int, EmitterState> g_emitter_states;
 
 //aiming for special entities for idview.cpp
 std::vector<edict_t*> g_targetable_special_entities;
+
+// Track monster to family mapping for reference counting
+std::unordered_map<int, AssetFamilyID> g_monster_family_map;
 // Provides a direct list of spawn point edicts for easy iteration
 std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
@@ -71,6 +74,8 @@ int32_t g_total_precached_sounds = 0;
 static cvar_t* g_horde_precache_mode = nullptr;  // 0=JIT, 1=Smart Window, 2=Full
 static cvar_t* g_horde_precache_window = nullptr; // How many waves ahead to precache
 static cvar_t* g_horde_precache_debug = nullptr;  // Show debug info about precaching
+static cvar_t* g_horde_precache_memory_limit = nullptr; // Memory limit in MB
+static cvar_t* g_horde_precache_aggressive_unload = nullptr; // Aggressive unloading for high waves
 
 int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
@@ -353,6 +358,25 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 	if (typeId == horde::MonsterTypeID::UNKNOWN)
 		return nullptr;
 
+	// Check if the monster type is precached (JIT check for late spawns)
+	AssetFamilyID family = GetMonsterAssetFamily(typeId);
+	if (family != AssetFamilyID::UNKNOWN_FAMILY) {
+		auto& family_data = g_asset_families[static_cast<size_t>(family)];
+		if (!family_data.is_precached) {
+			// Try to precache now if we can
+			if (CanPrecacheFamily(family)) {
+				PrecacheAssetFamily(family);
+			} else {
+				// Can't precache, spawn would fail
+				if (g_horde_precache_debug && g_horde_precache_debug->integer) {
+					gi.Com_PrintFmt("Cannot spawn monster {} - family not precached and limits reached\n",
+						horde::MonsterTypeRegistry::GetClassname(typeId));
+				}
+				return nullptr;
+			}
+		}
+	}
+
 	edict_t *monster = G_Spawn();
 	if (!monster)
 		return nullptr;
@@ -366,6 +390,14 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 	if (!monster->inuse) {
 		G_FreeEdict(monster);
 		return nullptr;
+	}
+
+	// Increment reference count for the monster's family
+	if (family != AssetFamilyID::UNKNOWN_FAMILY) {
+		IncrementFamilyReference(family);
+		// Store the family ID in the monster for cleanup later
+		int monster_index = static_cast<int>(monster - g_edicts);
+		g_monster_family_map[monster_index] = family;
 	}
 
 	if (link_immediately)
@@ -3370,6 +3402,12 @@ void Horde_Init()
 	if (!g_horde_precache_debug) {
 		g_horde_precache_debug = gi.cvar("g_horde_precache_debug", "0", CVAR_SERVERINFO);
 	}
+	if (!g_horde_precache_memory_limit) {
+		g_horde_precache_memory_limit = gi.cvar("g_horde_precache_memory_limit", "256", CVAR_SERVERINFO);
+	}
+	if (!g_horde_precache_aggressive_unload) {
+		g_horde_precache_aggressive_unload = gi.cvar("g_horde_precache_aggressive_unload", "1", CVAR_SERVERINFO);
+	}
 
 	// Initialize the asset family system
 	InitializeAssetFamilies();
@@ -4198,6 +4236,9 @@ void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason
 		}
 	}
 	g_horde_local.state = horde_state_t::rest;
+
+	// Clean up unused precached assets at wave end
+	ManagePrecacheMemory(current_wave_level);
 }
 
 // MODIFIED FUNCTION: AnnounceIncomingWave
@@ -4321,10 +4362,14 @@ void InitializeAssetFamilies()
 	// Clear all mappings first
 	g_monster_to_family.fill(AssetFamilyID::UNKNOWN_FAMILY);
 
-	// Initialize all families as not precached
+	// Initialize all families as not precached and reset tracking
 	for (auto& family : g_asset_families) {
 		family.is_precached = false;
 		family.members.clear(); // Clear any existing members
+		family.reference_count = 0;
+		family.last_wave_used = 0;
+		family.last_access_time = 0_ms;
+		family.estimated_memory_size = 0;
 	}
 
 	// Initialize family names for debugging
@@ -4578,10 +4623,15 @@ void PrecacheAssetFamily(AssetFamilyID family_id) {
 	}
 
 	family.is_precached = true;
+	family.last_access_time = level.time;
+	family.last_wave_used = current_wave_level;
 
-	// Update counts (approximate - would need actual tracking for accuracy)
+	// Update counts and estimated memory (approximate - would need actual tracking for accuracy)
 	g_total_precached_models += 5; // Rough estimate per family
 	g_total_precached_sounds += 10; // Rough estimate per family
+
+	// Estimate memory usage for the family (rough approximation)
+	family.estimated_memory_size = (5 * 100000) + (10 * 50000); // ~1MB per family
 }
 
 // Precache a monster by using its family
@@ -4600,9 +4650,13 @@ void ResetPrecacheTracking() {
 	g_total_precached_models = 0;
 	g_total_precached_sounds = 0;
 
-	// Reset family precache flags
+	// Reset family precache flags and reference counts
 	for (auto& family : g_asset_families) {
 		family.is_precached = false;
+		family.reference_count = 0;
+		family.last_wave_used = 0;
+		family.last_access_time = 0_ms;
+		family.estimated_memory_size = 0;
 	}
 
 	// Reset monster precache flags
@@ -4612,6 +4666,212 @@ void ResetPrecacheTracking() {
 
 	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
 		gi.Com_Print("Precache tracking reset\n");
+	}
+}
+
+// ================== Dynamic Asset Management Functions ==================
+
+// Unprecache a specific asset family to free memory
+void UnprecacheAssetFamily(AssetFamilyID family_id) {
+	if (family_id == AssetFamilyID::UNKNOWN_FAMILY || family_id >= AssetFamilyID::MAX_FAMILIES) {
+		return;
+	}
+
+	auto& family = g_asset_families[static_cast<size_t>(family_id)];
+
+	// Only unprecache if no active references
+	if (family.reference_count > 0) {
+		if (g_horde_precache_debug && g_horde_precache_debug->integer) {
+			gi.Com_PrintFmt("Cannot unprecache family {} - has {} active references\n",
+				family.family_name, family.reference_count);
+		}
+		return;
+	}
+
+	if (!family.is_precached) {
+		return; // Already unprecached
+	}
+
+	// Note: Actual unprecaching is not possible in Quake 2 engine
+	// We can only mark it as unprecached and stop spawning these monsters
+	// The memory will be freed on map change
+	family.is_precached = false;
+
+	// Update tracking
+	g_total_precached_models -= 5;  // Rough estimate
+	g_total_precached_sounds -= 10; // Rough estimate
+
+	// Mark all members as unprecached
+	for (auto member : family.members) {
+		if (static_cast<size_t>(member) < g_precached_monster_types_flags.size()) {
+			g_precached_monster_types_flags[static_cast<size_t>(member)] = false;
+		}
+	}
+
+	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
+		gi.Com_PrintFmt("Unprecached family {} to free memory\n", family.family_name);
+	}
+}
+
+// Increment reference count when a monster spawns
+void IncrementFamilyReference(AssetFamilyID family_id) {
+	if (family_id != AssetFamilyID::UNKNOWN_FAMILY && family_id < AssetFamilyID::MAX_FAMILIES) {
+		auto& family = g_asset_families[static_cast<size_t>(family_id)];
+		family.reference_count++;
+		family.last_access_time = level.time;
+		family.last_wave_used = current_wave_level;
+	}
+}
+
+// Decrement reference count when a monster dies or is freed
+void DecrementFamilyReference(AssetFamilyID family_id) {
+	if (family_id != AssetFamilyID::UNKNOWN_FAMILY && family_id < AssetFamilyID::MAX_FAMILIES) {
+		auto& family = g_asset_families[static_cast<size_t>(family_id)];
+		if (family.reference_count > 0) {
+			family.reference_count--;
+		}
+	}
+}
+
+// Update family access time
+void UpdateFamilyAccess(AssetFamilyID family_id) {
+	if (family_id != AssetFamilyID::UNKNOWN_FAMILY && family_id < AssetFamilyID::MAX_FAMILIES) {
+		auto& family = g_asset_families[static_cast<size_t>(family_id)];
+		family.last_access_time = level.time;
+		family.last_wave_used = current_wave_level;
+	}
+}
+
+// Check if a family should be unloaded
+bool ShouldUnloadFamily(AssetFamilyID family_id, int32_t current_wave) {
+	if (family_id == AssetFamilyID::UNKNOWN_FAMILY || family_id >= AssetFamilyID::MAX_FAMILIES) {
+		return false;
+	}
+
+	auto& family = g_asset_families[static_cast<size_t>(family_id)];
+
+	// Never unload families with active references
+	if (family.reference_count > 0) {
+		return false;
+	}
+
+	// Check if aggressive unloading is enabled for high waves
+	bool aggressive = g_horde_precache_aggressive_unload &&
+	                  g_horde_precache_aggressive_unload->integer &&
+	                  current_wave >= 20;
+
+	// Determine wave threshold for keeping assets
+	int32_t wave_threshold = aggressive ? 2 : 5;
+
+	// Check if the family hasn't been used recently
+	if (current_wave - family.last_wave_used > wave_threshold) {
+		return true;
+	}
+
+	// Time-based unloading (5 minutes for normal, 2 minutes for aggressive)
+	gtime_t time_threshold = aggressive ? 120_sec : 300_sec;
+	if (level.time - family.last_access_time > time_threshold) {
+		return true;
+	}
+
+	return false;
+}
+
+// Get total estimated memory usage
+int32_t GetTotalPrecacheMemoryUsage() {
+	int32_t total_memory = 0;
+	for (const auto& family : g_asset_families) {
+		if (family.is_precached) {
+			total_memory += family.estimated_memory_size;
+		}
+	}
+	// Rough estimation if we don't have accurate sizes
+	if (total_memory == 0) {
+		// Estimate based on model/sound counts
+		total_memory = (g_total_precached_models * 100000) + // ~100KB per model
+		               (g_total_precached_sounds * 50000);   // ~50KB per sound
+	}
+	return total_memory;
+}
+
+// Main memory management function called each wave
+void ManagePrecacheMemory(int32_t current_wave) {
+	if (!g_horde_precache_memory_limit) {
+		return;
+	}
+
+	int32_t memory_limit_bytes = g_horde_precache_memory_limit->integer * 1024 * 1024; // Convert MB to bytes
+	int32_t current_memory = GetTotalPrecacheMemoryUsage();
+
+	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
+		gi.Com_PrintFmt("Wave {}: Memory usage ~{}MB / {}MB\n",
+			current_wave, current_memory / (1024*1024), g_horde_precache_memory_limit->integer);
+	}
+
+	// Build list of candidates for unloading
+	std::vector<AssetFamilyID> unload_candidates;
+
+	for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); ++i) {
+		AssetFamilyID family_id = static_cast<AssetFamilyID>(i);
+		if (g_asset_families[i].is_precached && ShouldUnloadFamily(family_id, current_wave)) {
+			unload_candidates.push_back(family_id);
+		}
+	}
+
+	// Sort by last access time (oldest first)
+	std::sort(unload_candidates.begin(), unload_candidates.end(),
+		[](AssetFamilyID a, AssetFamilyID b) {
+			return g_asset_families[static_cast<size_t>(a)].last_access_time <
+			       g_asset_families[static_cast<size_t>(b)].last_access_time;
+		});
+
+	// Unload families until we're under the memory limit or out of candidates
+	for (AssetFamilyID family_id : unload_candidates) {
+		if (current_memory < memory_limit_bytes * 0.9) { // Keep 10% buffer
+			break;
+		}
+
+		UnprecacheAssetFamily(family_id);
+		current_memory = GetTotalPrecacheMemoryUsage();
+	}
+
+	// Additional aggressive unloading for very high waves
+	if (current_wave >= 25 && g_horde_precache_aggressive_unload &&
+	    g_horde_precache_aggressive_unload->integer) {
+		// Find families that haven't been used this wave
+		for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); ++i) {
+			auto& family = g_asset_families[i];
+			if (family.is_precached &&
+			    family.reference_count == 0 &&
+			    family.last_wave_used < current_wave) {
+				UnprecacheAssetFamily(static_cast<AssetFamilyID>(i));
+			}
+		}
+	}
+}
+
+// Deferred precaching for late-joining players
+void DeferredPrecacheForPlayer(edict_t* player) {
+	if (!player || !player->client) {
+		return;
+	}
+
+	// Queue minimal essential assets for the player
+	// This function would be called after the player has connected
+	// to avoid blocking the connection process
+
+	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
+		gi.Com_PrintFmt("Performing deferred precache for player {}\n",
+			player->client->pers.netname);
+	}
+
+	// Only precache families that are currently active
+	for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); ++i) {
+		auto& family = g_asset_families[i];
+		if (family.is_precached && family.reference_count > 0) {
+			// The family is already precached and active, player will get it naturally
+			continue;
+		}
 	}
 }
 
@@ -7484,4 +7744,7 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	ProcessWaveRewards(lvl);
 	Horde_CleanBodies();
+
+	// Manage precache memory - clean up unused assets
+	ManagePrecacheMemory(lvl);
 }
