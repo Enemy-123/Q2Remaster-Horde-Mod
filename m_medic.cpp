@@ -412,6 +412,30 @@ bool finishHeal(edict_t* self)
 	healee->ctf_team = self->ctf_team;
 	if (healee->svflags & SVF_MONSTER) {
 		healee->monsterinfo.team = static_cast<uint8_t>(self->ctf_team);
+
+		// If the medic is summoned, the resurrected monster should inherit summoner properties
+		if (self->monsterinfo.issummoned && self->teammaster) {
+			// Inherit summoned properties from the medic
+			healee->monsterinfo.issummoned = true;
+			healee->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+			healee->monsterinfo.bonus_flags |= BF_FRIENDLY;
+
+			// If medic has a chain (base entity), resurrected monster gets same references
+			if (self->chain) {
+				healee->chain = self->chain;  // Point to same base
+				healee->teammaster = self->teammaster;  // Point to same player owner
+				healee->touch = strogg_summoned_touch;  // Allow owner to push
+			} else {
+				// Medic doesn't have chain (shouldn't happen with proper summon), use medic's teammaster
+				healee->teammaster = self->teammaster;
+			}
+
+			// Ensure proper collision for summoned monsters
+			healee->svflags &= ~SVF_PLAYER;
+			healee->svflags |= SVF_MONSTER;
+			healee->solid = SOLID_BBOX;
+			healee->clipmask = MASK_MONSTERSOLID;
+		}
 	}
 
 	// Handle targeting - for horde mode, just stand initially
