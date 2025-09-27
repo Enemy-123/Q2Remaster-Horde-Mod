@@ -696,7 +696,17 @@ void ApplyGradualArmor(edict_t* ent) {
 	// Cache armor index to avoid repeated function calls
 	const int index = ArmorIndex(ent);
 	if (!index) {
-		ent->regen_info.stored_armor = 0;
+		// Player has no armor - give them jacket armor if we have stored armor
+		if (ent->regen_info.stored_armor > 0 && level.time >= ent->regen_info.next_regen_time) {
+			// Give jacket armor with the stored amount (capped at reasonable starting value)
+			int initial_armor = std::min(static_cast<int>(ent->regen_info.stored_armor), 25);
+			ent->client->pers.inventory[IT_ARMOR_JACKET] = initial_armor;
+			ent->regen_info.stored_armor -= initial_armor;
+
+			// If we still have stored armor, it will be added next frame
+			if (ent->regen_info.stored_armor <= 0)
+				ent->regen_info.stored_armor = 0;
+		}
 		return;
 	}
 
@@ -856,25 +866,26 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 		return;
 
 	const int index = ArmorIndex(attacker);
+	
+	// Calculate armor to steal from damage
+	const float armor_stolen = VampireConfig::ARMOR_STEAL_RATIO * (damage / 4.0f);
+	
 	if (!index) {
-		attacker->regen_info.stored_armor = 0;
+		// Player has no armor - store the stolen armor for later
+		// It will be given as jacket armor in ApplyGradualArmor
+		attacker->regen_info.stored_armor = std::min(
+			attacker->regen_info.stored_armor + armor_stolen,
+			static_cast<float>(VampireConfig::MAX_STORED_ARMOR)
+		);
 		return;
 	}
 
 	int current_armor = attacker->client->pers.inventory[index];
 
-	if (current_armor <= 0) {
-		attacker->regen_info.stored_armor = 0;
-		return;
-	}
-
 	if (current_armor >= VampireConfig::MAX_ARMOR)
 		return;
 
-	// Calculamos el armor directamente del daño, sin considerar el health
-	const float armor_stolen = VampireConfig::ARMOR_STEAL_RATIO * (damage / 4.0f);
-
-	// Almacenar el armor hasta el límite de almacenamiento
+	// Store the stolen armor for gradual regeneration
 	attacker->regen_info.stored_armor = std::min(
 		attacker->regen_info.stored_armor + armor_stolen,
 		static_cast<float>(VampireConfig::MAX_STORED_ARMOR)

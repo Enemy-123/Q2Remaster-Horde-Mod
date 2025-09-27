@@ -633,6 +633,7 @@ edict_t* healFindMonster(edict_t* self, float radius)
 	return best_injured_teammate;
 }
 
+bool M_NeedRegen(edict_t* target);
 // Check for healing opportunities during movement
 void medic_check_heal(edict_t* self)
 {
@@ -645,19 +646,13 @@ void medic_check_heal(edict_t* self)
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 		return;
 
-	// Don't interrupt active combat with valid enemy
-	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
-	{
-		// Only consider healing if enemy is far away or we're not in active combat
-		float enemy_distance = realrange(self, self->enemy);
+	// Be more aggressive about healing - check even if we have an enemy
+	// but prioritize based on distance and threat level
+	bool has_active_enemy = (self->enemy && self->enemy->inuse && self->enemy->health > 0);
+	float enemy_distance = has_active_enemy ? realrange(self, self->enemy) : 999999.0f;
 
-		// If actively fighting nearby enemy, don't switch
-		if (enemy_distance < MEDIC_MAX_HEAL_DISTANCE * 1.5f)
-			return;
-	}
-
-	// Look for healing opportunities
-	float radius = MEDIC_MAX_HEAL_DISTANCE;
+	// Look for healing opportunities with larger radius
+	float radius = MEDIC_MAX_HEAL_DISTANCE * 1.5f; // Increased search radius
 	edict_t* ent = healFindMonster(self, radius);
 
 	if (ent)
@@ -665,6 +660,10 @@ void medic_check_heal(edict_t* self)
 		// Check if this is a high-priority target
 		bool is_dead = (ent->health <= 0);
 		bool is_critical = (ent->health > 0 && ent->health < ent->max_health * 0.3f); // Less than 30% health
+		bool is_hurt = (ent->health > 0 && ent->health < ent->max_health * 0.85f); // Less than 75% health
+		
+		// Check if it's a player that needs healing
+		bool is_player = (ent->client != nullptr);
 
 		// Calculate distances
 		float heal_distance = realrange(self, ent);
@@ -674,26 +673,51 @@ void medic_check_heal(edict_t* self)
 
 		if (g_horde->integer)
 		{
-			// Only switch for very high priority cases
-			if (is_dead && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
+			// More aggressive healing in horde mode
+			if (is_dead && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
 			{
-				should_heal = true;  // Revive dead monsters if reasonably close
+				// Always prioritize resurrection if in range
+				should_heal = true;
 			}
-			else if (is_critical && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.5f)
+			else if (is_player && (is_hurt || M_NeedRegen(ent)) && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
 			{
-				should_heal = true;  // Only heal if critically injured and very close
+				// Always prioritize healing players
+				should_heal = true;
+			}
+			else if (is_critical && heal_distance < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
+			{
+				// Heal critically injured allies if close
+				should_heal = true;
+			}
+			else if (!has_active_enemy && is_hurt && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
+			{
+				// If no enemy, heal any hurt ally in range
+				should_heal = true;
+			}
+			else if (has_active_enemy && enemy_distance > MEDIC_MAX_HEAL_DISTANCE * 2.0f && 
+			         (is_dead || is_critical) && heal_distance < MEDIC_MAX_HEAL_DISTANCE)
+			{
+				// Enemy is far, safe to heal
+				should_heal = true;
 			}
 		}
 		else
 		{
-			// Normal mode: only heal if no enemy or enemy is far
-			if (!self->enemy || !self->enemy->inuse)
+			// Normal mode: be more aggressive about healing
+			if (!has_active_enemy)
 			{
-				should_heal = true;  // No enemy, go heal
+				// No enemy, always heal if needed
+				should_heal = true;
 			}
-			else if (is_dead && realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE * 2.0f)
+			else if (is_dead && enemy_distance > MEDIC_MAX_HEAL_DISTANCE * 1.5f)
 			{
-				should_heal = true;  // Enemy is very far, safe to revive
+				// Enemy is somewhat far, safe to revive
+				should_heal = true;
+			}
+			else if (is_critical && enemy_distance > MEDIC_MAX_HEAL_DISTANCE)
+			{
+				// Heal critical allies if enemy isn't too close
+				should_heal = true;
 			}
 		}
 
@@ -811,61 +835,34 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand, 0, medic_check_heal}, 
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -874,27 +871,54 @@ mframe_t medic_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
+	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal}, 
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand, 0, medic_check_heal },
 	{ ai_stand, 2, medic_check_heal}, 
 };
 MMOVE_T(medic_move_stand) = { FRAME_wait1, FRAME_wait90, medic_frames_stand, nullptr };
