@@ -1013,12 +1013,9 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	bool shouldCloseMenu = true; // Default to closing the menu
 
 	// Use strncmp for options that might have counts appended or dynamic text
-	if (strncmp(selected_text, "Remove All Summons", strlen("Remove All Summons")) == 0) {
+	if (strncmp(selected_text, "Remove Stroggs", strlen("Remove Stroggs")) == 0) {
+		// Remove all summoned creatures (stroggs, revived monsters, etc) excluding bases, lasers, barrels
 		Cmd_RemoveAllSummons_f(ent);
-		// Message handled internally, menu should close.
-	}
-	else if (strncmp(selected_text, "Remove Strogg", strlen("Remove Strogg")) == 0) {
-		Cmd_RemoveStrogg_f(ent);
 		// Message handled internally, menu should close.
 	}
 	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {
@@ -1102,29 +1099,26 @@ void OpenMiscMenu(edict_t* ent) {
 
 	// --- Conditional Remove Options (MODIFIED) ---
 
-	// Count ALL summoned entities for this player (including reinforcements)
-	int all_summons_count = 0;
+	// Count actual summoned monsters (excluding bases, lasers, and barrels)
+	// This includes: strogg monsters, medic-revived entities, and any other summoned creatures
+	int strogg_count = 0;
+
+	// Count all summoned entities (excluding lasers, barrels, and strogg bases)
 	for (int i = 1; i < globals.num_edicts; i++) {
 		edict_t* check = &g_edicts[i];
 		if (check && check->inuse && check->teammaster == ent && check->chain) {
-			all_summons_count++;
+			// Exclude bases, lasers, and barrels from this count using the special type system
+			if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+			    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
+			    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
+			    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
+				strogg_count++;
+			}
 		}
-	}
-	if (all_summons_count > 0) {
-		add_entry(G_Fmt("Remove All Summons ({})", all_summons_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
-	// Count Strogg summons for this player
-	int strogg_count = 0;
-	for (edict_t* special_ent : g_targetable_special_entities) {
-		if (special_ent && special_ent->inuse &&
-			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-			special_ent->teammaster == ent) {
-			strogg_count++;
-		}
-	}
 	if (strogg_count > 0) {
-		add_entry(G_Fmt("Remove Strogg ({})", strogg_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+		add_entry(G_Fmt("Remove Stroggs ({})", strogg_count).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
     // Get the laser count directly from the client's respawn data.

@@ -536,11 +536,26 @@ static int RemoveSummonedEntities(edict_t* owner, RemovalFilter filter)
 		}
 	}
 	else { // ALL_SUMMONS
-		// Find all entities that have this player as their teammaster
+		// Find all summoned monsters (excluding bases, lasers, and barrels)
 		for (int i = 1; i < globals.num_edicts; i++) {
 			edict_t* check = &g_edicts[i];
 			if (check && check->inuse && check->teammaster == owner && check->chain) {
-				ents_to_remove.push_back(check);
+				// Exclude bases, lasers, and barrels from removal using the special type system
+				if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+				    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
+				    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
+				    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
+					ents_to_remove.push_back(check);
+				}
+			}
+		}
+		
+		// Also remove the strogg bases themselves (they will clean up properly)
+		for (edict_t* special_ent : g_targetable_special_entities) {
+			if (special_ent && special_ent->inuse &&
+				special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+				special_ent->teammaster == owner) {
+				ents_to_remove.push_back(special_ent);
 			}
 		}
 	}
@@ -592,10 +607,10 @@ void Cmd_RemoveAllSummons_f(edict_t* ent)
 
 	if (removed_count > 0)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "{} summoned entities dismissed.\n", removed_count);
+		gi.LocClient_Print(ent, PRINT_HIGH, "{} strogg entities dismissed.\n", removed_count);
 	}
 	else
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "No summoned entities found.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "No strogg entities found.\n");
 	}
 }
