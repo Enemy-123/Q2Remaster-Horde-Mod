@@ -912,8 +912,13 @@ void M_ProcessPain(edict_t* e)
 		if (dead_commander_check)
 		{
 			edict_t*& commander = e->monsterinfo.commander;
-			if (commander && commander->inuse)
+			if (commander && commander->inuse) {
 				commander->monsterinfo.monster_used = max(0, commander->monsterinfo.monster_used - e->monsterinfo.slots_from_commander);
+				// Decrement global spawn counter for horde mode
+				if (g_horde->integer) {
+					level.global_spawned_count = max(0, level.global_spawned_count - 1);
+				}
+			}
 			commander = nullptr;
 		}
 

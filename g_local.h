@@ -1281,6 +1281,10 @@ struct level_locals_t
 	std::array<edict_t*, MAX_EDICTS> monsters_registered; // only for debug
 	int32_t killed_monsters;
 
+	// Global spawner limits for horde mode
+	int32_t global_spawner_limit = 20;  // Total spawned monster limit across all spawners
+	int32_t global_spawned_count = 0;   // Current spawned monster count
+
 	edict_t* current_entity; // entity running from G_RunFrame
 	int32_t	 body_que;		 // dead bodies
 

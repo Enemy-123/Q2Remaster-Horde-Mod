@@ -7010,11 +7010,13 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 		case horde::MonsterTypeID::CARRIER_MINI:
 			return "models/monsters/carrier/";
 
-		// Widow variants share models
+		// Widow variants - note WIDOW2 uses blackwidow2 (ultrathink) model
 		case horde::MonsterTypeID::WIDOW:
 		case horde::MonsterTypeID::WIDOW1:
-		case horde::MonsterTypeID::WIDOW2:
 			return "models/monsters/widow/";
+		
+		case horde::MonsterTypeID::WIDOW2:
+			return "models/monsters/blackwidow2/";
 
 		// Guardian variants share models
 		case horde::MonsterTypeID::GUARDIAN:

@@ -2389,6 +2389,13 @@ void Monster_MoveSpawn(edict_t* self) {
 		self->monsterinfo.monster_slots <= 0)
 		return;
 
+	// Check global spawner limit for horde mode
+	if (g_horde->integer) {
+		if (level.global_spawned_count >= level.global_spawner_limit) {
+			return; // Don't spawn if we've reached the global limit
+		}
+	}
+
 	int const available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 	if (available_slots <= 0)
 		return;
@@ -2457,13 +2464,19 @@ void Monster_MoveSpawn(edict_t* self) {
 				float const size = (monster->maxs - monster->mins).length() * 0.5f;
 				SpawnGrow_Spawn(test_origin, size * 2.0f, size * 0.5f);
 				self->monsterinfo.monster_used += reinf_def.strength;
+				
+				// Increment global spawn counter
+				if (g_horde->integer) {
+					level.global_spawned_count++;
+				}
+				
 				return true;
 			}
 			G_FreeEdict(monster);
 			return false;
 		}
 		return false;
-		};
+	};
 
 	// First attempt the predefined positions
 	for (const auto& pos : tank_vanilla_reinforcement_position) {

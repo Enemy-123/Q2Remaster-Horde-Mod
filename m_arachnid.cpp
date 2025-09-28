@@ -40,11 +40,13 @@ static cached_soundindex sound_plasma;
 static cached_soundindex sound_plasma_hit;
 
 // PSX reinforcement constants
+// PSX Arachnid Boss spawns 2 tank_spawners
 constexpr std::array<reinforcement_def_t, 1> psx_boss_reinforcements_defs = { {
-    {horde::MonsterTypeID::TANK_SPAWNER, 2}
+    {horde::MonsterTypeID::TANK_SPAWNER, 3}  // Each tank_spawner costs 3 slots
 } };
 
 // NEW: Compile-time reinforcement definitions for the PSX Arachnid in coop.
+// Normal PSX Arachnid spawns stalkers
 constexpr std::array<reinforcement_def_t, 1> psx_coop_reinforcements_defs = { {
     {horde::MonsterTypeID::STALKER, 2}
 } };
@@ -1786,6 +1788,13 @@ static void arachnid_psx_spawn(edict_t* self)
     if (skill->integer != 3)
         return;
 
+    // Check global spawner limit for horde mode
+    if (g_horde->integer) {
+        if (level.global_spawned_count >= level.global_spawner_limit) {
+            return; // Don't spawn if we've reached the global limit
+        }
+    }
+
     static constexpr vec3_t reinforcement_position[] = { { -24.f, 124.f, 0 }, { -24.f, -124.f, 0 } };
     vec3_t f, r, offset, startpoint, spawnpoint;
     int    count;
@@ -1830,6 +1839,11 @@ static void arachnid_psx_spawn(edict_t* self)
                 ent->monsterinfo.commander = self;
                 ent->monsterinfo.slots_from_commander = reinforcement_def.strength;
                 self->monsterinfo.monster_used += reinforcement_def.strength;
+
+                // Increment global spawn counter
+                if (g_horde->integer) {
+                    level.global_spawned_count++;
+                }
 
                 gi.sound(ent, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
 

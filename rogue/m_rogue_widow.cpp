@@ -285,6 +285,13 @@ void WidowSpawn(edict_t* self) {
 		return;
 	}
 
+	// Check global spawner limit for horde mode
+	if (g_horde->integer) {
+		if (level.global_spawned_count >= level.global_spawner_limit) {
+			return; // Don't spawn if we've reached the global limit
+		}
+	}
+
 	// This check is now also performed in the attack function, but it's good practice here too.
 	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots) {
 		return;
