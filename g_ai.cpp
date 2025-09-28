@@ -645,6 +645,29 @@ bool FindMTarget(edict_t* self) {
 		return false;
 	}
 
+	// --- Check if owner is menu protected ---
+	// For strogg summoned monsters (have chain->teammaster)
+	if (self->chain && self->chain->teammaster) {
+		if (IsPlayerMenuProtected(self->chain->teammaster)) {
+			self->enemy = nullptr;  // Clear enemy so they stop attacking
+			return false;
+		}
+	}
+	// For sentry guns (use owner field)
+	else if (self->owner && self->owner->client) {
+		if (IsPlayerMenuProtected(self->owner)) {
+			self->enemy = nullptr;  // Clear enemy so they stop attacking
+			return false;
+		}
+	}
+	// For other summoned entities (have direct teammaster)
+	else if (self->teammaster) {
+		if (IsPlayerMenuProtected(self->teammaster)) {
+			self->enemy = nullptr;  // Clear enemy so they stop attacking
+			return false;
+		}
+	}
+
 	// --- Clear Invalid Current Target ---
 	if (self->enemy && !IsValidMonsterTargetForSummon(self, self->enemy, level.time)) {
 		self->enemy = nullptr;

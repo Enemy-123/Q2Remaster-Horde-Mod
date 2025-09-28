@@ -347,16 +347,29 @@ THINK(laser_beam_think)(edict_t * self)->void
     const vec3_t start = emitter->s.origin;
     const vec3_t end = start + (forward * 8192.0f);
 
-    player_laser_pierce_t args(self);
-    pierce_trace(start, end, emitter, args, MASK_SHOT);
-
-    // If the trace hit nothing or went the full distance, use the calculated end point
-    // Otherwise use the trace endpoint where we hit something solid
-    if (!args.tr.ent || args.tr.fraction == 1.0f) {
-        self->s.origin = end;
+    // Check if owner is menu protected - keep laser visible but skip damage
+    if (emitter->teammaster && IsPlayerMenuProtected(emitter->teammaster)) {
+        // Just trace for visual endpoint without dealing damage
+        trace_t simple_trace = gi.traceline(start, end, emitter, MASK_SHOT);
+        if (simple_trace.fraction == 1.0f) {
+            self->s.origin = end;
+        } else {
+            self->s.origin = simple_trace.endpos;
+        }
     } else {
-        self->s.origin = args.tr.endpos;
+        // Normal operation with damage
+        player_laser_pierce_t args(self);
+        pierce_trace(start, end, emitter, args, MASK_SHOT);
+
+        // If the trace hit nothing or went the full distance, use the calculated end point
+        // Otherwise use the trace endpoint where we hit something solid
+        if (!args.tr.ent || args.tr.fraction == 1.0f) {
+            self->s.origin = end;
+        } else {
+            self->s.origin = args.tr.endpos;
+        }
     }
+
     self->s.old_origin = start;
     self->nextthink = level.time + FRAME_TIME_MS;
     gi.linkentity(self);
