@@ -12,7 +12,7 @@ constexpr float BARREL_BOUNCE_MULTIPLIER = 1.2f;
 constexpr float BARREL_MIN_BOUNCE_SPEED = 100.0f;
 constexpr float BARREL_BOUNCE_RANDOM = 50.0f;
 constexpr float BARREL_VERTICAL_BOOST = 150.0f;
-constexpr gtime_t BARREL_BURN_TIME = 800_sec;  // Increased for longer burn effect
+constexpr gtime_t BARREL_BURN_TIME = 800_ms;  // Increased for longer burn effect
 constexpr float BARREL_CHAIN_EXPLOSION_RADIUS = 250.0f;
 constexpr gtime_t BARREL_CHAIN_DELAY = 100_ms;
 
@@ -75,26 +75,6 @@ DIE(barrel_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 
     self->deadflag = true;
     // Don't set activator - always use chain (owner) for damage attribution
-
-        // Clean up barrel tracking
-    if (self->chain && self->chain->client)
-    {
-        self->chain->client->resp.num_barrels--;
-
-        // If this was a held barrel, clear it
-        if (self->chain->client->resp.held_barrel == self)
-            self->chain->client->resp.held_barrel = nullptr;
-
-        // Clear this barrel from the tracking array
-        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
-        {
-            if (self->chain->client->resp.deployed_barrels[i] == self)
-            {
-                self->chain->client->resp.deployed_barrels[i] = nullptr;
-                break;
-            }
-        }
-    }
 
     // Big damage = instant explosion, small damage = delayed burn
     if (damage >= 90)
@@ -167,13 +147,18 @@ void barrel_burn_damage(edict_t* self)
 // Burning state before explosion
 THINK(barrel_burn)(edict_t* self) -> void
 {
+    // Debug output - simplified format
+    if (self->chain && self->chain->client)
+    {
+        int time_left = (int)((self->timestamp - level.time).seconds());
+        gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {}s until explosion\n", time_left);
+    }
 
-
-        // Apply burning effect immediately
-        self->s.effects |= EF_BARREL_EXPLODING;
-
+    // Check if burn time has expired - if so, explode
     if (level.time >= self->timestamp)
     {
+        if (self->chain && self->chain->client)
+            gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel exploding NOW!\n");
         barrel_explode(self);
         return;
     }
@@ -226,27 +211,7 @@ THINK(barrel_explode)(edict_t* self) -> void
         damage = damage * (1.0f + (current_wave_level * 0.1f));
     }
 
-    // Radius damage - always use chain (owner) for damage attribution
-    T_RadiusDamage(self, self->chain, (float)damage, nullptr,
-                   BarrelConstants::BARREL_EXPLOSION_RADIUS, DAMAGE_NONE, MOD_G_SPLASH);
-
-    // Throw gibs
-    ThrowGibs(self, (1.5f * damage / 200.f), {
-        { 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS },
-        { 4, "models/objects/debris3/tris.md2", GIB_METALLIC | GIB_DEBRIS },
-        { 8, "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
-    });
-
-    // Chain explosions
-    barrel_chain_explosions(self);
-
-    // Explosion effect
-    if (self->groundentity)
-        BecomeExplosion2(self);
-    else
-        BecomeExplosion1(self);
-
-    // Clean up barrel tracking
+    // Clean up barrel tracking BEFORE the entity is freed
     if (self->chain && self->chain->client)
     {
         self->chain->client->resp.num_barrels--;
@@ -265,6 +230,27 @@ THINK(barrel_explode)(edict_t* self) -> void
             }
         }
     }
+
+    // Radius damage - use chain if available, otherwise self
+    edict_t* attacker = self->chain ? self->chain : self;
+    T_RadiusDamage(self, attacker, (float)damage, nullptr,
+                   BarrelConstants::BARREL_EXPLOSION_RADIUS, DAMAGE_NONE, MOD_G_SPLASH);
+
+    // Throw gibs
+    ThrowGibs(self, (1.5f * damage / 200.f), {
+        { 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS },
+        { 4, "models/objects/debris3/tris.md2", GIB_METALLIC | GIB_DEBRIS },
+        { 8, "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
+    });
+
+    // Chain explosions
+    barrel_chain_explosions(self);
+
+    // Explosion effect - THIS WILL FREE THE ENTITY!
+    if (self->groundentity)
+        BecomeExplosion2(self);
+    else
+        BecomeExplosion1(self);
 }
 
 // Touch function for barrels with summoned-style behavior
@@ -552,7 +538,13 @@ THINK(barrel_start)(edict_t* self) -> void
     M_droptofloor(self);
 
     if (self->health <= 0)
-     self->s.effects |= EF_BARREL_EXPLODING;
+    {
+        // Trigger the death function with small damage to start burning
+        // This ensures proper death handling and burning sequence
+        barrel_die(self, self, self, 30, self->s.origin, MOD_UNKNOWN);
+        return;
+    }
+
     self->think = barrel_think;
     self->nextthink = level.time + FRAME_TIME_S;
 }
@@ -811,6 +803,9 @@ void SP_misc_explobox(edict_t* self)
     self->touch = barrel_touch;
     self->think = barrel_start;
     self->nextthink = level.time + 20_hz;
+
+    // Map-placed barrels don't have an owner, so no chain
+    self->chain = nullptr;
 
     gi.linkentity(self);
 }
