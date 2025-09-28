@@ -1003,43 +1003,43 @@ void InitializeBossWaveTypes()
 
 	// Flying Bosses
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Hornet's deadly sting descends from above!"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Hornet's deadly sting descends from above!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Carrier unleashes its aerial swarm!"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Carrier unleashes its aerial swarm!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::CARRIER_MINI)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Carrier Mini is delivering pain right to your face!"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "Carrier Mini is delivering pain right to your face!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS2_KL)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Hornet buzzes with destructive intent!"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Hornet buzzes with destructive intent!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::FIXBOT_KL)] =
-		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Fixer arrives to repair your demise!"};
+		{MonsterWaveType::Flying | MonsterWaveType::Boss, "The Fixer arrives to repair your demise\n!"};
 
 	// Heavy/Medium Armored Bosses
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::TANK_64)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "Tank 64 brings double-barreled devastation!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "Tank 64 brings double-barreled devastation!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_KL)] =
-		{MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy, "The Shambler's electric fury is unleashed!"};
+		{MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy, "The Shambler's electric fury is unleashed!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_KL)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, "The Gunner Commander leads the assault!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, "The Gunner Commander leads the assault!\n"};
 
 	// Close Combat / Ranged Heavy Bosses
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy, "The Black Widow spins her web of death!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy, "The Black Widow spins her web of death!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::WIDOW2)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Medium, "The Stalker emerges from the shadows!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Medium, "The Stalker emerges from the shadows!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "The Janitor has arrived to clean house!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "The Janitor has arrived to clean house!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::JORG)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "Jorg rains chaos from above!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "Jorg rains chaos from above!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::JORG_SMALL)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Medium, "Mini Jorg marches into battle!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Medium, "Mini Jorg marches into battle!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, "Makron's wrath descends!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, "Makron's wrath descends!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "The Guardian awakens!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "The Guardian awakens!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Medium, "The Arachnid hunts its prey!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Medium, "The Arachnid hunts its prey!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] =
-		{MonsterWaveType::Ground | MonsterWaveType::Medium, "The Red Mutant seeks vengeance!"};
+		{MonsterWaveType::Ground | MonsterWaveType::Medium, "The Red Mutant seeks vengeance!\n"};
 }
 
 std::pair<MonsterWaveType, const char *> GetBossWaveType(horde::MonsterTypeID typeId)

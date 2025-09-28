@@ -533,9 +533,18 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		return;
 	}
 
+	// Check if we can spawn more monsters using the helper
+	if (!M_CanSpawnMore(self)) {
+		return;
+	}
+
+	// Check if turret is precached in horde mode
+	// if (g_horde->integer && !IsMonsterTypePrecached(horde::MonsterTypeID::TURRET)) {
+	// 	return; // Don't spawn turret if not precached
+	// }
+
 	bool isboss = IsBoss(self);
 	vec3_t dir;
-	edict_t* ent;
 
 	// FIX: Determine direction for the new turret to face safely.
 	// Use M_HasValidTarget to check self->enemy before accessing it.
@@ -555,32 +564,41 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		dir.normalize();
 	}
 
-	// Check global spawner limit for horde mode
-	if (g_horde->integer) {
-		if (level.global_spawned_count >= level.global_spawner_limit) {
-			return; // Don't spawn if we've reached the global limit
-		}
-	}
-
-	// Check if turret is precached in horde mode
-	if (g_horde->integer && !IsMonsterTypePrecached(horde::MonsterTypeID::TURRET)) {
-		return; // Don't spawn turret if not precached
-	}
-
-	// Create entity
-	ent = G_Spawn();
-	if (!ent) {
+	vec3_t angles = vectoangles(dir);
+	
+	// Get the classname for the turret
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(horde::MonsterTypeID::TURRET);
+	if (!classname) {
+		gi.Com_PrintFmt("Fixbot failed to get classname for turret\n");
 		return;
 	}
 
-	// Setup properties
-	ent->classname = "monster_turret";
-	ent->s.origin = position;
-	ent->s.angles = vectoangles(dir);
+
+	// Replace the failing CreateGroundMonster call with a direct call to CreateMonster.
+	// This bypasses both the precache check AND the failing CheckGroundSpawnPoint.
+	edict_t* ent = CreateMonster(position, angles, classname);
+
+	if (!ent) {
+		gi.Com_PrintFmt("Fixbot failed to create turret entity\n");
+		return;
+	}
+
+	// Setup spawned entity properties
 	ent->owner = self;
 	ent->monsterinfo.commander = self;
 	ent->monsterinfo.team = self->monsterinfo.team;
 	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_IGNORE_SHOTS;
+	ent->monsterinfo.slots_from_commander = 1; // Turrets take 1 slot
+
+	// Update spawner's used slots
+	if (self->monsterinfo.monster_slots) {
+		self->monsterinfo.monster_used += 1;
+	}
+
+	// Increment global spawn counter
+	if (g_horde->integer) {
+		level.global_spawned_count++;
+	}
 
 	// Sound & Visuals
 	if (sound_spawn)
@@ -592,24 +610,9 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	gi.WritePosition(position);
 	gi.multicast(position, MULTICAST_PVS, false);
 
-	// Update spawner's used slots
-	if (self->monsterinfo.monster_slots) {
-		self->monsterinfo.monster_used += 1;
-	}
-
-	// Finalize spawn
-	ED_CallSpawn(ent);
-	if (!ent->inuse) {
-		if (self->monsterinfo.monster_slots) {
-			self->monsterinfo.monster_used = std::max(0, self->monsterinfo.monster_used - 1);
-		}
-		return;
-	}
-
-	// Increment global spawn counter
-	if (g_horde->integer) {
-		level.global_spawned_count++;
-	}
+	// Initialize the turret
+	ent->nextthink = level.time;
+	ent->think(ent);
 
 	// Post-spawn setup: Assign a valid enemy
 	// FIX: Use the same safe check before assigning the enemy.
@@ -2089,6 +2092,14 @@ void SP_monster_fixbotkl(edict_t* self) {
 	// Scale mins/maxs correctly AFTER initial values are set
 	self->mins *= self->s.scale;
 	self->maxs *= self->s.scale;
+
+	// Set monster_slots for KL variant (boss variant should have slots)
+	if (!st.was_key_specified("monster_slots")) {
+		self->monsterinfo.monster_slots = fixbot_monster_slots_base * 2; // Double slots for KL variant
+	}
+	if (skill->integer > 0) {
+		self->monsterinfo.monster_slots += floorf(self->monsterinfo.monster_slots * (skill->value / 2.f));
+	}
 
 	// Re-link after changing size
 	gi.linkentity(self);

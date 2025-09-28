@@ -512,7 +512,7 @@ void ResetSpawnMonsterVars()
 // Check if a monster type has been precached for the current wave
 bool IsMonsterTypePrecached(horde::MonsterTypeID typeId)
 {
-	if (!g_horde->integer)
+	if (!g_horde->integer || typeId == horde::MonsterTypeID::TURRET)
 		return true; // In non-horde mode, allow all monsters
 		
 	if (typeId == horde::MonsterTypeID::UNKNOWN)
