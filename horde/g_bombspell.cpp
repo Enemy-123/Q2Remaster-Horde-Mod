@@ -2,7 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 // Bombspell implementation ported from Vortex
 
-#include "g_local.h"
+#include "../g_local.h"
 
 // Bomb spell constants
 constexpr float CARPETBOMB_INITIAL_DAMAGE = 100;
