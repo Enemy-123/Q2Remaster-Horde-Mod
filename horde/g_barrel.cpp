@@ -138,7 +138,7 @@ void barrel_burn_damage(edict_t* self)
     {
         if (self->chain && self->chain->client)
         {
-            gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {} monsters in range\n", monsters_damaged);
+    //        gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {} monsters in range\n", monsters_damaged);
         }
         last_debug_time = level.time;
     }
@@ -151,14 +151,14 @@ THINK(barrel_burn)(edict_t* self) -> void
     if (self->chain && self->chain->client)
     {
         int time_left = (int)((self->timestamp - level.time).seconds());
-        gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {}s until explosion\n", time_left);
+    //   gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {}s until explosion\n", time_left);
     }
 
     // Check if burn time has expired - if so, explode
     if (level.time >= self->timestamp)
     {
         if (self->chain && self->chain->client)
-            gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel exploding NOW!\n");
+        //    gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel exploding NOW!\n");
         barrel_explode(self);
         return;
     }
@@ -285,7 +285,7 @@ TOUCH(barrel_summoned_touch)(edict_t* self, edict_t* other, const trace_t& tr, b
             gi.linkentity(self);
 
             gi.sound(other, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
-            gi.LocClient_Print(other, PRINT_HIGH, "Picked up barrel\n");
+          //  gi.LocClient_Print(other, PRINT_HIGH, "Picked up barrel\n");
         }
         return;
     }
@@ -575,7 +575,7 @@ bool barrel_pickup(edict_t* player, edict_t* barrel)
     gi.linkentity(barrel);
 
     gi.sound(player, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
-    gi.LocClient_Print(player, PRINT_HIGH, "Picked up barrel\n");
+ //   gi.LocClient_Print(player, PRINT_HIGH, "Picked up barrel\n");
 
     return true;
 }
@@ -602,7 +602,7 @@ void barrel_drop(edict_t* player)
     gi.linkentity(barrel);
 
     player->client->resp.held_barrel = nullptr;
-    gi.LocClient_Print(player, PRINT_HIGH, "Dropped barrel\n");
+  //  gi.LocClient_Print(player, PRINT_HIGH, "Dropped barrel\n");
 }
 
 // Visualize held barrel
@@ -862,9 +862,9 @@ void Cmd_Barrel_f(edict_t* ent)
         // Fire the barrel
         fire_barrel(ent, start, forward);
 
-        gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown! ({}/{})\n",
-                          ent->client->resp.num_barrels,
-                          BarrelConstants::MAX_BARRELS_PER_PLAYER);
+      //  gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown! ({}/{})\n",
+       //                   ent->client->resp.num_barrels,
+         //                 BarrelConstants::MAX_BARRELS_PER_PLAYER);
     }
     // "barrel pickup" - pickup nearest barrel
     else if (Q_strcasecmp(arg, "pickup") == 0)
