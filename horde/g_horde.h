@@ -145,30 +145,10 @@ struct MonsterAssetFamily {
 };
 
 // Global asset tracking (defined in g_horde.cpp)
-extern std::array<MonsterAssetFamily, static_cast<size_t>(AssetFamilyID::MAX_FAMILIES)> g_asset_families;
-extern std::array<AssetFamilyID, 128> g_monster_to_family; // 128 = MAX_TYPES from horde_ids.h
 extern std::unordered_set<std::string> g_precached_models;
 extern std::unordered_set<std::string> g_precached_sounds;
 extern int32_t g_total_precached_models;
 extern int32_t g_total_precached_sounds;
-
-// Asset family functions
-void InitializeAssetFamilies();
-void PrecacheAssetFamily(AssetFamilyID family_id);
-bool CanPrecacheFamily(AssetFamilyID family_id);
-void PrecacheMonsterByFamily(horde::MonsterTypeID monster_id);
-void ResetPrecacheTracking();
-AssetFamilyID GetMonsterAssetFamily(horde::MonsterTypeID monster_id);
-
-// Dynamic asset management functions
-void UnprecacheAssetFamily(AssetFamilyID family_id);
-void ManagePrecacheMemory(int32_t current_wave);
-void IncrementFamilyReference(AssetFamilyID family_id);
-void DecrementFamilyReference(AssetFamilyID family_id);
-void UpdateFamilyAccess(AssetFamilyID family_id);
-int32_t GetTotalPrecacheMemoryUsage();
-bool ShouldUnloadFamily(AssetFamilyID family_id, int32_t current_wave);
-void DeferredPrecacheForPlayer(edict_t* player);
 
 // --- Operator Overloads for MonsterWaveType ---
 // These are fine to keep in the header as they are small, inline, and constexpr.

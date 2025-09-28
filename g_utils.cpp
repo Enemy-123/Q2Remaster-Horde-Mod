@@ -765,12 +765,6 @@ void StartFadeOut(edict_t* ent) {
 	gi.linkentity(ent);
 }
 
-// This function is for when an entity's health reaches zero.
-// It sets up the "dead" state.
-// External declarations for asset management
-extern std::unordered_map<int, AssetFamilyID> g_monster_family_map;
-extern void DecrementFamilyReference(AssetFamilyID family_id);
-
 void OnEntityDeath(edict_t* self) noexcept
 {
 	if (!self || !self->inuse || self->monsterinfo.death_processed || !g_horde->integer) {
@@ -778,16 +772,6 @@ void OnEntityDeath(edict_t* self) noexcept
 	}
 
 	self->monsterinfo.death_processed = true;
-
-	// Decrement reference count for the monster's asset family
-	if (self->svflags & SVF_MONSTER) {
-		int monster_index = static_cast<int>(self - g_edicts);
-		auto it = g_monster_family_map.find(monster_index);
-		if (it != g_monster_family_map.end()) {
-			DecrementFamilyReference(it->second);
-			g_monster_family_map.erase(it);
-		}
-	}
 
 	// --- State Cleanup on Death ---
 	if (self->svflags & SVF_MONSTER) {
@@ -825,18 +809,7 @@ void OnEntityDeath(edict_t* self) noexcept
 // This is where you free all associated memory.
 void OnEntityRemoved(edict_t* self){
 	if (!self) {
-		return;
-	}
-
-	// Decrement reference count for the monster's asset family if not already done
-	if (self->svflags & SVF_MONSTER) {
-		int monster_index = static_cast<int>(self - g_edicts);
-		auto it = g_monster_family_map.find(monster_index);
-		if (it != g_monster_family_map.end()) {
-			DecrementFamilyReference(it->second);
-			g_monster_family_map.erase(it);
-		}
-	}
+		return;}
 
 	// --- Free Savable Memory ---
 	self->moveinfo.curve_positions.release();

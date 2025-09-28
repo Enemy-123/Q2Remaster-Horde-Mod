@@ -63,19 +63,12 @@ std::vector<const MonsterTypeInfo *> g_eligible_monsters_for_wave;
 std::vector<size_t> g_eligible_item_indices_for_wave;
 
 // --- Asset Family System Implementation ---
-std::array<MonsterAssetFamily, static_cast<size_t>(AssetFamilyID::MAX_FAMILIES)> g_asset_families;
 std::array<AssetFamilyID, 128> g_monster_to_family; // 128 = MAX_TYPES from horde_ids.h
 std::unordered_set<std::string> g_precached_models;
 std::unordered_set<std::string> g_precached_sounds;
 int32_t g_total_precached_models = 0;
 int32_t g_total_precached_sounds = 0;
 
-// CVars for precaching control
-static cvar_t* g_horde_precache_mode = nullptr;  // 0=JIT, 1=Smart Window, 2=Full
-static cvar_t* g_horde_precache_window = nullptr; // How many waves ahead to precache
-static cvar_t* g_horde_precache_debug = nullptr;  // Show debug info about precaching
-static cvar_t* g_horde_precache_memory_limit = nullptr; // Memory limit in MB
-static cvar_t* g_horde_precache_aggressive_unload = nullptr; // Aggressive unloading for high waves
 
 int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
@@ -358,25 +351,6 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 	if (typeId == horde::MonsterTypeID::UNKNOWN)
 		return nullptr;
 
-	// Check if the monster type is precached (JIT check for late spawns)
-	AssetFamilyID family = GetMonsterAssetFamily(typeId);
-	if (family != AssetFamilyID::UNKNOWN_FAMILY) {
-		auto& family_data = g_asset_families[static_cast<size_t>(family)];
-		if (!family_data.is_precached) {
-			// Try to precache now if we can
-			if (CanPrecacheFamily(family)) {
-				PrecacheAssetFamily(family);
-			} else {
-				// Can't precache, spawn would fail
-				if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-					gi.Com_PrintFmt("Cannot spawn monster {} - family not precached and limits reached\n",
-						horde::MonsterTypeRegistry::GetClassname(typeId));
-				}
-				return nullptr;
-			}
-		}
-	}
-
 	edict_t *monster = G_Spawn();
 	if (!monster)
 		return nullptr;
@@ -390,14 +364,6 @@ edict_t *SpawnMonsterByTypeID(horde::MonsterTypeID typeId, const vec3_t &origin,
 	if (!monster->inuse) {
 		G_FreeEdict(monster);
 		return nullptr;
-	}
-
-	// Increment reference count for the monster's family
-	if (family != AssetFamilyID::UNKNOWN_FAMILY) {
-		IncrementFamilyReference(family);
-		// Store the family ID in the monster for cleanup later
-		int monster_index = static_cast<int>(monster - g_edicts);
-		g_monster_family_map[monster_index] = family;
 	}
 
 	if (link_immediately)
@@ -3303,8 +3269,9 @@ void AllowReset() noexcept
 
 
 
-// This function now uses the family system to efficiently precache monsters for Wave 1
+// This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
 // Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
+// In PrecacheAllMonsters()
 void PrecacheAllMonsters()
 {
 	// Only run this initial precache once per map load.
@@ -3312,20 +3279,14 @@ void PrecacheAllMonsters()
 	{
 		return;
 	}
-
-	// Reset all flags to false.
-	g_precached_monster_types_flags.fill(false);
-
-	// Track which families we've already precached to avoid duplicates
-	std::unordered_set<AssetFamilyID> precached_families;
+    // OLD: g_precached_monster_types.clear();
+    // NEW: Reset all flags to false.
+    g_precached_monster_types_flags.fill(false);
 
 	if (developer->integer)
 	{
-		gi.Com_Print("INITIAL PRECACHE: Loading monster families for Wave 1...\n");
+		gi.Com_Print("INITIAL PRECACHE: Loading all monsters for Wave 1...\n");
 	}
-
-	int families_precached_count = 0;
-	int monsters_covered_count = 0;
 
 	for (const auto &monster_info : monsterTypes)
 	{
@@ -3334,83 +3295,34 @@ void PrecacheAllMonsters()
 			break;
 		}
 
-		// Get the family for this monster
-		AssetFamilyID family = GetMonsterAssetFamily(monster_info.typeId);
-
-		// Skip if we've already precached this family
-		if (family != AssetFamilyID::UNKNOWN_FAMILY &&
-		    precached_families.find(family) == precached_families.end())
+		const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
+		if (classname && *classname)
 		{
-			// Precache the entire family
-			PrecacheAssetFamily(family);
-			precached_families.insert(family);
-			families_precached_count++;
-
-			// Mark all members of this family as precached
-			auto& family_data = g_asset_families[static_cast<size_t>(family)];
-			for (auto member : family_data.members) {
-				if (static_cast<size_t>(member) < g_precached_monster_types_flags.size()) {
-					g_precached_monster_types_flags[static_cast<size_t>(member)] = true;
-					monsters_covered_count++;
-				}
-			}
-		}
-		else if (family == AssetFamilyID::UNKNOWN_FAMILY)
-		{
-			// Fallback for monsters not in a family (shouldn't happen if mapping is complete)
-			const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_info.typeId);
-			if (classname && *classname)
+			edict_t *temp_monster = G_Spawn();
+			if (temp_monster)
 			{
-				edict_t *temp_monster = G_Spawn();
-				if (temp_monster)
+				temp_monster->classname = classname;
+				temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+				ED_CallSpawn(temp_monster);
+				if (temp_monster->inuse)
 				{
-					temp_monster->classname = classname;
-					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-					ED_CallSpawn(temp_monster);
-					if (temp_monster->inuse)
-					{
-						G_FreeEdict(temp_monster);
-					}
-					g_precached_monster_types_flags[static_cast<size_t>(monster_info.typeId)] = true;
+					G_FreeEdict(temp_monster);
 				}
+                // OLD: g_precached_monster_types.insert(monster_info.typeId);
+                // NEW: Set the flag for this monster type to true.
+                g_precached_monster_types_flags[static_cast<size_t>(monster_info.typeId)] = true;
 			}
 		}
 	}
-
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("Precached {} asset families covering {} monsters\n",
-			families_precached_count, monsters_covered_count);
-	}
-
 	monsters_precached = true;
 }
+
 
 void Horde_Init()
 {
 	sounds_precached = false;
 	items_precached = false;
 	ResetBosses();
-
-	// Initialize CVars for precaching control
-	if (!g_horde_precache_mode) {
-		g_horde_precache_mode = gi.cvar("g_horde_precache_mode", "1", CVAR_SERVERINFO);
-	}
-	if (!g_horde_precache_window) {
-		g_horde_precache_window = gi.cvar("g_horde_precache_window", "3", CVAR_SERVERINFO);
-	}
-	if (!g_horde_precache_debug) {
-		g_horde_precache_debug = gi.cvar("g_horde_precache_debug", "0", CVAR_SERVERINFO);
-	}
-	if (!g_horde_precache_memory_limit) {
-		g_horde_precache_memory_limit = gi.cvar("g_horde_precache_memory_limit", "256", CVAR_SERVERINFO);
-	}
-	if (!g_horde_precache_aggressive_unload) {
-		g_horde_precache_aggressive_unload = gi.cvar("g_horde_precache_aggressive_unload", "1", CVAR_SERVERINFO);
-	}
-
-	// Initialize the asset family system
-	InitializeAssetFamilies();
 
 	PrecacheAllGameItems();
 	PrecacheWaveSounds();
@@ -3422,11 +3334,6 @@ void Horde_Init()
 	AllowReset();
 	g_spawn_map_needs_build = true; // SET THE FLAG INSTEAD
 	ResetGame(); // This will call RebuildSpawnPointCacheIfNeeded indirectly or directly
-
-	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-		gi.Com_PrintFmt("Horde precache mode: {} (0=JIT, 1=Smart Window, 2=Full)\n",
-			g_horde_precache_mode->integer);
-	}
 
 	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
 }
@@ -3808,7 +3715,7 @@ void ResetGame()
 
 	// Reset precaching system but don't actually clear cached assets
 	// (they persist in engine memory across resets)
-	ResetPrecacheTracking();
+	g_full_precache_done = false;
 
 	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
 	remaining_wave_sounds = NUM_WAVE_SOUNDS;
@@ -4236,9 +4143,6 @@ void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason
 		}
 	}
 	g_horde_local.state = horde_state_t::rest;
-
-	// Clean up unused precached assets at wave end
-	ManagePrecacheMemory(current_wave_level);
 }
 
 // MODIFIED FUNCTION: AnnounceIncomingWave
@@ -4354,525 +4258,6 @@ bool AreHumanPlayersPresent()
 		}
 	}
 	return false;
-}
-
-// Initialize the asset family system - maps monsters to families and sets up shared assets
-void InitializeAssetFamilies()
-{
-	// Clear all mappings first
-	g_monster_to_family.fill(AssetFamilyID::UNKNOWN_FAMILY);
-
-	// Initialize all families as not precached and reset tracking
-	for (auto& family : g_asset_families) {
-		family.is_precached = false;
-		family.members.clear(); // Clear any existing members
-		family.reference_count = 0;
-		family.last_wave_used = 0;
-		family.last_access_time = 0_ms;
-		family.estimated_memory_size = 0;
-	}
-
-	// Initialize family names for debugging
-	g_asset_families[static_cast<size_t>(AssetFamilyID::SOLDIER_FAMILY)].family_name = "SOLDIER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::TANK_FAMILY)].family_name = "TANK_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::GLADIATOR_FAMILY)].family_name = "GLADIATOR_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::GUNNER_FAMILY)].family_name = "GUNNER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::INFANTRY_FAMILY)].family_name = "INFANTRY_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::ARACHNID_FAMILY)].family_name = "ARACHNID_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::GUARDIAN_FAMILY)].family_name = "GUARDIAN_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::SUPERTANK_FAMILY)].family_name = "SUPERTANK_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::FIXBOT_FAMILY)].family_name = "FIXBOT_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::TURRET_FAMILY)].family_name = "TURRET_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::DAEDALUS_FAMILY)].family_name = "DAEDALUS_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::PARASITE_FAMILY)].family_name = "PARASITE_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::BOSS2_FAMILY)].family_name = "BOSS2_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::CARRIER_FAMILY)].family_name = "CARRIER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::WIDOW_FAMILY)].family_name = "WIDOW_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::SHAMBLER_FAMILY)].family_name = "SHAMBLER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::MAKRON_FAMILY)].family_name = "MAKRON_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::BERSERK_FAMILY)].family_name = "BERSERK_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::BRAIN_FAMILY)].family_name = "BRAIN_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::CHICK_FAMILY)].family_name = "CHICK_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::FLYER_FAMILY)].family_name = "FLYER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::HOVER_FAMILY)].family_name = "HOVER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::MEDIC_FAMILY)].family_name = "MEDIC_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::MUTANT_FAMILY)].family_name = "MUTANT_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::FLOATER_FAMILY)].family_name = "FLOATER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::STALKER_FAMILY)].family_name = "STALKER_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::GEKK_FAMILY)].family_name = "GEKK_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::INSANE_FAMILY)].family_name = "INSANE_FAMILY";
-	g_asset_families[static_cast<size_t>(AssetFamilyID::MISC_FAMILY)].family_name = "MISC_FAMILY";
-
-	// --- Map monsters to their families ---
-
-	// SOLDIER FAMILY - All soldier variants share base models
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SOLDIER)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SOLDIER_LIGHT)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SOLDIER_SS)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SOLDIER_HYPERGUN)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SOLDIER_RIPPER)] = AssetFamilyID::SOLDIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SOLDIER_LASERGUN)] = AssetFamilyID::SOLDIER_FAMILY;
-
-	// TANK FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::TANK)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::TANK_COMMANDER)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::TANK_64)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::TANK_SPAWNER)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::RUNNERTANK)] = AssetFamilyID::TANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::EASTERTANK)] = AssetFamilyID::TANK_FAMILY;
-
-	// GLADIATOR FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GLADIATOR)] = AssetFamilyID::GLADIATOR_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GLADIATOR_B)] = AssetFamilyID::GLADIATOR_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GLADIATOR_C)] = AssetFamilyID::GLADIATOR_FAMILY;
-
-	// GUNNER FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GUNNER)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GUNNER_VANILLA)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_VANILLA)] = AssetFamilyID::GUNNER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GUNCMDR_KL)] = AssetFamilyID::GUNNER_FAMILY;
-
-	// INFANTRY FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::INFANTRY)] = AssetFamilyID::INFANTRY_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::INFANTRY_VANILLA)] = AssetFamilyID::INFANTRY_FAMILY;
-
-	// ARACHNID FAMILY - All spider variants
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SPIDER)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::ARACHNID2)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::PSX_ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GM_ARACHNID)] = AssetFamilyID::ARACHNID_FAMILY;
-
-	// GUARDIAN FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GUARDIAN)] = AssetFamilyID::GUARDIAN_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] = AssetFamilyID::GUARDIAN_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::JANITOR2)] = AssetFamilyID::GUARDIAN_FAMILY;
-
-	// SUPERTANK FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::JANITOR)] = AssetFamilyID::SUPERTANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BOSS5)] = AssetFamilyID::SUPERTANK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SUPERTANK)] = AssetFamilyID::SUPERTANK_FAMILY;
-
-	// FIXBOT FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::FIXBOT)] = AssetFamilyID::FIXBOT_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::FIXBOT_KL)] = AssetFamilyID::FIXBOT_FAMILY;
-
-	// TURRET FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SENTRYGUN)] = AssetFamilyID::TURRET_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::TURRET)] = AssetFamilyID::TURRET_FAMILY;
-
-	// DAEDALUS FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::DAEDALUS)] = AssetFamilyID::DAEDALUS_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::DAEDALUS_BOMBER)] = AssetFamilyID::DAEDALUS_FAMILY;
-
-	// PARASITE FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::PARASITE)] = AssetFamilyID::PARASITE_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::PERRO_KL)] = AssetFamilyID::PARASITE_FAMILY;
-
-	// BOSS2 FAMILY (Hornet variants)
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BOSS2)] = AssetFamilyID::BOSS2_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BOSS2_64)] = AssetFamilyID::BOSS2_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BOSS2_MINI)] = AssetFamilyID::BOSS2_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BOSS2_KL)] = AssetFamilyID::BOSS2_FAMILY;
-
-	// CARRIER FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::CARRIER)] = AssetFamilyID::CARRIER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::CARRIER_MINI)] = AssetFamilyID::CARRIER_FAMILY;
-
-	// WIDOW FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::WIDOW)] = AssetFamilyID::WIDOW_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::WIDOW1)] = AssetFamilyID::WIDOW_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::WIDOW2)] = AssetFamilyID::WIDOW_FAMILY;
-
-	// SHAMBLER FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER)] = AssetFamilyID::SHAMBLER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_SMALL)] = AssetFamilyID::SHAMBLER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_KL)] = AssetFamilyID::SHAMBLER_FAMILY;
-
-	// MAKRON/JORG FAMILY
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::MAKRON)] = AssetFamilyID::MAKRON_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] = AssetFamilyID::MAKRON_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::JORG)] = AssetFamilyID::MAKRON_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::JORG_SMALL)] = AssetFamilyID::MAKRON_FAMILY;
-
-	// Individual unique monsters
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BERSERK)] = AssetFamilyID::BERSERK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BRAIN)] = AssetFamilyID::BRAIN_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::CHICK)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::CHICK_HEAT)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::EASTERCHICK)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::EASTERCHICK2)] = AssetFamilyID::CHICK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::FLYER)] = AssetFamilyID::FLYER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::KAMIKAZE)] = AssetFamilyID::FLYER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::HOVER)] = AssetFamilyID::HOVER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::HOVER_VANILLA)] = AssetFamilyID::HOVER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::MEDIC)] = AssetFamilyID::MEDIC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::MEDIC_COMMANDER)] = AssetFamilyID::MEDIC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::MUTANT)] = AssetFamilyID::MUTANT_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::REDMUTANT)] = AssetFamilyID::MUTANT_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::FLOATER)] = AssetFamilyID::FLOATER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::FLOATER_TRACKER)] = AssetFamilyID::FLOATER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::STALKER)] = AssetFamilyID::STALKER_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::GEKK)] = AssetFamilyID::GEKK_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::MISC_INSANE)] = AssetFamilyID::INSANE_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::COMMANDER_BODY)] = AssetFamilyID::MISC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BOSS3_STAND)] = AssetFamilyID::MISC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::BIGVIPER)] = AssetFamilyID::MISC_FAMILY;
-	g_monster_to_family[static_cast<size_t>(horde::MonsterTypeID::FLIPPER)] = AssetFamilyID::MISC_FAMILY;
-
-	// Now populate the members lists for each family
-	for (size_t i = 0; i < g_monster_to_family.size(); ++i) {
-		AssetFamilyID family = g_monster_to_family[i];
-		if (family != AssetFamilyID::UNKNOWN_FAMILY && family < AssetFamilyID::MAX_FAMILIES) {
-			g_asset_families[static_cast<size_t>(family)].members.push_back(static_cast<horde::MonsterTypeID>(i));
-		}
-	}
-
-	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-		gi.Com_Print("Asset families initialized - monsters mapped to families\n");
-		// Debug output showing family sizes
-		for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); ++i) {
-			auto& family = g_asset_families[i];
-			if (!family.members.empty()) {
-				gi.Com_PrintFmt("  {} has {} members\n", family.family_name, family.members.size());
-			}
-		}
-	}
-}
-
-// Get the asset family for a specific monster
-AssetFamilyID GetMonsterAssetFamily(horde::MonsterTypeID monster_id) {
-	size_t index = static_cast<size_t>(monster_id);
-	if (index >= g_monster_to_family.size()) {
-		return AssetFamilyID::UNKNOWN_FAMILY;
-	}
-	return g_monster_to_family[index];
-}
-
-// Check if we can safely precache a family without hitting limits
-bool CanPrecacheFamily(AssetFamilyID family_id) {
-	if (family_id == AssetFamilyID::UNKNOWN_FAMILY || family_id >= AssetFamilyID::MAX_FAMILIES) {
-		return false;
-	}
-
-	// Check if already precached
-	if (g_asset_families[static_cast<size_t>(family_id)].is_precached) {
-		return true; // Already done, so "can" precache (no-op)
-	}
-
-	// For now, simple check - could be enhanced with actual asset counting
-	// Conservative limit: stop at 80% of max to leave room for other assets
-	const int32_t MAX_SAFE_MODELS = static_cast<int32_t>(MAX_MODELS * 0.8);
-	const int32_t MAX_SAFE_SOUNDS = static_cast<int32_t>(MAX_SOUNDS * 0.8);
-
-	if (g_total_precached_models >= MAX_SAFE_MODELS || g_total_precached_sounds >= MAX_SAFE_SOUNDS) {
-		if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-			gi.Com_PrintFmt("Warning: Approaching precache limits (models: {}/{}, sounds: {}/{})\n",
-				g_total_precached_models, MAX_MODELS, g_total_precached_sounds, MAX_SOUNDS);
-		}
-		return false;
-	}
-
-	return true;
-}
-
-// Precache all assets for a given family
-void PrecacheAssetFamily(AssetFamilyID family_id) {
-	if (family_id == AssetFamilyID::UNKNOWN_FAMILY || family_id >= AssetFamilyID::MAX_FAMILIES) {
-		return;
-	}
-
-	auto& family = g_asset_families[static_cast<size_t>(family_id)];
-
-	// Skip if already precached
-	if (family.is_precached) {
-		return;
-	}
-
-	// Check if we can safely precache
-	if (!CanPrecacheFamily(family_id)) {
-		if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-			gi.Com_PrintFmt("Cannot precache family {} - limits would be exceeded\n", family.family_name);
-		}
-		return;
-	}
-
-	// Precache the first member of the family to get all shared assets
-	// The spawn function will precache all models/sounds
-	if (!family.members.empty()) {
-		horde::MonsterTypeID first_member = family.members[0];
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(first_member);
-
-		if (classname && *classname) {
-			if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-				gi.Com_PrintFmt("Precaching family {} via {}\n", family.family_name, classname);
-			}
-
-			// Create temporary entity to trigger precaching
-			edict_t* temp_monster = G_Spawn();
-			if (temp_monster) {
-				temp_monster->classname = classname;
-				temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-				ED_CallSpawnMonsterByID(temp_monster, first_member);
-				if (temp_monster->inuse) {
-					G_FreeEdict(temp_monster);
-				}
-			}
-		}
-	}
-
-	family.is_precached = true;
-	family.last_access_time = level.time;
-	family.last_wave_used = current_wave_level;
-
-	// Update counts and estimated memory (approximate - would need actual tracking for accuracy)
-	g_total_precached_models += 5; // Rough estimate per family
-	g_total_precached_sounds += 10; // Rough estimate per family
-
-	// Estimate memory usage for the family (rough approximation)
-	family.estimated_memory_size = (5 * 100000) + (10 * 50000); // ~1MB per family
-}
-
-// Precache a monster by using its family
-void PrecacheMonsterByFamily(horde::MonsterTypeID monster_id) {
-	AssetFamilyID family = GetMonsterAssetFamily(monster_id);
-	if (family != AssetFamilyID::UNKNOWN_FAMILY) {
-		PrecacheAssetFamily(family);
-	}
-}
-
-// Reset precache tracking (e.g., on map change or reset)
-void ResetPrecacheTracking() {
-	// Clear tracking sets
-	g_precached_models.clear();
-	g_precached_sounds.clear();
-	g_total_precached_models = 0;
-	g_total_precached_sounds = 0;
-
-	// Reset family precache flags and reference counts
-	for (auto& family : g_asset_families) {
-		family.is_precached = false;
-		family.reference_count = 0;
-		family.last_wave_used = 0;
-		family.last_access_time = 0_ms;
-		family.estimated_memory_size = 0;
-	}
-
-	// Reset monster precache flags
-	g_precached_monster_types_flags.fill(false);
-	g_full_precache_done = false;
-	monsters_precached = false;
-
-	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-		gi.Com_Print("Precache tracking reset\n");
-	}
-}
-
-// ================== Dynamic Asset Management Functions ==================
-
-// Unprecache a specific asset family to free memory
-void UnprecacheAssetFamily(AssetFamilyID family_id) {
-	if (family_id == AssetFamilyID::UNKNOWN_FAMILY || family_id >= AssetFamilyID::MAX_FAMILIES) {
-		return;
-	}
-
-	auto& family = g_asset_families[static_cast<size_t>(family_id)];
-
-	// Only unprecache if no active references
-	if (family.reference_count > 0) {
-		if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-			gi.Com_PrintFmt("Cannot unprecache family {} - has {} active references\n",
-				family.family_name, family.reference_count);
-		}
-		return;
-	}
-
-	if (!family.is_precached) {
-		return; // Already unprecached
-	}
-
-	// Note: Actual unprecaching is not possible in Quake 2 engine
-	// We can only mark it as unprecached and stop spawning these monsters
-	// The memory will be freed on map change
-	family.is_precached = false;
-
-	// Update tracking
-	g_total_precached_models -= 5;  // Rough estimate
-	g_total_precached_sounds -= 10; // Rough estimate
-
-	// Mark all members as unprecached
-	for (auto member : family.members) {
-		if (static_cast<size_t>(member) < g_precached_monster_types_flags.size()) {
-			g_precached_monster_types_flags[static_cast<size_t>(member)] = false;
-		}
-	}
-
-	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-		gi.Com_PrintFmt("Unprecached family {} to free memory\n", family.family_name);
-	}
-}
-
-// Increment reference count when a monster spawns
-void IncrementFamilyReference(AssetFamilyID family_id) {
-	if (family_id != AssetFamilyID::UNKNOWN_FAMILY && family_id < AssetFamilyID::MAX_FAMILIES) {
-		auto& family = g_asset_families[static_cast<size_t>(family_id)];
-		family.reference_count++;
-		family.last_access_time = level.time;
-		family.last_wave_used = current_wave_level;
-	}
-}
-
-// Decrement reference count when a monster dies or is freed
-void DecrementFamilyReference(AssetFamilyID family_id) {
-	if (family_id != AssetFamilyID::UNKNOWN_FAMILY && family_id < AssetFamilyID::MAX_FAMILIES) {
-		auto& family = g_asset_families[static_cast<size_t>(family_id)];
-		if (family.reference_count > 0) {
-			family.reference_count--;
-		}
-	}
-}
-
-// Update family access time
-void UpdateFamilyAccess(AssetFamilyID family_id) {
-	if (family_id != AssetFamilyID::UNKNOWN_FAMILY && family_id < AssetFamilyID::MAX_FAMILIES) {
-		auto& family = g_asset_families[static_cast<size_t>(family_id)];
-		family.last_access_time = level.time;
-		family.last_wave_used = current_wave_level;
-	}
-}
-
-// Check if a family should be unloaded
-bool ShouldUnloadFamily(AssetFamilyID family_id, int32_t current_wave) {
-	if (family_id == AssetFamilyID::UNKNOWN_FAMILY || family_id >= AssetFamilyID::MAX_FAMILIES) {
-		return false;
-	}
-
-	auto& family = g_asset_families[static_cast<size_t>(family_id)];
-
-	// Never unload families with active references
-	if (family.reference_count > 0) {
-		return false;
-	}
-
-	// Check if aggressive unloading is enabled for high waves
-	bool aggressive = g_horde_precache_aggressive_unload &&
-	                  g_horde_precache_aggressive_unload->integer &&
-	                  current_wave >= 20;
-
-	// Determine wave threshold for keeping assets
-	int32_t wave_threshold = aggressive ? 2 : 5;
-
-	// Check if the family hasn't been used recently
-	if (current_wave - family.last_wave_used > wave_threshold) {
-		return true;
-	}
-
-	// Time-based unloading (5 minutes for normal, 2 minutes for aggressive)
-	gtime_t time_threshold = aggressive ? 120_sec : 300_sec;
-	if (level.time - family.last_access_time > time_threshold) {
-		return true;
-	}
-
-	return false;
-}
-
-// Get total estimated memory usage
-int32_t GetTotalPrecacheMemoryUsage() {
-	int32_t total_memory = 0;
-	for (const auto& family : g_asset_families) {
-		if (family.is_precached) {
-			total_memory += family.estimated_memory_size;
-		}
-	}
-	// Rough estimation if we don't have accurate sizes
-	if (total_memory == 0) {
-		// Estimate based on model/sound counts
-		total_memory = (g_total_precached_models * 100000) + // ~100KB per model
-		               (g_total_precached_sounds * 50000);   // ~50KB per sound
-	}
-	return total_memory;
-}
-
-// Main memory management function called each wave
-void ManagePrecacheMemory(int32_t current_wave) {
-	if (!g_horde_precache_memory_limit) {
-		return;
-	}
-
-	int32_t memory_limit_bytes = g_horde_precache_memory_limit->integer * 1024 * 1024; // Convert MB to bytes
-	int32_t current_memory = GetTotalPrecacheMemoryUsage();
-
-	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-		gi.Com_PrintFmt("Wave {}: Memory usage ~{}MB / {}MB\n",
-			current_wave, current_memory / (1024*1024), g_horde_precache_memory_limit->integer);
-	}
-
-	// Build list of candidates for unloading
-	std::vector<AssetFamilyID> unload_candidates;
-
-	for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); ++i) {
-		AssetFamilyID family_id = static_cast<AssetFamilyID>(i);
-		if (g_asset_families[i].is_precached && ShouldUnloadFamily(family_id, current_wave)) {
-			unload_candidates.push_back(family_id);
-		}
-	}
-
-	// Sort by last access time (oldest first)
-	std::sort(unload_candidates.begin(), unload_candidates.end(),
-		[](AssetFamilyID a, AssetFamilyID b) {
-			return g_asset_families[static_cast<size_t>(a)].last_access_time <
-			       g_asset_families[static_cast<size_t>(b)].last_access_time;
-		});
-
-	// Unload families until we're under the memory limit or out of candidates
-	for (AssetFamilyID family_id : unload_candidates) {
-		if (current_memory < memory_limit_bytes * 0.9) { // Keep 10% buffer
-			break;
-		}
-
-		UnprecacheAssetFamily(family_id);
-		current_memory = GetTotalPrecacheMemoryUsage();
-	}
-
-	// Additional aggressive unloading for very high waves
-	if (current_wave >= 25 && g_horde_precache_aggressive_unload &&
-	    g_horde_precache_aggressive_unload->integer) {
-		// Find families that haven't been used this wave
-		for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); ++i) {
-			auto& family = g_asset_families[i];
-			if (family.is_precached &&
-			    family.reference_count == 0 &&
-			    family.last_wave_used < current_wave) {
-				UnprecacheAssetFamily(static_cast<AssetFamilyID>(i));
-			}
-		}
-	}
-}
-
-// Deferred precaching for late-joining players
-void DeferredPrecacheForPlayer(edict_t* player) {
-	if (!player || !player->client) {
-		return;
-	}
-
-	// Queue minimal essential assets for the player
-	// This function would be called after the player has connected
-	// to avoid blocking the connection process
-
-	if (g_horde_precache_debug && g_horde_precache_debug->integer) {
-		gi.Com_PrintFmt("Performing deferred precache for player {}\n",
-			player->client->pers.netname);
-	}
-
-	// Only precache families that are currently active
-	for (size_t i = 0; i < static_cast<size_t>(AssetFamilyID::MAX_FAMILIES); ++i) {
-		auto& family = g_asset_families[i];
-		if (family.is_precached && family.reference_count > 0) {
-			// The family is already precached and active, player will get it naturally
-			continue;
-		}
-	}
 }
 
 void InitializeWaveSystem()
@@ -7582,109 +6967,38 @@ static void Horde_InitLevel(const int32_t lvl)
 			g_eligible_monsters_for_wave.size(), current_wave_level);
 	}
 
-	// --- 4. JIT PRECACHE LOGIC WITH FAMILY SYSTEM ---
-	const int32_t precache_mode = g_horde_precache_mode ? g_horde_precache_mode->integer : 1;
-	const int32_t precache_window = g_horde_precache_window ? g_horde_precache_window->integer : 3;
-
-	if (precache_mode > 0) // Not pure JIT
+		// --- 4. JIT PRECACHE LOGIC ---
+	if (developer->integer)
 	{
-		// Track which families we've already precached this wave
-		std::unordered_set<AssetFamilyID> families_to_precache;
-
-		// Determine range of waves to precache based on mode
-		int32_t waves_ahead = (precache_mode == 2) ? 100 : precache_window; // Mode 2 = full precache
-
-		if (g_horde_precache_debug && g_horde_precache_debug->integer)
-		{
-			gi.Com_PrintFmt("Wave {}: Precaching {} waves ahead (mode {})\n", lvl, waves_ahead, precache_mode);
-		}
-
-		// Collect families for current and future waves
-		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
-		{
-			// Check if this monster should be precached based on wave window
-			if (monster_info->minWave <= lvl + waves_ahead)
-			{
-				AssetFamilyID family = GetMonsterAssetFamily(monster_info->typeId);
-				if (family != AssetFamilyID::UNKNOWN_FAMILY)
-				{
-					families_to_precache.insert(family);
-				}
-			}
-		}
-
-		// Precache the collected families
-		int families_precached_count = 0;
-		for (AssetFamilyID family : families_to_precache)
-		{
-			if (!g_asset_families[static_cast<size_t>(family)].is_precached)
-			{
-				if (CanPrecacheFamily(family))
-				{
-					PrecacheAssetFamily(family);
-					families_precached_count++;
-
-					// Mark all members of this family as precached
-					auto& family_data = g_asset_families[static_cast<size_t>(family)];
-					for (auto member : family_data.members)
-					{
-						if (static_cast<size_t>(member) < g_precached_monster_types_flags.size())
-						{
-							g_precached_monster_types_flags[static_cast<size_t>(member)] = true;
-						}
-					}
-				}
-				else
-				{
-					if (g_horde_precache_debug && g_horde_precache_debug->integer)
-					{
-						gi.Com_Print("Warning: Cannot precache more families - approaching limits\n");
-					}
-					break; // Stop precaching if we're hitting limits
-				}
-			}
-		}
-
-		if (g_horde_precache_debug && g_horde_precache_debug->integer)
-		{
-			gi.Com_PrintFmt("Wave {}: Precached {} new families, {} total families loaded\n",
-				lvl, families_precached_count,
-				std::count_if(g_asset_families.begin(), g_asset_families.end(),
-					[](const MonsterAssetFamily& f) { return f.is_precached; }));
-		}
+		gi.Com_PrintFmt("Horde_InitLevel (Wave {}): Checking for monsters to precache...\n", lvl);
 	}
-	else // Pure JIT mode (mode 0) - only precache what's needed now
+	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 	{
-		// Original JIT behavior but using families
-		std::unordered_set<AssetFamilyID> families_needed;
-
-		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+		if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 		{
-			if (monster_info->minWave <= lvl) // Only current wave
+			const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
+			if (classname && *classname)
 			{
-				AssetFamilyID family = GetMonsterAssetFamily(monster_info->typeId);
-				if (family != AssetFamilyID::UNKNOWN_FAMILY &&
-				    !g_asset_families[static_cast<size_t>(family)].is_precached)
+				if (developer->integer)
 				{
-					families_needed.insert(family);
+					gi.Com_PrintFmt("JIT Precache: Loading assets for '{}' for wave {}.\n", classname, lvl);
 				}
-			}
-		}
-
-		for (AssetFamilyID family : families_needed)
-		{
-			PrecacheAssetFamily(family);
-			// Mark all members as precached
-			auto& family_data = g_asset_families[static_cast<size_t>(family)];
-			for (auto member : family_data.members)
-			{
-				if (static_cast<size_t>(member) < g_precached_monster_types_flags.size())
+				edict_t* temp_monster = G_Spawn();
+				if (temp_monster)
 				{
-					g_precached_monster_types_flags[static_cast<size_t>(member)] = true;
+					temp_monster->classname = classname;
+					temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+					ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
+					if (temp_monster->inuse)
+					{
+						G_FreeEdict(temp_monster);
+					}
+					g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
 				}
 			}
 		}
 	}
+
 
 	if (developer->integer)
 	{
@@ -7744,7 +7058,4 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	ProcessWaveRewards(lvl);
 	Horde_CleanBodies();
-
-	// Manage precache memory - clean up unused assets
-	ManagePrecacheMemory(lvl);
 }
