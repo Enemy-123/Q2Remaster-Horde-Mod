@@ -6925,11 +6925,10 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 {
 	// Map monsters to their base models - monsters sharing models are cheap to precache
 	switch(typeId) {
-		// Tanks share the same model
+		// Regular tanks share the same model
 		case horde::MonsterTypeID::TANK:
 		case horde::MonsterTypeID::TANK_COMMANDER:
 		case horde::MonsterTypeID::TANK_64:
-		case horde::MonsterTypeID::RUNNERTANK:
 			return "models/monsters/tank/";
 
 		// Soldiers share models
@@ -6994,37 +6993,81 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 		case horde::MonsterTypeID::PSX_ARACHNID:
 			return "models/monsters/arachnid/";
 
+		// Fixbots share models (including boss variant at wave 10)
+		case horde::MonsterTypeID::FIXBOT:
+		case horde::MonsterTypeID::FIXBOT_KL:
+			return "models/monsters/fixbot/";
+
+		// Boss2 variants share models
+		case horde::MonsterTypeID::BOSS2:
+		case horde::MonsterTypeID::BOSS2_64:
+		case horde::MonsterTypeID::BOSS2_MINI:
+		case horde::MonsterTypeID::BOSS2_KL:
+			return "models/monsters/boss2/";
+
+		// Carrier variants share models
+		case horde::MonsterTypeID::CARRIER:
+		case horde::MonsterTypeID::CARRIER_MINI:
+			return "models/monsters/carrier/";
+
+		// Widow variants share models
+		case horde::MonsterTypeID::WIDOW:
+		case horde::MonsterTypeID::WIDOW1:
+		case horde::MonsterTypeID::WIDOW2:
+			return "models/monsters/widow/";
+
+		// Guardian variants share models
+		case horde::MonsterTypeID::GUARDIAN:
+		case horde::MonsterTypeID::PSX_GUARDIAN:
+		case horde::MonsterTypeID::JANITOR2:  // Janitor2 shares Guardian model
+			return "models/monsters/guardian/";
+
+		// Janitor/Supertank share models
+		case horde::MonsterTypeID::JANITOR:
+		case horde::MonsterTypeID::BOSS5:  // Supertank
+			return "models/monsters/boss5/";
+
+		// Makron/Jorg share some assets
+		case horde::MonsterTypeID::MAKRON:
+		case horde::MonsterTypeID::MAKRON_KL:
+			return "models/monsters/makron/";
+		
+		case horde::MonsterTypeID::JORG:
+		case horde::MonsterTypeID::JORG_SMALL:
+			return "models/monsters/jorg/";
+
+		// Medics share models
+		case horde::MonsterTypeID::MEDIC:
+		case horde::MonsterTypeID::MEDIC_COMMANDER:
+			return "models/monsters/medic/";
+
+		// Daedalus variants share models
+		case horde::MonsterTypeID::DAEDALUS:
+		case horde::MonsterTypeID::DAEDALUS_BOMBER:
+			return "models/monsters/daedalus/";
+
+		// Turret/Sentrygun share models
+		case horde::MonsterTypeID::TURRET:
+		case horde::MonsterTypeID::SENTRYGUN:
+			return "models/monsters/turret/";
+
 		// Unique models
+		case horde::MonsterTypeID::RUNNERTANK:  // RunnerTank uses unique vault model
+			return "models/vault/monsters/tank/";
 		case horde::MonsterTypeID::PARASITE:
 			return "models/monsters/parasite/";
+		case horde::MonsterTypeID::PERRO_KL:  // Perro_KL might use different model
+			return "models/monsters/perro/";
 		case horde::MonsterTypeID::BRAIN:
 			return "models/monsters/brain/";
 		case horde::MonsterTypeID::FLYER:
 			return "models/monsters/flyer/";
 		case horde::MonsterTypeID::BERSERK:
 			return "models/monsters/berserk/";
-		case horde::MonsterTypeID::MEDIC:
-		case horde::MonsterTypeID::MEDIC_COMMANDER:
-			return "models/monsters/medic/";
 		case horde::MonsterTypeID::GEKK:
 			return "models/monsters/gekk/";
 		case horde::MonsterTypeID::STALKER:
 			return "models/monsters/stalker/";
-		case horde::MonsterTypeID::FIXBOT:
-		case horde::MonsterTypeID::FIXBOT_KL:
-			return "models/monsters/fixbot/";
-
-		// Bosses
-		case horde::MonsterTypeID::BOSS2:
-		case horde::MonsterTypeID::BOSS2_64:
-		case horde::MonsterTypeID::BOSS2_MINI:
-			return "models/monsters/boss2/";
-		case horde::MonsterTypeID::MAKRON:
-		case horde::MonsterTypeID::MAKRON_KL:
-			return "models/monsters/makron/";
-		case horde::MonsterTypeID::JORG:
-		case horde::MonsterTypeID::JORG_SMALL:
-			return "models/monsters/jorg/";
 
 		default:
 			return nullptr; // Unknown or special
