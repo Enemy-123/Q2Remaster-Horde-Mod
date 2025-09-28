@@ -55,12 +55,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_NAME STREQUAL "Windows
         $<$<CONFIG:RelWithDebInfo>:/DEBUG>
     )
 else()
-    # Fallback for GCC/other compilers
+    # Fallback for GCC/MinGW
     target_compile_options(Q2HordeModDLL PRIVATE
         -std=c++20
         -Wnull-dereference
         -Wno-unused-parameter
         -Wno-error
+
+        # disable noisy warnings
+        -Wno-deprecated-enum-enum-conversion
+        -Wno-template-id-cdtor
+
         $<$<CONFIG:Debug>:-g -O0>
         $<$<CONFIG:RelWithDebInfo>:-g -O2>
         $<$<CONFIG:Release>:-O3>
@@ -68,6 +73,7 @@ else()
 
     target_link_options(Q2HordeModDLL PRIVATE $<$<CONFIG:Release>:-s>)
 endif()
+
 
 # Preprocessor definitions for Windows compatibility
 target_compile_definitions(Q2HordeModDLL PRIVATE
