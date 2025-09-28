@@ -187,6 +187,7 @@
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
     <ClCompile Include="horde\g_barrel.cpp" />
+    <ClCompile Include="horde\g_bombspell.cpp" />
     <ClCompile Include="horde\g_doppleganger.cpp" />
     <ClCompile Include="horde\g_entity_properties.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
