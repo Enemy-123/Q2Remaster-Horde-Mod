@@ -745,6 +745,11 @@ bool visible(edict_t* self, edict_t* other, bool through_glass)
 		if (!other->solid) // No need for !other->inuse check here, covered above
 			return false;
 
+		// --- Menu Protection Check ---
+		// Menu-protected players are completely invisible to monsters
+		if (other->client->menu_protected)
+			return false;
+
 		// --- Invisibility Check ---
 		if (other->client->invisible_time > level.time)
 		{

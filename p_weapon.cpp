@@ -874,13 +874,19 @@ enum weapon_ready_state_t
 
 inline weapon_ready_state_t Weapon_HandleReady(edict_t* ent, int FRAME_FIRE_FIRST, int FRAME_IDLE_FIRST, int FRAME_IDLE_LAST, const int* pause_frames)
 {
+	// Check for menu protection first - prevent any weapon handling while in menu
+	if (ent->client->menu_protected) {
+		// Keep weapon in ready state but don't process any actions
+		if (ent->client->weaponstate == WEAPON_READY) {
+			// Maintain idle animation
+			if (ent->client->ps.gunframe < FRAME_IDLE_FIRST || ent->client->ps.gunframe > FRAME_IDLE_LAST)
+				ent->client->ps.gunframe = FRAME_IDLE_FIRST;
+		}
+		return READY_NONE; // Cannot fire or change weapons while in menu
+	}
+
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
-		// Check for menu protection - prevent firing while in menu
-		if (ent->client->menu_protected) {
-			return READY_NONE; // Cannot fire while in menu
-		}
-
 		bool const request_firing = ent->client->weapon_fire_buffered || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK);
 
 		if (request_firing && ent->client->weapon_fire_finished <= level.time)

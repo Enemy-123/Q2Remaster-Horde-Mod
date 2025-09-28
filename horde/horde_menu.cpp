@@ -517,6 +517,10 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
 	// Build the menu dynamically
 	memset(map_category_menu, 0, sizeof(map_category_menu));
 	int idx = 0;
@@ -608,7 +612,7 @@ void OpenVoteMenu(edict_t* ent) {
 		return;
 	}
 	CategorizeMapList(); // Ensure maps are categorized before opening the menu
-	OpenMapCategoryMenu(ent); // Start with category selection
+	OpenMapCategoryMenu(ent); // Start with category selection - this sets menu protection
 }
 
 // Handler for map selection and navigation within the vote menu
@@ -1078,6 +1082,10 @@ void OpenMiscMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
 	static pmenu_t entries[12];
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
@@ -1170,6 +1178,10 @@ void OpenHUDMenu(edict_t* ent) {
 	if (ent->client->menu) {
 		PMenu_Close(ent);
 	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
 
 	// Use CreateHUDMenu to generate and open the menu
 	CreateHUDMenu(ent);
@@ -1326,6 +1338,10 @@ void OpenAdminMenu(edict_t* ent) {
 	if (ent->client->menu) {
 		PMenu_Close(ent);
 	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
 
 	static pmenu_t admin_menu[15];
 	memset(admin_menu, 0, sizeof(admin_menu));
@@ -1525,12 +1541,12 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	// Vote Yes
 	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote Yes") == 0) {
 		CTFVoteYes(ent);
-		// Keep shouldCloseMenu = true (default)
+		shouldCloseMenu = false; // Keep menu open after voting
 	}
 	// Vote No
 	else if (ctfgame.election != ELECT_NONE && strcmp(selected_text, "Vote No") == 0) {
 		CTFVoteNo(ent);
-		// Keep shouldCloseMenu = true (default)
+		shouldCloseMenu = false; // Keep menu open after voting
 	}
 	// HUD Options
 	else if (strcmp(selected_text, "HUD Options") == 0) {
@@ -1947,6 +1963,11 @@ void HordeScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 // Open Abilities Menu
 void OpenAbilitiesMenu(edict_t* ent) {
+    // Set menu protection
+    if (ent && ent->client) {
+        ent->client->menu_protected = true;
+        ent->client->menu_protection_start = level.time;
+    }
     CreateAbilitiesMenu(ent);
 }
 
@@ -2076,6 +2097,11 @@ pmenuhnd_t* CreateAbilitiesMenu(edict_t* ent) {
 
 // Open Weapons Menu
 void OpenWeaponsMenu(edict_t* ent) {
+    // Set menu protection
+    if (ent && ent->client) {
+        ent->client->menu_protected = true;
+        ent->client->menu_protection_start = level.time;
+    }
     CreateWeaponsMenu(ent);
 }
 

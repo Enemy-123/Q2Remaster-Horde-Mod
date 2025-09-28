@@ -12,6 +12,9 @@
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
+// External function for inventory use (from g_cmds.cpp)
+extern void Cmd_InvUse_f(edict_t* ent);
+
 THINK(info_player_start_drop) (edict_t* self) -> void
 {
 	// allow them to drop
@@ -3803,6 +3806,40 @@ void UpdateIRTracking(edict_t* ent, gclient_t* client)
 // Función para manejar el movimiento del menú
 bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 {
+	// Handle inventory display separately
+	if (ent->client->showinventory)
+	{
+		// BUTTON_ATTACK selects inventory item (like BUTTON_USE)
+		if ((menu_ucmd->buttons & BUTTON_ATTACK) && !ent->client->inmenu)
+		{
+			// Call inventory use function
+			Cmd_InvUse_f(ent);
+			ent->client->inmenu = true;
+			menu_ucmd->buttons &= ~BUTTON_ATTACK;
+			return true;
+		}
+
+		// BUTTON_JUMP closes inventory
+		if ((menu_ucmd->buttons & BUTTON_JUMP) && !(ent->client->ps.pmove.pm_flags & PMF_JUMP_HELD))
+		{
+			ent->client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
+			ent->client->showinventory = false;
+			menu_ucmd->buttons &= ~BUTTON_JUMP;
+			return true;
+		}
+
+		if (!(menu_ucmd->buttons & BUTTON_ATTACK))
+		{
+			ent->client->inmenu = false;
+		}
+
+		if (!(menu_ucmd->buttons & BUTTON_JUMP))
+		{
+			ent->client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
+		}
+		return false;
+	}
+
 	if (!ent->client->menu || ent->svflags & SVF_BOT)
 		return false;
 
@@ -3831,11 +3868,37 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 		return true;
 	}
 
-	// BUTTON_JUMP goes back or closes menu
+	// BUTTON_JUMP for back navigation or menu exit
 	if ((menu_ucmd->buttons & BUTTON_JUMP) && !(ent->client->ps.pmove.pm_flags & PMF_JUMP_HELD))
 	{
 		ent->client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
-		PMenu_Close(ent);  // For now, just close. Could add back navigation later
+
+		// Check if there's a "Back" option in current menu
+		bool found_back = false;
+		if (ent->client->menu)
+		{
+			pmenuhnd_t* hnd = ent->client->menu;
+			for (int i = 0; i < hnd->num; i++)
+			{
+				if (hnd->entries[i].text[0] &&
+				    (strstr(hnd->entries[i].text, "Back") ||
+				     strstr(hnd->entries[i].text, "Close")))
+				{
+					// Select the back/close option
+					hnd->cur = i;
+					PMenu_Select(ent);
+					found_back = true;
+					break;
+				}
+			}
+		}
+
+		// If no back option found, close the menu
+		if (!found_back)
+		{
+			PMenu_Close(ent);
+		}
+
 		menu_ucmd->buttons &= ~BUTTON_JUMP;
 		return true;
 	}
@@ -3877,7 +3940,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		Hook_Service(client->hook);
 
 	// Handle menu protection - block attack/jump but allow menu navigation
-	if (client->menu_protected && client->menu)
+	if (client->menu_protected && (client->menu || client->showinventory))
 	{
 		// Let menu handle the input
 		if (HandleMenuMovement(ent, ucmd))
@@ -3890,7 +3953,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
 		}
-		// Don't process normal movement/combat while in menu
+		// Don't process normal movement/combat while in menu or inventory
 		return;
 	}
 
