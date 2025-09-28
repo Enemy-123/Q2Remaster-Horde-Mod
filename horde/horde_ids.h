@@ -106,6 +106,15 @@ namespace horde {
         UNKNOWN = 255
     };
 
+    // Monster Pack system to reduce memory usage by dividing monsters into groups
+    enum class MonsterPack : uint8_t {
+        PACK_CLASSIC_STROGG = 0,  // Classic Quake 2 enemies (soldiers, tanks, gunners, etc.)
+        PACK_MUTANT_SPECIAL = 1,  // Mutants, flyers, special units
+        PACK_ELITE_ARACHNID = 2,  // Elite variants, arachnids, late-game enemies
+        MAX_PACKS = 3,
+        PACK_NONE = 255           // For monsters that should always be available (bosses)
+    };
+
     // IDs for special, non-monster entities
 enum class SpecialEntityTypeID : uint8_t {
     TESLA_MINE,      // 0

@@ -31,6 +31,10 @@ void HandleResetEvent();
 void ResetSpawnMonsterVars();
 void ResetQueueMonitorVars();
 
+// Monster pack system save/load functions
+void SaveMonsterPackState(int& current_pack_out, int pack_history_out[3], int& rotation_index_out);
+void RestoreMonsterPackState(int current_pack_in, const int pack_history_in[3], int rotation_index_in);
+
 [[nodiscard]] bool IsSpawnPointOccupied(const edict_t *spawn_point, const edict_t *ignore_ent = nullptr);
 // Item selection in Horde mode
 gitem_t* G_HordePickItem();
