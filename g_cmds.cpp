@@ -2067,9 +2067,9 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "pickbarrel") == 0) {
 	Cmd_PickBarrel_f(ent);
 	}
-	// else if (Q_strcasecmp(cmd, "bombspell") == 0) {
-	// 	Cmd_BombPlayer(ent);
-	// }
+	else if (Q_strcasecmp(cmd, "bombspell") == 0) {
+		Cmd_BombPlayer(ent);
+	}
 	else if (Q_strcasecmp(cmd, "flyer") == 0) {
 	Cmd_PlayerToFlyer_f(ent);
 	}

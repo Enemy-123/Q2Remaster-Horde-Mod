@@ -1169,8 +1169,8 @@ enum mod_id_t : uint8_t
 	MOD_TURRET,
 	MOD_PLAYER_LASER,
 	MOD_TANK_PUNCH,
-	MOD_SUMMONED_MONSTER
-	//MOD_BOMBS
+	MOD_SUMMONED_MONSTER,
+	MOD_BOMBS
 };;
 
 struct mod_t
@@ -4308,8 +4308,8 @@ bool M_HasValidTarget(edict_t* self);
 extern ctfteam_t GetEntityTeam(const edict_t* ent);
 extern void Own_Sphere(edict_t *self, edict_t *sphere);
 
-// // g_bombspell.cpp
-// void CarpetBomb(edict_t* ent);//, float skill_mult = 1.0f, float cost_mult = 1.0f);
-// void BombArea(edict_t* ent);//, float skill_mult = 1.0f, float cost_mult = 1.0f);
-// void BombPerson(edict_t* target, edict_t* owner);//, float skill_mult = 1.0f);
-// void Cmd_BombPlayer(edict_t* ent);//, float skill_mult = 1.0f, float cost_mult = 1.0f);
+// g_bombspell.cpp
+void CarpetBomb(edict_t* ent);//, float skill_mult = 1.0f, float cost_mult = 1.0f);
+void BombArea(edict_t* ent);//, float skill_mult = 1.0f, float cost_mult = 1.0f);
+void BombPerson(edict_t* target, edict_t* owner);//, float skill_mult = 1.0f);
+void Cmd_BombPlayer(edict_t* ent);//, float skill_mult = 1.0f, float cost_mult = 1.0f);
