@@ -864,7 +864,9 @@ static pmenu_t tech_menu[] = {
     { "Strength", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
     { "Haste", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
     { "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
-    { "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, "" }
+    { "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Back", PMENU_ALIGN_LEFT, TechMenuHandler, "" }
 };
 constexpr size_t TECH_MENU_SIZE = sizeof(tech_menu) / sizeof(pmenu_t);
 
@@ -886,6 +888,8 @@ static pmenu_t tech_menustart[] = {
     { "", PMENU_ALIGN_CENTER, nullptr, "" },
     { "You can change it later", PMENU_ALIGN_LEFT, nullptr, "" },
     { "On Horde Menu", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },
+    { "Back", PMENU_ALIGN_LEFT, TechMenuHandler, "" }
 };
 constexpr size_t TECH_MENU_START_SIZE = sizeof(tech_menustart) / sizeof(pmenu_t);
 
@@ -915,6 +919,14 @@ void OpenTechMenu(edict_t* ent) {
 // Handles selection in the tech menus
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (!ent || !ent->client || !p) {
+		return;
+	}
+
+	// Check if "Back" was selected
+	const char* selected_text = p->entries[p->cur].text;
+	if (strcmp(selected_text, "Back") == 0) {
+		PMenu_Close(ent);
+		OpenHordeMenu(ent); // Return to main menu with protection
 		return;
 	}
 
@@ -1582,9 +1594,9 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	}
 	// Show Inventory
 	else if (strcmp(selected_text, "Show Inventory") == 0) {
+		PMenu_Close(ent); // Close menu first to prevent overlay
 		ShowInventory(ent);
-		// Decide if menu should close:
-		shouldCloseMenu = false; // Keep menu open after showing inventory
+		return; // Exit early since we already closed the menu
 	}
 	// Close Button
 	else if (strcmp(selected_text, "Close") == 0) {
