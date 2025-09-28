@@ -244,7 +244,7 @@ bool finishHeal(edict_t* self)
 	const bool isBodyque = healee->classname && !strcmp(healee->classname, "bodyque");
 	const bool insaneDead = healee && horde::IsMonsterType(healee, horde::MonsterTypeID::MISC_INSANE);
 
-	// Handle bodyque resurrection
+		// Handle bodyque resurrection
 	if (isBodyque) {
 		if (!healee->s.origin || !healee->s.angles) {
 			abortHeal(self, false, false);
@@ -264,7 +264,7 @@ bool finishHeal(edict_t* self)
 
 		insane->s.origin = position;
 		insane->s.angles = angles;
-		insane->classname = (frandom() > 0.6f) ? "misc_insane" : "monster_soldier_lasergun";
+		insane->classname = (frandom() > 0.6f) ? "monster_chick_heat" : "monster_brain";
 
 		if (g_horde->integer) {
 			insane->item = brandom() ? G_HordePickItem() : nullptr;
@@ -347,7 +347,7 @@ bool finishHeal(edict_t* self)
 		}
 
 		self->enemy = healee = insane;
-	}
+		}
 
 	// Verify healee after potential transformations
 	if (!healee || !healee->inuse) {
@@ -1599,6 +1599,14 @@ void medic_cable_attack(edict_t* self)
                 return;
             }
         }
+        
+        // FIX: Check if the target is fully healed at the start of healing
+        if (self->enemy->health > 0 && !M_NeedRegen(self->enemy))
+        {
+            cleanupHeal(self);
+            self->monsterinfo.nextframe = FRAME_attack53; // Skip to cable retract
+            return;
+        }
     }
 
     // We have an active cable attack - check if in range
@@ -1713,11 +1721,12 @@ void medic_cable_attack(edict_t* self)
             self->enemy->monsterinfo.healer = self;  // Set the healer reference
         }
         
-        // Check if fully healed
-        if (!M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
+        // FIX: Check if fully healed on EVERY frame, not just frame 48+
+        if (!M_NeedRegen(self->enemy))
         {
             cleanupHeal(self);
             self->monsterinfo.nextframe = FRAME_attack53;
+            return;
         }
         // Loop healing animation if still needs healing
         else if (M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
