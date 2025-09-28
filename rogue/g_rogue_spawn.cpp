@@ -101,45 +101,31 @@ edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const v
 {
 	edict_t* newEnt;
 
-	gi.Com_PrintFmt("CreateGroundMonster(classname) called with classname: {}\n", classname);
-
 	// check the ground to make sure it's there, it's relatively flat, and it's not toxic
-	if (!CheckGroundSpawnPoint(origin, entMins, entMaxs, height, -1.f)) {
-		gi.Com_PrintFmt("CreateGroundMonster: CheckGroundSpawnPoint failed\n");
+	if (!CheckGroundSpawnPoint(origin, entMins, entMaxs, height, -1.f))
 		return nullptr;
-	}
 
-	gi.Com_PrintFmt("CreateGroundMonster: Ground check passed, calling CreateMonster\n");
 	newEnt = CreateMonster(origin, angles, classname);
-	if (!newEnt) {
-		gi.Com_PrintFmt("CreateGroundMonster: CreateMonster returned nullptr\n");
+	if (!newEnt)
 		return nullptr;
-	}
 
-	gi.Com_PrintFmt("CreateGroundMonster: Successfully created {}\n", classname);
 	return newEnt;
 }
 
 // New overload that accepts typeId for precache checking
 edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& entMins, const vec3_t& entMaxs, horde::MonsterTypeID typeId, float height)
 {
-	gi.Com_PrintFmt("CreateGroundMonster called with typeId: {}\n", static_cast<int>(typeId));
-
 	// Check if monster type is precached in horde mode
 	if (g_horde->integer && !IsMonsterTypePrecached(typeId)) {
-		gi.Com_PrintFmt("CreateGroundMonster: Monster type {} not precached\n", static_cast<int>(typeId));
 		// Monster type not precached, don't spawn
 		return nullptr;
 	}
-
+	
 	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
 	if (!classname) {
-		gi.Com_PrintFmt("CreateGroundMonster: No classname for typeId {}\n", static_cast<int>(typeId));
 		return nullptr;
 	}
-
-	gi.Com_PrintFmt("CreateGroundMonster: Got classname '{}' for typeId {}\n", classname, static_cast<int>(typeId));
-
+	
 	// Use the original function
 	return CreateGroundMonster(origin, angles, entMins, entMaxs, classname, height);
 }
