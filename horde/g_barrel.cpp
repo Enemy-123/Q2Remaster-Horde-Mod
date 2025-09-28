@@ -756,65 +756,8 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
 }
 
 // Spawn function override for horde mode
-void SP_misc_explobox(edict_t* self)
-{
-    // Only override in horde mode
-    if (!g_horde->integer)
-    {
-        // Call original function (would need to be implemented or linked)
-        return;
-    }
-
-    gi.modelindex("models/objects/debris1/tris.md2");
-    gi.modelindex("models/objects/debris2/tris.md2");
-    gi.modelindex("models/objects/debris3/tris.md2");
-    gi.soundindex("weapons/bfg__l1a.wav");
-
-    self->solid = SOLID_BBOX;
-    self->movetype = MOVETYPE_STEP;
-    self->model = "models/objects/barrels/tris.md2";
-    self->s.modelindex = gi.modelindex(self->model);
-    self->mins = { -16, -16, 0 };
-    self->maxs = { 16, 16, 40 };
-
-    if (!self->mass)
-        self->mass = 100;
-
-    // Scale health based on horde difficulty
-    if (!self->health)
-    {
-        self->health = BarrelConstants::BARREL_BASE_HEALTH;
-        if (g_horde->integer)
-        {
-            self->health = self->health * (1.0f + (current_wave_level * 0.05f));
-        }
-    }
-
-    // Scale damage
-    if (!self->dmg)
-    {
-        self->dmg = BarrelConstants::BARREL_BASE_DAMAGE;
-        if (g_horde->integer)
-        {
-            self->dmg = self->dmg * (1.0f + (current_wave_level * 0.1f));
-        }
-    }
-
-    self->die = barrel_die;
-    self->takedamage = true;
-    self->pain = barrel_pain;
-    self->classname = "horde_barrel";
-    self->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::BARREL);
-    self->flags |= FL_TRAP;
-    self->touch = barrel_touch;
-    self->think = barrel_start;
-    self->nextthink = level.time + 20_hz;
-
-    // Map-placed barrels don't have an owner, so no chain
-    self->chain = nullptr;
-
-    gi.linkentity(self);
-}
+// This function is removed - map-placed barrels should always use the g_misc.cpp implementation
+// Player-spawned barrels are created via fire_barrel() function called by Cmd_Barrel_f
 
 // Remove all barrels owned by a player
 void remove_barrels(edict_t* ent)
