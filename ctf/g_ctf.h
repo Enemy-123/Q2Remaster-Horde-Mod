@@ -77,17 +77,21 @@ struct ctfgame_t
 	int		lasttime;  // last time update, explicitly truncated to seconds
 	bool	countdown; // has audio countdown started?
 
-	elect_t	 election;	 // election type
-	edict_t* etarget;	 // for admin election, who's being elected
+	elect_t	 election;	// election type
+	edict_t* etarget;	// for admin election, who's being elected
 	char	 elevel[32]; // for map election, target level
-	int		 evotes;	 // votes so far
-	int		 needvotes;	 // votes needed
-	gtime_t	 electtime;	 // remaining time until election times out
-	char	 emsg[256];	 // election name
+	int		 evotes;	// votes so far
+	int		 nvotes;	// no votes so far (for cancellation)
+	int		 needvotes;	// votes needed
+	gtime_t	 electtime;	// remaining time until election times out
+	char	 emsg[256];	// election name
 	int		 warnactive; // true if stat string 30 is active
+	
+	bool	 time_extension_voted; // track if time extension vote already happened
+	bool	 automatic_vote; // track if current vote was triggered automatically (vs manual)
 
 	ghost_t ghosts[MAX_CLIENTS]; // ghost codes
-};
+};;
 
 // --- Extern Declarations ---
 

@@ -578,3 +578,8 @@ test_spawning.o
 build_mingw/CMakeFiles/Progress/36
 build_mingw/CMakeFiles/Progress/37
 build_mingw/CMakeFiles/Progress/38
+build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/g_barrel.cpp.obj.d
+build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/g_strogg_summoner.cpp.obj.d
+build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/network_overflow_fix.cpp.obj.d
+build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/p_brain_morph.cpp.obj.d
+build_mingw/CMakeFiles/Q2HordeModDLL.dir/horde/p_flyer_morph.cpp.obj.d

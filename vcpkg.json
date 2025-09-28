@@ -1,14 +1,15 @@
 {
-  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "name": "q2-game-dll",
-  "version": "2022",
-  "builtin-baseline": "dd3097e305afa53f7b4312371f62058d2e665320",
+  "name": "quake2-remaster-horde",
+  "version-string": "1.0.0",
+  "builtin-baseline": "a3f2ea0f3443180a6d93a1bcd679f90dfea0ae48",
   "dependencies": [
     {
-      "name": "fmt"
+      "name": "fmt",
+      "version>=": "12.0.0"
     },
     {
-      "name": "jsoncpp"
+      "name": "jsoncpp",
+      "version>=": "1.9.6"
     }
   ]
 }
