@@ -3431,6 +3431,10 @@ struct gclient_t
 	// Vortex-style blaster ammo system
 	int blaster_ammo;           // Current blaster ammo (0-50)
 	gtime_t blaster_regen_time; // Next blaster ammo regeneration time
+
+	// Menu protection system (similar to Vortex)
+	bool menu_protected;           // Player is in menu and protected from damage/inactivity
+	gtime_t menu_protection_start; // Time when menu protection started
 };
 
 // ==========================================

@@ -95,6 +95,10 @@ void PMenu_Close(edict_t* ent)
 	if (!ent->client->menu)
 		return;
 
+	// Clear menu protection when closing menu
+	ent->client->menu_protected = false;
+	ent->client->menu_protection_start = 0_ms;
+
 	hnd = ent->client->menu;
 
 	// Verificar y liberar memoria de manera segura

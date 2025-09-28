@@ -144,6 +144,10 @@ void HordeOpenJoinMenu(edict_t* ent)
 		PMenu_Close(ent);
 	}
 
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
 	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, HordeUpdateJoinMenu);
 }
 
@@ -872,6 +876,10 @@ void OpenTechMenu(edict_t* ent) {
 	if (ent->client->menu) {
 		PMenu_Close(ent);
 	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
 
 	// Select menu based on team status
 	const bool is_joining = (ent->client->resp.ctf_team == CTF_NOTEAM);
@@ -1627,6 +1635,11 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 // Entry point to open the main Horde menu
 void OpenHordeMenu(edict_t* ent) {
 	if (!ent || !ent->client) return;
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
 	CreateHordeMenu(ent); // Create and open the menu
 }
 
@@ -2206,6 +2219,11 @@ pmenuhnd_t* CreateWeaponsMenu(edict_t* ent) {
 // =================
 
 void OpenUpgradeMenu(edict_t* ent) {
+    // Set menu protection for upgrade menu
+    if (ent && ent->client) {
+        ent->client->menu_protected = true;
+        ent->client->menu_protection_start = level.time;
+    }
     CreateUpgradeMenu(ent);
 }
 

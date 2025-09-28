@@ -1024,6 +1024,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	int		   te_sparks;
 	bool	   sphere_notified; // PGM
 
+	// Check for menu protection - players in menus cannot be damaged
+	if (targ->client && targ->client->menu_protected) {
+		return; // No damage while protected in menu
+	}
+
 	if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.IS_BOSS &&
 		(mod.id == MOD_HANDGRENADE || mod.id == MOD_HG_SPLASH) &&
 		(inflictor && inflictor->count == 1))

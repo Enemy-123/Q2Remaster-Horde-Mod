@@ -283,6 +283,9 @@ void ai_stand(edict_t* self, float dist)
 						client->client->invisibility_fade_time <= level.time) {
 						continue; // Saltar jugadores completamente invisibles
 					}
+					if (client->client->menu_protected) {
+						continue; // Skip menu-protected players
+					}
 					if (EntIsSpectating(client)) {
 						continue; // Saltar espectadores
 					}
@@ -383,6 +386,9 @@ void ai_walk(edict_t* self, float dist)
 					if (client->client->invisible_time > level.time &&
 						client->client->invisibility_fade_time <= level.time) {
 						continue; // Skip fully invisible players
+					}
+					if (client->client->menu_protected) {
+						continue; // Skip menu-protected players
 					}
 					if (EntIsSpectating(client)) {
 						continue; // Skip spectators
@@ -1377,7 +1383,9 @@ bool FindTarget(edict_t* self)
 			}
 		}
 
-		if (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time)
+		if (self->enemy->client &&
+			((self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time) ||
+			 self->enemy->client->menu_protected))
 		{
 			self->enemy = nullptr;
 			return false;
@@ -1483,7 +1491,9 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 	{
 		if (self->enemy->client)
 		{
-			if (self->enemy->client->invisible_time > level.time)
+			// Check for invisibility or menu protection
+			if (self->enemy->client->invisible_time > level.time ||
+				self->enemy->client->menu_protected)
 			{
 				// can't see us at all after this time
 				if (self->enemy->client->invisibility_fade_time <= level.time)
@@ -1894,11 +1904,12 @@ bool ai_checkattack(edict_t* self, float dist)
 				hesDeadJim = true;
 		}
 
-		// Check for fully invisible players when pursuing
+		// Check for fully invisible or menu-protected players when pursuing
 		// Ensure self->enemy->client exists before accessing it
 		if (!hesDeadJim && self->enemy->client &&
-			self->enemy->client->invisible_time > level.time &&
-			self->enemy->client->invisibility_fade_time <= level.time &&
+			((self->enemy->client->invisible_time > level.time &&
+			  self->enemy->client->invisibility_fade_time <= level.time) ||
+			 self->enemy->client->menu_protected) &&
 			(self->monsterinfo.aiflags & AI_PURSUE_NEXT)) // Only if actively pursuing
 		{
 			hesDeadJim = true;

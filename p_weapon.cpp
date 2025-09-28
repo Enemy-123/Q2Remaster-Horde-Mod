@@ -876,6 +876,11 @@ inline weapon_ready_state_t Weapon_HandleReady(edict_t* ent, int FRAME_FIRE_FIRS
 {
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
+		// Check for menu protection - prevent firing while in menu
+		if (ent->client->menu_protected) {
+			return READY_NONE; // Cannot fire while in menu
+		}
+
 		bool const request_firing = ent->client->weapon_fire_buffered || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK);
 
 		if (request_firing && ent->client->weapon_fire_finished <= level.time)

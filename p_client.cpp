@@ -3570,6 +3570,7 @@ constexpr gtime_t BOT_INACTIVITY_DURATION = 20_sec;  // Duración específica pa
 constexpr gtime_t MIN_INACTIVITY_DURATION = 15_sec;
 constexpr gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
 constexpr gtime_t WARNING_TIME = 5_sec;
+constexpr gtime_t MENU_PROTECTED_INACTIVITY_DURATION = 90_sec;  // Extended time when in menus
 
 // Enumeración para estados de actividad
 enum class ActivityState {
@@ -3683,6 +3684,14 @@ static bool ClientInactivityTimer(edict_t* ent) {
 
 	// Código original para jugadores humanos
 	const gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
+
+	// Check if player is menu protected - give them extra time
+	if (ent->client->menu_protected) {
+		ent->client->resp.inactivity_time = level.time + MENU_PROTECTED_INACTIVITY_DURATION;
+		ent->client->resp.inactivity_warning = false;
+		// Don't mark as inactive while in menu
+		return true;
+	}
 
 	if (!ent->client->resp.inactivity_time) {
 		ent->client->resp.inactivity_time = level.time + inactivity_duration;
@@ -3813,17 +3822,32 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 		}
 	}
 
-	if ((menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->inmenu)
+	// BUTTON_ATTACK selects menu item
+	if ((menu_ucmd->buttons & BUTTON_ATTACK) && !ent->client->inmenu)
 	{
 		PMenu_Select(ent);
 		ent->client->inmenu = true;
-		menu_ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
+		menu_ucmd->buttons &= ~BUTTON_ATTACK;
 		return true;
 	}
 
-	if (!(menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
+	// BUTTON_JUMP goes back or closes menu
+	if ((menu_ucmd->buttons & BUTTON_JUMP) && !(ent->client->ps.pmove.pm_flags & PMF_JUMP_HELD))
+	{
+		ent->client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
+		PMenu_Close(ent);  // For now, just close. Could add back navigation later
+		menu_ucmd->buttons &= ~BUTTON_JUMP;
+		return true;
+	}
+
+	if (!(menu_ucmd->buttons & BUTTON_ATTACK))
 	{
 		ent->client->inmenu = false;
+	}
+
+	if (!(menu_ucmd->buttons & BUTTON_JUMP))
+	{
+		ent->client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 	}
 	return false;
 }
@@ -3851,6 +3875,24 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	if (client->hook_on && ent->client->hook)
 		Hook_Service(client->hook);
+
+	// Handle menu protection - block attack/jump but allow menu navigation
+	if (client->menu_protected && client->menu)
+	{
+		// Let menu handle the input
+		if (HandleMenuMovement(ent, ucmd))
+		{
+			// Menu handled it, clear combat buttons to prevent game actions
+			ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
+		}
+		// Still block the buttons even if menu didn't handle them
+		else
+		{
+			ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
+		}
+		// Don't process normal movement/combat while in menu
+		return;
+	}
 
 	// Check for intermission or awaiting respawn
 	if (level.intermissiontime || ent->client->awaiting_respawn)

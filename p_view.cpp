@@ -558,6 +558,12 @@ static void SV_CalcBlend(edict_t* ent)
 
 	ent->client->ps.damage_blend = ent->client->ps.screen_blend = {};
 
+	// Add visual effect for menu protection
+	if (ent->client->menu_protected) {
+		// Light blue/cyan translucent overlay to indicate protection
+		G_AddBlend(0.0f, 0.5f, 1.0f, 0.15f, ent->client->ps.screen_blend);
+	}
+
 	// add for powerups
 	if (ent->client->quad_time > level.time)
 	{
