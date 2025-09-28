@@ -659,6 +659,11 @@ void ApplyGradualHealing(edict_t* ent) {
 	if (!ent || ent->health <= 0 || level.time < ent->regen_info.next_regen_time)
 		return;
 
+	// Skip if player is menu protected - disable vampire regen during menu
+	if (IsPlayerMenuProtected(ent)) {
+		return;
+	}
+
 	// Apply health regeneration with  checks and calculations
 	if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
 		// Use direct min operation to simplify logic
@@ -865,6 +870,11 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 	if (!attacker || !attacker->client)
 		return;
 
+	// Check if attacker is menu protected - disable armor vampire during menu
+	if (IsPlayerMenuProtected(attacker)) {
+		return;
+	}
+
 	const int index = ArmorIndex(attacker);
 	
 	// Calculate armor to steal from damage
@@ -939,6 +949,11 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
 
     // Invalid entities.
     if (!attacker || !targ) {
+        return;
+    }
+
+    // Check if attacker is menu protected - disable vampire effect during menu
+    if (IsPlayerMenuProtected(attacker)) {
         return;
     }
 

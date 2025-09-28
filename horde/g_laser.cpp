@@ -454,6 +454,13 @@ void create_laser(edict_t * ent)
 {
     if (!ent || !ent->client)
         return;
+
+    // Check if player is menu protected
+    if (IsPlayerMenuProtected(ent)) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You cannot use this while in a menu.\n");
+        return;
+    }
+
     if (!g_horde || !g_horde->integer)
     {
         gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a laser\n");

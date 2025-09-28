@@ -6073,7 +6073,7 @@ public:
             if (TryFindPositionWithDistances(out_position, out_angles, typeId, specific_target,
                                            predicted_mins, predicted_maxs, is_flying, distances, &used_player)) {
                 if (developer->integer && fallback_level > 0) {
-                    gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback level {} ({:.0f}-{:.0f}) for TypeID {}.\\n", 
+                    gi.Com_PrintFmt("EMERGENCY SPAWN: Used fallback level {} ({:.0f}-{:.0f}) for TypeID {}.\n", 
                                   fallback_level, distances.min_radius, distances.max_radius, static_cast<int>(typeId));
                 }
                 if (out_used_player) {

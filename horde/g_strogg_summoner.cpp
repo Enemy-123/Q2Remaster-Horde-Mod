@@ -244,6 +244,12 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 // Main function to fire/create a Strogg summoner
 void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 {
+	// Check if player is menu protected
+	if (IsPlayerMenuProtected(ent)) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "You cannot use this while in a menu.\n");
+		return;
+	}
+
 	edict_t* base;
 	edict_t* monster;
 	vec3_t	 dir;
@@ -470,10 +476,10 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 			ent->client->pers.inventory[item->id]--;
 			// Message already printed by fire_strogg_summoner
 		} else {
-			gi.Client_Print(ent, PRINT_HIGH, "Strogg summoning failed.\\n");
+			gi.Client_Print(ent, PRINT_HIGH, "Strogg summoning failed.\n");
 		}
 	} else {
-		gi.Client_Print(ent, PRINT_HIGH, "Cannot find a suitable location to summon Strogg.\\n");
+		gi.Client_Print(ent, PRINT_HIGH, "Cannot find a suitable location to summon Strogg.\n");
 	}
 }
 

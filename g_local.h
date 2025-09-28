@@ -2294,6 +2294,9 @@ char* G_CopyString(const char* in, int32_t tag);
 
 void G_PlayerNotifyGoal(edict_t* player);
 
+// Helper function to check if a player is menu protected
+bool IsPlayerMenuProtected(edict_t* ent);
+
 //
 // g_spawn.c
 //

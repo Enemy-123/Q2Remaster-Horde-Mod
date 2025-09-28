@@ -353,6 +353,12 @@ edict_t* Hook_Start(edict_t* ent)
 // creates the invisible hook entity and sends it on its way
 // attaches a laser to it
 void Hook_Fire(edict_t* owner, vec3_t start, vec3_t forward) {
+	// Check if player is menu protected
+	if (IsPlayerMenuProtected(owner)) {
+		gi.LocClient_Print(owner, PRINT_HIGH, "You cannot use this while in a menu.\n");
+		return;
+	}
+
 	edict_t* hook;
 	trace_t tr;
 
@@ -400,6 +406,12 @@ void Weapon_Hook_Fire(edict_t* ent)
 {
 	if (level.intermissiontime)
 		return;
+
+	// Check if player is menu protected
+	if (IsPlayerMenuProtected(ent)) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "You cannot use this while in a menu.\n");
+		return;
+	}
 
 	vec3_t forward, right;
 	vec3_t start;

@@ -514,6 +514,11 @@ void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 void Cmd_Laser_f(edict_t* ent)
 {
+	// Check if player is menu protected
+	if (IsPlayerMenuProtected(ent)) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "You cannot use this while in a menu.\n");
+		return;
+	}
 	create_laser(ent);
 }
 

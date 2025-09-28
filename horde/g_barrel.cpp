@@ -635,9 +635,15 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     {
         if (ClientIsSpectating(self->client)){
          gi.Com_PrintFmt(" Can't do this while spect!\n");
-            return;  
+            return;
                }
-               
+
+        // Check if player is menu protected
+        if (IsPlayerMenuProtected(self)) {
+            gi.LocClient_Print(self, PRINT_HIGH, "You cannot use this while in a menu.\n");
+            return;
+        }
+
         if (self->client->pers.health <= 0)
             return;
 
@@ -844,6 +850,12 @@ void Cmd_Barrel_f(edict_t* ent)
 {
     if (!ent->client)
         return;
+
+    // Check if player is menu protected
+    if (IsPlayerMenuProtected(ent)) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You cannot use this while in a menu.\n");
+        return;
+    }
 
     const char* arg = gi.argv(1);
 

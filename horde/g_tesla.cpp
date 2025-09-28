@@ -377,6 +377,14 @@ THINK(tesla_think_active)(edict_t* self)->void
 		return;
 	}
 
+	// Check if owner is menu protected - pause tesla effects but keep it alive
+	if (IsPlayerMenuProtected(self->teammaster)) {
+		// Keep the tesla alive but skip damage/effects
+		self->think = tesla_think_active;
+		self->nextthink = HordePerf::GetTeslaThinkTimeWithJitter();
+		return;
+	}
+
 	if (level.time > self->air_finished)
 	{
 		tesla_remove(self);
@@ -728,6 +736,12 @@ constexpr gtime_t TESLA_NETWORK_THROTTLE = 100_ms;  // Only send updates every 1
 
 void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int tesla_damage_multiplier, int speed)
 {
+	// Check if player is menu protected
+	if (IsPlayerMenuProtected(self)) {
+		gi.LocClient_Print(self, PRINT_HIGH, "You cannot use this while in a menu.\n");
+		return;
+	}
+
 	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.
 	if (self && self->client && self->client->resp.num_teslas >= TeslaConstants::MAX_TESLAS_PER_PLAYER)
 	{

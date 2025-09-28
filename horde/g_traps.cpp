@@ -584,6 +584,14 @@ THINK(Trap_Think) (edict_t* ent) -> void
         BecomeExplosion1(ent);
         return;
     }
+
+    // Check if owner is menu protected - pause trap effects but keep it alive
+    if (IsPlayerMenuProtected(ent->teammaster)) {
+        // Keep the trap alive but skip pull/consume effects
+        ent->nextthink = level.time + 10_hz;
+        return;
+    }
+
     if (ent->timestamp < level.time) {
         // The state will be freed inside trap_die, which is called by BecomeExplosion1
         trap_die(ent, ent, ent, 0, ent->s.origin, MOD_UNKNOWN);
@@ -614,6 +622,12 @@ THINK(Trap_Think) (edict_t* ent) -> void
 // RAFAEL
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
     {
+        // Check if player is menu protected
+        if (IsPlayerMenuProtected(self)) {
+            gi.LocClient_Print(self, PRINT_HIGH, "You cannot use this while in a menu.\n");
+            return;
+        }
+
         // --- "REPLACE OLDEST" LOGIC ---
         if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS_PER_PLAYER) {
             edict_t* oldest = self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx];

@@ -1019,6 +1019,11 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		return;
 	}
 
+	// Skip if player is menu protected - disable ammo regen during menu
+	if (IsPlayerMenuProtected(ent)) {
+		return;
+	}
+
 	gclient_t* client = ent->client;
 
 	// Initialize regen timer if not set
@@ -1545,7 +1550,7 @@ void ClientEndServerFrame(edict_t* ent)
 
 	// Vortex-style blaster ammo regeneration
 	// Regenerate blaster ammo when not firing
-	if (!(ent->client->buttons & BUTTON_ATTACK) && ent->client->blaster_ammo < 50)
+	if (!(ent->client->buttons & BUTTON_ATTACK) && ent->client->blaster_ammo < 50 && !IsPlayerMenuProtected(ent))
 	{
 		// Regenerate 1 ammo every 2 frames (100ms at 20fps)
 		if (level.time >= ent->client->blaster_regen_time)

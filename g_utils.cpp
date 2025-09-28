@@ -869,3 +869,21 @@ void CleanupStuckEntities() {
 		}
 	}
 }
+
+/*
+=================
+IsPlayerMenuProtected
+
+Helper function to check if a player is menu protected
+Returns true if the player is in a menu and protected from damage/actions
+=================
+*/
+bool IsPlayerMenuProtected(edict_t* ent)
+{
+	// Validate entity and check if it's a player
+	if (!ent || !ent->client)
+		return false;
+
+	// Return the menu protection status
+	return ent->client->menu_protected;
+}
