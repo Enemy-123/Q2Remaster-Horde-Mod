@@ -3,6 +3,8 @@
 
 #include "../g_local.h"
 #include "../shared.h"
+#include "../horde/g_horde.h"
+#include "../horde/horde_ids.h"
 
 //
 // ROGUE
@@ -31,6 +33,7 @@
 //
 edict_t* CreateMonster(const vec3_t& origin, const vec3_t& angles, const char* classname)
 {
+	// For backward compatibility - when called with classname only
 	edict_t* newEnt = G_Spawn();
 
 	newEnt->s.origin = origin;
@@ -45,12 +48,50 @@ edict_t* CreateMonster(const vec3_t& origin, const vec3_t& angles, const char* c
 	return newEnt;
 }
 
+// New overload that accepts typeId for precache checking
+edict_t* CreateMonster(const vec3_t& origin, const vec3_t& angles, horde::MonsterTypeID typeId)
+{
+	// Check if monster type is precached in horde mode
+	if (g_horde->integer && !IsMonsterTypePrecached(typeId)) {
+		// Monster type not precached, don't spawn
+		return nullptr;
+	}
+	
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	if (!classname) {
+		return nullptr;
+	}
+	
+	// Use the original function
+	return CreateMonster(origin, angles, classname);
+}
+
 edict_t* CreateFlyMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& mins, const vec3_t& maxs, const char* classname)
 {
 	if (!CheckSpawnPoint(origin, mins, maxs))
 		return nullptr;
 
 	return (CreateMonster(origin, angles, classname));
+}
+
+// New overload that accepts typeId for precache checking
+edict_t* CreateFlyMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& mins, const vec3_t& maxs, horde::MonsterTypeID typeId)
+{
+	if (!CheckSpawnPoint(origin, mins, maxs))
+		return nullptr;
+	
+	// Check if monster type is precached in horde mode
+	if (g_horde->integer && !IsMonsterTypePrecached(typeId)) {
+		// Monster type not precached, don't spawn
+		return nullptr;
+	}
+	
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	if (!classname) {
+		return nullptr;
+	}
+
+	return CreateMonster(origin, angles, classname);
 }
 
 // This is just a wrapper for CreateMonster that looks down height # of CMUs and sees if there
@@ -69,6 +110,24 @@ edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const v
 		return nullptr;
 
 	return newEnt;
+}
+
+// New overload that accepts typeId for precache checking
+edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& entMins, const vec3_t& entMaxs, horde::MonsterTypeID typeId, float height)
+{
+	// Check if monster type is precached in horde mode
+	if (g_horde->integer && !IsMonsterTypePrecached(typeId)) {
+		// Monster type not precached, don't spawn
+		return nullptr;
+	}
+	
+	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
+	if (!classname) {
+		return nullptr;
+	}
+	
+	// Use the original function
+	return CreateGroundMonster(origin, angles, entMins, entMaxs, classname, height);
 }
 
 // FindSpawnPoint

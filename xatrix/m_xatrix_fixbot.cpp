@@ -12,6 +12,8 @@
 #include "../m_flash.h"
 #include "../shared.h"
 // Start Horde includes
+#include "../horde/g_horde.h"
+#include "../horde/horde_ids.h"
 // End Horde includes
 
 
@@ -553,6 +555,18 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 		dir.normalize();
 	}
 
+	// Check global spawner limit for horde mode
+	if (g_horde->integer) {
+		if (level.global_spawned_count >= level.global_spawner_limit) {
+			return; // Don't spawn if we've reached the global limit
+		}
+	}
+
+	// Check if turret is precached in horde mode
+	if (g_horde->integer && !IsMonsterTypePrecached(horde::MonsterTypeID::TURRET)) {
+		return; // Don't spawn turret if not precached
+	}
+
 	// Create entity
 	ent = G_Spawn();
 	if (!ent) {
@@ -590,6 +604,11 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 			self->monsterinfo.monster_used = std::max(0, self->monsterinfo.monster_used - 1);
 		}
 		return;
+	}
+
+	// Increment global spawn counter
+	if (g_horde->integer) {
+		level.global_spawned_count++;
 	}
 
 	// Post-spawn setup: Assign a valid enemy

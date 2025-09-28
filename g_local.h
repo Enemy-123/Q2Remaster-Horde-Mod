@@ -2476,6 +2476,7 @@ stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check);
 
 // this is for the count of monsters
 int32_t M_SlotsLeft(edict_t* self);
+bool M_CanSpawnMore(edict_t* spawner);
 
 // shared with monsters
 constexpr spawnflags_t SPAWNFLAG_MONSTER_AMBUSH = 1_spawnflag;
@@ -2836,6 +2837,12 @@ edict_t* CreateFlyMonster(const vec3_t& origin, const vec3_t& angles, const vec3
 	const char* classname);
 edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& mins, const vec3_t& maxs,
 	const char* classname, float height);
+
+edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& mins, const vec3_t& maxs,
+	horde::MonsterTypeID typeId, float height);
+edict_t* CreateFlyMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& mins, const vec3_t& maxs,
+	horde::MonsterTypeID typeId);
+edict_t* CreateMonster(const vec3_t& origin, const vec3_t& angles, horde::MonsterTypeID typeId);
 bool	 FindSpawnPoint(const vec3_t& startpoint, const vec3_t& mins, const vec3_t& maxs, vec3_t& spawnpoint,
 	float maxMoveUp, bool drop = true);
 bool	 CheckSpawnPoint(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);

@@ -2386,8 +2386,9 @@ void Monster_MoveSpawn(edict_t* self) {
 
 	// Basic validation
 	if (!self || self->health <= 0 || self->deadflag ||
-		self->monsterinfo.monster_slots <= 0)
+		self->monsterinfo.monster_slots <= 0) {
 		return;
+	}
 
 	// Check global spawner limit for horde mode
 	if (g_horde->integer) {
@@ -2422,15 +2423,23 @@ void Monster_MoveSpawn(edict_t* self) {
 			available_indices.reserve(self->monsterinfo.reinforcements.defs.size());
 			for (uint8_t i = 0; i < self->monsterinfo.reinforcements.defs.size(); ++i) {
 				if (self->monsterinfo.reinforcements.defs[i].strength <= available_slots) {
+					// Check if precached in horde mode - filter before adding to available list
+					horde::MonsterTypeID typeId = self->monsterinfo.reinforcements.defs[i].typeId;
+					if (g_horde->integer && !IsMonsterTypePrecached(typeId)) {
+						continue; // Skip non-precached monsters
+					}
 					available_indices.push_back(i);
 				}
 			}
-			if (available_indices.empty()) return false; // Can't spawn anything
+			if (available_indices.empty()) {
+				return false; // Can't spawn anything
+			}
 
 			// 2. Pick one randomly from the valid options.
 			uint8_t chosen_index = random_element(available_indices);
 			const auto& reinf_def = self->monsterinfo.reinforcements.defs[chosen_index];
 			horde::MonsterTypeID typeId = reinf_def.typeId;
+
 			const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
 			if (!classname) continue;
 
@@ -2439,41 +2448,44 @@ void Monster_MoveSpawn(edict_t* self) {
 			GetPredictedScaledBounds(typeId, mins, maxs);
 			// --- END MODIFIED LOGIC ---
 
-			if (!CheckSpawnPoint(test_origin, mins, maxs))
-				continue;
-
-			edict_t* monster = G_Spawn();
-			if (!monster)
+			// Use CreateGroundMonster for proper spawning
+			edict_t* monster = CreateGroundMonster(test_origin, spawn_angles, mins, maxs, typeId, 64);
+			if (!monster) {
 				return false;
+			}
 
-			monster->classname = classname;
-			monster->s.origin = test_origin;
-			monster->s.angles = spawn_angles;
-			monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
-			monster->monsterinfo.aiflags = AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
+			// Set additional flags and properties
+			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_SPAWNED_COMMANDER;
 			monster->monsterinfo.commander = self;
-			monster->monsterinfo.slots_from_commander = reinf_def.strength;
-			monster->enemy = self->enemy; // This is now safe due to the guard clause
+			monster->monsterinfo.bonus_flags = self->monsterinfo.bonus_flags;
 			monster->owner = self;
 
-			ED_CallSpawn(monster, spawn_temp_t::empty);
-			if (monster->inuse) {
-				if (g_horde->integer)
-					monster->item = brandom() ? G_HordePickItem() : nullptr;
-				ApplyMonsterBonusFlags(monster);
-				float const size = (monster->maxs - monster->mins).length() * 0.5f;
-				SpawnGrow_Spawn(test_origin, size * 2.0f, size * 0.5f);
-				self->monsterinfo.monster_used += reinf_def.strength;
-				
-				// Increment global spawn counter
-				if (g_horde->integer) {
-					level.global_spawned_count++;
-				}
-				
-				return true;
+			// Update slot count
+			self->monsterinfo.monster_used += reinf_def.strength;
+
+			if (self->enemy && self->enemy->inuse && self->enemy->health > 0) {
+				monster->enemy = self->enemy;
+				FoundTarget(monster);
 			}
-			G_FreeEdict(monster);
-			return false;
+
+			if (g_horde->integer)
+				monster->item = brandom() ? G_HordePickItem() : nullptr;
+			ApplyMonsterBonusFlags(monster);
+
+			// Visual effects
+			float const size = (monster->maxs - monster->mins).length() * 0.5f;
+			SpawnGrow_Spawn(test_origin, size * 2.0f, size * 0.5f);
+
+			// Sound effect
+			gi.sound(self, CHAN_WEAPON, gi.soundindex("medic_commander/monsterspawn1.wav"), 1, ATTN_NORM, 0);
+
+			// Increment global spawn counter
+			if (g_horde->integer) {
+				level.global_spawned_count++;
+			}
+
+			return true;
 		}
 		return false;
 	};
@@ -2555,6 +2567,7 @@ MMOVE_T(tank_move_spawn) = { FRAME_attak221, FRAME_attak238, tank_frames_spawn, 
 // Spawner tank attack patterns
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 {
+
 	// Early validation
 	if (!self || !self->enemy || !self->enemy->inuse) {
 		return;
@@ -2575,11 +2588,11 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	constexpr gtime_t SPAWN_COOLDOWN = 10_sec;
 
 	// Handle monster spawning logic
-	const bool can_spawn = M_SlotsLeft(self) > 0;
+	const bool can_spawn = M_CanSpawnMore(self);
 	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
 	const bool spawn_cooldown_ready = level.time >= self->monsterinfo.spawn_cooldown;  // Nueva verificación
 
-	if (self->monsterinfo.monster_used <= 3 && can_spawn && has_clear_path && spawn_cooldown_ready &&
+	if (can_spawn && has_clear_path && spawn_cooldown_ready &&
 		(visible(self, self->enemy) && infront(self, self->enemy)))
 	{
 		M_SetAnimation(self, &tank_move_spawn);

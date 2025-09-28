@@ -371,6 +371,13 @@ void CarrierSpawn(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	// Check global spawner limit for horde mode
+	if (g_horde->integer) {
+		if (level.global_spawned_count >= level.global_spawner_limit) {
+			return; // Don't spawn if we've reached the global limit
+		}
+	}
+
 	vec3_t   f, r, offset, startpoint, spawnpoint;
 	edict_t* ent;
 
@@ -388,8 +395,6 @@ void CarrierSpawn(edict_t* self)
 	// 1. Access the correct member: .defs instead of .reinforcements
 	const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
 	horde::MonsterTypeID typeId = reinforcement_def.typeId;
-	const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-	if (!classname) return;
 
 	// 2. Get bounds instantly from the global data array.
 	vec3_t mins, maxs;
@@ -398,7 +403,7 @@ void CarrierSpawn(edict_t* self)
 
 	if (FindSpawnPoint(startpoint, mins, maxs, spawnpoint, 32, false))
 	{
-		ent = CreateFlyMonster(spawnpoint, self->s.angles, mins, maxs, classname);
+		ent = CreateFlyMonster(spawnpoint, self->s.angles, mins, maxs, typeId);
 		if (!ent) return;
 
 		gi.sound(self, CHAN_BODY, sound_spawn, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
@@ -410,8 +415,11 @@ void CarrierSpawn(edict_t* self)
 		ent->monsterinfo.slots_from_commander = reinforcement_def.strength;
 		self->monsterinfo.monster_used += reinforcement_def.strength;
 
-		if (g_horde->integer)
+		// Increment global spawn counter
+		if (g_horde->integer) {
+			level.global_spawned_count++;
 			ent->item = brandom() ? G_HordePickItem() : nullptr;
+		}
 
 		ApplyMonsterBonusFlags(ent);
 
@@ -891,7 +899,7 @@ MONSTERINFO_ATTACK(carrier_attack) (edict_t *self) -> void
 		else if (range < 600)
 		{
 			luck = frandom();
-			if (M_SlotsLeft(self) > 2)
+			if (M_CanSpawnMore(self) && M_SlotsLeft(self) > 2)
 			{
 				if (luck <= 0.20f)
 					M_SetAnimation(self, &carrier_move_attack_pre_mg);
@@ -923,7 +931,7 @@ MONSTERINFO_ATTACK(carrier_attack) (edict_t *self) -> void
 		else // won't use grenades at this range
 		{
 			luck = frandom();
-			if (M_SlotsLeft(self) > 2)
+			if (M_CanSpawnMore(self) && M_SlotsLeft(self) > 2)
 			{
 				if (luck < 0.3f)
 					M_SetAnimation(self, &carrier_move_attack_pre_mg);

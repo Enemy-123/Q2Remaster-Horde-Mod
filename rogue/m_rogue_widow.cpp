@@ -313,7 +313,7 @@ void WidowSpawn(edict_t* self) {
 		}
 
 		edict_t* stalker = CreateGroundMonster(spawnpoint, self->s.angles, stalker_mins,
-			stalker_maxs, "monster_stalker", 256);
+			stalker_maxs, horde::MonsterTypeID::STALKER, 256);
 		if (!stalker) {
 			continue;
 		}

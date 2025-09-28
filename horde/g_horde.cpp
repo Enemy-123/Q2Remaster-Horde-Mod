@@ -509,6 +509,22 @@ void ResetSpawnMonsterVars()
 	horde::g_monsterSpawnTracker.Reset();
 }
 
+// Check if a monster type has been precached for the current wave
+bool IsMonsterTypePrecached(horde::MonsterTypeID typeId)
+{
+	if (!g_horde->integer)
+		return true; // In non-horde mode, allow all monsters
+		
+	if (typeId == horde::MonsterTypeID::UNKNOWN)
+		return false;
+		
+	size_t index = static_cast<size_t>(typeId);
+	if (index >= g_precached_monster_types_flags.size())
+		return false;
+		
+	return g_precached_monster_types_flags[index];
+}
+
 void ResetQueueMonitorVars()
 {
 	need_queue_monitor_reset = true;

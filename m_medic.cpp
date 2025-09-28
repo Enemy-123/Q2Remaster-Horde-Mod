@@ -2165,10 +2165,6 @@ void medic_finish_spawn(edict_t* self)
 
 		const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
 		horde::MonsterTypeID typeId = reinforcement_def.typeId;
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-		if (!classname) {
-			continue;
-		}
 
 		vec3_t mins, maxs;
 		GetPredictedScaledBounds(typeId, mins, maxs);
@@ -2182,7 +2178,7 @@ void medic_finish_spawn(edict_t* self)
 		{
 			if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
 			{
-				ent = CreateGroundMonster(spawnpoint, self->s.angles, mins, maxs, classname, 256);
+				ent = CreateGroundMonster(spawnpoint, self->s.angles, mins, maxs, typeId, 256);
 			}
 		}
 
@@ -2205,6 +2201,8 @@ void medic_finish_spawn(edict_t* self)
 		self->monsterinfo.monster_used += reinforcement_def.strength;
 
 		if (g_horde && g_horde->integer) {
+			// Increment global spawn counter
+			level.global_spawned_count++;
 			if (brandom()) {
 				ent->item = G_HordePickItem();
 			}
@@ -2330,7 +2328,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t *self) -> void
 	float r = frandom();
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
+		if ((self->mass > 400) && (r > 0.8f) && M_CanSpawnMore(self))
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
 			M_SetAnimation(self, &medic_move_attackCable);
@@ -2342,7 +2340,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t *self) -> void
 			M_SetAnimation(self, &medic_move_callReinforcements);
 			return;
 		}
-		if ((self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self))
+		if ((self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_CanSpawnMore(self))
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
 			M_SetAnimation(self, &medic_move_attackBlaster);
@@ -2422,13 +2420,13 @@ MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 
 	// --- BLOCK 3: STANDARD COMBAT LOGIC ---
 	// If we are not in medic mode and found no one to heal, use default combat checks.
-	if (self->enemy && self->enemy->client && !visible(self, self->enemy) && M_SlotsLeft(self))
+	if (self->enemy && self->enemy->client && !visible(self, self->enemy) && M_CanSpawnMore(self))
 	{
 		self->monsterinfo.attack_state = AS_BLIND;
 		return true;
 	}
 
-	if (self->monsterinfo.monster_slots && (frandom() < 0.8f) && (M_SlotsLeft(self) > self->monsterinfo.monster_slots * 0.8f) && (realrange(self, self->enemy) > 150))
+	if (self->monsterinfo.monster_slots && (frandom() < 0.8f) && M_CanSpawnMore(self) && (M_SlotsLeft(self) > self->monsterinfo.monster_slots * 0.8f) && (realrange(self, self->enemy) > 150))
 	{
 		self->monsterinfo.aiflags |= AI_BLOCKED;
 		self->monsterinfo.attack_state = AS_MISSILE;

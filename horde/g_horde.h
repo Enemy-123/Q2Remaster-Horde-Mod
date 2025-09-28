@@ -29,6 +29,8 @@ void ResetGame();
 void HandleResetEvent();
 
 void ResetSpawnMonsterVars();
+
+bool IsMonsterTypePrecached(horde::MonsterTypeID typeId);
 void ResetQueueMonitorVars();
 
 // Monster pack system save/load functions

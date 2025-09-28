@@ -4,6 +4,27 @@
 #include "horde/g_horde_benefits.h"
 #include "bots/bot_includes.h"
 #include "shared.h"
+#include <algorithm>
+
+//================
+// M_CanSpawnMore
+// Check if a spawner monster can spawn more monsters
+// Takes into account both local slots and global limit
+//================
+bool M_CanSpawnMore(edict_t* spawner)
+{
+	// Check if spawner has slots available
+	if (M_SlotsLeft(spawner) <= 0)
+		return false;
+
+	// Check global limit in horde mode
+	if (g_horde->integer) {
+		if (level.global_spawned_count >= level.global_spawner_limit)
+			return false;
+	}
+
+	return true;
+}
 
 //
 // monster weapons
@@ -1054,6 +1075,12 @@ void monster_dead(edict_t* self)
 	self->monsterinfo.damage_blood = 0;
 	self->fly_sound_debounce_time = 0_ms;
 	self->monsterinfo.aiflags &= ~AI_STUNK;
+
+	// Decrement global spawner count if this was a spawned monster
+	if (g_horde->integer && (self->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)) {
+		level.global_spawned_count = std::max(0, level.global_spawned_count - 1);
+	}
+
 	if (g_horde->integer) {
 		boss_die(self);
 	}

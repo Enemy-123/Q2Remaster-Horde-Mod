@@ -1788,12 +1788,9 @@ static void arachnid_psx_spawn(edict_t* self)
     if (skill->integer != 3)
         return;
 
-    // Check global spawner limit for horde mode
-    if (g_horde->integer) {
-        if (level.global_spawned_count >= level.global_spawner_limit) {
-            return; // Don't spawn if we've reached the global limit
-        }
-    }
+    // Check if we can spawn more monsters
+    if (!M_CanSpawnMore(self))
+        return;
 
     static constexpr vec3_t reinforcement_position[] = { { -24.f, 124.f, 0 }, { -24.f, -124.f, 0 } };
     vec3_t f, r, offset, startpoint, spawnpoint;
@@ -1819,8 +1816,6 @@ static void arachnid_psx_spawn(edict_t* self)
 
         const auto& reinforcement_def = self->monsterinfo.reinforcements.defs[def_index];
         horde::MonsterTypeID typeId = reinforcement_def.typeId;
-        const char* classname = horde::MonsterTypeRegistry::GetClassname(typeId);
-        if (!classname) continue;
 
         vec3_t mins, maxs;
         GetPredictedScaledBounds(typeId, mins, maxs);
@@ -1829,7 +1824,7 @@ static void arachnid_psx_spawn(edict_t* self)
         {
             if (CheckGroundSpawnPoint(spawnpoint, mins, maxs, 256, -1))
             {
-                edict_t* ent = CreateGroundMonster(spawnpoint, self->s.angles, mins, maxs, classname, 256);
+                edict_t* ent = CreateGroundMonster(spawnpoint, self->s.angles, mins, maxs, typeId, 256);
                 if (!ent) return;
 
                 ent->nextthink = level.time;

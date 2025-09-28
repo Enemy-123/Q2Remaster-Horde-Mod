@@ -1641,6 +1641,10 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	memset(&level, 0, sizeof(level));
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
 
+	// Initialize global spawner limits for spawner monsters in horde mode
+	level.global_spawner_limit = 20;
+	level.global_spawned_count = 0;
+
 	// Initialize LaserPool for new level
 	extern void LaserPool_Init();
 	LaserPool_Init();

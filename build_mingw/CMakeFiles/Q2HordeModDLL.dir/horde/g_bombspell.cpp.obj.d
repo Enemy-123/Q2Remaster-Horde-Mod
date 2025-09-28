@@ -1,8 +1,8 @@
-CMakeFiles/Q2HordeModDLL.dir/g_bombspell.cpp.obj: \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/g_bombspell.cpp \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/g_local.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/bg_local.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/q_std.h \
+CMakeFiles/Q2HordeModDLL.dir/horde/g_bombspell.cpp.obj: \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_bombspell.cpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../g_local.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../bg_local.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../q_std.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/cmath \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/requires_hosted.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/c++config.h \
@@ -219,8 +219,8 @@ CMakeFiles/Q2HordeModDLL.dir/g_bombspell.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/codecvt.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/locale_facets_nonio.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/locale_conv.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/q_vec3.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/game.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../q_vec3.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../game.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/charconv \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/span \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/utility \
@@ -231,8 +231,8 @@ CMakeFiles/Q2HordeModDLL.dir/g_bombspell.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/random.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/opt_random.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/random.tcc \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/ctf/g_ctf.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/ctf/p_ctf_menu.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/horde_ids.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/g_ctf.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/p_ctf_menu.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset
