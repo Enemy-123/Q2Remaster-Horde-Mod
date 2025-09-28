@@ -374,6 +374,10 @@ void OpenCooperativeCampaignMenu(edict_t* ent) {
 		PMenu_Close(ent);
 	}
 
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
 	// Build the campaign menu
 	memset(coop_campaign_menu, 0, sizeof(coop_campaign_menu));
 	int idx = 0;
@@ -480,18 +484,27 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		// Maintain menu protection
+		ent->client->menu_protected = true;
+		ent->client->menu_protection_start = level.time;
 	}
 	else if (strcmp(selected_text, "Medium Maps") == 0) {
 		categorized_maps.current_category = horde::MapSize{ false, false, true };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		// Maintain menu protection
+		ent->client->menu_protected = true;
+		ent->client->menu_protection_start = level.time;
 	}
 	else if (strcmp(selected_text, "Big Maps") == 0) {
 		categorized_maps.current_category = horde::MapSize{ false, true, false };
 		categorized_maps.current_page = 0;
 		UpdateVoteMenu();
 		PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+		// Maintain menu protection
+		ent->client->menu_protected = true;
+		ent->client->menu_protection_start = level.time;
 	}
 	else if (strcmp(selected_text, "Vote Cooperative Mode") == 0) {
 		// Open the cooperative campaign selection menu
@@ -694,16 +707,22 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			categorized_maps.current_page++;
 			UpdateVoteMenu(); // Update the menu data
 			PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr); // Reopen the updated vote menu
+			// Maintain menu protection
+			ent->client->menu_protected = true;
+			ent->client->menu_protection_start = level.time;
 		}
 		else {
 			// No next page, maybe reopen the current one? Or handle differently?
 			// For now, just re-open the current (last) page
 			UpdateVoteMenu();
 			PMenu_Open(ent, vote_menu, -1, VOTE_MENU_SIZE, nullptr, nullptr);
+			// Maintain menu protection
+			ent->client->menu_protected = true;
+			ent->client->menu_protection_start = level.time;
 		}
 	}
 	else if (option == back_button_index) { // Back to Categories
-		OpenMapCategoryMenu(ent); // Go back to category selection
+		OpenMapCategoryMenu(ent); // Go back to category selection - this already sets protection
 	}
 	else if (option == close_button_index) { // Close
 		// Menu already closed
@@ -1391,7 +1410,7 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	const pmenu_t* selected = &p->entries[p->cur];
 	const char* text = selected->text;
-	bool shouldClose = true;
+	bool shouldClose = false;  // Keep menu open by default
 
 	if (strcmp(text, "Add 5 Ability Points (All)") == 0) {
 		const char* adminName = GetPlayerName(ent);
@@ -1399,6 +1418,7 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
 			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				player->client->pers.ability_points += 5;
+				player->client->pers.admin_bonus_ability_points += 5; // Track admin-given points
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 ability points!\n", adminName);
 			}
 		}
@@ -1410,6 +1430,7 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			if (player->client && (player->client->resp.ctf_team == CTF_TEAM1 ||
 			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				player->client->pers.weapon_points += 5;
+				player->client->pers.admin_bonus_weapon_points += 5; // Track admin-given points
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 5 weapon points!\n", adminName);
 			}
 		}
@@ -1422,6 +1443,8 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			    G_IsCooperative() || coop->integer || !deathmatch->integer)) {
 				player->client->pers.ability_points += 10;
 				player->client->pers.weapon_points += 10;
+				player->client->pers.admin_bonus_ability_points += 10; // Track admin-given points
+				player->client->pers.admin_bonus_weapon_points += 10; // Track admin-given points
 				gi.LocClient_Print(player, PRINT_HIGH, "{} granted you 10 ability and weapon points!\n", adminName);
 			}
 		}
@@ -1487,10 +1510,7 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		shouldClose = false;
 	}
 	else if (strcmp(text, "Close") == 0) {
-		// Just close
-	}
-	else {
-		shouldClose = false;
+		shouldClose = true;  // Actually close on Close option
 	}
 
 	if (shouldClose && ent->client && ent->client->menu) {
@@ -1525,8 +1545,10 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	}
 	// Check for "Upgrade Menu"
 	else if (strncmp(selected_text, "Upgrade Menu", 12) == 0) {
-		OpenUpgradeMenu(ent);
-		shouldCloseMenu = false;
+		shouldCloseMenu = true; // Close main menu first
+		PMenu_Close(ent); // Close now before opening upgrade menu
+		OpenUpgradeMenu(ent); // This will set protection and open new menu
+		return; // Exit early since we already closed
 	}
 	// Check for "Misc Options"
 	else if (strcmp(selected_text, "Misc Options") == 0) {
@@ -2262,14 +2284,28 @@ void UpgradeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
     // Handle menu navigation
     if (strcmp(item->text_arg1, "abilities_shop") == 0) {
         PMenu_Close(ent);
-        OpenAbilitiesMenu(ent);
+        OpenAbilitiesMenu(ent); // This already sets protection
     } else if (strcmp(item->text_arg1, "weapon_upgrades") == 0) {
         PMenu_Close(ent);
-        OpenWeaponsMenu(ent);
+        OpenWeaponsMenu(ent); // This already sets protection
     } else if (strcmp(item->text_arg1, "restore_points") == 0) {
+        // Preserve admin-given bonus points
+        int32_t admin_bonus_ability = ent->client->pers.admin_bonus_ability_points;
+        int32_t admin_bonus_weapon = ent->client->pers.admin_bonus_weapon_points;
+
         PlayerRestoreAllPoints(ent);
+
+        // Re-add admin bonus points after restore
+        ent->client->pers.ability_points += admin_bonus_ability;
+        ent->client->pers.weapon_points += admin_bonus_weapon;
+
+        if (admin_bonus_ability > 0 || admin_bonus_weapon > 0) {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Points restored (preserved {} admin ability and {} admin weapon bonus)\n",
+                              admin_bonus_ability, admin_bonus_weapon);
+        }
+
         PMenu_Close(ent);
-        OpenUpgradeMenu(ent);
+        OpenUpgradeMenu(ent); // This already sets protection
     } else if (strcmp(item->text_arg1, "toggle_auto_buy_abilities") == 0) {
         bool was_enabled = ent->client->pers.auto_buy_abilities;
         ent->client->pers.auto_buy_abilities = !ent->client->pers.auto_buy_abilities;
@@ -2283,7 +2319,7 @@ void UpgradeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
                       ent->client->pers.auto_buy_abilities ? "ON" : "OFF");
         }
         PMenu_Close(ent);
-        OpenUpgradeMenu(ent);
+        OpenUpgradeMenu(ent); // This already sets protection
     } else if (strcmp(item->text_arg1, "toggle_auto_buy_weapons") == 0) {
         bool was_enabled = ent->client->pers.auto_buy_weapons;
         ent->client->pers.auto_buy_weapons = !ent->client->pers.auto_buy_weapons;
@@ -2297,10 +2333,10 @@ void UpgradeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
                       ent->client->pers.auto_buy_weapons ? "ON" : "OFF");
         }
         PMenu_Close(ent);
-        OpenUpgradeMenu(ent);
+        OpenUpgradeMenu(ent); // This already sets protection
     } else if (strcmp(item->text_arg1, "back_to_main") == 0) {
         PMenu_Close(ent);
-        OpenHordeMenu(ent);
+        OpenHordeMenu(ent); // This already sets protection
     }
 }
 

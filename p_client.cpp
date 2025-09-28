@@ -12,8 +12,10 @@
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
-// External function for inventory use (from g_cmds.cpp)
+// External functions for inventory (from g_cmds.cpp)
 extern void Cmd_InvUse_f(edict_t* ent);
+extern void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu);
+extern void SelectPrevItem(edict_t* ent, item_flags_t itflags);
 
 THINK(info_player_start_drop) (edict_t* self) -> void
 {
@@ -3806,9 +3808,26 @@ void UpdateIRTracking(edict_t* ent, gclient_t* client)
 // Función para manejar el movimiento del menú
 bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 {
-	// Handle inventory display separately
+	// Handle inventory display separately - inventory takes priority over menu
 	if (ent->client->showinventory)
 	{
+		// Handle inventory navigation with forwardmove
+		const int32_t inv_sign = menu_ucmd->forwardmove > 0 ? 1 : menu_ucmd->forwardmove < 0 ? -1 : 0;
+		if (ent->client->menu_sign != inv_sign)
+		{
+			ent->client->menu_sign = inv_sign;
+			if (inv_sign > 0)
+			{
+				SelectNextItem(ent, IF_ANY, false); // false = don't handle menu
+				return true;
+			}
+			else if (inv_sign < 0)
+			{
+				SelectPrevItem(ent, IF_ANY);
+				return true;
+			}
+		}
+
 		// BUTTON_ATTACK selects inventory item (like BUTTON_USE)
 		if ((menu_ucmd->buttons & BUTTON_ATTACK) && !ent->client->inmenu)
 		{
@@ -3837,7 +3856,7 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 		{
 			ent->client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 		}
-		return false;
+		return true; // Return true to indicate inventory handled input - don't process menu
 	}
 
 	if (!ent->client->menu || ent->svflags & SVF_BOT)

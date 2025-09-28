@@ -3095,6 +3095,8 @@ struct client_persistant_t
 	// Per-player benefits system
 	int32_t ability_points = 0;           // Points for abilities (vampire, ammo regen, etc.)
 	int32_t weapon_points = 0;            // Points for weapon upgrades
+	int32_t admin_bonus_ability_points = 0; // Track admin-given ability points
+	int32_t admin_bonus_weapon_points = 0;  // Track admin-given weapon points
 	bool auto_buy_abilities = true;       // Auto-purchase abilities toggle (default: enabled)
 	bool auto_buy_weapons = true;         // Auto-purchase weapons toggle (default: enabled)
 	bool has_manually_disabled_auto_buy = false; // Track if player manually disabled auto-buy for refund
