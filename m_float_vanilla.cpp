@@ -38,21 +38,37 @@ void floater_zap(edict_t* self);
 
 void floater_fire_blaster(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
+		return;
 
 	vec3_t	  start;
 	vec3_t	  forward, right;
 	vec3_t	  end;
 	vec3_t	  dir;
+	bool      blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right);
 
-	end = self->enemy->s.origin;
-	end[2] += self->enemy->viewheight;
+	// PMM - blindfire support
+	if (blindfire && !visible(self, self->enemy))
+	{
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+		end = self->monsterinfo.blind_fire_target;
+	}
+	else
+	{
+		// Not blindfiring - need fully valid target
+		if (!M_HasValidTarget(self))
+			return;
+
+		end = self->enemy->s.origin;
+		end[2] += self->enemy->viewheight;
+	}
+	// pmm
+
 	dir = end - start;
 	dir.normalize();
 

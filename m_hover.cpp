@@ -388,21 +388,40 @@ void hover_fire_rocket(edict_t* self)
 
 void hover_fire_grenades(edict_t* self)
 {
-    if (!M_HasValidTarget(self))
-    {
-        return; // Stop immediately if the target is invalid.
-    }
+    // Basic enemy check - blindfire logic needs to execute
+    if (!M_HasEnemy(self))
+        return;
 
-   // constexpr float MORTAR_SPEED = 1050.f;
     constexpr float GRENADE_SPEED = 760.f;
     vec3_t forward, right, up, aim, target, offset{};
     monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+    bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+
     if (self->s.frame == FRAME_attak104) offset = { 1.7f, 7.0f, 11.3f };
     else if (self->s.frame == FRAME_attak105) offset = { 1.7f, -7.0f, 11.3f };
-    target = self->enemy->s.origin;
+
     AngleVectors(self->s.angles, forward, right, up);
     const vec3_t start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-    PredictAim(self, self->enemy, start, 800, false, 0.f, &aim, nullptr);
+
+    // PMM - blindfire support
+    if (blindfire && !visible(self, self->enemy))
+    {
+        if (!self->monsterinfo.blind_fire_target)
+            return;
+        target = self->monsterinfo.blind_fire_target;
+        aim = target - start;
+    }
+    else
+    {
+        // Not blindfiring - need fully valid target
+        if (!M_HasValidTarget(self))
+            return;
+
+        target = self->enemy->s.origin;
+        PredictAim(self, self->enemy, start, 800, false, 0.f, &aim, nullptr);
+    }
+    // pmm
+
     aim.normalize();
     monster_fire_grenade(self, start, aim, 24, GRENADE_SPEED, flash_number,
         (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
