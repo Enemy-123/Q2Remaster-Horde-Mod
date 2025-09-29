@@ -541,7 +541,7 @@ THINK(heat_chick_think) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
-// Chickkl bomb spell - alternates between carpet and area
+// Chickkl bomb spell - distance-based selection
 void ChickBombSpell(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
@@ -551,45 +551,43 @@ void ChickBombSpell(edict_t* self)
 	if (self->monsterinfo.attack_finished > level.time)
 		return;
 
-	// Set cooldown - 2 seconds between bomb spells
-	self->monsterinfo.attack_finished = level.time + 2_sec;
-
-	// Also set a bigger cooldown after 2 bombspells (6 seconds total cooldown)
-	// Use monsterinfo.monster_slots to track bombspell count (0-2)
-	self->monsterinfo.monster_slots++;
-	if (self->monsterinfo.monster_slots >= 2)
-	{
-		// After 2 bombspells, go on extended cooldown
-		self->monsterinfo.attack_finished = level.time + 6_sec;
-		self->monsterinfo.monster_slots = 0; // Reset counter
-	}
-
 	vec3_t forward, dir;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	dir = (self->enemy->s.origin - self->s.origin).normalized();
 
-	float dot = forward.dot(dir);
+	// Calculate distance to enemy
+	float dist_to_enemy = (self->enemy->s.origin - self->s.origin).length();
+	float height_diff = fabs(self->enemy->s.origin.z - self->s.origin.z);
 
-	// Alternate between carpet and area bomb
-	// Use monsterinfo.lefty to track which type was used last (0 = carpet, 1 = area)
-	bool use_carpet = (self->monsterinfo.lefty == 0);
+	// Distance-based selection:
+	// - Carpet bomb: 200-600 range, same height (within 128 units)
+	// - Area bomb: 400+ range (has overlap for flexibility)
+	bool prefer_carpet = (dist_to_enemy >= 200 && dist_to_enemy <= 600 && height_diff < 128);
+	bool prefer_area = (dist_to_enemy > 400);
+
+	// Too close for any bombspell (under 200 units) - skip this attack
+	if (dist_to_enemy < 200)
+	{
+		self->monsterinfo.attack_finished = level.time + 1_sec;
+		return;
+	}
+
+	// Choose based on distance, with preference to carpet if both are valid
+	bool use_carpet = prefer_carpet || (!prefer_area && self->monsterinfo.lefty == 0);
 
 	if (use_carpet)
 	{
-		// Carpet bomb forward - validate path is clear and on same height
+		// Carpet bomb forward - validate path is clear
 		vec3_t carpet_check_start = self->s.origin;
 		carpet_check_start[2] += 32; // Check from mid-height
-		vec3_t carpet_check_end = carpet_check_start + forward * 400; // Check ahead
+		vec3_t carpet_check_end = carpet_check_start + forward * 300; // Check ahead
 
 		trace_t carpet_tr = gi.traceline(carpet_check_start, carpet_check_end, self, MASK_SOLID);
 
-		// Check if path is mostly clear and target is visible at similar height
-		float height_diff = fabs(self->enemy->s.origin.z - self->s.origin.z);
-		bool path_clear = (carpet_tr.fraction > 0.5f);
-		bool same_height = (height_diff < 128); // Within reasonable height difference
-		bool can_see_target = visible(self, self->enemy);
+		// More lenient check - just need some path clearance
+		bool path_clear = (carpet_tr.fraction > 0.4f);
 
-		if (path_clear && same_height && can_see_target)
+		if (path_clear)
 		{
 			// Carpet bomb forward
 			edict_t* spell = G_Spawn();
@@ -607,48 +605,53 @@ void ChickBombSpell(edict_t* self)
 			spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
 			spell->classname = "bombspell";
 			spell->s.angles = vectoangles(forward);
+
+			// Mark as monster-owned to skip strict visibility checks
+			spell->count = 1; // Use count to indicate monster owner
+
 			gi.linkentity(spell);
 
-			// Next time use area bomb
+			// SUCCESS - Set cooldown and increment counter
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+			self->monsterinfo.monster_slots++;
+			if (self->monsterinfo.monster_slots >= 2)
+			{
+				self->monsterinfo.attack_finished = level.time + 6_sec;
+				self->monsterinfo.monster_slots = 0;
+			}
+
+			// Next time try area bomb
 			self->monsterinfo.lefty = 1;
 		}
 		else
 		{
-			// Can't use carpet bomb, skip this attack and reset cooldown
+			// Can't use carpet bomb, try area instead
+			self->monsterinfo.lefty = 1;
 			self->monsterinfo.attack_finished = level.time + 0.5_sec;
-			self->monsterinfo.lefty = 1; // Try area bomb next time
 		}
 	}
 	else
 	{
 		// Area bomb at enemy location - trace to ground near enemy
 		vec3_t start, end, ground_pos;
-		trace_t tr, ground_tr;
+		trace_t ground_tr;
 
-		start = self->s.origin;
-		start[2] += self->viewheight;
-		end = self->enemy->s.origin;
-
-		// Trace to enemy to check line of sight
-		tr = gi.trace(start, vec3_origin, vec3_origin, end, self, MASK_SOLID);
-
-		// Find floor below the trace endpoint
-		ground_pos = tr.endpos;
-		ground_pos[2] += 8; // Start slightly above
+		// Aim towards enemy position
+		ground_pos = self->enemy->s.origin;
+		ground_pos[2] += 64; // Start slightly above enemy
 		vec3_t ground_end = ground_pos;
 		ground_end[2] -= 512; // Trace down to find floor
 
 		ground_tr = gi.traceline(ground_pos, ground_end, self, MASK_SOLID);
 
-		// Check if we found valid floor and plane is mostly horizontal
-		bool found_floor = (ground_tr.fraction < 1.0f && ground_tr.plane.normal.z > 0.7f);
-		bool can_see_area = (tr.fraction > 0.3f); // At least partial line of sight
+		// Check if we found valid floor - more lenient check
+		bool found_floor = (ground_tr.fraction < 1.0f && ground_tr.plane.normal.z > 0.5f);
 
-		if (found_floor && can_see_area)
+		if (found_floor)
 		{
 			edict_t* spell = G_Spawn();
 			spell->think = bombarea_think;
-			spell->nextthink = level.time + FRAME_TIME_MS;
+			spell->nextthink = level.time + 0.3_sec; // Start bombing after short delay
 			spell->s.origin = ground_tr.endpos;
 			spell->dmg = 30 + irandom(5, 15);
 			spell->dmg_radius = 120;
@@ -664,14 +667,23 @@ void ChickBombSpell(edict_t* self)
 			spell->s.angles = vectoangles(ground_tr.plane.normal);
 			gi.linkentity(spell);
 
-			// Next time use carpet bomb
+			// SUCCESS - Set cooldown and increment counter
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+			self->monsterinfo.monster_slots++;
+			if (self->monsterinfo.monster_slots >= 2)
+			{
+				self->monsterinfo.attack_finished = level.time + 6_sec;
+				self->monsterinfo.monster_slots = 0;
+			}
+
+			// Next time try carpet bomb
 			self->monsterinfo.lefty = 0;
 		}
 		else
 		{
-			// Can't place area bomb, skip this attack and reset cooldown
+			// Can't place area bomb, try carpet next time
+			self->monsterinfo.lefty = 0;
 			self->monsterinfo.attack_finished = level.time + 0.5_sec;
-			self->monsterinfo.lefty = 0; // Try carpet bomb next time
 		}
 	}
 

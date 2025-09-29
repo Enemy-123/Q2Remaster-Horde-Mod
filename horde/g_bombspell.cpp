@@ -130,55 +130,62 @@ THINK(carpetbomb_think)(edict_t* self) -> void
     vec3_t move_dist = forward * frandom(CARPETBOMB_DAMAGE_RADIUS / 2, CARPETBOMB_DAMAGE_RADIUS + 1);
     start = saved_origin + move_dist;
 
-    // Horizontal trace to check for obstacles
+    // Trace horizontally and vertically to check movement
     tr = gi.traceline(saved_origin, start, self, MASK_SOLID);
+    end = start;
+    start.z += 1;
+    end.z -= 8192;
+    tr1 = gi.traceline(start, end, self, MASK_SOLID);
+    start.z -= 1;
 
-    // If we hit something horizontally, try to step up to any height
-    if (tr.fraction < 1.0f)
+    // Check if we need to adjust height
+    if (tr.fraction < 1 || start.z != tr1.endpos.z)
     {
-        // Get ceiling height
-        vec3_t ceiling_check = start;
-        ceiling_check.z += 8192;
-        trace_t ceil_tr = gi.traceline(saved_origin, ceiling_check, self, MASK_SOLID);
-        ceil_height = ceil_tr.endpos.z;
+        // Get current ceiling height
+        end = start;
+        end.z += 8192;
+        tr = gi.traceline(saved_origin, end, self, MASK_SOLID);
+        ceil_height = tr.endpos.z;
 
-        // Start from high up and trace down to find valid position
-        start = tr.endpos; // Use the hit position
-        start.z = ceil_height - 32; // Just below ceiling
+        // Push down from above desired position
+        start.z += CARPETBOMB_STEP_SIZE;
+        if (start.z > ceil_height)
+            start.z = ceil_height;
 
         end = start;
         end.z -= 8192;
-        tr1 = gi.traceline(start, end, self, MASK_SOLID);
+        tr = gi.traceline(start, end, self, MASK_SOLID);
 
-        if (!tr1.allsolid && !tr1.startsolid)
-        {
-            start = tr1.endpos;
-            start.z += 8; // Slightly above ground
-        }
-        else
-        {
+        // Don't go through walls
+        if (tr.allsolid)
             failed = true;
+
+        // Try a bit lower
+        if (tr.startsolid)
+        {
+            start.z -= CARPETBOMB_STEP_SIZE;
+            tr = gi.traceline(start, end, self, MASK_SOLID);
+            if (tr.startsolid || tr.allsolid)
+            {
+                // For monster owners, be more lenient
+                if (self->count != 1)
+                    failed = true;
+            }
+        }
+
+        // Don't go into water if we aren't already submerged (skip for monsters)
+        if (self->count != 1)
+        {
+            vec3_t water_check = tr.endpos;
+            water_check.z += 8;
+            if (!self->waterlevel && (gi.pointcontents(water_check) & MASK_WATER))
+                failed = true;
         }
     }
-    else
-    {
-        // No horizontal obstacle, just find floor
-        end = start;
-        start.z += 1;
-        end.z -= 8192;
-        tr1 = gi.traceline(start, end, self, MASK_SOLID);
-        start = tr1.endpos;
-        start.z += 8; // Slightly above ground
-    }
-
-    // Don't go into water if we aren't already submerged
-    vec3_t water_check = start;
-    water_check.z += 8;
-    if (!self->waterlevel && (gi.pointcontents(water_check) & MASK_WATER))
-        failed = true;
 
     // Use calculated position for effects
-    vec3_t effect_pos = start;
+    vec3_t effect_pos = tr.endpos;
+    start = tr.endpos;
 
     // Spawn explosions on either side
     AngleVectors(self->s.angles, nullptr, &right, nullptr);
@@ -190,16 +197,31 @@ THINK(carpetbomb_think)(edict_t* self) -> void
     vec3_t explosion_pos = tr.endpos;
     explosion_pos.z += 32;
 
-    // Make sure the caster can see this spot
-    trace_t vis_tr = gi.traceline(self->move_origin, explosion_pos, self, MASK_SOLID);
-    if (vis_tr.fraction < 1.0f)
-        failed = true;
+    // Make sure the caster can see this spot (skip for monster owners)
+    bool is_monster_owner = (self->count == 1);
+    if (!is_monster_owner)
+    {
+        trace_t vis_tr = gi.traceline(self->move_origin, explosion_pos, self, MASK_SOLID);
+        if (vis_tr.fraction < 1.0f)
+            failed = true;
+    }
 
     // Make sure bombspell is in a valid location
     if ((gi.pointcontents(explosion_pos) & CONTENTS_SOLID) || failed)
     {
-        G_FreeEdict(self);
-        return;
+        // For monster owners, don't fail - just continue without explosion
+        if (is_monster_owner)
+        {
+            self->s.origin = start;
+            self->nextthink = level.time + FRAME_TIME_MS;
+            gi.linkentity(self);
+            return;
+        }
+        else
+        {
+            G_FreeEdict(self);
+            return;
+        }
     }
 
     // Create temporary entity for explosion to avoid modifying self during damage
