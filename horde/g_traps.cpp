@@ -14,7 +14,22 @@ constexpr float TRAP_MAX_TARGET_MASS = 400.0f; // Maximum mass that can be consu
 constexpr int TRAP_WAIT_START = 64;            // Initial wait value for consuming
 constexpr int TRAP_FRAME_CONSUME = 5;          // Frame for consumption animation
 constexpr int TRAP_FRAME_ACTIVE = 4;           // Frame for active trap
-constexpr gtime_t TRAP_DURATION = 80_sec;         // Total trap lifetime in seconds
+constexpr gtime_t TRAP_DURATION = 80_sec;      // Total trap lifetime in seconds
+constexpr gtime_t TRAP_COOLDOWN_DURATION = 10_sec; // Cooldown after consuming
+constexpr gtime_t TRAP_GIB_LIFETIME = 3_sec;   // Maximum lifetime for gibs rotating around trap
+
+// Physics constants
+constexpr float TRAP_GIB_ROTATION_SPEED = 150.0f;  // Degrees per second for gib rotation
+constexpr float TRAP_GIB_PULL_SPEED = 15.0f;       // Speed at which gibs are pulled toward center
+constexpr float TRAP_PULL_SPEED_MIN = 64.0f;       // Minimum pull speed for targets
+constexpr float TRAP_PULL_SPEED_MONSTER = 210.0f;  // Maximum pull speed for monsters
+constexpr float TRAP_PULL_SPEED_PLAYER = 290.0f;   // Maximum pull speed for players
+constexpr int TRAP_WAIT_ANIMATION_END = 19;        // Wait value when animation advances to next frame
+
+// Bounce physics constants
+constexpr float TRAP_BOUNCE_MIN_VELOCITY = 120.0f; // Minimum velocity component after bounce
+constexpr float TRAP_BOUNCE_RANDOM = 70.0f;        // Random velocity variation on bounce
+constexpr float TRAP_BOUNCE_UPWARD = 180.0f;       // Extra upward velocity on ground bounce
 
 // Helper to get a pointer to a trap's state.
 trap_state_t* GetTrapState(const edict_t* ent) {
@@ -36,11 +51,17 @@ void RemoveTrapState(const edict_t* ent) {
     g_trap_states.erase(ent->s.number);
 }
 
-// Modified to throw sparks at a specific target
-// Modified to throw sparks at a specific target with improved validation
-void trap_throwsparks(edict_t* self, edict_t* target)
+// Throw sparks at a specific target (or self->enemy if target is nullptr)
+void trap_throwsparks(edict_t* self, edict_t* target = nullptr)
 {
-    if (!self || !self->inuse || !target || !target->inuse)
+    if (!self || !self->inuse)
+        return;
+
+    // Use self->enemy if no target specified
+    if (!target)
+        target = self->enemy;
+
+    if (!target || !target->inuse)
         return;
 
     // Calculate spark origin and direction
@@ -63,22 +84,13 @@ void trap_throwsparks(edict_t* self, edict_t* target)
     gi.multicast(spark_origin, MULTICAST_PVS, false);
 }
 
-// Original version with validation for backward compatibility
-void trap_throwsparks(edict_t* self)
-{
-    if (!self || !self->inuse || !self->enemy || !self->enemy->inuse)
-        return;
-
-    trap_throwsparks(self, self->enemy);
-}
-
 THINK(Trap_Gib_Think) (edict_t* ent) -> void
 {
-    // Verificar si ent es válido
+    // Verify entity is valid
     if (!ent)
         return;
 
-    // Verificar si owner es válido
+    // Verify owner is valid
     if (!ent->owner || !ent->owner->inuse)
     {
         G_FreeEdict(ent);
@@ -92,13 +104,20 @@ THINK(Trap_Gib_Think) (edict_t* ent) -> void
         return;
     }
 
+    // CRITICAL FIX: Enforce maximum gib lifetime to prevent indefinite rotation
+    if (ent->timestamp > 0_ms && level.time >= ent->timestamp)
+    {
+        G_FreeEdict(ent);
+        return;
+    }
+
     vec3_t forward, right, up;
     vec3_t vec;
 
     AngleVectors(ent->owner->s.angles, forward, right, up);
 
-    // rotate us around the center
-    float degrees = (150.f * gi.frame_time_s) + ent->owner->delay;
+    // Rotate us around the center
+    float degrees = (TRAP_GIB_ROTATION_SPEED * gi.frame_time_s) + ent->owner->delay;
     vec3_t diff = ent->owner->s.origin - ent->s.origin;
     vec = RotatePointAroundVector(up, diff, degrees);
     ent->s.angles[1] += degrees;
@@ -107,9 +126,9 @@ THINK(Trap_Gib_Think) (edict_t* ent) -> void
     trace_t tr = gi.traceline(ent->s.origin, new_origin, ent, MASK_SOLID);
     ent->s.origin = tr.endpos;
 
-    // pull us towards the trap's center
+    // Pull us towards the trap's center
     diff.normalize();
-    ent->s.origin += diff * (15.0f * gi.frame_time_s);
+    ent->s.origin += diff * (TRAP_GIB_PULL_SPEED * gi.frame_time_s);
 
     ent->watertype = gi.pointcontents(ent->s.origin);
     if (ent->watertype & MASK_WATER)
@@ -125,16 +144,15 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
 
     // --- CLEAN UP ANY ROTATING GIBS ---
-    // Find and free any gibs that are linked to this trap
-    for (uint32_t i = 0; i < globals.num_edicts; i++) {
-        edict_t* e = &g_edicts[i];
-
-        if (!e->inuse)
-            continue;
-        if (e->owner == self && !strcmp(e->classname, "gib")) {
-            // This gib belongs to this trap, free it
-            G_FreeEdict(e);
+    // PERFORMANCE IMPROVEMENT: Use vector tracking instead of O(n) search
+    trap_state_t* trap_state = GetTrapState(self);
+    if (trap_state) {
+        for (edict_t* gib : trap_state->owned_gibs) {
+            if (gib && gib->inuse) {
+                G_FreeEdict(gib);
+            }
         }
+        trap_state->owned_gibs.clear();
     }
 
     // --- UPDATE PLAYER TRACKING ---
@@ -144,7 +162,7 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
             client->resp.num_traps--;
         }
 
-        // --- CORRECTNESS FIX: Find and null out this trap in the owner's tracking array. ---
+        // Find and null out this trap in the owner's tracking array
         for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i) {
             if (client->resp.deployed_traps[i] == self) {
                 client->resp.deployed_traps[i] = nullptr;
@@ -188,17 +206,17 @@ TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
             for (int i = 0; i < 3; i++) {
                 float change = tr.plane.normal[i] * backoff;
                 out[i] = ent->velocity[i] - change;
-                out[i] += crandom() * 70.0f;
-                if (fabs(out[i]) < 120.0f && out[i] != 0) {
-                    out[i] = (out[i] < 0 ? -120.0f : 120.0f);
+                out[i] += crandom() * TRAP_BOUNCE_RANDOM;
+                if (fabs(out[i]) < TRAP_BOUNCE_MIN_VELOCITY && out[i] != 0) {
+                    out[i] = (out[i] < 0 ? -TRAP_BOUNCE_MIN_VELOCITY : TRAP_BOUNCE_MIN_VELOCITY);
                 }
             }
             if (tr.plane.normal[2] > 0) {
-                out[2] += 180.0f;
+                out[2] += TRAP_BOUNCE_UPWARD;
             }
-            if (out.length() < 120.0f) {
+            if (out.length() < TRAP_BOUNCE_MIN_VELOCITY) {
                 out.normalize();
-                out = out * 120.0f;
+                out = out * TRAP_BOUNCE_MIN_VELOCITY;
             }
             ent->velocity = out;
             ent->avelocity = { crandom() * 240, crandom() * 240, crandom() * 240 };
@@ -311,7 +329,7 @@ bool HandleTrapAnimation(edict_t* ent) {
 
             ent->delay += 2.f;
 
-            if (ent->wait < 19)
+            if (ent->wait < TRAP_WAIT_ANIMATION_END)
                 ent->s.frame++;
 
             return true;
@@ -322,9 +340,17 @@ bool HandleTrapAnimation(edict_t* ent) {
             // Get trap data
             trap_state_t* trap_state = GetTrapState(ent);
             if (trap_state) {
+                // CRITICAL FIX: Free any remaining gibs when entering cooldown
+                for (edict_t* gib : trap_state->owned_gibs) {
+                    if (gib && gib->inuse) {
+                        G_FreeEdict(gib);
+                    }
+                }
+                trap_state->owned_gibs.clear();
+
                 // Set cooldown instead of freeing
                 trap_state->in_cooldown = true;
-                trap_state->cooldown_end = level.time + 10_sec; // Use literal directly
+                trap_state->cooldown_end = level.time + TRAP_COOLDOWN_DURATION;
 
                 // Reset trap state
                 ent->s.frame = 0;
@@ -428,33 +454,12 @@ void FindTrapTargets(edict_t* ent, trap_state_t* trap_state) {
         }
     }
 
-    // Sort targets by distance ( for small array)
+    // PERFORMANCE: Sort targets by distance using std::sort for cleaner code
     if (trap_state->num_targets > 1) {
-        if (trap_state->num_targets == 2) {
-            if (trap_state->targets[0].distance > trap_state->targets[1].distance) {
-                trap_target_state_t temp = trap_state->targets[0]; // CORRECTED
-                trap_state->targets[0] = trap_state->targets[1];
-                trap_state->targets[1] = temp;
-            }
-        }
-        else if (trap_state->num_targets == 3) {
-            if (trap_state->targets[0].distance > trap_state->targets[1].distance) {
-                trap_target_state_t temp = trap_state->targets[0]; // CORRECTED
-                trap_state->targets[0] = trap_state->targets[1];
-                trap_state->targets[1] = temp;
-            }
-            if (trap_state->targets[1].distance > trap_state->targets[2].distance) {
-                trap_target_state_t temp = trap_state->targets[1]; // CORRECTED
-                trap_state->targets[1] = trap_state->targets[2];
-                trap_state->targets[2] = temp;
-
-                if (trap_state->targets[0].distance > trap_state->targets[1].distance) {
-                    trap_target_state_t temp = trap_state->targets[0]; // CORRECTED
-                    trap_state->targets[0] = trap_state->targets[1];
-                    trap_state->targets[1] = temp;
-                }
-            }
-        }
+        std::sort(trap_state->targets, trap_state->targets + trap_state->num_targets,
+            [](const trap_target_state_t& a, const trap_target_state_t& b) {
+                return a.distance < b.distance;
+            });
     }
 }
 
@@ -490,7 +495,11 @@ void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
     // ok spawn the food cube
     ent->s.frame = TRAP_FRAME_CONSUME;
 
-    // link up any gibs that this monster may have spawned
+    // PERFORMANCE IMPROVEMENT & BUG FIX: Track gibs in vector and enforce lifetime
+    trap_state_t* trap_state = GetTrapState(ent);
+    gtime_t gib_expire_time = level.time + TRAP_GIB_LIFETIME;
+
+    // Link up any gibs that this monster may have spawned
     for (uint32_t i = 0; i < globals.num_edicts; i++) {
         edict_t* e = &g_edicts[i];
 
@@ -505,6 +514,13 @@ void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
         e->nextthink = level.time + FRAME_TIME_S;
         e->think = Trap_Gib_Think;
         e->owner = ent;
+        e->timestamp = gib_expire_time;  // CRITICAL FIX: Set expiration time
+
+        // Track this gib for fast cleanup
+        if (trap_state) {
+            trap_state->owned_gibs.push_back(e);
+        }
+
         Trap_Gib_Think(e);
     }
 }
@@ -522,43 +538,36 @@ bool ProcessTrapTargets(edict_t* ent, trap_state_t* trap_state) {
     bool consumed_target = false;
 
     for (int i = 0; i < trap_state->num_targets; i++) {
-        // --- CORRECTED: Get edict from entity number ---
         edict_t* target = &g_edicts[trap_state->targets[i].entity_num];
-        float len = trap_state->targets[i].distance;
+        const float len = trap_state->targets[i].distance;
 
         if (!target || !target->inuse)
             continue;
 
-        if (consumed_target && len < TRAP_CONSUME_DISTANCE) {
-            if (target->groundentity) {
-                target->s.origin[2] += 1;
-                target->groundentity = nullptr;
-            }
-            vec3_t vec = ent->s.origin - target->s.origin;
-            float vec_len = vec.normalize();
-            const float max_speed = target->client ? 290.f : 190.f;
-            target->velocity += (vec * clamp(max_speed - vec_len, 64.f, max_speed));
-            continue;
-        }
-
+        // Lift target off ground to enable pulling
         if (target->groundentity) {
             target->s.origin[2] += 1;
             target->groundentity = nullptr;
         }
 
+        // PERFORMANCE: Calculate direction vector once
         vec3_t vec = ent->s.origin - target->s.origin;
         float vec_len = vec.normalize();
-        const float max_speed = target->client ? 290.f : 210.f;
-        target->velocity += (vec * clamp(max_speed - vec_len, 64.f, max_speed));
 
+        // Determine pull speed based on target type and consumption state
+        const float max_speed = target->client ? TRAP_PULL_SPEED_PLAYER :
+                               (consumed_target ? 190.0f : TRAP_PULL_SPEED_MONSTER);
+        target->velocity += (vec * clamp(max_speed - vec_len, TRAP_PULL_SPEED_MIN, max_speed));
+
+        // Only the first target gets sound and sparks
         if (i == 0) {
             ent->s.sound = gi.soundindex("weapons/trapsuck.wav");
+            ent->enemy = target;
+            trap_throwsparks(ent, target);
         }
 
-        ent->enemy = target;
-        trap_throwsparks(ent, target);
-
-        if (len < TRAP_CONSUME_DISTANCE && !consumed_target)
+        // Check for consumption (only for non-consumed targets within range)
+        if (!consumed_target && len < TRAP_CONSUME_DISTANCE)
         {
             if (target->mass < TRAP_MAX_TARGET_MASS)
             {

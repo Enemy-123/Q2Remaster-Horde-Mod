@@ -25,6 +25,7 @@ struct trap_state_t {
     int                 num_targets;
     bool                in_cooldown;
     gtime_t             cooldown_end;
+    std::vector<edict_t*> owned_gibs;  // Track gibs owned by this trap for fast cleanup
 
     // Helper to reset the state to its default values
     void clear() {
@@ -35,6 +36,7 @@ struct trap_state_t {
         num_targets = 0;
         in_cooldown = false;
         cooldown_end = 0_sec;
+        owned_gibs.clear();
     }
 };
 

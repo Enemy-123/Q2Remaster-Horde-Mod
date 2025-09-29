@@ -17,18 +17,21 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float TESLA_EXPLOSION_RADIUS = 200;
 
-// Constantes para ajustar el comportamiento del rebote
-constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f; // Multiplicador base del rebote
-constexpr float TESLA_MIN_BOUNCE_SPEED = 120.0f; // Velocidad mínima después de un rebote
-constexpr float TESLA_BOUNCE_RANDOM = 70.0f;	 // Factor de aleatoriedad en el rebote
-constexpr float TESLA_VERTICAL_BOOST = 180.0f;	 // Impulso vertical adicional
+// Constants to adjust bounce behavior
+constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f; // Base bounce multiplier
+constexpr float TESLA_MIN_BOUNCE_SPEED = 120.0f; // Minimum speed after a bounce
+constexpr float TESLA_BOUNCE_RANDOM = 70.0f;	 // Randomness factor in bounce
+constexpr float TESLA_VERTICAL_BOOST = 180.0f;	 // Additional vertical impulse
 
 // Offsets for Tesla positioning
-constexpr float TESLA_WALL_OFFSET = 3.0f;		// Offset para paredes
-constexpr float TESLA_CEILING_OFFSET = -20.4f;	// Offset optimizado para techos
-constexpr float TESLA_FLOOR_OFFSET = -12.0f;	// Offset para suelo
-constexpr float TESLA_ORB_OFFSET = 12.0f;		// Altura de la esfera normal
-constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f; // Altura de la esfera cuando está en techo
+constexpr float TESLA_WALL_OFFSET = 3.0f;		// Offset for walls
+constexpr float TESLA_WALL_HEIGHT_ADJUST = 16.0f;  // Height adjustment for wall-mounted teslas
+constexpr float TESLA_CEILING_OFFSET = -20.4f;	// Optimized offset for ceilings
+constexpr float TESLA_CEILING_FINE_ADJUST = 4.0f;  // Fine adjustment for ceiling positioning
+constexpr float TESLA_FLOOR_OFFSET = -12.0f;	// Offset for floor
+constexpr float TESLA_ORB_OFFSET = 12.0f;		// Height of normal sphere
+constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f; // Height of sphere when on ceiling
+constexpr float TESLA_POSITION_OFFSET = 16.0f;  // General positioning offset for tesla body
 
 // Network message limiting
 constexpr int MAX_TESLA_MESSAGES_PER_FRAME = 12; // Limit messages per frame to prevent overflow
@@ -59,9 +62,6 @@ void tesla_remove(edict_t *self)
 	if ((self->dmg_radius) && (self->dmg > (TESLA_DAMAGE * TESLA_EXPLOSION_DAMAGE_MULT)))
 		gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
-	// Remove from effect tracking - THIS LINE IS REMOVED
-	// tesla_effect_states.erase(self);
-
 	Grenade_Explode(self);
 }
 
@@ -69,7 +69,6 @@ DIE(tesla_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 {
 	auto& vec = g_targetable_special_entities;
     vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
-	// OnEntityDeath(self);
 	tesla_remove(self);
 }
 
@@ -80,40 +79,28 @@ void tesla_blow(edict_t *self)
 	tesla_remove(self);
 }
 
-TOUCH(tesla_zap)(edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self)->void
-{
-	// Ignorar el contacto si el otro es un jugador
-	if (other->client)
-	{
-		return;
-	}
-
-	// Código existente para manejar el contacto aquí
-}
-
 // Function to cache the ray origin calculation
-static vec3_t calculate_tesla_ray_origin(const edict_t *self)
+// forward, right, up: pre-computed angle vectors to avoid redundant AngleVectors calls
+static vec3_t calculate_tesla_ray_origin(const edict_t *self, const vec3_t &forward, const vec3_t &right, const vec3_t &up)
 {
 	vec3_t ray_origin = self->s.origin;
-	vec3_t forward, right, up;
-	AngleVectors(self->s.angles, forward, right, up);
 
-	// En pared
+	// On wall
 	if (fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135)
 	{
-		// Primero, mover hacia afuera de la pared
+		// First, move outward from wall
 		ray_origin = ray_origin + (forward * TESLA_WALL_OFFSET);
 
-		// Ajustar la altura de manera consistente
-		ray_origin = ray_origin + (up * 16.0f);
+		// Adjust height consistently
+		ray_origin = ray_origin + (up * TESLA_WALL_HEIGHT_ADJUST);
 	}
-	// En techo
+	// On ceiling
 	else if (fabs(self->s.angles[PITCH]) > 150 || fabs(self->s.angles[PITCH]) < -150)
 	{
 		ray_origin = ray_origin - (up * TESLA_ORB_OFFSET_CEIL);
-		ray_origin = ray_origin - (up * 4.0f);
+		ray_origin = ray_origin - (up * TESLA_CEILING_FINE_ADJUST);
 	}
-	// En suelo
+	// On floor
 	else
 	{
 		ray_origin = ray_origin + (up * TESLA_ORB_OFFSET);
@@ -138,9 +125,9 @@ vec3_t calculate_tesla_ray_target(const edict_t *self, const edict_t *target)
 }
 
 // Fast trace function with caching
-bool tesla_ray_trace(const edict_t *self, const edict_t *target, trace_t &tr)
+bool tesla_ray_trace(const edict_t *self, const edict_t *target, trace_t &tr, const vec3_t &forward, const vec3_t &right, const vec3_t &up)
 {
-	vec3_t const ray_start = calculate_tesla_ray_origin(self);
+	vec3_t const ray_start = calculate_tesla_ray_origin(self, forward, right, up);
 	vec3_t const ray_end = calculate_tesla_ray_target(self, target);
 
 	// Perform the trace
@@ -151,15 +138,16 @@ bool tesla_ray_trace(const edict_t *self, const edict_t *target, trace_t &tr)
 }
 
 // Target priority struct
-struct TeslaTarget
+struct tesla_target
 {
 	edict_t *ent;
 	float priority;
 	float dist_squared;
+	trace_t trace;  // Cache trace result to avoid duplicate ray traces
 };
 
 //  target validation
-bool IsValidTeslaTarget(edict_t *self, edict_t *ent)
+bool is_valid_tesla_target(edict_t *self, edict_t *ent)
 {
 	if (!ent || !ent->inuse || ent == self ||
 		ent->health <= 0 || ent->deadflag ||
@@ -200,7 +188,7 @@ bool IsValidTeslaTarget(edict_t *self, edict_t *ent)
 }
 
 // Target priority calculation
-float CalculateTeslaPriority(edict_t *self, edict_t *target, float dist_squared)
+float calculate_tesla_priority(edict_t *self, edict_t *target, float dist_squared)
 {
 	float priority = 1.0f / (dist_squared + 1.0f);
 
@@ -212,10 +200,10 @@ float CalculateTeslaPriority(edict_t *self, edict_t *target, float dist_squared)
 }
 
 // Chain target validation - excludes entities that are already being attacked by the tesla
-bool IsValidChainTarget(edict_t *self, edict_t *ent, const TeslaTarget *tesla_targets, int num_tesla_targets)
+bool is_valid_chain_target(edict_t *self, edict_t *ent, const tesla_target *tesla_targets, int num_tesla_targets)
 {
 	// Basic validation first
-	if (!IsValidTeslaTarget(self, ent))
+	if (!is_valid_tesla_target(self, ent))
 		return false;
 
 	// Exclude entities that are already being targeted by the tesla
@@ -229,7 +217,7 @@ bool IsValidChainTarget(edict_t *self, edict_t *ent, const TeslaTarget *tesla_ta
 }
 
 // Helper for sending tesla effect
-bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start, const vec3_t &ray_end)
+bool try_send_tesla_effect(edict_t *self, edict_t *target, const vec3_t &ray_start, const vec3_t &ray_end)
 {
 	// Reset counter if we're in a new frame
 	if (tesla_message_frame_time != level.time)
@@ -283,7 +271,7 @@ bool TrySendTeslaEffect(edict_t *self, edict_t *target, const vec3_t &ray_start,
 }
 
 // Helper for sending chain lightning effects
-bool TrySendChainLightningEffect(edict_t *tesla_source, edict_t *chain_target, const vec3_t &chain_start, const vec3_t &chain_end)
+bool try_send_chain_lightning_effect(edict_t *tesla_source, edict_t *chain_target, const vec3_t &chain_start, const vec3_t &chain_end)
 {
 	// DEBUGGING: Remove ALL rate limiting to isolate the visibility issue
 	
@@ -300,7 +288,9 @@ bool TrySendChainLightningEffect(edict_t *tesla_source, edict_t *chain_target, c
 }
 
 // Main chain lightning function - spreads lightning from tesla victims to nearby enemies
-void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int num_victims, const vec3_t &cached_ray_origin)
+// nearby_entities: cached entity list from tesla's grid query (avoids duplicate queries)
+template<typename EntityContainer>
+void tesla_chain_lightning(edict_t *self, const tesla_target *tesla_victims, int num_victims, const vec3_t &cached_ray_origin, const EntityContainer &nearby_entities)
 {
 	if (!self || num_victims <= 0)
 		return;
@@ -316,11 +306,10 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 		if (!victim || !victim->inuse || victim->health <= 0)
 			continue;
 
-		// Find chain targets around this victim
-		const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(victim->s.origin, CHAIN_LIGHTNING_RANGE);
-		
+		// Reuse the nearby entities from the main tesla query instead of re-querying
+		// Only filter for entities near THIS victim
 		int chains_from_this_victim = 0;
-		const float max_range_squared = CHAIN_LIGHTNING_RANGE * CHAIN_LIGHTNING_RANGE;
+		const float max_chain_range_squared = CHAIN_LIGHTNING_RANGE * CHAIN_LIGHTNING_RANGE;
 
 		for (auto* potential_chain_target : nearby_entities)
 		{
@@ -332,12 +321,12 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 				continue;
 
 			// Validate the chain target (excludes original tesla targets)
-			if (!IsValidChainTarget(self, potential_chain_target, tesla_victims, num_victims))
+			if (!is_valid_chain_target(self, potential_chain_target, tesla_victims, num_victims))
 				continue;
 
-			// Distance check
+			// Distance check from victim to potential chain target
 			float dist_squared = DistanceSquared(victim->s.origin, potential_chain_target->s.origin);
-			if (dist_squared > max_range_squared)
+			if (dist_squared > max_chain_range_squared)
 				continue;
 
 			// Visibility check from victim to chain target
@@ -357,7 +346,7 @@ void tesla_chain_lightning(edict_t *self, const TeslaTarget *tesla_victims, int 
 				chain_damage, TESLA_KNOCKBACK / 2, DAMAGE_NO_ARMOR, MOD_TESLA);
 
 			// Send chain lightning visual effect from victim to chain target
-			if (TrySendChainLightningEffect(self, potential_chain_target, chain_start, chain_end))
+			if (try_send_chain_lightning_effect(self, potential_chain_target, chain_start, chain_end))
 			{
 				chains_from_this_victim++;
 			}
@@ -400,17 +389,17 @@ THINK(tesla_think_active)(edict_t* self)->void
 
 	if (is_on_wall)
 	{
-		start = start + (forward * 16);
+		start = start + (forward * TESLA_POSITION_OFFSET);
 	}
 	else
 	{
 		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150)
 		{
-			start = start + (up * -16);
+			start = start + (up * -TESLA_POSITION_OFFSET);
 		}
 		else
 		{
-			start = start + (up * 16);
+			start = start + (up * TESLA_POSITION_OFFSET);
 		}
 	}
 
@@ -421,11 +410,11 @@ THINK(tesla_think_active)(edict_t* self)->void
 
 	// Fixed-size array for potential targets (no dynamic allocation)
 	constexpr int MAX_POTENTIAL_TARGETS = 10;
-	TeslaTarget potential_targets[MAX_POTENTIAL_TARGETS];
+	tesla_target potential_targets[MAX_POTENTIAL_TARGETS];
 	int num_targets = 0;
 
-	// Cache the ray origin for this frame
-	vec3_t ray_origin = calculate_tesla_ray_origin(self);
+	// Cache the ray origin for this frame (pass pre-computed vectors to avoid redundant AngleVectors call)
+	vec3_t ray_origin = calculate_tesla_ray_origin(self, forward, right, up);
 
 	// --- THE OPTIMIZATION: Use the Grid instead of a linear scan ---
 	// Get a pre-filtered list of nearby entities (monsters, players, projectiles) from the grid.
@@ -440,7 +429,7 @@ THINK(tesla_think_active)(edict_t* self)->void
 		if (!(ent->svflags & SVF_MONSTER))
 			continue;
 
-		if (!IsValidTeslaTarget(self, ent))
+		if (!is_valid_tesla_target(self, ent))
 			continue;
 
 		// The grid gives a square area, so we still need a precise distance check.
@@ -453,21 +442,23 @@ THINK(tesla_think_active)(edict_t* self)->void
 			continue;
 
 		trace_t tr;
-		if (!tesla_ray_trace(self, ent, tr))
+		if (!tesla_ray_trace(self, ent, tr, forward, right, up))
 			continue;
 
 		// This is a valid target, add it to our list for sorting.
+		// Store the trace result to avoid re-tracing during attack phase
 		potential_targets[num_targets++] = {
 			ent,
-			CalculateTeslaPriority(self, ent, dist_squared),
-			dist_squared };
+			calculate_tesla_priority(self, ent, dist_squared),
+			dist_squared,
+			tr };
 	}
 	// --- END OF OPTIMIZATION ---
 
 	// Simple insertion sort (more efficient for small arrays)
 	for (int i = 1; i < num_targets; i++)
 	{
-		TeslaTarget key = potential_targets[i];
+		tesla_target key = potential_targets[i];
 		int j = i - 1;
 		while (j >= 0 && potential_targets[j].priority < key.priority)
 		{
@@ -478,36 +469,36 @@ THINK(tesla_think_active)(edict_t* self)->void
 	}
 
 	// Attack phase - collect successfully attacked targets for chain lightning
-	TeslaTarget attacked_victims[max_targets];
+	tesla_target attacked_victims[max_targets];
 	int victims_count = 0;
 
 	for (int i = 0; i < num_targets && victims_count < max_targets; i++)
 	{
 		const auto& target = potential_targets[i];
 
-		trace_t tr;
-		if (tesla_ray_trace(self, target.ent, tr))
-		{
-			vec3_t ray_end = tr.endpos;
-			vec3_t dir = ray_end - ray_origin;
-			dir.normalize();
+		// Use cached trace result from target acquisition (no need to trace again)
+		const trace_t &tr = target.trace;
 
-			T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
+		vec3_t ray_end = tr.endpos;
+		vec3_t dir = ray_end - ray_origin;
+		dir.normalize();
 
-			// Always add successfully damaged targets to chain lightning victims
-			attacked_victims[victims_count] = target;
-			victims_count++;
+		T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
+			self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-			// Try to send the visual effect independently (best effort)
-			TrySendTeslaEffect(self, target.ent, ray_origin, ray_end);
-		}
+		// Always add successfully damaged targets to chain lightning victims
+		attacked_victims[victims_count] = target;
+		victims_count++;
+
+		// Try to send the visual effect independently (best effort)
+		try_send_tesla_effect(self, target.ent, ray_origin, ray_end);
 	}
 
 	// Chain Lightning Phase - spread lightning from victims to nearby enemies
+	// Pass the cached nearby_entities list to avoid duplicate grid queries
 	if (victims_count > 0)
 	{
-		tesla_chain_lightning(self, attacked_victims, victims_count, ray_origin);
+		tesla_chain_lightning(self, attacked_victims, victims_count, ray_origin, nearby_entities);
 	}
 
 	// Stagger think times to distribute processing load
@@ -659,7 +650,7 @@ TOUCH(tesla_lava)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_to
 		{
 			if (tr.plane.normal[2] > 0)
 			{
-				// Suelo
+				// Floor
 				ent->s.angles = {};
 				ent->mins = {-4, -4, 0};
 				ent->maxs = {4, 4, 8};
@@ -668,7 +659,7 @@ TOUCH(tesla_lava)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_to
 			}
 			else
 			{
-				// Techo
+				// Ceiling
 				ent->s.angles = {180, 0, 0};
 				ent->mins = {-4, -4, -8};
 				ent->maxs = {4, 4, 0};
@@ -682,12 +673,12 @@ TOUCH(tesla_lava)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_to
 			vec3_t forward;
 			AngleVectors(dir, &forward, nullptr, nullptr);
 
-			// Detectar si es una pared "plana" basándonos en los componentes X/Y de la normal
+			// Detect if it's a flat wall based on the X/Y components of the normal
 			bool is_flat_wall = (fabs(tr.plane.normal[0]) > 0.95f || fabs(tr.plane.normal[1]) > 0.95f);
 
 			if (is_flat_wall)
 			{
-				// Usar el comportamiento original para paredes planas
+				// Use original behavior for flat walls
 				ent->s.angles[PITCH] = dir[PITCH] + 90;
 				ent->s.angles[YAW] = dir[YAW];
 				ent->s.angles[ROLL] = 0;
@@ -697,7 +688,7 @@ TOUCH(tesla_lava)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_to
 			}
 			else
 			{
-				// Usar el comportamiento nuevo para superficies curvas/inclinadas
+				// Use new behavior for curved/sloped surfaces
 				ent->s.angles = dir;
 				ent->s.angles[PITCH] += 90;
 				ent->mins = {-4, -4, -4};
@@ -724,15 +715,6 @@ TOUCH(tesla_lava)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_to
 	ent->nextthink = level.time;
 	gi.linkentity(ent);
 }
-
-// Función para contar y manejar el número de teslas de un jugador
-void check_player_tesla_limit(edict_t *self)
-{
-}
-
-// Network throttling for tesla effects to prevent overflow
-static gtime_t last_tesla_network_update[MAX_EDICTS];
-constexpr gtime_t TESLA_NETWORK_THROTTLE = 100_ms;  // Only send updates every 100ms
 
 void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int tesla_damage_multiplier, int speed)
 {
@@ -834,7 +816,6 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 
 	tesla->flags |= FL_MECHANICAL;
 
-	// horde::IsSpecialType(tesla, horde::SpecialEntityTypeID::TESLA_MINE);
     g_targetable_special_entities.push_back(tesla);
 	// Initialize effect tracking fields
 	tesla->monsterinfo.attack_finished = level.time;
