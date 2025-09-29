@@ -1067,10 +1067,32 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
 			}
+
+			// IMPORTANT: Give starting ammo ONLY for players joining mid-wave
+			// This prevents ammo accumulation on respawn after death
+			if (!client->pers.spawned) {
+				// Give modest starting ammo for late-joining players
+				// Enough to defend themselves but not overpowered
+				
+				// Basic ammo for common weapons
+				client->pers.inventory[AMMO_BULLETS] = 100;   // For machinegun/chaingun
+				client->pers.inventory[AMMO_SHELLS] = 20;     // For shotgun/sshotgun  
+				client->pers.inventory[AMMO_FLECHETTES] = 50; // For ETF rifle
+				client->pers.inventory[AMMO_PROX] = 10;       // For prox launcher
+				
+				// Advanced loadout ammo (only if wave 13+)
+				if (give_advanced) {
+					client->pers.inventory[AMMO_GRENADES] = 10;  // For grenade launcher
+					client->pers.inventory[AMMO_ROCKETS] = 10;   // For rocket launcher
+				}
+				
+				// Notify player about starting ammo
+				gi.LocClient_Print(ent, PRINT_HIGH, 
+					"Late join: You've been given starting weapons and ammo based on current wave!\n");
+			}
 		}
 	}
-	// Note: Initial ammo amounts for these weapons are usually granted via Player_GiveStartItems
-	// or when the weapon is first selected if ammo is 0. This logic only ensures the player *has* the weapon item.
+	// Note: Players who die and respawn will keep their collected ammo but won't get extra
 }
 
 
