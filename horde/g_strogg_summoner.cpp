@@ -161,31 +161,31 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	int monster_type = irandom(100);
 	horde::MonsterTypeID selected_type = horde::MonsterTypeID::UNKNOWN;
 
-	if (monster_type < 20) {
+	if (monster_type < 13) {
 		selected_type = horde::MonsterTypeID::CHICK;
 		SP_monster_chick(monster);
 	}
-	else if (monster_type < 35) {
+	else if (monster_type < 26) {
 		selected_type = horde::MonsterTypeID::GUNNER;
 		SP_monster_gunner(monster);
 	}
-	else if (monster_type < 45) {
+	else if (monster_type < 39) {
 		selected_type = horde::MonsterTypeID::DAEDALUS_BOMBER;
 		SP_monster_tank(monster);
 	}
-	else if (monster_type < 55) {
+	else if (monster_type < 52) {
 		selected_type = horde::MonsterTypeID::MEDIC;
 		SP_monster_medic(monster);
 	}
-	else if (monster_type < 70) {
+	else if (monster_type < 65) {
 		selected_type = horde::MonsterTypeID::SHAMBLER_SMALL;
 		SP_monster_shambler_small(monster);
 	}
-	else if (monster_type < 85) {
+	else if (monster_type < 78) {
 		selected_type = horde::MonsterTypeID::INFANTRY;
 		SP_monster_infantry(monster);
 	}
-	else if (monster_type < 95) {
+	else if (monster_type < 91) {
 		selected_type = horde::MonsterTypeID::SPIDER;
 		SP_monster_spider(monster);
 	}
