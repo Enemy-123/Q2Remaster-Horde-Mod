@@ -177,7 +177,7 @@ void InitMonsterAntiStack(edict_t* ent)
 	{
 		ent->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 		ent->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
-		ent->monsterinfo.teleport_time = level.time + random_time(8_sec, 12_sec);
+		ent->teleport_time = level.time + random_time(8_sec, 12_sec);
 		ent->monsterinfo.no_enemy_timeout_start_time = 0_sec;
 	}
 }

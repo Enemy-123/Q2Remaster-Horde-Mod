@@ -55,50 +55,93 @@ extern void OnEntityRemoved(edict_t *ent);
 extern MonsterWaveType GetMonsterWaveTypes(horde::MonsterTypeID typeId);
 extern bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck) noexcept;
 
+// Boss spawning constants
+namespace {
+	// Wave configuration
+	constexpr int32_t MIN_BOSS_WAVE = 10;
+	constexpr int32_t BOSS_WAVE_INTERVAL = 5;
+
+	// Item drop physics
+	constexpr int32_t DROP_MIN_VELOCITY = -800;
+	constexpr int32_t DROP_MAX_VELOCITY = 800;
+	constexpr int32_t DROP_MIN_VERTICAL_VELOCITY = 400;
+	constexpr int32_t DROP_MAX_VERTICAL_VELOCITY = 950;
+	constexpr int32_t DROP_POWERUP_MIN_VERTICAL_VELOCITY = 300;
+	constexpr int32_t DROP_POWERUP_MAX_VERTICAL_VELOCITY = 400;
+
+	// Spawn effects
+	constexpr float SPAWN_GROW_BASE_SIZE_MULTIPLIER = 0.15f;
+	constexpr float SPAWN_GROW_MIN_BASE_SIZE = 100.0f;
+	constexpr float SPAWN_GROW_END_SIZE_MULTIPLIER = 0.01f;
+	constexpr gtime_t BOSS_SPAWN_DELAY = 750_ms;
+
+	// Teleportation cooldowns
+	constexpr gtime_t DROWNING_COOLDOWN_BOSS = 4500_ms;
+	constexpr gtime_t TRIGGER_HURT_RETRIGGER_COOLDOWN = 3000_ms;
+	constexpr gtime_t GENERAL_TELEPORT_COOLDOWN = 2500_ms;
+
+	// Spawn area clearing
+	constexpr int32_t PUSH_ITERATIONS = 3;
+	constexpr float PUSH_BASE_RADIUS = 768.0f;
+	constexpr float PUSH_BASE_STRENGTH = 1500.0f;
+	constexpr float PUSH_PLAYER_STRENGTH = 4500.0f;
+	constexpr float PUSH_MONSTER_STRENGTH = 2000.0f;
+
+	// Visual effects
+	constexpr float WEAPON_DROP_ALPHA = 0.85f;
+	constexpr float WEAPON_DROP_SCALE = 1.25f;
+	constexpr float POWERUP_DROP_ALPHA = 0.8f;
+	constexpr float POWERUP_DROP_SCALE = 1.5f;
+	constexpr float TELEPORT_EFFECT_SIZE = 100.0f;
+
+	// Boss announcement timing
+	constexpr gtime_t BOSS_ANNOUNCEMENT_DURATION = 4_sec;
+}
+
 // Boss data arrays
-static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small, BossType::CARRIER_MINI},
-														   {horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small, BossType::BOSS2KL},
-														   {horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-														   {horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Small, BossType::WIDOW2},
-														   {horde::MonsterTypeID::TANK_64, -1, -1, 0.25f, BossSizeCategory::Small, BossType::TANK_64},
-														   {horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Small, BossType::SHAMBLERKL},
-														   {horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Small, BossType::GUNCMDRKL},
-														   {horde::MonsterTypeID::MAKRON_KL, 36, -1, 0.2f, BossSizeCategory::Small, BossType::MAKRONKL},
-														   {horde::MonsterTypeID::MAKRON, 16, 26, 0.1f, BossSizeCategory::Small, BossType::OTHER},
-														   {horde::MonsterTypeID::PSX_ARACHNID, 15, -1, 0.1f, BossSizeCategory::Small, BossType::PSX_ARACHNID},
-														   {horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}}};
+static constexpr std::array<boss_t, 11> BOSS_SMALL_SRC = {{
+	{horde::MonsterTypeID::CARRIER_MINI, 24, -1, 0.1f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::BOSS2_KL, 24, -1, 0.1f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::TANK_64, -1, -1, 0.25f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::MAKRON_KL, 36, -1, 0.2f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::MAKRON, 16, 26, 0.1f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::PSX_ARACHNID, 15, -1, 0.1f, BossSizeCategory::Small},
+	{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small}
+}};
 
-static constexpr std::array<boss_t, 13> BOSS_MEDIUM_SRC = {{{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Medium, BossType::CARRIER},
-															{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Medium, BossType::BOSS2},
-															{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-															{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
-															{horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::TANK_64},
-															{horde::MonsterTypeID::SHAMBLER_KL, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::SHAMBLERKL},
-															{horde::MonsterTypeID::GUNCMDR_KL, 21, -1, 0.1f, BossSizeCategory::Medium, BossType::GUNCMDRKL},
-															{horde::MonsterTypeID::PSX_GUARDIAN, -1, 24, 0.1f, BossSizeCategory::Medium, BossType::PSX_GUARDIAN},
-															{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Medium, BossType::WIDOW2},
-															{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Medium, BossType::PSX_ARACHNID},
-															{horde::MonsterTypeID::MAKRON_KL, 26, -1, 0.2f, BossSizeCategory::Medium, BossType::MAKRONKL},
-															{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium, BossType::OTHER},
-															{horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT}}};
+static constexpr std::array<boss_t, 11> BOSS_MEDIUM_SRC = {{
+	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::GUNCMDR_KL, 21, -1, 0.1f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::PSX_GUARDIAN, -1, 24, 0.1f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::WIDOW2, 19, -1, 0.15f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::MAKRON_KL, 26, -1, 0.2f, BossSizeCategory::Medium},
+	{horde::MonsterTypeID::MAKRON, 16, 25, 0.1f, BossSizeCategory::Medium}
+}};
 
-static constexpr std::array<boss_t, 17> BOSS_LARGE_SRC = {{{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Large, BossType::CARRIER},
-														   {horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS2},
-														   {horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Small, BossType::FIXBOTKL},
-														   {horde::MonsterTypeID::BOSS5, -1, -1, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
-														   {horde::MonsterTypeID::TANK_64, -1, 20, 0.45f, BossSizeCategory::Large, BossType::TANK_64},
-														   {horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Large, BossType::SHAMBLERKL},
-														   {horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Large, BossType::GUNCMDRKL},
-														   {horde::MonsterTypeID::TANK_64, 21, -1, 0.1f, BossSizeCategory::Large, BossType::TANK_64},
-														   {horde::MonsterTypeID::SHAMBLER_KL, 21, -1, 0.1f, BossSizeCategory::Large, BossType::SHAMBLERKL},
-														   {horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_ARACHNID},
-														   {horde::MonsterTypeID::WIDOW, -1, -1, 0.1f, BossSizeCategory::Large, BossType::WIDOW},
-														   {horde::MonsterTypeID::PSX_GUARDIAN, -1, -1, 0.1f, BossSizeCategory::Large, BossType::PSX_GUARDIAN},
-														   {horde::MonsterTypeID::BOSS5, -1, 24, 0.1f, BossSizeCategory::Large, BossType::BOSS5},
-														   {horde::MonsterTypeID::JORG, 30, -1, 0.15f, BossSizeCategory::Large, BossType::JORG},
-														   {horde::MonsterTypeID::MAKRON_KL, 30, -1, 0.2f, BossSizeCategory::Large, BossType::MAKRONKL},
-														   {horde::MonsterTypeID::REDMUTANT, -1, 24, 0.1f, BossSizeCategory::Small, BossType::REDMUTANT},
-														   {horde::MonsterTypeID::WIDOW2, -1, 24, 0.19f, BossSizeCategory::Small, BossType::WIDOW2}}};
+static constexpr std::array<boss_t, 13> BOSS_LARGE_SRC = {{
+	{horde::MonsterTypeID::CARRIER, 24, -1, 0.1f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::BOSS2, 19, -1, 0.1f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::FIXBOT_KL, 9, -1, 0.4f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::BOSS5, -1, -1, 0.1f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::TANK_64, -1, 20, 0.45f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::SHAMBLER_KL, -1, 20, 0.3f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::GUNCMDR_KL, -1, 20, 0.3f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::PSX_ARACHNID, 14, -1, 0.1f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::WIDOW, -1, -1, 0.1f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::PSX_GUARDIAN, -1, -1, 0.1f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::JORG, 30, -1, 0.15f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::MAKRON_KL, 30, -1, 0.2f, BossSizeCategory::Large},
+	{horde::MonsterTypeID::WIDOW2, 25, -1, 0.15f, BossSizeCategory::Large}
+}};
 
 // Compile-time transformation function
 template <size_t N>
@@ -296,29 +339,37 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		float cumulativeWeight;
 	};
 
-	std::array<WeightedBoss, BossEligibilityCache::MAX_ELIGIBLE_BOSSES> weightedBosses{};
-	size_t weightedCount = 0;
-	float totalWeight = 0.0f;
+	// Lambda to build weighted boss list
+	auto build_weighted_list = [&](bool exclude_recent) {
+		std::array<WeightedBoss, BossEligibilityCache::MAX_ELIGIBLE_BOSSES> weighted_list{};
+		size_t count = 0;
+		float total_weight = 0.0f;
+
+		for (size_t i = 0; i < eligibilityData.count; ++i)
+		{
+			const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
+			const horde::MonsterTypeID bossTypeId = boss_list_soa->typeIds[boss_index_in_soa];
+
+			// Skip recent bosses if requested
+			if (exclude_recent && recent_bosses.contains(bossTypeId))
+				continue;
+
+			float weight = boss_list_soa->weights[boss_index_in_soa];
+			if (weight > 0.0f)
+			{
+				total_weight += weight;
+				weighted_list[count].index_in_soa = boss_index_in_soa;
+				weighted_list[count].weight = weight;
+				weighted_list[count].cumulativeWeight = total_weight;
+				count++;
+			}
+		}
+
+		return std::make_tuple(weighted_list, count, total_weight);
+	};
 
 	// First pass: try to find bosses not in recent history
-	for (size_t i = 0; i < eligibilityData.count; ++i)
-	{
-		const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
-		const horde::MonsterTypeID bossTypeId = boss_list_soa->typeIds[boss_index_in_soa];
-
-		if (recent_bosses.contains(bossTypeId))
-			continue;
-
-		float weight = boss_list_soa->weights[boss_index_in_soa];
-		if (weight > 0.0f)
-		{
-			totalWeight += weight;
-			weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
-			weightedBosses[weightedCount].weight = weight;
-			weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-			weightedCount++;
-		}
-	}
+	auto [weightedBosses, weightedCount, totalWeight] = build_weighted_list(true);
 
 	// If no non-recent bosses found, use all eligible bosses
 	if (weightedCount == 0)
@@ -326,20 +377,7 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		if (developer && developer->integer)
 			gi.Com_PrintFmt("INFO: No non-recent bosses eligible, ignoring history for this pick.\n");
 
-		for (size_t i = 0; i < eligibilityData.count; ++i)
-		{
-			const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
-
-			float weight = boss_list_soa->weights[boss_index_in_soa];
-			if (weight > 0.0f)
-			{
-				totalWeight += weight;
-				weightedBosses[weightedCount].index_in_soa = boss_index_in_soa;
-				weightedBosses[weightedCount].weight = weight;
-				weightedBosses[weightedCount].cumulativeWeight = totalWeight;
-				weightedCount++;
-			}
-		}
+		std::tie(weightedBosses, weightedCount, totalWeight) = build_weighted_list(false);
 	}
 
 	if (weightedCount == 0)
@@ -418,12 +456,6 @@ item_id_t SelectBossWeaponDrop(int32_t wave_level)
 	return boss_weapon_drops[chosen_weapon_array_index].first;
 }
 
-// Constants for item dropping physics
-constexpr int MIN_VELOCITY = -800;
-constexpr int MAX_VELOCITY = 800;
-constexpr int MIN_VERTICAL_VELOCITY = 400;
-constexpr int MAX_VERTICAL_VELOCITY = 950;
-
 void BossDeathHandler(edict_t *boss)
 {
 	// Fast early-out with combined validation
@@ -464,14 +496,14 @@ void BossDeathHandler(edict_t *boss)
 			{
 				weapon->s.origin = boss->s.origin;
 				weapon->velocity = {
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY))};
+					static_cast<float>(irandom(DROP_MIN_VELOCITY, DROP_MAX_VELOCITY)),
+					static_cast<float>(irandom(DROP_MIN_VELOCITY, DROP_MAX_VELOCITY)),
+					static_cast<float>(irandom(DROP_MIN_VERTICAL_VELOCITY, DROP_MAX_VERTICAL_VELOCITY))};
 				weapon->movetype = MOVETYPE_BOUNCE;
 				weapon->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
 				weapon->s.renderfx = RF_GLOW;
-				weapon->s.alpha = 0.85f;
-				weapon->s.scale = 1.25f;
+				weapon->s.alpha = WEAPON_DROP_ALPHA;
+				weapon->s.scale = WEAPON_DROP_SCALE;
 				weapon->spawnflags = SPAWNFLAG_ITEM_DROPPED_PLAYER;
 				weapon->flags &= ~FL_RESPAWN;
 				gi.linkentity(weapon);
@@ -487,13 +519,13 @@ void BossDeathHandler(edict_t *boss)
 		{
 			powerup->s.origin = boss->s.origin;
 			powerup->velocity = {
-				static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-				static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-				static_cast<float>(irandom(300, 400))};
+				static_cast<float>(irandom(DROP_MIN_VELOCITY, DROP_MAX_VELOCITY)),
+				static_cast<float>(irandom(DROP_MIN_VELOCITY, DROP_MAX_VELOCITY)),
+				static_cast<float>(irandom(DROP_POWERUP_MIN_VERTICAL_VELOCITY, DROP_POWERUP_MAX_VERTICAL_VELOCITY))};
 			powerup->movetype = MOVETYPE_BOUNCE;
 			powerup->s.effects = EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
-			powerup->s.alpha = 0.8f;
-			powerup->s.scale = 1.5f;
+			powerup->s.alpha = POWERUP_DROP_ALPHA;
+			powerup->s.scale = POWERUP_DROP_SCALE;
 			powerup->flags &= ~FL_RESPAWN;
 			powerup->spawnflags = SPAWNFLAG_ITEM_DROPPED_PLAYER;
 			gi.linkentity(powerup);
@@ -515,9 +547,9 @@ void BossDeathHandler(edict_t *boss)
 			{
 				drop->s.origin = boss->s.origin;
 				drop->velocity = {
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VELOCITY, MAX_VELOCITY)),
-					static_cast<float>(irandom(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY))};
+					static_cast<float>(irandom(DROP_MIN_VELOCITY, DROP_MAX_VELOCITY)),
+					static_cast<float>(irandom(DROP_MIN_VELOCITY, DROP_MAX_VELOCITY)),
+					static_cast<float>(irandom(DROP_MIN_VERTICAL_VELOCITY, DROP_MAX_VERTICAL_VELOCITY))};
 				drop->movetype = MOVETYPE_BOUNCE;
 				drop->flags &= ~FL_RESPAWN;
 				drop->s.effects |= EF_GIB;
@@ -701,7 +733,7 @@ void SpawnBossAutomatically()
 	}
 
 	// Basic wave check
-	if (current_wave_level < 10 || current_wave_level % 5 != 0) {
+	if (current_wave_level < MIN_BOSS_WAVE || current_wave_level % BOSS_WAVE_INTERVAL != 0) {
 		boss_spawned_for_wave = false;
 		return;
 	}
@@ -734,7 +766,7 @@ void SpawnBossAutomatically()
 
 	// Clear spawn area and push entities away
 	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
-	PushEntitiesAway(spawn_origin, 3, 768.0f, 1500.0f, 4500.0f, 2000.0f);
+	PushEntitiesAway(spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
 
 	// Validate spawn location
 	const auto validation = IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId));
@@ -772,8 +804,8 @@ void SpawnBossAutomatically()
 	boss->bossSizeCategory = boss_pick_result.sizeCategory;
 	boss->owner = orb;
 
-	// Set the think function to run in 750ms
-	boss->nextthink = level.time + 750_ms;
+	// Set the think function to run after spawn delay
+	boss->nextthink = level.time + BOSS_SPAWN_DELAY;
 	boss->think = BossSpawnThink;
 	gi.linkentity(boss);
 }
@@ -826,7 +858,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 		const char *random_phrase = arrival_phrases[static_cast<size_t>(irandom(static_cast<int32_t>(arrival_phrases.size())))];
 
 		auto announce_message = G_Fmt("\nBOSS: {} {}", boss_display_name, random_phrase);
-		AppendHordeMessage(announce_message.data(), 4_sec);
+		AppendHordeMessage(announce_message.data(), BOSS_ANNOUNCEMENT_DURATION);
 	}
 
 	self->solid = SOLID_BBOX;
@@ -840,8 +872,8 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	{
 		const vec3_t spawn_pos = self->s.origin;
 		const float magnitude = spawn_pos.length();
-		const float base_size = std::max(100.0f, magnitude * 0.15f);
-		const float end_size = base_size * 0.01f;
+		const float base_size = std::max(SPAWN_GROW_MIN_BASE_SIZE, magnitude * SPAWN_GROW_BASE_SIZE_MULTIPLIER);
+		const float end_size = base_size * SPAWN_GROW_END_SIZE_MULTIPLIER;
 		ImprovedSpawnGrow(spawn_pos, base_size, end_size, self);
 		SpawnGrow_Spawn(spawn_pos, base_size, end_size);
 		if (sound_spawn1)
@@ -891,16 +923,8 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 
 	// Check cooldowns
 	const gtime_t current_time = level.time;
-	constexpr gtime_t DROWNING_COOLDOWN_BOSS = 4500_ms;
-	constexpr gtime_t TRIGGER_HURT_RETRIGGER_COOLDOWN = 3000_ms;
-	const gtime_t selected_trigger_cooldown = (reason == BossTeleportReason::DROWNING) ?
-											   DROWNING_COOLDOWN_BOSS : TRIGGER_HURT_RETRIGGER_COOLDOWN;
-
-	// Skip hazard teleport time check for now - field may not exist
-	// TODO: Check if last_hazard_teleport_time exists in monsterinfo_t
 
 	// General teleport cooldown
-	constexpr gtime_t GENERAL_TELEPORT_COOLDOWN = 2500_ms;
 	if (self->teleport_time > 0_ms)
 	{
 		const gtime_t elapsed_since_last_teleport = current_time - self->teleport_time;
@@ -978,9 +1002,8 @@ bool CheckAndTeleportBoss(edict_t *self, BossTeleportReason reason)
 	if (self->inuse && !self->deadflag && self->health > 0)
 	{
 		const vec3_t spawn_pos = self->s.origin;
-		const float base_size = 100.0f;
-		const float end_size = base_size * 0.01f;
-		SpawnGrow_Spawn(spawn_pos, base_size, end_size);
+		const float end_size = TELEPORT_EFFECT_SIZE * SPAWN_GROW_END_SIZE_MULTIPLIER;
+		SpawnGrow_Spawn(spawn_pos, TELEPORT_EFFECT_SIZE, end_size);
 	}
 
 	if (developer->integer)
@@ -1044,6 +1067,8 @@ void InitializeBossWaveTypes()
 		{MonsterWaveType::Ground | MonsterWaveType::Heavy, "Jorg rains chaos from above!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::JORG_SMALL)] =
 		{MonsterWaveType::Ground | MonsterWaveType::Medium, "Mini Jorg marches into battle!\n"};
+	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON)] =
+		{MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, "Makron rises to power!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::MAKRON_KL)] =
 		{MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, "Makron's wrath descends!\n"};
 	g_bossWaveTypeArray[static_cast<size_t>(horde::MonsterTypeID::PSX_GUARDIAN)] =
@@ -1071,7 +1096,7 @@ bool IsBossUnit(horde::MonsterTypeID typeId)
 
 bool IsBossWave() noexcept
 {
-	return current_wave_level >= 10 && current_wave_level % 5 == 0;
+	return current_wave_level >= MIN_BOSS_WAVE && current_wave_level % BOSS_WAVE_INTERVAL == 0;
 }
 
 void ResetBosses()

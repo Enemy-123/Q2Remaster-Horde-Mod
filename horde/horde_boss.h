@@ -17,7 +17,6 @@ struct boss_t
     int32_t max_level;
     float weight;
     BossSizeCategory sizeCategory;
-    BossType type;
 };
 
 // Boss data structure of arrays for performance
@@ -115,9 +114,6 @@ bool IsBossWave() noexcept;
 void ResetBosses();
 void ResetRecentBosses();
 void HandleForcedBossRemoval(edict_t *boss);
-
-// Boss teleportation (defined in shared.h but implemented here)
-// bool CheckAndTeleportBoss(edict_t* boss, const BossTeleportReason reason);
 
 // Helper functions
 template<size_t N>
