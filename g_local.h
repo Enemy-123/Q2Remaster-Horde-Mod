@@ -1883,6 +1883,8 @@ struct monsterinfo_t
 	float preferred_combat_range;    // Ideal distance from target for this monster type
 	gtime_t last_repulsion_time;     // Last time repulsion was calculated
 	vec3_t last_valid_move;          // Last successful movement direction for momentum
+	gtime_t corridor_check_time;     // Last time corridor detection was performed (optimization)
+	int corridor_blocked_dirs;       // Cached corridor blocked direction count
 
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
