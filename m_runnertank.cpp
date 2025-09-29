@@ -273,6 +273,11 @@ void runnertank_attack(edict_t* self);
 void runnertank_consider_strafe(edict_t* self);
 
 
+// Forward declarations for jump attack
+void runnertank_jump_attack_takeoff(edict_t* self);
+void runnertank_high_gravity(edict_t* self);
+void runnertank_check_jump_landing(edict_t* self);
+
 mframe_t tank_frames_punch_attack[] =
 {
 	{ai_charge, 0, nullptr},
@@ -292,6 +297,22 @@ mframe_t tank_frames_punch_attack[] =
 };
 MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak235, tank_frames_punch_attack, runnertank_run };
 
+// Jump attack animation - using frames that make sense for jumping
+mframe_t runnertank_frames_jump_attack[] =
+{
+	{ai_charge, 10, nullptr},  // Wind up 1
+	{ai_charge, 10, nullptr},  // Wind up 2
+	{ai_move, 0, runnertank_jump_attack_takeoff}, // Launch!
+	{ai_move, 0, runnertank_high_gravity}, // In air 1
+	{ai_move, 0, runnertank_check_jump_landing}, // Check landing (loops here until landed)
+	{ai_move, 0, nullptr}, // Landing recovery 1
+	{ai_move, -2, nullptr}, // Recovery 2
+	{ai_move, -2, nullptr}, // Recovery 3
+	{ai_move, -2, nullptr}, // Recovery 4
+	{ai_move, -2, nullptr} // Recovery 5
+};
+MMOVE_T(runnertank_move_jump_attack) = { FRAME_run01, FRAME_run10, runnertank_frames_jump_attack, runnertank_run };
+
 MONSTERINFO_MELEE(runnertank_melee) (edict_t* self) -> void
 {
 	if (!M_HasValidTarget(self))
@@ -300,10 +321,14 @@ MONSTERINFO_MELEE(runnertank_melee) (edict_t* self) -> void
 	}
 
 	float const range = range_to(self, self->enemy);
-	if (range <= MELEE_DISTANCE * 2.4f && visible(self, self->enemy))
+	if (!visible(self, self->enemy))
+		return;
+
+	// Melee is only for close range punch
+	if (range <= MELEE_DISTANCE * 2.4f)
 	{
 		M_SetAnimation(self, &tank_move_punch_attack);
-		self->monsterinfo.attack_finished = level.time + 0.5_sec;
+		self->monsterinfo.attack_finished = level.time + 1.5_sec;
 	}
 }
 
@@ -315,11 +340,22 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		return;
 	}
 
-	M_SetAnimation(self, &runnertank_move_run);
-
-	if (M_HasValidTarget(self) && level.time >= self->monsterinfo.pausetime)
+	if (self->monsterinfo.active_move == &runnertank_move_walk ||
+		self->monsterinfo.active_move == &runnertank_move_start_walk)
 	{
-		runnertank_attack(self);
+		M_SetAnimation(self, &runnertank_move_run);
+	}
+	else if (self->monsterinfo.active_move != &runnertank_move_run)
+	{
+		M_SetAnimation(self, &runnertank_move_start_run);
+	}
+
+	// Don't attack while running unless attack_finished allows it
+	if (M_HasValidTarget(self) && level.time >= self->monsterinfo.attack_finished)
+	{
+		// Add some randomness to prevent constant attacking
+		if (frandom() < 0.3f)
+			runnertank_attack(self);
 	}
 }
 //
@@ -435,10 +471,10 @@ void runnertankRail(edict_t* self)
 	monster_muzzleflash_id_t flash_number;
 	const RailOffset* current_offset;
 
-	if (!infront(self, self->enemy) || !visible(self, self->enemy))
-		return;
-
+	// Allow blindfire for rail gun
 	bool const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+	if (!blindfire && (!infront(self, self->enemy) || !visible(self, self->enemy)))
+		return;
 
 	// Seleccionamos el offset basado en el frame actual
 	if (self->s.frame == FRAME_attak110) {
@@ -712,12 +748,21 @@ void runnertank_reattack_blaster(edict_t* self)
 		return;
 	}
 
+	// Check if we've been attacking too long
+	if (level.time >= self->monsterinfo.attack_finished)
+	{
+		M_SetAnimation(self, &runnertank_move_attack_post_blast);
+		return;
+	}
+
+	// Reduce refire chance to prevent constant shooting
 	if (visible(self, self->enemy))
-		if (frandom() <= 0.6f)
-		{
-			M_SetAnimation(self, &runnertank_move_reattack_blast);
-			return;
-		}
+		if (self->enemy->health > 0)
+			if (frandom() <= 0.35f) // Reduced from 0.6f
+			{
+				M_SetAnimation(self, &runnertank_move_reattack_blast);
+				return;
+			}
 	M_SetAnimation(self, &runnertank_move_attack_post_blast);
 }
 
@@ -797,12 +842,20 @@ void runnertank_refire_rocket(edict_t* self)
 	}
 	// pmm
 
-	if (visible(self, self->enemy))
-		if (frandom() <= 0.4f)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
-			return;
-		}
+	// Check if we've been attacking too long
+	if (level.time >= self->monsterinfo.attack_finished)
+	{
+		M_SetAnimation(self, &runnertank_move_attack_post_rocket);
+		return;
+	}
+
+	if (self->enemy->health > 0)
+		if (visible(self, self->enemy))
+			if (frandom() <= 0.3f) // Reduced from 0.4f
+			{
+				M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
+				return;
+			}
 	M_SetAnimation(self, &runnertank_move_attack_post_rocket);
 }
 
@@ -832,13 +885,21 @@ void runnertank_stop_run_to_attack(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
+		M_SetAnimation(self, &runnertank_move_run);
 		return;
 	}
 
-	if (range_to(self, self->enemy) <= RANGE_NEAR)
+	// Don't attack if we're still in cooldown
+	if (level.time < self->monsterinfo.attack_finished)
+	{
+		M_SetAnimation(self, &runnertank_move_run);
+		return;
+	}
+
+	if (range_to(self, self->enemy) <= RANGE_NEAR && visible(self, self->enemy))
 	{
 		M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-		self->monsterinfo.attack_finished = level.time + 2_sec;
+		self->monsterinfo.attack_finished = level.time + 3_sec;
 	}
 	else
 	{
@@ -913,8 +974,8 @@ void runnertank_consider_strafe(edict_t* self)
 		// Set new velocity: keep forward momentum, add strafe
 		self->velocity = forward * forward_speed + strafe_velocity;
 
-		// Shorter strafe duration for more agile movement
-		self->monsterinfo.pausetime = level.time + random_time(0.6_sec, 1.0_sec);
+		// Moderate strafe duration
+		self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.5_sec);
 	}
 }
 
@@ -922,16 +983,35 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Can't at a non-existent or dead target.
+		return; // Can't attack a non-existent or dead target.
 	}
 
 	if (level.time < self->monsterinfo.attack_finished)
 		return;
 
-	// Agregar verificación de línea de visión
-	//const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
-	if (!visible(self, self->enemy))
+	// Check for blindfire conditions
+	if (self->monsterinfo.attack_state == AS_BLIND)
+	{
+		// Blindfire logic - attack without visibility requirement
+		float chance;
+		if (self->monsterinfo.blind_fire_delay < 1_sec)
+			chance = 0.8f;
+		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+			chance = 0.4f;
+		else
+			chance = 0.1f;
+
+		if (frandom() > chance)
+			return;
+
+		self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
+		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+	}
+	else if (!visible(self, self->enemy))
+	{
+		// Regular attack needs visibility
 		return;
+	}
 
 	//const float range = range_to(self, self->enemy);
 	const float r = frandom();
@@ -941,47 +1021,79 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 	const bool can_chain = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_1]);
 
-	// Para rango cercano, priorizar diferentes ataques
-	if (frandom() < 0.3f)
+	float const range = range_to(self, self->enemy);
+
+	// Jump attack - check first for medium range leap attack
+	// Range between 150-400 units, visible enemy, on ground
+	if (range > 150.0f && range <= 400.0f &&
+		self->groundentity && visible(self, self->enemy) &&
+		frandom() < 0.25f) // 25% chance
 	{
-		if (can_chain && self->health < self->max_health * 0.7f)
+		// Check if enemy is at similar height or slightly above
+		float height_diff = self->enemy->s.origin[2] - self->s.origin[2];
+		if (height_diff > -50.0f && height_diff < 150.0f)
 		{
-			// Usar plasma más en situaciones defensivas
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 2.5_sec;
+			M_SetAnimation(self, &runnertank_move_jump_attack);
+			self->monsterinfo.attack_finished = level.time + 3_sec;
+			return;
 		}
-		else if (can_rocket && r < 0.6f)
+	}
+
+	// Close range attack selection
+	if (range <= RANGE_MELEE * 1.5f)
+	{
+		M_SetAnimation(self, &tank_move_punch_attack);
+		self->monsterinfo.attack_finished = level.time + 1.5_sec;
+	}
+	else if (range <= RANGE_NEAR)
+	{
+		if (can_chain && r < 0.5f)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_chain);
+			self->monsterinfo.attack_finished = level.time + 3_sec;
+		}
+		else if (can_rocket && r < 0.7f)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-			self->monsterinfo.attack_finished = level.time + 3_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
 		else if (can_blast)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.attack_finished = level.time + 2_sec;
+			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
 	}
-	// Rango medio, priorizar ataques de precisión
-	else if (frandom() < 0.3f)
+	// Medium range attack selection
+	else if (range <= RANGE_MID)
 	{
 		if (can_blast && r < 0.4f)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.attack_finished = level.time + 2_sec;
+			self->monsterinfo.attack_finished = level.time + 3_sec;
+		}
+		else if (can_rocket && r < 0.7f)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+			self->monsterinfo.attack_finished = level.time + 4_sec;
+		}
+		else if (can_chain)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_chain);
+			self->monsterinfo.attack_finished = level.time + 3_sec;
+		}
+	}
+	// Long range attack selection
+	else
+	{
+		if (can_blast && r < 0.6f)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 3.5_sec;
 		}
 		else if (can_rocket)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-			self->monsterinfo.attack_finished = level.time + 3_sec;
-		}
-	}
-	// Largo alcance, preferir railgun
-	else
-	{
-		if (can_blast)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.attack_finished = level.time + 2_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
 	}
 }
@@ -1149,6 +1261,90 @@ mframe_t runnertank_frames_jump2[] = {
 };
 MMOVE_T(runnertank_move_jump2) = { FRAME_run01, FRAME_run07, runnertank_frames_jump2, runnertank_run };
 
+// Jump attack functions implementation
+void runnertank_jump_attack_takeoff(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	// Calculate jump trajectory to enemy
+	vec3_t enemy_pos = self->enemy->s.origin;
+	vec3_t dir_to_enemy = enemy_pos - self->s.origin;
+	float const length = dir_to_enemy.length();
+
+	// Adjust for enemy movement prediction
+	float const jump_time = length / 400.0f; // Estimate time to reach enemy
+	if (self->enemy->velocity.length() > 50.0f)
+	{
+		enemy_pos += self->enemy->velocity * jump_time * 0.5f; // Partial prediction
+		dir_to_enemy = enemy_pos - self->s.origin;
+	}
+
+	// Calculate horizontal and vertical speeds
+	float const horizontal_speed = length * 1.5f; // Adjust multiplier as needed
+	float const vertical_speed = 200.0f + (length * 0.3f); // Higher for longer jumps
+
+	// Face the target
+	self->s.angles[1] = vectoyaw(dir_to_enemy);
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+
+	// Launch!
+	self->s.origin[2] += 1;
+	self->velocity = forward * horizontal_speed;
+	self->velocity[2] = vertical_speed;
+	self->groundentity = nullptr;
+	self->monsterinfo.aiflags |= AI_DUCKED;
+
+	// Play a sound effect if we have one
+	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+}
+
+void runnertank_high_gravity(edict_t* self)
+{
+	float const gravity_scale = (800.f / level.gravity);
+	if (self->velocity[2] < 0)
+		self->gravity = 2.0f;
+	else
+		self->gravity = 4.5f;
+	self->gravity *= gravity_scale;
+}
+
+void runnertank_check_jump_landing(edict_t* self)
+{
+	runnertank_high_gravity(self);
+
+	if (self->groundentity)
+	{
+		// Landed - do slam attack
+		self->monsterinfo.aiflags &= ~AI_DUCKED;
+		self->gravity = 1.0f;
+		self->velocity = {};
+		self->flags &= ~FL_KILL_VELOCITY;
+
+		// Check if we're close enough to an enemy for the slam
+		if (M_HasValidTarget(self))
+		{
+			float const range = range_to(self, self->enemy);
+			// If we're within slam range (generous range since we jumped at them)
+			if (range <= MELEE_DISTANCE * 3.0f)
+			{
+				// Transition to punch attack for the slam
+				M_SetAnimation(self, &tank_move_punch_attack);
+				return;
+			}
+		}
+
+		// If no valid target or too far, just do the slam effect and continue
+		runnertankStrike(self);
+		// Continue with normal animation
+		return;
+	}
+
+	// Still in air - keep checking
+	self->monsterinfo.nextframe = self->s.frame;
+}
+
 void runnertank_jump(edict_t* self, blocked_jump_result_t result)
 {
 	if (!M_HasValidTarget(self))
@@ -1234,7 +1430,9 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 	// No hacer sidestep si estamos en medio de un ataque
 	if ((self->monsterinfo.active_move == &runnertank_move_attack_blast) ||
 		(self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket) ||
-		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket))
+		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket) ||
+		(self->monsterinfo.active_move == &tank_move_punch_attack) ||
+		(self->monsterinfo.active_move == &runnertank_move_jump_attack))
 	{
 		return false;
 	}
@@ -1300,15 +1498,33 @@ model="models/monsters/runnertank/tris.md2"
  */
 MONSTERINFO_DODGE(runnertank_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
 {
-	// Don't dodge if we're attacking or recently dodged
-	if ((self->monsterinfo.active_move == &runnertank_move_attack_blast) ||
-		(self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket) ||
-		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket) ||
-		(level.time < self->monsterinfo.pausetime))
+	// Basic checks
+	if (!self->groundentity || self->health <= 0)
 		return;
 
-	// Only dodge if we have time and space
-	if (!attacker || eta < 300_ms)
+	// Set enemy if we don't have one
+	if (!self->enemy && attacker)
+	{
+		self->enemy = attacker;
+		FoundTarget(self);
+		return;
+	}
+
+	// Don't dodge if we're attacking melee or jump attacking
+	if (self->monsterinfo.active_move == &tank_move_punch_attack ||
+		self->monsterinfo.active_move == &runnertank_move_jump_attack)
+		return;
+
+	// Check dodge cooldown using timestamp
+	if (self->timestamp > level.time)
+		return;
+
+	// Don't dodge if projectile impact is too soon or too far away
+	if (eta < FRAME_TIME_MS || eta > 3_sec)
+		return;
+
+	// Don't dodge if attacker is invalid
+	if (!attacker)
 		return;
 
 	// Calculate dodge direction based on attacker position
@@ -1360,11 +1576,17 @@ MONSTERINFO_DODGE(runnertank_dodge) (edict_t* self, edict_t* attacker, gtime_t e
 	if (self->monsterinfo.active_move != &runnertank_move_run)
 		M_SetAnimation(self, &runnertank_move_run);
 
-	// Set pause time to prevent immediate re-dodging
-	self->monsterinfo.pausetime = level.time + random_time(0.5_sec, 1.0_sec);
+	// Set cooldown using timestamp (like spider)
+	self->timestamp = level.time + random_time(0.5_sec, 1.5_sec);
+
+	// Also set pausetime for movement consistency
+	self->monsterinfo.pausetime = level.time + random_time(0.3_sec, 0.7_sec);
 
 	// Update lefty for consistency with sidestep
 	self->monsterinfo.lefty = (side_dot > 0) ? 1 : 0;
+
+	// Mark that we're dodging
+	monster_done_dodge(self);
 }
 
 void SP_monster_runnertank(edict_t* self)
@@ -1451,7 +1673,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.idle = runnertank_idle;
 	self->monsterinfo.blocked = runnertank_blocked; // PGM
 	self->monsterinfo.setskin = runnertank_setskin;
-	self->yaw_speed *= 2;
+	self->yaw_speed = 20; // Better tracking but not too fast
 
 	self->s.renderfx |= RF_CUSTOMSKIN;
 	self->s.skinnum = gi.imageindex("models/monsters/tank/skin.pcx");
