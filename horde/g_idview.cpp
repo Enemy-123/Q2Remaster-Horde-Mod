@@ -1,9 +1,7 @@
 #include "../shared.h"
 #include <queue>
-#include <sstream>
 #include <span>
 #include <array> // Included for std::array
-#include <cmath> // Included for sqrtf
 
 // Assuming gtime_t and other game-specific types are defined in "shared.h"
 // Also assuming fmt library is available and configured.
@@ -12,17 +10,19 @@ std::string FormatClassname(const std::string& classname) {
 	std::string result;
 	result.reserve(classname.length());
 
-	std::stringstream ss(classname);
-	std::string segment;
 	bool first_word = true;
+	size_t start = 0;
 
-	while (std::getline(ss, segment, '_')) {
-		if (!first_word) result += ' ';
-		if (!segment.empty()) {
-			segment[0] = toupper(segment[0]);
-			result += segment;
+	for (size_t i = 0; i <= classname.length(); ++i) {
+		if (i == classname.length() || classname[i] == '_') {
+			if (i > start) {
+				if (!first_word) result += ' ';
+				result += static_cast<char>(toupper(classname[start]));
+				result.append(classname, start + 1, i - start - 1);
+				first_word = false;
+			}
+			start = i + 1;
 		}
-		first_word = false;
 	}
 
 	return result;
@@ -60,10 +60,9 @@ int GetArmorInfo(edict_t* ent) {
 }
 
 
-template<typename Duration>
 int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
     if (end_time <= current_time) return 0;
-    return static_cast<int>((end_time - current_time).template seconds<int>());
+    return static_cast<int>((end_time - current_time).seconds<int>());
 }
 
 enum class EntityType {
@@ -114,7 +113,7 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
         }};
         for (const auto& powerup : powerups) {
             if (powerup.time > level.time) {
-                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\n{}: {}s", powerup.label, GetRemainingTime<float>(level.time, powerup.time)).out;
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "\n{}: {}s", powerup.label, GetRemainingTime(level.time, powerup.time)).out;
             }
         }
         break;
@@ -153,13 +152,13 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
                 gtime_t const time_active = level.time - stats_source->timestamp;
                 gtime_t const time_remaining = tesla_total_lifetime - time_active;
                 
-                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: {
                 gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
 
-                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::LASER_EMITTER: {
@@ -170,14 +169,14 @@ const char* FormatEntityInfo_Fast(edict_t* ent) {
                 if (beam && beam->inuse) {
                     out = fmt::format_to_n(out, static_cast<size_t>(end - out), " DMG: {}", beam->dmg).out;
                     gtime_t time_remaining = (stats_source->timestamp > level.time) ? (stats_source->timestamp - level.time) : 0_sec;
-                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), " T: {}s", GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
+                    out = fmt::format_to_n(out, static_cast<size_t>(end - out), " T: {}s", GetRemainingTime(gtime_t{}, time_remaining)).out;
                 }
                 break;
             }
             case horde::SpecialEntityTypeID::DOPPLEGANGER: {
                 gtime_t const time_remaining = stats_source->nextthink - level.time;
 
-                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime<float>(gtime_t{}, time_remaining)).out;
+                out = fmt::format_to_n(out, static_cast<size_t>(end - out), "{}\nH: {} T: {}s", name, stats_source->health, GetRemainingTime(gtime_t{}, time_remaining)).out;
                 break;
             }
             case horde::SpecialEntityTypeID::BARREL: {
@@ -212,6 +211,7 @@ struct IDViewConfig {
 	static constexpr float MIN_DOT = 0.98f;
 	static constexpr float CLOSE_DISTANCE = 100.0f;
 	static constexpr float CLOSE_MIN_DOT = 0.5f;
+	static constexpr float SCORING_DOT_WEIGHT = 1000000.0f;
 };
 
 [[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
@@ -232,68 +232,74 @@ struct TargetSearchResult {
 	float distance{ IDViewConfig::MAX_DISTANCE };
 };
 
+struct TargetCandidate {
+	edict_t* entity{ nullptr };
+	float score{ -1.0f };
+};
+
+static inline void CheckEntityForTargeting(edict_t* viewer, const vec3_t& viewer_pos,
+	const vec3_t& forward, edict_t* who, TargetCandidate& best) noexcept {
+	if (!IsValidTarget(viewer, who, false)) {
+		return;
+	}
+
+	vec3_t dir = who->s.origin - viewer_pos;
+	float const dist_sq = dir.lengthSquared();
+
+	static constexpr float MAX_DISTANCE_SQ = IDViewConfig::MAX_DISTANCE * IDViewConfig::MAX_DISTANCE;
+	if (dist_sq > MAX_DISTANCE_SQ) {
+		return;
+	}
+
+	dir.normalize();
+	float const dot = forward.dot(dir);
+
+	static constexpr float CLOSE_DISTANCE_SQ = IDViewConfig::CLOSE_DISTANCE * IDViewConfig::CLOSE_DISTANCE;
+	float const min_dot = (dist_sq < CLOSE_DISTANCE_SQ)
+		? IDViewConfig::CLOSE_MIN_DOT
+		: IDViewConfig::MIN_DOT;
+
+	if (dot < min_dot) {
+		return;
+	}
+
+	// Score without sqrt for performance (we only need relative ordering)
+	// Higher dot product = better alignment, lower dist_sq = closer
+	float score = (dot * IDViewConfig::SCORING_DOT_WEIGHT) - dist_sq;
+	if (score > best.score) {
+		best.score = score;
+		best.entity = who;
+	}
+}
+
 [[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) noexcept {
     TargetSearchResult result;
     vec3_t const& viewer_pos = ent->s.origin;
-    
-    edict_t* best_candidate = nullptr;
-    float best_score = -1.0f;
 
-    auto checkEntity = [&](edict_t* who) {
-        if (!IsValidTarget(ent, who, false)) {
-            return;
-        }
-
-        vec3_t dir = who->s.origin - viewer_pos;
-        float const dist_sq = dir.lengthSquared();
-
-        static constexpr float MAX_DISTANCE_SQ = IDViewConfig::MAX_DISTANCE * IDViewConfig::MAX_DISTANCE;
-        if (dist_sq > MAX_DISTANCE_SQ) {
-            return;
-        }
-
-        dir.normalize();
-        float const dot = forward.dot(dir);
-
-        static constexpr float CLOSE_DISTANCE_SQ = IDViewConfig::CLOSE_DISTANCE * IDViewConfig::CLOSE_DISTANCE;
-        float const min_dot = (dist_sq < CLOSE_DISTANCE_SQ)
-            ? IDViewConfig::CLOSE_MIN_DOT
-            : IDViewConfig::MIN_DOT;
-
-        if (dot < min_dot) {
-            return;
-        }
-
-        // Scoring remains the same
-        float score = (dot * 1000.0f) - sqrtf(dist_sq);
-        if (score > best_score) {
-            best_score = score;
-            best_candidate = who;
-        }
-    };
+    TargetCandidate best;
 
     // 1. Iterate through active players (fast).
     for (edict_t* who : active_players()) {
-        checkEntity(who);
+        CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }
-    
+
     // 2. Iterate through active monsters (fast).
     for (edict_t* who : active_monsters()) {
-        checkEntity(who);
+        CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }
 
     //    Iterate through our new, small list of special entities instead of all edicts.
     for (edict_t* who : g_targetable_special_entities) {
-        checkEntity(who);
+        CheckEntityForTargeting(ent, viewer_pos, forward, who, best);
     }
 
     // --- Final visibility check remains the same ---
-    if (best_candidate) {
-        trace_t const tr = gi.traceline(viewer_pos, best_candidate->s.origin, ent, MASK_SOLID);
-        if (tr.fraction == 1.0f || tr.ent == best_candidate) {
+    if (best.entity) {
+        trace_t const tr = gi.traceline(viewer_pos, best.entity->s.origin, ent, MASK_SOLID);
+        if (tr.fraction == 1.0f || tr.ent == best.entity) {
             // It's visible! This is our target.
-            result.target = best_candidate;
-            result.distance = (best_candidate->s.origin - viewer_pos).length();
+            result.target = best.entity;
+            result.distance = (best.entity->s.origin - viewer_pos).length();
         }
     }
     
