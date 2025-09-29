@@ -16,6 +16,19 @@ float   enemy_yaw;
 constexpr float MAX_SIDESTEP = 8.0f;
 // ROGUE
 
+// Horde mode constants
+constexpr float HORDE_BONUS_SPEED_MULTIPLIER = 1.6f;  // 60% faster movement for bonus-flagged monsters
+
+// Inline helper functions for fast classname checks
+// These avoid expensive strcmp calls in hot paths
+[[nodiscard]] inline bool IsPlayerNoise(const edict_t* ent) {
+	return ent && ent->classname && ent->classname[0] == 'p' && strcmp(ent->classname, "player_noise") == 0;
+}
+
+[[nodiscard]] inline bool IsPointCombat(const edict_t* ent) {
+	return ent && ent->classname && ent->classname[0] == 'p' && strcmp(ent->classname, "point_combat") == 0;
+}
+
 //============================================================================
 
 /*
@@ -32,34 +45,33 @@ edict_t* AI_GetSightClient(edict_t* self)
 	if (level.intermissiontime)
 		return nullptr;
 
-	// Usar stack array en lugar de malloc para pequeñas cantidades
-	constexpr size_t MAX_STACK_CLIENTS = 32;
-	edict_t* stack_players[MAX_STACK_CLIENTS] = {};
-	edict_t** visible_players = stack_players;
+	// Use static buffer with reasonable maximum to avoid heap allocation
+	constexpr size_t MAX_PLAYERS = 256;
+	static thread_local edict_t* visible_players_buffer[MAX_PLAYERS];
+	edict_t** visible_players = visible_players_buffer;
 	size_t num_visible = 0;
 
-	// Solo alocar dinámicamente si es necesario
-	if (game.maxclients > MAX_STACK_CLIENTS) {
-		visible_players = (edict_t**)malloc(sizeof(edict_t*) * game.maxclients);
-		if (!visible_players)
-			return nullptr;
-	}
+	// Clamp to buffer size for safety
+	const size_t max_clients = (game.maxclients < MAX_PLAYERS) ? game.maxclients : MAX_PLAYERS;
 
-	// Cache de valores usados en el loop
-	//const vec3_t& self_origin = self->s.origin;
+	// Cache values used in the loop
 	const vec3_t& self_absmin = self->absmin;
 	const vec3_t& self_absmax = self->absmax;
 
 	for (auto player : active_players())
 	{
-		// Early out conditions agrupados
+		// Prevent buffer overflow
+		if (num_visible >= max_clients)
+			break;
+
+		// Early out conditions grouped
 		if (player->health <= 0 ||
 			player->deadflag ||
 			!player->solid ||
 			player->flags & (FL_NOTARGET | FL_DISGUISED))
 			continue;
 
-		// Cache intersección de cajas
+		// Cache box intersection
 		bool touching = boxes_intersect(self_absmin, self_absmax,
 			player->absmin, player->absmax);
 
@@ -75,14 +87,10 @@ edict_t* AI_GetSightClient(edict_t* self)
 		visible_players[num_visible++] = player;
 	}
 
-	// Seleccionar jugador aleatorio de los visibles
+	// Select random visible player
 	edict_t* chosen_player = nullptr;
 	if (num_visible > 0)
 		chosen_player = visible_players[irandom(num_visible)];
-
-	// Liberar memoria si fue alocada dinámicamente
-	if (visible_players != stack_players)
-		free(visible_players);
 
 	return chosen_player;
 }
@@ -109,6 +117,51 @@ Used for standing around and looking for players
 Distance is for slight position adjustments needed by the animations
 ==============
 */
+/*
+=============
+FindNearestValidPlayer
+
+Helper function to find the nearest valid player target for horde mode.
+Returns nullptr if no valid player found.
+=============
+*/
+static edict_t* FindNearestValidPlayer(edict_t* self)
+{
+	edict_t* nearest_player = nullptr;
+	float nearest_distance_sq = FLT_MAX;
+
+	// Find the nearest player that's alive, not a spectator, and targetable
+	for (auto client : active_players_no_spect())
+	{
+		if (client->client) {
+			// Skip fully invisible players
+			if (client->client->invisible_time > level.time &&
+				client->client->invisibility_fade_time <= level.time) {
+				continue;
+			}
+			// Skip menu-protected players
+			if (client->client->menu_protected) {
+				continue;
+			}
+			// Skip spectators (redundant check but kept for safety)
+			if (EntIsSpectating(client)) {
+				continue;
+			}
+		}
+		if (client->inuse && client->health > 0)
+		{
+			const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
+			if (dist_squared < nearest_distance_sq)
+			{
+				nearest_player = client;
+				nearest_distance_sq = dist_squared;
+			}
+		}
+	}
+
+	return nearest_player;
+}
+
 void ai_stand(edict_t* self, float dist)
 {
 	vec3_t v;
@@ -136,7 +189,7 @@ void ai_stand(edict_t* self, float dist)
 	{
 		// [Paril-KEX] check if we've been pushed out of our point_combat
 		if (!(self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND) &&
-			self->movetarget && self->movetarget->classname && !strcmp(self->movetarget->classname, "point_combat"))
+			IsPointCombat(self->movetarget))
 		{
 			if (!boxes_intersect(self->absmin, self->absmax, self->movetarget->absmin, self->movetarget->absmax))
 			{
@@ -148,7 +201,7 @@ void ai_stand(edict_t* self, float dist)
 			}
 		}
 
-		if (self->enemy && !(self->enemy->classname && !strcmp(self->enemy->classname, "player_noise")))
+		if (self->enemy && !IsPlayerNoise(self->enemy))
 		{
 			v = self->enemy->s.origin - self->s.origin;
 			self->ideal_yaw = vectoyaw(v);
@@ -244,7 +297,7 @@ void ai_stand(edict_t* self, float dist)
 	}
 
 
-	// HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
+	// HORDESTAND: Check if we're in horde mode and the monster has no enemy
 	if (g_horde->integer)
 	{
 		// Only summoned monsters use FindMTarget for targeting
@@ -265,41 +318,14 @@ void ai_stand(edict_t* self, float dist)
 			}
 			
 			if (!self->enemy ||
-				(self->enemy->client && !self->enemy->monsterinfo.issummoned)) { // Si el enemigo actual es un player, olvidarlo
+				(self->enemy->client && !self->enemy->monsterinfo.issummoned)) { // If current enemy is a player, forget it
 				self->enemy = nullptr;
 			}
 			FindMTarget(self);
 		}
 		else
 		{
-			edict_t* nearest_player = nullptr;
-			float nearest_distance_sq = FLT_MAX;
-
-			// Encuentra el jugador más cercano que esté vivo y no sea espectador
-			for (auto client : active_players_no_spect())
-			{
-				if (client->client) {
-					if (client->client->invisible_time > level.time &&
-						client->client->invisibility_fade_time <= level.time) {
-						continue; // Saltar jugadores completamente invisibles
-					}
-					if (client->client->menu_protected) {
-						continue; // Skip menu-protected players
-					}
-					if (EntIsSpectating(client)) {
-						continue; // Saltar espectadores
-					}
-				}
-				if (client->inuse && client->health > 0)
-				{
-					const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
-					if (dist_squared < nearest_distance_sq)
-					{
-						nearest_player = client;
-						nearest_distance_sq = dist_squared;
-					}
-				}
-			}
+			edict_t* nearest_player = FindNearestValidPlayer(self);
 			if (nearest_player)
 			{
 				self->enemy = nearest_player;
@@ -376,34 +402,7 @@ void ai_walk(edict_t* self, float dist)
 		}
 		else
 		{
-			edict_t* nearest_player = nullptr;
-			float nearest_distance_sq = FLT_MAX;
-
-			// Find the nearest player that's alive and not a spectator
-			for (auto client : active_players_no_spect())
-			{
-				if (client->client) {
-					if (client->client->invisible_time > level.time &&
-						client->client->invisibility_fade_time <= level.time) {
-						continue; // Skip fully invisible players
-					}
-					if (client->client->menu_protected) {
-						continue; // Skip menu-protected players
-					}
-					if (EntIsSpectating(client)) {
-						continue; // Skip spectators
-					}
-				}
-				if (client->inuse && client->health > 0)
-				{
-					const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
-					if (dist_squared < nearest_distance_sq)
-					{
-						nearest_player = client;
-						nearest_distance_sq = dist_squared;
-					}
-				}
-			}
+			edict_t* nearest_player = FindNearestValidPlayer(self);
 			if (nearest_player)
 			{
 				self->enemy = nearest_player;
@@ -938,7 +937,7 @@ void FoundTarget(edict_t* self)
 	}
 	// --- End Initial Checks ---
 
-	// Verificar si somos una unidad invocada y el enemigo es un player
+	// Check if we are a summoned unit and the enemy is a player
 	// EXCEPTION: If AI_MEDIC flag is set, allow targeting players for healing
 	if (!(self->monsterinfo.aiflags & AI_MEDIC)) {
 		if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
@@ -954,7 +953,7 @@ void FoundTarget(edict_t* self)
 	// If the found enemy is a temporary sound entity, handle it differently.
 	// Do not call HuntTarget for it, as it might be freed immediately.
 	// Let ai_run handle moving towards the sound goal based on the AI_SOUND_TARGET flag.
-	if (self->enemy->classname && strcmp(self->enemy->classname, "player_noise") == 0)
+	if (IsPlayerNoise(self->enemy))
 	{
 		self->monsterinfo.aiflags |= AI_SOUND_TARGET; // Ensure the flag is set
 
@@ -1094,17 +1093,17 @@ static edict_t* AI_GetSoundClient(edict_t* self, bool direct)
 
 bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 {
-	// Primero, verificamos si client o client->client son nulos
+	// First, verify if client or client->client are null
 	if (!client || !client->client)
 	{
 		return false;
 	}
 
-	// Si somos una unidad invocada y el objetivo es un player, no es visible
+	// If we are a summoned unit and the target is a player, it's not visible
 	if (self->monsterinfo.issummoned && client->client)
 		return false;
 
-	// Verificamos si el jugador es espectador o no tiene equipo en modo CTF
+	// Check if the player is a spectator or has no team in CTF mode
 	if (EntIsSpectating(client))
 	{
 		return false;
@@ -1206,7 +1205,7 @@ bool FindTarget(edict_t* self)
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 		return false;
 
-	// Primero verificamos si es una unidad invocada que tiene un player como enemigo
+	// First check if it's a summoned unit that has a player as enemy
 	// EXCEPTION: If AI_MEDIC flag is set, allow targeting players for healing
 	if (!(self->monsterinfo.aiflags & AI_MEDIC)) {
 		if ((self->monsterinfo.issummoned && !self->enemy) ||
@@ -1311,10 +1310,10 @@ bool FindTarget(edict_t* self)
 	{
 		if (g_horde->integer)
 		{
-			// Usar la misma lógica mejorada para todos, incluyendo sentrygun
+			// Use the same improved logic for all, including sentry gun
 			return FindEnhancedTarget(self);
 		}
-		return false; // No se encontraron objetivos
+		return false; // No targets found
 	}
 
 	// if the entity went away, forget it
@@ -1396,7 +1395,7 @@ bool FindTarget(edict_t* self)
 
 		self->enemy = client;
 
-		if (strcmp(self->enemy->classname, "player_noise") != 0)
+		if (!IsPlayerNoise(self->enemy))
 		{
 			self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
 
@@ -2296,7 +2295,7 @@ void ai_run(edict_t* self, float dist)
 		{
 			if (self->enemy->inuse)
 			{
-				if (strcmp(self->enemy->classname, "player_noise") != 0)
+				if (!IsPlayerNoise(self->enemy))
 					realEnemy = self->enemy;
 				else if (self->enemy->owner)
 					realEnemy = self->enemy->owner;
@@ -2379,9 +2378,9 @@ void ai_run(edict_t* self, float dist)
 			return;
 	}
 
-	// Apply bonus speed multiplier ( HORDEBONUS FLAGGED MONSTER )
+	// Apply bonus speed multiplier for bonus-flagged monsters
 	if (self->monsterinfo.bonus_flags != BF_NONE && !(self->monsterinfo.bonus_flags & BF_FRIENDLY) && !self->monsterinfo.IS_BOSS) {
-		dist *= 1.6f; // Example: 60% faster
+		dist *= HORDE_BONUS_SPEED_MULTIPLIER;
 	}
 
 	// PMM -- moved ai_checkattack up here so the monsters can attack while strafing or charging
