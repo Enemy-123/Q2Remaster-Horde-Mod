@@ -108,9 +108,15 @@ THINK(carpetbomb_think)(edict_t* self) -> void
     vec3_t forward, right, start, end;
     trace_t tr, tr1;
 
-    if (!self->owner || !self->owner->inuse || !self->owner->client ||
-        self->owner->health <= 0 || level.time >= self->timestamp ||
-        IsPlayerMenuProtected(self->owner) || ClientIsSpectating(self->owner->client))
+    // Check owner validity - support both players and monsters
+    if (!self->owner || !self->owner->inuse || self->owner->health <= 0 || level.time >= self->timestamp)
+    {
+        G_FreeEdict(self);
+        return;
+    }
+
+    // Additional checks for player owners only
+    if (self->owner->client && (IsPlayerMenuProtected(self->owner) || ClientIsSpectating(self->owner->client)))
     {
         G_FreeEdict(self);
         return;
@@ -264,10 +270,15 @@ THINK(bombarea_think)(edict_t* self) -> void
     vec3_t start, spawn_pos;
     trace_t tr;
 
-    // Check if owner is still valid
-    if (!self->owner || !self->owner->inuse || !self->owner->client ||
-        self->owner->health <= 0 || level.time >= self->timestamp ||
-        IsPlayerMenuProtected(self->owner) || ClientIsSpectating(self->owner->client))
+    // Check owner validity - support both players and monsters
+    if (!self->owner || !self->owner->inuse || self->owner->health <= 0 || level.time >= self->timestamp)
+    {
+        G_FreeEdict(self);
+        return;
+    }
+
+    // Additional checks for player owners only
+    if (self->owner->client && (IsPlayerMenuProtected(self->owner) || ClientIsSpectating(self->owner->client)))
     {
         G_FreeEdict(self);
         return;

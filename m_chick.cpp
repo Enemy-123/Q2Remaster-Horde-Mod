@@ -413,12 +413,94 @@ void ChickSlash(edict_t* self)
 	gi.sound(self, CHAN_WEAPON, sound_melee_swing, 1, ATTN_NORM, 0);
 	fire_hit(self, aim, irandom(10, 16), 100);
 }
+void chickkl_fire_rocket(edict_t* self);
+void chickkl_fire_plasma(edict_t* self);
+
+// External bomb spell functions from horde/g_bombspell.cpp
+extern void carpetbomb_think(edict_t* self);
+extern void bombarea_think(edict_t* self);
+
+// Chickkl bomb spell - works at any distance
+void ChickBombSpell(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	// Check if enemy is in front and visible for carpet bomb
+	vec3_t forward, dir;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	dir = (self->enemy->s.origin - self->s.origin).normalized();
+
+	float dot = forward.dot(dir);
+
+	// Use carpet bomb if enemy is in front and visible (forward bombing)
+	// Use area bomb for blindfire or when enemy is not directly in front
+	if (dot > 0.7f && visible(self, self->enemy))
+	{
+		// Carpet bomb forward
+		vec3_t start;
+		edict_t* spell = G_Spawn();
+		spell->think = carpetbomb_think;
+		spell->nextthink = level.time + FRAME_TIME_MS;
+		spell->s.origin = self->s.origin;
+		spell->move_origin = self->s.origin;
+		spell->dmg = 35 + irandom(10, 20);
+		spell->dmg_radius = 150;
+		spell->timestamp = level.time + 3_sec;
+		spell->owner = self;
+		spell->mins = vec3_origin;
+		spell->maxs = vec3_origin;
+		spell->solid = SOLID_NOT;
+		spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
+		spell->classname = "bombspell";
+		spell->s.angles = vectoangles(forward);
+		gi.linkentity(spell);
+	}
+	else
+	{
+		// Area bomb at enemy location
+		vec3_t start, end;
+		trace_t tr;
+
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		start = self->s.origin;
+		start[2] += self->viewheight;
+		end = self->enemy->s.origin;
+
+		tr = gi.trace(start, vec3_origin, vec3_origin, end, self, MASK_SOLID);
+
+		edict_t* spell = G_Spawn();
+		spell->think = bombarea_think;
+		spell->nextthink = level.time + FRAME_TIME_MS;
+		spell->s.origin = tr.endpos;
+		spell->dmg = 30 + irandom(5, 15);
+		spell->dmg_radius = 120;
+		spell->timestamp = level.time + 4_sec;
+		spell->owner = self;
+		spell->mins = vec3_origin;
+		spell->maxs = vec3_origin;
+		spell->solid = SOLID_NOT;
+		spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
+		spell->classname = "bombarea";
+		spell->s.angles[PITCH] = 0;
+		gi.linkentity(spell);
+	}
+
+	gi.sound(self, CHAN_WEAPON, sound_missile_launch, 1, ATTN_NORM, 0);
+}
 
 void ChickRocket(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
 		return; // Stop immediately if the target is invalid.
+	}
+
+	// Check if this is a chickkl - use rocket attack instead
+	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL))
+	{
+		chickkl_fire_rocket(self);
+		return;
 	}
 
 	vec3_t	forward, right;
@@ -734,6 +816,57 @@ void chick_attack1(edict_t* self)
 	M_SetAnimation(self, &chick_move_attack1);
 }
 
+static void chickkl_rerocket(edict_t* self);
+
+mframe_t chickkl_frames_attack1[] = {
+	{ ai_charge, 19, chickkl_fire_rocket },
+	{ ai_charge, -6, monster_footstep },
+	{ ai_charge, -5 },
+	{ ai_charge, 19, chickkl_fire_rocket },
+	{ ai_charge, -7, monster_footstep },
+	{ ai_charge },
+	{ ai_charge, 1 },
+	{ ai_charge, 10, ChickReload },
+	{ ai_charge, 4 },
+	{ ai_charge, 5, monster_footstep },
+	{ ai_charge, 6 },
+	{ ai_charge, 6 },
+	{ ai_charge, 4 },
+	{ ai_charge, 3, [](edict_t* self) { chickkl_rerocket(self); monster_footstep(self); } }
+};
+MMOVE_T(chickkl_move_attack1) = { FRAME_attak114, FRAME_attak127, chickkl_frames_attack1, nullptr };
+
+// CHICKKL attack1 frames - uses rocket attacks
+static void chickkl_rerocket(edict_t* self)
+{
+	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+	{
+		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+		M_SetAnimation(self, &chick_move_end_attack1);
+		return;
+	}
+
+	if (!M_CheckClearShot(self, monster_flash_offset[MZ2_CHICK_ROCKET_1]))
+	{
+		M_SetAnimation(self, &chick_move_end_attack1);
+		return;
+	}
+
+	if (self->enemy->health > 0)
+	{
+		if (range_to(self, self->enemy) > RANGE_MELEE)
+			if (visible(self, self->enemy))
+				if (frandom() <= 0.6f) // Slightly less aggressive than regular chick
+				{
+					M_SetAnimation(self, &chickkl_move_attack1);
+					return;
+				}
+	}
+	M_SetAnimation(self, &chick_move_end_attack1);
+}
+
+
+
 mframe_t chick_frames_slash[] = {
 	{ ai_charge, 7, ChickSlash },
 	{ ai_charge, 7, ChickSlash },
@@ -754,6 +887,27 @@ mframe_t chick_frames_end_slash[] = {
 	{ ai_charge, 0, monster_footstep }
 };
 MMOVE_T(chick_move_end_slash) = { FRAME_attak213, FRAME_attak216, chick_frames_end_slash, chick_run };
+
+// CHICKKL melee frames - uses bomb spells instead of slash
+static void chickkl_reslash(edict_t* self)
+{
+	if (M_HasValidTarget(self) && visible(self, self->enemy))
+		return; // Continue with another slash
+	M_SetAnimation(self, &chick_move_end_slash);
+}
+
+mframe_t chickkl_frames_slash[] = {
+	{ ai_charge, 7, ChickBombSpell },
+	{ ai_charge, 7, ChickBombSpell },
+	{ ai_charge, -7, monster_footstep },
+	{ ai_charge, 1 },
+	{ ai_charge, -1 },
+	{ ai_charge, 1 },
+	{ ai_charge },
+	{ ai_charge, 1 },
+	{ ai_charge, -2, chickkl_reslash }
+};
+MMOVE_T(chickkl_move_slash) = { FRAME_attak204, FRAME_attak212, chickkl_frames_slash, nullptr };
 
 void chick_reslash(edict_t* self)
 {
@@ -1094,3 +1248,308 @@ void SP_monster_chick_heat(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 // RAFAEL
+
+// ===============
+// CHICKKL - Boss variant with dodge, carpet bomb, and plasma attacks
+// ===============
+
+// Forward declarations for chickkl
+void chickkl_dodge(edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity);
+void chickkl_fire_rocket(edict_t* self);
+void chickkl_fire_plasma(edict_t* self);
+void chickkl_attack(edict_t* self);
+
+// External functions from other files
+extern void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& rest_dir, int damage, int speed, float damage_radius, int radius_damage, float turn_fraction);
+extern void carpetbomb_think(edict_t* self);
+extern void bombarea_think(edict_t* self);
+
+// Chickkl dodge implementation (based on runnertank)
+MONSTERINFO_DODGE(chickkl_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
+{
+	// Basic checks
+	if (!self->groundentity || self->health <= 0)
+		return;
+
+	// Set enemy if we don't have one
+	if (!self->enemy && attacker)
+	{
+		self->enemy = attacker;
+		FoundTarget(self);
+		return;
+	}
+
+	// Don't dodge if we're attacking
+	if (self->monsterinfo.active_move == &chick_move_start_attack1 ||
+		self->monsterinfo.active_move == &chick_move_attack1 ||
+		self->monsterinfo.active_move == &chick_move_slash)
+		return;
+
+	// Check dodge cooldown using timestamp
+	if (self->timestamp > level.time)
+		return;
+
+	// Don't dodge if projectile impact is too soon or too far away
+	if (eta < FRAME_TIME_MS || eta > 3_sec)
+		return;
+
+	// Don't dodge if attacker is invalid
+	if (!attacker)
+		return;
+
+	// Calculate dodge direction based on attacker position
+	vec3_t dodge_dir;
+	vec3_t right;
+	AngleVectors(self->s.angles, nullptr, right, nullptr);
+
+	// Decide dodge direction - prefer moving away from attacker
+	vec3_t to_attacker = (attacker->s.origin - self->s.origin).normalized();
+	float side_dot = to_attacker.dot(right);
+
+	// Dodge perpendicular to attack direction, away from attacker
+	if (side_dot > 0)
+		dodge_dir = right * -1.0f; // Dodge left
+	else
+		dodge_dir = right; // Dodge right
+
+	// Add some forward/backward component based on distance
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	float dist = (self->s.origin - attacker->s.origin).length();
+
+	if (dist < 300.0f) {
+		// Close range - dodge backward
+		dodge_dir += forward * -0.4f;
+	} else if (dist > 600.0f) {
+		// Long range - dodge forward to close distance
+		dodge_dir += forward * 0.3f;
+	}
+
+	dodge_dir = dodge_dir.normalized();
+
+	// Calculate dodge speed based on urgency (eta)
+	float base_dodge_speed = 350.0f; // Faster than runnertank
+	float eta_seconds = eta.seconds();
+	float urgency_multiplier = std::clamp(2.0f - eta_seconds, 1.0f, 2.5f);
+	float dodge_speed = base_dodge_speed * urgency_multiplier;
+
+	// Apply dodge velocity
+	vec3_t dodge_velocity = dodge_dir * dodge_speed;
+
+	// Preserve some vertical momentum but replace horizontal
+	dodge_velocity.z = self->velocity.z * 0.5f;
+	self->velocity = dodge_velocity;
+
+	// Set animation to running for dodge
+	if (self->monsterinfo.active_move != &chick_move_run)
+		M_SetAnimation(self, &chick_move_run);
+
+	// Set cooldown using timestamp
+	self->timestamp = level.time + random_time(0.4_sec, 1.2_sec);
+
+	// Also set pausetime for movement consistency
+	self->monsterinfo.pausetime = level.time + random_time(0.3_sec, 0.7_sec);
+
+	// Update lefty for consistency with sidestep
+	self->monsterinfo.lefty = (side_dot > 0) ? 1 : 0;
+
+	// Mark that we're dodging
+	monster_done_dodge(self);
+}
+
+// Chickkl rocket attack (based on TurretFireRocket) - fires 2 rockets with spread
+void chickkl_fire_rocket(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	vec3_t forward, right;
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	vec3_t start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
+
+	// Calculate fire direction with prediction
+	const float speed = 950.0f; // Slower than turret
+	vec3_t fire_dir;
+
+	if (self->enemy->velocity.lengthSquared() > 1.0f) {
+		vec3_t predicted_dir, predicted_pos;
+		PredictAim(self, self->enemy, start, speed, true, 0, &predicted_dir, &predicted_pos);
+		fire_dir = predicted_dir;
+	} else {
+		vec3_t target_pos = self->enemy->s.origin;
+		target_pos[2] += self->enemy->viewheight * 0.5f;
+		fire_dir = (target_pos - start).normalized();
+	}
+
+	// Calculate perpendicular vector for spread
+	vec3_t angles = vectoangles(fire_dir);
+	vec3_t spread_right;
+	AngleVectors(angles, nullptr, &spread_right, nullptr);
+
+	// Fire two rockets with horizontal spread
+	for (int i = 0; i < 2; i++)
+	{
+		const float damage_radius = 100;
+
+		// Apply spread to initial fire direction
+		vec3_t spread_dir = fire_dir;
+		float spread_amount = 0.07f; // Reduced horizontal spread
+
+		if (i == 0)
+			spread_dir = (fire_dir + spread_right * spread_amount).normalized(); // Right rocket
+		else
+			spread_dir = (fire_dir - spread_right * spread_amount).normalized(); // Left rocket
+
+		edict_t* heat = fire_rocket(self, start, spread_dir, 50, speed, damage_radius, 50);
+
+		if (heat) {
+			// Modify the rocket to be heat-seeking with better turning
+			const float turn_fraction = 0.16f; // Increased turning for better homing
+
+			heat->s.scale = 1.2f;
+			heat->speed = speed / 1.3;
+			heat->yaw_speed = speed * 1.8;
+			heat->accel = turn_fraction;
+			heat->pos1 = fire_dir; // Both rockets converge to same target
+			heat->movedir = spread_dir;
+
+			if (visible(heat, self->enemy)) {
+				heat->enemy = self->enemy;
+				heat->timestamp = level.time + 0.5_sec;
+			}
+		}
+	}
+
+	gi.sound(self, CHAN_WEAPON, sound_missile_launch, 1, ATTN_NORM, 0);
+}
+
+// Chickkl plasma attack
+void chickkl_fire_plasma(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	vec3_t target, dir, forward, right;
+
+	// Get muzzle position
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	vec3_t start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
+
+	// Predict target position
+	float dist = (self->enemy->s.origin - start).length();
+	float time = dist / 800.0f; // Estimate based on projectile speed
+
+	target = self->enemy->s.origin;
+	if (self->enemy->velocity.lengthSquared() > 0)
+	{
+		target = target + self->enemy->velocity * time;
+	}
+
+	dir = (target - start).normalized();
+
+	// Fire heat-seeking plasma
+	fire_guardianpsx_heat(self, start, dir, dir,
+		45, // damage
+		800, // speed
+		150, // damage radius
+		45, // radius damage
+		0.15f); // turn fraction
+
+	// Sound and flash
+	gi.sound(self, CHAN_WEAPON, sound_railgun, 1, ATTN_NORM, 0);
+
+	gi.WriteByte(svc_muzzleflash2);
+	gi.WriteShort(self - g_edicts);
+	gi.WriteByte(MZ2_CHICK_ROCKET_1);
+	gi.multicast(start, MULTICAST_PVS, false);
+}
+
+// Override attack for chickkl
+MONSTERINFO_ATTACK(chickkl_attack) (edict_t* self) -> void
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	float range = range_to(self, self->enemy);
+
+	// Check if this is actually a chickkl
+	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL))
+	{
+		// Mix attacks at all ranges - chickkl uses both bomb spells and rockets
+		if (range <= RANGE_MELEE)
+		{
+			// Close range - prefer bomb spell
+			M_SetAnimation(self, &chickkl_move_slash);
+		}
+		else
+		{
+			// Mid to long range - mix between bomb spell (40%) and rockets (60%)
+			if (frandom() <= 0.4f)
+			{
+				// Use bomb spell animation
+				M_SetAnimation(self, &chickkl_move_slash);
+			}
+			else
+			{
+				// Use rocket attack
+				M_SetAnimation(self, &chick_move_start_attack1);
+			}
+		}
+	}
+	else
+	{
+		// Fallback to normal chick attack
+		if (range <= RANGE_MELEE)
+			M_SetAnimation(self, &chick_move_slash);
+		else
+			M_SetAnimation(self, &chick_move_start_attack1);
+	}
+}
+
+// Main chickkl spawn function
+/*QUAKED monster_chickkl (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+Boss variant of chick with dodge, carpet bomb, and plasma attacks
+*/
+void SP_monster_chickkl(edict_t* self)
+{
+	// Set monster type first
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);
+
+	// Call base chick spawn
+	SP_monster_chick(self);
+
+	// Override with chickkl specifics
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);
+
+	// Boss stats
+	self->health = 450 * ED_GetSpawnTemp().health_multiplier; // Much more health
+	self->gib_health = -120;
+	self->mass = 300;
+	self->s.skinnum = 3; // Different skin if available
+
+	// Enhanced movement
+	self->monsterinfo.drop_height = 384;
+	self->monsterinfo.jump_height = 128;
+	self->monsterinfo.can_jump = true;
+
+	// Override dodge function with chickkl's enhanced dodge
+	self->monsterinfo.dodge = chickkl_dodge;
+
+	// Override attack
+	self->monsterinfo.attack = chickkl_attack;
+
+	// Power armor
+	if (!ED_GetSpawnTemp().was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	if (!ED_GetSpawnTemp().was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 150; // More armor
+
+	// Additional sounds
+	gi.soundindex("weapons/railgr1a.wav");
+	gi.soundindex("weapons/rockfly.wav");
+
+	// Scale up slightly for boss presence
+	self->monsterinfo.scale = MODEL_SCALE * 1.2f;
+
+	ApplyMonsterBonusFlags(self);
+}

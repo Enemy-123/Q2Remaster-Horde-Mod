@@ -144,9 +144,10 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             // Chick variants
             {"monster_chick", MonsterTypeID::CHICK},                         // 24
             {"monster_chick_heat", MonsterTypeID::CHICK_HEAT},               // 25
+            {"monster_chickkl", MonsterTypeID::CHICKKL},                     // 26
 
             // Small units
-            {"monster_parasite", MonsterTypeID::PARASITE},                   // 26
+            {"monster_parasite", MonsterTypeID::PARASITE},                   // 27
             {"monster_brain", MonsterTypeID::BRAIN},                         // 27
             {"monster_stalker", MonsterTypeID::STALKER},                     // 28
 

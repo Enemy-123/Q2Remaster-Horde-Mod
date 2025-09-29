@@ -201,6 +201,7 @@ void SP_monster_fixbot(edict_t* self);
 void SP_monster_fixbotkl(edict_t* self);
 void SP_monster_gekk(edict_t* self);
 void SP_monster_chick_heat(edict_t* self);
+void SP_monster_chickkl(edict_t* self);
 void SP_monster_gladb(edict_t* self);
 void SP_monster_gladc(edict_t* self);
 void SP_monster_boss5(edict_t* self);
@@ -456,6 +457,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_fixbotkl", SP_monster_fixbotkl },
 	{ "monster_gekk", SP_monster_gekk },
 	{ "monster_chick_heat", SP_monster_chick_heat },
+	{ "monster_chickkl", SP_monster_chickkl },
 	{ "monster_gladb", SP_monster_gladb },
 	{ "monster_gladc", SP_monster_gladc },
 	{ "monster_boss5", SP_monster_boss5 },
