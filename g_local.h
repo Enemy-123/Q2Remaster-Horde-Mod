@@ -1797,7 +1797,7 @@ struct monsterinfo_t
 	edict_t* goal_hint;		 // which hint_path we're trying to get to
 	int32_t	 medicTries;
 	edict_t* badMedic1, * badMedic2; // these medics have declared this monster "unhealable"
-	edict_t* healer;				// this is who is healing this monster
+	edict_t* healer;				 // this is who is healing this monster
 	gtime_t  healing_pause_time;    // Time until monster can move again while being healed
 	gtime_t  last_resurrection_time;  // Track when medic last completed resurrection
 	save_monsterinfo_duck_t duck;
@@ -1875,6 +1875,15 @@ struct monsterinfo_t
 
 	gtime_t jump_time;
 
+	// Anti-stacking system fields
+	vec3_t repulsion_vector;        // Current repulsion force from nearby monsters
+	float personal_space;            // Preferred distance from other monsters (default 48)
+	gtime_t formation_update_time;   // When to recalculate formation position
+	int32_t formation_slot;          // Assigned position in group formation (-1 for none)
+	float preferred_combat_range;    // Ideal distance from target for this monster type
+	gtime_t last_repulsion_time;     // Last time repulsion was calculated
+	vec3_t last_valid_move;          // Last successful movement direction for momentum
+
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 
@@ -1906,7 +1915,7 @@ struct monsterinfo_t
 
 	bool was_spawned_by_horde;
 	bool spawned_in_spawn_state;
-};;
+};;;;
 
 // non-monsterinfo save stuff
 using save_prethink_t = save_data_t<void(*)(edict_t* self), SAVE_FUNC_PRETHINK>;
@@ -2741,6 +2750,7 @@ bool M_walkmove(edict_t* ent, float yaw, float dist);
 void M_MoveToGoal(edict_t* ent, float dist);
 void M_ChangeYaw(edict_t* ent);
 bool ai_check_move(edict_t* self, float dist);
+void InitMonsterAntiStack(edict_t* ent);
 
 //
 // g_phys.c

@@ -13,7 +13,6 @@ GUARDIAN
 #include "m_flash.h"
 #include "shared.h"
 
-constexpr spawnflags_t SPAWNFLAG_GUARDIAN_JANITOR = 8_spawnflag;
 //
 // stand
 //
@@ -736,7 +735,6 @@ void SP_monster_janitor2(edict_t* self)
 
 	 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JANITOR2);
 
-	self->spawnflags |= SPAWNFLAG_GUARDIAN_JANITOR;
 	SP_monster_guardian(self);
 	self->s.skinnum = 2;
 	if (!self->s.scale)

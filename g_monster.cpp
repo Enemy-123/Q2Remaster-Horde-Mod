@@ -1779,6 +1779,12 @@ bool Horde_AttemptToUnstickMonster(edict_t* self);
 
 void monster_start_go(edict_t *self)
 {
+	// Initialize anti-stacking system for horde mode
+	if (g_horde->integer && (self->svflags & SVF_MONSTER))
+	{
+		InitMonsterAntiStack(self);
+	}
+
 	// Paril: moved here so this applies to swim/fly monsters too
 	if (!(self->flags & FL_STATIONARY))
 	{

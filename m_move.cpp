@@ -7,6 +7,171 @@
 #include "horde/p_flyer_morph.h"
 // this is used for communications out of sv_movestep to say what entity
 // is blocking us
+// Anti-stacking system for monsters
+// These functions prevent monsters from clustering in the same spot
+// while still allowing them to pass through each other when necessary
+
+// Get preferred personal space for a monster type
+static float GetMonsterPersonalSpace(edict_t* ent)
+{
+	if (!ent || !(ent->svflags & SVF_MONSTER))
+		return 48.0f;
+	
+	// Bosses need more space
+	if (ent->monsterinfo.IS_BOSS)
+		return 96.0f;
+	
+	// Flying monsters need more vertical space
+	if (ent->flags & FL_FLY)
+		return 64.0f;
+	
+	// Default personal space
+	return 48.0f;
+}
+
+// Calculate repulsion vector from nearby monsters
+static vec3_t CalculateMonsterRepulsion(edict_t* ent)
+{
+	vec3_t repulsion = { 0, 0, 0 };
+	
+	if (!ent || !(ent->svflags & SVF_MONSTER))
+		return repulsion;
+	
+	// Don't calculate repulsion too frequently
+	if (ent->monsterinfo.last_repulsion_time > level.time - 100_ms)
+		return ent->monsterinfo.repulsion_vector;
+	
+	ent->monsterinfo.last_repulsion_time = level.time;
+	
+	// Get personal space for this monster
+	float personal_space = ent->monsterinfo.personal_space;
+	if (personal_space <= 0)
+		personal_space = GetMonsterPersonalSpace(ent);
+	
+	// Search for nearby monsters
+	float search_radius = personal_space * 2.0f;
+	edict_t* other = nullptr;
+	int nearby_count = 0;
+	
+	while ((other = findradius(other, ent->s.origin, search_radius)) != nullptr)
+	{
+		// Skip self, non-monsters, and dead things
+		if (other == ent || !other->inuse || !(other->svflags & SVF_MONSTER))
+			continue;
+		
+		if (other->health <= 0 || other->deadflag)
+			continue;
+		
+		// Calculate distance
+		vec3_t diff = ent->s.origin - other->s.origin;
+		float dist = diff.length();
+		
+		// Skip if too far
+		if (dist >= personal_space || dist < 1.0f)
+			continue;
+		
+		// Calculate repulsion force
+		// Stronger force when closer
+		float strength = (personal_space - dist) / personal_space;
+		strength = min(strength, 1.0f);
+		
+		// Normalize and scale the repulsion vector
+		vec3_t push = diff.normalized();
+		push *= strength * 24.0f; // Max 24 units of repulsion
+		
+		// Reduce vertical repulsion for ground monsters
+		if (!(ent->flags & (FL_FLY | FL_SWIM)))
+			push.z *= 0.1f;
+		
+		repulsion += push;
+		nearby_count++;
+		
+		// Limit total monsters considered for performance
+		if (nearby_count >= 8)
+			break;
+	}
+	
+	// Scale down if too many monsters to prevent excessive spreading
+	if (nearby_count > 4)
+		repulsion *= 0.7f;
+	
+	// Store calculated repulsion
+	ent->monsterinfo.repulsion_vector = repulsion;
+	
+	return repulsion;
+}
+
+// Apply repulsion to movement vector
+static void ApplyMonsterRepulsion(edict_t* ent, vec3_t& move, bool in_combat)
+{
+	if (!ent || !(ent->svflags & SVF_MONSTER))
+		return;
+	
+	// Don't apply repulsion to bosses as strongly
+	float repulsion_strength = ent->monsterinfo.IS_BOSS ? 0.1f : 0.25f;
+	
+	// Reduce repulsion in combat to maintain aggression
+	if (in_combat && ent->enemy && ent->enemy->inuse)
+		repulsion_strength *= 0.5f;
+	
+	// Get repulsion vector
+	vec3_t repulsion = CalculateMonsterRepulsion(ent);
+	
+	// Skip if no repulsion needed
+	if (repulsion.lengthSquared() < 1.0f)
+		return;
+	
+	// Check if we're in a narrow space (corridor)
+	trace_t tr_left = gi.trace(ent->s.origin, ent->mins, ent->maxs, 
+		ent->s.origin + vec3_t{-64, 0, 0}, ent, MASK_SOLID);
+	trace_t tr_right = gi.trace(ent->s.origin, ent->mins, ent->maxs,
+		ent->s.origin + vec3_t{64, 0, 0}, ent, MASK_SOLID);
+	trace_t tr_forward = gi.trace(ent->s.origin, ent->mins, ent->maxs,
+		ent->s.origin + vec3_t{0, 64, 0}, ent, MASK_SOLID);
+	trace_t tr_back = gi.trace(ent->s.origin, ent->mins, ent->maxs,
+		ent->s.origin + vec3_t{0, -64, 0}, ent, MASK_SOLID);
+	
+	// Count blocked directions
+	int blocked_dirs = 0;
+	if (tr_left.fraction < 1.0f) blocked_dirs++;
+	if (tr_right.fraction < 1.0f) blocked_dirs++;
+	if (tr_forward.fraction < 1.0f) blocked_dirs++;
+	if (tr_back.fraction < 1.0f) blocked_dirs++;
+	
+	// In tight spaces, reduce repulsion to allow passage
+	if (blocked_dirs >= 2)
+		repulsion_strength *= 0.3f;
+	
+	// Blend repulsion with intended movement
+	vec3_t original_move = move;
+	move = original_move * (1.0f - repulsion_strength) + repulsion * repulsion_strength;
+	
+	// Maintain some minimum forward progress
+	if (move.lengthSquared() < original_move.lengthSquared() * 0.25f)
+		move = original_move * 0.5f + repulsion * 0.5f;
+}
+
+// Initialize anti-stacking for a monster
+void InitMonsterAntiStack(edict_t* ent)
+{
+	if (!ent || !(ent->svflags & SVF_MONSTER))
+		return;
+	
+	ent->monsterinfo.personal_space = GetMonsterPersonalSpace(ent);
+	ent->monsterinfo.repulsion_vector = vec3_t{0, 0, 0};
+	ent->monsterinfo.formation_slot = -1;
+	ent->monsterinfo.formation_update_time = 0_sec;
+	ent->monsterinfo.last_repulsion_time = 0_sec;
+	ent->monsterinfo.last_valid_move = vec3_t{0, 0, 0};
+	
+	// Set preferred combat range based on monster type
+	if (ent->monsterinfo.melee)
+		ent->monsterinfo.preferred_combat_range = 64.0f;
+	else if (ent->monsterinfo.attack)
+		ent->monsterinfo.preferred_combat_range = 256.0f;
+	else
+		ent->monsterinfo.preferred_combat_range = 128.0f;
+}
 edict_t* new_bad; // pmm
 
 /*
@@ -629,6 +794,13 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	// PGM
 	//======
 
+	// Apply anti-stacking repulsion for non-flying monsters
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && !(ent->flags & (FL_SWIM | FL_FLY)))
+	{
+		bool in_combat = (ent->enemy && ent->enemy->inuse && ent->enemy->health > 0);
+		ApplyMonsterRepulsion(ent, move, in_combat);
+	}
+
 	// flying monsters don't step up
 	if (ent->flags & (FL_SWIM | FL_FLY))
 		return SV_flystep(ent, move, relink, current_bad);
@@ -735,6 +907,11 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 					G_TouchTriggers(ent);
 			}
 			ent->groundentity = nullptr;
+			
+			// Store successful move direction for momentum
+			if ((ent->svflags & SVF_MONSTER) && move.lengthSquared() > 1.0f)
+				ent->monsterinfo.last_valid_move = move.normalized();
+			
 			return true;
 		}
 		// [Paril-KEX] allow dead monsters to "fall" off of edges in their death animation
@@ -747,18 +924,37 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	{
 		ent->monsterinfo.bad_move_time = level.time + 1000_ms;
 
+		// Improved collision recovery with validation
 		if (ent->monsterinfo.bump_time < level.time && chosen_forward.fraction < 1.0f)
 		{
-			// adjust ideal_yaw to move against the object we hit and try again
-			vec3_t const dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
-			float const new_yaw = vectoyaw(dir);
-
-			if (dir.lengthSquared() > 0.1f && ent->ideal_yaw != new_yaw)
+			// Calculate slide velocity
+			vec3_t slide_dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
+			
+			// Validate the slide direction
+			if (slide_dir.lengthSquared() > 0.1f)
 			{
-				ent->ideal_yaw = new_yaw;
-				ent->monsterinfo.random_change_time = level.time + 100_ms;
-				ent->monsterinfo.bump_time = level.time + 200_ms;
-				return true;
+				float new_yaw = vectoyaw(slide_dir);
+				
+				// Check if new direction is significantly different and not just oscillating
+				float yaw_diff = fabsf(ent->ideal_yaw - new_yaw);
+				if (yaw_diff > 180.f)
+					yaw_diff = 360.f - yaw_diff;
+				
+				if (yaw_diff > 15.f && yaw_diff < 165.f)
+				{
+					ent->ideal_yaw = new_yaw;
+					ent->monsterinfo.random_change_time = level.time + 100_ms;
+					ent->monsterinfo.bump_time = level.time + 200_ms;
+					return true;
+				}
+			}
+			
+			// If slide failed, try using last valid move with slight variation
+			if (ent->monsterinfo.last_valid_move.lengthSquared() > 0.1f)
+			{
+				float variation = frandom(-30.f, 30.f);
+				ent->ideal_yaw = vectoyaw(ent->monsterinfo.last_valid_move) + variation;
+				ent->monsterinfo.bump_time = level.time + 300_ms;
 			}
 		}
 
@@ -823,6 +1019,11 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 				if (!g_horde->integer || IsMorphed(ent)) // Enable triggers for morphed players
 					G_TouchTriggers(ent);
 			}
+			
+			// Store successful move direction
+			if ((ent->svflags & SVF_MONSTER) && move.lengthSquared() > 1.0f)
+				ent->monsterinfo.last_valid_move = move.normalized();
+			
 			return true;
 		}
 
@@ -863,7 +1064,10 @@ if ((g_horde->integer && !horde::IsSpecialType(ent, horde::SpecialEntityTypeID::
 	ent->groundentity = trace.ent;
 	ent->groundentity_linkcount = trace.ent->linkcount;
 
-	// the move is ok
+	// the move is ok - store successful move direction for momentum
+	if ((ent->svflags & SVF_MONSTER) && move.lengthSquared() > 1.0f)
+		ent->monsterinfo.last_valid_move = move.normalized();
+	
 	if (relink)
 	{
 		gi.linkentity(ent);
@@ -1103,8 +1307,33 @@ bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 		}
 	}
 
-	// Determine movement priority based on situation
-	const bool try_vertical_first = (brandom() || fabsf(dy) > fabsf(dx));
+	// Improved direction selection based on momentum and obstacle type
+	// Use last valid move direction if available to maintain momentum
+	bool try_vertical_first = false;
+	
+	if (actor->monsterinfo.last_valid_move.lengthSquared() > 0.1f)
+	{
+		// Prefer continuing in a similar direction for smoother movement
+		float last_dir = vectoyaw(actor->monsterinfo.last_valid_move);
+		float x_similarity = fabsf(cosf(DEG2RAD(last_dir)));
+		float y_similarity = fabsf(sinf(DEG2RAD(last_dir)));
+		
+		try_vertical_first = (y_similarity > x_similarity);
+	}
+	else
+	{
+		// Only randomize occasionally to reduce erratic movement
+		// Use deterministic choice based on distance instead of pure random
+		try_vertical_first = (fabsf(dy) > fabsf(dx) * 1.2f);
+		
+		// Add small random element only 25% of the time
+		if (actor->monsterinfo.random_change_time < level.time && irandom(4) == 0)
+		{
+			try_vertical_first = brandom();
+			actor->monsterinfo.random_change_time = level.time + 500_ms;
+		}
+	}
+	
 	const float primary_dir = try_vertical_first ? tdir_y : tdir_x;
 	const float secondary_dir = try_vertical_first ? tdir_x : tdir_y;
 
@@ -1154,12 +1383,15 @@ bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 		}
 	}
 
-	// Try previous direction
+	// Try previous direction (momentum preservation)
 	if (olddir != DI_NODIR && SV_StepDirection(actor, olddir, dist, false))
 		return true;
 
-	// Try alternating between clockwise and counter-clockwise search
-	const bool search_clockwise = brandom();
+	// Systematic search pattern - alternate between clockwise and counter-clockwise
+	// based on actor's position hash instead of random to be more predictable
+	const uint32_t pos_hash = (uint32_t)(actor->s.origin.x + actor->s.origin.y * 997);
+	const bool search_clockwise = (pos_hash & 1) == 0;
+	
 	const float angle_start = search_clockwise ? 0.0f : 315.0f;
 	const float angle_end = search_clockwise ? 315.0f : 0.0f;
 	const float angle_step = search_clockwise ? 45.0f : -45.0f;
@@ -1176,8 +1408,25 @@ bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 	if (turnaround != DI_NODIR && SV_StepDirection(actor, turnaround, dist, false))
 		return true;
 
-	// If all movement attempts failed, try a random direction
-	actor->ideal_yaw = frandom(0, 360);
+	// If all movement attempts failed, set a new direction based on repulsion
+	// instead of pure random to move away from obstacles
+	if (g_horde->integer && (actor->svflags & SVF_MONSTER))
+	{
+		vec3_t repulsion = CalculateMonsterRepulsion(actor);
+		if (repulsion.lengthSquared() > 1.0f)
+		{
+			actor->ideal_yaw = vectoyaw(repulsion);
+		}
+		else
+		{
+			// Only use random as absolute last resort
+			actor->ideal_yaw = frandom(0, 360);
+		}
+	}
+	else
+	{
+		actor->ideal_yaw = frandom(0, 360);
+	}
 
 	// Check and fix ground position if needed
 	if (!M_CheckBottom(actor))

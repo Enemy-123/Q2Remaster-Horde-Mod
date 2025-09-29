@@ -4970,6 +4970,8 @@ static edict_t* Horde_SpawnMonster(
         return nullptr;
     }
 
+	monster->spawnflags |= (SPAWNFLAG_MONSTER_SUPER_STEP);
+
     // Phase 3: Link the fully configured monster into the world and validate.
     monster->solid = SOLID_BBOX;
     gi.linkentity(monster);
