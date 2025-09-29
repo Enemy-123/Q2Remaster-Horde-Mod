@@ -174,20 +174,20 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 		SP_monster_tank(monster);
 	}
 	else if (monster_type < 52) {
-		selected_type = horde::MonsterTypeID::MEDIC;
-		SP_monster_medic(monster);
+		selected_type = horde::MonsterTypeID::SPIDER;
+		SP_monster_spider(monster);
 	}
 	else if (monster_type < 65) {
 		selected_type = horde::MonsterTypeID::SHAMBLER_SMALL;
 		SP_monster_shambler_small(monster);
 	}
-	else if (monster_type < 78) {
+	else if (monster_type < 71) {
 		selected_type = horde::MonsterTypeID::INFANTRY;
 		SP_monster_infantry(monster);
 	}
 	else if (monster_type < 91) {
-		selected_type = horde::MonsterTypeID::SPIDER;
-		SP_monster_spider(monster);
+		selected_type = horde::MonsterTypeID::MEDIC;
+		SP_monster_medic(monster);
 	}
 	else {
 		selected_type = horde::MonsterTypeID::BRAIN;
