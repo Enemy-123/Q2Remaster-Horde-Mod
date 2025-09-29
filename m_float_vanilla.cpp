@@ -56,7 +56,9 @@ void floater_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster(self, start, dir, 4, 1150, MZ2_FLOAT_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
+	// Use fire_blaster with bounces parameter (2 bounces like drone_float.c)
+	edict_t* bolt = fire_blaster(self, start, dir, 4, 1150, EF_BLASTER, MOD_BLASTER, 2);
+	monster_muzzleflash(self, start, MZ2_FLOAT_BLASTER_1);
 }
 
 mframe_t floater_frames_stand1[] = {
