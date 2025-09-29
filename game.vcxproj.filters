@@ -120,6 +120,9 @@
     <ClInclude Include="memory_safety.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="horde\g_asset_manager.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -354,6 +357,9 @@
       <Filter>horde</Filter>
     </ClCompile>
     <ClCompile Include="horde\g_bombspell.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="horde\g_asset_manager.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>

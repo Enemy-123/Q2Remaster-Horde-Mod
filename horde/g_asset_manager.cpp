@@ -1,5 +1,5 @@
 #include "g_asset_manager.h"
-#include "g_local.h"
+#include "../g_local.h"
 #include <algorithm>
 
 namespace horde {

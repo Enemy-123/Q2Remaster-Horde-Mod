@@ -125,6 +125,7 @@
     <ClInclude Include="game.h" />
     <ClInclude Include="g_local.h" />
     <ClInclude Include="g_statusbar.h" />
+    <ClInclude Include="horde\g_asset_manager.h" />
     <ClInclude Include="horde\g_entity_properties.h" />
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
@@ -186,6 +187,7 @@
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
+    <ClCompile Include="horde\g_asset_manager.cpp" />
     <ClCompile Include="horde\g_barrel.cpp" />
     <ClCompile Include="horde\g_bombspell.cpp" />
     <ClCompile Include="horde\g_doppleganger.cpp" />

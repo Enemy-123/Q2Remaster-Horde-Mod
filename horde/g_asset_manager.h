@@ -1,6 +1,6 @@
 #pragma once
 
-#include "g_local.h"
+#include "../g_local.h"
 #include <unordered_map>
 #include <vector>
 #include <string>
