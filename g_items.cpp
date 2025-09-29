@@ -1678,7 +1678,18 @@ constexpr size_t MAX_TEMP_POI_POINTS = 128;
 
 void Compass_Update(edict_t* ent, bool first)
 {
-	vec3_t*& points = level.poi_points[ent->s.number - 1];
+	// Safety check: ensure this is a valid client
+	if (!ent || !ent->client)
+		return;
+
+	// Calculate proper client index
+	int32_t player_index = ent->client - game.clients;
+	
+	// Bounds check for player index
+	if (player_index < 0 || player_index >= MAX_SPLIT_PLAYERS)
+		return;
+
+	vec3_t*& points = level.poi_points[player_index];
 
 	// deleted for some reason
 	if (!points)
@@ -1748,13 +1759,27 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 		return;
 	}
 
+	// Safety check: ensure this is a valid client
+	if (!ent || !ent->client)
+		return;
+
+	// Calculate proper client index
+	int32_t player_index = ent->client - game.clients;
+	
+	// Bounds check for player index
+	if (player_index < 0 || player_index >= MAX_SPLIT_PLAYERS)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Invalid player index for compass");
+		return;
+	}
+
 	if (level.current_dynamic_poi)
 		level.current_dynamic_poi->use(level.current_dynamic_poi, ent, ent);
 
 	ent->client->help_poi_location = level.current_poi;
 	ent->client->help_poi_image = level.current_poi_image;
 
-	vec3_t*& points = level.poi_points[ent->s.number - 1];
+	vec3_t*& points = level.poi_points[player_index];
 
 	if (!points)
 		points = (vec3_t*)gi.TagMalloc(sizeof(vec3_t) * (MAX_TEMP_POI_POINTS + 1), TAG_LEVEL);

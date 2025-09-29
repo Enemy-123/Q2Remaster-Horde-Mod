@@ -3,6 +3,7 @@
 #include "g_local.h"
 #include "g_statusbar.h"
 #include "shared.h"
+#include "horde/p_flyer_morph.h"
 
 /*
 ======================================================================
@@ -297,6 +298,19 @@ void BeginIntermission(edict_t* targ)
 	game.autosaved = false;
 
 	level.intermissiontime = level.time;
+
+	// Restore any morphed players before level transition
+	if (coop->integer)
+	{
+		for (uint32_t i = 0; i < game.maxclients; i++)
+		{
+			client = g_edicts + 1 + i;
+			if (!client->inuse)
+				continue;
+			if (IsMorphed(client))
+				RestoreMorphed(client);
+		}
+	}
 
 	// respawn any dead clients
 	for (uint32_t i = 0; i < game.maxclients; i++)

@@ -506,7 +506,7 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		ent->client->menu_protected = true;
 		ent->client->menu_protection_start = level.time;
 	}
-	else if (strcmp(selected_text, "Vote Cooperative Mode") == 0) {
+	else if (strcmp(selected_text, "Vote Cooperative Mode (Beta)") == 0) {
 		// Open the cooperative campaign selection menu
 		OpenCooperativeCampaignMenu(ent);
 	}
@@ -584,7 +584,7 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
 		idx++;
 
-		Q_strlcpy(map_category_menu[idx].text, "Vote Cooperative Mode", sizeof(map_category_menu[idx].text));
+		Q_strlcpy(map_category_menu[idx].text, "Vote Cooperative Mode (Beta)", sizeof(map_category_menu[idx].text));
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
 		idx++;
