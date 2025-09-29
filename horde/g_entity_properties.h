@@ -5,7 +5,6 @@
 using EntityDieHandler = void(*)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 
 struct EntityProperties {
-    horde::SpecialEntityTypeID id;
     bool is_defense;
     bool is_removable;
     EntityDieHandler die_handler;
@@ -24,39 +23,22 @@ void DieWrapper(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
     OriginalDieFunc(self, inflictor, attacker, damage, point, mod);
 }
 
-constexpr size_t GetEntityIndex(horde::SpecialEntityTypeID id) {
-    switch (id) {
-        case horde::SpecialEntityTypeID::TESLA_MINE: return 0;
-        case horde::SpecialEntityTypeID::FOOD_CUBE_TRAP: return 1;
-        case horde::SpecialEntityTypeID::PROX_MINE: return 2;
-        case horde::SpecialEntityTypeID::TURRET: return 3;
-        case horde::SpecialEntityTypeID::SENTRY_GUN: return 4;
-        case horde::SpecialEntityTypeID::NUKE_MINE: return 5;
-        case horde::SpecialEntityTypeID::LASER_EMITTER: return 6;
-        case horde::SpecialEntityTypeID::LASER_BEAM: return 7;
-        case horde::SpecialEntityTypeID::DOPPLEGANGER: return 8;
-        case horde::SpecialEntityTypeID::STROGG_SUMMONER: return 9;
-        case horde::SpecialEntityTypeID::MORPHED_PLAYER: return 10;
-        case horde::SpecialEntityTypeID::BARREL: return 11;
-        default: return NUM_SPECIAL_ENTITY_TYPES;
-    }
-}
+// Compile-time verification that enum values are sequential starting from 0
+static_assert(static_cast<size_t>(horde::SpecialEntityTypeID::TESLA_MINE) == 0, "Enum must start at 0");
+static_assert(static_cast<size_t>(horde::SpecialEntityTypeID::COUNT) == NUM_SPECIAL_ENTITY_TYPES, "Enum count mismatch");
 
+// Direct array access using enum value as index (enum is sequential 0-11)
 inline bool IsDefense(horde::SpecialEntityTypeID id) {
-    const size_t index = GetEntityIndex(id);
+    const size_t index = static_cast<size_t>(id);
     return (index < NUM_SPECIAL_ENTITY_TYPES) ? g_entityProperties[index].is_defense : false;
 }
 
 inline bool IsRemovable(horde::SpecialEntityTypeID id) {
-    const size_t index = GetEntityIndex(id);
+    const size_t index = static_cast<size_t>(id);
     return (index < NUM_SPECIAL_ENTITY_TYPES) ? g_entityProperties[index].is_removable : false;
 }
 
 inline EntityDieHandler GetDieHandler(horde::SpecialEntityTypeID id) {
-    const size_t index = GetEntityIndex(id);
+    const size_t index = static_cast<size_t>(id);
     return (index < NUM_SPECIAL_ENTITY_TYPES) ? g_entityProperties[index].die_handler : nullptr;
 }
-
-#ifdef _DEBUG
-void VerifyEntityProperties();
-#endif

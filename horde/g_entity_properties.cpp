@@ -13,48 +13,30 @@ extern void strogg_summoner_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&
 extern void barrel_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 
 // --- Global Definition (Single Source of Truth) ---
-// This directly initializes the final data structure at compile time.
+// Array indices directly correspond to SpecialEntityTypeID enum values (0-11)
 const std::array<EntityProperties, NUM_SPECIAL_ENTITY_TYPES> g_entityProperties = {{
-    // Index 0
-    {horde::SpecialEntityTypeID::TESLA_MINE,     true,  true,  tesla_die},
-    // Index 1
-    {horde::SpecialEntityTypeID::FOOD_CUBE_TRAP, true,  true,  trap_die},
-    // Index 2
-    {horde::SpecialEntityTypeID::PROX_MINE,      true,  true,  prox_die},
-    // Index 3 (Corrected Order)
-    {horde::SpecialEntityTypeID::TURRET,         true,  true,  DieWrapper<turret_die>},
-    // Index 4 (Corrected Order)
-    {horde::SpecialEntityTypeID::SENTRY_GUN,     true,  true,  DieWrapper<turret2_die>},
-    // Index 5 (NEW ENTRY)
-    {horde::SpecialEntityTypeID::NUKE_MINE,      true,  true,  nuke_die},
-    // Index 6
-    {horde::SpecialEntityTypeID::LASER_EMITTER,  true,  true,  laser_die},
-    // Index 7
-    {horde::SpecialEntityTypeID::LASER_BEAM,     true,  true,  laser_die},
-    // Index 8
-    {horde::SpecialEntityTypeID::DOPPLEGANGER,   false, true,  doppleganger_die},
-    // Index 9
-    {horde::SpecialEntityTypeID::STROGG_SUMMONER, true, true,  strogg_summoner_die},
-    // Index 10 - Morphed players
-    {horde::SpecialEntityTypeID::MORPHED_PLAYER,  false, false, nullptr},
-    // Index 11 - Explosive barrels
-    {horde::SpecialEntityTypeID::BARREL,          true,  true,  barrel_die}
-}};;
-
-// --- Recommendation 5: Runtime Verification ---
-// This function runs only in debug builds to catch logical errors in the data,
-// such as an entity being marked as removable but not having a cleanup function.
-void VerifyEntityProperties() {
-    for (size_t i = 0; i < NUM_SPECIAL_ENTITY_TYPES; ++i) {
-        const auto& props = g_entityProperties[i];
-        size_t expected_index = GetEntityIndex(props.id);
-        
-        gi.Com_PrintFmt("DEBUG: Index {}: ID={}, GetEntityIndex({})={}\n", 
-            i, static_cast<int>(props.id), static_cast<int>(props.id), expected_index);
-        
-        if (expected_index != i) {
-            gi.Com_PrintFmt("EntityProperties ERROR: Mismatch at index {}. ID is {} but should correspond to this index.\n",
-                i, static_cast<int>(props.id));
-        }
-    }
-}
+    // Index 0: TESLA_MINE
+    {true,  true,  tesla_die},
+    // Index 1: FOOD_CUBE_TRAP
+    {true,  true,  trap_die},
+    // Index 2: PROX_MINE
+    {true,  true,  prox_die},
+    // Index 3: TURRET
+    {true,  true,  DieWrapper<turret_die>},
+    // Index 4: SENTRY_GUN
+    {true,  true,  DieWrapper<turret2_die>},
+    // Index 5: NUKE_MINE
+    {true,  true,  nuke_die},
+    // Index 6: LASER_EMITTER
+    {true,  true,  laser_die},
+    // Index 7: LASER_BEAM
+    {true,  true,  laser_die},
+    // Index 8: DOPPLEGANGER
+    {false, true,  doppleganger_die},
+    // Index 9: STROGG_SUMMONER
+    {true,  true,  strogg_summoner_die},
+    // Index 10: MORPHED_PLAYER
+    {false, false, nullptr},
+    // Index 11: BARREL
+    {true,  true,  barrel_die}
+}};
