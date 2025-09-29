@@ -1051,6 +1051,19 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		const bool give_advanced = current_wave_level >= 13;
 		const bool give_basic = current_wave_level >= 4;
 
+		// Always give blaster and some minimal ammo for late-joining players
+		// Even in early waves (1-3)
+		if (!client->pers.received_late_join_ammo) {
+			// Ensure blaster for all late-joiners
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+
+			// Give minimal starting ammo even in early waves
+			if (current_wave_level >= 1) {
+				client->pers.inventory[AMMO_BULLETS] += 50;   // Minimal machinegun ammo
+				client->pers.inventory[AMMO_SHELLS] += 10;    // Minimal shotgun ammo
+			}
+		}
+
 		if (give_advanced || give_basic) {
 			// Common weapons for both loadouts
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1; // Ensure blaster
@@ -1075,15 +1088,15 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				// Enough to defend themselves but not overpowered
 
 				// Basic ammo for common weapons
-				client->pers.inventory[AMMO_BULLETS] = 100;   // For machinegun/chaingun
-				client->pers.inventory[AMMO_SHELLS] = 20;     // For shotgun/sshotgun
-				client->pers.inventory[AMMO_FLECHETTES] = 50; // For ETF rifle
-				client->pers.inventory[AMMO_PROX] = 10;       // For prox launcher
+				client->pers.inventory[AMMO_BULLETS] += 100;   // For machinegun/chaingun
+				client->pers.inventory[AMMO_SHELLS] += 20;     // For shotgun/sshotgun
+				client->pers.inventory[AMMO_FLECHETTES] += 50; // For ETF rifle
+				client->pers.inventory[AMMO_PROX] += 10;       // For prox launcher
 
 				// Advanced loadout ammo (only if wave 13+)
 				if (give_advanced) {
-					client->pers.inventory[AMMO_GRENADES] = 10;  // For grenade launcher
-					client->pers.inventory[AMMO_ROCKETS] = 10;   // For rocket launcher
+					client->pers.inventory[AMMO_GRENADES] += 10;  // For grenade launcher
+					client->pers.inventory[AMMO_ROCKETS] += 10;   // For rocket launcher
 				}
 
 				// Mark that this player has received their late-join ammo
