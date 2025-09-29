@@ -430,10 +430,12 @@ void BossDeathHandler(edict_t *boss)
 	// Mark as handled immediately
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
-	boss_spawned_for_wave = false;
+	// Don't reset boss_spawned_for_wave here - it should remain true for the entire wave
+	// to prevent spawning multiple bosses. It will be reset when starting a new wave.
+	// boss_spawned_for_wave = false;  // REMOVED - this was causing instant respawn
 	if (developer->integer)
 	{
-		gi.Com_PrintFmt("BossDeathHandler: Reset boss_spawned_for_wave flag for wave {}.\n", current_wave_level);
+		gi.Com_PrintFmt("BossDeathHandler: Boss died on wave {}. Flag remains set to prevent respawn.\n", current_wave_level);
 	}
 
 	// Clean up entity tracking
