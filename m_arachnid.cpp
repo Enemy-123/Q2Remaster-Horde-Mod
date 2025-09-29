@@ -2162,7 +2162,7 @@ void SP_monster_psxarachnid(edict_t* self)
     if (!st.was_key_specified("power_armor_type") && self->monsterinfo.IS_BOSS)
         self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
     if (!st.was_key_specified("power_armor_power") && self->monsterinfo.IS_BOSS)
-        self->monsterinfo.power_armor_power = 2500;
+        self->monsterinfo.power_armor_power = 1000;
 
     self->health = 1000 * st.health_multiplier;
     self->gib_health = -200;

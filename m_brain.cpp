@@ -1188,7 +1188,7 @@ void SP_monster_brain(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = 225 * st.health_multiplier;
+	self->health = 275 * st.health_multiplier;
 	self->gib_health = -90;
 	self->mass = 400;
 	//self->yaw_speed = 400;

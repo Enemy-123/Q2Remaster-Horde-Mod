@@ -702,19 +702,19 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	else if (style.has_bluehyper())
 	{
 		if (IsFirstThreeWaves(current_wave_level)) {
-			monster_fire_blueblaster(self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER);
+			monster_fire_blueblaster(self, start, aim, 2, 600, flash_index, EF_BLUEHYPERBLASTER);
 		}
 		else {
-			monster_fire_blaster_bolt(self, start, forward, 4, 1150, flash_index, EF_BLUEHYPERBLASTER);
+			monster_fire_blaster_bolt(self, start, forward, 5, 1150, flash_index, EF_BLUEHYPERBLASTER);
 		}
 	}
 	else if (style.has_blaster())
 	{
-		monster_fire_blaster(self, start, aim, IsFirstThreeWaves(current_wave_level) ? 5 : 8, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
+		monster_fire_blaster(self, start, aim, IsFirstThreeWaves(current_wave_level) ? 6 : 9, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
 	}
 	else if (style.has_shotgun())
 	{
-		monster_fire_shotgun(self, start, aim, 2, 1, 1500, 750, 9, flash_index);
+		monster_fire_shotgun(self, start, aim, 3, 1, 1500, 750, 9, flash_index);
 		// [Paril-KEX] indicates to soldier that he must cock
 		self->dmg = 1;
 	}
@@ -727,7 +727,7 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 		if (style.has_laser())
 			soldierh_laserbeam(self, flash_index); //crashes here
 		else
-			monster_fire_bullet(self, start, aim, 2, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+			monster_fire_bullet(self, start, aim, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
 
 		if (level.time >= self->monsterinfo.fire_wait)
 		{

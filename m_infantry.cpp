@@ -1146,11 +1146,9 @@ void SP_monster_infantry_vanilla(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	if (!g_horde->integer) {
+	if (!g_horde->integer || self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA)) {
 		self->health = 100 * st.health_multiplier;
 	}
-
-	self->health = 100 * st.health_multiplier;
 
 	self->gib_health = -65;
 	self->mass = 200;
@@ -1210,7 +1208,7 @@ void SP_monster_infantry(edict_t* self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
-		self->health = 150 * st.health_multiplier;
+		self->health = 125 * st.health_multiplier;
 	}
 
 	SP_monster_infantry_vanilla(self);
