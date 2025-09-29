@@ -2992,8 +2992,11 @@ static horde::MonsterTypeID SelectFromCache(const MonsterCache &cache_ref)
 
 static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionContext &ctx)
 {
-	if (developer->integer)
-		gi.Com_PrintFmt("G_HordePickMonsterType: Fallback (Lvl: {}, FlyPoint: {})...\n", ctx.currentActualLevel, ctx.isSpawnPointFlying);
+	// Debug-only: This is expected for flying spawn points or restrictive wave types
+	if (developer->integer >= 2)
+		gi.Com_PrintFmt("DEBUG: Monster picker emergency fallback (Lvl: {}, FlyPoint: {}, WaveType: {})\n",
+		                ctx.currentActualLevel, ctx.isSpawnPointFlying, static_cast<int>(ctx.waveTypeForFiltering));
+
 	for (const auto &monster : monsterTypes)
 	{
 		if (monster.minWave <= ctx.currentActualLevel)
@@ -3171,7 +3174,8 @@ void Horde_PreInit()
 
 void VerifyAndAdjustBots()
 {
-	if (developer->integer == 2)
+	// developer >= 2: Disable bot spawning for debugging
+	if (developer->integer >= 2)
 	{
 		gi.cvar_set("bot_minClients", "-1");
 	}
@@ -5314,7 +5318,8 @@ static void PlanMonsterSpawnBatch(
 void PlanNextSpawnBatch()
 {
 	if (level.intermissiontime) return;
-	if (developer->integer == 2 && g_horde->integer) return;
+	// developer >= 3: Freeze monster spawning for debugging (bots still disabled at developer >= 2)
+	if (developer->integer >= 3 && g_horde->integer) return;
 
 	if (!g_spawn_plan.empty()) {
 		return;
