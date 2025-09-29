@@ -311,15 +311,26 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
         if (data->tongue_active) {
             BrainTongueAttackContinue(ent, data);
 
-            // Animation for attack - smooth controlled speed
+            // Animation for attack - initial frames then continuous loop
             if (ent->s.frame < BRAIN_FRAMES_ATTACK_START || ent->s.frame > BRAIN_FRAMES_ATTACK_END) {
+                // Start the attack animation
                 ent->s.frame = BRAIN_FRAMES_ATTACK_START;
-                ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth interpolation
+                ent->s.renderfx |= RF_OLD_FRAME_LERP;
             }
             else if (should_advance_frame) {
-                ent->s.frame++;
-                if (ent->s.frame > BRAIN_FRAMES_ATTACK_END)
-                    ent->s.frame = BRAIN_FRAMES_ATTACK_START + 2; // Loop from frame 3
+                // Advance through attack frames
+                if (ent->s.frame < BRAIN_FRAMES_ATTACK_LOOP_START) {
+                    // Still in initial attack frames, advance normally
+                    ent->s.frame++;
+                }
+                else if (ent->s.frame >= BRAIN_FRAMES_ATTACK_LOOP_END) {
+                    // Reached end of loop, go back to loop start
+                    ent->s.frame = BRAIN_FRAMES_ATTACK_LOOP_START;
+                }
+                else {
+                    // In the loop frames, advance and wrap around
+                    ent->s.frame++;
+                }
                 data->next_frame_time = level.time + 10_hz; // 100ms per frame (10Hz)
                 ent->s.renderfx |= RF_OLD_FRAME_LERP;
             }

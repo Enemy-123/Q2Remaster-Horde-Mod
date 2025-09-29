@@ -13,9 +13,11 @@ constexpr int32_t BRAIN_FRAMES_STAND_END = 191;    // FRAME_stand30;    // FRAME
 constexpr int32_t BRAIN_FRAMES_WALK_START = 0;     // FRAME_walk101;     // FRAME_walk101 (line 9 in enum, 0-indexed = 8);     // FRAME_walk101
 constexpr int32_t BRAIN_FRAMES_WALK_END = 10;      // FRAME_walk111;      // FRAME_walk111 (line 19 in enum, 0-indexed = 18);      // FRAME_walk111
 
-// Attack animation - attak201 to attak217 (frames 79-95) for tongue attack
-constexpr int32_t BRAIN_FRAMES_ATTACK_START = 71;  // FRAME_attak201;  // FRAME_attak201 (line 80 in enum, 0-indexed = 79);  // FRAME_attak201
-constexpr int32_t BRAIN_FRAMES_ATTACK_END = 87;    // FRAME_attak217;    // FRAME_attak217 (line 96 in enum, 0-indexed = 95);    // FRAME_attak217
+// Attack animation - initial attack and continuous loop
+constexpr int32_t BRAIN_FRAMES_ATTACK_START = 74;      // FRAME_attak201 - initial attack start
+constexpr int32_t BRAIN_FRAMES_ATTACK_LOOP_START = 76; // FRAME_attak206 - continuous loop start
+constexpr int32_t BRAIN_FRAMES_ATTACK_LOOP_END = 80;   // FRAME_attak210 - continuous loop end
+constexpr int32_t BRAIN_FRAMES_ATTACK_END = 81;        // FRAME_attak211 - attack sequence end
 
 // Jump animation - duck01 to duck08 (frames 154-161) used for jumping
 constexpr int32_t BRAIN_FRAMES_JUMP_START = 146;   // FRAME_duck01
