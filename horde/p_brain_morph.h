@@ -18,9 +18,9 @@ constexpr int32_t BRAIN_FRAMES_ATTACK_START = 71;  // FRAME_attak201;  // FRAME_
 constexpr int32_t BRAIN_FRAMES_ATTACK_END = 87;    // FRAME_attak217;    // FRAME_attak217 (line 96 in enum, 0-indexed = 95);    // FRAME_attak217
 
 // Jump animation - duck01 to duck08 (frames 154-161) used for jumping
-constexpr int32_t BRAIN_FRAMES_JUMP_START = 154;   // FRAME_duck01
-constexpr int32_t BRAIN_FRAMES_JUMP_HOLD = 155;    // FRAME_duck05 - hold while in air (the correct mid-air frame)
-constexpr int32_t BRAIN_FRAMES_JUMP_END = 161;     // FRAME_duck08
+constexpr int32_t BRAIN_FRAMES_JUMP_START = 146;   // FRAME_duck01
+constexpr int32_t BRAIN_FRAMES_JUMP_HOLD = 148;    // FRAME_duck05 - hold while in air (the correct mid-air frame)
+constexpr int32_t BRAIN_FRAMES_JUMP_END = 153;     // FRAME_duck08
 
 // Tongue attack constants
 constexpr float BRAIN_TONGUE_RANGE = 512.0f;
