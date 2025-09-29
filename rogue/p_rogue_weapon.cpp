@@ -277,9 +277,9 @@ void weapon_etf_rifle_fire(edict_t* ent)
 	vec3_t offset;
 
 	if (G_IsDeathmatch())
-		damage = irandom(7, 11);
+		damage = irandom(9, 13);
 	else
-		damage = irandom(7, 11);
+		damage = irandom(9, 13);
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -356,8 +356,8 @@ void Weapon_ETF_Rifle(edict_t* ent)
 	Weapon_Repeating(ent, 4, 7, 37, 41, pause_frames, weapon_etf_rifle_fire);
 }
 
-constexpr int32_t HEATBEAM_DM_DMG = 15;
-constexpr int32_t HEATBEAM_SP_DMG = 15;
+constexpr int32_t HEATBEAM_DM_DMG = 18;
+constexpr int32_t HEATBEAM_SP_DMG = 18;
 
 void Heatbeam_Fire(edict_t* ent)
 {
@@ -399,9 +399,9 @@ void Heatbeam_Fire(edict_t* ent)
 		damage = HEATBEAM_SP_DMG;
 
 	if (G_IsDeathmatch()) // really knock 'em around in deathmatch
-		kick = 50;
+		kick = 75;
 	else
-		kick = 50;
+		kick = 75;
 
 	if (is_quad)
 	{

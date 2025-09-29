@@ -1237,7 +1237,7 @@ void medic_fire_blaster(edict_t* self)
 	vec3_t	  end;
 	vec3_t	  dir;
 	effects_t effect;
-	int		  damage = 2;
+	int		  damage = 4;
 	monster_muzzleflash_id_t mz;
 
 	if ((self->s.frame == FRAME_attack9) || (self->s.frame == FRAME_attack12))

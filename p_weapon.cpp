@@ -492,7 +492,7 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		//const bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
 		//const bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
 		//const bool using_hyperblaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-		//const bool using_ripper = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+		const bool using_ripper = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
 		//const bool using_rail = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RAILGUN;
 		//const bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
 		const bool using_trap = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TRAP;
@@ -512,9 +512,10 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		//if (using_blaster) {
 		//	final_multiplier *= 1.4f;
 		//}
-		if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher) {
+		if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher || using_ripper) {
 			final_multiplier *= 1.4f;
 		}
+	
 		if (using_shotgun) {
 			final_multiplier *= 1.5f;
 		}
@@ -1456,8 +1457,8 @@ void Weapon_Blaster_Fire(edict_t* ent)
 	// Consume blaster ammo
 	ent->client->blaster_ammo--;
 
-	// give the blaster 15 across the board instead of just in dm
-	int const damage = irandom(14, 18);
+	// reduced damage to balance with Strength Tech (4x multiplier)
+	int const damage = irandom(8, 10);
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
@@ -1518,9 +1519,9 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 			offset[1] = 4 * cosf(rotation);
 
 			if (G_IsDeathmatch())
-				damage = irandom(14,15);
+				damage = irandom(16,18);
 			else
-				damage = irandom(14, 15);
+				damage = irandom(16, 18);
 			Blaster_Fire(ent, offset, damage, true, ((ent->client->ps.gunframe - 6) % 4) == 0 ? EF_HYPERBLASTER : EF_NONE);
 			Weapon_PowerupSound(ent);
 
@@ -1717,7 +1718,7 @@ void Chaingun_Fire(edict_t* ent)
 		return;
 
 	int shots;
-	int damage = irandom(5, 9);
+	int damage = irandom(7, 11);
 	int kick = 2;
 
 	// Handle gun state transitions
