@@ -992,10 +992,10 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.max_ammo[AMMO_ROCKETS] = 100;
 		client->pers.max_ammo[AMMO_SLUGS] = 75;
 		client->pers.max_ammo[AMMO_MAGSLUG] = 125;
-		client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
-		client->pers.max_ammo[AMMO_TESLA] = 12;
+		client->pers.max_ammo[AMMO_DISRUPTOR] = 35;
+		client->pers.max_ammo[AMMO_TESLA] = 14;
 		client->pers.max_ammo[AMMO_PROX] = 125;
-		client->pers.max_ammo[AMMO_TRAP] = 8;
+		client->pers.max_ammo[AMMO_TRAP] = 12;
 	}
 	else {
 		// Basic horde ammo caps
@@ -1009,9 +1009,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.max_ammo[AMMO_SLUGS] = 50;   // Default
 		client->pers.max_ammo[AMMO_MAGSLUG] = 50; // Default
 		client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-		client->pers.max_ammo[AMMO_TESLA] = 5;
+		client->pers.max_ammo[AMMO_TESLA] = 7;
 		client->pers.max_ammo[AMMO_PROX] = 50;    // Default
-		client->pers.max_ammo[AMMO_TRAP] = 5;
+		client->pers.max_ammo[AMMO_TRAP] = 7;
 	}
 
 	//
@@ -1100,170 +1100,175 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 // Modified InitClientPersistant
 void InitClientPersistant(edict_t* ent, gclient_t* client)
 {
-	// Backup & restore userinfo
-	char userinfo[MAX_INFO_STRING];
-	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
-	ClientUserinfoChanged(ent, userinfo);
+    // Backup & restore userinfo
+    char userinfo[MAX_INFO_STRING];
+    Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+    ClientUserinfoChanged(ent, userinfo);
 
-	//
-	// HEALTH INITIALIZATION (Default)
-	// Horde mode will override this if active.
-	//
-	client->pers.health = 100;
-	client->pers.max_health = 100;
-	ent->max_health = 100; // Also set entity's max_health
+    //
+    // HEALTH INITIALIZATION (Default)
+    // Horde mode will override this if active.
+    //
+    client->pers.health = 100;
+    client->pers.max_health = 100;
+    ent->max_health = 100; // Also set entity's max_health
 
-	//
-	// BLASTER AMMO INITIALIZATION (Vortex-style)
-	//
-	client->blaster_ammo = 25; // Start with full blaster ammo
-	client->blaster_regen_time = level.time; // Initialize regen timer
+    //
+    // BLASTER AMMO INITIALIZATION (Vortex-style)
+    //
+    client->blaster_ammo = 25; // Start with full blaster ammo
+    client->blaster_regen_time = level.time; // Initialize regen timer
 
-	//
-	// ARMOR INITIALIZATION (Clear existing)
-	//
-	client->pers.inventory[IT_ARMOR_BODY] =
-		client->pers.inventory[IT_ARMOR_COMBAT] =
-		client->pers.inventory[IT_ARMOR_JACKET] =
-		client->pers.inventory[IT_ARMOR_SHARD] = 0;
+    //
+    // ARMOR INITIALIZATION (Clear existing)
+    //
+    client->pers.inventory[IT_ARMOR_BODY] =
+        client->pers.inventory[IT_ARMOR_COMBAT] =
+        client->pers.inventory[IT_ARMOR_JACKET] =
+        client->pers.inventory[IT_ARMOR_SHARD] = 0;
 
-	//
-	// INVENTORY & AMMO INITIALIZATION
-	//
-	bool taken_loadout = false;
+    //
+    // INVENTORY & AMMO INITIALIZATION
+    //
+    bool taken_loadout = false;
 
-	// Check for coop inheritance (remains the same)
-	if (G_IsCooperative()) {
-		for (auto player : active_players()) {
-			if (player == ent || !player->client->pers.spawned ||
-				player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
-				continue;
+    // Check for coop inheritance (remains the same)
+    if (G_IsCooperative()) {
+        for (auto player : active_players()) {
+            if (player == ent || !player->client->pers.spawned ||
+                player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
+                continue;
 
-			client->pers.inventory = player->client->pers.inventory;
-			client->pers.max_ammo = player->client->pers.max_ammo;
-			client->pers.power_cubes = player->client->pers.power_cubes;
-			taken_loadout = true;
-			break;
-		}
-	}
+            client->pers.inventory = player->client->pers.inventory;
+            client->pers.max_ammo = player->client->pers.max_ammo;
+            client->pers.power_cubes = player->client->pers.power_cubes;
+            taken_loadout = true;
+            break;
+        }
+    }
 
-	if (!taken_loadout) {
-		// Base ammo initialization (Default values)
-		client->pers.max_ammo.fill(50); // Default small capacity
-		client->pers.max_ammo[AMMO_BULLETS] = 200;
-		client->pers.max_ammo[AMMO_SHELLS] = 100;
-		client->pers.max_ammo[AMMO_CELLS] = 200;
-		client->pers.max_ammo[AMMO_FLECHETTES] = 200;
-		// Special ammo defaults (usually low unless upgraded)
-		client->pers.max_ammo[AMMO_GRENADES] = 50;
-		client->pers.max_ammo[AMMO_ROCKETS] = 50;
-		client->pers.max_ammo[AMMO_SLUGS] = 50;
-		client->pers.max_ammo[AMMO_MAGSLUG] = 50;
-		client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-		client->pers.max_ammo[AMMO_TESLA] = 5;
-		client->pers.max_ammo[AMMO_PROX] = 50;
-		client->pers.max_ammo[AMMO_TRAP] = 5;
-
-
-		// Give blaster in deathmatch (non-Horde deathmatch)
-		// Horde handles its own blaster grant if needed inside Horde_Init...
-		if (deathmatch->integer && (!g_horde || !g_horde->integer)) // Added null check
-			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-
-		// Process start items (remains the same)
-		if (g_start_items && *g_start_items->string) // Added null check
-			Player_GiveStartItems(ent, g_start_items->string);
-		if (level.start_items && *level.start_items)
-			Player_GiveStartItems(ent, level.start_items);
-
-		G_CheckPowerArmor(ent); // Check/apply power armor based on inventory
-
-		// Standard items for non-deathmatch/coop (remains the same)
-		if (!deathmatch->integer || coop->integer) {
-			// Grant standard items if NOT deathmatch OR if coop IS enabled
-			// Horde mode will grant its own flashlight if active
-			if (!g_horde || !g_horde->integer) { // Added null check
-				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
-			}
-			client->pers.inventory[IT_ITEM_COMPASS] = 1;
-		}
-
-		//
-		// >>> CALL HORDE-SPECIFIC INITIALIZATION <<<
-		//
-		if (g_horde && g_horde->integer) { // Added null check
-			Horde_InitClientPersistant(ent, client);
-			// Horde function handles:
-			// - Overriding health/max_health
-			// - Overriding max_ammo
-			// - Granting Horde-specific items (Menu, Flashlight)
-			// - Granting Horde bot techs
-			// - Granting Horde wave-based weapons
-		}
+    if (!taken_loadout) {
+        // Base ammo initialization (Default values)
+        client->pers.max_ammo.fill(50); // Default small capacity
+        client->pers.max_ammo[AMMO_BULLETS] = 200;
+        client->pers.max_ammo[AMMO_SHELLS] = 100;
+        client->pers.max_ammo[AMMO_CELLS] = 200;
+        client->pers.max_ammo[AMMO_FLECHETTES] = 200;
+        // Special ammo defaults (usually low unless upgraded)
+        client->pers.max_ammo[AMMO_GRENADES] = 50;
+        client->pers.max_ammo[AMMO_ROCKETS] = 50;
+        client->pers.max_ammo[AMMO_SLUGS] = 50;
+        client->pers.max_ammo[AMMO_MAGSLUG] = 50;
+        client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+        client->pers.max_ammo[AMMO_TESLA] = 5;
+        client->pers.max_ammo[AMMO_PROX] = 50;
+        client->pers.max_ammo[AMMO_TRAP] = 5;
 
 
-		// Handle grapple (remains the same, not Horde-specific)
-		// Ensure cvars exist before checking them
-		const bool give_grapple = (g_allow_grapple && !strcmp(g_allow_grapple->string, "auto")) ?
-			(ctf && ctf->integer ? !level.no_grapple : false) : // Fixed potential null deref on ctf
-			(g_allow_grapple && g_allow_grapple->integer); // Fixed potential null deref
+        // Give blaster in deathmatch (non-Horde deathmatch)
+        // Horde handles its own blaster grant if needed inside Horde_Init...
+        if (deathmatch->integer && (!g_horde || !g_horde->integer)) // Added null check
+            client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
-		if (give_grapple)
-			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
-	} // End if (!taken_loadout)
+        // Process start items (remains the same)
+        if (g_start_items && *g_start_items->string) // Added null check
+            Player_GiveStartItems(ent, g_start_items->string);
+        if (level.start_items && *level.start_items)
+            Player_GiveStartItems(ent, level.start_items);
 
-	//
-	// WEAPON SELECTION (Remains the same)
-	// Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
-	//
-	if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
-		client->pers.weapon = client->pers.lastweapon;
-		client->pers.selected_item = client->pers.lastweapon->id;
-	}
-	else {
-		NoAmmoWeaponChange(ent, false); // Try to find a weapon with ammo
-		if (client->newweapon) {
-			client->pers.weapon = client->newweapon;
-			client->pers.selected_item = client->newweapon->id;
-		}
-		else {
-			// Absolute fallback to Blaster if everything else fails
-			gitem_t* blasterItem = FindItem("Blaster");
-			if (blasterItem) { // Ensure Blaster item exists
-				client->pers.selected_item = blasterItem->id;
-				// Ensure blaster is in inventory (might not be if start_items removes it)
-				if (client->pers.inventory[blasterItem->id] <= 0)
-					client->pers.inventory[blasterItem->id] = 1;
-				client->pers.weapon = blasterItem;
-			}
-			else {
-				// Handle extremely unlikely case where Blaster item definition is missing
-				client->pers.weapon = nullptr;
-				client->pers.selected_item = IT_NULL;
-			}
-		}
-	}
+        G_CheckPowerArmor(ent); // Check/apply power armor based on inventory
 
-	//
-	// FINAL SETUP (Remains the same)
-	//
-	if (G_IsCooperative() && g_coop_enable_lives && g_coop_enable_lives->integer) // Added null check
-		client->pers.lives = g_coop_num_lives ? g_coop_num_lives->integer + 1 : 1; // Added null check + fallback
+        // Standard items for non-deathmatch/coop (remains the same)
+        if (!deathmatch->integer || coop->integer) {
+            // Grant standard items if NOT deathmatch OR if coop IS enabled
+            // Horde mode will grant its own flashlight if active
+            if (!g_horde || !g_horde->integer) { // Added null check
+                client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+            }
+            client->pers.inventory[IT_ITEM_COMPASS] = 1;
+        }
 
-	// Handle autoshield preference (remains the same)
-	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
-		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
+        //
+        // >>> CALL HORDE-SPECIFIC INITIALIZATION <<<
+        //
+        if (g_horde && g_horde->integer) { // Added null check
+            Horde_InitClientPersistant(ent, client);
+            // Horde function handles:
+            // - Overriding health/max_health
+            // - Overriding max_ammo
+            // - Granting Horde-specific items (Menu, Flashlight)
+            // - Granting Horde bot techs
+            // - Granting Horde wave-based weapons
+            // - Granting starting ammo for late-joining players (checks !pers.spawned)
+        }
 
-	// Grant starting body armor if player has start armor benefit
-	if (PlayerHasStartArmor(ent))
-		client->pers.inventory[IT_ARMOR_BODY] = 100;
 
-	// Set connected/spawned flags (remains the same)
-	client->pers.connected = true;
-	client->pers.spawned = true;
-	//client->pers.bob_skip = false;
-	//client->pers.id_state = false;
-	//client->pers.iddmg_state = false;
+        // Handle grapple (remains the same, not Horde-specific)
+        // Ensure cvars exist before checking them
+        const bool give_grapple = (g_allow_grapple && !strcmp(g_allow_grapple->string, "auto")) ?
+            (ctf && ctf->integer ? !level.no_grapple : false) : // Fixed potential null deref on ctf
+            (g_allow_grapple && g_allow_grapple->integer); // Fixed potential null deref
+
+        if (give_grapple)
+            client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
+    } // End if (!taken_loadout)
+
+    //
+    // WEAPON SELECTION (Remains the same)
+    // Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
+    //
+    if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
+        client->pers.weapon = client->pers.lastweapon;
+        client->pers.selected_item = client->pers.lastweapon->id;
+    }
+    else {
+        NoAmmoWeaponChange(ent, false); // Try to find a weapon with ammo
+        if (client->newweapon) {
+            client->pers.weapon = client->newweapon;
+            client->pers.selected_item = client->newweapon->id;
+        }
+        else {
+            // Absolute fallback to Blaster if everything else fails
+            gitem_t* blasterItem = FindItem("Blaster");
+            if (blasterItem) { // Ensure Blaster item exists
+                client->pers.selected_item = blasterItem->id;
+                // Ensure blaster is in inventory (might not be if start_items removes it)
+                if (client->pers.inventory[blasterItem->id] <= 0)
+                    client->pers.inventory[blasterItem->id] = 1;
+                client->pers.weapon = blasterItem;
+            }
+            else {
+                // Handle extremely unlikely case where Blaster item definition is missing
+                client->pers.weapon = nullptr;
+                client->pers.selected_item = IT_NULL;
+            }
+        }
+    }
+
+    //
+    // FINAL SETUP (Remains the same)
+    //
+    if (G_IsCooperative() && g_coop_enable_lives && g_coop_enable_lives->integer) // Added null check
+        client->pers.lives = g_coop_num_lives ? g_coop_num_lives->integer + 1 : 1; // Added null check + fallback
+
+    // Handle autoshield preference (remains the same)
+    if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
+        client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
+
+    // Grant starting body armor if player has start armor benefit
+    if (PlayerHasStartArmor(ent))
+        client->pers.inventory[IT_ARMOR_BODY] = 100;
+
+    // Set connected flag first
+    client->pers.connected = true;
+    
+    // IMPORTANT: Set spawned flag AFTER horde initialization
+    // This ensures that Horde_InitClientPersistant can correctly detect
+    // first-time spawns and give starting ammo only to late-joining players
+    client->pers.spawned = true;
+    //client->pers.bob_skip = false;
+    //client->pers.id_state = false;
+    //client->pers.iddmg_state = false;
 }
 
 void InitClientResp(gclient_t* client)
