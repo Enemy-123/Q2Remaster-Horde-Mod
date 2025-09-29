@@ -60,7 +60,7 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
     vec3_t const diff = start - self->s.origin;
     float const dist = diff.length();
 
-    // Release if out of range or no line of sight
+    // Release if out of range
     if (dist > BRAIN_TONGUE_RANGE) {
         data->tongue_active = false;
         data->tongue_target = nullptr;
@@ -68,44 +68,87 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
         return;
     }
 
-    // Check line of sight
+    // Check line of sight - be more lenient for non-enemy entities
     trace_t tr = gi.traceline(self->s.origin, data->tongue_target->s.origin, self, MASK_SHOT);
-    if (tr.fraction < 1.0f && tr.ent != data->tongue_target) {
+    bool has_los = (tr.fraction == 1.0f || tr.ent == data->tongue_target);
+
+    // For destructible objects without enemy AI, be more lenient with line of sight
+    if (!has_los && data->tongue_target->takedamage &&
+        !data->tongue_target->client && !(data->tongue_target->svflags & SVF_MONSTER)) {
+        // Try tracing to the center of the entity instead
+        G_EntMidPoint(data->tongue_target, start);
+        tr = gi.traceline(self->s.origin, start, self, MASK_SHOT);
+        has_los = (tr.fraction >= 0.9f || tr.ent == data->tongue_target);
+
+        // For SOLID_BSP entities (func_explosive), also try absmin/absmax center
+        if (!has_los && data->tongue_target->solid == SOLID_BSP) {
+            vec3_t center = (data->tongue_target->absmin + data->tongue_target->absmax) * 0.5f;
+            tr = gi.traceline(self->s.origin, center, self, MASK_SHOT);
+            has_los = (tr.fraction >= 0.9f || tr.ent == data->tongue_target);
+        }
+    }
+
+    if (!has_los) {
         // Lost line of sight
         data->tongue_active = false;
         data->tongue_target = nullptr;
         return;
     }
 
-    // Face the target
-    vec3_t ideal_angles = vectoangles(diff);
-
-    // Only update yaw (left-right rotation)
-    if (self->client) {
-        float angle_diff = ideal_angles[YAW] - self->client->resp.cmd_angles[YAW];
-        self->client->ps.pmove.delta_angles[YAW] = angle_diff;
-        self->client->v_angle[YAW] = ideal_angles[YAW];
-        self->client->ps.viewangles[YAW] = ideal_angles[YAW];
+    // Check if this is a destructible object (barrels, func_explosive, windows, etc)
+    bool is_destructible = false;
+    if (!data->tongue_target->client && !(data->tongue_target->svflags & SVF_MONSTER)) {
+        // Check various ways to identify destructibles
+        if ((data->tongue_target->flags & FL_DAMAGEABLE) ||
+            (data->tongue_target->flags & FL_TRAP) ||
+            horde::IsSpecialType(data->tongue_target, horde::SpecialEntityTypeID::BARREL) ||
+            strcmp(data->tongue_target->classname, "misc_explobox") == 0 ||
+            strcmp(data->tongue_target->classname, "func_explosive") == 0 ||
+            strcmp(data->tongue_target->classname, "func_object") == 0 ||
+            strcmp(data->tongue_target->classname, "horde_barrel") == 0) {
+            is_destructible = true;
+        }
     }
-    self->s.angles[YAW] = ideal_angles[YAW];
+
+    // Only face living targets (not inanimate objects like barrels)
+    if (!is_destructible) {
+        // Face the target
+        vec3_t ideal_angles = vectoangles(diff);
+
+        // Only update yaw (left-right rotation)
+        if (self->client) {
+            float angle_diff = ideal_angles[YAW] - self->client->resp.cmd_angles[YAW];
+            self->client->ps.pmove.delta_angles[YAW] = angle_diff;
+            self->client->v_angle[YAW] = ideal_angles[YAW];
+            self->client->ps.viewangles[YAW] = ideal_angles[YAW];
+        }
+        self->s.angles[YAW] = ideal_angles[YAW];
+    }
 
     // Calculate pull and damage values
     const vec3_t dir = diff.normalized();
     int pull = 70;  // Same as m_brain.cpp
     int damage = BRAIN_TONGUE_DAMAGE; // Use constant from header
 
-    // Increase pull if on ground
-    if (data->tongue_target->groundentity)
+    // Increase pull if on ground (but not for destructibles)
+    if (!is_destructible && data->tongue_target->groundentity)
         pull *= 2;
 
-    // Apply effects if in close range (64 units like m_brain.cpp)
+    // Apply effects only when in melee range (64 units like m_brain.cpp)
     if (dist <= 64) {
         // Apply damage and pull
-        T_Damage(data->tongue_target, self, self, dir, data->tongue_target->s.origin,
-            vec3_origin, damage, -pull, DAMAGE_RADIUS, MOD_UNKNOWN);
+        if (is_destructible) {
+            // For destructibles, don't pull - just damage
+            T_Damage(data->tongue_target, self, self, dir, data->tongue_target->s.origin,
+                vec3_origin, damage, 0, DAMAGE_DESTROY_ARMOR, MOD_BRAINTENTACLE);
+        } else {
+            // For enemies, apply damage and pull
+            T_Damage(data->tongue_target, self, self, dir, data->tongue_target->s.origin,
+                vec3_origin, damage, -pull, DAMAGE_DESTROY_ARMOR, MOD_BRAINTENTACLE);
+        }
 
-        // Steal health 4 times per second (like m_brain.cpp)
-        if (level.time >= data->last_steal_time) {
+        // Steal health only from living enemies (not destructibles)
+        if (!is_destructible && dist <= 64 && level.time >= data->last_steal_time) {
             int steal_amount = irandom(BRAIN_STEAL_MIN, BRAIN_STEAL_MAX);
 
             // Apply health steal
@@ -119,16 +162,20 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
             data->last_steal_time = level.time + 250_ms;
         }
     } else {
-        // If not close enough, just pull without damage
-        T_Damage(data->tongue_target, self, self, dir, data->tongue_target->s.origin,
-            vec3_origin, 0, -pull, DAMAGE_RADIUS, MOD_UNKNOWN);
+        // If not close enough to damage, just pull (non-destructibles only)
+        if (!is_destructible) {
+            T_Damage(data->tongue_target, self, self, dir, data->tongue_target->s.origin,
+                vec3_origin, 0, -pull, DAMAGE_DESTROY_ARMOR, MOD_BRAINTENTACLE);
+        }
     }
 
     // Set next attack time - attack continues at regular intervals
     data->attack_finished = level.time + FRAME_TIME_MS * 2; // Every 2 frames like monster AI
 
-    // Update enemy pointer for targeting
-    self->enemy = data->tongue_target;
+    // Update enemy pointer for targeting (only for actual enemies)
+    if (!is_destructible) {
+        self->enemy = data->tongue_target;
+    }
 }
 
 static void BrainFindTarget(edict_t* self) {
@@ -150,7 +197,7 @@ static void BrainFindTarget(edict_t* self) {
         if (target->flags & FL_STATIONARY)
             continue;
 
-        // Check if it's a valid enemy (monster or player)
+        // Check if it's a valid enemy (monster, player, or other damageable entity)
         bool is_valid_target = false;
 
         // Check if it's a monster
@@ -162,6 +209,12 @@ static void BrainFindTarget(edict_t* self) {
         else if (target->client) {
             if (!OnSameTeam(self, target))
                 is_valid_target = true;
+        }
+        // Check if it's a damageable entity like barrel, explosive box, etc.
+        else if (target->takedamage && !target->client && !(target->svflags & SVF_MONSTER)) {
+            // Target destructible objects like barrels, buttons, etc.
+            // These don't have teams, so they're always valid targets
+            is_valid_target = true;
         }
 
         if (!is_valid_target)
@@ -205,6 +258,66 @@ static void BrainFindTarget(edict_t* self) {
             // Check line of sight
             trace_t tr = gi.traceline(self->s.origin, ent->s.origin, self, MASK_SHOT);
             if (tr.fraction == 1.0f || tr.ent == ent) {
+                best = ent;
+                best_dist = dist;
+            }
+        }
+    }
+
+    // IMPORTANT: Also check for destructible objects like barrels (misc_explobox)
+    // These aren't in the monster grid, so we need to search all entities
+    for (int i = 0; i < globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+
+        if (!ent || !ent->inuse || ent == self)
+            continue;
+
+        // Skip if not damageable or already dead
+        if (!ent->takedamage || ent->health <= 0 || ent->deadflag)
+            continue;
+
+        // Skip entities with teams, monsters, and players (already handled above)
+        if (ent->svflags & SVF_MONSTER || ent->client)
+            continue;
+
+        // Check if it's a destructible object (barrels, func_explosive, windows, etc)
+        bool is_valid_destructible = false;
+        if ((ent->flags & FL_DAMAGEABLE) ||
+            (ent->flags & FL_TRAP) ||
+            horde::IsSpecialType(ent, horde::SpecialEntityTypeID::BARREL) ||
+            strcmp(ent->classname, "misc_explobox") == 0 ||
+            strcmp(ent->classname, "func_explosive") == 0 ||
+            strcmp(ent->classname, "func_object") == 0 ||
+            strcmp(ent->classname, "horde_barrel") == 0) {
+            is_valid_destructible = true;
+        }
+
+        if (!is_valid_destructible)
+            continue;
+
+        float dist = (ent->s.origin - self->s.origin).length();
+        if (dist < best_dist) {
+            // Check line of sight - try origin, midpoint, and for BSP entities, absmin/absmax center
+            vec3_t mid;
+            G_EntMidPoint(ent, mid);
+
+            trace_t tr = gi.traceline(self->s.origin, ent->s.origin, self, MASK_SHOT);
+            bool can_hit = (tr.fraction >= 0.9f || tr.ent == ent);
+
+            if (!can_hit) {
+                // Try midpoint if origin trace failed
+                tr = gi.traceline(self->s.origin, mid, self, MASK_SHOT);
+                can_hit = (tr.fraction >= 0.9f || tr.ent == ent);
+            }
+
+            // For SOLID_BSP entities (func_explosive), also try absmin/absmax center
+            if (!can_hit && ent->solid == SOLID_BSP) {
+                vec3_t center = (ent->absmin + ent->absmax) * 0.5f;
+                tr = gi.traceline(self->s.origin, center, self, MASK_SHOT);
+                can_hit = (tr.fraction >= 0.9f || tr.ent == ent);
+            }
+
+            if (can_hit) {
                 best = ent;
                 best_dist = dist;
             }
