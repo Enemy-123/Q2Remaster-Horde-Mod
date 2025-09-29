@@ -1125,7 +1125,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		damage = static_cast<int>(round(damage * M_DamageModifier(attacker)));
 	}
 
-	if (g_instagib->integer && !g_horde->integer && attacker->client && targ->client) {
+	if (g_instagib->integer && !g_horde->integer && attacker && attacker->client && targ->client) {
 		// [Kex] always kill no matter what on instagib
 		damage = 9999;
 	}

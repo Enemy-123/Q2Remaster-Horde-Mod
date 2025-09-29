@@ -282,7 +282,7 @@ static void FlyerAttackRocket(edict_t* ent, flyer_data_t* data) {
     vec3_t forward, right, start, end;
     AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
 
-    vec3_t offset = { 0, 8, ent->viewheight - 8 };
+    vec3_t offset = { 0.f, 8.f, (float)(ent->viewheight - 8) };
     start = G_ProjectSource(ent->s.origin, offset, forward, right);
     end = start + (forward * 8192);
 

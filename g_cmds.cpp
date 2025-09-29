@@ -430,9 +430,6 @@ void Cmd_Spawn_f(edict_t* ent)
 	other->classname = gi.argv(1);
 	other->s.origin = ent->s.origin + (AngleVectors(ent->s.angles).forward * 24.f);
 	other->s.angles[1] = ent->s.angles[1];
-	other->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-	if (developer->integer == 2)
-	other->monsterinfo.bonus_flags |= BF_STYGIAN;
 
 	// Usar spawn_temp_t::empty directamente si no hay parámetros adicionales
 	if (gi.argc() <= 3)
@@ -449,6 +446,14 @@ void Cmd_Spawn_f(edict_t* ent)
 				ED_ParseField(gi.argv(i), gi.argv(i + 1), other, st);
 		}
 		ED_CallSpawn(other, st);
+	}
+
+	// Apply monster-specific flags only after spawning and only for monsters
+	if (other->inuse && (other->svflags & SVF_MONSTER))
+	{
+		other->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+		if (developer->integer == 2)
+			other->monsterinfo.bonus_flags |= BF_STYGIAN;
 	}
 
 	if (other->inuse)
