@@ -442,7 +442,7 @@ void Cmd_Spawn_f(edict_t* ent)
 	else
 	{
 		// Si hay parámetros adicionales, usar un spawn_temp_t local
-		spawn_temp_t st{};
+		spawn_temp_t st = spawn_temp_t::empty;
 		for (int i = 2; i < gi.argc(); i += 2)
 		{
 			if (i + 1 < gi.argc()) // Asegurarse de que hay un valor para cada clave
@@ -789,7 +789,7 @@ void Cmd_Summon_f(edict_t* ent)
 	monster->monsterinfo.issummoned = true;
 
 	// Call spawn function
-	spawn_temp_t st{};
+	spawn_temp_t st = spawn_temp_t::empty;
 	ED_CallSpawn(monster, st);
 
 	if (!monster->inuse)
@@ -1776,7 +1776,7 @@ void Cmd_Say_f(edict_t* ent, bool arg0)
 		text.resize(150);
 
 	if (text.back() != '\n')
-		safe_push_back(text, '\n', 151);
+		text.push_back('\n');
 
 	if (sv_dedicated->integer)
 		gi.Client_Print(nullptr, PRINT_CHAT, text.c_str());

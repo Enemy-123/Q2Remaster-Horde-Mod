@@ -130,53 +130,55 @@ THINK(carpetbomb_think)(edict_t* self) -> void
     vec3_t move_dist = forward * frandom(CARPETBOMB_DAMAGE_RADIUS / 2, CARPETBOMB_DAMAGE_RADIUS + 1);
     start = saved_origin + move_dist;
 
+    // Horizontal trace to check for obstacles
     tr = gi.traceline(saved_origin, start, self, MASK_SOLID);
-    end = start;
-    start.z += 1;
-    end.z -= 8192;
-    tr1 = gi.traceline(start, end, self, MASK_SOLID);
-    start.z -= 1;
 
-    if (tr.fraction < 1 || start.z != tr1.endpos.z)
+    // If we hit something horizontally, try to step up to any height
+    if (tr.fraction < 1.0f)
     {
-        // Get current ceiling height
-        end = start;
-        end.z += 8192;
-        tr = gi.traceline(saved_origin, end, self, MASK_SOLID);
-        ceil_height = tr.endpos.z;
+        // Get ceiling height
+        vec3_t ceiling_check = start;
+        ceiling_check.z += 8192;
+        trace_t ceil_tr = gi.traceline(saved_origin, ceiling_check, self, MASK_SOLID);
+        ceil_height = ceil_tr.endpos.z;
 
-        // Push down from above desired position
-        start.z += CARPETBOMB_STEP_SIZE;
-        if (start.z > ceil_height)
-            start.z = ceil_height;
+        // Start from high up and trace down to find valid position
+        start = tr.endpos; // Use the hit position
+        start.z = ceil_height - 32; // Just below ceiling
 
         end = start;
         end.z -= 8192;
-        tr = gi.traceline(start, end, self, MASK_SOLID);
+        tr1 = gi.traceline(start, end, self, MASK_SOLID);
 
-        // Don't go through walls
-        if (tr.allsolid)
-            failed = true;
-
-        // Try a bit lower
-        if (tr.startsolid)
+        if (!tr1.allsolid && !tr1.startsolid)
         {
-            start.z -= CARPETBOMB_STEP_SIZE;
-            tr = gi.traceline(start, end, self, MASK_SOLID);
-            if (tr.startsolid || tr.allsolid)
-                failed = true;
+            start = tr1.endpos;
+            start.z += 8; // Slightly above ground
         }
-
-        // Don't go into water if we aren't already submerged
-        vec3_t water_check = tr.endpos;
-        water_check.z += 8;
-        if (!self->waterlevel && (gi.pointcontents(water_check) & MASK_WATER))
+        else
+        {
             failed = true;
+        }
+    }
+    else
+    {
+        // No horizontal obstacle, just find floor
+        end = start;
+        start.z += 1;
+        end.z -= 8192;
+        tr1 = gi.traceline(start, end, self, MASK_SOLID);
+        start = tr1.endpos;
+        start.z += 8; // Slightly above ground
     }
 
+    // Don't go into water if we aren't already submerged
+    vec3_t water_check = start;
+    water_check.z += 8;
+    if (!self->waterlevel && (gi.pointcontents(water_check) & MASK_WATER))
+        failed = true;
+
     // Use calculated position for effects
-    vec3_t effect_pos = tr.endpos;
-    start = tr.endpos;
+    vec3_t effect_pos = start;
 
     // Spawn explosions on either side
     AngleVectors(self->s.angles, nullptr, &right, nullptr);
@@ -286,7 +288,7 @@ THINK(bombarea_think)(edict_t* self) -> void
 
     // Calculate time remaining and think time
     float time_remaining = (self->timestamp - level.time).seconds();
-    thinktime = 0.3f + 0.2f * frandom();  // Random interval between bombs
+    thinktime = 0.15f + 0.1f * frandom();  // Faster interval (was 0.3-0.5, now 0.15-0.25)
 
     // Start from the area center
     start = self->s.origin;
@@ -310,9 +312,10 @@ THINK(bombarea_think)(edict_t* self) -> void
         spawn_pos.z += 200 + frandom(50, 150);  // Spawn 200-350 units above floor
     }
 
-    // Spawn grenades directly without tracing - let them fall naturally
+    // Spawn more grenades per wave (was 1, now 2-3)
     bombtime = 0.5f + 2.0f * frandom();
-    spawn_grenades(self->owner, spawn_pos, gtime_t::from_sec(bombtime), self->dmg, 1);
+    int grenade_count = irandom(2, 3);
+    spawn_grenades(self->owner, spawn_pos, gtime_t::from_sec(bombtime), self->dmg, grenade_count);
 
     self->nextthink = level.time + gtime_t::from_sec(thinktime);
 }
