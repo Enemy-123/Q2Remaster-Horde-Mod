@@ -392,7 +392,8 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	{
 		if (other->takedamage)
 		{
-			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
+			// BALANCE FIX: Increased damage from 5 to 12 for Wave 5 balance
+			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 12, 0, DAMAGE_NONE, MOD_UNKNOWN);
 		}
 
 		// Re-validate owner, as it could have died from reflected damage.
@@ -436,7 +437,8 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 	if (other->takedamage)
 	{
-		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 5, 0, DAMAGE_NONE, MOD_UNKNOWN);
+		// BALANCE FIX: Increased damage from 5 to 12 for Wave 5 balance
+		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 12, 0, DAMAGE_NONE, MOD_UNKNOWN);
 		if (!self->owner || !self->owner->inuse)
 		{
 			proboscis_reset(self);

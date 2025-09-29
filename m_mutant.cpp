@@ -739,7 +739,8 @@ void SP_monster_mutant(edict_t* self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 160 * st.health_multiplier;
+	// BALANCE FIX: Wave 9 should have better health progression from Wave 5 Parasite (150 HP)
+	self->health = 300 * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 300;
 

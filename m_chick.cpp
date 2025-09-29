@@ -21,6 +21,7 @@ void chick_run(edict_t* self);
 void chick_reslash(edict_t* self);
 void chick_rerocket(edict_t* self);
 void chick_attack1(edict_t* self);
+void ChickSaveLoc(edict_t* self);
 
 static cached_soundindex sound_missile_prelaunch;
 static cached_soundindex sound_missile_launch;
@@ -541,6 +542,16 @@ THINK(heat_chick_think) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+// Save enemy location for bombspell targeting
+void ChickSaveLoc(edict_t* self)
+{
+	if (M_HasValidTarget(self))
+	{
+		self->pos1 = self->enemy->s.origin;
+		self->pos1[2] += self->enemy->viewheight;
+	}
+}
+
 // Chickkl bomb spell - distance-based selection
 void ChickBombSpell(edict_t* self)
 {
@@ -553,11 +564,14 @@ void ChickBombSpell(edict_t* self)
 
 	vec3_t forward, dir;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	dir = (self->enemy->s.origin - self->s.origin).normalized();
 
-	// Calculate distance to enemy
-	float dist_to_enemy = (self->enemy->s.origin - self->s.origin).length();
-	float height_diff = fabs(self->enemy->s.origin.z - self->s.origin.z);
+	// Use saved location if available, otherwise use current enemy position
+	vec3_t target_pos = (self->pos1.lengthSquared() > 0) ? self->pos1 : self->enemy->s.origin;
+	dir = (target_pos - self->s.origin).normalized();
+
+	// Calculate distance to saved/enemy location
+	float dist_to_enemy = (target_pos - self->s.origin).length();
+	float height_diff = fabs(target_pos.z - self->s.origin.z);
 
 	// Distance-based selection:
 	// - Carpet bomb: 200-600 range, same height (within 128 units)
@@ -572,20 +586,49 @@ void ChickBombSpell(edict_t* self)
 		return;
 	}
 
-	// Choose based on distance, with preference to carpet if both are valid
-	bool use_carpet = prefer_carpet || (!prefer_area && self->monsterinfo.lefty == 0);
+	// If both failed recently (rapid switching), go on longer cooldown and reset
+	if (self->monsterinfo.monster_slots >= 10) // Track failed attempts
+	{
+		self->monsterinfo.attack_finished = level.time + 3_sec;
+		self->monsterinfo.monster_slots = 0;
+		self->monsterinfo.lefty = 0;
+		return;
+	}
+
+	// Choose based on distance and what was tried last
+	// In overlap range (400-600), alternate; otherwise use distance preference
+	bool use_carpet;
+	if (dist_to_enemy >= 400 && dist_to_enemy <= 600)
+	{
+		// Overlap range - try both alternating
+		use_carpet = (self->monsterinfo.lefty == 0);
+	}
+	else if (dist_to_enemy < 400)
+	{
+		// Only carpet viable (200-400 range)
+		use_carpet = true;
+	}
+	else
+	{
+		// Only area viable (600+ range)
+		use_carpet = false;
+	}
 
 	if (use_carpet)
 	{
-		// Carpet bomb forward - validate path is clear
-		vec3_t carpet_check_start = self->s.origin;
-		carpet_check_start[2] += 32; // Check from mid-height
-		vec3_t carpet_check_end = carpet_check_start + forward * 300; // Check ahead
+		// For monsters, always allow carpet bomb (very lenient validation)
+		bool is_monster = true; // Always true for chickkl
+		bool path_clear = true; // Always succeed for monsters
 
-		trace_t carpet_tr = gi.traceline(carpet_check_start, carpet_check_end, self, MASK_SOLID);
-
-		// More lenient check - just need some path clearance
-		bool path_clear = (carpet_tr.fraction > 0.4f);
+		// Optional: minimal validation for safety
+		if (!is_monster)
+		{
+			vec3_t carpet_check_start = self->s.origin;
+			carpet_check_start[2] += 32;
+			vec3_t carpet_check_end = carpet_check_start + forward * 300;
+			trace_t carpet_tr = gi.traceline(carpet_check_start, carpet_check_end, self, MASK_SOLID);
+			path_clear = (carpet_tr.fraction > 0.3f);
+		}
 
 		if (path_clear)
 		{
@@ -611,21 +654,17 @@ void ChickBombSpell(edict_t* self)
 
 			gi.linkentity(spell);
 
-			// SUCCESS - Set cooldown and increment counter
+			// SUCCESS - Reset fail counter and set cooldown
+			self->monsterinfo.monster_slots = 0; // Reset fail counter
 			self->monsterinfo.attack_finished = level.time + 2_sec;
-			self->monsterinfo.monster_slots++;
-			if (self->monsterinfo.monster_slots >= 2)
-			{
-				self->monsterinfo.attack_finished = level.time + 6_sec;
-				self->monsterinfo.monster_slots = 0;
-			}
 
 			// Next time try area bomb
 			self->monsterinfo.lefty = 1;
 		}
 		else
 		{
-			// Can't use carpet bomb, try area instead
+			// Failed - increment fail counter and try area next time
+			self->monsterinfo.monster_slots++;
 			self->monsterinfo.lefty = 1;
 			self->monsterinfo.attack_finished = level.time + 0.5_sec;
 		}
@@ -636,16 +675,25 @@ void ChickBombSpell(edict_t* self)
 		vec3_t start, end, ground_pos;
 		trace_t ground_tr;
 
-		// Aim towards enemy position
-		ground_pos = self->enemy->s.origin;
-		ground_pos[2] += 64; // Start slightly above enemy
+		// Aim towards saved enemy position
+		ground_pos = target_pos;
+		ground_pos[2] += 32; // Start slightly above target
 		vec3_t ground_end = ground_pos;
 		ground_end[2] -= 512; // Trace down to find floor
 
 		ground_tr = gi.traceline(ground_pos, ground_end, self, MASK_SOLID);
 
-		// Check if we found valid floor - more lenient check
+		// For monsters, always allow (use target pos if no floor found)
+		bool is_monster = true;
 		bool found_floor = (ground_tr.fraction < 1.0f && ground_tr.plane.normal.z > 0.5f);
+
+		// If monster and no floor, use target position directly
+		if (is_monster && !found_floor)
+		{
+			ground_tr.endpos = target_pos;
+			ground_tr.plane.normal = { 0, 0, 1 }; // Up vector
+			found_floor = true;
+		}
 
 		if (found_floor)
 		{
@@ -667,21 +715,17 @@ void ChickBombSpell(edict_t* self)
 			spell->s.angles = vectoangles(ground_tr.plane.normal);
 			gi.linkentity(spell);
 
-			// SUCCESS - Set cooldown and increment counter
+			// SUCCESS - Reset fail counter and set cooldown
+			self->monsterinfo.monster_slots = 0; // Reset fail counter
 			self->monsterinfo.attack_finished = level.time + 2_sec;
-			self->monsterinfo.monster_slots++;
-			if (self->monsterinfo.monster_slots >= 2)
-			{
-				self->monsterinfo.attack_finished = level.time + 6_sec;
-				self->monsterinfo.monster_slots = 0;
-			}
 
 			// Next time try carpet bomb
 			self->monsterinfo.lefty = 0;
 		}
 		else
 		{
-			// Can't place area bomb, try carpet next time
+			// Failed - increment fail counter and try carpet next time
+			self->monsterinfo.monster_slots++;
 			self->monsterinfo.lefty = 0;
 			self->monsterinfo.attack_finished = level.time + 0.5_sec;
 		}
@@ -690,7 +734,7 @@ void ChickBombSpell(edict_t* self)
 	gi.sound(self, CHAN_WEAPON, sound_missile_launch, 1, ATTN_NORM, 0);
 }
 
-// Chickkl grenade attack (fallback during bomb spell cooldown)
+// Chickkl grenade attack frame function
 void chickkl_grenade(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
@@ -1117,17 +1161,30 @@ static void chickkl_reslash(edict_t* self)
 }
 
 mframe_t chickkl_frames_slash[] = {
+	{ ai_charge, 1 },
+	{ ai_charge, -7, monster_footstep },
+	{ ai_charge, 1 },
+	{ ai_charge, -1 },
+	{ ai_charge, 1, ChickSaveLoc },  // Save enemy location before bombspell
 	{ ai_charge, 7, ChickBombSpell },
-	{ ai_charge, 7, ChickBombSpell },
+	{ ai_charge, 1 },
+	{ ai_charge, 1 }
+//	{ ai_charge, -2, chickkl_reslash }
+};
+MMOVE_T(chickkl_move_slash) = { FRAME_attak204, FRAME_attak212, chickkl_frames_slash, chick_run };
+
+// Chickkl grenade attack frames (reuse rocket animation)
+mframe_t chickkl_frames_grenade[] = {
+	{ ai_charge, 1 },
 	{ ai_charge, -7, monster_footstep },
 	{ ai_charge, 1 },
 	{ ai_charge, -1 },
 	{ ai_charge, 1 },
-	{ ai_charge },
+	{ ai_charge, 7, chickkl_grenade },  // Fire grenade
 	{ ai_charge, 1 },
-	{ ai_charge, -2, chickkl_reslash }
+	{ ai_charge, 1 }
 };
-MMOVE_T(chickkl_move_slash) = { FRAME_attak204, FRAME_attak212, chickkl_frames_slash, nullptr };
+MMOVE_T(chickkl_move_grenade) = { FRAME_attak204, FRAME_attak212, chickkl_frames_grenade, chick_run };
 
 void chick_reslash(edict_t* self)
 {
@@ -1452,11 +1509,16 @@ void SP_monster_chick(edict_t* self)
 /*QUAKED monster_chick_heat (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
 void SP_monster_chick_heat(edict_t* self)
-{	
+{
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
 	SP_monster_chick(self);
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
+
+	// BALANCE FIX: Wave 13 Elite should have significantly more health than Wave 6 base Chick
+	self->health = 500 * st.health_multiplier;
 
 	self->s.skinnum = 2;
 	self->monsterinfo.drop_height = 256;
@@ -1682,10 +1744,10 @@ MONSTERINFO_ATTACK(chickkl_attack) (edict_t* self) -> void
 
 		if (bombspell_on_cooldown)
 		{
-			// During cooldown - use grenades like infantry
+			// During cooldown - use grenades and plasma
 			if (range <= RANGE_MELEE)
 			{
-				// Close range - slash
+				// Close range - melee slash (no bombspell)
 				M_SetAnimation(self, &chick_move_slash);
 			}
 			else
@@ -1693,31 +1755,35 @@ MONSTERINFO_ATTACK(chickkl_attack) (edict_t* self) -> void
 				// Ranged - fire grenades or plasma
 				if (frandom() <= 0.5f)
 				{
-					// Grenade
-					chickkl_grenade(self);
-					M_SetAnimation(self, &chick_move_attack1);
+					// Grenade attack using proper mmove
+					M_SetAnimation(self, &chickkl_move_grenade);
 				}
 				else
 				{
-					// Plasma
+					// Plasma attack
 					M_SetAnimation(self, &chickkl_move_attack1);
 				}
 			}
 		}
 		else
 		{
-			// Not on cooldown - use bombspells and plasma
+			// Not on cooldown - can use bombspells
 			if (range <= RANGE_MELEE)
 			{
-				// Close range - prefer bomb spell
+				// Close range - melee slash (no bombspell in melee)
+				M_SetAnimation(self, &chick_move_slash);
+			}
+			else if (range <= RANGE_NEAR)
+			{
+				// Close-mid range (200-600) - use bomb spell
 				M_SetAnimation(self, &chickkl_move_slash);
 			}
 			else
 			{
-				// Mid to long range - mix between bomb spell (50%) and plasma (50%)
-				if (frandom() <= 0.5f)
+				// Long range - mix between bomb spell (40%) and plasma (60%)
+				if (frandom() <= 0.4f)
 				{
-					// Use bomb spell animation
+					// Use bomb spell (will be area bomb at long range)
 					M_SetAnimation(self, &chickkl_move_slash);
 				}
 				else

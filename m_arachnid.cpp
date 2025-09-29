@@ -1965,7 +1965,8 @@ void SP_monster_arachnid(edict_t* self)
 
     if (!self->monsterinfo.IS_BOSS)
     {
-        self->health = 1000 * st.health_multiplier;
+        // BALANCE FIX: Wave 7 Elite should not have 1000 HP (too high for early game)
+        self->health = 600 * st.health_multiplier;
         self->gib_health = -200;
     }
 
