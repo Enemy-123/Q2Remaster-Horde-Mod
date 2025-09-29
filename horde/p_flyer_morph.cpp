@@ -368,6 +368,13 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
     ent->s.skinnum = 0;
     ent->s.sound = 0;
 
+    // Store old frame for interpolation
+    ent->s.old_frame = ent->s.frame;
+
+    // Animation timing control - only advance animations at proper intervals
+    const gtime_t current_time = level.time;
+    const bool should_advance_frame = (current_time >= data->next_frame_time);
+
     // Set weapon stats to show actual blaster ammo when morphed as flyer
     // Ensure blaster is selected and show its regenerating ammo
     auto* blaster = FindItem("Blaster");
@@ -409,25 +416,50 @@ void RunFlyerFrames(edict_t* ent, const usercmd_t& ucmd) {
             "Switched to Smart Rockets\n" : "Switched to Hyperblaster\n");
     }
 
-    // Animation frames for banking
+    // Animation frames for banking with proper timing
     if (ucmd.sidemove > 0) {
-        if (ent->s.frame < FLYER_FRAMES_BANK_R_START || ent->s.frame > FLYER_FRAMES_BANK_R_END)
+        // Banking right animation
+        if (ent->s.frame < FLYER_FRAMES_BANK_R_START || ent->s.frame > FLYER_FRAMES_BANK_R_END) {
             ent->s.frame = FLYER_FRAMES_BANK_R_START;
-        else if (ent->s.frame < FLYER_FRAMES_BANK_R_END)
+            data->next_frame_time = current_time;
+        }
+        else if (ent->s.frame == FLYER_FRAMES_BANK_R_END) {
+            // Hold the final banking frame
+            ent->s.renderfx |= RF_OLD_FRAME_LERP;
+        }
+        else if (should_advance_frame && ent->s.frame < FLYER_FRAMES_BANK_R_END) {
             ent->s.frame++;
+            data->next_frame_time = current_time + 20_hz; // 50ms per frame for banking
+            ent->s.renderfx |= RF_OLD_FRAME_LERP;
+        }
     } else if (ucmd.sidemove < 0) {
-        if (ent->s.frame < FLYER_FRAMES_BANK_L_START || ent->s.frame > FLYER_FRAMES_BANK_L_END)
+        // Banking left animation
+        if (ent->s.frame < FLYER_FRAMES_BANK_L_START || ent->s.frame > FLYER_FRAMES_BANK_L_END) {
             ent->s.frame = FLYER_FRAMES_BANK_L_START;
-        else if (ent->s.frame < FLYER_FRAMES_BANK_L_END)
+            data->next_frame_time = current_time;
+        }
+        else if (ent->s.frame == FLYER_FRAMES_BANK_L_END) {
+            // Hold the final banking frame
+            ent->s.renderfx |= RF_OLD_FRAME_LERP;
+        }
+        else if (should_advance_frame && ent->s.frame < FLYER_FRAMES_BANK_L_END) {
             ent->s.frame++;
+            data->next_frame_time = current_time + 20_hz; // 50ms per frame for banking
+            ent->s.renderfx |= RF_OLD_FRAME_LERP;
+        }
     } else {
-        // Default standing animation
-        if (ent->s.frame < FLYER_FRAMES_STAND_START || ent->s.frame > FLYER_FRAMES_STAND_END)
+        // Default standing/hover animation - slow for smooth idle
+        if (ent->s.frame < FLYER_FRAMES_STAND_START || ent->s.frame > FLYER_FRAMES_STAND_END) {
             ent->s.frame = FLYER_FRAMES_STAND_START;
-        else {
+            data->next_frame_time = current_time;
+        }
+        else if (should_advance_frame) {
             ent->s.frame++;
             if (ent->s.frame > FLYER_FRAMES_STAND_END)
                 ent->s.frame = FLYER_FRAMES_STAND_START;
+            // Use 5Hz (200ms) for slow smooth idle animation like brain
+            data->next_frame_time = current_time + 15_hz;
+            ent->s.renderfx |= RF_OLD_FRAME_LERP;
         }
     }
 }
@@ -549,6 +581,7 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     data->morph_type = MORPH_FLYER;
     data->morph_time = level.time;
     data->attack_finished = level.time + 500_ms;
+    data->next_frame_time = level.time + 10_hz; // Initialize frame timing for animations
 
     // Set special entity type for M_ReactToDamage
     ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::MORPHED_PLAYER);
@@ -561,6 +594,9 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.modelindex = gi.modelindex("models/monsters/flyer/tris.md2");
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
+    ent->s.frame = FLYER_FRAMES_STAND_START; // Start with standing animation
+    ent->s.old_frame = ent->s.frame; // Initialize old frame for interpolation
+    ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth frame interpolation
 
     // Set team for bot recognition (don't set issummoned to avoid AI treating as friendly summon)
     ent->monsterinfo.team = ent->client->resp.ctf_team;

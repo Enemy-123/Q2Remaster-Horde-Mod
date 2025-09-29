@@ -4,12 +4,12 @@
 #include "../g_local.h"
 
 // Flyer frame definitions
-constexpr int32_t FLYER_FRAMES_STAND_START = 13;
-constexpr int32_t FLYER_FRAMES_STAND_END = 57;
-constexpr int32_t FLYER_FRAMES_BANK_R_START = 103; // FRAME_bankr01;
-constexpr int32_t FLYER_FRAMES_BANK_R_END = 109;  // FRAME_bankr07;
-constexpr int32_t FLYER_FRAMES_BANK_L_START = 96; // FRAME_bankl01;
-constexpr int32_t FLYER_FRAMES_BANK_L_END = 102;  // FRAME_bankl07;
+constexpr int32_t FLYER_FRAMES_STAND_START = 14;
+constexpr int32_t FLYER_FRAMES_STAND_END = 56;
+constexpr int32_t FLYER_FRAMES_BANK_L_START = 104; // FRAME_bankl01;
+constexpr int32_t FLYER_FRAMES_BANK_L_END = 110;   // FRAME_bankr07;
+constexpr int32_t FLYER_FRAMES_BANK_R_START = 97;  // FRAME_bankr01;
+constexpr int32_t FLYER_FRAMES_BANK_R_END = 103;   // FRAME_bankl07;
 
 // Movement constants
 constexpr float FLYER_BRAKE_SPEED = 5.0f;
