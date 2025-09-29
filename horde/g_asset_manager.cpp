@@ -183,7 +183,7 @@ void AssetManager::BeginClientLoading(edict_t* client) {
 
     // Send initial message to client
     gi.LocClient_Print(client, PRINT_CENTER, "Loading assets: {} total",
-                       load.pending_assets.size());
+                       (int)load.pending_assets.size());
 }
 
 void AssetManager::ProcessClientLoading() {
@@ -240,9 +240,9 @@ void AssetManager::SendAssetBatch(PendingClientLoad& client_load) {
     client_load.next_batch_time = level.time + gtime_t::from_ms(BATCH_DELAY_MS);
 
     // Show progress
-    float progress = (float)end_idx / client_load.pending_assets.size() * 100.0f;
+    int progress = (int)((float)end_idx / client_load.pending_assets.size() * 100.0f);
     gi.LocClient_Print(client_load.client, PRINT_CENTER,
-                       "Loading assets: {:.0f}%", progress);
+                       "Loading assets: {}%", progress);
 }
 
 bool AssetManager::IsClientLoading(edict_t* client) const {
