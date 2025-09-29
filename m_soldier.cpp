@@ -2341,11 +2341,16 @@ void SP_monster_soldier_light(edict_t* self)
 	gi.soundindex("misc/lasfly.wav");
 	gi.soundindex("soldier/solatck2.wav");
 
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 25;
-	if (!st.was_key_specified("power_armor_type"))
-		brandom() ? self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN 
-		: self->monsterinfo.power_armor_type = IT_NULL;
+	// Fixed: Only set power_armor_power when actually giving power armor
+	if (!st.was_key_specified("power_armor_type")) {
+		if (brandom()) {
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = 35;
+		} else {
+			self->monsterinfo.power_armor_type = IT_NULL;
+		}
+	}
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
@@ -2379,11 +2384,16 @@ void SP_monster_soldier(edict_t* self)
 	sound_death.assign("soldier/soldeth1.wav");
 	gi.soundindex("soldier/solatck1.wav");
 
-	if (!st.was_key_specified("armor_power"))
-	self->monsterinfo.armor_power = 30;
-	if (!st.was_key_specified("armor_type"))
-	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
-	: self->monsterinfo.power_armor_type = IT_NULL;
+	// Fixed: Correctly set armor_type (not power_armor_type) when no armor
+	if (!st.was_key_specified("armor_type")) {
+		if (brandom()) {
+			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = 40;
+		} else {
+			self->monsterinfo.armor_type = IT_NULL;
+		}
+	}
 
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
@@ -2414,11 +2424,16 @@ void SP_monster_soldier_ss(edict_t* self)
 	sound_death_ss.assign("soldier/soldeth3.wav");
 	gi.soundindex("soldier/solatck3.wav");
 
-		if (!st.was_key_specified("armor_power"))
-	self->monsterinfo.armor_power = 50;
-	if (!st.was_key_specified("armor_type"))
-	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
-	: self->monsterinfo.power_armor_type = IT_NULL;
+	// Fixed: Correctly set armor_type (not power_armor_type) when no armor
+	if (!st.was_key_specified("armor_type")) {
+		if (brandom()) {
+			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = 50;
+		} else {
+			self->monsterinfo.armor_type = IT_NULL;
+		}
+	}
 
 	self->s.skinnum = 4;
 	self->count = self->s.skinnum;
@@ -2541,9 +2556,15 @@ void SP_monster_soldier_lasergun(edict_t* self)
 
 	if (!st.was_key_specified("armor_power"))
 	self->monsterinfo.armor_power = 50;
-	if (!st.was_key_specified("armor_type"))
-	brandom() ? self->monsterinfo.armor_type = IT_ARMOR_COMBAT 
-	: self->monsterinfo.power_armor_type = IT_NULL;
+	if (!st.was_key_specified("armor_type")) {
+		if (brandom()) {
+			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = 50;
+		} else {
+			self->monsterinfo.armor_type = IT_NULL;
+		}
+	}
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;

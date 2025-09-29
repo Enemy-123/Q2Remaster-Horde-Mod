@@ -667,6 +667,18 @@ static void fire_proboscis(edict_t* self, vec3_t start, vec3_t dir, float speed)
 	tip->movetype = MOVETYPE_FLYMISSILE;
 	tip->owner = self;
 	self->proboscus = tip;
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			tip->projectile_was_player_attacker = true;
+			tip->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			tip->projectile_was_player_attacker = false;
+			tip->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 	tip->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
 	tip->s.origin = tip->s.old_origin = start;
 	tip->speed = speed;

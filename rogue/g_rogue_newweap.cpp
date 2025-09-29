@@ -70,8 +70,9 @@ TOUCH(flechette_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool ot
 		}
 		// --- END FIX ---
 
+		// FIXED: ETF Rifle now bypasses both regular armor AND power armor completely
 		T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal,
-				 self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
+				 self->dmg, (int)self->dmg_radius, DAMAGE_NO_REG_ARMOR | DAMAGE_NO_POWER_ARMOR, MOD_ETF_RIFLE);
 	}
 	else
 	{

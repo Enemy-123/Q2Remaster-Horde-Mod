@@ -217,7 +217,6 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 
 		damagePerCell = 1;
 		pa_te_type = TE_SCREEN_SPARKS;
-		damage = damage / 3;
 	}
 	else
 	{
@@ -226,28 +225,51 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 		else
 			damagePerCell = 2;
 		pa_te_type = TE_SCREEN_SPARKS;
-		damage = (2 * damage) / 3;
+	}
+
+	// FIXED: Different absorption rates based on damage type
+	if (dflags & DAMAGE_BULLET)
+	{
+		// Bullets (fire_bullet, fire_lead, fire_shotgun) - Power armor absorbs 100%
+		// No reduction in damage amount to absorb
+	}
+	else if (dflags & DAMAGE_ENERGY)
+	{
+		// Energy weapons - Power armor provides less protection
+		// ETF Rifle has special handling (Paril-KEX comment suggests it bypasses more)
+		damage = (2 * damage) / 3;  // Power armor only absorbs 2/3 of energy damage
+	}
+	else
+	{
+		// Other damage types - use old behavior
+		if (power_armor_type == IT_ITEM_POWER_SCREEN)
+			damage = damage / 3;
+		else
+			damage = (2 * damage) / 3;
 	}
 
 	// Paril: fix small amounts of damage not
 	// being absorbed
 	damage = max(1, damage);
 
+	// Calculate how much damage the power armor can absorb based on available power
 	save = *power * damagePerCell;
 
 	if (!save)
 		return 0;
 
 	// [Paril-KEX] energy damage should do more to power armor, not ETF Rifle shots.
+	// This makes power armor drain faster against energy weapons
 	if (dflags & DAMAGE_ENERGY)
 		save = max(1, save / 2);
 
+	// Power armor absorbs up to the calculated damage amount
 	if (save > damage)
 		save = damage;
 
-	// [Paril-KEX] energy damage should do more to power armor, not ETF Rifle shots.
+	// Calculate power usage - energy weapons drain power faster
 	if (dflags & DAMAGE_ENERGY)
-		power_used = (save / damagePerCell) * 2;
+		power_used = (save / damagePerCell) * 2;  // Double power drain for energy
 	else
 		power_used = save / damagePerCell;
 

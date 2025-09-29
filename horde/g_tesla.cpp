@@ -789,7 +789,18 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 
 	tesla->owner = self;
 	tesla->teammaster = self;
-	
+
+	// Store attacker info in case owner dies before projectile hits
+	if (self) {
+		if (self->client) {
+			tesla->projectile_was_player_attacker = true;
+			tesla->projectile_attacker_type_id = 0;
+		} else if (self->svflags & SVF_MONSTER) {
+			tesla->projectile_was_player_attacker = false;
+			tesla->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+		}
+	}
+
 // Team assignment (Refactored)
     if (self->client) {
         tesla->ctf_team = self->client->resp.ctf_team;
