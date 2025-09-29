@@ -1,6 +1,5 @@
 #include "horde_ids.h"
-//#include "../g_local.h"
-#include "g_horde.h" // Include g_horde.h for g_edicts if needed, or adjust include path
+#include "g_horde.h"
 #include <algorithm>
 
 namespace horde {
@@ -17,19 +16,12 @@ namespace horde {
     std::array<MapSize, static_cast<size_t>(MapID::MAX_MAPS)> MapOriginRegistry::s_mapSizes;
     bool MapOriginRegistry::s_initialized = false;
 
-    // Map for traps/teslas - use std::string for safe key ownership
-    static std::unordered_map<std::string, SpecialEntityTypeID> s_specialTypeMap;
-
-    // Map of classnames to type IDs - use std::string for safe key ownership
-    static std::unordered_map<std::string, MonsterTypeID> s_monsterTypeMap;
-
-    // Map of map names to MapIDs - use std::string for safe key ownership
-    static std::unordered_map<std::string, MapID> s_mapIDMap;
+    // Use string_view for zero-copy lookups with static string literals
+    static std::unordered_map<std::string_view, SpecialEntityTypeID> s_specialTypeMap;
+    static std::unordered_map<std::string_view, MonsterTypeID> s_monsterTypeMap;
+    static std::unordered_map<std::string_view, MapID> s_mapIDMap;
     // Reverse map of type IDs to classnames - used for debugging
     static std::array<const char*, static_cast<size_t>(MonsterTypeID::MAX_TYPES)> s_typeToClassname;
-
-
-
 
     // Initialize the entire system
     void InitializeHordeIDs() {
@@ -42,67 +34,56 @@ namespace horde {
         g_spawnPointTimeTracker.Reset();
     }
 
-    // Special types ( traps, teslas, sentry turret )
+    //
+    // SpecialTypeRegistry implementation
+    //
 
     void SpecialTypeRegistry::Initialize() {
-    if (s_specialTypeRegistryInitialized) {
-    return; // Already initialized, do nothing.
-    }
-
-    s_specialTypeMap.clear();
-    s_specialTypeMap = {
-        {"tesla_mine",        SpecialEntityTypeID::TESLA_MINE},
-        {"food_cube_trap",    SpecialEntityTypeID::FOOD_CUBE_TRAP},
-        {"prox_mine",         SpecialEntityTypeID::PROX_MINE},
-        {"monster_sentrygun", SpecialEntityTypeID::SENTRY_GUN},
-        {"monster_turret",    SpecialEntityTypeID::TURRET},
-        {"nuke",             SpecialEntityTypeID::NUKE_MINE},
-        {"emitter",           SpecialEntityTypeID::LASER_EMITTER},
-        {"laser",             SpecialEntityTypeID::LASER_BEAM},
-        {"doppleganger",      SpecialEntityTypeID::DOPPLEGANGER},
-        {"strogg_summoner_base", SpecialEntityTypeID::STROGG_SUMMONER},
-        {"horde_barrel",      SpecialEntityTypeID::BARREL}
-    };
-
-     s_specialTypeRegistryInitialized = true;
-}
-
-    bool IsMonsterType(const edict_t* ent, horde::MonsterTypeID type_to_check)
-    {
-        if (!ent) {
-            return false;
+        if (s_specialTypeRegistryInitialized) {
+            return;
         }
-        return ent->monsterinfo.monster_type_id == static_cast<uint8_t>(type_to_check);
+
+        s_specialTypeMap.clear();
+        s_specialTypeMap.reserve(16); // Reserve space for all special entity types
+        s_specialTypeMap = {
+            {"tesla_mine",           SpecialEntityTypeID::TESLA_MINE},
+            {"food_cube_trap",       SpecialEntityTypeID::FOOD_CUBE_TRAP},
+            {"prox_mine",            SpecialEntityTypeID::PROX_MINE},
+            {"monster_sentrygun",    SpecialEntityTypeID::SENTRY_GUN},
+            {"monster_turret",       SpecialEntityTypeID::TURRET},
+            {"nuke",                 SpecialEntityTypeID::NUKE_MINE},
+            {"emitter",              SpecialEntityTypeID::LASER_EMITTER},
+            {"laser",                SpecialEntityTypeID::LASER_BEAM},
+            {"doppleganger",         SpecialEntityTypeID::DOPPLEGANGER},
+            {"strogg_summoner_base", SpecialEntityTypeID::STROGG_SUMMONER},
+            {"horde_barrel",         SpecialEntityTypeID::BARREL}
+        };
+
+        s_specialTypeRegistryInitialized = true;
     }
 
-    bool IsSpecialType(const edict_t* ent, horde::SpecialEntityTypeID type_to_check)
-    {
-        if (!ent) {
-            return false;
+    SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
+        if (!classname || !classname[0]) [[unlikely]] {
+            return SpecialEntityTypeID::UNKNOWN;
         }
-        return ent->special_type_id == static_cast<uint8_t>(type_to_check);
-    }
-    
-
-SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
-    if (!classname || !classname[0]) {
+        auto it = s_specialTypeMap.find(classname);
+        if (it != s_specialTypeMap.end()) [[likely]] {
+            return it->second;
+        }
         return SpecialEntityTypeID::UNKNOWN;
     }
-    auto it = s_specialTypeMap.find(classname);
-    return (it != s_specialTypeMap.end()) ? it->second : SpecialEntityTypeID::UNKNOWN;
-}
 
     //
     // MonsterTypeRegistry implementation
     //
 
-   void MonsterTypeRegistry::Initialize() {
-
+    void MonsterTypeRegistry::Initialize() {
         if (s_monsterTypeRegistryInitialized) {
-        return;}
+            return;
+        }
 
-        // Clear the maps
         s_monsterTypeMap.clear();
+        s_monsterTypeMap.reserve(128); // Reserve space for all monster types
 
         // Fill in all monster type mappings
         s_monsterTypeMap = {
@@ -232,12 +213,15 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
     }
 
     MonsterTypeID MonsterTypeRegistry::GetTypeID(const char* classname) {
-        if (!classname || !classname[0]) {
+        if (!classname || !classname[0]) [[unlikely]] {
             return MonsterTypeID::UNKNOWN;
         }
 
         auto it = s_monsterTypeMap.find(classname);
-        return (it != s_monsterTypeMap.end()) ? it->second : MonsterTypeID::UNKNOWN;
+        if (it != s_monsterTypeMap.end()) [[likely]] {
+            return it->second;
+        }
+        return MonsterTypeID::UNKNOWN;
     }
 
     bool MonsterTypeRegistry::IsValidType(MonsterTypeID id) {
@@ -280,21 +264,35 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
 
     //
     // SpawnPointTimeTracker implementation
+    // Using vector for O(1) access since entity numbers are sequential
     //
+
+    void SpawnPointTimeTracker::EnsureCapacity(int entity_num) {
+        if (entity_num >= static_cast<int>(m_lastSpawnTimes.size())) {
+            m_lastSpawnTimes.resize(entity_num + 1, 0_sec);
+        }
+    }
 
     void SpawnPointTimeTracker::Reset() {
         m_lastSpawnTimes.clear();
     }
 
     void SpawnPointTimeTracker::SetLastSpawnTime(const edict_t* point, gtime_t time) {
-        if (!point) return;
-         m_lastSpawnTimes[point->s.number] = time;
+        if (!point) [[unlikely]] return;
+
+        int entity_num = point->s.number;
+        EnsureCapacity(entity_num);
+        m_lastSpawnTimes[entity_num] = time;
     }
 
     gtime_t SpawnPointTimeTracker::GetLastSpawnTime(const edict_t* point) const {
-        if (!point) return 0_sec;
-        auto it = m_lastSpawnTimes.find(point->s.number);
-        return (it != m_lastSpawnTimes.end()) ? it->second : 0_sec;
+        if (!point) [[unlikely]] return 0_sec;
+
+        int entity_num = point->s.number;
+        if (entity_num < static_cast<int>(m_lastSpawnTimes.size())) [[likely]] {
+            return m_lastSpawnTimes[entity_num];
+        }
+        return 0_sec;
     }
 
     //
@@ -307,6 +305,8 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
         }
 
         // Initialize the map ID lookup first
+        s_mapIDMap.clear();
+        s_mapIDMap.reserve(64); // Reserve space for all map IDs
         s_mapIDMap = {
             // Standard Q2 maps
             {"q2dm1", MapID::Q2DM1}, {"q2dm2", MapID::Q2DM2}, {"q2dm3", MapID::Q2DM3},
@@ -354,114 +354,114 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
             {"test/spbox", MapID::TEST_SPBOX}, {"test/test_kaiser", MapID::TEST_TEST_KAISER}
         };
 
-        // Clear all origins
-        s_origins.fill({ vec3_origin, false });
+        // Clear all origins (note: struct now has bool first, then vec3_t)
+        s_origins.fill({ false, vec3_origin });
 
         // Define the origins using the original data from mapOrigins
         // Q2DM1
-        s_origins[static_cast<size_t>(MapID::Q2DM1)] = { {vec3_t{1184, 568, 704}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM1)] = { true, {1184, 568, 704} };
         // Q2DM2
-        s_origins[static_cast<size_t>(MapID::Q2DM2)] = { {vec3_t{128, -960, 704}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM2)] = { true, {128, -960, 704} };
         // Q2DM3
-        s_origins[static_cast<size_t>(MapID::Q2DM3)] = { {vec3_t{192, -136, 72}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM3)] = { true, {192, -136, 72} };
         // Q2DM4
-        s_origins[static_cast<size_t>(MapID::Q2DM4)] = { {vec3_t{504, 876, 292}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM4)] = { true, {504, 876, 292} };
         // Q2DM5
-        s_origins[static_cast<size_t>(MapID::Q2DM5)] = { {vec3_t{48, 952, 376}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM5)] = { true, {48, 952, 376} };
         // Q2DM6
-        s_origins[static_cast<size_t>(MapID::Q2DM6)] = { {vec3_t{496, 1392, -88}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM6)] = { true, {496, 1392, -88} };
         // Q2DM7
-        s_origins[static_cast<size_t>(MapID::Q2DM7)] = { {vec3_t{816, 832, 56}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM7)] = { true, {816, 832, 56} };
         // Q2DM8
-        s_origins[static_cast<size_t>(MapID::Q2DM8)] = { {vec3_t{112, 1216, 88}}, true };
-         // RDM1
-        s_origins[static_cast<size_t>(MapID::RDM1)] = { {vec3_t{410, 373, 30}}, true };
-         // RDM2
-        s_origins[static_cast<size_t>(MapID::RDM2)] = { {vec3_t{-1104, -483, 370}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2DM8)] = { true, {112, 1216, 88} };
+        // RDM1
+        s_origins[static_cast<size_t>(MapID::RDM1)] = { true, {410, 373, 30} };
+        // RDM2
+        s_origins[static_cast<size_t>(MapID::RDM2)] = { true, {-1104, -483, 370} };
         // RDM4
-        s_origins[static_cast<size_t>(MapID::RDM4)] = { {vec3_t{-336, 2456, -288}}, true };
+        s_origins[static_cast<size_t>(MapID::RDM4)] = { true, {-336, 2456, -288} };
         // RDM5
-        s_origins[static_cast<size_t>(MapID::RDM5)] = { {vec3_t{1088, 592, -568}}, true };
+        s_origins[static_cast<size_t>(MapID::RDM5)] = { true, {1088, 592, -568} };
         // RDM6
-        s_origins[static_cast<size_t>(MapID::RDM6)] = { {vec3_t{712, 1328, 48}}, true };
+        s_origins[static_cast<size_t>(MapID::RDM6)] = { true, {712, 1328, 48} };
         // RDM8
-        s_origins[static_cast<size_t>(MapID::RDM8)] = { {vec3_t{-1516, 976, -156}}, true };
+        s_origins[static_cast<size_t>(MapID::RDM8)] = { true, {-1516, 976, -156} };
         // RDM9
-        s_origins[static_cast<size_t>(MapID::RDM9)] = { {vec3_t{-984, -80, 232}}, true };
+        s_origins[static_cast<size_t>(MapID::RDM9)] = { true, {-984, -80, 232} };
         // RDM12
-        s_origins[static_cast<size_t>(MapID::RDM12)] = { {vec3_t{32, -1888, 120}}, true };
+        s_origins[static_cast<size_t>(MapID::RDM12)] = { true, {32, -1888, 120} };
         // Q2CTF4
-        s_origins[static_cast<size_t>(MapID::Q2CTF4)] = { {vec3_t{-2390, 1112, 218}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2CTF4)] = { true, {-2390, 1112, 218} };
         // Q2CTF5
-        s_origins[static_cast<size_t>(MapID::Q2CTF5)] = { {vec3_t{2432, -960, 168}}, true };
+        s_origins[static_cast<size_t>(MapID::Q2CTF5)] = { true, {2432, -960, 168} };
         // RBOSS
-        s_origins[static_cast<size_t>(MapID::RBOSS)] = { {vec3_t{856, -2080, 32}}, true };
+        s_origins[static_cast<size_t>(MapID::RBOSS)] = { true, {856, -2080, 32} };
         // NDCTF0
-        s_origins[static_cast<size_t>(MapID::NDCTF0)] = { {vec3_t{-608, -304, 184}}, true };
+        s_origins[static_cast<size_t>(MapID::NDCTF0)] = { true, {-608, -304, 184} };
         // XDM1
-        s_origins[static_cast<size_t>(MapID::XDM1)] = { {vec3_t{-312, 600, 144}}, true };
+        s_origins[static_cast<size_t>(MapID::XDM1)] = { true, {-312, 600, 144} };
         // XDM2
-        s_origins[static_cast<size_t>(MapID::XDM2)] = { {vec3_t{-232, 472, 424}}, true };
+        s_origins[static_cast<size_t>(MapID::XDM2)] = { true, {-232, 472, 424} };
         // XDM3
-        s_origins[static_cast<size_t>(MapID::XDM3)] = { {vec3_t{96, -96, 360}}, true };
+        s_origins[static_cast<size_t>(MapID::XDM3)] = { true, {96, -96, 360} };
         // XDM4
-        s_origins[static_cast<size_t>(MapID::XDM4)] = { {vec3_t{-160, -368, 360}}, true };
-        // XDM5 
-         s_origins[static_cast<size_t>(MapID::XDM5)] = { {vec3_t{8, -635, 367}}, true };
+        s_origins[static_cast<size_t>(MapID::XDM4)] = { true, {-160, -368, 360} };
+        // XDM5
+        s_origins[static_cast<size_t>(MapID::XDM5)] = { true, {8, -635, 367} };
         // XDM6
-        s_origins[static_cast<size_t>(MapID::XDM6)] = { {vec3_t{-1088, -128, 528}}, true };
+        s_origins[static_cast<size_t>(MapID::XDM6)] = { true, {-1088, -128, 528} };
         // INDUSTRY
-        s_origins[static_cast<size_t>(MapID::INDUSTRY)] = { {vec3_t{-1009, -545, 79}}, true };
+        s_origins[static_cast<size_t>(MapID::INDUSTRY)] = { true, {-1009, -545, 79} };
         // MGU3M4
-        s_origins[static_cast<size_t>(MapID::MGU3M4)] = { {vec3_t{3312, 3344, 864}}, true };
+        s_origins[static_cast<size_t>(MapID::MGU3M4)] = { true, {3312, 3344, 864} };
         // MGDM1
-        s_origins[static_cast<size_t>(MapID::MGDM1)] = { {vec3_t{176, 64, 288}}, true };
+        s_origins[static_cast<size_t>(MapID::MGDM1)] = { true, {176, 64, 288} };
         // MGU6TRIAL
-        s_origins[static_cast<size_t>(MapID::MGU6TRIAL)] = { {vec3_t{-848, 176, 96}}, true };
+        s_origins[static_cast<size_t>(MapID::MGU6TRIAL)] = { true, {-848, 176, 96} };
         // FACT3
-        s_origins[static_cast<size_t>(MapID::FACT3)] = { {vec3_t{0, -64, 192}}, true };
+        s_origins[static_cast<size_t>(MapID::FACT3)] = { true, {0, -64, 192} };
         // MGU4TRIAL
-        s_origins[static_cast<size_t>(MapID::MGU4TRIAL)] = { {vec3_t{-960, -528, -328}}, true };
+        s_origins[static_cast<size_t>(MapID::MGU4TRIAL)] = { true, {-960, -528, -328} };
         // MGU6M3
-        s_origins[static_cast<size_t>(MapID::MGU6M3)] = { {vec3_t{0, 592, 1600}}, true };
+        s_origins[static_cast<size_t>(MapID::MGU6M3)] = { true, {0, 592, 1600} };
         // WASTE2
-        s_origins[static_cast<size_t>(MapID::WASTE2)] = { {vec3_t{-1152, -288, -40}}, true };
+        s_origins[static_cast<size_t>(MapID::WASTE2)] = { true, {-1152, -288, -40} };
         // Q64/COMM
-        s_origins[static_cast<size_t>(MapID::Q64_COMM)] = { {vec3_t{1464, -88, -432}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_COMM)] = { true, {1464, -88, -432} };
         // Q64/COMMAND
-        s_origins[static_cast<size_t>(MapID::Q64_COMMAND)] = { {vec3_t{0, -208, 56}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_COMMAND)] = { true, {0, -208, 56} };
         // Q64/DM7
-        s_origins[static_cast<size_t>(MapID::Q64_DM7)] = { {vec3_t{64, 224, 120}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM7)] = { true, {64, 224, 120} };
         // Q64/DM1
-        s_origins[static_cast<size_t>(MapID::Q64_DM1)] = { {vec3_t{-192, -320, 80}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM1)] = { true, {-192, -320, 80} };
         // Q64/DM2
-        s_origins[static_cast<size_t>(MapID::Q64_DM2)] = { {vec3_t{840, 80, 96}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM2)] = { true, {840, 80, 96} };
         // Q64/DM3
-        s_origins[static_cast<size_t>(MapID::Q64_DM3)] = { {vec3_t{488, 392, 64}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM3)] = { true, {488, 392, 64} };
         // Q64/DM4
-        s_origins[static_cast<size_t>(MapID::Q64_DM4)] = { {vec3_t{176, 272, -24}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM4)] = { true, {176, 272, -24} };
         // Q64/DM6
-        s_origins[static_cast<size_t>(MapID::Q64_DM6)] = { {vec3_t{-1568, 1680, 144}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM6)] = { true, {-1568, 1680, 144} };
         // Q64/DM8
-        s_origins[static_cast<size_t>(MapID::Q64_DM8)] = { {vec3_t{-800, 448, 56}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM8)] = { true, {-800, 448, 56} };
         // Q64/DM9
-        s_origins[static_cast<size_t>(MapID::Q64_DM9)] = { {vec3_t{160, 56, 40}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM9)] = { true, {160, 56, 40} };
         // Q64/DM10
-        s_origins[static_cast<size_t>(MapID::Q64_DM10)] = { {vec3_t{-304, 512, -92}}, true };
+        s_origins[static_cast<size_t>(MapID::Q64_DM10)] = { true, {-304, 512, -92} };
         // EC/BASE_EC
-        s_origins[static_cast<size_t>(MapID::EC_BASE_EC)] = { {vec3_t{-112, 704, 128}}, true };
+        s_origins[static_cast<size_t>(MapID::EC_BASE_EC)] = { true, {-112, 704, 128} };
         // OLD/KMDM3
-        s_origins[static_cast<size_t>(MapID::OLD_KMDM3)] = { {vec3_t{-480, -572, 144}}, true };
+        s_origins[static_cast<size_t>(MapID::OLD_KMDM3)] = { true, {-480, -572, 144} };
         // TEST/MALS_BARRIER_TEST
-        s_origins[static_cast<size_t>(MapID::TEST_MALS_BARRIER_TEST)] = { {vec3_t{24, 136, 224}}, true };
+        s_origins[static_cast<size_t>(MapID::TEST_MALS_BARRIER_TEST)] = { true, {24, 136, 224} };
         // TEST/SPBOX
-        s_origins[static_cast<size_t>(MapID::TEST_SPBOX)] = { {vec3_t{112, 192, 168}}, true };
+        s_origins[static_cast<size_t>(MapID::TEST_SPBOX)] = { true, {112, 192, 168} };
         // TEST/TEST_KAISER
-        s_origins[static_cast<size_t>(MapID::TEST_TEST_KAISER)] = { {vec3_t{1344, 176, -8}}, true };
+        s_origins[static_cast<size_t>(MapID::TEST_TEST_KAISER)] = { true, {1344, 176, -8} };
         // E3/JAIL_E3
-        s_origins[static_cast<size_t>(MapID::E3_JAIL_E3)] = { {vec3_t{-572, -1312, 76}}, true };
+        s_origins[static_cast<size_t>(MapID::E3_JAIL_E3)] = { true, {-572, -1312, 76} };
         // XINTELL
-        s_origins[static_cast<size_t>(MapID::XINTELL)] = { {vec3_t{2096, -992, 376}}, true };
+        s_origins[static_cast<size_t>(MapID::XINTELL)] = { true, {2096, -992, 376} };
 
         // Initialize Map Sizes
         // Default all to Medium
@@ -500,17 +500,20 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
     }
 
     MapID MapOriginRegistry::GetMapID(const char* map_name) {
-        if (!map_name || !map_name[0]) {
+        if (!map_name || !map_name[0]) [[unlikely]] {
             return MapID::UNKNOWN;
         }
 
         // Make sure the registry is initialized
-        if (!s_initialized) {
-            Initialize(); // Should be safe to call multiple times due to s_initialized check
+        if (!s_initialized) [[unlikely]] {
+            Initialize();
         }
 
         auto it = s_mapIDMap.find(map_name);
-        return (it != s_mapIDMap.end()) ? it->second : MapID::UNKNOWN;
+        if (it != s_mapIDMap.end()) [[likely]] {
+            return it->second;
+        }
+        return MapID::UNKNOWN;
     }
 
     bool MapOriginRegistry::GetOrigin(const char* map_name, vec3_t& out_origin) {
@@ -519,33 +522,49 @@ SpecialEntityTypeID SpecialTypeRegistry::GetTypeID(const char* classname) {
 
     bool MapOriginRegistry::GetOrigin(MapID mapId, vec3_t& out_origin) {
         // Make sure the registry is initialized
-        if (!s_initialized) {
+        if (!s_initialized) [[unlikely]] {
             Initialize();
         }
 
         size_t index = static_cast<size_t>(mapId);
-        if (index >= s_origins.size() || !s_origins[index].is_valid) {
-            return false;
+        if (index < s_origins.size() && s_origins[index].is_valid) [[likely]] {
+            out_origin = s_origins[index].origin;
+            return true;
         }
-
-        out_origin = s_origins[index].origin;
-        return true;
+        return false;
     }
 
     MapSize MapOriginRegistry::GetMapSize(MapID mapId) {
         // Make sure the registry is initialized
-        if (!s_initialized) {
+        if (!s_initialized) [[unlikely]] {
             Initialize();
         }
 
         size_t index = static_cast<size_t>(mapId);
-        // Return the size from the array, or default Medium if ID is invalid/out of bounds
-        if (index < s_mapSizes.size() && mapId != MapID::UNKNOWN) {
+        if (index < s_mapSizes.size() && mapId != MapID::UNKNOWN) [[likely]] {
             return s_mapSizes[index];
         }
 
         // Default to Medium for unknown or out-of-bounds IDs
         return { false, false, true };
+    }
+
+    //
+    // Fast type checking functions - optimized with branch hints
+    //
+
+    bool IsMonsterType(const edict_t* ent, MonsterTypeID type_to_check) {
+        if (!ent) [[unlikely]] {
+            return false;
+        }
+        return ent->monsterinfo.monster_type_id == static_cast<uint8_t>(type_to_check);
+    }
+
+    bool IsSpecialType(const edict_t* ent, SpecialEntityTypeID type_to_check) {
+        if (!ent) [[unlikely]] {
+            return false;
+        }
+        return ent->special_type_id == static_cast<uint8_t>(type_to_check);
     }
 
 } // namespace horde

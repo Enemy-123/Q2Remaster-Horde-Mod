@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../g_local.h" 
+#include "../g_local.h"
 #include <array>
 #include <string_view>
 #include <unordered_map>
@@ -8,6 +8,20 @@
 struct edict_t;
 
 namespace horde {
+
+    // Compile-time string hashing using FNV-1a algorithm
+    // Can be used for fast string comparisons in constexpr contexts
+    constexpr uint32_t fnv1a_hash(std::string_view str) noexcept {
+        constexpr uint32_t FNV_PRIME = 0x01000193;
+        constexpr uint32_t FNV_OFFSET = 0x811C9DC5;
+
+        uint32_t hash = FNV_OFFSET;
+        for (char c : str) {
+            hash ^= static_cast<uint32_t>(c);
+            hash *= FNV_PRIME;
+        }
+        return hash;
+    }
 
     // IDs for monster types - allows array-based lookup instead of string-based
     enum class MonsterTypeID : uint8_t {
@@ -289,9 +303,10 @@ public:
         static MapSize GetMapSize(MapID mapId);
 
     private:
+        // Improved struct packing: bool first to minimize padding
         struct MapOrigin {
-            vec3_t origin;
             bool is_valid;
+            vec3_t origin;
         };
 
         static std::array<MapOrigin, static_cast<size_t>(MapID::MAX_MAPS)> s_origins;
@@ -301,6 +316,7 @@ public:
 
     //  replacement for spawn point time tracking
     // This is intended to integrate with existing SpawnPointDataArray
+    // Uses vector for O(1) access since entity numbers are sequential
     class SpawnPointTimeTracker {
     public:
         // Reset all spawn times
@@ -313,7 +329,10 @@ public:
         gtime_t GetLastSpawnTime(const edict_t* point) const;
 
     private:
-         std::unordered_map<int, gtime_t> m_lastSpawnTimes;
+        std::vector<gtime_t> m_lastSpawnTimes;
+
+        // Ensure the vector is large enough for the given entity number
+        void EnsureCapacity(int entity_num);
     };
 
     // Create global instances
@@ -323,7 +342,8 @@ public:
     // Initialization function - call once at startup
     void InitializeHordeIDs();
 
-    bool IsMonsterType(const edict_t* ent, horde::MonsterTypeID type_to_check);
-    bool IsSpecialType(const edict_t* ent, horde::SpecialEntityTypeID type_to_check);
+    // Fast type checking functions - defined in cpp to avoid incomplete type issues
+    bool IsMonsterType(const edict_t* ent, MonsterTypeID type_to_check);
+    bool IsSpecialType(const edict_t* ent, SpecialEntityTypeID type_to_check);
 } // namespace horde
 
