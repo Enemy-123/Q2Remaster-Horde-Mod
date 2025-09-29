@@ -4454,7 +4454,7 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 	}
 
 	// --- 2. Get Monster Properties ---
-	const bool can_monster_fly = IsFlying(horde::MonsterTypeRegistry::GetTypeID(self->classname));
+	const bool can_monster_fly = IsFlying(static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id));
 
 	// --- 3. Search for a Suitable Spawn Point ---
 	edict_t* best_spot = nullptr;
@@ -4654,7 +4654,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	}
 	else
 	{
-		if (!FindEmergencySpawnPositionNearPlayer(dest_origin, dest_angles, horde::MonsterTypeRegistry::GetTypeID(self->classname)))
+		if (!FindEmergencySpawnPositionNearPlayer(dest_origin, dest_angles, static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id)))
 		{
 			self->teleport_time = level.time + 5.0_sec;
 			return false;
@@ -4928,7 +4928,7 @@ bool Horde_AttemptToUnstickMonster(edict_t* self)
 
 	// If that fails, fall back to the emergency grid search.
 	vec3_t emergency_origin, emergency_angles;
-	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+	horde::MonsterTypeID typeId = static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id);
 
 	// The target for the emergency spawn is the monster's current enemy, if it has one.
 	if (FindEmergencySpawnPositionNearPlayer(emergency_origin, emergency_angles, typeId, self->enemy))
@@ -5791,8 +5791,8 @@ static void SetMonsterArmor(edict_t *monster)
 		return;
 	}
 
-	// Get the monster's unique type ID from its classname
-	const horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(monster->classname);
+	// Get the monster's unique type ID from its cached value
+	const horde::MonsterTypeID typeId = static_cast<horde::MonsterTypeID>(monster->monsterinfo.monster_type_id);
 
 	// Check if this monster type should be excluded from getting armor
 	if (typeId == horde::MonsterTypeID::MUTANT ||
@@ -6884,7 +6884,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	self->velocity = vec3_origin;
 
 	vec3_t final_pos_after_validation = self->s.origin;
-	horde::MonsterTypeID monsterTypeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
+	horde::MonsterTypeID monsterTypeId = static_cast<horde::MonsterTypeID>(self->monsterinfo.monster_type_id);
 	bool is_flying_monster = IsFlying(monsterTypeId);
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(monsterTypeId, predicted_mins, predicted_maxs);

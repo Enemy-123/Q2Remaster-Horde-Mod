@@ -2057,7 +2057,7 @@ TOUCH(teleporter_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool 
 			return;
 		}
 
-		horde::MonsterTypeID monster_type_id = horde::MonsterTypeRegistry::GetTypeID(other->classname);
+		horde::MonsterTypeID monster_type_id = static_cast<horde::MonsterTypeID>(other->monsterinfo.monster_type_id);
 		bool monster_is_flying = IsFlying(monster_type_id);
 
 		// 1. Call the new function that returns std::optional.
