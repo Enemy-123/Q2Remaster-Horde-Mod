@@ -75,6 +75,7 @@ static void SetLevelName(pmenu_t* p);
 
 void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p); // Handler for Join Horde
 void GoChaseCam(edict_t* ent, pmenuhnd_t* p);  // Handler for Chase Cam/Spectator
+void OpenAdminFromJoinMenu(edict_t* ent, pmenuhnd_t* p); // Handler for Admin Menu from Join Menu
 
 // Simplified joinmenu with reduced spacing
 const pmenu_t joinmenu[] = {
@@ -87,19 +88,20 @@ const pmenu_t joinmenu[] = {
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 6: Blank Separator
     { "Go Spectator", PMENU_ALIGN_LEFT, GoChaseCam, "" },     // 7: Go Spectator
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 8: Blank Separator
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 9: More spacing
-    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 10: More spacing
+    { "[HOST] Admin Menu", PMENU_ALIGN_LEFT, nullptr, "" },    // 9: Host Admin Menu (visibility controlled in update)
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 10: Blank Separator
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 11: More spacing
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 12: More spacing
     { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 13: More spacing
-    { "Discord: Enemy0416", PMENU_ALIGN_LEFT, nullptr, "" },    // 14: Discord Info
-    { "Original Mod by Paril", PMENU_ALIGN_LEFT, nullptr, "" }, // 15: Original Mod Credit
-    { "Modified by Enemy", PMENU_ALIGN_LEFT, nullptr, "" }     // 16: Modified Credit
+    { "", PMENU_ALIGN_CENTER, nullptr, "" },                      // 14: More spacing
+    { "Discord: Enemy0416", PMENU_ALIGN_LEFT, nullptr, "" },    // 15: Discord Info
+    { "Original Mod by Paril", PMENU_ALIGN_LEFT, nullptr, "" }, // 16: Original Mod Credit
+    { "Modified by Enemy", PMENU_ALIGN_LEFT, nullptr, "" }     // 17: Modified Credit
 
 };
 
 // Recalculate size
-constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 17 now
+constexpr size_t JOINMENU_SIZE = sizeof(joinmenu) / sizeof(pmenu_t); // Should be 18 now
 
 // Update indices based on the simplified joinmenu structure
 constexpr size_t JOINMENU_TITLE_IDX = 0;
@@ -107,9 +109,10 @@ constexpr size_t JOINMENU_LEVELNAME_IDX = 2;
 constexpr size_t JOINMENU_JOIN_HORDE_IDX = 4; // Updated index
 constexpr size_t JOINMENU_JOIN_HORDE_COUNT_IDX = 5; // Updated index
 constexpr size_t JOINMENU_CHASECAM_IDX = 7; // Updated index
-constexpr size_t JOINMENU_DISCORD_IDX = 14; // Discord at bottom
-constexpr size_t JOINMENU_ORIGINAL_CREDIT_IDX = 15; // Original Mod Credit
-constexpr size_t JOINMENU_MODIFIED_CREDIT_IDX = 16; // Modified Credit
+constexpr size_t JOINMENU_ADMIN_IDX = 9; // Host Admin Menu
+constexpr size_t JOINMENU_DISCORD_IDX = 15; // Discord at bottom
+constexpr size_t JOINMENU_ORIGINAL_CREDIT_IDX = 16; // Original Mod Credit
+constexpr size_t JOINMENU_MODIFIED_CREDIT_IDX = 17; // Modified Credit
 
 // Re-verify assertions
 static_assert(JOINMENU_ORIGINAL_CREDIT_IDX < JOINMENU_SIZE, "JOINMENU_ORIGINAL_CREDIT_IDX is out of bounds for joinmenu");
@@ -236,6 +239,37 @@ void HordeUpdateJoinMenu(edict_t* ent)
 		"Go Spectator";
 	Q_strlcpy(entries[JOINMENU_CHASECAM_IDX].text, chase_text, sizeof(entries[JOINMENU_CHASECAM_IDX].text));
 	entries[JOINMENU_CHASECAM_IDX].SelectFunc = GoChaseCam;
+
+	// --- Update Admin Menu Option (Host Only) ---
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+	if (playerNum == 0) {
+		// Player is the host - show admin menu option
+		Q_strlcpy(entries[JOINMENU_ADMIN_IDX].text, "[HOST] Admin Menu", sizeof(entries[JOINMENU_ADMIN_IDX].text));
+		entries[JOINMENU_ADMIN_IDX].SelectFunc = OpenAdminFromJoinMenu;
+	} else {
+		// Player is not the host - hide admin menu option
+		entries[JOINMENU_ADMIN_IDX].text[0] = '\0';
+		entries[JOINMENU_ADMIN_IDX].SelectFunc = nullptr;
+	}
+}
+
+// Handler for opening Admin Menu from Join Menu
+void OpenAdminFromJoinMenu(edict_t* ent, pmenuhnd_t* p)
+{
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Check if player is the host
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+	if (playerNum != 0) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "Only the host can access the admin menu.\n");
+		return;
+	}
+
+	// Close the join menu and open the admin menu
+	PMenu_Close(ent);
+	OpenAdminMenu(ent);
 }
 
 // Keep the SetGameName and SetLevelName definitions as they were in the previous correct version.
