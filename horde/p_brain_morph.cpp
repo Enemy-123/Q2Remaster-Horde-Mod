@@ -20,27 +20,21 @@ inline void G_EntMidPoint(const edict_t* ent, vec3_t& point)
 static void BrainFindTarget(edict_t* self);
 
 static void BrainTongueAttack(edict_t* self, morph_data_t* data) {
-    // Always find the nearest target - don't stick to one enemy
-    BrainFindTarget(self);
-
     // Allow attack animation even without target
     data->tongue_active = true;
     data->attack_finished = level.time + FRAME_TIME_MS; // Start attacking next frame
+    data->tongue_target = nullptr; // Always reset target on new attack press
+    data->last_steal_time = 0_ms;
 
-    if (!self->enemy) {
-        // No target found - just play animation
-        data->tongue_target = nullptr;
-        data->last_steal_time = 0_ms;
-    } else {
+    // Always find the nearest target - don't stick to one enemy
+    BrainFindTarget(self);
+
+     // Play initial attack sound for new target
+    gi.sound(self, CHAN_WEAPON, gi.soundindex("brain/brnatck1.wav"), 1, ATTN_NORM, 0);
+
+    if (self->enemy) {
         // Start attacking the nearest enemy
-        if (data->tongue_target != self->enemy) {
-            // New target
-            data->tongue_target = self->enemy;
-            data->last_steal_time = 0_ms; // Reset steal timer
-
-            // Play initial attack sound for new target
-            gi.sound(self, CHAN_WEAPON, gi.soundindex("brain/brnatck1.wav"), 1, ATTN_NORM, 0);
-        }
+        data->tongue_target = self->enemy;
     }
 }
 
