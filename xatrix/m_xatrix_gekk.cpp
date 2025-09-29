@@ -1831,7 +1831,8 @@ void SP_monster_gekk(edict_t* self)
 
 	self->monsterinfo.can_jump = !(self->spawnflags & SPAWNFLAG_GEKK_NOJUMPING);
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 68;
+	// HORDE MOD: Increased jump height from 68 to 88 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 88;
 	self->monsterinfo.blocked = gekk_blocked;
 
 	gekk_set_fly_parameters(self);

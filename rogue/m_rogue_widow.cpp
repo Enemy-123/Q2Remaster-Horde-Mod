@@ -1258,7 +1258,8 @@ void SP_monster_widow(edict_t* self) {
 
 	// --- JUMP ATTACK ADDED ---
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.jump_height = 120;
+	// HORDE MOD: Increased jump height from 120 to 156 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 156;
 	self->monsterinfo.drop_height = 256;
 
 	gi.linkentity(self);
@@ -1330,7 +1331,8 @@ void SP_monster_widow1(edict_t* self) {
 
 	// --- JUMP ATTACK ADDED ---
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.jump_height = 120;
+	// HORDE MOD: Increased jump height from 120 to 156 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 156;
 	self->monsterinfo.drop_height = 256;
 
 	gi.linkentity(self);

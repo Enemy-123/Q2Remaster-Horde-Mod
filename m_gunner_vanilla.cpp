@@ -948,7 +948,8 @@ void SP_monster_gunner_vanilla(edict_t* self)
 	self->monsterinfo.blindfire = true;
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_GUNNER_NOJUMPING);
 	self->monsterinfo.drop_height = 192;
-	self->monsterinfo.jump_height = 40;
+	// HORDE MOD: Increased jump height from 40 to 52 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 52;
 
 	walkmonster_start(self);
 

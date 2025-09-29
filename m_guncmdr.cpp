@@ -1799,7 +1799,8 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	// Capacidades de movimiento
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_GUNCMDR_NOJUMPING);
 	self->monsterinfo.drop_height = 192;
-	self->monsterinfo.jump_height = 40;
+	// HORDE MOD: Increased jump height from 40 to 52 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 52;
 
 	//blindfire for grenadier guys
 	if (self->style == GUNCMDR_STYLE_GRENADIER || self->style == GUNCMDR_STYLE_BOSS)

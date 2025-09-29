@@ -1042,7 +1042,8 @@ void SP_monster_berserk(edict_t* self)
 	self->monsterinfo.combat_style = COMBAT_MELEE;
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING);
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 40;
+	// HORDE MOD: Increased jump height from 40 to 52 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 52;
 
 	gi.linkentity(self);
 

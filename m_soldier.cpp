@@ -2361,7 +2361,8 @@ void SP_monster_soldier_light(edict_t* self)
 	self->monsterinfo.blindfire = true;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 48;
+	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LIGHT);
 	ApplyMonsterBonusFlags(self);
@@ -2401,7 +2402,8 @@ void SP_monster_soldier(edict_t* self)
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 48;
+	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER);
 	ApplyMonsterBonusFlags(self);
@@ -2441,7 +2443,8 @@ void SP_monster_soldier_ss(edict_t* self)
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 48;
+	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_SS);
 	ApplyMonsterBonusFlags(self);
@@ -2457,7 +2460,8 @@ void SP_monster_soldier_h(edict_t* self)
 	self->style = 1;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 48;
+	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
@@ -2496,7 +2500,8 @@ void SP_monster_soldier_ripper(edict_t* self)
 	self->monsterinfo.blindfire = true;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 48;
+	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_RIPPER);
 	ApplyMonsterBonusFlags(self);
@@ -2531,7 +2536,8 @@ void SP_monster_soldier_hypergun(edict_t* self)
 	self->monsterinfo.blindfire = true;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 48;
+	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_HYPERGUN);
 	ApplyMonsterBonusFlags(self);
@@ -2572,7 +2578,8 @@ void SP_monster_soldier_lasergun(edict_t* self)
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 48;
+	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LASERGUN);
 	ApplyMonsterBonusFlags(self);

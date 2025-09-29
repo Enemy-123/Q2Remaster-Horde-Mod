@@ -96,7 +96,9 @@ inline void monster_jump_start(edict_t *self)
 {
 	monster_done_dodge(self);
 
-	self->monsterinfo.jump_time = level.time + 3_sec;
+	// HORDE MOD: Reduced jump cooldown from 3 seconds to 1 second
+	// This allows monsters to attempt jumps more frequently when blocked
+	self->monsterinfo.jump_time = level.time + 1_sec;
 }
 
 bool monster_jump_finished(edict_t *self)

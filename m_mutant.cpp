@@ -768,7 +768,8 @@ void SP_monster_mutant(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 	self->monsterinfo.can_jump = !(self->spawnflags & SPAWNFLAG_MUTANT_NOJUMPING);
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 68;
+	// HORDE MOD: Increased jump height from 68 to 88 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 88;
 
 	walkmonster_start(self);
 

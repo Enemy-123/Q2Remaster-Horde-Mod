@@ -1066,7 +1066,8 @@ void SP_monster_chick(edict_t* self)
 	self->monsterinfo.blindfire = true;
 
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 68;
+	// HORDE MOD: Increased jump height from 68 to 88 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 88;
 	self->monsterinfo.can_jump = true;
 	// pmm
 	walkmonster_start(self);
@@ -1085,7 +1086,8 @@ void SP_monster_chick_heat(edict_t* self)
 
 	self->s.skinnum = 2;
 	self->monsterinfo.drop_height = 256;
-	self->monsterinfo.jump_height = 68;
+	// HORDE MOD: Increased jump height from 68 to 88 (30% increase) for better obstacle navigation
+	self->monsterinfo.jump_height = 88;
 	self->monsterinfo.can_jump = true;
 
 	gi.soundindex("weapons/railgr1a.wav");
