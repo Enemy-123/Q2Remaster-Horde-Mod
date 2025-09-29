@@ -6,7 +6,7 @@
             "type": "shell",
             "command": "python3",
             "args": [
-                "${workspaceFolder}/build_universal.py",
+                "${workspaceFolder}/build_mingw.py",
                 "${input:deployPathInput}",
                 "Debug"
             ],
@@ -23,7 +23,7 @@
             "type": "shell",
             "command": "python3",
             "args": [
-                "${workspaceFolder}/build_universal.py",
+                "${workspaceFolder}/build_mingw.py",
                 "${input:deployPathInput}",
                 "Release"
             ],
@@ -43,7 +43,7 @@
             "type": "shell",
             "command": "python3",
             "args": [
-                "${workspaceFolder}/build_universal.py",
+                "${workspaceFolder}/build_mingw.py",
                 "${input:deployPathInput}",
                 "RelWithDebInfo"
             ],
@@ -62,7 +62,7 @@
             "type": "shell",
             "command": "python3",
             "args": [
-                "${workspaceFolder}/build_universal.py",
+                "${workspaceFolder}/build_mingw.py",
                 "${input:deployPathInput}",
                 "DebugASan"
             ],

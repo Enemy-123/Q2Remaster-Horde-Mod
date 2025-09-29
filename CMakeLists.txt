@@ -23,56 +23,23 @@ target_include_directories(Q2HordeModDLL PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     "${CMAKE_CURRENT_SOURCE_DIR}/vendor")
 
-# MSVC-compatible compile options using clang-cl
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    # Clang with MSVC ABI compatibility
-    target_compile_options(Q2HordeModDLL PRIVATE
-        # Use MSVC-style command line options
-        /std:c++20
+# Compile options for GCC/MinGW
+target_compile_options(Q2HordeModDLL PRIVATE
+    -std=c++20
+    -Wnull-dereference
+    -Wno-unused-parameter
+    -Wno-error
 
-        # Enable warnings but don't treat as errors
-        /W3
-        /wd4996  # Disable deprecated function warnings
-        /wd4244  # Disable conversion warnings
-        /wd4267  # Disable size_t conversion warnings
-        -Wno-template-id-cdtor  # Disable C++20 constructor template-id warnings
-        -Wno-deprecated-enum-enum-conversion  # Disable enum arithmetic warnings
+    # disable noisy warnings
+    -Wno-deprecated-enum-enum-conversion
+    -Wno-template-id-cdtor
 
-        # MSVC-compatible optimizations
-        $<$<CONFIG:Debug>:/Od /Zi>
-        $<$<CONFIG:RelWithDebInfo>:/O2 /Zi>
-        $<$<CONFIG:Release>:/O2 /DNDEBUG>
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:RelWithDebInfo>:-g -O2>
+    $<$<CONFIG:Release>:-O3>
+)
 
-        # Enable MSVC extensions for compatibility
-        /permissive-
-        /Zc:__cplusplus
-    )
-
-    # MSVC-style linker options
-    target_link_options(Q2HordeModDLL PRIVATE
-        $<$<CONFIG:Release>:/OPT:REF /OPT:ICF>
-        $<$<CONFIG:Debug>:/DEBUG>
-        $<$<CONFIG:RelWithDebInfo>:/DEBUG>
-    )
-else()
-    # Fallback for GCC/MinGW
-    target_compile_options(Q2HordeModDLL PRIVATE
-        -std=c++20
-        -Wnull-dereference
-        -Wno-unused-parameter
-        -Wno-error
-
-        # disable noisy warnings
-        -Wno-deprecated-enum-enum-conversion
-        -Wno-template-id-cdtor
-
-        $<$<CONFIG:Debug>:-g -O0>
-        $<$<CONFIG:RelWithDebInfo>:-g -O2>
-        $<$<CONFIG:Release>:-O3>
-    )
-
-    target_link_options(Q2HordeModDLL PRIVATE $<$<CONFIG:Release>:-s>)
-endif()
+target_link_options(Q2HordeModDLL PRIVATE $<$<CONFIG:Release>:-s>)
 
 
 # Preprocessor definitions for Windows compatibility
@@ -89,8 +56,7 @@ target_compile_definitions(Q2HordeModDLL PRIVATE
     WIN32_LEAN_AND_MEAN  # Reduce Windows header bloat
 )
 
-# Link against the correct imported targets from vcpkg
-# For MSVC compatibility, we need proper Windows libraries
+# Link against the imported targets from vcpkg
 target_link_libraries(Q2HordeModDLL PRIVATE
     fmt::fmt
     JsonCpp::JsonCpp
