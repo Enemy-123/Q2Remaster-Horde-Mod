@@ -281,6 +281,9 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     // Clear effects
     ent->s.effects &= ~EF_TELEPORTER;
 
+    // Store old frame for interpolation
+    ent->s.old_frame = ent->s.frame;
+
     // Regeneration
     BrainRegenerate(ent);
 
@@ -293,6 +296,10 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
     // Check if we're moving
     bool is_moving = (ucmd.forwardmove != 0) || (ucmd.sidemove != 0);
 
+    // Only advance animations at controlled intervals (not every frame)
+    // Use 10Hz (100ms) for normal animation speed
+    const bool should_advance_frame = (level.time >= data->next_frame_time);
+
     // Handle attacks - only allow when on ground and not moving
     if ((ucmd.buttons & BUTTON_ATTACK) && ent->groundentity && !is_moving) {
         // Start attack if not already attacking
@@ -304,13 +311,18 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
         if (data->tongue_active) {
             BrainTongueAttackContinue(ent, data);
 
-            // Animation for attack
-            if (ent->s.frame < BRAIN_FRAMES_ATTACK_START || ent->s.frame > BRAIN_FRAMES_ATTACK_END)
+            // Animation for attack - smooth controlled speed
+            if (ent->s.frame < BRAIN_FRAMES_ATTACK_START || ent->s.frame > BRAIN_FRAMES_ATTACK_END) {
                 ent->s.frame = BRAIN_FRAMES_ATTACK_START;
-            else if (ent->s.frame < BRAIN_FRAMES_ATTACK_END)
+                ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth interpolation
+            }
+            else if (should_advance_frame) {
                 ent->s.frame++;
-            else
-                ent->s.frame = BRAIN_FRAMES_ATTACK_START + 4; // Loop middle frames during continuous attack
+                if (ent->s.frame > BRAIN_FRAMES_ATTACK_END)
+                    ent->s.frame = BRAIN_FRAMES_ATTACK_START + 2; // Loop from frame 3
+                data->next_frame_time = level.time + 10_hz; // 100ms per frame (10Hz)
+                ent->s.renderfx |= RF_OLD_FRAME_LERP;
+            }
         }
     } else {
         // Release attack when button is released or not on ground
@@ -323,37 +335,36 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
 
     // Animation frames
     if (is_jumping) {
-        // Jump animation - cycle through all 8 duck frames
-        if (ent->s.frame < BRAIN_FRAMES_JUMP_START || ent->s.frame > BRAIN_FRAMES_JUMP_END)
-            ent->s.frame = BRAIN_FRAMES_JUMP_START;
-        else {
-            ent->s.frame++;
-            if (ent->s.frame > BRAIN_FRAMES_JUMP_END)
-                ent->s.frame = BRAIN_FRAMES_JUMP_START;
-        }
+        // Jump animation - simply hold FRAME_duck05 (158) while airborne
+        ent->s.frame = BRAIN_FRAMES_JUMP_HOLD;  // FRAME_duck05
+        ent->s.renderfx |= RF_OLD_FRAME_LERP;
     } else if (!data->tongue_active) {
         if (is_moving) {
-            // Walking animation - using proper brain walk frames
-            if (ent->s.frame < BRAIN_FRAMES_WALK_START || ent->s.frame > BRAIN_FRAMES_WALK_END)
+            // Walking animation - controlled speed with interpolation
+            if (ent->s.frame < BRAIN_FRAMES_WALK_START || ent->s.frame > BRAIN_FRAMES_WALK_END) {
                 ent->s.frame = BRAIN_FRAMES_WALK_START;
-            else {
+                data->next_frame_time = level.time;
+            }
+            else if (should_advance_frame) {
                 ent->s.frame++;
                 if (ent->s.frame > BRAIN_FRAMES_WALK_END)
                     ent->s.frame = BRAIN_FRAMES_WALK_START;
+                data->next_frame_time = level.time + 10_hz; // 100ms per frame (10Hz)
+                ent->s.renderfx |= RF_OLD_FRAME_LERP;
             }
         } else {
-            // Standing animation - cycle through all 30 stand frames slowly
-            if (ent->s.frame < BRAIN_FRAMES_STAND_START || ent->s.frame > BRAIN_FRAMES_STAND_END)
+            // Standing/idle animation - very slow for smooth idle
+            if (ent->s.frame < BRAIN_FRAMES_STAND_START || ent->s.frame > BRAIN_FRAMES_STAND_END) {
                 ent->s.frame = BRAIN_FRAMES_STAND_START;
-            else {
-                // Slow down standing animation (advance every 2 game frames)
-                if (level.time >= data->next_frame_time) {
-                    ent->s.frame++;
-                    if (ent->s.frame > BRAIN_FRAMES_STAND_END)
-                        ent->s.frame = BRAIN_FRAMES_STAND_START;
-                    // Set next frame time (slower for smooth idle animation)
-                    data->next_frame_time = level.time + (FRAME_TIME_MS * 2);
-                }
+                data->next_frame_time = level.time;
+            }
+            else if (should_advance_frame) {
+                ent->s.frame++;
+                if (ent->s.frame > BRAIN_FRAMES_STAND_END)
+                    ent->s.frame = BRAIN_FRAMES_STAND_START;
+                // Use 5Hz (200ms) for slow smooth idle animation
+                data->next_frame_time = level.time + 5_hz;
+                ent->s.renderfx |= RF_OLD_FRAME_LERP;
             }
         }
     }
@@ -409,7 +420,7 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     data->last_steal_time = 0_ms;
     data->tongue_active = false;
     data->tongue_target = nullptr;
-    data->next_frame_time = level.time;
+    data->next_frame_time = level.time + 10_hz; // Initialize frame timing for 10Hz animation speed
 
     // Clear any looping sounds (like chainsaw idle)
     ent->s.sound = 0;
@@ -419,6 +430,9 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     ent->s.modelindex = gi.modelindex("models/monsters/brain/tris.md2");
     ent->s.modelindex2 = 0;
     ent->s.skinnum = 0;
+    ent->s.frame = BRAIN_FRAMES_STAND_START; // Start with standing animation
+    ent->s.old_frame = ent->s.frame; // Initialize old frame for interpolation
+    ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth frame interpolation
 
     // Set team for bot recognition
     ent->monsterinfo.team = ent->client->resp.ctf_team;
