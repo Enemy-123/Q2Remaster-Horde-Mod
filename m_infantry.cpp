@@ -762,11 +762,9 @@ MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_fram
 
 static void infantry_grenade(edict_t* self)
 {
-
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
+		return;
 
     // Constants for easy tweaking of grenade behavior
     constexpr float LOB_GRENADE_SPEED = 700.f;   // A good speed for arcing throws.
@@ -801,7 +799,7 @@ static void infantry_grenade(edict_t* self)
         vec3_t forward, right, up;
         AngleVectors(self->s.angles, forward, right, up);
         start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-        
+
         // Use the simple and reliable upward lob calculation
         float dist_to_target = (target_pos - start_pos).length();
         aim_dir = target_pos - start_pos;
@@ -812,6 +810,7 @@ static void infantry_grenade(edict_t* self)
     else
     {
         // Normal combat case: Use PredictAim for high accuracy.
+        // Not blindfiring - need fully valid target
 		if (!M_HasValidTarget(self)) {
             infantry_grenade_cleanup(self);
             return;

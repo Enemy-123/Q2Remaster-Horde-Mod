@@ -634,18 +634,26 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	}
 	else
 	{
-		// [Paril-KEX] no enemy = no fire
-		if (!M_HasValidTarget(self))
+		// [Paril-KEX] Basic enemy check - blindfire logic needs to execute
+		if (!M_HasEnemy(self))
 		{
 			self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
-			return; // Stop immediately if the target is invalid.
+			return;
 		}
 
 		// PMM
 		if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 			end = self->monsterinfo.blind_fire_target;
 		else
+		{
+			// Not blindfiring - need fully valid target
+			if (!M_HasValidTarget(self))
+			{
+				self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+				return;
+			}
 			end = self->enemy->s.origin;
+		}
 		// pmm
 		end[2] += self->enemy->viewheight;
 

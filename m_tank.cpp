@@ -679,10 +679,9 @@ void TankGrenades(edict_t* self)
 
 void TankBlaster(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
+		return;
 
 	vec3_t forward, right;
 	vec3_t dir;
@@ -723,7 +722,12 @@ void TankBlaster(edict_t* self)
 			return;
 	}
 	else
+	{
+		// Not blindfiring - need fully valid target
+		if (!M_HasValidTarget(self))
+			return;
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
+	}
 
 	const bool isBoss = 
     (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64) && self->monsterinfo.IS_BOSS) ||
@@ -771,10 +775,9 @@ void TankStrike(edict_t* self)
 
 void TankRocket(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
+		return;
 
     vec3_t                   forward, right;
     vec3_t                   start;
@@ -817,7 +820,9 @@ void TankRocket(edict_t* self)
     }
     else
     {
-        // --- self->enemy is guaranteed valid here due to the primary check ---
+        // Not blindfiring - need fully valid target
+        if (!M_HasValidTarget(self))
+            return;
         target = self->enemy->s.origin;
     }
 
@@ -1953,10 +1958,9 @@ void tank_vanillaStrike(edict_t* self)
 
 void tank_vanillaRocket(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
+		return;
 
 	vec3_t					 forward, right;
 	vec3_t					 start;
@@ -1992,7 +1996,12 @@ void tank_vanillaRocket(edict_t* self)
 	if (blindfire)
 		target = self->monsterinfo.blind_fire_target;
 	else
+	{
+		// Not blindfiring - need fully valid target
+		if (!M_HasValidTarget(self))
+			return;
 		target = self->enemy->s.origin;
+	}
 	// pmm
 
 	// PGM

@@ -495,6 +495,15 @@ bool M_droptofloor(edict_t* ent)
 	return true;
 }
 
+// Basic enemy existence check - use at START of attack functions to allow blindfire logic to execute
+// Does NOT check health or visibility - those checks come AFTER blindfire validation
+bool M_HasEnemy(edict_t* self)
+{
+	return self && self->inuse && self->enemy && self->enemy->inuse;
+}
+
+// Full target validation - use AFTER blindfire checks, for direct (non-blind) attacks
+// Checks enemy health and is suitable for attacks that need a fully valid, living target
 bool M_HasValidTarget(edict_t* self)
 {
 	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse || self->enemy->health <= 0)

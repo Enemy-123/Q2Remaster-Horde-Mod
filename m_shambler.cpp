@@ -462,9 +462,9 @@ MMOVE_T(shambler_attack_magic) = { FRAME_magic01, FRAME_magic12, shambler_frames
 
 void ShamblerCastFireballs(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (!M_HasEnemy(self))
 	{
-		return; // Can't at a non-existent or dead target.
+		return; // Can't at a non-existent enemy.
 	}
 
 	vec3_t f, r;
@@ -485,7 +485,7 @@ void ShamblerCastFireballs(edict_t* self)
 	vec3_t temp_right_hand_pos = lightning_right_hand[charge_end_index];
 	temp_right_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
 	const vec3_t right_pos = M_ProjectFlashSource(self, temp_right_hand_pos, f, r);
-	
+
 	const vec3_t start = (left_pos + right_pos) * 0.5f;
 
 	vec3_t dir;
@@ -503,6 +503,8 @@ void ShamblerCastFireballs(edict_t* self)
 	}
 	else
 	{
+		if (!M_HasValidTarget(self))
+			return;
 		// Smart targeting como el tank
 		if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
 		{

@@ -366,22 +366,32 @@ static void flyer_checkstrafe(edict_t* self)
 
 void flyer_rocket(edict_t* self)
 {
-
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
+		return;
 
 	vec3_t	forward;
 	vec3_t	start, end, dir;
 	float	dist, chance;
 	trace_t trace;
 	constexpr int rocketSpeed = 850;
+	bool blindfire = (self->monsterinfo.aiflags & AI_LOST_SIGHT);
 
-	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
+	if (blindfire && !visible(self, self->enemy))
+	{
+		if (!self->monsterinfo.blind_fire_target)
+			return;
 		end = self->monsterinfo.blind_fire_target;
+	}
 	else
+	{
+		// Not blindfiring - need fully valid target
+		if (!M_HasValidTarget(self))
+			return;
+
 		end = self->enemy->s.origin;
+	}
+
 	dir = end - self->s.origin;
 	dir.normalize();
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
@@ -394,7 +404,7 @@ void flyer_rocket(edict_t* self)
 		start = self->s.origin;
 
 		// aim for the head.
-		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
+		if (!blindfire)
 		{
 			if ((self->enemy) && (self->enemy->client))
 				end[2] += self->enemy->viewheight;
@@ -407,9 +417,8 @@ void flyer_rocket(edict_t* self)
 
 		// check for predictive fire
 		// Paril: adjusted to be a bit more fair
-		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
+		if (!blindfire)
 		{
-
 			PredictAim(self, self->enemy, start, rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 		}
 

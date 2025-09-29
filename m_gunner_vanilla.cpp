@@ -430,9 +430,9 @@ bool gunner_vanilla_grenade_check(edict_t* self)
 
 void gunner_vanillaGrenade(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return; // Stop immediately if the enemy is invalid.
 	}
 
 	vec3_t					 start;
@@ -444,9 +444,6 @@ void gunner_vanillaGrenade(edict_t* self)
 	// PMM
 	vec3_t target;
 	bool   blindfire = false;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
 
 	// pmm
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
@@ -488,7 +485,12 @@ void gunner_vanillaGrenade(edict_t* self)
 		target = self->monsterinfo.blind_fire_target;
 	}
 	else
+	{
+		if (!M_HasValidTarget(self))
+			return;
+
 		target = self->enemy->s.origin;
+	}
 	// pmm
 
 	AngleVectors(self->s.angles, forward, right, up); // PGM

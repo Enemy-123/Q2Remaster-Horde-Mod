@@ -755,10 +755,9 @@ void chickkl_grenade(edict_t* self)
 
 void ChickRocket(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
+		return;
 
 	// Check if this is a chickkl - use rocket attack instead
 	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL))
@@ -797,7 +796,12 @@ void ChickRocket(edict_t* self)
 	if (blindfire)
 		target = self->monsterinfo.blind_fire_target;
 	else
+	{
+		// Not blindfiring - need fully valid target
+		if (!M_HasValidTarget(self))
+			return;
 		target = self->enemy->s.origin;
+	}
 	// pmm
 	// PGM
 	//  PMM - blindfire shooting

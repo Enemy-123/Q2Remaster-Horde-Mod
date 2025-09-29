@@ -460,9 +460,9 @@ const RailOffset RAIL_OFFSETS[] = {
 
 void runnertankRail(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return; // Stop immediately if the enemy is invalid.
 	}
 
 	vec3_t forward, right;
@@ -473,8 +473,14 @@ void runnertankRail(edict_t* self)
 
 	// Allow blindfire for rail gun
 	bool const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
-	if (!blindfire && (!infront(self, self->enemy) || !visible(self, self->enemy)))
-		return;
+	if (!blindfire)
+	{
+		if (!M_HasValidTarget(self))
+			return;
+
+		if (!infront(self, self->enemy) || !visible(self, self->enemy))
+			return;
+	}
 
 	// Seleccionamos el offset basado en el frame actual
 	if (self->s.frame == FRAME_attak110) {
@@ -544,9 +550,9 @@ void runnertankStrike(edict_t* self)
 
 
 void runnertankRocket(edict_t* self) {
-	if (!M_HasValidTarget(self))
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return; // Stop immediately if the enemy is invalid.
 	}
 
 	// Determinar flash number basado en el frame actual
@@ -576,6 +582,8 @@ void runnertankRocket(edict_t* self) {
 			return;
 	}
 	else {
+		if (!M_HasValidTarget(self))
+			return;
 		// Decidir punto de objetivo basado en posición del enemigo
 		if (frandom() < 0.66f || start.z < self->enemy->absmin.z) {
 			// Apuntar al centro del cuerpo

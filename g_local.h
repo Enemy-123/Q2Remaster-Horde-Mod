@@ -4344,7 +4344,8 @@ inline int8_t GetNumHumanPlayers()
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
 extern float M_DamageModifier(edict_t* monster) noexcept;
 extern inline bool G_CheatCheck(edict_t* ent);
-bool M_HasValidTarget(edict_t* self);
+bool M_HasEnemy(edict_t* self); // Basic enemy existence check (for blindfire-compatible functions)
+bool M_HasValidTarget(edict_t* self); // Full target validation (checks health, not for blindfire start)
 extern ctfteam_t GetEntityTeam(const edict_t* ent);
 extern void Own_Sphere(edict_t *self, edict_t *sphere);
 

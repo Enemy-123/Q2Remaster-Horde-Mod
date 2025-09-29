@@ -1200,9 +1200,9 @@ MONSTERINFO_SETSKIN(medic_setskin) (edict_t* self) -> void
 
 void medic_fire_blaster_bolt(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return; // Stop immediately if the enemy is invalid.
 	}
 
 	vec3_t start;
@@ -1217,6 +1217,10 @@ void medic_fire_blaster_bolt(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	const vec3_t& offset = monster_flash_offset[mz];
 	start = M_ProjectFlashSource(self, offset, forward, right);
+
+	if (!M_HasValidTarget(self))
+		return;
+
 	end = self->enemy->s.origin;
 	end[2] += self->enemy->viewheight;
 	dir = end - start;
@@ -1227,9 +1231,9 @@ void medic_fire_blaster_bolt(edict_t* self)
 
 void medic_fire_blaster(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return; // Stop immediately if the enemy is invalid.
 	}
 
 	vec3_t	  start;
@@ -1255,6 +1259,9 @@ void medic_fire_blaster(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	const vec3_t& offset = monster_flash_offset[mz];
 	start = M_ProjectFlashSource(self, offset, forward, right);
+
+	if (!M_HasValidTarget(self))
+		return;
 
 	end = self->enemy->s.origin;
 	end[2] += self->enemy->viewheight;

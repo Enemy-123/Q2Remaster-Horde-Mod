@@ -811,9 +811,10 @@ void guncmdr_opengun(edict_t* self)
 // Función unificada para disparar con la cadena
 void GunnerCmdrFire(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	// Basic enemy check - chaingun can fire during blindfire, though it uses direct aim
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
 	vec3_t start;
@@ -853,9 +854,11 @@ MMOVE_T(guncmdr_move_endfire_chain) = { FRAME_c_attack118, FRAME_c_attack124, gu
 // Función unificada para lanzar granadas
 void GunnerCmdrGrenade(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	// Basic enemy check - do NOT use M_HasValidTarget here as it will prevent blindfire!
+	// Blindfire needs to check blind_fire_target BEFORE validating enemy health/visibility
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
 	vec3_t start;
@@ -957,7 +960,15 @@ void GunnerCmdrGrenade(edict_t* self)
 		target = self->monsterinfo.blind_fire_target;
 	}
 	else
+	{
+		// Not blindfiring - need fully valid target (health check, etc)
+		if (!M_HasValidTarget(self))
+		{
+			M_SetAnimation(self, &guncmdr_move_endfire_chain);
+			return;
+		}
 		target = self->enemy->s.origin;
+	}
 
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
@@ -1248,33 +1259,16 @@ MMOVE_T(guncmdr_move_attack_grenade_back_dodge_left) = { FRAME_c_attack701, FRAM
 
 static void guncmdr_kick_finished(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
-	{
-		return; // Stop immediately if the target is invalid.
-	}
-
-	if (self && self->enemy && self->monsterinfo.attack) {
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-		self->monsterinfo.run(self);
-	}
+	self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+	self->monsterinfo.attack(self);
 }
 
 static void guncmdr_kick(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
-	{
-		// No valid target, end the kick animation immediately
-		M_SetAnimation(self, &guncmdr_move_stand);
-		return;
-	}
-
 	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f))
 	{
-		if (M_HasValidTarget(self))
-		{
-			if (self->enemy->client && self->enemy->velocity.z < 270.f)
-				self->enemy->velocity.z = 270.f;
-		}
+		if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
+			self->enemy->velocity.z = 270.f;
 	}
 }
 

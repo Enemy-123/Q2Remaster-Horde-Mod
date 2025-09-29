@@ -377,9 +377,10 @@ void gunner_opengun(edict_t* self)
 
 void GunnerFire(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	// Use M_HasEnemy for basic check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
 	vec3_t start;
@@ -478,9 +479,10 @@ bool gunner_grenade_check(edict_t* self)
 
 void GunnerGrenade(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	// Basic enemy check - blindfire logic needs to execute
+	if (!M_HasEnemy(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
 	vec3_t					 start;
@@ -533,7 +535,12 @@ void GunnerGrenade(edict_t* self)
 		target = self->monsterinfo.blind_fire_target;
 	}
 	else
+	{
+		// Not blindfiring - need fully valid target
+		if (!M_HasValidTarget(self))
+			return;
 		target = self->enemy->s.origin;
+	}
 	// pmm
 
 	AngleVectors(self->s.angles, forward, right, up); // PGM

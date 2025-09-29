@@ -341,10 +341,9 @@ void hover_fire_blaster2(edict_t* self)
 
 void hover_fire_rocket(edict_t* self)
 {
-    if (!M_HasValidTarget(self))
-    {
-        return; // Stop immediately if the target is invalid.
-    }
+    // Basic enemy check - blindfire logic needs to execute
+    if (!M_HasEnemy(self))
+        return;
 
     vec3_t forward, right, start, dir, vec, target;
     trace_t trace;
@@ -352,21 +351,35 @@ void hover_fire_rocket(edict_t* self)
     bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
-    target = blindfire ? self->monsterinfo.blind_fire_target : self->enemy->s.origin;
-    if (blindfire) {
+
+    if (blindfire && !visible(self, self->enemy))
+    {
+        if (!self->monsterinfo.blind_fire_target)
+            return;
+        target = self->monsterinfo.blind_fire_target;
         vec = target;
-        dir = vec - start;
-    } else if (frandom() < 0.33f || (start[2] < self->enemy->absmin[2])) {
-        vec = target;
-        vec[2] += self->enemy->viewheight;
-        dir = vec - start;
-    } else {
-        vec = target;
-        vec[2] = self->enemy->absmin[2] + 1;
         dir = vec - start;
     }
-    if (!blindfire && frandom() < 0.35f)
-        PredictAim(self, self->enemy, start, rocketSpeed / 1.5, false, 0.f, &dir, &vec);
+    else
+    {
+        // Not blindfiring - need fully valid target
+        if (!M_HasValidTarget(self))
+            return;
+
+        target = self->enemy->s.origin;
+        if (frandom() < 0.33f || (start[2] < self->enemy->absmin[2])) {
+            vec = target;
+            vec[2] += self->enemy->viewheight;
+            dir = vec - start;
+        } else {
+            vec = target;
+            vec[2] = self->enemy->absmin[2] + 1;
+            dir = vec - start;
+        }
+        if (frandom() < 0.35f)
+            PredictAim(self, self->enemy, start, rocketSpeed / 1.5, false, 0.f, &dir, &vec);
+    }
+
     dir.normalize();
     trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
     if (trace.fraction > 0.5f || trace.ent == self->enemy || trace.ent->solid != SOLID_BSP)

@@ -1239,7 +1239,7 @@ void gm_arachnid_rockets(edict_t* self)
 
     // FIX: Add a guard clause. If we are not blind-firing, we MUST have a valid enemy.
     // If the enemy is gone, abort the rocket launch for this frame.
-    if (!blindfire && !M_HasValidTarget(self))
+    if (!blindfire && !M_HasEnemy(self))
     {
         return;
     }
@@ -1275,7 +1275,11 @@ void gm_arachnid_rockets(edict_t* self)
     if (blindfire)
         target = self->monsterinfo.blind_fire_target;
     else
+    {
+        if (!M_HasValidTarget(self))
+            return;
         target = self->enemy->s.origin;
+    }
 
     if (blindfire)
     {
