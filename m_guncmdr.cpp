@@ -24,6 +24,8 @@ static cached_soundindex sound_open;
 static cached_soundindex sound_search;
 static cached_soundindex sound_sight;
 
+static void guncmdr_grenade_attack_finish(edict_t* self);
+
 enum guncmdr_style_t {
 	GUNCMDR_STYLE_NORMAL = 0,
 	GUNCMDR_STYLE_BOSS = 1,     // Boss (guncmdrkl)
@@ -808,6 +810,16 @@ void guncmdr_opengun(edict_t* self)
 	gi.sound(self, CHAN_VOICE, sound_open, 1, ATTN_IDLE, 0);
 }
 
+// PMM - blindfire aiming support
+static void guncmdr_blind_check(edict_t* self)
+{
+	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+	{
+		vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		self->ideal_yaw = vectoyaw(aim);
+	}
+}
+
 // Función unificada para disparar con la cadena
 void GunnerCmdrFire(edict_t* self)
 {
@@ -1111,19 +1123,19 @@ constexpr float MORTAR_SPEED = 1650.f;
 constexpr float GRENADE_SPEED = 1400.f;
 
 mframe_t guncmdr_frames_attack_mortar[] = {
-	{ ai_charge },
+	{ ai_charge, 0, guncmdr_blind_check },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, GunnerCmdrGrenade },
-	{ ai_charge },
+	{ ai_charge, 0, guncmdr_blind_check },
 	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
 	{ ai_charge, 0, GunnerCmdrGrenade },
 
 	{ ai_charge, 0, GunnerCmdrGrenade },
-	{ ai_charge, 0, GunnerCmdrGrenade },
+	{ ai_charge, 0, guncmdr_blind_check },
 	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge, 0, monster_duck_up },
 	{ ai_charge },
@@ -1134,7 +1146,7 @@ mframe_t guncmdr_frames_attack_mortar[] = {
 	{ ai_charge },
 	{ ai_charge }
 };
-MMOVE_T(guncmdr_move_attack_mortar) = { FRAME_c_attack201, FRAME_c_attack221, guncmdr_frames_attack_mortar, guncmdr_run };
+MMOVE_T(guncmdr_move_attack_mortar) = { FRAME_c_attack201, FRAME_c_attack221, guncmdr_frames_attack_mortar, guncmdr_grenade_attack_finish };
 
 void guncmdr_grenade_mortar_resume(edict_t* self)
 {
@@ -1207,20 +1219,30 @@ mframe_t guncmdr_normal_frames_attack_back[] = {
 MMOVE_T(guncmdr_normal_move_attack_grenade_back) = { FRAME_c_attack302, FRAME_c_attack321, guncmdr_normal_frames_attack_back, guncmdr_run };
 
 
+// PMM - grenade attack cleanup
+static void guncmdr_grenade_attack_finish(edict_t* self)
+{
+	// Clear blindfire flag if set
+	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+
+	guncmdr_run(self);
+}
+
 mframe_t guncmdr_frames_attack_back[] = {
 	//{ ai_charge },
-	{ ai_charge, -2.f },
+	{ ai_charge, -2.f, guncmdr_blind_check },
 	{ ai_charge, -1.5f },
 	{ ai_charge, -0.5f, GunnerCmdrGrenade },
-	{ ai_charge, -1.5f },
+	{ ai_charge, -1.5f, guncmdr_blind_check },
 	{ ai_charge, -1.1f, GunnerCmdrGrenade },
 	{ ai_charge, -2.5f, GunnerCmdrGrenade },
 	{ ai_charge, -1.1f, GunnerCmdrGrenade },
-	{ ai_charge, -3.5f },
+	{ ai_charge, -3.5f, guncmdr_blind_check },
 	{ ai_charge, -1.1f, GunnerCmdrGrenade },
 	{ ai_charge, -4.6f, GunnerCmdrGrenade},
 	{ ai_charge, -0.5f, GunnerCmdrGrenade },
-	{ ai_charge, 1.0f },
+	{ ai_charge, 1.0f, guncmdr_blind_check },
 	{ ai_charge, -4.5f },
 	{ ai_charge, -1.1f },
 	{ ai_charge, 4.4f, },
@@ -1230,7 +1252,7 @@ mframe_t guncmdr_frames_attack_back[] = {
 	{ ai_charge },
 	{ ai_charge },
 };
-MMOVE_T(guncmdr_move_attack_grenade_back) = { FRAME_c_attack302, FRAME_c_attack321, guncmdr_frames_attack_back, guncmdr_run };
+MMOVE_T(guncmdr_move_attack_grenade_back) = { FRAME_c_attack302, FRAME_c_attack321, guncmdr_frames_attack_back, guncmdr_grenade_attack_finish };
 
 void guncmdr_grenade_back_dodge_resume(edict_t* self)
 {
@@ -1299,6 +1321,45 @@ constexpr float RANGE_CHAINGUN_RUN = 400.f;
 MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
+
+	// PMM - blindfire support
+	if (self->monsterinfo.attack_state == AS_BLIND)
+	{
+		float chance;
+		// setup shot probabilities based on blind_fire_delay
+		if (self->monsterinfo.blind_fire_delay < 1.0_sec)
+			chance = 1.0f;
+		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+			chance = 0.4f;
+		else
+			chance = 0.1f;
+
+		float r = frandom();
+
+		// minimum of 5.5-6.5 seconds after shots are done
+		self->monsterinfo.blind_fire_delay += random_time(5.5_sec, 6.5_sec);
+
+		// don't shoot at origin
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+
+		// dice say not to shoot
+		if (r > chance)
+			return;
+
+		// turn on manual steering for blindfire
+		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+
+		// Choose attack based on style
+		if (self->style == GUNCMDR_STYLE_GRENADIER || self->style == GUNCMDR_STYLE_BOSS)
+			M_SetAnimation(self, &guncmdr_move_attack_grenade_back); // GRENADIER/BOSS use grenades for blindfire
+		else
+			M_SetAnimation(self, &guncmdr_move_attack_chain); // NORMAL uses chaingun
+
+		self->monsterinfo.attack_finished = level.time + random_time(2_sec, 3_sec);
+		return;
+	}
+	// pmm
 
 	// Casos especiales independientes del estilo
 	if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE))

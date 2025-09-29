@@ -1048,12 +1048,21 @@ MMOVE_T(chick_move_end_attack1) = { FRAME_attak128, FRAME_attak132, chick_frames
 
 void chick_rerocket(edict_t* self)
 {
+	// PMM - blindfire support: continue attacking with probability during blindfire
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
+		// Give a chance to continue blindfiring (similar to normal refire)
+		if (frandom() <= 0.5f) // 50% chance to fire another burst
+		{
+			M_SetAnimation(self, &chick_move_attack1);
+			return;
+		}
+		// End blindfire
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 		M_SetAnimation(self, &chick_move_end_attack1);
 		return;
 	}
+	// pmm
 
 	if (!M_CheckClearShot(self, monster_flash_offset[MZ2_CHICK_ROCKET_1]))
 	{
