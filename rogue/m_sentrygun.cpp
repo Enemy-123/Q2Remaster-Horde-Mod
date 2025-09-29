@@ -79,15 +79,100 @@ static void UpdateSmokePosition(edict_t* self) {
 	gi.linkentity(self->target_hint_chain);
 }
 
-void turret2Aim(edict_t* self)
+// Helper function to handle sentry regeneration when out of combat
+static inline void HandleSentryRegeneration(edict_t* self, sentry_state_t* state, bool currently_attacking)
 {
-    // Get a pointer to our custom state for this entity
-    sentry_state_t* state = self->monsterinfo.sentry_state;
-    if (!state) {
-        return; // Safety check
-    }
+	// Only regenerate if owned by a player and not currently attacking
+	if (!self->owner || !self->owner->client || currently_attacking)
+		return;
 
-	// Check for enemy changes
+	// Only regenerate if health is above 30% of max health
+	int health_threshold = (int)(self->max_health * 0.3f);
+	if (self->health <= health_threshold)
+		return;
+
+	// Check regeneration timer (every 2 seconds)
+	if (level.time < state->last_regeneration_time + 2_sec)
+		return;
+
+	// Regenerate 5% health
+	int health_regen = (int)(self->max_health * 0.05f);
+	if (health_regen > 0) {
+		self->health += health_regen;
+		if (self->health > self->max_health) {
+			self->health = self->max_health;
+		}
+	}
+
+	// Regenerate 5% power armor
+	if (self->monsterinfo.power_armor_type != IT_NULL) {
+		int max_power_armor = static_cast<int>(round(self->max_health * 0.4f));
+		int armor_regen = (int)(max_power_armor * 0.05f);
+		if (armor_regen > 0) {
+			self->monsterinfo.power_armor_power += armor_regen;
+			if (self->monsterinfo.power_armor_power > max_power_armor) {
+				self->monsterinfo.power_armor_power = max_power_armor;
+			}
+		}
+	}
+
+	state->last_regeneration_time = level.time;
+}
+
+// Helper function to handle sentry state transitions (attacking/cooldown)
+static inline bool HandleSentryStateTransitions(edict_t* self, sentry_state_t* state,
+	bool currently_attacking, bool has_valid_enemy)
+{
+	if (currently_attacking) {
+		state->last_target_time = level.time;
+		state->was_attacking = true;
+		state->transition_state = 2; // active state
+		return false; // Continue with normal flow
+	}
+	else if (state->was_attacking) {
+		if (state->transition_state != 3) {
+			state->transition_state = 3; // cooling down state
+			if (self->monsterinfo.active_move != &turret2_move_cool_down) {
+				M_SetAnimation(self, &turret2_move_cool_down);
+				return true; // Early return requested
+			}
+		}
+
+		gtime_t cooldown_time = has_valid_enemy ? 800_ms : 1_sec;
+		if (level.time > state->last_target_time + cooldown_time) {
+			state->was_attacking = false;
+			state->transition_state = 2; // back to active state
+		}
+	}
+
+	return false; // Continue with normal flow
+}
+
+// Helper function to calculate turret muzzle position
+// Used by all weapon fire functions to get consistent firing position
+static inline vec3_t CalculateTurretMuzzlePosition(edict_t* self, vec3_t* out_forward = nullptr,
+	vec3_t* out_right = nullptr, vec3_t* out_up = nullptr)
+{
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+
+	// Standard turret muzzle offset
+	const vec3_t offset = { 20.f, 0.f, 0.f };
+	vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
+	// Optionally return direction vectors
+	if (out_forward) *out_forward = forward;
+	if (out_right) *out_right = right;
+	if (out_up) *out_up = up;
+
+	return muzzle_pos;
+}
+
+// Helper function to validate current target and search for new targets if needed
+// Returns true if turret should continue aiming, false if it should return early
+static inline bool ValidateAndUpdateTarget(edict_t* self, sentry_state_t* state)
+{
+	// Check for enemy changes and handle cooldown state
 	if (!self->enemy || !self->enemy->inuse) {
 		// Lost target but didn't transition yet
 		if (state->previous_enemy && state->transition_state != 3 && state->was_attacking) {
@@ -100,39 +185,35 @@ void turret2Aim(edict_t* self)
 		}
 	}
 
+	// Track enemy changes
  	if (self->enemy && self->enemy != state->previous_enemy) {
 		// Target changed
         state->last_enemy_change_time = level.time;
 	}
 
+	// Search for targets if we don't have one
 	if (!self->enemy || self->enemy == world)
 	{
-		// Use the state's next_target_search_time
+		// Use the state's next_target_search_time for throttling
 		if (level.time >= state->next_target_search_time) {
 			if (!FindMTarget(self)) {
 				state->next_target_search_time = level.time + 300_ms;
-				return;
+				return false; // No target found, return early
 			}
 			state->next_target_search_time = level.time + 100_ms;
 			self->monsterinfo.search_time = level.time + 300_ms;
 		}
 		else {
-			return;
+			return false; // Waiting for next search time
 		}
 	}
 
-	// Update previous enemy
+	// Update previous enemy tracker
 	state->previous_enemy = self->enemy;
 
-	// Actualizar la posición del efecto visual
-	UpdateSmokePosition(self);
-
-	TurretSparks(self);
-
-	//  Check if we have an enemy but haven't been able to attack
+	// Check if we have an enemy but haven't been able to attack for a while
 	if (self->enemy && self->enemy->inuse) {
 		// If we haven't attacked for more than 1 second, consider changing targets
-		// Use attack_finished to check when we last attempted to fire
 		if (self->monsterinfo.attack_finished + 1_sec < level.time &&
 			self->monsterinfo.last_sentry_missile_fire_time + 2_sec < level.time) {
 
@@ -144,30 +225,160 @@ void turret2Aim(edict_t* self)
 		}
 	}
 
-	vec3_t end, dir;
-	vec3_t ang;
-	float  move, idealPitch, idealYaw, current, speed;
-	int    orientation;
-
+	// Final enemy check with search fallback
 	if (!self->enemy || self->enemy == world)
 	{
 		if (self->monsterinfo.search_time < level.time) {
 			if (!FindMTarget(self))
-				return;
+				return false; // No target found
 			self->monsterinfo.search_time = level.time + 300_ms;
 		}
-		return; // Return if we don't have an enemy and couldn't find one
+		return false; // No valid target, return early
 	}
 
-	// if turret is still in inactive mode, ready the gun, but don't aim
+	// Check if turret is ready to aim
 	if (self->s.frame < FRAME_active01)
 	{
 		turret2_ready_gun(self);
-		return;
+		return false; // Not ready yet
 	}
-	// if turret is still readying, don't aim.
+
+	// if turret is still readying, don't aim
 	if (self->s.frame < FRAME_run01)
+		return false;
+
+	return true; // Continue with aiming
+}
+
+// Helper function to update the turret's laser sight visual effect
+static inline void UpdateLaserSight(edict_t* self)
+{
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
 		return;
+
+	// Create laser sight entity if it doesn't exist
+	if (!self->target_ent)
+	{
+		self->target_ent = G_Spawn();
+		self->target_ent->s.modelindex = MODELINDEX_WORLD;
+		self->target_ent->s.renderfx = RF_BEAM;
+		self->target_ent->s.frame = 1;
+		self->target_ent->s.skinnum = 0xf0f0f0f0;
+		self->target_ent->classname = "turret_lasersight";
+		self->target_ent->s.effects = EF_BOB;
+		self->target_ent->s.origin = self->s.origin;
+	}
+
+	// Calculate laser direction and trace
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	vec3_t end = self->s.origin + (forward * 8192);
+	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
+
+	// Adjust laser sight behavior based on visibility
+	float scan_range = 64.f;
+
+	// More precise aiming when the target is visible
+	if (self->enemy && visible(self, self->enemy)) {
+		scan_range = 8.f; // Tighter pattern when target is visible
+
+		// Check if target is stationary - make even more precise
+		if (self->enemy->velocity.lengthSquared() < 1.0f)
+			scan_range = 4.f;
+	}
+
+	// Smoother laser pattern with improved sine wave calculation
+	float timeBase = level.time.seconds();
+
+	// Use different frequencies to create more natural movement
+	tr.endpos[0] += sinf(timeBase * 1.1f + self->s.number) * scan_range;
+	tr.endpos[1] += cosf((timeBase * 1.3f - self->s.number) * 3.0f) * scan_range;
+	tr.endpos[2] += sinf((timeBase * 1.7f - self->s.number) * 2.5f) * scan_range;
+
+	forward = tr.endpos - self->s.origin;
+	forward.normalize();
+
+	end = self->s.origin + (forward * 8192);
+	tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
+
+	self->target_ent->s.old_origin = tr.endpos;
+	gi.linkentity(self->target_ent);
+}
+
+// Helper function to adjust a single angle (pitch or yaw) with dynamic speed and slowdown
+static inline float AdjustAngle(float current, float ideal, float base_speed)
+{
+	// Calculate angle difference
+	float angleDiff = ideal - current;
+
+	// Normalize angle difference for shortest path rotation
+	while (angleDiff > 180.0f)
+		angleDiff -= 360.0f;
+	while (angleDiff < -180.0f)
+		angleDiff += 360.0f;
+
+	// Only move if difference is significant to avoid jitter
+	if (fabs(angleDiff) <= 0.1f)
+		return current;
+
+	// Calculate appropriate speed based on difference
+	float absAngleDiff = fabs(angleDiff);
+	float speed;
+
+	// Adjust speed based on angle difference
+	if (absAngleDiff < 3.0f)
+		speed = base_speed * 0.5f; // Slower for small adjustments
+	else if (absAngleDiff < 30.0f)
+		speed = base_speed; // Normal speed for medium adjustments
+	else
+		speed = base_speed * 1.5f; // Faster for large adjustments
+
+	// Calculate movement
+	float move = (angleDiff > 0) ?
+		((angleDiff < speed) ? angleDiff : speed) :
+		((angleDiff > -speed) ? angleDiff : -speed);
+
+	// Apply slowdown near target angle
+	if (absAngleDiff < 10.0f)
+	{
+		float slowdownFactor = absAngleDiff / 10.0f;
+		if (slowdownFactor < 0.2f)
+			slowdownFactor = 0.2f;
+		move *= slowdownFactor;
+	}
+
+	// Calculate new angle
+	float newAngle = current + move;
+
+	// Normalize final angle to [0, 360)
+	while (newAngle >= 360.0f)
+		newAngle -= 360.0f;
+	while (newAngle < 0.0f)
+		newAngle += 360.0f;
+
+	return newAngle;
+}
+
+void turret2Aim(edict_t* self)
+{
+    // Get a pointer to our custom state for this entity
+    sentry_state_t* state = self->monsterinfo.sentry_state;
+    if (!state) {
+        return; // Safety check
+    }
+
+	// Validate target and search for new targets if needed
+	if (!ValidateAndUpdateTarget(self, state))
+		return; // No valid target or not ready to aim
+
+	// Update visual effects
+	UpdateSmokePosition(self);
+	TurretSparks(self);
+
+	vec3_t end, dir;
+	vec3_t ang;
+	float  move, idealPitch, idealYaw, current, speed;
+	int    orientation;
 
 	// PMM - blindfire aiming here
 	if (self->monsterinfo.active_move == &turret2_move_fire_blind)
@@ -293,243 +504,14 @@ void turret2Aim(edict_t* self)
 	}
 
 	//
-	// adjust pitch
-	//
-	current = self->s.angles[PITCH];
-	speed = self->yaw_speed / (gi.tick_rate / 10);
-
-	if (idealPitch != current)
-	{
-		move = idealPitch - current;
-
-		while (move >= 360)
-			move -= 360;
-		if (move >= 90)
-		{
-			move = move - 360;
-		}
-
-		while (move <= -360)
-			move += 360;
-		if (move <= -90)
-		{
-			move = move + 360;
-		}
-
-		if (move > 0)
-		{
-			if (move > speed)
-				move = speed;
-		}
-		else
-		{
-			if (move < -speed)
-				move = -speed;
-		}
-
-		self->s.angles[PITCH] = anglemod(current + move);
-	}
-
-	//
-	// adjust yaw
-	//
-	current = self->s.angles[YAW];
-
-	if (idealYaw != current)
-	{
-		move = idealYaw - current;
-
-		//		while(move >= 360)
-		//			move -= 360;
-		if (move >= 180)
-		{
-			move = move - 360;
-		}
-
-		//		while(move <= -360)
-		//			move += 360;
-		if (move <= -180)
-		{
-			move = move + 360;
-		}
-
-		if (move > 0)
-		{
-			if (move > speed)
-				move = speed;
-		}
-		else
-		{
-			if (move < -speed)
-				move = -speed;
-		}
-
-		self->s.angles[YAW] = anglemod(current + move);
-	}
-	//
-	// Calculate dynamic speed based on angle difference
+	// Adjust angles using helper function
 	//
 	float base_speed = self->yaw_speed / (gi.tick_rate / 10);
+	self->s.angles[PITCH] = AdjustAngle(self->s.angles[PITCH], idealPitch, base_speed);
+	self->s.angles[YAW] = AdjustAngle(self->s.angles[YAW], idealYaw, base_speed);
 
-	//
-	// adjust pitch - improved movement calculation
-	//
-	current = self->s.angles[PITCH];
-	float pitchDiff = idealPitch - current;
-
-	// Normalize angle difference for shortest path rotation
-	while (pitchDiff > 180)
-		pitchDiff -= 360;
-	while (pitchDiff < -180)
-		pitchDiff += 360;
-
-	// Only move if difference is significant to avoid jitter
-	if (fabs(pitchDiff) > 0.1f)
-	{
-		// Calculate appropriate speed based on difference
-		float absAngleDiff = fabs(pitchDiff);
-
-		// Adjust speed based on angle difference
-		if (absAngleDiff < 3.0f)
-			speed = base_speed * 0.5f; // Slower for small adjustments
-		else if (absAngleDiff < 30.0f)
-			speed = base_speed; // Normal speed for medium adjustments
-		else
-			speed = base_speed * 1.5f; // Faster for large adjustments
-
-		if (pitchDiff > 0)
-		{
-			move = (pitchDiff < speed) ? pitchDiff : speed;
-		}
-		else
-		{
-			move = (pitchDiff > -speed) ? pitchDiff : -speed;
-		}
-
-		// Apply slowdown near target angle
-		float slowdownFactor = 1.0f;
-		if (fabs(pitchDiff) < 10.0f)
-			slowdownFactor = fabs(pitchDiff) / 10.0f;
-
-		if (slowdownFactor < 0.2f)
-			slowdownFactor = 0.2f;
-
-		move *= slowdownFactor;
-
-		// Normalize final angle
-		float newAngle = current + move;
-		while (newAngle > 360.0f)
-			newAngle -= 360.0f;
-		while (newAngle < 0.0f)
-			newAngle += 360.0f;
-
-		self->s.angles[PITCH] = newAngle;
-	}
-
-	//
-	// adjust yaw - improved movement calculation
-	//
-	current = self->s.angles[YAW];
-	float yawDiff = idealYaw - current;
-
-	// Normalize angle difference for shortest path rotation
-	while (yawDiff > 180)
-		yawDiff -= 360;
-	while (yawDiff < -180)
-		yawDiff += 360;
-
-	// Only move if difference is significant to avoid jitter
-	if (fabs(yawDiff) > 0.1f)
-	{
-		// Calculate appropriate speed based on difference
-		float absAngleDiff = fabs(yawDiff);
-
-		// Adjust speed based on angle difference
-		if (absAngleDiff < 3.0f)
-			speed = base_speed * 0.5f; // Slower for small adjustments
-		else if (absAngleDiff < 30.0f)
-			speed = base_speed; // Normal speed for medium adjustments
-		else
-			speed = base_speed * 1.5f; // Faster for large adjustments
-
-		if (yawDiff > 0)
-		{
-			move = (yawDiff < speed) ? yawDiff : speed;
-		}
-		else
-		{
-			move = (yawDiff > -speed) ? yawDiff : -speed;
-		}
-
-		// Apply slowdown near target angle
-		float slowdownFactor = 1.0f;
-		if (fabs(yawDiff) < 10.0f)
-			slowdownFactor = fabs(yawDiff) / 10.0f;
-
-		if (slowdownFactor < 0.2f)
-			slowdownFactor = 0.2f;
-
-		move *= slowdownFactor;
-
-		// Normalize final angle
-		float newAngle = current + move;
-		while (newAngle > 360.0f)
-			newAngle -= 360.0f;
-		while (newAngle < 0.0f)
-			newAngle += 360.0f;
-
-		self->s.angles[YAW] = newAngle;
-	}
-
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
-		return;
-
-	// Paril: improved turrets; draw lasersight
-	if (!self->target_ent)
-	{
-		self->target_ent = G_Spawn();
-		self->target_ent->s.modelindex = MODELINDEX_WORLD;
-		self->target_ent->s.renderfx = RF_BEAM;
-		self->target_ent->s.frame = 1;
-		self->target_ent->s.skinnum = 0xf0f0f0f0;
-		self->target_ent->classname = "turret_lasersight";
-		self->target_ent->s.effects = EF_BOB;
-		self->target_ent->s.origin = self->s.origin;
-	}
-
-	vec3_t forward;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	end = self->s.origin + (forward * 8192);
-	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
-
-	// Adjust laser sight behavior based on visibility 
-	float scan_range = 64.f;
-
-	// More precise aiming when the target is visible
-	if (visible(self, self->enemy)) {
-		scan_range = 8.f; // Tighter pattern when target is visible
-
-		// Check if target is stationary - make even more precise
-		if (self->enemy->velocity.lengthSquared() < 1.0f)
-			scan_range = 4.f;
-	}
-
-	// Smoother laser pattern with improved sine wave calculation
-	float timeBase = level.time.seconds();
-
-	// Use different frequencies to create more natural movement
-	tr.endpos[0] += sinf(timeBase * 1.1f + self->s.number) * scan_range;
-	tr.endpos[1] += cosf((timeBase * 1.3f - self->s.number) * 3.0f) * scan_range;
-	tr.endpos[2] += sinf((timeBase * 1.7f - self->s.number) * 2.5f) * scan_range;
-
-	forward = tr.endpos - self->s.origin;
-	forward.normalize();
-
-	end = self->s.origin + (forward * 8192);
-	tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
-
-	self->target_ent->s.old_origin = tr.endpos;
-	gi.linkentity(self->target_ent);
+	// Update visual effects
+	UpdateLaserSight(self);
 }
 
 MONSTERINFO_SIGHT(turret2_sight) (edict_t* self, edict_t* other) -> void
@@ -634,10 +616,8 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 
 		if (has_valid_enemy) {
 			// Check if current target is still attackable
-			vec3_t forward, right, up;
-			AngleVectors(self->s.angles, forward, right, up);
+			vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self);
 			const vec3_t offset = { 20.f, 0.f, 0.f };
-			vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 			bool can_attack_current = M_CheckClearShot(self, offset, muzzle_pos);
 
 			// If standard check failed, try pierce-capable check for sneaky positions
@@ -676,60 +656,12 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 	bool currently_attacking = has_valid_enemy &&
 		(self->monsterinfo.attack_finished > level.time - 500_ms);
 
-	// Sentry regeneration when out of combat
-	if (self->owner && self->owner->client && !currently_attacking) {
-		// Only regenerate if health is above 30% of max health
-		int health_threshold = (int)(self->max_health * 0.3f);
-		if (self->health > health_threshold) {
-			// Regenerate +5% health and power armor every 2 seconds
-			if (level.time >= state->last_regeneration_time + 2_sec) {
-				// Regenerate 5% health
-				int health_regen = (int)(self->max_health * 0.05f);
-				if (health_regen > 0) {
-					self->health += health_regen;
-					if (self->health > self->max_health) {
-						self->health = self->max_health;
-					}
-				}
+	// Handle sentry regeneration when out of combat
+	HandleSentryRegeneration(self, state, currently_attacking);
 
-				// Regenerate 5% power armor
-				if (self->monsterinfo.power_armor_type != IT_NULL) {
-					int max_power_armor = static_cast<int>(round(self->max_health * 0.4f));
-					int armor_regen = (int)(max_power_armor * 0.05f); // 5% of max power armor
-					if (armor_regen > 0) {
-						self->monsterinfo.power_armor_power += armor_regen;
-						if (self->monsterinfo.power_armor_power > max_power_armor) {
-							self->monsterinfo.power_armor_power = max_power_armor;
-						}
-					}
-				}
-
-				state->last_regeneration_time = level.time;
-			}
-		}
-	}
-
-	// Handle transitions between states
-	if (currently_attacking) {
-		state->last_target_time = level.time;
-		state->was_attacking = true;
-		state->transition_state = 2; // active state
-	}
-	else if (state->was_attacking) {
-		if (state->transition_state != 3) {
-			state->transition_state = 3; // cooling down state
-			if (self->monsterinfo.active_move != &turret2_move_cool_down) {
-				M_SetAnimation(self, &turret2_move_cool_down);
-				return;
-			}
-		}
-
-		gtime_t cooldown_time = has_valid_enemy ? 800_ms : 1_sec;
-		if (level.time > state->last_target_time + cooldown_time) {
-			state->was_attacking = false;
-			state->transition_state = 2; // back to active state
-		}
-	}
+	// Handle state transitions (attacking/cooldown)
+	if (HandleSentryStateTransitions(self, state, currently_attacking, has_valid_enemy))
+		return; // Early return requested by state transition
 
 	// Use normal run animation for active state
 	if (self->s.frame < FRAME_run01) {
@@ -890,39 +822,60 @@ THINK(heat_turret_think) (edict_t* self) -> void
 	}
 	// --- END MODIFICATION ---
 
-	// Wall avoidance logic (ultrathink)
+	// Wall avoidance logic - throttled to every 3 frames for performance
 	vec3_t wall_avoid = vec3_origin;
 	float wall_avoid_strength = 0.0f;
 
-	// Check for walls in multiple directions
-	vec3_t check_dirs[] = {
-		self->movedir,                          // Forward
-		AngleVectors(self->s.angles).right,     // Right
-		-AngleVectors(self->s.angles).right,    // Left
-		AngleVectors(self->s.angles).up,        // Up
-		-AngleVectors(self->s.angles).up        // Down
-	};
-
-	for (int i = 0; i < 5; i++)
+	// Only check wall avoidance every 3 frames
+	static int wall_check_counter = 0;
+	if ((self->s.number + wall_check_counter) % 3 == 0)
 	{
-		vec3_t end = self->s.origin + check_dirs[i] * 100.0f;
-		trace_t tr = gi.traceline(self->s.origin, end, self, MASK_PROJECTILE);
+		// Cache direction vectors to avoid recalculating AngleVectors multiple times
+		vec3_t right = AngleVectors(self->s.angles).right;
+		vec3_t up = AngleVectors(self->s.angles).up;
 
-		if (tr.fraction < 1.0f)
+		// Check for walls in multiple directions
+		vec3_t check_dirs[] = {
+			self->movedir,    // Forward
+			right,            // Right
+			-right,           // Left
+			up,               // Up
+			-up               // Down
+		};
+
+		for (int i = 0; i < 5; i++)
 		{
-			// Wall detected, calculate avoidance vector
-			float distance = tr.fraction * 100.0f;
-			float avoid_force = 1.0f - (distance / 100.0f); // Stronger avoidance for closer walls
+			vec3_t end = self->s.origin + check_dirs[i] * 100.0f;
+			trace_t tr = gi.traceline(self->s.origin, end, self, MASK_PROJECTILE);
 
-			// Add to wall avoidance vector (push away from wall)
-			wall_avoid = wall_avoid - check_dirs[i] * avoid_force;
-			wall_avoid_strength = max(wall_avoid_strength, avoid_force);
+			if (tr.fraction < 1.0f)
+			{
+				// Wall detected, calculate avoidance vector
+				float distance = tr.fraction * 100.0f;
+				float avoid_force = 1.0f - (distance / 100.0f); // Stronger avoidance for closer walls
+
+				// Add to wall avoidance vector (push away from wall)
+				wall_avoid = wall_avoid - check_dirs[i] * avoid_force;
+				wall_avoid_strength = max(wall_avoid_strength, avoid_force);
+			}
 		}
+
+		// Normalize wall avoidance vector
+		if (wall_avoid.lengthSquared() > 0)
+			wall_avoid = wall_avoid.normalized();
+
+		// Cache the result in the rocket entity for use on other frames
+		self->pos2 = wall_avoid;
+		self->count = static_cast<int>(wall_avoid_strength * 100.0f); // Store as int (0-100)
+	}
+	else
+	{
+		// Use cached wall avoidance data from previous check
+		wall_avoid = self->pos2;
+		wall_avoid_strength = static_cast<float>(self->count) / 100.0f;
 	}
 
-	// Normalize wall avoidance vector
-	if (wall_avoid.lengthSquared() > 0)
-		wall_avoid = wall_avoid.normalized();
+	wall_check_counter++;
 
 	// This part runs every frame, but the expensive target acquisition is now throttled.
 	vec3_t preferred_dir = self->pos1;
@@ -1222,11 +1175,9 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		return;
 	}
 
-	// Calculate custom muzzle position
+	// Calculate muzzle position and get direction vectors
 	vec3_t forward, right, up;
-	AngleVectors(self->s.angles, forward, right, up);
-	const vec3_t offset = { 20.f, 0.f, 0.f };
-	vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+	vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self, &forward, &right, &up);
 
 	const int damage = static_cast<int>(CalculateDamage(self, 6));
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 4000.0f : 3200.0f;
@@ -1328,12 +1279,11 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 		return;
 	}
 
-	// Shot preparation
+	// Calculate muzzle position and get direction vectors
 	vec3_t forward, right, up;
-	AngleVectors(self->s.angles, forward, right, up);
-	const vec3_t offset = { 20.f, 0.f, 0.f };
-	vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+	vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self, &forward, &right, &up);
 
+	const vec3_t offset = { 20.f, 0.f, 0.f };
 	if (!M_CheckClearShot(self, offset, muzzle_pos))
 		return;
 
@@ -1680,10 +1630,8 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 	// Smart target switching logic using oldenemy
 	if (self->enemy && self->enemy->inuse && !self->enemy->deadflag) {
 		// Check if current enemy is blocked (can't get clear shot)
-		vec3_t forward, right, up;
-		AngleVectors(self->s.angles, forward, right, up);
+		vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self);
 		const vec3_t offset = { 20.f, 0.f, 0.f };
-		vec3_t muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 		bool can_shoot_current = M_CheckClearShot(self, offset, muzzle_pos);
 
 		// If standard check failed, try pierce-capable check for sneaky enemy positions
@@ -1710,7 +1658,7 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 				// Temporarily switch enemy to check if we can shoot oldenemy
 				edict_t* temp_enemy = self->enemy;
 				self->enemy = self->oldenemy;
-				vec3_t old_muzzle_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+				vec3_t old_muzzle_pos = CalculateTurretMuzzlePosition(self);
 				bool can_shoot_old = M_CheckClearShot(self, offset, old_muzzle_pos);
 
 				// If standard check failed for oldenemy, try pierce check
