@@ -1,6 +1,5 @@
-CMakeFiles/Q2HordeModDLL.dir/horde/g_barrel.cpp.obj: \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_barrel.cpp \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../shared.h \
+CMakeFiles/Q2HordeModDLL.dir/horde/g_horde_assets.cpp.obj: \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_assets.cpp \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../g_local.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../bg_local.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../q_std.h \
@@ -237,7 +236,7 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_barrel.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/horde_performance.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_asset_manager.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/chrono \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/chrono.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/ratio \
@@ -266,7 +265,4 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_barrel.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/monostate.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/formatfwd.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode-data.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_phys.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_benefits.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_asset_manager.h
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode-data.h

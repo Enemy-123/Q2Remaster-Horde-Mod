@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "g_local.h"
+#include "horde/g_asset_manager.h"
 
 void Svcmd_Test_f()
 {
@@ -271,6 +272,41 @@ void SVCmd_WriteIP_f(void)
 	*/
 }
 
+void SVCmd_AssetStats_f()
+{
+	horde::AssetManager::Get().PrintStats();
+}
+
+void SVCmd_AssetList_f()
+{
+	if (gi.argc() < 2) {
+		gi.Com_Print("Usage: sv assetlist <models|sounds|images>\n");
+		return;
+	}
+
+	const char* type = gi.argv(2);
+	horde::AssetType asset_type;
+
+	if (Q_strcasecmp(type, "models") == 0)
+		asset_type = horde::AssetType::MODEL;
+	else if (Q_strcasecmp(type, "sounds") == 0)
+		asset_type = horde::AssetType::SOUND;
+	else if (Q_strcasecmp(type, "images") == 0)
+		asset_type = horde::AssetType::IMAGE;
+	else {
+		gi.Com_Print("Invalid type. Use models, sounds, or images.\n");
+		return;
+	}
+
+	horde::AssetManager::Get().DumpAssetList(asset_type);
+}
+
+void SVCmd_AssetCleanup_f()
+{
+	horde::AssetManager::Get().CleanupUnusedAssets();
+	gi.Com_Print("Asset cleanup complete.\n");
+}
+
 /*
 =================
 ServerCommand
@@ -297,6 +333,12 @@ void ServerCommand()
 		SVCmd_WriteIP_f();
 	else if (Q_strcasecmp(cmd, "nextmap") == 0)
 		SVCmd_NextMap_f();
+	else if (Q_strcasecmp(cmd, "assetstats") == 0)
+		SVCmd_AssetStats_f();
+	else if (Q_strcasecmp(cmd, "assetlist") == 0)
+		SVCmd_AssetList_f();
+	else if (Q_strcasecmp(cmd, "assetcleanup") == 0)
+		SVCmd_AssetCleanup_f();
 	else
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "Unknown server command \"{}\"\n", cmd);
 }

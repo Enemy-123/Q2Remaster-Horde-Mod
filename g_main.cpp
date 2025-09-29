@@ -3,6 +3,7 @@
 
 #include "g_local.h"
 #include "horde/g_horde_benefits.h"
+#include "horde/g_asset_manager.h"
 #include "bots/bot_includes.h"
 
 CHECK_GCLIENT_INTEGRITY;
@@ -1171,7 +1172,10 @@ inline void G_RunFrame_(bool main_loop)
     // --- HORDE-SPECIFIC PER-FRAME LOGIC ---
     // This block contains logic that only runs in Horde mode.
     if (g_horde->integer) {
-        
+
+        // Process staged client loading for late-wave connections
+        horde::AssetManager::Get().ProcessClientLoading();
+
         // Check for and resolve any bot-on-bot overlaps.
         G_CheckBotOverlap();
 

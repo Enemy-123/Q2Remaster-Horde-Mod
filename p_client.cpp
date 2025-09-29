@@ -9,6 +9,7 @@
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
 #include "horde/p_brain_morph.h"
+#include "horde/g_asset_manager.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -2871,6 +2872,20 @@ void ClientBegin(edict_t* ent)
 	}
 	// Clear any stale flyer data
 	ClearFlyerData(ent);
+
+	// Horde mode: Begin staged asset loading for late-wave connections
+	if (g_horde->integer) {
+		// Check if we're in a late wave with many assets
+		if (current_wave_level >= 20) {
+			// Start staged loading to prevent client crash
+			horde::AssetManager::Get().BeginClientLoading(ent);
+			
+			// Give client a grace period before spawning
+			ent->client->respawn_timeout = level.time + 2000_ms;
+			gi.LocClient_Print(ent, PRINT_HIGH, 
+				"Late-wave connection detected. Loading assets...");
+		}
+	}
 
 	if (deathmatch->integer)
 	{
