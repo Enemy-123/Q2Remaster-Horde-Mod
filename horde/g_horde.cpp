@@ -4547,18 +4547,25 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.issummoned)
 		return false;
 
+	// Periodic check rate limiting
 	if (level.time < self->monsterinfo.stuck_check_time)
 		return false;
 	self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
 
+	// Skip certain monster types
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) || (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET) || (horde::IsMonsterType(self, horde::MonsterTypeID::FLIPPER))))
 		return false;
 
+	// Don't teleport jumping monsters
 	if (IsMonsterJumping(self))
 	{
 		self->teleport_time = level.time + 1.5_sec;
 		return false;
 	}
+
+	// Teleport cooldown
+	if (self->teleport_time > level.time)
+		return false;
 
 	// --- 2. Global Rate Limiting ---
 	if (level.time > HordeConstants::g_teleport_rate_reset_time)
@@ -4576,30 +4583,34 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	bool needs_teleport = false;
 	const char* reason_str = "Unknown";
 
+	// Critical: Stuck in solid geometry
 	if (gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_SOLID).startsolid)
 	{
 		needs_teleport = true;
 		reason_str = "Stuck in Geometry";
 	}
+	// Critical: Drowning without visible enemy
 	else if (self->waterlevel > 0 && !(self->enemy && visible(self, self->enemy, false)))
 	{
 		needs_teleport = true;
 		reason_str = "Drowning";
 	}
-
-	if (!needs_teleport)
+	// Non-critical checks (only if not already flagged for teleport)
+	else
 	{
-		if (self->teleport_time > level.time) return false;
-		if (self->enemy && self->monsterinfo.attack_finished > level.time) return false;
+		// Don't check inactivity if currently attacking
+		if (self->enemy && self->monsterinfo.attack_finished > level.time)
+			return false;
 
-		// Get map-size-aware timeout for no enemy situations
 		const horde::MapSize& mapSize = g_horde_local.current_map_size;
-		const gtime_t no_enemy_timeout = HordeConstants::GetNoEnemyTimeout(mapSize);
 
+		// Check for no enemy timeout
 		if (!self->enemy || !self->enemy->inuse)
 		{
 			if (self->monsterinfo.no_enemy_timeout_start_time == 0_sec)
 				self->monsterinfo.no_enemy_timeout_start_time = level.time;
+
+			const gtime_t no_enemy_timeout = HordeConstants::GetNoEnemyTimeout(mapSize);
 			if (level.time > self->monsterinfo.no_enemy_timeout_start_time + no_enemy_timeout)
 			{
 				needs_teleport = true;
@@ -4609,34 +4620,33 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		else
 		{
 			self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
-		}
 
-		if (!needs_teleport && self->max_health > 0)
-		{
-			// **OPTIMIZED LOGIC**: Reset timeout when monster is actively engaged
-			const bool monster_can_see_enemy = (self->enemy && self->enemy->inuse && visible(self, self->enemy, false));
+			// Check if monster is actively engaged
+			const bool monster_can_see_enemy = visible(self, self->enemy, false);
 			const bool monster_recently_moved = (self->monsterinfo.bad_move_time > level.time - 2_sec);
 			const bool monster_recently_attacked = (self->monsterinfo.attack_finished > level.time - 1_sec);
 
-			// Reset timeout if monster is actively engaged or recently moved
+			// Reset activity timer if monster is active
 			if (monster_can_see_enemy || monster_recently_moved || monster_recently_attacked)
 			{
-				self->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
-				return false; // Don't teleport active monsters
+				self->monsterinfo.react_to_damage_time = level.time;
+				return false;
 			}
 
-			// Use simplified timeout check (react_to_damage_time already has built-in delay)
-			const gtime_t timeout_duration = (self->health < self->max_health) ?
-				HordeConstants::GetDamagedMonsterTimeout(mapSize) :
-				HordeConstants::GetNoDamageTimeout(mapSize);
-			const char* timeout_reason = (self->health < self->max_health) ?
-				"Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
-
-			// **FIXED**: Don't double-add timeout - react_to_damage_time already includes delay
-			if (level.time > self->monsterinfo.react_to_damage_time + (timeout_duration * 0.5f)) // Reduce false positives
+			// Check inactivity timeout (only if react_to_damage_time was initialized)
+			if (self->monsterinfo.react_to_damage_time > 0_sec && self->max_health > 0)
 			{
-				needs_teleport = true;
-				reason_str = timeout_reason;
+				const gtime_t timeout_duration = (self->health < self->max_health) ?
+					HordeConstants::GetDamagedMonsterTimeout(mapSize) :
+					HordeConstants::GetNoDamageTimeout(mapSize);
+				const char* timeout_reason = (self->health < self->max_health) ?
+					"Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
+
+				if (level.time > self->monsterinfo.react_to_damage_time + timeout_duration)
+				{
+					needs_teleport = true;
+					reason_str = timeout_reason;
+				}
 			}
 		}
 	}

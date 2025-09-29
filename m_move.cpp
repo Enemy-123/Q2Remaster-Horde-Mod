@@ -156,14 +156,14 @@ void InitMonsterAntiStack(edict_t* ent)
 {
 	if (!ent || !(ent->svflags & SVF_MONSTER))
 		return;
-	
+
 	ent->monsterinfo.personal_space = GetMonsterPersonalSpace(ent);
 	ent->monsterinfo.repulsion_vector = vec3_t{0, 0, 0};
 	ent->monsterinfo.formation_slot = -1;
 	ent->monsterinfo.formation_update_time = 0_sec;
 	ent->monsterinfo.last_repulsion_time = 0_sec;
 	ent->monsterinfo.last_valid_move = vec3_t{0, 0, 0};
-	
+
 	// Set preferred combat range based on monster type
 	if (ent->monsterinfo.melee)
 		ent->monsterinfo.preferred_combat_range = 64.0f;
@@ -171,6 +171,15 @@ void InitMonsterAntiStack(edict_t* ent)
 		ent->monsterinfo.preferred_combat_range = 256.0f;
 	else
 		ent->monsterinfo.preferred_combat_range = 128.0f;
+
+	// Initialize teleport timing fields to prevent immediate teleportation after spawn
+	if (g_horde && g_horde->integer)
+	{
+		ent->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
+		ent->monsterinfo.react_to_damage_time = level.time + random_time(3_sec, 5_sec);
+		ent->monsterinfo.teleport_time = level.time + random_time(8_sec, 12_sec);
+		ent->monsterinfo.no_enemy_timeout_start_time = 0_sec;
+	}
 }
 edict_t* new_bad; // pmm
 

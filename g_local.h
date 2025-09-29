@@ -1894,7 +1894,7 @@ struct monsterinfo_t
 	gtime_t last_reacttodamage_target_time;
 	gtime_t lastnoisecooldown;
 	gtime_t spawn_cooldown; // Tiempo de espera entre spawns
-	gtime_t stuck_check_time = 2_sec;
+	gtime_t stuck_check_time; // Initialized in InitMonsterAntiStack
 	gtime_t no_enemy_timeout_start_time;
 
 	bool was_stuck = false;
