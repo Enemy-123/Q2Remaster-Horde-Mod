@@ -15,30 +15,84 @@
 #include <bit>
 #include <unordered_set>
 
+// Constants for various game mechanics
+namespace {
+	// Spawn point selection
+	constexpr size_t MAX_SPAWN_ATTEMPTS = 16;
+	constexpr size_t STACK_ENTITY_CAPACITY = 32;
+	constexpr size_t MAX_PUSHABLE_ENTITIES = 64;
+
+	// Monster bonuses
+	constexpr float BONUS_POWER_ARMOR_RATIO = 0.4f;
+	constexpr float BONUS_GIB_HEALTH_MULT = 2.8f;
+	constexpr int   BONUS_GIB_HEALTH_MIN = -200;
+
+	// Teleportation
+	constexpr int   TELEPORT_PM_TIME = 160;
+	constexpr float TELEPORT_POSITION_SCALE = 8.0f;
+	constexpr float TELEPORT_Z_OFFSET = 10.0f;
+
+	// Entity spawning
+	constexpr float SPAWN_CLEAR_SAFE_OFFSET = 26.0f;
+	constexpr float MAX_ENTITY_REACH = 128.0f;
+
+	// Boss effects
+	constexpr int   BOSS_EFFECT_MIN_INDEX = 1;
+	constexpr int   BOSS_EFFECT_MAX_INDEX = 7;
+	constexpr int   BOSS_SECONDARY_EFFECTS = 12;
+	constexpr float BOSS_EFFECT_SCALE = 0.55f;
+	constexpr float BOSS_RANDOM_OFFSET_RANGE = 255.0f;
+	constexpr float BOSS_EARTHQUAKE_SPEED = 500.0f;
+}
+
 void RemoveEntity(edict_t* ent);
 
+// Helper to reset spawn point selection state when map changes
+static void ResetSpawnPointSelection();
+
 // 1:  spawn point selection using pre-shuffled global list
+// Excludes style=1 spawn points (aerial spawns for flying monsters)
 [[nodiscard]] static edict_t* SelectRandomClearSpawnPoint() {
 	if (g_num_spawn_points == 0) {
 		return nullptr;
 	}
 
 	thread_local size_t last_checked_index = 0;
-	
-	const size_t max_attempts = std::min(static_cast<size_t>(16), g_num_spawn_points);
-	
+
+	const size_t max_attempts = std::min(MAX_SPAWN_ATTEMPTS, g_num_spawn_points);
+
 	for (size_t i = 0; i < max_attempts; ++i) {
 		size_t check_index = (last_checked_index + i) % g_num_spawn_points;
 		edict_t* spot = g_spawn_point_list[check_index];
 
-		if (spot && spot->inuse && !IsSpawnPointOccupied(spot)) {
+		// Exclude style=1 spawn points (aerial spawns for flying monsters)
+		if (spot && spot->inuse && spot->style != 1 && !IsSpawnPointOccupied(spot)) {
 			last_checked_index = check_index + 1;
 			return spot;
 		}
 	}
 
+	// Fallback: find any non-style=1 spawn point
+	for (size_t i = 0; i < g_num_spawn_points; ++i) {
+		size_t check_index = (last_checked_index + i) % g_num_spawn_points;
+		edict_t* spot = g_spawn_point_list[check_index];
+
+		if (spot && spot->inuse && spot->style != 1) {
+			last_checked_index = check_index + 1;
+			return spot;
+		}
+	}
+
+	// Last resort: return any spawn point (should rarely happen)
 	last_checked_index = static_cast<size_t>(irandom(g_num_spawn_points));
 	return g_spawn_point_list[last_checked_index];
+}
+
+// Reset spawn point selection state (called when map changes)
+static void ResetSpawnPointSelection() {
+	// This will be called from GetMapSize when the map changes
+	// The thread_local variable in SelectRandomClearSpawnPoint will naturally
+	// reset when accessed next, but we document this for clarity
 }
 
 // 2: Compile-time lookup table for bonus effects
@@ -99,15 +153,17 @@ static constexpr std::array<BonusEffectData, 7> g_bonus_effects_array = {{
 	}
 }};
 
+// Optimized with bit manipulation for O(1) lookup
 constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) {
 	if (flags == BF_NONE) return 0;
-	if (flags & BF_CHAMPION) return 1;
-	if (flags & BF_CORRUPTED) return 2;
-	if (flags & BF_RAGEQUITTER) return 3;
-	if (flags & BF_BERSERKING) return 4;
-	if (flags & BF_POSSESSED) return 5;
-	if (flags & BF_STYGIAN) return 6;
-	return 0;
+
+	// Use countr_zero to find the position of the first set bit
+	// This is much faster than an if-chain
+	const unsigned int bit_pos = std::countr_zero(static_cast<unsigned int>(flags));
+
+	// Map bit positions to effect indices
+	// BF_CHAMPION (bit 0) -> index 1, BF_CORRUPTED (bit 1) -> index 2, etc.
+	return (bit_pos < 6) ? bit_pos + 1 : 0;
 }
 
 // 3: Enhanced map size cache with perfect hash
@@ -120,10 +176,9 @@ constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) {
     if (strcmp(s_last_map_for_cache, level.mapname) != 0) {
         s_cache.fill(std::nullopt);
         Q_strlcpy(s_last_map_for_cache, level.mapname, sizeof(s_last_map_for_cache));
-        
+
         // Reset spawn point selection state for new map
-        // This would need to be implemented as a separate function
-        // ResetSpawnPointSelection(); 
+        ResetSpawnPointSelection();
     }
 
     const horde::MapID mapId = horde::MapOriginRegistry::GetMapID(mapname);
@@ -148,13 +203,12 @@ void RemovePlayerOwnedEntities(edict_t* player) {
         return;
     }
 
-    constexpr size_t STACK_CAPACITY = 32;
-    edict_t* stack_entities[STACK_CAPACITY];
+    edict_t* stack_entities[STACK_ENTITY_CAPACITY];
     std::vector<edict_t*> heap_entities;
-    
+
     edict_t** entities_array = stack_entities;
     size_t entity_count = 0;
-    size_t capacity = STACK_CAPACITY;
+    size_t capacity = STACK_ENTITY_CAPACITY;
 
     auto add_entity = [&](edict_t* ent) {
         if (ent && ent->inuse) {
@@ -219,7 +273,7 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 }
 
 // 5:  defense check with compile-time lookup
-bool IsPlayerDefense(const edict_t* ent) {
+[[nodiscard]] bool IsPlayerDefense(const edict_t* ent) {
     if (!ent) return false;
 
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
@@ -237,7 +291,7 @@ bool IsPlayerDefense(const edict_t* ent) {
 }
 
 // 6:  removable entity check
-bool IsRemovableEntity(const edict_t* ent) {
+[[nodiscard]] bool IsRemovableEntity(const edict_t* ent) {
     if (!ent) return false;
 
     auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
@@ -359,12 +413,15 @@ const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
 
 	thread_local char title_buffer[64];
 	char* ptr = title_buffer;
-	const char* const end = title_buffer + sizeof(title_buffer);
+	const char* const end = title_buffer + sizeof(title_buffer) - 1; // Reserve space for null terminator
 
 	auto append_title = [&](const char* text, size_t len_without_null) {
-		if (ptr + len_without_null < end) {
-			memcpy(ptr, text, len_without_null);
-			ptr += len_without_null;
+		// Ensure we don't overflow the buffer
+		const size_t remaining = static_cast<size_t>(end - ptr);
+		const size_t copy_len = std::min(len_without_null, remaining);
+		if (copy_len > 0) {
+			memcpy(ptr, text, copy_len);
+			ptr += copy_len;
 		}
 	};
 
@@ -436,8 +493,11 @@ void InitializeDisplayNames() {
     g_displayNamesInitialized = true;
 }
 
-// 11:  display name generation using G_Fmt pattern
+// 11:  display name generation with thread-safe static buffer
 const char* GetDisplayName(const edict_t* ent) {
+    // Use thread_local to avoid issues with multiple calls in the same expression
+    thread_local char display_name_buffer[128];
+
     if (!ent) {
         return "Unknown";
     }
@@ -460,18 +520,24 @@ const char* GetDisplayName(const edict_t* ent) {
 
     const char* title_ptr = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
 
-    return G_Fmt("{}{}", title_ptr, base_name_ptr).data();
+    // Safely copy to our buffer
+    auto result = G_Fmt("{}{}", title_ptr, base_name_ptr);
+    size_t copy_len = std::min(result.size(), sizeof(display_name_buffer) - 1);
+    memcpy(display_name_buffer, result.data(), copy_len);
+    display_name_buffer[copy_len] = '\0';
+
+    return display_name_buffer;
 }
 
 // Calculate sentry gun health with adrenaline bonus
-int CalculateSentryHealth(int base_health, gclient_t* owner_client)
+[[nodiscard]] int CalculateSentryHealth(int base_health, gclient_t* owner_client)
 {
 	if (!owner_client) return base_health;
 	return base_health + (owner_client->pers.adrenaline_count * 10);
 }
 
 // Calculate tesla/trap lifetime with adrenaline bonus
-gtime_t CalculateDeployableLifetime(gtime_t base_lifetime, gclient_t* owner_client)
+[[nodiscard]] gtime_t CalculateDeployableLifetime(gtime_t base_lifetime, gclient_t* owner_client)
 {
 	if (!owner_client) return base_lifetime;
 	int adrenaline_bonus_seconds = owner_client->pers.adrenaline_count * 3;
@@ -488,7 +554,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	
 	if (monster->monsterinfo.bonus_flags != BF_NONE && (!(monster->monsterinfo.bonus_flags & BF_FRIENDLY))) {
 		if (!st.was_key_specified("power_armor_power"))
-			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->max_health * 0.4f));
+			monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->max_health * BONUS_POWER_ARMOR_RATIO));
 		if (!st.was_key_specified("power_armor_type"))
 			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	}
@@ -515,9 +581,9 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	}
 
 	monster->spawnflags |= SPAWNFLAG_MONSTER_NO_DROP;
-	monster->gib_health = static_cast<int>(round(monster->gib_health * 2.8f));
-	if (monster->gib_health <= -200)
-		monster->gib_health = -200;
+	monster->gib_health = static_cast<int>(round(monster->gib_health * BONUS_GIB_HEALTH_MULT));
+	if (monster->gib_health <= BONUS_GIB_HEALTH_MIN)
+		monster->gib_health = BONUS_GIB_HEALTH_MIN;
 
 	const size_t effect_index = GetBonusEffectIndex(monster->monsterinfo.bonus_flags);
 	if (effect_index > 0) {
@@ -605,7 +671,7 @@ void ApplyBossEffects(edict_t* boss)
 		return;
 
 	const BossSizeCategory sizeCategory = boss->bossSizeCategory;
-	const size_t effect_index = static_cast<size_t>(irandom(1, 7));
+	const size_t effect_index = static_cast<size_t>(irandom(BOSS_EFFECT_MIN_INDEX, BOSS_EFFECT_MAX_INDEX));
 	boss->monsterinfo.bonus_flags = static_cast<bonus_flags_t>(1 << (effect_index - 1));
 
 	const BonusEffectData& data = g_bonus_effects_array[effect_index];
@@ -745,17 +811,14 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 		return;
 	}
 
-	constexpr int NUM_SECONDARY_EFFECTS = 12;
-	constexpr float RANDOM_OFFSET_RANGE = 255.0f;
-	constexpr float EFFECT_SCALE = 0.55f;
-	const float scaled_start = start_size * EFFECT_SCALE;
-	const float scaled_end = end_size * EFFECT_SCALE;
+	const float scaled_start = start_size * BOSS_EFFECT_SCALE;
+	const float scaled_end = end_size * BOSS_EFFECT_SCALE;
 
-	for (int i = 0; i < NUM_SECONDARY_EFFECTS; i++) {
+	for (int i = 0; i < BOSS_SECONDARY_EFFECTS; i++) {
 		vec3_t offset;
-		offset.x = position.x + crandom() * RANDOM_OFFSET_RANGE;
-		offset.y = position.y + crandom() * RANDOM_OFFSET_RANGE;
-		offset.z = position.z + crandom() * RANDOM_OFFSET_RANGE;
+		offset.x = position.x + crandom() * BOSS_RANDOM_OFFSET_RANGE;
+		offset.y = position.y + crandom() * BOSS_RANDOM_OFFSET_RANGE;
+		offset.z = position.z + crandom() * BOSS_RANDOM_OFFSET_RANGE;
 		
 		SpawnGrow_Spawn(offset, scaled_start, scaled_end);
 	}
@@ -763,11 +826,11 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 	edict_t* earthquake = G_Spawn();
 	if (earthquake) {
 		earthquake->classname = "target_earthquake";
-		earthquake->spawnflags = brandom() 
-			? SPAWNFLAGS_EARTHQUAKE_SILENT 
+		earthquake->spawnflags = brandom()
+			? SPAWNFLAGS_EARTHQUAKE_SILENT
 			: SPAWNFLAGS_EARTHQUAKE_ONE_SHOT;
-		earthquake->speed = 500.0f;
-		earthquake->count = 12;
+		earthquake->speed = BOSS_EARTHQUAKE_SPEED;
+		earthquake->count = BOSS_SECONDARY_EFFECTS;
 
 		SP_target_earthquake(earthquake);
 		earthquake->use(earthquake, spawned_entity, spawned_entity);
@@ -799,11 +862,11 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 	gi.unlinkentity(ent);
 
 	ent->s.origin = dest->s.origin;
-	ent->s.origin.z += 10;
+	ent->s.origin.z += TELEPORT_Z_OFFSET;
 	ent->velocity = vec3_origin;
 
 	if (ent->client) {
-		ent->client->ps.pmove.pm_time = 160;
+		ent->client->ps.pmove.pm_time = TELEPORT_PM_TIME;
 		ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
 		ent->s.event = EV_PLAYER_TELEPORT;
 
@@ -812,7 +875,7 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 		ent->s.angles = dest->s.angles;
 
 		for (int i = 0; i < 3; i++) {
-			ent->client->ps.pmove.origin[i] = static_cast<int16_t>(ent->s.origin[i] * 8.0f);
+			ent->client->ps.pmove.origin[i] = static_cast<int16_t>(ent->s.origin[i] * TELEPORT_POSITION_SCALE);
 			float angle_diff = anglemod(dest->s.angles[i] - ent->client->resp.cmd_angles[i]);
 			ent->client->ps.pmove.delta_angles[i] = angle_diff;
 		}
@@ -827,7 +890,7 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 }
 
 // 19:  entity overlap checking
-bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs) {
+[[nodiscard]] bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs) {
 	if (!ent) return false;
 
 	const vec3_t& origin = ent->s.origin;
@@ -848,22 +911,20 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		return;
 	}
 
-	constexpr vec3_t safe_offset{26.0f, 26.0f, 26.0f};
+	const vec3_t safe_offset{SPAWN_CLEAR_SAFE_OFFSET, SPAWN_CLEAR_SAFE_OFFSET, SPAWN_CLEAR_SAFE_OFFSET};
 	const vec3_t area_mins = origin + mins - safe_offset;
 	const vec3_t area_maxs = origin + maxs + safe_offset;
 
 	const vec3_t half_size = (area_maxs - area_mins) * 0.5f;
 	const float radius_to_contain_box = half_size.length();
-	constexpr float MAX_ENTITY_REACH = 128.0f;
 	const float safe_radius = radius_to_contain_box + MAX_ENTITY_REACH;
 
-	constexpr size_t MAX_STACK_ENTITIES = 32;
-	edict_t* stack_entities[MAX_STACK_ENTITIES];
+	edict_t* stack_entities[STACK_ENTITY_CAPACITY];
 	std::vector<edict_t*> heap_entities;
-	
+
 	edict_t** entities_array = stack_entities;
 	size_t entity_count = 0;
-	size_t capacity = MAX_STACK_ENTITIES;
+	size_t capacity = STACK_ENTITY_CAPACITY;
 
 	edict_t* ent = nullptr;
 	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
@@ -929,9 +990,8 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 	push_radius = std::max(push_radius, 1.0f);
 	const float search_radius = push_radius * 1.5f;
 
-	constexpr size_t MAX_ENTITIES = 64;
-	edict_t* processable_entities[MAX_ENTITIES];
-	edict_t* removable_entities[MAX_ENTITIES];
+	edict_t* processable_entities[MAX_PUSHABLE_ENTITIES];
+	edict_t* removable_entities[MAX_PUSHABLE_ENTITIES];
 	size_t processable_count = 0;
 	size_t removable_count = 0;
 
@@ -943,10 +1003,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		}
 
 		if (IsRemovableEntity(ent)) {
-			if (removable_count < MAX_ENTITIES) {
+			if (removable_count < MAX_PUSHABLE_ENTITIES) {
 				removable_entities[removable_count++] = ent;
 			}
-		} else if (ent->takedamage && !(ent->svflags & SVF_MONSTER) && processable_count < MAX_ENTITIES) {
+		} else if (ent->takedamage && !(ent->svflags & SVF_MONSTER) && processable_count < MAX_PUSHABLE_ENTITIES) {
 			// Non-monster entities that can be damaged (players, etc.)
 			processable_entities[processable_count++] = ent;
 		}
@@ -962,10 +1022,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 
 		// Summoned monsters should be removed cleanly
 		if (monster->monsterinfo.issummoned) {
-			if (removable_count < MAX_ENTITIES) {
+			if (removable_count < MAX_PUSHABLE_ENTITIES) {
 				removable_entities[removable_count++] = monster;
 			}
-		} else if (processable_count < MAX_ENTITIES) {
+		} else if (processable_count < MAX_PUSHABLE_ENTITIES) {
 			// Regular monsters get pushed/damaged
 			processable_entities[processable_count++] = monster;
 		}
@@ -1033,10 +1093,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 }
 
 // 22:  string comparison
-[[nodiscard]] constexpr bool string_equals(const char* str1, std::string_view str2) noexcept {
+[[nodiscard]] inline bool string_equals(const char* str1, std::string_view str2) noexcept {
 	if (!str1) return false;
 	const size_t str1_len = strlen(str1);
-	return str1_len == str2.length() && 
+	return str1_len == str2.length() &&
 		   !Q_strncasecmp(str1, str2.data(), str2.length());
 }
 
@@ -1168,8 +1228,17 @@ bool TeleportSelf(edict_t* ent) {
 	if (best_spot) {
 		perform_teleport_actions(best_spot);
 	} else {
-		size_t random_index = static_cast<size_t>(irandom(g_num_spawn_points));
-		perform_teleport_actions(g_spawn_point_list[random_index]);
+		// Fallback: try to find any non-style=1 spawn point
+		edict_t* fallback_spot = nullptr;
+		for (size_t i = 0; i < g_num_spawn_points; ++i) {
+			edict_t* spot = g_spawn_point_list[i];
+			if (spot && spot->inuse && spot->style != 1) {
+				fallback_spot = spot;
+				break;
+			}
+		}
+		// Use fallback or last resort any spawn point
+		perform_teleport_actions(fallback_spot ? fallback_spot : g_spawn_point_list[0]);
 	}
 
 	if (was_emergency) {

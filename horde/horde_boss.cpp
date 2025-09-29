@@ -23,12 +23,18 @@ extern cvar_t *developer;
 extern MonsterWaveType current_wave_type;
 extern cached_soundindex sound_spawn1;  // Sound for boss spawn
 
+// FIXED: Return struct for position validation
+struct PositionValidationResult {
+	bool is_valid;
+	vec3_t adjusted_position;
+};
+
 // External functions
 const char* GetCurrentMapName();
 extern bool GetPredictedScaledBounds(horde::MonsterTypeID typeId, vec3_t &mins, vec3_t &maxs);
 extern void ClearSpawnArea(const vec3_t &origin, const vec3_t &mins, const vec3_t &maxs);
 extern void PushEntitiesAway(const vec3_t &origin, int num_pushes, float base_radius, float base_strength, float player_strength, float monster_strength);
-extern bool IsPositionPhysicallyValid(vec3_t &position, const vec3_t &mins, const vec3_t &maxs, bool flying);
+extern PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const vec3_t &mins, const vec3_t &maxs, bool flying);
 extern bool IsFlying(horde::MonsterTypeID typeId);
 extern void SP_target_orb(edict_t *ent);
 extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
@@ -731,7 +737,8 @@ void SpawnBossAutomatically()
 	PushEntitiesAway(spawn_origin, 3, 768.0f, 1500.0f, 4500.0f, 2000.0f);
 
 	// Validate spawn location
-	if (!IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId)))
+	const auto validation = IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId));
+	if (!validation.is_valid)
 	{
 		if (developer->integer)
 			gi.Com_PrintFmt("SpawnBossAutomatically: Designated boss spawn at {} is blocked by world geometry. Retrying next frame.\n", spawn_origin);
@@ -739,12 +746,15 @@ void SpawnBossAutomatically()
 		return;
 	}
 
+	// Use the adjusted position from validation (may have been dropped to floor)
+	const vec3_t final_spawn_origin = validation.adjusted_position;
+
 	// Setup delayed spawn - create orb marker
 	edict_t *orb = G_Spawn();
 	if (orb)
 	{
 		orb->classname = "target_orb";
-		orb->s.origin = spawn_origin;
+		orb->s.origin = final_spawn_origin;
 		SP_target_orb(orb);
 	}
 
@@ -757,7 +767,7 @@ void SpawnBossAutomatically()
 	}
 
 	boss->classname = horde::MonsterTypeRegistry::GetClassname(boss_pick_result.typeId);
-	boss->s.origin = spawn_origin;
+	boss->s.origin = final_spawn_origin;
 	boss->s.angles = vec3_origin;
 	boss->bossSizeCategory = boss_pick_result.sizeCategory;
 	boss->owner = orb;

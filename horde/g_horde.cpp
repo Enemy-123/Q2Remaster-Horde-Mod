@@ -352,7 +352,14 @@ bool FindEmergencySpawnPositionNearPlayer(vec3_t &out_position, vec3_t &out_angl
 static void Horde_InitLevel(const int32_t lvl);
 static bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance); // monster bonuses
 void CalculateTopDamager(PlayerStats &topDamager, float &percentage);
-[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
+
+// FIXED: Return struct instead of in-out parameter for clarity
+struct PositionValidationResult {
+	bool is_valid;
+	vec3_t adjusted_position;
+};
+
+[[nodiscard]] PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying);
 bool CheckAndTeleportStuckMonster(edict_t *self);
 bool FindEmergencySpawnPosition(vec3_t &position, vec3_t &angles, bool &used_human_player, horde::MonsterTypeID typeId, edict_t *specific_target = nullptr);
 bool TryAlternativeSpawnPosition(edict_t *spawn_point, horde::MonsterTypeID typeId, vec3_t &final_origin, vec3_t &final_angles);
@@ -1191,17 +1198,22 @@ struct HordeState
 	gtime_t conditionTimeThreshold = 0_sec;
 	bool timeWarningIssued = false;
 	gtime_t waveEndTime = 0_sec;
-	bool warningIssued[WARNING_TIMES.size()] = {false}; // Initialize all to false
+	bool warningIssued[WARNING_TIMES.size()] = {false};
 
-	// Failsafe timeout to prevent getting stuck in a state
 	gtime_t failsafe_timeout = 0_sec;
 
 	gtime_t last_successful_hud_update = 0_sec;
 	uint32_t failed_updates_count = 0;
 
 	horde::MapSize current_map_size;
-	int32_t max_monsters{};		 // Cacheado basado en map_size
-	gtime_t base_spawn_cooldown; // Cacheado basado en map_size
+	int32_t max_monsters{};
+	gtime_t base_spawn_cooldown;
+
+	// FIXED: Moved static state from Horde_RunFrame
+	gtime_t last_wave_change_time = 0_sec;
+	int32_t wave_at_last_check = 0;
+	gtime_t spawning_phase_timeout_start = 0_sec;
+	int32_t prev_wave_level_for_spawning_timers = -1;
 
 	void update_map_size(const char *mapname)
 	{
@@ -2898,8 +2910,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 {
 	cache_ref.clear();
 
-	// By iterating this smaller, pre-filtered list, we avoid redundant checks
-	// and make the function much faster.
+	// FIXED: Single-pass iteration with consistent precache logic
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 	{
 		const size_t i = static_cast<size_t>(monster_info->typeId);
@@ -2923,24 +2934,29 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 		cache_ref.addMonster(monster_info->typeId, weight);
 	}
 
-	// If we have too few monsters available, ensure minimum variety
+	// FIXED: If we have too few monsters, add fallback monsters ensuring they're precached too
+	// This maintains consistency: we never spawn unprecached monsters
 	if (cache_ref.count < MIN_MONSTERS_AVAILABLE && !ctx.isSpawnPointFlying)
 	{
-		// Add some basic monsters that should always be available
 		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 		{
 			const size_t i = static_cast<size_t>(monster_info->typeId);
 
-			// Add core monsters even if not precached yet (they'll be precached on demand)
+			// FIXED: Consistently check precache status
+			if (!g_precached_monster_types_flags[i]) {
+				continue;
+			}
+
+			// Add core monsters that are available for the current level
 			if (monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)
 			{
 				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
 					break;
 
 				const bool monster_is_flying = IsFlying(monster_info->typeId);
-				if (!monster_is_flying) // Ground monsters only for this fallback
+				if (!monster_is_flying)
 				{
-					float weight = CalculateBaseWeight(i, ctx) * 0.5f; // Lower weight for fallback monsters
+					float weight = CalculateBaseWeight(i, ctx) * 0.5f;
 					cache_ref.addMonster(monster_info->typeId, weight);
 				}
 			}
@@ -4014,11 +4030,11 @@ static void ApplyAggressiveTimeReduction(const WaveConditionContext &ctx)
 	if (original_remaining_conditional > 0_sec && aggressive_time < original_remaining_conditional)
 	{
 		g_horde_local.waveEndTime = ctx.currentTime + aggressive_time;
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("Aggressive time reduction: New limit is {:.1f}s for {} monsters.\n",
-							aggressive_time.seconds(), ctx.liveMonsters);
-		}
+		// if (developer->integer)
+		// {
+		// 	gi.Com_PrintFmt("Aggressive time reduction: New limit is {:.1f}s for {} monsters.\n",
+		// 					aggressive_time.seconds(), ctx.liveMonsters);
+		// }
 	}
 }
 
@@ -4327,65 +4343,55 @@ static void SetNextMonsterSpawnTime(const horde::MapSize &mapSize);
 // =======================================================================
 // This version fixes the bug preventing alternative spawns
 // =======================================================================
-[[nodiscard]] bool IsPositionPhysicallyValid(vec3_t &io_position, const vec3_t &monster_mins, const vec3_t &monster_maxs, bool is_flying)
+[[nodiscard]] // FIXED: Clean implementation without historical comments, clear return struct
+PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const vec3_t &monster_mins, const vec3_t &monster_maxs, const bool is_flying)
 {
-    // 1. Basic checks from your new version (these are good).
-    if (!is_valid_vector(io_position)) return false;
+    PositionValidationResult result = {false, position};
 
-    // Check for dangerous liquids (water/lava/slime) - monsters shouldn't spawn in them
-    contents_t point_contents = gi.pointcontents(io_position);
-    if (point_contents & MASK_SOLID) return false;
+    if (!is_valid_vector(position)) return result;
 
-    // Prevent spawning in hazardous liquids unless flying
+    const contents_t point_contents = gi.pointcontents(position);
+    if (point_contents & MASK_SOLID) return result;
+
     if (!is_flying && (point_contents & (CONTENTS_LAVA | CONTENTS_SLIME))) {
-        return false;
+        return result;
     }
 
-    // Water is ok for some monsters but should be avoided for most ground units
     if (!is_flying && (point_contents & CONTENTS_WATER)) {
-        // Allow water spawning only if it's shallow (check if head would be above water)
-        vec3_t head_pos = io_position;
-        head_pos.z += monster_maxs.z - monster_mins.z; // Approximate height
+        vec3_t head_pos = position;
+        head_pos.z += monster_maxs.z - monster_mins.z;
         if (gi.pointcontents(head_pos) & CONTENTS_WATER) {
-            return false; // Would be fully submerged
+            return result;
         }
     }
 
-    // 2. The robust single trace from your OLD version's logic. This is the key fix.
-    // It checks against both world geometry AND other solid monsters in one go.
-    trace_t trace = gi.trace(io_position, monster_mins, monster_maxs, io_position, nullptr, MASK_MONSTERSOLID);
-    if (trace.startsolid)
-    {
-        // If the entire volume is occupied by anything solid (world or monster), it's invalid.
-        return false;
+    // Check if the volume is occupied by world geometry or other monsters
+    const trace_t trace = gi.trace(position, monster_mins, monster_maxs, position, nullptr, MASK_MONSTERSOLID);
+    if (trace.startsolid) {
+        return result;
     }
 
-    // 3. Keep the beneficial droptofloor logic from your NEW version for ground units.
-    vec3_t final_pos = io_position;
+    // For ground units, drop to floor
+    vec3_t final_pos = position;
     if (!is_flying)
     {
         vec3_t end = final_pos;
-        end.z -= 1024; // Search a long way down for ground.
-        trace_t ground_trace = gi.trace(final_pos, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
+        end.z -= 1024;
+        const trace_t ground_trace = gi.trace(final_pos, monster_mins, monster_maxs, end, nullptr, MASK_SOLID);
 
-        // If there's no ground below, it's an invalid spot for a ground unit.
         if (ground_trace.fraction == 1.0f) {
-            return false;
+            return result;
         }
 
-        // Use the engine's droptofloor to place the monster snugly on the ground.
-        // This is a good feature to retain.
         if (!M_droptofloor_generic(final_pos, monster_mins, monster_maxs, false, nullptr, MASK_SOLID, false))
         {
-            return false; // Failed to find a floor.
+            return result;
         }
     }
 
-    // 4. The flawed logic (the separate entity_trace and the is_predefined_location check) is now removed.
-
-    // 5. Success. Update the position with the potentially adjusted (dropped to floor) coordinates and return true.
-    io_position = final_pos;
-    return true;
+    result.is_valid = true;
+    result.adjusted_position = final_pos;
+    return result;
 }
 
 // helper function
@@ -4848,15 +4854,13 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 			return false;
 		}
 
-		vec3_t validated_pos = candidate_pos;
-		// --- THE FIX IS HERE ---
-		// Add 'false' as the 5th argument.
-		if (IsPositionPhysicallyValid(validated_pos, predicted_mins, predicted_maxs, is_flying))
+		// FIXED: Use struct return instead of in-out parameter
+		const auto validation = IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying);
+		if (validation.is_valid)
 		{
-
-			if (!IsPositionTooCloseToRecentSpawn(validated_pos, g_horde_local.current_map_size))
+			if (!IsPositionTooCloseToRecentSpawn(validation.adjusted_position, g_horde_local.current_map_size))
 			{
-				final_origin = validated_pos;
+				final_origin = validation.adjusted_position;
 				if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON)
 				{
 					final_angles = vectoangles(offset_dir);
@@ -5676,27 +5680,61 @@ static bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_t
     return is_valid;
 }
 
-static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float champion_chance)
+// FIXED: Champion bonus type selection thresholds
+namespace ChampionBonusThresholds {
+	constexpr float BERSERKING = 0.09f;
+	constexpr float STYGIAN = 0.22f;
+	constexpr float CORRUPTED = 0.35f;
+	constexpr float CHAMPION = 0.67f;
+
+	constexpr float DROP_CHANCE_EARLY = 0.8f;
+	constexpr float DROP_CHANCE_MID = 0.6f;
+	constexpr float DROP_CHANCE_LATE = 0.45f;
+	constexpr int32_t LEVEL_EARLY_THRESHOLD = 5;
+	constexpr int32_t LEVEL_MID_THRESHOLD = 8;
+	constexpr int32_t ARMOR_MIN_LEVEL = 6;
+}
+
+// FIXED: Weighted champion bonus selection using proper table
+struct ChampionBonusEntry {
+	int bonus_flag;
+	float weight;
+};
+
+static constexpr ChampionBonusEntry CHAMPION_BONUS_TABLE[] = {
+	{BF_BERSERKING, ChampionBonusThresholds::BERSERKING},
+	{BF_STYGIAN, ChampionBonusThresholds::STYGIAN - ChampionBonusThresholds::BERSERKING},
+	{BF_CORRUPTED, ChampionBonusThresholds::CORRUPTED - ChampionBonusThresholds::STYGIAN},
+	{BF_CHAMPION, ChampionBonusThresholds::CHAMPION - ChampionBonusThresholds::CORRUPTED},
+	{BF_POSSESSED, 1.0f - ChampionBonusThresholds::CHAMPION}
+};
+
+static int SelectChampionBonusType() {
+	const float roll = frandom();
+	float cumulative = 0.0f;
+
+	for (const auto& entry : CHAMPION_BONUS_TABLE) {
+		cumulative += entry.weight;
+		if (roll < cumulative) {
+			return entry.bonus_flag;
+		}
+	}
+
+	return BF_POSSESSED;
+}
+
+static bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float champion_chance)
 {
 	bool became_champion = false;
 	if (currentLevel >= 3 && !champion_spawned_this_wave && champion_spawn_cooldown_ends_at < level.time && !monster->monsterinfo.IS_BOSS && frandom() < champion_chance)
 	{
-		// Extended selection with BF_STYGIAN and BF_CORRUPTED
-		float roll = frandom();
-		if (roll < 0.09f) {
-			monster->monsterinfo.bonus_flags |= BF_BERSERKING;
-		} else if (roll < 0.22f) {
-			monster->monsterinfo.bonus_flags |= BF_STYGIAN;
-		} else if (roll < 0.35f) {
-			monster->monsterinfo.bonus_flags |= BF_CORRUPTED;
-		} else if (roll < 0.67f) {
-			monster->monsterinfo.bonus_flags |= BF_CHAMPION;
-		} else {
-			monster->monsterinfo.bonus_flags |= BF_POSSESSED;
-		}
+		// FIXED: Use weighted selection table
+		const int bonus_type = SelectChampionBonusType();
+		monster->monsterinfo.bonus_flags = static_cast<decltype(monster->monsterinfo.bonus_flags)>(
+			static_cast<int>(monster->monsterinfo.bonus_flags) | bonus_type);
 
 		ApplyMonsterBonusFlags(monster);
-		if (!monster->inuse) return false; // Check if monster was freed
+		if (!monster->inuse) return false;
 
 		monster->item = G_HordePickItem();
 		monster->spawnflags = monster->item ? (monster->spawnflags & ~SPAWNFLAG_MONSTER_NO_DROP) : (monster->spawnflags | SPAWNFLAG_MONSTER_NO_DROP);
@@ -5709,7 +5747,10 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
 
 	if (!became_champion)
 	{
-		const float drop_chance = currentLevel <= 5 ? 0.8f : (currentLevel <= 8 ? 0.6f : 0.45f);
+		// FIXED: Use named constants
+		const float drop_chance = currentLevel <= ChampionBonusThresholds::LEVEL_EARLY_THRESHOLD ? ChampionBonusThresholds::DROP_CHANCE_EARLY :
+		                          (currentLevel <= ChampionBonusThresholds::LEVEL_MID_THRESHOLD ? ChampionBonusThresholds::DROP_CHANCE_MID :
+		                          ChampionBonusThresholds::DROP_CHANCE_LATE);
 		if (frandom() < drop_chance)
 		{
 			monster->item = G_HordePickItem();
@@ -5722,13 +5763,13 @@ static bool ApplyHordeBonuses(edict_t* monster, int32_t currentLevel, float cham
 		}
 	}
 
-	if (currentLevel >= 6 && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL)
+	if (currentLevel >= ChampionBonusThresholds::ARMOR_MIN_LEVEL && monster->monsterinfo.power_armor_type == IT_NULL && monster->monsterinfo.armor_type == IT_NULL)
 	{
 		SetMonsterArmor(monster);
 		if (!monster->inuse) return false;
 	}
 
-	return true; // Monster is still valid
+	return true;
 }
 
 // This is the high-level orchestrator for finding a valid spawn spot for normal spawns.
@@ -5746,11 +5787,10 @@ static bool FindValidSpawnLocation(
 	GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
 
 	// Attempt Direct Spawn
-	vec3_t direct_pos = base_origin;
-	// The 'true' here indicates this is a predefined, trusted location.
-	if (IsPositionPhysicallyValid(direct_pos, predicted_mins, predicted_maxs, is_flying))
+	const auto validation = IsPositionPhysicallyValid(base_origin, predicted_mins, predicted_maxs, is_flying);
+	if (validation.is_valid)
 	{
-		out_origin = direct_pos;
+		out_origin = validation.adjusted_position;
 		out_angles = base_angles;
 		out_used_alternative = false;
 		return true;
@@ -6064,9 +6104,10 @@ private:
                 }
             }
 
-            if (!too_close_to_player && IsPositionPhysicallyValid(test_pos, mins, maxs, is_flying)) {
-                out_pos = test_pos;
-                const vec3_t to_player = candidates.player->s.origin - test_pos;
+            const auto validation = IsPositionPhysicallyValid(test_pos, mins, maxs, is_flying);
+            if (!too_close_to_player && validation.is_valid) {
+                out_pos = validation.adjusted_position;
+                const vec3_t to_player = candidates.player->s.origin - validation.adjusted_position;
                 out_angles = (to_player.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON) ?
                            vectoangles(to_player) : candidates.player->s.angles;
                 out_angles[PITCH] = 0;
@@ -6200,15 +6241,22 @@ private:
         std::array<vec3_t, MAX_BATCH_SIZE> final_angles;
         std::array<bool, MAX_BATCH_SIZE> used_alternatives;
         std::array<edict_t*, MAX_BATCH_SIZE> spawned_monsters;
+        std::array<bool, MAX_BATCH_SIZE> is_valid; // FIXED: Explicit validity tracking instead of sentinel
         size_t count = 0;
 
-        void Clear() { count = 0; }
+        void Clear() { 
+            count = 0;
+            // Clear validity flags
+            is_valid.fill(false);
+        }
+        
         bool IsFull() const { return count >= MAX_BATCH_SIZE; }
+        
         void AddEntry(const SpawnPlanEntry& entry) {
             if (count < MAX_BATCH_SIZE) {
                 entries[count] = entry;
-                // Initialize to a known state
-                spawned_monsters[count] = reinterpret_cast<edict_t*>(1); // Use a non-null placeholder
+                is_valid[count] = true; // FIXED: Mark as valid pending validation
+                spawned_monsters[count] = nullptr; // FIXED: Initialize to nullptr, not sentinel
                 count++;
             }
         }
@@ -6216,16 +6264,35 @@ private:
 
     SpawnBatch current_batch;
 
-    // Cache for monster properties to avoid repeated lookups
+    // FIXED: LRU cache with bounded size
     struct MonsterTypeCache {
         horde::MonsterTypeID type_id;
         vec3_t predicted_mins;
         vec3_t predicted_maxs;
         bool is_flying;
+        gtime_t last_access; // For LRU eviction
     };
+    
+    static constexpr size_t MAX_CACHE_SIZE = 32;
     std::unordered_map<horde::MonsterTypeID, MonsterTypeCache> type_cache;
 
-    // Helper to handle a successful spawn
+    // FIXED: Evict oldest entry when cache is full
+    void EvictOldestCacheEntry() {
+        if (type_cache.empty()) return;
+        
+        auto oldest = type_cache.begin();
+        gtime_t oldest_time = oldest->second.last_access;
+        
+        for (auto it = type_cache.begin(); it != type_cache.end(); ++it) {
+            if (it->second.last_access < oldest_time) {
+                oldest_time = it->second.last_access;
+                oldest = it;
+            }
+        }
+        
+        type_cache.erase(oldest);
+    }
+
     void HandleSuccessfulSpawn(edict_t* spawn_point, bool used_alternative, edict_t* monster) {
         g_consecutive_spawn_failures = 0;
         if (used_alternative) {
@@ -6247,35 +6314,38 @@ private:
         }
     }
 
-    // Helper to handle a failed spawn
     void HandleSpawnFailure(edict_t* spawn_point, bool used_alternative) {
         g_consecutive_spawn_failures++;
         if (used_alternative) {
-            // If the alternative position itself failed, apply a cooldown for trying alternatives again.
             ApplyAlternativePositionCooldown(spawn_point);
         } else {
-            // If the primary position failed, just increment its attempt counter.
             IncreaseSpawnAttempts(spawn_point);
         }
     }
 
-    // Gets monster properties from cache or computes and stores them.
+    // FIXED: Added const correctness and LRU cache management
     const MonsterTypeCache& GetOrCacheMonsterType(horde::MonsterTypeID type_id) {
         auto it = type_cache.find(type_id);
         if (it != type_cache.end()) {
+            it->second.last_access = level.time; // Update access time
             return it->second;
+        }
+
+        // FIXED: Evict if cache is full
+        if (type_cache.size() >= MAX_CACHE_SIZE) {
+            EvictOldestCacheEntry();
         }
 
         MonsterTypeCache new_entry;
         new_entry.type_id = type_id;
         new_entry.is_flying = IsFlying(type_id);
+        new_entry.last_access = level.time;
         GetPredictedScaledBounds(type_id, new_entry.predicted_mins, new_entry.predicted_maxs);
 
         auto [inserted_it, success] = type_cache.emplace(type_id, new_entry);
         return inserted_it->second;
     }
 
-    // Fills the current batch from the global spawn plan.
     void PrepareBatch() {
         current_batch.Clear();
         while (!g_spawn_plan.empty() && !current_batch.IsFull()) {
@@ -6284,12 +6354,13 @@ private:
         }
     }
 
-    // Validates spawn locations for the entire batch.
+    // FIXED: Removed unused variable, use cached bounds
     void ValidateLocations() {
         for (size_t i = 0; i < current_batch.count; ++i) {
+            if (!current_batch.is_valid[i]) continue; // Skip already invalid entries
+            
             const auto& entry = current_batch.entries[i];
-            const auto& type_info = GetOrCacheMonsterType(entry.typeId);
-
+            
             bool found = FindValidSpawnLocation(
                 entry.spawn_point,
                 entry.typeId,
@@ -6299,15 +6370,14 @@ private:
             );
 
             if (!found) {
-                current_batch.spawned_monsters[i] = nullptr; // Mark as invalid for the next stage
+                current_batch.is_valid[i] = false; // FIXED: Mark as invalid explicitly
             }
         }
     }
 
-    // Spawns all valid monsters in the batch.
     void SpawnMonsters() {
         for (size_t i = 0; i < current_batch.count; ++i) {
-            if (current_batch.spawned_monsters[i] == nullptr) continue; // Skip failed validations
+            if (!current_batch.is_valid[i]) continue; // FIXED: Check explicit validity flag
 
             const auto& entry = current_batch.entries[i];
             current_batch.spawned_monsters[i] = Horde_SpawnMonster(
@@ -6320,9 +6390,14 @@ private:
         }
     }
 
-    // Processes the results of the spawning attempt for the entire batch.
     void ProcessResults() {
         for (size_t i = 0; i < current_batch.count; ++i) {
+            if (!current_batch.is_valid[i]) {
+                // Entry failed validation, handle as failure
+                HandleSpawnFailure(current_batch.entries[i].spawn_point, current_batch.used_alternatives[i]);
+                continue;
+            }
+            
             const auto& entry = current_batch.entries[i];
             edict_t* monster = current_batch.spawned_monsters[i];
 
@@ -6335,11 +6410,9 @@ private:
     }
 
 public:
-    // The main public function that orchestrates the entire pipeline.
     void ProcessSpawnPlan() {
         if (g_spawn_plan.empty()) return;
 
-        // Process the global plan in manageable batches
         while (!g_spawn_plan.empty()) {
             PrepareBatch();
 
@@ -6622,7 +6695,6 @@ void Horde_RunFrame()
 	}
 
 	// --- TIME-SLICED EXECUTION PHASE ---
-	// These functions run every frame to execute any existing plans.
 	ExecuteSpawnPlan();
 	ExecuteNextSpecialSpawn();
 	// --- END EXECUTION PHASE ---
@@ -6636,7 +6708,7 @@ void Horde_RunFrame()
 
 	// Check if retaliation mode has timed out
 	if (g_special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
-		g_special_spawn_state.clear();  // Clear the entire special spawn state
+		g_special_spawn_state.clear();
 		g_horde_retaliation_end_time = 0_sec;
 		g_horde_retaliation_target_player = nullptr;
 		if (developer->integer) {
@@ -6644,14 +6716,12 @@ void Horde_RunFrame()
 		}
 	}
 
-	// Failsafe for stuck waves
-	static gtime_t last_wave_change_time = 0_sec;
-	static int32_t wave_at_last_check = 0;
-	if (wave_at_last_check != currentLevel) {
-		last_wave_change_time = currentTime;
-		wave_at_last_check = currentLevel;
+	// FIXED: Use struct members instead of static variables
+	if (g_horde_local.wave_at_last_check != currentLevel) {
+		g_horde_local.last_wave_change_time = currentTime;
+		g_horde_local.wave_at_last_check = currentLevel;
 	}
-	else if (g_horde_local.state != horde_state_t::warmup && currentTime > last_wave_change_time + HordeConstants::WAVE_STUCK_TIMEOUT) {
+	else if (g_horde_local.state != horde_state_t::warmup && currentTime > g_horde_local.last_wave_change_time + HordeConstants::WAVE_STUCK_TIMEOUT) {
 		if (GetStroggsNum() == 0) {
 			if (developer->integer) {
 				gi.Com_PrintFmt("CRITICAL: Wave {} stuck for over ({:.1f}s with 0 monsters. Forcing progression.\n",
@@ -6660,7 +6730,7 @@ void Horde_RunFrame()
 			g_horde_local.state = horde_state_t::cleanup;
 			g_horde_local.monster_spawn_time = currentTime;
 		} else {
-			last_wave_change_time = currentTime;
+			g_horde_local.last_wave_change_time = currentTime;
 		}
 	}
 
@@ -6680,18 +6750,16 @@ void Horde_RunFrame()
 
 	case horde_state_t::spawning:
 	{
-static gtime_t spawning_phase_timeout_start_time = 0_sec;
-		static int32_t prev_wave_level_for_spawning_timers = -1;
-
-		if (currentLevel != prev_wave_level_for_spawning_timers)
+		// FIXED: Use struct members instead of static variables
+		if (currentLevel != g_horde_local.prev_wave_level_for_spawning_timers)
 		{
-			spawning_phase_timeout_start_time = currentTime;
-			prev_wave_level_for_spawning_timers = currentLevel;
+			g_horde_local.spawning_phase_timeout_start = currentTime;
+			g_horde_local.prev_wave_level_for_spawning_timers = currentLevel;
 			initial_total_monsters_for_spawning_phase_timeout = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
 			monsters_spawned_in_current_phase = 0;
 		}
 
-		if (currentTime > spawning_phase_timeout_start_time + 90_sec)
+		if (currentTime > g_horde_local.spawning_phase_timeout_start + 90_sec)
 		{
 			if (!next_wave_message_sent)
 			{
@@ -6708,7 +6776,6 @@ static gtime_t spawning_phase_timeout_start_time = 0_sec;
 				SpawnBossAutomatically();
 			}
 			else if (!IsBossWave() || boss_spawned_for_wave) {
-				// This now just PLANS the next batch, it doesn't spawn directly.
 				PlanNextSpawnBatch();
 			}
 
@@ -6722,7 +6789,6 @@ static gtime_t spawning_phase_timeout_start_time = 0_sec;
 					g_horde_local.state = horde_state_t::active_wave;
 				}
 			}
-			// SetNextMonsterSpawnTime is now called inside PlanNextSpawnBatch
 		}
 		break;
 	}
@@ -6732,7 +6798,6 @@ static gtime_t spawning_phase_timeout_start_time = 0_sec;
 			waveEnded = true;
 			break;
 		}
-		// Check if we need to plan more spawns from the queue or for an ambush
 		if (g_horde_local.monster_spawn_time <= currentTime) {
 			PlanNextSpawnBatch();
 		}
@@ -6889,9 +6954,8 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(monsterTypeId, predicted_mins, predicted_maxs);
 
-	// --- THE FIX IS HERE ---
-	// Add 'false' as the 5th argument.
-	if (!IsPositionPhysicallyValid(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster))
+	const auto validation = IsPositionPhysicallyValid(final_pos_after_validation, predicted_mins, predicted_maxs, is_flying_monster);
+	if (!validation.is_valid)
 	{
 		self->s.origin = old_origin;
 		self->s.old_origin = old_origin;
