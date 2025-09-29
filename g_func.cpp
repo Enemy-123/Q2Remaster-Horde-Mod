@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
+#include "memory_safety.h"
 
 /*
 =========================================================
@@ -168,7 +169,7 @@ void Move_Calc(edict_t* ent, const vec3_t& dest, void(*endfunc)(edict_t* self))
 
 			if (ent->moveinfo.num_subframes)
 			{
-				distances.push_back(0);
+				safe_push_back(distances, 0.0f);
 				ent->moveinfo.curve_frame = 1;
 			}
 			else
@@ -181,11 +182,11 @@ void Move_Calc(edict_t* ent, const vec3_t& dest, void(*endfunc)(edict_t* self))
 					break;
 
 				ent->moveinfo.remaining_distance -= ent->moveinfo.current_speed;
-				distances.push_back(total_dist - ent->moveinfo.remaining_distance);
+				safe_push_back(distances, total_dist - ent->moveinfo.remaining_distance);
 			}
 
 			if (ent->moveinfo.num_subframes)
-				distances.push_back(total_dist);
+				safe_push_back(distances, total_dist);
 
 			ent->moveinfo.subframe = 0;
 			ent->moveinfo.curve_ref = ent->s.origin;

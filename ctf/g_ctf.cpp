@@ -4,6 +4,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include "../m_player.h"
+#include "../memory_safety.h"
 
 #include <assert.h>
 
@@ -407,7 +408,7 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	while ((spot = G_FindByString<&edict_t::classname>(spot, cname)) != nullptr)
 	{
 		if (!use_ground_spawns || (use_ground_spawns && spot->style != 1)) {
-			spawn_points.push_back(spot);
+			safe_push_back(spawn_points, spot, MAX_SPAWN_POINTS);
 		}
 	}
 
@@ -3965,10 +3966,8 @@ void CTFWarp(edict_t* ent, const char* map_name)
 	gi.Info_ValueForKey(ent->client->pers.userinfo, "name", playerName, sizeof(playerName));
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
 
-	std::string voteMessage = G_Fmt("{} has requested a vote for level {}.\nUse Horde Menu (TURTLE) on POWERUP WHEEL to vote YES/NO.\n",
-		playerName, token).data();
-
-	if (CTFBeginElection(ent, ELECT_MAP, voteMessage.c_str()))
+	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\nUse Horde Menu (TURTLE) on POWERUP WHEEL to vote YES/NO.\n",
+		playerName, token).data()))
 	{
 		if (ent->client->menu) {
 			PMenu_Close(ent);

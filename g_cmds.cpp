@@ -6,6 +6,7 @@
 #include "horde/p_flyer_morph.h"
 #include "horde/p_brain_morph.h"
 #include "shared.h"
+#include "memory_safety.h"
 
 void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu = true)
 {
@@ -759,7 +760,7 @@ void Cmd_Summon_f(edict_t* ent)
 
 	// Register with special entities
 	base->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER);
-	g_targetable_special_entities.push_back(base);
+	safe_push_back(g_targetable_special_entities, base);
 
 	gi.linkentity(base);
 
@@ -1775,7 +1776,7 @@ void Cmd_Say_f(edict_t* ent, bool arg0)
 		text.resize(150);
 
 	if (text.back() != '\n')
-		text.push_back('\n');
+		safe_push_back(text, '\n', 151);
 
 	if (sv_dedicated->integer)
 		gi.Client_Print(nullptr, PRINT_CHAT, text.c_str());

@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "shared.h"
+#include "memory_safety.h"
 
 // PGM - some of these are mine, some id's. I added the define's.
 constexpr spawnflags_t SPAWNFLAG_TRIGGER_MONSTER = 0x01_spawnflag;
@@ -752,7 +753,7 @@ static BoxEdictsResult_t hurt_filter(edict_t* other, void* self_ptr)
 			return BoxEdictsResult_t::Skip;
 	}
 
-	data->hurt.push_back(other);
+	safe_push_back(data->hurt, other);
 	return BoxEdictsResult_t::Skip;
 }
 

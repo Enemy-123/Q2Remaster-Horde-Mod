@@ -1742,7 +1742,7 @@ void read_save_type_json(const Json::Value& json, void* data, const save_type_t*
 			{
 				size_t len = strlen(json.asCString());
 				char* str = *((char**)data) = (char*)gi.TagMalloc(type->count ? type->count : (len + 1), type->tag);
-				strcpy(str, json.asCString());
+				memcpy(str, json.asCString(), len);
 				str[len] = 0;
 			}
 		}
@@ -1776,10 +1776,14 @@ void read_save_type_json(const Json::Value& json, void* data, const save_type_t*
 	case ST_FIXED_STRING:
 		if (json.isString())
 		{
-			if (type->count && strlen(json.asCString()) >= type->count)
+			size_t len = strlen(json.asCString());
+			if (type->count && len >= type->count)
 				json_print_error(field, "fixed length string overrun", false);
 			else
-				strcpy((char*)data, json.asCString());
+			{
+				memcpy((char*)data, json.asCString(), len);
+				((char*)data)[len] = 0;
+			}
 		}
 		else if (json.isArray())
 		{
