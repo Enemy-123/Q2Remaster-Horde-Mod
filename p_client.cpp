@@ -945,7 +945,7 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// BENEFITS INITIALIZATION (Horde Mode)
 	//
 	// Initialize auto-buy to enabled by default for new players
-	if (!client->pers.spawned) { // Only for first spawn
+	if (!client->pers.received_late_join_ammo) { // Only for first spawn
 		client->pers.auto_buy_abilities = true;
 		client->pers.auto_buy_weapons = true;
 		client->pers.has_manually_disabled_auto_buy = false;
@@ -1070,24 +1070,27 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 
 			// IMPORTANT: Give starting ammo ONLY for players joining mid-wave
 			// This prevents ammo accumulation on respawn after death
-			if (!client->pers.spawned) {
+			if (!client->pers.received_late_join_ammo) {
 				// Give modest starting ammo for late-joining players
 				// Enough to defend themselves but not overpowered
-				
+
 				// Basic ammo for common weapons
 				client->pers.inventory[AMMO_BULLETS] = 100;   // For machinegun/chaingun
-				client->pers.inventory[AMMO_SHELLS] = 20;     // For shotgun/sshotgun  
+				client->pers.inventory[AMMO_SHELLS] = 20;     // For shotgun/sshotgun
 				client->pers.inventory[AMMO_FLECHETTES] = 50; // For ETF rifle
 				client->pers.inventory[AMMO_PROX] = 10;       // For prox launcher
-				
+
 				// Advanced loadout ammo (only if wave 13+)
 				if (give_advanced) {
 					client->pers.inventory[AMMO_GRENADES] = 10;  // For grenade launcher
 					client->pers.inventory[AMMO_ROCKETS] = 10;   // For rocket launcher
 				}
-				
+
+				// Mark that this player has received their late-join ammo
+				client->pers.received_late_join_ammo = true;
+
 				// Notify player about starting ammo
-				gi.LocClient_Print(ent, PRINT_HIGH, 
+				gi.LocClient_Print(ent, PRINT_HIGH,
 					"Late join: You've been given starting weapons and ammo based on current wave!\n");
 			}
 		}
@@ -1259,12 +1262,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
     if (PlayerHasStartArmor(ent))
         client->pers.inventory[IT_ARMOR_BODY] = 100;
 
-    // Set connected flag first
+    // Set connected/spawned flags (remains the same)
     client->pers.connected = true;
-    
-    // IMPORTANT: Set spawned flag AFTER horde initialization
-    // This ensures that Horde_InitClientPersistant can correctly detect
-    // first-time spawns and give starting ammo only to late-joining players
     client->pers.spawned = true;
     //client->pers.bob_skip = false;
     //client->pers.id_state = false;
