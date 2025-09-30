@@ -2,8 +2,6 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "g_local.h"
-#include "horde/g_horde_benefits.h"
-#include "horde/g_asset_manager.h"
 #include "bots/bot_includes.h"
 
 CHECK_GCLIENT_INTEGRITY;

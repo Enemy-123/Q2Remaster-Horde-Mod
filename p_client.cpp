@@ -9,7 +9,6 @@
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
 #include "horde/p_brain_morph.h"
-#include "horde/g_asset_manager.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 

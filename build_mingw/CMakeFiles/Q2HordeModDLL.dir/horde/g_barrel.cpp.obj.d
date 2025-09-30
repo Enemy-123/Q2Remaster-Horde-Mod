@@ -268,5 +268,4 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_barrel.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode-data.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_phys.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_benefits.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_asset_manager.h
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_benefits.h

@@ -3,7 +3,6 @@
 #include "horde_performance.h"
 #include "g_horde_phys.h"
 #include "g_horde_benefits.h"
-#include "g_asset_manager.h"
 
 // *************************
 // BARREL - Explosive barrels for Horde Mode
@@ -159,7 +158,7 @@ THINK(barrel_burn)(edict_t* self) -> void
 
     // Visual/audio burning effect
     self->s.effects |= EF_BARREL_EXPLODING;
-    self->s.sound = horde::AssetManager::Get().RegisterSound("weapons/bfg__l1a.wav", true);
+    self->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
 
     // Deal AOE damage to attract monsters
     barrel_burn_damage(self);
@@ -264,7 +263,7 @@ TOUCH(barrel_summoned_touch)(edict_t* self, edict_t* other, const trace_t& tr, b
             self->svflags |= SVF_NOCLIENT; // Hide the barrel
             gi.linkentity(self);
 
-            gi.sound(other, CHAN_AUTO, horde::AssetManager::Get().RegisterSound("misc/w_pkup.wav", true), 1, ATTN_NORM, 0);
+            gi.sound(other, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
         }
         return;
     }
@@ -347,7 +346,7 @@ TOUCH(barrel_land)(edict_t* self, edict_t* other, const trace_t& tr, bool other_
         gi.linkentity(self);
 
         // Landing sound
-         gi.sound(self, CHAN_AUTO, horde::AssetManager::Get().RegisterSound("tank/thud.wav", true), 1, ATTN_NORM, 0);
+         gi.sound(self, CHAN_AUTO, gi.soundindex("tank/thud.wav"), 1, ATTN_NORM, 0);
     }
 }
 
@@ -456,7 +455,7 @@ TOUCH(barrel_bounce)(edict_t* self, edict_t* other, const trace_t& tr, bool othe
         };
 
         // Bounce sound
-        gi.sound(self, CHAN_AUTO, horde::AssetManager::Get().RegisterSound("tank/thud.wav", true), 1, ATTN_NORM, 0);
+        gi.sound(self, CHAN_AUTO, gi.soundindex("tank/thud.wav"), 1, ATTN_NORM, 0);
     }
 }
 
@@ -521,7 +520,7 @@ bool barrel_pickup(edict_t* player, edict_t* barrel)
     barrel->svflags |= SVF_NOCLIENT; // Hide the barrel
     gi.linkentity(barrel);
 
-    gi.sound(player, CHAN_AUTO, horde::AssetManager::Get().RegisterSound("misc/w_pkup.wav", true), 1, ATTN_NORM, 0);
+    gi.sound(player, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
     return true;
 }
 
@@ -628,7 +627,7 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     barrel->solid = SOLID_BBOX;
     barrel->mins = { -16, -16, 0 };
     barrel->maxs = { 16, 16, 40 };
-    barrel->s.modelindex = horde::AssetManager::Get().RegisterModel("models/objects/barrels/tris.md2", true);
+    barrel->s.modelindex = gi.modelindex("models/objects/barrels/tris.md2");
 
     barrel->teammaster = self;
     barrel->chain = self;  // Set chain for summoned-style chain->teammastership
@@ -823,7 +822,7 @@ void Cmd_Barrel_f(edict_t* ent)
 
         barrel->solid = SOLID_BBOX;
         barrel->movetype = MOVETYPE_STEP;
-        barrel->s.modelindex = horde::AssetManager::Get().RegisterModel("models/objects/barrels/tris.md2", true);
+        barrel->s.modelindex = gi.modelindex("models/objects/barrels/tris.md2");
         barrel->mins = { -16, -16, 0 };
         barrel->maxs = { 16, 16, 40 };
         barrel->mass = 100;

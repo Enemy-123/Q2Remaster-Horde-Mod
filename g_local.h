@@ -4250,29 +4250,10 @@ struct cached_assetindex
 	}
 	constexpr operator int32_t() const { return index; }
 
-	// assigned from spawn functions - now uses AssetManager for deduplication in horde mode
+	// assigned from spawn functions - uses direct gi.modelindex/soundindex/imageindex
 	inline void assign(const char* name) {
 		this->name = name;
-
-		// In horde mode, use AssetManager for deduplication
-		if (g_horde && g_horde->integer) {
-			// Template-based registration for horde mode
-			if constexpr (T == &local_game_import_t::modelindex) {
-				extern int32_t HordeRegisterModel(const char* name);
-				index = HordeRegisterModel(name);
-			} else if constexpr (T == &local_game_import_t::soundindex) {
-				extern int32_t HordeRegisterSound(const char* name);
-				index = HordeRegisterSound(name);
-			} else if constexpr (T == &local_game_import_t::imageindex) {
-				extern int32_t HordeRegisterImage(const char* name);
-				index = HordeRegisterImage(name);
-			} else {
-				index = (gi.*T)(name);
-			}
-		} else {
-			// Normal mode - use direct gi functions
-			index = (gi.*T)(name);
-		}
+		index = (gi.*T)(name);
 	}
 	// cleared before SpawnEntities
 	constexpr void clear() { index = 0; }
