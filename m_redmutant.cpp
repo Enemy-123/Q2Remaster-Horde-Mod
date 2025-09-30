@@ -372,7 +372,6 @@ bool redmutant_check_jump(edict_t* self)
 	}
 
 	vec3_t v;
-	float  distance;
 
 	// Paril: no harm in letting them jump down if you're below them
 	// if (self->absmin[2] > (self->enemy->absmin[2] + 0.75 * self->enemy->size[2]))
