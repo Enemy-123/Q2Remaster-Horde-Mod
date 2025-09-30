@@ -766,7 +766,8 @@ enum monster_ai_flags_t : uint64_t
 
 	// cleanup flags // HORDE
 	AI_CLEANUP_FADE = bit_v<39>,    // Entity should fade out (horde mode)
-	AI_CLEANUP_NORMAL = bit_v<40>   // Entity should be cleaned up normally
+	AI_CLEANUP_NORMAL = bit_v<40>,  // Entity should be cleaned up normally
+	AI_LAG_COMPENSATED = bit_v<41>  // Monster is currently lag compensated (for international players)
 };
 MAKE_ENUM_BITFLAGS(monster_ai_flags_t);
 

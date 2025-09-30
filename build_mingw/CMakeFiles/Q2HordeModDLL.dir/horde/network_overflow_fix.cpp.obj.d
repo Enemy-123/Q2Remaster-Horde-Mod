@@ -235,4 +235,5 @@ CMakeFiles/Q2HordeModDLL.dir/horde/network_overflow_fix.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/p_ctf_menu.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../memory_safety.h
