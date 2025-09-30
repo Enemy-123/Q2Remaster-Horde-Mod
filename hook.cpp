@@ -35,6 +35,8 @@ cvar_t* hook_damage;
 cvar_t* hook_initdamage;
 cvar_t* hook_maxdamage;
 cvar_t* hook_delay;
+cvar_t* hook_bot_chain_speed;
+cvar_t* hook_bot_throw_speed;
 
 void Hook_InitGame(void)
 {
@@ -46,6 +48,8 @@ void Hook_InitGame(void)
 	hook_initdamage = gi.cvar("hook_initdamage", "10", CVAR_NOFLAGS);
 	hook_maxdamage = gi.cvar("hook_maxdamage", "20", CVAR_NOFLAGS);
 	hook_delay = gi.cvar("hook_delay", "0.2", CVAR_NOFLAGS);
+	hook_bot_chain_speed = gi.cvar("hook_bot_chain_speed", "800", CVAR_NOFLAGS);
+	hook_bot_throw_speed = gi.cvar("hook_bot_throw_speed", "1800", CVAR_NOFLAGS);
 
 	gi.AddCommandString("alias +hook hook\n");
 	gi.AddCommandString("alias -hook unhook\n");
@@ -103,6 +107,22 @@ bool Hook_Check(edict_t* self)
 		return true;
 	}
 
+	// Special handling for chained bots - throw them on button release
+	if (self->enemy && self->enemy->client && (self->enemy->svflags & SVF_BOT) &&
+		(self->owner->client->latched_buttons & BUTTON_ATTACK))
+	{
+		// Calculate throw direction from player's view
+		vec3_t forward;
+		AngleVectors(self->owner->client->v_angle, forward, nullptr, nullptr);
+
+		// Throw the bot with high velocity
+		self->enemy->velocity = forward * hook_bot_throw_speed->value;
+
+		// Reset hook
+		Hook_Reset(self);
+		return true;
+	}
+
 	// drop the hook if player lets go of button
 	// and has the hook as current weapon
 	if (((self->owner->client->latched_buttons & BUTTON_ATTACK)
@@ -121,6 +141,10 @@ void Hook_Service(edict_t* self)
 {
 	// if hook should be dropped, just return
 	if (Hook_Check(self))
+		return;
+
+	// Don't pull the player if they have a bot chained
+	if (self->enemy && self->enemy->client && (self->enemy->svflags & SVF_BOT))
 		return;
 
 	// give the client some velocity ...
@@ -149,24 +173,53 @@ THINK(Hook_Track) (edict_t* self) -> void
 	// bring the pAiN!
 	if (self->enemy->client)
 	{
-		// move the hook along with the player.  It's invisible, but
-		// we need this to make the sound come from the right spot
-
-		if (self->owner->client->hook_damage >= hook_maxdamage->value)
+		// Special handling for chained bots - gravity gun style
+		if (self->enemy->svflags & SVF_BOT)
 		{
-			Hook_Reset(self);
-			return;
+			// Calculate where the bot SHOULD be (at stored distance in view direction)
+			vec3_t forward;
+			AngleVectors(self->owner->client->v_angle, forward, nullptr, nullptr);
+			vec3_t target_position = self->owner->s.origin + (forward * self->wait);
+
+			// Calculate direction from bot's current position to target position
+			vec3_t pull_dir = target_position - self->enemy->s.origin;
+			float distance_to_target = pull_dir.length();
+
+			// Apply velocity proportional to distance (stronger pull when further from target)
+			// This creates smooth "spring-like" dragging that responds to mouse movement speed
+			if (distance_to_target > 1.0f)
+			{
+				pull_dir = safe_normalized(pull_dir);
+				self->enemy->velocity = pull_dir * (distance_to_target * hook_bot_chain_speed->value / 100.0f);
+			}
+
+			// Update hook position to follow the bot
+			gi.unlinkentity(self);
+			self->s.origin = self->enemy->s.origin;
+			gi.linkentity(self);
 		}
+		else
+		{
+			// Normal client handling - damage over time
+			// move the hook along with the player.  It's invisible, but
+			// we need this to make the sound come from the right spot
 
-		gi.unlinkentity(self);
-		self->s.origin = self->enemy->s.origin;
-		gi.linkentity(self);
+			if (self->owner->client->hook_damage >= hook_maxdamage->value)
+			{
+				Hook_Reset(self);
+				return;
+			}
 
-		normal = self->enemy->s.origin - self->owner->s.origin;
+			gi.unlinkentity(self);
+			self->s.origin = self->enemy->s.origin;
+			gi.linkentity(self);
 
-		T_Damage(self->enemy, self, self->owner, vec3_origin, self->enemy->s.origin, normal, hook_damage->value, 0, DAMAGE_NO_KNOCKBACK, MOD_HOOK);
+			normal = self->enemy->s.origin - self->owner->s.origin;
 
-		self->owner->client->hook_damage += hook_damage->value;
+			T_Damage(self->enemy, self, self->owner, vec3_origin, self->enemy->s.origin, normal, hook_damage->value, 0, DAMAGE_NO_KNOCKBACK, MOD_HOOK);
+
+			self->owner->client->hook_damage += hook_damage->value;
+		}
 	}
 	else
 	{
@@ -207,14 +260,27 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 		return;
 	}
 
-	if (other->client && other->svflags & SVF_BOT) 		// we hit a bot	
+	if (other->client && other->svflags & SVF_BOT) 		// we hit a bot - chain it!
 	{
-		// if bot, apply the same pull force as brain tongue attack
-		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-		other->velocity = forward * -1550;  // Apply pulling force to the bot
+		// Attach hook to bot instead of instant pull
+		self->enemy = other;
 
-		// Stop further processing as we already applied the force
-		Hook_Reset(self);
+		// Store the initial distance from player to bot (for gravity gun effect)
+		vec3_t hook_vec = other->s.origin - self->owner->s.origin;
+		self->wait = hook_vec.length();
+
+		// Start tracking the bot
+		self->think = Hook_Track;
+		self->nextthink = level.time + 100_ms;
+
+		// Hook is now on
+		self->owner->client->hook_on = true;
+		self->solid = SOLID_NOT;
+
+		// Play attachment sound
+		gi.positioned_sound(self->s.origin, self, CHAN_WEAPON, gi.soundindex("flyer/Flyatck2.wav"), 1, ATTN_NORM, 0);
+
+		self->owner->hook_time = level.time;
 		return;
 	}
 	else if (other->client)
@@ -303,7 +369,12 @@ THINK(Hook_Think) (edict_t* self) -> void
 
 	// move the two ends
 	self->s.origin = start;
-	self->s.old_origin = self->owner->s.origin;
+
+	// If hook is attached to a bot, point beam at the bot instead of the hook
+	if (self->owner->enemy && self->owner->enemy->client && (self->owner->enemy->svflags & SVF_BOT))
+		self->s.old_origin = self->owner->enemy->s.origin;
+	else
+		self->s.old_origin = self->owner->s.origin;
 
 	gi.linkentity(self);
 
@@ -371,7 +442,12 @@ void Hook_Fire(edict_t* owner, vec3_t start, vec3_t forward) {
 	hook->classname = "hook";		// this is a hook
 
 	hook->s.angles = vectoangles(forward);
-	hook->velocity = forward * hook_speed->value;
+
+	// Check if aiming at a bot - if so, use super fast hook speed for instant grab
+	trace_t aim_trace = gi.traceline(start, start + (forward * 8192.0f), owner, MASK_SHOT);
+	bool aiming_at_bot = (aim_trace.ent && aim_trace.ent->client && (aim_trace.ent->svflags & SVF_BOT));
+
+	hook->velocity = forward * (aiming_at_bot ? 8000.0f : hook_speed->value);
 
 	hook->touch = Hook_Touch;
 
