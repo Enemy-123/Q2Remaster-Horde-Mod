@@ -18,6 +18,78 @@ extern void Cmd_InvUse_f(edict_t* ent);
 extern void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu);
 extern void SelectPrevItem(edict_t* ent, item_flags_t itflags);
 
+// ========================================================================
+// HORDE MODE CONSTANTS
+// ========================================================================
+namespace HordeConstants {
+	// Wave thresholds for weapon unlocks
+	constexpr int8_t WAVE_BASIC_WEAPONS = 4;
+	constexpr int8_t WAVE_ADVANCED_WEAPONS = 13;
+	constexpr int8_t WAVE_HIGH_AMMO_CAPS = 25;
+
+	// Point awards per wave milestone
+	constexpr int8_t ABILITY_POINT_WAVE_INTERVAL = 4;
+	constexpr int8_t WEAPON_POINT_WAVE_INTERVAL = 8;
+
+	// Ammo capacity constants - Basic level
+	namespace BasicAmmo {
+		constexpr int16_t BULLETS = 250;
+		constexpr int16_t SHELLS = 100;
+		constexpr int16_t CELLS = 250;
+		constexpr int16_t FLECHETTES = 250;
+		constexpr int16_t GRENADES = 50;
+		constexpr int16_t ROCKETS = 50;
+		constexpr int16_t SLUGS = 50;
+		constexpr int16_t MAGSLUG = 50;
+		constexpr int16_t DISRUPTOR = 12;
+		constexpr int16_t TESLA = 7;
+		constexpr int16_t PROX = 50;
+		constexpr int16_t TRAP = 7;
+	}
+
+	// Ammo capacity constants - High level (wave 25+)
+	namespace HighAmmo {
+		constexpr int16_t BULLETS = 400;
+		constexpr int16_t SHELLS = 175;
+		constexpr int16_t CELLS = 400;
+		constexpr int16_t FLECHETTES = 400;
+		constexpr int16_t GRENADES = 125;
+		constexpr int16_t ROCKETS = 100;
+		constexpr int16_t SLUGS = 75;
+		constexpr int16_t MAGSLUG = 125;
+		constexpr int16_t DISRUPTOR = 35;
+		constexpr int16_t TESLA = 14;
+		constexpr int16_t PROX = 125;
+		constexpr int16_t TRAP = 12;
+	}
+
+	// Starting ammo for late-joiners - Basic loadout
+	namespace StartingAmmoBasic {
+		constexpr int16_t BULLETS = 100;
+		constexpr int16_t SHELLS = 20;
+		constexpr int16_t FLECHETTES = 50;
+		constexpr int16_t PROX = 10;
+	}
+
+	// Starting ammo for late-joiners - Advanced loadout
+	namespace StartingAmmoAdvanced {
+		constexpr int16_t GRENADES = 10;
+		constexpr int16_t ROCKETS = 10;
+	}
+
+	// Early wave starter ammo (waves 1-3)
+	namespace EarlyWaveAmmo {
+		constexpr int16_t BULLETS = 50;
+		constexpr int16_t SHELLS = 10;
+	}
+}
+
+// Helper function for password validation
+inline bool ValidatePassword(const char* password_cvar, const char* user_password)
+{
+	return *password_cvar && strcmp(password_cvar, "none") && strcmp(password_cvar, user_password);
+}
+
 THINK(info_player_start_drop) (edict_t* self) -> void
 {
 	// allow them to drop
@@ -105,7 +177,7 @@ void SP_info_player_intermission(edict_t* ent)
 }
 
 // [Paril-KEX] whether instanced items should be used or not
-bool P_UseCoopInstancedItems()
+bool P_UseCoopInstancedItems() noexcept
 {
 	// squad respawn forces instanced items on, since we don't
 	// want players to need to backtrack just to get their stuff.
@@ -953,16 +1025,16 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		// Auto-grant points based on current wave for late-joining players
 		int32_t waves_completed = current_wave_level;
 		
-		// Ability points awarded every 4 waves starting from wave 4
-		if (waves_completed >= 4) {
-			client->pers.ability_points = (waves_completed / 4);
+		// Ability points awarded every N waves
+		if (waves_completed >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL) {
+			client->pers.ability_points = (waves_completed / HordeConstants::ABILITY_POINT_WAVE_INTERVAL);
 		} else {
 			client->pers.ability_points = 0;
 		}
 
-		// Weapon points awarded every 8 waves starting from wave 8
-		if (waves_completed >= 8) {
-			client->pers.weapon_points = (waves_completed / 8);
+		// Weapon points awarded every N waves
+		if (waves_completed >= HordeConstants::WEAPON_POINT_WAVE_INTERVAL) {
+			client->pers.weapon_points = (waves_completed / HordeConstants::WEAPON_POINT_WAVE_INTERVAL);
 		} else {
 			client->pers.weapon_points = 0;
 		}
@@ -980,38 +1052,37 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	//
 	// Note: Base defaults are set in the main InitClientPersistant.
 	// Here we override max_ammo based on Horde wave level.
-	const bool is_high_level = current_wave_level >= 25;
+	const bool is_high_level = current_wave_level >= HordeConstants::WAVE_HIGH_AMMO_CAPS;
 
 	if (is_high_level) {
 		// High level horde ammo caps
-		client->pers.max_ammo[AMMO_BULLETS] = 400;
-		client->pers.max_ammo[AMMO_SHELLS] = 175;
-		client->pers.max_ammo[AMMO_CELLS] = 400;
-		client->pers.max_ammo[AMMO_FLECHETTES] = 400;
-		client->pers.max_ammo[AMMO_GRENADES] = 125;
-		client->pers.max_ammo[AMMO_ROCKETS] = 100;
-		client->pers.max_ammo[AMMO_SLUGS] = 75;
-		client->pers.max_ammo[AMMO_MAGSLUG] = 125;
-		client->pers.max_ammo[AMMO_DISRUPTOR] = 35;
-		client->pers.max_ammo[AMMO_TESLA] = 14;
-		client->pers.max_ammo[AMMO_PROX] = 125;
-		client->pers.max_ammo[AMMO_TRAP] = 12;
+		client->pers.max_ammo[AMMO_BULLETS] = HordeConstants::HighAmmo::BULLETS;
+		client->pers.max_ammo[AMMO_SHELLS] = HordeConstants::HighAmmo::SHELLS;
+		client->pers.max_ammo[AMMO_CELLS] = HordeConstants::HighAmmo::CELLS;
+		client->pers.max_ammo[AMMO_FLECHETTES] = HordeConstants::HighAmmo::FLECHETTES;
+		client->pers.max_ammo[AMMO_GRENADES] = HordeConstants::HighAmmo::GRENADES;
+		client->pers.max_ammo[AMMO_ROCKETS] = HordeConstants::HighAmmo::ROCKETS;
+		client->pers.max_ammo[AMMO_SLUGS] = HordeConstants::HighAmmo::SLUGS;
+		client->pers.max_ammo[AMMO_MAGSLUG] = HordeConstants::HighAmmo::MAGSLUG;
+		client->pers.max_ammo[AMMO_DISRUPTOR] = HordeConstants::HighAmmo::DISRUPTOR;
+		client->pers.max_ammo[AMMO_TESLA] = HordeConstants::HighAmmo::TESLA;
+		client->pers.max_ammo[AMMO_PROX] = HordeConstants::HighAmmo::PROX;
+		client->pers.max_ammo[AMMO_TRAP] = HordeConstants::HighAmmo::TRAP;
 	}
 	else {
 		// Basic horde ammo caps
-		client->pers.max_ammo[AMMO_BULLETS] = 250;
-		client->pers.max_ammo[AMMO_SHELLS] = 100;
-		client->pers.max_ammo[AMMO_CELLS] = 250;
-		client->pers.max_ammo[AMMO_FLECHETTES] = 250;
-		// Keep basic limits for special ammo in early waves
-		client->pers.max_ammo[AMMO_GRENADES] = 50; // Default
-		client->pers.max_ammo[AMMO_ROCKETS] = 50; // Default
-		client->pers.max_ammo[AMMO_SLUGS] = 50;   // Default
-		client->pers.max_ammo[AMMO_MAGSLUG] = 50; // Default
-		client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-		client->pers.max_ammo[AMMO_TESLA] = 7;
-		client->pers.max_ammo[AMMO_PROX] = 50;    // Default
-		client->pers.max_ammo[AMMO_TRAP] = 7;
+		client->pers.max_ammo[AMMO_BULLETS] = HordeConstants::BasicAmmo::BULLETS;
+		client->pers.max_ammo[AMMO_SHELLS] = HordeConstants::BasicAmmo::SHELLS;
+		client->pers.max_ammo[AMMO_CELLS] = HordeConstants::BasicAmmo::CELLS;
+		client->pers.max_ammo[AMMO_FLECHETTES] = HordeConstants::BasicAmmo::FLECHETTES;
+		client->pers.max_ammo[AMMO_GRENADES] = HordeConstants::BasicAmmo::GRENADES;
+		client->pers.max_ammo[AMMO_ROCKETS] = HordeConstants::BasicAmmo::ROCKETS;
+		client->pers.max_ammo[AMMO_SLUGS] = HordeConstants::BasicAmmo::SLUGS;
+		client->pers.max_ammo[AMMO_MAGSLUG] = HordeConstants::BasicAmmo::MAGSLUG;
+		client->pers.max_ammo[AMMO_DISRUPTOR] = HordeConstants::BasicAmmo::DISRUPTOR;
+		client->pers.max_ammo[AMMO_TESLA] = HordeConstants::BasicAmmo::TESLA;
+		client->pers.max_ammo[AMMO_PROX] = HordeConstants::BasicAmmo::PROX;
+		client->pers.max_ammo[AMMO_TRAP] = HordeConstants::BasicAmmo::TRAP;
 	}
 
 	//
@@ -1048,8 +1119,8 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	// Only applies if it's also Deathmatch (which Horde mode forces)
 	//
 	if (G_IsDeathmatch()) { // Technically always true if g_horde is true
-		const bool give_advanced = current_wave_level >= 13;
-		const bool give_basic = current_wave_level >= 4;
+		const bool give_advanced = current_wave_level >= HordeConstants::WAVE_ADVANCED_WEAPONS;
+		const bool give_basic = current_wave_level >= HordeConstants::WAVE_BASIC_WEAPONS;
 
 		// Always give blaster and some minimal ammo for late-joining players
 		// Even in early waves (1-3)
@@ -1059,8 +1130,8 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 
 			// Give minimal starting ammo even in early waves
 			if (current_wave_level >= 1) {
-				client->pers.inventory[AMMO_BULLETS] += 50;   // Minimal machinegun ammo
-				client->pers.inventory[AMMO_SHELLS] += 10;    // Minimal shotgun ammo
+				client->pers.inventory[AMMO_BULLETS] += HordeConstants::EarlyWaveAmmo::BULLETS;
+				client->pers.inventory[AMMO_SHELLS] += HordeConstants::EarlyWaveAmmo::SHELLS;
 			}
 		}
 
@@ -1088,15 +1159,15 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 				// Enough to defend themselves but not overpowered
 
 				// Basic ammo for common weapons
-				client->pers.inventory[AMMO_BULLETS] += 100;   // For machinegun/chaingun
-				client->pers.inventory[AMMO_SHELLS] += 20;     // For shotgun/sshotgun
-				client->pers.inventory[AMMO_FLECHETTES] += 50; // For ETF rifle
-				client->pers.inventory[AMMO_PROX] += 10;       // For prox launcher
+				client->pers.inventory[AMMO_BULLETS] += HordeConstants::StartingAmmoBasic::BULLETS;
+				client->pers.inventory[AMMO_SHELLS] += HordeConstants::StartingAmmoBasic::SHELLS;
+				client->pers.inventory[AMMO_FLECHETTES] += HordeConstants::StartingAmmoBasic::FLECHETTES;
+				client->pers.inventory[AMMO_PROX] += HordeConstants::StartingAmmoBasic::PROX;
 
 				// Advanced loadout ammo (only if wave 13+)
 				if (give_advanced) {
-					client->pers.inventory[AMMO_GRENADES] += 10;  // For grenade launcher
-					client->pers.inventory[AMMO_ROCKETS] += 10;   // For rocket launcher
+					client->pers.inventory[AMMO_GRENADES] += HordeConstants::StartingAmmoAdvanced::GRENADES;
+					client->pers.inventory[AMMO_ROCKETS] += HordeConstants::StartingAmmoAdvanced::ROCKETS;
 				}
 
 				// Mark that this player has received their late-join ammo
@@ -2041,9 +2112,7 @@ void spectator_respawn(edict_t* ent)
 		char value[MAX_INFO_VALUE] = { 0 };
 		gi.Info_ValueForKey(ent->client->pers.userinfo, "spectator", value, sizeof(value));
 
-		if (*spectator_password->string &&
-			strcmp(spectator_password->string, "none") &&
-			strcmp(spectator_password->string, value))
+		if (ValidatePassword(spectator_password->string, value))
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, "Spectator password incorrect.\n");
 			ent->client->pers.spectator = false;
@@ -2076,8 +2145,7 @@ void spectator_respawn(edict_t* ent)
 		char value[MAX_INFO_VALUE] = { 0 };
 		gi.Info_ValueForKey(ent->client->pers.userinfo, "password", value, sizeof(value));
 
-		if (*password->string && strcmp(password->string, "none") &&
-			strcmp(password->string, value))
+		if (ValidatePassword(password->string, value))
 		{
 			gi.LocClient_Print(ent, PRINT_HIGH, "Password incorrect.\n");
 			ent->client->pers.spectator = true;
@@ -2127,7 +2195,7 @@ void spectator_respawn(edict_t* ent)
 // [Paril-KEX]
 // skinnum was historically used to pack data
 // so we're going to build onto that.
-void P_AssignClientSkinnum(edict_t* ent)
+void P_AssignClientSkinnum(edict_t* ent) noexcept
 {
 	if (ent->s.modelindex != 255)
 		return;
@@ -3298,9 +3366,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	{
 		uint32_t i, numspec;
 
-		if (*spectator_password->string &&
-			strcmp(spectator_password->string, "none") &&
-			strcmp(spectator_password->string, value))
+		if (ValidatePassword(spectator_password->string, value))
 		{
 			gi.Info_SetValueForKey(userinfo, "rejmsg", "Spectator password required or incorrect.");
 			return false;
@@ -3321,8 +3387,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	{
 		// check for a password ( if not a bot! )
 		gi.Info_ValueForKey(userinfo, "password", value, sizeof(value));
-		if (!isBot && *password->string && strcmp(password->string, "none") &&
-			strcmp(password->string, value))
+		if (!isBot && ValidatePassword(password->string, value))
 		{
 			gi.Info_SetValueForKey(userinfo, "rejmsg", "Password required or incorrect.");
 			return false;

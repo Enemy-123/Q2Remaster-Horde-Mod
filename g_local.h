@@ -2659,7 +2659,7 @@ void InitClientResp(gclient_t* client);
 void InitBodyQue();
 void ClientBeginServerFrame(edict_t* ent);
 void ClientUserinfoChanged(edict_t* ent, const char* userinfo);
-void P_AssignClientSkinnum(edict_t* ent);
+void P_AssignClientSkinnum(edict_t* ent) noexcept;
 void P_ForceFogTransition(edict_t* ent, bool instant);
 void P_SendLevelPOI(edict_t* ent);
 unsigned int P_GetLobbyUserNum(const edict_t* player);
@@ -2916,7 +2916,7 @@ void	 fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 //
 void RemoveAttackingPainDaemons(edict_t* self);
 bool G_ShouldPlayersCollide(bool weaponry);
-bool P_UseCoopInstancedItems();
+bool P_UseCoopInstancedItems() noexcept;
 
 constexpr spawnflags_t SPAWNFLAG_LANDMARK_KEEP_Z = 1_spawnflag;
 
