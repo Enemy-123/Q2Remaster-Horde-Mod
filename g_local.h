@@ -2983,6 +2983,15 @@ namespace LaserConstants {
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;
+
+    // Visual appearance constants
+    constexpr uint32_t COLOR_LASER_HEALTHY = 0xf2f2f0f0;
+    constexpr uint32_t COLOR_LASER_DAMAGED = 0xd0d1d2d3;
+    constexpr uint32_t COLOR_LASER_WARNING = 0xd0d1d2d3;
+    constexpr uint32_t COLOR_FLARE_HEALTHY = 0xFF0000FF; // Flare when laser is healthy
+    constexpr uint32_t COLOR_FLARE_DAMAGED = 0x00FF00FF; // Flare when laser is damaged
+    constexpr uint32_t COLOR_FLARE_WARNING = 0x00FF00FF; // Flare during warning blink
+    constexpr float HEALTH_THRESHOLD_DAMAGED = 0.25f;
 }
 namespace BarrelConstants {
     constexpr int32_t MAX_BARRELS_PER_PLAYER = 4;

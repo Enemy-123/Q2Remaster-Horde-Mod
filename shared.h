@@ -55,11 +55,21 @@ struct EmitterState
     bool is_blink_on = false;
     gtime_t last_blink_time = 0_ms;
 
+    // Track previous visual state to avoid redundant updates
+    uint32_t last_beam_skinnum = 0;
+    uint32_t last_flare_skinnum = 0;
+    int last_beam_frame = -1;
+    int last_emitter_renderfx = -1;
+
     // Add a clear() method for convenience
     void clear() {
         is_warning_phase = false;
         is_blink_on = false;
         last_blink_time = 0_ms;
+        last_beam_skinnum = 0;
+        last_flare_skinnum = 0;
+        last_beam_frame = -1;
+        last_emitter_renderfx = -1;
     }
 };
 

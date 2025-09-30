@@ -1,4 +1,43 @@
 // g_laser.cpp
+//
+// LASER SYSTEM ARCHITECTURE
+// =========================
+//
+// Player lasers consist of three linked entities:
+// 1. EMITTER (classname: "emitter")
+//    - Visual component attached to wall
+//    - Takes damage but redirects it to the beam
+//    - Manages blinking warning state before timeout
+//    - Has high health (10000) to prevent direct destruction
+//
+// 2. BEAM (classname: "laser")
+//    - The actual damage-dealing ray
+//    - Has real health that depletes when damaging enemies
+//    - Performs pierce tracing every frame
+//    - Owned by emitter (beam->owner = emitter)
+//
+// 3. FLARE (classname: "misc_flare")
+//    - Visual effect at emitter position
+//    - Color indicates health state and warnings
+//
+// ENTITY RELATIONSHIPS:
+// - emitter->chain = beam
+// - emitter->goalentity = flare
+// - emitter->teammaster = player
+// - beam->owner = emitter
+// - beam->teammaster = player
+//
+// DAMAGE MECHANICS:
+// - Laser damage scales with wave level
+// - Laser health scales with wave level + adrenaline count
+// - Damaging enemies consumes laser health
+// - When laser health <= 0, entire assembly is destroyed
+//
+// PERFORMANCE CONSIDERATIONS:
+// - Visual updates only occur when state changes (not every frame)
+// - Wave-based stat recalculation only on wave change or adrenaline change
+// - Pierce checks optimized with helper function
+// - EmitterState tracks previous visual state to avoid redundant updates
 
 #include "../g_local.h"
 #include "../shared.h"
@@ -44,6 +83,96 @@ static int CalculateWaveBasedLaserMaxHealth(int wave_level)
 }
 
 
+// Helper function to update laser damage and health for a single player
+static void UpdatePlayerLasers(const edict_t* player, int current_wave_level, int current_adrenaline)
+{
+    if (!player || !player->client) return;
+
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
+    {
+        edict_t* emitter = player->client->resp.deployed_lasers[i];
+
+        // Check if the emitter and its beam are valid
+        if (!emitter || !emitter->inuse || !emitter->chain || !emitter->chain->inuse)
+            continue;
+
+        edict_t* laser_beam = emitter->chain;
+
+        // Update damage based on wave level
+        int new_damage = CalculateWaveBasedLaserDamage(current_wave_level);
+
+        // Calculate max health: wave-based + adrenaline bonus (+250 per adrenaline)
+        int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
+        int new_max_health = wave_based_health + (current_adrenaline * 250);
+        new_max_health = std::min(new_max_health, LaserConstants::MAX_LASER_HEALTH);
+
+        laser_beam->dmg = new_damage;
+        if (new_max_health != laser_beam->max_health)
+        {
+            if (laser_beam->health > 0)
+            {
+                float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
+                laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
+            }
+            laser_beam->max_health = new_max_health;
+        }
+    }
+}
+
+// Helper function to update sentry gun health for a single player
+static void UpdatePlayerSentryGuns(const edict_t* player)
+{
+    if (!player || !player->client) return;
+
+    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
+    {
+        edict_t* sentry = player->client->resp.deployed_sentries[i];
+
+        if (!sentry || !sentry->inuse)
+            continue;
+
+        // Calculate new max health with current adrenaline count
+        int base_health = 125; // Base sentry health from SP_monster_sentrygun
+        int new_max_health = CalculateSentryHealth(base_health, player->client);
+
+        // Only update max_health, leave current health untouched
+        if (new_max_health != sentry->max_health)
+        {
+            sentry->max_health = new_max_health;
+
+            // Update power armor accordingly (40% of max health)
+            sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
+        }
+    }
+}
+
+// Helper function to update tesla mine lifetimes for a single player
+static void UpdatePlayerTeslaMines(const edict_t* player)
+{
+    if (!player || !player->client) return;
+
+    for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i)
+    {
+        edict_t* tesla = player->client->resp.deployed_teslas[i];
+
+        if (!tesla || !tesla->inuse)
+            continue;
+
+        // Calculate new lifetime with current adrenaline count
+        gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, player->client);
+        gtime_t new_end_time = tesla->timestamp + tesla_lifetime;
+
+        // Update the wait field which stores the end time in seconds
+        tesla->wait = new_end_time.seconds();
+
+        // Also update air_finished if it's being used for lifetime tracking
+        if (tesla->air_finished > 0_sec)
+        {
+            tesla->air_finished = new_end_time;
+        }
+    }
+}
+
 void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
 {
     if (!g_horde || !g_horde->integer)
@@ -51,105 +180,42 @@ void G_UpdateAdrenalineBasedDeployables(int current_wave_level)
 
     // Cache tracking for performance optimization
     static int last_adrenaline_count[MAX_CLIENTS] = {-1}; // Initialize to -1 to force first update
+    static int last_wave_level = -1; // Cache wave level to detect changes
     static int frame_counter = 0;
-    
+
     // Periodic refresh every 30 frames (~0.5s) as failsafe
     bool force_refresh = (++frame_counter % 30 == 0);
-    
+
+    // Check if wave level changed - if so, all lasers need updates
+    bool wave_changed = (current_wave_level != last_wave_level);
+    if (wave_changed) {
+        last_wave_level = current_wave_level;
+    }
+
     for (const auto* player : active_players())
     {
         if (!player->client) continue;
-        
+
         const int player_num = player - g_edicts - 1;
         if (player_num < 0 || player_num >= MAX_CLIENTS) continue;
-        
+
         const int current_adrenaline = player->client->pers.adrenaline_count;
-        
+
         // Only process if adrenaline changed or periodic refresh
         bool should_update_adrenaline = (current_adrenaline != last_adrenaline_count[player_num] || force_refresh);
         if (should_update_adrenaline) {
             last_adrenaline_count[player_num] = current_adrenaline;
         }
-        
-        // Update lasers with wave-based damage/health and adrenaline bonuses
-        for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
-        {
-            edict_t* emitter = player->client->resp.deployed_lasers[i];
 
-            // Check if the emitter and its beam are valid
-            if (!emitter || !emitter->inuse || !emitter->chain || !emitter->chain->inuse)
-            {
-                continue;
-            }
-
-            edict_t* laser_beam = emitter->chain;
-
-            // Update damage based on wave level
-            int new_damage = CalculateWaveBasedLaserDamage(current_wave_level);
-            
-            // Calculate max health: wave-based + adrenaline bonus (+250 per adrenaline)
-            int wave_based_health = CalculateWaveBasedLaserMaxHealth(current_wave_level);
-            int new_max_health = wave_based_health + (current_adrenaline * 250);
-            new_max_health = std::min(new_max_health, LaserConstants::MAX_LASER_HEALTH);
-
-            laser_beam->dmg = new_damage;
-            if (new_max_health != laser_beam->max_health)
-            {
-                if (laser_beam->health > 0)
-                {
-                    float health_ratio = (laser_beam->max_health > 0) ? (float)laser_beam->health / (float)laser_beam->max_health : 1.0f;
-                    laser_beam->health = std::max(1, static_cast<int>(health_ratio * new_max_health));
-                }
-                laser_beam->max_health = new_max_health;
-            }
+        // Update lasers only if wave changed or adrenaline changed
+        if (wave_changed || should_update_adrenaline) {
+            UpdatePlayerLasers(player, current_wave_level, current_adrenaline);
         }
-        
+
         // Update other deployables only when adrenaline changes
         if (should_update_adrenaline) {
-            
-            // Update sentry guns with adrenaline-based health
-            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
-            {
-                edict_t* sentry = player->client->resp.deployed_sentries[i];
-
-                if (!sentry || !sentry->inuse)
-                    continue;
-
-                // Calculate new max health with current adrenaline count
-                int base_health = 125; // Base sentry health from SP_monster_sentrygun
-                int new_max_health = CalculateSentryHealth(base_health, player->client);
-
-                // Only update max_health, leave current health untouched
-                if (new_max_health != sentry->max_health)
-                {
-                    sentry->max_health = new_max_health;
-
-                    // Update power armor accordingly (40% of max health)
-                    sentry->monsterinfo.power_armor_power = static_cast<int>(round(sentry->max_health * 0.4f));
-                }
-            }
-
-            // Update tesla mines with adrenaline-based lifetime
-            for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i)
-            {
-                edict_t* tesla = player->client->resp.deployed_teslas[i];
-
-                if (!tesla || !tesla->inuse)
-                    continue;
-
-                // Calculate new lifetime with current adrenaline count
-                gtime_t tesla_lifetime = CalculateDeployableLifetime(TeslaConstants::TIME_TO_LIVE, player->client);
-                gtime_t new_end_time = tesla->timestamp + tesla_lifetime;
-
-                // Update the wait field which stores the end time in seconds
-                tesla->wait = new_end_time.seconds();
-                
-                // Also update air_finished if it's being used for lifetime tracking
-                if (tesla->air_finished > 0_sec)
-                {
-                    tesla->air_finished = new_end_time;
-                }
-            }
+            UpdatePlayerSentryGuns(player);
+            UpdatePlayerTeslaMines(player);
 
             // NOTE: Traps should NOT have their lifetime updated after creation
             // Their timestamp is set once when created with the adrenaline bonus at that time
@@ -173,9 +239,36 @@ namespace LaserHelpers
     [[nodiscard]] static LaserHealth get_laser_health_state(const edict_t *laser)
     {
         if (!laser)
-            return {false, 0xd0d1d2d3, 0x00FF00FF};
-        const bool healthy = laser->health > laser->max_health * 0.25f;
-        return {healthy, healthy ? 0xf2f2f0f0 : 0xd0d1d2d3, healthy ? 0xFF0000FF : 0x00FF00FF};
+            return {false, LaserConstants::COLOR_LASER_DAMAGED, LaserConstants::COLOR_FLARE_DAMAGED};
+        const bool healthy = laser->health > laser->max_health * LaserConstants::HEALTH_THRESHOLD_DAMAGED;
+        return {healthy,
+                healthy ? LaserConstants::COLOR_LASER_HEALTHY : LaserConstants::COLOR_LASER_DAMAGED,
+                healthy ? LaserConstants::COLOR_FLARE_HEALTHY : LaserConstants::COLOR_FLARE_DAMAGED};
+    }
+
+    // Helper to check if an entity should be pierced through by lasers
+    [[nodiscard]] static bool ShouldPierceThrough(const edict_t* ent)
+    {
+        if (!ent) return false;
+
+        // Pierce through players to prevent griefing
+        if (ent->client)
+            return true;
+
+        // Pierce through friendly deployables
+        if (horde::IsSpecialType(ent, horde::SpecialEntityTypeID::TESLA_MINE) ||
+            horde::IsSpecialType(ent, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP) ||
+            horde::IsSpecialType(ent, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+            horde::IsSpecialType(ent, horde::SpecialEntityTypeID::TURRET) ||
+            horde::IsSpecialType(ent, horde::SpecialEntityTypeID::PROX_MINE) ||
+            horde::IsSpecialType(ent, horde::SpecialEntityTypeID::NUKE_MINE))
+            return true;
+
+        // Pierce through summoned monsters
+        if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.issummoned)
+            return true;
+
+        return false;
     }
 
     // get_laser_manager is now DELETED
@@ -196,25 +289,10 @@ struct player_laser_pierce_t : pierce_args_t
             return true;
         }
 
-        // --- PLAYER PASSTHROUGH FIX ---
-        // Make lasers pass through ALL players without damage to prevent griefing
-        if (tr.ent->client) {
-            return mark(tr.ent); // Mark as pierced and continue through player
+        // Check if we should pierce through this entity
+        if (LaserHelpers::ShouldPierceThrough(tr.ent)) {
+            return mark(tr.ent); // Mark as pierced and continue through
         }
-        // --- END FIX ---
-
-        // --- IGNORE TESLAS, TRAPS, AND SUMMONED MONSTERS ---
-        // Check if target is a tesla, trap, or summoned monster and ignore them
-        if (horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::TESLA_MINE) ||
-            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP) ||
-            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::SENTRY_GUN) ||
-            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::TURRET) ||
-            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::PROX_MINE) ||
-            horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::NUKE_MINE) ||
-            ((tr.ent->svflags & SVF_MONSTER) && tr.ent->monsterinfo.issummoned)) {
-            return mark(tr.ent); // Pierce through without damage or health loss
-        }
-        // --- END IGNORE --- // It will hurt barrels !
 
         // Only damage non-player entities
         if (self->dmg > 0 && tr.ent->takedamage)
@@ -411,33 +489,67 @@ THINK(emitter_think)(edict_t * self)->void
 
     bool const should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
 
-    //  Use -> for pointers
-    if (should_warn != state->is_warning_phase)
+    // Track if warning phase changed
+    bool warning_changed = (should_warn != state->is_warning_phase);
+    if (warning_changed)
     {
         state->is_warning_phase = should_warn;
         state->last_blink_time = 0_ms;
         state->is_blink_on = false;
     }
 
+    // Track if blink state changed
+    bool blink_changed = false;
     if (state->is_warning_phase && level.time >= state->last_blink_time + LaserConstants::BLINK_INTERVAL)
     {
         state->is_blink_on = !state->is_blink_on;
         state->last_blink_time = level.time;
+        blink_changed = true;
     }
 
-    if (state->is_warning_phase && state->is_blink_on)
-        self->s.renderfx |= RF_SHELL_GREEN;
-    else
-        self->s.renderfx &= ~RF_SHELL_GREEN;
+    // Update emitter renderfx only when warning/blink state changes
+    if (warning_changed || blink_changed)
+    {
+        renderfx_t new_renderfx = self->s.renderfx;
+        if (state->is_warning_phase && state->is_blink_on)
+            new_renderfx = renderfx_t(new_renderfx | RF_SHELL_GREEN);
+        else
+            new_renderfx = renderfx_t(new_renderfx & ~RF_SHELL_GREEN);
 
+        if (new_renderfx != renderfx_t(state->last_emitter_renderfx))
+        {
+            self->s.renderfx = new_renderfx;
+            state->last_emitter_renderfx = int(new_renderfx);
+        }
+    }
+
+    // Check beam and flare colors every frame (depends on health which can change independently)
     const auto health_state = LaserHelpers::get_laser_health_state(beam);
-    beam->s.skinnum = (state->is_warning_phase && state->is_blink_on) ? 0xd0d1d2d3 : health_state.laser_color;
-    beam->s.frame = (beam->health < 1) ? 0 : (beam->health >= 1000) ? 4 : 2;
+    uint32_t new_beam_skinnum = (state->is_warning_phase && state->is_blink_on) ? LaserConstants::COLOR_LASER_WARNING : health_state.laser_color;
+    if (new_beam_skinnum != state->last_beam_skinnum)
+    {
+        beam->s.skinnum = new_beam_skinnum;
+        state->last_beam_skinnum = new_beam_skinnum;
+    }
 
+    // Update flare color based on health and warning state
     edict_t* flare = self->goalentity;
     if (flare && flare->inuse && strcmp(flare->classname, "misc_flare") == 0)
     {
-        flare->s.skinnum = (state->is_warning_phase && state->is_blink_on) ? 0x00FF00FF : health_state.flare_color;
+        uint32_t new_flare_skinnum = (state->is_warning_phase && state->is_blink_on) ? LaserConstants::COLOR_FLARE_WARNING : health_state.flare_color;
+        if (new_flare_skinnum != state->last_flare_skinnum)
+        {
+            flare->s.skinnum = new_flare_skinnum;
+            state->last_flare_skinnum = new_flare_skinnum;
+        }
+    }
+
+    // Update beam frame based on health
+    int new_beam_frame = (beam->health < 1) ? 0 : (beam->health >= 1000) ? 4 : 2;
+    if (new_beam_frame != state->last_beam_frame)
+    {
+        beam->s.frame = new_beam_frame;
+        state->last_beam_frame = new_beam_frame;
     }
 
     self->nextthink = level.time + FRAME_TIME_MS;

@@ -3,6 +3,8 @@
 // Bombspell implementation ported from Vortex
 
 #include "../g_local.h"
+#include "horde_performance.h"
+#include "g_horde_phys.h"
 
 // Bomb spell constants
 constexpr float CARPETBOMB_INITIAL_DAMAGE = 100;
@@ -35,35 +37,37 @@ void spawn_grenades(edict_t* ent, const vec3_t& origin, gtime_t time, int damage
 void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
                              edict_t* ignore, float radius, damageflags_t dflags, mod_t mod);
 
-// Helper function for team-safe radius damage
+// Helper function for team-safe radius damage - optimized with spatial grid
 void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
                              edict_t* ignore, float radius, damageflags_t dflags, mod_t mod)
 {
-    edict_t* ent = nullptr;
-    while ((ent = findradius(ent, inflictor->s.origin, radius)) != nullptr)
+    if (!inflictor)
+        return;
+
+    // Use spatial grid for performance - same as main T_RadiusDamage
+    auto nearby_entities = HordePhys::g_entity_grid.QueryRadiusFiltered(
+        inflictor->s.origin, radius, HordePhys::EntityGrid::TYPE_ALL);
+
+    for (edict_t* ent : nearby_entities)
     {
-        if (ent == ignore)
-            continue;
-        if (!ent->takedamage)
+        if (ent == ignore || !ent->takedamage)
             continue;
         if (ent == attacker)  // Don't damage self
             continue;
         if (attacker && OnSameTeam(ent, attacker))  // Don't damage teammates
             continue;
 
-        vec3_t v = ent->mins + ent->maxs;
-        v = ent->s.origin + (v * 0.5f);
-        v = inflictor->s.origin - v;
-        float points = damage - 0.5f * v.length();
+        // Calculate distance and damage
+        vec3_t center = ent->mins + ent->maxs;
+        center = ent->s.origin + (center * 0.5f);
+        float dist = sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(center, inflictor->s.origin));
+        float points = damage - 0.5f * dist;
 
-        if (points > 0)
+        if (points > 0 && CanDamage(ent, inflictor))
         {
-            if (CanDamage(ent, inflictor))
-            {
-                vec3_t dir = (ent->s.origin - inflictor->s.origin).normalized();
-                T_Damage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin,
-                        (int)points, (int)points, dflags, mod);
-            }
+            vec3_t dir = (center - inflictor->s.origin).normalized();
+            T_Damage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin,
+                    (int)points, (int)points, dflags, mod);
         }
     }
 }
@@ -71,6 +75,9 @@ void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage
 // Helper function to spawn grenades
 void spawn_grenades(edict_t* ent, const vec3_t& origin, gtime_t time, int damage, int num)
 {
+    if (!ent || num <= 0 || damage <= 0)
+        return;
+
     vec3_t start = origin;
 
     // Spawn grenades that fall downward

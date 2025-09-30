@@ -24,6 +24,32 @@ void barrel_remove(edict_t* self);
 void barrel_think(edict_t* self);
 void remove_barrels(edict_t* ent);
 
+// Helper function to clean up barrel tracking for a player
+static void barrel_cleanup_tracking(edict_t* barrel)
+{
+    if (!barrel || !barrel->chain || !barrel->chain->client)
+        return;
+
+    auto* client = barrel->chain->client;
+
+    // Decrement barrel count
+    client->resp.num_barrels--;
+
+    // Clear held barrel reference if this is it
+    if (client->resp.held_barrel == barrel)
+        client->resp.held_barrel = nullptr;
+
+    // Clear from deployed barrels array
+    for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
+    {
+        if (client->resp.deployed_barrels[i] == barrel)
+        {
+            client->resp.deployed_barrels[i] = nullptr;
+            break;
+        }
+    }
+}
+
 // Remove barrel and clean up player tracking
 void barrel_remove(edict_t* self)
 {
@@ -32,25 +58,8 @@ void barrel_remove(edict_t* self)
 
     self->takedamage = false;
 
-    // Decrement player's barrel count
-    if (self->chain && self->chain->client)
-    {
-        self->chain->client->resp.num_barrels--;
-
-        // If this was a held barrel, clear it
-        if (self->chain->client->resp.held_barrel == self)
-            self->chain->client->resp.held_barrel = nullptr;
-
-        // Clear this barrel from the tracking array
-        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
-        {
-            if (self->chain->client->resp.deployed_barrels[i] == self)
-            {
-                self->chain->client->resp.deployed_barrels[i] = nullptr;
-                break;
-            }
-        }
-    }
+    // Clean up player tracking
+    barrel_cleanup_tracking(self);
 
     // Remove from targetable entities if tracked
     auto& vec = g_targetable_special_entities;
@@ -97,8 +106,11 @@ DIE(barrel_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 // Deal AOE damage while burning to attract monsters
 void barrel_burn_damage(edict_t* self)
 {
-    const float BURN_DAMAGE_RADIUS = 250.0f;
-    const float BURN_DAMAGE_PER_SEC = 10.0f;
+    if (!self || !self->inuse)
+        return;
+
+    constexpr float BURN_DAMAGE_RADIUS = 250.0f;
+    constexpr float BURN_DAMAGE_PER_SEC = 10.0f;
     const float damage_this_frame = BURN_DAMAGE_PER_SEC * gi.frame_time_s;
 
     // Find nearby entities
@@ -133,33 +145,14 @@ void barrel_burn_damage(edict_t* self)
         }
     }
 
-    // Debug: show damage count periodically
-    static gtime_t last_debug_time = 0_sec;
-    if (monsters_damaged > 0 && level.time - last_debug_time > 1_sec)
-    {
-        if (self->chain && self->chain->client)
-        {
-    //        gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {} monsters in range\n", monsters_damaged);
-        }
-        last_debug_time = level.time;
-    }
 }
 
 // Burning state before explosion
 THINK(barrel_burn)(edict_t* self) -> void
 {
-    // Debug output - simplified format
-    if (self->chain && self->chain->client)
-    {
-        int time_left = (int)((self->timestamp - level.time).seconds());
-    //   gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel burning: {}s until explosion\n", time_left);
-    }
-
     // Check if burn time has expired - if so, explode
     if (level.time >= self->timestamp)
     {
-        if (self->chain && self->chain->client)
-        //    gi.LocClient_Print(self->chain, PRINT_HIGH, "Barrel exploding NOW!\n");
         barrel_explode(self);
         return;
     }
@@ -178,24 +171,27 @@ THINK(barrel_burn)(edict_t* self) -> void
 // Find and trigger chain explosions
 void barrel_chain_explosions(edict_t* self)
 {
+    if (!self || !self->inuse)
+        return;
+
     // Find nearby barrels for chain reaction
     const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(self->s.origin, BARREL_CHAIN_EXPLOSION_RADIUS);
 
     for (auto* ent : nearby_entities)
     {
-        // Check if it's another barrel
-        if (ent != self && ent->die == barrel_die && ent->inuse && !ent->deadflag)
+        // Check if it's another barrel - early exit for non-barrels
+        if (ent == self || !ent->inuse || ent->deadflag || ent->die != barrel_die)
+            continue;
+
+        const float dist = range_to(self, ent);
+        if (dist <= BARREL_CHAIN_EXPLOSION_RADIUS)
         {
-            float dist = range_to(self, ent);
-            if (dist <= BARREL_CHAIN_EXPLOSION_RADIUS)
-            {
-                // Delay chain explosions slightly for dramatic effect
-                ent->timestamp = level.time + BARREL_CHAIN_DELAY;
-                ent->think = barrel_burn;
-                ent->nextthink = level.time + 10_hz;
-                ent->activator = self->activator;
-                ent->deadflag = true;
-            }
+            // Delay chain explosions slightly for dramatic effect
+            ent->timestamp = level.time + BARREL_CHAIN_DELAY;
+            ent->think = barrel_burn;
+            ent->nextthink = level.time + 10_hz;
+            ent->activator = self->activator;
+            ent->deadflag = true;
         }
     }
 }
@@ -213,24 +209,7 @@ THINK(barrel_explode)(edict_t* self) -> void
     }
 
     // Clean up barrel tracking BEFORE the entity is freed
-    if (self->chain && self->chain->client)
-    {
-        self->chain->client->resp.num_barrels--;
-
-        // If this was a held barrel, clear it
-        if (self->chain->client->resp.held_barrel == self)
-            self->chain->client->resp.held_barrel = nullptr;
-
-        // Clear this barrel from the tracking array
-        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
-        {
-            if (self->chain->client->resp.deployed_barrels[i] == self)
-            {
-                self->chain->client->resp.deployed_barrels[i] = nullptr;
-                break;
-            }
-        }
-    }
+    barrel_cleanup_tracking(self);
 
     // Radius damage - use chain if available, otherwise self
     edict_t* attacker = self->chain ? self->chain : self;
@@ -286,7 +265,6 @@ TOUCH(barrel_summoned_touch)(edict_t* self, edict_t* other, const trace_t& tr, b
             gi.linkentity(self);
 
             gi.sound(other, CHAN_AUTO, horde::AssetManager::Get().RegisterSound("misc/w_pkup.wav", true), 1, ATTN_NORM, 0);
-          //  gi.LocClient_Print(other, PRINT_HIGH, "Picked up barrel\n");
         }
         return;
     }
@@ -340,37 +318,6 @@ TOUCH(barrel_summoned_touch)(edict_t* self, edict_t* other, const trace_t& tr, b
     gi.linkentity(self);
 }
 
-void barrel_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
-// // Touch function for physics interaction
-// TOUCH(barrel_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
-// {
-//     // Don't interact with non-solid things
-//     if ((!other->groundentity) || (other->groundentity == self))
-//         return;
-
-//     if (!other_touching_self)
-//         return;
-
-//     // Simple push for players and entities
-//     if (other->client || (other->svflags & SVF_MONSTER))
-//     {
-//         // Simple directional push
-//         vec3_t push_dir = self->s.origin - other->s.origin;
-//         push_dir[2] = 0; // Keep it horizontal
-//         push_dir.normalize();
-
-//         // Simple fixed-distance push
-//         vec3_t new_pos = self->s.origin + (push_dir * 20);
-
-//         // Check if new position is valid
-//         trace_t trace = gi.trace(self->s.origin, self->mins, self->maxs, new_pos, self, MASK_SOLID);
-//         if (trace.fraction > 0)
-//         {
-//             self->s.origin = trace.endpos;
-//             gi.linkentity(self);
-//         }
-//     }
-// }
 
 // Simple landing function
 TOUCH(barrel_land)(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -509,7 +456,6 @@ TOUCH(barrel_bounce)(edict_t* self, edict_t* other, const trace_t& tr, bool othe
         };
 
         // Bounce sound
-      //  gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
         gi.sound(self, CHAN_AUTO, horde::AssetManager::Get().RegisterSound("tank/thud.wav", true), 1, ATTN_NORM, 0);
     }
 }
@@ -576,8 +522,6 @@ bool barrel_pickup(edict_t* player, edict_t* barrel)
     gi.linkentity(barrel);
 
     gi.sound(player, CHAN_AUTO, horde::AssetManager::Get().RegisterSound("misc/w_pkup.wav", true), 1, ATTN_NORM, 0);
- //   gi.LocClient_Print(player, PRINT_HIGH, "Picked up barrel\n");
-
     return true;
 }
 
@@ -603,7 +547,6 @@ void barrel_drop(edict_t* player)
     gi.linkentity(barrel);
 
     player->client->resp.held_barrel = nullptr;
-  //  gi.LocClient_Print(player, PRINT_HIGH, "Dropped barrel\n");
 }
 
 // Visualize held barrel
@@ -817,10 +760,6 @@ void Cmd_Barrel_f(edict_t* ent)
 
         // Fire the barrel
         fire_barrel(ent, start, forward);
-
-      //  gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown! ({}/{})\n",
-       //                   ent->client->resp.num_barrels,
-         //                 BarrelConstants::MAX_BARRELS_PER_PLAYER);
     }
     // "barrel pickup" - pickup nearest barrel
     else if (Q_strcasecmp(arg, "pickup") == 0)

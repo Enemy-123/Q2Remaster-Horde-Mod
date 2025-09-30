@@ -804,7 +804,9 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
     // Fast path early returns for improved performance
     if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
         !attacker->client->pers.iddmg_state || !targ ||
-        targ->monsterinfo.invincible_time > level.time || mod.id == MOD_TRAP) { // Now this check works correctly
+        targ->monsterinfo.invincible_time > level.time || mod.id == MOD_TRAP ||
+        (targ->flags & FL_TRAP) || // Don't count damage to traps/barrels/grenades
+        targ == attacker) { // Don't count self-damage
         return;
     }
 
