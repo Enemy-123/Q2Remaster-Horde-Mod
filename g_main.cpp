@@ -3,6 +3,7 @@
 
 #include "g_local.h"
 #include "bots/bot_includes.h"
+#include "memory_safety.h"
 
 CHECK_GCLIENT_INTEGRITY;
 CHECK_EDICT_INTEGRITY;
@@ -551,16 +552,11 @@ ClientEndServerFrames
 */
 void ClientEndServerFrames()
 {
-	edict_t* ent;
-
 	// calc the player views now that all pushing
 	// and damage has been added
-	for (uint32_t i = 0; i < game.maxclients; i++)
+	for (auto player : active_players())
 	{
-		ent = g_edicts + 1 + i;
-		if (!ent->inuse || !ent->client)
-			continue;
-		ClientEndServerFrame(ent);
+		ClientEndServerFrame(player);
 	}
 }
 
@@ -582,20 +578,6 @@ edict_t* CreateTargetChangeLevel(const char* map)
 	return ent;
 }
 
-inline std::vector<std::string> str_split(const std::string_view& str, char by)
-{
-	std::vector<std::string> out;
-	size_t start, end = 0;
-
-	while ((start = str.find_first_not_of(by, end)) != std::string_view::npos)
-	{
-		end = str.find(by, start);
-		out.push_back(std::string{ str.substr(start, end - start) });
-	}
-
-	return out;
-}
-
 /*
 =================
 EndDMLevel
@@ -608,11 +590,16 @@ The timelimit or fraglimit has been exceeded
 inline std::vector<std::string_view> split_string_view(std::string_view str, char delimiter = ' ')
 {
     std::vector<std::string_view> result;
+    if (!safe_reserve(result, 32)) {  // Pre-allocate reasonable size for map lists
+        return result;
+    }
     size_t start = 0;
     size_t end = 0;
     while ((start = str.find_first_not_of(delimiter, end)) != std::string_view::npos) {
         end = str.find(delimiter, start);
-        result.push_back(str.substr(start, end - start));
+        if (!safe_push_back(result, str.substr(start, end - start), 256)) {
+            break;  // Stop if we hit size limit
+        }
     }
     return result;
 }
@@ -622,12 +609,31 @@ inline std::string join_string_views(const std::vector<std::string_view>& views,
     if (views.empty()) return "";
     size_t total_size = (views.size() - 1) * strlen(separator);
     for (const auto& v : views) total_size += v.length();
+
+    // Clamp total size to reasonable limit for cvar strings
+    const size_t MAX_CVAR_STRING = 8192;
+    if (total_size > MAX_CVAR_STRING) {
+        total_size = MAX_CVAR_STRING;
+    }
+
     std::string result;
-    result.reserve(total_size);
-    result.append(views[0]);
+    try {
+        result.reserve(total_size);
+    } catch (...) {
+        return "";  // Allocation failed
+    }
+
+    if (!safe_string_append(result, views[0], MAX_CVAR_STRING)) {
+        return result;
+    }
+
     for (size_t i = 1; i < views.size(); ++i) {
-        result.append(separator);
-        result.append(views[i]);
+        if (!safe_string_append(result, separator, MAX_CVAR_STRING)) {
+            break;
+        }
+        if (!safe_string_append(result, views[i], MAX_CVAR_STRING)) {
+            break;
+        }
     }
     return result;
 }
@@ -1070,152 +1076,163 @@ Advances the world by 0.1 seconds
 
 #include "profiler.h"
 #include "horde/g_horde_phys.h"
-// This is the main game frame function. It is called every server frame.
-// The structure of this function is highly  for performance.
-inline void G_RunFrame_(bool main_loop)
+
+/*
+================
+UpdateProximityGrids
+
+Updates the spatial grid system for efficient proximity queries.
+The grid system is essential for Tesla coils, traps, and other proximity-based mechanics.
+Works in all game modes.
+================
+*/
+static void UpdateProximityGrids()
 {
-    auto monsters = active_monsters();
-    auto players = active_players();
+    PROFILE_SCOPE("BuildProximityGrid");
 
-    // Profiler and Horde-specific setup.
-    if (g_horde_profiler) {
-        g_profiler_enabled = g_horde_profiler->integer != 0;
-    } else {
-        g_profiler_enabled = false;
-    }
-    Profiler_ResetFrame();
-
-    // --- PROXIMITY GRID SYSTEM (UNIVERSAL) ---
-    // The proximity grid system is essential for Tesla coils, traps, and other proximity-based
-    // mechanics. It should work in ALL game modes, not just Horde mode.
+    // The grid's world bounds are calculated only ONCE per map load.
+    // This is a heavy operation that should not be done every frame.
+    static std::string last_map_for_grid;
+    if (last_map_for_grid != level.mapname)
     {
-        PROFILE_SCOPE("BuildProximityGrid");
-        
-        // The grid's world bounds are calculated only ONCE per map load.
-        // This is a heavy operation that should not be done every frame.
-        static std::string last_map_for_grid;
-        if (last_map_for_grid != level.mapname) 
-        {
-            vec3_t world_mins{}, world_maxs{};
-            ClearBounds(world_mins, world_maxs);
-            // We use the efficient 'monster_spawn_points' iterator here.
-            for (auto* sp : monster_spawn_points()) {
-                AddPointToBounds(sp->s.origin, world_mins, world_maxs);
-            }
-            world_mins -= vec3_t{512, 512, 512};
-            world_maxs += vec3_t{512, 512, 512};
-
-            HordePhys::g_monster_grid.Build(world_mins, world_maxs);
-            HordePhys::g_entity_grid.Build(world_mins, world_maxs);
-            last_map_for_grid = level.mapname;
+        vec3_t world_mins{}, world_maxs{};
+        ClearBounds(world_mins, world_maxs);
+        // We use the efficient 'monster_spawn_points' iterator here.
+        for (auto* sp : monster_spawn_points()) {
+            AddPointToBounds(sp->s.origin, world_mins, world_maxs);
         }
+        world_mins -= vec3_t{512, 512, 512};
+        world_maxs += vec3_t{512, 512, 512};
 
-        // The per-frame update is very fast. It clears the previous
-        // frame's data and then uses the efficient iterators to add only the
-        // relevant entities (monsters, players, projectiles) to the grid.
-        HordePhys::g_monster_grid.Reset();
-        HordePhys::g_entity_grid.Reset();
-
-        for (auto* monster : active_monsters()) {
-            HordePhys::g_monster_grid.Add(monster);
-            HordePhys::g_entity_grid.AddEntity(monster);
-        }
-        for (auto *player : active_players_no_spect()) {
-            if (player && player->inuse && player->health > 0 && !EntIsSpectating(player)) {
-                HordePhys::g_monster_grid.Add(player);
-                HordePhys::g_entity_grid.AddEntity(player);
-            }
-        }
-        for (auto* proj : active_projectiles()) {
-            HordePhys::g_monster_grid.Add(proj);
-            HordePhys::g_entity_grid.AddEntity(proj);
-        }
-
-        // Add other damageable entities more efficiently
-        // Start after maxclients + BODY_QUEUE_SIZE to skip body queue
-        const uint32_t start_idx = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1;
-
-        // Only scan entities that are likely to be damageable and relevant
-        for (uint32_t i = start_idx; i < globals.num_edicts; i++) {
-            edict_t* ent = &g_edicts[i];
-            if (!ent->inuse || !ent->takedamage)
-                continue;
-
-            // Skip entities already added (monsters, players, projectiles)
-            if (ent->svflags & SVF_MONSTER)
-                continue;
-            if (ent->client)
-                continue;
-            if (ent->flags & SVF_PROJECTILE)
-                continue;
-
-            // Add other damageable entities (barrels, breakables, etc.)
-            HordePhys::g_entity_grid.AddEntity(ent);
-        }
-
-        if (developer->integer >= 2) {
-           HordePhys::g_monster_grid.DebugDraw();
-        }
+        HordePhys::g_monster_grid.Build(world_mins, world_maxs);
+        HordePhys::g_entity_grid.Build(world_mins, world_maxs);
+        last_map_for_grid = level.mapname;
     }
 
-    // --- UNIVERSAL MENU SYSTEM ---
-    // Menu updates should work in all game modes for better user experience
-    CheckAndUpdateMenus();
+    // The per-frame update is very fast. It clears the previous
+    // frame's data and then uses the efficient iterators to add only the
+    // relevant entities (monsters, players, projectiles) to the grid.
+    HordePhys::g_monster_grid.Reset();
+    HordePhys::g_entity_grid.Reset();
 
-    // --- HORDE-SPECIFIC PER-FRAME LOGIC ---
-    // This block contains logic that only runs in Horde mode.
-    if (g_horde->integer) {
-
-        // DISABLED: Test if monster exclusion alone prevents crashes
-        // horde::AssetManager::Get().ProcessClientLoading();
-
-        // Check for and resolve any bot-on-bot overlaps.
-        G_CheckBotOverlap();
-
-        // Cache map size - only update if map changes
-        static std::string last_mapname;
-        static horde::MapSize cached_mapSize;
-        if (last_mapname != level.mapname) {
-            cached_mapSize = GetMapSize(level.mapname);
-            last_mapname = level.mapname;
-        }
-
-        // Player scale configuration
-        level.coop_scale_players = 2 + GetNumHumanPlayers();
-        G_Monster_CheckCoopHealthScaling();
-
-        // Update deployables based on adrenaline changes (cached for performance)
-        G_UpdateAdrenalineBasedDeployables(current_wave_level);
-
-     //    Time-slicing monster checks.
-        // Instead of checking every monster for being stuck every frame, we process
-        // a small batch. This spreads the CPU load over multiple frames.
-        constexpr uint32_t BATCH_SIZE = 32;
-        uint32_t processed = 0;
-        for (auto ent : monsters) {
-            if (processed >= BATCH_SIZE) break;
-            CheckAndRestoreMonsterAlpha(ent);
-            if (!ent->monsterinfo.IS_BOSS)
-                CheckAndTeleportStuckMonster(ent);
-            processed++;
-        }
-
-        // Other cleanup and state management functions.
-        CleanupInvalidEntities();
-        CleanupStuckEntities();
-        CheckAndResetDisabledSpawnPoints();
-        if (horde_message_end_time > 0_sec && level.time >= horde_message_end_time) {
-            ClearHordeMessage();
+    for (auto* monster : active_monsters()) {
+        HordePhys::g_monster_grid.Add(monster);
+        HordePhys::g_entity_grid.AddEntity(monster);
+    }
+    for (auto *player : active_players_no_spect()) {
+        if (player && player->inuse && player->health > 0 && !EntIsSpectating(player)) {
+            HordePhys::g_monster_grid.Add(player);
+            HordePhys::g_entity_grid.AddEntity(player);
         }
     }
+    for (auto* proj : active_projectiles()) {
+        HordePhys::g_monster_grid.Add(proj);
+        HordePhys::g_entity_grid.AddEntity(proj);
+    }
 
-    // --- GENERAL FRAME LOGIC ---
-    level.in_frame = true;
-    G_CheckCvars();
-    Bot_UpdateDebug();
-    level.time += FRAME_TIME_MS;
+    // Add other damageable entities more efficiently
+    // Start after maxclients + BODY_QUEUE_SIZE to skip body queue
+    const uint32_t start_idx = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1;
 
-  // Handle intermission timing
+    // Only scan entities that are likely to be damageable and relevant
+    for (uint32_t i = start_idx; i < globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+        if (!ent->inuse || !ent->takedamage)
+            continue;
+
+        // Skip entities already added (monsters, players, projectiles)
+        if (ent->svflags & SVF_MONSTER)
+            continue;
+        if (ent->client)
+            continue;
+        if (ent->flags & SVF_PROJECTILE)
+            continue;
+
+        // Add other damageable entities (barrels, breakables, etc.)
+        HordePhys::g_entity_grid.AddEntity(ent);
+    }
+
+    if (developer->integer >= 2) {
+       HordePhys::g_monster_grid.DebugDraw();
+    }
+}
+
+/*
+================
+ProcessHordePerFrameLogic
+
+Processes horde-mode specific logic that runs every frame.
+Includes bot overlap detection, player scaling, monster management, and cleanup.
+================
+*/
+template<typename MonstersT, typename PlayersT>
+static void ProcessHordePerFrameLogic(const MonstersT& monsters, const PlayersT& players)
+{
+    // DISABLED: Test if monster exclusion alone prevents crashes
+    // horde::AssetManager::Get().ProcessClientLoading();
+
+    // Check for and resolve any bot-on-bot overlaps.
+    G_CheckBotOverlap();
+
+    // Cache map size - only update if map changes
+    static std::string last_mapname;
+    static horde::MapSize cached_mapSize;
+    if (last_mapname != level.mapname) {
+        cached_mapSize = GetMapSize(level.mapname);
+        last_mapname = level.mapname;
+    }
+
+    // Cache human player count - only recalculate periodically
+    static int cached_human_player_count = 0;
+    static gtime_t last_player_count_check = 0_ms;
+    const gtime_t PLAYER_COUNT_CHECK_INTERVAL = 500_ms;
+
+    if ((level.time - last_player_count_check) >= PLAYER_COUNT_CHECK_INTERVAL) {
+        cached_human_player_count = GetNumHumanPlayers();
+        last_player_count_check = level.time;
+    }
+
+    // Player scale configuration
+    level.coop_scale_players = 2 + cached_human_player_count;
+    G_Monster_CheckCoopHealthScaling();
+
+    // Update deployables based on adrenaline changes (cached for performance)
+    G_UpdateAdrenalineBasedDeployables(current_wave_level);
+
+    // Time-slicing monster checks.
+    // Instead of checking every monster for being stuck every frame, we process
+    // a small batch. This spreads the CPU load over multiple frames.
+    constexpr uint32_t BATCH_SIZE = 32;
+    uint32_t processed = 0;
+    for (auto ent : monsters) {
+        if (processed >= BATCH_SIZE) break;
+        CheckAndRestoreMonsterAlpha(ent);
+        if (!ent->monsterinfo.IS_BOSS)
+            CheckAndTeleportStuckMonster(ent);
+        processed++;
+    }
+
+    // Other cleanup and state management functions.
+    CleanupInvalidEntities();
+    CleanupStuckEntities();
+    CheckAndResetDisabledSpawnPoints();
+    if (horde_message_end_time > 0_sec && level.time >= horde_message_end_time) {
+        ClearHordeMessage();
+    }
+}
+
+/*
+================
+UpdateIntermissionState
+
+Handles intermission timing, fading, and exit logic.
+Returns true if the frame should exit early (during fade or exit).
+================
+*/
+template<typename PlayersT>
+static bool UpdateIntermissionState(const PlayersT& players)
+{
+    // Handle intermission timing
     if (level.intermissiontime && g_horde->integer) {
         level.intermission_fade = true;
         constexpr gtime_t INTERMISSION_DURATION = 30_sec;
@@ -1253,20 +1270,66 @@ inline void G_RunFrame_(bool main_loop)
         }
 
         level.in_frame = false;
-        return;
+        return true;  // Exit frame early
     }
 
     // Exit intermissions
     if (level.exitintermission) {
         ExitLevel();
         level.in_frame = false;
-        return;
+        return true;  // Exit frame early
     }
 
     // Reload map on restart
     if (level.coop_level_restart_time > 0_ms && level.time > level.coop_level_restart_time) {
         ClientEndServerFrames();
         gi.AddCommandString("restart_level\n");
+    }
+
+    return false;  // Continue with normal frame processing
+}
+
+/*
+================
+G_RunFrame_
+
+Main game frame function. This is the main game frame function. It is called every server frame.
+The structure of this function is highly optimized for performance.
+================
+*/
+inline void G_RunFrame_(bool main_loop)
+{
+    auto monsters = active_monsters();
+    auto players = active_players();
+
+    // Profiler and Horde-specific setup.
+    if (g_horde_profiler) {
+        g_profiler_enabled = g_horde_profiler->integer != 0;
+    } else {
+        g_profiler_enabled = false;
+    }
+    Profiler_ResetFrame();
+
+    // Update proximity grid system (works in all game modes)
+    UpdateProximityGrids();
+
+    // Menu updates (works in all game modes)
+    CheckAndUpdateMenus();
+
+    // Horde-specific per-frame logic
+    if (g_horde->integer) {
+        ProcessHordePerFrameLogic(monsters, players);
+    }
+
+    // --- GENERAL FRAME LOGIC ---
+    level.in_frame = true;
+    G_CheckCvars();
+    Bot_UpdateDebug();
+    level.time += FRAME_TIME_MS;
+
+    // Handle intermission state (returns true if frame should exit early)
+    if (UpdateIntermissionState(players)) {
+        return;
     }
 
     // Handle coop respawn states - move conditional outside of loop for better branching
