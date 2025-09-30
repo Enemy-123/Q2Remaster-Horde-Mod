@@ -110,6 +110,7 @@ void barrel_burn_damage(edict_t* self)
 
     constexpr float BURN_DAMAGE_RADIUS = 250.0f;
     constexpr float BURN_DAMAGE_PER_SEC = 10.0f;
+    constexpr gtime_t target_cooldown_react = 1.5_sec;
     const float damage_this_frame = BURN_DAMAGE_PER_SEC * gi.frame_time_s;
 
     // Find nearby entities
@@ -139,6 +140,15 @@ void barrel_burn_damage(edict_t* self)
                 T_Damage(ent, self, damage_attacker,
                         vec3_origin, ent->s.origin, vec3_origin,
                         damage_this_frame, 0, DAMAGE_NONE, MOD_UNKNOWN);
+
+                // Make monsters target the barrel directly (like pathfinding "bad area" detection)
+                if (level.time - ent->monsterinfo.last_reacttodamage_target_time > target_cooldown_react) {
+                    if (!ent->enemy || !horde::IsSpecialType(ent->enemy, horde::SpecialEntityTypeID::BARREL)) {
+                        TargetTesla(ent, self);
+                        ent->monsterinfo.last_reacttodamage_target_time = level.time;
+                    }
+                }
+
                 monsters_damaged++;
             }
         }

@@ -536,6 +536,7 @@ void ExplodeTrap(edict_t* ent) {
 // Process trap targets (pull and potentially consume)
 bool ProcessTrapTargets(edict_t* ent, trap_state_t* trap_state) {
     bool consumed_target = false;
+    static constexpr gtime_t target_cooldown_react = 1.5_sec;
 
     for (int i = 0; i < trap_state->num_targets; i++) {
         edict_t* target = &g_edicts[trap_state->targets[i].entity_num];
@@ -558,6 +559,16 @@ bool ProcessTrapTargets(edict_t* ent, trap_state_t* trap_state) {
         const float max_speed = target->client ? TRAP_PULL_SPEED_PLAYER :
                                (consumed_target ? 190.0f : TRAP_PULL_SPEED_MONSTER);
         target->velocity += (vec * clamp(max_speed - vec_len, TRAP_PULL_SPEED_MIN, max_speed));
+
+        // Make monsters target the trap (like pathfinding "bad area" detection)
+        if (target->svflags & SVF_MONSTER) {
+            if (level.time - target->monsterinfo.last_reacttodamage_target_time > target_cooldown_react) {
+                if (!target->enemy || !horde::IsSpecialType(target->enemy, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
+                    TargetTesla(target, ent);
+                    target->monsterinfo.last_reacttodamage_target_time = level.time;
+                }
+            }
+        }
 
         // Only the first target gets sound and sparks
         if (i == 0) {

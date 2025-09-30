@@ -375,7 +375,8 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::BARREL)))
+                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::BARREL) ||
+                      horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)))
     {
         threat_source = inflictor;
     }
@@ -410,16 +411,18 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
             horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::BARREL))
+            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::BARREL) ||
+            horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
         {
             new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
 
-            // Summoned entities, morphed players, Laser Emitter, or Barrel logic
+            // Summoned entities, morphed players, Laser Emitter, Barrel, or Trap logic
             if (threat_source->monsterinfo.isfriendlyspawn ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::BARREL))
+				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::BARREL) ||
+				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
             {
                 if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
                 {
@@ -428,7 +431,8 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 					  	 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER) ||
-						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::BARREL))))
+						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::BARREL) ||
+						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))))
                     {
                         TargetTesla(targ, threat_source); // Assuming this function sets the enemy to any deployable.
                         targ->monsterinfo.last_reacttodamage_target_time = level.time;
