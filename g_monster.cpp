@@ -1189,6 +1189,91 @@ static void M_CheckDodge(edict_t* self)
     }
 }
 
+// Global dodge function for bonus monsters
+MONSTERINFO_DODGE(bonus_monster_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
+{
+	// Basic checks
+	if (!self->groundentity || self->health <= 0)
+		return;
+
+	// Set enemy if we don't have one
+	if (!self->enemy && attacker)
+	{
+		self->enemy = attacker;
+		FoundTarget(self);
+		return;
+	}
+
+	// Check dodge cooldown using timestamp
+	if (self->timestamp > level.time)
+		return;
+
+	// Don't dodge if projectile impact is too soon or too far away
+	if (eta < FRAME_TIME_MS || eta > 3_sec)
+		return;
+
+	// Don't dodge if attacker is invalid
+	if (!attacker)
+		return;
+
+	// Calculate dodge direction based on attacker position
+	vec3_t dodge_dir;
+
+	// Get our right vector for lateral dodge
+	vec3_t right;
+	AngleVectors(self->s.angles, nullptr, right, nullptr);
+
+	// Decide dodge direction - prefer moving away from attacker
+	vec3_t to_attacker = (attacker->s.origin - self->s.origin).normalized();
+	float side_dot = to_attacker.dot(right);
+
+	// Dodge perpendicular to attack direction, away from attacker
+	if (side_dot > 0)
+		dodge_dir = right * -1.0f; // Dodge left
+	else
+		dodge_dir = right; // Dodge right
+
+	// Add some forward/backward component based on distance
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	float dist = (self->s.origin - attacker->s.origin).length();
+
+	if (dist < 350.0f) {
+		// Close range - dodge backward
+		dodge_dir += forward * -0.35f;
+	} else if (dist > 700.0f) {
+		// Long range - dodge forward to close distance
+		dodge_dir += forward * 0.25f;
+	}
+
+	dodge_dir = dodge_dir.normalized();
+
+	// Calculate dodge speed based on urgency (eta)
+	float base_dodge_speed = 320.0f;
+	float eta_seconds = eta.seconds();
+	float urgency_multiplier = std::clamp(2.0f - eta_seconds, 1.0f, 2.5f);
+	float dodge_speed = base_dodge_speed * urgency_multiplier;
+
+	// Apply dodge velocity
+	vec3_t dodge_velocity = dodge_dir * dodge_speed;
+	
+	// Preserve some vertical momentum but replace horizontal
+	dodge_velocity.z = self->velocity.z * 0.5f;
+	self->velocity = dodge_velocity;
+
+	// Set cooldown using timestamp
+	self->timestamp = level.time + random_time(0.4_sec, 1.3_sec);
+
+	// Also set pausetime for movement consistency
+	self->monsterinfo.pausetime = level.time + random_time(0.3_sec, 0.7_sec);
+
+	// Update lefty for consistency with sidestep
+	self->monsterinfo.lefty = (side_dot > 0) ? 1 : 0;
+
+	// Mark that we're dodging
+	monster_done_dodge(self);
+}
+
 static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 {
 	trace_t tr = gi.traceline(start, end, nullptr, MASK_SOLID | CONTENTS_PROJECTILECLIP | CONTENTS_MONSTERCLIP | CONTENTS_PLAYERCLIP);

@@ -2838,6 +2838,7 @@ bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& s
 bool below(edict_t* self, edict_t* other);
 void drawbbox(edict_t* self);
 void M_MonsterDodge(edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity);
+void bonus_monster_dodge(edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity);
 void monster_duck_down(edict_t* self);
 void monster_duck_hold(edict_t* self);
 void monster_duck_up(edict_t* self);

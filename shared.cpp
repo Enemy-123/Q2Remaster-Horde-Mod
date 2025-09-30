@@ -612,6 +612,13 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 
 	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
+
+	// Apply bonus monster dodge if this is a bonus monster
+	// Override M_MonsterDodge with better implementation, but preserve custom dodges (spider, runnertank, etc)
+	if (IsBonusMonster(monster) && (!monster->monsterinfo.dodge || monster->monsterinfo.dodge == M_MonsterDodge)) {
+		monster->monsterinfo.dodge = bonus_monster_dodge;
+	}
+
 	gi.linkentity(monster);
 }
 

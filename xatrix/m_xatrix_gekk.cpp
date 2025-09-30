@@ -1563,87 +1563,87 @@ mframe_t gekk_frames_rduck[] = {
 };
 MMOVE_T(gekk_move_rduck) = { FRAME_rduck_01, FRAME_rduck_13, gekk_frames_rduck, gekk_run_start };
 
-MONSTERINFO_DODGE(gekk_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
-{
-	// [Paril-KEX] this dodge is bad
-#if 0
-	float r;
+// MONSTERINFO_DODGE(gekk_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
+// {
+// 	// [Paril-KEX] this dodge is bad
+// #if 0
+// 	float r;
 
-	r = frandom();
-	if (r > 0.25f)
-		return;
+// 	r = frandom();
+// 	if (r > 0.25f)
+// 		return;
 
-	if (!self->enemy)
-		self->enemy = attacker;
+// 	if (!self->enemy)
+// 		self->enemy = attacker;
 
-	if (self->waterlevel)
-	{
-		M_SetAnimation(self, &gekk_move_attack);
-		return;
-	}
+// 	if (self->waterlevel)
+// 	{
+// 		M_SetAnimation(self, &gekk_move_attack);
+// 		return;
+// 	}
 
-	if (skill->integer == 0)
-	{
-		r = frandom();
-		if (r > 0.5f)
-			M_SetAnimation(self, &gekk_move_lduck);
-		else
-			M_SetAnimation(self, &gekk_move_rduck);
-		return;
-	}
+// 	if (skill->integer == 0)
+// 	{
+// 		r = frandom();
+// 		if (r > 0.5f)
+// 			M_SetAnimation(self, &gekk_move_lduck);
+// 		else
+// 			M_SetAnimation(self, &gekk_move_rduck);
+// 		return;
+// 	}
 
-	self->monsterinfo.pausetime = level.time + eta + 300_ms;
-	r = frandom();
+// 	self->monsterinfo.pausetime = level.time + eta + 300_ms;
+// 	r = frandom();
 
-	if (skill->integer == 1)
-	{
-		if (r > 0.33f)
-		{
-			r = frandom();
-			if (r > 0.5f)
-				M_SetAnimation(self, &gekk_move_lduck);
-			else
-				M_SetAnimation(self, &gekk_move_rduck);
-		}
-		else
-		{
-			r = frandom();
-			if (r > 0.66f)
-				M_SetAnimation(self, &gekk_move_attack1);
-			else
-				M_SetAnimation(self, &gekk_move_attack2);
-		}
-		return;
-	}
+// 	if (skill->integer == 1)
+// 	{
+// 		if (r > 0.33f)
+// 		{
+// 			r = frandom();
+// 			if (r > 0.5f)
+// 				M_SetAnimation(self, &gekk_move_lduck);
+// 			else
+// 				M_SetAnimation(self, &gekk_move_rduck);
+// 		}
+// 		else
+// 		{
+// 			r = frandom();
+// 			if (r > 0.66f)
+// 				M_SetAnimation(self, &gekk_move_attack1);
+// 			else
+// 				M_SetAnimation(self, &gekk_move_attack2);
+// 		}
+// 		return;
+// 	}
 
-	if (skill->integer == 2)
-	{
-		if (r > 0.66f)
-		{
-			r = frandom();
-			if (r > 0.5f)
-				M_SetAnimation(self, &gekk_move_lduck);
-			else
-				M_SetAnimation(self, &gekk_move_rduck);
-		}
-		else
-		{
-			r = frandom();
-			if (r > 0.66f)
-				M_SetAnimation(self, &gekk_move_attack1);
-			else
-				M_SetAnimation(self, &gekk_move_attack2);
-		}
-		return;
-	}
+// 	if (skill->integer == 2)
+// 	{
+// 		if (r > 0.66f)
+// 		{
+// 			r = frandom();
+// 			if (r > 0.5f)
+// 				M_SetAnimation(self, &gekk_move_lduck);
+// 			else
+// 				M_SetAnimation(self, &gekk_move_rduck);
+// 		}
+// 		else
+// 		{
+// 			r = frandom();
+// 			if (r > 0.66f)
+// 				M_SetAnimation(self, &gekk_move_attack1);
+// 			else
+// 				M_SetAnimation(self, &gekk_move_attack2);
+// 		}
+// 		return;
+// 	}
 
-	r = frandom();
-	if (r > 0.66f)
-		M_SetAnimation(self, &gekk_move_attack1);
-	else
-		M_SetAnimation(self, &gekk_move_attack2);
-#endif
-}
+// 	r = frandom();
+// 	if (r > 0.66f)
+// 		M_SetAnimation(self, &gekk_move_attack1);
+// 	else
+// 		M_SetAnimation(self, &gekk_move_attack2);
+// #endif
+// }
 
 //
 // SPAWN
@@ -1809,7 +1809,7 @@ void SP_monster_gekk(edict_t* self)
 
 	self->monsterinfo.walk = gekk_walk;
 	self->monsterinfo.run = gekk_run_start;
-	self->monsterinfo.dodge = gekk_dodge;
+	//self->monsterinfo.dodge = gekk_dodge;
 	self->monsterinfo.attack = gekk_attack;
 	self->monsterinfo.melee = gekk_melee;
 	self->monsterinfo.sight = gekk_sight;
