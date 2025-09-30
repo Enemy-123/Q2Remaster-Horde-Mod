@@ -102,19 +102,15 @@ enum
 
 	CONFIG_STORY,
 
+	// Horde-specific configstrings (must be before CONFIG_LAST for bounds checking)
+	CONFIG_HORDEMSG,
+	CONFIG_VOTE_INFO,
+
 	CONFIG_LAST
 };
 
-// Original assertion
+// Validate all configstrings fit within CS_GENERAL range
 static_assert(CONFIG_LAST <= CS_GENERAL + MAX_GENERAL, "Exceeded maximum allowed general configstrings");
-
-
-enum
-{
-	CONFIG_HORDEMSG = CONFIG_LAST,
-	CONFIG_VOTE_INFO,
-	CUSTOM_CONFIG_LAST
-};
 
 // ammo IDs
 enum ammo_t : uint8_t

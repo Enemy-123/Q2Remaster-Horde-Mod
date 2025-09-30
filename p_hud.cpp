@@ -89,26 +89,26 @@ void G_UpdateLevelEntry()
 	level.entry->total_monsters = level.total_monsters;
 }
 
-inline void G_EndOfUnitEntry(std::stringstream& layout, int y, const level_entry_t& entry)
+inline void G_EndOfUnitEntry(std::string& layout, int y, const level_entry_t& entry)
 {
-	layout << G_Fmt("yv {} ", y);
+	layout += G_Fmt("yv {} ", y);
 
 	// we didn't visit this level, so print it as an unknown entry
 	if (!*entry.pretty_name)
 	{
-		layout << "table_row 1 ??? ";
+		layout += "table_row 1 ??? ";
 		return;
 	}
 
-	layout << G_Fmt("table_row 4 \"{}\" ", entry.pretty_name) <<
-		G_Fmt("{}/{} ", entry.killed_monsters, entry.total_monsters) <<
-		G_Fmt("{}/{} ", entry.found_secrets, entry.total_secrets);
+	layout += G_Fmt("table_row 4 \"{}\" ", entry.pretty_name);
+	layout += G_Fmt("{}/{} ", entry.killed_monsters, entry.total_monsters);
+	layout += G_Fmt("{}/{} ", entry.found_secrets, entry.total_secrets);
 
 	int32_t minutes = entry.time.milliseconds() / 60000;
 	int32_t seconds = (entry.time.milliseconds() / 1000) % 60;
 	int32_t milliseconds = entry.time.milliseconds() % 1000;
 
-	layout << G_Fmt("{:02}:{:02}:{:03} ", minutes, seconds, milliseconds);
+	layout += G_Fmt("{:02}:{:02}:{:03} ", minutes, seconds, milliseconds);
 }
 
 void G_EndOfUnitMessage()
@@ -116,7 +116,8 @@ void G_EndOfUnitMessage()
 	// [Paril-KEX] update game level entry
 	G_UpdateLevelEntry();
 
-	std::stringstream layout;
+	std::string layout;
+	layout.reserve(2048);  // Pre-allocate for end-of-unit layout
 
 	// sort entries
 	std::sort(game.level_entries.begin(), game.level_entries.end(), [](const level_entry_t& a, const level_entry_t& b) {
@@ -128,7 +129,7 @@ void G_EndOfUnitMessage()
 		return a_order < b_order;
 		});
 
-	layout << "start_table 4 $m_eou_level $m_eou_kills $m_eou_secrets $m_eou_time ";
+	layout += "start_table 4 $m_eou_level $m_eou_kills $m_eou_secrets $m_eou_time ";
 
 	int y = 16;
 	level_entry_t totals{};
@@ -158,17 +159,18 @@ void G_EndOfUnitMessage()
 	// make this a space so it prints totals
 	if (num_rows > 1) // Only show totals if more than one level was visited
 	{
-		layout << "table_row 0 "; // empty row to separate totals
+		layout += "table_row 0 "; // empty row to separate totals
 		totals.pretty_name[0] = ' '; // Hack to make G_EndOfUnitEntry format totals; consider a dedicated totals row format
 		G_EndOfUnitEntry(layout, y, totals);
 	}
 
-	layout << "xv 160 yt 0 draw_table ";
+	layout += "xv 160 yt 0 draw_table ";
 
-	layout << "ifgef " << (level.intermission_server_frame + (5_sec).frames()) << " yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif ";
+	layout += G_Fmt("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif ",
+		(level.intermission_server_frame + (5_sec).frames()));
 
 	gi.WriteByte(svc_layout);
-	gi.WriteString(layout.str().c_str());
+	gi.WriteString(layout.c_str());
 	gi.multicast(vec3_origin, MULTICAST_ALL, true);
 
 	for (auto player : active_players())
@@ -541,17 +543,26 @@ void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 		layout_string_buffer += entry_buffer;
 	}
 
-	if (fraglimit->integer)
+	// Add remaining info with overflow protection
+	if (fraglimit->integer && layout_string_buffer.length() < MAX_SCOREBOARD_SIZE - 100)
 	{
 		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
 	}
-	if (timelimit->value && !level.intermissiontime)
+	if (timelimit->value && !level.intermissiontime && layout_string_buffer.length() < MAX_SCOREBOARD_SIZE - 100)
 	{
 		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("xv 340 yv -10 time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
-	if (level.intermissiontime)
+	if (level.intermissiontime && layout_string_buffer.length() < MAX_SCOREBOARD_SIZE - 100)
 		fmt::format_to(std::back_inserter(layout_string_buffer), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+
+	// Final safety check before sending
+	if (layout_string_buffer.length() >= MAX_SCOREBOARD_SIZE)
+	{
+		layout_string_buffer.resize(MAX_SCOREBOARD_SIZE - 1);
+		if (developer && developer->integer)
+			gi.Com_Print("WARNING: Scoreboard truncated to prevent overflow\n");
+	}
 
 	gi.WriteByte(svc_layout);
 	gi.WriteString(layout_string_buffer.c_str());
@@ -629,7 +640,8 @@ void HelpComputer(edict_t* ent)
 
 	// send the layout
 
-	std::string helpString = "";
+	std::string helpString;
+	helpString.reserve(2048);  // Pre-allocate to avoid reallocations during concatenation
 	helpString += G_Fmt(
 		"xv 32 yv 8 picn help "		   // background
 		"xv 0 yv 25 cstring2 \"{}\" ",  // level name
@@ -974,8 +986,11 @@ void G_SetStats(edict_t* ent)
 		bool is_sphere;
 	};
 
-	std::vector<active_powerup_t> active_powerups;
-    active_powerups.reserve(8); // Pre-allocate for a few common powerups + sphere
+	// Use static thread_local to avoid per-frame heap allocations
+	static thread_local std::vector<active_powerup_t> active_powerups;
+	active_powerups.clear();
+	if (active_powerups.capacity() < 8)
+		active_powerups.reserve(8);
 
 	for (auto& powerup_entry : powerup_table) // Iterate through the global powerup_table
 	{
@@ -1114,8 +1129,11 @@ void G_SetStats(edict_t* ent)
 			ent->client->ps.stats[STAT_KEY_B] =
 			ent->client->ps.stats[STAT_KEY_C] = 0;
 
-		std::vector<item_id_t> keys_held; // Use std::vector instead of large stack array
-        keys_held.reserve(10); // Pre-allocate for a reasonable number of keys
+		// Use static thread_local to avoid per-frame heap allocations
+		static thread_local std::vector<item_id_t> keys_held;
+		keys_held.clear();
+		if (keys_held.capacity() < 10)
+			keys_held.reserve(10);
 
 		for (size_t i = 0; i < IT_TOTAL; ++i) // Iterate using index for global C array
 		{

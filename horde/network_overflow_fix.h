@@ -6,6 +6,7 @@
 // Core throttling functions
 void G_ResetNetworkThrottle();
 bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time = 100_ms);
+bool G_CanSendReliableData(int byte_size);
 
 // Monster optimization
 void G_OptimizeMonsterNetworkUpdate(edict_t* monster);
@@ -23,11 +24,11 @@ void G_NetworkThrottle_RunFrame();
 void G_GetMinimalRoomMetadata(char* buffer, size_t buffer_size);
 int CountActiveClients();
 
-// Message size tracking
+// Message size tracking helper class
 class MessageSizeTracker {
 private:
     int current_size;
-    static constexpr int MAX_SAFE_SIZE = 1200;  // Leave buffer under 1400
+    static constexpr int MAX_SAFE_SIZE = 1200;  // Leave buffer under 1400 byte limit
 
 public:
     MessageSizeTracker() : current_size(0) {}
@@ -40,7 +41,10 @@ public:
 
     bool Add(int bytes) {
         if (!CanAdd(bytes)) {
-            gi.Com_Print("Warning: Message size limit reached, skipping data\n");
+            if (developer && developer->integer) {
+                gi.Com_PrintFmt("WARNING: Message size limit {} reached, skipping {} bytes\n",
+                                MAX_SAFE_SIZE, bytes);
+            }
             return false;
         }
         current_size += bytes;
@@ -49,4 +53,9 @@ public:
 
     int GetCurrentSize() const { return current_size; }
     int GetRemainingSpace() const { return MAX_SAFE_SIZE - current_size; }
+
+    // Check against reliable buffer
+    bool CheckReliableCapacity() const {
+        return G_CanSendReliableData(current_size);
+    }
 };
