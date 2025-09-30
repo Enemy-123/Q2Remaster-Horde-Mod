@@ -57,16 +57,9 @@ int32_t AssetManager::RegisterModel(const char* name, bool is_core) {
     m_stats.total_models++;
 
     // Check if we're approaching limits and warn
-    // CRITICAL: Keep well under limit to prevent client bad_alloc crashes on connect
-    if (m_models.size() > MAX_MODELS * 0.3) {
-        gi.Com_PrintFmt("WARNING: Approaching safe model limit ({}/{})\n",
-                        m_models.size(), static_cast<size_t>(MAX_MODELS * 0.3));
-    }
-
-    // Hard limit to prevent client crashes
-    if (m_models.size() > MAX_MODELS * 0.5) {
-        gi.Com_PrintFmt("ERROR: Model limit reached! Refusing to register: %s\n", name);
-        return 0;  // Fail registration to prevent client crash
+    if (m_models.size() > MAX_MODELS * 0.9) {
+        gi.Com_PrintFmt("WARNING: Approaching model limit ({}/{})\n",
+                        m_models.size(), MAX_MODELS);
     }
 
     return index;
@@ -95,16 +88,9 @@ int32_t AssetManager::RegisterSound(const char* name, bool is_core) {
     m_sounds[name] = info;
     m_stats.total_sounds++;
 
-    // CRITICAL: Keep well under limit to prevent client bad_alloc crashes on connect
-    if (m_sounds.size() > MAX_SOUNDS * 0.3) {
-        gi.Com_PrintFmt("WARNING: Approaching safe sound limit ({}/{})\n",
-                        m_sounds.size(), static_cast<size_t>(MAX_SOUNDS * 0.3));
-    }
-
-    // Hard limit to prevent client crashes
-    if (m_sounds.size() > MAX_SOUNDS * 0.5) {
-        gi.Com_PrintFmt("ERROR: Sound limit reached! Refusing to register: %s\n", name);
-        return 0;  // Fail registration to prevent client crash
+    if (m_sounds.size() > MAX_SOUNDS * 0.9) {
+        gi.Com_PrintFmt("WARNING: Approaching sound limit ({}/{})\n",
+                        m_sounds.size(), MAX_SOUNDS);
     }
 
     return index;
@@ -133,16 +119,9 @@ int32_t AssetManager::RegisterImage(const char* name, bool is_core) {
     m_images[name] = info;
     m_stats.total_images++;
 
-    // CRITICAL: Keep well under limit to prevent client bad_alloc crashes on connect
-    if (m_images.size() > MAX_IMAGES * 0.3) {
-        gi.Com_PrintFmt("WARNING: Approaching safe image limit ({}/{})\n",
-                        m_images.size(), static_cast<size_t>(MAX_IMAGES * 0.3));
-    }
-
-    // Hard limit to prevent client crashes
-    if (m_images.size() > MAX_IMAGES * 0.5) {
-        gi.Com_PrintFmt("ERROR: Image limit reached! Refusing to register: %s\n", name);
-        return 0;  // Fail registration to prevent client crash
+    if (m_images.size() > MAX_IMAGES * 0.9) {
+        gi.Com_PrintFmt("WARNING: Approaching image limit ({}/{})\n",
+                        m_images.size(), MAX_IMAGES);
     }
 
     return index;

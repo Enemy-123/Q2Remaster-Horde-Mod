@@ -1399,21 +1399,18 @@ void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& di
 {
 	uint32_t const current_frame = gi.ServerFrame();
 
-	// Enable lag compensation for Horde mode (players vs monsters with international ping)
-	// Also works for deathmatch (players vs players)
-	extern cvar_t* g_horde;
-	if (!deathmatch->integer && (!g_horde || !g_horde->integer))
+	// if you need this to fight monsters, you need help
+	if (!deathmatch->integer)
 		return;
 	else if (!g_lag_compensation->integer)
 		return;
-	// don't need this for bots or if client is up to date
+	// don't need this
 	else if (from_player->client->cmd.server_frame >= current_frame ||
 		(from_player->svflags & SVF_BOT))
 		return;
 
 	int32_t const frame_delta = (current_frame - from_player->client->cmd.server_frame) + 1;
 
-	// Lag compensate PLAYERS (for deathmatch / PvP in horde)
 	for (auto player : active_players())
 	{
 		// we aren't gonna hit ourselves
@@ -1457,58 +1454,11 @@ void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& di
 
 		gi.linkentity(player);
 	}
-
-	// Lag compensate MONSTERS (for Horde mode with international players)
-	// This is critical for players with 150-300ms ping fighting moving targets
-	if (g_horde && g_horde->integer)
-	{
-		// Simple monster lag compensation: rewind to frame_delta ago
-		// Monsters don't have lag history like players, so we estimate based on velocity
-		for (auto monster : active_monsters())
-		{
-			if (!monster->inuse || monster->health <= 0)
-				continue;
-
-			// if they're way outside of cone of vision, skip
-			if ((monster->s.origin - start).normalized().dot(dir) < 0.75f)
-				continue;
-
-			// Estimate where monster was frame_delta frames ago based on velocity
-			// This is a simple approximation: position - (velocity * time)
-			// frame_delta is in server frames, server runs at 10Hz (100ms per frame)
-			float time_delta = frame_delta * 0.1f;  // frames to seconds
-			vec3_t estimated_old_pos = monster->s.origin - (monster->velocity * time_delta);
-
-			// Only compensate if monster moved significantly
-			float dist_sq = (monster->s.origin - estimated_old_pos).lengthSquared();
-			constexpr float MIN_COMPENSATION_DIST_SQ = 4.0f * 4.0f;  // 4 units
-
-			if (dist_sq < MIN_COMPENSATION_DIST_SQ)
-				continue;
-
-			// no way they'd be hit if they aren't in the PVS
-			if (!gi.inPVS(estimated_old_pos, start, false))
-				continue;
-
-			// Store original position in last_sighting (unused field in PvE)
-			// and mark for restoration
-			if (!(monster->monsterinfo.aiflags & AI_LAG_COMPENSATED))
-			{
-				monster->monsterinfo.aiflags |= AI_LAG_COMPENSATED;
-				monster->monsterinfo.last_sighting = monster->s.origin;
-			}
-
-			// Rewind monster to estimated position
-			monster->s.origin = estimated_old_pos;
-			gi.linkentity(monster);
-		}
-	}
 }
 
 // [Paril-KEX] pop everybody's lag compensation values
 void G_UnLagCompensate()
 {
-	// Restore players
 	for (auto player : active_players())
 	{
 		if (player->client->is_lag_compensated)
@@ -1516,21 +1466,6 @@ void G_UnLagCompensate()
 			player->client->is_lag_compensated = false;
 			player->s.origin = player->client->lag_restore_origin;
 			gi.linkentity(player);
-		}
-	}
-
-	// Restore monsters (Horde mode)
-	extern cvar_t* g_horde;
-	if (g_horde && g_horde->integer)
-	{
-		for (auto monster : active_monsters())
-		{
-			if (monster->monsterinfo.aiflags & AI_LAG_COMPENSATED)
-			{
-				monster->monsterinfo.aiflags &= ~AI_LAG_COMPENSATED;
-				monster->s.origin = monster->monsterinfo.last_sighting;
-				gi.linkentity(monster);
-			}
 		}
 	}
 }
