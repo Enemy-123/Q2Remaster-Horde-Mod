@@ -1794,9 +1794,11 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	gi.modelindex("models/monsters/gunner/gibs/head.md2");
 
 	// Configuración de tamaño y escala
-	self->s.scale = 1.25f;
 	self->mins = vec3_t{ -16, -16, -24 };
 	self->maxs = vec3_t{ 16, 16, 36 };
+	self->s.scale = 1.25f;
+	self->mins *= self->s.scale;
+	self->maxs *= self->s.scale;
 	self->s.skinnum = 2;
 
 	// Health already varies by style, but should be clearer

@@ -2016,10 +2016,9 @@ void SP_monster_spider(edict_t* self)
 
     // Initialize plasma sounds
     sound_plasma.assign("weapons/plasshot.wav");
-    sound_plasma_hit.assign("weapons/plasma/hit.wav");
+    sound_plasma_hit.assign("weapons/plasshot.wav");
 
-    gi.soundindex("weapons/plasma/fire1.wav");
-    gi.soundindex("weapons/plasma/hit.wav");
+    gi.soundindex("weapons/plasshot.wav");
 
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SPIDER);
     self->spawnflags |= SPAWNFLAG_SPIDER;

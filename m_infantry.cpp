@@ -1199,9 +1199,13 @@ void SP_monster_infantry(edict_t* self)
 
 	self->style = 1;
 
+	SP_monster_infantry_vanilla(self);
+
 	if (g_horde->integer) {
 
 		self->s.scale = 1.2f;
+		self->mins *= self->s.scale;
+		self->maxs *= self->s.scale;
 
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.power_armor_power = 85;
@@ -1210,8 +1214,6 @@ void SP_monster_infantry(edict_t* self)
 
 		self->health = 125 * st.health_multiplier;
 	}
-
-	SP_monster_infantry_vanilla(self);
 
 
 }
