@@ -688,6 +688,11 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->client->invisible_time = 0_ms;
 	self->flags &= ~FL_POWER_ARMOR;
 
+	// Clean up summoned entities (strogg summons, revived monsters)
+	if (g_horde->integer) {
+		Cmd_RemoveAllSummons_f(self);
+	}
+
 	// clear inventory
 //	if (G_TeamplayEnabled())					// fixing no weapons loadout
 //		self->client->pers.inventory.fill(0);

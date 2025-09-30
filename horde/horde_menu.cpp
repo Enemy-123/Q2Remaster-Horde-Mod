@@ -1091,8 +1091,8 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	// Use strncmp for options that might have counts appended or dynamic text
 	if (strncmp(selected_text, "Remove Stroggs", strlen("Remove Stroggs")) == 0) {
-		// Remove all summoned creatures (stroggs, revived monsters, etc) excluding bases, lasers, barrels
-		Cmd_RemoveAllSummons_f(ent);
+		// Remove Strogg summoner bases (which will also kill their spawned monsters)
+		Cmd_RemoveStrogg_f(ent);
 		// Message handled internally, menu should close.
 	}
 	else if (strncmp(selected_text, "Remove Lasers", strlen("Remove Lasers")) == 0) {

@@ -1908,6 +1908,7 @@ struct monsterinfo_t
 	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
 	uint8_t monster_type_id;
+	uint8_t resurrections_performed = 0; // Track number of successful resurrections by medic
 
 
 	bonus_flags_t bonus_flags = BF_NONE; //Powerups or Special Flags for horde
@@ -3004,6 +3005,9 @@ namespace BarrelConstants {
     constexpr float BARREL_PICKUP_RANGE = 128.0f;
     constexpr float BARREL_THROW_SPEED = 700.0f;
 }
+
+// Strogg summoner limits (also used for medic resurrection limit)
+constexpr int32_t MAX_STROGG_SUMMONS = 3;
 
 
 // Define esta enumeración antes de la estructura edict_t

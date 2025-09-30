@@ -428,21 +428,19 @@ bool finishHeal(edict_t* self)
 			healee->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 			healee->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
-			// If medic has a chain (base entity), resurrected monster gets same references
-			if (self->chain) {
-				healee->chain = self->chain;  // Point to same base
-				healee->teammaster = self->teammaster;  // Point to same player owner
-				healee->touch = strogg_summoned_touch;  // Allow owner to push
-			} else {
-				// Medic doesn't have chain (shouldn't happen with proper summon), use medic's teammaster
-				healee->teammaster = self->teammaster;
-			}
+			// Set chain and teammaster references
+			healee->chain = self->chain ? self->chain : self;  // Use medic's chain, or medic itself as fallback
+			healee->teammaster = self->teammaster;  // Point to player owner
+			healee->touch = strogg_summoned_touch;  // Always set touch to allow owner to push
 
 			// Ensure proper collision for summoned monsters
 			healee->svflags &= ~SVF_PLAYER;
 			healee->svflags |= SVF_MONSTER;
 			healee->solid = SOLID_BBOX;
 			healee->clipmask = MASK_MONSTERSOLID;
+
+			// Re-link entity to ensure touch function and collision are applied
+			gi.linkentity(healee);
 		}
 	}
 
@@ -509,6 +507,41 @@ bool finishHeal(edict_t* self)
 	// Mark that resurrection completed successfully
 	if (self && self->inuse && healee && healee->health > 0) {
 		self->monsterinfo.last_resurrection_time = level.time;
+
+		// Notify owner for summoned medics
+		if (self->monsterinfo.issummoned && self->teammaster && self->teammaster->client) {
+			// Count current summoned monsters (not bases - they're just infrastructure)
+			int summon_count = 0;
+
+			// Count all summoned monsters (including this newly revived one and the medic itself)
+			for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
+				edict_t* check = &g_edicts[i];
+				if (check && check->inuse && check->teammaster == self->teammaster && check->chain) {
+					// Exclude bases, lasers, and barrels
+					if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+						!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
+						!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
+						!horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
+						summon_count++;
+					}
+				}
+			}
+
+			// Get monster name
+			const char* monster_name = "monster";
+			auto monster_type = static_cast<horde::MonsterTypeID>(healee->monsterinfo.monster_type_id);
+			if (monster_type != horde::MonsterTypeID::UNKNOWN) {
+				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_type);
+				if (classname && strncmp(classname, "monster_", 8) == 0) {
+					monster_name = classname + 8;  // Skip "monster_" prefix
+				}
+			}
+
+			// Notify the owner with total summon count
+			gi.LocClient_Print(self->teammaster, PRINT_HIGH,
+				"Medic resurrected {}! ({}/{})\n",
+				monster_name, summon_count, MAX_STROGG_SUMMONS);
+		}
 	}
 
 	cleanupHeal(self);
@@ -1658,6 +1691,37 @@ void medic_cable_attack(edict_t* self)
             // Resurrect corpse in horde mode
             if (self->s.frame == FRAME_attack43)
             {
+                // Check total summon limit for summoned medics
+                if (self->monsterinfo.issummoned && self->teammaster && self->teammaster->client)
+                {
+                    // Count total active summoned monsters (not bases - they're just infrastructure)
+                    int total_summons = 0;
+
+                    // Count all summoned monsters (including medic and other summons)
+                    for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
+                        edict_t* check = &g_edicts[i];
+                        if (check && check->inuse && check->teammaster == self->teammaster && check->chain) {
+                            // Exclude bases, lasers, and barrels
+                            if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+                                !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
+                                !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
+                                !horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
+                                total_summons++;
+                            }
+                        }
+                    }
+
+                    // Check if we've reached the summon limit
+                    if (total_summons >= MAX_STROGG_SUMMONS)
+                    {
+                        gi.LocClient_Print(self->teammaster, PRINT_HIGH,
+                            "Cannot resurrect: summon limit reached ({}/{})\n",
+                            total_summons, MAX_STROGG_SUMMONS);
+                        abortHeal(self, false, false);
+                        return;
+                    }
+                }
+
                 // Force immediate team change for the corpse BEFORE resurrection
                 self->enemy->ctf_team = self->ctf_team;
                 if (self->enemy->svflags & SVF_MONSTER)
@@ -2371,6 +2435,33 @@ MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 
 		if (!has_active_threat)
 		{
+			// For summoned medics, check if summon limit is reached before trying to resurrect
+			if (self->monsterinfo.issummoned && self->teammaster && self->teammaster->client)
+			{
+				int total_summons = 0;
+				// Count all summoned monsters
+				for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
+					edict_t* check = &g_edicts[i];
+					if (check && check->inuse && check->teammaster == self->teammaster && check->chain) {
+						// Exclude bases, lasers, and barrels
+						if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+							!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
+							!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
+							!horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
+							total_summons++;
+						}
+					}
+				}
+
+				// Don't even try to resurrect if limit reached
+				if (total_summons >= MAX_STROGG_SUMMONS)
+				{
+					// Skip resurrection entirely - medic will continue normal behavior
+					// No need to notify player repeatedly
+					return M_CheckAttack(self);
+				}
+			}
+
 			edict_t* dead = medic_FindDeadMonster(self);
 			// We only care about corpses here. Living allies are handled by medic_check_heal.
 			if (dead && dead->health <= 0 && realrange(self, dead) < MEDIC_MAX_HEAL_DISTANCE * 0.75f)
@@ -2652,6 +2743,12 @@ void SP_monster_medic(edict_t* self)
 		// }
 			}
 	// pmm
+
+	// Disable reinforcement spawning for summoned medics to prevent cascading spawns
+	if (self->monsterinfo.issummoned) {
+		self->monsterinfo.monster_slots = 0;
+		self->monsterinfo.monster_used = 0;
+	}
 
 	ApplyMonsterBonusFlags(self);
 }

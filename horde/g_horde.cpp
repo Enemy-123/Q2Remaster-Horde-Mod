@@ -65,8 +65,8 @@ std::vector<size_t> g_eligible_item_indices_for_wave;
 
 // Progressive monster unlocking system for memory management
 static std::unordered_set<horde::MonsterTypeID> g_excluded_monsters_this_map;
-static std::unordered_set<horde::MonsterTypeID> g_precached_monsters_this_map;
-static std::unordered_set<std::string> g_precached_models_this_map; // Track which models are loaded
+std::unordered_set<horde::MonsterTypeID> g_precached_monsters_this_map; // Non-static for external access
+std::unordered_set<std::string> g_precached_models_this_map; // Non-static for external access
 static int g_map_rotation_seed = 0;
 static int g_last_precache_wave = 0;
 constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 20; // Exclude about 20-25 monsters per map

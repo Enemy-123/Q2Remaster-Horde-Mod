@@ -1796,26 +1796,54 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	}
 	// --- END FIX ---
 
-	 // Handle summoned entity notifications and count tracking
-    if (self->monsterinfo.issummoned && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
-        // Check if owner is valid before accessing owner data
-        if (self->owner && self->owner->inuse && self->owner->client) {
-            gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
+	// Handle sentry gun count tracking cleanup
+	// Use special_type_id check which is more reliable than monster_type_id
+	if (horde::IsSpecialType(self, horde::SpecialEntityTypeID::SENTRY_GUN)) {
+		// Try to find the owner - first check direct owner pointer
+		edict_t* sentry_owner = nullptr;
+		if (self->owner && self->owner->inuse && self->owner->client) {
+			sentry_owner = self->owner;
+		}
+		else {
+			// Owner pointer invalid - search all players for this sentry in their arrays
+			for (int i = 0; i < game.maxclients; i++) {
+				edict_t* player = &g_edicts[1 + i];
+				if (!player->inuse || !player->client)
+					continue;
 
-            // Decrement the count with bounds checking
-            if (self->owner->client->resp.num_sentries > 0) {
-                self->owner->client->resp.num_sentries--;
-            }
+				// Check if this player has this sentry in their array
+				for (int j = 0; j < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++j) {
+					if (player->client->resp.deployed_sentries[j] == self) {
+						sentry_owner = player;
+						break;
+					}
+				}
+				if (sentry_owner)
+					break;
+			}
+		}
 
-            // Find this sentry in the owner's tracking array and null it out
-            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
-                if (self->owner->client->resp.deployed_sentries[i] == self) {
-                    self->owner->client->resp.deployed_sentries[i] = nullptr;
-                    break; // Found it, we're done
-                }
-            }
-        }
-    }
+		// If we found the owner, clean up the tracking
+		if (sentry_owner && sentry_owner->client) {
+			// Notify the owner
+			if (self->monsterinfo.issummoned) {
+				gi.Client_Print(sentry_owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
+			}
+
+			// Decrement the count with bounds checking
+			if (sentry_owner->client->resp.num_sentries > 0) {
+				sentry_owner->client->resp.num_sentries--;
+			}
+
+			// Find this sentry in the owner's tracking array and null it out
+			for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+				if (sentry_owner->client->resp.deployed_sentries[i] == self) {
+					sentry_owner->client->resp.deployed_sentries[i] = nullptr;
+					break;
+				}
+			}
+		}
+	}
 	
 	//OnEntityDeath(self);
 	vec3_t forward;

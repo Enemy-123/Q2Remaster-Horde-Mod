@@ -157,6 +157,8 @@ extern std::unordered_set<std::string> g_precached_sounds;
 extern int32_t g_total_precached_models;
 extern int32_t g_total_precached_sounds;
 extern std::array<bool, 128> g_precached_monster_types_flags; // Precache flags for each monster type
+extern std::unordered_set<horde::MonsterTypeID> g_precached_monsters_this_map; // Monster types precached this map
+extern std::unordered_set<std::string> g_precached_models_this_map; // Models loaded this map
 
 // --- Operator Overloads for MonsterWaveType ---
 // These are fine to keep in the header as they are small, inline, and constexpr.

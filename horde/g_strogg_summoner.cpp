@@ -2,6 +2,7 @@
 #include "../g_local.h"
 #include "../m_player.h"
 #include "horde_ids.h"
+#include "g_horde.h"
 
 // ***************************
 //  STROGG SUMMONER
@@ -171,7 +172,7 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	}
 	else if (monster_type < 39) {
 		selected_type = horde::MonsterTypeID::DAEDALUS_BOMBER;
-		SP_monster_tank(monster);
+		SP_monster_daedalus_bomber(monster);
 	}
 	else if (monster_type < 52) {
 		selected_type = horde::MonsterTypeID::SPIDER;
@@ -196,6 +197,15 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 
 	// Store the monster type ID for later use
 	monster->monsterinfo.monster_type_id = static_cast<uint8_t>(selected_type);
+
+	// Add to horde precache pool - summoned monsters unlock that type for regular horde spawning
+	if (g_horde->integer && selected_type != horde::MonsterTypeID::UNKNOWN) {
+		g_precached_monster_types_flags[static_cast<size_t>(selected_type)] = true;
+		g_precached_monsters_this_map.insert(selected_type);
+
+		// Unlock model family members (free precache for variants sharing the same model)
+		UnlockModelFamilyMembers(selected_type, current_wave_level);
+	}
 
 	// Verify spawn succeeded
 	if (!monster->inuse) {
@@ -318,6 +328,21 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 	// Sound effect
 	gi.sound(ent, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 
+	// Count current summoned monsters for display (not bases - they're just infrastructure)
+	int summon_count = 0;
+	for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
+		edict_t* check = &g_edicts[i];
+		if (check && check->inuse && check->teammaster == ent && check->chain) {
+			// Exclude bases, lasers, and barrels
+			if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
+				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
+				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
+				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
+				summon_count++;
+			}
+		}
+	}
+
 	// Message to player - use MonsterTypeRegistry to get proper name
 	const char* monster_name = "warrior";
 	auto monster_type = static_cast<horde::MonsterTypeID>(monster->monsterinfo.monster_type_id);
@@ -327,7 +352,8 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 			monster_name = classname + 8;  // Skip "monster_" prefix
 		}
 	}
-	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! Type 'remove strogg' to dismiss.\n", monster_name);
+	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! ({}/{})\n",
+		monster_name, summon_count, MAX_STROGG_SUMMONS);
 }
 
 // Replacement for StroggSummonAtPoint - now returns the base instead of the monster
@@ -370,7 +396,7 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
 			special_ent->teammaster == ent) {
 			summon_count++;
-			if (summon_count >= 4) { // Limit to 2 summons per player
+			if (summon_count >= MAX_STROGG_SUMMONS) {
 				gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!\n");
 				return;
 			}
