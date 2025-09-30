@@ -125,7 +125,6 @@
     <ClInclude Include="game.h" />
     <ClInclude Include="g_local.h" />
     <ClInclude Include="g_statusbar.h" />
-    <ClInclude Include="horde\g_asset_manager.h" />
     <ClInclude Include="horde\g_entity_properties.h" />
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="horde\g_horde_benefits.h" />
@@ -135,7 +134,6 @@
     <ClInclude Include="horde\horde_ids.h" />
     <ClInclude Include="horde\horde_performance.h" />
     <ClInclude Include="horde\horde_spawning.h" />
-    <ClInclude Include="horde\network_overflow_fix.h" />
     <ClInclude Include="horde\p_brain_morph.h" />
     <ClInclude Include="horde\p_flyer_morph.h" />
     <ClInclude Include="memory_safety.h" />
@@ -187,10 +185,8 @@
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
-    <ClCompile Include="horde\g_asset_manager.cpp" />
     <ClCompile Include="horde\g_barrel.cpp" />
     <ClCompile Include="horde\g_bombspell.cpp" />
-    <ClCompile Include="horde\g_horde_assets.cpp" />
     <ClCompile Include="horde\g_doppleganger.cpp" />
     <ClCompile Include="horde\g_entity_properties.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
@@ -204,7 +200,6 @@
     <ClCompile Include="horde\horde_ids.cpp" />
     <ClCompile Include="horde\horde_menu.cpp" />
     <ClCompile Include="horde\horde_spawning.cpp" />
-    <ClCompile Include="horde\network_overflow_fix.cpp" />
     <ClCompile Include="horde\p_brain_morph.cpp" />
     <ClCompile Include="horde\p_flyer_morph.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
