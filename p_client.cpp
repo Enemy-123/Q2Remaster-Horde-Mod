@@ -83,11 +83,36 @@ namespace HordeConstants {
 		constexpr int16_t SHELLS = 10;
 	}
 }
+// ========================================================================
+// PLAYER CONSTANTS
+// ========================================================================
+namespace PlayerConstants {
+	constexpr int DEFAULT_HEALTH = 100;
+	constexpr int DEFAULT_MAX_HEALTH = 100;
+	constexpr int DEFAULT_BLASTER_AMMO = 25;
+	constexpr int DEFAULT_VIEWHEIGHT = 22;
+	constexpr int DEFAULT_MASS = 200;
+	constexpr gtime_t AIR_TIME = 12_sec;
+	constexpr gtime_t RESPAWN_TIMEOUT = 3_sec;
+	constexpr gtime_t RESPAWN_INVULNERABILITY = 2_sec;
+	
+	// Spawn point safety distances
+	constexpr float SPAWN_PLAYER_MIN_DISTANCE = 32.0f;
+	constexpr float LAVA_SAFETY_MARGIN = 64.0f;
+	constexpr int MAX_LAVA_SPAWN_POINTS = 64;
+}
 
 // Helper function for password validation
-inline bool ValidatePassword(const char* password_cvar, const char* user_password)
+inline bool ValidatePassword(const char* password_cvar, const char* user_password) noexcept
 {
-	return *password_cvar && strcmp(password_cvar, "none") && strcmp(password_cvar, user_password);
+	// Returns true if validation FAILS (password required but wrong/missing)
+	if (!password_cvar || !*password_cvar)
+		return false; // No password set
+	
+	if (strcmp(password_cvar, "none") == 0)
+		return false; // Password explicitly disabled
+	
+	return strcmp(password_cvar, user_password) != 0; // True if passwords don't match (validation failed)
 }
 
 THINK(info_player_start_drop) (edict_t* self) -> void
@@ -187,277 +212,278 @@ bool P_UseCoopInstancedItems() noexcept
 //=======================================================================
 
 
+// ========================================================================
+// OBITUARY MESSAGE LOOKUP TABLES
+// ========================================================================
+
+namespace ObituaryMessages {
+	// Self-kill messages (suicide)
+	inline const char* GetSelfKillMessage(mod_id_t mod_id)
+	{
+		switch (mod_id)
+		{
+		case MOD_HELD_GRENADE:   return "$g_mod_self_held_grenade";
+		case MOD_HG_SPLASH:
+		case MOD_G_SPLASH:       return "$g_mod_self_grenade_splash";
+		case MOD_R_SPLASH:       return "$g_mod_self_rocket_splash";
+		case MOD_BFG_BLAST:      return "$g_mod_self_bfg_blast";
+		case MOD_TRAP:           return "$g_mod_self_trap";
+		case MOD_DOPPLE_EXPLODE: return "$g_mod_self_dopple_explode";
+		default:                 return "{0} becomes bored with life\n";
+		}
+	}
+
+	// Player vs Player kill messages
+	inline const char* GetPlayerKillMessage(mod_id_t mod_id)
+	{
+		switch (mod_id)
+		{
+		case MOD_BLASTER:          return "$g_mod_kill_blaster";
+		case MOD_SHOTGUN:          return "$g_mod_kill_shotgun";
+		case MOD_SSHOTGUN:         return "$g_mod_kill_sshotgun";
+		case MOD_MACHINEGUN:       return "$g_mod_kill_machinegun";
+		case MOD_CHAINGUN:         return "$g_mod_kill_chaingun";
+		case MOD_GRENADE:          return "$g_mod_kill_grenade";
+		case MOD_G_SPLASH:         return "$g_mod_kill_grenade_splash";
+		case MOD_ROCKET:           return "$g_mod_kill_rocket";
+		case MOD_R_SPLASH:         return "$g_mod_kill_rocket_splash";
+		case MOD_HYPERBLASTER:     return "$g_mod_kill_hyperblaster";
+		case MOD_RAILGUN:          return "$g_mod_kill_railgun";
+		case MOD_BFG_LASER:        return "$g_mod_kill_bfg_laser";
+		case MOD_BFG_BLAST:        return "$g_mod_kill_bfg_blast";
+		case MOD_BFG_EFFECT:       return "$g_mod_kill_bfg_effect";
+		case MOD_HANDGRENADE:      return "$g_mod_kill_handgrenade";
+		case MOD_HG_SPLASH:        return "$g_mod_kill_handgrenade_splash";
+		case MOD_HELD_GRENADE:     return "$g_mod_kill_held_grenade";
+		case MOD_TELEFRAG:
+		case MOD_TELEFRAG_SPAWN:   return "$g_mod_kill_telefrag";
+		case MOD_RIPPER:           return "$g_mod_kill_ripper";
+		case MOD_PHALANX:          return "$g_mod_kill_phalanx";
+		case MOD_TRAP:             return "$g_mod_kill_trap";
+		case MOD_CHAINFIST:        return "$g_mod_kill_chainfist";
+		case MOD_DISINTEGRATOR:    return "$g_mod_kill_disintegrator";
+		case MOD_ETF_RIFLE:        return "$g_mod_kill_etf_rifle";
+		case MOD_HEATBEAM:         return "$g_mod_kill_heatbeam";
+		case MOD_TESLA:            return "$g_mod_kill_tesla";
+		case MOD_PROX:             return "$g_mod_kill_prox";
+		case MOD_NUKE:             return "$g_mod_kill_nuke";
+		case MOD_VENGEANCE_SPHERE: return "$g_mod_kill_vengeance_sphere";
+		case MOD_DEFENDER_SPHERE:  return "$g_mod_kill_defender_sphere";
+		case MOD_HUNTER_SPHERE:    return "$g_mod_kill_hunter_sphere";
+		case MOD_TRACKER:          return "$g_mod_kill_tracker";
+		case MOD_DOPPLE_EXPLODE:   return "$g_mod_kill_dopple_explode";
+		case MOD_DOPPLE_VENGEANCE: return "$g_mod_kill_dopple_vengeance";
+		case MOD_DOPPLE_HUNTER:    return "$g_mod_kill_dopple_hunter";
+		case MOD_GRAPPLE:          return "$g_mod_kill_grapple";
+		case MOD_HOOK:             return "{0} was disemboweled by {1}'s hook.\n";
+		default:                   return "$g_mod_kill_generic";
+		}
+	}
+
+	// Monster kill messages (living monsters)
+	inline const char* GetMonsterKillMessage(mod_id_t mod_id)
+	{
+		switch (mod_id)
+		{
+		case MOD_BLASTER:        return brandom() ? "{0} was humiliated by a {1}\n" : "{0} was blasted by a {1}\n";
+		case MOD_SHOTGUN:        return "{0}'s face was impacted by a {1}\n";
+		case MOD_SSHOTGUN:       return brandom() ? "{0} was blown to pieces by a {1}\n" : "{0}'s ribs were shattered by a {1}\n";
+		case MOD_MACHINEGUN:     return "{0} was shredded by a {1}\n";
+		case MOD_CHAINGUN:       return "{0}'s torso was removed by a {1}\n";
+		case MOD_GRENADE:        return "{0} was gibbed by a {1}'s grenade\n";
+		case MOD_G_SPLASH:       return "{0} was splattered all over by a {1}\n";
+		case MOD_ROCKET:         return "{0} ate the rocket of a {1}\n";
+		case MOD_FIREBALL:       return "{0} was reduced to ashes by a {1}\n";
+		case MOD_R_SPLASH:       return "{0} was blown up by a {1}\n";
+		case MOD_HYPERBLASTER:   return "{0} was blasted by a {1}\n";
+		case MOD_RAILGUN:        return "{0} was railed by a {1}\n";
+		case MOD_BFG_LASER:      return "{0} ate the lights of a {1}'s BFG Lasers\n";
+		case MOD_BFG_BLAST:      return "{0} was disintegrated by a {1}\n";
+		case MOD_BFG_EFFECT:     return "{0} couldn't escape the apocalyptic fury of a {1}'s BFG\n";
+		case MOD_HANDGRENADE:    return "{0} was blown up by a {1}\n";
+		case MOD_HG_SPLASH:      return "{0} was splashed by a {1}\n";
+		case MOD_HELD_GRENADE:   return "{0} was blown up by a {1}\n";
+		case MOD_RIPPER:         return "{0} got ionripped by a {1}\n";
+		case MOD_TARGET_LASER:   return "{0} was laser-cooked by a {1}\n";
+		case MOD_TESLA:          return "{0} got a shocking end thanks to a {1}\n";
+		case MOD_TELEFRAG:
+		case MOD_TELEFRAG_SPAWN: return "{0} was telefragged by a {1}\n";
+		case MOD_BRAINTENTACLE:  return brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a {1}\n";
+		case MOD_GEKK:           return "{0} was spat to death by a {1}. Yuck!\n";
+		case MOD_TANK_PUNCH:     return "{0} was pulverized by a {1}\n";
+		case MOD_PHALANX:        return "{0} was melted by a {1}'s phalanx\n";
+		case MOD_TRACKER:        return "{0} was tracked down by a {1}\n";
+		case MOD_BLUEBLASTER:    return "{0} was blasted by a {1}\n";
+		default:                 return brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n";
+		}
+	}
+
+	// World/environmental kill messages
+	inline const char* GetWorldKillMessage(mod_id_t mod_id)
+	{
+		switch (mod_id)
+		{
+		case MOD_SUICIDE:        return "{0} becomes bored with life\n";
+		case MOD_FALLING:        return "{0} made a leap of faith\n";
+		case MOD_CRUSH:          return "{0} suffers from claustrophobia\n";
+		case MOD_WATER:          return "{0} forgot to breathe\n";
+		case MOD_SLIME:          return "$g_mod_generic_slime";
+		case MOD_LAVA:           return "{0} joins the lava gods\n";
+		case MOD_EXPLOSIVE:
+		case MOD_BARREL:         return "$g_mod_generic_explosive";
+		case MOD_EXIT:           return "$g_mod_generic_exit";
+		case MOD_TARGET_LASER:   return "{0} saw the light!\n";
+		case MOD_TARGET_BLASTER: return "$g_mod_generic_blaster";
+		case MOD_BOMB:
+		case MOD_SPLASH:
+		case MOD_TRIGGER_HURT:   return "$g_mod_generic_hurt";
+		default:                 return "{0} died.\n";
+		}
+	}
+
+	// Get monster display name from attacker (strips "monster_" prefix)
+	inline const char* GetMonsterDisplayName(edict_t* attacker)
+	{
+		const char* name = GetDisplayName(attacker);
+		if (name && strncmp(name, "monster_", 8) == 0)
+			return name + 8;
+		return name ? name : "monster";
+	}
+
+	// Get monster name from projectile type ID
+	inline const char* GetMonsterNameFromProjectile(edict_t* inflictor)
+	{
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(
+			static_cast<horde::MonsterTypeID>(inflictor->projectile_attacker_type_id));
+		
+		if (classname && strncmp(classname, "monster_", 8) == 0)
+			return classname + 8;
+		return classname ? classname : "monster";
+	}
+}
+
+// ========================================================================
+// OBITUARY HELPER FUNCTIONS
+// ========================================================================
+
+// Handle self-kill (suicide) obituary
+static void HandleSelfKillObituary(edict_t* self, const mod_t& mod)
+{
+	const char* message = ObituaryMessages::GetSelfKillMessage(mod.id);
+	gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname);
+
+	// Apply score penalty in deathmatch
+	if (deathmatch->integer && !mod.no_point_loss)
+	{
+		if (gamerules->integer && DMGame.Score)
+			DMGame.Score(self, self, -1, mod);
+		else
+		{
+			self->client->resp.score--;
+			if (teamplay->integer)
+				G_AdjustTeamScore(self->client->resp.ctf_team, -1);
+		}
+	}
+
+	self->enemy = nullptr;
+}
+
+// Handle player vs player kill obituary
+static void HandlePlayerKillObituary(edict_t* self, edict_t* attacker, const mod_t& mod)
+{
+	const char* message = ObituaryMessages::GetPlayerKillMessage(mod.id);
+	gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname, attacker->client->pers.netname);
+	self->enemy = attacker;
+}
+
+// Handle monster kill obituary (living monster)
+static void HandleMonsterKillObituary(edict_t* self, edict_t* attacker, const mod_t& mod)
+{
+	const char* monster_name = ObituaryMessages::GetMonsterDisplayName(attacker);
+	const char* message = ObituaryMessages::GetMonsterKillMessage(mod.id);
+	gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname, monster_name);
+	self->enemy = attacker;
+}
+
+// Handle projectile from dead monster
+static void HandleDeadMonsterProjectileObituary(edict_t* self, edict_t* inflictor, const mod_t& mod)
+{
+	const char* monster_name = ObituaryMessages::GetMonsterNameFromProjectile(inflictor);
+	const char* message = ObituaryMessages::GetMonsterKillMessage(mod.id);
+	gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname, monster_name);
+	self->enemy = nullptr;
+}
+
+// Handle world/environmental kills
+static void HandleWorldKillObituary(edict_t* self, edict_t* attacker, const mod_t& mod)
+{
+	const char* message = ObituaryMessages::GetWorldKillMessage(mod.id);
+	gi.LocBroadcast_Print(PRINT_MEDIUM, message, self->client->pers.netname);
+
+	// Apply score penalty in deathmatch
+	if (deathmatch->integer && !mod.no_point_loss)
+	{
+		if (gamerules->integer && DMGame.Score)
+			DMGame.Score(self, self, -1, mod);
+		else
+		{
+			self->client->resp.score--;
+			if (teamplay->integer && self->client->resp.ctf_team != CTF_NOTEAM)
+				G_AdjustTeamScore(self->client->resp.ctf_team, -1);
+		}
+	}
+
+	// Set enemy if attacker is valid (not world, not self)
+	self->enemy = (attacker && attacker != world && attacker != self) ? attacker : nullptr;
+}
+
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
-	// Ensure self and client are valid
-	if (!self || !self->client) {
-		// Should not happen, but good practice
+	// Validate inputs
+	if (!self || !self->client)
+	{
 		gi.Com_Print("ClientObituary: Error - null self or self->client\n");
 		return;
 	}
 
-	const char* base = nullptr;
-	//bool handled = false; // Flag to track if a message was processed
+	// Set friendly fire flag
+	if ((G_IsCooperative() && attacker && attacker->client) || deathmatch->integer)
+		mod.friendly_fire = true;
 
-	// Determine friendly fire status early (only affects the mod struct, not message logic directly)
-	if ((G_IsCooperative() && attacker && attacker->client) || (deathmatch->integer)) {
-		mod.friendly_fire = true; // Note: Modifying the 'mod' copy passed in
-	}
-
-	// --- 1. Handle Self-Kills ---
+	// --- 1. Handle Self-Kills (Suicide) ---
 	if (attacker == self)
 	{
-		switch (mod.id)
-		{
-		case MOD_HELD_GRENADE:      base = "$g_mod_self_held_grenade"; break;
-		case MOD_HG_SPLASH:
-		case MOD_G_SPLASH:          base = "$g_mod_self_grenade_splash"; break;
-		case MOD_R_SPLASH:          base = "$g_mod_self_rocket_splash"; break;
-		case MOD_BFG_BLAST:         base = "$g_mod_self_bfg_blast"; break;
-		case MOD_TRAP:              base = "$g_mod_self_trap"; break;
-		case MOD_DOPPLE_EXPLODE:    base = "$g_mod_self_dopple_explode"; break;
-			// MOD_SUICIDE falls through to generic section if not overridden here explicitly
-		default:                    /* base remains null initially */ break;
-		}
-
-		// If a specific self-kill message wasn't found, use the generic suicide one
-		if (!base) {
-			base = "{0} becomes bored with life\n"; // Default self-kill/suicide
-		}
-
-		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
-		if (deathmatch->integer && !mod.no_point_loss) {
-			if (gamerules->integer && DMGame.Score) {
-				DMGame.Score(self, self, -1, mod); // Let game rules handle score
-			}
-			else {
-				self->client->resp.score--;
-				if (teamplay->integer) {
-					// Assuming self->client->resp.ctf_team is valid
-					G_AdjustTeamScore(self->client->resp.ctf_team, -1);
-				}
-			}
-		}
-		self->enemy = nullptr; // No enemy for self-kill
-		return; // Handled self-kill
+		HandleSelfKillObituary(self, mod);
+		return;
 	}
 
-	// --- 2. Handle Player Kills ---
-	// Check attacker validity *before* accessing attacker->client
+	// --- 2. Handle Player vs Player Kills ---
 	if (attacker && attacker->client)
 	{
-		// Ensure victim and attacker clients are valid before accessing netname
-		if (!attacker->client) {
-			gi.Com_Print("ClientObituary: Error - null attacker->client\n");
-			// Fall through to generic handling maybe? Or handle error explicitly?
-			// For now, let's fall through, might result in generic death message.
-		}
-		else {
-			switch (mod.id)
-			{
-			case MOD_BLASTER:           base = "$g_mod_kill_blaster"; break;
-			case MOD_SHOTGUN:           base = "$g_mod_kill_shotgun"; break;
-			case MOD_SSHOTGUN:          base = "$g_mod_kill_sshotgun"; break;
-			case MOD_MACHINEGUN:        base = "$g_mod_kill_machinegun"; break;
-			case MOD_CHAINGUN:          base = "$g_mod_kill_chaingun"; break;
-			case MOD_GRENADE:           base = "$g_mod_kill_grenade"; break;
-			case MOD_G_SPLASH:          base = "$g_mod_kill_grenade_splash"; break;
-			case MOD_ROCKET:            base = "$g_mod_kill_rocket"; break;
-			case MOD_R_SPLASH:          base = "$g_mod_kill_rocket_splash"; break;
-			case MOD_HYPERBLASTER:      base = "$g_mod_kill_hyperblaster"; break;
-			case MOD_RAILGUN:           base = "$g_mod_kill_railgun"; break;
-			case MOD_BFG_LASER:         base = "$g_mod_kill_bfg_laser"; break;
-			case MOD_BFG_BLAST:         base = "$g_mod_kill_bfg_blast"; break;
-			case MOD_BFG_EFFECT:        base = "$g_mod_kill_bfg_effect"; break;
-			case MOD_HANDGRENADE:       base = "$g_mod_kill_handgrenade"; break;
-			case MOD_HG_SPLASH:         base = "$g_mod_kill_handgrenade_splash"; break;
-			case MOD_HELD_GRENADE:      base = "$g_mod_kill_held_grenade"; break;
-			case MOD_TELEFRAG:
-			case MOD_TELEFRAG_SPAWN:    base = "$g_mod_kill_telefrag"; break;
-			case MOD_RIPPER:            base = "$g_mod_kill_ripper"; break;
-			case MOD_PHALANX:           base = "$g_mod_kill_phalanx"; break;
-			case MOD_TRAP:              base = "$g_mod_kill_trap"; break;
-			case MOD_CHAINFIST:         base = "$g_mod_kill_chainfist"; break;
-			case MOD_DISINTEGRATOR:     base = "$g_mod_kill_disintegrator"; break;
-			case MOD_ETF_RIFLE:         base = "$g_mod_kill_etf_rifle"; break;
-			case MOD_HEATBEAM:          base = "$g_mod_kill_heatbeam"; break;
-			case MOD_TESLA:             base = "$g_mod_kill_tesla"; break;
-			case MOD_PROX:              base = "$g_mod_kill_prox"; break;
-			case MOD_NUKE:              base = "$g_mod_kill_nuke"; break;
-			case MOD_VENGEANCE_SPHERE:  base = "$g_mod_kill_vengeance_sphere"; break;
-			case MOD_DEFENDER_SPHERE:   base = "$g_mod_kill_defender_sphere"; break;
-			case MOD_HUNTER_SPHERE:     base = "$g_mod_kill_hunter_sphere"; break;
-			case MOD_TRACKER:           base = "$g_mod_kill_tracker"; break;
-			case MOD_DOPPLE_EXPLODE:    base = "$g_mod_kill_dopple_explode"; break;
-			case MOD_DOPPLE_VENGEANCE:  base = "$g_mod_kill_dopple_vengeance"; break;
-			case MOD_DOPPLE_HUNTER:     base = "$g_mod_kill_dopple_hunter"; break;
-			case MOD_GRAPPLE:           base = "$g_mod_kill_grapple"; break;
-			case MOD_HOOK:              base = "{0} was disemboweled by {1}'s hook.\n"; break; // Non-localized example
-			default:                    base = "$g_mod_kill_generic"; break; // Default for player kills by unknown means?
-			}
-
-			// Print message with both player names
-			gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
-			// Score for player kills is handled by CTFFragBonuses / DMGame.Score called elsewhere (e.g., player_die)
-			self->enemy = attacker; // Set enemy
-			return; // Handled player kill
-		}
+		HandlePlayerKillObituary(self, attacker, mod);
+		return;
 	}
 
-	// --- 3. Handle Monster Kills (including projectiles from dead monsters) ---
-	// Check if inflictor is a projectile with stored monster info
-	// This handles cases where the original attacker (monster) has died
+	// --- 3. Handle Projectiles from Dead Monsters ---
 	if (inflictor && (inflictor->svflags & SVF_PROJECTILE) &&
-		!inflictor->projectile_was_player_attacker && inflictor->projectile_attacker_type_id &&
+		!inflictor->projectile_was_player_attacker && 
+		inflictor->projectile_attacker_type_id &&
 		(!attacker || attacker == world || attacker == inflictor ||
-		 (attacker && !(attacker->svflags & SVF_MONSTER) && !(attacker->client))))
+		 (attacker && !(attacker->svflags & SVF_MONSTER) && !attacker->client)))
 	{
-		// Get the monster name from the stored type ID (use inflictor since attacker might be null)
-		const char* monster_classname = horde::MonsterTypeRegistry::GetClassname(
-			static_cast<horde::MonsterTypeID>(inflictor->projectile_attacker_type_id));
-
-		const char* monster_display_name = nullptr;
-		if (monster_classname) {
-			monster_display_name = monster_classname;
-			// Skip "monster_" prefix if present
-			if (strncmp(monster_display_name, "monster_", 8) == 0) {
-				monster_display_name += 8;
-			}
-		} else {
-			monster_display_name = "monster";
-		}
-
-		switch (mod.id)
-		{
-			// Using same messages as regular monster kills
-		case MOD_ROCKET:        base = "{0} ate the rocket of a {1}\n"; break;
-		case MOD_R_SPLASH:      base = "{0} was blown up by a {1}\n"; break;
-		case MOD_GRENADE:       base = "{0} was gibbed by a {1}'s grenade\n"; break;
-		case MOD_G_SPLASH:      base = "{0} was splattered all over by a {1}\n"; break;
-		case MOD_BLASTER:       base = brandom() ? "{0} was humiliated by a {1}\n" : "{0} was blasted by a {1}\n"; break;
-		case MOD_HYPERBLASTER:  base = "{0} was blasted by a {1}\n"; break;
-		case MOD_PHALANX:        base = "{0} was melted by a {1}'s phalanx\n"; break;
-		case MOD_HANDGRENADE:   base = "{0} was blown up by a {1}\n"; break;
-		case MOD_HG_SPLASH:     base = "{0} was splashed by a {1}\n"; break;
-		case MOD_BFG_BLAST:     base = "{0} was disintegrated by a {1}\n"; break;
-		case MOD_BFG_EFFECT:    base = "{0} couldn't escape the apocalyptic fury of a {1}'s BFG\n"; break;
-		case MOD_RIPPER:        base = "{0} got ionripped by a {1}\n"; break;
-		case MOD_TRACKER:       base = "{0} was tracked down by a {1}\n"; break;
-		case MOD_BLUEBLASTER:   base = "{0} was blasted by a {1}\n"; break;
-		default:                base = brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n"; break;
-		}
-
-		// Print message with player name and monster name
-		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name);
-
-		// No enemy to set since attacker is dead
-		self->enemy = nullptr;
-		return; // Handled projectile from dead monster
+		HandleDeadMonsterProjectileObituary(self, inflictor, mod);
+		return;
 	}
-	// First check if the attacker is a valid monster
-	else if (attacker && (attacker->svflags & SVF_MONSTER))
+
+	// --- 4. Handle Living Monster Kills ---
+	if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
-		// --- THE FIX ---
-		// BEFORE: const std::string monster_display_name = GetDisplayName(attacker);
-		const char* monster_display_name = GetDisplayName(attacker);
-
-		switch (mod.id)
-		{
-			// Using brandom() directly in ternary operators
-		case MOD_BLASTER:       base = brandom() ? "{0} was humiliated by a {1}\n" : "{0} was blasted by a {1}\n"; break;
-		case MOD_SHOTGUN:       base = "{0}'s face was impacted by a {1}\n"; break;
-		case MOD_SSHOTGUN:      base = brandom() ? "{0} was blown to pieces by a {1}\n" : "{0}'s ribs were shattered by a {1}\n"; break;
-		case MOD_MACHINEGUN:    base = "{0} was shredded by a {1}\n"; break;
-		case MOD_CHAINGUN:      base = "{0}'s torso was removed by a {1}\n"; break;
-		case MOD_GRENADE:       base = "{0} was gibbed by a {1}'s grenade\n"; break;
-		case MOD_G_SPLASH:      base = "{0} was splattered all over by a {1}\n"; break;
-		case MOD_ROCKET:        base = "{0} ate the rocket of a {1}\n"; break;
-		case MOD_FIREBALL:      base = "{0} was reduced to ashes by a {1}\n"; break;
-		case MOD_R_SPLASH:      base = "{0} was blown up by a {1}\n"; break;
-		case MOD_HYPERBLASTER:  base = "{0} was blasted by a {1}\n"; break;
-		case MOD_RAILGUN:       base = "{0} was railed by a {1}\n"; break;
-		case MOD_BFG_LASER:     base = "{0} ate the lights of a {1}'s BFG Lasers\n"; break;
-		case MOD_BFG_BLAST:     base = "{0} was disintegrated by a {1}\n"; break;
-		case MOD_BFG_EFFECT:    base = "{0} couldn't escape the apocalyptic fury of a {1}'s BFG\n"; break;
-		case MOD_HANDGRENADE:   base = "{0} was blown up by a {1}\n"; break;
-		case MOD_HG_SPLASH:     base = "{0} was splashed by a {1}\n"; break;
-		case MOD_HELD_GRENADE:  base = "{0} was blown up by a {1}\n"; break;
-		case MOD_RIPPER:        base = "{0} got ionripped by a {1}\n"; break;
-		case MOD_TARGET_LASER:  base = "{0} was laser-cooked by a {1}\n"; break;
-		case MOD_TESLA:         base = "{0} got a shocking end thanks to a {1}\n"; break;
-		case MOD_TELEFRAG:
-		case MOD_TELEFRAG_SPAWN: base = "{0} was telefragged by a {1}\n"; break;
-		case MOD_BRAINTENTACLE: base = brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a {1}\n"; break;
-		case MOD_GEKK:          base = "{0} was spat to death by a {1}. Yuck!\n"; break;
-		case MOD_TANK_PUNCH:    base = "{0} was pulverized by a {1}\n"; break;
-		default:                base = brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n"; break;
-		}
-
-		// Print message with player name and monster name
-		// --- THE FIX ---
-		// BEFORE: gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name.c_str());
-		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name);
-		
-		// Score for monster kills (if any) would typically be handled elsewhere
-		self->enemy = attacker; // Set enemy
-		return; // Handled monster kill
+		HandleMonsterKillObituary(self, attacker, mod);
+		return;
 	}
 
-	// --- 4. Handle Generic / World Kills (if not handled above) ---
-	// This section is reached if attacker is null, world, or not self/player/monster,
-	// OR if a specific MOD wasn't found in the sections above for that attacker type.
-	switch (mod.id)
-	{
-	case MOD_SUICIDE:       base = "{0} becomes bored with life\n"; break; // Should have been caught by self-kill check? Redundant but safe.
-	case MOD_FALLING:       base = "{0} made a leap of faith\n"; break;
-	case MOD_CRUSH:         base = "{0} suffers from claustrophobia\n"; break;
-	case MOD_WATER:         base = "{0} forgot to breathe\n"; break;
-	case MOD_SLIME:         base = "$g_mod_generic_slime"; break;
-	case MOD_LAVA:          base = "{0} joins the lava gods\n"; break;
-	case MOD_EXPLOSIVE:
-	case MOD_BARREL:        base = "$g_mod_generic_explosive"; break;
-	case MOD_EXIT:          base = "$g_mod_generic_exit"; break;
-	case MOD_TARGET_LASER:  // Already handled in monster/player potentially, but attacker might be world/trigger
-		// Original code had: if (attacker->svflags & ~SVF_MONSTER) -> this check seems wrong (bitwise NOT).
-		// Let's assume generic laser message if attacker isn't player/monster/self.
-		base = "{0} saw the light!\n";
-		break;
-	case MOD_TARGET_BLASTER: base = "$g_mod_generic_blaster"; break;
-	case MOD_BOMB:
-	case MOD_SPLASH:
-	case MOD_TRIGGER_HURT:  base = "$g_mod_generic_hurt"; break;
-	default:                base = "{0} died.\n"; break; // Final fallback
-	}
-
-	gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
-
-	// Score adjustment for generic deaths (like original code)
-	if (deathmatch->integer && !mod.no_point_loss) {
-		if (gamerules->integer && DMGame.Score) {
-			// Pass self as attacker for score loss purposes in generic deaths
-			DMGame.Score(self, self, -1, mod);
-		}
-		else {
-			self->client->resp.score--;
-			if (teamplay->integer) {
-				// Team score adjustment might need attacker if it's e.g. a trigger owned by a team?
-				// For now, assume loss applies to victim's team for generic death.
-				if (self->client->resp.ctf_team != CTF_NOTEAM) { // Avoid adjusting NOTEAM
-					G_AdjustTeamScore(self->client->resp.ctf_team, -1);
-				}
-			}
-		}
-	}
-
-	// If attacker exists but wasn't player/monster, set enemy. Otherwise, null.
-	// World kills (attacker == world or null) shouldn't set an enemy.
-	if (attacker && attacker != world && attacker != self) {
-		self->enemy = attacker;
-	}
-	else {
-		self->enemy = nullptr;
-	}
-	// No return needed, end of function.
+	// --- 5. Handle World/Environmental Kills ---
+	HandleWorldKillObituary(self, attacker, mod);
 }
 
 void TossClientWeapon(edict_t* self)
@@ -947,7 +973,7 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	client->pers.health = 100;
 	client->pers.max_health = 100;
 }
-// Función auxiliar para verificar si un ítem es un TECH
+// Helper function to verify if an item is a TECH item
 bool IsTechItem(int item_id) noexcept
 {
 	for (const auto& tech_id : tech_ids) {
@@ -966,37 +992,35 @@ This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-// Calcula la salud máxima basada en el nivel de oleada actual +25 hp
-int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr)
+// Calculate maximum health based on current wave level
+int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr) noexcept
 {
 	if (!g_horde->integer)
 		return max(100, base_max_health);
 
+	// Calculate health based on wave tier (optimized lookup)
 	int calculated_max_health = base_max_health;
-
-	// Ajustar health y max_health basado en el número de oleadas actuales
-	// Usar rangos apropiados para int8_t (-128 a 127)
+	
 	if (current_wave_level >= 30)
-		calculated_max_health = max(250, calculated_max_health);
+		calculated_max_health = 250;
 	else if (current_wave_level >= 25)
-		calculated_max_health = max(225, calculated_max_health);
+		calculated_max_health = 225;
 	else if (current_wave_level >= 20)
-		calculated_max_health = max(200, calculated_max_health);
+		calculated_max_health = 200;
 	else if (current_wave_level >= 15)
-		calculated_max_health = max(175, calculated_max_health);
+		calculated_max_health = 175;
 	else if (current_wave_level >= 10)
-		calculated_max_health = max(150, calculated_max_health);
+		calculated_max_health = 150;
 	else if (current_wave_level >= 5)
-		calculated_max_health = max(125, calculated_max_health);
-	else if (current_wave_level >= 1)
-		calculated_max_health = max(100, calculated_max_health);
+		calculated_max_health = 125;
 	else
-		calculated_max_health = max(100, calculated_max_health);
+		calculated_max_health = 100;
+	
+	calculated_max_health = max(calculated_max_health, base_max_health);
 
-	// Si se proporciona el cliente, incluir el bonus de adrenalina
-	if (client) {
+	// Add adrenaline bonus if client provided
+	if (client)
 		calculated_max_health += (client->pers.adrenaline_count * ADRENALINE_HEALTH_BONUS);
-	}
 
 	return calculated_max_health;
 }
@@ -1004,43 +1028,42 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 // Initializes Horde-specific persistent client data
 void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 {
-	//
-	// HEALTH INITIALIZATION (Horde Override)
-	//
-	const int saved_adrenaline = client->pers.adrenaline_count; // Preserve adrenaline count
-	const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
-	client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
-	client->pers.health = new_max_health; // Start with full health
-	client->pers.adrenaline_count = saved_adrenaline; // Restore adrenaline count
+	// Cache wave level for multiple checks
+	const int wave = current_wave_level;
+	const bool is_late_joiner = !client->pers.received_late_join_ammo;
+	const bool is_high_wave = wave >= HordeConstants::WAVE_HIGH_AMMO_CAPS;
+	const bool give_advanced = wave >= HordeConstants::WAVE_ADVANCED_WEAPONS;
+	const bool give_basic = wave >= HordeConstants::WAVE_BASIC_WEAPONS;
 
 	//
-	// BENEFITS INITIALIZATION (Horde Mode)
+	// HEALTH INITIALIZATION
 	//
-	// Initialize auto-buy to enabled by default for new players
-	if (!client->pers.received_late_join_ammo) { // Only for first spawn
+	const int saved_adrenaline = client->pers.adrenaline_count;
+	const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
+	client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
+	client->pers.health = new_max_health;
+	client->pers.adrenaline_count = saved_adrenaline;
+
+	//
+	// LATE JOINER BENEFITS
+	//
+	if (is_late_joiner)
+	{
+		// Enable auto-buy by default
 		client->pers.auto_buy_abilities = true;
 		client->pers.auto_buy_weapons = true;
 		client->pers.has_manually_disabled_auto_buy = false;
 
-		// Auto-grant points based on current wave for late-joining players
-		int32_t waves_completed = current_wave_level;
+		// Calculate bonus points based on wave progress
+		client->pers.ability_points = (wave >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL) 
+			? (wave / HordeConstants::ABILITY_POINT_WAVE_INTERVAL) : 0;
 		
-		// Ability points awarded every N waves
-		if (waves_completed >= HordeConstants::ABILITY_POINT_WAVE_INTERVAL) {
-			client->pers.ability_points = (waves_completed / HordeConstants::ABILITY_POINT_WAVE_INTERVAL);
-		} else {
-			client->pers.ability_points = 0;
-		}
+		client->pers.weapon_points = (wave >= HordeConstants::WEAPON_POINT_WAVE_INTERVAL)
+			? (wave / HordeConstants::WEAPON_POINT_WAVE_INTERVAL) : 0;
 
-		// Weapon points awarded every N waves
-		if (waves_completed >= HordeConstants::WEAPON_POINT_WAVE_INTERVAL) {
-			client->pers.weapon_points = (waves_completed / HordeConstants::WEAPON_POINT_WAVE_INTERVAL);
-		} else {
-			client->pers.weapon_points = 0;
-		}
-
-		// Notify player if they received points for joining late
-		if (client->pers.ability_points > 0 || client->pers.weapon_points > 0) {
+		// Notify if points awarded
+		if (client->pers.ability_points > 0 || client->pers.weapon_points > 0)
+		{
 			gi.LocClient_Print(ent, PRINT_HIGH,
 				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
 				client->pers.ability_points, client->pers.weapon_points);
@@ -1048,96 +1071,88 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 	}
 
 	//
-	// AMMO INITIALIZATION (Horde Override)
+	// AMMO CAP INITIALIZATION
 	//
-	// Note: Base defaults are set in the main InitClientPersistant.
-	// Here we override max_ammo based on Horde wave level.
-	const bool is_high_level = current_wave_level >= HordeConstants::WAVE_HIGH_AMMO_CAPS;
-
-	if (is_high_level) {
-		// High level horde ammo caps
-		client->pers.max_ammo[AMMO_BULLETS] = HordeConstants::HighAmmo::BULLETS;
-		client->pers.max_ammo[AMMO_SHELLS] = HordeConstants::HighAmmo::SHELLS;
-		client->pers.max_ammo[AMMO_CELLS] = HordeConstants::HighAmmo::CELLS;
-		client->pers.max_ammo[AMMO_FLECHETTES] = HordeConstants::HighAmmo::FLECHETTES;
-		client->pers.max_ammo[AMMO_GRENADES] = HordeConstants::HighAmmo::GRENADES;
-		client->pers.max_ammo[AMMO_ROCKETS] = HordeConstants::HighAmmo::ROCKETS;
-		client->pers.max_ammo[AMMO_SLUGS] = HordeConstants::HighAmmo::SLUGS;
-		client->pers.max_ammo[AMMO_MAGSLUG] = HordeConstants::HighAmmo::MAGSLUG;
-		client->pers.max_ammo[AMMO_DISRUPTOR] = HordeConstants::HighAmmo::DISRUPTOR;
-		client->pers.max_ammo[AMMO_TESLA] = HordeConstants::HighAmmo::TESLA;
-		client->pers.max_ammo[AMMO_PROX] = HordeConstants::HighAmmo::PROX;
-		client->pers.max_ammo[AMMO_TRAP] = HordeConstants::HighAmmo::TRAP;
-	}
-	else {
-		// Basic horde ammo caps
-		client->pers.max_ammo[AMMO_BULLETS] = HordeConstants::BasicAmmo::BULLETS;
-		client->pers.max_ammo[AMMO_SHELLS] = HordeConstants::BasicAmmo::SHELLS;
-		client->pers.max_ammo[AMMO_CELLS] = HordeConstants::BasicAmmo::CELLS;
-		client->pers.max_ammo[AMMO_FLECHETTES] = HordeConstants::BasicAmmo::FLECHETTES;
-		client->pers.max_ammo[AMMO_GRENADES] = HordeConstants::BasicAmmo::GRENADES;
-		client->pers.max_ammo[AMMO_ROCKETS] = HordeConstants::BasicAmmo::ROCKETS;
-		client->pers.max_ammo[AMMO_SLUGS] = HordeConstants::BasicAmmo::SLUGS;
-		client->pers.max_ammo[AMMO_MAGSLUG] = HordeConstants::BasicAmmo::MAGSLUG;
-		client->pers.max_ammo[AMMO_DISRUPTOR] = HordeConstants::BasicAmmo::DISRUPTOR;
-		client->pers.max_ammo[AMMO_TESLA] = HordeConstants::BasicAmmo::TESLA;
-		client->pers.max_ammo[AMMO_PROX] = HordeConstants::BasicAmmo::PROX;
-		client->pers.max_ammo[AMMO_TRAP] = HordeConstants::BasicAmmo::TRAP;
-	}
+	// Use constexpr arrays for better cache locality
+	using AmmoConfig = struct { int bullets, shells, cells, flechettes, grenades, rockets, slugs, magslug, disruptor, tesla, prox, trap; };
+	
+	constexpr AmmoConfig basic_ammo = {
+		HordeConstants::BasicAmmo::BULLETS, HordeConstants::BasicAmmo::SHELLS,
+		HordeConstants::BasicAmmo::CELLS, HordeConstants::BasicAmmo::FLECHETTES,
+		HordeConstants::BasicAmmo::GRENADES, HordeConstants::BasicAmmo::ROCKETS,
+		HordeConstants::BasicAmmo::SLUGS, HordeConstants::BasicAmmo::MAGSLUG,
+		HordeConstants::BasicAmmo::DISRUPTOR, HordeConstants::BasicAmmo::TESLA,
+		HordeConstants::BasicAmmo::PROX, HordeConstants::BasicAmmo::TRAP
+	};
+	
+	constexpr AmmoConfig high_ammo = {
+		HordeConstants::HighAmmo::BULLETS, HordeConstants::HighAmmo::SHELLS,
+		HordeConstants::HighAmmo::CELLS, HordeConstants::HighAmmo::FLECHETTES,
+		HordeConstants::HighAmmo::GRENADES, HordeConstants::HighAmmo::ROCKETS,
+		HordeConstants::HighAmmo::SLUGS, HordeConstants::HighAmmo::MAGSLUG,
+		HordeConstants::HighAmmo::DISRUPTOR, HordeConstants::HighAmmo::TESLA,
+		HordeConstants::HighAmmo::PROX, HordeConstants::HighAmmo::TRAP
+	};
+	
+	const AmmoConfig& ammo = is_high_wave ? high_ammo : basic_ammo;
+	
+	client->pers.max_ammo[AMMO_BULLETS] = ammo.bullets;
+	client->pers.max_ammo[AMMO_SHELLS] = ammo.shells;
+	client->pers.max_ammo[AMMO_CELLS] = ammo.cells;
+	client->pers.max_ammo[AMMO_FLECHETTES] = ammo.flechettes;
+	client->pers.max_ammo[AMMO_GRENADES] = ammo.grenades;
+	client->pers.max_ammo[AMMO_ROCKETS] = ammo.rockets;
+	client->pers.max_ammo[AMMO_SLUGS] = ammo.slugs;
+	client->pers.max_ammo[AMMO_MAGSLUG] = ammo.magslug;
+	client->pers.max_ammo[AMMO_DISRUPTOR] = ammo.disruptor;
+	client->pers.max_ammo[AMMO_TESLA] = ammo.tesla;
+	client->pers.max_ammo[AMMO_PROX] = ammo.prox;
+	client->pers.max_ammo[AMMO_TRAP] = ammo.trap;
 
 	//
-	// ITEM INITIALIZATION (Horde Specific)
+	// HORDE-SPECIFIC ITEMS
 	//
 	client->pers.inventory[IT_ITEM_MENU] = 1;
-	client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1; // Horde gets flashlight
+	client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 	//
-	// BOT TECH INITIALIZATION (Horde Specific - Revised Logic)
+	// BOT TECH INITIALIZATION
 	//
-	if (ent->svflags & SVF_BOT && ent->client->resp.ctf_team != CTF_NOTEAM)
+	if ((ent->svflags & SVF_BOT) && ent->client->resp.ctf_team != CTF_NOTEAM)
 	{
-		bool bot_has_any_tech = false;
-		// Check if the bot already holds *any* tech item
-		for (size_t i = 0; i < MAX_ITEMS; i++) { // Changed int to size_t
-			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0) {
-				bot_has_any_tech = true;
-				break;
-			}
+		bool bot_has_tech = false;
+		for (size_t i = 0; i < MAX_ITEMS && !bot_has_tech; i++)
+		{
+			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0)
+				bot_has_tech = true;
 		}
-		// If the bot has no tech items, give them Strength
-		if (!bot_has_any_tech) {
+		
+		if (!bot_has_tech)
 			client->pers.inventory[IT_TECH_STRENGTH] = 1;
-		}
-		// Optional: If bot already has a tech, ensure Strength is 0
-		// else {
-		//     client->pers.inventory[IT_TECH_STRENGTH] = 0;
-		// }
 	}
 
 	//
-	// WEAPON INITIALIZATION (Horde Specific Loadout based on Wave)
-	// Only applies if it's also Deathmatch (which Horde mode forces)
+	// WEAPON LOADOUT (Wave-based)
 	//
-	if (G_IsDeathmatch()) { // Technically always true if g_horde is true
-		const bool give_advanced = current_wave_level >= HordeConstants::WAVE_ADVANCED_WEAPONS;
-		const bool give_basic = current_wave_level >= HordeConstants::WAVE_BASIC_WEAPONS;
-
-		// Always give blaster and some minimal ammo for late-joining players
-		// Even in early waves (1-3)
-		if (!client->pers.received_late_join_ammo) {
-			// Ensure blaster for all late-joiners
+	if (G_IsDeathmatch())
+	{
+		// Early wave minimal loadout
+		if (is_late_joiner)
+		{
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-
-			// Give minimal starting ammo even in early waves
-			if (current_wave_level >= 1) {
+			
+			if (wave >= 1)
+			{
 				client->pers.inventory[AMMO_BULLETS] += HordeConstants::EarlyWaveAmmo::BULLETS;
 				client->pers.inventory[AMMO_SHELLS] += HordeConstants::EarlyWaveAmmo::SHELLS;
 			}
 		}
 
-		if (give_advanced || give_basic) {
-			// Common weapons for both loadouts
-			client->pers.inventory[IT_WEAPON_BLASTER] = 1; // Ensure blaster
+		// Standard and advanced weapon loadouts
+		if (give_basic || give_advanced)
+		{
+			// Common weapons (wave 4+)
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
 			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
@@ -1145,41 +1160,34 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 
-			// Additional weapons for advanced loadout
-			if (give_advanced) {
+			// Advanced weapons (wave 13+)
+			if (give_advanced)
+			{
 				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
 				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
 			}
 
-			// IMPORTANT: Give starting ammo ONLY for players joining mid-wave
-			// This prevents ammo accumulation on respawn after death
-			if (!client->pers.received_late_join_ammo) {
-				// Give modest starting ammo for late-joining players
-				// Enough to defend themselves but not overpowered
-
-				// Basic ammo for common weapons
+			// Starting ammo for late joiners only
+			if (is_late_joiner)
+			{
 				client->pers.inventory[AMMO_BULLETS] += HordeConstants::StartingAmmoBasic::BULLETS;
 				client->pers.inventory[AMMO_SHELLS] += HordeConstants::StartingAmmoBasic::SHELLS;
 				client->pers.inventory[AMMO_FLECHETTES] += HordeConstants::StartingAmmoBasic::FLECHETTES;
 				client->pers.inventory[AMMO_PROX] += HordeConstants::StartingAmmoBasic::PROX;
 
-				// Advanced loadout ammo (only if wave 13+)
-				if (give_advanced) {
+				if (give_advanced)
+				{
 					client->pers.inventory[AMMO_GRENADES] += HordeConstants::StartingAmmoAdvanced::GRENADES;
 					client->pers.inventory[AMMO_ROCKETS] += HordeConstants::StartingAmmoAdvanced::ROCKETS;
 				}
 
-				// Mark that this player has received their late-join ammo
 				client->pers.received_late_join_ammo = true;
-
-				// Notify player about starting ammo
 				gi.LocClient_Print(ent, PRINT_HIGH,
 					"Late join: You've been given starting weapons and ammo based on current wave!\n");
 			}
 		}
 	}
-	// Note: Players who die and respawn will keep their collected ammo but won't get extra
 }
 
 
@@ -1187,171 +1195,163 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 // Modified InitClientPersistant
 void InitClientPersistant(edict_t* ent, gclient_t* client)
 {
-    // Backup & restore userinfo
-    char userinfo[MAX_INFO_STRING];
-    Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
-    ClientUserinfoChanged(ent, userinfo);
+	// Cache cvar checks
+	const bool is_deathmatch = deathmatch->integer != 0;
+	const bool is_coop = coop->integer != 0;
+	const bool is_horde = g_horde && g_horde->integer != 0;
 
-    //
-    // HEALTH INITIALIZATION (Default)
-    // Horde mode will override this if active.
-    //
-    client->pers.health = 100;
-    client->pers.max_health = 100;
-    ent->max_health = 100; // Also set entity's max_health
+	// Backup & restore userinfo
+	char userinfo[MAX_INFO_STRING];
+	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+	ClientUserinfoChanged(ent, userinfo);
 
-    //
-    // BLASTER AMMO INITIALIZATION (Vortex-style)
-    //
-    client->blaster_ammo = 25; // Start with full blaster ammo
-    client->blaster_regen_time = level.time; // Initialize regen timer
+	//
+	// HEALTH INITIALIZATION (Default - Horde mode will override if active)
+	//
+	client->pers.health = 100;
+	client->pers.max_health = 100;
+	ent->max_health = 100;
 
-    //
-    // ARMOR INITIALIZATION (Clear existing)
-    //
-    client->pers.inventory[IT_ARMOR_BODY] =
-        client->pers.inventory[IT_ARMOR_COMBAT] =
-        client->pers.inventory[IT_ARMOR_JACKET] =
-        client->pers.inventory[IT_ARMOR_SHARD] = 0;
+	//
+	// BLASTER AMMO INITIALIZATION (Vortex-style)
+	//
+	client->blaster_ammo = 25;
+	client->blaster_regen_time = level.time;
 
-    //
-    // INVENTORY & AMMO INITIALIZATION
-    //
-    bool taken_loadout = false;
+	//
+	// ARMOR INITIALIZATION (Clear existing)
+	//
+	client->pers.inventory[IT_ARMOR_BODY] =
+		client->pers.inventory[IT_ARMOR_COMBAT] =
+		client->pers.inventory[IT_ARMOR_JACKET] =
+		client->pers.inventory[IT_ARMOR_SHARD] = 0;
 
-    // Check for coop inheritance (remains the same)
-    if (G_IsCooperative()) {
-        for (auto player : active_players()) {
-            if (player == ent || !player->client->pers.spawned ||
-                player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
-                continue;
+	//
+	// INVENTORY & AMMO INITIALIZATION
+	//
+	bool taken_loadout = false;
 
-            client->pers.inventory = player->client->pers.inventory;
-            client->pers.max_ammo = player->client->pers.max_ammo;
-            client->pers.power_cubes = player->client->pers.power_cubes;
-            taken_loadout = true;
-            break;
-        }
-    }
+	// Check for coop inheritance
+	if (G_IsCooperative())
+	{
+		for (auto player : active_players())
+		{
+			if (player == ent || !player->client->pers.spawned ||
+				player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
+				continue;
 
-    if (!taken_loadout) {
-        // Base ammo initialization (Default values)
-        client->pers.max_ammo.fill(50); // Default small capacity
-        client->pers.max_ammo[AMMO_BULLETS] = 200;
-        client->pers.max_ammo[AMMO_SHELLS] = 100;
-        client->pers.max_ammo[AMMO_CELLS] = 200;
-        client->pers.max_ammo[AMMO_FLECHETTES] = 200;
-        // Special ammo defaults (usually low unless upgraded)
-        client->pers.max_ammo[AMMO_GRENADES] = 50;
-        client->pers.max_ammo[AMMO_ROCKETS] = 50;
-        client->pers.max_ammo[AMMO_SLUGS] = 50;
-        client->pers.max_ammo[AMMO_MAGSLUG] = 50;
-        client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-        client->pers.max_ammo[AMMO_TESLA] = 5;
-        client->pers.max_ammo[AMMO_PROX] = 50;
-        client->pers.max_ammo[AMMO_TRAP] = 5;
+			client->pers.inventory = player->client->pers.inventory;
+			client->pers.max_ammo = player->client->pers.max_ammo;
+			client->pers.power_cubes = player->client->pers.power_cubes;
+			taken_loadout = true;
+			break;
+		}
+	}
 
+	if (!taken_loadout)
+	{
+		// Base ammo initialization (Default values)
+		client->pers.max_ammo.fill(50);
+		client->pers.max_ammo[AMMO_BULLETS] = 200;
+		client->pers.max_ammo[AMMO_SHELLS] = 100;
+		client->pers.max_ammo[AMMO_CELLS] = 200;
+		client->pers.max_ammo[AMMO_FLECHETTES] = 200;
+		client->pers.max_ammo[AMMO_GRENADES] = 50;
+		client->pers.max_ammo[AMMO_ROCKETS] = 50;
+		client->pers.max_ammo[AMMO_SLUGS] = 50;
+		client->pers.max_ammo[AMMO_MAGSLUG] = 50;
+		client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+		client->pers.max_ammo[AMMO_TESLA] = 5;
+		client->pers.max_ammo[AMMO_PROX] = 50;
+		client->pers.max_ammo[AMMO_TRAP] = 5;
 
-        // Give blaster in deathmatch (non-Horde deathmatch)
-        // Horde handles its own blaster grant if needed inside Horde_Init...
-        if (deathmatch->integer && (!g_horde || !g_horde->integer)) // Added null check
-            client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+		// Give blaster in deathmatch (non-Horde deathmatch only)
+		if (is_deathmatch && !is_horde)
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
-        // Process start items (remains the same)
-        if (g_start_items && *g_start_items->string) // Added null check
-            Player_GiveStartItems(ent, g_start_items->string);
-        if (level.start_items && *level.start_items)
-            Player_GiveStartItems(ent, level.start_items);
+		// Process start items
+		if (g_start_items && *g_start_items->string)
+			Player_GiveStartItems(ent, g_start_items->string);
+		if (level.start_items && *level.start_items)
+			Player_GiveStartItems(ent, level.start_items);
 
-        G_CheckPowerArmor(ent); // Check/apply power armor based on inventory
+		G_CheckPowerArmor(ent);
 
-        // Standard items for non-deathmatch/coop (remains the same)
-        if (!deathmatch->integer || coop->integer) {
-            // Grant standard items if NOT deathmatch OR if coop IS enabled
-            // Horde mode will grant its own flashlight if active
-            if (!g_horde || !g_horde->integer) { // Added null check
-                client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
-            }
-            client->pers.inventory[IT_ITEM_COMPASS] = 1;
-        }
+		// Standard items for non-deathmatch/coop
+		if (!is_deathmatch || is_coop)
+		{
+			if (!is_horde)
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			client->pers.inventory[IT_ITEM_COMPASS] = 1;
+		}
 
-        //
-        // >>> CALL HORDE-SPECIFIC INITIALIZATION <<<
-        //
-        if (g_horde && g_horde->integer) { // Added null check
-            Horde_InitClientPersistant(ent, client);
-            // Horde function handles:
-            // - Overriding health/max_health
-            // - Overriding max_ammo
-            // - Granting Horde-specific items (Menu, Flashlight)
-            // - Granting Horde bot techs
-            // - Granting Horde wave-based weapons
-            // - Granting starting ammo for late-joining players (checks !pers.spawned)
-        }
+		//
+		// HORDE-SPECIFIC INITIALIZATION
+		//
+		if (is_horde)
+		{
+			Horde_InitClientPersistant(ent, client);
+		}
 
+		// Handle grapple
+		const bool give_grapple = (g_allow_grapple && strcmp(g_allow_grapple->string, "auto") == 0) ?
+			(ctf && ctf->integer && !level.no_grapple) :
+			(g_allow_grapple && g_allow_grapple->integer);
 
-        // Handle grapple (remains the same, not Horde-specific)
-        // Ensure cvars exist before checking them
-        const bool give_grapple = (g_allow_grapple && !strcmp(g_allow_grapple->string, "auto")) ?
-            (ctf && ctf->integer ? !level.no_grapple : false) : // Fixed potential null deref on ctf
-            (g_allow_grapple && g_allow_grapple->integer); // Fixed potential null deref
+		if (give_grapple)
+			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
+	}
 
-        if (give_grapple)
-            client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
-    } // End if (!taken_loadout)
+	//
+	// WEAPON SELECTION
+	// Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
+	//
+	if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0)
+	{
+		client->pers.weapon = client->pers.lastweapon;
+		client->pers.selected_item = client->pers.lastweapon->id;
+	}
+	else
+	{
+		NoAmmoWeaponChange(ent, false);
+		if (client->newweapon)
+		{
+			client->pers.weapon = client->newweapon;
+			client->pers.selected_item = client->newweapon->id;
+		}
+		else
+		{
+			// Fallback to Blaster
+			gitem_t* blasterItem = FindItem("Blaster");
+			if (blasterItem)
+			{
+				client->pers.selected_item = blasterItem->id;
+				if (client->pers.inventory[blasterItem->id] <= 0)
+					client->pers.inventory[blasterItem->id] = 1;
+				client->pers.weapon = blasterItem;
+			}
+			else
+			{
+				client->pers.weapon = nullptr;
+				client->pers.selected_item = IT_NULL;
+			}
+		}
+	}
 
-    //
-    // WEAPON SELECTION (Remains the same)
-    // Try last weapon, fallback to NoAmmoWeaponChange, then Blaster
-    //
-    if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
-        client->pers.weapon = client->pers.lastweapon;
-        client->pers.selected_item = client->pers.lastweapon->id;
-    }
-    else {
-        NoAmmoWeaponChange(ent, false); // Try to find a weapon with ammo
-        if (client->newweapon) {
-            client->pers.weapon = client->newweapon;
-            client->pers.selected_item = client->newweapon->id;
-        }
-        else {
-            // Absolute fallback to Blaster if everything else fails
-            gitem_t* blasterItem = FindItem("Blaster");
-            if (blasterItem) { // Ensure Blaster item exists
-                client->pers.selected_item = blasterItem->id;
-                // Ensure blaster is in inventory (might not be if start_items removes it)
-                if (client->pers.inventory[blasterItem->id] <= 0)
-                    client->pers.inventory[blasterItem->id] = 1;
-                client->pers.weapon = blasterItem;
-            }
-            else {
-                // Handle extremely unlikely case where Blaster item definition is missing
-                client->pers.weapon = nullptr;
-                client->pers.selected_item = IT_NULL;
-            }
-        }
-    }
+	//
+	// FINAL SETUP
+	//
+	if (G_IsCooperative() && g_coop_enable_lives && g_coop_enable_lives->integer)
+		client->pers.lives = g_coop_num_lives ? g_coop_num_lives->integer + 1 : 1;
 
-    //
-    // FINAL SETUP (Remains the same)
-    //
-    if (G_IsCooperative() && g_coop_enable_lives && g_coop_enable_lives->integer) // Added null check
-        client->pers.lives = g_coop_num_lives ? g_coop_num_lives->integer + 1 : 1; // Added null check + fallback
+	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
+		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
 
-    // Handle autoshield preference (remains the same)
-    if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
-        client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
+	if (PlayerHasStartArmor(ent))
+		client->pers.inventory[IT_ARMOR_BODY] = 100;
 
-    // Grant starting body armor if player has start armor benefit
-    if (PlayerHasStartArmor(ent))
-        client->pers.inventory[IT_ARMOR_BODY] = 100;
-
-    // Set connected/spawned flags (remains the same)
-    client->pers.connected = true;
-    client->pers.spawned = true;
-    //client->pers.bob_skip = false;
-    //client->pers.id_state = false;
-    //client->pers.iddmg_state = false;
+	client->pers.connected = true;
+	client->pers.spawned = true;
 }
 
 void InitClientResp(gclient_t* client)
@@ -1383,22 +1383,25 @@ edicts are wiped.
 */
 void SaveClientData()
 {
-	edict_t* ent;
-
+	const bool is_coop = coop->integer != 0; // Cache cvar check
+	
 	for (uint32_t i = 0; i < game.maxclients; i++)
 	{
-		ent = &g_edicts[1 + i];
+		edict_t* ent = &g_edicts[1 + i];
 		if (!ent->inuse)
 			continue;
-		game.clients[i].pers.health = ent->health;
-		game.clients[i].pers.max_health = ent->max_health;
-		game.clients[i].pers.savedFlags = (ent->flags & (FL_FLASHLIGHT | FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR | FL_WANTS_POWER_ARMOR));
-		if (coop->integer)
+		
+		gclient_t* client = &game.clients[i];
+		client->pers.health = ent->health;
+		client->pers.max_health = ent->max_health;
+		client->pers.savedFlags = (ent->flags & (FL_FLASHLIGHT | FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR | FL_WANTS_POWER_ARMOR));
+		
+		if (is_coop)
 		{
-			game.clients[i].pers.score = ent->client->resp.score;
-			game.clients[i].pers.id_state = ent->client->pers.id_state; // Save id_state
-			game.clients[i].pers.iddmg_state = ent->client->pers.iddmg_state; // Save iddmg_state
-			game.clients[i].pers.sentry_gun_choice = ent->client->pers.sentry_gun_choice; // Save sentry choice
+			client->pers.score = ent->client->resp.score;
+			client->pers.id_state = ent->client->pers.id_state;
+			client->pers.iddmg_state = ent->client->pers.iddmg_state;
+			client->pers.sentry_gun_choice = ent->client->pers.sentry_gun_choice;
 		}
 	}
 }
@@ -1429,34 +1432,25 @@ Returns the distance to the nearest player from the given spot
 */
 float PlayersRangeFromSpot(edict_t* spot)
 {
-	edict_t* player;
-	float	 bestplayerdistance;
-	vec3_t	 v;
-	float	 playerdistance;
-
-	bestplayerdistance = 9999999;
+	float best_distance = 9999999.0f;
 
 	for (uint32_t n = 1; n <= game.maxclients; n++)
 	{
-		player = &g_edicts[n];
+		edict_t* player = &g_edicts[n];
 
-		if (!player->inuse)
+		// Early exits for invalid players
+		if (!player->inuse || !player->solid || player->health <= 0)
 			continue;
 
-		if (!player->solid)
-			continue;
+		// Calculate distance (squared distance is faster, but we need actual for sorting)
+		vec3_t delta = spot->s.origin - player->s.origin;
+		float distance = delta.length();
 
-		if (player->health <= 0)
-			continue;
-
-		v = spot->s.origin - player->s.origin;
-		playerdistance = v.length();
-
-		if (playerdistance < bestplayerdistance)
-			bestplayerdistance = playerdistance;
+		if (distance < best_distance)
+			best_distance = distance;
 	}
 
-	return bestplayerdistance;
+	return best_distance;
 }
 
 bool SpawnPointClear(edict_t* spot)
@@ -1467,184 +1461,164 @@ bool SpawnPointClear(edict_t* spot)
 
 select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start)
 {
-    struct spawn_point_t
-    {
-        edict_t* point;
-        float dist;
-    };
+	struct spawn_point_t
+	{
+		edict_t* point;
+		float dist;
+	};
 
-    static std::vector<spawn_point_t> spawn_points;
-    spawn_points.clear();
+	static std::vector<spawn_point_t> spawn_points;
+	spawn_points.clear();
 
-    // Gather all potential spawn points in a single pass over the edict list.
-    edict_t* spot = nullptr;
-    for (uint32_t i = 1; i < globals.num_edicts; i++)
-    {
-        spot = &g_edicts[i];
-        if (!spot->inuse || !spot->classname)
-            continue;
+	// Cache classname strings for faster comparison
+	static constexpr const char* dm_spawn_class = "info_player_deathmatch";
+	static constexpr const char* team1_spawn_class = "info_player_team1";
+	static constexpr const char* team2_spawn_class = "info_player_team2";
+	static constexpr const char* start_spawn_class = "info_player_start";
 
-        bool is_dm_spawn = strcmp(spot->classname, "info_player_deathmatch") == 0;
-        bool is_ctf_spawn = false;
+	// Gather all potential spawn points in a single pass over the edict list
+	for (uint32_t i = 1; i < globals.num_edicts; i++)
+	{
+		edict_t* spot = &g_edicts[i];
+		if (!spot->inuse || !spot->classname)
+			continue;
 
-        if (fallback_to_ctf_or_start)
-        {
-            is_ctf_spawn = (strcmp(spot->classname, "info_player_team1") == 0 ||
-                            strcmp(spot->classname, "info_player_team2") == 0);
-        }
+		const char* classname = spot->classname;
+		bool is_valid_spawn = (strcmp(classname, dm_spawn_class) == 0);
 
-        if (is_dm_spawn || is_ctf_spawn)
-        {
-            spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-        }
-    }
+		if (!is_valid_spawn && fallback_to_ctf_or_start)
+		{
+			is_valid_spawn = (strcmp(classname, team1_spawn_class) == 0 || 
+			                  strcmp(classname, team2_spawn_class) == 0);
+		}
 
-    // If still no points after the main loop, try the absolute fallback.
-    if (spawn_points.empty() && fallback_to_ctf_or_start)
-    {
-        spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
-        if (spot)
-            spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-    }
+		if (is_valid_spawn)
+			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+	}
 
-    // no points at all
-    if (spawn_points.empty())
-    {
-        return { nullptr, false };
-    }
+	// If still no points after the main loop, try the absolute fallback
+	if (spawn_points.empty() && fallback_to_ctf_or_start)
+	{
+		edict_t* spot = G_FindByString<&edict_t::classname>(nullptr, start_spawn_class);
+		if (spot)
+			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+	}
 
-    // if there's only one spawn point, that's the one.
-    if (spawn_points.size() == 1)
-    {
-        if (force_spawn || SpawnPointClear(spawn_points[0].point))
-            return { spawn_points[0].point, true };
+	// No points at all
+	if (spawn_points.empty())
+		return { nullptr, false };
 
-        return { nullptr, true };
-    }
+	// If there's only one spawn point, that's the one
+	if (spawn_points.size() == 1)
+	{
+		if (force_spawn || SpawnPointClear(spawn_points[0].point))
+			return { spawn_points[0].point, true };
+		return { nullptr, true };
+	}
 
-    // order by distances ascending (top of list has closest players to point)
-    std::sort(spawn_points.begin(), spawn_points.end(), [](const spawn_point_t& a, const spawn_point_t& b) { return a.dist < b.dist; });
+	// Sort by distance ascending (closest players at top of list)
+	std::sort(spawn_points.begin(), spawn_points.end(), 
+		[](const spawn_point_t& a, const spawn_point_t& b) { return a.dist < b.dist; });
 
-    // farthest spawn is simple
-    if (farthest)
-    {
-        for (int32_t i = spawn_points.size() - 1; i >= 0; --i)
-        {
-            if (SpawnPointClear(spawn_points[i].point))
-                return { spawn_points[i].point, true };
-        }
-    }
-    else
-    {
-        // for random, select a random point other than the two
-        // that are closest to the player if possible.
-        if (spawn_points.size() > 2)
-            std::shuffle(spawn_points.begin() + 2, spawn_points.end(), mt_rand);
+	// Farthest spawn selection
+	if (farthest)
+	{
+		for (int32_t i = static_cast<int32_t>(spawn_points.size()) - 1; i >= 0; --i)
+		{
+			if (SpawnPointClear(spawn_points[i].point))
+				return { spawn_points[i].point, true };
+		}
+	}
+	else
+	{
+		// Random spawn selection (avoid the 2 closest to any player)
+		if (spawn_points.size() > 2)
+			std::shuffle(spawn_points.begin() + 2, spawn_points.end(), mt_rand);
 
-        // run down the list and pick the first one that we can use
-        if (spawn_points.size() > 2)
-        {
-            for (auto it = spawn_points.begin() + 2; it != spawn_points.end(); ++it)
-            {
-                if (SpawnPointClear(it->point))
-                    return { it->point, true };
-            }
-        }
+		// Pick first clear spawn from shuffled list
+		if (spawn_points.size() > 2)
+		{
+			for (auto it = spawn_points.begin() + 2; it != spawn_points.end(); ++it)
+			{
+				if (SpawnPointClear(it->point))
+					return { it->point, true };
+			}
+		}
 
-        // none clear, so we have to pick one of the other two
-        if (SpawnPointClear(spawn_points[1].point))
-            return { spawn_points[1].point, true };
-        else if (SpawnPointClear(spawn_points[0].point))
-            return { spawn_points[0].point, true };
-    }
+		// No clear spawns in safe zone, try the 2 closest
+		if (SpawnPointClear(spawn_points[1].point))
+			return { spawn_points[1].point, true };
+		else if (SpawnPointClear(spawn_points[0].point))
+			return { spawn_points[0].point, true };
+	}
 
-    // If all checks fail but we must spawn, pick a random one.
-    if (force_spawn)
-        return { random_element(spawn_points).point, true };
+	// All checks failed but we must spawn - pick random
+	if (force_spawn)
+		return { random_element(spawn_points).point, true };
 
-    return { nullptr, true };
+	return { nullptr, true };
 }
 
 //===============
 // ROGUE
 edict_t* SelectLavaCoopSpawnPoint(edict_t* ent)
 {
-	int		 index;
-	edict_t* spot = nullptr;
-	float	 lavatop;
-	edict_t* lava;
-	edict_t* pointWithLeastLava;
-	float	 lowest;
-	edict_t* spawnPoints[64];
-	vec3_t	 center;
-	int		 numPoints;
-	edict_t* highestlava;
-
-	lavatop = -99999;
-	highestlava = nullptr;
-
-	// first, find the highest lava
-	// remember that some will stop moving when they've filled their
-	// areas...
-	lava = nullptr;
-	while (1)
+	constexpr float LAVA_SAFETY_MARGIN = 64.0f;
+	constexpr float PLAYER_MIN_DISTANCE = 32.0f;
+	constexpr int MAX_SPAWN_POINTS = 64;
+	
+	edict_t* spawnPoints[MAX_SPAWN_POINTS];
+	int numPoints = 0;
+	
+	// Find the highest lava level
+	float lavatop = -99999.0f;
+	edict_t* lava = nullptr;
+	
+	while ((lava = G_FindByString<&edict_t::classname>(lava, "func_water")))
 	{
-		lava = G_FindByString<&edict_t::classname>(lava, "func_water");
-		if (!lava)
-			break;
-
-		center = lava->absmax + lava->absmin;
-		center *= 0.5f;
-
-		if (lava->spawnflags.has(SPAWNFLAG_WATER_SMART) && (gi.pointcontents(center) & MASK_WATER))
+		if (lava->spawnflags.has(SPAWNFLAG_WATER_SMART))
 		{
-			if (lava->absmax[2] > lavatop)
-			{
+			vec3_t center = (lava->absmax + lava->absmin) * 0.5f;
+			if ((gi.pointcontents(center) & MASK_WATER) && lava->absmax[2] > lavatop)
 				lavatop = lava->absmax[2];
-				highestlava = lava;
-			}
 		}
 	}
 
-	// if we didn't find ANY lava, then return nullptr
-	if (!highestlava)
+	// No lava found
+	if (lavatop < -99000.0f)
 		return nullptr;
 
-	// find the top of the lava and include a small margin of error (plus bbox size)
-	lavatop = highestlava->absmax[2] + 64;
+	// Add safety margin
+	lavatop += LAVA_SAFETY_MARGIN;
 
-	// find all the lava spawn points and store them in spawnPoints[]
-	spot = nullptr;
-	numPoints = 0;
-	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_coop_lava")))
+	// Collect all valid lava spawn points
+	edict_t* spot = nullptr;
+	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_coop_lava")) && numPoints < MAX_SPAWN_POINTS)
 	{
-		if (numPoints == 64)
-			break;
-
 		spawnPoints[numPoints++] = spot;
 	}
 
-	// walk up the sorted list and return the lowest, open, non-lava spawn point
-	spot = nullptr;
-	lowest = 999999;
-	pointWithLeastLava = nullptr;
-	for (index = 0; index < numPoints; index++)
+	// Find the lowest safe spawn point with sufficient player distance
+	edict_t* best_spawn = nullptr;
+	float lowest_safe_height = 999999.0f;
+	
+	for (int i = 0; i < numPoints; i++)
 	{
-		if (spawnPoints[index]->s.origin[2] < lavatop)
+		edict_t* spawn = spawnPoints[i];
+		
+		// Skip if below lava or too close to players
+		if (spawn->s.origin[2] < lavatop || PlayersRangeFromSpot(spawn) <= PLAYER_MIN_DISTANCE)
 			continue;
-
-		if (PlayersRangeFromSpot(spawnPoints[index]) > 32)
+		
+		// Pick lowest safe spot
+		if (spawn->s.origin[2] < lowest_safe_height)
 		{
-			if (spawnPoints[index]->s.origin[2] < lowest)
-			{
-				// save the last point
-				pointWithLeastLava = spawnPoints[index];
-				lowest = spawnPoints[index]->s.origin[2];
-			}
+			lowest_safe_height = spawn->s.origin[2];
+			best_spawn = spawn;
 		}
 	}
 
-	return pointWithLeastLava;
+	return best_spawn;
 }
 // ROGUE
 //===============
@@ -2434,213 +2408,73 @@ Called when a player connects to a server or respawns in
 a deathmatch.
 ===========
 */
-void PutClientInServer(edict_t* ent)
+// ========================================================================
+// PUT CLIENT IN SERVER HELPER FUNCTIONS
+// ========================================================================
+
+// Find and setup intermission spawn point for awaiting respawn
+static void SetupRespawnLimboState(edict_t* ent)
 {
-	int index;
-	vec3_t spawn_origin, spawn_angles;
-	gclient_t* client;
-
-	if (g_horde && g_horde->integer)
-	VerifyAndAdjustBots();
-
-	client_persistant_t saved;
-	client_respawn_t	resp;
-
-	// NOTE: char arrays are declared closer to use below
-
-	index = ent - g_edicts - 1;
-	client = ent->client;
-
-	// Clear velocity now, since landmark may change it
-	ent->velocity = {};
-
-	bool keepVelocity = client->landmark_name != nullptr;
-
-	if (keepVelocity)
-		ent->velocity = client->oldvelocity;
-
-	// Find a spawn point
-	// Do it before setting health back up, so farthest
-	// ranging doesn't count this client
-	bool valid_spawn = false;
-	const bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
-	bool is_landmark = false;
-
-	if (use_squad_respawn)
+	gclient_t* client = ent->client;
+	
+	// Find intermission point if not already cached
+	if (!level.respawn_intermission)
 	{
-		spawn_origin = squad_respawn_position;
-		spawn_angles = squad_respawn_angles;
-		valid_spawn = true;
-	}
-	else if (gamerules->integer && DMGame.SelectSpawnPoint)
-	{
-		valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn);
-	}
-	else // PGM
-	{
-		valid_spawn = SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn, is_landmark);
-	}
-
-	// [Paril-KEX] if we didn't get a valid spawn, hold us in
-	// limbo for a while until we do get one
-	if (!valid_spawn)
-	{
-		// Only do this once per spawn
-		if (!client->awaiting_respawn)
+		edict_t* pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_intermission");
+		
+		if (!pt)
 		{
-			// REVERTED: Use stack allocation for temporary userinfo buffer
-			char userinfo[MAX_INFO_STRING];
-			memcpy(userinfo, client->pers.userinfo, MAX_INFO_STRING);
-			ClientUserinfoChanged(ent, userinfo); // Pass the stack array directly
-
-			client->respawn_timeout = level.time + 3_sec;
-		}
-
-		// Find a spot to place us
-		if (!level.respawn_intermission)
-		{
-			edict_t* pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_intermission");
+			// Fallback: try player start or deathmatch spawn
+			pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
 			if (!pt)
-			{	// Mapper forgot to put an intermission
-				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
-				if (!pt)
-					pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
-			}
-			else
-			{ // Choose one of four spots
-				int32_t i = irandom(4);
-				while (i--)
-				{
-					pt = G_FindByString<&edict_t::classname>(pt, "info_player_intermission");
-					if (!pt) // Wrap around the list
-						pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
-				}
-			}
-
-			if (pt != nullptr)
-			{
-				level.intermission_origin = pt->s.origin;
-				level.intermission_angle = pt->s.angles;
-				level.respawn_intermission = true;
-			}
-			else
-			{
-				// If pt is nullptr, no valid intermission point found
-				// Log a warning and prevent the player from spawning
-				vec3_t default_origin = vec3_origin;
-				vec3_t default_angles = vec3_origin;
-				level.intermission_origin = default_origin;
-				level.intermission_angle = default_angles;
-				level.respawn_intermission = true;
-			}
-		}
-
-		ent->s.origin = level.intermission_origin;
-		ent->client->ps.pmove.origin = level.intermission_origin;
-		ent->client->ps.viewangles = level.intermission_angle;
-
-		client->awaiting_respawn = true;
-		client->ps.pmove.pm_type = PM_FREEZE;
-		client->ps.rdflags = RDF_NONE;
-		ent->deadflag = false;
-		ent->solid = SOLID_NOT;
-		ent->movetype = MOVETYPE_NOCLIP;
-		ent->s.modelindex = 0;
-		ent->svflags |= SVF_NOCLIENT;
-		ent->client->ps.team_id = ent->client->resp.ctf_team;
-		gi.linkentity(ent);
-
-		return;
-	}
-
-	client->resp.ctf_state++;
-
-	bool const was_waiting_for_respawn = client->awaiting_respawn;
-
-	if (client->awaiting_respawn)
-		ent->svflags &= ~SVF_NOCLIENT;
-
-	client->awaiting_respawn = false;
-	client->respawn_timeout = 0_ms;
-
-	// REVERTED: Use stack allocation for temporary social_id buffer
-	char social_id[MAX_INFO_VALUE];
-	Q_strlcpy(social_id, ent->client->pers.social_id, MAX_INFO_VALUE);
-
-	// Deathmatch wipes most client data every spawn
-	if (deathmatch->integer)
-	{
-		client->resp.inactivity_time = 0_sec;
-		client->resp.inactivity_warning = false;
-		client->resp.inactive = false;
-		client->pers.health = 0;
-		// REVERTED: Direct assignment to stack variable
-		resp = client->resp;
-	}
-	else
-	{
-		// [Kex] Maintain user info in singleplayer to keep the player skin.
-		// REVERTED: Use stack allocation for temporary userinfo buffer
-		char userinfo[MAX_INFO_STRING];
-		memcpy(userinfo, client->pers.userinfo, MAX_INFO_STRING);
-
-		if (G_IsCooperative() || (deathmatch->integer && g_horde->integer))
-		{
-			// REVERTED: Direct assignment to stack variable
-			resp = client->resp;
-
-			if (!P_UseCoopInstancedItems())
-			{
-				resp.coop_respawn.game_help1changed = client->pers.game_help1changed;
-				resp.coop_respawn.game_help2changed = client->pers.game_help2changed;
-				resp.coop_respawn.helpchanged = client->pers.helpchanged;
-				client->pers = resp.coop_respawn;
-			}
-			else
-			{
-				if (!client->pers.weapon)
-					client->pers.weapon = client->pers.lastweapon;
-			}
-		}
-
-		ClientUserinfoChanged(ent, userinfo); // Pass stack array directly
-
-		if (G_IsCooperative())
-		{
-			if (resp.score > client->pers.score)
-				client->pers.score = resp.score;
+				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
 		}
 		else
-			// REVERTED: Use address of stack variable for memset
-			memset(&resp, 0, sizeof(client_respawn_t));
+		{
+			// Choose random intermission spot (1-4)
+			int32_t random_spot = irandom(4);
+			while (random_spot--)
+			{
+				edict_t* next = G_FindByString<&edict_t::classname>(pt, "info_player_intermission");
+				if (!next)
+					break;
+				pt = next;
+			}
+		}
+
+		// Cache the intermission location
+		if (pt)
+		{
+			level.intermission_origin = pt->s.origin;
+			level.intermission_angle = pt->s.angles;
+		}
+		else
+		{
+			level.intermission_origin = vec3_origin;
+			level.intermission_angle = vec3_origin;
+		}
+		level.respawn_intermission = true;
 	}
 
-	// Clear everything but the persistent data
-	// REVERTED: Direct assignment to stack variable
-	saved = client->pers;
-	memset(client, 0, sizeof(*client));
-	client->pers = saved;
-	client->resp = resp;
+	// Place player at intermission point in frozen state
+	ent->s.origin = level.intermission_origin;
+	client->ps.pmove.origin = level.intermission_origin;
+	client->ps.viewangles = level.intermission_angle;
+	client->awaiting_respawn = true;
+	client->ps.pmove.pm_type = PM_FREEZE;
+	client->ps.rdflags = RDF_NONE;
+	ent->deadflag = false;
+	ent->solid = SOLID_NOT;
+	ent->movetype = MOVETYPE_NOCLIP;
+	ent->s.modelindex = 0;
+	ent->svflags |= SVF_NOCLIENT;
+	client->ps.team_id = client->resp.ctf_team;
+	gi.linkentity(ent);
+}
 
-	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
-	// On a new, fresh spawn (always in DM, clear inventory
-	// or new spawns in SP/coop)
-	if (client->pers.health <= 0)
-		InitClientPersistant(ent, client);
-
-	// Restore social ID
-	Q_strlcpy(ent->client->pers.social_id, social_id, MAX_INFO_VALUE);
-
-	// Fix level switch issue
-	ent->client->pers.connected = true;
-
-	// Slow time will be unset here
-	globals.server_flags &= ~SERVER_FLAG_SLOW_TIME;
-
-	// Copy some data from the client to the entity
-	FetchClientEntData(ent);
-
-	// Clear entity values
+// Initialize entity defaults for spawning player
+static void InitializeEntityDefaults(edict_t* ent, int index)
+{
 	ent->groundentity = nullptr;
 	ent->client = &game.clients[index];
 	ent->takedamage = true;
@@ -2657,32 +2491,28 @@ void PutClientInServer(edict_t* ent)
 	ent->die = player_die;
 	ent->waterlevel = WATER_NONE;
 	ent->watertype = CONTENTS_NONE;
-	ent->flags &= ~(FL_NO_KNOCKBACK | FL_ALIVE_KNOCKBACK_ONLY | FL_NO_DAMAGE_EFFECTS);
+	ent->flags &= ~(FL_NO_KNOCKBACK | FL_ALIVE_KNOCKBACK_ONLY | FL_NO_DAMAGE_EFFECTS | FL_SAM_RAIMI);
 	ent->svflags &= ~SVF_DEADMONSTER;
 	ent->svflags |= SVF_PLAYER;
-
-	ent->flags &= ~FL_SAM_RAIMI;  // PGM - turn off sam raimi flag
-
-	// Clear the special_type_id when respawning (fix for morphed player state persisting)
 	ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
-
-	// Clear any looping sounds (fix for hurt noises and weapon sounds persisting)
 	ent->s.sound = 0;
 	ent->client->weapon_sound = 0;
-
 	ent->mins = PLAYER_MINS;
 	ent->maxs = PLAYER_MAXS;
+}
 
-	// Clear playerstate values
-	memset(&ent->client->ps, 0, sizeof(client->ps));
-
-	// REVERTED: Use stack allocation for temporary val buffer
+// Setup player state defaults
+static void InitializePlayerState(edict_t* ent)
+{
+	gclient_t* client = ent->client;
+	
+	memset(&client->ps, 0, sizeof(client->ps));
+	
 	char val[MAX_INFO_VALUE];
-	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val, MAX_INFO_VALUE); // Pass stack array
-	ent->client->ps.fov = clamp((float)atoi(val), 1.f, 160.f); // Use stack array
-
-	ent->client->ps.pmove.viewheight = ent->viewheight;
-	ent->client->ps.team_id = ent->client->resp.ctf_team;
+	gi.Info_ValueForKey(client->pers.userinfo, "fov", val, sizeof(val));
+	client->ps.fov = clamp(static_cast<float>(atoi(val)), 1.f, 160.f);
+	client->ps.pmove.viewheight = ent->viewheight;
+	client->ps.team_id = client->resp.ctf_team;
 
 	if (!G_ShouldPlayersCollide(false))
 		ent->clipmask &= ~CONTENTS_PLAYER;
@@ -2693,20 +2523,17 @@ void PutClientInServer(edict_t* ent)
 		client->ps.gunindex = 0;
 	client->ps.gunskin = 0;
 
-	// Clear entity state values
 	ent->s.effects = EF_NONE;
-	ent->s.modelindex = MODELINDEX_PLAYER; // Will use the skin specified model
-	ent->s.modelindex2 = MODELINDEX_PLAYER; // Custom gun model
-	// sknum is player num and weapon number
-	// weapon number will be added in changeweapon
-
-	P_AssignClientSkinnum(ent);
-
+	ent->s.modelindex = MODELINDEX_PLAYER;
+	ent->s.modelindex2 = MODELINDEX_PLAYER;
 	ent->s.frame = 0;
+	
+	P_AssignClientSkinnum(ent);
+}
 
-	PutClientOnSpawnPoint(ent, spawn_origin, spawn_angles);
-
-	// [Paril-KEX] Set up world fog & send it instantly
+// Setup world fog for player
+static void SetupPlayerFog(edict_t* ent)
+{
 	ent->client->pers.wanted_fog = {
 		world->fog.density,
 		world->fog.color[0],
@@ -2721,11 +2548,156 @@ void PutClientInServer(edict_t* ent)
 		world->heightfog.density
 	};
 	P_ForceFogTransition(ent, true);
+}
 
+void PutClientInServer(edict_t* ent)
+{
+	// Cache frequently used values
+	const bool is_horde = g_horde && g_horde->integer;
+	const bool is_deathmatch = deathmatch->integer != 0;
+	const bool is_coop = G_IsCooperative();
+	
+	if (is_horde)
+		VerifyAndAdjustBots();
+
+	gclient_t* client = ent->client;
+	const int index = ent - g_edicts - 1;
+	vec3_t spawn_origin, spawn_angles;
+	bool valid_spawn = false;
+	bool is_landmark = false;
+
+	// Handle velocity preservation for landmark spawns
+	if (client->landmark_name)
+		ent->velocity = client->oldvelocity;
+	else
+		ent->velocity = {};
+
+	// Find spawn point
+	const bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
+
+	if (use_squad_respawn)
+	{
+		spawn_origin = squad_respawn_position;
+		spawn_angles = squad_respawn_angles;
+		valid_spawn = true;
+	}
+	else if (gamerules->integer && DMGame.SelectSpawnPoint)
+	{
+		valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn);
+	}
+	else
+	{
+		valid_spawn = SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn, is_landmark);
+	}
+
+	// No valid spawn - put in limbo
+	if (!valid_spawn)
+	{
+		if (!client->awaiting_respawn)
+		{
+			char userinfo[MAX_INFO_STRING];
+			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+			ClientUserinfoChanged(ent, userinfo);
+			client->respawn_timeout = level.time + 3_sec;
+		}
+
+		SetupRespawnLimboState(ent);
+		return;
+	}
+
+	// Update respawn state
+	client->resp.ctf_state++;
+	const bool was_waiting_for_respawn = client->awaiting_respawn;
+	
+	if (client->awaiting_respawn)
+		ent->svflags &= ~SVF_NOCLIENT;
+	
+	client->awaiting_respawn = false;
+	client->respawn_timeout = 0_ms;
+
+	// Backup social ID
+	char social_id[MAX_INFO_VALUE];
+	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
+
+	// Handle client data reset based on game mode
+	client_respawn_t resp = {};
+	
+	if (is_deathmatch)
+	{
+		client->resp.inactivity_time = 0_sec;
+		client->resp.inactivity_warning = false;
+		client->resp.inactive = false;
+		client->pers.health = 0;
+		resp = client->resp;
+	}
+	else
+	{
+		char userinfo[MAX_INFO_STRING];
+		memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+
+		if (is_coop || (is_deathmatch && is_horde))
+		{
+			resp = client->resp;
+
+			if (!P_UseCoopInstancedItems())
+			{
+				resp.coop_respawn.game_help1changed = client->pers.game_help1changed;
+				resp.coop_respawn.game_help2changed = client->pers.game_help2changed;
+				resp.coop_respawn.helpchanged = client->pers.helpchanged;
+				client->pers = resp.coop_respawn;
+			}
+			else if (!client->pers.weapon)
+			{
+				client->pers.weapon = client->pers.lastweapon;
+			}
+		}
+
+		ClientUserinfoChanged(ent, userinfo);
+
+		if (is_coop && resp.score > client->pers.score)
+			client->pers.score = resp.score;
+		else if (!is_coop)
+			memset(&resp, 0, sizeof(resp));
+	}
+
+	// Clear client data while preserving persistant info
+	client_persistant_t saved = client->pers;
+	memset(client, 0, sizeof(*client));
+	client->pers = saved;
+	client->resp = resp;
+	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
+
+	// Initialize persistant data if needed
+	if (client->pers.health <= 0)
+		InitClientPersistant(ent, client);
+
+	// Restore social ID
+	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
+	ent->client->pers.connected = true;
+
+	// Clear server flags
+	globals.server_flags &= ~SERVER_FLAG_SLOW_TIME;
+
+	// Copy client data to entity
+	FetchClientEntData(ent);
+
+	// Initialize entity defaults
+	InitializeEntityDefaults(ent, index);
+	
+	// Initialize player state
+	InitializePlayerState(ent);
+
+	// Position player at spawn point
+	PutClientOnSpawnPoint(ent, spawn_origin, spawn_angles);
+
+	// Setup fog
+	SetupPlayerFog(ent);
+
+	// CTF initialization
 	if (CTFStartClient(ent))
 		return;
 
-	// Spawn a spectator
+	// Spawn as spectator
 	if (client->pers.spectator)
 	{
 		client->chase_target = nullptr;
@@ -2739,63 +2711,37 @@ void PutClientInServer(edict_t* ent)
 		return;
 	}
 
-	// // Handle cooperative mode players with no team assignment (spectator-like state)
-	// if (G_IsCooperative() && client->resp.ctf_team == CTF_NOTEAM)
-	// {
-	// 	client->chase_target = nullptr;
-	// 	client->resp.spectator = true;
-	// 	ent->movetype = MOVETYPE_NOCLIP;
-	// 	ent->solid = SOLID_NOT;
-	// 	ent->svflags |= SVF_NOCLIENT;
-	// 	ent->client->ps.gunindex = 0;
-	// 	ent->client->ps.gunskin = 0;
-	// 	gi.linkentity(ent);
-	// 	return;
-	// }
-
 	client->resp.spectator = false;
 
-	// [Paril-KEX] Sanity check for landmark spawns to prevent intersecting spawns
-	if (spawn_from_begin)
+	// Handle landmark spawn collision detection
+	if (spawn_from_begin && (is_coop || (is_deathmatch && is_horde)))
 	{
-		if (G_IsCooperative() || (deathmatch->integer && g_horde->integer))
+		edict_t* collision = G_UnsafeSpawnPosition(ent->s.origin, true);
+		if (collision)
 		{
-			edict_t* collision = G_UnsafeSpawnPosition(ent->s.origin, true);
-
-			if (collision)
+			gi.linkentity(ent);
+			if (collision->client)
 			{
-				gi.linkentity(ent);
-
-				if (collision->client)
-				{
-					bool lm = false;
-					SelectSpawnPoint(collision, spawn_origin, spawn_angles, true, lm);
-					PutClientOnSpawnPoint(collision, spawn_origin, spawn_angles);
-				}
+				bool lm = false;
+				SelectSpawnPoint(collision, spawn_origin, spawn_angles, true, lm);
+				PutClientOnSpawnPoint(collision, spawn_origin, spawn_angles);
 			}
 		}
-
 		ent->client->landmark_free_fall = true;
 	}
 
 	gi.linkentity(ent);
+	KillBox(ent, true, MOD_TELEFRAG_SPAWN);
 
-	if (!KillBox(ent, true, MOD_TELEFRAG_SPAWN))
-	{
-		// Handle KillBox failure if needed
-	}
+	// Level-specific hacks
+	if (strcmp(level.mapname, "rboss") == 0 && !is_deathmatch)
+		client->pers.inventory[IT_KEY_NUKE] = 1;
 
-	// Tribute to cash's level-specific hacks
-	if (Q_strcasecmp(level.mapname, "rboss") == 0)
-	{
-		if (!deathmatch->integer)
-			client->pers.inventory[IT_KEY_NUKE] = 1;
-	}
-
-	// Force the current weapon up
+	// Equip weapon
 	client->newweapon = client->pers.weapon;
 	ChangeWeapon(ent);
 
+	// Post-respawn effects
 	if (was_waiting_for_respawn)
 		G_PostRespawn(ent);
 }
@@ -3921,10 +3867,10 @@ void UpdateIRTracking(edict_t* ent, gclient_t* client)
 		}
 	}
 
-	ir_dupe_key++;  // Incrementar la clave para el siguiente frame
+	ir_dupe_key++;  // Increment key for next frame
 }
 
-// Función para manejar el movimiento del menú
+// Handle menu movement input
 bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 {
 	// Handle inventory display separately - inventory takes priority over menu
