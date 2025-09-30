@@ -33,20 +33,13 @@ private:
     // Track assets that need to be sent to connecting clients
     struct PendingClientLoad {
         edict_t* client;
-        std::vector<std::pair<std::string, AssetType>> pending_assets;  // Store name+type, not pointers
+        std::vector<AssetInfo*> pending_assets;
         size_t current_batch;
         gtime_t next_batch_time;
         bool is_loading;
     };
 
     std::vector<PendingClientLoad> m_pending_clients;
-
-    // Cached sorted asset list for faster client loading
-    struct SortedAssetCache {
-        std::vector<std::pair<std::string, AssetType>> sorted_list;
-        size_t asset_count_snapshot;
-        bool needs_rebuild;
-    } m_sorted_cache;
 
     // Configuration
     static constexpr size_t BATCH_SIZE = 50;  // Assets per batch
@@ -64,18 +57,8 @@ private:
 
     // Helper functions
     std::unordered_map<std::string, AssetInfo>* GetAssetMap(AssetType type);
-    const std::unordered_map<std::string, AssetInfo>* GetAssetMap(AssetType type) const;
     bool IsAssetStillNeeded(const AssetInfo& info) const;
     void SendAssetBatch(PendingClientLoad& client_load);
-    void RebuildSortedCache();
-    void InvalidateSortedCache();
-
-    // Template helper to reduce code duplication
-    template<typename IndexFunc>
-    int32_t RegisterAssetInternal(const char* name, bool is_core, AssetType type,
-                                   std::unordered_map<std::string, AssetInfo>& map,
-                                   uint32_t& stat_counter, size_t limit,
-                                   const char* type_name, IndexFunc index_func);
 
 public:
     AssetManager();

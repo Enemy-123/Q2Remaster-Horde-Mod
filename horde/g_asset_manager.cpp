@@ -5,20 +5,21 @@
 namespace horde {
 
 // Global instance
+static AssetManager* s_instance = nullptr;
 HordeAssets g_horde_assets;
 
 AssetManager::AssetManager() {
     m_stats = {};
-    m_sorted_cache.asset_count_snapshot = 0;
-    m_sorted_cache.needs_rebuild = true;
 }
 
 AssetManager::~AssetManager() {
 }
 
 AssetManager& AssetManager::Get() {
-    static AssetManager instance;  // Thread-safe in C++11+, no leak
-    return instance;
+    if (!s_instance) {
+        s_instance = new AssetManager();
+    }
+    return *s_instance;
 }
 
 std::unordered_map<std::string, AssetInfo>* AssetManager::GetAssetMap(AssetType type) {
@@ -30,73 +31,100 @@ std::unordered_map<std::string, AssetInfo>* AssetManager::GetAssetMap(AssetType 
     }
 }
 
-const std::unordered_map<std::string, AssetInfo>* AssetManager::GetAssetMap(AssetType type) const {
-    switch (type) {
-        case AssetType::MODEL: return &m_models;
-        case AssetType::SOUND: return &m_sounds;
-        case AssetType::IMAGE: return &m_images;
-        default: return nullptr;
-    }
-}
-
-template<typename IndexFunc>
-int32_t AssetManager::RegisterAssetInternal(const char* name, bool is_core, AssetType type,
-                                            std::unordered_map<std::string, AssetInfo>& map,
-                                            uint32_t& stat_counter, size_t limit,
-                                            const char* type_name, IndexFunc index_func) {
+int32_t AssetManager::RegisterModel(const char* name, bool is_core) {
     if (!name || !*name) return 0;
 
-    // Check if already registered using try_emplace (avoids duplicate lookup)
-    auto [it, inserted] = map.try_emplace(name);
-
-    if (!inserted) {
-        // Already exists - update stats and return existing index
+    // Check if already registered
+    auto it = m_models.find(name);
+    if (it != m_models.end()) {
         it->second.use_count++;
         it->second.last_used = std::chrono::steady_clock::now();
         m_stats.duplicate_prevented++;
         return it->second.index;
     }
 
-    // New asset - call the engine's index function
-    int32_t index = index_func(name);
-
-    // Initialize the new AssetInfo in-place
-    AssetInfo& info = it->second;
+    // Register new model
+    int32_t index = gi.modelindex(name);
+    AssetInfo info;
     info.name = name;
     info.index = index;
-    info.type = type;
+    info.type = AssetType::MODEL;
     info.last_used = std::chrono::steady_clock::now();
     info.use_count = 1;
     info.is_core_asset = is_core;
 
-    stat_counter++;
-    InvalidateSortedCache();  // New asset added, cache needs rebuild
+    m_models[name] = info;
+    m_stats.total_models++;
 
     // Check if we're approaching limits and warn
-    if (map.size() > limit * 0.9) {
-        gi.Com_PrintFmt("WARNING: Approaching {} limit ({}/{})\n",
-                        type_name, map.size(), limit);
+    if (m_models.size() > MAX_MODELS * 0.9) {
+        gi.Com_PrintFmt("WARNING: Approaching model limit ({}/{})\n",
+                        m_models.size(), MAX_MODELS);
     }
 
     return index;
 }
 
-int32_t AssetManager::RegisterModel(const char* name, bool is_core) {
-    return RegisterAssetInternal(name, is_core, AssetType::MODEL, m_models,
-                                 m_stats.total_models, MAX_MODELS, "model",
-                                 [](const char* n) { return gi.modelindex(n); });
-}
-
 int32_t AssetManager::RegisterSound(const char* name, bool is_core) {
-    return RegisterAssetInternal(name, is_core, AssetType::SOUND, m_sounds,
-                                 m_stats.total_sounds, MAX_SOUNDS, "sound",
-                                 [](const char* n) { return gi.soundindex(n); });
+    if (!name || !*name) return 0;
+
+    auto it = m_sounds.find(name);
+    if (it != m_sounds.end()) {
+        it->second.use_count++;
+        it->second.last_used = std::chrono::steady_clock::now();
+        m_stats.duplicate_prevented++;
+        return it->second.index;
+    }
+
+    int32_t index = gi.soundindex(name);
+    AssetInfo info;
+    info.name = name;
+    info.index = index;
+    info.type = AssetType::SOUND;
+    info.last_used = std::chrono::steady_clock::now();
+    info.use_count = 1;
+    info.is_core_asset = is_core;
+
+    m_sounds[name] = info;
+    m_stats.total_sounds++;
+
+    if (m_sounds.size() > MAX_SOUNDS * 0.9) {
+        gi.Com_PrintFmt("WARNING: Approaching sound limit ({}/{})\n",
+                        m_sounds.size(), MAX_SOUNDS);
+    }
+
+    return index;
 }
 
 int32_t AssetManager::RegisterImage(const char* name, bool is_core) {
-    return RegisterAssetInternal(name, is_core, AssetType::IMAGE, m_images,
-                                 m_stats.total_images, MAX_IMAGES, "image",
-                                 [](const char* n) { return gi.imageindex(n); });
+    if (!name || !*name) return 0;
+
+    auto it = m_images.find(name);
+    if (it != m_images.end()) {
+        it->second.use_count++;
+        it->second.last_used = std::chrono::steady_clock::now();
+        m_stats.duplicate_prevented++;
+        return it->second.index;
+    }
+
+    int32_t index = gi.imageindex(name);
+    AssetInfo info;
+    info.name = name;
+    info.index = index;
+    info.type = AssetType::IMAGE;
+    info.last_used = std::chrono::steady_clock::now();
+    info.use_count = 1;
+    info.is_core_asset = is_core;
+
+    m_images[name] = info;
+    m_stats.total_images++;
+
+    if (m_images.size() > MAX_IMAGES * 0.9) {
+        gi.Com_PrintFmt("WARNING: Approaching image limit ({}/{})\n",
+                        m_images.size(), MAX_IMAGES);
+    }
+
+    return index;
 }
 
 int32_t AssetManager::FindModel(const char* name) const {
@@ -117,66 +145,11 @@ int32_t AssetManager::FindImage(const char* name) const {
     return (it != m_images.end()) ? it->second.index : 0;
 }
 
-void AssetManager::InvalidateSortedCache() {
-    m_sorted_cache.needs_rebuild = true;
-}
-
-void AssetManager::RebuildSortedCache() {
-    m_sorted_cache.sorted_list.clear();
-
-    // Pre-allocate to avoid reallocations
-    size_t total_count = m_models.size() + m_sounds.size() + m_images.size();
-    m_sorted_cache.sorted_list.reserve(total_count);
-
-    // Collect all assets with their names and types
-    for (const auto& [name, info] : m_models) {
-        m_sorted_cache.sorted_list.emplace_back(name, AssetType::MODEL);
-    }
-    for (const auto& [name, info] : m_sounds) {
-        m_sorted_cache.sorted_list.emplace_back(name, AssetType::SOUND);
-    }
-    for (const auto& [name, info] : m_images) {
-        m_sorted_cache.sorted_list.emplace_back(name, AssetType::IMAGE);
-    }
-
-    // Sort by usage frequency (most used first)
-    std::sort(m_sorted_cache.sorted_list.begin(), m_sorted_cache.sorted_list.end(),
-        [this](const std::pair<std::string, AssetType>& a,
-               const std::pair<std::string, AssetType>& b) {
-            // Look up asset info
-            const auto* map_a = GetAssetMap(a.second);
-            const auto* map_b = GetAssetMap(b.second);
-
-            auto it_a = map_a->find(a.first);
-            auto it_b = map_b->find(b.first);
-
-            if (it_a == map_a->end() || it_b == map_b->end()) return false;
-
-            const AssetInfo& info_a = it_a->second;
-            const AssetInfo& info_b = it_b->second;
-
-            // Core assets first
-            if (info_a.is_core_asset != info_b.is_core_asset) {
-                return info_a.is_core_asset;
-            }
-            // Then by usage count
-            return info_a.use_count > info_b.use_count;
-        });
-
-    m_sorted_cache.asset_count_snapshot = total_count;
-    m_sorted_cache.needs_rebuild = false;
-}
-
 void AssetManager::BeginClientLoading(edict_t* client) {
     if (!client || !client->client) return;
 
     // Remove any existing pending load for this client
     AbortClientLoading(client);
-
-    // Rebuild cache if needed
-    if (m_sorted_cache.needs_rebuild) {
-        RebuildSortedCache();
-    }
 
     PendingClientLoad load;
     load.client = client;
@@ -184,8 +157,27 @@ void AssetManager::BeginClientLoading(edict_t* client) {
     load.next_batch_time = level.time + 100_ms;  // Small initial delay
     load.is_loading = true;
 
-    // Copy the pre-sorted asset list
-    load.pending_assets = m_sorted_cache.sorted_list;
+    // Collect all assets that need to be sent
+    for (const auto& [name, info] : m_models) {
+        load.pending_assets.push_back(const_cast<AssetInfo*>(&info));
+    }
+    for (const auto& [name, info] : m_sounds) {
+        load.pending_assets.push_back(const_cast<AssetInfo*>(&info));
+    }
+    for (const auto& [name, info] : m_images) {
+        load.pending_assets.push_back(const_cast<AssetInfo*>(&info));
+    }
+
+    // Sort by usage frequency (most used first)
+    std::sort(load.pending_assets.begin(), load.pending_assets.end(),
+        [](const AssetInfo* a, const AssetInfo* b) {
+            // Core assets first
+            if (a->is_core_asset != b->is_core_asset) {
+                return a->is_core_asset;
+            }
+            // Then by usage count
+            return a->use_count > b->use_count;
+        });
 
     m_pending_clients.push_back(load);
 
@@ -234,10 +226,14 @@ void AssetManager::SendAssetBatch(PendingClientLoad& client_load) {
         return;
     }
 
-    // Note: The actual configstrings are already set from previous precaching.
-    // This batching is purely for pacing the client's processing to prevent
-    // overwhelming it with all assets at once, which would cause bad_alloc crashes.
-    // The delay between batches gives the client time to process each chunk.
+    // Process this batch
+    for (size_t i = start_idx; i < end_idx; i++) {
+        AssetInfo* info = client_load.pending_assets[i];
+
+        // The actual configstring is already set from previous precaching
+        // We just need to ensure the client processes them gradually
+        // This is more about pacing than actual sending
+    }
 
     // Update progress
     client_load.current_batch++;
@@ -366,7 +362,7 @@ void AssetManager::PrintStats() const {
 }
 
 void AssetManager::DumpAssetList(AssetType type) const {
-    const auto* map = GetAssetMap(type);
+    const auto* map = const_cast<AssetManager*>(this)->GetAssetMap(type);
     if (!map) return;
 
     const char* type_name =
@@ -417,9 +413,6 @@ void AssetManager::Reset() {
     m_sounds.clear();
     m_images.clear();
     m_pending_clients.clear();
-    m_sorted_cache.sorted_list.clear();
-    m_sorted_cache.asset_count_snapshot = 0;
-    m_sorted_cache.needs_rebuild = true;
     m_stats = {};
 }
 
