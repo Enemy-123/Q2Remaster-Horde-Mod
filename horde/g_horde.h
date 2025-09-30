@@ -17,7 +17,7 @@ extern size_t g_num_spawn_points;
 // --- Forward Declarations ---
 // These tell the compiler that these types exist, without needing their full definition.
 // This is crucial for preventing circular include dependencies.
-struct MonsterTypeInfo; 
+struct MonsterTypeInfo;  // Full definition in horde_monster_data.h
 struct PlayerStats;
 
 // --- Horde Mode Game Initialization and Management Functions ---
@@ -247,6 +247,8 @@ inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck
 	return (entityTypes & typeToCheck) != MonsterWaveType::None;
 }
 
+// --- Horde Module Includes (after MonsterWaveType is defined) ---
+#include "horde_monster_data.h"  // Monster type definitions and queries
 
 // Generic weighted selection template
 template <typename T>

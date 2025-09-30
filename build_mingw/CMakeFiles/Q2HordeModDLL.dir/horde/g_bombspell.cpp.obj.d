@@ -235,6 +235,7 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_bombspell.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/p_ctf_menu.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_monster_data.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/horde_performance.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/chrono \

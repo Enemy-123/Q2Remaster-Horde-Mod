@@ -236,6 +236,7 @@ CMakeFiles/Q2HordeModDLL.dir/horde/p_flyer_morph.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/p_ctf_menu.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_monster_data.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../m_flash.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../bots/bot_includes.h \
