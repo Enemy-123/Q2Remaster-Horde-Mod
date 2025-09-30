@@ -38,6 +38,35 @@ cvar_t* hook_delay;
 cvar_t* hook_bot_chain_speed;
 cvar_t* hook_bot_throw_speed;
 
+// Helper function to check if an entity can be chained by the hook
+// Returns true for bots or player's own summoned monsters
+static bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
+{
+	if (!entity || !player || !player->client)
+		return false;
+
+	// Bots can always be chained
+	if (entity->client && (entity->svflags & SVF_BOT))
+		return true;
+
+	// Check if it's a summoned monster that belongs to this player
+	if (entity->monsterinfo.issummoned)
+	{
+		// Check if the player owns this summon via deployed_summons array
+		for (int i = 0; i < MAX_STROGG_SUMMONS; i++)
+		{
+			if (player->client->resp.deployed_summons[i] == entity)
+				return true;
+		}
+
+		// Also check via teammaster/chain (medic resurrections use this)
+		if (entity->teammaster == player || entity->chain == player)
+			return true;
+	}
+
+	return false;
+}
+
 void Hook_InitGame(void)
 {
 	hook_speed = gi.cvar("hook_speed", "900", CVAR_NOFLAGS);
@@ -107,15 +136,15 @@ bool Hook_Check(edict_t* self)
 		return true;
 	}
 
-	// Special handling for chained bots - throw them on button release
-	if (self->enemy && self->enemy->client && (self->enemy->svflags & SVF_BOT) &&
+	// Special handling for chained bots/summons - throw them on button release
+	if (self->enemy && Hook_CanChainEntity(self->enemy, self->owner) &&
 		(self->owner->client->latched_buttons & BUTTON_ATTACK))
 	{
 		// Calculate throw direction from player's view
 		vec3_t forward;
 		AngleVectors(self->owner->client->v_angle, forward, nullptr, nullptr);
 
-		// Throw the bot with high velocity
+		// Throw the entity with high velocity
 		self->enemy->velocity = forward * hook_bot_throw_speed->value;
 
 		// Reset hook
@@ -143,8 +172,8 @@ void Hook_Service(edict_t* self)
 	if (Hook_Check(self))
 		return;
 
-	// Don't pull the player if they have a bot chained
-	if (self->enemy && self->enemy->client && (self->enemy->svflags & SVF_BOT))
+	// Don't pull the player if they have a bot or summoned monster chained
+	if (self->enemy && Hook_CanChainEntity(self->enemy, self->owner))
 		return;
 
 	// give the client some velocity ...
@@ -171,10 +200,10 @@ THINK(Hook_Track) (edict_t* self) -> void
 		return;
 
 	// bring the pAiN!
-	if (self->enemy->client)
+	if (self->enemy->client || self->enemy->monsterinfo.issummoned )
 	{
-		// Special handling for chained bots - gravity gun style
-		if (self->enemy->svflags & SVF_BOT)
+		// Special handling for chained bots/summons - gravity gun style
+		if (Hook_CanChainEntity(self->enemy, self->owner))
 		{
 			// Calculate where the bot SHOULD be (at stored distance in view direction)
 			vec3_t forward;
@@ -260,16 +289,17 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 		return;
 	}
 
-	if (other->client && other->svflags & SVF_BOT) 		// we hit a bot - chain it!
+	// Check if we hit a chainable entity (bot or player's summoned monster)
+	if (Hook_CanChainEntity(other, self->owner))
 	{
-		// Attach hook to bot instead of instant pull
+		// Attach hook to entity instead of instant pull
 		self->enemy = other;
 
-		// Store the initial distance from player to bot (for gravity gun effect)
+		// Store the initial distance from player to entity (for gravity gun effect)
 		vec3_t hook_vec = other->s.origin - self->owner->s.origin;
 		self->wait = hook_vec.length();
 
-		// Start tracking the bot
+		// Start tracking the entity
 		self->think = Hook_Track;
 		self->nextthink = level.time + 100_ms;
 
@@ -370,8 +400,8 @@ THINK(Hook_Think) (edict_t* self) -> void
 	// move the two ends
 	self->s.origin = start;
 
-	// If hook is attached to a bot, point beam at the bot instead of the hook
-	if (self->owner->enemy && self->owner->enemy->client && (self->owner->enemy->svflags & SVF_BOT))
+	// If hook is attached to a chainable entity, point beam at the entity instead of the hook
+	if (self->owner->enemy && Hook_CanChainEntity(self->owner->enemy, self->owner->owner))
 		self->s.old_origin = self->owner->enemy->s.origin;
 	else
 		self->s.old_origin = self->owner->s.origin;
@@ -443,11 +473,11 @@ void Hook_Fire(edict_t* owner, vec3_t start, vec3_t forward) {
 
 	hook->s.angles = vectoangles(forward);
 
-	// Check if aiming at a bot - if so, use super fast hook speed for instant grab
+	// Check if aiming at a chainable entity - if so, use super fast hook speed for instant grab
 	trace_t aim_trace = gi.traceline(start, start + (forward * 8192.0f), owner, MASK_SHOT);
-	bool aiming_at_bot = (aim_trace.ent && aim_trace.ent->client && (aim_trace.ent->svflags & SVF_BOT));
+	bool aiming_at_chainable = (aim_trace.ent && Hook_CanChainEntity(aim_trace.ent, owner));
 
-	hook->velocity = forward * (aiming_at_bot ? 8000.0f : hook_speed->value);
+	hook->velocity = forward * (aiming_at_chainable ? 8000.0f : hook_speed->value);
 
 	hook->touch = Hook_Touch;
 
