@@ -255,6 +255,9 @@ void RemovePlayerOwnedEntities(edict_t* player) {
     std::span proxs{client.resp.deployed_proxs};
     for (edict_t* prox : proxs) add_entity(prox);
 
+    // Remove summoned Strogg monsters
+    RemoveSummonedEntities(player);
+
     // Find and add all summoned Strogg bases owned by this player from the special entities list
     for (edict_t* special_ent : g_targetable_special_entities) {
         if (special_ent && special_ent->inuse &&

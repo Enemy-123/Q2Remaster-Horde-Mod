@@ -84,6 +84,7 @@ struct BossWaveInfo
 
 // Global boss variables
 extern bool boss_spawned_for_wave;
+extern bool boss_fog_active;
 extern RecentBosses recent_bosses;
 
 // Boss data arrays

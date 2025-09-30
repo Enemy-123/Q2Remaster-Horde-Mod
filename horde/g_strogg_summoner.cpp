@@ -443,7 +443,7 @@ void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup 
 }
 
 // Helper function to remove summoned Strogg monsters using player array
-static int RemoveSummonedEntities(edict_t* owner)
+int RemoveSummonedEntities(edict_t* owner)
 {
 	if (!owner || !owner->client)
 		return 0;
@@ -471,7 +471,7 @@ static int RemoveSummonedEntities(edict_t* owner)
 		if (summons_to_kill[i]) {
 			edict_t* summon = summons_to_kill[i];
 			// Use T_Damage for immediate gibbing instead of die()
-			T_Damage(summon, owner, owner, vec3_origin, summon->s.origin,
+			T_Damage(summon, world, world, vec3_origin, summon->s.origin,
 					 vec3_origin, 99999, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 		}
 	}

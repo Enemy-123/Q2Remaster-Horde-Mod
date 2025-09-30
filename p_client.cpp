@@ -17,6 +17,10 @@ extern void Cmd_InvUse_f(edict_t* ent);
 extern void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu);
 extern void SelectPrevItem(edict_t* ent, item_flags_t itflags);
 
+// Boss fog tracking (from horde_boss.cpp)
+extern bool boss_fog_active;
+extern void P_ToggleFlashlight(edict_t* ent, bool state);
+
 // ========================================================================
 // HORDE MODE CONSTANTS
 // ========================================================================
@@ -687,11 +691,6 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->client->enviro_time = 0_ms;
 	self->client->invisible_time = 0_ms;
 	self->flags &= ~FL_POWER_ARMOR;
-
-	// Clean up summoned entities (strogg summons, revived monsters)
-	if (g_horde->integer) {
-		Cmd_RemoveAllSummons_f(self);
-	}
 
 	// clear inventory
 //	if (G_TeamplayEnabled())					// fixing no weapons loadout
@@ -2538,13 +2537,41 @@ static void InitializePlayerState(edict_t* ent)
 // Setup world fog for player
 static void SetupPlayerFog(edict_t* ent)
 {
-	ent->client->pers.wanted_fog = {
-		world->fog.density,
-		world->fog.color[0],
-		world->fog.color[1],
-		world->fog.color[2],
-		world->fog.sky_factor
-	};
+	// Check if boss fog is active
+	if (boss_fog_active)
+	{
+		// Apply boss fog settings
+		constexpr float BOSS_FOG_DENSITY = 0.11f;
+		constexpr float BOSS_FOG_RED = 0.05f;
+		constexpr float BOSS_FOG_GREEN = 0.02f;
+		constexpr float BOSS_FOG_BLUE = 0.08f;
+
+		ent->client->pers.wanted_fog = {
+			BOSS_FOG_DENSITY,
+			BOSS_FOG_RED,
+			BOSS_FOG_GREEN,
+			BOSS_FOG_BLUE,
+			0.0f // Darken sky
+		};
+
+		// Enable flashlight if not already on
+		if (!(ent->flags & FL_FLASHLIGHT))
+		{
+			P_ToggleFlashlight(ent, true);
+		}
+	}
+	else
+	{
+		// Apply world fog settings
+		ent->client->pers.wanted_fog = {
+			world->fog.density,
+			world->fog.color[0],
+			world->fog.color[1],
+			world->fog.color[2],
+			world->fog.sky_factor
+		};
+	}
+
 	ent->client->pers.wanted_heightfog = {
 		{ world->heightfog.start_color[0], world->heightfog.start_color[1], world->heightfog.start_color[2], world->heightfog.start_dist },
 		{ world->heightfog.end_color[0], world->heightfog.end_color[1], world->heightfog.end_color[2], world->heightfog.end_dist },

@@ -8,6 +8,7 @@
 
 // Global boss variables
 bool boss_spawned_for_wave = false;
+bool boss_fog_active = false;  // Tracks if boss fog is currently active
 RecentBosses recent_bosses;  // Not static - declared extern in header
 static BossEligibilityCache g_bossEligibilityCache;
 static std::array<BossWaveInfo, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_bossWaveTypeArray;
@@ -28,6 +29,9 @@ struct PositionValidationResult {
 	bool is_valid;
 	vec3_t adjusted_position;
 };
+
+// Forward declarations
+void RestoreFog();
 
 // External functions
 const char* GetCurrentMapName();
@@ -559,6 +563,9 @@ void BossDeathHandler(edict_t *boss)
 		}
 	}
 
+	// Restore normal fog and turn off flashlights
+	//RestoreFog();
+
 	// Clean up boss entity
 	gi.linkentity(boss);
 }
@@ -617,6 +624,8 @@ void AttachHealthBar(edict_t *boss)
 	healthbar->s.origin = boss->s.origin + vec3_t{0, 0, 20};
 	healthbar->movetype = MOVETYPE_NONE;
 	healthbar->solid = SOLID_NOT;
+	
+	//healthbar->spawnflags |= SPAWNFLAG_HEALTHBAR_PVS_ONLY;  //add a misc option for this later?
 	healthbar->target = boss->targetname;
 
 	// Store display name
@@ -707,6 +716,73 @@ void HandleForcedBossRemoval(edict_t *boss)
 }
 
 // Boss spawning functions
+// Apply temporary fog effect to all players for boss spawn
+void ApplyFogEffect()
+{
+	// Mark fog as active
+	boss_fog_active = true;
+
+	// Reduced fog density to avoid near-blindness at spawn zone
+  constexpr float BOSS_FOG_DENSITY = 0.09f;  // Thicker
+  constexpr float BOSS_FOG_RED = 0.4f;       // Light gray/white
+  constexpr float BOSS_FOG_GREEN = 0.7f;
+  constexpr float BOSS_FOG_BLUE = 0.7f;     // Slight blue tint
+//0,13, 0.02, 0.02, 0.04 f for night
+
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
+		edict_t* player = &g_edicts[i + 1];
+		if (!player->inuse || !player->client)
+			continue;
+
+		// Quick transition to boss fog
+		player->client->pers.fog_transition_time = 4000_ms;
+		player->client->pers.wanted_fog = {
+			BOSS_FOG_DENSITY,
+			BOSS_FOG_RED,
+			BOSS_FOG_GREEN,
+			BOSS_FOG_BLUE,
+			0.8f // Darken sky too wth 0.8f
+		};
+
+		// Enable flashlight if not already on
+		if (!(player->flags & FL_FLASHLIGHT))
+		{
+			P_ToggleFlashlight(player, true);
+		}
+	}
+}
+
+// Restore normal fog after boss death and turn off flashlights
+void RestoreFog()
+{
+	// Mark fog as inactive
+	boss_fog_active = false;
+
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
+		edict_t* player = &g_edicts[i + 1];
+		if (!player->inuse || !player->client)
+			continue;
+
+		// Slow transition back to normal
+		player->client->pers.fog_transition_time = 2000_ms;
+		player->client->pers.wanted_fog = {
+			world->fog.density,
+			world->fog.color[0],
+			world->fog.color[1],
+			world->fog.color[2],
+			world->fog.sky_factor
+		};
+
+		// Turn off flashlight
+		if (player->flags & FL_FLASHLIGHT)
+		{
+			P_ToggleFlashlight(player, false);
+		}
+	}
+}
+
 void SpawnBossAutomatically()
 {
 	// Immediate guard against re-entry
@@ -781,14 +857,8 @@ void SpawnBossAutomatically()
 	// Use the adjusted position from validation (may have been dropped to floor)
 	const vec3_t final_spawn_origin = validation.adjusted_position;
 
-	// Setup delayed spawn - create orb marker
-	edict_t *orb = G_Spawn();
-	if (orb)
-	{
-		orb->classname = "target_orb";
-		orb->s.origin = final_spawn_origin;
-		SP_target_orb(orb);
-	}
+	// Apply dramatic fog effect
+	//ApplyFogEffect();
 
 	// Create boss entity
 	edict_t *boss = G_Spawn();
@@ -802,7 +872,6 @@ void SpawnBossAutomatically()
 	boss->s.origin = final_spawn_origin;
 	boss->s.angles = vec3_origin;
 	boss->bossSizeCategory = boss_pick_result.sizeCategory;
-	boss->owner = orb;
 
 	// Set the think function to run after spawn delay
 	boss->nextthink = level.time + BOSS_SPAWN_DELAY;
@@ -813,12 +882,6 @@ void SpawnBossAutomatically()
 // Boss spawn think function
 THINK(BossSpawnThink)(edict_t *self)->void
 {
-	if (self->owner)
-	{
-		G_FreeEdict(self->owner);
-		self->owner = nullptr;
-	}
-
 	horde::MonsterTypeID typeId = horde::MonsterTypeRegistry::GetTypeID(self->classname);
 
 	// Set wave type and print message

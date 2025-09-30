@@ -4327,6 +4327,7 @@ extern void OnEntityDeath(edict_t* self) noexcept;
 extern void OnEntityRemoved(edict_t* self);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
+extern int RemoveSummonedEntities(edict_t* owner);
 extern void RemoveAllTechItems(edict_t* ent);
 extern bool ClientIsSpectating(const gclient_t* cl) noexcept;
 extern bool EntIsSpectating(const edict_t* ent) noexcept;

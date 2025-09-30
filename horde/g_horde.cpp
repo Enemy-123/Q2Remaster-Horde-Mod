@@ -5779,6 +5779,12 @@ static bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, cons
 		monster->monsterinfo.bonus_flags = static_cast<decltype(monster->monsterinfo.bonus_flags)>(
 			static_cast<int>(monster->monsterinfo.bonus_flags) | bonus_type);
 
+		// // Apply fog effect if ragequitter
+		// if (bonus_type & BF_RAGEQUITTER)
+		// {
+		// 	ApplyFogEffect();
+		// }
+
 		ApplyMonsterBonusFlags(monster);
 		if (!monster->inuse) return false;
 
