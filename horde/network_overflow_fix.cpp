@@ -15,12 +15,11 @@ struct NetworkThrottle {
     std::vector<int> client_reliable_bytes_this_frame;  // Per-client tracking
     int message_count_this_frame;
     int reliable_bytes_this_frame;  // Track reliable message buffer usage
-    static constexpr int MAX_MESSAGES_PER_FRAME = 10;
-    // CRITICAL: Keep this much lower to leave room for engine's client state updates
-    // The engine needs ~300-400 bytes per client for entity state updates
-    static constexpr int MAX_RELIABLE_BYTES_PER_FRAME = 800;  // Reduced from 1200 to leave room for engine updates
-    static constexpr int MAX_RELIABLE_BYTES_PER_CLIENT = 600;  // Per-client limit to prevent starvation
-    static constexpr gtime_t MIN_UPDATE_INTERVAL = 50_ms;
+    static constexpr int MAX_MESSAGES_PER_FRAME = 100;  // Increased from 10 to reduce lag
+    // Keep reasonable limits but not so low that it causes lag
+    static constexpr int MAX_RELIABLE_BYTES_PER_FRAME = 4096;  // Increased to reduce lag
+    static constexpr int MAX_RELIABLE_BYTES_PER_CLIENT = 3072;  // Increased to reduce lag
+    static constexpr gtime_t MIN_UPDATE_INTERVAL = 16_ms;  // Reduced from 50ms for smoother updates
 
     NetworkThrottle() : message_count_this_frame(0), reliable_bytes_this_frame(0) {
         // Safe allocation of MAX_EDICTS slots - MUST succeed or vectors stay empty
