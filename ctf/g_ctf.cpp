@@ -912,6 +912,8 @@ void CTFCalcScores()
 			continue;
 		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
 			ctfgame.total1 += game.clients[i].resp.score;
+		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
+			ctfgame.total2 += game.clients[i].resp.score;
 	}
 }
 
@@ -2347,30 +2349,23 @@ void CTFResetAllPlayers()
 
 void CTFAssignGhost(edict_t* ent)
 {
-	//int ghost, i;
-
-	//for (ghost = 0; ghost < MAX_CLIENTS; ghost++)
-	//	if (!ctfgame.ghosts[ghost].code)
-	//		break;
-	//if (ghost == MAX_CLIENTS)
-	//	return;
-	//ctfgame.ghosts[ghost].team = ent->client->resp.ctf_team;
-	//ctfgame.ghosts[ghost].score = 0;
-	//for (;;)
-	//{
-	//	ctfgame.ghosts[ghost].code = irandom(10000, 100000);
-	//	for (i = 0; i < MAX_CLIENTS; i++)
-	//		if (i != ghost && ctfgame.ghosts[i].code == ctfgame.ghosts[ghost].code)
-	//			break;
-	//	if (i == MAX_CLIENTS)
-	//		break;
-	//}
-	//ctfgame.ghosts[ghost].ent = ent;
-	//Q_strlcpy(ctfgame.ghosts[ghost].netname, ent->client->pers.netname, sizeof(ctfgame.ghosts[ghost].netname));
-	//ent->client->resp.ghost = ctfgame.ghosts + ghost;
-	//gi.LocClient_Print(ent, PRINT_CHAT, "Your ghost code is **** {} ****\n", ctfgame.ghosts[ghost].code);
-	//gi.LocClient_Print(ent, PRINT_HIGH, "If you lose connection, you can rejoin with your score intact by typing \"ghost {}\".\n",
-	//	ctfgame.ghosts[ghost].code);
+	// Simplified: Just track player stats (kills, deaths, etc.) in ghost struct
+	// No reconnect codes - just persistent stat tracking
+	int ghost;
+	
+	for (ghost = 0; ghost < MAX_CLIENTS; ghost++)
+		if (!ctfgame.ghosts[ghost].ent)
+			break;
+			
+	if (ghost == MAX_CLIENTS)
+		return; // No slots available
+		
+	ctfgame.ghosts[ghost].team = ent->client->resp.ctf_team;
+	ctfgame.ghosts[ghost].score = 0;
+	ctfgame.ghosts[ghost].ent = ent;
+	ctfgame.ghosts[ghost].code = 0; // No reconnect codes
+	Q_strlcpy(ctfgame.ghosts[ghost].netname, ent->client->pers.netname, sizeof(ctfgame.ghosts[ghost].netname));
+	ent->client->resp.ghost = ctfgame.ghosts + ghost;
 }
 
 // start a match
@@ -2737,48 +2732,8 @@ void CTFNotReady(edict_t* ent)
 
 void CTFGhost(edict_t* ent)
 {
-	int i;
-	int n;
-
-	if (gi.argc() < 2)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Usage:  ghost <code>\n");
-		return;
-	}
-
-	if (ent->client->resp.ctf_team != CTF_NOTEAM)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "You are already in the game.\n");
-		return;
-	}
-	if (ctfgame.match != MATCH_GAME)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "No match is in progress.\n");
-		return;
-	}
-
-	n = atoi(gi.argv(1));
-
-	for (i = 0; i < MAX_CLIENTS; i++)
-	{
-		if (ctfgame.ghosts[i].code && ctfgame.ghosts[i].code == n)
-		{
-			gi.LocClient_Print(ent, PRINT_HIGH, "Ghost code accepted, your position has been reinstated.\n");
-			ctfgame.ghosts[i].ent->client->resp.ghost = nullptr;
-			ent->client->resp.ctf_team = ctfgame.ghosts[i].team;
-			ent->client->resp.ghost = ctfgame.ghosts + i;
-			ent->client->resp.score = ctfgame.ghosts[i].score;
-			ent->client->resp.ctf_state = 0;
-			ctfgame.ghosts[i].ent = ent;
-			ent->svflags = SVF_NONE;
-			ent->flags &= ~FL_GODMODE;
-			PutClientInServer(ent);
-			gi.LocBroadcast_Print(PRINT_HIGH, "{} has been reinstated to {} team.\n",
-				ent->client->pers.netname, CTFTeamName(ent->client->resp.ctf_team));
-			return;
-		}
-	}
-	gi.LocClient_Print(ent, PRINT_HIGH, "Invalid ghost code.\n");
+	// Ghost reconnect system removed - use stats tracking only
+	gi.LocClient_Print(ent, PRINT_HIGH, "Ghost reconnect system is disabled.\\n");
 }
 
 
@@ -3414,370 +3369,11 @@ void SP_info_ctf_teleport_destination(edict_t* ent)
 }
 
 /*----------------------------------------------------------------------------------*/
-/* ADMIN */
-
-struct admin_settings_t
-{
-	int	 matchlen;
-	int	 matchsetuplen;
-	int	 matchstartlen;
-	bool weaponsstay;
-	bool instantitems;
-	bool quaddrop;
-	bool instantweap;
-	bool matchlock;
-};
-
-void CTFAdmin_UpdateSettings(edict_t* ent, pmenuhnd_t* setmenu);
-void CTFOpenAdminMenu(edict_t* ent);
-
-void CTFAdmin_SettingsApply(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	if (settings->matchlen != matchtime->value)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} changed the match length to {} minutes.\n",
-			ent->client->pers.netname, settings->matchlen);
-		if (ctfgame.match == MATCH_GAME)
-		{
-			// in the middle of a match, change it on the fly
-			ctfgame.matchtime = (ctfgame.matchtime - gtime_t::from_min(matchtime->value)) + gtime_t::from_min(settings->matchlen);
-		}
-		;
-		gi.cvar_set("matchtime", G_Fmt("{}", settings->matchlen).data());
-	}
-
-	if (settings->matchsetuplen != matchsetuptime->value)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} changed the match setup time to {} minutes.\n",
-			ent->client->pers.netname, settings->matchsetuplen);
-		if (ctfgame.match == MATCH_SETUP)
-		{
-			// in the middle of a match, change it on the fly
-			ctfgame.matchtime = (ctfgame.matchtime - gtime_t::from_min(matchsetuptime->value)) + gtime_t::from_min(settings->matchsetuplen);
-		}
-		;
-		gi.cvar_set("matchsetuptime", G_Fmt("{}", settings->matchsetuplen).data());
-	}
-
-	if (settings->matchstartlen != matchstarttime->value)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} changed the match start time to {} seconds.\n",
-			ent->client->pers.netname, settings->matchstartlen);
-		if (ctfgame.match == MATCH_PREGAME)
-		{
-			// in the middle of a match, change it on the fly
-			ctfgame.matchtime = (ctfgame.matchtime - gtime_t::from_sec(matchstarttime->value)) + gtime_t::from_sec(settings->matchstartlen);
-		}
-		gi.cvar_set("matchstarttime", G_Fmt("{}", settings->matchstartlen).data());
-	}
-
-	if (settings->weaponsstay != !!g_dm_weapons_stay->integer)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} turned {} weapons stay.\n",
-			ent->client->pers.netname, settings->weaponsstay ? "on" : "off");
-		gi.cvar_set("g_dm_weapons_stay", settings->weaponsstay ? "1" : "0");
-	}
-
-	if (settings->instantitems != !!g_dm_instant_items->integer)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} turned {} instant items.\n",
-			ent->client->pers.netname, settings->instantitems ? "on" : "off");
-		gi.cvar_set("g_dm_instant_items", settings->instantitems ? "1" : "0");
-	}
-
-	if (settings->quaddrop != (bool)!g_dm_no_quad_drop->integer)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} turned {} quad drop.\n",
-			ent->client->pers.netname, settings->quaddrop ? "on" : "off");
-		gi.cvar_set("g_dm_no_quad_drop", !settings->quaddrop ? "1" : "0");
-	}
-
-	if (settings->instantweap != !!g_instant_weapon_switch->integer)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} turned {} instant weapons.\n",
-			ent->client->pers.netname, settings->instantweap ? "on" : "off");
-		gi.cvar_set("g_instant_weapon_switch", settings->instantweap ? "1" : "0");
-	}
-
-	if (settings->matchlock != !!matchlock->integer)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} turned {} match lock.\n",
-			ent->client->pers.netname, settings->matchlock ? "on" : "off");
-		gi.cvar_set("matchlock", settings->matchlock ? "1" : "0");
-	}
-
-	PMenu_Close(ent);
-	CTFOpenAdminMenu(ent);
-}
-
-void CTFAdmin_SettingsCancel(edict_t* ent, pmenuhnd_t* p)
-{
-	PMenu_Close(ent);
-	CTFOpenAdminMenu(ent);
-}
-
-void CTFAdmin_ChangeMatchLen(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->matchlen = (settings->matchlen % 60) + 5;
-	if (settings->matchlen < 5)
-		settings->matchlen = 5;
-
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_ChangeMatchSetupLen(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->matchsetuplen = (settings->matchsetuplen % 60) + 5;
-	if (settings->matchsetuplen < 5)
-		settings->matchsetuplen = 5;
-
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_ChangeMatchStartLen(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->matchstartlen = (settings->matchstartlen % 600) + 10;
-	if (settings->matchstartlen < 20)
-		settings->matchstartlen = 20;
-
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_ChangeWeapStay(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->weaponsstay = !settings->weaponsstay;
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_ChangeInstantItems(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->instantitems = !settings->instantitems;
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_ChangeQuadDrop(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->quaddrop = !settings->quaddrop;
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_ChangeInstantWeap(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->instantweap = !settings->instantweap;
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_ChangeMatchLock(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings = (admin_settings_t*)p->arg;
-
-	settings->matchlock = !settings->matchlock;
-	CTFAdmin_UpdateSettings(ent, p);
-}
-
-void CTFAdmin_UpdateSettings(edict_t* ent, pmenuhnd_t* setmenu)
-{
-	int				  i = 2;
-	admin_settings_t* settings = (admin_settings_t*)setmenu->arg;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Match Len:       {:2} mins", settings->matchlen).data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeMatchLen);
-	i++;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Match Setup Len: {:2} mins", settings->matchsetuplen).data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeMatchSetupLen);
-	i++;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Match Start Len: {:2} secs", settings->matchstartlen).data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeMatchStartLen);
-	i++;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Weapons Stay:    {}", settings->weaponsstay ? "Yes" : "No").data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeWeapStay);
-	i++;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Instant Items:   {}", settings->instantitems ? "Yes" : "No").data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeInstantItems);
-	i++;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Quad Drop:       {}", settings->quaddrop ? "Yes" : "No").data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeQuadDrop);
-	i++;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Instant Weapons: {}", settings->instantweap ? "Yes" : "No").data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeInstantWeap);
-	i++;
-
-	PMenu_UpdateEntry(setmenu->entries + i, G_Fmt("Match Lock:      {}", settings->matchlock ? "Yes" : "No").data(), PMENU_ALIGN_LEFT, CTFAdmin_ChangeMatchLock);
-	i++;
-
-	PMenu_Update(ent);
-}
-
-const pmenu_t def_setmenu[] = {
-	{ "*Settings Menu", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // int matchlen;
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // int matchsetuplen;
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // int matchstartlen;
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // bool weaponsstay;
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // bool instantitems;
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // bool quaddrop;
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // bool instantweap;
-	{ "", PMENU_ALIGN_LEFT, nullptr }, // bool matchlock;
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "Apply", PMENU_ALIGN_LEFT, CTFAdmin_SettingsApply },
-	{ "Cancel", PMENU_ALIGN_LEFT, CTFAdmin_SettingsCancel }
-};
-
-void CTFAdmin_Settings(edict_t* ent, pmenuhnd_t* p)
-{
-	admin_settings_t* settings;
-	pmenuhnd_t* menu;
-
-	PMenu_Close(ent);
-
-	settings = (admin_settings_t*)gi.TagMalloc(sizeof(*settings), TAG_LEVEL);
-
-	settings->matchlen = matchtime->integer;
-	settings->matchsetuplen = matchsetuptime->integer;
-	settings->matchstartlen = matchstarttime->integer;
-	settings->weaponsstay = g_dm_weapons_stay->integer;
-	settings->instantitems = g_dm_instant_items->integer;
-	settings->quaddrop = !g_dm_no_quad_drop->integer;
-	settings->instantweap = g_instant_weapon_switch->integer != 0;
-	settings->matchlock = matchlock->integer != 0;
-
-	menu = PMenu_Open(ent, def_setmenu, -1, sizeof(def_setmenu) / sizeof(pmenu_t), settings, nullptr);
-	CTFAdmin_UpdateSettings(ent, menu);
-}
-
-void CTFAdmin_MatchSet(edict_t* ent, pmenuhnd_t* p)
-{
-	PMenu_Close(ent);
-
-	if (ctfgame.match == MATCH_SETUP)
-	{
-		gi.LocBroadcast_Print(PRINT_CHAT, "Match has been forced to start.\n");
-		ctfgame.match = MATCH_PREGAME;
-		ctfgame.matchtime = level.time + gtime_t::from_sec(matchstarttime->value);
-		gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("misc/talk1.wav"), 1, ATTN_NONE, 0);
-		ctfgame.countdown = false;
-	}
-	else if (ctfgame.match == MATCH_GAME)
-	{
-		gi.LocBroadcast_Print(PRINT_CHAT, "Match has been forced to terminate.\n");
-		ctfgame.match = MATCH_SETUP;
-		ctfgame.matchtime = level.time + gtime_t::from_min(matchsetuptime->value);
-		CTFResetAllPlayers();
-	}
-}
-
-void CTFAdmin_MatchMode(edict_t* ent, pmenuhnd_t* p)
-{
-	PMenu_Close(ent);
-
-	if (ctfgame.match != MATCH_SETUP)
-	{
-		if (competition->integer < 3)
-			gi.cvar_set("competition", "2");
-		ctfgame.match = MATCH_SETUP;
-		CTFResetAllPlayers();
-	}
-}
-
-void CTFAdmin_Reset(edict_t* ent, pmenuhnd_t* p)
-{
-	PMenu_Close(ent);
-
-	// go back to normal mode
-	gi.LocBroadcast_Print(PRINT_CHAT, "Match mode has been terminated, reseting to normal game.\n");
-	ctfgame.match = MATCH_NONE;
-	gi.cvar_set("competition", "1");
-	CTFResetAllPlayers();
-}
-
-void CTFAdmin_Cancel(edict_t* ent, pmenuhnd_t* p)
-{
-	PMenu_Close(ent);
-}
-
-pmenu_t adminmenu[] = {
-	{ "*Administration Menu", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // blank
-	{ "Settings", PMENU_ALIGN_LEFT, CTFAdmin_Settings },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "Cancel", PMENU_ALIGN_LEFT, CTFAdmin_Cancel },
-	{ "", PMENU_ALIGN_CENTER, nullptr },
-};
-
-void CTFOpenAdminMenu(edict_t* ent)
-{
-	adminmenu[3].text[0] = '\0';
-	adminmenu[3].SelectFunc = nullptr;
-	adminmenu[4].text[0] = '\0';
-	adminmenu[4].SelectFunc = nullptr;
-	if (ctfgame.match == MATCH_SETUP)
-	{
-		Q_strlcpy(adminmenu[3].text, "Force start match", sizeof(adminmenu[3].text));
-		adminmenu[3].SelectFunc = CTFAdmin_MatchSet;
-		Q_strlcpy(adminmenu[4].text, "Reset to pickup mode", sizeof(adminmenu[4].text));
-		adminmenu[4].SelectFunc = CTFAdmin_Reset;
-	}
-	else if (ctfgame.match == MATCH_GAME || ctfgame.match == MATCH_PREGAME)
-	{
-		Q_strlcpy(adminmenu[3].text, "Cancel match", sizeof(adminmenu[3].text));
-		adminmenu[3].SelectFunc = CTFAdmin_MatchSet;
-	}
-	else if (ctfgame.match == MATCH_NONE && competition->integer)
-	{
-		Q_strlcpy(adminmenu[3].text, "Switch to match mode", sizeof(adminmenu[3].text));
-		adminmenu[3].SelectFunc = CTFAdmin_MatchMode;
-	}
-
-	//	if (ent->client->menu)
-	//		PMenu_Close(ent->client->menu);
-
-	PMenu_Open(ent, adminmenu, -1, sizeof(adminmenu) / sizeof(pmenu_t), nullptr, nullptr);
-}
+/* ADMIN - System removed, use horde_menu.cpp OpenAdminMenu instead */
 
 void CTFAdmin(edict_t* ent)
 {
-	//	if (!allow_admin->integer)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Administration is disabled\n");
-		return;
-	}
-
-	//if (gi.argc() > 1 && admin_password->string && *admin_password->string &&
-	//	!ent->client->resp.admin && strcmp(admin_password->string, gi.argv(1)) == 0)
-	//{
-	//	ent->client->resp.admin = true;
-	//	gi.LocBroadcast_Print(PRINT_HIGH, "{} has become an admin.\n", ent->client->pers.netname);
-	//	gi.LocClient_Print(ent, PRINT_HIGH, "Type 'admin' to access the adminstration menu.\n");
-	//}
-
-	//if (!ent->client->resp.admin)
-	//{
-	//	CTFBeginElection(ent, ELECT_ADMIN, G_Fmt("{} has requested admin rights.\n",
-	//		ent->client->pers.netname).data());
-	//	return;
-	//}
-
-	//if (ent->client->menu)
-	//	PMenu_Close(ent);
-
-	//CTFOpenAdminMenu(ent);
+	gi.LocClient_Print(ent, PRINT_HIGH, "CTF Administration is disabled. Use Horde menu admin features instead.\n");
 }
 
 /*----------------------------------------------------------------*/
@@ -3977,41 +3573,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 
 void CTFBoot(edict_t* ent)
 {
-	edict_t* targ;
-
-	if (!ent->client->resp.admin)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "You are not an admin.\n");
-		return;
-	}
-
-	if (gi.argc() < 2)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Who do you want to kick?\n");
-		return;
-	}
-
-	if (*gi.argv(1) < '0' && *gi.argv(1) > '9')
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Specify the player number to kick.\n");
-		return;
-	}
-
-	uint32_t i = strtoul(gi.argv(1), nullptr, 10);
-	if (i < 1 || i > game.maxclients)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Invalid player number.\n");
-		return;
-	}
-
-	targ = g_edicts + i;
-	if (!targ->inuse)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "That player number is not connected.\n");
-		return;
-	}
-
-	gi.AddCommandString(G_Fmt("kick {}\n", i - 1).data());
+	gi.LocClient_Print(ent, PRINT_HIGH, "Boot command disabled. Admin system removed.\n");
 }
 
 void CTFSetPowerUpEffect(edict_t* ent, effects_t def)

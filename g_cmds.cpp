@@ -2104,11 +2104,11 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "notready") == 0)
 		CTFNotReady(ent);
 	else if (Q_strcasecmp(cmd, "ghost") == 0)
-		CTFGhost(ent);
+		CTFGhost(ent);  // Reconnect system disabled, stats tracking still active
 	else if (Q_strcasecmp(cmd, "admin") == 0)
-		CTFAdmin(ent);
+		CTFAdmin(ent);  // CTF admin disabled, use Horde menu admin instead
 	else if (Q_strcasecmp(cmd, "stats") == 0)
-		CTFStats(ent);
+		CTFStats(ent);  // Still works - shows player stats from ghost tracking
 	else if (Q_strcasecmp(cmd, "summon") == 0)
 		Cmd_Summon_f(ent);
 	else if (Q_strcasecmp(cmd, "warp") == 0)
@@ -2116,7 +2116,7 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "vote") == 0)
 		CTFWarp(ent, gi.argv(1));
 	else if (Q_strcasecmp(cmd, "boot") == 0)
-		CTFBoot(ent);
+		CTFBoot(ent);  // Boot/kick disabled, admin system removed
 	else if (Q_strcasecmp(cmd, "playerlist") == 0)
 		CTFPlayerList(ent);
 	else if (Q_strcasecmp(cmd, "observer") == 0)

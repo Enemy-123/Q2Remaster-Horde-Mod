@@ -45,6 +45,7 @@ enum match_t
 // --- Structs Moved/Defined Here ---
 
 // Moved from g_ctf.cpp for horde_menu.cpp
+// Player stats tracking struct (repurposed from ghost/reconnect system)
 struct ghost_t
 {
 	char netname[MAX_NETNAME];
@@ -57,10 +58,10 @@ struct ghost_t
 	int basedef;
 	int carrierdef;
 
-	int		 code;	// ghost code
+	int		 code;	// unused (reconnect system removed)
 	ctfteam_t		 team;	// team
-	int		 score; // frags at time of disconnect
-	edict_t* ent;
+	int		 score; // player score
+	edict_t* ent;   // active player entity
 };
 
 
