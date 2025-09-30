@@ -181,7 +181,7 @@ void AssetManager::BeginClientLoading(edict_t* client) {
     PendingClientLoad load;
     load.client = client;
     load.current_batch = 0;
-    load.next_batch_time = level.time + 100_ms;  // Small initial delay
+    load.next_batch_time = level.time + gtime_t::from_ms(INITIAL_DELAY_MS);  // Initial delay to let client settle
     load.is_loading = true;
 
     // Copy the pre-sorted asset list
@@ -241,7 +241,11 @@ void AssetManager::SendAssetBatch(PendingClientLoad& client_load) {
 
     // Update progress
     client_load.current_batch++;
-    client_load.next_batch_time = level.time + gtime_t::from_ms(BATCH_DELAY_MS);
+
+    // Progressive delay: add more time between batches as we go on
+    // This gives the client more breathing room as memory pressure increases
+    int32_t progressive_delay = BATCH_DELAY_MS + (client_load.current_batch * PROGRESSIVE_DELAY_INCREMENT);
+    client_load.next_batch_time = level.time + gtime_t::from_ms(progressive_delay);
 
     // Show progress
     int progress = (int)((float)end_idx / client_load.pending_assets.size() * 100.0f);

@@ -49,8 +49,10 @@ private:
     } m_sorted_cache;
 
     // Configuration
-    static constexpr size_t BATCH_SIZE = 50;  // Assets per batch
-    static constexpr int32_t BATCH_DELAY_MS = 100;  // Delay between batches
+    static constexpr size_t BATCH_SIZE = 25;  // Assets per batch (reduced to prevent client memory overflow)
+    static constexpr int32_t BATCH_DELAY_MS = 200;  // Delay between batches (ms)
+    static constexpr int32_t INITIAL_DELAY_MS = 200;  // Initial delay before first batch (ms)
+    static constexpr int32_t PROGRESSIVE_DELAY_INCREMENT = 50;  // Add this much delay per batch (ms)
     static constexpr size_t MAX_UNUSED_TIME_SECONDS = 300;  // 5 minutes
 
     // Statistics
