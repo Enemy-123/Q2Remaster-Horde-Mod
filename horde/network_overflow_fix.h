@@ -6,7 +6,7 @@
 // Core throttling functions
 void G_ResetNetworkThrottle();
 bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time = 100_ms);
-bool G_CanSendReliableData(int byte_size);
+bool G_CanSendReliableData(int byte_size, int client_num = -1);
 
 // Monster optimization
 void G_OptimizeMonsterNetworkUpdate(edict_t* monster);

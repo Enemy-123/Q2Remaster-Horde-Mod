@@ -12,10 +12,14 @@
 // Global network throttling state
 struct NetworkThrottle {
     std::vector<gtime_t> last_update_time;  // Heap allocation with safe_reserve
+    std::vector<int> client_reliable_bytes_this_frame;  // Per-client tracking
     int message_count_this_frame;
     int reliable_bytes_this_frame;  // Track reliable message buffer usage
     static constexpr int MAX_MESSAGES_PER_FRAME = 10;
-    static constexpr int MAX_RELIABLE_BYTES_PER_FRAME = 1200;  // Stay under 1400 byte limit
+    // CRITICAL: Keep this much lower to leave room for engine's client state updates
+    // The engine needs ~300-400 bytes per client for entity state updates
+    static constexpr int MAX_RELIABLE_BYTES_PER_FRAME = 800;  // Reduced from 1200 to leave room for engine updates
+    static constexpr int MAX_RELIABLE_BYTES_PER_CLIENT = 600;  // Per-client limit to prevent starvation
     static constexpr gtime_t MIN_UPDATE_INTERVAL = 50_ms;
 
     NetworkThrottle() : message_count_this_frame(0), reliable_bytes_this_frame(0) {
@@ -25,6 +29,12 @@ struct NetworkThrottle {
             return;
         }
         last_update_time.resize(MAX_EDICTS);  // Default constructor initializes to 0
+
+        if (!safe_reserve(client_reliable_bytes_this_frame, MAX_CLIENTS)) {
+            gi.Com_Print("ERROR: Failed to allocate client network tracking memory\n");
+            return;
+        }
+        client_reliable_bytes_this_frame.resize(MAX_CLIENTS, 0);
     }
 };
 
@@ -34,6 +44,9 @@ static NetworkThrottle g_network_throttle;
 void G_ResetNetworkThrottle() {
     g_network_throttle.message_count_this_frame = 0;
     g_network_throttle.reliable_bytes_this_frame = 0;
+    // Reset per-client counters
+    std::fill(g_network_throttle.client_reliable_bytes_this_frame.begin(),
+              g_network_throttle.client_reliable_bytes_this_frame.end(), 0);
 }
 
 // Check if we can send a network message for this entity
@@ -62,11 +75,23 @@ bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time) {
 }
 
 // Check if we can send reliable data (for HUD, configstrings, etc)
-bool G_CanSendReliableData(int byte_size) {
+// client_num is optional - use -1 for non-client-specific messages
+bool G_CanSendReliableData(int byte_size, int client_num = -1) {
+    // Check global limit
     if (g_network_throttle.reliable_bytes_this_frame + byte_size >
         NetworkThrottle::MAX_RELIABLE_BYTES_PER_FRAME) {
         return false;
     }
+
+    // Check per-client limit if applicable
+    if (client_num >= 0 && client_num < MAX_CLIENTS) {
+        if (g_network_throttle.client_reliable_bytes_this_frame[client_num] + byte_size >
+            NetworkThrottle::MAX_RELIABLE_BYTES_PER_CLIENT) {
+            return false;
+        }
+        g_network_throttle.client_reliable_bytes_this_frame[client_num] += byte_size;
+    }
+
     g_network_throttle.reliable_bytes_this_frame += byte_size;
     return true;
 }
@@ -148,9 +173,16 @@ public:
             return;
         }
 
+        // Get client number for per-client tracking
+        int client_num = target_client - g_edicts - 1;
+        if (client_num < 0 || client_num >= game.maxclients) {
+            needs_flush = false;
+            return;
+        }
+
         // Check reliable buffer capacity before sending
         int msg_size = static_cast<int>(batch_buffer.length()) + 2;  // +2 for svc_layout byte + string terminator
-        if (!G_CanSendReliableData(msg_size)) {
+        if (!G_CanSendReliableData(msg_size, client_num)) {
             // Can't send now, will retry next frame
             return;
         }
@@ -247,9 +279,15 @@ void G_SendOptimizedScoreboard(edict_t* ent) {
         y += 10;
     }
 
+    // Get client number for per-client tracking
+    int client_num = ent - g_edicts - 1;
+    if (client_num < 0 || client_num >= game.maxclients) {
+        return;
+    }
+
     // Check reliable buffer capacity before sending
     int msg_size = static_cast<int>(scoreboard.length()) + 2;
-    if (!G_CanSendReliableData(msg_size)) {
+    if (!G_CanSendReliableData(msg_size, client_num)) {
         return;  // Can't send now, skip this frame
     }
 
