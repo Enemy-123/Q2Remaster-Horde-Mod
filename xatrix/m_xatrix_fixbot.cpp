@@ -539,9 +539,10 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	}
 
 	// Check if turret is precached in horde mode
-	// if (g_horde->integer && !IsMonsterTypePrecached(horde::MonsterTypeID::TURRET)) {
-	// 	return; // Don't spawn turret if not precached
-	// }
+	// TURRET is automatically marked as precached when sentrygun spawns (they share the same model)
+	if (g_horde->integer && !IsMonsterTypePrecached(horde::MonsterTypeID::TURRET)) {
+		return; // Don't spawn turret if not precached
+	}
 
 	bool isboss = IsBoss(self);
 	vec3_t dir;
@@ -2099,6 +2100,12 @@ void SP_monster_fixbotkl(edict_t* self) {
 	}
 	if (skill->integer > 0) {
 		self->monsterinfo.monster_slots += floorf(self->monsterinfo.monster_slots * (skill->value / 2.f));
+	}
+
+	// Mark TURRET as precached since fixbot_kl spawns turrets
+	// This ensures turrets can be spawned even if they weren't in the initial wave precache
+	if (g_horde && g_horde->integer) {
+		g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::TURRET)] = true;
 	}
 
 	// Re-link after changing size

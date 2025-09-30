@@ -55,7 +55,7 @@ struct SpawnPlanEntry
 	edict_t *spawn_point;
 };
 
-static std::array<bool, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_precached_monster_types_flags = {}; // Initializes all to false
+std::array<bool, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_precached_monster_types_flags = {}; // Initializes all to false
 static bool g_full_precache_done = false;
 
 static bool monsters_precached = false;
@@ -519,16 +519,16 @@ void ResetSpawnMonsterVars()
 // Check if a monster type has been precached for the current wave
 bool IsMonsterTypePrecached(horde::MonsterTypeID typeId)
 {
-	if (!g_horde->integer || typeId == horde::MonsterTypeID::TURRET)
+	if (!g_horde->integer)
 		return true; // In non-horde mode, allow all monsters
-		
+
 	if (typeId == horde::MonsterTypeID::UNKNOWN)
 		return false;
-		
+
 	size_t index = static_cast<size_t>(typeId);
 	if (index >= g_precached_monster_types_flags.size())
 		return false;
-		
+
 	return g_precached_monster_types_flags[index];
 }
 
@@ -7195,6 +7195,67 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 
 		default:
 			return nullptr; // Unknown or special
+	}
+}
+
+// Unlock all monsters that share the same model as the given boss
+// This allows "free" monsters since the model is already loaded in memory
+void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_wave)
+{
+	const char* boss_model_path = GetMonsterModelPath(boss_typeId);
+	if (!boss_model_path) {
+		return; // No model path, nothing to unlock
+	}
+
+	// Mark the model as loaded
+	g_precached_models_this_map.insert(boss_model_path);
+
+	int unlocked_count = 0;
+
+	// Iterate through all monster types to find family members
+	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i) {
+		const auto& monster = monsterTypes[i];
+
+		// Skip if already precached
+		if (g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)]) {
+			continue;
+		}
+
+		// Check if this monster shares the same model
+		const char* monster_model_path = GetMonsterModelPath(monster.typeId);
+		if (!monster_model_path || strcmp(boss_model_path, monster_model_path) != 0) {
+			continue;
+		}
+
+		// Only unlock monsters that are eligible for current or near-future waves
+		// Don't unlock wave 999 bosses (full bosses should only come from boss waves)
+		if (monster.minWave > current_wave + 10 || monster.minWave >= 999) {
+			continue;
+		}
+
+		// Unlock this monster - it shares the model so it's "free"
+		g_precached_monster_types_flags[static_cast<size_t>(monster.typeId)] = true;
+		g_precached_monsters_this_map.insert(monster.typeId);
+
+		// Remove from exclusion list if it was excluded
+		auto it = g_excluded_monsters_this_map.find(monster.typeId);
+		if (it != g_excluded_monsters_this_map.end()) {
+			g_excluded_monsters_this_map.erase(it);
+			unlocked_count++;
+		}
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("Model Family Unlock: '{}' (wave {}) unlocked via boss '{}' (shared model: {})\n",
+				horde::MonsterTypeRegistry::GetClassname(monster.typeId),
+				monster.minWave,
+				horde::MonsterTypeRegistry::GetClassname(boss_typeId),
+				boss_model_path);
+		}
+	}
+
+	if (developer->integer && unlocked_count > 0) {
+		gi.Com_PrintFmt("Model Family Unlock: {} previously-excluded monsters unlocked (free precache via model sharing)\n",
+			unlocked_count);
 	}
 }
 

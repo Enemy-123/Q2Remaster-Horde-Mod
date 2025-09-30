@@ -2350,6 +2350,13 @@ void SP_monster_sentrygun(edict_t* self)
 	}
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
+
+	// Mark TURRET as precached since sentrygun shares the same model
+	// This allows fixbots to spawn turrets without redundant precaching
+	if (g_horde && g_horde->integer) {
+		g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::TURRET)] = true;
+	}
+
 	self->mins = { -12, -12, -12 };
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;

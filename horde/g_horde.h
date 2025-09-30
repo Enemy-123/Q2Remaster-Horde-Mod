@@ -31,6 +31,7 @@ void HandleResetEvent();
 void ResetSpawnMonsterVars();
 
 bool IsMonsterTypePrecached(horde::MonsterTypeID typeId);
+void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_wave);
 void ResetQueueMonitorVars();
 
 // Monster pack system save/load functions
@@ -155,6 +156,7 @@ extern std::unordered_set<std::string> g_precached_models;
 extern std::unordered_set<std::string> g_precached_sounds;
 extern int32_t g_total_precached_models;
 extern int32_t g_total_precached_sounds;
+extern std::array<bool, 128> g_precached_monster_types_flags; // Precache flags for each monster type
 
 // --- Operator Overloads for MonsterWaveType ---
 // These are fine to keep in the header as they are small, inline, and constexpr.

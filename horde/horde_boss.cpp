@@ -894,6 +894,9 @@ THINK(BossSpawnThink)(edict_t *self)->void
 	SetHealthBarName(self);
 	auto_spawned_bosses.insert(self);
 
+	// Unlock monsters that share the same model as this boss (free precache)
+	UnlockModelFamilyMembers(typeId, current_wave_level);
+
 	if (developer->integer > 1)
 	{
 		gi.Com_PrintFmt("BossSpawnThink: Finalized spawn for boss {} at {}.\n", self->classname, self->s.origin);
