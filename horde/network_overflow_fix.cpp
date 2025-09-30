@@ -23,18 +23,33 @@ struct NetworkThrottle {
     static constexpr gtime_t MIN_UPDATE_INTERVAL = 50_ms;
 
     NetworkThrottle() : message_count_this_frame(0), reliable_bytes_this_frame(0) {
-        // Safe allocation of MAX_EDICTS slots
+        // Safe allocation of MAX_EDICTS slots - MUST succeed or vectors stay empty
+        // Cannot return early from constructor, so we proceed regardless
         if (!safe_reserve(last_update_time, MAX_EDICTS)) {
             gi.Com_Print("ERROR: Failed to allocate network throttle memory\n");
-            return;
+            // Attempt to allocate at least a minimal size to avoid crashes
+            try {
+                last_update_time.resize(MAX_EDICTS);
+            } catch (...) {
+                // Last resort: minimal allocation
+                try { last_update_time.resize(256); } catch (...) {}
+            }
+        } else {
+            last_update_time.resize(MAX_EDICTS);  // Default constructor initializes to 0
         }
-        last_update_time.resize(MAX_EDICTS);  // Default constructor initializes to 0
 
         if (!safe_reserve(client_reliable_bytes_this_frame, MAX_CLIENTS)) {
             gi.Com_Print("ERROR: Failed to allocate client network tracking memory\n");
-            return;
+            // Attempt allocation regardless
+            try {
+                client_reliable_bytes_this_frame.resize(MAX_CLIENTS, 0);
+            } catch (...) {
+                // Last resort: minimal allocation
+                try { client_reliable_bytes_this_frame.resize(32, 0); } catch (...) {}
+            }
+        } else {
+            client_reliable_bytes_this_frame.resize(MAX_CLIENTS, 0);
         }
-        client_reliable_bytes_this_frame.resize(MAX_CLIENTS, 0);
     }
 };
 
@@ -52,6 +67,11 @@ void G_ResetNetworkThrottle() {
 // Check if we can send a network message for this entity
 bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time) {
     if (!ent) return false;
+
+    // Safety check: if vectors failed to initialize, allow messages (fail open)
+    if (g_network_throttle.last_update_time.empty()) {
+        return true;  // Throttling disabled due to init failure
+    }
 
     // Check global frame limit
     if (g_network_throttle.message_count_this_frame >= NetworkThrottle::MAX_MESSAGES_PER_FRAME) {
@@ -77,6 +97,11 @@ bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time) {
 // Check if we can send reliable data (for HUD, configstrings, etc)
 // client_num is optional - use -1 for non-client-specific messages
 bool G_CanSendReliableData(int byte_size, int client_num = -1) {
+    // Safety check: if vectors failed to initialize, allow messages (fail open)
+    if (g_network_throttle.client_reliable_bytes_this_frame.empty()) {
+        return true;  // Throttling disabled due to init failure
+    }
+
     // Check global limit
     if (g_network_throttle.reliable_bytes_this_frame + byte_size >
         NetworkThrottle::MAX_RELIABLE_BYTES_PER_FRAME) {
@@ -85,11 +110,13 @@ bool G_CanSendReliableData(int byte_size, int client_num = -1) {
 
     // Check per-client limit if applicable
     if (client_num >= 0 && client_num < MAX_CLIENTS) {
-        if (g_network_throttle.client_reliable_bytes_this_frame[client_num] + byte_size >
-            NetworkThrottle::MAX_RELIABLE_BYTES_PER_CLIENT) {
-            return false;
+        if (client_num < static_cast<int>(g_network_throttle.client_reliable_bytes_this_frame.size())) {
+            if (g_network_throttle.client_reliable_bytes_this_frame[client_num] + byte_size >
+                NetworkThrottle::MAX_RELIABLE_BYTES_PER_CLIENT) {
+                return false;
+            }
+            g_network_throttle.client_reliable_bytes_this_frame[client_num] += byte_size;
         }
-        g_network_throttle.client_reliable_bytes_this_frame[client_num] += byte_size;
     }
 
     g_network_throttle.reliable_bytes_this_frame += byte_size;

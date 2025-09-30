@@ -2926,17 +2926,19 @@ void ClientBegin(edict_t* ent)
 	// Clear any stale flyer data
 	ClearFlyerData(ent);
 
-	// Horde mode: Begin staged asset loading for late-wave connections
+	// Horde mode: Begin staged asset loading for connections
 	if (g_horde->integer) {
-		// Check if we're in a late wave with many assets
+		// Always use staged loading to prevent client crash from too many configstrings
+		// The engine already sent configstrings, but we track loading progress
+		horde::AssetManager::Get().BeginClientLoading(ent);
+
+		// Give client a grace period before spawning (longer for late waves)
 		if (current_wave_level >= 20) {
-			// Start staged loading to prevent client crash
-			horde::AssetManager::Get().BeginClientLoading(ent);
-			
-			// Give client a grace period before spawning
-			ent->client->respawn_timeout = level.time + 2000_ms;
-			gi.LocClient_Print(ent, PRINT_HIGH, 
+			ent->client->respawn_timeout = level.time + 3000_ms;
+			gi.LocClient_Print(ent, PRINT_HIGH,
 				"Late-wave connection detected. Loading assets...");
+		} else {
+			ent->client->respawn_timeout = level.time + 1000_ms;
 		}
 	}
 
