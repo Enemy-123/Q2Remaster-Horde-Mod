@@ -1,11 +1,27 @@
 #pragma once
 
-#include "../g_local.h"
 #include <array>
 #include <string_view>
 #include <unordered_map>
 
+// Forward declarations to break circular dependencies
 struct edict_t;
+struct gtime_t;
+
+namespace horde {
+
+    // IMPORTANT: MapSize must be defined BEFORE including g_local.h
+    // because g_local.h includes g_horde.h which uses horde::MapSize
+    struct MapSize {
+        bool isSmallMap = false;
+        bool isBigMap = false;
+        bool isMediumMap = true; // Default to medium
+    };
+
+} // namespace horde
+
+// Now include g_local.h AFTER MapSize is defined
+#include "../g_local.h"
 
 namespace horde {
 
@@ -245,12 +261,7 @@ public:
         UNKNOWN = 0xFFFF
     };
 
-    // Structure to hold map size classification
-    struct MapSize {
-        bool isSmallMap = false;
-        bool isBigMap = false;
-        bool isMediumMap = true; // Default to medium
-    };
+    // NOTE: MapSize has been moved to the top of this file to break circular dependency
 
     // Class for efficient monster type lookups
     class MonsterTypeRegistry {

@@ -83,6 +83,58 @@ enum class MonsterWaveType : uint32_t {
 	Spawner = 1 << 19  // Spawning reinforcements users wave
 };
 
+// Horde game state
+enum class horde_state_t
+{
+	warmup,
+	spawning,
+	active_wave,
+	cleanup,
+	rest
+};
+
+// Warning times in seconds
+constexpr std::array<float, 3> WARNING_TIMES = {30.0f, 10.0f, 5.0f};
+
+// HordeState structure - main game state
+struct HordeState
+{
+	gtime_t warm_time = 4_sec;
+	horde_state_t state = horde_state_t::warmup;
+	gtime_t monster_spawn_time;
+	int32_t num_to_spawn = 0;
+	int32_t level = 0;
+	int32_t queued_monsters = 0;
+	gtime_t lastPrintTime = 0_sec;
+
+	bool conditionTriggered = false;
+	gtime_t conditionStartTime = 0_sec;
+	gtime_t conditionTimeThreshold = 0_sec;
+	bool timeWarningIssued = false;
+	gtime_t waveEndTime = 0_sec;
+	bool warningIssued[WARNING_TIMES.size()] = {false};
+
+	gtime_t failsafe_timeout = 0_sec;
+
+	gtime_t last_successful_hud_update = 0_sec;
+	uint32_t failed_updates_count = 0;
+
+	horde::MapSize current_map_size;
+	int32_t max_monsters{};
+	gtime_t base_spawn_cooldown;
+
+	// FIXED: Moved static state from Horde_RunFrame
+	gtime_t last_wave_change_time = 0_sec;
+	int32_t wave_at_last_check = 0;
+	gtime_t spawning_phase_timeout_start = 0_sec;
+	int32_t prev_wave_level_for_spawning_timers = -1;
+
+	void update_map_size(const char *mapname);
+	void reset_hud_state();
+};
+
+extern HordeState g_horde_local;
+
 // --- Global Variable DECLARATIONS ---
 // 'extern' tells other .cpp files that these variables exist and are defined elsewhere.
 extern MonsterWaveType current_wave_type;

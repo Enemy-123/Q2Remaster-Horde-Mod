@@ -1,4 +1,4 @@
-//shared.h 
+//shared.h
 #pragma once
 
 #include "g_local.h"
