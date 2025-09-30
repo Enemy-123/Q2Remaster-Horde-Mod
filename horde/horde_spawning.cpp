@@ -35,7 +35,8 @@ SpawnSystemState g_spawn_system;
 extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
 extern bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance);
 extern void SpawnGrow_Spawn(const vec3_t &origin, float size_start, float size_end);
-extern int sound_spawn1;
+extern cached_soundindex sound_spawn1;
+
 extern cvar_t* developer;
 extern cvar_t* g_horde;
 extern MonsterWaveType current_wave_type;
