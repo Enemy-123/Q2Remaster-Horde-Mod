@@ -544,7 +544,7 @@ static int RemoveSummonedEntities(edict_t* owner, RemovalFilter filter)
 	}
 	else { // ALL_SUMMONS
 		// Find all summoned monsters (excluding bases, lasers, and barrels)
-		for (int i = 1; i < globals.num_edicts; i++) {
+		for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
 			edict_t* check = &g_edicts[i];
 			if (check && check->inuse && check->teammaster == owner && check->chain) {
 				// Exclude bases, lasers, and barrels from removal using the special type system

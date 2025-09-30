@@ -255,8 +255,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
 // Carpet bomb function
 void CarpetBomb(edict_t* ent)
 {
-    vec3_t forward, right, start, end, offset;
-    trace_t tr;
+    vec3_t forward;
 
     if (!ent || !ent->client || IsPlayerMenuProtected(ent) || ClientIsSpectating(ent->client))
         return;
@@ -299,7 +298,6 @@ THINK(bombarea_think)(edict_t* self) -> void
 {
     float thinktime, bombtime;
     vec3_t start, spawn_pos;
-    trace_t tr;
 
     // Check owner validity - support both players and monsters
     if (!self->owner || !self->owner->inuse || self->owner->health <= 0 || level.time >= self->timestamp)

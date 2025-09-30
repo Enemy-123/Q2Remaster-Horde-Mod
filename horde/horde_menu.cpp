@@ -1185,7 +1185,7 @@ void OpenMiscMenu(edict_t* ent) {
 	int strogg_count = 0;
 
 	// Count all summoned entities (excluding lasers, barrels, and strogg bases)
-	for (int i = 1; i < globals.num_edicts; i++) {
+	for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
 		edict_t* check = &g_edicts[i];
 		if (check && check->inuse && check->teammaster == ent && check->chain) {
 			// Exclude bases, lasers, and barrels from this count using the special type system

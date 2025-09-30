@@ -269,7 +269,6 @@ TOUCH(barrel_summoned_touch)(edict_t* self, edict_t* other, const trace_t& tr, b
     }
 
     // Calculate push direction and strength
-    vec3_t push_dir;
     float push_speed = 400.0f; // Same as summoned strogg
 
     // Check if owner is looking up (towards sky/roof)
@@ -767,7 +766,7 @@ void Cmd_Barrel_f(edict_t* ent)
         edict_t* best = nullptr;
         float best_dist = BarrelConstants::BARREL_PICKUP_RANGE;
 
-        for (int i = 1; i < globals.num_edicts; i++)
+        for (int i = 1; i < static_cast<int>(globals.num_edicts); i++)
         {
             edict_t* check = &g_edicts[i];
             if (!check->inuse)
@@ -848,7 +847,7 @@ void Cmd_Barrel_f(edict_t* ent)
     else if (Q_strcasecmp(arg, "clear") == 0)
     {
         int count = 0;
-        for (int i = 1; i < globals.num_edicts; i++)
+        for (int i = 1; i < static_cast<int>(globals.num_edicts); i++)
         {
             edict_t* check = &g_edicts[i];
             if (!check->inuse)

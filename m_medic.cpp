@@ -1563,10 +1563,9 @@ bool M_NeedRegen(edict_t* target)
 // Modified cable attack function with healing loop
 void medic_cable_attack(edict_t* self)
 {
-    vec3_t   offset, start, end, forward, right, dir;
+    vec3_t   offset, start, forward, right;
     trace_t  tr;
     float    distance;
-    uint32_t damage;
 
     // Make sure we are in a good frame for our next decision
     if (self->s.frame < FRAME_attack42 || self->s.frame > FRAME_attack52)

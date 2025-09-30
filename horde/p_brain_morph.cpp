@@ -232,7 +232,7 @@ static void BrainFindTarget(edict_t* self) {
     }
 
     // Also check players specifically (in case they're not in the monster grid)
-    for (int i = 1; i <= game.maxclients; i++) {
+    for (int i = 1; i <= static_cast<int>(game.maxclients); i++) {
         edict_t* ent = &g_edicts[i];
 
         if (!ent || !ent->inuse || !ent->client || ent == self)
@@ -266,7 +266,7 @@ static void BrainFindTarget(edict_t* self) {
 
     // IMPORTANT: Also check for destructible objects like barrels (misc_explobox)
     // These aren't in the monster grid, so we need to search all entities
-    for (int i = 0; i < globals.num_edicts; i++) {
+    for (int i = 0; i < static_cast<int>(globals.num_edicts); i++) {
         edict_t* ent = &g_edicts[i];
 
         if (!ent || !ent->inuse || ent == self)

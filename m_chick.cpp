@@ -672,7 +672,7 @@ void ChickBombSpell(edict_t* self)
 	else
 	{
 		// Area bomb at enemy location - trace to ground near enemy
-		vec3_t start, end, ground_pos;
+		vec3_t ground_pos;
 		trace_t ground_tr;
 
 		// Aim towards saved enemy position
@@ -1725,8 +1725,8 @@ void chickkl_fire_plasma(edict_t* self)
 
 		// Heat-seeking parameters
 		const float turn_fraction = 0.18f;
-		plasma->speed = speed / 1.35;
-		plasma->yaw_speed = speed * 2.0;
+		plasma->speed = speed / 1.35f;
+		plasma->yaw_speed = speed * 2.0f;
 		plasma->accel = turn_fraction;
 		plasma->pos1 = fire_dir;
 

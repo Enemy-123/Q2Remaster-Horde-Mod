@@ -377,7 +377,7 @@ void turret2Aim(edict_t* self)
 
 	vec3_t end, dir;
 	vec3_t ang;
-	float  move, idealPitch, idealYaw, current, speed;
+	float  idealPitch, idealYaw;
 	int    orientation;
 
 	// PMM - blindfire aiming here
