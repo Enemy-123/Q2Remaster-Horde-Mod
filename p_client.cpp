@@ -2928,9 +2928,8 @@ void ClientBegin(edict_t* ent)
 
 	// Horde mode: Begin staged asset loading for connections
 	if (g_horde->integer) {
-		// Always use staged loading to prevent client crash from too many configstrings
-		// The engine already sent configstrings, but we track loading progress
-		horde::AssetManager::Get().BeginClientLoading(ent);
+		// DISABLED: Test if monster exclusion alone prevents crashes
+		// horde::AssetManager::Get().BeginClientLoading(ent);
 
 		// Give client a grace period before spawning (longer for late waves)
 		if (current_wave_level >= 20) {

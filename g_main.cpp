@@ -1072,17 +1072,12 @@ Advances the world by 0.1 seconds
 
 #include "profiler.h"
 #include "horde/g_horde_phys.h"
-#include "horde/network_overflow_fix.h"
 // This is the main game frame function. It is called every server frame.
 // The structure of this function is highly  for performance.
 inline void G_RunFrame_(bool main_loop)
 {
     auto monsters = active_monsters();
     auto players = active_players();
-
-    // Reset network throttling for this frame
-    extern void G_ResetNetworkThrottle();
-    G_ResetNetworkThrottle();
 
     // Profiler and Horde-specific setup.
     if (g_horde_profiler) {
@@ -1173,8 +1168,8 @@ inline void G_RunFrame_(bool main_loop)
     // This block contains logic that only runs in Horde mode.
     if (g_horde->integer) {
 
-        // Process staged client loading for late-wave connections
-        horde::AssetManager::Get().ProcessClientLoading();
+        // DISABLED: Test if monster exclusion alone prevents crashes
+        // horde::AssetManager::Get().ProcessClientLoading();
 
         // Check for and resolve any bot-on-bot overlaps.
         G_CheckBotOverlap();
