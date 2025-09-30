@@ -4037,6 +4037,12 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
 		}
+		
+		// Freeze player to prevent looking stuck in air or running in place
+		client->ps.pmove.pm_type = PM_FREEZE;
+		ent->velocity = vec3_origin; // Stop all movement
+		gi.linkentity(ent); // Update entity state
+		
 		// Don't process normal movement/combat while in menu or inventory
 		return;
 	}
