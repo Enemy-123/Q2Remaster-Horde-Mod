@@ -27,7 +27,7 @@ extern void SP_target_orb(edict_t *ent);
 constexpr int32_t MAX_EFFECTIVE_LEVEL_BOOST = 20;
 
 // Maps an edict_t* to a compact index [0...N-1]
-extern std::unordered_map<int, uint16_t> g_spawn_point_map;
+// g_spawn_point_map now in g_spawn_system
 
 
 std::unordered_map<int, trap_state_t> g_trap_states;
@@ -43,7 +43,7 @@ std::vector<edict_t*> g_spawn_point_list;
 // The actual number of spawn points found on the map
 size_t g_num_spawn_points = 0;
 
-extern bool g_spawn_map_needs_build;
+// spawn_map_needs_build now in g_spawn_system
 
 // *** NEW: Use std::unordered_map instead of a giant static array ***
 static std::unordered_map<int, gtime_t> last_boss_teleport_attempt_time; 
@@ -51,11 +51,7 @@ static std::unordered_map<int, gtime_t> last_boss_teleport_attempt_time;
 // Forward declaration for the new map-building function
 void BuildSpawnPointMap();
 
-struct SpawnPlanEntry
-{
-	horde::MonsterTypeID typeId;
-	edict_t *spawn_point;
-};
+// SpawnPlanEntry is now defined in horde_spawning.h
 
 std::array<bool, static_cast<size_t>(horde::MonsterTypeID::MAX_TYPES)> g_precached_monster_types_flags = {}; // Initializes all to false
 static bool g_full_precache_done = false;
@@ -87,36 +83,15 @@ int32_t monsters_spawned_in_current_phase = 0;
 int32_t initial_total_monsters_for_spawning_phase_timeout = 0;
 
 
-// UNIFIED BATCH & PLAN VARIABLES
-extern std::vector<SpawnPlanEntry> g_spawn_plan;
-extern float g_champion_chance_for_current_batch;
-
-// Ambush/Retaliation still needs its own simple state, as it doesn't use spawn points
-
-
-// Cache for potentially valid spawn points (pointers)
-extern std::vector<edict_t *> g_potential_spawn_points;
-extern bool g_spawn_points_cached;
-extern size_t g_spawn_point_shuffle_index; // Index for iterating shuffled list
-extern int32_t g_cached_flying_spawn_count;
+// All spawn state is now in g_spawn_system (horde/horde_spawning.h)
 
 static bool g_special_high_level_monster_spawned_this_wave = false;
 
-// State for failure tracking and recovery
-extern int32_t g_consecutive_spawn_failures;
+// Recovery mode (local to g_horde.cpp)
 bool g_recovery_mode_active = false;
-extern MonsterWaveType g_original_wave_type_before_recovery;
 
-extern bool need_spawn_cache_reset;
 static bool need_frame_timer_reset = false;
 static bool need_queue_monitor_reset = false;
-
-// retaliation horde ( for when players are killing way too ez new/current wave in spawning state)
-// REMOVED: Using g_special_spawn_state.type == SpecialSpawnType::Retaliation instead
-
-// --- NEW: UNIFIED SPECIAL SPAWN SYSTEM ---
-// (Enums and structs now in horde_spawning.h)
-extern SpecialSpawnState g_special_spawn_state;
 
 static gtime_t g_horde_retaliation_end_time = 0_sec;
 static gtime_t g_horde_retaliation_last_trigger_time = 0_sec;  // Cooldown tracking
@@ -411,7 +386,7 @@ inline bool IsPositionTooCloseToRecentTeleport(const vec3_t& position, const hor
 // (Keep ResetSpawnMonsterVars, ResetFrameTimers, ResetQueueMonitorVars as they were)
 void ResetSpawnMonsterVars()
 {
-	need_spawn_cache_reset = true;
+	g_spawn_system.need_spawn_cache_reset = true;
 	horde::g_monsterSpawnTracker.Reset();
 }
 
@@ -446,18 +421,18 @@ int counter_mismatch_frames = 0;
 // MAX_SPAWN_POINTS is now defined in memory_safety.h
 
 // SpawnPointsSoA struct moved to horde_spawning.h
-extern SpawnPointsSoA g_spawnPointsData;
+// SpawnPointsSoA now in g_spawn_system
 
 void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
 
-	g_spawnPointsData.alternative_attempts[index]++;
+	g_spawn_system.spawn_points_data.alternative_attempts[index]++;
 	gtime_t cooldown_duration;
-	const uint16_t alt_attempts = g_spawnPointsData.alternative_attempts[index];
+	const uint16_t alt_attempts = g_spawn_system.spawn_points_data.alternative_attempts[index];
 
 	if (alt_attempts <= 2)
 		cooldown_duration = HordeConstants::ALT_SPAWN_COOLDOWN_SHORT;
@@ -468,16 +443,16 @@ void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 		cooldown_duration = 5.0_sec + gtime_t::from_sec(0.5f * (alt_attempts - 5));
 		cooldown_duration = std::min(cooldown_duration, 10.0_sec);
 		if (alt_attempts >= 8)
-			g_spawnPointsData.needs_long_alternative_cooldown[index] = true;
+			g_spawn_system.spawn_points_data.needs_long_alternative_cooldown[index] = true;
 	}
 
 	const gtime_t final_alt_duration = std::max(cooldown_duration, HordeConstants::MIN_ALT_FAILURE_COOLDOWN);
-	g_spawnPointsData.alternative_cooldown[index] = level.time + final_alt_duration;
+	g_spawn_system.spawn_points_data.alternative_cooldown[index] = level.time + final_alt_duration;
 
-	g_spawnPointsData.isTemporarilyDisabled[index] = true;
+	g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = true;
 	const gtime_t final_normal_duration = std::max(final_alt_duration * 0.5f, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
-	g_spawnPointsData.cooldownEndsAt[index] = level.time + final_normal_duration;
-	g_spawnPointsData.lastSpawnTime[index] = level.time;
+	g_spawn_system.spawn_points_data.cooldownEndsAt[index] = level.time + final_normal_duration;
+	g_spawn_system.spawn_points_data.lastSpawnTime[index] = level.time;
 
 // 	if (developer->integer)
 // 		gi.Com_PrintFmt("Alternative position cooldown applied to spawn at ({:.1f}, {:.1f}, {:.1f}): {:.1f}s (attempts: {})\n",
@@ -490,21 +465,21 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
 
-	if (level.time - g_spawnPointsData.lastSpawnTime[index] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
+	if (level.time - g_spawn_system.spawn_points_data.lastSpawnTime[index] > HordeConstants::SPAWN_POINT_INACTIVITY_RESET_THRESHOLD)
 	{
-		g_spawnPointsData.attempts[index] = 0;
-		g_spawnPointsData.isTemporarilyDisabled[index] = false;
-		g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
-		g_spawnPointsData.lastSpawnTime[index] = level.time;
+		g_spawn_system.spawn_points_data.attempts[index] = 0;
+		g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = false;
+		g_spawn_system.spawn_points_data.cooldownEndsAt[index] = 0_sec;
+		g_spawn_system.spawn_points_data.lastSpawnTime[index] = level.time;
 		return;
 	}
 
-	g_spawnPointsData.attempts[index]++;
+	g_spawn_system.spawn_points_data.attempts[index]++;
 
-	const uint16_t current_attempts = g_spawnPointsData.attempts[index];
-	const int32_t current_successes = g_spawnPointsData.successfulSpawns[index];
+	const uint16_t current_attempts = g_spawn_system.spawn_points_data.attempts[index];
+	const int32_t current_successes = g_spawn_system.spawn_points_data.successfulSpawns[index];
 	const float success_rate = (current_attempts > 0) ? (static_cast<float>(current_successes) / current_attempts) : 1.0f;
 
 	const int max_attempts = 4 + (success_rate >= 0.5f ? 2 : (success_rate >= 0.25f ? 1 : 0));
@@ -513,7 +488,7 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 
 	if (current_attempts >= max_attempts)
 	{
-		g_spawnPointsData.isTemporarilyDisabled[index] = true;
+		g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = true;
 		const float cooldown_factor = success_rate < 0.3f ? 1.5f : 0.75f;
 		const float attempt_multiplier = current_attempts <= 8 ? current_attempts * 0.25f : 2.0f;
 		calculated_duration = gtime_t::from_sec(cooldown_factor * attempt_multiplier);
@@ -528,9 +503,9 @@ void IncreaseSpawnAttempts(edict_t *spawn_point)
 	if (calculated_duration > 0_sec)
 	{
 		const gtime_t final_duration = std::max(calculated_duration, HordeConstants::MIN_INDIVIDUAL_FAILURE_COOLDOWN);
-		g_spawnPointsData.cooldownEndsAt[index] = level.time + final_duration;
+		g_spawn_system.spawn_points_data.cooldownEndsAt[index] = level.time + final_duration;
 	}
-	g_spawnPointsData.lastSpawnTime[index] = level.time;
+	g_spawn_system.spawn_points_data.lastSpawnTime[index] = level.time;
 }
 //s
 void OnSuccessfulSpawn(edict_t *spawn_point)
@@ -538,12 +513,12 @@ void OnSuccessfulSpawn(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
 
-	g_spawnPointsData.successfulSpawns[index]++;
-	g_spawnPointsData.attempts[index] = 0;
-	g_spawnPointsData.isTemporarilyDisabled[index] = false;
-	g_spawnPointsData.cooldownEndsAt[index] = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
+	g_spawn_system.spawn_points_data.successfulSpawns[index]++;
+	g_spawn_system.spawn_points_data.attempts[index] = 0;
+	g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = false;
+	g_spawn_system.spawn_points_data.cooldownEndsAt[index] = level.time + HordeConstants::MIN_INDIVIDUAL_SUCCESS_COOLDOWN;
 
 	horde::g_spawnPointTimeTracker.SetLastSpawnTime(spawn_point, level.time);
 }
@@ -565,14 +540,14 @@ struct SpawnPointCacheArray
 	// Access operator now uses the compact index map
 	SpawnPointCache& operator[](const edict_t* ent) {
 		// First check if map needs building
-		if (g_spawn_map_needs_build) {
+		if (g_spawn_system.spawn_map_needs_build) {
 			gi.Com_PrintFmt("WARNING: Accessing spawn point cache before BuildSpawnPointMap() - building now\n");
 			BuildSpawnPointMap();
-			g_spawn_map_needs_build = false;
+			g_spawn_system.spawn_map_needs_build = false;
 		}
 
-		auto it = g_spawn_point_map.find(ent->s.number);
-		if (it == g_spawn_point_map.end()) {
+		auto it = g_spawn_system.spawn_point_map.find(ent->s.number);
+		if (it == g_spawn_system.spawn_point_map.end()) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
 			// Debug assertion to catch this during development
@@ -586,7 +561,7 @@ struct SpawnPointCacheArray
 		// Additional safety check
 		if (it->second >= data.size()) {
 			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
-			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
+			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_system.spawn_map_needs_build, g_num_spawn_points);
 			assert(false && "invalid spawn point index!");
 			static SpawnPointCache default_cache{};
 			return default_cache;
@@ -596,13 +571,13 @@ struct SpawnPointCacheArray
 	}
 	
 	const SpawnPointCache& operator[](const edict_t* ent) const {
-		// Note: const version can't modify g_spawn_map_needs_build, so this is a warning only
-		if (g_spawn_map_needs_build) {
+		// Note: const version can't modify g_spawn_system.spawn_map_needs_build, so this is a warning only
+		if (g_spawn_system.spawn_map_needs_build) {
 			gi.Com_PrintFmt("ERROR: Const access to spawn point cache before BuildSpawnPointMap()\n");
 		}
 
-		auto it = g_spawn_point_map.find(ent->s.number);
-		if (it == g_spawn_point_map.end()) {
+		auto it = g_spawn_system.spawn_point_map.find(ent->s.number);
+		if (it == g_spawn_system.spawn_point_map.end()) {
 			gi.Com_PrintFmt("ERROR: Spawn point {} not found in map!\n", ent->s.number);
 
 			// Debug assertion to catch this during development
@@ -616,7 +591,7 @@ struct SpawnPointCacheArray
 		// Additional safety check
 		if (it->second >= data.size()) {
 			gi.Com_PrintFmt("ERROR: Invalid spawn point index {} (size: {})\n", it->second, data.size());
-			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_map_needs_build, g_num_spawn_points);
+			gi.Com_PrintFmt("DEBUG: Map built? {} Spawn points: {}\n", !g_spawn_system.spawn_map_needs_build, g_num_spawn_points);
 			assert(false && "invalid spawn point index!");
 			static const SpawnPointCache default_cache{};
 			return default_cache;
@@ -647,12 +622,12 @@ struct SpawnPointCacheArray
 
 
 // Static vector cache using compact indices - faster than unordered_map
-extern std::vector<CachedSpawnPointData> g_spawn_validation_cache;
+// spawn_validation_cache now in g_spawn_system
 static SpawnPointCacheArray spawn_point_cache;
 
 void BuildSpawnPointMap()
 {
-	g_spawn_point_map.clear();
+	g_spawn_system.spawn_point_map.clear();
 	g_spawn_point_list.clear();
 
 	// Clear and rebuild spatial index
@@ -677,7 +652,7 @@ void BuildSpawnPointMap()
 			}
 
 			// Add to map first, using the current size of the list as the compact index
-			g_spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
+			g_spawn_system.spawn_point_map[sp->s.number] = static_cast<uint16_t>(g_spawn_point_list.size());
 			// Then add the pointer to the list
 			if (!safe_push_back(g_spawn_point_list, sp, MAX_SPAWN_POINTS)) {
 				gi.Com_Print("WARNING: Failed to add spawn point\n");
@@ -694,19 +669,19 @@ void BuildSpawnPointMap()
 	g_spawn_point_list.shrink_to_fit();
 
 	// Finally, resize all data structures to the exact size needed with safety checks
-	// g_spawnPointsData has its own resize method that handles all its vectors
+	// g_spawn_system.spawn_points_data has its own resize method that handles all its vectors
 	if (g_num_spawn_points > MAX_SAFE_CONTAINER_SIZE) {
 		gi.Com_PrintFmt("ERROR: Too many spawn points ({}) exceeds maximum ({})\n",
 			g_num_spawn_points, MAX_SAFE_CONTAINER_SIZE);
 		g_num_spawn_points = MAX_SAFE_CONTAINER_SIZE;
 	}
-	g_spawnPointsData.resize(g_num_spawn_points);
+	g_spawn_system.spawn_points_data.resize(g_num_spawn_points);
 
 	// spawn_point_cache also has its own resize method
 	spawn_point_cache.resize(g_num_spawn_points);
 
-	// g_spawn_validation_cache is a std::vector, use safe_resize
-	if (!safe_resize(g_spawn_validation_cache, g_num_spawn_points)) {
+	// g_spawn_system.spawn_validation_cache is a std::vector, use safe_resize
+	if (!safe_resize(g_spawn_system.spawn_validation_cache, g_num_spawn_points)) {
 		gi.Com_Print("ERROR: Failed to resize spawn validation cache\n");
 	}
 
@@ -776,23 +751,23 @@ struct OccupiedCheckData
 template <typename TFilter>
 edict_t* SelectNextShuffledSpawnPoint(TFilter filter)
 {
-	if (g_potential_spawn_points.empty()) {
+	if (g_spawn_system.potential_spawn_points.empty()) {
 		return nullptr;
 	}
 
-	const size_t num_potential = g_potential_spawn_points.size();
+	const size_t num_potential = g_spawn_system.potential_spawn_points.size();
 	for (size_t i = 0; i < num_potential; ++i)
 	{
-		if (g_spawn_point_shuffle_index >= num_potential) {
-			g_spawn_point_shuffle_index = 0; // Cycle back to the start
+		if (g_spawn_system.spawn_point_shuffle_index >= num_potential) {
+			g_spawn_system.spawn_point_shuffle_index = 0; // Cycle back to the start
 		}
-		edict_t* spawnPoint = g_potential_spawn_points[g_spawn_point_shuffle_index++];
+		edict_t* spawnPoint = g_spawn_system.potential_spawn_points[g_spawn_system.spawn_point_shuffle_index++];
 
-		const uint16_t index = g_spawn_point_map.at(spawnPoint->s.number);
+		const uint16_t index = g_spawn_system.spawn_point_map.at(spawnPoint->s.number);
 
 		if (!spawnPoint || !spawnPoint->inuse || !is_valid_vector(spawnPoint->s.origin) ||
-			(g_spawnPointsData.isTemporarilyDisabled[index] && level.time < g_spawnPointsData.cooldownEndsAt[index]) ||
-			(level.time < g_spawnPointsData.alternative_cooldown[index]))
+			(g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] && level.time < g_spawn_system.spawn_points_data.cooldownEndsAt[index]) ||
+			(level.time < g_spawn_system.spawn_points_data.alternative_cooldown[index]))
 		{
 			continue;
 		}
@@ -922,16 +897,16 @@ void CheckAndReduceSpawnCooldowns()
 	// Iterate using the compact list of actual spawn points
 	for (size_t index = 0; index < g_num_spawn_points; ++index)
 	{
-		if (g_spawnPointsData.isTemporarilyDisabled[index] && current_time < g_spawnPointsData.cooldownEndsAt[index])
+		if (g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] && current_time < g_spawn_system.spawn_points_data.cooldownEndsAt[index])
 		{
 			found_cooldowns_to_reset = true;
 
-			const gtime_t remaining_time = g_spawnPointsData.cooldownEndsAt[index] - current_time;
+			const gtime_t remaining_time = g_spawn_system.spawn_points_data.cooldownEndsAt[index] - current_time;
 			const gtime_t reduced_duration = remaining_time * REDUCTION_FACTOR;
 			const gtime_t final_duration = std::max(reduced_duration, HordeConstants::MIN_REDUCED_INDIVIDUAL_COOLDOWN);
 
-			g_spawnPointsData.cooldownEndsAt[index] = current_time + final_duration;
-			g_spawnPointsData.attempts[index] = 0;
+			g_spawn_system.spawn_points_data.cooldownEndsAt[index] = current_time + final_duration;
+			g_spawn_system.spawn_points_data.attempts[index] = 0;
 		}
 	}
 
@@ -2828,7 +2803,7 @@ horde::MonsterTypeID G_HordePickMonsterType(
 	ctx.isRetaliationActive = isRetaliationActive_param;
 	ctx.isRecoveryModeActive = isRecoveryModeActive_param;
 	ctx.isBossWaveMinionPhase = (ctx.currentActualLevel >= 10 && ctx.currentActualLevel % 5 == 0 && boss_spawned_for_wave);
-	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_cached_flying_spawn_count);
+	ctx.flyingAdjustmentFactor = adjustFlyingSpawnProbability(g_spawn_system.cached_flying_spawn_count);
 	ctx.waveTypeForFiltering = isRecoveryModeActive_param ? (HasWaveType(originalWaveTypeBeforeRecovery_param, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground) : currentActualWaveType_param;
 
 	// --- 2. Calculate Effective Level (no changes) ---
@@ -3205,7 +3180,7 @@ void Horde_Init()
 	last_wave_number = 0;
 
 	AllowReset();
-	g_spawn_map_needs_build = true; // SET THE FLAG INSTEAD
+	g_spawn_system.spawn_map_needs_build = true; // SET THE FLAG INSTEAD
 	ResetGame(); // This will call RebuildSpawnPointCacheIfNeeded indirectly or directly
 
 	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
@@ -3415,7 +3390,7 @@ static void ResetAllSpawnPointDataAndTrackers()
 {
 	// 1. Reset all individual spawn point data with a single, efficient call.
 	// This clears all arrays within the SoA struct to their default values.
-	g_spawnPointsData.clear();
+	g_spawn_system.spawn_points_data.clear();
 
 	// 2. Reset global helper trackers.
 	horde::g_monsterSpawnTracker.Reset();
@@ -3559,9 +3534,9 @@ void ResetGame()
     // =======================================================================
 	// --- UNIFIED RESET (THIS IS THE FIX) ---
     // =======================================================================
-    g_spawn_plan.clear();
-    g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
-    // REMOVED: g_horde_retaliation_active - using g_special_spawn_state.type instead
+    g_spawn_system.spawn_plan.clear();
+    g_spawn_system.special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
+    // REMOVED: g_horde_retaliation_active - using g_spawn_system.special_spawn_state.type instead
     g_horde_retaliation_end_time = 0_sec;
     g_horde_retaliation_target_player = nullptr;
     // =======================================================================
@@ -3575,12 +3550,12 @@ void ResetGame()
 	CleanupSpawnPointCache();
 
 	ResetAllSpawnPointDataAndTrackers();
-	need_spawn_cache_reset = true;
+	g_spawn_system.need_spawn_cache_reset = true;
 	need_frame_timer_reset = true;
 	need_queue_monitor_reset = true;
-	g_consecutive_spawn_failures = 0;
+	g_spawn_system.consecutive_spawn_failures = 0;
 	g_recovery_mode_active = false;
-	g_original_wave_type_before_recovery = MonsterWaveType::None;
+	g_spawn_system.original_wave_type_before_recovery = MonsterWaveType::None;
 
 	g_horde_local = HordeState();
 	g_horde_local.level = 0;
@@ -4311,8 +4286,8 @@ static edict_t* FindSafeTeleportDestination(edict_t* self)
 		// --- END PERFORMANCE FIX ---
 
 		// --- A. Filter for Valid Spawn Points ---
-		const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
-		if (level.time < g_spawnPointsData.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
+		const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
+		if (level.time < g_spawn_system.spawn_points_data.teleport_cooldown[index] || IsSpawnPointOccupied(spawn_point))
 		{
 			continue;
 		}
@@ -4518,9 +4493,9 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		{
 			// --- THIS IS THE FIX ---
 			// Check if the key exists before trying to access the map.
-			if (g_spawn_point_map.count(used_spawn_point->s.number)) {
-				const uint16_t index = g_spawn_point_map.at(used_spawn_point->s.number);
-				g_spawnPointsData.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
+			if (g_spawn_system.spawn_point_map.count(used_spawn_point->s.number)) {
+				const uint16_t index = g_spawn_system.spawn_point_map.at(used_spawn_point->s.number);
+				g_spawn_system.spawn_points_data.teleport_cooldown[index] = level.time + HordeConstants::SPAWN_POINT_TELEPORT_COOLDOWN;
 			}
 			
 		}
@@ -4597,7 +4572,7 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 			(spawn_progress >= HordeConstants::MIN_SPAWN_PROGRESS_FOR_RETALIATION || monsters_spawned_in_current_phase >= HordeConstants::MIN_SPAWNED_FOR_RETALIATION))
 		{
 			// Check cooldown to prevent retaliation from triggering too frequently
-			if (g_special_spawn_state.type != SpecialSpawnType::Retaliation &&
+			if (g_spawn_system.special_spawn_state.type != SpecialSpawnType::Retaliation &&
 				(level.time - g_horde_retaliation_last_trigger_time) >= HordeConstants::RETALIATION_COOLDOWN)
 			{
 				// Find the best player to target for the retaliation
@@ -4794,7 +4769,7 @@ bool ShouldTriggerAmbushSpawn()
 
 static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel, edict_t* target_player)
 {
-	if (g_special_spawn_state.type != SpecialSpawnType::None) return; // Another special spawn is already planned
+	if (g_spawn_system.special_spawn_state.type != SpecialSpawnType::None) return; // Another special spawn is already planned
 
 	int baseSize = mapSize.isSmallMap ? 2 : (mapSize.isBigMap ? 4 : 2);
 	int spreeBonus = (target_player && target_player->client) ? (target_player->client->resp.spree / 8) : 0;
@@ -4809,14 +4784,14 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 						ambushSize, GetPlayerName(target_player));
 	}
 
-	g_special_spawn_state.type = SpecialSpawnType::Retaliation;
-	g_special_spawn_state.remaining_count = ambushSize;
-	g_special_spawn_state.monster_type_id = typeId;
-	g_special_spawn_state.champion_chance = 0.6f + (frandom() * 0.25f);
-	g_special_spawn_state.target_player = target_player;
+	g_spawn_system.special_spawn_state.type = SpecialSpawnType::Retaliation;
+	g_spawn_system.special_spawn_state.remaining_count = ambushSize;
+	g_spawn_system.special_spawn_state.monster_type_id = typeId;
+	g_spawn_system.special_spawn_state.champion_chance = 0.6f + (frandom() * 0.25f);
+	g_spawn_system.special_spawn_state.target_player = target_player;
 
-	// Retaliation state is now managed through g_special_spawn_state
-	// The type was already set above in g_special_spawn_state.type = SpecialSpawnType::Retaliation
+	// Retaliation state is now managed through g_spawn_system.special_spawn_state
+	// The type was already set above in g_spawn_system.special_spawn_state.type = SpecialSpawnType::Retaliation
 	g_horde_retaliation_end_time = level.time + HordeConstants::RETALIATION_DURATION;
 	g_horde_retaliation_target_player = target_player;
 }
@@ -4824,7 +4799,7 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 // This function is called when a random ambush is triggered.
 void TriggerAmbush(const horde::MapSize& mapSize, int32_t waveLevel)
 {
-	if (g_special_spawn_state.type != SpecialSpawnType::None) return;
+	if (g_spawn_system.special_spawn_state.type != SpecialSpawnType::None) return;
 
 	horde::MonsterTypeID monster_typeId_for_ambush = horde::MonsterTypeID::UNKNOWN;
     // Use a simple, robust fallback for picking the monster type
@@ -4841,23 +4816,23 @@ void TriggerAmbush(const horde::MapSize& mapSize, int32_t waveLevel)
 		gi.Com_PrintFmt("HORDE: PLANNING Ambush (Size: {}). Spawning will be time-sliced.\n", ambushSize);
 	}
 
-	g_special_spawn_state.type = SpecialSpawnType::Ambush;
-	g_special_spawn_state.remaining_count = ambushSize;
-	g_special_spawn_state.monster_type_id = monster_typeId_for_ambush;
-	g_special_spawn_state.champion_chance = 0.20f;
-	g_special_spawn_state.target_player = nullptr; // Target will be chosen per-spawn
+	g_spawn_system.special_spawn_state.type = SpecialSpawnType::Ambush;
+	g_spawn_system.special_spawn_state.remaining_count = ambushSize;
+	g_spawn_system.special_spawn_state.monster_type_id = monster_typeId_for_ambush;
+	g_spawn_system.special_spawn_state.champion_chance = 0.20f;
+	g_spawn_system.special_spawn_state.target_player = nullptr; // Target will be chosen per-spawn
 }
 
 // This single function runs every frame to execute one spawn from the special plan.
 static void ExecuteNextSpecialSpawn()
 {
-	if (g_special_spawn_state.remaining_count <= 0) {
+	if (g_spawn_system.special_spawn_state.remaining_count <= 0) {
 		return;
 	}
 
 	// EmergencySpawnMonster is correct here as it finds a spot near a player.
 	// It will use the specific target if one is set (for retaliation), or find a random one (for ambush).
-	if (EmergencySpawnMonster(current_wave_level, g_special_spawn_state.monster_type_id, true, g_special_spawn_state.champion_chance))
+	if (EmergencySpawnMonster(current_wave_level, g_spawn_system.special_spawn_state.monster_type_id, true, g_spawn_system.special_spawn_state.champion_chance))
 	{
 		// Success
 	}
@@ -4866,11 +4841,11 @@ static void ExecuteNextSpecialSpawn()
 		gi.Com_PrintFmt("Special Spawn FAILED: EmergencySpawnMonster returned false.\n");
 	}
 
-	g_special_spawn_state.remaining_count--;
+	g_spawn_system.special_spawn_state.remaining_count--;
 
 	// If this was the last one, clear the state.
-	if (g_special_spawn_state.remaining_count <= 0) {
-		g_special_spawn_state.clear();
+	if (g_spawn_system.special_spawn_state.remaining_count <= 0) {
+		g_spawn_system.special_spawn_state.clear();
 	}
 }
 
@@ -4888,37 +4863,37 @@ int32_t ManageSpawnCountsAndQueue(const horde::MapSize &mapSize, int32_t availab
 // RebuildSpawnPointCacheIfNeeded moved to horde_spawning.cpp
 static void RebuildSpawnPointCacheIfNeeded_REMOVED_SEE_horde_spawning_cpp()
 {
-	if (!g_spawn_points_cached || need_spawn_cache_reset)
+	if (!g_spawn_system.spawn_points_cached || g_spawn_system.need_spawn_cache_reset)
 	{
 		// Ensure spawn map is built first
-		if (g_spawn_map_needs_build) {
+		if (g_spawn_system.spawn_map_needs_build) {
 			BuildSpawnPointMap();
-			g_spawn_map_needs_build = false;
+			g_spawn_system.spawn_map_needs_build = false;
 		}
 		// Reserve capacity before copying to avoid reallocation
-		g_potential_spawn_points.clear();
-		g_potential_spawn_points.reserve(g_spawn_point_list.size());
-		g_potential_spawn_points = g_spawn_point_list;
+		g_spawn_system.potential_spawn_points.clear();
+		g_spawn_system.potential_spawn_points.reserve(g_spawn_point_list.size());
+		g_spawn_system.potential_spawn_points = g_spawn_point_list;
 
-		g_cached_flying_spawn_count = 0;
-		for (const auto* point : g_potential_spawn_points) {
+		g_spawn_system.cached_flying_spawn_count = 0;
+		for (const auto* point : g_spawn_system.potential_spawn_points) {
 			if (point->style == 1) {
-				g_cached_flying_spawn_count++;
+				g_spawn_system.cached_flying_spawn_count++;
 			}
 		}
 
-		if (!g_potential_spawn_points.empty())
+		if (!g_spawn_system.potential_spawn_points.empty())
 		{
-			std::shuffle(g_potential_spawn_points.begin(), g_potential_spawn_points.end(), mt_rand);
+			std::shuffle(g_spawn_system.potential_spawn_points.begin(), g_spawn_system.potential_spawn_points.end(), mt_rand);
 		}
 
-		g_spawn_point_shuffle_index = 0;
-		g_spawn_points_cached = true;
-		need_spawn_cache_reset = false;
-		g_consecutive_spawn_failures = 0;
+		g_spawn_system.spawn_point_shuffle_index = 0;
+		g_spawn_system.spawn_points_cached = true;
+		g_spawn_system.need_spawn_cache_reset = false;
+		g_spawn_system.consecutive_spawn_failures = 0;
 
 		if (developer->integer)
-			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
+			gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_spawn_system.potential_spawn_points.size(), g_spawn_system.cached_flying_spawn_count);
 	}
 }
 
@@ -5101,12 +5076,12 @@ void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 	if (!spawn_point || !spawn_point->inuse)
 		return;
 
-	const uint16_t index = g_spawn_point_map.at(spawn_point->s.number);
+	const uint16_t index = g_spawn_system.spawn_point_map.at(spawn_point->s.number);
 
 	// FIX: Cast the signed 'index' to the unsigned 'size_t' for each array access.
-	g_spawnPointsData.alternative_attempts[static_cast<size_t>(index)] = 0;
-	g_spawnPointsData.needs_long_alternative_cooldown[static_cast<size_t>(index)] = false;
-	g_spawnPointsData.alternative_cooldown[static_cast<size_t>(index)] = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
+	g_spawn_system.spawn_points_data.alternative_attempts[static_cast<size_t>(index)] = 0;
+	g_spawn_system.spawn_points_data.needs_long_alternative_cooldown[static_cast<size_t>(index)] = false;
+	g_spawn_system.spawn_points_data.alternative_cooldown[static_cast<size_t>(index)] = level.time + std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN);
 
 	if (developer->integer > 1)
 		gi.Com_PrintFmt("Success cooldown applied to spawn at {}: {:.1f}s\n", spawn_point->s.origin, std::max(3.0_sec, HordeConstants::MIN_ALT_SUCCESS_COOLDOWN).seconds());
@@ -5583,7 +5558,7 @@ private:
     }
 
     void HandleSuccessfulSpawn(edict_t* spawn_point, bool used_alternative, edict_t* monster) {
-        g_consecutive_spawn_failures = 0;
+        g_spawn_system.consecutive_spawn_failures = 0;
         if (used_alternative) {
             ApplySuccessfulAlternativeCooldown(spawn_point);
         } else {
@@ -5604,7 +5579,7 @@ private:
     }
 
     void HandleSpawnFailure(edict_t* spawn_point, bool used_alternative) {
-        g_consecutive_spawn_failures++;
+        g_spawn_system.consecutive_spawn_failures++;
         if (used_alternative) {
             ApplyAlternativePositionCooldown(spawn_point);
         } else {
@@ -5637,9 +5612,9 @@ private:
 
     void PrepareBatch() {
         current_batch.Clear();
-        while (!g_spawn_plan.empty() && !current_batch.IsFull()) {
-            current_batch.AddEntry(g_spawn_plan.back());
-            g_spawn_plan.pop_back();
+        while (!g_spawn_system.spawn_plan.empty() && !current_batch.IsFull()) {
+            current_batch.AddEntry(g_spawn_system.spawn_plan.back());
+            g_spawn_system.spawn_plan.pop_back();
         }
     }
 
@@ -5674,7 +5649,7 @@ private:
                 current_batch.final_angles[i],
                 entry.typeId,
                 current_wave_level,
-                g_champion_chance_for_current_batch
+                g_spawn_system.champion_chance_for_current_batch
             );
         }
     }
@@ -5700,9 +5675,9 @@ private:
 
 public:
     void ProcessSpawnPlan() {
-        if (g_spawn_plan.empty()) return;
+        if (g_spawn_system.spawn_plan.empty()) return;
 
-        while (!g_spawn_plan.empty()) {
+        while (!g_spawn_system.spawn_plan.empty()) {
             PrepareBatch();
 
             if (current_batch.count > 0) {
@@ -5957,11 +5932,11 @@ void CheckAndResetDisabledSpawnPoints()
 	// Iterate using the compact index, which is much more efficient.
 	for (size_t index = 0; index < g_num_spawn_points; ++index)
 	{
-		if (g_spawnPointsData.isTemporarilyDisabled[index])
+		if (g_spawn_system.spawn_points_data.isTemporarilyDisabled[index])
 		{
-			g_spawnPointsData.isTemporarilyDisabled[index] = false;
-			g_spawnPointsData.attempts[index] = 0;
-			g_spawnPointsData.cooldownEndsAt[index] = 0_sec;
+			g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] = false;
+			g_spawn_system.spawn_points_data.attempts[index] = 0;
+			g_spawn_system.spawn_points_data.cooldownEndsAt[index] = 0_sec;
 		}
 	}
 }
@@ -5996,8 +5971,8 @@ void Horde_RunFrame()
 	CheckAndReduceSpawnCooldowns();
 
 	// Check if retaliation mode has timed out
-	if (g_special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
-		g_special_spawn_state.clear();
+	if (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
+		g_spawn_system.special_spawn_state.clear();
 		g_horde_retaliation_end_time = 0_sec;
 		g_horde_retaliation_target_player = nullptr;
 		if (developer->integer) {
@@ -6574,14 +6549,14 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	// Build the map of spawn points once, right before the first wave,
 	// ensuring all map entities have been loaded.
-	if (g_spawn_map_needs_build) {
+	if (g_spawn_system.spawn_map_needs_build) {
 		BuildSpawnPointMap();
-		g_spawn_map_needs_build = false;
+		g_spawn_system.spawn_map_needs_build = false;
 	}
 
-	g_spawn_plan.clear();
-	g_special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
-	// REMOVED: g_horde_retaliation_active - using g_special_spawn_state.type instead
+	g_spawn_system.spawn_plan.clear();
+	g_spawn_system.special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
+	// REMOVED: g_horde_retaliation_active - using g_spawn_system.special_spawn_state.type instead
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;
 	g_horde_retaliation_target_player = nullptr;

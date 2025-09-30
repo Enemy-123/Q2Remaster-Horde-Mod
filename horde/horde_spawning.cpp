@@ -16,11 +16,6 @@
 
 // NOTE: horde_state_t is now defined in g_horde.h
 
-struct SpawnPlanEntry {
-    horde::MonsterTypeID typeId;
-    edict_t *spawn_point;
-};
-
 struct PositionValidationResult {
     bool is_valid;
     vec3_t adjusted_position;
@@ -30,32 +25,8 @@ struct PositionValidationResult {
 // SPAWN STATE VARIABLES (Definitions)
 // ============================================================================
 
-// Cache for potentially valid spawn points (pointers)
-std::vector<edict_t *> g_potential_spawn_points;
-bool g_spawn_points_cached = false;
-size_t g_spawn_point_shuffle_index = 0; // Index for iterating shuffled list
-int32_t g_cached_flying_spawn_count = 0;
-
-// State for failure tracking and recovery
-int32_t g_consecutive_spawn_failures = 0;
-MonsterWaveType g_original_wave_type_before_recovery = MonsterWaveType::None;
-
-bool need_spawn_cache_reset = false;
-bool g_spawn_map_needs_build = true;
-
-// Spawn point data structures
-std::unordered_map<int, uint16_t> g_spawn_point_map;
-SpawnPointsSoA g_spawnPointsData;
-
-// Spawn validation cache
-std::vector<CachedSpawnPointData> g_spawn_validation_cache;
-
-// Special spawn state
-SpecialSpawnState g_special_spawn_state;
-
-// Spawn plan and batch variables
-std::vector<SpawnPlanEntry> g_spawn_plan;
-float g_champion_chance_for_current_batch = 0.2f;
+// Global spawn system state instance (definition)
+SpawnSystemState g_spawn_system;
 
 // Classes EmergencySpawnOptimizer and MonsterSpawnPipeline are in g_horde.cpp
 // We use wrapper functions FindEmergencySpawnPosition and ExecuteSpawnPlan instead
@@ -129,6 +100,167 @@ void SpawnPointsSoA::resize(size_t new_size) {
         gi.Com_Print("ERROR: Failed to allocate memory for spawn points data\n");
         clear(); // Clear all on failure
     }
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/// Applies visual and audio effects when a monster spawns
+static void ApplyMonsterSpawnEffects(edict_t* monster) noexcept
+{
+    if (!monster || !monster->inuse || monster->deadflag || monster->health <= 0)
+        return;
+
+    SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+    if (sound_spawn1)
+    {
+        gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+    }
+}
+
+/// Determines appropriate emergency monster type based on level
+static horde::MonsterTypeID GetEmergencyMonsterType(int32_t currentLevel) noexcept
+{
+    if (currentLevel >= HordeConstants::EMERGENCY_GLADIATOR_LEVEL_THRESHOLD)
+        return horde::MonsterTypeID::GLADIATOR;
+    if (currentLevel >= HordeConstants::EMERGENCY_TANK_LEVEL_THRESHOLD)
+        return horde::MonsterTypeID::TANK;
+    if (currentLevel >= HordeConstants::EMERGENCY_GUNNER_LEVEL_THRESHOLD)
+        return horde::MonsterTypeID::GUNNER;
+    return horde::MonsterTypeID::SOLDIER;
+}
+
+/// Checks if position is too close to other positions in batch
+static bool IsTooCloseToBatchPositions(const vec3_t& position, const std::vector<vec3_t>& batch_positions) noexcept
+{
+    const float min_spacing_sq = HordeConstants::EMERGENCY_MIN_BATCH_SPACING * HordeConstants::EMERGENCY_MIN_BATCH_SPACING;
+    for (const vec3_t& batch_pos : batch_positions)
+    {
+        if ((position - batch_pos).lengthSquared() < min_spacing_sq)
+            return true;
+    }
+    return false;
+}
+
+/// Attempts to find a valid emergency spawn position with batch spacing
+static bool FindSpacedEmergencyPosition(
+    vec3_t& out_position,
+    vec3_t& out_angles,
+    horde::MonsterTypeID typeId,
+    const std::vector<vec3_t>& batch_positions)
+{
+    for (int attempt = 0; attempt < HordeConstants::MAX_EMERGENCY_POSITION_ATTEMPTS; ++attempt)
+    {
+        if (!FindEmergencySpawnPositionNearPlayer(out_position, out_angles, typeId))
+            return false;
+
+        if (!IsTooCloseToBatchPositions(out_position, batch_positions))
+            return true;
+    }
+    return false;
+}
+
+/// Checks if spawn point cooldowns allow spawning
+static bool CheckSpawnPointCooldowns(uint16_t index, gtime_t current_time, bool emergency_mode) noexcept
+{
+    if (emergency_mode)
+        return true; // Skip cooldowns in emergency mode for faster spawning
+
+    return current_time >= g_spawn_system.spawn_points_data.teleport_cooldown[index] &&
+           current_time >= g_spawn_system.spawn_points_data.alternative_cooldown[index] &&
+           (!g_spawn_system.spawn_points_data.isTemporarilyDisabled[index] ||
+            current_time >= g_spawn_system.spawn_points_data.cooldownEndsAt[index]);
+}
+
+/// Checks if spawn point is too close to players
+static bool CheckSpawnPointPlayerProximity(const vec3_t& spawn_pos, bool emergency_mode, bool recovery_mode) noexcept
+{
+    float min_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
+
+    if (recovery_mode)
+        min_dist *= 0.7f; // 30% reduction in recovery mode
+    if (emergency_mode)
+        min_dist *= 0.5f; // 50% reduction in emergency mode
+
+    const float MIN_DIST_SQ = min_dist * min_dist;
+
+    for (const auto* player : active_players_no_spect())
+    {
+        if (DistanceSquared(spawn_pos, player->s.origin) < MIN_DIST_SQ)
+            return false;
+    }
+    return true;
+}
+
+/// Updates spawn validation cache with result
+static void UpdateSpawnValidationCache(
+    CachedSpawnPointData& cached,
+    gtime_t current_time,
+    bool is_valid,
+    const vec3_t& spawn_origin) noexcept
+{
+    cached.last_validation_time = current_time;
+    cached.last_validation_result = is_valid;
+    cached.last_validation_origin = spawn_origin;
+
+    if (!is_valid)
+    {
+        g_spawn_system.consecutive_spawn_failures++;
+    }
+    else
+    {
+        // Gradually reduce failure count on successful validation
+        if (g_spawn_system.consecutive_spawn_failures > 0)
+        {
+            g_spawn_system.consecutive_spawn_failures = std::max(0, g_spawn_system.consecutive_spawn_failures - 2);
+        }
+    }
+}
+
+/// Checks and validates an alternative spawn position candidate
+/// Returns true if position is valid and sets final_origin and final_angles
+static bool CheckAndSetAlternativePosition(
+    const vec3_t& base_origin,
+    const vec3_t& base_angles,
+    const vec3_t& candidate_pos,
+    const vec3_t& offset_dir,
+    const vec3_t& predicted_mins,
+    const vec3_t& predicted_maxs,
+    bool is_flying,
+    edict_t* spawn_point,
+    vec3_t& final_origin,
+    vec3_t& final_angles)
+{
+    // Check line of sight from base origin
+    trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
+    if (los_trace.fraction < 1.0f)
+        return false;
+
+    // Validate position physically
+    const auto validation = IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying);
+    if (!validation.is_valid)
+        return false;
+
+    // Check if too close to recent spawns
+    if (IsPositionTooCloseToRecentSpawn(validation.adjusted_position, g_horde_local.current_map_size))
+        return false;
+
+    // Position is valid - set output parameters
+    final_origin = validation.adjusted_position;
+
+    if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON)
+    {
+        final_angles = vectoangles(offset_dir);
+        final_angles[PITCH] = 0;
+    }
+    else
+    {
+        final_angles = base_angles;
+    }
+
+    MarkPositionAsRecentlyUsed(final_origin);
+    return true;
 }
 
 // ============================================================================
@@ -250,14 +382,7 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         return false;
     }
 
-    if (monster->inuse && !monster->deadflag && monster->health > 0)
-    {
-        SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-        if (sound_spawn1)
-        {
-            gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-        }
-    }
+    ApplyMonsterSpawnEffects(monster);
 
     if (is_additional_monster)
     {
@@ -303,50 +428,22 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
     vec3_t predicted_mins, predicted_maxs;
     GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 
-    auto check_and_set_position =
-        [&](const vec3_t& candidate_pos, const vec3_t& offset_dir) -> bool
-    {
-        trace_t los_trace = gi.traceline(base_origin, candidate_pos, spawn_point, MASK_SOLID);
-        if (los_trace.fraction < 1.0f)
-        {
-            return false;
-        }
-
-        // FIXED: Use struct return instead of in-out parameter
-        const auto validation = IsPositionPhysicallyValid(candidate_pos, predicted_mins, predicted_maxs, is_flying);
-        if (validation.is_valid)
-        {
-            if (!IsPositionTooCloseToRecentSpawn(validation.adjusted_position, g_horde_local.current_map_size))
-            {
-                final_origin = validation.adjusted_position;
-                if (offset_dir.lengthSquared() > VECTOR_LENGTH_SQ_EPSILON)
-                {
-                    final_angles = vectoangles(offset_dir);
-                    final_angles[PITCH] = 0;
-                }
-                else
-                {
-                    final_angles = base_angles;
-                }
-                MarkPositionAsRecentlyUsed(final_origin);
-                return true;
-            }
-        }
-        return false;
-    };
-
     // Use radial attempts to find alternative spawn positions
-    constexpr int RADIAL_ATTEMPTS = 35;
-    constexpr float MIN_RADIUS = 40.0f;
-    constexpr float MAX_RADIUS = 225.0f;
-
-    for (int i = 0; i < RADIAL_ATTEMPTS; ++i)
+    for (int i = 0; i < HordeConstants::ALTERNATIVE_RADIAL_ATTEMPTS; ++i)
     {
-        float radius = frandom(MIN_RADIUS, MAX_RADIUS);
-        float angle_rad = frandom() * 2.0f * PIf;
-        vec3_t offset = {cosf(angle_rad) * radius, sinf(angle_rad) * radius, frandom(-8.0f, 24.0f)};
+        const float radius = frandom(HordeConstants::ALTERNATIVE_MIN_RADIUS, HordeConstants::ALTERNATIVE_MAX_RADIUS);
+        const float angle_rad = frandom() * 2.0f * PIf;
+        const vec3_t offset = {
+            cosf(angle_rad) * radius,
+            sinf(angle_rad) * radius,
+            frandom(HordeConstants::ALTERNATIVE_MIN_Z_OFFSET, HordeConstants::ALTERNATIVE_MAX_Z_OFFSET)
+        };
 
-        if (check_and_set_position(base_origin + offset, offset))
+        const vec3_t candidate_pos = base_origin + offset;
+
+        if (CheckAndSetAlternativePosition(base_origin, base_angles, candidate_pos, offset,
+                                           predicted_mins, predicted_maxs, is_flying, spawn_point,
+                                           final_origin, final_angles))
         {
             return true;
         }
@@ -370,20 +467,20 @@ void PlanMonsterSpawnBatch(
     MonsterWaveType current_actual_wave_type_param,
     MonsterWaveType original_wave_type_before_recovery_param)
 {
-    g_spawn_plan.clear();
+    g_spawn_system.spawn_plan.clear();
     if (num_to_plan <= 0)
         return;
 
     // Safe reserve with overflow check
     size_t reserve_size = std::min(static_cast<size_t>(num_to_plan), MAX_ENTITIES_PER_FRAME);
-    if (!safe_reserve(g_spawn_plan, reserve_size)) {
+    if (!safe_reserve(g_spawn_system.spawn_plan, reserve_size)) {
         gi.Com_Print("ERROR: Failed to reserve memory for spawn plan\n");
         return;
     }
 
-    g_champion_chance_for_current_batch = champion_chance_param;
+    g_spawn_system.champion_chance_for_current_batch = champion_chance_param;
 
-    const size_t total_potential_points = g_potential_spawn_points.size();
+    const size_t total_potential_points = g_spawn_system.potential_spawn_points.size();
     if (total_potential_points == 0)
     {
         return;
@@ -394,11 +491,11 @@ void PlanMonsterSpawnBatch(
 
     while (planned_count < num_to_plan && points_checked < total_potential_points * 2)
     {
-        if (g_spawn_point_shuffle_index >= total_potential_points)
+        if (g_spawn_system.spawn_point_shuffle_index >= total_potential_points)
         {
-            g_spawn_point_shuffle_index = 0;
+            g_spawn_system.spawn_point_shuffle_index = 0;
         }
-        edict_t* spawn_point = g_potential_spawn_points[g_spawn_point_shuffle_index++];
+        edict_t* spawn_point = g_spawn_system.potential_spawn_points[g_spawn_system.spawn_point_shuffle_index++];
         points_checked++;
 
         if (!ValidateSpawnPointForMonster(spawn_point, level.time))
@@ -414,7 +511,7 @@ void PlanMonsterSpawnBatch(
         if (monster_type_id != horde::MonsterTypeID::UNKNOWN)
         {
             // Use safe emplace_back with overflow protection
-            if (!safe_emplace_back_limit(g_spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
+            if (!safe_emplace_back_limit(g_spawn_system.spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
                 gi.Com_Print("WARNING: Spawn plan full, stopping planning\n");
                 break;
             }
@@ -434,7 +531,7 @@ void PlanNextSpawnBatch()
     // developer >= 3: Freeze monster spawning for debugging (bots still disabled at developer >= 2)
     if (developer->integer >= 3 && g_horde->integer) return;
 
-    if (!g_spawn_plan.empty()) {
+    if (!g_spawn_system.spawn_plan.empty()) {
         return;
     }
 
@@ -442,11 +539,11 @@ void PlanNextSpawnBatch()
     const int32_t currentLevel = g_horde_local.level;
 
     RebuildSpawnPointCacheIfNeeded();
-    if (g_potential_spawn_points.empty()) {
-        if (g_consecutive_spawn_failures < HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY - 1)
-            g_consecutive_spawn_failures++;
-        if (!need_spawn_cache_reset) {
-            need_spawn_cache_reset = true;
+    if (g_spawn_system.potential_spawn_points.empty()) {
+        if (g_spawn_system.consecutive_spawn_failures < HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY - 1)
+            g_spawn_system.consecutive_spawn_failures++;
+        if (!g_spawn_system.need_spawn_cache_reset) {
+            g_spawn_system.need_spawn_cache_reset = true;
         }
         return;
     }
@@ -458,8 +555,8 @@ void PlanNextSpawnBatch()
     if (g_horde_local.state == horde_state_t::active_wave && activeMonsters < softCap && ShouldTriggerAmbushSpawn()) {
         TriggerAmbush(mapSize, currentLevel);
         // If the trigger was successful, it will have set the special spawn state.
-        if (g_special_spawn_state.type == SpecialSpawnType::Ambush) {
-            g_consecutive_spawn_failures = 0;
+        if (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Ambush) {
+            g_spawn_system.consecutive_spawn_failures = 0;
             SetNextMonsterSpawnTime(mapSize);
             return; // Exit early, the special spawn system will take over.
         }
@@ -494,7 +591,7 @@ void PlanNextSpawnBatch()
         int num_spawned = ExecuteEmergencySpawnProcedure(spawnable_this_call_local, currentLevel, champion_chance_for_batch);
         if (num_spawned > 0 && g_recovery_mode_active) {
             g_recovery_mode_active = false;
-            current_wave_type = g_original_wave_type_before_recovery;
+            current_wave_type = g_spawn_system.original_wave_type_before_recovery;
         }
     }
     else if (spawnable_this_call_local > 0) {
@@ -503,9 +600,9 @@ void PlanNextSpawnBatch()
             currentLevel,
             champion_chance_for_batch,
             g_recovery_mode_active,
-            (g_special_spawn_state.type == SpecialSpawnType::Retaliation),
+            (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation),
             current_wave_type,
-            g_original_wave_type_before_recovery);
+            g_spawn_system.original_wave_type_before_recovery);
     }
 
     SetNextMonsterSpawnTime(mapSize);
@@ -517,150 +614,116 @@ void PlanNextSpawnBatch()
 
 void RebuildSpawnPointCacheIfNeeded()
 {
-    if (!g_spawn_points_cached || need_spawn_cache_reset)
+    if (!g_spawn_system.spawn_points_cached || g_spawn_system.need_spawn_cache_reset)
     {
         // Ensure spawn map is built first
-        if (g_spawn_map_needs_build) {
+        if (g_spawn_system.spawn_map_needs_build) {
             BuildSpawnPointMap();
-            g_spawn_map_needs_build = false;
+            g_spawn_system.spawn_map_needs_build = false;
         }
         // Reserve capacity before copying to avoid reallocation
-        g_potential_spawn_points.clear();
-        g_potential_spawn_points.reserve(g_spawn_point_list.size());
-        g_potential_spawn_points = g_spawn_point_list;
+        g_spawn_system.potential_spawn_points.clear();
+        g_spawn_system.potential_spawn_points.reserve(g_spawn_point_list.size());
+        g_spawn_system.potential_spawn_points = g_spawn_point_list;
 
-        g_cached_flying_spawn_count = 0;
-        for (const auto* point : g_potential_spawn_points) {
+        g_spawn_system.cached_flying_spawn_count = 0;
+        for (const auto* point : g_spawn_system.potential_spawn_points) {
             if (point->style == 1) {
-                g_cached_flying_spawn_count++;
+                g_spawn_system.cached_flying_spawn_count++;
             }
         }
 
-        if (!g_potential_spawn_points.empty())
+        if (!g_spawn_system.potential_spawn_points.empty())
         {
-            std::shuffle(g_potential_spawn_points.begin(), g_potential_spawn_points.end(), mt_rand);
+            std::shuffle(g_spawn_system.potential_spawn_points.begin(), g_spawn_system.potential_spawn_points.end(), mt_rand);
         }
 
-        g_spawn_point_shuffle_index = 0;
-        g_spawn_points_cached = true;
-        need_spawn_cache_reset = false;
-        g_consecutive_spawn_failures = 0;
+        g_spawn_system.spawn_point_shuffle_index = 0;
+        g_spawn_system.spawn_points_cached = true;
+        g_spawn_system.need_spawn_cache_reset = false;
+        g_spawn_system.consecutive_spawn_failures = 0;
 
         if (developer->integer)
-            gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_potential_spawn_points.size(), g_cached_flying_spawn_count);
+            gi.Com_PrintFmt("Spawn Point Cache Rebuilt: {} points shuffled ({} flying).\n", g_spawn_system.potential_spawn_points.size(), g_spawn_system.cached_flying_spawn_count);
     }
 }
 
 bool ValidateSpawnPointForMonster(edict_t* spawn_point, gtime_t current_time)
 {
-    if (!spawn_point || !spawn_point->inuse) return false;
+    if (!spawn_point || !spawn_point->inuse)
+        return false;
 
     // Get compact index for direct vector access
-    auto it = g_spawn_point_map.find(spawn_point->s.number);
-    if (it == g_spawn_point_map.end()) return false;
+    auto it = g_spawn_system.spawn_point_map.find(spawn_point->s.number);
+    if (it == g_spawn_system.spawn_point_map.end())
+        return false;
 
     const uint16_t index = it->second;
-    if (index >= g_spawn_validation_cache.size()) return false;
+    if (index >= g_spawn_system.spawn_validation_cache.size())
+        return false;
 
     // Direct vector access - much faster than hash map
-    auto& cached = g_spawn_validation_cache[index];
+    auto& cached = g_spawn_system.spawn_validation_cache[index];
 
     // Initialize index if first time
-    if (cached.index == 0) {
+    if (cached.index == 0)
         cached.index = index;
-    }
 
-    // Check if we can use cached result (within 100ms and same position)
-    constexpr gtime_t CACHE_DURATION = 100_ms;
-    if (current_time - cached.last_validation_time < CACHE_DURATION) {
+    // Check if we can use cached result (within cache duration and same position)
+    if (current_time - cached.last_validation_time < HordeConstants::SPAWN_VALIDATION_CACHE_DURATION)
+    {
         cached.InvalidateIfMoved(spawn_point->s.origin);
-        if (cached.last_validation_time > 0_sec) {
+        if (cached.last_validation_time > 0_sec)
             return cached.last_validation_result;
-        }
     }
 
     // Progressive validation - become more lenient as failures increase
-    bool is_valid = true;
-    const bool emergency_mode = g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY;
-    const bool recovery_mode = g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY;
+    const bool emergency_mode = g_spawn_system.consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY;
+    const bool recovery_mode = g_spawn_system.consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY;
 
-    // Check cooldowns (skip in emergency mode for faster spawning)
-    if (!emergency_mode) {
-        if (current_time < g_spawnPointsData.teleport_cooldown[index] ||
-            current_time < g_spawnPointsData.alternative_cooldown[index] ||
-            (g_spawnPointsData.isTemporarilyDisabled[index] &&
-             current_time < g_spawnPointsData.cooldownEndsAt[index])) {
-            is_valid = false;
-        }
-    }
+    // Perform validation checks
+    bool is_valid = CheckSpawnPointCooldowns(index, current_time, emergency_mode);
 
-    // Check player proximity (relax distance progressively)
-    if (is_valid) {
-        float min_dist = HordeConstants::GetMinPlayerDistSpawnpoint(g_horde_local.current_map_size);
-        if (recovery_mode) {
-            min_dist *= 0.7f; // 30% reduction in recovery mode
-        }
-        if (emergency_mode) {
-            min_dist *= 0.5f; // 50% reduction in emergency mode
-        }
-
-        const float MIN_DIST_SQ = min_dist * min_dist;
-        const vec3_t spawn_pos = spawn_point->s.origin;
-
-        for (const auto* player : active_players_no_spect()) {
-            if (DistanceSquared(spawn_pos, player->s.origin) < MIN_DIST_SQ) {
-                is_valid = false;
-                break;
-            }
-        }
-    }
+    if (is_valid)
+        is_valid = CheckSpawnPointPlayerProximity(spawn_point->s.origin, emergency_mode, recovery_mode);
 
     // Check occupation (skip in emergency mode)
-    if (is_valid && !emergency_mode) {
+    if (is_valid && !emergency_mode)
         is_valid = !IsSpawnPointOccupied(spawn_point);
-    }
 
-    // Cache result
-    cached.last_validation_time = current_time;
-    cached.last_validation_result = is_valid;
-    cached.last_validation_origin = spawn_point->s.origin;
-
-    if (!is_valid) {
+    // Update cache and failure tracking
+    if (!is_valid)
         IncreaseSpawnAttempts(spawn_point);
-        g_consecutive_spawn_failures++;
-    } else {
-        // Gradually reduce failure count on successful validation
-        if (g_consecutive_spawn_failures > 0) {
-            g_consecutive_spawn_failures = std::max(0, g_consecutive_spawn_failures - 2);
-        }
-    }
+
+    UpdateSpawnValidationCache(cached, current_time, is_valid, spawn_point->s.origin);
 
     return is_valid;
 }
 
 void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnable_this_call, bool& out_use_emergency_spawn, bool& out_recovery_mode_active_ref, float& out_champion_chance, int32_t availableSpace)
 {
-    const int32_t base_batch = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
+    const int32_t base_batch = mapSize.isSmallMap ? HordeConstants::SPAWN_BATCH_SMALL_MAP :
+                                (mapSize.isBigMap ? HordeConstants::SPAWN_BATCH_BIG_MAP : HordeConstants::SPAWN_BATCH_MEDIUM_MAP);
     out_spawnable_this_call = std::min({g_horde_local.num_to_spawn, base_batch, availableSpace});
 
     out_use_emergency_spawn = false;
-    if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY)
+    if (g_spawn_system.consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY)
     {
         if (developer->integer)
-            gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}.\n", g_consecutive_spawn_failures);
+            gi.Com_PrintFmt("EMERGENCY SPAWN TRIGGERED: Failures={}.\n", g_spawn_system.consecutive_spawn_failures);
         out_use_emergency_spawn = true;
     }
-    else if (g_consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY && !out_recovery_mode_active_ref)
+    else if (g_spawn_system.consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_RECOVERY && !out_recovery_mode_active_ref)
     {
         if (developer->integer)
-            gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}.\n", g_consecutive_spawn_failures);
+            gi.Com_PrintFmt("RECOVERY MODE ACTIVATED: Failures={}.\n", g_spawn_system.consecutive_spawn_failures);
         out_recovery_mode_active_ref = true; // Modifies g_recovery_mode_active
-        g_original_wave_type_before_recovery = current_wave_type;
+        g_spawn_system.original_wave_type_before_recovery = current_wave_type;
         current_wave_type = HasWaveType(current_wave_type, MonsterWaveType::Flying) ? MonsterWaveType::Flying : MonsterWaveType::Ground;
     }
 
     out_champion_chance = 0.2f;
-    if (g_special_spawn_state.type == SpecialSpawnType::Retaliation)
+    if (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation)
     {
         out_champion_chance = 0.40f;
         if (developer->integer > 1)
@@ -671,93 +734,49 @@ void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnabl
 int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
                                     int32_t currentLevel,
                                     float champion_chance_param)
-{ // Added champion_chance_param
+{
     int emergency_spawned_count = 0;
     std::vector<vec3_t> batch_spawn_positions; // Track positions used in this batch
 
-    for (int i = 0; i < std::min(spawnable_this_call, 3); ++i)
-    { // Limit emergency spawns per call
-        horde::MonsterTypeID emergency_type = (currentLevel < 10) ? horde::MonsterTypeID::SOLDIER : horde::MonsterTypeID::GUNNER;
-        if (currentLevel >= 15)
-            emergency_type = horde::MonsterTypeID::TANK;
-        if (currentLevel >= 20)
-            emergency_type = horde::MonsterTypeID::GLADIATOR;
+    const int spawn_limit = std::min(spawnable_this_call, HordeConstants::EMERGENCY_SPAWN_LIMIT_PER_CALL);
+
+    for (int i = 0; i < spawn_limit; ++i)
+    {
+        const horde::MonsterTypeID emergency_type = GetEmergencyMonsterType(currentLevel);
 
         // Find spawn position with spacing from other monsters in this batch
         vec3_t emergency_origin, emergency_angles;
-        bool found_position = false;
-
-        // Try to find a position that's spaced from previous spawns in this batch
-        constexpr float MIN_BATCH_SPACING = 150.0f; // Minimum distance between monsters in same batch
-        constexpr int MAX_POSITION_ATTEMPTS = 10;
-
-        for (int attempt = 0; attempt < MAX_POSITION_ATTEMPTS && !found_position; ++attempt)
-        {
-            if (FindEmergencySpawnPositionNearPlayer(emergency_origin, emergency_angles, emergency_type))
-            {
-                // Check if this position is too close to other monsters spawned in this batch
-                bool too_close_to_batch = false;
-                for (const vec3_t& batch_pos : batch_spawn_positions)
-                {
-                    float dist_sq = (emergency_origin - batch_pos).lengthSquared();
-                    if (dist_sq < (MIN_BATCH_SPACING * MIN_BATCH_SPACING))
-                    {
-                        too_close_to_batch = true;
-                        break;
-                    }
-                }
-
-                if (!too_close_to_batch)
-                {
-                    found_position = true;
-                }
-                // If too close, the loop will try again with a new position
-            }
-            else
-            {
-                break; // No valid position found at all
-            }
-        }
-
-        if (found_position)
-        {
-            // Spawn the monster at the validated position
-            edict_t* monster = Horde_SpawnMonster(emergency_origin, emergency_angles, emergency_type, currentLevel, champion_chance_param);
-
-            if (monster && monster->inuse && !monster->deadflag && monster->health > 0)
-            {
-                // Add this position to our batch tracking
-                batch_spawn_positions.push_back(emergency_origin);
-
-                // Apply spawn effects
-                SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-                if (sound_spawn1)
-                {
-                    gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-                }
-
-                emergency_spawned_count++;
-                if (g_horde_local.num_to_spawn > 0)
-                    --g_horde_local.num_to_spawn;
-                else if (g_horde_local.queued_monsters > 0)
-                    --g_horde_local.queued_monsters;
-            }
-        }
-        else
+        if (!FindSpacedEmergencyPosition(emergency_origin, emergency_angles, emergency_type, batch_spawn_positions))
         {
             if (developer->integer)
-                // FIX: Replaced C-style cast with static_cast for type safety and clarity.
-                gi.Com_PrintFmt("EMERGENCY SPAWN FAILED for type {}. (From ExecuteEmergencySpawnProcedure)\n", static_cast<int>(emergency_type));
-            break; // Stop trying if one fails in this batch
+                gi.Com_PrintFmt("EMERGENCY SPAWN FAILED for type {}. (From ExecuteEmergencySpawnProcedure)\n",
+                                static_cast<int>(emergency_type));
+            break; // Stop trying if position finding fails
         }
+
+        // Spawn the monster at the validated position
+        edict_t* monster = Horde_SpawnMonster(emergency_origin, emergency_angles, emergency_type, currentLevel, champion_chance_param);
+        if (!monster || !monster->inuse || monster->deadflag || monster->health <= 0)
+            continue;
+
+        // Track position and apply effects
+        batch_spawn_positions.push_back(emergency_origin);
+        ApplyMonsterSpawnEffects(monster);
+
+        // Update spawn counts
+        emergency_spawned_count++;
+        if (g_horde_local.num_to_spawn > 0)
+            --g_horde_local.num_to_spawn;
+        else if (g_horde_local.queued_monsters > 0)
+            --g_horde_local.queued_monsters;
     }
 
     if (emergency_spawned_count > 0)
     {
-        g_consecutive_spawn_failures = 0; // Reset failures on any success
-        // Recovery mode exit is handled in SpawnMonsters based on this success
+        g_spawn_system.consecutive_spawn_failures = 0; // Reset failures on any success
         if (developer->integer)
             gi.Com_PrintFmt("EMERGENCY SPAWN PROCEDURE: Spawned {}.\n", emergency_spawned_count);
     }
+
     return emergency_spawned_count;
 }

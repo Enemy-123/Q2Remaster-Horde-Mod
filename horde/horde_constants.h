@@ -47,6 +47,29 @@ namespace HordeConstants
 	inline constexpr int MAX_SPAWN_ATTEMPTS_PER_CYCLE = 50;
 	inline constexpr int MAX_UNSTICK_ATTEMPTS = 3;
 
+	// --- Spawn Batch Sizes ---
+	inline constexpr int32_t SPAWN_BATCH_SMALL_MAP = 4;
+	inline constexpr int32_t SPAWN_BATCH_MEDIUM_MAP = 5;
+	inline constexpr int32_t SPAWN_BATCH_BIG_MAP = 6;
+
+	// --- Emergency Spawn Settings ---
+	inline constexpr int32_t EMERGENCY_SPAWN_LIMIT_PER_CALL = 3;
+	inline constexpr float EMERGENCY_MIN_BATCH_SPACING = 150.0f;
+	inline constexpr int MAX_EMERGENCY_POSITION_ATTEMPTS = 10;
+	inline constexpr int32_t EMERGENCY_GUNNER_LEVEL_THRESHOLD = 10;
+	inline constexpr int32_t EMERGENCY_TANK_LEVEL_THRESHOLD = 15;
+	inline constexpr int32_t EMERGENCY_GLADIATOR_LEVEL_THRESHOLD = 20;
+
+	// --- Alternative Spawn Position Settings ---
+	inline constexpr int ALTERNATIVE_RADIAL_ATTEMPTS = 35;
+	inline constexpr float ALTERNATIVE_MIN_RADIUS = 40.0f;
+	inline constexpr float ALTERNATIVE_MAX_RADIUS = 225.0f;
+	inline constexpr float ALTERNATIVE_MIN_Z_OFFSET = -8.0f;
+	inline constexpr float ALTERNATIVE_MAX_Z_OFFSET = 24.0f;
+
+	// --- Spawn Validation Caching ---
+	inline constexpr gtime_t SPAWN_VALIDATION_CACHE_DURATION = 100_ms;
+
 	// --- Boss & Special ---
 	inline constexpr int BOSS_EVERY_N_WAVES = 5;
 	inline constexpr float BOSS_HEALTH_MULTIPLIER = 2.0f;

@@ -33,6 +33,12 @@ struct SpecialSpawnState {
     }
 };
 
+// Forward declaration for spawn plan entry
+struct SpawnPlanEntry {
+    horde::MonsterTypeID typeId;
+    edict_t* spawn_point;
+};
+
 // Spawn points data using SoA (Structure of Arrays) for cache efficiency
 struct SpawnPointsSoA {
     // --- HOT DATA ---
@@ -71,6 +77,66 @@ struct CachedSpawnPointData {
         }
     }
 };
+
+// ============================================================================
+// SPAWN SYSTEM STATE (Encapsulation of global spawn system state)
+// ============================================================================
+
+/// Central state structure for the spawn system
+/// Groups all spawn-related state variables for better encapsulation and testability
+struct SpawnSystemState {
+    // --- Cache State ---
+    std::vector<edict_t*> potential_spawn_points;
+    bool spawn_points_cached = false;
+    size_t spawn_point_shuffle_index = 0;
+    int32_t cached_flying_spawn_count = 0;
+
+    // --- Spawn Point Data ---
+    std::unordered_map<int, uint16_t> spawn_point_map;
+    SpawnPointsSoA spawn_points_data;
+    std::vector<CachedSpawnPointData> spawn_validation_cache;
+
+    // --- Failure Tracking & Recovery ---
+    int32_t consecutive_spawn_failures = 0;
+    MonsterWaveType original_wave_type_before_recovery = MonsterWaveType::None;
+
+    // --- Reset Flags ---
+    bool need_spawn_cache_reset = false;
+    bool spawn_map_needs_build = true;
+
+    // --- Special Spawns ---
+    SpecialSpawnState special_spawn_state;
+
+    // --- Current Spawn Plan ---
+    std::vector<SpawnPlanEntry> spawn_plan;
+    float champion_chance_for_current_batch = 0.2f;
+
+    // Reset all state (useful for testing and level transitions)
+    void Reset() {
+        potential_spawn_points.clear();
+        spawn_points_cached = false;
+        spawn_point_shuffle_index = 0;
+        cached_flying_spawn_count = 0;
+
+        spawn_point_map.clear();
+        spawn_points_data.clear();
+        spawn_validation_cache.clear();
+
+        consecutive_spawn_failures = 0;
+        original_wave_type_before_recovery = MonsterWaveType::None;
+
+        need_spawn_cache_reset = false;
+        spawn_map_needs_build = true;
+
+        special_spawn_state.clear();
+
+        spawn_plan.clear();
+        champion_chance_for_current_batch = 0.2f;
+    }
+};
+
+// Global spawn system state instance
+extern SpawnSystemState g_spawn_system;
 
 // ============================================================================
 // CORE MONSTER SPAWNING FUNCTIONS
