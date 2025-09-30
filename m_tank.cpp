@@ -1472,6 +1472,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	if (target) {
 		is_restricted_target = horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
 							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP) ||
 							   horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER);
 	}
 	// --- END NEW LOGIC ---

@@ -1053,6 +1053,7 @@ void brain_jump_wait_land_attack(edict_t* self)
 	// Check if the resolved target is a deployable that warrants a special attack animation.
 	if (target && (horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
 		horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+		horde::IsSpecialType(target, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP) ||
 		horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER)))
 	{
 		M_SetAnimation(self, &brain_move_attack4);

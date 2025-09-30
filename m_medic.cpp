@@ -1354,6 +1354,7 @@ void medic_fire_blaster(edict_t* self)
         // This also fixes a bug where it was checking 'self' instead of 'self->enemy' for the sentry gun.
         if (target && (horde::IsSpecialType(target, horde::SpecialEntityTypeID::TESLA_MINE) ||
                        horde::IsSpecialType(target, horde::SpecialEntityTypeID::SENTRY_GUN) ||
+					   horde::IsSpecialType(target, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP) ||
                        horde::IsSpecialType(target, horde::SpecialEntityTypeID::LASER_EMITTER)))
         {
 		damage *= 1.5f;
