@@ -2,7 +2,6 @@
 // This file contains fixes for the 999 ping and server message overflow issues
 
 #include "../g_local.h"
-#include "../memory_safety.h"
 #include "g_horde.h"
 #include "../q_vec3.h"
 #include <algorithm>
@@ -11,21 +10,10 @@
 
 // Global network throttling state
 struct NetworkThrottle {
-    std::vector<gtime_t> last_update_time;  // Heap allocation with safe_reserve
+    gtime_t last_update_time[MAX_EDICTS];
     int message_count_this_frame;
-    int reliable_bytes_this_frame;  // Track reliable message buffer usage
     static constexpr int MAX_MESSAGES_PER_FRAME = 10;
-    static constexpr int MAX_RELIABLE_BYTES_PER_FRAME = 1200;  // Stay under 1400 byte limit
     static constexpr gtime_t MIN_UPDATE_INTERVAL = 50_ms;
-
-    NetworkThrottle() : message_count_this_frame(0), reliable_bytes_this_frame(0) {
-        // Safe allocation of MAX_EDICTS slots
-        if (!safe_reserve(last_update_time, MAX_EDICTS)) {
-            gi.Com_Print("ERROR: Failed to allocate network throttle memory\n");
-            return;
-        }
-        last_update_time.resize(MAX_EDICTS);  // Default constructor initializes to 0
-    }
 };
 
 static NetworkThrottle g_network_throttle;
@@ -33,11 +21,10 @@ static NetworkThrottle g_network_throttle;
 // Reset per-frame counters
 void G_ResetNetworkThrottle() {
     g_network_throttle.message_count_this_frame = 0;
-    g_network_throttle.reliable_bytes_this_frame = 0;
 }
 
 // Check if we can send a network message for this entity
-bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time) {
+bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time = 100_ms) {
     if (!ent) return false;
 
     // Check global frame limit
@@ -47,8 +34,7 @@ bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time) {
 
     // Check entity-specific throttling
     int ent_index = ent - g_edicts;
-    if (ent_index < 0 || ent_index >= static_cast<int>(MAX_EDICTS)) return false;
-    if (ent_index >= static_cast<int>(g_network_throttle.last_update_time.size())) return false;
+    if (ent_index < 0 || ent_index >= MAX_EDICTS) return false;
 
     gtime_t& last_time = g_network_throttle.last_update_time[ent_index];
     if (level.time - last_time < throttle_time) {
@@ -61,20 +47,10 @@ bool G_CanSendNetworkMessage(edict_t* ent, gtime_t throttle_time) {
     return true;
 }
 
-// Check if we can send reliable data (for HUD, configstrings, etc)
-bool G_CanSendReliableData(int byte_size) {
-    if (g_network_throttle.reliable_bytes_this_frame + byte_size >
-        NetworkThrottle::MAX_RELIABLE_BYTES_PER_FRAME) {
-        return false;
-    }
-    g_network_throttle.reliable_bytes_this_frame += byte_size;
-    return true;
-}
-
 // Optimized monster network update
 void G_OptimizeMonsterNetworkUpdate(edict_t* monster) {
-    if (!monster || !monster->inuse) return;
-    if (!(monster->svflags & SVF_MONSTER)) return;
+if (!monster || !monster->inuse) return;
+if (!(monster->svflags & SVF_MONSTER)) return;
 
     // Store old position in monsterinfo if not already used
     vec3_t& old_origin = monster->monsterinfo.last_sighting;
@@ -104,16 +80,13 @@ void G_OptimizeMonsterNetworkUpdate(edict_t* monster) {
 // Batched message system for HUD updates
 class HUDBatcher {
 private:
-    static constexpr size_t MAX_BATCH_SIZE = 1200;  // Safe under 1400 limit
+    static constexpr int MAX_BATCH_SIZE = 1200;  // Safe under 1400 limit
     std::string batch_buffer;
     edict_t* target_client;
     bool needs_flush;
 
 public:
-    HUDBatcher() : target_client(nullptr), needs_flush(false) {
-        // Pre-reserve to avoid reallocations
-        batch_buffer.reserve(MAX_BATCH_SIZE);
-    }
+    HUDBatcher() : target_client(nullptr), needs_flush(false) {}
 
     void SetClient(edict_t* client) {
         if (target_client != client) {
@@ -122,53 +95,26 @@ public:
         }
     }
 
-    bool AddMessage(std::string_view msg) {
-        // Check if we need to flush before adding
+    bool AddMessage(const std::string& msg) {
         if (batch_buffer.length() + msg.length() > MAX_BATCH_SIZE) {
             Flush();
         }
-
-        // Safe append with size checking
-        if (!safe_string_append(batch_buffer, msg, MAX_BATCH_SIZE)) {
-            // Buffer full, try flushing and adding again
-            Flush();
-            if (!safe_string_append(batch_buffer, msg, MAX_BATCH_SIZE)) {
-                return false;  // Message too large
-            }
-        }
-
+        batch_buffer += msg;
         needs_flush = true;
         return true;
     }
 
     void Flush() {
-        if (!target_client || !needs_flush) return;
-        if (batch_buffer.empty()) {
-            needs_flush = false;
-            return;
-        }
-
-        // Check reliable buffer capacity before sending
-        int msg_size = static_cast<int>(batch_buffer.length()) + 2;  // +2 for svc_layout byte + string terminator
-        if (!G_CanSendReliableData(msg_size)) {
-            // Can't send now, will retry next frame
-            return;
-        }
-
-        gi.WriteByte(svc_layout);
-        gi.WriteString(batch_buffer.c_str());
-        // Use unreliable for HUD to reduce reliable-channel pressure
-        gi.unicast(target_client, false);
-
-        batch_buffer.clear();
-        needs_flush = false;
-    }
-
-    void Reset() {
-        batch_buffer.clear();
-        target_client = nullptr;
-        needs_flush = false;
-    }
+    if (!target_client || !needs_flush) return;
+    // ensure message size safe first (use MessageSizeTracker)
+    gi.WriteByte(svc_layout);
+    gi.WriteString(batch_buffer.c_str());
+    // use unreliable for HUD to reduce reliable-channel pressure
+    gi.unicast(target_client, false);
+    
+    batch_buffer.clear();
+    needs_flush = false;
+}
 };
 
 static HUDBatcher g_hud_batcher;
@@ -198,15 +144,11 @@ bool G_SendTeslaEffect(edict_t* self, edict_t* target, vec3_t& start, vec3_t& en
 void G_SendOptimizedScoreboard(edict_t* ent) {
     if (!ent || !ent->client) return;
 
-    constexpr int MAX_SHOWN_PLAYERS = 8;  // Limit to top 8
-    constexpr size_t MAX_SCOREBOARD_SIZE = 1024;
+    const int MAX_SHOWN_PLAYERS = 8;  // Limit to top 8
     std::string scoreboard;
-    scoreboard.reserve(MAX_SCOREBOARD_SIZE);
 
     // Header
-    if (!safe_string_append(scoreboard, "xv 0 yv 32 string2 \"Frags Player\" ", MAX_SCOREBOARD_SIZE)) {
-        return;
-    }
+    scoreboard += "xv 0 yv 32 string2 \"Frags Player\" ";
 
     // Sort clients by score
     struct PlayerScore {
@@ -215,17 +157,11 @@ void G_SendOptimizedScoreboard(edict_t* ent) {
     };
 
     std::vector<PlayerScore> scores;
-    if (!safe_reserve(scores, game.maxclients)) {
-        return;
-    }
-
     for (int i = 0; i < game.maxclients; i++) {
         edict_t* cl = &g_edicts[1 + i];
         if (!cl->inuse || !cl->client) continue;
 
-        if (!safe_push_back(scores, PlayerScore{cl, cl->client->resp.score}, game.maxclients)) {
-            break;
-        }
+        scores.push_back({cl, cl->client->resp.score});
     }
 
     // Sort by score
@@ -237,20 +173,10 @@ void G_SendOptimizedScoreboard(edict_t* ent) {
     // Add top players
     int y = 50;
     for (size_t i = 0; i < scores.size() && i < MAX_SHOWN_PLAYERS; i++) {
-        const PlayerScore& ps = scores[i];
-        std::string_view line = G_Fmt("xv 0 yv {} string \"{}  {}\" ",
+        PlayerScore& ps = scores[i];
+        scoreboard += G_Fmt("xv 0 yv {} string \"{}  {}\" ",
             y, ps.score, ps.ent->client->pers.netname);
-
-        if (!safe_string_append(scoreboard, line, MAX_SCOREBOARD_SIZE)) {
-            break;  // Scoreboard full
-        }
         y += 10;
-    }
-
-    // Check reliable buffer capacity before sending
-    int msg_size = static_cast<int>(scoreboard.length()) + 2;
-    if (!G_CanSendReliableData(msg_size)) {
-        return;  // Can't send now, skip this frame
     }
 
     // Send
@@ -279,11 +205,8 @@ int CountActiveClients() {
 // Reduce PlayFab metadata size
 void G_GetMinimalRoomMetadata(char* buffer, size_t buffer_size) {
     // Only send essential data to prevent 403 errors
-    // Use safe formatting instead of snprintf
-    char temp_buffer[128];
-    G_FmtTo(temp_buffer, "{{\"v\":1,\"w\":{},\"p\":{}}}",
+    snprintf(buffer, buffer_size,
+        "{\"v\":1,\"w\":%d,\"p\":%d}",
         current_wave_level,
         std::min(CountActiveClients(), 8));  // Cap at 8 to reduce size
-
-    Q_strlcpy(buffer, temp_buffer, buffer_size);
 }

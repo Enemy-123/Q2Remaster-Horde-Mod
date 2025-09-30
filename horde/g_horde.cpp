@@ -3425,6 +3425,7 @@ constexpr int MIN_VERTICAL_VELOCITY = 400;
 // Asegúrate de limpiar entidades muertas
 void Horde_CleanBodies()
 {
+	// Clean up dead monsters
 	for (edict_t *ent : active_or_dead_monsters())
 	{
 		if (ent->deadflag || ent->health <= 0)
@@ -3437,6 +3438,36 @@ void Horde_CleanBodies()
 		else
 		{									  // If the monster is alive but somehow flagged for removal:
 			CheckAndRestoreMonsterAlpha(ent); // Restore alpha for live monsters
+		}
+	}
+
+	// Clean up gibs, bodyque, and stuck projectiles
+	for (int i = game.maxclients + 1; i < globals.num_edicts; i++)
+	{
+		edict_t* ent = &g_edicts[i];
+		
+		if (!ent->inuse || !ent->classname)
+			continue;
+
+		// Check for gibs or bodyque
+		if (strcmp(ent->classname, "gib") == 0 || strcmp(ent->classname, "bodyque") == 0)
+		{
+			// Start fade out if not already fading
+			if (!ent->is_fading_out)
+			{
+				StartFadeOut(ent);
+			}
+		}
+		// Clean up stuck/old projectiles (grenades, rockets that didn't explode)
+		else if ((strcmp(ent->classname, "grenade") == 0 || 
+				  strcmp(ent->classname, "rocket") == 0) &&
+				 ent->timestamp > 0_ms && 
+				 level.time > ent->timestamp + 5_sec) // 5 seconds past their normal timeout
+		{
+			if (!ent->is_fading_out)
+			{
+				StartFadeOut(ent);
+			}
 		}
 	}
 }
