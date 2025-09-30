@@ -64,7 +64,7 @@ std::vector<const MonsterTypeInfo *> g_eligible_monsters_for_wave;
 std::vector<size_t> g_eligible_item_indices_for_wave;
 
 // Progressive monster unlocking system for memory management
-// Removed g_excluded_monsters_this_map - no longer excluding monsters after configstring fix
+static std::unordered_set<horde::MonsterTypeID> g_excluded_monsters_this_map;
 static std::unordered_set<horde::MonsterTypeID> g_precached_monsters_this_map;
 static std::unordered_set<std::string> g_precached_models_this_map; // Track which models are loaded
 static int g_map_rotation_seed = 0;
@@ -7201,7 +7201,7 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 // Initialize monster rotation for a new map
 static void InitializeMonsterRotation()
 {
-	// No longer excluding monsters after configstring fix
+	g_excluded_monsters_this_map.clear();
 	g_precached_monsters_this_map.clear();
 	g_precached_models_this_map.clear();
 	g_map_rotation_seed++;
@@ -7236,13 +7236,13 @@ static void InitializeMonsterRotation()
 		for (int i = 0; i < to_exclude; i++) {
 			// Select monsters in a rotating pattern
 			int index = (rotation_offset + i * 3) % excludable_monsters.size();
-			// No longer excluding monsters - all can be included
+			g_excluded_monsters_this_map.insert(excludable_monsters[index]);
 		}
 	}
 
 	if (developer->integer) {
 		gi.Com_PrintFmt("Monster Rotation: Map seed {}, excluding {} monsters this map\n",
-			g_map_rotation_seed, 0);
+			g_map_rotation_seed, g_excluded_monsters_this_map.size());
 	}
 }
 
@@ -7333,7 +7333,7 @@ static void Horde_InitLevel(const int32_t lvl)
 		if (IsValidMonsterForWave(monster.typeId, current_wave_type))
 		{
 			// Skip if this monster is excluded for this map
-			if (true) // All monsters can be precached now
+			if (g_excluded_monsters_this_map.find(monster.typeId) == g_excluded_monsters_this_map.end())
 			{
 				// Use safe push_back to prevent overflow at 65535
 				if (!safe_push_back(g_eligible_monsters_for_wave, &monster, MAX_SAFE_CONTAINER_SIZE)) {
