@@ -1,52 +1,49 @@
 #include "g_horde_phys.h"
 #include "../g_local.h"
 #include <algorithm> // For std::min/max
-#include <set>
+#include <unordered_map>
 
-// // NEW HELPER FUNCTION
-// // Gets the water level for a raw position, simulating a standard monster's bounding box.
-// // This is essential for checking potential spawn points before a monster exists there.
-water_level_t GetWaterLevelForPosition(const vec3_t& in_point)
-{
-    // Use a standard medium-sized monster bounding box for the check.
-    static const vec3_t monster_mins = {-16, -16, -24};
-   // static const vec3_t monster_maxs = {16, 16, 32};
-
-    vec3_t point;
-    contents_t cont;
-
-    // Check at the monster's "feet"
-    point = in_point;
-    point[2] += monster_mins[2] + 1;
-    cont = gi.pointcontents(point);
-
-    if (!(cont & MASK_WATER)) {
-        return WATER_NONE;
-    }
-
-    // Check at "waist" height
-    point[2] += 26;
-    cont = gi.pointcontents(point);
-    if (!(cont & MASK_WATER)) {
-        return WATER_FEET;
-    }
-
-    // Check at "head" height
-    point[2] += 22;
-    cont = gi.pointcontents(point);
-    if (!(cont & MASK_WATER)) {
-        return WATER_WAIST;
-    }
-
-    return WATER_UNDER;
-}
-
-// to fix, add a debug void
 namespace HordePhys
 {
 
     ProximityGrid g_monster_grid;
     EntityGrid g_entity_grid;
+
+    // Gets the water level for a raw position, simulating a standard monster's bounding box.
+    // This is essential for checking potential spawn points before a monster exists there.
+    water_level_t GetWaterLevelForPosition(const vec3_t& in_point)
+    {
+        // Use a standard medium-sized monster bounding box for the check.
+        static constexpr vec3_t monster_mins = {-16, -16, -24};
+
+        vec3_t point;
+        contents_t cont;
+
+        // Check at the monster's "feet"
+        point = in_point;
+        point[2] += monster_mins[2] + 1;
+        cont = gi.pointcontents(point);
+
+        if (!(cont & MASK_WATER)) {
+            return WATER_NONE;
+        }
+
+        // Check at "waist" height
+        point[2] += 26;
+        cont = gi.pointcontents(point);
+        if (!(cont & MASK_WATER)) {
+            return WATER_FEET;
+        }
+
+        // Check at "head" height
+        point[2] += 22;
+        cont = gi.pointcontents(point);
+        if (!(cont & MASK_WATER)) {
+            return WATER_WAIST;
+        }
+
+        return WATER_UNDER;
+    }
 
     void ProximityGrid::DebugDraw()
     {
@@ -125,8 +122,8 @@ namespace HordePhys
     {
         if (!m_is_built || !ent)
             return;
-        int min_idx = GetCellIndex(ent->absmin);
-        int max_idx = GetCellIndex(ent->absmax);
+        const int min_idx = GetCellIndex(ent->absmin);
+        const int max_idx = GetCellIndex(ent->absmax);
         // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
         if (min_idx != -1)
             m_cells[static_cast<size_t>(min_idx)].add(ent);
@@ -135,91 +132,58 @@ namespace HordePhys
             m_cells[static_cast<size_t>(max_idx)].add(ent);
     }
 
-    std::span<edict_t* const> ProximityGrid::GetPotentialColliders(edict_t* ent)
+    void ProximityGrid::Remove(edict_t* ent)
     {
         if (!m_is_built || !ent)
-            return {};
+            return;
 
-        // Use the member buffer for tracking, avoiding heap allocation.
-        std::fill(m_visited_entities.begin(), m_visited_entities.end(), false);
-        size_t buffer_count = 0;
-
-        int min_x = std::clamp(static_cast<int>((ent->absmin.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-        int max_x = std::clamp(static_cast<int>((ent->absmax.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-        int min_y = std::clamp(static_cast<int>((ent->absmin.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-        int max_y = std::clamp(static_cast<int>((ent->absmax.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
-
-        for (int y = min_y; y <= max_y; ++y)
+        // Iterate through all cells and remove the entity
+        // This is O(n) but better than rebuilding the entire grid
+        for (auto& cell : m_cells)
         {
-            for (int x = min_x; x <= max_x; ++x)
+            for (size_t i = 0; i < cell.count; ++i)
             {
-                int cell_idx = y * GRID_DIMENSION + x;
-                const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
-                for (size_t i = 0; i < cell.count; ++i)
+                if (cell.monsters[i] == ent)
                 {
-                    edict_t* other = cell.monsters[i];
-                    if (other != ent)
-                    {
-                        const int entity_num = other->s.number;
-                        // Check the boolean array instead of inserting into a set
-                        if (!m_visited_entities[entity_num])
-                        {
-                            m_visited_entities[entity_num] = true; // Mark as visited
-                            if (buffer_count < m_query_buffer.size())
-                            {
-                                m_query_buffer[buffer_count++] = other;
-                            }
-                            else
-                            {
-                                if (developer->integer) {
-                                    gi.Com_PrintFmt("ProximityGrid WARNING: GetPotentialColliders query buffer is full! (Max {})\n", m_query_buffer.size());
-                                }
-                                goto end_loops;
-                            }
-                        }
-                    }
+                    // Remove by swapping with last element
+                    cell.monsters[i] = cell.monsters[cell.count - 1];
+                    --cell.count;
+                    // Don't break - entity might be in multiple cells
+                    // But we need to check this index again since we swapped
+                    --i;
                 }
             }
         }
-
-    end_loops:
-        return { m_query_buffer.data(), buffer_count };
     }
 
-    std::span<edict_t* const> ProximityGrid::QueryRadius(const vec3_t& origin, float radius)
+    // Helper method to query a range of cells with a filter function
+    template<typename FilterFunc>
+    std::span<edict_t* const> ProximityGrid::QueryCellRange(const int min_x, const int max_x, const int min_y, const int max_y, FilterFunc&& filter)
     {
-        if (!m_is_built) {
-            return {};
-        }
-
-        // Use the member buffer for tracking, avoiding heap allocation.
         std::fill(m_visited_entities.begin(), m_visited_entities.end(), false);
         size_t buffer_count = 0;
 
-        const float inv_cs = m_inv_cell_size;
-        const vec3_t& mins = m_world_mins;
-
-        int min_x = std::clamp(static_cast<int>((origin.x - radius - mins.x) * inv_cs), 0, GRID_DIMENSION - 1);
-        int max_x = std::clamp(static_cast<int>((origin.x + radius - mins.x) * inv_cs), 0, GRID_DIMENSION - 1);
-        int min_y = std::clamp(static_cast<int>((origin.y - radius - mins.y) * inv_cs), 0, GRID_DIMENSION - 1);
-        int max_y = std::clamp(static_cast<int>((origin.y + radius - mins.y) * inv_cs), 0, GRID_DIMENSION - 1);
-
-        for (int y = min_y; y <= max_y; ++y)
+        bool buffer_full = false;
+        for (int y = min_y; y <= max_y && !buffer_full; ++y)
         {
-            for (int x = min_x; x <= max_x; ++x)
+            for (int x = min_x; x <= max_x && !buffer_full; ++x)
             {
                 const int cell_idx = y * GRID_DIMENSION + x;
                 const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
 
-                for (size_t i = 0; i < cell.count; ++i)
+                for (size_t i = 0; i < cell.count && !buffer_full; ++i)
                 {
                     edict_t* other = cell.monsters[i];
 
+                    // Apply filter function
+                    if (!filter(other)) {
+                        continue;
+                    }
+
                     const int entity_num = other->s.number;
-                    // Check the boolean array instead of inserting into a set
                     if (!m_visited_entities[entity_num])
                     {
-                        m_visited_entities[entity_num] = true; // Mark as visited
+                        m_visited_entities[entity_num] = true;
                         if (buffer_count < m_query_buffer.size())
                         {
                             m_query_buffer[buffer_count++] = other;
@@ -227,17 +191,56 @@ namespace HordePhys
                         else
                         {
                             if (developer->integer) {
-                                gi.Com_PrintFmt("ProximityGrid WARNING: QueryRadius query buffer is full! (Max {})\n", m_query_buffer.size());
+                                gi.Com_PrintFmt("ProximityGrid WARNING: Query buffer is full! (Max {})\n", m_query_buffer.size());
                             }
-                            goto end_loops;
+                            buffer_full = true;
                         }
                     }
                 }
             }
         }
 
-    end_loops:
         return { m_query_buffer.data(), buffer_count };
+    }
+
+    std::span<edict_t* const> ProximityGrid::GetPotentialColliders(edict_t* ent)
+    {
+        if (!m_is_built || !ent)
+            return {};
+
+        const int min_x = std::clamp(static_cast<int>((ent->absmin.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+        const int max_x = std::clamp(static_cast<int>((ent->absmax.x - m_world_mins.x) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+        const int min_y = std::clamp(static_cast<int>((ent->absmin.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+        const int max_y = std::clamp(static_cast<int>((ent->absmax.y - m_world_mins.y) * m_inv_cell_size), 0, GRID_DIMENSION - 1);
+
+        // Filter out the querying entity itself
+        return QueryCellRange(min_x, max_x, min_y, max_y, [ent](edict_t* other) {
+            return other != ent;
+        });
+    }
+
+    std::span<edict_t* const> ProximityGrid::QueryRadius(const vec3_t& origin, const float radius)
+    {
+        if (!m_is_built) {
+            return {};
+        }
+
+        const float inv_cs = m_inv_cell_size;
+        const vec3_t& mins = m_world_mins;
+
+        const int min_x = std::clamp(static_cast<int>((origin.x - radius - mins.x) * inv_cs), 0, GRID_DIMENSION - 1);
+        const int max_x = std::clamp(static_cast<int>((origin.x + radius - mins.x) * inv_cs), 0, GRID_DIMENSION - 1);
+        const int min_y = std::clamp(static_cast<int>((origin.y - radius - mins.y) * inv_cs), 0, GRID_DIMENSION - 1);
+        const int max_y = std::clamp(static_cast<int>((origin.y + radius - mins.y) * inv_cs), 0, GRID_DIMENSION - 1);
+
+        // Filter by actual distance to return circle, not just bounding square
+        const float radius_sq = radius * radius;
+        return QueryCellRange(min_x, max_x, min_y, max_y, [&origin, radius_sq](edict_t* ent) {
+            // Calculate distance from entity origin to query origin
+            const vec3_t delta = ent->s.origin - origin;
+            const float dist_sq = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
+            return dist_sq <= radius_sq;
+        });
     }
 
 
@@ -251,21 +254,6 @@ void ProximityGrid::Reset()
     }
 }
 
-
-// // NEW: Debug drawing function
-// void ProximityGrid::DebugDraw(float duration) {
-//     if (!m_is_built || developer->integer < 2) {
-//         return;
-//     }
-//     for (int y = 0; y < GRID_DIMENSION; ++y) {
-//         for (int x = 0; x < GRID_DIMENSION; ++x) {
-//             vec3_t min_corner = m_world_mins + vec3_t{x * m_cell_size, y * m_cell_size, 0};
-//             vec3_t max_corner = min_corner + vec3_t{m_cell_size, m_cell_size, 128};
-//             gi.Draw_Bounds(min_corner, max_corner, rgba_green, duration, false);
-//         }
-//     }
-// }
-
     // ============================================================================
     // EntityGrid Implementation
     // ============================================================================
@@ -276,22 +264,66 @@ void ProximityGrid::Reset()
         uint32_t type = 0;
         const char* classname = ent->classname;
 
-        // Cache common entity types
+        // Fast checks using flags first
         if (ent->client) {
             type |= TYPE_PLAYERS;
         }
-        else if (ent->svflags & SVF_MONSTER) {
+        if (ent->svflags & SVF_MONSTER) {
             type |= TYPE_MONSTERS;
         }
-        else if (strstr(classname, "item_") || strstr(classname, "weapon_")) {
-            type |= TYPE_ITEMS;
-        }
-        else if (strstr(classname, "rocket") || strstr(classname, "grenade") ||
-                 strstr(classname, "bullet") || strstr(classname, "plasma")) {
-            type |= TYPE_PROJECTILES;
-        }
-        else if (strstr(classname, "trigger_") || strstr(classname, "func_")) {
-            type |= TYPE_TRIGGERS;
+
+        // Optimize string matching using prefix checks (faster than strstr)
+        // Check first few characters to avoid full string scans
+        const char first_char = classname[0];
+
+        switch (first_char) {
+            case 'i': // item_
+                if (classname[1] == 't' && classname[2] == 'e' && classname[3] == 'm' && classname[4] == '_') {
+                    type |= TYPE_ITEMS;
+                }
+                break;
+
+            case 'w': // weapon_
+                if (classname[1] == 'e' && classname[2] == 'a' && classname[3] == 'p' && classname[4] == 'o' && classname[5] == 'n' && classname[6] == '_') {
+                    type |= TYPE_ITEMS;
+                }
+                break;
+
+            case 't': // trigger_
+                if (classname[1] == 'r' && classname[2] == 'i' && classname[3] == 'g' && classname[4] == 'g' && classname[5] == 'e' && classname[6] == 'r' && classname[7] == '_') {
+                    type |= TYPE_TRIGGERS;
+                }
+                break;
+
+            case 'f': // func_
+                if (classname[1] == 'u' && classname[2] == 'n' && classname[3] == 'c' && classname[4] == '_') {
+                    type |= TYPE_TRIGGERS;
+                }
+                break;
+
+            case 'r': // rocket
+                if (strstr(classname, "rocket")) {
+                    type |= TYPE_PROJECTILES;
+                }
+                break;
+
+            case 'g': // grenade
+                if (strstr(classname, "grenade")) {
+                    type |= TYPE_PROJECTILES;
+                }
+                break;
+
+            case 'b': // bullet
+                if (strstr(classname, "bullet")) {
+                    type |= TYPE_PROJECTILES;
+                }
+                break;
+
+            case 'p': // plasma
+                if (strstr(classname, "plasma")) {
+                    type |= TYPE_PROJECTILES;
+                }
+                break;
         }
 
         return type;
@@ -310,20 +342,13 @@ void ProximityGrid::Reset()
     void EntityGrid::UpdateEntity(edict_t* ent) {
         if (!ent || !ent->inuse) return;
 
-        // For now, rebuild the grid (could be optimized with delta updates)
-        // This is still much faster than findradius for most cases
-        Reset();
-
-        // Re-add all entities (in a real implementation, you'd track moving entities)
-        for (uint32_t i = 1; i < globals.num_edicts; i++) {
-            edict_t* e = &g_edicts[i];
-            if (e->inuse) {
-                AddEntity(e);
-            }
-        }
+        // Remove entity from old position and add to new position
+        // Much more efficient than rebuilding the entire grid
+        Remove(ent);
+        AddEntity(ent);
     }
 
-    std::span<edict_t* const> EntityGrid::QueryRadiusFiltered(const vec3_t& origin, float radius, uint32_t type_mask) {
+    std::span<edict_t* const> EntityGrid::QueryRadiusFiltered(const vec3_t& origin, const float radius, const uint32_t type_mask) {
         if (!IsBuilt()) {
             return {};
         }
@@ -336,20 +361,20 @@ void ProximityGrid::Reset()
             return all_entities;
         }
 
-        // Use a static buffer for filtered results to avoid allocations
-        static std::array<edict_t*, 512> filtered_buffer;
+        // Use member buffer for filtered results (thread-safe)
         size_t filtered_count = 0;
 
         for (edict_t* ent : all_entities) {
-            if (filtered_count >= filtered_buffer.size()) break;
+            if (filtered_count >= m_filtered_buffer.size()) break;
 
-            uint32_t ent_type = m_entity_types[ent->s.number];
+            auto it = m_entity_types.find(ent->s.number);
+            uint32_t ent_type = (it != m_entity_types.end()) ? it->second : 0;
             if (ent_type & type_mask) {
-                filtered_buffer[filtered_count++] = ent;
+                m_filtered_buffer[filtered_count++] = ent;
             }
         }
 
-        return { filtered_buffer.data(), filtered_count };
+        return { m_filtered_buffer.data(), filtered_count };
     }
 
 } // namespace HordePhys

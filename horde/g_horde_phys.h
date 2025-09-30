@@ -4,8 +4,12 @@
 #include <span>        // For std::span
 #include <array>       // For std::array
 #include <vector>      // For std::vector
+#include <unordered_map> // For std::unordered_map
 
 namespace HordePhys {
+
+    // Helper function to get water level for a position
+    water_level_t GetWaterLevelForPosition(const vec3_t& in_point);
 
     // A simple grid cell that holds pointers to monsters.
     struct ProximityGridCell {
@@ -34,24 +38,24 @@ namespace HordePhys {
     public:
         static constexpr int GRID_DIMENSION = 16;
         static constexpr int CELL_COUNT = GRID_DIMENSION * GRID_DIMENSION;
+        static constexpr size_t MAX_QUERY_RESULTS = 512;
 
         void Reset();
         void DebugDraw();
         void Build(const vec3_t& world_mins, const vec3_t& world_maxs);
         void Add(edict_t* ent);
+        void Remove(edict_t* ent);
         std::span<edict_t* const> GetPotentialColliders(edict_t* ent);
         int GetCellIndex(const vec3_t& pos) const;
 
-        std::span<edict_t* const> QueryRadius(const vec3_t& origin, float radius);
+        std::span<edict_t* const> QueryRadius(const vec3_t& origin, const float radius);
 
         [[nodiscard]] bool IsBuilt() const noexcept { return m_is_built; }
         [[nodiscard]] float GetCellSize() const noexcept { return m_cell_size; }
         [[nodiscard]] const vec3_t& GetWorldMins() const noexcept { return m_world_mins; }
 
-    private:
+    protected:
         std::array<ProximityGridCell, CELL_COUNT> m_cells;
-
-        static constexpr size_t MAX_QUERY_RESULTS = 512;
         std::array<edict_t*, MAX_QUERY_RESULTS> m_query_buffer;
 
         // --- MODIFICATION: Reusable buffer to avoid heap allocations in queries ---
@@ -62,6 +66,11 @@ namespace HordePhys {
         float m_cell_size = 0.0f;
         float m_inv_cell_size = 0.0f;
         bool m_is_built = false;
+
+    private:
+        // Helper method for common query logic
+        template<typename FilterFunc>
+        std::span<edict_t* const> QueryCellRange(int min_x, int max_x, int min_y, int max_y, FilterFunc&& filter);
     };
 
     extern ProximityGrid g_monster_grid;
@@ -73,7 +82,7 @@ namespace HordePhys {
         void AddEntity(edict_t* ent);
 
         // Query entities by type flags
-        std::span<edict_t* const> QueryRadiusFiltered(const vec3_t& origin, float radius, uint32_t type_mask = 0xFFFFFFFF);
+        std::span<edict_t* const> QueryRadiusFiltered(const vec3_t& origin, const float radius, const uint32_t type_mask = 0xFFFFFFFF);
 
         // Update entity position (for moving entities)
         void UpdateEntity(edict_t* ent);
@@ -90,7 +99,11 @@ namespace HordePhys {
 
     private:
         // Cache for entity types to avoid repeated classname checks
-        std::array<uint32_t, MAX_EDICTS> m_entity_types;
+        // Using unordered_map for sparse storage (most entity slots are unused)
+        std::unordered_map<int, uint32_t> m_entity_types;
+
+        // Buffer for filtered query results (thread-safe member instead of static)
+        std::array<edict_t*, MAX_QUERY_RESULTS> m_filtered_buffer;
 
         uint32_t GetEntityType(edict_t* ent) const;
     };

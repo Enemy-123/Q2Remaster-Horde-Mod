@@ -44,31 +44,8 @@ TOUCH(flechette_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool ot
 
 	if (other->takedamage)
 	{
-		// --- FIX: Safely determine the attacker to prevent crashes ---
-		edict_t *attacker = nullptr;
-		edict_t *sentry = self->owner; // The flechette's owner is the sentry
-
-		if (sentry && sentry->inuse && horde::IsSpecialType(sentry, horde::SpecialEntityTypeID::SENTRY_GUN))
-		{
-			// The sentry's owner is the player. Check if they are still valid.
-			if (sentry->owner && sentry->owner->inuse)
-			{
-				attacker = sentry->owner;
-			}
-		}
-		else if (sentry && sentry->inuse)
-		{
-			// Not a sentry, so the owner is the direct attacker
-			attacker = sentry;
-		}
-
-		// If we couldn't find a valid attacker (e.g., owner disconnected),
-		// default to the projectile itself to avoid a null pointer in T_Damage.
-		if (!attacker)
-		{
-			attacker = self;
-		}
-		// --- END FIX ---
+		// Determine real attacker (handles sentry guns, doppelgangers, etc.)
+		edict_t *attacker = GetRealAttacker(self);
 
 		// FIXED: ETF Rifle now bypasses both regular armor AND power armor completely
 		T_Damage(other, self, attacker, self->velocity, self->s.origin, tr.plane.normal,
@@ -111,15 +88,7 @@ void fire_flechette(edict_t *self, const vec3_t &start, const vec3_t &dir, int d
 	flechette->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			flechette->projectile_was_player_attacker = true;
-			flechette->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			flechette->projectile_was_player_attacker = false;
-			flechette->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(flechette, self);
 
 	flechette->touch = flechette_touch;
 	flechette->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
@@ -714,15 +683,7 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 	prox->teammaster = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			prox->projectile_was_player_attacker = true;
-			prox->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			prox->projectile_was_player_attacker = false;
-			prox->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(prox, self);
 
 	prox->touch = prox_land;
 	prox->think = Prox_Think;
@@ -1096,25 +1057,8 @@ struct heatbeam_pierce_t : pierce_args_t
 
 	heatbeam_pierce_t(edict_t *self, const vec3_t &aimdir, int damage, int kick, mod_t mod) : self(self), aimdir(aimdir), damage(damage), kick(kick), mod(mod), water_hit(false)
 	{
-		// Determine the actual attacker
-		if (self && self->owner)
-		{
-			if (self->owner && horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
-			{
-				// If the owner is a turret, the attacker is the turret's owner (the player)
-				attacker = self->owner->owner ? self->owner->owner : self->owner;
-			}
-			else
-			{
-				// Otherwise, the attacker is the owner
-				attacker = self->owner;
-			}
-		}
-		else
-		{
-			// Default to self if no owner
-			attacker = self;
-		}
+		// Determine the actual attacker using helper
+		attacker = GetRealAttacker(self);
 	}
 
 	bool hit(contents_t &mask, vec3_t &end) override
@@ -1210,13 +1154,7 @@ static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir,
 		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
 
 		// Determine the real attacker
-		edict_t *attacker = self->owner;
-		if (self->owner && self->owner &&
-			horde::IsSpecialType(self->owner, horde::SpecialEntityTypeID::SENTRY_GUN))
-		{
-			// If the owner is a turret, the attacker is the turret's owner (the player)
-			attacker = self->owner->owner ? self->owner->owner : self->owner;
-		}
+		edict_t *attacker = GetRealAttacker(self);
 
 		if (self && self->client && !G_ShouldPlayersCollide(true))
 			content_mask &= ~CONTENTS_PLAYER;
@@ -1358,26 +1296,8 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 
 	if (other->takedamage)
 	{
-		// =======================================================================
-		// --- START OF DOPPELGANGER FIX ---
-		// =======================================================================
-
-		// 1. Establish the default attacker, which is the projectile's direct owner.
-		edict_t* real_attacker = self->owner;
-
-		// 2. Check if the owner is a doppelganger. If so, the REAL attacker is the
-		//    doppelganger's teammaster (the player).
-		if (real_attacker && horde::IsSpecialType(real_attacker, horde::SpecialEntityTypeID::DOPPLEGANGER))
-		{
-			real_attacker = real_attacker->teammaster;
-		}
-
-		// 3. If after all that we don't have a valid attacker, default to the projectile itself
-		//    to prevent crashes.
-		if (!real_attacker || !real_attacker->inuse)
-		{
-			real_attacker = self;
-		}
+		// Determine real attacker (handles sentry guns, doppelgangers, etc.)
+		edict_t* real_attacker = GetRealAttacker(self);
 
 		// Determine the means of death based on the original owner (the sphere)
 		if (self->owner && self->owner->classname && strcmp(self->owner->classname, "sphere") == 0)
@@ -1391,23 +1311,11 @@ TOUCH(blaster2_touch)(edict_t *self, edict_t *other, const trace_t &tr, bool oth
 			T_RadiusDamage(self, real_attacker, static_cast<float>(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 		}
 		T_Damage(other, self, real_attacker, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
-
-		// =======================================================================
-		// --- END OF FIX ---
-		// =======================================================================
 	}
 	else
 	{
-		// Also apply the fix here for radius damage against non-takedamage surfaces
-		edict_t* real_attacker = self->owner;
-		if (real_attacker && horde::IsSpecialType(real_attacker, horde::SpecialEntityTypeID::DOPPLEGANGER))
-		{
-			real_attacker = real_attacker->teammaster;
-		}
-		if (!real_attacker || !real_attacker->inuse)
-		{
-			real_attacker = self;
-		}
+		// Determine real attacker for radius damage
+		edict_t* real_attacker = GetRealAttacker(self);
 
 		if (self->dmg >= 5)
 		{
@@ -1460,15 +1368,7 @@ void fire_blaster2(edict_t *self, const vec3_t &start, const vec3_t &dir, int da
 	bolt->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			bolt->projectile_was_player_attacker = true;
-			bolt->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			bolt->projectile_was_player_attacker = false;
-			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(bolt, self);
 
 	bolt->nextthink = level.time + 2_sec;
 	bolt->think = G_FreeEdict;
@@ -1704,15 +1604,7 @@ void fire_tracker(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 	bolt->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			bolt->projectile_was_player_attacker = true;
-			bolt->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			bolt->projectile_was_player_attacker = false;
-			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(bolt, self);
 
 	bolt->dmg = damage;
 	bolt->classname = "tracker";

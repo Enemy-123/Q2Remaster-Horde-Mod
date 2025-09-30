@@ -887,3 +887,109 @@ bool IsPlayerMenuProtected(edict_t* ent)
 	// Return the menu protection status
 	return ent->client->menu_protected;
 }
+
+/*
+=================
+SetProjectileAttackerInfo
+
+Sets projectile attacker tracking information for proper kill attribution
+=================
+*/
+void SetProjectileAttackerInfo(edict_t* projectile, edict_t* attacker)
+{
+	if (!projectile || !attacker)
+		return;
+
+	if (attacker->client)
+	{
+		projectile->projectile_was_player_attacker = true;
+		projectile->projectile_attacker_type_id = 0;
+	}
+	else if (attacker->svflags & SVF_MONSTER)
+	{
+		projectile->projectile_was_player_attacker = false;
+		projectile->projectile_attacker_type_id = attacker->monsterinfo.monster_type_id;
+	}
+}
+
+/*
+=================
+GetRealAttacker
+
+Resolves ownership chains to find the real attacker
+Handles: sentry guns -> player, doppelgangers -> player, etc.
+=================
+*/
+edict_t* GetRealAttacker(edict_t* entity)
+{
+	if (!entity || !entity->inuse)
+		return nullptr;
+
+	edict_t* attacker = entity;
+
+	// If entity has an owner, start with that
+	if (entity->owner && entity->owner->inuse)
+		attacker = entity->owner;
+
+	// Check for sentry gun ownership chain
+	if (attacker && horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN))
+	{
+		if (attacker->owner && attacker->owner->inuse)
+			attacker = attacker->owner;
+	}
+
+	// Check for doppelganger ownership chain
+	if (attacker && horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::DOPPLEGANGER))
+	{
+		if (attacker->teammaster && attacker->teammaster->inuse)
+			attacker = attacker->teammaster;
+	}
+
+	// If we still don't have a valid attacker, default to the original entity
+	if (!attacker || !attacker->inuse)
+		attacker = entity;
+
+	return attacker;
+}
+
+/*
+=================
+SendMuzzleFlash
+
+Sends standardized muzzle flash effect to clients
+=================
+*/
+void SendMuzzleFlash(edict_t* ent, player_muzzle_t effect)
+{
+	if (!ent)
+		return;
+
+	gi.WriteByte(svc_muzzleflash);
+	gi.WriteEntity(ent);
+	gi.WriteByte(effect);
+	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+}
+
+/*
+=================
+ApplyQuadDamage
+
+Applies quad damage multiplier consistently
+Returns modified damage and kick values
+=================
+*/
+QuadDamageResult ApplyQuadDamage(int base_damage, int base_kick, edict_t* ent)
+{
+	QuadDamageResult result{base_damage, base_kick};
+
+	if (!ent)
+		return result;
+
+	if (is_quad)
+	{
+		result.damage *= damage_multiplier;
+		result.kick *= damage_multiplier;
+	}
+
+	return result;
+}

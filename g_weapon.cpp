@@ -789,15 +789,7 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			bolt->projectile_was_player_attacker = true;
-			bolt->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			bolt->projectile_was_player_attacker = false;
-			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(bolt, self);
 
 	// --- MODIFICATION ---
 	// Assign the new unified touch function
@@ -1072,15 +1064,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
 	grenade->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			grenade->projectile_was_player_attacker = true;
-			grenade->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			grenade->projectile_was_player_attacker = false;
-			grenade->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(grenade, self);
 
 	grenade->classname = "grenade";
 	grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
@@ -1163,15 +1147,7 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 	grenade->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			grenade->projectile_was_player_attacker = true;
-			grenade->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			grenade->projectile_was_player_attacker = false;
-			grenade->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(grenade, self);
 
 	grenade->touch = Grenade_Touch;
 	grenade->nextthink = level.time + timer;
@@ -1357,15 +1333,7 @@ edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int 
 	rocket->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			rocket->projectile_was_player_attacker = true;
-			rocket->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			rocket->projectile_was_player_attacker = false;
-			rocket->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(rocket, self);
 
 	rocket->touch = rocket_touch;
 	rocket->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
@@ -2186,15 +2154,7 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			bfg->projectile_was_player_attacker = true;
-			bfg->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			bfg->projectile_was_player_attacker = false;
-			bfg->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(bfg, self);
 
 	bfg->touch = bfg_touch;
 	bfg->nextthink = level.time + FRAME_TIME_S;
@@ -2256,15 +2216,7 @@ void fire_disintegrator(edict_t* self, const vec3_t& start, const vec3_t& forwar
 	bfg->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			bfg->projectile_was_player_attacker = true;
-			bfg->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			bfg->projectile_was_player_attacker = false;
-			bfg->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(bfg, self);
 
 	bfg->touch = disintegrator_touch;
 	bfg->nextthink = level.time + gtime_t::from_sec(8000.f / speed);

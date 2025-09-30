@@ -2596,6 +2596,13 @@ vec3_t P_CurrentKickAngles(edict_t* ent);
 vec3_t P_CurrentKickOrigin(edict_t* ent);
 void P_AddWeaponKick(edict_t* ent, const vec3_t& origin, const vec3_t& angles);
 
+// Weapon helper functions
+void SetProjectileAttackerInfo(edict_t* projectile, edict_t* attacker);
+edict_t* GetRealAttacker(edict_t* entity);
+void SendMuzzleFlash(edict_t* ent, player_muzzle_t effect);
+struct QuadDamageResult { int damage; int kick; };
+QuadDamageResult ApplyQuadDamage(int base_damage, int base_kick, edict_t* ent);
+
 // we won't ever pierce more than this many entities for a single trace.
 constexpr size_t MAX_PIERCE = 16;
 

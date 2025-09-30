@@ -26,15 +26,7 @@ void fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			bolt->projectile_was_player_attacker = true;
-			bolt->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			bolt->projectile_was_player_attacker = false;
-			bolt->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(bolt, self);
 
 	bolt->touch = blaster_unified_touch;
 	bolt->nextthink = level.time + 2_sec;
@@ -130,15 +122,7 @@ if (self && self->client && !G_ShouldPlayersCollide(true))
 	ion->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			ion->projectile_was_player_attacker = true;
-			ion->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			ion->projectile_was_player_attacker = false;
-			ion->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(ion, self);
 
 	ion->touch = ionripper_touch;
 	ion->nextthink = level.time + 3_sec;
@@ -260,15 +244,7 @@ void fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage
 	heat->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			heat->projectile_was_player_attacker = true;
-			heat->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			heat->projectile_was_player_attacker = false;
-			heat->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(heat, self);
 
 	heat->touch = rocket_touch;
 	heat->speed = speed;
@@ -378,15 +354,7 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	plasma->owner = self;
 
 	// Store attacker info in case owner dies before projectile hits
-	if (self) {
-		if (self->client) {
-			plasma->projectile_was_player_attacker = true;
-			plasma->projectile_attacker_type_id = 0;
-		} else if (self->svflags & SVF_MONSTER) {
-			plasma->projectile_was_player_attacker = false;
-			plasma->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-		}
-	}
+	SetProjectileAttackerInfo(plasma, self);
 
 	plasma->touch = plasma_touch;
 	plasma->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
