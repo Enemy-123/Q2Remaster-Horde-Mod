@@ -5311,7 +5311,7 @@ static void PlanMonsterSpawnBatch(
 		if (monster_type_id != horde::MonsterTypeID::UNKNOWN)
 		{
 			// Use safe emplace_back with overflow protection
-			if (!safe_emplace_back(g_spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
+			if (!safe_emplace_back_limit(g_spawn_plan, MAX_ENTITIES_PER_FRAME, monster_type_id, spawn_point)) {
 				gi.Com_Print("WARNING: Spawn plan full, stopping planning\n");
 				break;
 			}

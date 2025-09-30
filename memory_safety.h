@@ -79,7 +79,7 @@ inline bool safe_resize(std::vector<T>& vec, size_t new_size) {
     }
 }
 
-// Safe push_back with size limit checking
+// Safe push_back with size limit checking (copy version)
 template<typename T>
 inline bool safe_push_back(std::vector<T>& vec, const T& value, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
     try {
@@ -105,9 +105,48 @@ inline bool safe_push_back(std::vector<T>& vec, const T& value, size_t max_size 
     }
 }
 
-// Safe emplace_back with size limit checking
+// Safe push_back with size limit checking (move version - for performance)
+template<typename T>
+inline bool safe_push_back(std::vector<T>& vec, T&& value, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
+    try {
+        if (vec.size() >= max_size) {
+            if (developer && developer->integer) {
+                static int overflow_count = 0;
+                if (overflow_count++ < 10) {
+                    gi.Com_PrintFmt("WARNING: Container size limit {} reached, not adding element\n", max_size);
+                }
+            }
+            return false;
+        }
+
+        vec.push_back(std::move(value));
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for push_back\n");
+        }
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+// Unchecked push_back for hot paths where size is pre-validated
+template<typename T>
+inline bool unsafe_push_back(std::vector<T>& vec, T&& value) {
+    try {
+        vec.push_back(std::forward<T>(value));
+        return true;
+    } catch (const std::bad_alloc&) {
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+// Safe emplace_back with explicit size limit
 template<typename T, typename... Args>
-inline bool safe_emplace_back(std::vector<T>& vec, size_t max_size, Args&&... args) {
+inline bool safe_emplace_back_limit(std::vector<T>& vec, size_t max_size, Args&&... args) {
     try {
         if (vec.size() >= max_size) {
             if (developer && developer->integer) {
@@ -125,6 +164,25 @@ inline bool safe_emplace_back(std::vector<T>& vec, size_t max_size, Args&&... ar
         if (developer && developer->integer) {
             gi.Com_Print("ERROR: Failed to allocate memory for emplace_back\n");
         }
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+// Safe emplace_back with default size limit
+template<typename T, typename... Args>
+inline bool safe_emplace_back(std::vector<T>& vec, Args&&... args) {
+    return safe_emplace_back_limit(vec, MAX_SAFE_CONTAINER_SIZE, std::forward<Args>(args)...);
+}
+
+// Unchecked emplace_back for hot paths
+template<typename T, typename... Args>
+inline bool unsafe_emplace_back(std::vector<T>& vec, Args&&... args) {
+    try {
+        vec.emplace_back(std::forward<Args>(args)...);
+        return true;
+    } catch (const std::bad_alloc&) {
         return false;
     } catch (...) {
         return false;
@@ -160,18 +218,117 @@ template<typename Container>
 inline void periodic_cleanup(Container& container, size_t max_size, size_t cleanup_threshold) {
     if (container.size() > cleanup_threshold) {
         if (container.size() > max_size) {
-            // Emergency cleanup - remove oldest entries
+            // Emergency cleanup
             if constexpr (std::is_same_v<Container, std::vector<typename Container::value_type>>) {
-                container.erase(container.begin(), container.begin() + (container.size() - max_size));
+                // For vectors: keep newest elements, move them to front
+                size_t keep_count = max_size / 2;  // Keep half after cleanup
+                size_t remove_count = container.size() - keep_count;
+
+                // Move newest elements to beginning (more efficient than erase)
+                if (keep_count > 0) {
+                    std::move(container.begin() + remove_count, container.end(), container.begin());
+                }
+                container.resize(keep_count);
+
+                // Shrink capacity if way oversized
+                if (container.capacity() > max_size * 2) {
+                    container.shrink_to_fit();
+                }
             } else {
                 // For other containers, clear if too large
                 container.clear();
             }
 
             if (developer && developer->integer) {
-                gi.Com_Print("WARNING: Container exceeded max size, performing emergency cleanup\n");
+                gi.Com_PrintFmt("WARNING: Container exceeded max size ({}), performed emergency cleanup\n",
+                                container.size());
             }
         }
+    }
+}
+
+// Safe insert for maps with size limit checking
+template<typename Map, typename Key, typename Value>
+inline bool safe_map_insert(Map& map, const Key& key, const Value& value, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
+    try {
+        if (map.size() >= max_size) {
+            if (developer && developer->integer) {
+                static int overflow_count = 0;
+                if (overflow_count++ < 10) {
+                    gi.Com_PrintFmt("WARNING: Map size limit {} reached, not inserting\n", max_size);
+                }
+            }
+            return false;
+        }
+
+        map.insert({key, value});
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for map insert\n");
+        }
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+// Safe emplace for maps with size limit checking
+template<typename Map, typename... Args>
+inline bool safe_map_emplace(Map& map, size_t max_size, Args&&... args) {
+    try {
+        if (map.size() >= max_size) {
+            if (developer && developer->integer) {
+                static int overflow_count = 0;
+                if (overflow_count++ < 10) {
+                    gi.Com_PrintFmt("WARNING: Map size limit {} reached, not emplacing\n", max_size);
+                }
+            }
+            return false;
+        }
+
+        map.emplace(std::forward<Args>(args)...);
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for map emplace\n");
+        }
+        return false;
+    } catch (...) {
+        return false;
+    }
+}
+
+// Safe operator[] for maps (may insert default value)
+template<typename Map, typename Key>
+inline typename Map::mapped_type* safe_map_access(Map& map, const Key& key, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
+    try {
+        // Check if key exists
+        auto it = map.find(key);
+        if (it != map.end()) {
+            return &it->second;
+        }
+
+        // Key doesn't exist, check size before inserting
+        if (map.size() >= max_size) {
+            if (developer && developer->integer) {
+                static int overflow_count = 0;
+                if (overflow_count++ < 10) {
+                    gi.Com_PrintFmt("WARNING: Map size limit {} reached, cannot access new key\n", max_size);
+                }
+            }
+            return nullptr;
+        }
+
+        // Safe to insert
+        return &(map[key]);
+    } catch (const std::bad_alloc&) {
+        if (developer && developer->integer) {
+            gi.Com_Print("ERROR: Failed to allocate memory for map access\n");
+        }
+        return nullptr;
+    } catch (...) {
+        return nullptr;
     }
 }
 
