@@ -153,7 +153,8 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 	monster->s.angles = angles;
 
 	// Mark as summoned BEFORE calling spawn functions
-	monster->monsterinfo.issummoned = true;
+	monster->monsterinfo.isfriendlyspawn = true;
+	monster->monsterinfo.issummoned = true; // Part of Strogg summoner system
 
 	// Set AI flags
 	monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
@@ -293,7 +294,7 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 	base->think = strogg_summoner_timeout;
 
 	base->classname = "strogg_summoner_base";
-	base->monsterinfo.issummoned = true;
+	base->monsterinfo.isfriendlyspawn = true;
 
 	// Register with special entities
 	base->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER);
@@ -328,18 +329,12 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 	// Sound effect
 	gi.sound(ent, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
 
-	// Count current summoned monsters for display (not bases - they're just infrastructure)
+	// Count current Strogg summons for display
 	int summon_count = 0;
 	for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
 		edict_t* check = &g_edicts[i];
-		if (check && check->inuse && check->teammaster == ent && check->chain) {
-			// Exclude bases, lasers, and barrels
-			if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
-				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
-				!horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
-				summon_count++;
-			}
+		if (check && check->inuse && check->monsterinfo.issummoned && check->teammaster == ent) {
+			summon_count++;
 		}
 	}
 
@@ -520,7 +515,8 @@ void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup 
 	// Inherit core summoned properties
 	child->chain = parent->chain;  // Inherit chain to strogg base
 	child->teammaster = parent->teammaster;  // Inherit player owner
-	child->monsterinfo.issummoned = true;
+	child->monsterinfo.isfriendlyspawn = true;
+	child->monsterinfo.issummoned = true; // Part of Strogg summoner system
 
 	// Full setup for spawned reinforcements (not needed for boss transformations)
 	if (full_setup) {
@@ -559,7 +555,15 @@ static int RemoveSummonedEntities(edict_t* owner, RemovalFilter filter)
 	std::vector<edict_t*> ents_to_remove;
 
 	if (filter == RemovalFilter::STROGG_ONLY) {
-		// Find all strogg_summoner_base entities owned by this player
+		// Find all issummoned monsters owned by player
+		for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
+			edict_t* check = &g_edicts[i];
+			if (check && check->inuse && check->monsterinfo.issummoned && check->teammaster == owner) {
+				ents_to_remove.push_back(check);
+			}
+		}
+
+		// Then find all strogg_summoner_base entities owned by this player
 		for (edict_t* special_ent : g_targetable_special_entities) {
 			if (special_ent && special_ent->inuse &&
 				special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
@@ -596,17 +600,18 @@ static int RemoveSummonedEntities(edict_t* owner, RemovalFilter filter)
 	// Remove all found entities
 	for (edict_t* ent : ents_to_remove) {
 		if (ent && ent->inuse) {
-			removed_count++;
-			
-			// Check if it's a strogg base
+			// Check if it's a strogg base (don't count in message)
 			if (ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER)) {
 				strogg_summoner_die(ent, owner, owner, 0, ent->s.origin, MOD_UNKNOWN);
 			}
-			// Otherwise just remove it normally
-			else if (ent->die) {
-				ent->die(ent, owner, owner, 0, ent->s.origin, MOD_UNKNOWN);
-			} else {
-				G_FreeEdict(ent);
+			// Otherwise count and remove it normally
+			else {
+				removed_count++;
+				if (ent->die) {
+					ent->die(ent, owner, owner, 0, ent->s.origin, MOD_UNKNOWN);
+				} else {
+					G_FreeEdict(ent);
+				}
 			}
 		}
 	}

@@ -557,7 +557,7 @@ THINK(defender_think) (edict_t* self) -> void {
 		self->s.frame = 0;
 
 	// Buscar activamente enemigos si no hay uno actualmente
-	self->monsterinfo.issummoned = true;
+	self->monsterinfo.isfriendlyspawn = true;
 	if (!self->enemy) {
 		FindMTarget(self);
 	}

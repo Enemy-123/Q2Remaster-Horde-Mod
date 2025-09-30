@@ -1826,7 +1826,7 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		// If we found the owner, clean up the tracking
 		if (sentry_owner && sentry_owner->client) {
 			// Notify the owner
-			if (self->monsterinfo.issummoned) {
+			if (self->monsterinfo.isfriendlyspawn) {
 				gi.Client_Print(sentry_owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
 			}
 

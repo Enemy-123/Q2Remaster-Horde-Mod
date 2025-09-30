@@ -123,7 +123,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 
 	base->classname = "doppleganger";
 
-	base->monsterinfo.issummoned = true;
+	base->monsterinfo.isfriendlyspawn = true;
 
 	base->special_type_id = static_cast<uint8_t>(horde::SpecialTypeRegistry::GetTypeID(base->classname));
 	g_targetable_special_entities.push_back(base);
@@ -143,7 +143,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	body->teleport_time = level.time + 10_hz;
 	body->think = body_think;
 	body->nextthink = level.time + FRAME_TIME_MS;
-	body->monsterinfo.issummoned = true;
+	body->monsterinfo.isfriendlyspawn = true;
 	body->classname = "doppleganger";  //this is the visual, shouldn't get stats from id view here
 
 	// Team assignment (Newly Added)

@@ -646,7 +646,7 @@ void M_SetEffects(edict_t* ent)
 	}
 
 	// Shadow (add back if alive and not a summoned creature)
-	if (!ent->monsterinfo.issummoned) {
+	if (!ent->monsterinfo.isfriendlyspawn) {
 		ent->s.renderfx |= RF_DOT_SHADOW;
 	}
 }
@@ -1073,7 +1073,7 @@ THINK(monster_dead_think) (edict_t* self) -> void
 	if (self->timestamp && level.time >= self->timestamp)
 	{
 		// For summoned monsters, use BecomeTE for cleaner removal
-		if (self->monsterinfo.issummoned) {
+		if (self->monsterinfo.isfriendlyspawn) {
 			// Clean up reference from the base entity if it exists
 			if (self->chain && self->chain->inuse && self->chain->teamchain == self) {
 				self->chain->teamchain = nullptr;
@@ -1649,7 +1649,7 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		return false;
 	}
 
-	if (g_horde && g_horde->integer && (!(self->monsterinfo.issummoned))) {
+	if (g_horde && g_horde->integer && (!(self->monsterinfo.isfriendlyspawn))) {
 	    if (self->monsterinfo.team == CTF_NOTEAM)
     {
         // If no team is set, assign it to the default enemy team.
@@ -1680,7 +1680,7 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 	// player's summoned monsters won't have count // Horde
-	if (self->monsterinfo.issummoned)
+	if (self->monsterinfo.isfriendlyspawn)
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 	// ROGUE

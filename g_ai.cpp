@@ -289,7 +289,7 @@ void ai_stand(edict_t* self, float dist)
 
 	if (level.time > self->monsterinfo.pausetime)
 	{
-		if (g_horde->integer && self->monsterinfo.issummoned) 
+		if (g_horde->integer && self->monsterinfo.isfriendlyspawn) 
 		self->monsterinfo.run(self);
 		else 
 			self->monsterinfo.walk(self);
@@ -301,7 +301,7 @@ void ai_stand(edict_t* self, float dist)
 	if (g_horde->integer)
 	{
 		// Only summoned monsters use FindMTarget for targeting
-		if (self->monsterinfo.issummoned) {
+		if (self->monsterinfo.isfriendlyspawn) {
 			// Don't interfere with medics that are healing/resurrecting
 			if (self->monsterinfo.aiflags & AI_MEDIC)
 			{
@@ -318,7 +318,7 @@ void ai_stand(edict_t* self, float dist)
 			}
 			
 			if (!self->enemy ||
-				(self->enemy->client && !self->enemy->monsterinfo.issummoned)) { // If current enemy is a player, forget it
+				(self->enemy->client && !self->enemy->monsterinfo.isfriendlyspawn)) { // If current enemy is a player, forget it
 				self->enemy = nullptr;
 			}
 			FindMTarget(self);
@@ -393,9 +393,9 @@ void ai_walk(edict_t* self, float dist)
 	if (g_horde->integer && !level.intermissiontime)
 	{
 		// Only summoned monsters use FindMTarget for targeting
-		if (self->monsterinfo.issummoned) {
+		if (self->monsterinfo.isfriendlyspawn) {
 			if (!self->enemy ||
-				(self->enemy->client && !self->enemy->monsterinfo.issummoned)) { // If current enemy is a player, forget it
+				(self->enemy->client && !self->enemy->monsterinfo.isfriendlyspawn)) { // If current enemy is a player, forget it
 				self->enemy = nullptr;
 			}
 			FindMTarget(self);
@@ -604,7 +604,7 @@ inline bool IsValidTarget(edict_t* self, edict_t* ent) {
 // Helper: IsValidTarget - Tailored for FindMTarget's needs (non-player, non-summoned monster)
 static inline bool IsValidMonsterTargetForSummon(edict_t* self, edict_t* ent, gtime_t current_time) {
     // Basic validity checks
-    if (!ent || !ent->inuse || ent == self || ent->client || ent->monsterinfo.issummoned)
+    if (!ent || !ent->inuse || ent == self || ent->client || ent->monsterinfo.isfriendlyspawn)
         return false;
 
     // Health and state checks
@@ -640,7 +640,7 @@ static float CalculateTargetPriority(edict_t* self, edict_t* target, float dist_
 #include "horde/g_horde_phys.h" 
 
 bool FindMTarget(edict_t* self) {
-	if (!self || !self->inuse || !self->monsterinfo.issummoned || level.intermissiontime) {
+	if (!self || !self->inuse || !self->monsterinfo.isfriendlyspawn || level.intermissiontime) {
 		return false;
 	}
 
@@ -940,7 +940,7 @@ void FoundTarget(edict_t* self)
 	// Check if we are a summoned unit and the enemy is a player
 	// EXCEPTION: If AI_MEDIC flag is set, allow targeting players for healing
 	if (!(self->monsterinfo.aiflags & AI_MEDIC)) {
-		if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
+		if ((self->monsterinfo.isfriendlyspawn && !self->enemy) || (self->monsterinfo.isfriendlyspawn && self->enemy && self->enemy->client)) {
 			self->enemy = nullptr;
 			if (FindMTarget(self))
 				return;
@@ -1100,7 +1100,7 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 	}
 
 	// If we are a summoned unit and the target is a player, it's not visible
-	if (self->monsterinfo.issummoned && client->client)
+	if (self->monsterinfo.isfriendlyspawn && client->client)
 		return false;
 
 	// Check if the player is a spectator or has no team in CTF mode
@@ -1134,7 +1134,7 @@ bool FindEnhancedTarget(edict_t* self) {
     if (level.intermissiontime)
         return false;
 
-    if (self->monsterinfo.issummoned) {
+    if (self->monsterinfo.isfriendlyspawn) {
         return FindMTarget(self);
     }
 
@@ -1208,8 +1208,8 @@ bool FindTarget(edict_t* self)
 	// First check if it's a summoned unit that has a player as enemy
 	// EXCEPTION: If AI_MEDIC flag is set, allow targeting players for healing
 	if (!(self->monsterinfo.aiflags & AI_MEDIC)) {
-		if ((self->monsterinfo.issummoned && !self->enemy) ||
-		    (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
+		if ((self->monsterinfo.isfriendlyspawn && !self->enemy) ||
+		    (self->monsterinfo.isfriendlyspawn && self->enemy && self->enemy->client)) {
 			self->enemy = nullptr;
 			return FindMTarget(self);
 		}
@@ -1297,7 +1297,7 @@ bool FindTarget(edict_t* self)
 	}
 
 	// Apply cooldown logic only for horde mode
-	if (g_horde->integer && heardit && !self->monsterinfo.issummoned)
+	if (g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn)
 	{
 		if (self->monsterinfo.lastnoisecooldown > level.time)
 		{
@@ -1507,7 +1507,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 	//// Validar enemigo
 	if (!self->enemy || !self->enemy->inuse ||
 		OnSameTeam(self, self->enemy) || self->enemy->deadflag ||
-		(self->monsterinfo.issummoned && self->enemy->monsterinfo.issummoned))
+		(self->monsterinfo.isfriendlyspawn && self->enemy->monsterinfo.isfriendlyspawn))
 	{
 		return false;
 	}
@@ -1823,7 +1823,7 @@ void ai_run_slide(edict_t* self, float distance)
 	// PMM - the move failed, so signal the caller (ai_run) to try going straight
 	self->monsterinfo.attack_state = AS_STRAIGHT;
 
-	if (!self->enemy && self->monsterinfo.issummoned)
+	if (!self->enemy && self->monsterinfo.isfriendlyspawn)
 		FindMTarget(self);
 }
 // ROGUE
@@ -2045,7 +2045,7 @@ bool ai_checkattack(edict_t* self, float dist)
 				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
 
 			// Reset checkattack timer quickly after regaining sight
-			self->monsterinfo.checkattack_time = self->monsterinfo.issummoned ? (level.time + 30_ms) : (level.time + random_time(50_ms, 200_ms));
+			self->monsterinfo.checkattack_time = self->monsterinfo.isfriendlyspawn ? (level.time + 30_ms) : (level.time + random_time(50_ms, 200_ms));
 		}
 		// Update trail time and blind fire target
 		self->monsterinfo.trail_time = level.time;
@@ -2162,7 +2162,7 @@ void ai_run(edict_t* self, float dist)
 	}
 
 	// 2. Handle special case: Summoned monster targeting logic
-	if (self->monsterinfo.issummoned)
+	if (self->monsterinfo.isfriendlyspawn)
 	{
 		// Don't interfere with medics that are healing/resurrecting
 		if (self->monsterinfo.aiflags & AI_MEDIC)

@@ -598,7 +598,7 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.old_frame = ent->s.frame; // Initialize old frame for interpolation
     ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth frame interpolation
 
-    // Set team for bot recognition (don't set issummoned to avoid AI treating as friendly summon)
+    // Set team for bot recognition (don't set isfriendlyspawn to avoid AI treating as friendly summon)
     ent->monsterinfo.team = ent->client->resp.ctf_team;
 
     // Use proper flyer bounds from monster definition

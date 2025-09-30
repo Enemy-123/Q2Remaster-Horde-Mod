@@ -4575,7 +4575,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	PROFILE_SCOPE("CheckAndTeleportStuckMonster");
 
 	// --- 1. Initial Validation ---
-	if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.issummoned)
+	if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.isfriendlyspawn)
 		return false;
 
 	// Periodic check rate limiting
@@ -6970,7 +6970,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 		return false;
 	}
 
-	if (self->monsterinfo.issummoned ||
+	if (self->monsterinfo.isfriendlyspawn ||
 		(!force_despite_visibility && (self->enemy && self->enemy->inuse && visible(self, self->enemy, false))))
 	{
 		self->teleport_time = level.time + 1.5_sec;

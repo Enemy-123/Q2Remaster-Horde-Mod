@@ -334,7 +334,7 @@ void RemoveEntity(edict_t* ent) {
     if (!ent || !ent->inuse) return;
 
     // Special handling for summoned monsters
-    if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.issummoned) {
+    if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.isfriendlyspawn) {
         // Clean up reference from the base entity if it exists
         if (ent->chain && ent->chain->inuse && ent->chain->teamchain == ent) {
             ent->chain->teamchain = nullptr;
@@ -559,7 +559,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 			monster->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	}
 
-	if (monster->monsterinfo.issummoned) {
+	if (monster->monsterinfo.isfriendlyspawn) {
 		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
 		FindMTarget(monster);
 		monster->svflags |= SVF_PLAYER;
@@ -1021,7 +1021,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		}
 
 		// Summoned monsters should be removed cleanly
-		if (monster->monsterinfo.issummoned) {
+		if (monster->monsterinfo.isfriendlyspawn) {
 			if (removable_count < MAX_PUSHABLE_ENTITIES) {
 				removable_entities[removable_count++] = monster;
 			}

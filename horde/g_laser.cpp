@@ -265,7 +265,7 @@ namespace LaserHelpers
             return true;
 
         // Pierce through summoned monsters
-        if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.issummoned)
+        if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.isfriendlyspawn)
             return true;
 
         return false;

@@ -1128,7 +1128,7 @@ void MakronToss(edict_t* self)
 	// 	gi.Com_PrintFmt("MakronToss: Restoring summoned properties to Makron\n");
 	// 	ent->chain = stored_chain;
 	// 	ent->teammaster = stored_teammaster;
-	// 	ent->monsterinfo.issummoned = true;
+	// 	ent->monsterinfo.isfriendlyspawn = true;
 	// 	ent->monsterinfo.bonus_flags |= (stored_bonus_flags & BF_FRIENDLY);  // Preserve friendly flag
 
 	// 	// Reapply touch function for summoned monsters
@@ -1136,8 +1136,8 @@ void MakronToss(edict_t* self)
 	// 		ent->touch = strogg_summoned_touch;
 	// 	}
 
-	// 	gi.Com_PrintFmt("MakronToss: After restore - chain={}, teammaster={}, issummoned={}, bonus_flags={}\n",
-	// 		(void*)ent->chain, (void*)ent->teammaster, ent->monsterinfo.issummoned, (int)ent->monsterinfo.bonus_flags);
+	// 	gi.Com_PrintFmt("MakronToss: After restore - chain={}, teammaster={}, isfriendlyspawn={}, bonus_flags={}\n",
+	// 		(void*)ent->chain, (void*)ent->teammaster, ent->monsterinfo.isfriendlyspawn, (int)ent->monsterinfo.bonus_flags);
 	// }
 
 	// [Paril-KEX] set health bar over to Makron when we throw him out

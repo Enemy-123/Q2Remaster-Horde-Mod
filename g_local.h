@@ -1901,7 +1901,8 @@ struct monsterinfo_t
 	gtime_t no_enemy_timeout_start_time;
 
 	bool was_stuck = false;
-	bool issummoned = false; // corpse cleaning management
+	bool isfriendlyspawn = false; // corpse cleaning management
+	bool issummoned = false; // Part of Strogg summoner system (for removal/limits)
 	bool IS_BOSS = false; // Is monster a boss?
 	bool effects_applied = false; // prevention for applying more that 1 time effect
 	bool BOSS_DEATH_HANDLED = false; // is dead?

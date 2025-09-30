@@ -761,7 +761,7 @@ void Cmd_Summon_f(edict_t* ent)
 	base->takedamage = DAMAGE_NONE;
 	base->die = strogg_summoner_die;
 	base->classname = "strogg_summoner_base";
-	base->monsterinfo.issummoned = true;
+	base->monsterinfo.isfriendlyspawn = true;
 
 	// Register with special entities
 	base->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER);
@@ -791,7 +791,7 @@ void Cmd_Summon_f(edict_t* ent)
 	monster->s.angles[PITCH] = 0;
 
 	// Mark as summoned BEFORE calling spawn
-	monster->monsterinfo.issummoned = true;
+	monster->monsterinfo.isfriendlyspawn = true;
 
 	// Call spawn function
 	spawn_temp_t st = spawn_temp_t::empty;

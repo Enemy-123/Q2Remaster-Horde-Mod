@@ -371,7 +371,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 
     // Case 1: The inflictor is a deployable itself (like a Tesla mine) or a morphed player.
     if (inflictor && (horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::TESLA_MINE) ||
-                      inflictor->monsterinfo.issummoned ||
+                      inflictor->monsterinfo.isfriendlyspawn ||
 					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 					  horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
                       horde::IsSpecialType(inflictor, horde::SpecialEntityTypeID::LASER_EMITTER) ||
@@ -385,7 +385,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
         threat_source = inflictor->owner; // The threat is the emitter.
     }
     // Case 3: The inflictor is a projectile whose owner is a deployable (e.g., a bullet from a sentry).
-    else if (inflictor && inflictor->owner && inflictor->owner->monsterinfo.issummoned)
+    else if (inflictor && inflictor->owner && inflictor->owner->monsterinfo.isfriendlyspawn)
     {
         threat_source = inflictor->owner; // The threat is the summoned entity.
     }
@@ -406,7 +406,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
     {
         // Check if the monster should target this type of deployable or morphed player.
         if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::TESLA_MINE) ||
-            threat_source->monsterinfo.issummoned ||
+            threat_source->monsterinfo.isfriendlyspawn ||
 			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 			horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
             horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER) ||
@@ -415,7 +415,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
             new_tesla = MarkTeslaArea(targ, threat_source); // Assuming this function marks the area around any deployable.
 
             // Summoned entities, morphed players, Laser Emitter, or Barrel logic
-            if (threat_source->monsterinfo.issummoned ||
+            if (threat_source->monsterinfo.isfriendlyspawn ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
 				horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER) ||
@@ -424,7 +424,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
                 if (level.time - targ->monsterinfo.last_reacttodamage_target_time > target_cooldown_react)
                 {
                     if ((new_tesla || brandom()) && (!targ->enemy ||
-                        !(targ->enemy->monsterinfo.issummoned ||
+                        !(targ->enemy->monsterinfo.isfriendlyspawn ||
 					  	 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::MORPHED_PLAYER) ||
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::LASER_EMITTER) ||
@@ -546,7 +546,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
 			(targ->monsterinfo.monster_type_id != attacker->monsterinfo.monster_type_id) &&
 			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
-				attacker->monsterinfo.issummoned ||
+				attacker->monsterinfo.isfriendlyspawn ||
 				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::DOPPLEGANGER) ||
 				horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::LASER_EMITTER)) &&
 			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
@@ -934,7 +934,7 @@ static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // const an
 	}
 
 	// Check for summoned entities first (most common special case)
-	if (attacker->monsterinfo.issummoned) {
+	if (attacker->monsterinfo.isfriendlyspawn) {
 		return false; // Summoned entities should not benefit from vampire effect when attacking
 	}
 
@@ -1106,7 +1106,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		attacker = world;
 
 	// Check if the attacker is a summoned monster and redirect damage attribution to owner
-	if (attacker && (attacker->svflags & SVF_MONSTER) && attacker->monsterinfo.issummoned && attacker->teammaster) {
+	if (attacker && (attacker->svflags & SVF_MONSTER) && attacker->monsterinfo.isfriendlyspawn && attacker->teammaster) {
 		// Store the original attacker for reference
 		edict_t* original_attacker = attacker;
 		

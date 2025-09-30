@@ -201,7 +201,7 @@ void Monster_UpdateState(edict_t* monster) {
 	}
 
 	if (G_IsCooperative() || g_horde->integer) { //instead of removing the SVF_MONSTER BIT on ApplyMonsterBonusFlags, this works for bots!
-		if (monster->monsterinfo.issummoned) {
+		if (monster->monsterinfo.isfriendlyspawn) {
 			// For summoned monsters, use their assigned team
 			monster->sv.team = monster->monsterinfo.team;
 		}

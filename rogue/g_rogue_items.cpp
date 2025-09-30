@@ -148,7 +148,7 @@ static edict_t* SpawnSentryAtPoint(edict_t* owner, const vec3_t& spawn_origin, c
     if (!turret)
         return nullptr; // Return null on failure
 
-    turret->monsterinfo.issummoned = true;
+    turret->monsterinfo.isfriendlyspawn = true;
     turret->classname = "monster_sentrygun";
     turret->s.origin = spawn_origin;
     turret->s.angles = spawn_angles;
