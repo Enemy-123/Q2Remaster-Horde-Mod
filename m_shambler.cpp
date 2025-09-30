@@ -828,11 +828,23 @@ DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	// 1. Always clean up visual effect entities first
 	if (self->beam)
 	{
+		// Properly clean up the beam before freeing
+		self->beam->s.modelindex = 0;
+		self->beam2->s.effects = EF_NONE;
+		self->beam->s.renderfx = RF_NONE;
+		self->beam->solid = SOLID_NOT;
+		gi.unlinkentity(self->beam);
 		G_FreeEdict(self->beam);
 		self->beam = nullptr;
 	}
 	if (self->beam2)
 	{
+		// Properly clean up the fireball effect before freeing
+		self->beam2->s.modelindex = 0;
+		self->beam2->s.effects = EF_NONE;
+		self->beam2->s.renderfx = RF_NONE;
+		self->beam2->solid = SOLID_NOT;
+		gi.unlinkentity(self->beam2);
 		G_FreeEdict(self->beam2);
 		self->beam2 = nullptr;
 	}

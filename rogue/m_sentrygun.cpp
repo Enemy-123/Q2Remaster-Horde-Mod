@@ -1796,21 +1796,22 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	}
 	// --- END FIX ---
 
-	 // Handle summoned entity notifications
-    if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
-        if (horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+	 // Handle summoned entity notifications and count tracking
+    if (self->monsterinfo.issummoned && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+        // Check if owner is valid before accessing owner data
+        if (self->owner && self->owner->inuse && self->owner->client) {
             gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
 
-            // This line already correctly decrements the count.
-            self->owner->client->resp.num_sentries--;
+            // Decrement the count with bounds checking
+            if (self->owner->client->resp.num_sentries > 0) {
+                self->owner->client->resp.num_sentries--;
+            }
 
-            // --- MODIFIED LOGIC ---
-            // Find this sentry in the owner's tracking array and null it out.
-            // This is the crucial step to prevent dangling pointers and keep the array clean.
+            // Find this sentry in the owner's tracking array and null it out
             for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
                 if (self->owner->client->resp.deployed_sentries[i] == self) {
                     self->owner->client->resp.deployed_sentries[i] = nullptr;
-                    break; // Found it, we're done.
+                    break; // Found it, we're done
                 }
             }
         }
