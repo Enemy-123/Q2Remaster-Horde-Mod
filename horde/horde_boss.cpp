@@ -460,7 +460,7 @@ item_id_t SelectBossWeaponDrop(int32_t wave_level)
 	return boss_weapon_drops[chosen_weapon_array_index].first;
 }
 
-void BossDeathHandler(edict_t *boss)
+void BossDeathHandler(edict_t *boss) noexcept
 {
 	// Fast early-out with combined validation
 	if (!g_horde || !g_horde->integer || !boss || !boss->inuse || !boss->monsterinfo.IS_BOSS ||
@@ -588,7 +588,7 @@ void ClearBossHealthBar(const edict_t* boss)
     }
 }
 
-void boss_die(edict_t *boss)
+void boss_die(edict_t *boss) noexcept
 {
 	if (!boss || !boss->inuse || !g_horde->integer ||
 		!boss->monsterinfo.IS_BOSS || boss->health > 0 ||

@@ -3802,6 +3802,16 @@ inline void monster_footstep(edict_t* self)
 		self->s.event = EV_OTHER_FOOTSTEP;
 }
 
+// ============================================================================
+// ENTITY ITERATION SYSTEM
+// ============================================================================
+// Optimized iterator system for traversing game entities with custom filters.
+// Performance notes:
+// - operator++ uses direct scanning (no rescanning overhead)
+// - [[likely]] branch hints optimize hot paths
+// - [[no_unique_address]] enables zero-size filter optimization
+// - Stateless filters incur zero memory overhead
+
 // [Kex] helpers
 // TFilter must be a type that is invokable with the
 // signature bool(edict_t *); it must return true if
@@ -3819,7 +3829,7 @@ private:
 	uint32_t index;
 	uint32_t end_index; // where the end index is located for this iterator
 	// index < globals.num_edicts are valid
-	TFilter filter;
+	[[no_unique_address]] TFilter filter; // Zero-size optimization for stateless filters
 
 	// this doubles as the "end" iterator
 	inline bool is_out_of_range(uint32_t i) const
@@ -3857,13 +3867,21 @@ public:
 	inline entity_iterator_t& operator++()
 	{
 		throw_if_out_of_range();
-		return *this = *this + 1;
+		// Optimized: scan forward once instead of using operator+ (which rescans)
+		do {
+			index++;
+		} while (!is_out_of_range() && !filter(&g_edicts[index]));
+		return *this;
 	}
 
 	inline entity_iterator_t& operator--()
 	{
 		throw_if_out_of_range();
-		return *this = *this - 1;
+		// Optimized: scan backward once instead of using operator- (which rescans)
+		do {
+			index--;
+		} while (!is_out_of_range() && !filter(&g_edicts[index]));
+		return *this;
 	}
 
 	inline difference_type operator-(const entity_iterator_t& it) const
@@ -3878,11 +3896,13 @@ public:
 		// move in the specified direction, only stopping if we
 		// run out of range or find a filtered entity
 		while (!is_out_of_range(it.index) && !filter(*it))
-	if (offset > 0) {
-		it.index++;
-	} else {
-		it.index--;
-	}
+		{
+			if (offset > 0) {
+				it.index++;
+			} else {
+				it.index--;
+			}
+		}
 
 		return it;
 	}
@@ -3911,7 +3931,7 @@ struct entity_iterable_t
 {
 private:
 	uint32_t begin_index, end_index;
-	TFilter filter;
+	[[no_unique_address]] TFilter filter; // Zero-size optimization for stateless filters
 
 	// find the first entity that matches the filter, from the specified index,
 	// in the specified direction
@@ -3993,9 +4013,13 @@ struct active_players_filter_no_spect_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
-		return (ent->inuse && ent->client && ent->client->pers.connected &&
-			!ent->client->pers.spectator && !ent->client->resp.spectator &&
-			(ent->client->resp.ctf_team == CTF_TEAM1 || ent->client->resp.ctf_team == CTF_TEAM2));
+		// Branch hints: most player slots are in use during gameplay
+		if (ent->inuse && ent->client) [[likely]] {
+			return ent->client->pers.connected &&
+				!ent->client->pers.spectator && !ent->client->resp.spectator &&
+				(ent->client->resp.ctf_team == CTF_TEAM1 || ent->client->resp.ctf_team == CTF_TEAM2);
+		}
+		return false;
 	}
 };
 
@@ -4009,7 +4033,11 @@ struct active_players_filter_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
-		return (ent->inuse && ent->client && ent->client->pers.connected);
+		// Branch hints: most player slots are in use during gameplay
+		if (ent->inuse && ent->client) [[likely]] {
+			return ent->client->pers.connected;
+		}
+		return false;
 	}
 };
 
@@ -4037,7 +4065,11 @@ struct active_monsters_filter_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
-		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0);
+		// Branch hints: most monster slots are in use during horde gameplay
+		if (ent->inuse) [[likely]] {
+			return (ent->svflags & SVF_MONSTER) && ent->health > 0;
+		}
+		return false;
 	}
 };
 
@@ -4156,7 +4188,7 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 			ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1), gib.framenum);
 }
 
-extern void boss_die(edict_t* boss);
+extern void boss_die(edict_t* boss) noexcept;
 
 inline bool M_CheckGib(edict_t* self, const mod_t& mod)
 {
@@ -4323,22 +4355,32 @@ void Weapon_Hook_Fire(edict_t* ent);
 void Weapon_Hook(edict_t* ent);
 
 
+// ============================================================================
+// EXTERN FUNCTION DECLARATIONS - GAME SYSTEMS
+// ============================================================================
+
+// --- Entity Lifecycle Management ---
 extern void OnEntityDeath(edict_t* self) noexcept;
 extern void OnEntityRemoved(edict_t* self);
-
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern int RemoveSummonedEntities(edict_t* owner);
 extern void RemoveAllTechItems(edict_t* ent);
+
+// --- Player & Spectator Queries ---
 extern bool ClientIsSpectating(const gclient_t* cl) noexcept;
 extern bool EntIsSpectating(const edict_t* ent) noexcept;
 
+// --- Monster AI & Boss Systems ---
 extern 	bool FindMTarget(edict_t* self);
-extern void BossDeathHandler(edict_t* boss);
+extern void BossDeathHandler(edict_t* boss) noexcept;
 
+// --- Horde Mode Wave Management ---
 extern void AllowNextWaveAdvance() noexcept;
 extern void fastNextWave() noexcept;
-extern void OpenHordeMenu(edict_t* ent);
-extern void UpdateVoteHUD();
+
+// --- UI & Menu Systems ---
+extern void OpenHordeMenu(edict_t* ent) noexcept;
+extern void UpdateVoteHUD() noexcept;
 
 inline int8_t GetNumHumanPlayers()
 {

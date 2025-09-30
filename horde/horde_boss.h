@@ -98,8 +98,8 @@ void SpawnBossAutomatically();
 void BossSpawnThink(edict_t *self);
 
 // Boss death and drops
-void BossDeathHandler(edict_t *boss);
-void boss_die(edict_t *boss);
+void BossDeathHandler(edict_t *boss) noexcept;
+void boss_die(edict_t *boss) noexcept;
 item_id_t SelectBossWeaponDrop(int32_t wave_level);
 
 // Boss UI and display

@@ -17,7 +17,7 @@ void OpenVoteMenu(edict_t* ent);
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
 void UpdateVoteMenu();
 void ShowInventory(edict_t* ent);
-void OpenHordeMenu(edict_t* ent);
+void OpenHordeMenu(edict_t* ent) noexcept;
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p);
 pmenuhnd_t* CreateHordeMenu(edict_t* ent);
 void OpenTechMenu(edict_t* ent);
@@ -1717,7 +1717,7 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 }
 
 // Entry point to open the main Horde menu
-void OpenHordeMenu(edict_t* ent) {
+void OpenHordeMenu(edict_t* ent) noexcept {
 	if (!ent || !ent->client) return;
 
 	// Set menu protection
