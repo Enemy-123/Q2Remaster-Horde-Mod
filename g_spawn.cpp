@@ -1551,11 +1551,28 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 			return false;
 		}
 
-		const fs::path entfile = fs::path(modulePath.data()).parent_path() / "maps" /
-		fmt::format("{}.ent", mapname);
-		outFilename = entfile.string();
+		// Try loading .ent file - first with full path, then with basename only
+		fs::path entfile_with_path = fs::path(modulePath.data()).parent_path() / "maps" /
+			fmt::format("{}.ent", mapname);
 
-		FILE* fp = fopen(outFilename.c_str(), "rb");
+		FILE* fp = fopen(entfile_with_path.string().c_str(), "rb");
+
+		if (!fp) {
+			// If not found with full path, try with just the basename (e.g., "ctf/mgu4trial" -> "mgu4trial")
+			std::string_view map_basename = mapname;
+			if (size_t last_slash = map_basename.find_last_of("/\\"); last_slash != std::string_view::npos) {
+				map_basename = map_basename.substr(last_slash + 1);
+				fs::path entfile_basename = fs::path(modulePath.data()).parent_path() / "maps" /
+					fmt::format("{}.ent", map_basename);
+				fp = fopen(entfile_basename.string().c_str(), "rb");
+				if (fp) {
+					outFilename = entfile_basename.string();
+				}
+			}
+		} else {
+			outFilename = entfile_with_path.string();
+		}
+
 		if (!fp) {
 			gi.Com_PrintFmt("Failed to open entity file: {}\n", outFilename);
 			return false;
@@ -1591,7 +1608,7 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 
 		// Safe resize with overflow check
 		size_t buffer_size = static_cast<size_t>(length) + 1;
-		if (buffer_size > MAX_SAFE_CONTAINER_SIZE || !safe_resize(buffer, buffer_size)) {
+		if (buffer_size > MAX_ENTITY_FILE_SIZE || !safe_resize(buffer, buffer_size, MAX_ENTITY_FILE_SIZE)) {
 			gi.Com_PrintFmt("ERROR: Failed to allocate buffer for entity file (size: {})\n", buffer_size);
 			return false;
 		}

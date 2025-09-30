@@ -50,15 +50,15 @@ inline bool safe_reserve(std::vector<T>& vec, size_t new_capacity) {
 
 // Safe resize for vectors with bounds checking
 template<typename T>
-inline bool safe_resize(std::vector<T>& vec, size_t new_size) {
+inline bool safe_resize(std::vector<T>& vec, size_t new_size, size_t max_size = MAX_SAFE_CONTAINER_SIZE) {
     try {
         // Prevent overflow - especially important for uint16_t indices
-        if (new_size > MAX_SAFE_CONTAINER_SIZE) {
+        if (new_size > max_size) {
             if (developer && developer->integer) {
                 gi.Com_PrintFmt("WARNING: Attempted to resize to {} elements, clamping to {}\n",
-                    new_size, MAX_SAFE_CONTAINER_SIZE);
+                    new_size, max_size);
             }
-            new_size = MAX_SAFE_CONTAINER_SIZE;
+            new_size = max_size;
         }
 
         // Check for multiplication overflow
