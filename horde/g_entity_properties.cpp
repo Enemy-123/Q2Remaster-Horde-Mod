@@ -9,7 +9,7 @@ extern void trap_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod
 extern void laser_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 extern void doppleganger_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 extern void nuke_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
-extern void strogg_summoner_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
+// strogg_summoner_die removed (no longer needed - no base entity)
 extern void barrel_die(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&);
 
 // --- Global Definition (Single Source of Truth) ---
@@ -33,8 +33,8 @@ const std::array<EntityProperties, NUM_SPECIAL_ENTITY_TYPES> g_entityProperties 
     {true,  true,  laser_die},
     // Index 8: DOPPLEGANGER
     {false, true,  doppleganger_die},
-    // Index 9: STROGG_SUMMONER
-    {true,  true,  strogg_summoner_die},
+    // Index 9: STROGG_SUMMONER (obsolete - no base entity anymore)
+    {false, false, nullptr},
     // Index 10: MORPHED_PLAYER
     {false, false, nullptr},
     // Index 11: BARREL

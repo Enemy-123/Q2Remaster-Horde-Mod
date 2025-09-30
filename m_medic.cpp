@@ -232,14 +232,8 @@ static bool Medic_CanResurrect(edict_t* medic)
 	if (!medic->teammaster || !medic->teammaster->client)
 		return false;
 
-	// Count current summons
-	int total_summons = 0;
-	for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
-		edict_t* check = &g_edicts[i];
-		if (check && check->inuse && check->monsterinfo.issummoned && check->teammaster == medic->teammaster) {
-			total_summons++;
-		}
-	}
+	// Check current summons using player array
+	int total_summons = medic->teammaster->client->resp.num_summons;
 
 	return total_summons < MAX_STROGG_SUMMONS;
 }
@@ -446,9 +440,16 @@ bool finishHeal(edict_t* self)
 
 		// If the medic is summoned, the resurrected monster should inherit summoner properties
 		if (self->monsterinfo.isfriendlyspawn && self->teammaster) {
-			// Safety check - summoned medic MUST have a chain (the base)
-			if (!self->chain) {
+			// Safety check - summoned medic MUST have a chain (player reference)
+			if (!self->chain || !self->chain->client) {
 				// This shouldn't happen, but if it does, abort resurrection
+				abortHeal(self, false, false);
+				return false;
+			}
+
+			// Check if player has room for another summon
+			if (self->chain->client->resp.num_summons >= MAX_STROGG_SUMMONS) {
+				// At max summons, abort resurrection
 				abortHeal(self, false, false);
 				return false;
 			}
@@ -459,8 +460,8 @@ bool finishHeal(edict_t* self)
 			healee->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 			healee->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
-			// Set chain and teammaster references
-			healee->chain = self->chain;  // MUST point to base (not medic!)
+			// Set chain and teammaster references (direct to player)
+			healee->chain = self->chain;  // Direct reference to player
 			healee->teammaster = self->teammaster;  // Point to player owner
 			healee->touch = strogg_summoned_touch;  // Always set touch to allow owner to push
 
@@ -472,6 +473,20 @@ bool finishHeal(edict_t* self)
 
 			// Re-link entity to ensure touch function and collision are applied
 			gi.linkentity(healee);
+
+			// Add to player's tracking array
+			bool added = false;
+			for (int i = 0; i < MAX_STROGG_SUMMONS; i++) {
+				if (!self->chain->client->resp.deployed_summons[i] || !self->chain->client->resp.deployed_summons[i]->inuse) {
+					self->chain->client->resp.deployed_summons[i] = healee;
+					added = true;
+					break;
+				}
+			}
+
+			if (added) {
+				self->chain->client->resp.num_summons++;
+			}
 		}
 	}
 
@@ -542,13 +557,7 @@ bool finishHeal(edict_t* self)
 		// Notify owner for summoned medics
 		if (self->monsterinfo.isfriendlyspawn && self->teammaster && self->teammaster->client) {
 			// Count current Strogg summons (both spawned and revived)
-			int summon_count = 0;
-			for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
-				edict_t* check = &g_edicts[i];
-				if (check && check->inuse && check->monsterinfo.issummoned && check->teammaster == self->teammaster) {
-					summon_count++;
-				}
-			}
+			int summon_count = self->teammaster->client->resp.num_summons;
 
 			// Get monster name
 			const char* monster_name = "monster";

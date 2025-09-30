@@ -739,44 +739,10 @@ void Cmd_Summon_f(edict_t* ent)
 		spawn_point = spawn_point - (forward * 64);
 	}
 
-	// Create the invisible base entity (like strogg summoner)
-	edict_t* base = G_Spawn();
-	if (!base)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to create base entity\n");
-		return;
-	}
-
-	base->s.origin = spawn_point;
-	base->s.angles = vectoangles(forward);
-	base->s.angles[PITCH] = 0;
-	base->movetype = MOVETYPE_NONE;
-	base->solid = SOLID_NOT;
-	base->s.renderfx |= RF_IR_VISIBLE;
-	base->mins = { -8, -8, -8 };
-	base->maxs = { 8, 8, 8 };
-	base->s.modelindex = 0;  // No model - invisible
-	base->teammaster = ent;  // Reference to the player who summoned
-	base->flags |= FL_TRAP;
-	base->takedamage = DAMAGE_NONE;
-	base->die = strogg_summoner_die;
-	base->classname = "strogg_summoner_base";
-	base->monsterinfo.isfriendlyspawn = true;
-
-	// Register with special entities
-	base->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER);
-	safe_push_back(g_targetable_special_entities, base);
-
-	gi.linkentity(base);
-
-	// Spawn the monster
+	// Spawn the monster directly (no base entity)
 	edict_t* monster = G_Spawn();
 	if (!monster)
 	{
-		// Clean up base if monster spawn fails
-		auto& vec = g_targetable_special_entities;
-		vec.erase(std::remove(vec.begin(), vec.end(), base), vec.end());
-		G_FreeEdict(base);
 		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to spawn monster\n");
 		return;
 	}
@@ -799,18 +765,14 @@ void Cmd_Summon_f(edict_t* ent)
 
 	if (!monster->inuse)
 	{
-		// Clean up on failure
-		auto& vec = g_targetable_special_entities;
-		vec.erase(std::remove(vec.begin(), vec.end(), base), vec.end());
-		G_FreeEdict(base);
 		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to spawn {}\n", classname);
 		G_FreeEdict(monster);
 		return;
 	}
 
 	// Set up all the references and flags (like strogg summoner)
-	monster->teammaster = ent;  // Reference to the player
-	monster->chain = base;       // Reference to the base for cleanup
+	monster->teammaster = ent;  // Direct reference to the player
+	monster->chain = ent;        // Direct reference to the player (no base)
 
 	// Team assignment
 	monster->ctf_team = ent->client->resp.ctf_team;
@@ -831,13 +793,6 @@ void Cmd_Summon_f(edict_t* ent)
 	monster->touch = strogg_summoned_touch;
 
 	gi.linkentity(monster);
-
-	// Link base and monster
-	base->teamchain = monster;
-
-	// Start base thinking to monitor monster
-	base->think = strogg_base_think;
-	base->nextthink = level.time + FRAME_TIME_MS;
 
 	// Make it aware of enemies
 	if (monster->monsterinfo.stand)

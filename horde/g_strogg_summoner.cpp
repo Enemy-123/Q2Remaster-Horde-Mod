@@ -22,14 +22,33 @@ void SP_monster_shambler_small(edict_t* self);
 void SP_monster_medic(edict_t* self);
 void SP_monster_daedalus_bomber(edict_t* self);
 
+// Cleanup function to remove a summoned monster from player's tracking array
+void RemoveSummonFromPlayerArray(edict_t* monster)
+{
+	if (!monster || !monster->chain || !monster->chain->client)
+		return;
+
+	edict_t* player = monster->chain;
+
+	// Find and remove this monster from the player's tracking array
+	for (int i = 0; i < MAX_STROGG_SUMMONS; i++) {
+		if (player->client->resp.deployed_summons[i] == monster) {
+			player->client->resp.deployed_summons[i] = nullptr;
+			player->client->resp.num_summons--;
+			break;
+		}
+	}
+}
+
 // Touch function for summoned Strogg - allows owner to push them
 TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	// Only the owner (summoner) can push the monster
-	if (!other->client || !self->chain || !self->chain->teammaster)
+	// chain now points directly to the player
+	if (!other->client || !self->chain || !self->chain->client)
 		return;
 
-	if (other != self->chain->teammaster)
+	if (other != self->chain)
 		return;
 
 	// Don't push if owner is not on ground or not touching properly
@@ -75,73 +94,8 @@ TOUCH(strogg_summoned_touch) (edict_t* self, edict_t* other, const trace_t& tr, 
 	gi.linkentity(self);
 }
 
-DIE(strogg_summoner_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
-{
-	// Remove from special entities list
-	auto& vec = g_targetable_special_entities;
-	vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
-
-	self->takedamage = DAMAGE_NONE;
-
-	// Clean up the summoned monster if it still exists
-	if (self->teamchain && self->teamchain->inuse)
-	{
-		// Check if the monster is already dead/dying - if so, let it die naturally
-		if (!self->teamchain->deadflag)
-		{
-			// Monster is still alive, kill it without explosion
-			// Just damage it normally instead of forcing an explosion
-			T_Damage(self->teamchain, self, self, vec3_origin, self->teamchain->s.origin,
-					 vec3_origin, 10000, 0, DAMAGE_NONE, MOD_UNKNOWN);
-		}
-		// If monster is already dead, just let it finish its death animation naturally
-	}
-
-	// Clean up the base
- BecomeTE(self);
-}
-
-PAIN(strogg_summoner_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
-{
-	// Base takes damage but doesn't react visually
-	// The damage will eventually kill it
-}
-
-THINK(strogg_summoner_timeout) (edict_t* self) -> void
-{
-	// Timeout - remove the summoned monster
-	if (self->teammaster && self->teammaster->client)
-	{
-		gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Summoned Strogg expired.");
-	}
-	strogg_summoner_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
-}
-
-THINK(strogg_base_think) (edict_t* self) -> void
-{
-	// Keep the base updated
-	self->nextthink = level.time + FRAME_TIME_MS;
-
-	// Check if our monster is still alive
-	if (!self->teamchain || !self->teamchain->inuse || self->teamchain->deadflag)
-	{
-		// Monster is dead, clean up the base silently
-		if (self->teammaster && self->teammaster->client)
-		{
-			gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Summoned Strogg has been destroyed.");
-		}
-		// Remove from special entities list
-		auto& vec = g_targetable_special_entities;
-		vec.erase(std::remove(vec.begin(), vec.end(), self), vec.end());
-
-		// Clean up the base without triggering explosion
-		self->takedamage = DAMAGE_NONE;
-		G_FreeEdict(self);
-	}
-}
-
 // Helper function to spawn a random Strogg monster
-static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const vec3_t& angles)
+static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, const vec3_t& angles)
 {
 	edict_t* monster = G_Spawn();
 
@@ -214,28 +168,24 @@ static edict_t* spawn_strogg_monster(edict_t* base, const vec3_t& origin, const 
 		return nullptr;
 	}
 
-	// Set the summoner reference (NOT owner to maintain independence)
-	monster->teammaster = base->teammaster; // Reference to the player
-
-	// Store base reference for cleanup
-	monster->chain = base;
+	// Set the summoner reference - direct player reference
+	monster->teammaster = player;
+	monster->chain = player; // Direct reference to player (no fake base entity)
 
 	// Team assignment
-	if (base->teammaster && base->teammaster->client) {
-		monster->ctf_team = base->teammaster->client->resp.ctf_team;
-		monster->monsterinfo.team = base->teammaster->client->resp.ctf_team;
+	if (player && player->client) {
+		monster->ctf_team = player->client->resp.ctf_team;
+		monster->monsterinfo.team = player->client->resp.ctf_team;
+	} else {
+		// Default team only if no owner
+		monster->ctf_team = CTF_TEAM1;
 	}
 
 	// Apply friendly flag but do NOT set owner
 	// This maintains monster's independence and solidity
 	monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
-	// Only set default team if no owner was found
-	if (!base->teammaster || !base->teammaster->client) {
-		monster->ctf_team = CTF_TEAM1; // Default team only if no owner
-	}
 
-
-	// Important: Do NOT set monster->owner = base->teammaster
+	// Important: Do NOT set monster->owner = player
 	// We want the monster to remain independent with its own collision
 
 	// FIX: Remove SVF_PLAYER flag that was set by ApplyMonsterBonusFlags
@@ -262,81 +212,41 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 		return;
 	}
 
-	edict_t* base;
-	edict_t* monster;
-	vec3_t	 dir;
-	vec3_t	 spawn_origin;
-
-	// Get angles from aim direction
-	dir = vectoangles(aimdir);
-	dir[PITCH] = 0; // Level out pitch
-
-	// Create the invisible base (similar to doppelganger but invisible)
-	base = G_Spawn();
-	base->s.origin = start;
-	base->s.angles = dir;
-	base->movetype = MOVETYPE_NONE;  // Base doesn't move
-	base->solid = SOLID_NOT;          // Base is not solid
-	base->s.renderfx |= RF_IR_VISIBLE;
-	base->mins = { -8, -8, -8 };
-	base->maxs = { 8, 8, 8 };
-	base->s.modelindex = 0;  // No model - completely invisible
-	base->teammaster = ent;  // Reference to the player who summoned
-	base->flags |= (FL_TRAP);
-	base->takedamage = DAMAGE_NONE;
-	//base->health = 100;  // Base has some health
-	base->pain = strogg_summoner_pain;
-	base->die = strogg_summoner_die;
-
-	// Optional: Set a timeout for the summon (5 minutes)
-	// Comment out these lines for permanent summons until death
-	base->nextthink = level.time + 300_sec;
-	base->think = strogg_summoner_timeout;
-
-	base->classname = "strogg_summoner_base";
-	base->monsterinfo.isfriendlyspawn = true;
-
-	// Register with special entities
-	base->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER);
-	g_targetable_special_entities.push_back(base);
-
-	gi.linkentity(base);
-
-	// Use the provided spawn position
-	spawn_origin = start;
-
-	// Spawn the actual Strogg monster
-	monster = spawn_strogg_monster(base, spawn_origin, dir);
-
-	if (!monster)
-	{
-		// Failed to spawn monster, clean up base
-		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to summon Strogg warrior!\n");
-		G_FreeEdict(base);
+	if (!ent->client) {
 		return;
 	}
 
-	// Link base and monster
-	base->teamchain = monster;
+	vec3_t dir = vectoangles(aimdir);
+	dir[PITCH] = 0; // Level out pitch
 
-	// Start base thinking to monitor monster
-	base->think = strogg_base_think;
-	base->nextthink = level.time + FRAME_TIME_MS;
+	// Spawn the actual Strogg monster directly (no base entity)
+	edict_t* monster = spawn_strogg_monster(ent, start, dir);
+
+	if (!monster)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to summon Strogg warrior!\n");
+		return;
+	}
+
+	// Add monster to player's tracking array
+	bool added = false;
+	for (int i = 0; i < MAX_STROGG_SUMMONS; i++) {
+		if (!ent->client->resp.deployed_summons[i] || !ent->client->resp.deployed_summons[i]->inuse) {
+			ent->client->resp.deployed_summons[i] = monster;
+			added = true;
+			break;
+		}
+	}
+
+	if (added) {
+		ent->client->resp.num_summons++;
+	}
 
 	// Spawn effect
-	SpawnGrow_Spawn(spawn_origin, 24.f, 48.f);
+	SpawnGrow_Spawn(start, 24.f, 48.f);
 
 	// Sound effect
 	gi.sound(ent, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
-
-	// Count current Strogg summons for display
-	int summon_count = 0;
-	for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
-		edict_t* check = &g_edicts[i];
-		if (check && check->inuse && check->monsterinfo.issummoned && check->teammaster == ent) {
-			summon_count++;
-		}
-	}
 
 	// Message to player - use MonsterTypeRegistry to get proper name
 	const char* monster_name = "warrior";
@@ -348,26 +258,35 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 		}
 	}
 	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! ({}/{})\n",
-		monster_name, summon_count, MAX_STROGG_SUMMONS);
+		monster_name, ent->client->resp.num_summons, MAX_STROGG_SUMMONS);
 }
 
-// Replacement for StroggSummonAtPoint - now returns the base instead of the monster
+// Replacement for StroggSummonAtPoint - returns the monster
 edict_t* StroggSummonAtPoint(edict_t* owner, const vec3_t& spawn_origin, const vec3_t& spawn_angles)
 {
+	if (!owner || !owner->client) {
+		return nullptr;
+	}
+
 	vec3_t forward;
 	AngleVectors(spawn_angles, forward, nullptr, nullptr);
+
+	// Store the count before summoning
+	int prev_count = owner->client->resp.num_summons;
 
 	// Create the summoner at the specified point
 	fire_strogg_summoner(owner, spawn_origin, forward);
 
-	// Find the base we just created using the special entities list
-	for (edict_t* special_ent : g_targetable_special_entities) {
-		if (special_ent && special_ent->inuse &&
-			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-			special_ent->teammaster == owner) {
-			vec3_t diff = special_ent->s.origin - spawn_origin;
-			if (diff.length() < 10.0f) { // Recently created at this position
-				return special_ent;
+	// Check if a new summon was added
+	if (owner->client->resp.num_summons > prev_count) {
+		// Find the most recently added summon (the one we just created)
+		for (int i = MAX_STROGG_SUMMONS - 1; i >= 0; i--) {
+			edict_t* summon = owner->client->resp.deployed_summons[i];
+			if (summon && summon->inuse) {
+				vec3_t diff = summon->s.origin - spawn_origin;
+				if (diff.length() < 64.0f) { // Recently created at this position
+					return summon;
+				}
 			}
 		}
 	}
@@ -384,18 +303,10 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 		return;
 	}
 
-	// Check if player already has a summoned Strogg using the special entities list
-	int summon_count = 0;
-	for (edict_t* special_ent : g_targetable_special_entities) {
-		if (special_ent && special_ent->inuse &&
-			special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-			special_ent->teammaster == ent) {
-			summon_count++;
-			if (summon_count >= MAX_STROGG_SUMMONS) {
-				gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!\n");
-				return;
-			}
-		}
+	// Check if player already has maximum summons using the player array
+	if (ent->client->resp.num_summons >= MAX_STROGG_SUMMONS) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!\n");
+		return;
 	}
 
 	// --- 2. Define placement constants ---
@@ -477,24 +388,14 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 
 	// --- 5. Final Action: Spawn or Fail ---
 	if (found_spot) {
+		// Store count before spawning
+		int prev_count = ent->client->resp.num_summons;
+
 		// Use our new summoner system
 		fire_strogg_summoner(ent, final_spawn_point, forward);
 
-		// Check if spawn succeeded by looking for the base in special entities
-		bool spawn_success = false;
-		for (edict_t* special_ent : g_targetable_special_entities) {
-			if (special_ent && special_ent->inuse &&
-				special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-				special_ent->teammaster == ent) {
-				vec3_t diff = special_ent->s.origin - final_spawn_point;
-				if (diff.length() < 10.0f) {
-					spawn_success = true;
-					break;
-				}
-			}
-		}
-
-		if (spawn_success) {
+		// Check if spawn succeeded by checking if count increased
+		if (ent->client->resp.num_summons > prev_count) {
 			ent->client->pers.inventory[item->id]--;
 			// Message already printed by fire_strogg_summoner
 		} else {
@@ -509,12 +410,13 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 // Helper function to inherit summoned properties from parent/commander to child entity
 void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup = true)
 {
-	if (!child || !parent || !parent->chain || !parent->teammaster)
+	// chain now points directly to the player (no base entity)
+	if (!child || !parent || !parent->chain || !parent->chain->client)
 		return;
 
 	// Inherit core summoned properties
-	child->chain = parent->chain;  // Inherit chain to strogg base
-	child->teammaster = parent->teammaster;  // Inherit player owner
+	child->chain = parent->chain;  // Inherit direct player reference
+	child->teammaster = parent->chain;  // chain IS the player now
 	child->monsterinfo.isfriendlyspawn = true;
 	child->monsterinfo.issummoned = true; // Part of Strogg summoner system
 
@@ -525,9 +427,9 @@ void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup 
 		child->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
 		// Set team properly based on the player owner
-		if (child->teammaster->client) {
-			child->ctf_team = child->teammaster->client->resp.ctf_team;
-			child->monsterinfo.team = child->teammaster->client->resp.ctf_team;
+		if (child->chain->client) {
+			child->ctf_team = child->chain->client->resp.ctf_team;
+			child->monsterinfo.team = child->chain->client->resp.ctf_team;
 		}
 
 		// Ensure proper collision for summoned monsters
@@ -540,79 +442,37 @@ void InheritSummonedProperties(edict_t* child, edict_t* parent, bool full_setup 
 	}
 }
 
-// Helper function to remove summoned entities with optional filtering
-enum class RemovalFilter {
-	ALL_SUMMONS,     // Remove all summoned entities
-	STROGG_ONLY      // Remove only strogg bases
-};
-
-static int RemoveSummonedEntities(edict_t* owner, RemovalFilter filter)
+// Helper function to remove summoned Strogg monsters using player array
+static int RemoveSummonedEntities(edict_t* owner)
 {
 	if (!owner || !owner->client)
 		return 0;
 
 	int removed_count = 0;
-	std::vector<edict_t*> ents_to_remove;
 
-	if (filter == RemovalFilter::STROGG_ONLY) {
-		// Find all issummoned monsters owned by player
-		for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
-			edict_t* check = &g_edicts[i];
-			if (check && check->inuse && check->monsterinfo.issummoned && check->teammaster == owner) {
-				ents_to_remove.push_back(check);
-			}
-		}
-
-		// Then find all strogg_summoner_base entities owned by this player
-		for (edict_t* special_ent : g_targetable_special_entities) {
-			if (special_ent && special_ent->inuse &&
-				special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-				special_ent->teammaster == owner) {
-				ents_to_remove.push_back(special_ent);
-			}
-		}
-	}
-	else { // ALL_SUMMONS
-		// Find all summoned monsters (excluding bases, lasers, and barrels)
-		for (int i = 1; i < static_cast<int>(globals.num_edicts); i++) {
-			edict_t* check = &g_edicts[i];
-			if (check && check->inuse && check->teammaster == owner && check->chain) {
-				// Exclude bases, lasers, and barrels from removal using the special type system
-				if (!horde::IsSpecialType(check, horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-				    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_EMITTER) &&
-				    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::LASER_BEAM) &&
-				    !horde::IsSpecialType(check, horde::SpecialEntityTypeID::BARREL)) {
-					ents_to_remove.push_back(check);
-				}
-			}
-		}
-		
-		// Also remove the strogg bases themselves (they will clean up properly)
-		for (edict_t* special_ent : g_targetable_special_entities) {
-			if (special_ent && special_ent->inuse &&
-				special_ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER) &&
-				special_ent->teammaster == owner) {
-				ents_to_remove.push_back(special_ent);
-			}
+	// Collect all summons first (to avoid modifying array while iterating)
+	edict_t* summons_to_kill[MAX_STROGG_SUMMONS] = {nullptr};
+	for (int i = 0; i < MAX_STROGG_SUMMONS; i++) {
+		edict_t* summon = owner->client->resp.deployed_summons[i];
+		if (summon && summon->inuse) {
+			summons_to_kill[i] = summon;
+			removed_count++;
 		}
 	}
 
-	// Remove all found entities
-	for (edict_t* ent : ents_to_remove) {
-		if (ent && ent->inuse) {
-			// Check if it's a strogg base (don't count in message)
-			if (ent->special_type_id == static_cast<uint8_t>(horde::SpecialEntityTypeID::STROGG_SUMMONER)) {
-				strogg_summoner_die(ent, owner, owner, 0, ent->s.origin, MOD_UNKNOWN);
-			}
-			// Otherwise count and remove it normally
-			else {
-				removed_count++;
-				if (ent->die) {
-					ent->die(ent, owner, owner, 0, ent->s.origin, MOD_UNKNOWN);
-				} else {
-					G_FreeEdict(ent);
-				}
-			}
+	// Now clear the array BEFORE killing (to prevent die() from trying to remove again)
+	for (int i = 0; i < MAX_STROGG_SUMMONS; i++) {
+		owner->client->resp.deployed_summons[i] = nullptr;
+	}
+	owner->client->resp.num_summons = 0;
+
+	// Kill all collected summons
+	for (int i = 0; i < MAX_STROGG_SUMMONS; i++) {
+		if (summons_to_kill[i]) {
+			edict_t* summon = summons_to_kill[i];
+			// Use T_Damage for immediate gibbing instead of die()
+			T_Damage(summon, owner, owner, vec3_origin, summon->s.origin,
+					 vec3_origin, 99999, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 		}
 	}
 
@@ -624,7 +484,7 @@ void Cmd_RemoveStrogg_f(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
-	int removed_count = RemoveSummonedEntities(ent, RemovalFilter::STROGG_ONLY);
+	int removed_count = RemoveSummonedEntities(ent);
 
 	if (removed_count > 0)
 	{
@@ -641,14 +501,14 @@ void Cmd_RemoveAllSummons_f(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
-	int removed_count = RemoveSummonedEntities(ent, RemovalFilter::ALL_SUMMONS);
+	int removed_count = RemoveSummonedEntities(ent);
 
 	if (removed_count > 0)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "{} strogg entities dismissed.\n", removed_count);
+		gi.LocClient_Print(ent, PRINT_HIGH, "{} summoned Strogg dismissed.\n", removed_count);
 	}
 	else
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "No strogg entities found.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "No summoned Strogg found.\n");
 	}
 }

@@ -1103,6 +1103,11 @@ void monster_dead(edict_t* self)
 		level.global_spawned_count = std::max(0, level.global_spawned_count - 1);
 	}
 
+	// Remove from player's summon tracking array if this was a summoned monster
+	if (self->monsterinfo.issummoned && self->chain && self->chain->client) {
+		RemoveSummonFromPlayerArray(self);
+	}
+
 	if (g_horde->integer) {
 		boss_die(self);
 	}

@@ -3223,6 +3223,10 @@ struct client_respawn_t
 	int      num_sentries = 0;
 	edict_t* deployed_sentries[SentryConstants::MAX_SENTRIES_PER_PLAYER];
 
+	// Strogg Summons
+	int      num_summons = 0;
+	edict_t* deployed_summons[MAX_STROGG_SUMMONS];
+
 	gtime_t teleport_cooldown = 3_sec;
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 };
