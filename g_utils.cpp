@@ -5,6 +5,70 @@
 #include "g_local.h"
 #include "memory_safety.h"
 
+// Entity spawning and reuse constants
+constexpr gtime_t ENTITY_REUSE_INITIAL_PERIOD = 2_sec;  // Relax replacement policy during initial server startup
+constexpr gtime_t ENTITY_REUSE_DELAY = 500_ms;          // Minimum time before reusing freed entity slot
+
+// Death and cleanup timing constants
+constexpr gtime_t DEATH_CLEANUP_DELAY = 2_sec;          // Standard cleanup delay for dead entities
+constexpr gtime_t FADE_START_DELAY = 4_sec;             // Delay before starting fade-out effect
+constexpr gtime_t FADE_DURATION = 3_sec;                // Duration of fade-out animation
+constexpr gtime_t FADE_LIFESPAN = 0.5_sec;              // Fast fade lifespan for immediate effects
+
+// Entity cleanup detection
+constexpr gtime_t STUCK_ENTITY_THINK_TIMEOUT = 5_sec;   // Time without thinking before considering entity stuck
+
+/*
+=============
+Helper Functions
+=============
+*/
+
+// Validates that an entity pointer is non-null and in use
+inline bool IsValidEntity(edict_t* ent) {
+	return ent && ent->inuse;
+}
+
+// Calculates the center point of an entity's bounding box
+inline vec3_t CalculateEntityCenter(const edict_t* ent) {
+	return ent->s.origin + (ent->mins + ent->maxs) * 0.5f;
+}
+
+// Removes an entity from its team chain cleanly
+inline void RemoveFromTeamChain(edict_t* ent) {
+	if (!ent->teammaster)
+		return;
+
+	// If this entity is part of a chain, cleanly remove it
+	if (ent->flags & FL_TEAMSLAVE)
+	{
+		for (edict_t* master = ent->teammaster; master; master = master->teamchain)
+		{
+			if (master->teamchain == ent)
+			{
+				master->teamchain = ent->teamchain;
+				break;
+			}
+		}
+	}
+	// Remove teammaster and promote next in chain
+	else if (ent->flags & FL_TEAMMASTER)
+	{
+		ent->teammaster->flags &= ~FL_TEAMMASTER;
+
+		edict_t* new_master = ent->teammaster->teamchain;
+
+		if (new_master)
+		{
+			new_master->flags |= FL_TEAMMASTER;
+			new_master->flags &= ~FL_TEAMSLAVE;
+
+			for (edict_t* m = new_master; m; m = m->teamchain)
+				m->teammaster = new_master;
+		}
+	}
+}
+
 /*
 =============
 G_Find
@@ -73,13 +137,9 @@ edict_t* findradius(edict_t* from, const vec3_t& org, float rad)
 			continue;
 		}
 
-		// Calculate vector to entity center
-		vec3_t eorg;
-		for (int j = 0; j < 3; j++) {
-			// Calculate entity center by adding half of its bounding box to origin
-			const float entity_center_offset = (from->mins[j] + from->maxs[j]) * 0.5f;
-			eorg[j] = org[j] - (from->s.origin[j] + entity_center_offset);
-		}
+		// Calculate vector from search origin to entity center
+		const vec3_t entity_center = CalculateEntityCenter(from);
+		const vec3_t eorg = org - entity_center;
 
 		// Use squared length comparison to avoid sqrt
 		if (eorg.lengthSquared() > rad_squared) {
@@ -130,8 +190,8 @@ edict_t* G_PickTarget(const char* targetname)
 	if (!num_choices)
 	{
 		if (developer->integer)
-			// Log error message here if needed
-			return nullptr;
+			gi.Com_PrintFmt("G_PickTarget: target '{}' not found\n", targetname);
+		return nullptr;
 	}
 
 	return choice[irandom(num_choices)];
@@ -220,37 +280,8 @@ void G_UseTargets(edict_t* ent, edict_t* activator)
 		t = nullptr;
 		while ((t = G_FindByString<&edict_t::targetname>(t, ent->killtarget)))
 		{
-			if (t->teammaster)
-			{
-				// PMM - if this entity is part of a chain, cleanly remove it
-				if (t->flags & FL_TEAMSLAVE)
-				{
-					for (edict_t* master = t->teammaster; master; master = master->teamchain)
-					{
-						if (master->teamchain == t)
-						{
-							master->teamchain = t->teamchain;
-							break;
-						}
-					}
-				}
-				// [Paril-KEX] remove teammaster too
-				else if (t->flags & FL_TEAMMASTER)
-				{
-					t->teammaster->flags &= ~FL_TEAMMASTER;
-
-					edict_t* new_master = t->teammaster->teamchain;
-
-					if (new_master)
-					{
-						new_master->flags |= FL_TEAMMASTER;
-						new_master->flags &= ~FL_TEAMSLAVE;
-
-						for (edict_t* m = new_master; m; m = m->teamchain)
-							m->teammaster = new_master;
-					}
-				}
-			}
+			// Remove from team chain if part of one
+			RemoveFromTeamChain(t);
 
 			// [Paril-KEX] if we killtarget a monster, clean up properly
 			if (t->svflags & SVF_MONSTER)
@@ -275,13 +306,18 @@ void G_UseTargets(edict_t* ent, edict_t* activator)
 	//
 	if (ent->target)
 	{
+		// Cache classname comparisons for performance
+		const bool is_door = !Q_strcasecmp(ent->classname, "func_door");
+		const bool is_door_rotating = !Q_strcasecmp(ent->classname, "func_door_rotating");
+		const bool is_door_secret = !Q_strcasecmp(ent->classname, "func_door_secret");
+		const bool is_water = !Q_strcasecmp(ent->classname, "func_water");
+		const bool is_door_like = is_door || is_door_rotating || is_door_secret || is_water;
+
 		t = nullptr;
 		while ((t = G_FindByString<&edict_t::targetname>(t, ent->target)))
 		{
 			// doors fire area portals in a specific way
-			if (!Q_strcasecmp(t->classname, "func_areaportal") &&
-				(!Q_strcasecmp(ent->classname, "func_door") || !Q_strcasecmp(ent->classname, "func_door_rotating")
-					|| !Q_strcasecmp(ent->classname, "func_door_secret") || !Q_strcasecmp(ent->classname, "func_water")))
+			if (is_door_like && !Q_strcasecmp(t->classname, "func_areaportal"))
 				continue;
 
 			if (t == ent)
@@ -409,7 +445,7 @@ edict_t* G_Spawn()
 	{
 		// the first couple seconds of server time can involve a lot of
 		// freeing and allocating, so relax the replacement policy
-		if (!e->inuse && (e->freetime < 2_sec || level.time - e->freetime > 500_ms))
+		if (!e->inuse && (e->freetime < ENTITY_REUSE_INITIAL_PERIOD || level.time - e->freetime > ENTITY_REUSE_DELAY))
 		{
 			G_InitEdict(e);
 			return e;
@@ -433,17 +469,29 @@ Marks the edict as free and cleans up dangling pointers to it.
 */
 THINK(G_FreeEdict) (edict_t* ed) -> void {
     // Already freed check
-    if (!ed || !ed->inuse) // Added null check for safety
+    if (!IsValidEntity(ed))
         return;
 
-    // --- NEW: Dangling Pointer Cleanup Loop ---
-    // Iterate through all other entities and nullify any common pointers
+    // --- Dangling Pointer Cleanup Loop ---
+    // PERFORMANCE NOTE: This is an O(n) operation that scans all entities.
+    // This is necessary to prevent dangling pointer crashes, but expensive.
+    // Consider batching multiple entity frees if performance becomes an issue.
+    //
+    // We iterate through all other entities and nullify any common pointers
     // that point to the entity we are about to free.
     for (edict_t* other = g_edicts; other < &g_edicts[globals.num_edicts]; other++)
     {
         if (!other->inuse || other == ed)
             continue;
 
+        // Early exit: skip entities that are unlikely to have entity references
+        // Items, projectiles, and temporary effects typically don't reference other entities
+        const bool is_simple_entity = (other->solid == SOLID_NOT && !other->client &&
+                                       !(other->svflags & SVF_MONSTER));
+        if (is_simple_entity)
+            continue;
+
+        // Nullify common entity pointers
         if (other->owner == ed) other->owner = nullptr;
         if (other->enemy == ed) other->enemy = nullptr;
         if (other->oldenemy == ed) other->oldenemy = nullptr;
@@ -467,13 +515,15 @@ THINK(G_FreeEdict) (edict_t* ed) -> void {
         }
 
         // Check monster-specific pointers
-        if (other->monsterinfo.commander == ed) other->monsterinfo.commander = nullptr;
-        if (other->monsterinfo.healer == ed) other->monsterinfo.healer = nullptr;
-        if (other->monsterinfo.badMedic1 == ed) other->monsterinfo.badMedic1 = nullptr;
-        if (other->monsterinfo.badMedic2 == ed) other->monsterinfo.badMedic2 = nullptr;
-        if (other->monsterinfo.last_player_enemy == ed) other->monsterinfo.last_player_enemy = nullptr;
+        if (other->svflags & SVF_MONSTER) {
+            if (other->monsterinfo.commander == ed) other->monsterinfo.commander = nullptr;
+            if (other->monsterinfo.healer == ed) other->monsterinfo.healer = nullptr;
+            if (other->monsterinfo.badMedic1 == ed) other->monsterinfo.badMedic1 = nullptr;
+            if (other->monsterinfo.badMedic2 == ed) other->monsterinfo.badMedic2 = nullptr;
+            if (other->monsterinfo.last_player_enemy == ed) other->monsterinfo.last_player_enemy = nullptr;
+        }
     }
-    // --- END NEW ---
+    // --- END Dangling Pointer Cleanup ---
 
     // Handle cleanup through OnEntityRemoved
     OnEntityRemoved(ed);
@@ -540,7 +590,7 @@ void G_TouchTriggers(edict_t* ent)
 	for (i = 0; i < num; i++)
 	{
 		hit = touch[i];
-		if (!hit || !hit->inuse)
+		if (!IsValidEntity(hit))
 			continue;
 		if (!hit->touch)
 			continue;
@@ -555,52 +605,54 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 	struct skipped_projectile
 	{
 		edict_t* projectile;
-		int32_t		spawn_count;
+		int32_t spawn_count;
 	};
-	// a bit ugly, but we'll store projectiles we are ignoring here.
+
+	// Static vector to store projectiles we are temporarily ignoring
 	static std::vector<skipped_projectile> skipped;
 
 	// Clear old entries to prevent accumulation over time
 	periodic_cleanup(skipped, MAX_SKIPPED_PROJECTILES, MAX_SKIPPED_PROJECTILES / 2);
 
-	if (!ent) 
+	if (!ent)
 		return;
+
+	// Trace through all projectiles along movement path
 	while (true)
 	{
 		trace_t tr = gi.trace(previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ent->clipmask | CONTENTS_PROJECTILE);
 
-		if (tr.fraction == 1.0f)
-			break;
-		if (!tr.ent)
-			break;
-		if (!(tr.ent->svflags & SVF_PROJECTILE))
+		// Stop if no more collisions or invalid trace
+		if (tr.fraction == 1.0f || !tr.ent || !(tr.ent->svflags & SVF_PROJECTILE))
 			break;
 
-		// always skip this projectile since certain conditions may cause the projectile
-		// to not disappear immediately
+		// Temporarily mark projectile as skipped to avoid re-detecting it
 		tr.ent->svflags &= ~SVF_PROJECTILE;
-		// Use safe push_back to prevent overflow
+
+		// Store projectile info for restoration later
 		if (!safe_push_back(skipped, skipped_projectile{ tr.ent, tr.ent->spawn_count }, MAX_SKIPPED_PROJECTILES)) {
+			// Vector full: drop oldest entry and retry
 			if (developer && developer->integer) {
 				gi.Com_Print("WARNING: Too many skipped projectiles, dropping oldest\n");
 			}
-			// If we can't add more, remove oldest and try again
 			if (!skipped.empty()) {
 				skipped.erase(skipped.begin());
 				safe_push_back(skipped, skipped_projectile{ tr.ent, tr.ent->spawn_count }, MAX_SKIPPED_PROJECTILES);
 			}
 		}
 
-		// if we're both players and it's coop, allow the projectile to "pass" through
+		// Allow friendly fire pass-through in coop
 		if (ent->client && tr.ent->owner && tr.ent->owner->client && !G_ShouldPlayersCollide(true))
 			continue;
 
 		G_Impact(ent, tr);
 	}
 
-	for (auto& skip : skipped)
-		if (skip.projectile->inuse && skip.projectile->spawn_count == skip.spawn_count)
+	// Restore SVF_PROJECTILE flag for all skipped projectiles that are still valid
+	for (auto& skip : skipped) {
+		if (IsValidEntity(skip.projectile) && skip.projectile->spawn_count == skip.spawn_count)
 			skip.projectile->svflags |= SVF_PROJECTILE;
+	}
 
 	skipped.clear();
 }
@@ -707,61 +759,57 @@ void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
 	}
 }
 
-
-// Constante para el tiempo de vida del fade
-constexpr gtime_t FADE_LIFESPAN = 0.5_sec;
-
 THINK(fade_out_think)(edict_t* self) -> void {
-	// Si el monstruo está vivo, restaurar su estado
+	// If monster is alive, restore its state
 	if (self->health > 0 && !self->deadflag) {
 		CheckAndRestoreMonsterAlpha(self);
-		//	self->think = monster_think;
 		self->nextthink = level.time + FRAME_TIME_MS;
-		self->is_fading_out = false;  // Usar bool
+		self->is_fading_out = false;
 		return;
 	}
 
+	// Fade complete - free the entity
 	if (level.time >= self->timestamp) {
-		self->is_fading_out = false;  // Limpiar el bool antes de liberar
+		self->is_fading_out = false;
 		G_FreeEdict(self);
 		return;
 	}
 
-	// Calcular el factor de fade usando el mismo método que spawngrow
+	// Calculate fade factor using the same method as spawngrow
 	const float t = 1.f - ((level.time - self->teleport_time).seconds() / self->wait);
-	self->s.alpha = t * t; // Usar t^2 para un fade más suave como spawngrow
+	self->s.alpha = t * t; // Use t^2 for smoother fade like spawngrow
 
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 void StartFadeOut(edict_t* ent) {
-	// No iniciar fade out si el monstruo está vivo o ya está en fade
+	// Don't start fade out if monster is alive or already fading
 	if ((ent->health > 0 && !ent->deadflag) ||
 		ent->is_fading_out ||
 		(ent->monsterinfo.aiflags & (AI_CLEANUP_FADE | AI_CLEANUP_NORMAL))) {
 		return;
 	}
 
-	// Configurar tiempos
+	// Configure fade timing
 	ent->teleport_time = level.time;
 	ent->timestamp = level.time + FADE_LIFESPAN;
 	ent->wait = FADE_LIFESPAN.seconds();
 
-	// Configurar pensamiento
+	// Configure think function
 	ent->think = fade_out_think;
 	ent->nextthink = level.time + FRAME_TIME_MS;
 
-	// Marcar que está en proceso de fade
+	// Mark as fading in progress
 	ent->is_fading_out = true;
 
-	// Configurar estados
+	// Configure entity state
 	ent->solid = SOLID_NOT;
 	ent->movetype = MOVETYPE_NONE;
 	ent->takedamage = false;
 	ent->svflags &= ~SVF_NOCLIENT;
 	ent->s.renderfx &= ~RF_DOT_SHADOW;
 
-	// Asegurar que la entidad está enlazada
+	// Ensure entity is linked to world
 	gi.linkentity(ent);
 }
 
@@ -785,9 +833,6 @@ void OnEntityDeath(edict_t* self) noexcept
 	bool apply_horde_fade = (self->svflags & SVF_MONSTER) && g_horde && g_horde->integer;
 
 	if (apply_horde_fade) {
-		constexpr gtime_t FADE_START_DELAY = 4_sec;
-		constexpr gtime_t FADE_DURATION = 3_sec;
-
 		self->teleport_time = level.time + FADE_START_DELAY;
 		self->timestamp = self->teleport_time + FADE_DURATION;
 		self->wait = FADE_DURATION.seconds();
@@ -796,7 +841,7 @@ void OnEntityDeath(edict_t* self) noexcept
 		self->monsterinfo.aiflags &= ~AI_CLEANUP_NORMAL;
 		self->s.renderfx &= ~RF_DOT_SHADOW;
 	} else {
-		self->timestamp = level.time + 2_sec;
+		self->timestamp = level.time + DEATH_CLEANUP_DELAY;
 		if (self->svflags & SVF_MONSTER) {
 			self->monsterinfo.aiflags |= AI_CLEANUP_NORMAL;
 			self->monsterinfo.aiflags &= ~AI_CLEANUP_FADE;
@@ -834,11 +879,11 @@ void CleanupStuckEntities() {
 	const uint32_t start_index = game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U;
 
 	// Iterate through edicts, skipping players AND body queue slots.
-	for (uint32_t i = start_index; i < globals.num_edicts; i++) { // <-- MODIFIED START INDEX
+	for (uint32_t i = start_index; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 
 		// Basic validity checks
-		if (!ent || !ent->inuse) {
+		if (!IsValidEntity(ent)) {
 			continue;
 		}
 
@@ -849,7 +894,7 @@ void CleanupStuckEntities() {
 
 		// --- Conditions for identifying a stuck/lingering entity ---
 		if ((ent->solid == SOLID_BSP || ent->solid == SOLID_BBOX) && ent->health <= 0) {
-			bool stopped_thinking = (!ent->think || ent->nextthink <= level.time - 5_sec); // Corrected check
+			bool stopped_thinking = (!ent->think || ent->nextthink <= level.time - STUCK_ENTITY_THINK_TIMEOUT);
 			bool not_fading = !ent->is_fading_out;
 			bool likely_monster = (ent->svflags & (SVF_MONSTER | SVF_DEADMONSTER)) || ent->monsterinfo.was_spawned_by_horde;
 
@@ -922,31 +967,31 @@ Handles: sentry guns -> player, doppelgangers -> player, etc.
 */
 edict_t* GetRealAttacker(edict_t* entity)
 {
-	if (!entity || !entity->inuse)
+	if (!IsValidEntity(entity))
 		return nullptr;
 
 	edict_t* attacker = entity;
 
 	// If entity has an owner, start with that
-	if (entity->owner && entity->owner->inuse)
+	if (IsValidEntity(entity->owner))
 		attacker = entity->owner;
 
 	// Check for sentry gun ownership chain
 	if (attacker && horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::SENTRY_GUN))
 	{
-		if (attacker->owner && attacker->owner->inuse)
+		if (IsValidEntity(attacker->owner))
 			attacker = attacker->owner;
 	}
 
 	// Check for doppelganger ownership chain
 	if (attacker && horde::IsSpecialType(attacker, horde::SpecialEntityTypeID::DOPPLEGANGER))
 	{
-		if (attacker->teammaster && attacker->teammaster->inuse)
+		if (IsValidEntity(attacker->teammaster))
 			attacker = attacker->teammaster;
 	}
 
 	// If we still don't have a valid attacker, default to the original entity
-	if (!attacker || !attacker->inuse)
+	if (!IsValidEntity(attacker))
 		attacker = entity;
 
 	return attacker;
