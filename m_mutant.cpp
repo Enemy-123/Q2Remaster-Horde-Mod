@@ -417,13 +417,13 @@ bool mutant_check_jump(edict_t* self)
 	v[0] = self->s.origin[0] - self->enemy->s.origin[0];
 	v[1] = self->s.origin[1] - self->enemy->s.origin[1];
 	v[2] = 0;
-	distance = v.length();
+	float const distance_sq = v.lengthSquared();
 
 	// if we're not trying to avoid a melee, then don't jump
-	if (distance < 100 && self->monsterinfo.melee_debounce_time <= level.time)
+	if (distance_sq < 10000.f && self->monsterinfo.melee_debounce_time <= level.time) // 100^2
 		return false;
 	// only use it to close distance gaps
-	if (distance > 265)
+	if (distance_sq > 70225.f) // 265^2
 		return false;
 
 	return self->monsterinfo.attack_finished < level.time && brandom();

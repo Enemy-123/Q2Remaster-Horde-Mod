@@ -507,7 +507,7 @@ void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
             continue;
         else if (strcmp(e->classname, "gib"))
             continue;
-        else if ((e->s.origin - ent->s.origin).length() > 128.f)
+        else if ((e->s.origin - ent->s.origin).lengthSquared() > 16384.f) // 128^2
             continue;
 
         e->movetype = MOVETYPE_NONE;

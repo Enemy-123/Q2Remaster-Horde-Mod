@@ -347,4 +347,111 @@ public:
 
 inline DistanceCache g_distance_cache;
 
+// ============================================================================
+// Visibility Cache - Reduces expensive line-of-sight checks
+// ============================================================================
+class VisibilityCache {
+	struct CacheEntry {
+		int entity_id1;
+		int entity_id2;
+		bool visible;
+		gtime_t timestamp;
+	};
+
+	static constexpr size_t CACHE_SIZE = 256;
+	static constexpr gtime_t CACHE_LIFETIME = 200_ms; // Shorter than distance cache
+
+	std::array<CacheEntry, CACHE_SIZE> cache;
+
+	static uint32_t HashEntities(int id1, int id2) {
+		// Ensure consistent hashing regardless of order
+		if (id1 > id2) std::swap(id1, id2);
+		return static_cast<uint32_t>(id1) ^ (static_cast<uint32_t>(id2) << 16);
+	}
+
+public:
+	bool CheckVisibility(edict_t* ent1, edict_t* ent2, std::function<bool(edict_t*, edict_t*)> visibility_fn, bool& cached) {
+		if (!ent1 || !ent2) {
+			cached = false;
+			return false;
+		}
+
+		int id1 = ent1->s.number;
+		int id2 = ent2->s.number;
+		uint32_t hash = HashEntities(id1, id2);
+		size_t idx = hash % CACHE_SIZE;
+
+		// Normalize IDs for consistent lookup
+		if (id1 > id2) std::swap(id1, id2);
+
+		// Check if cached
+		if (cache[idx].timestamp + CACHE_LIFETIME > level.time &&
+		    cache[idx].entity_id1 == id1 &&
+		    cache[idx].entity_id2 == id2) {
+			cached = true;
+			return cache[idx].visible;
+		}
+
+		// Calculate and cache
+		bool visible = visibility_fn(ent1, ent2);
+
+		cache[idx].entity_id1 = id1;
+		cache[idx].entity_id2 = id2;
+		cache[idx].visible = visible;
+		cache[idx].timestamp = level.time;
+		cached = false;
+
+		return visible;
+	}
+
+	void Clear() {
+		for (auto& entry : cache) {
+			entry.timestamp = 0_ms;
+		}
+	}
+
+	void InvalidateEntity(int entity_id) {
+		// Invalidate all entries involving this entity
+		for (auto& entry : cache) {
+			if (entry.entity_id1 == entity_id || entry.entity_id2 == entity_id) {
+				entry.timestamp = 0_ms;
+			}
+		}
+	}
+};
+
+inline VisibilityCache g_visibility_cache;
+
+// ============================================================================
+// Common Distance Thresholds Cache
+// ============================================================================
+namespace CommonDistances {
+	// Pre-computed squared distances for common thresholds
+	constexpr float SQ_100 = 100.0f * 100.0f;   // 10000
+	constexpr float SQ_200 = 200.0f * 200.0f;   // 40000
+	constexpr float SQ_265 = 265.0f * 265.0f;   // 70225
+	constexpr float SQ_300 = 300.0f * 300.0f;   // 90000
+	constexpr float SQ_400 = 400.0f * 400.0f;   // 160000
+	constexpr float SQ_500 = 500.0f * 500.0f;   // 250000
+	constexpr float SQ_600 = 600.0f * 600.0f;   // 360000
+	constexpr float SQ_1000 = 1000.0f * 1000.0f; // 1000000
+
+	// Helper functions for common checks
+	[[nodiscard]] constexpr bool IsInMeleeRange(float dist_sq) {
+		return dist_sq < SQ_100;
+	}
+
+	[[nodiscard]] constexpr bool IsInShortRange(float dist_sq) {
+		return dist_sq < SQ_265;
+	}
+
+	[[nodiscard]] constexpr bool IsInMediumRange(float dist_sq) {
+		return dist_sq < SQ_600;
+	}
+
+	[[nodiscard]] constexpr bool IsInLongRange(float dist_sq) {
+		return dist_sq < SQ_1000;
+	}
+}
+
 } // namespace HordePerf

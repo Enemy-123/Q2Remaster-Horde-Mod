@@ -428,7 +428,7 @@ extern void bombarea_think(edict_t* self);
 // Heat-seeking plasma think for chickkl
 static inline vec3_t heat_chick_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target)
 {
-	return (((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) + (target->velocity * (clamp(dist_to_target / 500.f, 0.f, 1.f)) * 0.5f)) - heat->s.origin).normalized();
+	return safe_normalized(((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) + (target->velocity * (clamp(dist_to_target / 500.f, 0.f, 1.f)) * 0.5f)) - heat->s.origin);
 }
 
 THINK(heat_chick_think) (edict_t* self) -> void
@@ -501,7 +501,7 @@ THINK(heat_chick_think) (edict_t* self) -> void
 	}
 
 	if (wall_avoid.lengthSquared() > 0)
-		wall_avoid = wall_avoid.normalized();
+		wall_avoid = safe_normalized(wall_avoid);
 
 	// Update direction
 	vec3_t preferred_dir = self->pos1;
@@ -514,12 +514,12 @@ THINK(heat_chick_think) (edict_t* self) -> void
 		if (wall_avoid_strength > 0.1f)
 		{
 			float blend = wall_avoid_strength * 0.3f;
-			preferred_dir = (preferred_dir * (1.0f - blend) + wall_avoid * blend).normalized();
+			preferred_dir = safe_normalized(preferred_dir * (1.0f - blend) + wall_avoid * blend);
 		}
 	}
 	else if (wall_avoid_strength > 0.1f)
 	{
-		preferred_dir = (preferred_dir * 0.7f + wall_avoid * 0.3f).normalized();
+		preferred_dir = safe_normalized(preferred_dir * 0.7f + wall_avoid * 0.3f);
 	}
 
 	self->pos1 = preferred_dir;

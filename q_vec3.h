@@ -572,6 +572,60 @@ constexpr float STOP_EPSILON = 0.1f;
 	return from * aFactor + to * bFactor;
 }
 
+// ============================================================================
+// Performance and Safety Helpers
+// ============================================================================
+
+// Fast distance comparison without sqrt - use for distance checks
+[[nodiscard]] constexpr bool IsCloserThan(const vec3_t& a, const vec3_t& b, float distance)
+{
+	float const dist_sq = distance * distance;
+	return (b - a).lengthSquared() < dist_sq;
+}
+
+[[nodiscard]] constexpr bool IsWithinRange(const vec3_t& a, const vec3_t& b, float distance)
+{
+	float const dist_sq = distance * distance;
+	return (b - a).lengthSquared() <= dist_sq;
+}
+
+[[nodiscard]] constexpr bool IsFurtherThan(const vec3_t& a, const vec3_t& b, float distance)
+{
+	float const dist_sq = distance * distance;
+	return (b - a).lengthSquared() > dist_sq;
+}
+
+// Direction to target with safety checks - avoids NaN from zero-length vectors
+[[nodiscard]] inline vec3_t DirectionTo(const vec3_t& from, const vec3_t& to)
+{
+	return safe_normalized(to - from);
+}
+
+// 2D distance (ignore Z) for ground-based checks
+[[nodiscard]] constexpr float DistanceSquared2D(const vec3_t& a, const vec3_t& b)
+{
+	float const dx = b.x - a.x;
+	float const dy = b.y - a.y;
+	return dx * dx + dy * dy;
+}
+
+[[nodiscard]] inline float Distance2D(const vec3_t& a, const vec3_t& b)
+{
+	return sqrtf(DistanceSquared2D(a, b));
+}
+
+[[nodiscard]] constexpr bool IsCloserThan2D(const vec3_t& a, const vec3_t& b, float distance)
+{
+	float const dist_sq = distance * distance;
+	return DistanceSquared2D(a, b) < dist_sq;
+}
+
+[[nodiscard]] constexpr bool IsWithinRange2D(const vec3_t& a, const vec3_t& b, float distance)
+{
+	float const dist_sq = distance * distance;
+	return DistanceSquared2D(a, b) <= dist_sq;
+}
+
 // Fmt support
 template<>
 struct fmt::formatter<vec3_t> : fmt::formatter<float>
