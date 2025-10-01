@@ -594,6 +594,8 @@ bool canReach(edict_t* self, edict_t* other)
 	return trace.fraction == 1.0f || trace.ent == other;
 }
 
+bool M_NeedRegen(edict_t* target);
+
 edict_t* healFindMonster(edict_t* self, float radius)
 {
 	edict_t* ent = nullptr;
@@ -630,9 +632,19 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		if (!strcmp(ent->classname, "player_noise"))
 			continue;
 
-		// Check for injured entities (alive but hurt)
-		if (ent->health > 0 && ent->health < ent->max_health)
-		{
+			// anything related to m_needregen is causing a loop problem. testing here
+		const client_persistant_t& persistant = ent->client->pers;
+		const item_id_t armorType = ArmorIndex(ent);
+			ent->sv.armor_type = armorType;
+			ent->sv.armor_value = persistant.inventory[armorType];
+
+				// Check for entities that need healing (health or armor damaged)
+				if (ent->health > 0 && ent->sv.armor_value >= 0 && persistant.inventory[armorType] ||
+					(ent->health == ent->max_health && ent->sv.armor_value >= persistant.inventory[IT_NULL]))
+					continue;
+				{
+			// end of dangerous m_needregen replacement zone
+
 			// Determine if this is a valid heal target
 			bool can_heal = false;
 
@@ -1635,6 +1647,25 @@ bool M_NeedRegen(edict_t* target)
     return false;
 }
 
+
+
+// extern int GetArmorInfo(edict_t* ent);
+
+
+// bool M_NeedRegen(edict_t* target)
+// {
+//     if (!target || !target->inuse)
+//         return false;
+
+
+//         // Check health
+//         if (target->health > 0 && target->health <= target->max_health && (GetArmorInfo(target) >= 0 && GetArmorInfo(target) < target->max_health))
+//             return true;
+
+
+//     return false;
+// }
+
 // Modified cable attack function with healing loop
 void medic_cable_attack(edict_t* self)
 {
@@ -1768,11 +1799,10 @@ void medic_cable_attack(edict_t* self)
                     self->enemy->monsterinfo.team = static_cast<uint8_t>(self->ctf_team);
                 }
 
-                // Start resurrection - mark as resurrecting but keep as dead for now
-                self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
-                self->enemy->monsterinfo.attack_finished = level.time + 1_sec; // Fast resurrection for better gameplay
-                // Keep health at 0 and dead flags until resurrection completes
-                // This prevents shadow flickering and other visual issues
+                // Resurrect immediately like Vortex - no delays
+                finishHeal(self);
+                // Target is now alive, continue healing them immediately
+                // Next frame will detect they need healing and continue
             }
         }
         else if (M_NeedRegen(self->enemy))
@@ -1861,32 +1891,7 @@ void medic_cable_attack(edict_t* self)
         }
     }
 
-    // Check for resurrecti on completion (horde mode)
-    if (g_horde->integer && self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING))
-    {
-        // Continue resurrection animation
-        if (self->s.frame == FRAME_attack44)
-        {
-            self->enemy->monsterinfo.healing_pause_time = level.time + 0.5_sec;  // Short pause during resurrection
-            self->enemy->monsterinfo.healer = self;  // Maintain healer reference
-        }
-        
-        // Check if resurrection is complete
-        if (level.time >= self->enemy->monsterinfo.attack_finished)
-        {
-            // Resurrection complete - bring them back to life
-            finishHeal(self);
-            // Continue immediately - the enemy is now alive and needs healing
-            // Don't retract, just continue the healing loop seamlessly
-            self->monsterinfo.nextframe = FRAME_attack44; // Continue in the middle of loop
-            return; // Let the next frame handle healing the now-alive monster
-        }
-        // Keep looping resurrection animation
-        else if (self->s.frame >= FRAME_attack48)
-        {
-            self->monsterinfo.nextframe = FRAME_attack44; // Loop back
-        }
-    }
+    // Resurrection is now instant - no delay logic needed
     
     // End of attack?
     if (self->s.frame == FRAME_attack50)
@@ -1898,10 +1903,7 @@ void medic_cable_attack(edict_t* self)
         }
         else // our enemy is still good to go, reset and keep going.
         {
-            // continue!
-            if (self->enemy && self->enemy->health <= 0 && g_horde->integer && self->enemy->svflags & SVF_DEADMONSTER)
-                return; // Keep going for resurrection
-
+            // Resurrection is instant, so just check if they need more healing
             if (M_NeedRegen(self->enemy))
                 self->monsterinfo.nextframe = FRAME_attack43; // Loop back to first attack frame (skip launch)
         }
@@ -1917,32 +1919,8 @@ void medic_cable_continue(edict_t* self)
         return;
     }
 
-    // Handle resurrection differently than healing
-    if (g_horde->integer && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING))
-    {
-        // Check if resurrection is complete
-        if (level.time >= self->enemy->monsterinfo.attack_finished)
-        {
-            // Resurrection complete - now immediately heal them
-            finishHeal(self);
-            // Continue healing without pause
-            self->monsterinfo.nextframe = FRAME_attack43;
-        }
-        else
-        {
-            // Continue resurrection animation - loop in the middle frames
-            self->monsterinfo.nextframe = FRAME_attack44; // Loop resurrection frames
-        }
-        return;
-    }
-
-    // For dead enemies that aren't resurrecting yet, start resurrection
-    if (self->enemy->health <= 0)
-    {
-        // Loop back to continue resurrection process
-        self->monsterinfo.nextframe = FRAME_attack44;
-        return;
-    }
+    // Skip resurrection handling - cable_attack already handles it
+    // Dead enemies will be ignored in the check below
 
     float dist = (self->s.origin - self->enemy->s.origin).length();
 
