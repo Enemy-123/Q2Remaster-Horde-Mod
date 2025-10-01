@@ -632,19 +632,9 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		if (!strcmp(ent->classname, "player_noise"))
 			continue;
 
-			// anything related to m_needregen is causing a loop problem. testing here
-		const client_persistant_t& persistant = ent->client->pers;
-		const item_id_t armorType = ArmorIndex(ent);
-			ent->sv.armor_type = armorType;
-			ent->sv.armor_value = persistant.inventory[armorType];
-
-				// Check for entities that need healing (health or armor damaged)
-				if (ent->health > 0 && ent->sv.armor_value >= 0 && persistant.inventory[armorType] ||
-					(ent->health == ent->max_health && ent->sv.armor_value >= persistant.inventory[IT_NULL]))
-					continue;
-				{
-			// end of dangerous m_needregen replacement zone
-
+		// Check for injured entities (alive but hurt)
+		if (ent->health > 0 && ent->health < ent->max_health)
+		{
 			// Determine if this is a valid heal target
 			bool can_heal = false;
 
