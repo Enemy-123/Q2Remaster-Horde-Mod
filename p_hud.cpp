@@ -1234,7 +1234,7 @@ void G_SetStats(edict_t* ent)
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 
-	if (level.time > ent->client->lastdmg  + 1.75_sec || !g_iddmg->integer) {
+	if (level.time > ent->client->lastdmg  + 1.55_sec || !g_iddmg->integer) {
 		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
 	}
 	// Original code had an `else if` here, but the condition was identical to the one for SetIDView.

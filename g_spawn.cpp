@@ -1936,8 +1936,8 @@ static void G_InitStatusbar()
 
 
 		sb.ifstat(STAT_ID_DAMAGE)
-			.xv(136).yv(150).num(5, STAT_ID_DAMAGE)
-			.xv(130).yv(159).string2("DMG-ID")
+			.xv(136).yv(150).num(5, STAT_ID_DAMAGE)  // number at top
+			.xv(130).yv(159).string2("DMG-ID")  // label below
 			.endifstat();
 
 
@@ -1972,8 +1972,8 @@ static void G_InitStatusbar()
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 
 		sb.ifstat(STAT_ID_DAMAGE)
-			.xv(136).yv(150).num(5, STAT_ID_DAMAGE)
-			.xv(130).yv(159).string2("DMG-ID")
+			.xv(130).yv(150).string2("DMG-ID")
+			.xv(136).yv(159).num(5, STAT_ID_DAMAGE)
 			.endifstat();
 
 		//	sb.xr(-53).yt(68).num(3, STAT_SPREE).xr(-45).yt(53).string2("Spree");
