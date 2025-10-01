@@ -21,6 +21,11 @@ void Barrel_InitGame(void)
 {
 	barrel_hold_speed = gi.cvar("barrel_hold_speed", "800", CVAR_NOFLAGS);
 	barrel_throw_speed = gi.cvar("barrel_throw_speed", "1200", CVAR_NOFLAGS);
+
+	// Precache sounds
+	sound_barrel_burn.assign("weapons/bfg__l1a.wav");
+	sound_barrel_pickup.assign("misc/w_pkup.wav");
+	sound_barrel_thud.assign("tank/thud.wav");
 }
 
 constexpr float BARREL_BOUNCE_MULTIPLIER = 1.2f;
@@ -37,6 +42,11 @@ void barrel_burn(edict_t* self);
 void barrel_remove(edict_t* self);
 void barrel_think(edict_t* self);
 void remove_barrels(edict_t* ent);
+
+// Sound caches
+static cached_soundindex sound_barrel_burn;
+static cached_soundindex sound_barrel_pickup;
+static cached_soundindex sound_barrel_thud;
 
 // Helper function to clean up barrel tracking for a player
 static void barrel_cleanup_tracking(edict_t* barrel)
@@ -187,7 +197,7 @@ THINK(barrel_burn)(edict_t* self) -> void
 
     // Visual/audio burning effect
     self->s.effects |= EF_BARREL_EXPLODING;
-    self->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
+    self->s.sound = sound_barrel_burn;
 
     // Deal AOE damage to attract monsters
     barrel_burn_damage(self);
@@ -292,7 +302,7 @@ TOUCH(barrel_summoned_touch)(edict_t* self, edict_t* other, const trace_t& tr, b
             self->svflags |= SVF_NOCLIENT; // Hide the barrel
             gi.linkentity(self);
 
-            gi.sound(other, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
+            gi.sound(other, CHAN_AUTO, sound_barrel_pickup, 1, ATTN_NORM, 0);
         }
         return;
     }
@@ -380,7 +390,7 @@ TOUCH(barrel_land)(edict_t* self, edict_t* other, const trace_t& tr, bool other_
         gi.linkentity(self);
 
         // Landing sound
-         gi.sound(self, CHAN_AUTO, gi.soundindex("tank/thud.wav"), 1, ATTN_NORM, 0);
+         gi.sound(self, CHAN_AUTO, sound_barrel_thud, 1, ATTN_NORM, 0);
     }
 }
 
@@ -505,7 +515,7 @@ TOUCH(barrel_bounce)(edict_t* self, edict_t* other, const trace_t& tr, bool othe
         };
 
         // Bounce sound
-        gi.sound(self, CHAN_AUTO, gi.soundindex("tank/thud.wav"), 1, ATTN_NORM, 0);
+        gi.sound(self, CHAN_AUTO, sound_barrel_thud, 1, ATTN_NORM, 0);
     }
 }
 
@@ -584,7 +594,7 @@ bool barrel_pickup(edict_t* player, edict_t* barrel)
     barrel->movetype = MOVETYPE_NOCLIP; // Allow free movement
     gi.linkentity(barrel);
 
-    gi.sound(player, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
+    gi.sound(player, CHAN_AUTO, sound_barrel_pickup, 1, ATTN_NORM, 0);
     return true;
 }
 

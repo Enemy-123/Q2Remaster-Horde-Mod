@@ -55,6 +55,12 @@ static cached_soundindex sound_moved, sound_moving, sound_pew;
 // Add new sound caches for grenade launcher and flechette
 static cached_soundindex sound_grenade_launcher, sound_flechette;
 
+// Additional sound caches
+static cached_soundindex sound_railgun, sound_chaingun, sound_pain;
+static cached_soundindex sound_machinegun, sound_rocket_fly, sound_rocket_fire;
+static cached_soundindex sound_blaster_fly, sound_blaster_fire;
+static cached_soundindex sound_hyperblaster, sound_grenade_bounce;
+
 // Actualizar la posición del efecto
 static void UpdateSmokePosition(edict_t* self) {
 	if (!self || !self->inuse || !self->target_hint_chain || !self->target_hint_chain->inuse)
@@ -826,7 +832,7 @@ THINK(heat_turret_think) (edict_t* self) -> void
 		// If we found a new target that's different from the old one, play a sound.
 		if (acquire && acquire != self->enemy)
 		{
-			gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+			gi.sound(self, CHAN_WEAPON, sound_railgun, 1.f, 0.25f, 0);
 		}
 		self->enemy = acquire; // Assign the best target found (could be nullptr)
 	}
@@ -1089,7 +1095,7 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 			heat->enemy = self->enemy;
 			heat->timestamp = level.time + 0.6_sec;
 			if (i == 0) // Only play sound once
-				gi.sound(heat, CHAN_WEAPON, gi.soundindex("weapons/railgr1a.wav"), 1.f, 0.25f, 0);
+				gi.sound(heat, CHAN_WEAPON, sound_railgun, 1.f, 0.25f, 0);
 		}
 
 		// Replace the think function with heat-seeking logic
@@ -1450,7 +1456,7 @@ void turret2Fire(edict_t* self) {
 			self->monsterinfo.duck_wait_time = level.time +
 				(self->monsterinfo.quadfire_time > level.time ? 3_sec : 5_sec);
 			self->monsterinfo.next_duck_time = level.time + 0.1_sec;
-			gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
+			gi.sound(self, CHAN_VOICE, sound_chaingun, 1, ATTN_NORM, 0);
 		}
 
 		// Allow firing even if we just started holding frame
@@ -1765,7 +1771,7 @@ PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 		return;
 
 	self->pain_debounce_time = level.time + 3_sec;
-	gi.sound(self, CHAN_VOICE, gi.soundindex("tank/tnkpain2.wav"), 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_VOICE, sound_pain, 1, ATTN_NORM, 0);
 
 	// Calculate spark origin with offset
 	vec3_t forward, right, up;
@@ -2378,30 +2384,14 @@ void SP_monster_sentrygun(edict_t* self)
 	// Common Models & Sounds
 	gi.modelindex("models/monsters/turret/tris.md2");
 	gi.modelindex("models/objects/debris1/tris.md2");
-	gi.soundindex("tank/tnkpain2.wav");
-	gi.soundindex("gunner/gunidle1.wav");
-	gi.soundindex("turret/moving.wav");
-	gi.soundindex("makron/blaster.wav");
 
 	// Machinegun & Rocket-specific Assets
 	gi.modelindex("models/objects/laser/tris.md2"); // Laser sight model
 	gi.modelindex("models/objects/rocket/tris.md2");
-	gi.soundindex("infantry/infatck1.wav");
-	gi.soundindex("weapons/chngnu1a.wav");
-	gi.soundindex("weapons/rockfly.wav");
-	gi.soundindex("chick/chkatck2.wav");
-
-	// Blaster/Heatbeam-specific Assets
-	gi.soundindex("misc/lasfly.wav");
-	gi.soundindex("soldier/solatck2.wav");
 
 	// Flechette & Grenade-specific Assets
 	gi.modelindex("models/objects/blaser/tris.md2"); // Flechette projectile model
 	gi.modelindex("models/objects/grenade/tris.md2");
-	gi.soundindex("tank/tnkatck3.wav");
-	gi.soundindex("weapons/hyprbf1a.wav");
-	gi.soundindex("gunner/gunatck3.wav");
-	gi.soundindex("weapons/grenlx1a.wav");
 
 	// Assign to cached_soundindex variables
 	sound_pew.assign("makron/blaster.wav");
@@ -2409,6 +2399,16 @@ void SP_monster_sentrygun(edict_t* self)
 	sound_moving.assign("turret/moving.wav");
 	sound_grenade_launcher.assign("gunner/gunatck3.wav");
 	sound_flechette.assign("tank/tnkatck3.wav");
+	sound_railgun.assign("weapons/railgr1a.wav");
+	sound_chaingun.assign("weapons/chngnu1a.wav");
+	sound_pain.assign("tank/tnkpain2.wav");
+	sound_machinegun.assign("infantry/infatck1.wav");
+	sound_rocket_fly.assign("weapons/rockfly.wav");
+	sound_rocket_fire.assign("chick/chkatck2.wav");
+	sound_blaster_fly.assign("misc/lasfly.wav");
+	sound_blaster_fire.assign("soldier/solatck2.wav");
+	sound_hyperblaster.assign("weapons/hyprbf1a.wav");
+	sound_grenade_bounce.assign("weapons/grenlx1a.wav");
 	// --- End of Pre-caching Block ---
 
 
