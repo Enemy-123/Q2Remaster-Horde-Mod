@@ -255,10 +255,15 @@ THINK(barrel_explode)(edict_t* self) -> void
     barrel_chain_explosions(self);
 
     // Explosion effect - THIS WILL FREE THE ENTITY!
-    if (self->groundentity)
-        BecomeExplosion2(self);
-    else
-        BecomeExplosion1(self);
+    // Check flag to use quiet removal effect
+    if (g_use_quiet_deployable_removal) {
+        BecomeTE(self);
+    } else {
+        if (self->groundentity)
+            BecomeExplosion2(self);
+        else
+            BecomeExplosion1(self);
+    }
 }
 
 // Touch function for barrels with summoned-style behavior

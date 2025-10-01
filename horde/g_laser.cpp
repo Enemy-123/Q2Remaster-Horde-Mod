@@ -401,7 +401,13 @@ DIE(laser_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     emitter->takedamage = false;
     emitter->think = nullptr;  // Stop the emitter from thinking
     emitter->nextthink = 0_ms; // Clear next think time
-    BecomeExplosion1(emitter);  // This already calls G_FreeEdict internally
+
+    // Check flag to use quiet removal effect
+    if (g_use_quiet_deployable_removal) {
+        BecomeTE(emitter);
+    } else {
+        BecomeExplosion1(emitter);  // This already calls G_FreeEdict internally
+    }
 }
 
 THINK(laser_beam_think)(edict_t * self)->void

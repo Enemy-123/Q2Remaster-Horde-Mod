@@ -121,6 +121,10 @@ extern void check_target_healthbar(edict_t* self);
 extern void HandleSpawnPhaseAggression(edict_t* monster);
 extern void Monster_MoveSpawn(edict_t* self); 
 extern void ConfigureBossArmor(edict_t* self);
+// Global flag to control visual effect when removing deployables
+// When true, die handlers should use BecomeTE instead of BecomeExplosion1
+extern thread_local bool g_use_quiet_deployable_removal;
+
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 extern horde::MapSize GetMapSize(const char* mapname) noexcept;
 extern gtime_t GetWaveTimer();

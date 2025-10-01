@@ -62,7 +62,12 @@ void tesla_remove(edict_t *self)
 	if ((self->dmg_radius) && (self->dmg > (TESLA_DAMAGE * TESLA_EXPLOSION_DAMAGE_MULT)))
 		gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
-	Grenade_Explode(self);
+	// Check flag to use quiet removal effect
+	if (g_use_quiet_deployable_removal) {
+		BecomeTE(self);
+	} else {
+		Grenade_Explode(self);
+	}
 }
 
 DIE(tesla_die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod)->void
@@ -736,7 +741,10 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
             // --- ROBUST METHOD: Directly call the die function ---
             // This explicitly triggers the tesla's full cleanup sequence, which calls
             // tesla_remove() to handle the explosion and player count.
+            // Use quiet removal effect for oldest tesla auto-replacement
+			g_use_quiet_deployable_removal = true;
 			tesla_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
+			g_use_quiet_deployable_removal = false;
 		}
 	}
 

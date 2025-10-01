@@ -45,6 +45,9 @@ namespace {
 	constexpr float BOSS_EARTHQUAKE_SPEED = 500.0f;
 }
 
+// Global flag to control visual effect when removing deployables
+thread_local bool g_use_quiet_deployable_removal = false;
+
 void RemoveEntity(edict_t* ent);
 
 // Helper to reset spawn point selection state when map changes
@@ -336,8 +339,23 @@ void RemovePlayerOwnedEntities(edict_t* player) {
 void RemoveEntity(edict_t* ent) {
     if (!ent || !ent->inuse) return;
 
-    // Special handling for summoned monsters
+    // Check for special entity die handlers FIRST (before summoned monster check)
+    // This ensures deployables like sentries use their proper die handlers
+    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
+    if (id != horde::SpecialEntityTypeID::UNKNOWN) {
+        EntityDieHandler handler = GetDieHandler(id);
+        if (handler) {
+            // Call the die handler - it will check g_use_quiet_deployable_removal flag
+            handler(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+            return;
+        }
+    }
+
+    // Special handling for summoned monsters (non-deployable)
     if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.isfriendlyspawn) {
+        // Update player tracking for summoned monsters
+        RemoveSummonFromPlayerArray(ent);
+
         // Clean up reference from the base entity if it exists
         if (ent->chain && ent->chain->inuse && ent->chain->teamchain == ent) {
             ent->chain->teamchain = nullptr;
@@ -346,14 +364,6 @@ void RemoveEntity(edict_t* ent) {
         return;
     }
 
-    auto id = static_cast<horde::SpecialEntityTypeID>(ent->special_type_id);
-    if (id != horde::SpecialEntityTypeID::UNKNOWN) {
-        EntityDieHandler handler = GetDieHandler(id);
-        if (handler) {
-            handler(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-            return;
-        }
-    }
     BecomeTE(ent);
 }
 
@@ -995,7 +1005,7 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 
 // 21:  entity pushing with spatial coherence
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, 
-					  float horizontal_push_strength, float vertical_push_strength)
+				  float horizontal_push_strength, float vertical_push_strength)
 {
 	push_radius = std::max(push_radius, 1.0f);
 	const float search_radius = push_radius * 1.5f;
@@ -1041,9 +1051,15 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 		}
 	}
 
+	// If removing many entities, use BecomeTE for some to reduce visual clutter
+	const bool use_mixed_effects = removable_count > 20;
+
 	for (size_t i = 0; i < removable_count; ++i) {
 		if (removable_entities[i] && removable_entities[i]->inuse) {
+			// Use BecomeTE for every other entity when there are many
+			g_use_quiet_deployable_removal = use_mixed_effects && (i % 2 == 0);
 			RemoveEntity(removable_entities[i]);
+			g_use_quiet_deployable_removal = false;
 		}
 	}
 

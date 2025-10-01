@@ -178,7 +178,12 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
     // --- CLEAN UP GLOBAL STATE ---
     RemoveTrapState(self);
 
-    BecomeExplosion1(self);
+    // Check flag to use quiet removal effect
+    if (g_use_quiet_deployable_removal) {
+        BecomeTE(self);
+    } else {
+        BecomeExplosion1(self);
+    }
 }
 
 void Trap_Think(edict_t* ent);
@@ -658,7 +663,10 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
             if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
                 // Call the die function to ensure full cleanup, including decrementing the count.
+                // Use quiet removal effect for oldest trap auto-replacement
+                g_use_quiet_deployable_removal = true;
                 trap_die(oldest, self, self, 0, oldest->s.origin, MOD_UNKNOWN);
+                g_use_quiet_deployable_removal = false;
             }
         }
 

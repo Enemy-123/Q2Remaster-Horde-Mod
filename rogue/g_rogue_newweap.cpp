@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
+#include "../shared.h"
 #include "../horde/g_horde_benefits.h"
 
 /*
@@ -297,10 +298,18 @@ static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
 	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other,
 				   ent->dmg_radius, DAMAGE_NONE, MOD_PROX);
 
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION);
-	gi.WritePosition(explosion_origin);
-	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+	// Check flag to use quiet removal effect
+	if (g_use_quiet_deployable_removal) {
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BFG_EXPLOSION);
+		gi.WritePosition(ent->s.origin);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	} else {
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION);
+		gi.WritePosition(explosion_origin);
+		gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+	}
 
 	// Check if the owner (player who fired) has the cluster prox upgrade
 	if (ent->owner && ent->owner->client && PlayerHasClusterProx(ent->owner))
@@ -641,8 +650,11 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 			// --- FIX ---
 			// Don't use G_FreeEdict(oldest) as it orphans the trigger field.
 			// Instead, trigger its explosion sequence, which handles all cleanup.
+			// Use quiet removal effect for oldest prox auto-replacement
+			g_use_quiet_deployable_removal = true;
 			oldest->think = Prox_Explode;
 			oldest->nextthink = level.time;
+			g_use_quiet_deployable_removal = false;
 		}
 	}
 	// --- END FIX ---

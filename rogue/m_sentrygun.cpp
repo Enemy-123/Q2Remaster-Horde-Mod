@@ -1868,10 +1868,18 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
 		});
 
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_BFG_BIGEXPLOSION);
-	gi.WritePosition(self->s.origin);
-	gi.multicast(self->s.origin, MULTICAST_PHS, false);
+	// Check flag to use quiet removal effect
+	if (g_use_quiet_deployable_removal) {
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BFG_EXPLOSION);
+		gi.WritePosition(self->s.origin);
+		gi.multicast(self->s.origin, MULTICAST_PVS, false);
+	} else {
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BFG_BIGEXPLOSION);
+		gi.WritePosition(self->s.origin);
+		gi.multicast(self->s.origin, MULTICAST_PHS, false);
+	}
 
 	if (self->teamchain)
 	{
