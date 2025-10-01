@@ -7,19 +7,19 @@
 #include "g_horde_phys.h"
 
 // Bomb spell constants
-constexpr float CARPETBOMB_INITIAL_DAMAGE = 100;
-constexpr float CARPETBOMB_ADDON_DAMAGE = 20;
+constexpr float CARPETBOMB_INITIAL_DAMAGE = 60;  // Reduced from 100
+constexpr float CARPETBOMB_ADDON_DAMAGE = 10;    // Reduced from 20
 constexpr float CARPETBOMB_DAMAGE_RADIUS = 150;
 constexpr gtime_t CARPETBOMB_DURATION = 5_sec;
 constexpr float CARPETBOMB_MAX_HEIGHT = 256;
 constexpr float CARPETBOMB_ROOF_BUFFER = 32;
-constexpr float CARPETBOMB_STEP_SIZE = 128;
+constexpr float CARPETBOMB_STEP_SIZE = 96;  // Reduced from 128 to slow down forward movement
 constexpr float CARPETBOMB_CARPET_WIDTH = 200;
 
 constexpr float BOMBAREA_WIDTH = 300;
 constexpr float BOMBAREA_FLOOR_HEIGHT = 256;
 constexpr gtime_t BOMBAREA_DURATION = 10_sec;
-constexpr gtime_t BOMBAREA_STARTUP_DELAY = 1_sec;
+constexpr gtime_t BOMBAREA_STARTUP_DELAY = 1500_ms;  // Increased from 1s to 1.5s
 constexpr float MAX_BOMB_RANGE = 1024;
 
 constexpr float BOMBPERSON_RANGE = 1024;
@@ -225,7 +225,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
         if (is_monster_owner)
         {
             self->s.origin = start;
-            self->nextthink = level.time + FRAME_TIME_MS;
+            self->nextthink = level.time + FRAME_TIME_MS * 2;  // Doubled to slow down movement
             gi.linkentity(self);
             return;
         }
@@ -252,7 +252,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
 
     // Restore entity to starting position for next think
     self->s.origin = start;
-    self->nextthink = level.time + FRAME_TIME_MS;
+    self->nextthink = level.time + FRAME_TIME_MS * 2;  // Doubled to slow down movement
 
     gi.linkentity(self);
 }
@@ -320,7 +320,7 @@ THINK(bombarea_think)(edict_t* self) -> void
 
     // Calculate time remaining and think time
     float time_remaining = (self->timestamp - level.time).seconds();
-    thinktime = 0.15f + 0.1f * frandom();  // Faster interval (was 0.3-0.5, now 0.15-0.25)
+    thinktime = 0.3f + 0.2f * frandom();  // Slower interval (was 0.15-0.25, now 0.3-0.5)
 
     // Start from the area center
     start = self->s.origin;
@@ -344,9 +344,9 @@ THINK(bombarea_think)(edict_t* self) -> void
         spawn_pos.z += 200 + frandom(50, 150);  // Spawn 200-350 units above floor
     }
 
-    // Spawn more grenades per wave (was 1, now 2-3)
+    // Spawn fewer grenades per wave for slower start (reduced from 2-3 to 1-2)
     bombtime = 0.5f + 2.0f * frandom();
-    int grenade_count = irandom(2, 3);
+    int grenade_count = irandom(1, 2);
     spawn_grenades(self->owner, spawn_pos, gtime_t::from_sec(bombtime), self->dmg, grenade_count);
 
     self->nextthink = level.time + gtime_t::from_sec(thinktime);
@@ -376,7 +376,36 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
     bool is_floor = (tr.plane.normal.z > 0.7f);   // Normal pointing up
     bool is_ceiling = (tr.plane.normal.z < -0.7f); // Normal pointing down
 
-    if (!is_floor && !is_ceiling)
+    // Check if aiming at sky (looking up but didn't hit a ceiling)
+    float pitch = ent->client->v_angle[PITCH];
+    bool aiming_at_sky = (pitch < -45.0f && !is_ceiling && tr.fraction >= 1.0f);
+
+    if (aiming_at_sky)
+    {
+        // Place bomb below visible sky - trace down from high point
+        vec3_t sky_start = ent->s.origin;
+        sky_start.z += 2048;  // Start high above player
+        vec3_t sky_end = ent->s.origin;
+        sky_end.z += 64;  // End just above player head
+        trace_t sky_tr = gi.traceline(sky_start, sky_end, ent, MASK_SOLID);
+
+        if (sky_tr.fraction < 1.0f)
+        {
+            // Found ceiling, place bomb there
+            tr.endpos = sky_tr.endpos;
+            angles = vectoangles(sky_tr.plane.normal);
+            is_ceiling = true;
+        }
+        else
+        {
+            // No ceiling found, place at a reasonable height above player
+            tr.endpos = ent->s.origin;
+            tr.endpos.z += 512;
+            angles[PITCH] = 270;  // Point down
+            is_ceiling = true;
+        }
+    }
+    else if (!is_floor && !is_ceiling)
     {
         gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "You must look at a ceiling or floor to cast this spell.\n");
         return;

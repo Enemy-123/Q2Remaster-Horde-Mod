@@ -158,6 +158,7 @@ cvar_t* g_horde_profiler;
 
 cvar_t* g_use_hook;
 cvar_t* g_hook_wave;
+cvar_t* g_special_key;
 cvar_t* g_loadent;
 cvar_t* g_chaotic;
 cvar_t* g_insane;
@@ -262,6 +263,7 @@ void InitGame()
 	// Kyper - Lithium port
 	g_use_hook = gi.cvar("g_use_hook", "1", CVAR_NOFLAGS);
 	g_hook_wave = gi.cvar("g_hook_wave", "0", CVAR_NOFLAGS);
+	g_special_key = gi.cvar("g_special_key", "1", CVAR_NOFLAGS);  // Default: 1=Barrels
 	gi.cvar_set("hook_pullspeed", "1200");
 	gi.cvar_set("hook_speed", "3000");
 	gi.cvar_set("hook_sky", "1");

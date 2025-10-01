@@ -1653,15 +1653,31 @@ void Cmd_Wave_f(edict_t* ent)
 	}
 	// Kyper - Lithium port
 // In an attempt to be console friendly, append hook_toggle to wave 3
-	else if (i == GESTURE_WAVE && g_hook_wave->integer)
+	else if (i == GESTURE_WAVE && g_special_key->integer)
 	{
-		if (g_use_hook->integer)
+		int special_wave_type = g_special_key->integer;
+
+		if (!ent->client->resp.spectator && !ent->deadflag)
 		{
-			if (!ent->client->resp.spectator && !ent->deadflag)
+			if (special_wave_type == SPECIAL_WAVE_BARRELS)
 			{
-				ent->client->hook_toggle = true;
-				Weapon_Hook_Fire(ent);
-				ent->safety_time = 0_ms;
+				// Spawn/throw barrel
+				Barrel_SmartAction(ent);
+			}
+			else if (special_wave_type == SPECIAL_WAVE_HOOK)
+			{
+				// Fire hook
+				if (g_use_hook->integer)
+				{
+					ent->client->hook_toggle = true;
+					Weapon_Hook_Fire(ent);
+					ent->safety_time = 0_ms;
+				}
+			}
+			else if (special_wave_type == SPECIAL_WAVE_BOMBSPELL_FORWARD)
+			{
+				// Cast bombspell forward (carpet bomb)
+				CarpetBomb(ent);
 			}
 		}
 	}

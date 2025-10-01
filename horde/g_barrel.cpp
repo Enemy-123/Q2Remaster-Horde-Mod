@@ -822,6 +822,89 @@ void remove_barrels(edict_t* ent)
 }
 
 // Command function for testing barrels
+
+// Smart barrel action - can be called directly from code without gi.argv
+void Barrel_SmartAction(edict_t* ent)
+{
+    if (!ent->client)
+        return;
+
+    // Check if player is menu protected
+    if (IsPlayerMenuProtected(ent)) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "You cannot use this while in a menu.\n");
+        return;
+    }
+
+    // If holding a barrel, throw it
+    if (ent->client->resp.held_barrel)
+    {
+        edict_t* barrel = ent->client->resp.held_barrel;
+
+        // Calculate throw direction from player's view
+        vec3_t forward;
+        AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+
+        // Clear any existing velocity and apply throw velocity
+        barrel->velocity = forward * barrel_throw_speed->value;
+
+        // Release the barrel
+        barrel->s.alpha = 1.0f; // Reset to fully opaque
+        barrel->solid = SOLID_BBOX;
+        barrel->movetype = MOVETYPE_TOSS;
+        gi.linkentity(barrel);
+
+        ent->client->resp.held_barrel = nullptr;
+
+        // Clear the attack button to prevent weapon from firing
+        if (ent->client && ent->client->resp.held_barrel && ent->client->latched_buttons & BUTTON_ATTACK)
+            ent->client->latched_buttons &= ~BUTTON_ATTACK;
+
+        // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+        return;
+    }
+
+    // Try to pick up nearest barrel
+    edict_t* best = nullptr;
+    float best_dist = BarrelConstants::BARREL_PICKUP_RANGE;
+
+    for (int i = 1; i < static_cast<int>(globals.num_edicts); i++)
+    {
+        edict_t* check = &g_edicts[i];
+        if (!check->inuse)
+            continue;
+        if (check->die != barrel_die)
+            continue;
+        if (check->deadflag)
+            continue;
+
+        float dist = range_to(ent, check);
+        if (dist < best_dist)
+        {
+            best = check;
+            best_dist = dist;
+        }
+    }
+
+    if (best && barrel_pickup(ent, best))
+    {
+        // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!\n");
+        return;
+    }
+
+    // Otherwise spawn a new barrel and pick it up immediately
+    vec3_t forward, start;
+    AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+    start = ent->s.origin;
+    start[2] += ent->viewheight - 8;
+    start = start + (forward * 64); // Spawn at gravity gun distance
+    edict_t* barrel = fire_barrel(ent, start, forward);
+
+    if (barrel && barrel_pickup(ent, barrel))
+    {
+        // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned and picked up!\n");
+    }
+}
+
 void Cmd_Barrel_f(edict_t* ent)
 {
     if (!ent->client)
@@ -862,7 +945,7 @@ void Cmd_Barrel_f(edict_t* ent)
             if (ent->client && ent->client->resp.held_barrel && ent->client->latched_buttons & BUTTON_ATTACK)
                 ent->client->latched_buttons &= ~BUTTON_ATTACK;
 
-            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
             return;
         }
 
@@ -890,7 +973,7 @@ void Cmd_Barrel_f(edict_t* ent)
 
         if (best && barrel_pickup(ent, best))
         {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!\n");
             return;
         }
 
@@ -904,7 +987,7 @@ void Cmd_Barrel_f(edict_t* ent)
 
         if (barrel && barrel_pickup(ent, barrel))
         {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned and picked up!\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned and picked up!\n");
         }
     }
     // "barrel throw" - explicit throw command
@@ -920,11 +1003,11 @@ void Cmd_Barrel_f(edict_t* ent)
             barrel->movetype = MOVETYPE_TOSS;
             gi.linkentity(barrel);
             ent->client->resp.held_barrel = nullptr;
-            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
         }
         else
         {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Not holding a barrel.\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "Not holding a barrel.\n");
         }
     }
     // "barrel pickup" - pickup nearest barrel
@@ -956,16 +1039,16 @@ void Cmd_Barrel_f(edict_t* ent)
         {
             if (barrel_pickup(ent, best))
             {
-                gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!\n");
+                // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!\n");
             }
             else
             {
-                gi.LocClient_Print(ent, PRINT_HIGH, "Cannot pick up barrel.\n");
+                // gi.LocClient_Print(ent, PRINT_HIGH, "Cannot pick up barrel.\n");
             }
         }
         else
         {
-            gi.LocClient_Print(ent, PRINT_HIGH, "No barrel in range.\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "No barrel in range.\n");
         }
     }
     // "barrel drop" - drop held barrel
@@ -974,11 +1057,11 @@ void Cmd_Barrel_f(edict_t* ent)
         if (ent->client->resp.held_barrel)
         {
             barrel_drop(ent);
-            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel dropped.\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel dropped.\n");
         }
         else
         {
-            gi.LocClient_Print(ent, PRINT_HIGH, "Not holding a barrel.\n");
+            // gi.LocClient_Print(ent, PRINT_HIGH, "Not holding a barrel.\n");
         }
     }
     // "barrel spawn" - spawn a barrel at player location
@@ -1009,7 +1092,7 @@ void Cmd_Barrel_f(edict_t* ent)
         barrel->chain = ent;  // Set chain for summoned-style chain->teammastership
 
         gi.linkentity(barrel);
-        gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned at your location.\n");
+        // gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned at your location.\n");
     }
     // "barrel clear" - remove all barrels
     else if (Q_strcasecmp(arg, "clear") == 0)
@@ -1030,6 +1113,6 @@ void Cmd_Barrel_f(edict_t* ent)
     }
     else
     {
-        gi.LocClient_Print(ent, PRINT_HIGH, "Usage: barrel [throw|pickup|drop|spawn|clear]\n");
+        // gi.LocClient_Print(ent, PRINT_HIGH, "Usage: barrel [throw|pickup|drop|spawn|clear]\n");
     }
 }

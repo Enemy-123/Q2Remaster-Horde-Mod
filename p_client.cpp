@@ -4096,7 +4096,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 			client->resp.held_barrel = nullptr;
 
-			gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+			//gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
 			// Continue with normal processing after throwing
 		}
 		else

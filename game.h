@@ -1618,6 +1618,13 @@ enum gesture_type {
     GESTURE_MAX
 };
 
+enum SpecialWaveType {
+    SPECIAL_WAVE_NONE = 0,
+    SPECIAL_WAVE_BARRELS = 1,
+    SPECIAL_WAVE_HOOK = 2,
+    SPECIAL_WAVE_BOMBSPELL_FORWARD = 3
+};
+
 enum class PathReturnCode {
     ReachedGoal = 0,        // we're at our destination
     ReachedPathEnd,         // we're as close to the goal as we can get with a path

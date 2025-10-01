@@ -69,6 +69,15 @@ static const char* GetBFGModeName(BFGMode mode) {
 	}
 }
 
+static const char* GetSpecialWaveName(int type) {
+	switch (type) {
+	case SPECIAL_WAVE_BARRELS:           return "Barrel";
+	case SPECIAL_WAVE_HOOK:              return "Hook";
+	case SPECIAL_WAVE_BOMBSPELL_FORWARD: return "Bombspell";
+	default:                             return "None";
+	}
+}
+
 //--------------------------------
 static void SetGameName(pmenu_t* p);
 static void SetLevelName(pmenu_t* p);
@@ -1078,6 +1087,22 @@ void HordeMenu_BFGMode(edict_t* ent, pmenuhnd_t* p) {
 	OpenMiscMenu(ent); // Reopen to show updated mode
 }
 
+void HordeMenu_SpecialWave(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Cycle through the special wave types (1=Barrels, 2=Hook, 3=Bombspell)
+	int current_type = g_special_key->integer;
+	int new_type = (current_type % 3) + 1; // Cycle 1->2->3->1
+
+	// Update the cvar
+	gi.cvar_forceset("g_special_key", G_Fmt("{}", new_type).data());
+
+	gi.LocCenter_Print(ent, "\n\n\nSpecial key [L] set to: {}\n", GetSpecialWaveName(new_type));
+	OpenMiscMenu(ent); // Reopen to show updated choice
+}
+
 // Handler for the Misc submenu
 void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (!ent || !ent->client || !p || p->cur < 0 || p->cur >= p->num) {
@@ -1106,6 +1131,11 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	else if (strncmp(selected_text, "Remove Barrels", strlen("Remove Barrels")) == 0) {
 		Cmd_RemoveBarrel_f(ent);
 		// Message handled internally, menu should close.
+	}
+	// **** Check Special Wave selection ****
+	else if (strncmp(selected_text, "Special key [L]", strlen("Special key [L]")) == 0) {
+		HordeMenu_SpecialWave(ent, p); // Call the dedicated handler
+		shouldCloseMenu = false; // Don't close, HordeMenu_SpecialWave will reopen Misc Menu
 	}
 	// **** Check Sentry Type selection ****
 	else if (strncmp(selected_text, "Sentry Type:", strlen("Sentry Type:")) == 0) {
@@ -1151,7 +1181,7 @@ void OpenMiscMenu(edict_t* ent) {
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	static pmenu_t entries[12];
+	static pmenu_t entries[13];
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
@@ -1168,6 +1198,9 @@ void OpenMiscMenu(edict_t* ent) {
 
 	add_entry("*Misc Options*", PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER); // Separator
+
+	// --- Special Wave Selection ---
+	add_entry(G_Fmt("Special key [L]: [{}]", GetSpecialWaveName(g_special_key->integer)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- Sentry Gun Choice (Unchanged) ---
 	add_entry(G_Fmt("Sentry Type: [{}]", GetSentryTypeName(ent->client->pers.sentry_gun_choice)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);

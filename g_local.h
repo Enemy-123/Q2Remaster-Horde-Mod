@@ -2130,6 +2130,7 @@ extern cvar_t* sv_target_id;
 
 extern cvar_t* g_use_hook;
 extern cvar_t* g_hook_wave;
+extern cvar_t* g_special_key;
 
 extern cvar_t* g_speedstuff;
 //extern cvar_t* g_mover_debug;
@@ -2240,6 +2241,7 @@ void Cmd_RemoveLaser_f(edict_t* ent); // Added forward declaration
 void Cmd_RemoveSentry_f(edict_t* ent); // Added forward declaration
 void Cmd_RemoveBarrel_f(edict_t* ent); // Remove all barrels
 void Cmd_Barrel_f(edict_t* ent); // Barrel testing command
+void Barrel_SmartAction(edict_t* ent); // Smart barrel action (spawn/throw/pickup)
 void remove_barrels(edict_t* ent);
 bool barrel_pickup(edict_t* player, edict_t* barrel);
 void Barrel_InitGame(void); // Initialize barrel cvars
@@ -3003,8 +3005,8 @@ namespace BarrelConstants {
     constexpr int32_t BARREL_COST = 10;
     constexpr gtime_t BARREL_LIFETIME = 120_sec;
     constexpr int32_t BARREL_BASE_HEALTH = 30;
-    constexpr int32_t BARREL_BASE_DAMAGE = 150;
-    constexpr float BARREL_EXPLOSION_RADIUS = 400.0f;  // Increased for better area effect
+    constexpr int32_t BARREL_BASE_DAMAGE = 100;  // Reduced from 150
+    constexpr float BARREL_EXPLOSION_RADIUS = 350.0f;  // Reduced from 400
     constexpr float BARREL_PICKUP_RANGE = 128.0f;
     constexpr float BARREL_THROW_SPEED = 700.0f;
 }
