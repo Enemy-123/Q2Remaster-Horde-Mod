@@ -576,7 +576,8 @@ bool finishHeal(edict_t* self)
 		}
 	}
 
-	cleanupHeal(self);
+	// Don't call cleanupHeal() - we want to keep the resurrected monster as enemy to continue healing
+	// cleanupHeal(self);
 	return true;
 }
 
@@ -1791,8 +1792,8 @@ void medic_cable_attack(edict_t* self)
 
                 // Resurrect immediately like Vortex - no delays
                 finishHeal(self);
-                // Target is now alive, continue healing them immediately
-                // Next frame will detect they need healing and continue
+                // Target is now alive, jump directly to healing frame to continue healing
+                self->monsterinfo.nextframe = FRAME_attack43;
             }
         }
         else if (M_NeedRegen(self->enemy))
@@ -2009,12 +2010,12 @@ mframe_t medic_frames_attackCable[] = {
     { ai_charge, 0, medic_cable_attack },    // 48
     { ai_charge, 0, medic_cable_attack },    // 49
     { ai_charge, 0, medic_cable_attack },    // 50
-	{ ai_charge, 0, medic_cable_continue },  // 51 - check if should continue
+	 // 51 - check if should continue			//  51
     { ai_charge, 0, medic_cable_attack },    // 52
-    { ai_charge, 0, nullptr },                // 53
+    { ai_charge, 0, nullptr },   				//53
+	{ ai_charge, 0, medic_cable_continue },              // 55
 	{ ai_charge, 0, medic_hook_retract },    // 54 - retract cable
-	{ ai_charge, 0, nullptr },                // 55
-	{ ai_charge, 0, nullptr },                // 56
+	{ ai_charge, 0, nullptr },                // 55              // 56
 	{ ai_charge, 0, nullptr },                // 57
 	{ ai_charge, 0, nullptr },                // 58
 	{ ai_charge, 0, nullptr },                // 59
