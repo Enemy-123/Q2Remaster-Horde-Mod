@@ -3259,17 +3259,17 @@ void ResetGame()
 	if (ai_damage_scale) gi.cvar_set("ai_damage_scale", "1");
 	if (ai_allow_dm_spawn) gi.cvar_set("ai_allow_dm_spawn", "1");
 	if (g_damage_scale) gi.cvar_set("g_damage_scale", "1");
-	if (g_vampire) gi.cvar_set("g_vampire", "0");
-	if (g_startarmor) gi.cvar_set("g_startarmor", "0");
-	if (g_ammoregen) gi.cvar_set("g_ammoregen", "0");
-	if (g_upgradeproxs) gi.cvar_set("g_upgradeproxs", "0");
-	if (g_piercingbeam) gi.cvar_set("g_piercingbeam", "0");
-	if (g_tracedbullets) gi.cvar_set("g_tracedbullets", "0");
-	if (g_energyshells) gi.cvar_set("g_energyshells", "0");
-	if (g_bouncygl) gi.cvar_set("g_bouncygl", "0");
-	if (g_bfgpull) gi.cvar_set("g_bfgpull", "0");
-	if (g_bfgslide) gi.cvar_set("g_bfgslide", "1");
-	if (g_autohaste) gi.cvar_set("g_autohaste", "0");
+//	if (g_vampire) gi.cvar_set("g_vampire", "0");
+//	if (g_startarmor) gi.cvar_set("g_startarmor", "0");
+//	if (g_ammoregen) gi.cvar_set("g_ammoregen", "0");
+//	if (g_upgradeproxs) gi.cvar_set("g_upgradeproxs", "0");
+//	if (g_piercingbeam) gi.cvar_set("g_piercingbeam", "0");
+//	if (g_tracedbullets) gi.cvar_set("g_tracedbullets", "0");
+//	if (g_energyshells) gi.cvar_set("g_energyshells", "0");
+//	if (g_bouncygl) gi.cvar_set("g_bouncygl", "0");
+//	if (g_bfgpull) gi.cvar_set("g_bfgpull", "0");
+//	if (g_bfgslide) gi.cvar_set("g_bfgslide", "1");
+//	if (g_autohaste) gi.cvar_set("g_autohaste", "0");
 
 	// Reset precaching system but don't actually clear cached assets
 	// (they persist in engine memory across resets)
