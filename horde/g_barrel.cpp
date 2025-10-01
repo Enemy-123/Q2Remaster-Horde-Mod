@@ -595,6 +595,20 @@ void barrel_visualize(edict_t* player)
     vec3_t target_position = player->s.origin + (forward * barrel->wait);
     target_position[2] += player->viewheight - 8; // Adjust to eye level
 
+    // Calculate current distance from barrel to target
+    vec3_t to_target = target_position - barrel->s.origin;
+    float current_distance = to_target.length();
+
+    // If barrel is too far away (stuck behind wall or lost), teleport it back
+    constexpr float MAX_DISTANCE = 400.0f; // Teleport threshold
+    if (current_distance > MAX_DISTANCE)
+    {
+        // Teleport barrel directly to target position
+        barrel->s.origin = target_position;
+        gi.linkentity(barrel);
+        return;
+    }
+
     // Always trace from current position to target to ensure clear path and stop at walls
     trace_t tr = gi.trace(barrel->s.origin, barrel->mins, barrel->maxs,
                           target_position, barrel, MASK_SOLID);
