@@ -68,32 +68,52 @@ void UpdateChaseCam(edict_t* ent)
 		trace = gi.traceline(ownerv, o, targ, MASK_SOLID);
 		goal = trace.endpos;
 	}
-	// vanilla chasecam code
+	// vanilla chasecam code with Vortex-style pivot system
 	else
 	{
-		ownerv[2] += targ->viewheight;
+		vec3_t pivot, start;
 
-		angles = targ->client->v_angle;
+		// Set up starting position at target's viewheight
+		start = targ->s.origin;
+		if (targ->viewheight)
+			start[2] += targ->viewheight;
+		else
+			start[2] = targ->absmax[2] - 8;
+
+		start[2] += 16; // Put camera a bit above target
+
+		// Store pivot point for angle calculation
+		pivot = start;
+
+		// Get the spectator's requested viewing angles (from mouse input)
+		// This is KEY: use spectator's cmd_angles, NOT target's angles!
+		angles = ent->client->resp.cmd_angles;
 		if (angles[PITCH] > 56)
 			angles[PITCH] = 56;
 		AngleVectors(angles, forward, right, nullptr);
 		forward.normalize();
-		o = ownerv + (forward * -55);
 
-		if (o[2] < targ->s.origin[2] + 20)
-			o[2] = targ->s.origin[2] + 20;
+		// Position camera behind target (using pivot system from Vortex)
+		// Vortex uses: VectorMA(start, (targ->mins[1]-64), forward, start)
+		// Remaster equivalent: start = start + (forward * (targ->mins[1] - 64))
+		start = start + (forward * (targ->mins[1] - 64));
 
 		// jump animation lifts
 		if (!targ->groundentity)
-			o[2] += 16;
+			start[2] += 16;
 
-		trace = gi.traceline(ownerv, o, targ, MASK_SOLID);
-
+		// Primary trace from target origin to camera position
+		trace = gi.traceline(targ->s.origin, start, targ, MASK_SOLID);
 		goal = trace.endpos;
 
-		goal += (forward * 2);
+		// If we hit a wall, pull back using barrel_visualize technique
+		if (trace.fraction < 1)
+		{
+			vec3_t pullback = trace.plane.normal * 12.0f;
+			goal = goal + pullback;
+		}
 
-		// pad for floors and ceilings
+		// Pad for floors and ceilings (multi-trace collision)
 		o = goal;
 		o[2] += 6;
 		trace = gi.traceline(goal, o, targ, MASK_SOLID);
@@ -111,15 +131,24 @@ void UpdateChaseCam(edict_t* ent)
 			goal = trace.endpos;
 			goal[2] += 6;
 		}
+
+		// Note: We keep 'angles' as the spectator's cmd_angles throughout
+		// This allows the spectator to freely rotate the camera with mouse
+		// The pivot system only affects camera POSITION, not view direction
 	}
 
 	if (targ->deadflag)
 		ent->client->ps.pmove.pm_type = PM_DEAD;
 	else
-		ent->client->ps.pmove.pm_type = PM_FREEZE;
+	{
+		// Eyecam: freeze all input. Vanilla: allow mouse input with PM_SPECTATOR
+		if (sv_eyecam->integer && ent->client->use_eyecam)
+			ent->client->ps.pmove.pm_type = PM_FREEZE;
+		else
+			ent->client->ps.pmove.pm_type = PM_SPECTATOR;  // ✅ Allows mouse input!
+	}
 
 	ent->s.origin = goal;
-	ent->client->ps.pmove.delta_angles = targ->client->v_angle - ent->client->resp.cmd_angles;
 
 	if (targ->deadflag)
 	{
@@ -129,13 +158,40 @@ void UpdateChaseCam(edict_t* ent)
 	}
 	else
 	{
-		ent->client->ps.viewangles = targ->client->v_angle;
-		ent->client->v_angle = targ->client->v_angle;
+		// Eyecam mode: use target's view angles directly
+		if (sv_eyecam->integer && ent->client->use_eyecam)
+		{
+			ent->client->ps.viewangles = targ->client->v_angle;
+			ent->client->v_angle = targ->client->v_angle;
+		}
+		else
+		{
+			// Vanilla chasecam: use spectator's commanded angles for free rotation
+			// angles = cmd_angles from line 90, so spectator controls view with mouse
+			ent->client->ps.viewangles = angles;
+			ent->client->v_angle = angles;
+		}
 		AngleVectors(ent->client->v_angle, ent->client->v_forward, nullptr, nullptr);
 	}
 
 	ent->viewheight = 0;
-	ent->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION;
+
+	// For free camera rotation: allow angular prediction, block positional only
+	// Eyecam mode locks both position and angles to target
+	if (sv_eyecam->integer && ent->client->use_eyecam)
+	{
+		ent->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION;
+		ent->client->ps.pmove.delta_angles = targ->client->v_angle - ent->client->resp.cmd_angles;
+	}
+	else
+	{
+		// Vanilla chasecam: spectator controls view angles with mouse
+		ent->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
+		ent->client->ps.pmove.pm_flags &= ~PMF_NO_ANGULAR_PREDICTION;
+		// Delta angles = 0 allows free rotation (viewangles = cmd_angles + 0)
+		ent->client->ps.pmove.delta_angles = vec3_origin;
+	}
+
 	gi.linkentity(ent);
 }
 
