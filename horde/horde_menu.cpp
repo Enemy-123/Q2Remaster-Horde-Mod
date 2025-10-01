@@ -1195,7 +1195,7 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		shouldCloseMenu = false; // Don't close, HordeMenu_BFGMode will reopen Misc Menu
 	}
 	// **** Check Beta: Strogg preference selection ****
-	else if (strncmp(selected_text, "Beta: Strogg", strlen("Beta: Strogg")) == 0) {
+	else if (strncmp(selected_text, "[Beta] Strogg", strlen("[Beta] Strogg")) == 0) {
 		HordeMenu_StroggPreference(ent, p); // Call the preference handler
 		shouldCloseMenu = false; // Don't close, will reopen Misc Menu
 	}
@@ -1269,16 +1269,6 @@ void OpenMiscMenu(edict_t* ent, int cursor_position) {
 		add_entry(G_Fmt("BFG Mode: [{}]", GetBFGModeName(ent->client->pers.bfg_mode)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
-	// --- Beta: Strogg Preference Selection (always visible) ---
-	add_entry(G_Fmt("Beta: Strogg [{}]", GetMorphTypeName(ent->client->pers.morph_preference)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
-
-	// --- Stroggification Command (morph/unmorph) ---
-	if (IsMorphed(ent)) {
-		add_entry("I hate stroggs!", PMENU_ALIGN_LEFT, MiscMenuHandler);
-	} else {
-		add_entry("Stroggificate me!", PMENU_ALIGN_LEFT, MiscMenuHandler);
-	}
-
 	// --- Conditional Remove Options (MODIFIED) ---
 
 	// Count actual summoned monsters (excluding bases, lasers, and barrels)
@@ -1320,6 +1310,19 @@ void OpenMiscMenu(edict_t* ent, int cursor_position) {
 	int barrel_count = ent->client->resp.num_barrels;
 	if (barrel_count > 0) {
 		add_entry(G_Fmt("Remove Barrels ({}/{})", barrel_count, BarrelConstants::MAX_BARRELS_PER_PLAYER).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
+
+	add_entry("", PMENU_ALIGN_CENTER); // Separator
+
+	// --- STROGG OPTIONS (Prominent placement near bottom) ---
+	// --- Beta: Strogg Preference Selection (always visible) ---
+	add_entry(G_Fmt("[Beta] Strogg [{}]", GetMorphTypeName(ent->client->pers.morph_preference)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+
+	// --- Stroggification Command (morph/unmorph) ---
+	if (IsMorphed(ent)) {
+		add_entry("I hate stroggs!", PMENU_ALIGN_LEFT, MiscMenuHandler);
+	} else {
+		add_entry("Stroggificate me!", PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	add_entry("", PMENU_ALIGN_CENTER); // Separator

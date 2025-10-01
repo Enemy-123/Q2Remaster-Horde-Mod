@@ -3787,11 +3787,10 @@ static bool ClientInactivityTimer(edict_t* ent) {
 	// Código original para jugadores humanos
 	const gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
 
-	// Check if player is menu protected - give them extra time
-	if (ent->client->menu_protected) {
+	// Check if player is menu protected - give them extra time (once)
+	if (ent->client->menu_protected && !ent->client->resp.inactivity_time) {
 		ent->client->resp.inactivity_time = level.time + MENU_PROTECTED_INACTIVITY_DURATION;
 		ent->client->resp.inactivity_warning = false;
-		// Don't mark as inactive while in menu
 		return true;
 	}
 
