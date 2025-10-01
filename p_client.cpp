@@ -4126,14 +4126,22 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
 		}
-		
-		// Freeze player to prevent looking stuck in air or running in place
-		client->ps.pmove.pm_type = PM_FREEZE;
-		ent->velocity = vec3_origin; // Stop all movement
-		gi.linkentity(ent); // Update entity state
-		
-		// Don't process normal movement/combat while in menu or inventory
-		return;
+
+		// Wait for player to land before freezing to prevent awkward mid-air freeze
+		bool should_freeze = ent->groundentity != nullptr;
+
+		if (should_freeze)
+		{
+			// Freeze player to prevent looking stuck in air or running in place
+			client->ps.pmove.pm_type = PM_FREEZE;
+			ent->velocity = vec3_origin; // Stop all movement
+			gi.linkentity(ent); // Update entity state
+
+			// Don't process normal movement/combat while in menu or inventory
+			return;
+		}
+		// If not settled yet, block buttons but allow movement to continue until landing
+		// (fall through to normal pmove processing)
 	}
 
 	// Check for intermission or awaiting respawn
