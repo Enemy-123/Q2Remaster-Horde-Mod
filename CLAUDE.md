@@ -17,3 +17,4 @@ Use `{}` placeholders, NOT `%s`/`%d`:
 gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Player {}\n", name);  // CORRECT
 gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Player %s\n", name);  // WRONG
 ```
+- for debug we dont use locclient, we use gi.Com_PrintFmt {}
