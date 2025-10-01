@@ -537,9 +537,13 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 				targ->monsterinfo.aiflags &= ~AI_MEDIC;
 			}
 
-			targ->enemy = attacker;
-			if (!(targ->monsterinfo.aiflags & AI_DUCKED))
-				FoundTarget(targ);
+			// Don't target menu protected players
+			if (!IsPlayerMenuProtected(attacker))
+			{
+				targ->enemy = attacker;
+				if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+					FoundTarget(targ);
+			}
 		}
 		return;
 	}
@@ -595,9 +599,13 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 
 			if (targ->enemy && targ->enemy->client)
 				targ->oldenemy = targ->enemy;
-			targ->enemy = attacker->enemy;
-			if (!(targ->monsterinfo.aiflags & AI_DUCKED))
-				FoundTarget(targ);
+			// Don't target menu protected players
+			if (!attacker->enemy->client || !IsPlayerMenuProtected(attacker->enemy))
+			{
+				targ->enemy = attacker->enemy;
+				if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+					FoundTarget(targ);
+			}
 		}
 	}
 }
