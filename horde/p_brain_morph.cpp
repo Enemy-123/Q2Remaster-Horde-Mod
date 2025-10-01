@@ -54,42 +54,28 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
         return;
     }
 
-    // Calculate distance
+    // Calculate distance to midpoint for range check
     vec3_t start;
     G_EntMidPoint(data->tongue_target, start);
     vec3_t const diff = start - self->s.origin;
-    float const dist = diff.length();
+    float const dist_to_center = diff.length();
 
-    // Release if out of range
-    if (dist > BRAIN_TONGUE_RANGE) {
+    // Release if out of range (check center distance)
+    if (dist_to_center > BRAIN_TONGUE_RANGE) {
         data->tongue_active = false;
         data->tongue_target = nullptr;
         data->attack_finished = level.time + 1_sec;
         return;
     }
 
-    // Check line of sight - be more lenient for non-enemy entities
-    trace_t tr = gi.traceline(self->s.origin, data->tongue_target->s.origin, self, MASK_SHOT);
-    bool has_los = (tr.fraction == 1.0f || tr.ent == data->tongue_target);
-
-    // For destructible objects without enemy AI, be more lenient with line of sight
-    if (!has_los && data->tongue_target->takedamage &&
-        !data->tongue_target->client && !(data->tongue_target->svflags & SVF_MONSTER)) {
-        // Try tracing to the center of the entity instead
-        G_EntMidPoint(data->tongue_target, start);
-        tr = gi.traceline(self->s.origin, start, self, MASK_SHOT);
-        has_los = (tr.fraction >= 0.9f || tr.ent == data->tongue_target);
-
-        // For SOLID_BSP entities (func_explosive), also try absmin/absmax center
-        if (!has_los && data->tongue_target->solid == SOLID_BSP) {
-            vec3_t center = (data->tongue_target->absmin + data->tongue_target->absmax) * 0.5f;
-            tr = gi.traceline(self->s.origin, center, self, MASK_SHOT);
-            has_los = (tr.fraction >= 0.9f || tr.ent == data->tongue_target);
-        }
-    }
+    // Check line of sight - trace in direction (like monster brain does) not to specific point
+    vec3_t const normalized_dir = diff.normalized();
+    vec3_t const end = self->s.origin + (normalized_dir * BRAIN_TONGUE_RANGE);
+    trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
+    bool has_los = (tr.ent == data->tongue_target);
 
     if (!has_los) {
-        // Lost line of sight
+        // Lost line of sight - target not hit by directional trace
         data->tongue_active = false;
         data->tongue_target = nullptr;
         return;
@@ -134,8 +120,18 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
     if (!is_destructible && data->tongue_target->groundentity)
         pull *= 2;
 
-    // Apply effects only when in melee range (64 units like m_brain.cpp)
-    if (dist <= 64) {
+    // For damage check, calculate distance to nearest point on bounding box (surface)
+    // This is critical for large bosses - we want to damage when touching their surface, not center
+    vec3_t closest_point;
+    for (int i = 0; i < 3; i++) {
+        closest_point[i] = std::clamp(self->s.origin[i],
+            data->tongue_target->absmin[i],
+            data->tongue_target->absmax[i]);
+    }
+    float const dist_to_surface = (closest_point - self->s.origin).length();
+
+    // Apply effects only when in melee range (64 units to surface, not center!)
+    if (dist_to_surface <= 64) {
         // Apply damage and pull
         if (is_destructible) {
             // For destructibles, don't pull - just damage
@@ -148,7 +144,7 @@ static void BrainTongueAttackContinue(edict_t* self, morph_data_t* data) {
         }
 
         // Steal health only from living enemies (not destructibles)
-        if (!is_destructible && dist <= 64 && level.time >= data->last_steal_time) {
+        if (!is_destructible && level.time >= data->last_steal_time) {
             int steal_amount = irandom(BRAIN_STEAL_MIN, BRAIN_STEAL_MAX);
 
             // Apply health steal
@@ -220,11 +216,16 @@ static void BrainFindTarget(edict_t* self) {
         if (!is_valid_target)
             continue;
 
-        float dist = (target->s.origin - self->s.origin).length();
+        // Use midpoint for distance calculation
+        vec3_t target_mid;
+        G_EntMidPoint(target, target_mid);
+        float dist = (target_mid - self->s.origin).length();
         if (dist < best_dist) {
-            // Check line of sight for brain tongue
-            trace_t tr = gi.traceline(self->s.origin, target->s.origin, self, MASK_SHOT);
-            if (tr.fraction == 1.0f || tr.ent == target) {
+            // Check line of sight - trace in direction like monster brain does
+            vec3_t const dir = (target_mid - self->s.origin).normalized();
+            vec3_t const end = self->s.origin + (dir * BRAIN_TONGUE_RANGE);
+            trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
+            if (tr.ent == target) {
                 best = target;
                 best_dist = dist;
             }
@@ -253,11 +254,16 @@ static void BrainFindTarget(edict_t* self) {
         if (OnSameTeam(self, ent))
             continue;
 
-        float dist = (ent->s.origin - self->s.origin).length();
+        // Use midpoint for distance calculation
+        vec3_t ent_mid;
+        G_EntMidPoint(ent, ent_mid);
+        float dist = (ent_mid - self->s.origin).length();
         if (dist < best_dist) {
-            // Check line of sight
-            trace_t tr = gi.traceline(self->s.origin, ent->s.origin, self, MASK_SHOT);
-            if (tr.fraction == 1.0f || tr.ent == ent) {
+            // Check line of sight - trace in direction like monster brain does
+            vec3_t const dir = (ent_mid - self->s.origin).normalized();
+            vec3_t const end = self->s.origin + (dir * BRAIN_TONGUE_RANGE);
+            trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
+            if (tr.ent == ent) {
                 best = ent;
                 best_dist = dist;
             }
