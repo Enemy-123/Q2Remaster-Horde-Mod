@@ -390,10 +390,10 @@ DIE(laser_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
         emitter->chain->nextthink = 0_ms; // Clear next think time
         G_FreeEdict(emitter->chain); // Free the beam
     }
+    // Free the flare (goalentity is always the flare for lasers)
+    // Note: Don't use strcmp on classname - it can be null if entity was partially freed
     if (emitter->goalentity && emitter->goalentity->inuse) {
-        if (strcmp(emitter->goalentity->classname, "misc_flare") == 0) {
-            G_FreeEdict(emitter->goalentity); // Free the flare
-        }
+        G_FreeEdict(emitter->goalentity);
     }
 
     // Step 4: Finally, kill the emitter itself.
