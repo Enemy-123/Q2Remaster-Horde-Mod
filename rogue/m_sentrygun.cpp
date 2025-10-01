@@ -795,7 +795,14 @@ THINK(heat_turret_think) (edict_t* self) -> void
 		edict_t* target = nullptr;
 		while ((target = findradius(target, self->s.origin, 1024)) != nullptr)
 		{
+			// Skip: the sentry that fired us, non-clients, invalid/dead targets, invisible targets
+			// Also skip: the sentry's owner (player) and teammates
 			if (self->owner == target || !target->client || !target->inuse || target->health <= 0 || !visible(self, target))
+				continue;
+
+			// Skip if target is the sentry's owner or on same team
+			if (self->owner && self->owner->owner &&
+			    (self->owner->owner == target || OnSameTeam(self->owner, target)))
 				continue;
 
 			float const dist_to_target = (self->s.origin - target->s.origin).length();
@@ -1057,7 +1064,8 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 			spread_dir = (fire_dir - right * spread_amount).normalized(); // Left rocket
 
 		// Use fire_rocket to create the rocket with proper collision handling
-		edict_t* heat = fire_rocket(self->owner, start, spread_dir, damage, speed, damage_radius, damage);
+		// Changed to use self instead of self->owner to make sentry solid
+		edict_t* heat = fire_rocket(self, start, spread_dir, damage, speed, damage_radius, damage);
 		
 		if (!heat)
 			continue;
@@ -1149,7 +1157,8 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 	}
 
 	const int damage = static_cast<int>(CalculateDamage(self, 100));
-	fire_plasma(self->owner, start, fire_dir, damage, projectileSpeed, 120, damage);
+	// Changed to use self instead of self->owner to make sentry solid
+	fire_plasma(self, start, fire_dir, damage, projectileSpeed, 120, damage);
 	self->monsterinfo.last_sentry_missile_fire_time = level.time; // Reset timer to current time
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
@@ -2282,6 +2291,47 @@ bool turret2_CanShootThroughObstacles(edict_t* self, const vec3_t& start, const 
 	}
 	
 	return false; // Exceeded max attempts
+}
+
+// Sentry visualization function for gravity gun - same as bot/summon movement
+void sentry_hookplacement(edict_t* sentry, edict_t* player, float stored_distance)
+{
+	if (!sentry || !player || !player->client)
+		return;
+
+	// Change movetype to allow velocity-based movement
+	if (sentry->movetype == MOVETYPE_NONE)
+	{
+		sentry->movetype = MOVETYPE_STEP; // Allow movement with physics
+		gi.linkentity(sentry);
+	}
+
+	// Calculate where the sentry SHOULD be (at stored distance in view direction)
+	vec3_t forward;
+	AngleVectors(player->client->v_angle, forward, nullptr, nullptr);
+	vec3_t target_position = player->s.origin + (forward * stored_distance);
+
+	// Calculate direction from sentry's current position to target position
+	vec3_t pull_dir = target_position - sentry->s.origin;
+	float distance_to_target = pull_dir.length();
+
+	// Apply velocity proportional to distance (stronger pull when further from target)
+	// This creates smooth "spring-like" dragging that responds to mouse movement speed
+	if (distance_to_target > 1.0f)
+	{
+		pull_dir = safe_normalized(pull_dir);
+		// Use same speed calculation as bots - hook_bot_chain_speed cvar controls this
+		extern cvar_t* hook_bot_chain_speed;
+		sentry->velocity = pull_dir * (distance_to_target * hook_bot_chain_speed->value / 100.0f);
+	}
+
+	// Hide the base entity while moving
+	if (sentry->teamchain && sentry->teamchain->inuse)
+	{
+		sentry->teamchain->solid = SOLID_NOT;
+		sentry->teamchain->svflags |= SVF_NOCLIENT;
+		gi.linkentity(sentry->teamchain);
+	}
 }
 
 void SP_monster_sentrygun(edict_t* self)

@@ -4355,6 +4355,8 @@ void Hook_Fire(edict_t* owner, vec3_t start, vec3_t forward);
 void Weapon_Hook_Fire(edict_t* ent);
 void Weapon_Hook(edict_t* ent);
 
+// Sentry visualization for gravity gun
+void sentry_hookplacement(edict_t* sentry, edict_t* player, float stored_distance);
 
 // ============================================================================
 // EXTERN FUNCTION DECLARATIONS - GAME SYSTEMS

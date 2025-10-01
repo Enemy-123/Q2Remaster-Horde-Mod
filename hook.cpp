@@ -39,7 +39,7 @@ cvar_t* hook_bot_chain_speed;
 cvar_t* hook_bot_throw_speed;
 
 // Helper function to check if an entity can be chained by the hook
-// Returns true for bots or player's own summoned monsters
+// Returns true for bots, player's own summoned monsters, or player's sentries
 static bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 {
 	if (!entity || !player || !player->client)
@@ -62,6 +62,16 @@ static bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 		// Also check via teammaster/chain (medic resurrections use this)
 		if (entity->teammaster == player || entity->chain == player)
 			return true;
+	}
+
+	// Check if it's a sentry gun that belongs to this player
+	if (horde::IsSpecialType(entity, horde::SpecialEntityTypeID::SENTRY_GUN))
+	{
+		for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; i++)
+		{
+			if (player->client->resp.deployed_sentries[i] == entity)
+				return true;
+		}
 	}
 
 	return false;
@@ -98,6 +108,28 @@ void Hook_Reset(edict_t* rhook)
 {
 	if (!rhook)
 		return;
+
+	// If we were holding a sentry, restore it to normal state
+	if (rhook->enemy && rhook->enemy->inuse &&
+	    horde::IsSpecialType(rhook->enemy, horde::SpecialEntityTypeID::SENTRY_GUN))
+	{
+		edict_t* sentry = rhook->enemy;
+
+		// Restore normal sentry physics
+		sentry->movetype = MOVETYPE_NONE;
+		sentry->solid = SOLID_BBOX;
+		sentry->velocity = vec3_origin;
+
+		// Restore base entity visibility if it exists
+		if (sentry->teamchain && sentry->teamchain->inuse)
+		{
+			sentry->teamchain->solid = SOLID_NOT;
+			sentry->teamchain->svflags &= ~SVF_NOCLIENT;
+			gi.linkentity(sentry->teamchain);
+		}
+
+		gi.linkentity(sentry);
+	}
 
 	// start with nullptr pointer checks
 	if (rhook->owner && rhook->owner->client)
@@ -200,29 +232,40 @@ THINK(Hook_Track) (edict_t* self) -> void
 		return;
 
 	// bring the pAiN!
-	if (self->enemy->client || self->enemy->monsterinfo.issummoned )
+	if (self->enemy->client || self->enemy->monsterinfo.issummoned ||
+	    horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::SENTRY_GUN))
 	{
-		// Special handling for chained bots/summons - gravity gun style
+		// Special handling for chained bots/summons/sentries - gravity gun style
 		if (Hook_CanChainEntity(self->enemy, self->owner))
 		{
-			// Calculate where the bot SHOULD be (at stored distance in view direction)
-			vec3_t forward;
-			AngleVectors(self->owner->client->v_angle, forward, nullptr, nullptr);
-			vec3_t target_position = self->owner->s.origin + (forward * self->wait);
-
-			// Calculate direction from bot's current position to target position
-			vec3_t pull_dir = target_position - self->enemy->s.origin;
-			float distance_to_target = pull_dir.length();
-
-			// Apply velocity proportional to distance (stronger pull when further from target)
-			// This creates smooth "spring-like" dragging that responds to mouse movement speed
-			if (distance_to_target > 1.0f)
+			// Check if this is a sentry gun
+			if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::SENTRY_GUN))
 			{
-				pull_dir = safe_normalized(pull_dir);
-				self->enemy->velocity = pull_dir * (distance_to_target * hook_bot_chain_speed->value / 100.0f);
+				// Use sentry-specific visualization (velocity-based like bots)
+				sentry_hookplacement(self->enemy, self->owner, self->wait);
+			}
+			else
+			{
+				// Bot/summon handling - use velocity-based movement
+				// Calculate where the bot SHOULD be (at stored distance in view direction)
+				vec3_t forward;
+				AngleVectors(self->owner->client->v_angle, forward, nullptr, nullptr);
+				vec3_t target_position = self->owner->s.origin + (forward * self->wait);
+
+				// Calculate direction from bot's current position to target position
+				vec3_t pull_dir = target_position - self->enemy->s.origin;
+				float distance_to_target = pull_dir.length();
+
+				// Apply velocity proportional to distance (stronger pull when further from target)
+				// This creates smooth "spring-like" dragging that responds to mouse movement speed
+				if (distance_to_target > 1.0f)
+				{
+					pull_dir = safe_normalized(pull_dir);
+					self->enemy->velocity = pull_dir * (distance_to_target * hook_bot_chain_speed->value / 100.0f);
+				}
 			}
 
-			// Update hook position to follow the bot
+			// Update hook position to follow the chained entity
 			gi.unlinkentity(self);
 			self->s.origin = self->enemy->s.origin;
 			gi.linkentity(self);
