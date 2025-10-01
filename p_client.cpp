@@ -4071,7 +4071,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			vec3_t forward;
 			AngleVectors(client->v_angle, forward, nullptr, nullptr);
 
-			// Apply throw velocity using cvar
+			// Clear any existing velocity and apply throw velocity
 			barrel->velocity = forward * barrel_throw_speed->value;
 
 			// Release the barrel
@@ -4081,6 +4081,10 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			gi.linkentity(barrel);
 
 			client->resp.held_barrel = nullptr;
+
+			// Clear the attack button to prevent weapon from firing
+			client->latched_buttons &= ~BUTTON_ATTACK;
+
 			gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
 		}
 	}

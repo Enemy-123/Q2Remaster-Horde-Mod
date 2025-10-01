@@ -561,7 +561,7 @@ static void SV_CalcBlend(edict_t* ent)
 	// Add visual effect for menu protection
 	if (ent->client->menu_protected) {
 		// Light blue/cyan translucent overlay to indicate protection
-		G_AddBlend(0.0f, 0.5f, 1.0f, 0.15f, ent->client->ps.screen_blend);
+		G_AddBlend(0.8f, 0.0f, 0.0f, 0.20f, ent->client->ps.screen_blend);
 	}
 
 	// add for powerups

@@ -2805,7 +2805,7 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed);
 bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, int reach, int damage, int kick, mod_t mod);
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed);
-void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir);
+edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir);
 void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect,
 	bool hyper);
 void fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset, int damage, int kick,

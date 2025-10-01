@@ -540,7 +540,7 @@ bool barrel_pickup(edict_t* player, edict_t* barrel)
 
     // Pick it up
     player->client->resp.held_barrel = barrel;
-    barrel->solid = SOLID_NOT;
+    barrel->solid = SOLID_TRIGGER; // Use trigger so it doesn't clip but can't get stuck in walls
     barrel->s.alpha = 0.7f; // Make it semi-transparent while held
     barrel->svflags &= ~SVF_NOCLIENT; // Make visible (will be handled by visualize)
     barrel->movetype = MOVETYPE_NOCLIP; // Allow free movement
@@ -608,32 +608,32 @@ void barrel_visualize(edict_t* player)
     }
 
     // Make it visible but not solid while held
-    barrel->solid = SOLID_NOT;
+    barrel->solid = SOLID_TRIGGER; // Use trigger so it doesn't clip but can't get stuck in walls
     barrel->svflags &= ~SVF_NOCLIENT;
     barrel->movetype = MOVETYPE_NOCLIP; // Move freely without collision
     barrel->velocity = {}; // Clear velocity since we're directly setting position
     gi.linkentity(barrel);
 }
 
-// Fire/throw a barrel
-void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
+// Fire/throw a barrel - returns the spawned barrel entity
+edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
 {
     // Check barrel limit BEFORE placing a new one
     if (self && self->client)
     {
         if (ClientIsSpectating(self->client)){
          gi.Com_PrintFmt(" Can't do this while spect!\n");
-            return;
+            return nullptr;
                }
 
         // Check if player is menu protected
         if (IsPlayerMenuProtected(self)) {
             gi.LocClient_Print(self, PRINT_HIGH, "You cannot use this while in a menu.\n");
-            return;
+            return nullptr;
         }
 
         if (self->client->pers.health <= 0)
-            return;
+            return nullptr;
 
         // If at limit, remove oldest barrel first
         if (self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER)
@@ -642,8 +642,8 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
             if (oldest && oldest->inuse && oldest->die == barrel_die)
             {
                 // Force instant explosion of oldest barrel
-               return;  //barrel_explode(oldest);
                gi.Com_PrintFmt(" Can't throw any more Barrels!\n");
+               return nullptr;  //barrel_explode(oldest);
             }
             // Don't increment counter yet, barrel_explode will decrement it
         }
@@ -741,6 +741,8 @@ void fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
 
     // Add to targetable entities
     g_targetable_special_entities.push_back(barrel);
+
+    return barrel;
 }
 
 // Spawn function override for horde mode
@@ -802,7 +804,7 @@ void Cmd_Barrel_f(edict_t* ent)
             vec3_t forward;
             AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
-            // Apply throw velocity (like brain morph jump)
+            // Clear any existing velocity and apply throw velocity
             barrel->velocity = forward * barrel_throw_speed->value;
 
             // Release the barrel
@@ -812,6 +814,10 @@ void Cmd_Barrel_f(edict_t* ent)
             gi.linkentity(barrel);
 
             ent->client->resp.held_barrel = nullptr;
+
+            // Clear the attack button to prevent weapon from firing
+            ent->client->latched_buttons &= ~BUTTON_ATTACK;
+
             gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
             return;
         }
@@ -844,13 +850,18 @@ void Cmd_Barrel_f(edict_t* ent)
             return;
         }
 
-        // Otherwise spawn a new barrel
+        // Otherwise spawn a new barrel and pick it up immediately
         vec3_t forward, start;
         AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
         start = ent->s.origin;
         start[2] += ent->viewheight - 8;
-        start = start + (forward * 24);
-        fire_barrel(ent, start, forward);
+        start = start + (forward * 64); // Spawn at gravity gun distance
+        edict_t* barrel = fire_barrel(ent, start, forward);
+
+        if (barrel && barrel_pickup(ent, barrel))
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel spawned and picked up!\n");
+        }
     }
     // "barrel throw" - explicit throw command
     else if (Q_strcasecmp(arg, "throw") == 0)

@@ -886,6 +886,17 @@ inline weapon_ready_state_t Weapon_HandleReady(edict_t* ent, int FRAME_FIRE_FIRS
 		return READY_NONE; // Cannot fire or change weapons while in menu
 	}
 
+	// // Check if holding a barrel - prevent weapon firing to allow barrel throw //doesnt work
+	// if (ent->client->resp.held_barrel) {
+	// 	// Keep weapon in ready state but don't process any actions
+	// 	if (ent->client->weaponstate == WEAPON_READY) {
+	// 		// Maintain idle animation
+	// 		if (ent->client->ps.gunframe < FRAME_IDLE_FIRST || ent->client->ps.gunframe > FRAME_IDLE_LAST)
+	// 			ent->client->ps.gunframe = FRAME_IDLE_FIRST;
+	// 	}
+	// 	return READY_NONE; // Cannot fire while holding barrel
+	// }
+
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
 		bool const request_firing = ent->client->weapon_fire_buffered || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK);
