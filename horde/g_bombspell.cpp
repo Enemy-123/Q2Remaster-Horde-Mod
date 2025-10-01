@@ -269,7 +269,7 @@ void CarpetBomb(edict_t* ent)
     if (ent->client->resp.bombspell_forward_cooldown > level.time) {
         float remaining_seconds = (ent->client->resp.bombspell_forward_cooldown - level.time).seconds();
         float remaining_display = std::floor(remaining_seconds * 10.0f) / 10.0f;
-        gi.LocClient_Print(ent, PRINT_HIGH, "Bombspell forward on cooldown for {} seconds\n", remaining_display);
+        gi.LocClient_Print(ent, PRINT_HIGH, "Bombspell on cooldown for {} seconds\n", remaining_display);
         return;
     }
 
@@ -303,7 +303,7 @@ void CarpetBomb(edict_t* ent)
     //gi.sound(ent, CHAN_ITEM, gi.soundindex("abilities/carpetbomb.wav"), 1, ATTN_NORM, 0);
 
     // Set cooldown
-    ent->client->resp.bombspell_forward_cooldown = level.time + 2500_ms;
+    ent->client->resp.bombspell_forward_cooldown = level.time + 1500_ms;
 }
 
 // Bomb area think function
