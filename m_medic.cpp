@@ -1608,14 +1608,20 @@ bool M_NeedRegen(edict_t *target)
 	if (target->health > 0 && target->health < target->max_health)
 		return true;
 
-	// Check if monster needs armor.
+	// Check if monster needs armor (must match healing logic structure).
 	if (target->svflags & SVF_MONSTER)
 	{
-		if (target->monsterinfo.power_armor_power < target->monsterinfo.max_power_armor_power)
+		// Check power armor first (if monster has power armor system)
+		if (target->monsterinfo.max_power_armor_power > 0)
+		{
+			if (target->monsterinfo.power_armor_power < target->monsterinfo.max_power_armor_power)
+				return true;
+		}
+		// Check regular armor (only if monster actually has armor_type set)
+		else if (target->monsterinfo.armor_type != IT_NULL && target->monsterinfo.armor_power < 200)
+		{
 			return true;
-		// A general cap for standard monster armor. This can be refined if needed.
-		if (target->monsterinfo.armor_power < 200)
-			return true;
+		}
 	}
 	// Check if player needs armor.
 	else if (target->client)
@@ -1739,11 +1745,13 @@ void medic_cable_attack(edict_t *self)
 
 			if (self->enemy->svflags & SVF_MONSTER)
 			{
+				// Heal power armor if monster has it
 				if (self->enemy->monsterinfo.max_power_armor_power > 0)
 				{
 					self->enemy->monsterinfo.power_armor_power = min(self->enemy->monsterinfo.power_armor_power + heal_amount / 2, self->enemy->monsterinfo.max_power_armor_power);
 				}
-				else if (self->enemy->monsterinfo.armor_power < 200)
+				// Heal regular armor only if monster actually has armor_type set
+				else if (self->enemy->monsterinfo.armor_type != IT_NULL && self->enemy->monsterinfo.armor_power < 200)
 				{
 					self->enemy->monsterinfo.armor_power = min(self->enemy->monsterinfo.armor_power + heal_amount / 2, 200);
 				}
