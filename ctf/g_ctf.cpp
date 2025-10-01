@@ -1219,6 +1219,13 @@ void CTFPlayerResetGrapple(edict_t* ent)
 // self is grapple, not player
 void CTFResetGrapple(edict_t* self)
 {
+	// Safety check: if owner is gone, just free the grapple
+	if (!self->owner || !self->owner->client)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
 	if (!self->owner->client->ctf_grapple)
 		return;
 
@@ -1330,6 +1337,10 @@ TOUCH(CTFGrappleTouch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 // draw beam between grapple and self
 void CTFGrappleDrawCable(edict_t* self)
 {
+	// Safety check: if owner is gone, don't draw
+	if (!self->owner || !self->owner->client)
+		return;
+
 	if (self->owner->client->ctf_grapplestate == CTF_GRAPPLE_STATE_HANG)
 		return;
 
@@ -1351,6 +1362,13 @@ void CTFGrapplePull(edict_t* self)
 {
 	vec3_t hookdir, v;
 	float  vlen;
+
+	// Safety check: if owner is gone, free the grapple
+	if (!self->owner || !self->owner->client)
+	{
+		G_FreeEdict(self);
+		return;
+	}
 
 	if (self->owner->client->pers.weapon && self->owner->client->pers.weapon->id == IT_WEAPON_GRAPPLE &&
 		!(self->owner->client->newweapon || ((self->owner->client->latched_buttons | self->owner->client->buttons) & BUTTON_HOLSTER)) &&
