@@ -447,6 +447,7 @@ int RemoveSummonedEntities(edict_t* owner)
 {
 	if (!owner || !owner->client)
 		return 0;
+		
 
 	int removed_count = 0;
 

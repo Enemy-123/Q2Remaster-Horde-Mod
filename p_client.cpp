@@ -4055,6 +4055,36 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	if (client->hook_on && ent->client->hook)
 		Hook_Service(client->hook);
 
+	// Update held barrel position (gravity gun style)
+	if (client->resp.held_barrel)
+	{
+		extern void barrel_visualize(edict_t* player);
+		barrel_visualize(ent);
+
+		// Check for barrel throw on attack button
+		if (client->latched_buttons & BUTTON_ATTACK)
+		{
+			extern cvar_t* barrel_throw_speed;
+			edict_t* barrel = client->resp.held_barrel;
+
+			// Calculate throw direction from player's view
+			vec3_t forward;
+			AngleVectors(client->v_angle, forward, nullptr, nullptr);
+
+			// Apply throw velocity using cvar
+			barrel->velocity = forward * barrel_throw_speed->value;
+
+			// Release the barrel
+			barrel->s.alpha = 1.0f; // Reset to fully opaque
+			barrel->solid = SOLID_BBOX;
+			barrel->movetype = MOVETYPE_TOSS;
+			gi.linkentity(barrel);
+
+			client->resp.held_barrel = nullptr;
+			gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+		}
+	}
+
 	// Handle menu protection - block attack/jump but allow menu navigation
 	if (client->menu_protected && (client->menu || client->showinventory))
 	{

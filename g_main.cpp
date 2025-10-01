@@ -268,6 +268,7 @@ void InitGame()
 	gi.cvar_set("hook_sky", "1");
 
 	Hook_InitGame();
+	Barrel_InitGame();
 	InitializeMonsterMoveSets(); //jump animations 
 	horde::InitializeHordeIDs();
 	

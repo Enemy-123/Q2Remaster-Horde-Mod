@@ -8,6 +8,17 @@
 // BARREL - Explosive barrels for Horde Mode
 // *************************
 
+// Barrel gravity gun cvars
+cvar_t* barrel_hold_speed;
+cvar_t* barrel_throw_speed;
+
+// Initialize barrel cvars
+void Barrel_InitGame(void)
+{
+	barrel_hold_speed = gi.cvar("barrel_hold_speed", "800", CVAR_NOFLAGS);
+	barrel_throw_speed = gi.cvar("barrel_throw_speed", "1200", CVAR_NOFLAGS);
+}
+
 constexpr float BARREL_BOUNCE_MULTIPLIER = 1.2f;
 constexpr float BARREL_MIN_BOUNCE_SPEED = 100.0f;
 constexpr float BARREL_BOUNCE_RANDOM = 50.0f;
@@ -523,10 +534,16 @@ bool barrel_pickup(edict_t* player, edict_t* barrel)
     if (barrel->deadflag || barrel->think == barrel_burn)
         return false;
 
+    // Store the initial distance from player to barrel (for gravity gun effect)
+    vec3_t barrel_vec = barrel->s.origin - player->s.origin;
+    barrel->wait = barrel_vec.length();
+
     // Pick it up
     player->client->resp.held_barrel = barrel;
     barrel->solid = SOLID_NOT;
-    barrel->svflags |= SVF_NOCLIENT; // Hide the barrel
+    barrel->s.alpha = 0.7f; // Make it semi-transparent while held
+    barrel->svflags &= ~SVF_NOCLIENT; // Make visible (will be handled by visualize)
+    barrel->movetype = MOVETYPE_NOCLIP; // Allow free movement
     gi.linkentity(barrel);
 
     gi.sound(player, CHAN_AUTO, gi.soundindex("misc/w_pkup.wav"), 1, ATTN_NORM, 0);
@@ -557,7 +574,7 @@ void barrel_drop(edict_t* player)
     player->client->resp.held_barrel = nullptr;
 }
 
-// Visualize held barrel
+// Gravity gun style barrel holding - update barrel position based on player view
 void barrel_visualize(edict_t* player)
 {
     if (!player || !player->client || !player->client->resp.held_barrel)
@@ -565,17 +582,36 @@ void barrel_visualize(edict_t* player)
 
     edict_t* barrel = player->client->resp.held_barrel;
 
-    // Update barrel position to follow player
-    vec3_t forward, right, up, offset;
-    AngleVectors(player->client->v_angle, forward, right, up);
+    // Calculate where the barrel SHOULD be (at stored distance in view direction)
+    vec3_t forward;
+    AngleVectors(player->client->v_angle, forward, nullptr, nullptr);
+    vec3_t target_position = player->s.origin + (forward * barrel->wait);
+    target_position[2] += player->viewheight - 8; // Adjust to eye level
 
-    // Position barrel in front and slightly to the right
-    offset = player->s.origin + (forward * 48) + (right * 12) + (up * -8);
-    barrel->s.origin = offset;
+    // Calculate direction from barrel's current position to target position
+    vec3_t pull_dir = target_position - barrel->s.origin;
+    float distance_to_target = pull_dir.length();
 
-    // Make it visible but not solid
+    // Smoothly move barrel toward target position
+    // This creates smooth "spring-like" dragging that responds to mouse movement speed
+    if (distance_to_target > 1.0f)
+    {
+        pull_dir = safe_normalized(pull_dir);
+        // Move a fraction of the distance each frame for smooth following
+        float move_speed = distance_to_target * barrel_hold_speed->value / 100.0f;
+        barrel->s.origin = barrel->s.origin + (pull_dir * (move_speed * 0.015f)); // 0.015 = frame time approximation
+    }
+    else
+    {
+        // Close enough, snap to target
+        barrel->s.origin = target_position;
+    }
+
+    // Make it visible but not solid while held
     barrel->solid = SOLID_NOT;
     barrel->svflags &= ~SVF_NOCLIENT;
+    barrel->movetype = MOVETYPE_NOCLIP; // Move freely without collision
+    barrel->velocity = {}; // Clear velocity since we're directly setting position
     gi.linkentity(barrel);
 }
 
@@ -754,20 +790,87 @@ void Cmd_Barrel_f(edict_t* ent)
 
     const char* arg = gi.argv(1);
 
-    // "barrel" - throw a barrel
-    if (!arg || !*arg || Q_strcasecmp(arg, "throw") == 0)
+    // "barrel" - smart behavior (throw if holding, pickup if near, spawn otherwise)
+    if (!arg || !*arg)
     {
-        // Get aim direction
-        vec3_t forward, right, start;
-        AngleVectors(ent->client->v_angle, forward, right, nullptr);
+        // If holding a barrel, throw it
+        if (ent->client->resp.held_barrel)
+        {
+            edict_t* barrel = ent->client->resp.held_barrel;
 
-        // Start position in front of player
+            // Calculate throw direction from player's view
+            vec3_t forward;
+            AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+
+            // Apply throw velocity (like brain morph jump)
+            barrel->velocity = forward * barrel_throw_speed->value;
+
+            // Release the barrel
+            barrel->s.alpha = 1.0f; // Reset to fully opaque
+            barrel->solid = SOLID_BBOX;
+            barrel->movetype = MOVETYPE_TOSS;
+            gi.linkentity(barrel);
+
+            ent->client->resp.held_barrel = nullptr;
+            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+            return;
+        }
+
+        // Try to pick up nearest barrel
+        edict_t* best = nullptr;
+        float best_dist = BarrelConstants::BARREL_PICKUP_RANGE;
+
+        for (int i = 1; i < static_cast<int>(globals.num_edicts); i++)
+        {
+            edict_t* check = &g_edicts[i];
+            if (!check->inuse)
+                continue;
+            if (check->die != barrel_die)
+                continue;
+            if (check->deadflag)
+                continue;
+
+            float dist = range_to(ent, check);
+            if (dist < best_dist)
+            {
+                best = check;
+                best_dist = dist;
+            }
+        }
+
+        if (best && barrel_pickup(ent, best))
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel picked up!\n");
+            return;
+        }
+
+        // Otherwise spawn a new barrel
+        vec3_t forward, start;
+        AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
         start = ent->s.origin;
         start[2] += ent->viewheight - 8;
         start = start + (forward * 24);
-
-        // Fire the barrel
         fire_barrel(ent, start, forward);
+    }
+    // "barrel throw" - explicit throw command
+    else if (Q_strcasecmp(arg, "throw") == 0)
+    {
+        if (ent->client->resp.held_barrel)
+        {
+            edict_t* barrel = ent->client->resp.held_barrel;
+            vec3_t forward;
+            AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+            barrel->velocity = forward * barrel_throw_speed->value;
+            barrel->solid = SOLID_BBOX;
+            barrel->movetype = MOVETYPE_TOSS;
+            gi.linkentity(barrel);
+            ent->client->resp.held_barrel = nullptr;
+            gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+        }
+        else
+        {
+            gi.LocClient_Print(ent, PRINT_HIGH, "Not holding a barrel.\n");
+        }
     }
     // "barrel pickup" - pickup nearest barrel
     else if (Q_strcasecmp(arg, "pickup") == 0)

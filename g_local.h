@@ -2242,6 +2242,7 @@ void Cmd_RemoveBarrel_f(edict_t* ent); // Remove all barrels
 void Cmd_Barrel_f(edict_t* ent); // Barrel testing command
 void remove_barrels(edict_t* ent);
 bool barrel_pickup(edict_t* player, edict_t* barrel);
+void Barrel_InitGame(void); // Initialize barrel cvars
 //
 // g_items.c
 //
