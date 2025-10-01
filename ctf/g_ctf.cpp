@@ -1243,9 +1243,26 @@ TOUCH(CTFGrappleTouch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	if (self->owner->client->ctf_grapplestate != CTF_GRAPPLE_STATE_FLY)
 		return;
 
-	if (tr.surface && (tr.surface->flags & SURF_SKY))
+	// Check if we hit sky or a chainable entity - if so, convert to hook.cpp system
+	bool is_sky = (tr.surface && (tr.surface->flags & SURF_SKY));
+	bool is_chainable = Hook_CanChainEntity(other, self->owner);
+
+	if (is_sky || is_chainable)
 	{
+		// Reset the grapple
 		CTFResetGrapple(self);
+
+		// Spawn a hook.cpp hook instead
+		vec3_t forward = (self->s.origin - self->owner->s.origin).normalized();
+		Hook_Fire(self->owner, self->owner->s.origin, forward);
+
+		// Make the hook immediately touch the target
+		if (self->owner->client->hook)
+		{
+			self->owner->client->hook->s.origin = self->s.origin;
+			gi.linkentity(self->owner->client->hook);
+			self->owner->client->hook->touch(self->owner->client->hook, other, tr, false);
+		}
 		return;
 	}
 

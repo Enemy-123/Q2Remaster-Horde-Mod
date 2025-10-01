@@ -40,7 +40,7 @@ cvar_t* hook_bot_throw_speed;
 
 // Helper function to check if an entity can be chained by the hook
 // Returns true for bots, player's own summoned monsters, or player's sentries
-static bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
+bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 {
 	if (!entity || !player || !player->client)
 		return false;
@@ -238,6 +238,31 @@ THINK(Hook_Track) (edict_t* self) -> void
 		// Special handling for chained bots/summons/sentries - gravity gun style
 		if (Hook_CanChainEntity(self->enemy, self->owner))
 		{
+			// Check if entity is behind a wall or too far from player
+			float distance_to_player = (self->enemy->s.origin - self->owner->s.origin).length();
+			trace_t vis_trace = gi.traceline(self->owner->s.origin, self->enemy->s.origin, self->enemy, MASK_SOLID);
+			bool is_blocked = (vis_trace.fraction < 1.0f && vis_trace.ent != self->enemy);
+			bool is_too_far = (distance_to_player > 800.0f);
+
+			// Teleport entity closer if it's stuck behind a wall or too far
+			if (is_blocked || is_too_far)
+			{
+				vec3_t forward;
+				AngleVectors(self->owner->client->v_angle, forward, nullptr, nullptr);
+				vec3_t teleport_pos = self->owner->s.origin + (forward * 200.0f);
+
+				// Try to find a valid teleport position
+				trace_t ground_trace = gi.trace(teleport_pos, self->enemy->mins, self->enemy->maxs,
+				                                 teleport_pos - vec3_t{0, 0, 128}, self->enemy, MASK_SOLID);
+
+				if (ground_trace.fraction < 1.0f)
+				{
+					self->enemy->s.origin = ground_trace.endpos;
+					self->enemy->velocity = vec3_origin;
+					gi.linkentity(self->enemy);
+				}
+			}
+
 			// Check if this is a sentry gun
 			if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::SENTRY_GUN))
 			{
