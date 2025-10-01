@@ -3259,6 +3259,8 @@ void ResetGame()
 	if (ai_damage_scale) gi.cvar_set("ai_damage_scale", "1");
 	if (ai_allow_dm_spawn) gi.cvar_set("ai_allow_dm_spawn", "1");
 	if (g_damage_scale) gi.cvar_set("g_damage_scale", "1");
+
+	if (g_map_list_shuffle) gi.cvar_set("g_map_list_shuffle", "1");
 //	if (g_vampire) gi.cvar_set("g_vampire", "0");
 //	if (g_startarmor) gi.cvar_set("g_startarmor", "0");
 //	if (g_ammoregen) gi.cvar_set("g_ammoregen", "0");
