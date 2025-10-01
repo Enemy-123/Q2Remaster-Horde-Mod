@@ -4042,6 +4042,20 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	level.current_entity = ent;
 
+	// Store if player wants to throw barrel BEFORE we modify buttons
+	bool barrel_throw_requested = false;
+	if (client->resp.held_barrel && client->resp.held_barrel->inuse && (ucmd->buttons & BUTTON_ATTACK))
+	{
+		barrel_throw_requested = true;
+		// Clear the button immediately so it doesn't get latched
+		ucmd->buttons &= ~BUTTON_ATTACK;
+	}
+	// Block attack button if holding barrel (but not throwing)
+	else if (client->resp.held_barrel && client->resp.held_barrel->inuse)
+	{
+		ucmd->buttons &= ~BUTTON_ATTACK;
+	}
+
 	// [Paril-KEX] pass buttons through even if we are in intermission or chasing.
 	client->oldbuttons = client->buttons;
 	client->buttons = ucmd->buttons;
@@ -4058,19 +4072,11 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	// Update held barrel position (gravity gun style)
 	if (client->resp.held_barrel && client->resp.held_barrel->inuse)
 	{
-		// Check if player pressed attack button BEFORE we clear it
-		bool wants_to_throw = (ucmd->buttons & BUTTON_ATTACK) || (client->latched_buttons & BUTTON_ATTACK);
-
 		extern void barrel_visualize(edict_t* player);
 		barrel_visualize(ent);
 
-		// Block all weapon attack buttons while holding barrel
-		ucmd->buttons &= ~BUTTON_ATTACK;
-		client->buttons &= ~BUTTON_ATTACK;
-		client->latched_buttons &= ~BUTTON_ATTACK;
-
-		// Throw barrel if attack was pressed
-		if (wants_to_throw)
+		// Throw barrel if attack was pressed (using flag set earlier)
+		if (barrel_throw_requested)
 		{
 			extern cvar_t* barrel_throw_speed;
 			edict_t* barrel = client->resp.held_barrel;
@@ -4091,6 +4097,19 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			client->resp.held_barrel = nullptr;
 
 			gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
+			// Continue with normal processing after throwing
+		}
+		else
+		{
+			// Holding barrel - block weapons like menu_protected does
+			// Clear weapon fire state
+			client->weapon_fire_buffered = false;
+			client->latched_buttons &= ~BUTTON_ATTACK;
+			if (client->weaponstate != WEAPON_READY)
+				client->weaponstate = WEAPON_READY;
+
+			// Don't process weapon firing while holding barrel
+			// Continue with movement but skip weapon processing
 		}
 	}
 
