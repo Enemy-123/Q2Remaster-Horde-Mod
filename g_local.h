@@ -3370,6 +3370,8 @@ struct gclient_t
 	bool	 update_chase; // need to update chase info?
 	// Q2Eaks are we in eyecam mode?
 	bool use_eyecam;
+	// Auto-switch between third and first person based on space
+	bool auto_eyecam;
 	//=======
 	// ROGUE
 	gtime_t double_time;

@@ -29,11 +29,53 @@ void UpdateChaseCam(edict_t* ent)
 	ownerv = targ->s.origin;
 	oldgoal = ent->s.origin;
 
-	// Q2Eaks eyecam handling
-	if (sv_eyecam->integer && ent->client->use_eyecam)
+	// Auto eyecam: determine if we should temporarily switch to first-person
+	bool force_eyecam = false;
+	if (ent->client->auto_eyecam)
 	{
-		// mark the chased player as instanced so we can disable their model's visibility
-		targ->svflags |= SVF_INSTANCED;
+		// Pre-calculate third-person camera position to check space
+		vec3_t test_start, test_angles, test_forward, test_goal;
+
+		test_start = targ->s.origin;
+		if (targ->viewheight)
+			test_start[2] += targ->viewheight;
+		else
+			test_start[2] = targ->absmax[2] - 8;
+		test_start[2] += 16;
+
+		test_angles = ent->client->resp.cmd_angles;
+		if (test_angles[PITCH] > 56)
+			test_angles[PITCH] = 56;
+		AngleVectors(test_angles, test_forward, nullptr, nullptr);
+		test_forward.normalize();
+		test_start = test_start + (test_forward * (targ->mins[1] - 64));
+
+		if (!targ->groundentity)
+			test_start[2] += 16;
+
+		trace_t test_trace = gi.traceline(targ->s.origin, test_start, targ, MASK_SOLID);
+		test_goal = test_trace.endpos;
+
+		// Calculate distance between camera and player
+		vec3_t player_view = targ->s.origin;
+		if (targ->viewheight)
+			player_view[2] += targ->viewheight;
+		else
+			player_view[2] = targ->absmax[2] - 8;
+
+		float cam_distance = (test_goal - player_view).length();
+
+		// If camera is forced too close, switch to eyecam
+		// Threshold: 40 units = very cramped space
+		if (cam_distance < 40.0f)
+			force_eyecam = true;
+	}
+
+	// Q2Eaks eyecam handling
+	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
+	{
+		// Hide the chased player's model completely in first-person
+		targ->svflags |= SVF_NOCLIENT;
 
 		// copy everything from ps but pmove, pov, stats, and team_id
 		ent->client->ps.viewangles = targ->client->ps.viewangles;
@@ -135,6 +177,13 @@ void UpdateChaseCam(edict_t* ent)
 		// Note: We keep 'angles' as the spectator's cmd_angles throughout
 		// This allows the spectator to freely rotate the camera with mouse
 		// The pivot system only affects camera POSITION, not view direction
+
+		// Always clear weapon model in third-person chasecam
+		ent->client->ps.gunindex = 0;
+		ent->client->ps.gunskin = 0;
+
+		// Always show player model when in third-person
+		targ->svflags &= ~SVF_NOCLIENT;
 	}
 
 	if (targ->deadflag)
@@ -142,7 +191,7 @@ void UpdateChaseCam(edict_t* ent)
 	else
 	{
 		// Eyecam: freeze all input. Vanilla: allow mouse input with PM_SPECTATOR
-		if (sv_eyecam->integer && ent->client->use_eyecam)
+		if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 			ent->client->ps.pmove.pm_type = PM_FREEZE;
 		else
 			ent->client->ps.pmove.pm_type = PM_SPECTATOR;  // ✅ Allows mouse input!
@@ -159,7 +208,7 @@ void UpdateChaseCam(edict_t* ent)
 	else
 	{
 		// Eyecam mode: use target's view angles directly
-		if (sv_eyecam->integer && ent->client->use_eyecam)
+		if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 		{
 			ent->client->ps.viewangles = targ->client->v_angle;
 			ent->client->v_angle = targ->client->v_angle;
@@ -178,7 +227,7 @@ void UpdateChaseCam(edict_t* ent)
 
 	// For free camera rotation: allow angular prediction, block positional only
 	// Eyecam mode locks both position and angles to target
-	if (sv_eyecam->integer && ent->client->use_eyecam)
+	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 	{
 		ent->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION;
 		ent->client->ps.pmove.delta_angles = targ->client->v_angle - ent->client->resp.cmd_angles;

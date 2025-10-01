@@ -1372,6 +1372,10 @@ void InitClientResp(gclient_t* client)
 
 	client->resp.entertime = level.time;
 	client->resp.coop_respawn = client->pers;
+
+	// Initialize camera mode flags
+	client->use_eyecam = false;
+	client->auto_eyecam = false;
 }
 
 /*
@@ -4423,22 +4427,21 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			client->latched_buttons = BUTTON_NONE;
 			if (client->chase_target)
 			{
-				// Q2Eaks add eyecam to freecam<->chasecam cycle
-				if (!client->use_eyecam)
-				{
-					client->use_eyecam = true;
-				}
-				else
-				{
-					client->use_eyecam = false;
-					client->ps.gunindex = 0;
-					client->ps.gunskin = 0;
-					client->chase_target = nullptr;
-					client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
-				}
+				// Simple toggle: auto-adaptive -> freecam
+				client->ps.gunindex = 0;
+				client->ps.gunskin = 0;
+				client->chase_target = nullptr;
+				client->auto_eyecam = false;
+				client->use_eyecam = false;
+				client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
 			}
 			else
+			{
+				// Enter adaptive camera mode from freecam
 				GetChaseTarget(ent);
+				client->auto_eyecam = true;
+				client->use_eyecam = false;
+			}
 		}
 		else if (!ent->client->weapon_thunk && !IsMorphed(ent))  // Morphed players handle attacks differently
 		{
