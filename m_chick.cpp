@@ -558,8 +558,8 @@ void ChickBombSpell(edict_t* self)
 	if (!M_HasValidTarget(self))
 		return;
 
-	// Check if on cooldown
-	if (self->monsterinfo.attack_finished > level.time)
+	// Check if on cooldown using timestamp (separate from attack_finished)
+	if (self->timestamp > level.time)
 		return;
 
 	vec3_t forward, dir;
@@ -582,16 +582,7 @@ void ChickBombSpell(edict_t* self)
 	// Too close for any bombspell (under 200 units) - skip this attack
 	if (dist_to_enemy < 200)
 	{
-		self->monsterinfo.attack_finished = level.time + 1_sec;
-		return;
-	}
-
-	// If both failed recently (rapid switching), go on longer cooldown and reset
-	if (self->monsterinfo.monster_slots >= 10) // Track failed attempts
-	{
-		self->monsterinfo.attack_finished = level.time + 3_sec;
-		self->monsterinfo.monster_slots = 0;
-		self->monsterinfo.lefty = 0;
+		self->timestamp = level.time + 1_sec;
 		return;
 	}
 
@@ -616,62 +607,37 @@ void ChickBombSpell(edict_t* self)
 
 	if (use_carpet)
 	{
-		// For monsters, always allow carpet bomb (very lenient validation)
-		bool is_monster = true; // Always true for chickkl
-		bool path_clear = true; // Always succeed for monsters
+		// Monsters always succeed with carpet bomb - no validation needed
+		edict_t* spell = G_Spawn();
+		spell->think = carpetbomb_think;
+		spell->nextthink = level.time + FRAME_TIME_MS;
+		spell->s.origin = self->s.origin;
+		spell->move_origin = self->s.origin;
+		spell->dmg = 35 + irandom(10, 20);
+		spell->dmg_radius = 150;
+		spell->timestamp = level.time + 3_sec;
+		spell->owner = self;
+		spell->mins = vec3_origin;
+		spell->maxs = vec3_origin;
+		spell->solid = SOLID_NOT;
+		spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
+		spell->classname = "bombspell";
+		spell->s.angles = vectoangles(forward);
 
-		// Optional: minimal validation for safety
-		if (!is_monster)
-		{
-			vec3_t carpet_check_start = self->s.origin;
-			carpet_check_start[2] += 32;
-			vec3_t carpet_check_end = carpet_check_start + forward * 300;
-			trace_t carpet_tr = gi.traceline(carpet_check_start, carpet_check_end, self, MASK_SOLID);
-			path_clear = (carpet_tr.fraction > 0.3f);
-		}
+		// Mark as monster-owned to skip strict visibility checks
+		spell->count = 1; // Use count to indicate monster owner
 
-		if (path_clear)
-		{
-			// Carpet bomb forward
-			edict_t* spell = G_Spawn();
-			spell->think = carpetbomb_think;
-			spell->nextthink = level.time + FRAME_TIME_MS;
-			spell->s.origin = self->s.origin;
-			spell->move_origin = self->s.origin;
-			spell->dmg = 35 + irandom(10, 20);
-			spell->dmg_radius = 150;
-			spell->timestamp = level.time + 3_sec;
-			spell->owner = self;
-			spell->mins = vec3_origin;
-			spell->maxs = vec3_origin;
-			spell->solid = SOLID_NOT;
-			spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
-			spell->classname = "bombspell";
-			spell->s.angles = vectoangles(forward);
+		gi.linkentity(spell);
 
-			// Mark as monster-owned to skip strict visibility checks
-			spell->count = 1; // Use count to indicate monster owner
+		// Set cooldown using timestamp
+		self->timestamp = level.time + 2_sec;
 
-			gi.linkentity(spell);
-
-			// SUCCESS - Reset fail counter and set cooldown
-			self->monsterinfo.monster_slots = 0; // Reset fail counter
-			self->monsterinfo.attack_finished = level.time + 2_sec;
-
-			// Next time try area bomb
-			self->monsterinfo.lefty = 1;
-		}
-		else
-		{
-			// Failed - increment fail counter and try area next time
-			self->monsterinfo.monster_slots++;
-			self->monsterinfo.lefty = 1;
-			self->monsterinfo.attack_finished = level.time + 0.5_sec;
-		}
+		// Next time try area bomb
+		self->monsterinfo.lefty = 1;
 	}
 	else
 	{
-		// Area bomb at enemy location - trace to ground near enemy
+		// Area bomb at enemy location - monsters always succeed
 		vec3_t ground_pos;
 		trace_t ground_tr;
 
@@ -683,52 +649,37 @@ void ChickBombSpell(edict_t* self)
 
 		ground_tr = gi.traceline(ground_pos, ground_end, self, MASK_SOLID);
 
-		// For monsters, always allow (use target pos if no floor found)
-		bool is_monster = true;
-		bool found_floor = (ground_tr.fraction < 1.0f && ground_tr.plane.normal.z > 0.5f);
-
-		// If monster and no floor, use target position directly
-		if (is_monster && !found_floor)
+		// For monsters, use target position if no floor found
+		if (ground_tr.fraction >= 1.0f || ground_tr.plane.normal.z <= 0.5f)
 		{
 			ground_tr.endpos = target_pos;
 			ground_tr.plane.normal = { 0, 0, 1 }; // Up vector
-			found_floor = true;
 		}
 
-		if (found_floor)
-		{
-			edict_t* spell = G_Spawn();
-			spell->think = bombarea_think;
-			spell->nextthink = level.time + 0.3_sec; // Start bombing after short delay
-			spell->s.origin = ground_tr.endpos;
-			spell->dmg = 30 + irandom(5, 15);
-			spell->dmg_radius = 120;
-			spell->timestamp = level.time + 4_sec;
-			spell->owner = self;
-			spell->mins = vec3_origin;
-			spell->maxs = vec3_origin;
-			spell->solid = SOLID_NOT;
-			spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
-			spell->classname = "bombarea";
+		// Monsters always succeed - spawn the area bomb
+		edict_t* spell = G_Spawn();
+		spell->think = bombarea_think;
+		spell->nextthink = level.time + 0.3_sec; // Start bombing after short delay
+		spell->s.origin = ground_tr.endpos;
+		spell->dmg = 30 + irandom(5, 15);
+		spell->dmg_radius = 120;
+		spell->timestamp = level.time + 4_sec;
+		spell->owner = self;
+		spell->mins = vec3_origin;
+		spell->maxs = vec3_origin;
+		spell->solid = SOLID_NOT;
+		spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
+		spell->classname = "bombarea";
 
-			// Set angles to point up (floor bombing)
-			spell->s.angles = vectoangles(ground_tr.plane.normal);
-			gi.linkentity(spell);
+		// Set angles to point up (floor bombing)
+		spell->s.angles = vectoangles(ground_tr.plane.normal);
+		gi.linkentity(spell);
 
-			// SUCCESS - Reset fail counter and set cooldown
-			self->monsterinfo.monster_slots = 0; // Reset fail counter
-			self->monsterinfo.attack_finished = level.time + 2_sec;
+		// Set cooldown using timestamp
+		self->timestamp = level.time + 2_sec;
 
-			// Next time try carpet bomb
-			self->monsterinfo.lefty = 0;
-		}
-		else
-		{
-			// Failed - increment fail counter and try carpet next time
-			self->monsterinfo.monster_slots++;
-			self->monsterinfo.lefty = 0;
-			self->monsterinfo.attack_finished = level.time + 0.5_sec;
-		}
+		// Next time try carpet bomb
+		self->monsterinfo.lefty = 0;
 	}
 
 	gi.sound(self, CHAN_WEAPON, sound_missile_launch, 1, ATTN_NORM, 0);
@@ -1178,10 +1129,10 @@ mframe_t chickkl_frames_slash[] = {
 	{ ai_charge, -7, monster_footstep },
 	{ ai_charge, 1 },
 	{ ai_charge, -1 },
-	{ ai_charge, 1, ChickSaveLoc },  // Save enemy location before bombspell
-	{ ai_charge, 7, ChickBombSpell },
 	{ ai_charge, 1 },
-	{ ai_charge, 1 }
+	{ ai_charge, 1 },
+	{ ai_charge, 1, ChickSaveLoc },  // Save enemy location before bombspell
+	{ ai_charge, 7, ChickBombSpell }
 //	{ ai_charge, -2, chickkl_reslash }
 };
 MMOVE_T(chickkl_move_slash) = { FRAME_attak204, FRAME_attak212, chickkl_frames_slash, chick_run };
@@ -1664,7 +1615,7 @@ void chickkl_fire_plasma(edict_t* self)
 	vec3_t start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 
 	// Calculate fire direction with prediction
-	const float speed = 1100.0f; // Fast plasma
+	const float speed = 780.0f; 
 	vec3_t fire_dir;
 
 	if (self->enemy->velocity.lengthSquared() > 1.0f) {
@@ -1726,7 +1677,7 @@ void chickkl_fire_plasma(edict_t* self)
 		// Heat-seeking parameters
 		const float turn_fraction = 0.18f;
 		plasma->speed = speed / 1.35f;
-		plasma->yaw_speed = speed * 2.0f;
+		plasma->yaw_speed = speed * 0.75f;
 		plasma->accel = turn_fraction;
 		plasma->pos1 = fire_dir;
 
@@ -1752,8 +1703,8 @@ MONSTERINFO_ATTACK(chickkl_attack) (edict_t* self) -> void
 	// Check if this is actually a chickkl
 	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL))
 	{
-		// Check if bombspell is on cooldown
-		bool bombspell_on_cooldown = (self->monsterinfo.attack_finished > level.time);
+		// Check if bombspell is on cooldown (using timestamp)
+		bool bombspell_on_cooldown = (self->timestamp > level.time);
 
 		if (bombspell_on_cooldown)
 		{
