@@ -4354,6 +4354,7 @@ void Hook_Touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_tou
 void Hook_Fire(edict_t* owner, vec3_t start, vec3_t forward);
 
 bool Hook_CanChainEntity(edict_t* entity, edict_t* player);
+edict_t* Hook_FindChainableInView(edict_t* player);
 void Weapon_Hook_Fire(edict_t* ent);
 void Weapon_Hook(edict_t* ent);
 

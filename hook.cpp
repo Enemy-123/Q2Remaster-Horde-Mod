@@ -27,6 +27,7 @@
 // Code originally from Orange 2 Mod
 
 #include "g_local.h"
+#include "shared.h"
 cvar_t* hook_speed;
 cvar_t* hook_pullspeed;
 cvar_t* hook_sky;
@@ -75,6 +76,137 @@ bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 	}
 
 	return false;
+}
+
+// Configuration for auto-targeting chainable entities
+namespace HookAutoTarget {
+	constexpr float MAX_DISTANCE = 2048.0f;      // Maximum targeting range
+	constexpr float MAX_DISTANCE_SQ = MAX_DISTANCE * MAX_DISTANCE;
+	constexpr float MIN_DOT = 0.9f;              // Narrow cone (must aim closely)
+	constexpr float CLOSE_DISTANCE = 512.0f;     // Distance for relaxed targeting
+	constexpr float CLOSE_DISTANCE_SQ = CLOSE_DISTANCE * CLOSE_DISTANCE;
+	constexpr float CLOSE_MIN_DOT = 0.7f;        // Wider cone when close
+	constexpr float SCORING_DOT_WEIGHT = 1000.0f; // Weight for aim accuracy in scoring
+}
+
+// Finds the best chainable entity that the player is aiming at
+// Returns nullptr if no valid target found
+// Similar to FindBestTarget from g_idview.cpp but specifically for hook targets
+edict_t* Hook_FindChainableInView(edict_t* player)
+{
+	if (!player || !player->client)
+		return nullptr;
+
+	vec3_t forward;
+	AngleVectors(player->client->v_angle, forward, nullptr, nullptr);
+	vec3_t const& viewer_pos = player->s.origin;
+
+	edict_t* best_entity = nullptr;
+	float best_score = -999999.0f;
+
+	// Check all active players (bots)
+	for (edict_t* target : active_players())
+	{
+		if (!Hook_CanChainEntity(target, player))
+			continue;
+
+		vec3_t dir = target->s.origin - viewer_pos;
+		float const dist_sq = dir.lengthSquared();
+
+		if (dist_sq > HookAutoTarget::MAX_DISTANCE_SQ)
+			continue;
+
+		dir.normalize();
+		float const dot = forward.dot(dir);
+
+		// Determine minimum dot product based on distance
+		float const min_dot = (dist_sq < HookAutoTarget::CLOSE_DISTANCE_SQ)
+			? HookAutoTarget::CLOSE_MIN_DOT
+			: HookAutoTarget::MIN_DOT;
+
+		if (dot < min_dot)
+			continue;
+
+		// Score: higher dot = better aim, lower distance = closer
+		float score = (dot * HookAutoTarget::SCORING_DOT_WEIGHT) - dist_sq;
+		if (score > best_score)
+		{
+			best_score = score;
+			best_entity = target;
+		}
+	}
+
+	// Check all active monsters (summoned ones)
+	for (edict_t* target : active_monsters())
+	{
+		if (!Hook_CanChainEntity(target, player))
+			continue;
+
+		vec3_t dir = target->s.origin - viewer_pos;
+		float const dist_sq = dir.lengthSquared();
+
+		if (dist_sq > HookAutoTarget::MAX_DISTANCE_SQ)
+			continue;
+
+		dir.normalize();
+		float const dot = forward.dot(dir);
+
+		float const min_dot = (dist_sq < HookAutoTarget::CLOSE_DISTANCE_SQ)
+			? HookAutoTarget::CLOSE_MIN_DOT
+			: HookAutoTarget::MIN_DOT;
+
+		if (dot < min_dot)
+			continue;
+
+		float score = (dot * HookAutoTarget::SCORING_DOT_WEIGHT) - dist_sq;
+		if (score > best_score)
+		{
+			best_score = score;
+			best_entity = target;
+		}
+	}
+
+	// Check special entities (sentrygun)
+	for (edict_t* target : g_targetable_special_entities)
+	{
+		if (!Hook_CanChainEntity(target, player))
+			continue;
+
+		vec3_t dir = target->s.origin - viewer_pos;
+		float const dist_sq = dir.lengthSquared();
+
+		if (dist_sq > HookAutoTarget::MAX_DISTANCE_SQ)
+			continue;
+
+		dir.normalize();
+		float const dot = forward.dot(dir);
+
+		float const min_dot = (dist_sq < HookAutoTarget::CLOSE_DISTANCE_SQ)
+			? HookAutoTarget::CLOSE_MIN_DOT
+			: HookAutoTarget::MIN_DOT;
+
+		if (dot < min_dot)
+			continue;
+
+		float score = (dot * HookAutoTarget::SCORING_DOT_WEIGHT) - dist_sq;
+		if (score > best_score)
+		{
+			best_score = score;
+			best_entity = target;
+		}
+	}
+
+	// Final visibility check
+	if (best_entity)
+	{
+		trace_t const tr = gi.traceline(viewer_pos, best_entity->s.origin, player, MASK_SOLID);
+		if (tr.fraction == 1.0f || tr.ent == best_entity)
+		{
+			return best_entity;
+		}
+	}
+
+	return nullptr;
 }
 
 void Hook_InitGame(void)

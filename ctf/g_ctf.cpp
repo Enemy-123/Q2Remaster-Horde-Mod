@@ -1230,6 +1230,16 @@ void CTFResetGrapple(edict_t* self)
 	cl->ctf_grapplereleasetime = level.time + 1_sec;
 	cl->ctf_grapplestate = CTF_GRAPPLE_STATE_FLY; // we're firing, not on hook
 	self->owner->flags &= ~FL_NO_KNOCKBACK;
+
+	// Reset hook state to prevent corruption after using grapple
+	// This ensures hook command works properly even after using grapple
+	cl->hook_out = false;
+	cl->hook_damage = 0;
+	cl->last_hook_time = 0.0f;
+	if (cl->hook) {
+		Hook_Reset(cl->hook);
+	}
+
 	G_FreeEdict(self);
 }
 
@@ -1263,6 +1273,13 @@ TOUCH(CTFGrappleTouch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		// Reset the grapple (frees self)
 		CTFResetGrapple(self);
 
+		// DON'T set hook_out here - Hook_Fire expects it to be false initially
+		// Reset timing so hook can be fired/released immediately after conversion
+		owner->client->hook_out = false;
+		owner->client->hook_damage = 0;
+		// Set last_hook_time far in the past so hook can fire immediately
+		owner->client->last_hook_time = 0.0f;
+
 		// Spawn a hook.cpp hook instead
 		vec3_t forward = (grapple_origin - owner_origin).normalized();
 		Hook_Fire(owner, owner_origin, forward);
@@ -1273,6 +1290,9 @@ TOUCH(CTFGrappleTouch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 			owner->client->hook->s.origin = grapple_origin;
 			gi.linkentity(owner->client->hook);
 			owner->client->hook->touch(owner->client->hook, other, tr, false);
+
+			// NOW set hook_out after everything is set up properly
+			owner->client->hook_out = true;
 		}
 		return;
 	}
@@ -1419,7 +1439,9 @@ bool CTFFireGrapple(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 	grapple->s.angles = vectoangles(normalized);
 	grapple->velocity = normalized * speed;
 	grapple->movetype = MOVETYPE_FLYMISSILE;
-	grapple->clipmask = MASK_PROJECTILE;
+
+	// Use MASK_SHOT to allow hitting monsters/players/etc
+	grapple->clipmask = MASK_SHOT;
 
 	// [Paril-KEX]
 	if (!G_ShouldPlayersCollide(true)) {
@@ -1441,7 +1463,11 @@ bool CTFFireGrapple(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 
 	gi.linkentity(grapple);
 
+	// Clear owner temporarily to allow hitting entities owned by the same player (like sentrygun)
+	grapple->owner = nullptr;
 	tr = gi.traceline(self->s.origin, grapple->s.origin, grapple, grapple->clipmask);
+	grapple->owner = self;  // Restore owner immediately after trace
+	
 	if (tr.fraction < 1.0f) {
 		grapple->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		grapple->touch(grapple, tr.ent, tr, false);
@@ -1467,6 +1493,32 @@ void CTFGrappleFire(edict_t* ent, const vec3_t& g_offset, int damage, effects_t 
 	if (ent->client->silencer_shots)
 		volume = 0.2f;
 
+	// Check if player is aiming at a chainable entity (bot/sentry/summon)
+	// If so, automatically fire hook.cpp instead for gravity gun control
+	edict_t* chainable_target = Hook_FindChainableInView(ent);
+	if (chainable_target)
+	{
+		// Reset grapple state and prepare for hook
+		ent->client->ctf_grapplestate = CTF_GRAPPLE_STATE_FLY;
+		ent->client->hook_out = false;
+		ent->client->hook_damage = 0;
+		ent->client->last_hook_time = 0.0f;
+
+		// Fire hook.cpp instead of grapple
+		Hook_Fire(ent, start, dir);
+
+		// Play hook sound instead of grapple sound
+		gi.sound(ent, CHAN_WEAPON, gi.soundindex("flyer/Flyatck3.wav"), volume, ATTN_NORM, 0);
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+
+		// Set hook_out after firing
+		if (ent->client->hook) {
+			ent->client->hook_out = true;
+		}
+		return;
+	}
+
+	// Normal grapple behavior for non-chainable targets
 	if (CTFFireGrapple(ent, start, dir, damage, g_grapple_fly_speed->value, effect))
 		gi.sound(ent, CHAN_WEAPON, gi.soundindex("weapons/grapple/grfire.wav"), volume, ATTN_NORM, 0);
 
