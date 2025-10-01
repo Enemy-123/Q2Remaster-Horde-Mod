@@ -1429,6 +1429,20 @@ static int32_t g_lastWaveNumber = -1;
 // static bool g_maxMonstersReached = false;
 // static bool g_lowPercentageTriggered = false;
 
+// Named constants for GetConditionParams
+namespace {
+	constexpr float HIGH_LEVEL_MONSTER_MULT = 1.2f;
+	constexpr float HIGH_LEVEL_TIME_BONUS_SEC = 0.20f;
+	constexpr float CHAOTIC_MONSTER_MULT = 1.1f;
+	constexpr float EARLY_WAVE_TIME_MIN_MULT = 0.75f;
+	constexpr float EARLY_WAVE_TIME_REDUCTION = 0.20f;
+	constexpr int32_t MAX_MONSTER_LEVEL_BONUS_DIV = 4;
+	constexpr int32_t MAX_MONSTER_LEVEL_BONUS_CAP = 8;
+	constexpr int32_t TIME_THRESHOLD_LEVEL_DIV = 3;
+	constexpr int32_t TIME_THRESHOLD_LEVEL_CAP = 5;
+	constexpr int64_t TIME_THRESHOLD_MS_PER_LEVEL = 80ll;
+}
+
 // Forward declaration for calculate_max_wave_time if it's not already visible
 // static constexpr gtime_t calculate_max_wave_time(int32_t wave_level); // (already provided in previous context)
 static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t numHumanPlayers, int32_t lvl)
@@ -1444,53 +1458,41 @@ static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t
 	}
 
 	// 1. Configure map-specific base parameters (maxMonsters, initial timeThreshold)
-	auto configureMapParams = [&](ConditionParams &p)
+	if (mapSize.isBigMap)
 	{
-		if (mapSize.isBigMap)
-		{
-			p.maxMonsters = (numHumanPlayers >= 3) ? 26 : 24;
-			p.timeThreshold = random_time(24_sec, 30_sec); // From previous modification
-		}
-		else if (mapSize.isSmallMap)
-		{
-			p.maxMonsters = (numHumanPlayers >= 3) ? 12 : 9;
-			p.timeThreshold = random_time(22_sec, 28_sec); // From previous modification
-		}
-		else
-		{ // Medium maps
-			p.maxMonsters = (numHumanPlayers >= 3) ? 17 : 13;
-			p.timeThreshold = random_time(24_sec, 31_sec); // From previous modification
-		}
-	};
-	configureMapParams(params);
+		params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 24;
+		params.timeThreshold = random_time(24_sec, 30_sec); // From previous modification
+	}
+	else if (mapSize.isSmallMap)
+	{
+		params.maxMonsters = (numHumanPlayers >= 3) ? 12 : 9;
+		params.timeThreshold = random_time(22_sec, 28_sec); // From previous modification
+	}
+	else
+	{ // Medium maps
+		params.maxMonsters = (numHumanPlayers >= 3) ? 17 : 13;
+		params.timeThreshold = random_time(24_sec, 31_sec); // From previous modification
+	}
 
 	// 2. Progressive adjustments based on level
-	params.maxMonsters += std::min(lvl / 4, 8);
-	params.timeThreshold += gtime_t::from_ms(80ll * std::min(lvl / 3, 5)); // From previous modification
+	params.maxMonsters += std::min(lvl / MAX_MONSTER_LEVEL_BONUS_DIV, MAX_MONSTER_LEVEL_BONUS_CAP);
+	params.timeThreshold += gtime_t::from_ms(TIME_THRESHOLD_MS_PER_LEVEL * std::min(lvl / TIME_THRESHOLD_LEVEL_DIV, TIME_THRESHOLD_LEVEL_CAP));
 
-	// 3. Early wave time multiplier (for conditional timers)
-	float timeMultiplier = 1.0f;
-	if (lvl >= 1 && lvl <= 10)
-	{
-		timeMultiplier = 1.0f - (0.20f * (static_cast<float>(lvl - 1) / 9.0f));
-		timeMultiplier = std::max(0.75f, timeMultiplier); // Clamp, from previous modification
-	}
-
-	// 4. High level adjustments (for levels > 10)
+	// 3. High level adjustments (for levels > 10)
 	if (lvl > 10)
 	{
-		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f);
-		params.timeThreshold += 0.20_sec; // From previous modification
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * HIGH_LEVEL_MONSTER_MULT);
+		params.timeThreshold += gtime_t::from_sec(HIGH_LEVEL_TIME_BONUS_SEC);
 	}
 
-	// 5. Difficulty mode adjustments (chaotic/insane)
+	// 4. Difficulty mode adjustments (chaotic/insane)
 	if (g_chaotic->integer || g_insane->integer)
 	{
 		if (numHumanPlayers <= 3)
 		{
 			params.timeThreshold += random_time(7_sec, 12_sec); // From previous modification
 		}
-		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * CHAOTIC_MONSTER_MULT);
 	}
 
 	// ***** NEW: Early Wave Big Map Fix for maxMonsters *****
@@ -1538,23 +1540,26 @@ static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t
 	// 7. Configure time threshold for the low percentage condition
 	params.lowPercentageTimeThreshold = random_time(14_sec, 24_sec); // From previous modification
 
-	// 8. Aggressive time reduction threshold (when very few monsters are left, this is the % of total wave)
-	// This seems to be a threshold for when the *aggressive time reduction itself* can be considered,
-	// not the direct percentage of monsters that triggers the aggressive timer (that's MONSTERS_FOR_AGGRESSIVE_REDUCTION).
-	// Kept original value as its interaction is distinct.
-	params.aggressiveTimeReductionThreshold = 0.3f;
-
-	// 9. Configure independent (absolute maximum) wave time
-	params.independentTimeThreshold = calculate_max_wave_time(lvl); // Uses the separately improved function
-
-	// 10. Apply early wave timeMultiplier to the conditional timers
+	// 8. Apply early wave time multiplier to conditional timers (levels 1-10)
 	if (lvl >= 1 && lvl <= 10)
 	{
+		float timeMultiplier = 1.0f - (EARLY_WAVE_TIME_REDUCTION * (static_cast<float>(lvl - 1) / 9.0f));
+		timeMultiplier = std::max(EARLY_WAVE_TIME_MIN_MULT, timeMultiplier);
+
 		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * timeMultiplier);
 		params.lowPercentageTimeThreshold = gtime_t::from_sec(params.lowPercentageTimeThreshold.seconds() * timeMultiplier);
 		// The `independentTimeThreshold` is generally not affected by this multiplier as it's an overall cap.
 		// The `lowPercentageThreshold` (the float value itself) is also not multiplied; the timer it triggers is.
 	}
+
+	// 9. Aggressive time reduction threshold (when very few monsters are left, this is the % of total wave)
+	// This seems to be a threshold for when the *aggressive time reduction itself* can be considered,
+	// not the direct percentage of monsters that triggers the aggressive timer (that's MONSTERS_FOR_AGGRESSIVE_REDUCTION).
+	// Kept original value as its interaction is distinct.
+	params.aggressiveTimeReductionThreshold = 0.3f;
+
+	// 10. Configure independent (absolute maximum) wave time
+	params.independentTimeThreshold = calculate_max_wave_time(lvl); // Uses the separately improved function
 
 	// 11. Final parameter validation (ensure reasonable minimums)
 	params.maxMonsters = std::max(1, params.maxMonsters);									// At least 1 monster
@@ -2587,15 +2592,15 @@ void Horde_PreInit()
 
 		// Configuración de gameplay específica
 		gi.cvar_forceset("g_startarmor", "0");
-		gi.cvar_forceset("g_vampire", "0");
-		gi.cvar_forceset("g_ammoregen", "0");
-		gi.cvar_forceset("g_tracedbullets", "0");
-		gi.cvar_forceset("g_energyshells", "0");
-		gi.cvar_forceset("g_bouncygl", "0");
-		gi.cvar_forceset("g_bfgpull", "0");
-		gi.cvar_forceset("g_bfgslide", "1");
-		gi.cvar_forceset("g_energyshells", "0");
-		gi.cvar_forceset("g_autohaste", "0");
+		// gi.cvar_forceset("g_vampire", "0");
+		// gi.cvar_forceset("g_ammoregen", "0");
+		// gi.cvar_forceset("g_tracedbullets", "0");
+		// gi.cvar_forceset("g_energyshells", "0");
+		// gi.cvar_forceset("g_bouncygl", "0");
+		// gi.cvar_forceset("g_bfgpull", "0");
+		// gi.cvar_forceset("g_bfgslide", "1");
+		// gi.cvar_forceset("g_energyshells", "0");
+		// gi.cvar_forceset("g_autohaste", "0");
 		gi.cvar_forceset("g_chaotic", "0");
 		gi.cvar_forceset("g_insane", "0");
 		gi.cvar_forceset("g_hardcoop", "0");
@@ -3149,6 +3154,14 @@ void ResetPlayerDeployedItems()
 		// Sentries
 		client->resp.num_sentries = 0;
 		std::fill(client->resp.deployed_sentries, client->resp.deployed_sentries + SentryConstants::MAX_SENTRIES_PER_PLAYER, nullptr);
+
+				// Barrels
+		client->resp.num_barrels = 0;
+		std::fill(client->resp.deployed_barrels, client->resp.deployed_barrels + BarrelConstants::MAX_BARRELS_PER_PLAYER, nullptr);
+
+		// Summoned Stroggs
+		client->resp.num_summons = 0;
+		std::fill(client->resp.deployed_summons, client->resp.deployed_summons + MAX_STROGG_SUMMONS, nullptr);
 
 		// Timers
 		client->resp.teleport_cooldown = 3_sec; // Reset to default or 0_sec if appropriate
@@ -6054,9 +6067,8 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 		case horde::MonsterTypeID::RUNNERTANK:  // RunnerTank uses unique vault model
 			return "models/vault/monsters/tank/";
 		case horde::MonsterTypeID::PARASITE:
+		case horde::MonsterTypeID::PERRO_KL:  
 			return "models/monsters/parasite/";
-		case horde::MonsterTypeID::PERRO_KL:  // Perro_KL might use different model
-			return "models/monsters/perro/";
 		case horde::MonsterTypeID::BRAIN:
 			return "models/monsters/brain/";
 		case horde::MonsterTypeID::FLYER:
