@@ -1,6 +1,10 @@
 
 #include "../shared.h"
 
+// Forward declaration
+void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
+                             edict_t* ignore, float radius, damageflags_t dflags, mod_t mod);
+
 // Constants for trap positioning and behavior
 constexpr float TRAP_WALL_OFFSET = 3.0f;       // Offset for walls
 constexpr float TRAP_CEILING_OFFSET = -20.4f;  // Offset for ceilings
@@ -529,7 +533,7 @@ void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
 void ExplodeTrap(edict_t* ent) {
     ent->s.effects &= ~EF_BARREL_EXPLODING;
 
-    T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
+    T_RadiusDamage_TeamSafe(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
     BecomeExplosion1(ent);
 }
 

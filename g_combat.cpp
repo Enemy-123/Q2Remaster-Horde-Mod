@@ -814,14 +814,18 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
         return;
     }
 
+	// Cap damage to target's remaining health to prevent inflation
+	// (e.g., 200 damage to 30 health entity should only count as 30)
+	int capped_damage = std::min(real_damage, std::max(0, targ->health));
+
     auto& client = *attacker->client;
     const bool should_reset = level.time - attacker->client->lastdmg > 1.65_sec ||
         client.dmg_counter > 99999;
 
 	// Cast to uint64_t to prevent overflow during addition
 	client.dmg_counter = should_reset ?
-		static_cast<uint64_t>(real_damage) :
-		client.dmg_counter + static_cast<uint64_t>(real_damage);
+		static_cast<uint64_t>(capped_damage) :
+		client.dmg_counter + static_cast<uint64_t>(capped_damage);
 
 	// For display, cap at 32-bit max if needed
 	client.ps.stats[STAT_ID_DAMAGE] = static_cast<int>(std::min<uint64_t>(client.dmg_counter, INT_MAX));
@@ -829,7 +833,7 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 
 	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
 		// Cast to uint64_t to prevent overflow during addition
-		client.total_damage += static_cast<uint64_t>(real_damage);
+		client.total_damage += static_cast<uint64_t>(capped_damage);
 	}
 }
 
@@ -1470,11 +1474,7 @@ T_RadiusDamage
 */
 void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t* ignore, float radius, damageflags_t dflags, mod_t mod)
 {
-	if (!inflictor)
-		return;
 
-	if (!attacker)
-		attacker = inflictor;
 
 	vec3_t inflictor_center;
 	if (inflictor->linked)
@@ -1513,6 +1513,10 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 		// Vector from explosion center to the entity's impact point
 		vec3_t force_vec = damage_point - inflictor_center;
 		float dist = sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(damage_point, inflictor_center));
+
+		// Reject entities whose actual impact point is outside the explosion radius
+		if (dist > radius)
+			continue;
 
 		float points = damage - 0.5f * dist;
 

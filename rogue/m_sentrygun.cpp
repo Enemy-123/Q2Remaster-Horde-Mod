@@ -13,7 +13,10 @@ TURRET
 #include "../shared.h"
 #include <cfloat>
 
+// Forward declarations
 bool turret2_CanShootThroughObstacles(edict_t* self, const vec3_t& start, const vec3_t& target);
+void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
+                             edict_t* ignore, float radius, damageflags_t dflags, mod_t mod);
 
 constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = spawnflags_t(0x0008);
 constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = spawnflags_t(0x0010);
@@ -973,7 +976,7 @@ TOUCH(turret_heat_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool 
 		}
 	}
 
-	T_RadiusDamage(ent, attacker, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+	T_RadiusDamage_TeamSafe(ent, attacker, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
 
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)

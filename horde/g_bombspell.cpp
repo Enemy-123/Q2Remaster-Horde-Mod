@@ -61,6 +61,11 @@ void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage
         vec3_t center = ent->mins + ent->maxs;
         center = ent->s.origin + (center * 0.5f);
         float dist = sqrtf(HordePerf::g_distance_cache.GetDistanceSquared(center, inflictor->s.origin));
+
+        // Reject entities whose actual impact point is outside the explosion radius
+        if (dist > radius)
+            continue;
+
         float points = damage - 0.5f * dist;
 
         if (points > 0 && CanDamage(ent, inflictor))

@@ -4,6 +4,10 @@
 #include "g_horde_phys.h"
 #include "g_horde_benefits.h"
 
+// Forward declaration
+void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
+                             edict_t* ignore, float radius, damageflags_t dflags, mod_t mod);
+
 // *************************
 // BARREL - Explosive barrels for Horde Mode
 // *************************
@@ -152,7 +156,7 @@ void barrel_burn_damage(edict_t* self)
                 // Deal small damage to attract attention
                 // Use chain (owner) if no activator is set
                 edict_t* damage_attacker = self->activator ? self->activator : (self->chain ? self->chain : self);
-                T_Damage(ent, self, damage_attacker,
+                T_Damage(ent, damage_attacker, damage_attacker,
                         vec3_origin, ent->s.origin, vec3_origin,
                         damage_this_frame, 0, DAMAGE_NONE, MOD_UNKNOWN);
 
@@ -237,7 +241,7 @@ THINK(barrel_explode)(edict_t* self) -> void
 
     // Radius damage - use chain if available, otherwise self
     edict_t* attacker = self->chain ? self->chain : self;
-    T_RadiusDamage(self, attacker, (float)damage, nullptr,
+    T_RadiusDamage_TeamSafe(self, attacker, (float)damage, nullptr,
                    BarrelConstants::BARREL_EXPLOSION_RADIUS, DAMAGE_NONE, MOD_G_SPLASH);
 
     // Throw gibs
