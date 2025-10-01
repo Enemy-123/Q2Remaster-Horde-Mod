@@ -838,8 +838,8 @@ static void AwardKillToPlayer(edict_t* player)
 		player->client->resp.score++;
 		player->client->resp.spree++;
 
-		// Increment powerup time if g_autohaste is active
-		if (g_autohaste->integer)
+		// Increment powerup time if player has autohaste bonus
+		if (PlayerHasAutoHaste(player))
 		{
 			if (player->client->quadfire_time > level.time)
 				player->client->quadfire_time += 0.75_sec;
