@@ -719,6 +719,10 @@ void Weapon_Hook_Fire(edict_t* ent)
 		return;
 	}
 
+	const bool using_grapple = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GRAPPLE;
+	if  (using_grapple)
+	return; // Don't allow hook if grapple is equipped
+	
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t offset;
