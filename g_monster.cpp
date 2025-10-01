@@ -506,7 +506,7 @@ bool M_HasEnemy(edict_t* self)
 // Checks enemy health and is suitable for attacks that need a fully valid, living target
 bool M_HasValidTarget(edict_t* self)
 {
-	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse || self->enemy->health < 0)
 	{
 		return false;
 	}

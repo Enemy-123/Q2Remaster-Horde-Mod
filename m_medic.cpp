@@ -1650,6 +1650,16 @@ void medic_cable_attack(edict_t *self)
 	{
 		if (self->monsterinfo.aiflags & AI_HOLD_FRAME)
 		{
+			// FIX: Check if target still needs healing EVERY FRAME during hold
+			if (!self->enemy || !self->enemy->inuse || !M_NeedRegen(self->enemy) ||
+				!visible(self, self->enemy) || realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE)
+			{
+				cleanupHeal(self);
+				self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+				self->monsterinfo.nextframe = FRAME_attack54;
+				return;
+			}
+
 			if (level.time >= self->monsterinfo.attack_finished)
 			{
 				self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;

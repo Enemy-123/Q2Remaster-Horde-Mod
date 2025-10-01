@@ -2145,7 +2145,7 @@ void ai_run(edict_t* self, float dist)
 	if (self->monsterinfo.healing_pause_time > level.time)
 	{
 		// Still being healed, just face enemy if we have one
-		if (self->enemy && self->enemy->inuse)
+		if (M_HasValidTarget(self))
 		{
 			vec3_t v = self->enemy->s.origin - self->s.origin;
 			self->ideal_yaw = vectoyaw(v);
@@ -2168,7 +2168,7 @@ void ai_run(edict_t* self, float dist)
 		if (self->monsterinfo.aiflags & AI_MEDIC)
 		{
 			// Let the medic continue its healing/resurrection
-			if (!self->enemy || !self->enemy->inuse)
+			if (!M_HasValidTarget(self))
 			{
 				// Target lost, clear medic mode
 				self->monsterinfo.aiflags &= ~AI_MEDIC;
@@ -2180,7 +2180,7 @@ void ai_run(edict_t* self, float dist)
 			}
 			// Otherwise continue with current healing target - don't call FindMTarget
 		}
-		else if (!self->enemy || !self->enemy->inuse || self->enemy->client)
+		else if (!M_HasValidTarget(self) || self->enemy->client)
 		{
 			self->enemy = nullptr;
 			if (!FindMTarget(self))
@@ -2197,7 +2197,7 @@ void ai_run(edict_t* self, float dist)
 		if (self->monsterinfo.aiflags & AI_MEDIC)
 		{
 			// Medic is busy healing/resurrecting, don't interrupt
-			if (!self->enemy || !self->enemy->inuse)
+			if (!M_HasValidTarget(self))
 			{
 				// Target lost, clear medic mode
 				self->monsterinfo.aiflags &= ~AI_MEDIC;
@@ -2209,7 +2209,7 @@ void ai_run(edict_t* self, float dist)
 			}
 			// Otherwise continue with current healing target
 		}
-		else if (!self->enemy || !self->enemy->inuse)
+		else if (!M_HasValidTarget(self))
 		{
 			if (!FindTarget(self))
 			{
@@ -2220,7 +2220,7 @@ void ai_run(edict_t* self, float dist)
 	}
 
 	// 4. Final safety net: At this point, we should have a valid enemy.
-	if (!self->enemy || !self->enemy->inuse)
+	if (!M_HasValidTarget(self))
 	{
 		if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 		return;
@@ -2424,7 +2424,7 @@ void ai_run(edict_t* self, float dist)
 		{
 			M_MoveToGoal(self, dist);
 		}
-		if ((self->enemy) && (self->enemy->inuse) && (enemy_vis))
+		if (M_HasValidTarget(self) && enemy_vis)
 		{
 			if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
 			{
@@ -2445,7 +2445,7 @@ void ai_run(edict_t* self, float dist)
 	// PMM
 
 	// PGM - added a little paranoia checking here... 9/22/98
-	if ((self->enemy) && (self->enemy->inuse) && (enemy_vis))
+	if (M_HasValidTarget(self) && enemy_vis)
 	{
 		// PMM - check for alreadyMoved
 		if (!alreadyMoved)
