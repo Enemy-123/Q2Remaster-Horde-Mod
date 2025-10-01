@@ -506,9 +506,21 @@ bool M_HasEnemy(edict_t* self)
 // Checks enemy health and is suitable for attacks that need a fully valid, living target
 bool M_HasValidTarget(edict_t* self)
 {
-	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse || self->enemy->health < 0)
+	if (!self || !self->inuse || !self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
 		return false;
+	}
+
+	// Check for menu protected or fully invisible players
+	if (self->enemy->client)
+	{
+		// Menu protected or fully invisible (fade complete) - treat as invalid target
+		if (self->enemy->client->menu_protected ||
+			(self->enemy->client->invisible_time > level.time &&
+			 self->enemy->client->invisibility_fade_time <= level.time))
+		{
+			return false;
+		}
 	}
 
 	return true;
