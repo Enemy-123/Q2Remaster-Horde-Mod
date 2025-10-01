@@ -1249,19 +1249,30 @@ TOUCH(CTFGrappleTouch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 	if (is_sky || is_chainable)
 	{
-		// Reset the grapple
+		// Save data before freeing the grapple
+		edict_t* owner = self->owner;
+		vec3_t grapple_origin = self->s.origin;
+		vec3_t owner_origin = owner->s.origin;
+
+		// Check if owner already has a hook (shouldn't happen, but safety check)
+		if (owner->client->hook)
+		{
+			Hook_Reset(owner->client->hook);
+		}
+
+		// Reset the grapple (frees self)
 		CTFResetGrapple(self);
 
 		// Spawn a hook.cpp hook instead
-		vec3_t forward = (self->s.origin - self->owner->s.origin).normalized();
-		Hook_Fire(self->owner, self->owner->s.origin, forward);
+		vec3_t forward = (grapple_origin - owner_origin).normalized();
+		Hook_Fire(owner, owner_origin, forward);
 
 		// Make the hook immediately touch the target
-		if (self->owner->client->hook)
+		if (owner->client->hook)
 		{
-			self->owner->client->hook->s.origin = self->s.origin;
-			gi.linkentity(self->owner->client->hook);
-			self->owner->client->hook->touch(self->owner->client->hook, other, tr, false);
+			owner->client->hook->s.origin = grapple_origin;
+			gi.linkentity(owner->client->hook);
+			owner->client->hook->touch(owner->client->hook, other, tr, false);
 		}
 		return;
 	}
@@ -1473,22 +1484,36 @@ void CTFWeapon_Grapple(edict_t* ent)
 	constexpr int fire_frames[] = { 6, 0 };
 	int			  prevstate;
 
+	// Check if we have a hook.cpp hook (from conversion) or regular grapple
+	bool has_hook = (ent->client->hook != nullptr);
+	bool has_grapple = (ent->client->ctf_grapple != nullptr);
+
 	// if the the attack button is still down, stay in the firing frame
 	if ((ent->client->buttons & (BUTTON_ATTACK | BUTTON_HOLSTER)) &&
 		ent->client->weaponstate == WEAPON_FIRING &&
-		ent->client->ctf_grapple)
+		(ent->client->ctf_grapple || has_hook))
 		ent->client->ps.gunframe = 6;
 
-	if (!(ent->client->buttons & (BUTTON_ATTACK | BUTTON_HOLSTER)) &&
-		ent->client->ctf_grapple)
+	if (!(ent->client->buttons & (BUTTON_ATTACK | BUTTON_HOLSTER)))
 	{
-		CTFResetGrapple(ent->client->ctf_grapple);
-		if (ent->client->weaponstate == WEAPON_FIRING)
-			ent->client->weaponstate = WEAPON_READY;
+		// Release hook.cpp hook if we have one
+		if (has_hook)
+		{
+			Hook_Reset(ent->client->hook);
+			if (ent->client->weaponstate == WEAPON_FIRING)
+				ent->client->weaponstate = WEAPON_READY;
+		}
+		// Release regular grapple if we have one
+		else if (has_grapple)
+		{
+			CTFResetGrapple(ent->client->ctf_grapple);
+			if (ent->client->weaponstate == WEAPON_FIRING)
+				ent->client->weaponstate = WEAPON_READY;
+		}
 	}
 
 	if ((ent->client->newweapon || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_HOLSTER)) &&
-		ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY &&
+		(ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY || has_hook) &&
 		ent->client->weaponstate == WEAPON_FIRING)
 	{
 		// he wants to change weapons while grappled
@@ -1505,13 +1530,13 @@ void CTFWeapon_Grapple(edict_t* ent)
 	// if the the attack button is still down, stay in the firing frame
 	if ((ent->client->buttons & (BUTTON_ATTACK | BUTTON_HOLSTER)) &&
 		ent->client->weaponstate == WEAPON_FIRING &&
-		ent->client->ctf_grapple)
+		(ent->client->ctf_grapple || has_hook))
 		ent->client->ps.gunframe = 6;
 
 	// if we just switched back to grapple, immediately go to fire frame
 	if (prevstate == WEAPON_ACTIVATING &&
 		ent->client->weaponstate == WEAPON_READY &&
-		ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY)
+		(ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY || has_hook))
 	{
 		if (!(ent->client->buttons & (BUTTON_ATTACK | BUTTON_HOLSTER)))
 			ent->client->ps.gunframe = 6;
