@@ -3218,7 +3218,6 @@ struct client_respawn_t
 	// --- Barrel Tracking ---
 	int      num_barrels = 0;
 	edict_t* deployed_barrels[BarrelConstants::MAX_BARRELS_PER_PLAYER];
-	int      oldest_barrel_idx;
 	edict_t* held_barrel = nullptr; // Currently held barrel for visualization
 
 	// Sentries

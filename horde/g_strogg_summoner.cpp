@@ -34,7 +34,10 @@ void RemoveSummonFromPlayerArray(edict_t* monster)
 	for (int i = 0; i < MAX_STROGG_SUMMONS; i++) {
 		if (player->client->resp.deployed_summons[i] == monster) {
 			player->client->resp.deployed_summons[i] = nullptr;
-			player->client->resp.num_summons--;
+			// Decrement with bounds checking
+			if (player->client->resp.num_summons > 0) {
+				player->client->resp.num_summons--;
+			}
 			break;
 		}
 	}

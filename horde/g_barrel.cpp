@@ -42,8 +42,10 @@ static void barrel_cleanup_tracking(edict_t* barrel)
 
     auto* client = barrel->chain->client;
 
-    // Decrement barrel count
-    client->resp.num_barrels--;
+    // Decrement barrel count with bounds checking
+    if (client->resp.num_barrels > 0) {
+        client->resp.num_barrels--;
+    }
 
     // Clear held barrel reference if this is it
     if (client->resp.held_barrel == barrel)
@@ -695,17 +697,11 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
         if (self->client->pers.health <= 0)
             return nullptr;
 
-        // If at limit, remove oldest barrel first
+        // Check if at limit before deploying
         if (self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER)
         {
-            edict_t* oldest = self->client->resp.deployed_barrels[self->client->resp.oldest_barrel_idx];
-            if (oldest && oldest->inuse && oldest->die == barrel_die)
-            {
-                // Force instant explosion of oldest barrel
-               gi.Com_PrintFmt(" Can't throw any more Barrels!\n");
-               return nullptr;  //barrel_explode(oldest);
-            }
-            // Don't increment counter yet, barrel_explode will decrement it
+            gi.LocClient_Print(self, PRINT_HIGH, "You have reached the barrel limit.\n");
+            return nullptr;
         }
     }
 
@@ -765,34 +761,18 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     // Track the barrel
     if (self->client)
     {
-        // Find an empty slot or use the oldest slot
-        int slot_to_use = -1;
-
-        // First, try to find an empty slot
+        // Find an empty slot in the tracking array
         for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; i++)
         {
             if (!self->client->resp.deployed_barrels[i] || !self->client->resp.deployed_barrels[i]->inuse)
             {
-                slot_to_use = i;
+                self->client->resp.deployed_barrels[i] = barrel;
                 break;
             }
         }
 
-        // If no empty slot, use the oldest barrel index
-        if (slot_to_use == -1)
-        {
-            slot_to_use = self->client->resp.oldest_barrel_idx;
-            self->client->resp.oldest_barrel_idx = (self->client->resp.oldest_barrel_idx + 1) % BarrelConstants::MAX_BARRELS_PER_PLAYER;
-        }
-
-        // Store the barrel in the slot
-        self->client->resp.deployed_barrels[slot_to_use] = barrel;
-
-        // Only increment if we're not at the limit
-        if (self->client->resp.num_barrels < BarrelConstants::MAX_BARRELS_PER_PLAYER)
-        {
-            self->client->resp.num_barrels++;
-        }
+        // Increment the count
+        self->client->resp.num_barrels++;
 
         // Clear held barrel if throwing
         if (self->client->resp.held_barrel)
@@ -833,9 +813,8 @@ void remove_barrels(edict_t* ent)
         ent->client->resp.held_barrel = nullptr;
     }
 
-    // Reset barrel counters
+    // Reset barrel counter
     ent->client->resp.num_barrels = 0;
-    ent->client->resp.oldest_barrel_idx = 0;
 }
 
 // Command function for testing barrels
