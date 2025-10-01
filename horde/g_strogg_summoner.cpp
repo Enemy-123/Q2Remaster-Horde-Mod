@@ -306,8 +306,11 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 		return;
 	}
 
-	// Check if player already has maximum summons using the player array
-	if (ent->client->resp.num_summons >= MAX_STROGG_SUMMONS) {
+	// Determine max summons based on whether player is a bot
+	int max_summons = (ent->svflags & SVF_BOT) ? 1 : MAX_STROGG_SUMMONS;
+
+	// Check if player already has maximum summons
+	if (ent->client->resp.num_summons >= max_summons) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "You already have maximum Strogg summons active!\n");
 		return;
 	}

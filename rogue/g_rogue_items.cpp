@@ -335,6 +335,28 @@ bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 	return true;
 }
 
+
+bool Pickup_StroggSumm(edict_t* ent, edict_t* other)
+{
+	int quantity;
+	int max_quantity;
+
+	quantity = other->client->pers.inventory[ent->item->id];
+	
+	// Bots can only carry 1, players can carry 3
+	max_quantity = (other->svflags & SVF_BOT) ? 1 : 3;
+	
+	if (quantity >= max_quantity)
+		return false;
+
+	other->client->pers.inventory[ent->item->id]++;
+
+	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED))
+		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
+
+	return true;
+}
+
 bool Pickup_Teleport(edict_t* ent, edict_t* other)
 {
 	int quantity;

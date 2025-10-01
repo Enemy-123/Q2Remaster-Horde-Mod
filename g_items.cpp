@@ -4214,7 +4214,7 @@ model="models/items/keys/pass/tris.md2"
 		{
 			/* id */ IT_ITEM_STROGGSUMM,
 			/* classname */ "item_stroggsumm",
-			/* pickup */ Pickup_General,
+			/* pickup */ Pickup_StroggSumm,
 			/* use */ Use_StroggSummon,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
