@@ -84,27 +84,20 @@ static void shambler_fireball_update(edict_t* self)
 		gi.setmodel(fireball_effect, "models/objects/gibs/sm_meat/tris.md2"); // Meat model for charging
 	}
 
-    // Corrected frame check for fireball (smash animation) and using lightning_left_hand count
-if (self->s.frame >= FRAME_smash01 + static_cast<int>(q_countof(lightning_left_hand)))
-	{
-		G_FreeEdict(fireball_effect);
-		self->beam2 = nullptr; // Clear beam2
-		return;
-	}
-
 	vec3_t f, r;
 	AngleVectors(self->s.angles, f, r, nullptr);
 
 	// Calculate positions for both hands, deriving from lightning positions + Z offset
-    // Indexing based on FRAME_smash01
-    int frame_index = self->s.frame - FRAME_smash01;
-    if (frame_index < 0 || frame_index >= static_cast<int>(q_countof(lightning_left_hand))) {
-        // Safety break, should not happen if animation frames are correct
-        G_FreeEdict(fireball_effect);
+	// Indexing based on FRAME_smash01
+	int frame_index = self->s.frame - FRAME_smash01;
+
+	// Safety check: if we're not in the smash animation anymore, clean up
+	if (frame_index < 0 || frame_index >= static_cast<int>(q_countof(lightning_left_hand)))
+	{
+		G_FreeEdict(fireball_effect);
 		self->beam2 = nullptr;
-        gi.Com_PrintFmt("shambler_fireball_update: frame_index out of bounds\n");
-        return;
-    }
+		return;
+	}
 
 	vec3_t temp_left_hand_pos = lightning_left_hand[frame_index];
 	temp_left_hand_pos[2] += FIREBALL_HAND_Z_OFFSET;
@@ -165,7 +158,8 @@ static void shambler_lightning_update(edict_t* self)
 		return;
 	}
 
-	if (self->s.frame >= FRAME_magic01 + static_cast<int>(q_countof(lightning_left_hand)))
+	// Safety check: if we're not in the magic attack animation anymore, clean up
+	if (self->s.frame < FRAME_magic01 || self->s.frame >= FRAME_magic01 + static_cast<int>(q_countof(lightning_left_hand)))
 	{
 		G_FreeEdict(lightning);
 		self->beam = nullptr;
@@ -296,6 +290,32 @@ MONSTERINFO_RUN(shambler_run) (edict_t* self) -> void
 
 // FIXME: needs halved explosion damage
 
+static void shambler_cleanup_effects(edict_t* self)
+{
+	// Clean up lightning beam
+	if (self->beam)
+	{
+		self->beam->s.modelindex = 0;
+		self->beam->s.renderfx = RF_NONE;
+		self->beam->solid = SOLID_NOT;
+		gi.unlinkentity(self->beam);
+		G_FreeEdict(self->beam);
+		self->beam = nullptr;
+	}
+
+	// Clean up fireball charging effect
+	if (self->beam2)
+	{
+		self->beam2->s.modelindex = 0;
+		self->beam2->s.effects = EF_NONE;
+		self->beam2->s.renderfx = RF_NONE;
+		self->beam2->solid = SOLID_NOT;
+		gi.unlinkentity(self->beam2);
+		G_FreeEdict(self->beam2);
+		self->beam2 = nullptr;
+	}
+}
+
 mframe_t shambler_frames_pain[] = {
 	{ ai_move },
 	{ ai_move },
@@ -337,6 +357,10 @@ PAIN(shambler_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 		return;
 
 	self->pain_debounce_time = level.time + 2_sec;
+
+	// Clean up any active attack effects (lightning beam, fireball charging)
+	shambler_cleanup_effects(self);
+
 	M_SetAnimation(self, &shambler_move_pain);
 }
 
@@ -826,27 +850,7 @@ MMOVE_T(shambler_move_death) = { FRAME_death01, FRAME_death11, shambler_frames_d
 DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	// 1. Always clean up visual effect entities first
-	if (self->beam)
-	{
-		// Properly clean up the beam before freeing
-		self->beam->s.modelindex = 0;
-		self->beam->s.renderfx = RF_NONE;
-		self->beam->solid = SOLID_NOT;
-		gi.unlinkentity(self->beam);
-		G_FreeEdict(self->beam);
-		self->beam = nullptr;
-	}
-	if (self->beam2)
-	{
-		// Properly clean up the fireball effect before freeing
-		self->beam2->s.modelindex = 0;
-		self->beam2->s.effects = EF_NONE;
-		self->beam2->s.renderfx = RF_NONE;
-		self->beam2->solid = SOLID_NOT;
-		gi.unlinkentity(self->beam2);
-		G_FreeEdict(self->beam2);
-		self->beam2 = nullptr;
-	}
+	shambler_cleanup_effects(self);
 
 	// 2. Handle boss-specific death logic (if any, before it's fully "dead")
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)

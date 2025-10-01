@@ -1166,18 +1166,49 @@ void flyer_check_melee(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		M_SetAnimation(self, &flyer_move_end_melee);
+		flyer_set_fly_parameters(self, false);
+		return;
+	}
+
+	// Check if enemy is still visible - prevent looping on lost target
+	if (!visible(self, self->enemy))
+	{
+		M_SetAnimation(self, &flyer_move_end_melee);
+		flyer_set_fly_parameters(self, false);
+		return;
+	}
+
+	// Limit melee loops to prevent infinite slashing
+	constexpr int MAX_MELEE_LOOPS = 3;
+
+	// Use attack_finished as a loop counter
+	if (self->monsterinfo.attack_finished == 0_ms)
+	{
+		// First loop - initialize counter
+		self->monsterinfo.attack_finished = gtime_t::from_sec(1);
+	}
+	else
+	{
+		// Increment loop counter
+		self->monsterinfo.attack_finished += gtime_t::from_sec(1);
 	}
 
 	if (range_to(self, self->enemy) <= RANGE_MELEE)
 	{
-		if (self->monsterinfo.melee_debounce_time <= level.time)
+		// Check loop limit
+		if (self->monsterinfo.attack_finished.seconds() < MAX_MELEE_LOOPS)
 		{
-			M_SetAnimation(self, &flyer_move_loop_melee);
-			return;
+			if (self->monsterinfo.melee_debounce_time <= level.time)
+			{
+				M_SetAnimation(self, &flyer_move_loop_melee);
+				return;
+			}
 		}
 	}
 
+	// Exit melee - reset counter
+	self->monsterinfo.attack_finished = 0_ms;
 	M_SetAnimation(self, &flyer_move_end_melee);
 	flyer_set_fly_parameters(self, false);
 }
