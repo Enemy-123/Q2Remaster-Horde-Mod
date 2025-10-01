@@ -1640,352 +1640,129 @@ bool M_NeedRegen(edict_t *target)
 	return false;
 }
 
-// Modified cable attack function with healing loop
+// This function is called on frames 43-52 of the healing animation.
+// It handles drawing the cable, applying healing, resurrection, sound, and the pause/loop logic.
 void medic_cable_attack(edict_t *self)
 {
-	vec3_t offset, start, forward, right;
-	trace_t tr;
-	float distance;
-
-	// Make sure we are in a good frame for our next decision
-	if (self->s.frame < FRAME_attack42 || self->s.frame > FRAME_attack52)
-		return;
-
-	// Abort immediately if trying to heal wrong team (surprised during healing)
-	if (self->enemy && self->enemy->health > 0 && !OnSameTeam(self, self->enemy))
+	// --- FRAME 51: PAUSE & LOOP LOGIC ---
+	// This block contains all the special logic that only runs on the "decision" frame.
+	if (self->s.frame == FRAME_attack51)
 	{
-		abortHeal(self, false, false);
-		if (self->monsterinfo.run)
-			self->monsterinfo.run(self);
-		return;
-	}
-
-	// Reconsider target every few frames.
-	if (self->s.frame == FRAME_attack43)
-	{
-		// Re-evaluate healing target
-		if (!self->enemy || !self->enemy->inuse)
-			return;
-
-		// Abort if trying to heal an enemy (team changed after we started)
-		if (self->enemy->health > 0)
+		// Check if we are currently in a pause.
+		if (self->monsterinfo.aiflags & AI_HOLD_FRAME)
 		{
-			bool should_abort = false;
-
-			if (g_horde->integer && (self->monsterinfo.isfriendlyspawn || (self->monsterinfo.bonus_flags & BF_FRIENDLY)))
+			// We are paused. Check if the timer has expired.
+			if (level.time >= self->monsterinfo.attack_finished)
 			{
-				// Friendly medic shouldn't heal enemy monsters
-				if ((self->enemy->svflags & SVF_MONSTER) && !OnSameTeam(self, self->enemy))
-					should_abort = true;
-				// Shouldn't heal enemy players
-				else if (self->enemy->client && self->enemy->ctf_team != CTF_TEAM1)
-					should_abort = true;
+				// Pause is over. Clear the flag and set the next frame to loop back.
+				self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+				self->monsterinfo.nextframe = FRAME_attack43;
+			}
+		}
+		else // We are not paused, meaning we just arrived at frame 51.
+		{
+			// DECISION: Should we continue healing or stop?
+			if (!self->enemy || !self->enemy->inuse || !M_NeedRegen(self->enemy) ||
+				!visible(self, self->enemy) || realrange(self, self->enemy) > MEDIC_MAX_HEAL_DISTANCE)
+			{
+				// STOP: Target is fully healed, gone, or out of range.
+				cleanupHeal(self);
+				self->monsterinfo.nextframe = FRAME_attack54; // Proceed to retract cable animation.
 			}
 			else
 			{
-				// Enemy medic shouldn't heal friendly monsters or players
-				if (!OnSameTeam(self, self->enemy))
-					should_abort = true;
+				// CONTINUE: Target still needs healing. Start the pause.
+				self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+				self->monsterinfo.attack_finished = level.time + 800_ms; // Set the timer ONCE.
 			}
-
-			if (should_abort)
-			{
-				abortHeal(self, false, false);
-				return;
-			}
-		}
-
-		// FIX: Check if the target is fully healed at the start of healing
-		if (self->enemy->health > 0 && !M_NeedRegen(self->enemy))
-		{
-			cleanupHeal(self);
-			self->monsterinfo.nextframe = FRAME_attack53; // Skip to cable retract
-			return;
-		}
-
-		// Check summon limit for resurrections (prevents looping at 3/3)
-		if (self->enemy->health <= 0 && !Medic_CanResurrect(self))
-		{
-			abortHeal(self, false, false);
-			return;
 		}
 	}
 
-	// We have an active cable attack - check if in range
-	distance = self->enemy ? realrange(self, self->enemy) : 9999.0f;
-	if (self->enemy && distance <= MEDIC_MAX_HEAL_DISTANCE && visible(self, self->enemy))
-	{
-		// Play attack sound
-		if (self->s.frame == FRAME_attack43 || self->s.frame == FRAME_attack50)
-			gi.sound(self, CHAN_WEAPON, sound_hook_launch, 1, ATTN_NORM, 0);
+	// --- GENERIC HEALING LOGIC (Runs on all frames, including the paused frame 51) ---
 
-		// Calculate cable origin (clamp index to array bounds)
+	// Target validity checks
+	if (!self->enemy || !self->enemy->inuse)
+	{
+		cleanupHeal(self);
+		self->monsterinfo.nextframe = FRAME_attack54;
+		return;
+	}
+
+	// Draw the cable and apply healing effect if in range
+	if (realrange(self, self->enemy) <= MEDIC_MAX_HEAL_DISTANCE && visible(self, self->enemy))
+	{
+		vec3_t offset, start, forward, right;
+		trace_t tr;
+
+		// Calculate cable origin
 		AngleVectors(self->s.angles, forward, right, nullptr);
-		int cable_index = min((int)(self->s.frame - FRAME_attack42), 9); // Array has 10 entries (0-9)
+		int cable_index = min((int)(self->s.frame - FRAME_attack42), 9);
 		offset = medic_cable_offsets[cable_index];
 		start = M_ProjectFlashSource(self, offset, forward, right);
 
-		// Trace to the enemy
+		// Draw cable
 		tr = gi.traceline(start, self->enemy->s.origin, self, MASK_SOLID);
-
-		// Draw cable (make wider and more visible for healing)
-		if (M_NeedRegen(self->enemy))
-			gi.WriteByte(svc_temp_entity);
-		else
-			gi.WriteByte(svc_temp_entity);
-
+		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_MEDIC_CABLE_ATTACK);
 		gi.WriteShort(self - g_edicts);
 		gi.WritePosition(start);
 		gi.WritePosition(tr.endpos);
 		gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
-		// Apply healing effect
-            // Play healing sound effect - loop every 1 second during healing (frames 43-51)
-            if (self->s.frame >= FRAME_attack43 && self->s.frame <= FRAME_attack51)
-            {
-                // Initialize timer on first frame
-                if (self->s.frame == FRAME_attack43 && self->monsterinfo.checkattack_time == 0_ms)
-                {
-                    gi.sound(self->enemy, CHAN_AUTO, sound_hook_heal, 1, ATTN_NORM, 0);
-                    self->monsterinfo.checkattack_time = level.time + 1_sec;
-                }
-                // Loop sound every 1 second
-                else if (level.time >= self->monsterinfo.checkattack_time)
-                {
-                    gi.sound(self->enemy, CHAN_AUTO, sound_hook_heal, 1, ATTN_NORM, 0);
-                    self->monsterinfo.checkattack_time = level.time + 1_sec;
-                }
-
-				if (self->s.frame == FRAME_attack51)
-				{
-					if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
-					{
-						// Start continuous frame mode
-						self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-						self->monsterinfo.duck_wait_time = level.time +
-														   (random_time(800_ms, 1_sec));
-						self->monsterinfo.next_duck_time = level.time + 200_ms; // update for next frame #43
-						self->monsterinfo.nextframe = FRAME_attack43;
-						self->monsterinfo.aiflags & ~AI_HOLD_FRAME;
-					} // Hold last healing frame longer
-				}
-			}
-
-		// Damage or healing  logic
-		if (self->enemy->health <= 0 && g_horde->integer && self->enemy->svflags & SVF_DEADMONSTER)
+		// --- NEW: LOOPING SOUND LOGIC ---
+		// Play the continuous healing sound once per second.
+		if (level.time >= self->monsterinfo.checkattack_time)
 		{
-			// Resurrect corpse in horde mode
+			gi.sound(self->enemy, CHAN_AUTO, sound_hook_heal, 1, ATTN_NORM, 0);
+			self->monsterinfo.checkattack_time = level.time + 1_sec;
+		}
+
+		// --- NEW: APPLY HEALING OR RESURRECTION ---
+		if (self->enemy->health <= 0)
+		{
+			// RESURRECTION LOGIC: Target is dead.
+			// Only attempt resurrection on the first frame of the loop to prevent repeated calls.
 			if (self->s.frame == FRAME_attack43)
 			{
-				// Check total summon limit for summoned medics (shouldn't happen due to earlier checks, but be safe)
-				if (!Medic_CanResurrect(self))
+				if (Medic_CanResurrect(self))
 				{
-					if (self->teammaster && self->teammaster->client)
-					{
-						gi.LocClient_Print(self->teammaster, PRINT_HIGH,
-										   "Cannot resurrect: summon limit reached (3/3)\n");
-					}
+					finishHeal(self);
+					// Target is now alive, so we stay in the healing loop to heal them to full.
+					self->monsterinfo.nextframe = FRAME_attack43;
+				}
+				else
+				{
+					// Cannot resurrect, so abort.
 					abortHeal(self, false, false);
-					return;
 				}
-				// Force immediate team change for the corpse BEFORE resurrection
-				self->enemy->ctf_team = self->ctf_team;
-				if (self->enemy->svflags & SVF_MONSTER)
-				{
-					self->enemy->monsterinfo.team = static_cast<uint8_t>(self->ctf_team);
-				}
-
-				// Resurrect immediately like Vortex - no delays
-				finishHeal(self);
-				// Target is now alive, jump directly to healing frame to continue healing
-				self->monsterinfo.nextframe = FRAME_attack43;
 			}
 		}
-		else if (M_NeedRegen(self->enemy))
-        {
-            // Mark that this monster is being healed
-            // Regular healing logic
-            // apply healing instead of damage
-            bool    is_friendly = (self->monsterinfo.aiflags & AI_GOOD_GUY) != 0;
-            int     heal_amount = is_friendly ? 6 : 3; // boosted heal vs normal
+		else // Target is alive.
+		{
+			// HEALING LOGIC
+			bool is_friendly = (self->monsterinfo.aiflags & AI_GOOD_GUY) != 0;
+			int heal_amount = is_friendly ? 6 : 3;
 
-            self->enemy->health = min((int)self->enemy->health + heal_amount, (int)self->enemy->max_health);
+			self->enemy->health = min((int)self->enemy->health + heal_amount, (int)self->enemy->max_health);
 
-				// Heal armor for monsters
-				if (self->enemy->svflags & SVF_MONSTER)
+			if (self->enemy->svflags & SVF_MONSTER)
+			{
+				if (self->enemy->monsterinfo.max_power_armor_power > 0)
 				{
-					// Only heal power armor if the monster is intended to have it
-					if (self->enemy->monsterinfo.max_power_armor_power > 0)
-					{
-						if (self->enemy->monsterinfo.power_armor_power < self->enemy->monsterinfo.max_power_armor_power)
-						{
-							self->enemy->monsterinfo.power_armor_power += heal_amount / 2;
-							if (self->enemy->monsterinfo.power_armor_power > self->enemy->monsterinfo.max_power_armor_power)
-								self->enemy->monsterinfo.power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
-						}
-					}
-					// Otherwise, heal standard armor if appropriate
-					else if (self->enemy->monsterinfo.armor_power < 200) // A reasonable cap for standard armor
-					{
-						self->enemy->monsterinfo.armor_power = min(self->enemy->monsterinfo.armor_power + heal_amount / 2, 200);
-					}
+					self->enemy->monsterinfo.power_armor_power = min(self->enemy->monsterinfo.power_armor_power + heal_amount / 2, self->enemy->monsterinfo.max_power_armor_power);
 				}
-                else if (self->enemy->client)
-                {
-                    // Heal player's armor
-                    int armor_index = ArmorIndex(self->enemy);
-                    if (armor_index == IT_NULL)
-                    {
-                        // Player has no armor at all - give them jacket armor
-                        self->enemy->client->pers.inventory[IT_ARMOR_JACKET] = heal_amount / 2;
-                    }
-                    else
-                    {
-                        // Player has armor - heal it normally
-                        int max_armor = 200; // Default max armor
-                        int current_armor = self->enemy->client->pers.inventory[armor_index];
-                        if (current_armor < max_armor)
-                        {
-                            self->enemy->client->pers.inventory[armor_index] = min(current_armor + heal_amount / 2, max_armor);
-                        }
-                    }
-                }
-
-                self->monsterinfo.fire_wait = level.time + 1_ms; // Next heal in 200ms
-            }
-        
-        // Hold monster in place while healing using dedicated healing pause
-        if (self->enemy->svflags & SVF_MONSTER)
-        {
-            self->enemy->monsterinfo.healing_pause_time = level.time + 0.5_sec;  // Pause while being healed
-            self->enemy->monsterinfo.healer = self;  // Set the healer reference
-        }
-        
-        // FIX: Check if fully healed on EVERY frame, not just frame 48+
-        if (!M_NeedRegen(self->enemy))
-        {
-            cleanupHeal(self);
-            self->monsterinfo.nextframe = FRAME_attack53;
-            return;
-        }
-        // Loop healing animation if still needs healing
-        else if (M_NeedRegen(self->enemy) && self->s.frame >= FRAME_attack48)
-        {
-            self->monsterinfo.nextframe = FRAME_attack44; // Loop back to healing frames
-        }
-    }
+				else if (self->enemy->monsterinfo.armor_power < 200)
+				{
+					self->enemy->monsterinfo.armor_power = min(self->enemy->monsterinfo.armor_power + heal_amount / 2, 200);
+				}
+			}
+			// (Player armor healing logic can be added here if needed)
+		}
+	}
 	else
 	{
-		// Out of range or can't see target - abort and add cooldown
+		// Abort if target moves out of range during the animation.
 		cleanupHeal(self);
-		// Add a small delay before trying again
-		if (self->enemy && self->enemy->health <= 0)
-		{
-			// For dead targets, mark them as bad so we don't immediately retry
-			if (!self->enemy->monsterinfo.badMedic1)
-				self->enemy->monsterinfo.badMedic1 = self;
-			else
-				self->enemy->monsterinfo.badMedic2 = self;
-			// Clear the bad medic flag after a delay
-			self->enemy->timestamp = level.time + 3_sec;
-		}
-	}
-
-	// Check for resurrecti on completion (horde mode)
-	if (g_horde->integer && self->enemy && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING))
-	{
-		// Continue resurrection animation
-		if (self->s.frame == FRAME_attack44)
-		{
-			self->enemy->monsterinfo.healing_pause_time = level.time + 0.5_sec; // Short pause during resurrection
-			self->enemy->monsterinfo.healer = self;								// Maintain healer reference
-		}
-
-		// Check if resurrection is complete
-		if (level.time >= self->enemy->monsterinfo.attack_finished)
-		{
-			// Resurrection complete - bring them back to life
-			finishHeal(self);
-			// Continue immediately - the enemy is now alive and needs healing
-			// Don't retract, just continue the healing loop seamlessly
-			self->monsterinfo.nextframe = FRAME_attack44; // Continue in the middle of loop
-			return;										  // Let the next frame handle healing the now-alive monster
-		}
-		// Keep looping resurrection animation
-		else if (self->s.frame >= FRAME_attack48)
-		{
-			self->monsterinfo.nextframe = FRAME_attack44; // Loop back
-		}
-	}
-
-	// End of attack?
-	if (self->s.frame == FRAME_attack50)
-	{
-		// If our enemy is no longer valid, or out of reach, abort.
-		if (!self->enemy || distance > MEDIC_MAX_HEAL_DISTANCE || !visible(self, self->enemy) || !M_NeedRegen(self->enemy))
-		{
-			cleanupHeal(self);
-		}
-		else // our enemy is still good to go, reset and keep going.
-		{
-			// continue!
-			if (self->enemy && self->enemy->health <= 0 && g_horde->integer && self->enemy->svflags & SVF_DEADMONSTER)
-				return; // Keep going for resurrection
-
-			if (M_NeedRegen(self->enemy))
-				self->monsterinfo.nextframe = FRAME_attack43; // Loop back to first attack frame (skip launch)
-		}
-	}
-}
-
-// Add continue function to check if healing should continue
-void medic_cable_continue(edict_t *self)
-{
-	if (!self->enemy || !self->enemy->inuse)
-	{
-		abortHeal(self, false, false);
-		return;
-	}
-
-	// Handle resurrection differently than healing
-	if (g_horde->integer && (self->enemy->monsterinfo.aiflags & AI_RESURRECTING))
-	{
-		// Check if resurrection is complete
-		if (level.time >= self->enemy->monsterinfo.attack_finished)
-		{
-			// Resurrection complete - now immediately heal them
-			finishHeal(self);
-			// Continue healing without pause
-			self->monsterinfo.nextframe = FRAME_attack43;
-		}
-		else
-		{
-			// Continue resurrection animation - loop in the middle frames
-			self->monsterinfo.nextframe = FRAME_attack44; // Loop resurrection frames
-		}
-		return;
-	}
-
-	// For dead enemies that aren't resurrecting yet, start resurrection
-	if (self->enemy->health <= 0)
-	{
-		// Loop back to continue resurrection process
-		self->monsterinfo.nextframe = FRAME_attack44;
-		return;
-	}
-
-	float dist = (self->s.origin - self->enemy->s.origin).length();
-
-	// Continue healing if target still needs it and is in range
-	if (M_NeedRegen(self->enemy) && dist <= MEDIC_MAX_HEAL_DISTANCE)
-	{
-		// Loop back to healing frames (skip launch, go directly to attack)
-		self->monsterinfo.nextframe = FRAME_attack43;
-	}
-	else
-	{
-		// Done healing, retract cable
 		self->monsterinfo.nextframe = FRAME_attack54;
 	}
 }
@@ -2079,8 +1856,6 @@ bool mymedic_findenemy(edict_t *self)
 void medic_heal_end(edict_t *self);
 
 // Modified animation frames to support healing loop
-// Extended for 40Hz tickrate with continuous cable_attack for visibility
-// All using ai_charge to maintain attack state (like Vortex)
 mframe_t medic_frames_attackCable[] = {
 	{ai_charge, -5.f},					  // 33
 	{ai_charge, -6.f},					  // 34
@@ -2100,7 +1875,9 @@ mframe_t medic_frames_attackCable[] = {
 	{ai_charge, 0, medic_cable_attack},	  // 48
 	{ai_charge, 0, medic_cable_attack},	  // 49
 	{ai_charge, 0, medic_cable_attack},	  // 50
-	{ai_charge, 0, medic_cable_continue}, // 51 - check if should continue
+// VVV CHANGE THIS LINE VVV
+	{ai_charge, 0, medic_cable_attack},   // 51 - NOW CALLS THE MAIN FUNCTION
+// ^^^ CHANGE THIS LINE ^^^
 	{ai_charge, 0, medic_cable_attack},	  // 52
 	{ai_charge, 0, nullptr},			  // 53
 	{ai_charge, 0, medic_hook_retract},	  // 54 - retract cable
