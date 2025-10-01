@@ -2149,7 +2149,7 @@ extern cvar_t* sv_wave_timer;
 extern cvar_t* g_startarmor;
 // extern cvar_t* g_vampire;
 extern cvar_t* g_iddmg;
-extern cvar_t* g_autohaste;
+// extern cvar_t* g_autohaste;
 //extern cvar_t* wavenext;
 extern cvar_t* dm_monsters;
 //extern cvar_t* g_upgradeproxs;
