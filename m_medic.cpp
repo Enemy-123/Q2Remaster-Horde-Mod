@@ -1784,11 +1784,25 @@ void medic_cable_attack(edict_t* self)
                     gi.sound(self->enemy, CHAN_AUTO, sound_hook_heal, 1, ATTN_NORM, 0);
                     self->monsterinfo.checkattack_time = level.time + 1_sec;
                 }
-            }
-        }
 
-        // Damage or healing  logic
-        if (self->enemy->health <= 0 && g_horde->integer && self->enemy->svflags & SVF_DEADMONSTER)
+				if (self->s.frame == FRAME_attack51)
+				{
+					if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
+					{
+						// Start continuous frame mode
+						self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+						self->monsterinfo.duck_wait_time = level.time +
+														   (random_time(800_ms, 1_sec));
+						self->monsterinfo.next_duck_time = level.time + 200_ms; // update for next frame #43
+						self->monsterinfo.nextframe = FRAME_attack43;
+						self->monsterinfo.aiflags & ~AI_HOLD_FRAME;
+					} // Hold last healing frame longer
+				}
+			}
+		}
+
+		// Damage or healing  logic
+		if (self->enemy->health <= 0 && g_horde->integer && self->enemy->svflags & SVF_DEADMONSTER)
         {
             // Resurrect corpse in horde mode
             if (self->s.frame == FRAME_attack43)
@@ -1889,7 +1903,6 @@ void medic_cable_attack(edict_t* self)
             self->monsterinfo.nextframe = FRAME_attack44; // Loop back to healing frames
         }
     }
-    }
     else
     {
         // Out of range or can't see target - abort and add cooldown
@@ -1926,16 +1939,15 @@ void medic_cable_attack(edict_t* self)
     }
 }
 
-// Add continue function to check if healing should continue
-// Called at frame 51 - creates 800ms pause before looping back to frame 43
+// Check if healing should continue or end
+// Called at frame 51 after each healing cycle (9 frames × 25ms = 225ms per cycle)
+// Loops back to frame 43 to create extended healing duration
 void medic_cable_continue(edict_t* self)
 {
     if (!self->enemy || !self->enemy->inuse)
     {
         abortHeal(self, false, false);
-        // Reset timers
         self->monsterinfo.checkattack_time = 0_ms;
-        self->monsterinfo.idle_time = 0_ms;
         return;
     }
 
@@ -1944,34 +1956,13 @@ void medic_cable_continue(edict_t* self)
     // Continue healing if target still needs it and is in range
     if (M_NeedRegen(self->enemy) && dist <= MEDIC_MAX_HEAL_DISTANCE)
     {
-        // **PAUSE/HOLD at frame 51 for 800ms before looping back to frame 43**
-        // This creates the proper timing like Vortex medic
-
-        // Initialize hold timer on first call to this frame
-        if (self->monsterinfo.idle_time == 0_ms)
-        {
-            self->monsterinfo.idle_time = level.time + 0.8_sec; // 800ms pause
-        }
-
-        // Still in hold period - keep THIS frame active
-        if (level.time < self->monsterinfo.idle_time)
-        {
-            // Hold at current frame by setting nextframe to current frame
-            // This keeps calling medic_cable_continue every tick until timer expires
-            self->monsterinfo.nextframe = self->s.frame;
-            return;
-        }
-
-        // Hold period is over - reset timer and loop back to frame 43 (healing start)
-        self->monsterinfo.idle_time = 0_ms;
+        // Loop back to frame 43 to continue healing (creates visual loop)
         self->monsterinfo.nextframe = FRAME_attack43;
     }
     else
     {
-        // Target is fully healed or out of range - proceed to cable retract
-        self->monsterinfo.idle_time = 0_ms;
+        // Target is fully healed or out of range - let animation continue to retract (frame 52+)
         self->monsterinfo.checkattack_time = 0_ms;
-        // Let animation continue to retract frames
     }
 }
 
@@ -2045,8 +2036,8 @@ void medic_hook_retract(edict_t* self)
 }
 
 // Modified animation frames to support healing loop
-// Extended for 40Hz tickrate with continuous cable_attack for visibility
-// All using ai_charge to maintain attack state (like Vortex)
+// Extended for 40Hz tickrate - use existing frames 43-51 multiple times
+// Frames 43-51 repeated 4 times = ~36 loops = ~900ms (matching Vortex timing)
 mframe_t medic_frames_attackCable[] = {
 	{ ai_charge, -5.f },                      // 33
     { ai_charge, -6.f },                      // 34
@@ -2058,26 +2049,27 @@ mframe_t medic_frames_attackCable[] = {
     { ai_charge, -4.f },                      // 40
     { ai_charge, 0, monster_footstep },      // 41
     { ai_charge, 0, medic_hook_launch },     // 42 - launch cable
-    { ai_charge, 0, medic_cable_attack },    // 43 - start of healing loop
-    { ai_charge, 0, medic_cable_attack },    // 44
-    { ai_charge, 0, medic_cable_attack },    // 45
-    { ai_charge, 0, medic_cable_attack },    // 46
-    { ai_charge, 0, medic_cable_attack },    // 47
-    { ai_charge, 0, medic_cable_attack },    // 48
-    { ai_charge, 0, medic_cable_attack },    // 49
-    { ai_charge, 0, medic_cable_attack },    // 50
-	 // 51 - check if should continue			//  51
-    { ai_charge, 0, medic_cable_attack },    // 52
-    { ai_charge, 0, nullptr },   				//53
-	{ ai_charge, 0, medic_cable_continue },              // 55
-	{ ai_charge, 0, medic_hook_retract },    // 54 - retract cable
-	{ ai_charge, 0, nullptr },                // 55              // 56
-	{ ai_charge, 0, nullptr },                // 57
-	{ ai_charge, 0, nullptr },                // 58
-	{ ai_charge, 0, nullptr },                // 59
-    { ai_charge, 0, medic_delay }            // 60
+
+    // Healing loop using frames 43-51 (visual cable animation)
+    { ai_move, 0, medic_cable_attack },      // 43 - healing starts
+    { ai_move, 0, medic_cable_attack },      // 44
+    { ai_move, 0, medic_cable_attack },      // 45
+    { ai_move, 0, medic_cable_attack },      // 46
+    { ai_move, 0, medic_cable_attack },      // 47
+    { ai_move, 0, medic_cable_attack },      // 48
+    { ai_move, 0, medic_cable_attack },      // 49
+    { ai_move, 0, medic_cable_attack },      // 50
+    { ai_move, 0, medic_cable_attack },      // 51 - medic_cable_continue loops back to 43 if needs more healing
+
+    // Cable retract (only reached if healing is done)
+	{ ai_move, 0, nullptr },                 // 52
+	{ ai_move, 0, nullptr },                 // 53
+	{ ai_move, 0, medic_hook_retract },      // 54
+	{ ai_move, -1.5f },                       // 55
+	{ ai_move, -1.2f, monster_footstep },     // 56
+    { ai_charge, 0, medic_delay }            // 57
 };
-MMOVE_T(medic_move_attackCable) = { FRAME_attack33, FRAME_attack60, medic_frames_attackCable, medic_heal_end };
+MMOVE_T(medic_move_attackCable) = { FRAME_attack33, FRAME_attack57, medic_frames_attackCable, medic_heal_end };
 
 // mframe_t medic_frames_attackCable[] = {
 // 	// ROGUE - negated 36-40 so he scoots back from his target a little
