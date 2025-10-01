@@ -4056,13 +4056,21 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		Hook_Service(client->hook);
 
 	// Update held barrel position (gravity gun style)
-	if (client->resp.held_barrel)
+	if (client->resp.held_barrel && client->resp.held_barrel->inuse)
 	{
+		// Check if player pressed attack button BEFORE we clear it
+		bool wants_to_throw = (ucmd->buttons & BUTTON_ATTACK) || (client->latched_buttons & BUTTON_ATTACK);
+
 		extern void barrel_visualize(edict_t* player);
 		barrel_visualize(ent);
 
-		// Check for barrel throw on attack button
-		if (client->latched_buttons & BUTTON_ATTACK)
+		// Block all weapon attack buttons while holding barrel
+		ucmd->buttons &= ~BUTTON_ATTACK;
+		client->buttons &= ~BUTTON_ATTACK;
+		client->latched_buttons &= ~BUTTON_ATTACK;
+
+		// Throw barrel if attack was pressed
+		if (wants_to_throw)
 		{
 			extern cvar_t* barrel_throw_speed;
 			edict_t* barrel = client->resp.held_barrel;
@@ -4081,9 +4089,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			gi.linkentity(barrel);
 
 			client->resp.held_barrel = nullptr;
-
-			// Clear the attack button to prevent weapon from firing
-			client->latched_buttons &= ~BUTTON_ATTACK;
 
 			gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
 		}

@@ -482,8 +482,15 @@ TOUCH(barrel_bounce)(edict_t* self, edict_t* other, const trace_t& tr, bool othe
 // Main think function
 THINK(barrel_think)(edict_t* self) -> void
 {
-    // Check lifetime
-    if (self->timestamp > 0_sec && level.time > self->timestamp)
+    // Don't check lifetime while barrel is being held
+    bool is_held = false;
+    if (self->chain && self->chain->client && self->chain->client->resp.held_barrel == self)
+    {
+        is_held = true;
+    }
+
+    // Check lifetime only if not being held
+    if (!is_held && self->timestamp > 0_sec && level.time > self->timestamp)
     {
         barrel_remove(self);
         return;
@@ -588,18 +595,32 @@ void barrel_visualize(edict_t* player)
     vec3_t target_position = player->s.origin + (forward * barrel->wait);
     target_position[2] += player->viewheight - 8; // Adjust to eye level
 
-    // Calculate direction from barrel's current position to target position
+    // Always trace from current position to target to ensure clear path and stop at walls
+    trace_t tr = gi.trace(barrel->s.origin, barrel->mins, barrel->maxs,
+                          target_position, barrel, MASK_SOLID);
+
+    // If path is blocked, pull back from the wall more aggressively
+    if (tr.fraction < 1.0f)
+    {
+        // Pull back 16 units from the wall (doubled from 8) to prevent sticking
+        vec3_t pullback = tr.plane.normal * 16.0f;
+        target_position = tr.endpos + pullback;
+    }
+
+    // Calculate direction from barrel's current position to validated target position
     vec3_t pull_dir = target_position - barrel->s.origin;
     float distance_to_target = pull_dir.length();
 
     // Smoothly move barrel toward target position
-    // This creates smooth "spring-like" dragging that responds to mouse movement speed
+    // More aggressive movement to keep up with player
     if (distance_to_target > 1.0f)
     {
         pull_dir = safe_normalized(pull_dir);
-        // Move a fraction of the distance each frame for smooth following
+        // Increased speed multiplier for faster catch-up
         float move_speed = distance_to_target * barrel_hold_speed->value / 100.0f;
-        barrel->s.origin = barrel->s.origin + (pull_dir * (move_speed * 0.015f)); // 0.015 = frame time approximation
+        // Use exponential scaling for distance - farther = faster catch up
+        float speed_scale = 0.025f + (distance_to_target / 300.0f); // Base speed + distance factor
+        barrel->s.origin = barrel->s.origin + (pull_dir * (move_speed * speed_scale));
     }
     else
     {

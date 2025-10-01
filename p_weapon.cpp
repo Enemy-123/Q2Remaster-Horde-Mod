@@ -559,6 +559,15 @@ void Think_Weapon(edict_t* ent)
 	if (ent->client->resp.spectator)
 		return;
 
+	// Block all weapon activity if holding a barrel
+	if (ent->client->resp.held_barrel && ent->client->resp.held_barrel->inuse)
+	{
+		// Force weapon to ready state and prevent any firing
+		if (ent->client->weaponstate != WEAPON_READY)
+			ent->client->weaponstate = WEAPON_READY;
+		return;
+	}
+
 	// if just died, put the weapon away
 	if (ent->health < 1)
 	{
@@ -886,16 +895,18 @@ inline weapon_ready_state_t Weapon_HandleReady(edict_t* ent, int FRAME_FIRE_FIRS
 		return READY_NONE; // Cannot fire or change weapons while in menu
 	}
 
-	// // Check if holding a barrel - prevent weapon firing to allow barrel throw //doesnt work
-	// if (ent->client->resp.held_barrel) {
-	// 	// Keep weapon in ready state but don't process any actions
-	// 	if (ent->client->weaponstate == WEAPON_READY) {
-	// 		// Maintain idle animation
-	// 		if (ent->client->ps.gunframe < FRAME_IDLE_FIRST || ent->client->ps.gunframe > FRAME_IDLE_LAST)
-	// 			ent->client->ps.gunframe = FRAME_IDLE_FIRST;
-	// 	}
-	// 	return READY_NONE; // Cannot fire while holding barrel
-	// }
+	// Check if holding a barrel - prevent weapon firing to allow barrel throw
+	if (ent->client->resp.held_barrel && ent->client->resp.held_barrel->inuse) {
+		// Force weapon to ready state and stop any firing
+		if (ent->client->weaponstate != WEAPON_READY) {
+			ent->client->weaponstate = WEAPON_READY;
+		}
+		// Maintain idle animation
+		if (ent->client->ps.gunframe < FRAME_IDLE_FIRST || ent->client->ps.gunframe > FRAME_IDLE_LAST)
+			ent->client->ps.gunframe = FRAME_IDLE_FIRST;
+
+		return READY_NONE; // Cannot fire while holding barrel
+	}
 
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
