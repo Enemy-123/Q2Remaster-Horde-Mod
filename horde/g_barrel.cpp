@@ -568,6 +568,10 @@ bool barrel_pickup(edict_t* player, edict_t* barrel)
     if (player->client->resp.held_barrel)
         return false;
 
+    // Check if the barrel belongs to this player
+    if (barrel->teammaster != player)
+        return false;
+
     // Check distance
     float dist = range_to(player, barrel);
     if (dist > BarrelConstants::BARREL_PICKUP_RANGE)

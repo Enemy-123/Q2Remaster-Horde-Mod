@@ -7,7 +7,7 @@
 #include "g_horde_phys.h"
 
 // Bomb spell constants
-constexpr float CARPETBOMB_INITIAL_DAMAGE = 60;  // Reduced from 100
+constexpr float CARPETBOMB_INITIAL_DAMAGE = 75;  // Reduced from 100
 constexpr float CARPETBOMB_ADDON_DAMAGE = 10;    // Reduced from 20
 constexpr float CARPETBOMB_DAMAGE_RADIUS = 150;
 constexpr gtime_t CARPETBOMB_DURATION = 5_sec;
@@ -20,7 +20,7 @@ constexpr float BOMBAREA_WIDTH = 300;
 constexpr float BOMBAREA_FLOOR_HEIGHT = 256;
 constexpr gtime_t BOMBAREA_DURATION = 10_sec;
 constexpr gtime_t BOMBAREA_STARTUP_DELAY = 1500_ms;  // Increased from 1s to 1.5s
-constexpr float MAX_BOMB_RANGE = 1024;
+constexpr float MAX_BOMB_RANGE = 1524;
 
 constexpr float BOMBPERSON_RANGE = 1024;
 constexpr float BOMBPERSON_WIDTH = 100;
@@ -354,7 +354,7 @@ THINK(bombarea_think)(edict_t* self) -> void
 
     // Spawn fewer grenades per wave for slower start (reduced from 2-3 to 1-2)
     bombtime = 0.5f + 2.0f * frandom();
-    int grenade_count = irandom(1, 2);
+    int grenade_count = irandom(2, 3);
     spawn_grenades(self->owner, spawn_pos, gtime_t::from_sec(bombtime), self->dmg, grenade_count);
 
     self->nextthink = level.time + gtime_t::from_sec(thinktime);
