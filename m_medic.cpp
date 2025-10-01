@@ -1623,10 +1623,10 @@ bool M_NeedRegen(edict_t *target)
 		int armor_index = ArmorIndex(target);
 		if (armor_index != IT_NULL)
 		{
-			// Player has armor, check if it's below its specific maximum.
+			// Player has armor, check if it's below healing cap
 			int current_armor = target->client->pers.inventory[armor_index];
-			// Use 'itemlist', the correct global array of gitem_t.
-			int max_armor = itemlist[armor_index].quantity;
+			// Use same max as healing code (150) for consistency
+			int max_armor = 150;
 			if (current_armor < max_armor)
 				return true;
 		}
@@ -1733,7 +1733,7 @@ void medic_cable_attack(edict_t *self)
 		{
 			// --- CORRECTED HEALING AMOUNT ---
 			bool is_friendly = (self->monsterinfo.aiflags & AI_GOOD_GUY) != 0;
-			int heal_amount = is_friendly ? 30 : 8; // Using your more effective values.
+			int heal_amount = is_friendly ? 6 : 4; // Using your more effective values.
 
 			self->enemy->health = min((int)self->enemy->health + heal_amount, (int)self->enemy->max_health);
 
@@ -1750,23 +1750,33 @@ void medic_cable_attack(edict_t *self)
 			}
 			else if (self->enemy->client)
 			{
+				// Heal player's armor - adapts to whichever armor type they currently have
 				int armor_index = ArmorIndex(self->enemy);
 				if (armor_index == IT_NULL)
 				{
-					// Player has no armor, give them some basic Jacket Armor.
-					self->enemy->client->pers.inventory[IT_ARMOR_JACKET] = min(self->enemy->client->pers.inventory[IT_ARMOR_JACKET] + heal_amount / 2, itemlist[IT_ARMOR_JACKET].quantity);
+					// Player has no armor - give them jacket armor to start
+					self->enemy->client->pers.inventory[IT_ARMOR_JACKET] = heal_amount / 2;
 				}
 				else
 				{
-					// Player has armor, heal it up to its specific maximum.
-					int max_armor = itemlist[armor_index].quantity;
+					// Player has armor - heal whichever type they have (jacket/combat/body)
+					// Use consistent max like CTF regen, regardless of armor type
 					int current_armor = self->enemy->client->pers.inventory[armor_index];
+					int max_armor = 150; // Reasonable healing cap for all armor types
 					if (current_armor < max_armor)
 					{
 						self->enemy->client->pers.inventory[armor_index] = min(current_armor + heal_amount / 2, max_armor);
 					}
 				}
 			}
+		}
+
+		// Check if target is fully healed - stop immediately on ANY frame (like old version)
+		if (!M_NeedRegen(self->enemy))
+		{
+			cleanupHeal(self);
+			self->monsterinfo.nextframe = FRAME_attack54;
+			return;
 		}
 	}
 	else
