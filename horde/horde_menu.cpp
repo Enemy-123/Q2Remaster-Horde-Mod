@@ -8,6 +8,8 @@
 #include "g_horde.h"    // For GetMapSize
 #include "g_horde_benefits.h"
 #include "g_laser.h"
+#include "p_flyer_morph.h"  // For IsMorphed, RestoreMorphed, Cmd_PlayerToFlyer_f
+#include "p_brain_morph.h"  // For Cmd_PlayerToBrain_f
 
 // Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
 extern unsigned int P_GetLobbyUserNum(const edict_t* player);
@@ -30,7 +32,7 @@ void OpenMapCategoryMenu(edict_t* ent);
 void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p);
 void CategorizeMapList();
 pmenuhnd_t* CreateHUDMenu(edict_t* ent);
-void OpenMiscMenu(edict_t* ent); // Forward declare Misc menu functions
+void OpenMiscMenu(edict_t* ent, int cursor_position = -1); // Forward declare Misc menu functions
 void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p);
 void OpenAdminMenu(edict_t* ent); // Forward declare Admin menu functions
 void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p);
@@ -75,6 +77,14 @@ static const char* GetSpecialWaveName(int type) {
 	case SPECIAL_WAVE_HOOK:              return "Hook";
 	case SPECIAL_WAVE_BOMBSPELL_FORWARD: return "Bombspell";
 	default:                             return "None";
+	}
+}
+
+static const char* GetMorphTypeName(int type) {
+	switch (type) {
+	case 0: return "Brain";
+	case 1: return "Flyer";
+	default: return "Brain";
 	}
 }
 
@@ -1043,7 +1053,7 @@ void HordeMenu_SentryChoice(edict_t* ent, pmenuhnd_t* p) {
 	gi.LocCenter_Print(ent, "\n\n\nSentrygun Type set to: {}\n", GetSentryTypeName(ent->client->pers.sentry_gun_choice));
 	// Update the menu display immediately by reopening THE MISC MENU
 	// PMenu_Close is handled by OpenMiscMenu
-	OpenMiscMenu(ent); // Reopen the Misc menu to show the updated choice
+	OpenMiscMenu(ent, p->cur); // Reopen the Misc menu to show the updated choice with cursor preserved
 }
 
 // Handler for cycling BFG mode
@@ -1084,7 +1094,7 @@ void HordeMenu_BFGMode(edict_t* ent, pmenuhnd_t* p) {
 
 	ent->client->pers.bfg_mode = new_mode;
 	gi.LocCenter_Print(ent, "\n\n\nBFG Mode set to: {}\n", GetBFGModeName(new_mode));
-	OpenMiscMenu(ent); // Reopen to show updated mode
+	OpenMiscMenu(ent, p->cur); // Reopen to show updated mode with cursor preserved
 }
 
 void HordeMenu_SpecialWave(edict_t* ent, pmenuhnd_t* p) {
@@ -1100,7 +1110,43 @@ void HordeMenu_SpecialWave(edict_t* ent, pmenuhnd_t* p) {
 	gi.cvar_forceset("g_special_key", G_Fmt("{}", new_type).data());
 
 	gi.LocCenter_Print(ent, "\n\n\nSpecial key [L] set to: {}\n", GetSpecialWaveName(new_type));
-	OpenMiscMenu(ent); // Reopen to show updated choice
+	OpenMiscMenu(ent, p->cur); // Reopen to show updated choice with cursor preserved
+}
+
+void HordeMenu_StroggPreference(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Cycle morph preference (0=Brain, 1=Flyer)
+	ent->client->pers.morph_preference = (ent->client->pers.morph_preference + 1) % 2;
+
+	gi.LocCenter_Print(ent, "\n\n\nStrogg preference set to: {}\n", GetMorphTypeName(ent->client->pers.morph_preference));
+	OpenMiscMenu(ent, p->cur); // Reopen to show updated choice with cursor preserved
+}
+
+void HordeMenu_StroggificationCommand(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Check if player is morphed
+	if (IsMorphed(ent)) {
+		// Unmorph back to human
+		RestoreMorphed(ent);
+		gi.LocCenter_Print(ent, "\n\n\nTransformed back to human form!\n");
+		OpenMiscMenu(ent, p->cur); // Reopen to show updated option with cursor preserved
+		return;
+	}
+
+	// Transform based on preference (0=Brain, 1=Flyer)
+	if (ent->client->pers.morph_preference == 0) {
+		Cmd_PlayerToBrain_f(ent);
+	} else {
+		Cmd_PlayerToFlyer_f(ent);
+	}
+
+	OpenMiscMenu(ent, p->cur); // Reopen to show updated option with cursor preserved
 }
 
 // Handler for the Misc submenu
@@ -1147,6 +1193,17 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		HordeMenu_BFGMode(ent, p); // Call the dedicated handler
 		shouldCloseMenu = false; // Don't close, HordeMenu_BFGMode will reopen Misc Menu
 	}
+	// **** Check Beta: Strogg preference selection ****
+	else if (strncmp(selected_text, "Beta: Strogg", strlen("Beta: Strogg")) == 0) {
+		HordeMenu_StroggPreference(ent, p); // Call the preference handler
+		shouldCloseMenu = false; // Don't close, will reopen Misc Menu
+	}
+	// **** Check Stroggification command (morph/unmorph) ****
+	else if (strcmp(selected_text, "Stroggificate me!") == 0 ||
+	         strcmp(selected_text, "I hate stroggs!") == 0) {
+		HordeMenu_StroggificationCommand(ent, p); // Call the morph command handler
+		shouldCloseMenu = false; // Don't close, will reopen Misc Menu
+	}
 	// **** END Check ****
 	else if (strcmp(selected_text, "Back") == 0) {
 		PMenu_Close(ent);
@@ -1168,7 +1225,7 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 }
 
 // Creates and opens the Misc submenu
-void OpenMiscMenu(edict_t* ent) {
+void OpenMiscMenu(edict_t* ent, int cursor_position) {
 	if (!ent || !ent->client) {
 		return;
 	}
@@ -1181,7 +1238,7 @@ void OpenMiscMenu(edict_t* ent) {
 	ent->client->menu_protected = true;
 	ent->client->menu_protection_start = level.time;
 
-	static pmenu_t entries[13];
+	static pmenu_t entries[15];  // Increased from 14 to 15 for extra strogg option
 	memset(entries, 0, sizeof(entries));
 	int count = 0;
 
@@ -1202,13 +1259,23 @@ void OpenMiscMenu(edict_t* ent) {
 	// --- Special Wave Selection ---
 	add_entry(G_Fmt("Special key [L]: [{}]", GetSpecialWaveName(g_special_key->integer)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 
-	// --- Sentry Gun Choice (Unchanged) ---
+	// --- Sentry Gun Choice ---
 	add_entry(G_Fmt("Sentry Type: [{}]", GetSentryTypeName(ent->client->pers.sentry_gun_choice)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 
 	// --- BFG Mode Selection (only if player has BFG upgrades) ---
 	bool has_bfg_upgrades = PlayerHasBenefit(ent, BenefitID::BFG_SLIDE) || PlayerHasBenefit(ent, BenefitID::BFG_GRAV_PULL);
 	if (has_bfg_upgrades) {
 		add_entry(G_Fmt("BFG Mode: [{}]", GetBFGModeName(ent->client->pers.bfg_mode)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+	}
+
+	// --- Beta: Strogg Preference Selection (always visible) ---
+	add_entry(G_Fmt("Beta: Strogg [{}]", GetMorphTypeName(ent->client->pers.morph_preference)).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+
+	// --- Stroggification Command (morph/unmorph) ---
+	if (IsMorphed(ent)) {
+		add_entry("I hate stroggs!", PMENU_ALIGN_LEFT, MiscMenuHandler);
+	} else {
+		add_entry("Stroggificate me!", PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	// --- Conditional Remove Options (MODIFIED) ---
@@ -1258,7 +1325,7 @@ void OpenMiscMenu(edict_t* ent) {
 	add_entry("Back", PMENU_ALIGN_LEFT, MiscMenuHandler);
 	add_entry("Close", PMENU_ALIGN_LEFT, MiscMenuHandler);
 
-	PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
+	PMenu_Open(ent, entries, cursor_position, count, nullptr, nullptr);
 }
 
 // === HUD Options Menu ===

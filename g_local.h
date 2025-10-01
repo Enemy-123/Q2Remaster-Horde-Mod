@@ -3160,6 +3160,7 @@ struct client_persistant_t
 	uint32_t auto_purchased_benefits_mask = 0; // Benefits purchased via auto-buy (for refunds)
 	gtime_t last_auto_buy_check = 0_ms;   // Last time auto-buy was checked
 	BFGMode bfg_mode = BFGMode::NORMAL;   // Default to normal mode (players must upgrade)
+	int morph_preference = 0;              // 0=Brain (default), 1=Flyer
 };
 
 // client data that stays across deathmatch respawns
@@ -3232,6 +3233,8 @@ struct client_respawn_t
 
 	gtime_t teleport_cooldown = 3_sec;
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
+	gtime_t bombspell_forward_cooldown = 0_sec;
+	gtime_t bombspell_area_cooldown = 0_sec;
 };
 
 // [Paril-KEX] seconds until we are fully invisible after

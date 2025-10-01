@@ -3153,6 +3153,8 @@ void ResetPlayerDeployedItems()
 		// Timers
 		client->resp.teleport_cooldown = 3_sec; // Reset to default or 0_sec if appropriate
 		client->resp.lasthbshot = 0_sec;
+		client->resp.bombspell_forward_cooldown = 0_sec;
+		client->resp.bombspell_area_cooldown = 0_sec;
 
 		// Horde specific state
 		client->last_wave_timer_horde_update = 0;
