@@ -429,7 +429,7 @@ void InitGame()
 	//g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
 	//g_autohaste = gi.cvar("g_autohaste", "0", CVAR_NOFLAGS);
 	//g_easymonsters = gi.cvar("g_easymonsters", "0", CVAR_NOFLAGS);
-	//g_iddmg = gi.cvar("g_iddmg", "1", CVAR_NOFLAGS);
+	g_iddmg = gi.cvar("g_iddmg", "1", CVAR_NOFLAGS);
 
 	g_speedstuff = gi.cvar("g_speedstuff", "1.0f", CVAR_NOFLAGS);
 	//g_mover_debug = gi.cvar("g_mover_debug", "0", CVAR_NOFLAGS);
