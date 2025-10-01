@@ -1677,7 +1677,7 @@ void medic_cable_attack(edict_t *self)
 			else
 			{
 				self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-				self->monsterinfo.attack_finished = level.time + 800_ms; // This controls the pause duration.
+				self->monsterinfo.attack_finished = level.time + 200_ms; // This controls the pause duration.
 			}
 		}
 	}

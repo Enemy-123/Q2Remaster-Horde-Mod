@@ -2145,7 +2145,7 @@ void ai_run(edict_t* self, float dist)
 	if (self->monsterinfo.healing_pause_time > level.time)
 	{
 		// Still being healed, just face enemy if we have one
-		if (M_HasValidTarget(self))
+		if (M_HasEnemy(self))
 		{
 			vec3_t v = self->enemy->s.origin - self->s.origin;
 			self->ideal_yaw = vectoyaw(v);
@@ -2168,7 +2168,7 @@ void ai_run(edict_t* self, float dist)
 		if (self->monsterinfo.aiflags & AI_MEDIC)
 		{
 			// Let the medic continue its healing/resurrection
-			if (!M_HasValidTarget(self))
+			if (!M_HasEnemy(self))
 			{
 				// Target lost, clear medic mode
 				self->monsterinfo.aiflags &= ~AI_MEDIC;
@@ -2180,7 +2180,7 @@ void ai_run(edict_t* self, float dist)
 			}
 			// Otherwise continue with current healing target - don't call FindMTarget
 		}
-		else if (!M_HasValidTarget(self) || self->enemy->client)
+		else if (!M_HasEnemy(self) || self->enemy->client)
 		{
 			self->enemy = nullptr;
 			if (!FindMTarget(self))
@@ -2197,7 +2197,7 @@ void ai_run(edict_t* self, float dist)
 		if (self->monsterinfo.aiflags & AI_MEDIC)
 		{
 			// Medic is busy healing/resurrecting, don't interrupt
-			if (!M_HasValidTarget(self))
+			if (!M_HasEnemy(self))
 			{
 				// Target lost, clear medic mode
 				self->monsterinfo.aiflags &= ~AI_MEDIC;
@@ -2209,7 +2209,7 @@ void ai_run(edict_t* self, float dist)
 			}
 			// Otherwise continue with current healing target
 		}
-		else if (!M_HasValidTarget(self))
+		else if (!M_HasEnemy(self))
 		{
 			if (!FindTarget(self))
 			{
@@ -2220,7 +2220,7 @@ void ai_run(edict_t* self, float dist)
 	}
 
 	// 4. Final safety net: At this point, we should have a valid enemy.
-	if (!M_HasValidTarget(self))
+	if (!M_HasEnemy(self))
 	{
 		if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 		return;
