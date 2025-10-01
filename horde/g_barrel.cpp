@@ -108,8 +108,10 @@ DIE(barrel_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
         self->think = barrel_burn;
         self->nextthink = level.time + FRAME_TIME_S;
 
-        // Stop absorbing damage when burning starts
+        // Stop absorbing damage and make it non-blocking
         self->takedamage = false;
+        self->clipmask = CONTENTS_NONE;  // Don't clip against anything (allows bullets to pass through)
+        gi.linkentity(self);
     }
 }
 
@@ -354,10 +356,16 @@ TOUCH(barrel_land)(edict_t* self, edict_t* other, const trace_t& tr, bool other_
         // Stop all movement
         self->velocity = {};
         self->avelocity = {};
-        self->movetype = MOVETYPE_STEP;
-        self->touch = barrel_summoned_touch;  // Use summoned touch behavior
-        self->think = barrel_think;
-        self->nextthink = level.time + FRAME_TIME_S;
+
+        // DON'T override think/touch if barrel is burning!
+        if (self->think != barrel_burn)
+        {
+            self->movetype = MOVETYPE_STEP;
+            self->touch = barrel_summoned_touch;  // Use summoned touch behavior
+            self->think = barrel_think;
+            self->nextthink = level.time + FRAME_TIME_S;
+        }
+        // If burning, keep movetype TOSS and let barrel_burn continue
 
         // Keep barrel upright
         self->s.angles[0] = 0;
@@ -459,10 +467,26 @@ TOUCH(barrel_bounce)(edict_t* self, edict_t* other, const trace_t& tr, bool othe
             // Settle the barrel
             self->velocity = {};
             self->avelocity = {};
-            self->movetype = MOVETYPE_STEP;
-            self->touch = barrel_touch;
-            self->think = barrel_think;
-            self->nextthink = level.time + FRAME_TIME_S;
+
+            // Only change to MOVETYPE_STEP if NOT burning
+            // Burning barrels need to keep MOVETYPE_TOSS to settle on ground properly
+            if (self->think != barrel_burn)
+            {
+                self->movetype = MOVETYPE_STEP;
+                self->touch = barrel_touch;
+                self->think = barrel_think;
+                self->nextthink = level.time + FRAME_TIME_S;
+            }
+            else
+            {
+                // Burning barrel landed - ensure it continues to burn
+                // Don't change movetype, touch, or think - just ensure nextthink is scheduled
+                if (self->nextthink <= level.time)
+                {
+                    self->nextthink = level.time + FRAME_TIME_S;
+                }
+            }
+
             gi.linkentity(self);
             return;
         }
@@ -490,7 +514,8 @@ THINK(barrel_think)(edict_t* self) -> void
     }
 
     // Check lifetime only if not being held
-    if (!is_held && self->timestamp > 0_sec && level.time > self->timestamp)
+    // IMPORTANT: Don't remove burning barrels here - barrel_burn handles its own explosion timing
+    if (!is_held && !self->deadflag && self->timestamp > 0_sec && level.time > self->timestamp)
     {
         barrel_remove(self);
         return;
@@ -851,7 +876,8 @@ void Cmd_Barrel_f(edict_t* ent)
             ent->client->resp.held_barrel = nullptr;
 
             // Clear the attack button to prevent weapon from firing
-            ent->client->latched_buttons &= ~BUTTON_ATTACK;
+            if (ent->client && ent->client->resp.held_barrel && ent->client->latched_buttons & BUTTON_ATTACK)
+                ent->client->latched_buttons &= ~BUTTON_ATTACK;
 
             gi.LocClient_Print(ent, PRINT_HIGH, "Barrel thrown!\n");
             return;
