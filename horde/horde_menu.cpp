@@ -76,6 +76,7 @@ static const char* GetSpecialWaveName(int type) {
 	case SPECIAL_WAVE_BARRELS:           return "Barrel";
 	case SPECIAL_WAVE_HOOK:              return "Hook";
 	case SPECIAL_WAVE_BOMBSPELL_FORWARD: return "Bombspell";
+	case SPECIAL_WAVE_BOMBSPELL_AREA:    return "Bombspell Area";
 	default:                             return "None";
 	}
 }
@@ -1102,9 +1103,9 @@ void HordeMenu_SpecialWave(edict_t* ent, pmenuhnd_t* p) {
 		return;
 	}
 
-	// Cycle through the special wave types (1=Barrels, 2=Hook, 3=Bombspell)
+	// Cycle through the special wave types (1=Barrels, 2=Hook, 3=Bombspell, 4=Bombspell Area)
 	int current_type = g_special_key->integer;
-	int new_type = (current_type % 3) + 1; // Cycle 1->2->3->1
+	int new_type = (current_type % 4) + 1; // Cycle 1->2->3->4->1
 
 	// Update the cvar
 	gi.cvar_forceset("g_special_key", G_Fmt("{}", new_type).data());

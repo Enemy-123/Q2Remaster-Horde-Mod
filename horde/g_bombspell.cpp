@@ -446,8 +446,8 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
 
     //gi.sound(ent, CHAN_ITEM, gi.soundindex("abilities/timebomb.wav"), 1, ATTN_NORM, 0);
 
-    // Set cooldown
-    ent->client->resp.bombspell_area_cooldown = level.time + 2500_ms;
+    // Set cooldown (10 seconds)
+    ent->client->resp.bombspell_area_cooldown = level.time + 10000_ms;
 }
 
 // Bomb person think function

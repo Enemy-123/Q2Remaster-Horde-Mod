@@ -1679,6 +1679,11 @@ void Cmd_Wave_f(edict_t* ent)
 				// Cast bombspell forward (carpet bomb)
 				CarpetBomb(ent);
 			}
+			else if (special_wave_type == SPECIAL_WAVE_BOMBSPELL_AREA)
+			{
+				// Cast bombspell area (grenade rain)
+				BombArea(ent);
+			}
 		}
 	}
 	else

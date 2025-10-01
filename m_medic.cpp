@@ -33,6 +33,7 @@ constexpr gtime_t MEDIC_TRY_TIME = 3_sec;  // Reduced from 10 seconds for more a
 void M_SetEffects(edict_t* ent);
 bool FindTarget(edict_t* self);
 void FoundTarget(edict_t* self);
+bool M_NeedRegen(edict_t* target);
 
 static cached_soundindex sound_idle1;
 static cached_soundindex sound_pain1;
@@ -630,8 +631,8 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		if (!strcmp(ent->classname, "player_noise"))
 			continue;
 
-		// Check for injured entities (alive but hurt)
-		if (ent->health > 0 && ent->health < ent->max_health)
+		// Check for injured entities (alive but hurt) or needing armor repair
+		if (ent->health > 0 && M_NeedRegen(ent))
 		{
 			// Determine if this is a valid heal target
 			bool can_heal = false;
@@ -1598,23 +1599,25 @@ bool M_NeedRegen(edict_t* target)
 {
     if (!target || !target->inuse)
         return false;
-    
-    // Check if target is damaged
+
+    bool needs_healing = false;
+
+    // Check if target is damaged (don't return early - check armor too)
     if (target->health > 0 && target->health < target->max_health)
-        return true;
-    
-    // Check if monster armor needs repair
+        needs_healing = true;
+
+    // Check if monster armor needs repair (even if health is full)
     if (target->svflags & SVF_MONSTER)
     {
         // Check power armor
         if (target->monsterinfo.power_armor_power < target->monsterinfo.max_power_armor_power)
-            return true;
-        
+            needs_healing = true;
+
         // Check regular armor
         if (target->monsterinfo.armor_power < target->max_health / 2) // Max armor cap
-            return true;
+            needs_healing = true;
     }
-    // Check if player armor needs repair
+    // Check if player armor needs repair (even if health is full)
     else if (target->client)
     {
         int armor_index = ArmorIndex(target);
@@ -1623,16 +1626,16 @@ bool M_NeedRegen(edict_t* target)
             int current_armor = target->client->pers.inventory[armor_index];
             // Consider healing if armor is below 200 (max armor)
             if (current_armor < 200)
-                return true;
+                needs_healing = true;
         }
         else
         {
             // No armor at all - definitely needs armor
-            return true;
+            needs_healing = true;
         }
     }
-    
-    return false;
+
+    return needs_healing;
 }
 
 // Modified cable attack function with healing loop
