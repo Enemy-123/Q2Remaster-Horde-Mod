@@ -955,6 +955,12 @@ static void G_SetClientEffects(edict_t* ent)
 			ent->s.alpha = std::clamp(x, 0.1f, 1.0f);
 		}
 	}
+	// Menu protection visual effect
+	if (ent->client->menu_protected)
+	{
+		ent->s.alpha = 0.6f; // Semi-transparent to indicate menu protection
+		ent->s.effects |= EF_GRENADE_LIGHT;
+	}
 	// ROGUE
 	//=======
 
