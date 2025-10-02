@@ -40,7 +40,7 @@ DIE(doppleganger_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 	self->takedamage = DAMAGE_NONE;
 
 	// [Paril-KEX]
-	T_RadiusDamage(self, self->teammaster, 160.f, self, 140.f, DAMAGE_NONE, MOD_DOPPLE_EXPLODE);
+	T_RadiusDamage(self, self->teammaster, (float)g_config.doppleganger.explosion_damage, self, (float)g_config.doppleganger.explosion_radius, DAMAGE_NONE, MOD_DOPPLE_EXPLODE);
 
 	if (self->teamchain)
 		BecomeExplosion1(self->teamchain);
@@ -114,11 +114,11 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	base->teammaster = ent;
 	base->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	base->takedamage = true;
-	base->health = 30;
+	base->health = g_config.doppleganger.health_base;
 	base->pain = doppleganger_pain;
 	base->die = doppleganger_die;
 
-	base->nextthink = level.time + 30_sec;
+	base->nextthink = level.time + gtime_t::from_sec(g_config.doppleganger.time_to_live_sec);
 	base->think = doppleganger_timeout;
 
 	base->classname = "doppleganger";

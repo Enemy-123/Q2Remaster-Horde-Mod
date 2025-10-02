@@ -539,7 +539,7 @@ void ConsumeTarget(edict_t* ent, edict_t* target, const vec3_t& vec) {
 void ExplodeTrap(edict_t* ent) {
     ent->s.effects &= ~EF_BARREL_EXPLODING;
 
-    T_RadiusDamage_TeamSafe(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
+    T_RadiusDamage_TeamSafe(ent, ent->teammaster, g_config.trap.explosion_damage, nullptr, g_config.trap.explosion_radius, DAMAGE_ENERGY, MOD_TRAP);
     BecomeExplosion1(ent);
 }
 
@@ -697,7 +697,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
     trap->mins = { -4, -4, 0 };
     trap->maxs = { 4, 4, 8 };
     trap->die = trap_die;
-    trap->health = 125;
+    trap->health = g_config.trap.health;
     trap->s.modelindex = gi.modelindex("models/weapons/z_trap/tris.md2");
     trap->owner = trap->teammaster = self;
 

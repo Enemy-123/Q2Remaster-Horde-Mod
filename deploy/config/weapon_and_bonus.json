@@ -196,7 +196,10 @@
       "pull_radius": 400.0,
       "pull_speed_monster": 210.0,
       "pull_speed_player": 290.0,
-      "duration_sec": 80
+      "duration_sec": 80,
+      "health": 125,
+      "explosion_damage": 300,
+      "explosion_radius": 100
     },
     "laser": {
       "max_per_player": 6,
@@ -209,7 +212,9 @@
     "doppleganger": {
       "comment": "Player doppleganger clone configuration",
       "time_to_live_sec": 30,
-      "health_base": 100
+      "health_base": 100,
+      "explosion_damage": 160,
+      "explosion_radius": 140
     },
     "strogg_summons": {
       "max_summons": 3,

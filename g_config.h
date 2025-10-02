@@ -141,6 +141,17 @@ struct TrapConfig
 	float pull_speed_monster = 210.0f;
 	float pull_speed_player = 290.0f;
 	int duration_sec = 80;
+	int health = 125;
+	int explosion_damage = 300;
+	int explosion_radius = 100;
+};
+
+struct DopplegangerConfig
+{
+	int time_to_live_sec = 30;
+	int health_base = 100;
+	int explosion_damage = 160;
+	int explosion_radius = 140;
 };
 
 // Ammo regeneration configuration
@@ -196,6 +207,7 @@ struct GameConfig
 	ProxMineConfig prox_mine;
 	LaserConfig laser;
 	TrapConfig trap;
+	DopplegangerConfig doppleganger;
 
 	// Ammo regeneration
 	AmmoRegenConfig ammo_regen;

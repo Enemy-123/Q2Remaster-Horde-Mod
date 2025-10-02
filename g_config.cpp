@@ -243,6 +243,19 @@ void Config_Load(const char* basedir)
 			g_config.trap.pull_speed_monster = GetJsonFloat(t, "pull_speed_monster", 210.0f);
 			g_config.trap.pull_speed_player = GetJsonFloat(t, "pull_speed_player", 290.0f);
 			g_config.trap.duration_sec = GetJsonInt(t, "duration_sec", 80);
+			g_config.trap.health = GetJsonInt(t, "health", 125);
+			g_config.trap.explosion_damage = GetJsonInt(t, "explosion_damage", 300);
+			g_config.trap.explosion_radius = GetJsonInt(t, "explosion_radius", 100);
+		}
+
+		// Doppleganger
+		if (deployables.isMember("doppleganger") && deployables["doppleganger"].isObject())
+		{
+			const Json::Value& d = deployables["doppleganger"];
+			g_config.doppleganger.time_to_live_sec = GetJsonInt(d, "time_to_live_sec", 30);
+			g_config.doppleganger.health_base = GetJsonInt(d, "health_base", 100);
+			g_config.doppleganger.explosion_damage = GetJsonInt(d, "explosion_damage", 160);
+			g_config.doppleganger.explosion_radius = GetJsonInt(d, "explosion_radius", 140);
 		}
 	}
 
