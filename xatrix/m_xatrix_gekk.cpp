@@ -1051,20 +1051,42 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	// WALL BOUNCE: If we hit a wall/obstacle (not an enemy), re-jump toward enemy
 	if (self->style == 1 && other->solid == SOLID_BSP && M_HasValidTarget(self))
 	{
-		// Hit a wall! Re-jump directly at enemy
-		vec3_t const dir_to_enemy = (self->enemy->s.origin - self->s.origin).normalized();
+		// Calculate enemy height including viewheight
+		float const enemy_height = self->enemy->s.origin[2] + self->enemy->viewheight;
+		float const self_height = self->s.origin[2];
+		float const height_diff = enemy_height - self_height;
 
 		// Aim directly at enemy
+		vec3_t const dir_to_enemy = (self->enemy->s.origin - self->s.origin).normalized();
 		self->s.angles[YAW] = vectoyaw(dir_to_enemy);
 		auto const vectors = AngleVectors(self->s.angles);
 
-		// Re-launch toward enemy (medium strength jump)
-		self->velocity = vectors.forward * 500.0f + vectors.up * 350.0f;
-		self->groundentity = nullptr;
-		self->gravity = 1.0f; // Reset gravity for new jump
+		// HEIGHT-AWARE UPWARD VELOCITY: Don't jump up if enemy is below!
+		float up_velocity = 250.0f; // Base
 
-		gi.sound(self, CHAN_VOICE, sound_sight, 0.5f, ATTN_NORM, 0);
-		return; // Don't process other collision logic
+		if (height_diff > 64.0f) {
+			// Enemy is significantly higher - jump up more
+			up_velocity = 400.0f + (height_diff * 0.4f);
+		}
+		else if (height_diff < -64.0f) {
+			// Enemy is significantly lower - minimal upward jump (just arc over)
+			up_velocity = 100.0f;
+		}
+		else {
+			// Enemy is roughly at same level - moderate jump
+			up_velocity = 250.0f;
+		}
+
+		// Clamp to reasonable range
+		up_velocity = clamp(up_velocity, 50.0f, 500.0f);
+
+		// Re-launch toward enemy with smart height
+		self->velocity = vectors.forward * 400.0f + vectors.up * up_velocity;
+		self->groundentity = nullptr;
+		self->gravity = 1.0f;
+
+		gi.sound(self, CHAN_VOICE, sound_sight, 0.3f, ATTN_NORM, 0);
+		return;
 	}
 
 	// ENEMY HIT: Deal damage on impact
@@ -1959,7 +1981,7 @@ void gekkkl_jump_takeoff(edict_t* self)
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 	self->s.origin[2] += 1;
 
-	// VORTEX-STYLE: Save target location for aggressive dive
+	// Save target location
 	self->pos1 = self->enemy->s.origin;
 	self->pos1[2] += self->enemy->viewheight;
 
@@ -1968,23 +1990,44 @@ void gekkkl_jump_takeoff(edict_t* self)
 	const float distance = dir.length();
 	const float height_diff = self->pos1[2] - self->s.origin[2];
 
-	// REDUCED forward speed to prevent overshooting (was 600-1000, now 400-700)
+	// 40% chance for HIGH JUMP PLASMA SPAM (ranged harassment)
+	if (distance > 256.0f && frandom() < 0.4f)
+	{
+		// HIGH JUMP variant - jump high and spam plasma from air
+		vec3_t aim_dir;
+		PredictAim(self, self->enemy, self->s.origin, 500.0f, false, 0.f, &aim_dir, nullptr);
+		self->s.angles[YAW] = vectoyaw(aim_dir);
+
+		auto const vectors = AngleVectors(self->s.angles);
+
+		// High jump with reduced forward speed (more vertical)
+		self->velocity = vectors.forward * 400.0f + vectors.up * 700.0f;
+
+		self->groundentity = nullptr;
+		self->monsterinfo.aiflags |= AI_DUCKED;
+		self->monsterinfo.attack_finished = level.time + 3_sec;
+		self->touch = gekk_jump_touch;
+		self->style = 2; // Mark as PLASMA JUMP (not slam)
+		self->gravity = 1.0f;
+		return;
+	}
+
+	// 60% chance for AGGRESSIVE DIVE SLAM (close combat)
+
+	// REDUCED forward speed to prevent overshooting
 	const float fwd_speed = clamp(distance * 1.5f, 400.0f, 700.0f);
 
-	// REDUCED base upward velocity to prevent jumping too high (was 800, now 400)
+	// REDUCED base upward velocity to prevent jumping too high
 	float up_velocity = 400.0f;
 
-	// Adjust for enemy height (less aggressive upward scaling)
+	// Adjust for enemy height
 	if (height_diff > 32.0f) {
-		// Enemy is higher - moderate upward boost
 		up_velocity += height_diff * 0.8f;
 	}
 	else if (height_diff < -32.0f) {
-		// Enemy is lower - reduce for shallow arc
 		up_velocity += height_diff * 0.3f;
 	}
 
-	// Tighter clamp range (was 400-1200, now 250-600)
 	up_velocity = clamp(up_velocity, 250.0f, 600.0f);
 
 	// Aim toward target
@@ -2000,8 +2043,8 @@ void gekkkl_jump_takeoff(edict_t* self)
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 3_sec;
 	self->touch = gekk_jump_touch;
-	self->style = 1; // Mark as doing aggressive slam
-	self->gravity = 1.0f; // Reset gravity for dive mechanics
+	self->style = 1; // Mark as SLAM DIVE
+	self->gravity = 1.0f;
 }
 
 void gekkkl_check_landing(edict_t* self)
@@ -2032,6 +2075,13 @@ void gekkkl_check_landing(edict_t* self)
 
 			self->style = 0; // Reset slam flag
 		}
+		else if (self->style == 2)
+		{
+			// PLASMA JUMP landing - normal landing, reset gravity
+			gi.sound(self, CHAN_WEAPON, sound_thud, 1, ATTN_NORM, 0);
+			self->gravity = 1.0f;
+			self->style = 0; // Reset plasma jump flag
+		}
 		else
 		{
 			// Normal landing behavior
@@ -2047,8 +2097,31 @@ void gekkkl_check_landing(edict_t* self)
 		return;
 	}
 
-	// AGGRESSIVE DIVE MECHANICS: Steer toward saved target position while airborne
-	if (self->style == 1 && self->pos1.lengthSquared() > 0)
+	// PLASMA JUMP: Fire plasma while floating (style=2)
+	if (self->style == 2 && self->pos1.lengthSquared() > 0)
+	{
+		// Fire plasma at saved target position
+		gekk_kl_spit(self);
+
+		// Gentle drift toward target (no aggressive dive)
+		vec3_t const dir_to_target = (self->pos1 - self->s.origin).normalized();
+
+		// Face target
+		self->ideal_yaw = vectoyaw(dir_to_target);
+		M_ChangeYaw(self);
+
+		// Update target position
+		if (M_HasValidTarget(self))
+		{
+			self->pos1 = self->enemy->s.origin;
+			self->pos1[2] += self->enemy->viewheight;
+		}
+
+		// Normal gravity for plasma jump
+		self->gravity = 1.0f;
+	}
+	// AGGRESSIVE DIVE MECHANICS: Steer toward saved target position while airborne (style=1)
+	else if (self->style == 1 && self->pos1.lengthSquared() > 0)
 	{
 		// Calculate direction to saved target
 		vec3_t const dir_to_target = (self->pos1 - self->s.origin).normalized();
