@@ -2761,7 +2761,7 @@ void PutClientInServer(edict_t* ent)
 	KillBox(ent, true, MOD_TELEFRAG_SPAWN);
 
 	// Level-specific hacks
-	if (strcmp(level.mapname, "rboss") == 0 && !is_deathmatch)
+	if (horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::RBOSS && !is_deathmatch)
 		client->pers.inventory[IT_KEY_NUKE] = 1;
 
 	// Equip weapon

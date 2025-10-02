@@ -680,7 +680,7 @@ void SP_light(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	// Allow targeted lights in mgu4trial horde mode, otherwise use normal deathmatch rules
-	if (!(g_horde->integer && strcmp(level.mapname, "mgu4trial") == 0) &&
+	if (!(g_horde->integer && horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::MGU4TRIAL) &&
 		(!self->targetname || !self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)) &&
 		st.sl.data.radius == 0)
 	{

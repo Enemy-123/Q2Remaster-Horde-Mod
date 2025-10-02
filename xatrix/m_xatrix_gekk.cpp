@@ -2436,7 +2436,7 @@ void SP_monster_gekkkl(edict_t* self)
 	// Scale up
 	if (!self->s.scale)
 	{
-		self->s.scale = 1.4f;
+		self->s.scale = 1.2f;
 		self->mins *= self->s.scale;
 		self->maxs *= self->s.scale;
 	}

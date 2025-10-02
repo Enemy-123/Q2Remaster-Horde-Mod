@@ -1840,10 +1840,10 @@ constexpr std::array<WaveDefinition, 8> WAVE_DEFINITIONS_SRC = {{
 }};
 
 // Source data for special waves (chance is calculated at runtime based on player count)
-static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = {{{MonsterWaveType::Gekk, 0.75f, 15, -1, "*** Inferno Gekk Invasion! ***\n"},
+static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = {{{MonsterWaveType::Gekk, 0.75f, 15, -1, "*** Gekk Invasion! ***\n"},
 																  {MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, -1, "*** Enraged Horde approaching! ***\n"},
 																  {MonsterWaveType::Flying | MonsterWaveType::Fast, 0.2f, 9, -1, "*** Aerial assault incoming! ***\n"},
-																  {MonsterWaveType::Berserk, 0.75f, 15, -1, "*** Trespasser Assault! ***\n"},
+																  {MonsterWaveType::Berserk, 0.75f, 15, -1, "*** Berserkers! ***\n"},
 																  {MonsterWaveType::Bomber, 0.35f, 10, -1, "*** Strogg Bomber Units Arrived! ***\n"},
 																  {MonsterWaveType::Heavy, 0.2f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
 																  {MonsterWaveType::Spawner | MonsterWaveType::Bomber, 0.3f, 25, -1, "*** Spawners & Bombers Deployed! ***\n"}}};;

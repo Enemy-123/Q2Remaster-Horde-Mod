@@ -1355,7 +1355,6 @@ void ApplyFogEffect()
 			0.8f // Darken sky too wth 0.8f
 		};
 
-		// Enable flashlight if not already on
 		if (!(player->flags & FL_FLASHLIGHT))
 		{
 			P_ToggleFlashlight(player, true);
@@ -1435,6 +1434,10 @@ void RestoreFog()
 			world->fog.color[2],
 			world->fog.sky_factor
 		};
+
+		// For mgu4trial, don't remove flashlight (map needs it on continuously)
+		if (horde::MapOriginRegistry::GetMapID(level.mapname) == horde::MapID::MGU4TRIAL)
+			continue;
 
 		// Turn off flashlight
 		if (player->flags & FL_FLASHLIGHT)
