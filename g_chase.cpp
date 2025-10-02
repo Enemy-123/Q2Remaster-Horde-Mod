@@ -102,13 +102,14 @@ void UpdateChaseCam(edict_t* ent)
 		ent->client->pers.hand = ent->client->chase_target->client->pers.hand;
 		ent->client->pers.weapon = ent->client->chase_target->client->pers.weapon;
 
-		// unadjusted view and origin handling
+		// Position camera at target's origin for true first-person view
+		// Don't add viewheight here - we're copying ps.viewoffset which handles it
 		angles = targ->client->v_angle;
 		AngleVectors(angles, forward, right, nullptr);
 		forward.normalize();
-		o = ownerv;
-		trace = gi.traceline(ownerv, o, targ, MASK_SOLID);
-		goal = trace.endpos;
+
+		// Use target's origin directly (viewoffset from ps handles eye position)
+		goal = ownerv;
 	}
 	// vanilla chasecam code with Vortex-style pivot system
 	else
@@ -190,11 +191,9 @@ void UpdateChaseCam(edict_t* ent)
 		ent->client->ps.pmove.pm_type = PM_DEAD;
 	else
 	{
-		// Eyecam: freeze all input. Vanilla: allow mouse input with PM_SPECTATOR
-		if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
-			ent->client->ps.pmove.pm_type = PM_FREEZE;
-		else
-			ent->client->ps.pmove.pm_type = PM_SPECTATOR;  // ✅ Allows mouse input!
+		// Eyecam: freeze position but allow mouse rotation for dynamic escape
+		// Always use PM_SPECTATOR to allow mouse input (even in forced eyecam)
+		ent->client->ps.pmove.pm_type = PM_SPECTATOR;
 	}
 
 	ent->s.origin = goal;
@@ -225,19 +224,23 @@ void UpdateChaseCam(edict_t* ent)
 
 	ent->viewheight = 0;
 
-	// For free camera rotation: allow angular prediction, block positional only
-	// Eyecam mode locks both position and angles to target
+	// Always allow mouse movement for dynamic eyecam escape (Vortex-style)
+	// - Display: shows target's view in eyecam, spectator's view in third-person
+	// - Input: spectator can always move mouse (even during forced eyecam)
+	// - Next frame: auto_eyecam recalculates with new cmd_angles, may find clearance
+	ent->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
+	ent->client->ps.pmove.pm_flags &= ~PMF_NO_ANGULAR_PREDICTION;
+
+	// In eyecam mode: display target's view but allow spectator's mouse to update cmd_angles
+	// This enables dynamic escape: spectator rotates mouse → next frame finds clearance → pops to third-person
 	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 	{
-		ent->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION;
+		// Sync delta_angles to target so displayed view matches target
 		ent->client->ps.pmove.delta_angles = targ->client->v_angle - ent->client->resp.cmd_angles;
 	}
 	else
 	{
-		// Vanilla chasecam: spectator controls view angles with mouse
-		ent->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
-		ent->client->ps.pmove.pm_flags &= ~PMF_NO_ANGULAR_PREDICTION;
-		// Delta angles = 0 allows free rotation (viewangles = cmd_angles + 0)
+		// Third-person: delta_angles = 0 so view follows mouse directly
 		ent->client->ps.pmove.delta_angles = vec3_origin;
 	}
 
