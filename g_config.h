@@ -189,6 +189,20 @@ struct DopplegangerConfig
 	int explosion_radius = 140;
 };
 
+// Bombspell configuration
+struct BombSpellConfig
+{
+	int initial_damage = 75;
+	int addon_damage = 10;
+	int damage_radius = 150;
+	int duration_sec = 5;
+	int forward_cooldown_ms = 1500;
+	int area_cooldown_ms = 10000;
+	int max_height = 256;
+	int step_size = 96;
+	int carpet_width = 200;
+};
+
 // Ammo regeneration configuration
 struct AmmoRegenRateConfig
 {
@@ -244,6 +258,9 @@ struct GameConfig
 	TrapConfig trap;
 	TeslaConfig tesla;
 	DopplegangerConfig doppleganger;
+
+	// Special abilities
+	BombSpellConfig bomb_spell;
 
 	// Ammo regeneration
 	AmmoRegenConfig ammo_regen;

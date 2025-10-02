@@ -296,6 +296,27 @@ void Config_Load(const char* basedir)
 		}
 	}
 
+	// Load special abilities configs
+	if (root.isMember("special_abilities") && root["special_abilities"].isObject())
+	{
+		const Json::Value& abilities = root["special_abilities"];
+
+		// Bombspell
+		if (abilities.isMember("bomb_spell") && abilities["bomb_spell"].isObject())
+		{
+			const Json::Value& b = abilities["bomb_spell"];
+			g_config.bomb_spell.initial_damage = GetJsonInt(b, "initial_damage", 75);
+			g_config.bomb_spell.addon_damage = GetJsonInt(b, "addon_damage", 10);
+			g_config.bomb_spell.damage_radius = GetJsonInt(b, "damage_radius", 150);
+			g_config.bomb_spell.duration_sec = GetJsonInt(b, "duration_sec", 5);
+			g_config.bomb_spell.forward_cooldown_ms = GetJsonInt(b, "forward_cooldown_ms", 1500);
+			g_config.bomb_spell.area_cooldown_ms = GetJsonInt(b, "area_cooldown_ms", 10000);
+			g_config.bomb_spell.max_height = GetJsonInt(b, "max_height", 256);
+			g_config.bomb_spell.step_size = GetJsonInt(b, "step_size", 96);
+			g_config.bomb_spell.carpet_width = GetJsonInt(b, "carpet_width", 200);
+		}
+	}
+
 	// Load ammo regeneration config
 	if (root.isMember("ammo_regen") && root["ammo_regen"].isObject())
 	{

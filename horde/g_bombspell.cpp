@@ -7,14 +7,9 @@
 #include "g_horde_phys.h"
 
 // Bomb spell constants
-constexpr float CARPETBOMB_INITIAL_DAMAGE = 75;  // Reduced from 100
-constexpr float CARPETBOMB_ADDON_DAMAGE = 10;    // Reduced from 20
-constexpr float CARPETBOMB_DAMAGE_RADIUS = 150;
-constexpr gtime_t CARPETBOMB_DURATION = 5_sec;
-constexpr float CARPETBOMB_MAX_HEIGHT = 256;
+// NOTE: Player bombspell values are now loaded from weapon_and_bonus.json via g_config.bomb_spell
+// Monster-only constants below (CARPETSLAM) remain hardcoded
 constexpr float CARPETBOMB_ROOF_BUFFER = 32;
-constexpr float CARPETBOMB_STEP_SIZE = 96;  // Reduced from 128 to slow down forward movement
-constexpr float CARPETBOMB_CARPET_WIDTH = 200;
 
 // Carpet slam constants (BerserkerKL variant - uses slam attacks)
 constexpr float CARPETSLAM_DAMAGE = 35;  // Higher than regular slam (15)
@@ -114,7 +109,7 @@ void spawn_grenades(edict_t* ent, const vec3_t& origin, gtime_t time, int damage
 
         // Fire grenade with minimal initial velocity (let gravity do the work)
         // Low speed and high up_adjust creates an arc that falls naturally
-        fire_grenade(ent, spawn_pos, dir, damage, 200, time, CARPETBOMB_DAMAGE_RADIUS,
+        fire_grenade(ent, spawn_pos, dir, damage, 200, time, g_config.bomb_spell.damage_radius,
                     crandom() * 5.0f,  // Small random horizontal adjustment
                     50.0f + crandom() * 20.0f,  // Small upward velocity for arc
                     false);
@@ -148,7 +143,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
 
     // Move forward
     AngleVectors(self->s.angles, &forward, &right, nullptr);
-    vec3_t move_dist = forward * frandom(CARPETBOMB_DAMAGE_RADIUS / 2, CARPETBOMB_DAMAGE_RADIUS + 1);
+    vec3_t move_dist = forward * frandom(g_config.bomb_spell.damage_radius / 2, g_config.bomb_spell.damage_radius + 1);
     start = saved_origin + move_dist;
 
     // Trace horizontally and vertically to check movement
@@ -169,7 +164,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
         ceil_height = tr.endpos.z;
 
         // Push down from above desired position
-        start.z += CARPETBOMB_STEP_SIZE;
+        start.z += g_config.bomb_spell.step_size;
         if (start.z > ceil_height)
             start.z = ceil_height;
 
@@ -184,7 +179,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
         // Try a bit lower
         if (tr.startsolid)
         {
-            start.z -= CARPETBOMB_STEP_SIZE;
+            start.z -= g_config.bomb_spell.step_size;
             tr = gi.traceline(start, end, self, MASK_SOLID);
             if (tr.startsolid || tr.allsolid)
             {
@@ -210,7 +205,7 @@ THINK(carpetbomb_think)(edict_t* self) -> void
 
     // Spawn explosions on either side
     AngleVectors(self->s.angles, nullptr, &right, nullptr);
-    vec3_t side_offset = right * (crandom() * frandom(CARPETBOMB_CARPET_WIDTH / 4, CARPETBOMB_CARPET_WIDTH / 2));
+    vec3_t side_offset = right * (crandom() * frandom(g_config.bomb_spell.carpet_width / 4, g_config.bomb_spell.carpet_width / 2));
     end = effect_pos + side_offset;
 
     // Make sure path is wide enough
@@ -400,9 +395,9 @@ void CarpetBomb(edict_t* ent)
     spell->nextthink = level.time + FRAME_TIME_MS;
     spell->s.origin = ent->s.origin;
     spell->move_origin = ent->s.origin;  // Save caster's origin for visibility checks
-    spell->dmg = CARPETBOMB_INITIAL_DAMAGE + CARPETBOMB_ADDON_DAMAGE;
-    spell->dmg_radius = CARPETBOMB_DAMAGE_RADIUS;
-    spell->timestamp = level.time + CARPETBOMB_DURATION;  // Use timestamp instead of delay
+    spell->dmg = g_config.bomb_spell.initial_damage + g_config.bomb_spell.addon_damage;
+    spell->dmg_radius = g_config.bomb_spell.damage_radius;
+    spell->timestamp = level.time + gtime_t::from_sec(g_config.bomb_spell.duration_sec);  // Use timestamp instead of delay
     spell->owner = ent;
     spell->mins = vec3_origin;
     spell->maxs = vec3_origin;
@@ -420,7 +415,7 @@ void CarpetBomb(edict_t* ent)
     //gi.sound(ent, CHAN_ITEM, gi.soundindex("abilities/carpetbomb.wav"), 1, ATTN_NORM, 0);
 
     // Set cooldown
-    ent->client->resp.bombspell_forward_cooldown = level.time + 1500_ms;
+    ent->client->resp.bombspell_forward_cooldown = level.time + gtime_t::from_ms(g_config.bomb_spell.forward_cooldown_ms);
 }
 
 // Bomb area think function
@@ -553,7 +548,7 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
     bomb->owner = ent;
     bomb->timestamp = level.time + BOMBAREA_DURATION + BOMBAREA_STARTUP_DELAY;  // Use timestamp instead of delay
     bomb->nextthink = level.time + BOMBAREA_STARTUP_DELAY;
-    bomb->dmg = CARPETBOMB_INITIAL_DAMAGE + CARPETBOMB_ADDON_DAMAGE;// * skill_mult;
+    bomb->dmg = g_config.bomb_spell.initial_damage + g_config.bomb_spell.addon_damage;// * skill_mult;
     bomb->think = bombarea_think;
     bomb->s.angles = angles;
     bomb->s.origin = tr.endpos;
@@ -563,8 +558,8 @@ void BombArea(edict_t* ent)//, float skill_mult, float cost_mult)
 
     //gi.sound(ent, CHAN_ITEM, gi.soundindex("abilities/timebomb.wav"), 1, ATTN_NORM, 0);
 
-    // Set cooldown (10 seconds)
-    ent->client->resp.bombspell_area_cooldown = level.time + 10000_ms;
+    // Set cooldown
+    ent->client->resp.bombspell_area_cooldown = level.time + gtime_t::from_ms(g_config.bomb_spell.area_cooldown_ms);
 }
 
 // Bomb person think function
@@ -650,7 +645,7 @@ void BombPerson(edict_t* target, edict_t* owner)//, float skill_mult)
     bomb->owner = owner;
     bomb->enemy = target;
     bomb->timestamp = level.time + BOMBPERSON_DURATION;  // Use timestamp instead of delay
-    bomb->dmg = CARPETBOMB_INITIAL_DAMAGE + CARPETBOMB_ADDON_DAMAGE;// * skill_mult;
+    bomb->dmg = g_config.bomb_spell.initial_damage + g_config.bomb_spell.addon_damage;// * skill_mult;
     bomb->nextthink = level.time + 1_sec;
     bomb->think = bombperson_think;
     bomb->s.origin = target->s.origin;
