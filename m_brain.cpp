@@ -998,6 +998,25 @@ void brain_jump_attack(edict_t* self)
 	const vec3_t dir = self->enemy->s.origin - self->s.origin;
 	const float distance = dir.length();  // Usar length() en vez de VectorLength
 
+	// VORTEX-STYLE: Calculate height difference for better verticality
+	const float height_diff = self->enemy->s.origin[2] - self->s.origin[2];
+
+	// Base upward velocity (increased from 125 to 300 to match vortex)
+	float up_velocity = 300.0f;
+
+	// Adjust upward velocity based on enemy height (vortex-style verticality)
+	if (height_diff > 32.0f) {
+		// Enemy is higher - add more upward boost
+		up_velocity += height_diff * 0.8f;
+	}
+	else if (height_diff < -32.0f) {
+		// Enemy is lower - reduce upward velocity but keep minimum for arc
+		up_velocity += height_diff * 0.4f;
+	}
+
+	// Clamp to reasonable range (200-650)
+	up_velocity = clamp(up_velocity, 200.0f, 650.0f);
+
 	// Calculate forward speed based on distance
 	const float fwd_speed = distance * 2.0f;
 
@@ -1011,8 +1030,8 @@ void brain_jump_attack(edict_t* self)
 	// Calculate velocity using angle_vectors_t struct
 	auto const vectors = AngleVectors(self->s.angles);  // Obtiene forward, right, up de una vez
 
-	// Construir el vector de velocidad usando operadores de vec3_t
-	self->velocity = vectors.forward * fwd_speed + vectors.up * 125.0f;
+	// Construir el vector de velocidad usando operadores de vec3_t (with improved verticality)
+	self->velocity = vectors.forward * fwd_speed + vectors.up * up_velocity;
 
 	// Set other properties
 	self->groundentity = nullptr;
@@ -1230,9 +1249,6 @@ void SP_monster_brain(edict_t* self)
 	// HORDE MOD: Increased jump height from 68 to 88 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 88;
 	self->monsterinfo.can_jump = true;
-
-	//self->think = brain_tounge_attack_continue;
-	//self->nextthink = level.time + FRAME_TIME_MS;
 
 	walkmonster_start(self);
 

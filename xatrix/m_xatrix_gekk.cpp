@@ -1048,6 +1048,26 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		return;
 	}
 
+	// WALL BOUNCE: If we hit a wall/obstacle (not an enemy), re-jump toward enemy
+	if (self->style == 1 && other->solid == SOLID_BSP && M_HasValidTarget(self))
+	{
+		// Hit a wall! Re-jump directly at enemy
+		vec3_t const dir_to_enemy = (self->enemy->s.origin - self->s.origin).normalized();
+
+		// Aim directly at enemy
+		self->s.angles[YAW] = vectoyaw(dir_to_enemy);
+		auto const vectors = AngleVectors(self->s.angles);
+
+		// Re-launch toward enemy (medium strength jump)
+		self->velocity = vectors.forward * 500.0f + vectors.up * 350.0f;
+		self->groundentity = nullptr;
+		self->gravity = 1.0f; // Reset gravity for new jump
+
+		gi.sound(self, CHAN_VOICE, sound_sight, 0.5f, ATTN_NORM, 0);
+		return; // Don't process other collision logic
+	}
+
+	// ENEMY HIT: Deal damage on impact
 	if (self->style == 1 && other->takedamage)
 	{
 		if (self->velocity.length() > 200)
@@ -1931,39 +1951,67 @@ MMOVE_T(gekkkl_move_attack2) = { FRAME_clawatk5_01, FRAME_clawatk5_09, gekkkl_fr
 
 void gekkkl_jump_takeoff(edict_t* self)
 {
-	vec3_t forward;
+	if (!M_HasValidTarget(self))
+	{
+		return;
+	}
 
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin[2] += 1;
 
-	// high jump
-	if (gekk_check_jump(self))
-	{
-		self->velocity = forward * 950;
-		self->velocity[2] = 750;
+	// VORTEX-STYLE: Save target location for aggressive dive
+	self->pos1 = self->enemy->s.origin;
+	self->pos1[2] += self->enemy->viewheight;
+
+	// Calculate direction and distance to target
+	const vec3_t dir = self->pos1 - self->s.origin;
+	const float distance = dir.length();
+	const float height_diff = self->pos1[2] - self->s.origin[2];
+
+	// REDUCED forward speed to prevent overshooting (was 600-1000, now 400-700)
+	const float fwd_speed = clamp(distance * 1.5f, 400.0f, 700.0f);
+
+	// REDUCED base upward velocity to prevent jumping too high (was 800, now 400)
+	float up_velocity = 400.0f;
+
+	// Adjust for enemy height (less aggressive upward scaling)
+	if (height_diff > 32.0f) {
+		// Enemy is higher - moderate upward boost
+		up_velocity += height_diff * 0.8f;
 	}
-	else
-	{
-		self->velocity = forward * 950;
-		self->velocity[2] = 800;
+	else if (height_diff < -32.0f) {
+		// Enemy is lower - reduce for shallow arc
+		up_velocity += height_diff * 0.3f;
 	}
+
+	// Tighter clamp range (was 400-1200, now 250-600)
+	up_velocity = clamp(up_velocity, 250.0f, 600.0f);
+
+	// Aim toward target
+	vec3_t aim_dir;
+	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &aim_dir, nullptr);
+	self->s.angles[YAW] = vectoyaw(aim_dir);
+
+	// Set velocity toward target
+	auto const vectors = AngleVectors(self->s.angles);
+	self->velocity = vectors.forward * fwd_speed + vectors.up * up_velocity;
 
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 3_sec;
 	self->touch = gekk_jump_touch;
-	self->style = 1;
+	self->style = 1; // Mark as doing aggressive slam
+	self->gravity = 1.0f; // Reset gravity for dive mechanics
 }
 
 void gekkkl_check_landing(edict_t* self)
 {
 	if (self->groundentity)
 	{
-		// 50% chance for slam attack
-		if (frandom() <= 0.5f)
+		// AGGRESSIVE SLAM: If style=1, we're doing the aggressive jump-slam attack
+		if (self->style == 1)
 		{
-			// Slam attack like berserker
+			// Guaranteed slam attack on landing
 			gi.sound(self, CHAN_WEAPON, sound_thud, 1, ATTN_NORM, 0);
 			gi.sound(self, CHAN_AUTO, sound_explod, 0.75f, ATTN_NORM, 0);
 			gi.WriteByte(svc_temp_entity);
@@ -1981,6 +2029,8 @@ void gekkkl_check_landing(edict_t* self)
 
 			void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage, float kick, edict_t* ignore, float radius, mod_t mod);
 			T_SlamRadiusDamage(tr.endpos, self, self, 60, 600.f, self, 165, MOD_UNKNOWN);
+
+			self->style = 0; // Reset slam flag
 		}
 		else
 		{
@@ -1995,6 +2045,40 @@ void gekkkl_check_landing(edict_t* self)
 
 		self->velocity = {};
 		return;
+	}
+
+	// AGGRESSIVE DIVE MECHANICS: Steer toward saved target position while airborne
+	if (self->style == 1 && self->pos1.lengthSquared() > 0)
+	{
+		// Calculate direction to saved target
+		vec3_t const dir_to_target = (self->pos1 - self->s.origin).normalized();
+		float const dist_to_target = (self->pos1 - self->s.origin).length();
+
+		// MUCH MORE AGGRESSIVE: Strong gravity pull + velocity override to land ON enemy
+		self->gravity = 2.5f; // Increased gravity pulls down harder
+
+		// Damp horizontal velocity to slow down
+		self->velocity[0] *= 0.85f;
+		self->velocity[1] *= 0.85f;
+
+		// Strong downward dive force (was 150, now 300+)
+		const float dive_strength = 300.0f + (dist_to_target * 0.5f);
+
+		// OVERRIDE velocity to point AT target (not just add to it)
+		vec3_t desired_velocity = dir_to_target * dive_strength;
+
+		// Blend current velocity with desired (aggressive steering)
+		self->velocity[0] = self->velocity[0] * 0.3f + desired_velocity[0] * 0.7f;
+		self->velocity[1] = self->velocity[1] * 0.3f + desired_velocity[1] * 0.7f;
+		self->velocity[2] = self->velocity[2] * 0.3f + desired_velocity[2] * 0.7f;
+
+		// Face the target while diving
+		self->ideal_yaw = vectoyaw(dir_to_target);
+		M_ChangeYaw(self);
+
+		// Much higher max fall speed for aggressive dive
+		if (self->velocity[2] < -1800.0f)
+			self->velocity[2] = -1800.0f;
 	}
 
 	// Paril: allow them to "pull" up ledges
@@ -2048,6 +2132,23 @@ void GekkKLSaveLoc(edict_t* self)
 	}
 }
 
+// Aggressive follow-up after slam landing
+void gekkkl_slam_followup(edict_t* self)
+{
+	// First check underwater transition
+	gekk_check_underwater(self);
+
+	// If we just did a slam (style was recently 1), aggressively follow up with melee
+	if (M_HasValidTarget(self) && range_to(self, self->enemy) <= RANGE_MELEE)
+	{
+		// Immediately transition to melee attack - no hesitation!
+		if (frandom() < 0.5f)
+			M_SetAnimation(self, &gekkkl_move_attack1);
+		else
+			M_SetAnimation(self, &gekkkl_move_attack2);
+	}
+}
+
 mframe_t gekkkl_frames_leapatk[] = {
 	{ ai_charge }, 			// frame 0 - Save target location
 	{ ai_charge, -0.387f },						// frame 1
@@ -2055,20 +2156,20 @@ mframe_t gekkkl_frames_leapatk[] = {
 	{ ai_charge, -0.237f },						// frame 3
 	{ ai_charge, 6.720f, gekkkl_jump_takeoff },	// frame 4  last frame on ground
 	{ ai_charge, 6.414f },						// frame 5  leaves ground
-	{ ai_charge, 0.163f, GekkKLSaveLoc },		// frame 6
+	{ ai_charge, 0.163f, GekkKLSaveLoc },		// frame 6  track target
 	{ ai_charge, 28.316f, gekk_kl_spit },						// frame 7
-	{ ai_charge, 24.198f, GekkKLSaveLoc },		// frame 8
+	{ ai_charge, 24.198f, GekkKLSaveLoc },		// frame 8  track target
 	{ ai_charge, 31.742f, gekk_kl_spit },						// frame 9
-	{ ai_charge, 35.977f, gekkkl_check_landing }, // frame 10  last frame in air
+	{ ai_charge, 35.977f, gekkkl_check_landing }, // frame 10  landing + slam check
 	{ ai_charge, 12.303f, gekk_stop_skid },		// frame 11  feet back on ground
 	{ ai_charge, 20.122f, gekk_stop_skid },		// frame 12
 	{ ai_charge, -1.042f, gekk_stop_skid },		// frame 13
 	{ ai_charge, 2.556f, gekk_stop_skid },		// frame 14
-	{ ai_charge, 0.544f, GekkKLSaveLoc },		// frame 15
-	{ ai_charge, 1.862f, gekk_kl_spit },		// frame 16
-	{ ai_charge, 1.224f, gekk_stop_skid },		// frame 17
+	{ ai_charge, 0.544f },		// frame 15  recovery
+	{ ai_charge, 1.862f },		// frame 16  recovery
+	{ ai_charge, 1.224f },		// frame 17  recovery
 
-	{ ai_charge, -0.457f, gekk_check_underwater }, // frame 18
+	{ ai_charge, -0.457f, gekkkl_slam_followup }, // frame 18  AGGRESSIVE MELEE FOLLOWUP
 };
 MMOVE_T(gekkkl_move_leapatk) = { FRAME_leapatk_01, FRAME_leapatk_19, gekkkl_frames_leapatk, gekk_run_start };
 
