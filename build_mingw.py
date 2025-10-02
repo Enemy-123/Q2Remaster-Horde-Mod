@@ -70,7 +70,7 @@ def deploy_data_files(script_dir, deploy_path):
     """Deploy bots, ents, and config/weapon_and_bonus.json to game directory."""
     print("\n=== Deploying Data Files ===")
     deploy_src = os.path.join(script_dir, "deploy")
-    game_dir = os.path.dirname(os.path.normpath(deploy_path))
+    game_dir = os.path.normpath(deploy_path)
 
     total_copied = 0
     total_skipped = 0
@@ -191,6 +191,7 @@ def build_with_mingw(script_dir, deploy_path, build_type):
         pthread_dll = "libwinpthread-1.dll"
         source_path = os.path.join(mingw_runtime_path, pthread_dll)
         if os.path.isfile(source_path):
+            # Copy to parent directory (where game executable is)
             game_dir = os.path.dirname(os.path.normpath(deploy_path))
             print(f"Copying {pthread_dll} to {game_dir}")
             shutil.copy(source_path, game_dir)
