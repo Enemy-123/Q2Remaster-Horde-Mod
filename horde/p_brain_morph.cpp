@@ -477,7 +477,7 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
                 ent->s.renderfx |= RF_OLD_FRAME_LERP;
             }
         } else {
-            // Standing/idle animation - very slow for smooth idle
+            // Standing/idle animation
             if (ent->s.frame < BRAIN_FRAMES_STAND_START || ent->s.frame > BRAIN_FRAMES_STAND_END) {
                 ent->s.frame = BRAIN_FRAMES_STAND_START;
                 data->next_frame_time = level.time;
@@ -486,9 +486,7 @@ void RunBrainFrames(edict_t* ent, const usercmd_t& ucmd) {
                 ent->s.frame++;
                 if (ent->s.frame > BRAIN_FRAMES_STAND_END)
                     ent->s.frame = BRAIN_FRAMES_STAND_START;
-                // Use 5Hz (200ms) for slow smooth idle animation
-                data->next_frame_time = level.time + 5_hz;
-                ent->s.renderfx |= RF_OLD_FRAME_LERP;
+                data->next_frame_time = level.time + 40_hz;
             }
         }
     }
