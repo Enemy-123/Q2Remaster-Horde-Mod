@@ -1056,6 +1056,14 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 		float const self_height = self->s.origin[2];
 		float const height_diff = enemy_height - self_height;
 
+		// BOUNCE RESTRICTIONS: Don't bounce if:
+		// 1. Bounce window expired (more than 2 seconds since jump started)
+		// 2. Gekk is already ABOVE enemy (would get stuck in wall)
+		if (level.time > self->teleport_time)//|| self_height > enemy_height)
+		{
+			return; // Don't bounce - let physics handle it naturally
+		}
+
 		// Aim directly at enemy
 		vec3_t const dir_to_enemy = (self->enemy->s.origin - self->s.origin).normalized();
 		self->s.angles[YAW] = vectoyaw(dir_to_enemy);
@@ -1063,25 +1071,38 @@ TOUCH(gekk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 		// HEIGHT-AWARE UPWARD VELOCITY: Don't jump up if enemy is below!
 		float up_velocity = 250.0f; // Base
+		float forward_velocity = 400.0f; // Base
 
 		if (height_diff > 64.0f) {
 			// Enemy is significantly higher - jump up more
 			up_velocity = 400.0f + (height_diff * 0.4f);
+			forward_velocity = 400.0f;
 		}
 		else if (height_diff < -64.0f) {
 			// Enemy is significantly lower - minimal upward jump (just arc over)
 			up_velocity = 100.0f;
+			forward_velocity = 400.0f;
 		}
 		else {
-			// Enemy is roughly at same level - moderate jump
-			up_velocity = 250.0f;
+			// Enemy is roughly at SAME LEVEL - 50% chance for LOW HORIZONTAL POUNCE
+			if (frandom() < 0.5f) {
+				// LOW HORIZONTAL POUNCE - fast ground approach
+				up_velocity = 120.0f; // Minimal height
+				forward_velocity = 600.0f; // FAST forward pounce
+			}
+			else {
+				// Normal moderate jump
+				up_velocity = 250.0f;
+				forward_velocity = 400.0f;
+			}
 		}
 
-		// Clamp to reasonable range
+		// Clamp to reasonable ranges
 		up_velocity = clamp(up_velocity, 50.0f, 500.0f);
+		forward_velocity = clamp(forward_velocity, 300.0f, 700.0f);
 
-		// Re-launch toward enemy with smart height
-		self->velocity = vectors.forward * 400.0f + vectors.up * up_velocity;
+		// Re-launch toward enemy with smart height and speed
+		self->velocity = vectors.forward * forward_velocity + vectors.up * up_velocity;
 		self->groundentity = nullptr;
 		self->gravity = 1.0f;
 
@@ -2009,6 +2030,7 @@ void gekkkl_jump_takeoff(edict_t* self)
 		self->touch = gekk_jump_touch;
 		self->style = 2; // Mark as PLASMA JUMP (not slam)
 		self->gravity = 1.0f;
+		self->teleport_time = level.time + 2_sec; // Wall bounce window (2 seconds)
 		return;
 	}
 
@@ -2045,6 +2067,7 @@ void gekkkl_jump_takeoff(edict_t* self)
 	self->touch = gekk_jump_touch;
 	self->style = 1; // Mark as SLAM DIVE
 	self->gravity = 1.0f;
+	self->teleport_time = level.time + 2_sec; // Wall bounce window (2 seconds)
 }
 
 void gekkkl_check_landing(edict_t* self)
@@ -2072,6 +2095,33 @@ void gekkkl_check_landing(edict_t* self)
 
 			void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage, float kick, edict_t* ignore, float radius, mod_t mod);
 			T_SlamRadiusDamage(tr.endpos, self, self, 60, 600.f, self, 165, MOD_UNKNOWN);
+
+			// HIGH UPWARD PUSH: Launch enemies into the air
+			edict_t* ent = nullptr;
+			while ((ent = findradius(ent, tr.endpos, 165)) != nullptr)
+			{
+				if (!ent->takedamage)
+					continue;
+				if (ent == self)
+					continue;
+				if (!CanDamage(ent, self))
+					continue;
+
+				// STRONG UPWARD PUSH
+				if (ent->groundentity)
+				{
+					// Stronger push if on ground
+					ent->velocity[2] += 500.0f;
+				}
+				else
+				{
+					// Medium push if already airborne
+					ent->velocity[2] += 350.0f;
+				}
+
+				// Remove ground entity so they fly
+				ent->groundentity = nullptr;
+			}
 
 			self->style = 0; // Reset slam flag
 		}
