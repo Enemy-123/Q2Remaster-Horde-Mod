@@ -68,7 +68,7 @@ bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 	// Check if it's a sentry gun that belongs to this player
 	if (horde::IsSpecialType(entity, horde::SpecialEntityTypeID::SENTRY_GUN))
 	{
-		for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; i++)
+		for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); i++)
 		{
 			if (player->client->resp.deployed_sentries[i] == entity)
 				return true;

@@ -14,9 +14,9 @@ void weapon_ionripper_fire(edict_t* ent)
 
 	if (G_IsDeathmatch())
 		// tone down for deathmatch
-		damage = 50;
+		damage = g_config.ionripper.damage;
 	else
-		damage = 50;
+		damage = g_config.ionripper.damage;
 
 	if (is_quad)
 		damage *= damage_multiplier;
@@ -58,8 +58,8 @@ void weapon_phalanx_fire(edict_t* ent)
     int    radius_damage;
 
     damage = irandom(80, 95);
-    radius_damage = 120;
-    damage_radius = 120;
+    radius_damage = g_config.phalanx.radius_damage;
+    damage_radius = g_config.phalanx.damage_radius;
     if (is_quad)
     {
         damage *= damage_multiplier;
@@ -117,7 +117,7 @@ void weapon_phalanx_fire(edict_t* ent)
             v[ROLL] = ent->client->v_angle[ROLL];
             P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
             radius_damage = 30;
-            damage_radius = 120;
+            damage_radius = g_config.phalanx.damage_radius;
             fire_plasma(ent, start, dir, damage, 1075, damage_radius, radius_damage);
             gi.WriteByte(svc_muzzleflash);
             gi.WriteEntity(ent);

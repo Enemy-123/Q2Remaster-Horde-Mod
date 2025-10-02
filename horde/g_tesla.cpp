@@ -730,7 +730,7 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 	}
 
 	// O(1) PERFORMANCE: If player is at their tesla limit, remove the oldest one.
-	if (self && self->client && self->client->resp.num_teslas >= TeslaConstants::MAX_TESLAS_PER_PLAYER)
+	if (self && self->client && self->client->resp.num_teslas >= TeslaConstants::MAX_TESLAS_PER_PLAYER())
 	{
 		// Get the oldest tesla from our circular buffer.
 		edict_t *oldest = self->client->resp.deployed_teslas[self->client->resp.oldest_tesla_idx];
@@ -837,7 +837,7 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 		self->client->resp.deployed_teslas[self->client->resp.oldest_tesla_idx] = tesla;
 		
         // Advance the index for the next "oldest".
-		self->client->resp.oldest_tesla_idx = (self->client->resp.oldest_tesla_idx + 1) % TeslaConstants::MAX_TESLAS_PER_PLAYER;
+		self->client->resp.oldest_tesla_idx = (self->client->resp.oldest_tesla_idx + 1) % TeslaConstants::MAX_TESLAS_PER_PLAYER();
 
 		// Increment the counter.
 		self->client->resp.num_teslas++;

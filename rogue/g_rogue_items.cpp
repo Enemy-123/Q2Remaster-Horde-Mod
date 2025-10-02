@@ -197,7 +197,7 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 			return;
 		}
 	} else {
-		if (ent->client->resp.num_sentries >= SentryConstants::MAX_SENTRIES_PER_PLAYER) {
+		if (ent->client->resp.num_sentries >= SentryConstants::MAX_SENTRIES_PER_PLAYER()) {
 			gi.Client_Print(ent, PRINT_HIGH, "You have reached the sentry gun limit.\n");
 			return;
 		}
@@ -291,7 +291,7 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 
         if (turret) { // Check if the spawn was successful
             // The sentry was spawned successfully, now track it.
-            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+            for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i) {
                 if (ent->client->resp.deployed_sentries[i] == nullptr) {
                     ent->client->resp.deployed_sentries[i] = turret;
                     break;
@@ -301,7 +301,7 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
             ent->client->pers.inventory[item->id]--;
             ent->client->resp.num_sentries++;
             gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun deployed. You have {}/{} sentry guns.\n",
-                ent->client->resp.num_sentries, SentryConstants::MAX_SENTRIES_PER_PLAYER);
+                ent->client->resp.num_sentries, SentryConstants::MAX_SENTRIES_PER_PLAYER());
         } else {
             gi.Client_Print(ent, PRINT_HIGH, "Sentry deployment failed.\n");
         }

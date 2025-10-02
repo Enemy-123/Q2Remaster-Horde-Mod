@@ -193,9 +193,9 @@ void weapon_tracker_fire(edict_t* self)
 
 	// PMM - felt a little high at 25
 	if (G_IsDeathmatch())
-		damage = 145;
+		damage = g_config.plasmabeam.damage;
 	else
-		damage = 135;
+		damage = g_config.plasmabeam.damage_singleplayer;
 
 	if (is_quad)
 		damage *= damage_multiplier; // pgm
@@ -272,7 +272,7 @@ ETF RIFLE
 void weapon_etf_rifle_fire(edict_t* ent)
 {
 	int	   damage;
-	int	   kick = 3;
+	int	   kick = g_config.etfrifle.kick_normal;
 	int	   i;
 	vec3_t offset;
 
@@ -399,9 +399,9 @@ void Heatbeam_Fire(edict_t* ent)
 		damage = HEATBEAM_SP_DMG;
 
 	if (G_IsDeathmatch()) // really knock 'em around in deathmatch
-		kick = 75;
+		kick = g_config.etfrifle.kick_homing;
 	else
-		kick = 75;
+		kick = g_config.etfrifle.kick_homing;
 
 	if (is_quad)
 	{

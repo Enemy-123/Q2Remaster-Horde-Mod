@@ -1044,7 +1044,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage)
         const float max_stored_healing = static_cast<float>(VampireConfig::MAX_STORED_HEALING);
 
         // Iterate through the player's specific array of deployed sentries.
-        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
+        for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i)
         {
             edict_t* sentry = attacker->client->resp.deployed_sentries[i];
 

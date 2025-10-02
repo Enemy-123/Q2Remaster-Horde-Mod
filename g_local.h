@@ -5,6 +5,7 @@
 #pragma once
 
 #include "bg_local.h"
+#include "g_config.h"
 
 // BFG Mode enum for tri-state BFG behavior
 enum class BFGMode : uint8_t {
@@ -2965,12 +2966,14 @@ struct regeneration_info_t {
 };
 
 namespace TeslaConstants {
-    constexpr int32_t MAX_TESLAS_PER_PLAYER = 12; 
+    constexpr int32_t MAX_TESLAS_ARRAY_SIZE = 32;  // Compile-time array size
+    inline int32_t MAX_TESLAS_PER_PLAYER() { return g_config.entity_limits.max_teslas; }  // Runtime limit from config
 	constexpr gtime_t TIME_TO_LIVE = 60_sec;
 }
 
 namespace SentryConstants {
-    constexpr int32_t MAX_SENTRIES_PER_PLAYER = 3;
+    constexpr int32_t MAX_SENTRIES_ARRAY_SIZE = 16;  // Compile-time array size
+    inline int32_t MAX_SENTRIES_PER_PLAYER() { return g_config.entity_limits.max_sentries; }  // Runtime limit from config
 }
 
 namespace TrapConstants {
@@ -2982,7 +2985,8 @@ namespace ProxConstants {
 }
 
 namespace LaserConstants {
-    constexpr int32_t MAX_LASERS_PER_PLAYER = 6;
+    constexpr int32_t MAX_LASERS_ARRAY_SIZE = 16;  // Compile-time array size
+    inline int32_t MAX_LASERS_PER_PLAYER() { return g_config.entity_limits.max_lasers; }  // Runtime limit from config
     constexpr int32_t LASER_COST = 25;
     constexpr int32_t LASER_INITIAL_DAMAGE = 1;
     constexpr int32_t LASER_ADDON_DAMAGE = 4;
@@ -3206,11 +3210,11 @@ struct client_respawn_t
 
 	// Lasers
 	int      num_lasers = 0;
-	edict_t* deployed_lasers[LaserConstants::MAX_LASERS_PER_PLAYER];
+	edict_t* deployed_lasers[LaserConstants::MAX_LASERS_ARRAY_SIZE];
 
 	// Teslas
 	int      num_teslas = 0;
-	edict_t* deployed_teslas[TeslaConstants::MAX_TESLAS_PER_PLAYER];
+	edict_t* deployed_teslas[TeslaConstants::MAX_TESLAS_ARRAY_SIZE];
 	int      oldest_tesla_idx;
 
 	// Food Cubes - TRAPS
@@ -3229,7 +3233,7 @@ struct client_respawn_t
 
 	// Sentries
 	int      num_sentries = 0;
-	edict_t* deployed_sentries[SentryConstants::MAX_SENTRIES_PER_PLAYER];
+	edict_t* deployed_sentries[SentryConstants::MAX_SENTRIES_ARRAY_SIZE];
 
 	// Strogg Summons
 	int      num_summons = 0;

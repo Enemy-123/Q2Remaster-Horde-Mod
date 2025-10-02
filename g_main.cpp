@@ -260,6 +260,19 @@ void InitGame()
 {
 	gi.Com_Print("==== InitGame ====\n");
 
+	// Load configuration from JSON
+	cvar_t* gamedir = gi.cvar("game", "", CVAR_NOFLAGS);
+	std::string basedir = gi.cvar("basedir", "", CVAR_NOFLAGS)->string;
+	if (basedir.empty())
+		basedir = ".";
+	if (basedir.back() != '/' && basedir.back() != '\\')
+		basedir += "/";
+	if (gamedir && gamedir->string[0])
+		basedir += std::string(gamedir->string) + "/";
+	else
+		basedir += "baseq2/";
+	Config_Load(basedir.c_str());
+
 	// Kyper - Lithium port
 	g_use_hook = gi.cvar("g_use_hook", "1", CVAR_NOFLAGS);
 	g_hook_wave = gi.cvar("g_hook_wave", "0", CVAR_NOFLAGS);

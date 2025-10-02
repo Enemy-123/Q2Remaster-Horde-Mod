@@ -222,6 +222,7 @@ CMakeFiles/Q2HordeModDLL.dir/horde/p_brain_morph.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/locale_conv.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../q_vec3.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../game.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../g_config.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/charconv \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/span \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/utility \

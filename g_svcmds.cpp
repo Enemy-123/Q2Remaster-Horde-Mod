@@ -276,6 +276,11 @@ void SVCmd_WriteIP_f(void)
 // void SVCmd_AssetList_f()
 // void SVCmd_AssetCleanup_f()
 
+void SVCmd_ReloadConfig_f()
+{
+	Config_Reload();
+}
+
 /*
 =================
 ServerCommand
@@ -302,6 +307,8 @@ void ServerCommand()
 		SVCmd_WriteIP_f();
 	else if (Q_strcasecmp(cmd, "nextmap") == 0)
 		SVCmd_NextMap_f();
+	else if (Q_strcasecmp(cmd, "reload_config") == 0)
+		SVCmd_ReloadConfig_f();
 	// REMOVED: Asset manager commands (assetstats, assetlist, assetcleanup)
 	else
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "Unknown server command \"{}\"\n", cmd);

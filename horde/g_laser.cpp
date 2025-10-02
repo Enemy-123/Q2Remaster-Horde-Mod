@@ -88,7 +88,7 @@ static void UpdatePlayerLasers(const edict_t* player, int current_wave_level, in
 {
     if (!player || !player->client) return;
 
-    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i)
     {
         edict_t* emitter = player->client->resp.deployed_lasers[i];
 
@@ -124,7 +124,7 @@ static void UpdatePlayerSentryGuns(const edict_t* player)
 {
     if (!player || !player->client) return;
 
-    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i)
+    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i)
     {
         edict_t* sentry = player->client->resp.deployed_sentries[i];
 
@@ -151,7 +151,7 @@ static void UpdatePlayerTeslaMines(const edict_t* player)
 {
     if (!player || !player->client) return;
 
-    for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER; ++i)
+    for (int i = 0; i < TeslaConstants::MAX_TESLAS_PER_PLAYER(); ++i)
     {
         edict_t* tesla = player->client->resp.deployed_teslas[i];
 
@@ -370,7 +370,7 @@ DIE(laser_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
         {
             teammaster->client->resp.num_lasers--;
         }
-        for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i)
+        for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i)
         {
             if (teammaster->client->resp.deployed_lasers[i] == emitter)
             {
@@ -603,7 +603,7 @@ void create_laser(edict_t * ent)
         return;
     }
 
-    if (ent->client->resp.num_lasers >= LaserConstants::MAX_LASERS_PER_PLAYER)
+    if (ent->client->resp.num_lasers >= LaserConstants::MAX_LASERS_PER_PLAYER())
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
         return;
@@ -720,7 +720,7 @@ void create_laser(edict_t * ent)
 
     ent->client->pers.inventory[IT_AMMO_CELLS] -= LaserConstants::LASER_COST;
 
-    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i) {
         if (ent->client->resp.deployed_lasers[i] == nullptr) {
             ent->client->resp.deployed_lasers[i] = emitter;
             break;
@@ -728,7 +728,7 @@ void create_laser(edict_t * ent)
     }
     ent->client->resp.num_lasers++;
 
-    gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->resp.num_lasers, LaserConstants::MAX_LASERS_PER_PLAYER);
+    gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->resp.num_lasers, LaserConstants::MAX_LASERS_PER_PLAYER());
 }
 
 void remove_lasers(edict_t* ent) noexcept {
@@ -736,7 +736,7 @@ void remove_lasers(edict_t* ent) noexcept {
         return;
     }
 
-    for (int i = LaserConstants::MAX_LASERS_PER_PLAYER - 1; i >= 0; --i) {
+    for (int i = LaserConstants::MAX_LASERS_PER_PLAYER() - 1; i >= 0; --i) {
         edict_t* laser_emitter = ent->client->resp.deployed_lasers[i];
         
         if (laser_emitter && laser_emitter->inuse && horde::IsSpecialType(laser_emitter, horde::SpecialEntityTypeID::LASER_EMITTER)) {
@@ -745,7 +745,7 @@ void remove_lasers(edict_t* ent) noexcept {
     }
 
     ent->client->resp.num_lasers = 0;
-    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER; ++i) {
+    for (int i = 0; i < LaserConstants::MAX_LASERS_PER_PLAYER(); ++i) {
         ent->client->resp.deployed_lasers[i] = nullptr;
     }
 }

@@ -1067,11 +1067,11 @@ GRENADE
 
 void weapon_grenade_fire(edict_t* ent, bool held)
 {
-	int	  damage = 125;
+	int	  damage = g_config.grenade.damage;
 	int	  speed;
 	float radius;
 
-	radius = static_cast<float>(damage + 40);
+	radius = static_cast<float>(damage + g_config.grenade.radius_offset);
 	if (is_quad)
 		damage *= damage_multiplier;
 
@@ -1368,9 +1368,9 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(100, 120);
-	radius_damage = 125;
-	damage_radius = 125;
+	damage = irandom(g_config.rocket.damage_min, g_config.rocket.damage_max);
+	radius_damage = g_config.rocket.radius;
+	damage_radius = g_config.rocket.radius;
 	if (is_quad)
 	{
 		damage *= damage_multiplier;
@@ -1379,7 +1379,7 @@ void Weapon_RocketLauncher_Fire(edict_t* ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-	fire_rocket(ent, start, dir, damage, 1230, damage_radius, radius_damage);
+	fire_rocket(ent, start, dir, damage, g_config.rocket.speed, damage_radius, radius_damage);
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
@@ -1424,7 +1424,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
-	int const speed = hyper ? 1700 : 1300;
+	int const speed = hyper ? g_config.hyperblaster.speed : g_config.blaster.speed;
 	//left hb / right blaster
 	!hyper ? fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, 5)
 	: fire_blaster_bolt(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, 3);
@@ -1460,7 +1460,7 @@ void Weapon_Blaster_Fire(edict_t* ent)
 	ent->client->blaster_ammo--;
 
 	// reduced damage to balance with Strength Tech (4x multiplier)
-	int const damage = irandom(8, 10);
+	int const damage = g_config.blaster.damage;
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
@@ -1862,9 +1862,9 @@ SHOTGUN / SUPERSHOTGUN
 void weapon_shotgun_fire(edict_t* ent)
 {
 	int damage;
-	int kick = 8;
+	int kick = g_config.shotgun.kick;
 
-	damage = !PlayerHasEnergyShells(ent) ? irandom(3, 5) : irandom(7, 11);
+	damage = !PlayerHasEnergyShells(ent) ? irandom(g_config.shotgun.damage_min, g_config.shotgun.damage_max) : irandom(g_config.shotgun.damage_energy_min, g_config.shotgun.damage_energy_max);
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir, true);
@@ -1968,13 +1968,13 @@ void weapon_railgun_fire(edict_t* ent)
 
 	if (G_IsDeathmatch() && g_horde->integer)
 	{
-		damage = 225;
-		kick = 285;
+		damage = g_config.railgun.damage_horde;
+		kick = g_config.railgun.kick;
 	}
 	else
 	{
-		damage = 150;
-		kick = 285;
+		damage = g_config.railgun.damage;
+		kick = g_config.railgun.kick;
 	}
 
 	if (is_quad)
@@ -2041,12 +2041,12 @@ void P_ApplyContinuousKick(edict_t* ent, float dt)
 void weapon_bfg_fire(edict_t* ent)
 {
 	int   damage;
-	float const damage_radius = 1000;
+	float const damage_radius = g_config.bfg.radius;
 
 	if (G_IsDeathmatch())
-		damage = 700;
+		damage = g_config.bfg.damage;
 	else
-		damage = 700;
+		damage = g_config.bfg.damage;
 
 	// Handle muzzle flash for standard BFG charge-up
 	if (!PlayerHasBFGSlide(ent) && ent->client->ps.gunframe == 9)

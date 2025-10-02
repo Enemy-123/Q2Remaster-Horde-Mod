@@ -3199,12 +3199,12 @@ void ResetPlayerDeployedItems()
 
 		// Lasers
 		client->resp.num_lasers = 0;
-		std::fill(client->resp.deployed_lasers, client->resp.deployed_lasers + LaserConstants::MAX_LASERS_PER_PLAYER, nullptr);
+		std::fill(client->resp.deployed_lasers, client->resp.deployed_lasers + LaserConstants::MAX_LASERS_ARRAY_SIZE, nullptr);
 		client->resp.oldest_tesla_idx = 0; // Assuming this is for tesla index
 
 		// Teslas
 		client->resp.num_teslas = 0;
-		std::fill(client->resp.deployed_teslas, client->resp.deployed_teslas + TeslaConstants::MAX_TESLAS_PER_PLAYER, nullptr);
+		std::fill(client->resp.deployed_teslas, client->resp.deployed_teslas + TeslaConstants::MAX_TESLAS_ARRAY_SIZE, nullptr);
 		client->resp.oldest_tesla_idx = 0;
 
 		// Traps
@@ -3219,7 +3219,7 @@ void ResetPlayerDeployedItems()
 
 		// Sentries
 		client->resp.num_sentries = 0;
-		std::fill(client->resp.deployed_sentries, client->resp.deployed_sentries + SentryConstants::MAX_SENTRIES_PER_PLAYER, nullptr);
+		std::fill(client->resp.deployed_sentries, client->resp.deployed_sentries + SentryConstants::MAX_SENTRIES_ARRAY_SIZE, nullptr);
 
 				// Barrels
 		client->resp.num_barrels = 0;

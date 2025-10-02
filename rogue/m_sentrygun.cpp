@@ -1824,7 +1824,7 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 					continue;
 
 				// Check if this player has this sentry in their array
-				for (int j = 0; j < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++j) {
+				for (int j = 0; j < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++j) {
 					if (player->client->resp.deployed_sentries[j] == self) {
 						sentry_owner = player;
 						break;
@@ -1848,7 +1848,7 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 			}
 
 			// Find this sentry in the owner's tracking array and null it out
-			for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+			for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i) {
 				if (sentry_owner->client->resp.deployed_sentries[i] == self) {
 					sentry_owner->client->resp.deployed_sentries[i] = nullptr;
 					break;
@@ -1935,7 +1935,7 @@ void remove_sentries(edict_t* ent) noexcept {
     }
 
     // Iterate backwards through the player's specific sentry list.
-    for (int i = SentryConstants::MAX_SENTRIES_PER_PLAYER - 1; i >= 0; --i) {
+    for (int i = SentryConstants::MAX_SENTRIES_PER_PLAYER() - 1; i >= 0; --i) {
         edict_t* sentry = ent->client->resp.deployed_sentries[i];
         
         // If a valid sentry is found, call its die function.
@@ -1947,7 +1947,7 @@ void remove_sentries(edict_t* ent) noexcept {
 
     // As a safeguard, ensure the count and array are fully cleared.
     ent->client->resp.num_sentries = 0;
-    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER; ++i) {
+    for (int i = 0; i < SentryConstants::MAX_SENTRIES_PER_PLAYER(); ++i) {
         ent->client->resp.deployed_sentries[i] = nullptr;
     }
 }
