@@ -80,7 +80,27 @@ set_target_properties(Q2HordeModDLL PROPERTIES
 
 # Installation
 if(DEPLOY_DIRECTORY AND IS_DIRECTORY "${DEPLOY_DIRECTORY}")
+    # Install the DLL
     install(TARGETS Q2HordeModDLL
         RUNTIME DESTINATION "${DEPLOY_DIRECTORY}"
         LIBRARY DESTINATION "${DEPLOY_DIRECTORY}")
+
+    # Get the parent directory of DEPLOY_DIRECTORY (the baseq2 folder)
+    get_filename_component(GAME_DIR "${DEPLOY_DIRECTORY}" DIRECTORY)
+
+    # Install data files (bots, ents, horde_config.json)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/deploy/bots")
+        install(DIRECTORY "${CMAKE_SOURCE_DIR}/deploy/bots"
+            DESTINATION "${GAME_DIR}")
+    endif()
+
+    if(EXISTS "${CMAKE_SOURCE_DIR}/deploy/ents")
+        install(DIRECTORY "${CMAKE_SOURCE_DIR}/deploy/ents"
+            DESTINATION "${GAME_DIR}")
+    endif()
+
+    if(EXISTS "${CMAKE_SOURCE_DIR}/deploy/horde_config.json")
+        install(FILES "${CMAKE_SOURCE_DIR}/deploy/horde_config.json"
+            DESTINATION "${GAME_DIR}")
+    endif()
 endif()

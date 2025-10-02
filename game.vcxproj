@@ -83,7 +83,13 @@
       <AdditionalDependencies>jsoncpp.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)vcpkg_installed\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
-    <!-- CHANGE 3: Remove the PostBuildEvent that copies DLLs -->
+    <PostBuildEvent>
+      <Command>robocopy "$(SolutionDir)deploy\bots" "$(OutDir)..\bots" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
+robocopy "$(SolutionDir)deploy\ents" "$(OutDir)..\ents" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
+robocopy "$(SolutionDir)deploy" "$(OutDir).." horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
+echo Data files deployed (only new/modified files copied)</Command>
+      <Message>Deploying bots, ents, and horde_config.json (smart copy)</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -109,7 +115,13 @@
       <AdditionalDependencies>jsoncpp.lib;ws2_32.lib;winmm.lib;user32.lib;gdi32.lib;ole32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)vcpkg_installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
-    <!-- CHANGE 3: Remove the PostBuildEvent that copies DLLs -->
+    <PostBuildEvent>
+      <Command>robocopy "$(SolutionDir)deploy\bots" "$(OutDir)..\bots" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
+robocopy "$(SolutionDir)deploy\ents" "$(OutDir)..\ents" /E /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
+robocopy "$(SolutionDir)deploy" "$(OutDir).." horde_config.json /XO /NJH /NJS /NDL /NC /NS /NP || (exit 0)
+echo Data files deployed (only new/modified files copied)</Command>
+      <Message>Deploying bots, ents, and horde_config.json (smart copy)</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- All your .h and .cpp files go here -->
