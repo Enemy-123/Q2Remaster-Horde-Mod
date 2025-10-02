@@ -16,6 +16,13 @@ constexpr float CARPETBOMB_ROOF_BUFFER = 32;
 constexpr float CARPETBOMB_STEP_SIZE = 96;  // Reduced from 128 to slow down forward movement
 constexpr float CARPETBOMB_CARPET_WIDTH = 200;
 
+// Carpet slam constants (BerserkerKL variant - uses slam attacks)
+constexpr float CARPETSLAM_DAMAGE = 35;  // Higher than regular slam (15)
+constexpr float CARPETSLAM_KICK = 150.f;  // Higher knockback than regular slam (300)
+constexpr float CARPETSLAM_RADIUS = 180;  // Slightly larger than regular slam (165)
+constexpr gtime_t CARPETSLAM_DURATION = 4_sec;  // Shorter than carpetbomb
+constexpr float CARPETSLAM_STEP_SIZE = 120;  // Faster forward movement
+
 constexpr float BOMBAREA_WIDTH = 300;
 constexpr float BOMBAREA_FLOOR_HEIGHT = 256;
 constexpr gtime_t BOMBAREA_DURATION = 10_sec;
@@ -36,6 +43,8 @@ constexpr int FLOOR_PITCH = 90;     // Looking down
 void spawn_grenades(edict_t* ent, const vec3_t& origin, gtime_t time, int damage, int num);
 void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
                              edict_t* ignore, float radius, damageflags_t dflags, mod_t mod);
+void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage,
+                        float kick, edict_t* ignore, float radius, mod_t mod);
 
 // Helper function for team-safe radius damage - optimized with spatial grid
 void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
@@ -253,6 +262,114 @@ THINK(carpetbomb_think)(edict_t* self) -> void
     // Restore entity to starting position for next think
     self->s.origin = start;
     self->nextthink = level.time + FRAME_TIME_MS * 2;  // Doubled to slow down movement
+
+    gi.linkentity(self);
+}
+
+// Carpet slam think function (BerserkerKL variant - uses slam attacks instead of explosions)
+THINK(carpetslam_think)(edict_t* self) -> void
+{
+    float ceil_height;
+    bool failed = false;
+    vec3_t forward, right, start, end;
+    trace_t tr, tr1;
+
+    // Check owner validity - only for monsters
+    // Also check if spell duration has expired
+    if (!self->owner || !self->owner->inuse || self->owner->health <= 0 || level.time >= self->timestamp)
+    {
+        G_FreeEdict(self);
+        return;
+    }
+
+    // Save current position before modifications
+    vec3_t saved_origin = self->s.origin;
+
+    // Move forward
+    AngleVectors(self->s.angles, &forward, &right, nullptr);
+    vec3_t move_dist = forward * CARPETSLAM_STEP_SIZE;
+    start = saved_origin + move_dist;
+
+    // Trace horizontally and vertically to check movement
+    tr = gi.traceline(saved_origin, start, self, MASK_SOLID);
+    end = start;
+    start.z += 1;
+    end.z -= 8192;
+    tr1 = gi.traceline(start, end, self, MASK_SOLID);
+    start.z -= 1;
+
+    // Check if we need to adjust height
+    if (tr.fraction < 1 || start.z != tr1.endpos.z)
+    {
+        // Get current ceiling height
+        end = start;
+        end.z += 8192;
+        tr = gi.traceline(saved_origin, end, self, MASK_SOLID);
+        ceil_height = tr.endpos.z;
+
+        // Push down from above desired position
+        start.z += CARPETSLAM_STEP_SIZE;
+        if (start.z > ceil_height)
+            start.z = ceil_height;
+
+        end = start;
+        end.z -= 8192;
+        tr = gi.traceline(start, end, self, MASK_SOLID);
+
+        // Don't go through walls
+        if (tr.allsolid)
+            failed = true;
+
+        // Try a bit lower
+        if (tr.startsolid)
+        {
+            start.z -= CARPETSLAM_STEP_SIZE;
+            tr = gi.traceline(start, end, self, MASK_SOLID);
+            if (tr.startsolid || tr.allsolid)
+            {
+                // For monsters, be more lenient - just move forward
+                failed = false;
+            }
+        }
+    }
+
+    // Use calculated position for slam effect
+    vec3_t slam_pos = tr.endpos;
+    start = tr.endpos;
+
+    // Make sure slam is in a valid location
+    if ((gi.pointcontents(slam_pos) & CONTENTS_SOLID) || failed)
+    {
+        // Just continue without slam
+        self->s.origin = start;
+        self->nextthink = level.time + FRAME_TIME_MS * 2;
+        gi.linkentity(self);
+        return;
+    }
+
+    // Create slam effect at this position
+    // Use TE_BERSERK_SLAM visual effect
+    gi.WriteByte(svc_temp_entity);
+    gi.WriteByte(TE_BERSERK_SLAM);
+    gi.WritePosition(slam_pos);
+    gi.WriteDir({ 0.f, 0.f, 1.f });
+    gi.multicast(slam_pos, MULTICAST_PHS, false);
+
+    // Play slam sounds
+    gi.positioned_sound(slam_pos, self, CHAN_AUTO, gi.soundindex("mutant/thud1.wav"), 1, ATTN_NORM, 0);
+    gi.positioned_sound(slam_pos, self, CHAN_VOICE, gi.soundindex("world/explod2.wav"), 0.75f, ATTN_NORM, 0);
+
+    // Create temporary entity for damage calculation
+    vec3_t temp_origin = self->s.origin;
+    self->s.origin = slam_pos;
+
+    // Use T_SlamRadiusDamage for the slam effect with upward knockback
+    T_SlamRadiusDamage(slam_pos, self, self->owner, CARPETSLAM_DAMAGE, CARPETSLAM_KICK,
+                       self->owner, CARPETSLAM_RADIUS, MOD_UNKNOWN);
+
+    // Restore entity to starting position for next think
+    self->s.origin = start;
+    self->nextthink = level.time + FRAME_TIME_MS * 2;
 
     gi.linkentity(self);
 }

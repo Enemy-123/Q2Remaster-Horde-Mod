@@ -24,7 +24,8 @@ static cached_soundindex sound_search;
 static cached_soundindex sound_thud;
 static cached_soundindex sound_explod;
 static cached_soundindex sound_jump;
-static cached_soundindex sound_windup; 
+static cached_soundindex sound_windup;
+static cached_soundindex sound_fireball; 
 
 MONSTERINFO_SIGHT(berserk_sight) (edict_t* self, edict_t* other) -> void
 {
@@ -617,6 +618,137 @@ void berserk_check_passive_zap(edict_t* self)
 	self->monsterinfo.trail_time = level.time + BERSERK_ZAP_COOLDOWN;
 }
 
+//============================================================================
+// BERSERK FIREBALL ATTACK
+// Fires fireballs from the raised hand while running, similar to Shambler
+//============================================================================
+
+void BerserkCastFireballs(edict_t* self)
+{
+	if (!M_HasEnemy(self))
+	{
+		return; // Can't attack a non-existent enemy.
+	}
+
+	vec3_t f, r;
+	AngleVectors(self->s.angles, f, r, nullptr);
+
+	// Use the same origin as the zap attack (raised LEFT hand)
+	vec3_t const start = G_ProjectSource(self->s.origin, { 25.f, -20.f, 40.f }, f, r);
+
+	vec3_t dir;
+	vec3_t target;
+	const float rocketSpeed = 1200;
+	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING) != 0;
+
+	// If in blindfire mode, use the saved target
+	if (blindfire)
+	{
+		target = self->monsterinfo.blind_fire_target;
+
+		if (!M_AdjustBlindfireTarget(self, start, target, r, dir))
+			return;
+	}
+	else
+	{
+		if (!M_HasValidTarget(self))
+			return;
+
+		// Smart targeting like tank/shambler
+		if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
+		{
+			target = self->enemy->s.origin;
+			target[2] += self->enemy->viewheight;
+		}
+		else
+		{
+			target = self->enemy->s.origin;
+			target[2] = self->enemy->absmin[2] + 1;
+		}
+
+		// Lead shot with probability based on difficulty
+		if (frandom() <= 0.2f + ((3 - skill->integer) * 0.15f))
+			PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &target);
+		else
+		{
+			dir = target - start;
+			dir.normalize();
+		}
+
+		// Check line of sight
+		trace_t const trace = gi.traceline(start, target, self, MASK_PROJECTILE);
+		if (trace.fraction < 0.5f && !blindfire)
+			return;
+	}
+
+	// Save last known position for blindfire
+	self->monsterinfo.blind_fire_target = target;
+
+	// Launch fireballs
+	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
+	const float spread_base = g_hardcoop->integer ? 0.03f : 0.06f;
+
+	for (int i = 0; i < num_fireballs; i++)
+	{
+		vec3_t spread_dir = dir;
+		if (i > 0)
+		{
+			float spread = spread_base;
+			if (self->monsterinfo.IS_BOSS)
+				spread *= 0.5f;
+
+			spread_dir[0] += crandom() * spread;
+			spread_dir[1] += crandom() * spread;
+			spread_dir[2] += crandom() * spread;
+			spread_dir.normalize();
+		}
+
+		edict_t* fireball = G_Spawn();
+		if (fireball)
+		{
+			fireball->s.origin = start;
+			fireball->s.angles = vectoangles(spread_dir);
+			fireball->velocity = spread_dir * rocketSpeed;
+			fireball->movetype = MOVETYPE_FLYMISSILE;
+			fireball->svflags |= SVF_PROJECTILE;
+			fireball->flags |= FL_DODGE;
+			fireball->clipmask = MASK_PROJECTILE;
+			fireball->solid = SOLID_BBOX;
+			fireball->s.effects = EF_FIREBALL | EF_TELEPORTER;
+			fireball->s.renderfx = RF_MINLIGHT;
+			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->owner = self;
+
+			// Store attacker info in case owner dies before projectile hits
+			if (self) {
+				if (self->client) {
+					fireball->projectile_was_player_attacker = true;
+					fireball->projectile_attacker_type_id = 0;
+				} else if (self->svflags & SVF_MONSTER) {
+					fireball->projectile_was_player_attacker = false;
+					fireball->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+				}
+			}
+
+			fireball->touch = fireball_touch;
+			fireball->nextthink = level.time + 7_sec;
+			fireball->think = G_FreeEdict;
+			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
+			fireball->radius_dmg = 45 * M_DamageModifier(self);
+			fireball->dmg_radius = 120;
+			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
+			fireball->classname = "berserk_fireball";
+
+			// Fixed scale for Berserker (not frame-based like Shambler)
+			fireball->s.scale = 0.8f;
+
+			gi.linkentity(fireball);
+		}
+	}
+
+	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
+}
+
 MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 {
 	float const dist = range_to(self, self->enemy);
@@ -990,6 +1122,7 @@ void SP_monster_berserk(edict_t* self)
 	sound_explod.assign("world/explod2.wav");
 	sound_jump.assign("berserk/jump.wav");
 	sound_windup.assign("shambler/sattck1.wav");
+	sound_fireball.assign("weapons/rocklx1a.wav");
 
 	// Set the base ID. This is the default.
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERK);
@@ -1048,6 +1181,437 @@ void SP_monster_berserk(edict_t* self)
 	gi.linkentity(self);
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
+}
+
+// Forward declarations for bombspell functions (from horde/g_bombspell.cpp)
+void BerserkerKLSaveLoc(edict_t* self);
+void BerserkerKLBombSpell(edict_t* self);
+void ZerkGoSpellbomb(edict_t* self);
+void ZerkGoSlam(edict_t* self){
+
+		M_SetAnimation(self, &berserk_move_attack_strike);
+		gi.sound(self, CHAN_WEAPON, sound_jump, 1, ATTN_NORM, 0);
+}
+
+
+
+mframe_t berserkerkl_frames_forward_cast[] = {
+
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge, 0, berserk_swing},
+	{ai_charge, 0, BerserkerKLSaveLoc},
+	{ai_charge, 0, BerserkerKLBombSpell}, //28
+	{ai_charge, 0, BerserkerKLBombSpell},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge}};
+MMOVE_T(berserkerkl_move_forward_cast) = { FRAME_att_c19, FRAME_att_c34, berserkerkl_frames_forward_cast, ZerkGoSpellbomb };
+
+mframe_t berserkerkl_frames_spellbomb_cast[] = {
+
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge, 0, berserk_swing},
+	{ai_charge, 0, BerserkerKLSaveLoc},
+	{ai_charge, 0, BerserkCastFireballs},
+	{ai_charge, 0, BerserkCastFireballs},
+	{ai_charge, 0, BerserkerKLBombSpell},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge}};
+MMOVE_T(berserkerkl_move_spellbomb_cast) = { FRAME_att_b1, FRAME_att_b21, berserkerkl_frames_spellbomb_cast, ZerkGoSlam };
+
+void ZerkGoSpellbomb(edict_t* self)
+{
+		M_SetAnimation(self, &berserkerkl_move_spellbomb_cast);
+		gi.sound(self, CHAN_WEAPON, sound_jump, 1, ATTN_NORM, 0);
+}
+
+//======================================================================
+// BERSERKERKL - "The Trespasser"
+// Boss variant with bombspells and enhanced charge attacks
+//======================================================================
+
+// Forward declarations for bombspell functions (from horde/g_bombspell.cpp)
+extern void carpetbomb_think(edict_t* self);
+extern void carpetslam_think(edict_t* self);
+extern void bombarea_think(edict_t* self);
+
+// Save enemy location for bombspell targeting
+void BerserkerKLSaveLoc(edict_t* self)
+{
+	if (M_HasValidTarget(self))
+	{
+		self->pos1 = self->enemy->s.origin;
+		self->pos1[2] += self->enemy->viewheight;
+	}
+}
+
+// BerserkerKL bomb spell - focused on carpet bombs for charge attacks
+void BerserkerKLBombSpell(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	// Check if on cooldown using fire_wait
+	if (self->monsterinfo.fire_wait > level.time)
+		return;
+
+	vec3_t forward, dir;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+
+	// Use saved location if available, otherwise use current enemy position
+	vec3_t target_pos = (self->pos1.lengthSquared() > 0) ? self->pos1 : self->enemy->s.origin;
+	dir = (target_pos - self->s.origin).normalized();
+
+	// Calculate distance to enemy
+	float dist_to_enemy = (target_pos - self->s.origin).length();
+
+	// BerserkerKL prefers carpet bombs (melee-oriented)
+	bool use_carpet = (dist_to_enemy < 800) || (frandom() < 0.7f);
+
+	if (use_carpet)
+	{
+		// Carpet slam for charge paths - uses berserker slam attacks!
+		edict_t* spell = G_Spawn();
+		spell->think = carpetslam_think;
+		spell->nextthink = level.time + FRAME_TIME_MS;
+		spell->s.origin = self->s.origin;
+		spell->move_origin = self->s.origin;
+		spell->timestamp = level.time + 4_sec; // CARPETSLAM_DURATION
+		spell->owner = self;
+		spell->mins = vec3_origin;
+		spell->maxs = vec3_origin;
+		spell->solid = SOLID_NOT;
+		spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
+		spell->classname = "carpetslam";
+		spell->s.angles = vectoangles(forward);
+		spell->count = 1; // Monster-owned
+
+		gi.linkentity(spell);
+
+		// Shorter cooldown for aggressive playstyle
+		self->monsterinfo.fire_wait = level.time + 3_sec;
+		self->monsterinfo.lefty = 1;
+	}
+	else
+	{
+		// Area bomb for ranged attacks
+		vec3_t ground_pos;
+		trace_t ground_tr;
+
+		ground_pos = target_pos;
+		ground_pos[2] += 8;
+		ground_tr = gi.traceline(ground_pos, ground_pos - vec3_t{0, 0, 8192}, self, MASK_SOLID);
+		ground_pos = ground_tr.endpos;
+
+		edict_t* spell = G_Spawn();
+		spell->think = bombarea_think;
+		spell->nextthink = level.time + FRAME_TIME_MS;
+		spell->s.origin = ground_pos;
+		spell->move_origin = ground_pos;
+		spell->dmg = 50 + irandom(20, 30);
+		spell->dmg_radius = 200;
+		spell->timestamp = level.time + 2.5_sec;
+		spell->owner = self;
+		spell->mins = vec3_origin;
+		spell->maxs = vec3_origin;
+		spell->solid = SOLID_NOT;
+		spell->svflags |= SVF_NOCLIENT | SVF_PROJECTILE;
+		spell->classname = "bombspell";
+		spell->count = 1;
+
+		gi.linkentity(spell);
+
+		self->monsterinfo.fire_wait = level.time + 3_sec;
+		self->monsterinfo.lefty = 0;
+	}
+
+	// Play windup sound for feedback
+	gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
+}
+
+
+void berserkkl_attack_club(edict_t* self)
+{
+	vec3_t  const aim = { MELEE_DISTANCE, self->mins[0], -4 };
+
+	if (!M_HasValidTarget(self))
+	{
+		self->monsterinfo.melee_debounce_time = level.time + 0.8_sec;
+		return;
+	}
+
+	if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250))
+		self->monsterinfo.melee_debounce_time = level.time + 0.4_sec;
+}
+
+void berserkkl_attack_spike(edict_t* self)
+{
+	vec3_t  const aim = { MELEE_DISTANCE, self->mins[0], -4 };
+
+	if (!M_HasValidTarget(self))
+	{
+		self->monsterinfo.melee_debounce_time = level.time + 0.8_sec;
+		return;
+	}
+
+	if (!fire_hit(self, aim, irandom(15, 22) * M_DamageModifier(self), 200))
+		self->monsterinfo.melee_debounce_time = level.time + 0.3_sec;
+}
+
+
+mframe_t berserkkl_frames_attack_spike[] = {
+
+	{ ai_charge, 0, berserk_swing },
+	{ ai_charge, 0, berserkkl_attack_spike },
+	{ ai_charge, 0, berserkkl_attack_spike },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
+};
+MMOVE_T(berserkkl_move_attack_spike) = { FRAME_att_c1, FRAME_att_c8, berserkkl_frames_attack_spike, berserk_run };
+
+
+mframe_t berserkkl_frames_attack_club[] = {
+	{ ai_charge, 0, monster_footstep },
+	{ ai_charge },
+	{ ai_charge, 0, berserk_swing },
+	{ ai_charge },
+	{ ai_charge, 0, berserkkl_attack_club },
+	{ ai_charge, 0, berserkkl_attack_club },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
+};
+MMOVE_T(berserkkl_move_attack_club) = { FRAME_att_c9, FRAME_att_c20, berserkkl_frames_attack_club, berserk_run };
+
+
+
+// Melee attack for BerserkerKL 
+MONSTERINFO_MELEE(berserkkl_melee) (edict_t* self) -> void
+{
+	if (self->monsterinfo.melee_debounce_time > level.time)
+		return;
+	// if we're *almost* ready to land down the hammer from run-attack
+	// don't switch us
+	else if (self->monsterinfo.active_move == &berserk_move_run_attack1 && self->s.frame >= FRAME_r_att13)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		self->monsterinfo.attack_finished = 0_ms;
+		return;
+	}
+
+	monster_done_dodge(self);
+
+	if (brandom())
+		M_SetAnimation(self, &berserk_move_attack_spike);
+	else
+		M_SetAnimation(self, &berserk_move_attack_club);
+}
+
+// Enhanced attack AI for BerserkerKL
+MONSTERINFO_ATTACK(berserkerkl_attack) (edict_t* self) -> void
+{
+	float const dist = range_to(self, self->enemy);
+
+	// Melee range - always use melee
+	if (self->monsterinfo.melee_debounce_time <= level.time && (dist < MELEE_DISTANCE))
+	{
+		berserk_melee(self);
+		return;
+	}
+
+	// Check if bombspell is ready (not on cooldown)
+	bool bombspell_ready = (self->monsterinfo.fire_wait <= level.time);
+
+	// Mid range (150-500) with bombspell ready - use carpet bomb
+	if (bombspell_ready && dist >= 150 && dist < 500)
+	{
+		// Trigger bombspell attack (use one of the attack animations)
+		brandom() ? M_SetAnimation(self, &berserkerkl_move_forward_cast):
+					M_SetAnimation(self, &berserkerkl_move_spellbomb_cast);
+		return;
+	}
+
+	// Jump/slam attack if available and mid-range
+	if (!self->spawnflags.has(SPAWNFLAG_BERSERK_NOJUMPING) && (self->timestamp < level.time && brandom()) && dist > 150.f && dist < 600.f)
+	{
+		self->timestamp = level.time + 0.5_sec;
+		M_SetAnimation(self, &berserk_move_jump);
+		return;
+	}
+
+	// Default to standard charge attack
+	berserk_run(self);
+}
+
+MONSTERINFO_DODGE(berserkerkl_dodge) (edict_t* self, edict_t* attacker, gtime_t eta, trace_t* tr, bool gravity) -> void
+{
+	// Basic checks
+	if (!self->groundentity || self->health <= 0)
+		return;
+
+	// Set enemy if we don't have one
+	if (!self->enemy && attacker)
+	{
+		self->enemy = attacker;
+		FoundTarget(self);
+		return;
+	}
+
+	// Don't dodge if we're attacking melee or jump attacking
+	if (self->monsterinfo.active_move == &berserkerkl_move_forward_cast ||
+		self->monsterinfo.active_move == &berserkerkl_move_spellbomb_cast)
+		return;
+
+	// Check dodge cooldown using timestamp
+	if (self->timestamp > level.time)
+		return;
+
+	// Don't dodge if projectile impact is too soon or too far away
+	if (eta < FRAME_TIME_MS || eta > 3_sec)
+		return;
+
+	// Don't dodge if attacker is invalid
+	if (!attacker)
+		return;
+
+	// Calculate dodge direction based on attacker position
+	vec3_t dodge_dir;
+
+	// Get our right vector for lateral dodge
+	vec3_t right;
+	AngleVectors(self->s.angles, nullptr, right, nullptr);
+
+	// Decide dodge direction - prefer moving away from attacker
+	vec3_t to_attacker = (attacker->s.origin - self->s.origin).normalized();
+	float side_dot = to_attacker.dot(right);
+
+	// Dodge perpendicular to attack direction, away from attacker
+	if (side_dot > 0)
+		dodge_dir = right * -1.0f; // Dodge left
+	else
+		dodge_dir = right; // Dodge right
+
+	// Add some forward/backward component based on distance
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	float dist = (self->s.origin - attacker->s.origin).length();
+
+	if (dist < 400.0f) {
+		// Close range - dodge backward
+		dodge_dir += forward * -0.3f;
+	} else if (dist > 800.0f) {
+		// Long range - dodge forward to close distance
+		dodge_dir += forward * 0.2f;
+	}
+
+	dodge_dir = dodge_dir.normalized();
+
+	// Calculate dodge speed based on urgency (eta)
+	float base_dodge_speed = 300.0f;
+	float eta_seconds = eta.seconds();
+	float urgency_multiplier = std::clamp(2.0f - eta_seconds, 1.0f, 2.5f);
+	float dodge_speed = base_dodge_speed * urgency_multiplier;
+
+	// Apply dodge velocity
+	vec3_t dodge_velocity = dodge_dir * dodge_speed;
+	
+	// Preserve some vertical momentum but replace horizontal
+	dodge_velocity.z = self->velocity.z * 0.5f;
+	self->velocity = dodge_velocity;
+
+	// Set animation to running for dodge
+	if (self->monsterinfo.active_move != &berserk_move_run_attack1)
+		M_SetAnimation(self, &berserk_move_run_attack1);
+
+	// Set cooldown using timestamp (like spider)
+	self->timestamp = level.time + random_time(0.5_sec, 1.5_sec);
+
+	// Also set pausetime for movement consistency
+	self->monsterinfo.pausetime = level.time + random_time(0.3_sec, 0.7_sec);
+
+	// Update lefty for consistency with sidestep
+	self->monsterinfo.lefty = (side_dot > 0) ? 1 : 0;
+
+	// Mark that we're dodging
+	monster_done_dodge(self);
+}
+
+/*QUAKED monster_berserkerkl (1 .5 0) (-26 -26 -38) (26 26 51) Ambush Trigger_Spawn Sight
+"The Trespasser" - Boss variant of berserker with bombspell attacks and enhanced charge
+Only spawns during special foggy Berserker waves
+*/
+void SP_monster_berserkerkl(edict_t* self)
+{
+	// Set monster type first
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);
+
+	// Call base berserk spawn
+	SP_monster_berserk(self);
+
+	// Override with berserkerkl specifics
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);
+
+	// Boss stats
+	self->health = 600 * ED_GetSpawnTemp().health_multiplier;
+	self->gib_health = -150;
+	self->mass = 400;
+	self->s.skinnum = 2; // Different skin if available
+
+	// Scale up
+	if (!self->s.scale)
+	{
+		self->s.scale = 1.4f;
+		self->mins *= self->s.scale;
+		self->maxs *= self->s.scale;
+	}
+
+	// Enhanced movement
+	self->monsterinfo.drop_height = 384;
+	self->monsterinfo.jump_height = 128;
+	self->monsterinfo.can_jump = true;
+
+	self->monsterinfo.bonus_flags |= BF_CORRUPTED;
+
+	// Override attack with enhanced version
+	self->monsterinfo.attack = berserkerkl_attack;
+	self->monsterinfo.dodge = berserkerkl_dodge;
+	self->monsterinfo.melee = berserkkl_melee;
+	// Power armor
+	if (!ED_GetSpawnTemp().was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	if (!ED_GetSpawnTemp().was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 800;
+
+	// Sound precaching (bombspell sounds precached elsewhere)
+	gi.soundindex("weapons/rockfly.wav");
 
 	ApplyMonsterBonusFlags(self);
 }
