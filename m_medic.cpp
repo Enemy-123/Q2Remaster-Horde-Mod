@@ -225,7 +225,7 @@ static bool Medic_CanResurrect(edict_t *medic)
 	// Check current summons using player array
 	int total_summons = medic->teammaster->client->resp.num_summons;
 
-	return total_summons < MAX_STROGG_SUMMONS;
+	return total_summons < MAX_STROGG_SUMMONS();
 }
 
 bool finishHeal(edict_t *self)
@@ -449,7 +449,7 @@ bool finishHeal(edict_t *self)
 			}
 
 			// Check if player has room for another summon
-			if (self->chain->client->resp.num_summons >= MAX_STROGG_SUMMONS)
+			if (self->chain->client->resp.num_summons >= MAX_STROGG_SUMMONS())
 			{
 				// At max summons, abort resurrection
 				abortHeal(self, false, false);
@@ -478,7 +478,7 @@ bool finishHeal(edict_t *self)
 
 			// Add to player's tracking array
 			bool added = false;
-			for (int i = 0; i < MAX_STROGG_SUMMONS; i++)
+			for (int i = 0; i < MAX_STROGG_SUMMONS_ARRAY_SIZE; i++)
 			{
 				if (!self->chain->client->resp.deployed_summons[i] || !self->chain->client->resp.deployed_summons[i]->inuse)
 				{
@@ -589,7 +589,7 @@ bool finishHeal(edict_t *self)
 			// Notify the owner with total summon count
 			gi.LocClient_Print(self->teammaster, PRINT_HIGH,
 							   "Medic resurrected {}! ({}/{})\n",
-							   monster_name, summon_count, MAX_STROGG_SUMMONS);
+							   monster_name, summon_count, MAX_STROGG_SUMMONS());
 		}
 	}
 

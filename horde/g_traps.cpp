@@ -11,14 +11,15 @@ constexpr float TRAP_CEILING_OFFSET = -20.4f;  // Offset for ceilings
 constexpr float TRAP_FLOOR_OFFSET = -12.0f;    // Offset for floor
 constexpr float TRAP_ORB_OFFSET = 12.0f;       // Normal sphere height
 constexpr float TRAP_ORB_OFFSET_CEIL = -18.0f; // Ceiling sphere height
-constexpr float TRAP_RADIUS = 400.0f;          // Trap pull radius
-constexpr float TRAP_RADIUS_SQUARED = TRAP_RADIUS * TRAP_RADIUS; // Pre-computed squared radius
+// Configurable trap parameters - now loaded from config
+inline float TRAP_RADIUS() { return g_config.trap.pull_radius; }          // Trap pull radius
+inline float TRAP_RADIUS_SQUARED() { return TRAP_RADIUS() * TRAP_RADIUS(); } // Pre-computed squared radius
 constexpr float TRAP_CONSUME_DISTANCE = 48.0f; // Distance at which trap consumes target
 constexpr float TRAP_MAX_TARGET_MASS = 400.0f; // Maximum mass that can be consumed
 constexpr int TRAP_WAIT_START = 64;            // Initial wait value for consuming
 constexpr int TRAP_FRAME_CONSUME = 5;          // Frame for consumption animation
 constexpr int TRAP_FRAME_ACTIVE = 4;           // Frame for active trap
-constexpr gtime_t TRAP_DURATION = 80_sec;      // Total trap lifetime in seconds
+inline gtime_t TRAP_DURATION() { return gtime_t::from_sec(g_config.trap.duration_sec); }      // Total trap lifetime in seconds
 constexpr gtime_t TRAP_COOLDOWN_DURATION = 10_sec; // Cooldown after consuming
 constexpr gtime_t TRAP_GIB_LIFETIME = 3_sec;   // Maximum lifetime for gibs rotating around trap
 
@@ -26,8 +27,8 @@ constexpr gtime_t TRAP_GIB_LIFETIME = 3_sec;   // Maximum lifetime for gibs rota
 constexpr float TRAP_GIB_ROTATION_SPEED = 150.0f;  // Degrees per second for gib rotation
 constexpr float TRAP_GIB_PULL_SPEED = 15.0f;       // Speed at which gibs are pulled toward center
 constexpr float TRAP_PULL_SPEED_MIN = 64.0f;       // Minimum pull speed for targets
-constexpr float TRAP_PULL_SPEED_MONSTER = 210.0f;  // Maximum pull speed for monsters
-constexpr float TRAP_PULL_SPEED_PLAYER = 290.0f;   // Maximum pull speed for players
+inline float TRAP_PULL_SPEED_MONSTER() { return g_config.trap.pull_speed_monster; }  // Maximum pull speed for monsters
+inline float TRAP_PULL_SPEED_PLAYER() { return g_config.trap.pull_speed_player; }   // Maximum pull speed for players
 constexpr int TRAP_WAIT_ANIMATION_END = 19;        // Wait value when animation advances to next frame
 
 // Bounce physics constants
@@ -419,7 +420,7 @@ void FindTrapTargets(edict_t* ent, trap_state_t* trap_state) {
     // Reset target count for this frame
     trap_state->num_targets = 0;
 
-    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(ent->s.origin, TRAP_RADIUS);
+    const auto nearby_entities = HordePhys::g_monster_grid.QueryRadius(ent->s.origin, TRAP_RADIUS());
 
     for (auto* target : nearby_entities)
     {
@@ -433,7 +434,7 @@ void FindTrapTargets(edict_t* ent, trap_state_t* trap_state) {
             continue;
 
         const float len_squared = DistanceSquared(ent->s.origin, target->s.origin);
-        if (len_squared > TRAP_RADIUS_SQUARED)
+        if (len_squared > TRAP_RADIUS_SQUARED())
             continue;
         if (!visible(ent, target, false))
             continue;
@@ -565,8 +566,8 @@ bool ProcessTrapTargets(edict_t* ent, trap_state_t* trap_state) {
         float vec_len = vec.normalize();
 
         // Determine pull speed based on target type and consumption state
-        const float max_speed = target->client ? TRAP_PULL_SPEED_PLAYER :
-                               (consumed_target ? 190.0f : TRAP_PULL_SPEED_MONSTER);
+        const float max_speed = target->client ? TRAP_PULL_SPEED_PLAYER() :
+                               (consumed_target ? 190.0f : TRAP_PULL_SPEED_MONSTER());
         target->velocity += (vec * clamp(max_speed - vec_len, TRAP_PULL_SPEED_MIN, max_speed));
 
         // Make monsters target the trap (like pathfinding "bad area" detection)
@@ -738,7 +739,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
     gi.linkentity(trap);
     // Calculate trap lifetime with adrenaline bonus
-    gtime_t trap_lifetime = CalculateDeployableLifetime(TRAP_DURATION, self ? self->client : nullptr);
+    gtime_t trap_lifetime = CalculateDeployableLifetime(TRAP_DURATION(), self ? self->client : nullptr);
     trap->timestamp = level.time + trap_lifetime;
 
     g_targetable_special_entities.push_back(trap);

@@ -73,13 +73,13 @@ void laser_beam_think(edict_t *self); // Forward declare the renamed think funct
 static int CalculateWaveBasedLaserDamage(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
-    return LaserConstants::LASER_INITIAL_DAMAGE + (LaserConstants::LASER_ADDON_DAMAGE * (effective_wave_level - 1));
+    return g_config.laser.damage_initial + (g_config.laser.damage_addon_per_wave * (effective_wave_level - 1));
 }
 
 static int CalculateWaveBasedLaserMaxHealth(int wave_level)
 {
     int effective_wave_level = std::max(1, wave_level);
-    return std::min(LaserConstants::LASER_INITIAL_HEALTH + (LaserConstants::LASER_ADDON_HEALTH * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
+    return std::min(g_config.laser.health_base + (g_config.laser.health_addon_per_wave * (effective_wave_level - 1)), LaserConstants::MAX_LASER_HEALTH);
 }
 
 

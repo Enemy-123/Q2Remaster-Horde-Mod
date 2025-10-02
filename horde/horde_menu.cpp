@@ -1320,7 +1320,7 @@ void OpenMiscMenu(edict_t* ent, int cursor_position) {
 	// --- Barrel Removal ---
 	int barrel_count = ent->client->resp.num_barrels;
 	if (barrel_count > 0) {
-		add_entry(G_Fmt("Remove Barrels ({}/{})", barrel_count, BarrelConstants::MAX_BARRELS_PER_PLAYER).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
+		add_entry(G_Fmt("Remove Barrels ({}/{})", barrel_count, BarrelConstants::MAX_BARRELS_PER_PLAYER()).data(), PMENU_ALIGN_LEFT, MiscMenuHandler);
 	}
 
 	add_entry("", PMENU_ALIGN_CENTER); // Separator

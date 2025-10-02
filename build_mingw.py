@@ -67,7 +67,7 @@ def smart_copy_tree(src_dir, dst_dir):
     return copied_count, skipped_count
 
 def deploy_data_files(script_dir, deploy_path):
-    """Deploy bots, ents, and horde_config.json to game directory."""
+    """Deploy bots, ents, and config/weapon_and_bonus.json to game directory."""
     print("\n=== Deploying Data Files ===")
     deploy_src = os.path.join(script_dir, "deploy")
     game_dir = os.path.dirname(os.path.normpath(deploy_path))
@@ -93,17 +93,31 @@ def deploy_data_files(script_dir, deploy_path):
         total_skipped += skipped
         print(f"ents/: {copied} copied, {skipped} skipped")
 
-    # Copy horde_config.json
-    config_src = os.path.join(deploy_src, "horde_config.json")
-    config_dst = os.path.join(game_dir, "horde_config.json")
+    # horde_config.json reserved for future use
+    # config_src = os.path.join(deploy_src, "horde_config.json")
+    # config_dst = os.path.join(game_dir, "horde_config.json")
+    # if os.path.exists(config_src):
+    #     if should_copy_file(config_src, config_dst):
+    #         shutil.copy2(config_src, config_dst)
+    #         total_copied += 1
+    #         print(f"horde_config.json: copied")
+    #     else:
+    #         total_skipped += 1
+    #         print(f"horde_config.json: skipped (unchanged)")
+
+    # Copy config/weapon_and_bonus.json
+    config_src = os.path.join(deploy_src, "config", "weapon_and_bonus.json")
+    config_dst_dir = os.path.join(game_dir, "config")
+    os.makedirs(config_dst_dir, exist_ok=True)
+    config_dst = os.path.join(config_dst_dir, "weapon_and_bonus.json")
     if os.path.exists(config_src):
         if should_copy_file(config_src, config_dst):
             shutil.copy2(config_src, config_dst)
             total_copied += 1
-            print(f"horde_config.json: copied")
+            print(f"config/weapon_and_bonus.json: copied")
         else:
             total_skipped += 1
-            print(f"horde_config.json: skipped (unchanged)")
+            print(f"config/weapon_and_bonus.json: skipped (unchanged)")
 
     print(f"\nTotal: {total_copied} files copied, {total_skipped} files skipped")
 
@@ -217,7 +231,7 @@ def main():
             print(f"❌ Error: Expected DLL not found at {dll_path}")
             sys.exit(1)
 
-        # Deploy data files (bots, ents, horde_config.json)
+        # Deploy data files (bots, ents, config/weapon_and_bonus.json)
         deploy_data_files(script_dir, args.deploy_path)
 
     except Exception as e:

@@ -2981,7 +2981,8 @@ namespace TrapConstants {
 }
 
 namespace ProxConstants {
-    constexpr int MAX_PROXS_PER_PLAYER = 8;
+    constexpr int MAX_PROXS_ARRAY_SIZE = 64;  // Compile-time array size
+    inline int MAX_PROXS_PER_PLAYER() { return g_config.entity_limits.max_prox; }  // Runtime limit from config
 }
 
 namespace LaserConstants {
@@ -3009,7 +3010,8 @@ namespace LaserConstants {
     constexpr float HEALTH_THRESHOLD_DAMAGED = 0.25f;
 }
 namespace BarrelConstants {
-    constexpr int32_t MAX_BARRELS_PER_PLAYER = 4;
+    constexpr int32_t MAX_BARRELS_ARRAY_SIZE = 16;  // Compile-time array size
+    inline int32_t MAX_BARRELS_PER_PLAYER() { return g_config.entity_limits.max_barrels; }  // Runtime limit from config
     constexpr int32_t BARREL_COST = 10;
     constexpr gtime_t BARREL_LIFETIME = 120_sec;
     constexpr int32_t BARREL_BASE_HEALTH = 30;
@@ -3020,7 +3022,9 @@ namespace BarrelConstants {
 }
 
 // Strogg summoner limits (also used for medic resurrection limit)
-constexpr int32_t MAX_STROGG_SUMMONS = 3;
+constexpr int32_t MAX_STROGG_SUMMONS_ARRAY_SIZE = 16;  // Compile-time array size
+inline int32_t MAX_STROGG_SUMMONS() { return g_config.entity_limits.max_summons; }  // Runtime limit from config
+// Legacy constant removed - use MAX_STROGG_SUMMONS() for runtime checks
 
 
 // Define esta enumeración antes de la estructura edict_t
@@ -3224,11 +3228,11 @@ struct client_respawn_t
 
 	// --- Prox Mine Tracking ---
 	int         num_proxs = 0;
-	edict_t*    deployed_proxs[ProxConstants::MAX_PROXS_PER_PLAYER];
+	edict_t*    deployed_proxs[ProxConstants::MAX_PROXS_ARRAY_SIZE];
 	int         oldest_prox_idx;
 	// --- Barrel Tracking ---
 	int      num_barrels = 0;
-	edict_t* deployed_barrels[BarrelConstants::MAX_BARRELS_PER_PLAYER];
+	edict_t* deployed_barrels[BarrelConstants::MAX_BARRELS_ARRAY_SIZE];
 	edict_t* held_barrel = nullptr; // Currently held barrel for visualization
 
 	// Sentries
@@ -3237,7 +3241,7 @@ struct client_respawn_t
 
 	// Strogg Summons
 	int      num_summons = 0;
-	edict_t* deployed_summons[MAX_STROGG_SUMMONS];
+	edict_t* deployed_summons[MAX_STROGG_SUMMONS_ARRAY_SIZE];
 
 	gtime_t teleport_cooldown = 3_sec;
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client

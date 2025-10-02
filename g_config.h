@@ -8,6 +8,9 @@ struct EntityLimitsConfig
 	int32_t max_sentries = 3;
 	int32_t max_lasers = 6;
 	int32_t max_teslas = 12;
+	int32_t max_barrels = 10;
+	int32_t max_prox = 20;
+	int32_t max_summons = 8;
 };
 
 // Base weapon configurations
@@ -112,6 +115,56 @@ struct ETFRifleConfig
 	int kick_homing = 75;
 };
 
+// Deployable configurations
+struct ProxMineConfig
+{
+	int damage = 95;
+	int damage_radius = 220;
+	int health = 30;
+	int time_to_live_sec = 45;
+	int time_delay_ms = 350;
+	float damage_open_multiplier = 1.5f;
+	float bound_size = 96.0f;
+};
+
+struct LaserConfig
+{
+	int health_base = 150;
+	int health_addon_per_wave = 120;
+	int damage_initial = 1;
+	int damage_addon_per_wave = 4;
+};
+
+struct TrapConfig
+{
+	float pull_radius = 400.0f;
+	float pull_speed_monster = 210.0f;
+	float pull_speed_player = 290.0f;
+	int duration_sec = 80;
+};
+
+// Ammo regeneration configuration
+struct AmmoRegenRateConfig
+{
+	int quantity = 0;
+	int interval_ms = 0;
+};
+
+struct AmmoRegenConfig
+{
+	bool enabled = true;
+	AmmoRegenRateConfig bullets{10, 3000};
+	AmmoRegenRateConfig shells{5, 3000};
+	AmmoRegenRateConfig grenades{3, 4000};
+	AmmoRegenRateConfig rockets{2, 5000};
+	AmmoRegenRateConfig cells{10, 3000};
+	AmmoRegenRateConfig slugs{5, 4000};
+	AmmoRegenRateConfig magslug{3, 5000};
+	AmmoRegenRateConfig prox{1, 6000};
+	AmmoRegenRateConfig trap{1, 6000};
+	AmmoRegenRateConfig tesla{2, 5000};
+};
+
 // Master configuration structure
 struct GameConfig
 {
@@ -138,6 +191,14 @@ struct GameConfig
 	// Rogue weapons
 	PlasmaBeamConfig plasmabeam;
 	ETFRifleConfig etfrifle;
+
+	// Deployables
+	ProxMineConfig prox_mine;
+	LaserConfig laser;
+	TrapConfig trap;
+
+	// Ammo regeneration
+	AmmoRegenConfig ammo_regen;
 };
 
 // Global config instance

@@ -111,14 +111,14 @@ void fire_flechette(edict_t *self, const vec3_t &start, const vec3_t &dir, int d
 // PROXIMITY MINE (g_upgradeprox) - Lethality & Intelligence Overhaul
 // =======================================================================
 
-// --- Tuned Constants for Increased Lethality ---
-constexpr gtime_t PROX_TIME_TO_LIVE = 45_sec;
-constexpr gtime_t PROX_TIME_DELAY = 350_ms; // Reduced delay for faster detonation
-constexpr float PROX_BOUND_SIZE = 96;
-constexpr float PROX_DAMAGE_RADIUS = 220; // Increased radius
-constexpr int32_t PROX_HEALTH = 30;		  // Increased health
-constexpr int32_t PROX_DAMAGE = 95;		  // Increased base damage
-constexpr float PROX_DAMAGE_OPEN_MULTIPLIER = 1.5f;
+// --- Tuned Constants for Increased Lethality - Now loaded from config ---
+inline gtime_t PROX_TIME_TO_LIVE() { return gtime_t::from_sec(g_config.prox_mine.time_to_live_sec); }
+inline gtime_t PROX_TIME_DELAY() { return gtime_t::from_ms(g_config.prox_mine.time_delay_ms); }
+inline float PROX_BOUND_SIZE() { return g_config.prox_mine.bound_size; }
+inline float PROX_DAMAGE_RADIUS() { return g_config.prox_mine.damage_radius; }
+inline int32_t PROX_HEALTH() { return g_config.prox_mine.health; }
+inline int32_t PROX_DAMAGE() { return g_config.prox_mine.damage; }
+inline float PROX_DAMAGE_OPEN_MULTIPLIER() { return g_config.prox_mine.damage_open_multiplier; }
 
 // --- Configuration for a much deadlier cluster explosion ---
 struct ClusterConfig
@@ -256,7 +256,7 @@ void CleanupProxFromOwner(edict_t* prox) {
 
     // --- FIX: ADD THIS LOOP ---
     // Find this prox in the owner's tracking array and null it out.
-    for (int i = 0; i < ProxConstants::MAX_PROXS_PER_PLAYER; ++i) {
+    for (int i = 0; i < ProxConstants::MAX_PROXS_ARRAY_SIZE; ++i) {
         if (client->resp.deployed_proxs[i] == prox) {
             client->resp.deployed_proxs[i] = nullptr;
             break; // Found and removed.
@@ -287,7 +287,7 @@ static void Prox_ExplodeReal(edict_t *ent, edict_t *other, vec3_t normal)
 				 ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
 	}
 
-	if (ent->dmg > PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER)
+	if (ent->dmg > PROX_DAMAGE() * PROX_DAMAGE_OPEN_MULTIPLIER())
 	{
 		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 	}
@@ -404,7 +404,7 @@ TOUCH(Prox_Field_Touch)(edict_t *ent, edict_t *other, const trace_t &tr, bool ot
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
 		}
 		prox->think = Prox_Explode;
-		prox->nextthink = level.time + PROX_TIME_DELAY;
+		prox->nextthink = level.time + PROX_TIME_DELAY();
 		return;
 	}
 
@@ -450,7 +450,7 @@ THINK(prox_open)(edict_t *ent)->void
 
 		// --- SMARTER AMBUSH: Scan a larger radius for enemies upon arming ---
 		edict_t *search = nullptr;
-		const float ambush_radius = PROX_DAMAGE_RADIUS * 1.2f; // Increased scan radius
+		const float ambush_radius = PROX_DAMAGE_RADIUS() * 1.2f; // Increased scan radius
 
 		while ((search = findradius(search, ent->s.origin, ambush_radius)) != nullptr)
 		{
@@ -470,7 +470,7 @@ THINK(prox_open)(edict_t *ent)->void
 		}
 
 		// Standard lifetime logic if no ambush target is found
-		ent->wait = (level.time + PROX_TIME_TO_LIVE).seconds();
+		ent->wait = (level.time + PROX_TIME_TO_LIVE()).seconds();
 		ent->think = prox_seek;
 		ent->nextthink = level.time + 200_ms;
 	}
@@ -479,7 +479,7 @@ THINK(prox_open)(edict_t *ent)->void
 		if (ent->s.frame == 0)
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxopen.wav"), 1, ATTN_NORM, 0);
-			ent->dmg = static_cast<int>(ent->dmg * PROX_DAMAGE_OPEN_MULTIPLIER);
+			ent->dmg = static_cast<int>(ent->dmg * PROX_DAMAGE_OPEN_MULTIPLIER());
 		}
 		ent->s.frame++;
 		ent->think = prox_open;
@@ -588,8 +588,8 @@ TOUCH(prox_land)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_tou
 	field = G_Spawn();
 
 	field->s.origin = ent->s.origin;
-	field->mins = {-PROX_BOUND_SIZE, -PROX_BOUND_SIZE, -PROX_BOUND_SIZE};
-	field->maxs = {PROX_BOUND_SIZE, PROX_BOUND_SIZE, PROX_BOUND_SIZE};
+	field->mins = {-PROX_BOUND_SIZE(), -PROX_BOUND_SIZE(), -PROX_BOUND_SIZE()};
+	field->maxs = {PROX_BOUND_SIZE(), PROX_BOUND_SIZE(), PROX_BOUND_SIZE()};
 	field->movetype = MOVETYPE_NONE;
 	field->solid = SOLID_TRIGGER;
 	field->owner = ent;
@@ -606,7 +606,7 @@ TOUCH(prox_land)(edict_t *ent, edict_t *other, const trace_t &tr, bool other_tou
 	ent->movetype = movetype; // either bounce or none, depending on whether we stuck to something
 	ent->die = prox_die;
 	ent->teamchain = field;
-	ent->health = PROX_HEALTH;
+	ent->health = PROX_HEALTH();
 	ent->nextthink = level.time;
 	ent->think = prox_open;
 	ent->touch = nullptr;
@@ -638,7 +638,7 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 	}
 
 	// O(1) PERFORMANCE: If the player is at their prox limit, remove the oldest one.
-	if (self->client->resp.num_proxs >= ProxConstants::MAX_PROXS_PER_PLAYER)
+	if (self->client->resp.num_proxs >= ProxConstants::MAX_PROXS_PER_PLAYER())
 	{
 		// Get the oldest prox from our circular buffer.
 		edict_t* oldest = self->client->resp.deployed_proxs[self->client->resp.oldest_prox_idx];
@@ -707,11 +707,11 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 
 	// --- DAMAGE & RADIUS CLAMPING ---
 	int const effective_multiplier = std::min(prox_damage_multiplier, 3);
-	prox->dmg = PROX_DAMAGE * effective_multiplier;
-	prox->dmg_radius = PROX_DAMAGE_RADIUS * (1.0f + 0.5f * (effective_multiplier - 1));
+	prox->dmg = PROX_DAMAGE() * effective_multiplier;
+	prox->dmg_radius = PROX_DAMAGE_RADIUS() * (1.0f + 0.5f * (effective_multiplier - 1));
 	// --- END CLAMPING LOGIC ---
 
-	prox->timestamp = level.time + PROX_TIME_TO_LIVE;
+	prox->timestamp = level.time + PROX_TIME_TO_LIVE();
 
 	gi.linkentity(prox);
 
@@ -720,7 +720,7 @@ void fire_prox(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int pro
 	self->client->resp.deployed_proxs[self->client->resp.oldest_prox_idx] = prox;
 	
 	// Advance the index for the next "oldest".
-	self->client->resp.oldest_prox_idx = (self->client->resp.oldest_prox_idx + 1) % ProxConstants::MAX_PROXS_PER_PLAYER;
+	self->client->resp.oldest_prox_idx = (self->client->resp.oldest_prox_idx + 1) % ProxConstants::MAX_PROXS_PER_PLAYER();
 
 	// Increment the counter of active proxs.
 	self->client->resp.num_proxs++;

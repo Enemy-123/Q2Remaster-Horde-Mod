@@ -35,13 +35,13 @@ void Config_Load(const char* basedir)
 	Config_SetDefaults();
 
 	// Build config file path
-	std::string config_path = std::string(basedir) + "horde_config.json";
+	std::string config_path = std::string(basedir) + "config/weapon_and_bonus.json";
 
 	// Try to open config file
 	std::ifstream config_file(config_path, std::ifstream::binary);
 	if (!config_file.is_open())
 	{
-		gi.Com_PrintFmt("Config: horde_config.json not found, using default values\n");
+		gi.Com_PrintFmt("Config: config/weapon_and_bonus.json not found, using default values\n");
 		gi.Com_PrintFmt("Config: You can create {} to customize settings\n", config_path);
 		return;
 	}
@@ -53,7 +53,7 @@ void Config_Load(const char* basedir)
 
 	if (!Json::parseFromStream(builder, config_file, &root, &errs))
 	{
-		gi.Com_PrintFmt("Config: Failed to parse horde_config.json: {}\n", errs);
+		gi.Com_PrintFmt("Config: Failed to parse config/weapon_and_bonus.json: {}\n", errs);
 		gi.Com_PrintFmt("Config: Using default values\n");
 		return;
 	}
@@ -67,6 +67,9 @@ void Config_Load(const char* basedir)
 		g_config.entity_limits.max_sentries = GetJsonInt(limits, "max_sentries", 3);
 		g_config.entity_limits.max_lasers = GetJsonInt(limits, "max_lasers", 6);
 		g_config.entity_limits.max_teslas = GetJsonInt(limits, "max_teslas", 12);
+		g_config.entity_limits.max_barrels = GetJsonInt(limits, "max_barrels", 10);
+		g_config.entity_limits.max_prox = GetJsonInt(limits, "max_prox", 50);
+		g_config.entity_limits.max_summons = GetJsonInt(limits, "max_summons", 8);
 	}
 
 	// Load weapon configs
@@ -204,11 +207,84 @@ void Config_Load(const char* basedir)
 		}
 	}
 
-	gi.Com_PrintFmt("Config: Successfully loaded horde_config.json\n");
-	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}\n",
+	// Load deployables configs
+	if (root.isMember("deployables") && root["deployables"].isObject())
+	{
+		const Json::Value& deployables = root["deployables"];
+
+		// Prox Mine
+		if (deployables.isMember("prox_mine") && deployables["prox_mine"].isObject())
+		{
+			const Json::Value& p = deployables["prox_mine"];
+			g_config.prox_mine.damage = GetJsonInt(p, "damage", 95);
+			g_config.prox_mine.damage_radius = GetJsonInt(p, "damage_radius", 220);
+			g_config.prox_mine.health = GetJsonInt(p, "health", 30);
+			g_config.prox_mine.time_to_live_sec = GetJsonInt(p, "time_to_live_sec", 45);
+			g_config.prox_mine.time_delay_ms = GetJsonInt(p, "time_delay_ms", 350);
+			g_config.prox_mine.damage_open_multiplier = GetJsonFloat(p, "damage_open_multiplier", 1.5f);
+			g_config.prox_mine.bound_size = GetJsonFloat(p, "bound_size", 96.0f);
+		}
+
+		// Laser
+		if (deployables.isMember("laser") && deployables["laser"].isObject())
+		{
+			const Json::Value& l = deployables["laser"];
+			g_config.laser.health_base = GetJsonInt(l, "health_base", 150);
+			g_config.laser.health_addon_per_wave = GetJsonInt(l, "health_addon_per_wave", 120);
+			g_config.laser.damage_initial = GetJsonInt(l, "damage_initial", 1);
+			g_config.laser.damage_addon_per_wave = GetJsonInt(l, "damage_addon_per_wave", 4);
+		}
+
+		// Trap
+		if (deployables.isMember("trap") && deployables["trap"].isObject())
+		{
+			const Json::Value& t = deployables["trap"];
+			g_config.trap.pull_radius = GetJsonFloat(t, "pull_radius", 400.0f);
+			g_config.trap.pull_speed_monster = GetJsonFloat(t, "pull_speed_monster", 210.0f);
+			g_config.trap.pull_speed_player = GetJsonFloat(t, "pull_speed_player", 290.0f);
+			g_config.trap.duration_sec = GetJsonInt(t, "duration_sec", 80);
+		}
+	}
+
+	// Load ammo regeneration config
+	if (root.isMember("ammo_regen") && root["ammo_regen"].isObject())
+	{
+		const Json::Value& ammo_regen = root["ammo_regen"];
+		g_config.ammo_regen.enabled = ammo_regen.get("enabled", true).asBool();
+
+		if (ammo_regen.isMember("rates") && ammo_regen["rates"].isObject())
+		{
+			const Json::Value& rates = ammo_regen["rates"];
+
+			// Helper lambda to parse rate config
+			auto parseRate = [](const Json::Value& rate, int defaultQty, int defaultInterval) -> AmmoRegenRateConfig {
+				AmmoRegenRateConfig config;
+				config.quantity = GetJsonInt(rate, "quantity", defaultQty);
+				config.interval_ms = GetJsonInt(rate, "interval_ms", defaultInterval);
+				return config;
+			};
+
+			if (rates.isMember("bullets")) g_config.ammo_regen.bullets = parseRate(rates["bullets"], 10, 3000);
+			if (rates.isMember("shells")) g_config.ammo_regen.shells = parseRate(rates["shells"], 5, 3000);
+			if (rates.isMember("grenades")) g_config.ammo_regen.grenades = parseRate(rates["grenades"], 3, 4000);
+			if (rates.isMember("rockets")) g_config.ammo_regen.rockets = parseRate(rates["rockets"], 2, 5000);
+			if (rates.isMember("cells")) g_config.ammo_regen.cells = parseRate(rates["cells"], 10, 3000);
+			if (rates.isMember("slugs")) g_config.ammo_regen.slugs = parseRate(rates["slugs"], 5, 4000);
+			if (rates.isMember("magslug")) g_config.ammo_regen.magslug = parseRate(rates["magslug"], 3, 5000);
+			if (rates.isMember("prox")) g_config.ammo_regen.prox = parseRate(rates["prox"], 1, 6000);
+			if (rates.isMember("trap")) g_config.ammo_regen.trap = parseRate(rates["trap"], 1, 6000);
+			if (rates.isMember("tesla")) g_config.ammo_regen.tesla = parseRate(rates["tesla"], 2, 5000);
+		}
+	}
+
+	gi.Com_PrintFmt("Config: Successfully loaded config/weapon_and_bonus.json\n");
+	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}, Barrels: {}, Prox: {}, Summons: {}\n",
 		g_config.entity_limits.max_sentries,
 		g_config.entity_limits.max_lasers,
-		g_config.entity_limits.max_teslas);
+		g_config.entity_limits.max_teslas,
+		g_config.entity_limits.max_barrels,
+		g_config.entity_limits.max_prox,
+		g_config.entity_limits.max_summons);
 }
 
 void Config_Reload()

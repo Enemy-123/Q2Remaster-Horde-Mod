@@ -3214,7 +3214,7 @@ void ResetPlayerDeployedItems()
 
 		// Prox Mines
 		client->resp.num_proxs = 0;
-		std::fill(client->resp.deployed_proxs, client->resp.deployed_proxs + ProxConstants::MAX_PROXS_PER_PLAYER, nullptr);
+		std::fill(client->resp.deployed_proxs, client->resp.deployed_proxs + ProxConstants::MAX_PROXS_ARRAY_SIZE, nullptr);
 		client->resp.oldest_prox_idx = 0;
 
 		// Sentries
@@ -3223,11 +3223,11 @@ void ResetPlayerDeployedItems()
 
 				// Barrels
 		client->resp.num_barrels = 0;
-		std::fill(client->resp.deployed_barrels, client->resp.deployed_barrels + BarrelConstants::MAX_BARRELS_PER_PLAYER, nullptr);
+		std::fill(client->resp.deployed_barrels, client->resp.deployed_barrels + BarrelConstants::MAX_BARRELS_ARRAY_SIZE, nullptr);
 
 		// Summoned Stroggs
 		client->resp.num_summons = 0;
-		std::fill(client->resp.deployed_summons, client->resp.deployed_summons + MAX_STROGG_SUMMONS, nullptr);
+		std::fill(client->resp.deployed_summons, client->resp.deployed_summons + MAX_STROGG_SUMMONS_ARRAY_SIZE, nullptr);
 
 		// Timers
 		client->resp.teleport_cooldown = 3_sec; // Reset to default or 0_sec if appropriate

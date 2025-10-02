@@ -88,7 +88,7 @@ if(DEPLOY_DIRECTORY AND IS_DIRECTORY "${DEPLOY_DIRECTORY}")
     # Get the parent directory of DEPLOY_DIRECTORY (the baseq2 folder)
     get_filename_component(GAME_DIR "${DEPLOY_DIRECTORY}" DIRECTORY)
 
-    # Install data files (bots, ents, horde_config.json)
+    # Install data files (bots, ents, config/weapon_and_bonus.json)
     if(EXISTS "${CMAKE_SOURCE_DIR}/deploy/bots")
         install(DIRECTORY "${CMAKE_SOURCE_DIR}/deploy/bots"
             DESTINATION "${GAME_DIR}")
@@ -99,8 +99,14 @@ if(DEPLOY_DIRECTORY AND IS_DIRECTORY "${DEPLOY_DIRECTORY}")
             DESTINATION "${GAME_DIR}")
     endif()
 
-    if(EXISTS "${CMAKE_SOURCE_DIR}/deploy/horde_config.json")
-        install(FILES "${CMAKE_SOURCE_DIR}/deploy/horde_config.json"
-            DESTINATION "${GAME_DIR}")
+    # horde_config.json reserved for future use
+    # if(EXISTS "${CMAKE_SOURCE_DIR}/deploy/horde_config.json")
+    #     install(FILES "${CMAKE_SOURCE_DIR}/deploy/horde_config.json"
+    #         DESTINATION "${GAME_DIR}")
+    # endif()
+
+    if(EXISTS "${CMAKE_SOURCE_DIR}/deploy/config/weapon_and_bonus.json")
+        install(FILES "${CMAKE_SOURCE_DIR}/deploy/config/weapon_and_bonus.json"
+            DESTINATION "${GAME_DIR}/config")
     endif()
 endif()

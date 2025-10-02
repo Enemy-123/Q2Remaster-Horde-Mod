@@ -56,7 +56,7 @@ static void barrel_cleanup_tracking(edict_t* barrel)
         client->resp.held_barrel = nullptr;
 
     // Clear from deployed barrels array
-    for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; ++i)
+    for (int i = 0; i < BarrelConstants::MAX_BARRELS_ARRAY_SIZE; ++i)
     {
         if (client->resp.deployed_barrels[i] == barrel)
         {
@@ -711,7 +711,7 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
             return nullptr;
 
         // Check if at limit before deploying
-        if (self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER)
+        if (self->client->resp.num_barrels >= BarrelConstants::MAX_BARRELS_PER_PLAYER())
         {
             gi.LocClient_Print(self, PRINT_HIGH, "You have reached the barrel limit.\n");
             return nullptr;
@@ -775,7 +775,7 @@ edict_t* fire_barrel(edict_t* self, const vec3_t& start, const vec3_t& aimdir)
     if (self->client)
     {
         // Find an empty slot in the tracking array
-        for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; i++)
+        for (int i = 0; i < BarrelConstants::MAX_BARRELS_ARRAY_SIZE; i++)
         {
             if (!self->client->resp.deployed_barrels[i] || !self->client->resp.deployed_barrels[i]->inuse)
             {
@@ -809,7 +809,7 @@ void remove_barrels(edict_t* ent)
         return;
 
     // Iterate through the player's deployed barrels array
-    for (int i = 0; i < BarrelConstants::MAX_BARRELS_PER_PLAYER; i++)
+    for (int i = 0; i < BarrelConstants::MAX_BARRELS_ARRAY_SIZE; i++)
     {
         edict_t* barrel = ent->client->resp.deployed_barrels[i];
         if (barrel && barrel->inuse)
