@@ -2001,6 +2001,13 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 void InitializeWaveType(int32_t waveLevel)
 {
 	current_wave_type = GetWaveComposition(waveLevel);
+
+	// Apply fog effect for certain special waves
+	if (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
+	    HasWaveType(current_wave_type, MonsterWaveType::Berserk))
+	{
+		ApplyFogEffect();
+	}
 }
 
 //======================================================================
@@ -2878,6 +2885,9 @@ constexpr int MIN_VELOCITY = -800;
 constexpr int MAX_VELOCITY = 800;
 constexpr int MIN_VERTICAL_VELOCITY = 400;
 
+// Forward declarations (removed - now in horde_boss.h)
+// void RestoreFog();
+
 // Asegúrate de limpiar entidades muertas
 void Horde_CleanBodies()
 {
@@ -2926,6 +2936,10 @@ void Horde_CleanBodies()
 			}
 		}
 	}
+
+	// Restore normal fog and turn off flashlights
+	if (horde_fog_active)
+		RestoreFog();
 }
 
 // CheckAndTeleportBoss function removed - now in horde_boss.cpp
@@ -3266,6 +3280,7 @@ void ResetGame()
     // Cvar resets...
 	gi.cvar_set("bot_pause", "0");
 	gi.cvar_set("cheats", "0");
+	gi.cvar_set("g_start_items", "weapon_blaster 1");
 	if (g_chaotic) gi.cvar_set("g_chaotic", "0");
 	if (g_insane) gi.cvar_set("g_insane", "0");
 	if (g_hardcoop) gi.cvar_set("g_hardcoop", "0");
@@ -4688,12 +4703,6 @@ bool ApplyHordeBonuses(edict_t* monster, const int32_t currentLevel, const float
 		monster->monsterinfo.bonus_flags = static_cast<decltype(monster->monsterinfo.bonus_flags)>(
 			static_cast<int>(monster->monsterinfo.bonus_flags) | bonus_type);
 
-		// // Apply fog effect if ragequitter
-		// if (bonus_type & BF_RAGEQUITTER)
-		// {
-		// 	ApplyFogEffect();
-		// }
-
 		ApplyMonsterBonusFlags(monster);
 		if (!monster->inuse) return false;
 
@@ -5663,6 +5672,13 @@ void Horde_RunFrame()
 	const gtime_t currentTime = level.time;
 	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
+
+	// Apply fog for special wave types (for players joining mid-wave or respawning)
+	if (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
+	    HasWaveType(current_wave_type, MonsterWaveType::Berserk))
+	{
+		ApplyFogEffect();
+	}
 
 	CleanupSpawnPointCache();
 	CheckAndReduceSpawnCooldowns();

@@ -1313,3 +1313,80 @@ bool IsMonsterJumping(const edict_t* self) {
     const mmove_t* current_move = self->monsterinfo.active_move.pointer();
     return std::binary_search(g_jump_moves.cbegin(), g_jump_moves.cend(), current_move);
 }
+
+bool horde_fog_active = false;  // Tracks if boss fog is currently active
+
+// Boss spawning functions
+// Apply temporary fog effect to all players for boss spawn
+void ApplyFogEffect()
+{
+	// Mark fog as active
+	horde_fog_active = true;
+
+// 	// PRESET PURPLE FOG = for gekk and berserker special waves
+// 	  constexpr float BOSS_FOG_DENSITY = 0.16f;  // Thicker
+//   constexpr float BOSS_FOG_RED = 0.3f;       // Light gray/white
+//   constexpr float BOSS_FOG_GREEN = 0.0f;
+//   constexpr float BOSS_FOG_BLUE = 0.2f;     // Slight blue tint
+
+
+	// Reduced fog density to avoid near-blindness at spawn zone
+  constexpr float BOSS_FOG_DENSITY = 0.16f;  // Thicker
+  constexpr float BOSS_FOG_RED = 0.3f;       // Light gray/white
+  constexpr float BOSS_FOG_GREEN = 0.0f;
+  constexpr float BOSS_FOG_BLUE = 0.2f;     // Slight blue tint
+//0,13, 0.02, 0.02, 0.04 f for night
+
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
+		edict_t* player = &g_edicts[i + 1];
+		if (!player->inuse || !player->client)
+			continue;
+
+		// Quick transition to boss fog
+		player->client->pers.fog_transition_time = 4000_ms;
+		player->client->pers.wanted_fog = {
+			BOSS_FOG_DENSITY,
+			BOSS_FOG_RED,
+			BOSS_FOG_GREEN,
+			BOSS_FOG_BLUE,
+			0.8f // Darken sky too wth 0.8f
+		};
+
+		// Enable flashlight if not already on
+		if (!(player->flags & FL_FLASHLIGHT))
+		{
+			P_ToggleFlashlight(player, true);
+		}
+	}
+}
+
+// Restore normal fog after boss death and turn off flashlights
+void RestoreFog()
+{
+	// Mark fog as inactive
+	horde_fog_active = false;
+
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
+		edict_t* player = &g_edicts[i + 1];
+		if (!player->inuse || !player->client)
+			continue;
+
+		// Slow transition back to normal
+		player->client->pers.fog_transition_time = 2000_ms;
+		player->client->pers.wanted_fog = {
+			world->fog.density,
+			world->fog.color[0],
+			world->fog.color[1],
+			world->fog.color[2],
+			world->fog.sky_factor
+		};
+
+		// Turn off flashlight
+		if (player->flags & FL_FLASHLIGHT)
+		{
+			P_ToggleFlashlight(player, false);
+		}
+	}
+}

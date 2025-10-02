@@ -17,8 +17,7 @@ extern void Cmd_InvUse_f(edict_t* ent);
 extern void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu);
 extern void SelectPrevItem(edict_t* ent, item_flags_t itflags);
 
-// Boss fog tracking (from horde_boss.cpp)
-extern bool boss_fog_active;
+// Boss fog tracking and flashlight (horde_fog_active now in shared.h)
 extern void P_ToggleFlashlight(edict_t* ent, bool state);
 
 // ========================================================================
@@ -1055,6 +1054,11 @@ void Horde_UpdateStartItemsForWave(int32_t wave)
 	{
 		// Early waves (1-3): Minimal loadout
 		loadout = "weapon_blaster 1;ammo_bullets 1;ammo_shells 1;";
+	}
+	else
+	{
+		// Wave 0 (default/reset): Blaster only
+		loadout = "weapon_blaster 1";
 	}
 
 	// Update the cvar
@@ -2523,7 +2527,7 @@ static void InitializePlayerState(edict_t* ent)
 static void SetupPlayerFog(edict_t* ent)
 {
 	// Check if boss fog is active
-	if (boss_fog_active)
+	if (horde_fog_active)
 	{
 		// Apply boss fog settings
 		constexpr float BOSS_FOG_DENSITY = 0.11f;
