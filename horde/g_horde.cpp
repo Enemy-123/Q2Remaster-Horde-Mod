@@ -2484,6 +2484,27 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 		gi.Com_PrintFmt("DEBUG: Monster picker emergency fallback (Lvl: {}, FlyPoint: {}, WaveType: {})\n",
 		                ctx.currentActualLevel, ctx.isSpawnPointFlying, static_cast<int>(ctx.waveTypeForFiltering));
 
+	// Try to respect wave type requirements first
+	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+	{
+		const auto &monster = monsterTypes[i];
+		if (monster.minWave <= ctx.currentActualLevel)
+		{
+			// Respect wave type requirements (important for Gekk/Berserk special waves)
+			if (!IsValidMonsterForWave(monster.typeId, ctx.waveTypeForFiltering))
+				continue;
+
+			const bool isFlyingMonster = HasWaveType(GetMonsterWaveTypes(monster.typeId), MonsterWaveType::Flying);
+			if (!(ctx.isSpawnPointFlying && !isFlyingMonster))
+				return monster.typeId;
+		}
+	}
+
+	// If no valid monster found that matches wave type, fall back to ANY valid monster
+	// (this prevents complete spawn failure)
+	if (developer->integer)
+		gi.Com_PrintFmt("WARNING: Emergency fallback could not find wave-appropriate monster, using any available\n");
+
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
 		const auto &monster = monsterTypes[i];
@@ -2743,7 +2764,7 @@ static void PrecacheWaveSounds()
 
 	// Precache special wave sounds (Gekk and Berserk waves)
 	gi.soundindex("gek/gek_low.wav");
-	gi.soundindex("gek/amb.wav");
+	gi.soundindex("gek/gek_amb.wav");
 	gi.soundindex("world/radio3.wav");
 
 	// Use std::span for safe iteration
@@ -5704,7 +5725,7 @@ void Horde_RunFrame()
 	const horde::MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 
-	// Apply fog for special wave types (for players joining mid-wave or respawning)
+	// Apply fog for special wave types (continuously to maintain fog and handle mid-wave joins)
 	if (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
 	    HasWaveType(current_wave_type, MonsterWaveType::Berserk))
 	{
@@ -6359,12 +6380,13 @@ static void Horde_InitLevel(const int32_t lvl)
 			? horde::MonsterTypeID::GEKKKL
 			: horde::MonsterTypeID::BERSERKERKL;
 
-		// Calculate spawn weights - more bosses at higher waves
-		int num_regular = 20; // Always add 20 regular variants
-		int num_bosses = 15; // Base: 15 boss variants
+		// Calculate spawn weights - heavily favor the main themed monsters
+		// Increased to dominate over hover_vanilla and other tagged monsters
+		int num_regular = 50; // Massively increased from 20 to dominate spawns
+		int num_bosses = 30; // Base: 30 boss variants (increased from 15)
 		if (lvl >= 20)
 		{
-			num_bosses = std::min(30, 15 + (lvl - 20) / 3); // Scale to 30 at higher waves
+			num_bosses = std::min(60, 30 + (lvl - 20) / 2); // Scale to 60 at higher waves (doubled from 30)
 		}
 
 		// Find and add regular monster (gekk or berserk)
@@ -6372,7 +6394,7 @@ static void Horde_InitLevel(const int32_t lvl)
 		{
 			if (monsterTypes[i].typeId == regular_type)
 			{
-				// Add regular monsters to pool (20 entries)
+				// Add regular monsters to pool (50 entries - dominates over hovers)
 				for (int j = 0; j < num_regular; ++j)
 				{
 					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE))
@@ -6387,7 +6409,7 @@ static void Horde_InitLevel(const int32_t lvl)
 		{
 			if (monsterTypes[i].typeId == boss_type)
 			{
-				// Add boss monsters to pool (15-30 entries depending on wave)
+				// Add boss monsters to pool (30-60 entries depending on wave)
 				for (int j = 0; j < num_bosses; ++j)
 				{
 					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE))

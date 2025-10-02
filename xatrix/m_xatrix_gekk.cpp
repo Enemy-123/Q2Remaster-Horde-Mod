@@ -2432,7 +2432,7 @@ void SP_monster_gekkkl(edict_t* self)
 	self->gib_health = -80;
 	self->mass = 400;
 	self->s.skinnum = 1; // Different skin if available
-	self->monsterinfo.bonus_flags |= BF_POSSESSED;
+	//self->monsterinfo.bonus_flags |= BF_POSSESSED;
 	// Scale up
 	if (!self->s.scale)
 	{

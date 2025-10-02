@@ -1607,7 +1607,7 @@ void SP_monster_berserkerkl(edict_t* self)
 	self->monsterinfo.jump_height = 128;
 	self->monsterinfo.can_jump = true;
 
-	self->monsterinfo.bonus_flags |= BF_CORRUPTED;
+//	self->monsterinfo.bonus_flags |= BF_CORRUPTED;
 
 	// Override attack with enhanced version
 	self->monsterinfo.attack = berserkerkl_attack;

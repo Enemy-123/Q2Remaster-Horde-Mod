@@ -6,6 +6,7 @@
 #include "shared.h"
 #include "horde/g_laser.h"
 #include "horde/g_horde_benefits.h"
+#include "horde/g_horde.h"
 #include "horde/horde_ids.h"
 #include "horde/p_flyer_morph.h"
 #include "horde/p_brain_morph.h"

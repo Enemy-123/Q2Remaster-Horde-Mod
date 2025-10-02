@@ -36,7 +36,7 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::GEKKKL, MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Gekk, 16, 0.65f, {-19, -19, -29}, {19, 19, -10}, 1.4f},
 
 	// --- WAVE 7 ---
-	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
+	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Gekk | MonsterWaveType::Berserk, 7, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
 	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f, {-28, -28, -18}, {28, 28, -4}, 1.0f},
 	{horde::MonsterTypeID::MEDIC, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
 	{horde::MonsterTypeID::SPIDER, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 7, 0.35f, {-48, -48, -20}, {48, 48, 48}, 0.7f},

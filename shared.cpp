@@ -1378,7 +1378,7 @@ void ApplySpecialWaveEffects(MonsterWaveType waveType)
 		// Random Gekk sound
 		sound_index = brandom()
 			? gi.soundindex("gek/gek_low.wav")
-			: gi.soundindex("gek/amb.wav");
+			: gi.soundindex("gek/gek_amb.wav");
 	}
 	else // Berserk wave
 	{
