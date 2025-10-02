@@ -83,6 +83,7 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["blaster"];
 			g_config.blaster.damage = GetJsonInt(w, "damage", 15);
 			g_config.blaster.speed = GetJsonInt(w, "speed", 1300);
+			g_config.blaster.bounces = GetJsonInt(w, "bounces", 5);
 		}
 
 		// Hyperblaster
@@ -91,6 +92,7 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["hyperblaster"];
 			g_config.hyperblaster.damage = GetJsonInt(w, "damage", 15);
 			g_config.hyperblaster.speed = GetJsonInt(w, "speed", 1700);
+			g_config.hyperblaster.bounces = GetJsonInt(w, "bounces", 3);
 		}
 
 		// Shotgun
@@ -102,31 +104,42 @@ void Config_Load(const char* basedir)
 			g_config.shotgun.damage_energy_min = GetJsonInt(w, "damage_energy_min", 7);
 			g_config.shotgun.damage_energy_max = GetJsonInt(w, "damage_energy_max", 11);
 			g_config.shotgun.kick = GetJsonInt(w, "kick", 8);
+			g_config.shotgun.pellet_count_deathmatch = GetJsonInt(w, "pellet_count_deathmatch", 12);
+			g_config.shotgun.pellet_count_normal = GetJsonInt(w, "pellet_count_normal", 20);
 		}
 
 		// Super Shotgun
 		if (weapons.isMember("supershotgun") && weapons["supershotgun"].isObject())
 		{
 			const Json::Value& w = weapons["supershotgun"];
-			g_config.supershotgun.damage_min = GetJsonInt(w, "damage_min", 4);
-			g_config.supershotgun.damage_max = GetJsonInt(w, "damage_max", 6);
-			g_config.supershotgun.kick = GetJsonInt(w, "kick", 12);
+			g_config.supershotgun.damage_min = GetJsonInt(w, "damage_min", 7);
+			g_config.supershotgun.damage_max = GetJsonInt(w, "damage_max", 10);
+			g_config.supershotgun.damage_energy_min = GetJsonInt(w, "damage_energy_min", 14);
+			g_config.supershotgun.damage_energy_max = GetJsonInt(w, "damage_energy_max", 16);
+			g_config.supershotgun.kick = GetJsonInt(w, "kick", 17);
+			g_config.supershotgun.pellet_count = GetJsonInt(w, "pellet_count", 20);
 		}
 
 		// Machinegun
 		if (weapons.isMember("machinegun") && weapons["machinegun"].isObject())
 		{
 			const Json::Value& w = weapons["machinegun"];
-			g_config.machinegun.damage = GetJsonInt(w, "damage", 8);
+			g_config.machinegun.damage_min = GetJsonInt(w, "damage_min", 7);
+			g_config.machinegun.damage_max = GetJsonInt(w, "damage_max", 10);
 			g_config.machinegun.kick = GetJsonInt(w, "kick", 2);
+			g_config.machinegun.tracer_damage = GetJsonInt(w, "tracer_damage", 40);
+			g_config.machinegun.tracer_cooldown_ms = GetJsonInt(w, "tracer_cooldown_ms", 500);
 		}
 
 		// Chaingun
 		if (weapons.isMember("chaingun") && weapons["chaingun"].isObject())
 		{
 			const Json::Value& w = weapons["chaingun"];
-			g_config.chaingun.damage = GetJsonInt(w, "damage", 6);
+			g_config.chaingun.damage_min = GetJsonInt(w, "damage_min", 7);
+			g_config.chaingun.damage_max = GetJsonInt(w, "damage_max", 11);
 			g_config.chaingun.kick = GetJsonInt(w, "kick", 2);
+			g_config.chaingun.tracer_damage = GetJsonInt(w, "tracer_damage", 20);
+			g_config.chaingun.tracer_cooldown_ms = GetJsonInt(w, "tracer_cooldown_ms", 300);
 		}
 
 		// Grenade
@@ -143,7 +156,9 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["grenadelauncher"];
 			g_config.grenadelauncher.damage_min = GetJsonInt(w, "damage_min", 100);
 			g_config.grenadelauncher.damage_max = GetJsonInt(w, "damage_max", 120);
+			g_config.grenadelauncher.damage_napalm = GetJsonInt(w, "damage_napalm", 95);
 			g_config.grenadelauncher.radius = GetJsonFloat(w, "radius", 165.0f);
+			g_config.grenadelauncher.radius_napalm = GetJsonFloat(w, "radius_napalm", 135.0f);
 			g_config.grenadelauncher.speed = GetJsonInt(w, "speed", 1200);
 		}
 
@@ -172,6 +187,9 @@ void Config_Load(const char* basedir)
 			const Json::Value& w = weapons["bfg"];
 			g_config.bfg.damage = GetJsonInt(w, "damage", 700);
 			g_config.bfg.radius = GetJsonFloat(w, "radius", 1000.0f);
+			g_config.bfg.speed = GetJsonInt(w, "speed", 600);
+			g_config.bfg.ammo_normal = GetJsonInt(w, "ammo_normal", 50);
+			g_config.bfg.ammo_slide = GetJsonInt(w, "ammo_slide", 25);
 		}
 
 		// Ion Ripper (Xatrix)
@@ -185,6 +203,8 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("phalanx") && weapons["phalanx"].isObject())
 		{
 			const Json::Value& w = weapons["phalanx"];
+			g_config.phalanx.damage_min = GetJsonInt(w, "damage_min", 80);
+			g_config.phalanx.damage_max = GetJsonInt(w, "damage_max", 95);
 			g_config.phalanx.radius_damage = GetJsonInt(w, "radius_damage", 120);
 			g_config.phalanx.damage_radius = GetJsonInt(w, "damage_radius", 120);
 		}
@@ -239,6 +259,9 @@ void Config_Load(const char* basedir)
 		if (deployables.isMember("trap") && deployables["trap"].isObject())
 		{
 			const Json::Value& t = deployables["trap"];
+			g_config.trap.speed_min = GetJsonInt(t, "speed_min", 500);
+			g_config.trap.speed_max = GetJsonInt(t, "speed_max", 900);
+			g_config.trap.timer_sec = GetJsonInt(t, "timer_sec", 5);
 			g_config.trap.pull_radius = GetJsonFloat(t, "pull_radius", 400.0f);
 			g_config.trap.pull_speed_monster = GetJsonFloat(t, "pull_speed_monster", 210.0f);
 			g_config.trap.pull_speed_player = GetJsonFloat(t, "pull_speed_player", 290.0f);
@@ -246,6 +269,20 @@ void Config_Load(const char* basedir)
 			g_config.trap.health = GetJsonInt(t, "health", 125);
 			g_config.trap.explosion_damage = GetJsonInt(t, "explosion_damage", 300);
 			g_config.trap.explosion_radius = GetJsonInt(t, "explosion_radius", 100);
+		}
+
+		// Tesla
+		if (deployables.isMember("tesla") && deployables["tesla"].isObject())
+		{
+			const Json::Value& t = deployables["tesla"];
+			g_config.tesla.damage = GetJsonInt(t, "damage", 4);
+			g_config.tesla.damage_radius = GetJsonInt(t, "damage_radius", 200);
+			g_config.tesla.health = GetJsonInt(t, "health", 50);
+			g_config.tesla.time_to_live_sec = GetJsonInt(t, "time_to_live_sec", 30);
+			g_config.tesla.activate_time_ms = GetJsonInt(t, "activate_time_ms", 1200);
+			g_config.tesla.explosion_damage_multiplier = GetJsonInt(t, "explosion_damage_multiplier", 50);
+			g_config.tesla.explosion_radius = GetJsonInt(t, "explosion_radius", 200);
+			g_config.tesla.knockback = GetJsonInt(t, "knockback", 8);
 		}
 
 		// Doppleganger

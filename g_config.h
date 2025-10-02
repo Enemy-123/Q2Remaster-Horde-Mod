@@ -18,12 +18,14 @@ struct BlasterConfig
 {
 	int damage = 15;
 	int speed = 1300;
+	int bounces = 5;
 };
 
 struct HyperBlasterConfig
 {
 	int damage = 15;
 	int speed = 1700;
+	int bounces = 3;
 };
 
 struct ShotgunConfig
@@ -33,25 +35,36 @@ struct ShotgunConfig
 	int damage_energy_min = 7;
 	int damage_energy_max = 11;
 	int kick = 8;
+	int pellet_count_deathmatch = 12;
+	int pellet_count_normal = 20;
 };
 
 struct SuperShotgunConfig
 {
-	int damage_min = 4;
-	int damage_max = 6;
-	int kick = 12;
+	int damage_min = 7;
+	int damage_max = 10;
+	int damage_energy_min = 14;
+	int damage_energy_max = 16;
+	int kick = 17;
+	int pellet_count = 20;
 };
 
 struct MachinegunConfig
 {
-	int damage = 8;
+	int damage_min = 7;
+	int damage_max = 10;
 	int kick = 2;
+	int tracer_damage = 40;
+	int tracer_cooldown_ms = 500;
 };
 
 struct ChaingunConfig
 {
-	int damage = 6;
+	int damage_min = 7;
+	int damage_max = 11;
 	int kick = 2;
+	int tracer_damage = 20;
+	int tracer_cooldown_ms = 300;
 };
 
 struct GrenadeConfig
@@ -64,7 +77,9 @@ struct GrenadeLauncherConfig
 {
 	int damage_min = 100;
 	int damage_max = 120;
+	int damage_napalm = 95;
 	float radius = 165.0f;
+	float radius_napalm = 135.0f;
 	int speed = 1200;
 };
 
@@ -87,6 +102,9 @@ struct BFGConfig
 {
 	int damage = 700;
 	float radius = 1000.0f;
+	int speed = 600;
+	int ammo_normal = 50;
+	int ammo_slide = 25;
 };
 
 // Xatrix expansion weapon configurations
@@ -97,6 +115,8 @@ struct IonRipperConfig
 
 struct PhalanxConfig
 {
+	int damage_min = 80;
+	int damage_max = 95;
 	int radius_damage = 120;
 	int damage_radius = 120;
 };
@@ -137,6 +157,9 @@ struct LaserConfig
 
 struct TrapConfig
 {
+	int speed_min = 500;
+	int speed_max = 900;
+	int timer_sec = 5;
 	float pull_radius = 400.0f;
 	float pull_speed_monster = 210.0f;
 	float pull_speed_player = 290.0f;
@@ -144,6 +167,18 @@ struct TrapConfig
 	int health = 125;
 	int explosion_damage = 300;
 	int explosion_radius = 100;
+};
+
+struct TeslaConfig
+{
+	int damage = 4;
+	int damage_radius = 200;
+	int health = 50;
+	int time_to_live_sec = 30;
+	int activate_time_ms = 1200;
+	int explosion_damage_multiplier = 50;
+	int explosion_radius = 200;
+	int knockback = 8;
 };
 
 struct DopplegangerConfig
@@ -207,6 +242,7 @@ struct GameConfig
 	ProxMineConfig prox_mine;
 	LaserConfig laser;
 	TrapConfig trap;
+	TeslaConfig tesla;
 	DopplegangerConfig doppleganger;
 
 	// Ammo regeneration

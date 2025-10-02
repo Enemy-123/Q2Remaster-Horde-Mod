@@ -167,7 +167,6 @@
       "damage": 4,
       "damage_radius": 200,
       "health": 50,
-      "max_per_player": 12,
       "time_to_live_sec": 30,
       "activate_time_ms": 1200,
       "explosion_damage_multiplier": 50,
@@ -183,7 +182,6 @@
       "damage": 95,
       "damage_radius": 220,
       "health": 30,
-      "max_per_player": 50,
       "time_to_live_sec": 45,
       "time_delay_ms": 350,
       "damage_open_multiplier": 1.5,
@@ -202,7 +200,6 @@
       "explosion_radius": 100
     },
     "laser": {
-      "max_per_player": 6,
       "health_base": 150,
       "health_addon_per_wave": 120,
       "damage_initial": 1,
@@ -217,8 +214,7 @@
       "explosion_radius": 140
     },
     "strogg_summons": {
-      "max_summons": 3,
-      "comment": "MAX_STROGG_SUMMONS - maximum strogg entities that can be summoned"
+      "comment": "Strogg summons configuration - max summons controlled by entity_limits.max_summons"
     }
   },
 
