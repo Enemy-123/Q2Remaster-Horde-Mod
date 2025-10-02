@@ -1372,6 +1372,10 @@ void InitClientResp(gclient_t* client)
 
 	client->resp.entertime = level.time;
 	client->resp.coop_respawn = client->pers;
+
+	// Initialize camera mode flags
+	client->use_eyecam = false;
+	client->auto_eyecam = true;
 }
 
 /*
@@ -2652,7 +2656,7 @@ void PutClientInServer(edict_t* ent)
 
 	// Handle client data reset based on game mode
 	client_respawn_t resp = {};
-	
+
 	if (is_deathmatch)
 	{
 		client->resp.inactivity_time = 0_sec;
@@ -2691,11 +2695,15 @@ void PutClientInServer(edict_t* ent)
 			memset(&resp, 0, sizeof(resp));
 	}
 
-	// Clear client data while preserving persistant info
+	// Clear client data while preserving persistant info and camera settings
 	client_persistant_t saved = client->pers;
+	bool saved_auto_eyecam = client->auto_eyecam;
+	bool saved_use_eyecam = client->use_eyecam;
 	memset(client, 0, sizeof(*client));
 	client->pers = saved;
 	client->resp = resp;
+	client->auto_eyecam = saved_auto_eyecam;
+	client->use_eyecam = saved_use_eyecam;
 	client->pers.sentry_gun_choice = client->resp.sentry_gun_choice;
 
 	// Initialize persistant data if needed
@@ -2728,11 +2736,14 @@ void PutClientInServer(edict_t* ent)
 	if (CTFStartClient(ent))
 		return;
 
-	// Spawn as spectator
-	if (client->pers.spectator)
+	// Spawn as spectator (check both pers and resp, but allow joining real teams)
+	if ((client->pers.spectator || client->resp.spectator) &&
+	    client->resp.ctf_team == CTF_NOTEAM)
 	{
 		client->chase_target = nullptr;
 		client->resp.spectator = true;
+		client->auto_eyecam = true;  // Initialize camera mode for spectators
+		client->use_eyecam = false;
 		ent->movetype = MOVETYPE_NOCLIP;
 		ent->solid = SOLID_NOT;
 		ent->svflags |= SVF_NOCLIENT;
@@ -4427,16 +4438,15 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 				client->ps.gunindex = 0;
 				client->ps.gunskin = 0;
 				client->chase_target = nullptr;
-				client->pers.auto_eyecam = false;
-				client->pers.use_eyecam = false;
+				client->use_eyecam = false;
 				client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
 			}
 			else
 			{
 				// Enter adaptive camera mode from freecam
 				GetChaseTarget(ent);
-				client->pers.auto_eyecam = true;
-				client->pers.use_eyecam = false;
+				client->auto_eyecam = true;
+				client->use_eyecam = false;
 			}
 		}
 		else if (!ent->client->weapon_thunk && !IsMorphed(ent))  // Morphed players handle attacks differently

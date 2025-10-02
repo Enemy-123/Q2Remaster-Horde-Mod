@@ -31,7 +31,7 @@ void UpdateChaseCam(edict_t* ent)
 
 	// Auto eyecam: determine if we should temporarily switch to first-person
 	bool force_eyecam = false;
-	if (ent->client->pers.auto_eyecam)
+	if (ent->client->auto_eyecam)
 	{
 		// Pre-calculate third-person camera position to check space
 		vec3_t test_start, test_angles, test_forward, test_goal;
@@ -53,7 +53,10 @@ void UpdateChaseCam(edict_t* ent)
 		if (!targ->groundentity)
 			test_start[2] += 16;
 
-		trace_t test_trace = gi.traceline(targ->s.origin, test_start, targ, MASK_SOLID);
+		// Use bounding box trace for accurate space detection
+		vec3_t test_mins = { -4, -4, -4 };
+		vec3_t test_maxs = { 4, 4, 4 };
+		trace_t test_trace = gi.trace(targ->s.origin, test_mins, test_maxs, test_start, targ, MASK_SOLID);
 		test_goal = test_trace.endpos;
 
 		// Calculate distance between camera and player
@@ -72,7 +75,7 @@ void UpdateChaseCam(edict_t* ent)
 	}
 
 	// Q2Eaks eyecam handling
-	if (sv_eyecam->integer && (ent->client->pers.use_eyecam || force_eyecam))
+	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 	{
 		// Hide the chased player's model completely in first-person
 		targ->svflags |= SVF_NOCLIENT;
@@ -146,13 +149,16 @@ void UpdateChaseCam(edict_t* ent)
 			start[2] += 16;
 
 		// Primary trace from target origin to camera position
-		trace = gi.traceline(targ->s.origin, start, targ, MASK_SOLID);
+		// Use bounding box trace to prevent clipping through walls (like barrel_visualize)
+		vec3_t cam_mins = { -4, -4, -4 };
+		vec3_t cam_maxs = { 4, 4, 4 };
+		trace = gi.trace(targ->s.origin, cam_mins, cam_maxs, start, targ, MASK_SOLID);
 		goal = trace.endpos;
 
-		// If we hit a wall, pull back using barrel_visualize technique
+		// If we hit a wall, pull back aggressively to prevent seeing outside map
 		if (trace.fraction < 1)
 		{
-			vec3_t pullback = trace.plane.normal * 12.0f;
+			vec3_t pullback = trace.plane.normal * 20.0f;
 			goal = goal + pullback;
 		}
 
@@ -207,7 +213,7 @@ void UpdateChaseCam(edict_t* ent)
 	else
 	{
 		// Eyecam mode: use target's view angles directly
-		if (sv_eyecam->integer && (ent->client->pers.use_eyecam || force_eyecam))
+		if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 		{
 			ent->client->ps.viewangles = targ->client->v_angle;
 			ent->client->v_angle = targ->client->v_angle;
@@ -233,7 +239,7 @@ void UpdateChaseCam(edict_t* ent)
 
 	// In eyecam mode: display target's view but allow spectator's mouse to update cmd_angles
 	// This enables dynamic escape: spectator rotates mouse → next frame finds clearance → pops to third-person
-	if (sv_eyecam->integer && (ent->client->pers.use_eyecam || force_eyecam))
+	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
 	{
 		// Sync delta_angles to target so displayed view matches target
 		ent->client->ps.pmove.delta_angles = targ->client->v_angle - ent->client->resp.cmd_angles;

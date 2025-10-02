@@ -3131,9 +3131,6 @@ struct client_persistant_t
 
 	bool spectator; // client wants to be a spectator
 	bool bob_skip; // [Paril-KEX] client wants no movement bob
-	// Q2Eaks spectator camera modes
-	bool use_eyecam; // are we in eyecam mode?
-	bool auto_eyecam; // auto-switch between third and first person based on space
 
 	// [Paril-KEX] fog that we want to achieve; density rgb skyfogfactor
 	std::array<float, 5> wanted_fog;
@@ -3373,6 +3370,10 @@ struct gclient_t
 
 	edict_t* chase_target; // player we are chasing
 	bool	 update_chase; // need to update chase info?
+	// Q2Eaks are we in eyecam mode?
+	bool use_eyecam;
+	// Auto-switch between third and first person based on space
+	bool auto_eyecam = true;
 	//=======
 	// ROGUE
 	gtime_t double_time;

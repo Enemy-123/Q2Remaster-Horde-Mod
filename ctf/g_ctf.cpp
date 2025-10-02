@@ -2338,6 +2338,9 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 			sizeof(ctfgame.emsg));
 	}
 
+	// HUD update and messages
+	UpdateVoteHUD();
+
 	// For time extension in single player, directly extend time
 	if (is_time_vote && count == 1) {
 		gi.cvar_set("timelimit", G_Fmt("{}", timelimit->value + 20).data());
@@ -2346,6 +2349,26 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 		ctfgame.time_extension_voted = true; // Mark as voted
 		return false;
 	}
+
+	// Broadcast messages
+	const char* player_name = GetDisplayName(ent);
+
+	if (is_time_vote) {
+		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
+		gi.LocBroadcast_Print(PRINT_CHAT, "Add Time: +30 minutes\n");
+	}
+	else if (ctfgame.election == ELECT_MAP) {
+		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
+		gi.LocBroadcast_Print(PRINT_CHAT, "Map: {}\n", ctfgame.elevel);
+	}
+	else {
+		gi.LocBroadcast_Print(PRINT_CHAT, "{} Has Started a Vote!\n", player_name);
+		gi.LocBroadcast_Print(PRINT_CHAT, "{}\n", ctfgame.emsg);
+	}
+
+	gi.LocBroadcast_Print(PRINT_CHAT, "Open Menu to Vote!\n");
+	gi.LocBroadcast_Print(PRINT_CHAT, "Vote Ends in {}s\n", is_time_vote ? 30 : 30);
+	gi.LocBroadcast_Print(PRINT_CHAT, "Yes: {}  No: {}  Needed: {}\n", ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes);
 
 	// Auto-aprobación para un solo jugador (including coop/single player/horde with bots)
 	// Skip auto-approval for automatic time extension votes - those require explicit approval
@@ -2356,33 +2379,9 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	else if (count == 1 || (total_human_players == 1 && (G_IsCooperative() || coop->integer || !deathmatch->integer || g_horde->integer))) {
 		// Auto-approve manual time votes and all other vote types for single players
 		ctfgame.evotes = ctfgame.needvotes;
-		gi.LocBroadcast_Print(PRINT_HIGH, "Vote approved automatically - no other humans playing.\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "Vote approved automatically - no other humans playing.\n");
 		CTFWinElection();
-		return true;
 	}
-
-	// HUD update and messages (only for live votes)
-	UpdateVoteHUD();
-
-	// Broadcast messages
-	const char* player_name = GetDisplayName(ent);
-
-	if (is_time_vote) {
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} Has Started a Vote!\n", player_name);
-		gi.LocBroadcast_Print(PRINT_HIGH, "Add Time: +30 minutes\n");
-	}
-	else if (ctfgame.election == ELECT_MAP) {
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} Has Started a Vote!\n", player_name);
-		gi.LocBroadcast_Print(PRINT_HIGH, "Map: {}\n", ctfgame.elevel);
-	}
-	else {
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} Has Started a Vote!\n", player_name);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{}\n", ctfgame.emsg);
-	}
-
-	gi.LocBroadcast_Print(PRINT_HIGH, "Open Menu to Vote!\n");
-	gi.LocBroadcast_Print(PRINT_HIGH, "Vote Ends in {}s\n", is_time_vote ? 30 : 30);
-	gi.LocBroadcast_Print(PRINT_HIGH, "Yes: {}  No: {}  Needed: {}\n", ctfgame.evotes, ctfgame.nvotes, ctfgame.needvotes);
 
 	return true;
 }
@@ -3198,8 +3197,8 @@ void CTFObserver(edict_t* ent)
 	ent->client->ps.gunskin = 0;
 
 	// Initialize spectator camera settings
-	ent->client->pers.auto_eyecam = true;
-	ent->client->pers.use_eyecam = false;
+	ent->client->auto_eyecam = true;
+	ent->client->use_eyecam = false;
 
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(ent);
