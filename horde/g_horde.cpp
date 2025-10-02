@@ -1692,6 +1692,9 @@ static constexpr size_t WAVE_MEMORY_SIZE = 3; // Remember last 3 waves
 static std::array<MonsterWaveType, WAVE_MEMORY_SIZE> previous_wave_types = {};
 static size_t wave_memory_index = 0;
 
+// Track the last Gekk/Berserk special wave to enforce alternation
+static MonsterWaveType last_gekk_or_berserk_special = MonsterWaveType::None;
+
 // Helper function to check if a wave type was recently used
 static bool WasRecentlyUsed(MonsterWaveType wave_type)
 {
@@ -1934,6 +1937,17 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 					continue; // Skip this special wave type
 				}
 
+				// Enforce alternation between Gekk and Berserk special waves
+				if (is_gekk_or_berserk && last_gekk_or_berserk_special != MonsterWaveType::None)
+				{
+					// Don't allow the same type to repeat
+					if ((HasWaveType(type, MonsterWaveType::Gekk) && HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Gekk)) ||
+					    (HasWaveType(type, MonsterWaveType::Berserk) && HasWaveType(last_gekk_or_berserk_special, MonsterWaveType::Berserk)))
+					{
+						continue; // Skip - must alternate
+					}
+				}
+
 				if (!WasRecentlyUsed(type))
 				{
 					float chance = g_specialWaves.base_chances[i];
@@ -1945,6 +1959,13 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 					{
 						gi.LocBroadcast_Print(PRINT_HIGH, g_specialWaves.messages[i]);
 						StoreWaveType(type);
+
+						// Track Gekk/Berserk special waves for alternation
+						if (is_gekk_or_berserk)
+						{
+							last_gekk_or_berserk_special = type;
+						}
+
 						return type;
 					}
 				}

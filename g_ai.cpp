@@ -5,6 +5,7 @@
 #include "g_local.h"
 #include <cfloat>
 #include "horde/horde_performance.h"
+#include "shared.h"
 bool FindTarget(edict_t* self);
 bool ai_checkattack(edict_t* self, float dist);
 
@@ -692,9 +693,18 @@ bool FindMTarget(edict_t* self) {
 		}
 	}
 
+	// --- Adjust range for sentry guns in fog ---
+	float query_range = MAX_RANGE;
+	float query_range_squared = MAX_RANGE_SQUARED;
+	
+	if (horde_fog_active && horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN)) {
+		query_range = 400.0f;  // Reduced range for sentry guns in fog
+		query_range_squared = query_range * query_range;
+	}
+
 	// --- THE OPTIMIZATION ---
 	// Get potential targets from the grid instead of iterating all active monsters.
-	const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self_origin, MAX_RANGE);
+	const auto potential_targets = HordePhys::g_monster_grid.QueryRadius(self_origin, query_range);
 
 	// --- Iterate Through POTENTIAL Monsters to Find a Better Target ---
 	for (auto ent : potential_targets) { // <<<< KEY CHANGE HERE
@@ -706,7 +716,7 @@ bool FindMTarget(edict_t* self) {
 		// --- Distance Check ---
 		// The grid gives us a square search area, so we still need a precise distance check.
 		float dist_squared = DistanceSquared(self_origin, ent->s.origin);
-		if (dist_squared > MAX_RANGE_SQUARED) {
+		if (dist_squared > query_range_squared) {
 			continue;
 		}
 
