@@ -259,7 +259,9 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 	bool const is_new = !other->client->pers.inventory[index];
 	other->client->pers.inventory[index]++;
 
-	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) || g_horde->integer)
+	// Don't give ammo for start items (weapons given via g_start_items)
+	if ((!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) || g_horde->integer) &&
+	    !(ent->spawnflags & SPAWNFLAG_ITEM_START_ITEM))
 	{
 		if (ent->item->ammo != IT_NULL)
 		{

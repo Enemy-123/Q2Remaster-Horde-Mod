@@ -6241,6 +6241,9 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
 
+	// Update g_start_items for this wave's loadout
+	Horde_UpdateStartItemsForWave(lvl);
+
 	// Determine the wave type. Boss waves start with no type; it's set when the boss spawns.
 	if (!(lvl >= 10 && lvl % 5 == 0))
 	{

@@ -2228,6 +2228,7 @@ constexpr spawnflags_t SPAWNFLAG_ITEM_MAX = 0x00000016_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_ITEM_DROPPED = 0x00010000_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_ITEM_DROPPED_PLAYER = 0x00020000_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_ITEM_TARGETS_USED = 0x00040000_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_ITEM_START_ITEM = 0x00080000_spawnflag; // For g_start_items - weapon only, no auto-ammo
 
 extern gitem_t itemlist[IT_TOTAL];
 
@@ -2660,6 +2661,7 @@ void respawn(edict_t* ent);
 void BeginIntermission(edict_t* targ);
 void PutClientInServer(edict_t* ent);
 void InitClientPersistant(edict_t* ent, gclient_t* client);
+void Horde_UpdateStartItemsForWave(int32_t wave);
 void InitClientPt(const edict_t* ent, gclient_t* client);
 void InitClientResp(gclient_t* client);
 void InitBodyQue();

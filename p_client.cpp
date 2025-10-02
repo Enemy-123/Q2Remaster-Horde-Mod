@@ -934,7 +934,7 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 
 		dummy->item = item;
 		dummy->count = count;
-		dummy->spawnflags |= SPAWNFLAG_ITEM_DROPPED;
+		dummy->spawnflags |= SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_START_ITEM;
 		item->pickup(dummy, ent);
 		G_FreeEdict(dummy);
 	}
@@ -1028,15 +1028,50 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 	return calculated_max_health;
 }
 
-// Initializes Horde-specific persistent client data
+// Updates g_start_items based on current wave for dynamic loadouts
+void Horde_UpdateStartItemsForWave(int32_t wave)
+{
+	std::string loadout;
+
+	if (wave >= HordeConstants::WAVE_BASIC_WEAPONS)
+	{
+		// Basic weapons (wave 4+) - weapons don't auto-give ammo thanks to SPAWNFLAG_ITEM_START_ITEM
+		loadout = "weapon_blaster 1;weapon_chainfist 1;weapon_shotgun 1;weapon_supershotgun 1;"
+		          "weapon_machinegun 1;weapon_etf_rifle 1;weapon_proxlauncher 1;";
+
+		// Starting ammo for basic weapons
+		loadout += "ammo_bullets 2;ammo_shells 2;ammo_flechettes 2;ammo_prox 1;";
+
+		if (wave >= HordeConstants::WAVE_ADVANCED_WEAPONS)
+		{
+			// Advanced weapons (wave 13+)
+			loadout += "weapon_chaingun 1;weapon_grenadelauncher 1;weapon_rocketlauncher 1;";
+
+			// Starting ammo for advanced weapons
+			loadout += "ammo_grenades 1;ammo_rockets 1;";
+		}
+	}
+	else if (wave >= 1)
+	{
+		// Early waves (1-3): Minimal loadout
+		loadout = "weapon_blaster 1;ammo_bullets 1;ammo_shells 1;";
+	}
+
+	// Update the cvar
+	gi.cvar_set("g_start_items", loadout.c_str());
+
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("Horde: Updated g_start_items for wave {}\n", wave);
+	}
+}
+
 void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 {
 	// Cache wave level for multiple checks
 	const int wave = current_wave_level;
 	const bool is_late_joiner = !client->pers.received_late_join_ammo;
 	const bool is_high_wave = wave >= HordeConstants::WAVE_HIGH_AMMO_CAPS;
-	const bool give_advanced = wave >= HordeConstants::WAVE_ADVANCED_WEAPONS;
-	const bool give_basic = wave >= HordeConstants::WAVE_BASIC_WEAPONS;
 
 	//
 	// HEALTH INITIALIZATION
@@ -1129,68 +1164,14 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			if ((itemlist[i].flags & IF_TECH) && client->pers.inventory[i] > 0)
 				bot_has_tech = true;
 		}
-		
+
 		if (!bot_has_tech)
 			client->pers.inventory[IT_TECH_STRENGTH] = 1;
 	}
 
-	//
-	// WEAPON LOADOUT (Wave-based)
-	//
-	if (G_IsDeathmatch())
-	{
-		// Early wave minimal loadout
-		if (is_late_joiner)
-		{
-			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-			
-			if (wave >= 1)
-			{
-				client->pers.inventory[AMMO_BULLETS] += HordeConstants::EarlyWaveAmmo::BULLETS;
-				client->pers.inventory[AMMO_SHELLS] += HordeConstants::EarlyWaveAmmo::SHELLS;
-			}
-		}
-
-		// Standard and advanced weapon loadouts
-		if (give_basic || give_advanced)
-		{
-			// Common weapons (wave 4+)
-			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-			client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
-			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
-
-			// Advanced weapons (wave 13+)
-			if (give_advanced)
-			{
-				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
-				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
-				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
-			}
-
-			// Starting ammo for late joiners only
-			if (is_late_joiner)
-			{
-				client->pers.inventory[AMMO_BULLETS] += HordeConstants::StartingAmmoBasic::BULLETS;
-				client->pers.inventory[AMMO_SHELLS] += HordeConstants::StartingAmmoBasic::SHELLS;
-				client->pers.inventory[AMMO_FLECHETTES] += HordeConstants::StartingAmmoBasic::FLECHETTES;
-				client->pers.inventory[AMMO_PROX] += HordeConstants::StartingAmmoBasic::PROX;
-
-				if (give_advanced)
-				{
-					client->pers.inventory[AMMO_GRENADES] += HordeConstants::StartingAmmoAdvanced::GRENADES;
-					client->pers.inventory[AMMO_ROCKETS] += HordeConstants::StartingAmmoAdvanced::ROCKETS;
-				}
-
-				client->pers.received_late_join_ammo = true;
-				gi.LocClient_Print(ent, PRINT_HIGH,
-					"Late join: You've been given starting weapons and ammo based on current wave!\n");
-			}
-		}
-	}
+	// NOTE: Weapon and ammo loadouts are now handled via g_start_items,
+	// which is dynamically updated each wave by Horde_UpdateStartItemsForWave()
+	// and applied in InitClientPersistant via Player_GiveStartItems()
 }
 
 

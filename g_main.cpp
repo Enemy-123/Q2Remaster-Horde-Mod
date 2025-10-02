@@ -436,7 +436,7 @@ void InitGame()
 	g_speedstuff = gi.cvar("g_speedstuff", "1.0f", CVAR_NOFLAGS);
 	//g_mover_debug = gi.cvar("g_mover_debug", "0", CVAR_NOFLAGS);
 
-	g_start_items = gi.cvar("g_start_items", "", CVAR_LATCH);
+	g_start_items = gi.cvar("g_start_items", "", CVAR_NOFLAGS);
 	g_map_list = gi.cvar("g_map_list", "", CVAR_NOFLAGS);
 	g_map_list_shuffle = gi.cvar("g_map_list_shuffle", "0", CVAR_NOFLAGS);
 	g_lag_compensation = gi.cvar("g_lag_compensation", "1", CVAR_NOFLAGS);
