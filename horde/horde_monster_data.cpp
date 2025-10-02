@@ -31,6 +31,10 @@ const MonsterTypeInfo monsterTypes[] = {
 	{horde::MonsterTypeID::BERSERK, MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee | MonsterWaveType::Berserk, 6, 0.8f, {-16, -16, -24}, {16, 16, 32}, 1.0f},
 	{horde::MonsterTypeID::CHICK, MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 6, 0.6f, {-32, -32, -24}, {32, 32, 64}, 1.0f},
 
+	// Special fog wave bosses (spawned only during special waves, not in normal rotation)
+	{horde::MonsterTypeID::BERSERKERKL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Melee | MonsterWaveType::Berserk, 1, 0.0f, {-26, -26, -38}, {26, 26, 51}, 1.6f},
+	{horde::MonsterTypeID::GEKKKL, MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Gekk, 1, 0.0f, {-22, -22, -34}, {22, 22, -11}, 1.4f},
+
 	// --- WAVE 7 ---
 	{horde::MonsterTypeID::HOVER_VANILLA, MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Light | MonsterWaveType::Ranged, 7, 0.6f, {-24, -24, -24}, {24, 24, 32}, 1.0f},
 	{horde::MonsterTypeID::STALKER, MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f, {-28, -28, -18}, {28, 28, -4}, 1.0f},

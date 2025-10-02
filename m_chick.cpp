@@ -558,8 +558,8 @@ void ChickBombSpell(edict_t* self)
 	if (!M_HasValidTarget(self))
 		return;
 
-	// Check if on cooldown using timestamp (separate from attack_finished)
-	if (self->timestamp > level.time)
+	// Check if on cooldown using fire_wait (separate from dodge timestamp)
+	if (self->monsterinfo.fire_wait > level.time)
 		return;
 
 	vec3_t forward, dir;
@@ -582,7 +582,7 @@ void ChickBombSpell(edict_t* self)
 	// Too close for any bombspell (under 200 units) - skip this attack
 	if (dist_to_enemy < 200)
 	{
-		self->timestamp = level.time + 1_sec;
+		self->monsterinfo.fire_wait = level.time + 1_sec;
 		return;
 	}
 
@@ -629,8 +629,8 @@ void ChickBombSpell(edict_t* self)
 
 		gi.linkentity(spell);
 
-		// Set cooldown using timestamp
-		self->timestamp = level.time + 2_sec;
+		// Set cooldown using fire_wait
+		self->monsterinfo.fire_wait = level.time + 2_sec;
 
 		// Next time try area bomb
 		self->monsterinfo.lefty = 1;
@@ -675,8 +675,8 @@ void ChickBombSpell(edict_t* self)
 		spell->s.angles = vectoangles(ground_tr.plane.normal);
 		gi.linkentity(spell);
 
-		// Set cooldown using timestamp
-		self->timestamp = level.time + 2_sec;
+		// Set cooldown using fire_wait
+		self->monsterinfo.fire_wait = level.time + 2_sec;
 
 		// Next time try carpet bomb
 		self->monsterinfo.lefty = 0;
@@ -1703,8 +1703,8 @@ MONSTERINFO_ATTACK(chickkl_attack) (edict_t* self) -> void
 	// Check if this is actually a chickkl
 	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL))
 	{
-		// Check if bombspell is on cooldown (using timestamp)
-		bool bombspell_on_cooldown = (self->timestamp > level.time);
+		// Check if bombspell is on cooldown (using fire_wait)
+		bool bombspell_on_cooldown = (self->monsterinfo.fire_wait > level.time);
 
 		if (bombspell_on_cooldown)
 		{

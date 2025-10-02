@@ -1998,6 +1998,103 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	return selected_type;
 }
 
+// Helper to spawn special wave bosses
+static void SpawnSpecialWaveBosses(int32_t waveLevel, MonsterWaveType waveType)
+{
+	// Only spawn for Gekk or Berserk special waves with fog
+	bool is_gekk_wave = HasWaveType(waveType, MonsterWaveType::Gekk);
+	bool is_berserk_wave = HasWaveType(waveType, MonsterWaveType::Berserk);
+
+	if (!is_gekk_wave && !is_berserk_wave)
+		return;
+
+	// Determine number of bosses based on wave level
+	int num_bosses = 1; // Default for waves 5-12
+	if (waveLevel >= 16 && waveLevel <= 25)
+	{
+		num_bosses = (waveLevel >= 20) ? 3 : 2; // 2 for waves 16-19, 3 for waves 20-25
+	}
+	else if (waveLevel > 25)
+	{
+		// Post-wave 25: scale up
+		num_bosses = 3 + (waveLevel - 25) / 5; // +1 boss every 5 waves
+		num_bosses = std::min(num_bosses, 6); // Cap at 6
+	}
+
+	// Determine which boss type to spawn
+	horde::MonsterTypeID boss_type = is_gekk_wave ? horde::MonsterTypeID::GEKKKL : horde::MonsterTypeID::BERSERKERKL;
+
+	// Spawn the bosses
+	for (int i = 0; i < num_bosses; i++)
+	{
+		// Use the horde spawning system to spawn the boss
+		edict_t* boss = G_Spawn();
+
+		// Call the appropriate spawn function
+		if (is_gekk_wave)
+		{
+			extern void SP_monster_gekkkl(edict_t* self);
+			SP_monster_gekkkl(boss);
+		}
+		else
+		{
+			extern void SP_monster_berserkerkl(edict_t* self);
+			SP_monster_berserkerkl(boss);
+		}
+
+		// Find a random spawn point from the existing horde spawn point system
+		// Use the same spawn point finding logic as the regular horde system
+		if (g_num_spawn_points > 0)
+		{
+			// Pick a random spawn point
+			int spawn_idx = irandom(g_num_spawn_points);
+			edict_t* spawn_point = g_spawn_point_list[spawn_idx];
+
+			if (spawn_point && spawn_point->inuse)
+			{
+				boss->s.origin = spawn_point->s.origin;
+				boss->s.origin[2] += 16; // Lift slightly off ground for dramatic effect
+				boss->s.angles = spawn_point->s.angles;
+			}
+			else
+			{
+				// Fallback: find any info_player_deathmatch
+				edict_t* dm_spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
+				if (dm_spot)
+				{
+					boss->s.origin = dm_spot->s.origin;
+					boss->s.origin[2] += 16;
+				}
+			}
+		}
+		else
+		{
+			// No spawn points found, use a fallback dm spawn
+			edict_t* dm_spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
+			if (dm_spot)
+			{
+				boss->s.origin = dm_spot->s.origin;
+				boss->s.origin[2] += 16;
+			}
+		}
+
+		// Link the entity
+		gi.linkentity(boss);
+
+		// Make sure it starts active
+		walkmonster_start(boss);
+	}
+
+	// Debug message
+	if (developer->integer)
+	{
+		gi.Com_PrintFmt("HORDE: Spawned {} {} bosses for wave {}\n",
+		                num_bosses,
+		                is_gekk_wave ? "Inferno Gekk" : "Trespasser",
+		                waveLevel);
+	}
+}
+
 void InitializeWaveType(int32_t waveLevel)
 {
 	current_wave_type = GetWaveComposition(waveLevel);
@@ -2007,6 +2104,9 @@ void InitializeWaveType(int32_t waveLevel)
 	    HasWaveType(current_wave_type, MonsterWaveType::Berserk))
 	{
 		ApplyFogEffect();
+
+		// Spawn special bosses for these foggy waves
+		SpawnSpecialWaveBosses(waveLevel, current_wave_type);
 	}
 }
 

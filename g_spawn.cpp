@@ -134,6 +134,7 @@ void SP_misc_hologram(edict_t* ent);
 void SP_misc_lavaball(edict_t* ent);
 
 void SP_monster_berserk(edict_t* self);
+void SP_monster_berserkerkl(edict_t* self);
 void SP_monster_gladiator(edict_t* self);
 void SP_monster_gunner(edict_t* self);
 void SP_monster_gunner_vanilla(edict_t* self);
@@ -200,6 +201,7 @@ void SP_monster_soldier_ripper(edict_t* self);
 void SP_monster_fixbot(edict_t* self);
 void SP_monster_fixbotkl(edict_t* self);
 void SP_monster_gekk(edict_t* self);
+void SP_monster_gekkkl(edict_t* self);
 void SP_monster_chick_heat(edict_t* self);
 void SP_monster_chickkl(edict_t* self);
 void SP_monster_gladb(edict_t* self);
@@ -383,6 +385,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "misc_lavaball", SP_misc_lavaball }, // Paril
 
 	{ "monster_berserk", SP_monster_berserk },
+	{ "monster_berserkerkl", SP_monster_berserkerkl },
 	{ "monster_gladiator", SP_monster_gladiator },
 	{ "monster_gunner", SP_monster_gunner },
 	{ "monster_gunner_vanilla", SP_monster_gunner_vanilla },
@@ -456,6 +459,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_fixbot", SP_monster_fixbot },
 	{ "monster_fixbotkl", SP_monster_fixbotkl },
 	{ "monster_gekk", SP_monster_gekk },
+	{ "monster_gekkkl", SP_monster_gekkkl },
 	{ "monster_chick_heat", SP_monster_chick_heat },
 	{ "monster_chickkl", SP_monster_chickkl },
 	{ "monster_gladb", SP_monster_gladb },

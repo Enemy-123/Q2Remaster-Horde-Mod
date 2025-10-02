@@ -149,6 +149,10 @@ namespace horde {
             {"monster_berserk", MonsterTypeID::BERSERK},                     // 40
             {"monster_gekk", MonsterTypeID::GEKK},                           // 41
 
+            // Special fog wave bosses
+            {"monster_berserkerkl", MonsterTypeID::BERSERKERKL},             // 42
+            {"monster_gekkkl", MonsterTypeID::GEKKKL},                       // 43
+
             // Arachnid types
             {"monster_spider", MonsterTypeID::SPIDER},                       // 42
             {"monster_arachnid2", MonsterTypeID::ARACHNID2},                 // 43

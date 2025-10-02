@@ -27,6 +27,7 @@ static cached_soundindex sound_step1;
 static cached_soundindex sound_step2;
 static cached_soundindex sound_step3;
 static cached_soundindex sound_thud;
+static cached_soundindex sound_explod;
 static cached_soundindex sound_chantlow;
 static cached_soundindex sound_chantmid;
 static cached_soundindex sound_chanthigh;
@@ -1779,6 +1780,7 @@ void SP_monster_gekk(edict_t* self)
 	sound_step2.assign("gek/gk_step2.wav");
 	sound_step3.assign("gek/gk_step3.wav");
 	sound_thud.assign("mutant/thud1.wav");
+	sound_explod.assign("weapons/rocklx1a.wav");
 
 	sound_chantlow.assign("gek/gek_low.wav");
 	sound_chantmid.assign("gek/gek_mid.wav");
@@ -1836,6 +1838,391 @@ void SP_monster_gekk(edict_t* self)
 	self->monsterinfo.blocked = gekk_blocked;
 
 	gekk_set_fly_parameters(self);
+
+	ApplyMonsterBonusFlags(self);
+}
+
+//======================================================================
+void gekk_kl_spit(edict_t* self);
+void gekkkl_check_refire(edict_t* self);
+
+void gekkkl_hit_left(edict_t* self)
+{
+	// ROBUST FIX: Check if the enemy pointer is valid AND the entity is in use and alive.
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
+	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
+	if (fire_hit(self, aim, irandom(15, 20), 100)) {
+		gi.sound(self, CHAN_WEAPON, sound_hit, 1, ATTN_NORM, 0);
+	T_Damage(self, self, self, vec3_origin, self->enemy->s.origin, vec3_origin,
+	0, 700, DAMAGE_NONE, MOD_UNKNOWN);
+	}
+	else
+	{
+		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
+		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec;
+	}
+}
+
+
+void gekkkl_hit_right(edict_t* self)
+{
+	// ROBUST FIX: Apply the same check here for consistency and safety.
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
+	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
+	if (fire_hit(self, aim, irandom(15, 20), 100)) {
+		gi.sound(self, CHAN_WEAPON, sound_hit2, 1, ATTN_NORM, 0);
+	T_Damage(self, self, self, vec3_origin, self->enemy->s.origin, vec3_origin,
+	0, 700, DAMAGE_NONE, MOD_UNKNOWN);
+	}
+	else
+	{
+		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
+		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec;
+	}
+}
+
+mframe_t gekkkl_frames_attack1[] = {
+	{ ai_charge },
+	{ ai_charge, 0, gekkkl_hit_left },
+	{ ai_charge },
+
+	{ ai_charge, 0, gekkkl_hit_left },
+	{ ai_charge },
+	{ ai_charge, 0, gekkkl_hit_left },
+
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, gekkkl_check_refire }
+};
+MMOVE_T(gekkkl_move_attack1) = { FRAME_clawatk3_01, FRAME_clawatk3_09, gekkkl_frames_attack1, gekk_run_start };
+
+mframe_t gekkkl_frames_attack2[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, gekkkl_hit_left },
+
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, gekkkl_hit_right },
+
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, gekkkl_check_refire }
+};
+MMOVE_T(gekkkl_move_attack2) = { FRAME_clawatk5_01, FRAME_clawatk5_09, gekkkl_frames_attack2, gekk_run_start };
+
+
+void gekkkl_jump_takeoff(edict_t* self)
+{
+	vec3_t forward;
+
+	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	self->s.origin[2] += 1;
+
+	// high jump
+	if (gekk_check_jump(self))
+	{
+		self->velocity = forward * 950;
+		self->velocity[2] = 750;
+	}
+	else
+	{
+		self->velocity = forward * 950;
+		self->velocity[2] = 800;
+	}
+
+	self->groundentity = nullptr;
+	self->monsterinfo.aiflags |= AI_DUCKED;
+	self->monsterinfo.attack_finished = level.time + 3_sec;
+	self->touch = gekk_jump_touch;
+	self->style = 1;
+}
+
+void gekkkl_check_landing(edict_t* self)
+{
+	if (self->groundentity)
+	{
+		// 50% chance for slam attack
+		if (frandom() <= 0.5f)
+		{
+			// Slam attack like berserker
+			gi.sound(self, CHAN_WEAPON, sound_thud, 1, ATTN_NORM, 0);
+			gi.sound(self, CHAN_AUTO, sound_explod, 0.75f, ATTN_NORM, 0);
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_BERSERK_SLAM);
+			vec3_t f, r, start;
+			AngleVectors(self->s.angles, f, r, nullptr);
+			start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
+			trace_t const tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+			gi.WritePosition(tr.endpos);
+			gi.WriteDir({ 0.f, 0.f, 1.f });
+			gi.multicast(tr.endpos, MULTICAST_PHS, false);
+			self->gravity = 1.0f;
+			self->velocity = {};
+			self->flags |= FL_KILL_VELOCITY;
+
+			void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage, float kick, edict_t* ignore, float radius, mod_t mod);
+			T_SlamRadiusDamage(tr.endpos, self, self, 60, 600.f, self, 165, MOD_UNKNOWN);
+		}
+		else
+		{
+			// Normal landing behavior
+			gi.sound(self, CHAN_WEAPON, sound_thud, 1, ATTN_NORM, 0);
+		}
+
+		self->monsterinfo.attack_finished = 0_ms;
+
+		if (self->monsterinfo.unduck)
+			self->monsterinfo.unduck(self);
+
+		self->velocity = {};
+		return;
+	}
+
+	// Paril: allow them to "pull" up ledges
+	vec3_t fwd;
+	AngleVectors(self->s.angles, fwd, nullptr, nullptr);
+
+	if (fwd.dot(self->velocity) < 200)
+		self->velocity += (fwd * 200.f);
+
+	// note to self
+	// causing skid
+	if (level.time > self->monsterinfo.attack_finished)
+		self->monsterinfo.nextframe = FRAME_leapatk_11;
+	else
+	{
+		self->monsterinfo.nextframe = FRAME_leapatk_12;
+	}
+}
+
+extern const mmove_t gekkkl_move_leapatk;
+
+void gekkkl_check_refire(edict_t* self)
+{
+	// ROBUST FIX: Apply the same check here for consistency and safety.
+	if (!M_HasValidTarget(self))
+	{
+		return; // Stop immediately if the target is invalid.
+	}
+
+	if (range_to(self, self->enemy) >= RANGE_MID) {
+	M_SetAnimation(self, &gekkkl_move_leapatk);
+	return gekk_run_start(self);
+	}
+
+	else if (range_to(self, self->enemy) <= RANGE_MELEE &&
+		self->monsterinfo.melee_debounce_time <= level.time)
+	{
+		if (self->s.frame == FRAME_clawatk3_09)
+			M_SetAnimation(self, &gekkkl_move_attack2);
+		else if (self->s.frame == FRAME_clawatk5_09)
+			M_SetAnimation(self, &gekkkl_move_attack1);
+	}
+}
+
+void GekkKLSaveLoc(edict_t* self)
+{
+	if (M_HasValidTarget(self))
+	{
+		self->pos1 = self->enemy->s.origin;
+		self->pos1[2] += self->enemy->viewheight;
+	}
+}
+
+mframe_t gekkkl_frames_leapatk[] = {
+	{ ai_charge }, 			// frame 0 - Save target location
+	{ ai_charge, -0.387f },						// frame 1
+	{ ai_charge, -1.113f },						// frame 2
+	{ ai_charge, -0.237f },						// frame 3
+	{ ai_charge, 6.720f, gekkkl_jump_takeoff },	// frame 4  last frame on ground
+	{ ai_charge, 6.414f },						// frame 5  leaves ground
+	{ ai_charge, 0.163f, GekkKLSaveLoc },		// frame 6
+	{ ai_charge, 28.316f, gekk_kl_spit },						// frame 7
+	{ ai_charge, 24.198f, GekkKLSaveLoc },		// frame 8
+	{ ai_charge, 31.742f, gekk_kl_spit },						// frame 9
+	{ ai_charge, 35.977f, gekkkl_check_landing }, // frame 10  last frame in air
+	{ ai_charge, 12.303f, gekk_stop_skid },		// frame 11  feet back on ground
+	{ ai_charge, 20.122f, gekk_stop_skid },		// frame 12
+	{ ai_charge, -1.042f, gekk_stop_skid },		// frame 13
+	{ ai_charge, 2.556f, gekk_stop_skid },		// frame 14
+	{ ai_charge, 0.544f, GekkKLSaveLoc },		// frame 15
+	{ ai_charge, 1.862f, gekk_kl_spit },		// frame 16
+	{ ai_charge, 1.224f, gekk_stop_skid },		// frame 17
+
+	{ ai_charge, -0.457f, gekk_check_underwater }, // frame 18
+};
+MMOVE_T(gekkkl_move_leapatk) = { FRAME_leapatk_01, FRAME_leapatk_19, gekkkl_frames_leapatk, gekk_run_start };
+
+
+
+
+//======================================================================
+// GEKKKL - "Inferno Gekk"
+// Boss variant with plasma attacks and fire damage
+//======================================================================
+
+// Forward declaration for plasma touch (from m_chick.cpp or xatrix)
+void plasma_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
+
+// Fire plasma instead of loogie for gekkkl
+void fire_gekk_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed)
+{
+	edict_t* plasma = G_Spawn();
+
+	plasma->s.origin = start;
+	plasma->s.old_origin = start;
+	plasma->s.angles = vectoangles(dir);
+	plasma->velocity = dir * speed;
+	plasma->movetype = MOVETYPE_FLYMISSILE;
+	plasma->clipmask = MASK_PROJECTILE;
+	plasma->solid = SOLID_BBOX;
+	plasma->svflags |= SVF_PROJECTILE;
+	plasma->flags |= FL_DODGE;
+	plasma->owner = self;
+
+	// Store attacker info
+	if (self->svflags & SVF_MONSTER) {
+		plasma->projectile_was_player_attacker = false;
+		plasma->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
+	}
+
+	plasma->touch = plasma_touch;
+	plasma->nextthink = level.time + 8_sec;
+	plasma->think = G_FreeEdict;
+	plasma->dmg = damage;
+	plasma->radius_dmg = damage;
+	plasma->dmg_radius = 120;
+	plasma->s.sound = gi.soundindex("weapons/rockfly.wav");
+	plasma->s.modelindex = gi.modelindex("sprites/s_photon.sp2");
+	plasma->s.effects |= EF_PLASMA | EF_ANIM_ALLFAST;
+
+	gi.linkentity(plasma);
+}
+
+// Gekkkl spit plasma attack
+void gekk_kl_spit(edict_t* self)
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	vec3_t start, dir, forward, right, up;
+	vec3_t gekkoffset = { -18, -0.8f, 24 };
+
+	AngleVectors(self->s.angles, forward, right, up);
+	start = M_ProjectFlashSource(self, gekkoffset, forward, right);
+	start += (up * 2);
+
+	// Use saved enemy position if available
+	vec3_t end = self->pos1;
+	dir = end - start;
+	dir.normalize();
+
+	// Fire plasma bolt instead of loogie
+	fire_gekk_plasma(self, start, dir, 25, 900); // Faster and more damaging than loogie
+
+	gi.sound(self, CHAN_WEAPON, sound_speet, 1.0f, ATTN_NORM, 0);
+}
+
+// Enhanced attack AI for GekkKL
+MONSTERINFO_ATTACK(gekkkl_attack) (edict_t* self) -> void
+{
+	if (!M_HasValidTarget(self))
+		return;
+
+	float dist = range_to(self, self->enemy);
+
+	// Check if this is actually a gekkkl
+	if (self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::GEKKKL))
+	{
+		// Prefer ranged plasma attacks
+		if (dist > RANGE_MELEE)
+		{
+			// 70% chance to use plasma at range
+			if (frandom() < 0.7f)
+			{
+				M_SetAnimation(self, &gekkkl_move_leapatk); // Spit animation
+			}
+			else
+			{
+				// Jump attack
+				M_SetAnimation(self, &gekkkl_move_leapatk);
+			}
+		}
+		else
+		{
+			// Close range - melee or quick jump back and shoot
+			if (frandom() < 0.5f)
+			{
+				gekk_melee(self);
+			}
+			else
+			{
+				// Jump back and shoot
+				M_SetAnimation(self, &gekkkl_move_leapatk);
+			}
+		}
+	}
+	else
+	{
+		// Fallback to normal gekk attack
+		gekk_run(self);
+	}
+}
+
+/*QUAKED monster_gekkkl (1 .5 0) (-22 -22 -34) (22 22 -11) Ambush Trigger_Spawn Sight
+"Inferno Gekk" - Boss variant with plasma attacks and fire damage
+Only spawns during special foggy Gekk waves
+*/
+void SP_monster_gekkkl(edict_t* self)
+{
+	// Set monster type first
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GEKKKL);
+
+	// Call base gekk spawn
+	SP_monster_gekk(self);
+
+	// Override with gekkkl specifics
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GEKKKL);
+
+	// Boss stats
+	self->health = 680 * ED_GetSpawnTemp().health_multiplier;
+	self->gib_health = -80;
+	self->mass = 400;
+	self->s.skinnum = 1; // Different skin if available
+	self->monsterinfo.bonus_flags |= BF_POSSESSED;
+	// Scale up
+	if (!self->s.scale)
+	{
+		self->s.scale = 1.4f;
+		self->mins *= self->s.scale;
+		self->maxs *= self->s.scale;
+	}
+
+	// Redmutant-like speed
+	self->yaw_speed = 25; // Faster turning
+
+	// Enhanced movement like redmutant
+	self->monsterinfo.drop_height = 384;
+	self->monsterinfo.jump_height = 120; // Higher jumps
+	self->monsterinfo.can_jump = true;
+
+	// Override attack
+	self->monsterinfo.attack = gekkkl_attack;
+	self->monsterinfo.dodge = bonus_monster_dodge;
+
+	// Sound precaching for plasma
+	gi.soundindex("weapons/rockfly.wav");
+	gi.modelindex("sprites/s_photon.sp2");
 
 	ApplyMonsterBonusFlags(self);
 }
