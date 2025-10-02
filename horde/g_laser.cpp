@@ -313,7 +313,7 @@ struct player_laser_pierce_t : pierce_args_t
             // Don't consume laser health when damaging barrels
             bool is_barrel = horde::IsSpecialType(tr.ent, horde::SpecialEntityTypeID::BARREL);
             if (!is_barrel) {
-                float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? 1.0f : LaserConstants::LASER_NONCLIENT_MOD;
+                float health_drain_multiplier = (tr.ent->svflags & SVF_MONSTER) ? (horde_fog_active ? 1.3f : 1.0f) : LaserConstants::LASER_NONCLIENT_MOD;
                 self->health -= static_cast<int>(damage_to_deal * health_drain_multiplier);
             }
 
