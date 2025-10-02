@@ -1837,10 +1837,10 @@ constexpr std::array<WaveDefinition, 8> WAVE_DEFINITIONS_SRC = {{
 }};
 
 // Source data for special waves (chance is calculated at runtime based on player count)
-static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = {{{MonsterWaveType::Gekk, 0.0f, 5, 7, "*** Gekk invasion incoming! ***\n"},
+static constexpr std::array<SpecialWave, 7> SPECIAL_WAVES_SRC = {{{MonsterWaveType::Gekk, 0.75f, 15, -1, "*** Inferno Gekk Invasion! ***\n"},
 																  {MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, -1, "*** Enraged Horde approaching! ***\n"},
 																  {MonsterWaveType::Flying | MonsterWaveType::Fast, 0.2f, 9, -1, "*** Aerial assault incoming! ***\n"},
-																  {MonsterWaveType::Berserk, 0.2f, 8, 12, "*** Berserkers incoming! ***\n"},
+																  {MonsterWaveType::Berserk, 0.75f, 15, -1, "*** Trespasser Assault! ***\n"},
 																  {MonsterWaveType::Bomber, 0.35f, 10, -1, "*** Strogg Bomber Units Arrived! ***\n"},
 																  {MonsterWaveType::Heavy, 0.2f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
 																  {MonsterWaveType::Spawner | MonsterWaveType::Bomber, 0.3f, 25, -1, "*** Spawners & Bombers Deployed! ***\n"}}};;
@@ -1924,18 +1924,22 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 			{
 				// Slower checks only if level is valid
 				const MonsterWaveType type = g_specialWaves.types[i];
+
+				// Skip Gekk/Berserk special waves on boss waves (every 5th wave)
+				bool is_boss_wave = (waveNumber >= 10 && waveNumber % 5 == 0);
+				bool is_gekk_or_berserk = HasWaveType(type, MonsterWaveType::Gekk) ||
+				                          HasWaveType(type, MonsterWaveType::Berserk);
+				if (is_boss_wave && is_gekk_or_berserk)
+				{
+					continue; // Skip this special wave type
+				}
+
 				if (!WasRecentlyUsed(type))
 				{
 					float chance = g_specialWaves.base_chances[i];
 
-					// --- THIS IS THE FIX ---
-					// Use the HasWaveType helper to correctly check for the Gekk flag,
-					// even if it's combined with other flags like Ground or Small.
-					if (HasWaveType(type, MonsterWaveType::Gekk))
-					{
-						chance = (numHumanPlayers <= 2 ? 0.35f : 0.20f);
-					}
-					
+					// Use base chance from special wave config (45% for Gekk/Berserk)
+					// No player count override - we want these waves to be frequent
 
 					if (frandom() < chance)
 					{
@@ -1998,115 +2002,16 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	return selected_type;
 }
 
-// Helper to spawn special wave bosses
-static void SpawnSpecialWaveBosses(int32_t waveLevel, MonsterWaveType waveType)
-{
-	// Only spawn for Gekk or Berserk special waves with fog
-	bool is_gekk_wave = HasWaveType(waveType, MonsterWaveType::Gekk);
-	bool is_berserk_wave = HasWaveType(waveType, MonsterWaveType::Berserk);
-
-	if (!is_gekk_wave && !is_berserk_wave)
-		return;
-
-	// Determine number of bosses based on wave level
-	int num_bosses = 1; // Default for waves 5-12
-	if (waveLevel >= 16 && waveLevel <= 25)
-	{
-		num_bosses = (waveLevel >= 20) ? 3 : 2; // 2 for waves 16-19, 3 for waves 20-25
-	}
-	else if (waveLevel > 25)
-	{
-		// Post-wave 25: scale up
-		num_bosses = 3 + (waveLevel - 25) / 5; // +1 boss every 5 waves
-		num_bosses = std::min(num_bosses, 6); // Cap at 6
-	}
-
-	// Determine which boss type to spawn
-	horde::MonsterTypeID boss_type = is_gekk_wave ? horde::MonsterTypeID::GEKKKL : horde::MonsterTypeID::BERSERKERKL;
-
-	// Spawn the bosses
-	for (int i = 0; i < num_bosses; i++)
-	{
-		// Use the horde spawning system to spawn the boss
-		edict_t* boss = G_Spawn();
-
-		// Call the appropriate spawn function
-		if (is_gekk_wave)
-		{
-			extern void SP_monster_gekkkl(edict_t* self);
-			SP_monster_gekkkl(boss);
-		}
-		else
-		{
-			extern void SP_monster_berserkerkl(edict_t* self);
-			SP_monster_berserkerkl(boss);
-		}
-
-		// Find a random spawn point from the existing horde spawn point system
-		// Use the same spawn point finding logic as the regular horde system
-		if (g_num_spawn_points > 0)
-		{
-			// Pick a random spawn point
-			int spawn_idx = irandom(g_num_spawn_points);
-			edict_t* spawn_point = g_spawn_point_list[spawn_idx];
-
-			if (spawn_point && spawn_point->inuse)
-			{
-				boss->s.origin = spawn_point->s.origin;
-				boss->s.origin[2] += 16; // Lift slightly off ground for dramatic effect
-				boss->s.angles = spawn_point->s.angles;
-			}
-			else
-			{
-				// Fallback: find any info_player_deathmatch
-				edict_t* dm_spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
-				if (dm_spot)
-				{
-					boss->s.origin = dm_spot->s.origin;
-					boss->s.origin[2] += 16;
-				}
-			}
-		}
-		else
-		{
-			// No spawn points found, use a fallback dm spawn
-			edict_t* dm_spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
-			if (dm_spot)
-			{
-				boss->s.origin = dm_spot->s.origin;
-				boss->s.origin[2] += 16;
-			}
-		}
-
-		// Link the entity
-		gi.linkentity(boss);
-
-		// Make sure it starts active
-		walkmonster_start(boss);
-	}
-
-	// Debug message
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("HORDE: Spawned {} {} bosses for wave {}\n",
-		                num_bosses,
-		                is_gekk_wave ? "Inferno Gekk" : "Trespasser",
-		                waveLevel);
-	}
-}
-
 void InitializeWaveType(int32_t waveLevel)
 {
 	current_wave_type = GetWaveComposition(waveLevel);
 
-	// Apply fog effect for certain special waves
-	if (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
-	    HasWaveType(current_wave_type, MonsterWaveType::Berserk))
+	// Apply fog effect and special effects for Gekk/Berserk special waves (wave 15+)
+	if (waveLevel >= 15 && (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
+	    HasWaveType(current_wave_type, MonsterWaveType::Berserk)))
 	{
 		ApplyFogEffect();
-
-		// Spawn special bosses for these foggy waves
-		SpawnSpecialWaveBosses(waveLevel, current_wave_type);
+		ApplySpecialWaveEffects(current_wave_type);
 	}
 }
 
@@ -2814,6 +2719,11 @@ static void PrecacheWaveSounds()
 																								   {&talk, "misc/talk.wav"},
 																								   {&tele1, "misc/tele1.wav"},
 																								   {&sound_quake, "world/quake.wav"}}};
+
+	// Precache special wave sounds (Gekk and Berserk waves)
+	gi.soundindex("gek/gek_low.wav");
+	gi.soundindex("gek/amb.wav");
+	gi.soundindex("world/radio3.wav");
 
 	// Use std::span for safe iteration
 	std::span individual_view{individual_sounds};
@@ -6109,6 +6019,7 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 		// Chicks share models
 		case horde::MonsterTypeID::CHICK:
 		case horde::MonsterTypeID::CHICK_HEAT:
+		case horde::MonsterTypeID::CHICKKL:
 			return "models/monsters/chick/";
 
 		// Arachnids share models
@@ -6190,8 +6101,10 @@ static const char* GetMonsterModelPath(horde::MonsterTypeID typeId)
 		case horde::MonsterTypeID::FLYER:
 			return "models/monsters/flyer/";
 		case horde::MonsterTypeID::BERSERK:
+		case horde::MonsterTypeID::BERSERKERKL:
 			return "models/monsters/berserk/";
 		case horde::MonsterTypeID::GEKK:
+		case horde::MonsterTypeID::GEKKKL:
 			return "models/monsters/gekk/";
 		case horde::MonsterTypeID::STALKER:
 			return "models/monsters/stalker/";
@@ -6410,7 +6323,81 @@ static void Horde_InitLevel(const int32_t lvl)
 			}
 		}
 	}
-	
+
+	// Add Gekk/Berserk variants for special waves (wave 15+)
+	if (lvl >= 15 && (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
+	    HasWaveType(current_wave_type, MonsterWaveType::Berserk)))
+	{
+		bool is_gekk_wave = HasWaveType(current_wave_type, MonsterWaveType::Gekk);
+
+		// Determine which monsters to add based on wave type
+		horde::MonsterTypeID regular_type = is_gekk_wave
+			? horde::MonsterTypeID::GEKK
+			: horde::MonsterTypeID::BERSERK;
+		horde::MonsterTypeID boss_type = is_gekk_wave
+			? horde::MonsterTypeID::GEKKKL
+			: horde::MonsterTypeID::BERSERKERKL;
+
+		// Calculate spawn weights - more bosses at higher waves
+		int num_regular = 20; // Always add 20 regular variants
+		int num_bosses = 15; // Base: 15 boss variants
+		if (lvl >= 20)
+		{
+			num_bosses = std::min(30, 15 + (lvl - 20) / 3); // Scale to 30 at higher waves
+		}
+
+		// Find and add regular monster (gekk or berserk)
+		for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+		{
+			if (monsterTypes[i].typeId == regular_type)
+			{
+				// Add regular monsters to pool (20 entries)
+				for (int j = 0; j < num_regular; ++j)
+				{
+					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE))
+						break;
+				}
+				break;
+			}
+		}
+
+		// Find and add boss variant (gekkkl or berserkerkl)
+		for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+		{
+			if (monsterTypes[i].typeId == boss_type)
+			{
+				// Add boss monsters to pool (15-30 entries depending on wave)
+				for (int j = 0; j < num_bosses; ++j)
+				{
+					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE))
+					{
+						gi.Com_Print("WARNING: Could not add boss variant to eligible monsters\n");
+						break;
+					}
+				}
+
+				// ALWAYS print this info for special waves (not just developer mode)
+				gi.Com_PrintFmt("HORDE: Added {} regular + {} boss {} to spawn pool for wave {}\n",
+					num_regular, num_bosses, is_gekk_wave ? "Gekks" : "Berserkers", lvl);
+
+				// Debug: Count how many of each type are in the pool
+				if (developer->integer)
+				{
+					int regular_count = 0;
+					int boss_count = 0;
+					for (const auto* monster_info : g_eligible_monsters_for_wave)
+					{
+						if (monster_info->typeId == regular_type) regular_count++;
+						if (monster_info->typeId == boss_type) boss_count++;
+					}
+					gi.Com_PrintFmt("DEBUG: Eligible pool now has {} regular {} and {} {}\n",
+						regular_count, is_gekk_wave ? "Gekks" : "Berserkers",
+						boss_count, is_gekk_wave ? "Gekkkls" : "Berserkkls");
+				}
+				break;
+			}
+		}
+	}
 
 	// Safe reserve for item indices
 	if (!safe_reserve(g_eligible_item_indices_for_wave, std::min(g_hordeItemDataSoA.NUM_ITEMS, MAX_SAFE_RESERVE_SIZE))) {

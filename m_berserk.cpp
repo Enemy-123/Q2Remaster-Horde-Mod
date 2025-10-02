@@ -1145,6 +1145,15 @@ void SP_monster_berserk(edict_t* self)
 	//	self->monsterinfo.power_armor_power = 95;
 
 	self->health = 295 * st.health_multiplier;
+
+	// Extra health scaling for high wave special Berserk waves (wave 15+)
+	extern int16_t current_wave_level;
+	if (current_wave_level >= 15)
+	{
+		float wave_scaling = 1.0f + (current_wave_level - 15) * 0.15f; // +15% per wave after 15
+		self->health = static_cast<int>(self->health * wave_scaling);
+	}
+
 	self->gib_health = -60;
 	self->mass = 250;
 	//self->s.scale = 1.2f;

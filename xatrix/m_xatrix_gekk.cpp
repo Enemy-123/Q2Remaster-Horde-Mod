@@ -1801,6 +1801,15 @@ void SP_monster_gekk(edict_t* self)
 	gi.modelindex("models/objects/loogy/tris.md2");
 
 	self->health = 125 * st.health_multiplier;
+
+	// Extra health scaling for high wave special Gekk waves (wave 15+)
+	extern int16_t current_wave_level;
+	if (current_wave_level >= 15)
+	{
+		float wave_scaling = 1.0f + (current_wave_level - 15) * 0.15f; // +15% per wave after 15
+		self->health = static_cast<int>(self->health * wave_scaling);
+	}
+
 	self->gib_health = -30;
 	self->mass = 300;
 

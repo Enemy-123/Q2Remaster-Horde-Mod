@@ -1363,6 +1363,57 @@ void ApplyFogEffect()
 	}
 }
 
+// Apply special wave effects (sounds, earthquake) for Gekk/Berserk waves
+void ApplySpecialWaveEffects(MonsterWaveType waveType)
+{
+	bool is_gekk_wave = HasWaveType(waveType, MonsterWaveType::Gekk);
+	bool is_berserk_wave = HasWaveType(waveType, MonsterWaveType::Berserk);
+
+	if (!is_gekk_wave && !is_berserk_wave)
+		return;
+
+	// Play themed sound based on wave type
+	int sound_index = 0;
+	if (is_gekk_wave)
+	{
+		// Random Gekk sound
+		sound_index = brandom()
+			? gi.soundindex("gek/gek_low.wav")
+			: gi.soundindex("gek/amb.wav");
+	}
+	else // Berserk wave
+	{
+		sound_index = gi.soundindex("world/radio3.wav");
+	}
+
+	// Play sound globally
+	if (sound_index)
+	{
+		gi.positioned_sound(vec3_origin, world, CHAN_AUTO, sound_index, 1.0f, ATTN_NONE, 0);
+	}
+
+	// Create earthquake effect
+	edict_t* earthquake = G_Spawn();
+	if (earthquake)
+	{
+		earthquake->classname = "target_earthquake";
+		earthquake->spawnflags = brandom()
+			? SPAWNFLAGS_EARTHQUAKE_SILENT
+			: SPAWNFLAGS_EARTHQUAKE_ONE_SHOT;
+		earthquake->speed = 250; // Earthquake severity
+		earthquake->count = 6; // Duration in seconds
+
+		SP_target_earthquake(earthquake);
+		earthquake->use(earthquake, world, world);
+
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("HORDE: Applied {} wave special effects (sound + earthquake)\n",
+				is_gekk_wave ? "Inferno Gekk" : "Trespasser");
+		}
+	}
+}
+
 // Restore normal fog after boss death and turn off flashlights
 void RestoreFog()
 {
