@@ -31,7 +31,7 @@ void UpdateChaseCam(edict_t* ent)
 
 	// Auto eyecam: determine if we should temporarily switch to first-person
 	bool force_eyecam = false;
-	if (ent->client->auto_eyecam)
+	if (ent->client->pers.auto_eyecam)
 	{
 		// Pre-calculate third-person camera position to check space
 		vec3_t test_start, test_angles, test_forward, test_goal;
@@ -72,7 +72,7 @@ void UpdateChaseCam(edict_t* ent)
 	}
 
 	// Q2Eaks eyecam handling
-	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
+	if (sv_eyecam->integer && (ent->client->pers.use_eyecam || force_eyecam))
 	{
 		// Hide the chased player's model completely in first-person
 		targ->svflags |= SVF_NOCLIENT;
@@ -207,7 +207,7 @@ void UpdateChaseCam(edict_t* ent)
 	else
 	{
 		// Eyecam mode: use target's view angles directly
-		if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
+		if (sv_eyecam->integer && (ent->client->pers.use_eyecam || force_eyecam))
 		{
 			ent->client->ps.viewangles = targ->client->v_angle;
 			ent->client->v_angle = targ->client->v_angle;
@@ -233,7 +233,7 @@ void UpdateChaseCam(edict_t* ent)
 
 	// In eyecam mode: display target's view but allow spectator's mouse to update cmd_angles
 	// This enables dynamic escape: spectator rotates mouse → next frame finds clearance → pops to third-person
-	if (sv_eyecam->integer && (ent->client->use_eyecam || force_eyecam))
+	if (sv_eyecam->integer && (ent->client->pers.use_eyecam || force_eyecam))
 	{
 		// Sync delta_angles to target so displayed view matches target
 		ent->client->ps.pmove.delta_angles = targ->client->v_angle - ent->client->resp.cmd_angles;

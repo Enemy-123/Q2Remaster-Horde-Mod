@@ -1008,7 +1008,7 @@ void Drop_PowerArmor(edict_t* ent, gitem_t* item)
 bool Entity_IsVisibleToPlayer(edict_t* ent, edict_t* player)
 {
 	// Si el jugador está usando eyecam y la entidad es su objetivo, hacerlo invisible
-	if (player->client->use_eyecam && ent == player->client->chase_target)
+	if (player->client->pers.use_eyecam && ent == player->client->chase_target)
 		return false;
 	// Si la entidad es un cliente, siempre visible
 	else if (ent->client)

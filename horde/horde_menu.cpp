@@ -569,6 +569,11 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 		Q_strlcpy(ctfgame.elevel, "horde_mode", sizeof(ctfgame.elevel));
 		CTFBeginElection(ent, ELECT_COOP, "Switch to Horde Mode?");
 	}
+	else if (strcmp(selected_text, "Extend Time") == 0) {
+		// Start manual vote to extend map time
+		ctfgame.automatic_vote = false; // Mark as manual vote
+		CTFBeginElection(ent, ELECT_TIME, "Extend map time by 30 minutes?");
+	}
 	else if (strcmp(selected_text, "Back to Horde Menu") == 0) {
 		OpenHordeMenu(ent);
 	}
@@ -639,6 +644,12 @@ void OpenMapCategoryMenu(edict_t* ent) {
 		idx++;
 
 		Q_strlcpy(map_category_menu[idx].text, "Vote Cooperative Mode (Beta)", sizeof(map_category_menu[idx].text));
+		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
+		map_category_menu[idx].SelectFunc = MapCategoryHandler;
+		idx++;
+
+		// Add Extend Time option
+		Q_strlcpy(map_category_menu[idx].text, "Extend Time", sizeof(map_category_menu[idx].text));
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
 		idx++;
