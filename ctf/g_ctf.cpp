@@ -3175,6 +3175,10 @@ void CTFObserver(edict_t* ent)
 	ent->client->ps.gunindex = 0;
 	ent->client->ps.gunskin = 0;
 
+	// Initialize spectator camera settings
+	ent->client->auto_eyecam = true;
+	ent->client->use_eyecam = false;
+
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(ent);
  	//CleanupPlayerLaserManager(ent);
