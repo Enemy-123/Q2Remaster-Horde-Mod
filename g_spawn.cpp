@@ -1555,32 +1555,24 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 			return false;
 		}
 
-		// Try loading .ent file - first with full path, then with basename only
-		fs::path entfile_with_path = fs::path(modulePath.data()).parent_path() / "maps" /
-			fmt::format("{}.ent", mapname);
-
-		FILE* fp = fopen(entfile_with_path.string().c_str(), "rb");
-
-		if (!fp) {
-			// If not found with full path, try with just the basename (e.g., "ctf/mgu4trial" -> "mgu4trial")
-			std::string_view map_basename = mapname;
-			if (size_t last_slash = map_basename.find_last_of("/\\"); last_slash != std::string_view::npos) {
-				map_basename = map_basename.substr(last_slash + 1);
-				fs::path entfile_basename = fs::path(modulePath.data()).parent_path() / "maps" /
-					fmt::format("{}.ent", map_basename);
-				fp = fopen(entfile_basename.string().c_str(), "rb");
-				if (fp) {
-					outFilename = entfile_basename.string();
-				}
-			}
-		} else {
-			outFilename = entfile_with_path.string();
+		// Extract basename from mapname (e.g., "q64/dm3" -> "dm3")
+		std::string_view map_basename = mapname;
+		if (size_t last_slash = map_basename.find_last_of("/\\"); last_slash != std::string_view::npos) {
+			map_basename = map_basename.substr(last_slash + 1);
 		}
 
+		// Load .ent file from ents folder using basename only
+		fs::path entfile_path = fs::path(modulePath.data()).parent_path() / "ents" /
+			fmt::format("{}.ent", map_basename);
+
+		FILE* fp = fopen(entfile_path.string().c_str(), "rb");
+
 		if (!fp) {
-			gi.Com_PrintFmt("Failed to open entity file: {}\n", outFilename);
+			gi.Com_PrintFmt("Failed to open entity file: {}\n", entfile_path.string());
 			return false;
 		}
+
+		outFilename = entfile_path.string();
 
 		struct FileGuard {
 			FILE* fp;
