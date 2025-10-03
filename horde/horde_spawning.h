@@ -65,10 +65,10 @@ struct SpawnPointsSoA {
 
 // Cached spawn point validation data
 struct CachedSpawnPointData {
-    uint16_t index;
-    gtime_t last_validation_time;
-    bool last_validation_result;
-    vec3_t last_validation_origin;
+    uint16_t index = 0;
+    gtime_t last_validation_time = 0_sec;
+    bool last_validation_result = false;
+    vec3_t last_validation_origin = vec3_origin;
 
     // Reset cache when position changes
     void InvalidateIfMoved(const vec3_t& current_origin) {

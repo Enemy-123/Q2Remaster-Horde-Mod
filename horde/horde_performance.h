@@ -293,10 +293,10 @@ inline gtime_t GetTeslaThinkTimeWithJitter() {
 // ============================================================================
 class DistanceCache {
     struct CacheEntry {
-        vec3_t pos1;
-        vec3_t pos2;
-        float distance_sq;
-        gtime_t timestamp;
+        vec3_t pos1 = vec3_origin;
+        vec3_t pos2 = vec3_origin;
+        float distance_sq = 0.0f;
+        gtime_t timestamp = 0_sec;
     };
 
     static constexpr size_t CACHE_SIZE = 256;
@@ -352,10 +352,10 @@ inline DistanceCache g_distance_cache;
 // ============================================================================
 class VisibilityCache {
 	struct CacheEntry {
-		int entity_id1;
-		int entity_id2;
-		bool visible;
-		gtime_t timestamp;
+		int entity_id1 = 0;
+		int entity_id2 = 0;
+		bool visible = false;
+		gtime_t timestamp = 0_sec;
 	};
 
 	static constexpr size_t CACHE_SIZE = 256;

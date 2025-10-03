@@ -5039,9 +5039,9 @@ private:
 
     // Map-size-aware distance scaling
     struct ScaledDistances {
-        float min_radius;
-        float max_radius;
-        float line_of_sight_tolerance;
+        float min_radius = 0.0f;
+        float max_radius = 0.0f;
+        float line_of_sight_tolerance = 0.0f;
     };
 
     ScaledDistances GetScaledDistances(const horde::MapSize& mapSize, int fallback_level = 0) const {
@@ -5293,11 +5293,11 @@ private:
 
     // FIXED: LRU cache with bounded size
     struct MonsterTypeCache {
-        horde::MonsterTypeID type_id;
-        vec3_t predicted_mins;
-        vec3_t predicted_maxs;
-        bool is_flying;
-        gtime_t last_access; // For LRU eviction
+        horde::MonsterTypeID type_id = horde::MonsterTypeID::UNKNOWN;
+        vec3_t predicted_mins = vec3_origin;
+        vec3_t predicted_maxs = vec3_origin;
+        bool is_flying = false;
+        gtime_t last_access = 0_sec; // For LRU eviction
     };
     
     static constexpr size_t MAX_CACHE_SIZE = 32;
@@ -5711,12 +5711,8 @@ edict_t* Horde_SpawnMonster(
     int32_t currentLevel,
     float champion_chance); // Already shown above
 
-void VerifyEntityProperties();
-
 void Horde_RunFrame()
 {
-
-//	VerifyEntityProperties();
 
 	if (level.intermissiontime) {
 		return;

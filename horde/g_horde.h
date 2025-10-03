@@ -256,8 +256,8 @@ struct WeightedSelection {
 	static constexpr size_t MAX_ITEMS = 32;
 
 	struct ItemEntry {
-		const T* item;
-		float weight;
+		const T* item = nullptr;
+		float weight = 0.0f;
 	};
 
 	// Pre-allocate fixed array instead of using dynamic memory
