@@ -12,6 +12,16 @@
         "plasma": 100
       }
     },
+    "turret": {
+      "health": 150,
+      "armor_power": 50,
+      "armor_type": "combat",
+      "weapon_damage": {
+        "blaster": 6,
+        "machinegun": 3,
+        "rocket": 50
+      }
+    },
     "soldier_light": {
       "health": 60,
       "power_armor_power": 22,
@@ -610,6 +620,14 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "blaster": 15,
+        "railgun": 50
+      }
+    },
+    "widow1": {
+      "health": 1750,
+      "power_armor_power": 500,
+      "power_armor_type": "shield",
+      "weapon_damage": {
         "railgun": 50
       }
     },

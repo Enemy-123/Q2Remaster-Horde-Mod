@@ -1327,18 +1327,20 @@ void SP_monster_widow1(edict_t* self) {
 	self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
 	self->mins = { -40, -40, 0 };
 	self->maxs = { 40, 40, 144 };
-	self->health = 1750;
-	if (G_IsCooperative())
-		self->health += 500 * skill->integer;
+
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	self->health = self->max_health = (config ? config->health : 1750) * st.health_multiplier;
 	self->gib_health = -5000;
 	self->mass = 1500;
 
-	if (skill->integer == 3) {
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 500;
-	}
 	self->s.scale = 0.6f;
 	self->yaw_speed = 40;
 
