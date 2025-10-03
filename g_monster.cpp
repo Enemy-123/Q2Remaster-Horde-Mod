@@ -754,6 +754,10 @@ void M_MoveFrame(edict_t* self)
 					// check for death
 					if (self->svflags & SVF_DEADMONSTER)
 						return;
+
+					// check if endfunc cleared the move
+					if (!move)
+						return;
 				}
 			}
 
