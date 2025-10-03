@@ -262,6 +262,14 @@ struct MonsterWeaponDamage
 	int bfg = 0;
 	int ionripper = 0;
 	int hyperblaster = 0;
+	int tracker = 0;
+	int plasma = 0;
+	int dabeam = 0;
+	int heatbeam = 0;
+	int melee = 0;
+	int slam = 0;
+	int lightning = 0;
+	int flechette = 0;
 };
 
 // Monster stats configuration

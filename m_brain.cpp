@@ -290,8 +290,11 @@ void brain_hit_right(edict_t* self)
 		return;
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (damage <= 0) damage = 17;
+
 	vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
-	if (fire_hit(self, aim, irandom(15, 20), 40))
+	if (fire_hit(self, aim, damage, 40))
 		gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
 	else
 		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
@@ -305,8 +308,11 @@ void brain_hit_left(edict_t* self)
 		return;
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (damage <= 0) damage = 17;
+
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
-	if (fire_hit(self, aim, irandom(15, 20), 40))
+	if (fire_hit(self, aim, damage, 40))
 		gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
 	else
 		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec;
@@ -349,8 +355,11 @@ void brain_tentacle_attack(edict_t* self)
 		return;
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (damage <= 0) damage = 17;
+
 	vec3_t  const aim = { MELEE_DISTANCE, 0, 8 };
-	if (fire_hit(self, aim, irandom(10, 15), -600))
+	if (fire_hit(self, aim, damage * 0.7, -600))
 		self->count = 1;
 	else
 		self->monsterinfo.melee_debounce_time = level.time + 3_sec;

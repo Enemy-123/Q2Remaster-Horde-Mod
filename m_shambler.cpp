@@ -462,7 +462,9 @@ void ShamblerCastLightning(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.multicast(start, MULTICAST_PVS, false);
 
-	fire_bullet(self, start, dir, irandom(8, 12), 15 * M_DamageModifier(self), 0, 0, MOD_TESLA);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "lightning");
+	if (damage <= 0) damage = 10;
+	fire_bullet(self, start, dir, damage, 15 * M_DamageModifier(self), 0, 0, MOD_TESLA);
 }
 
 
@@ -693,8 +695,11 @@ void sham_smash10(edict_t* self)
 	if (!CanDamage(self->enemy, self))
 		return;
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (damage <= 0) damage = (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 45 : 115;
+
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	const bool hit = fire_hit(self, aim, (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 45 : irandom(110, 120), 120); // Slower attack
+	const bool hit = fire_hit(self, aim, damage, 120); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
@@ -715,8 +720,12 @@ void ShamClaw(edict_t* self)
 	if (!CanDamage(self->enemy, self))
 		return;
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (damage <= 0) damage = (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 45 : 115;
+	damage = damage * 65 / 100; // Normal attack is ~65% of heavy attack
+
 	const vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	const bool hit = fire_hit(self, aim, (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 30 : irandom(70, 80), 80); // Slower attack
+	const bool hit = fire_hit(self, aim, damage, 80); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);

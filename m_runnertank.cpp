@@ -465,6 +465,9 @@ void runnertankRail(edict_t* self)
 		return; // Stop immediately if the enemy is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
+	if (damage <= 0) damage = 45;
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
@@ -518,7 +521,7 @@ void runnertankRail(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.2f, &dir, nullptr);
 	}
 
-	monster_fire_railgun(self, start, dir, 45, 100, flash_number);
+	monster_fire_railgun(self, start, dir, damage, 100, flash_number);
 }
 void runnertankStrike(edict_t* self)
 {
@@ -540,9 +543,11 @@ void runnertankStrike(edict_t* self)
 		gi.WritePosition(tr.endpos);
 		gi.WriteDir({ 0.f, 0.f, 1.f });
 		gi.multicast(tr.endpos, MULTICAST_PHS, false);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
+		if (damage <= 0) damage = 75;
 		void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 		// Daño radial
-		T_SlamRadiusDamage(tr.endpos, self, self, 75, 450.f, self, 165, MOD_TANK_PUNCH);
+		T_SlamRadiusDamage(tr.endpos, self, self, damage, 450.f, self, 165, MOD_TANK_PUNCH);
 
 	}
 }
@@ -554,6 +559,9 @@ void runnertankRocket(edict_t* self) {
 	{
 		return; // Stop immediately if the enemy is invalid.
 	}
+
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = 50;
 
 	// Determinar flash number basado en el frame actual
 	monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>(
@@ -609,18 +617,18 @@ void runnertankRocket(edict_t* self) {
 	if (blindfire) {
 		if (M_AdjustBlindfireTarget(self, start, target, right, dir)) {
 			if (self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING))
-				monster_fire_heat(self, start, dir, 50, rocket_speed, flash_number, self->accel);
+				monster_fire_heat(self, start, dir, damage, rocket_speed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, rocket_speed, flash_number);
+				monster_fire_rocket(self, start, dir, damage, rocket_speed, flash_number);
 		}
 	}
 	else {
 		trace_t const trace = gi.traceline(start, target, self, MASK_PROJECTILE);
 		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP) {
 			if (self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING))
-				monster_fire_heat(self, start, dir, 50, rocket_speed, flash_number, self->accel);
+				monster_fire_heat(self, start, dir, damage, rocket_speed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, rocket_speed, flash_number);
+				monster_fire_rocket(self, start, dir, damage, rocket_speed, flash_number);
 		}
 	}
 }
@@ -631,6 +639,9 @@ void runnertankPlasmaGun(edict_t* self) {
 	{
 		return; // Stop immediately if the target is invalid.
 	}
+
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
+	if (damage <= 0) damage = 35;
 
 	// Verificar ángulo de disparo
 	vec3_t initial_forward;
@@ -649,7 +660,6 @@ void runnertankPlasmaGun(edict_t* self) {
 	constexpr float SPREAD = 0.08f;
 	constexpr float PREDICTION_TIME = 0.2f;
 	constexpr float PROJECTILE_SPEED = 700.0f;
-	constexpr int PLASMA_DAMAGE = 35;
 	constexpr float PLASMA_RADIUS = 40.0f;
 
 	// Calcular flash number basado en el frame
@@ -688,7 +698,7 @@ void runnertankPlasmaGun(edict_t* self) {
 		PREDICTION_TIME, &dir, nullptr);
 
 	// Disparar el proyectil de plasma
-	fire_plasma(self, start, dir, PLASMA_DAMAGE, PROJECTILE_SPEED,
+	fire_plasma(self, start, dir, damage, PROJECTILE_SPEED,
 		PLASMA_RADIUS, PLASMA_RADIUS);
 
 	// Actualizar posición del último disparo

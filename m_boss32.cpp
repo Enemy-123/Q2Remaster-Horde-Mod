@@ -513,8 +513,10 @@ void makronBFG(edict_t *self)
 	vec[2] += self->enemy->viewheight;
 	dir = vec - start;
 	dir.normalize();
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "bfg");
+	if (damage <= 0) damage = (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) ? 40 : 15;
 	gi.sound(self, CHAN_VOICE, sound_attack_bfg, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) ? 40 : 15, 300, 100, 300, MZ2_MAKRON_BFG);
+	monster_fire_bfg(self, start, dir, damage, 300, 100, 300, MZ2_MAKRON_BFG);
 }
 
 mframe_t makron_frames_attack3boss[] = {
@@ -663,7 +665,9 @@ void MakronRailgun(edict_t *self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 50, 100, MZ2_MAKRON_RAILGUN_1);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
+	if (damage <= 0) damage = 50;
+	monster_fire_railgun(self, start, dir, damage, 100, MZ2_MAKRON_RAILGUN_1);
 }
 
 void MakronHyperblaster(edict_t* self)
@@ -697,10 +701,13 @@ void MakronHyperblaster(edict_t* self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	if (damage <= 0) damage = 35;
+
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON))
-		monster_fire_blaster2(self, start, forward, 35, 1300, flash_number, EF_BLASTER);
+		monster_fire_blaster2(self, start, forward, damage, 1300, flash_number, EF_BLASTER);
 	else
-		monster_fire_blaster_bolt(self, start, forward, 35, 2300, flash_number, EF_HYPERBLASTER);
+		monster_fire_blaster_bolt(self, start, forward, damage, 2300, flash_number, EF_HYPERBLASTER);
 }
 
 PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void

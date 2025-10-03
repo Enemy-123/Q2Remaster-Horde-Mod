@@ -207,9 +207,12 @@ void CarrierGrenade(edict_t *self)
 	else if (aim[2] < -0.5f)
 		aim[2] = -0.5f;
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 45;
+
 	flash_number = MZ2_GUNNER_GRENADE_1;
-	monster_fire_grenade(self, start, aim, self->monsterinfo.IS_BOSS ? 50 : 45, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
-	monster_fire_grenade(self, start, aim, self->monsterinfo.IS_BOSS ? 50 : 45, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, damage, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, damage, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 void CarrierPredictiveRocket(edict_t *self)
@@ -225,25 +228,28 @@ void CarrierPredictiveRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
+
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_1], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.3f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 
@@ -272,6 +278,9 @@ void CarrierRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
+
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_1], forward, right);
 	vec = self->enemy->s.origin;
@@ -280,7 +289,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
@@ -289,7 +298,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
@@ -298,7 +307,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
@@ -308,7 +317,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 void carrier_firebullet_right(edict_t *self)
@@ -327,10 +336,13 @@ void carrier_firebullet_right(edict_t *self)
 	else
 		flashnum = MZ2_CARRIER_MACHINEGUN_R1;
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 6 : 5;
+
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flashnum], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.3f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
+	monster_fire_bullet(self, start, forward, damage, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
 }
 
 void carrier_firebullet_left(edict_t *self)
@@ -349,10 +361,13 @@ void carrier_firebullet_left(edict_t *self)
 	else
 		flashnum = MZ2_CARRIER_MACHINEGUN_L1;
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 6 : 5;
+
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flashnum], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.3f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
+	monster_fire_bullet(self, start, forward, damage, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
 }
 
 void CarrierMachineGun(edict_t *self)
@@ -702,7 +717,9 @@ void CarrierRail(edict_t *self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, 100, MZ2_CARRIER_RAILGUN);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 40;
+	monster_fire_railgun(self, start, dir, damage, 100, MZ2_CARRIER_RAILGUN);
 	self->monsterinfo.attack_finished = level.time + RAIL_FIRE_TIME;
 }
 

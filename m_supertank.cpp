@@ -273,6 +273,9 @@ static void supertankGrenade(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+	if (damage <= 0) damage = 50;
+
 	vec3_t forward, right;
 	vec3_t start;
 	monster_muzzleflash_id_t flash_number;
@@ -308,7 +311,7 @@ static void supertankGrenade(edict_t* self)
 			vec3_t dir = target - start;
 			dir.normalize();
 
-			monster_fire_grenade(self, start, dir, 50, speed, flash_number, 0.f, 2.f);
+			monster_fire_grenade(self, start, dir, damage, speed, flash_number, 0.f, 2.f);
 			return;
 		}
 		else {
@@ -317,7 +320,7 @@ static void supertankGrenade(edict_t* self)
 			if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
 				continue;
 
-			monster_fire_grenade(self, start, forward, 50, speed, flash_number, 0.f, 0.f);
+			monster_fire_grenade(self, start, forward, damage, speed, flash_number, 0.f, 0.f);
 			break;
 		}
 	}
@@ -522,7 +525,9 @@ void supertankRocket(edict_t* self)
 		vec[2] += self->enemy->viewheight;
 		dir = vec - start;
 		dir.normalize();
-		monster_fire_heat(self, start, dir, 40, 980, flash_number, 0.075f);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+		if (damage <= 0) damage = 40;
+		monster_fire_heat(self, start, dir, damage, 980, flash_number, 0.075f);
 	}
 	else
 	{

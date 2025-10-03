@@ -628,6 +628,9 @@ void TankGrenades(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+	if (damage <= 0) damage = 50;
+
 	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
@@ -654,7 +657,7 @@ void TankGrenades(edict_t* self)
 		aim += right * (crandom() * 0.02f);  // Pequeño ajuste aleatorio
 		aim.normalize();
 		// FIX: Round all float arguments to integers
-		monster_fire_grenade(self, start, aim, 50, lroundf(speed), MZ2_UNUSED_0,
+		monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
 			lroundf(crandom_open() * 10.0f), lroundf(200.f + (crandom_open() * 10.0f)));
 	}
 	// Para distancias largas o mortero, mantener la lógica original
@@ -666,11 +669,11 @@ void TankGrenades(edict_t* self)
 
 		if (M_CalculatePitchToFire(self, aimpoint, start, aim, speed, 2.5f, is_mortar))
 			// FIX: Round all float arguments to integers
-			monster_fire_grenade(self, start, aim, 50, lroundf(speed), MZ2_UNUSED_0,
+			monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
 				lroundf(crandom_open() * 10.0f), lroundf(frandom() * 10.f));
 		else
 			// FIX: Round all float arguments to integers
-			monster_fire_grenade(self, start, aim, 50, lroundf(speed), MZ2_UNUSED_0,
+			monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
 				lroundf(crandom_open() * 10.0f), lroundf(200.f + (crandom_open() * 10.0f)));
 	}
 
@@ -682,6 +685,9 @@ void TankBlaster(edict_t* self)
 	// Basic enemy check - blindfire logic needs to execute
 	if (!M_HasEnemy(self))
 		return;
+
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	if (damage <= 0) damage = 30;
 
 	vec3_t forward, right;
 	vec3_t dir;
@@ -749,7 +755,7 @@ void TankBlaster(edict_t* self)
 		fire_bullet(self, bullet_start, dir, irandom(12, 17), 18, 0, 0, MOD_TESLA);
 	}
 	else
-		monster_fire_blaster2(self, start, dir, 30, 950, flash_number, EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, damage, 950, flash_number, EF_BLASTER);
 }
 
 void TankStrike(edict_t* self)
@@ -768,9 +774,11 @@ void TankStrike(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir({ 0.f, 0.f, 1.f });
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 175 : 75;
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
-	T_SlamRadiusDamage(tr.endpos, self, self, self->monsterinfo.IS_BOSS ? 175 : 75, 450.f, self, 185, MOD_TANK_PUNCH);
+	T_SlamRadiusDamage(tr.endpos, self, self, damage, 450.f, self, 185, MOD_TANK_PUNCH);
 }
 
 void TankRocket(edict_t* self)
@@ -778,6 +786,9 @@ void TankRocket(edict_t* self)
 	// Basic enemy check - blindfire logic needs to execute
 	if (!M_HasEnemy(self))
 		return;
+
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = 50;
 
     vec3_t                   forward, right;
     vec3_t                   start;
@@ -862,9 +873,9 @@ void TankRocket(edict_t* self)
         {
              // --- self->enemy is guaranteed valid here for spawnflags check ---
              if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
+                monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
             else
-                monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
+                monster_fire_rocket(self, start, dir, damage, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
         }
     }
     else
@@ -875,9 +886,9 @@ void TankRocket(edict_t* self)
         {
             // --- self->enemy is guaranteed valid here for spawnflags check ---
             if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-                monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
+                monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
             else
-                 monster_fire_rocket(self, start, dir, 50, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
+                 monster_fire_rocket(self, start, dir, damage, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
         }
     }
 }
@@ -888,6 +899,9 @@ void TankMachineGun(edict_t* self)
 	{
 		return; // Stop immediately if the target is invalid.
 	}
+
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	if (damage <= 0) damage = 6;
 
 	// Aumenta velocidad de giro
 	vec3_t dir = self->enemy->s.origin - self->s.origin;
@@ -920,7 +934,7 @@ void TankMachineGun(edict_t* self)
 	AngleVectors(dir, forward, nullptr, nullptr);
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER) || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS) {
-		monster_fire_flechette(self, start, forward, 20,
+		monster_fire_flechette(self, start, forward, damage,
 			self->monsterinfo.IS_BOSS ? 1150 : 700,
 			flash_number);
 
@@ -928,12 +942,12 @@ void TankMachineGun(edict_t* self)
 		AngleVectors(vectoangles(forward), nullptr, &right_offset, nullptr);
 		vec3_t forward_right = forward + (right_offset * 0.05f);
 		forward_right.normalize();
-		monster_fire_flechette(self, start, forward_right, 20,
+		monster_fire_flechette(self, start, forward_right, damage,
 			self->monsterinfo.IS_BOSS ? 1150 : 700,
 			flash_number);
 	}
 	else {
-		monster_fire_bullet(self, start, forward, 20, 8,
+		monster_fire_bullet(self, start, forward, damage, 8,
 			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD,
 			flash_number);
 	}
@@ -1894,6 +1908,9 @@ MONSTERINFO_SETSKIN(tank_vanilla_setskin) (edict_t* self) -> void
 
 void tank_vanillaBlaster(edict_t* self)
 {
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	if (damage <= 0) damage = 30;
+
 	vec3_t					 forward, right;
 	vec3_t					 start;
 	vec3_t					 dir;
@@ -1929,7 +1946,7 @@ void tank_vanillaBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	monster_fire_blaster(self, start, dir, 30, 1230, flash_number, EF_BLASTER);
+	monster_fire_blaster(self, start, dir, damage, 1230, flash_number, EF_BLASTER);
 }
 
 void tank_vanillaStrike(edict_t* self)
@@ -1948,9 +1965,11 @@ void tank_vanillaStrike(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir({ 0.f, 0.f, 1.f });
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
+	if (damage <= 0) damage = 75;
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
-	T_SlamRadiusDamage(tr.endpos, self, self, 75, 450.f, self, 165, MOD_TANK_PUNCH);
+	T_SlamRadiusDamage(tr.endpos, self, self, damage, 450.f, self, 165, MOD_TANK_PUNCH);
 
 	// Check if we have slots left to spawn monsters
 	if (self->monsterinfo.monster_used <= 3)
@@ -1962,6 +1981,9 @@ void tank_vanillaRocket(edict_t* self)
 	// Basic enemy check - blindfire logic needs to execute
 	if (!M_HasEnemy(self))
 		return;
+
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = 50;
 
 	vec3_t					 forward, right;
 	vec3_t					 start;
@@ -2046,9 +2068,9 @@ void tank_vanillaRocket(edict_t* self)
 		if (M_AdjustBlindfireTarget2(self, start, vec, right, dir))
 		{
 			if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING))
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+				monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, flash_number);
+				monster_fire_rocket(self, start, dir, damage, rocketSpeed, flash_number);
 		}
 	}
 	else
@@ -2058,9 +2080,9 @@ void tank_vanillaRocket(edict_t* self)
 		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
 		{
 			if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING))
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+				monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, flash_number);
+				monster_fire_rocket(self, start, dir, damage, rocketSpeed, flash_number);
 		}
 	}
 }
@@ -2071,6 +2093,9 @@ void tank_vanillaMachineGun(edict_t* self)
 	{
 		return; // Stop immediately if the target is invalid.
 	}
+
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	if (damage <= 0) damage = 6;
 
 	vec3_t					 dir;
 	vec3_t					 vec;
@@ -2108,7 +2133,7 @@ void tank_vanillaMachineGun(edict_t* self)
 	AngleVectors(dir, forward, nullptr, nullptr);
 
 	//monster_fire_bullet(self, start, forward, 20, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
-	monster_fire_blaster_bolt(self, start, forward, 20, 1150, flash_number, EF_BLUEHYPERBLASTER);
+	monster_fire_blaster_bolt(self, start, forward, damage, 1150, flash_number, EF_BLUEHYPERBLASTER);
 }
 
 static void tank_vanilla_blind_check(edict_t* self)

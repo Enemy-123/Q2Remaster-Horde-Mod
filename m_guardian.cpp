@@ -258,12 +258,16 @@ void guardian_fire_blaster(edict_t* self)
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN))
 	{
-		monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		if (damage <= 0) damage = 18;
+		monster_fire_blaster(self, start, forward, damage, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
 	}
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR2))
 	{
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
+		if (damage <= 0) damage = 25;
 		// Usar Ionripper para janitor2
-		monster_fire_ionripper(self, start, forward, 25, 950, id, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, forward, damage, 950, id, EF_IONRIPPER);
 	}
 
 	if (self->enemy && self->enemy->health > 0 &&
@@ -423,8 +427,10 @@ static void guardian_grenade(edict_t* self)
 	aim[2] += downwardAdjustment;
 	aim.normalize();
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+	if (damage <= 0) damage = 40;
 	// Disparar la granada
-	fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
+	fire_grenade2(self, start, aim, damage, speed, 2.5_sec, 80, false);
 	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);
 }
 
@@ -441,11 +447,13 @@ void guardian_laser_fire(edict_t* self)
     // --- REFACTORED LOGIC ---
     // 1. Determine the damage value first and store it in a variable.
     //    This is much clearer and avoids the comma operator bug.
-    int damage;
-    if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) {
-        damage = 25;
-    } else {
-        damage = 5; // Assuming this is the fallback for other types like PSX_GUARDIAN
+    int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "dabeam");
+    if (damage <= 0) {
+        if (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) {
+            damage = 25;
+        } else {
+            damage = 5; // Assuming this is the fallback for other types like PSX_GUARDIAN
+        }
     }
 
     // 2. Assign the damage to the power_armor_power field.

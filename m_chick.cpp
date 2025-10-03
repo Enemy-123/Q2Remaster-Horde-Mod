@@ -812,15 +812,18 @@ void ChickRocket(edict_t* self)
 			vec += (right * -10);
 			dir = vec - start;
 			dir.normalize();
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+			if (damage <= 0) damage = 50;
+
 			trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
 			if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
 			{
 				// RAFAEL
 				if (self->s.skinnum > 1)
-					monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
+					monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
 				else
 					// RAFAEL
-					monster_fire_rocket(self, start, dir, 60, rocketSpeed, MZ2_CHICK_ROCKET_1);
+					monster_fire_rocket(self, start, dir, damage + 10, rocketSpeed, MZ2_CHICK_ROCKET_1);
 			}
 			else
 			{
@@ -834,10 +837,10 @@ void ChickRocket(edict_t* self)
 				{
 					// RAFAEL
 					if (self->s.skinnum > 1)
-						monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+						monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
 					else
 						// RAFAEL
-						monster_fire_rocket(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
+						monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1);
 				}
 			}
 		}
@@ -846,12 +849,14 @@ void ChickRocket(edict_t* self)
 	{
 		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
 		{
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+			if (damage <= 0) damage = 50;
 			// RAFAEL
 			if (self->s.skinnum > 1)
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.15f);
+				monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.15f);
 			else
 				// RAFAEL
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
+				monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1);
 		}
 	}
 }

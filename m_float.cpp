@@ -44,6 +44,9 @@ void floater_tracker_fire_blaster(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
+	if (damage <= 0) damage = 8;
+
 	vec3_t start;
 	vec3_t dir;
 	float len;
@@ -66,12 +69,12 @@ void floater_tracker_fire_blaster(edict_t* self)
 		// calc direction to where we targeted
 		dir = self->pos1 - start;
 		dir.normalize();
-		monster_fire_tracker(self, start, dir, 8, 950, self->enemy, MZ2_UNUSED_0);
+		monster_fire_tracker(self, start, dir, damage, 950, self->enemy, MZ2_UNUSED_0);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 9, 860, nullptr, MZ2_UNUSED_0);
+		monster_fire_tracker(self, start, dir, damage + 1, 860, nullptr, MZ2_UNUSED_0);
 	}
 }
 

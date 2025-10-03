@@ -209,8 +209,11 @@ void WidowBlaster(edict_t* self)
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW_BLASTER_SWEEP1];
 		AngleVectors(vec, forward, nullptr, nullptr);
 
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		if (damage <= 0) damage = is_widow1 ? WIDOW1_BLASTER_DAMAGE : WIDOW_BLASTER_DAMAGE;
+		if (!is_widow1) damage *= widow_damage_multiplier;
 		monster_fire_blaster2(self, start, forward,
-			is_widow1 ? WIDOW1_BLASTER_DAMAGE : WIDOW_BLASTER_DAMAGE * widow_damage_multiplier,
+			damage,
 			is_widow1 ? WIDOW1_BLASTER_SPEED : WIDOW_BLASTER_SPEED,
 			flashnum, effect);
 	}
@@ -256,8 +259,11 @@ void WidowBlaster(edict_t* self)
 			AngleVectors(angles, forward, nullptr, nullptr);
 		}
 
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		if (damage <= 0) damage = is_widow1 ? WIDOW1_BLASTER_DAMAGE : WIDOW_BLASTER_DAMAGE;
+		if (!is_widow1) damage *= widow_damage_multiplier;
 		monster_fire_blaster2(self, start, forward,
-			is_widow1 ? WIDOW1_BLASTER_DAMAGE : WIDOW_BLASTER_DAMAGE * widow_damage_multiplier,
+			damage,
 			is_widow1 ? WIDOW1_BLASTER_SPEED : WIDOW_BLASTER_SPEED,
 			flashnum, effect);
 	}
@@ -531,8 +537,11 @@ void WidowRail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
+	if (damage <= 0) damage = is_widow1 ? WIDOW1_RAIL_DAMAGE : WIDOW_RAIL_DAMAGE;
+	if (!is_widow1) damage *= widow_damage_multiplier;
 	monster_fire_railgun(self, start, dir,
-		is_widow1 ? WIDOW1_RAIL_DAMAGE : WIDOW_RAIL_DAMAGE * widow_damage_multiplier,
+		damage,
 		100, flash);
 
 	self->timestamp = level.time + RAIL_COOLDOWN;

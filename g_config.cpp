@@ -536,17 +536,25 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 		return 0;
 
 	// Use static map for O(1) lookup instead of strcmp chain
-	using WeaponDamageGetter = int (WeaponDamageConfig::*);
+	using WeaponDamageGetter = int MonsterWeaponDamage::*;
 	static const std::unordered_map<std::string_view, WeaponDamageGetter> weapon_map = {
-		{"blaster", &WeaponDamageConfig::blaster},
-		{"shotgun", &WeaponDamageConfig::shotgun},
-		{"machinegun", &WeaponDamageConfig::machinegun},
-		{"grenade", &WeaponDamageConfig::grenade},
-		{"rocket", &WeaponDamageConfig::rocket},
-		{"railgun", &WeaponDamageConfig::railgun},
-		{"bfg", &WeaponDamageConfig::bfg},
-		{"ionripper", &WeaponDamageConfig::ionripper},
-		{"hyperblaster", &WeaponDamageConfig::hyperblaster}
+		{"blaster", &MonsterWeaponDamage::blaster},
+		{"shotgun", &MonsterWeaponDamage::shotgun},
+		{"machinegun", &MonsterWeaponDamage::machinegun},
+		{"grenade", &MonsterWeaponDamage::grenade},
+		{"rocket", &MonsterWeaponDamage::rocket},
+		{"railgun", &MonsterWeaponDamage::railgun},
+		{"bfg", &MonsterWeaponDamage::bfg},
+		{"ionripper", &MonsterWeaponDamage::ionripper},
+		{"hyperblaster", &MonsterWeaponDamage::hyperblaster},
+		{"tracker", &MonsterWeaponDamage::tracker},
+		{"plasma", &MonsterWeaponDamage::plasma},
+		{"dabeam", &MonsterWeaponDamage::dabeam},
+		{"heatbeam", &MonsterWeaponDamage::heatbeam},
+		{"melee", &MonsterWeaponDamage::melee},
+		{"slam", &MonsterWeaponDamage::slam},
+		{"lightning", &MonsterWeaponDamage::lightning},
+		{"flechette", &MonsterWeaponDamage::flechette}
 	};
 
 	auto it = weapon_map.find(weapon_name);

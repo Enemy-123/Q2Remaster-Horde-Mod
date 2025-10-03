@@ -118,7 +118,9 @@ void Widow2Beam(edict_t* self)
 		target[2] += self->enemy->viewheight - 10;
 		forward = target - start;
 		forward.normalize();
-		monster_fire_heatbeam(self, start, forward, vec3_origin, 10, 50, flashnum);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heatbeam");
+		if (damage <= 0) damage = 10;
+		monster_fire_heatbeam(self, start, forward, vec3_origin, damage, 50, flashnum);
 	}
 	else if ((self->s.frame >= FRAME_spawn04) && (self->s.frame <= FRAME_spawn14))
 	{
@@ -134,7 +136,9 @@ void Widow2Beam(edict_t* self)
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW2_BEAM_SWEEP_1];
 
 		AngleVectors(vec, forward, nullptr, nullptr);
-		monster_fire_heatbeam(self, start, forward, vec3_origin, 10, 50, flashnum);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heatbeam");
+		if (damage <= 0) damage = 10;
+		monster_fire_heatbeam(self, start, forward, vec3_origin, damage, 50, flashnum);
 	}
 	else
 	{
@@ -394,7 +398,9 @@ void WidowDisrupt(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 20, 900, self->enemy, MZ2_WIDOW_DISRUPTOR);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
+		if (damage <= 0) damage = 20;
+		monster_fire_tracker(self, start, dir, damage, 900, self->enemy, MZ2_WIDOW_DISRUPTOR);
 	}
 	else
 	{

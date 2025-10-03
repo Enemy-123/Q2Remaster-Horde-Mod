@@ -1308,15 +1308,18 @@ void gm_arachnid_rockets(edict_t* self)
     trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
     if (blindfire)
     {
+        int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+        if (damage <= 0) damage = 60;
+
         // blindfire has different fail criteria for the trace
         if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
         {
             // RAFAEL
             if (self->s.skinnum > 1)
-                monster_fire_heat(self, start, dir, 60, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+                monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
             else
                 // RAFAEL
-                monster_fire_rocket(self, start, dir, 60, rocketSpeed, MZ2_CHICK_ROCKET_1);
+                monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1);
         }
         else
         {
@@ -1327,7 +1330,7 @@ void gm_arachnid_rockets(edict_t* self)
             trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
             if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
             {
-                monster_fire_heat(self, start, dir, 60, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+                monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
             }
             else
             {
@@ -1338,7 +1341,7 @@ void gm_arachnid_rockets(edict_t* self)
                 trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
                 if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
                 {
-                    monster_fire_heat(self, start, dir, 60, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+                    monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
                 }
             }
         }
@@ -1347,7 +1350,9 @@ void gm_arachnid_rockets(edict_t* self)
     {
         if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
         {
-            monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
+            int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+            if (damage <= 0) damage = 50;
+            monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
         }
     }
 }

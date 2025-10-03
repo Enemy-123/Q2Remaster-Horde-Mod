@@ -61,25 +61,28 @@ void Boss2PredictiveRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 40;
+
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, -0.10f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, -0.05f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, 0.05f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, 0.10f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket(edict_t *self)
@@ -105,6 +108,9 @@ void Boss2Rocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 28;
+
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right);
 	vec = self->enemy->s.origin;
@@ -113,7 +119,7 @@ void Boss2Rocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 820, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, damage, 820, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
@@ -122,7 +128,7 @@ void Boss2Rocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 770, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, damage, 770, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
@@ -131,7 +137,7 @@ void Boss2Rocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 670, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, damage, 670, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
@@ -141,7 +147,7 @@ void Boss2Rocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 620, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, damage, 620, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket64(edict_t* self)
@@ -184,7 +190,9 @@ void Boss2Rocket64(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 35 : 25, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 35 : 25;
+	monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
 }
 
 void boss2_firebullet_right(edict_t *self)
@@ -337,13 +345,16 @@ void Boss2HyperBlaster(edict_t *self)
 	forward = target - start;
 	forward.normalize();
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	if (damage <= 0) damage = 5;
+
 	if (!self->monsterinfo.IS_BOSS)
 	{
-		monster_fire_blaster(self, start, forward, 5, 1350, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+		monster_fire_blaster(self, start, forward, damage, 1350, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
 	else
 	{
-		monster_fire_blaster_bolt(self, start, forward, 8, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+		monster_fire_blaster_bolt(self, start, forward, damage + 3, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
 }
 

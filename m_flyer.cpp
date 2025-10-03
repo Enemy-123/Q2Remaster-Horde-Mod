@@ -370,6 +370,9 @@ void flyer_rocket(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	if (damage <= 0) damage = 35;
+
 	vec3_t	forward;
 	vec3_t	start, end, dir;
 	float	dist, chance;
@@ -427,7 +430,7 @@ void flyer_rocket(edict_t* self)
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
 			if (dist * trace.fraction > 72)
-				monster_fire_rocket(self, start, dir, 35, rocketSpeed, MZ2_TURRET_ROCKET);
+				monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_TURRET_ROCKET);
 		}
 	}
 }
@@ -547,6 +550,9 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
+	if (damage <= 0) damage = 4;
+
 	vec3_t	  start;
 	vec3_t	  forward, right;
 	vec3_t	  end;
@@ -563,7 +569,7 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster_bolt(self, start, forward, 4, 1150, flash_number, EF_HYPERBLASTER, 0);
+	monster_fire_blaster_bolt(self, start, forward, damage, 1150, flash_number, EF_HYPERBLASTER, 0);
 }
 
 void flyer_fireleft(edict_t* self)
@@ -975,12 +981,15 @@ void flyer_laser_on(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "dabeam");
+	if (damage <= 0) damage = 3;
+
 	// Sonido de láser
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1, ATTN_NORM, 0);
 
 	// Disparar ambos láseres
-	monster_fire_dabeam(self, 3, false, flyer_left_laser_update);
-	monster_fire_dabeam(self, 3, true, flyer_right_laser_update);
+	monster_fire_dabeam(self, damage, false, flyer_left_laser_update);
+	monster_fire_dabeam(self, damage, true, flyer_right_laser_update);
 }
 
 void flyer_laser_off(edict_t* self)

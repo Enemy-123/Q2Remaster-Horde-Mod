@@ -157,6 +157,9 @@ void GladiatorGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
+	if (damage <= 0) damage = 80;
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -168,7 +171,7 @@ void GladiatorGun(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 80, 100, MZ2_GLADIATOR_RAILGUN_1);
+	monster_fire_railgun(self, start, dir, damage, 100, MZ2_GLADIATOR_RAILGUN_1);
 }
 
 mframe_t gladiator_frames_attack_gun[] = {
@@ -192,6 +195,9 @@ void gladbGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
+	if (damage <= 0) damage = 16;
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -209,12 +215,12 @@ void gladbGun(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 16, 875, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, damage, 875, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 980, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 16, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, damage, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
 
@@ -246,6 +252,11 @@ void gladcGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
+	if (damage <= 0) damage = 35;
+
+	int radius_damage = 45;
+
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
@@ -256,9 +267,6 @@ void gladcGun(edict_t* self)
 	// calc direction to where we targeted
 	dir = self->pos1 - start;
 	dir.normalize();
-
-	int damage = 35;
-	int radius_damage = 45;
 
 	if (self->s.frame > FRAME_attack3)
 	{

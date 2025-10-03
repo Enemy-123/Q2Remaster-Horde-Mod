@@ -1298,7 +1298,7 @@ void medic_fire_blaster_bolt(edict_t *self)
 	vec3_t forward, right;
 	vec3_t end;
 	vec3_t dir;
-	int damage = 30;
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "hyperblaster");
 	monster_muzzleflash_id_t mz;
 
 	mz = static_cast<monster_muzzleflash_id_t>(((self->mass > 400) ? MZ2_MEDIC_HYPERBLASTER2_1 : MZ2_MEDIC_HYPERBLASTER1_1));
@@ -1315,7 +1315,7 @@ void medic_fire_blaster_bolt(edict_t *self)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster_bolt(self, start, dir, damage, 1150, mz, EF_BLUEHYPERBLASTER);
+	monster_fire_blaster_bolt(self, start, dir, damage > 0 ? damage : 30, 1150, mz, EF_BLUEHYPERBLASTER);
 }
 
 void medic_fire_blaster(edict_t *self)
@@ -1330,13 +1330,12 @@ void medic_fire_blaster(edict_t *self)
 	vec3_t end;
 	vec3_t dir;
 	effects_t effect;
-	int damage = 4;
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
 	monster_muzzleflash_id_t mz;
 
 	if ((self->s.frame == FRAME_attack9) || (self->s.frame == FRAME_attack12))
 	{
 		effect = EF_BLASTER;
-		damage = 6;
 		mz = (self->mass > 400) ? MZ2_MEDIC_BLASTER_2 : MZ2_MEDIC_BLASTER_1;
 	}
 	else
@@ -1376,10 +1375,10 @@ void medic_fire_blaster(edict_t *self)
 	}
 	// medic commander shoots blaster2
 	if (self->mass > 400)
-		monster_fire_blaster2(self, start, dir, damage, 1000, mz, effect);
+		monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 18, 1000, mz, effect);
 	else
 	{
-		monster_fire_blaster(self, start, dir, damage, 1000, mz, effect);
+		monster_fire_blaster(self, start, dir, damage > 0 ? damage : 15, 1000, mz, effect);
 	}
 }
 

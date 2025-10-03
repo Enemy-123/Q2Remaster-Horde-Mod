@@ -203,7 +203,10 @@ void berserk_attack_spike(edict_t* self)
 		return;
 	}
 
-	if (!fire_hit(self, aim, irandom(17, 26) * M_DamageModifier(self), 400))
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (damage <= 0) damage = 22;
+
+	if (!fire_hit(self, aim, damage * M_DamageModifier(self), 400))
 		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
 }
 
@@ -235,7 +238,10 @@ void berserk_attack_club(edict_t* self)
 		return;
 	}
 
-	if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250))
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (damage <= 0) damage = 24;
+
+	if (!fire_hit(self, aim, damage * M_DamageModifier(self), 250))
 		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
 }
 
@@ -322,7 +328,9 @@ static void berserk_attack_slam(edict_t* self)
 	self->velocity = {};
 	self->flags |= FL_KILL_VELOCITY;
 
-	T_SlamRadiusDamage(tr.endpos, self, self, 15, 300.f, self, 165, MOD_UNKNOWN);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
+	if (damage <= 0) damage = 15;
+	T_SlamRadiusDamage(tr.endpos, self, self, damage, 300.f, self, 165, MOD_UNKNOWN);
 }
 
 TOUCH(berserk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -733,8 +741,10 @@ void BerserkCastFireballs(edict_t* self)
 			fireball->touch = fireball_touch;
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+			if (damage <= 0) damage = 45;
 			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
-			fireball->radius_dmg = 45 * M_DamageModifier(self);
+			fireball->radius_dmg = damage * M_DamageModifier(self);
 			fireball->dmg_radius = 120;
 			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
 			fireball->classname = "berserk_fireball";
