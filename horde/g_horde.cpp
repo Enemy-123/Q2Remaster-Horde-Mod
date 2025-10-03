@@ -4,14 +4,13 @@
 #include "../g_local.h"
 #include "g_horde.h"
 #include <set>
-#include <algorithm>  // For std::count_if
+#include <algorithm>  // For std::count_if and std::shuffle
 #include "g_horde_benefits.h"
 #include "horde_ids.h"
 #include <span>
 #include "g_laser.h"
 #include "../profiler.h"
 #include <cassert>
-#include <algorithm>  // For std::shuffle
 #include "horde_performance.h"
 #include "horde_boss.h"
 #include "../memory_safety.h"
@@ -166,7 +165,7 @@ namespace HordeConstants
 	inline gtime_t g_teleport_rate_reset_time = level.time;
 
 	// --- Map-Size-Aware Timeout Functions ---
-	inline gtime_t GetNoDamageTimeout(const horde::MapSize& mapSize) {
+	static inline gtime_t GetNoDamageTimeout(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
 			return 45_sec; // Increased from 32_sec for small maps
 		} else if (mapSize.isMediumMap) {
@@ -176,7 +175,7 @@ namespace HordeConstants
 		}
 	}
 
-	inline gtime_t GetDamagedMonsterTimeout(const horde::MapSize& mapSize) {
+	static inline gtime_t GetDamagedMonsterTimeout(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
 			return 20_sec; // Increased from 15_sec for small maps
 		} else if (mapSize.isMediumMap) {
@@ -186,7 +185,7 @@ namespace HordeConstants
 		}
 	}
 
-	inline gtime_t GetNoEnemyTimeout(const horde::MapSize& mapSize) {
+	static inline gtime_t GetNoEnemyTimeout(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
 			return 15_sec; // Increased from 12_sec for small maps
 		} else if (mapSize.isMediumMap) {
@@ -204,7 +203,7 @@ namespace HordeConstants
 	constexpr float MIN_RECENT_TELEPORT_DIST_BASE = 300.0f;
 
 	// --- Map-Size-Aware Distance Functions ---
-	inline float GetMinPlayerDistGenerate(const horde::MapSize& mapSize) {
+	static inline float GetMinPlayerDistGenerate(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
 			return 120.0f; // Reduced from 200.0f for small maps
 		} else if (mapSize.isMediumMap) {
@@ -214,7 +213,7 @@ namespace HordeConstants
 		}
 	}
 
-	inline float GetMinPlayerDistCheck(const horde::MapSize& mapSize) {
+	static inline float GetMinPlayerDistCheck(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
 			return 220.0f; // Reduced from 360.0f for small maps
 		} else if (mapSize.isMediumMap) {
@@ -224,7 +223,7 @@ namespace HordeConstants
 		}
 	}
 
-	inline float GetMinRecentTeleportDist(const horde::MapSize& mapSize) {
+	static inline float GetMinRecentTeleportDist(const horde::MapSize& mapSize) {
 		if (mapSize.isSmallMap) {
 			return 200.0f; // Reduced from 300.0f for small maps
 		} else if (mapSize.isMediumMap) {
@@ -375,11 +374,11 @@ bool IsPositionTooCloseToRecentSpawn(const vec3_t& position, const horde::MapSiz
     return g_recent_spawns_opt.IsPositionTooClose(position, min_dist * min_dist);
 }
 
-inline void MarkPositionAsRecentlyTeleported(const vec3_t& position) {
+static inline void MarkPositionAsRecentlyTeleported(const vec3_t& position) {
     g_recent_teleports_opt.AddPosition(position, HordeConstants::RECENT_TELEPORT_COOLDOWN);
 }
 
-inline bool IsPositionTooCloseToRecentTeleport(const vec3_t& position, const horde::MapSize& mapSize) {
+static inline bool IsPositionTooCloseToRecentTeleport(const vec3_t& position, const horde::MapSize& mapSize) {
     const float min_dist = HordeConstants::GetMinRecentTeleportDist(mapSize);
     return g_recent_teleports_opt.IsPositionTooClose(position, min_dist * min_dist);
 }
@@ -424,7 +423,7 @@ int counter_mismatch_frames = 0;
 // SpawnPointsSoA struct moved to horde_spawning.h
 // SpawnPointsSoA now in g_spawn_system
 
-void ApplyAlternativePositionCooldown(edict_t *spawn_point)
+static void ApplyAlternativePositionCooldown(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
 		return;
@@ -885,7 +884,7 @@ uint16_t g_totalMonstersInWave = 0; // Reducido de uint32_t
 gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; // spawns Cooldown
 
-void CheckAndReduceSpawnCooldowns()
+static void CheckAndReduceSpawnCooldowns()
 {
 	if (GetStroggsNum() > 6 || IsBossWave()) {
 		return;
@@ -1271,7 +1270,7 @@ struct WaveScalingCache
 	}
 } g_waveScalingCache;
 
-void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, int32_t humanPlayers)
+static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, int32_t humanPlayers)
 {
 	using namespace HordeConstants;
 
@@ -1572,7 +1571,7 @@ static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t
 
 inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t waveLevel);
 
-void ResetChampionMonsterState()
+static void ResetChampionMonsterState()
 {
 	champion_spawned_this_wave = false;
 	// champion_spawn_cooldown = 0; // REMOVED
@@ -1873,7 +1872,7 @@ struct SpecialWavesSoA
 
 // --- Step 4: Define Compile-Time Transformation Functions ---
 
-constexpr WaveDefinitionsSoA create_wave_definitions_soa()
+static constexpr WaveDefinitionsSoA create_wave_definitions_soa()
 {
 	WaveDefinitionsSoA soa_data{};
 	for (size_t i = 0; i < WAVE_DEFINITIONS_SRC.size(); ++i)
@@ -1893,7 +1892,7 @@ constexpr WaveDefinitionsSoA create_wave_definitions_soa()
 	return soa_data;
 }
 
-constexpr SpecialWavesSoA create_special_waves_soa()
+static constexpr SpecialWavesSoA create_special_waves_soa()
 {
 	SpecialWavesSoA soa_data{};
 	for (size_t i = 0; i < SPECIAL_WAVES_SRC.size(); ++i)
@@ -1913,7 +1912,7 @@ static const SpecialWavesSoA g_specialWaves = create_special_waves_soa();
 
 // --- Step 6: REPLACEMENT for GetWaveComposition and InitializeWaveType ---
 
-inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false)
+static inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false)
 {
 	// --- Part 1: Check for Special Waves ---
 	if (!forceSpecialWave && !WasLastWaveSpecial())
@@ -2862,7 +2861,7 @@ void AllowReset() noexcept
 // This function now ONLY precaches monsters for Wave 1 for a very fast initial map load.
 // Subsequent waves are handled by the JIT precacher in Horde_InitLevel.
 // In PrecacheAllMonsters()
-void PrecacheAllMonsters()
+static void PrecacheAllMonsters()
 {
 	// Only run this initial precache once per map load.
 	if (monsters_precached)
@@ -3008,7 +3007,7 @@ void AppendHordeMessage(const char* message, gtime_t duration)
 		AppendHordeMessage_impl(std::string_view(message), duration);
 }
 
-void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
+static void AppendHordeMessage(std::string_view message, gtime_t duration = 5_sec)
 {
 	AppendHordeMessage_impl(message, duration);
 }
@@ -3099,7 +3098,7 @@ void ResetWaveAdvanceState() noexcept;
 //
 
 // Reset ambush system state
-void ResetAmbushSystem()
+static void ResetAmbushSystem()
 {
 	last_ambush_time = 0_sec;
 	ambush_cooldown_end = 0_sec;
@@ -3107,7 +3106,7 @@ void ResetAmbushSystem()
 	// ambush_system_initialized = false;
 }
 
-void ResetWaveMemory()
+static void ResetWaveMemory()
 {
 	previous_wave_types.fill(MonsterWaveType::None);
 	wave_memory_index = 0;
@@ -3187,7 +3186,7 @@ static void ResetAllSpawnPointDataAndTrackers()
 	}
 }
 
-void ResetPlayerDeployedItems()
+static void ResetPlayerDeployedItems()
 {
 	for (uint32_t i = 0; i < game.maxclients; ++i)
 	{
@@ -3732,7 +3731,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec)
 	AppendHordeMessage(messages[choice], duration);
 }
 
-void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason)
+static void HandleWaveCleanupMessage(const horde::MapSize &mapSize, const WaveEndReason reason)
 {
 	// Obtener el número de jugadores humanos
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
@@ -4278,7 +4277,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 }
 
 // Helper function to select a retaliation-themed monster
-horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel)
+static horde::MonsterTypeID PickRetaliationMonsterTypeID(int32_t waveLevel)
 {
 	WeightedSelection<MonsterTypeInfo> selection;
 	selection.clear();
@@ -4413,7 +4412,7 @@ void HandleSpawnPhaseAggression(edict_t *monster)
 }
 
 // TryAlternativeSpawnPosition moved to horde_spawning.cpp
-#include "g_horde_phys.h"
+// g_horde_phys.h already included at top of file
 
 bool Horde_AttemptToUnstickMonster(edict_t* self)
 {
@@ -4834,7 +4833,7 @@ static bool FindValidSpawnLocation(
 }
 
 // Dependency for the main function below
-void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
+static void ApplySuccessfulAlternativeCooldown(edict_t *spawn_point)
 {
 	if (!spawn_point || !spawn_point->inuse)
 		return;
