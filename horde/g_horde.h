@@ -9,7 +9,7 @@
 #include <array>
 #include <unordered_set>
 
-constexpr const char* HORDE_MOD_VERSION_STRING = "Horde BETA MOD v0.00995.1";
+constexpr const char* HORDE_MOD_VERSION_STRING = "Horde BETA MOD v0.009952";
 
 extern std::vector<edict_t*> g_spawn_point_list;
 extern size_t g_num_spawn_points;
