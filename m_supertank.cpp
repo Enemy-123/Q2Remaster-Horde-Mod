@@ -903,7 +903,7 @@ void SP_monster_janitor(edict_t* self)
 void SP_monster_supertankkl(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
- self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SUPERTANKKL);
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SUPERTANKKL);
 	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (g_horde->integer && horde::IsMonsterType(self, horde::MonsterTypeID::SUPERTANKKL))
 	{
@@ -911,18 +911,22 @@ void SP_monster_supertankkl(edict_t* self)
 		SP_monster_supertank(self);
 		gi.soundindex("weapons/railgr1a.wav");
 
-		self->health = 675 * current_wave_level;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 
-		self->health = 5500;
-	
-	
+		self->health = self->max_health = (config ? config->health : 5500) * st.health_multiplier;
 
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 1800;
+		if (!st.was_key_specified("power_armor_type")) {
+			if (config && config->power_armor_type != IT_NULL) {
+				self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+				if (!st.was_key_specified("power_armor_power"))
+					self->monsterinfo.power_armor_power = config->power_armor_power;
+			} else {
+				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+				if (!st.was_key_specified("power_armor_power"))
+					self->monsterinfo.power_armor_power = 1800;
+			}
+		}
 
 		self->mass = 1200;
 		self->s.alpha = 0.3f;

@@ -669,6 +669,24 @@
         "melee": 85,
         "heat": 20
       }
+    },
+    "supertankkl": {
+      "health": 5500,
+      "power_armor_power": 1800,
+      "power_armor_type": "screen"
+    },
+    "arachnid": {
+      "health": 600,
+      "power_armor_power": 125,
+      "power_armor_type": "shield"
+    },
+    "kamikaze": {
+      "health": 50
+    },
+    "boss2kl": {
+      "health": 2000,
+      "power_armor_power": 500,
+      "power_armor_type": "shield"
     }
   }
 }
