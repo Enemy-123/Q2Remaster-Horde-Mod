@@ -66,6 +66,10 @@ bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 		// Also check via teammaster/chain (medic resurrections use this)
 		if (entity->teammaster == player || entity->chain == player)
 			return true;
+
+		// Allow anyone to chain bot-owned summons (prevents obstruction)
+		if (entity->chain && entity->chain->client && (entity->chain->svflags & SVF_BOT))
+			return true;
 	}
 
 	// Check if it's a sentry gun that belongs to this player
@@ -76,6 +80,11 @@ bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 			if (player->client->resp.deployed_sentries[i] == entity)
 				return true;
 		}
+
+		// Allow anyone to chain bot-owned sentries (prevents obstruction)
+		// Sentries track their owner via the chain reference
+		if (entity->chain && entity->chain->client && (entity->chain->svflags & SVF_BOT))
+			return true;
 	}
 
 	return false;
