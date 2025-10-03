@@ -135,6 +135,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClInclude Include="ctf\g_ctf.h" />
     <ClInclude Include="ctf\p_ctf_menu.h" />
     <ClInclude Include="game.h" />
+    <ClInclude Include="g_config.h" />
     <ClInclude Include="g_local.h" />
     <ClInclude Include="g_statusbar.h" />
     <ClInclude Include="horde\g_entity_properties.h" />
@@ -199,6 +200,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
+    <ClCompile Include="g_config.cpp" />
     <ClCompile Include="horde\g_barrel.cpp" />
     <ClCompile Include="horde\g_bombspell.cpp" />
     <ClCompile Include="horde\g_doppleganger.cpp" />
