@@ -82,8 +82,8 @@ bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 		}
 
 		// Allow anyone to chain bot-owned sentries (prevents obstruction)
-		// Sentries track their owner via the chain reference
-		if (entity->chain && entity->chain->client && (entity->chain->svflags & SVF_BOT))
+		// Sentries track their owner via the owner field
+		if (entity->owner && entity->owner->client && (entity->owner->svflags & SVF_BOT))
 			return true;
 	}
 
