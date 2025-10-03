@@ -54,7 +54,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "blaster2": 6,
-        "grenade": 35,
+        "grenade": 40,
         "melee": 10
       }
     },
@@ -64,7 +64,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "machinegun": 8,
-        "grenade": 35,
+        "grenade": 40,
         "melee": 10
       }
     },
@@ -82,7 +82,7 @@
       "power_armor_power": 65,
       "power_armor_type": "shield",
       "weapon_damage": {
-        "machinegun": 6,
+        "machinegun": 3,
         "grenade": 40
       }
     },
@@ -107,7 +107,7 @@
       "power_armor_power": 180,
       "power_armor_type": "shield",
       "weapon_damage": {
-        "machinegun": 8,
+        "ionripper": 15,
         "grenade": 50,
         "melee": 20
       }
@@ -336,7 +336,8 @@
       "power_armor_power": 200,
       "power_armor_type": "screen",
       "weapon_damage": {
-        "blaster": 4
+        "blaster": 4,
+        "melee": 8
       }
     },
     "floater_tracker": {
@@ -520,7 +521,7 @@
       "power_armor_power": 0,
       "weapon_damage": {
         "blaster": 15,
-        "rocket": 50,
+        "plasma": 35,
         "bfg": 50
       }
     },
@@ -577,7 +578,9 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "blaster": 5,
-        "dabeam": 5
+        "dabeam": 15,
+        "melee": 85,
+        "heat": 20
       }
     }
   }

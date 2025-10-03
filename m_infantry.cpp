@@ -307,9 +307,15 @@ void InfantryMachineGun(edict_t* self)
 
 		// Disparo según el estilo
 		if (self->style == 1) // Blaster
-			monster_fire_blaster2(self, start, forward, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+		{
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
+			monster_fire_blaster2(self, start, forward, damage > 0 ? damage : 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+		}
 		else // Vanilla
-			monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+		{
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+			monster_fire_bullet(self, start, forward, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+		}
 	}
 	else // Comportamiento normal (no muriendo)
 	{
@@ -331,7 +337,8 @@ void InfantryMachineGun(edict_t* self)
 			if (trace.ent == self->enemy || trace.ent == world)
 			{
 				dir.normalize();
-				monster_fire_blaster2(self, start, dir, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+				int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
+				monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
 			}
 		}
 		else // Vanilla
@@ -370,7 +377,8 @@ void InfantryMachineGun(edict_t* self)
 				AngleVectors(vec, forward, nullptr, nullptr);
 			}
 
-			monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+			monster_fire_bullet(self, start, forward, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 		}
 	}
 }
@@ -741,7 +749,8 @@ void infantry_smack(edict_t* self)
 	}
 
 	vec3_t const aim = { MELEE_DISTANCE, 0, 0 };
-	if (fire_hit(self, aim, irandom(5, 10), 50))
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (fire_hit(self, aim, damage > 0 ? damage : irandom(5, 10), 50))
 		gi.sound(self, CHAN_WEAPON, sound_punch_hit, 1, ATTN_NORM, 0);
 	else
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
@@ -842,7 +851,8 @@ static void infantry_grenade(edict_t* self)
     }
 
     // --- Step 2: Fire the Grenade ---
-    fire_grenade2(self, start_pos, aim_dir, 40, effective_speed, 2.5_sec, 80, false);
+    int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+    fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, effective_speed, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
     gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 

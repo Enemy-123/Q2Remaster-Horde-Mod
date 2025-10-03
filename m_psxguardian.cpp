@@ -308,7 +308,8 @@ void guardianpsx_fire_blaster(edict_t* self)
 	forward += up * crandom() * 0.02f;
 	forward.normalize();
 
-	edict_t* bolt = monster_fire_blaster(self, start, forward, 5, 1100, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	edict_t* bolt = monster_fire_blaster(self, start, forward, damage > 0 ? damage : 5, 1100, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 	bolt->s.scale = 2.0f;
 
 	if (self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
@@ -402,7 +403,8 @@ void guardianpsx_laser_fire(edict_t* self)
 	}
 
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1.f, ATTN_NORM, 0.f);
-	monster_fire_dabeam(self, 15, self->s.frame & 1, guardianpsx_fire_update);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "dabeam");
+	monster_fire_dabeam(self, damage > 0 ? damage : 15, self->s.frame & 1, guardianpsx_fire_update);
 }
 
 static mframe_t guardianpsx_frames_atk2_fire[] = {
@@ -441,7 +443,8 @@ void guardianpsx_kick(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	if (!fire_hit(self, { 160.f, 0, -80.f }, 85, 700))
+	int melee_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (!fire_hit(self, { 160.f, 0, -80.f }, melee_damage > 0 ? melee_damage : 85, 700))
 		self->monsterinfo.melee_debounce_time = level.time + 3500_ms;
 }
 
@@ -654,7 +657,8 @@ static void guardianpsx_fire_rocket(edict_t* self, float offset)
 	// Aumentar el turn_fraction para mejor maniobrabilidad
 	const float turn_fraction = 0.12f;
 
-	fire_guardianpsx_heat(self, start, dir, forward, 20, speed, 150, 35, turn_fraction);
+	int heat_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
+	fire_guardianpsx_heat(self, start, dir, forward, heat_damage > 0 ? heat_damage : 20, speed, 150, 35, turn_fraction);
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
 }
 

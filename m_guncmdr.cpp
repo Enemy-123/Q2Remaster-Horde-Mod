@@ -48,6 +48,8 @@ float GetChaingunSpeed(int style) {
 	return (style == GUNCMDR_STYLE_GRENADIER) ? 800.0f : 1200.0f;
 }
 
+// Legacy functions - now using GetMonsterWeaponDamage instead
+// Keeping for backwards compatibility reference only
 int GetFlechetteDamage(int style) {
 	// Grenadier should do less damage with chaingun
 	return (style == GUNCMDR_STYLE_GRENADIER) ? 4 : 8;
@@ -848,7 +850,8 @@ void GunnerCmdrFire(edict_t* self)
 	for (int i = 0; i < 3; i++)
 		aim[i] += crandom_open() * 0.025f;
 
-	monster_fire_flechette(self, start, aim, GetFlechetteDamage(self->style), speed, flash_number);
+	int flechette_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "flechette");
+	monster_fire_flechette(self, start, aim, flechette_damage > 0 ? flechette_damage : GetFlechetteDamage(self->style), speed, flash_number);
 }
 
 mframe_t guncmdr_frames_endfire_chain[] = {
@@ -1036,10 +1039,11 @@ void GunnerCmdrGrenade(edict_t* self)
 		flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3)
 	{
 		constexpr float inner_spread = 0.125f;
+		int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
 		for (int32_t i = 0; i < 3; i++)
 			fire_ionripper(self, start,
 				aim + (right * (-(inner_spread * 2) + (inner_spread * (i + 1)))),
-				15, 800, EF_IONRIPPER);
+				ionripper_damage > 0 ? ionripper_damage : 15, 800, EF_IONRIPPER);
 
 		monster_muzzleflash(self, start, flash_number);
 	}
@@ -1054,7 +1058,9 @@ void GunnerCmdrGrenade(edict_t* self)
 			speed = GetGrenadeSpeed(self->style);
 
 		// Calcular daño según tipo y calcular mejor trayectoria
-		int grenade_damage = GetGrenadeDamage(self);
+		int grenade_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+		if (grenade_damage <= 0)
+			grenade_damage = GetGrenadeDamage(self);
 
 		if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f,
 			(flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 &&
@@ -1287,7 +1293,8 @@ static void guncmdr_kick_finished(edict_t* self)
 
 static void guncmdr_kick(edict_t* self)
 {
-	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f))
+	int melee_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, melee_damage > 0 ? melee_damage : 15.f, 400.f))
 	{
 		if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
 			self->enemy->velocity.z = 270.f;

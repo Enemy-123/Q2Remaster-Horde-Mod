@@ -507,12 +507,14 @@ void jorgBFG(edict_t* self)
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
 	{
 		// This is the standard Jorg, fire the BFG.
-		monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
+		int bfg_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "bfg");
+		monster_fire_bfg(self, start, dir, bfg_damage > 0 ? bfg_damage : 50, 300, 100, 300, MZ2_MAKRON_BFG);
 	}
 	else
 	{
 		// This is another variant (e.g., jorg_small), fire the tracker.
-		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
+		int tracker_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
+		monster_fire_tracker(self, start, dir, tracker_damage > 0 ? tracker_damage : 13, 950, self->enemy, MZ2_MAKRON_BFG);
 	}
 }
 
@@ -550,15 +552,19 @@ void jorg_firebullet_right(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int constexpr damage = 35;
-	int constexpr radius_damage = 45;
-
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG)) {
-		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+		int plasma_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
+		if (plasma_damage <= 0)
+			plasma_damage = 35;
+		int radius_damage = plasma_damage + 10; // radius damage is typically ~10 more than direct damage
+		fire_plasma(self, start, dir, plasma_damage, 725, radius_damage, radius_damage);
 	}
 	else
+	{
 		//	monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
-		fire_blaster_bolt(self, start, dir, damage, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+	}
 
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;
@@ -584,14 +590,18 @@ void jorg_firebullet_left(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int constexpr damage = 35;
-	int constexpr radius_damage = 45;
-
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG)) {
-		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+		int plasma_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
+		if (plasma_damage <= 0)
+			plasma_damage = 35;
+		int radius_damage = plasma_damage + 10; // radius damage is typically ~10 more than direct damage
+		fire_plasma(self, start, dir, plasma_damage, 725, radius_damage, radius_damage);
 	}
 	else
-		fire_blaster_bolt(self, start, dir, damage, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+	{
+		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+	}
 
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;

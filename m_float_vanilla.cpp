@@ -73,7 +73,8 @@ void floater_fire_blaster(edict_t* self)
 	dir.normalize();
 
 	// Use fire_blaster with bounces parameter (2 bounces like drone_float.c)
-	edict_t* bolt = fire_blaster(self, start, dir, 4, 1150, EF_BLASTER, MOD_BLASTER, 2);
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	edict_t* bolt = fire_blaster(self, start, dir, damage > 0 ? damage : 4, 1150, EF_BLASTER, MOD_BLASTER, 2);
 	monster_muzzleflash(self, start, MZ2_FLOAT_BLASTER_1);
 }
 
@@ -538,7 +539,8 @@ void floater_wham(edict_t* self)
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 
-	if (!fire_hit(self, aim, irandom(5, 11), -50))
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	if (!fire_hit(self, aim, damage > 0 ? damage : irandom(5, 11), -50))
 		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 }
 

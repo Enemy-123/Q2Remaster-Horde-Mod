@@ -1,0 +1,719 @@
+./m_boss31.cpp:510: monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
+./m_boss31.cpp:515: monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
+./m_boss31.cpp:535: //	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
+./m_boss31.cpp:557: fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+./m_boss31.cpp:560: //	monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
+./m_boss31.cpp:561: fire_blaster_bolt(self, start, dir, damage, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+./m_boss31.cpp:591: fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+./m_boss31.cpp:594: fire_blaster_bolt(self, start, dir, damage, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+./m_boss31.cpp:613: //	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
+./m_flipper.cpp:161: fire_hit(self, aim, 5, 0);
+./m_psxguardian.cpp:291: void guardianpsx_fire_blaster(edict_t* self)
+./m_psxguardian.cpp:311: edict_t* bolt = monster_fire_blaster(self, start, forward, 5, 1100, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+./m_psxguardian.cpp:323: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:324: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:325: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:326: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:327: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:328: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:329: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:330: { ai_charge, 0, guardianpsx_fire_blaster },
+./m_psxguardian.cpp:374: PRETHINK(guardianpsx_fire_update) (edict_t* laser) -> void
+./m_psxguardian.cpp:405: monster_fire_dabeam(self, 15, self->s.frame & 1, guardianpsx_fire_update);
+./m_psxguardian.cpp:444: if (!fire_hit(self, { 160.f, 0, -80.f }, 85, 700))
+./m_psxguardian.cpp:468: fire_heat
+./m_psxguardian.cpp:560: void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& rest_dir, int damage, int speed, float damage_radius, int radius_damage, float turn_fraction)
+./m_psxguardian.cpp:630: static void guardianpsx_fire_rocket(edict_t* self, float offset)
+./m_psxguardian.cpp:657: fire_guardianpsx_heat(self, start, dir, forward, 20, speed, 150, 35, turn_fraction);
+./m_psxguardian.cpp:661: static void guardianpsx_fire_rocket_l(edict_t* self)
+./m_psxguardian.cpp:663: guardianpsx_fire_rocket(self, -14.0f);
+./m_psxguardian.cpp:666: static void guardianpsx_fire_rocket_r(edict_t* self)
+./m_psxguardian.cpp:668: guardianpsx_fire_rocket(self, 14.0f);
+./m_psxguardian.cpp:671: static void guardianpsx_blind_fire_check(edict_t* self)
+./m_psxguardian.cpp:675: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_psxguardian.cpp:681: { ai_charge, 0, guardianpsx_blind_fire_check },
+./m_psxguardian.cpp:683: { ai_charge, 0, guardianpsx_fire_rocket_l },
+./m_psxguardian.cpp:685: { ai_charge, 0, guardianpsx_fire_rocket_l },
+./m_psxguardian.cpp:687: { ai_charge, 0, guardianpsx_fire_rocket_r },
+./m_psxguardian.cpp:689: { ai_charge, 0, guardianpsx_fire_rocket_r },
+./m_psxguardian.cpp:693: { ai_charge, 0, guardianpsx_fire_rocket_l },
+./m_psxguardian.cpp:695: { ai_charge, 0, guardianpsx_fire_rocket_l },
+./m_psxguardian.cpp:697: { ai_charge, 0, guardianpsx_fire_rocket_r },
+./m_psxguardian.cpp:699: { ai_charge, 0, guardianpsx_fire_rocket_r },
+./m_psxguardian.cpp:725: self->monsterinfo.blind_fire_delay += random_time(8.5_sec, 15.5_sec);
+./m_psxguardian.cpp:728: if (!self->monsterinfo.blind_fire_target)
+./m_float_vanilla.cpp:39: void floater_fire_blaster(edict_t* self)
+./m_float_vanilla.cpp:57: if (!self->monsterinfo.blind_fire_target)
+./m_float_vanilla.cpp:59: end = self->monsterinfo.blind_fire_target;
+./m_float_vanilla.cpp:75: // Use fire_blaster with bounces parameter (2 bounces like drone_float.c)
+./m_float_vanilla.cpp:76: edict_t* bolt = fire_blaster(self, start, dir, 4, 1150, EF_BLASTER, MOD_BLASTER, 2);
+./m_float_vanilla.cpp:242: { ai_charge, 0, floater_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
+./m_float_vanilla.cpp:243: { ai_charge, 0, floater_fire_blaster },
+./m_float_vanilla.cpp:244: { ai_charge, 0, floater_fire_blaster },
+./m_float_vanilla.cpp:245: { ai_charge, 0, floater_fire_blaster },
+./m_float_vanilla.cpp:246: { ai_charge, 0, floater_fire_blaster },
+./m_float_vanilla.cpp:247: { ai_charge, 0, floater_fire_blaster },
+./m_float_vanilla.cpp:248: { ai_charge, 0, floater_fire_blaster },
+./m_float_vanilla.cpp:261: { ai_charge, 10, floater_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
+./m_float_vanilla.cpp:262: { ai_charge, 10, floater_fire_blaster },
+./m_float_vanilla.cpp:263: { ai_charge, 10, floater_fire_blaster },
+./m_float_vanilla.cpp:264: { ai_charge, 10, floater_fire_blaster },
+./m_float_vanilla.cpp:265: { ai_charge, 10, floater_fire_blaster },
+./m_float_vanilla.cpp:266: { ai_charge, 10, floater_fire_blaster },
+./m_float_vanilla.cpp:267: { ai_charge, 10, floater_fire_blaster },
+./m_float_vanilla.cpp:541: if (!fire_hit(self, aim, irandom(5, 11), -50))
+./m_guncmdr.cpp:79: void guncmdr_fire_chain(edict_t* self);
+./m_guncmdr.cpp:80: void guncmdr_refire_chain(edict_t* self);
+./m_guncmdr.cpp:818: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_guncmdr.cpp:851: monster_fire_flechette(self, start, aim, GetFlechetteDamage(self->style), speed, flash_number);
+./m_guncmdr.cpp:854: mframe_t guncmdr_frames_endfire_chain[] = {
+./m_guncmdr.cpp:863: MMOVE_T(guncmdr_move_endfire_chain) = { FRAME_c_attack118, FRAME_c_attack124, guncmdr_frames_endfire_chain, guncmdr_run };
+./m_guncmdr.cpp:870: // Blindfire needs to check blind_fire_target BEFORE validating enemy health/visibility
+./m_guncmdr.cpp:964: // and we have a valid blind_fire_target
+./m_guncmdr.cpp:965: if (!self->monsterinfo.blind_fire_target)
+./m_guncmdr.cpp:968: M_SetAnimation(self, &guncmdr_move_endfire_chain);
+./m_guncmdr.cpp:972: target = self->monsterinfo.blind_fire_target;
+./m_guncmdr.cpp:979: M_SetAnimation(self, &guncmdr_move_endfire_chain);
+./m_guncmdr.cpp:1040: fire_ionripper(self, start,
+./m_guncmdr.cpp:1063: monster_fire_grenade(self, start, aim, grenade_damage, speed, flash_number,
+./m_guncmdr.cpp:1069: monster_fire_grenade(self, start, aim, grenade_damage, speed, flash_number,
+./m_guncmdr.cpp:1082: MMOVE_T(guncmdr_move_attack_chain) = { FRAME_c_attack101, FRAME_c_attack106, guncmdr_frames_attack_chain, guncmdr_fire_chain };
+./m_guncmdr.cpp:1084: mframe_t guncmdr_frames_fire_chain[] = {
+./m_guncmdr.cpp:1092: MMOVE_T(guncmdr_move_fire_chain) = { FRAME_c_attack107, FRAME_c_attack112, guncmdr_frames_fire_chain, guncmdr_refire_chain };
+./m_guncmdr.cpp:1094: mframe_t guncmdr_frames_fire_chain_run[] = {
+./m_guncmdr.cpp:1102: MMOVE_T(guncmdr_move_fire_chain_run) = { FRAME_c_run201, FRAME_c_run206, guncmdr_frames_fire_chain_run, guncmdr_refire_chain };
+./m_guncmdr.cpp:1104: mframe_t guncmdr_frames_fire_chain_dodge_right[] = {
+./m_guncmdr.cpp:1111: MMOVE_T(guncmdr_move_fire_chain_dodge_right) = { FRAME_c_attack401, FRAME_c_attack405, guncmdr_frames_fire_chain_dodge_right, guncmdr_refire_chain };
+./m_guncmdr.cpp:1113: mframe_t guncmdr_frames_fire_chain_dodge_left[] = {
+./m_guncmdr.cpp:1120: MMOVE_T(guncmdr_move_fire_chain_dodge_left) = { FRAME_c_attack501, FRAME_c_attack505, guncmdr_frames_fire_chain_dodge_left, guncmdr_refire_chain };
+./m_guncmdr.cpp:1290: if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f))
+./m_guncmdr.cpp:1329: // setup shot probabilities based on blind_fire_delay
+./m_guncmdr.cpp:1330: if (self->monsterinfo.blind_fire_delay < 1.0_sec)
+./m_guncmdr.cpp:1332: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_guncmdr.cpp:1340: self->monsterinfo.blind_fire_delay += random_time(5.5_sec, 6.5_sec);
+./m_guncmdr.cpp:1343: if (!self->monsterinfo.blind_fire_target)
+./m_guncmdr.cpp:1492: void guncmdr_fire_chain(edict_t* self)
+./m_guncmdr.cpp:1495: M_SetAnimation(self, &guncmdr_move_fire_chain_run);
+./m_guncmdr.cpp:1497: M_SetAnimation(self, &guncmdr_move_fire_chain);
+./m_guncmdr.cpp:1500: void guncmdr_refire_chain(edict_t* self) {
+./m_guncmdr.cpp:1505: M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
+./m_guncmdr.cpp:1511: float refire_chance;
+./m_guncmdr.cpp:1515: refire_chance = 0.7f;  // Normal prefers chaingun - high chance to continue
+./m_guncmdr.cpp:1518: refire_chance = 0.25f; // Grenadier prefers grenades - low chance to continue
+./m_guncmdr.cpp:1521: refire_chance = 0.4f;  // Boss uses some chaingun but prefers grenades
+./m_guncmdr.cpp:1524: refire_chance = 0.5f;  // Default value
+./m_guncmdr.cpp:1527: if (frandom() < refire_chance) {
+./m_guncmdr.cpp:1533: M_SetAnimation(self, &guncmdr_move_fire_chain_run, false);
+./m_guncmdr.cpp:1536: M_SetAnimation(self, &guncmdr_move_fire_chain, false);
+./m_guncmdr.cpp:1542: M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
+./m_guncmdr.cpp:1676: if ((self->monsterinfo.active_move == &guncmdr_move_fire_chain_dodge_left) ||
+./m_guncmdr.cpp:1677: (self->monsterinfo.active_move == &guncmdr_move_fire_chain_dodge_right) ||
+./m_guncmdr.cpp:1695: if (self->monsterinfo.active_move == &guncmdr_move_fire_chain ||
+./m_guncmdr.cpp:1696: self->monsterinfo.active_move == &guncmdr_move_fire_chain_run)
+./m_guncmdr.cpp:1698: M_SetAnimation(self, !self->monsterinfo.lefty ? &guncmdr_move_fire_chain_dodge_right : &guncmdr_move_fire_chain_dodge_left, false);
+./m_gunner_vanilla.cpp:41: void gunner_vanilla_fire_chain(edict_t* self);
+./m_gunner_vanilla.cpp:42: void gunner_vanilla_refire_chain(edict_t* self);
+./m_gunner_vanilla.cpp:395: monster_fire_bullet(self, start, aim, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+./m_gunner_vanilla.cpp:415: target = self->monsterinfo.blind_fire_target;
+./m_gunner_vanilla.cpp:481: // and we have a valid blind_fire_target
+./m_gunner_vanilla.cpp:482: if (!self->monsterinfo.blind_fire_target)
+./m_gunner_vanilla.cpp:485: target = self->monsterinfo.blind_fire_target;
+./m_gunner_vanilla.cpp:527: monster_fire_grenade(self, start, aim, 50, 600, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+./m_gunner_vanilla.cpp:530: monster_fire_grenade(self, start, aim, 50, 600, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+./m_gunner_vanilla.cpp:542: MMOVE_T(gunner_vanilla_move_attack_chain) = { FRAME_attak209, FRAME_attak215, gunner_vanilla_frames_attack_chain, gunner_vanilla_fire_chain };
+./m_gunner_vanilla.cpp:544: mframe_t gunner_vanilla_frames_fire_chain[] = {
+./m_gunner_vanilla.cpp:554: MMOVE_T(gunner_vanilla_move_fire_chain) = { FRAME_attak216, FRAME_attak223, gunner_vanilla_frames_fire_chain, gunner_vanilla_refire_chain };
+./m_gunner_vanilla.cpp:556: mframe_t gunner_vanilla_frames_endfire_chain[] = {
+./m_gunner_vanilla.cpp:565: MMOVE_T(gunner_vanilla_move_endfire_chain) = { FRAME_attak224, FRAME_attak230, gunner_vanilla_frames_endfire_chain, gunner_vanilla_run };
+./m_gunner_vanilla.cpp:573: aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_gunner_vanilla.cpp:645: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_gunner_vanilla.cpp:647: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_gunner_vanilla.cpp:655: self->monsterinfo.blind_fire_delay += 4.1_sec + random_time(3_sec);
+./m_gunner_vanilla.cpp:658: if (!self->monsterinfo.blind_fire_target)
+./m_gunner_vanilla.cpp:702: void gunner_vanilla_fire_chain(edict_t* self)
+./m_gunner_vanilla.cpp:704: M_SetAnimation(self, &gunner_vanilla_move_fire_chain);
+./m_gunner_vanilla.cpp:707: void gunner_vanilla_refire_chain(edict_t* self)
+./m_gunner_vanilla.cpp:723: M_SetAnimation(self, &gunner_vanilla_move_fire_chain, false);
+./m_gunner_vanilla.cpp:730: M_SetAnimation(self, &gunner_vanilla_move_endfire_chain, false);
+./m_gunner_vanilla.cpp:836: (self->monsterinfo.active_move == &gunner_vanilla_move_fire_chain) ||
+./m_gunner_vanilla.cpp:861: (self->monsterinfo.active_move == &gunner_vanilla_move_fire_chain) ||
+./m_hover.cpp:127: void hover_fire_weapon(edict_t* self);
+./m_hover.cpp:245: { ai_charge, -10, hover_fire_weapon },
+./m_hover.cpp:246: { ai_charge, -10, hover_fire_weapon },
+./m_hover.cpp:257: { ai_charge, 10, hover_fire_weapon },
+./m_hover.cpp:258: { ai_charge, 10, hover_fire_weapon },
+./m_hover.cpp:298: void hover_fire_blaster(edict_t* self)
+./m_hover.cpp:316: monster_fire_blaster(self, start, dir, damage > 0 ? damage : 12, blasterSpeed,
+./m_hover.cpp:321: void hover_fire_blaster2(edict_t* self)
+./m_hover.cpp:339: monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 12, blasterSpeed,
+./m_hover.cpp:344: void hover_fire_rocket(edict_t* self)
+./m_hover.cpp:359: if (!self->monsterinfo.blind_fire_target)
+./m_hover.cpp:361: target = self->monsterinfo.blind_fire_target;
+./m_hover.cpp:388: monster_fire_rocket(self, start, dir, 22, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+./m_hover.cpp:391: void hover_fire_grenades(edict_t* self)
+./m_hover.cpp:411: if (!self->monsterinfo.blind_fire_target)
+./m_hover.cpp:413: target = self->monsterinfo.blind_fire_target;
+./m_hover.cpp:428: monster_fire_grenade(self, start, aim, 24, GRENADE_SPEED, flash_number,
+./m_hover.cpp:432: void hover_fire_weapon(edict_t* self)
+./m_hover.cpp:440: if (style.has_blaster()) hover_fire_blaster(self);
+./m_hover.cpp:441: else if (style.has_rocket()) hover_fire_rocket(self);
+./m_hover.cpp:442: else if (style.has_blaster2()) hover_fire_blaster2(self);
+./m_hover.cpp:443: else if (style.has_grenade()) hover_fire_grenades(self);
+./m_gunner.cpp:41: void gunner_fire_chain(edict_t* self);
+./m_gunner.cpp:42: void gunner_refire_chain(edict_t* self);
+./m_gunner.cpp:408: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_gunner.cpp:410: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_gunner.cpp:415: self->monsterinfo.blind_fire_delay += 3.0_sec + random_time(2_sec);
+./m_gunner.cpp:418: if (!self->monsterinfo.blind_fire_target)
+./m_gunner.cpp:435: monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
+./m_gunner.cpp:440: monster_fire_bullet(self, start, aim, machinegun_damage > 0 ? machinegun_damage : 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+./m_gunner.cpp:445: monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
+./m_gunner.cpp:467: target = self->monsterinfo.blind_fire_target;
+./m_gunner.cpp:534: // and we have a valid blind_fire_target
+./m_gunner.cpp:535: if (!self->monsterinfo.blind_fire_target)
+./m_gunner.cpp:538: target = self->monsterinfo.blind_fire_target;
+./m_gunner.cpp:580: monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+./m_gunner.cpp:583: monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+./m_gunner.cpp:595: MMOVE_T(gunner_move_attack_chain) = { FRAME_attak209, FRAME_attak215, gunner_frames_attack_chain, gunner_fire_chain };
+./m_gunner.cpp:597: mframe_t gunner_frames_fire_chain[] = {
+./m_gunner.cpp:607: MMOVE_T(gunner_move_fire_chain) = { FRAME_attak216, FRAME_attak223, gunner_frames_fire_chain, gunner_refire_chain };
+./m_gunner.cpp:609: mframe_t gunner_frames_endfire_chain[] = {
+./m_gunner.cpp:618: MMOVE_T(gunner_move_endfire_chain) = { FRAME_attak224, FRAME_attak230, gunner_frames_endfire_chain, gunner_run };
+./m_gunner.cpp:626: aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_gunner.cpp:705: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_gunner.cpp:707: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_gunner.cpp:715: self->monsterinfo.blind_fire_delay += 4.1_sec + random_time(3_sec);
+./m_gunner.cpp:718: if (!self->monsterinfo.blind_fire_target)
+./m_gunner.cpp:762: void gunner_fire_chain(edict_t* self)
+./m_gunner.cpp:764: M_SetAnimation(self, &gunner_move_fire_chain);
+./m_gunner.cpp:767: void gunner_refire_chain(edict_t* self)
+./m_gunner.cpp:771: M_SetAnimation(self, &gunner_move_endfire_chain, false);
+./m_gunner.cpp:779: M_SetAnimation(self, &gunner_move_fire_chain, false);
+./m_gunner.cpp:784: M_SetAnimation(self, &gunner_move_endfire_chain, false);
+./m_gunner.cpp:890: (self->monsterinfo.active_move == &gunner_move_fire_chain) ||
+./m_gunner.cpp:915: (self->monsterinfo.active_move == &gunner_move_fire_chain) ||
+./m_infantry.cpp:310: monster_fire_blaster2(self, start, forward, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+./m_infantry.cpp:312: monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+./m_infantry.cpp:334: monster_fire_blaster2(self, start, dir, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+./m_infantry.cpp:373: monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+./m_infantry.cpp:553: self->monsterinfo.fire_wait = level.time + random_time(0.7_sec, 2_sec);
+./m_infantry.cpp:699: if (level.time >= self->monsterinfo.fire_wait)
+./m_infantry.cpp:718: if (level.time >= self->monsterinfo.fire_wait)
+./m_infantry.cpp:744: if (fire_hit(self, aim, irandom(5, 10), 50))
+./m_infantry.cpp:788: if (!self->monsterinfo.blind_fire_target) {
+./m_infantry.cpp:792: vec3_t target_pos = self->monsterinfo.blind_fire_target;
+./m_infantry.cpp:845: fire_grenade2(self, start_pos, aim_dir, 40, effective_speed, 2.5_sec, 80, false);
+./m_infantry.cpp:853: if (level.time >= self->monsterinfo.fire_wait)
+./m_infantry.cpp:893: if (!self->monsterinfo.blind_fire_target)
+./m_infantry.cpp:904: if (self->monsterinfo.blind_fire_delay < 1.0_sec)
+./m_infantry.cpp:906: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_infantry.cpp:912: self->monsterinfo.blind_fire_delay += random_time(2.0_sec, 5.0_sec);
+./m_infantry.cpp:1086: self->monsterinfo.fire_wait += random_time(300_ms, 600_ms);
+./m_soldier.cpp:589: monster_fire_dabeam(self, IsFirstThreeWaves(current_wave_level) ? 1 : 2, false, soldierh_laser_update);
+./m_soldier.cpp:646: end = self->monsterinfo.blind_fire_target;
+./m_soldier.cpp:675: if (level.time >= self->monsterinfo.fire_wait)
+./m_soldier.cpp:709: monster_fire_ionripper(self, start, aim, damage > 0 ? damage : 5, 600, flash_index, EF_IONRIPPER);
+./m_soldier.cpp:715: monster_fire_blueblaster(self, start, aim, damage > 0 ? damage : 2, 600, flash_index, EF_BLUEHYPERBLASTER);
+./m_soldier.cpp:718: monster_fire_blaster_bolt(self, start, forward, damage > 0 ? damage : 5, 1150, flash_index, EF_BLUEHYPERBLASTER);
+./m_soldier.cpp:725: monster_fire_blaster(self, start, aim, damage > 0 ? damage : fallback_damage, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
+./m_soldier.cpp:730: monster_fire_shotgun(self, start, aim, damage > 0 ? damage : 3, 1, 1500, 750, 9, flash_index);
+./m_soldier.cpp:738: self->monsterinfo.fire_wait = level.time + random_time(300_ms, 1.1_sec);
+./m_soldier.cpp:744: monster_fire_bullet(self, start, aim, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+./m_soldier.cpp:747: if (level.time >= self->monsterinfo.fire_wait)
+./m_soldier.cpp:827: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_soldier.cpp:1286: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_soldier.cpp:1288: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_soldier.cpp:1295: self->monsterinfo.blind_fire_delay += 4.1_sec + random_time(3_sec);
+./m_soldier.cpp:1297: if (!self->monsterinfo.blind_fire_target)
+./m_float.cpp:40: void floater_tracker_fire_blaster(edict_t* self)
+./m_float.cpp:72: monster_fire_tracker(self, start, dir, damage, 950, self->enemy, MZ2_UNUSED_0);
+./m_float.cpp:77: monster_fire_tracker(self, start, dir, damage + 1, 860, nullptr, MZ2_UNUSED_0);
+./m_float.cpp:196: { ai_charge, 0, floater_tracker_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
+./m_float.cpp:197: { ai_charge, 0, floater_tracker_fire_blaster },
+./m_float.cpp:198: { ai_charge, 0, floater_tracker_fire_blaster },
+./m_float.cpp:199: { ai_charge, 0, floater_tracker_fire_blaster },
+./m_float.cpp:200: { ai_charge, 0, floater_tracker_fire_blaster },
+./m_float.cpp:201: { ai_charge, 0, floater_tracker_fire_blaster },
+./m_float.cpp:202: { ai_charge, 0, floater_tracker_fire_blaster },
+./m_float.cpp:215: { ai_charge, 10, floater_tracker_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
+./m_float.cpp:216: { ai_charge, 10, floater_tracker_fire_blaster },
+./m_float.cpp:217: { ai_charge, 10, floater_tracker_fire_blaster },
+./m_float.cpp:218: { ai_charge, 10, floater_tracker_fire_blaster },
+./m_float.cpp:219: { ai_charge, 10, floater_tracker_fire_blaster },
+./m_float.cpp:220: { ai_charge, 10, floater_tracker_fire_blaster },
+./m_float.cpp:221: { ai_charge, 10, floater_tracker_fire_blaster },
+./m_float.cpp:495: if (!fire_hit(self, aim, irandom(5, 11), -50))
+./m_gladiator.cpp:119: if (fire_hit(self, aim, irandom(30, 35), 300))
+./m_gladiator.cpp:174: monster_fire_railgun(self, start, dir, damage, 100, MZ2_GLADIATOR_RAILGUN_1);
+./m_gladiator.cpp:218: monster_fire_tracker(self, start, dir, damage, 875, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
+./m_gladiator.cpp:223: monster_fire_tracker(self, start, dir, damage, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+./m_gladiator.cpp:277: fire_plasma(self, start, dir, damage, 925, radius_damage, radius_damage);
+./m_gladiator.cpp:279: fire_plasma(self, start, dir, damage, 1225, radius_damage, radius_damage);
+./m_flyer.cpp:385: if (!self->monsterinfo.blind_fire_target)
+./m_flyer.cpp:387: end = self->monsterinfo.blind_fire_target;
+./m_flyer.cpp:433: monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_TURRET_ROCKET);
+./m_flyer.cpp:572: monster_fire_blaster_bolt(self, start, forward, damage, 1150, flash_number, EF_HYPERBLASTER, 0);
+./m_flyer.cpp:694: if (!fire_hit(self, aim, 3, 0))
+./m_flyer.cpp:708: if (!fire_hit(self, aim, 3, 0))
+./m_flyer.cpp:991: monster_fire_dabeam(self, damage, false, flyer_left_laser_update);
+./m_flyer.cpp:992: monster_fire_dabeam(self, damage, true, flyer_right_laser_update);
+./m_brain.cpp:297: if (fire_hit(self, aim, damage, 40))
+./m_brain.cpp:315: if (fire_hit(self, aim, damage, 40))
+./m_brain.cpp:362: if (fire_hit(self, aim, damage * 0.7, -600))
+./m_brain.cpp:683: monster_fire_dabeam(self, 1, false, brain_right_eye_laser_update);
+./m_brain.cpp:686: monster_fire_dabeam(self, 1, true, brain_left_eye_laser_update);
+./m_mutant.cpp:239: if (fire_hit(self, aim, damage * M_DamageModifier(self), 100))
+./m_mutant.cpp:260: if (fire_hit(self, aim, damage * M_DamageModifier(self), 100))
+./m_redmutant.cpp:209: if (fire_hit(self, aim, damage * M_DamageModifier(self), 100))
+./m_redmutant.cpp:230: if (fire_hit(self, aim, damage * M_DamageModifier(self), 100))
+./m_guardian.cpp:228: void guardian_fire_blaster(edict_t* self)
+./m_guardian.cpp:263: monster_fire_blaster(self, start, forward, damage, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+./m_guardian.cpp:270: monster_fire_ionripper(self, start, forward, damage, 950, id, EF_IONRIPPER);
+./m_guardian.cpp:280: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:281: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:282: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:283: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:284: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:285: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:286: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:287: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:288: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:289: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:290: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:291: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:292: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:293: { ai_charge, 0, guardian_fire_blaster },
+./m_guardian.cpp:333: PRETHINK(guardian_fire_update) (edict_t* laser) -> void
+./m_guardian.cpp:424: // Compensar la velocidad ascendente en fire_grenade2
+./m_guardian.cpp:433: fire_grenade2(self, start, aim, damage, speed, 2.5_sec, 80, false);
+./m_guardian.cpp:463: monster_fire_dabeam(self, damage, self->s.frame & 1, guardian_fire_update);
+./m_guardian.cpp:467: void guardian_fire_attack(edict_t* self)
+./m_guardian.cpp:485: // Actualización de los frames de atk2_fire para utilizar guardian_fire_attack
+./m_guardian.cpp:487: { ai_charge, 0, guardian_fire_attack },
+./m_guardian.cpp:488: { ai_charge, 0, guardian_fire_attack },
+./m_guardian.cpp:489: { ai_charge, 0, guardian_fire_attack },
+./m_guardian.cpp:490: { ai_charge, 0, guardian_fire_attack }
+./m_guardian.cpp:523: if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, (horde::IsMonsterType(self, horde::MonsterTypeID::GUARDIAN)) ? 85 : 30, 700))
+./m_berserk.cpp:209: if (!fire_hit(self, aim, damage * M_DamageModifier(self), 400))
+./m_berserk.cpp:244: if (!fire_hit(self, aim, damage * M_DamageModifier(self), 250))
+./m_berserk.cpp:540: static void berserk_fire_bolt(edict_t* self, edict_t* target, const vec3_t& zap_origin)
+./m_berserk.cpp:587: berserk_fire_bolt(self, self->enemy, zap_origin);
+./m_berserk.cpp:608: berserk_fire_bolt(self, target, zap_origin);
+./m_berserk.cpp:655: target = self->monsterinfo.blind_fire_target;
+./m_berserk.cpp:693: self->monsterinfo.blind_fire_target = target;
+./m_berserk.cpp:1296: // Check if on cooldown using fire_wait
+./m_berserk.cpp:1297: if (self->monsterinfo.fire_wait > level.time)
+./m_berserk.cpp:1334: self->monsterinfo.fire_wait = level.time + 3_sec;
+./m_berserk.cpp:1366: self->monsterinfo.fire_wait = level.time + 3_sec;
+./m_berserk.cpp:1385: if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250))
+./m_berserk.cpp:1399: if (!fire_hit(self, aim, irandom(15, 22) * M_DamageModifier(self), 200))
+./m_berserk.cpp:1471: bool bombspell_ready = (self->monsterinfo.fire_wait <= level.time);
+./m_boss2.cpp:70: monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
+./m_boss2.cpp:75: monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_2);
+./m_boss2.cpp:80: monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_3);
+./m_boss2.cpp:85: monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
+./m_boss2.cpp:122: monster_fire_rocket(self, start, dir, damage, 820, MZ2_BOSS2_ROCKET_1);
+./m_boss2.cpp:131: monster_fire_rocket(self, start, dir, damage, 770, MZ2_BOSS2_ROCKET_2);
+./m_boss2.cpp:140: monster_fire_rocket(self, start, dir, damage, 670, MZ2_BOSS2_ROCKET_3);
+./m_boss2.cpp:150: monster_fire_rocket(self, start, dir, damage, 620, MZ2_BOSS2_ROCKET_4);
+./m_boss2.cpp:195: monster_fire_rocket(self, start, dir, damage, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
+./m_boss2.cpp:209: monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
+./m_boss2.cpp:223: monster_fire_bullet(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
+./m_boss2.cpp:353: monster_fire_blaster(self, start, forward, damage, 1350, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+./m_boss2.cpp:357: monster_fire_blaster_bolt(self, start, forward, damage + 3, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+./m_boss32.cpp:519: monster_fire_bfg(self, start, dir, damage, 300, 100, 300, MZ2_MAKRON_BFG);
+./m_boss32.cpp:670: monster_fire_railgun(self, start, dir, damage, 100, MZ2_MAKRON_RAILGUN_1);
+./m_boss32.cpp:708: monster_fire_blaster2(self, start, forward, damage, 1300, flash_number, EF_BLASTER);
+./m_boss32.cpp:710: monster_fire_blaster_bolt(self, start, forward, damage, 2300, flash_number, EF_HYPERBLASTER);
+./m_tank.cpp:21: void tank_refire_rocket(edict_t* self);
+./m_tank.cpp:27: void tank_vanilla_refire_rocket(edict_t* self);
+./m_tank.cpp:660: monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
+./m_tank.cpp:672: monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
+./m_tank.cpp:676: monster_fire_grenade(self, start, aim, damage, lroundf(speed), MZ2_UNUSED_0,
+./m_tank.cpp:726: vec3_t const target = self->monsterinfo.blind_fire_target;
+./m_tank.cpp:755: fire_bullet(self, bullet_start, dir, irandom(12, 17), 18, 0, 0, MOD_TESLA);
+./m_tank.cpp:758: monster_fire_blaster2(self, start, dir, damage, 950, flash_number, EF_BLASTER);
+./m_tank.cpp:826: // --- Check added for blind_fire_target ---
+./m_tank.cpp:827: if (!self->monsterinfo.blind_fire_target) // Ensure target exists
+./m_tank.cpp:829: target = self->monsterinfo.blind_fire_target;
+./m_tank.cpp:876: monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
+./m_tank.cpp:878: monster_fire_rocket(self, start, dir, damage, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
+./m_tank.cpp:889: monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
+./m_tank.cpp:891: monster_fire_rocket(self, start, dir, damage, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
+./m_tank.cpp:937: monster_fire_flechette(self, start, forward, damage,
+./m_tank.cpp:945: monster_fire_flechette(self, start, forward_right, damage,
+./m_tank.cpp:950: monster_fire_bullet(self, start, forward, damage, 8,
+./m_tank.cpp:960: const vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_tank.cpp:1127: mframe_t tank_frames_attack_fire_rocket[] = {
+./m_tank.cpp:1138: MMOVE_T(tank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak330, tank_frames_attack_fire_rocket, tank_refire_rocket };
+./m_tank.cpp:1303: void tank_refire_rocket(edict_t* self)
+./m_tank.cpp:1325: M_SetAnimation(self, &tank_move_attack_fire_rocket);
+./m_tank.cpp:1333: M_SetAnimation(self, &tank_move_attack_fire_rocket);
+./m_tank.cpp:1515: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_tank.cpp:1517: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_tank.cpp:1524: self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
+./m_tank.cpp:1527: if (!self->monsterinfo.blind_fire_target)
+./m_tank.cpp:1546: M_SetAnimation(self, &tank_move_attack_fire_rocket);
+./m_tank.cpp:1940: target = self->monsterinfo.blind_fire_target;
+./m_tank.cpp:1949: monster_fire_blaster(self, start, dir, damage, 1230, flash_number, EF_BLASTER);
+./m_tank.cpp:2020: target = self->monsterinfo.blind_fire_target;
+./m_tank.cpp:2071: monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, self->accel);
+./m_tank.cpp:2073: monster_fire_rocket(self, start, dir, damage, rocketSpeed, flash_number);
+./m_tank.cpp:2083: monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, self->accel);
+./m_tank.cpp:2085: monster_fire_rocket(self, start, dir, damage, rocketSpeed, flash_number);
+./m_tank.cpp:2135: //monster_fire_bullet(self, start, forward, 20, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+./m_tank.cpp:2136: monster_fire_blaster_bolt(self, start, forward, damage, 1150, flash_number, EF_BLUEHYPERBLASTER);
+./m_tank.cpp:2143: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_tank.cpp:2290: mframe_t tank_vanilla_frames_attack_fire_rocket[] = {
+./m_tank.cpp:2301: MMOVE_T(tank_vanilla_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak330, tank_vanilla_frames_attack_fire_rocket, tank_vanilla_refire_rocket };
+./m_tank.cpp:2382: void tank_vanilla_refire_rocket(edict_t* self)
+./m_tank.cpp:2403: M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
+./m_tank.cpp:2411: M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
+./m_tank.cpp:2647: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_tank.cpp:2649: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_tank.cpp:2654: if (frandom() > chance || !self->monsterinfo.blind_fire_target)
+./m_tank.cpp:2657: self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
+./m_tank.cpp:2670: M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
+./m_runnertank.cpp:18: void runnertank_refire_rocket(edict_t* self);
+./m_runnertank.cpp:516: target = self->monsterinfo.blind_fire_target;
+./m_runnertank.cpp:524: monster_fire_railgun(self, start, dir, damage, 100, flash_number);
+./m_runnertank.cpp:587: target = self->monsterinfo.blind_fire_target;
+./m_runnertank.cpp:620: monster_fire_heat(self, start, dir, damage, rocket_speed, flash_number, self->accel);
+./m_runnertank.cpp:622: monster_fire_rocket(self, start, dir, damage, rocket_speed, flash_number);
+./m_runnertank.cpp:629: monster_fire_heat(self, start, dir, damage, rocket_speed, flash_number, self->accel);
+./m_runnertank.cpp:631: monster_fire_rocket(self, start, dir, damage, rocket_speed, flash_number);
+./m_runnertank.cpp:701: fire_plasma(self, start, dir, damage, PROJECTILE_SPEED,
+./m_runnertank.cpp:712: //		const vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_runnertank.cpp:821: mframe_t runnertank_frames_attack_fire_rocket[] = {
+./m_runnertank.cpp:827: MMOVE_T(runnertank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak325, runnertank_frames_attack_fire_rocket, runnertank_refire_rocket };
+./m_runnertank.cpp:845: void runnertank_refire_rocket(edict_t* self)
+./m_runnertank.cpp:874: M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
+./m_runnertank.cpp:882: M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
+./m_runnertank.cpp:933: self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket ||
+./m_runnertank.cpp:1015: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_runnertank.cpp:1017: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_runnertank.cpp:1025: self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
+./m_runnertank.cpp:1451: (self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket) ||
+./m_supertank.cpp:314: monster_fire_grenade(self, start, dir, damage, speed, flash_number, 0.f, 2.f);
+./m_supertank.cpp:323: monster_fire_grenade(self, start, forward, damage, speed, flash_number, 0.f, 0.f);
+./m_supertank.cpp:530: monster_fire_heat(self, start, dir, damage, 980, flash_number, 0.075f);
+./m_supertank.cpp:535: monster_fire_rocket(self, start, forward, 50, 1100, flash_number);
+./m_supertank.cpp:560: monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 3, DEFAULT_BULLET_VSPREAD * 3, flash_number);
+./m_arachnid.cpp:785: monster_fire_railgun(self, start, dir, self->monsterinfo.IS_BOSS ? 40 : 35, 100, id);
+./m_arachnid.cpp:829: if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
+./m_arachnid.cpp:919: fire_plasma(self, start, dir, damage, 900, radius_damage, radius_damage);
+./m_arachnid.cpp:923: fire_plasma(self, start, dir, damage * 0.7f, 1100, radius_damage * 0.7f, radius_damage * 0.7f);
+./m_arachnid.cpp:1146: monster_fire_railgun(self, start, dir, 50, 100, id);
+./m_arachnid.cpp:1193: if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 30, 50))
+./m_arachnid.cpp:1198: if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 20, 50))
+./m_arachnid.cpp:1224: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_arachnid.cpp:1276: target = self->monsterinfo.blind_fire_target;
+./m_arachnid.cpp:1319: monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+./m_arachnid.cpp:1322: monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1);
+./m_arachnid.cpp:1333: monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+./m_arachnid.cpp:1344: monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+./m_arachnid.cpp:1355: monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
+./m_arachnid.cpp:1626: bool const hit = monster_fire_railgun(self, start, dir, dmg, dmg * 2.0f, id);
+./m_arachnid.cpp:1705: if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
+./m_chick.cpp:409: void chickkl_fire_plasma(edict_t* self);
+./m_chick.cpp:420: fire_hit(self, aim, irandom(10, 16), 100);
+./m_chick.cpp:422: void chickkl_fire_plasma(edict_t* self);
+./m_chick.cpp:561: // Check if on cooldown using fire_wait (separate from dodge timestamp)
+./m_chick.cpp:562: if (self->monsterinfo.fire_wait > level.time)
+./m_chick.cpp:585: self->monsterinfo.fire_wait = level.time + 1_sec;
+./m_chick.cpp:632: // Set cooldown using fire_wait
+./m_chick.cpp:633: self->monsterinfo.fire_wait = level.time + 2_sec;
+./m_chick.cpp:678: // Set cooldown using fire_wait
+./m_chick.cpp:679: self->monsterinfo.fire_wait = level.time + 2_sec;
+./m_chick.cpp:704: monster_fire_grenade(self, start, aim, 40, 600, MZ2_CHICK_ROCKET_1, 2.5f, 120);
+./m_chick.cpp:716: chickkl_fire_plasma(self);
+./m_chick.cpp:748: target = self->monsterinfo.blind_fire_target;
+./m_chick.cpp:801: monster_fire_heat(self, start, dir, damage > 0 ? damage : 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+./m_chick.cpp:804: monster_fire_rocket(self, start, dir, damage > 0 ? damage : 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
+./m_chick.cpp:823: monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
+./m_chick.cpp:826: monster_fire_rocket(self, start, dir, damage + 10, rocketSpeed, MZ2_CHICK_ROCKET_1);
+./m_chick.cpp:840: monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+./m_chick.cpp:843: monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1);
+./m_chick.cpp:856: monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.15f);
+./m_chick.cpp:859: monster_fire_rocket(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1);
+./m_chick.cpp:915: target = self->monsterinfo.blind_fire_target;
+./m_chick.cpp:923: monster_fire_railgun(self, start, dir, 80, 100, MZ2_CHICK_ROCKET_1); // Using MZ2_CHICK_ROCKET_1 for flash
+./m_chick.cpp:932: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_chick.cpp:1056: { ai_charge, 19, chickkl_fire_plasma },
+./m_chick.cpp:1059: { ai_charge, 19, chickkl_fire_plasma },
+./m_chick.cpp:1214: if (self->monsterinfo.blind_fire_delay < 1.0_sec)
+./m_chick.cpp:1216: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_chick.cpp:1224: self->monsterinfo.blind_fire_delay += random_time(5.5_sec, 6.5_sec);
+./m_chick.cpp:1227: if (!self->monsterinfo.blind_fire_target)
+./m_chick.cpp:1514: extern void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& rest_dir, int damage, int speed, float damage_radius, int radius_damage, float turn_fraction);
+./m_chick.cpp:1612: void chickkl_fire_plasma(edict_t* self)
+./m_chick.cpp:1626: vec3_t fire_dir;
+./m_chick.cpp:1631: fire_dir = predicted_dir;
+./m_chick.cpp:1635: fire_dir = (target_pos - start).normalized();
+./m_chick.cpp:1639: vec3_t angles = vectoangles(fire_dir);
+./m_chick.cpp:1647: vec3_t spread_dir = fire_dir;
+./m_chick.cpp:1651: spread_dir = (fire_dir + spread_right * spread_amount).normalized(); // Right plasma
+./m_chick.cpp:1653: spread_dir = (fire_dir - spread_right * spread_amount).normalized(); // Left plasma
+./m_chick.cpp:1655: // Create plasma projectile manually since fire_plasma returns void
+./m_chick.cpp:1689: plasma->pos1 = fire_dir;
+./m_chick.cpp:1713: // Check if bombspell is on cooldown (using fire_wait)
+./m_chick.cpp:1714: bool bombspell_on_cooldown = (self->monsterinfo.fire_wait > level.time);
+./m_medic.cpp:1290: void medic_fire_blaster_bolt(edict_t *self)
+./m_medic.cpp:1318: monster_fire_blaster_bolt(self, start, dir, damage > 0 ? damage : 30, 1150, mz, EF_BLUEHYPERBLASTER);
+./m_medic.cpp:1321: void medic_fire_blaster(edict_t *self)
+./m_medic.cpp:1378: monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 18, 1000, mz, effect);
+./m_medic.cpp:1381: monster_fire_blaster(self, start, dir, damage > 0 ? damage : 15, 1000, mz, effect);
+./m_medic.cpp:1488: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1489: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1490: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1491: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1492: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1493: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1494: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1495: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1496: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1497: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1498: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1499: {ai_charge, 0, medic_fire_blaster},
+./m_medic.cpp:1563: {ai_charge, 0, medic_fire_blaster_bolt},
+./m_medic.cpp:1566: {ai_charge, 0, medic_fire_blaster_bolt},
+./m_shambler.cpp:467: fire_bullet(self, start, dir, damage, 15 * M_DamageModifier(self), 0, 0, MOD_TESLA);
+./m_shambler.cpp:525: target = self->monsterinfo.blind_fire_target;
+./m_shambler.cpp:562: self->monsterinfo.blind_fire_target = target;
+./m_shambler.cpp:704: const bool hit = fire_hit(self, aim, damage, 120); // Slower attack
+./m_shambler.cpp:730: const bool hit = fire_hit(self, aim, damage, 80); // Slower attack
+./m_parasite.cpp:271: extern const mmove_t parasite_move_fire_proboscis;
+./m_parasite.cpp:297: if (self->owner->monsterinfo.active_move == &parasite_move_fire_proboscis)
+./m_parasite.cpp:383: if (!self->owner || !self->owner->inuse || self->owner->monsterinfo.active_move != &parasite_move_fire_proboscis)
+./m_parasite.cpp:669: static void fire_proboscis(edict_t* self, vec3_t start, vec3_t dir, float speed)
+./m_parasite.cpp:727: static void parasite_fire_proboscis(edict_t* self)
+./m_parasite.cpp:750: fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed * 2.5f);
+./m_parasite.cpp:753: fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed);
+./m_parasite.cpp:765: mframe_t parasite_frames_fire_proboscis[] = {
+./m_parasite.cpp:767: { parasite_charge_proboscis, 15, parasite_fire_proboscis }, // Target hits
+./m_parasite.cpp:785: MMOVE_T(parasite_move_fire_proboscis) = { FRAME_drain01, FRAME_drain18, parasite_frames_fire_proboscis, parasite_start_run };
+./m_parasite.cpp:798: M_SetAnimation(self, &parasite_move_fire_proboscis);
+./rogue/m_rogue_turret.cpp:30: extern const mmove_t turret_move_fire_blind;
+./rogue/m_rogue_turret.cpp:62: if (self->monsterinfo.active_move == &turret_move_fire_blind)
+./rogue/m_rogue_turret.cpp:64: end = self->monsterinfo.blind_fire_target;
+./rogue/m_rogue_turret.cpp:65: if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
+./rogue/m_rogue_turret.cpp:397: end = self->monsterinfo.blind_fire_target;
+./rogue/m_rogue_turret.cpp:449: monster_fire_blaster(self, start, dir, TURRET_BLASTER_DAMAGE, rocketSpeed, MZ2_TURRET_BLASTER, EF_BLASTER);
+./rogue/m_rogue_turret.cpp:464: monster_fire_bullet(self, start, dir, TURRET_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
+./rogue/m_rogue_turret.cpp:475: monster_fire_rocket(self, start, dir, 40, rocketSpeed, MZ2_TURRET_ROCKET);
+./rogue/m_rogue_turret.cpp:496: dir = self->monsterinfo.blind_fire_target - self->s.origin;
+./rogue/m_rogue_turret.cpp:511: end = self->monsterinfo.blind_fire_target;
+./rogue/m_rogue_turret.cpp:513: if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
+./rogue/m_rogue_turret.cpp:523: monster_fire_blaster(self, start, dir, TURRET_BLASTER_DAMAGE, rocketSpeed, MZ2_TURRET_BLASTER, EF_BLASTER);
+./rogue/m_rogue_turret.cpp:525: monster_fire_rocket(self, start, dir, 40, rocketSpeed, MZ2_TURRET_ROCKET);
+./rogue/m_rogue_turret.cpp:540: mframe_t turret_frames_fire_blind[] = {
+./rogue/m_rogue_turret.cpp:546: MMOVE_T(turret_move_fire_blind) = { FRAME_pow01, FRAME_pow04, turret_frames_fire_blind, turret_run };
+./rogue/m_rogue_turret.cpp:563: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./rogue/m_rogue_turret.cpp:565: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./rogue/m_rogue_turret.cpp:573: self->monsterinfo.blind_fire_delay += random_time(3.4_sec, 7.4_sec);
+./rogue/m_rogue_turret.cpp:575: if (!self->monsterinfo.blind_fire_target)
+./rogue/m_rogue_turret.cpp:582: M_SetAnimation(self, &turret_move_fire_blind);
+./rogue/m_rogue_turret.cpp:844: if ((self->monsterinfo.blindfire) && (self->monsterinfo.blind_fire_delay <= 10_sec))
+./rogue/m_rogue_turret.cpp:850: if (level.time < (self->monsterinfo.trail_time + self->monsterinfo.blind_fire_delay))
+./rogue/m_rogue_turret.cpp:858: tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, CONTENTS_MONSTER | CONTENTS_PLAYER);
+./rogue/m_rogue_stalker.cpp:463: monster_fire_tracker(self, start, dir, 13, 960, self->enemy, MZ2_STALKER_BLASTER);
+./rogue/m_rogue_stalker.cpp:468: monster_fire_tracker(self, start, dir, 13, 960, nullptr, MZ2_STALKER_BLASTER);
+./rogue/m_rogue_stalker.cpp:512: monster_fire_blaster2(self, start, dir, 15, 960, MZ2_STALKER_BLASTER, EF_BLASTER);
+./rogue/m_rogue_stalker.cpp:561: if (fire_hit(self, aim, irandom(5, 10), 50))
+./rogue/m_sentrygun.cpp:51: extern const mmove_t turret2_move_fire_blind;
+./rogue/m_sentrygun.cpp:221: self->monsterinfo.last_sentry_missile_fire_time + 2_sec < level.time) {
+./rogue/m_sentrygun.cpp:387: if (self->monsterinfo.active_move == &turret2_move_fire_blind)
+./rogue/m_sentrygun.cpp:389: end = self->monsterinfo.blind_fire_target;
+./rogue/m_sentrygun.cpp:390: if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
+./rogue/m_sentrygun.cpp:706: if (owner->client->quadfire_time > level.time) {
+./rogue/m_sentrygun.cpp:707: turret->monsterinfo.quadfire_time = owner->client->quadfire_time;
+./rogue/m_sentrygun.cpp:727: // const float quadMultiplier = self->monsterinfo.quadfire_time > level.time ? 1.5f : 1.0f;
+./rogue/m_sentrygun.cpp:740: monster_fire_heatbeam(self, start, dir, vec3_origin, damage, 10, MZ2_WIDOW2_BEAM_SWEEP_1);
+./rogue/m_sentrygun.cpp:755: const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.4f : 0.7f;
+./rogue/m_sentrygun.cpp:758: monster_fire_bullet(self, start, dir, damage, 8, DEFAULT_BULLET_HSPREAD * spread_mult, DEFAULT_BULLET_VSPREAD * spread_mult, MZ2_TURRET_MACHINEGUN);
+./rogue/m_sentrygun.cpp:761: (self->monsterinfo.quadfire_time > level.time ? 9_hz : 15_hz);
+./rogue/m_sentrygun.cpp:999: if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
+./rogue/m_sentrygun.cpp:1000: (self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec)) {
+./rogue/m_sentrygun.cpp:1004: const float speed = self->monsterinfo.quadfire_time > level.time ? 1600 : 1420;
+./rogue/m_sentrygun.cpp:1005: vec3_t fire_dir = dir;
+./rogue/m_sentrygun.cpp:1020: fire_dir = predicted_dir;
+./rogue/m_sentrygun.cpp:1028: fire_dir = (target_pos - start).normalized();
+./rogue/m_sentrygun.cpp:1035: fire_dir = (target_pos - start).normalized();
+./rogue/m_sentrygun.cpp:1037: rest_dir = fire_dir; // Use the calculated direction as rest direction
+./rogue/m_sentrygun.cpp:1041: float spread = frandom() < 0.2f ? self->monsterinfo.quadfire_time > level.time ? 0.03f : 0.07f : 0.0f;
+./rogue/m_sentrygun.cpp:1042: fire_dir[0] += crandom() * spread;
+./rogue/m_sentrygun.cpp:1043: fire_dir[1] += crandom() * spread;
+./rogue/m_sentrygun.cpp:1044: fire_dir[2] += crandom() * spread;
+./rogue/m_sentrygun.cpp:1045: fire_dir = safe_normalized(fire_dir);
+./rogue/m_sentrygun.cpp:1046: rest_dir = fire_dir;
+./rogue/m_sentrygun.cpp:1051: vec3_t angles = vectoangles(fire_dir);
+./rogue/m_sentrygun.cpp:1054: // Fire two rockets with horizontal spread using fire_rocket
+./rogue/m_sentrygun.cpp:1061: vec3_t spread_dir = fire_dir;
+./rogue/m_sentrygun.cpp:1065: spread_dir = (fire_dir + right * spread_amount).normalized(); // Right rocket
+./rogue/m_sentrygun.cpp:1067: spread_dir = (fire_dir - right * spread_amount).normalized(); // Left rocket
+./rogue/m_sentrygun.cpp:1069: // Use fire_rocket to create the rocket with proper collision handling
+./rogue/m_sentrygun.cpp:1071: edict_t* heat = fire_rocket(self, start, spread_dir, damage, speed, damage_radius, damage);
+./rogue/m_sentrygun.cpp:1100: // Keep the auto-destruct timer from fire_rocket
+./rogue/m_sentrygun.cpp:1104: self->monsterinfo.last_sentry_missile_fire_time = level.time; // Reset timer to current time so we can fire again in 1.5/0.75 seconds
+./rogue/m_sentrygun.cpp:1113: if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
+./rogue/m_sentrygun.cpp:1114: (self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
+./rogue/m_sentrygun.cpp:1118: const float projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1450 : 1250;
+./rogue/m_sentrygun.cpp:1119: vec3_t fire_dir = dir;
+./rogue/m_sentrygun.cpp:1133: fire_dir = predicted_dir;
+./rogue/m_sentrygun.cpp:1142: fire_dir = predicted_dir;
+./rogue/m_sentrygun.cpp:1149: fire_dir = (target_pos - start).normalized();
+./rogue/m_sentrygun.cpp:1155: float spread = frandom() < 0.2f ? self->monsterinfo.quadfire_time > level.time ? 0.02f : 0.04f : 0.0f;
+./rogue/m_sentrygun.cpp:1156: fire_dir[0] += crandom() * spread;
+./rogue/m_sentrygun.cpp:1157: fire_dir[1] += crandom() * spread;
+./rogue/m_sentrygun.cpp:1158: fire_dir[2] += crandom() * spread;
+./rogue/m_sentrygun.cpp:1159: fire_dir = safe_normalized(fire_dir);
+./rogue/m_sentrygun.cpp:1164: fire_plasma(self, start, fire_dir, damage, projectileSpeed, 120, damage);
+./rogue/m_sentrygun.cpp:1165: self->monsterinfo.last_sentry_missile_fire_time = level.time; // Reset timer to current time
+./rogue/m_sentrygun.cpp:1195: const float speed = self->monsterinfo.quadfire_time > level.time ? 4000.0f : 3200.0f;
+./rogue/m_sentrygun.cpp:1226: const float spread_energymult = self->monsterinfo.quadfire_time > level.time ? 0.8f : 1.6f;
+./rogue/m_sentrygun.cpp:1229: monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
+./rogue/m_sentrygun.cpp:1230: monster_fire_energy_bullet(self, start, dir, 1, 8, DEFAULT_BULLET_HSPREAD * spread_energymult, DEFAULT_BULLET_VSPREAD * spread_energymult, MZ2_TURRET_MACHINEGUN);
+./rogue/m_sentrygun.cpp:1238: if (self->monsterinfo.quadfire_time > level.time || frandom() < 0.4f) {
+./rogue/m_sentrygun.cpp:1246: monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
+./rogue/m_sentrygun.cpp:1249: if (self->monsterinfo.quadfire_time > level.time) {
+./rogue/m_sentrygun.cpp:1252: monster_fire_flechette(self, muzzle_pos, aim_dir, damage, speed, MZ2_UNUSED_0);
+./rogue/m_sentrygun.cpp:1284: if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
+./rogue/m_sentrygun.cpp:1285: (self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 1.2_sec)) {
+./rogue/m_sentrygun.cpp:1302: const float speed = self->monsterinfo.quadfire_time > level.time ? 2000.0f : 1720.0f;
+./rogue/m_sentrygun.cpp:1303: vec3_t fire_dir, aimpoint;
+./rogue/m_sentrygun.cpp:1311: PredictAim(self, self->enemy, muzzle_pos, speed, true, 0.0f, &fire_dir, &aimpoint);
+./rogue/m_sentrygun.cpp:1314: fire_dir += right * (crandom() * 0.02f);
+./rogue/m_sentrygun.cpp:1315: fire_dir += up * (crandom() * 0.02f - 0.01f); // Slight downward bias
+./rogue/m_sentrygun.cpp:1316: fire_dir.normalize();
+./rogue/m_sentrygun.cpp:1327: fire_dir = predicted_pos - muzzle_pos;
+./rogue/m_sentrygun.cpp:1328: fire_dir.normalize();
+./rogue/m_sentrygun.cpp:1331: if (M_CalculatePitchToFire(self, predicted_pos, muzzle_pos, fire_dir,
+./rogue/m_sentrygun.cpp:1334: fire_dir[2] += crandom_open() * 0.005f;
+./rogue/m_sentrygun.cpp:1335: fire_dir.normalize();
+./rogue/m_sentrygun.cpp:1341: fire_grenade(self, muzzle_pos, fire_dir, damage, speed, 3_sec, 0,
+./rogue/m_sentrygun.cpp:1349: self->monsterinfo.last_sentry_missile_fire_time = level.time + 1_sec;
+./rogue/m_sentrygun.cpp:1393: end = self->monsterinfo.blind_fire_target;
+./rogue/m_sentrygun.cpp:1451: (self->monsterinfo.quadfire_time > level.time ? 3_sec : 5_sec);
+./rogue/m_sentrygun.cpp:1474: (self->monsterinfo.quadfire_time > level.time ? 4_sec : 3_sec);
+./rogue/m_sentrygun.cpp:1491: self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
+./rogue/m_sentrygun.cpp:1522: // last_sentry_missile_fire_time is now set inside each fire function (rocket, plasma, grenade)
+./rogue/m_sentrygun.cpp:1542: dir = self->monsterinfo.blind_fire_target - self->s.origin;
+./rogue/m_sentrygun.cpp:1555: end = self->monsterinfo.blind_fire_target;
+./rogue/m_sentrygun.cpp:1557: if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
+./rogue/m_sentrygun.cpp:1569: monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
+./rogue/m_sentrygun.cpp:1626: mframe_t turret2_frames_fire_blind[] = {
+./rogue/m_sentrygun.cpp:1633: MMOVE_T(turret2_move_fire_blind) = { FRAME_pow01, FRAME_pow04, turret2_frames_fire_blind, turret2_run };
+./rogue/m_sentrygun.cpp:1713: if (!self->monsterinfo.blind_fire_target)
+./rogue/m_sentrygun.cpp:1717: M_SetAnimation(self, &turret2_move_fire_blind);
+./rogue/m_sentrygun.cpp:2428: self->monsterinfo.last_sentry_missile_fire_time = gtime_t::from_sec(2);
+./rogue/m_sentrygun.cpp:2576: if (self->monsterinfo.quadfire_time > level.time) {
+./rogue/m_rogue_carrier.cpp:13: // self->monsterinfo.fire_wait used to prevent rapid refire of rocket launcher
+./rogue/m_rogue_carrier.cpp:101: if (self->monsterinfo.fire_wait > level.time)
+./rogue/m_rogue_carrier.cpp:131: self->monsterinfo.fire_wait = level.time + CARRIER_ROCKET_TIME;
+./rogue/m_rogue_carrier.cpp:214: monster_fire_grenade(self, start, aim, damage, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+./rogue/m_rogue_carrier.cpp:215: monster_fire_grenade(self, start, aim, damage, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+./rogue/m_rogue_carrier.cpp:237: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+./rogue/m_rogue_carrier.cpp:242: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+./rogue/m_rogue_carrier.cpp:247: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+./rogue/m_rogue_carrier.cpp:252: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+./rogue/m_rogue_carrier.cpp:292: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+./rogue/m_rogue_carrier.cpp:301: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+./rogue/m_rogue_carrier.cpp:310: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+./rogue/m_rogue_carrier.cpp:320: monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+./rogue/m_rogue_carrier.cpp:345: monster_fire_bullet(self, start, forward, damage, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
+./rogue/m_rogue_carrier.cpp:370: monster_fire_bullet(self, start, forward, damage, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
+./rogue/m_rogue_carrier.cpp:722: monster_fire_railgun(self, start, dir, damage, 100, MZ2_CARRIER_RAILGUN);
+./rogue/m_rogue_carrier.cpp:1156: if (level.time >= self->monsterinfo.fire_wait)
+./rogue/m_rogue_carrier.cpp:1158: self->monsterinfo.fire_wait = level.time + CARRIER_ROCKET_TIME;
+./rogue/m_rogue_widow.cpp:85: self->monsterinfo.fire_wait = 0_ms;
+./rogue/m_rogue_widow.cpp:215: monster_fire_blaster2(self, start, forward,
+./rogue/m_rogue_widow.cpp:265: monster_fire_blaster2(self, start, forward,
+./rogue/m_rogue_widow.cpp:281: monster_fire_blaster2(self, start, target,
+./rogue/m_rogue_widow.cpp:543: monster_fire_railgun(self, start, dir,
+./rogue/m_rogue_widow.cpp:732: fire_hit(self, aim, irandom(50, 56), 500);
+./rogue/m_rogue_widow.cpp:734: fire_hit(self, aim, irandom(50, 56), 250);
+./rogue/m_rogue_widow.cpp:808: const bool blaster_is_ready = level.time >= self->monsterinfo.fire_wait;
+./rogue/m_rogue_widow.cpp:833: self->monsterinfo.fire_wait = level.time + random_time(1_sec, 3_sec);
+./rogue/m_rogue_widow.cpp:846: if (self->monsterinfo.fire_wait >= level.time)
+./rogue/m_rogue_widow.cpp:874: self->monsterinfo.fire_wait = 0_ms;
+./rogue/m_rogue_widow2.cpp:123: monster_fire_heatbeam(self, start, forward, vec3_origin, damage, 50, flashnum);
+./rogue/m_rogue_widow2.cpp:141: monster_fire_heatbeam(self, start, forward, vec3_origin, damage, 50, flashnum);
+./rogue/m_rogue_widow2.cpp:155: monster_fire_heatbeam(self, start, forward, vec3_origin, 10, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
+./rogue/m_rogue_widow2.cpp:403: monster_fire_tracker(self, start, dir, damage, 900, self->enemy, MZ2_WIDOW_DISRUPTOR);
+./rogue/m_rogue_widow2.cpp:408: monster_fire_tracker(self, start, dir, 20, 1200, nullptr, MZ2_WIDOW_DISRUPTOR);
+./rogue/m_rogue_widow2.cpp:637: fire_hit(self, aim, irandom(20, 26), 0);
+./rogue/m_rogue_widow2.cpp:641: if (fire_hit(self, aim, irandom(20, 26), 250))
+./rogue/m_rogue_widow2.cpp:645: fire_hit(self, aim, 0, 250);
+./xatrix/m_xatrix_fixbot.cpp:40: void fixbot_fire_blaster(edict_t* self);
+./xatrix/m_xatrix_fixbot.cpp:41: void fixbot_fire_welder(edict_t* self);
+./xatrix/m_xatrix_fixbot.cpp:397: !self->monsterinfo.blind_fire_target.equals(vec3_origin)) {
+./xatrix/m_xatrix_fixbot.cpp:400: vec3_t spawn_dir = self->monsterinfo.blind_fire_target - start;
+./xatrix/m_xatrix_fixbot.cpp:421: !self->monsterinfo.blind_fire_target.equals(vec3_origin))
+./xatrix/m_xatrix_fixbot.cpp:432: gi.WritePosition(self->monsterinfo.blind_fire_target);
+./xatrix/m_xatrix_fixbot.cpp:435: gi.multicast(self->monsterinfo.blind_fire_target, MULTICAST_PVS, false);
+./xatrix/m_xatrix_fixbot.cpp:440: void fixbot_fire_spawn_laser(edict_t* self)
+./xatrix/m_xatrix_fixbot.cpp:452: TurnToPosition(self, self->monsterinfo.blind_fire_target, 5.0f);
+./xatrix/m_xatrix_fixbot.cpp:455: monster_fire_dabeam(self, -1, false, fixbot_spawn_laser_update);
+./xatrix/m_xatrix_fixbot.cpp:458: if (!self->monsterinfo.blind_fire_target.equals(vec3_origin))
+./xatrix/m_xatrix_fixbot.cpp:468: gi.WritePosition(self->monsterinfo.blind_fire_target);
+./xatrix/m_xatrix_fixbot.cpp:471: gi.multicast(self->monsterinfo.blind_fire_target, MULTICAST_PVS, false);
+./xatrix/m_xatrix_fixbot.cpp:477: gi.WritePosition(self->monsterinfo.blind_fire_target);
+./xatrix/m_xatrix_fixbot.cpp:478: gi.multicast(self->monsterinfo.blind_fire_target, MULTICAST_PVS, false);
+./xatrix/m_xatrix_fixbot.cpp:519: !self->monsterinfo.blind_fire_target.equals(vec3_origin))
+./xatrix/m_xatrix_fixbot.cpp:521: vec3_t dir = self->monsterinfo.blind_fire_target - self->s.origin;
+./xatrix/m_xatrix_fixbot.cpp:636: self->monsterinfo.blind_fire_target = vec3_origin;
+./xatrix/m_xatrix_fixbot.cpp:663: self->monsterinfo.blind_fire_target = spawn_pos;
+./xatrix/m_xatrix_fixbot.cpp:673: // Animation proceeds to call fixbot_fire_spawn_laser
+./xatrix/m_xatrix_fixbot.cpp:692: !self->monsterinfo.blind_fire_target.equals(vec3_origin))
+./xatrix/m_xatrix_fixbot.cpp:696: spawn_turret_at_position(self, self->monsterinfo.blind_fire_target);
+./xatrix/m_xatrix_fixbot.cpp:703: gi.WritePosition(self->monsterinfo.blind_fire_target);
+./xatrix/m_xatrix_fixbot.cpp:704: gi.multicast(self->monsterinfo.blind_fire_target, MULTICAST_PVS, false);
+./xatrix/m_xatrix_fixbot.cpp:714: self->monsterinfo.blind_fire_target = vec3_origin;
+./xatrix/m_xatrix_fixbot.cpp:732: { ai_move, 0, fixbot_fire_spawn_laser },
+./xatrix/m_xatrix_fixbot.cpp:733: { ai_move, 0, fixbot_fire_spawn_laser },
+./xatrix/m_xatrix_fixbot.cpp:734: { ai_move, 0, fixbot_fire_spawn_laser }, // Continue laser for a few frames
+./xatrix/m_xatrix_fixbot.cpp:735: { ai_move, 0, fixbot_fire_spawn_laser },
+./xatrix/m_xatrix_fixbot.cpp:1521: void fire_fixbot_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
+./xatrix/m_xatrix_fixbot.cpp:1579: // Fixed version of fixbot_fire_plasma function
+./xatrix/m_xatrix_fixbot.cpp:1580: void fixbot_fire_plasma(edict_t* self, float offset)
+./xatrix/m_xatrix_fixbot.cpp:1633: monster_fire_ionripper(self, start, dir1, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1634: monster_fire_ionripper(self, start, dir2, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1635: monster_fire_ionripper(self, start, dir3, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1636: monster_fire_ionripper(self, start, dir4, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1637: monster_fire_ionripper(self, start, dir5, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1643: monster_fire_ionripper(self, start, dir1, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1644: monster_fire_ionripper(self, start, dir2, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1645: monster_fire_ionripper(self, start, dir3, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+./xatrix/m_xatrix_fixbot.cpp:1682: fire_fixbot_plasma(self, start1, dir1, 20, speed, 150, 35, turn_fraction);
+./xatrix/m_xatrix_fixbot.cpp:1683: fire_fixbot_plasma(self, start2, dir2, 20, speed, 150, 35, turn_fraction);
+./xatrix/m_xatrix_fixbot.cpp:1684: fire_fixbot_plasma(self, start3, dir3, 20, speed, 150, 35, turn_fraction);
+./xatrix/m_xatrix_fixbot.cpp:1687: fire_fixbot_plasma(self, start, dir, 20, speed, 150, 35, turn_fraction);
+./xatrix/m_xatrix_fixbot.cpp:1714: fixbot_fire_plasma(self, 0.0f); // Fire the shot (now returns void)
+./xatrix/m_xatrix_fixbot.cpp:1729: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+./xatrix/m_xatrix_fixbot.cpp:1731: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+./xatrix/m_xatrix_fixbot.cpp:1732: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+./xatrix/m_xatrix_fixbot.cpp:1733: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+./xatrix/m_xatrix_fixbot.cpp:1734: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge, -10 },
+./xatrix/m_xatrix_fixbot.cpp:1736: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge, -10 },
+./xatrix/m_xatrix_fixbot.cpp:1737: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+./xatrix/m_xatrix_fixbot.cpp:1738: { ai_charge, -10 }, { ai_charge, 0, fixbot_fire_blaster },
+./xatrix/m_xatrix_fixbot.cpp:1739: { ai_charge }, { ai_charge, 0, fixbot_fire_blaster },
+./xatrix/m_xatrix_fixbot.cpp:1741: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge },
+./xatrix/m_xatrix_fixbot.cpp:1742: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge, 0, fixbot_fire_blaster },
+./xatrix/m_xatrix_fixbot.cpp:1743: { ai_charge, 0, fixbot_fire_blaster }, { ai_charge, 0, fixbot_fire_blaster },
+./xatrix/m_xatrix_fixbot.cpp:1795: { ai_move2, 0, fixbot_fire_welder }, { ai_move2, 0, fixbot_fire_welder },
+./xatrix/m_xatrix_fixbot.cpp:1796: { ai_move2, 0, fixbot_fire_welder }, { ai_move2, 0, fixbot_fire_welder },
+./xatrix/m_xatrix_fixbot.cpp:1797: { ai_move2, 0, fixbot_fire_welder }, { ai_move2, 0, fixbot_fire_welder },
+./xatrix/m_xatrix_fixbot.cpp:1809: void fixbot_fire_welder(edict_t* self)
+./xatrix/m_xatrix_fixbot.cpp:1841: void fixbot_fire_blaster(edict_t* self)
+./xatrix/m_xatrix_fixbot.cpp:1861: monster_fire_blaster_bolt(self, start, dir, 7, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, isboss ? 3 : 0);
+./xatrix/m_xatrix_fixbot.cpp:1869: fixbot_fire_plasma(self, 0.0f);
+./xatrix/m_xatrix_gekk.cpp:644: if (fire_hit(self, aim, damage, 100))
+./xatrix/m_xatrix_gekk.cpp:666: if (fire_hit(self, aim, damage, 100))
+./xatrix/m_xatrix_gekk.cpp:716: void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed)
+./xatrix/m_xatrix_gekk.cpp:789: fire_loogie(self, start, dir, damage, 850);
+./xatrix/m_xatrix_gekk.cpp:993: fire_hit(self, aim, 5, 0);
+./xatrix/m_xatrix_gekk.cpp:1938: if (fire_hit(self, aim, irandom(15, 20), 100)) {
+./xatrix/m_xatrix_gekk.cpp:1960: if (fire_hit(self, aim, irandom(15, 20), 100)) {
+./xatrix/m_xatrix_gekk.cpp:2321: void fire_gekk_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed)
+./xatrix/m_xatrix_gekk.cpp:2376: fire_gekk_plasma(self, start, dir, damage, 900); // Faster and more damaging than loogie
