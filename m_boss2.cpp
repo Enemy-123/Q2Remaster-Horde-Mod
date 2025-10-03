@@ -105,6 +105,10 @@ void Boss2Rocket(edict_t *self)
 			return;
 		}
 	}
+	else
+	{
+		return; // Enemy is null, cannot fire
+	}
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
@@ -157,6 +161,9 @@ void Boss2Rocket64(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	if (!self->enemy)
+		return; // Enemy is null, cannot fire
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
@@ -172,7 +179,7 @@ void Boss2Rocket64(edict_t* self)
 	start -= right * 2.f * scale;
 	start -= right * ((self->count++ % 4) * 8.f * scale);
 
-	if (self && self->enemy && self->enemy->client && frandom() < 0.9f)
+	if (self->enemy->client && frandom() < 0.9f)
 	{
 		// 1
 		dir = self->enemy->s.origin - start;

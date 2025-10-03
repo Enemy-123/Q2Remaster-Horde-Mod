@@ -1480,7 +1480,9 @@ bool CheckFlood(edict_t* ent)
 		i = cl->flood_whenhead - flood_msgs->integer + 1;
 		if (i < 0)
 			i = (sizeof(cl->flood_when) / sizeof(cl->flood_when[0])) + i;
-		if (i >= q_countof(cl->flood_when))
+		// Ensure index is within valid bounds
+		i = i % q_countof(cl->flood_when);
+		if (i < 0)
 			i = 0;
 		if (cl->flood_when[i] && level.time - cl->flood_when[i] < gtime_t::from_sec(flood_persecond->value))
 		{

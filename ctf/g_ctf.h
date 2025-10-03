@@ -68,30 +68,30 @@ struct ghost_t
 // Moved from g_ctf.cpp for horde_menu.cpp (Needed for extern ctfgame)
 struct ctfgame_t
 {
-	int		team1, team2;
-	int		total1, total2; // these are only set when going into intermission except in teamplay
-	gtime_t last_flag_capture;
-	int		last_capture_team;
+	int		team1 = 0, team2 = 0;
+	int		total1 = 0, total2 = 0; // these are only set when going into intermission except in teamplay
+	gtime_t last_flag_capture = 0_ms;
+	int		last_capture_team = 0;
 
-	match_t match;	   // match state
-	gtime_t matchtime; // time for match start/end (depends on state)
-	int		lasttime;  // last time update, explicitly truncated to seconds
-	bool	countdown; // has audio countdown started?
+	match_t match = MATCH_NONE;	   // match state
+	gtime_t matchtime = 0_ms; // time for match start/end (depends on state)
+	int		lasttime = 0;  // last time update, explicitly truncated to seconds
+	bool	countdown = false; // has audio countdown started?
 
-	elect_t	 election;	// election type
-	edict_t* etarget;	// for admin election, who's being elected
-	char	 elevel[32]; // for map election, target level
-	int		 evotes;	// votes so far
-	int		 nvotes;	// no votes so far (for cancellation)
-	int		 needvotes;	// votes needed
-	gtime_t	 electtime;	// remaining time until election times out
-	char	 emsg[256];	// election name
-	int		 warnactive; // true if stat string 30 is active
-	
-	bool	 time_extension_voted; // track if time extension vote already happened
-	bool	 automatic_vote; // track if current vote was triggered automatically (vs manual)
+	elect_t	 election = ELECT_NONE;	// election type
+	edict_t* etarget = nullptr;	// for admin election, who's being elected
+	char	 elevel[32] = {};  // for map election, target level
+	int		 evotes = 0;	// votes so far
+	int		 nvotes = 0;	// no votes so far (for cancellation)
+	int		 needvotes = 0;	// votes needed
+	gtime_t	 electtime = 0_ms;	// remaining time until election times out
+	char	 emsg[256] = {};	// election name
+	int		 warnactive = 0; // true if stat string 30 is active
 
-	ghost_t ghosts[MAX_CLIENTS]; // ghost codes
+	bool	 time_extension_voted = false; // track if time extension vote already happened
+	bool	 automatic_vote = false; // track if current vote was triggered automatically (vs manual)
+
+	ghost_t ghosts[MAX_CLIENTS] = {}; // ghost codes
 };;
 
 // --- Extern Declarations ---

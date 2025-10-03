@@ -95,9 +95,11 @@ void Use_TeleportSelf(edict_t* ent, gitem_t* item)
 		return;
 	}
 
-	if (ent->client && ent->health <= 0) // do nothing if dead
+	if (!ent->client)
 		return;
 
+	if (ent->health <= 0) // do nothing if dead
+		return;
 
 	if (ClientIsSpectating(ent->client)) {
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to Teleport\n");
@@ -423,7 +425,10 @@ bool Pickup_Sphere(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
-	if (other->client && other->client->owned_sphere)
+	if (!other->client)
+		return false;
+
+	if (other->client->owned_sphere)
 	{
 		//		gi.LocClient_Print(other, PRINT_HIGH, "$g_only_one_sphere_customer");
 		return false;
@@ -458,7 +463,10 @@ bool Pickup_Sphere(edict_t* ent, edict_t* other)
 
 void Use_Defender(edict_t* ent, gitem_t* item)
 {
-	if (ent->client && ent->client->owned_sphere)
+	if (!ent->client)
+		return;
+
+	if (ent->client->owned_sphere)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "$g_only_one_sphere_time");
 		return;
@@ -471,7 +479,10 @@ void Use_Defender(edict_t* ent, gitem_t* item)
 
 void Use_Hunter(edict_t* ent, gitem_t* item)
 {
-	if (ent->client && ent->client->owned_sphere)
+	if (!ent->client)
+		return;
+
+	if (ent->client->owned_sphere)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "$g_only_one_sphere_time");
 		return;
@@ -484,7 +495,10 @@ void Use_Hunter(edict_t* ent, gitem_t* item)
 
 void Use_Vengeance(edict_t* ent, gitem_t* item)
 {
-	if (ent->client && ent->client->owned_sphere)
+	if (!ent->client)
+		return;
+
+	if (ent->client->owned_sphere)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "$g_only_one_sphere_time");
 		return;

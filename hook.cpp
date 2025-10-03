@@ -355,7 +355,7 @@ void Hook_Service(edict_t* self)
 
 	// give the client some velocity ...
 	vec3_t hook_dir;
-	if (self->enemy->client)
+	if (self->enemy && self->enemy->client)
 		hook_dir = self->enemy->s.origin - self->owner->s.origin;
 	else
 		hook_dir = self->s.origin - self->owner->s.origin;

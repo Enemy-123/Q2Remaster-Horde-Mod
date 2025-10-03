@@ -2091,10 +2091,14 @@ USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void
 
 	if (self->count & 3)
 	{
-		float rotate;
-		int32_t autorotate;
+		float rotate = 0.0f;
+		int32_t autorotate = 0;
 
-		sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate);
+		if (sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate) < 2) {
+			// Failed to parse, use defaults
+			rotate = 0.0f;
+			autorotate = 0;
+		}
 
 		if (self->count & 1)
 			rotate = self->accel;

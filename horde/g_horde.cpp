@@ -107,8 +107,8 @@ static int32_t waves_since_ambush = 0;
 // --- Recent Spawn Position Tracking ---
 struct RecentSpawnsSoA
 {
-	std::array<vec3_t, 32> positions;		 // Tightly packed array of vectors
-	std::array<gtime_t, 32> cooldowns_until; // Tightly packed array of times
+	std::array<vec3_t, 32> positions = {};		 // Tightly packed array of vectors
+	std::array<gtime_t, 32> cooldowns_until = {}; // Tightly packed array of times
 };
 static constexpr size_t MAX_RECENT_POSITIONS = 32; // History for TryAlternativeSpawnPosition
 static RecentSpawnsSoA g_recent_spawns;
@@ -119,8 +119,8 @@ static constexpr int MAX_RECENT_TELEPORT_LOCATIONS = 8;
 
 struct RecentTeleportsSoA
 {
-	std::array<vec3_t, MAX_RECENT_TELEPORT_LOCATIONS> positions;
-	std::array<gtime_t, MAX_RECENT_TELEPORT_LOCATIONS> teleport_times;
+	std::array<vec3_t, MAX_RECENT_TELEPORT_LOCATIONS> positions = {};
+	std::array<gtime_t, MAX_RECENT_TELEPORT_LOCATIONS> teleport_times = {};
 };
 
 static RecentTeleportsSoA g_recent_teleports;

@@ -519,6 +519,9 @@ THINK(turret_brain_think) (edict_t* self) -> void
 		self->monsterinfo.aiflags &= ~AI_LOST_SIGHT;
 	}
 
+	if (!self->enemy)
+		return;
+
 	endpos = self->enemy->absmax + self->enemy->absmin;
 	endpos *= 0.5f;
 

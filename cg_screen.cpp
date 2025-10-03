@@ -38,10 +38,10 @@ static struct
         } table_cells[6];
     } table_rows[MAX_LEVELS_PER_UNIT + 1 + 1 + 1]; // just enough to store all levels + header + total (+ one slack)
 
-    size_t column_widths[6];
+    size_t column_widths[6] = {};
     int32_t num_rows = 0;
     int32_t num_columns = 0;
-} hud_temp;
+} hud_temp = {};
 
 #include <vector>
 
@@ -57,12 +57,12 @@ struct cl_centerprint_t {
     std::vector<cl_bind_t> binds; // binds
 
     std::vector<std::string> lines;
-    bool        instant; // don't type out
+    bool        instant = false; // don't type out
 
-    size_t      current_line; // current line we're typing out
-    size_t      line_count; // byte count to draw on current line
-    bool        finished; // done typing it out
-    uint64_t    time_tick, time_off; // time to remove at
+    size_t      current_line = 0; // current line we're typing out
+    size_t      line_count = 0; // byte count to draw on current line
+    bool        finished = false; // done typing it out
+    uint64_t    time_tick = 0, time_off = 0; // time to remove at
 };
 
 inline bool CG_ViewingLayout(const player_state_t* ps)
@@ -92,9 +92,9 @@ constexpr size_t MAX_NOTIFY = 8;
 
 struct cl_notify_t {
     std::string     message; // utf8 message
-    bool            is_active; // filled or not
-    bool            is_chat; // green or not
-    uint64_t        time; // rotate us when < CL_Time()
+    bool            is_active = false; // filled or not
+    bool            is_chat = false; // green or not
+    uint64_t        time = 0; // rotate us when < CL_Time()
 };
 
 // per-splitscreen client hud storage

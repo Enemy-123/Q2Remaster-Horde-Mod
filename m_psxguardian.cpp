@@ -618,7 +618,7 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 	heat->dmg_radius = damage_radius;
 	heat->s.sound = gi.soundindex("weapons/rockfly.wav");
 
-	if (visible(heat, self->enemy))
+	if (self->enemy && visible(heat, self->enemy))
 	{
 		heat->oldenemy = self->enemy;
 		heat->timestamp = level.time + 0.6_sec;
