@@ -983,9 +983,10 @@ void SP_monster_shambler(edict_t* self)
 void SP_monster_shamblerkl(edict_t* self)
 {
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_KL);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	SP_monster_shambler(self);
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_KL)) {
-		self->health = 6500 + (1.08 * current_wave_level);
+		self->health = (config ? config->health : 6500) + (1.08 * current_wave_level);
 		self->gib_health = -190;
 	}
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {

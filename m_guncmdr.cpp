@@ -1819,7 +1819,8 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 
 	// Configuración especial para jefe
 	if (self->style == GUNCMDR_STYLE_BOSS || self->spawnflags.has(SPAWNFLAG_GUNCMDRKL)) {
-		self->health = 4500 + (1.08 * current_wave_level);
+		const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR_KL));
+		self->health = (config ? config->health : 4500) + (1.08 * current_wave_level);
 		if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 			self->mass *= 3.0f;
 			self->gib_health = -999777;

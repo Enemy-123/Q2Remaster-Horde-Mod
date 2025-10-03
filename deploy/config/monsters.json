@@ -13,7 +13,7 @@
       }
     },
     "soldier_light": {
-      "health": 20,
+      "health": 40,
       "power_armor_power": 0,
       "power_armor_type": "screen",
       "weapon_damage": {
@@ -37,13 +37,12 @@
       }
     },
     "soldier_hypergun": {
-      "health": 40,
+      "health": 75,
       "power_armor_power": 45,
       "power_armor_type": "screen",
       "weapon_damage": {
-        "blueblaster": 16,
-        "blaster_bolt": 15,
-        "fire_bolt": 15
+        "blueblaster": 8,
+        "blaster_bolt": 15
       }
     },
     "soldier_ripper": {
@@ -138,7 +137,7 @@
       }
     },
     "guncmdrkl": {
-      "health": 260,
+      "health": 4500,
       "power_armor_power": 200,
       "power_armor_type": "shield",
       "weapon_damage": {
@@ -148,7 +147,7 @@
       }
     },
     "gladiator": {
-      "health": 400,
+      "health": 450,
       "armor_power": 200,
       "armor_type": "combat",
       "weapon_damage": {
@@ -157,8 +156,8 @@
       }
     },
     "gladb": {
-      "health": 450,
-      "power_armor_power": 380,
+      "health": 480,
+      "power_armor_power": 420,
       "power_armor_type": "shield",
       "weapon_damage": {
         "tracker": 16,
@@ -166,8 +165,8 @@
       }
     },
     "gladc": {
-      "health": 450,
-      "power_armor_power": 380,
+      "health": 480,
+      "power_armor_power": 420,
       "power_armor_type": "shield",
       "weapon_damage": {
         "plasma": 35,
@@ -187,7 +186,7 @@
       }
     },
     "tank_commander": {
-      "health": 1000,
+      "health": 780,
       "power_armor_power": 0,
       "weapon_damage": {
         "blaster": 18,
@@ -199,7 +198,7 @@
       }
     },
     "tank_64": {
-      "health": 850,
+      "health": 900,
       "power_armor_power": 0,
       "weapon_damage": {
         "blaster": 15,
@@ -223,7 +222,7 @@
       }
     },
     "chick": {
-      "health": 145,
+      "health": 165,
       "power_armor_power": 75,
       "power_armor_type": "shield",
       "weapon_damage": {
@@ -278,14 +277,14 @@
     "hover": {
       "health": 240,
       "power_armor_power": 100,
-      "power_armor_type": "screen",
+      "power_armor_type": "shield",
       "weapon_damage": {
         "rocket": 50
       }
     },
     "hover_vanilla": {
-      "health": 240,
-      "power_armor_power": 100,
+      "health": 215,
+      "power_armor_power": 75,
       "power_armor_type": "screen",
       "weapon_damage": {
         "blaster": 12
@@ -342,8 +341,8 @@
       }
     },
     "fixbot": {
-      "health": 7500,
-      "power_armor_power": 5000,
+      "health": 80,
+      "power_armor_power": 25,
       "power_armor_type": "shield",
       "weapon_damage": {
         "ionripper": 25,
@@ -457,7 +456,7 @@
       }
     },
     "shamblerkl": {
-      "health": 700,
+      "health": 6500,
       "power_armor_power": 0,
       "weapon_damage": {
         "lightning": 10,
@@ -486,7 +485,7 @@
       }
     },
     "tank_spawner": {
-      "health": 1200,
+      "health": 800,
       "power_armor_power": 0,
       "weapon_damage": {
         "blaster": 20,
