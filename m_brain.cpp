@@ -1166,6 +1166,7 @@ void SP_monster_brain(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BRAIN);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer) {
 		{
@@ -1208,7 +1209,7 @@ void SP_monster_brain(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = 275 * st.health_multiplier;
+	self->health = (config ? config->health : 275) * st.health_multiplier;
 	self->gib_health = -90;
 	self->mass = 400;
 	//self->yaw_speed = 400;
@@ -1236,9 +1237,9 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.blocked = brain_blocked; // PGM
 
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 150;
+		self->monsterinfo.power_armor_power = config ? config->power_armor_power : 150;
 
 	gi.linkentity(self);
 

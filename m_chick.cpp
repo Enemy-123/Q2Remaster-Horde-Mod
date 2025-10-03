@@ -796,11 +796,12 @@ void ChickRocket(edict_t* self)
 		if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
 		{
 			// RAFAEL
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
 			if (self->s.skinnum > 1)
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+				monster_fire_heat(self, start, dir, damage > 0 ? damage : 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
 			else
 				// RAFAEL
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
+				monster_fire_rocket(self, start, dir, damage > 0 ? damage : 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
 		}
 		else
 		{
@@ -1382,6 +1383,7 @@ void SP_monster_chick(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK);
     }
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer)
 	{
@@ -1426,11 +1428,11 @@ void SP_monster_chick(edict_t* self)
 	self->mins = { -16, -16, 0 };
 	self->maxs = { 16, 16, 56 };
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 75;
+		self->monsterinfo.power_armor_power = config ? config->power_armor_power : 75;
 
-	self->health = 145 * st.health_multiplier;
+	self->health = (config ? config->health : 145) * st.health_multiplier;
 	self->gib_health = -70;
 	self->mass = 200;
 

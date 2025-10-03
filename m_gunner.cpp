@@ -426,20 +426,23 @@ void GunnerFire(edict_t* self)
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
 	}
 
+	int machinegun_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
+
 	if (g_hardcoop->integer <= 3) {
 		// Modo hardcoop bajo: solo ionripper
 		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
-		monster_fire_ionripper(self, start, aim, 4, 800, flash_number, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
 	}
 	else if (current_wave_level <= 12) {
 		// Waves bajos: bullet
 		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
-		monster_fire_bullet(self, start, aim, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+		monster_fire_bullet(self, start, aim, machinegun_damage > 0 ? machinegun_damage : 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
 	else {
 		// Waves altos: ionripper
 		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
-		monster_fire_ionripper(self, start, aim, 4, 800, flash_number, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
 	}
 }
 
@@ -932,9 +935,10 @@ void SP_monster_gunner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNNER);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer) {
-		const float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
+		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
@@ -967,15 +971,15 @@ void SP_monster_gunner(edict_t* self)
 	gi.modelindex("models/monsters/gunner/gibs/head.md2");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 65;
+		self->monsterinfo.power_armor_power = config ? config->power_armor_power : 65;
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SHIELD;
 
 
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 36 };
 
-	self->health = 175 * st.health_multiplier;
+	self->health = (config ? config->health : 175) * st.health_multiplier;
 	self->gib_health = -70;
 	self->mass = 200;
 //	if (g_horde->integer) {

@@ -312,7 +312,8 @@ void hover_fire_blaster(edict_t* self)
     dir = end - start;
     dir.normalize();
     PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);
-    monster_fire_blaster(self, start, dir, 12, blasterSpeed,
+    int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+    monster_fire_blaster(self, start, dir, damage > 0 ? damage : 12, blasterSpeed,
         (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1,
         (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 }
@@ -334,7 +335,8 @@ void hover_fire_blaster2(edict_t* self)
     dir = end - start;
     dir.normalize();
     PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);
-    monster_fire_blaster2(self, start, dir, 12, blasterSpeed,
+    int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+    monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 12, blasterSpeed,
         (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER,
         (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 }
@@ -574,12 +576,12 @@ void SP_monster_hover(edict_t* self)
 {
     // FIX: This is the new central logic. It sets the monster_type_id from the classname
     // if it hasn't been set already. This makes the system work for all spawn methods.
-	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
+	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER);
 
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
     const spawn_temp_t& st = ED_GetSpawnTemp();
- 
+
     if (!M_AllowSpawn(self)) {
         G_FreeEdict(self);
         return;
@@ -596,13 +598,18 @@ void SP_monster_hover(edict_t* self)
     self->mins = { -24, -24, -24 };
     self->maxs = { 24, 24, 32 };
 
-    self->health = 280 * st.health_multiplier;
+    self->health = (config ? config->health : 240) * st.health_multiplier;
     self->gib_health = -100;
 
     // Only set mass if it hasn't been set already (for non-Daedalus types).
     if (self->mass <= 150) {
         self->mass = 150;
     }
+
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = config ? config->power_armor_power : 100;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SCREEN;
 
     self->pain = hover_pain;
     self->die = hover_die;

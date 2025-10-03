@@ -93,8 +93,8 @@ static uint8_t GetMonsterTypeIDFromString(const std::string& name)
 	if (name == "widow") return static_cast<uint8_t>(MonsterTypeID::WIDOW);
 	if (name == "widow2") return static_cast<uint8_t>(MonsterTypeID::WIDOW2);
 	if (name == "guardian") return static_cast<uint8_t>(MonsterTypeID::GUARDIAN);
-	if (name == "guardian_kl") return static_cast<uint8_t>(MonsterTypeID::GUARDIAN_KL);
-	if (name == "psxguardian") return static_cast<uint8_t>(MonsterTypeID::PSXGUARDIAN);
+	if (name == "guardian_kl") return static_cast<uint8_t>(MonsterTypeID::GUARDIAN); // Map KL variant to base guardian
+	if (name == "psxguardian") return static_cast<uint8_t>(MonsterTypeID::PSX_GUARDIAN);
 
 	return 255; // Invalid
 }

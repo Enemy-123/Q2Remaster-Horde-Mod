@@ -2543,7 +2543,8 @@ void SP_monster_medic(edict_t *self)
 	// PMM
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MEDIC_COMMANDER))
 	{
-		self->health = 600 * st.health_multiplier;
+		const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(horde::MonsterTypeID::MEDIC_COMMANDER));
+		self->health = (config ? config->health : 600) * st.health_multiplier;
 		self->gib_health = -130;
 		self->mass = 600;
 		self->yaw_speed = 40; // default is 20
@@ -2552,7 +2553,8 @@ void SP_monster_medic(edict_t *self)
 	else
 	{
 		// PMM
-		self->health = 300 * st.health_multiplier;
+		const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+		self->health = (config ? config->health : 300) * st.health_multiplier;
 		self->gib_health = -130;
 		self->mass = 400;
 	}

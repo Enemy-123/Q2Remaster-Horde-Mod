@@ -3,16 +3,16 @@
   "entity_limits": {
     "max_sentries": 3,
     "max_lasers": 6,
-    "max_teslas": 12,
+    "max_teslas": 11,
     "max_barrels": 4,
-    "max_prox": 20,
-    "max_summons": 8
+    "max_prox": 12,
+    "max_summons": 3
   },
 
   "// ==================== WEAPONS ====================": "Player weapon configurations",
   "weapons": {
     "blaster": {
-      "damage": 15,
+      "damage": 11,
       "speed": 1300,
       "bounces": 5
     },

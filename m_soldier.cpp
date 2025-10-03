@@ -705,24 +705,29 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	{
 		// RAFAEL 24-APR-98
 		// droped the damage from 15 to 5
-		monster_fire_ionripper(self, start, aim, 5, 600, flash_index, EF_IONRIPPER);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
+		monster_fire_ionripper(self, start, aim, damage > 0 ? damage : 5, 600, flash_index, EF_IONRIPPER);
 	}
 	else if (style.has_bluehyper())
 	{
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "hyperblaster");
 		if (IsFirstThreeWaves(current_wave_level)) {
-			monster_fire_blueblaster(self, start, aim, 2, 600, flash_index, EF_BLUEHYPERBLASTER);
+			monster_fire_blueblaster(self, start, aim, damage > 0 ? damage : 2, 600, flash_index, EF_BLUEHYPERBLASTER);
 		}
 		else {
-			monster_fire_blaster_bolt(self, start, forward, 5, 1150, flash_index, EF_BLUEHYPERBLASTER);
+			monster_fire_blaster_bolt(self, start, forward, damage > 0 ? damage : 5, 1150, flash_index, EF_BLUEHYPERBLASTER);
 		}
 	}
 	else if (style.has_blaster())
 	{
-		monster_fire_blaster(self, start, aim, IsFirstThreeWaves(current_wave_level) ? 6 : 9, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		int fallback_damage = IsFirstThreeWaves(current_wave_level) ? 6 : 9;
+		monster_fire_blaster(self, start, aim, damage > 0 ? damage : fallback_damage, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
 	}
 	else if (style.has_shotgun())
 	{
-		monster_fire_shotgun(self, start, aim, 3, 1, 1500, 750, 9, flash_index);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "shotgun");
+		monster_fire_shotgun(self, start, aim, damage > 0 ? damage : 3, 1, 1500, 750, 9, flash_index);
 		// [Paril-KEX] indicates to soldier that he must cock
 		self->dmg = 1;
 	}
@@ -734,8 +739,10 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 
 		if (style.has_laser())
 			soldierh_laserbeam(self, flash_index); //crashes here
-		else
-			monster_fire_bullet(self, start, aim, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+		else {
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+			monster_fire_bullet(self, start, aim, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+		}
 
 		if (level.time >= self->monsterinfo.fire_wait)
 		{
@@ -2349,20 +2356,30 @@ void SP_monster_soldier_light(edict_t* self)
 	gi.soundindex("misc/lasfly.wav");
 	gi.soundindex("soldier/solatck2.wav");
 
-	// Fixed: Only set power_armor_power when actually giving power armor
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LIGHT);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
+	// Fixed: Only set power_armor when specified or from config
 	if (!st.was_key_specified("power_armor_type")) {
-		if (brandom()) {
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
 			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = 35;
+				self->monsterinfo.power_armor_power = config->power_armor_power;
 		} else {
-			self->monsterinfo.power_armor_type = IT_NULL;
+			// Fallback to random behavior if no config
+			if (brandom()) {
+				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+				if (!st.was_key_specified("power_armor_power"))
+					self->monsterinfo.power_armor_power = 35;
+			} else {
+				self->monsterinfo.power_armor_type = IT_NULL;
+			}
 		}
 	}
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 60 * st.health_multiplier;
+	self->health = self->max_health = (config ? config->health : 20) * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2372,7 +2389,6 @@ void SP_monster_soldier_light(edict_t* self)
 	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LIGHT);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2393,27 +2409,36 @@ void SP_monster_soldier(edict_t* self)
 	sound_death.assign("soldier/soldeth1.wav");
 	gi.soundindex("soldier/solatck1.wav");
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	// Fixed: Correctly set armor_type (not power_armor_type) when no armor
 	if (!st.was_key_specified("armor_type")) {
-		if (brandom()) {
-			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
 			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = 40;
+				self->monsterinfo.armor_power = config->armor_power;
 		} else {
-			self->monsterinfo.armor_type = IT_NULL;
+			// Fallback: random combat armor
+			if (brandom()) {
+				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+				if (!st.was_key_specified("armor_power"))
+					self->monsterinfo.armor_power = 40;
+			} else {
+				self->monsterinfo.armor_type = IT_NULL;
+			}
 		}
 	}
 
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 56 * st.health_multiplier;
+	self->health = self->max_health = (config ? config->health : 30) * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
 	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2434,27 +2459,36 @@ void SP_monster_soldier_ss(edict_t* self)
 	sound_death_ss.assign("soldier/soldeth3.wav");
 	gi.soundindex("soldier/solatck3.wav");
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_SS);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	// Fixed: Correctly set armor_type (not power_armor_type) when no armor
 	if (!st.was_key_specified("armor_type")) {
-		if (brandom()) {
-			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
 			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = 50;
+				self->monsterinfo.armor_power = config->armor_power;
 		} else {
-			self->monsterinfo.armor_type = IT_NULL;
+			// Fallback: random combat armor
+			if (brandom()) {
+				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+				if (!st.was_key_specified("armor_power"))
+					self->monsterinfo.armor_power = 50;
+			} else {
+				self->monsterinfo.armor_type = IT_NULL;
+			}
 		}
 	}
 
 	self->s.skinnum = 4;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 65 * st.health_multiplier;
+	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
 	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_SS);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2494,14 +2528,17 @@ void SP_monster_soldier_ripper(edict_t* self)
 	gi.soundindex("misc/lasfly.wav");
 	gi.soundindex("soldier/solatck2.wav");
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_RIPPER);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = ((IsFirstThreeWaves(current_wave_level)) ? 45 : (g_hardcoop->integer ? 35 : 0));
+		self->monsterinfo.power_armor_power = config ? config->power_armor_power : ((IsFirstThreeWaves(current_wave_level)) ? 45 : (g_hardcoop->integer ? 35 : 0));
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 105 * st.health_multiplier;
+	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2511,7 +2548,6 @@ void SP_monster_soldier_ripper(edict_t* self)
 	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_RIPPER);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2535,9 +2571,12 @@ void SP_monster_soldier_hypergun(edict_t* self)
 	gi.soundindex("weapons/hyprbd1a.wav");
 	gi.soundindex("weapons/hyprbl1a.wav");
 
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_HYPERGUN);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	self->s.skinnum = 8;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 100 * st.health_multiplier;
+	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2547,7 +2586,6 @@ void SP_monster_soldier_hypergun(edict_t* self)
 	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_HYPERGUN);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2568,28 +2606,35 @@ void SP_monster_soldier_lasergun(edict_t* self)
 	sound_death_ss.assign("soldier/soldeth3.wav");
 	gi.soundindex("soldier/solatck3.wav");
 
-	if (!st.was_key_specified("armor_power"))
-	self->monsterinfo.armor_power = 50;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LASERGUN);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	if (!st.was_key_specified("armor_type")) {
-		if (brandom()) {
-			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
 			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = 50;
+				self->monsterinfo.armor_power = config->armor_power;
 		} else {
-			self->monsterinfo.armor_type = IT_NULL;
+			// Fallback: random combat armor
+			if (brandom()) {
+				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+				if (!st.was_key_specified("armor_power"))
+					self->monsterinfo.armor_power = 50;
+			} else {
+				self->monsterinfo.armor_type = IT_NULL;
+			}
 		}
 	}
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 80 * st.health_multiplier;
+	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
 	// HORDE MOD: Increased jump height from 48 to 62 (30% increase) for better obstacle navigation
 	self->monsterinfo.jump_height = 62;
 	self->monsterinfo.can_jump = true;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LASERGUN);
 	ApplyMonsterBonusFlags(self);
 }
 

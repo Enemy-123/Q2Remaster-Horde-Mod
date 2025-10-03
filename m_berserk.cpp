@@ -1126,6 +1126,7 @@ void SP_monster_berserk(edict_t* self)
 
 	// Set the base ID. This is the default.
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERK);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	self->s.modelindex = gi.modelindex("models/monsters/berserk/tris.md2");
 
@@ -1144,7 +1145,7 @@ void SP_monster_berserk(edict_t* self)
 	//if (!st.was_key_specified("power_armor_power"))
 	//	self->monsterinfo.power_armor_power = 95;
 
-	self->health = 295 * st.health_multiplier;
+	self->health = (config ? config->health : 295) * st.health_multiplier;
 
 	// Extra health scaling for high wave special Berserk waves (wave 15+)
 	extern int16_t current_wave_level;

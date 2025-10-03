@@ -1196,6 +1196,7 @@ void SP_monster_infantry(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	self->style = 1;
 
@@ -1208,12 +1209,11 @@ void SP_monster_infantry(edict_t* self)
 		self->maxs *= self->s.scale;
 
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 85;
+			self->monsterinfo.power_armor_power = config ? config->power_armor_power : 85;
 		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+			self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SHIELD;
 
-		self->health = 125 * st.health_multiplier;
+		self->health = (config ? config->health : 100) * st.health_multiplier;
 	}
-
 
 }
