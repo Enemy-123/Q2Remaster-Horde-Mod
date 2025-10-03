@@ -4,6 +4,8 @@
 #include <json/json.h>
 #include <fstream>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <cstring>
 
 // Global config instance
@@ -25,79 +27,7 @@ static float GetJsonFloat(const Json::Value& json, const char* key, float defaul
 	return defaultValue;
 }
 
-// Helper function to convert monster name string to MonsterTypeID
-static uint8_t GetMonsterTypeIDFromString(const std::string& name)
-{
-	using horde::MonsterTypeID;
-
-	if (name == "soldier_light") return static_cast<uint8_t>(MonsterTypeID::SOLDIER_LIGHT);
-	if (name == "soldier") return static_cast<uint8_t>(MonsterTypeID::SOLDIER);
-	if (name == "soldier_ss") return static_cast<uint8_t>(MonsterTypeID::SOLDIER_SS);
-	if (name == "infantry") return static_cast<uint8_t>(MonsterTypeID::INFANTRY);
-	if (name == "infantry_vanilla") return static_cast<uint8_t>(MonsterTypeID::INFANTRY_VANILLA);
-	if (name == "gunner") return static_cast<uint8_t>(MonsterTypeID::GUNNER);
-	if (name == "gunner_vanilla") return static_cast<uint8_t>(MonsterTypeID::GUNNER_VANILLA);
-	if (name == "medic") return static_cast<uint8_t>(MonsterTypeID::MEDIC);
-	if (name == "gladiator") return static_cast<uint8_t>(MonsterTypeID::GLADIATOR);
-	if (name == "gladiator_b") return static_cast<uint8_t>(MonsterTypeID::GLADIATOR_B);
-	if (name == "gladiator_c") return static_cast<uint8_t>(MonsterTypeID::GLADIATOR_C);
-	if (name == "tank") return static_cast<uint8_t>(MonsterTypeID::TANK);
-	if (name == "tank_commander") return static_cast<uint8_t>(MonsterTypeID::TANK_COMMANDER);
-	if (name == "tank_64") return static_cast<uint8_t>(MonsterTypeID::TANK_64);
-	if (name == "runnertank") return static_cast<uint8_t>(MonsterTypeID::RUNNERTANK);
-	if (name == "chick") return static_cast<uint8_t>(MonsterTypeID::CHICK);
-	if (name == "chick_heat") return static_cast<uint8_t>(MonsterTypeID::CHICK_HEAT);
-	if (name == "chickkl") return static_cast<uint8_t>(MonsterTypeID::CHICKKL);
-	if (name == "parasite") return static_cast<uint8_t>(MonsterTypeID::PARASITE);
-	if (name == "brain") return static_cast<uint8_t>(MonsterTypeID::BRAIN);
-	if (name == "flyer") return static_cast<uint8_t>(MonsterTypeID::FLYER);
-	if (name == "hover") return static_cast<uint8_t>(MonsterTypeID::HOVER);
-	if (name == "hover_vanilla") return static_cast<uint8_t>(MonsterTypeID::HOVER_VANILLA);
-	if (name == "mutant") return static_cast<uint8_t>(MonsterTypeID::MUTANT);
-	if (name == "redmutant") return static_cast<uint8_t>(MonsterTypeID::REDMUTANT);
-	if (name == "berserk") return static_cast<uint8_t>(MonsterTypeID::BERSERK);
-	if (name == "fixbot") return static_cast<uint8_t>(MonsterTypeID::FIXBOT);
-	if (name == "fixbot_kl") return static_cast<uint8_t>(MonsterTypeID::FIXBOT_KL);
-	if (name == "floater") return static_cast<uint8_t>(MonsterTypeID::FLOATER);
-	if (name == "floater_tracker") return static_cast<uint8_t>(MonsterTypeID::FLOATER_TRACKER);
-	if (name == "stalker") return static_cast<uint8_t>(MonsterTypeID::STALKER);
-	if (name == "gekk") return static_cast<uint8_t>(MonsterTypeID::GEKK);
-	if (name == "spider") return static_cast<uint8_t>(MonsterTypeID::SPIDER);
-	if (name == "arachnid2") return static_cast<uint8_t>(MonsterTypeID::ARACHNID2);
-	if (name == "gm_arachnid") return static_cast<uint8_t>(MonsterTypeID::GM_ARACHNID);
-	if (name == "psx_arachnid") return static_cast<uint8_t>(MonsterTypeID::PSX_ARACHNID);
-	if (name == "shambler") return static_cast<uint8_t>(MonsterTypeID::SHAMBLER);
-	if (name == "shambler_small") return static_cast<uint8_t>(MonsterTypeID::SHAMBLER_SMALL);
-	if (name == "shambler_kl") return static_cast<uint8_t>(MonsterTypeID::SHAMBLER_KL);
-	if (name == "janitor") return static_cast<uint8_t>(MonsterTypeID::JANITOR);
-	if (name == "janitor2") return static_cast<uint8_t>(MonsterTypeID::JANITOR2);
-	if (name == "medic_commander") return static_cast<uint8_t>(MonsterTypeID::MEDIC_COMMANDER);
-	if (name == "guncmdr") return static_cast<uint8_t>(MonsterTypeID::GUNCMDR);
-	if (name == "guncmdr_vanilla") return static_cast<uint8_t>(MonsterTypeID::GUNCMDR_VANILLA);
-	if (name == "guncmdr_kl") return static_cast<uint8_t>(MonsterTypeID::GUNCMDR_KL);
-	if (name == "tank_spawner") return static_cast<uint8_t>(MonsterTypeID::TANK_SPAWNER);
-	if (name == "perro_kl") return static_cast<uint8_t>(MonsterTypeID::PERRO_KL);
-	if (name == "soldier_hypergun") return static_cast<uint8_t>(MonsterTypeID::SOLDIER_HYPERGUN);
-	if (name == "soldier_ripper") return static_cast<uint8_t>(MonsterTypeID::SOLDIER_RIPPER);
-	if (name == "soldier_lasergun") return static_cast<uint8_t>(MonsterTypeID::SOLDIER_LASERGUN);
-	if (name == "daedalus") return static_cast<uint8_t>(MonsterTypeID::DAEDALUS);
-	if (name == "daedalus_bomber") return static_cast<uint8_t>(MonsterTypeID::DAEDALUS_BOMBER);
-	if (name == "boss2") return static_cast<uint8_t>(MonsterTypeID::BOSS2);
-	if (name == "boss2_64") return static_cast<uint8_t>(MonsterTypeID::BOSS2_64);
-	if (name == "boss2_mini") return static_cast<uint8_t>(MonsterTypeID::BOSS2_MINI);
-	if (name == "supertank") return static_cast<uint8_t>(MonsterTypeID::SUPERTANK);
-	if (name == "makron") return static_cast<uint8_t>(MonsterTypeID::MAKRON);
-	if (name == "makron_kl") return static_cast<uint8_t>(MonsterTypeID::MAKRON_KL);
-	if (name == "jorg") return static_cast<uint8_t>(MonsterTypeID::JORG);
-	if (name == "carrier") return static_cast<uint8_t>(MonsterTypeID::CARRIER);
-	if (name == "widow") return static_cast<uint8_t>(MonsterTypeID::WIDOW);
-	if (name == "widow2") return static_cast<uint8_t>(MonsterTypeID::WIDOW2);
-	if (name == "guardian") return static_cast<uint8_t>(MonsterTypeID::GUARDIAN);
-	if (name == "guardian_kl") return static_cast<uint8_t>(MonsterTypeID::GUARDIAN); // Map KL variant to base guardian
-	if (name == "psxguardian") return static_cast<uint8_t>(MonsterTypeID::PSX_GUARDIAN);
-
-	return 255; // Invalid
-}
+// Note: GetMonsterTypeIDFromString removed - use horde::MonsterTypeRegistry::GetTypeID() instead
 
 // Helper function to convert armor type string to item_id_t
 static int32_t GetArmorTypeFromString(const std::string& type)
@@ -152,12 +82,13 @@ void Config_LoadMonsters(const char* basedir)
 
 		for (const auto& monster_name : monsters.getMemberNames())
 		{
-			uint8_t monster_id = GetMonsterTypeIDFromString(monster_name);
-			if (monster_id == 255)
+			horde::MonsterTypeID monster_type = horde::MonsterTypeRegistry::GetTypeID(monster_name.c_str());
+			if (monster_type == horde::MonsterTypeID::UNKNOWN)
 			{
 				gi.Com_PrintFmt("Config: Unknown monster type: {}\n", monster_name);
 				continue;
 			}
+			uint8_t monster_id = static_cast<uint8_t>(monster_type);
 
 			const Json::Value& monster_data = monsters[monster_name];
 			MonsterStatsConfig config;
@@ -604,15 +535,20 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 	if (!config)
 		return 0;
 
-	if (strcmp(weapon_name, "blaster") == 0) return config->weapon_damage.blaster;
-	if (strcmp(weapon_name, "shotgun") == 0) return config->weapon_damage.shotgun;
-	if (strcmp(weapon_name, "machinegun") == 0) return config->weapon_damage.machinegun;
-	if (strcmp(weapon_name, "grenade") == 0) return config->weapon_damage.grenade;
-	if (strcmp(weapon_name, "rocket") == 0) return config->weapon_damage.rocket;
-	if (strcmp(weapon_name, "railgun") == 0) return config->weapon_damage.railgun;
-	if (strcmp(weapon_name, "bfg") == 0) return config->weapon_damage.bfg;
-	if (strcmp(weapon_name, "ionripper") == 0) return config->weapon_damage.ionripper;
-	if (strcmp(weapon_name, "hyperblaster") == 0) return config->weapon_damage.hyperblaster;
+	// Use static map for O(1) lookup instead of strcmp chain
+	using WeaponDamageGetter = int (WeaponDamageConfig::*);
+	static const std::unordered_map<std::string_view, WeaponDamageGetter> weapon_map = {
+		{"blaster", &WeaponDamageConfig::blaster},
+		{"shotgun", &WeaponDamageConfig::shotgun},
+		{"machinegun", &WeaponDamageConfig::machinegun},
+		{"grenade", &WeaponDamageConfig::grenade},
+		{"rocket", &WeaponDamageConfig::rocket},
+		{"railgun", &WeaponDamageConfig::railgun},
+		{"bfg", &WeaponDamageConfig::bfg},
+		{"ionripper", &WeaponDamageConfig::ionripper},
+		{"hyperblaster", &WeaponDamageConfig::hyperblaster}
+	};
 
-	return 0;
+	auto it = weapon_map.find(weapon_name);
+	return (it != weapon_map.end()) ? config->weapon_damage.*(it->second) : 0;
 }
