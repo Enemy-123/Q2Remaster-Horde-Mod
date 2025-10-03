@@ -85,6 +85,22 @@ TOUCH(gib_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 
 edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame)
 {
+	// Network optimization: Convert to temp entity instead of spawning gib
+	// Can be forced via g_nolag cvar or GIB_BECOME_TE flag
+	if ((type & GIB_BECOME_TE) || (g_nolag && g_nolag->integer && !(type & GIB_HEAD)))
+	{
+		vec3_t size = self->size * 0.5f;
+		vec3_t origin = (self->absmin + vec3_t{ 1, 1, 1 }) + size;
+		vec3_t gib_origin = origin + vec3_t{ crandom(), crandom(), crandom() }.scaled(size);
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_EXPLOSION1);
+		gi.WritePosition(gib_origin);
+		gi.multicast(gib_origin, MULTICAST_PVS, false);
+
+		return nullptr;
+	}
+
 	edict_t* gib;
 	vec3_t	 vd;
 	vec3_t	 origin;

@@ -537,6 +537,7 @@ void M_SetEffects(edict_t* ent)
 	renderfx_t new_renderfx = ent->s.renderfx & ~(RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE | RF_IR_VISIBLE);
 	int32_t new_sound = 0;
 	int32_t new_loop_attn = 0;
+	int current_bonus_flags = 0; // Declare before goto to avoid compiler error
 
 	// Gibbed entities have no effects
 	if (ent->s.renderfx & RF_LOW_PRIORITY)
@@ -567,7 +568,7 @@ void M_SetEffects(edict_t* ent)
 		goto apply_changes;
 
 	// Bonus flag visuals (mutually exclusive)
-	int current_bonus_flags = ent->monsterinfo.bonus_flags;
+	current_bonus_flags = ent->monsterinfo.bonus_flags;
 	if (current_bonus_flags & BF_CHAMPION) {
 		new_effects |= EF_ROCKET | EF_FIREBALL;
 		new_renderfx |= RF_IR_VISIBLE;

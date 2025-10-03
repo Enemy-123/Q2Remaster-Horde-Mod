@@ -153,6 +153,8 @@ cvar_t* ai_model_scale;
 cvar_t* ai_allow_dm_spawn;
 cvar_t* ai_movement_disabled;
 
+cvar_t* g_nolag; // Network optimization: convert gibs to temp entities
+
 //HORDE STUFF
 cvar_t* g_horde_profiler;
 
@@ -399,6 +401,8 @@ void InitGame()
 	ai_model_scale = gi.cvar("ai_model_scale", "0", CVAR_NOFLAGS);
 	ai_allow_dm_spawn = gi.cvar("ai_allow_dm_spawn", "1", CVAR_NOFLAGS);
 	ai_movement_disabled = gi.cvar("ai_movement_disabled", "0", CVAR_NOFLAGS);
+
+	g_nolag = gi.cvar("g_nolag", "0", CVAR_NOFLAGS);
 
 	g_frames_per_frame = gi.cvar("g_frames_per_frame", "1", CVAR_NOFLAGS);
 

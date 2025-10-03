@@ -835,8 +835,8 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 		static_cast<uint64_t>(capped_damage) :
 		client.dmg_counter + static_cast<uint64_t>(capped_damage);
 
-	// For display, cap at 32-bit max if needed
-	client.ps.stats[STAT_ID_DAMAGE] = static_cast<int>(std::min<uint64_t>(client.dmg_counter, INT_MAX));
+	// Network optimization: Don't update ps.stats here (causes spam on every hit)
+	// Let p_hud.cpp update it once per frame with change detection
 	attacker->client->lastdmg = level.time;
 
 	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {

@@ -312,7 +312,6 @@ bool HandleTrapCooldown(edict_t* ent) {
             trap_state->in_cooldown = false;
             trap_state->num_targets = 0;
             ent->s.frame = TRAP_FRAME_ACTIVE; // Reset to active frame
-            ent->s.effects |= EF_BLUEHYPERBLASTER; // Re-enable effect
             ent->takedamage = true;
             ent->solid = SOLID_BBOX;
             ent->die = trap_die;
@@ -374,7 +373,6 @@ bool HandleTrapAnimation(edict_t* ent, trap_state_t* trap_state) {
 
             ent->nextthink = level.time + 10_hz;
             // Don't free the entity, just make it inactive temporarily
-            ent->s.effects &= ~EF_BLUEHYPERBLASTER;
             ent->s.effects &= ~EF_BARREL_EXPLODING;
 
             // Update cache
@@ -409,19 +407,10 @@ bool HandleTrapAnimation(edict_t* ent, trap_state_t* trap_state) {
 
     // Only update effects if frame changed (network optimization)
     if (trap_state && ent->s.frame != trap_state->cached_frame) {
-        effects_t new_effects = ent->s.effects & ~EF_BLUEHYPERBLASTER;
-        if (ent->s.frame >= TRAP_FRAME_ACTIVE) {
-            new_effects |= EF_BLUEHYPERBLASTER;
-            // clear the owner if in deathmatch
-            if (G_IsDeathmatch())
-                ent->owner = nullptr;
-        }
+        // clear the owner if in deathmatch
+        if (ent->s.frame >= TRAP_FRAME_ACTIVE && G_IsDeathmatch())
+            ent->owner = nullptr;
 
-        // Only update entity state if effects actually changed
-        if (new_effects != trap_state->cached_effects) {
-            ent->s.effects = new_effects;
-            trap_state->cached_effects = new_effects;
-        }
         trap_state->cached_frame = ent->s.frame;
     }
 

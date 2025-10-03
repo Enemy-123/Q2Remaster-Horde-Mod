@@ -712,6 +712,7 @@ enum gib_type_t
 	GIB_DEBRIS = 8, // explode outwards rather than in velocity, no blood
 	GIB_SKINNED = 16, // use skinnum
 	GIB_UPRIGHT = 32, // stay upright on ground
+	GIB_BECOME_TE = 64, // don't spawn entity, just create TE explosion (network optimization)
 };
 MAKE_ENUM_BITFLAGS(gib_type_t);
 
@@ -2218,6 +2219,8 @@ extern cvar_t* ai_damage_scale;
 extern cvar_t* ai_model_scale;
 extern cvar_t* ai_allow_dm_spawn;
 extern cvar_t* ai_movement_disabled;
+
+extern cvar_t* g_nolag; // Network optimization: convert gibs to temp entities
 
 #define world (&g_edicts[0])
 

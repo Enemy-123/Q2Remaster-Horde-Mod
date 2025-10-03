@@ -1234,15 +1234,16 @@ void G_SetStats(edict_t* ent)
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 
-	if (level.time > ent->client->lastdmg  + 1.55_sec || !g_iddmg->integer) {
-		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
+	// Network optimization: Only update STAT_ID_DAMAGE if value actually changed
+	int new_damage_stat = 0;
+	if (level.time <= ent->client->lastdmg + 1.55_sec && g_iddmg->integer &&
+	    ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
+		new_damage_stat = static_cast<int>(std::min<uint64_t>(ent->client->dmg_counter, INT_MAX));
 	}
-	// Original code had an `else if` here, but the condition was identical to the one for SetIDView.
-	// Assuming the intent was that if id_state is true, dmg_counter is set.
-	// If id_state is false, or time expired, or g_iddmg is false, it's cleared.
-	// The SetIDView call seems independent of this specific damage counter logic.
-	else if (ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) { // This condition was in original
-		ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
+
+	// Only update if changed (prevents network spam)
+	if (ent->client->ps.stats[STAT_ID_DAMAGE] != new_damage_stat) {
+		ent->client->ps.stats[STAT_ID_DAMAGE] = new_damage_stat;
 	}
 
 

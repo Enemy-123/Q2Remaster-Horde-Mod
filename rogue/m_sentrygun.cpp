@@ -55,20 +55,7 @@ static cached_soundindex sound_moved, sound_moving, sound_pew;
 // Add new sound caches for grenade launcher and flechette
 static cached_soundindex sound_grenade_launcher, sound_flechette;
 
-// Update smoke emitter position (no network traffic, just position tracking)
-static void UpdateSmokePosition(edict_t* self) {
-	if (!self || !self->inuse || !self->target_hint_chain || !self->target_hint_chain->inuse)
-		return;
-
-	// Update smoke entity position to follow turret rotation
-	vec3_t forward;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	const vec3_t smoke_pos = self->s.origin + (forward * 20.0f);
-
-	self->target_hint_chain->s.origin = smoke_pos;
-	self->target_hint_chain->s.angles = self->s.angles;
-	gi.linkentity(self->target_hint_chain);
-}
+// Smoke effects removed for network performance optimization
 
 // Helper function to handle sentry regeneration when out of combat
 static inline void HandleSentryRegeneration(edict_t* self, sentry_state_t* state, bool currently_attacking)
@@ -363,7 +350,6 @@ void turret2Aim(edict_t* self)
 		return; // No valid target or not ready to aim
 
 	// Update visual effects
-	UpdateSmokePosition(self);
 	TurretSparks(self);
 
 	vec3_t end, dir;
@@ -575,8 +561,6 @@ MONSTERINFO_WALK(turret2_walk) (edict_t* self) -> void
 }
 
 
-void CreateTurretGlowEffect(edict_t* turret);
-
 MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 {
 
@@ -585,8 +569,6 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 		turret2_die(self, self, self, 100, self->s.origin, MOD_UNKNOWN);
 		return;
 	}
-
-	CreateTurretGlowEffect(self);
 
     sentry_state_t* state = self->monsterinfo.sentry_state;
     if (!state) return;
@@ -2205,63 +2187,9 @@ Default weapon is blaster.
 When activated, wall units move 32 units in the direction they're facing.
 */
 
-static THINK(EmitSmokeEffect)(edict_t* ent) -> void {
-	if (!ent || !ent->owner || !ent->owner->inuse) {
-		G_FreeEdict(ent);
-		return;
-	}
+// Smoke effect removed for network performance optimization
 
-	// Emit subtle steam puff effect (better looking than chainfist smoke)
-	if (frandom() < 0.5f) {
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_STEAM);
-		gi.WritePosition(ent->s.origin);
-		gi.WriteDir(vec3_t{0, 0, 1}); // Upward direction
-		gi.WriteByte(2);  // Color (light grey)
-		gi.WriteShort(8); // Count (small puff)
-		gi.WriteByte(-1); // Duration
-		gi.WriteByte(-1); // Magnitude
-		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-	}
-
-	// Debounced: only emit every 800ms-1200ms (network optimization)
-	ent->nextthink = level.time + random_time(800_ms, 1200_ms);
-	ent->think = EmitSmokeEffect;
-}
-
-void CreateTurretGlowEffect(edict_t* turret) {
-	if (!turret || !turret->inuse)
-		return;
-
-	// Eliminar el efecto anterior si existe
-	if (turret->target_hint_chain && turret->target_hint_chain->inuse) {
-		G_FreeEdict(turret->target_hint_chain);
-		turret->target_hint_chain = nullptr;
-	}
-
-	edict_t* smoke = G_Spawn();
-	if (!smoke)
-		return;
-
-	smoke->movetype = MOVETYPE_NONE;
-	smoke->solid = SOLID_NOT;
-	smoke->s.modelindex = 0;
-	smoke->owner = turret;
-	smoke->classname = "turret_smoke";
-	smoke->think = EmitSmokeEffect;
-	smoke->nextthink = level.time + random_time(500_ms, 1000_ms);  // Start quickly
-
-	// Posicionar el emisor de humo usando el nuevo vec3_t
-	vec3_t forward;
-	AngleVectors(turret->s.angles, forward, nullptr, nullptr);
-
-	// Usar la nueva sintaxis de vec3_t para el posicionamiento
-	smoke->s.origin = turret->s.origin + (forward * 20.0f);
-	smoke->s.angles = turret->s.angles;
-
-	gi.linkentity(smoke);
-	turret->target_hint_chain = smoke;
-}
+// Glow effect removed - smoke disabled for network performance
 
 // Sentry-specific clear shot function with pierce-like capability
 // This addresses the asymmetry where enemies with dabeam can hit sentries 
@@ -2567,9 +2495,6 @@ void SP_monster_sentrygun(edict_t* self)
 	
 	stationarymonster_start(self, spawn_temp_t::empty);
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	
-	// Create visual effects after linking
-	CreateTurretGlowEffect(self);
 
 	// Set runtime properties based on the chosen weapon
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))

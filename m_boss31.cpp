@@ -271,8 +271,8 @@ mframe_t jorg_frames_pain1[] = {
 };
 MMOVE_T(jorg_move_pain1) = { FRAME_pain101, FRAME_pain103, jorg_frames_pain1, jorg_run };
 
-mframe_t jorg_frames_deathsmall[] = { //reduced numbers by scale 0.35
-	{ ai_move, 0, BossExplode },
+mframe_t jorg_frames_deathsmall[] = { //reduced numbers by scale 0.35 - simplified to single explosion
+	{ ai_move },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
@@ -282,7 +282,7 @@ mframe_t jorg_frames_deathsmall[] = { //reduced numbers by scale 0.35
 	{ ai_move, -2.8f },
 	{ ai_move, -5.25f, jorg_step_left },
 	{ ai_move } // 10
-};;
+};
 MMOVE_T(jorg_move_deathsmall) = { FRAME_death01, FRAME_death10, jorg_frames_deathsmall, jorg_dead };
 
 
@@ -655,6 +655,17 @@ MONSTERINFO_ATTACK(jorg_attack) (edict_t* self) -> void
 
 void jorg_dead(edict_t* self)
 {
+	// Small jorg uses simple explosion, regular jorg uses full death sequence
+	bool is_small = !horde::IsMonsterType(self, horde::MonsterTypeID::JORG);
+
+	if (is_small)
+	{
+		// Single explosion for small jorg (network optimized)
+		BecomeExplosion1(self);
+		return;
+	}
+
+	// Full death sequence for regular jorg
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_EXPLOSION1_BIG);
 	gi.WritePosition(self->s.origin);
@@ -676,12 +687,7 @@ void jorg_dead(edict_t* self)
 		{ "models/monsters/boss3/jorg/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
 		});
 
-	// If this is the regular Jorg, spawn the Makron.
-	// The small variant does not.
-	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
-	{
-		MakronToss(self);
-	}
+	MakronToss(self);
 }
 
 DIE(jorg_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void

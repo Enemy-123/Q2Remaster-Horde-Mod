@@ -116,8 +116,8 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// Set AI flags
 	monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
-	// Build list of summonable monsters that are ALREADY precached
-	// This prevents summoner from bypassing the precache system and causing memory issues
+	// Build list of summonable monsters
+	// Summoner now allows spawning monsters and will unlock/precache them as needed
 	struct SummonableMonster {
 		horde::MonsterTypeID type;
 		void (*spawn_func)(edict_t*);
@@ -126,8 +126,9 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 
 	std::vector<SummonableMonster> available_monsters;
 
-	// Only add monsters that are precached (in horde mode)
+	// In horde mode: Check precached monsters first, but allow all if none are precached
 	if (g_horde->integer) {
+		// Try to use precached monsters first
 		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::GUNNER)])
 			available_monsters.push_back({horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13});
 		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::CHICK)])
@@ -144,6 +145,20 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 			available_monsters.push_back({horde::MonsterTypeID::MEDIC, SP_monster_medic, 20});
 		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::BRAIN)])
 			available_monsters.push_back({horde::MonsterTypeID::BRAIN, SP_monster_brain, 9});
+
+		// If no monsters are precached yet (early game), allow all monsters - precaching will happen dynamically
+		if (available_monsters.empty()) {
+			available_monsters = {
+				{horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13},
+				{horde::MonsterTypeID::CHICK, SP_monster_chick, 13},
+				{horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13},
+				{horde::MonsterTypeID::SPIDER, SP_monster_spider, 13},
+				{horde::MonsterTypeID::SHAMBLER_SMALL, SP_monster_shambler_small, 13},
+				{horde::MonsterTypeID::INFANTRY, SP_monster_infantry, 6},
+				{horde::MonsterTypeID::MEDIC, SP_monster_medic, 20},
+				{horde::MonsterTypeID::BRAIN, SP_monster_brain, 9}
+			};
+		}
 	} else {
 		// Non-horde mode: use all monsters
 		available_monsters = {
@@ -187,8 +202,12 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// Store the monster type ID for later use
 	monster->monsterinfo.monster_type_id = static_cast<uint8_t>(selected_type);
 
-	// REMOVED: Do NOT auto-unlock monsters via summoner - this bypasses the precache system
-	// Summoner now only spawns already-precached monsters, preventing memory bloat
+	// Unlock/mark this monster type as precached to allow future spawns
+	// The SP_monster_* functions will handle dynamic precaching of models/sounds
+	if (selected_type != horde::MonsterTypeID::UNKNOWN) {
+		g_precached_monster_types_flags[static_cast<size_t>(selected_type)] = true;
+		g_precached_monsters_this_map.insert(selected_type);
+	}
 
 	// Verify spawn succeeded
 	if (!monster->inuse) {
@@ -252,7 +271,7 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 
 	if (!monster)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to summon Strogg warrior!\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Failed to summon Strogg!\n");
 		return;
 	}
 

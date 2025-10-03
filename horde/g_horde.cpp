@@ -3330,6 +3330,10 @@ void ResetGame()
 	g_horde_local.update_map_size(GetCurrentMapName());
 
     // Cvar resets...
+
+		if (g_nolag->integer) {
+		gi.cvar_set("g_nolag", "0");
+
 	gi.cvar_set("bot_pause", "0");
 	gi.cvar_set("cheats", "0");
 	gi.cvar_set("g_start_items", "weapon_blaster 1");
@@ -6312,6 +6316,12 @@ static void Horde_InitLevel(const int32_t lvl)
 	// --- 2. Set up the new wave's parameters ---
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
+
+	// Auto-enable network optimization at wave 25+
+	if (lvl >= 25 && !g_nolag->integer) {
+		gi.cvar_set("g_nolag", "1");
+	//	gi.LocBroadcast_Print(PRINT_HIGH, "Network optimization enabled (gibs → temp entities)");
+	}
 
 	// Update g_start_items for this wave's loadout
 	Horde_UpdateStartItemsForWave(lvl);
