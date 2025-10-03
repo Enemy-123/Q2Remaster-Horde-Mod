@@ -325,9 +325,10 @@ void InitGame()
 	g_coop_num_lives = gi.cvar("g_coop_num_lives", "2", CVAR_LATCH);
 	g_coop_instanced_items = gi.cvar("g_coop_instanced_items", "1", CVAR_LATCH);
 	g_allow_grapple = gi.cvar("g_allow_grapple", "auto", CVAR_NOFLAGS);
-	g_grapple_fly_speed = gi.cvar("g_grapple_fly_speed", G_Fmt("{}", CTF_DEFAULT_GRAPPLE_SPEED).data(), CVAR_NOFLAGS);
-	g_grapple_pull_speed = gi.cvar("g_grapple_pull_speed", G_Fmt("{}", CTF_DEFAULT_GRAPPLE_PULL_SPEED).data(), CVAR_NOFLAGS);
-	g_grapple_damage = gi.cvar("g_grapple_damage", "10", CVAR_NOFLAGS);
+	// Initialize grapple cvars from g_config values (loaded from JSON)
+	g_grapple_fly_speed = gi.cvar("g_grapple_fly_speed", G_Fmt("{}", g_config.grapple.fly_speed).data(), CVAR_NOFLAGS);
+	g_grapple_pull_speed = gi.cvar("g_grapple_pull_speed", G_Fmt("{}", g_config.grapple.pull_speed).data(), CVAR_NOFLAGS);
+	g_grapple_damage = gi.cvar("g_grapple_damage", G_Fmt("{}", g_config.grapple.damage).data(), CVAR_NOFLAGS);
 
 	g_debug_monster_paths = gi.cvar("g_debug_monster_paths", "0", CVAR_NOFLAGS);
 	g_debug_monster_kills = gi.cvar("g_debug_monster_kills", "0", CVAR_LATCH);

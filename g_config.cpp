@@ -317,6 +317,31 @@ void Config_Load(const char* basedir)
 		}
 	}
 
+	// Load hook config
+	if (root.isMember("hook") && root["hook"].isObject())
+	{
+		const Json::Value& h = root["hook"];
+		g_config.hook.speed = GetJsonInt(h, "speed", 900);
+		g_config.hook.pull_speed = GetJsonInt(h, "pull_speed", 700);
+		g_config.hook.damage = GetJsonInt(h, "damage", 20);
+		g_config.hook.init_damage = GetJsonInt(h, "init_damage", 10);
+		g_config.hook.max_damage = GetJsonInt(h, "max_damage", 20);
+		g_config.hook.max_time_sec = GetJsonInt(h, "max_time_sec", 5);
+		g_config.hook.delay_sec = GetJsonFloat(h, "delay_sec", 0.2f);
+		g_config.hook.bot_chain_speed = GetJsonInt(h, "bot_chain_speed", 800);
+		g_config.hook.bot_throw_speed = GetJsonInt(h, "bot_throw_speed", 1800);
+		g_config.hook.allow_sky_attach = h.get("allow_sky_attach", false).asBool();
+	}
+
+	// Load grapple config
+	if (root.isMember("grapple") && root["grapple"].isObject())
+	{
+		const Json::Value& g = root["grapple"];
+		g_config.grapple.fly_speed = GetJsonInt(g, "fly_speed", 650);
+		g_config.grapple.pull_speed = GetJsonInt(g, "pull_speed", 650);
+		g_config.grapple.damage = GetJsonInt(g, "damage", 10);
+	}
+
 	// Load ammo regeneration config
 	if (root.isMember("ammo_regen") && root["ammo_regen"].isObject())
 	{

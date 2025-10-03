@@ -118,7 +118,9 @@
 
   "// ==================== GRAPPLE ====================": "Weapon-based grapple hook (separate from offhand hook)",
   "grapple": {
-    "comment": "Weapon-slot grapple configuration - placeholder for future expansion"
+    "fly_speed": 650,
+    "pull_speed": 650,
+    "damage": 10
   },
 
   "// ==================== BONUS MODIFIERS ====================": "Items that modify weapon behavior",

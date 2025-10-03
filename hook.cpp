@@ -28,6 +28,9 @@
 
 #include "g_local.h"
 #include "shared.h"
+#include "g_config.h"
+
+// Legacy cvars - kept for console/config compatibility but values now loaded from g_config
 cvar_t* hook_speed;
 cvar_t* hook_pullspeed;
 cvar_t* hook_sky;
@@ -211,16 +214,17 @@ edict_t* Hook_FindChainableInView(edict_t* player)
 
 void Hook_InitGame(void)
 {
-	hook_speed = gi.cvar("hook_speed", "900", CVAR_NOFLAGS);
-	hook_pullspeed = gi.cvar("hook_pullspeed", "700", CVAR_NOFLAGS);
-	hook_sky = gi.cvar("hook_sky", "0", CVAR_NOFLAGS);
-	hook_maxtime = gi.cvar("hook_maxtime", "5", CVAR_NOFLAGS);
-	hook_damage = gi.cvar("hook_damage", "20", CVAR_NOFLAGS);
-	hook_initdamage = gi.cvar("hook_initdamage", "10", CVAR_NOFLAGS);
-	hook_maxdamage = gi.cvar("hook_maxdamage", "20", CVAR_NOFLAGS);
-	hook_delay = gi.cvar("hook_delay", "0.2", CVAR_NOFLAGS);
-	hook_bot_chain_speed = gi.cvar("hook_bot_chain_speed", "800", CVAR_NOFLAGS);
-	hook_bot_throw_speed = gi.cvar("hook_bot_throw_speed", "1800", CVAR_NOFLAGS);
+	// Initialize cvars from g_config values (loaded from JSON)
+	hook_speed = gi.cvar("hook_speed", G_Fmt("{}", g_config.hook.speed).data(), CVAR_NOFLAGS);
+	hook_pullspeed = gi.cvar("hook_pullspeed", G_Fmt("{}", g_config.hook.pull_speed).data(), CVAR_NOFLAGS);
+	hook_sky = gi.cvar("hook_sky", g_config.hook.allow_sky_attach ? "1" : "0", CVAR_NOFLAGS);
+	hook_maxtime = gi.cvar("hook_maxtime", G_Fmt("{}", g_config.hook.max_time_sec).data(), CVAR_NOFLAGS);
+	hook_damage = gi.cvar("hook_damage", G_Fmt("{}", g_config.hook.damage).data(), CVAR_NOFLAGS);
+	hook_initdamage = gi.cvar("hook_initdamage", G_Fmt("{}", g_config.hook.init_damage).data(), CVAR_NOFLAGS);
+	hook_maxdamage = gi.cvar("hook_maxdamage", G_Fmt("{}", g_config.hook.max_damage).data(), CVAR_NOFLAGS);
+	hook_delay = gi.cvar("hook_delay", G_Fmt("{}", g_config.hook.delay_sec).data(), CVAR_NOFLAGS);
+	hook_bot_chain_speed = gi.cvar("hook_bot_chain_speed", G_Fmt("{}", g_config.hook.bot_chain_speed).data(), CVAR_NOFLAGS);
+	hook_bot_throw_speed = gi.cvar("hook_bot_throw_speed", G_Fmt("{}", g_config.hook.bot_throw_speed).data(), CVAR_NOFLAGS);
 
 	gi.AddCommandString("alias +hook hook\n");
 	gi.AddCommandString("alias -hook unhook\n");

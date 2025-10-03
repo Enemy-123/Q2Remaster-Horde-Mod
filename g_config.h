@@ -203,6 +203,29 @@ struct BombSpellConfig
 	int carpet_width = 200;
 };
 
+// Hook configuration (offhand hook system from hook.cpp)
+struct HookConfig
+{
+	int speed = 900;
+	int pull_speed = 700;
+	int damage = 20;
+	int init_damage = 10;
+	int max_damage = 20;
+	int max_time_sec = 5;
+	float delay_sec = 0.2f;
+	int bot_chain_speed = 800;
+	int bot_throw_speed = 1800;
+	bool allow_sky_attach = false;
+};
+
+// Grapple configuration (weapon-slot grapple from CTF)
+struct GrappleConfig
+{
+	int fly_speed = 650;
+	int pull_speed = 650;
+	int damage = 10;
+};
+
 // Ammo regeneration configuration
 struct AmmoRegenRateConfig
 {
@@ -261,6 +284,10 @@ struct GameConfig
 
 	// Special abilities
 	BombSpellConfig bomb_spell;
+
+	// Hook and Grapple
+	HookConfig hook;
+	GrappleConfig grapple;
 
 	// Ammo regeneration
 	AmmoRegenConfig ammo_regen;
