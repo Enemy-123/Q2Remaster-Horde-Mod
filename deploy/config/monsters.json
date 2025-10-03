@@ -1,5 +1,17 @@
 {
   "monsters": {
+    "sentrygun": {
+      "health": 150,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "flechette": 6,
+        "grenade": 120,
+        "rocket": 100,
+        "machinegun": 3,
+        "heatbeam": 3,
+        "plasma": 100
+      }
+    },
     "soldier_light": {
       "health": 20,
       "power_armor_power": 0,
@@ -29,7 +41,7 @@
       "power_armor_power": 45,
       "power_armor_type": "screen",
       "weapon_damage": {
-        "hyperblaster": 16
+        "blueblaster": 16
       }
     },
     "soldier_ripper": {
@@ -251,6 +263,7 @@
       "power_armor_power": 0,
       "weapon_damage": {
         "hyperblaster": 4,
+        "blaster_bolt": 4,
         "rocket": 35,
         "dabeam": 3
       }
@@ -306,9 +319,19 @@
       "power_armor_power": 0,
       "weapon_damage": {
         "melee": 22,
-        "rocket": 45,
         "lightning": 10,
         "slam": 15
+      }
+    },
+    "berserkerkl": {
+      "health": 900,
+      "power_armor_power": 800,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "melee": 22,
+        "lightning": 10,
+        "slam": 15,
+        "fireball": 45
       }
     },
     "fixbot": {
@@ -523,6 +546,16 @@
         "blaster": 15,
         "plasma": 35,
         "bfg": 50
+      }
+    },
+    "jorg_small": {
+      "health": 1000,
+      "armor_power": 500,
+      "armor_type": "combat",
+      "weapon_damage": {
+        "blaster": 15,
+        "plasma": 35,
+        "tracker": 13
       }
     },
     "carrier": {

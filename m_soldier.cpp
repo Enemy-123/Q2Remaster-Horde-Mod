@@ -710,7 +710,7 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	}
 	else if (style.has_bluehyper())
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "hyperblaster");
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blueblaster");
 		if (IsFirstThreeWaves(current_wave_level)) {
 			monster_fire_blueblaster(self, start, aim, damage > 0 ? damage : 2, 600, flash_index, EF_BLUEHYPERBLASTER);
 		}

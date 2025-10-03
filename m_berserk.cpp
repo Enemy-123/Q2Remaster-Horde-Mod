@@ -741,7 +741,7 @@ void BerserkCastFireballs(edict_t* self)
 			fireball->touch = fireball_touch;
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "fireball");
 			if (damage <= 0) damage = 45;
 			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
 			fireball->radius_dmg = damage * M_DamageModifier(self);
