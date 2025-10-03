@@ -1261,13 +1261,6 @@ void SP_monster_widow(edict_t* self) {
 	self->gib_health = -5000;
 	self->mass = 1500;
 
-	if (skill->integer == 3) {
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 500;
-	}
-
 	self->yaw_speed = 30;
 	self->flags |= FL_IMMUNE_LASER;
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;

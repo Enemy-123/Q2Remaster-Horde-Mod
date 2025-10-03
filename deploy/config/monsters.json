@@ -2,7 +2,8 @@
   "monsters": {
     "sentrygun": {
       "health": 150,
-      "power_armor_power": 0,
+      "power_armor_power": 50,
+      "power_armor_type": "screen",
       "weapon_damage": {
         "flechette": 6,
         "grenade": 120,

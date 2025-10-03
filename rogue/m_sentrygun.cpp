@@ -2489,8 +2489,8 @@ void SP_monster_sentrygun(edict_t* self)
 	self->health = calculated_health;
 	self->max_health = calculated_health;
 
-	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	self->monsterinfo.power_armor_power = static_cast<int>(round(self->max_health * 0.4f));
+	// self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	// self->monsterinfo.power_armor_power = static_cast<int>(round(self->max_health * 0.4f));
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 16;

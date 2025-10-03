@@ -551,22 +551,21 @@ void SP_monster_gladiator(edict_t* self)
 		self->health = (config ? config->health : 480) * st.health_multiplier;
 		self->mass = 350;
 
-		if (!self->monsterinfo.power_armor_type != IT_NULL || (!st.was_key_specified("armor_type")))
-		{
-			float const r = frandom();
-			if (r < 0.7f) // 70% de probabilidad de tener armadura
-			{
-				self->monsterinfo.power_armor_type = IT_NULL;
-				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-				if (!st.was_key_specified("armor_power"))
-				{
-					self->monsterinfo.armor_power = 400 + (frandom() * 100); // 400-500
-				}
+		// Power armor configuration from config
+		if (!st.was_key_specified("power_armor_type")) {
+			if (config && config->power_armor_type != IT_NULL) {
+				self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+				if (!st.was_key_specified("power_armor_power"))
+					self->monsterinfo.power_armor_power = config->power_armor_power;
 			}
-			else
-			{
-				self->monsterinfo.armor_type = IT_NULL;
-				self->monsterinfo.power_armor_type = IT_NULL;
+		}
+
+		// Regular armor configuration from config
+		if (!st.was_key_specified("armor_type")) {
+			if (config && config->armor_type != IT_NULL) {
+				self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+				if (!st.was_key_specified("armor_power"))
+					self->monsterinfo.armor_power = config->armor_power;
 			}
 		}
 
@@ -580,13 +579,21 @@ void SP_monster_gladiator(edict_t* self)
 		self->health = (config ? config->health : 350) * st.health_multiplier;
 		self->mass = 350;
 
-		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
-		{
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-			self->monsterinfo.armor_type = IT_NULL;
-			if (!st.was_key_specified("power_armor_power"))
-			{
-				self->monsterinfo.power_armor_power = 380;
+		// Power armor configuration from config
+		if (!st.was_key_specified("power_armor_type")) {
+			if (config && config->power_armor_type != IT_NULL) {
+				self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+				if (!st.was_key_specified("power_armor_power"))
+					self->monsterinfo.power_armor_power = config->power_armor_power;
+			}
+		}
+
+		// Regular armor configuration from config
+		if (!st.was_key_specified("armor_type")) {
+			if (config && config->armor_type != IT_NULL) {
+				self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+				if (!st.was_key_specified("armor_power"))
+					self->monsterinfo.armor_power = config->armor_power;
 			}
 		}
 
@@ -599,10 +606,13 @@ void SP_monster_gladiator(edict_t* self)
 		self->health = (config ? config->health : 420) * st.health_multiplier;
 		self->mass = 400;
 
-		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
-		{
-			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-			self->monsterinfo.armor_power = 300;
+		// Regular armor configuration from config
+		if (!st.was_key_specified("armor_type")) {
+			if (config && config->armor_type != IT_NULL) {
+				self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+				if (!st.was_key_specified("armor_power"))
+					self->monsterinfo.armor_power = config->armor_power;
+			}
 		}
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");

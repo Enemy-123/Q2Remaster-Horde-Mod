@@ -681,9 +681,9 @@ void SP_monster_daedalus(edict_t* self)
     self->mass = 225;
     self->yaw_speed = 23;
     if (!st.was_key_specified("power_armor_type"))
-        self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+        self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SCREEN;
     if (!st.was_key_specified("power_armor_power"))
-        self->monsterinfo.power_armor_power = 100;
+        self->monsterinfo.power_armor_power = config ? config->power_armor_power : 100;
     daed_sound_pain1.assign("daedalus/daedpain1.wav");
     daed_sound_pain2.assign("daedalus/daedpain2.wav");
     daed_sound_death1.assign("daedalus/daeddeth1.wav");
