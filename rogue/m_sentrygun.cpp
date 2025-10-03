@@ -55,30 +55,18 @@ static cached_soundindex sound_moved, sound_moving, sound_pew;
 // Add new sound caches for grenade launcher and flechette
 static cached_soundindex sound_grenade_launcher, sound_flechette;
 
-// Actualizar la posición del efecto
+// Update smoke emitter position (no network traffic, just position tracking)
 static void UpdateSmokePosition(edict_t* self) {
 	if (!self || !self->inuse || !self->target_hint_chain || !self->target_hint_chain->inuse)
 		return;
 
-	// Actualizar frame y skin si es necesario
-	self->target_hint_chain->s.frame = self->s.frame;
-	self->target_hint_chain->s.skinnum = self->s.skinnum;
-
-	// Calcular la nueva posición para el emisor de humo
+	// Update smoke entity position to follow turret rotation
 	vec3_t forward;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	const vec3_t smoke_pos = self->s.origin + (forward * 20.0f);
 
-	// Actualizar posición del emisor
 	self->target_hint_chain->s.origin = smoke_pos;
 	self->target_hint_chain->s.angles = self->s.angles;
-
-	// Emitir el efecto de humo
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_CHAINFIST_SMOKE);
-	gi.WritePosition(smoke_pos);
-	gi.multicast(smoke_pos, MULTICAST_PVS, false);
-
 	gi.linkentity(self->target_hint_chain);
 }
 
@@ -2223,17 +2211,21 @@ static THINK(EmitSmokeEffect)(edict_t* ent) -> void {
 		return;
 	}
 
-	// Solo emitir humo con una probabilidad del 40%
-	if (frandom() < 0.4f) {
-		// Escribir el efecto de humo
+	// Emit subtle steam puff effect (better looking than chainfist smoke)
+	if (frandom() < 0.5f) {
 		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_CHAINFIST_SMOKE);
+		gi.WriteByte(TE_STEAM);
 		gi.WritePosition(ent->s.origin);
+		gi.WriteDir(vec3_t{0, 0, 1}); // Upward direction
+		gi.WriteByte(2);  // Color (light grey)
+		gi.WriteShort(8); // Count (small puff)
+		gi.WriteByte(-1); // Duration
+		gi.WriteByte(-1); // Magnitude
 		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 	}
 
-	// Configurar el próximo think con tiempo aleatorio
-	ent->nextthink = level.time + random_time(2_sec, 5_sec);
+	// Debounced: only emit every 800ms-1200ms (network optimization)
+	ent->nextthink = level.time + random_time(800_ms, 1200_ms);
 	ent->think = EmitSmokeEffect;
 }
 
@@ -2253,13 +2245,11 @@ void CreateTurretGlowEffect(edict_t* turret) {
 
 	smoke->movetype = MOVETYPE_NONE;
 	smoke->solid = SOLID_NOT;
-	smoke->s.modelindex = 0;  // No necesitamos modelo para el efecto de humo
-	smoke->s.renderfx = RF_FULLBRIGHT;
-	smoke->s.effects = EF_BOB;  // Efecto de bobbing
+	smoke->s.modelindex = 0;
 	smoke->owner = turret;
 	smoke->classname = "turret_smoke";
 	smoke->think = EmitSmokeEffect;
-	smoke->nextthink = level.time + random_time(8_sec, 15_sec);  // Inicio retrasado aleatorio
+	smoke->nextthink = level.time + random_time(500_ms, 1000_ms);  // Start quickly
 
 	// Posicionar el emisor de humo usando el nuevo vec3_t
 	vec3_t forward;

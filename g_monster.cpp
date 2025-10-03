@@ -526,140 +526,109 @@ bool M_HasValidTarget(edict_t* self)
 	return true;
 }
 
-// ---  M_SetEffects ---
-// This function is called every frame for visible monsters to set visual effects
-// based on their state (powerups, damage, special flags, etc.).
+// M_SetEffects - Based on original Q2 code with optimizations
+// Only updates entity state when effects actually change to reduce network traffic
 void M_SetEffects(edict_t* ent)
 {
-	if (!ent || !ent->inuse)
-		return;
-
-	// Define masks for all transient effects/renderfx managed by this function.
-	// These are flags that are recalculated and set every frame.
-	constexpr effects_t TRANSIENT_EFFECTS_MASK = (
-		EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES | EF_DUALFIRE |
+	// Calculate new effects state without modifying entity yet
+	effects_t new_effects = ent->s.effects & ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES | EF_DUALFIRE |
 		EF_ROCKET | EF_FIREBALL | EF_PLASMA | EF_TAGTRAIL | EF_BLUEHYPERBLASTER |
-		EF_GIB | EF_FLAG2 | EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE |
-		EF_TRACKER | EF_FLAG1
-		);
-	constexpr renderfx_t TRANSIENT_RENDERFX_MASK = (
-		RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE |
-		RF_IR_VISIBLE
-		);
+		EF_GIB | EF_FLAG2 | EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE | EF_TRACKER | EF_FLAG1);
+	renderfx_t new_renderfx = ent->s.renderfx & ~(RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE | RF_IR_VISIBLE);
+	int32_t new_sound = 0;
+	int32_t new_loop_attn = 0;
 
-	// --- Step 1: Reset transient state from the previous frame ---
-	// This is more efficient than clearing and restoring persistent flags separately.
-	ent->s.effects &= ~TRANSIENT_EFFECTS_MASK;
-	ent->s.renderfx &= ~TRANSIENT_RENDERFX_MASK;
-	ent->s.sound = 0;
-	ent->s.loop_attenuation = 0;
-	ent->s.alpha = 1.0f;
+	// Gibbed entities have no effects
+	if (ent->s.renderfx & RF_LOW_PRIORITY)
+		goto apply_changes;
 
-	// --- Step 2: Handle terminal states (Gibbed / Dead) with early returns ---
-	// RF_LOW_PRIORITY is used to mark gibbed entities. They have no other effects.
-	if (ent->s.renderfx & RF_LOW_PRIORITY) {
-		return;
-	}
-
-	// Check for resurrection first (before checking health)
-	// Resurrecting visuals (takes precedence over other shell effects)
-	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) && (level.time < ent->monsterinfo.attack_finished)) {
-		ent->s.effects |= EF_COLOR_SHELL;
-		ent->s.renderfx |= RF_SHELL_RED;
-		ent->s.renderfx &= ~RF_DOT_SHADOW; // No shadow during resurrection
-		// Fade in effect as resurrection progresses
-		float time_left = (ent->monsterinfo.attack_finished - level.time).seconds();
-		float progress = 1.0f - (time_left / 4.0f);
-		ent->s.alpha = progress * 0.8f; // Gradually fade in from 0 to 0.8
-		return; // Skip other effects during resurrection
-	}
-
-	// Check if dead (but not resurrecting)
-	if (ent->health <= 0) {
-		ent->s.renderfx &= ~RF_DOT_SHADOW; // No shadow when dead
-		return;
-	}
-
-	// --- Step 3: Monster is ALIVE - Apply all active effects ---
-
-	// Update skin based on health (for monsters that have hurt skins)
-	if (ent->monsterinfo.setskin) {
-		ent->monsterinfo.setskin(ent);
-	}
-
-	// Bonus Flag visuals (mutually exclusive effects)
-	int current_bonus_flags = ent->monsterinfo.bonus_flags;
-	if (current_bonus_flags) { // Micro-optimization: only check flags if any are set
-		bool has_bonus_flag_visual = false;
-		if (current_bonus_flags & BF_CHAMPION) {
-			ent->s.effects |= EF_ROCKET | EF_FIREBALL;
-			has_bonus_flag_visual = true;
-		}
-		else if (current_bonus_flags & BF_CORRUPTED) {
-			ent->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-			has_bonus_flag_visual = true;
-		}
-		else if (current_bonus_flags & BF_RAGEQUITTER) {
-			ent->s.effects |= EF_BLUEHYPERBLASTER;
-			ent->s.alpha = 0.6f;
-			has_bonus_flag_visual = true;
-		}
-		else if (current_bonus_flags & BF_BERSERKING) {
-			ent->s.effects |= EF_GIB | EF_FLAG2;
-			has_bonus_flag_visual = true;
-		}
-		else if (current_bonus_flags & BF_POSSESSED) {
-			ent->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-			ent->s.alpha = 0.5f;
-			has_bonus_flag_visual = true;
-		}
-		else if (current_bonus_flags & BF_STYGIAN) {
-			ent->s.effects |= EF_TRACKER | EF_FLAG1;
-			has_bonus_flag_visual = true;
-		}
-
-		if (has_bonus_flag_visual) {
-			ent->s.renderfx |= RF_IR_VISIBLE;
-		}
-	}
-
-	// Power Armor effects
-	if (ent->powerarmor_time > level.time) {
-		if (ent->monsterinfo.power_armor_type == IT_ITEM_POWER_SCREEN) {
-			ent->s.effects |= EF_POWERSCREEN;
-		}
-		else if (ent->monsterinfo.power_armor_type == IT_ITEM_POWER_SHIELD) {
-			// Green shell doesn't override red (from resurrecting)
-			if (!(ent->s.renderfx & RF_SHELL_RED)) {
-				ent->s.effects |= EF_COLOR_SHELL;
-				ent->s.renderfx |= RF_SHELL_GREEN;
-			}
-		}
-	}
-
-	// Powerup effects (blinking when expiring)
-	if (ent->monsterinfo.quad_time > level.time && G_PowerUpExpiring(ent->monsterinfo.quad_time))
-		ent->s.effects |= EF_QUAD;
-	if (ent->monsterinfo.double_time > level.time && G_PowerUpExpiring(ent->monsterinfo.double_time))
-		ent->s.effects |= EF_DOUBLE;
-	if (ent->monsterinfo.invincible_time > level.time && G_PowerUpExpiring(ent->monsterinfo.invincible_time))
-		ent->s.effects |= EF_PENT;
-	if (ent->monsterinfo.quadfire_time > level.time && G_PowerUpExpiring(ent->monsterinfo.quadfire_time))
-		ent->s.effects |= EF_DUALFIRE;
-
-	// Sounds
-	if (ent->monsterinfo.weapon_sound) {
-		ent->s.sound = ent->monsterinfo.weapon_sound;
-		ent->s.loop_attenuation = ATTN_NORM;
+	// Weapon/engine sounds (alive only)
+	if (ent->monsterinfo.weapon_sound && ent->health > 0) {
+		new_sound = ent->monsterinfo.weapon_sound;
+		new_loop_attn = ATTN_NORM;
 	}
 	else if (ent->monsterinfo.engine_sound) {
-		ent->s.sound = ent->monsterinfo.engine_sound;
-		ent->s.loop_attenuation = ATTN_NORM;
+		new_sound = ent->monsterinfo.engine_sound;
+		new_loop_attn = ATTN_NORM;
 	}
 
-	// Shadow (add back if alive and not a summoned creature)
-	if (!ent->monsterinfo.isfriendlyspawn) {
-		ent->s.renderfx |= RF_DOT_SHADOW;
+	// Resurrection effect (takes precedence)
+	if (ent->monsterinfo.aiflags & AI_RESURRECTING) {
+		new_effects |= EF_COLOR_SHELL;
+		new_renderfx |= RF_SHELL_RED;
+		goto apply_changes;
+	}
+
+	// Add shadow for alive monsters
+	new_renderfx |= RF_DOT_SHADOW;
+
+	// Dead monsters get no powerup effects
+	if (ent->health <= 0)
+		goto apply_changes;
+
+	// Bonus flag visuals (mutually exclusive)
+	int current_bonus_flags = ent->monsterinfo.bonus_flags;
+	if (current_bonus_flags & BF_CHAMPION) {
+		new_effects |= EF_ROCKET | EF_FIREBALL;
+		new_renderfx |= RF_IR_VISIBLE;
+	}
+	else if (current_bonus_flags & BF_CORRUPTED) {
+		new_effects |= EF_PLASMA | EF_TAGTRAIL;
+		new_renderfx |= RF_IR_VISIBLE;
+	}
+	else if (current_bonus_flags & BF_RAGEQUITTER) {
+		new_effects |= EF_BLUEHYPERBLASTER;
+		new_renderfx |= RF_IR_VISIBLE;
+	}
+	else if (current_bonus_flags & BF_BERSERKING) {
+		new_effects |= EF_GIB | EF_FLAG2;
+		new_renderfx |= RF_IR_VISIBLE;
+	}
+	else if (current_bonus_flags & BF_POSSESSED) {
+		new_effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+		new_renderfx |= RF_IR_VISIBLE;
+	}
+	else if (current_bonus_flags & BF_STYGIAN) {
+		new_effects |= EF_TRACKER | EF_FLAG1;
+		new_renderfx |= RF_IR_VISIBLE;
+	}
+
+	// Power armor
+	if (ent->powerarmor_time > level.time) {
+		if (ent->monsterinfo.power_armor_type == IT_ITEM_POWER_SCREEN) {
+			new_effects |= EF_POWERSCREEN;
+		}
+		else if (ent->monsterinfo.power_armor_type == IT_ITEM_POWER_SHIELD) {
+			new_effects |= EF_COLOR_SHELL;
+			new_renderfx |= RF_SHELL_GREEN;
+		}
+	}
+
+	// Powerups (only when expiring/blinking)
+	if (ent->monsterinfo.quad_time > level.time && G_PowerUpExpiring(ent->monsterinfo.quad_time))
+		new_effects |= EF_QUAD;
+	if (ent->monsterinfo.double_time > level.time && G_PowerUpExpiring(ent->monsterinfo.double_time))
+		new_effects |= EF_DOUBLE;
+	if (ent->monsterinfo.invincible_time > level.time && G_PowerUpExpiring(ent->monsterinfo.invincible_time))
+		new_effects |= EF_PENT;
+	if (ent->monsterinfo.quadfire_time > level.time && G_PowerUpExpiring(ent->monsterinfo.quadfire_time))
+		new_effects |= EF_DUALFIRE;
+
+apply_changes:
+	// Only update entity state if something changed (reduces network traffic)
+	if (ent->monsterinfo.cached_effects != new_effects ||
+		ent->monsterinfo.cached_renderfx != new_renderfx ||
+		ent->monsterinfo.cached_sound != new_sound) {
+
+		ent->s.effects = new_effects;
+		ent->s.renderfx = new_renderfx;
+		ent->s.sound = new_sound;
+		ent->s.loop_attenuation = new_loop_attn;
+
+		// Update cache
+		ent->monsterinfo.cached_effects = new_effects;
+		ent->monsterinfo.cached_renderfx = new_renderfx;
+		ent->monsterinfo.cached_sound = new_sound;
 	}
 }
 

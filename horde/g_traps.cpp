@@ -316,6 +316,10 @@ bool HandleTrapCooldown(edict_t* ent) {
             ent->takedamage = true;
             ent->solid = SOLID_BBOX;
             ent->die = trap_die;
+
+            // Update cache
+            trap_state->cached_frame = ent->s.frame;
+            trap_state->cached_effects = ent->s.effects;
         }
 
         ent->nextthink = level.time + 10_hz;
@@ -326,7 +330,7 @@ bool HandleTrapCooldown(edict_t* ent) {
 }
 
 // Handle trap animation sequence
-bool HandleTrapAnimation(edict_t* ent) {
+bool HandleTrapAnimation(edict_t* ent, trap_state_t* trap_state) {
     // ok lets do the blood effect
     if (ent->s.frame > TRAP_FRAME_ACTIVE) {
         if (ent->s.frame == TRAP_FRAME_CONSUME) {
@@ -348,7 +352,6 @@ bool HandleTrapAnimation(edict_t* ent) {
         ent->s.frame++;
         if (ent->s.frame == 8) {
             // Get trap data
-            trap_state_t* trap_state = GetTrapState(ent);
             if (trap_state) {
                 // CRITICAL FIX: Free any remaining gibs when entering cooldown
                 for (edict_t* gib : trap_state->owned_gibs) {
@@ -374,6 +377,12 @@ bool HandleTrapAnimation(edict_t* ent) {
             ent->s.effects &= ~EF_BLUEHYPERBLASTER;
             ent->s.effects &= ~EF_BARREL_EXPLODING;
 
+            // Update cache
+            if (trap_state) {
+                trap_state->cached_frame = ent->s.frame;
+                trap_state->cached_effects = ent->s.effects;
+            }
+
             // Spawn food cube
             edict_t* best = G_Spawn();
             best->count = ent->mass;
@@ -398,12 +407,22 @@ bool HandleTrapAnimation(edict_t* ent) {
         return true;
     }
 
-    ent->s.effects &= ~EF_BLUEHYPERBLASTER;
-    if (ent->s.frame >= TRAP_FRAME_ACTIVE) {
-        ent->s.effects |= EF_BLUEHYPERBLASTER;
-        // clear the owner if in deathmatch
-        if (G_IsDeathmatch())
-            ent->owner = nullptr;
+    // Only update effects if frame changed (network optimization)
+    if (trap_state && ent->s.frame != trap_state->cached_frame) {
+        effects_t new_effects = ent->s.effects & ~EF_BLUEHYPERBLASTER;
+        if (ent->s.frame >= TRAP_FRAME_ACTIVE) {
+            new_effects |= EF_BLUEHYPERBLASTER;
+            // clear the owner if in deathmatch
+            if (G_IsDeathmatch())
+                ent->owner = nullptr;
+        }
+
+        // Only update entity state if effects actually changed
+        if (new_effects != trap_state->cached_effects) {
+            ent->s.effects = new_effects;
+            trap_state->cached_effects = new_effects;
+        }
+        trap_state->cached_frame = ent->s.frame;
     }
 
     if (ent->s.frame < TRAP_FRAME_ACTIVE) {
@@ -633,10 +652,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
     if (HandleTrapCooldown(ent))
         return;
 
-    if (HandleTrapAnimation(ent))
-        return;
-
-    // Get the trap's state. It should always exist if the trap is active.
+    // Get the trap's state early so we can use it for caching
     trap_state_t* trap_state = GetTrapState(ent);
     if (!trap_state) {
         // This is a safety check. If the state is missing, something is wrong.
@@ -644,6 +660,9 @@ THINK(Trap_Think) (edict_t* ent) -> void
         BecomeExplosion1(ent);
         return;
     }
+
+    if (HandleTrapAnimation(ent, trap_state))
+        return;
 
     FindTrapTargets(ent, trap_state);
     ProcessTrapTargets(ent, trap_state);

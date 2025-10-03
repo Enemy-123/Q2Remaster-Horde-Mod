@@ -27,6 +27,10 @@ struct trap_state_t {
     gtime_t             cooldown_end;
     std::vector<edict_t*> owned_gibs;  // Track gibs owned by this trap for fast cleanup
 
+    // Cache for effect state to avoid unnecessary network updates
+    int cached_frame = -1;
+    effects_t cached_effects = EF_NONE;
+
     // Helper to reset the state to its default values
     void clear() {
         for (auto& target : targets) {
@@ -37,6 +41,8 @@ struct trap_state_t {
         in_cooldown = false;
         cooldown_end = 0_sec;
         owned_gibs.clear();
+        cached_frame = -1;
+        cached_effects = EF_NONE;
     }
 };
 

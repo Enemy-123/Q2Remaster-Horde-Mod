@@ -1921,6 +1921,11 @@ struct monsterinfo_t
 
 	bool was_spawned_by_horde;
 	bool spawned_in_spawn_state;
+
+	// Cached effects state to avoid unnecessary network updates
+	effects_t cached_effects;
+	renderfx_t cached_renderfx;
+	int32_t cached_sound;
 };;;;
 
 // non-monsterinfo save stuff
