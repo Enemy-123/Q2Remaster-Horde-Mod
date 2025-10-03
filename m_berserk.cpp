@@ -1592,6 +1592,7 @@ void SP_monster_berserkerkl(edict_t* self)
 {
 	// Set monster type first
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	// Call base berserk spawn
 	SP_monster_berserk(self);
@@ -1600,7 +1601,7 @@ void SP_monster_berserkerkl(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);
 
 	// Boss stats
-	self->health = 900 * ED_GetSpawnTemp().health_multiplier;
+	self->health = (config ? config->health : 900) * ED_GetSpawnTemp().health_multiplier;
 	self->gib_health = -150;
 	self->mass = 400;
 	self->s.skinnum = 2; // Different skin if available

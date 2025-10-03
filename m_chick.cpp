@@ -1484,12 +1484,13 @@ void SP_monster_chick_heat(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	SP_monster_chick(self);
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
 
 	// BALANCE FIX: Wave 13 Elite should have significantly more health than Wave 6 base Chick
-	self->health = 500 * st.health_multiplier;
+	self->health = (config ? config->health : 500) * st.health_multiplier;
 
 	self->s.skinnum = 2;
 	self->monsterinfo.drop_height = 256;
@@ -1783,6 +1784,7 @@ void SP_monster_chickkl(edict_t* self)
 {
 	// Set monster type first
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	// Call base chick spawn
 	SP_monster_chick(self);
@@ -1791,7 +1793,7 @@ void SP_monster_chickkl(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);
 
 	// Boss stats
-	self->health = 450 * ED_GetSpawnTemp().health_multiplier; // Much more health
+	self->health = (config ? config->health : 450) * ED_GetSpawnTemp().health_multiplier; // Much more health
 	self->gib_health = -120;
 	self->mass = 300;
 	self->s.skinnum = 3; // Different skin if available

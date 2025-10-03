@@ -716,6 +716,7 @@ void SP_monster_jorg(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JORG);
     }
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer) {
 		if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
@@ -772,7 +773,7 @@ void SP_monster_jorg(edict_t* self)
 	self->mins = { -80, -80, 0 };
 	self->maxs = { 80, 80, 140 };
 
-	self->health = 6500 * st.health_multiplier + (1.08 * current_wave_level);
+	self->health = (config ? config->health : 6500) * st.health_multiplier + (1.08 * current_wave_level);
 	self->gib_health = -2000;
 	self->mass = 1000;
 
@@ -806,12 +807,13 @@ void SP_monster_jorg_small(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JORG_SMALL);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	SP_monster_jorg(self);
 
 
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	self->monsterinfo.armor_power = 500;
-	self->health = 1000 * st.health_multiplier;
+	self->health = (config ? config->health : 1000) * st.health_multiplier;
 
 		self->s.scale = 0.35f;
 		self->mins *= 0.35f;

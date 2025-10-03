@@ -649,6 +649,7 @@ void SP_monster_floater_tracker(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLOATER_TRACKER);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer && current_wave_level <= 18)
 	{
@@ -694,7 +695,7 @@ void SP_monster_floater_tracker(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 200;
 
-	self->health = 450 * st.health_multiplier;
+	self->health = (config ? config->health : 450) * st.health_multiplier;
 	self->s.effects = EF_BARREL_EXPLODING;
 	self->gib_health = -80;
 	self->mass = 300;

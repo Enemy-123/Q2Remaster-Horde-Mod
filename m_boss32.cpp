@@ -910,6 +910,7 @@ void SP_monster_makron(edict_t* self)
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MAKRON);
 	}
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer) {
 		// --- REFACTORED ---
@@ -939,7 +940,7 @@ void SP_monster_makron(edict_t* self)
 	self->s.modelindex = gi.modelindex("models/monsters/boss3/rider/tris.md2");
 	self->mins = { -30, -30, 0 };
 	self->maxs = { 30, 30, 90 };
-	self->health = 2300 * st.health_multiplier;
+	self->health = (config ? config->health : 2300) * st.health_multiplier;
 
 	// --- REFACTORED ---
 	// This logic will be run *after* the ID has been potentially overridden by the KL spawner.
@@ -999,12 +1000,13 @@ void SP_monster_makron(edict_t* self)
 void SP_monster_makronkl(edict_t* self)
 {
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MAKRON_KL);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	// 1. Call the base spawner. It sets up a standard Makron.
 	SP_monster_makron(self);
 
 	self->s.skinnum = 2;
-	self->health = 2600 + (600 * current_wave_level);
+	self->health = (config ? config->health : 2600) + (600 * current_wave_level);
 	self->s.alpha = 0.4f;
 	self->s.effects = EF_FLAG1;
 
