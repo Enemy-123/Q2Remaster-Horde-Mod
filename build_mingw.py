@@ -32,6 +32,9 @@ def run_command(command, cwd=None, env=None):
 
 def should_copy_file(src, dst):
     """Check if file should be copied (if dst doesn't exist or src is newer)."""
+    # Skip if destination is a symlink (preserve user's manual links)
+    if os.path.islink(dst):
+        return False
     if not os.path.exists(dst):
         return True
     src_stat = os.stat(src)
@@ -241,3 +244,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+    #
+    #
+    #trick for symlink on linux, build_mingw will skip copying if symlink exists
+    #rm '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/weapon_and_bonus.json'
+    #sudo ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/weapon_and_bonus.json'
