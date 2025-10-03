@@ -271,6 +271,11 @@ void InitGame()
 		basedir += std::string(gamedir->string) + "/";
 	else
 		basedir += "baseq2/";
+
+	// IMPORTANT: Initialize monster type registry BEFORE loading configs
+	// Config_LoadMonsters needs the registry to look up monster type IDs
+	horde::InitializeHordeIDs();
+
 	Config_Load(basedir.c_str());
 
 	// Kyper - Lithium port
@@ -283,8 +288,7 @@ void InitGame()
 
 	Hook_InitGame();
 	Barrel_InitGame();
-	InitializeMonsterMoveSets(); //jump animations 
-	horde::InitializeHordeIDs();
+	InitializeMonsterMoveSets(); //jump animations
 	
 	InitSave();
 

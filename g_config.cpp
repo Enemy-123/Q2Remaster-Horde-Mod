@@ -143,13 +143,24 @@ void Config_LoadMonsters(const char* basedir)
 			g_config.monsters.monsters[monster_id] = config;
 			loaded_count++;
 
-			// Debug: Print first 3 monsters to verify loading
-			if (loaded_count <= 3)
-			{
-				gi.Com_PrintFmt("DEBUG: Loaded '{}' as type_id {}, health={}, weapons loaded={}\n",
-					full_classname.c_str(), monster_id, config.health,
-					monster_data.isMember("weapon_damage") ? "yes" : "no");
-			}
+			// Debug: Uncomment to verify loading with actual weapon values
+			// if (monster_name == "flyer" || monster_name == "soldier_light" || monster_name == "infantry")
+			// {
+			// 	gi.Com_PrintFmt("DEBUG: Loaded '{}' (type_id {})\n", full_classname.c_str(), monster_id);
+			// 	gi.Com_PrintFmt("  - health={}, armor={}, power_armor={}\n",
+			// 		config.health, config.armor_power, config.power_armor_power);
+			//
+			// 	// Show all non-zero weapon damages
+			// 	if (config.weapon_damage.blaster > 0) gi.Com_PrintFmt("  - blaster={}\n", config.weapon_damage.blaster);
+			// 	if (config.weapon_damage.blaster2 > 0) gi.Com_PrintFmt("  - blaster2={}\n", config.weapon_damage.blaster2);
+			// 	if (config.weapon_damage.blaster_bolt > 0) gi.Com_PrintFmt("  - blaster_bolt={}\n", config.weapon_damage.blaster_bolt);
+			// 	if (config.weapon_damage.shotgun > 0) gi.Com_PrintFmt("  - shotgun={}\n", config.weapon_damage.shotgun);
+			// 	if (config.weapon_damage.machinegun > 0) gi.Com_PrintFmt("  - machinegun={}\n", config.weapon_damage.machinegun);
+			// 	if (config.weapon_damage.grenade > 0) gi.Com_PrintFmt("  - grenade={}\n", config.weapon_damage.grenade);
+			// 	if (config.weapon_damage.rocket > 0) gi.Com_PrintFmt("  - rocket={}\n", config.weapon_damage.rocket);
+			// 	if (config.weapon_damage.dabeam > 0) gi.Com_PrintFmt("  - dabeam={}\n", config.weapon_damage.dabeam);
+			// 	if (config.weapon_damage.melee > 0) gi.Com_PrintFmt("  - melee={}\n", config.weapon_damage.melee);
+			// }
 		}
 
 		gi.Com_PrintFmt("Config: Loaded {} monster configurations from config/monsters.json\n", loaded_count);
@@ -556,10 +567,6 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 // Get specific weapon damage for a monster
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 {
-	// Debug: Log first few lookups
-	static int lookup_count = 0;
-	lookup_count++;
-
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	if (!config)
 	{
@@ -567,13 +574,6 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - No config found for monster '{}' (type_id {}), weapon '{}' will use hardcoded damage\n",
 			classname ? classname : "unknown", monster_type_id, weapon_name);
 		return 0;
-	}
-
-	if (lookup_count <= 5)
-	{
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
-		gi.Com_PrintFmt("DEBUG: GetMonsterWeaponDamage lookup #{}: monster '{}' (type_id {}), weapon '{}'\n",
-			lookup_count, classname ? classname : "unknown", monster_type_id, weapon_name);
 	}
 
 	// Use static map for O(1) lookup instead of strcmp chain
@@ -614,11 +614,11 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 
 	int damage = config->weapon_damage.*(it->second);
 
+	// Warn if weapon has 0 damage (not configured)
 	if (damage == 0)
 	{
-		// Get the monster's classname for better debugging
 		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Weapon '{}' for monster '{}' (type_id {}) has damage 0 in config. Add it to monsters.json or it will use hardcoded fallback.\n",
+		gi.Com_PrintFmt("WARNING: Weapon '{}' for monster '{}' (type_id {}) has damage 0 in config. Add it to monsters.json or it will use hardcoded fallback.\n",
 			weapon_name, classname ? classname : "unknown", monster_type_id);
 	}
 
