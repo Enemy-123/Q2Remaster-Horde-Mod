@@ -137,13 +137,13 @@ void Config_Load(const char* basedir)
 	Config_SetDefaults();
 
 	// Build config file path
-	std::string config_path = std::string(basedir) + "config/weapon_and_bonus.json";
+	std::string config_path = std::string(basedir) + "config/player_config.json";
 
 	// Try to open config file
 	std::ifstream config_file(config_path, std::ifstream::binary);
 	if (!config_file.is_open())
 	{
-		gi.Com_PrintFmt("Config: config/weapon_and_bonus.json not found, using default values\n");
+		gi.Com_PrintFmt("Config: config/player_config.json not found, using default values\n");
 		gi.Com_PrintFmt("Config: You can create {} to customize settings\n", config_path);
 		return;
 	}
@@ -155,7 +155,7 @@ void Config_Load(const char* basedir)
 
 	if (!Json::parseFromStream(builder, config_file, &root, &errs))
 	{
-		gi.Com_PrintFmt("Config: Failed to parse config/weapon_and_bonus.json: {}\n", errs);
+		gi.Com_PrintFmt("Config: Failed to parse config/player_config.json: {}\n", errs);
 		gi.Com_PrintFmt("Config: Using default values\n");
 		return;
 	}
@@ -476,7 +476,7 @@ void Config_Load(const char* basedir)
 		}
 	}
 
-	gi.Com_PrintFmt("Config: Successfully loaded config/weapon_and_bonus.json\n");
+	gi.Com_PrintFmt("Config: Successfully loaded config/player_config.json\n");
 	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}, Barrels: {}, Prox: {}, Traps: {}, Summons: {}\n",
 		g_config.entity_limits.max_sentries,
 		g_config.entity_limits.max_lasers,

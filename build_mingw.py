@@ -70,7 +70,7 @@ def smart_copy_tree(src_dir, dst_dir):
     return copied_count, skipped_count
 
 def deploy_data_files(script_dir, deploy_path):
-    """Deploy bots, ents, and config/weapon_and_bonus.json to game directory."""
+    """Deploy bots, ents, config/player_config.json, and config/monsters.json to game directory."""
     print("\n=== Deploying Data Files ===")
     deploy_src = os.path.join(script_dir, "deploy")
     game_dir = os.path.normpath(deploy_path)
@@ -108,19 +108,33 @@ def deploy_data_files(script_dir, deploy_path):
     #         total_skipped += 1
     #         print(f"horde_config.json: skipped (unchanged)")
 
-    # Copy config/weapon_and_bonus.json
-    config_src = os.path.join(deploy_src, "config", "weapon_and_bonus.json")
+    # Copy config files
     config_dst_dir = os.path.join(game_dir, "config")
     os.makedirs(config_dst_dir, exist_ok=True)
-    config_dst = os.path.join(config_dst_dir, "weapon_and_bonus.json")
+
+    # Copy config/player_config.json
+    config_src = os.path.join(deploy_src, "config", "player_config.json")
+    config_dst = os.path.join(config_dst_dir, "player_config.json")
     if os.path.exists(config_src):
         if should_copy_file(config_src, config_dst):
             shutil.copy2(config_src, config_dst)
             total_copied += 1
-            print(f"config/weapon_and_bonus.json: copied")
+            print(f"config/player_config.json: copied")
         else:
             total_skipped += 1
-            print(f"config/weapon_and_bonus.json: skipped (unchanged)")
+            print(f"config/player_config.json: skipped (unchanged)")
+
+    # Copy config/monsters.json
+    monsters_src = os.path.join(deploy_src, "config", "monsters.json")
+    monsters_dst = os.path.join(config_dst_dir, "monsters.json")
+    if os.path.exists(monsters_src):
+        if should_copy_file(monsters_src, monsters_dst):
+            shutil.copy2(monsters_src, monsters_dst)
+            total_copied += 1
+            print(f"config/monsters.json: copied")
+        else:
+            total_skipped += 1
+            print(f"config/monsters.json: skipped (unchanged)")
 
     print(f"\nTotal: {total_copied} files copied, {total_skipped} files skipped")
 
@@ -235,7 +249,7 @@ def main():
             print(f"❌ Error: Expected DLL not found at {dll_path}")
             sys.exit(1)
 
-        # Deploy data files (bots, ents, config/weapon_and_bonus.json)
+        # Deploy data files (bots, ents, config/player_config.json, config/monsters.json)
         deploy_data_files(script_dir, args.deploy_path)
 
     except Exception as e:
@@ -249,5 +263,8 @@ if __name__ == "__main__":
     #
     #
     #trick for symlink on linux, build_mingw will skip copying if symlink exists
-    #rm '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/weapon_and_bonus.json'
-    #sudo ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/weapon_and_bonus.json'
+    #rm '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/player_config.json'
+    #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/player_config.json' '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/player_config.json'
+    #
+    #rm '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/monsters.json'
+    #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/monsters.json' '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/monsters.json'
