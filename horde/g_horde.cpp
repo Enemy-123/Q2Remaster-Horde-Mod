@@ -2457,6 +2457,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 	}
 }
 
+
 static horde::MonsterTypeID SelectFromCache(const MonsterCache &cache_ref)
 {
 	if (cache_ref.count == 0 || cache_ref.total_weight <= 0.0f)
@@ -2508,7 +2509,7 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 
 	// If no valid monster found that matches wave type, fall back to ANY valid monster
 	// (this prevents complete spawn failure)
-	if (developer->integer)
+		if (developer->integer)
 	{
 		// Simplified wave type description for logging
 		const char* wave_type_str = "Unknown";
@@ -2522,7 +2523,6 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 		gi.Com_PrintFmt("WARNING: Emergency fallback ignoring wave type (WaveType={}, FlyPoint={}, EffLvl={}, Recovery={})\n",
 		                wave_type_str, ctx.isSpawnPointFlying, ctx.effectiveLevel, ctx.isRecoveryModeActive);
 	}
-
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
 		const auto &monster = monsterTypes[i];
@@ -3499,11 +3499,11 @@ static bool CheckRemainingMonstersCondition(const horde::MapSize &mapSize, WaveE
 			const gtime_t reduction_amount = (remaining - target_time) * (reduction_rate * gi.frame_time_s);
 			g_horde_local.waveEndTime -= reduction_amount;
 
-			if (developer->integer > 1)
-			{
-				gi.Com_PrintFmt("Post-deployment timer reduction: {:.1f}s → target: {:.1f}s\n",
-								remaining.seconds(), target_time.seconds());
-			}
+			// if (developer->integer > 1)
+			// {
+			// 	gi.Com_PrintFmt("Post-deployment timer reduction: {:.1f}s → target: {:.1f}s\n",
+			// 					remaining.seconds(), target_time.seconds());
+			// }
 		}
 	}
 
@@ -3630,12 +3630,12 @@ static void StartConditionalTimer(const WaveConditionContext &ctx)
 
 			applied_smooth_transition = true;
 
-			if (developer->integer)
-			{
-				gi.Com_PrintFmt("Post-deployment smooth transition: {:.1f}x accel, timer: {:.1f}s → {:.1f}s (independent: {:.1f}s)\n",
-								target_accel, g_horde_local.waveEndTime.seconds() - ctx.currentTime.seconds(),
-								time_threshold.seconds(), independent_time_remaining.seconds());
-			}
+			// if (developer->integer)
+			// {
+			// 	gi.Com_PrintFmt("Post-deployment smooth transition: {:.1f}x accel, timer: {:.1f}s → {:.1f}s (independent: {:.1f}s)\n",
+			// 					target_accel, g_horde_local.waveEndTime.seconds() - ctx.currentTime.seconds(),
+			// 					time_threshold.seconds(), independent_time_remaining.seconds());
+			// }
 		}
 	}
 
@@ -3762,11 +3762,11 @@ static void ApplyAggressiveTimeReduction(const WaveConditionContext &ctx)
 		g_horde_local.accelerationStartTime = ctx.currentTime;
 		g_horde_local.accelerationDuration = 2_sec; // 2 second smooth transition
 
-		if (developer->integer)
-		{
-			gi.Com_PrintFmt("Time acceleration initiated: {:.1f}x for {} monsters.\n",
-							target_acceleration, ctx.liveMonsters);
-		}
+		// if (developer->integer)
+		// {
+		// 	gi.Com_PrintFmt("Time acceleration initiated: {:.1f}x for {} monsters.\n",
+		// 					target_acceleration, ctx.liveMonsters);
+		// }
 	}
 
 	// --- Optional: Also apply gentle timer reduction (hybrid approach) ---
