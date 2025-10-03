@@ -93,10 +93,7 @@ edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t typ
 		vec3_t origin = (self->absmin + vec3_t{ 1, 1, 1 }) + size;
 		vec3_t gib_origin = origin + vec3_t{ crandom(), crandom(), crandom() }.scaled(size);
 
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_EXPLOSION1);
-		gi.WritePosition(gib_origin);
-		gi.multicast(gib_origin, MULTICAST_PVS, false);
+	BecomeTE(self);
 
 		return nullptr;
 	}

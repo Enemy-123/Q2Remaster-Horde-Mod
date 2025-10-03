@@ -827,11 +827,11 @@ static cached_soundindex wave_sounds[NUM_WAVE_SOUNDS];
 static cached_soundindex start_sounds[NUM_START_SOUNDS];
 static cached_soundindex sound_tele3;
 static cached_soundindex sound_tele_up;
-cached_soundindex sound_spawn1;  // Made non-static for horde_boss.cpp
+cached_soundindex sound_spawn1;  // Made non-static for horde_boss.cpp and horde_spawning.cpp
 static cached_soundindex incoming;
-static cached_soundindex sound_quake;
+cached_soundindex sound_quake;  // Made non-static for horde_spawning.cpp
 static cached_soundindex talk;
-static cached_soundindex tele1;
+cached_soundindex tele1;  // Made non-static for horde_spawning.cpp
 
 // Arrays de strings con los nombres de los sonidos
 static constexpr const char *WAVE_SOUND_PATHS[NUM_WAVE_SOUNDS] = {
@@ -2422,7 +2422,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 
 	// FIXED: If we have too few monsters, add fallback monsters ensuring they're precached too
 	// This maintains consistency: we never spawn unprecached monsters
-	if (cache_ref.count < MIN_MONSTERS_AVAILABLE && !ctx.isSpawnPointFlying)
+	if (cache_ref.count < MIN_MONSTERS_AVAILABLE)
 	{
 		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 		{
@@ -2433,18 +2433,25 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				continue;
 			}
 
-			// Add core monsters that are available for the current level
-			if (monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)
-			{
-				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
-					break;
+			const bool monster_is_flying = IsFlying(monster_info->typeId);
 
-				const bool monster_is_flying = IsFlying(monster_info->typeId);
-				if (!monster_is_flying)
+			// For flying spawn points: add any flying monsters from early waves
+			if (ctx.isSpawnPointFlying) {
+				if (monster_is_flying && monster_info->minWave <= 11 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)
 				{
+					if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
+						break;
 					float weight = CalculateBaseWeight(i, ctx) * 0.5f;
 					cache_ref.addMonster(monster_info->typeId, weight);
 				}
+			}
+			// For ground spawn points: add core ground monsters
+			else if (!monster_is_flying && monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)
+			{
+				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
+					break;
+				float weight = CalculateBaseWeight(i, ctx) * 0.5f;
+				cache_ref.addMonster(monster_info->typeId, weight);
 			}
 		}
 	}
@@ -2502,7 +2509,19 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 	// If no valid monster found that matches wave type, fall back to ANY valid monster
 	// (this prevents complete spawn failure)
 	if (developer->integer)
-		gi.Com_PrintFmt("WARNING: Emergency fallback could not find wave-appropriate monster, using any available\n");
+	{
+		// Simplified wave type description for logging
+		const char* wave_type_str = "Unknown";
+		if (ctx.waveTypeForFiltering == MonsterWaveType::Ground) wave_type_str = "Ground";
+		else if (ctx.waveTypeForFiltering == MonsterWaveType::Flying) wave_type_str = "Flying";
+		else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Boss)) wave_type_str = "Boss";
+		else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Gekk)) wave_type_str = "Gekk";
+		else if (ctx.waveTypeForFiltering == MonsterWaveType::None) wave_type_str = "None";
+		else wave_type_str = "Mixed";
+
+		gi.Com_PrintFmt("WARNING: Emergency fallback ignoring wave type (WaveType={}, FlyPoint={}, EffLvl={}, Recovery={})\n",
+		                wave_type_str, ctx.isSpawnPointFlying, ctx.effectiveLevel, ctx.isRecoveryModeActive);
+	}
 
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
@@ -4756,9 +4775,12 @@ static void ExecuteNextSpecialSpawn()
 		return;
 	}
 
+	// Determine spawn type: 1=Ambush, 2=Retaliation
+	int spawn_type = (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation) ? 2 : 1;
+
 	// EmergencySpawnMonster is correct here as it finds a spot near a player.
 	// It will use the specific target if one is set (for retaliation), or find a random one (for ambush).
-	if (EmergencySpawnMonster(current_wave_level, g_spawn_system.special_spawn_state.monster_type_id, true, g_spawn_system.special_spawn_state.champion_chance))
+	if (EmergencySpawnMonster(current_wave_level, g_spawn_system.special_spawn_state.monster_type_id, true, g_spawn_system.special_spawn_state.champion_chance, spawn_type))
 	{
 		// Success
 	}
@@ -5605,14 +5627,46 @@ public:
     void ProcessSpawnPlan() {
         if (g_spawn_system.spawn_plan.empty()) return;
 
+        int total_planned = static_cast<int>(g_spawn_system.spawn_plan.size());
+        int total_spawned = 0;
+        int total_validation_failures = 0;
+        int total_spawn_failures = 0;
+
         while (!g_spawn_system.spawn_plan.empty()) {
             PrepareBatch();
 
             if (current_batch.count > 0) {
                 ValidateLocations();
+
+                // Count validation failures
+                for (size_t i = 0; i < current_batch.count; ++i) {
+                    if (!current_batch.is_valid[i]) {
+                        total_validation_failures++;
+                    }
+                }
+
                 SpawnMonsters();
+
+                // Count actual spawns vs spawn failures
+                for (size_t i = 0; i < current_batch.count; ++i) {
+                    if (!current_batch.is_valid[i]) continue;
+
+                    edict_t* monster = current_batch.spawned_monsters[i];
+                    if (monster && monster->inuse) {
+                        total_spawned++;
+                    } else {
+                        total_spawn_failures++;
+                    }
+                }
+
                 ProcessResults();
             }
+        }
+
+        // Log execution summary
+        if (developer->integer && (total_spawned < total_planned || developer->integer >= 2)) {
+            gi.Com_PrintFmt("SPAWN EXECUTION: Planned={}, Spawned={}, ValidationFailed={}, SpawnFailed={}\n",
+                            total_planned, total_spawned, total_validation_failures, total_spawn_failures);
         }
     }
 };

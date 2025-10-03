@@ -157,11 +157,13 @@ edict_t* Horde_SpawnMonster(
 
 // Emergency spawn for when normal spawn points are unavailable
 // Returns true if monster was successfully spawned
+// special_spawn_type: 0=normal, 1=ambush, 2=retaliation
 bool EmergencySpawnMonster(
     const int32_t levelNum,
     horde::MonsterTypeID typeId,
     bool is_additional_monster,
-    float champion_chance_for_this_spawn);
+    float champion_chance_for_this_spawn,
+    int special_spawn_type = 0);
 
 // ============================================================================
 // SPAWN POSITION FINDING FUNCTIONS

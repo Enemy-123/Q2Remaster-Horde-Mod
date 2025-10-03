@@ -36,6 +36,8 @@ extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
 extern bool ApplyHordeBonuses(edict_t *monster, int32_t currentLevel, float champion_chance);
 extern void SpawnGrow_Spawn(const vec3_t &origin, float size_start, float size_end);
 extern cached_soundindex sound_spawn1;
+extern cached_soundindex sound_quake;
+extern cached_soundindex tele1;
 
 extern cvar_t* developer;
 extern cvar_t* g_horde;
@@ -120,6 +122,27 @@ static void ApplyMonsterSpawnEffects(edict_t* monster) noexcept
     }
 }
 
+/// Applies special spawn effects - differentiated for Ambush vs Retaliation
+static void ApplySpecialSpawnEffects(edict_t* monster, bool is_retaliation) noexcept
+{
+    if (!monster || !monster->inuse || monster->deadflag || monster->health <= 0)
+        return;
+
+    if (is_retaliation) {
+        // Retaliation: Larger, more aggressive spawn effect
+        SpawnGrow_Spawn(monster->s.origin, 100.0f, 15.0f);  // Larger grow effect
+        if (sound_quake) {
+            gi.sound(monster, CHAN_AUTO, sound_quake, 1.0f, ATTN_NORM, 0);  // Use quake sound for impact
+        }
+    } else {
+        // Ambush: Faster, sneakier spawn effect
+        SpawnGrow_Spawn(monster->s.origin, 60.0f, 7.0f);  // Smaller, quicker grow
+        if (tele1) {
+            gi.sound(monster, CHAN_AUTO, tele1, 0.7f, ATTN_NORM, 0);  // Quieter teleport sound
+        }
+    }
+}
+
 /// Determines appropriate emergency monster type based on level
 static horde::MonsterTypeID GetEmergencyMonsterType(int32_t currentLevel) noexcept
 {
@@ -132,16 +155,58 @@ static horde::MonsterTypeID GetEmergencyMonsterType(int32_t currentLevel) noexce
     return horde::MonsterTypeID::SOLDIER;
 }
 
-/// Checks if position is too close to other positions in batch
+/// Get map-size-aware emergency spawn spacing
+static float GetEmergencySpacingForMap(const horde::MapSize& mapSize) noexcept
+{
+    if (mapSize.isSmallMap)
+        return HordeConstants::EMERGENCY_MIN_BATCH_SPACING * 0.7f;  // 196 units for small maps
+    else if (mapSize.isBigMap)
+        return HordeConstants::EMERGENCY_MIN_BATCH_SPACING * 1.2f;  // 336 units for big maps
+    else
+        return HordeConstants::EMERGENCY_MIN_BATCH_SPACING;         // 280 units for medium maps
+}
+
+/// Persistent emergency spawn tracking across frames
+static struct EmergencySpawnHistory {
+    static constexpr size_t MAX_HISTORY = 16;
+    std::array<vec3_t, MAX_HISTORY> positions;
+    std::array<gtime_t, MAX_HISTORY> spawn_times;
+    size_t write_index = 0;
+
+    void AddPosition(const vec3_t& pos) {
+        positions[write_index] = pos;
+        spawn_times[write_index] = level.time;
+        write_index = (write_index + 1) % MAX_HISTORY;
+    }
+
+    bool IsTooCloseToRecent(const vec3_t& position, float min_spacing, gtime_t cooldown_duration = 3_sec) const {
+        const float min_spacing_sq = min_spacing * min_spacing;
+        for (size_t i = 0; i < MAX_HISTORY; ++i) {
+            if (spawn_times[i] + cooldown_duration > level.time) {
+                if ((position - positions[i]).lengthSquared() < min_spacing_sq)
+                    return true;
+            }
+        }
+        return false;
+    }
+} g_emergency_spawn_history;
+
+/// Checks if position is too close to other positions in batch or recent emergency spawns
 static bool IsTooCloseToBatchPositions(const vec3_t& position, const std::vector<vec3_t>& batch_positions) noexcept
 {
-    const float min_spacing_sq = HordeConstants::EMERGENCY_MIN_BATCH_SPACING * HordeConstants::EMERGENCY_MIN_BATCH_SPACING;
+    const horde::MapSize& mapSize = g_horde_local.current_map_size;
+    const float min_spacing = GetEmergencySpacingForMap(mapSize);
+    const float min_spacing_sq = min_spacing * min_spacing;
+
+    // Check current batch
     for (const vec3_t& batch_pos : batch_positions)
     {
         if ((position - batch_pos).lengthSquared() < min_spacing_sq)
             return true;
     }
-    return false;
+
+    // Check recent emergency spawns across frames (map-size-aware)
+    return g_emergency_spawn_history.IsTooCloseToRecent(position, min_spacing);
 }
 
 /// Attempts to find a valid emergency spawn position with batch spacing
@@ -350,7 +415,8 @@ edict_t* Horde_SpawnMonster(
 bool EmergencySpawnMonster(const int32_t levelNum,
                            horde::MonsterTypeID typeId,
                            bool is_additional_monster,
-                           float champion_chance_for_this_spawn)
+                           float champion_chance_for_this_spawn,
+                           int special_spawn_type)
 {
     PROFILE_SCOPE("EmergencySpawnMonster");
 
@@ -383,7 +449,12 @@ bool EmergencySpawnMonster(const int32_t levelNum,
         return false;
     }
 
-    ApplyMonsterSpawnEffects(monster);
+    // Apply appropriate spawn effects based on type
+    if (special_spawn_type == 1 || special_spawn_type == 2) {
+        ApplySpecialSpawnEffects(monster, special_spawn_type == 2);  // true for retaliation
+    } else {
+        ApplyMonsterSpawnEffects(monster);
+    }
 
     if (is_additional_monster)
     {
@@ -395,8 +466,9 @@ bool EmergencySpawnMonster(const int32_t levelNum,
 
     if (developer->integer)
     {
-        gi.Com_PrintFmt("EMERGENCY SPAWN SUCCESSFUL: Spawned '{}' (Additional: {}).\n",
-                        monster->classname, is_additional_monster ? "Yes" : "No");
+        const char* spawn_type_str = (special_spawn_type == 2) ? "RETALIATION" : (special_spawn_type == 1) ? "AMBUSH" : "EMERGENCY";
+        gi.Com_PrintFmt("{} SPAWN SUCCESSFUL: Spawned '{}' (Additional: {}).\n",
+                        spawn_type_str, monster->classname, is_additional_monster ? "Yes" : "No");
     }
 
     return true;
@@ -484,11 +556,15 @@ void PlanMonsterSpawnBatch(
     const size_t total_potential_points = g_spawn_system.potential_spawn_points.size();
     if (total_potential_points == 0)
     {
+        if (developer->integer)
+            gi.Com_PrintFmt("SPAWN PLANNING: No potential spawn points available.\n");
         return;
     }
 
     size_t points_checked = 0;
     int planned_count = 0;
+    int failed_validation = 0;
+    int failed_monster_pick = 0;
 
     while (planned_count < num_to_plan && points_checked < total_potential_points * 2)
     {
@@ -501,6 +577,7 @@ void PlanMonsterSpawnBatch(
 
         if (!ValidateSpawnPointForMonster(spawn_point, level.time))
         {
+            failed_validation++;
             continue;
         }
 
@@ -518,11 +595,17 @@ void PlanMonsterSpawnBatch(
             }
             planned_count++;
         }
+        else
+        {
+            failed_monster_pick++;
+        }
     }
 
-    if (developer->integer && planned_count < num_to_plan)
+    if (developer->integer && (planned_count < num_to_plan || developer->integer >= 2))
     {
-        gi.Com_PrintFmt("Spawn Plan: Only able to plan {} of {} requested monsters.\n", planned_count, num_to_plan);
+        gi.Com_PrintFmt("SPAWN PLAN: Target={}, Planned={}, FailedValidation={}, FailedPick={}, PointsChecked={}/{} (Remaining: {})\n",
+                        num_to_plan, planned_count, failed_validation, failed_monster_pick,
+                        points_checked, total_potential_points, g_horde_local.num_to_spawn);
     }
 }
 
@@ -707,6 +790,13 @@ void DetermineSpawnStrategy(const horde::MapSize& mapSize, int32_t& out_spawnabl
                                 (mapSize.isBigMap ? HordeConstants::SPAWN_BATCH_BIG_MAP : HordeConstants::SPAWN_BATCH_MEDIUM_MAP);
     out_spawnable_this_call = std::min({g_horde_local.num_to_spawn, base_batch, availableSpace});
 
+    if (developer->integer >= 2 && out_spawnable_this_call < g_horde_local.num_to_spawn)
+    {
+        gi.Com_PrintFmt("SPAWN STRATEGY: Wanted={}, BatchCap={}, AvailableSpace={}, Planning={} (Deferred={})\n",
+                        g_horde_local.num_to_spawn, base_batch, availableSpace,
+                        out_spawnable_this_call, g_horde_local.num_to_spawn - out_spawnable_this_call);
+    }
+
     out_use_emergency_spawn = false;
     if (g_spawn_system.consecutive_spawn_failures >= HordeConstants::MAX_CONSECUTIVE_FAILURES_BEFORE_EMERGENCY)
     {
@@ -760,8 +850,9 @@ int ExecuteEmergencySpawnProcedure(int32_t spawnable_this_call,
         if (!monster || !monster->inuse || monster->deadflag || monster->health <= 0)
             continue;
 
-        // Track position and apply effects
+        // Track position in both current batch and persistent history
         batch_spawn_positions.push_back(emergency_origin);
+        g_emergency_spawn_history.AddPosition(emergency_origin);
         ApplyMonsterSpawnEffects(monster);
 
         // Update spawn counts

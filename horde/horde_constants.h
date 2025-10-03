@@ -54,8 +54,8 @@ namespace HordeConstants
 
 	// --- Emergency Spawn Settings ---
 	inline constexpr int32_t EMERGENCY_SPAWN_LIMIT_PER_CALL = 3;
-	inline constexpr float EMERGENCY_MIN_BATCH_SPACING = 150.0f;
-	inline constexpr int MAX_EMERGENCY_POSITION_ATTEMPTS = 10;
+	inline constexpr float EMERGENCY_MIN_BATCH_SPACING = 280.0f;  // Increased from 150 to prevent clustering
+	inline constexpr int MAX_EMERGENCY_POSITION_ATTEMPTS = 25;     // Increased from 10 for better coverage
 	inline constexpr int32_t EMERGENCY_GUNNER_LEVEL_THRESHOLD = 10;
 	inline constexpr int32_t EMERGENCY_TANK_LEVEL_THRESHOLD = 15;
 	inline constexpr int32_t EMERGENCY_GLADIATOR_LEVEL_THRESHOLD = 20;
