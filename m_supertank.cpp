@@ -525,7 +525,7 @@ void supertankRocket(edict_t* self)
 		vec[2] += self->enemy->viewheight;
 		dir = vec - start;
 		dir.normalize();
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
 		if (damage <= 0) damage = 40;
 		monster_fire_heat(self, start, dir, damage, 980, flash_number, 0.075f);
 	}

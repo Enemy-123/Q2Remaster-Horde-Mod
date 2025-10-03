@@ -164,6 +164,31 @@ void Config_LoadMonsters(const char* basedir)
 		}
 
 		gi.Com_PrintFmt("Config: Loaded {} monster configurations from config/monsters.json\n", loaded_count);
+
+		// Verify all monster types have configs
+		int missing_count = 0;
+		for (uint8_t type_id = 0; type_id < static_cast<uint8_t>(horde::MonsterTypeID::MAX_TYPES); type_id++)
+		{
+			const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(type_id));
+			if (classname && classname[0])  // Valid monster type
+			{
+				auto it = g_config.monsters.monsters.find(type_id);
+				if (it == g_config.monsters.monsters.end())
+				{
+					missing_count++;
+					gi.Com_PrintFmt("WARNING: Monster '{}' (type_id {}) has NO config in monsters.json!\n", classname, type_id);
+				}
+			}
+		}
+
+		if (missing_count > 0)
+		{
+			gi.Com_PrintFmt("ERROR: {} monsters are missing from config/monsters.json! Add them or they will use hardcoded stats.\n", missing_count);
+		}
+		else
+		{
+			gi.Com_PrintFmt("Config: All monsters have configurations! ✓\n");
+		}
 	}
 }
 

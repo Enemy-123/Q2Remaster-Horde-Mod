@@ -228,7 +228,7 @@ void CarrierPredictiveRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
 
 	// 1
@@ -278,7 +278,7 @@ void CarrierRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
 
 	// 1

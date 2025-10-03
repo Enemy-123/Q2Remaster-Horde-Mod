@@ -642,11 +642,13 @@ void SP_monster_gladiator(edict_t* self)
 void SP_monster_gladb(edict_t* self)
 {
 	self->style = 1;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_B);
 	SP_monster_gladiator(self);
 }
 
 void SP_monster_gladc(edict_t* self)
 {
 	self->style = 3;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_C);
 	SP_monster_gladiator(self);
 }
