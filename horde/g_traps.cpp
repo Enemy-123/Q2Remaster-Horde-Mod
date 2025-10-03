@@ -659,7 +659,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
         }
 
         // --- "REPLACE OLDEST" LOGIC ---
-        if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS_PER_PLAYER) {
+        if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS()) {
             edict_t* oldest = self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx];
 
             if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {

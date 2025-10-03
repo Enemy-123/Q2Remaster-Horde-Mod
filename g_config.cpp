@@ -240,6 +240,7 @@ void Config_Load(const char* basedir)
 		g_config.entity_limits.max_teslas = GetJsonInt(limits, "max_teslas", 12);
 		g_config.entity_limits.max_barrels = GetJsonInt(limits, "max_barrels", 10);
 		g_config.entity_limits.max_prox = GetJsonInt(limits, "max_prox", 50);
+		g_config.entity_limits.max_traps = GetJsonInt(limits, "max_traps", 8);
 		g_config.entity_limits.max_summons = GetJsonInt(limits, "max_summons", 8);
 	}
 
@@ -545,12 +546,13 @@ void Config_Load(const char* basedir)
 	}
 
 	gi.Com_PrintFmt("Config: Successfully loaded config/weapon_and_bonus.json\n");
-	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}, Barrels: {}, Prox: {}, Summons: {}\n",
+	gi.Com_PrintFmt("Config: Entity limits - Sentries: {}, Lasers: {}, Teslas: {}, Barrels: {}, Prox: {}, Traps: {}, Summons: {}\n",
 		g_config.entity_limits.max_sentries,
 		g_config.entity_limits.max_lasers,
 		g_config.entity_limits.max_teslas,
 		g_config.entity_limits.max_barrels,
 		g_config.entity_limits.max_prox,
+		g_config.entity_limits.max_traps,
 		g_config.entity_limits.max_summons);
 
 	// Load monster configs

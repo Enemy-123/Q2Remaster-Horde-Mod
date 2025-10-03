@@ -2977,7 +2977,8 @@ namespace SentryConstants {
 }
 
 namespace TrapConstants {
-    constexpr int32_t MAX_TRAPS_PER_PLAYER = 12;
+    constexpr int32_t MAX_TRAPS_PER_PLAYER = 12;  // Compile-time array size
+    inline int32_t MAX_TRAPS() { return g_config.entity_limits.max_traps; }  // Runtime limit from config
 }
 
 namespace ProxConstants {

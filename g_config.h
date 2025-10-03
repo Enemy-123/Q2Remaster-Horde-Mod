@@ -11,6 +11,7 @@ struct EntityLimitsConfig
 	int32_t max_teslas = 12;
 	int32_t max_barrels = 10;
 	int32_t max_prox = 20;
+	int32_t max_traps = 8;
 	int32_t max_summons = 8;
 };
 

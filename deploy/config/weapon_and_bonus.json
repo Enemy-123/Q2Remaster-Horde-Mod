@@ -6,6 +6,7 @@
     "max_teslas": 11,
     "max_barrels": 4,
     "max_prox": 12,
+    "max_traps": 8,
     "max_summons": 3
   },
 
