@@ -1356,6 +1356,7 @@ void SP_monster_flyer(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLYER);
     }
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer && current_wave_level <= 18) {
 		const	float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
@@ -1396,7 +1397,25 @@ void SP_monster_flyer(edict_t* self)
 
 	self->monsterinfo.engine_sound = gi.soundindex("flyer/flyidle1.wav");
 
-	self->health = 50 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 50) * st.health_multiplier;
 	self->mass = 50;
 
 	self->pain = flyer_pain;

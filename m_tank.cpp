@@ -2900,7 +2900,9 @@ void SP_monster_tank(edict_t* self)
 	// Set a default ID if one hasn't been set by a more specific spawner.
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK);
-    }
+}
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 
 	if (g_horde->integer && brandom()) {
 		gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
@@ -2944,7 +2946,7 @@ void SP_monster_tank(edict_t* self)
 	// --- REFACTORED: Use the monster ID to determine stats and appearance ---
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER))
 	{
-		self->health = 1000 * st.health_multiplier;
+		self->health = (config ? config->health : 1000) * st.health_multiplier;
 		self->gib_health = -225;
 		self->count = 1;
 		sound_pain2.assign("tank/pain.wav");
@@ -2978,7 +2980,7 @@ void SP_monster_tank(edict_t* self)
 	}
 	else // Default case for base TANK
 	{
-		self->health = 630 * st.health_multiplier;
+		self->health = (config ? config->health : 630) * st.health_multiplier;
 		self->gib_health = -200;
 		sound_pain.assign("tank/tnkpain2.wav");
 	}
@@ -3015,7 +3017,7 @@ void SP_monster_tank_spawner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_SPAWNER);
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -3071,7 +3073,26 @@ void SP_monster_tank_spawner(edict_t* self)
 
     // --- REFACTORED ---
     // The strcmp is removed as this function only spawns one type.
-	self->health = 1200 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+
+	self->health = (config ? config->health : 1200) * st.health_multiplier;
 	self->gib_health = -225;
 	self->count = 1;
 	sound_pain2.assign("tank/pain.wav");
@@ -3084,7 +3105,7 @@ void SP_monster_tank_spawner(edict_t* self)
 			self->s.scale = 1.5f;
 		self->mins *= 1.5f;
 		self->maxs *= 1.5f;
-		self->health = 1500 * st.health_multiplier;
+		self->health = (config ? config->health : 1500) * st.health_multiplier;
 	}
 
 	self->mass = 500;

@@ -924,6 +924,7 @@ void SP_monster_shambler(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER);
     }
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -948,7 +949,7 @@ void SP_monster_shambler(edict_t* self)
 	sound_fireball.assign("weapons/rocklx1a.wav");
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER)) {
-		self->health = 650 * st.health_multiplier;
+		self->health = (config ? config->health : 650) * st.health_multiplier;
 		self->gib_health = -190;
 	}
 
@@ -1002,9 +1003,10 @@ void SP_monster_shambler_small(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_SMALL);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	SP_monster_shambler(self);
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) {
-		self->health = 350 + st.health_multiplier;
+		self->health = (config ? config->health : 350) + st.health_multiplier;
 		self->gib_health = -190;
 		self->s.scale = 0.6f;
 		self->mins *= self->s.scale;

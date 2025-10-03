@@ -1028,6 +1028,7 @@ void SP_monster_parasite(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PARASITE);
     }
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1060,7 +1061,25 @@ void SP_monster_parasite(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 150 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 150) * st.health_multiplier;
 	self->gib_health = -50;
 	self->mass = 250;
 
@@ -1094,6 +1113,7 @@ void SP_monster_perrokl(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PERRO_KL);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;
@@ -1106,9 +1126,9 @@ void SP_monster_perrokl(edict_t* self)
 		self->monsterinfo.bonus_flags |= BF_CORRUPTED;
 		self->gib_health = -70;
 		if (G_IsCooperative())
-			self->health = 375 * st.health_multiplier;
+			self->health = (config ? config->health : 375) * st.health_multiplier;
 		if (g_horde->integer) {
-			self->health = 775 * current_wave_level;
+			self->health = (config ? config->health : 775) * current_wave_level;
 			self->s.scale = 1.2f;
 			self->mins *= self->s.scale;
 			self->maxs *= self->s.scale;

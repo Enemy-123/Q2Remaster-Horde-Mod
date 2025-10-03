@@ -2045,6 +2045,7 @@ void SP_monster_fixbot(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT);
     }
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	self->s.modelindex = gi.modelindex("models/monsters/fixbot/tris.md2");
 	self->mins = { -16, -16, -12 };
@@ -2052,7 +2053,26 @@ void SP_monster_fixbot(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 130 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+
+	self->health = (config ? config->health : 130) * st.health_multiplier;
 	self->monsterinfo.scale = MODEL_SCALE;
 	self->mass = 150;
 	self->s.scale = 1.55f;

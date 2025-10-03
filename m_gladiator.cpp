@@ -506,6 +506,7 @@ void SP_monster_gladiator(edict_t* self)
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR);
 	}
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (g_horde->integer && current_wave_level <= 18)
 	{
@@ -547,7 +548,7 @@ void SP_monster_gladiator(edict_t* self)
 	switch (self->style) {
 	case 1: // gladb
 		sound_gunb.assign("weapons/disrupt.wav");
-		self->health = 480 * st.health_multiplier;
+		self->health = (config ? config->health : 480) * st.health_multiplier;
 		self->mass = 350;
 
 		if (!self->monsterinfo.power_armor_type != IT_NULL || (!st.was_key_specified("armor_type")))
@@ -576,7 +577,7 @@ void SP_monster_gladiator(edict_t* self)
 
 	case 3: // gladc
 		sound_gunc.assign("weapons/plasshot.wav");
-		self->health = 350 * st.health_multiplier;
+		self->health = (config ? config->health : 350) * st.health_multiplier;
 		self->mass = 350;
 
 		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
@@ -595,7 +596,7 @@ void SP_monster_gladiator(edict_t* self)
 
 	default: // normal gladiator
 		sound_gun.assign("gladiator/railgun.wav");
-		self->health = 420 * st.health_multiplier;
+		self->health = (config ? config->health : 420) * st.health_multiplier;
 		self->mass = 400;
 
 		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))

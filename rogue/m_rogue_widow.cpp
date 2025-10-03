@@ -1223,6 +1223,7 @@ void SP_monster_widow(edict_t* self) {
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW);
     }
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	sound_pain1.assign("widow/bw1pain1.wav");
 	sound_pain2.assign("widow/bw1pain2.wav");
@@ -1234,6 +1235,25 @@ void SP_monster_widow(edict_t* self) {
 	self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
 	self->mins = { -40, -40, 0 };
 	self->maxs = { 40, 40, 144 };
+
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
 
 	self->health = (2800 * skill->integer) * st.health_multiplier;
 	if (G_IsCooperative())
@@ -1296,7 +1316,7 @@ void SP_monster_widow1(edict_t* self) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW1);
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	sound_pain1.assign("widow/bw1pain1.wav");
 	sound_pain2.assign("widow/bw1pain2.wav");
 	sound_pain3.assign("widow/bw1pain3.wav");

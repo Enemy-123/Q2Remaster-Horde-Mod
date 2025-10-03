@@ -1202,7 +1202,9 @@ void SP_monster_carrier(edict_t* self)
 
 		if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER);
-    }
+}
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 
 	if (g_horde->integer) {
 		{
@@ -1255,6 +1257,25 @@ void SP_monster_carrier(edict_t* self)
 		self->monsterinfo.power_armor_power = 155;
 
 	// 2000 - 4000 health
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+
 	self->health = max(2000, 2000 + 1000 * (skill->integer - 1)) * st.health_multiplier;
 	// add health in coop (500 * skill)
 	if (coop->integer)
@@ -1325,6 +1346,7 @@ void SP_monster_carrier_mini(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER_MINI);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
     // This check is redundant, the engine only calls this function
     // for this classname anyway. It can be removed.
 	// if (!strcmp(self->classname, "monster_carrier_mini")) {
@@ -1337,7 +1359,7 @@ void SP_monster_carrier_mini(edict_t* self)
 		self->mins *= self->s.scale; // Scale mins
 		self->maxs *= self->s.scale; // FIX: Scale maxs
 
-		self->health = 1500 * st.health_multiplier;
+		self->health = (config ? config->health : 1500) * st.health_multiplier;
 		self->mass = 1000;
 
 		if (self->monsterinfo.IS_BOSS) {

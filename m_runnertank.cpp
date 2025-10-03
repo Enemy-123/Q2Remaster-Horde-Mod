@@ -1613,7 +1613,9 @@ void SP_monster_runnertank(edict_t* self)
 
 	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::RUNNERTANK);
-    }
+}
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -1650,14 +1652,14 @@ void SP_monster_runnertank(edict_t* self)
 
 	// if (strcmp(self->classname, "monster_runnertank_commander") == 0)
 	// {
-	// 	self->health = 1000 * st.health_multiplier;
+	// 	self->health = (config ? config->health : 1000) * st.health_multiplier;
 	// 	self->gib_health = -225;
 	// 	self->count = 1;
 	// 	sound_pain2.assign("tank/pain.wav");
 	// }
 	// else
 	{
-		self->health = 750 * st.health_multiplier;
+		self->health = (config ? config->health : 750) * st.health_multiplier;
 		self->gib_health = -200;
 		sound_pain.assign("tank/tnkpain2.wav");
 	}
@@ -1669,7 +1671,7 @@ void SP_monster_runnertank(edict_t* self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-		self->health = 1500 * st.health_multiplier;
+		self->health = (config ? config->health : 1500) * st.health_multiplier;
 	}
 
 	// heat seekingness

@@ -1027,7 +1027,7 @@ void SP_monster_stalker(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();	
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::STALKER);
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1057,7 +1057,26 @@ void SP_monster_stalker(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 175 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+
+	self->health = (config ? config->health : 175) * st.health_multiplier;
 	self->gib_health = -50;
 	self->mass = 250;
 	//self->s.scale = 0.8f;

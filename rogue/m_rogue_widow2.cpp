@@ -1136,7 +1136,7 @@ void SP_monster_widow2(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW2);
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (g_horde->integer) {
 		if (brandom())
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
@@ -1160,6 +1160,25 @@ void SP_monster_widow2(edict_t* self)
 	self->s.modelindex = gi.modelindex("models/monsters/blackwidow2/tris.md2");
 	self->mins = { -70, -70, 0 };
 	self->maxs = { 70, 70, 144 };
+
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
 
 	self->health = 5000 + (1.08 * current_wave_level);
 	if (G_IsCooperative())

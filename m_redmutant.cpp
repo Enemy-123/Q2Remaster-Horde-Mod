@@ -682,8 +682,7 @@ void SP_monster_redmutant(edict_t* self)
 
 	    
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::REDMUTANT);
-    
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (g_horde->integer)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
@@ -725,7 +724,26 @@ void SP_monster_redmutant(edict_t* self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 520 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+
+	self->health = (config ? config->health : 520) * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 450;
 	self->s.scale = 1.1f;

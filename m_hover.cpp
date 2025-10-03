@@ -656,6 +656,7 @@ This is now the rocket variant.
 void SP_monster_hover_vanilla(edict_t* self)
 {
      self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER_VANILLA);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
     SP_monster_hover(self);
 }
 
@@ -668,13 +669,13 @@ void SP_monster_daedalus(edict_t* self)
 
 	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::DAEDALUS);
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
     if (!M_AllowSpawn(self)) {
         G_FreeEdict(self);
         return;
     }
 
-    self->health = 350 * st.health_multiplier;
+    self->health = (config ? config->health : 350) * st.health_multiplier;
     self->s.skinnum = 2;
     // Set properties common to ALL Daedalus types
     self->mass = 225;

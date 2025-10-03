@@ -1131,6 +1131,7 @@ void SP_monster_infantry_vanilla(edict_t* self)
 {
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA);
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
@@ -1156,7 +1157,7 @@ void SP_monster_infantry_vanilla(edict_t* self)
 	self->maxs = { 16, 16, 32 };
 
 	if (!g_horde->integer || self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA)) {
-		self->health = 100 * st.health_multiplier;
+		self->health = (config ? config->health : 100) * st.health_multiplier;
 	}
 
 	self->gib_health = -65;

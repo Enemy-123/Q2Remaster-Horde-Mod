@@ -1824,7 +1824,7 @@ void SP_monster_gekk(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GEKK);
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	if (g_horde->integer) {
 		{
 			if (brandom())
@@ -1871,7 +1871,26 @@ void SP_monster_gekk(edict_t* self)
 	gi.modelindex("models/objects/gekkgib/head/tris.md2");
 	gi.modelindex("models/objects/loogy/tris.md2");
 
-	self->health = 125 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+
+	self->health = (config ? config->health : 125) * st.health_multiplier;
 
 	// Extra health scaling for high wave special Gekk waves (wave 15+)
 	extern int16_t current_wave_level;
@@ -2432,13 +2451,12 @@ void SP_monster_gekkkl(edict_t* self)
 {
 	// Set monster type first
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GEKKKL);
-
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	// Call base gekk spawn
 	SP_monster_gekk(self);
 
 	// Override with gekkkl specifics
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GEKKKL);
-
 	// Boss stats
 	self->health = 680 * ED_GetSpawnTemp().health_multiplier;
 	self->gib_health = -80;
