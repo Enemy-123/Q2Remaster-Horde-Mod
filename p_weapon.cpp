@@ -1317,10 +1317,10 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t* ent)
 {
-	int	  damage = PlayerHasNapalmGL(ent) ? 95 : 115;
-	float radius;
+	bool napalm = PlayerHasNapalmGL(ent);
+	int	  damage = napalm ? g_config.grenadelauncher.damage_napalm : g_config.grenadelauncher.damage_normal;
+	float radius = napalm ? g_config.grenadelauncher.radius_napalm : g_config.grenadelauncher.radius_normal;
 
-	radius = static_cast<float>(damage + 40);
 	if (is_quad)
 		damage *= damage_multiplier;
 
@@ -1331,7 +1331,7 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	fire_grenade(ent, start, dir, damage, 1200, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
+	fire_grenade(ent, start, dir, damage, g_config.grenadelauncher.speed, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
 
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
@@ -1425,9 +1425,10 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
 	int const speed = hyper ? g_config.hyperblaster.speed : g_config.blaster.speed;
+	int const bounces = hyper ? g_config.hyperblaster.bounces : g_config.blaster.bounces;
 	//left hb / right blaster
-	!hyper ? fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, 5)
-	: fire_blaster_bolt(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, 3);
+	!hyper ? fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, bounces)
+	: fire_blaster_bolt(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, bounces);
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);
@@ -1520,10 +1521,7 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 			offset[2] = 0;
 			offset[1] = 4 * cosf(rotation);
 
-			if (G_IsDeathmatch())
-				damage = irandom(16,18);
-			else
-				damage = irandom(16, 18);
+			damage = irandom(g_config.hyperblaster.damage_min, g_config.hyperblaster.damage_max);
 			Blaster_Fire(ent, offset, damage, true, ((ent->client->ps.gunframe - 6) % 4) == 0 ? EF_HYPERBLASTER : EF_NONE);
 			Weapon_PowerupSound(ent);
 
@@ -1603,8 +1601,8 @@ void Machinegun_Fire(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
-	int damage = irandom(7, 10);
-	int kick = 2;
+	int damage = irandom(g_config.machinegun.damage_min, g_config.machinegun.damage_max);
+	int kick = g_config.machinegun.kick;
 
 	// Handle not firing
 	if (!(ent->client->buttons & BUTTON_ATTACK)) {
@@ -1720,8 +1718,8 @@ void Chaingun_Fire(edict_t* ent)
 		return;
 
 	int shots;
-	int damage = irandom(7, 11);
-	int kick = 2;
+	int damage = irandom(g_config.chaingun.damage_min, g_config.chaingun.damage_max);
+	int kick = g_config.chaingun.kick;
 
 	// Handle gun state transitions
 	if (ent->client->ps.gunframe > CHAINGUN_READY_FRAME) {
@@ -1879,9 +1877,9 @@ void weapon_shotgun_fire(edict_t* ent)
 
 	G_LagCompensate(ent, start, dir);
 	if (G_IsDeathmatch())
-		fire_shotgun(ent, start, dir, damage, kick, 500, 500, DEFAULT_DEATHMATCH_SHOTGUN_COUNT, MOD_SHOTGUN);
+		fire_shotgun(ent, start, dir, damage, kick, 500, 500, g_config.shotgun.pellet_count_deathmatch, MOD_SHOTGUN);
 	else
-		fire_shotgun(ent, start, dir, damage, kick, 500, 500, DEFAULT_SHOTGUN_COUNT, MOD_SHOTGUN);
+		fire_shotgun(ent, start, dir, damage, kick, 500, 500, g_config.shotgun.pellet_count_normal, MOD_SHOTGUN);
 	G_UnLagCompensate();
 
 	// send muzzle flash
@@ -1906,10 +1904,9 @@ void Weapon_Shotgun(edict_t* ent)
 void weapon_supershotgun_fire(edict_t* ent)
 {
 	int damage;
-	int kick = 17;
+	int kick = g_config.supershotgun.kick;
 
-damage = !PlayerHasEnergyShells(ent) ? irandom(7, 10) : irandom(14, 16);
-	//	damage = irandom(8, 13); (vanilla 6)
+	damage = !PlayerHasEnergyShells(ent) ? irandom(g_config.supershotgun.damage_min, g_config.supershotgun.damage_max) : irandom(g_config.supershotgun.damage_energy_min, g_config.supershotgun.damage_energy_max);
 
 	if (is_quad)
 	{
@@ -1927,10 +1924,10 @@ damage = !PlayerHasEnergyShells(ent) ? irandom(7, 10) : irandom(14, 16);
 	v[ROLL] = ent->client->v_angle[ROLL];
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir, true);
-	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2, MOD_SSHOTGUN);
+	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, g_config.supershotgun.pellet_count / 2, MOD_SSHOTGUN);
 	v[YAW] = ent->client->v_angle[YAW] + 5;
 	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir, true);
-	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2, MOD_SSHOTGUN);
+	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, g_config.supershotgun.pellet_count / 2, MOD_SSHOTGUN);
 	G_UnLagCompensate();
 	// DEFAULT_SSHOTGUN_COUNT /2.7
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });

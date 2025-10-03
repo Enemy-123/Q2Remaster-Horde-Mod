@@ -23,7 +23,8 @@ struct BlasterConfig
 
 struct HyperBlasterConfig
 {
-	int damage = 15;
+	int damage_min = 16;
+	int damage_max = 18;
 	int speed = 1700;
 	int bounces = 3;
 };
@@ -75,10 +76,9 @@ struct GrenadeConfig
 
 struct GrenadeLauncherConfig
 {
-	int damage_min = 100;
-	int damage_max = 120;
+	int damage_normal = 115;
 	int damage_napalm = 95;
-	float radius = 165.0f;
+	float radius_normal = 155.0f;
 	float radius_napalm = 135.0f;
 	int speed = 1200;
 };

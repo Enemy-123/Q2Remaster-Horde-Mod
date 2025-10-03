@@ -90,7 +90,8 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("hyperblaster") && weapons["hyperblaster"].isObject())
 		{
 			const Json::Value& w = weapons["hyperblaster"];
-			g_config.hyperblaster.damage = GetJsonInt(w, "damage", 15);
+			g_config.hyperblaster.damage_min = GetJsonInt(w, "damage_min", 16);
+			g_config.hyperblaster.damage_max = GetJsonInt(w, "damage_max", 18);
 			g_config.hyperblaster.speed = GetJsonInt(w, "speed", 1700);
 			g_config.hyperblaster.bounces = GetJsonInt(w, "bounces", 3);
 		}
@@ -154,10 +155,9 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("grenadelauncher") && weapons["grenadelauncher"].isObject())
 		{
 			const Json::Value& w = weapons["grenadelauncher"];
-			g_config.grenadelauncher.damage_min = GetJsonInt(w, "damage_min", 100);
-			g_config.grenadelauncher.damage_max = GetJsonInt(w, "damage_max", 120);
+			g_config.grenadelauncher.damage_normal = GetJsonInt(w, "damage_normal", 115);
 			g_config.grenadelauncher.damage_napalm = GetJsonInt(w, "damage_napalm", 95);
-			g_config.grenadelauncher.radius = GetJsonFloat(w, "radius", 165.0f);
+			g_config.grenadelauncher.radius_normal = GetJsonFloat(w, "radius_normal", 155.0f);
 			g_config.grenadelauncher.radius_napalm = GetJsonFloat(w, "radius_napalm", 135.0f);
 			g_config.grenadelauncher.speed = GetJsonInt(w, "speed", 1200);
 		}

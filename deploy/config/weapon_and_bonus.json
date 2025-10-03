@@ -17,7 +17,8 @@
       "bounces": 5
     },
     "hyperblaster": {
-      "damage": 15,
+      "damage_min": 16,
+      "damage_max": 18,
       "speed": 1700,
       "bounces": 3
     },
@@ -57,10 +58,9 @@
       "radius_offset": 40.0
     },
     "grenadelauncher": {
-      "damage_min": 100,
-      "damage_max": 120,
+      "damage_normal": 115,
       "damage_napalm": 95,
-      "radius": 165.0,
+      "radius_normal": 155.0,
       "radius_napalm": 135.0,
       "speed": 1200
     },

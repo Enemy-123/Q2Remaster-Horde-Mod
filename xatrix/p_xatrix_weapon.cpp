@@ -57,7 +57,7 @@ void weapon_phalanx_fire(edict_t* ent)
     float  damage_radius;
     int    radius_damage;
 
-    damage = irandom(80, 95);
+    damage = irandom(g_config.phalanx.damage_min, g_config.phalanx.damage_max);
     radius_damage = g_config.phalanx.radius_damage;
     damage_radius = g_config.phalanx.damage_radius;
     if (is_quad)
