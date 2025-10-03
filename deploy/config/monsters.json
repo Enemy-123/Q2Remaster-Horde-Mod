@@ -21,7 +21,7 @@
       }
     },
     "soldier": {
-      "health": 30,
+      "health": 50,
       "power_armor_power": 35,
       "power_armor_type": "screen",
       "weapon_damage": {
@@ -134,7 +134,7 @@
         "melee": 20
       }
     },
-    "guncmdr_kl": {
+    "guncmdrkl": {
       "health": 260,
       "power_armor_power": 200,
       "power_armor_type": "shield",
@@ -153,7 +153,7 @@
         "melee": 40
       }
     },
-    "gladiator_b": {
+    "gladb": {
       "health": 450,
       "power_armor_power": 380,
       "power_armor_type": "shield",
@@ -162,7 +162,7 @@
         "melee": 40
       }
     },
-    "gladiator_c": {
+    "gladc": {
       "health": 450,
       "power_armor_power": 380,
       "power_armor_type": "shield",
@@ -342,7 +342,7 @@
         "plasma": 40
       }
     },
-    "fixbot_kl": {
+    "fixbotkl": {
       "health": 8500,
       "power_armor_power": 6000,
       "power_armor_type": "shield",
@@ -409,7 +409,7 @@
         "heat": 60
       }
     },
-    "psx_arachnid": {
+    "psxarachnid": {
       "health": 1000,
       "power_armor_power": 1000,
       "power_armor_type": "shield",
@@ -435,7 +435,7 @@
         "melee": 45
       }
     },
-    "shambler_kl": {
+    "shamblerkl": {
       "health": 700,
       "power_armor_power": 0,
       "weapon_damage": {
@@ -473,7 +473,7 @@
         "bolt": 40
       }
     },
-    "perro_kl": {
+    "perrokl": {
       "health": 80,
       "power_armor_power": 0,
       "weapon_damage": {
@@ -526,7 +526,7 @@
         "bfg": 50
       }
     },
-    "makron_kl": {
+    "makronkl": {
       "health": 3500,
       "power_armor_power": 700,
       "power_armor_type": "shield",
@@ -587,15 +587,6 @@
     "guardian": {
       "health": 600,
       "power_armor_power": 550,
-      "power_armor_type": "shield",
-      "weapon_damage": {
-        "blaster": 18,
-        "dabeam": 25
-      }
-    },
-    "guardian_kl": {
-      "health": 650,
-      "power_armor_power": 385,
       "power_armor_type": "shield",
       "weapon_damage": {
         "blaster": 18,

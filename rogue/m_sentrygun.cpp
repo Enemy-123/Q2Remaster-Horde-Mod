@@ -1199,7 +1199,6 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 	vec3_t forward, right, up;
 	vec3_t muzzle_pos = CalculateTurretMuzzlePosition(self, &forward, &right, &up);
 
-	const int damage = static_cast<int>(CalculateDamage(self, 6));
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 4000.0f : 3200.0f;
 
 	// Calculate distance
