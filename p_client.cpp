@@ -4204,7 +4204,8 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			} else {
 				// Brain and other morphs use normal ground movement
 				client->ps.pmove.pm_type = PM_NORMAL;
-				client->ps.pmove.gravity = 800; // Normal gravity
+				// Use level.gravity so sv_gravity cvar is respected
+				client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
 			}
 		}
 		else // This is the original logic for a normal player
@@ -4242,7 +4243,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// CRITICAL FIX: Add the player collision handling that was missing!
 		// [Paril-KEX]
+		// Morphed players should never collide with other players (causes awful lag)
 		if (!G_ShouldPlayersCollide(false) ||
+			IsMorphed(ent) ||
 			(deathmatch->integer && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER))) // if player collision is on and we're temporarily ghostly...
 			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
 		else
@@ -4390,7 +4393,10 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// ZOID
 
 		gi.linkentity(ent);
-		ent->gravity = 1.0;
+
+		// Don't reset gravity for morphed players - they manage their own gravity
+		if (!IsMorphed(ent))
+			ent->gravity = 1.0;
 
 		// horde updating client health
 		UpdateClientHealth(ent, client);
