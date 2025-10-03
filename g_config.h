@@ -255,6 +255,8 @@ struct MonsterWeaponDamage
 {
 	int blaster = 0;
 	int blaster2 = 0;
+	int blaster_bolt = 0;
+	int blueblaster = 0;
 	int shotgun = 0;
 	int machinegun = 0;
 	int grenade = 0;
@@ -354,3 +356,5 @@ void Config_SetDefaults();
 // Monster config helper functions
 const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id);
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name);
+int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name);
+int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name);

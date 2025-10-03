@@ -54,22 +54,6 @@
 ./m_gunner.cpp:784: M_SetAnimation(self, &gunner_move_endfire_chain, false);
 ./m_gunner.cpp:890: (self->monsterinfo.active_move == &gunner_move_fire_chain) ||
 ./m_gunner.cpp:915: (self->monsterinfo.active_move == &gunner_move_fire_chain) ||
-./m_soldier.cpp:589: monster_fire_dabeam(self, IsFirstThreeWaves(current_wave_level) ? 1 : 2, false, soldierh_laser_update);
-./m_soldier.cpp:646: end = self->monsterinfo.blind_fire_target;
-./m_soldier.cpp:675: if (level.time >= self->monsterinfo.fire_wait)
-./m_soldier.cpp:709: monster_fire_ionripper(self, start, aim, damage > 0 ? damage : 5, 600, flash_index, EF_IONRIPPER);
-./m_soldier.cpp:715: monster_fire_blueblaster(self, start, aim, damage > 0 ? damage : 2, 600, flash_index, EF_BLUEHYPERBLASTER);
-./m_soldier.cpp:718: monster_fire_blaster_bolt(self, start, forward, damage > 0 ? damage : 5, 1150, flash_index, EF_BLUEHYPERBLASTER);
-./m_soldier.cpp:725: monster_fire_blaster(self, start, aim, damage > 0 ? damage : fallback_damage, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
-./m_soldier.cpp:730: monster_fire_shotgun(self, start, aim, damage > 0 ? damage : 3, 1, 1500, 750, 9, flash_index);
-./m_soldier.cpp:738: self->monsterinfo.fire_wait = level.time + random_time(300_ms, 1.1_sec);
-./m_soldier.cpp:744: monster_fire_bullet(self, start, aim, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
-./m_soldier.cpp:747: if (level.time >= self->monsterinfo.fire_wait)
-./m_soldier.cpp:827: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
-./m_soldier.cpp:1286: if (self->monsterinfo.blind_fire_delay < 1_sec)
-./m_soldier.cpp:1288: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
-./m_soldier.cpp:1295: self->monsterinfo.blind_fire_delay += 4.1_sec + random_time(3_sec);
-./m_soldier.cpp:1297: if (!self->monsterinfo.blind_fire_target)
 ./m_float.cpp:40: void floater_tracker_fire_blaster(edict_t* self)
 ./m_float.cpp:72: monster_fire_tracker(self, start, dir, damage, 950, self->enemy, MZ2_UNUSED_0);
 ./m_float.cpp:77: monster_fire_tracker(self, start, dir, damage + 1, 860, nullptr, MZ2_UNUSED_0);
@@ -493,6 +477,22 @@
 ./m_berserk.cpp:1385: if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250))
 ./m_berserk.cpp:1399: if (!fire_hit(self, aim, irandom(15, 22) * M_DamageModifier(self), 200))
 ./m_berserk.cpp:1471: bool bombspell_ready = (self->monsterinfo.fire_wait <= level.time);
+./m_soldier.cpp:589: monster_fire_dabeam(self, IsFirstThreeWaves(current_wave_level) ? 1 : 2, false, soldierh_laser_update);
+./m_soldier.cpp:646: end = self->monsterinfo.blind_fire_target;
+./m_soldier.cpp:675: if (level.time >= self->monsterinfo.fire_wait)
+./m_soldier.cpp:709: monster_fire_ionripper(self, start, aim, damage > 0 ? damage : 5, 600, flash_index, EF_IONRIPPER);
+./m_soldier.cpp:715: monster_fire_blueblaster(self, start, aim, damage > 0 ? damage : 2, 600, flash_index, EF_BLUEHYPERBLASTER);
+./m_soldier.cpp:718: monster_fire_blaster_bolt(self, start, forward, damage > 0 ? damage : 5, 1150, flash_index, EF_BLUEHYPERBLASTER);
+./m_soldier.cpp:725: monster_fire_blaster(self, start, aim, damage > 0 ? damage : fallback_damage, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
+./m_soldier.cpp:730: monster_fire_shotgun(self, start, aim, damage > 0 ? damage : 3, 1, 1500, 750, 9, flash_index);
+./m_soldier.cpp:738: self->monsterinfo.fire_wait = level.time + random_time(300_ms, 1.1_sec);
+./m_soldier.cpp:744: monster_fire_bullet(self, start, aim, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+./m_soldier.cpp:747: if (level.time >= self->monsterinfo.fire_wait)
+./m_soldier.cpp:827: vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
+./m_soldier.cpp:1286: if (self->monsterinfo.blind_fire_delay < 1_sec)
+./m_soldier.cpp:1288: else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+./m_soldier.cpp:1295: self->monsterinfo.blind_fire_delay += 4.1_sec + random_time(3_sec);
+./m_soldier.cpp:1297: if (!self->monsterinfo.blind_fire_target)
 ./rogue/m_rogue_turret.cpp:30: extern const mmove_t turret_move_fire_blind;
 ./rogue/m_rogue_turret.cpp:62: if (self->monsterinfo.active_move == &turret_move_fire_blind)
 ./rogue/m_rogue_turret.cpp:64: end = self->monsterinfo.blind_fire_target;

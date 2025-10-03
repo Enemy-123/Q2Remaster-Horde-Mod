@@ -533,13 +533,18 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 {
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	if (!config)
+	{
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - No config found for monster_type_id {}, weapon '{}' will use hardcoded damage\n", monster_type_id, weapon_name);
 		return 0;
+	}
 
 	// Use static map for O(1) lookup instead of strcmp chain
 	using WeaponDamageGetter = int MonsterWeaponDamage::*;
 	static const std::unordered_map<std::string_view, WeaponDamageGetter> weapon_map = {
 		{"blaster", &MonsterWeaponDamage::blaster},
 		{"blaster2", &MonsterWeaponDamage::blaster2},
+		{"blaster_bolt", &MonsterWeaponDamage::blaster_bolt},
+		{"blueblaster", &MonsterWeaponDamage::blueblaster},
 		{"shotgun", &MonsterWeaponDamage::shotgun},
 		{"machinegun", &MonsterWeaponDamage::machinegun},
 		{"grenade", &MonsterWeaponDamage::grenade},
@@ -563,5 +568,37 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 	};
 
 	auto it = weapon_map.find(weapon_name);
-	return (it != weapon_map.end()) ? config->weapon_damage.*(it->second) : 0;
+	if (it == weapon_map.end())
+	{
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Unknown weapon '{}' for monster_type_id {}, will use hardcoded damage\n", weapon_name, monster_type_id);
+		return 0;
+	}
+
+	int damage = config->weapon_damage.*(it->second);
+	if (damage <= 0)
+	{
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - weapon '{}' for monster_type_id {} has damage {} in config, will use hardcoded damage\n", weapon_name, monster_type_id, damage);
+	}
+
+	return damage;
+}
+
+// Get specific weapon speed for a monster
+// Returns 0 if not configured (use hardcoded value)
+int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name)
+{
+	// TODO: Add weapon_speed to MonsterWeaponDamage struct and monsters.json
+	// For now, return 0 to indicate hardcoded values should be used
+	gi.Com_PrintFmt("INFO: GetMonsterWeaponSpeed - weapon '{}' for monster_type_id {} not yet configured, using hardcoded speed\n", weapon_name, monster_type_id);
+	return 0;
+}
+
+// Get specific weapon radius for a monster
+// Returns 0 if not configured (use hardcoded value)
+int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name)
+{
+	// TODO: Add weapon_radius to MonsterWeaponDamage struct and monsters.json
+	// For now, return 0 to indicate hardcoded values should be used
+	gi.Com_PrintFmt("INFO: GetMonsterWeaponRadius - weapon '{}' for monster_type_id {} not yet configured, using hardcoded radius\n", weapon_name, monster_type_id);
+	return 0;
 }

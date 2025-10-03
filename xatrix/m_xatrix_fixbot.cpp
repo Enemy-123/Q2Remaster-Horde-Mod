@@ -1617,6 +1617,10 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 			// Use ionripper instead of plasma
 			bool isboss = IsBoss(self);
 
+			// Get damage from config
+			int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
+			if (ionripper_damage <= 0) ionripper_damage = isboss ? 20 : 12;
+
 			// Determine direction to enemy
 			vec3_t dir_to_enemy = self->enemy->s.origin - start;
 			if (dir_to_enemy.lengthSquared() <= 0.01f) dir_to_enemy = forward; // Use forward if too close
@@ -1630,19 +1634,19 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 				vec3_t dir3 = dir_to_enemy - (right * 0.12f); dir3.normalize();
 				vec3_t dir5 = dir_to_enemy - (right * 0.16f); dir5.normalize();
 
-				monster_fire_ionripper(self, start, dir1, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir2, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir3, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir4, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir5, 20, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir1, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir2, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir3, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir4, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir5, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
 			}
 			else {
 				vec3_t dir1 = dir_to_enemy + (right * 0.12f); dir1.normalize();
 				vec3_t dir2 = dir_to_enemy; // Already normalized
 				vec3_t dir3 = dir_to_enemy - (right * 0.12f); dir3.normalize();
-				monster_fire_ionripper(self, start, dir1, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir2, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir3, 12, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir1, ionripper_damage, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir2, ionripper_damage, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir3, ionripper_damage, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
 			}
 			gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0); // Play sound for ionripper
 			return; // Didn't use plasma
@@ -1666,6 +1670,11 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 
 	bool isboss = IsBoss(self);
 
+	// Get plasma damage from config
+	int plasma_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
+	if (plasma_damage <= 0) plasma_damage = 20;
+	int radius_damage = plasma_damage * 1.75f; // 35 for default 20
+
 	// Base parameters
 	float speed = isboss ? irandom(450, 600) : irandom(350, 450);
 	float turn_fraction = isboss ? 0.085f : 0.062f;
@@ -1679,12 +1688,12 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 		vec3_t dir2 = dir; // Already normalized
 		vec3_t dir3 = dir - (right * 0.1f) + (up * 0.05f); dir3.normalize();
 
-		fire_fixbot_plasma(self, start1, dir1, 20, speed, 150, 35, turn_fraction);
-		fire_fixbot_plasma(self, start2, dir2, 20, speed, 150, 35, turn_fraction);
-		fire_fixbot_plasma(self, start3, dir3, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_plasma(self, start1, dir1, plasma_damage, speed, 150, radius_damage, turn_fraction);
+		fire_fixbot_plasma(self, start2, dir2, plasma_damage, speed, 150, radius_damage, turn_fraction);
+		fire_fixbot_plasma(self, start3, dir3, plasma_damage, speed, 150, radius_damage, turn_fraction);
 	}
 	else {
-		fire_fixbot_plasma(self, start, dir, 20, speed, 150, 35, turn_fraction);
+		fire_fixbot_plasma(self, start, dir, plasma_damage, speed, 150, radius_damage, turn_fraction);
 	}
 
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
@@ -1858,7 +1867,11 @@ void fixbot_fire_blaster(edict_t* self)
 
 	bool isboss = IsBoss(self);
 
-	monster_fire_blaster_bolt(self, start, dir, 7, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, isboss ? 3 : 0);
+	// Get blaster_bolt damage from config
+	int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
+	if (blaster_damage <= 0) blaster_damage = 7;
+
+	monster_fire_blaster_bolt(self, start, dir, blaster_damage, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, isboss ? 3 : 0);
 	// save for aiming the shot
 	self->pos1 = end;
 

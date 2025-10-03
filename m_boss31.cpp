@@ -562,7 +562,7 @@ void jorg_firebullet_right(edict_t* self)
 	else
 	{
 		//	monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
-		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
 		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 	}
 
@@ -599,7 +599,7 @@ void jorg_firebullet_left(edict_t* self)
 	}
 	else
 	{
-		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
 		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 	}
 
