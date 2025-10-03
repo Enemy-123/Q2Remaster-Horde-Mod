@@ -2181,15 +2181,15 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns)
 //-----------------------------------------------------
 struct MonsterSelectionContext
 {
-	int32_t currentActualLevel;			   // The true current wave level
-	int32_t effectiveLevel;				   // Potentially higher level for selection
-	MonsterWaveType waveTypeForFiltering;  // The (potentially simplified) wave type for general filtering
-	MonsterWaveType currentActualWaveType; // The true current wave type for specific checks
-	bool isSpawnPointFlying;
-	bool isRetaliationActive;
-	bool isRecoveryModeActive;
-	float flyingAdjustmentFactor;
-	bool isBossWaveMinionPhase;
+	int32_t currentActualLevel = 0;			   // The true current wave level
+	int32_t effectiveLevel = 0;				   // Potentially higher level for selection
+	MonsterWaveType waveTypeForFiltering = MonsterWaveType::None;  // The (potentially simplified) wave type for general filtering
+	MonsterWaveType currentActualWaveType = MonsterWaveType::None; // The true current wave type for specific checks
+	bool isSpawnPointFlying = false;
+	bool isRetaliationActive = false;
+	bool isRecoveryModeActive = false;
+	float flyingAdjustmentFactor = 1.0f;
+	bool isBossWaveMinionPhase = false;
 };
 
 struct MonsterCache
@@ -6251,13 +6251,13 @@ static void InitializeMonsterRotation()
 	if (!excludable_monsters.empty()) {
 		// Simple rotation based on map seed - deterministic but varied
 		// Rotate the starting point based on map seed
-		int rotation_offset = (g_map_rotation_seed * 7) % excludable_monsters.size();
+		size_t rotation_offset = (static_cast<size_t>(g_map_rotation_seed) * 7) % excludable_monsters.size();
 
 		// Exclude up to MONSTERS_TO_EXCLUDE_PER_MAP monsters
-		int to_exclude = std::min(MONSTERS_TO_EXCLUDE_PER_MAP, (int)excludable_monsters.size());
+		int to_exclude = std::min(MONSTERS_TO_EXCLUDE_PER_MAP, static_cast<int>(excludable_monsters.size()));
 		for (int i = 0; i < to_exclude; i++) {
 			// Select monsters in a rotating pattern
-			int index = (rotation_offset + i * 3) % excludable_monsters.size();
+			size_t index = (rotation_offset + static_cast<size_t>(i) * 3) % excludable_monsters.size();
 			g_excluded_monsters_this_map.insert(excludable_monsters[index]);
 		}
 	}

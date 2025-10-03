@@ -18,8 +18,8 @@ namespace HordePerf {
 // ============================================================================
 template<int MAX_VALUE = 251>
 class FastMathCache {
-    std::array<float, MAX_VALUE> sqrt_values;
-    std::array<float, MAX_VALUE> squared_values;
+    std::array<float, MAX_VALUE> sqrt_values{};
+    std::array<float, MAX_VALUE> squared_values{};
     bool initialized = false;
 
 public:
@@ -56,7 +56,7 @@ class SpawnPointSpatialIndex {
 
     struct Cell {
         static constexpr size_t MAX_SPAWNS_PER_CELL = 16;
-        std::array<edict_t*, MAX_SPAWNS_PER_CELL> spawn_points;
+        std::array<edict_t*, MAX_SPAWNS_PER_CELL> spawn_points{};
         size_t count = 0;
 
         void clear() { count = 0; }
@@ -133,21 +133,21 @@ public:
 // Monster Type Property Cache
 // ============================================================================
 struct MonsterTypeProperties {
-    vec3_t mins;
-    vec3_t maxs;
-    float spawn_radius;
-    bool can_fly;
-    bool is_boss;
-    bool is_special;
-    int health;
-    int armor;
-    bool valid;
+    vec3_t mins = vec3_origin;
+    vec3_t maxs = vec3_origin;
+    float spawn_radius = 0.0f;
+    bool can_fly = false;
+    bool is_boss = false;
+    bool is_special = false;
+    int health = 0;
+    int armor = 0;
+    bool valid = false;
 };
 
 class MonsterTypeCache {
     static constexpr size_t MAX_MONSTER_TYPES = 256;
-    std::array<MonsterTypeProperties, MAX_MONSTER_TYPES> cache;
-    std::array<bool, MAX_MONSTER_TYPES> cached;
+    std::array<MonsterTypeProperties, MAX_MONSTER_TYPES> cache{};
+    std::array<bool, MAX_MONSTER_TYPES> cached{};
 
 public:
     MonsterTypeCache() {
@@ -233,11 +233,11 @@ class BatchedGridUpdater {
     static constexpr size_t MAX_BATCH = 64;
 
     struct Update {
-        edict_t* ent;
-        vec3_t new_pos;
+        edict_t* ent = nullptr;
+        vec3_t new_pos = vec3_origin;
     };
 
-    std::array<Update, MAX_BATCH> pending_updates;
+    std::array<Update, MAX_BATCH> pending_updates{};
     size_t update_count = 0;
 
 public:
