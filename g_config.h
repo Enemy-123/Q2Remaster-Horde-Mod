@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_map>
 
 // Configuration for entity limits
 struct EntityLimitsConfig
@@ -248,6 +249,38 @@ struct AmmoRegenConfig
 	AmmoRegenRateConfig tesla{2, 5000};
 };
 
+// Monster weapon damage configuration
+struct MonsterWeaponDamage
+{
+	int blaster = 0;
+	int shotgun = 0;
+	int machinegun = 0;
+	int grenade = 0;
+	int rocket = 0;
+	int railgun = 0;
+	int bfg = 0;
+	int ionripper = 0;
+	int hyperblaster = 0;
+};
+
+// Monster stats configuration
+struct MonsterStatsConfig
+{
+	int health = 100;
+	int power_armor_power = 0;
+	int32_t power_armor_type = 0; // item_id_t (IT_NULL, IT_ITEM_POWER_SHIELD, IT_ITEM_POWER_SCREEN)
+	int armor_power = 0;
+	int32_t armor_type = 0; // item_id_t (IT_NULL, IT_ARMOR_BODY, IT_ARMOR_COMBAT, etc.)
+	MonsterWeaponDamage weapon_damage;
+	// float wave_damage_multiplier = 0.0f; // Future: per-wave damage scaling
+};
+
+// Monsters configuration - maps MonsterTypeID to stats
+struct MonstersConfig
+{
+	std::unordered_map<uint8_t, MonsterStatsConfig> monsters;
+};
+
 // Master configuration structure
 struct GameConfig
 {
@@ -291,6 +324,9 @@ struct GameConfig
 
 	// Ammo regeneration
 	AmmoRegenConfig ammo_regen;
+
+	// Monsters
+	MonstersConfig monsters;
 };
 
 // Global config instance
@@ -300,3 +336,7 @@ extern GameConfig g_config;
 void Config_Load(const char* basedir);
 void Config_Reload();
 void Config_SetDefaults();
+
+// Monster config helper functions
+const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id);
+int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name);

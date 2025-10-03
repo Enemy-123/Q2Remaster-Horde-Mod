@@ -1,0 +1,515 @@
+{
+  "monsters": {
+    "soldier_light": {
+      "health": 20,
+      "power_armor_power": 0,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 6,
+        "shotgun": 3
+      }
+    },
+    "soldier": {
+      "health": 30,
+      "power_armor_power": 35,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 9,
+        "shotgun": 3
+      }
+    },
+    "soldier_ss": {
+      "health": 40,
+      "power_armor_power": 45,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 9,
+        "shotgun": 3
+      }
+    },
+    "soldier_hypergun": {
+      "health": 40,
+      "power_armor_power": 45,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "hyperblaster": 16
+      }
+    },
+    "soldier_ripper": {
+      "health": 40,
+      "power_armor_power": 45,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "ionripper": 4
+      }
+    },
+    "soldier_lasergun": {
+      "health": 40,
+      "power_armor_power": 45,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 15
+      }
+    },
+    "infantry": {
+      "health": 100,
+      "power_armor_power": 85,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "machinegun": 8
+      }
+    },
+    "infantry_vanilla": {
+      "health": 100,
+      "power_armor_power": 85,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "machinegun": 8
+      }
+    },
+    "gunner": {
+      "health": 175,
+      "power_armor_power": 65,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "machinegun": 6,
+        "grenade": 40
+      }
+    },
+    "gunner_vanilla": {
+      "health": 175,
+      "power_armor_power": 65,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "machinegun": 6,
+        "grenade": 40
+      }
+    },
+    "medic": {
+      "health": 300,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 15
+      }
+    },
+    "medic_commander": {
+      "health": 400,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 18,
+        "hyperblaster": 18
+      }
+    },
+    "guncmdr": {
+      "health": 240,
+      "power_armor_power": 180,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "machinegun": 8,
+        "grenade": 50
+      }
+    },
+    "guncmdr_vanilla": {
+      "health": 240,
+      "power_armor_power": 180,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "machinegun": 8,
+        "grenade": 50
+      }
+    },
+    "guncmdr_kl": {
+      "health": 260,
+      "power_armor_power": 200,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "machinegun": 9,
+        "grenade": 55
+      }
+    },
+    "gladiator": {
+      "health": 400,
+      "armor_power": 200,
+      "armor_type": "combat",
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "gladiator_b": {
+      "health": 450,
+      "power_armor_power": 380,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "gladiator_c": {
+      "health": 450,
+      "power_armor_power": 380,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "tank": {
+      "health": 750,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 30,
+        "machinegun": 6,
+        "rocket": 50
+      }
+    },
+    "tank_commander": {
+      "health": 1000,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 30,
+        "machinegun": 6,
+        "rocket": 50
+      }
+    },
+    "tank_64": {
+      "health": 850,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 30,
+        "machinegun": 6,
+        "rocket": 50
+      }
+    },
+    "runnertank": {
+      "health": 600,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 25,
+        "machinegun": 5
+      }
+    },
+    "chick": {
+      "health": 145,
+      "power_armor_power": 75,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "rocket": 50
+      }
+    },
+    "chick_heat": {
+      "health": 175,
+      "power_armor_power": 150,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "rocket": 60
+      }
+    },
+    "chickkl": {
+      "health": 200,
+      "power_armor_power": 175,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "rocket": 65
+      }
+    },
+    "parasite": {
+      "health": 175,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "brain": {
+      "health": 300,
+      "power_armor_power": 150,
+      "power_armor_type": "screen",
+      "weapon_damage": {}
+    },
+    "flyer": {
+      "health": 50,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 3
+      }
+    },
+    "hover": {
+      "health": 240,
+      "power_armor_power": 100,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 12
+      }
+    },
+    "hover_vanilla": {
+      "health": 240,
+      "power_armor_power": 100,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 12
+      }
+    },
+    "daedalus": {
+      "health": 240,
+      "power_armor_power": 100,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 12
+      }
+    },
+    "daedalus_bomber": {
+      "health": 280,
+      "power_armor_power": 120,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "grenade": 60
+      }
+    },
+    "mutant": {
+      "health": 300,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "redmutant": {
+      "health": 350,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "berserk": {
+      "health": 295,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "fixbot": {
+      "health": 7500,
+      "power_armor_power": 5000,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 15,
+        "rocket": 50
+      }
+    },
+    "fixbot_kl": {
+      "health": 8500,
+      "power_armor_power": 6000,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 18,
+        "rocket": 60
+      }
+    },
+    "floater": {
+      "health": 200,
+      "power_armor_power": 200,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 5
+      }
+    },
+    "floater_tracker": {
+      "health": 200,
+      "power_armor_power": 200,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "blaster": 5
+      }
+    },
+    "stalker": {
+      "health": 250,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 10
+      }
+    },
+    "gekk": {
+      "health": 125,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "spider": {
+      "health": 600,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "arachnid2": {
+      "health": 1000,
+      "power_armor_power": 1000,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "gm_arachnid": {
+      "health": 1000,
+      "power_armor_power": 1000,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "psx_arachnid": {
+      "health": 1000,
+      "power_armor_power": 1000,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "railgun": 50
+      }
+    },
+    "shambler": {
+      "health": 600,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "shambler_small": {
+      "health": 500,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "shambler_kl": {
+      "health": 700,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "janitor": {
+      "health": 1800,
+      "power_armor_power": 500,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "rocket": 60
+      }
+    },
+    "janitor2": {
+      "health": 2200,
+      "power_armor_power": 1800,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "rocket": 70
+      }
+    },
+    "tank_spawner": {
+      "health": 1200,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 35,
+        "rocket": 55
+      }
+    },
+    "perro_kl": {
+      "health": 80,
+      "power_armor_power": 0,
+      "weapon_damage": {}
+    },
+    "boss2": {
+      "health": 2000,
+      "power_armor_power": 500,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 5,
+        "rocket": 50
+      }
+    },
+    "boss2_64": {
+      "health": 2200,
+      "power_armor_power": 600,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 5,
+        "rocket": 50
+      }
+    },
+    "boss2_mini": {
+      "health": 1500,
+      "power_armor_power": 400,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 5,
+        "rocket": 45
+      }
+    },
+    "supertank": {
+      "health": 1500,
+      "power_armor_power": 1300,
+      "power_armor_type": "screen",
+      "weapon_damage": {
+        "rocket": 50,
+        "machinegun": 6
+      }
+    },
+    "makron": {
+      "health": 3000,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 15,
+        "railgun": 50,
+        "bfg": 50
+      }
+    },
+    "makron_kl": {
+      "health": 3500,
+      "power_armor_power": 700,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 18,
+        "railgun": 55,
+        "bfg": 55
+      }
+    },
+    "jorg": {
+      "health": 3000,
+      "power_armor_power": 0,
+      "weapon_damage": {
+        "blaster": 15,
+        "rocket": 50,
+        "bfg": 50
+      }
+    },
+    "carrier": {
+      "health": 2000,
+      "power_armor_power": 155,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "rocket": 50,
+        "grenade": 30
+      }
+    },
+    "widow": {
+      "health": 2000,
+      "power_armor_power": 500,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 15,
+        "railgun": 50
+      }
+    },
+    "widow2": {
+      "health": 2000,
+      "power_armor_power": 750,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 20,
+        "railgun": 55
+      }
+    },
+    "guardian": {
+      "health": 600,
+      "power_armor_power": 550,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 18
+      }
+    },
+    "guardian_kl": {
+      "health": 650,
+      "power_armor_power": 385,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 18
+      }
+    },
+    "psxguardian": {
+      "health": 10000,
+      "power_armor_power": 8500,
+      "power_armor_type": "shield",
+      "weapon_damage": {
+        "blaster": 5
+      }
+    }
+  }
+}
