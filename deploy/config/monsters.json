@@ -195,7 +195,7 @@
       }
     },
     "chick_heat": {
-      "health": 175,
+      "health": 500,
       "power_armor_power": 150,
       "power_armor_type": "shield",
       "weapon_damage": {
@@ -203,7 +203,7 @@
       }
     },
     "chickkl": {
-      "health": 200,
+      "health": 450,
       "power_armor_power": 175,
       "power_armor_type": "shield",
       "weapon_damage": {
@@ -216,7 +216,7 @@
       "weapon_damage": {}
     },
     "brain": {
-      "health": 300,
+      "health": 275,
       "power_armor_power": 150,
       "power_armor_type": "screen",
       "weapon_damage": {}
