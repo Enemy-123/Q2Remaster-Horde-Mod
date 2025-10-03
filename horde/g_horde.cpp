@@ -68,8 +68,8 @@ std::unordered_set<horde::MonsterTypeID> g_precached_monsters_this_map; // Non-s
 std::unordered_set<std::string> g_precached_models_this_map; // Non-static for external access
 static int g_map_rotation_seed = 0;
 static int g_last_precache_wave = 0;
-constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 20; // Exclude about 20-25 monsters per map
-constexpr int WAVES_BETWEEN_PRECACHE = 5; // Add new monsters every 5 waves
+constexpr int MONSTERS_TO_EXCLUDE_PER_MAP = 28; // Exclude about 28 monsters per map to reduce memory pressure
+constexpr int WAVES_BETWEEN_PRECACHE = 8; // Add new monsters every 8 waves (reduced frequency to save memory)
 constexpr int MIN_MONSTERS_AVAILABLE = 12; // Always have at least 12 monster types available
 
 // --- Asset Family System Implementation ---
@@ -6186,8 +6186,9 @@ void UnlockModelFamilyMembers(horde::MonsterTypeID boss_typeId, int32_t current_
 		}
 
 		// Only unlock monsters that are eligible for current or near-future waves
+		// Reduced from +10 to +5 to prevent excessive unlocking at high waves
 		// Don't unlock wave 999 bosses (full bosses should only come from boss waves)
-		if (monster.minWave > current_wave + 10 || monster.minWave >= 999) {
+		if (monster.minWave > current_wave + 5 || monster.minWave >= 999) {
 			continue;
 		}
 
@@ -6468,7 +6469,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	// --- 4. PROGRESSIVE PRECACHE LOGIC ---
 	// Limit precaching to prevent memory overflow, especially for late-joining players
 	// Monsters sharing models are much cheaper, so we count "precache cost" instead of raw count
-	float precache_budget = 10.0f + (lvl / 2.0f);  // Start with 10 "points", add more gradually
+	float precache_budget = 6.0f + (lvl / 3.0f);  // Reduced budget: start with 6 "points", slower growth
 	float precache_cost_this_wave = 0.0f;
 	int precached_count = 0;
 
@@ -6488,7 +6489,8 @@ static void Horde_InitLevel(const int32_t lvl)
 			}
 
 			// Priority precache for monsters that should spawn this wave
-			if (monster_info->minWave <= lvl && precache_cost_this_wave + precache_cost <= precache_budget)
+			// Only precache monsters within a reasonable window to avoid loading everything at high waves
+			if (monster_info->minWave <= lvl && monster_info->minWave >= lvl - 10 && precache_cost_this_wave + precache_cost <= precache_budget)
 			{
 				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
 				if (classname && *classname)
@@ -6543,8 +6545,8 @@ static void Horde_InitLevel(const int32_t lvl)
 					precache_cost = 0.2f; // Cheap if model already loaded
 				}
 
-				// Precache upcoming monsters
-				if (monster_info->minWave <= lvl + 5 && precache_cost_this_wave + precache_cost <= precache_budget)
+				// Precache upcoming monsters (within a narrow window to avoid loading too many at high waves)
+				if (monster_info->minWave > lvl && monster_info->minWave <= lvl + 3 && precache_cost_this_wave + precache_cost <= precache_budget)
 				{
 					const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
 					if (classname && *classname)

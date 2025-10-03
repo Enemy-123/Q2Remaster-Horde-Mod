@@ -116,54 +116,79 @@ static edict_t* spawn_strogg_monster(edict_t* player, const vec3_t& origin, cons
 	// Set AI flags
 	monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
-	// Randomly select a Strogg monster type (weighted for variety)
-	int monster_type = irandom(100);
+	// Build list of summonable monsters that are ALREADY precached
+	// This prevents summoner from bypassing the precache system and causing memory issues
+	struct SummonableMonster {
+		horde::MonsterTypeID type;
+		void (*spawn_func)(edict_t*);
+		int weight;
+	};
+
+	std::vector<SummonableMonster> available_monsters;
+
+	// Only add monsters that are precached (in horde mode)
+	if (g_horde->integer) {
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::GUNNER)])
+			available_monsters.push_back({horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::CHICK)])
+			available_monsters.push_back({horde::MonsterTypeID::CHICK, SP_monster_chick, 13});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::DAEDALUS_BOMBER)])
+			available_monsters.push_back({horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::SPIDER)])
+			available_monsters.push_back({horde::MonsterTypeID::SPIDER, SP_monster_spider, 13});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::SHAMBLER_SMALL)])
+			available_monsters.push_back({horde::MonsterTypeID::SHAMBLER_SMALL, SP_monster_shambler_small, 13});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::INFANTRY)])
+			available_monsters.push_back({horde::MonsterTypeID::INFANTRY, SP_monster_infantry, 6});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::MEDIC)])
+			available_monsters.push_back({horde::MonsterTypeID::MEDIC, SP_monster_medic, 20});
+		if (g_precached_monster_types_flags[static_cast<size_t>(horde::MonsterTypeID::BRAIN)])
+			available_monsters.push_back({horde::MonsterTypeID::BRAIN, SP_monster_brain, 9});
+	} else {
+		// Non-horde mode: use all monsters
+		available_monsters = {
+			{horde::MonsterTypeID::GUNNER, SP_monster_gunner, 13},
+			{horde::MonsterTypeID::CHICK, SP_monster_chick, 13},
+			{horde::MonsterTypeID::DAEDALUS_BOMBER, SP_monster_daedalus_bomber, 13},
+			{horde::MonsterTypeID::SPIDER, SP_monster_spider, 13},
+			{horde::MonsterTypeID::SHAMBLER_SMALL, SP_monster_shambler_small, 13},
+			{horde::MonsterTypeID::INFANTRY, SP_monster_infantry, 6},
+			{horde::MonsterTypeID::MEDIC, SP_monster_medic, 20},
+			{horde::MonsterTypeID::BRAIN, SP_monster_brain, 9}
+		};
+	}
+
+	// If no monsters available (shouldn't happen), fail spawn
+	if (available_monsters.empty()) {
+		G_FreeEdict(monster);
+		return nullptr;
+	}
+
+	// Calculate total weight
+	int total_weight = 0;
+	for (const auto& m : available_monsters) {
+		total_weight += m.weight;
+	}
+
+	// Randomly select based on weight
+	int roll = irandom(total_weight);
+	int cumulative = 0;
 	horde::MonsterTypeID selected_type = horde::MonsterTypeID::UNKNOWN;
 
-	if (monster_type < 13) {
-		selected_type = horde::MonsterTypeID::CHICK;
-		SP_monster_chick(monster);
-	}
-	else if (monster_type < 26) {
-		selected_type = horde::MonsterTypeID::GUNNER;
-		SP_monster_gunner(monster);
-	}
-	else if (monster_type < 39) {
-		selected_type = horde::MonsterTypeID::DAEDALUS_BOMBER;
-		SP_monster_daedalus_bomber(monster);
-	}
-	else if (monster_type < 52) {
-		selected_type = horde::MonsterTypeID::SPIDER;
-		SP_monster_spider(monster);
-	}
-	else if (monster_type < 65) {
-		selected_type = horde::MonsterTypeID::SHAMBLER_SMALL;
-		SP_monster_shambler_small(monster);
-	}
-	else if (monster_type < 71) {
-		selected_type = horde::MonsterTypeID::INFANTRY;
-		SP_monster_infantry(monster);
-	}
-	else if (monster_type < 91) {
-		selected_type = horde::MonsterTypeID::MEDIC;
-		SP_monster_medic(monster);
-	}
-	else {
-		selected_type = horde::MonsterTypeID::BRAIN;
-		SP_monster_brain(monster);
+	for (const auto& m : available_monsters) {
+		cumulative += m.weight;
+		if (roll < cumulative) {
+			selected_type = m.type;
+			m.spawn_func(monster);
+			break;
+		}
 	}
 
 	// Store the monster type ID for later use
 	monster->monsterinfo.monster_type_id = static_cast<uint8_t>(selected_type);
 
-	// Add to horde precache pool - summoned monsters unlock that type for regular horde spawning
-	if (g_horde->integer && selected_type != horde::MonsterTypeID::UNKNOWN) {
-		g_precached_monster_types_flags[static_cast<size_t>(selected_type)] = true;
-		g_precached_monsters_this_map.insert(selected_type);
-
-		// Unlock model family members (free precache for variants sharing the same model)
-		UnlockModelFamilyMembers(selected_type, current_wave_level);
-	}
+	// REMOVED: Do NOT auto-unlock monsters via summoner - this bypasses the precache system
+	// Summoner now only spawns already-precached monsters, preventing memory bloat
 
 	// Verify spawn succeeded
 	if (!monster->inuse) {
