@@ -82,7 +82,9 @@ void Config_LoadMonsters(const char* basedir)
 
 		for (const auto& monster_name : monsters.getMemberNames())
 		{
-			horde::MonsterTypeID monster_type = horde::MonsterTypeRegistry::GetTypeID(monster_name.c_str());
+			// Prepend "monster_" to the name from JSON to match the registry
+			std::string full_classname = "monster_" + monster_name;
+			horde::MonsterTypeID monster_type = horde::MonsterTypeRegistry::GetTypeID(full_classname.c_str());
 			if (monster_type == horde::MonsterTypeID::UNKNOWN)
 			{
 				gi.Com_PrintFmt("Config: Unknown monster type: {}\n", monster_name);
@@ -113,18 +115,41 @@ void Config_LoadMonsters(const char* basedir)
 			{
 				const Json::Value& weapons = monster_data["weapon_damage"];
 				config.weapon_damage.blaster = GetJsonInt(weapons, "blaster", 0);
+				config.weapon_damage.blaster2 = GetJsonInt(weapons, "blaster2", 0);
+				config.weapon_damage.blaster_bolt = GetJsonInt(weapons, "blaster_bolt", 0);
+				config.weapon_damage.blueblaster = GetJsonInt(weapons, "blueblaster", 0);
 				config.weapon_damage.shotgun = GetJsonInt(weapons, "shotgun", 0);
 				config.weapon_damage.machinegun = GetJsonInt(weapons, "machinegun", 0);
 				config.weapon_damage.grenade = GetJsonInt(weapons, "grenade", 0);
 				config.weapon_damage.rocket = GetJsonInt(weapons, "rocket", 0);
+				config.weapon_damage.heat = GetJsonInt(weapons, "heat", 0);
 				config.weapon_damage.railgun = GetJsonInt(weapons, "railgun", 0);
 				config.weapon_damage.bfg = GetJsonInt(weapons, "bfg", 0);
 				config.weapon_damage.ionripper = GetJsonInt(weapons, "ionripper", 0);
 				config.weapon_damage.hyperblaster = GetJsonInt(weapons, "hyperblaster", 0);
+				config.weapon_damage.bolt = GetJsonInt(weapons, "bolt", 0);
+				config.weapon_damage.tracker = GetJsonInt(weapons, "tracker", 0);
+				config.weapon_damage.plasma = GetJsonInt(weapons, "plasma", 0);
+				config.weapon_damage.dabeam = GetJsonInt(weapons, "dabeam", 0);
+				config.weapon_damage.heatbeam = GetJsonInt(weapons, "heatbeam", 0);
+				config.weapon_damage.melee = GetJsonInt(weapons, "melee", 0);
+				config.weapon_damage.slam = GetJsonInt(weapons, "slam", 0);
+				config.weapon_damage.lightning = GetJsonInt(weapons, "lightning", 0);
+				config.weapon_damage.flechette = GetJsonInt(weapons, "flechette", 0);
+				config.weapon_damage.fireball = GetJsonInt(weapons, "fireball", 0);
+				config.weapon_damage.proboscis = GetJsonInt(weapons, "proboscis", 0);
 			}
 
 			g_config.monsters.monsters[monster_id] = config;
 			loaded_count++;
+
+			// Debug: Print first 3 monsters to verify loading
+			if (loaded_count <= 3)
+			{
+				gi.Com_PrintFmt("DEBUG: Loaded '{}' as type_id {}, health={}, weapons loaded={}\n",
+					full_classname.c_str(), monster_id, config.health,
+					monster_data.isMember("weapon_damage") ? "yes" : "no");
+			}
 		}
 
 		gi.Com_PrintFmt("Config: Loaded {} monster configurations from config/monsters.json\n", loaded_count);
@@ -531,11 +556,24 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 // Get specific weapon damage for a monster
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 {
+	// Debug: Log first few lookups
+	static int lookup_count = 0;
+	lookup_count++;
+
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
 	if (!config)
 	{
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - No config found for monster_type_id {}, weapon '{}' will use hardcoded damage\n", monster_type_id, weapon_name);
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - No config found for monster '{}' (type_id {}), weapon '{}' will use hardcoded damage\n",
+			classname ? classname : "unknown", monster_type_id, weapon_name);
 		return 0;
+	}
+
+	if (lookup_count <= 5)
+	{
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
+		gi.Com_PrintFmt("DEBUG: GetMonsterWeaponDamage lookup #{}: monster '{}' (type_id {}), weapon '{}'\n",
+			lookup_count, classname ? classname : "unknown", monster_type_id, weapon_name);
 	}
 
 	// Use static map for O(1) lookup instead of strcmp chain
@@ -575,9 +613,13 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 	}
 
 	int damage = config->weapon_damage.*(it->second);
-	if (damage <= 0)
+
+	if (damage == 0)
 	{
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - weapon '{}' for monster_type_id {} has damage {} in config, will use hardcoded damage\n", weapon_name, monster_type_id, damage);
+		// Get the monster's classname for better debugging
+		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Weapon '{}' for monster '{}' (type_id {}) has damage 0 in config. Add it to monsters.json or it will use hardcoded fallback.\n",
+			weapon_name, classname ? classname : "unknown", monster_type_id);
 	}
 
 	return damage;
