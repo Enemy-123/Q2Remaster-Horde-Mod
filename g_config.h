@@ -254,14 +254,17 @@ struct AmmoRegenConfig
 struct MonsterWeaponDamage
 {
 	int blaster = 0;
+	int blaster2 = 0;
 	int shotgun = 0;
 	int machinegun = 0;
 	int grenade = 0;
 	int rocket = 0;
+	int heat = 0;
 	int railgun = 0;
 	int bfg = 0;
 	int ionripper = 0;
 	int hyperblaster = 0;
+	int bolt = 0;
 	int tracker = 0;
 	int plasma = 0;
 	int dabeam = 0;
@@ -270,6 +273,8 @@ struct MonsterWeaponDamage
 	int slam = 0;
 	int lightning = 0;
 	int flechette = 0;
+	int fireball = 0;
+	int proboscis = 0;
 };
 
 // Monster stats configuration

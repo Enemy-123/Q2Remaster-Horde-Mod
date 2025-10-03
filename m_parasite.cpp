@@ -392,8 +392,9 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	{
 		if (other->takedamage)
 		{
-			// BALANCE FIX: Increased damage from 5 to 12 for Wave 5 balance
-			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 12, 0, DAMAGE_NONE, MOD_UNKNOWN);
+			int impact_damage = GetMonsterWeaponDamage(self->owner->monsterinfo.monster_type_id, "proboscis");
+			if (impact_damage <= 0) impact_damage = 12;
+			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, impact_damage, 0, DAMAGE_NONE, MOD_UNKNOWN);
 		}
 
 		// Re-validate owner, as it could have died from reflected damage.
@@ -437,8 +438,9 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 	if (other->takedamage)
 	{
-		// BALANCE FIX: Increased damage from 5 to 12 for Wave 5 balance
-		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 12, 0, DAMAGE_NONE, MOD_UNKNOWN);
+		int impact_damage = GetMonsterWeaponDamage(self->owner->monsterinfo.monster_type_id, "proboscis");
+		if (impact_damage <= 0) impact_damage = 12;
+		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, impact_damage, 0, DAMAGE_NONE, MOD_UNKNOWN);
 		if (!self->owner || !self->owner->inuse)
 		{
 			proboscis_reset(self);
@@ -599,11 +601,14 @@ THINK(proboscis_think) (edict_t* self) -> void
 			{
 				if (self->timestamp <= level.time)
 				{
-					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 2, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
+					int base_damage = GetMonsterWeaponDamage(self->owner->monsterinfo.monster_type_id, "proboscis");
+					if (base_damage <= 0) base_damage = 15;
+					int drain_damage = max(1, base_damage / 7); // ~13-14% of impact damage for drain tick
+					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, drain_damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
 
 					if (self->owner && self->owner->inuse)
 					{
-						self->owner->health = min(self->owner->max_health, self->owner->health + 2);
+						self->owner->health = min(self->owner->max_health, self->owner->health + drain_damage);
 						if (self->owner->monsterinfo.setskin) {
 							self->owner->monsterinfo.setskin(self->owner);
 						}

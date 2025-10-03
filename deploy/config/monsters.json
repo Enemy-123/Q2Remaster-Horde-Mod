@@ -53,7 +53,9 @@
       "power_armor_power": 85,
       "power_armor_type": "shield",
       "weapon_damage": {
-        "machinegun": 8
+        "blaster2": 6,
+        "grenade": 35,
+        "melee": 10
       }
     },
     "infantry_vanilla": {
@@ -62,7 +64,8 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "machinegun": 8,
-        "grenade": 35
+        "grenade": 35,
+        "melee": 10
       }
     },
     "gunner": {
@@ -87,14 +90,16 @@
       "health": 300,
       "power_armor_power": 0,
       "weapon_damage": {
-        "hyperblaster": 15
+        "blaster": 15,
+        "bolt": 30
       }
     },
     "medic_commander": {
       "health": 400,
       "power_armor_power": 0,
       "weapon_damage": {
-        "hyperblaster": 18
+        "blaster": 18,
+        "bolt": 35
       }
     },
     "guncmdr": {
@@ -103,7 +108,8 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "machinegun": 8,
-        "grenade": 50
+        "grenade": 50,
+        "melee": 20
       }
     },
     "guncmdr_vanilla": {
@@ -112,7 +118,8 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "flechette": 30,
-        "grenade": 50
+        "grenade": 50,
+        "melee": 20
       }
     },
     "guncmdr_kl": {
@@ -121,7 +128,8 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "machinegun": 9,
-        "grenade": 55
+        "grenade": 55,
+        "melee": 22
       }
     },
     "gladiator": {
@@ -155,7 +163,7 @@
       "health": 750,
       "power_armor_power": 0,
       "weapon_damage": {
-        "blaster": 30,
+        "blaster2": 30,
         "grenade": 50,
         "machinegun": 6,
         "rocket": 50,
@@ -166,7 +174,7 @@
       "health": 1000,
       "power_armor_power": 0,
       "weapon_damage": {
-        "blaster": 30,
+        "blaster2": 30,
         "grenade": 50,
         "machinegun": 6,
         "rocket": 50
@@ -176,7 +184,8 @@
       "health": 850,
       "power_armor_power": 0,
       "weapon_damage": {
-        "blaster": 30,
+        "blaster2": 30,
+        "lightning": 15,
         "grenade": 50,
         "machinegun": 6,
         "rocket": 50
@@ -208,7 +217,7 @@
       "power_armor_power": 150,
       "power_armor_type": "shield",
       "weapon_damage": {
-        "heatbeam": 60,
+        "heat": 60,
         "melee": 35
       }
     },
@@ -224,7 +233,9 @@
     "parasite": {
       "health": 175,
       "power_armor_power": 0,
-      "weapon_damage": {}
+      "weapon_damage": {
+        "proboscis": 15
+      }
     },
     "brain": {
       "health": 275,
@@ -265,7 +276,7 @@
       "power_armor_power": 100,
       "power_armor_type": "screen",
       "weapon_damage": {
-        "hyperblaster": 12
+        "blaster2": 12
       }
     },
     "daedalus_bomber": {
@@ -325,7 +336,7 @@
       "power_armor_power": 200,
       "power_armor_type": "screen",
       "weapon_damage": {
-        "hyperblaster": 4
+        "blaster": 4
       }
     },
     "floater_tracker": {
@@ -340,7 +351,7 @@
       "health": 250,
       "power_armor_power": 0,
       "weapon_damage": {
-        "tracker": 13
+        "blaster2": 15
       }
     },
     "gekk": {
@@ -365,7 +376,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "railgun": 50,
-        "rocket": 60
+        "heat": 60
       }
     },
     "gm_arachnid": {
@@ -374,7 +385,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "railgun": 50,
-        "rocket": 60
+        "heat": 60
       }
     },
     "psx_arachnid": {
@@ -383,7 +394,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "railgun": 50,
-        "rocket": 60
+        "heat": 60
       }
     },
     "shambler": {
@@ -391,6 +402,7 @@
       "power_armor_power": 0,
       "weapon_damage": {
         "lightning": 10,
+        "fireball": 30,
         "melee": 115
       }
     },
@@ -407,6 +419,7 @@
       "power_armor_power": 0,
       "weapon_damage": {
         "lightning": 10,
+        "fireball": 32,
         "melee": 115
       }
     },
@@ -415,7 +428,9 @@
       "power_armor_power": 500,
       "power_armor_type": "screen",
       "weapon_damage": {
-        "rocket": 60
+        "rocket": 60,
+        "machinegun": 6,
+        "grenade": 50
       }
     },
     "janitor2": {
@@ -432,14 +447,17 @@
       "health": 1200,
       "power_armor_power": 0,
       "weapon_damage": {
-        "blaster": 35,
-        "rocket": 55
+        "blaster2": 35,
+        "rocket": 55,
+        "bolt": 40
       }
     },
     "perro_kl": {
       "health": 80,
       "power_armor_power": 0,
-      "weapon_damage": {}
+      "weapon_damage": {
+        "proboscis": 18
+      }
     },
     "boss2": {
       "health": 2000,

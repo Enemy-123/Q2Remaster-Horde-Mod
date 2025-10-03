@@ -612,7 +612,9 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->touch = fireball_touch; // Ensure fireball_touch is defined elsewhere
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;
-			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
+			int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "fireball");
+			if (base_damage <= 0) base_damage = 30;
+			fireball->dmg = irandom(base_damage - 8, base_damage + 4) * M_DamageModifier(self);
 			fireball->radius_dmg = 45 * M_DamageModifier(self);
 			fireball->dmg_radius = 120;
 			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");

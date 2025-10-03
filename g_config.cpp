@@ -539,14 +539,17 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 	using WeaponDamageGetter = int MonsterWeaponDamage::*;
 	static const std::unordered_map<std::string_view, WeaponDamageGetter> weapon_map = {
 		{"blaster", &MonsterWeaponDamage::blaster},
+		{"blaster2", &MonsterWeaponDamage::blaster2},
 		{"shotgun", &MonsterWeaponDamage::shotgun},
 		{"machinegun", &MonsterWeaponDamage::machinegun},
 		{"grenade", &MonsterWeaponDamage::grenade},
 		{"rocket", &MonsterWeaponDamage::rocket},
+		{"heat", &MonsterWeaponDamage::heat},
 		{"railgun", &MonsterWeaponDamage::railgun},
 		{"bfg", &MonsterWeaponDamage::bfg},
 		{"ionripper", &MonsterWeaponDamage::ionripper},
 		{"hyperblaster", &MonsterWeaponDamage::hyperblaster},
+		{"bolt", &MonsterWeaponDamage::bolt},
 		{"tracker", &MonsterWeaponDamage::tracker},
 		{"plasma", &MonsterWeaponDamage::plasma},
 		{"dabeam", &MonsterWeaponDamage::dabeam},
@@ -554,7 +557,9 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 		{"melee", &MonsterWeaponDamage::melee},
 		{"slam", &MonsterWeaponDamage::slam},
 		{"lightning", &MonsterWeaponDamage::lightning},
-		{"flechette", &MonsterWeaponDamage::flechette}
+		{"flechette", &MonsterWeaponDamage::flechette},
+		{"fireball", &MonsterWeaponDamage::fireball},
+		{"proboscis", &MonsterWeaponDamage::proboscis}
 	};
 
 	auto it = weapon_map.find(weapon_name);
