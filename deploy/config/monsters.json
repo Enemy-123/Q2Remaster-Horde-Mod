@@ -262,7 +262,6 @@
       "health": 50,
       "power_armor_power": 0,
       "weapon_damage": {
-        "hyperblaster": 4,
         "blaster_bolt": 4,
         "rocket": 35,
         "dabeam": 3
@@ -339,7 +338,6 @@
       "power_armor_power": 5000,
       "power_armor_type": "shield",
       "weapon_damage": {
-        "hyperblaster": 7,
         "ionripper": 25,
         "plasma": 40
       }
@@ -349,7 +347,6 @@
       "power_armor_power": 6000,
       "power_armor_type": "shield",
       "weapon_damage": {
-        "hyperblaster": 8,
         "ionripper": 30,
         "plasma": 45
       }
