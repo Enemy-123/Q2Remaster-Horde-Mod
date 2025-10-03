@@ -3331,7 +3331,7 @@ void ResetGame()
 
     // Cvar resets...
 
-	if (g_nolag->integer) {
+	if (g_nolag && g_nolag->integer) {
 		gi.cvar_set("g_nolag", "0");
 	}
 

@@ -483,7 +483,7 @@ THINK(Hook_Track) (edict_t* self) -> void
 // the hook has hit something.  what could it be?
 TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	vec3_t dir, normal, forward;
+	vec3_t dir, normal;
 
 	// ignore hitting the person who launched us
 	if (other == self->owner)

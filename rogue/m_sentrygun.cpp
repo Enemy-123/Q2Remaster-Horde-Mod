@@ -1800,7 +1800,7 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		}
 		else {
 			// Owner pointer invalid - search all players for this sentry in their arrays
-			for (int i = 0; i < game.maxclients; i++) {
+			for (uint32_t i = 0; i < game.maxclients; i++) {
 				edict_t* player = &g_edicts[1 + i];
 				if (!player->inuse || !player->client)
 					continue;
