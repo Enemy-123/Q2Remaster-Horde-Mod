@@ -129,6 +129,12 @@ struct HordeState
 	gtime_t spawning_phase_timeout_start = 0_sec;
 	int32_t prev_wave_level_for_spawning_timers = -1;
 
+	// Time acceleration for smooth wave ending
+	float timeAcceleration = 1.0f;           // Current acceleration multiplier
+	float targetTimeAcceleration = 1.0f;     // Target acceleration to interpolate toward
+	gtime_t accelerationStartTime = 0_sec;   // When acceleration began
+	gtime_t accelerationDuration = 2_sec;    // How long to interpolate
+
 	void update_map_size(const char *mapname);
 	void reset_hud_state();
 };
