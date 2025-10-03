@@ -1289,6 +1289,9 @@ void PM_FlyMove(bool doclip)
 
 	pm->s.viewheight = doclip ? 0 : 22;
 
+	// Check if this is a morphed flyer - needs different physics
+	bool is_flyer_morph = IsMorphed(pm->player);
+
 	// friction
 
 	speed = pml.velocity.length();
@@ -1300,7 +1303,12 @@ void PM_FlyMove(bool doclip)
 	{
 		drop = 0;
 
-		friction = pm_friction * 1.5f; // extra friction
+		// Morphed flyers need less friction for momentum/inertia
+		if (is_flyer_morph)
+			friction = pm_friction * 0.4f; // Lower friction for inertia
+		else
+			friction = pm_friction * 1.5f; // extra friction for regular spectator
+
 		control = speed < pm_stopspeed ? pm_stopspeed : speed;
 		drop += control * friction * pml.frametime;
 
@@ -1334,21 +1342,29 @@ void PM_FlyMove(bool doclip)
 	//
 	// clamp to server defined max speed
 	//
-	if (wishspeed > pm_maxspeed)
+	// Morphed flyers get a higher max speed cap than normal players
+	float max_speed_cap = is_flyer_morph ? (pm_maxspeed * 1.25f) : pm_maxspeed;
+
+	if (wishspeed > max_speed_cap)
 	{
-		wishvel *= pm_maxspeed / wishspeed;
-		wishspeed = pm_maxspeed;
+		wishvel *= max_speed_cap / wishspeed;
+		wishspeed = max_speed_cap;
 	}
 
-	// Paril: newer clients do this
-	wishspeed *= 2;
+	// Morphed flyers need slower, more controlled acceleration
+	if (is_flyer_morph)
+		wishspeed *= 1.5f; // Increased from 1.0 for more max speed
+	else
+		wishspeed *= 2; // Paril: newer clients do this for regular spectator
 
 	currentspeed = pml.velocity.dot(wishdir);
 	addspeed = wishspeed - currentspeed;
 
 	if (addspeed > 0)
 	{
-		accelspeed = pm_accelerate * pml.frametime * wishspeed;
+		// Morphed flyers need lower acceleration for momentum feel
+		float accel_multiplier = is_flyer_morph ? 0.5f : 1.0f;
+		accelspeed = pm_accelerate * accel_multiplier * pml.frametime * wishspeed;
 		if (accelspeed > addspeed)
 			accelspeed = addspeed;
 
