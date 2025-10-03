@@ -3331,8 +3331,9 @@ void ResetGame()
 
     // Cvar resets...
 
-		if (g_nolag->integer) {
+	if (g_nolag->integer) {
 		gi.cvar_set("g_nolag", "0");
+	}
 
 	gi.cvar_set("bot_pause", "0");
 	gi.cvar_set("cheats", "0");
@@ -5710,7 +5711,8 @@ edict_t* Horde_SpawnMonster(
     int32_t currentLevel,
     float champion_chance); // Already shown above
 
-	void VerifyEntityProperties();
+void VerifyEntityProperties();
+
 void Horde_RunFrame()
 {
 
