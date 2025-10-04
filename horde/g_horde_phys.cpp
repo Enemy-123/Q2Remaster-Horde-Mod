@@ -449,8 +449,8 @@ void ProximityGrid::Reset()
         mins = pos + boxmin;
         maxs = pos + boxmax;
 
-        // Check if all corners are solid (fast path)
-        start[2] = mins[2] - 8.0f;
+        // OPTIMIZED: Check if all corners are solid (fast path) - reduced from 8 to 4 units for step-up tolerance
+        start[2] = mins[2] - 4.0f;
         for (int x = 0; x <= 1; x++) {
             for (int y = 0; y <= 1; y++) {
                 start[0] = x ? maxs[0] : mins[0];
@@ -475,7 +475,7 @@ void ProximityGrid::Reset()
         float mid = trace.endpos[2];
         float bottom = mid;
 
-        // Check corners must be within 18 units of midpoint
+        // OPTIMIZED: Corners must be within 24 units of midpoint (was 18) - allows more uneven terrain
         for (int x = 0; x <= 1; x++) {
             for (int y = 0; y <= 1; y++) {
                 start[0] = stop[0] = x ? maxs[0] : mins[0];
@@ -485,7 +485,7 @@ void ProximityGrid::Reset()
 
                 if (trace.fraction != 1.0f && trace.endpos[2] > bottom)
                     bottom = trace.endpos[2];
-                if (trace.fraction == 1.0f || mid - trace.endpos[2] > 18.0f)
+                if (trace.fraction == 1.0f || mid - trace.endpos[2] > 24.0f)
                     return false;
             }
         }
@@ -659,8 +659,8 @@ void ProximityGrid::Reset()
                         continue;
                     }
 
-                    // REDUCED: Skip if too close to existing node (was 129, now 64 units)
-                    if (IsNearbyGridNode(final_pos, generated_count, 64.0f)) {
+                    // OPTIMIZED: Reduced spacing for higher density (was 64, now 32 units)
+                    if (IsNearbyGridNode(final_pos, generated_count, 32.0f)) {
                         failed_nearby++;
                         continue;
                     }
