@@ -14,6 +14,9 @@
 // Declaration for P_GetLobbyUserNum (defined in p_client.cpp)
 extern unsigned int P_GetLobbyUserNum(const edict_t* player);
 
+// Declaration for Cmd_Help_f (defined in p_hud.cpp)
+extern void Cmd_Help_f(edict_t* ent);
+
 // Forward Declarations from this file
 void OpenVoteMenu(edict_t* ent);
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
@@ -1694,6 +1697,12 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	// --- Action Handling based on Text ---
 
+	// Check for Show Objectives (coop only)
+	if (strcmp(selected_text, "Show Objectives") == 0) {
+		PMenu_Close(ent); // Close menu first
+		Cmd_Help_f(ent); // Show objectives screen
+		return; // Exit early since we already closed the menu
+	}
 	// Check for Admin Menu (host only)
 	if (strcmp(selected_text, "[HOST] Admin Menu") == 0) {
 		OpenAdminMenu(ent);
@@ -1794,6 +1803,11 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 
 	add_entry(HORDE_MOD_VERSION_STRING, PMENU_ALIGN_CENTER);
 	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Add Show Objectives option if in coop mode (first option after joining)
+	if (coop->integer) {
+		add_entry("Show Objectives", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
 
 	// Add Admin Menu option if player is host
 	unsigned int playerNum = P_GetLobbyUserNum(ent);
