@@ -2509,19 +2509,25 @@ static horde::MonsterTypeID EmergencyFallbackSelection(const MonsterSelectionCon
 
 	// If no valid monster found that matches wave type, fall back to ANY valid monster
 	// (this prevents complete spawn failure)
-		if (developer->integer)
+	if (developer->integer)
 	{
-		// Simplified wave type description for logging
-		const char* wave_type_str = "Unknown";
-		if (ctx.waveTypeForFiltering == MonsterWaveType::Ground) wave_type_str = "Ground";
-		else if (ctx.waveTypeForFiltering == MonsterWaveType::Flying) wave_type_str = "Flying";
-		else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Boss)) wave_type_str = "Boss";
-		else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Gekk)) wave_type_str = "Gekk";
-		else if (ctx.waveTypeForFiltering == MonsterWaveType::None) wave_type_str = "None";
-		else wave_type_str = "Mixed";
+		// Rate-limit warning to prevent spam (max once per 10 seconds)
+		static gtime_t last_warning_time = 0_sec;
+		if (level.time - last_warning_time >= 10_sec)
+		{
+			// Simplified wave type description for logging
+			const char* wave_type_str = "Unknown";
+			if (ctx.waveTypeForFiltering == MonsterWaveType::Ground) wave_type_str = "Ground";
+			else if (ctx.waveTypeForFiltering == MonsterWaveType::Flying) wave_type_str = "Flying";
+			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Boss)) wave_type_str = "Boss";
+			else if (HasWaveType(ctx.waveTypeForFiltering, MonsterWaveType::Gekk)) wave_type_str = "Gekk";
+			else if (ctx.waveTypeForFiltering == MonsterWaveType::None) wave_type_str = "None";
+			else wave_type_str = "Mixed";
 
-		gi.Com_PrintFmt("WARNING: Emergency fallback ignoring wave type (WaveType={}, FlyPoint={}, EffLvl={}, Recovery={})\n",
-		                wave_type_str, ctx.isSpawnPointFlying, ctx.effectiveLevel, ctx.isRecoveryModeActive);
+			gi.Com_PrintFmt("WARNING: Emergency fallback ignoring wave type (WaveType={}, FlyPoint={}, EffLvl={}, Recovery={})\n",
+			                wave_type_str, ctx.isSpawnPointFlying, ctx.effectiveLevel, ctx.isRecoveryModeActive);
+			last_warning_time = level.time;
+		}
 	}
 	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
 	{
@@ -4116,8 +4122,22 @@ PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const
         }
     }
 
+    // Calculate bbox size to determine if we need extra clearance
+    const float bbox_radius = std::max({monster_maxs.x - monster_mins.x, monster_maxs.y - monster_mins.y}) * 0.5f;
+    const bool is_large_monster = bbox_radius > 32.0f; // Large monsters (GM Arachnid, Tanks, etc.)
+
     // Check if the volume is occupied by world geometry or other monsters
-    const trace_t trace = gi.trace(position, monster_mins, monster_maxs, position, nullptr, MASK_MONSTERSOLID);
+    // For large monsters, add 8 units of padding to prevent tight spawns
+    vec3_t check_mins = monster_mins;
+    vec3_t check_maxs = monster_maxs;
+    if (is_large_monster) {
+        check_mins.x -= 8.0f;
+        check_mins.y -= 8.0f;
+        check_maxs.x += 8.0f;
+        check_maxs.y += 8.0f;
+    }
+
+    const trace_t trace = gi.trace(position, check_mins, check_maxs, position, nullptr, MASK_MONSTERSOLID);
     if (trace.startsolid) {
         return result;
     }
@@ -4624,7 +4644,9 @@ bool Horde_AttemptToUnstickMonster(edict_t* self)
 		{
 			if (developer->integer)
 			{
-				gi.Com_PrintFmt("FIXED STUCK (Emergency): Relocated '{}' to {}.\n", self->classname, emergency_origin);
+				gi.Com_PrintFmt("FIXED STUCK (Emergency): Relocated '{}' to {} (bbox: {:.1f}x{:.1f}x{:.1f}).\n",
+				                self->classname, emergency_origin,
+				                self->maxs.x - self->mins.x, self->maxs.y - self->mins.y, self->maxs.z - self->mins.z);
 			}
 			return true;
 		}
