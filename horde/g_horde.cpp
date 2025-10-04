@@ -1607,7 +1607,7 @@ struct HordeItemInfo
 static const HordeItemInfo hordeItemData[] = {
 	// --- Armor ---
 	{IT_ARMOR_SHARD, 1.5f, 1},		   // Common, small boost
-	{IT_ARMOR_JACKET, 0.8f, 3},		   // Basic armor
+	{IT_ARMOR_JACKET, 0.8f, 2},		   // Basic armor
 	{IT_ARMOR_COMBAT, 0.5f, 8},		   // Better armor
 	{IT_ARMOR_BODY, 0.2f, 15},		   // Best standard armor
 	{IT_ITEM_POWER_SCREEN, 0.3f, 7},   // Power Armor (early)
