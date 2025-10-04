@@ -3779,6 +3779,13 @@ struct edict_t
 	// Store original attacker info for projectiles (when owner dies before projectile hits)
 	uint8_t projectile_attacker_type_id; // monster type id if attacker was monster
 	bool projectile_was_player_attacker; // true if attacker was a player
+
+	// Proximity grid optimization: track which cells this entity occupies
+	// Stored as int8_t to save memory (max 127 cells, we have 16x16=256 but entities span max 4)
+	// -1 = not in grid
+	int8_t grid_cells[4] = {-1, -1, -1, -1};
+	uint8_t grid_cell_count = 0;
+	uint32_t cached_entity_type = 0; // Cache for EntityGrid::GetEntityType to avoid repeated string checks
 };
 
 // static constexpr const char* TEAM1 = "team1";

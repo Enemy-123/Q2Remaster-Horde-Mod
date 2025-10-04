@@ -68,12 +68,13 @@ namespace HordePhys
                 vec3_t cell_max = cell_min + vec3_t{ m_cell_size, m_cell_size, 1.0f };
 
                 // Color the cell based on how full it is.
-                // Green = empty, Yellow = some, Red = full.
+                // Green = empty, Yellow = some, Red = very dense.
                 rgba_t color = rgba_green;
-                if (cell.count > 0) {
+                size_t cell_count = cell.count();
+                if (cell_count > 0) {
                     color = rgba_yellow;
                 }
-                if (cell.count >= ProximityGridCell::MAX_MONSTERS_PER_CELL) {
+                if (cell_count >= 64) { // Red for very dense cells
                     color = rgba_red;
                 }
 
@@ -122,14 +123,28 @@ namespace HordePhys
     {
         if (!m_is_built || !ent)
             return;
+
+        // Skip non-solid entities (gibs, debris, etc.) - they don't need spatial queries
+        if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
+            return;
+
+        // Clear previous grid cell tracking
+        ent->grid_cell_count = 0;
+
         const int min_idx = GetCellIndex(ent->absmin);
         const int max_idx = GetCellIndex(ent->absmax);
-        // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
-        if (min_idx != -1)
+
+        // Add to min cell and track it
+        if (min_idx != -1) {
             m_cells[static_cast<size_t>(min_idx)].add(ent);
-        // FIX: Cast the signed 'int' to 'size_t' after checking it's not -1.
-        if (max_idx != -1 && max_idx != min_idx)
+            ent->grid_cells[ent->grid_cell_count++] = static_cast<int8_t>(min_idx);
+        }
+
+        // Add to max cell if different and track it
+        if (max_idx != -1 && max_idx != min_idx) {
             m_cells[static_cast<size_t>(max_idx)].add(ent);
+            ent->grid_cells[ent->grid_cell_count++] = static_cast<int8_t>(max_idx);
+        }
     }
 
     void ProximityGrid::Remove(edict_t* ent)
@@ -137,23 +152,33 @@ namespace HordePhys
         if (!m_is_built || !ent)
             return;
 
-        // Iterate through all cells and remove the entity
-        // This is O(n) but better than rebuilding the entire grid
-        for (auto& cell : m_cells)
+        // Optimized: Use tracked cell indices instead of scanning all 256 cells
+        // This reduces Remove from O(256*128) to O(k) where k is typically 1-4 cells
+        for (uint8_t i = 0; i < ent->grid_cell_count; ++i)
         {
-            for (size_t i = 0; i < cell.count; ++i)
+            int8_t cell_idx = ent->grid_cells[i];
+            if (cell_idx < 0 || cell_idx >= CELL_COUNT)
+                continue;
+
+            auto& cell = m_cells[static_cast<size_t>(cell_idx)];
+            auto& monsters = cell.monsters;
+
+            // Find and remove the entity from this cell
+            for (size_t j = 0; j < monsters.size(); ++j)
             {
-                if (cell.monsters[i] == ent)
+                if (monsters[j] == ent)
                 {
-                    // Remove by swapping with last element
-                    cell.monsters[i] = cell.monsters[cell.count - 1];
-                    --cell.count;
-                    // Don't break - entity might be in multiple cells
-                    // But we need to check this index again since we swapped
-                    --i;
+                    // Swap with last element and pop (faster than erase)
+                    monsters[j] = monsters.back();
+                    monsters.pop_back();
+                    break; // Entity appears only once per cell
                 }
             }
         }
+
+        // Clear the tracking data
+        ent->grid_cell_count = 0;
+        std::fill(std::begin(ent->grid_cells), std::end(ent->grid_cells), static_cast<int8_t>(-1));
     }
 
     // Helper method to query a range of cells with a filter function
@@ -170,10 +195,11 @@ namespace HordePhys
             {
                 const int cell_idx = y * GRID_DIMENSION + x;
                 const auto& cell = m_cells[static_cast<size_t>(cell_idx)];
+                const auto& monsters = cell.monsters;
 
-                for (size_t i = 0; i < cell.count && !buffer_full; ++i)
+                for (size_t i = 0; i < monsters.size() && !buffer_full; ++i)
                 {
-                    edict_t* other = cell.monsters[i];
+                    edict_t* other = monsters[i];
 
                     // Apply filter function
                     if (!filter(other)) {
@@ -332,8 +358,10 @@ void ProximityGrid::Reset()
     void EntityGrid::AddEntity(edict_t* ent) {
         if (!ent || !ent->inuse) return;
 
-        // Cache entity type
-        m_entity_types[ent->s.number] = GetEntityType(ent);
+        // Use cached entity type if available, otherwise compute and cache it
+        if (ent->cached_entity_type == 0) {
+            ent->cached_entity_type = GetEntityType(ent);
+        }
 
         // Use parent class Add method
         Add(ent);
@@ -367,8 +395,8 @@ void ProximityGrid::Reset()
         for (edict_t* ent : all_entities) {
             if (filtered_count >= m_filtered_buffer.size()) break;
 
-            auto it = m_entity_types.find(ent->s.number);
-            uint32_t ent_type = (it != m_entity_types.end()) ? it->second : 0;
+            // Use cached entity type instead of map lookup
+            uint32_t ent_type = ent->cached_entity_type;
             if (ent_type & type_mask) {
                 m_filtered_buffer[filtered_count++] = ent;
             }

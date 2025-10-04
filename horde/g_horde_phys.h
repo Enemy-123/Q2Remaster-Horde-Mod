@@ -13,24 +13,25 @@ namespace HordePhys {
 
     // A simple grid cell that holds pointers to monsters.
     struct ProximityGridCell {
-        static constexpr size_t MAX_MONSTERS_PER_CELL = 128; // Increased for coop/sp modes with more entities
-        std::array<edict_t*, MAX_MONSTERS_PER_CELL> monsters;
-        size_t count = 0;
+        // Using vector with reserved capacity for typical case, grows dynamically for dense areas
+        // This eliminates "cell is full" warnings while maintaining performance
+        static constexpr size_t TYPICAL_ENTITIES_PER_CELL = 32;
+        std::vector<edict_t*> monsters;
 
-        void clear() { count = 0; }
+        ProximityGridCell() {
+            monsters.reserve(TYPICAL_ENTITIES_PER_CELL);
+        }
+
+        void clear() {
+            monsters.clear();
+            // Keep the reserved capacity to avoid reallocation next frame
+        }
 
         void add(edict_t* ent) {
-            if (count < MAX_MONSTERS_PER_CELL) {
-                monsters[count++] = ent;
-            }
-            else {
-                if (developer->integer) {
-                    gi.Com_PrintFmt("ProximityGrid WARNING: Cell is full! (Max {}). Cannot add entity '{}'.\n",
-                        MAX_MONSTERS_PER_CELL,
-                        ent->classname ? ent->classname : "unknown");
-                }
-            }
+            monsters.push_back(ent);
         }
+
+        size_t count() const { return monsters.size(); }
     };
 
     // The main grid class that manages monster proximity checks.
@@ -98,10 +99,6 @@ namespace HordePhys {
         };
 
     private:
-        // Cache for entity types to avoid repeated classname checks
-        // Using unordered_map for sparse storage (most entity slots are unused)
-        std::unordered_map<int, uint32_t> m_entity_types;
-
         // Buffer for filtered query results (thread-safe member instead of static)
         std::array<edict_t*, MAX_QUERY_RESULTS> m_filtered_buffer;
 
