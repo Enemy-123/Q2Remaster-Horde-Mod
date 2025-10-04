@@ -652,14 +652,64 @@ void SP_monster_gladiator(edict_t* self)
 */
 void SP_monster_gladb(edict_t* self)
 {
+	const spawn_temp_t &st = ED_GetSpawnTemp();
+
 	self->style = 1;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_B);
+
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	SP_monster_gladiator(self);
+
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 400) * st.health_multiplier;
 }
 
 void SP_monster_gladc(edict_t* self)
 {
+	const spawn_temp_t &st = ED_GetSpawnTemp();
+
 	self->style = 3;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_C);
+
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	SP_monster_gladiator(self);
+
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 400) * st.health_multiplier;
 }

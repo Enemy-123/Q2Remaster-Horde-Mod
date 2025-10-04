@@ -1459,6 +1459,8 @@ void SP_monster_flyer(edict_t* self)
 // PMM - suicide fliers
 void SP_monster_kamikaze(edict_t* self)
 {
+	const spawn_temp_t &st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1466,9 +1468,30 @@ void SP_monster_kamikaze(edict_t* self)
 
 	self->s.effects |= EF_ROCKET;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::KAMIKAZE);
+
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	SP_monster_flyer(self);
 
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
 
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 50) * st.health_multiplier;
 
 	ApplyMonsterBonusFlags(self);
 

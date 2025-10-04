@@ -825,6 +825,8 @@ void SP_monster_boss2_64(edict_t *self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_64);
 
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	SP_monster_boss2(self);
 
 	if (g_horde->integer)
@@ -836,7 +838,25 @@ void SP_monster_boss2_64(edict_t *self)
 		self->maxs *= (self->s.scale);
 	}
 
-	self->health = 1300 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 1300) * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;
@@ -849,6 +869,9 @@ void SP_monster_boss2_mini(edict_t *self)
 	const spawn_temp_t &st = ED_GetSpawnTemp();
 	self->spawnflags &= ~SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_MINI);
+
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	SP_monster_boss2(self);
 	if (g_horde->integer)
 	{
@@ -859,7 +882,25 @@ void SP_monster_boss2_mini(edict_t *self)
 		self->maxs *= self->s.scale;
 	}
 
-	self->health = 1000 * st.health_multiplier;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 1000) * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;
@@ -870,9 +911,13 @@ void SP_monster_boss2_mini(edict_t *self)
 // HORDE BOSS
 void SP_monster_boss2kl(edict_t *self)
 {
+	const spawn_temp_t &st = ED_GetSpawnTemp();
 	//	if (brandom())
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_KL);
+
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	SP_monster_boss2(self);
 
 	if (g_horde->integer)
@@ -883,6 +928,26 @@ void SP_monster_boss2kl(edict_t *self)
 		self->mins *= (self->s.scale);
 		self->mins *= (self->s.scale);
 	}
+
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	self->health = (config ? config->health : 1000) * st.health_multiplier;
 	self->s.skinnum = 2;
 	self->gib_health = -130;
 
