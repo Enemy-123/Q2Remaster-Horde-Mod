@@ -1996,13 +1996,7 @@ DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	// Find and destroy all turrets this fixbot spawned
 	for (auto ent : active_monsters()) {
 		if (ent->inuse && ent->owner == self && horde::IsMonsterType(ent, horde::MonsterTypeID::TURRET)) {
-			// Create a large explosion at the turret's location
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(TE_BFG_BIGEXPLOSION);
-			gi.WritePosition(ent->s.origin);
-			gi.multicast(ent->s.origin, MULTICAST_PHS, false);
-			// Kill the turret with massive damage
-			T_Damage(ent, self, self, vec3_origin, ent->s.origin, vec3_origin, 99999, 100, DAMAGE_NO_PROTECTION, MOD_UNKNOWN);
+		BecomeTE(ent);
 		}
 	}
 
