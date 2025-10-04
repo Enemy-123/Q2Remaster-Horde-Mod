@@ -5,6 +5,7 @@
 #include "../m_player.h"
 #include "bot_utils.h"
 #include "../horde/p_flyer_morph.h"
+#include "../horde/horde_ids.h"
 
 constexpr int Team_Coop_Monster = 0;
 
@@ -192,7 +193,12 @@ void Monster_UpdateState(edict_t* monster) {
 		monster->sv.ent_flags |= SVFL_TAKES_DAMAGE;
 	}
 
-	if (monster->solid == SOLID_NOT || monster->movetype == MOVETYPE_NONE) {
+	// FIX: Don't mark turrets and sentries as hidden even though they have MOVETYPE_NONE
+	// These stationary monsters should be visible and targetable by bots
+	bool is_turret_or_sentry = (monster->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::TURRET) ||
+	                             monster->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::SENTRYGUN));
+
+	if (monster->solid == SOLID_NOT || (monster->movetype == MOVETYPE_NONE && !is_turret_or_sentry)) {
 		monster->sv.ent_flags |= SVFL_IS_HIDDEN;
 	}
 

@@ -615,6 +615,12 @@ void spawn_turret_at_position(edict_t* self, const vec3_t& position)
 	ent->nextthink = level.time;
 	ent->think(ent);
 
+	// Reset sv.init to ensure bot registration happens on next frame
+	// The think call above set SVF_MONSTER, but we need to force re-initialization
+	// for bot registration to occur
+	// if (ent->inuse && (ent->svflags & SVF_MONSTER))
+	// 	ent->sv.init = false;
+
 	// Post-spawn setup: Assign a valid enemy
 	// FIX: Use the same safe check before assigning the enemy.
 	if (M_HasValidTarget(self)) {
