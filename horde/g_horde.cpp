@@ -6031,11 +6031,11 @@ void Horde_RunFrame()
 				g_horde_local.accelerationStartTime = currentTime;
 				g_horde_local.accelerationDuration = 2_sec;
 
-				if (developer->integer)
-				{
-					gi.Com_PrintFmt("Spawning phase acceleration: {:.1f}x ({}s elapsed, {} remaining to spawn)\n",
-									target_accel, elapsed.seconds(), g_horde_local.num_to_spawn + g_horde_local.queued_monsters);
-				}
+				// if (developer->integer)
+				// {
+				// 	gi.Com_PrintFmt("Spawning phase acceleration: {:.1f}x ({}s elapsed, {} remaining to spawn)\n",
+				// 					target_accel, elapsed.seconds(), g_horde_local.num_to_spawn + g_horde_local.queued_monsters);
+				// }
 			}
 		}
 
