@@ -350,8 +350,6 @@ static int CheckArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, i
 
 	return save;
 }
-// In g_monster.c or wherever M_ReactToDamage is located
-
 
 void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 {

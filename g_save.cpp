@@ -1386,6 +1386,7 @@ FIELD_AUTO(monsterinfo.dodge_time),
 FIELD_AUTO(monsterinfo.move_block_counter),
 FIELD_AUTO(monsterinfo.move_block_change_time),
 FIELD_AUTO(monsterinfo.react_to_damage_time),
+FIELD_AUTO(monsterinfo.last_activity_time),
 FIELD_AUTO(monsterinfo.jump_time),
 
 //FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),

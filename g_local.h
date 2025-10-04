@@ -1872,6 +1872,7 @@ struct monsterinfo_t
 	int32_t move_block_counter;
 	gtime_t move_block_change_time;
 	gtime_t react_to_damage_time;
+	gtime_t last_activity_time;  // Horde: Timestamp of last activity (movement/combat/visibility)
 
 	reinforcement_list_t				reinforcements;
 	std::array<uint8_t, MAX_REINFORCEMENTS>	chosen_reinforcements; // readied for spawn; 255 is value for none

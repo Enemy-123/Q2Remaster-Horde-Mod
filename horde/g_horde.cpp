@@ -4393,12 +4393,12 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 			// Reset activity timer if monster is active
 			if (monster_can_see_enemy || monster_recently_moved || monster_recently_attacked)
 			{
-				self->monsterinfo.react_to_damage_time = level.time;
+				self->monsterinfo.last_activity_time = level.time;
 				return false;
 			}
 
-			// Check inactivity timeout (only if react_to_damage_time was initialized)
-			if (self->monsterinfo.react_to_damage_time > 0_sec && self->max_health > 0)
+			// Check inactivity timeout (only if last_activity_time was initialized)
+			if (self->monsterinfo.last_activity_time > 0_sec && self->max_health > 0)
 			{
 				const gtime_t timeout_duration = (self->health < self->max_health) ?
 					HordeConstants::GetDamagedMonsterTimeout(mapSize) :
@@ -4406,7 +4406,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 				const char* timeout_reason = (self->health < self->max_health) ?
 					"Damaged Monster Inactivity" : "No Damage Timeout (Failsafe)";
 
-				if (level.time > self->monsterinfo.react_to_damage_time + timeout_duration)
+				if (level.time > self->monsterinfo.last_activity_time + timeout_duration)
 				{
 					needs_teleport = true;
 					reason_str = timeout_reason;
@@ -6279,7 +6279,7 @@ bool Horde_TeleportMonster(edict_t *self, const vec3_t &destination_origin, cons
 
 	self->monsterinfo.was_stuck = false;
 	self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
-	self->monsterinfo.react_to_damage_time = level.time;
+	self->monsterinfo.last_activity_time = level.time;
 	self->teleport_time = level.time + random_time(HordeConstants::MIN_TELEPORT_COOLDOWN_MONSTER, HordeConstants::MAX_TELEPORT_COOLDOWN_MONSTER);
 
 	return true;
