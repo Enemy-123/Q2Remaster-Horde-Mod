@@ -95,8 +95,7 @@ static bool need_queue_monitor_reset = false;
 
 static gtime_t g_horde_retaliation_end_time = 0_sec;
 static gtime_t g_horde_retaliation_last_trigger_time = 0_sec;  // Cooldown tracking
-// Optional: Store the targeted player edict for focus (can be nullptr)
-static edict_t *g_horde_retaliation_target_player = nullptr;
+// NOTE: Target player is stored in g_spawn_system.special_spawn_state.target_player (currently unused)
 
 // Ambush system tracking variables
 static gtime_t last_ambush_time = 0_sec;
@@ -3287,7 +3286,6 @@ void ResetGame()
 
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;
-	g_horde_retaliation_target_player = nullptr;
 
 	//resetting idview special entities
 	g_targetable_special_entities.clear();
@@ -3322,7 +3320,6 @@ void ResetGame()
     g_spawn_system.special_spawn_state.clear(); // This replaces the old ambush/retaliation resets
     // REMOVED: g_horde_retaliation_active - using g_spawn_system.special_spawn_state.type instead
     g_horde_retaliation_end_time = 0_sec;
-    g_horde_retaliation_target_player = nullptr;
     // =======================================================================
 
 	g_adjusted_monster_cap = 0;
@@ -4760,7 +4757,6 @@ static void TriggerRetaliation(const horde::MapSize& mapSize, int32_t waveLevel,
 	// Retaliation state is now managed through g_spawn_system.special_spawn_state
 	// The type was already set above in g_spawn_system.special_spawn_state.type = SpecialSpawnType::Retaliation
 	g_horde_retaliation_end_time = level.time + HordeConstants::RETALIATION_DURATION;
-	g_horde_retaliation_target_player = target_player;
 }
 
 // This function is called when a random ambush is triggered.
@@ -5982,7 +5978,6 @@ void Horde_RunFrame()
 	if (g_spawn_system.special_spawn_state.type == SpecialSpawnType::Retaliation && currentTime >= g_horde_retaliation_end_time) {
 		g_spawn_system.special_spawn_state.clear();
 		g_horde_retaliation_end_time = 0_sec;
-		g_horde_retaliation_target_player = nullptr;
 		if (developer->integer) {
 			gi.Com_PrintFmt("HORDE: Retaliation Mode Ended.\n");
 		}
@@ -6579,6 +6574,8 @@ static bool ShouldPrecacheMoreMonsters(int current_wave)
 
 static void Horde_InitLevel(const int32_t lvl)
 {
+	// Cache player count for performance (used multiple times in this function)
+	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
 	// Build the map of spawn points once, right before the first wave,
 	// ensuring all map entities have been loaded.
@@ -6592,7 +6589,6 @@ static void Horde_InitLevel(const int32_t lvl)
 	// REMOVED: g_horde_retaliation_active - using g_spawn_system.special_spawn_state.type instead
 	g_horde_retaliation_end_time = 0_sec;
 	g_horde_retaliation_last_trigger_time = 0_sec;
-	g_horde_retaliation_target_player = nullptr;
 	ResetChampionMonsterState();
 	waves_since_ambush++;
 
@@ -6910,14 +6906,14 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_horde_local.conditionTriggered = false;
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.lastPrintTime = 0_sec;
-	g_lastParams = GetConditionParams(g_horde_local.current_map_size, GetNumHumanPlayers(), lvl);
+	g_lastParams = GetConditionParams(g_horde_local.current_map_size, numHumanPlayers, lvl);
 
 	for (size_t i = 0; i < WARNING_TIMES.size(); i++)
 	{
 		g_horde_local.warningIssued[i] = false;
 	}
 
-	UnifiedAdjustSpawnRate(g_horde_local.current_map_size, lvl, GetNumHumanPlayers());
+	UnifiedAdjustSpawnRate(g_horde_local.current_map_size, lvl, numHumanPlayers);
 
 	int32_t total_planned_for_wave = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
 	g_totalMonstersInWave = static_cast<uint16_t>(
