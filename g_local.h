@@ -2252,6 +2252,7 @@ void Cmd_RemoveLaser_f(edict_t* ent); // Added forward declaration
 void Cmd_RemoveSentry_f(edict_t* ent); // Added forward declaration
 void Cmd_RemoveBarrel_f(edict_t* ent); // Remove all barrels
 void Cmd_Barrel_f(edict_t* ent); // Barrel testing command
+void Cmd_TeleportForward_f(edict_t* ent); // Teleport forward ability
 void Barrel_SmartAction(edict_t* ent); // Smart barrel action (spawn/throw/pickup)
 void remove_barrels(edict_t* ent);
 bool barrel_pickup(edict_t* player, edict_t* barrel);
@@ -3258,7 +3259,7 @@ struct client_respawn_t
 	int      num_summons = 0;
 	edict_t* deployed_summons[SummonConstants::MAX_SUMMONS_ARRAY_SIZE];
 
-	gtime_t teleport_cooldown = 3_sec;
+	gtime_t teleport_cooldown = 0.5_sec;
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 	gtime_t bombspell_forward_cooldown = 0_sec;
 	gtime_t bombspell_area_cooldown = 0_sec;
