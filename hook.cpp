@@ -57,7 +57,7 @@ bool Hook_CanChainEntity(edict_t* entity, edict_t* player)
 	if (entity->monsterinfo.issummoned)
 	{
 		// Check if the player owns this summon via deployed_summons array
-		for (int i = 0; i < MAX_STROGG_SUMMONS_ARRAY_SIZE; i++)
+		for (int i = 0; i < SummonConstants::MAX_SUMMONS_ARRAY_SIZE; i++)
 		{
 			if (player->client->resp.deployed_summons[i] == entity)
 				return true;

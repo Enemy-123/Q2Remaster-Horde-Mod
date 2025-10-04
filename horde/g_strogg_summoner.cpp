@@ -31,7 +31,7 @@ void RemoveSummonFromPlayerArray(edict_t* monster)
 	edict_t* player = monster->chain;
 
 	// Find and remove this monster from the player's tracking array
-	for (int i = 0; i < MAX_STROGG_SUMMONS_ARRAY_SIZE; i++) {
+	for (int i = 0; i < SummonConstants::MAX_SUMMONS_ARRAY_SIZE; i++) {
 		if (player->client->resp.deployed_summons[i] == monster) {
 			player->client->resp.deployed_summons[i] = nullptr;
 			// Decrement with bounds checking
@@ -277,7 +277,7 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 
 	// Add monster to player's tracking array
 	bool added = false;
-	for (int i = 0; i < MAX_STROGG_SUMMONS_ARRAY_SIZE; i++) {
+	for (int i = 0; i < SummonConstants::MAX_SUMMONS_ARRAY_SIZE; i++) {
 		if (!ent->client->resp.deployed_summons[i] || !ent->client->resp.deployed_summons[i]->inuse) {
 			ent->client->resp.deployed_summons[i] = monster;
 			added = true;
@@ -305,7 +305,7 @@ void fire_strogg_summoner(edict_t* ent, const vec3_t& start, const vec3_t& aimdi
 		}
 	}
 	gi.LocClient_Print(ent, PRINT_HIGH, "Strogg {} summoned! ({}/{})\n",
-		monster_name, ent->client->resp.num_summons, MAX_STROGG_SUMMONS());
+		monster_name, ent->client->resp.num_summons, SummonConstants::MAX_SUMMONS_PER_PLAYER());
 }
 
 // Replacement for StroggSummonAtPoint - returns the monster
@@ -327,7 +327,7 @@ edict_t* StroggSummonAtPoint(edict_t* owner, const vec3_t& spawn_origin, const v
 	// Check if a new summon was added
 	if (owner->client->resp.num_summons > prev_count) {
 		// Find the most recently added summon (the one we just created)
-		for (int i = MAX_STROGG_SUMMONS_ARRAY_SIZE - 1; i >= 0; i--) {
+		for (int i = SummonConstants::MAX_SUMMONS_ARRAY_SIZE - 1; i >= 0; i--) {
 			edict_t* summon = owner->client->resp.deployed_summons[i];
 			if (summon && summon->inuse) {
 				vec3_t diff = summon->s.origin - spawn_origin;
@@ -351,7 +351,7 @@ void Use_StroggSummon_Impl(edict_t* ent, gitem_t* item)
 	}
 
 	// Determine max summons based on whether player is a bot
-	int max_summons = (ent->svflags & SVF_BOT) ? 1 : MAX_STROGG_SUMMONS();
+	int max_summons = (ent->svflags & SVF_BOT) ? 1 : SummonConstants::MAX_SUMMONS_PER_PLAYER();
 
 	// Check if player already has maximum summons
 	if (ent->client->resp.num_summons >= max_summons) {
@@ -502,8 +502,8 @@ int RemoveSummonedEntities(edict_t* owner)
 	int removed_count = 0;
 
 	// Collect all summons first (to avoid modifying array while iterating)
-	edict_t* summons_to_kill[MAX_STROGG_SUMMONS_ARRAY_SIZE] = {nullptr};
-	for (int i = 0; i < MAX_STROGG_SUMMONS_ARRAY_SIZE; i++) {
+	edict_t* summons_to_kill[SummonConstants::MAX_SUMMONS_ARRAY_SIZE] = {nullptr};
+	for (int i = 0; i < SummonConstants::MAX_SUMMONS_ARRAY_SIZE; i++) {
 		edict_t* summon = owner->client->resp.deployed_summons[i];
 		if (summon && summon->inuse) {
 			summons_to_kill[i] = summon;
@@ -512,13 +512,13 @@ int RemoveSummonedEntities(edict_t* owner)
 	}
 
 	// Now clear the array BEFORE killing (to prevent die() from trying to remove again)
-	for (int i = 0; i < MAX_STROGG_SUMMONS_ARRAY_SIZE; i++) {
+	for (int i = 0; i < SummonConstants::MAX_SUMMONS_ARRAY_SIZE; i++) {
 		owner->client->resp.deployed_summons[i] = nullptr;
 	}
 	owner->client->resp.num_summons = 0;
 
 	// Kill all collected summons
-	for (int i = 0; i < MAX_STROGG_SUMMONS_ARRAY_SIZE; i++) {
+	for (int i = 0; i < SummonConstants::MAX_SUMMONS_ARRAY_SIZE; i++) {
 		if (summons_to_kill[i]) {
 			edict_t* summon = summons_to_kill[i];
 			// Use T_Damage for immediate gibbing instead of die()

@@ -3227,7 +3227,7 @@ static void ResetPlayerDeployedItems()
 
 		// Traps
 		client->resp.num_traps = 0;
-		std::fill(client->resp.deployed_traps, client->resp.deployed_traps + TrapConstants::MAX_TRAPS_PER_PLAYER, nullptr);
+		std::fill(client->resp.deployed_traps, client->resp.deployed_traps + TrapConstants::MAX_TRAPS_ARRAY_SIZE, nullptr);
 		client->resp.oldest_trap_idx = 0;
 
 		// Prox Mines
@@ -3245,7 +3245,7 @@ static void ResetPlayerDeployedItems()
 
 		// Summoned Stroggs
 		client->resp.num_summons = 0;
-		std::fill(client->resp.deployed_summons, client->resp.deployed_summons + MAX_STROGG_SUMMONS_ARRAY_SIZE, nullptr);
+		std::fill(client->resp.deployed_summons, client->resp.deployed_summons + SummonConstants::MAX_SUMMONS_ARRAY_SIZE, nullptr);
 
 		// Timers
 		client->resp.teleport_cooldown = 3_sec; // Reset to default or 0_sec if appropriate

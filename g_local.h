@@ -2973,30 +2973,26 @@ struct regeneration_info_t {
 	}
 };
 
-namespace TeslaConstants {
-    constexpr int32_t MAX_TESLAS_ARRAY_SIZE = 32;  // Compile-time array size
-    inline int32_t MAX_TESLAS_PER_PLAYER() { return g_config.entity_limits.max_teslas; }  // Runtime limit from config
-	constexpr gtime_t TIME_TO_LIVE = 60_sec;
-}
+// ==================== DEPLOYABLE ENTITY LIMITS ====================
+// All deployable entities have two limits:
+// - Array size (compile-time): Must be >= config limit to prevent crashes
+// - Runtime limit (from config): Actual enforced limit during gameplay
 
-namespace SentryConstants {
-    constexpr int32_t MAX_SENTRIES_ARRAY_SIZE = 16;  // Compile-time array size
-    inline int32_t MAX_SENTRIES_PER_PLAYER() { return g_config.entity_limits.max_sentries; }  // Runtime limit from config
-}
-
-namespace TrapConstants {
-    constexpr int32_t MAX_TRAPS_PER_PLAYER = 12;  // Compile-time array size
-    inline int32_t MAX_TRAPS() { return g_config.entity_limits.max_traps; }  // Runtime limit from config
-}
-
-namespace ProxConstants {
-    constexpr int MAX_PROXS_ARRAY_SIZE = 64;  // Compile-time array size
-    inline int MAX_PROXS_PER_PLAYER() { return g_config.entity_limits.max_prox; }  // Runtime limit from config
+namespace BarrelConstants {
+    constexpr int32_t MAX_BARRELS_ARRAY_SIZE = 16;
+    inline int32_t MAX_BARRELS_PER_PLAYER() { return g_config.entity_limits.max_barrels; }
+    constexpr int32_t BARREL_COST = 10;
+    constexpr gtime_t BARREL_LIFETIME = 120_sec;
+    constexpr int32_t BARREL_BASE_HEALTH = 30;
+    constexpr int32_t BARREL_BASE_DAMAGE = 100;
+    constexpr float BARREL_EXPLOSION_RADIUS = 350.0f;
+    constexpr float BARREL_PICKUP_RANGE = 128.0f;
+    constexpr float BARREL_THROW_SPEED = 700.0f;
 }
 
 namespace LaserConstants {
-    constexpr int32_t MAX_LASERS_ARRAY_SIZE = 16;  // Compile-time array size
-    inline int32_t MAX_LASERS_PER_PLAYER() { return g_config.entity_limits.max_lasers; }  // Runtime limit from config
+    constexpr int32_t MAX_LASERS_ARRAY_SIZE = 16;
+    inline int32_t MAX_LASERS_PER_PLAYER() { return g_config.entity_limits.max_lasers; }
     constexpr int32_t LASER_COST = 25;
     constexpr int32_t LASER_INITIAL_DAMAGE = 1;
     constexpr int32_t LASER_ADDON_DAMAGE = 4;
@@ -3008,32 +3004,41 @@ namespace LaserConstants {
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;
-
     // Visual appearance constants
     constexpr uint32_t COLOR_LASER_HEALTHY = 0xf2f2f0f0;
     constexpr uint32_t COLOR_LASER_DAMAGED = 0xd0d1d2d3;
     constexpr uint32_t COLOR_LASER_WARNING = 0xd0d1d2d3;
-    constexpr uint32_t COLOR_FLARE_HEALTHY = 0xFF0000FF; // Flare when laser is healthy
-    constexpr uint32_t COLOR_FLARE_DAMAGED = 0x00FF00FF; // Flare when laser is damaged
-    constexpr uint32_t COLOR_FLARE_WARNING = 0x00FF00FF; // Flare during warning blink
+    constexpr uint32_t COLOR_FLARE_HEALTHY = 0xFF0000FF;
+    constexpr uint32_t COLOR_FLARE_DAMAGED = 0x00FF00FF;
+    constexpr uint32_t COLOR_FLARE_WARNING = 0x00FF00FF;
     constexpr float HEALTH_THRESHOLD_DAMAGED = 0.25f;
 }
-namespace BarrelConstants {
-    constexpr int32_t MAX_BARRELS_ARRAY_SIZE = 16;  // Compile-time array size
-    inline int32_t MAX_BARRELS_PER_PLAYER() { return g_config.entity_limits.max_barrels; }  // Runtime limit from config
-    constexpr int32_t BARREL_COST = 10;
-    constexpr gtime_t BARREL_LIFETIME = 120_sec;
-    constexpr int32_t BARREL_BASE_HEALTH = 30;
-    constexpr int32_t BARREL_BASE_DAMAGE = 100;  // Reduced from 150
-    constexpr float BARREL_EXPLOSION_RADIUS = 350.0f;  // Reduced from 400
-    constexpr float BARREL_PICKUP_RANGE = 128.0f;
-    constexpr float BARREL_THROW_SPEED = 700.0f;
+
+namespace ProxConstants {
+    constexpr int32_t MAX_PROXS_ARRAY_SIZE = 64;
+    inline int32_t MAX_PROXS_PER_PLAYER() { return g_config.entity_limits.max_prox; }
 }
 
-// Strogg summoner limits (also used for medic resurrection limit)
-constexpr int32_t MAX_STROGG_SUMMONS_ARRAY_SIZE = 16;  // Compile-time array size
-inline int32_t MAX_STROGG_SUMMONS() { return g_config.entity_limits.max_summons; }  // Runtime limit from config
-// Legacy constant removed - use MAX_STROGG_SUMMONS() for runtime checks
+namespace SentryConstants {
+    constexpr int32_t MAX_SENTRIES_ARRAY_SIZE = 32;
+    inline int32_t MAX_SENTRIES_PER_PLAYER() { return g_config.entity_limits.max_sentries; }
+}
+
+namespace SummonConstants {
+    constexpr int32_t MAX_SUMMONS_ARRAY_SIZE = 16;
+    inline int32_t MAX_SUMMONS_PER_PLAYER() { return g_config.entity_limits.max_summons; }
+}
+
+namespace TeslaConstants {
+    constexpr int32_t MAX_TESLAS_ARRAY_SIZE = 32;
+    inline int32_t MAX_TESLAS_PER_PLAYER() { return g_config.entity_limits.max_teslas; }
+    constexpr gtime_t TIME_TO_LIVE = 60_sec;
+}
+
+namespace TrapConstants {
+    constexpr int32_t MAX_TRAPS_ARRAY_SIZE = 16;
+    inline int32_t MAX_TRAPS_PER_PLAYER() { return g_config.entity_limits.max_traps; }
+}
 
 
 // Define esta enumeración antes de la estructura edict_t
@@ -3232,7 +3237,7 @@ struct client_respawn_t
 
 	// Food Cubes - TRAPS
     int      num_traps = 0;
-    edict_t* deployed_traps[TrapConstants::MAX_TRAPS_PER_PLAYER];
+    edict_t* deployed_traps[TrapConstants::MAX_TRAPS_ARRAY_SIZE];
     int      oldest_trap_idx;
 
 	// --- Prox Mine Tracking ---
@@ -3250,7 +3255,7 @@ struct client_respawn_t
 
 	// Strogg Summons
 	int      num_summons = 0;
-	edict_t* deployed_summons[MAX_STROGG_SUMMONS_ARRAY_SIZE];
+	edict_t* deployed_summons[SummonConstants::MAX_SUMMONS_ARRAY_SIZE];
 
 	gtime_t teleport_cooldown = 3_sec;
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client

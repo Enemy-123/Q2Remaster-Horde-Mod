@@ -168,7 +168,7 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
         }
 
         // Find and null out this trap in the owner's tracking array
-        for (int i = 0; i < TrapConstants::MAX_TRAPS_PER_PLAYER; ++i) {
+        for (int i = 0; i < TrapConstants::MAX_TRAPS_ARRAY_SIZE; ++i) {
             if (client->resp.deployed_traps[i] == self) {
                 client->resp.deployed_traps[i] = nullptr;
                 break; // Found and removed, no need to search further.
@@ -667,7 +667,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
         }
 
         // --- "REPLACE OLDEST" LOGIC ---
-        if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS()) {
+        if (self->client && self->client->resp.num_traps >= TrapConstants::MAX_TRAPS_PER_PLAYER()) {
             edict_t* oldest = self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx];
 
             if (oldest && oldest->inuse && horde::IsSpecialType(oldest, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
@@ -757,7 +757,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
         // Add the new trap to our tracking array.
         self->client->resp.deployed_traps[self->client->resp.oldest_trap_idx] = trap;
         // Advance the index for the next "oldest".
-        self->client->resp.oldest_trap_idx = (self->client->resp.oldest_trap_idx + 1) % TrapConstants::MAX_TRAPS_PER_PLAYER;
+        self->client->resp.oldest_trap_idx = (self->client->resp.oldest_trap_idx + 1) % TrapConstants::MAX_TRAPS_ARRAY_SIZE;
         self->client->resp.num_traps++;
     }
 }
