@@ -501,7 +501,7 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
     vec3_t predicted_mins, predicted_maxs;
     GetPredictedScaledBounds(typeId, predicted_mins, predicted_maxs);
 
-    // Use radial attempts to find alternative spawn positions
+    // Phase 1: Use radial attempts to find alternative spawn positions
     for (int i = 0; i < HordeConstants::ALTERNATIVE_RADIAL_ATTEMPTS; ++i)
     {
         const float radius = frandom(HordeConstants::ALTERNATIVE_MIN_RADIUS, HordeConstants::ALTERNATIVE_MAX_RADIUS);
@@ -519,6 +519,37 @@ bool TryAlternativeSpawnPosition(edict_t* spawn_point, horde::MonsterTypeID type
                                            final_origin, final_angles))
         {
             return true;
+        }
+    }
+
+    // Phase 2: NEW - If radial search failed, try spawn grid positions near this spawn point
+    if (HordePhys::g_spawn_grid.IsGenerated())
+    {
+        constexpr int GRID_ATTEMPTS = 32;
+        constexpr float GRID_MIN_DIST = 64.0f;
+        constexpr float GRID_MAX_DIST = 512.0f;
+
+        for (int attempt = 0; attempt < GRID_ATTEMPTS; ++attempt)
+        {
+            vec3_t grid_pos;
+            if (!HordePhys::g_spawn_grid.GetRandomPositionNear(base_origin, GRID_MIN_DIST, GRID_MAX_DIST, grid_pos))
+                continue;
+
+            // Validate grid position
+            const auto validation = IsPositionPhysicallyValid(grid_pos, predicted_mins, predicted_maxs, is_flying);
+            if (validation.is_valid)
+            {
+                final_origin = validation.adjusted_position;
+                final_angles = base_angles;
+
+                if (developer->integer > 1)
+                {
+                    gi.Com_PrintFmt("Alternative spawn used GRID position at {} (dist from spawn: {:.1f})\n",
+                        final_origin, (final_origin - base_origin).length());
+                }
+
+                return true;
+            }
         }
     }
 

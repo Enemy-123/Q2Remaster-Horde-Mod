@@ -22,6 +22,7 @@ struct PlayerStats;
 
 // --- Horde Mode Game Initialization and Management Functions ---
 extern cvar_t* g_horde;
+extern cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
 void Horde_PreInit();
 void Horde_Init();
 void Horde_RunFrame();

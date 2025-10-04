@@ -107,4 +107,57 @@ namespace HordePhys {
 
     extern EntityGrid g_entity_grid;
 
+    // =======================================================================
+    // Spawn Grid System - Pre-validated spawn positions across the map
+    // Ported from Vortex mod's grid system to prevent out-of-map spawns
+    // =======================================================================
+
+    class SpawnGrid {
+    public:
+        static constexpr int MAX_GRID_NODES = 10000;
+        static constexpr int GRID_DIMENSION = 64;   // 64x64x64 grid cells (adaptive to map size)
+        static constexpr int GRID_SPACING = 16;     // 16 units between grid points
+
+        // Generate the spawn grid for the current map
+        // Scans the entire map and validates spawn positions
+        bool Generate(const vec3_t& world_mins, const vec3_t& world_maxs, bool force_regenerate = false);
+
+        // Get a random validated spawn position from the grid
+        bool GetRandomPosition(vec3_t& out_pos) const;
+
+        // Get a random position within distance range from a point
+        bool GetRandomPositionNear(const vec3_t& center, float min_dist, float max_dist, vec3_t& out_pos) const;
+
+        // Get number of grid nodes generated
+        [[nodiscard]] int GetNodeCount() const noexcept { return m_node_count; }
+
+        // Check if grid has been generated
+        [[nodiscard]] bool IsGenerated() const noexcept { return m_node_count > 0; }
+
+        // Clear the grid
+        void Clear();
+
+        // Save/load grid to disk for faster map loads
+        bool SaveToDisk(const char* mapname) const;
+        bool LoadFromDisk(const char* mapname);
+
+    private:
+        std::vector<vec3_t> m_grid_nodes;
+        int m_node_count = 0;
+        vec3_t m_world_mins{};
+        vec3_t m_world_maxs{};
+        vec3_t m_grid_size{};  // Size per grid cell
+
+        // Helper functions for grid generation (ported from Vortex)
+        bool ValidateSpawnPosition(const vec3_t& pos, const vec3_t& mins, const vec3_t& maxs) const;
+        bool CheckBottom(const vec3_t& pos, const vec3_t& boxmin, const vec3_t& boxmax) const;
+        bool IsNearbyGridNode(const vec3_t& pos, int current_count, float min_distance = 129.0f) const;
+
+        // Grid coordinate conversion (maps world coords to grid indices using actual map bounds)
+        vec3_t GridToWorld(int x, int y, int z) const;
+        void WorldToGrid(const vec3_t& world_pos, int& out_x, int& out_y, int& out_z) const;
+    };
+
+    extern SpawnGrid g_spawn_grid;
+
 } // namespace HordePhys

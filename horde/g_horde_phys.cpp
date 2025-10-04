@@ -2,12 +2,44 @@
 #include "../g_local.h"
 #include <algorithm> // For std::min/max
 #include <unordered_map>
+#include <filesystem> // For path operations
+#ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h> // For GetModuleFileName, MAX_PATH
+    #include <direct.h> // For _mkdir on Windows
+#else
+    #include <sys/stat.h> // For mkdir on Unix
+#endif
 
 namespace HordePhys
 {
+    // Helper function to get DLL directory path
+    static bool GetDLLDirectory(std::filesystem::path& out_path) {
+        #ifdef _WIN32
+            std::array<char, MAX_PATH> modulePath{};
+
+            HMODULE hModule = nullptr;
+            if (!GetModuleHandleExA(
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                reinterpret_cast<LPCSTR>(&GetDLLDirectory), // Use this function's address
+                &hModule)) {
+                return false;
+            }
+
+            if (GetModuleFileNameA(hModule, modulePath.data(), MAX_PATH) == 0) {
+                return false;
+            }
+
+            out_path = std::filesystem::path(modulePath.data()).parent_path();
+            return true;
+        #else
+            return false; // Not implemented for non-Windows
+        #endif
+    }
 
     ProximityGrid g_monster_grid;
     EntityGrid g_entity_grid;
+    SpawnGrid g_spawn_grid;
 
     // Gets the water level for a raw position, simulating a standard monster's bounding box.
     // This is essential for checking potential spawn points before a monster exists there.
@@ -403,6 +435,411 @@ void ProximityGrid::Reset()
         }
 
         return { m_filtered_buffer.data(), filtered_count };
+    }
+
+    // =======================================================================
+    // SpawnGrid Implementation - Ported from Vortex mod
+    // =======================================================================
+
+    // Helper: Check if floor beneath position is solid and walkable
+    bool SpawnGrid::CheckBottom(const vec3_t& pos, const vec3_t& boxmin, const vec3_t& boxmax) const {
+        vec3_t mins, maxs, start, stop;
+        trace_t trace;
+
+        mins = pos + boxmin;
+        maxs = pos + boxmax;
+
+        // Check if all corners are solid (fast path)
+        start[2] = mins[2] - 8.0f;
+        for (int x = 0; x <= 1; x++) {
+            for (int y = 0; y <= 1; y++) {
+                start[0] = x ? maxs[0] : mins[0];
+                start[1] = y ? maxs[1] : mins[1];
+                if (gi.pointcontents(start) != CONTENTS_SOLID)
+                    goto realcheck;
+            }
+        }
+        return true;  // All corners solid, good enough
+
+    realcheck:
+        // Check midpoint
+        start[2] = mins[2];
+        start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5f;
+        start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5f;
+        stop[2] = start[2] - 36.0f;  // 2*18 units down
+
+        trace = gi.trace(start, vec3_origin, vec3_origin, stop, nullptr, MASK_PLAYERSOLID);
+        if (trace.fraction == 1.0f)
+            return false;
+
+        float mid = trace.endpos[2];
+        float bottom = mid;
+
+        // Check corners must be within 18 units of midpoint
+        for (int x = 0; x <= 1; x++) {
+            for (int y = 0; y <= 1; y++) {
+                start[0] = stop[0] = x ? maxs[0] : mins[0];
+                start[1] = stop[1] = y ? maxs[1] : mins[1];
+
+                trace = gi.trace(start, vec3_origin, vec3_origin, stop, nullptr, MASK_PLAYERSOLID);
+
+                if (trace.fraction != 1.0f && trace.endpos[2] > bottom)
+                    bottom = trace.endpos[2];
+                if (trace.fraction == 1.0f || mid - trace.endpos[2] > 18.0f)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Helper: Check if position is too close to existing grid nodes
+    bool SpawnGrid::IsNearbyGridNode(const vec3_t& pos, int current_count, float min_distance) const {
+        const float min_dist_sq = min_distance * min_distance;
+
+        for (int i = 0; i < current_count; i++) {
+            const float dist_sq = (m_grid_nodes[i] - pos).lengthSquared();
+            if (dist_sq < min_dist_sq)
+                return true;
+        }
+        return false;
+    }
+
+    // Helper: Validate a potential spawn position
+    bool SpawnGrid::ValidateSpawnPosition(const vec3_t& pos, const vec3_t& mins, const vec3_t& maxs) const {
+        // Check point contents
+        const contents_t cont = gi.pointcontents(pos);
+        if (cont & MASK_OPAQUE)
+            return false;
+
+        // Check for hazards
+        if (cont & (CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WINDOW))
+            return false;
+
+        // Check if bbox fits
+        const trace_t tr = gi.trace(pos, mins, maxs, pos, nullptr, MASK_OPAQUE);
+        if (tr.startsolid || tr.allsolid || tr.fraction != 1.0f)
+            return false;
+
+        return true;
+    }
+
+    // Clear the grid
+    void SpawnGrid::Clear() {
+        m_grid_nodes.clear();
+        m_node_count = 0;
+    }
+
+    // Grid coordinate conversion helpers
+    vec3_t SpawnGrid::GridToWorld(int x, int y, int z) const {
+        return vec3_t{
+            m_world_mins.x + (x + 0.5f) * m_grid_size.x,
+            m_world_mins.y + (y + 0.5f) * m_grid_size.y,
+            m_world_mins.z + (z + 0.5f) * m_grid_size.z
+        };
+    }
+
+    void SpawnGrid::WorldToGrid(const vec3_t& world_pos, int& out_x, int& out_y, int& out_z) const {
+        out_x = static_cast<int>((world_pos.x - m_world_mins.x) / m_grid_size.x);
+        out_y = static_cast<int>((world_pos.y - m_world_mins.y) / m_grid_size.y);
+        out_z = static_cast<int>((world_pos.z - m_world_mins.z) / m_grid_size.z);
+
+        out_x = std::clamp(out_x, 0, GRID_DIMENSION - 1);
+        out_y = std::clamp(out_y, 0, GRID_DIMENSION - 1);
+        out_z = std::clamp(out_z, 0, GRID_DIMENSION - 1);
+    }
+
+    // Generate the spawn grid by scanning the entire map
+    // Based on Vortex's CreateGrid() function
+    bool SpawnGrid::Generate(const vec3_t& world_mins, const vec3_t& world_maxs, bool force_regenerate) {
+        if (!force_regenerate && LoadFromDisk(level.mapname)) {
+            gi.Com_PrintFmt("Spawn grid loaded from disk ({} nodes).\n", m_node_count);
+            return true;
+        }
+
+        Clear();
+        m_grid_nodes.reserve(MAX_GRID_NODES);
+
+        // Store world bounds
+        m_world_mins = world_mins;
+        m_world_maxs = world_maxs;
+
+        // Calculate grid cell size
+        const vec3_t world_span = world_maxs - world_mins;
+        m_grid_size = world_span / static_cast<float>(GRID_DIMENSION);
+
+        gi.Com_PrintFmt("Spawn grid world bounds: mins={} maxs={}\n", world_mins, world_maxs);
+        gi.Com_PrintFmt("Spawn grid cell size: {}\n", m_grid_size);
+
+        // Use TWO different bounding boxes like Vortex:
+        // Point trace to find ground, then box for clearance validation
+        const vec3_t trace_mins = {0, 0, 0};      // Point trace (no bbox)
+        const vec3_t trace_maxs = {0, 0, 0};
+        const vec3_t spawn_mins = {-16, -16, 0};  // Spawn box for clearance
+        const vec3_t spawn_maxs = {16, 16, 0};
+        int generated_count = 0;
+
+        // Debug counters
+        int tested_positions = 0;
+        int failed_pointcontents = 0, failed_func_entity = 0, failed_hazards = 0;
+        int failed_slope = 0, failed_clearance = 0, failed_final_trace = 0;
+        int failed_checkbottom = 0, failed_nearby = 0;
+
+        gi.Com_PrintFmt("Generating spawn grid for map {}...\n", level.mapname);
+
+        // Scan the entire map in a 3D grid pattern
+        for (int x = 0; x < GRID_DIMENSION; x++) {
+            for (int y = 0; y < GRID_DIMENSION; y++) {
+                for (int z = GRID_DIMENSION - 1; z >= 0; z--) {
+                    vec3_t test_pos = GridToWorld(x, y, z);
+                    tested_positions++;
+
+                    // Skip if in solid/lava/slime/window/ladder
+                    if (gi.pointcontents(test_pos) & MASK_OPAQUE) {
+                        failed_pointcontents++;
+                        z--;
+                        continue;
+                    }
+
+                    // Trace down to find ground using point trace
+                    vec3_t endpt = test_pos;
+                    endpt[2] = m_world_mins.z - 512.0f;  // Trace below world bounds
+
+                    trace_t tr1 = gi.trace(test_pos, trace_mins, trace_maxs, endpt, nullptr, MASK_OPAQUE);
+
+                    // Set z to ground level for next iteration
+                    int gx, gy, gz;
+                    WorldToGrid(tr1.endpos, gx, gy, gz);
+                    z = gz;
+
+                    // Skip if hit func entity (doors, platforms, etc) - exclude world entity
+                    if (tr1.ent && tr1.ent != &g_edicts[0] && tr1.ent->movetype != MOVETYPE_NONE) {
+                        failed_func_entity++;
+                        continue;
+                    }
+
+                    // Skip hazards
+                    if (tr1.contents & (CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WINDOW)) {
+                        failed_hazards++;
+                        continue;
+                    }
+
+                    // REDUCED: Skip VERY non-walkable slopes (was 0.7, now 0.5 = ~60 degrees)
+                    if (tr1.plane.normal[2] < 0.5f) {
+                        failed_slope++;
+                        continue;
+                    }
+
+                    // REDUCED: Test vertical clearance (was 32 units, now 24 for crouched monster)
+                    vec3_t clearance_start = tr1.endpos;
+                    vec3_t clearance_end = clearance_start;
+                    clearance_end[2] += 24.0f;  // Reduced from 32
+
+                    trace_t tr2 = gi.trace(clearance_end, spawn_mins, spawn_maxs, clearance_start, nullptr, MASK_OPAQUE);
+
+                    // Skip if not enough clearance
+                    if (tr2.startsolid || tr2.allsolid) {
+                        failed_clearance++;
+                        continue;
+                    }
+
+                    // Final position check
+                    vec3_t final_pos = tr2.endpos;
+                    final_pos[2] += 24.0f;  // Reduced from 32
+
+                    trace_t tr3 = gi.trace(final_pos, spawn_mins, spawn_maxs, final_pos, nullptr, MASK_OPAQUE);
+                    if (tr3.fraction != 1.0f || tr3.startsolid || tr3.allsolid) {
+                        failed_final_trace++;
+                        continue;
+                    }
+
+                    // Check floor is solid
+                    if (!CheckBottom(final_pos, spawn_mins, spawn_maxs)) {
+                        failed_checkbottom++;
+                        continue;
+                    }
+
+                    // REDUCED: Skip if too close to existing node (was 129, now 64 units)
+                    if (IsNearbyGridNode(final_pos, generated_count, 64.0f)) {
+                        failed_nearby++;
+                        continue;
+                    }
+
+                    // Valid spawn position found!
+                    m_grid_nodes.push_back(final_pos);
+                    generated_count++;
+
+                    // Progress indicator
+                    if (generated_count % 500 == 0) {
+                        gi.Com_PrintFmt("  ... {} nodes found\n", generated_count);
+                    }
+
+                    if (generated_count >= MAX_GRID_NODES) {
+                        gi.Com_PrintFmt("  ... reached MAX_GRID_NODES limit\n");
+                        goto done;
+                    }
+                }
+            }
+        }
+
+    done:
+        m_node_count = generated_count;
+
+        // DEBUG: Print validation failure statistics
+        gi.Com_PrintFmt("Grid generation stats:\n");
+        gi.Com_PrintFmt("  Tested positions: {}\n", tested_positions);
+        gi.Com_PrintFmt("  Failed pointcontents: {}\n", failed_pointcontents);
+        gi.Com_PrintFmt("  Failed func_entity: {}\n", failed_func_entity);
+        gi.Com_PrintFmt("  Failed hazards: {}\n", failed_hazards);
+        gi.Com_PrintFmt("  Failed slope: {}\n", failed_slope);
+        gi.Com_PrintFmt("  Failed clearance: {}\n", failed_clearance);
+        gi.Com_PrintFmt("  Failed final_trace: {}\n", failed_final_trace);
+        gi.Com_PrintFmt("  Failed checkbottom: {}\n", failed_checkbottom);
+        gi.Com_PrintFmt("  Failed nearby: {}\n", failed_nearby);
+        gi.Com_PrintFmt("Spawn grid generation complete: {} valid nodes.\n", m_node_count);
+
+        if (m_node_count > 0) {
+            SaveToDisk(level.mapname);
+        }
+
+        return m_node_count > 0;
+    }
+
+    // Get a random position from the grid
+    bool SpawnGrid::GetRandomPosition(vec3_t& out_pos) const {
+        if (m_node_count < 1)
+            return false;
+
+        const int index = irandom(m_node_count);
+        out_pos = m_grid_nodes[index];
+        return true;
+    }
+
+    // Get a random position near a point
+    bool SpawnGrid::GetRandomPositionNear(const vec3_t& center, float min_dist, float max_dist, vec3_t& out_pos) const {
+        if (m_node_count < 1)
+            return false;
+
+        const float min_dist_sq = min_dist * min_dist;
+        const float max_dist_sq = max_dist * max_dist;
+
+        // Try up to 100 random positions
+        for (int attempt = 0; attempt < 100; attempt++) {
+            const int index = irandom(m_node_count);
+            const vec3_t& candidate = m_grid_nodes[index];
+
+            const float dist_sq = (candidate - center).lengthSquared();
+
+            if (dist_sq >= min_dist_sq && dist_sq <= max_dist_sq) {
+                out_pos = candidate;
+                return true;
+            }
+        }
+
+        // Fallback: return any random position
+        return GetRandomPosition(out_pos);
+    }
+
+    // Save grid to disk
+    bool SpawnGrid::SaveToDisk(const char* mapname) const {
+        namespace fs = std::filesystem;
+
+        if (m_node_count < 1)
+            return false;
+
+        try {
+            // Get DLL directory
+            fs::path dll_dir;
+            if (!GetDLLDirectory(dll_dir)) {
+                gi.Com_PrintFmt("Failed to get DLL directory for spawn grid save\n");
+                return false;
+            }
+
+            // Extract basename from mapname (e.g., "q64/dm3" -> "dm3")
+            std::string_view map_basename = mapname;
+            if (size_t last_slash = map_basename.find_last_of("/\\"); last_slash != std::string_view::npos) {
+                map_basename = map_basename.substr(last_slash + 1);
+            }
+
+            // Build path: {DLL_DIR}/maps/grd/{mapname}.grd
+            fs::path grd_dir = dll_dir / "maps" / "grd";
+            fs::path grid_file = grd_dir / fmt::format("{}.grd", map_basename);
+
+            // Create directories if needed
+            fs::create_directories(grd_dir);
+
+            FILE* fp = fopen(grid_file.string().c_str(), "wb");
+            if (!fp) {
+                gi.Com_PrintFmt("Failed to save spawn grid to {}\n", grid_file.string());
+                return false;
+            }
+
+            // Write header
+            const int32_t version = 1;
+            fwrite(&version, sizeof(int32_t), 1, fp);
+            fwrite(&m_node_count, sizeof(int32_t), 1, fp);
+
+            // Write node positions
+            fwrite(m_grid_nodes.data(), sizeof(vec3_t), m_node_count, fp);
+
+            fclose(fp);
+            gi.Com_PrintFmt("Spawn grid saved to {}\n", grid_file.string());
+            return true;
+
+        } catch (const std::exception& e) {
+            gi.Com_PrintFmt("Exception saving spawn grid: {}\n", e.what());
+            return false;
+        }
+    }
+
+    // Load grid from disk
+    bool SpawnGrid::LoadFromDisk(const char* mapname) {
+        namespace fs = std::filesystem;
+
+        try {
+            // Get DLL directory
+            fs::path dll_dir;
+            if (!GetDLLDirectory(dll_dir)) {
+                return false; // Silent fail for load
+            }
+
+            // Extract basename from mapname (e.g., "q64/dm3" -> "dm3")
+            std::string_view map_basename = mapname;
+            if (size_t last_slash = map_basename.find_last_of("/\\"); last_slash != std::string_view::npos) {
+                map_basename = map_basename.substr(last_slash + 1);
+            }
+
+            // Build path: {DLL_DIR}/maps/grd/{mapname}.grd
+            fs::path grid_file = dll_dir / "maps" / "grd" / fmt::format("{}.grd", map_basename);
+
+            FILE* fp = fopen(grid_file.string().c_str(), "rb");
+            if (!fp)
+                return false;
+
+            // Read header
+            int32_t version = 0;
+            int32_t node_count = 0;
+            fread(&version, sizeof(int32_t), 1, fp);
+            fread(&node_count, sizeof(int32_t), 1, fp);
+
+            if (version != 1 || node_count < 1 || node_count > MAX_GRID_NODES) {
+                fclose(fp);
+                gi.Com_PrintFmt("Invalid spawn grid file: {}\n", grid_file.string());
+                return false;
+            }
+
+            // Read nodes
+            Clear();
+            m_grid_nodes.resize(node_count);
+            fread(m_grid_nodes.data(), sizeof(vec3_t), node_count, fp);
+            m_node_count = node_count;
+
+            fclose(fp);
+            return true;
+
+        } catch (const std::exception&) {
+            return false; // Silent fail for load
+        }
     }
 
 } // namespace HordePhys

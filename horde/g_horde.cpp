@@ -687,6 +687,99 @@ void BuildSpawnPointMap()
 	if (developer->integer) {
 		gi.Com_PrintFmt("Spawn Point Map Built: Found {} spawn points with spatial index.\n", g_num_spawn_points);
 	}
+
+	// Generate spawn grid for better out-of-bounds prevention
+	// Calculate world bounds - try multiple methods for maximum reliability
+	vec3_t world_mins{}, world_maxs{};
+	ClearBounds(world_mins, world_maxs);
+	int bounds_source_count = 0;
+
+	// Method 1: Parse .ent file to get ALL entity positions (most comprehensive)
+	std::vector<char> ent_buffer;
+	std::string ent_filename;
+	extern bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::string& outFilename);
+
+	if (LoadEntityFile(level.mapname, ent_buffer, ent_filename)) {
+		const char* data = ent_buffer.data();
+		const char* com_token;
+
+		while (data && *data) {
+			// Look for "origin" keys
+			com_token = COM_Parse(&data);
+			if (!com_token || !*com_token) break;
+
+			if (strcmp(com_token, "origin") == 0) {
+				// Parse the origin value "x y z"
+				com_token = COM_Parse(&data);
+				if (com_token && *com_token) {
+					vec3_t origin;
+					if (sscanf(com_token, "%f %f %f", &origin.x, &origin.y, &origin.z) == 3) {
+						AddPointToBounds(origin, world_mins, world_maxs);
+						bounds_source_count++;
+					}
+				}
+			}
+		}
+
+		if (bounds_source_count > 0) {
+			gi.Com_PrintFmt("Calculated world bounds from .ent file ({} entities)\n", bounds_source_count);
+		}
+	}
+
+	// Method 2 (Fallback): Use runtime entities if .ent parsing failed
+	if (bounds_source_count == 0) {
+		gi.Com_Print("Fallback: Calculating bounds from runtime entities...\n");
+
+		for (int i = game.maxclients + 1; i < globals.num_edicts; i++) {
+			edict_t* ent = &g_edicts[i];
+			if (!ent->inuse) continue;
+
+			// Include spawn points, items, weapons, etc
+			if (ent->classname && is_valid_vector(ent->s.origin)) {
+				if (strstr(ent->classname, "info_") ||
+					strstr(ent->classname, "weapon_") ||
+					strstr(ent->classname, "ammo_") ||
+					strstr(ent->classname, "item_") ||
+					strstr(ent->classname, "misc_")) {
+					AddPointToBounds(ent->s.origin, world_mins, world_maxs);
+					bounds_source_count++;
+				}
+			}
+		}
+
+		gi.Com_PrintFmt("Calculated bounds from {} runtime entities\n", bounds_source_count);
+	}
+
+	// Method 3 (Last resort): Use spawn points only
+	if (bounds_source_count == 0) {
+		gi.Com_Print("Last resort: Using spawn points for bounds...\n");
+		for (edict_t* sp : g_spawn_point_list) {
+			if (sp && sp->inuse && is_valid_vector(sp->s.origin)) {
+				AddPointToBounds(sp->s.origin, world_mins, world_maxs);
+				bounds_source_count++;
+			}
+		}
+		gi.Com_PrintFmt("Calculated bounds from {} spawn points\n", bounds_source_count);
+	}
+
+	// Safety check
+	if (bounds_source_count == 0) {
+		gi.Com_Print("ERROR: Failed to calculate world bounds - using default\n");
+		world_mins = {-2048, -2048, -512};
+		world_maxs = {2048, 2048, 512};
+	} else {
+		// Add padding to ensure grid covers entire playable area
+		world_mins -= vec3_t{512, 512, 512};
+		world_maxs += vec3_t{512, 512, 512};
+	}
+
+	// This gives us pre-validated spawn positions across the entire map
+	gi.Com_Print("Generating spawn grid...\n");
+	if (HordePhys::g_spawn_grid.Generate(world_mins, world_maxs)) {
+		gi.Com_PrintFmt("Spawn grid ready with {} nodes.\n", HordePhys::g_spawn_grid.GetNodeCount());
+	} else {
+		gi.Com_Print("WARNING: Spawn grid generation failed, emergency spawning will use fallback method.\n");
+	}
 }
 
 // A dedicated struct to pass data to our unified BoxEdicts lambda.
@@ -980,6 +1073,7 @@ static float CalculateCooldownScale(int32_t lvl, const horde::MapSize &mapSize)
 	return std::min(scale * multiplier, maxScale);
 }
 cvar_t *g_horde;
+cvar_t *g_horde_grid_first;  // Test cvar: prioritize grid spawning
 
 // NOTE: horde_state_t enum and HordeState struct moved to g_horde.h
 
@@ -2611,6 +2705,7 @@ void Horde_PreInit()
 	gi.Com_Print("COOP requires <coop 1> and <horde 0>.\n");
 
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
+	g_horde_grid_first = gi.cvar("g_horde_grid_first", "0", CVAR_NOFLAGS);
 	// gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
 	if (!g_horde->integer)
@@ -5010,6 +5105,37 @@ static bool FindValidSpawnLocation(
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(monster_type, predicted_mins, predicted_maxs);
 
+	// TEST MODE: If g_horde_grid_first is enabled, try grid spawning first
+	if (g_horde_grid_first && g_horde_grid_first->integer && HordePhys::g_spawn_grid.IsGenerated())
+	{
+		constexpr int GRID_ATTEMPTS = 32;
+		constexpr float GRID_MIN_DIST = 64.0f;
+		constexpr float GRID_MAX_DIST = 512.0f;
+
+		for (int attempt = 0; attempt < GRID_ATTEMPTS; ++attempt)
+		{
+			vec3_t grid_pos;
+			if (!HordePhys::g_spawn_grid.GetRandomPositionNear(base_origin, GRID_MIN_DIST, GRID_MAX_DIST, grid_pos))
+				continue;
+
+			const auto validation = IsPositionPhysicallyValid(grid_pos, predicted_mins, predicted_maxs, is_flying);
+			if (validation.is_valid)
+			{
+				out_origin = validation.adjusted_position;
+				out_angles = base_angles;
+				out_used_alternative = true; // Mark as alternative since we're using grid
+
+				if (developer->integer > 1)
+				{
+					gi.Com_PrintFmt("GRID FIRST: Spawned at grid position (dist: {:.1f})\n",
+						(out_origin - base_origin).length());
+				}
+
+				return true;
+			}
+		}
+	}
+
 	// Attempt Direct Spawn
 	const auto validation = IsPositionPhysicallyValid(base_origin, predicted_mins, predicted_maxs, is_flying);
 	if (validation.is_valid)
@@ -5350,6 +5476,7 @@ private:
     }
 
     // Updates candidates with custom distance range (for fallback logic)
+    // MODIFIED: Now uses spawn grid as primary source, with procedural generation as fallback
     void UpdatePlayerCandidatesWithRange(edict_t* player, PlayerSpawnCandidates& candidates,
                                         const ScaledDistances& distances) {
         constexpr size_t NUM_CANDIDATES = 16;
@@ -5360,28 +5487,62 @@ private:
 
         const vec3_t player_origin = player->s.origin;
 
-        // Generate candidate positions in a distributed radial pattern
-        for (size_t i = 0; i < NUM_CANDIDATES; ++i) {
-            const float radius = frandom(distances.min_radius, distances.max_radius);
-            const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f); // Add jitter
+        // OPTIMIZATION: Try to use spawn grid positions first (guaranteed in-map)
+        if (HordePhys::g_spawn_grid.IsGenerated()) {
+            constexpr int MAX_GRID_ATTEMPTS = 64;  // Try more grid positions than we need
 
-            vec3_t candidate_pos = {
-                player_origin.x + cosf(angle_rad) * radius,
-                player_origin.y + sinf(angle_rad) * radius,
-                player_origin.z + frandom(-32.0f, 48.0f) // Z variation for different floor levels
-            };
+            for (int attempt = 0; attempt < MAX_GRID_ATTEMPTS && candidates.valid_count < NUM_CANDIDATES; ++attempt) {
+                vec3_t grid_pos;
+                if (!HordePhys::g_spawn_grid.GetRandomPosition(grid_pos))
+                    break;
 
-            // Map-size-aware line-of-sight validation
-            if (!HasLineOfSightToSpawnPoint(candidate_pos, distances.line_of_sight_tolerance)) {
-                continue;
+                // Check if position is within desired distance range from player
+                const float dist = (grid_pos - player_origin).length();
+                if (dist < distances.min_radius || dist > distances.max_radius)
+                    continue;
+
+                // Map-size-aware line-of-sight validation
+                if (!HasLineOfSightToSpawnPoint(grid_pos, distances.line_of_sight_tolerance))
+                    continue;
+
+                // Grid position is valid, add it
+                float base_score = 1.0f / (1.0f + dist * 0.001f);
+                candidates.positions[candidates.valid_count] = grid_pos;
+                candidates.scores[candidates.valid_count] = base_score;
+                candidates.valid_count++;
+            }
+        }
+
+        // FALLBACK: If grid didn't provide enough candidates, use procedural generation
+        const size_t grid_candidates_found = candidates.valid_count;
+
+        if (candidates.valid_count < NUM_CANDIDATES / 2) {  // Need at least half candidates
+            for (size_t i = candidates.valid_count; i < NUM_CANDIDATES; ++i) {
+                const float radius = frandom(distances.min_radius, distances.max_radius);
+                const float angle_rad = (2.0f * PIf * static_cast<float>(i)) / NUM_CANDIDATES + frandom(-0.2f, 0.2f);
+
+                vec3_t candidate_pos = {
+                    player_origin.x + cosf(angle_rad) * radius,
+                    player_origin.y + sinf(angle_rad) * radius,
+                    player_origin.z + frandom(-32.0f, 48.0f)
+                };
+
+                // Map-size-aware line-of-sight validation
+                if (!HasLineOfSightToSpawnPoint(candidate_pos, distances.line_of_sight_tolerance))
+                    continue;
+
+                // Basic validation and scoring
+                float base_score = 1.0f / (1.0f + radius * 0.001f);
+
+                candidates.positions[candidates.valid_count] = candidate_pos;
+                candidates.scores[candidates.valid_count] = base_score;
+                candidates.valid_count++;
             }
 
-            // Basic validation and scoring
-            float base_score = 1.0f / (1.0f + radius * 0.001f); // Closer is slightly better
-
-            candidates.positions[candidates.valid_count] = candidate_pos;
-            candidates.scores[candidates.valid_count] = base_score;
-            candidates.valid_count++;
+            if (developer->integer && grid_candidates_found < NUM_CANDIDATES / 4) {
+                gi.Com_PrintFmt("Emergency spawn: Grid provided {} candidates, procedural added {}\n",
+                    grid_candidates_found, candidates.valid_count - grid_candidates_found);
+            }
         }
     }
 
@@ -5411,6 +5572,30 @@ public:
                     *out_used_player = used_player;
                 }
                 return true;
+            }
+        }
+
+        // Final fallback: Try spawn grid if available
+        if (HordePhys::g_spawn_grid.IsGenerated()) {
+            vec3_t grid_pos;
+            if (HordePhys::g_spawn_grid.GetRandomPosition(grid_pos)) {
+                // Validate grid position
+                const auto validation = IsPositionPhysicallyValid(grid_pos, predicted_mins, predicted_maxs, is_flying);
+                if (validation.is_valid) {
+                    out_position = validation.adjusted_position;
+                    out_angles = vec3_origin; // Default angles for grid positions
+
+                    if (developer->integer) {
+                        gi.Com_PrintFmt("EMERGENCY SPAWN: Used spawn grid as final fallback for TypeID {}.\n",
+                                      static_cast<int>(typeId));
+                    }
+
+                    // No specific player used for grid fallback
+                    if (out_used_player) {
+                        *out_used_player = nullptr;
+                    }
+                    return true;
+                }
             }
         }
 
