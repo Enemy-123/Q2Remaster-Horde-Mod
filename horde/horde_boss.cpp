@@ -829,6 +829,21 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	boss_spawned_for_wave = true;
 
+	// Set SVF_MONSTER flag so bots can target this boss
+	// flymonster_start/walkmonster_start normally sets this in monster_start_go,
+	// but that happens in a delayed think. We need it set immediately for bot targeting.
+	self->svflags |= SVF_MONSTER;
+
+	// Set team so bots can target this boss
+	// Bosses skip ApplyMonsterBonusFlags due to IS_BOSS flag, so team must be set explicitly
+	self->monsterinfo.team = CTF_NOTEAM;
+
+	// Reset sv.init to force bot registration on next frame
+	// The boss entity existed for multiple frames before SVF_MONSTER was set,
+	// causing Edict_UpdateState to set sv.init=true prematurely, which would
+	// prevent Monster_UpdateState from calling gi.Bot_RegisterEdict()
+	self->sv.init = false; // this did the trick
+
 	// Dynamic boss announcement
 	const char* boss_display_name = GetDisplayName(self);
 	if (boss_display_name && boss_display_name[0] != '\0')

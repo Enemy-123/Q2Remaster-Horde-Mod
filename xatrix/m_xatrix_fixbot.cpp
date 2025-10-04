@@ -2133,9 +2133,10 @@ void SP_monster_fixbotkl(edict_t* self) {
 	self->max_health = (config ? config->health : 7500) * st.health_multiplier;
 	self->health = self->max_health;
 
-	self->s.scale = 2.6f;
 	self->mass = 400;
+
 	// Scale mins/maxs correctly AFTER initial values are set
+	self->s.scale = 2.6f;
 	self->mins *= self->s.scale;
 	self->maxs *= self->s.scale;
 
