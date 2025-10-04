@@ -2111,16 +2111,34 @@ void SP_monster_fixbotkl(edict_t* self) {
 
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT_KL);
 
+	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
+
 	SP_monster_fixbot(self);
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 5000;
-	self->max_health = 7500;
+	// Power armor configuration from config
+	if (!st.was_key_specified("power_armor_type")) {
+		if (config && config->power_armor_type != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = config->power_armor_power;
+		}
+	}
+
+	// Regular armor configuration from config
+	if (!st.was_key_specified("armor_type")) {
+		if (config && config->armor_type != IT_NULL) {
+			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+			if (!st.was_key_specified("armor_power"))
+				self->monsterinfo.armor_power = config->armor_power;
+		}
+	}
+
+	// Health from config
+	self->max_health = (config ? config->health : 7500) * st.health_multiplier;
 	self->health = self->max_health;
+
 	self->s.scale = 2.6f;
 	self->mass = 400;
 	// Scale mins/maxs correctly AFTER initial values are set
