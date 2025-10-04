@@ -18,3 +18,17 @@ gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Player {}\n", name);  // CORRECT
 gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Player %s\n", name);  // WRONG
 ```
 - for debug we dont use locclient, we use gi.Com_PrintFmt {}
+
+Small, Iterative Changes
+
+Work in small, testable increments - implement, test with human in the loop, then continue
+Make the smallest reasonable changes to achieve the desired outcome
+Break down work into small, iterable, testable chunks
+Always discuss plans before implementation unless explicitly told otherwise
+
+
+Best Practices
+
+Help me become a better coder by explaining the "why" behind your implementation choices
+Use idiomatic coding patterns for each language - always confirm you're following language-specific best practices
+Use tldr tool when you are trying to figure out the syntax of a 3rd party tool

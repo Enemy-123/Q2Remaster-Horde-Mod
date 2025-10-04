@@ -2957,9 +2957,6 @@ void SP_monster_tank(edict_t* self)
 		self->health = 800;
 		self->accel = 0.075f;
 		if (g_horde->integer) {
-			if (!self->s.scale)
-				self->s.scale = 1.1f;
-
 			self->health = 1750 + (1.009 * current_wave_level);
 			if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 				self->health *= 2.6;
@@ -2971,7 +2968,6 @@ void SP_monster_tank(edict_t* self)
 			}
 		}
 		if (G_IsCooperative()) {
-			self->s.scale = 1.1f;
 			self->health = 1000;
 		}
 		self->gib_health = -250;

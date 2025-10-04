@@ -746,7 +746,6 @@ void SP_monster_redmutant(edict_t* self)
 	self->health = (config ? config->health : 520) * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 450;
-	self->s.scale = 1.1f;
 
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->health *= 3.8f;

@@ -731,10 +731,15 @@ void ApplyBossEffects(edict_t* boss)
 	}
 
 	if (scale_factor != 1.0f) {
+		const float original_mins_z = boss->mins[2];  // Save before additional scaling
+
 		boss->s.scale *= scale_factor;
+		boss->mins *= scale_factor;
+		boss->maxs *= scale_factor;
 		boss->mass *= scale_factor;
-		float height_offset = -(boss->mins[2]);
-		boss->s.origin[2] += height_offset;
+
+		// Adjust origin to prevent floating (uses original mins[2] before this boss scaling)
+		boss->s.origin[2] -= (original_mins_z * scale_factor - original_mins_z);
 		gi.linkentity(boss);
 	}
 

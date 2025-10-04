@@ -1129,9 +1129,6 @@ void SP_monster_perrokl(edict_t* self)
 			self->health = (config ? config->health : 375) * st.health_multiplier;
 		if (g_horde->integer) {
 			self->health = (config ? config->health : 775) * current_wave_level;
-			self->s.scale = 1.2f;
-			self->mins *= self->s.scale;
-			self->maxs *= self->s.scale;
 		}
 
 		if (self->health > 1400) {

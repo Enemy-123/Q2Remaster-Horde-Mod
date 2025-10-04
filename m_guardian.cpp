@@ -765,12 +765,7 @@ void SP_monster_janitor2(edict_t* self)
 	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 	SP_monster_guardian(self);
 	self->s.skinnum = 2;
-	if (!self->s.scale)
-		self->s.scale = 0.4f;
 	self->health = (config ? config->health : 600) * st.health_multiplier;
-
-	self->mins *= self->s.scale;
-	self->maxs *= self->s.scale;
 
 	ApplyMonsterBonusFlags(self);
 }

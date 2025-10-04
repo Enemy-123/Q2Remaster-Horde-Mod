@@ -1786,19 +1786,35 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	if (!self->monsterinfo.checkattack)
 		self->monsterinfo.checkattack = M_CheckAttack;
 
+	// Apply monster type specific scale from centralized data if not already set
+	if (!self->s.scale && self->monsterinfo.monster_type_id != MONSTER_TYPE_UNKNOWN)
+	{
+		const size_t index = static_cast<size_t>(self->monsterinfo.monster_type_id);
+		if (index < g_monsterData.MONSTER_ARRAY_SIZE)
+		{
+			const float type_scale = g_monsterData.s_scales[index];
+			if (type_scale > 0.0f)
+				self->s.scale = type_scale;
+		}
+	}
+
+	// Override with debug scale if set
 	if (ai_model_scale->value > 0) {
 		self->s.scale = ai_model_scale->value;
 	}
 
 	if (self->s.scale)
 	{
+		const float original_mins_z = self->mins[2];  // Save unscaled value for height adjustment
+
 		self->monsterinfo.scale *= self->s.scale;
 		self->mins *= self->s.scale;
 		self->maxs *= self->s.scale;
 		self->mass *= self->s.scale;
 
-		// Ajustar la posición para evitar quedar flotando
-		self->s.origin[2] -= (self->mins[2] - (self->mins[2] * self->s.scale));
+		// Adjust origin to prevent floating (uses original unscaled mins[2])
+		// When scaling up, scaled mins extends further down, so raise origin to compensate
+		self->s.origin[2] -= (original_mins_z * self->s.scale - original_mins_z);
 	}
 
 	if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
