@@ -5,6 +5,7 @@
 #include <filesystem> // For path operations
 #ifdef _WIN32
     #define WIN32_LEAN_AND_MEAN
+    #define NOMINMAX
     #include <windows.h> // For GetModuleFileName, MAX_PATH
     #include <direct.h> // For _mkdir on Windows
 #else
