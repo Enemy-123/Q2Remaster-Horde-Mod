@@ -1686,6 +1686,11 @@ void Cmd_Wave_f(edict_t* ent)
 				// Cast bombspell area (grenade rain)
 				BombArea(ent);
 			}
+			else if (special_wave_type == SPECIAL_WAVE_TELEPORT_FWD)
+			{
+				// Teleport forward
+				Cmd_TeleportForward_f(ent);
+			}
 		}
 	}
 	else
