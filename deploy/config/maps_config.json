@@ -18,7 +18,27 @@
     "q2dm2": {
       "monster_cap": -1,
       "enable_grid": true
-     },
+    },
+    "q2dm4": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+    "q2dm5": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+    "q2dm6": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+    "q2dm7": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+    "q2dm8": {
+      "monster_cap": 19,
+      "enable_grid": true
+    },
     "fact3": {
       "monster_cap": -1,
       "enable_grid": true
@@ -43,7 +63,10 @@
       "monster_cap": -1,
       "enable_grid": true
     },
-
+    "xdm6": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
     "_TEMPLATE_SECTION": {
       "_comment": "Copy maps from below to root level and remove underscore prefix to activate",
 

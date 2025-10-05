@@ -517,8 +517,8 @@ void ProximityGrid::Reset()
         if (cont & (CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WINDOW))
             return false;
 
-        // Check if bbox fits
-        const trace_t tr = gi.trace(pos, mins, maxs, pos, nullptr, MASK_OPAQUE);
+        // Check if bbox fits (includes checking for clip brushes)
+        const trace_t tr = gi.trace(pos, mins, maxs, pos, nullptr, MASK_WALK_NAV_SOLID);
         if (tr.startsolid || tr.allsolid || tr.fraction != 1.0f)
             return false;
 
@@ -528,7 +528,7 @@ void ProximityGrid::Reset()
         vec3_t sky_check_end = sky_check_start;
         sky_check_end.z += 128.0f; // Check 128 units up
 
-        trace_t sky_trace = gi.traceline(sky_check_start, sky_check_end, nullptr, MASK_SOLID);
+        trace_t sky_trace = gi.trace(sky_check_start, mins, maxs, sky_check_end, nullptr, MASK_SOLID);
         if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY))
             return false; // Too close to sky - reject position
 
@@ -649,7 +649,7 @@ void ProximityGrid::Reset()
         int tested_positions = 0;
         int failed_pointcontents = 0, failed_func_entity = 0, failed_hazards = 0;
         int failed_slope = 0, failed_clearance = 0, failed_final_trace = 0;
-        int failed_checkbottom = 0, failed_nearby = 0;
+        int failed_checkbottom = 0, failed_nearby = 0, failed_sky = 0;
 
         gi.Com_PrintFmt("Generating spawn grid for map {}...\n", level.mapname);
 
@@ -660,8 +660,8 @@ void ProximityGrid::Reset()
                     vec3_t test_pos = GridToWorld(x, y, z);
                     tested_positions++;
 
-                    // Skip if in solid/lava/slime/window/ladder
-                    if (gi.pointcontents(test_pos) & MASK_OPAQUE) {
+                    // Skip if in solid/lava/slime/window/ladder/clips
+                    if (gi.pointcontents(test_pos) & (MASK_OPAQUE | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP)) {
                         failed_pointcontents++;
                         z--;
                         continue;
@@ -671,7 +671,7 @@ void ProximityGrid::Reset()
                     vec3_t endpt = test_pos;
                     endpt[2] = m_world_mins.z - 512.0f;  // Trace below world bounds
 
-                    trace_t tr1 = gi.trace(test_pos, trace_mins, trace_maxs, endpt, nullptr, MASK_OPAQUE);
+                    trace_t tr1 = gi.trace(test_pos, trace_mins, trace_maxs, endpt, nullptr, MASK_WALK_NAV_SOLID);
 
                     // Set z to ground level for next iteration
                     int gx, gy, gz;
@@ -701,7 +701,7 @@ void ProximityGrid::Reset()
                     vec3_t clearance_end = clearance_start;
                     clearance_end[2] += 24.0f;  // Reduced from 32
 
-                    trace_t tr2 = gi.trace(clearance_end, spawn_mins, spawn_maxs, clearance_start, nullptr, MASK_OPAQUE);
+                    trace_t tr2 = gi.trace(clearance_end, spawn_mins, spawn_maxs, clearance_start, nullptr, MASK_WALK_NAV_SOLID);
 
                     // Skip if not enough clearance
                     if (tr2.startsolid || tr2.allsolid) {
@@ -713,7 +713,7 @@ void ProximityGrid::Reset()
                     vec3_t final_pos = tr2.endpos;
                     final_pos[2] += 24.0f;  // Reduced from 32
 
-                    trace_t tr3 = gi.trace(final_pos, spawn_mins, spawn_maxs, final_pos, nullptr, MASK_OPAQUE);
+                    trace_t tr3 = gi.trace(final_pos, spawn_mins, spawn_maxs, final_pos, nullptr, MASK_WALK_NAV_SOLID);
                     if (tr3.fraction != 1.0f || tr3.startsolid || tr3.allsolid) {
                         failed_final_trace++;
                         continue;
@@ -723,6 +723,18 @@ void ProximityGrid::Reset()
                     if (!CheckBottom(final_pos, spawn_mins, spawn_maxs)) {
                         failed_checkbottom++;
                         continue;
+                    }
+
+                    // Check if sky is too close above using bbox trace (reject roof spawns)
+                    vec3_t sky_check_start = final_pos;
+                    sky_check_start.z += spawn_maxs.z - spawn_mins.z; // Start from top of bbox
+                    vec3_t sky_check_end = sky_check_start;
+                    sky_check_end.z += 128.0f; // Check 128 units up
+
+                    trace_t sky_trace = gi.trace(sky_check_start, spawn_mins, spawn_maxs, sky_check_end, nullptr, MASK_SOLID);
+                    if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY)) {
+                        failed_sky++;
+                        continue; // Too close to sky - reject position
                     }
 
                     // OPTIMIZED: Reduced spacing for higher density (was 64, now 32 units)
@@ -761,6 +773,7 @@ void ProximityGrid::Reset()
         gi.Com_PrintFmt("  Failed clearance: {}\n", failed_clearance);
         gi.Com_PrintFmt("  Failed final_trace: {}\n", failed_final_trace);
         gi.Com_PrintFmt("  Failed checkbottom: {}\n", failed_checkbottom);
+        gi.Com_PrintFmt("  Failed sky: {}\n", failed_sky);
         gi.Com_PrintFmt("  Failed nearby: {}\n", failed_nearby);
         gi.Com_PrintFmt("Spawn grid generation complete: {} valid nodes.\n", m_node_count);
 

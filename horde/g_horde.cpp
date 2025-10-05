@@ -4226,7 +4226,8 @@ PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const
         // Flying monsters: check 256 units up, ground monsters: check 128 units up
         sky_check_end.z += is_flying ? 256.0f : 128.0f;
 
-        trace_t sky_trace = gi.traceline(sky_check_start, sky_check_end, nullptr, MASK_SOLID);
+        // Use bbox trace instead of traceline for more accurate sky detection
+        trace_t sky_trace = gi.trace(sky_check_start, monster_mins, monster_maxs, sky_check_end, nullptr, MASK_SOLID);
         if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY)) {
             return result; // Too close to sky - reject position
         }
@@ -4480,15 +4481,15 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		needs_teleport = true;
 		reason_str = "Out of Bounds";
 	}
-	// Critical: Too close to sky (unreachable position)
-	else if (self->flags & FL_FLY)
+	// Critical: Too close to sky (unreachable position) - check ALL monsters, not just flying
 	{
 		vec3_t sky_check_start = self->s.origin;
 		sky_check_start.z += self->maxs.z; // Start from top of monster bbox
 		vec3_t sky_check_end = sky_check_start;
 		sky_check_end.z += 128.0f; // Check 128 units up
 
-		trace_t sky_trace = gi.traceline(sky_check_start, sky_check_end, self, MASK_SOLID);
+		// Use bbox trace instead of traceline for more accurate sky detection
+		trace_t sky_trace = gi.trace(sky_check_start, self->mins, self->maxs, sky_check_end, self, MASK_SOLID);
 		if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY))
 		{
 			needs_teleport = true;
