@@ -477,6 +477,30 @@ mframe_t infantry_frames_death3[] = {
 };
 MMOVE_T(infantry_move_death3) = { FRAME_death301, FRAME_death309, infantry_frames_death3, infantry_dead };
 
+extern const mmove_t infantry_move_grenade_throw;
+extern const mmove_t infantry_move_grenade_prep;
+static void infantry_grenade(edict_t* self);
+
+// Simplified grenade throw for when infantry dies mid-throw
+static void infantry_death_grenade(edict_t* self)
+{
+	const vec3_t offset = { 8, 0, 4 }; // Low position - drops at feet
+	vec3_t forward, right, up;
+
+	// Calculate drop position and direction
+	AngleVectors(self->s.angles, forward, right, up);
+	vec3_t start_pos = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
+	// Random drop direction - can fall to any side
+	vec3_t aim_dir = forward * crandom() * 0.5f + right * crandom() * 0.5f + up * -1.0f;
+	aim_dir.normalize();
+
+	// Fire the grenade (low speed for drop)
+	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, 200, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
+	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
+}
+
 DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	//OnEntityDeath(self);
@@ -510,6 +534,13 @@ DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	// regular death
 	self->deadflag = true;
 	self->takedamage = true;
+
+	// Check if we're in the middle of throwing a grenade and throw it before dying
+	if ((self->monsterinfo.active_move == &infantry_move_grenade_prep) ||
+		(self->monsterinfo.active_move == &infantry_move_grenade_throw && self->s.frame < FRAME_attak206))
+	{
+		infantry_death_grenade(self);  // Throw the grenade before dying
+	}
 
 	n = irandom(3);
 
