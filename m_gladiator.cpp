@@ -157,6 +157,10 @@ void GladiatorGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
+	// Railgun is hitscan, requires visibility (no blindfire)
+	if (!visible(self, self->enemy))
+		return;
+
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
 	if (damage <= 0) damage = 80;
 
@@ -174,12 +178,18 @@ void GladiatorGun(edict_t* self)
 	monster_fire_railgun(self, start, dir, damage, 100, MZ2_GLADIATOR_RAILGUN_1);
 }
 
+void Gladiator_refire_chance(edict_t* self)
+{
+	if (M_HasValidTarget && frandom() < 0.25f) 
+		self->monsterinfo.nextframe = FRAME_attack1; // refire
+}
+
 mframe_t gladiator_frames_attack_gun[] = {
 	{ ai_charge },
 	{ ai_charge, 0, GladiatorGun },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge,0, Gladiator_refire_chance },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, monster_footstep },
@@ -206,21 +216,44 @@ void gladbGun(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_GLADIATOR_RAILGUN_1], forward, right);
 
-	dir = self->pos1 - self->enemy->s.origin;
+	// Blindfire support for tracker
+	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+	vec3_t target_pos;
+
+	if (blindfire && self->monsterinfo.blind_fire_target)
+	{
+		target_pos = self->monsterinfo.blind_fire_target;
+	}
+	else
+	{
+		target_pos = self->pos1;  // Use saved position from attack start
+	}
+
+	dir = target_pos - self->enemy->s.origin;
 	len = dir.length();
 
 	if (len < 30)
 	{
 		// calc direction to where we targeted
-		dir = self->pos1 - start;
+		dir = target_pos - start;
 		dir.normalize();
 
 		monster_fire_tracker(self, start, dir, damage, 875, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
 	}
 	else
 	{
-		PredictAim(self, self->enemy, start, 980, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, damage, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		if (blindfire)
+		{
+			// Blindfire: aim at blind_fire_target
+			dir = (target_pos - start).normalized();
+			monster_fire_tracker(self, start, dir, damage, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		}
+		else
+		{
+			// Normal: use predictive aim
+			PredictAim(self, self->enemy, start, 980, true, 0, &dir, nullptr);
+			monster_fire_tracker(self, start, dir, damage, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		}
 	}
 }
 
@@ -239,7 +272,7 @@ mframe_t gladb_frames_attack_gun[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, gladbGun_check }
+	{ ai_charge, 0, Gladiator_refire_chance }
 
 };
 MMOVE_T(gladb_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladb_frames_attack_gun, gladiator_run };
@@ -264,8 +297,21 @@ void gladcGun(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_GLADIATOR_RAILGUN_1], forward, right);
 
+	// Blindfire support for plasma
+	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+	vec3_t target_pos;
+
+	if (blindfire && self->monsterinfo.blind_fire_target)
+	{
+		target_pos = self->monsterinfo.blind_fire_target;
+	}
+	else
+	{
+		target_pos = self->pos1;  // Use saved position from attack start
+	}
+
 	// calc direction to where we targeted
-	dir = self->pos1 - start;
+	dir = target_pos - start;
 	dir.normalize();
 
 	if (self->s.frame > FRAME_attack3)

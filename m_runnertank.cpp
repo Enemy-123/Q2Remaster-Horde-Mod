@@ -653,8 +653,24 @@ void runnertankPlasmaGun(edict_t* self) {
 	if (initial_forward.dot(dir_to_enemy) < 0.5f)
 		return;
 
-	if (!visible(self, self->enemy) || !infront(self, self->enemy))
-		return;
+	// Blindfire support for plasma (like gunner ionripper)
+	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+	vec3_t target;
+
+	if (blindfire)
+	{
+		// Blindfire mode: use blind_fire_target
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+		target = self->monsterinfo.blind_fire_target;
+	}
+	else
+	{
+		// Normal mode: require visibility
+		if (!visible(self, self->enemy) || !infront(self, self->enemy))
+			return;
+		target = self->enemy->s.origin;
+	}
 
 	// Constantes del arma
 	constexpr float SPREAD = 0.08f;
@@ -674,7 +690,7 @@ void runnertankPlasmaGun(edict_t* self) {
 	vec3_t const start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
 	// Calcular dirección base al objetivo
-	vec3_t target = self->enemy->s.origin;
+	target = self->enemy->s.origin;
 	target.z += self->enemy->viewheight;
 	vec3_t dir = (target - start).normalized();
 

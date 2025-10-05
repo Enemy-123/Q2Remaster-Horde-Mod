@@ -2384,8 +2384,20 @@ void gekk_kl_spit(edict_t* self)
 	start = M_ProjectFlashSource(self, gekkoffset, forward, right);
 	start += (up * 2);
 
-	// Use saved enemy position if available
-	vec3_t end = self->pos1;
+	// Blindfire support for plasma
+	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+	vec3_t end;
+
+	if (blindfire && self->monsterinfo.blind_fire_target)
+	{
+		end = self->monsterinfo.blind_fire_target;
+	}
+	else
+	{
+		// Use saved enemy position from jump/attack
+		end = self->pos1;
+	}
+
 	dir = end - start;
 	dir.normalize();
 

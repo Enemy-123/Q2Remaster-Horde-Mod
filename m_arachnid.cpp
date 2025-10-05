@@ -895,18 +895,29 @@ void spider_plasma(edict_t* self)
 
 
     float constexpr plasma_speed = 900;
-   
+
     AngleVectors(self->s.angles, forward, right, up); // Get vectors first
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
     // Adjust origin slightly forward and upward (adjust as needed)
     start += (forward * 5);
     start += (up * 8);
-   
-    // Use PredictAim to lead the target based on plasma projectile speed, using the calculated start position
-    PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &self->pos1);
 
-    // calc direction to where we targeted (predicted position)
-    dir = self->pos1 - start;
+    // Blindfire support for plasma
+    bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+    vec3_t target_pos;
+
+    if (blindfire && self->monsterinfo.blind_fire_target)
+    {
+        target_pos = self->monsterinfo.blind_fire_target;
+    }
+    else
+    {
+        // Use PredictAim to lead the target based on plasma projectile speed
+        PredictAim(self, self->enemy, start, plasma_speed, true, 0.0f, nullptr, &target_pos);
+    }
+
+    // calc direction to where we targeted (predicted or blindfire position)
+    dir = target_pos - start;
     dir.normalize();
 
     int damage = 30;
