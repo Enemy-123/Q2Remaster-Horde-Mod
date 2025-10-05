@@ -387,11 +387,11 @@ namespace horde {
         // RDM5
         s_origins[static_cast<size_t>(MapID::RDM5)] = { true, {1088, 592, -568} };
         // RDM6
-        s_origins[static_cast<size_t>(MapID::RDM6)] = { true, {712, 1328, 48} };
+        s_origins[static_cast<size_t>(MapID::RDM6)] = { true, {724, 1300, 186} };
         // RDM8
         s_origins[static_cast<size_t>(MapID::RDM8)] = { true, {-1516, 976, -156} };
         // RDM9
-        s_origins[static_cast<size_t>(MapID::RDM9)] = { true, {-984, -80, 232} };
+        s_origins[static_cast<size_t>(MapID::RDM9)] = { true, {-862, -315, 357} };
         // RDM12
         s_origins[static_cast<size_t>(MapID::RDM12)] = { true, {32, -1888, 120} };
         // Q2CTF4
@@ -403,11 +403,11 @@ namespace horde {
         // NDCTF0
         s_origins[static_cast<size_t>(MapID::NDCTF0)] = { true, {-608, -304, 184} };
         // XDM1
-        s_origins[static_cast<size_t>(MapID::XDM1)] = { true, {-312, 600, 144} };
+        s_origins[static_cast<size_t>(MapID::XDM1)] = { true, {-947, 1355, 12} };
         // XDM2
-        s_origins[static_cast<size_t>(MapID::XDM2)] = { true, {-232, 472, 424} };
+        s_origins[static_cast<size_t>(MapID::XDM2)] = { true, {-246, 544, 362} };
         // XDM3
-        s_origins[static_cast<size_t>(MapID::XDM3)] = { true, {96, -96, 360} };
+        s_origins[static_cast<size_t>(MapID::XDM3)] = { true, {91, -128, 281} };
         // XDM4
         s_origins[static_cast<size_t>(MapID::XDM4)] = { true, {-160, -368, 360} };
         // XDM5
@@ -455,7 +455,7 @@ namespace horde {
         // EC/BASE_EC
         s_origins[static_cast<size_t>(MapID::EC_BASE_EC)] = { true, {-112, 704, 128} };
         // OLD/KMDM3
-        s_origins[static_cast<size_t>(MapID::OLD_KMDM3)] = { true, {-480, -572, 144} };
+        s_origins[static_cast<size_t>(MapID::OLD_KMDM3)] = { true, {676, 873, 171} };
         // TEST/MALS_BARRIER_TEST
         s_origins[static_cast<size_t>(MapID::TEST_MALS_BARRIER_TEST)] = { true, {24, 136, 224} };
         // TEST/SPBOX

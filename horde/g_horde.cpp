@@ -4482,6 +4482,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		reason_str = "Out of Bounds";
 	}
 	// Critical: Too close to sky (unreachable position) - check ALL monsters, not just flying
+	if (!needs_teleport)
 	{
 		vec3_t sky_check_start = self->s.origin;
 		sky_check_start.z += self->maxs.z; // Start from top of monster bbox
@@ -4494,6 +4495,21 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		{
 			needs_teleport = true;
 			reason_str = "Too Close to Sky";
+		}
+	}
+	// Critical: On/above sky surface (instant teleport) - check all monsters
+	if (!needs_teleport)
+	{
+		vec3_t ground_check_start = self->s.origin;
+		ground_check_start.z += self->mins.z; // Start from feet
+		vec3_t ground_check_end = ground_check_start;
+		ground_check_end.z -= 8.0f; // Check 8 units down
+
+		trace_t ground_trace = gi.trace(ground_check_start, vec3_origin, vec3_origin, ground_check_end, self, MASK_SOLID);
+		if (ground_trace.surface && (ground_trace.surface->flags & SURF_SKY))
+		{
+			needs_teleport = true;
+			reason_str = "On Sky Surface";
 		}
 	}
 	// Non-critical checks (only if not already flagged for teleport)

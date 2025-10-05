@@ -42,6 +42,7 @@ struct RecentBosses
     void add(horde::MonsterTypeID boss_id);
     void add(const char *boss_classname);
     bool contains(horde::MonsterTypeID boss_id) const;
+    bool contains(horde::MonsterTypeID boss_id, size_t limit) const;
     bool contains(const char *boss_classname) const;
     void clear();
 };

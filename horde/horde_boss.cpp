@@ -210,6 +210,23 @@ bool RecentBosses::contains(horde::MonsterTypeID boss_id) const
 	return false;
 }
 
+bool RecentBosses::contains(horde::MonsterTypeID boss_id, size_t limit) const
+{
+	if (boss_id == horde::MonsterTypeID::UNKNOWN)
+		return false;
+
+	// Only check the most recent 'limit' entries
+	const size_t check_count = std::min(count, limit);
+	const size_t start_index = (count > limit) ? (count - limit) : 0;
+
+	for (size_t i = start_index; i < count; ++i)
+	{
+		if (items[i] == boss_id)
+			return true;
+	}
+	return false;
+}
+
 bool RecentBosses::contains(const char *boss_classname) const
 {
 	if (!boss_classname)
@@ -339,8 +356,16 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		float cumulativeWeight;
 	};
 
+	// Calculate how many recent bosses to track based on eligible count
+	// Track ~40% of eligible bosses (min 2, max 5) to ensure good variety
+	const size_t max_recent_to_track = std::clamp(
+		eligibilityData.count * 2 / 5,  // 40% of eligible bosses
+		static_cast<size_t>(2),          // Minimum 2
+		static_cast<size_t>(RecentBosses::MAX_RECENT_BOSSES)  // Maximum 5
+	);
+
 	// Lambda to build weighted boss list
-	auto build_weighted_list = [&](bool exclude_recent) {
+	auto build_weighted_list = [&](bool exclude_recent, size_t recent_limit) {
 		std::array<WeightedBoss, BossEligibilityCache::MAX_ELIGIBLE_BOSSES> weighted_list{};
 		size_t count = 0;
 		float total_weight = 0.0f;
@@ -350,8 +375,8 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 			const size_t boss_index_in_soa = eligibilityData.soa_indices[i];
 			const horde::MonsterTypeID bossTypeId = boss_list_soa->typeIds[boss_index_in_soa];
 
-			// Skip recent bosses if requested
-			if (exclude_recent && recent_bosses.contains(bossTypeId))
+			// Skip recent bosses if requested (only check the most recent N)
+			if (exclude_recent && recent_bosses.contains(bossTypeId, recent_limit))
 				continue;
 
 			float weight = boss_list_soa->weights[boss_index_in_soa];
@@ -368,8 +393,14 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		return std::make_tuple(weighted_list, count, total_weight);
 	};
 
+	if (developer && developer->integer)
+	{
+		gi.Com_PrintFmt("Boss Selection: {} eligible bosses, tracking {} recent (40% rule)\n",
+			eligibilityData.count, max_recent_to_track);
+	}
+
 	// First pass: try to find bosses not in recent history
-	auto [weightedBosses, weightedCount, totalWeight] = build_weighted_list(true);
+	auto [weightedBosses, weightedCount, totalWeight] = build_weighted_list(true, max_recent_to_track);
 
 	// If no non-recent bosses found, use all eligible bosses
 	if (weightedCount == 0)
@@ -377,7 +408,7 @@ BossPickResult G_HordePickBOSSType(const horde::MapSize& mapSize, std::string_vi
 		if (developer && developer->integer)
 			gi.Com_PrintFmt("INFO: No non-recent bosses eligible, ignoring history for this pick.\n");
 
-		std::tie(weightedBosses, weightedCount, totalWeight) = build_weighted_list(false);
+		std::tie(weightedBosses, weightedCount, totalWeight) = build_weighted_list(false, max_recent_to_track);
 	}
 
 	if (weightedCount == 0)
@@ -765,9 +796,25 @@ void SpawnBossAutomatically()
 	vec3_t predicted_mins, predicted_maxs;
 	GetPredictedScaledBounds(boss_pick_result.typeId, predicted_mins, predicted_maxs);
 
-	// Clear spawn area and push entities away
+	// Apply worst-case boss effect scaling based on size category
+	// ApplyBossEffects can scale bosses up to 1.5x (Large), 1.3x (Medium), or 1.1x (Small)
+	float boss_effect_scale = 1.0f;
+	switch (boss_pick_result.sizeCategory) {
+		case BossSizeCategory::Large:
+			boss_effect_scale = 1.5f;
+			break;
+		case BossSizeCategory::Medium:
+			boss_effect_scale = 1.3f;
+			break;
+		case BossSizeCategory::Small:
+			boss_effect_scale = 1.1f;
+			break;
+	}
+	predicted_mins *= boss_effect_scale;
+	predicted_maxs *= boss_effect_scale;
+
+	// Clear spawn area
 	ClearSpawnArea(spawn_origin, predicted_mins, predicted_maxs);
-	PushEntitiesAway(spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
 
 	// Validate spawn location
 	const auto validation = IsPositionPhysicallyValid(spawn_origin, predicted_mins, predicted_maxs, IsFlying(boss_pick_result.typeId));
@@ -781,6 +828,10 @@ void SpawnBossAutomatically()
 
 	// Use the adjusted position from validation (may have been dropped to floor)
 	const vec3_t final_spawn_origin = validation.adjusted_position;
+
+	// Push entities away from the validated spawn location
+	// This is called AFTER validation to prevent infinite loops when spawn is blocked
+	PushEntitiesAway(final_spawn_origin, PUSH_ITERATIONS, PUSH_BASE_RADIUS, PUSH_BASE_STRENGTH, PUSH_PLAYER_STRENGTH, PUSH_MONSTER_STRENGTH);
 
 	// Create boss entity
 	edict_t *boss = G_Spawn();
