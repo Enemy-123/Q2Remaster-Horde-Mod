@@ -108,9 +108,6 @@
     <ClInclude Include="horde\horde_performance.h">
       <Filter>horde</Filter>
     </ClInclude>
-    <ClInclude Include="horde\network_overflow_fix.h">
-      <Filter>horde</Filter>
-    </ClInclude>
     <ClInclude Include="horde\p_flyer_morph.h">
       <Filter>horde</Filter>
     </ClInclude>
@@ -120,9 +117,9 @@
     <ClInclude Include="memory_safety.h">
       <Filter>horde</Filter>
     </ClInclude>
-    <ClInclude Include="horde\g_asset_manager.h">
-      <Filter>horde</Filter>
-    </ClInclude>
+    <ClInclude Include="g_config.h" />
+    <ClInclude Include="horde\horde_constants.h" />
+    <ClInclude Include="horde\horde_monster_data.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -344,9 +341,6 @@
     <ClCompile Include="horde\g_strogg_summoner.cpp">
       <Filter>horde</Filter>
     </ClCompile>
-    <ClCompile Include="horde\network_overflow_fix.cpp">
-      <Filter>horde</Filter>
-    </ClCompile>
     <ClCompile Include="horde\p_flyer_morph.cpp">
       <Filter>horde</Filter>
     </ClCompile>
@@ -359,7 +353,9 @@
     <ClCompile Include="horde\g_bombspell.cpp">
       <Filter>horde</Filter>
     </ClCompile>
-    <ClCompile Include="horde\g_asset_manager.cpp">
+    <ClCompile Include="g_config.cpp" />
+    <ClCompile Include="horde\horde_monster_data.cpp" />
+    <ClCompile Include="horde\g_teleport.cpp">
       <Filter>horde</Filter>
     </ClCompile>
   </ItemGroup>
