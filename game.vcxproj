@@ -153,6 +153,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClInclude Include="horde\p_brain_morph.h" />
     <ClInclude Include="horde\p_flyer_morph.h" />
     <ClInclude Include="memory_safety.h" />
+    <ClInclude Include="monster_constants.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
     <ClInclude Include="m_berserk.h" />

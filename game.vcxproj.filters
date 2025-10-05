@@ -121,6 +121,7 @@
     <ClInclude Include="horde\horde_constants.h" />
     <ClInclude Include="horde\horde_monster_data.h" />
     <ClInclude Include="horde\g_horde_scaling.h" />
+    <ClInclude Include="monster_constants.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
