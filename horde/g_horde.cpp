@@ -4233,6 +4233,19 @@ PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const
         }
     }
 
+    // Check if spawning above sky brush (in the void) - trace far down
+    {
+        vec3_t down_check_start = position;
+        down_check_start.z += monster_mins.z; // Start from feet
+        vec3_t down_check_end = down_check_start;
+        down_check_end.z -= 2048.0f; // Check 2048 units down (far enough to detect void spawns)
+
+        trace_t down_trace = gi.trace(down_check_start, vec3_origin, vec3_origin, down_check_end, nullptr, MASK_SOLID);
+        if (down_trace.surface && (down_trace.surface->flags & SURF_SKY)) {
+            return result; // Spawning above sky - reject position
+        }
+    }
+
     // Calculate bbox size to determine if we need extra clearance
     const float bbox_radius = std::max({monster_maxs.x - monster_mins.x, monster_maxs.y - monster_mins.y}) * 0.5f;
     const bool is_large_monster = bbox_radius > 32.0f; // Large monsters (GM Arachnid, Tanks, etc.)
@@ -4498,18 +4511,65 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		}
 	}
 	// Critical: On/above sky surface (instant teleport) - check all monsters
+	// This catches monsters standing on ground outside the map with sky texture below
 	if (!needs_teleport)
 	{
 		vec3_t ground_check_start = self->s.origin;
 		ground_check_start.z += self->mins.z; // Start from feet
 		vec3_t ground_check_end = ground_check_start;
-		ground_check_end.z -= 8.0f; // Check 8 units down
+		ground_check_end.z -= 1024.0f; // Check 1024 units down to detect sky below ground
 
 		trace_t ground_trace = gi.trace(ground_check_start, vec3_origin, vec3_origin, ground_check_end, self, MASK_SOLID);
 		if (ground_trace.surface && (ground_trace.surface->flags & SURF_SKY))
 		{
 			needs_teleport = true;
 			reason_str = "On Sky Surface";
+		}
+	}
+	// Critical: No path AND no visibility to any player for 3 seconds
+	if (!needs_teleport)
+	{
+		bool has_path_or_visibility = false;
+
+		// Check if any player can see this monster or has clear line of sight
+		for (auto* player : active_players_no_spect())
+		{
+			if (!player || !player->inuse)
+				continue;
+
+			// Check visibility (both ways - can monster see player OR can player see monster)
+			if (visible(self, player, false) || visible(player, self, false))
+			{
+				has_path_or_visibility = true;
+				break;
+			}
+
+			// Check for clear traceline as fallback (simpler path check)
+			trace_t path_trace = gi.traceline(self->s.origin, player->s.origin, self, MASK_SOLID);
+			if (path_trace.fraction >= 0.95f) // Almost clear path
+			{
+				has_path_or_visibility = true;
+				break;
+			}
+		}
+
+		if (has_path_or_visibility)
+		{
+			// Reset timer if path/visibility restored
+			self->monsterinfo.unreachable_start_time = 0_sec;
+		}
+		else
+		{
+			// Start or continue timer
+			if (self->monsterinfo.unreachable_start_time == 0_sec)
+			{
+				self->monsterinfo.unreachable_start_time = level.time;
+			}
+			else if (level.time > self->monsterinfo.unreachable_start_time + 3_sec)
+			{
+				needs_teleport = true;
+				reason_str = "Unreachable (No Path/Visibility)";
+			}
 		}
 	}
 	// Non-critical checks (only if not already flagged for teleport)

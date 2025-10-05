@@ -1902,6 +1902,7 @@ struct monsterinfo_t
 	gtime_t spawn_cooldown; // Tiempo de espera entre spawns
 	gtime_t stuck_check_time; // Initialized in InitMonsterAntiStack
 	gtime_t no_enemy_timeout_start_time;
+	gtime_t unreachable_start_time; // CATS: Track when monster lost path+visibility to all players
 
 	bool was_stuck = false;
 	bool isfriendlyspawn = false; // corpse cleaning management
