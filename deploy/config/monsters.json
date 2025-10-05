@@ -146,7 +146,7 @@
       "health": 65,
       "power_armor_power": 45,
       "power_armor_type": "combat",
-      "damage_scale": 1.3
+      "damage_scale": 1.0
     },
 
     "soldier_hypergun": {
@@ -491,6 +491,27 @@
       }
     },
 
+        "floater": {
+      "health": 360,
+      "power_armor_power": 0,
+      "power_armor_type": "screen",
+      "damage_scale": 0.4,
+      "weapon_damage": {
+        "blaster": 4,
+        "melee": 8
+      }
+    },
+
+    "floater_tracker": {
+      "health": 450,
+      "power_armor_power": 75,
+      "power_armor_type": "screen",
+      "damage_scale": 0.53,
+      "weapon_damage": {
+        "tracker": 8
+      }
+    },
+
     "// ========== XATRIX MONSTERS ==========": "",
     "fixbot": {
       "health": 130,
@@ -514,27 +535,6 @@
         "ionripper": 30,
         "plasma": 45,
         "blaster_bolt": 25
-      }
-    },
-
-    "floater": {
-      "health": 360,
-      "power_armor_power": 0,
-      "power_armor_type": "screen",
-      "damage_scale": 0.4,
-      "weapon_damage": {
-        "blaster": 4,
-        "melee": 8
-      }
-    },
-
-    "floater_tracker": {
-      "health": 450,
-      "power_armor_power": 75,
-      "power_armor_type": "screen",
-      "damage_scale": 0.53,
-      "weapon_damage": {
-        "tracker": 8
       }
     },
 
