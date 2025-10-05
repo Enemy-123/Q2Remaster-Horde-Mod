@@ -314,7 +314,8 @@ void InfantryMachineGun(edict_t* self)
 		if (self->style == 1) // Blaster
 		{
 			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
-			monster_fire_blaster2(self, start, forward, damage > 0 ? damage : 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+			int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+			monster_fire_blaster2(self, start, forward, damage > 0 ? damage : 6, speed > 0 ? speed : 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
 		}
 		else // Vanilla
 		{
@@ -332,9 +333,12 @@ void InfantryMachineGun(edict_t* self)
 			AngleVectors(self->s.angles, forward, right, up);
 			start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
+			int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+			int blaster_speed = config_speed > 0 ? config_speed : 1150;
+
 			dir = self->enemy->s.origin - start;
 			if (frandom() < 0.3f)
-				PredictAim(self, self->enemy, start, 1075, true, 0, &dir, &end);
+				PredictAim(self, self->enemy, start, blaster_speed, true, 0, &dir, &end);
 			else
 				end = self->enemy->s.origin;
 
@@ -343,7 +347,7 @@ void InfantryMachineGun(edict_t* self)
 			{
 				dir.normalize();
 				int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
-				monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+				monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 6, blaster_speed, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
 			}
 		}
 		else // Vanilla
@@ -498,7 +502,8 @@ static void infantry_death_grenade(edict_t* self)
 
 	// Fire the grenade (low speed for drop)
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
-	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, 200, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, speed > 0 ? speed : 200, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 

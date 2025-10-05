@@ -275,9 +275,9 @@ float GetItemDropScale(int wave_level, int item_tier) {
 // Scale monster health with sigmoid curve
 int ScaleMonsterHealth(int base_health, int wave_level, bool is_boss) {
     if (!g_config.use_sigmoid_scaling) {
-        if (developer && developer->integer) {
-            gi.Com_PrintFmt("ScaleMonsterHealth: Scaling disabled (use_sigmoid_scaling=false)\n");
-        }
+        // if (developer && developer->integer) {
+        //     gi.Com_PrintFmt("ScaleMonsterHealth: Scaling disabled (use_sigmoid_scaling=false)\n");
+        // }
         return base_health;
     }
 
@@ -301,10 +301,10 @@ int ScaleMonsterHealth(int base_health, int wave_level, bool is_boss) {
 
     int scaled_health = static_cast<int>(base_health * scale);
 
-    if (developer && developer->integer) {
-        gi.Com_PrintFmt("ScaleMonsterHealth: wave={}, base={}, scale={:.2f}, scaled={}, is_boss={}\n",
-            wave_level, base_health, scale, scaled_health, is_boss);
-    }
+    // if (developer && developer->integer) {
+    //     gi.Com_PrintFmt("ScaleMonsterHealth: wave={}, base={}, scale={:.2f}, scaled={}, is_boss={}\n",
+    //         wave_level, base_health, scale, scaled_health, is_boss);
+    // }
 
     return scaled_health;
 }

@@ -787,7 +787,8 @@ void loogie(edict_t* self)
 
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
 	if (damage <= 0) damage = 7;
-	fire_loogie(self, start, dir, damage, 850);
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "plasma");
+	fire_loogie(self, start, dir, damage, speed > 0 ? speed : 850);
 
 	gi.sound(self, CHAN_BODY, sound_speet, 1.0f, ATTN_NORM, 0);
 }

@@ -646,7 +646,10 @@ void TankGrenades(edict_t* self)
 
 	vec3_t const start = M_ProjectFlashSource(self, offset, forward, right);
 	const bool is_mortar = (self->s.frame == FRAME_attak110);
-	const float speed = is_mortar ? MORTAR_SPEED : GRENADE_SPEED;
+
+	// Get configured grenade speed or use defaults
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	const float speed = config_speed > 0 ? static_cast<float>(config_speed) : (is_mortar ? MORTAR_SPEED : GRENADE_SPEED);
 	vec3_t aim, aimpoint;
 
 	const float dist = range_to(self, self->enemy);
@@ -757,8 +760,10 @@ void TankBlaster(edict_t* self)
 		if (lightning_damage <= 0) lightning_damage = 15;
 		fire_bullet(self, bullet_start, dir, lightning_damage, 18, 0, 0, MOD_TESLA);
 	}
-	else
-		monster_fire_blaster2(self, start, dir, damage, 950, flash_number, EF_BLASTER);
+	else {
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+		monster_fire_blaster2(self, start, dir, damage, speed > 0 ? speed : 950, flash_number, EF_BLASTER);
+	}
 }
 
 void TankStrike(edict_t* self)
@@ -815,8 +820,12 @@ void TankRocket(edict_t* self)
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-    // Determine rocketSpeed
-    if (self->speed)
+    // Determine rocketSpeed - check config first, then existing logic
+    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS ? "heat" : "rocket");
+
+    if (config_speed > 0)
+        rocketSpeed = config_speed;
+    else if (self->speed)
         rocketSpeed = lroundf(self->speed); // FIX: Explicitly round the float to the nearest int
     else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN)) // Ensure SPAWNFLAG is defined correctly
         rocketSpeed = 600;
@@ -1960,7 +1969,8 @@ void tank_vanillaBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	monster_fire_blaster(self, start, dir, damage, 1230, flash_number, EF_BLASTER);
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
+	monster_fire_blaster(self, start, dir, damage, speed > 0 ? speed : 1230, flash_number, EF_BLASTER);
 }
 
 void tank_vanillaStrike(edict_t* self)
@@ -2022,7 +2032,12 @@ void tank_vanillaRocket(edict_t* self)
 	// [Paril-KEX] scale
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	if (self->speed)
+	// Check config first, then existing logic
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING) ? "heat" : "rocket");
+
+	if (config_speed > 0)
+		rocketSpeed = config_speed;
+	else if (self->speed)
 		rocketSpeed = self->speed;
 	else if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING))
 		rocketSpeed = 500;
@@ -2147,7 +2162,8 @@ void tank_vanillaMachineGun(edict_t* self)
 	AngleVectors(dir, forward, nullptr, nullptr);
 
 	//monster_fire_bullet(self, start, forward, 20, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
-	monster_fire_blaster_bolt(self, start, forward, damage, 1150, flash_number, EF_BLUEHYPERBLASTER);
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+	monster_fire_blaster_bolt(self, start, forward, damage, speed > 0 ? speed : 1150, flash_number, EF_BLUEHYPERBLASTER);
 }
 
 static void tank_vanilla_blind_check(edict_t* self)

@@ -706,9 +706,15 @@ void MakronHyperblaster(edict_t* self)
 	if (damage <= 0) damage = 35;
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON))
-		monster_fire_blaster2(self, start, forward, damage, 1300, flash_number, EF_BLASTER);
+	{
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+		monster_fire_blaster2(self, start, forward, damage, speed > 0 ? speed : 1300, flash_number, EF_BLASTER);
+	}
 	else
-		monster_fire_blaster_bolt(self, start, forward, damage, 2300, flash_number, EF_HYPERBLASTER);
+	{
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+		monster_fire_blaster_bolt(self, start, forward, damage, speed > 0 ? speed : 2300, flash_number, EF_HYPERBLASTER);
+	}
 }
 
 PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void

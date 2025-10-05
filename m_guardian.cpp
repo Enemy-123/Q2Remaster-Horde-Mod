@@ -267,8 +267,9 @@ void guardian_fire_blaster(edict_t* self)
 	{
 		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
 		if (damage <= 0) damage = 25;
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
 		// Usar Ionripper para janitor2
-		monster_fire_ionripper(self, start, forward, damage, 950, id, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, forward, damage, speed > 0 ? speed : 950, id, EF_IONRIPPER);
 	}
 
 	if (self->enemy && self->enemy->health > 0 &&
@@ -379,7 +380,8 @@ static void guardian_grenade(edict_t* self)
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
 	//const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
-	constexpr float speed = GRENADE_SPEED;
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	float const speed = config_speed > 0 ? static_cast<float>(config_speed) : GRENADE_SPEED;
 
 	AngleVectors(self->s.angles, forward, right, up);
 

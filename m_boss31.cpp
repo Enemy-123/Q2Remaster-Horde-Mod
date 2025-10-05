@@ -515,7 +515,8 @@ void jorgBFG(edict_t* self)
 	{
 		// This is another variant (e.g., jorg_small), fire the tracker.
 		int tracker_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
-		monster_fire_tracker(self, start, dir, tracker_damage > 0 ? tracker_damage : 13, 950, self->enemy, MZ2_MAKRON_BFG);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "tracker");
+		monster_fire_tracker(self, start, dir, tracker_damage > 0 ? tracker_damage : 13, speed > 0 ? speed : 950, self->enemy, MZ2_MAKRON_BFG);
 	}
 }
 
@@ -558,13 +559,15 @@ void jorg_firebullet_right(edict_t* self)
 		if (plasma_damage <= 0)
 			plasma_damage = 35;
 		int radius_damage = plasma_damage + 10; // radius damage is typically ~10 more than direct damage
-		fire_plasma(self, start, dir, plasma_damage, 725, radius_damage, radius_damage);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "plasma");
+		fire_plasma(self, start, dir, plasma_damage, speed > 0 ? speed : 725, radius_damage, radius_damage);
 	}
 	else
 	{
 		//	monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
 		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, speed > 0 ? speed : 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 	}
 
 	// save for aiming the shot
@@ -596,12 +599,14 @@ void jorg_firebullet_left(edict_t* self)
 		if (plasma_damage <= 0)
 			plasma_damage = 35;
 		int radius_damage = plasma_damage + 10; // radius damage is typically ~10 more than direct damage
-		fire_plasma(self, start, dir, plasma_damage, 725, radius_damage, radius_damage);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "plasma");
+		fire_plasma(self, start, dir, plasma_damage, speed > 0 ? speed : 725, radius_damage, radius_damage);
 	}
 	else
 	{
 		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, speed > 0 ? speed : 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 	}
 
 	// save for aiming the shot

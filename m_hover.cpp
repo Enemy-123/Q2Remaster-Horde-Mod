@@ -304,7 +304,8 @@ void hover_fire_blaster(edict_t* self)
     }
 
     vec3_t start, forward, right, end, dir;
-    int blasterSpeed = 1230;
+    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
+    int blasterSpeed = config_speed > 0 ? config_speed : 1230;
     AngleVectors(self->s.angles, forward, right, nullptr);
     vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
     start = M_ProjectFlashSource(self, o, forward, right);
@@ -327,7 +328,8 @@ void hover_fire_blaster2(edict_t* self)
     }
 
     vec3_t start, forward, right, end, dir;
-    int blasterSpeed = 1230;
+    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+    int blasterSpeed = config_speed > 0 ? config_speed : 1230;
     AngleVectors(self->s.angles, forward, right, nullptr);
     vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
     start = M_ProjectFlashSource(self, o, forward, right);
@@ -350,7 +352,8 @@ void hover_fire_rocket(edict_t* self)
 
     vec3_t forward, right, start, dir, vec, target;
     trace_t trace;
-    int rocketSpeed = 850;
+    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+    int rocketSpeed = config_speed > 0 ? config_speed : 850;
     bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
@@ -395,7 +398,8 @@ void hover_fire_grenades(edict_t* self)
     if (!M_HasEnemy(self))
         return;
 
-    constexpr float GRENADE_SPEED = 760.f;
+    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+    float const GRENADE_SPEED = config_speed > 0 ? static_cast<float>(config_speed) : 760.f;
     vec3_t forward, right, up, aim, target, offset{};
     monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
     bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;

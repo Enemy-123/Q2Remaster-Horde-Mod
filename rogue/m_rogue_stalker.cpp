@@ -460,12 +460,15 @@ void stalker_shoot_attack(edict_t *self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 13, 960, self->enemy, MZ2_STALKER_BLASTER);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "tracker");
+		monster_fire_tracker(self, start, dir, 13, speed > 0 ? speed : 960, self->enemy, MZ2_STALKER_BLASTER);
 	}
 	else
 	{
-		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 13, 960, nullptr, MZ2_STALKER_BLASTER);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "tracker");
+		int predict_speed = speed > 0 ? speed : 960;
+		PredictAim(self, self->enemy, start, predict_speed * 1.25, true, 0, &dir, nullptr);
+		monster_fire_tracker(self, start, dir, 13, predict_speed, nullptr, MZ2_STALKER_BLASTER);
 	}
 }
 */
@@ -499,9 +502,12 @@ void stalker_shoot_attack(edict_t* self)
 	offset = { 24, 0, 6 };
 	start = M_ProjectFlashSource(self, offset, f, r);
 
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+	int blaster_speed = config_speed > 0 ? config_speed : 960;
+
 	dir = self->enemy->s.origin - start;
 	if (frandom() < 0.3f)
-		PredictAim(self, self->enemy, start, 1000, true, 0, &dir, &end);
+		PredictAim(self, self->enemy, start, blaster_speed, true, 0, &dir, &end);
 	else
 		end = self->enemy->s.origin;
 
@@ -509,7 +515,7 @@ void stalker_shoot_attack(edict_t* self)
 	if (trace.ent == self->enemy || trace.ent == world)
 	{
 		dir.normalize();
-		monster_fire_blaster2(self, start, dir, 15, 960, MZ2_STALKER_BLASTER, EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, 15, blaster_speed, MZ2_STALKER_BLASTER, EF_BLASTER);
 	}
 }
 

@@ -1628,6 +1628,9 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 			int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
 			if (ionripper_damage <= 0) ionripper_damage = isboss ? 20 : 12;
 
+			// Get speed from config
+			int ionripper_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
+
 			// Determine direction to enemy
 			vec3_t dir_to_enemy = self->enemy->s.origin - start;
 			if (dir_to_enemy.lengthSquared() <= 0.01f) dir_to_enemy = forward; // Use forward if too close
@@ -1635,25 +1638,27 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 
 			// Boss fires triple spread of ionrippers
 			if (isboss) {
+				int boss_speed = ionripper_speed > 0 ? ionripper_speed : 750;
 				vec3_t dir1 = dir_to_enemy + (right * 0.12f); dir1.normalize();
 				vec3_t dir4 = dir_to_enemy + (right * 0.16f); dir4.normalize();
 				vec3_t dir2 = dir_to_enemy; // Already normalized
 				vec3_t dir3 = dir_to_enemy - (right * 0.12f); dir3.normalize();
 				vec3_t dir5 = dir_to_enemy - (right * 0.16f); dir5.normalize();
 
-				monster_fire_ionripper(self, start, dir1, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir2, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir3, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir4, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir5, ionripper_damage, 750, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir1, ionripper_damage, boss_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir2, ionripper_damage, boss_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir3, ionripper_damage, boss_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir4, ionripper_damage, boss_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir5, ionripper_damage, boss_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
 			}
 			else {
+				int normal_speed = ionripper_speed > 0 ? ionripper_speed : 650;
 				vec3_t dir1 = dir_to_enemy + (right * 0.12f); dir1.normalize();
 				vec3_t dir2 = dir_to_enemy; // Already normalized
 				vec3_t dir3 = dir_to_enemy - (right * 0.12f); dir3.normalize();
-				monster_fire_ionripper(self, start, dir1, ionripper_damage, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir2, ionripper_damage, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
-				monster_fire_ionripper(self, start, dir3, ionripper_damage, 650, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir1, ionripper_damage, normal_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir2, ionripper_damage, normal_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
+				monster_fire_ionripper(self, start, dir3, ionripper_damage, normal_speed, MZ2_HOVER_BLASTER_1, EF_IONRIPPER);
 			}
 			gi.sound(self, CHAN_WEAPON, sound_pew, 1, ATTN_NORM, 0); // Play sound for ionripper
 			return; // Didn't use plasma

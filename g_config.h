@@ -287,6 +287,64 @@ struct MonsterWeaponDamage
 	int proboscis = 0;
 };
 
+// Monster weapon speed configuration (projectile velocity)
+struct MonsterWeaponSpeed
+{
+	int blaster = 0;
+	int blaster2 = 0;
+	int blaster_bolt = 0;
+	int blueblaster = 0;
+	int shotgun = 0;
+	int machinegun = 0;
+	int grenade = 0;
+	int rocket = 0;
+	int heat = 0;
+	int railgun = 0;
+	int bfg = 0;
+	int ionripper = 0;
+	int hyperblaster = 0;
+	int bolt = 0;
+	int tracker = 0;
+	int plasma = 0;
+	int dabeam = 0;
+	int heatbeam = 0;
+	int melee = 0;
+	int slam = 0;
+	int lightning = 0;
+	int flechette = 0;
+	int fireball = 0;
+	int proboscis = 0;
+};
+
+// Monster weapon damage radius configuration (explosion/splash radius)
+struct MonsterWeaponRadius
+{
+	float blaster = 0.0f;
+	float blaster2 = 0.0f;
+	float blaster_bolt = 0.0f;
+	float blueblaster = 0.0f;
+	float shotgun = 0.0f;
+	float machinegun = 0.0f;
+	float grenade = 0.0f;
+	float rocket = 0.0f;
+	float heat = 0.0f;
+	float railgun = 0.0f;
+	float bfg = 0.0f;
+	float ionripper = 0.0f;
+	float hyperblaster = 0.0f;
+	float bolt = 0.0f;
+	float tracker = 0.0f;
+	float plasma = 0.0f;
+	float dabeam = 0.0f;
+	float heatbeam = 0.0f;
+	float melee = 0.0f;
+	float slam = 0.0f;
+	float lightning = 0.0f;
+	float flechette = 0.0f;
+	float fireball = 0.0f;
+	float proboscis = 0.0f;
+};
+
 // Monster stats configuration
 struct MonsterStatsConfig
 {
@@ -296,6 +354,8 @@ struct MonsterStatsConfig
 	int armor_power = 0;
 	int32_t armor_type = 0; // item_id_t (IT_NULL, IT_ARMOR_BODY, IT_ARMOR_COMBAT, etc.)
 	MonsterWeaponDamage weapon_damage;
+	MonsterWeaponSpeed weapon_speed;
+	MonsterWeaponRadius weapon_radius;
 	// float wave_damage_multiplier = 0.0f; // Future: per-wave damage scaling
 };
 

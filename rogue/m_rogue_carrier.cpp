@@ -211,9 +211,11 @@ void CarrierGrenade(edict_t *self)
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 45;
 
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+
 	flash_number = MZ2_GUNNER_GRENADE_1;
-	monster_fire_grenade(self, start, aim, damage, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
-	monster_fire_grenade(self, start, aim, damage, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, damage, speed > 0 ? speed : 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, damage, speed > 0 ? speed : 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 void CarrierPredictiveRocket(edict_t *self)
@@ -232,25 +234,28 @@ void CarrierPredictiveRocket(edict_t *self)
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
 
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "heat");
+	if (speed <= 0) speed = CARRIER_ROCKET_SPEED;
+
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_1], forward, right);
-	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.3f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	PredictAim(self, self->enemy, start, speed, false, -0.3f, &dir, nullptr);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
-	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	PredictAim(self, self->enemy, start, speed, false, -0.15f, &dir, nullptr);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
-	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0, &dir, nullptr);
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	PredictAim(self, self->enemy, start, speed, false, 0, &dir, nullptr);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
-	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	PredictAim(self, self->enemy, start, speed, false, 0.15f, &dir, nullptr);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 
@@ -282,6 +287,9 @@ void CarrierRocket(edict_t *self)
 	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
 
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "heat");
+	if (speed <= 0) speed = CARRIER_ROCKET_SPEED;
+
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_1], forward, right);
 	vec = self->enemy->s.origin;
@@ -290,7 +298,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
@@ -299,7 +307,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
@@ -308,7 +316,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
@@ -318,7 +326,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, damage, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	monster_fire_heat(self, start, dir, damage, speed, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 void carrier_firebullet_right(edict_t *self)

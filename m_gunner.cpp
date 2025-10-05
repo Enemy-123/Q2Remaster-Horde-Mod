@@ -421,6 +421,9 @@ void GunnerFire(edict_t* self)
 		target = self->enemy->s.origin;
 	}
 
+	int ionripper_speed_cfg = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
+	int ionripper_speed = ionripper_speed_cfg > 0 ? ionripper_speed_cfg : 800;
+
 	if (g_hardcoop->integer <= 3) {
 		// Modo hardcoop bajo: solo ionripper (can blindfire)
 		if (blindfire)
@@ -429,9 +432,9 @@ void GunnerFire(edict_t* self)
 		}
 		else
 		{
-			PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+			PredictAim(self, self->enemy, start, ionripper_speed, true, 0.1f, &aim, nullptr);
 		}
-		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, ionripper_speed, flash_number, EF_IONRIPPER);
 	}
 	else if (current_wave_level <= 12) {
 		// Waves bajos: bullet (no blindfire for bullets)
@@ -448,9 +451,9 @@ void GunnerFire(edict_t* self)
 		}
 		else
 		{
-			PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+			PredictAim(self, self->enemy, start, ionripper_speed, true, 0.1f, &aim, nullptr);
 		}
-		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, ionripper_speed, flash_number, EF_IONRIPPER);
 	}
 }
 
@@ -583,12 +586,15 @@ void GunnerGrenade(edict_t* self)
 	aim = forward + (right * spread);
 	aim += (up * pitch);
 
+	int grenade_speed_cfg = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	float grenade_speed = grenade_speed_cfg > 0 ? static_cast<float>(grenade_speed_cfg) : 690.f;
+
 	// try search for best pitch
-	if (M_CalculatePitchToFire(self, target, start, aim, 690, 2.5f, false))
-		monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+	if (M_CalculatePitchToFire(self, target, start, aim, grenade_speed, 2.5f, false))
+		monster_fire_grenade(self, start, aim, 40, grenade_speed, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
 	else
 		// normal shot
-		monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+		monster_fire_grenade(self, start, aim, 40, grenade_speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 mframe_t gunner_frames_attack_chain[] = {

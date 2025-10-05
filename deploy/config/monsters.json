@@ -1,4 +1,13 @@
 {
+  "// ==================== SCHEMA ====================": "Optional weapon_speed and weapon_radius can be added to any monster",
+  "// weapon_speed": "Projectile velocity (higher = faster shots). 0 = use hardcoded fallback",
+  "// weapon_radius": "Explosion/splash damage radius (0 = no splash, use for rockets/grenades/explosives)",
+  "// Example:": {
+    "weapon_damage": {"blaster":  6, "rocket": 50},
+    "weapon_speed": {"blaster": 1000, "rocket": 650},
+    "weapon_radius": {"rocket": 140}
+  },
+
   "monsters": {
     "sentrygun": {
       "health": 150,

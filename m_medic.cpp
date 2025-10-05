@@ -1316,7 +1316,8 @@ void medic_fire_blaster_bolt(edict_t *self)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster_bolt(self, start, dir, damage > 0 ? damage : 30, 1150, mz, EF_BLUEHYPERBLASTER);
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+	monster_fire_blaster_bolt(self, start, dir, damage > 0 ? damage : 30, speed > 0 ? speed : 1150, mz, EF_BLUEHYPERBLASTER);
 }
 
 void medic_fire_blaster(edict_t *self)
@@ -1380,7 +1381,8 @@ void medic_fire_blaster(edict_t *self)
 			damage *= 1.5f;
 		}
 
-		monster_fire_blaster2(self, start, dir, damage, 1000, mz, effect);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+		monster_fire_blaster2(self, start, dir, damage, speed > 0 ? speed : 1000, mz, effect);
 	}
 	else
 	{
@@ -1397,7 +1399,8 @@ void medic_fire_blaster(edict_t *self)
 			damage *= 1.5f;
 		}
 
-		monster_fire_blaster(self, start, dir, damage, 1000, mz, effect);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
+		monster_fire_blaster(self, start, dir, damage, speed > 0 ? speed : 1000, mz, effect);
 	}
 }
 

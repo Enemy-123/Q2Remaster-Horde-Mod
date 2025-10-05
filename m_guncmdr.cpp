@@ -1041,10 +1041,11 @@ void GunnerCmdrGrenade(edict_t* self)
 	{
 		constexpr float inner_spread = 0.125f;
 		int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
+		int ionripper_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
 		for (int32_t i = 0; i < 3; i++)
 			fire_ionripper(self, start,
 				aim + (right * (-(inner_spread * 2) + (inner_spread * (i + 1)))),
-				ionripper_damage > 0 ? ionripper_damage : 15, 800, EF_IONRIPPER);
+				ionripper_damage > 0 ? ionripper_damage : 15, ionripper_speed > 0 ? ionripper_speed : 800, EF_IONRIPPER);
 
 		monster_muzzleflash(self, start, flash_number);
 	}

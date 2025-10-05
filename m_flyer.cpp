@@ -378,7 +378,8 @@ void flyer_rocket(edict_t* self)
 	vec3_t	start, end, dir;
 	float	dist, chance;
 	trace_t trace;
-	constexpr int rocketSpeed = 850;
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+	int rocketSpeed = config_speed > 0 ? config_speed : 850;
 	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
 	if (blindfire && !visible(self, self->enemy))
@@ -563,15 +564,18 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+	int speed = config_speed > 0 ? config_speed : 1150;
+
 	if (frandom() < 0.3f)
-		PredictAim(self, self->enemy, start, 1000, true, 0, &dir, &end);
+		PredictAim(self, self->enemy, start, speed, true, 0, &dir, &end);
 	else
 		end = self->enemy->s.origin;
 	end[2] += self->enemy->viewheight;
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster_bolt(self, start, forward, damage, 1150, flash_number, EF_HYPERBLASTER, 0);
+	monster_fire_blaster_bolt(self, start, forward, damage, speed, flash_number, EF_HYPERBLASTER, 0);
 }
 
 void flyer_fireleft(edict_t* self)

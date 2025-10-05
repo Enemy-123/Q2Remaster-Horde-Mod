@@ -1282,7 +1282,8 @@ void gm_arachnid_rockets(edict_t* self)
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
 
-    rocketSpeed = 800;
+    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->s.skinnum > 1 ? "heat" : "rocket");
+    rocketSpeed = config_speed > 0 ? config_speed : 800;
 
     if (blindfire)
         target = self->monsterinfo.blind_fire_target;

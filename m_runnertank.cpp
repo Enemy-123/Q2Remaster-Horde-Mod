@@ -577,8 +577,11 @@ void runnertankRocket(edict_t* self) {
 	vec3_t const start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
 	// Determinar velocidad del cohete
-	int32_t const rocket_speed = self->speed ? self->speed :
-		self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING) ? 500 : 650;
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id,
+		self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING) ? "heat" : "rocket");
+	int32_t const rocket_speed = config_speed > 0 ? config_speed :
+		(self->speed ? self->speed :
+			(self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING) ? 500 : 650));
 
 	// Calcular punto objetivo
 	vec3_t target;

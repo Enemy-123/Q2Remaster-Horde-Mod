@@ -297,7 +297,8 @@ static void supertankGrenade(edict_t* self)
 	{
 		// Ajustar la velocidad y trayectoria para teslas
 		if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE)) {
-			float const speed = 400.0f;
+			int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+			float const speed = config_speed > 0 ? static_cast<float>(config_speed) : 400.0f;
 			vec3_t target = self->enemy->s.origin;
 
 			// Si la tesla está en el suelo, ajustar el punto de impacto
@@ -316,7 +317,8 @@ static void supertankGrenade(edict_t* self)
 			return;
 		}
 		else {
-			float const speed = 500.0f + (i * 100.0f);
+			int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+			float const speed = config_speed > 0 ? static_cast<float>(config_speed) : (500.0f + (i * 100.0f));
 
 			if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
 				continue;
@@ -528,12 +530,15 @@ void supertankRocket(edict_t* self)
 		dir.normalize();
 		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
 		if (damage <= 0) damage = 40;
-		monster_fire_heat(self, start, dir, damage, 980, flash_number, 0.075f);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "heat");
+		monster_fire_heat(self, start, dir, damage, speed > 0 ? speed : 980, flash_number, 0.075f);
 	}
 	else
 	{
-		PredictAim(self, self->enemy, start, 750, false, 0.f, &forward, nullptr);
-		monster_fire_rocket(self, start, forward, 50, 1100, flash_number);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+		int predict_speed = speed > 0 ? speed : 1100;
+		PredictAim(self, self->enemy, start, predict_speed, false, 0.f, &forward, nullptr);
+		monster_fire_rocket(self, start, forward, 50, predict_speed, flash_number);
 	}
 }
 

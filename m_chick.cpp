@@ -702,7 +702,8 @@ void chickkl_grenade(edict_t* self)
 	aim = (target - start).normalized();
 
 	// Fire grenade
-	monster_fire_grenade(self, start, aim, 40, 600, MZ2_CHICK_ROCKET_1, 2.5f, 120);
+	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	monster_fire_grenade(self, start, aim, 40, speed > 0 ? speed : 600, MZ2_CHICK_ROCKET_1, 2.5f, 120);
 }
 
 void ChickRocket(edict_t* self)
@@ -739,7 +740,10 @@ void ChickRocket(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
 	// [Paril-KEX]
-	if (self->s.skinnum > 1)
+	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->s.skinnum > 1 ? "heat" : "rocket");
+	if (config_speed > 0)
+		rocketSpeed = config_speed;
+	else if (self->s.skinnum > 1)
 		rocketSpeed = 850;
 	else
 		rocketSpeed = 1060;

@@ -707,7 +707,8 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 		// RAFAEL 24-APR-98
 		// droped the damage from 15 to 5
 		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
-		monster_fire_ionripper(self, start, aim, damage > 0 ? damage : 5, 600, flash_index, EF_IONRIPPER);
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
+		monster_fire_ionripper(self, start, aim, damage > 0 ? damage : 5, speed > 0 ? speed : 600, flash_index, EF_IONRIPPER);
 	}
 	else if (style.has_bluehyper())
 	{
@@ -717,14 +718,17 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 		}
 		else {
 			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-			monster_fire_blaster_bolt(self, start, forward, damage > 0 ? damage : 5, 1150, flash_index, EF_BLUEHYPERBLASTER);
+			int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+			monster_fire_blaster_bolt(self, start, forward, damage > 0 ? damage : 5, speed > 0 ? speed : 1150, flash_index, EF_BLUEHYPERBLASTER);
 		}
 	}
 	else if (style.has_blaster())
 	{
 		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
 		int fallback_damage = IsFirstThreeWaves(current_wave_level) ? 6 : 9;
-		monster_fire_blaster(self, start, aim, damage > 0 ? damage : fallback_damage, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
+		int fallback_speed = IsFirstThreeWaves(current_wave_level) ? 600 : 1200;
+		monster_fire_blaster(self, start, aim, damage > 0 ? damage : fallback_damage, speed > 0 ? speed : fallback_speed, flash_index, EF_BLASTER);
 	}
 	else if (style.has_shotgun())
 	{
