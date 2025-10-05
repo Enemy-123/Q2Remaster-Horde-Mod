@@ -1479,6 +1479,10 @@ THINK(monster_think) (edict_t* self) -> void
 	M_CatagorizePosition(self, self->s.origin, self->waterlevel, self->watertype);
 	M_WorldEffects(self);
 	M_SetEffects(self);
+
+	// Update skin based on health (needed for regeneration, healing, etc.)
+	if (self->monsterinfo.setskin)
+		self->monsterinfo.setskin(self);
 }
 
 /*

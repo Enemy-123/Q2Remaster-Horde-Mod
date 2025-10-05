@@ -116,6 +116,7 @@
       "power_armor_power": 0,
       "weapon_damage": {
         "blaster": 15,
+        "blaster2": 18,
         "bolt": 30
       }
     },
@@ -124,6 +125,7 @@
       "power_armor_power": 0,
       "weapon_damage": {
         "blaster": 18,
+        "blaster2": 22,
         "bolt": 35
       }
     },
@@ -192,7 +194,9 @@
         "blaster2": 30,
         "grenade": 50,
         "machinegun": 6,
+        "flechette": 8,
         "rocket": 50,
+        "heat": 55,
         "slam": 75
       }
     },
@@ -204,7 +208,9 @@
         "blaster2": 30,
         "grenade": 50,
         "machinegun": 6,
+        "flechette": 10,
         "rocket": 50,
+        "heat": 60,
         "slam": 75
       }
     },
@@ -217,7 +223,9 @@
         "lightning": 15,
         "grenade": 50,
         "machinegun": 6,
-        "rocket": 50
+        "flechette": 8,
+        "rocket": 50,
+        "heat": 55
       }
     },
     "runnertank": {
@@ -226,8 +234,10 @@
       "weapon_damage": {
         "blaster": 25,
         "machinegun": 5,
+        "flechette": 8,
         "railgun": 45,
         "rocket": 50,
+        "heat": 55,
         "plasma": 35,
         "slam": 75
       }
@@ -520,6 +530,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "blaster": 5,
+        "blaster_bolt": 8,
         "rocket": 50
       }
     },
@@ -529,6 +540,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "blaster": 5,
+        "blaster_bolt": 8,
         "rocket": 50
       }
     },
@@ -538,6 +550,7 @@
       "power_armor_type": "shield",
       "weapon_damage": {
         "blaster": 5,
+        "blaster_bolt": 8,
         "rocket": 45
       }
     },
@@ -547,6 +560,7 @@
       "power_armor_type": "screen",
       "weapon_damage": {
         "rocket": 50,
+        "heat": 40,
         "machinegun": 6,
         "grenade": 50
       }

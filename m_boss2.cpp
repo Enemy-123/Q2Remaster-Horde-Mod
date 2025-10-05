@@ -352,16 +352,17 @@ void Boss2HyperBlaster(edict_t *self)
 	forward = target - start;
 	forward.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
-	if (damage <= 0) damage = 5;
-
 	if (!self->monsterinfo.IS_BOSS)
 	{
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		if (damage <= 0) damage = 5;
 		monster_fire_blaster(self, start, forward, damage, 1350, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
 	else
 	{
-		monster_fire_blaster_bolt(self, start, forward, damage + 3, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
+		if (damage <= 0) damage = 8;
+		monster_fire_blaster_bolt(self, start, forward, damage, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
 }
 

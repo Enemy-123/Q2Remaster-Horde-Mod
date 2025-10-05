@@ -735,7 +735,7 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	}
 
-	const bool isBoss = 
+	const bool isBoss =
     (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64) && self->monsterinfo.IS_BOSS) ||
     (g_hardcoop->integer && horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64));
 
@@ -752,7 +752,9 @@ void TankBlaster(edict_t* self)
 		gi.WritePosition(tr.endpos);
 		gi.multicast(bullet_start, MULTICAST_PVS, false);
 
-		fire_bullet(self, bullet_start, dir, irandom(12, 17), 18, 0, 0, MOD_TESLA);
+		int lightning_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "lightning");
+		if (lightning_damage <= 0) lightning_damage = 15;
+		fire_bullet(self, bullet_start, dir, lightning_damage, 18, 0, 0, MOD_TESLA);
 	}
 	else
 		monster_fire_blaster2(self, start, dir, damage, 950, flash_number, EF_BLASTER);
