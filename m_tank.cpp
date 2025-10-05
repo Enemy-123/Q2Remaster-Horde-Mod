@@ -13,6 +13,7 @@ All tank variants unified in a single file
 #include "m_tank.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 #include <algorithm>
 #include <numeric>
 
@@ -2970,7 +2971,13 @@ void SP_monster_tank(edict_t* self)
 	// --- REFACTORED: Use the monster ID to determine stats and appearance ---
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER))
 	{
-		self->health = (config ? config->health : 1000) * st.health_multiplier;
+		int base_health = config ? config->health : 1000;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 		self->gib_health = -225;
 		self->count = 1;
 		sound_pain2.assign("tank/pain.wav");
@@ -2978,21 +2985,22 @@ void SP_monster_tank(edict_t* self)
 	}
 	else if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64))
 	{
-		self->health = 800;
+		int base_health = config ? config->health : (g_horde->integer ? 1750 : 800);
 		self->accel = 0.075f;
-		if (g_horde->integer) {
-			self->health = 1750 + (1.009 * current_wave_level);
-			if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-				self->health *= 2.6;
+		if (g_horde->integer && current_wave_level > 0) {
+			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
 
+			if (is_boss) {
 				if (!st.was_key_specified("power_armor_type"))
 					self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 				if (!st.was_key_specified("power_armor_power"))
 					self->monsterinfo.armor_power = 5250;
 			}
-		}
-		if (G_IsCooperative()) {
+		} else if (G_IsCooperative()) {
 			self->health = 1000;
+		} else {
+			self->health = base_health * st.health_multiplier;
 		}
 		self->gib_health = -250;
 		if (self->monsterinfo.bonus_flags & BF_BERSERKING)
@@ -3000,7 +3008,13 @@ void SP_monster_tank(edict_t* self)
 	}
 	else // Default case for base TANK
 	{
-		self->health = (config ? config->health : 630) * st.health_multiplier;
+		int base_health = config ? config->health : 630;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 		self->gib_health = -200;
 		sound_pain.assign("tank/tnkpain2.wav");
 	}
@@ -3112,20 +3126,27 @@ void SP_monster_tank_spawner(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 1200) * st.health_multiplier;
-	self->gib_health = -225;
-	self->count = 1;
-	sound_pain2.assign("tank/pain.wav");
-
-	self->monsterinfo.scale = MODEL_SCALE;
+	int base_health = config ? config->health : 1200;
 
 	if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN))
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-		// Removed manual scaling - monster_start() handles it automatically
-		self->health = (config ? config->health : 1500) * st.health_multiplier;
+		base_health = config ? config->health : 1500;
 	}
+
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
+
+	self->gib_health = -225;
+	self->count = 1;
+	sound_pain2.assign("tank/pain.wav");
+
+	self->monsterinfo.scale = MODEL_SCALE;
 
 	self->mass = 500;
 	self->pain = tank_vanilla_pain;
@@ -3257,7 +3278,13 @@ void SP_monster_tank_64(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 1000) * st.health_multiplier;
+	int base_health = config ? config->health : 1000;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->s.skinnum = 2;
 
 	ApplyMonsterBonusFlags(self);
@@ -3298,5 +3325,11 @@ void SP_monster_tank_commander(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 1000) * st.health_multiplier;
+	int base_health = config ? config->health : 1000;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 }

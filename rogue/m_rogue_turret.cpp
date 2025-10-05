@@ -11,6 +11,7 @@ TURRET
 #include "../g_local.h"
 #include "m_rogue_turret.h"
 #include "../shared.h"
+#include "../horde/g_horde_scaling.h"
 
 constexpr spawnflags_t SPAWNFLAG_TURRET_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_MACHINEGUN = 0x0010_spawnflag;
@@ -971,7 +972,12 @@ void SP_monster_turret(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 150) * st.health_multiplier;
+	int base_health = config ? config->health : 150;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 10 * skill->integer;

@@ -12,6 +12,7 @@ GUARDIAN
 #include "m_guardian.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 //
 // stand
@@ -726,7 +727,7 @@ void SP_monster_guardian(edict_t* self)
 	}
 
 
-	self->health = 6500 + (1.08 * current_wave_level);
+	self->health = ScaleMonsterHealth(6500, current_wave_level, true);  // Guardian is a boss
 	self->gib_health = -200;
 
 	// Inicializar el contador para alternar posiciones de granadas

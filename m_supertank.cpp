@@ -12,6 +12,7 @@ SUPERTANK
 #include "m_supertank.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 constexpr spawnflags_t SPAWNFLAG_SUPERTANK_POWERSHIELD = 8_spawnflag;
 // n64
@@ -808,10 +809,13 @@ void SP_monster_supertank(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 3300) * st.health_multiplier;
-
-	if (!g_horde->integer)
-	self->health = (config ? config->health : 2000) * st.health_multiplier;
+	int base_health = config ? config->health : (g_horde->integer ? 3300 : 2000);
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 
 	self->gib_health = -500;
 	self->mass = 800;
@@ -880,7 +884,7 @@ void SP_monster_boss5(edict_t* self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
-	self->health = 5600 + (1.08 * current_wave_level);
+	self->health = ScaleMonsterHealth(5600, current_wave_level, true);  // Boss5 supertank is a boss
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -903,7 +907,13 @@ void SP_monster_janitor(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 500;
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR)) {
-		self->health = (config ? config->health : 1800) * st.health_multiplier;
+		int base_health = config ? config->health : 1800;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 	}
 	self->mass = 200;
 

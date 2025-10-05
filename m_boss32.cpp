@@ -12,6 +12,7 @@ Makron -- Final Boss
 #include "m_boss32.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 void SP_monster_makronkl(edict_t* self);
 void MakronRailgun(edict_t *self);
 void MakronSaveloc(edict_t *self);
@@ -978,7 +979,8 @@ void SP_monster_makron(edict_t* self)
 	}
 
 	if (g_horde->integer && !self->monsterinfo.IS_BOSS) {
-		self->health = 3500 + (1.08 * current_wave_level);
+		// Use sigmoid scaling instead of linear
+		self->health = ScaleMonsterHealth(3500, current_wave_level, true);
 		if (self->health >= 6500)
 			self->health = 6500;
 	}
@@ -1026,17 +1028,22 @@ void SP_monster_makronkl(edict_t* self)
 	SP_monster_makron(self);
 
 	self->s.skinnum = 2;
-	self->health = (config ? config->health : 2600) + (600 * current_wave_level);
+
+	// Makronkl boss scaling
+	int base_health = config ? config->health : 2600;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // true = is_boss
+	} else {
+		self->health = base_health;
+	}
+
 	self->s.alpha = 0.4f;
 	self->s.effects = EF_FLAG1;
 
     // --- REFACTORED ---
     // This check is now clean and specific to this function.
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) {
-		if (self->health > 9000) {
-			self->health = 9000;
-			ApplyMonsterBonusFlags(self);
-		}
+		ApplyMonsterBonusFlags(self);
 	}
 }
 /*

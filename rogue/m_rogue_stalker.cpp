@@ -12,6 +12,7 @@ stalker
 #include "m_rogue_stalker.h"
 #include <float.h>
 #include "../shared.h"
+#include "../horde/g_horde_scaling.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_die;
@@ -440,7 +441,6 @@ MONSTERINFO_SETSKIN(stalker_setskin) (edict_t* self) -> void
 // ******************
 // STALKER ATTACK
 // ******************
-#include "C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\modd\rerelease\m_flash.h"
 void stalker_shoot_attack(edict_t *self)
 {
 	vec3_t start;
@@ -1076,7 +1076,12 @@ void SP_monster_stalker(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 175) * st.health_multiplier;
+	int base_health = config ? config->health : 175;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -50;
 	self->mass = 250;
 	//self->s.scale = 0.8f;

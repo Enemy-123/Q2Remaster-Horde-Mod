@@ -12,6 +12,7 @@ boss2
 #include "m_boss2.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 // [Paril-KEX]
 constexpr spawnflags_t SPAWNFLAG_BOSS2_N64 = 8_spawnflag;
@@ -779,11 +780,13 @@ void SP_monster_boss2(edict_t *self)
 		}
 	}
 
-	if (g_horde->integer)
-		self->health = 6500 + (1.08 * current_wave_level);
-
-	if (!g_horde->integer)
-		self->health = (config ? config->health : 2000) * st.health_multiplier;
+	int base_health = config ? config->health : (g_horde->integer ? 6500 : 2000);
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -200;
 	self->mass = 2000;
 
@@ -855,7 +858,13 @@ void SP_monster_boss2_64(edict_t *self)
 		}
 	}
 
-	self->health = (config ? config->health : 1300) * st.health_multiplier;
+	int base_health = config ? config->health : 1300;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;
@@ -896,7 +905,13 @@ void SP_monster_boss2_mini(edict_t *self)
 		}
 	}
 
-	self->health = (config ? config->health : 1000) * st.health_multiplier;
+	int base_health = config ? config->health : 1000;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;
@@ -940,7 +955,13 @@ void SP_monster_boss2kl(edict_t *self)
 		}
 	}
 
-	self->health = (config ? config->health : 1000) * st.health_multiplier;
+	int base_health = config ? config->health : 1000;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->s.skinnum = 2;
 	self->gib_health = -130;
 

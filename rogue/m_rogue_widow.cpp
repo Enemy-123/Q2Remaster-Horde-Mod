@@ -15,6 +15,7 @@ black widow
 #include "m_rogue_widow.h"
 #include "../m_flash.h"
 #include "../shared.h"
+#include "../horde/g_horde_scaling.h"
 
 
 bool infront(edict_t* self, edict_t* other);
@@ -1330,7 +1331,12 @@ void SP_monster_widow1(edict_t* self) {
 		}
 	}
 
-	self->health = self->max_health = (config ? config->health : 1750) * st.health_multiplier;
+	int base_health = config ? config->health : 1750;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = self->max_health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -5000;
 	self->mass = 1500;
 

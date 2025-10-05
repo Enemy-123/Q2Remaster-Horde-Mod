@@ -14,6 +14,7 @@ runnertank
 
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 void runnertankStrike(edict_t* self);
 void runnertank_refire_rocket(edict_t* self);
 //void runnetank_doattack_rocket(edict_t* self);
@@ -1675,7 +1676,12 @@ void SP_monster_runnertank(edict_t* self)
 	// }
 	// else
 	{
-		self->health = (config ? config->health : 750) * st.health_multiplier;
+		int base_health = config ? config->health : 750;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 		self->gib_health = -200;
 		sound_pain.assign("tank/tnkpain2.wav");
 	}
@@ -1687,7 +1693,12 @@ void SP_monster_runnertank(edict_t* self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-		self->health = (config ? config->health : 1500) * st.health_multiplier;
+		int base_health = config ? config->health : 1500;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 	}
 
 	// heat seekingness

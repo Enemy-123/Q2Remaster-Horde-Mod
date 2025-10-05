@@ -12,6 +12,7 @@ GLADIATOR
 #include "m_gladiator.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -605,7 +606,14 @@ void SP_monster_gladiator(edict_t* self)
 	switch (self->style) {
 	case 1: // gladb
 		sound_gunb.assign("weapons/disrupt.wav");
-		self->health = (config ? config->health : 480) * st.health_multiplier;
+		{
+			int base_health = config ? config->health : 480;
+			if (g_horde && g_horde->integer && current_wave_level > 0) {
+				self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			} else {
+				self->health = base_health * st.health_multiplier;
+			}
+		}
 		self->mass = 350;
 
 		// Power armor configuration from config
@@ -633,7 +641,14 @@ void SP_monster_gladiator(edict_t* self)
 
 	case 3: // gladc
 		sound_gunc.assign("weapons/plasshot.wav");
-		self->health = (config ? config->health : 350) * st.health_multiplier;
+		{
+			int base_health = config ? config->health : 350;
+			if (g_horde && g_horde->integer && current_wave_level > 0) {
+				self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			} else {
+				self->health = base_health * st.health_multiplier;
+			}
+		}
 		self->mass = 350;
 
 		// Power armor configuration from config
@@ -660,7 +675,14 @@ void SP_monster_gladiator(edict_t* self)
 
 	default: // normal gladiator
 		sound_gun.assign("gladiator/railgun.wav");
-		self->health = (config ? config->health : 420) * st.health_multiplier;
+		{
+			int base_health = config ? config->health : 420;
+			if (g_horde && g_horde->integer && current_wave_level > 0) {
+				self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			} else {
+				self->health = base_health * st.health_multiplier;
+			}
+		}
 		self->mass = 400;
 
 		// Regular armor configuration from config
@@ -736,7 +758,12 @@ void SP_monster_gladb(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 400) * st.health_multiplier;
+	int base_health = config ? config->health : 400;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 }
 
 void SP_monster_gladc(edict_t* self)
@@ -768,5 +795,10 @@ void SP_monster_gladc(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 400) * st.health_multiplier;
+	int base_health = config ? config->health : 400;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 }

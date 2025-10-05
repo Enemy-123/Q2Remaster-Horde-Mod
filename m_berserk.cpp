@@ -11,6 +11,7 @@ BERSERK
 #include "g_local.h"
 #include "m_berserk.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 constexpr spawnflags_t SPAWNFLAG_BERSERK_NOJUMPING = 8_spawnflag;
 
@@ -1174,14 +1175,11 @@ void SP_monster_berserk(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 295) * st.health_multiplier;
-
-	// Extra health scaling for high wave special Berserk waves (wave 15+)
-	extern int16_t current_wave_level;
-	if (current_wave_level >= 15)
-	{
-		float wave_scaling = 1.0f + (current_wave_level - 15) * 0.15f; // +15% per wave after 15
-		self->health = static_cast<int>(self->health * wave_scaling);
+	int base_health = config ? config->health : 295;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
 	}
 
 	self->gib_health = -60;
@@ -1620,7 +1618,12 @@ void SP_monster_berserkerkl(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);
 
 	// Boss stats
-	self->health = (config ? config->health : 900) * ED_GetSpawnTemp().health_multiplier;
+	int base_health = config ? config->health : 900;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // true = is_boss
+	} else {
+		self->health = base_health * ED_GetSpawnTemp().health_multiplier;
+	}
 	self->gib_health = -150;
 	self->mass = 400;
 	self->s.skinnum = 2; // Different skin if available
@@ -1628,7 +1631,6 @@ void SP_monster_berserkerkl(edict_t* self)
 	// Scale up
 	if (!self->s.scale)
 		self->s.scale = 1.4f;
-	// Removed manual scaling - monster_start() handles it automatically
 
 	// Enhanced movement
 	self->monsterinfo.drop_height = 384;

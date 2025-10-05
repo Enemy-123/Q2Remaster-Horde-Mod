@@ -12,6 +12,7 @@ MEDIC
 #include "m_medic.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 // Add these prototypes near the top
 // bool tesla_check_conversion(edict_t* tesla, edict_t* converter);
@@ -2572,7 +2573,12 @@ void SP_monster_medic(edict_t *self)
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MEDIC_COMMANDER))
 	{
 		const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(horde::MonsterTypeID::MEDIC_COMMANDER));
-		self->health = (config ? config->health : 600) * st.health_multiplier;
+		int base_health = config ? config->health : 600;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 		self->gib_health = -130;
 		self->mass = 600;
 		self->yaw_speed = 40; // default is 20
@@ -2582,7 +2588,12 @@ void SP_monster_medic(edict_t *self)
 	{
 		// PMM
 		const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-		self->health = (config ? config->health : 300) * st.health_multiplier;
+		int base_health = config ? config->health : 300;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 		self->gib_health = -130;
 		self->mass = 400;
 	}

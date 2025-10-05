@@ -14,6 +14,7 @@ black widow, part 2
 #include "m_rogue_widow2.h"
 #include "../m_flash.h"
 #include "../shared.h"
+#include "../horde/g_horde_scaling.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -1180,10 +1181,13 @@ void SP_monster_widow2(edict_t* self)
 	}
 
 
-	self->health = 5000 + (1.08 * current_wave_level);
-	if (G_IsCooperative())
-		self->health += 500 * skill->integer;
-	if (g_horde->integer) { self->health = 4500; }
+	if (g_horde->integer) {
+		self->health = ScaleMonsterHealth(4500, current_wave_level, true);  // Widow2 boss
+	} else {
+		self->health = 5000;
+		if (G_IsCooperative())
+			self->health += 500 * skill->integer;
+	}
 	self->gib_health = -200;
 	self->mass = 2500;
 

@@ -12,6 +12,7 @@ SOLDIER
 #include "m_soldier.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 static cached_soundindex sound_idle;
 static cached_soundindex sound_sight1;
@@ -2380,7 +2381,12 @@ void SP_monster_soldier_light(edict_t* self)
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = (config ? config->health : 20) * st.health_multiplier;
+	int base_health = config ? config->health : 20;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = self->max_health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2433,7 +2439,12 @@ void SP_monster_soldier(edict_t* self)
 
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = (config ? config->health : 30) * st.health_multiplier;
+	int base_health = config ? config->health : 30;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = self->max_health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
@@ -2483,7 +2494,12 @@ void SP_monster_soldier_ss(edict_t* self)
 
 	self->s.skinnum = 4;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
+	int base_health = config ? config->health : 40;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = self->max_health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
@@ -2539,7 +2555,12 @@ void SP_monster_soldier_ripper(edict_t* self)
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
+	int base_health = config ? config->health : 40;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = self->max_health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2577,7 +2598,12 @@ void SP_monster_soldier_hypergun(edict_t* self)
 
 	self->s.skinnum = 8;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
+	int base_health = config ? config->health : 40;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = self->max_health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2629,7 +2655,12 @@ void SP_monster_soldier_lasergun(edict_t* self)
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = (config ? config->health : 40) * st.health_multiplier;
+	int base_health = config ? config->health : 40;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = self->max_health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;

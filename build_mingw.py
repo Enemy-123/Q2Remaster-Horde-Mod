@@ -70,7 +70,7 @@ def smart_copy_tree(src_dir, dst_dir):
     return copied_count, skipped_count
 
 def deploy_data_files(script_dir, deploy_path):
-    """Deploy bots, ents, config/player_config.json, and config/monsters.json to game directory."""
+    """Deploy bots, ents, config/player_config.json, and config/monsters.json and deploy/scaling.json to game directory."""
     print("\n=== Deploying Data Files ===")
     deploy_src = os.path.join(script_dir, "deploy")
     game_dir = os.path.normpath(deploy_path)
@@ -111,6 +111,18 @@ def deploy_data_files(script_dir, deploy_path):
     # Copy config files
     config_dst_dir = os.path.join(game_dir, "config")
     os.makedirs(config_dst_dir, exist_ok=True)
+
+    # Copy config/scaling.json
+    config_src = os.path.join(deploy_src, "config", "scaling.json")
+    config_dst = os.path.join(config_dst_dir, "scaling.json")
+    if os.path.exists(config_src):
+        if should_copy_file(config_src, config_dst):
+            shutil.copy2(config_src, config_dst)
+            total_copied += 1
+            print(f"config/scaling.json: copied")
+        else:
+            total_skipped += 1
+            print(f"config/scaling.json: skipped (unchanged)")
 
     # Copy config/player_config.json
     config_src = os.path.join(deploy_src, "config", "player_config.json")
@@ -279,5 +291,5 @@ if __name__ == "__main__":
     #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/player_config.json' '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/player_config.json'
     #
     #rm '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/monsters.json'
-    #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/monsters.json' '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/monsters.json'
-    #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/maps_config.json' '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/maps_config.json'
+    #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/monsters.json' '/home/perrobjorn/.steam/steam/steamapps/common/
+    #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/maps_config.json' '/home/perrobjorn/.steam/steam/steamapps/common/QuaQuake 2/rerelease/baseq2/config/monsters.json'ke 2/rerelease/baseq2/config/maps_config.json'

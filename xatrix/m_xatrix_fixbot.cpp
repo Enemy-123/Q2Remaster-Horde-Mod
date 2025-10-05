@@ -14,6 +14,7 @@
 // Start Horde includes
 #include "../horde/g_horde.h"
 #include "../horde/horde_ids.h"
+#include "../horde/g_horde_scaling.h"
 // End Horde includes
 
 
@@ -2072,7 +2073,12 @@ void SP_monster_fixbot(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 130) * st.health_multiplier;
+	int base_health = config ? config->health : 130;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->monsterinfo.scale = MODEL_SCALE;
 	self->mass = 150;
 	self->s.scale = 1.55f;
@@ -2113,6 +2119,9 @@ void SP_monster_fixbotkl(edict_t* self) {
 
 	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
+	// Set scale BEFORE calling SP_monster_fixbot so monster_start() applies it correctly
+	self->s.scale = 2.6f;
+
 	SP_monster_fixbot(self);
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
@@ -2140,10 +2149,6 @@ void SP_monster_fixbotkl(edict_t* self) {
 	self->health = self->max_health;
 
 	self->mass = 400;
-
-	// Scale mins/maxs correctly AFTER initial values are set
-	self->s.scale = 2.6f;
-	// Removed manual scaling - monster_start() handles it automatically
 
 	// Set monster_slots for KL variant (boss variant should have slots)
 	if (!st.was_key_specified("monster_slots")) {

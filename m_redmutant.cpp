@@ -11,6 +11,7 @@ mutant
 #include "g_local.h"
 #include "m_redmutant.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 constexpr spawnflags_t SPAWNFLAG_REDMUTANT_NOJUMPING = 8_spawnflag;
 
@@ -743,7 +744,12 @@ void SP_monster_redmutant(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 520) * st.health_multiplier;
+	int base_health = config ? config->health : 520;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -120;
 	self->mass = 450;
 

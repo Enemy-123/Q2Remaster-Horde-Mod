@@ -16,6 +16,7 @@ carrier
 #include "m_rogue_carrier.h"
 #include "../m_flash.h"
 #include "../shared.h"
+#include "../horde/g_horde_scaling.h"
 
 // Reinforcements
 constexpr std::array<reinforcement_def_t, 7> default_reinforcements_defs_carrier = { {
@@ -1356,7 +1357,12 @@ void SP_monster_carrier_mini(edict_t* self)
 		self->s.scale = 0.6f;
 		// Removed manual scaling - monster_start() handles it automatically
 
-		self->health = (config ? config->health : 1500) * st.health_multiplier;
+		int base_health = config ? config->health : 1500;
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 		self->mass = 1000;
 
 		if (self->monsterinfo.IS_BOSS) {

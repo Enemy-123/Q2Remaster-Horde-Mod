@@ -44,6 +44,8 @@ void Config_SetDefaults()
 {
 	// Reset to default values (already set in struct definitions)
 	g_config = GameConfig();
+	g_config.use_sigmoid_scaling = false;
+	g_config.use_sigmoid_scaling_bosses_only = false;
 }
 
 void Config_LoadMonsters(const char* basedir)
@@ -706,6 +708,12 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 }
 
 // Get specific weapon damage for a monster
+// Include for sigmoid scaling
+#include "horde/g_horde_scaling.h"
+
+// External reference
+extern int16_t current_wave_level;
+
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 {
 	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
@@ -761,6 +769,11 @@ int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
 		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
 		gi.Com_PrintFmt("WARNING: Weapon '{}' for monster '{}' (type_id {}) has damage 0 in config. Add it to monsters.json or it will use hardcoded fallback.\n",
 			weapon_name, classname ? classname : "unknown", monster_type_id);
+	}
+
+	// Apply sigmoid scaling to monster weapon damage if horde mode is active
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		damage = ScaleWeaponDamage(damage, current_wave_level, false);
 	}
 
 	return damage;

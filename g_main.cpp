@@ -1217,7 +1217,13 @@ static void ProcessHordePerFrameLogic(const MonstersT& monsters, const PlayersT&
     }
 
     // Player scale configuration
-    level.coop_scale_players = 2 + cached_human_player_count;
+    if (g_horde && g_horde->integer) {
+        // In horde mode, sigmoid scaling handles difficulty - disable coop scaling
+        level.coop_scale_players = 1;  // No additional coop scaling in horde mode
+    } else {
+        // Non-horde modes use traditional coop scaling
+        level.coop_scale_players = 2 + cached_human_player_count;
+    }
     G_Monster_CheckCoopHealthScaling();
 
     // Update deployables based on adrenaline changes (cached for performance)

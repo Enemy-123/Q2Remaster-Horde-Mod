@@ -12,6 +12,7 @@ GUNNER
 #include "m_gunner.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 constexpr spawnflags_t SPAWNFLAG_GUNCMDR_NOJUMPING = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GUNCMDRKL = 8_spawnflag;
@@ -1808,18 +1809,28 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	self->s.skinnum = 2;
 
 	// Health already varies by style, but should be clearer
-	if (self->style == GUNCMDR_STYLE_GRENADIER)
-		self->health = 275 * st.health_multiplier;  // Grenadier is weaker
-	else
-		self->health = 325 * st.health_multiplier;  // Normal has more health
+	int base_health;
+	if (self->style == GUNCMDR_STYLE_BOSS || self->spawnflags.has(SPAWNFLAG_GUNCMDRKL)) {
+		const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR_KL));
+		base_health = config ? config->health : 4500;
+	} else if (self->style == GUNCMDR_STYLE_GRENADIER) {
+		base_health = 275;  // Grenadier is weaker
+	} else {
+		base_health = 325;  // Normal has more health
+	}
+
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 
 	self->gib_health = -175;
 	self->mass = 255;
 
 	// Configuración especial para jefe
 	if (self->style == GUNCMDR_STYLE_BOSS || self->spawnflags.has(SPAWNFLAG_GUNCMDRKL)) {
-		const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR_KL));
-		self->health = (config ? config->health : 4500) + (1.08 * current_wave_level);
 		if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 			self->mass *= 3.0f;
 			self->gib_health = -999777;

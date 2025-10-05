@@ -11,6 +11,7 @@ parasite
 #include "g_local.h"
 #include "m_parasite.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 constexpr float g_athena_parasite_miss_chance = 0.1f;
 constexpr float g_athena_parasite_proboscis_speed = 1250;
@@ -1079,7 +1080,13 @@ void SP_monster_parasite(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 150) * st.health_multiplier;
+	int base_health = config ? config->health : 150;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -50;
 	self->mass = 250;
 
@@ -1125,14 +1132,14 @@ void SP_monster_perrokl(edict_t* self)
 		// CORRECTED: Use |= to assign the flag
 		self->monsterinfo.bonus_flags |= BF_CORRUPTED;
 		self->gib_health = -70;
-		if (G_IsCooperative())
-			self->health = (config ? config->health : 375) * st.health_multiplier;
-		if (g_horde->integer) {
-			self->health = (config ? config->health : 775) * current_wave_level;
-		}
 
-		if (self->health > 1400) {
-			self->health = 1400;
+		int base_health = config ? config->health : 775;
+		if (g_horde->integer && current_wave_level > 0) {
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // perrokl is a boss variant
+		} else if (G_IsCooperative()) {
+			self->health = (config ? config->health : 375) * st.health_multiplier;
+		} else {
+			self->health = base_health * st.health_multiplier;
 		}
 	}
 	ApplyMonsterBonusFlags(self);

@@ -11,6 +11,7 @@ brain
 #include "g_local.h"
 #include "m_brain.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 static cached_soundindex sound_chest_open;
 static cached_soundindex sound_tentacles_extend;
@@ -1218,7 +1219,12 @@ void SP_monster_brain(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = (config ? config->health : 275) * st.health_multiplier;
+	int base_health = config ? config->health : 275;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -90;
 	self->mass = 400;
 	//self->yaw_speed = 400;

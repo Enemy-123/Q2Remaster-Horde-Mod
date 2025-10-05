@@ -17,6 +17,7 @@
 #include "horde_spawning.h"
 #include "horde_constants.h"
 #include "horde_monster_data.h"
+#include "g_horde_scaling.h"
 
 // External function declarations
 extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
@@ -2195,6 +2196,19 @@ gitem_t* G_HordePickItem()
 
 		// We access the SoA data using the pre-filtered index.
 		float adjusted_weight = g_hordeItemDataSoA.weights[item_index];
+
+		// Apply sigmoid scaling to item drop weights based on item tier
+		if (g_horde && g_horde->integer && current_wave_level > 0) {
+			// Determine item tier based on minimum wave requirement
+			int item_tier = 0; // Default to common
+			if (g_hordeItemDataSoA.minWaves[item_index] >= 15) {
+				item_tier = 2; // Legendary tier (late game items)
+			} else if (g_hordeItemDataSoA.minWaves[item_index] >= 7) {
+				item_tier = 1; // Rare tier (mid game items)
+			}
+
+			adjusted_weight = ScaleItemDropWeight(adjusted_weight, current_wave_level, item_tier);
+		}
 
 		if (adjusted_weight > 0.0f)
 		{
@@ -6808,6 +6822,8 @@ static void Horde_InitLevel(const int32_t lvl)
 	// Initialize monster rotation for wave 1 (first wave of a new map)
 	if (lvl == 1) {
 		InitializeMonsterRotation();
+		// Initialize the sigmoid scaling system on first wave
+		InitializeScalingSystem();
 	}
 
 	// --- 2. Set up the new wave's parameters ---
@@ -7132,20 +7148,7 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_totalMonstersInWave = static_cast<uint16_t>(
 		std::min(total_planned_for_wave, static_cast<int32_t>(std::numeric_limits<uint16_t>::max())));
 
-	switch (lvl)
-	{
-	case 15:
-		gi.cvar_set("g_damage_scale", "1.5");
-		break;
-	case 25:
-		gi.cvar_set("g_damage_scale", "2.0");
-		break;
-	case 35:
-		gi.cvar_set("g_damage_scale", "3.0");
-		break;
-	default:
-		break;
-	}
+	// Removed old stepped damage scaling - now using smooth sigmoid scaling system
 
 	if (developer->integer)
 	{

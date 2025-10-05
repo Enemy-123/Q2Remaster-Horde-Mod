@@ -12,6 +12,7 @@ INFANTRY BLASTER2
 #include "m_infantry.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 void InfantryMachineGun(edict_t* self);
 void infantry_run(edict_t* self);
@@ -1191,8 +1192,11 @@ void SP_monster_infantry_vanilla(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	if (!g_horde->integer || self->monsterinfo.monster_type_id == static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA)) {
-		self->health = (config ? config->health : 100) * st.health_multiplier;
+	int base_health = config ? config->health : 100;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
 	}
 
 	self->gib_health = -65;
@@ -1255,7 +1259,12 @@ void SP_monster_infantry(edict_t* self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SHIELD;
 
-		self->health = (config ? config->health : 100) * st.health_multiplier;
+		int base_health = config ? config->health : 100;
+		if (current_wave_level > 0) {
+			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		} else {
+			self->health = base_health * st.health_multiplier;
+		}
 	}
 
 }

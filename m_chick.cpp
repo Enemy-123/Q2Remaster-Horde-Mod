@@ -12,6 +12,7 @@ chick
 #include "m_chick.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 // Forward declare plasma_touch from xatrix
 void plasma_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
@@ -1456,7 +1457,12 @@ void SP_monster_chick(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 145) * st.health_multiplier;
+	int base_health = config ? config->health : 145;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -70;
 	self->mass = 200;
 
@@ -1509,7 +1515,12 @@ void SP_monster_chick_heat(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
 
 	// BALANCE FIX: Wave 13 Elite should have significantly more health than Wave 6 base Chick
-	self->health = (config ? config->health : 500) * st.health_multiplier;
+	int base_health = config ? config->health : 500;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 
 	self->s.skinnum = 2;
 	self->monsterinfo.drop_height = 256;
@@ -1812,13 +1823,18 @@ void SP_monster_chickkl(edict_t* self)
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);
 
 	// Boss stats
-	self->health = (config ? config->health : 450) * ED_GetSpawnTemp().health_multiplier; // Much more health
+	int base_health = config ? config->health : 450;
+	extern int16_t current_wave_level;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // true = is_boss
+	} else {
+		self->health = base_health * ED_GetSpawnTemp().health_multiplier;
+	}
 	self->gib_health = -120;
 	self->mass = 300;
 	self->s.skinnum = 3; // Different skin if available
 
 	self->s.scale = 1.5f;
-	// Removed manual scaling - monster_start() handles it automatically
 
 	// Enhanced movement
 	self->monsterinfo.drop_height = 384;

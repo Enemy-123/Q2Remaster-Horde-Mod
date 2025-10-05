@@ -8,6 +8,7 @@
 #include "../g_local.h"
 #include "m_xatrix_gekk.h"
 #include "../shared.h"
+#include "../horde/g_horde_scaling.h"
 
 constexpr spawnflags_t SPAWNFLAG_GEKK_CHANT = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;
@@ -1890,14 +1891,12 @@ void SP_monster_gekk(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 125) * st.health_multiplier;
-
-	// Extra health scaling for high wave special Gekk waves (wave 15+)
+	int base_health = config ? config->health : 125;
 	extern int16_t current_wave_level;
-	if (current_wave_level >= 15)
-	{
-		float wave_scaling = 1.0f + (current_wave_level - 15) * 0.15f; // +15% per wave after 15
-		self->health = static_cast<int>(self->health * wave_scaling);
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
 	}
 
 	self->gib_health = -30;
@@ -2470,7 +2469,13 @@ void SP_monster_gekkkl(edict_t* self)
 	// Override with gekkkl specifics
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GEKKKL);
 	// Boss stats
-	self->health = 680 * ED_GetSpawnTemp().health_multiplier;
+	int base_health = config ? config->health : 680;
+	extern int16_t current_wave_level;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // true = is_boss
+	} else {
+		self->health = base_health * ED_GetSpawnTemp().health_multiplier;
+	}
 	self->gib_health = -80;
 	self->mass = 400;
 	self->s.skinnum = 1; // Different skin if available
@@ -2478,7 +2483,6 @@ void SP_monster_gekkkl(edict_t* self)
 	// Scale up
 	if (!self->s.scale)
 		self->s.scale = 1.2f;
-	// Removed manual scaling - monster_start() handles it automatically
 
 	// Redmutant-like speed
 	self->yaw_speed = 25; // Faster turning

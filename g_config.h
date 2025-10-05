@@ -378,6 +378,10 @@ struct GameConfig
 
 	// Maps
 	MapsConfig maps;
+
+	// Scaling system
+	bool use_sigmoid_scaling = false;
+	bool use_sigmoid_scaling_bosses_only = false;
 };
 
 // Global config instance

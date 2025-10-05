@@ -15,6 +15,7 @@ hover (rocket), as well as daedalus variants (blaster2 and grenades).
 #include "m_hover.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -598,7 +599,13 @@ void SP_monster_hover(edict_t* self)
     self->mins = { -24, -24, -24 };
     self->maxs = { 24, 24, 32 };
 
-    self->health = (config ? config->health : 240) * st.health_multiplier;
+    int base_health = config ? config->health : 240;
+    if (g_horde && g_horde->integer && current_wave_level > 0) {
+        bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+        self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+    } else {
+        self->health = base_health * st.health_multiplier;
+    }
     self->gib_health = -100;
 
     // Only set mass if it hasn't been set already (for non-Daedalus types).
@@ -675,7 +682,13 @@ void SP_monster_daedalus(edict_t* self)
         return;
     }
 
-    self->health = (config ? config->health : 350) * st.health_multiplier;
+    int base_health = config ? config->health : 350;
+    if (g_horde && g_horde->integer && current_wave_level > 0) {
+        bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+        self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+    } else {
+        self->health = base_health * st.health_multiplier;
+    }
     self->s.skinnum = 2;
     // Set properties common to ALL Daedalus types
     self->mass = 225;
@@ -729,7 +742,13 @@ void SP_monster_daedalus_bomber(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 240) * st.health_multiplier;
+	int base_health = config ? config->health : 240;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
     // The classname is still "monster_daedalus_bomber", so when SP_monster_hover
     // is eventually called, it will get the correct ID from the registry.
 }

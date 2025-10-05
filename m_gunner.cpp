@@ -12,6 +12,7 @@ GUNNER
 #include "m_gunner.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_pain2;
@@ -985,7 +986,12 @@ void SP_monster_gunner(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 36 };
 
-	self->health = (config ? config->health : 175) * st.health_multiplier;
+	int base_health = config ? config->health : 175;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->gib_health = -70;
 	self->mass = 200;
 //	if (g_horde->integer) {

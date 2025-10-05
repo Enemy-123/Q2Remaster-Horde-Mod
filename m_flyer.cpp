@@ -12,6 +12,7 @@ flyer
 #include "m_flyer.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 static cached_soundindex sound_sight;
 static cached_soundindex sound_idle;
@@ -1416,7 +1417,12 @@ void SP_monster_flyer(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 50) * st.health_multiplier;
+	int base_health = config ? config->health : 50;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->mass = 50;
 
 	self->pain = flyer_pain;
@@ -1492,7 +1498,12 @@ void SP_monster_kamikaze(edict_t* self)
 		}
 	}
 
-	self->health = (config ? config->health : 50) * st.health_multiplier;
+	int base_health = config ? config->health : 50;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 
 	ApplyMonsterBonusFlags(self);
 

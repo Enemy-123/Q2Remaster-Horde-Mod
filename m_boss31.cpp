@@ -12,6 +12,7 @@ jorg
 #include "m_boss31.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 void SP_monster_makron(edict_t* self);
 
@@ -798,7 +799,8 @@ void SP_monster_jorg(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 6500) * st.health_multiplier + (1.08 * current_wave_level);
+	int base_health = (config ? config->health : 6500) * st.health_multiplier;
+	self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // Jorg is a boss
 	self->gib_health = -2000;
 	self->mass = 1000;
 

@@ -12,6 +12,7 @@ floater_tracker
 #include "m_float.h"
 #include "m_flash.h"
 #include "shared.h"
+#include "horde/g_horde_scaling.h"
 
 static cached_soundindex sound_attack2;
 static cached_soundindex sound_attack3;
@@ -714,7 +715,12 @@ void SP_monster_floater_tracker(edict_t* self)
 	}
 
 
-	self->health = (config ? config->health : 450) * st.health_multiplier;
+	int base_health = config ? config->health : 450;
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+	} else {
+		self->health = base_health * st.health_multiplier;
+	}
 	self->s.effects = EF_BARREL_EXPLODING;
 	self->gib_health = -80;
 	self->mass = 300;

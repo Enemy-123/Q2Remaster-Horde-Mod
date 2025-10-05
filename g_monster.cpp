@@ -1704,6 +1704,7 @@ struct monster_filter_t
 // check all active monsters' scaling
 void G_Monster_CheckCoopHealthScaling()
 {
+	
 	for (auto monster : entity_iterable_t<monster_filter_t>())
 	{
 		// No escalar si es un jefe
