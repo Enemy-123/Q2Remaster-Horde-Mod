@@ -12,7 +12,7 @@ parasite
 #include "m_parasite.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 
 constexpr float g_athena_parasite_miss_chance = 0.1f;
 constexpr float g_athena_parasite_proboscis_speed = 1250;

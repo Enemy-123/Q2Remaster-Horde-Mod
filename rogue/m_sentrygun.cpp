@@ -12,7 +12,7 @@ TURRET
 #include "m_rogue_turret.h"
 #include "../shared.h"
 #include <cfloat>
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 
 // Forward declarations
 bool turret2_CanShootThroughObstacles(edict_t* self, const vec3_t& start, const vec3_t& target);

@@ -1036,3 +1036,61 @@ int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_
 
 	return scaled_power_armor;
 }
+
+// Monster health/armor helpers (for macros)
+int GetMonsterBaseHealth(uint8_t monster_type_id)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	return config ? config->health : 100; // Default fallback
+}
+
+int GetMonsterScaledHealth(uint8_t monster_type_id, int wave_level, bool is_boss)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	if (!config)
+		return 100;
+
+	int base_health = config->health;
+	float health_scale = config->health_scale;
+	return GetScaledHealth(base_health, health_scale, wave_level, is_boss);
+}
+
+int GetMonsterBaseArmor(uint8_t monster_type_id)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	return config ? config->armor_power : 0;
+}
+
+int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	if (!config)
+		return 0;
+
+	int base_armor = config->armor_power;
+	float armor_scale = config->armor_scale;
+	return GetScaledArmor(base_armor, armor_scale, wave_level, is_boss);
+}
+
+int GetMonsterBasePowerArmor(uint8_t monster_type_id)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	return config ? config->power_armor_power : 0;
+}
+
+int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_boss)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	if (!config)
+		return 0;
+
+	int base_power_armor = config->power_armor_power;
+	float power_armor_scale = config->power_armor_scale;
+	return GetScaledPowerArmor(base_power_armor, power_armor_scale, wave_level, is_boss);
+}
+
+int32_t GetMonsterPowerArmorType(uint8_t monster_type_id)
+{
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	return config ? config->power_armor_type : static_cast<int32_t>(IT_NULL);
+}

@@ -13,7 +13,7 @@ INFANTRY BLASTER2
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 
 void InfantryMachineGun(edict_t* self);
 void infantry_run(edict_t* self);

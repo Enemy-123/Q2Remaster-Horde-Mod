@@ -12,7 +12,7 @@ BERSERK
 #include "m_berserk.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_BERSERK_NOJUMPING = 8_spawnflag;
 

@@ -13,7 +13,7 @@ stalker
 #include <float.h>
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_die;

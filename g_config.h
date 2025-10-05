@@ -462,6 +462,15 @@ int GetScaledHealth(int base_health, float health_scale, int wave_level, bool is
 int GetScaledArmor(int base_armor, float armor_scale, int wave_level, bool is_boss);
 int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_level, bool is_boss);
 
+// Monster health/armor helpers (for macros)
+int GetMonsterBaseHealth(uint8_t monster_type_id);
+int GetMonsterScaledHealth(uint8_t monster_type_id, int wave_level, bool is_boss);
+int GetMonsterBaseArmor(uint8_t monster_type_id);
+int GetMonsterScaledArmor(uint8_t monster_type_id, int wave_level, bool is_boss);
+int GetMonsterBasePowerArmor(uint8_t monster_type_id);
+int GetMonsterScaledPowerArmor(uint8_t monster_type_id, int wave_level, bool is_boss);
+int32_t GetMonsterPowerArmorType(uint8_t monster_type_id);
+
 // Map config helper functions
 int32_t GetMonsterCapForMap(horde::MapID mapId, const struct horde::MapSize& mapSize);
 int32_t GetMonsterCapForMap(const char* mapname, const struct horde::MapSize& mapSize);  // Convenience overload

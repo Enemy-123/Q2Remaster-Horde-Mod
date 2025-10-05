@@ -13,7 +13,7 @@ chick
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 
 // Forward declare plasma_touch from xatrix
 void plasma_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);

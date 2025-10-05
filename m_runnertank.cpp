@@ -15,7 +15,7 @@ runnertank
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 void runnertankStrike(edict_t* self);
 void runnertank_refire_rocket(edict_t* self);
 //void runnetank_doattack_rocket(edict_t* self);

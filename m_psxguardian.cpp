@@ -14,7 +14,7 @@ GUARDIAN
 #include "shared.h"
 #include <cfloat>
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 static cached_soundindex sound_sight;
 //static cached_soundindex sound_pain1;
 //static cached_soundindex sound_pain2;

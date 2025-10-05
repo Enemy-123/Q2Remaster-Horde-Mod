@@ -13,7 +13,7 @@ Makron -- Final Boss
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 void SP_monster_makronkl(edict_t* self);
 void MakronRailgun(edict_t *self);
 void MakronSaveloc(edict_t *self);

@@ -20,7 +20,7 @@ This file contains all arachnid variants:
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
-#include "g_weapon_constants.h"
+#include "monster_constants.h"
 
 // Common spawn flags
 constexpr spawnflags_t SPAWNFLAG_SPIDER = 8_spawnflag;
