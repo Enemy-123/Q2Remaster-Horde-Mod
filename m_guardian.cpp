@@ -687,9 +687,7 @@ void SP_monster_guardian(edict_t* self)
 
 	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUARDIAN);
-    }
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	if (!M_AllowSpawn(self)) {
+    }	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
@@ -708,22 +706,18 @@ void SP_monster_guardian(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_GUARDIAN_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GUARDIAN_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GUARDIAN_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_GUARDIAN_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GUARDIAN_ADDON_ARMOR(self);
 	}
 
 
@@ -763,11 +757,9 @@ void SP_monster_janitor2(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JANITOR2);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	SP_monster_guardian(self);
+	 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JANITOR2);	SP_monster_guardian(self);
 	self->s.skinnum = 2;
-	self->health = (config ? config->health : 600) * st.health_multiplier;
+	self->health = static_cast<int>(M_JANITOR2_INITIAL_HEALTH * st.health_multiplier);
 
 	ApplyMonsterBonusFlags(self);
 }

@@ -1172,9 +1172,7 @@ constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;
 void SP_monster_infantry_vanilla(edict_t* self)
 {
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	const spawn_temp_t& st = ED_GetSpawnTemp();
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY_VANILLA);	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -1198,7 +1196,7 @@ void SP_monster_infantry_vanilla(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	int base_health = config ? config->health : 100;
+	int base_health = M_INFANTRY_VANILLA_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 	} else {
@@ -1251,21 +1249,30 @@ void SP_monster_infantry_vanilla(edict_t* self)
 void SP_monster_infantry(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	self->style = 1;
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::INFANTRY);	self->style = 1;
 
 	SP_monster_infantry_vanilla(self);
 
 	if (g_horde->integer) {
 
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = config ? config->power_armor_power : 85;
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SHIELD;
+		// Power armor
 
-		int base_health = config ? config->health : 100;
+
+		if (!st.was_key_specified("power_armor_type") && M_INFANTRY_POWER_ARMOR_TYPE != IT_NULL) {
+
+
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_INFANTRY_POWER_ARMOR_TYPE);
+
+
+			if (!st.was_key_specified("power_armor_power"))
+
+
+				self->monsterinfo.power_armor_power = M_INFANTRY_ADDON_POWER_ARMOR(self);
+
+
+		}
+
+		int base_health = M_INFANTRY_INITIAL_HEALTH;
 		if (current_wave_level > 0) {
 			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 		} else {

@@ -1983,12 +1983,11 @@ void SP_monster_arachnid(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::ARACHNID);
     }
-    const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
     if (!self->monsterinfo.IS_BOSS)
     {
         // BALANCE FIX: Wave 7 Elite should not have 1000 HP (too high for early game)
-        int base_health = config ? config->health : 600;
+        int base_health = M_ARACHNID_INITIAL_HEALTH;
         if (g_horde && g_horde->integer && current_wave_level > 0) {
             bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
             self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -1998,13 +1997,11 @@ void SP_monster_arachnid(edict_t* self)
         self->gib_health = -200;
     }
 
-    // Power armor configuration from config
-    if (!st.was_key_specified("power_armor_type")) {
-        if (config && config->power_armor_type != IT_NULL) {
-            self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-            if (!st.was_key_specified("power_armor_power"))
-                self->monsterinfo.power_armor_power = config->power_armor_power;
-        }
+    // Power armor configuration
+    if (!st.was_key_specified("power_armor_type") && M_ARACHNID_POWER_ARMOR_TYPE != IT_NULL) {
+        self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_ARACHNID_POWER_ARMOR_TYPE);
+        if (!st.was_key_specified("power_armor_power"))
+            self->monsterinfo.power_armor_power = M_ARACHNID_ADDON_POWER_ARMOR(self);
     }
 
     self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
@@ -2054,7 +2051,6 @@ void SP_monster_spider(edict_t* self)
     gi.soundindex("weapons/plasshot.wav");
 
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SPIDER);
-    const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
     self->spawnflags |= SPAWNFLAG_SPIDER;
     SP_monster_arachnid(self); // Call the base spawner
 
@@ -2075,7 +2071,7 @@ void SP_monster_spider(edict_t* self)
     // --- REFACTORED ---
     // The strcmp is no longer needed because we know this is a spider.
     self->s.scale = 0.7f;
-    int base_health = config ? config->health : (IsFirstThreeWaves(current_wave_level) ? 350 : 550);
+    int base_health = M_GM_ARACHNID_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
         self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -2100,7 +2096,6 @@ void SP_monster_arachnid2(edict_t* self)
     }
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN)
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::ARACHNID2);
-    const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
     initialize_arachnid_sounds();
 
@@ -2120,7 +2115,7 @@ void SP_monster_arachnid2(edict_t* self)
     }
     self->gib_health = -200;
     self->mass = 450;
-    int base_health = config ? config->health : 1000;
+    int base_health = M_ARACHNID2_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
         self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -2150,14 +2145,13 @@ void SP_monster_gm_arachnid(edict_t* self)
     const spawn_temp_t& st = ED_GetSpawnTemp();
 
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GM_ARACHNID);
-    const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
     SP_monster_arachnid2(self); // Calls the base spawner
 
 
     self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
     self->monsterinfo.armor_power = 500;
     self->style = 1; // This style flag is used in arachnid2_attack, we can replace that later.
-    int base_health = config ? config->health : 1000;
+    int base_health = M_GM_ARACHNID_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
         self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -2185,7 +2179,6 @@ void SP_monster_psxarachnid(edict_t* self)
     initialize_arachnid_sounds();
     sound_pissed.assign("guncmdr/gcdrsrch1.wav");
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PSX_ARACHNID);
-    const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
     sound_spawn.assign("medic_commander/monsterspawn1.wav");
 
     // --- MODIFIED REINFORCEMENT SETUP ---
@@ -2212,7 +2205,7 @@ void SP_monster_psxarachnid(edict_t* self)
     if (!st.was_key_specified("power_armor_power") && self->monsterinfo.IS_BOSS)
         self->monsterinfo.power_armor_power = 1000;
 
-    int base_health = config ? config->health : 1000;
+    int base_health = M_ARACHNID2_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
         self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);

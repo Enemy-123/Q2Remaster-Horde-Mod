@@ -1810,22 +1810,23 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	// Removed manual scaling - monster_start() handles it automatically
 	self->s.skinnum = 2;
 
-	// Health already varies by style, but should be clearer
-	int base_health;
-	if (self->style == GUNCMDR_STYLE_BOSS || self->spawnflags.has(SPAWNFLAG_GUNCMDRKL)) {
-		const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(horde::MonsterTypeID::GUNCMDR_KL));
-		base_health = config ? config->health : 4500;
-	} else if (self->style == GUNCMDR_STYLE_GRENADIER) {
-		base_health = 275;  // Grenadier is weaker
-	} else {
-		base_health = 325;  // Normal has more health
-	}
-
+	// Health varies by style
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		if (self->style == GUNCMDR_STYLE_BOSS || self->spawnflags.has(SPAWNFLAG_GUNCMDRKL)) {
+			self->health = M_GUNCMDR_KL_ADDON_HEALTH(self);
+		} else if (self->style == GUNCMDR_STYLE_GRENADIER) {
+			self->health = M_GUNCMDR_ADDON_HEALTH(self);
+		} else {
+			self->health = M_GUNCMDR_VANILLA_ADDON_HEALTH(self);
+		}
 	} else {
-		self->health = base_health * st.health_multiplier;
+		if (self->style == GUNCMDR_STYLE_BOSS || self->spawnflags.has(SPAWNFLAG_GUNCMDRKL)) {
+			self->health = static_cast<int>(M_GUNCMDR_KL_INITIAL_HEALTH * st.health_multiplier);
+		} else if (self->style == GUNCMDR_STYLE_GRENADIER) {
+			self->health = static_cast<int>(M_GUNCMDR_INITIAL_HEALTH * st.health_multiplier);
+		} else {
+			self->health = static_cast<int>(M_GUNCMDR_VANILLA_INITIAL_HEALTH * st.health_multiplier);
+		}
 	}
 
 	self->gib_health = -175;

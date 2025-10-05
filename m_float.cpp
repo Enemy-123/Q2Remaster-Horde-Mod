@@ -649,10 +649,7 @@ void SP_monster_floater_tracker(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLOATER_TRACKER);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	if (g_horde->integer && current_wave_level <= 18)
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FLOATER_TRACKER);	if (g_horde->integer && current_wave_level <= 18)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
@@ -696,30 +693,25 @@ void SP_monster_floater_tracker(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 200;
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_FLOATER_TRACKER_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_FLOATER_TRACKER_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_FLOATER_TRACKER_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_FLOATER_TRACKER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_FLOATER_TRACKER_ADDON_ARMOR(self);
 	}
 
 
-	int base_health = config ? config->health : 450;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = M_FLOATER_TRACKER_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(M_FLOATER_TRACKER_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->s.effects = EF_BARREL_EXPLODING;
 	self->gib_health = -80;

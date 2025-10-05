@@ -1224,10 +1224,7 @@ void SP_monster_widow(edict_t* self) {
 
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW);
-    }
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	sound_pain1.assign("widow/bw1pain1.wav");
+    }	sound_pain1.assign("widow/bw1pain1.wav");
 	sound_pain2.assign("widow/bw1pain2.wav");
 	sound_pain3.assign("widow/bw1pain3.wav");
 	sound_rail.assign("gladiator/railgun.wav");
@@ -1238,22 +1235,16 @@ void SP_monster_widow(edict_t* self) {
 	self->mins = { -40, -40, 0 };
 	self->maxs = { 40, 40, 144 };
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_WIDOW_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_WIDOW_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_WIDOW_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_WIDOW_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_power = M_WIDOW_ADDON_ARMOR(self);
 	}
 
 
@@ -1310,9 +1301,7 @@ void SP_monster_widow1(edict_t* self) {
 	}
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW1);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	sound_pain1.assign("widow/bw1pain1.wav");
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::WIDOW1);	sound_pain1.assign("widow/bw1pain1.wav");
 	sound_pain2.assign("widow/bw1pain2.wav");
 	sound_pain3.assign("widow/bw1pain3.wav");
 	sound_rail.assign("gladiator/railgun.wav");
@@ -1323,20 +1312,25 @@ void SP_monster_widow1(edict_t* self) {
 	self->mins = { -40, -40, 0 };
 	self->maxs = { 40, 40, 144 };
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_WIDOW1_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_WIDOW1_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_WIDOW1_ADDON_POWER_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 1750;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+
+
+		self->health = self->max_health = M_WIDOW1_ADDON_HEALTH(self);
+
+
 	} else {
-		self->health = self->max_health = base_health * st.health_multiplier;
+
+
+		self->health = self->max_health = static_cast<int>(M_WIDOW1_INITIAL_HEALTH * st.health_multiplier);
+
+
 	}
 	self->gib_health = -5000;
 	self->mass = 1500;

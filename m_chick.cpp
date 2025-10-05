@@ -1391,10 +1391,7 @@ void SP_monster_chick(edict_t* self)
 
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK);
-    }
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	if (g_horde->integer)
+    }	if (g_horde->integer)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
@@ -1436,35 +1433,25 @@ void SP_monster_chick(edict_t* self)
 
 	self->mins = { -16, -16, 0 };
 	self->maxs = { 16, 16, 56 };
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SHIELD;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = config ? config->power_armor_power : 75;
-
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_CHICK_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_CHICK_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_CHICK_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_CHICK_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_CHICK_ADDON_ARMOR(self);
 	}
 
 
-	int base_health = config ? config->health : 145;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = M_CHICK_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(M_CHICK_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->gib_health = -70;
 	self->mass = 200;
@@ -1511,18 +1498,15 @@ void SP_monster_chick_heat(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	SP_monster_chick(self);
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);	SP_monster_chick(self);
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICK_HEAT);
 
 	// BALANCE FIX: Wave 13 Elite should have significantly more health than Wave 6 base Chick
-	int base_health = config ? config->health : 500;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = M_CHICK_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(M_CHICK_INITIAL_HEALTH * st.health_multiplier);
 	}
 
 	self->s.skinnum = 2;
@@ -1816,22 +1800,18 @@ Boss variant of chick with dodge, carpet bomb, and plasma attacks
 void SP_monster_chickkl(edict_t* self)
 {
 	// Set monster type first
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	// Call base chick spawn
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);	// Call base chick spawn
 	SP_monster_chick(self);
 
 	// Override with chickkl specifics
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CHICKKL);
 
 	// Boss stats
-	int base_health = config ? config->health : 450;
 	extern int16_t current_wave_level;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // true = is_boss
+		self->health = M_CHICKKL_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * ED_GetSpawnTemp().health_multiplier;
+		self->health = static_cast<int>(M_CHICKKL_INITIAL_HEALTH * ED_GetSpawnTemp().health_multiplier);
 	}
 	self->gib_health = -120;
 	self->mass = 300;

@@ -721,7 +721,6 @@ void SP_monster_boss2(edict_t *self)
 	{ // Check if it hasn't been set yet
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2);
 	}
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	if (self->monsterinfo.IS_BOSS)
 	{
@@ -769,26 +768,17 @@ void SP_monster_boss2(edict_t *self)
 	self->mins = {-60, -60, 0};
 	self->maxs = {60, 60, 90};
 
-	// Power armor configuration from config
+	// Power armor configuration
 	if (self->monsterinfo.IS_BOSS)
 	{
-		if (!st.was_key_specified("power_armor_type")) {
-			if (config && config->power_armor_type != IT_NULL) {
-				self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			} else {
-				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-			}
-		}
-		if (!st.was_key_specified("power_armor_power")) {
-			if (config && config->power_armor_power > 0) {
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-			} else {
-				self->monsterinfo.power_armor_power = 500;
-			}
+		if (!st.was_key_specified("power_armor_type") && M_BOSS2_POWER_ARMOR_TYPE != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_BOSS2_POWER_ARMOR_TYPE);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = M_BOSS2_ADDON_POWER_ARMOR(self);
 		}
 	}
 
-	int base_health = config ? config->health : (g_horde->integer ? 6500 : 2000);
+	int base_health = M_BOSS2_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -838,8 +828,6 @@ void SP_monster_boss2_64(edict_t *self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_64);
 
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
 	SP_monster_boss2(self);
 
 	if (g_horde->integer)
@@ -848,25 +836,21 @@ void SP_monster_boss2_64(edict_t *self)
 		// Removed manual scaling - monster_start() handles it automatically
 	}
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_BOSS2_64_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_BOSS2_64_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_BOSS2_64_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_BOSS2_64_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_BOSS2_64_ADDON_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 1300;
+	int base_health = M_BOSS2_64_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -886,8 +870,6 @@ void SP_monster_boss2_mini(edict_t *self)
 	self->spawnflags &= ~SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_MINI);
 
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
 	SP_monster_boss2(self);
 	if (g_horde->integer)
 	{
@@ -895,25 +877,21 @@ void SP_monster_boss2_mini(edict_t *self)
 		// Removed manual scaling - monster_start() handles it automatically
 	}
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_BOSS2_MINI_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_BOSS2_MINI_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_BOSS2_MINI_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_BOSS2_MINI_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_BOSS2_MINI_ADDON_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 1000;
+	int base_health = M_BOSS2_MINI_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -935,8 +913,6 @@ void SP_monster_boss2kl(edict_t *self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS2_KL);
 
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
 	SP_monster_boss2(self);
 
 	if (g_horde->integer)
@@ -945,25 +921,21 @@ void SP_monster_boss2kl(edict_t *self)
 		// Removed manual scaling - monster_start() handles it automatically
 	}
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_BOSS2_KL_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_BOSS2_KL_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_BOSS2_KL_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_BOSS2_KL_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_BOSS2_KL_ADDON_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 1000;
+	int base_health = M_BOSS2_KL_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);

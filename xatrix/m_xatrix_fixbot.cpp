@@ -2050,7 +2050,6 @@ void SP_monster_fixbot(edict_t* self)
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT);
     }
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	self->s.modelindex = gi.modelindex("models/monsters/fixbot/tris.md2");
 	self->mins = { -16, -16, -12 };
@@ -2058,30 +2057,24 @@ void SP_monster_fixbot(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_FIXBOT_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_FIXBOT_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_FIXBOT_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_FIXBOT_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_FIXBOT_ADDON_ARMOR(self);
 	}
 
-
-	int base_health = config ? config->health : 130;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = M_FIXBOT_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(M_FIXBOT_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->monsterinfo.scale = MODEL_SCALE;
 	self->mass = 150;
@@ -2119,37 +2112,27 @@ void SP_monster_fixbot(edict_t* self)
 
 void SP_monster_fixbotkl(edict_t* self) {
 
-    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT_KL);
-
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	// Set scale BEFORE calling SP_monster_fixbot so monster_start() applies it correctly
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::FIXBOT_KL);	// Set scale BEFORE calling SP_monster_fixbot so monster_start() applies it correctly
 	self->s.scale = 2.6f;
 
 	SP_monster_fixbot(self);
 
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_FIXBOT_KL_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_FIXBOT_KL_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_FIXBOT_KL_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_FIXBOT_KL_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_power = M_FIXBOT_KL_ADDON_ARMOR(self);
 	}
 
-	// Health from config
-	self->max_health = (config ? config->health : 7500) * st.health_multiplier;
+	// Health
+	self->max_health = M_FIXBOT_KL_INITIAL_HEALTH * st.health_multiplier;
 	self->health = self->max_health;
 
 	self->mass = 400;

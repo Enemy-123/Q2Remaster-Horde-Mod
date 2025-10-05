@@ -923,9 +923,7 @@ void SP_monster_shambler(edict_t* self)
 
     if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER);
-    }
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	if (!M_AllowSpawn(self)) {
+    }	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
@@ -949,7 +947,7 @@ void SP_monster_shambler(edict_t* self)
 	sound_fireball.assign("weapons/rocklx1a.wav");
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER)) {
-		self->health = (config ? config->health : 650) * st.health_multiplier;
+		self->health = M_SHAMBLER_INITIAL_HEALTH * st.health_multiplier;
 		self->gib_health = -190;
 	}
 
@@ -983,11 +981,9 @@ void SP_monster_shambler(edict_t* self)
 //HORDE BOSS
 void SP_monster_shamblerkl(edict_t* self)
 {
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_KL);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	SP_monster_shambler(self);
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_KL);	SP_monster_shambler(self);
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_KL)) {
-		int base_health = config ? config->health : 6500;
+		int base_health = M_SHAMBLER_KL_INITIAL_HEALTH;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // Shambler boss
 		self->gib_health = -190;
 	}
@@ -1003,11 +999,9 @@ void SP_monster_shamblerkl(edict_t* self)
 void SP_monster_shambler_small(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_SMALL);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	SP_monster_shambler(self);
+self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SHAMBLER_SMALL);	SP_monster_shambler(self);
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) {
-		self->health = (config ? config->health : 350) + st.health_multiplier;
+		self->health = M_SHAMBLER_SMALL_INITIAL_HEALTH + st.health_multiplier;
 		self->gib_health = -190;
 		self->s.scale = 0.6f;
 		// Removed manual scaling - monster_start() handles it automatically

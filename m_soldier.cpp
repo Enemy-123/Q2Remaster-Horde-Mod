@@ -2364,33 +2364,20 @@ void SP_monster_soldier_light(edict_t* self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LIGHT);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
-	// Fixed: Only set power_armor when specified or from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		} else {
-			// Fallback to random behavior if no config
-			if (brandom()) {
-				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-				if (!st.was_key_specified("power_armor_power"))
-					self->monsterinfo.power_armor_power = 35;
-			} else {
-				self->monsterinfo.power_armor_type = IT_NULL;
-			}
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_SOLDIER_LIGHT_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SOLDIER_LIGHT_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_SOLDIER_LIGHT_ADDON_POWER_ARMOR(self);
 	}
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	int base_health = config ? config->health : 20;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = self->max_health = M_SOLDIER_LIGHT_ADDON_HEALTH(self);
 	} else {
-		self->health = self->max_health = base_health * st.health_multiplier;
+		self->health = self->max_health = static_cast<int>(M_SOLDIER_LIGHT_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->gib_health = -30;
 
@@ -2422,33 +2409,20 @@ void SP_monster_soldier(edict_t* self)
 	gi.soundindex("soldier/solatck1.wav");
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
-	// Fixed: Correctly set armor_type (not power_armor_type) when no armor
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		} else {
-			// Fallback: random combat armor
-			if (brandom()) {
-				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-				if (!st.was_key_specified("armor_power"))
-					self->monsterinfo.armor_power = 40;
-			} else {
-				self->monsterinfo.armor_type = IT_NULL;
-			}
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_SOLDIER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_SOLDIER_ADDON_ARMOR(self);
 	}
 
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
-	int base_health = config ? config->health : 30;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = self->max_health = M_SOLDIER_ADDON_HEALTH(self);
 	} else {
-		self->health = self->max_health = base_health * st.health_multiplier;
+		self->health = self->max_health = static_cast<int>(M_SOLDIER_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->gib_health = -30;
 
@@ -2477,33 +2451,20 @@ void SP_monster_soldier_ss(edict_t* self)
 	gi.soundindex("soldier/solatck3.wav");
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_SS);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
-	// Fixed: Correctly set armor_type (not power_armor_type) when no armor
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		} else {
-			// Fallback: random combat armor
-			if (brandom()) {
-				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-				if (!st.was_key_specified("armor_power"))
-					self->monsterinfo.armor_power = 50;
-			} else {
-				self->monsterinfo.armor_type = IT_NULL;
-			}
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_SOLDIER_SS_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_SOLDIER_SS_ADDON_ARMOR(self);
 	}
 
 	self->s.skinnum = 4;
 	self->count = self->s.skinnum;
-	int base_health = config ? config->health : 40;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = self->max_health = M_SOLDIER_SS_ADDON_HEALTH(self);
 	} else {
-		self->health = self->max_health = base_health * st.health_multiplier;
+		self->health = self->max_health = static_cast<int>(M_SOLDIER_SS_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->gib_health = -30;
 
@@ -2551,20 +2512,20 @@ void SP_monster_soldier_ripper(edict_t* self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_RIPPER);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = config ? config->power_armor_power : ((IsFirstThreeWaves(current_wave_level)) ? 45 : (g_hardcoop->integer ? 35 : 0));
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SCREEN;
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_SOLDIER_RIPPER_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SOLDIER_RIPPER_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_SOLDIER_RIPPER_ADDON_POWER_ARMOR(self);
+	}
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;
-	int base_health = config ? config->health : 40;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = self->max_health = M_SOLDIER_RIPPER_ADDON_HEALTH(self);
 	} else {
-		self->health = self->max_health = base_health * st.health_multiplier;
+		self->health = self->max_health = static_cast<int>(M_SOLDIER_RIPPER_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->gib_health = -30;
 
@@ -2599,15 +2560,13 @@ void SP_monster_soldier_hypergun(edict_t* self)
 	gi.soundindex("weapons/hyprbl1a.wav");
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_HYPERGUN);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	self->s.skinnum = 8;
 	self->count = self->s.skinnum - 6;
-	int base_health = config ? config->health : 40;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = self->max_health = M_SOLDIER_HYPERGUN_ADDON_HEALTH(self);
 	} else {
-		self->health = self->max_health = base_health * st.health_multiplier;
+		self->health = self->max_health = static_cast<int>(M_SOLDIER_HYPERGUN_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->gib_health = -30;
 
@@ -2639,32 +2598,20 @@ void SP_monster_soldier_lasergun(edict_t* self)
 	gi.soundindex("soldier/solatck3.wav");
 
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SOLDIER_LASERGUN);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		} else {
-			// Fallback: random combat armor
-			if (brandom()) {
-				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-				if (!st.was_key_specified("armor_power"))
-					self->monsterinfo.armor_power = 50;
-			} else {
-				self->monsterinfo.armor_type = IT_NULL;
-			}
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_SOLDIER_LASERGUN_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_SOLDIER_LASERGUN_ADDON_ARMOR(self);
 	}
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	int base_health = config ? config->health : 40;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = self->max_health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = self->max_health = M_SOLDIER_LASERGUN_ADDON_HEALTH(self);
 	} else {
-		self->health = self->max_health = base_health * st.health_multiplier;
+		self->health = self->max_health = static_cast<int>(M_SOLDIER_LASERGUN_INITIAL_HEALTH * st.health_multiplier);
 	}
 	self->gib_health = -30;
 

@@ -561,10 +561,7 @@ void SP_monster_gladiator(edict_t* self)
 
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR);
-	}
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	if (g_horde->integer && current_wave_level <= 18)
+	}	if (g_horde->integer && current_wave_level <= 18)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
@@ -605,32 +602,27 @@ void SP_monster_gladiator(edict_t* self)
 	case 1: // gladb
 		sound_gunb.assign("weapons/disrupt.wav");
 		{
-			int base_health = config ? config->health : 480;
 			if (g_horde && g_horde->integer && current_wave_level > 0) {
-				self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
-			} else {
-				self->health = base_health * st.health_multiplier;
-			}
+		self->health = M_GLADIATOR_ADDON_HEALTH(self);
+	} else {
+		self->health = static_cast<int>(M_GLADIATOR_INITIAL_HEALTH * st.health_multiplier);
+	}
 		}
 		self->mass = 350;
 
-		// Power armor configuration from config
-		if (!st.was_key_specified("power_armor_type")) {
-			if (config && config->power_armor_type != IT_NULL) {
-				self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-				if (!st.was_key_specified("power_armor_power"))
-					self->monsterinfo.power_armor_power = config->power_armor_power;
-			}
-		}
+		// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
+	}
 
-		// Regular armor configuration from config
-		if (!st.was_key_specified("armor_type")) {
-			if (config && config->armor_type != IT_NULL) {
-				self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-				if (!st.was_key_specified("armor_power"))
-					self->monsterinfo.armor_power = config->armor_power;
-			}
-		}
+		// Armor
+	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
+	}
 
 		self->s.skinnum = 2;
 		self->s.effects = EF_TRACKER;
@@ -640,32 +632,27 @@ void SP_monster_gladiator(edict_t* self)
 	case 3: // gladc
 		sound_gunc.assign("weapons/plasshot.wav");
 		{
-			int base_health = config ? config->health : 350;
 			if (g_horde && g_horde->integer && current_wave_level > 0) {
-				self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
-			} else {
-				self->health = base_health * st.health_multiplier;
-			}
+		self->health = M_GLADIATOR_ADDON_HEALTH(self);
+	} else {
+		self->health = static_cast<int>(M_GLADIATOR_INITIAL_HEALTH * st.health_multiplier);
+	}
 		}
 		self->mass = 350;
 
-		// Power armor configuration from config
-		if (!st.was_key_specified("power_armor_type")) {
-			if (config && config->power_armor_type != IT_NULL) {
-				self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-				if (!st.was_key_specified("power_armor_power"))
-					self->monsterinfo.power_armor_power = config->power_armor_power;
-			}
-		}
+		// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
+	}
 
-		// Regular armor configuration from config
-		if (!st.was_key_specified("armor_type")) {
-			if (config && config->armor_type != IT_NULL) {
-				self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-				if (!st.was_key_specified("armor_power"))
-					self->monsterinfo.armor_power = config->armor_power;
-			}
-		}
+		// Armor
+	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
+	}
 
 		self->s.skinnum = 2;
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
@@ -674,23 +661,20 @@ void SP_monster_gladiator(edict_t* self)
 	default: // normal gladiator
 		sound_gun.assign("gladiator/railgun.wav");
 		{
-			int base_health = config ? config->health : 420;
 			if (g_horde && g_horde->integer && current_wave_level > 0) {
-				self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
-			} else {
-				self->health = base_health * st.health_multiplier;
-			}
+		self->health = M_GLADIATOR_ADDON_HEALTH(self);
+	} else {
+		self->health = static_cast<int>(M_GLADIATOR_INITIAL_HEALTH * st.health_multiplier);
+	}
 		}
 		self->mass = 400;
 
-		// Regular armor configuration from config
-		if (!st.was_key_specified("armor_type")) {
-			if (config && config->armor_type != IT_NULL) {
-				self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-				if (!st.was_key_specified("armor_power"))
-					self->monsterinfo.armor_power = config->armor_power;
-			}
-		}
+		// Armor
+	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
+	}
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");
 		break;
@@ -732,35 +716,26 @@ void SP_monster_gladb(edict_t* self)
 	const spawn_temp_t &st = ED_GetSpawnTemp();
 
 	self->style = 1;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_B);
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_B);	SP_monster_gladiator(self);
 
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	SP_monster_gladiator(self);
-
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 400;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = M_GLADIATOR_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(M_GLADIATOR_INITIAL_HEALTH * st.health_multiplier);
 	}
 }
 
@@ -769,34 +744,25 @@ void SP_monster_gladc(edict_t* self)
 	const spawn_temp_t &st = ED_GetSpawnTemp();
 
 	self->style = 3;
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_C);
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GLADIATOR_C);	SP_monster_gladiator(self);
 
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	SP_monster_gladiator(self);
-
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_GLADIATOR_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GLADIATOR_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_GLADIATOR_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_GLADIATOR_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_GLADIATOR_ADDON_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 400;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = M_GLADIATOR_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(M_GLADIATOR_INITIAL_HEALTH * st.health_multiplier);
 	}
 }

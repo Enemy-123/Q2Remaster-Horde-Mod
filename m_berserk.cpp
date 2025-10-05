@@ -1134,7 +1134,6 @@ void SP_monster_berserk(edict_t* self)
 
 	// Set the base ID. This is the default.
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERK);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
 
 	self->s.modelindex = gi.modelindex("models/monsters/berserk/tris.md2");
 
@@ -1148,35 +1147,24 @@ void SP_monster_berserk(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	//if (!st.was_key_specified("power_armor_type"))
-	//	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	//if (!st.was_key_specified("power_armor_power"))
-	//	self->monsterinfo.power_armor_power = 95;
-
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor
+	if (!st.was_key_specified("power_armor_type") && M_BERSERK_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_BERSERK_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_BERSERK_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Armor
+	if (!st.was_key_specified("armor_type") && M_BERSERK_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_BERSERK_ADDON_ARMOR(self);
 	}
 
-
-	int base_health = config ? config->health : 295;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+		self->health = M_BERSERK_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(M_BERSERK_INITIAL_HEALTH * st.health_multiplier);
 	}
 
 	self->gib_health = -60;
@@ -1605,21 +1593,17 @@ Only spawns during special foggy Berserker waves
 void SP_monster_berserkerkl(edict_t* self)
 {
 	// Set monster type first
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	// Call base berserk spawn
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);	// Call base berserk spawn
 	SP_monster_berserk(self);
 
 	// Override with berserkerkl specifics
 	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BERSERKERKL);
 
 	// Boss stats
-	int base_health = config ? config->health : 900;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, true);  // true = is_boss
+		self->health = M_BERSERKERKL_ADDON_HEALTH(self);
 	} else {
-		self->health = base_health * ED_GetSpawnTemp().health_multiplier;
+		self->health = static_cast<int>(M_BERSERKERKL_INITIAL_HEALTH * ED_GetSpawnTemp().health_multiplier);
 	}
 	self->gib_health = -150;
 	self->mass = 400;

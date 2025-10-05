@@ -955,11 +955,7 @@ void SP_monster_psxguardian(edict_t* self)
 
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::PSX_GUARDIAN);
-}
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-
-	if (!M_AllowSpawn(self)) {
+}	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
@@ -984,27 +980,22 @@ void SP_monster_psxguardian(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	if (g_horde->integer)
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_PSX_GUARDIAN_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_PSX_GUARDIAN_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_PSX_GUARDIAN_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_PSX_GUARDIAN_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_PSX_GUARDIAN_ADDON_ARMOR(self);
 	}
 
 
-	int base_health = config ? config->health : (g_horde->integer ? 6500 : 2500);
+	int base_health = M_PSX_GUARDIAN_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 	} else {

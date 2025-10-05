@@ -701,10 +701,7 @@ model="models/monsters/mutant/tris.md2"
 void SP_monster_mutant(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MUTANT);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	if (g_horde->integer) {
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::MUTANT);	if (g_horde->integer) {
 		{
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
@@ -746,7 +743,7 @@ void SP_monster_mutant(edict_t* self)
 	self->maxs = { 18, 18, 30 };
 
 	// BALANCE FIX: Wave 9 should have better health progression from Wave 5 Parasite (150 HP)
-	int base_health = config ? config->health : 300;
+	int base_health = M_MUTANT_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 	} else {

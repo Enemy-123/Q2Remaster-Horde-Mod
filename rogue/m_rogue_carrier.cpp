@@ -1212,11 +1212,7 @@ void SP_monster_carrier(edict_t* self)
 
 		if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER);
-}
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-
-	if (g_horde->integer) {
+}	if (g_horde->integer) {
 		{
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
@@ -1267,22 +1263,18 @@ void SP_monster_carrier(edict_t* self)
 		self->monsterinfo.power_armor_power = 155;
 
 	// 2000 - 4000 health
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_CARRIER_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_CARRIER_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_CARRIER_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_CARRIER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_CARRIER_ADDON_ARMOR(self);
 	}
 
 
@@ -1355,9 +1347,7 @@ void SP_monster_carrier_mini(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER_MINI);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-    // This check is redundant, the engine only calls this function
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::CARRIER_MINI);    // This check is redundant, the engine only calls this function
     // for this classname anyway. It can be removed.
 	// if (!strcmp(self->classname, "monster_carrier_mini")) {
 
@@ -1366,7 +1356,7 @@ void SP_monster_carrier_mini(edict_t* self)
 		self->s.scale = 0.6f;
 		// Removed manual scaling - monster_start() handles it automatically
 
-		int base_health = config ? config->health : 1500;
+		int base_health = M_CARRIER_MINI_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
 			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 		} else {

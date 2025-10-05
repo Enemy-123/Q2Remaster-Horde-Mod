@@ -583,10 +583,7 @@ void SP_monster_hover(edict_t* self)
     // FIX: This is the new central logic. It sets the monster_type_id from the classname
     // if it hasn't been set already. This makes the system work for all spawn methods.
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER);
-
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-    const spawn_temp_t& st = ED_GetSpawnTemp();
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER);    const spawn_temp_t& st = ED_GetSpawnTemp();
 
     if (!M_AllowSpawn(self)) {
         G_FreeEdict(self);
@@ -604,7 +601,7 @@ void SP_monster_hover(edict_t* self)
     self->mins = { -24, -24, -24 };
     self->maxs = { 24, 24, 32 };
 
-    int base_health = config ? config->health : 240;
+    int base_health = M_HOVER_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
         self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -618,10 +615,22 @@ void SP_monster_hover(edict_t* self)
         self->mass = 150;
     }
 
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = config ? config->power_armor_power : 100;
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SCREEN;
+	// Power armor
+
+
+	if (!st.was_key_specified("power_armor_type") && M_HOVER_POWER_ARMOR_TYPE != IT_NULL) {
+
+
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_HOVER_POWER_ARMOR_TYPE);
+
+
+		if (!st.was_key_specified("power_armor_power"))
+
+
+			self->monsterinfo.power_armor_power = M_HOVER_ADDON_POWER_ARMOR(self);
+
+
+	}
 
     self->pain = hover_pain;
     self->die = hover_die;
@@ -667,9 +676,7 @@ This is now the rocket variant.
 */
 void SP_monster_hover_vanilla(edict_t* self)
 {
-     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER_VANILLA);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-    SP_monster_hover(self);
+     self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::HOVER_VANILLA);    SP_monster_hover(self);
 }
 
 // FIX: This function is for the "monster_daedalus" classname (Blaster2 Daedalus).
@@ -680,14 +687,12 @@ void SP_monster_daedalus(edict_t* self)
     const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) // Check if it hasn't been set yet
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::DAEDALUS);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-    if (!M_AllowSpawn(self)) {
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::DAEDALUS);    if (!M_AllowSpawn(self)) {
         G_FreeEdict(self);
         return;
     }
 
-    int base_health = config ? config->health : 350;
+    int base_health = M_DAEDALUS_INITIAL_HEALTH;
     if (g_horde && g_horde->integer && current_wave_level > 0) {
         bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
         self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -699,9 +704,9 @@ void SP_monster_daedalus(edict_t* self)
     self->mass = 225;
     self->yaw_speed = 23;
     if (!st.was_key_specified("power_armor_type"))
-        self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SCREEN;
+        self->monsterinfo.power_armor_type = M_DAEDALUS_POWER_ARMOR_TYPE != IT_NULL ? static_cast<item_id_t>(M_DAEDALUS_POWER_ARMOR_TYPE) : IT_ITEM_POWER_SCREEN;
     if (!st.was_key_specified("power_armor_power"))
-        self->monsterinfo.power_armor_power = config ? config->power_armor_power : 100;
+        self->monsterinfo.power_armor_power = M_DAEDALUS_POWER_ARMOR != 0 ? M_DAEDALUS_ADDON_POWER_ARMOR(self) : 100;
     daed_sound_pain1.assign("daedalus/daedpain1.wav");
     daed_sound_pain2.assign("daedalus/daedpain2.wav");
     daed_sound_death1.assign("daedalus/daeddeth1.wav");
@@ -721,33 +726,25 @@ void SP_monster_daedalus_bomber(edict_t* self)
 {
 	const spawn_temp_t &st = ED_GetSpawnTemp();
 
-    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::DAEDALUS_BOMBER);
-
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-    // A grenade Daedalus IS a Daedalus. Call its spawn function first
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::DAEDALUS_BOMBER);    // A grenade Daedalus IS a Daedalus. Call its spawn function first
     // to set up mass, sounds, power armor, etc.
     SP_monster_daedalus(self);
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_DAEDALUS_BOMBER_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_DAEDALUS_BOMBER_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_DAEDALUS_BOMBER_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_DAEDALUS_BOMBER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_DAEDALUS_BOMBER_ADDON_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 240;
+	int base_health = M_DAEDALUS_BOMBER_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);

@@ -731,11 +731,7 @@ void SP_monster_supertank(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SUPERTANK);
-}
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-
-	if (!M_AllowSpawn(self)) {
+}	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
@@ -746,7 +742,7 @@ void SP_monster_supertank(edict_t* self)
 		if (self->monsterinfo.IS_BOSS) {
 			const int soundToPlay = (randomChance < 0.5f) ? sound_search2 : sound_search1;
 			gi.sound(self, CHAN_VOICE, soundToPlay, 1, ATTN_NONE, 0);
-			self->health = (config ? config->health : 3300) * st.health_multiplier;
+			self->health = M_SUPERTANK_INITIAL_HEALTH * st.health_multiplier;
 		}
 		else {
 			constexpr float FIRST_SOUND_CHANCE = 0.2f;
@@ -793,27 +789,20 @@ void SP_monster_supertank(edict_t* self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
-	if (g_horde->integer)
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_SUPERTANK_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SUPERTANK_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_SUPERTANK_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_SUPERTANK_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_power = M_SUPERTANK_ADDON_ARMOR(self);
 	}
 
 
-	int base_health = config ? config->health : (g_horde->integer ? 3300 : 2000);
+	int base_health = M_SUPERTANK_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -882,9 +871,7 @@ void SP_monster_supertank(edict_t* self)
  */
 void SP_monster_boss5(edict_t* self)
 {
-	 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS5);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
+	 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::BOSS5);	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
@@ -895,9 +882,7 @@ void SP_monster_boss5(edict_t* self)
 void SP_monster_janitor(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
- self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JANITOR);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
+ self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JANITOR);	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 	self->count = 10;
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
@@ -911,7 +896,7 @@ void SP_monster_janitor(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 500;
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR)) {
-		int base_health = config ? config->health : 1800;
+		int base_health = M_JANITOR_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
 			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
@@ -927,9 +912,7 @@ void SP_monster_janitor(edict_t* self)
 void SP_monster_supertankkl(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SUPERTANKKL);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	if (g_horde->integer && horde::IsMonsterType(self, horde::MonsterTypeID::SUPERTANKKL))
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::SUPERTANKKL);	if (g_horde->integer && horde::IsMonsterType(self, horde::MonsterTypeID::SUPERTANKKL))
 	{
 		self->count = 10;
 		SP_monster_supertank(self);
@@ -938,18 +921,12 @@ void SP_monster_supertankkl(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 
-		self->health = self->max_health = (config ? config->health : 5500) * st.health_multiplier;
+		self->health = self->max_health = M_SUPERTANKKL_INITIAL_HEALTH * st.health_multiplier;
 
-		if (!st.was_key_specified("power_armor_type")) {
-			if (config && config->power_armor_type != IT_NULL) {
-				self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-				if (!st.was_key_specified("power_armor_power"))
-					self->monsterinfo.power_armor_power = config->power_armor_power;
-			} else {
-				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-				if (!st.was_key_specified("power_armor_power"))
-					self->monsterinfo.power_armor_power = 1800;
-			}
+		if (!st.was_key_specified("power_armor_type") && M_SUPERTANKKL_POWER_ARMOR_TYPE != IT_NULL) {
+			self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_SUPERTANKKL_POWER_ARMOR_TYPE);
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = M_SUPERTANKKL_ADDON_POWER_ARMOR(self);
 		}
 
 		self->mass = 1200;

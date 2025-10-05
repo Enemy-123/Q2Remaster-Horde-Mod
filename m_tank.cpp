@@ -2946,11 +2946,7 @@ void SP_monster_tank(edict_t* self)
 	// Set a default ID if one hasn't been set by a more specific spawner.
 	if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) {
 		self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK);
-}
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-
-	if (g_horde->integer && brandom()) {
+}	if (g_horde->integer && brandom()) {
 		gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
 	}
 
@@ -2994,8 +2990,8 @@ void SP_monster_tank(edict_t* self)
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER))
 	{
-		int base_health = config ? config->health : 1000;
-		float health_scale = config ? config->health_scale : 1.0f;
+		int base_health = M_TANK_COMMANDER_INITIAL_HEALTH;
+		float health_scale = 1.0f;
 
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
 			self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
@@ -3009,21 +3005,20 @@ void SP_monster_tank(edict_t* self)
 	}
 	else if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64))
 	{
-		int base_health = config ? config->health : (g_horde->integer ? 1750 : 800);
-		float health_scale = config ? config->health_scale : 1.0f;
+		int base_health = M_TANK_64_INITIAL_HEALTH;
+		float health_scale = 1.0f;
 		self->accel = 0.075f;
 
 		if (g_horde->integer && current_wave_level > 0) {
 			self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
 
-			if (is_boss && config) {
-				if (!st.was_key_specified("armor_type") && config->armor_power > 0) {
-					self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-					self->monsterinfo.armor_power = GetScaledArmor(config->armor_power, config->armor_scale, current_wave_level, is_boss);
+			if (is_boss) {
+				if (!st.was_key_specified("armor_type") && M_TANK_INITIAL_ARMOR > 0) {
+					self->monsterinfo.armor_power = M_TANK_ADDON_ARMOR(self);
 				}
-				if (!st.was_key_specified("power_armor_type") && config->power_armor_power > 0) {
-					self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-					self->monsterinfo.power_armor_power = GetScaledPowerArmor(config->power_armor_power, config->power_armor_scale, current_wave_level, is_boss);
+				if (!st.was_key_specified("power_armor_type") && M_TANK_POWER_ARMOR_TYPE != IT_NULL) {
+					self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_TANK_POWER_ARMOR_TYPE);
+					self->monsterinfo.power_armor_power = M_TANK_ADDON_POWER_ARMOR(self);
 				}
 			}
 		} else if (G_IsCooperative()) {
@@ -3037,8 +3032,8 @@ void SP_monster_tank(edict_t* self)
 	}
 	else // Default case for base TANK
 	{
-		int base_health = config ? config->health : 630;
-		float health_scale = config ? config->health_scale : 1.0f;
+		int base_health = M_TANK_INITIAL_HEALTH;
+		float health_scale = 1.0f;
 
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
 			self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
@@ -3080,9 +3075,7 @@ void SP_monster_tank(edict_t* self)
 void SP_monster_tank_spawner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_SPAWNER);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	if (!M_AllowSpawn(self)) {
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_SPAWNER);	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
@@ -3138,14 +3131,14 @@ void SP_monster_tank_spawner(edict_t* self)
     // --- REFACTORED ---
     // The strcmp is removed as this function only spawns one type.
 	bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-	int base_health = config ? config->health : 1200;
-	float health_scale = config ? config->health_scale : 1.0f;
+	int base_health = M_TANK_SPAWNER_INITIAL_HEALTH;
+	float health_scale = 1.0f;
 
 	if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN))
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-		base_health = config ? config->health : 1500;
+		base_health = M_TANK_SPAWNER_INITIAL_HEALTH;
 	}
 
 	// Apply health scaling
@@ -3156,17 +3149,17 @@ void SP_monster_tank_spawner(edict_t* self)
 	}
 
 	// Apply armor scaling
-	if (!st.was_key_specified("armor_type") && config && config->armor_type != IT_NULL) {
-		self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+	if (!st.was_key_specified("armor_type") && M_TANK_SPAWNER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = GetScaledArmor(config->armor_power, config->armor_scale, current_wave_level, is_boss);
+			self->monsterinfo.armor_power = M_TANK_SPAWNER_ADDON_ARMOR(self);
 	}
 
 	// Apply power armor scaling
-	if (!st.was_key_specified("power_armor_type") && config && config->power_armor_type != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+	if (!st.was_key_specified("power_armor_type") && M_TANK_SPAWNER_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_TANK_SPAWNER_POWER_ARMOR_TYPE);
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = GetScaledPowerArmor(config->power_armor_power, config->power_armor_scale, current_wave_level, is_boss);
+			self->monsterinfo.power_armor_power = M_TANK_SPAWNER_ADDON_POWER_ARMOR(self);
 	}
 
 	self->gib_health = -225;
@@ -3277,19 +3270,15 @@ void SP_monster_tank_64(edict_t* self)
 	const spawn_temp_t &st = ED_GetSpawnTemp();
 
     // --- EAGER INITIALIZATION ---
-	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_64);
-
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	brandom() ?
+	self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_64);	brandom() ?
 		self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN :
 		self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING;
 	
     SP_monster_tank(self); // Call base spawner
 
 	bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-	int base_health = config ? config->health : 1000;
-	float health_scale = config ? config->health_scale : 1.0f;
+	int base_health = M_TANK_64_INITIAL_HEALTH;
+	float health_scale = 1.0f;
 
 	// Apply health scaling
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
@@ -3299,17 +3288,17 @@ void SP_monster_tank_64(edict_t* self)
 	}
 
 	// Apply armor scaling
-	if (!st.was_key_specified("armor_type") && config && config->armor_type != IT_NULL) {
-		self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+	if (!st.was_key_specified("armor_type") && M_TANK_64_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 		if (!st.was_key_specified("armor_power"))
-			self->monsterinfo.armor_power = GetScaledArmor(config->armor_power, config->armor_scale, current_wave_level, is_boss);
+			self->monsterinfo.armor_power = M_TANK_64_ADDON_ARMOR(self);
 	}
 
 	// Apply power armor scaling
-	if (!st.was_key_specified("power_armor_type") && config && config->power_armor_type != IT_NULL) {
-		self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+	if (!st.was_key_specified("power_armor_type") && M_TANK_64_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_TANK_64_POWER_ARMOR_TYPE);
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = GetScaledPowerArmor(config->power_armor_power, config->power_armor_scale, current_wave_level, is_boss);
+			self->monsterinfo.power_armor_power = M_TANK_64_ADDON_POWER_ARMOR(self);
 	}
 
 	self->s.skinnum = 2;
@@ -3326,33 +3315,25 @@ void SP_monster_tank_commander(edict_t* self)
 
     // --- EAGER INITIALIZATION ---
     // Set the specific ID *before* calling the base spawner.
-    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_COMMANDER);
-
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-    // Call the base spawner. It will now use the ID we just set to apply
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::TANK_COMMANDER);    // Call the base spawner. It will now use the ID we just set to apply
     // the correct health, sounds, and skin.
     SP_monster_tank(self);
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_TANK_COMMANDER_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_TANK_COMMANDER_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_TANK_COMMANDER_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_TANK_COMMANDER_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_TANK_COMMANDER_ADDON_ARMOR(self);
 	}
 
-	int base_health = config ? config->health : 1000;
+	int base_health = M_TANK_COMMANDER_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);

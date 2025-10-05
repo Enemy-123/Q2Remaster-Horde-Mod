@@ -948,10 +948,7 @@ model="models/monsters/gunner/tris.md2"
 void SP_monster_gunner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNNER);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-	if (g_horde->integer) {
+    self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::GUNNER);	if (g_horde->integer) {
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
@@ -984,16 +981,28 @@ void SP_monster_gunner(edict_t* self)
 	gi.modelindex("models/monsters/gunner/gibs/gun.md2");
 	gi.modelindex("models/monsters/gunner/gibs/head.md2");
 
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = config ? config->power_armor_power : 65;
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = config ? static_cast<item_id_t>(config->power_armor_type) : IT_ITEM_POWER_SHIELD;
+	// Power armor
+
+
+	if (!st.was_key_specified("power_armor_type") && M_GUNNER_POWER_ARMOR_TYPE != IT_NULL) {
+
+
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_GUNNER_POWER_ARMOR_TYPE);
+
+
+		if (!st.was_key_specified("power_armor_power"))
+
+
+			self->monsterinfo.power_armor_power = M_GUNNER_ADDON_POWER_ARMOR(self);
+
+
+	}
 
 
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 36 };
 
-	int base_health = config ? config->health : 175;
+	int base_health = M_GUNNER_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 	} else {

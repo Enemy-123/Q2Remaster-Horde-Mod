@@ -2574,12 +2574,10 @@ void SP_monster_medic(edict_t *self)
 	// PMM
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MEDIC_COMMANDER))
 	{
-		const MonsterStatsConfig* config = GetMonsterConfig(static_cast<uint8_t>(horde::MonsterTypeID::MEDIC_COMMANDER));
-		int base_health = config ? config->health : 600;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			self->health = M_MEDIC_COMMANDER_ADDON_HEALTH(self);
 		} else {
-			self->health = base_health * st.health_multiplier;
+			self->health = static_cast<int>(M_MEDIC_COMMANDER_INITIAL_HEALTH * st.health_multiplier);
 		}
 		self->gib_health = -130;
 		self->mass = 600;
@@ -2589,12 +2587,10 @@ void SP_monster_medic(edict_t *self)
 	else
 	{
 		// PMM
-		const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-		int base_health = config ? config->health : 300;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
+			self->health = M_MEDIC_ADDON_HEALTH(self);
 		} else {
-			self->health = base_health * st.health_multiplier;
+			self->health = static_cast<int>(M_MEDIC_INITIAL_HEALTH * st.health_multiplier);
 		}
 		self->gib_health = -130;
 		self->mass = 400;

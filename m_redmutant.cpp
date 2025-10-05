@@ -681,9 +681,7 @@ void SP_monster_redmutant(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	    
-        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::REDMUTANT);
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-	if (g_horde->integer)
+        self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::REDMUTANT);	if (g_horde->integer)
 	{
 		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
@@ -724,26 +722,22 @@ void SP_monster_redmutant(edict_t* self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
+	// Power armor configuration
+	if (!st.was_key_specified("power_armor_type") && M_REDMUTANT_POWER_ARMOR_TYPE != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(M_REDMUTANT_POWER_ARMOR_TYPE);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = M_REDMUTANT_ADDON_POWER_ARMOR(self);
 	}
 
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
+	// Regular armor configuration
+	if (!st.was_key_specified("armor_type") && M_REDMUTANT_INITIAL_ARMOR > 0) {
+		self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = M_REDMUTANT_ADDON_ARMOR(self);
 	}
 
 
-	int base_health = config ? config->health : 520;
+	int base_health = M_REDMUTANT_INITIAL_HEALTH;
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 	} else {

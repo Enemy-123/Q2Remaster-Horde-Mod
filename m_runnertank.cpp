@@ -1629,11 +1629,7 @@ void SP_monster_runnertank(edict_t* self)
 
 	    if (self->monsterinfo.monster_type_id == MONSTER_TYPE_UNKNOWN) { // Check if it hasn't been set yet
         self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::RUNNERTANK);
-}
-	const MonsterStatsConfig* config = GetMonsterConfig(self->monsterinfo.monster_type_id);
-
-
-	if (!M_AllowSpawn(self)) {
+}	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
@@ -1675,7 +1671,7 @@ void SP_monster_runnertank(edict_t* self)
 	// }
 	// else
 	{
-		int base_health = config ? config->health : 750;
+		int base_health = M_RUNNERTANK_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
 			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 		} else {
@@ -1692,7 +1688,7 @@ void SP_monster_runnertank(edict_t* self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-		int base_health = config ? config->health : 1500;
+		int base_health = M_RUNNERTANK_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
 			self->health = ScaleMonsterHealth(base_health, current_wave_level, false);
 		} else {
