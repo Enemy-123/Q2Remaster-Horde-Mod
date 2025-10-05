@@ -836,7 +836,7 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	// Set team so bots can target this boss
 	// Bosses skip ApplyMonsterBonusFlags due to IS_BOSS flag, so team must be set explicitly
-	self->monsterinfo.team = CTF_NOTEAM;
+	self->monsterinfo.team = CTF_TEAM2;
 
 	// Reset sv.init to force bot registration on next frame
 	// The boss entity existed for multiple frames before SVF_MONSTER was set,
