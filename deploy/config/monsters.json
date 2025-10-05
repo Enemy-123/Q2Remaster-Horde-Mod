@@ -405,6 +405,12 @@
         "blaster2": 15
       }
     },
+      "flipper": {
+      "health": 60,
+      "power_armor_power": 0,
+      "weapon_damage": {
+      "melee": 15
+    },
     "gekk": {
       "health": 125,
       "power_armor_power": 0,
