@@ -1562,7 +1562,8 @@ TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool
 
 	if (other->svflags & SVF_MONSTER)
 	{
-		if (self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER))
+		// In horde mode, allow monsters to open all doors
+		if (!g_horde->integer && self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER))
 			return;
 		// [Paril-KEX] this is for PSX; the scale is so small that monsters walking
 		// around to path_corners often initiate doors unintentionally.
@@ -1845,7 +1846,7 @@ void SP_func_door(edict_t* ent)
 
 	if (ent->spawnflags.has(SPAWNFLAG_DOOR_START_OPEN))
 		ent->think = Think_DoorActivateAreaPortal;
-	else if (ent->health || ent->targetname)
+	else if (ent->health || (ent->targetname && !g_horde->integer))
 		ent->think = Think_CalcMoveSpeed;
 	else
 		ent->think = Think_SpawnDoorTrigger;
