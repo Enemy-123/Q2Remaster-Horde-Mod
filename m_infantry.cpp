@@ -13,6 +13,7 @@ INFANTRY BLASTER2
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 void InfantryMachineGun(edict_t* self);
 void infantry_run(edict_t* self);
@@ -313,13 +314,13 @@ void InfantryMachineGun(edict_t* self)
 		// Disparo según el estilo
 		if (self->style == 1) // Blaster
 		{
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
-			int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+			int damage = M_BLASTER2_DMG(self);
+			int speed = M_BLASTER2_SPEED(self);
 			monster_fire_blaster2(self, start, forward, damage > 0 ? damage : 6, speed > 0 ? speed : 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
 		}
 		else // Vanilla
 		{
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+			int damage = M_MACHINEGUN_DMG(self);
 			monster_fire_bullet(self, start, forward, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 		}
 	}
@@ -333,7 +334,7 @@ void InfantryMachineGun(edict_t* self)
 			AngleVectors(self->s.angles, forward, right, up);
 			start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
-			int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+			int config_speed = M_BLASTER2_SPEED(self);
 			int blaster_speed = config_speed > 0 ? config_speed : 1150;
 
 			dir = self->enemy->s.origin - start;
@@ -346,7 +347,7 @@ void InfantryMachineGun(edict_t* self)
 			if (trace.ent == self->enemy || trace.ent == world)
 			{
 				dir.normalize();
-				int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
+				int damage = M_BLASTER2_DMG(self);
 				monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 6, blaster_speed, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
 			}
 		}
@@ -386,7 +387,7 @@ void InfantryMachineGun(edict_t* self)
 				AngleVectors(vec, forward, nullptr, nullptr);
 			}
 
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+			int damage = M_MACHINEGUN_DMG(self);
 			monster_fire_bullet(self, start, forward, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 		}
 	}
@@ -501,8 +502,8 @@ static void infantry_death_grenade(edict_t* self)
 	aim_dir.normalize();
 
 	// Fire the grenade (low speed for drop)
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	int damage = M_GRENADE_DMG(self);
+	int speed = M_GRENADE_SPEED(self);
 	fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, speed > 0 ? speed : 200, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
@@ -790,7 +791,7 @@ void infantry_smack(edict_t* self)
 	}
 
 	vec3_t const aim = { MELEE_DISTANCE, 0, 0 };
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	int damage = M_MELEE_DMG(self);
 	if (fire_hit(self, aim, damage > 0 ? damage : irandom(5, 10), 50))
 		gi.sound(self, CHAN_WEAPON, sound_punch_hit, 1, ATTN_NORM, 0);
 	else
@@ -892,7 +893,7 @@ static void infantry_grenade(edict_t* self)
     }
 
     // --- Step 2: Fire the Grenade ---
-    int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+    int damage = M_GRENADE_DMG(self);
     fire_grenade2(self, start_pos, aim_dir, damage > 0 ? damage : 40, effective_speed, 2.5_sec, damage > 0 ? (damage * 2) : 80, false);
     gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }

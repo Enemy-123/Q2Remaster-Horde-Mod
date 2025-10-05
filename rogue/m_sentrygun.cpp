@@ -12,6 +12,7 @@ TURRET
 #include "m_rogue_turret.h"
 #include "../shared.h"
 #include <cfloat>
+#include "g_weapon_constants.h"
 
 // Forward declarations
 bool turret2_CanShootThroughObstacles(edict_t* self, const vec3_t& start, const vec3_t& target);
@@ -705,7 +706,7 @@ static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t&
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heatbeam");
+	int base_damage = M_HEATBEAM_DMG(self);
 	if (base_damage <= 0) base_damage = TURRET2_BLASTER_DAMAGE;
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	// Fire heatbeam with continuous flag - let the heatbeam entity handle persistence
@@ -723,7 +724,7 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 		return;
 	}
 
-	int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	int base_damage = M_MACHINEGUN_DMG(self);
 	if (base_damage <= 0) base_damage = TURRET2_BULLET_DAMAGE;
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.4f : 0.7f;
@@ -1026,8 +1027,7 @@ static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& d
 	AngleVectors(angles, nullptr, &right, &up);
 	
 	// Fire two rockets with horizontal spread using fire_rocket
-	int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-	if (base_damage <= 0) base_damage = 100;
+	int base_damage = M_GET_DMG_OR(self, ROCKET, 100);
 	for (int i = 0; i < 2; i++)
 	{
 		const int damage = static_cast<int>(CalculateDamage(self, base_damage));
@@ -1135,8 +1135,7 @@ static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& d
 		fire_dir = safe_normalized(fire_dir);
 	}
 
-	int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-	if (base_damage <= 0) base_damage = 100;
+	int base_damage = M_GET_DMG_OR(self, PLASMA, 100);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	// Changed to use self instead of self->owner to make sentry solid
 	fire_plasma(self, start, fire_dir, damage, projectileSpeed, 120, damage);
@@ -1200,8 +1199,7 @@ static void TurretFireFlechette(edict_t* self, const vec3_t& start, const vec3_t
 		aim_dir += right * (crandom() * 0.01f);
 		aim_dir.normalize();
 	}
-	int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "flechette");
-	if (base_damage <= 0) base_damage = 6;
+	int base_damage = M_GET_DMG_OR(self, FLECHETTE, 6);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	const float spread_energymult = self->monsterinfo.quadfire_time > level.time ? 0.8f : 1.6f;
 
@@ -1317,8 +1315,7 @@ static void TurretFireGrenade(edict_t* self, const vec3_t& start, const vec3_t& 
 	}
 
 	// Fire grenade with calculated parameters
-	int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
-	if (base_damage <= 0) base_damage = 120;
+	int base_damage = M_GET_DMG_OR(self, GRENADE, 120);
 	const int damage = static_cast<int>(CalculateDamage(self, base_damage));
 	fire_grenade(self, muzzle_pos, fire_dir, damage, speed, 3_sec, 0,
 		crandom_open() * 5.0f, // Add slight spin

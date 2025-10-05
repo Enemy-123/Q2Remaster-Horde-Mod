@@ -16,6 +16,7 @@ black widow
 #include "../m_flash.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 
 bool infront(edict_t* self, edict_t* other);
@@ -210,7 +211,7 @@ void WidowBlaster(edict_t* self)
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW_BLASTER_SWEEP1];
 		AngleVectors(vec, forward, nullptr, nullptr);
 
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		int damage = M_BLASTER_DMG(self);
 		if (damage <= 0) damage = is_widow1 ? WIDOW1_BLASTER_DAMAGE : WIDOW_BLASTER_DAMAGE;
 		if (!is_widow1) damage *= widow_damage_multiplier;
 		monster_fire_blaster2(self, start, forward,
@@ -260,7 +261,7 @@ void WidowBlaster(edict_t* self)
 			AngleVectors(angles, forward, nullptr, nullptr);
 		}
 
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+		int damage = M_BLASTER_DMG(self);
 		if (damage <= 0) damage = is_widow1 ? WIDOW1_BLASTER_DAMAGE : WIDOW_BLASTER_DAMAGE;
 		if (!is_widow1) damage *= widow_damage_multiplier;
 		monster_fire_blaster2(self, start, forward,
@@ -538,7 +539,7 @@ void WidowRail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
+	int damage = M_RAILGUN_DMG(self);
 	if (damage <= 0) damage = is_widow1 ? WIDOW1_RAIL_DAMAGE : WIDOW_RAIL_DAMAGE;
 	if (!is_widow1) damage *= widow_damage_multiplier;
 	monster_fire_railgun(self, start, dir,

@@ -9,6 +9,7 @@
 #include "m_xatrix_gekk.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_GEKK_CHANT = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;
@@ -638,8 +639,7 @@ void gekk_hit_left(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 17;
+	int damage = M_GET_DMG_OR(self, MELEE, 17);
 
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
 	if (fire_hit(self, aim, damage, 100))
@@ -660,8 +660,7 @@ void gekk_hit_right(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 17;
+	int damage = M_GET_DMG_OR(self, MELEE, 17);
 
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 	if (fire_hit(self, aim, damage, 100))
@@ -785,9 +784,8 @@ void loogie(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-	if (damage <= 0) damage = 7;
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "plasma");
+	int damage = M_GET_DMG_OR(self, PLASMA, 7);
+	int speed = M_PLASMA_SPEED(self);
 	fire_loogie(self, start, dir, damage, speed > 0 ? speed : 850);
 
 	gi.sound(self, CHAN_BODY, sound_speet, 1.0f, ATTN_NORM, 0);
@@ -2120,8 +2118,7 @@ void gekkkl_check_landing(edict_t* self)
 			self->velocity = {};
 			self->flags |= FL_KILL_VELOCITY;
 
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
-			if (damage <= 0) damage = 60;
+			int damage = M_GET_DMG_OR(self, SLAM, 60);
 			void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage, float kick, edict_t* ignore, float radius, mod_t mod);
 			T_SlamRadiusDamage(tr.endpos, self, self, damage, 600.f, self, 165, MOD_UNKNOWN);
 
@@ -2401,8 +2398,7 @@ void gekk_kl_spit(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-	if (damage <= 0) damage = 25;
+	int damage = M_GET_DMG_OR(self, PLASMA, 25);
 	// Fire plasma bolt instead of loogie
 	fire_gekk_plasma(self, start, dir, damage, 900); // Faster and more damaging than loogie
 

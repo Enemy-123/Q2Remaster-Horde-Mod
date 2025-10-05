@@ -13,6 +13,7 @@ GUNNER
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_GUNCMDR_NOJUMPING = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GUNCMDRKL = 8_spawnflag;
@@ -851,7 +852,7 @@ void GunnerCmdrFire(edict_t* self)
 	for (int i = 0; i < 3; i++)
 		aim[i] += crandom_open() * 0.025f;
 
-	int flechette_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "flechette");
+	int flechette_damage = M_FLECHETTE_DMG(self);
 	monster_fire_flechette(self, start, aim, flechette_damage > 0 ? flechette_damage : GetFlechetteDamage(self->style), speed, flash_number);
 }
 
@@ -1040,8 +1041,8 @@ void GunnerCmdrGrenade(edict_t* self)
 		flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3)
 	{
 		constexpr float inner_spread = 0.125f;
-		int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
-		int ionripper_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
+		int ionripper_damage = M_IONRIPPER_DMG(self);
+		int ionripper_speed = M_IONRIPPER_SPEED(self);
 		for (int32_t i = 0; i < 3; i++)
 			fire_ionripper(self, start,
 				aim + (right * (-(inner_spread * 2) + (inner_spread * (i + 1)))),
@@ -1060,7 +1061,7 @@ void GunnerCmdrGrenade(edict_t* self)
 			speed = GetGrenadeSpeed(self->style);
 
 		// Calcular daño según tipo y calcular mejor trayectoria
-		int grenade_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+		int grenade_damage = M_GRENADE_DMG(self);
 		if (grenade_damage <= 0)
 			grenade_damage = GetGrenadeDamage(self);
 
@@ -1295,7 +1296,7 @@ static void guncmdr_kick_finished(edict_t* self)
 
 static void guncmdr_kick(edict_t* self)
 {
-	int melee_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	int melee_damage = M_MELEE_DMG(self);
 	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, melee_damage > 0 ? melee_damage : 15.f, 400.f))
 	{
 		if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)

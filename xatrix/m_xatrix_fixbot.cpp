@@ -15,6 +15,7 @@
 #include "../horde/g_horde.h"
 #include "../horde/horde_ids.h"
 #include "../horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 // End Horde includes
 
 
@@ -1625,11 +1626,11 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 			bool isboss = IsBoss(self);
 
 			// Get damage from config
-			int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
+			int ionripper_damage = M_IONRIPPER_DMG(self);
 			if (ionripper_damage <= 0) ionripper_damage = isboss ? 20 : 12;
 
 			// Get speed from config
-			int ionripper_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
+			int ionripper_speed = M_IONRIPPER_SPEED(self);
 
 			// Determine direction to enemy
 			vec3_t dir_to_enemy = self->enemy->s.origin - start;
@@ -1683,8 +1684,7 @@ void fixbot_fire_plasma(edict_t* self, float offset)
 	bool isboss = IsBoss(self);
 
 	// Get plasma damage from config
-	int plasma_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-	if (plasma_damage <= 0) plasma_damage = 20;
+	int plasma_damage = M_GET_DMG_OR(self, PLASMA, 20);
 	int radius_damage = plasma_damage * 1.75f; // 35 for default 20
 
 	// Base parameters
@@ -1880,8 +1880,7 @@ void fixbot_fire_blaster(edict_t* self)
 	bool isboss = IsBoss(self);
 
 	// Get blaster_bolt damage from config
-	int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-	if (blaster_damage <= 0) blaster_damage = 7;
+	int blaster_damage = M_GET_DMG_OR(self, BLASTER_BOLT, 7);
 
 	monster_fire_blaster_bolt(self, start, dir, blaster_damage, 1000, MZ2_HOVER_BLASTER_1, EF_NONE, isboss ? 3 : 0);
 	// save for aiming the shot

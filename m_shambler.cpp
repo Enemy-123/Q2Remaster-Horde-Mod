@@ -13,6 +13,7 @@ SHAMBLER
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_idle;
@@ -463,8 +464,7 @@ void ShamblerCastLightning(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.multicast(start, MULTICAST_PVS, false);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "lightning");
-	if (damage <= 0) damage = 10;
+	int damage = M_GET_DMG_OR(self, LIGHTNING, 10);
 	fire_bullet(self, start, dir, damage, 15 * M_DamageModifier(self), 0, 0, MOD_TESLA);
 }
 
@@ -613,8 +613,7 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->touch = fireball_touch; // Ensure fireball_touch is defined elsewhere
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;
-			int base_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "fireball");
-			if (base_damage <= 0) base_damage = 30;
+			int base_damage = M_GET_DMG_OR(self, FIREBALL, 30);
 			fireball->dmg = irandom(base_damage - 8, base_damage + 4) * M_DamageModifier(self);
 			fireball->radius_dmg = 45 * M_DamageModifier(self);
 			fireball->dmg_radius = 120;
@@ -698,7 +697,7 @@ void sham_smash10(edict_t* self)
 	if (!CanDamage(self->enemy, self))
 		return;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	int damage = M_MELEE_DMG(self);
 	if (damage <= 0) damage = (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 45 : 115;
 
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
@@ -723,7 +722,7 @@ void ShamClaw(edict_t* self)
 	if (!CanDamage(self->enemy, self))
 		return;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	int damage = M_MELEE_DMG(self);
 	if (damage <= 0) damage = (horde::IsMonsterType(self, horde::MonsterTypeID::SHAMBLER_SMALL)) ? 45 : 115;
 	damage = damage * 65 / 100; // Normal attack is ~65% of heavy attack
 

@@ -16,6 +16,7 @@ hover (rocket), as well as daedalus variants (blaster2 and grenades).
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -304,7 +305,7 @@ void hover_fire_blaster(edict_t* self)
     }
 
     vec3_t start, forward, right, end, dir;
-    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
+    int config_speed = M_BLASTER_SPEED(self);
     int blasterSpeed = config_speed > 0 ? config_speed : 1230;
     AngleVectors(self->s.angles, forward, right, nullptr);
     vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
@@ -314,7 +315,7 @@ void hover_fire_blaster(edict_t* self)
     dir = end - start;
     dir.normalize();
     PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);
-    int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+    int damage = M_BLASTER_DMG(self);
     monster_fire_blaster(self, start, dir, damage > 0 ? damage : 12, blasterSpeed,
         (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1,
         (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
@@ -328,7 +329,7 @@ void hover_fire_blaster2(edict_t* self)
     }
 
     vec3_t start, forward, right, end, dir;
-    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+    int config_speed = M_BLASTER2_SPEED(self);
     int blasterSpeed = config_speed > 0 ? config_speed : 1230;
     AngleVectors(self->s.angles, forward, right, nullptr);
     vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
@@ -338,7 +339,7 @@ void hover_fire_blaster2(edict_t* self)
     dir = end - start;
     dir.normalize();
     PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);
-    int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
+    int damage = M_BLASTER2_DMG(self);
     monster_fire_blaster2(self, start, dir, damage > 0 ? damage : 12, blasterSpeed,
         (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER,
         (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
@@ -352,7 +353,7 @@ void hover_fire_rocket(edict_t* self)
 
     vec3_t forward, right, start, dir, vec, target;
     trace_t trace;
-    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+    int config_speed = M_ROCKET_SPEED(self);
     int rocketSpeed = config_speed > 0 ? config_speed : 850;
     bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
     AngleVectors(self->s.angles, forward, right, nullptr);
@@ -398,7 +399,7 @@ void hover_fire_grenades(edict_t* self)
     if (!M_HasEnemy(self))
         return;
 
-    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+    int config_speed = M_GRENADE_SPEED(self);
     float const GRENADE_SPEED = config_speed > 0 ? static_cast<float>(config_speed) : 760.f;
     vec3_t forward, right, up, aim, target, offset{};
     monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;

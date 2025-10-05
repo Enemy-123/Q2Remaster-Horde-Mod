@@ -13,6 +13,7 @@ jorg
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 void SP_monster_makron(edict_t* self);
 
@@ -508,14 +509,14 @@ void jorgBFG(edict_t* self)
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG))
 	{
 		// This is the standard Jorg, fire the BFG.
-		int bfg_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "bfg");
+		int bfg_damage = M_BFG_DMG(self);
 		monster_fire_bfg(self, start, dir, bfg_damage > 0 ? bfg_damage : 50, 300, 100, 300, MZ2_MAKRON_BFG);
 	}
 	else
 	{
 		// This is another variant (e.g., jorg_small), fire the tracker.
-		int tracker_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "tracker");
+		int tracker_damage = M_TRACKER_DMG(self);
+		int speed = M_TRACKER_SPEED(self);
 		monster_fire_tracker(self, start, dir, tracker_damage > 0 ? tracker_damage : 13, speed > 0 ? speed : 950, self->enemy, MZ2_MAKRON_BFG);
 	}
 }
@@ -555,18 +556,16 @@ void jorg_firebullet_right(edict_t* self)
 	dir.normalize();
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG)) {
-		int plasma_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-		if (plasma_damage <= 0)
-			plasma_damage = 35;
+		int plasma_damage = M_GET_DMG_OR(self, PLASMA, 35);
 		int radius_damage = plasma_damage + 10; // radius damage is typically ~10 more than direct damage
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "plasma");
+		int speed = M_PLASMA_SPEED(self);
 		fire_plasma(self, start, dir, plasma_damage, speed > 0 ? speed : 725, radius_damage, radius_damage);
 	}
 	else
 	{
 		//	monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
-		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+		int blaster_damage = M_BLASTER_BOLT_DMG(self);
+		int speed = M_BLASTER_BOLT_SPEED(self);
 		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, speed > 0 ? speed : 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 	}
 
@@ -595,17 +594,15 @@ void jorg_firebullet_left(edict_t* self)
 	dir.normalize();
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JORG)) {
-		int plasma_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-		if (plasma_damage <= 0)
-			plasma_damage = 35;
+		int plasma_damage = M_GET_DMG_OR(self, PLASMA, 35);
 		int radius_damage = plasma_damage + 10; // radius damage is typically ~10 more than direct damage
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "plasma");
+		int speed = M_PLASMA_SPEED(self);
 		fire_plasma(self, start, dir, plasma_damage, speed > 0 ? speed : 725, radius_damage, radius_damage);
 	}
 	else
 	{
-		int blaster_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+		int blaster_damage = M_BLASTER_BOLT_DMG(self);
+		int speed = M_BLASTER_BOLT_SPEED(self);
 		fire_blaster_bolt(self, start, dir, blaster_damage > 0 ? blaster_damage : 35, speed > 0 ? speed : 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 	}
 

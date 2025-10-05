@@ -14,6 +14,7 @@ GUARDIAN
 #include "shared.h"
 #include <cfloat>
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 static cached_soundindex sound_sight;
 //static cached_soundindex sound_pain1;
 //static cached_soundindex sound_pain2;
@@ -309,7 +310,7 @@ void guardianpsx_fire_blaster(edict_t* self)
 	forward += up * crandom() * 0.02f;
 	forward.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
+	int damage = M_BLASTER_DMG(self);
 	edict_t* bolt = monster_fire_blaster(self, start, forward, damage > 0 ? damage : 5, 1100, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 	bolt->s.scale = 2.0f;
 
@@ -404,7 +405,7 @@ void guardianpsx_laser_fire(edict_t* self)
 	}
 
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1.f, ATTN_NORM, 0.f);
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "dabeam");
+	int damage = M_DABEAM_DMG(self);
 	monster_fire_dabeam(self, damage > 0 ? damage : 15, self->s.frame & 1, guardianpsx_fire_update);
 }
 
@@ -444,7 +445,7 @@ void guardianpsx_kick(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int melee_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
+	int melee_damage = M_MELEE_DMG(self);
 	if (!fire_hit(self, { 160.f, 0, -80.f }, melee_damage > 0 ? melee_damage : 85, 700))
 		self->monsterinfo.melee_debounce_time = level.time + 3500_ms;
 }
@@ -658,7 +659,7 @@ static void guardianpsx_fire_rocket(edict_t* self, float offset)
 	// Aumentar el turn_fraction para mejor maniobrabilidad
 	const float turn_fraction = 0.12f;
 
-	int heat_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
+	int heat_damage = M_HEAT_DMG(self);
 	fire_guardianpsx_heat(self, start, dir, forward, heat_damage > 0 ? heat_damage : 20, speed, 150, 35, turn_fraction);
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
 }

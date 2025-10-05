@@ -17,6 +17,7 @@ carrier
 #include "../m_flash.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 // Reinforcements
 constexpr std::array<reinforcement_def_t, 7> default_reinforcements_defs_carrier = { {
@@ -208,10 +209,10 @@ void CarrierGrenade(edict_t *self)
 	else if (aim[2] < -0.5f)
 		aim[2] = -0.5f;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
+	int damage = M_GRENADE_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 45;
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	int speed = M_GRENADE_SPEED(self);
 
 	flash_number = MZ2_GUNNER_GRENADE_1;
 	monster_fire_grenade(self, start, aim, damage, speed > 0 ? speed : 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
@@ -231,10 +232,10 @@ void CarrierPredictiveRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
+	int damage = M_HEAT_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "heat");
+	int speed = M_HEAT_SPEED(self);
 	if (speed <= 0) speed = CARRIER_ROCKET_SPEED;
 
 	// 1
@@ -284,10 +285,10 @@ void CarrierRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
+	int damage = M_HEAT_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 35;
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "heat");
+	int speed = M_HEAT_SPEED(self);
 	if (speed <= 0) speed = CARRIER_ROCKET_SPEED;
 
 	// 1
@@ -345,7 +346,7 @@ void carrier_firebullet_right(edict_t *self)
 	else
 		flashnum = MZ2_CARRIER_MACHINEGUN_R1;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	int damage = M_MACHINEGUN_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 6 : 5;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
@@ -370,7 +371,7 @@ void carrier_firebullet_left(edict_t *self)
 	else
 		flashnum = MZ2_CARRIER_MACHINEGUN_L1;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	int damage = M_MACHINEGUN_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 6 : 5;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
@@ -726,7 +727,7 @@ void CarrierRail(edict_t *self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
+	int damage = M_RAILGUN_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 40;
 	monster_fire_railgun(self, start, dir, damage, 100, MZ2_CARRIER_RAILGUN);
 	self->monsterinfo.attack_finished = level.time + RAIL_FIRE_TIME;

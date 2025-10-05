@@ -258,105 +258,92 @@ struct AmmoRegenConfig
 	AmmoRegenRateConfig tesla{2, 5000};
 };
 
-// Monster weapon damage configuration
-struct MonsterWeaponDamage
+// Global weapon damage configuration (base values for all monsters)
+struct GlobalWeaponDamage
 {
-	int blaster = 0;
-	int blaster2 = 0;
-	int blaster_bolt = 0;
-	int blueblaster = 0;
-	int shotgun = 0;
-	int machinegun = 0;
-	int grenade = 0;
-	int rocket = 0;
-	int heat = 0;
-	int railgun = 0;
-	int bfg = 0;
-	int ionripper = 0;
-	int hyperblaster = 0;
-	int bolt = 0;
-	int tracker = 0;
-	int plasma = 0;
-	int dabeam = 0;
-	int heatbeam = 0;
-	int melee = 0;
-	int slam = 0;
-	int lightning = 0;
-	int flechette = 0;
-	int fireball = 0;
-	int proboscis = 0;
+	int melee = 10;
+	int blaster = 15;
+	int blaster2 = 20;
+	int blaster_bolt = 18;
+	int blueblaster = 20;
+	int shotgun = 4;
+	int machinegun = 8;
+	int grenade = 50;
+	int rocket = 100;
+	int heat = 15;
+	int railgun = 150;
+	int bfg = 500;
+	int ionripper = 50;
+	int hyperblaster = 15;
+	int bolt = 20;
+	int tracker = 30;
+	int plasma = 40;
+	int dabeam = 30;
+	int heatbeam = 30;
+	int slam = 25;
+	int lightning = 12;
+	int flechette = 12;
+	int fireball = 40;
+	int proboscis = 20;
 };
 
-// Monster weapon speed configuration (projectile velocity)
-struct MonsterWeaponSpeed
+// Global weapon speed configuration (projectile velocity)
+struct GlobalWeaponSpeed
 {
-	int blaster = 0;
-	int blaster2 = 0;
-	int blaster_bolt = 0;
-	int blueblaster = 0;
-	int shotgun = 0;
-	int machinegun = 0;
-	int grenade = 0;
-	int rocket = 0;
-	int heat = 0;
-	int railgun = 0;
-	int bfg = 0;
-	int ionripper = 0;
-	int hyperblaster = 0;
-	int bolt = 0;
-	int tracker = 0;
-	int plasma = 0;
-	int dabeam = 0;
-	int heatbeam = 0;
-	int melee = 0;
-	int slam = 0;
-	int lightning = 0;
-	int flechette = 0;
-	int fireball = 0;
-	int proboscis = 0;
+	int blaster = 1000;
+	int blaster2 = 1100;
+	int blaster_bolt = 1000;
+	int blueblaster = 1100;
+	int shotgun = 0; // instant hit
+	int machinegun = 0; // instant hit
+	int grenade = 600;
+	int rocket = 650;
+	int heat = 1000;
+	int railgun = 0; // instant hit
+	int bfg = 400;
+	int ionripper = 500;
+	int hyperblaster = 1000;
+	int bolt = 800;
+	int tracker = 500;
+	int plasma = 1200;
+	int dabeam = 0; // beam weapon
+	int heatbeam = 0; // beam weapon
+	int melee = 0; // melee
+	int slam = 0; // melee
+	int lightning = 0; // instant hit
+	int flechette = 1150;
+	int fireball = 400;
+	int proboscis = 0; // melee
 };
 
-// Monster weapon damage radius configuration (explosion/splash radius)
-struct MonsterWeaponRadius
+// Global weapon damage radius configuration (explosion/splash radius)
+struct GlobalWeaponRadius
 {
-	float blaster = 0.0f;
-	float blaster2 = 0.0f;
-	float blaster_bolt = 0.0f;
-	float blueblaster = 0.0f;
-	float shotgun = 0.0f;
-	float machinegun = 0.0f;
-	float grenade = 0.0f;
-	float rocket = 0.0f;
-	float heat = 0.0f;
-	float railgun = 0.0f;
-	float bfg = 0.0f;
-	float ionripper = 0.0f;
-	float hyperblaster = 0.0f;
-	float bolt = 0.0f;
-	float tracker = 0.0f;
-	float plasma = 0.0f;
-	float dabeam = 0.0f;
-	float heatbeam = 0.0f;
-	float melee = 0.0f;
-	float slam = 0.0f;
-	float lightning = 0.0f;
-	float flechette = 0.0f;
-	float fireball = 0.0f;
-	float proboscis = 0.0f;
+	float grenade = 150.0f;
+	float rocket = 140.0f;
+	float bfg = 1000.0f;
+	float tracker = 120.0f;
+	float plasma = 100.0f;
+	float fireball = 125.0f;
+	// Most weapons don't have radius (0 by default)
 };
 
-// Monster stats configuration
+// Monster stats configuration (per-monster multipliers and base stats)
 struct MonsterStatsConfig
 {
+	// Base stats
 	int health = 100;
 	int power_armor_power = 0;
 	int32_t power_armor_type = 0; // item_id_t (IT_NULL, IT_ITEM_POWER_SHIELD, IT_ITEM_POWER_SCREEN)
 	int armor_power = 0;
 	int32_t armor_type = 0; // item_id_t (IT_NULL, IT_ARMOR_BODY, IT_ARMOR_COMBAT, etc.)
-	MonsterWeaponDamage weapon_damage;
-	MonsterWeaponSpeed weapon_speed;
-	MonsterWeaponRadius weapon_radius;
-	// float wave_damage_multiplier = 0.0f; // Future: per-wave damage scaling
+
+	// Scaling multipliers (applied to base values, then wave scaling)
+	float health_scale = 1.0f;         // Boss: 1.5-2.0x
+	float damage_scale = 1.0f;         // Boss: 1.3-1.5x, applies to ALL weapons this monster uses
+	float speed_scale = 1.0f;          // Projectile speed adjustment
+	float armor_scale = 1.0f;          // Boss: 1.5x
+	float power_armor_scale = 1.0f;    // Boss: 1.5x
 };
 
 // Monsters configuration - maps MonsterTypeID to stats
@@ -433,6 +420,11 @@ struct GameConfig
 	// Ammo regeneration
 	AmmoRegenConfig ammo_regen;
 
+	// Global monster weapons (base values)
+	GlobalWeaponDamage global_weapon_damage;
+	GlobalWeaponSpeed global_weapon_speed;
+	GlobalWeaponRadius global_weapon_radius;
+
 	// Monsters
 	MonstersConfig monsters;
 
@@ -459,6 +451,16 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id);
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name);
 int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name);
 int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name);
+
+// Global weapon helpers
+int GetGlobalWeaponDamage(const char* weapon_name);
+int GetGlobalWeaponSpeed(const char* weapon_name);
+float GetGlobalWeaponRadius(const char* weapon_name);
+
+// Scaling helpers
+int GetScaledHealth(int base_health, float health_scale, int wave_level, bool is_boss);
+int GetScaledArmor(int base_armor, float armor_scale, int wave_level, bool is_boss);
+int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_level, bool is_boss);
 
 // Map config helper functions
 int32_t GetMonsterCapForMap(horde::MapID mapId, const struct horde::MapSize& mapSize);

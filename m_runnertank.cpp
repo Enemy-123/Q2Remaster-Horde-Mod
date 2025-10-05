@@ -15,6 +15,7 @@ runnertank
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 void runnertankStrike(edict_t* self);
 void runnertank_refire_rocket(edict_t* self);
 //void runnetank_doattack_rocket(edict_t* self);
@@ -466,8 +467,7 @@ void runnertankRail(edict_t* self)
 		return; // Stop immediately if the enemy is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
-	if (damage <= 0) damage = 45;
+	int damage = M_GET_DMG_OR(self, RAILGUN, 45);
 
 	vec3_t forward, right;
 	vec3_t start;
@@ -544,8 +544,7 @@ void runnertankStrike(edict_t* self)
 		gi.WritePosition(tr.endpos);
 		gi.WriteDir({ 0.f, 0.f, 1.f });
 		gi.multicast(tr.endpos, MULTICAST_PHS, false);
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
-		if (damage <= 0) damage = 75;
+		int damage = M_GET_DMG_OR(self, SLAM, 75);
 		void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 		// Daño radial
 		T_SlamRadiusDamage(tr.endpos, self, self, damage, 450.f, self, 165, MOD_TANK_PUNCH);
@@ -561,8 +560,7 @@ void runnertankRocket(edict_t* self) {
 		return; // Stop immediately if the enemy is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-	if (damage <= 0) damage = 50;
+	int damage = M_GET_DMG_OR(self, ROCKET, 50);
 
 	// Determinar flash number basado en el frame actual
 	monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>(
@@ -577,8 +575,7 @@ void runnertankRocket(edict_t* self) {
 	vec3_t const start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
 	// Determinar velocidad del cohete
-	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id,
-		self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING) ? "heat" : "rocket");
+	int config_speed = self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING) ? M_HEAT_SPEED(self) : M_ROCKET_SPEED(self);
 	int32_t const rocket_speed = config_speed > 0 ? config_speed :
 		(self->speed ? self->speed :
 			(self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING) ? 500 : 650));
@@ -644,8 +641,7 @@ void runnertankPlasmaGun(edict_t* self) {
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-	if (damage <= 0) damage = 35;
+	int damage = M_GET_DMG_OR(self, PLASMA, 35);
 
 	// Verificar ángulo de disparo
 	vec3_t initial_forward;

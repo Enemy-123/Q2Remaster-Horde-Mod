@@ -13,6 +13,7 @@ stalker
 #include <float.h>
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_die;
@@ -460,12 +461,12 @@ void stalker_shoot_attack(edict_t *self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "tracker");
+		int speed = M_TRACKER_SPEED(self);
 		monster_fire_tracker(self, start, dir, 13, speed > 0 ? speed : 960, self->enemy, MZ2_STALKER_BLASTER);
 	}
 	else
 	{
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "tracker");
+		int speed = M_TRACKER_SPEED(self);
 		int predict_speed = speed > 0 ? speed : 960;
 		PredictAim(self, self->enemy, start, predict_speed * 1.25, true, 0, &dir, nullptr);
 		monster_fire_tracker(self, start, dir, 13, predict_speed, nullptr, MZ2_STALKER_BLASTER);
@@ -502,7 +503,7 @@ void stalker_shoot_attack(edict_t* self)
 	offset = { 24, 0, 6 };
 	start = M_ProjectFlashSource(self, offset, f, r);
 
-	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+	int config_speed = M_BLASTER2_SPEED(self);
 	int blaster_speed = config_speed > 0 ? config_speed : 960;
 
 	dir = self->enemy->s.origin - start;

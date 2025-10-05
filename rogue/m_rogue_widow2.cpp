@@ -15,6 +15,7 @@ black widow, part 2
 #include "../m_flash.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -119,8 +120,7 @@ void Widow2Beam(edict_t* self)
 		target[2] += self->enemy->viewheight - 10;
 		forward = target - start;
 		forward.normalize();
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heatbeam");
-		if (damage <= 0) damage = 10;
+		int damage = M_GET_DMG_OR(self, HEATBEAM, 10);
 		monster_fire_heatbeam(self, start, forward, vec3_origin, damage, 50, flashnum);
 	}
 	else if ((self->s.frame >= FRAME_spawn04) && (self->s.frame <= FRAME_spawn14))
@@ -137,8 +137,7 @@ void Widow2Beam(edict_t* self)
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW2_BEAM_SWEEP_1];
 
 		AngleVectors(vec, forward, nullptr, nullptr);
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heatbeam");
-		if (damage <= 0) damage = 10;
+		int damage = M_GET_DMG_OR(self, HEATBEAM, 10);
 		monster_fire_heatbeam(self, start, forward, vec3_origin, damage, 50, flashnum);
 	}
 	else
@@ -399,8 +398,7 @@ void WidowDisrupt(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
-		if (damage <= 0) damage = 20;
+		int damage = M_GET_DMG_OR(self, TRACKER, 20);
 		monster_fire_tracker(self, start, dir, damage, 900, self->enemy, MZ2_WIDOW_DISRUPTOR);
 	}
 	else

@@ -13,6 +13,7 @@ floater_tracker
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_attack2;
 static cached_soundindex sound_attack3;
@@ -45,8 +46,7 @@ void floater_tracker_fire_blaster(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
-	if (damage <= 0) damage = 8;
+	int damage = M_GET_DMG_OR(self, TRACKER, 8);
 
 	vec3_t start;
 	vec3_t dir;

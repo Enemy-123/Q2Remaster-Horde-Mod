@@ -12,6 +12,7 @@ BERSERK
 #include "m_berserk.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_BERSERK_NOJUMPING = 8_spawnflag;
 
@@ -204,8 +205,7 @@ void berserk_attack_spike(edict_t* self)
 		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 22;
+	int damage = M_GET_DMG_OR(self, MELEE, 22);
 
 	if (!fire_hit(self, aim, damage * M_DamageModifier(self), 400))
 		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
@@ -239,8 +239,7 @@ void berserk_attack_club(edict_t* self)
 		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 24;
+	int damage = M_GET_DMG_OR(self, MELEE, 24);
 
 	if (!fire_hit(self, aim, damage * M_DamageModifier(self), 250))
 		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
@@ -329,8 +328,7 @@ static void berserk_attack_slam(edict_t* self)
 	self->velocity = {};
 	self->flags |= FL_KILL_VELOCITY;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
-	if (damage <= 0) damage = 15;
+	int damage = M_GET_DMG_OR(self, SLAM, 15);
 	T_SlamRadiusDamage(tr.endpos, self, self, damage, 300.f, self, 165, MOD_UNKNOWN);
 }
 
@@ -742,8 +740,7 @@ void BerserkCastFireballs(edict_t* self)
 			fireball->touch = fireball_touch;
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "fireball");
-			if (damage <= 0) damage = 45;
+			int damage = M_GET_DMG_OR(self, FIREBALL, 45);
 			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
 			fireball->radius_dmg = damage * M_DamageModifier(self);
 			fireball->dmg_radius = 120;

@@ -13,6 +13,7 @@ flyer
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_sight;
 static cached_soundindex sound_idle;
@@ -371,14 +372,13 @@ void flyer_rocket(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-	if (damage <= 0) damage = 35;
+	int damage = M_GET_DMG_OR(self, ROCKET, 35);
 
 	vec3_t	forward;
 	vec3_t	start, end, dir;
 	float	dist, chance;
 	trace_t trace;
-	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+	int config_speed = M_ROCKET_SPEED(self);
 	int rocketSpeed = config_speed > 0 ? config_speed : 850;
 	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
@@ -553,8 +553,7 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-	if (damage <= 0) damage = 4;
+	int damage = M_GET_DMG_OR(self, BLASTER_BOLT, 4);
 
 	vec3_t	  start;
 	vec3_t	  forward, right;
@@ -564,7 +563,7 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+	int config_speed = M_BLASTER_BOLT_SPEED(self);
 	int speed = config_speed > 0 ? config_speed : 1150;
 
 	if (frandom() < 0.3f)
@@ -987,8 +986,7 @@ void flyer_laser_on(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "dabeam");
-	if (damage <= 0) damage = 3;
+	int damage = M_GET_DMG_OR(self, DABEAM, 3);
 
 	// Sonido de láser
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1, ATTN_NORM, 0);

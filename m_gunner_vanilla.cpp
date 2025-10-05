@@ -13,6 +13,7 @@ gunner_vanilla
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_pain2;
@@ -393,7 +394,7 @@ void gunner_vanillaFire(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &aim, nullptr);
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+	int damage = M_MACHINEGUN_DMG(self);
 	monster_fire_bullet(self, start, aim, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 }
 
@@ -525,9 +526,7 @@ void gunner_vanillaGrenade(edict_t* self)
 	aim += (up * pitch);
 
 	// try search for best pitch
-	int grenade_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
-	if (grenade_damage <= 0)
-		grenade_damage = 50;
+	int grenade_damage = M_GET_DMG_OR(self, GRENADE, 50);
 
 	if (M_CalculatePitchToFire(self, target, start, aim, 600, 2.5f, false))
 		monster_fire_grenade(self, start, aim, grenade_damage, 600, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);

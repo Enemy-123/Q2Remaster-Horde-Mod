@@ -20,6 +20,7 @@ This file contains all arachnid variants:
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 // Common spawn flags
 constexpr spawnflags_t SPAWNFLAG_SPIDER = 8_spawnflag;
@@ -1282,7 +1283,7 @@ void gm_arachnid_rockets(edict_t* self)
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
 
-    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->s.skinnum > 1 ? "heat" : "rocket");
+    int config_speed = (self->s.skinnum > 1) ? M_HEAT_SPEED(self) : M_ROCKET_SPEED(self);
     rocketSpeed = config_speed > 0 ? config_speed : 800;
 
     if (blindfire)
@@ -1321,8 +1322,7 @@ void gm_arachnid_rockets(edict_t* self)
     trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
     if (blindfire)
     {
-        int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-        if (damage <= 0) damage = 60;
+        int damage = M_GET_DMG_OR(self, ROCKET, 60);
 
         // blindfire has different fail criteria for the trace
         if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
@@ -1363,8 +1363,7 @@ void gm_arachnid_rockets(edict_t* self)
     {
         if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
         {
-            int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-            if (damage <= 0) damage = 50;
+            int damage = M_GET_DMG_OR(self, ROCKET, 50);
             monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
         }
     }

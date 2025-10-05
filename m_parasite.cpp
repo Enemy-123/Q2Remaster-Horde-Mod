@@ -12,6 +12,7 @@ parasite
 #include "m_parasite.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 constexpr float g_athena_parasite_miss_chance = 0.1f;
 constexpr float g_athena_parasite_proboscis_speed = 1250;
@@ -393,7 +394,7 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 	{
 		if (other->takedamage)
 		{
-			int impact_damage = GetMonsterWeaponDamage(self->owner->monsterinfo.monster_type_id, "proboscis");
+			int impact_damage = M_PROBOSCIS_DMG(self->owner);
 			if (impact_damage <= 0) impact_damage = 12;
 			T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, impact_damage, 0, DAMAGE_NONE, MOD_UNKNOWN);
 		}
@@ -439,7 +440,7 @@ TOUCH(proboscis_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool o
 
 	if (other->takedamage)
 	{
-		int impact_damage = GetMonsterWeaponDamage(self->owner->monsterinfo.monster_type_id, "proboscis");
+		int impact_damage = M_PROBOSCIS_DMG(self->owner);
 		if (impact_damage <= 0) impact_damage = 12;
 		T_Damage(other, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, impact_damage, 0, DAMAGE_NONE, MOD_UNKNOWN);
 		if (!self->owner || !self->owner->inuse)
@@ -602,7 +603,7 @@ THINK(proboscis_think) (edict_t* self) -> void
 			{
 				if (self->timestamp <= level.time)
 				{
-					int base_damage = GetMonsterWeaponDamage(self->owner->monsterinfo.monster_type_id, "proboscis");
+					int base_damage = M_PROBOSCIS_DMG(self->owner);
 					if (base_damage <= 0) base_damage = 15;
 					int drain_damage = max(1, base_damage / 7); // ~13-14% of impact damage for drain tick
 					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, drain_damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);

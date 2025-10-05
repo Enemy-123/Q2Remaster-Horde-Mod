@@ -76,6 +76,75 @@ void Config_LoadMonsters(const char* basedir)
 
 	config_file.close();
 
+	// Load global weapon damage
+	if (root.isMember("global_weapon_damage") && root["global_weapon_damage"].isObject())
+	{
+		const Json::Value& gwd = root["global_weapon_damage"];
+		g_config.global_weapon_damage.melee = GetJsonInt(gwd, "melee", 10);
+		g_config.global_weapon_damage.blaster = GetJsonInt(gwd, "blaster", 15);
+		g_config.global_weapon_damage.blaster2 = GetJsonInt(gwd, "blaster2", 20);
+		g_config.global_weapon_damage.blaster_bolt = GetJsonInt(gwd, "blaster_bolt", 18);
+		g_config.global_weapon_damage.blueblaster = GetJsonInt(gwd, "blueblaster", 20);
+		g_config.global_weapon_damage.shotgun = GetJsonInt(gwd, "shotgun", 4);
+		g_config.global_weapon_damage.machinegun = GetJsonInt(gwd, "machinegun", 8);
+		g_config.global_weapon_damage.grenade = GetJsonInt(gwd, "grenade", 50);
+		g_config.global_weapon_damage.rocket = GetJsonInt(gwd, "rocket", 100);
+		g_config.global_weapon_damage.heat = GetJsonInt(gwd, "heat", 15);
+		g_config.global_weapon_damage.railgun = GetJsonInt(gwd, "railgun", 150);
+		g_config.global_weapon_damage.bfg = GetJsonInt(gwd, "bfg", 500);
+		g_config.global_weapon_damage.ionripper = GetJsonInt(gwd, "ionripper", 50);
+		g_config.global_weapon_damage.hyperblaster = GetJsonInt(gwd, "hyperblaster", 15);
+		g_config.global_weapon_damage.bolt = GetJsonInt(gwd, "bolt", 20);
+		g_config.global_weapon_damage.tracker = GetJsonInt(gwd, "tracker", 30);
+		g_config.global_weapon_damage.plasma = GetJsonInt(gwd, "plasma", 40);
+		g_config.global_weapon_damage.dabeam = GetJsonInt(gwd, "dabeam", 30);
+		g_config.global_weapon_damage.heatbeam = GetJsonInt(gwd, "heatbeam", 30);
+		g_config.global_weapon_damage.slam = GetJsonInt(gwd, "slam", 25);
+		g_config.global_weapon_damage.lightning = GetJsonInt(gwd, "lightning", 12);
+		g_config.global_weapon_damage.flechette = GetJsonInt(gwd, "flechette", 12);
+		g_config.global_weapon_damage.fireball = GetJsonInt(gwd, "fireball", 40);
+		g_config.global_weapon_damage.proboscis = GetJsonInt(gwd, "proboscis", 20);
+
+		gi.Com_PrintFmt("Config: Loaded global weapon damage values\n");
+	}
+
+	// Load global weapon speed
+	if (root.isMember("global_weapon_speed") && root["global_weapon_speed"].isObject())
+	{
+		const Json::Value& gws = root["global_weapon_speed"];
+		g_config.global_weapon_speed.blaster = GetJsonInt(gws, "blaster", 1000);
+		g_config.global_weapon_speed.blaster2 = GetJsonInt(gws, "blaster2", 1100);
+		g_config.global_weapon_speed.blaster_bolt = GetJsonInt(gws, "blaster_bolt", 1000);
+		g_config.global_weapon_speed.blueblaster = GetJsonInt(gws, "blueblaster", 1100);
+		g_config.global_weapon_speed.grenade = GetJsonInt(gws, "grenade", 600);
+		g_config.global_weapon_speed.rocket = GetJsonInt(gws, "rocket", 650);
+		g_config.global_weapon_speed.heat = GetJsonInt(gws, "heat", 1000);
+		g_config.global_weapon_speed.bfg = GetJsonInt(gws, "bfg", 400);
+		g_config.global_weapon_speed.ionripper = GetJsonInt(gws, "ionripper", 500);
+		g_config.global_weapon_speed.hyperblaster = GetJsonInt(gws, "hyperblaster", 1000);
+		g_config.global_weapon_speed.bolt = GetJsonInt(gws, "bolt", 800);
+		g_config.global_weapon_speed.tracker = GetJsonInt(gws, "tracker", 500);
+		g_config.global_weapon_speed.plasma = GetJsonInt(gws, "plasma", 1200);
+		g_config.global_weapon_speed.flechette = GetJsonInt(gws, "flechette", 1150);
+		g_config.global_weapon_speed.fireball = GetJsonInt(gws, "fireball", 400);
+
+		gi.Com_PrintFmt("Config: Loaded global weapon speed values\n");
+	}
+
+	// Load global weapon radius
+	if (root.isMember("global_weapon_radius") && root["global_weapon_radius"].isObject())
+	{
+		const Json::Value& gwr = root["global_weapon_radius"];
+		g_config.global_weapon_radius.grenade = GetJsonFloat(gwr, "grenade", 150.0f);
+		g_config.global_weapon_radius.rocket = GetJsonFloat(gwr, "rocket", 140.0f);
+		g_config.global_weapon_radius.bfg = GetJsonFloat(gwr, "bfg", 1000.0f);
+		g_config.global_weapon_radius.tracker = GetJsonFloat(gwr, "tracker", 120.0f);
+		g_config.global_weapon_radius.plasma = GetJsonFloat(gwr, "plasma", 100.0f);
+		g_config.global_weapon_radius.fireball = GetJsonFloat(gwr, "fireball", 125.0f);
+
+		gi.Com_PrintFmt("Config: Loaded global weapon radius values\n");
+	}
+
 	// Load monsters
 	if (root.isMember("monsters") && root["monsters"].isObject())
 	{
@@ -112,117 +181,15 @@ void Config_LoadMonsters(const char* basedir)
 				config.armor_type = GetArmorTypeFromString(monster_data["armor_type"].asString());
 			}
 
-			// Load weapon damage
-			if (monster_data.isMember("weapon_damage") && monster_data["weapon_damage"].isObject())
-			{
-				const Json::Value& weapons = monster_data["weapon_damage"];
-				config.weapon_damage.blaster = GetJsonInt(weapons, "blaster", 0);
-				config.weapon_damage.blaster2 = GetJsonInt(weapons, "blaster2", 0);
-				config.weapon_damage.blaster_bolt = GetJsonInt(weapons, "blaster_bolt", 0);
-				config.weapon_damage.blueblaster = GetJsonInt(weapons, "blueblaster", 0);
-				config.weapon_damage.shotgun = GetJsonInt(weapons, "shotgun", 0);
-				config.weapon_damage.machinegun = GetJsonInt(weapons, "machinegun", 0);
-				config.weapon_damage.grenade = GetJsonInt(weapons, "grenade", 0);
-				config.weapon_damage.rocket = GetJsonInt(weapons, "rocket", 0);
-				config.weapon_damage.heat = GetJsonInt(weapons, "heat", 0);
-				config.weapon_damage.railgun = GetJsonInt(weapons, "railgun", 0);
-				config.weapon_damage.bfg = GetJsonInt(weapons, "bfg", 0);
-				config.weapon_damage.ionripper = GetJsonInt(weapons, "ionripper", 0);
-				config.weapon_damage.hyperblaster = GetJsonInt(weapons, "hyperblaster", 0);
-				config.weapon_damage.bolt = GetJsonInt(weapons, "bolt", 0);
-				config.weapon_damage.tracker = GetJsonInt(weapons, "tracker", 0);
-				config.weapon_damage.plasma = GetJsonInt(weapons, "plasma", 0);
-				config.weapon_damage.dabeam = GetJsonInt(weapons, "dabeam", 0);
-				config.weapon_damage.heatbeam = GetJsonInt(weapons, "heatbeam", 0);
-				config.weapon_damage.melee = GetJsonInt(weapons, "melee", 0);
-				config.weapon_damage.slam = GetJsonInt(weapons, "slam", 0);
-				config.weapon_damage.lightning = GetJsonInt(weapons, "lightning", 0);
-				config.weapon_damage.flechette = GetJsonInt(weapons, "flechette", 0);
-				config.weapon_damage.fireball = GetJsonInt(weapons, "fireball", 0);
-				config.weapon_damage.proboscis = GetJsonInt(weapons, "proboscis", 0);
-			}
-
-			// Load weapon speed
-			if (monster_data.isMember("weapon_speed") && monster_data["weapon_speed"].isObject())
-			{
-				const Json::Value& speeds = monster_data["weapon_speed"];
-				config.weapon_speed.blaster = GetJsonInt(speeds, "blaster", 0);
-				config.weapon_speed.blaster2 = GetJsonInt(speeds, "blaster2", 0);
-				config.weapon_speed.blaster_bolt = GetJsonInt(speeds, "blaster_bolt", 0);
-				config.weapon_speed.blueblaster = GetJsonInt(speeds, "blueblaster", 0);
-				config.weapon_speed.shotgun = GetJsonInt(speeds, "shotgun", 0);
-				config.weapon_speed.machinegun = GetJsonInt(speeds, "machinegun", 0);
-				config.weapon_speed.grenade = GetJsonInt(speeds, "grenade", 0);
-				config.weapon_speed.rocket = GetJsonInt(speeds, "rocket", 0);
-				config.weapon_speed.heat = GetJsonInt(speeds, "heat", 0);
-				config.weapon_speed.railgun = GetJsonInt(speeds, "railgun", 0);
-				config.weapon_speed.bfg = GetJsonInt(speeds, "bfg", 0);
-				config.weapon_speed.ionripper = GetJsonInt(speeds, "ionripper", 0);
-				config.weapon_speed.hyperblaster = GetJsonInt(speeds, "hyperblaster", 0);
-				config.weapon_speed.bolt = GetJsonInt(speeds, "bolt", 0);
-				config.weapon_speed.tracker = GetJsonInt(speeds, "tracker", 0);
-				config.weapon_speed.plasma = GetJsonInt(speeds, "plasma", 0);
-				config.weapon_speed.dabeam = GetJsonInt(speeds, "dabeam", 0);
-				config.weapon_speed.heatbeam = GetJsonInt(speeds, "heatbeam", 0);
-				config.weapon_speed.melee = GetJsonInt(speeds, "melee", 0);
-				config.weapon_speed.slam = GetJsonInt(speeds, "slam", 0);
-				config.weapon_speed.lightning = GetJsonInt(speeds, "lightning", 0);
-				config.weapon_speed.flechette = GetJsonInt(speeds, "flechette", 0);
-				config.weapon_speed.fireball = GetJsonInt(speeds, "fireball", 0);
-				config.weapon_speed.proboscis = GetJsonInt(speeds, "proboscis", 0);
-			}
-
-			// Load weapon radius
-			if (monster_data.isMember("weapon_radius") && monster_data["weapon_radius"].isObject())
-			{
-				const Json::Value& radii = monster_data["weapon_radius"];
-				config.weapon_radius.blaster = GetJsonFloat(radii, "blaster", 0.0f);
-				config.weapon_radius.blaster2 = GetJsonFloat(radii, "blaster2", 0.0f);
-				config.weapon_radius.blaster_bolt = GetJsonFloat(radii, "blaster_bolt", 0.0f);
-				config.weapon_radius.blueblaster = GetJsonFloat(radii, "blueblaster", 0.0f);
-				config.weapon_radius.shotgun = GetJsonFloat(radii, "shotgun", 0.0f);
-				config.weapon_radius.machinegun = GetJsonFloat(radii, "machinegun", 0.0f);
-				config.weapon_radius.grenade = GetJsonFloat(radii, "grenade", 0.0f);
-				config.weapon_radius.rocket = GetJsonFloat(radii, "rocket", 0.0f);
-				config.weapon_radius.heat = GetJsonFloat(radii, "heat", 0.0f);
-				config.weapon_radius.railgun = GetJsonFloat(radii, "railgun", 0.0f);
-				config.weapon_radius.bfg = GetJsonFloat(radii, "bfg", 0.0f);
-				config.weapon_radius.ionripper = GetJsonFloat(radii, "ionripper", 0.0f);
-				config.weapon_radius.hyperblaster = GetJsonFloat(radii, "hyperblaster", 0.0f);
-				config.weapon_radius.bolt = GetJsonFloat(radii, "bolt", 0.0f);
-				config.weapon_radius.tracker = GetJsonFloat(radii, "tracker", 0.0f);
-				config.weapon_radius.plasma = GetJsonFloat(radii, "plasma", 0.0f);
-				config.weapon_radius.dabeam = GetJsonFloat(radii, "dabeam", 0.0f);
-				config.weapon_radius.heatbeam = GetJsonFloat(radii, "heatbeam", 0.0f);
-				config.weapon_radius.melee = GetJsonFloat(radii, "melee", 0.0f);
-				config.weapon_radius.slam = GetJsonFloat(radii, "slam", 0.0f);
-				config.weapon_radius.lightning = GetJsonFloat(radii, "lightning", 0.0f);
-				config.weapon_radius.flechette = GetJsonFloat(radii, "flechette", 0.0f);
-				config.weapon_radius.fireball = GetJsonFloat(radii, "fireball", 0.0f);
-				config.weapon_radius.proboscis = GetJsonFloat(radii, "proboscis", 0.0f);
-			}
+			// Load scaling multipliers
+			config.health_scale = GetJsonFloat(monster_data, "health_scale", 1.0f);
+			config.damage_scale = GetJsonFloat(monster_data, "damage_scale", 1.0f);
+			config.speed_scale = GetJsonFloat(monster_data, "speed_scale", 1.0f);
+			config.armor_scale = GetJsonFloat(monster_data, "armor_scale", 1.0f);
+			config.power_armor_scale = GetJsonFloat(monster_data, "power_armor_scale", 1.0f);
 
 			g_config.monsters.monsters[monster_id] = config;
 			loaded_count++;
-
-			// Debug: Uncomment to verify loading with actual weapon values
-			// if (monster_name == "flyer" || monster_name == "soldier_light" || monster_name == "infantry")
-			// {
-			// 	gi.Com_PrintFmt("DEBUG: Loaded '{}' (type_id {})\n", full_classname.c_str(), monster_id);
-			// 	gi.Com_PrintFmt("  - health={}, armor={}, power_armor={}\n",
-			// 		config.health, config.armor_power, config.power_armor_power);
-			//
-			// 	// Show all non-zero weapon damages
-			// 	if (config.weapon_damage.blaster > 0) gi.Com_PrintFmt("  - blaster={}\n", config.weapon_damage.blaster);
-			// 	if (config.weapon_damage.blaster2 > 0) gi.Com_PrintFmt("  - blaster2={}\n", config.weapon_damage.blaster2);
-			// 	if (config.weapon_damage.blaster_bolt > 0) gi.Com_PrintFmt("  - blaster_bolt={}\n", config.weapon_damage.blaster_bolt);
-			// 	if (config.weapon_damage.shotgun > 0) gi.Com_PrintFmt("  - shotgun={}\n", config.weapon_damage.shotgun);
-			// 	if (config.weapon_damage.machinegun > 0) gi.Com_PrintFmt("  - machinegun={}\n", config.weapon_damage.machinegun);
-			// 	if (config.weapon_damage.grenade > 0) gi.Com_PrintFmt("  - grenade={}\n", config.weapon_damage.grenade);
-			// 	if (config.weapon_damage.rocket > 0) gi.Com_PrintFmt("  - rocket={}\n", config.weapon_damage.rocket);
-			// 	if (config.weapon_damage.dabeam > 0) gi.Com_PrintFmt("  - dabeam={}\n", config.weapon_damage.dabeam);
-			// 	if (config.weapon_damage.melee > 0) gi.Com_PrintFmt("  - melee={}\n", config.weapon_damage.melee);
-			// }
 		}
 
 		gi.Com_PrintFmt("Config: Loaded {} monster configurations from config/monsters.json\n", loaded_count);
@@ -767,174 +734,176 @@ const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id)
 	return nullptr;
 }
 
-// Get specific weapon damage for a monster
 // Include for sigmoid scaling
 #include "horde/g_horde_scaling.h"
 
 // External reference
 extern int16_t current_wave_level;
 
-int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
+// Get global weapon damage by name
+int GetGlobalWeaponDamage(const char* weapon_name)
 {
-	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
-	if (!config)
-	{
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - No config found for monster '{}' (type_id {}), weapon '{}' will use hardcoded damage\n",
-			classname ? classname : "unknown", monster_type_id, weapon_name);
-		return 0;
-	}
-
-	// Use static map for O(1) lookup instead of strcmp chain
-	using WeaponDamageGetter = int MonsterWeaponDamage::*;
+	using WeaponDamageGetter = int GlobalWeaponDamage::*;
 	static const std::unordered_map<std::string_view, WeaponDamageGetter> weapon_map = {
-		{"blaster", &MonsterWeaponDamage::blaster},
-		{"blaster2", &MonsterWeaponDamage::blaster2},
-		{"blaster_bolt", &MonsterWeaponDamage::blaster_bolt},
-		{"blueblaster", &MonsterWeaponDamage::blueblaster},
-		{"shotgun", &MonsterWeaponDamage::shotgun},
-		{"machinegun", &MonsterWeaponDamage::machinegun},
-		{"grenade", &MonsterWeaponDamage::grenade},
-		{"rocket", &MonsterWeaponDamage::rocket},
-		{"heat", &MonsterWeaponDamage::heat},
-		{"railgun", &MonsterWeaponDamage::railgun},
-		{"bfg", &MonsterWeaponDamage::bfg},
-		{"ionripper", &MonsterWeaponDamage::ionripper},
-		{"hyperblaster", &MonsterWeaponDamage::hyperblaster},
-		{"bolt", &MonsterWeaponDamage::bolt},
-		{"tracker", &MonsterWeaponDamage::tracker},
-		{"plasma", &MonsterWeaponDamage::plasma},
-		{"dabeam", &MonsterWeaponDamage::dabeam},
-		{"heatbeam", &MonsterWeaponDamage::heatbeam},
-		{"melee", &MonsterWeaponDamage::melee},
-		{"slam", &MonsterWeaponDamage::slam},
-		{"lightning", &MonsterWeaponDamage::lightning},
-		{"flechette", &MonsterWeaponDamage::flechette},
-		{"fireball", &MonsterWeaponDamage::fireball},
-		{"proboscis", &MonsterWeaponDamage::proboscis}
+		{"melee", &GlobalWeaponDamage::melee},
+		{"blaster", &GlobalWeaponDamage::blaster},
+		{"blaster2", &GlobalWeaponDamage::blaster2},
+		{"blaster_bolt", &GlobalWeaponDamage::blaster_bolt},
+		{"blueblaster", &GlobalWeaponDamage::blueblaster},
+		{"shotgun", &GlobalWeaponDamage::shotgun},
+		{"machinegun", &GlobalWeaponDamage::machinegun},
+		{"grenade", &GlobalWeaponDamage::grenade},
+		{"rocket", &GlobalWeaponDamage::rocket},
+		{"heat", &GlobalWeaponDamage::heat},
+		{"railgun", &GlobalWeaponDamage::railgun},
+		{"bfg", &GlobalWeaponDamage::bfg},
+		{"ionripper", &GlobalWeaponDamage::ionripper},
+		{"hyperblaster", &GlobalWeaponDamage::hyperblaster},
+		{"bolt", &GlobalWeaponDamage::bolt},
+		{"tracker", &GlobalWeaponDamage::tracker},
+		{"plasma", &GlobalWeaponDamage::plasma},
+		{"dabeam", &GlobalWeaponDamage::dabeam},
+		{"heatbeam", &GlobalWeaponDamage::heatbeam},
+		{"slam", &GlobalWeaponDamage::slam},
+		{"lightning", &GlobalWeaponDamage::lightning},
+		{"flechette", &GlobalWeaponDamage::flechette},
+		{"fireball", &GlobalWeaponDamage::fireball},
+		{"proboscis", &GlobalWeaponDamage::proboscis}
 	};
 
 	auto it = weapon_map.find(weapon_name);
 	if (it == weapon_map.end())
 	{
-		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Unknown weapon '{}' for monster_type_id {}, will use hardcoded damage\n", weapon_name, monster_type_id);
+		return 0; // Unknown weapon
+	}
+
+	return g_config.global_weapon_damage.*(it->second);
+}
+
+// Get specific weapon damage for a monster
+int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name)
+{
+	// Get global base damage
+	int base_damage = GetGlobalWeaponDamage(weapon_name);
+	if (base_damage == 0)
+	{
+		gi.Com_PrintFmt("WARNING: GetMonsterWeaponDamage - Unknown weapon '{}', returning 0\n", weapon_name);
 		return 0;
 	}
 
-	int damage = config->weapon_damage.*(it->second);
+	// Get monster config for damage scale
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	float damage_scale = config ? config->damage_scale : 1.0f;
 
-	// Warn if weapon has 0 damage (not configured)
-	if (damage == 0)
+	// Apply monster damage scale
+	int damage = static_cast<int>(base_damage * damage_scale);
+
+	// Apply wave scaling if horde mode is active
+	if (g_horde && g_horde->integer && current_wave_level > 0)
 	{
-		const char* classname = horde::MonsterTypeRegistry::GetClassname(static_cast<horde::MonsterTypeID>(monster_type_id));
-		gi.Com_PrintFmt("WARNING: Weapon '{}' for monster '{}' (type_id {}) has damage 0 in config. Add it to monsters.json or it will use hardcoded fallback.\n",
-			weapon_name, classname ? classname : "unknown", monster_type_id);
-	}
-
-	// Apply sigmoid scaling to monster weapon damage if horde mode is active
-	if (g_horde && g_horde->integer && current_wave_level > 0) {
 		damage = ScaleWeaponDamage(damage, current_wave_level, false);
 	}
 
 	return damage;
 }
 
-// Get specific weapon speed for a monster
-// Returns 0 if not configured (use hardcoded value)
-int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name)
+// Get global weapon speed by name
+int GetGlobalWeaponSpeed(const char* weapon_name)
 {
-	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
-	if (!config)
-	{
-		return 0; // Use hardcoded speed
-	}
-
-	// Use static map for O(1) lookup
-	using WeaponSpeedGetter = int MonsterWeaponSpeed::*;
+	using WeaponSpeedGetter = int GlobalWeaponSpeed::*;
 	static const std::unordered_map<std::string_view, WeaponSpeedGetter> weapon_map = {
-		{"blaster", &MonsterWeaponSpeed::blaster},
-		{"blaster2", &MonsterWeaponSpeed::blaster2},
-		{"blaster_bolt", &MonsterWeaponSpeed::blaster_bolt},
-		{"blueblaster", &MonsterWeaponSpeed::blueblaster},
-		{"shotgun", &MonsterWeaponSpeed::shotgun},
-		{"machinegun", &MonsterWeaponSpeed::machinegun},
-		{"grenade", &MonsterWeaponSpeed::grenade},
-		{"rocket", &MonsterWeaponSpeed::rocket},
-		{"heat", &MonsterWeaponSpeed::heat},
-		{"railgun", &MonsterWeaponSpeed::railgun},
-		{"bfg", &MonsterWeaponSpeed::bfg},
-		{"ionripper", &MonsterWeaponSpeed::ionripper},
-		{"hyperblaster", &MonsterWeaponSpeed::hyperblaster},
-		{"bolt", &MonsterWeaponSpeed::bolt},
-		{"tracker", &MonsterWeaponSpeed::tracker},
-		{"plasma", &MonsterWeaponSpeed::plasma},
-		{"dabeam", &MonsterWeaponSpeed::dabeam},
-		{"heatbeam", &MonsterWeaponSpeed::heatbeam},
-		{"melee", &MonsterWeaponSpeed::melee},
-		{"slam", &MonsterWeaponSpeed::slam},
-		{"lightning", &MonsterWeaponSpeed::lightning},
-		{"flechette", &MonsterWeaponSpeed::flechette},
-		{"fireball", &MonsterWeaponSpeed::fireball},
-		{"proboscis", &MonsterWeaponSpeed::proboscis}
+		{"blaster", &GlobalWeaponSpeed::blaster},
+		{"blaster2", &GlobalWeaponSpeed::blaster2},
+		{"blaster_bolt", &GlobalWeaponSpeed::blaster_bolt},
+		{"blueblaster", &GlobalWeaponSpeed::blueblaster},
+		{"shotgun", &GlobalWeaponSpeed::shotgun},
+		{"machinegun", &GlobalWeaponSpeed::machinegun},
+		{"grenade", &GlobalWeaponSpeed::grenade},
+		{"rocket", &GlobalWeaponSpeed::rocket},
+		{"heat", &GlobalWeaponSpeed::heat},
+		{"railgun", &GlobalWeaponSpeed::railgun},
+		{"bfg", &GlobalWeaponSpeed::bfg},
+		{"ionripper", &GlobalWeaponSpeed::ionripper},
+		{"hyperblaster", &GlobalWeaponSpeed::hyperblaster},
+		{"bolt", &GlobalWeaponSpeed::bolt},
+		{"tracker", &GlobalWeaponSpeed::tracker},
+		{"plasma", &GlobalWeaponSpeed::plasma},
+		{"dabeam", &GlobalWeaponSpeed::dabeam},
+		{"heatbeam", &GlobalWeaponSpeed::heatbeam},
+		{"melee", &GlobalWeaponSpeed::melee},
+		{"slam", &GlobalWeaponSpeed::slam},
+		{"lightning", &GlobalWeaponSpeed::lightning},
+		{"flechette", &GlobalWeaponSpeed::flechette},
+		{"fireball", &GlobalWeaponSpeed::fireball},
+		{"proboscis", &GlobalWeaponSpeed::proboscis}
 	};
 
 	auto it = weapon_map.find(weapon_name);
 	if (it == weapon_map.end())
 	{
-		return 0; // Unknown weapon, use hardcoded speed
+		return 0; // Unknown weapon
 	}
 
-	int speed = config->weapon_speed.*(it->second);
-	return speed; // Returns 0 if not configured, indicating hardcoded should be used
+	return g_config.global_weapon_speed.*(it->second);
+}
+
+// Get specific weapon speed for a monster
+int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name)
+{
+	// Get global base speed
+	int base_speed = GetGlobalWeaponSpeed(weapon_name);
+	if (base_speed == 0)
+	{
+		// 0 means instant hit or melee (not an error)
+		return 0;
+	}
+
+	// Get monster config for speed scale
+	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
+	float speed_scale = config ? config->speed_scale : 1.0f;
+
+	// Apply monster speed scale
+	int speed = static_cast<int>(base_speed * speed_scale);
+
+	return speed;
+}
+
+// Get global weapon radius by name
+float GetGlobalWeaponRadius(const char* weapon_name)
+{
+	using WeaponRadiusGetter = float GlobalWeaponRadius::*;
+	static const std::unordered_map<std::string_view, WeaponRadiusGetter> weapon_map = {
+		{"grenade", &GlobalWeaponRadius::grenade},
+		{"rocket", &GlobalWeaponRadius::rocket},
+		{"bfg", &GlobalWeaponRadius::bfg},
+		{"tracker", &GlobalWeaponRadius::tracker},
+		{"plasma", &GlobalWeaponRadius::plasma},
+		{"fireball", &GlobalWeaponRadius::fireball}
+	};
+
+	auto it = weapon_map.find(weapon_name);
+	if (it == weapon_map.end())
+	{
+		return 0.0f; // No radius
+	}
+
+	return g_config.global_weapon_radius.*(it->second);
 }
 
 // Get specific weapon radius for a monster
-// Returns 0 if not configured (use hardcoded value)
 int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name)
 {
-	const MonsterStatsConfig* config = GetMonsterConfig(monster_type_id);
-	if (!config)
+	// Get global base radius
+	float base_radius = GetGlobalWeaponRadius(weapon_name);
+
+	// Most weapons don't have radius, return 0
+	if (base_radius == 0.0f)
 	{
-		return 0; // Use hardcoded radius
+		return 0;
 	}
 
-	// Use static map for O(1) lookup
-	using WeaponRadiusGetter = float MonsterWeaponRadius::*;
-	static const std::unordered_map<std::string_view, WeaponRadiusGetter> weapon_map = {
-		{"blaster", &MonsterWeaponRadius::blaster},
-		{"blaster2", &MonsterWeaponRadius::blaster2},
-		{"blaster_bolt", &MonsterWeaponRadius::blaster_bolt},
-		{"blueblaster", &MonsterWeaponRadius::blueblaster},
-		{"shotgun", &MonsterWeaponRadius::shotgun},
-		{"machinegun", &MonsterWeaponRadius::machinegun},
-		{"grenade", &MonsterWeaponRadius::grenade},
-		{"rocket", &MonsterWeaponRadius::rocket},
-		{"heat", &MonsterWeaponRadius::heat},
-		{"railgun", &MonsterWeaponRadius::railgun},
-		{"bfg", &MonsterWeaponRadius::bfg},
-		{"ionripper", &MonsterWeaponRadius::ionripper},
-		{"hyperblaster", &MonsterWeaponRadius::hyperblaster},
-		{"bolt", &MonsterWeaponRadius::bolt},
-		{"tracker", &MonsterWeaponRadius::tracker},
-		{"plasma", &MonsterWeaponRadius::plasma},
-		{"dabeam", &MonsterWeaponRadius::dabeam},
-		{"heatbeam", &MonsterWeaponRadius::heatbeam},
-		{"melee", &MonsterWeaponRadius::melee},
-		{"slam", &MonsterWeaponRadius::slam},
-		{"lightning", &MonsterWeaponRadius::lightning},
-		{"flechette", &MonsterWeaponRadius::flechette},
-		{"fireball", &MonsterWeaponRadius::fireball},
-		{"proboscis", &MonsterWeaponRadius::proboscis}
-	};
-
-	auto it = weapon_map.find(weapon_name);
-	if (it == weapon_map.end())
-	{
-		return 0; // Unknown weapon, use hardcoded radius
-	}
-
-	float radius = config->weapon_radius.*(it->second);
-	return static_cast<int>(radius); // Returns 0 if not configured, indicating hardcoded should be used
+	// No per-monster scaling for radius currently, just return global value
+	return static_cast<int>(base_radius);
 }
 
 // Get monster cap for a specific map by MapID, considering overrides and map size
@@ -1004,4 +973,66 @@ bool GetGridEnabledForMap(const char* mapname)
 		mapId = horde::MapOriginRegistry::GetMapID(mapname);
 	}
 	return GetGridEnabledForMap(mapId);
+}
+
+// Scaling helper functions
+int GetScaledHealth(int base_health, float health_scale, int wave_level, bool is_boss)
+{
+	// Apply monster-specific health scale
+	int scaled_health = static_cast<int>(base_health * health_scale);
+
+	// Apply wave scaling if enabled
+	if (g_config.use_sigmoid_scaling && wave_level > 0)
+	{
+		scaled_health = ScaleMonsterHealth(scaled_health, wave_level, is_boss);
+	}
+	else if (wave_level > 0)
+	{
+		// Fallback: basic scaling if sigmoid is disabled
+		scaled_health = ScaleMonsterHealth(scaled_health, wave_level, is_boss);
+	}
+
+	return scaled_health;
+}
+
+int GetScaledArmor(int base_armor, float armor_scale, int wave_level, bool is_boss)
+{
+	if (base_armor == 0)
+		return 0;
+
+	// Apply monster-specific armor scale
+	int scaled_armor = static_cast<int>(base_armor * armor_scale);
+
+	// Apply wave scaling if enabled
+	if (g_config.use_sigmoid_scaling && wave_level > 0)
+	{
+		scaled_armor = ScaleMonsterArmor(scaled_armor, wave_level);
+		if (is_boss)
+		{
+			scaled_armor = static_cast<int>(scaled_armor * 1.5f);
+		}
+	}
+
+	return scaled_armor;
+}
+
+int GetScaledPowerArmor(int base_power_armor, float power_armor_scale, int wave_level, bool is_boss)
+{
+	if (base_power_armor == 0)
+		return 0;
+
+	// Apply monster-specific power armor scale
+	int scaled_power_armor = static_cast<int>(base_power_armor * power_armor_scale);
+
+	// Apply wave scaling if enabled
+	if (g_config.use_sigmoid_scaling && wave_level > 0)
+	{
+		scaled_power_armor = ScaleMonsterArmor(scaled_power_armor, wave_level);
+		if (is_boss)
+		{
+			scaled_power_armor = static_cast<int>(scaled_power_armor * 1.5f);
+		}
+	}
+
+	return scaled_power_armor;
 }

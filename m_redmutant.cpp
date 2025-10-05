@@ -12,6 +12,7 @@ mutant
 #include "m_redmutant.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_REDMUTANT_NOJUMPING = 8_spawnflag;
 
@@ -203,8 +204,7 @@ void redmutant_hit_left(edict_t* self)
 		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 15;
+	int damage = M_GET_DMG_OR(self, MELEE, 15);
 
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
 	if (fire_hit(self, aim, damage * M_DamageModifier(self), 100))
@@ -224,8 +224,7 @@ void redmutant_hit_right(edict_t* self)
 		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 15;
+	int damage = M_GET_DMG_OR(self, MELEE, 15);
 
 	vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 	if (fire_hit(self, aim, damage * M_DamageModifier(self), 100))

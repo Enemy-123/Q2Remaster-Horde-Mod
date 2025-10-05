@@ -14,6 +14,7 @@ All tank variants unified in a single file
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 #include <algorithm>
 #include <numeric>
 
@@ -756,13 +757,12 @@ void TankBlaster(edict_t* self)
 		gi.WritePosition(tr.endpos);
 		gi.multicast(bullet_start, MULTICAST_PVS, false);
 
-		int lightning_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "lightning");
-		if (lightning_damage <= 0) lightning_damage = 15;
+		int lightning_damage = M_GET_DMG_OR(self, LIGHTNING, 15);
 		fire_bullet(self, bullet_start, dir, lightning_damage, 18, 0, 0, MOD_TESLA);
 	}
 	else {
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
-		monster_fire_blaster2(self, start, dir, damage, speed > 0 ? speed : 950, flash_number, EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, damage,
+			M_GET_SPEED_OR(self, BLASTER2, 950), flash_number, EF_BLASTER);
 	}
 }
 
@@ -795,19 +795,20 @@ void TankRocket(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-	if (damage <= 0) damage = 50;
+	// Get damage and speed from global weapon system
+	int damage = M_GET_DMG_OR(self, ROCKET, 50);
+	int rocketSpeed;
 
     vec3_t                   forward, right;
     vec3_t                   start;
     vec3_t                   dir;
     vec3_t                   vec;
     monster_muzzleflash_id_t flash_number;
-    int                      rocketSpeed;
     vec3_t target;
-    trace_t trace; // PMM - needed for trace check
+    trace_t trace;
 
     const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+	const bool useHeat = self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS;
 
     // Determine flash_number based on frame
     if (self->s.frame == FRAME_attak322 || (self->s.frame == FRAME_attak324))
@@ -820,14 +821,14 @@ void TankRocket(edict_t* self)
     AngleVectors(self->s.angles, forward, right, nullptr);
     start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-    // Determine rocketSpeed - check config first, then existing logic
-    int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS ? "heat" : "rocket");
+    // Determine rocket speed - use heat or rocket based on flags
+    int config_speed = useHeat ? M_HEAT_SPEED(self) : M_ROCKET_SPEED(self);
 
     if (config_speed > 0)
         rocketSpeed = config_speed;
     else if (self->speed)
-        rocketSpeed = lroundf(self->speed); // FIX: Explicitly round the float to the nearest int
-    else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN)) // Ensure SPAWNFLAG is defined correctly
+        rocketSpeed = lroundf(self->speed);
+    else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
         rocketSpeed = 600;
     else
         rocketSpeed = 480;
@@ -879,28 +880,33 @@ void TankRocket(edict_t* self)
     dir.normalize(); // Normalize direction after potential prediction
 
     // Perform fire check (trace) and fire projectile
+    // Fire rocket/heat based on flags
     if (blindfire)
     {
-        if (M_AdjustBlindfireTarget(self, start, vec, right, dir)) // Pass 'vec' (potentially adjusted target)
+        if (M_AdjustBlindfireTarget(self, start, vec, right, dir))
         {
-             // --- self->enemy is guaranteed valid here for spawnflags check ---
-             if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-                monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
-            else
-                monster_fire_rocket(self, start, dir, damage, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
+            if (useHeat)
+                monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel));
+            else {
+				int speed = horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER) ?
+					lroundf(rocketSpeed * 1.5f) : rocketSpeed;
+                monster_fire_rocket(self, start, dir, damage, speed, flash_number);
+			}
         }
     }
     else
     {
-        trace = gi.traceline(start, vec, self, MASK_PROJECTILE); // Use 'vec' (potentially adjusted target) for trace
+        trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
 
         if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
         {
-            // --- self->enemy is guaranteed valid here for spawnflags check ---
-            if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
-                monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel)); // FIX: Round accel
-            else
-                 monster_fire_rocket(self, start, dir, damage, (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER)) ? lroundf(rocketSpeed * 1.5f) : rocketSpeed, flash_number); // FIX: Round calculated speed
+            if (useHeat)
+                monster_fire_heat(self, start, dir, damage, rocketSpeed, flash_number, lroundf(self->accel));
+            else {
+				int speed = horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER) ?
+					lroundf(rocketSpeed * 1.5f) : rocketSpeed;
+                monster_fire_rocket(self, start, dir, damage, speed, flash_number);
+			}
         }
     }
 }
@@ -909,11 +915,15 @@ void TankMachineGun(edict_t* self)
 {
 	if (!M_HasValidTarget(self))
 	{
-		return; // Stop immediately if the target is invalid.
+		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
-	if (damage <= 0) damage = 6;
+	// Determine if using flechette (commander/boss) or machinegun
+	bool useFlechette = horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER) ||
+		self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) ||
+		self->monsterinfo.IS_BOSS;
+
+	int damage = useFlechette ? M_GET_DMG_OR(self, FLECHETTE, 6) : M_GET_DMG_OR(self, MACHINEGUN, 6);
 
 	// Aumenta velocidad de giro
 	vec3_t dir = self->enemy->s.origin - self->s.origin;
@@ -945,18 +955,16 @@ void TankMachineGun(edict_t* self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER) || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS) {
-		monster_fire_flechette(self, start, forward, damage,
-			self->monsterinfo.IS_BOSS ? 1150 : 700,
-			flash_number);
+	if (useFlechette) {
+		int speed = M_GET_SPEED_OR(self, FLECHETTE, self->monsterinfo.IS_BOSS ? 1150 : 700);
+
+		monster_fire_flechette(self, start, forward, damage, speed, flash_number);
 
 		vec3_t right_offset;
 		AngleVectors(vectoangles(forward), nullptr, &right_offset, nullptr);
 		vec3_t forward_right = forward + (right_offset * 0.05f);
 		forward_right.normalize();
-		monster_fire_flechette(self, start, forward_right, damage,
-			self->monsterinfo.IS_BOSS ? 1150 : 700,
-			flash_number);
+		monster_fire_flechette(self, start, forward_right, damage, speed, flash_number);
 	}
 	else {
 		monster_fire_bullet(self, start, forward, damage, 8,
@@ -1969,8 +1977,8 @@ void tank_vanillaBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
-	monster_fire_blaster(self, start, dir, damage, speed > 0 ? speed : 1230, flash_number, EF_BLASTER);
+	monster_fire_blaster(self, start, dir, damage,
+		M_GET_SPEED_OR(self, BLASTER, 1230), flash_number, EF_BLASTER);
 }
 
 void tank_vanillaStrike(edict_t* self)
@@ -1989,11 +1997,10 @@ void tank_vanillaStrike(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir({ 0.f, 0.f, 1.f });
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "slam");
-	if (damage <= 0) damage = 75;
+
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
-	T_SlamRadiusDamage(tr.endpos, self, self, damage, 450.f, self, 165, MOD_TANK_PUNCH);
+	T_SlamRadiusDamage(tr.endpos, self, self, M_GET_DMG_OR(self, SLAM, 75), 450.f, self, 165, MOD_TANK_PUNCH);
 
 	// Check if we have slots left to spawn monsters
 	if (self->monsterinfo.monster_used <= 3)
@@ -2006,16 +2013,15 @@ void tank_vanillaRocket(edict_t* self)
 	if (!M_HasEnemy(self))
 		return;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-	if (damage <= 0) damage = 50;
+	bool useHeat = self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING);
+	int damage = useHeat ? M_GET_DMG_OR(self, HEAT, 50) : M_GET_DMG_OR(self, ROCKET, 50);
 
 	vec3_t					 forward, right;
 	vec3_t					 start;
 	vec3_t					 dir;
 	vec3_t					 vec;
 	monster_muzzleflash_id_t flash_number;
-	int						 rocketSpeed; // PGM
-	// pmm - blindfire support
+	int						 rocketSpeed;
 	vec3_t target;
 
 	bool   const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
@@ -2032,14 +2038,14 @@ void tank_vanillaRocket(edict_t* self)
 	// [Paril-KEX] scale
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Check config first, then existing logic
-	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING) ? "heat" : "rocket");
+	// Get rocket speed from config
+	int config_speed = useHeat ? M_HEAT_SPEED(self) : M_ROCKET_SPEED(self);
 
 	if (config_speed > 0)
 		rocketSpeed = config_speed;
 	else if (self->speed)
 		rocketSpeed = self->speed;
-	else if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING))
+	else if (useHeat)
 		rocketSpeed = 500;
 	else
 		rocketSpeed = 850;
@@ -2161,9 +2167,8 @@ void tank_vanillaMachineGun(edict_t* self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	//monster_fire_bullet(self, start, forward, 20, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
-	monster_fire_blaster_bolt(self, start, forward, damage, speed > 0 ? speed : 1150, flash_number, EF_BLUEHYPERBLASTER);
+	monster_fire_blaster_bolt(self, start, forward, damage,
+		M_GET_SPEED_OR(self, BLASTER_BOLT, 1150), flash_number, EF_BLUEHYPERBLASTER);
 }
 
 static void tank_vanilla_blind_check(edict_t* self)
@@ -2985,14 +2990,17 @@ void SP_monster_tank(edict_t* self)
 	gi.soundindex("tank/tnkatck3.wav");
 
 	// --- REFACTORED: Use the monster ID to determine stats and appearance ---
+	bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
+
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_COMMANDER))
 	{
 		int base_health = config ? config->health : 1000;
+		float health_scale = config ? config->health_scale : 1.0f;
+
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+			self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
 		} else {
-			self->health = base_health * st.health_multiplier;
+			self->health = static_cast<int>(base_health * health_scale * st.health_multiplier);
 		}
 		self->gib_health = -225;
 		self->count = 1;
@@ -3002,21 +3010,26 @@ void SP_monster_tank(edict_t* self)
 	else if (horde::IsMonsterType(self, horde::MonsterTypeID::TANK_64))
 	{
 		int base_health = config ? config->health : (g_horde->integer ? 1750 : 800);
+		float health_scale = config ? config->health_scale : 1.0f;
 		self->accel = 0.075f;
-		if (g_horde->integer && current_wave_level > 0) {
-			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
 
-			if (is_boss) {
-				if (!st.was_key_specified("power_armor_type"))
-					self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-				if (!st.was_key_specified("power_armor_power"))
-					self->monsterinfo.armor_power = 5250;
+		if (g_horde->integer && current_wave_level > 0) {
+			self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
+
+			if (is_boss && config) {
+				if (!st.was_key_specified("armor_type") && config->armor_power > 0) {
+					self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+					self->monsterinfo.armor_power = GetScaledArmor(config->armor_power, config->armor_scale, current_wave_level, is_boss);
+				}
+				if (!st.was_key_specified("power_armor_type") && config->power_armor_power > 0) {
+					self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+					self->monsterinfo.power_armor_power = GetScaledPowerArmor(config->power_armor_power, config->power_armor_scale, current_wave_level, is_boss);
+				}
 			}
 		} else if (G_IsCooperative()) {
 			self->health = 1000;
 		} else {
-			self->health = base_health * st.health_multiplier;
+			self->health = static_cast<int>(base_health * health_scale * st.health_multiplier);
 		}
 		self->gib_health = -250;
 		if (self->monsterinfo.bonus_flags & BF_BERSERKING)
@@ -3025,11 +3038,12 @@ void SP_monster_tank(edict_t* self)
 	else // Default case for base TANK
 	{
 		int base_health = config ? config->health : 630;
+		float health_scale = config ? config->health_scale : 1.0f;
+
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+			self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
 		} else {
-			self->health = base_health * st.health_multiplier;
+			self->health = static_cast<int>(base_health * health_scale * st.health_multiplier);
 		}
 		self->gib_health = -200;
 		sound_pain.assign("tank/tnkpain2.wav");
@@ -3123,26 +3137,9 @@ void SP_monster_tank_spawner(edict_t* self)
 
     // --- REFACTORED ---
     // The strcmp is removed as this function only spawns one type.
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
-	}
-
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
-	}
-
-
+	bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 	int base_health = config ? config->health : 1200;
+	float health_scale = config ? config->health_scale : 1.0f;
 
 	if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN))
 	{
@@ -3151,11 +3148,25 @@ void SP_monster_tank_spawner(edict_t* self)
 		base_health = config ? config->health : 1500;
 	}
 
+	// Apply health scaling
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(base_health * health_scale * st.health_multiplier);
+	}
+
+	// Apply armor scaling
+	if (!st.was_key_specified("armor_type") && config && config->armor_type != IT_NULL) {
+		self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = GetScaledArmor(config->armor_power, config->armor_scale, current_wave_level, is_boss);
+	}
+
+	// Apply power armor scaling
+	if (!st.was_key_specified("power_armor_type") && config && config->power_armor_type != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = GetScaledPowerArmor(config->power_armor_power, config->power_armor_scale, current_wave_level, is_boss);
 	}
 
 	self->gib_health = -225;
@@ -3276,31 +3287,31 @@ void SP_monster_tank_64(edict_t* self)
 	
     SP_monster_tank(self); // Call base spawner
 
-	// Power armor configuration from config
-	if (!st.was_key_specified("power_armor_type")) {
-		if (config && config->power_armor_type != IT_NULL) {
-			self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
-			if (!st.was_key_specified("power_armor_power"))
-				self->monsterinfo.power_armor_power = config->power_armor_power;
-		}
-	}
-
-	// Regular armor configuration from config
-	if (!st.was_key_specified("armor_type")) {
-		if (config && config->armor_type != IT_NULL) {
-			self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
-			if (!st.was_key_specified("armor_power"))
-				self->monsterinfo.armor_power = config->armor_power;
-		}
-	}
-
+	bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
 	int base_health = config ? config->health : 1000;
+	float health_scale = config ? config->health_scale : 1.0f;
+
+	// Apply health scaling
 	if (g_horde && g_horde->integer && current_wave_level > 0) {
-		bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-		self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+		self->health = GetScaledHealth(base_health, health_scale, current_wave_level, is_boss);
 	} else {
-		self->health = base_health * st.health_multiplier;
+		self->health = static_cast<int>(base_health * health_scale * st.health_multiplier);
 	}
+
+	// Apply armor scaling
+	if (!st.was_key_specified("armor_type") && config && config->armor_type != IT_NULL) {
+		self->monsterinfo.armor_type = static_cast<item_id_t>(config->armor_type);
+		if (!st.was_key_specified("armor_power"))
+			self->monsterinfo.armor_power = GetScaledArmor(config->armor_power, config->armor_scale, current_wave_level, is_boss);
+	}
+
+	// Apply power armor scaling
+	if (!st.was_key_specified("power_armor_type") && config && config->power_armor_type != IT_NULL) {
+		self->monsterinfo.power_armor_type = static_cast<item_id_t>(config->power_armor_type);
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = GetScaledPowerArmor(config->power_armor_power, config->power_armor_scale, current_wave_level, is_boss);
+	}
+
 	self->s.skinnum = 2;
 
 	ApplyMonsterBonusFlags(self);

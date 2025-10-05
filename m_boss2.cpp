@@ -13,6 +13,7 @@ boss2
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 // [Paril-KEX]
 constexpr spawnflags_t SPAWNFLAG_BOSS2_N64 = 8_spawnflag;
@@ -62,10 +63,10 @@ void Boss2PredictiveRocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	int damage = M_ROCKET_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 40;
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+	int speed = M_ROCKET_SPEED(self);
 	if (speed <= 0) speed = BOSS2_ROCKET_SPEED;
 
 	// 1
@@ -116,10 +117,10 @@ void Boss2Rocket(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	int damage = M_ROCKET_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 50 : 28;
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+	int speed = M_ROCKET_SPEED(self);
 
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right);
@@ -203,10 +204,10 @@ void Boss2Rocket64(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+	int damage = M_ROCKET_DMG(self);
 	if (damage <= 0) damage = self->monsterinfo.IS_BOSS ? 35 : 25;
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+	int speed = M_ROCKET_SPEED(self);
 	monster_fire_rocket(self, start, dir, damage, speed > 0 ? speed : BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
 }
 
@@ -362,16 +363,14 @@ void Boss2HyperBlaster(edict_t *self)
 
 	if (!self->monsterinfo.IS_BOSS)
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
-		if (damage <= 0) damage = 5;
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
+		int damage = M_GET_DMG_OR(self, BLASTER, 5);
+		int speed = M_BLASTER_SPEED(self);
 		monster_fire_blaster(self, start, forward, damage, speed > 0 ? speed : 1350, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
 	else
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-		if (damage <= 0) damage = 8;
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+		int damage = M_GET_DMG_OR(self, BLASTER_BOLT, 8);
+		int speed = M_BLASTER_BOLT_SPEED(self);
 		monster_fire_blaster_bolt(self, start, forward, damage, speed > 0 ? speed : 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 	}
 }

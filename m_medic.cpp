@@ -13,6 +13,7 @@ MEDIC
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 // Add these prototypes near the top
 // bool tesla_check_conversion(edict_t* tesla, edict_t* converter);
@@ -1299,7 +1300,7 @@ void medic_fire_blaster_bolt(edict_t *self)
 	vec3_t forward, right;
 	vec3_t end;
 	vec3_t dir;
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "bolt");
+	int damage = M_BOLT_DMG(self);
 	monster_muzzleflash_id_t mz;
 
 	mz = static_cast<monster_muzzleflash_id_t>(((self->mass > 400) ? MZ2_MEDIC_HYPERBLASTER2_1 : MZ2_MEDIC_HYPERBLASTER1_1));
@@ -1316,7 +1317,7 @@ void medic_fire_blaster_bolt(edict_t *self)
 	dir = end - start;
 	dir.normalize();
 
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+	int speed = M_BLASTER_BOLT_SPEED(self);
 	monster_fire_blaster_bolt(self, start, dir, damage > 0 ? damage : 30, speed > 0 ? speed : 1150, mz, EF_BLUEHYPERBLASTER);
 }
 
@@ -1368,8 +1369,7 @@ void medic_fire_blaster(edict_t *self)
 	// medic commander shoots blaster2
 	if (self->mass > 400)
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster2");
-		if (damage <= 0) damage = 18;
+		int damage = M_GET_DMG_OR(self, BLASTER2, 18);
 
 		// Check if the resolved target is a deployable that warrants a special attack animation.
 		// This also fixes a bug where it was checking 'self' instead of 'self->enemy' for the sentry gun.
@@ -1381,13 +1381,12 @@ void medic_fire_blaster(edict_t *self)
 			damage *= 1.5f;
 		}
 
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+		int speed = M_BLASTER2_SPEED(self);
 		monster_fire_blaster2(self, start, dir, damage, speed > 0 ? speed : 1000, mz, effect);
 	}
 	else
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
-		if (damage <= 0) damage = 15;
+		int damage = M_GET_DMG_OR(self, BLASTER, 15);
 
 		// Check if the resolved target is a deployable that warrants a special attack animation.
 		// This also fixes a bug where it was checking 'self' instead of 'self->enemy' for the sentry gun.
@@ -1399,7 +1398,7 @@ void medic_fire_blaster(edict_t *self)
 			damage *= 1.5f;
 		}
 
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
+		int speed = M_BLASTER_SPEED(self);
 		monster_fire_blaster(self, start, dir, damage, speed > 0 ? speed : 1000, mz, effect);
 	}
 }

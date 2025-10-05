@@ -13,6 +13,7 @@ SUPERTANK
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_SUPERTANK_POWERSHIELD = 8_spawnflag;
 // n64
@@ -274,8 +275,7 @@ static void supertankGrenade(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "grenade");
-	if (damage <= 0) damage = 50;
+	int damage = M_GET_DMG_OR(self, GRENADE, 50);
 
 	vec3_t forward, right;
 	vec3_t start;
@@ -297,7 +297,7 @@ static void supertankGrenade(edict_t* self)
 	{
 		// Ajustar la velocidad y trayectoria para teslas
 		if (horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::TESLA_MINE)) {
-			int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+			int config_speed = M_GRENADE_SPEED(self);
 			float const speed = config_speed > 0 ? static_cast<float>(config_speed) : 400.0f;
 			vec3_t target = self->enemy->s.origin;
 
@@ -317,7 +317,7 @@ static void supertankGrenade(edict_t* self)
 			return;
 		}
 		else {
-			int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+			int config_speed = M_GRENADE_SPEED(self);
 			float const speed = config_speed > 0 ? static_cast<float>(config_speed) : (500.0f + (i * 100.0f));
 
 			if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
@@ -528,14 +528,13 @@ void supertankRocket(edict_t* self)
 		vec[2] += self->enemy->viewheight;
 		dir = vec - start;
 		dir.normalize();
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "heat");
-		if (damage <= 0) damage = 40;
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "heat");
+		int damage = M_GET_DMG_OR(self, HEAT, 40);
+		int speed = M_HEAT_SPEED(self);
 		monster_fire_heat(self, start, dir, damage, speed > 0 ? speed : 980, flash_number, 0.075f);
 	}
 	else
 	{
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "rocket");
+		int speed = M_ROCKET_SPEED(self);
 		int predict_speed = speed > 0 ? speed : 1100;
 		PredictAim(self, self->enemy, start, predict_speed, false, 0.f, &forward, nullptr);
 		monster_fire_rocket(self, start, forward, 50, predict_speed, flash_number);

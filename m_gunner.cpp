@@ -13,6 +13,7 @@ GUNNER
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_pain2;
@@ -399,8 +400,8 @@ void GunnerFire(edict_t* self)
 	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
 	start.z += offset[2];
 
-	int machinegun_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
-	int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
+	int machinegun_damage = M_MACHINEGUN_DMG(self);
+	int ionripper_damage = M_IONRIPPER_DMG(self);
 
 	// Determine if we're blindfiring (like chick with rockets)
 	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
@@ -421,7 +422,7 @@ void GunnerFire(edict_t* self)
 		target = self->enemy->s.origin;
 	}
 
-	int ionripper_speed_cfg = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
+	int ionripper_speed_cfg = M_IONRIPPER_SPEED(self);
 	int ionripper_speed = ionripper_speed_cfg > 0 ? ionripper_speed_cfg : 800;
 
 	if (g_hardcoop->integer <= 3) {
@@ -586,7 +587,7 @@ void GunnerGrenade(edict_t* self)
 	aim = forward + (right * spread);
 	aim += (up * pitch);
 
-	int grenade_speed_cfg = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	int grenade_speed_cfg = M_GRENADE_SPEED(self);
 	float grenade_speed = grenade_speed_cfg > 0 ? static_cast<float>(grenade_speed_cfg) : 690.f;
 
 	// try search for best pitch

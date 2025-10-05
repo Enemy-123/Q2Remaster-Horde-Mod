@@ -12,6 +12,7 @@ brain
 #include "m_brain.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_chest_open;
 static cached_soundindex sound_tentacles_extend;
@@ -291,8 +292,7 @@ void brain_hit_right(edict_t* self)
 		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 17;
+	int damage = M_GET_DMG_OR(self, MELEE, 17);
 
 	vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 	if (fire_hit(self, aim, damage, 40))
@@ -309,8 +309,7 @@ void brain_hit_left(edict_t* self)
 		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 17;
+	int damage = M_GET_DMG_OR(self, MELEE, 17);
 
 	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
 	if (fire_hit(self, aim, damage, 40))
@@ -356,8 +355,7 @@ void brain_tentacle_attack(edict_t* self)
 		return;
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "melee");
-	if (damage <= 0) damage = 17;
+	int damage = M_GET_DMG_OR(self, MELEE, 17);
 
 	vec3_t  const aim = { MELEE_DISTANCE, 0, 8 };
 	if (fire_hit(self, aim, damage * 0.7, -600))

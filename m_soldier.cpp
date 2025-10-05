@@ -13,6 +13,7 @@ SOLDIER
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_idle;
 static cached_soundindex sound_sight1;
@@ -706,33 +707,33 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	{
 		// RAFAEL 24-APR-98
 		// droped the damage from 15 to 5
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "ionripper");
+		int damage = M_IONRIPPER_DMG(self);
+		int speed = M_IONRIPPER_SPEED(self);
 		monster_fire_ionripper(self, start, aim, damage > 0 ? damage : 5, speed > 0 ? speed : 600, flash_index, EF_IONRIPPER);
 	}
 	else if (style.has_bluehyper())
 	{
 		if (IsFirstThreeWaves(current_wave_level)) {
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blueblaster");
+			int damage = M_BLUEBLASTER_DMG(self);
 			monster_fire_blueblaster(self, start, aim, damage > 0 ? damage : 2, 600, flash_index, EF_BLUEHYPERBLASTER);
 		}
 		else {
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster_bolt");
-			int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+			int damage = M_BLASTER_BOLT_DMG(self);
+			int speed = M_BLASTER_BOLT_SPEED(self);
 			monster_fire_blaster_bolt(self, start, forward, damage > 0 ? damage : 5, speed > 0 ? speed : 1150, flash_index, EF_BLUEHYPERBLASTER);
 		}
 	}
 	else if (style.has_blaster())
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster");
+		int damage = M_BLASTER_DMG(self);
+		int speed = M_BLASTER_SPEED(self);
 		int fallback_damage = IsFirstThreeWaves(current_wave_level) ? 6 : 9;
 		int fallback_speed = IsFirstThreeWaves(current_wave_level) ? 600 : 1200;
 		monster_fire_blaster(self, start, aim, damage > 0 ? damage : fallback_damage, speed > 0 ? speed : fallback_speed, flash_index, EF_BLASTER);
 	}
 	else if (style.has_shotgun())
 	{
-		int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "shotgun");
+		int damage = M_SHOTGUN_DMG(self);
 		monster_fire_shotgun(self, start, aim, damage > 0 ? damage : 3, 1, 1500, 750, 9, flash_index);
 		// [Paril-KEX] indicates to soldier that he must cock
 		self->dmg = 1;
@@ -746,7 +747,7 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 		if (style.has_laser())
 			soldierh_laserbeam(self, flash_index);
 		else {
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
+			int damage = M_MACHINEGUN_DMG(self);
 			monster_fire_bullet(self, start, aim, damage > 0 ? damage : 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
 		}
 

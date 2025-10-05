@@ -13,6 +13,7 @@ chick
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 // Forward declare plasma_touch from xatrix
 void plasma_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
@@ -702,7 +703,7 @@ void chickkl_grenade(edict_t* self)
 	aim = (target - start).normalized();
 
 	// Fire grenade
-	int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "grenade");
+	int speed = M_GRENADE_SPEED(self);
 	monster_fire_grenade(self, start, aim, 40, speed > 0 ? speed : 600, MZ2_CHICK_ROCKET_1, 2.5f, 120);
 }
 
@@ -740,7 +741,7 @@ void ChickRocket(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
 	// [Paril-KEX]
-	int config_speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, self->s.skinnum > 1 ? "heat" : "rocket");
+	int config_speed = (self->s.skinnum > 1) ? M_HEAT_SPEED(self) : M_ROCKET_SPEED(self);
 	if (config_speed > 0)
 		rocketSpeed = config_speed;
 	else if (self->s.skinnum > 1)
@@ -801,7 +802,7 @@ void ChickRocket(edict_t* self)
 		if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
 		{
 			// RAFAEL
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
+			int damage = M_ROCKET_DMG(self);
 			if (self->s.skinnum > 1)
 				monster_fire_heat(self, start, dir, damage > 0 ? damage : 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
 			else
@@ -817,8 +818,7 @@ void ChickRocket(edict_t* self)
 			vec += (right * -10);
 			dir = vec - start;
 			dir.normalize();
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-			if (damage <= 0) damage = 50;
+			int damage = M_GET_DMG_OR(self, ROCKET, 50);
 
 			trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
 			if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
@@ -854,8 +854,7 @@ void ChickRocket(edict_t* self)
 	{
 		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
 		{
-			int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "rocket");
-			if (damage <= 0) damage = 50;
+			int damage = M_GET_DMG_OR(self, ROCKET, 50);
 			// RAFAEL
 			if (self->s.skinnum > 1)
 				monster_fire_heat(self, start, dir, damage, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.15f);

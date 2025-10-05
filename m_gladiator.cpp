@@ -13,6 +13,7 @@ GLADIATOR
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -162,8 +163,7 @@ void GladiatorGun(edict_t* self)
 	if (!visible(self, self->enemy))
 		return;
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
-	if (damage <= 0) damage = 80;
+	int damage = M_GET_DMG_OR(self, RAILGUN, 80);
 
 	vec3_t start;
 	vec3_t dir;
@@ -206,8 +206,7 @@ void gladbGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "tracker");
-	if (damage <= 0) damage = 16;
+	int damage = M_GET_DMG_OR(self, TRACKER, 16);
 
 	vec3_t start;
 	vec3_t dir;
@@ -286,8 +285,7 @@ void gladcGun(edict_t* self)
 		return; // Stop immediately if the target is invalid.
 	}
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "plasma");
-	if (damage <= 0) damage = 35;
+	int damage = M_GET_DMG_OR(self, PLASMA, 35);
 
 	int radius_damage = 45;
 

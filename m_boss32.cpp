@@ -13,6 +13,7 @@ Makron -- Final Boss
 #include "m_flash.h"
 #include "shared.h"
 #include "horde/g_horde_scaling.h"
+#include "g_weapon_constants.h"
 void SP_monster_makronkl(edict_t* self);
 void MakronRailgun(edict_t *self);
 void MakronSaveloc(edict_t *self);
@@ -514,7 +515,7 @@ void makronBFG(edict_t *self)
 	vec[2] += self->enemy->viewheight;
 	dir = vec - start;
 	dir.normalize();
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "bfg");
+	int damage = M_BFG_DMG(self);
 	if (damage <= 0) damage = (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON_KL)) ? 40 : 15;
 	gi.sound(self, CHAN_VOICE, sound_attack_bfg, 1, ATTN_NORM, 0);
 	monster_fire_bfg(self, start, dir, damage, 300, 100, 300, MZ2_MAKRON_BFG);
@@ -666,8 +667,7 @@ void MakronRailgun(edict_t *self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "railgun");
-	if (damage <= 0) damage = 50;
+	int damage = M_GET_DMG_OR(self, RAILGUN, 50);
 	monster_fire_railgun(self, start, dir, damage, 100, MZ2_MAKRON_RAILGUN_1);
 }
 
@@ -702,17 +702,16 @@ void MakronHyperblaster(edict_t* self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	int damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "blaster");
-	if (damage <= 0) damage = 35;
+	int damage = M_GET_DMG_OR(self, BLASTER, 35);
 
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MAKRON))
 	{
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster2");
+		int speed = M_BLASTER2_SPEED(self);
 		monster_fire_blaster2(self, start, forward, damage, speed > 0 ? speed : 1300, flash_number, EF_BLASTER);
 	}
 	else
 	{
-		int speed = GetMonsterWeaponSpeed(self->monsterinfo.monster_type_id, "blaster_bolt");
+		int speed = M_BLASTER_BOLT_SPEED(self);
 		monster_fire_blaster_bolt(self, start, forward, damage, speed > 0 ? speed : 2300, flash_number, EF_HYPERBLASTER);
 	}
 }
