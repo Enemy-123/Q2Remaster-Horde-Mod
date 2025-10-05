@@ -813,6 +813,7 @@ void SP_monster_jorg(edict_t* self)
 	self->monsterinfo.melee = nullptr;
 	self->monsterinfo.sight = nullptr;
 	self->monsterinfo.checkattack = Jorg_CheckAttack;
+	self->monsterinfo.blocked = M_MonsterBlocked;
 	self->monsterinfo.setskin = jorg_setskin;
 	gi.linkentity(self);
 

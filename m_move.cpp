@@ -1921,6 +1921,64 @@ void M_MoveToGoal(edict_t* ent, float dist)
 
 /*
 ===============
+Global Monster Jump Functions
+These provide basic jump capability for monsters without custom jump animations
+===============
+*/
+
+// Apply custom gravity while airborne - faster fall, normal rise
+static void M_MonsterApplyJumpGravity(edict_t* self)
+{
+    if (self->velocity[2] < 0)
+        self->gravity = 2.0f;  // Faster fall
+    else
+        self->gravity = 1.0f;  // Normal rise
+
+    gi.linkentity(self);
+}
+
+// Generic monster jump - works without special animations
+void M_MonsterJump(edict_t* self, float forward_vel, float up_vel)
+{
+    vec3_t forward, up;
+
+    AngleVectors(self->s.angles, forward, nullptr, up);
+
+    // Clear vertical velocity before applying new jump force
+    self->velocity[2] = 0;
+
+    self->velocity += (forward * forward_vel);
+    self->velocity += (up * up_vel);
+
+    self->groundentity = nullptr; // We are now airborne
+
+    // Apply custom gravity immediately
+    M_MonsterApplyJumpGravity(self);
+}
+
+// Global blocked callback for monsters without custom jump animations
+MONSTERINFO_BLOCKED(M_MonsterBlocked) (edict_t* self, float dist) -> bool
+{
+    // Check for platforms first
+    if (blocked_checkplat(self, dist))
+        return true;
+
+    // Check if we can jump
+    if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+    {
+        if (result != blocked_jump_result_t::JUMP_TURN)
+        {
+            // Reduced forward velocity to prevent excessive jump distance
+            M_MonsterJump(self, 180.0f, 250.0f);
+        }
+        return true;
+    }
+
+    return false;
+}
+
+/*
+===============
 M_walkmove
 ===============
 */

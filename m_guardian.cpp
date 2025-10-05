@@ -747,6 +747,7 @@ void SP_monster_guardian(edict_t* self)
 	self->monsterinfo.walk = guardian_walk;
 	self->monsterinfo.run = guardian_run;
 	self->monsterinfo.attack = guardian_attack;
+	self->monsterinfo.blocked = M_MonsterBlocked;
 
 	gi.linkentity(self);
 

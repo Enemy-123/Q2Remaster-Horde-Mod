@@ -965,7 +965,7 @@ void SP_monster_shambler(edict_t* self)
 	self->monsterinfo.melee = shambler_melee;
 	self->monsterinfo.sight = shambler_sight;
 	self->monsterinfo.idle = shambler_idle;
-	self->monsterinfo.blocked = nullptr;
+	self->monsterinfo.blocked = M_MonsterBlocked;
 	self->monsterinfo.setskin = shambler_setskin;
 
 	gi.linkentity(self);

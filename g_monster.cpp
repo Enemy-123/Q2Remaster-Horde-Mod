@@ -1899,6 +1899,14 @@ void monster_start_go(edict_t *self)
 		InitMonsterAntiStack(self);
 	}
 
+	// Global jump properties for all monsters (unless already set)
+	if (self->monsterinfo.drop_height == 0)
+		self->monsterinfo.drop_height = 256;
+	if (self->monsterinfo.jump_height == 0)
+		self->monsterinfo.jump_height = 48;  // Standard jump height for all monsters
+	if (!self->monsterinfo.can_jump)
+		self->monsterinfo.can_jump = true;
+
 	// Paril: moved here so this applies to swim/fly monsters too
 	if (!(self->flags & FL_STATIONARY))
 	{

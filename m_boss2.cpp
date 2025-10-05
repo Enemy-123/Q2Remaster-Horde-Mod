@@ -799,6 +799,7 @@ void SP_monster_boss2(edict_t *self)
 	self->monsterinfo.attack = boss2_attack;
 	self->monsterinfo.search = boss2_search;
 	self->monsterinfo.checkattack = Boss2_CheckAttack;
+	//self->monsterinfo.blocked = M_MonsterBlocked;
 	self->monsterinfo.setskin = boss2_setskin;
 	gi.linkentity(self);
 

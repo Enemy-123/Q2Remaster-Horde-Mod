@@ -2501,6 +2501,17 @@ MONSTERINFO_BLOCKED(medic_blocked)(edict_t *self, float dist)->bool
 	if (blocked_checkplat(self, dist))
 		return true;
 
+	// Check if we can jump
+	if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	{
+		if (result != blocked_jump_result_t::JUMP_TURN)
+		{
+			// Reduced forward velocity to prevent excessive jump distance
+			M_MonsterJump(self, 180.0f, 250.0f);
+		}
+		return true;
+	}
+
 	return false;
 }
 // PGM

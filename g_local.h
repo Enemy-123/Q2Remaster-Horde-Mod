@@ -2776,6 +2776,8 @@ bool M_CheckBottom(edict_t* ent);
 bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist);
 bool M_walkmove(edict_t* ent, float yaw, float dist);
 void M_MoveToGoal(edict_t* ent, float dist);
+void M_MonsterJump(edict_t* self, float forward_vel, float up_vel);
+bool M_MonsterBlocked(edict_t* self, float dist);
 void M_ChangeYaw(edict_t* ent);
 bool ai_check_move(edict_t* self, float dist);
 void InitMonsterAntiStack(edict_t* ent);

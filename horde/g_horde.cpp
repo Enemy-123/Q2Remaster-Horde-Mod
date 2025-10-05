@@ -4214,6 +4214,20 @@ PositionValidationResult IsPositionPhysicallyValid(const vec3_t &position, const
         }
     }
 
+    // Check if sky is too close above (reject positions near ceiling/sky)
+    {
+        vec3_t sky_check_start = position;
+        sky_check_start.z += monster_maxs.z - monster_mins.z; // Start from monster's head
+        vec3_t sky_check_end = sky_check_start;
+        // Flying monsters: check 256 units up, ground monsters: check 128 units up
+        sky_check_end.z += is_flying ? 256.0f : 128.0f;
+
+        trace_t sky_trace = gi.traceline(sky_check_start, sky_check_end, nullptr, MASK_SOLID);
+        if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY)) {
+            return result; // Too close to sky - reject position
+        }
+    }
+
     // Calculate bbox size to determine if we need extra clearance
     const float bbox_radius = std::max({monster_maxs.x - monster_mins.x, monster_maxs.y - monster_mins.y}) * 0.5f;
     const bool is_large_monster = bbox_radius > 32.0f; // Large monsters (GM Arachnid, Tanks, etc.)
@@ -4406,10 +4420,12 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 	if (level.intermissiontime || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS || !g_horde->integer || self->monsterinfo.isfriendlyspawn)
 		return false;
 
-	// Periodic check rate limiting
+	// Periodic check rate limiting - faster checks for all monsters to catch unreachable positions
 	if (level.time < self->monsterinfo.stuck_check_time)
 		return false;
-	self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
+
+	// All monsters check frequently (4-6 sec) to catch unreachable roofs, sky areas, enclosed spaces, etc.
+	self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
 
 	// Skip certain monster types
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::MISC_INSANE) || horde::IsMonsterType(self, horde::MonsterTypeID::SENTRYGUN) || (horde::IsMonsterType(self, horde::MonsterTypeID::TURRET) || (horde::IsMonsterType(self, horde::MonsterTypeID::FLIPPER))))
@@ -4454,8 +4470,29 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		needs_teleport = true;
 		reason_str = "Drowning";
 	}
+	// Critical: Out of map bounds (especially for flying monsters)
+	else if (HordePhys::g_spawn_grid.IsGenerated() && !HordePhys::g_spawn_grid.IsPositionInBounds(self->s.origin, 256.0f))
+	{
+		needs_teleport = true;
+		reason_str = "Out of Bounds";
+	}
+	// Critical: Too close to sky (unreachable position)
+	else if (self->flags & FL_FLY)
+	{
+		vec3_t sky_check_start = self->s.origin;
+		sky_check_start.z += self->maxs.z; // Start from top of monster bbox
+		vec3_t sky_check_end = sky_check_start;
+		sky_check_end.z += 128.0f; // Check 128 units up
+
+		trace_t sky_trace = gi.traceline(sky_check_start, sky_check_end, self, MASK_SOLID);
+		if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY))
+		{
+			needs_teleport = true;
+			reason_str = "Too Close to Sky";
+		}
+	}
 	// Non-critical checks (only if not already flagged for teleport)
-	else
+	if (!needs_teleport)
 	{
 		// Don't check inactivity if currently attacking
 		if (self->enemy && self->monsterinfo.attack_finished > level.time)
@@ -4557,7 +4594,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self)
 		}
 		HordeConstants::g_teleport_rate_count++;
 		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = level.time + random_time(12.0_sec, 17.0_sec);
+		// Reset check interval for next stuck check
+		self->monsterinfo.stuck_check_time = level.time + random_time(4.0_sec, 6.0_sec);
 		self->monsterinfo.no_enemy_timeout_start_time = 0_sec;
 		return true;
 	}

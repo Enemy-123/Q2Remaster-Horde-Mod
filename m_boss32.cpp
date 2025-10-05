@@ -995,6 +995,7 @@ void SP_monster_makron(edict_t* self)
 	self->monsterinfo.melee = nullptr;
 	self->monsterinfo.sight = makron_sight;
 	self->monsterinfo.checkattack = Makron_CheckAttack;
+	self->monsterinfo.blocked = M_MonsterBlocked;
 	self->monsterinfo.setskin = makron_setskin;
 
 	gi.linkentity(self);

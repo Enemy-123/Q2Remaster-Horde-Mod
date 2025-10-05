@@ -521,6 +521,71 @@ void ProximityGrid::Reset()
         if (tr.startsolid || tr.allsolid || tr.fraction != 1.0f)
             return false;
 
+        // Check if sky is too close above (reject positions near ceiling/sky)
+        vec3_t sky_check_start = pos;
+        sky_check_start.z += maxs.z - mins.z; // Start from head height
+        vec3_t sky_check_end = sky_check_start;
+        sky_check_end.z += 128.0f; // Check 128 units up
+
+        trace_t sky_trace = gi.traceline(sky_check_start, sky_check_end, nullptr, MASK_SOLID);
+        if (sky_trace.surface && (sky_trace.surface->flags & SURF_SKY))
+            return false; // Too close to sky - reject position
+
+        // Check for sufficient open space (reject enclosed boxes/tight spaces)
+        // Test 4 horizontal directions at chest height
+        const float test_height = (maxs.z - mins.z) * 0.5f;
+        const float min_clearance = 96.0f; // Minimum clearance in each direction
+
+        vec3_t test_center = pos;
+        test_center.z += test_height;
+
+        // Check forward, back, left, right
+        const vec3_t directions[4] = {
+            {min_clearance, 0, 0},
+            {-min_clearance, 0, 0},
+            {0, min_clearance, 0},
+            {0, -min_clearance, 0}
+        };
+
+        int blocked_directions = 0;
+        for (int i = 0; i < 4; i++) {
+            vec3_t test_end = test_center + directions[i];
+            trace_t space_trace = gi.traceline(test_center, test_end, nullptr, MASK_SOLID);
+            if (space_trace.fraction < 0.8f) { // Less than 80% clearance
+                blocked_directions++;
+            }
+        }
+
+        // Reject if 3 or 4 directions are blocked (enclosed space)
+        if (blocked_directions >= 3)
+            return false;
+
+        // Check ground reachability (reject isolated high positions)
+        // Trace down to see if we can reach significantly lower ground
+        vec3_t down_start = pos;
+        down_start.z -= mins.z; // Start from feet
+        vec3_t down_end = down_start;
+        down_end.z -= 512.0f; // Check 512 units down
+
+        trace_t down_trace = gi.traceline(down_start, down_end, nullptr, MASK_SOLID);
+
+        // If we're on a high platform (>256 units above lower ground), check for accessibility
+        const float height_above_lower = down_trace.fraction * 512.0f;
+        if (height_above_lower > 256.0f) {
+            // High position - check if there's a ceiling above (trapped on roof)
+            vec3_t ceiling_check = pos;
+            ceiling_check.z += maxs.z - mins.z;
+            vec3_t ceiling_end = ceiling_check;
+            ceiling_end.z += 64.0f;
+
+            trace_t ceiling_trace = gi.traceline(ceiling_check, ceiling_end, nullptr, MASK_SOLID);
+
+            // If there's a ceiling close above AND we're very high up, likely an unreachable roof
+            if (ceiling_trace.fraction < 0.9f) {
+                return false; // Enclosed high position - reject
+            }
+        }
+
         return true;
     }
 
@@ -738,6 +803,17 @@ void ProximityGrid::Reset()
 
         // Fallback: return any random position
         return GetRandomPosition(out_pos);
+    }
+
+    // Check if a position is within the playable map boundaries
+    bool SpawnGrid::IsPositionInBounds(const vec3_t& pos, float tolerance) const noexcept {
+        if (!IsGenerated())
+            return true;  // If no grid generated, assume position is valid
+
+        // Check if position is within world bounds (with tolerance for edge cases)
+        return (pos.x >= m_world_mins.x - tolerance && pos.x <= m_world_maxs.x + tolerance &&
+                pos.y >= m_world_mins.y - tolerance && pos.y <= m_world_maxs.y + tolerance &&
+                pos.z >= m_world_mins.z - tolerance && pos.z <= m_world_maxs.z + tolerance);
     }
 
     // Save grid to disk

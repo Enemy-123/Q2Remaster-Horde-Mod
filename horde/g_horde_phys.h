@@ -134,6 +134,9 @@ namespace HordePhys {
         // Check if grid has been generated
         [[nodiscard]] bool IsGenerated() const noexcept { return m_node_count > 0; }
 
+        // Check if a position is within the playable map boundaries
+        [[nodiscard]] bool IsPositionInBounds(const vec3_t& pos, float tolerance = 128.0f) const noexcept;
+
         // Clear the grid
         void Clear();
 
