@@ -5306,6 +5306,7 @@ static void SetMonsterArmor(edict_t *monster)
 	// Check if this monster type should be excluded from getting armor
 	if (typeId == horde::MonsterTypeID::MUTANT ||
 		typeId == horde::MonsterTypeID::REDMUTANT ||
+		typeId == horde::MonsterTypeID::GEKKKL ||
 		typeId == horde::MonsterTypeID::GEKK)
 	{
 		// These monsters are fast, agile, or swarming units. Giving them armor

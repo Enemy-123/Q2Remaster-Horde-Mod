@@ -1,71 +1,31 @@
 {
   "// ==================== SCALING CONFIGURATION ====================": "Sigmoid curve parameters for difficulty scaling",
 
-  "enabled": false,
+  "enabled": true,
   "bosses_only": false,
+  "except_bosses": false,
 
   "monster_scaling": {
     "health": {
-      "comment": "Monster health scaling over waves - difficulty ramps up at wave 25",
-      "midpoint": 25,
-      "growth_rate": 0.15,
+      "comment": "Monster health scaling over waves - moderate scaling prevents high-HP monsters from becoming absurd",
+      "midpoint": 15,
+      "growth_rate": 0.12,
       "min_value": 1.0,
-      "max_value": 3.5
+      "max_value": 2.5
     },
-    "armor": {
-      "comment": "Monster armor scaling over waves",
+    "_armor_NOT_IMPLEMENTED": {
+      "comment": "Monster armor scaling over waves - NOT YET IMPLEMENTED",
       "midpoint": 22,
       "growth_rate": 0.12,
       "min_value": 1.0,
       "max_value": 2.5
     },
-    "damage": {
-      "comment": "Monster weapon damage scaling",
+    "_damage_NOT_IMPLEMENTED": {
+      "comment": "Monster weapon damage scaling - NOT YET IMPLEMENTED",
       "midpoint": 18,
-      "growth_rate": 0.10,
+      "growth_rate": 0.04,
       "min_value": 1.0,
       "max_value": 2.0
-    }
-  },
-
-  "player_scaling": {
-    "weapon_damage": {
-      "comment": "Player weapon damage scaling to keep pace with monster health",
-      "midpoint": 15,
-      "growth_rate": 0.12,
-      "min_value": 1.0,
-      "max_value": 2.0
-    },
-    "ammo_drops": {
-      "comment": "Ammunition drop rate multiplier",
-      "midpoint": 12,
-      "growth_rate": 0.20,
-      "min_value": 1.0,
-      "max_value": 1.5
-    }
-  },
-
-  "item_drop_scaling": {
-    "common_tier": {
-      "comment": "Common items (health, armor shards) - decrease at higher waves",
-      "midpoint": 15,
-      "growth_rate": 0.15,
-      "min_value": 0.7,
-      "max_value": 1.0
-    },
-    "rare_tier": {
-      "comment": "Rare items (weapons, power armor) - increase at higher waves",
-      "midpoint": 20,
-      "growth_rate": 0.18,
-      "min_value": 1.0,
-      "max_value": 2.0
-    },
-    "legendary_tier": {
-      "comment": "Legendary items (BFG, quad, invuln) - significant increase at high waves",
-      "midpoint": 25,
-      "growth_rate": 0.20,
-      "min_value": 1.0,
-      "max_value": 3.0
     }
   },
 
@@ -78,38 +38,17 @@
     "map_size_large": 1.1
   },
 
-  "// ==================== WEAPON SPECIFIC SCALING ====================": "Per-weapon scaling overrides",
-
-  "weapon_scaling_overrides": {
-    "blaster": {
-      "comment": "Starter weapon - scales more aggressively",
-      "scale_multiplier": 1.3
-    },
-    "shotgun": {
-      "comment": "Early game weapon - moderate scaling",
-      "scale_multiplier": 1.1
-    },
-    "railgun": {
-      "comment": "Late game weapon - reduced scaling to prevent one-shots",
-      "scale_multiplier": 0.8
-    },
-    "bfg": {
-      "comment": "Ultimate weapon - minimal scaling",
-      "scale_multiplier": 0.5
-    }
-  },
-
   "// ==================== WAVE BREAKPOINTS ====================": "Special scaling at certain wave thresholds",
 
   "wave_breakpoints": {
     "early_game": {
       "max_wave": 10,
-      "health_bonus": 0.9,
+      "health_bonus": 0.35,
       "damage_bonus": 0.95
     },
     "mid_game": {
       "max_wave": 25,
-      "health_bonus": 1.0,
+      "health_bonus": 0.65,
       "damage_bonus": 1.0
     },
     "late_game": {

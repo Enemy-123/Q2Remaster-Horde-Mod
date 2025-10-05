@@ -107,13 +107,17 @@ void InitializeScalingSystem() {
 
 // Load scaling configuration from JSON file
 void LoadScalingConfig() {
-    const char* filename = "config/scaling.json";
+    // Get base directory from game
+    std::string gamedir = gi.cvar("gamedir", "", CVAR_NOFLAGS)->string;
+    if (gamedir.empty()) {
+        gamedir = "baseq2";
+    }
+
+    std::string filename = gamedir + "/config/scaling.json";
     std::ifstream file(filename, std::ifstream::binary);
 
     if (!file.is_open()) {
-        if (developer && developer->integer) {
-            gi.Com_PrintFmt("Scaling config not found at {}, using defaults\n", filename);
-        }
+        gi.Com_PrintFmt("Scaling: config/scaling.json not found at {}, using defaults\n", filename);
         return;
     }
 
@@ -123,7 +127,7 @@ void LoadScalingConfig() {
     std::string errs;
 
     if (!Json::parseFromStream(builder, file, &root, &errs)) {
-        gi.Com_PrintFmt("Scaling: Failed to parse config/scaling.json: {}\n", errs);
+        gi.Com_PrintFmt("Scaling: Failed to parse {}: {}\n", filename, errs);
         file.close();
         return;
     }
@@ -140,9 +144,60 @@ void LoadScalingConfig() {
         g_config.use_sigmoid_scaling_bosses_only = root["bosses_only"].asBool();
     }
 
+    // Read except_bosses flag
+    if (root.isMember("except_bosses") && root["except_bosses"].isBool()) {
+        g_config.use_sigmoid_scaling_except_bosses = root["except_bosses"].asBool();
+    }
+
+    // Read monster health scaling parameters
+    if (root.isMember("monster_scaling") && root["monster_scaling"].isObject()) {
+        const Json::Value& monster_scaling = root["monster_scaling"];
+
+        if (monster_scaling.isMember("health") && monster_scaling["health"].isObject()) {
+            const Json::Value& health = monster_scaling["health"];
+
+            if (health.isMember("midpoint") && health["midpoint"].isNumeric()) {
+                g_scalingConfig.monster_health.midpoint = health["midpoint"].asFloat();
+            }
+            if (health.isMember("growth_rate") && health["growth_rate"].isNumeric()) {
+                g_scalingConfig.monster_health.growth_rate = health["growth_rate"].asFloat();
+            }
+            if (health.isMember("min_value") && health["min_value"].isNumeric()) {
+                g_scalingConfig.monster_health.min_value = health["min_value"].asFloat();
+            }
+            if (health.isMember("max_value") && health["max_value"].isNumeric()) {
+                g_scalingConfig.monster_health.max_value = health["max_value"].asFloat();
+            }
+        }
+    }
+
+    // Read difficulty modifiers
+    if (root.isMember("difficulty_modifiers") && root["difficulty_modifiers"].isObject()) {
+        const Json::Value& modifiers = root["difficulty_modifiers"];
+
+        if (modifiers.isMember("chaos_modifier") && modifiers["chaos_modifier"].isNumeric()) {
+            g_scalingConfig.chaos_modifier = modifiers["chaos_modifier"].asFloat();
+        }
+        if (modifiers.isMember("insane_modifier") && modifiers["insane_modifier"].isNumeric()) {
+            g_scalingConfig.insane_modifier = modifiers["insane_modifier"].asFloat();
+        }
+        if (modifiers.isMember("map_size_small") && modifiers["map_size_small"].isNumeric()) {
+            g_scalingConfig.map_size_small_modifier = modifiers["map_size_small"].asFloat();
+        }
+        if (modifiers.isMember("map_size_medium") && modifiers["map_size_medium"].isNumeric()) {
+            g_scalingConfig.map_size_medium_modifier = modifiers["map_size_medium"].asFloat();
+        }
+        if (modifiers.isMember("map_size_large") && modifiers["map_size_large"].isNumeric()) {
+            g_scalingConfig.map_size_large_modifier = modifiers["map_size_large"].asFloat();
+        }
+    }
+
     if (developer && developer->integer) {
         gi.Com_PrintFmt("Scaling: Sigmoid scaling enabled={}, bosses_only={}\n",
             g_config.use_sigmoid_scaling, g_config.use_sigmoid_scaling_bosses_only);
+        gi.Com_PrintFmt("Scaling: Health params - midpoint={}, growth={}, min={}, max={}\n",
+            g_scalingConfig.monster_health.midpoint, g_scalingConfig.monster_health.growth_rate,
+            g_scalingConfig.monster_health.min_value, g_scalingConfig.monster_health.max_value);
     }
 }
 
@@ -220,10 +275,17 @@ float GetItemDropScale(int wave_level, int item_tier) {
 // Scale monster health with sigmoid curve
 int ScaleMonsterHealth(int base_health, int wave_level, bool is_boss) {
     if (!g_config.use_sigmoid_scaling) {
+        if (developer && developer->integer) {
+            gi.Com_PrintFmt("ScaleMonsterHealth: Scaling disabled (use_sigmoid_scaling=false)\n");
+        }
         return base_health;
     }
 
     if (g_config.use_sigmoid_scaling_bosses_only && !is_boss) {
+        return base_health;
+    }
+
+    if (g_config.use_sigmoid_scaling_except_bosses && is_boss) {
         return base_health;
     }
 
@@ -237,7 +299,14 @@ int ScaleMonsterHealth(int base_health, int wave_level, bool is_boss) {
         scale += (wave_level - 10) * 0.02f;
     }
 
-    return static_cast<int>(base_health * scale);
+    int scaled_health = static_cast<int>(base_health * scale);
+
+    if (developer && developer->integer) {
+        gi.Com_PrintFmt("ScaleMonsterHealth: wave={}, base={}, scale={:.2f}, scaled={}, is_boss={}\n",
+            wave_level, base_health, scale, scaled_health, is_boss);
+    }
+
+    return scaled_health;
 }
 
 // Scale monster armor with sigmoid curve

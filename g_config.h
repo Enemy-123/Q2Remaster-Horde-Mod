@@ -382,6 +382,7 @@ struct GameConfig
 	// Scaling system
 	bool use_sigmoid_scaling = false;
 	bool use_sigmoid_scaling_bosses_only = false;
+	bool use_sigmoid_scaling_except_bosses = false;
 };
 
 // Global config instance
