@@ -1110,6 +1110,9 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 			gi.LocClient_Print(ent, PRINT_HIGH,
 				"Late join bonus: {} ability points, {} weapon points awarded based on current wave!\n",
 				client->pers.ability_points, client->pers.weapon_points);
+
+			// Trigger auto-buy immediately for late joiners
+			CheckPlayerAutoBuy(ent);
 		}
 	}
 
