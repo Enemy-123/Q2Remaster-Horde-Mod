@@ -1817,10 +1817,8 @@ void SP_monster_chickkl(edict_t* self)
 	self->mass = 300;
 	self->s.skinnum = 3; // Different skin if available
 
-		(!self->s.scale);
-		self->s.scale = 1.5f;
-		self->mins *= self->s.scale;
-		self->maxs *= self->s.scale;
+	self->s.scale = 1.5f;
+	// Removed manual scaling - monster_start() handles it automatically
 
 	// Enhanced movement
 	self->monsterinfo.drop_height = 384;

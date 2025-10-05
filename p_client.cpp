@@ -612,7 +612,6 @@ player_die
 */
 DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-
 	PlayerTrail_Destroy(self);
 
 	// Clear morph state if player was morphed
@@ -756,7 +755,9 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		self->flags &= ~FL_NOGIB;
 		// pmm
 
-		ThrowClientHead(self, damage);
+		// Don't create skull if being crushed - prevent infinite explosion loop
+		if (mod.id != MOD_CRUSH)
+			ThrowClientHead(self, damage);
 		// ZOID
 		self->client->anim_priority = ANIM_DEATH;
 		self->client->anim_end = 0;
@@ -865,7 +866,19 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		}
 	}
 	self->deadflag = true;
-	gi.linkentity(self);
+
+	// Don't link if being crushed - prevent re-crush
+	if (mod.id == MOD_CRUSH)
+	{
+		self->svflags = SVF_NOCLIENT;
+		self->takedamage = false;
+		self->solid = SOLID_NOT;
+		self->movetype = MOVETYPE_NOCLIP;
+		self->die = nullptr;
+		gi.unlinkentity(self);
+	}
+	else
+		gi.linkentity(self);
 
 	// Remove all entities owned by the player (only for g_horde->integer)
 	if (g_horde->integer)
@@ -1956,15 +1969,7 @@ void InitBodyQue()
 
 DIE(body_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	if (self->s.modelindex == MODELINDEX_PLAYER &&
-		self->health < self->gib_health)
-	{
-		gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-		ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
-		self->s.origin[2] -= 48;
-		ThrowClientHead(self, damage);
-	}
-
+	// Don't create skull if being crushed - prevent infinite explosion loop
 	if (mod.id == MOD_CRUSH)
 	{
 		// prevent explosion singularities
@@ -1972,7 +1977,18 @@ DIE(body_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 		self->takedamage = false;
 		self->solid = SOLID_NOT;
 		self->movetype = MOVETYPE_NOCLIP;
-		gi.linkentity(self);
+		self->die = nullptr;
+		gi.unlinkentity(self);
+		return;
+	}
+
+	if (self->s.modelindex == MODELINDEX_PLAYER &&
+		self->health < self->gib_health)
+	{
+		gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+		ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
+		self->s.origin[2] -= 48;
+		ThrowClientHead(self, damage);
 	}
 }
 
@@ -2026,7 +2042,17 @@ void CopyToBodyQue(edict_t* ent)
 	body->die = body_die;
 	body->takedamage = true;
 
-	gi.linkentity(body);
+	// Don't link if body would be crushed immediately
+	trace_t tr = gi.trace(body->s.origin, body->mins, body->maxs, body->s.origin, body, MASK_SOLID);
+	if (!tr.startsolid)
+		gi.linkentity(body);
+	else
+	{
+		// Body would spawn in solid - just disable it
+		body->solid = SOLID_NOT;
+		body->takedamage = false;
+		body->s.modelindex = 0;
+	}
 }
 
 void G_PostRespawn(edict_t* self)

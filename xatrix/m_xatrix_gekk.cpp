@@ -2465,11 +2465,8 @@ void SP_monster_gekkkl(edict_t* self)
 	//self->monsterinfo.bonus_flags |= BF_POSSESSED;
 	// Scale up
 	if (!self->s.scale)
-	{
 		self->s.scale = 1.2f;
-		self->mins *= self->s.scale;
-		self->maxs *= self->s.scale;
-	}
+	// Removed manual scaling - monster_start() handles it automatically
 
 	// Redmutant-like speed
 	self->yaw_speed = 25; // Faster turning

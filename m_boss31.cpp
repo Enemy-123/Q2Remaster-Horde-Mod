@@ -841,8 +841,7 @@ void SP_monster_jorg_small(edict_t* self)
 	self->monsterinfo.armor_power = 500;
 	self->health = (config ? config->health : 1000) * st.health_multiplier;
 
-		self->s.scale = 0.35f;
-		self->mins *= 0.35f;
-		self->maxs *= 0.35f;
+	self->s.scale = 0.35f;
+	// Removed manual scaling - monster_start() handles it automatically
 	ApplyMonsterBonusFlags(self);
 }

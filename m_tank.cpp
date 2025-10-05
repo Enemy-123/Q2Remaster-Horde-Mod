@@ -3121,8 +3121,7 @@ void SP_monster_tank_spawner(edict_t* self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-		self->mins *= 1.5f;
-		self->maxs *= 1.5f;
+		// Removed manual scaling - monster_start() handles it automatically
 		self->health = (config ? config->health : 1500) * st.health_multiplier;
 	}
 
@@ -3189,8 +3188,7 @@ void SP_monster_tank_stand(edict_t* self)
 	self->maxs = { 32, 32, 64 };
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-	self->mins *= self->s.scale;
-	self->maxs *= self->s.scale;
+	// Removed manual scaling - monster_start() handles it automatically
 	self->use = Use_Boss3;
 	self->think = Think_Tank_Stand;
 	self->nextthink = level.time + 10_hz;
@@ -3216,8 +3214,7 @@ void SP_monster_tank_spawner_stand(edict_t* self)
 	self->maxs = { 32, 32, 64 };
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-	self->mins *= self->s.scale;
-	self->maxs *= self->s.scale;
+	// Removed manual scaling - monster_start() handles it automatically
 	self->use = Use_Boss3;
 	self->think = Think_tank_vanillaStand;
 	self->nextthink = level.time + 10_hz;

@@ -1009,8 +1009,7 @@ self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::S
 		self->health = (config ? config->health : 350) + st.health_multiplier;
 		self->gib_health = -190;
 		self->s.scale = 0.6f;
-		self->mins *= self->s.scale;
-		self->maxs *= self->s.scale;
+		// Removed manual scaling - monster_start() handles it automatically
 	}
 
 	self->yaw_speed = 65;

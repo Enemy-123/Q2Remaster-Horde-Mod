@@ -1354,10 +1354,7 @@ void SP_monster_carrier_mini(edict_t* self)
 		SP_monster_carrier(self);
 
 		self->s.scale = 0.6f;
-
-		// Apply the scale to mins and maxs
-		self->mins *= self->s.scale; // Scale mins
-		self->maxs *= self->s.scale; // FIX: Scale maxs
+		// Removed manual scaling - monster_start() handles it automatically
 
 		self->health = (config ? config->health : 1500) * st.health_multiplier;
 		self->mass = 1000;

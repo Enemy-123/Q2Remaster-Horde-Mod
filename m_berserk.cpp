@@ -1627,11 +1627,8 @@ void SP_monster_berserkerkl(edict_t* self)
 
 	// Scale up
 	if (!self->s.scale)
-	{
 		self->s.scale = 1.4f;
-		self->mins *= self->s.scale;
-		self->maxs *= self->s.scale;
-	}
+	// Removed manual scaling - monster_start() handles it automatically
 
 	// Enhanced movement
 	self->monsterinfo.drop_height = 384;

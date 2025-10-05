@@ -2143,8 +2143,7 @@ void SP_monster_fixbotkl(edict_t* self) {
 
 	// Scale mins/maxs correctly AFTER initial values are set
 	self->s.scale = 2.6f;
-	self->mins *= self->s.scale;
-	self->maxs *= self->s.scale;
+	// Removed manual scaling - monster_start() handles it automatically
 
 	// Set monster_slots for KL variant (boss variant should have slots)
 	if (!st.was_key_specified("monster_slots")) {

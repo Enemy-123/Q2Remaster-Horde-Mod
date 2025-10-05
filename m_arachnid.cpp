@@ -2059,8 +2059,7 @@ void SP_monster_spider(edict_t* self)
     self->s.scale = 0.7f;
     self->health = (config ? config->health : (IsFirstThreeWaves(current_wave_level) ? 350 : 550)) * st.health_multiplier;
     self->max_health = self->health;
-    self->mins *= self->s.scale;
-    self->maxs *= self->s.scale;
+    // Removed manual scaling - monster_start() handles it automatically
     
     ApplyMonsterBonusFlags(self);
 }
@@ -2093,8 +2092,7 @@ void SP_monster_arachnid2(edict_t* self)
     if (horde::IsMonsterType(self, horde::MonsterTypeID::ARACHNID2) && !self->monsterinfo.IS_BOSS)
     {
         self->s.scale = 0.85f;
-        self->mins *= self->s.scale;
-        self->maxs *= self->s.scale;
+        // Removed manual scaling - monster_start() handles it automatically
     }
     self->gib_health = -200;
     self->mass = 450;
@@ -2132,8 +2130,7 @@ void SP_monster_gm_arachnid(edict_t* self)
     self->health = (config ? config->health : 1000) * st.health_multiplier;
     if (g_horde->integer) {
         self->s.scale = 0.85f;
-        self->mins *= self->s.scale;
-        self->maxs *= self->s.scale;
+        // Removed manual scaling - monster_start() handles it automatically
     }
 
     // --- REFACTORED ---

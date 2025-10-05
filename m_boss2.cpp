@@ -833,10 +833,7 @@ void SP_monster_boss2_64(edict_t *self)
 	if (g_horde->integer)
 	{
 		self->s.scale = 0.6f;
-
-		// Scale the collision box to match the model scale
-		self->mins *= (self->s.scale);
-		self->maxs *= (self->s.scale);
+		// Removed manual scaling - monster_start() handles it automatically
 	}
 
 	// Power armor configuration from config
@@ -877,10 +874,7 @@ void SP_monster_boss2_mini(edict_t *self)
 	if (g_horde->integer)
 	{
 		self->s.scale = 0.6f;
-
-		// Scale the collision box to match the model scale
-		self->mins *= self->s.scale;
-		self->maxs *= self->s.scale;
+		// Removed manual scaling - monster_start() handles it automatically
 	}
 
 	// Power armor configuration from config
@@ -924,10 +918,7 @@ void SP_monster_boss2kl(edict_t *self)
 	if (g_horde->integer)
 	{
 		self->s.scale = 0.6f;
-
-		// Scale the collision box to match the model scale
-		self->mins *= (self->s.scale);
-		self->mins *= (self->s.scale);
+		// Removed manual scaling - monster_start() handles it automatically
 	}
 
 	// Power armor configuration from config

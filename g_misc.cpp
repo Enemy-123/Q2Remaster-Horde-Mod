@@ -74,6 +74,21 @@ DIE(gib_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, 
 		G_FreeEdict(self);
 }
 
+DIE(skull_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+{
+	if (mod.id == MOD_CRUSH)
+	{
+		// Don't try to free bodyque entities - just disable them completely
+		self->takedamage = false;
+		self->die = nullptr;
+		self->solid = SOLID_NOT;
+		self->svflags = SVF_NOCLIENT;
+		self->s.modelindex = 0;
+		self->s.effects = EF_NONE;
+		gi.unlinkentity(self);
+	}
+}
+
 TOUCH(gib_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (tr.plane.normal[2] > 0.7f)
@@ -261,6 +276,7 @@ void ThrowClientHead(edict_t* self, int damage)
 	// PGM
 	self->s.sound = 0;
 	self->flags |= FL_NO_KNOCKBACK | FL_NO_DAMAGE_EFFECTS;
+	self->die = skull_die;
 
 	self->movetype = MOVETYPE_BOUNCE;
 	VelocityForDamage(damage, vd);
