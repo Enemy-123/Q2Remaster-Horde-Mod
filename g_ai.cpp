@@ -8,6 +8,7 @@
 #include "shared.h"
 bool FindTarget(edict_t* self);
 bool ai_checkattack(edict_t* self, float dist);
+trap_state_t* GetTrapState(const edict_t* ent);  // Forward declaration for trap cooldown check
 
 bool    enemy_vis;
 bool    enemy_infront;
@@ -2162,6 +2163,16 @@ void ai_run(edict_t* self, float dist)
 			M_ChangeYaw(self);
 		}
 		return;
+	}
+
+	// Clear enemy if it's a trap in cooldown (similar to menu protection)
+	if (self->enemy && horde::IsSpecialType(self->enemy, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))
+	{
+		trap_state_t* trap_state = GetTrapState(self->enemy);
+		if (trap_state && trap_state->in_cooldown)
+		{
+			self->enemy = nullptr;  // Forget the trap during cooldown
+		}
 	}
 
 	// 1. Handle terminal state: Intermission

@@ -1362,172 +1362,110 @@ SV_NewChaseDir
 */
 constexpr float DI_NODIR = -1;
 
-/*
-================
-SV_NewChaseDir
-
-Enhanced pathfinding that maintains stability while improving
-movement options and intelligence.
-================
-*/
-bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
+bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
 {
-	// Calculate delta to target first (most common failure case)
-	const vec3_t delta = pos - actor->s.origin;
-	const float dx = delta.x;
-	const float dy = delta.y;
+	float deltax, deltay;
+	float d[3];
+	float tdir, olddir, turnaround;
 
-	// Early exit for zero movement (use constants)
-	if (dist <= 0 || (fabsf(dx) < MOVEMENT_MIN_DELTA && fabsf(dy) < MOVEMENT_MIN_DELTA))
-		return false;
+	olddir = anglemod(truncf(actor->ideal_yaw / 45) * 45);
+	turnaround = anglemod(olddir - 180);
 
-	// Calculate current direction and turnaround
-	const float olddir = anglemod(truncf(actor->ideal_yaw / DIRECTION_ANGLE_STEP) * DIRECTION_ANGLE_STEP);
-	const float turnaround = anglemod(olddir - 180);
-
-	// Determine primary movement directions with 8-way movement
-	const float tdir_x = (dx > MOVEMENT_MIN_DELTA_THRESHOLD) ? 0.0f : (dx < -MOVEMENT_MIN_DELTA_THRESHOLD) ? 180.0f : DI_NODIR;
-	const float tdir_y = (dy < -MOVEMENT_MIN_DELTA_THRESHOLD) ? 270.0f : (dy > MOVEMENT_MIN_DELTA_THRESHOLD) ? 90.0f : DI_NODIR;
-
-	// Try diagonal movement first for more natural paths
-	if (tdir_x != DI_NODIR && tdir_y != DI_NODIR)
-	{
-		const float diagonal_dir = (tdir_x == 0.0f) ?
-			(tdir_y == 90.0f ? 45.0f : 315.0f) :
-			(tdir_y == 90.0f ? 135.0f : 225.0f);
-
-		if (diagonal_dir != turnaround && SV_StepDirection(actor, diagonal_dir, dist, false))
-		{
-			// **HORDE OPTIMIZATION**: Reset damage timeout only if monster has enemy or recently took damage
-			if (g_horde->integer && (actor->svflags & SVF_MONSTER) &&
-				(actor->enemy || actor->health < actor->max_health))
-				actor->monsterinfo.react_to_damage_time = level.time + random_time(REACT_DAMAGE_MIN, REACT_DAMAGE_MAX);
-			return true;
-		}
-	}
-
-	// Improved direction selection based on momentum and obstacle type
-	// Use last valid move direction if available to maintain momentum
-	bool try_vertical_first = false;
-	
-	if (actor->monsterinfo.last_valid_move.lengthSquared() > 0.1f)
-	{
-		// Prefer continuing in a similar direction for smoother movement
-		float last_dir = vectoyaw(actor->monsterinfo.last_valid_move);
-		float x_similarity = fabsf(cosf(DEG2RAD(last_dir)));
-		float y_similarity = fabsf(sinf(DEG2RAD(last_dir)));
-		
-		try_vertical_first = (y_similarity > x_similarity);
-	}
+	deltax = pos[0] - actor->s.origin[0];
+	deltay = pos[1] - actor->s.origin[1];
+	if (deltax > 10)
+		d[1] = 0;
+	else if (deltax < -10)
+		d[1] = 180;
 	else
+		d[1] = DI_NODIR;
+	if (deltay < -10)
+		d[2] = 270;
+	else if (deltay > 10)
+		d[2] = 90;
+	else
+		d[2] = DI_NODIR;
+
+	// try direct route
+	if (d[1] != DI_NODIR && d[2] != DI_NODIR)
 	{
-		// Only randomize occasionally to reduce erratic movement
-		// Use deterministic choice based on distance instead of pure random
-		try_vertical_first = (fabsf(dy) > fabsf(dx) * 1.2f);
-		
-		// Add small random element only 25% of the time
-		if (actor->monsterinfo.random_change_time < level.time && irandom(4) == 0)
-		{
-			try_vertical_first = brandom();
-			actor->monsterinfo.random_change_time = level.time + 500_ms;
-		}
-	}
-	
-	const float primary_dir = try_vertical_first ? tdir_y : tdir_x;
-	const float secondary_dir = try_vertical_first ? tdir_x : tdir_y;
+		if (d[1] == 0)
+			tdir = d[2] == 90 ? 45.f : 315.f;
+		else
+			tdir = d[2] == 90 ? 135.f : 215.f;
 
-	// Try primary direction
-	if (primary_dir != DI_NODIR && primary_dir != turnaround)
-		if (SV_StepDirection(actor, primary_dir, dist, false))
-		{
-			// **HORDE OPTIMIZATION**: Reset damage timeout only if monster has enemy or recently took damage
-			if (g_horde->integer && (actor->svflags & SVF_MONSTER) &&
-				(actor->enemy || actor->health < actor->max_health))
-				actor->monsterinfo.react_to_damage_time = level.time + random_time(REACT_DAMAGE_MIN, REACT_DAMAGE_MAX);
+		if (tdir != turnaround && SV_StepDirection(actor, tdir, dist, false))
 			return true;
-		}
-
-	// Try secondary direction
-	if (secondary_dir != DI_NODIR && secondary_dir != turnaround)
-		if (SV_StepDirection(actor, secondary_dir, dist, false))
-		{
-			// **HORDE OPTIMIZATION**: Reset damage timeout only if monster has enemy or recently took damage
-			if (g_horde->integer && (actor->svflags & SVF_MONSTER) &&
-				(actor->enemy || actor->health < actor->max_health))
-				actor->monsterinfo.react_to_damage_time = level.time + random_time(REACT_DAMAGE_MIN, REACT_DAMAGE_MAX);
-			return true;
-		}
-
-	// Handle specific monster blocked behavior
-	if (actor->monsterinfo.blocked && actor->health > 0 &&
-		!(actor->monsterinfo.aiflags & AI_TARGET_ANGER))
-	{
-		// Try blocked behavior first
-		if (actor->monsterinfo.blocked(actor, dist))
-		{
-			actor->monsterinfo.move_block_counter = -2;
-			return true;
-		}
-
-		// Consider switching to node navigation
-		const bool can_use_pathing = !(actor->monsterinfo.aiflags &
-			(AI_LOST_SIGHT | AI_COMBAT_POINT | AI_TARGET_ANGER |
-				AI_PATHING | AI_TEMP_MELEE_COMBAT | AI_NO_PATH_FINDING));
-
-		if (can_use_pathing && ++actor->monsterinfo.move_block_counter > 2)
-		{
-			actor->monsterinfo.aiflags |= AI_TEMP_MELEE_COMBAT;
-			actor->monsterinfo.move_block_change_time = level.time + 3_sec;
-			actor->monsterinfo.move_block_counter = 0;
-		}
 	}
 
-	// Try previous direction (momentum preservation)
+	// try other directions
+	if (brandom() || fabsf(deltay) > fabsf(deltax))
+	{
+		tdir = d[1];
+		d[1] = d[2];
+		d[2] = tdir;
+	}
+
+	if (d[1] != DI_NODIR && d[1] != turnaround && SV_StepDirection(actor, d[1], dist, false))
+		return true;
+
+	if (d[2] != DI_NODIR && d[2] != turnaround && SV_StepDirection(actor, d[2], dist, false))
+		return true;
+
+	// ROGUE
+	if (actor->monsterinfo.blocked)
+	{
+		if ((actor->inuse) && (actor->health > 0) && !(actor->monsterinfo.aiflags & AI_TARGET_ANGER))
+		{
+			// if block "succeeds", the actor will not move or turn.
+			if (actor->monsterinfo.blocked(actor, dist))
+			{
+				actor->monsterinfo.move_block_counter = -2;
+				return true;
+			}
+
+			// we couldn't step; instead of running endlessly in our current
+			// spot, try switching to node navigation temporarily to get to
+			// where we need to go.
+			if (!(actor->monsterinfo.aiflags & (AI_LOST_SIGHT | AI_COMBAT_POINT | AI_TARGET_ANGER | AI_PATHING | AI_TEMP_MELEE_COMBAT | AI_NO_PATH_FINDING)))
+			{
+				if (++actor->monsterinfo.move_block_counter > 2)
+				{
+					actor->monsterinfo.aiflags |= AI_TEMP_MELEE_COMBAT;
+					actor->monsterinfo.move_block_change_time = level.time + 3_sec;
+					actor->monsterinfo.move_block_counter = 0;
+				}
+			}
+		}
+	}
+	// ROGUE
+
+	/* there is no direct path to the player, so pick another direction */
+
 	if (olddir != DI_NODIR && SV_StepDirection(actor, olddir, dist, false))
 		return true;
 
-	// Systematic search pattern - alternate between clockwise and counter-clockwise
-	// based on actor's position hash instead of random to be more predictable
-	const uint32_t pos_hash = (uint32_t)(actor->s.origin.x + actor->s.origin.y * 997);
-	const bool search_clockwise = (pos_hash & 1) == 0;
-
-	const float angle_start = search_clockwise ? 0.0f : 315.0f;
-	const float angle_end = search_clockwise ? 315.0f : 0.0f;
-	const float angle_step = search_clockwise ? DIRECTION_ANGLE_STEP : -DIRECTION_ANGLE_STEP;
-
-	for (float test_dir = angle_start;
-		search_clockwise ? (test_dir <= angle_end) : (test_dir >= angle_end);
-		test_dir += angle_step)
+	if (brandom()) /*randomly determine direction of search*/
 	{
-		if (test_dir != turnaround && SV_StepDirection(actor, test_dir, dist, false))
-			return true;
-	}
-
-	// Last resort: try turning around
-	if (turnaround != DI_NODIR && SV_StepDirection(actor, turnaround, dist, false))
-		return true;
-
-	// If all movement attempts failed, set a new direction based on repulsion
-	// instead of pure random to move away from obstacles
-	if (g_horde->integer && (actor->svflags & SVF_MONSTER))
-	{
-		vec3_t repulsion = CalculateMonsterRepulsion(actor);
-		if (repulsion.lengthSquared() > 1.0f)
-		{
-			actor->ideal_yaw = vectoyaw(repulsion);
-		}
-		else
-		{
-			// Only use random as absolute last resort
-			actor->ideal_yaw = frandom(0, 360);
-		}
+		for (tdir = 0; tdir <= 315; tdir += 45)
+			if (tdir != turnaround && SV_StepDirection(actor, tdir, dist, false))
+				return true;
 	}
 	else
 	{
-		actor->ideal_yaw = frandom(0, 360);
+		for (tdir = 315; tdir >= 0; tdir -= 45)
+			if (tdir != turnaround && SV_StepDirection(actor, tdir, dist, false))
+				return true;
 	}
 
-	// Check and fix ground position if needed
+	if (turnaround != DI_NODIR && SV_StepDirection(actor, turnaround, dist, false))
+		return true;
+
+	actor->ideal_yaw = frandom(0, 360); // can't move; pick a random yaw...
+
+	// if a bridge was pulled out from underneath a monster, it may not have
+	// a valid standing position at all
+
 	if (!M_CheckBottom(actor))
 		SV_FixCheckBottom(actor);
 

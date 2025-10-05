@@ -578,11 +578,17 @@ bool ProcessTrapTargets(edict_t* ent, trap_state_t* trap_state) {
                                (consumed_target ? 190.0f : TRAP_PULL_SPEED_MONSTER());
         target->velocity += (vec * clamp(max_speed - vec_len, TRAP_PULL_SPEED_MIN, max_speed));
 
-        // Make monsters target the trap (like pathfinding "bad area" detection)
+        // Make monsters target the trap's owner (the player who deployed it)
         if (target->svflags & SVF_MONSTER) {
             if (level.time - target->monsterinfo.last_reacttodamage_target_time > target_cooldown_react) {
                 if (!target->enemy || !horde::IsSpecialType(target->enemy, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP)) {
-                    TargetTesla(target, ent);
+                    // Target the trap owner if visible, otherwise target the trap itself
+                    if (ent->teammaster && ent->teammaster->inuse && visible(target, ent->teammaster, false)) {
+                        TargetTesla(target, ent->teammaster);
+                    } else if (!trap_state->in_cooldown) {
+                        // Only target trap if it's not in cooldown
+                        TargetTesla(target, ent);
+                    }
                     target->monsterinfo.last_reacttodamage_target_time = level.time;
                 }
             }
