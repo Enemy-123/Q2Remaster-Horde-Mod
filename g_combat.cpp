@@ -432,7 +432,23 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::BARREL) ||
 						 horde::IsSpecialType(targ->enemy, horde::SpecialEntityTypeID::FOOD_CUBE_TRAP))))
                     {
-                        TargetTesla(targ, threat_source); // Assuming this function sets the enemy to any deployable.
+                        // For laser emitters: target owner if visible, otherwise target emitter
+                        if (horde::IsSpecialType(threat_source, horde::SpecialEntityTypeID::LASER_EMITTER))
+                        {
+                            if (threat_source->teammaster && threat_source->teammaster->inuse &&
+                                visible(targ, threat_source->teammaster, false))
+                            {
+                                TargetTesla(targ, threat_source->teammaster);
+                            }
+                            else
+                            {
+                                TargetTesla(targ, threat_source);  // Fallback to emitter
+                            }
+                        }
+                        else
+                        {
+                            TargetTesla(targ, threat_source);
+                        }
                         targ->monsterinfo.last_reacttodamage_target_time = level.time;
                     }
                 }
