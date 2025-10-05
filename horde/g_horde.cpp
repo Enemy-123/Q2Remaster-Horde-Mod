@@ -7148,8 +7148,24 @@ static void Horde_InitLevel(const int32_t lvl)
 	g_totalMonstersInWave = static_cast<uint16_t>(
 		std::min(total_planned_for_wave, static_cast<int32_t>(std::numeric_limits<uint16_t>::max())));
 
-	// Removed old stepped damage scaling - now using smooth sigmoid scaling system
-
+	// Only apply legacy damage scaling if sigmoid scaling is disabled
+	if (!g_config.use_sigmoid_scaling)
+	{
+		switch (lvl)
+		{
+		case 15:
+			gi.cvar_set("g_damage_scale", "1.5");
+			break;
+		case 25:
+			gi.cvar_set("g_damage_scale", "2.0");
+			break;
+		case 35:
+			gi.cvar_set("g_damage_scale", "3.0");
+			break;
+		default:
+			break;
+		}
+	}
 	if (developer->integer)
 	{
 		gi.Com_PrintFmt("Horde_InitLevel: Wave {}. num_to_spawn: {}, queued: {}. Total for wave: {}\n",
