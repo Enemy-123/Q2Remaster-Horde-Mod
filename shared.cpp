@@ -142,14 +142,14 @@ static constexpr std::array<BonusEffectData, 7> g_bonus_effects_array = {{
 	},
 	{
 		.effects = EF_GIB | EF_FLAG2, .health_mult = 0.92f, .power_armor_mult = 1.32f,
-		.quad_time_add = 475_sec, .attack_state = AS_BLIND
+		.quad_time_add = 475_sec
 	},
 	{
 		.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE, .alpha = 0.6f,
-		.health_mult = 1.2f, .power_armor_mult = 1.35f, .attack_state = AS_BLIND
+		.health_mult = 1.2f, .power_armor_mult = 1.35f
 	},
 	{
-		.effects = EF_TRACKER | EF_FLAG1, .attack_state = AS_BLIND,
+		.effects = EF_TRACKER | EF_FLAG1,
 		.scale_small = 1.1f, .scale_medium = 1.3f, .scale_large = 1.2f,
 		.health_mult_small = 1.2f, .health_mult_medium = 1.5f, .health_mult_large = 1.5f,
 		.pa_mult_small = 1.1f, .pa_mult_medium = 1.1f, .pa_mult_large = 1.1f

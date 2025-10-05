@@ -295,6 +295,10 @@ void InfantryMachineGun(edict_t* self)
 	if (!has_valid_enemy(self))
 		return;
 
+	// Machine guns and blasters require visibility (except during death animation)
+	if (self->health > 0 && !visible(self, self->enemy))
+		return;
+
 	// Secuencia de muerte (común en ambos estilos con diferente disparo)
 	if (self->health <= 0 && self->s.frame >= FRAME_death211 && self->s.frame <= FRAME_death225)
 	{

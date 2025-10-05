@@ -398,50 +398,57 @@ void GunnerFire(edict_t* self)
 	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
 	start.z += offset[2];
 
-	// Handle blindfire similar to tank
-	if (self->monsterinfo.attack_state == AS_BLIND)
-	{
-		float chance;
-		const float r = frandom();
-
-		// Setup shot probabilities like tank
-		if (self->monsterinfo.blind_fire_delay < 1_sec)
-			chance = 1.0f;
-		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
-			chance = 0.4f;
-		else
-			chance = 0.1f;
-
-		self->monsterinfo.blind_fire_delay += 3.0_sec + random_time(2_sec);
-
-		// Don't shoot at the origin
-		if (!self->monsterinfo.blind_fire_target)
-			return;
-
-		// Don't shoot if the dice say not to
-		if (r > chance)
-			return;
-
-		// Signal blindfire
-		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
-	}
-
 	int machinegun_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "machinegun");
 	int ionripper_damage = GetMonsterWeaponDamage(self->monsterinfo.monster_type_id, "ionripper");
 
+	// Determine if we're blindfiring (like chick with rockets)
+	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
+	vec3_t target;
+
+	if (blindfire)
+	{
+		// Blindfire mode: use blind_fire_target
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+		target = self->monsterinfo.blind_fire_target;
+	}
+	else
+	{
+		// Normal mode: require visibility for all weapons
+		if (!visible(self, self->enemy))
+			return;
+		target = self->enemy->s.origin;
+	}
+
 	if (g_hardcoop->integer <= 3) {
-		// Modo hardcoop bajo: solo ionripper
-		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+		// Modo hardcoop bajo: solo ionripper (can blindfire)
+		if (blindfire)
+		{
+			aim = (target - start).normalized();
+		}
+		else
+		{
+			PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+		}
 		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
 	}
 	else if (current_wave_level <= 12) {
-		// Waves bajos: bullet
+		// Waves bajos: bullet (no blindfire for bullets)
+		if (blindfire)
+			return;
 		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 		monster_fire_bullet(self, start, aim, machinegun_damage > 0 ? machinegun_damage : 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
 	else {
-		// Waves altos: ionripper
-		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+		// Waves altos: ionripper (can blindfire)
+		if (blindfire)
+		{
+			aim = (target - start).normalized();
+		}
+		else
+		{
+			PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+		}
 		monster_fire_ionripper(self, start, aim, ionripper_damage > 0 ? ionripper_damage : 4, 800, flash_number, EF_IONRIPPER);
 	}
 }
@@ -766,19 +773,18 @@ void gunner_fire_chain(edict_t* self)
 
 void gunner_refire_chain(edict_t* self)
 {
-	if (!M_HasValidTarget(self))
+	// Stop firing if no valid target or lost visibility
+	if (!M_HasValidTarget(self) || !visible(self, self->enemy))
 	{
 		M_SetAnimation(self, &gunner_move_endfire_chain, false);
 		return;
 	}
 
-	if (visible(self, self->enemy))
+	// 50% chance to continue firing if still visible
+	if (frandom() <= 0.5f)
 	{
-		if (frandom() <= 0.5f)
-		{
-			M_SetAnimation(self, &gunner_move_fire_chain, false);
-			return;
-		}
+		M_SetAnimation(self, &gunner_move_fire_chain, false);
+		return;
 	}
 
 	M_SetAnimation(self, &gunner_move_endfire_chain, false);

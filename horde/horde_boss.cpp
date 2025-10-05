@@ -866,7 +866,6 @@ THINK(BossSpawnThink)(edict_t *self)->void
 
 	ConfigureBossArmor(self);
 	ApplyBossEffects(self);
-	self->monsterinfo.attack_state = AS_BLIND;
 
 	if (self->inuse && !self->deadflag && self->health > 0)
 	{

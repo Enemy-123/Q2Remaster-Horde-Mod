@@ -378,7 +378,7 @@ void flyer_rocket(edict_t* self)
 	float	dist, chance;
 	trace_t trace;
 	constexpr int rocketSpeed = 850;
-	bool blindfire = (self->monsterinfo.aiflags & AI_LOST_SIGHT);
+	bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING);
 
 	if (blindfire && !visible(self, self->enemy))
 	{
@@ -402,7 +402,8 @@ void flyer_rocket(edict_t* self)
 	if (chance < 0.98f)
 		return;
 
-	if (visible(self, self->enemy))
+	// Allow firing when visible OR during blindfire
+	if (visible(self, self->enemy) || blindfire)
 	{
 		start = self->s.origin;
 
