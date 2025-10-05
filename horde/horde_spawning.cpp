@@ -664,7 +664,7 @@ void PlanNextSpawnBatch()
     }
 
     const int32_t activeMonsters = CalculateRemainingMonsters();
-    const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : (mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP));
+    const int32_t softCap = g_adjusted_monster_cap > 0 ? g_adjusted_monster_cap : GetMonsterCapForMap(GetCurrentMapName(), mapSize);
 
     // Integrated logic from the old TrySpawnAmbush function directly here.
     if (g_horde_local.state == horde_state_t::active_wave && activeMonsters < softCap && ShouldTriggerAmbushSpawn()) {

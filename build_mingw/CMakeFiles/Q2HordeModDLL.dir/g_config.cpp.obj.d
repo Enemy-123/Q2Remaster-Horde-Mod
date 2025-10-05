@@ -75,14 +75,37 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/memory_resource.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/cstddef \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/uses_allocator_args.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/g_local.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/bg_local.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/q_std.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/cmath \
- /usr/x86_64-w64-mingw32/include/math.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/std_abs.h \
- /usr/x86_64-w64-mingw32/include/stdlib.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/string \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stringfwd.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/char_traits.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/postypes.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/cwchar \
+ /usr/x86_64-w64-mingw32/include/wchar.h \
+ /usr/x86_64-w64-mingw32/include/corecrt_stdio_config.h \
  /usr/x86_64-w64-mingw32/include/corecrt_wstdlib.h \
+ /usr/x86_64-w64-mingw32/include/corecrt_wctype.h \
+ /usr/x86_64-w64-mingw32/include/_mingw_off_t.h \
+ /usr/x86_64-w64-mingw32/include/_mingw_stat64.h \
+ /usr/x86_64-w64-mingw32/include/swprintf.inl \
+ /usr/x86_64-w64-mingw32/include/sec_api/wchar_s.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/localefwd.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/c++locale.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/clocale \
+ /usr/x86_64-w64-mingw32/include/locale.h \
+ /usr/x86_64-w64-mingw32/include/stdio.h \
+ /usr/x86_64-w64-mingw32/include/sec_api/stdio_s.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/iosfwd \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/cctype \
+ /usr/x86_64-w64-mingw32/include/ctype.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ostream_insert.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/cxxabi_forced.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/refwrap.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/basic_string.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/string_view \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/string_view.tcc \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/ext/string_conversions.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/cstdlib \
+ /usr/x86_64-w64-mingw32/include/stdlib.h \
  /usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include/limits.h \
  /usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include/syslimits.h \
  /usr/x86_64-w64-mingw32/include/limits.h \
@@ -91,6 +114,17 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/malloc.h \
  /usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include/mm_malloc.h \
  /usr/x86_64-w64-mingw32/include/errno.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/std_abs.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/cstdio \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/cerrno \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/charconv.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/basic_string.tcc \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/array \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/g_local.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/bg_local.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/q_std.h \
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/cmath \
+ /usr/x86_64-w64-mingw32/include/math.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/specfun.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/limits \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/tr1/gamma.tcc \
@@ -105,12 +139,6 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/tr1/poly_hermite.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/tr1/poly_laguerre.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/tr1/riemann_zeta.tcc \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/cstdio \
- /usr/x86_64-w64-mingw32/include/stdio.h \
- /usr/x86_64-w64-mingw32/include/corecrt_stdio_config.h \
- /usr/x86_64-w64-mingw32/include/_mingw_off_t.h \
- /usr/x86_64-w64-mingw32/include/swprintf.inl \
- /usr/x86_64-w64-mingw32/include/sec_api/stdio_s.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/cstdarg \
  /usr/lib/gcc/x86_64-w64-mingw32/15.2.0/include/stdarg.h \
  /usr/x86_64-w64-mingw32/include/stdarg.h \
@@ -118,7 +146,6 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/cstring \
  /usr/x86_64-w64-mingw32/include/string.h \
  /usr/x86_64-w64-mingw32/include/sec_api/string_s.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/cstdlib \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/cinttypes \
  /usr/x86_64-w64-mingw32/include/inttypes.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/ctime \
@@ -138,25 +165,10 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ranges_algobase.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/pstl/glue_algorithm_defs.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/pstl/execution_defs.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/array \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/string_view \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/char_traits.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/postypes.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/cwchar \
- /usr/x86_64-w64-mingw32/include/wchar.h \
- /usr/x86_64-w64-mingw32/include/corecrt_wctype.h \
- /usr/x86_64-w64-mingw32/include/_mingw_stat64.h \
- /usr/x86_64-w64-mingw32/include/sec_api/wchar_s.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/iosfwd \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stringfwd.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ostream_insert.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/cxxabi_forced.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/string_view.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/numeric \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/stl_numeric.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/pstl/glue_numeric_defs.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/functional \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/refwrap.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/std_function.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/typeinfo \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/vector \
@@ -172,18 +184,6 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/exception_ptr.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/cxxabi_init_exception.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/nested_exception.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/string \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/localefwd.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/c++locale.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/clocale \
- /usr/x86_64-w64-mingw32/include/locale.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/cctype \
- /usr/x86_64-w64-mingw32/include/ctype.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/basic_string.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/ext/string_conversions.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/cerrno \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/charconv.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/basic_string.tcc \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/system_error \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/error_constants.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/fmt/format-inl.h \

@@ -1081,10 +1081,18 @@ cvar_t *g_horde_grid_first;  // Test cvar: prioritize grid spawning
 void HordeState::update_map_size(const char *mapname)
 {
 	current_map_size = GetMapSize(mapname);
-	max_monsters = current_map_size.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (current_map_size.isMediumMap ? HordeConstants::MAX_MONSTERS_MEDIUM_MAP : HordeConstants::MAX_MONSTERS_BIG_MAP);
+
+	// Convert mapname to MapID once for efficient config lookups
+	horde::MapID mapId = mapname ? horde::MapOriginRegistry::GetMapID(mapname) : horde::MapID::UNKNOWN;
+
+	max_monsters = GetMonsterCapForMap(mapId, current_map_size);
 	base_spawn_cooldown = GetBaseSpawnCooldown(
 		current_map_size.isSmallMap,
 		current_map_size.isBigMap);
+
+	// Update grid spawning setting based on map config
+	bool enable_grid = GetGridEnabledForMap(mapId);
+	gi.cvar_set("g_horde_grid_first", enable_grid ? "1" : "0");
 }
 
 void HordeState::reset_hud_state()
@@ -1122,28 +1130,10 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl)
 	}
 }
 
-inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t waveLevel)
+inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t waveLevel, const char* mapname = nullptr)
 {
-	// Original base caps
-	const int32_t baseSmallCap = HordeConstants::MAX_MONSTERS_SMALL_MAP;   // 14
-	const int32_t baseMediumCap = HordeConstants::MAX_MONSTERS_MEDIUM_MAP; // 16
-	const int32_t baseBigCap = HordeConstants::MAX_MONSTERS_BIG_MAP;	   // 32
-
-	int32_t baseCap;
-
-	// Determine base cap based on map size first
-	if (mapSize.isSmallMap)
-	{
-		baseCap = baseSmallCap;
-	}
-	else if (mapSize.isMediumMap)
-	{
-		baseCap = baseMediumCap;
-	}
-	else
-	{ // Big map
-		baseCap = baseBigCap;
-	}
+	// Get base cap from config (considers map overrides and map size)
+	int32_t baseCap = GetMonsterCapForMap(mapname, mapSize);
 
 	// Apply early wave reduction (only for non-big maps)
 	if (waveLevel <= 10 && !mapSize.isBigMap)
@@ -1192,16 +1182,16 @@ inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t wave
 }
 
 // Modify the existing ClampNumToSpawn function
-inline static void ClampNumToSpawn(const horde::MapSize &mapSize)
-{ // mapSize parameter might no longer be needed here
+inline static void ClampNumToSpawn(const horde::MapSize &mapSize, const char* mapname = nullptr)
+{
 	// g_adjusted_monster_cap is now calculated in GetAdjustedMonsterCap and includes player bonus
 	const int32_t maxAllowed = g_adjusted_monster_cap;
 
 	// Ensure g_adjusted_monster_cap was initialized (fallback if called too early)
 	if (maxAllowed <= 0)
 	{
-		// Fallback to basic map defaults if the global cap isn't ready
-		const int32_t fallbackCap = mapSize.isSmallMap ? HordeConstants::MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? HordeConstants::MAX_MONSTERS_BIG_MAP : HordeConstants::MAX_MONSTERS_MEDIUM_MAP);
+		// Fallback to config-based map defaults if the global cap isn't ready
+		const int32_t fallbackCap = GetMonsterCapForMap(mapname, mapSize);
 		g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, fallbackCap);
 		if (developer->integer)
 		{
@@ -1454,7 +1444,7 @@ static void UnifiedAdjustSpawnRate(const horde::MapSize& mapSize, int32_t lvl, i
 		3.5_sec);									 // Keep upper bound or define a MAX constant
 	// Calculate final spawn count
 	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
-	ClampNumToSpawn(mapSize); // Handle clamping
+	ClampNumToSpawn(mapSize, GetCurrentMapName()); // Handle clamping
 
 	// Calculate queued monsters
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
@@ -1662,7 +1652,7 @@ static ConditionParams GetConditionParams(const horde::MapSize &mapSize, int32_t
 	return params;
 }
 
-inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t waveLevel);
+inline int32_t GetAdjustedMonsterCap(const horde::MapSize &mapSize, int32_t waveLevel, const char* mapname);
 
 static void ResetChampionMonsterState()
 {
@@ -7114,7 +7104,7 @@ static void Horde_InitLevel(const int32_t lvl)
 
 	// --- 5. Continue with the rest of the wave setup ---
 	g_horde_local.update_map_size(GetCurrentMapName());
-	GetAdjustedMonsterCap(g_horde_local.current_map_size, lvl);
+	GetAdjustedMonsterCap(g_horde_local.current_map_size, lvl, GetCurrentMapName());
 
 	g_independent_timer_start = level.time;
 	last_wave_number++;

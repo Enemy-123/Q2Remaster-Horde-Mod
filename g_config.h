@@ -2,6 +2,14 @@
 
 #include <cstdint>
 #include <unordered_map>
+#include <string>
+#include <array>
+
+// Forward declarations
+namespace horde {
+	struct MapSize;
+	enum class MapID : uint16_t;
+}
 
 // Configuration for entity limits
 struct EntityLimitsConfig
@@ -297,6 +305,30 @@ struct MonstersConfig
 	std::unordered_map<uint8_t, MonsterStatsConfig> monsters;
 };
 
+// Map-specific override configuration
+struct MapOverrideConfig
+{
+	int32_t monster_cap = -1;  // -1 means use default based on map size
+	bool enable_grid = true;
+	bool has_grid_override = false;  // Whether enable_grid was explicitly set
+};
+
+// Maps configuration - default caps and per-map overrides
+struct MapsConfig
+{
+	// Default monster caps by map size
+	int32_t big_map_cap = 26;
+	int32_t medium_map_cap = 14;
+	int32_t small_map_cap = 12;
+	int32_t custom_map_cap = 20;
+
+	// Default grid setting
+	bool default_enable_grid = false;
+
+	// Per-map overrides indexed by MapID (use MapID::UNKNOWN for unset entries)
+	std::array<MapOverrideConfig, 64> map_overrides;  // 64 = horde::MapID::MAX_MAPS
+};
+
 // Master configuration structure
 struct GameConfig
 {
@@ -343,6 +375,9 @@ struct GameConfig
 
 	// Monsters
 	MonstersConfig monsters;
+
+	// Maps
+	MapsConfig maps;
 };
 
 // Global config instance
@@ -352,9 +387,16 @@ extern GameConfig g_config;
 void Config_Load(const char* basedir);
 void Config_Reload();
 void Config_SetDefaults();
+void Config_LoadMaps(const char* basedir);
 
 // Monster config helper functions
 const MonsterStatsConfig* GetMonsterConfig(uint8_t monster_type_id);
 int GetMonsterWeaponDamage(uint8_t monster_type_id, const char* weapon_name);
 int GetMonsterWeaponSpeed(uint8_t monster_type_id, const char* weapon_name);
 int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name);
+
+// Map config helper functions
+int32_t GetMonsterCapForMap(horde::MapID mapId, const struct horde::MapSize& mapSize);
+int32_t GetMonsterCapForMap(const char* mapname, const struct horde::MapSize& mapSize);  // Convenience overload
+bool GetGridEnabledForMap(horde::MapID mapId);
+bool GetGridEnabledForMap(const char* mapname);  // Convenience overload

@@ -192,6 +192,119 @@ void Config_LoadMonsters(const char* basedir)
 	}
 }
 
+void Config_LoadMaps(const char* basedir)
+{
+	// Build config file path
+	std::string config_path = std::string(basedir) + "config/maps_config.json";
+
+	// Try to open config file
+	std::ifstream config_file(config_path, std::ifstream::binary);
+	if (!config_file.is_open())
+	{
+		gi.Com_PrintFmt("Config: config/maps_config.json not found, using default map values\n");
+		gi.Com_PrintFmt("Config: You can create {} to customize map settings\n", config_path);
+		return;
+	}
+
+	// Parse JSON
+	Json::Value root;
+	Json::CharReaderBuilder builder;
+	std::string errs;
+
+	if (!Json::parseFromStream(builder, config_file, &root, &errs))
+	{
+		gi.Com_PrintFmt("Config: Failed to parse config/maps_config.json: {}\n", errs);
+		gi.Com_PrintFmt("Config: Using default map values\n");
+		return;
+	}
+
+	config_file.close();
+
+	// Load default caps
+	if (root.isMember("default_caps") && root["default_caps"].isObject())
+	{
+		const Json::Value& caps = root["default_caps"];
+		g_config.maps.big_map_cap = GetJsonInt(caps, "big_map", 26);
+		g_config.maps.medium_map_cap = GetJsonInt(caps, "medium_map", 14);
+		g_config.maps.small_map_cap = GetJsonInt(caps, "small_map", 12);
+		g_config.maps.custom_map_cap = GetJsonInt(caps, "custom_map", 20);
+
+		gi.Com_PrintFmt("Config: Default caps - Big: {}, Medium: {}, Small: {}, Custom: {}\n",
+			g_config.maps.big_map_cap,
+			g_config.maps.medium_map_cap,
+			g_config.maps.small_map_cap,
+			g_config.maps.custom_map_cap);
+	}
+
+	// Load default settings
+	if (root.isMember("default_settings") && root["default_settings"].isObject())
+	{
+		const Json::Value& settings = root["default_settings"];
+		if (settings.isMember("enable_grid") && settings["enable_grid"].isBool())
+		{
+			g_config.maps.default_enable_grid = settings["enable_grid"].asBool();
+			gi.Com_PrintFmt("Config: Default grid enabled: {}\n", g_config.maps.default_enable_grid);
+		}
+	}
+
+	// Load map-specific overrides
+	if (root.isMember("map_overrides") && root["map_overrides"].isObject())
+	{
+		const Json::Value& overrides = root["map_overrides"];
+		int loaded_count = 0;
+
+		for (const auto& map_name : overrides.getMemberNames())
+		{
+			// Skip comment fields
+			if (map_name.empty() || map_name[0] == '_')
+				continue;
+
+			const Json::Value& map_data = overrides[map_name];
+			if (!map_data.isObject())
+				continue;
+
+			// Convert map name to MapID
+			horde::MapID mapId = horde::MapOriginRegistry::GetMapID(map_name.c_str());
+			if (mapId == horde::MapID::UNKNOWN)
+			{
+				gi.Com_PrintFmt("Config: WARNING - Unknown map '{}' in maps_config.json, skipping\n", map_name);
+				continue;
+			}
+
+			MapOverrideConfig override_config;
+
+			// Load monster cap override
+			if (map_data.isMember("monster_cap") && map_data["monster_cap"].isInt())
+			{
+				override_config.monster_cap = map_data["monster_cap"].asInt();
+			}
+
+			// Load grid enable override
+			if (map_data.isMember("enable_grid") && map_data["enable_grid"].isBool())
+			{
+				override_config.enable_grid = map_data["enable_grid"].asBool();
+				override_config.has_grid_override = true;
+			}
+
+			// Store in array using MapID as index
+			const size_t index = static_cast<size_t>(mapId);
+			g_config.maps.map_overrides[index] = override_config;
+			loaded_count++;
+
+			gi.Com_PrintFmt("Config: Map '{}' (ID: {}) - cap: {}, grid: {}\n",
+				map_name,
+				static_cast<int>(mapId),
+				override_config.monster_cap >= 0 ? std::to_string(override_config.monster_cap) : "default",
+				override_config.has_grid_override ? (override_config.enable_grid ? "true" : "false") : "default");
+		}
+
+		if (loaded_count > 0)
+		{
+			gi.Com_PrintFmt("Config: Loaded {} map-specific overrides from config/maps_config.json\n", loaded_count);
+		}
+	}
+}
+
 void Config_Load(const char* basedir)
 {
 	// Set defaults first
@@ -549,6 +662,9 @@ void Config_Load(const char* basedir)
 
 	// Load monster configs
 	Config_LoadMonsters(basedir);
+
+	// Load map configs
+	Config_LoadMaps(basedir);
 }
 
 void Config_Reload()
@@ -668,4 +784,73 @@ int GetMonsterWeaponRadius(uint8_t monster_type_id, const char* weapon_name)
 	// For now, return 0 to indicate hardcoded values should be used
 	gi.Com_PrintFmt("INFO: GetMonsterWeaponRadius - weapon '{}' for monster_type_id {} not yet configured, using hardcoded radius\n", weapon_name, monster_type_id);
 	return 0;
+}
+
+// Get monster cap for a specific map by MapID, considering overrides and map size
+int32_t GetMonsterCapForMap(horde::MapID mapId, const horde::MapSize& mapSize)
+{
+	// Check for map-specific override (O(1) array lookup)
+	if (mapId != horde::MapID::UNKNOWN)
+	{
+		const size_t index = static_cast<size_t>(mapId);
+		if (index < g_config.maps.map_overrides.size())
+		{
+			const MapOverrideConfig& override_config = g_config.maps.map_overrides[index];
+			if (override_config.monster_cap >= 0)
+			{
+				return override_config.monster_cap;
+			}
+		}
+	}
+
+	// No override, use default based on map size
+	if (mapSize.isSmallMap)
+		return g_config.maps.small_map_cap;
+	else if (mapSize.isBigMap)
+		return g_config.maps.big_map_cap;
+	else
+		return g_config.maps.medium_map_cap;
+}
+
+// Convenience overload that converts mapname to MapID
+int32_t GetMonsterCapForMap(const char* mapname, const horde::MapSize& mapSize)
+{
+	horde::MapID mapId = horde::MapID::UNKNOWN;
+	if (mapname && mapname[0])
+	{
+		mapId = horde::MapOriginRegistry::GetMapID(mapname);
+	}
+	return GetMonsterCapForMap(mapId, mapSize);
+}
+
+// Get whether grid spawning should be enabled for a specific map by MapID
+bool GetGridEnabledForMap(horde::MapID mapId)
+{
+	// Check for map-specific override (O(1) array lookup)
+	if (mapId != horde::MapID::UNKNOWN)
+	{
+		const size_t index = static_cast<size_t>(mapId);
+		if (index < g_config.maps.map_overrides.size())
+		{
+			const MapOverrideConfig& override_config = g_config.maps.map_overrides[index];
+			if (override_config.has_grid_override)
+			{
+				return override_config.enable_grid;
+			}
+		}
+	}
+
+	// No override, use default
+	return g_config.maps.default_enable_grid;
+}
+
+// Convenience overload that converts mapname to MapID
+bool GetGridEnabledForMap(const char* mapname)
+{
+	horde::MapID mapId = horde::MapID::UNKNOWN;
+	if (mapname && mapname[0])
+	{
+		mapId = horde::MapOriginRegistry::GetMapID(mapname);
+	}
+	return GetGridEnabledForMap(mapId);
 }

@@ -28,6 +28,7 @@ void Horde_Init();
 void Horde_RunFrame();
 void ResetGame();
 void HandleResetEvent();
+const char* GetCurrentMapName();
 
 void ResetSpawnMonsterVars();
 

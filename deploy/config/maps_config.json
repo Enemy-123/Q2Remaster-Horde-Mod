@@ -1,0 +1,274 @@
+{
+  "default_caps": {
+    "big_map": 26,
+    "medium_map": 14,
+    "small_map": 12,
+    "custom_map": 20
+  },
+  "default_settings": {
+    "enable_grid": false
+  },
+  "map_overrides": {
+    "_comment": "ACTIVE MAP CONFIGURATIONS - These maps are loaded at startup",
+
+    "q2dm1": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+    "q2dm2": {
+      "monster_cap": -1,
+      "enable_grid": true
+     },
+    "fact3": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+    "xintell": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+    "sewer64": {
+      "monster_cap": 64,
+      "enable_grid": true
+    },
+    "base64": {
+      "monster_cap": 64,
+      "enable_grid": true
+    },
+    "city64": {
+      "monster_cap": 64,
+      "enable_grid": true
+    },
+    "test/spbox": {
+      "monster_cap": -1,
+      "enable_grid": true
+    },
+
+    "_TEMPLATE_SECTION": {
+      "_comment": "Copy maps from below to root level and remove underscore prefix to activate",
+
+      "_standard_q2_maps": {
+        "_q2dm2": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q2dm3": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q2dm4": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q2dm5": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q2dm6": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q2dm7": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q2dm8": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_q2ctf_maps": {
+        "_q2ctf4": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q2ctf5": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_rdm_maps": {
+        "_rdm1": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_rdm2": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_rdm4": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_rdm5": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_rdm6": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_rdm8": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_rdm9": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_rdm12": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_xdm_maps": {
+        "_xdm1": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_xdm2": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_xdm3": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_xdm4": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_xdm5": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_xdm6": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_q64_maps": {
+        "_q64/dm1": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm2": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm3": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm4": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm6": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm7": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm8": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm9": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/dm10": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/command": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_q64/comm": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_mgu_maps": {
+        "_mgu3m4": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_mgu4trial": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_mgu6m3": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_mgu6trial": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_mgdm1": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_special_maps": {
+        "_rboss": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_industry": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_waste2": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_ndctf0": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_other_maps": {
+        "_ec/base_ec": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_old/kmdm3": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_e3/jail_e3": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      },
+
+      "_test_maps": {
+        "_test/mals_barrier_test": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_test/spbox": {
+          "monster_cap": -1,
+          "enable_grid": false
+        },
+        "_test/test_kaiser": {
+          "monster_cap": -1,
+          "enable_grid": false
+        }
+      }
+    }
+  }
+}

@@ -136,6 +136,18 @@ def deploy_data_files(script_dir, deploy_path):
             total_skipped += 1
             print(f"config/monsters.json: skipped (unchanged)")
 
+    # Copy config/maps_config.json
+    maps_src = os.path.join(deploy_src, "config", "maps_config.json")
+    maps_dst = os.path.join(config_dst_dir, "maps_config.json")
+    if os.path.exists(maps_src):
+        if should_copy_file(maps_src, maps_dst):
+            shutil.copy2(maps_src, maps_dst)
+            total_copied += 1
+            print(f"config/maps_config.json: copied")
+        else:
+            total_skipped += 1
+            print(f"config/maps_config.json: skipped (unchanged)")
+
     print(f"\nTotal: {total_copied} files copied, {total_skipped} files skipped")
 
 def check_mingw_support():
@@ -268,3 +280,4 @@ if __name__ == "__main__":
     #
     #rm '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/monsters.json'
     #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/monsters.json' '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/monsters.json'
+    #ln -s '/home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/deploy/config/maps_config.json' '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/config/maps_config.json'
