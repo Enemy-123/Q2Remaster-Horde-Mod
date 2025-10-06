@@ -17,7 +17,7 @@ carrier
 #include "../m_flash.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
-#include "monster_constants.h"
+#include "../monster_constants.h"
 
 // Reinforcements
 constexpr std::array<reinforcement_def_t, 7> default_reinforcements_defs_carrier = { {

@@ -12,7 +12,7 @@ TURRET
 #include "m_rogue_turret.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
-#include "monster_constants.h"
+#include "../monster_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_TURRET_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_MACHINEGUN = 0x0010_spawnflag;

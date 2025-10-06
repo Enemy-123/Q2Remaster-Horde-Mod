@@ -16,7 +16,7 @@ black widow
 #include "../m_flash.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
-#include "monster_constants.h"
+#include "../monster_constants.h"
 
 
 bool infront(edict_t* self, edict_t* other);

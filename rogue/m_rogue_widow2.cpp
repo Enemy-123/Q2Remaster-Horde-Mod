@@ -15,7 +15,7 @@ black widow, part 2
 #include "../m_flash.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
-#include "monster_constants.h"
+#include "../monster_constants.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
