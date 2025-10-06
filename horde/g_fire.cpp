@@ -25,7 +25,7 @@ constexpr gtime_t FIREBALL_LIFETIME = 10_sec;
 
 // Fire model paths
 constexpr const char* FIRE_MODEL = "models/objects/fire/tris.md2";
-constexpr const char* FIREBALL_MODEL = "models/proj/proj_dguardq/tris.md2";
+constexpr const char* FIREBALL_MODEL = "models/objects/dball/tris.md2";
 
 // Frame definitions for fire animation (flameb1-flameb11)
 // These represent the 11 frames of the fire/flame effect
@@ -88,12 +88,8 @@ THINK(burning_think)(edict_t* self) -> void
     {
         // Visual effect for extinguishing
         gi.WriteByte(svc_temp_entity);
-        gi.WriteByte(TE_STEAM);
+        gi.WriteByte(TE_MOREBLOOD);
         gi.WritePosition(self->enemy->s.origin);
-        gi.WriteDir(vec3_t{ 0, 0, 1 });
-        gi.WriteByte(2);  // Count
-        gi.WriteByte(5);  // Color
-        gi.WriteShort(10); // Duration
         gi.multicast(self->enemy->s.origin, MULTICAST_PVS, false);
 
         G_FreeEdict(self);
@@ -104,14 +100,14 @@ THINK(burning_think)(edict_t* self) -> void
     T_Damage(self->enemy, self, self->owner, vec3_origin, self->enemy->s.origin,
             vec3_origin, self->dmg, 0, DAMAGE_NO_KNOCKBACK, MOD_LAVA);
 
-    // Visual fire effect
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_FLAME);
-    gi.WritePosition(self->enemy->s.origin);
-    gi.multicast(self->enemy->s.origin, MULTICAST_PVS, false);
+    // // Visual fire effect
+    // gi.WriteByte(svc_temp_entity);
+    // gi.WriteByte(TE_FLAME);
+    // gi.WritePosition(self->enemy->s.origin);
+    // gi.multicast(self->enemy->s.origin, MULTICAST_PVS, false);
 
     // Continue burning
-    self->nextthink = level.time + 500_ms;  // Damage every 0.5 seconds
+    self->nextthink = level.time + 850_ms;  // Damage every 0.5 seconds
 }
 
 // Apply burning effect to an entity
@@ -144,7 +140,7 @@ void apply_burning(edict_t* target, edict_t* attacker, int damage, gtime_t durat
     burn->dmg = damage;
     burn->timestamp = level.time + duration;
     burn->think = burning_think;
-    burn->nextthink = level.time + 500_ms;
+    burn->nextthink = level.time + 850_ms;
     burn->solid = SOLID_NOT;
     burn->svflags |= SVF_NOCLIENT;
 
@@ -222,7 +218,7 @@ THINK(bfire_think)(edict_t* self) -> void
                 continue;
 
             // Apply burning effect for standing in fire
-            apply_burning(e, self->owner, self->dmg / 2, 2_sec);
+            apply_burning(e, self->owner, self->dmg / 2, 10_sec);
 
             // Deal fire damage
             T_Damage(e, self, self->owner, vec3_origin, self->s.origin,
@@ -294,7 +290,8 @@ void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward,
     fire->solid = SOLID_TRIGGER;
     fire->clipmask = MASK_SHOT;
     fire->s.modelindex = gi.modelindex(FIRE_MODEL);
-
+    fire->s.scale = 0.4f;
+    
     gi.linkentity(fire);
 }
 
@@ -334,7 +331,7 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
             continue;
 
         // Apply burning DOT effect from fireball explosion
-        apply_burning(e, self->owner, self->radius_dmg, 4_sec);
+        apply_burning(e, self->owner, self->radius_dmg, 7.5_sec);
     }
 
     // Loop for creating flame entities
@@ -363,7 +360,7 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
 
     // Do radius damage to nearby entities
     T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg), nullptr,
-                   self->dmg_radius, DAMAGE_NONE, MOD_UNKNOWN);
+                   self->dmg_radius, DAMAGE_NONE, MOD_FIREBALL);
 
     // Create explosion effect
     gi.WriteByte(svc_temp_entity);
@@ -447,7 +444,8 @@ void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
     fireball->classname = "fireball";
     fireball->timestamp = level.time + FIREBALL_LIFETIME;
     fireball->s.angles = dir;
-
+    fireball->s.scale = 0.3f;
+    fireball->s.effects |= EF_SPHERETRANS;
     gi.linkentity(fireball);
 
     fireball->nextthink = level.time + FRAME_TIME_MS;
@@ -464,7 +462,7 @@ void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
     fireball->avelocity = { 0, 0, 600 };
 
     // Play a sound
-    gi.sound(fireball, CHAN_WEAPON, gi.soundindex("abilities/firecast.wav"), 1, ATTN_NORM, 0);
+    gi.sound(fireball, CHAN_WEAPON, gi.soundindex("chick/chkatck2.wav"), 1, ATTN_NORM, 0);
 }
 
 // ============================================================================

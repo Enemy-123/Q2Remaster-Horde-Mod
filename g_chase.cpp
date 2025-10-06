@@ -169,7 +169,7 @@ void UpdateChaseCam(edict_t* ent)
 		if (trace.fraction < 1)
 		{
 			goal = trace.endpos;
-			goal[2] -= 6;
+			goal[2] -= 10;  // Pull down more aggressively to prevent ceiling clip
 		}
 
 		o = goal;
