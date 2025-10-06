@@ -5121,7 +5121,7 @@ int32_t ManageSpawnCountsAndQueue(const horde::MapSize &mapSize, int32_t availab
 
 // FIXED: Champion bonus type selection thresholds
 namespace ChampionBonusThresholds {
-	constexpr float BERSERKING = 0.09f;
+	constexpr float GHOSTLY = 0.09f;
 	constexpr float STYGIAN = 0.22f;
 	constexpr float CORRUPTED = 0.35f;
 	constexpr float CHAMPION = 0.67f;
@@ -5141,8 +5141,8 @@ struct ChampionBonusEntry {
 };
 
 static constexpr ChampionBonusEntry CHAMPION_BONUS_TABLE[] = {
-	{BF_BERSERKING, ChampionBonusThresholds::BERSERKING},
-	{BF_STYGIAN, ChampionBonusThresholds::STYGIAN - ChampionBonusThresholds::BERSERKING},
+	{BF_GHOSTLY, ChampionBonusThresholds::GHOSTLY},
+	{BF_STYGIAN, ChampionBonusThresholds::STYGIAN - ChampionBonusThresholds::GHOSTLY},
 	{BF_CORRUPTED, ChampionBonusThresholds::CORRUPTED - ChampionBonusThresholds::STYGIAN},
 	{BF_CHAMPION, ChampionBonusThresholds::CHAMPION - ChampionBonusThresholds::CORRUPTED},
 	{BF_POSSESSED, 1.0f - ChampionBonusThresholds::CHAMPION}

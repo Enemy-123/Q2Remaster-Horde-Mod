@@ -3027,7 +3027,7 @@ void SP_monster_tank(edict_t* self)
 			self->health = static_cast<int>(base_health * health_scale * st.health_multiplier);
 		}
 		self->gib_health = -250;
-		if (self->monsterinfo.bonus_flags & BF_BERSERKING)
+		if (self->monsterinfo.bonus_flags & BF_GHOSTLY)
 			self->accel *= 0.1f;
 	}
 	else // Default case for base TANK

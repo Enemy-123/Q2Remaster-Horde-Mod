@@ -962,7 +962,7 @@ void WidowRespondPowerup(edict_t* self, edict_t* other)
 		return;
 	}
 
-	if (!(self->monsterinfo.bonus_flags & (BF_BERSERKING | BF_RAGEQUITTER | BF_CHAMPION))) {
+	if (!(self->monsterinfo.bonus_flags & (BF_GHOSTLY | BF_RAGEQUITTER | BF_CHAMPION))) {
 		if (other->client)
 		{
 			if (other->s.effects & EF_QUAD)

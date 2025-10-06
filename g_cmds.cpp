@@ -489,7 +489,7 @@ void Cmd_Spawn_f(edict_t* ent)
 	{
 		other->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		if (developer->integer == 2)
-			other->monsterinfo.bonus_flags |= BF_STYGIAN;
+			other->monsterinfo.bonus_flags |= BF_GHOSTLY;
 	}
 
 	if (other->inuse)

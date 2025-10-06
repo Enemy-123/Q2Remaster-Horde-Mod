@@ -80,7 +80,7 @@
       "damage": 35,
       "kick": 35,
       "range": 650,
-      "recoil_force": 320
+      "recoil_force": 250
     },
     "bfg": {
       "damage": 700,

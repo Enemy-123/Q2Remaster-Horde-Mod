@@ -657,7 +657,7 @@ edict_t* Hook_Start(edict_t* ent)
 	self->maxs = vec3_t{ 8, 8, 8 };
 	gi.linkentity(self);
 
-	self->spawnflags |= SPAWNFLAG_LASER_ZAP | SPAWNFLAG_LASER_ON;
+	self->spawnflags |= SPAWNFLAG_LASER_ZAP | SPAWNFLAG_LASER_ON|SPAWNFLAG_LASER_BLUE;
 	self->svflags &= ~SVF_NOCLIENT;
 	Hook_Think(self);
 

@@ -744,6 +744,11 @@ void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
 		return;
 	}
 
+	// Skip monsters with bonus flags that intentionally use alpha transparency
+	if (ent->monsterinfo.bonus_flags & (BF_GHOSTLY | BF_RAGEQUITTER | BF_POSSESSED)) {
+		return;
+	}
+
 	// Batch multiple attribute changes before linking
 	bool needs_update = false;
 	if (ent->health > 0 && !ent->deadflag && ent->s.alpha < 1.0f) {

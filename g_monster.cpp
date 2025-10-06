@@ -581,8 +581,8 @@ void M_SetEffects(edict_t* ent)
 		new_effects |= EF_BLUEHYPERBLASTER;
 		new_renderfx |= RF_IR_VISIBLE;
 	}
-	else if (current_bonus_flags & BF_BERSERKING) {
-		new_effects |= EF_GIB | EF_FLAG2;
+	else if (current_bonus_flags & BF_GHOSTLY) {
+		// Alpha is set in ApplyMonsterBonusFlags, no additional effects needed
 		new_renderfx |= RF_IR_VISIBLE;
 	}
 	else if (current_bonus_flags & BF_POSSESSED) {
@@ -592,6 +592,11 @@ void M_SetEffects(edict_t* ent)
 	else if (current_bonus_flags & BF_STYGIAN) {
 		new_effects |= EF_TRACKER | EF_FLAG1;
 		new_renderfx |= RF_IR_VISIBLE;
+	}
+
+	// Friendly units get quad damage visual effect (not mutually exclusive)
+	if (current_bonus_flags & BF_FRIENDLY) {
+		new_effects |= EF_QUAD;
 	}
 
 	// Power armor

@@ -38,7 +38,7 @@ namespace {
 
 	// Boss effects
 	constexpr int   BOSS_EFFECT_MIN_INDEX = 1;
-	constexpr int   BOSS_EFFECT_MAX_INDEX = 7;
+	constexpr int   BOSS_EFFECT_MAX_INDEX = 6;
 	constexpr int   BOSS_SECONDARY_EFFECTS = 12;
 	constexpr float BOSS_EFFECT_SCALE = 0.55f;
 	constexpr float BOSS_RANDOM_OFFSET_RANGE = 255.0f;
@@ -141,8 +141,8 @@ static constexpr std::array<BonusEffectData, 7> g_bonus_effects_array = {{
 		.power_armor_mult = 1.2f, .invincible_time_add = 12_sec
 	},
 	{
-		.effects = EF_GIB | EF_FLAG2, .health_mult = 0.92f, .power_armor_mult = 1.32f,
-		.quad_time_add = 475_sec
+		.alpha = 0.3f,
+		.health_mult = 1.1f, .power_armor_mult = 1.2f
 	},
 	{
 		.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE, .alpha = 0.6f,
@@ -392,7 +392,7 @@ float M_DamageModifier(edict_t* monster) noexcept {
 		return 1.0f;
 	}
 
-	if (monster->monsterinfo.quad_time > current_time) return 4.0f;
+	if (monster->monsterinfo.quad_time > current_time) return 3.0f;
 	if (monster->monsterinfo.double_time > current_time) return 2.0f;
 	return 1.0f;
 }
@@ -406,12 +406,11 @@ const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
 		{BF_CHAMPION, "Champion "},
 		{BF_CORRUPTED, "Corrupted "},
 		{BF_RAGEQUITTER, "Ragequitter "},
-		{BF_BERSERKING, "Berserking "},
+		{BF_GHOSTLY, "Ghostly "},
 		{BF_POSSESSED, "Possessed "},
 		{BF_STYGIAN, "Stygian "},
 		{BF_FRIENDLY, "Friendly "},
 		{BF_CHAMPION | BF_CORRUPTED, "Champion Corrupted "},
-		{BF_BERSERKING | BF_POSSESSED, "Berserking Possessed "},
 	};
 
 	if (bonus_flags == BF_NONE) {
@@ -441,7 +440,7 @@ const char* GetTitleFromFlags(bonus_flags_t bonus_flags) noexcept {
 	if (bonus_flags & BF_CHAMPION)   append_title("Champion ", 9);
 	if (bonus_flags & BF_CORRUPTED)  append_title("Corrupted ", 10);
 	if (bonus_flags & BF_RAGEQUITTER) append_title("Ragequitter ", 12);
-	if (bonus_flags & BF_BERSERKING) append_title("Berserking ", 11);
+	if (bonus_flags & BF_GHOSTLY)    append_title("Ghostly ", 8);
 	if (bonus_flags & BF_POSSESSED)  append_title("Possessed ", 10);
 	if (bonus_flags & BF_STYGIAN)    append_title("Stygian ", 8);
 	if (bonus_flags & BF_FRIENDLY)   append_title("Friendly ", 9);
@@ -604,7 +603,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		
 		monster->s.effects |= data.effects;
 		monster->s.renderfx |= data.renderfx;
-		if (data.alpha != 1.0f) monster->s.alpha = data.alpha;
+		if (data.alpha > 0.0f) monster->s.alpha = data.alpha;
 		
 		monster->health = static_cast<int>(round(monster->health * data.health_mult));
 		monster->monsterinfo.power_armor_power = static_cast<int>(round(monster->monsterinfo.power_armor_power * data.power_armor_mult));
@@ -618,6 +617,13 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 			monster->monsterinfo.invincible_time = std::max(level.time, monster->monsterinfo.invincible_time) + data.invincible_time_add;
 		if (data.attack_state != AS_NONE)
 			monster->monsterinfo.attack_state = data.attack_state;
+	}
+
+	// Give BF_CHAMPION monsters a 15% chance to have quad damage (but never friendly units)
+	if ((monster->monsterinfo.bonus_flags & BF_CHAMPION) &&
+	    !(monster->monsterinfo.bonus_flags & BF_FRIENDLY) &&
+	    frandom() <= 0.15f) {
+		monster->monsterinfo.quad_time = level.time + 475_sec;
 	}
 
 	monster->max_health = monster->health;
@@ -698,7 +704,7 @@ void ApplyBossEffects(edict_t* boss)
 	
 	boss->s.effects |= data.effects;
 	boss->s.renderfx |= data.renderfx;
-	boss->s.alpha = data.alpha;
+	if (data.alpha > 0.0f) boss->s.alpha = data.alpha;
 	boss->monsterinfo.attack_state = data.attack_state;
 
 	if (data.double_time_add > 0_sec)
