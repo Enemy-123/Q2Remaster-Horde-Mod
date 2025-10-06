@@ -379,9 +379,10 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
         forward.y += 0.5f * crandom();
         forward = forward.normalized();
 
-        // Create the flame entities
+        // Create the flame entities with randomized TTL so they expire at different times
+        gtime_t ttl = gtime_t::from_sec(frandom(3.0f, 6.0f));
         ThrowFlame(self->owner, self->s.origin, forward, 0,
-                  irandom(50, 150), self->radius_dmg, 4.7_sec);
+                  irandom(50, 150), self->radius_dmg, ttl);
     }
 
     // Do radius damage to nearby entities
