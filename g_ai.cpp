@@ -430,17 +430,33 @@ void ai_walk(edict_t* self, float dist)
 	}
 
 	// HORDEWALK: Add horde mode logic similar to ai_stand
-	if (g_horde->integer && !level.intermissiontime)
+		if (g_horde->integer && !level.intermissiontime)
 	{
 		// Only summoned monsters use FindMTarget for targeting
 		if (self->monsterinfo.isfriendlyspawn) {
 		// Clean up dead/invalid entity references for summoned monsters
-		if (self->enemy && (!self->enemy->inuse || self->enemy->health <= 0))
+		// BUT preserve command entities (combat points, follow points)
+		if (self->enemy && !self->enemy->inuse)
 			self->enemy = nullptr;
-		if (self->goalentity && (!self->goalentity->inuse || self->goalentity->health <= 0))
+		else if (self->enemy && self->enemy->health <= 0 && self->enemy->classname &&
+		         Q_strcasecmp(self->enemy->classname, "point_combat") != 0 &&
+		         Q_strcasecmp(self->enemy->classname, "follow_point") != 0)
+			self->enemy = nullptr;
+
+		if (self->goalentity && !self->goalentity->inuse)
 			self->goalentity = nullptr;
-		if (self->movetarget && (!self->movetarget->inuse || self->movetarget->health <= 0))
+		else if (self->goalentity && self->goalentity->health <= 0 && self->goalentity->classname &&
+		         Q_strcasecmp(self->goalentity->classname, "point_combat") != 0 &&
+		         Q_strcasecmp(self->goalentity->classname, "follow_point") != 0)
+			self->goalentity = nullptr;
+
+		if (self->movetarget && !self->movetarget->inuse)
 			self->movetarget = nullptr;
+		else if (self->movetarget && self->movetarget->health <= 0 && self->movetarget->classname &&
+		         Q_strcasecmp(self->movetarget->classname, "point_combat") != 0 &&
+		         Q_strcasecmp(self->movetarget->classname, "follow_point") != 0)
+			self->movetarget = nullptr;
+
 
 		// Allow monsters on patrol/orders to scan for enemies, but preserve their orders
 		if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
