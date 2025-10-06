@@ -2040,7 +2040,7 @@ public:
 		// Add column headers - moved down 2 pixels to align better with player names
 		int header_y = PLAYER_Y_START - 8;
 		layout_builder.append(fmt::format(
-			"if 0 xv -90 yv {} string2 \"name\" xv 60 yv {} string2 \"score\" xv 110 yv {} string2 \"ping\" endif ",
+			"if 0 xv -90 yv {} string2 \"Name\" xv 60 yv {} string2 \"Score\" xv 110 yv {} string2 \"Ping\" endif ",
 			header_y, header_y, header_y));
 
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
