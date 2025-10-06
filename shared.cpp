@@ -1,6 +1,7 @@
 #include "shared.h"
 #include "memory_safety.h"
 #include "horde/g_horde.h"
+#include "g_config.h"
 #include <unordered_map>
 #include <algorithm>
 #include <span>
@@ -195,7 +196,24 @@ constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) {
         return s_cache[index].value();
     }
 
-    const horde::MapSize size = horde::MapOriginRegistry::GetMapSize(mapId);
+    // Check for config override first
+    horde::MapSize size;
+    if (index < g_config.maps.map_overrides.size())
+    {
+        const MapOverrideConfig& override_config = g_config.maps.map_overrides[index];
+        if (override_config.has_size_override)
+        {
+            // Convert from bool fields to MapSize struct
+            size.isSmallMap = override_config.size_override_is_small;
+            size.isBigMap = override_config.size_override_is_big;
+            size.isMediumMap = override_config.size_override_is_medium;
+            s_cache[index] = size;
+            return size;
+        }
+    }
+
+    // No override, use hardcoded map size from registry
+    size = horde::MapOriginRegistry::GetMapSize(mapId);
     s_cache[index] = size;
     return size;
 }

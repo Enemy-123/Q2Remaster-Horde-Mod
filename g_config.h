@@ -366,6 +366,13 @@ struct MapOverrideConfig
 	int32_t monster_cap = -1;  // -1 means use default based on map size
 	bool enable_grid = true;
 	bool has_grid_override = false;  // Whether enable_grid was explicitly set
+	bool enable_loadent = true;  // Whether to enable g_loadent for this map
+	bool has_loadent_override = false;  // Whether enable_loadent was explicitly set
+	// Map size override (stored as separate bools to avoid circular dependency with horde::MapSize)
+	bool size_override_is_small = false;
+	bool size_override_is_big = false;
+	bool size_override_is_medium = true;
+	bool has_size_override = false;  // Whether map_size was explicitly set
 };
 
 // Maps configuration - default caps and per-map overrides
@@ -485,3 +492,5 @@ int32_t GetMonsterCapForMap(horde::MapID mapId, const struct horde::MapSize& map
 int32_t GetMonsterCapForMap(const char* mapname, const struct horde::MapSize& mapSize);  // Convenience overload
 bool GetGridEnabledForMap(horde::MapID mapId);
 bool GetGridEnabledForMap(const char* mapname);  // Convenience overload
+bool GetLoadentEnabledForMap(horde::MapID mapId);
+bool GetLoadentEnabledForMap(const char* mapname);  // Convenience overload

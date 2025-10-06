@@ -1991,7 +1991,7 @@ public:
 		// Wave and enemies information
 		if (g_horde->integer) {
 			layout_builder.append(fmt::format(
-				"if 0 xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
+				"if 0 xv -5 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
 				last_wave_number, GetStroggsNum()));
 		}
 

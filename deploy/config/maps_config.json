@@ -10,10 +10,16 @@
   },
   "map_overrides": {
     "_comment": "ACTIVE MAP CONFIGURATIONS - These maps are loaded at startup",
+    "_field_descriptions": {
+      "monster_cap": "Override monster cap for this map. -1 uses default based on map size",
+      "enable_grid": "Enable/disable grid spawning for this map",
+      "enable_loadent": "Enable/disable g_loadent (entity file override) for this map. Default: true",
+      "map_size": "Override map size category. Valid values: 'small', 'medium', 'big'/'large'. Affects spawning, cooldowns, and voting menu"
+    },
 
     "q2dm1": {
       "monster_cap": -1,
-      "enable_grid": true
+      "enable_grid": true,
     },
     "q2dm2": {
       "monster_cap": -1,
@@ -21,19 +27,19 @@
     },
     "q2dm4": {
       "monster_cap": -1,
-      "enable_grid": true
+      "enable_grid": false
     },
     "q2dm5": {
       "monster_cap": -1,
-      "enable_grid": true
+      "enable_grid": false
     },
     "q2dm6": {
       "monster_cap": -1,
-      "enable_grid": true
+      "enable_grid": false
     },
     "q2dm7": {
       "monster_cap": -1,
-      "enable_grid": true
+      "enable_grid": false
     },
     "q2dm8": {
       "monster_cap": 19,
@@ -71,6 +77,12 @@
       "monster_cap": -1,
       "enable_grid": true
     },
+    "mgdm1": {
+      "monster_cap": -1,
+      "enable_grid": true,
+      "enable_loadent": false,
+      "map_size": "big"
+    },  
     "_TEMPLATE_SECTION": {
       "_comment": "Copy maps from below to root level and remove underscore prefix to activate",
 

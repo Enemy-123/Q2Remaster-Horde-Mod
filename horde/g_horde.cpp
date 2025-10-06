@@ -1094,6 +1094,10 @@ void HordeState::update_map_size(const char *mapname)
 	// Update grid spawning setting based on map config
 	bool enable_grid = GetGridEnabledForMap(mapId);
 	gi.cvar_set("g_horde_grid_first", enable_grid ? "1" : "0");
+
+	// Update g_loadent setting based on map config
+	bool enable_loadent = GetLoadentEnabledForMap(mapId);
+	gi.cvar_forceset("g_loadent", enable_loadent ? "1" : "0");
 }
 
 void HordeState::reset_hud_state()

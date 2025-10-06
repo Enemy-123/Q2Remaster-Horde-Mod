@@ -315,16 +315,68 @@ void Config_LoadMaps(const char* basedir)
 				override_config.has_grid_override = true;
 			}
 
+			// Load loadent enable override
+			if (map_data.isMember("enable_loadent") && map_data["enable_loadent"].isBool())
+			{
+				override_config.enable_loadent = map_data["enable_loadent"].asBool();
+				override_config.has_loadent_override = true;
+			}
+
+			// Load map size override
+			if (map_data.isMember("map_size") && map_data["map_size"].isString())
+			{
+				std::string size_str = map_data["map_size"].asString();
+				if (size_str == "small")
+				{
+					override_config.size_override_is_small = true;
+					override_config.size_override_is_big = false;
+					override_config.size_override_is_medium = false;
+					override_config.has_size_override = true;
+				}
+				else if (size_str == "big" || size_str == "large")
+				{
+					override_config.size_override_is_small = false;
+					override_config.size_override_is_big = true;
+					override_config.size_override_is_medium = false;
+					override_config.has_size_override = true;
+				}
+				else if (size_str == "medium")
+				{
+					override_config.size_override_is_small = false;
+					override_config.size_override_is_big = false;
+					override_config.size_override_is_medium = true;
+					override_config.has_size_override = true;
+				}
+				else
+				{
+					gi.Com_PrintFmt("Config: WARNING - Invalid map_size '{}' for map '{}', ignoring\n", size_str, map_name);
+				}
+			}
+
 			// Store in array using MapID as index
 			const size_t index = static_cast<size_t>(mapId);
 			g_config.maps.map_overrides[index] = override_config;
 			loaded_count++;
 
-			gi.Com_PrintFmt("Config: Map '{}' (ID: {}) - cap: {}, grid: {}\n",
+			// Determine map size string for logging
+			std::string size_str = "default";
+			if (override_config.has_size_override)
+			{
+				if (override_config.size_override_is_small)
+					size_str = "small";
+				else if (override_config.size_override_is_big)
+					size_str = "big";
+				else
+					size_str = "medium";
+			}
+
+			gi.Com_PrintFmt("Config: Map '{}' (ID: {}) - cap: {}, grid: {}, loadent: {}, size: {}\n",
 				map_name,
 				static_cast<int>(mapId),
 				override_config.monster_cap >= 0 ? std::to_string(override_config.monster_cap) : "default",
-				override_config.has_grid_override ? (override_config.enable_grid ? "true" : "false") : "default");
+				override_config.has_grid_override ? (override_config.enable_grid ? "true" : "false") : "default",
+				override_config.has_loadent_override ? (override_config.enable_loadent ? "true" : "false") : "default",
+				size_str);
 		}
 
 		if (loaded_count > 0)
@@ -983,6 +1035,38 @@ bool GetGridEnabledForMap(const char* mapname)
 		mapId = horde::MapOriginRegistry::GetMapID(mapname);
 	}
 	return GetGridEnabledForMap(mapId);
+}
+
+// Get whether g_loadent should be enabled for a specific map by MapID
+bool GetLoadentEnabledForMap(horde::MapID mapId)
+{
+	// Check for map-specific override (O(1) array lookup)
+	if (mapId != horde::MapID::UNKNOWN)
+	{
+		const size_t index = static_cast<size_t>(mapId);
+		if (index < g_config.maps.map_overrides.size())
+		{
+			const MapOverrideConfig& override_config = g_config.maps.map_overrides[index];
+			if (override_config.has_loadent_override)
+			{
+				return override_config.enable_loadent;
+			}
+		}
+	}
+
+	// No override, default to enabled
+	return true;
+}
+
+// Convenience overload that converts mapname to MapID
+bool GetLoadentEnabledForMap(const char* mapname)
+{
+	horde::MapID mapId = horde::MapID::UNKNOWN;
+	if (mapname && mapname[0])
+	{
+		mapId = horde::MapOriginRegistry::GetMapID(mapname);
+	}
+	return GetLoadentEnabledForMap(mapId);
 }
 
 // Scaling helper functions

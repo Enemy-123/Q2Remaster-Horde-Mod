@@ -1705,9 +1705,17 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer, ent_filename);
 
 	if (ent_file_loaded) {
+		// Check both the cvar and the map-specific config
 		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+		bool loadent_enabled = g_loadent->integer != 0;
+
+		// Map-specific config overrides the cvar
+		if (g_horde->integer) {
+			loadent_enabled = GetLoadentEnabledForMap(mapname);
+		}
+
 		// Only allow entity override in horde mode
-		if (g_loadent->integer && g_horde->integer && VerifyEntityString(entity_buffer.data())) {
+		if (loadent_enabled && g_horde->integer && VerifyEntityString(entity_buffer.data())) {
 			entities = entity_buffer.data();
 			gi.Com_PrintFmt("PRINT: Entity override file verified and loaded: \"{}\"\n", ent_filename);
 		}
