@@ -9,7 +9,7 @@
 #include "m_xatrix_gekk.h"
 #include "../shared.h"
 #include "../horde/g_horde_scaling.h"
-#include "monster_constants.h"
+#include "../monster_constants.h"
 
 constexpr spawnflags_t SPAWNFLAG_GEKK_CHANT = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;

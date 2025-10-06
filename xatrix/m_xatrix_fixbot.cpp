@@ -15,7 +15,7 @@
 #include "../horde/g_horde.h"
 #include "../horde/horde_ids.h"
 #include "../horde/g_horde_scaling.h"
-#include "monster_constants.h"
+#include "../monster_constants.h"
 // End Horde includes
 
 
