@@ -207,6 +207,7 @@ echo Data files deployed (only new/modified files copied)</Command>
     <ClCompile Include="horde\g_bombspell.cpp" />
     <ClCompile Include="horde\g_doppleganger.cpp" />
     <ClCompile Include="horde\g_entity_properties.cpp" />
+    <ClCompile Include="horde\g_fire.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="horde\g_horde_phys.cpp" />
     <ClCompile Include="horde\g_horde_scaling.cpp" />
