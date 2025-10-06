@@ -979,7 +979,7 @@ void ExitLevel()
 		const char* map = level.changemap + start_offset + 5;
 
 		// Apply cooperative settings first
-		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0; maxclients 7; kexmultiplayer maxplayers 7\n");
+		gi.AddCommandString("bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0; kexmultiplayer maxplayers 7");
 
 		// Clear the election level after successful cooperative switch
 		extern ctfgame_t ctfgame;

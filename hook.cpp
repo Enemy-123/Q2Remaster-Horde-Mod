@@ -239,7 +239,7 @@ void Hook_InitGame(void)
 	gi.AddCommandString("alias -hook unhook\n");
 
 	//unrelated to hook but convenient to add here
-	gi.AddCommandString("alias coopp \"bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0; maxclients 7; kexmultiplayer maxplayers 7\n");
+	gi.AddCommandString("alias coopp \"bot_pause 1; skill 3; g_dm_spawns 0; g_use_hook 0; g_instagib 0; horde 0; coop 1; deathmatch 0; g_allow_grapple 0; g_coop_squad_respawn 1; g_allow_techs 0; g_coop_num_lives 7; set cheats 0 s; g_coop_health_scaling 0.23; g_allow_techs 0; timelimit 0");
 }
 
 void Hook_PlayerDie(edict_t* attacker, edict_t* self)

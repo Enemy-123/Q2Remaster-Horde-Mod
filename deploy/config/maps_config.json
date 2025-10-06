@@ -19,7 +19,7 @@
 
     "q2dm1": {
       "monster_cap": -1,
-      "enable_grid": true,
+      "enable_grid": true
     },
     "q2dm2": {
       "monster_cap": -1,
@@ -103,6 +103,30 @@
     },
     "rdm4": {
       "monster_cap": 16,
+      "enable_grid": true,
+      "enable_loadent": false,
+      "map_size": "medium"
+    },
+    "rdm7": {
+      "monster_cap": 32,
+      "enable_grid": true,
+      "enable_loadent": false,
+      "map_size": "big"
+    },
+    "rdm10": {
+      "monster_cap": -1,
+      "enable_grid": true,
+      "enable_loadent": false,
+      "map_size": "big"
+    },
+    "rdm11": {
+      "monster_cap": -1,
+      "enable_grid": true,
+      "enable_loadent": false,
+      "map_size": "big"
+    },
+    "rdm14": {
+      "monster_cap": -1,
       "enable_grid": true,
       "enable_loadent": false,
       "map_size": "medium"
