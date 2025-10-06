@@ -487,6 +487,16 @@ void Config_Load(const char* basedir)
 			g_config.railgun.kick = GetJsonInt(w, "kick", 285);
 		}
 
+		// 20mm Cannon
+		if (weapons.isMember("cannon20mm") && weapons["cannon20mm"].isObject())
+		{
+			const Json::Value& w = weapons["cannon20mm"];
+			g_config.cannon20mm.damage = GetJsonInt(w, "damage", 35);
+			g_config.cannon20mm.kick = GetJsonInt(w, "kick", 35);
+			g_config.cannon20mm.range = GetJsonInt(w, "range", 650);
+			g_config.cannon20mm.recoil_force = GetJsonInt(w, "recoil_force", 500);
+		}
+
 		// BFG
 		if (weapons.isMember("bfg") && weapons["bfg"].isObject())
 		{

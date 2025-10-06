@@ -76,6 +76,12 @@
       "damage_horde": 225,
       "kick": 285
     },
+    "cannon20mm": {
+      "damage": 35,
+      "kick": 35,
+      "range": 650,
+      "recoil_force": 500
+    },
     "bfg": {
       "damage": 700,
       "radius": 1000.0,
