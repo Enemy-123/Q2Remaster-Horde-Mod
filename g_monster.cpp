@@ -35,11 +35,6 @@ void monster_muzzleflash(edict_t* self, const vec3_t& start, monster_muzzleflash
 	if (!self || !self->inuse)
 		return;
 
-	// CRITICAL: Skip muzzleflash if monster moved too far from firing position
-	// This prevents flashes appearing in wrong location after teleports/repositioning
-	if ((self->s.origin - start).lengthSquared() > 256.f * 256.f)
-		return;
-
 	if (id <= 255)
 		gi.WriteByte(svc_muzzleflash2);
 	else
