@@ -375,8 +375,6 @@ void Cmd_Fireball_f(edict_t* ent)
 
 	// Fire the fireball!
 	fire_fireball(ent, start, aimdir, damage, damage_radius, speed, flames, flame_damage);
-
-	gi.LocClient_Print(ent, PRINT_HIGH, "Fireball!\n");
 }
 
 /*

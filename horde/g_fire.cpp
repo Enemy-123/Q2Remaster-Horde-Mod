@@ -196,11 +196,14 @@ THINK(bfire_think)(edict_t* self) -> void
     }
 
     // Damage entities standing in fire
-    // Check for entities overlapping with fire's bounding box
+    // Use distance-based check instead of bounding box
     // Use pain_debounce_time for rate limiting
     if (!self->pain_debounce_time.milliseconds() || level.time >= self->pain_debounce_time)
     {
-        // Find all entities in the fire's bounding box
+        constexpr float FIRE_DAMAGE_RADIUS = 24.0f;  // Small radius for tight damage area
+        constexpr float FIRE_DAMAGE_RADIUS_SQ = FIRE_DAMAGE_RADIUS * FIRE_DAMAGE_RADIUS;
+
+        // Find all entities near the fire
         for (edict_t* e = &g_edicts[1]; e < &g_edicts[globals.num_edicts]; e++)
         {
             if (!e->inuse || !e->takedamage)
@@ -209,8 +212,11 @@ THINK(bfire_think)(edict_t* self) -> void
             if (e == self)
                 continue;
 
-            // Check if entity overlaps with fire
-            if (!boxes_intersect(self->absmin, self->absmax, e->absmin, e->absmax))
+            // Check distance from fire to entity center
+            vec3_t entity_center = (e->absmin + e->absmax) * 0.5f;
+            float dist_sq = (entity_center - self->s.origin).lengthSquared();
+
+            if (dist_sq > FIRE_DAMAGE_RADIUS_SQ)
                 continue;
 
             // Don't damage owner or teammates
