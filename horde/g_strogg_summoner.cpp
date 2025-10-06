@@ -694,6 +694,17 @@ void DroneToggleStand(edict_t* player, edict_t* monster)
 		monster->monsterinfo.leader = nullptr;
 		monster->monsterinfo.spot1 = {};
 		monster->monsterinfo.spot2 = {};
+
+		// Clear combat point entities if they're set
+		if (monster->goalentity && !monster->goalentity->client)
+			monster->goalentity = nullptr;
+		if (monster->movetarget && !monster->movetarget->client)
+			monster->movetarget = nullptr;
+		if (monster->enemy && monster->enemy->classname &&
+		    (Q_strcasecmp(monster->enemy->classname, "point_combat") == 0 ||
+		     Q_strcasecmp(monster->enemy->classname, "follow_point") == 0))
+			monster->enemy = nullptr;
+
 		monster->yaw_speed = 20;
 	}
 	else
@@ -826,12 +837,48 @@ TOUCH(drone_combat_point_touch) (edict_t* self, edict_t* other, const trace_t& t
 	if (!other->monsterinfo.aiflags)
 		return;
 
-	// Clear combat point flag when monster reaches destination
+	// Check if this is a patrol route (both spot1 and spot2 are set)
+	if (other->monsterinfo.spot1.lengthSquared() > 0 && other->monsterinfo.spot2.lengthSquared() > 0)
+	{
+		// Swap patrol points - go to the other spot
+		vec3_t temp_spot = other->monsterinfo.spot1;
+		other->monsterinfo.spot1 = other->monsterinfo.spot2;
+		other->monsterinfo.spot2 = temp_spot;
+
+		// Update combat point position to the new destination
+		self->s.origin = other->monsterinfo.spot1;
+		gi.linkentity(self);
+
+		// Keep fake enemy and reset for next patrol leg
+		if (other->enemy == self || !other->enemy)
+			other->enemy = self;
+
+		other->monsterinfo.pausetime = 0_ms;
+		if (other->monsterinfo.run)
+			other->monsterinfo.run(other);
+
+		return;
+	}
+
+	// Check if this is defend mode (spot1 set, leader set, but spot2 empty)
+	if (other->monsterinfo.spot1.lengthSquared() > 0 && other->monsterinfo.leader)
+	{
+		// Reached defend position - keep combat point active so monster returns if pushed
+		if (other->enemy == self || !other->enemy)
+			other->enemy = self;
+
+		other->monsterinfo.pausetime = 0_ms;
+		if (other->monsterinfo.stand)
+			other->monsterinfo.stand(other);
+
+		return;
+	}
+
+	// Normal move command - clear everything on arrival
 	other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
 	other->goalentity = nullptr;
 	other->movetarget = nullptr;
 
-	// If the enemy is the combat point itself, clear it so monster can find real enemies
 	if (other->enemy == self)
 		other->enemy = nullptr;
 
@@ -881,9 +928,6 @@ void DroneMovePosition(edict_t* player, const vec3_t& pos)
 		G_FreeEdict(temp);
 	}
 
-	// Create entity that monsters will follow
-	temp = DroneTempEnt(player, pos, 0); // No timeout
-
 	int cmd = 3; // Default: move to spot
 
 	// Check if player issued a command very recently (double-click)
@@ -908,6 +952,12 @@ void DroneMovePosition(edict_t* player, const vec3_t& pos)
 	{
 		gi.LocClient_Print(player, PRINT_HIGH, "Monsters will move to spot.\n");
 	}
+
+	// Create combat point at appropriate location based on command type
+	if (cmd == 1)
+		temp = DroneTempEnt(player, player->client->lastPosition, 0); // Patrol starts at first position
+	else
+		temp = DroneTempEnt(player, pos, 0); // Move/defend go to target position
 
 	// Command selected monsters
 	for (int i = 0; i < 4; i++)
@@ -936,10 +986,8 @@ void DroneMovePosition(edict_t* player, const vec3_t& pos)
 				monster->monsterinfo.spot1 = player->client->lastPosition;
 				monster->monsterinfo.spot2 = pos;
 				monster->monsterinfo.leader = temp;
-				// Create a combat point at the first spot
-				DroneTempEnt(player, player->client->lastPosition, 0);
 			}
-			// Return to this spot, even if distracted
+			// Defend position - return to this spot even if distracted
 			else if (cmd == 2)
 			{
 				monster->monsterinfo.spot1 = pos;
