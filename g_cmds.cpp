@@ -1727,6 +1727,11 @@ void Cmd_Wave_f(edict_t* ent)
 				// Teleport forward
 				Cmd_TeleportForward_f(ent);
 			}
+			else if (special_wave_type == SPECIAL_WAVE_FIREBALL)
+			{
+				// Fire fireball
+				Cmd_Fireball_f(ent);
+			}
 		}
 	}
 	else

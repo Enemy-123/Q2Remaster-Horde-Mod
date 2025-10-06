@@ -226,9 +226,9 @@ THINK(bfire_think)(edict_t* self) -> void
             // Apply burning effect for standing in fire
             apply_burning(e, self->owner, self->dmg / 2, 10_sec);
 
-            // Deal fire damage
+            // Deal minor fire damage (most damage comes from burning DOT)
             T_Damage(e, self, self->owner, vec3_origin, self->s.origin,
-                    vec3_origin, self->dmg, 0, DAMAGE_NO_KNOCKBACK, MOD_LAVA);
+                    vec3_origin, self->dmg / 5, 0, DAMAGE_NO_KNOCKBACK, MOD_LAVA);
         }
 
         // Rate limit damage to once per second
@@ -258,10 +258,10 @@ TOUCH(bfire_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_
     // Burning lasts for 3 seconds and deals damage/2 per tick
     apply_burning(other, self->owner, self->dmg / 2, 3_sec);
 
-    // Deal immediate damage (touch already limits rate by physics)
+    // Deal minor immediate damage (most damage comes from burning DOT)
     vec3_t normal = tr.plane.normal;
     T_Damage(other, self, self->owner, vec3_origin, self->s.origin,
-            normal, self->dmg, 0, DAMAGE_NO_KNOCKBACK, MOD_LAVA);
+            normal, self->dmg / 5, 0, DAMAGE_NO_KNOCKBACK, MOD_LAVA);
 }
 
 void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward,
