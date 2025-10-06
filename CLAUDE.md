@@ -1,6 +1,6 @@
 ### Build Command
 ```bash
-python3 /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/build_mingw.py '/home/perrobjorn/.steam/steam/steamapps/common/Quake 2/rerelease/baseq2/' Release
+python3 /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/build_mingw.py '/home/perrobjorn/Games/Heroic/Quake II Enhanced/baseq2' Release
 ```
 
 ### Function Macros

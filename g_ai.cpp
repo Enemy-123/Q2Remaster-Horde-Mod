@@ -318,7 +318,14 @@ void ai_stand(edict_t* self, float dist)
 				// Don't call FindMTarget when medic is healing
 				return;
 			}
-			
+
+			// Don't interfere with monsters following combat point commands
+			if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
+			{
+				// Monster is following orders, don't look for new targets
+				return;
+			}
+
 			if (!self->enemy ||
 				(self->enemy->client && !self->enemy->monsterinfo.isfriendlyspawn)) { // If current enemy is a player, forget it
 				self->enemy = nullptr;
@@ -396,6 +403,13 @@ void ai_walk(edict_t* self, float dist)
 	{
 		// Only summoned monsters use FindMTarget for targeting
 		if (self->monsterinfo.isfriendlyspawn) {
+			// Don't interfere with monsters following combat point commands
+			if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
+			{
+				// Monster is following orders, don't look for new targets
+				return;
+			}
+
 			if (!self->enemy ||
 				(self->enemy->client && !self->enemy->monsterinfo.isfriendlyspawn)) { // If current enemy is a player, forget it
 				self->enemy = nullptr;
@@ -1146,6 +1160,9 @@ bool FindEnhancedTarget(edict_t* self) {
         return false;
 
     if (self->monsterinfo.isfriendlyspawn) {
+        // Don't interfere with monsters following combat point commands
+        if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
+            return false;
         return FindMTarget(self);
     }
 
@@ -1834,7 +1851,7 @@ void ai_run_slide(edict_t* self, float distance)
 	// PMM - the move failed, so signal the caller (ai_run) to try going straight
 	self->monsterinfo.attack_state = AS_STRAIGHT;
 
-	if (!self->enemy && self->monsterinfo.isfriendlyspawn)
+	if (!self->enemy && self->monsterinfo.isfriendlyspawn && !(self->monsterinfo.aiflags & AI_COMBAT_POINT))
 		FindMTarget(self);
 }
 // ROGUE
@@ -2201,6 +2218,11 @@ void ai_run(edict_t* self, float dist)
 			}
 			// Otherwise continue with current healing target - don't call FindMTarget
 		}
+		// Don't interfere with monsters following combat point commands
+		else if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
+		{
+			// Monster is following orders, handled by AI_COMBAT_POINT code below
+		}
 		else if (!M_HasEnemy(self) || self->enemy->client)
 		{
 			self->enemy = nullptr;
@@ -2241,7 +2263,8 @@ void ai_run(edict_t* self, float dist)
 	}
 
 	// 4. Final safety net: At this point, we should have a valid enemy.
-	if (!M_HasEnemy(self))
+	// Exception: AI_COMBAT_POINT monsters can move without an enemy
+	if (!M_HasEnemy(self) && !(self->monsterinfo.aiflags & AI_COMBAT_POINT))
 	{
 		if (self->monsterinfo.stand) self->monsterinfo.stand(self);
 		return;
@@ -2271,6 +2294,21 @@ void ai_run(edict_t* self, float dist)
 	// if we're going to a combat point, just proceed
 	if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
 	{
+		// If monster acquired a real enemy (not the combat point itself), cancel combat point orders
+		if (self->enemy && self->enemy != self->goalentity && self->enemy != self->movetarget)
+		{
+			// Check if enemy is a valid combat target (has health, is a monster, etc)
+			if (self->enemy->health > 0 && !self->enemy->client)
+			{
+				// Clear combat point, let monster fight normally next frame
+				self->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
+				self->goalentity = self->enemy;
+				self->movetarget = nullptr;
+				return;
+			}
+		}
+
+		// Continue following combat point
 		ai_checkattack(self, dist);
 		M_MoveToGoal(self, dist);
 

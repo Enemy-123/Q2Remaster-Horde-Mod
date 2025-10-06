@@ -24,6 +24,7 @@ void SP_monster_daedalus_bomber(edict_t* self);
 
 // Forward declarations for monster command system
 void drone_combat_point_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+void drone_follow_point_think(edict_t* self);
 
 // Cleanup function to remove a summoned monster from player's tracking array
 void RemoveSummonFromPlayerArray(edict_t* monster)
@@ -764,6 +765,23 @@ void DroneFollow(edict_t* player, edict_t* target)
 }
 
 // Think function for combat point temporary entities
+// Think function for follow point - updates position to follow player
+THINK(drone_follow_point_think) (edict_t* self) -> void
+{
+	// Remove if owner is gone
+	if (!self->activator || !self->activator->inuse || !self->activator->client)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
+	// Update position to player's location
+	self->s.origin = self->activator->s.origin;
+	gi.linkentity(self);
+
+	self->nextthink = level.time + gtime_t::from_sec(0.1f);
+}
+
 THINK(drone_tempent_think) (edict_t* self) -> void
 {
 	// If no monsters are following this combat point, free it
@@ -809,9 +827,16 @@ TOUCH(drone_combat_point_touch) (edict_t* self, edict_t* other, const trace_t& t
 		return;
 
 	// Clear combat point flag when monster reaches destination
-	other->goalentity = other->enemy;
-	other->movetarget = nullptr;
 	other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
+	other->movetarget = nullptr;
+
+	// If the enemy is the combat point itself, clear it so monster can find real enemies
+	if (other->enemy == self)
+		other->enemy = nullptr;
+
+	// Return to normal AI
+	if (other->monsterinfo.stand)
+		other->monsterinfo.stand(other);
 }
 
 // Create a temporary combat point entity
@@ -893,7 +918,12 @@ void DroneMovePosition(edict_t* player, const vec3_t& pos)
 		{
 			monster->monsterinfo.aiflags |= (AI_NO_CIRCLE_STRAFE | AI_COMBAT_POINT);
 			monster->monsterinfo.aiflags &= ~AI_STAND_GROUND;
-			monster->enemy = nullptr;
+			monster->monsterinfo.pausetime = 0_ms;
+
+			// Set goalentity as enemy if no enemy - keeps monster in active state
+			if (!monster->enemy)
+				monster->enemy = temp;
+
 			monster->goalentity = temp;
 			monster->movetarget = temp;
 			monster->monsterinfo.spot1 = {};
@@ -1022,6 +1052,28 @@ void MonsterFollowMe(edict_t* player)
 
 	gi.LocClient_Print(player, PRINT_HIGH, "Monsters will follow you.\n");
 
+	// Remove any existing follow points for this player
+	edict_t* temp = nullptr;
+	while ((temp = G_FindByString<&edict_t::classname>(temp, "follow_point")) != nullptr)
+	{
+		if (temp->activator == player)
+			G_FreeEdict(temp);
+	}
+
+	// Create a follow point entity that moves with the player
+	edict_t* followPoint = G_Spawn();
+	followPoint->s.origin = player->s.origin;
+	followPoint->activator = player;
+	followPoint->classname = "follow_point";
+	followPoint->solid = SOLID_TRIGGER;
+	followPoint->touch = drone_combat_point_touch;
+	followPoint->svflags = SVF_NOCLIENT;
+	followPoint->think = drone_follow_point_think;
+	followPoint->nextthink = level.time + gtime_t::from_sec(0.1f);
+	followPoint->mins = { -8, -8, -16 };
+	followPoint->maxs = { 8, 8, 16 };
+	gi.linkentity(followPoint);
+
 	for (int i = 0; i < 4; i++)
 	{
 		edict_t* monster = player->client->selected[i];
@@ -1029,10 +1081,16 @@ void MonsterFollowMe(edict_t* player)
 		if (monster && monster->inuse && monster->health > 0 &&
 			ValidCommandMonster(player, monster) && visible(player, monster))
 		{
-			monster->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_COMBAT_POINT);
-			monster->monsterinfo.aiflags |= AI_NO_CIRCLE_STRAFE;
-			monster->goalentity = player;
-			monster->movetarget = nullptr;
+			monster->monsterinfo.aiflags |= (AI_NO_CIRCLE_STRAFE | AI_COMBAT_POINT);
+			monster->monsterinfo.aiflags &= ~AI_STAND_GROUND;
+			monster->monsterinfo.pausetime = 0_ms;
+
+			// Set followPoint as enemy if no enemy - keeps monster in active state
+			if (!monster->enemy)
+				monster->enemy = followPoint;
+
+			monster->goalentity = followPoint;
+			monster->movetarget = followPoint;
 			monster->monsterinfo.leader = player;
 			monster->monsterinfo.spot1 = {};
 			monster->monsterinfo.spot2 = {};
