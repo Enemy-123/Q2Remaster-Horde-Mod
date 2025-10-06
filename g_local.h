@@ -769,7 +769,10 @@ enum monster_ai_flags_t : uint64_t
 	// cleanup flags // HORDE
 	AI_CLEANUP_FADE = bit_v<39>,    // Entity should fade out (horde mode)
 	AI_CLEANUP_NORMAL = bit_v<40>,  // Entity should be cleaned up normally
-	AI_LAG_COMPENSATED = bit_v<41>  // Monster is currently lag compensated (for international players)
+	AI_LAG_COMPENSATED = bit_v<41>,  // Monster is currently lag compensated (for international players)
+
+	// Monster command system flags
+	AI_NO_CIRCLE_STRAFE = bit_v<42>  // Disable circle strafing behavior (for commanded monsters)
 };
 MAKE_ENUM_BITFLAGS(monster_ai_flags_t);
 
@@ -1931,6 +1934,12 @@ struct monsterinfo_t
 	effects_t cached_effects;
 	renderfx_t cached_renderfx;
 	int32_t cached_sound;
+
+	// Monster command system fields (Vortex-style)
+	gtime_t  selected_time;        // Blink effect timer when selected
+	edict_t* leader;               // Follow/combat point target
+	vec3_t   spot1;                // Patrol/defend point 1
+	vec3_t   spot2;                // Patrol point 2
 };;;;
 
 // non-monsterinfo save stuff
@@ -3541,6 +3550,12 @@ struct gclient_t
 	// Menu protection system (similar to Vortex)
 	bool menu_protected;           // Player is in menu and protected from damage/inactivity
 	gtime_t menu_protection_start; // Time when menu protection started
+
+	// Monster command system (Vortex-style)
+	edict_t* selected[4];          // Selected monsters for commands
+	gtime_t  lastCommand;          // For double-click detection
+	edict_t* lastEnt;              // Last entity commanded
+	vec3_t   lastPosition;         // Last position commanded
 };
 
 // ==========================================

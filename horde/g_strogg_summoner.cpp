@@ -22,6 +22,9 @@ void SP_monster_shambler_small(edict_t* self);
 void SP_monster_medic(edict_t* self);
 void SP_monster_daedalus_bomber(edict_t* self);
 
+// Forward declarations for monster command system
+void drone_combat_point_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+
 // Cleanup function to remove a summoned monster from player's tracking array
 void RemoveSummonFromPlayerArray(edict_t* monster)
 {
@@ -561,5 +564,483 @@ void Cmd_RemoveAllSummons_f(edict_t* ent)
 	else
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "No summoned Strogg found.\n");
+	}
+}
+
+// ***************************
+//  MONSTER COMMAND SYSTEM (Vortex-style)
+// ***************************
+
+constexpr float MONSTER_BLINK_DURATION = 2.0f;
+
+// Check if a monster is owned by the player
+// In Horde mod, summoned monsters use chain to point directly to the player
+bool ValidCommandMonster(edict_t* player, edict_t* monster)
+{
+	if (!player || !monster)
+		return false;
+
+	if (!player->client)
+		return false;
+
+	// Check if this is a monster
+	if (!(monster->svflags & SVF_MONSTER))
+		return false;
+
+	// Check if monster is summoned and owned by this player
+	if (!monster->monsterinfo.issummoned)
+		return false;
+
+	// chain points directly to the player for summoned monsters
+	if (monster->chain != player)
+		return false;
+
+	return true;
+}
+
+// Check if a monster is already in the selected array
+// Returns pointer to the slot if found, nullptr otherwise
+edict_t** DroneAlreadySelected(edict_t* player, edict_t* monster)
+{
+	if (!player || !player->client || !monster)
+		return nullptr;
+
+	for (int i = 0; i < 4; i++)
+	{
+		if (monster == player->client->selected[i])
+			return &player->client->selected[i];
+	}
+
+	return nullptr;
+}
+
+// Find a free slot in the selected array
+// Returns pointer to the slot if found, nullptr if all slots are occupied
+edict_t** GetFreeSelectSlot(edict_t* player)
+{
+	if (!player || !player->client)
+		return nullptr;
+
+	for (int i = 0; i < 4; i++)
+	{
+		edict_t* selected = player->client->selected[i];
+
+		// Slot is available if it's null, not alive, or not a valid command monster
+		if (!selected || !selected->inuse || selected->health <= 0 ||
+			!ValidCommandMonster(player, selected))
+		{
+			return &player->client->selected[i];
+		}
+	}
+
+	return nullptr;
+}
+
+// Make all selected monsters blink
+void DroneBlink(edict_t* player)
+{
+	if (!player || !player->client)
+		return;
+
+	for (int i = 0; i < 4; i++)
+	{
+		edict_t* selected = player->client->selected[i];
+		if (selected && selected->inuse && selected->health > 0)
+		{
+			selected->monsterinfo.selected_time = level.time + gtime_t::from_sec(MONSTER_BLINK_DURATION);
+		}
+	}
+}
+
+// Remove a monster from the selected array
+void DroneRemoveSelected(edict_t* player, edict_t* monster)
+{
+	if (!player || !player->client)
+		return;
+
+	for (int i = 0; i < 4; i++)
+	{
+		if (monster)
+		{
+			// Remove this specific monster from the list
+			if (monster == player->client->selected[i])
+				player->client->selected[i] = nullptr;
+		}
+		else
+		{
+			// Remove all monsters from the list
+			player->client->selected[i] = nullptr;
+		}
+	}
+}
+
+// Toggle stand ground mode for a monster
+void DroneToggleStand(edict_t* player, edict_t* monster)
+{
+	if (!player || !monster)
+		return;
+
+	if (monster->monsterinfo.aiflags & AI_STAND_GROUND)
+	{
+		// Disable stand ground - monster will hunt
+		gi.LocClient_Print(player, PRINT_HIGH, "Monster will hunt.\n");
+
+		// If no melee function, allow circle strafing
+		if (!monster->monsterinfo.melee)
+			monster->monsterinfo.aiflags &= ~AI_NO_CIRCLE_STRAFE;
+
+		monster->monsterinfo.aiflags &= ~(AI_COMBAT_POINT | AI_STAND_GROUND);
+		monster->monsterinfo.leader = nullptr;
+		monster->monsterinfo.spot1 = {};
+		monster->monsterinfo.spot2 = {};
+		monster->yaw_speed = 20;
+	}
+	else
+	{
+		// Enable stand ground
+		gi.LocClient_Print(player, PRINT_HIGH, "Monster will stand ground.\n");
+
+		monster->monsterinfo.aiflags |= AI_STAND_GROUND;
+		monster->monsterinfo.leader = nullptr;
+		monster->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
+		monster->monsterinfo.spot1 = {};
+		monster->monsterinfo.spot2 = {};
+		monster->yaw_speed = 40; // Faster turn rate while standing ground
+
+		// Call the monster's stand function if available
+		if (monster->monsterinfo.stand)
+			monster->monsterinfo.stand(monster);
+	}
+}
+
+// Command selected monsters to attack a target
+void DroneAttack(edict_t* player, edict_t* target)
+{
+	if (!player || !player->client || !target)
+		return;
+
+	gi.LocClient_Print(player, PRINT_HIGH, "Monsters will attack target.\n");
+
+	for (int i = 0; i < 4; i++)
+	{
+		edict_t* monster = player->client->selected[i];
+		if (monster && monster->inuse && monster->health > 0 &&
+			ValidCommandMonster(player, monster) && visible(player, monster))
+		{
+			monster->enemy = target;
+			monster->monsterinfo.last_sighting = target->s.origin;
+			if (monster->monsterinfo.run)
+				monster->monsterinfo.run(monster);
+			monster->monsterinfo.selected_time = level.time + gtime_t::from_sec(1.0f);
+		}
+	}
+}
+
+// Command selected monsters to follow a target
+void DroneFollow(edict_t* player, edict_t* target)
+{
+	if (!player || !player->client || !target)
+		return;
+
+	gi.LocClient_Print(player, PRINT_HIGH, "Monsters will follow target.\n");
+
+	for (int i = 0; i < 4; i++)
+	{
+		edict_t* monster = player->client->selected[i];
+		if (monster && monster->inuse && monster->health > 0 &&
+			ValidCommandMonster(player, monster) && visible(player, monster))
+		{
+			monster->monsterinfo.aiflags |= AI_NO_CIRCLE_STRAFE;
+			monster->monsterinfo.aiflags &= ~AI_STAND_GROUND;
+			monster->enemy = nullptr;
+			monster->goalentity = target;
+			monster->monsterinfo.last_sighting = target->s.origin;
+			if (monster->monsterinfo.run)
+				monster->monsterinfo.run(monster);
+			monster->monsterinfo.leader = target;
+			monster->monsterinfo.selected_time = level.time + gtime_t::from_sec(MONSTER_BLINK_DURATION);
+		}
+	}
+}
+
+// Think function for combat point temporary entities
+THINK(drone_tempent_think) (edict_t* self) -> void
+{
+	// If no monsters are following this combat point, free it
+	if (!self->activator || !self->activator->inuse || !self->activator->client)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
+	// Count monsters linked to this point
+	int numLinks = 0;
+	for (int i = 0; i < 4; i++)
+	{
+		edict_t* monster = self->activator->client->selected[i];
+
+		if (!monster || !monster->inuse || monster->health <= 0)
+			continue;
+
+		if (!ValidCommandMonster(self->activator, monster))
+			continue;
+
+		// Monster has a matching vector to our location
+		if ((monster->monsterinfo.spot1 - self->s.origin).length() < 16.0f ||
+			(monster->monsterinfo.spot2 - self->s.origin).length() < 16.0f)
+		{
+			numLinks++;
+		}
+	}
+
+	if (numLinks < 1)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
+	self->nextthink = level.time + gtime_t::from_sec(0.1f);
+}
+
+// Touch function for drone combat points
+TOUCH(drone_combat_point_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	if (!other->monsterinfo.aiflags)
+		return;
+
+	// Clear combat point flag when monster reaches destination
+	other->goalentity = other->enemy;
+	other->movetarget = nullptr;
+	other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
+}
+
+// Create a temporary combat point entity
+edict_t* DroneTempEnt(edict_t* player, const vec3_t& pos, float delay)
+{
+	edict_t* temp = G_Spawn();
+	temp->s.origin = pos;
+	temp->activator = player;
+	temp->classname = "point_combat";
+	temp->solid = SOLID_TRIGGER;
+	temp->touch = drone_combat_point_touch;
+	temp->svflags = SVF_NOCLIENT;
+	temp->think = drone_tempent_think;
+	temp->nextthink = level.time + gtime_t::from_sec(0.1f);
+
+	if (delay > 0)
+	{
+		temp->nextthink = level.time + gtime_t::from_sec(delay);
+		temp->think = G_FreeEdict;
+	}
+
+	temp->mins = { -8, -8, -16 };
+	temp->maxs = { 8, 8, 16 };
+	gi.linkentity(temp);
+
+	return temp;
+}
+
+// Command selected monsters to move to a position
+void DroneMovePosition(edict_t* player, const vec3_t& pos)
+{
+	if (!player || !player->client)
+		return;
+
+	// Remove any existing combat points that we own
+	edict_t* temp = nullptr;
+	while ((temp = G_FindByString<&edict_t::classname>(temp, "point_combat")) != nullptr)
+	{
+		if (temp->activator != player)
+			continue;
+		G_FreeEdict(temp);
+	}
+
+	// Create entity that monsters will follow
+	temp = DroneTempEnt(player, pos, 0); // No timeout
+
+	int cmd = 3; // Default: move to spot
+
+	// Check if player issued a command very recently (double-click)
+	if (player->client->lastCommand > level.time)
+	{
+		// Two different locations selected?
+		vec3_t diff = player->client->lastPosition - pos;
+		float dist2d = sqrtf(diff[0] * diff[0] + diff[1] * diff[1]);
+
+		if (dist2d > 64)
+		{
+			gi.LocClient_Print(player, PRINT_HIGH, "Monsters will patrol.\n");
+			cmd = 1; // Patrol between two points
+		}
+		else
+		{
+			gi.LocClient_Print(player, PRINT_HIGH, "Monsters will defend position.\n");
+			cmd = 2; // Defend/stay in this spot
+		}
+	}
+	else
+	{
+		gi.LocClient_Print(player, PRINT_HIGH, "Monsters will move to spot.\n");
+	}
+
+	// Command selected monsters
+	for (int i = 0; i < 4; i++)
+	{
+		edict_t* monster = player->client->selected[i];
+
+		if (monster && monster->inuse && monster->health > 0 &&
+			ValidCommandMonster(player, monster) && visible(player, monster))
+		{
+			monster->monsterinfo.aiflags |= (AI_NO_CIRCLE_STRAFE | AI_COMBAT_POINT);
+			monster->monsterinfo.aiflags &= ~AI_STAND_GROUND;
+			monster->enemy = nullptr;
+			monster->goalentity = temp;
+			monster->movetarget = temp;
+			monster->monsterinfo.spot1 = {};
+			monster->monsterinfo.spot2 = {};
+
+			// Patrol between two points
+			if (cmd == 1)
+			{
+				monster->monsterinfo.spot1 = player->client->lastPosition;
+				monster->monsterinfo.spot2 = pos;
+				monster->monsterinfo.leader = temp;
+				// Create a combat point at the first spot
+				DroneTempEnt(player, player->client->lastPosition, 0);
+			}
+			// Return to this spot, even if distracted
+			else if (cmd == 2)
+			{
+				monster->monsterinfo.spot1 = pos;
+				monster->monsterinfo.leader = temp;
+			}
+			// Move to this spot, but may get distracted
+			else
+			{
+				monster->monsterinfo.spot1 = pos;
+				monster->monsterinfo.leader = nullptr;
+			}
+
+			monster->monsterinfo.last_sighting = pos;
+			if (monster->monsterinfo.run)
+				monster->monsterinfo.run(monster);
+			monster->monsterinfo.selected_time = level.time + gtime_t::from_sec(MONSTER_BLINK_DURATION);
+		}
+	}
+}
+
+// Main monster command function
+void MonsterCommand(edict_t* player)
+{
+	if (!player || !player->client)
+		return;
+
+	vec3_t forward, start, end;
+
+	// Calculate starting position for trace
+	vec3_t offset = { 0, 7, (float)(player->viewheight - 8) };
+	P_ProjectSource(player, player->client->v_angle, offset, start, forward);
+
+	// Calculate end position
+	end = start + (forward * 8192.0f);
+
+	// Run trace
+	trace_t tr = gi.traceline(start, end, player, MASK_SHOT);
+
+	// Is this a live entity?
+	if (tr.ent && tr.ent->inuse && tr.ent->health > 0)
+	{
+		// Is this a monster that we own?
+		if (ValidCommandMonster(player, tr.ent))
+		{
+			// Was this monster already selected?
+			edict_t** slot = DroneAlreadySelected(player, tr.ent);
+			if (slot != nullptr)
+			{
+				// Did we last select this monster very recently ('double-click')?
+				if (player->client->lastCommand > level.time &&
+					player->client->lastEnt == tr.ent)
+				{
+					// Toggle stand ground
+					DroneToggleStand(player, tr.ent);
+					tr.ent->monsterinfo.selected_time = level.time + gtime_t::from_sec(MONSTER_BLINK_DURATION);
+				}
+				else
+				{
+					// Un-select the monster
+					*slot = nullptr;
+					tr.ent->monsterinfo.selected_time = {};
+					DroneBlink(player); // All selected monsters blink
+				}
+			}
+			// If the monster has not already been selected
+			// then try to add it to the list of currently selected monsters
+			else if ((slot = GetFreeSelectSlot(player)) != nullptr)
+			{
+				*slot = tr.ent;
+				DroneBlink(player); // All selected monsters blink
+			}
+		}
+		// Are we on the same team?
+		else if (OnSameTeam(player, tr.ent))
+		{
+			DroneFollow(player, tr.ent);
+		}
+		else
+		{
+			DroneAttack(player, tr.ent);
+		}
+	}
+	else
+	{
+		// Move/defend position
+		// Trace to the floor
+		vec3_t trace_start = tr.endpos;
+		vec3_t trace_end = trace_start;
+		trace_end[2] -= 8192;
+		tr = gi.traceline(trace_start, trace_end, nullptr, MASK_SOLID);
+
+		vec3_t final_pos = tr.endpos;
+		final_pos[2] += 8;
+		DroneMovePosition(player, final_pos);
+		player->client->lastPosition = final_pos;
+	}
+
+	// Update last command timer (used for 'double-click' commands)
+	player->client->lastCommand = level.time + gtime_t::from_sec(2.0f);
+	if (tr.ent)
+		player->client->lastEnt = tr.ent;
+	else
+		player->client->lastEnt = nullptr;
+}
+
+// Command all selected monsters to follow the player
+void MonsterFollowMe(edict_t* player)
+{
+	if (!player || !player->client)
+		return;
+
+	gi.LocClient_Print(player, PRINT_HIGH, "Monsters will follow you.\n");
+
+	for (int i = 0; i < 4; i++)
+	{
+		edict_t* monster = player->client->selected[i];
+
+		if (monster && monster->inuse && monster->health > 0 &&
+			ValidCommandMonster(player, monster) && visible(player, monster))
+		{
+			monster->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_COMBAT_POINT);
+			monster->monsterinfo.aiflags |= AI_NO_CIRCLE_STRAFE;
+			monster->goalentity = player;
+			monster->movetarget = nullptr;
+			monster->monsterinfo.leader = player;
+			monster->monsterinfo.spot1 = {};
+			monster->monsterinfo.spot2 = {};
+
+			if (monster->monsterinfo.run)
+				monster->monsterinfo.run(monster);
+
+			monster->monsterinfo.selected_time = level.time + gtime_t::from_sec(MONSTER_BLINK_DURATION);
+		}
 	}
 }

@@ -1056,7 +1056,7 @@ MONSTERINFO_WALK(medic_walk)(edict_t *self)->void
 	if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
 	{
 		// We have an active threat - focus on combat
-		//		M_SetAnimation(self, &medic_move_walk);
+		M_SetAnimation(self, &medic_move_walk);
 		return;
 	}
 

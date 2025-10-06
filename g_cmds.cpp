@@ -8,6 +8,10 @@
 #include "shared.h"
 #include "memory_safety.h"
 
+// Forward declarations from g_strogg_summoner.cpp
+void MonsterCommand(edict_t* player);
+void MonsterFollowMe(edict_t* player);
+
 void SelectNextItem(edict_t* ent, item_flags_t itflags, bool menu = true)
 {
 	gclient_t* cl;
@@ -2050,6 +2054,16 @@ void ClientCommand(edict_t* ent)
 	}
 	if (Q_strcasecmp(cmd, "remove") == 0 && Q_strcasecmp(gi.argv(1), "strogg") == 0) {
 		Cmd_RemoveStrogg_f(ent);
+		return;
+	}
+
+	// Monster command system
+	if (Q_strcasecmp(cmd, "monstercommand") == 0 || Q_strcasecmp(cmd, "mcmd") == 0) {
+		MonsterCommand(ent);
+		return;
+	}
+	if (Q_strcasecmp(cmd, "mfollow") == 0) {
+		MonsterFollowMe(ent);
 		return;
 	}
 

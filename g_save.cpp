@@ -1076,6 +1076,12 @@ FIELD_AUTO(ir_frame_count),
 FIELD_AUTO(blaster_ammo),
 FIELD_AUTO(blaster_regen_time),
 
+// Monster command system fields
+FIELD_AUTO(selected),
+FIELD_AUTO(lastCommand),
+FIELD_AUTO(lastEnt),
+FIELD_AUTO(lastPosition),
+
 SAVE_STRUCT_END
 #undef DECLARE_SAVE_STRUCT
 // clang-format on
@@ -1411,9 +1417,15 @@ FIELD_AUTO(monsterinfo.death_processed),
 FIELD_AUTO(monsterinfo.bonus_flags),
 FIELD_AUTO(monsterinfo.team),
 FIELD_AUTO(monsterinfo.next_regen_time), 
-FIELD_AUTO(monsterinfo.monster_type_id),     
+FIELD_AUTO(monsterinfo.monster_type_id),
 FIELD_AUTO(monsterinfo.was_spawned_by_horde),
 FIELD_AUTO(monsterinfo.spawned_in_spawn_state),
+
+// Monster command system fields
+FIELD_AUTO(monsterinfo.selected_time),
+FIELD_AUTO(monsterinfo.leader),
+FIELD_AUTO(monsterinfo.spot1),
+FIELD_AUTO(monsterinfo.spot2),
 
 // back to edict_t
 FIELD_AUTO(plat2flags),

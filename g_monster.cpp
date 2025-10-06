@@ -620,6 +620,17 @@ void M_SetEffects(edict_t* ent)
 	if (ent->monsterinfo.quadfire_time > level.time && G_PowerUpExpiring(ent->monsterinfo.quadfire_time))
 		new_effects |= EF_DUALFIRE;
 
+	// Monster command selection blinking (green shell)
+	// Use time-based blinking instead of frame-based for smoother effect
+	if (ent->monsterinfo.selected_time > level.time) {
+		// Blink every 200ms using integer division
+		int64_t time_ms = level.time.milliseconds();
+		if ((time_ms / 200) & 1) {
+			new_effects |= EF_COLOR_SHELL;
+			new_renderfx |= RF_SHELL_GREEN;
+		}
+	}
+
 apply_changes:
 	// Only update entity state if something changed (reduces network traffic)
 	if (ent->monsterinfo.cached_effects != new_effects ||
