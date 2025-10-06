@@ -5843,13 +5843,7 @@ private:
             g_horde_local.num_to_spawn--;
         }
         monsters_spawned_in_current_phase++;
-
-        if (monster->inuse && !monster->deadflag && monster->health > 0) {
-            SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-            if (sound_spawn1) {
-                gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-            }
-        }
+        // Note: spawn grow effects now handled inside Horde_SpawnMonster
     }
 
     void HandleSpawnFailure(edict_t* spawn_point, bool used_alternative) {

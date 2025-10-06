@@ -110,33 +110,27 @@ void SpawnPointsSoA::resize(size_t new_size) {
 // ============================================================================
 
 /// Applies visual and audio effects when a monster spawns
+/// Note: SpawnGrow is now handled inside Horde_SpawnMonster
 static void ApplyMonsterSpawnEffects(edict_t* monster) noexcept
 {
-    if (!monster || !monster->inuse || monster->deadflag || monster->health <= 0)
-        return;
-
-    SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-    if (sound_spawn1)
-    {
-        gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-    }
+    // No additional effects needed - handled in Horde_SpawnMonster
+    (void)monster;
 }
 
 /// Applies special spawn effects - differentiated for Ambush vs Retaliation
+/// Note: SpawnGrow is now handled inside Horde_SpawnMonster
 static void ApplySpecialSpawnEffects(edict_t* monster, bool is_retaliation) noexcept
 {
     if (!monster || !monster->inuse || monster->deadflag || monster->health <= 0)
         return;
 
     if (is_retaliation) {
-        // Retaliation: Larger, more aggressive spawn effect
-        SpawnGrow_Spawn(monster->s.origin, 100.0f, 15.0f);  // Larger grow effect
+        // Retaliation: More aggressive sound effect
         if (sound_quake) {
             gi.sound(monster, CHAN_AUTO, sound_quake, 1.0f, ATTN_NORM, 0);  // Use quake sound for impact
         }
     } else {
-        // Ambush: Faster, sneakier spawn effect
-        SpawnGrow_Spawn(monster->s.origin, 60.0f, 7.0f);  // Smaller, quicker grow
+        // Ambush: Sneakier sound effect
         if (tele1) {
             gi.sound(monster, CHAN_AUTO, tele1, 0.7f, ATTN_NORM, 0);  // Quieter teleport sound
         }
@@ -394,6 +388,11 @@ edict_t* Horde_SpawnMonster(
             // Re-run the trace to be 100% sure the new spot is clear.
             trace_t recheck_trace = gi.trace(monster->s.origin, monster->mins, monster->maxs, monster->s.origin, monster, MASK_SOLID);
             if (!recheck_trace.startsolid) {
+                // Monster successfully spawned - show spawn grow at final position
+                SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+                if (sound_spawn1) {
+                    gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+                }
                 return monster;
             }
             // If it's still stuck after the fix, something is very wrong. Fall through to free it.
@@ -409,6 +408,11 @@ edict_t* Horde_SpawnMonster(
         return nullptr;
     }
 
+    // Monster successfully spawned at original position - show spawn grow
+    SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+    if (sound_spawn1) {
+        gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+    }
     return monster;
 }
 
