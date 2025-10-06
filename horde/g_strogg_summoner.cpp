@@ -826,48 +826,7 @@ TOUCH(drone_combat_point_touch) (edict_t* self, edict_t* other, const trace_t& t
 	if (!other->monsterinfo.aiflags)
 		return;
 
-	// Check if this is a patrol route (spot1 and spot2 both set)
-	if (other->monsterinfo.spot1.lengthSquared() > 0 && other->monsterinfo.spot2.lengthSquared() > 0)
-	{
-		// Swap patrol points - go to the other spot
-		vec3_t temp_spot = other->monsterinfo.spot1;
-		other->monsterinfo.spot1 = other->monsterinfo.spot2;
-		other->monsterinfo.spot2 = temp_spot;
-
-		// Update combat point position to the new destination
-		if (self->classname && strcmp(self->classname, "point_combat") == 0)
-		{
-			self->s.origin = other->monsterinfo.spot1;
-			gi.linkentity(self);
-		}
-
-		// Clear the fake enemy so monster can fight real enemies while patrolling
-		if (other->enemy == self)
-			other->enemy = nullptr;
-
-		return;
-	}
-
-	// Check if this is a defend position (only spot1 set)
-	if (other->monsterinfo.spot1.lengthSquared() > 0)
-	{
-		// Reached defend position - clear movetarget to prevent re-pathing, but keep goalentity
-		other->movetarget = nullptr;
-
-		// Clear the fake enemy so monster can fight real enemies while defending
-		if (other->enemy == self)
-			other->enemy = nullptr;
-
-		// Set stand ground so they hold position
-		other->monsterinfo.aiflags |= AI_STAND_GROUND;
-		other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
-
-		if (other->monsterinfo.stand)
-			other->monsterinfo.stand(other);
-		return;
-	}
-
-	// Simple move command - reached destination, clear everything
+	// Clear combat point flag when monster reaches destination
 	other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
 	other->goalentity = nullptr;
 	other->movetarget = nullptr;
