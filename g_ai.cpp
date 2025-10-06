@@ -435,28 +435,12 @@ void ai_walk(edict_t* self, float dist)
 		// Only summoned monsters use FindMTarget for targeting
 		if (self->monsterinfo.isfriendlyspawn) {
 		// Clean up dead/invalid entity references for summoned monsters
-		// BUT preserve command entities (combat points, follow points)
-		if (self->enemy && !self->enemy->inuse)
+		if (self->enemy && (!self->enemy->inuse || self->enemy->health <= 0))
 			self->enemy = nullptr;
-		else if (self->enemy && self->enemy->health <= 0 && self->enemy->classname &&
-		         Q_strcasecmp(self->enemy->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->enemy->classname, "follow_point") != 0)
-			self->enemy = nullptr;
-
-		if (self->goalentity && !self->goalentity->inuse)
+		if (self->goalentity && (!self->goalentity->inuse || self->goalentity->health <= 0))
 			self->goalentity = nullptr;
-		else if (self->goalentity && self->goalentity->health <= 0 && self->goalentity->classname &&
-		         Q_strcasecmp(self->goalentity->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->goalentity->classname, "follow_point") != 0)
-			self->goalentity = nullptr;
-
-		if (self->movetarget && !self->movetarget->inuse)
+		if (self->movetarget && (!self->movetarget->inuse || self->movetarget->health <= 0))
 			self->movetarget = nullptr;
-		else if (self->movetarget && self->movetarget->health <= 0 && self->movetarget->classname &&
-		         Q_strcasecmp(self->movetarget->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->movetarget->classname, "follow_point") != 0)
-			self->movetarget = nullptr;
-
 
 		// Allow monsters on patrol/orders to scan for enemies, but preserve their orders
 		if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
@@ -1394,14 +1378,14 @@ bool FindTarget(edict_t* self)
 		}
 	}
 
-	// Apply cooldown logic only for horde mode
-	if (g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn)
+	// Early cooldown check - prevent processing if already on cooldown (prevents animation looping)
+	if (g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn ||
+		(g_horde->integer && heardit && !self->monsterinfo.issummoned))
 	{
 		if (self->monsterinfo.lastnoisecooldown > level.time)
 		{
-			return false;
+			return false; // Still on cooldown from previous sound
 		}
-		self->monsterinfo.lastnoisecooldown = level.time + 3.5_sec; //hordehear cooldown
 	}
 
 	if (!client)
@@ -1571,6 +1555,13 @@ bool FindTarget(edict_t* self)
 		// Paril: adjust to prevent monsters getting stuck in sight loops
 		!ignore_sight_sound)
 		self->monsterinfo.sight(self, self->enemy);
+
+	// Late cooldown set - only set cooldown on successful target acquisition
+	if (g_horde->integer && heardit && !self->monsterinfo.isfriendlyspawn ||
+		(g_horde->integer && heardit && !self->monsterinfo.issummoned))
+	{
+		self->monsterinfo.lastnoisecooldown = level.time + 3.5_sec; //hordehear cooldown, without the cooldown, monsters will be looping on each noise they hear and will be looking very awful changing animations in each frame
+	}
 
 	return true;
 }
