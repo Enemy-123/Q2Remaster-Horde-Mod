@@ -238,6 +238,7 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/horde_ids.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/horde_monster_data.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/shared.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/json/json.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/vcpkg_installed/x64-mingw-static/include/json/config.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/istream \
@@ -286,5 +287,4 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/basic_file.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/c++io.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/fstream.tcc \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_scaling.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../shared.h
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_scaling.h

@@ -201,65 +201,70 @@ public:
         RDM6 = 12,
         RDM8 = 13,
         RDM9 = 14,
-        RDM12 = 15,
+        RDM10 = 15,
+        RDM12 = 16,
 
         // XDM maps
-        XDM1 = 16,
-        XDM2 = 17,
-        XDM3 = 18,
-        XDM4 = 19,
-        XDM6 = 20,
+        XDM1 = 17,
+        XDM2 = 18,
+        XDM3 = 19,
+        XDM4 = 20,
+        XDM6 = 21,
 
         // Q64 maps
-        Q64_DM1 = 21,
-        Q64_DM2 = 22,
-        Q64_DM3 = 23,
-        Q64_DM4 = 24,
-        Q64_DM6 = 25,
-        Q64_DM7 = 26,
-        Q64_DM8 = 27,
-        Q64_DM9 = 28,
-        Q64_DM10 = 29,
-        Q64_COMMAND = 30,
-        Q64_COMM = 31,
+        Q64_DM1 = 22,
+        Q64_DM2 = 23,
+        Q64_DM3 = 24,
+        Q64_DM4 = 25,
+        Q64_DM6 = 26,
+        Q64_DM7 = 27,
+        Q64_DM8 = 28,
+        Q64_DM9 = 29,
+        Q64_DM10 = 30,
+        Q64_COMMAND = 31,
+        Q64_COMM = 32,
 
         // MGU maps
-        MGU3M4 = 32,
-        MGU4TRIAL = 33,
-        MGU6M3 = 34,
-        MGU6TRIAL = 35,
-        MGDM1 = 36,
+        MGU3M4 = 33,
+        MGU4TRIAL = 34,
+        MGU6M3 = 35,
+        MGU6TRIAL = 36,
+        MGDM1 = 37,
 
         // Special maps
-        RBOSS = 37,
-        INDUSTRY = 38,
-        FACT3 = 39,
-        WASTE2 = 40,
-        NDCTF0 = 41,
-        XINTELL = 42,
-        SEWER64 = 43,
-        BASE64 = 44,
-        CITY64 = 45,
+        RBOSS = 38,
+        INDUSTRY = 39,
+        FACT3 = 40,
+        WASTE2 = 41,
+        NDCTF0 = 42,
+        XINTELL = 43,
+        SEWER64 = 44,
+        BASE64 = 45,
+        CITY64 = 46,
 
         // EC maps
-        EC_BASE_EC = 46,
+        EC_BASE_EC = 47,
 
         // Old maps
-        OLD_KMDM3 = 47,
+        OLD_KMDM3 = 48,
 
         // E3 maps
-        E3_JAIL_E3 = 48,
+        E3_JAIL_E3 = 49,
 
         // Test maps
-        TEST_MALS_BARRIER_TEST = 49,
-        TEST_SPBOX = 50,
-        TEST_TEST_KAISER = 51,
+        TEST_MALS_BARRIER_TEST = 50,
+        TEST_SPBOX = 51,
+        TEST_TEST_KAISER = 52,
 
         //rdm maps
 
-        RDM1 = 52,
-        RDM2 = 53,
-        XDM5 = 54,
+        RDM1 = 53,
+        RDM2 = 54,
+        RDM7 = 55,
+        XDM5 = 56,
+
+        RDM11 = 57,
+        RDM14 = 58,
 
         MAX_MAPS = 64,  // Set this to a value higher than the largest ID
         UNKNOWN = 0xFFFF

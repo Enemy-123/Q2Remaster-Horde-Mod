@@ -321,9 +321,10 @@ namespace horde {
             {"q2ctf4", MapID::Q2CTF4}, {"q2ctf5", MapID::Q2CTF5},
 
             // RDM maps
-            {"rdm2", MapID::RDM2},  {"rdm1", MapID::RDM1},
+            {"rdm2", MapID::RDM2}, {"rdm1", MapID::RDM1}, {"rdm7", MapID::RDM7},
             {"rdm4", MapID::RDM4}, {"rdm5", MapID::RDM5}, {"rdm6", MapID::RDM6},
             {"rdm8", MapID::RDM8}, {"rdm9", MapID::RDM9}, {"rdm12", MapID::RDM12},
+            {"rdm10", MapID::RDM10},{"rdm11", MapID::RDM11},{"rdm14", MapID::RDM14},
 
             // XDM maps
             {"xdm1", MapID::XDM1}, {"xdm2", MapID::XDM2}, {"xdm3", MapID::XDM3},
@@ -388,12 +389,20 @@ namespace horde {
         s_origins[static_cast<size_t>(MapID::RDM5)] = { true, {1088, 592, -568} };
         // RDM6
         s_origins[static_cast<size_t>(MapID::RDM6)] = { true, {724, 1300, 186} };
+         // RDM7
+        s_origins[static_cast<size_t>(MapID::RDM7)] = { true, {-1215, 326, 21} };
         // RDM8
         s_origins[static_cast<size_t>(MapID::RDM8)] = { true, {-1516, 976, -156} };
         // RDM9
         s_origins[static_cast<size_t>(MapID::RDM9)] = { true, {-862, -315, 357} };
+         // RDM10
+        s_origins[static_cast<size_t>(MapID::RDM10)] = { true, {-253, -416, -225} };
+        // RDM11
+        s_origins[static_cast<size_t>(MapID::RDM11)] = { true, {282, 2395, 39} };
         // RDM12
         s_origins[static_cast<size_t>(MapID::RDM12)] = { true, {32, -1888, 120} };
+        // RDM14
+        s_origins[static_cast<size_t>(MapID::RDM14)] = { true, {1171, 651, 807} };
         // Q2CTF4
         s_origins[static_cast<size_t>(MapID::Q2CTF4)] = { true, {-2390, 1112, 218} };
         // Q2CTF5
@@ -490,7 +499,8 @@ namespace horde {
         const MapID bigMapIDs[] = {
             MapID::Q2CTF5, MapID::OLD_KMDM3, MapID::XDM2, MapID::XDM4, MapID::XDM6, MapID::XDM3, MapID::RDM6,
             MapID::RDM8, MapID::XDM1, MapID::WASTE2, MapID::RDM5, MapID::RDM9, MapID::RDM12, MapID::XINTELL,
-            MapID::SEWER64, MapID::BASE64, MapID::CITY64, MapID::RDM1, MapID::RDM2, MapID::XDM5
+            MapID::SEWER64, MapID::BASE64, MapID::CITY64, MapID::RDM1, MapID::RDM2, MapID::XDM5, MapID::RDM7,
+            MapID::RDM10, MapID::RDM11
         };
         for (MapID id : bigMapIDs) {
             size_t index = static_cast<size_t>(id);

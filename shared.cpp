@@ -170,16 +170,19 @@ constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) {
 	return (bit_pos < 6) ? bit_pos + 1 : 0;
 }
 
+// Map size cache - accessible from both GetMapSize and InvalidateMapSizeCache
+namespace {
+    std::array<std::optional<horde::MapSize>,
+               static_cast<size_t>(horde::MapID::MAX_MAPS)> g_mapsize_cache;
+    char g_last_map_for_cache[MAX_QPATH] = "";
+}
+
 // 3: Enhanced map size cache with perfect hash
 [[nodiscard]] horde::MapSize GetMapSize(const char* mapname) noexcept {
-    static std::array<std::optional<horde::MapSize>,
-                      static_cast<size_t>(horde::MapID::MAX_MAPS)> s_cache;
-    static char s_last_map_for_cache[MAX_QPATH] = "";
-
     // If the map has changed, clear cache and reset spawn point tracking
-    if (strcmp(s_last_map_for_cache, level.mapname) != 0) {
-        s_cache.fill(std::nullopt);
-        Q_strlcpy(s_last_map_for_cache, level.mapname, sizeof(s_last_map_for_cache));
+    if (strcmp(g_last_map_for_cache, level.mapname) != 0) {
+        g_mapsize_cache.fill(std::nullopt);
+        Q_strlcpy(g_last_map_for_cache, level.mapname, sizeof(g_last_map_for_cache));
 
         // Reset spawn point selection state for new map
         ResetSpawnPointSelection();
@@ -192,8 +195,8 @@ constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) {
 
     const size_t index = static_cast<size_t>(mapId);
 
-    if (s_cache[index].has_value()) {
-        return s_cache[index].value();
+    if (g_mapsize_cache[index].has_value()) {
+        return g_mapsize_cache[index].value();
     }
 
     // Check for config override first
@@ -207,15 +210,20 @@ constexpr size_t GetBonusEffectIndex(bonus_flags_t flags) {
             size.isSmallMap = override_config.size_override_is_small;
             size.isBigMap = override_config.size_override_is_big;
             size.isMediumMap = override_config.size_override_is_medium;
-            s_cache[index] = size;
+            g_mapsize_cache[index] = size;
             return size;
         }
     }
 
     // No override, use hardcoded map size from registry
     size = horde::MapOriginRegistry::GetMapSize(mapId);
-    s_cache[index] = size;
+    g_mapsize_cache[index] = size;
     return size;
+}
+
+// Invalidate the GetMapSize cache - call when config is reloaded
+void InvalidateMapSizeCache() noexcept {
+    g_mapsize_cache.fill(std::nullopt);
 }
 
 // 4: Batch entity removal with memory pooling

@@ -1,5 +1,6 @@
 #include "g_config.h"
 #include "g_local.h"
+#include "shared.h"
 #include "horde/horde_ids.h"
 #include <json/json.h>
 #include <fstream>
@@ -783,6 +784,11 @@ void Config_Reload()
 		basedir += "baseq2/";
 
 	Config_Load(basedir.c_str());
+
+	// Invalidate map size cache since config may have changed
+	InvalidateMapSizeCache();
+
+	gi.Com_PrintFmt("Config: Reload complete\n");
 }
 
 // Get monster configuration by MonsterTypeID

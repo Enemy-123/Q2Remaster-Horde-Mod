@@ -133,6 +133,7 @@ extern thread_local bool g_use_quiet_deployable_removal;
 
 extern void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 extern horde::MapSize GetMapSize(const char* mapname) noexcept;
+extern void InvalidateMapSizeCache() noexcept;  // Call when config is reloaded
 extern gtime_t GetWaveTimer();
 extern int32_t GetStroggsNum() noexcept;
 extern inline bool IsBossWave() noexcept;
