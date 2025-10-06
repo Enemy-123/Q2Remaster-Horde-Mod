@@ -73,6 +73,12 @@
   flags			weapon
 }
 
+{ // 20mm Cannon
+  name			"weapon_20mm"
+  flags			weapon
+}
+
+
 { // Machinegun
   name			"weapon_machinegun"
   sight_dist	2048 // ignore if we're far enough away

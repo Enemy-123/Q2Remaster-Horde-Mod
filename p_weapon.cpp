@@ -2007,7 +2007,63 @@ void Weapon_Railgun(edict_t* ent)
 	Weapon_Generic(ent, 3, 18, 56, 61, pause_frames, fire_frames, weapon_railgun_fire);
 }
 
+/*
+======================================================================
 
+20MM CANNON
+
+======================================================================
+*/
+
+void weapon_20mm_fire(edict_t* ent)
+{
+	int damage = g_config.cannon20mm.damage;
+	int kick = g_config.cannon20mm.kick;
+
+	// Check if player is grounded or in water
+	if (!ent->groundentity && !ent->waterlevel)
+	{
+		if (ent->client && !(ent->svflags & SVF_MONSTER))
+			gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "You must be on the ground or in water to fire the 20mm cannon.\n");
+		return;
+	}
+
+	if (is_quad)
+	{
+		damage *= damage_multiplier;
+		kick *= damage_multiplier;
+	}
+
+	vec3_t start, dir;
+	P_ProjectSource(ent, ent->client->v_angle, { 0, 7, -8 }, start, dir, true);
+	G_LagCompensate(ent, start, dir);
+	fire_20mm(ent, start, dir, damage, kick, g_config.cannon20mm.range, MOD_CANNON);
+	G_UnLagCompensate();
+
+	// Apply recoil - push player backward
+	vec3_t forward;
+	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+	ent->velocity -= forward * g_config.cannon20mm.recoil_force;
+
+	// Big visual recoil - weapon kicks up high
+	P_AddWeaponKick(ent, ent->client->v_forward * -5, { -8.f, 0.f, 0.f });
+
+	// Play 20mm cannon sound
+	gi.positioned_sound(ent->s.origin, ent, CHAN_WEAPON, gi.soundindex("world/lid.wav"), 1, ATTN_NORM, 0);
+
+	PlayerNoise(ent, start, PNOISE_WEAPON);
+
+	G_RemoveAmmo(ent);
+}
+
+void Weapon_20mm(edict_t* ent)
+{
+	constexpr int pause_frames[] = { 56, 0 };
+	constexpr int fire_frames[] = { 4, 0 };
+
+	// Vortex frame values: VERY short fire cycle (ends at frame 4) for rapid fire
+	Weapon_Generic(ent, 3, 4, 56, 61, pause_frames, fire_frames, weapon_20mm_fire);
+}
 
 float P_CurrentBFGKickFactor(edict_t* ent)
 {

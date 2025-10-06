@@ -653,6 +653,101 @@ void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 
 /*
 =================
+fire_20mm
+
+Fires a 20mm cannon round with piercing damage similar to railgun.
+=================
+*/
+
+struct fire_20mm_pierce_t : pierce_args_t
+{
+	edict_t* self;
+	vec3_t	 aimdir;
+	int		 damage;
+	int		 kick;
+	bool	 water = false;
+
+	inline fire_20mm_pierce_t(edict_t* self, vec3_t aimdir, int damage, int kick) :
+		pierce_args_t(),
+		self(self),
+		aimdir(aimdir),
+		damage(damage),
+		kick(kick)
+	{
+	}
+
+	// we hit an entity; return false to stop the piercing.
+	bool hit(contents_t& mask, vec3_t& end) override
+	{
+		if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA))
+		{
+			mask &= ~(CONTENTS_SLIME | CONTENTS_LAVA);
+			water = true;
+			return true;
+		}
+		else
+		{
+			// try to kill it first
+			if ((tr.ent != self) && (tr.ent->takedamage))
+				T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_CANNON);
+
+			// dead, so we don't need to care about checking pierce
+			if (!tr.ent->inuse || (!tr.ent->solid || tr.ent->solid == SOLID_TRIGGER))
+				return true;
+
+			// pierces through monsters, clients, and damageable entities
+			if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client) ||
+				(tr.ent->flags & FL_DAMAGEABLE) ||
+				(tr.ent->solid == SOLID_BBOX))
+			{
+				if (!mark(tr.ent))
+					return false;
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+};
+
+void fire_20mm(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int range, mod_t mod)
+{
+	// Apply damage modifier if monster
+	if (self->svflags & SVF_MONSTER) {
+		damage = static_cast<int>(round(damage * M_DamageModifier(self)));
+	}
+
+	fire_20mm_pierce_t args = {
+		self,
+		aimdir,
+		damage,
+		kick
+	};
+
+	contents_t mask = MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA;
+
+	if (self && self->client && !G_ShouldPlayersCollide(true))
+		mask &= ~CONTENTS_PLAYER;
+
+	vec3_t const end = start + (aimdir * (float)range);
+
+	pierce_trace(start, end, self, args, mask);
+
+	// Only show bullet impact if we actually hit something solid (fraction < 1.0)
+	// This prevents showing impacts when shooting into empty air at max range
+	if (args.tr.fraction < 1.0f && args.tr.ent != self)
+	{
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_GUNSHOT);
+		gi.WritePosition(args.tr.endpos);
+		gi.WriteDir(args.tr.plane.normal);
+		gi.multicast(args.tr.endpos, MULTICAST_PHS, false);
+	}
+}
+
+/*
+=================
 fire_blaster
 
 Fires a single blaster bolt.  Used by the blaster and hyper blaster.

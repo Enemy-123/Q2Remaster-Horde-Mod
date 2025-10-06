@@ -973,6 +973,7 @@ enum item_id_t : int32_t {
 	IT_WEAPON_IONRIPPER,
 	IT_WEAPON_PLASMABEAM,
 	IT_WEAPON_RAILGUN,
+	IT_WEAPON_20MM,
 	IT_WEAPON_PHALANX,
 	IT_WEAPON_BFG,
 	IT_WEAPON_DISRUPTOR,
@@ -1173,7 +1174,8 @@ enum mod_id_t : uint8_t
 	MOD_PLAYER_LASER,
 	MOD_TANK_PUNCH,
 	MOD_SUMMONED_MONSTER,
-	MOD_BOMBS
+	MOD_BOMBS,
+	MOD_CANNON
 };;
 
 struct mod_t
@@ -2587,6 +2589,7 @@ void fire_energy_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir
 	int vspread, mod_t mod);
 void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, int count, mod_t mod);
+void fire_20mm(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int range, mod_t mod);
 void blaster_unified_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect,
 	mod_t mod, int bounces = 0);
