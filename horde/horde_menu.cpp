@@ -2030,9 +2030,7 @@ public:
 			// Intermission display - dogtag also moved higher
 			layout_builder.append(fmt::format(
 				"if 25 xv -90 yv -1 dogtag endif "
-				"if 25 xv 205 yv 8 pic 25 endif "
-				"if 0 xv 70 yv -20 19 endif \n",
-				total_score, team_players.size()));
+				"if 25 xv 205 yv 8 pic 25 endif \n"));
 		}
 	}
 
