@@ -149,13 +149,21 @@ constexpr int M_BFG_SPEED_DEFAULT = 400;
 // HELPER MACROS FOR COMMON PATTERNS
 // ============================================================================
 
-// Get damage with optional fallback
+// Get damage with optional fallback (MSVC-compatible inline function)
+// Use: M_GET_DMG_OR(self, ROCKET, 100)
 #define M_GET_DMG_OR(ent, weapon, fallback) \
-    ({ int _dmg = M_##weapon##_DMG(ent); _dmg > 0 ? _dmg : (fallback); })
+    [](edict_t* _ent, int _fallback) -> int { \
+        int _dmg = M_##weapon##_DMG(_ent); \
+        return _dmg > 0 ? _dmg : _fallback; \
+    }(ent, fallback)
 
-// Get speed with optional fallback
+// Get speed with optional fallback (MSVC-compatible inline function)
+// Use: M_GET_SPEED_OR(self, BLASTER, 1000)
 #define M_GET_SPEED_OR(ent, weapon, fallback) \
-    ({ int _spd = M_##weapon##_SPEED(ent); _spd > 0 ? _spd : (fallback); })
+    [](edict_t* _ent, int _fallback) -> int { \
+        int _spd = M_##weapon##_SPEED(_ent); \
+        return _spd > 0 ? _spd : _fallback; \
+    }(ent, fallback)
 
 // Example usage:
 //   int damage = M_GET_DMG_OR(self, ROCKET, 100);  // Returns rocket damage or 100 if not configured
