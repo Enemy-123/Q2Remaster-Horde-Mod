@@ -555,6 +555,7 @@ void Cmd_PlayerToBrain_f(edict_t* ent) {
     ent->s.frame = BRAIN_FRAMES_STAND_START; // Start with standing animation
     ent->s.old_frame = ent->s.frame; // Initialize old frame for interpolation
     ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth frame interpolation
+    ent->s.effects |= EF_QUAD; // Add quad shell effect
 
     // Set team for bot recognition
     ent->monsterinfo.team = ent->client->resp.ctf_team;

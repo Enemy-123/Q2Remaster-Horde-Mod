@@ -477,6 +477,9 @@ void RestoreMorphed(edict_t* ent) {
     // Clear special entity type
     ent->special_type_id = static_cast<uint8_t>(horde::SpecialEntityTypeID::UNKNOWN);
 
+    // Clear quad shell effect
+    ent->s.effects &= ~EF_QUAD;
+
     // Store current position before respawn
     vec3_t old_origin = ent->s.origin;
     vec3_t old_angles = ent->s.angles;
@@ -597,6 +600,7 @@ void Cmd_PlayerToFlyer_f(edict_t* ent) {
     ent->s.frame = FLYER_FRAMES_STAND_START; // Start with standing animation
     ent->s.old_frame = ent->s.frame; // Initialize old frame for interpolation
     ent->s.renderfx |= RF_OLD_FRAME_LERP; // Enable smooth frame interpolation
+    ent->s.effects |= EF_QUAD; // Add quad shell effect
 
     // Set team for bot recognition (don't set isfriendlyspawn to avoid AI treating as friendly summon)
     ent->monsterinfo.team = ent->client->resp.ctf_team;
