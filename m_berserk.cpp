@@ -691,9 +691,15 @@ void BerserkCastFireballs(edict_t* self)
 	// Save last known position for blindfire
 	self->monsterinfo.blind_fire_target = target;
 
-	// Launch fireballs
+	// Use the new fire_fireball function that spawns flames on explosion
 	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
 	const float spread_base = g_hardcoop->integer ? 0.03f : 0.06f;
+
+	// Get damage values
+	int base_damage = M_GET_DMG_OR(self, FIREBALL, 45);
+	float damage_radius = 120.0f;
+	int flames = 5;  // Number of flame entities spawned on explosion
+	int flame_damage = base_damage / 3;  // Flame damage is 1/3 of fireball damage
 
 	for (int i = 0; i < num_fireballs; i++)
 	{
@@ -710,51 +716,11 @@ void BerserkCastFireballs(edict_t* self)
 			spread_dir.normalize();
 		}
 
-		edict_t* fireball = G_Spawn();
-		if (fireball)
-		{
-			fireball->s.origin = start;
-			fireball->s.angles = vectoangles(spread_dir);
-			fireball->velocity = spread_dir * rocketSpeed;
-			fireball->movetype = MOVETYPE_FLYMISSILE;
-			fireball->svflags |= SVF_PROJECTILE;
-			fireball->flags |= FL_DODGE;
-			fireball->clipmask = MASK_PROJECTILE;
-			fireball->solid = SOLID_BBOX;
-			fireball->s.effects = EF_FIREBALL | EF_TELEPORTER;
-			fireball->s.renderfx = RF_MINLIGHT;
-			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
-			fireball->owner = self;
-
-			// Store attacker info in case owner dies before projectile hits
-			if (self) {
-				if (self->client) {
-					fireball->projectile_was_player_attacker = true;
-					fireball->projectile_attacker_type_id = 0;
-				} else if (self->svflags & SVF_MONSTER) {
-					fireball->projectile_was_player_attacker = false;
-					fireball->projectile_attacker_type_id = self->monsterinfo.monster_type_id;
-				}
-			}
-
-			fireball->touch = fireball_touch;
-			fireball->nextthink = level.time + 7_sec;
-			fireball->think = G_FreeEdict;
-			int damage = M_GET_DMG_OR(self, FIREBALL, 45);
-			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
-			fireball->radius_dmg = damage * M_DamageModifier(self);
-			fireball->dmg_radius = 120;
-			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
-			fireball->classname = "berserk_fireball";
-
-			// Fixed scale for Berserker (not frame-based like Shambler)
-			fireball->s.scale = 0.8f;
-
-			gi.linkentity(fireball);
-		}
+		// Use new fire_fireball function - it spawns flames on explosion!
+		fire_fireball(self, start, spread_dir, base_damage, damage_radius, rocketSpeed, flames, flame_damage);
 	}
 
-	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, sound_punch, 1, ATTN_NORM, 0);
 }
 
 MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void

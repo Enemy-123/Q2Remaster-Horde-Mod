@@ -2613,6 +2613,12 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed);
 // RAFAEL
 void fire_disintegrator(edict_t* self, const vec3_t& start, const vec3_t& dir, int speed);
+
+// Fire/Fireball functions (from horde/g_fire.cpp)
+void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, float damage_radius, int speed, int flames, int flame_damage);
+void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward, float dist, int speed, int damage, gtime_t ttl);
+void MonsterCastFireball(edict_t* self, const vec3_t& start, const vec3_t& target_pos);
+void MonsterCastFireballAtEnemy(edict_t* self);
 vec3_t P_CurrentKickAngles(edict_t* ent);
 vec3_t P_CurrentKickOrigin(edict_t* ent);
 void P_AddWeaponKick(edict_t* ent, const vec3_t& origin, const vec3_t& angles);

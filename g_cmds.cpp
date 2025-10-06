@@ -343,6 +343,44 @@ static void Cmd_Target_f(edict_t* ent)
 
 /*
 ==================
+Cmd_Fireball_f
+
+Shoots a fireball projectile like the Shambler
+Uses skull model and spawns flames on explosion
+==================
+*/
+void Cmd_Fireball_f(edict_t* ent)
+{
+	if (!ent || !ent->client)
+		return;
+
+	// Get player's aim direction
+	vec3_t forward, right, up;
+	AngleVectors(ent->client->v_angle, forward, right, up);
+
+	// Calculate start position (from player's view)
+	vec3_t start = ent->s.origin;
+	start[2] += ent->viewheight;
+	start = start + forward * 8.0f;
+
+	// Normalize aiming vector
+	vec3_t aimdir = forward.normalized();
+
+	// Get damage values (similar to monsters)
+	int damage = 35;  // Base damage
+	float damage_radius = 140.0f;  // Explosion radius
+	int speed = 1200;  // Projectile speed
+	int flames = 6;  // Number of flame entities spawned on explosion
+	int flame_damage = 12;  // Damage per flame
+
+	// Fire the fireball!
+	fire_fireball(ent, start, aimdir, damage, damage_radius, speed, flames, flame_damage);
+
+	gi.LocClient_Print(ent, PRINT_HIGH, "Fireball!\n");
+}
+
+/*
+==================
 Cmd_God_f
 
 Sets client to godmode
@@ -2155,6 +2193,8 @@ void ClientCommand(edict_t* ent)
 	// ZOID
 	else if (Q_strcasecmp(cmd, "switchteam") == 0)
 		Cmd_Switchteam_f(ent);
+	else if (Q_strcasecmp(cmd, "fireball") == 0)
+		Cmd_Fireball_f(ent);
 #ifndef KEX_Q2_GAME
 	else // anything that doesn't match a command will be a chat
 		Cmd_Say_f(ent, true);
