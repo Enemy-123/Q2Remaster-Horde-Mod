@@ -2005,8 +2005,8 @@ public:
 
 	void addTeamScore() {
 		if (!level.intermissiontime) {
-			// Normal game display
-			layout_builder.append("if 25 xv -90 yv 10 dogtag endif \n");
+			// Normal game display - dogtag moved higher (lower y value)
+			layout_builder.append("if 25 xv -90 yv -1 dogtag endif \n");
 
 			// Active bonuses (per-player) with length check
 			std::string activeBonuses = GetPlayerActiveBonusesString(const_cast<edict_t*>(ent));
@@ -2027,9 +2027,9 @@ public:
 			}
 		}
 		else {
-			// Intermission display
+			// Intermission display - dogtag also moved higher
 			layout_builder.append(fmt::format(
-				"if 25 xv -90 yv 10 dogtag endif "
+				"if 25 xv -90 yv -1 dogtag endif "
 				"if 25 xv 205 yv 8 pic 25 endif "
 				"if 0 xv 70 yv -20 19 endif \n",
 				total_score, team_players.size()));
@@ -2040,7 +2040,7 @@ public:
 		// Add column headers - moved down 2 pixels to align better with player names
 		int header_y = PLAYER_Y_START - 8;
 		layout_builder.append(fmt::format(
-			"if 0 xv -90 yv {} string2 \"Name\" xv 60 yv {} string2 \"Score\" xv 110 yv {} string2 \"Ping\" endif ",
+			"if 0 xv -90 yv {} string2 \"name\" xv 60 yv {} string2 \"score\" xv 110 yv {} string2 \"ping\" endif ",
 			header_y, header_y, header_y));
 
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
