@@ -17,7 +17,7 @@ constexpr int FIRE_BURN_END = 15;          // Frame 15 ends burning loop
 
 // Fireball constants (loaded from g_config, but defaults here)
 constexpr int FIREBALL_DEFAULT_DAMAGE = 45;
-constexpr float FIREBALL_DEFAULT_RADIUS = 180.0f;
+constexpr float FIREBALL_DEFAULT_RADIUS = 230.0f;
 constexpr int FIREBALL_DEFAULT_SPEED = 600;
 constexpr int FIREBALL_DEFAULT_FLAMES = 5;
 constexpr int FIREBALL_DEFAULT_FLAME_DAMAGE = 10;
@@ -86,6 +86,7 @@ THINK(burning_think)(edict_t* self) -> void
     if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 ||
         level.time >= self->timestamp)
     {
+        gi.unlinkentity(self);
         G_FreeEdict(self);
         return;
     }
@@ -99,6 +100,7 @@ THINK(burning_think)(edict_t* self) -> void
         // gi.WritePosition(self->enemy->s.origin);
         // gi.multicast(self->enemy->s.origin, MULTICAST_PVS, false);
 
+        gi.unlinkentity(self);
         G_FreeEdict(self);
         return;
     }
@@ -171,6 +173,7 @@ void remove_burning(edict_t* ent)
 
         if (strcmp(e->classname, "burning") == 0 && e->enemy == ent)
         {
+            gi.unlinkentity(e);
             G_FreeEdict(e);
             return;
         }
@@ -201,6 +204,7 @@ THINK(bfire_think)(edict_t* self) -> void
     if (!self->owner || !self->owner->inuse || self->owner->health <= 0 ||
         level.time >= self->timestamp || self->waterlevel > 0)
     {
+        gi.unlinkentity(self);
         G_FreeEdict(self);
         return;
     }
@@ -337,7 +341,7 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
             continue;
 
         if (ClientIsSpectating(e->client))
-        return;
+            continue;
 
         // Check distance
         float dist = (e->s.origin - self->s.origin).length();
@@ -391,6 +395,7 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
     gi.multicast(self->s.origin, MULTICAST_PHS, false);
 
     // Remove fireball entity next frame
+    gi.unlinkentity(self);
     self->think = G_FreeEdict;
     self->nextthink = level.time + FRAME_TIME_MS;
 }
@@ -401,6 +406,7 @@ TOUCH(fire_fireball_touch)(edict_t* ent, edict_t* other, const trace_t& tr, bool
     if (!ent->owner || !ent->owner->inuse || ent->owner->health <= 0 ||
         (tr.surface && (tr.surface->flags & SURF_SKY)))
     {
+        gi.unlinkentity(ent);
         G_FreeEdict(ent);
         return;
     }
@@ -417,6 +423,7 @@ THINK(fire_fireball_think)(edict_t* self) -> void
     // Check lifetime and water
     if (level.time >= self->timestamp || self->waterlevel > 0)
     {
+        gi.unlinkentity(self);
         G_FreeEdict(self);
         return;
     }

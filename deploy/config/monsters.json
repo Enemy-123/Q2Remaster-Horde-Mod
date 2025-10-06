@@ -525,16 +525,16 @@
       }
     },
 
-    "fixbotkl": {
+"fixbotkl": {
       "health": 8500,
       "power_armor_power": 6000,
       "power_armor_type": "shield",
-      "damage_scale": 2.0,
+      "damage_scale": 1.0,
       "health_scale": 65.4,
       "weapon_damage": {
-        "ionripper": 30,
-        "plasma": 45,
-        "blaster_bolt": 25
+        "ionripper": 20,
+        "plasma": 35,
+        "blaster_bolt": 15
       }
     },
 
