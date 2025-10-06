@@ -2046,7 +2046,7 @@ void weapon_20mm_fire(edict_t* ent)
 	ent->velocity -= forward * g_config.cannon20mm.recoil_force;
 
 	// Big visual recoil - weapon kicks up high
-	P_AddWeaponKick(ent, ent->client->v_forward * -5, { -8.f, 0.f, 0.f });
+	P_AddWeaponKick(ent, ent->client->v_forward * -3, { -4.f, 0.f, 0.f });
 
 	// Play 20mm cannon sound
 	gi.positioned_sound(ent->s.origin, ent, CHAN_WEAPON, gi.soundindex("world/lid.wav"), 1, ATTN_NORM, 0);

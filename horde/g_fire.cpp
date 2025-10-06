@@ -16,8 +16,8 @@ constexpr int FIRE_BURN_START = 4;         // Frame 4 starts burning loop
 constexpr int FIRE_BURN_END = 15;          // Frame 15 ends burning loop
 
 // Fireball constants (loaded from g_config, but defaults here)
-constexpr int FIREBALL_DEFAULT_DAMAGE = 35;
-constexpr float FIREBALL_DEFAULT_RADIUS = 140.0f;
+constexpr int FIREBALL_DEFAULT_DAMAGE = 45;
+constexpr float FIREBALL_DEFAULT_RADIUS = 180.0f;
 constexpr int FIREBALL_DEFAULT_SPEED = 600;
 constexpr int FIREBALL_DEFAULT_FLAMES = 5;
 constexpr int FIREBALL_DEFAULT_FLAME_DAMAGE = 10;
@@ -44,6 +44,13 @@ constexpr int FRAME_flameb11 = 10;
 // ============================================================================
 // FORWARD DECLARATIONS
 // ============================================================================
+
+
+
+ // Helper function for team-safe radius damage - optimized with spatial grid
+void T_RadiusDamage_TeamSafe(edict_t* inflictor, edict_t* attacker, float damage,
+                 edict_t* ignore, float radius, damageflags_t dflags, mod_t mod);
+
 
 // Burning effect functions
 void burning_think(edict_t* self);
@@ -86,11 +93,11 @@ THINK(burning_think)(edict_t* self) -> void
     // Check if target is in water - water removes burning
     if (self->enemy->waterlevel > 0)
     {
-        // Visual effect for extinguishing
-        gi.WriteByte(svc_temp_entity);
-        gi.WriteByte(TE_MOREBLOOD);
-        gi.WritePosition(self->enemy->s.origin);
-        gi.multicast(self->enemy->s.origin, MULTICAST_PVS, false);
+        // // Visual effect for extinguishing
+        // gi.WriteByte(svc_temp_entity);
+        // gi.WriteByte(TE_MOREBLOOD);
+        // gi.WritePosition(self->enemy->s.origin);
+        // gi.multicast(self->enemy->s.origin, MULTICAST_PVS, false);
 
         G_FreeEdict(self);
         return;
@@ -114,6 +121,9 @@ THINK(burning_think)(edict_t* self) -> void
 void apply_burning(edict_t* target, edict_t* attacker, int damage, gtime_t duration)
 {
     if (!target || !target->inuse || !target->takedamage)
+        return;
+
+    if (ClientIsSpectating(target->client))
         return;
 
     // Check if target already has a burning effect
@@ -243,6 +253,9 @@ TOUCH(bfire_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_
     if (!other || !other->inuse)
         return;
 
+    if (ClientIsSpectating(other->client))
+        return;
+
     // Don't damage owner or teammates
     if (other == self->owner)
         return;
@@ -323,6 +336,9 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
         if (!e->inuse || !e->takedamage)
             continue;
 
+        if (ClientIsSpectating(e->client))
+        return;
+
         // Check distance
         float dist = (e->s.origin - self->s.origin).length();
         if (dist > self->dmg_radius)
@@ -365,8 +381,8 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
     }
 
     // Do radius damage to nearby entities
-    T_RadiusDamage(self, self->owner, static_cast<float>(self->dmg), nullptr,
-                   self->dmg_radius, DAMAGE_NONE, MOD_FIREBALL);
+    T_RadiusDamage_TeamSafe(self, self->owner, (float)self->dmg, self->owner,
+                           self->dmg_radius, DAMAGE_NONE, mod_t(MOD_FIREBALL));
 
     // Create explosion effect
     gi.WriteByte(svc_temp_entity);
@@ -424,6 +440,9 @@ void fire_fireball(edict_t* self, const vec3_t& start, const vec3_t& aimdir,
                    int damage, float damage_radius, int speed, int flames, int flame_damage)
 {
     if (!self || !self->inuse)
+        return;
+
+    if (ClientIsSpectating(self->client))
         return;
 
     // Get aiming angles

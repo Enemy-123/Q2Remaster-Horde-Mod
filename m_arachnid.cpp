@@ -24,6 +24,7 @@ This file contains all arachnid variants:
 
 // Common spawn flags
 constexpr spawnflags_t SPAWNFLAG_SPIDER = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_SPIDER_ONROOF = 16_spawnflag;
 
 // Shared cached sounds for all arachnid types
 static cached_soundindex sound_pain;
@@ -625,7 +626,7 @@ void spider_dodge_jump(edict_t* self)
 // --- spider_physics_change ---
 MONSTERINFO_PHYSCHANGED(spider_physics_change) (edict_t* self) -> void
 {
-	if (SPIDER_ON_CEILING(self) && !self->groundentity)
+	if (SPIDER_ON_CEILING(self))
 	{
 		self->gravityVector[2] = -1;
 		self->s.angles[2] += 180.0f;
@@ -2064,7 +2065,6 @@ void SP_monster_spider(edict_t* self)
     self->monsterinfo.can_jump = true;
     self->monsterinfo.jump_height = 68;
     self->monsterinfo.drop_height = 256;
-    self->gravityVector = { 0, 0, -1 };
 
     self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
 
@@ -2081,6 +2081,17 @@ void SP_monster_spider(edict_t* self)
     self->max_health = self->health;
     // Removed manual scaling - monster_start() handles it automatically
     
+    // Check for ceiling spawn (like stalker)
+    if (self->spawnflags.has(SPAWNFLAG_SPIDER_ONROOF))
+    {
+        self->s.angles[2] = 180;
+        self->gravityVector[2] = 1;
+    }
+    else
+    {
+        self->gravityVector = { 0, 0, -1 };
+    }
+
     ApplyMonsterBonusFlags(self);
 }
 
