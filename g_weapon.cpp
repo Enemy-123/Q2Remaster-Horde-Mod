@@ -734,9 +734,9 @@ void fire_20mm(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 
 	pierce_trace(start, end, self, args, mask);
 
-	// Only show bullet impact if within effective range (so players know if shot will connect)
-	float hit_distance = (args.tr.endpos - start).length();
-	if (hit_distance <= (float)range)
+	// Only show bullet impact if we actually hit something solid (fraction < 1.0)
+	// This prevents showing impacts when shooting into empty air at max range
+	if (args.tr.fraction < 1.0f && args.tr.ent != self)
 	{
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_GUNSHOT);

@@ -1702,6 +1702,7 @@ static const HordeItemInfo hordeItemData[] = {
 	{IT_WEAPON_CHAINFIST, 0.1f, 1},	   // Melee, niche drop
 	{IT_WEAPON_SHOTGUN, 1.0f, 1},	   // Basic weapon
 	{IT_WEAPON_SSHOTGUN, 0.7f, 3},	   // Strong early/mid weapon
+	{IT_WEAPON_20MM, 1.0f, 3},			// 20MM (vrx)
 	{IT_WEAPON_MACHINEGUN, 1.0f, 1},   // Basic weapon
 	{IT_WEAPON_ETF_RIFLE, 0.6f, 5},	   // Rogue weapon (mid)
 	{IT_WEAPON_CHAINGUN, 0.5f, 7},	   // Mid-tier DPS

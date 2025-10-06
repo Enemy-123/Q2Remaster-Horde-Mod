@@ -136,6 +136,26 @@
   trigger_cooldown		0
 }
 
+{ // Super Shotgun
+  name					"weapon_20mm"
+  damage				126
+  ideal_fov				15
+  min_range				0
+  max_range				768
+  min_height			0
+  max_height			0
+  speed					0
+  priority				3
+  ammo_name				"ammo_shells"
+  min_ammo				1
+  max_ammo				100
+  flags					hitscan | suitable
+  aim_point				center
+  trigger_type			continuous
+  trigger_hold			0
+  trigger_cooldown		0
+}
+
 { // MachineGun
   name					"weapon_machinegun"
   damage				8
@@ -367,7 +387,7 @@
   ammo_name				"ammo_trap"
   min_ammo				1
   max_ammo				50
-  flags					projectile | parabolic | explosive
+  flags					projectile | parabolic | explosive | sticky
   aim_point				center
   trigger_type			hold_and_release
   trigger_hold			3
