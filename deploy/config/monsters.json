@@ -333,7 +333,7 @@
       "health": 1400,
       "power_armor_power": 0,
       "damage_scale": 1.0,
-      "health_scale": 1.57,
+      "health_scale": 1.37,
       "weapon_damage": {
         "blaster2": 30,
         "heat": 55
@@ -381,7 +381,7 @@
       "health": 450,
       "power_armor_power": 175,
       "power_armor_type": "shield",
-      "damage_scale": 1.86,
+      "damage_scale": 1.16,
       "health_scale": 2.7,
       "weapon_damage": {
         "plasma": 65,
@@ -416,7 +416,7 @@
       "health": 520,
       "power_armor_power": 0,
       "damage_scale": 1.0,
-      "health_scale": 1.73
+      "health_scale": 1.13
     },
 
     "berserk": {
@@ -517,7 +517,7 @@
       "health": 130,
       "power_armor_power": 25,
       "power_armor_type": "shield",
-      "damage_scale": 1.67,
+      "damage_scale": 1.0,
       "weapon_damage": {
         "ionripper": 25,
         "plasma": 40,
@@ -530,7 +530,7 @@
       "power_armor_power": 6000,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
-      "health_scale": 65.4,
+      "health_scale": 1.2,
       "weapon_damage": {
         "ionripper": 20,
         "plasma": 35,
@@ -552,8 +552,8 @@
       "health": 750,
       "power_armor_power": 270,
       "power_armor_type": "screen",
-      "damage_scale": 1.47,
-      "health_scale": 1.3,
+      "damage_scale": 1.17,
+      "health_scale": 1.1,
       "weapon_damage": {
         "melee": 22,
         "plasma": 10,
@@ -645,7 +645,7 @@
       "power_armor_power": 125,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
-      "health_scale": 1.17,
+      "health_scale": 1.07,
       "weapon_damage": {
         "heat": 60
       }
@@ -871,7 +871,7 @@
     "tank_spawner": {
       "health": 800,
       "power_armor_power": 0,
-      "damage_scale": 1.33,
+      "damage_scale": 1.13,
       "weapon_damage": {
         "blaster": 20,
         "blaster2": 35,
