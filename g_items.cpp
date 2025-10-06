@@ -19,6 +19,7 @@ void Weapon_RocketLauncher(edict_t* ent);
 void Weapon_Grenade(edict_t* ent);
 void Weapon_GrenadeLauncher(edict_t* ent);
 void Weapon_Railgun(edict_t* ent);
+void Weapon_20mm(edict_t* ent);
 void Weapon_BFG(edict_t* ent);
 // RAFAEL
 void Weapon_Ionripper(edict_t* ent);
@@ -2146,7 +2147,7 @@ always owned, never in the world
 			/* pickup_name_definite */ "$item_super_shotgun_def",
 			/* quantity */ 2,
 			/* ammo */ IT_AMMO_SHELLS,
-			/* chain */ IT_NULL,
+			/* chain */ IT_WEAPON_20MM,
 			/* flags */ IF_WEAPON | IF_STAY_COOP,
 			/* vwep_model */ "#w_sshotgun.md2",
 			/* armor_info */ nullptr,
@@ -2535,6 +2536,33 @@ always owned, never in the world
 			/* armor_info */ nullptr,
 			/* tag */ 0,
 			/* precaches */ "weapons/rg_hum.wav"
+		},
+
+	/*QUAKED weapon_20mm (.3 .3 1) (-16 -16 -16) (16 16 16)
+	*/
+		{
+			/* id */ IT_WEAPON_20MM,
+			/* classname */ "weapon_20mm",
+			/* pickup */ Pickup_Weapon,
+			/* use */ Use_Weapon,
+			/* drop */ Drop_Weapon,
+			/* weaponthink */ Weapon_20mm,
+			/* pickup_sound */ "misc/w_pkup.wav",
+			/* world_model */ "models/weapons/g_rail/tris.md2",
+			/* world_model_flags */ EF_ROTATE | EF_BOB,
+			/* view_model */ "models/weapons/v_rail/tris.md2",
+			/* icon */ "w_railgun",
+			/* use_name */  "20mm Cannon",
+			/* pickup_name */  "20mm Cannon",
+			/* pickup_name_definite */ "20mm Cannon",
+			/* quantity */ 1,
+			/* ammo */ IT_AMMO_SHELLS,
+			/* chain */ IT_NULL,
+			/* flags */ IF_WEAPON | IF_STAY_COOP,
+			/* vwep_model */ "#w_railgun.md2",
+			/* armor_info */ nullptr,
+			/* tag */ 0,
+			/* precaches */ "world/lid.wav"
 		},
 
 	// RAFAEL 14-APR-98

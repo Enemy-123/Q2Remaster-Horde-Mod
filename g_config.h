@@ -108,6 +108,14 @@ struct RailgunConfig
 	int kick = 285;
 };
 
+struct Cannon20mmConfig
+{
+	int damage = 35;
+	int kick = 35;
+	int range = 650;
+	int recoil_force = 500;
+};
+
 struct BFGConfig
 {
 	int damage = 700;
@@ -393,6 +401,7 @@ struct GameConfig
 	GrenadeLauncherConfig grenadelauncher;
 	RocketLauncherConfig rocket;
 	RailgunConfig railgun;
+	Cannon20mmConfig cannon20mm;
 	BFGConfig bfg;
 
 	// Xatrix weapons
