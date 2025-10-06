@@ -675,6 +675,54 @@ void DroneRemoveSelected(edict_t* player, edict_t* monster)
 	}
 }
 
+// Clear all command state from a monster to prevent loops
+void ClearMonsterCommandState(edict_t* monster)
+{
+	if (!monster)
+		return;
+
+	// Clear AI flags
+	monster->monsterinfo.aiflags &= ~(AI_COMBAT_POINT | AI_STAND_GROUND);
+
+	// Clear goalentity if it's invalid, dead, or a command entity
+	if (monster->goalentity)
+	{
+		if (!monster->goalentity->inuse || monster->goalentity->health <= 0 ||
+		    (monster->goalentity->classname &&
+		     (Q_strcasecmp(monster->goalentity->classname, "point_combat") == 0 ||
+		      Q_strcasecmp(monster->goalentity->classname, "follow_point") == 0)))
+			monster->goalentity = nullptr;
+	}
+
+	// Clear movetarget if it's invalid, dead, or a command entity
+	if (monster->movetarget)
+	{
+		if (!monster->movetarget->inuse || monster->movetarget->health <= 0 ||
+		    (monster->movetarget->classname &&
+		     (Q_strcasecmp(monster->movetarget->classname, "point_combat") == 0 ||
+		      Q_strcasecmp(monster->movetarget->classname, "follow_point") == 0)))
+			monster->movetarget = nullptr;
+	}
+
+	// Clear enemy if it's invalid, dead, or a command entity
+	if (monster->enemy)
+	{
+		if (!monster->enemy->inuse || monster->enemy->health <= 0 ||
+		    (monster->enemy->classname &&
+		     (Q_strcasecmp(monster->enemy->classname, "point_combat") == 0 ||
+		      Q_strcasecmp(monster->enemy->classname, "follow_point") == 0)))
+			monster->enemy = nullptr;
+	}
+
+	// Clear leader and patrol points
+	monster->monsterinfo.leader = nullptr;
+	monster->monsterinfo.spot1 = {};
+	monster->monsterinfo.spot2 = {};
+
+	// Reset pause time
+	monster->monsterinfo.pausetime = 0_ms;
+}
+
 // Toggle stand ground mode for a monster
 void DroneToggleStand(edict_t* player, edict_t* monster)
 {
@@ -686,24 +734,12 @@ void DroneToggleStand(edict_t* player, edict_t* monster)
 		// Disable stand ground - monster will hunt
 		gi.LocClient_Print(player, PRINT_HIGH, "Monster will hunt.\n");
 
+		// Clear all command state
+		ClearMonsterCommandState(monster);
+
 		// If no melee function, allow circle strafing
 		if (!monster->monsterinfo.melee)
 			monster->monsterinfo.aiflags &= ~AI_NO_CIRCLE_STRAFE;
-
-		monster->monsterinfo.aiflags &= ~(AI_COMBAT_POINT | AI_STAND_GROUND);
-		monster->monsterinfo.leader = nullptr;
-		monster->monsterinfo.spot1 = {};
-		monster->monsterinfo.spot2 = {};
-
-		// Clear combat point entities if they're set
-		if (monster->goalentity && !monster->goalentity->client)
-			monster->goalentity = nullptr;
-		if (monster->movetarget && !monster->movetarget->client)
-			monster->movetarget = nullptr;
-		if (monster->enemy && monster->enemy->classname &&
-		    (Q_strcasecmp(monster->enemy->classname, "point_combat") == 0 ||
-		     Q_strcasecmp(monster->enemy->classname, "follow_point") == 0))
-			monster->enemy = nullptr;
 
 		monster->yaw_speed = 20;
 	}
@@ -712,11 +748,10 @@ void DroneToggleStand(edict_t* player, edict_t* monster)
 		// Enable stand ground
 		gi.LocClient_Print(player, PRINT_HIGH, "Monster will stand ground.\n");
 
+		// Clear all command state first
+		ClearMonsterCommandState(monster);
+
 		monster->monsterinfo.aiflags |= AI_STAND_GROUND;
-		monster->monsterinfo.leader = nullptr;
-		monster->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
-		monster->monsterinfo.spot1 = {};
-		monster->monsterinfo.spot2 = {};
 		monster->yaw_speed = 40; // Faster turn rate while standing ground
 
 		// Call the monster's stand function if available
@@ -739,6 +774,9 @@ void DroneAttack(edict_t* player, edict_t* target)
 		if (monster && monster->inuse && monster->health > 0 &&
 			ValidCommandMonster(player, monster) && visible(player, monster))
 		{
+			// Clear all previous command state first
+			ClearMonsterCommandState(monster);
+
 			monster->enemy = target;
 			monster->monsterinfo.last_sighting = target->s.origin;
 			if (monster->monsterinfo.run)
@@ -762,8 +800,10 @@ void DroneFollow(edict_t* player, edict_t* target)
 		if (monster && monster->inuse && monster->health > 0 &&
 			ValidCommandMonster(player, monster) && visible(player, monster))
 		{
+			// Clear all previous command state first
+			ClearMonsterCommandState(monster);
+
 			monster->monsterinfo.aiflags |= AI_NO_CIRCLE_STRAFE;
-			monster->monsterinfo.aiflags &= ~AI_STAND_GROUND;
 			monster->enemy = nullptr;
 			monster->goalentity = target;
 			monster->monsterinfo.last_sighting = target->s.origin;
@@ -967,8 +1007,10 @@ void DroneMovePosition(edict_t* player, const vec3_t& pos)
 		if (monster && monster->inuse && monster->health > 0 &&
 			ValidCommandMonster(player, monster) && visible(player, monster))
 		{
+			// Clear all previous command state first
+			ClearMonsterCommandState(monster);
+
 			monster->monsterinfo.aiflags |= (AI_NO_CIRCLE_STRAFE | AI_COMBAT_POINT);
-			monster->monsterinfo.aiflags &= ~AI_STAND_GROUND;
 			monster->monsterinfo.pausetime = 0_ms;
 
 			// Set goalentity as enemy if no enemy - keeps monster in active state
@@ -977,8 +1019,6 @@ void DroneMovePosition(edict_t* player, const vec3_t& pos)
 
 			monster->goalentity = temp;
 			monster->movetarget = temp;
-			monster->monsterinfo.spot1 = {};
-			monster->monsterinfo.spot2 = {};
 
 			// Patrol between two points
 			if (cmd == 1)
@@ -1130,8 +1170,10 @@ void MonsterFollowMe(edict_t* player)
 		if (monster && monster->inuse && monster->health > 0 &&
 			ValidCommandMonster(player, monster) && visible(player, monster))
 		{
+			// Clear all previous command state first
+			ClearMonsterCommandState(monster);
+
 			monster->monsterinfo.aiflags |= (AI_NO_CIRCLE_STRAFE | AI_COMBAT_POINT);
-			monster->monsterinfo.aiflags &= ~AI_STAND_GROUND;
 			monster->monsterinfo.pausetime = 0_ms;
 
 			// Set followPoint as enemy if no enemy - keeps monster in active state
@@ -1141,8 +1183,6 @@ void MonsterFollowMe(edict_t* player)
 			monster->goalentity = followPoint;
 			monster->movetarget = followPoint;
 			monster->monsterinfo.leader = player;
-			monster->monsterinfo.spot1 = {};
-			monster->monsterinfo.spot2 = {};
 
 			if (monster->monsterinfo.run)
 				monster->monsterinfo.run(monster);

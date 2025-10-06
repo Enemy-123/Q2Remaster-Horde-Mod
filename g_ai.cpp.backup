@@ -319,43 +319,12 @@ void ai_stand(edict_t* self, float dist)
 				return;
 			}
 
-		// Clean up dead/invalid entity references for summoned monsters
-		// BUT preserve command entities (combat points, follow points)
-		if (self->enemy && !self->enemy->inuse)
-			self->enemy = nullptr;
-		else if (self->enemy && self->enemy->health <= 0 && self->enemy->classname &&
-		         Q_strcasecmp(self->enemy->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->enemy->classname, "follow_point") != 0)
-			self->enemy = nullptr;
-
-		if (self->goalentity && !self->goalentity->inuse)
-			self->goalentity = nullptr;
-		else if (self->goalentity && self->goalentity->health <= 0 && self->goalentity->classname &&
-		         Q_strcasecmp(self->goalentity->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->goalentity->classname, "follow_point") != 0)
-			self->goalentity = nullptr;
-
-		if (self->movetarget && !self->movetarget->inuse)
-			self->movetarget = nullptr;
-		else if (self->movetarget && self->movetarget->health <= 0 && self->movetarget->classname &&
-		         Q_strcasecmp(self->movetarget->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->movetarget->classname, "follow_point") != 0)
-			self->movetarget = nullptr;
-
-
-		// Allow monsters on patrol/orders to scan for enemies, but preserve their orders
-		if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
-		{
-			// Only scan for enemies if we don't have a real enemy yet
-			if (!self->enemy || (self->enemy->classname &&
-			    (Q_strcasecmp(self->enemy->classname, "point_combat") == 0 ||
-			     Q_strcasecmp(self->enemy->classname, "follow_point") == 0)))
+			// Don't interfere with monsters following combat point commands
+			if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
 			{
-				// Find enemies while patrolling - spot1/spot2 preserved for resume
-				FindMTarget(self);
+				// Monster is following orders, don't look for new targets
+				return;
 			}
-			return;
-		}
 
 			if (!self->enemy ||
 				(self->enemy->client && !self->enemy->monsterinfo.isfriendlyspawn)) { // If current enemy is a player, forget it
@@ -434,43 +403,12 @@ void ai_walk(edict_t* self, float dist)
 	{
 		// Only summoned monsters use FindMTarget for targeting
 		if (self->monsterinfo.isfriendlyspawn) {
-		// Clean up dead/invalid entity references for summoned monsters
-		// BUT preserve command entities (combat points, follow points)
-		if (self->enemy && !self->enemy->inuse)
-			self->enemy = nullptr;
-		else if (self->enemy && self->enemy->health <= 0 && self->enemy->classname &&
-		         Q_strcasecmp(self->enemy->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->enemy->classname, "follow_point") != 0)
-			self->enemy = nullptr;
-
-		if (self->goalentity && !self->goalentity->inuse)
-			self->goalentity = nullptr;
-		else if (self->goalentity && self->goalentity->health <= 0 && self->goalentity->classname &&
-		         Q_strcasecmp(self->goalentity->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->goalentity->classname, "follow_point") != 0)
-			self->goalentity = nullptr;
-
-		if (self->movetarget && !self->movetarget->inuse)
-			self->movetarget = nullptr;
-		else if (self->movetarget && self->movetarget->health <= 0 && self->movetarget->classname &&
-		         Q_strcasecmp(self->movetarget->classname, "point_combat") != 0 &&
-		         Q_strcasecmp(self->movetarget->classname, "follow_point") != 0)
-			self->movetarget = nullptr;
-
-
-		// Allow monsters on patrol/orders to scan for enemies, but preserve their orders
-		if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
-		{
-			// Only scan for enemies if we don't have a real enemy yet
-			if (!self->enemy || (self->enemy->classname &&
-			    (Q_strcasecmp(self->enemy->classname, "point_combat") == 0 ||
-			     Q_strcasecmp(self->enemy->classname, "follow_point") == 0)))
+			// Don't interfere with monsters following combat point commands
+			if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
 			{
-				// Find enemies while patrolling - spot1/spot2 preserved for resume
-				FindMTarget(self);
+				// Monster is following orders, don't look for new targets
+				return;
 			}
-			return;
-		}
 
 			if (!self->enemy ||
 				(self->enemy->client && !self->enemy->monsterinfo.isfriendlyspawn)) { // If current enemy is a player, forget it
@@ -1222,17 +1160,9 @@ bool FindEnhancedTarget(edict_t* self) {
         return false;
 
     if (self->monsterinfo.isfriendlyspawn) {
-        // Allow monsters on patrol/orders to scan for enemies
+        // Don't interfere with monsters following combat point commands
         if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
-        {
-            if (!self->enemy || (self->enemy->classname &&
-                (Q_strcasecmp(self->enemy->classname, "point_combat") == 0 ||
-                 Q_strcasecmp(self->enemy->classname, "follow_point") == 0)))
-            {
-                return FindMTarget(self);
-            }
             return false;
-        }
         return FindMTarget(self);
     }
 
