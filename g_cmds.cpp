@@ -367,10 +367,10 @@ void Cmd_Fireball_f(edict_t* ent)
 	vec3_t aimdir = forward.normalized();
 
 	// Get damage values (similar to monsters)
-	int damage = 35;  // Base damage
-	float damage_radius = 140.0f;  // Explosion radius
+	int damage = 45;  // Base damage
+	float damage_radius = 190.0f;  // Explosion radius
 	int speed = 1200;  // Projectile speed
-	int flames = 6;  // Number of flame entities spawned on explosion
+	int flames = 5;  // Number of flame entities spawned on explosion
 	int flame_damage = 12;  // Damage per flame
 
 	// Fire the fireball!

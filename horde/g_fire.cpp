@@ -381,7 +381,7 @@ void fire_fireball_explode(edict_t* self, const trace_t* tr)
 
         // Create the flame entities
         ThrowFlame(self->owner, self->s.origin, forward, 0,
-                  irandom(50, 150), self->radius_dmg, gtime_t::from_sec(frandom(1.0f, 3.0f)));
+                  irandom(50, 150), self->radius_dmg, 4.7_sec);
     }
 
     // Do radius damage to nearby entities
