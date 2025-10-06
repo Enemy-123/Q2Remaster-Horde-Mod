@@ -2037,21 +2037,39 @@ public:
 	}
 
 	void addPlayerList() {
+		// Add column headers - moved down 2 pixels to align better with player names
+		int header_y = PLAYER_Y_START - 8;
+		layout_builder.append(fmt::format(
+			"if 0 xv -90 yv {} string2 \"Name\" xv 60 yv {} string2 \"Score\" xv 110 yv {} string2 \"Ping\" endif ",
+			header_y, header_y, header_y));
+
 		for (size_t i = 0; i < std::min(team_players.size(), MAX_PLAYERS_TO_DISPLAY); ++i) {
 			const auto& player = team_players[i];
+			edict_t* player_ent = g_edicts + 1 + player.index;
 			int y = PLAYER_Y_START + i * PLAYER_Y_SPACING;
 
-			// Add death indicator if player is dead
-			if (player.is_dead) {
-				layout_builder.append(fmt::format(
-					"if 0 xv -135 yv {} string \"[Dead]\" endif ", y));
+			// Get proper player name using GetPlayerName
+			const char* player_name = GetPlayerName(player_ent);
+
+			// Create display name (truncate if needed)
+			std::string display_name = player_name;
+			if (display_name.length() > 16) {
+				display_name = display_name.substr(0, 16);
 			}
 
-			// Add player information with extra spacing after score for 4-digit scores
-			// Using a fixed width format for score to ensure consistent spacing
+			// Add death indicator prefix if dead
+			if (player.is_dead) {
+				display_name = "[D]" + display_name;
+			}
+
+			// Format score and ping as strings (not num commands which show HUD stats)
+			std::string score_str = fmt::format("{}", player.score);
+			std::string ping_str = fmt::format("{}", player.ping);
+
+			// Each player in ONE if/endif block with positioned string elements
 			layout_builder.append(fmt::format(
-				"if 0 ctf -90 {} {} {:5} {} \"\" endif \n",
-				y, player.index, player.score, player.ping));
+				"if 0 xv -90 yv {} string \"{}\" xv 60 yv {} string \"{}\" xv 110 yv {} string \"{}\" endif ",
+				y, display_name, y, score_str, y, ping_str));
 		}
 	}
 
