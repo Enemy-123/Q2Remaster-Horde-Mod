@@ -1670,7 +1670,7 @@ void Machinegun_Fire(edict_t* ent)
 	G_RemoveAmmo(ent);
 
 	// Handle tracer logic using the helper function
-	Fire_TracerBullet(ent, TRACER_DAMAGE, TRACER_COOLDOWN);
+	Fire_TracerBullet(ent, g_config.machinegun.tracer_damage, gtime_t::from_ms(g_config.machinegun.tracer_cooldown_ms));
 
 	// Configure player animation based on stance
 	ent->client->anim_priority = ANIM_ATTACK;
@@ -1824,7 +1824,7 @@ void Chaingun_Fire(edict_t* ent)
 	
 	G_RemoveAmmo(ent, shots);
 
-	Fire_TracerBullet(ent, CG_TRACER_DMG, CG_TRACER_COOLDOWN);
+	Fire_TracerBullet(ent, g_config.chaingun.tracer_damage, gtime_t::from_ms(g_config.chaingun.tracer_cooldown_ms));
 }
 
 void Weapon_Chaingun(edict_t* ent)
