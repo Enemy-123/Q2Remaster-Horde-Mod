@@ -309,6 +309,7 @@
       "health": 750,
       "power_armor_power": 0,
       "damage_scale": 1.0,
+      "health_scale": 1.1,
       "weapon_damage": {
         "blaster2": 30,
         "heat": 55,
@@ -320,6 +321,7 @@
       "health": 800,
       "power_armor_power": 0,
       "damage_scale": 1.2,
+      "health_scale": 1.1,
       "weapon_damage": {
         "blaster": 18,
         "blaster2": 30,
@@ -605,7 +607,8 @@
       "health": 2000,
       "power_armor_power": 500,
       "power_armor_type": "shield",
-      "damage_scale": 1.0
+      "damage_scale": 1.0,
+      "health_scale": 1.1
     },
 
     "widow1": {
@@ -621,6 +624,7 @@
       "power_armor_power": 750,
       "power_armor_type": "shield",
       "damage_scale": 1.33,
+      "health_scale": 1.1,
       "weapon_damage": {
         "tracker": 20
       }
@@ -630,14 +634,16 @@
     "spider": {
       "health": 600,
       "power_armor_power": 0,
-      "damage_scale": 1.0
+      "damage_scale": 1.0,
+      "health_scale": 1.1
     },
 
     "arachnid": {
       "health": 600,
       "power_armor_power": 125,
       "power_armor_type": "shield",
-      "damage_scale": 1.0
+      "damage_scale": 1.0,
+      "health_scale": 1.1
     },
 
     "arachnid2": {
@@ -679,6 +685,7 @@
       "health": 660,
       "power_armor_power": 0,
       "damage_scale": 1.0,
+      "health_scale": 1.1,
       "weapon_damage": {
         "fireball": 30,
         "melee": 115
@@ -775,7 +782,8 @@
       "health": 1000,
       "power_armor_power": 300,
       "power_armor_type": "combat",
-      "damage_scale": 1.0
+      "damage_scale": 1.1,
+      "health_scale": 1.1
     },
 
     "makronkl": {
@@ -850,7 +858,8 @@
       "health": 400,
       "power_armor_power": 500,
       "power_armor_type": "screen",
-      "damage_scale": 1.0,
+      "damage_scale": 1.2,
+      "health_scale": 1.1,
       "weapon_damage": {
         "rocket": 40
       }
@@ -861,6 +870,7 @@
       "power_armor_power": 180,
       "power_armor_type": "shield",
       "damage_scale": 1.1,
+      "health_scale": 1.1,
       "weapon_damage": {
         "rocket": 30,
         "ionripper": 25,

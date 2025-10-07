@@ -900,12 +900,10 @@ void SP_monster_janitor(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 500;
 	if (horde::IsMonsterType(self, horde::MonsterTypeID::JANITOR)) {
-		int base_health = M_JANITOR_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {
-			bool is_boss = self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED;
-			self->health = ScaleMonsterHealth(base_health, current_wave_level, is_boss);
+			self->health = M_JANITOR_ADDON_HEALTH(self);
 		} else {
-			self->health = base_health * st.health_multiplier;
+			self->health = static_cast<int>(M_JANITOR_INITIAL_HEALTH * st.health_multiplier);
 		}
 	}
 	self->mass = 200;

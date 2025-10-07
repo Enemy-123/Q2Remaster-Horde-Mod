@@ -759,7 +759,12 @@ void SP_monster_janitor2(edict_t* self)
 
 	 self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::JANITOR2);	SP_monster_guardian(self);
 	self->s.skinnum = 2;
-	self->health = static_cast<int>(M_JANITOR2_INITIAL_HEALTH * st.health_multiplier);
+
+	if (g_horde && g_horde->integer && current_wave_level > 0) {
+		self->health = M_JANITOR2_ADDON_HEALTH(self);
+	} else {
+		self->health = static_cast<int>(M_JANITOR2_INITIAL_HEALTH * st.health_multiplier);
+	}
 
 	ApplyMonsterBonusFlags(self);
 }
