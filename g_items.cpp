@@ -422,31 +422,56 @@ inline void G_AdjustAmmoCap(edict_t* other, ammo_t ammo, int16_t new_max)
 	other->client->pers.max_ammo[ammo] = max(other->client->pers.max_ammo[ammo], new_max);
 }
 
-bool Pickup_Bandolier(edict_t* ent, edict_t* other)
+bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 {
-	G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 80);
-	G_AdjustAmmoCap(other, AMMO_CELLS, 240);
-	G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
-	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 63);
-	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 16);
-	G_AdjustAmmoCap(other, AMMO_TESLA, 7);
-	G_AdjustAmmoCap(other, AMMO_TRAP, 5);
+	if (!pvm->integer)
+	{
+		G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
+		G_AdjustAmmoCap(other, AMMO_SHELLS, 80);
+		G_AdjustAmmoCap(other, AMMO_CELLS, 240);
+		G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
+		G_AdjustAmmoCap(other, AMMO_MAGSLUG, 63);
+		G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
+		G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 16);
+		G_AdjustAmmoCap(other, AMMO_TESLA, 7);
+		G_AdjustAmmoCap(other, AMMO_TRAP, 5);
 
-	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
-	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
-	G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
-	G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
-	G_AddAmmoAndCapQuantity(other, AMMO_ROCKETS);
-	G_AddAmmoAndCapQuantity(other, AMMO_SLUGS);
-	// RAFAEL
-	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
-	// ROGUE
-	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
-	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
-	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
-	G_AddAmmoAndCapQuantity(other, AMMO_TESLA);
+		G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
+		G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
+		G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
+		G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
+		G_AddAmmoAndCapQuantity(other, AMMO_ROCKETS);
+		G_AddAmmoAndCapQuantity(other, AMMO_SLUGS);
+		G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
+		G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
+		G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
+		G_AddAmmoAndCapQuantity(other, AMMO_PROX);
+		G_AddAmmoAndCapQuantity(other, AMMO_TESLA);
+	}
+	else
+	{
+		G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
+		G_AdjustAmmoCap(other, AMMO_SHELLS, 150);
+		G_AdjustAmmoCap(other, AMMO_CELLS, 250);
+		G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
+		G_AdjustAmmoCap(other, AMMO_MAGSLUG, 63);
+		G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
+		G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 21);
+		G_AdjustAmmoCap(other, AMMO_TESLA, 7);
+		G_AdjustAmmoCap(other, AMMO_TRAP, 5);
+
+		G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
+		G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
+		G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
+		G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
+		G_AddAmmoAndCapQuantity(other, AMMO_ROCKETS);
+		G_AddAmmoAndCapQuantity(other, AMMO_SLUGS);
+		G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
+		G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
+		G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
+		G_AddAmmoAndCapQuantity(other, AMMO_PROX);
+		G_AddAmmoAndCapQuantity(other, AMMO_TESLA);
+	}
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
@@ -456,18 +481,36 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 
 bool Pickup_Pack(edict_t* ent, edict_t* other)
 {
-	G_AdjustAmmoCap(other, AMMO_BULLETS, 400);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 175);
-	G_AdjustAmmoCap(other, AMMO_ROCKETS, 100);
-	G_AdjustAmmoCap(other, AMMO_GRENADES, 125);
-	G_AdjustAmmoCap(other, AMMO_PROX, 125);
-	G_AdjustAmmoCap(other, AMMO_CELLS, 400);
-	G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
-	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 125);
-	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 400);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 30);
-	G_AdjustAmmoCap(other, AMMO_TESLA, 10);
-	G_AdjustAmmoCap(other, AMMO_TRAP, 10);
+	if (!pvm->integer)
+	{
+		G_AdjustAmmoCap(other, AMMO_BULLETS, 400);
+		G_AdjustAmmoCap(other, AMMO_SHELLS, 175);
+		G_AdjustAmmoCap(other, AMMO_ROCKETS, 100);
+		G_AdjustAmmoCap(other, AMMO_GRENADES, 125);
+		G_AdjustAmmoCap(other, AMMO_PROX, 125);
+		G_AdjustAmmoCap(other, AMMO_CELLS, 400);
+		G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
+		G_AdjustAmmoCap(other, AMMO_MAGSLUG, 125);
+		G_AdjustAmmoCap(other, AMMO_FLECHETTES, 400);
+		G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 30);
+		G_AdjustAmmoCap(other, AMMO_TESLA, 10);
+		G_AdjustAmmoCap(other, AMMO_TRAP, 10);
+	}
+
+	else
+	{
+		G_AdjustAmmoCap(other, AMMO_BULLETS, 300);
+		G_AdjustAmmoCap(other, AMMO_SHELLS, 200);
+		G_AdjustAmmoCap(other, AMMO_ROCKETS, 100);
+		G_AdjustAmmoCap(other, AMMO_GRENADES, 100);
+		G_AdjustAmmoCap(other, AMMO_CELLS, 300);
+		G_AdjustAmmoCap(other, AMMO_SLUGS, 100);
+		G_AdjustAmmoCap(other, AMMO_MAGSLUG, 100);
+		G_AdjustAmmoCap(other, AMMO_FLECHETTES, 300);
+		G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 30);
+		G_AdjustAmmoCap(other, AMMO_TESLA, 10);
+		G_AdjustAmmoCap(other, AMMO_TRAP, 10);
+	}
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);

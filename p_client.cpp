@@ -1161,6 +1161,8 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 
 		// Always give blaster as backup weapon
 		client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+		client->pers.inventory[IT_ITEM_MENU] = 1;
+		client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 		return;
 	}
