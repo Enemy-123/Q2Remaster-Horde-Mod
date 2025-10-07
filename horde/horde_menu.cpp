@@ -234,7 +234,7 @@ void HordeUpdateJoinMenu(edict_t *ent)
 	{
 		// Set appropriate join text based on mode
 		const char *join_text;
-		if (g_horde->integer)
+		if (g_horde->integer && !pvm->integer)
 			join_text = "Join and Fight the HORDE!";
 		else if (pvm->integer)
 			join_text = "Join PvM (Player vs Monster)";

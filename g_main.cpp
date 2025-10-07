@@ -839,7 +839,7 @@ void CheckDMRules()
 				edict_t* ent = g_edicts + 1 + i;
 				if (ent->inuse && ent->client)
 				{
-					gi.LocCenter_Print(ent, "Horde Mode is being reset.");
+				IsPvMMode() ? gi.LocCenter_Print(ent, "PvM Mode is being reset.") : gi.LocCenter_Print(ent, "Horde Mode is being reset.");
 					InitClientPt(ent, ent->client);
 				}
 			}
