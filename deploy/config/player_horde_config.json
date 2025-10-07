@@ -13,8 +13,8 @@
   "// ==================== WEAPONS ====================": "Player weapon configurations",
   "weapons": {
     "blaster": {
-      "damage_min": 5,
-      "damage_max": 42,
+      "damage_min": 10,
+      "damage_max": 20,
       "speed": 1300,
       "bounces": 5
     },
