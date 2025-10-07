@@ -1461,7 +1461,8 @@ void Weapon_Blaster_Fire(edict_t* ent)
 	ent->client->blaster_ammo--;
 
 	// reduced damage to balance with Strength Tech (4x multiplier)
-	int const damage = g_config.blaster.damage;
+	int const damage = irandom(g_config.blaster.damage_min, g_config.blaster.damage_max);
+	
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 

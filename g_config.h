@@ -26,7 +26,8 @@ struct EntityLimitsConfig
 // Base weapon configurations
 struct BlasterConfig
 {
-	int damage = 15;
+	int damage_min = 16;
+	int damage_max = 18;
 	int speed = 1300;
 	int bounces = 5;
 };

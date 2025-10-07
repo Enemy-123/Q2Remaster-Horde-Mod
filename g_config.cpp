@@ -442,7 +442,9 @@ void Config_Load(const char* basedir)
 		if (weapons.isMember("blaster") && weapons["blaster"].isObject())
 		{
 			const Json::Value& w = weapons["blaster"];
-			g_config.blaster.damage = GetJsonInt(w, "damage", 15);
+
+			g_config.blaster.damage_min = GetJsonInt(w, "damage_min", 5);
+			g_config.blaster.damage_max = GetJsonInt(w, "damage_max", 42);
 			g_config.blaster.speed = GetJsonInt(w, "speed", 1300);
 			g_config.blaster.bounces = GetJsonInt(w, "bounces", 5);
 		}
