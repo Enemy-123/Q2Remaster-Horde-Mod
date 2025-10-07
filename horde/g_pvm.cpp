@@ -17,6 +17,7 @@ constexpr const char* DEFAULT_PVM_WEAPON = "Rocket Launcher";
 constexpr int DEFAULT_PVM_ROCKETS = 10;
 
 // Forward declarations
+extern const char* GetPlayerName(const edict_t* player);
 void PVM_BackpackThink(edict_t* backpack);
 void PVM_BackpackTouch(edict_t* backpack, edict_t* other, const trace_t& tr, bool other_touching_self);
 
@@ -201,21 +202,30 @@ void PVM_GiveRespawnWeapon(edict_t* player)
     // Give weapon
     player->client->pers.inventory[weapon->id] = 1;
 
-    // Give ammo
-    if (weapon->ammo && weapon->ammo < AMMO_MAX)
+    // Give ammo (weapon->ammo is item_id, need to get the ammo tag)
+    if (weapon->ammo)
     {
-        // Special handling for specific weapons
-        if (Q_strcasecmp(weapon_name, "Rocket Launcher") == 0)
+        gitem_t* ammo_item = GetItemByIndex(weapon->ammo);
+        if (ammo_item && ammo_item->tag >= AMMO_BULLETS && ammo_item->tag < AMMO_MAX)
         {
-            player->client->pers.inventory[weapon->ammo] = DEFAULT_PVM_ROCKETS;
-        }
-        else
-        {
-            // Give reasonable starting ammo (20% of max)
-            int max_ammo = player->client->pers.max_ammo[weapon->ammo];
-            player->client->pers.inventory[weapon->ammo] = max_ammo / 5;
-            if (player->client->pers.inventory[weapon->ammo] < 10)
-                player->client->pers.inventory[weapon->ammo] = 10;
+            ammo_t ammo_type = (ammo_t)ammo_item->tag;
+
+            // Special handling for specific weapons
+            if (Q_strcasecmp(weapon_name, "Rocket Launcher") == 0)
+            {
+                player->client->pers.inventory[weapon->ammo] = DEFAULT_PVM_ROCKETS;
+            }
+            else
+            {
+                // Give reasonable starting ammo (20% of max)
+                int max_ammo = player->client->pers.max_ammo[ammo_type];
+                player->client->pers.inventory[weapon->ammo] = max_ammo / 5;
+                if (player->client->pers.inventory[weapon->ammo] < 10)
+                    player->client->pers.inventory[weapon->ammo] = 10;
+            }
+
+            gi.Com_PrintFmt("PVM: Gave {} {} ammo to {}\n",
+                player->client->pers.inventory[weapon->ammo], ammo_item->pickup_name, GetPlayerName(player));
         }
     }
 
@@ -224,7 +234,7 @@ void PVM_GiveRespawnWeapon(edict_t* player)
     player->client->pers.selected_item = weapon->id;
 
     gi.Com_PrintFmt("PVM: Gave {} respawn weapon: {}\n",
-                    player->client->pers.netname, weapon_name);
+                    GetPlayerName(player), weapon_name);
 }
 
 // Check if PvM mode is active

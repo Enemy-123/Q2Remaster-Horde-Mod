@@ -1120,8 +1120,12 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		// Clear inventory (they only get respawn weapon)
 		client->pers.inventory.fill(0);
 
-		// Give respawn weapon and ammo
+		// Give respawn weapon and ammo (handled by PVM_GiveRespawnWeapon)
 		PVM_GiveRespawnWeapon(ent);
+
+		// Always give blaster as backup weapon
+		client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+
 		return;
 	}
 
@@ -1337,6 +1341,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		//
 		if (is_horde)
 		{
+			// Load character data BEFORE initializing (needed for respawn weapon)
+			Character_Load(ent);
+
 			Horde_InitClientPersistant(ent, client);
 		}
 
@@ -1399,9 +1406,6 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	client->pers.connected = true;
 	client->pers.spawned = true;
-
-	// Load character data (PvM & Horde)
-	Character_Load(ent);
 }
 
 void InitClientResp(gclient_t* client)

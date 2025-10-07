@@ -75,7 +75,7 @@ void Character_CreateDefault(edict_t* player)
         return;
 
     CharacterData data;
-    Q_strlcpy(data.player_name, player->client->pers.netname, sizeof(data.player_name));
+    Q_strlcpy(data.player_name, GetPlayerName(player), sizeof(data.player_name));
     Q_strlcpy(data.respawn_weapon, DEFAULT_RESPAWN_WEAPON, sizeof(data.respawn_weapon));
     data.id_display = player->client->pers.id_state;
     data.iddmg_display = player->client->pers.iddmg_state;
@@ -95,7 +95,7 @@ void Character_CreateDefault(edict_t* player)
     std::ofstream file(filepath, std::ios::out | std::ios::trunc);
     if (!file.is_open())
     {
-        gi.Com_PrintFmt("Character: Failed to create character file for {}\n", player->client->pers.netname);
+        gi.Com_PrintFmt("Character: Failed to create character file for {}\n", GetPlayerName(player));
         return;
     }
 
@@ -105,7 +105,7 @@ void Character_CreateDefault(edict_t* player)
     writer->write(root, &file);
     file.close();
 
-    gi.Com_PrintFmt("Character: Created new character file for {}\n", player->client->pers.netname);
+    gi.Com_PrintFmt("Character: Created new character file for {}\n", GetPlayerName(player));
 }
 
 // Load character from file
@@ -125,7 +125,7 @@ bool Character_Load(edict_t* player)
     {
         // No character file exists, create default
         gi.Com_PrintFmt("Character: No character file found for {}, creating default\n",
-                        player->client->pers.netname);
+                        GetPlayerName(player));
         Character_CreateDefault(player);
         return false;
     }
@@ -138,7 +138,7 @@ bool Character_Load(edict_t* player)
     if (!Json::parseFromStream(builder, file, &root, &errs))
     {
         gi.Com_PrintFmt("Character: Failed to parse character file for {}: {}\n",
-                        player->client->pers.netname, errs);
+                        GetPlayerName(player), errs);
         file.close();
         return false;
     }
@@ -172,7 +172,7 @@ bool Character_Load(edict_t* player)
     // Future: Load stats (level, xp, etc.)
 
     gi.Com_PrintFmt("Character: Loaded character for {} (respawn weapon: {})\n",
-                    player->client->pers.netname,
+                    GetPlayerName(player),
                     player->client->pers.respawn_weapon_name);
 
     return true;
@@ -190,7 +190,7 @@ bool Character_Save(edict_t* player)
 
     // Build JSON
     Json::Value root;
-    root["player_name"] = player->client->pers.netname;
+    root["player_name"] = GetPlayerName(player);
     root["respawn_weapon"] = player->client->pers.respawn_weapon_name;
     root["preferences"]["id_display"] = player->client->pers.id_state;
     root["preferences"]["iddmg_display"] = player->client->pers.iddmg_state;
@@ -206,7 +206,7 @@ bool Character_Save(edict_t* player)
     if (!file.is_open())
     {
         gi.Com_PrintFmt("Character: Failed to save character file for {}\n",
-                        player->client->pers.netname);
+                        GetPlayerName(player));
         return false;
     }
 
@@ -216,7 +216,7 @@ bool Character_Save(edict_t* player)
     writer->write(root, &file);
     file.close();
 
-    gi.Com_PrintFmt("Character: Saved character for {}\n", player->client->pers.netname);
+    gi.Com_PrintFmt("Character: Saved character for {}\n", GetPlayerName(player));
     return true;
 }
 
