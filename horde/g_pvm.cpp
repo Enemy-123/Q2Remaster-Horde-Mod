@@ -1,6 +1,9 @@
 #include "g_pvm.h"
 #include "g_character.h"
 #include "../g_local.h"
+#include "horde_monster_data.h"
+#include <vector>
+#include <algorithm>
 
 // PvM (Player vs Monster) mode implementation
 // - Backpack drops on death with all weapons/ammo
@@ -256,4 +259,60 @@ bool IsPvMMode()
 bool PVM_IsValidMonster(int minWave)
 {
     return minWave >= PVM_MIN_WAVE;
+}
+
+
+// Storage for randomly selected monsters for this map
+static std::vector<horde::MonsterTypeID> g_pvm_random_monsters;
+
+// Initialize random monster selection for the current map
+void PVM_InitRandomMonsters()
+{
+    g_pvm_random_monsters.clear();
+
+    if (!IsPvMMode())
+        return;
+
+    // Collect all valid monsters (wave 8+)
+    std::vector<horde::MonsterTypeID> valid_monsters;
+    for (size_t i = 0; i < MONSTER_DATA_COUNT; i++)
+    {
+        const auto& monster = monsterTypes[i];
+        if (PVM_IsValidMonster(monster.minWave))
+        {
+            valid_monsters.push_back(monster.typeId);
+        }
+    }
+
+    // If we have fewer than 10 monsters, use all of them
+    if (valid_monsters.size() <= PVM_RANDOM_MONSTER_COUNT)
+    {
+        g_pvm_random_monsters = valid_monsters;
+        gi.Com_PrintFmt("PVM: Using all {} available monsters (wave {}+)\n", 
+                       valid_monsters.size(), PVM_MIN_WAVE);
+        return;
+    }
+
+    // Randomly select 10 monsters
+    // Use Fisher-Yates shuffle for first 10 elements
+    std::vector<horde::MonsterTypeID> shuffled = valid_monsters;
+    for (int i = 0; i < PVM_RANDOM_MONSTER_COUNT; i++)
+    {
+        int j = i + (rand() % (shuffled.size() - i));
+        std::swap(shuffled[i], shuffled[j]);
+    }
+
+    // Take first 10
+    g_pvm_random_monsters.assign(shuffled.begin(), shuffled.begin() + PVM_RANDOM_MONSTER_COUNT);
+
+    gi.Com_PrintFmt("PVM: Selected {} random monsters for this map\n", PVM_RANDOM_MONSTER_COUNT);
+}
+
+// Get the list of randomly selected monsters for this map
+const std::vector<horde::MonsterTypeID>* PVM_GetRandomMonsters()
+{
+    if (!IsPvMMode() || g_pvm_random_monsters.empty())
+        return nullptr;
+    
+    return &g_pvm_random_monsters;
 }

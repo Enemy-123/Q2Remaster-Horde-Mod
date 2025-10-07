@@ -2499,6 +2499,9 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 {
 	cache_ref.clear();
 
+	// Get PVM random monsters if active
+	const std::vector<horde::MonsterTypeID>* pvm_monsters = PVM_GetRandomMonsters();
+
 	// FIXED: Single-pass iteration with consistent precache logic
 	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 	{
@@ -2509,13 +2512,25 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			continue;
 		}
 
-		// PvM Mode: Filter to only wave 8+ monsters to limit precaching
-		if (IsPvMMode() && !PVM_IsValidMonster(g_monsterData.minWaves[i])) {
-			continue;
-		}
-
-		if (g_monsterData.minWaves[i] > ctx.effectiveLevel) {
-			continue;
+		// PvM Mode: Use random monster list instead of minWave filtering
+		if (pvm_monsters) {
+			// Check if this monster is in the random selection
+			bool in_random_list = false;
+			for (const auto& pvm_monster : *pvm_monsters) {
+				if (pvm_monster == monster_info->typeId) {
+					in_random_list = true;
+					break;
+				}
+			}
+			if (!in_random_list) {
+				continue;
+			}
+			// In PVM mode, ignore minWave requirements since we're using a pre-selected list
+		} else {
+			// Normal horde mode: check minWave
+			if (g_monsterData.minWaves[i] > ctx.effectiveLevel) {
+				continue;
+			}
 		}
 
 		const bool monster_is_flying = IsFlying(monster_info->typeId);
@@ -2541,16 +2556,25 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				continue;
 			}
 
-			// PvM Mode: Filter to only wave 8+ monsters to limit precaching (fallback monsters too)
-			if (IsPvMMode() && !PVM_IsValidMonster(g_monsterData.minWaves[i])) {
-				continue;
+			// PvM Mode: Use random monster list for fallback too
+			if (pvm_monsters) {
+				bool in_random_list = false;
+				for (const auto& pvm_monster : *pvm_monsters) {
+					if (pvm_monster == monster_info->typeId) {
+						in_random_list = true;
+						break;
+					}
+				}
+				if (!in_random_list) {
+					continue;
+				}
 			}
 
 			const bool monster_is_flying = IsFlying(monster_info->typeId);
 
 			// For flying spawn points: add any flying monsters from early waves
 			if (ctx.isSpawnPointFlying) {
-				if (monster_is_flying && monster_info->minWave <= 11 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)
+				if (monster_is_flying && (pvm_monsters || (monster_info->minWave <= 11 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)))
 				{
 					if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
 						break;
@@ -2559,7 +2583,7 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 				}
 			}
 			// For ground spawn points: add core ground monsters
-			else if (!monster_is_flying && monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)
+			else if (!monster_is_flying && (pvm_monsters || (monster_info->minWave <= 3 && g_monsterData.minWaves[i] <= ctx.currentActualLevel)))
 			{
 				if (cache_ref.count >= MIN_MONSTERS_AVAILABLE)
 					break;
@@ -3021,6 +3045,47 @@ static void PrecacheAllMonsters()
     // NEW: Reset all flags to false.
     g_precached_monster_types_flags.fill(false);
 
+	// PVM Mode: Precache all random monsters for this map
+	if (IsPvMMode())
+	{
+		const std::vector<horde::MonsterTypeID>* pvm_monsters = PVM_GetRandomMonsters();
+		if (pvm_monsters)
+		{
+			if (developer->integer)
+			{
+				gi.Com_PrintFmt("PVM PRECACHE: Loading {} random monsters for this map...\n", pvm_monsters->size());
+			}
+
+			for (const auto& monster_id : *pvm_monsters)
+			{
+				const char *classname = horde::MonsterTypeRegistry::GetClassname(monster_id);
+				if (classname && *classname)
+				{
+					edict_t *temp_monster = G_Spawn();
+					if (temp_monster)
+					{
+						temp_monster->classname = classname;
+						temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+						ED_CallSpawn(temp_monster);
+						if (temp_monster->inuse)
+						{
+							G_FreeEdict(temp_monster);
+						}
+						g_precached_monster_types_flags[static_cast<size_t>(monster_id)] = true;
+						
+						if (developer->integer)
+						{
+							gi.Com_PrintFmt("  - Precached: {}\n", classname);
+						}
+					}
+				}
+			}
+			monsters_precached = true;
+			return;
+		}
+	}
+
+	// Normal Horde Mode: Precache wave 1 monsters
 	if (developer->integer)
 	{
 		gi.Com_Print("INITIAL PRECACHE: Loading all monsters for Wave 1...\n");
@@ -3066,10 +3131,14 @@ void Horde_Init()
 	// Initialize character persistence system
 	Character_Init();
 
+	// Initialize PVM random monster selection BEFORE precaching
+	PVM_InitRandomMonsters();
+
 	PrecacheAllGameItems();
 	PrecacheWaveSounds();
 	monsters_precached = false; // Reset the precache flag for the new map.
 	PrecacheAllMonsters();
+	
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
@@ -6960,40 +7029,70 @@ static void Horde_InitLevel(const int32_t lvl)
 		return;
 	}
 
-	// --- THIS IS THE LOGIC FIX ---
-	// We now build the eligible list by considering monsters up to the current level
-	// PLUS the maximum possible boost from the elite spawn mechanic. This ensures
-	// that potential elite monsters are included in the list for the JIT precacher
-	// and the monster picker.
-	const int32_t max_level_for_eligibility = current_wave_level + MAX_EFFECTIVE_LEVEL_BOOST;
-
-	for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+	// PVM Mode: Use pre-selected random monsters for the entire map
+	const std::vector<horde::MonsterTypeID>* pvm_monsters = PVM_GetRandomMonsters();
+	if (pvm_monsters)
 	{
-		const auto& monster = monsterTypes[i];
-
-		// The loop now correctly includes monsters that might be chosen as elites.
-		if (monster.minWave > max_level_for_eligibility)
+		// Add all random monsters to eligible list (no wave restrictions in PVM)
+		for (const auto& monster_id : *pvm_monsters)
 		{
-			break;
+			// Find the monster info
+			for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+			{
+				if (monsterTypes[i].typeId == monster_id)
+				{
+					if (!safe_push_back(g_eligible_monsters_for_wave, &monsterTypes[i], MAX_SAFE_CONTAINER_SIZE)) {
+						gi.Com_Print("WARNING: Eligible monsters list full\n");
+						break;
+					}
+					break;
+				}
+			}
 		}
 
-		// Check if monster is valid for wave AND not excluded this map
-		if (IsValidMonsterForWave(monster.typeId, current_wave_type))
+		if (developer->integer)
 		{
-			// Skip if this monster is excluded for this map
-			if (g_excluded_monsters_this_map.find(monster.typeId) == g_excluded_monsters_this_map.end())
+			gi.Com_PrintFmt("PVM: Populated eligible list with {} random monsters\n", g_eligible_monsters_for_wave.size());
+		}
+	}
+	else
+	{
+		// Normal Horde Mode: Build eligible list by wave progression
+		// --- THIS IS THE LOGIC FIX ---
+		// We now build the eligible list by considering monsters up to the current level
+		// PLUS the maximum possible boost from the elite spawn mechanic. This ensures
+		// that potential elite monsters are included in the list for the JIT precacher
+		// and the monster picker.
+		const int32_t max_level_for_eligibility = current_wave_level + MAX_EFFECTIVE_LEVEL_BOOST;
+
+		for (size_t i = 0; i < MONSTER_DATA_COUNT; ++i)
+		{
+			const auto& monster = monsterTypes[i];
+
+			// The loop now correctly includes monsters that might be chosen as elites.
+			if (monster.minWave > max_level_for_eligibility)
 			{
-				// Use safe push_back to prevent overflow at 65535
-				if (!safe_push_back(g_eligible_monsters_for_wave, &monster, MAX_SAFE_CONTAINER_SIZE)) {
-					gi.Com_Print("WARNING: Eligible monsters list full\n");
-					break;
+				break;
+			}
+
+			// Check if monster is valid for wave AND not excluded this map
+			if (IsValidMonsterForWave(monster.typeId, current_wave_type))
+			{
+				// Skip if this monster is excluded for this map
+				if (g_excluded_monsters_this_map.find(monster.typeId) == g_excluded_monsters_this_map.end())
+				{
+					// Use safe push_back to prevent overflow at 65535
+					if (!safe_push_back(g_eligible_monsters_for_wave, &monster, MAX_SAFE_CONTAINER_SIZE)) {
+						gi.Com_Print("WARNING: Eligible monsters list full\n");
+						break;
+					}
 				}
 			}
 		}
 	}
 
-	// Add Gekk/Berserk variants for special waves (wave 15+)
-	if (lvl >= 15 && (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
+	// Add Gekk/Berserk variants for special waves (wave 15+) - Skip in PVM mode
+	if (!pvm_monsters && lvl >= 15 && (HasWaveType(current_wave_type, MonsterWaveType::Gekk) ||
 	    HasWaveType(current_wave_type, MonsterWaveType::Berserk)))
 	{
 		bool is_gekk_wave = HasWaveType(current_wave_type, MonsterWaveType::Gekk);
@@ -7092,94 +7191,41 @@ static void Horde_InitLevel(const int32_t lvl)
 	}
 
 	// --- 4. PROGRESSIVE PRECACHE LOGIC ---
-	// Limit precaching to prevent memory overflow, especially for late-joining players
-	// Monsters sharing models are much cheaper, so we count "precache cost" instead of raw count
-	float precache_budget = 6.0f + (lvl / 3.0f);  // Reduced budget: start with 6 "points", slower growth
-	float precache_cost_this_wave = 0.0f;
-	int precached_count = 0;
-
-	// First pass: precache critical monsters for this wave (those at or below current level)
-	for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+	// Skip for PVM mode - all monsters already precached at map start
+	if (!pvm_monsters)
 	{
-		if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
-		{
-			// Calculate precache cost - monsters sharing models are cheaper
-			const char* model_path = GetMonsterModelPath(monster_info->typeId);
-			float precache_cost = 1.0f; // Default cost for unique model
+		// Limit precaching to prevent memory overflow, especially for late-joining players
+		// Monsters sharing models are much cheaper, so we count "precache cost" instead of raw count
+		float precache_budget = 6.0f + (lvl / 3.0f);  // Reduced budget: start with 6 "points", slower growth
+		float precache_cost_this_wave = 0.0f;
+		int precached_count = 0;
 
-			if (model_path && g_precached_models_this_map.find(model_path) != g_precached_models_this_map.end())
-			{
-				// Model already loaded, just new skin - very cheap
-				precache_cost = 0.2f;
-			}
-
-			// Priority precache for monsters that should spawn this wave
-			// Only precache monsters within a reasonable window to avoid loading everything at high waves
-			if (monster_info->minWave <= lvl && monster_info->minWave >= lvl - 10 && precache_cost_this_wave + precache_cost <= precache_budget)
-			{
-				const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
-				if (classname && *classname)
-				{
-					if (developer->integer)
-					{
-						gi.Com_PrintFmt("Progressive Precache: Loading '{}' for wave {} (cost: {:.1f})\n",
-							classname, lvl, precache_cost);
-					}
-					edict_t* temp_monster = G_Spawn();
-					if (temp_monster)
-					{
-						temp_monster->classname = classname;
-						temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-						ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
-						if (temp_monster->inuse)
-						{
-							G_FreeEdict(temp_monster);
-						}
-						g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
-						g_precached_monsters_this_map.insert(monster_info->typeId);
-
-						if (model_path)
-							g_precached_models_this_map.insert(model_path);
-
-						precache_cost_this_wave += precache_cost;
-						precached_count++;
-					}
-				}
-			}
-		}
-		else
-		{
-			// Already precached, just track it
-			g_precached_monsters_this_map.insert(monster_info->typeId);
-		}
-	}
-
-	// Second pass: precache future monsters if we have budget remaining
-	if (precache_cost_this_wave < precache_budget && ShouldPrecacheMoreMonsters(lvl))
-	{
+		// First pass: precache critical monsters for this wave (those at or below current level)
 		for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
 		{
 			if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
 			{
-				// Calculate cost for this monster
+				// Calculate precache cost - monsters sharing models are cheaper
 				const char* model_path = GetMonsterModelPath(monster_info->typeId);
-				float precache_cost = 1.0f;
+				float precache_cost = 1.0f; // Default cost for unique model
 
 				if (model_path && g_precached_models_this_map.find(model_path) != g_precached_models_this_map.end())
 				{
-					precache_cost = 0.2f; // Cheap if model already loaded
+					// Model already loaded, just new skin - very cheap
+					precache_cost = 0.2f;
 				}
 
-				// Precache upcoming monsters (within a narrow window to avoid loading too many at high waves)
-				if (monster_info->minWave > lvl && monster_info->minWave <= lvl + 3 && precache_cost_this_wave + precache_cost <= precache_budget)
+				// Priority precache for monsters that should spawn this wave
+				// Only precache monsters within a reasonable window to avoid loading everything at high waves
+				if (monster_info->minWave <= lvl && monster_info->minWave >= lvl - 10 && precache_cost_this_wave + precache_cost <= precache_budget)
 				{
 					const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
 					if (classname && *classname)
 					{
 						if (developer->integer)
 						{
-							gi.Com_PrintFmt("Progressive Precache: Loading '{}' for future waves (cost: {:.1f})\n",
-								classname, precache_cost);
+							gi.Com_PrintFmt("Progressive Precache: Loading '{}' for wave {} (cost: {:.1f})\n",
+								classname, lvl, precache_cost);
 						}
 						edict_t* temp_monster = G_Spawn();
 						if (temp_monster)
@@ -7203,16 +7249,73 @@ static void Horde_InitLevel(const int32_t lvl)
 					}
 				}
 			}
+			else
+			{
+				// Already precached, just track it
+				g_precached_monsters_this_map.insert(monster_info->typeId);
+			}
 		}
-		g_last_precache_wave = lvl;
-	}
 
-	if (developer->integer)
-	{
-		gi.Com_PrintFmt("Progressive Precache: {} monsters precached (cost: {:.1f}), {} total, {} models loaded\n",
-			precached_count, precache_cost_this_wave, g_precached_monsters_this_map.size(),
-			g_precached_models_this_map.size());
-	}
+		// Second pass: precache future monsters if we have budget remaining
+		if (precache_cost_this_wave < precache_budget && ShouldPrecacheMoreMonsters(lvl))
+		{
+			for (const MonsterTypeInfo* monster_info : g_eligible_monsters_for_wave)
+			{
+				if (!g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)])
+				{
+					// Calculate cost for this monster
+					const char* model_path = GetMonsterModelPath(monster_info->typeId);
+					float precache_cost = 1.0f;
+
+					if (model_path && g_precached_models_this_map.find(model_path) != g_precached_models_this_map.end())
+					{
+						precache_cost = 0.2f; // Cheap if model already loaded
+					}
+
+					// Precache upcoming monsters (within a narrow window to avoid loading too many at high waves)
+					if (monster_info->minWave > lvl && monster_info->minWave <= lvl + 3 && precache_cost_this_wave + precache_cost <= precache_budget)
+					{
+						const char* classname = horde::MonsterTypeRegistry::GetClassname(monster_info->typeId);
+						if (classname && *classname)
+						{
+							if (developer->integer)
+							{
+								gi.Com_PrintFmt("Progressive Precache: Loading '{}' for future waves (cost: {:.1f})\n",
+									classname, precache_cost);
+							}
+							edict_t* temp_monster = G_Spawn();
+							if (temp_monster)
+							{
+								temp_monster->classname = classname;
+								temp_monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+								ED_CallSpawnMonsterByID(temp_monster, monster_info->typeId);
+								if (temp_monster->inuse)
+								{
+									G_FreeEdict(temp_monster);
+								}
+								g_precached_monster_types_flags[static_cast<size_t>(monster_info->typeId)] = true;
+								g_precached_monsters_this_map.insert(monster_info->typeId);
+
+								if (model_path)
+									g_precached_models_this_map.insert(model_path);
+
+								precache_cost_this_wave += precache_cost;
+								precached_count++;
+							}
+						}
+					}
+				}
+			}
+			g_last_precache_wave = lvl;
+		}
+
+		if (developer->integer)
+		{
+			gi.Com_PrintFmt("Progressive Precache: {} monsters precached (cost: {:.1f}), {} total, {} models loaded\n",
+				precached_count, precache_cost_this_wave, g_precached_monsters_this_map.size(),
+				g_precached_models_this_map.size());
+		}
+	} // End of progressive precache (skip for PVM)
 
 
 	if (developer->integer)

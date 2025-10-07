@@ -29,3 +29,14 @@ constexpr int PVM_MIN_WAVE = 8;
 // Check if a monster type is valid for PvM mode
 // (only monsters from wave 8+ to limit precaching)
 bool PVM_IsValidMonster(int minWave);
+
+// PvM Random Monster Rotation
+// For PVM mode, we randomly select 10 monsters per map to avoid large precache
+constexpr int PVM_RANDOM_MONSTER_COUNT = 10;
+
+// Get the list of randomly selected monsters for this map
+// Returns nullptr if PVM is not active or list not initialized
+const std::vector<horde::MonsterTypeID>* PVM_GetRandomMonsters();
+
+// Initialize random monster selection for the current map
+void PVM_InitRandomMonsters();
