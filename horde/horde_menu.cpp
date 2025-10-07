@@ -1324,20 +1324,20 @@ void OpenRespawnWeaponMenu(edict_t* ent) {
 	add_entry("", PMENU_ALIGN_CENTER);
 
 	// Weapon options
-	add_entry("Blaster", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("Shotgun", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("Super Shotgun", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("Machinegun", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("Chaingun", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("Grenade Launcher", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("Rocket Launcher", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("HyperBlaster", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("Railgun", PMENU_ALIGN_LEFT, nullptr);
-	add_entry("BFG10K", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Blaster", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("Shotgun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("Super Shotgun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("Machinegun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("Chaingun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("Grenade Launcher", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("Rocket Launcher", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("HyperBlaster", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("Railgun", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
+	add_entry("BFG10K", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
 
 	// Back option
 	add_entry("", PMENU_ALIGN_CENTER);
-	add_entry("Back to Main Menu", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Back to Main Menu", PMENU_ALIGN_LEFT, RespawnWeaponMenuHandler);
 
 	PMenu_Open(ent, respawn_weapon_menu, -1, count, nullptr, nullptr);
 }
