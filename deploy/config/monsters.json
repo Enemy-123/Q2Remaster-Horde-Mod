@@ -1,23 +1,23 @@
 {
-  "// ============================================================================": "",
+  "// ============================================================================ 1": "",
   "//  GLOBAL WEAPON DAMAGE SYSTEM": "",
-  "// ============================================================================": "",
+  "// ============================================================================ GLOBAL WEAPON DAMAGE SYSTEM": "",
   "// All monsters start with these base values, then apply their damage_scale": "",
-  "//": "",
+  "// 1": "",
   "// Final Damage Formula:": "",
   "//   damage = global_base × damage_scale × wave_scaling × (1.5 if boss)": "",
-  "//": "",
+  "// 2": "",
   "// TUNING GUIDE:": "",
   "//   - To make ALL monsters stronger: increase global_weapon_damage values": "",
   "//   - To make ONE monster stronger: increase that monster's damage_scale": "",
   "//   - To tune specific weapon: add weapon_damage override to that monster": "",
-  "//": "",
+  "// 3": "",
   "// EXAMPLE:": "",
   "//   Tank at wave 1 with damage_scale 1.2:": "",
   "//     rocket damage = 50 (global) × 1.2 (scale) = 60": "",
   "//   Tank boss at wave 20:": "",
   "//     rocket damage = 50 × 1.2 × 1.8 (wave) × 1.5 (boss) = 162": "",
-  "// ============================================================================": "",
+  "// ============================================================================ 2": "",
 
   "global_weapon_damage": {
     "// MELEE WEAPONS": "",
@@ -93,19 +93,19 @@
     "fireball": 140
   },
 
-  "// ============================================================================": "",
+  "// ============================================================================ 3": "",
   "//  MONSTER DEFINITIONS": "",
-  "// ============================================================================": "",
+  "// ============================================================================ MONSTER DEFINITIONS": "",
   "// SCALING PARAMETERS:": "",
   "//   damage_scale  - Multiplier for ALL weapon damage (0.5 = half damage, 2.0 = double)": "",
   "//   health_scale  - Multiplier for base health (applied before wave scaling)": "",
   "//   armor_scale   - Multiplier for armor power": "",
   "//   speed_scale   - Multiplier for projectile speed (not commonly used)": "",
-  "//": "",
+  "// 4": "",
   "// OVERRIDES (optional):": "",
   "//   weapon_damage - Override specific weapons only when needed": "",
   "//                   Example: {\"blaster\": 25} makes blaster 25 instead of global 10": "",
-  "// ============================================================================": "",
+  "// ============================================================================ 4": "",
 
   "monsters": {
     "sentrygun": {
@@ -150,14 +150,14 @@
     },
 
     "soldier_hypergun": {
-      "health": 100,
+      "health": 70,
       "power_armor_power": 45,
       "power_armor_type": "screen",
       "damage_scale": 0.8
     },
 
     "soldier_ripper": {
-      "health": 105,
+      "health": 75,
       "power_armor_power": 45,
       "power_armor_type": "screen",
       "damage_scale": 0.27
@@ -178,7 +178,7 @@
       "damage_scale": 0.67,
       "weapon_damage": {
         "blaster2": 6,
-        "grenade": 40
+        "grenade": 50
       }
     },
 
@@ -217,7 +217,7 @@
 
     "// ========== MEDICS & COMMANDERS ==========": "",
     "medic": {
-      "health": 300,
+      "health": 200,
       "power_armor_power": 0,
       "damage_scale": 1.2,
       "weapon_damage": {
@@ -227,7 +227,7 @@
     },
 
     "medic_commander": {
-      "health": 520,
+      "health": 420,
       "power_armor_power": 0,
       "damage_scale": 1.5,
       "weapon_damage": {
@@ -238,23 +238,23 @@
     },
 
     "guncmdr": {
-      "health": 275,
-      "power_armor_power": 40,
+      "health": 325,
+      "power_armor_power": 140,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
       "weapon_damage": {
-        "melee": 20
+        "melee": 30
       }
     },
 
     "guncmdr_vanilla": {
-      "health": 325,
-      "power_armor_power": 180,
+      "health": 225,
+      "power_armor_power": 80,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
       "weapon_damage": {
-        "flechette": 30,
-        "melee": 20
+        "flechette": 12,
+        "melee": 30
       }
     },
 
@@ -273,7 +273,7 @@
 
     "// ========== GLADIATORS ==========": "",
     "gladiator": {
-      "health": 480,
+      "health": 420,
       "armor_power": 200,
       "armor_type": "combat",
       "damage_scale": 2.7,
@@ -284,8 +284,8 @@
     },
 
     "gladb": {
-      "health": 510,
-      "power_armor_power": 420,
+      "health": 460,
+      "power_armor_power": 220,
       "power_armor_type": "shield",
       "damage_scale": 1.1,
       "weapon_damage": {
@@ -295,7 +295,7 @@
     },
 
     "gladc": {
-      "health": 470,
+      "health": 370,
       "power_armor_power": 420,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
@@ -317,7 +317,7 @@
     },
 
     "tank_commander": {
-      "health": 780,
+      "health": 800,
       "power_armor_power": 0,
       "damage_scale": 1.2,
       "weapon_damage": {
