@@ -3067,9 +3067,9 @@ void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p)
 {
 	// For cooperative/single player/PvM modes, directly join team 1 if techs are disabled
 	// This will transition the player from spectator-like state (CTF_NOTEAM) to active play
-	if (((G_IsCooperative() || coop->integer || !deathmatch->integer) && !g_allow_techs->integer) || pvm->integer) {
+	if (coop->integer || !deathmatch->integer && !g_allow_techs->integer || pvm->integer) {
 		CTFJoinTeam(ent, CTF_TEAM1);
-	} else {
+	} else if (g_horde->integer && !pvm->integer) {
 		// Otherwise open tech menu for selection
 		OpenTechMenu(ent);
 	}
