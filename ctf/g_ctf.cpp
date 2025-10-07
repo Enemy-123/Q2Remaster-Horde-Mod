@@ -3180,6 +3180,10 @@ void RemoveAllTechItems(edict_t* ent)
 	if (!ent || !ent->client)
 		return;
 
+	// Drop all techs in PvM mode before removing from inventory
+	if (IsPvMMode())
+		CTFDeadDropTech(ent);
+
 	// Use the known safe upper bound directly
 	const int SAFE_MAX_ITEMS = 85; // Based on the warning message indicating valid range 0-84
 
@@ -3250,7 +3254,7 @@ void CTFObserver(edict_t* ent)
 		CTFPlayerResetGrapple(ent);
 
 	CTFDeadDropFlag(ent);
-	RemoveAllTechItems(ent); // Llamar a la función para eliminar los tech items
+	RemoveAllTechItems(ent); 
 
 	ent->deadflag = false;
 	ent->movetype = MOVETYPE_NOCLIP;
