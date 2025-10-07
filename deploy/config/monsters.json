@@ -357,7 +357,7 @@
     "chick": {
       "health": 165,
       "power_armor_power": 75,
-      "power_armor_type": "shield",
+      "power_armor_type": "combat",
       "damage_scale": 1.0,
       "weapon_damage": {
         "melee": 25
@@ -365,7 +365,7 @@
     },
 
     "chick_heat": {
-      "health": 500,
+      "health": 430,
       "power_armor_power": 150,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
@@ -391,14 +391,14 @@
 
     "// ========== MELEE MONSTERS ==========": "",
     "parasite": {
-      "health": 175,
+      "health": 125,
       "power_armor_power": 0,
       "damage_scale": 1.0
     },
 
     "brain": {
-      "health": 275,
-      "power_armor_power": 150,
+      "health": 135,
+      "power_armor_power": 200,
       "power_armor_type": "screen",
       "damage_scale": 1.13,
       "weapon_damage": {
@@ -407,13 +407,13 @@
     },
 
     "mutant": {
-      "health": 300,
+      "health": 240,
       "power_armor_power": 0,
       "damage_scale": 0.67
     },
 
     "redmutant": {
-      "health": 520,
+      "health": 320,
       "power_armor_power": 0,
       "damage_scale": 1.0,
       "health_scale": 1.13
@@ -430,8 +430,8 @@
     },
 
     "berserkerkl": {
-      "health": 900,
-      "power_armor_power": 800,
+      "health": 400,
+      "power_armor_power": 100,
       "power_armor_type": "shield",
       "damage_scale": 1.47,
       "health_scale": 1.05,
@@ -472,7 +472,7 @@
     },
 
     "daedalus": {
-      "health": 240,
+      "health": 140,
       "power_armor_power": 100,
       "power_armor_type": "screen",
       "damage_scale": 0.8,
@@ -482,8 +482,8 @@
     },
 
     "daedalus_bomber": {
-      "health": 280,
-      "power_armor_power": 120,
+      "health": 190,
+      "power_armor_power": 135,
       "power_armor_type": "screen",
       "damage_scale": 1.2,
       "weapon_damage": {
@@ -492,7 +492,7 @@
     },
 
         "floater": {
-      "health": 360,
+      "health": 260,
       "power_armor_power": 0,
       "power_armor_type": "screen",
       "damage_scale": 0.4,
@@ -503,7 +503,7 @@
     },
 
     "floater_tracker": {
-      "health": 450,
+      "health": 250,
       "power_armor_power": 75,
       "power_armor_type": "screen",
       "damage_scale": 0.53,
@@ -575,7 +575,7 @@
     },
 
     "carrier": {
-      "health": 5000,
+      "health": 3000,
       "power_armor_power": 155,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
@@ -587,8 +587,8 @@
     },
 
     "carrier_mini": {
-      "health": 1500,
-      "power_armor_power": 200,
+      "health": 700,
+      "power_armor_power": 175,
       "power_armor_type": "shield",
       "damage_scale": 0.9,
       "health_scale": 0.3,
@@ -609,8 +609,8 @@
     },
 
     "widow1": {
-      "health": 1750,
-      "power_armor_power": 500,
+      "health": 650,
+      "power_armor_power": 200,
       "power_armor_type": "shield",
       "damage_scale": 1.0,
       "health_scale": 0.875
@@ -641,22 +641,22 @@
     },
 
     "arachnid2": {
-      "health": 700,
+      "health": 650,
       "power_armor_power": 125,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
       "health_scale": 1.07,
       "weapon_damage": {
-        "heat": 60
+        "heat": 50
       }
     },
 
     "gm_arachnid": {
-      "health": 1200,
+      "health": 680,
       "power_armor_power": 400,
       "power_armor_type": "shield",
       "damage_scale": 1.2,
-      "health_scale": 1.7,
+      "health_scale": 1.2,
       "weapon_damage": {
         "heat": 60,
         "rocket": 60
@@ -720,9 +720,9 @@
     },
 
     "boss2_64": {
-      "health": 2200,
-      "power_armor_power": 600,
-      "power_armor_type": "shield",
+      "health": 900,
+      "power_armor_power": 100,
+      "power_armor_type": "screen",
       "damage_scale": 0.5,
       "health_scale": 1.1,
       "weapon_damage": {
@@ -732,8 +732,8 @@
     },
 
     "boss2_mini": {
-      "health": 1500,
-      "power_armor_power": 400,
+      "health": 900,
+      "power_armor_power": 100,
       "power_armor_type": "shield",
       "damage_scale": 0.5,
       "health_scale": 0.75,
@@ -772,8 +772,8 @@
     },
 
     "makron": {
-      "health": 3000,
-      "power_armor_power": 1200,
+      "health": 1000,
+      "power_armor_power": 300,
       "power_armor_type": "combat",
       "damage_scale": 1.0
     },
@@ -798,8 +798,8 @@
     },
 
     "jorg_small": {
-      "health": 1000,
-      "armor_power": 500,
+      "health": 400,
+      "armor_power": 50,
       "armor_type": "combat",
       "damage_scale": 1.0,
       "health_scale": 0.33,
@@ -847,22 +847,22 @@
 
     "// ========== SPECIAL MONSTERS ==========": "",
     "janitor": {
-      "health": 1800,
+      "health": 400,
       "power_armor_power": 500,
       "power_armor_type": "screen",
       "damage_scale": 1.0,
       "weapon_damage": {
-        "rocket": 60
+        "rocket": 40
       }
     },
 
     "janitor2": {
-      "health": 750,
-      "power_armor_power": 1800,
-      "power_armor_type": "screen",
+      "health": 330,
+      "power_armor_power": 180,
+      "power_armor_type": "shield",
       "damage_scale": 1.1,
       "weapon_damage": {
-        "rocket": 70,
+        "rocket": 30,
         "ionripper": 25,
         "grenade": 40
       }

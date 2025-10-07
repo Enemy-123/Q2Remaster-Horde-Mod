@@ -263,6 +263,36 @@ bool PVM_IsValidMonster(int minWave)
 
 
 // Storage for randomly selected monsters for this map
+
+// Monsters excluded from PVM random selection
+// Add monster types here that should never appear in PVM mode
+static const std::vector<horde::MonsterTypeID> g_pvm_excluded_monsters = {
+    // Example exclusions (uncomment to exclude):
+    // horde::MonsterTypeID::BOSS2_64,           // Too large/problematic
+    // horde::MonsterTypeID::BOSS2_MINI,         // Boss variant
+    // horde::MonsterTypeID::BERSERKERKL,        // Special fog wave boss
+    // horde::MonsterTypeID::GEKKKL,             // Special fog wave boss
+    // horde::MonsterTypeID::TANK_SPAWNER,       // Spawns other monsters
+    horde::MonsterTypeID::PERRO_KL,       // way too op
+    horde::MonsterTypeID::SHAMBLER_KL,       // way too op
+    horde::MonsterTypeID::GUNCMDR_KL,       // way too op
+    horde::MonsterTypeID::MAKRON_KL,       // way too op
+    horde::MonsterTypeID::TANK_SPAWNER,       // way too op
+    horde::MonsterTypeID::FIXBOT_KL,       // way too op
+    horde::MonsterTypeID::BOSS2_KL,       // way too op
+};
+
+// Check if a monster type is excluded from PVM
+bool PVM_IsMonsterExcluded(horde::MonsterTypeID typeId)
+{
+    for (const auto& excluded : g_pvm_excluded_monsters)
+    {
+        if (excluded == typeId)
+            return true;
+    }
+    return false;
+}
+
 static std::vector<horde::MonsterTypeID> g_pvm_random_monsters;
 
 // Initialize random monster selection for the current map
@@ -273,12 +303,12 @@ void PVM_InitRandomMonsters()
     if (!IsPvMMode())
         return;
 
-    // Collect all valid monsters (wave 8+)
+    // Collect all valid monsters (wave 8+, not excluded)
     std::vector<horde::MonsterTypeID> valid_monsters;
     for (size_t i = 0; i < MONSTER_DATA_COUNT; i++)
     {
         const auto& monster = monsterTypes[i];
-        if (PVM_IsValidMonster(monster.minWave))
+        if (PVM_IsValidMonster(monster.minWave) && !PVM_IsMonsterExcluded(monster.typeId))
         {
             valid_monsters.push_back(monster.typeId);
         }

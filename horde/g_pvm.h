@@ -32,7 +32,7 @@ bool PVM_IsValidMonster(int minWave);
 
 // PvM Random Monster Rotation
 // For PVM mode, we randomly select 10 monsters per map to avoid large precache
-constexpr int PVM_RANDOM_MONSTER_COUNT = 10;
+constexpr int PVM_RANDOM_MONSTER_COUNT = 17;
 
 // Get the list of randomly selected monsters for this map
 // Returns nullptr if PVM is not active or list not initialized
@@ -40,3 +40,6 @@ const std::vector<horde::MonsterTypeID>* PVM_GetRandomMonsters();
 
 // Initialize random monster selection for the current map
 void PVM_InitRandomMonsters();
+
+// Check if a specific monster type is excluded from PVM random selection
+bool PVM_IsMonsterExcluded(horde::MonsterTypeID typeId);

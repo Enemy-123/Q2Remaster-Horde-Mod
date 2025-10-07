@@ -304,18 +304,16 @@ bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
 		return false;
 
+	// Our summoned monsters are better
+	if (self->monsterinfo.bonus_flags & BF_FRIENDLY)
+		return false;
+
 	// Horde mode has its own reaction rules
 	if (g_horde && g_horde->integer) {
 		bool const is_special_weapon = (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET);
 		bool const is_early_wave_normal_monster = (current_wave_level <= 10 && !self->monsterinfo.bonus_flags && !self->monsterinfo.IS_BOSS);
 		bool const is_boss = self->monsterinfo.IS_BOSS;
 		return (is_special_weapon || is_early_wave_normal_monster || is_boss);
-	}
-
-	// Default/non-horde mode logic based on skill level
-	// If the skill cvar isn't available, default to not reacting.
-	if (!skill) {
-		return false;
 	}
 
 	// React to special weapons regardless of skill, or to any weapon if skill is low.

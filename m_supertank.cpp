@@ -30,7 +30,11 @@ static cached_soundindex tread_sound;
 
 void TreadSound(edict_t* self)
 {
+
+	if (self->monsterinfo.IS_BOSS)
 	gi.sound(self, CHAN_BODY, tread_sound, 1, ATTN_NORM, 0);
+	else
+	gi.sound(self, CHAN_BODY, tread_sound, 0.7f, ATTN_STATIC, 0);
 }
 
 MONSTERINFO_SEARCH(supertank_search) (edict_t* self) -> void
