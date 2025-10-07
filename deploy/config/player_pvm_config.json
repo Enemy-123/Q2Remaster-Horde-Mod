@@ -104,6 +104,10 @@
       "damage_singleplayer": 20,
       "kick": 3
     },
+    "tracker": {
+      "damage": 140,
+      "speed": 1000
+    },
     "etfrifle": {
       "kick_normal": 3,
       "kick_homing": 75

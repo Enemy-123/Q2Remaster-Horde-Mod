@@ -591,6 +591,14 @@ void Config_Load(const char* basedir)
 			g_config.plasmabeam.kick = GetJsonInt(w, "kick", 3);
 		}
 
+		// Tracker / Disintegrator (Rogue)
+		if (weapons.isMember("tracker") && weapons["tracker"].isObject())
+		{
+			const Json::Value& w = weapons["tracker"];
+			g_config.tracker.damage = GetJsonInt(w, "damage", 140);
+			g_config.tracker.speed = GetJsonInt(w, "speed", 1000);
+		}
+
 		// ETF Rifle (Rogue)
 		if (weapons.isMember("etfrifle") && weapons["etfrifle"].isObject())
 		{

@@ -191,11 +191,7 @@ void weapon_tracker_fire(edict_t* self)
 	int		 damage;
 	vec3_t	 mins, maxs;
 
-	// PMM - felt a little high at 25
-	if (G_IsDeathmatch())
-		damage = g_config.plasmabeam.damage;
-	else
-		damage = g_config.plasmabeam.damage_singleplayer;
+	damage = g_config.tracker.damage;
 
 	if (is_quad)
 		damage *= damage_multiplier; // pgm
@@ -241,7 +237,7 @@ void weapon_tracker_fire(edict_t* self)
 
 	P_AddWeaponKick(self, self->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	fire_tracker(self, start, dir, damage, 1000, enemy);
+	fire_tracker(self, start, dir, damage, g_config.tracker.speed, enemy);
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);

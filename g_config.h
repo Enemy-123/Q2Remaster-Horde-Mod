@@ -148,6 +148,12 @@ struct PlasmaBeamConfig
 	int kick = 3;
 };
 
+struct TrackerConfig
+{
+	int damage = 140;
+	int speed = 1000;
+};
+
 struct ETFRifleConfig
 {
 	int kick_normal = 3;
@@ -418,6 +424,7 @@ struct GameConfig
 
 	// Rogue weapons
 	PlasmaBeamConfig plasmabeam;
+	TrackerConfig tracker;
 	ETFRifleConfig etfrifle;
 
 	// Deployables
