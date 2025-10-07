@@ -21,3 +21,11 @@ void PVM_DropBackpack(edict_t* player);
 
 // Give player their respawn weapon on spawn
 void PVM_GiveRespawnWeapon(edict_t* player);
+
+// PvM Monster Spawning
+// Get minimum wave for PvM monster spawning (starts at wave 8)
+constexpr int PVM_MIN_WAVE = 8;
+
+// Check if a monster type is valid for PvM mode
+// (only monsters from wave 8+ to limit precaching)
+bool PVM_IsValidMonster(int minWave);

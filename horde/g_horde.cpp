@@ -18,6 +18,7 @@
 #include "horde_constants.h"
 #include "horde_monster_data.h"
 #include "g_horde_scaling.h"
+#include "g_pvm.h"  // For PvM mode checks
 
 // External function declarations
 extern void ED_CallSpawnMonsterByID(edict_t* ent, horde::MonsterTypeID typeId);
@@ -2508,6 +2509,11 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 			continue;
 		}
 
+		// PvM Mode: Filter to only wave 8+ monsters to limit precaching
+		if (IsPvMMode() && !PVM_IsValidMonster(g_monsterData.minWaves[i])) {
+			continue;
+		}
+
 		if (g_monsterData.minWaves[i] > ctx.effectiveLevel) {
 			continue;
 		}
@@ -2532,6 +2538,11 @@ static void BuildMonsterCache(MonsterCache& cache_ref, const MonsterSelectionCon
 
 			// FIXED: Consistently check precache status
 			if (!g_precached_monster_types_flags[i]) {
+				continue;
+			}
+
+			// PvM Mode: Filter to only wave 8+ monsters to limit precaching (fallback monsters too)
+			if (IsPvMMode() && !PVM_IsValidMonster(g_monsterData.minWaves[i])) {
 				continue;
 			}
 

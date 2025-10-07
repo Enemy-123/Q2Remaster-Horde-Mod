@@ -1103,10 +1103,24 @@ void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
 		client->pers.health = new_max_health;
 
+		// Set max ammo values (required for weapon to work properly)
+		client->pers.max_ammo[AMMO_BULLETS] = 200;
+		client->pers.max_ammo[AMMO_SHELLS] = 100;
+		client->pers.max_ammo[AMMO_CELLS] = 200;
+		client->pers.max_ammo[AMMO_GRENADES] = 50;
+		client->pers.max_ammo[AMMO_ROCKETS] = 50;
+		client->pers.max_ammo[AMMO_SLUGS] = 50;
+		client->pers.max_ammo[AMMO_MAGSLUG] = 50;
+		client->pers.max_ammo[AMMO_FLECHETTES] = 200;
+		client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+		client->pers.max_ammo[AMMO_PROX] = 50;
+		client->pers.max_ammo[AMMO_TESLA] = 50;
+		client->pers.max_ammo[AMMO_TRAP] = 5;
+
 		// Clear inventory (they only get respawn weapon)
 		client->pers.inventory.fill(0);
 
-		// Give respawn weapon
+		// Give respawn weapon and ammo
 		PVM_GiveRespawnWeapon(ent);
 		return;
 	}

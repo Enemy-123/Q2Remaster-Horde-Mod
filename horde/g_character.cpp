@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <filesystem>
 
+// Forward declaration
+extern const char* GetPlayerName(const edict_t* player);
+
 // Default respawn weapon for PvM mode
 constexpr const char* DEFAULT_RESPAWN_WEAPON = "Rocket Launcher";
 
@@ -59,7 +62,9 @@ std::string Character_GetFilePath(edict_t* player)
     if (!player || !player->client)
         return "";
 
-    std::string sanitized = Character_SanitizeName(player->client->pers.netname);
+    // Use GetPlayerName() for proper name retrieval
+    const char* player_name = GetPlayerName(player);
+    std::string sanitized = Character_SanitizeName(player_name);
     return "baseq2/characters/" + sanitized + ".json";
 }
 
@@ -107,6 +112,10 @@ void Character_CreateDefault(edict_t* player)
 bool Character_Load(edict_t* player)
 {
     if (!player || !player->client)
+        return false;
+
+    // Don't load for bots - they use default settings
+    if (player->svflags & SVF_BOT)
         return false;
 
     std::string filepath = Character_GetFilePath(player);
@@ -173,6 +182,10 @@ bool Character_Load(edict_t* player)
 bool Character_Save(edict_t* player)
 {
     if (!player || !player->client)
+        return false;
+
+    // Don't save for bots - they don't need persistent data
+    if (player->svflags & SVF_BOT)
         return false;
 
     // Build JSON

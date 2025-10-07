@@ -37,7 +37,7 @@ void PVM_DropBackpack(edict_t* player)
     // Set basic properties
     backpack->classname = "item_backpack";
     backpack->s.modelindex = gi.modelindex("models/items/pack/tris.md2");
-    backpack->s.effects = EF_ROTATE;
+    backpack->s.effects = EF_GIB;  // Only gib effect, no rotate/bob
     backpack->solid = SOLID_TRIGGER;
     backpack->movetype = MOVETYPE_TOSS;
     backpack->touch = PVM_BackpackTouch;
@@ -232,4 +232,11 @@ bool IsPvMMode()
 {
     extern cvar_t* g_pvm;
     return g_pvm && g_pvm->integer;
+}
+
+// Check if a monster type is valid for PvM mode
+// PvM mode uses monsters from wave 8+ to keep precaching reasonable
+bool PVM_IsValidMonster(int minWave)
+{
+    return minWave >= PVM_MIN_WAVE;
 }
