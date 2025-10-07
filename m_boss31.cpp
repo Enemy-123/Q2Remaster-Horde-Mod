@@ -840,6 +840,6 @@ void SP_monster_jorg_small(edict_t* self)
 	self->health = M_JORG_SMALL_INITIAL_HEALTH * st.health_multiplier;
 
 	self->s.scale = 0.35f;
-	// Removed manual scaling - monster_start() handles it automatically
+	// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	ApplyMonsterBonusFlags(self);
 }

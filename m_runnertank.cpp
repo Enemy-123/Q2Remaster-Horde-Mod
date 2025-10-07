@@ -1777,7 +1777,7 @@ void SP_monster_runnertank_stand(edict_t* self)
 
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-	// Removed manual scaling - monster_start() handles it automatically
+	// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 
 	self->use = Use_Boss3;
 	self->think = Think_runnertankStand;

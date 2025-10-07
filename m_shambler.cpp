@@ -960,7 +960,7 @@ self->monsterinfo.monster_type_id = static_cast<uint8_t>(horde::MonsterTypeID::S
 		self->health = M_SHAMBLER_SMALL_INITIAL_HEALTH + st.health_multiplier;
 		self->gib_health = -190;
 		self->s.scale = 0.6f;
-		// Removed manual scaling - monster_start() handles it automatically
+		// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	}
 
 	self->yaw_speed = 65;

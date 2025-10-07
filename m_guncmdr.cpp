@@ -1807,7 +1807,7 @@ void SP_monster_guncmdr_vanilla(edict_t* self)
 	self->mins = vec3_t{ -16, -16, -24 };
 	self->maxs = vec3_t{ 16, 16, 36 };
 	self->s.scale = 1.25f;
-	// Removed manual scaling - monster_start() handles it automatically
+	// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	self->s.skinnum = 2;
 
 	// Health varies by style

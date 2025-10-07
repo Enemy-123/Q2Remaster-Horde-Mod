@@ -1354,7 +1354,7 @@ void SP_monster_carrier_mini(edict_t* self)
 		SP_monster_carrier(self);
 
 		self->s.scale = 0.6f;
-		// Removed manual scaling - monster_start() handles it automatically
+		// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 
 		int base_health = M_CARRIER_MINI_INITIAL_HEALTH;
 		if (g_horde && g_horde->integer && current_wave_level > 0) {

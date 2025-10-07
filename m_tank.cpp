@@ -3231,7 +3231,7 @@ void SP_monster_tank_stand(edict_t* self)
 	self->maxs = { 32, 32, 64 };
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-	// Removed manual scaling - monster_start() handles it automatically
+	// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	self->use = Use_Boss3;
 	self->think = Think_Tank_Stand;
 	self->nextthink = level.time + 10_hz;
@@ -3257,7 +3257,7 @@ void SP_monster_tank_spawner_stand(edict_t* self)
 	self->maxs = { 32, 32, 64 };
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-	// Removed manual scaling - monster_start() handles it automatically
+	// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	self->use = Use_Boss3;
 	self->think = Think_tank_vanillaStand;
 	self->nextthink = level.time + 10_hz;

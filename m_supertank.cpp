@@ -893,7 +893,7 @@ void SP_monster_janitor(edict_t* self)
 	self->s.skinnum = 2;
 
 	self->s.scale = 0.6f;
-	// Removed manual scaling - monster_start() handles it automatically
+	// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;

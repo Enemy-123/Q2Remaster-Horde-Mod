@@ -708,7 +708,7 @@ void SP_misc_insane2(edict_t* self)
 	SP_misc_insane(self);
 	if (!self->s.scale)
 		self->s.scale = 1.5f;
-	// Removed manual scaling - monster_start() handles it automatically
+	// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 
 	self->health = 800 * st.health_multiplier;
 	self->gib_health = -2000;

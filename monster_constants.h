@@ -182,6 +182,35 @@ int32_t GetMonsterPowerArmorType(uint8_t monster_type_id);
 
 extern int16_t current_wave_level;
 
+// ============================================================================
+// SIMPLIFIED MONSTER STAT MACROS (consistent with weapon macro style)
+// ============================================================================
+// Usage (similar to weapon macros):
+//   self->health = M_INITIAL_HEALTH(self);
+//   self->health = M_ADDON_HEALTH(self);
+//   self->monsterinfo.armor_power = M_ADDON_ARMOR(self);
+//   self->monsterinfo.power_armor_power = M_ADDON_POWER_ARMOR(self);
+//
+// These macros automatically extract monster_type_id from the entity
+// and apply all scaling (health_scale, wave_level, boss bonuses)
+// ============================================================================
+
+// Health macros
+#define M_INITIAL_HEALTH(ent)           GetMonsterBaseHealth((ent)->monsterinfo.monster_type_id)
+#define M_ADDON_HEALTH(ent)             GetMonsterScaledHealth((ent)->monsterinfo.monster_type_id, current_wave_level, (ent)->monsterinfo.IS_BOSS)
+
+// Armor macros
+#define M_INITIAL_ARMOR(ent)            GetMonsterBaseArmor((ent)->monsterinfo.monster_type_id)
+#define M_ADDON_ARMOR(ent)              GetMonsterScaledArmor((ent)->monsterinfo.monster_type_id, current_wave_level, (ent)->monsterinfo.IS_BOSS)
+
+// Power armor macros
+#define M_POWER_ARMOR_TYPE(ent)         GetMonsterPowerArmorType((ent)->monsterinfo.monster_type_id)
+#define M_INITIAL_POWER_ARMOR(ent)      GetMonsterBasePowerArmor((ent)->monsterinfo.monster_type_id)
+#define M_ADDON_POWER_ARMOR(ent)        GetMonsterScaledPowerArmor((ent)->monsterinfo.monster_type_id, current_wave_level, (ent)->monsterinfo.IS_BOSS)
+
+// ============================================================================
+// LEGACY MONSTER-SPECIFIC MACROS (backward compatibility)
+// ============================================================================
 // Macro patterns:
 //   M_<MONSTER>_INITIAL_HEALTH           - Base health from config
 //   M_<MONSTER>_ADDON_HEALTH(ent)        - Scaled health (wave + boss bonuses)

@@ -833,7 +833,7 @@ void SP_monster_boss2_64(edict_t *self)
 	if (g_horde->integer)
 	{
 		self->s.scale = 0.6f;
-		// Removed manual scaling - monster_start() handles it automatically
+		// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	}
 
 	// Power armor configuration
@@ -874,7 +874,7 @@ void SP_monster_boss2_mini(edict_t *self)
 	if (g_horde->integer)
 	{
 		self->s.scale = 0.6f;
-		// Removed manual scaling - monster_start() handles it automatically
+		// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	}
 
 	// Power armor configuration
@@ -918,7 +918,7 @@ void SP_monster_boss2kl(edict_t *self)
 	if (g_horde->integer)
 	{
 		self->s.scale = 0.6f;
-		// Removed manual scaling - monster_start() handles it automatically
+		// Removed manual (mins/maxs)  scaling - monster_start() handles it automatically
 	}
 
 	// Power armor configuration
