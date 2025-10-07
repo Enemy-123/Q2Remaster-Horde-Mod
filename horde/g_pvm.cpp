@@ -13,32 +13,32 @@
 constexpr gtime_t BACKPACK_DESPAWN_TIME = 60_sec;
 
 // Default PvM respawn weapon
-constexpr const char* DEFAULT_PVM_WEAPON = "Rocket Launcher";
+constexpr const char *DEFAULT_PVM_WEAPON = "Rocket Launcher";
 constexpr int DEFAULT_PVM_ROCKETS = 10;
 
 // Forward declarations
-extern const char* GetPlayerName(const edict_t* player);
-void PVM_BackpackThink(edict_t* backpack);
-void PVM_BackpackTouch(edict_t* backpack, edict_t* other, const trace_t& tr, bool other_touching_self);
+extern const char *GetPlayerName(const edict_t *player);
+void PVM_BackpackThink(edict_t *backpack);
+void PVM_BackpackTouch(edict_t *backpack, edict_t *other, const trace_t &tr, bool other_touching_self);
 
 // Drop backpack on player death
-void PVM_DropBackpack(edict_t* player)
+void PVM_DropBackpack(edict_t *player)
 {
     if (!player || !player->client)
         return;
 
     // Create backpack entity
-    edict_t* backpack = G_Spawn();
+    edict_t *backpack = G_Spawn();
     if (!backpack)
     {
-        gi.Com_PrintFmt("PVM: Failed to spawn backpack for {}\n", player->client->pers.netname);
+        //       gi.Com_PrintFmt("PVM: Failed to spawn backpack for {}\n", player->client->pers.netname);
         return;
     }
 
     // Set basic properties
     backpack->classname = "item_backpack";
     backpack->s.modelindex = gi.modelindex("models/items/pack/tris.md2");
-    backpack->s.effects = EF_GIB;  // Only gib effect, no rotate/bob
+    backpack->s.effects = EF_GIB; // Only gib effect, no rotate/bob
     backpack->solid = SOLID_TRIGGER;
     backpack->movetype = MOVETYPE_TOSS;
     backpack->touch = PVM_BackpackTouch;
@@ -46,8 +46,8 @@ void PVM_DropBackpack(edict_t* player)
     backpack->nextthink = level.time + BACKPACK_DESPAWN_TIME;
 
     // Set bounds
-    backpack->mins = { -15, -15, -15 };
-    backpack->maxs = { 15, 15, 15 };
+    backpack->mins = {-15, -15, -15};
+    backpack->maxs = {15, 15, 15};
 
     // Store owner name for display
     backpack->message = G_CopyString(player->client->pers.netname, TAG_GAME);
@@ -61,7 +61,7 @@ void PVM_DropBackpack(edict_t* player)
     }
 
     // Create a temporary client structure to store inventory
-    gclient_t* temp_client = (gclient_t*)gi.TagMalloc(sizeof(gclient_t), TAG_GAME);
+    gclient_t *temp_client = (gclient_t *)gi.TagMalloc(sizeof(gclient_t), TAG_GAME);
     if (temp_client)
     {
         memset(temp_client, 0, sizeof(gclient_t));
@@ -70,7 +70,7 @@ void PVM_DropBackpack(edict_t* player)
     }
     else
     {
-        gi.Com_PrintFmt("PVM: Failed to allocate backpack storage\n");
+        //     gi.Com_PrintFmt("PVM: Failed to allocate backpack storage\n");
         G_FreeEdict(backpack);
         return;
     }
@@ -86,11 +86,11 @@ void PVM_DropBackpack(edict_t* player)
 
     gi.linkentity(backpack);
 
-    gi.Com_PrintFmt("PVM: Dropped backpack for {}\n", player->client->pers.netname);
+    //   gi.Com_PrintFmt("PVM: Dropped backpack for {}\n", player->client->pers.netname);
 }
 
 // Backpack touch handler (pickup)
-TOUCH(PVM_BackpackTouch) (edict_t* backpack, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+TOUCH(PVM_BackpackTouch)(edict_t *backpack, edict_t *other, const trace_t &tr, bool other_touching_self)->void
 {
     if (!other || !other->client)
         return;
@@ -101,7 +101,7 @@ TOUCH(PVM_BackpackTouch) (edict_t* backpack, edict_t* other, const trace_t& tr, 
 
     if (!backpack->client)
     {
-        gi.Com_PrintFmt("PVM: Backpack has no inventory data!\n");
+        //      gi.Com_PrintFmt("PVM: Backpack has no inventory data!\n");
         G_FreeEdict(backpack);
         return;
     }
@@ -115,9 +115,16 @@ TOUCH(PVM_BackpackTouch) (edict_t* backpack, edict_t* other, const trace_t& tr, 
         int count = backpack->client->pers.inventory[i];
         if (count > 0)
         {
-            const gitem_t* item = GetItemByIndex((item_id_t)i);
+            const gitem_t *item = GetItemByIndex((item_id_t)i);
             if (!item)
                 continue;
+
+            // Skip techs - they should stay in the world as pickups
+            if (item->flags & IF_TECH || item->flags & IF_ARMOR) //||  item->flags & IF_POWERUP)
+            {
+                //    gi.Com_PrintFmt("PVM: Backpack skipping tech {}\n", item->classname);
+                continue;
+            }
 
             // Add to player's inventory
             other->client->pers.inventory[i] += count;
@@ -141,14 +148,14 @@ TOUCH(PVM_BackpackTouch) (edict_t* backpack, edict_t* other, const trace_t& tr, 
     gi.sound(other, CHAN_AUTO, gi.soundindex("items/pkup.wav"), 1, ATTN_NORM, 0);
 
     // Notify player
-    const char* owner_name = backpack->message ? backpack->message : "someone";
+    const char *owner_name = backpack->message ? backpack->message : "someone";
     gi.LocClient_Print(other, PRINT_HIGH, nullptr,
-                      "Picked up {}'s backpack ({} weapons, {} ammo types)\n",
-                      owner_name, weapons_picked, ammo_picked);
+                       "Picked up {}'s backpack ({} weapons, {} ammo types)\n",
+                       owner_name, weapons_picked, ammo_picked);
 
     // Free backpack
     if (backpack->message)
-        gi.TagFree((void*)backpack->message);
+        gi.TagFree((void *)backpack->message);
     if (backpack->client)
         gi.TagFree(backpack->client);
 
@@ -156,7 +163,7 @@ TOUCH(PVM_BackpackTouch) (edict_t* backpack, edict_t* other, const trace_t& tr, 
 }
 
 // Backpack think (despawn after timeout)
-THINK(PVM_BackpackThink) (edict_t* backpack) -> void
+THINK(PVM_BackpackThink)(edict_t *backpack)->void
 {
     if (!backpack)
         return;
@@ -166,7 +173,7 @@ THINK(PVM_BackpackThink) (edict_t* backpack) -> void
 
     // Free memory
     if (backpack->message)
-        gi.TagFree((void*)backpack->message);
+        gi.TagFree((void *)backpack->message);
     if (backpack->client)
         gi.TagFree(backpack->client);
 
@@ -174,28 +181,28 @@ THINK(PVM_BackpackThink) (edict_t* backpack) -> void
 }
 
 // Give player their respawn weapon (called on spawn)
-void PVM_GiveRespawnWeapon(edict_t* player)
+void PVM_GiveRespawnWeapon(edict_t *player)
 {
     if (!player || !player->client)
         return;
 
     // Get saved respawn weapon from character
-    const char* weapon_name = Character_GetRespawnWeapon(player);
+    const char *weapon_name = Character_GetRespawnWeapon(player);
 
     // Try to find the weapon
-    gitem_t* weapon = FindItem(weapon_name);
+    gitem_t *weapon = FindItem(weapon_name);
 
     if (!weapon || !(weapon->flags & IF_WEAPON))
     {
         // Fallback to default
-        gi.Com_PrintFmt("PVM: Invalid respawn weapon '{}' for {}, using default\n",
-                        weapon_name, player->client->pers.netname);
+        //      gi.Com_PrintFmt("PVM: Invalid respawn weapon '{}' for {}, using default\n",
+        //                     weapon_name, player->client->pers.netname);
         weapon = FindItem(DEFAULT_PVM_WEAPON);
     }
 
     if (!weapon)
     {
-        gi.Com_PrintFmt("PVM: ERROR - Could not find default respawn weapon!\n");
+        //        gi.Com_PrintFmt("PVM: ERROR - Could not find default respawn weapon!\n");
         return;
     }
 
@@ -205,7 +212,7 @@ void PVM_GiveRespawnWeapon(edict_t* player)
     // Give ammo (weapon->ammo is item_id, need to get the ammo tag)
     if (weapon->ammo)
     {
-        gitem_t* ammo_item = GetItemByIndex(weapon->ammo);
+        gitem_t *ammo_item = GetItemByIndex(weapon->ammo);
         if (ammo_item && ammo_item->tag >= AMMO_BULLETS && ammo_item->tag < AMMO_MAX)
         {
             ammo_t ammo_type = (ammo_t)ammo_item->tag;
@@ -224,8 +231,8 @@ void PVM_GiveRespawnWeapon(edict_t* player)
                     player->client->pers.inventory[weapon->ammo] = 10;
             }
 
-            gi.Com_PrintFmt("PVM: Gave {} {} ammo to {}\n",
-                player->client->pers.inventory[weapon->ammo], ammo_item->pickup_name, GetPlayerName(player));
+            //   gi.Com_PrintFmt("PVM: Gave {} {} ammo to {}\n",
+            //      player->client->pers.inventory[weapon->ammo], ammo_item->pickup_name, GetPlayerName(player));
         }
     }
 
@@ -233,14 +240,14 @@ void PVM_GiveRespawnWeapon(edict_t* player)
     player->client->pers.weapon = weapon;
     player->client->pers.selected_item = weapon->id;
 
-    gi.Com_PrintFmt("PVM: Gave {} respawn weapon: {}\n",
-                    GetPlayerName(player), weapon_name);
+    // gi.Com_PrintFmt("PVM: Gave {} respawn weapon: {}\n",
+    //                  GetPlayerName(player), weapon_name);
 }
 
 // Check if PvM mode is active
 bool IsPvMMode()
 {
-    extern cvar_t* pvm;
+    extern cvar_t *pvm;
     return pvm && pvm->integer;
 }
 

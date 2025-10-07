@@ -1152,6 +1152,7 @@ void TechMenuHandler(edict_t *ent, pmenuhnd_t *p)
 		if (tech_index != -1)
 		{
 			// Give the player the tech
+		//	gi.Com_PrintFmt("PRINT: TechMenu: Giving {} tech {} via menu\n", ent->client->pers.netname, selected_tech_name);
 			ent->client->pers.inventory[tech_index] = 1;
 			gi.LocCenter_Print(ent, "\n\n\n\nSelected Tech: {}\n", selected_tech_name);
 
@@ -2219,8 +2220,17 @@ pmenuhnd_t *CreateHordeMenu(edict_t *ent)
 
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	add_entry("Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
-	add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
+
+	if (pvm->integer)
+	{
+		add_entry("Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
+
+	if (g_horde && !pvm->integer)
+	{
+		add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	}
+
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
 	add_entry("", PMENU_ALIGN_CENTER);

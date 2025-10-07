@@ -1757,7 +1757,10 @@ gitem_t* CTFWhat_Tech(edict_t* ent)
   {
         // Prevent immediate re-pickup after dropping
         if (ent->touch_debounce_time > level.time)
+        {
+     //           gi.Com_PrintFmt("PRINT: CTFPickup_Tech: Debounce prevented pickup for {}\n", other->client->pers.netname);
                 return false;
+        }
 
         size_t i;
 
@@ -1766,12 +1769,13 @@ gitem_t* CTFWhat_Tech(edict_t* ent)
         {
                 if (other->client->pers.inventory[tech_ids[i]])
                 {
-                //      CTFHasTech(other);
+   //                     gi.Com_PrintFmt("PRINT: CTFPickup_Tech: {} already has a tech, blocking pickup\n", other->client->pers.netname);
                         return false; // has this one
                 }
         }
 
         // client only gets one tech
+  //      gi.Com_PrintFmt("PRINT: CTFPickup_Tech: {} picking up tech {}\n", other->client->pers.netname, ent->item->classname);
         other->client->pers.inventory[ent->item->id]++;
         other->client->ctf_regentime = level.time;
         return true;
@@ -1811,6 +1815,41 @@ THINK(TechThink) (edict_t* tech) -> void
 		gi.Com_PrintFmt("PRINT: TechThink: Invalid tech entity\n");
 		return;
 	}
+
+	// if (pvm->integer)
+	// {
+	// 	if (tech->item != nullptr)
+	// 	{
+	// 		// Check if any player already has this tech
+	// 		for (int i = 1; i <= game.maxclients; i++)
+	// 		{
+	// 			edict_t *player = &g_edicts[i];
+	// 			if (player->inuse && player->client)
+	// 			{
+	// 				if (player->client->pers.inventory[tech->item->id] > 0)
+	// 				{
+	// 					// Someone already has this tech, don't spawn another
+	// 			//		gi.Com_PrintFmt("PRINT: TechThink: Player already has tech, not spawning\n");
+	// 					G_FreeEdict(tech);
+	// 					return;
+	// 				}
+	// 			}
+	// 		}
+
+	// 		// Check if this tech already exists in the world
+	// 		for (int i = 1; i < globals.num_edicts; i++)
+	// 		{
+	// 			edict_t *ent = &g_edicts[i];
+	// 			if (ent != tech && ent->inuse && ent->item && ent->item->id == tech->item->id)
+	// 			{
+	// 				// This tech already exists in the world, don't spawn another
+	// 		//		gi.Com_PrintFmt("PRINT: TechThink: Tech already exists in world, not spawning\n");
+	// 				G_FreeEdict(tech);
+	// 				return;
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	edict_t* spot = FindTechSpawn();
 	if (spot != nullptr)
