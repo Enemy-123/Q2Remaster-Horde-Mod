@@ -1752,25 +1752,31 @@ gitem_t* CTFWhat_Tech(edict_t* ent)
 	return nullptr;
 }
 
-bool CTFPickup_Tech(edict_t* ent, edict_t* other)
-{
-	size_t i;
 
-	i = 0;
-	for (; i < q_countof(tech_ids); i++)
-	{
-		if (other->client->pers.inventory[tech_ids[i]])
-		{
-		//	CTFHasTech(other);
-			return false; // has this one
-		}
-	}
+  bool CTFPickup_Tech(edict_t* ent, edict_t* other)
+  {
+        // Prevent immediate re-pickup after dropping
+        if (ent->touch_debounce_time > level.time)
+                return false;
 
-	// client only gets one tech
-	other->client->pers.inventory[ent->item->id]++;
-	other->client->ctf_regentime = level.time;
-	return true;
-}
+        size_t i;
+
+        i = 0;
+        for (; i < q_countof(tech_ids); i++)
+        {
+                if (other->client->pers.inventory[tech_ids[i]])
+                {
+                //      CTFHasTech(other);
+                        return false; // has this one
+                }
+        }
+
+        // client only gets one tech
+        other->client->pers.inventory[ent->item->id]++;
+        other->client->ctf_regentime = level.time;
+        return true;
+  }
+
 
 static void SpawnTech(gitem_t* item, edict_t* spot);
 
@@ -1834,6 +1840,17 @@ static THINK(Tech_Make_Touchable) (edict_t* tech) -> void {
 
 void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 {
+  if (pvm->integer)
+  {
+      edict_t *tech = Drop_Item(ent, item);
+      tech->touch = nullptr;  // Disable touch immediately
+      tech->nextthink = level.time + 1.5_sec;  // Wait 1.5 seconds
+      tech->think = Tech_Make_Touchable;  // THEN make it touchable
+
+      ent->client->pers.inventory[item->id] = 0;
+      return;
+  }
+
 	// Eliminar el tech item del inventario del jugador
 	ent->client->pers.inventory[item->id] = 0;
 
@@ -1856,16 +1873,28 @@ void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 	}
 }
 
-
-void CTFDeadDropTech(edict_t* ent)
+void CTFDeadDropTech(edict_t *ent)
 {
-	size_t i;
+	edict_t *dropped;
+	int i;
 
-	for (i = 0; i < q_countof(tech_ids); i++)
+	i = 0;
+	for (; i < q_countof(tech_ids); i++)
 	{
 		if (ent->client->pers.inventory[tech_ids[i]])
 		{
-			ent->client->pers.inventory[tech_ids[i]] = 1;
+			if (pvm->integer)
+			{
+				dropped = Drop_Item(ent, GetItemByIndex(tech_ids[i]));
+				// hack the velocity to make it bounce random
+				dropped->velocity[0] = crandom_open() * 300;
+				dropped->velocity[1] = crandom_open() * 300;
+				dropped->nextthink = level.time + CTF_TECH_TIMEOUT;
+				dropped->think = TechThink;
+				dropped->owner = nullptr;
+			}
+
+			ent->client->pers.inventory[tech_ids[i]] = 0;
 		}
 	}
 }
