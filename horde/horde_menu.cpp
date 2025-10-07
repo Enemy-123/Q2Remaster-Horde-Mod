@@ -37,6 +37,8 @@ void CategorizeMapList();
 pmenuhnd_t* CreateHUDMenu(edict_t* ent);
 void OpenMiscMenu(edict_t* ent, int cursor_position = -1); // Forward declare Misc menu functions
 void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p);
+void OpenRespawnWeaponMenu(edict_t* ent); // Forward declare Respawn Weapon menu
+void RespawnWeaponMenuHandler(edict_t* ent, pmenuhnd_t* p);
 void OpenAdminMenu(edict_t* ent); // Forward declare Admin menu functions
 void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
@@ -200,13 +202,15 @@ void HordeUpdateJoinMenu(edict_t* ent)
 	SetGameName(&entries[JOINMENU_TITLE_IDX]);       // Update Game Title
 	SetLevelName(&entries[JOINMENU_LEVELNAME_IDX]);  // Update Level Name
 
-	// --- Horde/Coop Specific Logic ---
-	if (g_horde->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) // Check if Horde mode, Coop, or single player is active
+	// --- Horde/Coop/PvM Specific Logic ---
+	if (g_horde->integer || g_pvm->integer || G_IsCooperative() || coop->integer || !deathmatch->integer) // Check if Horde mode, PvM, Coop, or single player is active
 	{
 		// Set appropriate join text based on mode
 		const char* join_text;
 		if (g_horde->integer)
 			join_text = "Join and Fight the HORDE!";
+		else if (g_pvm->integer)
+			join_text = "Join PvM (Player vs Monster)";
 		else if (G_IsCooperative() || coop->integer)
 			join_text = "Join Cooperative Game";
 		else
@@ -368,6 +372,10 @@ struct map_lists_t {
 };
 
 static map_lists_t categorized_maps;
+
+// Respawn weapon selection menu
+constexpr size_t RESPAWN_WEAPON_MENU_SIZE = 14;
+static pmenu_t respawn_weapon_menu[RESPAWN_WEAPON_MENU_SIZE];
 
 // Function to categorize the maps based on g_map_list cvar
 void CategorizeMapList() {
@@ -631,8 +639,8 @@ void OpenMapCategoryMenu(edict_t* ent) {
 	idx++;
 
 	// Map categories or mode vote options
-	if (g_horde->integer) {
-		// In horde mode - show map categories and cooperative vote
+	if (g_horde->integer || g_pvm->integer) {
+		// In horde/PvM mode - show map categories and cooperative vote
 		Q_strlcpy(map_category_menu[idx].text, "Small Maps", sizeof(map_category_menu[idx].text));
 		map_category_menu[idx].align = PMENU_ALIGN_LEFT;
 		map_category_menu[idx].SelectFunc = MapCategoryHandler;
@@ -1241,6 +1249,99 @@ void MiscMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	}
 }
 
+// Handler for respawn weapon selection menu
+void RespawnWeaponMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p || p->cur < 0) {
+		if (ent && ent->client && ent->client->menu)
+			PMenu_Close(ent);
+		return;
+	}
+
+	const size_t option = p->cur;
+	const char* selected_text = respawn_weapon_menu[option].text;
+
+	if (!selected_text || !selected_text[0]) {
+		return;
+	}
+
+	// Handle "Back to Main Menu"
+	if (strcmp(selected_text, "Back to Main Menu") == 0) {
+		PMenu_Close(ent);
+		OpenHordeMenu(ent);
+		return;
+	}
+
+	// Handle "Current:" line (skip)
+	if (strncmp(selected_text, "Current:", 8) == 0) {
+		return;
+	}
+
+	// Otherwise, it's a weapon selection
+	Character_SetRespawnWeapon(ent, selected_text);
+	gi.LocClient_Print(ent, PRINT_HIGH, nullptr, "Respawn weapon set to: {}\n", selected_text);
+
+	// Reopen the menu to show updated selection
+	PMenu_Close(ent);
+	OpenRespawnWeaponMenu(ent);
+}
+
+// Creates and opens the respawn weapon selection menu
+void OpenRespawnWeaponMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
+	// Set menu protection
+	ent->client->menu_protected = true;
+	ent->client->menu_protection_start = level.time;
+
+	// Clear menu
+	memset(respawn_weapon_menu, 0, sizeof(respawn_weapon_menu));
+	int count = 0;
+
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
+		if (count < RESPAWN_WEAPON_MENU_SIZE) {
+			Q_strlcpy(respawn_weapon_menu[count].text, text, sizeof(respawn_weapon_menu[count].text));
+			respawn_weapon_menu[count].align = align;
+			respawn_weapon_menu[count].SelectFunc = func;
+			count++;
+		}
+	};
+
+	// Title
+	add_entry("*Set Respawn Weapon*", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Display current respawn weapon
+	char current_weapon_display[64];
+	const char* current_weapon = Character_GetRespawnWeapon(ent);
+	snprintf(current_weapon_display, sizeof(current_weapon_display), "Current: %s", current_weapon);
+	add_entry(current_weapon_display, PMENU_ALIGN_LEFT);
+	add_entry("", PMENU_ALIGN_CENTER);
+
+	// Weapon options
+	add_entry("Blaster", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Shotgun", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Super Shotgun", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Machinegun", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Chaingun", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Grenade Launcher", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Rocket Launcher", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("HyperBlaster", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("Railgun", PMENU_ALIGN_LEFT, nullptr);
+	add_entry("BFG10K", PMENU_ALIGN_LEFT, nullptr);
+
+	// Back option
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Back to Main Menu", PMENU_ALIGN_LEFT, nullptr);
+
+	PMenu_Open(ent, respawn_weapon_menu, -1, count, nullptr, nullptr);
+}
+
 // Creates and opens the Misc submenu
 void OpenMiscMenu(edict_t* ent, int cursor_position) {
 	if (!ent || !ent->client) {
@@ -1661,13 +1762,13 @@ void AdminMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Healed all players.\n");
 	}
 	else if (strcmp(text, "Skip to Next Wave") == 0) {
-		if (g_horde->integer) {
+		if (g_horde->integer || g_pvm->integer) {
 			// Kill all AI to trigger next wave
 			extern void Cmd_Kill_AI_f(edict_t* ent);
 			Cmd_Kill_AI_f(ent);
 			gi.LocClient_Print(ent, PRINT_HIGH, "Killed all AI - advancing to next wave.\n");
 		} else {
-			gi.LocClient_Print(ent, PRINT_HIGH, "This only works in Horde mode.\n");
+			gi.LocClient_Print(ent, PRINT_HIGH, "This only works in Horde/PvM mode.\n");
 		}
 	}
 	else if (strcmp(text, "Back") == 0) {
@@ -1745,6 +1846,11 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	// HUD Options
 	else if (strcmp(selected_text, "HUD Options") == 0) {
 		OpenHUDMenu(ent);
+		shouldCloseMenu = false;
+	}
+	// Set Respawn Weapon
+	else if (strcmp(selected_text, "Set Respawn Weapon") == 0) {
+		OpenRespawnWeaponMenu(ent);
 		shouldCloseMenu = false;
 	}
 	// Swap Tech
@@ -1837,6 +1943,7 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent) {
 
 	add_entry("Misc Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler);
+	add_entry("Set Respawn Weapon", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("Swap Tech", PMENU_ALIGN_LEFT, HordeMenuHandler);
 	add_entry("Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler);
 
@@ -1989,7 +2096,7 @@ public:
 
 	void addHeader() {
 		// Wave and enemies information
-		if (g_horde->integer) {
+		if (g_horde->integer || g_pvm->integer) {
 			layout_builder.append(fmt::format(
 				"if 0 xv -5 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
 				last_wave_number, GetStroggsNum()));

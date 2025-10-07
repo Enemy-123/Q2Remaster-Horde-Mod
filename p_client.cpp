@@ -156,7 +156,7 @@ potential spawning position for deathmatch games
 */
 void SP_info_player_deathmatch(edict_t* self)
 {
-	if (!g_horde->integer || !deathmatch->integer)
+	if ((!g_horde->integer && !g_pvm->integer) || !deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -170,7 +170,7 @@ potential spawning position for coop games
 */
 void SP_info_player_coop(edict_t* self)
 {
-	if (!G_IsCooperative() || !g_horde->integer)
+	if (!G_IsCooperative() && !g_horde->integer && !g_pvm->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -503,7 +503,8 @@ void TossClientWeapon(edict_t* self)
 		return;
 
 	item = self->client->pers.weapon;
-	if (item && g_instagib->integer)
+	// PvM mode: disable instagib
+	if (item && g_instagib->integer && !IsPvMMode())
 		item = nullptr;
 	if (item && !self->client->pers.inventory[self->client->pers.weapon->ammo])
 		item = nullptr;
@@ -655,7 +656,11 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		// Kyper - Lithium Port
 		Hook_PlayerDie(attacker, self);
 		// ZOID
-		TossClientWeapon(self);
+		// PvM mode: drop backpack with all items, otherwise toss weapon
+		if (IsPvMMode())
+			PVM_DropBackpack(self);
+		else
+			TossClientWeapon(self);
 		// ZOID
 		CTFPlayerResetGrapple(self);
 		CTFDeadDropFlag(self);
@@ -867,6 +872,10 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	}
 	self->deadflag = true;
 
+	// Save character data on death (PvM & Horde)
+	if ((g_horde && g_horde->integer) || (g_pvm && g_pvm->integer))
+		Character_Save(self);
+
 	// Don't link if being crushed - prevent re-crush
 	if (mod.id == MOD_CRUSH)
 	{
@@ -880,8 +889,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	else
 		gi.linkentity(self);
 
-	// Remove all entities owned by the player (only for g_horde->integer)
-	if (g_horde->integer)
+	// Remove all entities owned by the player (only for Horde/PvM)
+	if (g_horde->integer || g_pvm->integer)
 	{
 		RemovePlayerOwnedEntities(self);
 	}
@@ -1011,7 +1020,7 @@ but is called after each death and level change in deathmatch
 // Calculate maximum health based on current wave level
 int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr) noexcept
 {
-	if (!g_horde->integer)
+	if (!g_horde->integer && !g_pvm->integer)
 		return max(100, base_max_health);
 
 	// Calculate health based on wave tier (optimized lookup)
@@ -1086,6 +1095,22 @@ void Horde_UpdateStartItemsForWave(int32_t wave)
 
 void Horde_InitClientPersistant(edict_t* ent, gclient_t* client)
 {
+	// PvM Mode: Give respawn weapon only, then return
+	if (IsPvMMode())
+	{
+		// Set health
+		const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
+		client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
+		client->pers.health = new_max_health;
+
+		// Clear inventory (they only get respawn weapon)
+		client->pers.inventory.fill(0);
+
+		// Give respawn weapon
+		PVM_GiveRespawnWeapon(ent);
+		return;
+	}
+
 	// Cache wave level for multiple checks
 	const int wave = current_wave_level;
 	const bool is_late_joiner = !client->pers.received_late_join_ammo;
@@ -1274,11 +1299,14 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		if (is_deathmatch && !is_horde)
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
-		// Process start items
-		if (g_start_items && *g_start_items->string)
-			Player_GiveStartItems(ent, g_start_items->string);
-		if (level.start_items && *level.start_items)
-			Player_GiveStartItems(ent, level.start_items);
+		// Process start items (skip in PvM mode)
+		if (!IsPvMMode())
+		{
+			if (g_start_items && *g_start_items->string)
+				Player_GiveStartItems(ent, g_start_items->string);
+			if (level.start_items && *level.start_items)
+				Player_GiveStartItems(ent, level.start_items);
+		}
 
 		G_CheckPowerArmor(ent);
 
@@ -1357,6 +1385,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	client->pers.connected = true;
 	client->pers.spawned = true;
+
+	// Load character data (PvM & Horde)
+	Character_Load(ent);
 }
 
 void InitClientResp(gclient_t* client)
@@ -2069,7 +2100,7 @@ void G_PostRespawn(edict_t* self)
 
 	self->client->respawn_time = level.time;
 
-	if (g_horde->integer)
+	if (g_horde->integer || g_pvm->integer)
 		self->client->invincible_time = max(level.time, self->client->invincible_time) + 2_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 }
 
@@ -3873,7 +3904,7 @@ void CheckClientsInactivity() {
 
 void UpdateClientHealth(edict_t* ent, gclient_t* client)
 {
-	if (!g_horde->integer || client->resp.spectator || !client->pers.spawned ||
+	if ((!g_horde->integer && !g_pvm->integer) || client->resp.spectator || !client->pers.spawned ||
 		ent->health <= 0 || ent->deadflag)
 		return;
 
@@ -5161,7 +5192,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-	if (!deathmatch->integer || g_horde->integer || G_IsCooperative())
+	if (!deathmatch->integer || g_horde->integer || g_pvm->integer || G_IsCooperative())
 		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;

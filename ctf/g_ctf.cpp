@@ -18,7 +18,7 @@ cvar_t* g_teamplay_force_join;
 // [Paril-KEX]
 bool G_TeamplayEnabled()
 {
-	return ctf->integer || teamplay->integer || g_horde->integer;
+	return ctf->integer || teamplay->integer || g_horde->integer || g_pvm->integer;
 }
 
 // [Paril-KEX]
@@ -2997,9 +2997,9 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 
 void HordeJoinTeam(edict_t* ent, pmenuhnd_t* p)
 {
-	// For cooperative/single player modes, directly join team 1 if techs are disabled
+	// For cooperative/single player/PvM modes, directly join team 1 if techs are disabled
 	// This will transition the player from spectator-like state (CTF_NOTEAM) to active play
-	if ((G_IsCooperative() || coop->integer || !deathmatch->integer) && !g_allow_techs->integer) {
+	if (((G_IsCooperative() || coop->integer || !deathmatch->integer) && !g_allow_techs->integer) || g_pvm->integer) {
 		CTFJoinTeam(ent, CTF_TEAM1);
 	} else {
 		// Otherwise open tech menu for selection

@@ -1,5 +1,6 @@
-CMakeFiles/Q2HordeModDLL.dir/horde/g_bombspell.cpp.obj: \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_bombspell.cpp \
+CMakeFiles/Q2HordeModDLL.dir/horde/g_pvm.cpp.obj: \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_pvm.cpp \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_pvm.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../g_local.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../bg_local.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../q_std.h \
@@ -233,41 +234,9 @@ CMakeFiles/Q2HordeModDLL.dir/horde/g_bombspell.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/opt_random.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/random.tcc \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_character.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_pvm.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/g_ctf.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../ctf/p_ctf_menu.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/g_horde.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_ids.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/../horde/horde_monster_data.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/horde_performance.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/chrono \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/chrono.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/ratio \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/parse_numbers.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/sstream \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/istream \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/ios \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/basic_ios.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/basic_ios.tcc \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/ostream \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ostream.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/ostream.tcc \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/istream.tcc \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/sstream.tcc \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/shared_ptr.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/shared_ptr_base.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/allocated_ptr.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unique_ptr.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/ext/concurrence.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/align.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/chrono_io.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/iomanip \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/quoted_string.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/format \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/optional \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/monostate.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/formatfwd.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode.h \
- /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/unicode-data.h \
- /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde_phys.h
+ /usr/x86_64-w64-mingw32/include/c++/15.2.0/bitset

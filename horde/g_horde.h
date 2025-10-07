@@ -23,6 +23,7 @@ struct PlayerStats;
 // --- Horde Mode Game Initialization and Management Functions ---
 extern cvar_t* g_horde;
 extern cvar_t* g_horde_grid_first;  // Test cvar: prioritize grid spawning
+extern cvar_t* g_pvm;  // PvM mode (Player vs Monster with character persistence)
 void Horde_PreInit();
 void Horde_Init();
 void Horde_RunFrame();

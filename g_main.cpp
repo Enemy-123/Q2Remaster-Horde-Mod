@@ -157,6 +157,7 @@ cvar_t* g_nolag; // Network optimization: convert gibs to temp entities
 
 //HORDE STUFF
 cvar_t* g_horde_profiler;
+cvar_t* g_pvm; // PvM (Player vs Monster) mode
 
 cvar_t* g_use_hook;
 cvar_t* g_hook_wave;

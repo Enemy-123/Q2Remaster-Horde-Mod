@@ -2696,6 +2696,10 @@ void InitClientPersistant(edict_t* ent, gclient_t* client);
 void Horde_UpdateStartItemsForWave(int32_t wave);
 void InitClientPt(const edict_t* ent, gclient_t* client);
 void InitClientResp(gclient_t* client);
+
+// Character persistence system (PvM & Horde)
+#include "horde/g_character.h"
+#include "horde/g_pvm.h"
 void InitBodyQue();
 void ClientBeginServerFrame(edict_t* ent);
 void ClientUserinfoChanged(edict_t* ent, const char* userinfo);
@@ -3212,6 +3216,9 @@ struct client_persistant_t
 	gtime_t last_auto_buy_check = 0_ms;   // Last time auto-buy was checked
 	BFGMode bfg_mode = BFGMode::NORMAL;   // Default to normal mode (players must upgrade)
 	int morph_preference = 0;              // 0=Brain (default), 1=Flyer
+
+	// Character persistence (PvM & Horde)
+	char respawn_weapon_name[64];         // Saved respawn weapon preference
 };
 
 // client data that stays across deathmatch respawns

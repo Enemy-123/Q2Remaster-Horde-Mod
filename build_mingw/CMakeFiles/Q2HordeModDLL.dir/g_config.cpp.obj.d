@@ -232,6 +232,8 @@ CMakeFiles/Q2HordeModDLL.dir/g_config.cpp.obj: \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/random.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32/bits/opt_random.h \
  /usr/x86_64-w64-mingw32/include/c++/15.2.0/bits/random.tcc \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_character.h \
+ /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_pvm.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/ctf/g_ctf.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/ctf/p_ctf_menu.h \
  /home/perrobjorn/Documents/Repo/Q2Remaster-Horde-Mod/horde/g_horde.h \
