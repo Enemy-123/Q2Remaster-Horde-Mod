@@ -285,7 +285,7 @@ namespace ObituaryMessages {
 		}
 	}
 
-	// Monster kill messages (living monsters)
+	// Monster kill messages
 	inline const char* GetMonsterKillMessage(mod_id_t mod_id)
 	{
 		switch (mod_id)
@@ -316,9 +316,10 @@ namespace ObituaryMessages {
 		case MOD_BRAINTENTACLE:  return brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a {1}\n";
 		case MOD_GEKK:           return "{0} was spat to death by a {1}. Yuck!\n";
 		case MOD_TANK_PUNCH:     return "{0} was pulverized by a {1}\n";
-		case MOD_PHALANX:        return "{0} was melted by a {1}'s phalanx\n";
+		case MOD_PHALANX:        return "{0} was melted by a {1}\n";
 		case MOD_TRACKER:        return "{0} was tracked down by a {1}\n";
 		case MOD_BLUEBLASTER:    return "{0} was blasted by a {1}\n";
+		case MOD_BURN:			 return "{0} was burned alive by a {1}\n";
 		default:                 return brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n";
 		}
 	}

@@ -1178,7 +1178,8 @@ enum mod_id_t : uint8_t
 	MOD_TANK_PUNCH,
 	MOD_SUMMONED_MONSTER,
 	MOD_BOMBS,
-	MOD_CANNON
+	MOD_CANNON,
+	MOD_BURN
 };;
 
 struct mod_t

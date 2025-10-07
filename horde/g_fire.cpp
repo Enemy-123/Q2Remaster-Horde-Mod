@@ -84,7 +84,9 @@ THINK(burning_think)(edict_t* self) -> void
 
     // Check if burning effect should end
     if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 ||
-        level.time >= self->timestamp)
+        level.time >= self->timestamp ||
+        (self->enemy->client && self->enemy->client->invincible_time > level.time) ||
+        ((self->enemy->svflags & SVF_MONSTER) && self->enemy->monsterinfo.invincible_time > level.time))
     {
         gi.unlinkentity(self);
         G_FreeEdict(self);
@@ -107,7 +109,7 @@ THINK(burning_think)(edict_t* self) -> void
 
     // Apply burning damage
     T_Damage(self->enemy, self, self->owner, vec3_origin, self->enemy->s.origin,
-            vec3_origin, self->dmg, 0, DAMAGE_NO_KNOCKBACK, MOD_LAVA);
+            vec3_origin, self->dmg, 0, DAMAGE_NO_KNOCKBACK, MOD_BURN);
 
     // // Visual fire effect
     // gi.WriteByte(svc_temp_entity);
@@ -278,7 +280,7 @@ TOUCH(bfire_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool other_
     // Deal minor immediate damage (most damage comes from burning DOT)
     vec3_t normal = tr.plane.normal;
     T_Damage(other, self, self->owner, vec3_origin, self->s.origin,
-            normal, self->dmg / 5, 0, DAMAGE_NO_KNOCKBACK, MOD_LAVA);
+            normal, self->dmg / 5, 0, DAMAGE_NO_KNOCKBACK, MOD_BURN);
 }
 
 void ThrowFlame(edict_t* ent, const vec3_t& start, const vec3_t& forward,
