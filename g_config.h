@@ -146,6 +146,7 @@ struct PlasmaBeamConfig
 	int damage = 145;
 	int damage_singleplayer = 135;
 	int kick = 3;
+	int kick_singleplayer = 3;
 };
 
 struct TrackerConfig

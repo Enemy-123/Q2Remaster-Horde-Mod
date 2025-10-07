@@ -101,7 +101,7 @@
     },
     "plasmabeam": {
       "damage": 16,
-      "damage_singleplayer": 20,
+      "damage_singleplayer": 18,
       "kick": 3
     },
     "tracker": {

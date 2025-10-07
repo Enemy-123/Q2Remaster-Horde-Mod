@@ -100,8 +100,8 @@
       "damage_radius": 120
     },
     "plasmabeam": {
-      "damage": 145,
-      "damage_singleplayer": 135,
+      "damage": 16,
+      "damage_singleplayer": 15,
       "kick": 3
     },
     "tracker": {

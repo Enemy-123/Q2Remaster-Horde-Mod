@@ -352,9 +352,6 @@ void Weapon_ETF_Rifle(edict_t* ent)
 	Weapon_Repeating(ent, 4, 7, 37, 41, pause_frames, weapon_etf_rifle_fire);
 }
 
-constexpr int32_t HEATBEAM_DM_DMG = 18;
-constexpr int32_t HEATBEAM_SP_DMG = 18;
-
 void Heatbeam_Fire(edict_t* ent)
 {
 	bool const firing = (ent->client->buttons & BUTTON_ATTACK);
@@ -390,14 +387,14 @@ void Heatbeam_Fire(edict_t* ent)
 	// for comparison, the hyperblaster is 15/20
 	// jim requested more damage, so try 15/15 --- PGM 07/23/98
 	if (G_IsDeathmatch())
-		damage = HEATBEAM_DM_DMG;
+		damage = g_config.plasmabeam.damage;
 	else
-		damage = HEATBEAM_SP_DMG;
+		damage = g_config.plasmabeam.damage_singleplayer;
 
 	if (G_IsDeathmatch()) // really knock 'em around in deathmatch
-		kick = g_config.etfrifle.kick_homing;
+		kick = g_config.plasmabeam.kick;
 	else
-		kick = g_config.etfrifle.kick_homing;
+		kick = g_config.plasmabeam.kick_singleplayer;
 
 	if (is_quad)
 	{

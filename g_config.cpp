@@ -589,6 +589,7 @@ void Config_Load(const char* basedir)
 			g_config.plasmabeam.damage = GetJsonInt(w, "damage", 145);
 			g_config.plasmabeam.damage_singleplayer = GetJsonInt(w, "damage_singleplayer", 135);
 			g_config.plasmabeam.kick = GetJsonInt(w, "kick", 3);
+			g_config.plasmabeam.kick_singleplayer = GetJsonInt(w, "kick_singleplayer", 3);
 		}
 
 		// Tracker / Disintegrator (Rogue)

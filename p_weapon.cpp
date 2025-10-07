@@ -1565,7 +1565,6 @@ constexpr float GUN_HEIGHT_ADJUST = 5.0f;
 constexpr int MACHINEGUN_FRAME_FIRE1 = 4;
 constexpr int MACHINEGUN_FRAME_FIRE2 = 5;
 constexpr int MACHINEGUN_FRAME_IDLE = 6;
-constexpr int TRACER_DAMAGE = 40;
 constexpr gtime_t TRACER_COOLDOWN = 500_ms;
 
 // Gun offset vectors
